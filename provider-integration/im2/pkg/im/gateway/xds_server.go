@@ -66,24 +66,39 @@ func startConfigurationServer() {
 		runtimeservice.RegisterRuntimeDiscoveryServiceServer(grpcServer, xdsServer)
 	}
 
-	socketPath := filepath.Join(cfg.Provider.Envoy.StateDirectory, "xds.sock")
-	_ = os.Remove(socketPath)
-	lis, err := net.Listen("unix", socketPath)
-	if err != nil {
-		log.Fatal("UCloud/Gateway configuration server failed to start! Fatal error! %v", err)
-		os.Exit(1)
-	}
+	var lis net.Listener
+	var err error
 
-	err = os.Chmod(socketPath, 0700)
-	if err != nil {
-		log.Fatal("UCloud/Gateway configuration server failed to start! Fatal error! %v", err)
-		os.Exit(1)
+	switch cfg.Provider.Envoy.ListenMode {
+	case cfg.EnvoyListenModeUnix:
+		socketPath := filepath.Join(cfg.Provider.Envoy.StateDirectory, "xds.sock")
+		_ = os.Remove(socketPath)
+		lis, err = net.Listen("unix", socketPath)
+		if err != nil {
+			log.Fatal("UCloud/Gateway configuration server failed to start! Fatal error! %v", err)
+			os.Exit(1)
+		}
+
+		err = os.Chmod(socketPath, 0700)
+		if err != nil {
+			log.Fatal("UCloud/Gateway configuration server failed to start! Fatal error! %v", err)
+			os.Exit(1)
+		}
+
+	case cfg.EnvoyListenModeTcp:
+		lis, err = net.Listen("tcp", "0.0.0.0:52033")
+		if err != nil {
+			log.Fatal("UCloud/Gateway configuration server failed to start! Fatal error! %v", err)
+			os.Exit(1)
+		}
 	}
 
 	if err = grpcServer.Serve(lis); err != nil {
 		log.Fatal("UCloud/Gateway configuration server has died unexpectedly! Fatal error! %v", err)
 	}
 }
+
+var mostRecentSnapshot *cache.Snapshot = nil
 
 func setActiveSnapshot(snapshot *cache.Snapshot) {
 	for envoyCache == nil {
@@ -101,6 +116,8 @@ func setActiveSnapshot(snapshot *cache.Snapshot) {
 		log.Fatal("UCloud/Gateway failed to update snapshot: %v", err)
 		panic("Invalid snapshot. Fatal error!")
 	}
+
+	mostRecentSnapshot = snapshot
 }
 
 func createEnvoyLogger() elog.Logger {

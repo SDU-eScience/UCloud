@@ -20,6 +20,9 @@ import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 import {compute} from "@/UCloud";
 import AppParameterValue = compute.AppParameterValue;
 import {WorkflowParameter, WorkflowSetter, WorkflowValidator} from "@/Applications/Jobs/Widgets/Workflow";
+import {MandatoryField} from "@/UtilityComponents";
+import { ReadmeParameter } from "./Readme";
+import {ModuleListParameter, ModuleListSetter, ModuleListValidator} from "@/Applications/Jobs/Widgets/ModuleList";
 
 // Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
 export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;
@@ -50,6 +53,10 @@ const WidgetBody: React.FunctionComponent<WidgetProps> = props => {
             return <NetworkIPParameter {...props} parameter={props.parameter} />;
         case "workflow":
             return <WorkflowParameter {...props} parameter={props.parameter} />;
+        case "readme":
+            return <ReadmeParameter {...props} parameter={props.parameter} />;
+        case "modules":
+            return <ModuleListParameter {...props} parameter={props.parameter} />;
     }
 };
 
@@ -63,6 +70,7 @@ const validators: WidgetValidator[] = [
     IngressValidator,
     NetworkIPValidator,
     WorkflowValidator,
+    ModuleListValidator,
 ];
 
 const setters: WidgetSetter[] = [
@@ -75,6 +83,7 @@ const setters: WidgetSetter[] = [
     IngressSetter,
     NetworkIPSetter,
     WorkflowSetter,
+    ModuleListSetter,
 ];
 
 export interface WidgetProps {
@@ -167,6 +176,14 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
     }
 
     if (props.active === true && props.parameter.type === "workflow" && !props.parameter.optional) {
+        return body;
+    }
+
+    if (props.active === true && props.parameter.type === "readme") {
+        return body;
+    }
+
+    if (props.active === true && props.parameter.type === "modules") {
         return body;
     }
 
@@ -355,5 +372,3 @@ export interface WidgetValidationAnswer {
 export function widgetId(param: {name: string}): string {
     return `app-param-${param.name}`;
 }
-
-export const MandatoryField: React.FunctionComponent = () => <TextSpan ml="4px" bold color="errorMain">*</TextSpan>;

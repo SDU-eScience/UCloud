@@ -7,7 +7,7 @@ import {IconName} from "@/ui-components/Icon";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {file, PageV2} from "@/UCloud";
+import {PageV2} from "@/UCloud";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import * as Grants from ".";
@@ -22,7 +22,7 @@ import {useLocation, useNavigate} from "react-router";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {errorMessageOrDefault, timestampUnixMs} from "@/UtilityFunctions";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
-import {dateToString} from "@/Utilities/DateUtilities";
+import {addMonthsToDate, dateToString} from "@/Utilities/DateUtilities";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -36,6 +36,9 @@ import {BaseLinkClass} from "@/ui-components/BaseLink";
 import {usePage} from "@/Navigation/Redux";
 import {formatDistance} from "date-fns/formatDistance";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {interval, isBefore, isWithinInterval, subDays} from "date-fns";
+import Warning from "@/ui-components/Warning";
+import {SimpleMarkdown} from "@/ui-components/Markdown";
 
 // State model
 // =====================================================================================================================
@@ -45,6 +48,8 @@ interface EditorState {
 
     fullScreenLoading: boolean;
     fullScreenError?: string;
+
+    durationWarning?: string;
 
     allocationPeriod: {start: {month: number, year: number}, durationInMonths: number};
     principalInvestigator: string;
@@ -155,6 +160,7 @@ type EditorAction =
     }
     | {type: "AllocatorsLoaded", allocators: Grants.GrantGiver[], recipientType?: Grants.Recipient["type"]}
     | {type: "DurationUpdated", month?: number, year?: number, duration?: number}
+    | {type: "DurationWarning", durationWarning: string}
     | {type: "AllocatorChecked", isChecked: boolean, allocatorId: string}
     | {
         type: "BalanceUpdated",
@@ -274,9 +280,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         sectionForProvider = newResources[category.provider]!;
                     }
 
+
                     const existing = sectionForProvider.find(it => it.category.name === category.name);
                     if (existing) {
-                        if (existing.allocators.values().find(grantGiver => grantGiver.grantGiverId == allocator.id && grantGiver.grantGiverTitle === allocator.title)) {
+                        if ([...existing.allocators.values()].find(grantGiver => grantGiver.grantGiverId == allocator.id && grantGiver.grantGiverTitle === allocator.title)) {
                             //DO NOTHING
                         } else {
                             existing.allocators.add({grantGiverId: allocator.id, grantGiverTitle: allocator.title});
@@ -368,7 +375,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             const start = new Date(Math.max(timestampUnixMs(), action.start));
             const end = new Date(action.end + 1000);
 
-            const minimumDurationInMonths = 1
+            const minimumDurationInMonths = 1;
 
             const newState: EditorState = {
                 ...state,
@@ -410,12 +417,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                             text: "",
                         },
                         allocationPeriod: {
-                            start: start.getMilliseconds(),
-                            end: Math.max(
+                            start: start.getTime(),
+                            end: addMonthsToDate(start, Math.max(
                                 minimumDurationInMonths,
                                 ((end.getUTCFullYear() - start.getUTCFullYear()) * 12) +
                                 (end.getUTCMonth() - start.getUTCMonth())
-                            )
+                            )).getTime()
                         }
                     }
                 }
@@ -441,7 +448,15 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     },
                     durationInMonths: action.duration ?? state.allocationPeriod.durationInMonths,
                 },
+                durationWarning: undefined
             };
+        }
+
+        case "DurationWarning": {
+            return {
+                ...state,
+                durationWarning: action.durationWarning
+            }
         }
 
         case "ApplicationUpdated": {
@@ -727,7 +742,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 const {balanceFactor} = Accounting.explainUnit(category.category);
                 if (request.category !== category.category.name) continue;
 
-                let alreadyThere = category.allocators.values().find(allocator => allocator.grantGiverId === request.grantGiver && allocator.grantGiverTitle === request.grantGiverTitle)
+                let alreadyThere = [...category.allocators.values()].find(allocator => allocator.grantGiverId === request.grantGiver && allocator.grantGiverTitle === request.grantGiverTitle)
                 if (alreadyThere) {
                     category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * balanceFactor;
                 } else {
@@ -765,9 +780,15 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             newApplicationDocument["Other"] = otherSection;
         }
 
-        const startDate = new Date(doc.allocationPeriod.start ?? Date.now());
+        let startDate = new Date(Date.now())
+        if (doc.allocationPeriod?.start != null) {
+            startDate = new Date(doc.allocationPeriod.start);
+        }
 
-        const endDate = new Date(new Date(doc.allocationPeriod.end ?? Date.now()).getTime() + 1000);
+        let endDate = new Date(Date.now() + 1000);
+        if (doc.allocationPeriod?.end != null) {
+            endDate = new Date(new Date(doc.allocationPeriod.end ?? Date.now()).getTime() + 1000);
+        }
         // Off by one second in some cases, let's just adjust slightly here.
 
         const startYear = Math.max(2019, startDate.getUTCFullYear());
@@ -810,6 +831,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             },
             principalInvestigator: projectPi,
             stateDuringEdit: newEditState,
+            durationWarning: getExpirationWarning({year: startYear, month: startMonth, duration: normalizedEnd - normalizedStart}),
         };
     }
 }
@@ -1302,7 +1324,7 @@ export function Editor(): React.ReactNode {
     const location = useLocation();
     const navigate = useNavigate();
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
-    useProjectId();
+    useProjectId(); // FIXME(Jonas): Is this some refresh-thing that breaks stuff if you remove it?
 
     useEffect(() => {
         (async () => {
@@ -1428,7 +1450,9 @@ export function Editor(): React.ReactNode {
         const valSplit = select.value.split("/");
         const [month, year] = valSplit.map(it => parseInt(it));
         if (isNaN(month) || isNaN(year)) return;
+
         dispatchEvent({type: "DurationUpdated", year, month});
+        handleDurationWarning({year, month});
     }, [dispatchEvent]);
 
     const onDurationUpdated = useCallback<React.FormEventHandler>(ev => {
@@ -1436,6 +1460,16 @@ export function Editor(): React.ReactNode {
         const duration = parseInt(select.value);
         if (isNaN(duration)) return;
         dispatchEvent({type: "DurationUpdated", duration});
+
+        const {month, year} = getStartOfDuration();
+        handleDurationWarning({year, month});
+    }, [dispatchEvent]);
+
+    const handleDurationWarning = useCallback(({year, month, duration}: {year: number, month: number, duration?: number}) => {
+        const warning = getExpirationWarning({year, month, duration});
+        if (warning) {
+            dispatchEvent({type: "DurationWarning", durationWarning: warning});
+        }
     }, [dispatchEvent]);
 
     const onUnlock = useCallback(() => {
@@ -1526,7 +1560,7 @@ export function Editor(): React.ReactNode {
 
         const [start, end] = stateToAllocationPeriod(state);
         const period: Grants.Period = {start, end};
-        
+
         const doc: Grants.Doc = {
             recipient: currentDoc.recipient,
             referenceIds: editState.referenceIds ? editState.referenceIds : null,
@@ -1879,6 +1913,7 @@ export function Editor(): React.ReactNode {
                                 <label>
                                     When should the allocation start?
                                     <Select
+                                        data-duration-start
                                         value={state.allocationPeriod.start.month + "/" + state.allocationPeriod.start.year}
                                         onChange={onStartUpdated}
                                         disabled={state.locked || isClosed}
@@ -1890,6 +1925,7 @@ export function Editor(): React.ReactNode {
                                 <label>
                                     For how many months should the allocation last?
                                     <Select
+                                        data-duration-months
                                         value={state.allocationPeriod.durationInMonths}
                                         onChange={onDurationUpdated}
                                         disabled={state.locked || isClosed}
@@ -1907,6 +1943,7 @@ export function Editor(): React.ReactNode {
                                         )}
                                     </Select>
                                 </label>
+                                <Warning warning={state.durationWarning} />
                             </FormField>
 
                             {state.stateDuringEdit && <>
@@ -2063,7 +2100,7 @@ export function Editor(): React.ReactNode {
                                                                         onInput={onResourceInput}
                                                                         min={0}
                                                                         value={category.totalBalanceRequested[allocator.grantGiverId] ?? ""}
-                                                                        disabled={state.locked || isClosed}/>
+                                                                        disabled={state.locked || isClosed} />
                                                                 </label>
 
                                                                 {errorMessage && <div
@@ -2085,7 +2122,7 @@ export function Editor(): React.ReactNode {
                                                                         onInput={onResourceInput}
                                                                         min={0}
                                                                         value={category.totalBalanceRequested[allocator.grantGiverId] ?? ""}
-                                                                        disabled={state.locked || isClosed}/>
+                                                                        disabled={state.locked || isClosed} />
                                                                 </label>
 
                                                                 {errorMessage && <div
@@ -2355,7 +2392,7 @@ const FormField: React.FunctionComponent<{
                     className={`description ${props.showDescriptionInEditMode === false ? "optional" : ""}`}
                     style={props.icon && {marginLeft: "38px"}}
                 >
-                    {props.description}
+                    {typeof props.description === "string" ? <SimpleMarkdown>{props.description}</SimpleMarkdown> : props.description}
                 </div>
             }
         </div>
@@ -2548,7 +2585,8 @@ function parseIntoSections(text: string): ApplicationSection[] {
         "Add a ",
         "Describe the ",
         "Provide a ",
-        "Please describe the reason for applying"
+        "Please describe the reason for applying",
+        "Required:"
     ];
 
     for (let i = 0; i < titles.length; i++) {
@@ -2721,6 +2759,32 @@ function stateToMonthOptions(state: EditorState): {key: string, text: string}[] 
     result.sort((a, b) => a.time - b.time);
 
     return result;
+}
+
+function getStartOfDuration(): {month: number, year: number} {
+    const [month, year] = document.querySelector<HTMLSelectElement>("select[data-duration-start]")?.value.split("/") ?? [];
+    return {month: parseInt(month), year: parseInt(year)};
+}
+
+function getMonthDuration(): number {
+    const months = parseInt(document.querySelector<HTMLSelectElement>("select[data-duration-months]")?.value ?? "12");
+    return !isNaN(months) ? months : 12;
+}
+
+function getExpirationWarning({year, month, duration}: {year: number, month: number, duration?: number}): string | undefined {
+    const monthDuration = duration ?? getMonthDuration();
+    const now = new Date();
+
+    const endDate = new Date(year, month + monthDuration);
+    const aWeekBefore = subDays(now, 7);
+    const isLessThanAWeekLeft = isWithinInterval(endDate, interval(aWeekBefore, now));
+    if (isLessThanAWeekLeft) {
+        return "This allocation will expire in less than a week.";
+    } else if (isBefore(endDate, now)) {
+        return "The expiration date is in the past.";
+    }
+
+    return undefined;
 }
 
 const GRANT_GIVER_INITIATED_ID = "_GRANT_GIVER_INITIATED_FAKE_ID_";

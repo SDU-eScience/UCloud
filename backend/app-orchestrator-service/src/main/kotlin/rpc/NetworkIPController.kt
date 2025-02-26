@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.rpc
 
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.util.asController
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.NetworkIPService
@@ -14,6 +15,10 @@ class NetworkIPController(
         service.asController().configure(rpcServer)
         implement(NetworkIPs.updateFirewall) {
             ok(service.updateFirewall(actorAndProject, request))
+        }
+
+        implement(NetworkIPs.cleanup) {
+            ok(service.cleanup(ActorAndProject.System, request))
         }
         return@with
     }

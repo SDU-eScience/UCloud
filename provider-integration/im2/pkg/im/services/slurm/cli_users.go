@@ -8,7 +8,9 @@ import (
 	"os/user"
 	"regexp"
 	"strconv"
+	"ucloud.dk/pkg/cli"
 	db "ucloud.dk/pkg/database"
+	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/termio"
@@ -41,7 +43,7 @@ func HandleUsersCommand() {
 			LocalUid:   localUid,
 		})
 
-		cliHandleError("fetching user mapping", err)
+		cli.HandleError("fetching user mapping", err)
 
 		t := termio.Table{}
 		t.AppendHeader("UCloud username")
@@ -64,10 +66,10 @@ func HandleUsersCommand() {
 	}
 
 	switch {
-	case isListCommand(command):
+	case cli.IsListCommand(command):
 		_ = printUsers()
 
-	case isAddCommand(command):
+	case cli.IsAddCommand(command):
 		if ucloudName == "" {
 			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "ucloud-name must be supplied")
 			os.Exit(1)
@@ -90,10 +92,10 @@ func HandleUsersCommand() {
 			},
 		)
 
-		cliHandleError("adding user", err)
+		cli.HandleError("adding user", err)
 		termio.WriteStyledLine(termio.Bold, termio.Green, 0, "OK")
 
-	case isDeleteCommand(command):
+	case cli.IsDeleteCommand(command):
 		if ucloudName == "" && localName == "" && localUid == "" {
 			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "either ucloud-name, local-name or local-uid must be supplied")
 			os.Exit(1)
@@ -125,7 +127,7 @@ func HandleUsersCommand() {
 		}
 
 		resp, err := cliUsersDelete.Invoke(cliUsersDeleteRequest{Uids: uids})
-		cliHandleError("deleting users", err)
+		cli.HandleError("deleting users", err)
 
 		for i, failure := range resp.Failures {
 			if failure != "" {
@@ -261,6 +263,16 @@ func HandleUsersCommandServer() {
 			}
 		}
 
+		if cfg.Services.Unmanaged {
+			_, err = ctrl.CreatePersonalProviderProject(r.Payload.UCloudName)
+			if err != nil {
+				return ipc.Response[util.Empty]{
+					StatusCode:   http.StatusBadRequest,
+					ErrorMessage: fmt.Sprintf("%s", err),
+				}
+			}
+		}
+
 		return ipc.Response[util.Empty]{
 			StatusCode: http.StatusOK,
 		}
@@ -277,7 +289,7 @@ func HandleUsersCommandServer() {
 
 		var errors []string
 		for _, uid := range r.Payload.Uids {
-			err := ctrl.RemoveConnection(uid)
+			err := ctrl.RemoveConnection(uid, true)
 			if err != nil {
 				errors = append(errors, err.Error())
 			} else {

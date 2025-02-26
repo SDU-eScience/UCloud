@@ -88,24 +88,6 @@ class JobMonitoringService {
                                 currentAction = "Launching verify job"
                                 backgroundScope.launch {
                                     jobsByProvider.forEach { (provider, localJobs) ->
-                                        if (now >= nextVerify) {
-                                            try {
-                                                providers.call(
-                                                    provider,
-                                                    ActorAndProject.System,
-                                                    { JobsProvider(it).verify },
-                                                    bulkRequestOf(localJobs),
-                                                    isUserRequest = false
-                                                )
-                                            } catch (ex: Throwable) {
-                                                if (provider != "aau") {
-                                                    log.info("Failed to verify block in $provider. Jobs: ${localJobs.map { it.id }}")
-                                                }
-                                            }
-
-                                            nextVerify = now + (1000L * 60 * 15)
-                                        }
-
                                         val requiresRestart = localJobs.filter {
                                             it.status.state == JobState.SUSPENDED && it.status.allowRestart
                                         }
@@ -119,11 +101,11 @@ class JobMonitoringService {
                                                     if (ex.message?.contains("Quota has been exceeded") == true) {
                                                         val lastCheck = quotaBlockedRestarts[job.id] ?: 0L
                                                         if (lastCheck < now) {
-                                                            log.info("Failed to restart job: ${job.id}\n  Reason: ${ex.message}")
+//                                                            log.info("Failed to restart job: ${job.id}\n  Reason: ${ex.message}")
                                                         }
                                                         quotaBlockedRestarts[job.id] = now + QUOTA_BLOCKED_SCAN_LIMIT
                                                     } else {
-                                                        log.info("Failed to restart job: ${job.id}\n  Reason: ${ex.message}")
+//                                                        log.info("Failed to restart job: ${job.id}\n  Reason: ${ex.message}")
                                                     }
                                                 }
                                             }
@@ -131,7 +113,7 @@ class JobMonitoringService {
                                     }
                                 }
 
-                                db.withSession { session ->
+                                db.withSession(reason = "JobMonitoringService.runMonitoringLoop") { session ->
                                     for (job in allJobs) {
                                         // NOTE(Dan): Suspended jobs are re-verified when they are unsuspended. We don't verify them
                                         // right now.

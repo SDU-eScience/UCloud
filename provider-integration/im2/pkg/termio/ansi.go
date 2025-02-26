@@ -80,7 +80,7 @@ func WriteStyledString(style IoStyle, fg, bg Color, formatString string, args ..
 }
 
 func WriteStyled(style IoStyle, fg, bg Color, formatString string, args ...any) {
-	_, _ = os.Stdout.WriteString(WriteStyledString(style, fg, bg, formatString, args...))
+	os.Stdout.WriteString(WriteStyledString(style, fg, bg, formatString, args...))
 }
 
 func WriteStyledLine(style IoStyle, fg, bg Color, formatString string, args ...any) {

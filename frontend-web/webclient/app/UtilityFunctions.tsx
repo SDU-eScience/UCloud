@@ -113,6 +113,18 @@ const languages = {
     "rs": "rust",
 };
 
+export function getLanguageList(): {language: string}[] {
+    return [...new Set(Object.values(languages))].map(it => ({language: it}));
+}
+
+export function populateLanguages(langs: {language: string; extensions: string[]}[]): void {
+    for (const lang of langs) {
+        for (const ext of lang.extensions) {
+            languages[ext] = lang.language;
+        }
+    }
+}
+
 export function languageFromExtension(ext: string): string {
     return languages[ext.toLowerCase()] ?? ext.toLowerCase();
 }
@@ -323,11 +335,11 @@ export function defaultErrorHandler(
 export function timestampUnixMs(): number {
     return Math.floor(
         window.performance &&
-        window.performance["now"] &&
-        window.performance.timing &&
-        window.performance.timing.navigationStart ?
-        window.performance.now() + window.performance.timing.navigationStart :
-        Date.now()
+            window.performance["now"] &&
+            window.performance.timing &&
+            window.performance.timing.navigationStart ?
+            window.performance.now() + window.performance.timing.navigationStart :
+            Date.now()
     );
 }
 
@@ -457,8 +469,8 @@ export function useFrameHidden(): boolean {
         "/app/applications/web/",
         "/app/applications/vnc/",
     ].includes(window.location.pathname) ||
-    window.location.search === "?dav=true" ||
-    window.location.search.indexOf("?hide-frame") === 0;
+        window.location.search === "?dav=true" ||
+        window.location.search.indexOf("?hide-frame") === 0;
 }
 
 /**
@@ -646,4 +658,28 @@ export function chunkedString(text: string, chunkSize: number, leftToRight: bool
         result.reverse();
         return result;
     }
+}
+
+/* Checks useragent to see if the user is likely using MacOS */
+export const isLikelyMac = navigator["userAgentData"]?.["platform"] === "macOS" ||
+    navigator["platform"]?.toLocaleLowerCase().includes("mac") ||
+    navigator["userAgent"]?.toLocaleLowerCase().includes("macintosh");
+
+export function deepEquals(a: any, b: any): boolean {
+    if (a === b) return true;
+
+    if (a && b && typeof a === "object" && typeof b === "object") {
+        const aEntries = Object.entries(a);
+        const bEntries = Object.entries(b);
+        if (aEntries.length !== bEntries.length) return false;
+        return Object.entries(a).every(([k, v]) => deepEquals(v, b[k]))
+    }
+
+    return false;
+}
+
+export function getOrNull<T>(array: T[], index: number): T | null {
+    if (index < 0) return null;
+    if (index >= array.length) return null;
+    return array[index];
 }

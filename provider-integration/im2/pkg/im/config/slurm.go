@@ -28,6 +28,8 @@ type SlurmCompute struct {
 	SystemLoadCommand      util.Option[string]
 	SystemUnloadCommand    util.Option[string]
 	Srun                   util.Option[SrunConfiguration]
+	ModulesFile            util.Option[string]
+	JobFolderName          string
 }
 
 type SrunConfiguration struct {
@@ -40,6 +42,7 @@ type SlurmApplicationConfiguration struct {
 	Load     string
 	Unload   string
 	Srun     util.Option[SrunConfiguration]
+	Readme   util.Option[string]
 }
 
 type SlurmWebConfiguration struct {
@@ -186,10 +189,11 @@ var SlurmDriveLocatorEntityTypeOptions = []SlurmDriveLocatorEntityType{
 }
 
 type SlurmDriveLocator struct {
-	Entity  SlurmDriveLocatorEntityType
-	Pattern string
-	Script  string
-	Title   string
+	Entity    SlurmDriveLocatorEntityType
+	Pattern   string
+	Script    string
+	Title     string
+	FreeQuota util.Option[int64] // valid only for users
 }
 type SlurmFsManagementType string
 
@@ -224,13 +228,14 @@ func (m *SlurmFsManagement) Scripted() *SlurmFsManagementScripted {
 }
 
 type SlurmFsManagementGpfs struct {
-	Valid      bool // Only true in server mode
-	Username   string
-	Password   string
-	Server     HostInfo
-	VerifyTls  bool
-	CaCertFile util.Option[string]
-	Mapping    map[string]GpfsMapping // Maps a locator name to a mapping
+	Valid                  bool // Only true in server mode
+	Username               string
+	Password               string
+	Server                 HostInfo
+	VerifyTls              bool
+	CaCertFile             util.Option[string]
+	Mapping                map[string]GpfsMapping // Maps a locator name to a mapping
+	UseStatFsForAccounting bool
 }
 
 type GpfsMapping struct {
@@ -336,6 +341,8 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 						mappingNode := requireChild(sPath, gpfsNode, "mapping", &success)
 						decode(sPath, mappingNode, &ess.Mapping, &success)
 
+						ess.UseStatFsForAccounting, _ = optionalChildBool(sPath, gpfsNode, "useStatFsForAccounting")
+
 						ess.Valid = true
 
 						if !success {
@@ -396,6 +403,19 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 					reportError(filePath, locatorNode, "You must specify either a pattern or a script!")
 				}
 
+				freeQuota := optionalChildInt(filePath, locatorNode, "freeQuota", &success)
+				if freeQuota.Present && locator.Entity != SlurmDriveLocatorEntityTypeUser {
+					success = false
+					reportError(filePath, locatorNode, "freeQuota can only be specified for user mappings")
+				}
+
+				if !freeQuota.Present && locator.Entity == SlurmDriveLocatorEntityTypeUser {
+					success = false
+					reportError(filePath, locatorNode, "freeQuota must be specified for user mappings")
+				}
+
+				locator.FreeQuota = freeQuota
+
 				fs.DriveLocators[locatorName] = locator
 			}
 
@@ -426,6 +446,8 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 				success = false
 			}
 		}
+
+		cfg.Ssh.InstallKeys = cfg.Ssh.Enabled && cfg.Ssh.InstallKeys
 
 		if !success {
 			return false, cfg
@@ -510,6 +532,17 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 		if globalUnload != "" {
 			cfg.Compute.SystemUnloadCommand.Set(globalUnload)
 		}
+
+		moduleFile := optionalChildText(filePath, slurmNode, "modulesFile", &success)
+		if moduleFile != "" {
+			cfg.Compute.ModulesFile.Set(moduleFile)
+		}
+
+		jobFolder := optionalChildText(filePath, slurmNode, "jobFolder", &success)
+		if jobFolder == "" {
+			jobFolder = "ucloud-jobs"
+		}
+		cfg.Compute.JobFolderName = jobFolder
 
 		apps, ok := parseSlurmApplications(filePath)
 		if !ok {
@@ -748,6 +781,11 @@ func parseSlurmApplication(filePath string, name string, node *yaml.Node, succes
 
 	result.Load = optionalChildText(filePath, node, "load", success)
 	result.Unload = optionalChildText(filePath, node, "unload", success)
+	result.Readme.Set(optionalChildText(filePath, node, "readme", success))
+	if result.Readme.Value == "" {
+		result.Readme.Present = false
+	}
+
 	srunChild, _ := getChildOrNil(filePath, node, "srun")
 	if srunChild != nil {
 		result.Srun.Set(parseSrunConfiguration(filePath, srunChild, success))

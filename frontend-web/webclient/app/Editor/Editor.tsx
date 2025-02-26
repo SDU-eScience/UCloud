@@ -3,51 +3,53 @@ import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, us
 import {useSelector} from "react-redux";
 import {editor} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
-import {injectStyle} from "@/Unstyled";
-import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
-import {Box, ExternalLink, Flex, FtIcon, Icon, Input, Label, Select} from "@/ui-components";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {TreeAction, TreeApi} from "@/ui-components/Tree";
+import {Box, ExternalLink, Flex, FtIcon, Icon, Image, Label, Markdown, Select, Truncate} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
-import {doNothing, extensionFromPath} from "@/UtilityFunctions";
-import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
+import {capitalized, copyToClipboard, doNothing, errorMessageOrDefault, extensionFromPath, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {VimEditor} from "@/Vim/VimEditor";
 import {VimWasm} from "@/Vim/vimwasm";
 import * as Heading from "@/ui-components/Heading";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {usePrettyFilePath} from "@/Files/FilePath";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
+import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
+import EditorOption = editor.EditorOption;
+import {Feature, hasFeature} from "@/Features";
+import {EditorSidebarNode, FileTree, VirtualFile} from "@/Files/FileTree";
+import {noopCall} from "@/Authentication/DataHook";
+import {usePage} from "@/Navigation/Redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {useBeforeUnload} from "react-router-dom";
+import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 
 export interface Vfs {
+    isReal(): boolean;
+
     listFiles(path: string): Promise<VirtualFile[]>;
 
-    readFile(path: string): Promise<string>;
+    readFile(path: string): Promise<string | Uint8Array>;
 
-    writeFile(path: string, content: string): Promise<void>;
+    writeFile(path: string): Promise<void>;
 
     // Notifies the VFS that a file is dirty, but do not synchronize it yet.
-    notifyDirtyFile(path: string, content: string)
-}
-
-export interface VirtualFile {
-    absolutePath: string;
-    isDirectory: boolean;
-    requestedSyntax?: string;
+    setDirtyFileContent(path: string, content: string): void;
 }
 
 export interface EditorState {
     vfs: Vfs;
     title: string;
     sidebar: EditorSidebar;
-    cachedFiles: Record<string, string>;
+    cachedFiles: Record<string, string | Uint8Array>;
     viewState: Record<string, monaco.editor.ICodeEditorViewState>;
     currentPath: string;
 }
 
 export interface EditorSidebar {
     root: EditorSidebarNode;
-}
-
-export interface EditorSidebarNode {
-    file: VirtualFile;
-    children: EditorSidebarNode[];
 }
 
 export interface EditorActionCreate {
@@ -87,18 +89,18 @@ export type EditorAction =
     | EditorActionSaveState
     ;
 
-function defaultEditor(vfs: Vfs, title: string, initialPath: string): EditorState {
+function defaultEditor(vfs: Vfs, title: string, initialFolder: string, initialFile?: string): EditorState {
     return {
         sidebar: {
             root: {
                 file: {
-                    absolutePath: "/",
+                    absolutePath: initialFolder,
                     isDirectory: true,
                 },
                 children: [],
             }
         },
-        currentPath: initialPath,
+        currentPath: initialFile ?? initialFolder,
         viewState: {},
         cachedFiles: {},
         title,
@@ -107,16 +109,19 @@ function defaultEditor(vfs: Vfs, title: string, initialPath: string): EditorStat
 }
 
 function findNode(root: EditorSidebarNode, path: string): EditorSidebarNode | null {
-    const components = pathComponents(path);
+    const components = pathComponents(path.replace(root.file.absolutePath, ""));
     if (components.length === 0) return root;
 
     let currentNode = root;
-    let currentPath = "/";
+    let currentPath = root.file.absolutePath + "/";
     for (let i = 0; i < components.length; i++) {
         currentPath += components[i];
-        const node = currentNode.children.find(it => it.file.absolutePath === currentPath);
+        const node = currentNode.children.find(it => [currentPath, path].includes(it.file.absolutePath));
         if (!node) return null;
         currentNode = node;
+        if (currentNode.file.absolutePath === path) break;
+        // Note(Jonas): If we haven't found the wanted file or directory, the current path must be a directory, and we add the slash
+        currentPath += "/";
     }
     return currentNode;
 }
@@ -156,7 +161,9 @@ function findOrAppendNodeForMutation(root: EditorSidebarNode, path: string): [Ed
         return selfCopy;
     }
 
-    const newRoot = traverseAndCopy(root, 0);
+    /* Note(Jonas): pathComponents length is to see how much needs to be skipped, as it is considered the current root. */
+    /* A depth/i-value of 0 means it starts at the root (/, ). */
+    const newRoot = traverseAndCopy(root, pathComponents(root.file.absolutePath).length);
     return [newRoot, leafNode!];
 }
 
@@ -183,18 +190,21 @@ function singleEditorReducer(state: EditorState, action: EditorAction): EditorSt
                 sidebar: {
                     root: newRoot,
                 }
-            }
+            };
         }
 
         case "EditorActionUpdateTitle": {
-            break;
+            return {
+                ...state,
+                title: action.title,
+            };
         }
 
         case "EditorActionOpenFile": {
             return {
                 ...state,
                 currentPath: action.path
-            }
+            };
         }
 
         case "EditorActionSaveState": {
@@ -212,40 +222,75 @@ function singleEditorReducer(state: EditorState, action: EditorAction): EditorSt
             };
         }
     }
+}
 
-    return state;
+function toDisplayName(name: string): string {
+    switch (name) {
+        case "typescript":
+            return "TypeScript"
+        case "javascript":
+            return "JavaScript";
+        case "coffeescript":
+            return "CoffeeScript";
+        case "freemarker2":
+            return "FreeMarker2";
+        case "csharp":
+            return "C#";
+        case "objective-c":
+            return "Objective-C";
+        case "restructuredtext":
+            return "reStructuredText";
+        case "html":
+        case "xml":
+        case "yaml":
+        case "css":
+        case "abap":
+        case "ecl":
+        case "vb":
+        case "sql":
+        case "json":
+        case "wgsl":
+            return name.toLocaleUpperCase();
+        case "bat":
+            return name;
+    }
+    return capitalized(name);
 }
 
 const monacoCache = new AsyncCache<any>();
 
-export async function getMonaco(): Promise<any> {
+export async function getMonaco() {
     return monacoCache.retrieve("", async () => {
         const monaco = await (import("monaco-editor"));
+
+        const editorWorker = (await import('monaco-editor/esm/vs/editor/editor.worker?worker')).default;
+        const jsonWorker = (await import('monaco-editor/esm/vs/language/json/json.worker?worker')).default;
+        const cssWorker = (await import('monaco-editor/esm/vs/language/css/css.worker?worker')).default;
+        const htmlWorker = (await import('monaco-editor/esm/vs/language/html/html.worker?worker')).default;
+        const tsWorker = (await import('monaco-editor/esm/vs/language/typescript/ts.worker?worker')).default;
+
+        populateLanguages(monaco.languages.getLanguages().map(l =>
+            ({language: l.id, extensions: l.extensions?.map(it => it.slice(1)) ?? []}))
+        );
+
         self.MonacoEnvironment = {
             getWorker: function (workerId, label) {
                 switch (label) {
                     case 'json':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/json/json.worker?worker', label);
+                        return new jsonWorker();
                     case 'css':
                     case 'scss':
                     case 'less':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/css/css.worker?worker', label);
+                        return new cssWorker();
                     case 'html':
                     case 'handlebars':
                     case 'razor':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/html/html.worker?worker', label);
+                        return new htmlWorker();
                     case 'typescript':
                     case 'javascript':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/typescript/ts.worker?worker', label);
+                        return new tsWorker();
                     default:
-                        return getWorkerModule('/monaco-editor/esm/vs/editor/editor.worker?worker', label);
-                }
-
-                function getWorkerModule(moduleUrl, label) {
-                    return new Worker(self.MonacoEnvironment!.getWorkerUrl!(moduleUrl, label), {
-                        name: label,
-                        type: 'module'
-                    });
+                        return new editorWorker();
                 }
             }
         };
@@ -267,6 +312,7 @@ export function useMonaco(active: boolean): any {
             setMonacoInstance(monaco);
         });
 
+
         return () => {
             didCancel = true;
         }
@@ -283,42 +329,32 @@ const editorClass = injectStyle("editor", k => `
         --borderThickness: 2px;
     }
     
-    ${k} > .editor-files {
-        width: 250px;
-        height: 100%;
-        flex-shrink: 0;
-        border-right: var(--borderThickness) solid var(--borderColor);
-    }
-    
     ${k} > .main-content {
         display: flex;
         flex-direction: column;
         width: 100%;
         height: 100%;
+        min-width: 600px;
     }
     
     ${k} .title-bar-code,
     ${k} .title-bar {
         display: flex;
         align-items: center;
-        height: 48px;
+        height: 34px;
         width: 100%;
         flex-shrink: 0;
         border-bottom: var(--borderThickness) solid var(--borderColor);
-        padding: 0 8px;
     }
     
-    ${k} .title-bar-code {
-        padding: 0 20px; /* this aligns the file icon with the line gutter */
-    }
-    
+
     ${k} .panels {
         display: flex;
         width: 100%;
         height: 100%;
     }
     
-    ${k} .panels > .code {
+    ${k} .panels > div > .code {
         flex-grow: 1;
         height: 100%;
     }
@@ -329,34 +365,88 @@ type EditorEngine =
     | "vim";
 
 export interface EditorApi {
+    path: string;
     notifyDirtyBuffer: () => Promise<void>;
+    openFile: (path: string) => void;
+    invalidateTree: (path: string) => Promise<void>;
 }
 
+const SETTINGS_PATH = "xXx__/SETTINGS\\__xXx";
+const RELEASE_NOTES_PATH = "xXx__/RELEASE_NOTES\\__xXx";
+
+const CURRENT_EDITOR_VERSION = "0.1";
+const EDITOR_VERSION_STORAGE_KEY = "editor-version";
 export const Editor: React.FunctionComponent<{
     vfs: Vfs;
     title: string;
-    initialPath: string;
+    initialFilePath?: string;
+    initialFolderPath: string;
     toolbarBeforeSettings?: React.ReactNode;
     toolbar?: React.ReactNode;
     apiRef?: React.MutableRefObject<EditorApi | null>;
+    customContent?: React.ReactNode;
+    showCustomContent?: boolean;
+    onOpenFile?: (path: string, content: string | Uint8Array) => void;
+    operations?: (file: VirtualFile) => Operation<any>[];
+    help?: React.ReactNode;
+    fileHeaderOperations?: React.ReactNode;
+    renamingFile?: string;
+    onRename?: (args: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}) => Promise<boolean>;
+    readOnly: boolean;
 }> = props => {
+    const [overridenSyntaxes, setOverridenSyntaxes] = React.useState<Record<string, string>>({});
+    const [languageList, setLanguageList] = React.useState(getLanguageList().map(l => ({language: l.language, displayName: toDisplayName(l.language)})));
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
-    const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialPath));
+    const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialFolderPath, props.initialFilePath));
     const editorView = useRef<HTMLDivElement>(null);
     const currentTheme = useSelector((red: ReduxObject) => red.sidebar.theme);
     const monacoInstance = useMonaco(engine === "monaco");
     const [editor, setEditor] = useState<IStandaloneCodeEditor | null>(null);
     const monacoRef = useRef<any>(null);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [tabs, setTabs] = useState<{open: string[], closed: string[]}>({
+        open: [state.currentPath],
+        closed: [],
+    });
+
+    const prettyPath = usePrettyFilePath(state.currentPath, !props.vfs.isReal());
+    if (state.currentPath === SETTINGS_PATH) {
+        usePage("Settings", SidebarTabId.FILES);
+    } else if (state.currentPath === RELEASE_NOTES_PATH) {
+        usePage("Release notes", SidebarTabId.FILES);
+    } else if (state.currentPath === "") {
+        usePage("Preview", SidebarTabId.FILES);
+    } else {
+        usePage(fileName(prettyPath), SidebarTabId.FILES);
+    }
+
+    const {showReleaseNoteIcon, onShowReleaseNotesShown} = useShowReleaseNoteIcon();
+
+    const [operations, setOperations] = useState<Operation<any, undefined>[]>([]);
+    const anyTabOpen = tabs.open.length > 0;
+    const isSettingsOpen = state.currentPath === SETTINGS_PATH && anyTabOpen;
+    const isReleaseNotesOpen = state.currentPath === RELEASE_NOTES_PATH && anyTabOpen;
+    const settingsOrReleaseNotesOpen = isSettingsOpen || isReleaseNotesOpen;
 
     // NOTE(Dan): This code is quite ref heavy given that the components we are controlling are very much the
     // opposite of reactive. There isn't much we can do about this.
     const engineRef = useRef<EditorEngine>("vim");
     const stateRef = useRef<EditorState>();
-    const settingsOpenRef = useRef(false);
     const vimRef = useRef<VimWasm | null>(null);
     const tree = useRef<TreeApi | null>(null);
     const editorRef = useRef<IStandaloneCodeEditor | null>(null);
+    const showingCustomContent = useRef<boolean>(props.showCustomContent === true);
+
+    useEffect(() => {
+        showingCustomContent.current = props.showCustomContent === true;
+    }, [props.showCustomContent]);
+
+    useEffect(() => {
+        dispatch({type: "EditorActionUpdateTitle", title: props.title});
+    }, [props.title]);
+
+    useEffect(() => {
+        dispatch({type: "EditorActionUpdateTitle", title: props.title});
+    }, [props.title]);
 
     useEffect(() => {
         engineRef.current = engine;
@@ -369,16 +459,19 @@ export const Editor: React.FunctionComponent<{
     }, [editor]);
 
     useEffect(() => {
-        settingsOpenRef.current = isSettingsOpen;
-    }, [isSettingsOpen]);
-
-    useEffect(() => {
         stateRef.current = state;
     }, [state]);
 
     useEffect(() => {
         monacoRef.current = monacoInstance;
+        setLanguageList(getLanguageList().map(l => ({language: l.language, displayName: toDisplayName(l.language)})));
     }, [monacoInstance]);
+
+    useEffect(() => {
+        const ref = props.apiRef;
+        if (!ref || !ref.current) return;
+        ref.current.path = state.currentPath;
+    }, [props.apiRef, state.currentPath]);
 
     const didUnmount = useDidUnmount();
 
@@ -421,56 +514,75 @@ export const Editor: React.FunctionComponent<{
         }
     }, []);
 
-    const openFile = useCallback((path: string, saveState: boolean): Promise<boolean> => {
+    const openFile = useCallback(async (path: string, saveState: boolean): Promise<boolean> => {
         const cachedContent = state.cachedFiles[path];
-        const dataPromise = cachedContent !== undefined ?
-            Promise.resolve(cachedContent) :
-            props.vfs.readFile(path);
+        const dataPromise = (path === SETTINGS_PATH || path === RELEASE_NOTES_PATH) ?
+            "" :
+            cachedContent !== undefined ?
+                Promise.resolve(cachedContent) :
+                props.vfs.readFile(path);
 
-        const syntax = findNode(state.sidebar.root, path)?.file?.requestedSyntax;
+        const syntaxExtension = findNode(state.sidebar.root, path)?.file?.requestedSyntax;
+        const syntax = overridenSyntaxes[path] ?? languageFromExtension(syntaxExtension ?? extensionFromPath(path));
 
-        return dataPromise.then(async content => {
+        try {
+            const content = await dataPromise;
+
+            if (!cachedContent) { // Note(Jonas): Cache content, if fetched from backend
+                state.cachedFiles[path] = content;
+            }
+
+            props.onOpenFile?.(path, content);
             const editor = editorRef.current;
             const engine = engineRef.current;
-            const isSettingsOpen = settingsOpenRef.current;
 
-            if (isSettingsOpen) return true;
             if (didUnmount.current) return true;
 
-            if (state.currentPath !== "/" && state.currentPath !== "" && saveState) {
-                let editorState: monaco.editor.ICodeEditorViewState | null = null;
-                const model = editor?.getModel();
-                if (editor && model) {
-                    editorState = editor.saveViewState();
-                }
+            if (!showingCustomContent.current) {
+                if (state.currentPath !== "/" && state.currentPath !== "" && saveState) {
+                    let editorState: monaco.editor.ICodeEditorViewState | null = null;
+                    const model = editor?.getModel();
+                    if (editor && model) {
+                        editorState = editor.saveViewState();
+                    }
 
-                const oldContent = await readBuffer();
-                props.vfs.notifyDirtyFile(state.currentPath, oldContent);
-                dispatch({type: "EditorActionSaveState", editorState, oldContent, newPath: path});
+                    const oldContent = await readBuffer();
+                    props.vfs.setDirtyFileContent(state.currentPath, oldContent);
+                    dispatch({type: "EditorActionSaveState", editorState, oldContent, newPath: path});
+                } else {
+                    dispatch({type: "EditorActionOpenFile", path});
+                }
             } else {
                 dispatch({type: "EditorActionOpenFile", path});
             }
 
             if (engine === "vim" && vimRef.current != null && !vimRef.current.initialized) return false;
-            reloadBuffer(fileName(path), content);
-            const restoredState = state.viewState[path];
-            if (editor && restoredState) {
-                editor.restoreViewState(restoredState);
+            if (typeof content === "string") {
+                reloadBuffer(fileName(path), content);
+                const restoredState = state.viewState[path];
+                if (editor && restoredState) {
+                    editor.restoreViewState(restoredState);
+                }
+
+                // NOTE(Dan): openFile on the initial path must be called via a setTimeout to handle this case.
+                if (engine === "monaco" && editor == null) return false;
+                if (engine === "vim" && vimRef.current == null) return false;
+
+                vimRef.current?.focus?.();
+                tree.current?.deactivate?.();
+                editor?.focus?.();
+                const monaco = monacoRef.current;
+                if (syntax && monaco && editor) {
+                    monaco.editor.setModelLanguage(editor.getModel(), syntax);
+                }
             }
 
-            if (engine === "monaco" && editor == null)  return false;
-            if (engine === "vim" && vimRef.current == null) return false;
-
-            vimRef.current?.focus?.();
-            tree.current?.deactivate?.();
-            editor?.focus?.();
-            const monaco = monacoRef.current;
-            if (syntax && monaco && editor) {
-                monaco.editor.setModelLanguage(editor.getModel(), syntax);
-            }
             return true;
-        });
-    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer]);
+        } catch (error) {
+            snackbarStore.addFailure(errorMessageOrDefault(error, "Failed to fetch file"), false);
+            return true; // What does true or false mean in this context?
+        }
+    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer, props.onOpenFile, overridenSyntaxes]);
 
     useEffect(() => {
         const listener = (ev: KeyboardEvent) => {
@@ -495,26 +607,37 @@ export const Editor: React.FunctionComponent<{
     const saveBufferIfNeeded = useCallback(async () => {
         const editor = editorRef.current;
         const engine = engineRef.current;
-        const isSettingsOpen = settingsOpenRef.current;
         const state = stateRef.current!;
         const vim = vimRef.current;
 
-        if (isSettingsOpen) return;
         if (state.currentPath === "" || state.currentPath === "/") return;
 
         if (engine === "vim" && vimRef.current != null && !vimRef.current.initialized) return;
-        if (engine === "monaco" && editor == null)  return;
+        if (engine === "monaco" && editor == null) return;
         if (engine === "vim" && vimRef.current == null) return;
 
         const res = await readBuffer();
         if (didUnmount.current) return;
-        props.vfs.notifyDirtyFile(state.currentPath, res);
+
+        props.vfs.setDirtyFileContent(state.currentPath, res);
+        props.onOpenFile?.(state.currentPath, res);
         dispatch({type: "EditorActionSaveState", editorState: null, oldContent: res, newPath: state.currentPath});
-    }, []);
+    }, [props.onOpenFile]);
+
+    const invalidateTree = useCallback(async (folder: string) => {
+        props.vfs.listFiles(folder).then(files => {
+            dispatch({type: "EditorActionFilesLoaded", path: folder, files});
+        });
+    }, [props.vfs]);
 
     const api: EditorApi = useMemo(() => {
         return {
+            path: state.currentPath,
             notifyDirtyBuffer: saveBufferIfNeeded,
+            openFile: path => {
+                openTab(path);
+            },
+            invalidateTree,
         }
     }, []);
 
@@ -523,16 +646,7 @@ export const Editor: React.FunctionComponent<{
     }, [api, props.apiRef]);
 
     useEffect(() => {
-        let didCancel = false;
-        props.vfs.listFiles("/").then(files => {
-            if (didCancel) return;
-
-            dispatch({type: "EditorActionFilesLoaded", path: "/", files});
-        });
-
-        return () => {
-            didCancel = true;
-        };
+        invalidateTree(props.initialFolderPath);
     }, []);
 
     useLayoutEffect(() => {
@@ -558,75 +672,27 @@ export const Editor: React.FunctionComponent<{
         m.languages.register({id: 'jinja2'});
 
         // Define the syntax highlighting rules for Jinja2
-        m.languages.setMonarchTokensProvider('jinja2', {
-            tokenizer: {
-                root: [
-                    // Jinja2 variable tags: {{ variable }}
-                    [/\{\{/, 'keyword.control', '@variable'],
-
-                    // Jinja2 statement tags: {% statement %}
-                    [/\{%/, 'keyword.control', '@statement'],
-
-                    [/\{-/, 'keyword.control', '@template'],
-
-                    // Jinja2 comment tags: {# comment #}
-                    [/\{#/, 'comment.jinja2', '@comment'],
-
-                    // Strings inside the templates
-                    [/["']/, 'string'],
-
-                    [/#.*$/, 'comment'],
-                ],
-
-                variable: [
-                    // Closing of Jinja2 variable tags
-                    [/}}/, 'keyword.control', '@pop'],
-
-                    // Inside variables
-                    [/./, 'variable'],
-                ],
-
-                statement: [
-                    // Closing of Jinja2 statement tags
-                    [/%}/, 'keyword.control', '@pop'],
-
-                    // Inside statements
-                    [/./, 'keyword'],
-                ],
-
-                comment: [
-                    // Closing of Jinja2 comment tags
-                    [/#}/, 'comment', '@pop'],
-
-                    // Inside comments
-                    [/./, 'comment'],
-                ],
-
-                template: [
-                    // Closing of Jinja2 statement tags
-                    [/-}/, 'keyword.control', '@pop'],
-
-                    // Inside statements
-                    [/./, 'keyword'],
-                ]
-            }
-        });
+        m.languages.setMonarchTokensProvider('jinja2', jinja2monarchTokens);
 
         const editor: IStandaloneCodeEditor = m.editor.create(node, {
             value: "",
-            language: "jinja2",
-            readOnly: false,
+            language: languageFromExtension(extensionFromPath(state.currentPath)),
+            readOnly: props.readOnly,
             minimap: {enabled: false},
             renderLineHighlight: "none",
             fontFamily: "Jetbrains Mono",
             fontSize: 14,
             theme: currentTheme === "light" ? "light" : "ucloud-dark",
+            wordWrap: "off",
+            ...getEditorOptions(),
         });
 
         setEditor(editor);
-    }, [monacoInstance, isSettingsOpen]);
+    }, [monacoInstance]);
 
     useLayoutEffect(() => {
+        // NOTE(Dan): This timer is needed to make sure that if the file opens faster than the engine can initialize
+        // then we do reload the file. See the branch when returns early in openFile.
         let timer = -1;
         const fn = async () => {
             const res = await openFile(state.currentPath, false);
@@ -663,12 +729,23 @@ export const Editor: React.FunctionComponent<{
             editor.layout();
         };
 
+        const interval = window.setInterval(listener, 200);
+
         window.addEventListener("resize", listener);
 
         return () => {
             window.removeEventListener("resize", listener);
+            window.clearInterval(interval);
         };
     }, [editor]);
+
+    useLayoutEffect(() => {
+        if (!props.showCustomContent && editor) {
+            editor.layout();
+            editor.render(true);
+            editor.focus();
+        }
+    }, [props.showCustomContent]);
 
     const onKeyDown: React.KeyboardEventHandler = useCallback(ev => {
         if (ev.code === "Escape") {
@@ -690,13 +767,15 @@ export const Editor: React.FunctionComponent<{
             // do directly in TreeNode if we know it has no children.
             element.removeAttribute("data-open");
 
-            openFile(path, true);
+            openTab(path);
         }
     }, [editor, state, props.vfs, dispatch, reloadBuffer, readBuffer]);
 
     const onNodeActivated = useCallback((open: boolean, row: HTMLElement) => {
         const path = row.getAttribute("data-path");
-        if (open && path) onOpen(path, row);
+        if (path) {
+            onOpen(path, row);
+        }
     }, [onOpen]);
 
     const onTreeAction = useCallback((row: HTMLElement, action: TreeAction) => {
@@ -707,35 +786,207 @@ export const Editor: React.FunctionComponent<{
     }, [onOpen]);
 
     const toggleSettings = useCallback(() => {
-        saveBufferIfNeeded().then(doNothing);
-        setIsSettingsOpen(p => !p);
+        saveBufferIfNeeded().then(() => {
+            setTabs(tabs => {
+                if (tabs.open.includes(SETTINGS_PATH)) {
+                    return tabs;
+                } else return {open: [...tabs.open, SETTINGS_PATH], closed: tabs.closed};
+            })
+            dispatch({type: "EditorActionOpenFile", path: SETTINGS_PATH})
+        });
     }, []);
 
+    const toggleReleaseNotes = useCallback(() => {
+        saveBufferIfNeeded().then(() => {
+            setTabs(tabs => {
+                if (tabs.open.includes(RELEASE_NOTES_PATH)) {
+                    return tabs;
+                } else return {open: [...tabs.open, RELEASE_NOTES_PATH], closed: tabs.closed};
+            })
+            dispatch({type: "EditorActionOpenFile", path: RELEASE_NOTES_PATH})
+        });
+
+        onShowReleaseNotesShown();
+    }, []);
+
+    const openTab = React.useCallback(async (path: string) => {
+        if (state.currentPath === path) return;
+        await openFile(path, true);
+        const fileWasFetched = state.cachedFiles[path] != null;
+        if (fileWasFetched) {
+            setTabs(tabs => {
+                if (tabs.open.includes(path)) {
+                    return tabs;
+                } else return {open: [...tabs.open, path], closed: tabs.closed};
+            });
+        }
+    }, [state.currentPath]);
+
+    const closeTab = useCallback((path: string, index: number) => {
+        setTabs(tabs => {
+            const result = tabs.open.filter(tabTitle => tabTitle !== path);
+            if (state.currentPath === path) {
+                const preceedingPath = result.at(index - 1);
+                if (preceedingPath) {
+                    openFile(preceedingPath, true);
+                }
+            }
+            const closed = tabs.closed;
+            if (!closed.includes(path)) closed.push(path);
+            return {open: result, closed};
+        });
+    }, [state.currentPath]);
+
+    const openTabOperationWindow = useRef<(x: number, y: number) => void>(noopCall)
+
+    const openTabOperations = React.useCallback((title: string | undefined, position: {x: number; y: number;}) => {
+        const ops = tabOperations(title, setTabs, openTab, tabs.closed.length > 0, state.currentPath);
+        setOperations(ops);
+        openTabOperationWindow.current(position.x, position.y);
+    }, [tabs, state.currentPath]);
+
+    useBeforeUnload((e: BeforeUnloadEvent): BeforeUnloadEvent => {
+        // TODO(Jonas): Only handles closing window, not UCloud navigation 
+        const anyDirty = false;
+        if (anyDirty) {
+            // Note(Jonas): Both should be done for best compatibility: https://developer.mozilla.org/en-US/docs/Web/API/BeforeUnloadEvent/returnValue
+            e.preventDefault();
+            e.returnValue = "truthy value";
+            return e;
+        }
+        return e;
+        /* TODO(Jonas): This should check if any file is dirty and warn user. Also on redirect? */
+    });
+
+    const onRename = React.useCallback(async (args: {newAbsolutePath: string; oldAbsolutePath: string; cancel: boolean;}) => {
+        if (!props.onRename) return;
+
+        const fileUpdated = await props.onRename(args);
+        if (fileUpdated) {
+            setTabs(tabs => {
+                const openTabs = tabs.open;
+                const closedTabs = tabs.closed;
+
+                const openIdx = openTabs.findIndex(it => it === args.oldAbsolutePath);
+                if (openIdx !== -1) openTabs[openIdx] = args.newAbsolutePath;
+
+                const closedIdx = closedTabs.findIndex(it => it === args.oldAbsolutePath);
+                if (closedIdx !== -1) closedTabs[closedIdx] = args.newAbsolutePath;
+
+                return {
+                    open: openTabs,
+                    closed: closedTabs,
+                }
+            });
+        }
+    }, []);
+
+    const doOverrideLanguage = React.useCallback((path: string, language: string) => {
+        setOverridenSyntaxes(syntaxes => {
+            if (state.currentPath === path) {
+                const monaco = monacoRef.current;
+                const editor = editorRef.current;
+                if (monaco && editor) {
+                    monaco.editor.setModelLanguage(editor.getModel(), language);
+                }
+            }
+            return {...syntaxes, [path]: language};
+        });
+    }, [state.currentPath]);
+
+    // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
+    const showEditorHelp = tabs.open.length === 0;
+
+    const selectedOverride = overridenSyntaxes[state.currentPath] ?? languageFromExtension(extensionFromPath(state.currentPath));
+
     return <div className={editorClass} onKeyDown={onKeyDown}>
-        <div className={"editor-files"}>
-            <div className={"title-bar"}><b>{state.title}</b></div>
-            <Tree apiRef={tree} onAction={onTreeAction}>
-                <SidebarNode node={state.sidebar.root} onAction={onNodeActivated}/>
-            </Tree>
-        </div>
+        <FileTree
+            tree={tree}
+            onTreeAction={onTreeAction}
+            onNodeActivated={onNodeActivated}
+            root={state.sidebar.root}
+            width="250px"
+            initialFolder={props.initialFolderPath}
+            initialFilePath={props.initialFilePath}
+            fileHeaderOperations={props.fileHeaderOperations}
+            operations={props.operations}
+            renamingFile={props.renamingFile}
+            onRename={onRename}
+        />
 
         <div className={"main-content"}>
-            <div className={"title-bar-code"}>
-                <Flex alignItems={"center"} gap={"8px"} flexGrow={1}>
-                    <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(state.currentPath)}} size={"24px"}/>
-                    {fileName(state.currentPath)}
-                </Flex>
-                <Flex alignItems={"center"} gap={"16px"}>
-                    {props.toolbarBeforeSettings}
-                    <TooltipV2 tooltip={"Settings"} contentWidth={100}>
-                        <Icon name={"heroCog6Tooth"} size={"20px"} cursor={"pointer"} onClick={toggleSettings}/>
-                    </TooltipV2>
+            <div className={"title-bar-code"} style={{minWidth: "400px", paddingRight: "12px", width: `calc(100vw - 250px - var(--sidebarWidth) - 20px)`}}>
+                <div onContextMenu={e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openTabOperations(undefined, {x: e.clientX, y: e.clientY});
+                }} style={{display: "flex", height: "32px", maxWidth: `calc(100% - 48px)`, overflowX: "auto", width: "100%"}}>                    {tabs.open.map((t, index) =>
+                    <EditorTab
+                        key={t}
+                        isDirty={false /* TODO */}
+                        isActive={t === state.currentPath}
+                        onActivate={() => openTab(t)}
+                        onContextMenu={e => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            openTabOperations(t, {x: e.clientX, y: e.clientY});
+                        }}
+                        close={() => {
+                            /* if (fileIsDirty) promptSaveFileWarning() else */
+                            closeTab(t, index);
+                        }}
+                        children={t}
+                    />
+                )}
+                    <Box mx="auto" />
+                    {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box width={"180px"}>
+                        <RichSelect
+                            fullWidth
+                            items={languageList}
+                            keys={["language"]}
+                            dropdownWidth="180px"
+                            FullRenderSelected={p =>
+                                <Flex borderRight={"1px solid var(--borderColor)"} borderLeft={"1px solid var(--borderColor)"} height="32px" width="200px">
+                                    <LanguageItem {...p} /><Icon mr="6px" ml="auto" mt="8px" size="14px" name="chevronDownLight" />
+                                </Flex>}
+                            RenderRow={LanguageItem}
+                            selected={{language: selectedOverride, displayName: toDisplayName(selectedOverride)}}
+                            onSelect={element => {
+                                doOverrideLanguage(state.currentPath, element.language)
+                            }}
+                        />
+                    </Box>}
+                    <Operations
+                        entityNameSingular={""}
+                        operations={operations}
+                        forceEvaluationOnOpen={true}
+                        openFnRef={openTabOperationWindow}
+                        selected={[]}
+                        extra={null}
+                        row={42}
+                        hidden
+                        location={"IN_ROW"}
+                    />
+                </div>
+                <Flex alignItems={"center"} ml="16px" gap="16px">
+                    {tabs.open.length === 0 || state.currentPath === SETTINGS_PATH || state.currentPath === RELEASE_NOTES_PATH || props.customContent ? null :
+                        props.toolbarBeforeSettings
+                    }
+                    {!hasFeature(Feature.EDITOR_VIM) ? null : <>
+                        {showReleaseNoteIcon ? <TooltipV2 tooltip={"See release notes"} contentWidth={100}>
+                            <Icon name={"heroGift"} size={"20px"} cursor={"pointer"} onClick={toggleReleaseNotes} />
+                        </TooltipV2> : null}
+                        <TooltipV2 tooltip={"Settings"} contentWidth={100}>
+                            <Icon name={"heroCog6Tooth"} size={"20px"} cursor={"pointer"} onClick={toggleSettings} />
+                        </TooltipV2>
+                    </>}
                     {props.toolbar}
                 </Flex>
             </div>
             <div className={"panels"}>
                 {isSettingsOpen ?
-                    <Flex gap={"32px"} flexDirection={"column"} margin={64} width={"100%"} height={"100%"}>
+                    <Flex gap={"32px"} maxHeight="calc(100vh - 64px)" flexDirection={"column"} margin={64} width={"100%"} height={"100%"}>
+                        <MonacoEditorSettings editor={editor} />
                         <Label>
                             Editor engine
                             <Select value={engine} width={"100%"} onChange={ev => {
@@ -751,7 +1002,7 @@ export const Editor: React.FunctionComponent<{
                                 <Heading.h4>Monaco Engine</Heading.h4>
                                 <p>
                                     The <ExternalLink
-                                    href={"https://github.com/microsoft/monaco-editor"}>Monaco</ExternalLink>{" "}
+                                        href={"https://github.com/microsoft/monaco-editor"}>Monaco</ExternalLink>{" "}
                                     engine provides an easy-to-use and familiar editor. It is best known from
                                     <ExternalLink href={"https://github.com/microsoft/vscode"}>VS Code</ExternalLink>.
                                     This engine is recommended for most users and is expected to work without any
@@ -795,55 +1046,473 @@ export const Editor: React.FunctionComponent<{
                             </Box>
                         </Flex>
 
-                    </Flex> :
-                    <>
+                    </Flex> : null}
+                {isReleaseNotesOpen ? <Box p="18px" maxHeight="calc(100vh - 64px)"><Markdown children={EditorReleaseNotes} /></Box> : null}
+                <>
+                    {showEditorHelp && props.help ? props.help : null}
+                    <div style={{
+                        display: props.showCustomContent || (showEditorHelp && props.help) || settingsOrReleaseNotesOpen ? "none" : "block",
+                        width: "100%",
+                        height: "100%",
+                    }}>
                         {engine !== "monaco" ? null :
-                            <div className={"code"} ref={editorView} onFocus={() => tree?.current?.deactivate?.()}/>
+                            <div className={"code"} ref={editorView} onFocus={() => tree?.current?.deactivate?.()} />
                         }
 
                         {engine !== "vim" ? null :
-                            <VimEditor vim={vimRef} onInit={doNothing}/>
+                            <VimEditor vim={vimRef} onInit={doNothing} />
                         }
-                    </>
-                }
+                    </div>
+
+                    <div style={{
+                        display: props.showCustomContent ? "block" : "none",
+                        width: "100%",
+                        height: "100%",
+                        maxHeight: "calc(100vh - 64px)",
+                        padding: "16px",
+                        overflow: "auto",
+                    }}>{props.customContent}</div>
+                </>
             </div>
         </div>
-    </div>;
+    </div >;
 };
 
-const SidebarNode: React.FunctionComponent<{
-    node: EditorSidebarNode,
-    onAction: (open: boolean, row: HTMLElement) => void
-}> = props => {
-    let children = !props.node.file.isDirectory ? undefined : <>
-        {props.node.children.map(child => (
-            <SidebarNode key={child.file.absolutePath} node={child} onAction={props.onAction}/>
-        ))}
-    </>;
+/* TODO(Jonas): Improve parameters this is... not good */
+function tabOperations(
+    tabPath: string | undefined,
+    setTabs: React.Dispatch<React.SetStateAction<{open: string[], closed: string[]}>>,
+    openTab: (path: string) => void,
+    anyTabsClosed: boolean,
+    currentPath: string,
+): Operation<any>[] {
+    if (!tabPath) {
+        return [{
+            text: "Re-open closed tab",
+            onClick: () => {
+                setTabs(tabs => {
+                    const tab = tabs.closed.pop();
+                    if (tab) {
+                        openTab(tab);
+                        return {
+                            open: [...tabs.open, tab],
+                            closed: tabs.closed
+                        };
+                    }
+                    return tabs;
+                });
+            },
+            enabled: () => anyTabsClosed,
+            shortcut: ShortcutKey.U,
+        }, {
+            text: "Close all",
+            onClick: () => {
+                setTabs(tabs => {
+                    return {
+                        open: [],
+                        closed: [...tabs.closed, ...tabs.open]
+                    }
+                });
+            },
+            enabled: () => true, /* anyTabsOpen > 0 */
+            shortcut: ShortcutKey.U,
+        }];
+    }
 
-    const absolutePath = props.node.file.absolutePath;
-    if (absolutePath === "" || absolutePath === "/") return children;
-
-    return <TreeNode
-        data-path={props.node.file.absolutePath}
-        onActivate={props.onAction}
-        left={
-            <Flex gap={"8px"} alignItems={"center"}>
-                {props.node.file.isDirectory ? null :
-                    <Box ml={"8px"}>
-                        <FtIcon
-                            fileIcon={{
-                                type: "FILE",
-                                ext: extensionFromPath(props.node.file.absolutePath
-                                )
-                            }}
-                            size={"16px"}
-                        />
-                    </Box>
+    return [{
+        text: "Close tab",
+        onClick: () => {
+            setTabs(tabs => {
+                if (currentPath === tabPath) {
+                    const index = tabs.open.findIndex(it => it === tabPath);
+                    if (index === -1) {
+                        console.warn("No index found. This is weird. This shouldn't happen");
+                        return tabs;
+                    }
+                    openTab(tabs.open.at(index - 1)!);
+                };
+                return {
+                    open: tabs.open.filter(it => it !== tabPath),
+                    closed: [...tabs.closed, tabPath]
                 }
-                {fileName(props.node.file.absolutePath)}
-            </Flex>
-        }
-        children={children}
-    />;
+            });
+
+        },
+        enabled: () => true,
+        shortcut: ShortcutKey.W,
+    }, {
+        text: "Close others",
+        onClick: () => {
+            setTabs(tabs => {
+                const remainder = tabs.open.filter(it => it !== tabPath);
+                return {
+                    open: [tabPath],
+                    closed: [...tabs.closed, ...remainder]
+                }
+            });
+            openTab(tabPath);
+        },
+        enabled: () => true,
+        shortcut: ShortcutKey.E,
+    }, {
+        text: "Close to the right",
+        onClick: () => {
+
+            setTabs(tabs => {
+                const index = tabs.open.findIndex(it => it === tabPath);
+                const activeIndex = tabs.open.findIndex(it => it === currentPath);
+
+                if (activeIndex > index) {
+                    openTab(tabPath);
+                }
+
+                if (index === -1) {
+                    console.warn("No index found. This is weird. This shouldn't happen");
+                    return tabs;
+                }
+                return {
+                    open: tabs.open.slice(0, index + 1),
+                    closed: [...tabs.closed, ...tabs.open.slice(index + 1)],
+                };
+            })
+        },
+        enabled: () => true,
+        shortcut: ShortcutKey.R,
+    }, /* {
+        text: "Close saved",
+        onClick: () => console.log("TODO"),
+        enabled: () => true,
+        shortcut: ShortcutKey.T,
+    }, */ {
+        text: "Close all",
+        onClick: () => {
+            setTabs(tabs => {
+                return {
+                    open: [],
+                    closed: [...tabs.closed, ...tabs.open]
+                }
+            });
+        },
+        enabled: () => true,
+        shortcut: ShortcutKey.U,
+    }, {
+        text: "Copy path to clipboard",
+        onClick: () => copyToClipboard({value: tabPath, message: ""}),
+        enabled: () => true,
+        shortcut: ShortcutKey.U,
+    }, {
+        text: "Re-open closed tab",
+        onClick: () => {
+            setTabs(tabs => {
+                const tab = tabs.closed.pop();
+                if (tab) {
+                    openTab(tab);
+                    return {
+                        open: [...tabs.open, tab],
+                        closed: tabs.closed
+                    };
+                }
+                return tabs;
+            });
+        },
+        enabled: () => anyTabsClosed,
+        shortcut: ShortcutKey.U,
+    }];
 }
+
+const LEFT_MOUSE_BUTTON = 0;
+const MIDDLE_MOUSE_BUTTON = 1;
+function EditorTab({
+    isDirty,
+    isActive,
+    close,
+    onActivate,
+    onContextMenu,
+    children: title
+}: React.PropsWithChildren<{
+    isActive: boolean;
+    isDirty: boolean;
+    onContextMenu?: (e: React.MouseEvent<any>) => void;
+    onActivate(): void;
+    close(): void;
+}>): React.ReactNode {
+    const [hovered, setHovered] = useState(false);
+
+    const isSettings = title === SETTINGS_PATH;
+    const isReleaseNotes = title === RELEASE_NOTES_PATH;
+
+    const onClose = React.useCallback((e: React.SyntheticEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        close();
+    }, [close]);
+
+    const tabTitle = (
+        isSettings ? "Settings" :
+            isReleaseNotes ? "Release notes" :
+                fileName(title as string)
+    );
+
+    return (
+        <Flex onContextMenu={onContextMenu} className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={e => {
+            if (e.button === LEFT_MOUSE_BUTTON) {
+                onActivate();
+            } else if (e.button == MIDDLE_MOUSE_BUTTON) {
+                onClose(e);
+            }
+        }}>
+            {isSettings ? <Icon name="heroCog6Tooth" size="18px" />
+                : isReleaseNotes ? <Icon name="heroGift" size="18px" />
+                    : <FullpathFileLanguageIcon filePath={tabTitle} />}
+            <Truncate ml="8px" width="50%">{isSettings ? "Editor settings" : tabTitle}</Truncate>
+            <Icon
+                className={IconHoverBlockClass}
+                onMouseEnter={() => setHovered(true)}
+                onMouseLeave={() => setHovered(false)}
+                cursor="pointer" name={isDirty && !hovered ? "circle" : "close"}
+                size={16}
+                onClick={onClose} />
+        </Flex >
+    );
+}
+
+const IconHoverBlockClass = injectStyle("icon-hover-block", k => `
+    ${k} {
+        padding: 4px;
+    }
+
+    ${k}:hover {
+        background-color: var(--secondaryDark);
+        border-radius: 4px;
+    }
+`);
+
+const EditorTabClass = injectStyle("editor-tab-class", k => `
+    ${k} {
+        height: 32px;
+        font-size: 12px;
+        padding-left: 12px;
+        padding-right: 12px;
+        cursor: pointer;
+        user-select: none;
+        border-right: 2px solid var(--borderColor);
+    }
+
+    ${k} > * {
+        margin-top: auto;
+        margin-bottom: auto;
+    }
+
+    ${k}[data-active="true"], ${k}:hover  {
+        background-color: var(--borderColor);
+    }
+`);
+
+const fallbackIcon = toIconPath("default");
+const LanguageItem: RichSelectChildComponent<{language: string; displayName: string}> = props => {
+    const language = props.element?.language;
+    if (!language) return null;
+    return <Flex my="4px" onClick={props.onSelect} {...props.dataProps}>
+        <FileLanguageIcon language={language} /> {props.element?.displayName}
+    </Flex>;
+}
+
+export function FullpathFileLanguageIcon({filePath, size}: {filePath: string; size?: string;}) {
+    const language = languageFromExtension(extensionFromPath(filePath));
+    return <FileLanguageIcon language={language} size={size} m="" ext={extensionFromPath(filePath)} />
+}
+
+function FileLanguageIcon({language, ext, size = "18px", m = "2px 8px 0px 8px"}: {ext?: string; language: string; size?: string; m?: string;}): React.ReactNode {
+    const [iconPath, setIconPath] = useState(toIconPath(language ?? ""));
+    const [didError, setError] = useState(false);
+
+    React.useEffect(() => {
+        if (language) {
+            setIconPath(toIconPath(language));
+        }
+    }, [language]);
+
+    if (didError && ext) {
+        return <FtIcon fileIcon={{type: "FILE", ext}} size={"18px"} />
+    }
+
+    return <Image
+        m={m}
+        background={"var(--successContrast)"}
+        borderRadius={"4px"}
+        height={size}
+        width={size}
+        onError={() => {
+            setError(true);
+            setIconPath(fallbackIcon)
+        }}
+        alt={"Icon for " + language}
+        src={iconPath}
+    />
+}
+
+function toIconPath(language: string): string {
+    let lang = language;
+    switch (language) {
+        case "csharp":
+            lang = "c-sharp";
+            break;
+        case "c++":
+            lang = "cpp";
+            break;
+    }
+
+    return "/file-icons/" + lang + ".svg";
+}
+
+const jinja2monarchTokens = {
+    tokenizer: {
+        root: [
+            // Jinja2 variable tags: {{ variable }}
+            [/\{\{/, 'keyword.control', '@variable'],
+
+            // Jinja2 statement tags: {% statement %}
+            [/\{%/, 'keyword.control', '@statement'],
+
+            [/\{-/, 'keyword.control', '@template'],
+
+            // Jinja2 comment tags: {# comment #}
+            [/\{#/, 'comment.jinja2', '@comment'],
+
+            // Strings inside the templates
+            [/["']/, 'string'],
+
+            [/#.*$/, 'comment'],
+        ],
+
+        variable: [
+            // Closing of Jinja2 variable tags
+            [/}}/, 'keyword.control', '@pop'],
+
+            // Inside variables
+            [/./, 'variable'],
+        ],
+
+        statement: [
+            // Closing of Jinja2 statement tags
+            [/%}/, 'keyword.control', '@pop'],
+
+            // Inside statements
+            [/./, 'keyword'],
+        ],
+
+        comment: [
+            // Closing of Jinja2 comment tags
+            [/#}/, 'comment', '@pop'],
+
+            // Inside comments
+            [/./, 'comment'],
+        ],
+
+        template: [
+            // Closing of Jinja2 statement tags
+            [/-}/, 'keyword.control', '@pop'],
+
+            // Inside statements
+            [/./, 'keyword'],
+        ]
+    }
+};
+
+type EditorOptionPair<T extends EditorOption> = [string, T, editor.FindComputedEditorOptionValueById<T>[]];
+const AvailableSettings: [
+    EditorOptionPair<EditorOption.fontSize>,
+    EditorOptionPair<EditorOption.fontWeight>,
+    EditorOptionPair<EditorOption.wordWrap>,
+] = [
+        ["Font size", EditorOption.fontSize, [8, 10, 12, 14, 16, 18, 20, 22]],
+        ["Font weight", EditorOption.fontWeight, ["200", "400", "600", "800", "bold"]],
+        ["Word wrap", EditorOption.wordWrap, ["wordWrapColumn", "on", "off", "bounded"]],
+    ];
+
+function MonacoEditorSettings({editor}: {editor: IStandaloneCodeEditor | null}) {
+    const setOption = React.useCallback((setting: EditorOption, value: editor.FindComputedEditorOptionValueById<EditorOption>) => {
+        if (!editor) return;
+
+        const settingsChange = {
+            [EditorOption[setting]]: value
+        }
+
+        editor.updateOptions(settingsChange);
+        updateEditorSettings(settingsChange);
+    }, [editor]);
+
+    if (!editor) return null;
+
+    return <>
+        {AvailableSettings.map(([name, setting, options]) => <div key={setting}>
+            {name}
+            <Select defaultValue={editor.getOption(setting)} onChange={e => setOption(setting, e.target.value)}>
+                {options.map((opt: string | number) =>
+                    <option key={opt} value={opt}>{opt}</option>
+                )}
+            </Select>
+        </div>)}
+    </>;
+}
+
+interface StoredSettings {
+    fontSize?: number;
+    fontWeight?: string;
+    wordWrap?: string;
+}
+
+const PreviewEditorSettingsLocalStorageKey = "PreviewEditorSettings";
+function getEditorOptions(): StoredSettings {
+    return JSON.parse(localStorage.getItem(PreviewEditorSettingsLocalStorageKey) ?? "{}");
+}
+
+function updateEditorSettings(settings: StoredSettings): void {
+    const opts = getEditorOptions();
+    storeEditorSettings({...opts, ...settings});
+
+}
+
+function storeEditorSettings(settings: StoredSettings): void {
+    localStorage.setItem(PreviewEditorSettingsLocalStorageKey, JSON.stringify(settings));
+}
+
+function useShowReleaseNoteIcon() {
+    const [showReleaseNoteIcon, setShowReleaseNotePrompt] = useState(false);
+
+    React.useEffect(() => {
+        const lastUsedEditorVersion = localStorage.getItem(EDITOR_VERSION_STORAGE_KEY)
+        if (!localStorage.getItem(EDITOR_VERSION_STORAGE_KEY)) {
+            localStorage.setItem(EDITOR_VERSION_STORAGE_KEY, CURRENT_EDITOR_VERSION);
+        }
+
+        if (CURRENT_EDITOR_VERSION !== lastUsedEditorVersion) {
+            setShowReleaseNotePrompt(true);
+        }
+    }, []);
+
+    const onShowReleaseNotesShown = React.useCallback(() => {
+        localStorage.setItem(EDITOR_VERSION_STORAGE_KEY, CURRENT_EDITOR_VERSION);
+        setShowReleaseNotePrompt(false);
+    }, []);
+
+    return {showReleaseNoteIcon, onShowReleaseNotesShown};
+}
+
+const EditorReleaseNotes = `
+# Preview editor
+
+
+## 1.1 - New fancy feature
+
+
+- Auto-save, maybe
+
+
+## 1.0 initial release 
+
+
+- Nothing of note :(
+
+`

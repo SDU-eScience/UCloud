@@ -692,7 +692,7 @@ const EmptyFolders: React.FunctionComponent<{
 
         <p>
             For more details see the{" "}
-            <ExternalLink href="https://docs.cloud.sdu.dk/guide/syncthing.html">
+            <ExternalLink href="https://docs.cloud.sdu.dk/guide/synch.html">
                 UCloud documentation
             </ExternalLink>.
         </p>
@@ -947,7 +947,7 @@ const TutorialListClass = injectStyle("tutorial-list", k => `
 `);
 
 function Screenshot(props: {src: string}): React.ReactNode {
-    return <Image className={ScreenshotClass} src={props.src} />
+    return <Image alt="Descriptive screenshot showing how to set up Syncthing." className={ScreenshotClass} src={props.src} />
 }
 
 const ScreenshotClass = injectStyleSimple("screenshot", `

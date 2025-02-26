@@ -1,0 +1,16 @@
+[Unit]
+Description=Envoy service proxy
+Documentation=https://www.envoyproxy.io/docs
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+EnvironmentFile=-/etc/default/ucloud-envoy
+ExecStartPre=+/bin/install -d -m 755 -o ucloud -g ucloud /var/run/ucloud/envoy
+ExecStart=/opt/ucloud/envoy/envoy $UCLOUD_ENVOY_OPTS
+User=ucloud
+Group=ucloud
+Type=simple
+
+[Install]
+WantedBy=multi-user.target

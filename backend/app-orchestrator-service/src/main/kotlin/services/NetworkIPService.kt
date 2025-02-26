@@ -1,25 +1,25 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductArea
 import dk.sdu.cloud.accounting.util.*
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
-import dk.sdu.cloud.service.db.async.AsyncDBConnection
-import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.db.async.parameterList
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.db.withTransaction
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
+import org.joda.time.LocalDate
+import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
 private typealias Super = JobBoundResource<NetworkIP, NetworkIPSpecification, NetworkIPUpdate, NetworkIPFlags,
         NetworkIPStatus, Product.NetworkIP, NetworkIPSupport, ComputeCommunication, AppParameterValue.Network>
@@ -200,5 +200,132 @@ class NetworkIPService(
                     (:filter_state::text is null or current_state = :filter_state)
             """
         )
+    }
+
+    private val cleanupMutex = Mutex()
+    private val cleanupConfirmationCodes = HashMap<String, List<FindByStringId>>()
+
+    suspend fun cleanup(
+        actorAndProject: ActorAndProject,
+        request: NetworkIPs.Cleanup.Request
+    ): NetworkIPs.Cleanup.Response {
+        if (actorAndProject != ActorAndProject.System) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+        val since = request.since
+        val confirmationCode = request.confirmationCode
+        if (since == null && confirmationCode == null) return NetworkIPs.Cleanup.Response(emptyList())
+
+        if (confirmationCode == null) {
+            val parsedSince = try {
+                LocalDate.parse(request.since).toDate().time
+            } catch (ex: Throwable) {
+                throw RPCException("Unable to parse timestamp: ${ex.message}", HttpStatusCode.BadRequest)
+            }
+
+            val ids = db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("since", parsedSince)
+                        setParameter("provider", request.provider)
+                    },
+                    """
+                        with
+                            from_input as (
+                                select r.id, max(job_r.created_at) as created_at
+                                from
+                                    app_orchestrator.network_ips ip
+                                    join provider.resource r on ip.resource = r.id
+                                    join accounting.products p on r.product = p.id
+                                    join accounting.product_categories pc on p.category = pc.id
+                                    join app_orchestrator.job_input_parameters inp on 
+                                        inp.value->>'type' = 'network' and inp.value->>'id' = r.id::text
+                                    join provider.resource job_r on inp.job_id = job_r.id
+                                    join app_orchestrator.jobs job on inp.job_id = job.resource
+                                where
+                                    pc.provider = :provider
+                                group by r.id
+                            ),
+                            from_resource as (
+                                select r.id, max(job_r.created_at) as created_at
+                                from
+                                    app_orchestrator.network_ips ip
+                                    join provider.resource r on ip.resource = r.id
+                                    join accounting.products p on r.product = p.id
+                                    join accounting.product_categories pc on p.category = pc.id
+                                    join app_orchestrator.job_resources inp on 
+                                        inp.resource->>'type' = 'network' and inp.resource->>'id' = r.id::text
+                                    join provider.resource job_r on inp.job_id = job_r.id
+                                    join app_orchestrator.jobs job on inp.job_id = job.resource
+                                where
+                                    pc.provider = :provider
+                                group by r.id
+                            ),
+                            combined as (
+                                select * from from_input
+                                union
+                                select * from from_resource
+                            )
+                        select 
+                            id
+                        from 
+                            combined 
+                        where
+                            created_at <= to_timestamp(:since / 1000.0)
+                        group by
+                            id
+                        order by
+                            max(created_at)
+                    """
+                ).rows.map { row ->
+                    FindByStringId(row.getLong(0)!!.toString())
+                }
+            }
+
+            if (ids.isEmpty()) {
+                return NetworkIPs.Cleanup.Response(emptyList(), null, parsedSince)
+            } else {
+                val newCode = UUID.randomUUID().toString()
+                cleanupMutex.withLock {
+                    cleanupConfirmationCodes[newCode] = ids
+                }
+                return NetworkIPs.Cleanup.Response(ids, newCode, parsedSince)
+            }
+        } else {
+            val toDelete = cleanupMutex.withLock {
+                cleanupConfirmationCodes.remove(confirmationCode)
+            }
+
+            val removed = ArrayList<FindByStringId>()
+
+            if (toDelete == null) {
+                throw RPCException("Bad confirmation code supplied", HttpStatusCode.BadRequest)
+            } else {
+                val ips = retrieveBulk(ActorAndProject.System, toDelete.map { it.id }, listOf(Permission.READ),
+                    requireAll = false).filter { it.status.boundTo.isEmpty() }
+
+                for (ip in ips) {
+                    val project = ip.owner.project
+                    val proxyActor = if (project != null) {
+                        val pid = AppOrchestratorServices.idCards.lookupPidFromProjectId(project)
+                            ?: continue
+                        val projectInfo = AppOrchestratorServices.idCards.lookupProjectInformation(pid)
+                            ?: continue
+
+                        ActorAndProject(Actor.SystemOnBehalfOfUser(projectInfo.pi), project)
+                    } else {
+                        ActorAndProject(Actor.SystemOnBehalfOfUser(ip.owner.createdBy), null)
+                    }
+
+                    try {
+                        delete(proxyActor, bulkRequestOf(FindByStringId(ip.id)))
+                        removed.add(FindByStringId(ip.id))
+                    } catch (ex: Throwable) {
+                        log.info("Failed to cleanup IP ${ip.id}: ${ex.toReadableStacktrace()}")
+                    }
+                }
+            }
+
+            return NetworkIPs.Cleanup.Response(removed)
+        }
     }
 }

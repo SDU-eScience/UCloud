@@ -77,7 +77,7 @@ class CatalogData(
     // TODO(Dan): This function is currently not able to actually reloadData. It is only capable of loading data.
     //  We should add functionality which allows us to reload parts of the database as needed.
     suspend fun reloadData(id: NameAndVersion? = null) {
-        db.withSession { session ->
+        db.withSession(reason = "catalog reload") { session ->
             val toolRows = session.sendPreparedStatement(
                 {
                     setParameter("name", id?.name)
@@ -494,13 +494,23 @@ class CatalogData(
             throw RPCException("This tool does not exist: ${app.invocation?.tool}", HttpStatusCode.BadRequest)
         }
 
+        val ports = listOfNotNull(inputApp.invocation?.web?.port, inputApp.invocation?.vnc?.port)
+        for (port in ports) {
+            if (port < 1 || port > 65535) {
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.BadRequest,
+                    "Port must be between 1 and 65535. Port given: $port"
+                )
+            }
+        }
+
         val groupId = app.metadata.groupId ?: previousApp?.metadata?.groupId
         if (groupId != null) {
             groups[groupId]!!.addApplications(setOf(key))
         }
 
         if (flush) {
-            db.withSession { session ->
+            db.withSession(reason = "catalog register app") { session ->
                 session.sendPreparedStatement(
                     {
                         setParameter("owner", "_ucloud")
@@ -569,7 +579,7 @@ class CatalogData(
         }
 
         if (flush) {
-            db.withSession { session ->
+            db.withSession(reason = "catalog register tool") { session ->
                 session.sendPreparedStatement(
                     {
                         setParameter("owner", "_ucloud")
@@ -691,7 +701,7 @@ class CatalogData(
         stars.computeIfAbsent(actorAndProject.actor.safeUsername()) { InternalStars(emptySet()) }
             .set(isStarred, application)
         if (flush) {
-            db.withSession { session ->
+            db.withSession(reason = "catalog star") { session ->
                 session.sendPreparedStatement(
                     {
                         setParameter("starred", listOfNotNull(if (isStarred) application else null))

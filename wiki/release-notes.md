@@ -4,6 +4,107 @@ This page tracks a high-level overview of changes to the version of UCloud
 hosted at cloud.sdu.dk. This page is intended for internal
 use.
 
+## 18-02-25
+
+```
+UCloud/Core @ 2025.2.92
+SDU/K8s @ 2025.2.91
+```
+
+## 18-02-25
+
+```
+UCloud/Core @ 2025.2.51
+```
+
+## 15-02-25
+
+```
+UCloud/Frontend @ 2025.2.28
+```
+
+
+## 14-02-25
+
+```
+UCloud/Frontend @ 2025.2.27
+```
+
+## 12-02-25
+
+```
+UCloud/Frontend @ 2025.2.24
+```
+
+## 11-02-25
+
+```
+UCloud/Core @ 2025.2.23
+```
+
+
+## 07-02-25
+
+```
+UCloud/Frontend @ 2025.2.21
+```
+
+## 31-01-25
+
+```
+UCloud/Core @ 2025.2.17
+UCloud/Frontend @ 2025.2.17
+IM2/Hippo @ 2025.2.17
+```
+
+## 30-01-25
+
+```
+UCloud/Core @ 2025.2.16
+```
+
+## 29-01-25
+
+```
+UCloud/Frontend @ 2025.2.13
+```
+
+## 28-01-25
+
+```
+UCloud/Core @ 2025.2.10
+UCloud/Frontend @ 2025.2.11
+```
+
+## 27-01-25
+
+```
+UCloud/Core @ 2025.2.9
+UCloud/Frontend @ 2025.2.9
+IM2/Hippo @ 2025.2.0
+```
+
+
+## 16-01-25
+
+```
+UCloud/Core @ 2025.1.1
+```
+
+
+## 15-01-25
+
+```
+UCloud/Core @ 2025.1.0
+```
+
+
+## 06-01-25
+
+```
+UCloud/Core @ 2024.2.13
+```
+
 ## 25-10-24
 
 ```

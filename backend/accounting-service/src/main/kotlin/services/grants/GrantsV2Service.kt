@@ -1115,7 +1115,7 @@ class GrantsV2Service(
 
                 is Command.InsertRevision -> {
                     val allocationsWithAlignPeriod = command.doc.allocationRequests.map { req ->
-                        req.copy(period = command.doc.allocationPeriod)
+                        req.copy(period = command.doc.allocationPeriod ?: req.period)
                     }
 
                     if (command.doc.form is GrantApplication.Form.GrantGiverInitiated) {
@@ -1436,8 +1436,8 @@ class GrantsV2Service(
                                 setParameter("created_by", action.revision.updatedBy)
                                 setParameter("comment", action.revision.document.revisionComment)
                                 setParameter("rev_id", revisionNumber)
-                                setParameter("start", action.revision.document.allocationPeriod.start ?: Time.now())
-                                setParameter("end", action.revision.document.allocationPeriod.end ?: (Time.now() + (1000L * 60 * 60 * 24 * 365)))
+                                setParameter("start", action.revision.document.allocationPeriod?.start ?: Time.now())
+                                setParameter("end", action.revision.document.allocationPeriod?.end ?: (Time.now() + (1000L * 60 * 60 * 24 * 365)))
                             },
                             """
                                 insert into "grant".revisions (application_id, revision_number, created_at, updated_by, revision_comment, grant_start, grant_end) 
@@ -1663,12 +1663,18 @@ class GrantsV2Service(
                         session.sendQuery("begin")
 
                         var failed = false
-                        val start = application.currentRevision.document.allocationPeriod.start
-                        val end = application.currentRevision.document.allocationPeriod.end
+                        var start = application.currentRevision.document.allocationPeriod?.start
+                        var end = application.currentRevision.document.allocationPeriod?.end
                         doc.allocationRequests.forEachIndexed { i, req ->
                             // TODO(Dan): We should not be doing this while we are holding a DB session, this can cause
                             //  (temporary) deadlocks. We should be saved by the timeout in the accounting system, but that is
                             //  not really a great solution.
+                            if (start == null) {
+                                start = req.period.start
+                            }
+                            if (end == null) {
+                                end = req.period.end
+                            }
                             try {
                                 ctx.accountingService.sendRequest(
                                     AccountingRequest.SubAllocate(

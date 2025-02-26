@@ -1,42 +1,51 @@
 package k8s
 
 import (
-	"ucloud.dk/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
-)
-
-var ServiceConfig *cfg.ServicesConfigurationKubernetes
-
-var (
-	Machines        []apm.ProductV2
-	StorageProducts []apm.ProductV2
-	LinkProducts    []apm.ProductV2
-	IpProducts      []apm.ProductV2
-	LicenseProducts []apm.ProductV2
+	"ucloud.dk/pkg/im/services/k8s/filesystem"
+	"ucloud.dk/pkg/im/services/k8s/shared"
+	"ucloud.dk/pkg/util"
 )
 
 func Init(config *cfg.ServicesConfigurationKubernetes) {
-	ServiceConfig = config
+	shared.ServiceConfig = config
+	shared.Init()
 
 	ctrl.LaunchUserInstances = false
 
 	ctrl.InitJobDatabase()
 	ctrl.InitDriveDatabase()
 	ctrl.InitScriptsLogDatabase()
+	ctrl.Connections = ctrl.ConnectionService{
+		Initiate: func(username string, signingKey util.Option[int]) (redirectToUrl string) {
+			_ = ctrl.RegisterConnectionComplete(username, ctrl.UnknownUser, true)
+			return cfg.Provider.Hosts.UCloudPublic.ToURL()
+		},
+		Unlink: func(username string, uid uint32) error {
+			return nil
+		},
+		RetrieveManifest: func() ctrl.Manifest {
+			return ctrl.Manifest{
+				Enabled:                true,
+				ExpiresAfterMs:         util.Option[uint64]{},
+				RequiresMessageSigning: false,
+			}
+		},
+	}
 
-	ctrl.Files = InitFiles()
+	ctrl.Files = filesystem.InitFiles()
 	ctrl.Jobs = InitCompute()
 
-	InitTaskSystem()
+	filesystem.InitTaskSystem()
 
 	ctrl.ApmHandler.HandleNotification = func(update *ctrl.NotificationWalletUpdated) {
 
 	}
 
-	ctrl.RegisterProducts(Machines)
-	ctrl.RegisterProducts(StorageProducts)
-	ctrl.RegisterProducts(LinkProducts)
-	ctrl.RegisterProducts(IpProducts)
-	ctrl.RegisterProducts(LicenseProducts)
+	ctrl.RegisterProducts(shared.Machines)
+	ctrl.RegisterProducts(shared.StorageProducts)
+	ctrl.RegisterProducts(shared.LinkProducts)
+	ctrl.RegisterProducts(shared.IpProducts)
+	ctrl.RegisterProducts(shared.LicenseProducts)
 }

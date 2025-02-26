@@ -84,6 +84,9 @@ export type ThemeColor =
     | "FtFolderColor2"
 
     | "sidebarColor"
+
+    | "linkColor"
+    | "linkColorHover"
     ;
 
 export function selectContrastColor(inputColor: ThemeColor): ThemeColor {

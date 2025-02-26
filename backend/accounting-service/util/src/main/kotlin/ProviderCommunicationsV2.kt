@@ -265,14 +265,15 @@ class ProviderCommunicationsV2(
 
     suspend fun findRelevantProviders(
         actorAndProject: ActorAndProject,
-        filterProductType: ProductType? = null
+        filterProductType: ProductType? = null,
+        useProject: Boolean = true,
     ): List<String> {
         return AccountingV2.findRelevantProviders.call(
             bulkRequestOf(
                 AccountingV2.FindRelevantProviders.RequestItem(
                     actorAndProject.actor.safeUsername(),
                     actorAndProject.project,
-                    true,
+                    useProject,
                     filterProductType,
                 )
             ),
@@ -289,16 +290,19 @@ class ProviderCommunicationsV2(
         actorAndProject: ActorAndProject,
         deadlineMs: Long = 10_000L,
         filterProductType: ProductType? = null,
+        useProject: Boolean = true,
         fn: suspend (providerId: String) -> Unit,
     ) {
-        val (providers, time) = measureTimedValue { findRelevantProviders(actorAndProject, filterProductType) }
+        val (providers, time) = measureTimedValue { findRelevantProviders(actorAndProject, filterProductType, useProject) }
         Prometheus.measureBackgroundDuration("find_relevant_providers", time.inWholeMilliseconds)
 
         coroutineScope {
             val jobs = providers.map { providerId ->
                 launch {
                     try {
-                        fn(providerId)
+                        withTimeout(deadlineMs) {
+                            fn(providerId)
+                        }
                     } catch (ex: Throwable) {
                         log.warn(
                             "Caught exception while broadcasting message to providers: " +
@@ -313,7 +317,7 @@ class ProviderCommunicationsV2(
             select {
                 joinJob.onJoin { Unit }
 
-                onTimeout(deadlineMs) {
+                onTimeout(deadlineMs + 5000) {
                     log.warn("Deadline reached while broadcasting message to providers! ${providers}")
                     jobs.forEach { runCatching { it.cancel() } }
                     runCatching { joinJob.cancel() }

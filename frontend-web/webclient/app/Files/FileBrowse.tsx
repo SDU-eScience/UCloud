@@ -127,7 +127,7 @@ const rowTitles: ColumnTitleList<SortById> = [{name: "Name", sortById: "PATH"}, 
 const RESOURCE_NAME = "File";
 function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts}): React.ReactNode {
     const navigate = useNavigate();
-    const location = useLocation();    
+    const location = useLocation();
     const mountRef = useRef<HTMLDivElement | null>(null);
     const browserRef = useRef<ResourceBrowser<UFile> | null>(null);
     const openTriggeredByPath = useRef<string | null>(null);
@@ -487,22 +487,30 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                     try {
                         const collectionId = pathComponents(browser.currentPath)[0];
-                        const trash = await trashCache.retrieve(collectionId, async () => {
-                            const potentialFolder = await callAPI(FilesApi.retrieve({id: `/${collectionId}/Trash`}));
-                            if (potentialFolder.status.icon === "DIRECTORY_TRASH") return potentialFolder;
-                            throw "Could not find trash folder";
-                        });
+                        try {
+                            const trash = await trashCache.retrieve(collectionId, async () => {
+                                const potentialFolder = await callAPI(FilesApi.retrieve({id: `/${collectionId}/Trash`}));
+                                if (potentialFolder.status.icon === "DIRECTORY_TRASH") return potentialFolder;
+                                throw "Could not find trash folder";
+                            });
 
-                        if (files.some(it => it.id.startsWith(trash.id))) {
-                            // Note(Jonas): If we are in the trash folder, then maybe don't move to the same folder on delete.
-                            return;
+                            if (files.some(it => it.id.startsWith(trash.id))) {
+                                // Note(Jonas): If we are in the trash folder, then maybe don't move to the same folder on delete.
+                                return;
+                            }
+                        } catch (ignored) {
+                            // The trash folder probably doesn't exist yet.
                         }
 
+                        for (const f of files) {
+                            browser.removeEntryFromCurrentPage(file => file.id === f.id);
+                        }
 
-                        copyOrMove(files, trash.id, true, {suffix: timestampUnixMs().toString()});
-                        snackbarStore.addSuccess(`${files.length} file(s) moved to trash.`, false);
-                    } catch {
+                        browser.renderRows();
                         await callAPI(FilesApi.trash(bulkRequestOf(...files.map(it => ({id: it.id})))));
+                        snackbarStore.addSuccess(`${files.length} file(s) moved to trash.`, false)
+                    } catch (e) {
+                        displayErrorMessageOrDefault(e, "Failed to delete files");
                         browser.refresh();
                     }
                 };
@@ -661,7 +669,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     const folder = folderCache.retrieveFromCacheOnly(path);
 
                     const isSearch = path === SEARCH;
-                    
+
                     const collectionId = isSearch ? pathComponents(lastActiveFilePath)[0] : components[0];
                     const collection = collectionCache.retrieveFromCacheOnly(collectionId);
                     if (!collection) return null;
@@ -748,8 +756,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     const hasExt = !!extension;
                     const type = extension ? extensionType(extension.toLocaleLowerCase()) : "binary";
 
-                    const width = 64;
-                    const height = 64;
+                    const width = 60;
+                    const height = 60;
 
                     if (hint || isDirectory) {
                         let name: IconName;
@@ -1303,8 +1311,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             ...defaultRetrieveFlags,
                             ...translateFilters(browser.browseFilters),
                             ...opts?.additionalFilters
-                        }
-                        ));
+                        })
+                    );
 
                     if (path !== browser.currentPath) return;
 

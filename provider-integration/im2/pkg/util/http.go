@@ -29,3 +29,10 @@ func ServerHttpError(whyFormat string, args ...any) *HttpError {
 		Why:        fmt.Sprintf(whyFormat, args...),
 	}
 }
+
+func HttpErr(statusCode int, whyFormat string, args ...any) *HttpError {
+	return &HttpError{
+		StatusCode: statusCode,
+		Why:        fmt.Sprintf(whyFormat, args...),
+	}
+}

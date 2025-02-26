@@ -17,7 +17,7 @@ class ApplicationCache(private val db: DBContext) {
 
     suspend fun fillCache(appName: String? = null) {
         mutex.withWriter {
-            db.withSession { session ->
+            db.withSession(reason = "ApplicationCache.fillCache") { session ->
                 val rows = session.sendPreparedStatement(
                     {
                         setParameter("app_name", appName)

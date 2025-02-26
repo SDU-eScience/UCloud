@@ -1,0 +1,64 @@
+provider:
+  id: gok8s
+
+  hosts:
+    ucloud:
+      address: backend
+      port: 8080
+      scheme: http
+    self:
+      address: gok8s
+      port: 8889
+      scheme: http
+    selfPublic:
+      address: go-k8s.localhost.direct
+      port: 443
+      scheme: https
+    ucloudPublic:
+      address: ucloud.localhost.direct
+      port: 443
+      scheme: https
+
+  ipc:
+    directory: /var/run/ucloud
+
+  logs:
+    directory: /var/log/ucloud
+    rotation:
+      enabled: true
+      retentionPeriodInDays: 180
+
+  envoy:
+    directory: /var/run/ucloud/envoy
+    executable: /usr/bin/envoy
+    funceWrapper: false
+
+services:
+  type: Kubernetes
+  compute:
+    web:
+      enabled: true
+      prefix: "gok8s-"
+      suffix: ".localhost.direct"
+
+    machines:
+      u1-standard:
+        nameSuffix: Cpu
+
+        cpu: [ 1, 2, 4 ]
+        memory: [ 1, 2, 4 ]
+
+        cpuModel: Model
+        memoryModel: Model
+
+        payment:
+          type: Resource
+          unit: Cpu
+          interval: Minutely
+
+  fileSystem:
+    name: storage
+    mountPoint: /mnt/storage
+    trashStagingArea: /mnt/storage/trash
+    claimName: cephfs
+

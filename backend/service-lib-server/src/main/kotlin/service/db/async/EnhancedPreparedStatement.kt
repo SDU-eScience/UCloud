@@ -12,6 +12,7 @@ import dk.sdu.cloud.systemName
 import io.prometheus.client.CollectorRegistry
 import io.prometheus.client.Summary
 import io.prometheus.client.exporter.common.TextFormat
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -168,83 +169,85 @@ class EnhancedPreparedStatement(
         release: Boolean = false,
         tagName: String = defaultTag,
     ): QueryResult {
-        try {
-            val debugQueryParameters = JsonObject(
-                rawParameters.map { (param, value) -> param to JsonPrimitive(value.toString()) }.toMap()
-            )
+        session.mutex.withLock {
+            try {
+                val debugQueryParameters = JsonObject(
+                    rawParameters.map { (param, value) -> param to JsonPrimitive(value.toString()) }.toMap()
+                )
 
-            val start = Time.now()
-            session.debug.system.databaseQuery(
-                MessageImportance.THIS_IS_NORMAL,
-                debugQueryParameters,
-                rawStatement
-            )
+                val start = Time.now()
+                session.debug.system.databaseQuery(
+                    MessageImportance.THIS_IS_NORMAL,
+                    debugQueryParameters,
+                    rawStatement
+                )
 
-            check(boundValues.size == parameterNamesToIndex.keys.size) {
-                val missingSetParameters = parameterNamesToIndex.keys.filter { it !in boundValues }
-                val missingSqlParameters = boundValues.filter { it !in parameterNamesToIndex.keys }
+                check(boundValues.size == parameterNamesToIndex.keys.size) {
+                    val missingSetParameters = parameterNamesToIndex.keys.filter { it !in boundValues }
+                    val missingSqlParameters = boundValues.filter { it !in parameterNamesToIndex.keys }
 
-                buildString {
-                    if (missingSetParameters.isNotEmpty()) {
-                        append("Keys missing from `setParameter`: $missingSetParameters")
-                    }
-                    if (missingSqlParameters.isNotEmpty()) {
-                        append("Keys missing from query: $missingSqlParameters")
+                    buildString {
+                        if (missingSetParameters.isNotEmpty()) {
+                            append("Keys missing from `setParameter`: $missingSetParameters")
+                        }
+                        if (missingSqlParameters.isNotEmpty()) {
+                            append("Keys missing from query: $missingSqlParameters")
+                        }
                     }
                 }
-            }
-            val response = session.sendPreparedStatement(preparedStatement, parameters.toList(), release)
-            val end = Time.now()
-            if (end - start > 3_000) {
-                log.warn("'${tagName}' took a long time to execute (${end - start}ms).")
-                runCatching {
-                    if (tagName !in slowSampleParameters) {
-                        slowSampleParameters.add(tagName)
-                        if (debug) {
-                            File("/tmp/slowqueries/${tagName}_params.json")
-                                .also { it.parentFile.mkdirs() }
-                                .also {
-                                    it.writeText(
-                                        defaultMapper.encodeToString(
-                                            JsonObject(
-                                                rawParameters.map { (param, value) ->
-                                                    param to JsonPrimitive(value.toString())
-                                                }.toMap()
+                val response = session.sendPreparedStatement(preparedStatement, parameters.toList(), release)
+                val end = Time.now()
+                if (end - start > 3_000) {
+                    log.warn("'${tagName}' took a long time to execute (${end - start}ms).")
+                    runCatching {
+                        if (tagName !in slowSampleParameters) {
+                            slowSampleParameters.add(tagName)
+                            if (debug) {
+                                File("/tmp/slowqueries/${tagName}_params.json")
+                                    .also { it.parentFile.mkdirs() }
+                                    .also {
+                                        it.writeText(
+                                            defaultMapper.encodeToString(
+                                                JsonObject(
+                                                    rawParameters.map { (param, value) ->
+                                                        param to JsonPrimitive(value.toString())
+                                                    }.toMap()
+                                                )
                                             )
                                         )
-                                    )
-                                }
-                        }
+                                    }
+                            }
 
-                        File("/tmp/slowqueries/${tagName}_query.json")
-                            .also { it.parentFile.mkdirs() }
-                            .also { it.writeText(rawStatement) }
+                            File("/tmp/slowqueries/${tagName}_query.json")
+                                .also { it.parentFile.mkdirs() }
+                                .also { it.writeText(rawStatement) }
+                        }
                     }
                 }
+
+                val duration = end - start
+
+                if (tagName != defaultTag && !tagName.contains(" ")) {
+                    querySummary.labels(tagName).observe(duration.toDouble())
+                }
+
+                session.debug.system.databaseResponse(
+                    importance = when {
+                        duration >= 300 -> MessageImportance.THIS_IS_WRONG
+                        duration >= 150 -> MessageImportance.THIS_IS_ODD
+                        else -> MessageImportance.THIS_IS_NORMAL
+                    },
+                    responseTime = duration
+                )
+                return response
+            } catch (ex: GenericDatabaseException) {
+                val msg = ex.message ?: ""
+                if (msg.contains("invalid input syntax") || msg.contains("syntax error") || msg.contains("does not exist")) {
+                    throw RuntimeException("Invalid query!\n\tQuery=${rawStatement}", ex)
+                }
+
+                throw ex
             }
-
-            val duration = end - start
-
-            if (tagName != defaultTag && !tagName.contains(" ")) {
-                querySummary.labels(tagName).observe(duration.toDouble())
-            }
-
-            session.debug.system.databaseResponse(
-                importance = when {
-                    duration >= 300 -> MessageImportance.THIS_IS_WRONG
-                    duration >= 150 -> MessageImportance.THIS_IS_ODD
-                    else -> MessageImportance.THIS_IS_NORMAL
-                },
-                responseTime = duration
-            )
-            return response
-        } catch (ex: GenericDatabaseException) {
-            val msg = ex.message ?: ""
-            if (msg.contains("invalid input syntax") || msg.contains("syntax error") || msg.contains("does not exist")) {
-                throw RuntimeException("Invalid query!\n\tQuery=${rawStatement}", ex)
-            }
-
-            throw ex
         }
     }
 

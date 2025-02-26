@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	fnd "ucloud.dk/pkg/foundation"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
@@ -119,6 +120,23 @@ func requireChild(path string, node *yaml.Node, child string, success *bool) *ya
 	return result
 }
 
+func optionalChildInt(path string, node *yaml.Node, child string, success *bool) util.Option[int64] {
+	n, err := getChildOrNil(path, node, child)
+	if n == nil {
+		return util.OptNone[int64]()
+	}
+
+	var result int64
+	err = n.Decode(&result)
+	if err != nil {
+		reportError(path, n, "Expected a string here")
+		*success = false
+		return util.OptNone[int64]()
+	}
+
+	return util.OptValue(result)
+}
+
 func optionalChildText(path string, node *yaml.Node, child string, success *bool) string {
 	n, err := getChildOrNil(path, node, child)
 	if n == nil {
@@ -195,6 +213,21 @@ func optionalChildBool(path string, node *yaml.Node, child string) (value bool, 
 
 	enableErrorReporting = true
 	return
+}
+
+func optionalChildEnum[T any](filePath string, node *yaml.Node, child string, options []T, success *bool) (T, bool) {
+	enableErrorReporting = false
+	ok := true
+	value := requireChildEnum(filePath, node, child, options, &ok)
+	if !ok {
+		if optionalChildText(filePath, node, child, &ok) != "" {
+			*success = false
+		}
+
+		return value, false
+	}
+	enableErrorReporting = true
+	return value, true
 }
 
 func requireChildEnum[T any](filePath string, node *yaml.Node, child string, options []T, success *bool) T {
@@ -347,8 +380,15 @@ func decode(filePath string, node *yaml.Node, result any, success *bool) {
 	}
 }
 
-func readAndParse(filePath string) *yaml.Node {
+func readAndParse(configDir string, name string) (string, *yaml.Node) {
+	filePath := filepath.Join(configDir, name+".yml")
 	fileBytes, err := os.ReadFile(filePath)
+
+	if err != nil {
+		filePath = filepath.Join(configDir, name+".yaml")
+		fileBytes, err = os.ReadFile(filePath)
+	}
+
 	if err != nil {
 		reportError(
 			filePath,
@@ -359,7 +399,7 @@ func readAndParse(filePath string) *yaml.Node {
 			os.Getgid(),
 			err.Error(),
 		)
-		return nil
+		return filePath, nil
 	}
 
 	var document yaml.Node
@@ -373,10 +413,10 @@ func readAndParse(filePath string) *yaml.Node {
 				"Underlying error message: %v.",
 			err.Error(),
 		)
-		return nil
+		return filePath, nil
 	}
 
-	return &document
+	return filePath, &document
 }
 
 func requireSecrets(reason string) (string, *yaml.Node) {
@@ -396,6 +436,11 @@ func Parse(serverMode ServerMode, configDir string) bool {
 	if Mode == ServerModeServer {
 		filePath := filepath.Join(configDir, "secrets.yml")
 		fileBytes, err := os.ReadFile(filePath)
+
+		if err != nil {
+			filePath = filepath.Join(configDir, "secrets.yaml")
+			fileBytes, err = os.ReadFile(filePath)
+		}
 
 		if err == nil {
 			var document yaml.Node
@@ -418,8 +463,7 @@ func Parse(serverMode ServerMode, configDir string) bool {
 	}
 
 	if Mode == ServerModeServer {
-		filePath := filepath.Join(configDir, "server.yml")
-		document := readAndParse(filePath)
+		filePath, document := readAndParse(configDir, "server")
 		if document == nil {
 			return false
 		}
@@ -431,8 +475,7 @@ func Parse(serverMode ServerMode, configDir string) bool {
 		Server = &server
 	}
 
-	filePath := filepath.Join(configDir, "config.yml")
-	document := readAndParse(filePath)
+	filePath, document := readAndParse(configDir, "config")
 	if document == nil {
 		return false
 	}
@@ -645,6 +688,18 @@ func parseServer(filePath string, provider *yaml.Node) (bool, ServerConfiguratio
 	return success, cfg
 }
 
+type EnvoyListenMode string
+
+const (
+	EnvoyListenModeUnix EnvoyListenMode = "Unix"
+	EnvoyListenModeTcp  EnvoyListenMode = "Tcp"
+)
+
+var envoyListenModes = []EnvoyListenMode{
+	EnvoyListenModeUnix,
+	EnvoyListenModeTcp,
+}
+
 type ProviderConfiguration struct {
 	Id string
 
@@ -665,6 +720,7 @@ type ProviderConfiguration struct {
 		Executable                string
 		InternalAddressToProvider string
 		ManagedExternally         bool
+		ListenMode                EnvoyListenMode
 	}
 
 	Logs struct {
@@ -673,6 +729,10 @@ type ProviderConfiguration struct {
 			Enabled               bool `yaml:"enabled"`
 			RetentionPeriodInDays int  `yaml:"retentionPeriodInDays"`
 		}
+	}
+
+	Maintenance struct {
+		UserAllowList []string
 	}
 }
 
@@ -753,6 +813,19 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 		}
 	}
 
+	{
+		// Maintenance section
+		maintenance, _ := getChildOrNil(filePath, provider, "maintenance")
+		if maintenance != nil {
+			allowListNode := requireChild(filePath, maintenance, "userAllowList", &success)
+
+			var userAllowList []string
+			decode(filePath, allowListNode, &userAllowList, &success)
+
+			cfg.Maintenance.UserAllowList = userAllowList
+		}
+	}
+
 	if Mode == ServerModeServer {
 		// Envoy section
 		envoy := requireChild(filePath, provider, "envoy", &success)
@@ -762,6 +835,12 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 
 		managedExternally, _ := optionalChildBool(filePath, envoy, "managedExternally")
 		cfg.Envoy.ManagedExternally = managedExternally
+
+		listenMode, hasListenMode := optionalChildEnum(filePath, envoy, "listenMode", envoyListenModes, &success)
+		if !hasListenMode {
+			listenMode = EnvoyListenModeUnix
+		}
+		cfg.Envoy.ListenMode = listenMode
 
 		if !cfg.Envoy.ManagedExternally {
 			exe := requireChildFile(filePath, envoy, "executable", FileCheckRead, &success)
@@ -790,13 +869,11 @@ type ServicesType string
 const (
 	ServicesSlurm      ServicesType = "Slurm"
 	ServicesKubernetes ServicesType = "Kubernetes"
-	ServicesPuhuri     ServicesType = "Puhuri"
 )
 
 var ServicesTypeOptions = []ServicesType{
 	ServicesSlurm,
 	ServicesKubernetes,
-	ServicesPuhuri,
 }
 
 type ServicesConfiguration struct {
@@ -819,15 +896,6 @@ func (cfg *ServicesConfiguration) Kubernetes() *ServicesConfigurationKubernetes 
 	}
 	return nil
 }
-
-func (cfg *ServicesConfiguration) Puhuri() *ServicesConfigurationPuhuri {
-	if cfg.Type == ServicesPuhuri {
-		return cfg.Configuration.(*ServicesConfigurationPuhuri)
-	}
-	return nil
-}
-
-type ServicesConfigurationPuhuri struct{}
 
 type MachineResourceType = string
 
@@ -970,12 +1038,14 @@ type IdentityManagementScripted struct {
 }
 
 type IdentityManagementFreeIPA struct {
-	Url        string
-	VerifyTls  bool
-	CaCertFile util.Option[string]
-	Username   string
-	Password   string
-	GroupName  string
+	Url             string
+	VerifyTls       bool
+	CaCertFile      util.Option[string]
+	Username        string
+	Password        string
+	GroupName       string
+	ProjectStrategy fnd.ProjectTitleStrategy
+	ProjectPrefix   string // only if ProjectStrategy is ProjectTitleDate
 }
 
 func (m *IdentityManagement) Scripted() *IdentityManagementScripted {
@@ -1065,6 +1135,29 @@ func parseIdentityManagementFreeIpa(filePath string, node *yaml.Node) (bool, Ide
 		result.GroupName = groupName
 	} else {
 		result.GroupName = "ucloud_users"
+	}
+
+	titleStrategy := optionalChildText(filePath, node, "projectStrategy", &success)
+	if titleStrategy != "" {
+		switch titleStrategy {
+		case "Default":
+			result.ProjectStrategy = fnd.ProjectTitleDefault
+
+		case "Date":
+			result.ProjectStrategy = fnd.ProjectTitleDate
+			result.ProjectPrefix = optionalChildText(filePath, node, "projectPrefix", &success)
+			if result.ProjectPrefix == "" {
+				result.ProjectPrefix = "p"
+			}
+
+		case "UUID":
+			result.ProjectStrategy = fnd.ProjectTitleUuid
+
+		default:
+			success = false
+			badNode, _ := getChildOrNil(filePath, node, "projectStrategy")
+			reportError(filePath, badNode, titleStrategy, "Unknown title strategy, use one of: 'Default', 'Date', 'UUID'")
+		}
 	}
 
 	return success, result

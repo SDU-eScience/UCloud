@@ -1,46 +1,32 @@
 import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
-import Icon, {EveryIcon, IconName} from "@/ui-components/Icon";
+import {EveryIcon, IconName} from "@/ui-components/Icon";
 import {Box, Flex} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {api as ProjectApi, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import * as icons from "@/ui-components/icons";
 import {Project} from "@/Project";
-import {TaskRow} from "@/Files/Uploader";
+import * as d3 from "d3";
+import * as plot from "@observablehq/plot";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
+
 const Playground: React.FunctionComponent = () => {
+    const data = React.useMemo((): PlottingData[] => {
+        const tick = d3.scaleTime();
+        tick.ticks(100);
+        return tick.ticks(100).map((t, index, arr) => ({date: t, value: [0, 1].includes(index % 4) ? 0 : 25}));
+    }, []);
 
     const main = (
         <>
-            <TaskRow
-                icon={<Icon name="activity" />}
-                title={"Title thing here. Copy, maybe."}
-                body={"Barfoo 5|1"}
-                progress={"Foobar 1|5"}
-                removeOrCancel={<Icon name="close" />}
-                progressInfo={{
-                    indeterminate: true,
-                    stopped: false,
-                    progress: 0,
-                    limit: 0
-                }}
-                pause={"hey"}
-            />
+            <AreaPlot data={data} keyX="date" keyY="value" />
 
             <Box mb="60px" />
 
-            {/* <NewAndImprovedProgress limitPercentage={20} label="Twenty!" percentage={30} />
-            <NewAndImprovedProgress limitPercentage={40} label="Forty!" percentage={30} />
-            <NewAndImprovedProgress limitPercentage={60} label="Sixty!" percentage={30} />
-            <NewAndImprovedProgress limitPercentage={80} label="Eighty!" percentage={30} />
-            <NewAndImprovedProgress limitPercentage={100} label="Hundred!" percentage={30} />
-            <NewAndImprovedProgress limitPercentage={120} label="Above!!" percentage={30} />
-            <NewAndImprovedProgress limitPercentage={120} label="OY!" percentage={110} />
-            <NewAndImprovedProgress limitPercentage={100} label="OY!" percentage={130} withWarning /> */}
             <PaletteColors />
             <Colors />
             <EveryIcon />
@@ -116,20 +102,7 @@ const Playground: React.FunctionComponent = () => {
                 });
             }}>Trigger pinned notification</Button>
 
-            <Button onClick={() => snackbarStore.addSuccess("Hello. This is a success.", false, 5000)}>Add success notification</Button>
-            <Button onClick={() => snackbarStore.addInformation("Hello. This is THE information.", false, 5000)}>Add info notification</Button>
-            <Button onClick={() => snackbarStore.addFailure("Hello. This is a failure.", false, 5000)}>Add failure notification</Button>
-            <Button onClick={() => snackbarStore.addSnack({
-                message: "Hello. This is a custom one with a text that's pretty long.",
-                addAsNotification: false,
-                icon: iconsNames.at(Math.floor(Math.random() * iconsNames.length))!,
-                type: SnackType.Custom
-            })}>Add custom notification</Button>
-
-            <Grid gridTemplateColumns={"repeat(5, 1fr)"} mb={"32px"}>
-                <EveryIcon />
-            </Grid>
-
+            
             <Grid
                 gridTemplateColumns="repeat(10, 1fr)"
                 style={{overflowY: "auto"}}
@@ -165,6 +138,43 @@ const Playground: React.FunctionComponent = () => {
     );
     return <MainContainer main={main} />;
 };
+
+type PlottingData = {value: number; date: Date}
+import * as Plot from "@observablehq/plot";
+
+export function DealersChoicePlot({data, keyX, keyY}: {data: PlottingData[]; keyX: string; keyY: string}) {
+    const containerRef = React.useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (data === undefined) return;
+        const areaPlot = Plot.auto(data, {x: keyX, y: keyY, color: "count"}).plot()
+        containerRef.current?.append(areaPlot);
+        return () => areaPlot.remove();
+    }, [data]);
+
+    return <div ref={containerRef} />;
+}
+
+export function AreaPlot({data, keyX, keyY, fill = "pink", grid = false}: {data: PlottingData[]; keyX: string; keyY: string, fill?: plot.ChannelValueSpec | undefined; grid?: boolean}) {
+    const containerRef = React.useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const p = Plot.plot({
+            y: {
+              grid,
+            },
+            marks: [
+              Plot.areaY(data, {x: keyX, y: keyY, fill, fillOpacity: 0.3}),
+              Plot.lineY(data, {x: keyX, y: keyY, fill}),
+              Plot.ruleY([0])
+            ]
+          })
+        containerRef.current?.append(p);
+        return () => p.remove();
+    }, [data]);
+
+    return <div ref={containerRef} />;
+}
 
 const ProjectPlayground: React.FunctionComponent = () => {
     const projectId = useProjectId();
@@ -254,14 +264,14 @@ function Colors(): React.ReactNode {
                 paddingTop: "38px",
                 paddingLeft: "32px",
             }
-            return <div style={style}>--{color}</div>
+            return <div key={color} style={style}>--{color}</div>
         })}
     </Flex>
 }
 
 function PaletteColors(): React.ReactNode {
     return <Flex>
-        {paletteColors.map(color => <div>{numbers.map(number => <CSSPaletteColorVar color={color} num={number} />)}</div>)}
+        {paletteColors.map(color => <div key={color}>{numbers.map(number => <CSSPaletteColorVar key={number} color={color} num={number} />)}</div>)}
     </Flex>
 }
 

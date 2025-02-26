@@ -4,7 +4,7 @@ import Icon, {IconClass} from "./Icon";
 import {injectStyle, unbox} from "@/Unstyled";
 import {BoxProps} from "@/ui-components/Types";
 
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
     error?: boolean;
     selectRef?: React.RefObject<HTMLSelectElement>;
     slim?: boolean;

@@ -16,7 +16,7 @@ type Client struct {
 
 func NewClient() *Client {
 	cmd := []string{"squeue", "--version"}
-	data, ok := util.RunCommand(cmd)
+	data, _, ok := util.RunCommand(cmd)
 	if !ok {
 		return nil
 	}
@@ -36,7 +36,7 @@ func (c *Client) AccountExists(name string) bool {
 	}
 
 	cmd := []string{"sacctmgr", "-nP", "show", "account", name}
-	stdout, _ := util.RunCommand(cmd)
+	stdout, _, _ := util.RunCommand(cmd)
 	return (len(stdout) > 0)
 }
 
@@ -46,7 +46,7 @@ func (c *Client) AccountQuery(name string) *Account {
 	}
 
 	cmd := []string{"sacctmgr", "-sP", "show", "account", name, "format=account,desc,org,parentname,defaultqos,qos,user,maxjobs,maxsubmitjobs"}
-	stdout, ok := util.RunCommand(cmd)
+	stdout, _, ok := util.RunCommand(cmd)
 	if !ok {
 		return nil
 	}
@@ -58,7 +58,7 @@ func (c *Client) AccountQuery(name string) *Account {
 	}
 
 	cmd = []string{"sshare", "-lPA", name, "-o", "rawshares,rawusage,grptresmins,grptresraw"}
-	stdout, ok = util.RunCommand(cmd)
+	stdout, _, ok = util.RunCommand(cmd)
 	if !ok {
 		return nil
 	}
@@ -82,7 +82,7 @@ func (c *Client) AccountCreate(a *Account) bool {
 
 	cmd := []string{"sacctmgr", "-i", "create", "account", a.Name}
 	cmd = append(cmd, marshal(a)...)
-	_, ok := util.RunCommand(cmd)
+	_, _, ok := util.RunCommand(cmd)
 	return ok
 }
 
@@ -97,7 +97,7 @@ func (c *Client) AccountModify(a *Account) bool {
 
 	cmd := []string{"sacctmgr", "-i", "modify", "account", a.Name, "set"}
 	cmd = append(cmd, marshal(a)...)
-	_, ok := util.RunCommand(cmd)
+	_, _, ok := util.RunCommand(cmd)
 	return ok
 }
 
@@ -107,7 +107,7 @@ func (c *Client) AccountDelete(name string) bool {
 	}
 
 	cmd := []string{"sacctmgr", "-i", "delete", "account", name}
-	_, ok := util.RunCommand(cmd)
+	_, _, ok := util.RunCommand(cmd)
 	return ok
 }
 
@@ -121,7 +121,7 @@ func (c *Client) AccountAddUser(user, account string) bool {
 	}
 
 	cmd := []string{"sacctmgr", "-i", "add", "user", user, "account=" + account}
-	_, ok := util.RunCommand(cmd)
+	_, _, ok := util.RunCommand(cmd)
 	return ok
 }
 
@@ -135,7 +135,7 @@ func (c *Client) AccountRemoveUser(user, account string) bool {
 	}
 
 	cmd := []string{"sacctmgr", "-i", "remove", "user", user, "account=" + account}
-	_, ok := util.RunCommand(cmd)
+	_, _, ok := util.RunCommand(cmd)
 	return ok
 }
 
@@ -145,7 +145,7 @@ func (c *Client) UserExists(name string) bool {
 	}
 
 	cmd := []string{"sacctmgr", "-nP", "show", "user", name}
-	stdout, _ := util.RunCommand(cmd)
+	stdout, _, _ := util.RunCommand(cmd)
 	return (len(stdout) > 0)
 }
 
@@ -155,7 +155,7 @@ func (c *Client) UserQuery(name string) *User {
 	}
 
 	cmd := []string{"sacctmgr", "-sP", "show", "user", name, "format=user,defaultaccount,account,adminlevel"}
-	stdout, ok := util.RunCommand(cmd)
+	stdout, _, ok := util.RunCommand(cmd)
 	if !ok {
 		return nil
 	}
@@ -188,7 +188,7 @@ func (c *Client) UserCreate(u *User) bool {
 
 	cmd := []string{"sacctmgr", "-i", "create", "user", u.Name}
 	cmd = append(cmd, marshal(u)...)
-	_, ok := util.RunCommand(cmd)
+	_, _, ok := util.RunCommand(cmd)
 	return ok
 }
 
@@ -203,7 +203,7 @@ func (c *Client) UserModify(u *User) bool {
 
 	cmd := []string{"sacctmgr", "-i", "modify", "user", u.Name, "set"}
 	cmd = append(cmd, marshal(u)...)
-	_, ok := util.RunCommand(cmd)
+	_, _, ok := util.RunCommand(cmd)
 	return ok
 }
 
@@ -213,7 +213,7 @@ func (c *Client) UserDelete(name string) bool {
 	}
 
 	cmd := []string{"sacctmgr", "-i", "delete", "user", name}
-	_, ok := util.RunCommand(cmd)
+	_, _, ok := util.RunCommand(cmd)
 	return ok
 }
 
@@ -223,7 +223,7 @@ func (c *Client) JobQuery(id int) *Job {
 	}
 
 	cmd := []string{"sacct", "-XPj", fmt.Sprint(id), "-o", "jobid,state,user,account,jobname,partition,elapsed,timelimit,alloctres,qos,nodelist"}
-	stdout, ok := util.RunCommand(cmd)
+	stdout, _, ok := util.RunCommand(cmd)
 	if !ok {
 		return nil
 	}
@@ -238,8 +238,8 @@ func (c *Client) JobQuery(id int) *Job {
 }
 
 func (c *Client) JobList() []Job {
-	cmd := []string{"sacct", "-XPa", "-o", "jobid,state,user,account,jobname,partition,elapsed,timelimit,alloctres,qos,nodelist"}
-	stdout, ok := util.RunCommand(cmd)
+	cmd := []string{"sacct", "-XPa", "-o", "jobid,state,user,account,jobname,partition,elapsed,timelimit,alloctres,qos,nodelist,comment"}
+	stdout, _, ok := util.RunCommand(cmd)
 	if !ok {
 		return nil
 	}
@@ -251,25 +251,26 @@ func (c *Client) JobList() []Job {
 
 func (c *Client) JobSubmit(pathToScript string) (int, error) {
 	cmd := []string{"sbatch", pathToScript}
-	stdout, ok := util.RunCommand(cmd)
+	stdout, stderr, ok := util.RunCommand(cmd)
 	if !ok {
-		if strings.Contains(stdout, "Requested time limit is invalid") {
+		errorMessage := stdout + stderr
+		if strings.Contains(errorMessage, "Requested time limit is invalid") {
 			return -1, &util.HttpError{
 				StatusCode: http.StatusBadRequest,
 				Why: "The requested time limit is larger than what the system allows. " +
 					"Try with a smaller time allocation.",
 			}
-		} else if strings.Contains(stdout, "Node count specification invalid") {
+		} else if strings.Contains(errorMessage, "Node count specification invalid") {
 			return -1, &util.HttpError{
 				StatusCode: http.StatusBadRequest,
 				Why:        "Too many nodes requested. Try with a smaller amount of nodes.",
 			}
-		} else if strings.Contains(stdout, "More processors") {
+		} else if strings.Contains(errorMessage, "More processors") {
 			return -1, &util.HttpError{
 				StatusCode: http.StatusBadRequest,
 				Why:        "Too many nodes requested. Try with a smaller amount of nodes.",
 			}
-		} else if strings.Contains(stdout, "Requested node config") {
+		} else if strings.Contains(errorMessage, "Requested node config") {
 			return -1, &util.HttpError{
 				StatusCode: http.StatusBadRequest,
 				Why:        "Too many nodes requested. Try with a smaller amount of nodes.",
@@ -277,7 +278,7 @@ func (c *Client) JobSubmit(pathToScript string) (int, error) {
 		} else {
 			return -1, &util.HttpError{
 				StatusCode: http.StatusBadRequest,
-				Why:        fmt.Sprintf("Slurm could not process your request. %v", stdout),
+				Why:        fmt.Sprintf(errorMessage),
 			}
 		}
 	}
@@ -293,18 +294,33 @@ func (c *Client) JobSubmit(pathToScript string) (int, error) {
 	return jobId, nil
 }
 
+func (c *Client) JobComment(jobId int) (string, bool) {
+	cmd := []string{"squeue", fmt.Sprintf("--job=%d", jobId), "--format=%k"}
+	stdout, _, ok := util.RunCommand(cmd)
+	if !ok {
+		return "", false
+	}
+	split := strings.Split(stdout, "\n")
+	if len(split) >= 2 {
+		split = split[1:]
+		return strings.Join(split, "\n"), true
+	} else {
+		return "", false
+	}
+}
+
 func (c *Client) JobCancel(id int) bool {
 	if id <= 0 {
 		return false
 	}
 
 	cmd := []string{"scancel", fmt.Sprint(id)}
-	_, ok := util.RunCommand(cmd)
+	_, _, ok := util.RunCommand(cmd)
 	return ok
 }
 
 func (c *Client) JobGetNodeList(id int) []string {
-	stdout, ok := util.RunCommand([]string{"sacct", "--jobs", fmt.Sprint(id), "--format", "nodelist",
+	stdout, _, ok := util.RunCommand([]string{"sacct", "--jobs", fmt.Sprint(id), "--format", "nodelist",
 		"--parsable2", "--allusers", "--allocations", "--noheader"})
 	if !ok {
 		return nil
@@ -315,7 +331,7 @@ func (c *Client) JobGetNodeList(id int) []string {
 
 func expandNodeList(str string) []string {
 	var result []string
-	stdout, ok := util.RunCommand([]string{"scontrol", "show", "hostname", str})
+	stdout, _, ok := util.RunCommand([]string{"scontrol", "show", "hostname", str})
 	if !ok {
 		return result
 	}
@@ -334,7 +350,7 @@ func expandNodeList(str string) []string {
 
 func (c *Client) AccountBillingList() map[string]int64 {
 	var result = map[string]int64{}
-	stdout, ok := util.RunCommand([]string{"sshare", "-Pho", "account,user,grptresraw"})
+	stdout, _, ok := util.RunCommand([]string{"sshare", "-Pho", "account,user,grptresraw"})
 	if !ok {
 		return result
 	}
@@ -369,7 +385,7 @@ func (c *Client) AccountBillingList() map[string]int64 {
 }
 
 func (c *Client) UserListAccounts(user string) []string {
-	stdout, ok := util.RunCommand([]string{"sacctmgr", "show", "user", user, "--associations", "format=account", "--parsable2", "--noheader"})
+	stdout, _, ok := util.RunCommand([]string{"sacctmgr", "show", "user", user, "--associations", "format=account", "--parsable2", "--noheader"})
 	if !ok {
 		return nil
 	}

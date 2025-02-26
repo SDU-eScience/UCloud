@@ -1,6 +1,7 @@
 package idfreeipa
 
 import (
+	"fmt"
 	"os/user"
 	"strconv"
 	fnd "ucloud.dk/pkg/foundation"
@@ -14,13 +15,10 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 	gid, ok := ctrl.MapUCloudProjectToLocal(updated.Project.Id)
 	if !ok {
 		success := false
-		for ext := 0; ext <= 99; ext++ {
-			suggestedName := fnd.GenerateProjectName(updated.Project.Specification.Title)
-			if ext > 0 && ext < 10 {
-				suggestedName += "0" + strconv.Itoa(ext)
-			} else if ext >= 10 {
-				suggestedName += strconv.Itoa(ext)
-			}
+		strategy := config.ProjectStrategy
+		for ext := 0; ext <= 10000; ext++ {
+			suggestedName, digits := fnd.GenerateProjectName(updated.Project.Id, updated.Project.Specification.Title, strategy, config.ProjectPrefix)
+			suggestedName += fmt.Sprintf("%0*d", digits, ext)
 
 			_, groupExists := client.GroupQuery(suggestedName)
 			if !groupExists {
@@ -44,7 +42,7 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 		}
 
 		if !success {
-			log.Warn("Did not manage to create project group within 100 tries: %v %v", updated.Project.Id,
+			log.Warn("Did not manage to create project group within 10000 tries: %v %v", updated.Project.Id,
 				updated.Project.Specification.Title)
 			return false
 		} else {
@@ -74,6 +72,7 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 		log.Info("Adding user %v to %v", localUsername.Username, localGroup.Name)
 		ok = client.GroupAddUser(localGroup.Name, localUsername.Username)
 		if !ok {
+			log.Error("Failed to add user %v to %v", localUsername.Username, localGroup.Name)
 			continue
 		}
 	}
@@ -96,11 +95,13 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 			continue
 		}
 	}
+
+	clearSssdCache()
 	return true
 }
 
 func clearSssdCache() {
-	output, ok := util.RunCommand([]string{"sudo", "/sbin/sss_cache", "-E"})
+	output, _, ok := util.RunCommand([]string{"sudo", "/sbin/sss_cache", "-E"})
 	if !ok {
 		log.Warn("Failed to clear sssd cache (via `sudo /sbin/sss_cache -E`). Is sudo misconfigured? Output: %v", output)
 	}

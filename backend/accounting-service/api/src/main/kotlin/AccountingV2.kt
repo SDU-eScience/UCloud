@@ -217,6 +217,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
     val reportUsage = ReportUsage.call
     val checkProviderUsable = CheckProviderUsable.call
     val retrieveScopedUsage = RetrieveScopedUsage.call
+    val registerProviderGift = RegisterProviderGift.call
 
     private fun StringBuilder.documentationReportingFromProvider() {}
 
@@ -278,6 +279,43 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
         )
     }
 
+    object RegisterProviderGift {
+        @Serializable
+        data class RequestItem(
+            val ownerUsername: String,
+            val category: ProductCategoryIdV2,
+            val quota: Long,
+            val expiresAt: Long? = null,
+        )
+
+        val call = call(
+            "registerProviderGift",
+            BulkRequest.serializer(RequestItem.serializer()),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "registerProviderGift", roles = Roles.PROVIDER)
+
+                documentation {
+                    summary = "Registers a gift from a provider"
+                    description = """
+                        This endpoint will ensure that a gift is registered for a given workspace. This will find any
+                        existing gifts and update it to have the quota match the specified quota. It will not change
+                        the current usage of the allocation. If no existing gift from the provider has been created
+                        in this workspace, then a new one will be created. Gifts can _only_ be registered for personal
+                        workspaces.
+                        
+                        This endpoint is primarily intended for Slurm-based systems to register an allocation for
+                        Home-drives in personal workspaces.
+                        
+                        This endpoint will produce undefined results if the provider decides to also do normal
+                        allocations to personal workspaces of the same category.
+                    """.trimIndent()
+                }
+            }
+        )
+    }
+
     // Internal service + provider utilities
     // =================================================================================================================
     val findRelevantProviders = FindRelevantProviders.call
@@ -285,6 +323,9 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
     val browseProviderAllocations = BrowseProviderAllocations.call
     val adminDebug = AdminDebug.call
     val adminCharge = AdminCharge.call
+    val adminReset = AdminReset.call
+    val adminProviderDump = AdminProviderDump.call
+    val adminResendNotification = AdminResendNotification.call
 
     private fun StringBuilder.documentationInternalUtilities() {}
 
@@ -428,6 +469,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
         data class Request(
             val walletId: Int,
             val amount: Long,
+            val isDeltaCharge: Boolean = true
         )
 
         @Serializable
@@ -443,6 +485,66 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             CommonErrorMessage.serializer(),
             handler = {
                 httpUpdate(baseContext, "adminCharge", roles = Roles.ADMIN)
+            }
+        )
+    }
+
+    object AdminReset {
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Request(
+            val category: ProductCategoryIdV2,
+        )
+
+        val call = call(
+            "adminReset",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "adminReset", roles = Roles.ADMIN)
+            }
+        )
+    }
+
+    object AdminProviderDump {
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Request(
+            val category: ProductCategoryIdV2,
+        )
+
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Response(
+            val dump: String,
+        )
+
+        val call = call(
+            "adminProviderDump",
+            Request.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "adminProviderDump", roles = Roles.ADMIN)
+            }
+        )
+    }
+
+    object AdminResendNotification {
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Request(
+            val walletId: Int,
+        )
+
+        val call = call(
+            "adminResendNotification",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "adminResendNotification", roles = Roles.ADMIN)
             }
         )
     }
@@ -509,6 +611,8 @@ data class WalletV2(
     val totalAllocated: Long,
 
     val lastSignificantUpdateAt: Long,
+
+    val localRetiredUsage: Long,
 )
 
 @Serializable

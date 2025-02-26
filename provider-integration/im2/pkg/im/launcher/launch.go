@@ -14,6 +14,7 @@ import (
 	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/im/services/k8s"
 	"ucloud.dk/pkg/im/services/slurm"
 	"ucloud.dk/pkg/termio"
 	"ucloud.dk/pkg/util"
@@ -51,6 +52,12 @@ func Launch() {
 		pluginName = flag.Arg(0)
 	}
 
+	if pluginName != "" {
+		if k8s.HandleCliWithoutConfig(pluginName) {
+			return
+		}
+	}
+
 	if !cfg.Parse(mode, *configDir) {
 		fmt.Printf("Failed to parse configuration!\n")
 		return
@@ -58,6 +65,11 @@ func Launch() {
 
 	if pluginName != "" {
 		cfg.Mode = mode
+
+		if gateway.HandleCli(pluginName) {
+			return
+		}
+
 		switch cfg.Services.Type {
 		case cfg.ServicesSlurm:
 			slurm.HandleCli(pluginName)
@@ -176,6 +188,7 @@ func Launch() {
 
 	if mode == cfg.ServerModeServer {
 		launchMetricsServer()
+		gateway.InitIpc()
 	}
 
 	log.Info("UCloud is ready!")

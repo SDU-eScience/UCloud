@@ -132,7 +132,7 @@ export const CommandPalette: React.FunctionComponent = () => {
         } else if (ev.code === "Enter") {
             setCurrentIndex(idx => {
                 if (idx === -1) return -1;
-                const cmd = commands[idx];
+                const cmd = findActiveCommand(idx, groupBy(commands, it => it.scope));
                 if (cmd) {
                     onActivate();
                     cmd.action();
@@ -163,14 +163,16 @@ export const CommandPalette: React.FunctionComponent = () => {
         return () => document.removeEventListener("mousedown", closeOnOutsideClick);
     }, []);
 
-    if (!visible) return null;
+    const activeCommand: Command | undefined = React.useMemo(() => {
+        return findActiveCommand(currentIndex, groupedCommands)
+    }, [currentIndex, groupedCommands]);
 
-    const activeCommand = commands[currentIndex];
+    if (!visible) return null;
 
     return <div ref={divRef} has-items={commands.length > 0 ? "" : undefined} className={wrapper}>
         <input
             autoFocus
-            placeholder={"Search for anything on UCloud..."}
+            placeholder={"Search for actions on UCloud..."}
             onKeyDown={onInput}
             onChange={onChange}
             value={query}
@@ -187,6 +189,23 @@ export const CommandPalette: React.FunctionComponent = () => {
         </Box>
     </div>;
 };
+
+function findActiveCommand(currentIndex: number, groupedCommands: Record<string, Command[]>): Command | undefined {
+    if (currentIndex === -1) return undefined;
+    let idx = currentIndex;
+
+    for (const scope of Object.values(CommandScope)) {
+        if (!groupedCommands[scope]?.length) continue;
+
+        if (idx >= groupedCommands[scope].length) {
+            idx -= groupedCommands[scope].length;
+        } else {
+            return groupedCommands[scope]?.[idx];
+        }
+    };
+
+    return undefined;
+}
 
 function scrollEntryIntoView(index: number, scroll: ScrollLogicalPosition) {
     const entry = document.querySelector("[data-command-palette]")?.querySelectorAll("[data-entry]").item(index);;
@@ -233,7 +252,7 @@ function EntryWrapper({command, active, onClick}: {
         data-entry
     >
         <div style={{marginTop: "auto", marginBottom: "auto", marginLeft: "16px"}}>
-            <CommandIcon key={command.icon.type} icon={command.icon} active={active} />
+            <CommandIcon key={command.icon.type} label={command.title + " icon"} icon={command.icon} active={active} />
         </div>
 
         <Flex my="auto" mx="8px" width="100%">
@@ -266,13 +285,13 @@ const EntryHover = injectStyle("entry-hover", k => `
 `);
 
 const IMAGE_SIZE = 18;
-function CommandIcon({icon, active}: {icon: CommandIconProvider; active: boolean;}) {
+function CommandIcon({icon, active, label}: {icon: CommandIconProvider; active: boolean; label: string}) {
     switch (icon.type) {
         case "image": {
-            return <Image src={icon.imageUrl} height={`${IMAGE_SIZE}px`} width={`${IMAGE_SIZE}px`} />;
+            return <Image alt={label} src={icon.imageUrl} height={`${IMAGE_SIZE}px`} width={`${IMAGE_SIZE}px`} />;
         }
         case "simple": {
-            return <Icon name={icon.icon} size={IMAGE_SIZE} color={icon.color ?? (active ? "primaryContrast" : "iconColor")} color2={icon.color2 ?? (active ? "primaryContrastAlt" :"iconColor2")} />
+            return <Icon name={icon.icon} size={IMAGE_SIZE} color={icon.color ?? (active ? "primaryContrast" : "iconColor")} color2={icon.color2 ?? (active ? "primaryContrastAlt" : "iconColor2")} />
         }
     }
 }

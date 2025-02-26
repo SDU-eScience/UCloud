@@ -53,6 +53,7 @@ services:
           entity: User
           pattern: "/gpfs/home/#{localUsername}"
           title: "Home"
+          freeQuota: 10
 
         projects:
           entity: Project
@@ -71,18 +72,6 @@ services:
 
   slurm:
     fakeResourceAllocation: true
-    applications:
-      variables:
-        myVariables: 40
-        myOtherVariable: 2
-        myGreeting: "hello user"
-      templates:
-        myGlobalPreamble: |
-          {% if requiresOptionalPackages %}
-          module load extra-packages
-          {% endif %}
-
-          echo {{ myGreeting }}
 
     accountManagement:
       accounting: # Usage and quota management
@@ -102,7 +91,6 @@ services:
       u1-standard:
         partition: normal
         qos: standard
-        # constraint: standard
 
         nameSuffix: Cpu
 

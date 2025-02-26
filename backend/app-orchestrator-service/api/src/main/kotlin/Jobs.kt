@@ -582,6 +582,7 @@ data class JobsOpenInteractiveSessionRequestItem(
     val id: String,
     val rank: Int,
     val sessionType: InteractiveSessionType,
+    val target: String? = null,
 )
 
 typealias JobsOpenInteractiveSessionResponse = BulkResponse<OpenSessionWithProvider?>
@@ -1351,6 +1352,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                             1_000_000 * 499L,
                             1_000_00L * 1,
                             1_000_000 * 500,
+                            0L,
                             0L,
                             0L,
                         )

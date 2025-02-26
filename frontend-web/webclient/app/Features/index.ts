@@ -11,12 +11,18 @@ export enum Feature {
     // current policies.
     ADDITIONAL_USER_INFO,
 
-    COPY_APP_MOCKUP,
+    JOB_RENAME,
 
     APP_CATALOG_FILTER,
 
     NEW_TASKS,
-    COMMAND_PALETTE
+    COMMAND_PALETTE,
+    INTEGRATED_EDITOR,
+    EDITOR_VIM,
+
+    PROVIDER_CONDITION,
+
+    ALTERNATIVE_USAGE_SELECTOR
 }
 
 enum Environment {
@@ -27,14 +33,14 @@ enum Environment {
     PROD
 }
 
-const allEnvironments: Environment[] =
-    [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK, Environment.PUBLIC_DEV, Environment.PROD];
-
-const allDevEnvironments: Environment[] =
-    [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK, Environment.SANDBOX_DEV, Environment.PUBLIC_DEV];
-
 const allLocalEnvironments: Environment[] =
     [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK];
+
+const allDevEnvironments: Environment[] =
+    [...allLocalEnvironments, Environment.SANDBOX_DEV, Environment.PUBLIC_DEV];
+
+const allEnvironments: Environment[] =
+    [...allDevEnvironments, Environment.PROD];
 
 function publicFeature(feature: Feature): FeatureConfig {
     return {
@@ -66,13 +72,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "inline-terminal": {
         feature: Feature.INLINE_TERMINAL,
-        showWithoutFlag: allLocalEnvironments,
-    },
-
-    "copy-app": {
-        feature: Feature.COPY_APP_MOCKUP,
-        showWithFlag: allDevEnvironments,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
     },
 
     "component-stored-cut-copy": {
@@ -82,7 +82,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "app-catalog-filter": {
         feature: Feature.APP_CATALOG_FILTER,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments
     },
 
@@ -93,8 +93,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "new-tasks": {
         feature: Feature.NEW_TASKS,
-        showWithoutFlag: allDevEnvironments,
-        showWithFlag: allEnvironments,
+        showWithoutFlag: allEnvironments,
     },
 
     "command-palette": {
@@ -102,6 +101,34 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     },
+
+    "integrated-editor": {
+        feature: Feature.INTEGRATED_EDITOR,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "editor-vim": {
+        feature: Feature.EDITOR_VIM,
+        showWithoutFlag: allLocalEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "provider-condition": {
+        feature: Feature.PROVIDER_CONDITION,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
+    "job-rename": {
+        feature: Feature.JOB_RENAME,
+        showWithFlag: allDevEnvironments,
+        showWithoutFlag: allLocalEnvironments
+    },
+    "alternative-usage-selector": {
+        feature: Feature.ALTERNATIVE_USAGE_SELECTOR,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    }
 };
 
 function getCurrentEnvironment(): Environment {
@@ -126,8 +153,10 @@ export function hasFeature(feature: Feature): boolean {
 
         const withFlag = config.showWithFlag ?? [];
         const withoutFlag = config.showWithoutFlag ?? [];
+        const flagValue = localStorage.getItem(key);
+        if (flagValue === "false") return false;
         if (withoutFlag.indexOf(env) !== -1) return true;
-        if (withFlag.indexOf(env) !== -1 && localStorage.getItem(key) !== null) return true;
+        if (withFlag.indexOf(env) !== -1 && flagValue != null) return true;
     }
     return false;
 }

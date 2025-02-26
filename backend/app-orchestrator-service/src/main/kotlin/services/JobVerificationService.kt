@@ -149,7 +149,7 @@ class JobVerificationService(
             if (components.size == 1 && components.first().toLongOrNull() == null) {
                 // In this case, we might be looking at a share
                 val matchingShares = db
-                    .withSession { session ->
+                    .withSession(reason = "JobVerificationService.translatePotentialShares") { session ->
                         session.sendPreparedStatement(
                             {
                                 setParameter("user", actorAndProject.actor.safeUsername())
@@ -314,6 +314,10 @@ class JobVerificationService(
                         }
                     }
 
+                    is ApplicationParameter.Readme -> {
+                        AppParameterValue.Text("")
+                    }
+
                     else -> error("unknown application parameter: ${param}")
                 }
 
@@ -374,6 +378,14 @@ class JobVerificationService(
                 is ApplicationParameter.Workflow -> {
                     if (providedValue !is AppParameterValue.Workflow) badValue(param)
                 }
+
+                is ApplicationParameter.ModuleList -> {
+                    if (providedValue !is AppParameterValue.ModuleList) badValue(param)
+                }
+
+                is ApplicationParameter.Readme -> {
+                    // Always OK
+                }
             }
         }
 
@@ -389,6 +401,7 @@ class JobVerificationService(
                         throw RPCException("Bad injected parameter", HttpStatusCode.BadGateway)
                     }
 
+                    is AppParameterValue.ModuleList,
                     is AppParameterValue.Workflow,
                     is AppParameterValue.Bool,
                     is AppParameterValue.FloatingPoint,

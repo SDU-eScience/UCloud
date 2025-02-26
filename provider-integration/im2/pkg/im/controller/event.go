@@ -203,6 +203,10 @@ const (
 	OpReplayUser   uint8 = 5
 )
 
+const (
+	apmIncludeRetired uint64 = 1 << iota
+)
+
 func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom int64) {
 	defer util.SilentClose(session)
 
@@ -213,7 +217,7 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom i
 	writeBuf := buf{}
 	writeBuf.PutU8(OpAuth)
 	writeBuf.PutU64(uint64(replayFrom))
-	writeBuf.PutU64(0) // flags (unused)
+	writeBuf.PutU64(apmIncludeRetired) // flags
 	writeBuf.PutString(client.DefaultClient.RetrieveAccessTokenOrRefresh())
 
 	_ = session.WriteMessage(ws.TextMessage, writeBuf.Bytes())
@@ -251,23 +255,41 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom i
 					combinedQuota := readBuf.GetU64()
 					flags := readBuf.GetU32()
 					lastUpdate := readBuf.GetU64()
+					localRetiredUsage := readBuf.GetU64()
+
+					category, ok := products[categoryRef]
+					if !ok || category.Name == "" {
+						log.Error("Received an APM event with invalid product reference. Refusing to handle this event!")
+						return
+					}
 
 					isLocked := (flags & 0x1) != 0
 					isProject := (flags & 0x2) != 0
 
 					notification := NotificationWalletUpdated{
-						CombinedQuota: combinedQuota,
-						LastUpdate:    fnd.TimeFromUnixMilli(lastUpdate),
-						Locked:        isLocked,
-						Category:      products[categoryRef],
+						CombinedQuota:     combinedQuota,
+						LastUpdate:        fnd.TimeFromUnixMilli(lastUpdate),
+						Locked:            isLocked,
+						Category:          category,
+						LocalRetiredUsage: localRetiredUsage,
 					}
 
 					if isProject {
 						notification.Owner.Type = apm.WalletOwnerTypeProject
 						notification.Owner.ProjectId = projects[workspaceRef].Id
-						notification.Project.Set(projects[workspaceRef])
+						projectInfo, ok := projects[workspaceRef]
+						if !ok || projectInfo.Id == "" {
+							log.Error("Received an APM event with invalid project reference. Refusing to handle this event!")
+							return
+						}
+						notification.Project.Set(projectInfo)
 					} else {
 						notification.Owner.Type = apm.WalletOwnerTypeUser
+						userInfo, ok := users[workspaceRef]
+						if !ok || userInfo == "" {
+							log.Error("Received an APM event with an invalid user reference. Refusing to handle this event!")
+							return
+						}
 						notification.Owner.Username = users[workspaceRef]
 					}
 
@@ -331,12 +353,13 @@ const (
 )
 
 type NotificationWalletUpdated struct {
-	Owner         apm.WalletOwner
-	Category      apm.ProductCategory
-	CombinedQuota uint64
-	Locked        bool
-	LastUpdate    fnd.Timestamp
-	Project       util.Option[apm.Project]
+	Owner             apm.WalletOwner
+	Category          apm.ProductCategory
+	CombinedQuota     uint64
+	Locked            bool
+	LastUpdate        fnd.Timestamp
+	Project           util.Option[apm.Project]
+	LocalRetiredUsage uint64
 }
 
 type NotificationProjectUpdated struct {
@@ -610,11 +633,12 @@ func compareProjects(before apm.Project, after apm.Project) ProjectComparison {
 }
 
 type TrackedAllocation struct {
-	Owner         apm.WalletOwner
-	Category      string
-	CombinedQuota uint64
-	Locked        bool
-	LastUpdate    fnd.Timestamp
+	Owner             apm.WalletOwner
+	Category          string
+	CombinedQuota     uint64
+	Locked            bool
+	LastUpdate        fnd.Timestamp
+	LocalRetiredUsage uint64
 }
 
 func trackAllocation(update *NotificationWalletUpdated) {
@@ -623,19 +647,21 @@ func trackAllocation(update *NotificationWalletUpdated) {
 			tx,
 			`
 				insert into tracked_allocations(owner_username, owner_project, category, combined_quota,
-					locked, last_update)
-				values (:owner_username, :owner_project, :category, :combined_quota, :locked, now())
+					locked, last_update, local_retired_usage)
+				values (:owner_username, :owner_project, :category, :combined_quota, :locked, now(), :local_retired_usage)
 				on conflict(category, owner_username, owner_project) do update set
 					combined_quota = excluded.combined_quota,
 					locked = excluded.locked,
-					last_update = excluded.last_update
+					last_update = excluded.last_update,
+					local_retired_usage = excluded.local_retired_usage
 			`,
 			db.Params{
-				"owner_username": update.Owner.Username,
-				"owner_project":  update.Owner.ProjectId,
-				"category":       update.Category.Name,
-				"combined_quota": update.CombinedQuota,
-				"locked":         update.Locked,
+				"owner_username":      update.Owner.Username,
+				"owner_project":       update.Owner.ProjectId,
+				"category":            update.Category.Name,
+				"combined_quota":      update.CombinedQuota,
+				"locked":              update.Locked,
+				"local_retired_usage": update.LocalRetiredUsage,
 			},
 		)
 	})
@@ -645,12 +671,13 @@ func FindAllAllocations(categoryName string) []TrackedAllocation {
 	return db.NewTx[[]TrackedAllocation](func(tx *db.Transaction) []TrackedAllocation {
 		var result []TrackedAllocation
 		rows := db.Select[struct {
-			OwnerUsername string
-			OwnerProject  string
-			Category      string
-			CombinedQuota uint64
-			LastUpdate    time.Time
-			Locked        bool
+			OwnerUsername     string
+			OwnerProject      string
+			Category          string
+			CombinedQuota     uint64
+			LastUpdate        time.Time
+			Locked            bool
+			LocalRetiredUsage uint64
 		}](
 			tx,
 			`
@@ -666,11 +693,12 @@ func FindAllAllocations(categoryName string) []TrackedAllocation {
 
 		for _, row := range rows {
 			result = append(result, TrackedAllocation{
-				Owner:         apm.WalletOwnerFromIds(row.OwnerUsername, row.OwnerProject),
-				Category:      row.Category,
-				CombinedQuota: row.CombinedQuota,
-				Locked:        row.Locked,
-				LastUpdate:    fnd.Timestamp(row.LastUpdate),
+				Owner:             apm.WalletOwnerFromIds(row.OwnerUsername, row.OwnerProject),
+				Category:          row.Category,
+				CombinedQuota:     row.CombinedQuota,
+				Locked:            row.Locked,
+				LastUpdate:        fnd.Timestamp(row.LastUpdate),
+				LocalRetiredUsage: row.LocalRetiredUsage,
 			})
 		}
 

@@ -102,7 +102,7 @@ function ClickableDropdown<T>({
 
     const forceOpen = useCallback((left: number, top: number) => {
         setLocation([left, top]);
-        doOpen()
+        doOpen();
     }, [doOpen, setLocation]);
     if (props.openFnRef) props.openFnRef.current = forceOpen;
 
@@ -145,6 +145,9 @@ function ClickableDropdown<T>({
         }
     }, [open]);
 
+    useEffect(() => {
+        counter.current = -1;
+    }, [open]);
 
     useEffect(() => {
         if (open) {
@@ -175,7 +178,8 @@ function ClickableDropdown<T>({
             </Box>
         ));
     } else if (props.children) {
-        children = [props.children];
+        if (Array.isArray(props.children)) children = props.children;
+        else children = [props.children];
     }
     const emptyChildren = (React.Children.map(children, it => it) ?? []).length === 0;
     let width = props.fullWidth && !props.useMousePositioning ? "100%" : props.width;
@@ -191,6 +195,10 @@ function ClickableDropdown<T>({
     }
 
     let left = !props.useMousePositioning ? props.left : location[0];
+    if (props.rightAligned) {
+        left = extractLeftAlignedPosition(dropdownRef.current, width) ?? left;
+    }
+
     if (props.useMousePositioning) {
         if (width === undefined) width = 300;
         const widthAsNumber = parseInt(width.toString().replace("px", ""));
@@ -201,11 +209,37 @@ function ClickableDropdown<T>({
         const topAsNumber = parseInt((top ?? 0).toString().replace("px", ""));
         let estimatedHeight = 38 * children.length;
         if (props.height) {
-            estimatedHeight = Math.min(props.height, estimatedHeight);
+            estimatedHeight = Math.max(props.height, estimatedHeight);
         }
 
         if (window.innerHeight - (topAsNumber + estimatedHeight) < 50) {
             top = topAsNumber - estimatedHeight;
+        }
+    } else if (props.rightAligned) {
+        // Fixed positioning, but not based on the mouse. We need to push the content around to make sure that we have
+        // space for it.
+
+        const screenHeight = window.innerHeight;
+        const screenWidth = window.innerWidth;
+
+        let x = parseInt((left ?? "0")?.toString().replace("px", ""));
+        if (isNaN(x)) x = 0;
+        let y = parseInt((top ?? "0")?.toString().replace("px", ""));
+        if (isNaN(y)) y = 0;
+
+
+        const widthAsNumber = parseInt((width ?? 300).toString().replace("px", ""));
+        let heightAsNumber = 38 * children.length;
+        if (props.height) {
+            heightAsNumber = Math.max(props.height, heightAsNumber);
+        }
+
+        if (x + widthAsNumber >= screenWidth) {
+            left = x - widthAsNumber;
+        }
+
+        if (y + heightAsNumber >= screenHeight) {
+            top = y - heightAsNumber;
         }
     }
 
@@ -216,7 +250,7 @@ function ClickableDropdown<T>({
         cursor="pointer"
         {...(props as any)}
         top={top}
-        left={props.rightAligned ? extractLeftAlignedPosition(dropdownRef.current, width) ?? left : left}
+        left={left}
         fixed={props.rightAligned || props.useMousePositioning}
         maxHeight={`${props.height}px`}
         width={width}
@@ -290,25 +324,22 @@ function _onKeyDown(
     if (listEntries.length === 0) return;
 
     const oldIndex = index.current;
-    let behavior: "instant" | "smooth" = "instant";
     if (isDown) {
         index.current += 1;
         if (index.current >= listEntries.length) {
             index.current = 0;
-            behavior = "smooth";
         }
     } else if (isUp) {
         index.current -= 1;
         if (index.current < 0) {
             index.current = listEntries.length - 1;
-            behavior = "smooth";
         }
     }
 
     if (isUp || isDown) {
         if (oldIndex !== -1) listEntries.item(oldIndex)["style"].backgroundColor = "";
         listEntries.item(index.current)["style"].backgroundColor = `var(--${hoverColor})`;
-        listEntries.item(index.current).scrollIntoView({behavior, block: "nearest"});
+        listEntries.item(index.current).scrollIntoView({behavior: "instant", block: "nearest"});
     } else if (isEnter && index.current !== -1) {
         onSelect?.(listEntries.item(index.current));
     }

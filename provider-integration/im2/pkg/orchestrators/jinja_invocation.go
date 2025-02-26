@@ -139,7 +139,7 @@ func PrepareJinjaTemplate(source string, templateSession any, templates Template
 		Filters:           filters,
 		Tests:             builtins.Tests,
 		ControlStructures: controlStructures.Safe,
-		Methods:           builtins.Methods, // TODO Consider these
+		Methods:           builtins.Methods,
 	}
 
 	gonjaCfg := gonjacfg.New()
@@ -162,22 +162,22 @@ func PrepareJinjaTemplate(source string, templateSession any, templates Template
 	return template, err
 }
 
-func ExecuteJinjaTemplate(templateSource string, templateSession any, templates TemplateInvocation, ctx *exec.Context, flags JinjaFlags) (string, bool) {
+func ExecuteJinjaTemplate(templateSource string, templateSession any, templates TemplateInvocation, ctx *exec.Context, flags JinjaFlags) (string, error) {
 	tpl, err := PrepareJinjaTemplate(templateSource, templateSession, templates, flags)
 	if err != nil {
 		log.Warn("Invalid jinja template generated from %v: %v", util.GetCaller(), err)
-		return "", false
+		return "", err
 	} else {
 		return ExecutePreparedJinjaTemplate(tpl, ctx, flags)
 	}
 }
 
-func ExecutePreparedJinjaTemplate(tpl *exec.Template, ctx *exec.Context, flags JinjaFlags) (string, bool) {
+func ExecutePreparedJinjaTemplate(tpl *exec.Template, ctx *exec.Context, flags JinjaFlags) (string, error) {
 	output, err := tpl.ExecuteToString(ctx)
 	if err != nil {
 		log.Warn("Failure during jinja exec generated from %v: %v", util.GetCaller(), err)
-		return "", false
+		return "", err
 	} else {
-		return output, true
+		return output, nil
 	}
 }

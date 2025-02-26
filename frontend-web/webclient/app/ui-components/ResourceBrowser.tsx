@@ -13,6 +13,7 @@ import {
     createHTMLElements,
     doNothing,
     inDevEnvironment,
+    isLikelyMac,
     stopPropagation,
     stopPropagationAndPreventDefault,
     timestampUnixMs
@@ -28,7 +29,7 @@ import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
-import {ContextSwitcher, FilterInputClass, projectCache} from "@/Project/ContextSwitcher";
+import {ProjectSwitcher, FilterInputClass, projectCache} from "@/Project/ProjectSwitcher";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
 import {ProductType, ProductV2} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
@@ -624,7 +625,7 @@ export class ResourceBrowser<T> {
 
         if (this.features.contextSwitcher) {
             const div = document.createElement("div");
-            div.className = "context-switcher";
+            div.className = "project-switcher";
             const headerThing = this.header.querySelector<HTMLDivElement>(".header-first-row")!;
             headerThing.appendChild(div);
         }
@@ -1187,11 +1188,12 @@ export class ResourceBrowser<T> {
             button.className = ButtonClass;
             button.style.height = opts?.height ?? "32px";
             button.style.width = opts?.width ?? "96px";
-
+            
             const color = opts?.color ?? "secondaryMain";
             button.style.setProperty("--bgColor", `var(--${color})`);
             button.style.setProperty("--hoverColor", `var(--${selectHoverColor(color)})`);
             button.style.color = `var(--${selectContrastColor(color)})`;
+            button.tabIndex = 0;
 
             button.onclick = e => {
                 e.stopImmediatePropagation();
@@ -2030,7 +2032,10 @@ export class ResourceBrowser<T> {
 
     closeRenameField(why: "submit" | "cancel", render: boolean = true) {
         if (this.renameFieldIndex !== -1) {
-            if (why === "submit") this.renameOnSubmit();
+            if (why === "submit") {
+                this.renameValue = this.renameValue.trim();
+                this.renameOnSubmit();
+            }
             else this.renameOnCancel();
         }
 
@@ -3476,9 +3481,9 @@ export function addContextSwitcherInPortal<T>(
 ) {
     const browser = browserRef.current;
     if (browser != null) {
-        const contextSwitcher = browser.header.querySelector<HTMLDivElement>(".context-switcher");
-        if (contextSwitcher) {
-            setPortal(createPortal(<ContextSwitcher managed={managed} />, contextSwitcher));
+        const projectSwitcher = browser.header.querySelector<HTMLDivElement>(".project-switcher");
+        if (projectSwitcher) {
+            setPortal(createPortal(<ProjectSwitcher managed={managed} />, projectSwitcher));
         }
     }
 }
@@ -3668,10 +3673,6 @@ function printDuplicateShortcuts<T>(operations: OperationOrGroup<T, unknown>[]) 
         entries[short.shortcut ?? ""] = short.text;
     }
 }
-
-const isLikelyMac = navigator["userAgentData"]?.["platform"] === "macOS" ||
-    navigator["platform"]?.toLocaleLowerCase().includes("mac") ||
-    navigator["userAgent"]?.toLocaleLowerCase().includes("macintosh");
 
 const ARROW_UP = "↑";
 const ARROW_DOWN = "↓";

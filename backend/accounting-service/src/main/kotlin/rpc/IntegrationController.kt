@@ -4,6 +4,7 @@ import dk.sdu.cloud.accounting.services.providers.ProviderIntegrationService
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.provider.api.Integration
 import dk.sdu.cloud.provider.api.IntegrationControl
+import dk.sdu.cloud.provider.api.ProviderCondition
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.actorAndProject
 
@@ -40,6 +41,10 @@ class IntegrationController(
 
         implement(Integration.claimReverseConnection) {
             ok(integrationService.claimReverseConnection(actorAndProject, request))
+        }
+
+        implement(Integration.condition) {
+            ok(integrationService.retrieveCondition(request.provider))
         }
 
         return@with

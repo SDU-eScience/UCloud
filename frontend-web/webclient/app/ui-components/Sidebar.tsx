@@ -7,6 +7,7 @@ import {
     copyToClipboard,
     displayErrorMessageOrDefault, doNothing,
     isLightThemeStored,
+    isLikelyMac,
     joinToString,
     useEffectSkipMount,
     useFrameHidden
@@ -65,13 +66,14 @@ import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
 import {isAdminOrPI} from "@/Project";
 import {FileType} from "@/Files";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
-import {onProjectUpdated, projectCache, projectTitle} from "@/Project/ContextSwitcher";
+import {onProjectUpdated, projectCache, projectTitle} from "@/Project/ProjectSwitcher";
 import {HookStore, useGlobal} from "@/Utilities/ReduxHooks";
 import {useDiscovery} from "@/Applications/Hooks";
-import {Command, CommandPalette, CommandScope, staticProvider, useCommandProviderList, useProvideCommands} from "@/CommandPalette";
+import {Command, CommandPalette, CommandScope, staticProvider, useProvideCommands} from "@/CommandPalette";
 import {NavigateFunction, useNavigate} from "react-router";
 import {dispatchSetProjectAction} from "@/Project/ReduxState";
 import {Dispatch} from "redux";
+import {Feature, hasFeature} from "@/Features";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -357,6 +359,7 @@ function UserMenu({avatar, dialog, setOpenDialog}: {
             <Divider />
             <Username close={close.current} />
             <ProjectID close={close.current} />
+            <CommandPaletteEntry />
             <Divider />
             <Flex className={HoverClass} onClick={() => Client.logout()} data-component={"logout-button"}>
                 <Icon name="heroArrowRightOnRectangle" color2="textPrimary" mr="0.5em" my="0.2em" size="1.3em" />
@@ -364,6 +367,18 @@ function UserMenu({avatar, dialog, setOpenDialog}: {
             </Flex>
         </Box>
     </ClickableDropdown>;
+}
+
+const CTRL_KEY = isLikelyMac ? "⌘" : "ctrl";
+
+function CommandPaletteEntry(): React.ReactNode {
+    if (!hasFeature(Feature.COMMAND_PALETTE)) return null;
+    return <Flex className={HoverClass} onClick={e => {
+        window.dispatchEvent(new KeyboardEvent("keydown", {code: "KeyP", ctrlKey: true, metaKey: true}));
+    }}>
+        <Icon name="heroCommandLine" color2="textPrimary" mr="0.5em" my="0.2em" size="1.3em" /> Command palette
+        <TextSpan ml="0.5em" color="textSecondary">({CTRL_KEY} + P)</TextSpan>
+    </Flex>
 }
 
 const HoverClass = injectStyle("hover-class", k => `
@@ -442,7 +457,7 @@ export function Sidebar(): React.ReactNode {
     return (
         <Flex>
             <div className={classConcat(SidebarContainerClass, SIDEBAR_IDENTIFIER)}>
-                <Link data-component={"logo"} to="/" onClick={onLogoClick}>
+                <Link data-component={"logo"} title={`Go to dashboard`} aria-label={`Go to dashboard`} to="/" onClick={onLogoClick}>
                     <Icon name="logoEsc" mt="10px" size="34px" />
                 </Link>
 
@@ -456,7 +471,7 @@ export function Sidebar(): React.ReactNode {
                 >
                     {sidebar.map(({label, icon, to}) =>
                         to ? (
-                            <Link hoverColor="fixedWhite" key={label} to={typeof to === "function" ? to() : to}>
+                            <Link hoverColor="fixedWhite" title={`Go to ${label}`} aria-label={`Go to ${label}`} key={label} to={typeof to === "function" ? to() : to}>
                                 <div
                                     data-active={tab === label}
                                     onMouseEnter={() => setHoveredPage(label)}
@@ -685,20 +700,28 @@ function SecondarySidebar({
 
     const projects = projectCache.retrieveFromCacheOnly("");
     const navigate = useNavigate();
-    const activeProject = useProjectId();
     const dispatch = useDispatch();
 
     const projectCommands: Command[] = React.useMemo(() => {
-        return projects?.items.map(p => ({
-            title: p.specification.title,
-            description: "",
-            icon: {type: "simple", icon: "heroUserGroup"},
-            scope: CommandScope.Project,
-            action() {
-                onProjectUpdated(navigate, () => dispatchSetProjectAction(dispatch, p.id), () => void 0, p.id);
-            },
-            actionText: "Switch to",
-        }) as Command).concat(activeProject ? [myWorkspaceProjectCommand(navigate, dispatch)] : []) ?? [];
+        const projectActivations: Command[] = []
+        for (const p of (projects?.items ?? [])) {
+            projectActivations.push({
+                title: p.specification.title,
+                description: "",
+                icon: {type: "simple", icon: "heroUserGroup"},
+                scope: CommandScope.Project,
+                action() {
+                    onProjectUpdated(navigate, () => dispatchSetProjectAction(dispatch, p.id), () => void 0, p.id);
+                },
+                actionText: "Switch to",
+            });
+        }
+
+        if (activeProjectId) {
+            projectActivations.push(myWorkspaceProjectCommand(navigate, dispatch));
+        }
+
+        return projectActivations;
     }, [projects?.items, activeProjectId]);
 
     useProvideCommands(staticProvider(projectCommands));

@@ -2,6 +2,7 @@ package config
 
 import (
 	"gopkg.in/yaml.v3"
+	"ucloud.dk/pkg/util"
 )
 
 type ServicesConfigurationKubernetes struct {
@@ -13,11 +14,20 @@ type KubernetesFileSystem struct {
 	Name             string
 	MountPoint       string
 	TrashStagingArea string
+	ClaimName        string
+}
+
+type KubernetesWebConfiguration struct {
+	Enabled bool
+	Prefix  string
+	Suffix  string
 }
 
 type KubernetesCompute struct {
-	Machines  map[string]K8sMachineCategory
-	Namespace string // TODO
+	Machines                   map[string]K8sMachineCategory
+	Namespace                  string
+	Web                        KubernetesWebConfiguration
+	VirtualMachineStorageClass util.Option[string]
 }
 
 type K8sMachineCategory struct {
@@ -26,11 +36,13 @@ type K8sMachineCategory struct {
 }
 
 type K8sMachineCategoryGroup struct {
-	NameSuffix  MachineResourceType
-	Configs     []K8sMachineConfiguration
-	CpuModel    string
-	GpuModel    string
-	MemoryModel string
+	NameSuffix           MachineResourceType
+	Configs              []K8sMachineConfiguration
+	CpuModel             string
+	GpuModel             string
+	MemoryModel          string
+	AllowVirtualMachines bool
+	AllowsContainers     bool
 }
 
 type K8sMachineConfiguration struct {
@@ -49,9 +61,14 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		cfg.FileSystem.Name = requireChildText(filePath, fsNode, "name", &success)
 		cfg.FileSystem.MountPoint = requireChildFolder(filePath, fsNode, "mountPoint", FileCheckReadWrite, &success)
 		cfg.FileSystem.TrashStagingArea = requireChildFolder(filePath, fsNode, "trashStagingArea", FileCheckReadWrite, &success)
+		cfg.FileSystem.ClaimName = requireChildText(filePath, fsNode, "claimName", &success)
 	}
 
 	computeNode := requireChild(filePath, services, "compute", &success)
+	cfg.Compute.Namespace = optionalChildText(filePath, services, "namespace", &success)
+	if cfg.Compute.Namespace == "" {
+		cfg.Compute.Namespace = "ucloud-apps"
+	}
 
 	cfg.Compute.Machines = make(map[string]K8sMachineCategory)
 	machinesNode := requireChild(filePath, computeNode, "machines", &success)
@@ -122,6 +139,22 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		cfg.Compute.Machines[machineCategoryName] = category
 	}
 
+	webNode, _ := getChildOrNil(filePath, computeNode, "web")
+	if webNode != nil {
+		enabled, ok := optionalChildBool(filePath, webNode, "enabled")
+		cfg.Compute.Web.Enabled = enabled && ok
+
+		if cfg.Compute.Web.Enabled {
+			cfg.Compute.Web.Prefix = requireChildText(filePath, webNode, "prefix", &success)
+			cfg.Compute.Web.Suffix = requireChildText(filePath, webNode, "suffix", &success)
+		}
+	}
+
+	vmStorageClass := optionalChildText(filePath, computeNode, "virtualMachineStorageClass", &success)
+	if vmStorageClass != "" {
+		cfg.Compute.VirtualMachineStorageClass.Set(vmStorageClass)
+	}
+
 	return success, cfg
 }
 
@@ -130,6 +163,12 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 	result.CpuModel = optionalChildText(filePath, node, "cpuModel", success)
 	result.GpuModel = optionalChildText(filePath, node, "gpuModel", success)
 	result.MemoryModel = optionalChildText(filePath, node, "memoryModel", success)
+
+	allowVms, ok := optionalChildBool(filePath, node, "allowVirtualMachines")
+	result.AllowVirtualMachines = allowVms && ok
+
+	allowContainers, ok := optionalChildBool(filePath, node, "allowContainers")
+	result.AllowsContainers = allowContainers || !ok
 
 	var cpu []int
 	var gpu []int

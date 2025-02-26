@@ -167,7 +167,7 @@ class AccountingSystem(
     }
 
     private val toCheck = ArrayList<Int>()
-    private var nextRetirementScan = 0L
+    private var nextAllocationScan = 0L
 
     private var waitingOn = ""
 
@@ -208,11 +208,14 @@ class AccountingSystem(
                                         is AccountingRequest.CommitAllocations -> commitAllocations(msg)
                                         is AccountingRequest.RollBackGrantAllocations -> rollBackGrantAllocations(msg)
                                         is AccountingRequest.ScanRetirement -> scanRetirement(msg)
+                                        is AccountingRequest.ScanActivation -> scanActivation(msg)
                                         is AccountingRequest.MaxUsable -> maxUsable(msg)
                                         is AccountingRequest.BrowseWallets -> browseWallets(msg)
                                         is AccountingRequest.UpdateAllocation -> updateAllocation(msg)
                                         is AccountingRequest.RetrieveProviderAllocations ->
                                             retrieveProviderAllocations(msg)
+                                        is AccountingRequest.RegisterProviderGift ->
+                                            registerProviderGift(msg)
 
                                         is AccountingRequest.FindRelevantProviders -> findRelevantProviders(msg)
                                         is AccountingRequest.FindAllProviders -> findAllProviders(msg)
@@ -225,6 +228,9 @@ class AccountingSystem(
                                         }
 
                                         is AccountingRequest.RetrieveScopedUsage -> retrieveScopedUsage(msg)
+                                        is AccountingRequest.ResetWalletHierarchy -> resetWalletHierarchy(msg)
+                                        is AccountingRequest.ProviderDump -> providerDump(msg)
+                                        is AccountingRequest.ResendNotification -> resendNotification(msg)
                                         is AccountingRequest.DebugCharge -> debugCharge(msg)
                                         is AccountingRequest.DebugWallet -> debugWallet(msg)
                                         is AccountingRequest.DebugState -> {
@@ -306,6 +312,70 @@ class AccountingSystem(
         }
     }
 
+    private suspend fun registerProviderGift(msg: AccountingRequest.RegisterProviderGift): Response<out Any> {
+        if (msg.idCard !is IdCard.Provider) return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        if (msg.productCategory.provider != msg.idCard.name) return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+
+        val providerProjectId = idCardService.lookupPid(
+            idCardService.retrieveProviderProjectPid(msg.idCard.name)
+                ?: return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        ) ?: return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+
+        val sourceWallet = authorizeAndLocateWallet(
+            IdCard.System,
+            providerProjectId,
+            msg.productCategory,
+            ActionType.WALLET_ADMIN,
+        ) ?: return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+
+        val targetWallet = authorizeAndLocateWallet(
+            IdCard.System,
+            msg.ownerUsername,
+            msg.productCategory,
+            ActionType.WALLET_ADMIN
+        ) ?: return Response.error(HttpStatusCode.NotFound, "Unknown recipient")
+
+        val targetOwner = findOwner(msg.ownerUsername)
+            ?: return Response.error(HttpStatusCode.NotFound, "Unknown recipient")
+
+        if (targetOwner.isProject()) {
+            return Response.error(HttpStatusCode.NotFound, "Unknown recipient")
+        }
+
+        val now = Time.now()
+        val expiresAt = msg.expiresAt ?: (now + (1000L * 60 * 60 * 24 * 365 * 50))
+
+        val existingAllocationsFromParent = targetWallet.allocationsByParent[sourceWallet.id]
+        if (existingAllocationsFromParent?.isActive() == true) {
+            val entry = existingAllocationsFromParent.allocationSet.entries.find { it.value }
+                ?: error("Should not happen")
+
+            val existingAllocationId = entry.key
+
+            return updateAllocation(
+                AccountingRequest.UpdateAllocation(
+                    IdCard.System,
+                    existingAllocationId,
+                    msg.quota,
+                    newEnd = expiresAt,
+                )
+            )
+        } else {
+            insertAllocation(
+                now,
+                targetWallet,
+                sourceWallet.id,
+                msg.quota,
+                now,
+                expiresAt,
+                null,
+                autoCommit = true,
+            )
+
+            return Response.ok(Unit)
+        }
+    }
+
     // See issue #4328 for more information
     private suspend fun fillUpPersonalProviderProject(msg: AccountingRequest.FillUpPersonalProviderProject): Response<Unit> {
         if (msg.idCard != IdCard.System) return Response.error(HttpStatusCode.Forbidden, "Forbidden")
@@ -345,6 +415,91 @@ class AccountingSystem(
         return Response.ok(Unit)
     }
 
+    private suspend fun resetWalletHierarchy(msg: AccountingRequest.ResetWalletHierarchy): Response<Unit> {
+        if (msg.idCard != IdCard.System) {
+            return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        } else {
+            for ((_, wallet) in walletsById) {
+                if (wallet.category.toId() != msg.category) continue
+                chargeWallet(wallet, 0L, isDelta = false)
+            }
+        }
+
+        return Response.ok(Unit)
+    }
+
+    private fun resendNotification(msg: AccountingRequest.ResendNotification): Response<Unit> {
+        if (msg.idCard != IdCard.System) {
+            return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        } else {
+            val wallet = walletsById[msg.walletId] ?: return Response.error(HttpStatusCode.NotFound, "unknown wallet")
+            markSignificantUpdate(wallet, Time.now())
+            return Response.ok(Unit)
+        }
+    }
+
+    private fun providerDump(msg: AccountingRequest.ProviderDump): Response<String> {
+        if (msg.idCard != IdCard.System) {
+            return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        } else {
+            val builder = StringBuilder()
+            for ((_, wallet) in walletsById) {
+                if (wallet.category.toId() != msg.category) continue
+
+                val owner = ownersById.getValue(wallet.ownedBy)
+
+                // username
+                if (owner.isProject()) {
+                    builder.append("''")
+                } else {
+                    builder.append("'${owner.reference}'")
+                }
+
+                builder.append(",")
+
+                // project
+                if (owner.isProject()) {
+                    builder.append("'${owner.reference}'")
+                } else {
+                    builder.append("''")
+                }
+
+                builder.append(",")
+
+                // category
+                builder.append("'${wallet.category.name}'")
+
+                builder.append(",")
+
+                // combined quota
+                builder.append(wallet.totalActiveQuota())
+
+                builder.append(",")
+
+                // locked
+                if (wallet.wasLocked) {
+                    builder.append("true")
+                } else {
+                    builder.append("false")
+                }
+
+                builder.append(",")
+
+                // last update
+                builder.append(wallet.lastSignificantUpdateAt)
+
+                builder.append(",")
+
+                // local_retired_usage
+                builder.append(wallet.localRetiredUsage)
+
+                builder.append("\n")
+            }
+
+            return Response.ok(builder.toString())
+        }
+    }
+
     private suspend fun debugCharge(msg: AccountingRequest.DebugCharge): Response<Unit> {
         if (msg.idCard != IdCard.System) {
             return Response.error(HttpStatusCode.Forbidden, "Forbidden")
@@ -353,7 +508,7 @@ class AccountingSystem(
                 walletsById[msg.walletId] ?:
                     return Response.error(HttpStatusCode.NotFound, "unknown wallet: ${msg.walletId}"),
                 msg.charge,
-                isDelta = true,
+                isDelta = msg.isDelta,
                 scope = null,
                 debug = true,
             )
@@ -376,9 +531,11 @@ class AccountingSystem(
         }
 
         val now = Time.now()
-        if (now > nextRetirementScan) {
+
+        if (now > nextAllocationScan) {
+            scanActivation(AccountingRequest.ScanActivation(IdCard.System))
             scanRetirement(AccountingRequest.ScanRetirement(IdCard.System))
-            nextRetirementScan = now + 60_000L
+            nextAllocationScan = now + 60_000L
         }
     }
 
@@ -746,7 +903,17 @@ class AccountingSystem(
             parentWallet.childrenUsage[wallet.id] = parentWallet.childrenUsage[wallet.id] ?: 0L
         }
 
+        checkAndFixExcessUsage(wallet)
+
+        markSignificantUpdate(wallet, now)
+        reevaluateWalletsAfterUpdate(wallet)
+
+        return allocationId
+    }
+
+    private fun checkAndFixExcessUsage(wallet: InternalWallet) {
         // Re-balance excess usage
+        val now = Time.now()
         if (wallet.excessUsage > 0) {
             val amount = wallet.excessUsage
             wallet.localUsage -= amount
@@ -754,11 +921,6 @@ class AccountingSystem(
             wallet.localUsage += amount
             wallet.excessUsage = amount - chargedAmount
         }
-
-        markSignificantUpdate(wallet, now)
-        reevaluateWalletsAfterUpdate(wallet)
-
-        return allocationId
     }
 
     private fun rollBackGrantAllocations(request: AccountingRequest.RollBackGrantAllocations): Response<Unit> {
@@ -1055,9 +1217,17 @@ class AccountingSystem(
                 }
             }
 
+
             var error: String? = null
-            if (overSpendingWallets.isNotEmpty()) {
-                error = "${overSpendingWallets.take(10).joinToString(", ")} is overspending"
+
+            // NOTE(Dan): We only consider this an error if our wallet is locked now. This property should naturally
+            //   be set by reevaluateWalletsAfterUpdate. We do not use overSpendingWallets for this since it might
+            //   cause problems when a wallet has multiple parents.
+            if (wallet.wasLocked) {
+                error = "${wallet.id} is overspending"
+                if (overSpendingWallets.isNotEmpty()) {
+                    error = "${overSpendingWallets.take(10).joinToString(", ")} is overspending"
+                }
             }
 
             debug {
@@ -1148,6 +1318,7 @@ class AccountingSystem(
                 wallet.totalActiveQuota(),
                 wallet.totalAllocated,
                 wallet.lastSignificantUpdateAt,
+                wallet.localRetiredUsage,
             )
         }
 
@@ -1315,6 +1486,40 @@ class AccountingSystem(
         }
 
         return g
+    }
+
+    //Note that this does not affect already active allocations.
+    // New allocations that are active at creation time are already marked as active
+    private suspend fun scanActivation(request: AccountingRequest.ScanActivation): Response<Unit> {
+        if (request.idCard != IdCard.System) return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        val now = Time.now()
+        for ((id, alloc) in allocations) {
+            if (alloc.retired) continue
+            if (now >= alloc.start && now < alloc.end) {
+                activateAllocation(id)
+            }
+        }
+
+        return Response.ok(Unit)
+    }
+
+    private suspend fun activateAllocation(allocationId: Int) {
+        val alloc = allocations[allocationId] ?: return
+        val wallet = walletsById.getValue(alloc.belongsToWallet)
+        val group = wallet.allocationsByParent.getValue(alloc.parentWallet)
+
+        if (group.allocationSet[alloc.id] == true) return
+
+        group.allocationSet[alloc.id] = true
+        group.isDirty = true
+
+        //Check if Excess usage needs to be handle now that an allocation has been activated
+        checkAndFixExcessUsage(wallet)
+
+        reevaluateWalletsAfterUpdate(walletsById.getValue(alloc.belongsToWallet))
+        //Always mark since reevaluate only marks if a wallet changes lock state
+        markSignificantUpdate(wallet, Time.now())
+
     }
 
     private suspend fun scanRetirement(request: AccountingRequest.ScanRetirement): Response<Unit> {

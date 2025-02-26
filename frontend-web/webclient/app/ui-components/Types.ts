@@ -2,7 +2,8 @@ import {WithEventHandlers} from "@/Unstyled";
 import {
     AlignItemsProps, ColorProps, HeightProps, MaxHeightProps, MaxWidthProps, MinHeightProps, MinWidthProps,
     OverflowProps, TextAlignProps, WidthProps, ZIndexProps, BackgroundProps, JustifyContentProps,
-    BorderRadiusProps, VerticalAlignProps, FontSizeProps, SpaceProps
+    BorderRadiusProps, VerticalAlignProps, FontSizeProps, SpaceProps,
+    BorderProps
 } from "styled-system";
 
 export type Cursor = "auto" | "default" | "none" | "context-menu" | "help" | "pointer" | "progress" | "wait" | "cell" |
@@ -42,6 +43,7 @@ export type BoxProps =
     BorderRadiusProps &
     VerticalAlignProps &
     FontSizeProps &
+    BorderProps &
     {cursor?: Cursor} &
     {objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down"} &
     WithEventHandlers &

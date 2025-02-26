@@ -1,4 +1,4 @@
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
 import Flex from "@/ui-components/Flex";
 import Icon from "@/ui-components/Icon";
@@ -16,7 +16,7 @@ export function UtilityBar(props: {
     return (<Flex zIndex={props.zIndex ?? 1} alignItems={"center"} gap={"16px"}>
         {props.onSearch && <SearchIcon initialQuery={props.initialSearchQuery} onSearch={props.onSearch}/>}
         <RefreshIcon/>
-        <ContextSwitcher/>
+        <ProjectSwitcher/>
     </Flex>);
 }
 

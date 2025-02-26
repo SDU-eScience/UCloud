@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"net/http"
+	"slices"
 	"sync"
 	"time"
 
@@ -34,6 +35,8 @@ type JobUpdateBatch struct {
 	trackedDirtyStates    map[string]orc.JobState
 	trackedNodeAllocation map[string][]string
 	failed                bool
+	relevancyFilter       func(job *orc.Job) bool
+	results               JobUpdateBatchResults
 }
 
 func InitJobDatabase() {
@@ -100,6 +103,14 @@ func InitJobDatabase() {
 func TrackNewJob(job orc.Job) {
 	// NOTE(Dan): The job is supposed to be copied into this function. Do not change it to accept a pointer.
 
+	// Automatically assign timestamps to all updates that do not have one.
+	for i := 0; i < len(job.Updates); i++ {
+		update := &job.Updates[i]
+		if update.Timestamp.UnixMilli() <= 0 {
+			update.Timestamp = fnd.Timestamp(time.Now())
+		}
+	}
+
 	if RunsServerCode() {
 		activeJobsMutex.Lock()
 		activeJobs[job.Id] = &job
@@ -146,7 +157,23 @@ func RetrieveJob(jobId string) (*orc.Job, bool) {
 		activeJobsMutex.Lock()
 		job, ok := activeJobs[jobId]
 		activeJobsMutex.Unlock()
-		return job, ok
+
+		if ok {
+			return job, ok
+		} else {
+			job, err := orc.RetrieveJob(jobId, orc.BrowseJobsFlags{
+				IncludeParameters:  true,
+				IncludeApplication: true,
+				IncludeProduct:     true,
+			})
+
+			if err == nil {
+				TrackNewJob(job)
+				return &job, true
+			} else {
+				return nil, false
+			}
+		}
 	} else {
 		job, err := retrieveRequest.Invoke(jobId)
 		return job, err == nil
@@ -161,12 +188,32 @@ func BeginJobUpdates() *JobUpdateBatch {
 	}
 }
 
-func (b *JobUpdateBatch) GetJobs() map[string]*orc.Job {
+func GetJobs() map[string]*orc.Job {
 	return activeJobs
+}
+
+func (b *JobUpdateBatch) SetRelevancyFilter(filter func(job *orc.Job) bool) {
+	b.relevancyFilter = filter
 }
 
 func (b *JobUpdateBatch) AddUpdate(update orc.ResourceUpdateAndId[orc.JobUpdate]) {
 	b.entries = append(b.entries, update)
+	if update.Update.State.Present {
+		switch update.Update.State.Value {
+		case orc.JobStateRunning:
+			b.results.NormalStart = append(b.results.NormalStart, update.Id)
+
+		case orc.JobStateExpired:
+			fallthrough
+		case orc.JobStateSuccess:
+			fallthrough
+		case orc.JobStateFailure:
+			b.results.NormalTermination = append(b.results.NormalTermination, update.Id)
+
+		case orc.JobStateSuspended:
+			b.results.NormalSuspension = append(b.results.NormalSuspension, update.Id)
+		}
+	}
 	if len(b.entries) >= 100 {
 		b.flush()
 	}
@@ -198,7 +245,14 @@ func (b *JobUpdateBatch) TrackState(jobId string, state orc.JobState, status uti
 }
 
 func (b *JobUpdateBatch) TrackAssignedNodes(jobId string, nodes []string) {
-	b.trackedNodeAllocation[jobId] = nodes
+	newNodes, _ := b.trackedNodeAllocation[jobId]
+	for _, node := range nodes {
+		if !slices.Contains(newNodes, node) {
+			newNodes = append(newNodes, node)
+		}
+	}
+
+	b.trackedNodeAllocation[jobId] = newNodes
 }
 
 func (b *JobUpdateBatch) jobUpdateMessage(state orc.JobState) string {
@@ -214,7 +268,7 @@ func (b *JobUpdateBatch) jobUpdateMessage(state orc.JobState) string {
 	case orc.JobStateExpired:
 		return "Your job has expired."
 	case orc.JobStateSuspended:
-		return "Your job has been temporarily suspended and can be turned on again later."
+		return "Your machine is currently powered off."
 	default:
 		return "Unknown job state. This should not happen: " + string(state)
 	}
@@ -244,6 +298,7 @@ func (b *JobUpdateBatch) flush() {
 
 	for _, entry := range b.entries {
 		u := &entry.Update
+		u.Timestamp = fnd.Timestamp(time.Now())
 		job, ok := activeJobs[entry.Id]
 
 		if !ok {
@@ -353,16 +408,36 @@ func (b *JobUpdateBatch) flush() {
 	b.entries = b.entries[:0]
 }
 
-func (b *JobUpdateBatch) End() {
+type JobUpdateBatchResults struct {
+	TerminatedDueToUnknownState []string
+	NormalStart                 []string
+	NormalTermination           []string
+	NormalSuspension            []string
+}
+
+// End flushes out any remaining job updates and return a list of jobs which were terminated due to missing
+// tracking data.
+func (b *JobUpdateBatch) End() JobUpdateBatchResults {
 	defer activeJobsMutex.Unlock()
 
 	if b.failed {
-		return
+		return JobUpdateBatchResults{}
 	}
 
 	var jobsWithUnknownState []string
 	now := time.Now()
+	filter := b.relevancyFilter
+	if filter == nil {
+		filter = func(job *orc.Job) bool {
+			return true
+		}
+	}
+
 	for activeJobId, job := range activeJobs {
+		if !filter(job) {
+			continue
+		}
+
 		if job.Status.State == orc.JobStateInQueue && now.Sub(job.CreatedAt.Time()) < 5*time.Minute {
 			// Do not immediately terminated jobs that we do not get an update for, it might not be on the list yet.
 			// If they do not turn up within 5 minutes, consider it failed.
@@ -375,6 +450,7 @@ func (b *JobUpdateBatch) End() {
 		}
 	}
 
+	var terminatedJobs []string
 	for _, jobIdToTerminate := range jobsWithUnknownState {
 		terminationState := orc.JobStateSuccess
 
@@ -384,16 +460,72 @@ func (b *JobUpdateBatch) End() {
 			terminationState = orc.JobStateExpired
 		}
 
-		b.AddUpdate(orc.ResourceUpdateAndId[orc.JobUpdate]{
-			Id: jobIdToTerminate,
-			Update: orc.JobUpdate{
-				State:  util.OptValue(terminationState),
-				Status: util.OptValue(b.jobUpdateMessage(terminationState)),
-			},
-		})
+		if job.Status.State != terminationState {
+			b.AddUpdate(orc.ResourceUpdateAndId[orc.JobUpdate]{
+				Id: jobIdToTerminate,
+				Update: orc.JobUpdate{
+					State:  util.OptValue(terminationState),
+					Status: util.OptValue(b.jobUpdateMessage(terminationState)),
+				},
+			})
+		}
+
+		terminatedJobs = append(terminatedJobs, job.Id)
 	}
 
 	b.flush()
+	return b.results
+}
+
+type JobMessage struct {
+	JobId   string
+	Message string
+}
+
+func TrackJobMessages(messages []JobMessage) error {
+	if len(messages) == 0 {
+		return nil
+	}
+
+	var updates []orc.ResourceUpdateAndId[orc.JobUpdate]
+	for _, message := range messages {
+		update := orc.JobUpdate{
+			Status: util.OptValue(message.Message),
+		}
+
+		updates = append(updates, orc.ResourceUpdateAndId[orc.JobUpdate]{
+			Id:     message.JobId,
+			Update: update,
+		})
+	}
+
+	return TrackRawUpdates(updates)
+}
+
+func TrackRawUpdates(updates []orc.ResourceUpdateAndId[orc.JobUpdate]) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
+	for _, message := range updates {
+		job, ok := RetrieveJob(message.Id)
+		if ok {
+			copied := *job
+			copied.Updates = append(job.Updates, message.Update)
+			if message.Update.NewTimeAllocation.Present {
+				copied.Specification.TimeAllocation = util.OptValue(
+					orc.SimpleDurationFromMillis(message.Update.NewTimeAllocation.Value),
+				)
+			}
+			TrackNewJob(copied)
+		}
+	}
+
+	err := orc.UpdateJobs(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
+		Items: updates,
+	})
+
+	return err
 }
 
 func fetchAllJobs(state orc.JobState) {
@@ -404,6 +536,7 @@ func fetchAllJobs(state orc.JobState) {
 			IncludeParameters:  true,
 			IncludeApplication: true,
 			IncludeProduct:     true,
+			IncludeUpdates:     true,
 		})
 
 		if err != nil {

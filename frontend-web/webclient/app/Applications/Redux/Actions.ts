@@ -1,4 +1,4 @@
-import {Application, ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
+import {Application} from "@/Applications/AppStoreApi";
 
 export type SidebarActionType = SetAppFavorites | ToggleFavorite | ToggleTheme;
 

@@ -29,11 +29,11 @@ import {
     uploadTrackProgress,
     useUploads
 } from "@/Files/Upload";
-import {api as FilesApi} from "@/UCloud/FilesApi";
+import {api as FilesApi, EventKeys, WriteToFileEventProps} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {BulkResponse} from "@/UCloud";
-import {fileName, sizeToString} from "@/Utilities/FileUtilities";
+import {fileName, getParentPath, sizeToString} from "@/Utilities/FileUtilities";
 import {
     ChunkedFileReader,
     createLocalStorageFolderUploadKey,
@@ -56,12 +56,28 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
 import {UploadConfig} from "@/Files/Upload";
 import {ProgressCircle} from "@/Services/BackgroundTasks/BackgroundTask";
+import {getStartOfDay} from "@/Utilities/DateUtilities";
 
 interface LocalStorageFileUploadInfo {
     offset: number;
     size: number;
     strategy: FilesCreateUploadResponseItem;
     expiration: number;
+}
+
+function toPackagedFile(path: string, content: string): PackagedFile {
+    const file = new File([content], path);
+    return {
+        fileObject: file,
+        fullPath: fileName(path),
+        name: fileName(path),
+        webkitRelativePath: file.name,
+        size: file.size,
+        type: "FILE",
+        isDirectory: false,
+        lastModified: new Date().getTime(),
+        lastModifiedDate: getStartOfDay(new Date()),
+    };
 }
 
 function fetchValidUploadFromLocalStorage(path: string): LocalStorageFileUploadInfo | null {
@@ -471,6 +487,16 @@ function protocolHandlerChunkedAndWebSocketV1(
                 strategy!.endpoint.replace("integration-module:8889", "localhost:9000")
                     .replace("http://", "ws://").replace("https://", "wss://")
             );
+
+            uploadSocket.onerror = ev => {
+                if (navigator.onLine) {
+                    upload.error = "An error ocurred uploading the file.";
+                } else {
+                    upload.error = "File upload failed due to missing internet connection."
+                }
+                upload.state = UploadState.DONE;
+            };
+
             const progressStart = upload.progressInBytes;
             reader.offset = progressStart;
 
@@ -643,7 +669,7 @@ const Uploader: React.FunctionComponent = () => {
         clearUploads: b => uploadStore.clearUploads(b, setPausedFilesInFolder),
     }), [startUploads]);
 
-    const onSelectedFile = useCallback(async (e, isResuming = false) => {
+    const onSelectedFile = useCallback(async (e: {stopPropagation(): void; preventDefault(): void}, isResuming = false) => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -716,11 +742,43 @@ const Uploader: React.FunctionComponent = () => {
         startUploads(allUploads, setLookForNewUploads);
     }, [uploads]);
 
+    const stopGapMethodForUploadingFilesFromTheEditor = React.useCallback((e: CustomEvent<WriteToFileEventProps>) => {
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+        e.preventDefault();
+        const {path, content} = e.detail;
+        const allUploads: Upload[] = uploads;
+        let didFetch = false;
+        const packaged = toPackagedFile(path, content);
+
+        allUploads.push({
+            name: fileName(path),
+            row: packaged,
+            progressInBytes: 0,
+            filesCompleted: 0,
+            filesDiscovered: 0,
+            state: UploadState.PENDING,
+            conflictPolicy: "REPLACE",
+            targetPath: getParentPath(path),
+            fileFetcher: async () => {
+                if (didFetch) return null;
+                didFetch = true;
+                return [packaged];
+            },
+            initialProgress: 0,
+            uploadEvents: []
+        });
+
+        setUploads(allUploads);
+        startUploads(allUploads, setLookForNewUploads);
+    }, [uploads]);
+
     useEffect(() => {
         const oldOnDrop = document.ondrop;
         const oldOnDragOver = document.ondragover;
         const oldOnDragEnter = document.ondragenter;
         const oldOnDragLeave = document.ondragleave;
+        window.addEventListener(EventKeys.WriteToFile, stopGapMethodForUploadingFilesFromTheEditor);
 
         if (uploaderVisible) {
             document.ondrop = onSelectedFile;
@@ -795,7 +853,7 @@ const Uploader: React.FunctionComponent = () => {
                 <Flex>
                     <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads}>Upload files</div>
                     {uploads.length > 0 && uploads.find(upload => uploadIsTerminal(upload)) !== null ?
-                        <Button mt="7px" ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear finished uploads</Button>
+                        <Button mt="7px" ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear upload history</Button>
                         : null}
                 </Flex>
                 <Text fontSize={10} className={UploaderSpeedTextClass}>{uploadingText}</Text>
@@ -824,7 +882,7 @@ const Uploader: React.FunctionComponent = () => {
                                 {hasUploads ? null :
                                     <UploaderArt />
                                 }
-                                <div className="upload-more-text" style={{marginTop: "22px"}}>
+                                <div style={{marginTop: "22px"}}>
                                     <TextSpan mr="0.5em"><Icon hoverColor="primaryContrast"
                                         name="upload" /></TextSpan>
                                     <TextSpan mr="0.3em">Drop files or folders here or</TextSpan>
@@ -872,7 +930,7 @@ const Uploader: React.FunctionComponent = () => {
                                     <Icon cursor="pointer" title="Resume upload" name="play"
                                         color="primaryMain" mr="12px" />
                                 </label>}
-                                removeOrCancel={<Icon cursor="pointer" title="Remove" name="close" color="errorMain" onClick={() => {
+                                removeOrCancel={<Icon cursor="pointer" title="Remove" name="close" my="auto" height="24px" color="errorMain" onClick={() => {
                                     setPausedFilesInFolder(files => files.filter(file => file !== it));
                                     removeUploadFromStorage(it);
                                 }} />}
@@ -951,10 +1009,11 @@ const UploadMoreClass = injectStyle("upload-more", k => `
 export const TaskRowClass = injectStyle("uploader-row", k => `
     ${k} {
         border-radius: 10px;
-        height: 64px;
+        height: 62px;
         width: 100%;
-        margin-top: 12px;
-        margin-bottom: 12px;
+        padding-top: 4px;
+        padding-bottom: 4px;
+        margin-bottom: 4px;
     }
     
     ${k} > div > .text {
@@ -969,7 +1028,7 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
     }
 
     ${k}[data-has-error="true"] {
-        height: 90px;
+        height: auto;
     }
 
     ${k} > div.error-box {
@@ -1002,10 +1061,10 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
     const icon = <FtIcon fileIcon={{type: upload.folderName ? "DIRECTORY" : "FILE", ext: extensionFromPath(upload.name)}} size="24px" />;
 
     const title = upload.folderName ?? upload.name;
-    const removeOperation = <TooltipV2 tooltip={"Click to remove row"}>
+    const removeOperation = <TooltipV2 contentWidth={170} tooltip={"Clear from history"}>
         <Icon
             cursor="pointer"
-            name={"close"}
+            name={stopped ? "close" : "check"}
             onClick={() => {
                 callbacks.clearUploads([upload]);
                 const fullFilePath = upload.targetPath + "/" + upload.name;
@@ -1042,7 +1101,7 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
         />;
 }
 
-export function TaskRow({title, body, progress, icon, progressInfo, removeOrCancel, pause, error, isPaused}: {
+interface TaskRowProps {
     icon: React.ReactNode;
     title: string | React.ReactNode;
     body?: string | React.ReactNode;
@@ -1057,7 +1116,9 @@ export function TaskRow({title, body, progress, icon, progressInfo, removeOrCanc
         progress: number;
         limit: number;
     };
-}): React.ReactNode {
+}
+
+export function TaskRow({title, body, progress, icon, progressInfo, removeOrCancel, pause, error, isPaused}: TaskRowProps): React.ReactNode {
     const hasError = error != null;
     const [hovering, setHovering] = useState(false);
 
@@ -1076,7 +1137,7 @@ export function TaskRow({title, body, progress, icon, progressInfo, removeOrCanc
     }, []);
 
     return (<div className={TaskRowClass} data-has-error={hasError}>
-        <Flex height={hasError ? "calc(100% - 28px)" : "100%"}>
+        <Flex my="auto" height="100%">
             <Box ml="8px" my="auto">{icon}</Box>
             <div className="text">
                 <Truncate>{title}</Truncate>
@@ -1096,7 +1157,7 @@ export function TaskRow({title, body, progress, icon, progressInfo, removeOrCanc
                         size={32}
                     />)}
             </Box>
-            <Box mt="19px" mr="8px">{removeOrCancel}</Box>
+            <Box my="auto" mr="8px">{removeOrCancel}</Box>
         </Flex>
         <div className="error-box">
             {hasError ? <div className={ErrorSpan}>{error}</div> : null}

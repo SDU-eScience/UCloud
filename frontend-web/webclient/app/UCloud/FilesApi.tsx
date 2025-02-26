@@ -8,34 +8,20 @@ import {
     ResourceUpdate,
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
-import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {
-    Box,
-    Button,
-    Error,
-    Flex,
-    Icon,
-    Link,
-    MainContainer,
-    Markdown,
-    Select,
-    Text,
-    TextArea,
-    Truncate
-} from "@/ui-components";
+import FileCollectionsApi, {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
+import {Box, Button, Flex, Icon, Markdown, Select, Text, TextArea} from "@/ui-components";
 import * as React from "react";
-import {useEffect, useState} from "react";
-import {fileName, getParentPath, readableUnixMode, sizeToString} from "@/Utilities/FileUtilities";
+import {useCallback, useEffect, useMemo, useState} from "react";
+import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import {
     bulkRequestOf,
     displayErrorMessageOrDefault,
     doNothing,
+    errorMessageOrDefault,
     extensionFromPath,
     ExtensionType,
     extensionType,
     inDevEnvironment,
-    isLightThemeStored,
-    languageFromExtension,
     onDevSite,
     prettierString,
     removeTrailingSlash,
@@ -46,15 +32,13 @@ import * as Heading from "@/ui-components/Heading";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {usePrettyFilePath} from "@/Files/FilePath";
-import {dateToString} from "@/Utilities/DateUtilities";
-import {buildQueryString} from "@/Utilities/URIUtilities";
+import {prettyFilePath} from "@/Files/FilePath";
 import {OpenWithBrowser} from "@/Applications/OpenWith";
-import {addStandardDialog} from "@/UtilityComponents";
+import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {apiCreate, apiUpdate, callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {apiCreate, apiUpdate, callAPI, InvokeCommand, useCloudAPI} from "@/Authentication/DataHook";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 import {Spacer} from "@/ui-components/Spacer";
 import metadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
@@ -67,13 +51,9 @@ import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
-import {classConcat, injectStyle, injectStyleSimple, makeClassName} from "@/Unstyled";
-import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
-import {usePage} from "@/Navigation/Redux";
+import {classConcat, injectStyleSimple} from "@/Unstyled";
 import fileType from "magic-bytes.js";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
-import {AsyncCache} from "@/Utilities/AsyncCache";
-import {useSelector} from "react-redux";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 import {
     FilesCopyRequestItem,
@@ -90,8 +70,13 @@ import {
     UFileSpecification,
     UFileStatus
 } from "./UFile";
-import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
+import {Editor, EditorApi, Vfs} from "@/Editor/Editor";
+import {TooltipV2} from "@/ui-components/Tooltip";
+import {useDidUnmount} from "@/Utilities/ReactUtilities";
+import {useDispatch} from "react-redux";
+import {VirtualFile} from "@/Files/FileTree";
+import {edit} from "@/ui-components/icons";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -197,23 +182,6 @@ function useSensitivity(resource: UFile): SensitivityLevel | null {
     return sensitivity;
 }
 
-const classA = makeClassName("A");
-const classB = makeClassName("B");
-const FilePropertiesLayout = injectStyle("file-properties-layout", k => `
-    ${k} > ${classA.dot} {
-        padding: 15px;
-        width: 100%;
-    }
-
-    ${k} > ${classB.dot} {
-        font-size: 14px;
-        width: 340px;
-        min-width: 240px;
-        padding: 15px;
-        height: 100vh;
-    }
-`);
-
 class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     ResourceUpdate, UFileIncludeFlags, UFileStatus, FileCollectionSupport> {
     constructor() {
@@ -253,99 +221,12 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             }))
         }, [id]);
 
-        const prettyPath = usePrettyFilePath(id ?? "");
-        const downloadRef = React.useRef(new Uint8Array());
-        usePage(prettyPath, SidebarTabId.FILES);
-
-        const [, invokeCommand] = useCloudCommand();
-
-        const downloadFunction = React.useMemo(() => {
-            return this.retrieveOperations().find(it => it.text === "Download");
-        }, []);
-
         const file = fileData.data;
 
-        const downloadFile = React.useCallback(() => {
-            if (!id || !downloadFunction || !file) return;
-            if (downloadRef.current.length > 0) {
-                const url = window.URL.createObjectURL(
-                    new Blob([new Uint8Array(downloadRef.current, 0, downloadRef.current.length)])
-                );
-                const a = document.createElement("a");
-                a.style.display = "none";
-                a.href = url;
-                a.download = fileName(id);
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-            } else {
-                downloadFunction.onClick([file], {invokeCommand} as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks);
-            }
-        }, [downloadRef, file, id]);
-
-        if (!id) return <h1>Missing file id.</h1>
-
-        if (fileData.loading) return <PredicatedLoadingSpinner loading />
-
-        if (fileData.error) return <Error error={fileData.error.why} />;
+        if (!id) return <h1>Missing file id.</h1>;
         if (!file) return <></>;
 
-        const isFile = file.status.type === "FILE";
-
-        const fileInfo = <>
-            <div><b>Path:</b> <Truncate title={prettyPath}>{prettyPath}</Truncate></div>
-            <div>
-                <b>Product: </b>
-                {file.specification.product.id === file.specification.product.category ?
-                    <>{file.specification.product.id}</> :
-                    <>{file.specification.product.id} / {file.specification.product.category}</>
-                }
-            </div>
-            <Flex gap="8px">
-                <b>Provider: </b>
-                <ProviderTitle providerId={file.specification.product.provider} />
-            </Flex>
-            <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
-            {file.status.modifiedAt ?
-                <div><b>Modified at:</b> {dateToString(file.status.modifiedAt)}</div> : null}
-            {file.status.accessedAt ?
-                <div><b>Accessed at:</b> {dateToString(file.status.accessedAt)}</div> : null}
-            {file.status.sizeInBytes != null && file.status.type !== "DIRECTORY" ?
-                <div><b>Size:</b> {sizeToString(file.status.sizeInBytes)}</div> : null}
-            {file.status.sizeIncludingChildrenInBytes != null && file.status.type === "DIRECTORY" ?
-                <div><b>Size:</b> {sizeToString(file.status.sizeIncludingChildrenInBytes)}
-                </div> : null
-            }
-            {file.status.unixOwner != null && file.status.unixGroup != null ?
-                <div><b>UID/GID</b>: {file.status.unixOwner}/{file.status.unixGroup}</div> :
-                null
-            }
-            {file.status.unixMode != null ?
-                <div><b>Unix mode:</b> {readableUnixMode(file.status.unixMode)}</div> :
-                null
-            }
-            <Box mt={"16px"} mb={"8px"}>
-                <Link to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
-                    <Button fullWidth>View in folder</Button>
-                </Link>
-            </Box>
-            {isFile ? <Box mt={"16px"} mb={"8px"} onClick={downloadFile}>
-                <Button fullWidth>Download file</Button>
-            </Box> : null}
-        </>
-
-        if (isFile) {
-            return <Flex className={FilePropertiesLayout}>
-                <div className="A">
-                    <FilePreview file={file} contentRef={downloadRef} />
-                </div>
-                <div className="B">
-                    {fileInfo}
-                </div>
-            </Flex>
-        } else {
-            return <MainContainer main={fileInfo} />;
-        }
+        return <FilePreview initialFile={file} />
     }
 
     public retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[] {
@@ -472,22 +353,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "download",
                 enabled: selected => selected.length > 0 && selected.every(it => it.status.type === "FILE"),
                 onClick: async (selected, cb) => {
-                    // TODO(Dan): We should probably add a feature flag for file types
-
-                    if (selected.length > 1) {
-                        snackbarStore.addInformation("For downloading multiple files, you may need to enable pop-ups.", false, 8000);
-                    }
-
-                    const result = await cb.invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
-                        this.createDownload(bulkRequestOf(
-                            ...selected.map(it => ({id: it.id})),
-                        ))
-                    );
-
-                    const responses = result?.responses ?? [];
-                    for (const {endpoint} of responses) {
-                        downloadFile(normalizeDownloadEndpoint(endpoint), responses.length > 1);
-                    }
+                    this.download(selected.map(it => it.id));
                 },
                 shortcut: ShortcutKey.D
             },
@@ -500,44 +366,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
                 onClick: (selected, cb) => {
-                    const pathRef = {current: getParentPath(selected[0].id)};
-                    dialogStore.addDialog(
-                        <FileBrowse opts={{
-                            isModal: true, managesLocalProject: true, selection: {
-                                text: "Copy to",
-                                show(res) {
-                                    return res.status.type === "DIRECTORY"
-                                },
-                                onClick: async (res) => {
-                                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-                                    try {
-                                        const result = await cb.invokeCommand(
-                                            this.copy({
-                                                type: "bulk",
-                                                items: selected.map(file => ({
-                                                    oldId: file.id,
-                                                    conflictPolicy: "RENAME",
-                                                    newId: target + "/" + fileName(file.id)
-                                                }))
-                                            })
-                                        );
-                                        cb.reload();
-                                        dialogStore.success();
-                                        snackbarStore.addSuccess("Files copied", false);
-                                    } catch (e) {
-                                        displayErrorMessageOrDefault(e, "Failed to move to folder");
-                                    }
-                                }
-                            },
-                            additionalFilters: {
-                                filterProvider: selected[0].specification.product.provider
-                            },
-                            initialPath: pathRef.current,
-                        }} />,
-                        doNothing,
-                        true,
-                        this.fileSelectorModalStyle
-                    );
+                    this.copyModal(selected.map(it => it.id), selected[0].specification.product.provider, cb.reload);
                 },
                 shortcut: ShortcutKey.C
             },
@@ -611,43 +440,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },
                 onClick: (selected, cb) => {
-                    const pathRef = {current: getParentPath(selected[0].id)};
-                    dialogStore.addDialog(
-                        <FileBrowse opts={{
-                            isModal: true, managesLocalProject: true, selection: {
-                                text: "Move to",
-                                show(res) {
-                                    return res.status.type === "DIRECTORY"
-                                },
-                                onClick: async (res) => {
-                                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-
-                                    try {
-                                        const result = await cb.invokeCommand(
-                                            this.move({
-                                                type: "bulk",
-                                                items: selected.map(file => ({
-                                                    oldId: file.id,
-                                                    conflictPolicy: "RENAME",
-                                                    newId: target + "/" + fileName(file.id)
-                                                }))
-                                            })
-                                        );
-                                        cb.reload();
-                                        dialogStore.success();
-                                        snackbarStore.addSuccess("Files moved", false);
-                                    } catch (e) {
-                                        displayErrorMessageOrDefault(e, "Failed to move to folder");
-                                    }
-                                }
-                            },
-                            initialPath: pathRef.current,
-                            additionalFilters: {filterProvider: selected[0].specification.product.provider}
-                        }} />,
-                        doNothing,
-                        true,
-                        this.fileSelectorModalStyle
-                    );
+                    this.moveModal(selected.map(it => it.id), selected[0].specification.product.provider, cb.reload);
                 },
                 shortcut: ShortcutKey.M
             },
@@ -890,6 +683,108 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     }
 
     fileSelectorModalStyle = largeModalStyle;
+
+    // -- Shared file operations -- 
+    // TODO(Dan): We should probably add a feature flag for file types
+    public async download(ids: string[]) {
+        if (ids.length > 1) {
+            snackbarStore.addInformation("For downloading multiple files, you may need to enable pop-ups.", false, 8000);
+        }
+
+        const result = await callAPI<BulkResponse<FilesCreateDownloadResponseItem>>(
+            this.createDownload(bulkRequestOf(
+                ...ids.map(id => ({id})),
+            ))
+        );
+
+        const responses = result?.responses ?? [];
+        for (const {endpoint} of responses) {
+            downloadFile(normalizeDownloadEndpoint(endpoint), responses.length > 1);
+        }
+    }
+
+    public copyModal(ids: string[], provider: string, reload: (result: any) => void) {
+        const pathRef = {current: getParentPath(ids[0])};
+        dialogStore.addDialog(
+            <FileBrowse opts={{
+                isModal: true, managesLocalProject: true, selection: {
+                    text: "Copy to",
+                    show(res) {
+                        return res.status.type === "DIRECTORY"
+                    },
+                    onClick: async (res) => {
+                        const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                        try {
+                            const result = await callAPI(
+                                this.copy({
+                                    type: "bulk",
+                                    items: ids.map(id => ({
+                                        oldId: id,
+                                        conflictPolicy: "RENAME",
+                                        newId: target + "/" + fileName(id)
+                                    }))
+                                })
+                            );
+                            reload(result);
+                            dialogStore.success();
+                            snackbarStore.addSuccess("Files copied", false);
+                            return true;
+                        } catch (e) {
+                            displayErrorMessageOrDefault(e, "Failed to move to folder");
+                            return false;
+                        }
+                    }
+                },
+                additionalFilters: {
+                    filterProvider: provider
+                },
+                initialPath: pathRef.current,
+            }} />,
+            doNothing,
+            true,
+            this.fileSelectorModalStyle
+        );
+    }
+
+    public moveModal(ids: string[], provider: string, reload: (result: any) => void) {
+        const pathRef = {current: getParentPath(ids[0])};
+        dialogStore.addDialog(
+            <FileBrowse opts={{
+                isModal: true, managesLocalProject: true, selection: {
+                    text: "Move to",
+                    show(res) {
+                        return res.status.type === "DIRECTORY"
+                    },
+                    onClick: async (res) => {
+                        const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+
+                        try {
+                            const result = await callAPI(
+                                this.move({
+                                    type: "bulk",
+                                    items: ids.map(id => ({
+                                        oldId: id,
+                                        conflictPolicy: "RENAME",
+                                        newId: target + "/" + fileName(id)
+                                    }))
+                                })
+                            );
+                            reload(result);
+                            dialogStore.success();
+                            snackbarStore.addSuccess("Files moved", false);
+                        } catch (e) {
+                            displayErrorMessageOrDefault(e, "Failed to move to folder");
+                        }
+                    }
+                },
+                initialPath: pathRef.current,
+                additionalFilters: {filterProvider: provider}
+            }} />,
+            doNothing,
+            true,
+            this.fileSelectorModalStyle
+        );
+    }
 }
 
 function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks): string {
@@ -906,21 +801,6 @@ function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallback
     } else {
         return "Add to sync";
     }
-}
-
-function fileSize(file: UFile, support?: FileCollectionSupport): undefined | number {
-    if (!support) return undefined;
-    if (file.status.type === "FILE") {
-        if (support.stats.sizeInBytes) {
-            return file.status.sizeInBytes;
-        }
-    } else if (file.status.type === "DIRECTORY") {
-        if (support.stats.sizeIncludingChildrenInBytes) {
-            return file.status.sizeIncludingChildrenInBytes;
-        }
-    }
-
-    return undefined;
 }
 
 function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks): boolean | string {
@@ -1161,242 +1041,468 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
 
 const api = new FilesApi();
 
-const monacoCache = new AsyncCache<any>();
+export const MAX_PREVIEW_SIZE_IN_BYTES = PREVIEW_MAX_SIZE;
 
-async function getMonaco(): Promise<any> {
-    return monacoCache.retrieve("", async () => {
-        const monaco = await (import("monaco-editor"));
-        self.MonacoEnvironment = {
-            getWorker: function (workerId, label) {
-                switch (label) {
-                    case 'json':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/json/json.worker?worker', label);
-                    case 'css':
-                    case 'scss':
-                    case 'less':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/css/css.worker?worker', label);
-                    case 'html':
-                    case 'handlebars':
-                    case 'razor':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/html/html.worker?worker', label);
-                    case 'typescript':
-                    case 'javascript':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/typescript/ts.worker?worker', label);
-                    default:
-                        return getWorkerModule('/monaco-editor/esm/vs/editor/editor.worker?worker', label);
-                }
-
-
-                function getWorkerModule(moduleUrl, label) {
-                    return new Worker(self.MonacoEnvironment!.getWorkerUrl!(moduleUrl, label), {
-                        name: label,
-                        type: 'module'
-                    });
-                }
-            }
-        };
-        return monaco;
-    })
+function isFileFileSizeExceeded(file: UFile) {
+    const size = file.status.sizeInBytes;
+    return size != null && size > MAX_PREVIEW_SIZE_IN_BYTES && size > 0;
 }
 
-export const MAX_PREVIEW_SIZE_IN_BYTES = PREVIEW_MAX_SIZE;
-const EXPECTED_BINARY_FORMATS = ["mpeg", "m2p", "vob", "mpg"];
-
-export function FilePreview({file, contentRef}: {
-    file: UFile,
-    contentRef?: React.MutableRefObject<Uint8Array>
+export function FilePreview({initialFile}: {
+    initialFile: UFile,
 }): React.ReactNode {
-    let oldOnResize: typeof window.onresize;
-
-    React.useEffect(() => {
-        oldOnResize = window.onresize;
-        return () => {
-            window.onresize = oldOnResize
-        }
-    }, [])
-    const [type, setType] = useState<ExtensionType>(null);
-    const [loading, invokeCommand] = useCloudCommand();
-
-    const codePreview = React.useRef<HTMLDivElement>(null);
-
-    const [data, setData] = useState("");
-    const [error, setError] = useState<string | null>(null);
-
-    const fetchData = React.useCallback(async () => {
-        const size = file.status.sizeInBytes;
-        if (file.status.type !== "FILE") return;
-        if (!loading && size != null && size < MAX_PREVIEW_SIZE_IN_BYTES && size > 0) {
-            try {
-                const download = await invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
-                    api.createDownload(bulkRequestOf({id: file.id})),
-                    {defaultErrorHandler: false}
-                );
-                const downloadEndpoint = download?.responses[0]?.endpoint.replace("integration-module:8889", "localhost:9000");
-                if (!downloadEndpoint) {
-                    setError("Unable to display preview. Try again later or with a different file.");
-                    return;
-                }
-                const content = await fetch(normalizeDownloadEndpoint(downloadEndpoint));
-                const contentBlob = await content.blob();
-                const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
-
-                const foundFileType = fileType(contentBuffer).filter(it => it.mime);
-                const correctExtension = foundFileType.some(it => it.extension === extensionFromPath(file.id));
-                const text = tryDecodeText(contentBuffer);
-
-                const isMisidentifiedAsBinaryFormat = text !== null && foundFileType.length > 0 && EXPECTED_BINARY_FORMATS.includes(foundFileType[0].typename);
-
-                if (contentRef) contentRef.current = contentBuffer;
-
-                if (!correctExtension && isMisidentifiedAsBinaryFormat) {
-                    setType("text");
-                    setData(text);
-                    setError(null);
-                } else if (foundFileType.length === 0) {
-                    if (text !== null) {
-                        setType("text");
-                        setData(text);
-                        setError(null);
-                    } else {
-                        setError("Preview is not supported for this file.");
-                    }
-                } else {
-                    const typeFromFileType = typeFromMime(foundFileType[0].mime ?? "") ?? extensionType(foundFileType[0].typename);
-
-                    switch (typeFromFileType) {
-                        case "image":
-                        case "audio":
-                        case "video":
-                        case "pdf":
-                            setData(URL.createObjectURL(new Blob([contentBlob], {type: foundFileType[0].mime})));
-                            setError(null);
-                            break;
-                        case "code":
-                        case "text":
-                        case "application":
-                        case "markdown":
-                        default:
-                            const text = tryDecodeText(contentBuffer);
-                            if (text !== null) {
-                                setType("text");
-                                setData(text);
-                                setError(null);
-                            } else {
-                                setError("Preview is not supported for this file.");
-                            }
-                            break;
-                    }
-
-                    setType(typeFromFileType);
-                }
-            } catch (e) {
-                setError("Unable to display preview. Try again later or with a different file.");
-            }
-        } else if (size != null && size >= MAX_PREVIEW_SIZE_IN_BYTES) {
-            setError("File is too large to preview");
-        } else if (!size || size <= 0) {
-            setError("File is empty");
-        } else {
-            setError("Preview is not supported for this file.");
-        }
-    }, [file]);
+    const [openFile, setOpenFile] = useState<[string, string | Uint8Array]>(["", ""]);
+    const [previewRequested, setPreviewRequested] = useState(false);
+    const [drive, setDrive] = useState<FileCollection | null>(null);
+    const [renamingFile, setRenamingFile] = useState<string>();
+    const didUnmount = useDidUnmount();
 
     useEffect(() => {
-        fetchData();
-    }, [file]);
+        (async () => {
+            const collection = await callAPI(
+                FileCollectionsApi.retrieve({
+                    id: initialFile.specification.collection,
+                    includeSupport: true,
+                })
+            );
 
-    const lightTheme = useSelector((red: ReduxObject) => red.sidebar.theme)
+            if (!didUnmount.current) {
+                setDrive(collection);
+            }
+        })();
+    }, [initialFile]);
+
+    const dispatch = useDispatch();
+
+    const supportsTerminal = (drive?.status?.resolvedSupport?.support as FileCollectionSupport)
+        ?.files?.openInTerminal === true;
+
+    const vfs = useMemo(() => {
+        return new PreviewVfs(initialFile);
+    }, []);
+
+    const [vfsTitle, setTitle] = useState(getParentPath(initialFile.id));
+
     React.useEffect(() => {
-        if (type === "text" || type === "code") {
-            const theme = lightTheme === "light" ? "light" : "vs-dark";
-            getMonaco().then(monaco => monaco.editor.setTheme(theme));
-        }
-    }, [lightTheme, type]);
+        prettyFilePath(getParentPath(initialFile.id)).then(t => {
+            setTitle(t);
+        })
+    }, []);
 
-    React.useLayoutEffect(() => {
-        const node = codePreview.current;
-        if (!node) return;
-        if (type === "text" || type === "code") {
-            getMonaco().then(monaco => {
-                const count = monaco.editor.getEditors().length;
-                if (count > 0) return;
-                monaco.editor.create(node, {
-                    value: data,
-                    language: languageFromExtension(extensionFromPath(file.id)),
-                    readOnly: true,
-                    minimap: {enabled: false},
-                    theme: isLightThemeStored() ? "light" : "vs-dark",
-                });
-                window.onresize = () => {
-                    monaco.editor.getEditors().forEach(it => it.layout());
-                };
-            });
-            return () => {
-                getMonaco().then(monaco => monaco.editor.getEditors().forEach(it => it.dispose()));
+    useEffect(() => {
+        setPreviewRequested(false);
+    }, [openFile[0]]);
+
+    const mediaFileMetadata: null | {type: ExtensionType, data: string, error: string | null} = useMemo(() => {
+        let [file, contentBuffer] = openFile;
+        if (typeof contentBuffer === "string") {
+            if (previewRequested) {
+                contentBuffer = new TextEncoder().encode(contentBuffer);
+            } else {
+                return null;
             }
         }
-        return () => void 0;
-    }, [type, data]);
+        const foundFileType = getFileTypesFromContentBuffer(contentBuffer);
+        let typeFromFileType =
+            foundFileType.length > 0 ?
+                typeFromMime(foundFileType[0].mime ?? "") : null;
 
-    if (file.status.type !== "FILE") return null;
-    if ((loading || data === "") && !error) return <PredicatedLoadingSpinner loading />
+        if (!typeFromFileType) {
+            typeFromFileType = extensionType(extensionFromPath(file));
+        }
+
+        switch (typeFromFileType) {
+            case "image":
+            case "audio":
+            case "video":
+            case "pdf":
+                return {
+                    type: typeFromFileType,
+                    data: URL.createObjectURL(
+                        new Blob(
+                            [contentBuffer],
+                            {type: foundFileType[0].mime}
+                        )
+                    ),
+                    error: null,
+                };
+
+            case "code":
+            case "text":
+            case "application":
+            case "markdown":
+            default: {
+                const text = tryDecodeText(contentBuffer);
+                if (text !== null) {
+                    return {
+                        type: typeFromFileType,
+                        data: text,
+                        error: null
+                    };
+                } else {
+                    return {
+                        type: "text",
+                        data: "",
+                        error: "Preview is not supported for this file.",
+                    };
+                }
+            }
+        }
+    }, [openFile, previewRequested]);
+
+    const editorRef = React.useRef<EditorApi>(null);
+
+    const requestPreviewToggle = useCallback(() => {
+        editorRef.current?.notifyDirtyBuffer().then(() => {
+            setPreviewRequested(p => !p);
+        });
+    }, []);
+
+    const onSave = useCallback(async () => {
+        const editor = editorRef.current;
+        if (!editor) return;
+        if (!hasFeature(Feature.INTEGRATED_EDITOR)) return;
+
+        await editor.notifyDirtyBuffer();
+        await vfs.writeFile(editor.path);
+
+        snackbarStore.addSuccess("File has been saved", false, 800);
+    }, [vfs]);
+
+    useEffect(() => {
+        const listener = (ev: KeyboardEvent) => {
+            const hasCtrl = ev.ctrlKey || ev.metaKey;
+            if (ev.code === "KeyS" && hasCtrl) {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                onSave().then(doNothing);
+            }
+            if (ev.code === "KeyB" && hasCtrl) {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                requestPreviewToggle();
+            }
+        };
+
+        window.addEventListener("keydown", listener);
+        return () => {
+            window.removeEventListener("keydown", listener);
+        }
+    }, [onSave, requestPreviewToggle]);
+
+
+    if (initialFile.status.type !== "FILE") return null;
 
     let node: React.ReactNode = null;
 
-    switch (type) {
+    const ext = extensionType(extensionFromPath(openFile[0]));
+
+    switch (mediaFileMetadata?.type) {
         case "text":
         case "code":
-            // Note(Jonas): In the special case that Markdown starts with `[`, this will be considered `type = "code"`. We handle this at the last minute here.
-            if ([".md", ".markdown"].some(ending => file.id.endsWith(ending))) {
-                setType("markdown");
-                break;
-            }
-            node = <div ref={codePreview} className={classConcat(Editor, "fullscreen")} />;
+            node = null;
             break;
         case "image":
-            node = <img className={Image} alt={fileName(file.id)} src={data} />
+            // Note(Jonas): extensions like .HEIC will fallback to just showing the alt.
+            node = <img className={Image} alt={fileName(openFile[0])} src={mediaFileMetadata.data} />
             break;
         case "audio":
-            node = <audio className={Audio} controls src={data} />;
+            node = <audio className={Audio} controls src={mediaFileMetadata.data} />;
             break;
         case "video":
-            node = <video className={Video} src={data} controls />;
+            node = <video className={Video} src={mediaFileMetadata.data} controls />;
             break;
         case "pdf":
-            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={data} />;
+            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={mediaFileMetadata.data} />;
             break;
         case "markdown":
-            node = <div className={MarkdownStyling}><Markdown>{data}</Markdown></div>;
-            break;
-        default:
-            node = <div />
+            node = <div className={MarkdownStyling}><Markdown>{mediaFileMetadata.data}</Markdown></div>;
             break;
     }
 
-    if (error !== null) {
-        node = <div>{error}</div>;
+    if (mediaFileMetadata && mediaFileMetadata.error !== null) {
+        node = <div>{mediaFileMetadata?.error}</div>;
     }
 
-    return <div className={ItemWrapperClass}>{node}</div>;
+    const onOpenFile = useCallback((path: string, data: string | Uint8Array) => {
+        setOpenFile([path, data]);
+    }, []);
+
+    const openTerminal = useCallback(() => {
+        if (!drive) return;
+        const providerId = drive.specification.product.provider;
+        const providerTitle = getProviderTitle(providerId) ?? providerId;
+        const folder = getParentPath(initialFile.id);
+
+        dispatch({type: "TerminalOpen"});
+        dispatch({type: "TerminalOpenTab", tab: {title: providerTitle, folder}});
+    }, [drive, initialFile]);
+
+    const newFolder = useCallback(async (path: string) => {
+        const name = (await addStandardInputDialog({
+            title: "What should the folder be called?",
+            confirmText: "Create folder",
+        })).result;
+
+        await callAPI(api.createFolder(bulkRequestOf({
+            id: getParentPath(path) + name,
+            conflictPolicy: "REJECT",
+        })));
+
+        editorRef.current?.invalidateTree?.(getParentPath(path));
+    }, [openFile[0]]);
+
+    const newFile = useCallback(async (path: string) => {
+        const name = (await addStandardInputDialog({
+            title: "What should the file be called?",
+            confirmText: "Create file",
+        })).result;
+
+        const newPath = getParentPath(path) + name;
+        window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(EventKeys.WriteToFile, {
+            detail: {
+                path: newPath,
+                content: "",
+            }
+        }));
+
+        // TODO(Jonas): Add check that file exists or even can be created (has active allocation)
+
+        setTimeout(() => {
+            editorRef.current?.invalidateTree?.(getParentPath(path));
+            editorRef.current?.openFile?.(newPath);
+        }, 1000);
+    }, [openFile[0]]);
+
+    const onRename = React.useCallback(async ({newAbsolutePath, oldAbsolutePath, cancel}: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}): Promise<boolean> => {
+        let success = false;
+        if (cancel) {
+            setRenamingFile(undefined);
+            return false;
+        }
+
+        try {
+            await callAPI(api.move({
+                type: "bulk",
+                items: [{oldId: oldAbsolutePath, newId: newAbsolutePath, conflictPolicy: "REJECT"}]
+            }));
+            setRenamingFile(undefined);
+
+            vfs.moveFileContent(removeTrailingSlash(oldAbsolutePath), removeTrailingSlash(newAbsolutePath));
+
+            if (editorRef.current?.path === oldAbsolutePath) {
+                editorRef.current.openFile(newAbsolutePath);
+            }
+
+            editorRef.current?.invalidateTree?.(getParentPath(newAbsolutePath));
+            success = true;
+        } catch (e) {
+            displayErrorMessageOrDefault(e, "Failed to rename file");
+        }
+
+        return success;
+    }, []);
+
+    const operations = useCallback((file?: VirtualFile): Operation<any>[] => {
+        if (!hasFeature(Feature.INTEGRATED_EDITOR)) return [];
+        const reload = () => {
+            editorRef.current?.invalidateTree(removeTrailingSlash(getParentPath(initialFile.id)));
+        }
+
+        if (!file) {
+            return [{
+                icon: "heroFolderPlus",
+                text: "New folder",
+                enabled: () => true,
+                onClick: () => {
+                    // TODO(Jonas)
+                },
+                shortcut: ShortcutKey.F,
+            }, {
+                icon: "heroDocumentPlus",
+                text: "New file",
+                enabled: () => true,
+                onClick: () => {
+                    // TODO(Jonas)
+                },
+                shortcut: ShortcutKey.G,
+            }];
+        }
+
+        return [
+            {
+                icon: "heroFolderPlus",
+                text: "New folder",
+                enabled: () => true,
+                onClick: () => {
+                    const suffix = file.isDirectory ? "/placeholder" : "";
+                    newFolder(file.absolutePath + suffix).then(doNothing);
+                },
+                shortcut: ShortcutKey.F,
+            },
+            {
+                icon: "heroDocumentPlus",
+                text: "New file",
+                enabled: () => true,
+                onClick: () => {
+                    const suffix = file.isDirectory ? "/placeholder" : "";
+                    newFile(file.absolutePath + suffix).then(doNothing);
+                },
+                shortcut: ShortcutKey.G,
+            },
+            {
+                icon: "edit",
+                text: "Rename",
+                enabled: () => true,
+                onClick: () => {
+                    setRenamingFile(file.absolutePath);
+                },
+                shortcut: ShortcutKey.E
+            },
+            {
+                icon: "trash",
+                text: "Move to trash",
+                enabled: () => true,
+                onClick: async () => {
+                    await callAPI(
+                        api.trash({
+                            type: "bulk",
+                            items: [{id: file.absolutePath}],
+                        })
+                    );
+                    reload();
+                    snackbarStore.addSuccess("File(s) moved to trash", false);
+                },
+                shortcut: ShortcutKey.R
+            },
+            {
+                icon: "copy",
+                text: "Copy file",
+                enabled: () => true,
+                onClick: () => {
+                    api.copyModal([file.absolutePath], initialFile.specification.product.provider, reload);
+                },
+                shortcut: ShortcutKey.C
+            },
+            {
+                icon: "move",
+                text: "Move file",
+                enabled: () => true,
+                onClick: () => {
+                    api.moveModal([file.absolutePath], initialFile.specification.product.provider, reload);
+                },
+                shortcut: ShortcutKey.M
+                // MOVE
+            },
+            {
+                icon: "download",
+                text: "Download file",
+                enabled: () => true,
+                onClick: async () => {
+                    api.download([file.absolutePath]);
+                },
+                shortcut: ShortcutKey.D
+                // DOWNLOAD
+            },
+        ];
+    }, []);
+
+    return <Editor
+        apiRef={editorRef}
+        toolbarBeforeSettings={
+            <>
+                {ext === "markdown" ?
+                    <TooltipV2 tooltip={"Preview (ctrl+b)"} contentWidth={80}>
+                        <Icon
+                            name={"heroMagnifyingGlass"}
+                            size={"20px"}
+                            cursor={"pointer"}
+                            onClick={requestPreviewToggle}
+                        />
+                    </TooltipV2> : null}
+
+                {!hasFeature(Feature.INTEGRATED_EDITOR) ? null :
+                    <TooltipV2 tooltip={"Save (ctrl+s)"} contentWidth={100}>
+                        <Icon
+                            name={"floppyDisk"}
+                            size={"20px"}
+                            cursor={"pointer"}
+                            onClick={onSave}
+                        />
+                    </TooltipV2>
+                }
+            </>
+        }
+        toolbar={
+            <>
+                {!supportsTerminal || !hasFeature(Feature.INLINE_TERMINAL) || !hasFeature(Feature.INTEGRATED_EDITOR) ? null :
+                    <TooltipV2 tooltip={"Open terminal"} contentWidth={130}>
+                        <Icon
+                            name={"terminalSolid"}
+                            size={"20px"}
+                            cursor={"pointer"}
+                            onClick={openTerminal}
+                        />
+                    </TooltipV2>
+                }
+            </>
+        }
+        initialFolderPath={removeTrailingSlash(getParentPath(initialFile.id))}
+        initialFilePath={initialFile.id}
+        title={vfsTitle}
+        vfs={vfs}
+        showCustomContent={node != null}
+        customContent={node}
+        onOpenFile={onOpenFile}
+        onRename={onRename}
+        renamingFile={renamingFile}
+        operations={operations}
+        fileHeaderOperations={
+            <>
+                <Icon name="heroDocumentPlus" cursor="pointer" size="18px" onClick={() => newFile(initialFile.id)} />
+                <Icon name="heroFolderPlus" cursor="pointer" size="18px" onClick={() => newFolder(initialFile.id)} />
+            </>
+        }
+        help={
+            <Flex mx="auto" mt="150px">
+                <Box>
+                    <Text mb="12px">Create new file and start working</Text>
+                    <Flex mx="auto">
+                        <Button mx="auto" onClick={() => newFile(initialFile.id)}>New file</Button>
+                        <Button mx="auto" onClick={() => newFolder(initialFile.id)}>New folder</Button>
+                    </Flex>
+                </Box>
+            </Flex>
+        }
+        readOnly={!hasFeature(Feature.INTEGRATED_EDITOR)}
+    />;
+}
+
+async function downloadFileContent(path: string): Promise<Blob> {
+    const download = await callAPI<BulkResponse<FilesCreateDownloadResponseItem>>(
+        api.createDownload(bulkRequestOf({id: path}))
+    );
+    const downloadEndpoint = download?.responses[0]?.endpoint.replace("integration-module:8889", "localhost:9000");
+    if (!downloadEndpoint) {
+        throw window.Error("Unable to display preview. Try again later or with a different file.");
+    }
+    const content = await fetch(normalizeDownloadEndpoint(downloadEndpoint));
+    return await content.blob();
 }
 
 const MAX_HEIGHT = `calc(100vw - 15px - 15px - 240px - var(${CSSVarCurrentSidebarStickyWidth}));`
-const HEIGHT = "calc(100vh - 30px);"
+const HEIGHT = "calc(100vh - 100px);"
 
 const MarkdownStyling = injectStyleSimple("markdown-styling", `
-    max-width: ${MAX_HEIGHT};
+    max-width: 900px;
     width: 100%;
-    margin: 32px;
 `);
 
 const Audio = injectStyleSimple("preview-audio", `
     margin-top: auto;
     margin-bottom: auto;
-`);
-
-const Editor = injectStyleSimple("m-editor", `
-    height: ${HEIGHT}
-    width: 100%;
 `);
 
 const Image = injectStyleSimple("preview-image", `
@@ -1407,25 +1513,15 @@ const Image = injectStyleSimple("preview-image", `
 
 const Video = injectStyleSimple("preview-video", `
     max-width: ${MAX_HEIGHT}
+    max-height: ${HEIGHT}
 `);
 
 const PreviewObject = injectStyleSimple("preview-pdf", `
     max-width: ${MAX_HEIGHT}
     width: 100%;
+    height: ${HEIGHT};
     max-height: ${HEIGHT}
 `)
-
-const ItemWrapperClass = injectStyle("item-wrapper", k => `
-    ${k} {
-        display: flex;
-        justify-content: center;
-        height: 100%;
-        width: 100%;
-        border-radius: 6px;
-        overflow: hidden;
-        box-shadow: var(--defaultShadow);
-    }
-`);
 
 function tryDecodeText(buf: Uint8Array): string | null {
     try {
@@ -1434,6 +1530,127 @@ function tryDecodeText(buf: Uint8Array): string | null {
     } catch (e) {
         return null;
     }
+}
+
+function getFileTypesFromContentBuffer(contentBuffer: Uint8Array) {
+    return fileType(contentBuffer).filter(it => it.mime);
+}
+
+class PreviewVfs implements Vfs {
+    private fetchedFiles: Record<string, string> = {};
+    private folders: Record<string, VirtualFile[]> = {};
+    private ufiles: Record<string, UFile> = {};
+    private dirtyFileContent: Record<string, string> = {};
+
+    constructor(previewedFile: UFile) {
+        this.ufiles[previewedFile.id] = previewedFile;
+    }
+
+    isReal() {
+        return true;
+    }
+
+    async listFiles(path: string): Promise<VirtualFile[]> {
+        try {
+            return this.folders[path] = await this.fetchFiles(path);
+        } catch (e) {
+            return [];
+        }
+    }
+
+    async fetchFiles(path: string, next?: string): Promise<VirtualFile[]> {
+        const result = await callAPI(api.browse({
+            path,
+            itemsPerPage: 250,
+            next
+        }));
+
+        if (result.next) {
+            return toVirtualFiles(result).concat(await this.fetchFiles(path, result.next));
+        }
+
+        return toVirtualFiles(result);
+    }
+
+    setDirtyFileContent(path: string, content: string): void {
+        this.dirtyFileContent[path] = content;
+    }
+
+    public moveFileContent(oldPath: string, newPath: string) {
+        if (this.dirtyFileContent[oldPath]) {
+            const content = this.dirtyFileContent[oldPath];
+            delete this.dirtyFileContent[oldPath];
+            this.dirtyFileContent[newPath] = content;
+        }
+
+        if (this.fetchedFiles[oldPath]) {
+            const content = this.fetchedFiles[oldPath];
+            delete this.fetchedFiles[oldPath];
+            this.fetchedFiles[newPath] = content;
+        }
+    }
+
+    async readFile(path: string): Promise<string | Uint8Array> {
+        const dirty = this.dirtyFileContent[path];
+        if (dirty !== undefined) return dirty;
+        if (this.fetchedFiles[path]) return this.fetchedFiles[path];
+
+        const file = this.ufiles[path] ?? await callAPI(api.retrieve({id: path}));
+        this.ufiles[path] = file;
+
+        if (isFileFileSizeExceeded(file)) {
+            throw window.Error("File is to large to preview.");
+        }
+
+        if (file.status.type !== "FILE") {
+            throw window.Error("Only files can be previewed");
+        };
+
+        if (file.status.sizeInBytes === 0) {
+            return "";
+        }
+
+        const contentBlob = await downloadFileContent(path);
+        const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
+        const text = tryDecodeText(contentBuffer);
+        if (!text) {
+            return contentBuffer;
+        } else {
+            this.fetchedFiles[path] = text;
+            return text;
+        }
+    }
+
+    async writeFile(path: string): Promise<void> {
+        const content = this.dirtyFileContent[path];
+        if (content === undefined) return;
+
+        try {
+            window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(EventKeys.WriteToFile, {
+                detail: {
+                    path,
+                    content
+                }
+            }));
+        } catch (e) {
+            errorMessageOrDefault(e, "Failed to save file");
+        }
+    }
+}
+
+function toVirtualFiles(page: PageV2<UFile>): VirtualFile[] {
+    return page.items.map(i => ({
+        absolutePath: i.id,
+        isDirectory: i.status.type === "DIRECTORY",
+        requestedSyntax: extensionFromPath(i.id),
+    }));
+}
+
+export const EventKeys = {WriteToFile: "write-to-file-event"};
+
+export interface WriteToFileEventProps {
+    path: string;
+    content: string;
 }
 
 export {api};

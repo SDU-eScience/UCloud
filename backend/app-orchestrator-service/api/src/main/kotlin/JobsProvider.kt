@@ -131,6 +131,8 @@ data class JobsProviderOpenInteractiveSessionRequestItem(
     val rank: Int,
     @UCloudApiDoc("The type of session")
     val sessionType: InteractiveSessionType,
+    @UCloudApiDoc("Session target path")
+    val target: String? = null
 )
 
 typealias JobsProviderOpenInteractiveSessionResponse = BulkResponse<OpenSession?>

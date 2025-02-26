@@ -31,6 +31,30 @@ func InitDriveDatabase() {
 		return
 	}
 
+	db.NewTx0(func(tx *db.Transaction) {
+		rows := db.Select[struct {
+			DriveId  string
+			Resource string
+		}](
+			tx,
+			`
+				select drive_id, resource
+				from tracked_drives
+		    `,
+			db.Params{},
+		)
+
+		activeDrivesMutex.Lock()
+		for _, row := range rows {
+			drive := new(orc.Drive)
+			err := json.Unmarshal([]byte(row.Resource), drive)
+			if err == nil {
+				activeDrives[row.DriveId] = drive
+			}
+		}
+		activeDrivesMutex.Unlock()
+	})
+
 	trackDriveIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[util.Empty] {
 		// NOTE(Dan): Since we are not returning any information about the drive, we simply track it regardless if this
 		// was a drive that belongs to the user or not.
@@ -73,6 +97,20 @@ func InitDriveDatabase() {
 			Payload:    *result,
 		}
 	})
+
+	removeTrackedDriveIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[util.Empty] {
+		drive, err := orc.RetrieveDrive(r.Payload.Id)
+		if err != nil || !BelongsToWorkspace(orc.ResourceOwnerToWalletOwner(drive.Resource), r.Uid) {
+			return ipc.Response[util.Empty]{
+				StatusCode: http.StatusForbidden,
+			}
+		} else {
+			removeTrackedDrive(drive.Id)
+			return ipc.Response[util.Empty]{
+				StatusCode: http.StatusOK,
+			}
+		}
+	})
 }
 
 // The activeDrives property stores all drives which have been seen this session in-memory. This structure is valid for
@@ -84,6 +122,7 @@ var activeDrivesMutex = sync.Mutex{}
 
 var (
 	trackDriveIpc                = ipc.NewCall[fnd.FindByStringId, util.Empty]("ctrl.drives.track")
+	removeTrackedDriveIpc        = ipc.NewCall[fnd.FindByStringId, util.Empty]("ctrl.drives.removeTrackedDrive")
 	retrieveDriveIpc             = ipc.NewCall[fnd.FindByStringId, orc.Drive]("ctrl.drives.retrieve")
 	retrieveDriveByProviderIdIpc = ipc.NewCall[util.Tuple2[[]string, []string], orc.Drive]("ctrl.drives.retrieveByProviderId")
 )
@@ -165,6 +204,17 @@ func drivesAreMeaningfullyDifferent(a, b *orc.Drive) bool {
 	return false
 }
 
+func EnumerateKnownDrives() []orc.Drive {
+	var result []orc.Drive
+
+	activeDrivesMutex.Lock()
+	for _, d := range activeDrives {
+		result = append(result, *d)
+	}
+	activeDrivesMutex.Unlock()
+	return result
+}
+
 func RetrieveDrive(id string) (*orc.Drive, bool) {
 	activeDrivesMutex.Lock()
 	existing, ok := activeDrives[id]
@@ -187,6 +237,34 @@ func RetrieveDrive(id string) (*orc.Drive, bool) {
 	}
 
 	return existing, true
+}
+
+func RemoveTrackedDrive(id string) bool {
+	activeDrivesMutex.Lock()
+	delete(activeDrives, id)
+	activeDrivesMutex.Unlock()
+
+	if RunsServerCode() {
+		removeTrackedDrive(id)
+		return true
+	} else {
+		_, err := removeTrackedDriveIpc.Invoke(fnd.FindByStringId{Id: id})
+		return err == nil
+	}
+}
+
+func removeTrackedDrive(id string) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				delete from tracked_drives where drive_id = :drive_id
+			`,
+			db.Params{
+				"drive_id": id,
+			},
+		)
+	})
 }
 
 func RetrieveDriveByProviderId(prefixes []string, suffixes []string) (*orc.Drive, bool) {
@@ -212,9 +290,16 @@ outer:
 			prefix := prefixes[i]
 			suffix := suffixes[i]
 
-			if strings.HasPrefix(id, prefix) && strings.HasSuffix(id, suffix) {
-				result = drive
-				break outer
+			if suffix != "" {
+				if strings.HasPrefix(id, prefix) && strings.HasSuffix(id, suffix) {
+					result = drive
+					break outer
+				}
+			} else {
+				if id == prefix {
+					result = drive
+					break outer
+				}
 			}
 		}
 	}
@@ -239,6 +324,10 @@ outer:
 							join lookup l on
 								d.provider_generated_id like l.prefix || '%'
 								and d.provider_generated_id like '%' || l.suffix
+								and (
+									l.suffix != ''
+									or d.provider_generated_id = l.prefix
+								)
 					`,
 					db.Params{
 						"prefixes": prefixes,

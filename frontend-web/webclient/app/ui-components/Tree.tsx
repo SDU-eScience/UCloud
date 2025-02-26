@@ -3,6 +3,9 @@ import Icon from "@/ui-components/Icon";
 import {extractDataTags, injectStyle} from "@/Unstyled";
 import {CSSProperties, useCallback, useEffect, useRef} from "react";
 import {ListRow} from "@/ui-components/List";
+import Flex from "@/ui-components/Flex";
+import Box from "@/ui-components/Box";
+import {Cursor} from "./Types";
 
 export enum TreeAction {
     TOGGLE,
@@ -243,15 +246,21 @@ export const TreeNode: React.FunctionComponent<{
     right?: React.ReactNode;
     children?: React.ReactNode;
     className?: string;
+    onContextMenu?: React.MouseEventHandler<HTMLDivElement>;
     indent?: number;
     onActivate?: (open: boolean, element: HTMLElement) => void;
+    slim?: boolean;
+    cursor?: Cursor;
 }> = props => {
     const ref = useRef<HTMLDivElement>(null);
     const style: CSSProperties = {};
-    style["--indent"] = (props.indent ?? 32) + "px";
+    style["--indent"] = (props.indent ?? (props.slim ? 16 : 32)) + "px";
+    if (props.cursor) style.cursor = props.cursor;
 
     const activate = useCallback((ev?: React.SyntheticEvent) => {
-        ev?.stopPropagation();
+        // Note(Jonas): Disabled for now. This causes operations-pop-up to not be closed on outside click.
+        // Re-enable if needed.
+        // ev?.stopPropagation();
         const div = ref.current;
         if (!div) return;
 
@@ -287,29 +296,37 @@ export const TreeNode: React.FunctionComponent<{
         style={style}
         ref={ref}
         onClick={activate}
+        onContextMenu={e => {
+            if (props.onContextMenu) {
+                activate(e);
+                props.onContextMenu(e);
+            }
+        }}
         onDoubleClick={toggleOpen}
         {...extractDataTags(props)}
     >
-        <ListRow
-            stopPropagation={false}
-            left={props.left}
-            leftSub={null}
-            className={props.className}
-            icon={
-                props.children == null ?
-                    null
-                    : <Icon
-                        data-chevron={"true"}
-                        color="textPrimary"
-                        size={15}
-                        name="chevronDownLight"
-                        className={"open-chevron"}
-                        cursor={"pointer"}
-                        onClick={toggleOpen}
-                    />
+        <Flex
+            data-component={"list-row"}
+            alignItems={"center"}
+            gap={"8px"}
+            padding={"5px"}
+            minHeight={props.slim ? "24px" : "48px"}
+        >
+            {props.children == null ?
+                null :
+                <Icon
+                    data-chevron={"true"}
+                    color="textPrimary"
+                    size={15}
+                    name="chevronDownLight"
+                    className={"open-chevron"}
+                    cursor={"pointer"}
+                    onClick={toggleOpen}
+                />
             }
-            right={props.right}
-        />
+            <Flex alignItems={"center"} flexGrow={1}>{props.left}</Flex>
+            {props.right}
+        </Flex>
 
         <div className={TreeNodeChildren}>
             {props.children}

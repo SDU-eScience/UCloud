@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"os"
 	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/util"
 )
 
-func CreateAndForkPty(command []string, envArray []string) (*os.File, int32, error) {
+func CreateAndForkPty(command []string, envArray []string, workingDir util.Option[string]) (*os.File, int32, error) {
 	return nil, 0, fmt.Errorf("unimplemented")
 }
 

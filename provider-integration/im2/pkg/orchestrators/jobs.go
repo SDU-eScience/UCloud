@@ -39,12 +39,18 @@ type ExportedParametersResources struct {
 	Ingress map[string]Ingress `json:"Ingress"`
 }
 
+type DynamicTarget struct {
+	Rank   int                    `json:"rank"`
+	Type   InteractiveSessionType `json:"type"`
+	Target string                 `json:"target"`
+	Port   int                    `json:"port"`
+}
+
 type JobState string
 
 const (
 	JobStateInQueue   JobState = "IN_QUEUE"
 	JobStateRunning   JobState = "RUNNING"
-	JobStateCanceling JobState = "CANCELING"
 	JobStateSuccess   JobState = "SUCCESS"
 	JobStateFailure   JobState = "FAILURE"
 	JobStateExpired   JobState = "EXPIRED"
@@ -95,6 +101,7 @@ type JobUpdate struct {
 	NewTimeAllocation      util.Option[int64]    `json:"newTimeAllocation"`
 	AllowRestart           util.Option[bool]     `json:"allowRestart"`
 	NewMounts              util.Option[[]string] `json:"newMounts"`
+	Timestamp              fnd.Timestamp         `json:"timestamp"`
 }
 
 type JobSpecification struct {
@@ -295,24 +302,28 @@ func BuildParameter(
 ) []string {
 	switch param.Type {
 	case InvocationParameterTypeJinja:
-		flags := JinjaFlags(0)
-		if environmentVariable {
-			flags |= JinjaFlagsNoEscape
-		}
-
-		output, ok := ExecuteJinjaTemplate(
-			param.InvocationParameterJinja.Template,
-			0,
-			func(session any, fn string, args []string) string {
-				return ""
-			},
-			jinjaCtx,
-			flags,
-		)
-		if !ok {
+		if jinjaCtx == nil {
 			return nil
 		} else {
-			return []string{output}
+			flags := JinjaFlags(0)
+			if environmentVariable {
+				flags |= JinjaFlagsNoEscape
+			}
+
+			output, err := ExecuteJinjaTemplate(
+				param.InvocationParameterJinja.Template,
+				0,
+				func(session any, fn string, args []string) string {
+					return ""
+				},
+				jinjaCtx,
+				flags,
+			)
+			if err != nil {
+				return nil
+			} else {
+				return []string{output}
+			}
 		}
 
 	case InvocationParameterTypeWord:
@@ -462,16 +473,59 @@ func VerifyParameterType(param *ApplicationParameter, value *AppParameterValue) 
 		}
 
 	case ApplicationParameterTypeEnumeration:
-		if value.Type != AppParameterValueTypeEnumeration {
+		if value.Type != AppParameterValueTypeText {
 			return false
 		}
 
 	case ApplicationParameterTypeTextArea:
-		if value.Type != AppParameterValueTypeTextArea {
+		if value.Type != AppParameterValueTypeText {
+			return false
+		}
+
+	case ApplicationParameterTypeModuleList:
+		if value.Type != AppParameterValueTypeModuleList {
 			return false
 		}
 	}
 	return true
+}
+
+func readDefaultValue(input json.RawMessage) (AppParameterValue, bool) {
+	if string(input) == "null" {
+		return AppParameterValue{}, false
+	}
+
+	var value AppParameterValue
+	err := json.Unmarshal(input, &value)
+	if err == nil {
+		return value, true
+	}
+
+	var asInt int64
+	err = json.Unmarshal(input, &asInt)
+	if err == nil {
+		return AppParameterValueInteger(asInt), true
+	}
+
+	var asFloat float64
+	err = json.Unmarshal(input, &asFloat)
+	if err == nil {
+		return AppParameterValueFloatingPoint(asFloat), true
+	}
+
+	var asText string
+	err = json.Unmarshal(input, &asText)
+	if err == nil {
+		return AppParameterValueText(asText), true
+	}
+
+	var asBool bool
+	err = json.Unmarshal(input, &asBool)
+	if err == nil {
+		return AppParameterValueBoolean(asBool), true
+	}
+
+	return AppParameterValue{}, false
 }
 
 func ReadParameterValuesFromJob(job *Job, application *ApplicationInvocationDescription) map[string]ParamAndValue {
@@ -492,9 +546,8 @@ func ReadParameterValuesFromJob(job *Job, application *ApplicationInvocationDesc
 			continue
 		}
 
-		var value AppParameterValue
-		err := json.Unmarshal(param.DefaultValue, &value)
-		if err != nil {
+		value, ok := readDefaultValue(param.DefaultValue)
+		if !ok {
 			continue
 		}
 
@@ -509,26 +562,32 @@ func ReadParameterValuesFromJob(job *Job, application *ApplicationInvocationDesc
 	}
 
 	for paramName, value := range job.Specification.Parameters {
-		var parameter util.Option[ApplicationParameter]
-		for _, jobParam := range allParameters {
-			if jobParam.Name == paramName {
-				parameter.Set(jobParam)
-				break
+		if strings.HasPrefix(paramName, "_injected_") {
+			parameters[paramName] = ParamAndValue{
+				Value: value,
 			}
-		}
+		} else {
+			var parameter util.Option[ApplicationParameter]
+			for _, jobParam := range allParameters {
+				if jobParam.Name == paramName {
+					parameter.Set(jobParam)
+					break
+				}
+			}
 
-		if !parameter.IsSet() {
-			continue
-		}
+			if !parameter.IsSet() {
+				continue
+			}
 
-		param := parameter.Get()
-		if !VerifyParameterType(&param, &value) {
-			continue
-		}
+			param := parameter.Get()
+			if !VerifyParameterType(&param, &value) {
+				continue
+			}
 
-		parameters[paramName] = ParamAndValue{
-			Parameter: param,
-			Value:     value,
+			parameters[paramName] = ParamAndValue{
+				Parameter: param,
+				Value:     value,
+			}
 		}
 	}
 	return parameters
@@ -570,6 +629,7 @@ type BrowseJobsFlags struct {
 	IncludeParameters  bool                  `json:"includeParameters"`
 	IncludeApplication bool                  `json:"includeApplication"`
 	IncludeProduct     bool                  `json:"includeProduct"`
+	IncludeUpdates     bool                  `json:"includeUpdates"`
 }
 
 func RetrieveJob(jobId string, flags BrowseJobsFlags) (Job, error) {

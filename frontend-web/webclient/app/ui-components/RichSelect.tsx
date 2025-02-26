@@ -1,11 +1,11 @@
 import * as React from "react";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
-import {useCallback, useLayoutEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useMemo, useRef, useState} from "react";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {doNothing, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {injectStyle} from "@/Unstyled";
-import {Flex, Icon, Input, Relative, Text} from "@/ui-components/index";
-import {FilterInputClass} from "@/Project/ContextSwitcher";
+import {Flex, Icon, Input, Relative} from "@/ui-components/index";
+import {FilterInputClass} from "@/Project/ProjectSwitcher";
 import Box from "@/ui-components/Box";
 
 export type RichSelectChildComponent<T> = React.FunctionComponent<{
@@ -19,7 +19,10 @@ export function RichSelect<T, K extends keyof T>(props: {
     keys: K[];
 
     RenderRow: RichSelectChildComponent<T>;
-    RenderSelected: RichSelectChildComponent<T>;
+    RenderSelected?: RichSelectChildComponent<T>;
+    FullRenderSelected?: RichSelectChildComponent<T>;
+    fullWidth?: boolean;
+    dropdownWidth?: string;
 
     selected?: T;
     onSelect: (element: T) => void;
@@ -36,23 +39,36 @@ export function RichSelect<T, K extends keyof T>(props: {
         return fuzzySearch(withKeys, props.keys, query, { sort: true });
     }, [query, props.items, props.keys]);
 
+    const limitedElements = useMemo(() => {
+        if (filteredElements.length > 500) {
+            return filteredElements.slice(0, 500);
+        } else {
+            return filteredElements;
+        }
+    }, [filteredElements]);
+
     const triggerRef = useRef<HTMLDivElement>(null);
 
-    const [dropdownSize, setDropdownSize] = useState("300px");
+    const [dropdownSize, setDropdownSize] = useState(props.dropdownWidth ?? "300px");
 
     const onTriggerClick = useCallback(() => {
         const trigger = triggerRef.current;
         if (!trigger) return;
         const width = trigger.getBoundingClientRect().width;
+        setQuery("");
         setDropdownSize(width + "px");
     }, []);
 
     return <ClickableDropdown
-        trigger={
-            <div className={TriggerClass} ref={triggerRef}>
-                <props.RenderSelected element={props.selected} onSelect={doNothing}/>
-                <Icon name="chevronDownLight"/>
-            </div>
+        trigger={props.FullRenderSelected ? 
+                <props.FullRenderSelected element={props.selected} onSelect={doNothing} />
+            :
+                props.RenderSelected ? 
+                    <div className={TriggerClass} ref={triggerRef}>
+                        <props.RenderSelected element={props.selected} onSelect={doNothing}/>
+                        <Icon name="chevronDownLight"/>
+                    </div>
+                : <></>
         }
         onOpeningTriggerClick={onTriggerClick}
         rightAligned
@@ -61,7 +77,9 @@ export function RichSelect<T, K extends keyof T>(props: {
         arrowkeyNavigationKey={"data-active"}
         hoverColor={"rowHover"}
         colorOnHover={false}
-        fullWidth
+        fullWidth={props.fullWidth ?? false}
+        width={props.fullWidth ? undefined : dropdownSize}
+        height={Math.min(370, 40 * (limitedElements.length + 1))}
         onSelect={el => {
             const idxS = el?.getAttribute("data-idx") ?? "";
             const idx = parseInt(idxS);
@@ -74,7 +92,7 @@ export function RichSelect<T, K extends keyof T>(props: {
             closeFn.current();
         }}
     >
-        <div style={{maxHeight: "385px", width: dropdownSize}}>
+        <div style={{height: "320px", width: dropdownSize}}>
             <Flex>
                 <Input
                     autoFocus
@@ -103,7 +121,7 @@ export function RichSelect<T, K extends keyof T>(props: {
             </Flex>
 
             <div className={ResultWrapperClass}>
-                {filteredElements.map(it => <props.RenderRow
+                {limitedElements.map(it => <props.RenderRow
                     element={it}
                     key={it.idx}
                     onSelect={() => {
@@ -115,12 +133,11 @@ export function RichSelect<T, K extends keyof T>(props: {
                     }}
                 />)}
 
-                {filteredElements.length !== 0 ? null : <>
+                {limitedElements.length !== 0 ? null : <>
                     {props.noResultsItem ?
                         <props.RenderRow
                             element={props.noResultsItem}
                             onSelect={() => {
-                                console.log(props.noResultsItem);
                                 props.onSelect(props.noResultsItem as T)
                             }}
                             dataProps={{

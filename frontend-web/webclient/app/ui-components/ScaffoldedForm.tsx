@@ -369,7 +369,7 @@ export const ScaffoldedForm: React.FunctionComponent<{
                     }
                 </Flex>
 
-                {imageData && <Image src={imageData} width={150} height={150} objectFit={"contain"} />}
+                {imageData && <Image src={imageData} alt={`Image of ${element.id}`} width={150} height={150} objectFit={"contain"} />}
             </BaseComponent>;
         }
     }

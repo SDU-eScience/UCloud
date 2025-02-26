@@ -297,13 +297,6 @@ class JobResourceService(
         providers.runChecksForCreate(actorAndProject, Jobs, request, "start job") { support, job ->
             val (_, tool, block) = findSupportBlock(job, support)
             block.checkEnabled()
-
-            val supportedProviders = tool.description.supportedProviders
-            if (supportedProviders != null) {
-                if (job.product.provider !in supportedProviders) {
-                    error("The application is not supported by this provider. Try selecting a different application.")
-                }
-            }
         }
 
         for (job in request.items) {
@@ -817,7 +810,7 @@ class JobResourceService(
         val now = Time.now()
         val nextSave = nextSupportInfoSave.get()
         if (now > nextSave && nextSupportInfoSave.compareAndSet(nextSave, now + 60_000)) {
-            db.withSession { session ->
+            db.withSession(reason = "JobResourceService.saveSupportInfoIfNeeded") { session ->
                 session.sendPreparedStatement(
                     {
                         val productNames = ArrayList<String>().also { setParameter("product_names", it) }
@@ -1209,13 +1202,11 @@ class JobResourceService(
                     if (reqItem.id != job.id) continue
                     when (reqItem.sessionType) {
                         InteractiveSessionType.WEB -> {
-                            require(app.invocation!!.web != null)
                             require(block is ComputeSupport.WithWeb)
                             block.checkFeature(block.web)
                         }
 
                         InteractiveSessionType.VNC -> {
-                            require(app.invocation!!.vnc != null)
                             block.checkFeature(block.vnc)
                         }
 
@@ -1234,7 +1225,8 @@ class JobResourceService(
                         JobsProviderOpenInteractiveSessionRequestItem(
                             job,
                             req.rank,
-                            req.sessionType
+                            req.sessionType,
+                            req.target,
                         )
                     }
                     .toList()
@@ -1433,6 +1425,7 @@ class JobResourceService(
     }
 
     suspend fun initializeProviders(actorAndProject: ActorAndProject) {
+        /*
         providers.forEachRelevantProvider(actorAndProject, filterProductType = ProductType.COMPUTE) { provider ->
             try {
                 providers.call(
@@ -1450,6 +1443,7 @@ class JobResourceService(
                 log.info("Failed to initialize jobs at provider: $provider. ${ex.toReadableStacktrace()}")
             }
         }
+         */
     }
 
     // Provider utilities
@@ -1678,7 +1672,7 @@ class JobResourceService(
     // This state is loaded at startup and then periodically maintained as we receive state updates from the provider.
     private val allActiveJobs = NonBlockingHashMapLong<Unit>()
     private suspend fun initializeActiveJobsIndex() {
-        db.withSession { session ->
+        db.withSession(reason = "JobResourceService.initializeActiveJobsIndex") { session ->
             val rows = session.sendPreparedStatement(
                 {},
                 """

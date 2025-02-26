@@ -2,15 +2,15 @@ import * as React from "react";
 import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
 import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
-import {Flex, Icon, Input, Radio, Text, MainContainer} from "@/ui-components";
+import {Flex, Icon, Input, Radio, Text, MainContainer, Box} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
 import {BreakdownByProjectAPI, categoryComparator, ChartsAPI, UsageOverTimeAPI} from ".";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {doNothing, getOrNull, timestampUnixMs} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as Jobs from "@/Applications/Jobs";
@@ -25,6 +25,10 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useProject} from "@/Project/cache";
 import * as Heading from "@/ui-components/Heading";
+import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
+import {AppLogo, hashF} from "@/Applications/AppToolLogo";
+import {SingleLineMarkdown} from "@/ui-components/Markdown";
+import {Feature, hasFeature} from "@/Features";
 
 // State
 // =====================================================================================================================
@@ -36,6 +40,7 @@ interface State {
     },
 
     summaries: {
+        title: string,
         usage: number,
         quota: number,
         category: Accounting.ProductCategoryV2,
@@ -110,7 +115,9 @@ function stateReducer(state: State, action: UIAction): State {
             const newSummaries: State["summaries"] = [];
             const now = BigInt(timestampUnixMs());
 
-            const sorted = data.allocGroups.sort((a, b) => categoryComparator(data.categories[a.productCategoryIndex], data.categories[b.productCategoryIndex]));
+            const sorted = data.allocGroups.sort((a, b) =>
+                categoryComparator(data.categories[a.productCategoryIndex], data.categories[b.productCategoryIndex])
+            );
 
             for (let i = 0; i < data.allocGroups.length; i++) {
                 const group = sorted[i];
@@ -124,6 +131,7 @@ function stateReducer(state: State, action: UIAction): State {
                 let summary: State["summaries"][0];
                 if (existingIndex === -1) {
                     summary = {
+                        title: category.name + "/" + category.provider,
                         usage: 0,
                         quota: 0,
                         category: category,
@@ -469,6 +477,10 @@ const Visualization: React.FunctionComponent = () => {
         dispatchEvent({type: "SelectTab", tabIndex: key});
     }, [dispatchEvent]);
 
+    const setActiveCategory2 = useCallback((element: State["summaries"][0]) => {
+        dispatchEvent({type: "SelectTab", tabIndex: element.categoryIdx});
+    }, [dispatchEvent]);
+
     const setPeriod = useCallback((period: Period) => {
         dispatchEvent({type: "UpdateSelectedPeriod", period});
     }, [dispatchEvent]);
@@ -514,7 +526,7 @@ const Visualization: React.FunctionComponent = () => {
                     <PeriodSelector value={state.selectedPeriod} onChange={setPeriod} />
                 </div>
                 <div style={{flexGrow: "1"}} />
-                <ContextSwitcher />
+                <ProjectSwitcher />
             </header>
 
             <div style={{padding: "13px 16px 16px 16px", zIndex: -1}}>
@@ -524,34 +536,52 @@ const Visualization: React.FunctionComponent = () => {
 
                 {hasNoMeaningfulData ? <NoData productType={activeCategory?.productType} /> : null}
 
-                <Flex flexDirection="row" gap="16px" overflowX={"auto"} paddingY={"26px"} paddingX={"12px"}>
-                    {state.summaries.map(s =>
-                        <SmallUsageCard
-                            key={s.categoryIdx}
-                            categoryName={s.category.name}
-                            usageText1={usageToString(s.category, s.usage, s.quota, false)}
-                            usageText2={usageToString(s.category, s.usage, s.quota, true)}
-                            chart={s.chart}
-                            active={
-                                s.category.name === state.activeDashboard?.category?.name &&
-                                s.category.provider === state.activeDashboard?.category?.provider
-                            }
-                            activationKey={s.categoryIdx}
-                            onActivate={setActiveCategory}
-                        />
-                    )}
-                </Flex>
+                {!hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <Box pb={32}>
+                    <div><b>Resource allocation</b></div>
+                    <RichSelect
+                        items={state.summaries}
+                        keys={["title"]}
+                        RenderRow={RenderProductSelector}
+                        RenderSelected={RenderProductSelector}
+                        onSelect={setActiveCategory2}
+                        fullWidth
+                        selected={!state.activeDashboard ? undefined : state.summaries.find(it => it.category === state.activeDashboard?.category)}
+                    />
+                </Box>}
+
+                {hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <>
+                    <Flex flexDirection="row" gap="16px" overflowX={"auto"} paddingY={"26px"} paddingX={"12px"}>
+                        {state.summaries.map(s =>
+                            <SmallUsageCard
+                                key={s.categoryIdx}
+                                categoryName={s.category.name}
+                                usageText1={usageToString(s.category, s.usage, s.quota, false)}
+                                usageText2={usageToString(s.category, s.usage, s.quota, true)}
+                                chart={s.chart}
+                                active={
+                                    s.category.name === state.activeDashboard?.category?.name &&
+                                    s.category.provider === state.activeDashboard?.category?.provider
+                                }
+                                activationKey={s.categoryIdx}
+                                onActivate={setActiveCategory}
+                            />
+                        )}
+                    </Flex>
+
+                </>}
 
                 {state.activeDashboard ?
                     <div className="panels">
-                        <div className={classConcat("panel-grid", hasChart3And4 ? HasAlotOfInfoClass.class : undefined)}>
-                            <CategoryDescriptorPanel
-                                category={state.activeDashboard.category}
-                                usage={state.activeDashboard.currentAllocation.usage}
-                                quota={state.activeDashboard.currentAllocation.quota}
-                                expiresAt={state.activeDashboard.currentAllocation.expiresAt}
-                            />
-                            <BreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject} />
+                        <div className={classConcat("panel-grid")}>
+                            {hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <>
+                                <CategoryDescriptorPanel
+                                    category={state.activeDashboard.category}
+                                    usage={state.activeDashboard.currentAllocation.usage}
+                                    quota={state.activeDashboard.currentAllocation.quota}
+                                    expiresAt={state.activeDashboard.currentAllocation.expiresAt}
+                                />
+                            </>}
+                            <UsageBreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject} />
                             <UsageOverTimePanel chart={state.activeDashboard.usageOverTime} />
                             {hasChart3And4 ? <>
                                 <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
@@ -777,13 +807,14 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
     expiresAt: number;
 }> = props => {
     const now = timestampUnixMs();
+    const isCompute = props.category.productType === "COMPUTE";
     const description = Accounting.guesstimateProductCategoryDescription(props.category.name, props.category.provider);
-    return <div className={classConcat(CardClass, CategoryDescriptorPanelStyle, props.category.productType === "COMPUTE" ? HasAlotOfInfoClass.class : undefined)}>
+    return <div className={classConcat(CardClass, CategoryDescriptorPanelStyle, isCompute ? HasAlotOfInfoClass.class : undefined)}>
         <div className={"figure-and-title"}>
             <figure>
                 <Icon name={Accounting.productTypeToIcon(props.category.productType)} size={128} />
                 <div style={{position: "relative"}}>
-                    <ProviderLogo providerId={props.category.provider} size={64} />
+                    <ProviderLogo providerId={props.category.provider} size={32} />
                 </div>
             </figure>
             <h1><code>{props.category.name}</code></h1>
@@ -826,18 +857,13 @@ const BreakdownStyle = injectStyle("breakdown", k => `
     }
 `);
 
-const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownChart}> = props => {
+const UsageBreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownChart}> = props => {
     const unit = props.chart.unit;
 
     const dataPoints = useMemo(
         () => {
             const unsorted = props.chart.dataPoints.map(it => ({key: it.title, value: it.usage}));
-            return unsorted.sort((a, b) => {
-                // Note(Jonas): Wouldn't `return a.value - b.value` work the same? 
-                if (a.value < b.value) return 1;
-                if (a.value > b.value) return -1;
-                return 0;
-            });
+            return unsorted.sort((a, b) => a.value - b.value);
         },
         [props.chart]
     );
@@ -855,8 +881,7 @@ const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownC
 
     const datapointSum = useMemo(() => {
         return dataPoints.reduce((a, b) => a + b.value, 0);
-    }, [dataPoints])
-
+    }, [dataPoints]);
 
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
         <div className="panel-title">
@@ -873,24 +898,25 @@ const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownC
 
         {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected  */}
         <div style={{overflowY: "scroll"}}>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Project</th>
-                        <th>Usage</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {dataPoints.map((point, idx) => {
-                        const usage = point.value;
-
-                        return <tr key={idx}>
-                            <td>{point.key}</td>
-                            <td>{Accounting.addThousandSeparators(Math.round(usage))} {unit}</td>
+            {dataPoints.length === 0 ? "No usage data found" :
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Project</th>
+                            <th>Usage</th>
                         </tr>
-                    })}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {dataPoints.map((point, idx) => {
+                            const usage = point.value;
+
+                            return <tr key={idx}>
+                                <td>{point.key}</td>
+                                <td>{Accounting.addThousandSeparators(Math.round(usage))} {unit}</td>
+                            </tr>
+                        })}
+                    </tbody>
+                </table>}
         </div>
     </div>;
 };
@@ -1277,88 +1303,6 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
 // Utility components
 // =====================================================================================================================
 
-const fieldOfResearch = {
-    "sections": [
-        {
-            "title": "Natural Sciences",
-            "children": [
-                "Mathematics",
-                "Computer and information sciences",
-                "Physical sciences",
-                "Chemical sciences",
-                "Earth and related environmental sciences",
-                "Biological sciences",
-                "Other natural sciences"
-            ]
-        },
-
-        {
-            "title": "Engineering and Technology",
-            "children": [
-                "Civil engineering",
-                "Electrical engineering, electronic engineering, information engineering",
-                "Mechanical engineering",
-                "Chemical engineering",
-                "Materials engineering",
-                "Medical engineering",
-                "Environmental engineering",
-                "Environmental biotechnology",
-                "Industrial Biotechnology",
-                "Nano-technology",
-                "Other engineering and technologies"
-            ]
-        },
-
-        {
-            "title": "Medical and Health Sciences",
-            "children": [
-                "Basic medicine",
-                "Clinical medicine",
-                "Health sciences",
-                "Health biotechnology",
-                "Other medical sciences"
-            ]
-        },
-
-        {
-            "title": "Agricultural Sciences",
-            "children": [
-                "Agriculture, forestry, and fisheries",
-                "Animal and dairy science",
-                "Veterinary science",
-                "Agricultural biotechnology",
-                "Other agricultural sciences"
-            ]
-        },
-
-        {
-            "title": "Social Sciences",
-            "children": [
-                "Psychology",
-                "Economics and business",
-                "Educational sciences",
-                "Sociology",
-                "Law",
-                "Political Science",
-                "Social and economic geography",
-                "Media and communications",
-                "Other social sciences"
-            ]
-        },
-
-        {
-            "title": "Humanities",
-            "children": [
-                "History and archaeology",
-                "Languages and literature",
-                "Philosophy, ethics and religion",
-                "Art (arts, history of arts, performing arts, music)",
-                "Other humanities"
-            ]
-        }
-    ]
-};
-
 const PieChart: React.FunctionComponent<{
     dataPoints: {key: string, value: number}[],
     valueFormatter: (value: number) => string,
@@ -1382,18 +1326,15 @@ const PieChart: React.FunctionComponent<{
 
         return result;
     }, [props.dataPoints]);
-    const series = useMemo(() => {
-        return filteredList.map(it => it.value);
-    }, [filteredList]);
 
-    const labels = useMemo(() => {
-        return filteredList.map(it => it.key);
-    }, [filteredList]);
+    // FIXME(Jonas): The list is at most 5 entries so it's not a big deal, but it can be done in one iteration instead of two.
+    const series = useMemo(() => filteredList.map(it => it.value), [filteredList]);
+    const labels = useMemo(() => filteredList.map(it => it.key), [filteredList]);
 
     const chartProps = useMemo(() => {
         return {
             type: "pie",
-            series: series,
+            series,
             options: {
                 chart: {
                     animations: {
@@ -1473,7 +1414,12 @@ function usageChartToChart(
     } = {}
 ): ChartProps {
     const result: ChartProps = {};
-    const data = chart.dataPoints.map(it => [it.timestamp, it.usage]);
+    let data = chart.dataPoints.map(it => [it.timestamp, it.usage]);
+    if (data.length === 0) {
+        const now = timestampUnixMs();
+        data = [[now - 1000 * 60 * 60 * 24 * 7, 0], [ now, 0]];
+    }
+
     result.series = [{
         name: "",
         data,
@@ -1626,6 +1572,34 @@ const SmallUsageCardStyle = injectStyle("small-usage-card", k => `
     }
 `);
 
+const RenderProductSelector: RichSelectChildComponent<State["summaries"][0]> = ({element, onSelect, dataProps}) => {
+    const chartKey = useRef(0);
+    const chartProps = useMemo(() => {
+        if (element === undefined) return undefined;
+        chartKey.current++;
+        return usageChartToChart(element.chart, {removeDetails: true});
+    }, [element]);
+
+    if (element === undefined) {
+        return <Flex height={40} alignItems={"center"} pl={12}>No script selected</Flex>
+    }
+
+    const s = element;
+    return <Flex gap={"16px"} {...dataProps} alignItems={"center"} py={4} px={8} mr={48} onClick={onSelect}>
+        <Chart
+            key={chartKey.current.toString()}
+            {...chartProps}
+            width={32}
+            height={32}
+        />
+        <ProviderLogo providerId={element.category.provider} size={32} />
+        <div><b>{element.category.name}</b></div>
+        <Box flexGrow={1} />
+        <div>{usageToString(s.category, s.usage, s.quota, false)}</div>
+        <div>({usageToString(s.category, s.usage, s.quota, true)})</div>
+    </Flex>;
+}
+
 const SmallUsageCard: React.FunctionComponent<{
     categoryName: string;
     usageText1: string;
@@ -1695,7 +1669,7 @@ const PanelClass = injectStyle("panel", k => `
         flex-direction: row;
         align-items: center;
         gap: 8px;
-        margin: 10px 0;
+        margin-bottom: 10px;
         z-index: 1; /* HACK(Jonas): Why is this needed for smaller widths? */
     }
 
@@ -2076,98 +2050,9 @@ const VisualizationStyle = injectStyle("visualization", k => `
     /* Panel layouts */
     /* ============================================================================================================== */
     ${k} .panel-grid {
+        display: flex;
+        flex-direction: column;
         gap: 16px;
-    }
-    
-
-    ${deviceBreakpoint({minWidth: "2400px"})} {
-        ${k} .panel-grid {
-            display: grid;
-            height: max(600px, calc(100vh - 241px));
-        }
-
-        ${k} .panel-grid:not(${HasAlotOfInfoClass.dot}) {
-             display: grid;
-                grid-template-areas:
-                    "category breakdown over-time chart2"
-                    "category breakdown over-time chart2"
-                    "category breakdown over-time chart2"
-                    "category breakdown chart3 chart4"
-                    "category breakdown chart3 chart4";
-            grid-template-columns: 300px 450px 1fr 1fr;
-        }
-
-        ${k} .panel-grid${HasAlotOfInfoClass.dot} {
-            display: grid;
-            grid-template-areas:
-                "category category  category  category"
-                "chart2   breakdown over-time over-time"
-                "chart3   chart3    chart4   chart4";
-            grid-template-rows: 160px 900px 500px;
-        }
-    }
-
-    ${deviceBreakpoint({minWidth: "1901px", maxWidth: "2399px"})} {
-        ${k} .panel-grid {
-            display: grid;
-            grid-template-areas: 
-                "category breakdown over-time chart2"
-                "category breakdown over-time chart2"
-                "category breakdown over-time chart2"
-                "category breakdown chart3 chart4"
-                "category breakdown chart3 chart4";
-            height: max(600px, calc(100vh - 241px));
-            grid-template-columns: 300px 450px 1fr 1fr;
-        }
-
-        ${k} .panel-grid${HasAlotOfInfoClass.dot} {
-            grid-template-areas:
-                "category category category"
-                "over-time breakdown breakdown"
-                "chart4 chart2 chart3";
-            grid-template-rows: 160px 800px 600px 500px;
-            grid-template-columns: 50%;
-        }
-    }
-    
-    ${deviceBreakpoint({maxWidth: "1900px"})} {
-        ${k} .panel-grid:not(${HasAlotOfInfoClass.dot}) {
-            display: grid;
-            grid-template-areas:
-                "category category category"
-                "breakdown over-time chart2"
-                "breakdown chart3 chart4";
-            grid-template-rows: 160px 650px;
-        }
-
-        ${k} .panel-grid${HasAlotOfInfoClass.dot} {
-            display: grid;
-            grid-template-areas:
-                "category category"
-                "breakdown chart2"
-                "over-time over-time"
-                "chart3 chart4";
-        }
-    }
-    
-    ${deviceBreakpoint({maxWidth: "1500px"})} {
-        ${k} .panel-grid {
-            display: grid;
-            grid-template-areas: 
-                "category category"
-                "over-time over-time"
-                "breakdown chart2"
-                "chart3 chart4";
-            grid-template-rows: 160px 1000px 900px 500px;
-        }
-     }
-    
-    ${deviceBreakpoint({maxWidth: "900px"})} {
-        ${k} .panel-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
     }
     
     .${CategoryDescriptorPanelStyle} {

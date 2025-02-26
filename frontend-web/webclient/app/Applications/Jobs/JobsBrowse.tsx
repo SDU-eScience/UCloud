@@ -4,7 +4,7 @@ import Text from "@/ui-components/Text";
 import {usePage} from "@/Navigation/Redux";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
-import {isLightThemeStored, stopPropagationAndPreventDefault, timestampUnixMs} from "@/UtilityFunctions";
+import {doNothing, isLightThemeStored, stopPropagationAndPreventDefault, timestampUnixMs} from "@/UtilityFunctions";
 import {
     addContextSwitcherInPortal,
     checkIsWorkspaceAdmin,
@@ -38,9 +38,10 @@ import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {createPortal} from "react-dom";
 import {AvatarType} from "@/AvataaarLib";
-import {FilterInputClass} from "@/Project/ContextSwitcher";
+import {FilterInputClass} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
 import {injectStyle} from "@/Unstyled";
+import {Feature, hasFeature} from "@/Features";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -60,6 +61,7 @@ const FEATURES: ResourceBrowseFeatures = {
 const columnTitles: ColumnTitleList = [{name: "Job name"}, {name: "Created by", sortById: "createdBy", columnWidth: 250}, {name: "Created at", sortById: "createdAt", columnWidth: 160}, {name: "State", columnWidth: 75}];
 const simpleViewColumnTitles: ColumnTitleList = [{name: ""}, {name: "", sortById: "", columnWidth: 0}, {name: "", sortById: "", columnWidth: 160}, {name: "State", columnWidth: 28}];
 
+const RESOURCE_NAME = "JOBS";
 function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job>>[]}}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
@@ -233,6 +235,60 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     }
                 });
 
+                const startRenaming = hasFeature(Feature.JOB_RENAME) ? (resource: Job) => {
+                    browser.showRenameField(
+                        it => it.id === resource.id,
+                        () => {
+                            const oldTitle = resource.specification.name;
+                            const page = browser.cachedData["/"] ?? [];
+                            const job = page.find(it => it.id === resource.id);
+                            if (job) {
+                                job.specification.name = browser.renameValue;
+                                browser.dispatchMessage("sort", fn => fn(page));
+                                browser.renderRows();
+                                browser.selectAndShow(it => it.id === job.id);
+
+                                // callAPI(JobsApi.rename(bulkRequestOf({
+                                //     id: job.id,
+                                //     newTitle: job.specification.title,
+                                // }))).catch(err => {
+                                //     snackbarStore.addFailure(extractErrorMessage(err), false);
+                                //     browser.refresh();
+                                // });
+
+                                if (hasFeature(Feature.COMPONENT_STORED_CUT_COPY)) {
+                                    ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
+                                        // callAPI(JobsApi.rename(bulkRequestOf({
+                                        //     id: job.id,
+                                        //     newTitle: oldTitle
+                                        // })));
+
+                                        job.specification.name = oldTitle;
+                                        browser.dispatchMessage("sort", fn => fn(page));
+                                        browser.renderRows();
+                                        browser.selectAndShow(it => it.id === job.id);
+                                    });
+                                } else {
+                                    browser._undoStack.unshift(() => {
+                                        //callAPI(JobsApi.rename(bulkRequestOf({
+                                        //    id: job.id,
+                                        //    newTitle: oldTitle
+                                        //})));
+
+                                        job.specification.name = oldTitle;
+                                        browser.dispatchMessage("sort", fn => fn(page));
+                                        browser.renderRows();
+                                        browser.selectAndShow(it => it.id === job.id);
+                                    });
+                                }
+                            }
+                        },
+                        doNothing,
+                        resource.specification.name ?? "",
+                    );
+                } : undefined;
+
+
                 browser.setEmptyIcon("heroServer");
                 browser.on("unhandledShortcut", () => void 0);
                 browser.on("renderEmptyPage", reason => browser.defaultEmptyPage("jobs", reason, opts?.additionalFilters));
@@ -254,6 +310,9 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         viewProperties: j => {
                             navigate(AppRoutes.jobs.view(j.id))
+                        },
+                        startRenaming(resource, defaultValue) {
+                            startRenaming?.(resource);
                         }
                     };
                     return callbacks;
@@ -295,7 +354,6 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 });
 
             });
-
         }
 
         if (browserRef.current) {
@@ -314,7 +372,13 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 browserRef.current?.refresh();
             }
         }
+
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject} : undefined);
+
+        const b = browserRef.current;
+        if (b) {
+            b.renameField.style.left = "43px";
+        }
     }, []);
 
     const setLocalProject = opts?.isModal ? (projectId?: string) => {

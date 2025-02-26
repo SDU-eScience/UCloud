@@ -2,14 +2,16 @@ package controller
 
 import (
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"ucloud.dk/pkg/apm"
 	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im/ipc"
@@ -30,8 +32,10 @@ type Manifest struct {
 var Connections ConnectionService
 
 type ConnectionService struct {
-	Initiate         func(username string, signingKey util.Option[int]) (redirectToUrl string)
-	RetrieveManifest func() Manifest
+	Initiate          func(username string, signingKey util.Option[int]) (redirectToUrl string)
+	Unlink            func(username string, uid uint32) error
+	RetrieveManifest  func() Manifest
+	RetrieveCondition func() Condition
 }
 
 type IdentityManagementService struct {
@@ -100,6 +104,10 @@ func RegisterConnectionComplete(username string, uid uint32, notifyUCloud bool) 
 		}
 	}
 
+	if uid == UnknownUser {
+		return nil
+	}
+
 	err := db.NewTx[error](func(tx *db.Transaction) error {
 		db.Exec(
 			tx,
@@ -136,7 +144,7 @@ func RegisterConnectionComplete(username string, uid uint32, notifyUCloud bool) 
 	return err
 }
 
-func RemoveConnection(uid uint32) error {
+func RemoveConnection(uid uint32, notifyUCloud bool) error {
 	ucloud, ok := MapLocalToUCloud(uid)
 	if !ok {
 		return fmt.Errorf("unknown user supplied: %v", uid)
@@ -155,19 +163,21 @@ func RemoveConnection(uid uint32) error {
 		)
 	})
 
-	type Req struct {
-		Username string `json:"username"`
-	}
-	_, err := client.ApiUpdate[util.Empty](
-		"providers.im.control.clearConnection",
-		"/api/providers/integration/control",
-		"clearConnection",
-		Req{Username: ucloud},
-	)
+	if notifyUCloud {
+		type Req struct {
+			Username string `json:"username"`
+		}
+		_, err := client.ApiUpdate[util.Empty](
+			"providers.im.control.clearConnection",
+			"/api/providers/integration/control",
+			"clearConnection",
+			Req{Username: ucloud},
+		)
 
-	if err != nil {
-		_ = RegisterConnectionComplete(ucloud, uid, false)
-		return fmt.Errorf("failed to clear connection in UCloud: %v", err)
+		if err != nil {
+			_ = RegisterConnectionComplete(ucloud, uid, false)
+			return fmt.Errorf("failed to clear connection in UCloud: %v", err)
+		}
 	}
 
 	return nil
@@ -199,7 +209,7 @@ func MapUCloudToLocal(username string) (uint32, bool) {
 			},
 		)
 		if !ok {
-			return 11400, false
+			return UnknownUser, false
 		}
 
 		return val.Uid, true
@@ -309,7 +319,7 @@ func MapUCloudProjectToLocal(projectId string) (uint32, bool) {
 			},
 		)
 		if !ok {
-			return 11400, false
+			return UnknownUser, false
 		}
 
 		return val.Gid, true
@@ -369,6 +379,45 @@ func controllerConnection(mux *http.ServeMux) {
 				} else {
 					redirectTo := Connections.Initiate(request.Username, util.OptNone[int]())
 					sendResponseOrError(w, connectResponse{redirectTo}, nil)
+				}
+			}),
+		)
+
+		type unlinkedRequest struct {
+			Username string `json:"username"`
+		}
+		mux.HandleFunc(
+			baseContext+"unlinked",
+			HttpUpdateHandler[unlinkedRequest](0, func(w http.ResponseWriter, r *http.Request, request unlinkedRequest) {
+				local, ok := MapUCloudToLocal(request.Username)
+				if !ok {
+					sendError(w, util.UserHttpError("Unknown user is being unlinked"))
+					return
+				}
+
+				unlinkFn := Connections.Unlink
+				if unlinkFn != nil {
+					err := unlinkFn(request.Username, local)
+					if err != nil {
+						sendError(w, err)
+						return
+					}
+				}
+
+				err := RemoveConnection(local, false)
+				sendResponseOrError(w, util.EmptyValue, err)
+			}),
+		)
+
+		type retrieveConditionRequest struct{}
+		mux.HandleFunc(
+			baseContext+"retrieveCondition",
+			HttpRetrieveHandler[retrieveConditionRequest](0, func(w http.ResponseWriter, r *http.Request, _ retrieveConditionRequest) {
+				fn := Connections.RetrieveCondition
+				if fn != nil {
+					sendResponseOrError(w, Connections.RetrieveCondition(), nil)
+				} else {
+					sendResponseOrError(w, nil, util.HttpErr(404, "Not found"))
 				}
 			}),
 		)
@@ -543,6 +592,13 @@ func LaunchUserInstance(uid uint32) error {
 		return fmt.Errorf("unknown user")
 	}
 
+	allowList := cfg.Provider.Maintenance.UserAllowList
+	if len(allowList) > 0 {
+		if !slices.Contains(allowList, ucloudUsername) {
+			return util.ServerHttpError("System is currently undergoing maintenance")
+		}
+	}
+
 	// Try in a few different ways to get the most reliable exe which we will pass to `sudo`
 	exe, err := os.Executable()
 	if err != nil {
@@ -615,9 +671,11 @@ func LaunchUserInstance(uid uint32) error {
 
 		go func() {
 			err = child.Wait()
-			log.Warn("IM/User for uid=%v terminated unexpectedly with error: %v", uid, err)
-			log.Warn("You might be able to find more information in the log file: %v", startupLogFile)
-			log.Warn("The instance will be automatically in a few seconds.")
+			if err != nil {
+				log.Warn("IM/User for uid=%v terminated unexpectedly with error: %v", uid, err)
+				log.Warn("You might be able to find more information in the log file: %v", startupLogFile)
+				log.Warn("The instance will be automatically in a few seconds.")
+			}
 
 			gateway.SendMessage(gateway.ConfigurationMessage{
 				RouteDown:   route,
@@ -670,3 +728,5 @@ var (
 		Help: "The total number of UCloud/IM (User) instances launched",
 	})
 )
+
+const UnknownUser = 11400

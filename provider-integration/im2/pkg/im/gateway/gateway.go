@@ -6,6 +6,10 @@ import (
 	"encoding/base64"
 	"encoding/gob"
 	"fmt"
+	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
+	"github.com/envoyproxy/go-control-plane/pkg/resource/v3"
+	"gopkg.in/yaml.v3"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -14,6 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 	"unicode"
@@ -26,6 +31,8 @@ var badGatewayHtml []byte
 
 const ServerClusterName = "_UCloud"
 const ServerClusterPort = 42000
+
+var ipcGwDumpConfiguration = ipc.NewCall[util.Empty, string]("imgw.dump")
 
 type ConfigurationMessage struct {
 	ClusterUp              *EnvoyCluster
@@ -67,13 +74,22 @@ func Initialize(config Config, channel chan []byte) {
 			adminSection = fmt.Sprintf(adminSectionProd, filepath.Join(stateDir, "admin.sock"))
 		}
 
+		xdsSection := ""
+		switch cfg.Provider.Envoy.ListenMode {
+		case cfg.EnvoyListenModeTcp:
+			xdsSection = fmt.Sprintf(xdsTcp, cfg.Provider.Hosts.Self.Address)
+			adminSection = ""
+		case cfg.EnvoyListenModeUnix:
+			xdsSection = fmt.Sprintf(xdsUnix, filepath.Join(stateDir, "xds.sock"))
+		}
+
 		err := os.WriteFile(
 			fmt.Sprintf("%v/%v", stateDir, fileConfig),
 			[]byte(
 				fmt.Sprintf(
 					envoyConfigTemplate,
 					adminSection,
-					filepath.Join(stateDir, "xds.sock"),
+					xdsSection,
 				)),
 			0o600,
 		)
@@ -216,6 +232,39 @@ func Initialize(config Config, channel chan []byte) {
 	}
 }
 
+func InitIpc() {
+	ipcGwDumpConfiguration.Handler(func(r *ipc.Request[util.Empty]) ipc.Response[string] {
+		if r.Uid != 0 {
+			return ipc.Response[string]{
+				StatusCode: http.StatusForbidden,
+			}
+		}
+
+		snapshot := mostRecentSnapshot
+		if snapshot == nil {
+			return ipc.Response[string]{
+				StatusCode:   http.StatusOK,
+				ErrorMessage: "message: no snapshot",
+			}
+		}
+
+		routes := snapshot.GetResources(resource.RouteType)
+		clusters := snapshot.GetResources(resource.ClusterType)
+		data, err := yaml.Marshal(map[string]map[string]types.Resource{"routes": routes, "clusters": clusters})
+		if err != nil {
+			return ipc.Response[string]{
+				StatusCode:   http.StatusInternalServerError,
+				ErrorMessage: "error: " + err.Error(),
+			}
+		}
+
+		return ipc.Response[string]{
+			StatusCode: http.StatusOK,
+			Payload:    string(data),
+		}
+	})
+}
+
 var paused = atomic.Bool{}
 
 func Resume() {
@@ -267,6 +316,37 @@ admin:
       mode: 448
 `
 
+const xdsUnix = `
+  - connect_timeout: 1s
+    load_assignment:
+      cluster_name: xds_cluster
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              pipe:
+                path: %v
+                mode: 448
+    http2_protocol_options: {}
+    name: xds_cluster
+`
+
+const xdsTcp = `
+  - connect_timeout: 1s
+    load_assignment:
+      cluster_name: xds_cluster
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: %v
+                port_value: 52033
+    http2_protocol_options: {}
+    name: xds_cluster
+	type: STRICT_DNS
+`
+
 const envoyConfigTemplate = `
 %v
 
@@ -297,18 +377,7 @@ node:
   cluster: ucloudim_cluster
 static_resources:
   clusters:
-  - connect_timeout: 1s
-    load_assignment:
-      cluster_name: xds_cluster
-      endpoints:
-      - lb_endpoints:
-        - endpoint:
-            address:
-              pipe:
-                path: %v
-                mode: 448
-    http2_protocol_options: {}
-    name: xds_cluster
+%v
 layered_runtime:
   layers:
     - name: runtime-0

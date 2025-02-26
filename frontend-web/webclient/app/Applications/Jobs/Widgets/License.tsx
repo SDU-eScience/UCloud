@@ -3,15 +3,15 @@ import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, Wid
 import {compute} from "@/UCloud";
 import Flex from "@/ui-components/Flex";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {useCallback, useState} from "react";
-import {default as ReactModal} from "react-modal";
+import {useCallback} from "react";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {License} from "@/UCloud/LicenseApi";
 import {checkProviderMismatch} from "../Create";
 import {Input} from "@/ui-components";
 import {LicenseBrowse} from "@/Applications/LicenseBrowse";
-import {CardClass} from "@/ui-components/Card";
-import { ApplicationParameterNS } from "@/Applications/AppStoreApi";
+import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {noopCall} from "@/Authentication/DataHook";
 
 interface LicenseProps extends WidgetProps {
     parameter: ApplicationParameterNS.LicenseServer;
@@ -19,13 +19,26 @@ interface LicenseProps extends WidgetProps {
 
 export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => {
     const error = props.errors[props.parameter.name] != null;
-    const [open, setOpen] = useState(false);
     const doOpen = useCallback(() => {
-        setOpen(true);
-    }, [setOpen]);
-    const doClose = useCallback(() => {
-        setOpen(false)
-    }, [setOpen]);
+        dialogStore.addDialog(<LicenseBrowse
+            opts={{
+                isModal: true,
+                additionalFilters: filters,
+                selection: {
+                    text: "Use",
+                    onClick: (license) => {
+                        onUse(license);
+                        dialogStore.success();
+                    },
+                    show(res) {
+                        const errorMessage = checkProviderMismatch(res, "Licenses");
+                        if (errorMessage) return errorMessage;
+                        return true;
+                    },
+                }
+            }}
+        />, noopCall, true, largeModalStyle);
+    }, []);
 
     const onUse = useCallback((license: License) => {
         LicenseSetter(props.parameter, {type: "license_server", id: license.id});
@@ -34,36 +47,11 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
             delete props.errors[props.parameter.name];
             props.setErrors({...props.errors});
         }
-        setOpen(false);
-    }, [props.parameter, setOpen, props.errors]);
+    }, [props.parameter, props.errors]);
 
     const filters = React.useMemo(() => ({filterState: "READY"}), []);
 
     return <Flex>
-        <ReactModal
-            isOpen={open}
-            style={largeModalStyle}
-            onRequestClose={doClose}
-            ariaHideApp={false}
-            className={CardClass}
-            shouldCloseOnEsc
-        >
-            <LicenseBrowse
-                opts={{
-                    isModal: true,
-                    additionalFilters: filters,
-                    selection: {
-                        text: "Use",
-                        onClick: onUse,
-                        show(res) {
-                            const errorMessage = checkProviderMismatch(res, "Licenses");
-                            if (errorMessage) return errorMessage;
-                            return true;
-                        },
-                    }
-                }}
-            />
-        </ReactModal>
         <Input
             id={widgetId(props.parameter)}
             error={error}

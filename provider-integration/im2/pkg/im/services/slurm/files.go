@@ -219,6 +219,25 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 			File: rootFile,
 		}
 
+		finfo, err := rootFile.Stat()
+		if err != nil {
+			return TaskProcessingResult{
+				Error:           fmt.Errorf("unable to open source file"),
+				AllowReschedule: false,
+			}
+		}
+		ftype := upload.FileTypeFile
+		if finfo.IsDir() {
+			ftype = upload.FileTypeDirectory
+		}
+
+		rootMetadata := upload.FileMetadata{
+			Size:         finfo.Size(),
+			ModifiedAt:   fnd.Timestamp(finfo.ModTime()),
+			InternalPath: "",
+			Type:         ftype,
+		}
+
 		cancelChannel := make(chan util.Empty)
 		go func() {
 			for !task.Done.Load() {
@@ -232,7 +251,7 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 			}
 		}()
 
-		report := upload.ProcessClient(uploadSession, uploaderRoot, &task.Status, cancelChannel)
+		report := upload.ProcessClient(uploadSession, uploaderRoot, rootMetadata, &task.Status, cancelChannel)
 
 		if report.WasCancelledByUser {
 			uploadErr = nil
@@ -342,7 +361,7 @@ func probablyHasPermissionToRead(stat os.FileInfo) bool {
 		return true
 	}
 
-	if cachedUser != nil && cachedUser.Uid == strconv.Itoa(int(sys.Uid)) {
+	if os.Getuid() == int(sys.Uid) {
 		return mode&0400 != 0
 	}
 
@@ -365,7 +384,7 @@ func probablyHasPermissionToWrite(stat os.FileInfo) bool {
 		return true
 	}
 
-	if cachedUser != nil && cachedUser.Uid == strconv.Itoa(int(sys.Uid)) {
+	if os.Getuid() == int(sys.Uid) {
 		return mode&0200 != 0
 	}
 
@@ -395,9 +414,21 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 		defer util.SilentClose(file)
 
 		if err != nil {
+			if len(util.Components(request.Path)) == 1 {
+				go func() {
+					time.Sleep(1 * time.Second)
+					os.Exit(0)
+				}()
+
+				return fnd.EmptyPage[orc.ProviderFile](), &util.HttpError{
+					StatusCode: http.StatusNotFound,
+					Why:        "Unable to open project directory. Try again in a few seconds...",
+				}
+			}
+
 			return fnd.EmptyPage[orc.ProviderFile](), &util.HttpError{
 				StatusCode: http.StatusNotFound,
-				Why:        "Could not find directory",
+				Why:        "Could not find directory: " + internalPath,
 			}
 		}
 
@@ -481,13 +512,13 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 		if !entry.hasInfo && !entry.skip {
 			stat, err := os.Stat(entry.absPath)
 			if err == nil {
-				if shouldFilterByPermissions && !probablyHasPermissionToRead(stat) {
-					continue
-				}
-
 				entry.hasInfo = true
 				entry.info = stat
 			}
+		}
+
+		if entry.hasInfo && shouldFilterByPermissions && !probablyHasPermissionToRead(entry.info) {
+			continue
 		}
 
 		if !entry.hasInfo {
@@ -512,8 +543,6 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 }
 
 func retrieve(request ctrl.RetrieveFileRequest) (orc.ProviderFile, error) {
-	bah, _ := json.Marshal(request)
-	log.Info("retrieve drive='%v' path='%v' %v", request.Drive.Id, request.Path, string(bah))
 	var result orc.ProviderFile
 	internalPath := UCloudToInternalWithDrive(request.Drive, request.Path)
 	stat, err := os.Stat(internalPath)
@@ -615,25 +644,63 @@ func processEmptyTrash(task *TaskInfo) TaskProcessingResult {
 }
 
 func moveToTrash(request ctrl.MoveToTrashRequest) error {
-	driveId, _ := DriveIdFromUCloudPath(request.Path)
-	expectedTrashLocation, ok := UCloudToInternal(fmt.Sprintf("/%s/Trash", driveId))
-	if !ok {
-		return fmt.Errorf("Could not resolve drive location")
-	}
+	if cfg.Services.Unmanaged {
+		parents := util.Parents(request.Path)
+		root := ""
+		for i := 0; i < len(parents); i++ {
+			internalPath, ok := UCloudToInternal(parents[i])
+			if !ok {
+				continue
+			}
 
-	if stat, _ := os.Stat(expectedTrashLocation); stat == nil {
-		err := os.Mkdir(expectedTrashLocation, 0770)
-		if err != nil {
-			return fmt.Errorf("Could not create trash folder")
+			fstat, err := os.Stat(internalPath)
+			if err != nil || !probablyHasPermissionToWrite(fstat) {
+				continue
+			}
+
+			root = internalPath
+			break
 		}
-	}
 
-	newPath, ok := InternalToUCloud(fmt.Sprintf("%s/%s", expectedTrashLocation, util.FileName(request.Path)))
-	if !ok {
-		return fmt.Errorf("Could not resolve source file")
-	}
+		if root == "" {
+			return fmt.Errorf("Could not resolve trash location")
+		}
 
-	return doMoveFiles(request.Path, newPath, orc.WriteConflictPolicyRename)
+		expectedTrashLocation := filepath.Join(root, "Trash")
+		if stat, _ := os.Stat(expectedTrashLocation); stat == nil {
+			err := os.Mkdir(expectedTrashLocation, 0770)
+			if err != nil {
+				return fmt.Errorf("Could not create trash folder")
+			}
+		}
+
+		newPath, ok := InternalToUCloud(fmt.Sprintf("%s/%s", expectedTrashLocation, util.FileName(request.Path)))
+		if !ok {
+			return fmt.Errorf("Could not resolve source file")
+		}
+
+		return doMoveFiles(request.Path, newPath, orc.WriteConflictPolicyRename)
+	} else {
+		driveId, _ := DriveIdFromUCloudPath(request.Path)
+		expectedTrashLocation, ok := UCloudToInternal(fmt.Sprintf("/%s/Trash", driveId))
+		if !ok {
+			return fmt.Errorf("Could not resolve drive location")
+		}
+
+		if stat, _ := os.Stat(expectedTrashLocation); stat == nil {
+			err := os.Mkdir(expectedTrashLocation, 0770)
+			if err != nil {
+				return fmt.Errorf("Could not create trash folder")
+			}
+		}
+
+		newPath, ok := InternalToUCloud(fmt.Sprintf("%s/%s", expectedTrashLocation, util.FileName(request.Path)))
+		if !ok {
+			return fmt.Errorf("Could not resolve source file")
+		}
+
+		return doMoveFiles(request.Path, newPath, orc.WriteConflictPolicyRename)
+	}
 }
 
 type discoveredFile struct {
@@ -757,7 +824,7 @@ func readMetadata(internalPath string, stat os.FileInfo, file *orc.ProviderFile,
 		file.Status.Icon = orc.FileIconHintDirectoryTrash
 	case "Jobs":
 		fallthrough
-	case "UCloud Jobs":
+	case ServiceConfig.Compute.JobFolderName:
 		file.Status.Icon = orc.FileIconHintDirectoryJobs
 	}
 
@@ -1036,9 +1103,9 @@ func (u *uploaderFileSystem) OnSessionClose(session upload.ServerSession, succes
 	}
 }
 
-func (u *uploaderFile) Write(_ context.Context, data []byte) {
+func (u *uploaderFile) Write(_ context.Context, data []byte) error {
 	if u.err != nil {
-		return
+		return u.err
 	}
 
 	_, err := u.File.Write(data)
@@ -1046,6 +1113,7 @@ func (u *uploaderFile) Write(_ context.Context, data []byte) {
 	if err != nil {
 		u.err = err
 	}
+	return u.err
 }
 
 func (u *uploaderFile) Close() {
@@ -1103,13 +1171,13 @@ func (u *uploaderClientFile) OpenChild(ctx context.Context, name string) (upload
 	return metadata, child
 }
 
-func (u *uploaderClientFile) Read(ctx context.Context, target []byte) (int, bool) {
+func (u *uploaderClientFile) Read(ctx context.Context, target []byte) (int, bool, error) {
 	n, err := u.File.Read(target)
 	if err != nil {
-		return 0, true
+		return 0, true, err
 	}
 
-	return n, n == 0
+	return n, n == 0, nil
 }
 
 func (u *uploaderClientFile) Close() {

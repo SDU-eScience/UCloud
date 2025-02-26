@@ -1,213 +1,149 @@
 package k8s
 
 import (
-	"context"
-	"fmt"
-	core "k8s.io/api/core/v1"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	"math"
-	"os"
+	ws "github.com/gorilla/websocket"
 	"time"
-	"ucloud.dk/pkg/apm"
-	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
+	"ucloud.dk/pkg/im/services/k8s/containers"
+	"ucloud.dk/pkg/im/services/k8s/kubevirt"
+	"ucloud.dk/pkg/im/services/k8s/shared"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
 
-var machineSupport []orc.JobSupport
-var K8sClient *kubernetes.Clientset
+var containerCpu ctrl.JobsService
+var virtCpu ctrl.JobsService
 
 func InitCompute() ctrl.JobsService {
-	loadComputeProducts()
-	createKubernetesClient()
+	containerCpu = containers.Init()
+	virtCpu = kubevirt.Init()
 
 	go func() {
-		if len(Machines) == 0 {
-			return
-		}
-
 		for util.IsAlive {
-			loopComputeMonitoring()
-			loopAccounting()
-			time.Sleep(5 * time.Second)
+			// TODO
+			// TODO Need to resubmit old in-queue entries to the queue
+			// TODO
+
+			loopMonitoring()
+			time.Sleep(100 * time.Millisecond)
 		}
 	}()
 
 	return ctrl.JobsService{
-		Submit:                   nil,
-		Terminate:                nil,
-		Extend:                   nil,
-		RetrieveProducts:         nil,
-		Follow:                   nil,
-		HandleShell:              nil,
-		ServerFindIngress:        nil,
-		OpenWebSession:           nil,
-		RequestDynamicParameters: nil,
+		Submit:                   submit,
+		Terminate:                terminate,
+		Extend:                   extend,
+		RetrieveProducts:         retrieveProducts,
+		Follow:                   follow,
+		HandleShell:              handleShell,
+		ServerFindIngress:        serverFindIngress,
+		OpenWebSession:           openWebSession,
+		RequestDynamicParameters: requestDynamicParameters,
+		Suspend:                  suspend,
+		Unsuspend:                unsuspend,
+		HandleBuiltInVnc:         handleBuiltInVnc,
 	}
 }
 
-func createKubernetesClient() {
-	composeFile := "/mnt/k3s/kubeconfig.yaml"
-	_, err := os.Stat(composeFile)
-
-	var k8sClient *kubernetes.Clientset = nil
-
-	if err == nil {
-		k8Config, err := clientcmd.BuildConfigFromFlags("", composeFile)
-		if err == nil {
-			c, err := kubernetes.NewForConfig(k8Config)
-			if err == nil {
-				k8sClient = c
-			}
-		}
-	}
-
-	if k8sClient == nil {
-		k8Config, err := rest.InClusterConfig()
-		if err == nil {
-			c, err := kubernetes.NewForConfig(k8Config)
-			if err == nil {
-				k8sClient = c
-			}
-		}
-	}
-
-	if k8sClient == nil {
-		log.Error("Could not connect to Kubernetes through any of the known configuration methods")
-		os.Exit(1)
-		return
-	}
-
-	K8sClient = k8sClient
+func retrieveProducts() []orc.JobSupport {
+	return shared.MachineSupport
 }
 
-func pickResource(resource cfg.MachineResourceType, machineConfig cfg.K8sMachineConfiguration) int {
-	switch resource {
-	case cfg.MachineResourceTypeCpu:
-		return machineConfig.Cpu
-	case cfg.MachineResourceTypeGpu:
-		return machineConfig.Gpu
-	case cfg.MachineResourceTypeMemory:
-		return machineConfig.MemoryInGigabytes
+func backendByAppIsKubevirt(app *orc.Application) bool {
+	return backendByApp(app) == &virtCpu
+}
+
+func backendByAppIsContainers(app *orc.Application) bool {
+	return backendByApp(app) == &containerCpu
+}
+
+func backendByApp(app *orc.Application) *ctrl.JobsService {
+	tool := &app.Invocation.Tool.Tool.Description
+	switch tool.Backend {
+	case orc.ToolBackendDocker:
+		fallthrough
+	case orc.ToolBackendSingularity:
+		fallthrough
+	case orc.ToolBackendNative:
+		return &containerCpu
+	case orc.ToolBackendVirtualMachine:
+		return &virtCpu
 	default:
-		log.Warn("Unhandled machine resource type: %v", resource)
-		return 0
+		return &containerCpu
 	}
 }
 
-func loadComputeProducts() {
-	for categoryName, category := range ServiceConfig.Compute.Machines {
-		productCategory := apm.ProductCategory{
-			Name:                categoryName,
-			Provider:            cfg.Provider.Id,
-			ProductType:         apm.ProductTypeCompute,
-			AccountingFrequency: apm.AccountingFrequencyPeriodicMinute,
-			FreeToUse:           false,
-			AllowSubAllocations: true,
-		}
-
-		usePrice := false
-		switch category.Payment.Type {
-		case cfg.PaymentTypeMoney:
-			productCategory.AccountingUnit.Name = category.Payment.Currency
-			productCategory.AccountingUnit.NamePlural = category.Payment.Currency
-			productCategory.AccountingUnit.DisplayFrequencySuffix = false
-			productCategory.AccountingUnit.FloatingPoint = true
-			usePrice = true
-
-		case cfg.PaymentTypeResource:
-			switch category.Payment.Unit {
-			case cfg.MachineResourceTypeCpu:
-				productCategory.AccountingUnit.Name = "Core"
-			case cfg.MachineResourceTypeGpu:
-				productCategory.AccountingUnit.Name = "GPU"
-			case cfg.MachineResourceTypeMemory:
-				productCategory.AccountingUnit.Name = "GB"
-			}
-
-			productCategory.AccountingUnit.NamePlural = productCategory.AccountingUnit.Name
-			productCategory.AccountingUnit.FloatingPoint = false
-			productCategory.AccountingUnit.DisplayFrequencySuffix = true
-		}
-
-		switch category.Payment.Interval {
-		case cfg.PaymentIntervalMinutely:
-			productCategory.AccountingFrequency = apm.AccountingFrequencyPeriodicMinute
-		case cfg.PaymentIntervalHourly:
-			productCategory.AccountingFrequency = apm.AccountingFrequencyPeriodicHour
-		case cfg.PaymentIntervalDaily:
-			productCategory.AccountingFrequency = apm.AccountingFrequencyPeriodicDay
-		}
-
-		for groupName, group := range category.Groups {
-			for _, machineConfig := range group.Configs {
-				name := fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
-				product := apm.ProductV2{
-					Type:        apm.ProductTypeCCompute,
-					Category:    productCategory,
-					Name:        name,
-					Description: "A compute product", // TODO
-
-					ProductType:               apm.ProductTypeCompute,
-					Price:                     int64(math.Floor(machineConfig.Price * 1_000_000)),
-					HiddenInGrantApplications: false,
-
-					Cpu:          machineConfig.Cpu,
-					CpuModel:     group.CpuModel,
-					MemoryInGigs: machineConfig.MemoryInGigabytes,
-					MemoryModel:  group.MemoryModel,
-					Gpu:          machineConfig.Gpu,
-					GpuModel:     group.GpuModel,
-				}
-
-				if !usePrice {
-					product.Price = int64(pickResource(category.Payment.Unit, machineConfig))
-				}
-
-				Machines = append(Machines, product)
-			}
-		}
-	}
-
-	for _, machine := range Machines {
-		support := orc.JobSupport{
-			Product: apm.ProductReference{
-				Id:       machine.Name,
-				Category: machine.Category.Name,
-				Provider: cfg.Provider.Id,
-			},
-		}
-
-		support.Native.Enabled = true
-		support.Native.Web = true
-		support.Native.Vnc = true
-		support.Native.Logs = true
-		support.Native.Terminal = true
-		support.Native.Peers = false
-		support.Native.TimeExtension = false
-
-		machineSupport = append(machineSupport, support)
-	}
+func backendIsKubevirt(job *orc.Job) bool {
+	return backend(job) == &virtCpu
 }
 
-func loopComputeMonitoring() {}
-func loopAccounting()        {}
+func backendIsContainers(job *orc.Job) bool {
+	return backend(job) == &containerCpu
+}
 
-func findPodByJobIdAndRank(jobId string, rank int) util.Option[*core.Pod] {
-	result, err := K8sClient.CoreV1().Pods(ServiceConfig.Compute.Namespace).Get(
-		context.TODO(),
-		idAndRankToPodName(jobId, rank),
-		meta.GetOptions{},
-	)
+func backend(job *orc.Job) *ctrl.JobsService {
+	app := &job.Status.ResolvedApplication
+	return backendByApp(app)
+}
 
-	if err != nil {
-		return util.Option[*core.Pod]{}
+func submit(request ctrl.JobSubmitRequest) (util.Option[string], error) {
+	shared.RequestSchedule(request.JobToSubmit)
+	ctrl.TrackNewJob(*request.JobToSubmit)
+	return util.OptNone[string](), nil
+}
+
+func terminate(request ctrl.JobTerminateRequest) error {
+	return backend(request.Job).Terminate(request)
+}
+
+func extend(request ctrl.JobExtendRequest) error {
+	return backend(request.Job).Extend(request)
+}
+
+func follow(session *ctrl.FollowJobSession) {
+	backend(session.Job).Follow(session)
+}
+
+func handleShell(session *ctrl.ShellSession, cols int, rows int) {
+	backend(session.Job).HandleShell(session, cols, rows)
+}
+
+func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) ctrl.ConfiguredWebIngress {
+	return backend(job).ServerFindIngress(job, rank, suffix)
+}
+
+func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, error) {
+	return backend(job).OpenWebSession(job, rank, target)
+}
+
+func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
+	fn := backendByApp(app).RequestDynamicParameters
+	if fn == nil {
+		return nil
 	} else {
-		return util.OptValue(result)
+		return fn(owner, app)
+	}
+}
+
+func unsuspend(request ctrl.JobUnsuspendRequest) error {
+	fn := backend(request.Job).Unsuspend
+	if fn != nil {
+		return fn(request)
+	}
+	return nil
+}
+
+func suspend(request ctrl.JobSuspendRequest) error {
+	fn := backend(request.Job).Suspend
+	if fn != nil {
+		return fn(request)
+	}
+	return nil
+}
+
+func handleBuiltInVnc(job *orc.Job, rank int, conn *ws.Conn) {
+	fn := backend(job).HandleBuiltInVnc
+	if fn != nil {
+		fn(job, rank, conn)
 	}
 }
