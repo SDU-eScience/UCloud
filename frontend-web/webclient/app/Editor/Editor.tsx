@@ -393,6 +393,7 @@ export const Editor: React.FunctionComponent<{
     fileHeaderOperations?: React.ReactNode;
     renamingFile?: string;
     onRename?: (args: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}) => Promise<boolean>;
+    onRequestSave: (path: string) => void;
     readOnly: boolean;
 }> = props => {
 
@@ -596,7 +597,7 @@ export const Editor: React.FunctionComponent<{
             snackbarStore.addFailure(errorMessageOrDefault(error, "Failed to fetch file"), false);
             return true; // What does true or false mean in this context?
         }
-    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer, props.onOpenFile, dirtyFiles]);
+    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer, props.onOpenFile, dirtyFiles, state.sidebar.root]);
 
     useEffect(() => {
         const listener = (ev: KeyboardEvent) => {
@@ -718,7 +719,7 @@ export const Editor: React.FunctionComponent<{
 
         const vimEnabled = getEditorOption("vim") === true;
         if (vimEnabled) {
-            setVimModeObject(initVimMode(editor, document.getElementsByClassName("status-bar").item(0)));
+            setVimModeObject(initVimMode(editor, document.getElementsByClassName(StatusBar).item(0)));
         }
     }, [monacoInstance]);
 
@@ -739,10 +740,9 @@ export const Editor: React.FunctionComponent<{
 
     const setVimMode = React.useCallback((active: boolean) => {
         setVimModeObject(vimModeObject => {
-            const forthcomingStatusBar = document.createElement("div");
             updateEditorSetting("vim", active);
             if (active) {
-                return initVimMode(editorRef.current, forthcomingStatusBar);
+                return initVimMode(editorRef.current, document.getElementsByClassName(StatusBar).item(0));
             } else {
                 vimModeObject?.dispose();
                 return null;
@@ -898,8 +898,6 @@ export const Editor: React.FunctionComponent<{
     const onRename = React.useCallback(async (args: {newAbsolutePath: string; oldAbsolutePath: string; cancel: boolean;}) => {
         if (!props.onRename) return;
 
-        /* TODO(Jonas): Ensure that the new path of the file opened matches the changed file contents of the original file path */
-
         const fileUpdated = await props.onRename(args);
 
         if (fileUpdated) {
@@ -967,6 +965,8 @@ export const Editor: React.FunctionComponent<{
 
     // VimMode.Vim.defineEx(name, shorthand, callback);
     VimMode.Vim.defineEx("write", "w", () => {
+        props.onRequestSave(state.currentPath);
+        onFileSaved(state.currentPath);
         saveBufferIfNeeded();
     });
 
@@ -976,7 +976,9 @@ export const Editor: React.FunctionComponent<{
     });
 
     VimMode.Vim.defineEx("x-write-and-quit", "x", () => {
+        props.onRequestSave(state.currentPath);
         saveBufferIfNeeded();
+        onFileSaved(state.currentPath);
         const idx = tabs.open.findIndex(it => it === state.currentPath);
         closeTab(state.currentPath, idx);
     });
@@ -1004,9 +1006,7 @@ export const Editor: React.FunctionComponent<{
             renamingFile={props.renamingFile}
             onRename={onRename}
         />
-
         <div className={"main-content"}>
-            {/* <div className="status-bar" /> */}
             <div className={"title-bar-code"} style={{minWidth: "400px", paddingRight: "12px", width: "100%"}}>
                 <div onContextMenu={e => {
                     e.preventDefault();
@@ -1049,12 +1049,13 @@ export const Editor: React.FunctionComponent<{
                     <Box mx="auto" />
                     {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box width={"180px"}>
                         <RichSelect
+                            key={activeSyntax}
                             items={languageList}
                             keys={["language"]}
                             dropdownWidth="180px"
                             FullRenderSelected={p =>
-                                <Flex borderRight={"1px solid var(--borderColor)"} borderLeft={"1px solid var(--borderColor)"} height="32px" width="180px">
-                                    <LanguageItem {...p} /><Icon mr="6px" ml="auto" mt="8px" size="14px" name="chevronDownLight" />
+                                <Flex key={p.element?.language} borderRight={"1px solid var(--borderColor)"} borderLeft={"1px solid var(--borderColor)"} height="32px" width="180px">
+                                    <LanguageItem key={p.element?.language} {...p} /><Icon mr="6px" ml="auto" mt="8px" size="14px" name="chevronDownLight" />
                                 </Flex>}
                             RenderRow={LanguageItem}
                             selected={{language: activeSyntax, displayName: toDisplayName(activeSyntax)}}
@@ -1114,6 +1115,7 @@ export const Editor: React.FunctionComponent<{
                     }}>{props.customContent}</div>
                 </>
             </div>
+            <div style={{display: !anyTabOpen || settingsOrReleaseNotesOpen ? "none" : undefined}} className={StatusBar} />
         </div>
     </div>;
 };
@@ -1369,14 +1371,14 @@ const fallbackIcon = toIconPath("default");
 const LanguageItem: RichSelectChildComponent<{language: string; displayName: string}> = props => {
     const language = props.element?.language;
     if (!language) return null;
-    return <Flex my="4px" onClick={props.onSelect} {...props.dataProps}>
+    return <Flex key={language} my="4px" onClick={props.onSelect} {...props.dataProps}>
         <FileLanguageIcon language={language} /> {props.element?.displayName}
     </Flex>;
 }
 
 export function FullpathFileLanguageIcon({filePath, size}: {filePath: string; size?: string;}) {
     const language = languageFromExtension(extensionFromPath(filePath));
-    return <FileLanguageIcon language={language} size={size} m="" ext={extensionFromPath(filePath)} />
+    return <FileLanguageIcon key={language} language={language} size={size} m="" ext={extensionFromPath(filePath)} />
 }
 
 function FileLanguageIcon({language, ext, size = "18px", m = "2px 8px 0px 8px"}: {ext?: string; language: string; size?: string; m?: string;}): React.ReactNode {

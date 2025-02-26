@@ -187,6 +187,7 @@ const WorkflowEditor: React.FunctionComponent<{
         initialFolderPath={"/"}
         initialFilePath={"/" + FILE_NAME_JOB}
         apiRef={editorApi}
+        onRequestSave={() => setIsSaving(true)}
         readOnly={false}
         toolbarBeforeSettings={<>
             {!error ? null :
@@ -225,14 +226,13 @@ const WorkflowEditor: React.FunctionComponent<{
             <TooltipV2 tooltip={"Save copy"} contentWidth={100}>
                 <Icon name={"floppyDisk"} size={"20px"} cursor={"pointer"} onClick={() => setIsSaving(true)} />
                 {!isSaving ? null :
-                    <div style={{position: "absolute"}} onMouseMove={stopPropagation}>
-                        <div style={{
-                            position: "relative",
-                            left: -280,
-                            top: 5,
-                            width: 300,
-                            padding: 16,
-                            borderRadius: 8,
+                    <div onMouseMove={stopPropagation} style={{
+                        position: "absolute",
+                        right: 20,
+                        top: 44,
+                        width: 300,
+                        padding: 16,
+                        borderRadius: 8,
                             backgroundColor: "var(--backgroundCard)",
                             boxShadow: "var(--defaultShadow)",
                             zIndex: 1000000000,
@@ -256,20 +256,18 @@ const WorkflowEditor: React.FunctionComponent<{
                                         onClick={() => setIsSaving(false)}>Cancel</Button>
                                     <Button color={"successMain"} type={"submit"}
                                         onMouseDown={() => savingRef.current = true}>Save</Button>
-                                </Flex>
-                            </form>
-                        </div>
+                            </Flex>
+                        </form>
                     </div>
                 }
                 {!isOverwriting ? null :
-                    <div style={{position: "absolute"}} onMouseMove={stopPropagation}>
-                        <div style={{
-                            position: "relative",
-                            left: -280,
-                            top: 5,
-                            width: 300,
-                            padding: 16,
-                            borderRadius: 8,
+                    <div onMouseMove={stopPropagation} style={{
+                        position: "absolute",
+                        right: 20,
+                        top: 44,
+                        width: 300,
+                        padding: 16,
+                        borderRadius: 8,
                             backgroundColor: "var(--backgroundCard)",
                             boxShadow: "var(--defaultShadow)",
                             zIndex: 1000000000,
@@ -280,9 +278,8 @@ const WorkflowEditor: React.FunctionComponent<{
                                 <Button color={"errorMain"} type={"button"}
                                     onClick={() => setIsOverwriting(null)}>No</Button>
                                 <Button color={"successMain"} onMouseDown={() => savingRef.current = true}
-                                    onClick={saveOverwritten}>Yes</Button>
-                            </Flex>
-                        </div>
+                                onClick={saveOverwritten}>Yes</Button>
+                        </Flex>
                     </div>
                 }
             </TooltipV2>
