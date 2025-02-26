@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"time"
+
 	"ucloud.dk/pkg/apm"
 	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im/controller/upload"
@@ -437,6 +438,9 @@ func controllerFiles(mux *http.ServeMux) {
 
 		mux.HandleFunc(fmt.Sprintf("/ucloud/%v/download", cfg.Provider.Id), func(w http.ResponseWriter, r *http.Request) {
 			uid := uint32(os.Getuid())
+			orc.MetricFilesDownloadSessionsCurrent.Inc()
+			orc.MetricFilesDownloadSessionsTotal.Inc()
+			defer orc.MetricFilesDownloadSessionsCurrent.Dec()
 
 			token := r.URL.Query().Get("token")
 			session, ok := downloadSessions.GetNow(token)
@@ -625,6 +629,10 @@ func controllerFiles(mux *http.ServeMux) {
 				conn, err := wsUpgrader.Upgrade(w, r, nil)
 				defer util.SilentCloseIfOk(conn, err)
 				token := r.URL.Query().Get("token")
+
+				orc.MetricFilesUploadSessionsCurrent.Inc()
+				orc.MetricFilesUploadSessionsTotal.Inc()
+				defer orc.MetricFilesUploadSessionsCurrent.Dec()
 
 				if err != nil {
 					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
