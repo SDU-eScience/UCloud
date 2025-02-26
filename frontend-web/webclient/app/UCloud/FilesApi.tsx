@@ -1054,6 +1054,7 @@ export function FilePreview({initialFile}: {
     const [previewRequested, setPreviewRequested] = useState(false);
     const [drive, setDrive] = useState<FileCollection | null>(null);
     const [renamingFile, setRenamingFile] = useState<string>();
+    const dirtyFileCountRef = React.useRef(0);
     const didUnmount = useDidUnmount();
 
     useEffect(() => {
@@ -1408,6 +1409,7 @@ export function FilePreview({initialFile}: {
     return <Editor
         apiRef={editorRef}
         onRequestSave={onSave}
+        dirtyFileCountRef={dirtyFileCountRef}
         toolbarBeforeSettings={
             <>
                 {ext === "markdown" ?

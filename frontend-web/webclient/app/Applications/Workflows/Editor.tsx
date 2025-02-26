@@ -27,7 +27,9 @@ const WorkflowEditor: React.FunctionComponent<{
     initialExistingPath?: string | null;
     initialId?: string | null;
     workflow: WorkflowSpecification;
+    dirtyFileCountRef: React.MutableRefObject<number>;
     applicationName: string;
+    doSaveRef: React.MutableRefObject<() => void>;
     onUse?: (id: string | null, path: string | null, spec: WorkflowSpecification) => void;
 }> = props => {
     const editorApi = useRef<EditorApi>(null);
@@ -37,6 +39,10 @@ const WorkflowEditor: React.FunctionComponent<{
     const didUnmount = useDidUnmount();
     const [error, setError] = useState<string | null>(null);
     const [savedId, setSavedId] = useState<string | null>(null);
+
+    React.useEffect(() => {
+        props.doSaveRef.current = () => setIsSaving(true);
+    }, [setIsSaving]);
 
     const vfs = useMemo(() => {
         return new WorkflowVfs(props.workflow);
@@ -183,6 +189,7 @@ const WorkflowEditor: React.FunctionComponent<{
 
     return <Editor
         vfs={vfs}
+        dirtyFileCountRef={props.dirtyFileCountRef}
         title={props.applicationName}
         initialFolderPath={"/"}
         initialFilePath={"/" + FILE_NAME_JOB}
@@ -233,29 +240,29 @@ const WorkflowEditor: React.FunctionComponent<{
                         width: 300,
                         padding: 16,
                         borderRadius: 8,
-                            backgroundColor: "var(--backgroundCard)",
-                            boxShadow: "var(--defaultShadow)",
-                            zIndex: 1000000000,
+                        backgroundColor: "var(--backgroundCard)",
+                        boxShadow: "var(--defaultShadow)",
+                        zIndex: 1000000000,
+                    }}>
+                        <form onSubmit={onSaveCopy} onBlur={(ev) => {
+                            if (!savingRef.current) setIsSaving(false);
                         }}>
-                            <form onSubmit={onSaveCopy} onBlur={(ev) => {
-                                if (!savingRef.current) setIsSaving(false);
-                            }}>
-                                <Label>
-                                    What should we call this script?
-                                    <Input
-                                        name={"name"}
-                                        onKeyDown={saveKeyDown}
-                                        placeholder={"My script"}
-                                        defaultValue={currentPath ?? ""}
-                                        autoFocus
-                                    />
-                                </Label>
-                                <Flex gap={"8px"} mt={"8px"}>
-                                    <Box flexGrow={1} />
-                                    <Button color={"errorMain"} type={"button"}
-                                        onClick={() => setIsSaving(false)}>Cancel</Button>
-                                    <Button color={"successMain"} type={"submit"}
-                                        onMouseDown={() => savingRef.current = true}>Save</Button>
+                            <Label>
+                                What should we call this script?
+                                <Input
+                                    name={"name"}
+                                    onKeyDown={saveKeyDown}
+                                    placeholder={"My script"}
+                                    defaultValue={currentPath ?? ""}
+                                    autoFocus
+                                />
+                            </Label>
+                            <Flex gap={"8px"} mt={"8px"}>
+                                <Box flexGrow={1} />
+                                <Button color={"errorMain"} type={"button"}
+                                    onClick={() => setIsSaving(false)}>Cancel</Button>
+                                <Button color={"successMain"} type={"submit"}
+                                    onMouseDown={() => savingRef.current = true}>Save</Button>
                             </Flex>
                         </form>
                     </div>
@@ -268,16 +275,16 @@ const WorkflowEditor: React.FunctionComponent<{
                         width: 300,
                         padding: 16,
                         borderRadius: 8,
-                            backgroundColor: "var(--backgroundCard)",
-                            boxShadow: "var(--defaultShadow)",
-                            zIndex: 1000000000,
-                        }}>
-                            This script already exists, do you want to overwrite it?
-                            <Flex gap={"8px"} mt={"8px"}>
-                                <Box flexGrow={1} />
-                                <Button color={"errorMain"} type={"button"}
-                                    onClick={() => setIsOverwriting(null)}>No</Button>
-                                <Button color={"successMain"} onMouseDown={() => savingRef.current = true}
+                        backgroundColor: "var(--backgroundCard)",
+                        boxShadow: "var(--defaultShadow)",
+                        zIndex: 1000000000,
+                    }}>
+                        This script already exists, do you want to overwrite it?
+                        <Flex gap={"8px"} mt={"8px"}>
+                            <Box flexGrow={1} />
+                            <Button color={"errorMain"} type={"button"}
+                                onClick={() => setIsOverwriting(null)}>No</Button>
+                            <Button color={"successMain"} onMouseDown={() => savingRef.current = true}
                                 onClick={saveOverwritten}>Yes</Button>
                         </Flex>
                     </div>

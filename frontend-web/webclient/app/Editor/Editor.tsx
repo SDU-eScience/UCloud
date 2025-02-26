@@ -395,6 +395,7 @@ export const Editor: React.FunctionComponent<{
     onRename?: (args: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}) => Promise<boolean>;
     onRequestSave: (path: string) => void;
     readOnly: boolean;
+    dirtyFileCountRef: React.MutableRefObject<number>;
 }> = props => {
 
     const help = props.help ?? <></>;
@@ -647,6 +648,10 @@ export const Editor: React.FunctionComponent<{
         }
     }, []);
 
+    React.useEffect(() => {
+        props.dirtyFileCountRef.current = dirtyFiles.size;
+    }, [dirtyFiles]);
+
     const api: EditorApi = useMemo(() => {
         return {
             path: state.currentPath,
@@ -655,7 +660,7 @@ export const Editor: React.FunctionComponent<{
                 openTab(path)
             },
             invalidateTree,
-            onFileSaved,
+            onFileSaved
         }
     }, []);
 
