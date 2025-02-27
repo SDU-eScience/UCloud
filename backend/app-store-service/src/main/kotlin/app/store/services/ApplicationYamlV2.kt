@@ -404,6 +404,7 @@ data class ApplicationYamlV2(
             // TODO Support both?
             web != null && web.enabled -> ApplicationType.WEB
             vnc != null && vnc.enabled -> ApplicationType.VNC
+            software is VirtualMachineSoftware -> ApplicationType.VNC
             else -> ApplicationType.BATCH
         }
         val app = Application(

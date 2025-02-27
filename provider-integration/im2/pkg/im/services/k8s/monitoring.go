@@ -12,6 +12,7 @@ import (
 	"ucloud.dk/pkg/im/services/k8s/containers"
 	"ucloud.dk/pkg/im/services/k8s/kubevirt"
 	"ucloud.dk/pkg/im/services/k8s/shared"
+	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
@@ -72,11 +73,13 @@ func (t *jobTracker) AddUpdate(id string, update orc.JobUpdate) {
 func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 	job, ok := t.jobs[state.Id]
 	if !ok {
+		log.Info("Unknown job with TrackState: %v", state.Id)
 		return false
 	}
 
 	sched, ok := getSchedulerByJob(job)
 	if !ok {
+		log.Info("Unknown scheduler for job: %v", state.Id)
 		return false
 	}
 
@@ -89,11 +92,11 @@ func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 	if state.State == orc.JobStateRunning && state.Node.Present {
 		sched.RegisterRunningReplica(state.Id, state.Rank, jobDimensions(job), state.Node.Value, nil,
 			timeAllocationOrDefault(job.Specification.TimeAllocation))
-
-		gang.replicaState[state.Rank] = state
 	}
 
-	if len(gang.replicaState) == job.Specification.Replicas {
+	gang.replicaState[state.Rank] = state
+
+	if len(gang.replicaState) >= job.Specification.Replicas {
 		var allNodes []string
 		reportNodes := true
 
@@ -204,12 +207,12 @@ func loopMonitoring() {
 	}
 
 	if now.After(nextJobMonitor) {
+		activeJobs := ctrl.GetJobs()
 		tracker := &jobTracker{
 			batch: ctrl.BeginJobUpdates(),
 			gangs: map[string]jobGang{},
 		}
 
-		activeJobs := ctrl.GetJobs()
 		tracker.jobs = activeJobs
 		containers.Monitor(tracker, activeJobs)
 		kubevirt.Monitor(tracker, activeJobs)
@@ -256,7 +259,6 @@ func loopMonitoring() {
 			if len(containersStarted) > 0 {
 				containers.OnStart(containersStarted)
 			}
-
 			if len(kubevirtStarted) > 0 {
 				kubevirt.OnStart(kubevirtStarted)
 			}

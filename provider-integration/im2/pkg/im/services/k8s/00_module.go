@@ -9,9 +9,6 @@ import (
 )
 
 func Init(config *cfg.ServicesConfigurationKubernetes) {
-	shared.ServiceConfig = config
-	shared.Init()
-
 	ctrl.LaunchUserInstances = false
 
 	ctrl.InitJobDatabase()
@@ -33,6 +30,10 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 			}
 		},
 	}
+
+	// Shared init depends on the ctrl databases but needs to run before ordinary service init
+	shared.ServiceConfig = config
+	shared.Init()
 
 	ctrl.Files = filesystem.InitFiles()
 	ctrl.Jobs = InitCompute()

@@ -1,7 +1,6 @@
 package dk.sdu.cloud.plugins.storage.ucloud
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
 import dk.sdu.cloud.accounting.api.ProductReferenceV2
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -193,9 +192,66 @@ class UsageScan(
         }
     }
 
+    private suspend fun reportCachedDataToUCloud() {
+        data class Entry(
+            val collectionId: Long,
+            val driveOwner: String,
+            val driveOwnerIsUser: Boolean,
+            val productCategory: String,
+            val sizeInBytes: Long,
+        )
+
+        val entries = ArrayList<Entry>()
+
+        dbConnection.withSession { session ->
+            session.prepareStatement(
+                """
+                    select collection_id, drive_owner, drive_owner_is_user, product_category, size_in_bytes
+                    from ucloud_storage_drives
+                """
+            ).useAndInvoke(
+                prepare = {},
+                readRow = { row ->
+                    entries.add(Entry(
+                        row.getLong(0) ?: return@useAndInvoke,
+                        row.getString(1) ?: return@useAndInvoke,
+                        row.getBoolean(2) ?: return@useAndInvoke,
+                        row.getString(3) ?: return@useAndInvoke,
+                        row.getLong(4) ?: return@useAndInvoke,
+                    ))
+                }
+            )
+        }
+
+        log.info("Found ${entries.size} drives to report data for")
+
+        for ((index, entry) in entries.withIndex()) {
+            if (index % 1000 == 0) {
+                log.info("Reported ${index}/${entries.size}")
+            }
+            reportUsage(
+                if (entry.driveOwnerIsUser) {
+                    WalletOwner.User(entry.driveOwner)
+                } else {
+                    WalletOwner.Project(entry.driveOwner)
+                },
+                ProductReferenceV2(entry.productCategory, entry.productCategory, loadedConfig.core.providerId),
+                entry.sizeInBytes,
+                null,
+                entry.collectionId.toString()
+            )
+        }
+
+        log.info("All ${entries.size} have been reported to UCloud")
+    }
+
     suspend fun requestScan(driveId: Long) {
         if (driveId <= 0L) {
-            scanAll(ignoreTimeSinceLastScan = true)
+            if (driveId == -100L) {
+                reportCachedDataToUCloud()
+            } else {
+                scanAll(ignoreTimeSinceLastScan = true)
+            }
         } else {
             val drive = pathConverter.locator.resolveDrive(driveId, allowMaintenanceMode = true) ?: return
             scanQueue.send(ScanTask(drive))

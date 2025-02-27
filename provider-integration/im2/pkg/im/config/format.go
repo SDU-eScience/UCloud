@@ -188,6 +188,23 @@ func requireChildFloat(path string, node *yaml.Node, child string, success *bool
 	return result
 }
 
+func requireChildInt(path string, node *yaml.Node, child string, success *bool) int64 {
+	n := requireChild(path, node, child, success)
+	if !*success {
+		return 0
+	}
+
+	var result int64
+	err := n.Decode(&result)
+	if err != nil {
+		reportError(path, n, "Expected an integer here")
+		*success = false
+		return 0
+	}
+
+	return result
+}
+
 func requireChildBool(path string, node *yaml.Node, child string, success *bool) bool {
 	n := requireChild(path, node, child, success)
 	if !*success {

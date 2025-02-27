@@ -98,6 +98,8 @@ func InitJobDatabase() {
 	fetchAllJobs(orc.JobStateInQueue)
 	fetchAllJobs(orc.JobStateSuspended)
 	fetchAllJobs(orc.JobStateRunning)
+
+	initIpDatabase()
 }
 
 func TrackNewJob(job orc.Job) {
@@ -189,7 +191,14 @@ func BeginJobUpdates() *JobUpdateBatch {
 }
 
 func GetJobs() map[string]*orc.Job {
-	return activeJobs
+	result := map[string]*orc.Job{}
+	activeJobsMutex.Lock()
+	for _, job := range activeJobs {
+		copied := *job
+		result[copied.Id] = &copied
+	}
+	activeJobsMutex.Unlock()
+	return result
 }
 
 func (b *JobUpdateBatch) SetRelevancyFilter(filter func(job *orc.Job) bool) {
