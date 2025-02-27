@@ -194,7 +194,7 @@ const WorkflowEditor: React.FunctionComponent<{
         initialFolderPath={"/"}
         initialFilePath={"/" + FILE_NAME_JOB}
         apiRef={editorApi}
-        onRequestSave={() => setIsSaving(true)}
+        onRequestSave={async () => setIsSaving(true)}
         readOnly={false}
         toolbarBeforeSettings={<>
             {!error ? null :

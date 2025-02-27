@@ -393,7 +393,7 @@ export const Editor: React.FunctionComponent<{
     fileHeaderOperations?: React.ReactNode;
     renamingFile?: string;
     onRename?: (args: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}) => Promise<boolean>;
-    onRequestSave: (path: string) => void;
+    onRequestSave: (path: string) => Promise<void>;
     readOnly: boolean;
     dirtyFileCountRef: React.MutableRefObject<number>;
 }> = props => {
@@ -970,9 +970,9 @@ export const Editor: React.FunctionComponent<{
 
     // VimMode.Vim.defineEx(name, shorthand, callback);
     VimMode.Vim.defineEx("write", "w", () => {
+        saveBufferIfNeeded();
         props.onRequestSave(state.currentPath);
         onFileSaved(state.currentPath);
-        saveBufferIfNeeded();
     });
 
     VimMode.Vim.defineEx("quit", "q", (args, b, c) => {
@@ -981,11 +981,12 @@ export const Editor: React.FunctionComponent<{
     });
 
     VimMode.Vim.defineEx("x-write-and-quit", "x", () => {
-        props.onRequestSave(state.currentPath);
         saveBufferIfNeeded();
-        onFileSaved(state.currentPath);
-        const idx = tabs.open.findIndex(it => it === state.currentPath);
-        closeTab(state.currentPath, idx);
+        props.onRequestSave(state.currentPath).then(() => {
+            onFileSaved(state.currentPath);
+            const idx = tabs.open.findIndex(it => it === state.currentPath);
+            closeTab(state.currentPath, idx);
+        });
     });
 
     VimMode.Vim.defineEx("e-open-file", "e", (a, b, c) => {
@@ -1035,8 +1036,8 @@ export const Editor: React.FunctionComponent<{
                                         title: "Save before closing?",
                                         message: "The changes made to this file has not been saved. Save before closing?",
                                         confirmText: "Save",
-                                        onConfirm() {
-                                            snackbarStore.addFailure("AAARGH! IT HASN'T BEEN SAVED!", false);
+                                        async onConfirm() {
+                                            await props.onRequestSave(t);
                                             closeTab(t, index);
                                         },
                                         cancelText: "Don't save",
