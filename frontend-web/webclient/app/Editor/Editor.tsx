@@ -326,6 +326,7 @@ const EditorClass = injectStyle("editor", k => `
     ${k} {
         display: flex;
         width: 100%;
+        padding: 5px;
         max-width: 100%;
         height: 100%;
         --borderThickness: 2px;
@@ -672,6 +673,10 @@ export const Editor: React.FunctionComponent<{
     useEffect(() => {
         invalidateTree(props.initialFolderPath);
     }, []);
+
+    useLayoutEffect(() => {
+        document.querySelector(`.${EditorTabClass}[data-active=true]`)?.scrollIntoView();;
+    }, [state.currentPath]);
 
     useLayoutEffect(() => {
         const m = monacoInstance;
@@ -1053,21 +1058,6 @@ export const Editor: React.FunctionComponent<{
                         />
                     )}
                     <Box mx="auto" />
-                    {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box width={"180px"}>
-                        <RichSelect
-                            key={activeSyntax}
-                            items={languageList}
-                            keys={["language"]}
-                            dropdownWidth="180px"
-                            FullRenderSelected={p =>
-                                <Flex key={p.element?.language} borderRight={"1px solid var(--borderColor)"} borderLeft={"1px solid var(--borderColor)"} height="32px" width="180px">
-                                    <LanguageItem key={p.element?.language} {...p} /><Icon mr="6px" ml="auto" mt="8px" size="14px" name="chevronDownLight" />
-                                </Flex>}
-                            RenderRow={LanguageItem}
-                            selected={{language: activeSyntax, displayName: toDisplayName(activeSyntax)}}
-                            onSelect={setModelLanguage}
-                        />
-                    </Box>}
                     <Operations
                         entityNameSingular={""}
                         operations={operations}
@@ -1080,6 +1070,21 @@ export const Editor: React.FunctionComponent<{
                         location={"IN_ROW"}
                     />
                 </div>
+                {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box width={"180px"}>
+                    <RichSelect
+                        key={activeSyntax}
+                        items={languageList}
+                        keys={["language"]}
+                        dropdownWidth="180px"
+                        FullRenderSelected={p =>
+                            <Flex key={p.element?.language} borderRight={"1px solid var(--borderColor)"} borderLeft={"1px solid var(--borderColor)"} height="32px" width="180px">
+                                <LanguageItem key={p.element?.language} {...p} /><Icon mr="6px" ml="auto" mt="8px" size="14px" name="chevronDownLight" />
+                            </Flex>}
+                        RenderRow={LanguageItem}
+                        selected={{language: activeSyntax, displayName: toDisplayName(activeSyntax)}}
+                        onSelect={setModelLanguage}
+                    />
+                </Box>}
                 <Flex alignItems={"center"} ml="16px" gap="16px">
                     {tabs.open.length === 0 || isReleaseNotesOpen || isSettingsOpen || props.customContent ? null :
                         props.toolbarBeforeSettings
@@ -1323,7 +1328,7 @@ function EditorTab({
                 cursor="pointer" name={isDirty && !hovered ? "circle" : "close"}
                 size={16}
                 onClick={onClose} />
-        </Flex >
+        </Flex>
     );
 }
 
