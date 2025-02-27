@@ -170,6 +170,7 @@ func terminate(request ctrl.JobTerminateRequest) error {
 	}
 
 	ctrl.UnbindIpsFromJob(request.Job)
+	shared.ClearAssignedSshPort(request.Job)
 
 	if !request.IsCleanup {
 		// NOTE(Dan): There is no need to run this branch if we are cleaning up for an already terminated job

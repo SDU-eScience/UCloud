@@ -207,12 +207,12 @@ func loopMonitoring() {
 	}
 
 	if now.After(nextJobMonitor) {
+		activeJobs := ctrl.GetJobs()
 		tracker := &jobTracker{
 			batch: ctrl.BeginJobUpdates(),
 			gangs: map[string]jobGang{},
 		}
 
-		activeJobs := ctrl.GetJobs()
 		tracker.jobs = activeJobs
 		containers.Monitor(tracker, activeJobs)
 		kubevirt.Monitor(tracker, activeJobs)
@@ -259,7 +259,6 @@ func loopMonitoring() {
 			if len(containersStarted) > 0 {
 				containers.OnStart(containersStarted)
 			}
-
 			if len(kubevirtStarted) > 0 {
 				kubevirt.OnStart(kubevirtStarted)
 			}

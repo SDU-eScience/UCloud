@@ -633,7 +633,7 @@ func controllerJobs(mux *http.ServeMux) {
 								Stderr:   util.Option[string]{},
 							}
 							dummyData, _ := json.Marshal(dummy)
-							_ = conn.WriteJSON(WebSocketResponseFin{
+							_ = sendMessage(WebSocketResponseFin{
 								Type:     "response",
 								Status:   http.StatusOK,
 								StreamId: requestMessage.StreamId,
@@ -662,7 +662,7 @@ func controllerJobs(mux *http.ServeMux) {
 								Stderr:   util.Option[string]{},
 							}
 							dummyData, _ := json.Marshal(dummy)
-							_ = conn.WriteJSON(WebSocketResponseFin{
+							_ = sendMessage(WebSocketResponseFin{
 								Type:     "response",
 								Status:   http.StatusOK,
 								StreamId: requestMessage.StreamId,

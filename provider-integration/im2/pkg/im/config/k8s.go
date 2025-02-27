@@ -2,6 +2,8 @@ package config
 
 import (
 	"gopkg.in/yaml.v3"
+	"math"
+	"net"
 	"ucloud.dk/pkg/util"
 )
 
@@ -28,11 +30,20 @@ type KubernetesIpConfiguration struct {
 	Name    string
 }
 
+type KubernetesSshConfiguration struct {
+	Enabled   bool
+	IpAddress string
+	Hostname  util.Option[string]
+	PortMin   int
+	PortMax   int
+}
+
 type KubernetesCompute struct {
 	Machines                   map[string]K8sMachineCategory
 	Namespace                  string
 	Web                        KubernetesWebConfiguration
 	PublicIps                  KubernetesIpConfiguration
+	Ssh                        KubernetesSshConfiguration
 	VirtualMachineStorageClass util.Option[string]
 }
 
@@ -167,6 +178,50 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 				cfg.Compute.PublicIps.Name = name
 			} else {
 				cfg.Compute.PublicIps.Name = "public-ip"
+			}
+		}
+	}
+
+	sshNode, _ := getChildOrNil(filePath, computeNode, "ssh")
+	if sshNode != nil {
+		enabled, ok := optionalChildBool(filePath, sshNode, "enabled")
+		cfg.Compute.Ssh.Enabled = enabled && ok
+
+		if cfg.Compute.Ssh.Enabled {
+			ipAddr := requireChildText(filePath, sshNode, "ipAddress", &success)
+			if success {
+				ip := net.ParseIP(ipAddr)
+				if ip == nil {
+					reportError(filePath, sshNode, "Invalid IP address specified")
+					success = false
+				} else {
+					cfg.Compute.Ssh.IpAddress = ipAddr
+				}
+			}
+
+			portMin := requireChildInt(filePath, sshNode, "portMin", &success)
+			if success && (portMin <= 0 || portMin >= math.MaxInt16) {
+				reportError(filePath, sshNode, "portMin is invalid")
+				success = false
+			}
+
+			portMax := requireChildInt(filePath, sshNode, "portMax", &success)
+			if success && (portMax <= 0 || portMax >= math.MaxInt16) {
+				reportError(filePath, sshNode, "portMax is invalid")
+				success = false
+			}
+
+			if success && portMin < portMin {
+				reportError(filePath, sshNode, "portMax is less than portMin")
+				success = false
+			}
+
+			cfg.Compute.Ssh.PortMin = int(portMin)
+			cfg.Compute.Ssh.PortMax = int(portMax)
+
+			hostname := optionalChildText(filePath, sshNode, "hostname", &success)
+			if hostname != "" {
+				cfg.Compute.Ssh.Hostname.Set(hostname)
 			}
 		}
 	}
