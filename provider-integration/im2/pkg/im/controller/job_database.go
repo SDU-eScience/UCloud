@@ -98,6 +98,8 @@ func InitJobDatabase() {
 	fetchAllJobs(orc.JobStateInQueue)
 	fetchAllJobs(orc.JobStateSuspended)
 	fetchAllJobs(orc.JobStateRunning)
+
+	initIpDatabase()
 }
 
 func TrackNewJob(job orc.Job) {

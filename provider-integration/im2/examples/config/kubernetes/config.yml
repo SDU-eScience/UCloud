@@ -41,6 +41,9 @@ services:
       prefix: "gok8s-"
       suffix: ".localhost.direct"
 
+    publicIps:
+      enabled: true
+
     machines:
       u1-standard:
         nameSuffix: Cpu

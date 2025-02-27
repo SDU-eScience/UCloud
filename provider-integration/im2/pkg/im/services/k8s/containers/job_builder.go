@@ -54,6 +54,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		service = &core.Service{
 			ObjectMeta: meta.ObjectMeta{
 				Name: serviceName(job.Id),
+				Labels: map[string]string{
+					serviceLabel.First: serviceLabel.Second,
+				},
 			},
 			Spec: core.ServiceSpec{
 				Type:      core.ServiceTypeClusterIP,
@@ -211,6 +214,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// Firewall
 	// -----------------------------------------------------------------------------------------------------------------
 	prepareFirewallOnJobCreate(job, pod, firewall, service)
+
+	// Public IP and SSH
+	// -----------------------------------------------------------------------------------------------------------------
+	preparePublicIpsAndSsh(job, service)
 
 	// Shared-memory
 	// -----------------------------------------------------------------------------------------------------------------

@@ -23,10 +23,16 @@ type KubernetesWebConfiguration struct {
 	Suffix  string
 }
 
+type KubernetesIpConfiguration struct {
+	Enabled bool
+	Name    string
+}
+
 type KubernetesCompute struct {
 	Machines                   map[string]K8sMachineCategory
 	Namespace                  string
 	Web                        KubernetesWebConfiguration
+	PublicIps                  KubernetesIpConfiguration
 	VirtualMachineStorageClass util.Option[string]
 }
 
@@ -147,6 +153,21 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		if cfg.Compute.Web.Enabled {
 			cfg.Compute.Web.Prefix = requireChildText(filePath, webNode, "prefix", &success)
 			cfg.Compute.Web.Suffix = requireChildText(filePath, webNode, "suffix", &success)
+		}
+	}
+
+	ipNode, _ := getChildOrNil(filePath, computeNode, "publicIps")
+	if ipNode != nil {
+		enabled, ok := optionalChildBool(filePath, ipNode, "enabled")
+		cfg.Compute.PublicIps.Enabled = enabled && ok
+
+		if cfg.Compute.PublicIps.Enabled {
+			name := optionalChildText(filePath, ipNode, "name", &success)
+			if name != "" {
+				cfg.Compute.PublicIps.Name = name
+			} else {
+				cfg.Compute.PublicIps.Name = "public-ip"
+			}
 		}
 	}
 

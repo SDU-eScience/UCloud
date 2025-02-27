@@ -42,7 +42,24 @@ func InitCompute() ctrl.JobsService {
 		Suspend:                  suspend,
 		Unsuspend:                unsuspend,
 		HandleBuiltInVnc:         handleBuiltInVnc,
+		PublicIPs: ctrl.PublicIPService{
+			Create:           createPublicIp,
+			Delete:           deletePublicIp,
+			RetrieveProducts: retrievePublicIpProducts,
+		},
 	}
+}
+
+func retrievePublicIpProducts() []orc.PublicIpSupport {
+	return shared.IpSupport
+}
+
+func createPublicIp(ip *orc.PublicIp) error {
+	return ctrl.AllocateIpAddress(ip)
+}
+
+func deletePublicIp(ip *orc.PublicIp) error {
+	return ctrl.DeleteIpAddress(ip)
 }
 
 func retrieveProducts() []orc.JobSupport {

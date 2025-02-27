@@ -73,6 +73,8 @@ func Launch() {
 		switch cfg.Services.Type {
 		case cfg.ServicesSlurm:
 			slurm.HandleCli(pluginName)
+		case cfg.ServicesKubernetes:
+			k8s.HandleCli(pluginName)
 		}
 
 		return

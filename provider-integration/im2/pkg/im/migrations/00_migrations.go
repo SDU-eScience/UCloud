@@ -16,4 +16,5 @@ func loadMigrations() {
 	addScript(slurmV3())
 	addScript(k8sV1())
 	addScript(apmEventsV2())
+	addScript(ipDatabaseV1())
 }
