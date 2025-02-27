@@ -138,7 +138,7 @@ UCloud/IM uses the following procedure to submit a job to Slurm:
 
 1. Determine the primary drive belonging to the project. Currently this is the first drive for the 
    project, found by using the defined `driveLocator` as described in [Filesystem 
-   Integration](http://127.0.0.1:3000/slurm/file-management.html#managed-drive-locators).
+   Integration](/slurm/file-management.html#managed-drive-locators).
 2. In the primary drive, create the job folder at `UCloud Jobs/${UCloudJobId}`.
 3. In the job folder, create the submission script `job.sh`.
 4. Generate the `sbatch` preamble and add it to the submission script.
