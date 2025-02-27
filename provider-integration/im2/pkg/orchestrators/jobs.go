@@ -6,12 +6,41 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"ucloud.dk/gonja/v2/exec"
 	"ucloud.dk/pkg/apm"
 	c "ucloud.dk/pkg/client"
 	fnd "ucloud.dk/pkg/foundation"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
+)
+
+var (
+	MetricJobsSubmitted = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "ucloud_jobs_submitted",
+		Help: "The total number of jobs submitted correctly to the UCloud/IM",
+	})
+
+	MetricSlurmUnknownJobsRegistered = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "ucloud_slurm_unknown_jobs_registered",
+		Help: "The number of jobs registered by UCloud through Slurm (i.e. not submitted through UCloud)",
+	})
+
+	MetricJobsInQueue = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "ucloud_jobs_in_queue",
+		Help: "The number of jobs currently in queue, registered by UCloud/IM",
+	})
+
+	MetricJobsRunning = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "ucloud_jobs_running",
+		Help: "The number of jobs currently running, registered by UCloud/IM",
+	})
+
+	MetricJobsSuspended = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "ucloud_jobs_suspended",
+		Help: "The number of jobs currently suspended, registered by UCloud/IM",
+	})
 )
 
 type ExportedParametersRequest struct {

@@ -98,6 +98,31 @@ func InitJobDatabase() {
 	fetchAllJobs(orc.JobStateInQueue)
 	fetchAllJobs(orc.JobStateSuspended)
 	fetchAllJobs(orc.JobStateRunning)
+
+	go func() {
+		for util.IsAlive {
+			var jobsRunning float64 = 0
+			var jobsInQueue float64 = 0
+			var jobsSuspended float64 = 0
+
+			for _, job := range activeJobs {
+				switch job.Status.State {
+				case orc.JobStateRunning:
+					jobsRunning++
+				case orc.JobStateInQueue:
+					jobsInQueue++
+				case orc.JobStateSuspended:
+					jobsSuspended++
+				}
+			}
+
+			orc.MetricJobsRunning.Set(jobsRunning)
+			orc.MetricJobsInQueue.Set(jobsInQueue)
+			orc.MetricJobsSuspended.Set(jobsSuspended)
+
+			time.Sleep(5 * time.Second)
+		}
+	}()
 }
 
 func TrackNewJob(job orc.Job) {

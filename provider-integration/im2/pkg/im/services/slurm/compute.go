@@ -563,6 +563,7 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 	if err != nil {
 		return util.OptNone[string](), err
 	}
+	orc.MetricJobsSubmitted.Inc()
 
 	providerId := parsedProviderJobId{
 		BelongsToAccount: accountName,

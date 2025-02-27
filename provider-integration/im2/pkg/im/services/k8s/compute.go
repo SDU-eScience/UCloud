@@ -1,8 +1,9 @@
 package k8s
 
 import (
-	ws "github.com/gorilla/websocket"
 	"time"
+
+	ws "github.com/gorilla/websocket"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/containers"
 	"ucloud.dk/pkg/im/services/k8s/kubevirt"
@@ -89,6 +90,7 @@ func backend(job *orc.Job) *ctrl.JobsService {
 func submit(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 	shared.RequestSchedule(request.JobToSubmit)
 	ctrl.TrackNewJob(*request.JobToSubmit)
+	orc.MetricJobsSubmitted.Inc()
 	return util.OptNone[string](), nil
 }
 
