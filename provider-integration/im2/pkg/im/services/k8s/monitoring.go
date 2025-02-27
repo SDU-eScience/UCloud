@@ -8,6 +8,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"slices"
 	"time"
+	"ucloud.dk/pkg/apm"
+	fnd "ucloud.dk/pkg/foundation"
+	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/containers"
 	"ucloud.dk/pkg/im/services/k8s/kubevirt"
@@ -19,6 +22,7 @@ import (
 
 var nextJobMonitor time.Time
 var nextNodeMonitor time.Time
+var nextAccounting time.Time
 
 // NOTE(Dan): This must only be used by code invoked from the goroutine in loopMonitoring. None of the code is
 // thread-safe.
@@ -264,6 +268,45 @@ func loopMonitoring() {
 			}
 		}()
 
+		if now.After(nextAccounting) {
+			var reports []apm.UsageReportItem
+
+			for _, job := range activeJobs {
+				timeReport := shared.ComputeRunningTime(job)
+				accUnits := convertJobTimeToAccountingUnits(job, timeReport.TimeConsumed)
+				reports = append(reports, apm.UsageReportItem{
+					IsDeltaCharge: false,
+					Owner:         apm.WalletOwnerFromIds(job.Owner.CreatedBy, job.Owner.Project),
+					CategoryIdV2: apm.ProductCategoryIdV2{
+						Name:     job.Specification.Product.Category,
+						Provider: job.Specification.Product.Provider,
+					},
+					Usage: accUnits,
+					Description: apm.ChargeDescription{
+						Scope: util.OptValue(fmt.Sprintf("job-%v", job.Id)),
+					},
+				})
+			}
+
+			if len(reports) > 0 {
+				reportsChunked := util.ChunkBy(reports, 500)
+
+				for chunkIdx := 0; chunkIdx < len(reportsChunked); chunkIdx++ {
+					// NOTE(Dan): Results are completely ignored here, and we rely solely on the APM events which will
+					// trigger when the wallet is locked.
+
+					reportChunk := reportsChunked[chunkIdx]
+
+					_, err := apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{Items: reportChunk})
+					if err != nil {
+						log.Info("Failed to report usage: %s", err)
+					}
+				}
+			}
+
+			nextAccounting = now.Add(30 * time.Second)
+		}
+
 		nextJobMonitor = now.Add(5 * time.Second)
 	}
 
@@ -327,4 +370,45 @@ func nodeCategory(node *corev1.Node) util.Option[string] {
 	}
 
 	return util.OptValue(machineLabel)
+}
+
+func convertJobTimeToAccountingUnits(job *orc.Job, timeConsumed time.Duration) int64 {
+	k8sCategory := shared.ServiceConfig.Compute.Machines[job.Specification.Product.Category]
+
+	productUnits := float64(job.Specification.Replicas)
+	switch k8sCategory.Payment.Unit {
+	case cfg.MachineResourceTypeCpu:
+		productUnits *= float64(job.Status.ResolvedProduct.Cpu)
+	case cfg.MachineResourceTypeGpu:
+		productUnits *= float64(job.Status.ResolvedProduct.Gpu)
+	case cfg.MachineResourceTypeMemory:
+		productUnits *= float64(job.Status.ResolvedProduct.MemoryInGigs)
+	case "":
+		// Use just the nodes. This is used when type is currency.
+	}
+
+	baseTimeUnit := 1 * time.Minute
+	switch k8sCategory.Payment.Interval {
+	case cfg.PaymentIntervalMinutely:
+		baseTimeUnit = time.Minute
+	case cfg.PaymentIntervalHourly:
+		baseTimeUnit = time.Hour
+	case cfg.PaymentIntervalDaily:
+		baseTimeUnit = 24 * time.Hour
+	}
+
+	timeUnits := float64(timeConsumed) / float64(baseTimeUnit)
+
+	hasPrice := k8sCategory.Payment.Type == cfg.PaymentTypeMoney
+	price := float64(1)
+	if hasPrice {
+		price = float64(job.Status.ResolvedProduct.Price) / 1000000
+	}
+
+	accountingUnitsUsed := productUnits * timeUnits * price
+	if hasPrice {
+		accountingUnitsUsed *= 1000000
+	}
+
+	return int64(accountingUnitsUsed)
 }
