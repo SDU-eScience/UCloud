@@ -39,6 +39,15 @@ type cachedDirEntry struct {
 func InitFiles() ctrl.FileService {
 	browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
 	loadStorageProducts()
+
+	initScanQueue()
+	go func() {
+		for util.IsAlive {
+			loopMonitoring()
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
+
 	return ctrl.FileService{
 		BrowseFiles:                 browseFiles,
 		RetrieveFile:                retrieveFile,
