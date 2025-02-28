@@ -17,6 +17,26 @@ type KubernetesFileSystem struct {
 	MountPoint       string
 	TrashStagingArea string
 	ClaimName        string
+	ScanMethod       KubernetesFileSystemScanMethod
+}
+
+type KubernetesFileSystemScanMethod struct {
+	Type              K8sScanMethodType
+	ExtendedAttribute string
+}
+
+type K8sScanMethodType string
+
+const (
+	K8sScanMethodTypeWalk              K8sScanMethodType = "Walk"
+	K8sScanMethodTypeExtendedAttribute K8sScanMethodType = "Xattr"
+	K8sScanMethodTypeDevFile           K8sScanMethodType = "Development"
+)
+
+var K8sScanMethodTypeValues = []K8sScanMethodType{
+	K8sScanMethodTypeWalk,
+	K8sScanMethodTypeExtendedAttribute,
+	K8sScanMethodTypeDevFile,
 }
 
 type KubernetesWebConfiguration struct {
@@ -79,6 +99,26 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		cfg.FileSystem.MountPoint = requireChildFolder(filePath, fsNode, "mountPoint", FileCheckReadWrite, &success)
 		cfg.FileSystem.TrashStagingArea = requireChildFolder(filePath, fsNode, "trashStagingArea", FileCheckReadWrite, &success)
 		cfg.FileSystem.ClaimName = requireChildText(filePath, fsNode, "claimName", &success)
+
+		scanMethodNode, _ := getChildOrNil(filePath, fsNode, "scanMethod")
+		if scanMethodNode != nil {
+			cfg.FileSystem.ScanMethod.Type = requireChildEnum(filePath, scanMethodNode, "type",
+				K8sScanMethodTypeValues, &success)
+
+			switch cfg.FileSystem.ScanMethod.Type {
+			case K8sScanMethodTypeWalk:
+				// Do nothing
+
+			case K8sScanMethodTypeExtendedAttribute:
+				cfg.FileSystem.ScanMethod.ExtendedAttribute = requireChildText(filePath, scanMethodNode,
+					"xattr", &success)
+
+			case K8sScanMethodTypeDevFile:
+				// Do nothing
+			}
+		} else {
+			cfg.FileSystem.ScanMethod.Type = K8sScanMethodTypeWalk
+		}
 	}
 
 	computeNode := requireChild(filePath, services, "compute", &success)

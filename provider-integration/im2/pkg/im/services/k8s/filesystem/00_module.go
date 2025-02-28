@@ -39,6 +39,14 @@ type cachedDirEntry struct {
 func InitFiles() ctrl.FileService {
 	browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
 	loadStorageProducts()
+
+	initScanQueue()
+	go func() {
+		for util.IsAlive {
+			time.Sleep(loopMonitoring())
+		}
+	}()
+
 	return ctrl.FileService{
 		BrowseFiles:                 browseFiles,
 		RetrieveFile:                retrieveFile,
@@ -147,7 +155,20 @@ func doMove(request ctrl.MoveFileRequest, updateTimestamps bool) error {
 	sourcePath, ok1 := UCloudToInternal(request.OldPath)
 	destPath, ok2 := UCloudToInternal(request.NewPath)
 	if !ok1 || !ok2 {
-		return util.UserHttpError("Unable to resolve files needed for rename")
+		return util.ServerHttpError("Unable to resolve files needed for rename")
+	}
+
+	sourceDriveId, _ := DriveIdFromUCloudPath(request.OldPath)
+	destDriveId, _ := DriveIdFromUCloudPath(request.OldPath)
+	destDrive, ok := ctrl.RetrieveDrive(destDriveId)
+	if !ok {
+		return util.ServerHttpError("Unable to resolve files needed for rename")
+	}
+
+	if sourceDriveId != destDriveId {
+		if ctrl.IsResourceLocked(destDrive.Resource, destDrive.Specification.Product) {
+			return util.PaymentError()
+		}
 	}
 
 	if conflictPolicy == orc.WriteConflictPolicyRename {
@@ -230,6 +251,10 @@ func DoCreateFolder(internalPath string) error {
 }
 
 func createFolder(request ctrl.CreateFolderRequest) error {
+	if ctrl.IsResourceLocked(request.Drive.Resource, request.Drive.Specification.Product) {
+		return util.PaymentError()
+	}
+
 	internalPath, ok := UCloudToInternal(request.Path)
 	if !ok {
 		return util.UserHttpError("Could not find file")
@@ -621,6 +646,11 @@ func createUpload(request ctrl.CreateUploadRequest) (string, error) {
 	if request.ConflictPolicy == orc.WriteConflictPolicyRename && request.Type != ctrl.UploadTypeFolder {
 		path, _ = findAvailableNameOnRename(path)
 	}
+
+	if ctrl.IsResourceLocked(request.Drive.Resource, request.Drive.Specification.Product) {
+		return "", util.PaymentError()
+	}
+
 	return path, nil
 }
 
@@ -802,6 +832,12 @@ func emptyTrash(request ctrl.EmptyTrashRequest) error {
 	}
 
 	_ = DoCreateFolder(trashLocation)
+
+	path, ok := DriveIdFromUCloudPath(request.Path)
+	if ok {
+		RequestScan(path)
+	}
+
 	return nil
 }
 
@@ -846,6 +882,19 @@ func transferDestinationInitiate(request ctrl.FilesTransferRequestInitiateDestin
 			StatusCode: http.StatusBadRequest,
 			Why:        "Unable to fulfill this request, unknown destination supplied.",
 		}
+	}
+
+	driveId, _ := DriveIdFromUCloudPath(request.DestinationPath)
+	drive, ok := ctrl.RetrieveDrive(driveId)
+	if !ok {
+		return ctrl.FilesTransferResponse{}, &util.HttpError{
+			StatusCode: http.StatusBadRequest,
+			Why:        "Unable to fulfill this request, unknown destination supplied.",
+		}
+	}
+
+	if ctrl.IsResourceLocked(drive.Resource, drive.Specification.Product) {
+		return ctrl.FilesTransferResponse{}, util.PaymentError()
 	}
 
 	_, target := ctrl.CreateFolderUpload(request.DestinationPath, orc.WriteConflictPolicyMergeRename, localDestinationPath)
@@ -1060,16 +1109,20 @@ func createDrive(drive orc.Drive) error {
 	if !ok {
 		return util.ServerHttpError("unknown drive")
 	}
+
+	if ctrl.IsResourceLocked(drive.Resource, drive.Specification.Product) {
+		return util.PaymentError()
+	}
+
 	return DoCreateFolder(localPath)
 }
 
 func deleteDrive(drive orc.Drive) error {
-	// TODO This probably should affect accounting immediately. The scoped usage will still be hanging
-	//   around and will currently never really be changed.
 	path, ok := DriveToLocalPath(&drive)
 	if !ok {
 		return util.ServerHttpError("unknown drive")
 	}
+	reportUsedStorage(drive, 0)
 	return doDeleteFile(path)
 }
 

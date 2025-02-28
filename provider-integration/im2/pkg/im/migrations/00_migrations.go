@@ -17,4 +17,5 @@ func loadMigrations() {
 	addScript(k8sV1())
 	addScript(apmEventsV2())
 	addScript(ipDatabaseV1())
+	addScript(driveDatabaseV2())
 }
