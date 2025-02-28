@@ -887,10 +887,10 @@ export const Editor: React.FunctionComponent<{
     const openTabOperationWindow = useRef<(x: number, y: number) => void>(noopCall)
 
     const openTabOperations = React.useCallback((title: string | undefined, position: {x: number; y: number;}) => {
-        const ops = tabOperations(title, setTabs, openTab, tabs, state.currentPath);
+        const ops = tabOperations(title, setTabs, openTab, tabs, dirtyFiles, state.currentPath);
         setOperations(ops);
         openTabOperationWindow.current(position.x, position.y);
-    }, [tabs, state.currentPath]);
+    }, [tabs, state.currentPath, dirtyFiles]);
 
     useBeforeUnload((e: BeforeUnloadEvent): BeforeUnloadEvent => {
         // TODO(Jonas): Only handles closing window, not UCloud navigation 
@@ -1137,6 +1137,7 @@ function tabOperations(
     setTabs: React.Dispatch<React.SetStateAction<{open: string[], closed: string[]}>>,
     openTab: (path: string) => void,
     tabs: {open: string[], closed: string[]},
+    dirtyFiles: Set<string>,
     currentPath: string,
 ): Operation<any>[] {
     const anyTabsOpen = tabs.open.length > 0;
@@ -1233,12 +1234,27 @@ function tabOperations(
         },
         enabled: () => true,
         shortcut: ShortcutKey.R,
-    }, /* {
-        text: "Close saved",
-        onClick: () => console.log("TODO"),
-        enabled: () => true,
+    }, {
+        text: "Close saved tabs",
+        onClick: () => {
+            const toClose: string[] = [];
+            const toKeepOpen = tabs.open.filter(it => dirtyFiles.has(it));
+            for (const openTab of tabs.open) {
+                if (!dirtyFiles.has(openTab)) {
+                    toClose.push(openTab);
+                }
+            }
+
+            setTabs(t => {
+                return {
+                    open: toKeepOpen,
+                    closed: t.closed.concat(toClose),
+                }
+            })
+        },
+        enabled: () => tabs.open.length > 0,
         shortcut: ShortcutKey.T,
-    }, */ {
+    }, {
         text: "Close all",
         onClick: () => {
             setTabs(tabs => {
