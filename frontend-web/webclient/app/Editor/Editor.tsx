@@ -22,7 +22,7 @@ import {noopCall} from "@/Authentication/DataHook";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useBeforeUnload} from "react-router-dom";
-import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
+import {RichSelect, RichSelectChildComponent, RichSelectProps} from "@/ui-components/RichSelect";
 import {initVimMode, VimMode} from "monaco-vim";
 import {addStandardDialog} from "@/UtilityComponents";
 
@@ -961,6 +961,15 @@ export const Editor: React.FunctionComponent<{
         invalidateTree(props.initialFolderPath);
     }, []);
 
+    const fullRenderSelectedSyntax = useCallback((p: RichSelectProps<{
+        language: string;
+        displayName: string;
+    }>) => {
+        return <Flex key={p.element?.language} borderRight={"1px solid var(--borderColor)"} borderLeft={"1px solid var(--borderColor)"} height="32px" width="180px">
+            <LanguageItem key={p.element?.language} {...p} /><Icon mr="6px" ml="auto" mt="8px" size="14px" name="chevronDownLight" />
+        </Flex>
+    }, []);
+
     const setModelLanguage = React.useCallback((element: {
         language: string;
         displayName: string;
@@ -972,6 +981,10 @@ export const Editor: React.FunctionComponent<{
             setActiveSyntax(element.language);
         }
     }, [state.currentPath]);
+
+    const selectedSynax = React.useMemo(() => {
+        return {language: activeSyntax, displayName: toDisplayName(activeSyntax)};
+    }, [activeSyntax]);
 
     // VimMode.Vim.defineEx(name, shorthand, callback);
     VimMode.Vim.defineEx("write", "w", () => {
@@ -1074,14 +1087,11 @@ export const Editor: React.FunctionComponent<{
                     <RichSelect
                         key={activeSyntax}
                         items={languageList}
-                        keys={["language"]}
+                        keys={SyntaxSelectorKeys}
                         dropdownWidth="180px"
-                        FullRenderSelected={p =>
-                            <Flex key={p.element?.language} borderRight={"1px solid var(--borderColor)"} borderLeft={"1px solid var(--borderColor)"} height="32px" width="180px">
-                                <LanguageItem key={p.element?.language} {...p} /><Icon mr="6px" ml="auto" mt="8px" size="14px" name="chevronDownLight" />
-                            </Flex>}
+                        FullRenderSelected={fullRenderSelectedSyntax}
                         RenderRow={LanguageItem}
-                        selected={{language: activeSyntax, displayName: toDisplayName(activeSyntax)}}
+                        selected={selectedSynax}
                         onSelect={setModelLanguage}
                     />
                 </Box>}
@@ -1290,6 +1300,8 @@ function tabOperations(
         shortcut: ShortcutKey.U,
     }];
 }
+
+const SyntaxSelectorKeys = ["language" as const];
 
 const LEFT_MOUSE_BUTTON = 0;
 const MIDDLE_MOUSE_BUTTON = 1;

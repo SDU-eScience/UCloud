@@ -8,11 +8,13 @@ import {Flex, Icon, Input, Relative} from "@/ui-components/index";
 import {FilterInputClass} from "@/Project/ProjectSwitcher";
 import Box from "@/ui-components/Box";
 
-export type RichSelectChildComponent<T> = React.FunctionComponent<{
+export type RichSelectChildComponent<T> = React.FunctionComponent<RichSelectProps<T>>;
+
+export interface RichSelectProps<T> {
     element?: T;
     dataProps?: Record<string, string>;
     onSelect: () => void;
-}>;
+}
 
 export function RichSelect<T, K extends keyof T>(props: {
     items: T[];
