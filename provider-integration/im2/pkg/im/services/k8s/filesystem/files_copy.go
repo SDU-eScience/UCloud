@@ -28,6 +28,10 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 		}
 	}
 
+	if ctrl.IsResourceLocked(request.NewDrive.Resource, request.NewDrive.Specification.Product) {
+		return util.PaymentError()
+	}
+
 	task := TaskInfoSpecification{
 		Type:              FileTaskTypeCopy,
 		CreatedAt:         fnd.Timestamp(time.Now()),

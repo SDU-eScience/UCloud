@@ -8,6 +8,7 @@ import (
 	ws "github.com/gorilla/websocket"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 	"ucloud.dk/pkg/apm"
 	"ucloud.dk/pkg/client"
@@ -16,6 +17,7 @@ import (
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
+	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
 
@@ -642,6 +644,11 @@ type TrackedAllocation struct {
 }
 
 func trackAllocation(update *NotificationWalletUpdated) {
+	cacheKey := lockedCacheKey{Owner: update.Owner, Category: update.Category.Name}
+	isLockedCacheMutex.Lock()
+	isLockedCache[cacheKey] = update.Locked
+	isLockedCacheMutex.Unlock()
+
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -704,4 +711,61 @@ func FindAllAllocations(categoryName string) []TrackedAllocation {
 
 		return result
 	})
+}
+
+type lockedCacheKey struct {
+	Owner    apm.WalletOwner
+	Category string
+}
+
+var isLockedCache = map[lockedCacheKey]bool{}
+var isLockedCacheMutex = sync.Mutex{}
+
+func IsLocked(owner apm.WalletOwner, category string) bool {
+	if RunsServerCode() {
+		cacheKey := lockedCacheKey{Owner: owner, Category: category}
+		isLockedCacheMutex.Lock()
+		locked, isCached := isLockedCache[cacheKey]
+		isLockedCacheMutex.Unlock()
+
+		if isCached {
+			return locked
+		}
+
+		locked = db.NewTx[bool](func(tx *db.Transaction) bool {
+			row, ok := db.Get[struct{ Locked bool }](
+				tx,
+				`
+					select a.locked
+					from tracked_allocations a
+					where
+						a.category = :category
+						and a.owner_project = :project
+						and a.owner_username = :username
+				`,
+				db.Params{
+					"username": owner.Username,
+					"project":  owner.ProjectId,
+					"category": category,
+				},
+			)
+
+			if !ok {
+				return false
+			} else {
+				return row.Locked
+			}
+		})
+
+		isLockedCacheMutex.Lock()
+		isLockedCache[cacheKey] = locked
+		isLockedCacheMutex.Unlock()
+		return locked
+	} else {
+		panic("IsLocked is only implemented for server mode")
+	}
+}
+
+func IsResourceLocked(resource orc.Resource, ref apm.ProductReference) bool {
+	return IsLocked(apm.WalletOwnerFromIds(resource.Owner.CreatedBy, resource.Owner.Project), ref.Category)
 }

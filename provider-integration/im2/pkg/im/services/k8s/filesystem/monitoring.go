@@ -6,8 +6,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/sync/semaphore"
 	"golang.org/x/sys/unix"
+	"io"
+	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -104,7 +107,29 @@ func scanDrive(drive orc.Drive) {
 			return
 		}
 
-		size, err := strconv.ParseInt(string(buffer[:count]), 10, 64)
+		size, err := strconv.ParseInt(strings.TrimSpace(string(buffer[:count])), 10, 64)
+		if err != nil {
+			log.Info("Could not read extended attribute of drive for reporting %v: %s", drive.Id, err)
+			return
+		}
+
+		sizeToReport = size
+
+	case cfg.K8sScanMethodTypeDevFile:
+		fd, ok := OpenFile(filepath.Join(internalPath, ".usage"), unix.O_RDONLY, 0)
+		if !ok {
+			log.Info("Could not open drive for reporting %v", drive.Id)
+			return
+		}
+		defer util.SilentClose(fd)
+
+		data, err := io.ReadAll(fd)
+		if err != nil {
+			log.Info("Could not read extended attribute of drive for reporting %v: %s", drive.Id, err)
+			return
+		}
+
+		size, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
 		if err != nil {
 			log.Info("Could not read extended attribute of drive for reporting %v: %s", drive.Id, err)
 			return

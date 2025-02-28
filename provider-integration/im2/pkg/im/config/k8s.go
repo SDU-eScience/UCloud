@@ -30,11 +30,13 @@ type K8sScanMethodType string
 const (
 	K8sScanMethodTypeWalk              K8sScanMethodType = "Walk"
 	K8sScanMethodTypeExtendedAttribute K8sScanMethodType = "Xattr"
+	K8sScanMethodTypeDevFile           K8sScanMethodType = "Development"
 )
 
 var K8sScanMethodTypeValues = []K8sScanMethodType{
 	K8sScanMethodTypeWalk,
 	K8sScanMethodTypeExtendedAttribute,
+	K8sScanMethodTypeDevFile,
 }
 
 type KubernetesWebConfiguration struct {
@@ -110,6 +112,9 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			case K8sScanMethodTypeExtendedAttribute:
 				cfg.FileSystem.ScanMethod.ExtendedAttribute = requireChildText(filePath, scanMethodNode,
 					"xattr", &success)
+
+			case K8sScanMethodTypeDevFile:
+				// Do nothing
 			}
 		} else {
 			cfg.FileSystem.ScanMethod.Type = K8sScanMethodTypeWalk
