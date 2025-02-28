@@ -144,7 +144,6 @@ func scanDrive(drive orc.Drive) {
 					}
 					if f.InternalPath != "" {
 						util.SilentClose(f.FileDescriptor)
-						fmt.Printf("%s: %d\n", f.InternalPath, f.FileInfo.Size())
 					}
 
 					sizeToReport += f.FileInfo.Size()
@@ -156,8 +155,6 @@ func scanDrive(drive orc.Drive) {
 		close(files)
 		wg.Wait()
 	}
-
-	fmt.Printf("Size to report: %d\n", sizeToReport)
 
 	// NOTE(Dan): There are no configuration options on the product at the moment to change this to anything else.
 	sizeInGb := sizeToReport / 1000000000
