@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	ws "github.com/gorilla/websocket"
 	"io"
 	"net/http"
+
+	ws "github.com/gorilla/websocket"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/log"
@@ -16,6 +19,21 @@ import (
 
 var LaunchUserInstances = false
 var UCloudUsername = ""
+
+var MetricRequestCounter = promauto.NewCounter(prometheus.CounterOpts{
+	Name: "ucloud_requests_started",
+	Help: "Number of requests received",
+})
+
+var MetricRequestErrorCounter = promauto.NewCounter(prometheus.CounterOpts{
+	Name: "ucloud_requests_error",
+	Help: "Number of requests that ended with a failure",
+})
+
+var MetricRequestInFlight = promauto.NewGauge(prometheus.GaugeOpts{
+	Name: "ucloud_requests_in_flight",
+	Help: "Number of requests currently in-flight",
+})
 
 func RunsUserCode() bool {
 	return cfg.Mode == cfg.ServerModeUser || (!LaunchUserInstances && cfg.Mode == cfg.ServerModeServer)
@@ -53,6 +71,10 @@ type commonErrorMessage struct {
 
 func HttpRetrieveHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		MetricRequestCounter.Inc()
+		MetricRequestInFlight.Inc()
+		defer MetricRequestInFlight.Dec()
+
 		if r.Method != http.MethodGet {
 			sendStatusCode(w, http.StatusMethodNotAllowed)
 			return
@@ -108,6 +130,10 @@ func handleAuth(flags HttpApiFlag, w http.ResponseWriter, r *http.Request) bool 
 
 func HttpUpdateHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		MetricRequestCounter.Inc()
+		MetricRequestInFlight.Inc()
+		defer MetricRequestInFlight.Dec()
+
 		if !handleAuth(flags, w, r) {
 			return
 		}
@@ -184,6 +210,7 @@ func sendResponseOrError(w http.ResponseWriter, data any, err error) {
 }
 
 func sendError(w http.ResponseWriter, err error) {
+	MetricRequestErrorCounter.Inc()
 	if err == nil {
 		msg, _ := json.Marshal(commonErrorMessage{
 			Why: "Unexpected error occurred #1",
