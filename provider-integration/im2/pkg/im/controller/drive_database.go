@@ -55,6 +55,18 @@ func InitDriveDatabase() {
 		activeDrivesMutex.Unlock()
 	})
 
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into tracked_drives_scan_timer(zero, time)
+				values (0, now())
+				on conflict (zero) do update set time = excluded.time;
+			`,
+			db.Params{},
+		)
+	})
+
 	trackDriveIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[util.Empty] {
 		// NOTE(Dan): Since we are not returning any information about the drive, we simply track it regardless if this
 		// was a drive that belongs to the user or not.
@@ -368,4 +380,70 @@ outer:
 	}
 
 	return result, result != nil
+}
+
+func RetrieveDrivesNeedingScan() []orc.Drive {
+	if RunsServerCode() {
+		return db.NewTx[[]orc.Drive](func(tx *db.Transaction) []orc.Drive {
+			var result []orc.Drive
+
+			rows := db.Select[struct{ Resource string }](
+				tx,
+				`
+					with
+						drives as (
+							select drive_id
+							from
+								tracked_drives,
+								tracked_drives_scan_timer session
+							where
+								last_scan_completed_at < now() - cast('1 hour' as interval)
+								and (
+									last_scan_submitted_at < now() - cast('1 hour' as interval)
+									or last_scan_submitted_at < session.time
+								)
+								and product_id != 'share' -- TODO Should probably go somewhere else
+							order by last_scan_completed_at
+							limit 256   
+						)
+					update tracked_drives td
+					set last_scan_submitted_at = now()
+					from drives d
+					where td.drive_id = d.drive_id
+					returning td.resource
+			    `,
+				db.Params{},
+			)
+
+			for _, row := range rows {
+				var drive orc.Drive
+				err := json.Unmarshal([]byte(row.Resource), &drive)
+				if err != nil {
+					continue
+				}
+
+				result = append(result, drive)
+			}
+
+			return result
+		})
+	} else {
+		return nil
+	}
+}
+
+func UpdateDriveScannedAt(driveId string) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update tracked_drives
+				set last_scan_completed_at = now()
+				where drive_id = :drive_id
+		    `,
+			db.Params{
+				"drive_id": driveId,
+			},
+		)
+	})
 }

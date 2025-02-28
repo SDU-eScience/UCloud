@@ -43,8 +43,7 @@ func InitFiles() ctrl.FileService {
 	initScanQueue()
 	go func() {
 		for util.IsAlive {
-			loopMonitoring()
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(loopMonitoring())
 		}
 	}()
 
@@ -811,6 +810,12 @@ func emptyTrash(request ctrl.EmptyTrashRequest) error {
 	}
 
 	_ = DoCreateFolder(trashLocation)
+
+	path, ok := DriveIdFromUCloudPath(request.Path)
+	if ok {
+		RequestScan(path)
+	}
+
 	return nil
 }
 
@@ -1073,12 +1078,11 @@ func createDrive(drive orc.Drive) error {
 }
 
 func deleteDrive(drive orc.Drive) error {
-	// TODO This probably should affect accounting immediately. The scoped usage will still be hanging
-	//   around and will currently never really be changed.
 	path, ok := DriveToLocalPath(&drive)
 	if !ok {
 		return util.ServerHttpError("unknown drive")
 	}
+	reportUsedStorage(drive, 0)
 	return doDeleteFile(path)
 }
 

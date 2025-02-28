@@ -199,7 +199,7 @@ func Connect(username, password, host string, port int, database string, ssl boo
 
 func Exec(ctx *Transaction, query string, args Params) {
 	_, err := ctx.tx.NamedExec(query, transformParameters(args))
-	if err != nil {
+	if err != nil && ctx.Ok {
 		ctx.Ok = false
 		ctx.error = fmt.Errorf("Database exec failed: %v\nquery: %v\n", err.Error(), query)
 	}
@@ -217,7 +217,7 @@ func Get[T any](ctx *Transaction, query string, args Params) (T, bool) {
 func Select[T any](ctx *Transaction, query string, args Params) []T {
 	var result []T
 	res, err := ctx.tx.NamedQuery(query, transformParameters(args))
-	if err != nil {
+	if err != nil && ctx.Ok {
 		ctx.Ok = false
 		ctx.error = fmt.Errorf("Database select failed: %v\nquery: %v\n", err.Error(), query)
 		return nil
@@ -229,7 +229,7 @@ func Select[T any](ctx *Transaction, query string, args Params) []T {
 
 		result = append(result, item)
 
-		if err != nil {
+		if err != nil && ctx.Ok {
 			ctx.Ok = false
 			ctx.error = fmt.Errorf("Database select failed: %v. Query: %v", err, query)
 			return nil

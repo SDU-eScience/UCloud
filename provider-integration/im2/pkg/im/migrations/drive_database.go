@@ -26,3 +26,39 @@ func driveDatabaseV1() migrationScript {
 		},
 	}
 }
+
+func driveDatabaseV2() migrationScript {
+	return migrationScript{
+		Id: "driveDatabaseV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table tracked_drives
+					add column last_scan_completed_at timestamptz not null default now() - cast('24 hours' as interval)
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					alter table tracked_drives
+					add column last_scan_submitted_at timestamptz not null default now() - cast('24 hours' as interval)
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					create table tracked_drives_scan_timer(
+					    zero int primary key,
+						time timestamptz not null
+					)
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}
