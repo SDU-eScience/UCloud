@@ -71,12 +71,11 @@ import {
     UFileStatus
 } from "./UFile";
 import AppRoutes from "@/Routes";
-import {Editor, EditorApi, Vfs} from "@/Editor/Editor";
+import {allowEditing, Editor, EditorApi, Vfs} from "@/Editor/Editor";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {useDispatch} from "react-redux";
 import {VirtualFile} from "@/Files/FileTree";
-import {edit} from "@/ui-components/icons";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -1055,6 +1054,7 @@ export function FilePreview({initialFile}: {
     const [previewRequested, setPreviewRequested] = useState(false);
     const [drive, setDrive] = useState<FileCollection | null>(null);
     const [renamingFile, setRenamingFile] = useState<string>();
+    const dirtyFileCountRef = React.useRef(0);
     const didUnmount = useDidUnmount();
 
     useEffect(() => {
@@ -1166,6 +1166,8 @@ export function FilePreview({initialFile}: {
         await editor.notifyDirtyBuffer();
         await vfs.writeFile(editor.path);
 
+        editor.onFileSaved(editor.path);
+
         snackbarStore.addSuccess("File has been saved", false, 800);
     }, [vfs]);
 
@@ -1264,7 +1266,7 @@ export function FilePreview({initialFile}: {
         window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(EventKeys.WriteToFile, {
             detail: {
                 path: newPath,
-                content: "",
+                content: " ",
             }
         }));
 
@@ -1292,11 +1294,6 @@ export function FilePreview({initialFile}: {
 
             vfs.moveFileContent(removeTrailingSlash(oldAbsolutePath), removeTrailingSlash(newAbsolutePath));
 
-            if (editorRef.current?.path === oldAbsolutePath) {
-                editorRef.current.openFile(newAbsolutePath);
-            }
-
-            editorRef.current?.invalidateTree?.(getParentPath(newAbsolutePath));
             success = true;
         } catch (e) {
             displayErrorMessageOrDefault(e, "Failed to rename file");
@@ -1411,6 +1408,8 @@ export function FilePreview({initialFile}: {
 
     return <Editor
         apiRef={editorRef}
+        onRequestSave={onSave}
+        dirtyFileCountRef={dirtyFileCountRef}
         toolbarBeforeSettings={
             <>
                 {ext === "markdown" ?
@@ -1476,7 +1475,7 @@ export function FilePreview({initialFile}: {
                 </Box>
             </Flex>
         }
-        readOnly={!hasFeature(Feature.INTEGRATED_EDITOR)}
+        readOnly={!hasFeature(Feature.INTEGRATED_EDITOR) || !allowEditing()}
     />;
 }
 
@@ -1493,7 +1492,7 @@ async function downloadFileContent(path: string): Promise<Blob> {
 }
 
 const MAX_HEIGHT = `calc(100vw - 15px - 15px - 240px - var(${CSSVarCurrentSidebarStickyWidth}));`
-const HEIGHT = "calc(100vh - 100px);"
+const HEIGHT = "calc(100vh - 100px);";
 
 const MarkdownStyling = injectStyleSimple("markdown-styling", `
     max-width: 900px;
