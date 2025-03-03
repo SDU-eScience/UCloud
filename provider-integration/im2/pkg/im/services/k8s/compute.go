@@ -104,6 +104,10 @@ func backend(job *orc.Job) *ctrl.JobsService {
 }
 
 func submit(request ctrl.JobSubmitRequest) (util.Option[string], error) {
+	if reason := IsJobLocked(request.JobToSubmit); reason.Present {
+		return util.OptNone[string](), reason.Value.Err
+	}
+
 	shared.RequestSchedule(request.JobToSubmit)
 	ctrl.TrackNewJob(*request.JobToSubmit)
 	return util.OptNone[string](), nil

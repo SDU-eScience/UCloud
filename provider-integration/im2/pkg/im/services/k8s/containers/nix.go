@@ -96,7 +96,7 @@ func generateNixEntrypoint(
 		return entrypointExtension{}
 	}
 
-	memberfiles, err := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, util.OptStringIfNotEmpty(job.Owner.Project))
+	memberfiles, _, err := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, util.OptStringIfNotEmpty(job.Owner.Project))
 	if err != nil {
 		return entrypointExtension{}
 	}

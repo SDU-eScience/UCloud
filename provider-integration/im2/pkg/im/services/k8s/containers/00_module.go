@@ -69,15 +69,15 @@ func findPodByJobIdAndRank(jobId string, rank int) util.Option[*core.Pod] {
 }
 
 // FindJobFolder finds the most relevant job folder for a given job. The returned path will be internal.
-func FindJobFolder(job *orc.Job) (string, error) {
-	path, err := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, util.OptStringIfNotEmpty(job.Owner.Project))
+func FindJobFolder(job *orc.Job) (string, *orc.Drive, error) {
+	path, drive, err := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, util.OptStringIfNotEmpty(job.Owner.Project))
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	jobFolderPath := filepath.Join(path, "Jobs", job.Status.ResolvedApplication.Metadata.Title, job.Id)
 	_ = filesystem.DoCreateFolder(jobFolderPath)
-	return jobFolderPath, nil
+	return jobFolderPath, drive, nil
 }
 
 type trackedLogFile struct {
@@ -100,7 +100,7 @@ func follow(session *ctrl.FollowJobSession) {
 			continue
 		}
 
-		jobFolder, err := FindJobFolder(job)
+		jobFolder, _, err := FindJobFolder(job)
 		if err != nil {
 			time.Sleep(1 * time.Second)
 			continue

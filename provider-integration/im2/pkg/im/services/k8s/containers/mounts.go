@@ -19,8 +19,6 @@ func prepareMountsOnJobCreate(
 	userContainer *core.Container,
 	jobFolder string,
 ) map[string]string {
-	// TODO Limit checks
-
 	spec := &pod.Spec
 	ucloudMounts := map[string]bool{}
 
