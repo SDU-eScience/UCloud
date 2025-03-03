@@ -326,7 +326,6 @@ const EditorClass = injectStyle("editor", k => `
     ${k} {
         display: flex;
         width: 100%;
-        padding: 5px;
         max-width: 100%;
         height: 100%;
         --borderThickness: 2px;

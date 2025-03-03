@@ -9,10 +9,10 @@ import {
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import FileCollectionsApi, {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {Box, Button, Flex, Icon, Markdown, Select, Text, TextArea} from "@/ui-components";
+import {Box, Button, Card, Flex, Icon, Markdown, Select, Text, TextArea, Truncate} from "@/ui-components";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
-import {fileName, getParentPath} from "@/Utilities/FileUtilities";
+import {fileName, getParentPath, readableUnixMode, sizeToString} from "@/Utilities/FileUtilities";
 import {
     bulkRequestOf,
     displayErrorMessageOrDefault,
@@ -32,7 +32,7 @@ import * as Heading from "@/ui-components/Heading";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {prettyFilePath} from "@/Files/FilePath";
+import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
 import {OpenWithBrowser} from "@/Applications/OpenWith";
 import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
@@ -45,7 +45,7 @@ import metadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api";
-import {useParams} from "react-router";
+import {Link, useParams} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
@@ -76,6 +76,9 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {useDispatch} from "react-redux";
 import {VirtualFile} from "@/Files/FileTree";
+import {dateToString} from "@/Utilities/DateUtilities";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {setPopInChild} from "@/ui-components/PopIn";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -326,7 +329,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     const [file] = selected;
                     extra.navigate(AppRoutes.files.path(getParentPath(file.id)));
                 },
-                shortcut: ShortcutKey.P,
+                shortcut: ShortcutKey.V,
             },
             {
                 text: "Rename",
@@ -1194,9 +1197,6 @@ export function FilePreview({initialFile}: {
         }
     }, [onSave, requestPreviewToggle]);
 
-
-    if (initialFile.status.type !== "FILE") return null;
-
     let node: React.ReactNode = null;
 
     const ext = extensionType(extensionFromPath(openFile[0]));
@@ -1314,7 +1314,8 @@ export function FilePreview({initialFile}: {
                 text: "New folder",
                 enabled: () => true,
                 onClick: () => {
-                    // TODO(Jonas)
+                    const suffix = initialFile.status.type === "DIRECTORY" ? "/placeholder" : "";
+                    newFolder(initialFile.id + suffix).then(doNothing);
                 },
                 shortcut: ShortcutKey.F,
             }, {
@@ -1403,8 +1404,25 @@ export function FilePreview({initialFile}: {
                 shortcut: ShortcutKey.D
                 // DOWNLOAD
             },
+            {
+                icon: "properties",
+                text: "View properties",
+                enabled: () => vfs.isReal(),
+                onClick() {
+                    vfs.getFileInfo(file.absolutePath).then(ufile => {
+                        dispatch(setPopInChild({el: <FileProperties routingNamespace={api.routingNamespace} file={ufile} />}));
+                    });
+                },
+                shortcut: ShortcutKey.V,
+            },
         ];
     }, []);
+
+    if (initialFile.status.type === "DIRECTORY") {
+        return <Box m="12px">
+            <FileProperties file={initialFile} routingNamespace={api.routingNamespace} />
+        </Box>
+    }
 
     return <Editor
         apiRef={editorRef}
@@ -1620,6 +1638,10 @@ class PreviewVfs implements Vfs {
         }
     }
 
+    async getFileInfo(path: string): Promise<UFile> {
+        return this.ufiles[path] ?? await callAPI(api.retrieve({id: path}));
+    }
+
     async writeFile(path: string): Promise<void> {
         const content = this.dirtyFileContent[path];
         if (content === undefined) return;
@@ -1650,6 +1672,48 @@ export const EventKeys = {WriteToFile: "write-to-file-event"};
 export interface WriteToFileEventProps {
     path: string;
     content: string;
+}
+
+function FileProperties({file, routingNamespace}: {file: UFile, routingNamespace: string}) {
+    const prettyPath = usePrettyFilePath(file.id);
+    return <Card mt="12px">
+        <div><b>Path:</b> <Truncate title={prettyPath}>{prettyPath}</Truncate></div>
+        <div>
+            <b>Product: </b>
+            {file.specification.product.id === file.specification.product.category ?
+                <>{file.specification.product.id}</> :
+                <>{file.specification.product.id} / {file.specification.product.category}</>
+            }
+        </div>
+        <Flex gap="8px">
+            <b>Provider: </b>
+            <ProviderTitle providerId={file.specification.product.provider} />
+        </Flex>
+        <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
+        {file.status.modifiedAt ?
+            <div><b>Modified at:</b> {dateToString(file.status.modifiedAt)}</div> : null}
+        {file.status.accessedAt ?
+            <div><b>Accessed at:</b> {dateToString(file.status.accessedAt)}</div> : null}
+        {file.status.sizeInBytes != null && file.status.type !== "DIRECTORY" ?
+            <div><b>Size:</b> {sizeToString(file.status.sizeInBytes)}</div> : null}
+        {file.status.sizeIncludingChildrenInBytes != null && file.status.type === "DIRECTORY" ?
+            <div><b>Size:</b> {sizeToString(file.status.sizeIncludingChildrenInBytes)}
+            </div> : null
+        }
+        {file.status.unixOwner != null && file.status.unixGroup != null ?
+            <div><b>UID/GID</b>: {file.status.unixOwner}/{file.status.unixGroup}</div> :
+            null
+        }
+        {file.status.unixMode != null ?
+            <div><b>Unix mode:</b> {readableUnixMode(file.status.unixMode)}</div> :
+            null
+        }
+        <Box mt={"16px"} mb={"8px"}>
+            <Link to={buildQueryString(`/${routingNamespace}`, {path: getParentPath(file.id)})}>
+                <Button fullWidth>View in folder</Button>
+            </Link>
+        </Box>
+    </Card>
 }
 
 export {api};
