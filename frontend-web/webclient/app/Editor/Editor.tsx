@@ -428,6 +428,14 @@ export const Editor: React.FunctionComponent<{
         usePage(fileName(prettyPath), SidebarTabId.FILES);
     }
 
+    const disposeModels = React.useCallback(() => {
+        if (monacoRef.current) {
+            for (const m of monacoRef.current.editor.getModels()) {
+                m.dispose();
+            }
+        }
+    }, []);
+
     const {showReleaseNoteIcon, onShowReleaseNotesShown} = useShowReleaseNoteIcon();
 
     const [operations, setOperations] = useState<Operation<any, undefined>[]>([]);
@@ -489,19 +497,16 @@ export const Editor: React.FunctionComponent<{
                 const existingModel = getModelFromEditor(name);
                 if (!existingModel) {
                     const model = monacoRef.current?.editor?.createModel(content, syntax, Uri.file(name));
-
                     model.onDidChangeContent(e => {
-                        const altId = model.getAlternativeVersionId();
-                        if (altId === (savedAtAltVersionId.current[name] ?? 1)) {
-                            setDirtyFiles(f => {
+                        setDirtyFiles(f => {
+                            const altId = model.getAlternativeVersionId();
+                            if (altId === (savedAtAltVersionId.current[name] ?? 1)) {
                                 f.delete(name);
                                 return new Set([...f]);
-                            });
-                        } else {
-                            setDirtyFiles(f => {
-                                return new Set([...f, name]);
-                            });
-                        }
+                            } else {
+                                return new Set([...f, name])
+                            }
+                        });
                     });
                     editor.setModel(model);
                 } else {
@@ -510,7 +515,11 @@ export const Editor: React.FunctionComponent<{
                 break;
             }
         }
-    }, [dirtyFiles]); /* Maybe overkill to depend on dirty files */
+    }, [dirtyFiles]);
+
+    React.useEffect(() => {
+        return disposeModels;
+    }, []);
 
     const readBuffer = useCallback((): Promise<string> => {
         const editor = editorRef.current;
