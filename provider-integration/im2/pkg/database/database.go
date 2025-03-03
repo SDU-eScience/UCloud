@@ -8,8 +8,33 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
+)
+
+var (
+	metricDatabaseTransactionsTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "database",
+		Name:      "transactions_total",
+		Help:      "Total database transactions made",
+	})
+
+	metricDatabaseTransactionsInFlight = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "database",
+		Name:      "transactions_in_flight",
+		Help:      "Number of database transactions in flight",
+	})
+
+	metricDatabaseTransactionsDuration = promauto.NewSummary(prometheus.SummaryOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "database",
+		Name:      "transactions_duration",
+		Help:      "Summary of the duration it takes to make database transactions",
+	})
 )
 
 type Params map[string]any

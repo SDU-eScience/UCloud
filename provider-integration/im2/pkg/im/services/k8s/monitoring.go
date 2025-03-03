@@ -3,11 +3,12 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"slices"
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"slices"
-	"time"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/containers"
 	"ucloud.dk/pkg/im/services/k8s/kubevirt"
@@ -210,6 +211,7 @@ func loopMonitoring() {
 		}
 
 		activeJobs := ctrl.GetJobs()
+
 		tracker.jobs = activeJobs
 		containers.Monitor(tracker, activeJobs)
 		kubevirt.Monitor(tracker, activeJobs)

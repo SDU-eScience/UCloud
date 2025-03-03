@@ -3,31 +3,10 @@ package orchestrators
 import (
 	"fmt"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"ucloud.dk/pkg/apm"
 	c "ucloud.dk/pkg/client"
 	fnd "ucloud.dk/pkg/foundation"
 	"ucloud.dk/pkg/util"
-)
-
-var (
-	MetricFilesUploadSessionsCurrent = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "ucloud_files_upload_sessions_current",
-		Help: "Number of upload sessions that are currently open",
-	})
-	MetricFilesUploadSessionsTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "ucloud_files_upload_sessions_total",
-		Help: "Total number of upload sessions that has been opened",
-	})
-	MetricFilesDownloadSessionsCurrent = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "ucloud_files_download_sessions_current",
-		Help: "The number of download sessions that are currently open",
-	})
-	MetricFilesDownloadSessionsTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "ucloud_files_download_sessions_total",
-		Help: "Total number of download sessions that has been opened",
-	})
 )
 
 type Share struct {

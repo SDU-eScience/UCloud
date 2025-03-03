@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	ws "github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus"
@@ -20,20 +21,41 @@ import (
 var LaunchUserInstances = false
 var UCloudUsername = ""
 
-var MetricRequestCounter = promauto.NewCounter(prometheus.CounterOpts{
-	Name: "ucloud_requests_started",
-	Help: "Number of requests received",
-})
+var (
+	metricRequestCounter = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "server",
+		Name:      "requests_started",
+		Help:      "Number of requests received",
+	})
 
-var MetricRequestErrorCounter = promauto.NewCounter(prometheus.CounterOpts{
-	Name: "ucloud_requests_error",
-	Help: "Number of requests that ended with a failure",
-})
+	metricRequestErrorCounter = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "server",
+		Name:      "requests_error",
+		Help:      "Number of requests that ended in failure",
+	})
 
-var MetricRequestInFlight = promauto.NewGauge(prometheus.GaugeOpts{
-	Name: "ucloud_requests_in_flight",
-	Help: "Number of requests currently in-flight",
-})
+	metricRequestInFlight = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "server",
+		Name:      "requests_in_flight",
+		Help:      "Number of requests currently in-flight",
+	})
+
+	metricRequestDuration = promauto.NewSummary(prometheus.SummaryOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "server",
+		Name:      "requests_duration",
+		Help:      "Summary of the duration it takes to complete requests",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	})
+)
 
 func RunsUserCode() bool {
 	return cfg.Mode == cfg.ServerModeUser || (!LaunchUserInstances && cfg.Mode == cfg.ServerModeServer)
@@ -71,9 +93,12 @@ type commonErrorMessage struct {
 
 func HttpRetrieveHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		MetricRequestCounter.Inc()
-		MetricRequestInFlight.Inc()
-		defer MetricRequestInFlight.Dec()
+		metricRequestCounter.Inc()
+		metricRequestInFlight.Inc()
+		defer metricRequestInFlight.Dec()
+
+		start := time.Now()
+		log.Info("%v", start)
 
 		if r.Method != http.MethodGet {
 			sendStatusCode(w, http.StatusMethodNotAllowed)
@@ -87,6 +112,10 @@ func HttpRetrieveHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w
 		var request T
 		// TODO This should read from query parameters but it is not
 		handler(w, r, request)
+
+		log.Info("observed: %d", float64(time.Now().Sub(start).Milliseconds()))
+		log.Info("Duration %v", time.Now().Sub(start))
+		metricRequestDuration.Observe(float64(time.Now().Sub(start).Microseconds()))
 	}
 }
 
@@ -130,9 +159,11 @@ func handleAuth(flags HttpApiFlag, w http.ResponseWriter, r *http.Request) bool 
 
 func HttpUpdateHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		MetricRequestCounter.Inc()
-		MetricRequestInFlight.Inc()
-		defer MetricRequestInFlight.Dec()
+		metricRequestCounter.Inc()
+		metricRequestInFlight.Inc()
+		defer metricRequestInFlight.Dec()
+
+		start := time.Now()
 
 		if !handleAuth(flags, w, r) {
 			return
@@ -159,6 +190,9 @@ func HttpUpdateHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w h
 		}
 
 		handler(w, r, request)
+
+		log.Info("observed: %d", float64(time.Now().Sub(start).Milliseconds()))
+		metricRequestDuration.Observe(float64(time.Now().Sub(start).Milliseconds()))
 	}
 }
 
@@ -210,7 +244,7 @@ func sendResponseOrError(w http.ResponseWriter, data any, err error) {
 }
 
 func sendError(w http.ResponseWriter, err error) {
-	MetricRequestErrorCounter.Inc()
+	metricRequestErrorCounter.Inc()
 	if err == nil {
 		msg, _ := json.Marshal(commonErrorMessage{
 			Why: "Unexpected error occurred #1",

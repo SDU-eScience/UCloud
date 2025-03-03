@@ -17,6 +17,8 @@ import (
 	"ucloud.dk/pkg/im/controller/upload"
 
 	ws "github.com/gorilla/websocket"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
@@ -161,6 +163,33 @@ type FilesTransferRequest struct {
 	Type    FilesTransferRequestType
 	Payload any
 }
+
+var (
+	metricFilesUploadSessionsCurrent = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "files",
+		Name:      "upload_sessions_current",
+		Help:      "Number of upload sessions that are currently open",
+	})
+	metricFilesUploadSessionsTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "files",
+		Name:      "upload_sessions_total",
+		Help:      "Total number of upload sessions that has been opened",
+	})
+	metricFilesDownloadSessionsCurrent = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "files",
+		Name:      "download_sessions_current",
+		Help:      "The number of download sessions that are currently open",
+	})
+	metricFilesDownloadSessionsTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "files",
+		Name:      "download_sessions_total",
+		Help:      "Total number of download sessions that has been opened",
+	})
+)
 
 func (t *FilesTransferRequest) InitiateSource() *FilesTransferRequestInitiateSource {
 	if t.Type == FilesTransferRequestTypeInitiateSource {
@@ -438,9 +467,9 @@ func controllerFiles(mux *http.ServeMux) {
 
 		mux.HandleFunc(fmt.Sprintf("/ucloud/%v/download", cfg.Provider.Id), func(w http.ResponseWriter, r *http.Request) {
 			uid := uint32(os.Getuid())
-			orc.MetricFilesDownloadSessionsCurrent.Inc()
-			orc.MetricFilesDownloadSessionsTotal.Inc()
-			defer orc.MetricFilesDownloadSessionsCurrent.Dec()
+			metricFilesDownloadSessionsCurrent.Inc()
+			metricFilesDownloadSessionsTotal.Inc()
+			defer metricFilesDownloadSessionsCurrent.Dec()
 
 			token := r.URL.Query().Get("token")
 			session, ok := downloadSessions.GetNow(token)
@@ -630,9 +659,9 @@ func controllerFiles(mux *http.ServeMux) {
 				defer util.SilentCloseIfOk(conn, err)
 				token := r.URL.Query().Get("token")
 
-				orc.MetricFilesUploadSessionsCurrent.Inc()
-				orc.MetricFilesUploadSessionsTotal.Inc()
-				defer orc.MetricFilesUploadSessionsCurrent.Dec()
+				metricFilesUploadSessionsCurrent.Inc()
+				metricFilesUploadSessionsTotal.Inc()
+				defer metricFilesUploadSessionsCurrent.Dec()
 
 				if err != nil {
 					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)

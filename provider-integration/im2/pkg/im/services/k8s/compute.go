@@ -90,7 +90,6 @@ func backend(job *orc.Job) *ctrl.JobsService {
 func submit(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 	shared.RequestSchedule(request.JobToSubmit)
 	ctrl.TrackNewJob(*request.JobToSubmit)
-	orc.MetricJobsSubmitted.Inc()
 	return util.OptNone[string](), nil
 }
 

@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"ucloud.dk/pkg/apm"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
@@ -23,6 +25,15 @@ import (
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
+)
+
+var (
+	metricSlurmUnknownJobsRegistered = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "slurm",
+		Name:      "unknown_jobs_registered",
+		Help:      "The number of jobs registered by UCloud through Slurm (i.e. not submitted through UCloud)",
+	})
 )
 
 var Machines []apm.ProductV2
@@ -373,6 +384,7 @@ func loopComputeMonitoring() {
 					log.Warn("Error while retrieving job: %s", err.Error())
 				}
 
+				metricSlurmUnknownJobsRegistered.Inc()
 				ctrl.TrackNewJob(job)
 			}
 		}
@@ -563,7 +575,6 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 	if err != nil {
 		return util.OptNone[string](), err
 	}
-	orc.MetricJobsSubmitted.Inc()
 
 	providerId := parsedProviderJobId{
 		BelongsToAccount: accountName,
