@@ -232,6 +232,23 @@ func loopMonitoring() {
 
 		batchResults := tracker.batch.End()
 
+		{
+			// Lock jobs which are out of resources
+
+			activeJobsAfterBatch := ctrl.GetJobs()
+			var lockedMessages []ctrl.JobMessage
+			for _, job := range activeJobsAfterBatch {
+				if reason := IsJobLocked(job); reason.Present {
+					lockedMessages = append(lockedMessages, ctrl.JobMessage{
+						JobId:   job.Id,
+						Message: reason.Value.Reason,
+					})
+					tracker.RequestCleanup(job.Id)
+				}
+			}
+			_ = ctrl.TrackJobMessages(lockedMessages)
+		}
+
 		go func() {
 			for _, jobId := range tracker.terminationRequested {
 				job, ok := ctrl.RetrieveJob(jobId)

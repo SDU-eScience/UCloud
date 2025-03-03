@@ -10,15 +10,31 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
 
 func StartScheduledJob(job *orc.Job, rank int, node string) error {
-	jobFolder, err := FindJobFolder(job)
+	jobFolder, drive, err := FindJobFolder(job)
 	if err != nil {
 		return fmt.Errorf("failed to initialize job folder")
+	}
+
+	if rank == 0 {
+		ucloudFolder, ok := filesystem.InternalToUCloudWithDrive(drive, jobFolder)
+		if ok {
+			_ = ctrl.TrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
+				{
+					Id: job.Id,
+					Update: orc.JobUpdate{
+						OutputFolder: util.OptValue[string](ucloudFolder),
+					},
+				},
+			})
+		}
 	}
 
 	// TODO Get these from configuration

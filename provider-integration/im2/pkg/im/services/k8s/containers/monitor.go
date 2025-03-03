@@ -95,7 +95,7 @@ func OnStart(jobs []orc.Job) {
 		// Common data collection for each job
 		// -------------------------------------------------------------------------------------------------------------
 		job := &jobs[i]
-		jobFolder, err := FindJobFolder(job)
+		jobFolder, _, err := FindJobFolder(job)
 		if err != nil {
 			continue
 		}
