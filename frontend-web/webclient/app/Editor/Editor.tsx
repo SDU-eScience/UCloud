@@ -737,7 +737,7 @@ export const Editor: React.FunctionComponent<{
 
         const vimEnabled = getEditorOption("vim") === true;
         if (vimEnabled) {
-            setVimModeObject(initVimMode(editor, document.getElementsByClassName(StatusBar).item(0)));
+            setVimModeObject(initVimMode(editor, getStatusBarElement()));
         }
     }, [monacoInstance]);
 
@@ -760,7 +760,7 @@ export const Editor: React.FunctionComponent<{
         setVimModeObject(vimModeObject => {
             updateEditorSetting("vim", active);
             if (active) {
-                return initVimMode(editorRef.current, document.getElementsByClassName(StatusBar).item(0));
+                return initVimMode(editorRef.current, getStatusBarElement());
             } else {
                 vimModeObject?.dispose();
                 return null;
@@ -1385,6 +1385,9 @@ const StatusBar = injectStyle("status-bar", k => `
         left: calc(var(--currentSidebarWidth) + 250px);
         width: 100%;
         background-color: var(--primaryMain);
+        font-family: var(--monospace);
+        color: white;
+        padding-left: 4px;
     }
 
     ${k} input {
@@ -1662,6 +1665,10 @@ function setReadonlyWarning(editor: IStandaloneCodeEditor) {
             addToFront: true,
         });
     });
+}
+
+function getStatusBarElement(): Element | null {
+    return document.getElementsByClassName(StatusBar).item(0);
 }
 
 const EditorReleaseNotes = `

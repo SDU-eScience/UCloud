@@ -45,7 +45,7 @@ import metadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api";
-import {Link, useParams} from "react-router";
+import {Link, useNavigate, useParams} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
@@ -1323,7 +1323,8 @@ export function FilePreview({initialFile}: {
                 text: "New file",
                 enabled: () => true,
                 onClick: () => {
-                    // TODO(Jonas)
+                    const suffix = initialFile.status.type === "DIRECTORY" ? "/placeholder" : "";
+                    newFile(initialFile.id + suffix).then(doNothing);
                 },
                 shortcut: ShortcutKey.G,
             }];
@@ -1418,6 +1419,8 @@ export function FilePreview({initialFile}: {
         ];
     }, []);
 
+    const navigate = useNavigate();
+
     if (initialFile.status.type === "DIRECTORY") {
         return <Box m="12px">
             <FileProperties file={initialFile} routingNamespace={api.routingNamespace} />
@@ -1490,6 +1493,7 @@ export function FilePreview({initialFile}: {
                         <Button mx="auto" onClick={() => newFile(initialFile.id)}>New file</Button>
                         <Button mx="auto" onClick={() => newFolder(initialFile.id)}>New folder</Button>
                     </Flex>
+                    <Button width="95%" m="5px" onClick={() => navigate(AppRoutes.files.path(getParentPath(initialFile.id)))}>Go to parent folder</Button>
                 </Box>
             </Flex>
         }
