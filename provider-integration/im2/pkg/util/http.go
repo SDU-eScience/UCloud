@@ -36,3 +36,10 @@ func HttpErr(statusCode int, whyFormat string, args ...any) *HttpError {
 		Why:        fmt.Sprintf(whyFormat, args...),
 	}
 }
+
+func PaymentError() *HttpError {
+	return &HttpError{
+		StatusCode: http.StatusPaymentRequired,
+		Why:        "Insufficient funds",
+	}
+}

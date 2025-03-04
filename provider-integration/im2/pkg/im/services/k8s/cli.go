@@ -1,6 +1,10 @@
 package k8s
 
-import "ucloud.dk/pkg/im/services/k8s/containers"
+import (
+	"os"
+	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/im/services/k8s/containers"
+)
 
 func HandleCliWithoutConfig(command string) bool {
 	switch command {
@@ -12,4 +16,13 @@ func HandleCliWithoutConfig(command string) bool {
 		return false
 	}
 	return true
+}
+
+func HandleCli(command string) {
+	switch command {
+	case "ip":
+		fallthrough
+	case "ips":
+		ctrl.IpPoolCliStub(os.Args[2:])
+	}
 }

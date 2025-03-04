@@ -21,6 +21,7 @@ import ScrollableBox from "@/ui-components/ScrollableBox";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {useProjectId} from "@/Project/Api";
+import {addStandardDialog} from "@/UtilityComponents";
 
 interface WorkflowProps extends WidgetProps {
     parameter: ApplicationParameterNS.Workflow;
@@ -64,15 +65,34 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
     const error = props.errors[props.parameter.name];
     const projectId = useProjectId();
 
+
     const [selectedWorkflow, setSelectedWorkflow] = useState<{
         id: string | null;
         path: string | null;
         specification: WorkflowSpecification;
     } | null>(null);
 
+    const doSaveRef = useRef(() => void 0);
+    const dirtyFileCountRef = useRef(0);
+
     const doClose = useCallback(() => {
-        setSelectedWorkflow(null);
-    }, [selectedWorkflow]);
+        if (dirtyFileCountRef.current) {
+            addStandardDialog({
+                title: "Unsaved changes",
+                message: "You have unsaved changes. Do you want to save?",
+                confirmText: "Save",
+                onConfirm: () => {
+                    doSaveRef.current();
+                },
+                cancelText: "Don't save",
+                onCancel: () => {
+                    setSelectedWorkflow(null)
+                }
+            });
+        } else {
+            setSelectedWorkflow(null);
+        }
+    }, [selectedWorkflow, dirtyFileCountRef]);
 
     const [existingWorkflows, fetchExistingWorkflows] = useCloudAPI<PageV2<Workflow>>({noop: true}, emptyPageV2);
     const [activeInput, setActiveInput] = useState<WorkflowParameterInputFormat | null>(null);
@@ -113,7 +133,7 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
                 );
 
                 if (existing && existing.type === "workflow") {
-                    setActiveInput({ id: existing.id, path: existing.status.path, specification: existing.specification });
+                    setActiveInput({id: existing.id, path: existing.status.path, specification: existing.specification});
                 } else {
                     result = [
                         {
@@ -332,6 +352,8 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
                     applicationName={props.application.metadata.title}
                     initialId={selectedWorkflow.id}
                     initialExistingPath={selectedWorkflow.path}
+                    doSaveRef={doSaveRef}
+                    dirtyFileCountRef={dirtyFileCountRef}
                     workflow={selectedWorkflow.specification}
                     onUse={onUse}
                 /> : null

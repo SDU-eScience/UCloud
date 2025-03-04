@@ -8,7 +8,7 @@ import (
 func RetryOrPanic[R any](action string, fn func() (R, error)) R {
 	wait := 10
 	var lastErr error
-	for attempt := 0; attempt < 15; attempt++ {
+	for attempt := 0; attempt < 30; attempt++ {
 		res, err := fn()
 		if err != nil {
 			lastErr = err

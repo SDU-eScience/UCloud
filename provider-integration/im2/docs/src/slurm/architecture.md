@@ -35,7 +35,8 @@ In the architecture above, we have several actors. We have summarised the role o
 <td>
 
 The end-user is a user of the UCloud platform and of the service provider. As we have discussed in the introduction
-chapter, the end-user primarily communicates with UCloud/Core, and in rare cases directly with a service provider.
+chapter (TODO where?), the end-user primarily communicates with UCloud/Core, and in rare cases 
+directly with a service provider.
 
 In this diagram, we assume that the user has already gone through the connection procedure (TODO link) and has
 established a mapping from a UCloud identity to a local identity with uid `41231`.

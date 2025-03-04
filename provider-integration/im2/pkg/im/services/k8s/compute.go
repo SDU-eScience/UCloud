@@ -43,7 +43,24 @@ func InitCompute() ctrl.JobsService {
 		Suspend:                  suspend,
 		Unsuspend:                unsuspend,
 		HandleBuiltInVnc:         handleBuiltInVnc,
+		PublicIPs: ctrl.PublicIPService{
+			Create:           createPublicIp,
+			Delete:           deletePublicIp,
+			RetrieveProducts: retrievePublicIpProducts,
+		},
 	}
+}
+
+func retrievePublicIpProducts() []orc.PublicIpSupport {
+	return shared.IpSupport
+}
+
+func createPublicIp(ip *orc.PublicIp) error {
+	return ctrl.AllocateIpAddress(ip)
+}
+
+func deletePublicIp(ip *orc.PublicIp) error {
+	return ctrl.DeleteIpAddress(ip)
 }
 
 func retrieveProducts() []orc.JobSupport {
@@ -88,6 +105,10 @@ func backend(job *orc.Job) *ctrl.JobsService {
 }
 
 func submit(request ctrl.JobSubmitRequest) (util.Option[string], error) {
+	if reason := IsJobLocked(request.JobToSubmit); reason.Present {
+		return util.OptNone[string](), reason.Value.Err
+	}
+
 	shared.RequestSchedule(request.JobToSubmit)
 	ctrl.TrackNewJob(*request.JobToSubmit)
 	return util.OptNone[string](), nil

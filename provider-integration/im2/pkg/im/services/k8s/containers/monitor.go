@@ -43,8 +43,8 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 			continue
 		}
 
-		times := computeRunningTime(job)
-		if times.TimeRemaining < 0 {
+		times := shared.ComputeRunningTime(job)
+		if times.TimeRemaining.Present && times.TimeRemaining.Value < 0 {
 			tracker.RequestCleanup(idAndRank.First)
 		}
 
@@ -95,7 +95,7 @@ func OnStart(jobs []orc.Job) {
 		// Common data collection for each job
 		// -------------------------------------------------------------------------------------------------------------
 		job := &jobs[i]
-		jobFolder, err := FindJobFolder(job)
+		jobFolder, _, err := FindJobFolder(job)
 		if err != nil {
 			continue
 		}

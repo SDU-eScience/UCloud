@@ -10,6 +10,7 @@ import (
 )
 
 var MachineSupport []orc.JobSupport
+var IpSupport []orc.PublicIpSupport
 
 var (
 	Machines        []apm.ProductV2
@@ -134,6 +135,46 @@ func initProducts() {
 		}
 
 		MachineSupport = append(MachineSupport, support)
+	}
+
+	if ServiceConfig.Compute.PublicIps.Enabled {
+		ipName := ServiceConfig.Compute.PublicIps.Name
+		IpProducts = []apm.ProductV2{
+			{
+				Type: apm.ProductTypeCNetworkIp,
+				Category: apm.ProductCategory{
+					Name:        ipName,
+					Provider:    cfg.Provider.Id,
+					ProductType: apm.ProductTypeNetworkIp,
+					AccountingUnit: apm.AccountingUnit{
+						Name:                   "IP",
+						NamePlural:             "IPs",
+						FloatingPoint:          false,
+						DisplayFrequencySuffix: false,
+					},
+					AccountingFrequency: apm.AccountingFrequencyOnce,
+					FreeToUse:           false,
+					AllowSubAllocations: true,
+				},
+				Name:        ipName,
+				Description: "A public IP",
+				ProductType: apm.ProductTypeNetworkIp,
+				Price:       1,
+			},
+		}
+
+		IpSupport = []orc.PublicIpSupport{
+			{
+				Product: apm.ProductReference{
+					Id:       ipName,
+					Category: ipName,
+					Provider: cfg.Provider.Id,
+				},
+				Firewall: orc.FirewallSupport{
+					Enabled: true,
+				},
+			},
+		}
 	}
 }
 

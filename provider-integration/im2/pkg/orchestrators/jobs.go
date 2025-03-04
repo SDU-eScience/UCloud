@@ -14,6 +14,19 @@ import (
 	"ucloud.dk/pkg/util"
 )
 
+type SshKey struct {
+	Id            string              `json:"id"`
+	Owner         string              `json:"owner"`
+	CreatedAt     fnd.Timestamp       `json:"createdAt"`
+	Fingerprint   string              `json:"fingerprint"`
+	Specification SshKeySpecification `json:"specification"`
+}
+
+type SshKeySpecification struct {
+	Title string `json:"title"`
+	Key   string `json:"key"`
+}
+
 type ExportedParametersRequest struct {
 	Application       NameAndVersion       `json:"application"`
 	Product           apm.ProductReference `json:"product"`
@@ -667,4 +680,27 @@ func RegisterJobs(request fnd.BulkRequest[ProviderRegisteredResource[JobSpecific
 		"register",
 		request,
 	)
+}
+
+func BrowseSshKeys(jobId string) ([]SshKey, error) {
+	type req struct {
+		JobId        string `json:"jobId"`
+		ItemsPerPage int    `json:"itemsPerPage"`
+	}
+
+	page, err := c.ApiUpdate[fnd.PageV2[SshKey]](
+		jobsCtrlNamespace+"browseSshKeys",
+		jobsCtrlContext,
+		"browseSshKeys",
+		req{
+			JobId:        jobId,
+			ItemsPerPage: 250,
+		},
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return page.Items, nil
 }

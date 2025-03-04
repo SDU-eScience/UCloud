@@ -67,6 +67,11 @@ export const defaultModalStyle: ReactModal.Styles = {
         overflow: "auto",
     },
     overlay: {
-        backgroundColor: "var(--modalShadow)"
+        backgroundColor: "var(--modalShadow)",
+        zIndex: 101 /* Note(Jonas):
+        To handle React Modals with dialogs on top.
+        Ideally, only one modal/dialog should exist at any given time, but it isn't feasible for some cases currently (e.g.)
+            - Scripts editor with pop-ups for unsaved changes and allow editing after specifically disabling editing.
+    */
     }
 }

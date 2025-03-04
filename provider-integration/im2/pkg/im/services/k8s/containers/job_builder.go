@@ -10,14 +10,31 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/im/services/k8s/filesystem"
+	"ucloud.dk/pkg/im/services/k8s/shared"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
 
 func StartScheduledJob(job *orc.Job, rank int, node string) error {
-	jobFolder, err := FindJobFolder(job)
+	jobFolder, drive, err := FindJobFolder(job)
 	if err != nil {
 		return fmt.Errorf("failed to initialize job folder")
+	}
+
+	if rank == 0 {
+		ucloudFolder, ok := filesystem.InternalToUCloudWithDrive(drive, jobFolder)
+		if ok {
+			_ = ctrl.TrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
+				{
+					Id: job.Id,
+					Update: orc.JobUpdate{
+						OutputFolder: util.OptValue[string](ucloudFolder),
+					},
+				},
+			})
+		}
 	}
 
 	// TODO Get these from configuration
@@ -37,6 +54,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	var firewall *networking.NetworkPolicy
 	var service *core.Service
+	var sshService *core.Service
 
 	if rank == 0 {
 		firewall = &networking.NetworkPolicy{
@@ -50,10 +68,13 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		allowNetworkFrom(firewall, job.Id)
 		allowNetworkTo(firewall, job.Id)
 
-		serviceLabel := jobIdLabel(job.Id)
+		serviceLabel := shared.JobIdLabel(job.Id)
 		service = &core.Service{
 			ObjectMeta: meta.ObjectMeta{
 				Name: serviceName(job.Id),
+				Labels: map[string]string{
+					serviceLabel.First: serviceLabel.Second,
+				},
 			},
 			Spec: core.ServiceSpec{
 				Type:      core.ServiceTypeClusterIP,
@@ -63,6 +84,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 				},
 			},
 		}
+
+		sshService = shared.AssignAndPrepareSshService(job).GetOrDefault(nil)
 	}
 
 	// Setting up the basics
@@ -212,6 +235,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// -----------------------------------------------------------------------------------------------------------------
 	prepareFirewallOnJobCreate(job, pod, firewall, service)
 
+	// Public IP and SSH
+	// -----------------------------------------------------------------------------------------------------------------
+	preparePublicIpsAndSsh(job, service)
+	injectSshKeys(job.Id, pod, userContainer)
+
 	// Shared-memory
 	// -----------------------------------------------------------------------------------------------------------------
 	spec.Volumes = append(spec.Volumes, core.Volume{
@@ -231,7 +259,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	// Job metadata
 	// -----------------------------------------------------------------------------------------------------------------
-	idLabel := jobIdLabel(job.Id)
+	idLabel := shared.JobIdLabel(job.Id)
 	pod.Annotations[idLabel.First] = idLabel.Second
 	pod.Labels[idLabel.First] = idLabel.Second
 	if job.Owner.Project != "" {
@@ -242,26 +270,31 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	defer cancel()
 
 	pod, err = K8sClient.CoreV1().Pods(namespace).Create(ctx, pod, meta.CreateOptions{})
-	if firewall != nil && err == nil {
-		firewall.OwnerReferences = append(firewall.OwnerReferences, meta.OwnerReference{
+	var ownerReference meta.OwnerReference
+	if err == nil {
+		ownerReference = meta.OwnerReference{
 			APIVersion: "v1",
 			Kind:       "Pod",
 			Name:       pod.Name,
 			UID:        pod.UID,
-		})
+		}
+	}
+	if firewall != nil && err == nil {
+		firewall.OwnerReferences = append(firewall.OwnerReferences, ownerReference)
 
 		_, myError := K8sClient.NetworkingV1().NetworkPolicies(namespace).Create(ctx, firewall, meta.CreateOptions{})
 		err = util.MergeError(err, myError)
 	}
 	if service != nil && err == nil {
-		service.OwnerReferences = append(service.OwnerReferences, meta.OwnerReference{
-			APIVersion: "v1",
-			Kind:       "Pod",
-			Name:       pod.Name,
-			UID:        pod.UID,
-		})
+		service.OwnerReferences = append(service.OwnerReferences, ownerReference)
 
 		_, myError := K8sClient.CoreV1().Services(namespace).Create(ctx, service, meta.CreateOptions{})
+		err = util.MergeError(err, myError)
+	}
+	if sshService != nil && err == nil {
+		sshService.OwnerReferences = append(sshService.OwnerReferences, ownerReference)
+
+		_, myError := K8sClient.CoreV1().Services(namespace).Create(ctx, sshService, meta.CreateOptions{})
 		err = util.MergeError(err, myError)
 	}
 
@@ -328,16 +361,12 @@ func serviceName(jobId string) string {
 }
 
 func k8PodSelectorForJob(jobId string) meta.LabelSelector {
-	l := jobIdLabel(jobId)
+	l := shared.JobIdLabel(jobId)
 	return meta.LabelSelector{
 		MatchLabels: map[string]string{
 			l.First: l.Second,
 		},
 	}
-}
-
-func jobIdLabel(jobId string) util.Tuple2[string, string] {
-	return util.Tuple2[string, string]{"ucloud.dk/jobId", jobId}
 }
 
 func idAndRankToPodName(id string, rank int) string {

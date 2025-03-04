@@ -19,8 +19,6 @@ func prepareMountsOnJobCreate(
 	userContainer *core.Container,
 	jobFolder string,
 ) map[string]string {
-	// TODO Limit checks
-
 	spec := &pod.Spec
 	ucloudMounts := map[string]bool{}
 
@@ -84,11 +82,12 @@ func prepareMountsOnJobCreate(
 	for mount, readOnly := range ucloudMounts {
 		comps := util.Components(mount)
 		compsLen := len(comps)
-		title := comps[compsLen-1]
 
 		if compsLen == 0 {
 			continue
 		}
+
+		title := comps[compsLen-1]
 
 		if compsLen == 1 {
 			drive, ok := filesystem.ResolveDrive(comps[0])
@@ -133,6 +132,7 @@ func prepareMountsOnJobCreate(
 
 			mountIdx++
 		} else {
+			// NOTE(Dan): Must remain consistent with VM mount logic for overall consistency
 			slices.SortFunc(mounts, func(a, b util.Tuple2[string, bool]) int {
 				return strings.Compare(a.First, b.First)
 			})

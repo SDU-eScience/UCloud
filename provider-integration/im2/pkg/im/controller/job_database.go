@@ -99,6 +99,9 @@ func InitJobDatabase() {
 	fetchAllJobs(orc.JobStateSuspended)
 	fetchAllJobs(orc.JobStateRunning)
 
+	initIpDatabase()
+
+	// Job metrics
 	go func() {
 		for util.IsAlive {
 			var jobsRunning float64 = 0
@@ -216,7 +219,14 @@ func BeginJobUpdates() *JobUpdateBatch {
 }
 
 func GetJobs() map[string]*orc.Job {
-	return activeJobs
+	result := map[string]*orc.Job{}
+	activeJobsMutex.Lock()
+	for _, job := range activeJobs {
+		copied := *job
+		result[copied.Id] = &copied
+	}
+	activeJobsMutex.Unlock()
+	return result
 }
 
 func (b *JobUpdateBatch) SetRelevancyFilter(filter func(job *orc.Job) bool) {

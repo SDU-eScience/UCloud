@@ -111,6 +111,8 @@ const languages = {
     "yml": "yaml",
     "sbatch": "shell",
     "rs": "rust",
+    "j2": "jinja2",
+    "jinja2": "jinja2"
 };
 
 export function getLanguageList(): {language: string}[] {

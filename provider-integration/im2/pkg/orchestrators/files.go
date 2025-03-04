@@ -58,6 +58,16 @@ type Drive struct {
 	Updates       []ResourceUpdate   `json:"updates"`
 }
 
+func DriveIdFromUCloudPath(path string) (string, bool) {
+	components := util.Components(path)
+	if len(components) == 0 {
+		return "", false
+	}
+
+	driveId := components[0]
+	return driveId, true
+}
+
 type DriveSpecification struct {
 	Title   string               `json:"title"`
 	Product apm.ProductReference `json:"product"`

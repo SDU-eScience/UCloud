@@ -12,5 +12,5 @@ RUN mv /tmp/kubectl /usr/bin/kubectl
 RUN chmod +x /usr/bin/kubectl
 RUN ln -s /opt/service/bin/service /usr/bin/ucloud
 
-COPY build/service /opt/service/
+COPY ./build/service /opt/service/
 CMD ["/opt/service/bin/service"]
