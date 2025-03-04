@@ -98,7 +98,6 @@ func HttpRetrieveHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w
 		defer metricRequestInFlight.Dec()
 
 		start := time.Now()
-		log.Info("%v", start)
 
 		if r.Method != http.MethodGet {
 			sendStatusCode(w, http.StatusMethodNotAllowed)
