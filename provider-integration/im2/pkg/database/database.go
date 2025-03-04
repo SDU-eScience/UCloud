@@ -15,13 +15,6 @@ import (
 )
 
 var (
-	metricDatabaseTransactionsTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Namespace: "ucloud_im",
-		Subsystem: "database",
-		Name:      "transactions_total",
-		Help:      "Total database transactions made",
-	})
-
 	metricDatabaseTransactionsInFlight = promauto.NewGauge(prometheus.GaugeOpts{
 		Namespace: "ucloud_im",
 		Subsystem: "database",
@@ -33,7 +26,13 @@ var (
 		Namespace: "ucloud_im",
 		Subsystem: "database",
 		Name:      "transactions_duration",
-		Help:      "Summary of the duration it takes to make database transactions",
+		Help:      "Summary of the duration (in microseconds) it takes to make database transactions",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
 	})
 )
 
@@ -95,7 +94,12 @@ func NewTx3[A, B, C any](fn func(tx *Transaction) (A, B, C)) (A, B, C) {
 }
 
 func NewTx[T any](fn func(tx *Transaction) T) T {
-	return ContinueTx(Database, fn)
+	metricDatabaseTransactionsInFlight.Inc()
+	start := time.Now()
+	result := ContinueTx(Database, fn)
+	metricDatabaseTransactionsInFlight.Dec()
+	metricDatabaseTransactionsDuration.Observe(float64(time.Now().Sub(start).Microseconds()))
+	return result
 }
 
 func ContinueTx[T any](ctx Ctx, fn func(tx *Transaction) T) T {

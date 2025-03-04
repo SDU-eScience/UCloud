@@ -47,7 +47,7 @@ var (
 		Namespace: "ucloud_im",
 		Subsystem: "server",
 		Name:      "requests_duration",
-		Help:      "Summary of the duration it takes to complete requests",
+		Help:      "Summary of the duration (in microseconds) it takes to complete requests",
 		Objectives: map[float64]float64{
 			0.5:  0.01,
 			0.75: 0.01,
@@ -113,8 +113,6 @@ func HttpRetrieveHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w
 		// TODO This should read from query parameters but it is not
 		handler(w, r, request)
 
-		log.Info("observed: %d", float64(time.Now().Sub(start).Milliseconds()))
-		log.Info("Duration %v", time.Now().Sub(start))
 		metricRequestDuration.Observe(float64(time.Now().Sub(start).Microseconds()))
 	}
 }
@@ -162,7 +160,6 @@ func HttpUpdateHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w h
 		metricRequestCounter.Inc()
 		metricRequestInFlight.Inc()
 		defer metricRequestInFlight.Dec()
-
 		start := time.Now()
 
 		if !handleAuth(flags, w, r) {
@@ -191,8 +188,7 @@ func HttpUpdateHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w h
 
 		handler(w, r, request)
 
-		log.Info("observed: %d", float64(time.Now().Sub(start).Milliseconds()))
-		metricRequestDuration.Observe(float64(time.Now().Sub(start).Milliseconds()))
+		metricRequestDuration.Observe(float64(time.Now().Sub(start).Microseconds()))
 	}
 }
 
