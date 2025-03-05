@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	lru "github.com/hashicorp/golang-lru/v2/expirable"
-	"golang.org/x/sys/unix"
 	"io"
 	"math"
 	"net/http"
@@ -15,6 +13,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	lru "github.com/hashicorp/golang-lru/v2/expirable"
+	"golang.org/x/sys/unix"
 	"ucloud.dk/pkg/apm"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
@@ -28,6 +29,8 @@ import (
 var storageSupport []orc.FSSupport
 
 var browseCache *lru.LRU[string, []cachedDirEntry]
+
+const SensitivityXattr string = "user.sensitivity"
 
 type cachedDirEntry struct {
 	absPath string
@@ -438,7 +441,7 @@ func nativeStat(drive *orc.Drive, internalPath string, info os.FileInfo) orc.Pro
 			UnixGroup:                    DefaultUid,
 		},
 		CreatedAt:         fnd.Timestamp{},
-		LegacySensitivity: "",
+		LegacySensitivity: getInheritedSensitivity(drive, internalPath),
 	}
 
 	result.Status.ModifiedAt = FileModTime(info)
@@ -1170,6 +1173,56 @@ func createShare(share orc.Share) (driveId string, err error) {
 	})
 
 	return
+}
+
+// NOTE(Brian) Function to support inherited sensitivity.
+// This is legacy functionality, and thus only implemented for backwards compatibility.
+func getInheritedSensitivity(drive *orc.Drive, internalPath string) string {
+	ucloudPath, ok := InternalToUCloudWithDrive(drive, internalPath)
+
+	if !ok {
+		return ""
+	}
+
+	ancestors := util.Parents(ucloudPath)
+	ancestors = append(ancestors, ucloudPath)
+
+	result := ""
+
+	for _, ancestor := range ancestors {
+		// Skip checking drive
+		if strings.Count(ancestor, "/") < 2 {
+			continue
+		}
+
+		internalAncestorPath, ok := UCloudToInternal(ancestor)
+
+		if !ok {
+			continue
+		}
+
+		fd, ok := OpenFile(internalAncestorPath, unix.O_RDONLY, 0)
+
+		if !ok {
+			continue
+		}
+		defer unix.Close(int(fd.Fd()))
+
+		// Get extended attributes
+		buffer := make([]byte, 64)
+		count, err := unix.Fgetxattr(int(fd.Fd()), SensitivityXattr, buffer)
+
+		if err != nil || count < 1 {
+			continue
+		}
+
+		value := string(buffer[:count])
+		if value != "" && strings.ToLower(value) != "inherit" {
+			result = value
+		}
+	}
+
+	return result
 }
 
 const DefaultUid = 11042
