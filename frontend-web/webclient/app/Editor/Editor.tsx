@@ -6,7 +6,7 @@ import {Uri} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
 import {TreeAction, TreeApi} from "@/ui-components/Tree";
-import {Box, Flex, FtIcon, Icon, Image, Markdown, Select, Truncate} from "@/ui-components";
+import {Box, Flex, FtIcon, Icon, Image, Markdown, Select, Truncate, Text} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
 import {capitalized, copyToClipboard, errorMessageOrDefault, extensionFromPath, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -1091,18 +1091,6 @@ export const Editor: React.FunctionComponent<{
                         location={"IN_ROW"}
                     />
                 </div>
-                {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box width={"180px"}>
-                    <RichSelect
-                        key={activeSyntax}
-                        items={languageList}
-                        keys={SyntaxSelectorKeys}
-                        dropdownWidth="180px"
-                        FullRenderSelected={fullRenderSelectedSyntax}
-                        RenderRow={LanguageItem}
-                        selected={selectedSynax}
-                        onSelect={setModelLanguage}
-                    />
-                </Box>}
                 <Flex alignItems={"center"} ml="16px" gap="16px">
                     {tabs.open.length === 0 || isReleaseNotesOpen || isSettingsOpen || props.customContent ? null :
                         props.toolbarBeforeSettings
@@ -1144,10 +1132,30 @@ export const Editor: React.FunctionComponent<{
                     }}>{props.customContent}</div>
                 </>
             </div>
-            <div style={{display: !anyTabOpen || settingsOrReleaseNotesOpen ? "none" : undefined}} className={StatusBar} />
+            <div className={StatusBarWrapper}>
+                <div className={StatusBar} />
+                {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box ml="auto" className={HoverHighlight} width={"fit-content"} mr="8px">
+                    <RichSelect
+                        key={activeSyntax}
+                        items={languageList}
+                        keys={SyntaxSelectorKeys}
+                        FullRenderSelected={p => <Text px="8px" textAlign="end">{p.element?.displayName}</Text>}
+                        elementHeight={29}
+                        RenderRow={LanguageItem}
+                        selected={selectedSynax}
+                        onSelect={setModelLanguage}
+                    />
+                </Box>}
+            </div>
         </div>
     </div>;
 };
+
+const HoverHighlight = injectStyle("hover-highlight", k => `
+    ${k}:hover {
+        background-color: var(--primaryLight);
+    }
+`);
 
 /* TODO(Jonas): Improve parameters this is... not good */
 function tabOperations(
@@ -1380,7 +1388,16 @@ const IconHoverBlockClass = injectStyle("icon-hover-block", k => `
 `);
 
 const StatusBar = injectStyle("status-bar", k => `
+    ${k} input {
+        background: transparent;
+        border: none;
+        color: white
+    }
+`);
+
+const StatusBarWrapper = injectStyle("status-bar-wrapper", k => `
     ${k} {
+        display: flex;
         height: 24px;
         left: calc(var(--currentSidebarWidth) + 250px);
         width: 100%;

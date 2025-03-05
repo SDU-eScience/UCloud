@@ -224,9 +224,9 @@ function ClickableDropdown<T>({
 
         let x = parseInt((left ?? "0")?.toString().replace("px", ""));
         if (isNaN(x)) x = 0;
-        let y = parseInt((top ?? "0")?.toString().replace("px", ""));
-        if (isNaN(y)) y = 0;
 
+        let y = parseInt((top ?? dropdownRef.current?.getBoundingClientRect().y ?? "0")?.toString().replace("px", ""));
+        if (isNaN(y)) y = 0;
 
         const widthAsNumber = parseInt((width ?? 300).toString().replace("px", ""));
         let heightAsNumber = 38 * children.length;

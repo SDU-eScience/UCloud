@@ -16,6 +16,7 @@ export interface RichSelectProps<T> {
     onSelect: () => void;
 }
 
+const INPUT_FIELD_HEIGHT = 35;
 export function RichSelect<T, K extends keyof T>(props: {
     items: T[];
     keys: K[];
@@ -25,6 +26,7 @@ export function RichSelect<T, K extends keyof T>(props: {
     FullRenderSelected?: RichSelectChildComponent<T>;
     fullWidth?: boolean;
     dropdownWidth?: string;
+    elementHeight?: number;
 
     selected?: T;
     onSelect: (element: T) => void;
@@ -36,9 +38,9 @@ export function RichSelect<T, K extends keyof T>(props: {
     const closeFn = useRef<() => void>(doNothing);
 
     const filteredElements = useMemo(() => {
-        const withKeys = props.items.map((it, itIdx) => ({ idx: itIdx, ...it }));
+        const withKeys = props.items.map((it, itIdx) => ({idx: itIdx, ...it}));
         if (query === "") return withKeys;
-        return fuzzySearch(withKeys, props.keys, query, { sort: true });
+        return fuzzySearch(withKeys, props.keys, query, {sort: true});
     }, [query, props.items, props.keys]);
 
     const limitedElements = useMemo(() => {
@@ -61,15 +63,17 @@ export function RichSelect<T, K extends keyof T>(props: {
         setDropdownSize(width + "px");
     }, []);
 
+    const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + INPUT_FIELD_HEIGHT)
+
     return <ClickableDropdown
-        trigger={props.FullRenderSelected ? 
-                <props.FullRenderSelected element={props.selected} onSelect={doNothing} />
+        trigger={props.FullRenderSelected ?
+            <props.FullRenderSelected element={props.selected} onSelect={doNothing} />
             :
-                props.RenderSelected ? 
-                    <div className={TriggerClass} ref={triggerRef}>
-                        <props.RenderSelected element={props.selected} onSelect={doNothing}/>
-                        <Icon name="chevronDownLight"/>
-                    </div>
+            props.RenderSelected ?
+                <div className={TriggerClass} ref={triggerRef}>
+                    <props.RenderSelected element={props.selected} onSelect={doNothing} />
+                    <Icon name="chevronDownLight" />
+                </div>
                 : <></>
         }
         onOpeningTriggerClick={onTriggerClick}
@@ -81,7 +85,7 @@ export function RichSelect<T, K extends keyof T>(props: {
         colorOnHover={false}
         fullWidth={props.fullWidth ?? false}
         width={props.fullWidth ? undefined : dropdownSize}
-        height={Math.min(370, 40 * (limitedElements.length + 1))}
+        height={height}
         onSelect={el => {
             const idxS = el?.getAttribute("data-idx") ?? "";
             const idx = parseInt(idxS);
@@ -94,7 +98,7 @@ export function RichSelect<T, K extends keyof T>(props: {
             closeFn.current();
         }}
     >
-        <div style={{height: "320px", width: dropdownSize}}>
+        <div style={{height: height + "px", width: dropdownSize}}>
             <Flex>
                 <Input
                     autoFocus
@@ -118,11 +122,11 @@ export function RichSelect<T, K extends keyof T>(props: {
                 />
 
                 <Relative right="24px" top="5px" width="0px" height="0px">
-                    <Icon name="search"/>
+                    <Icon name="search" />
                 </Relative>
             </Flex>
 
-            <div className={ResultWrapperClass}>
+            <div className={ResultWrapperClass} style={{maxHeight: height + "px"}}>
                 {limitedElements.map(it => <props.RenderRow
                     element={it}
                     key={it.idx}
@@ -158,7 +162,6 @@ const ResultWrapperClass = injectStyle("rich-select-result-wrapper", k => `
     ${k} {
         cursor: default;
         overflow-y: auto;
-        max-height: 285px;
     }
     
     ${k} > *:hover {
