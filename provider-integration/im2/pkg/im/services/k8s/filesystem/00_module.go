@@ -441,7 +441,7 @@ func nativeStat(drive *orc.Drive, internalPath string, info os.FileInfo) orc.Pro
 			UnixGroup:                    DefaultUid,
 		},
 		CreatedAt:         fnd.Timestamp{},
-		LegacySensitivity: getInheritedSensitivity(drive, internalPath),
+		LegacySensitivity: getInheritedSensitivity(drive, internalPath).Value,
 	}
 
 	result.Status.ModifiedAt = FileModTime(info)
@@ -1177,11 +1177,11 @@ func createShare(share orc.Share) (driveId string, err error) {
 
 // NOTE(Brian) Function to support inherited sensitivity.
 // This is legacy functionality, and thus only implemented for backwards compatibility.
-func getInheritedSensitivity(drive *orc.Drive, internalPath string) string {
+func getInheritedSensitivity(drive *orc.Drive, internalPath string) util.Option[string] {
 	ucloudPath, ok := InternalToUCloudWithDrive(drive, internalPath)
 
 	if !ok {
-		return ""
+		return util.OptNone[string]()
 	}
 
 	ancestors := util.Parents(ucloudPath)
@@ -1206,11 +1206,11 @@ func getInheritedSensitivity(drive *orc.Drive, internalPath string) string {
 		if !ok {
 			continue
 		}
-		defer unix.Close(int(fd.Fd()))
 
 		// Get extended attributes
 		buffer := make([]byte, 64)
 		count, err := unix.Fgetxattr(int(fd.Fd()), SensitivityXattr, buffer)
+		util.SilentClose(fd)
 
 		if err != nil || count < 1 {
 			continue
@@ -1222,7 +1222,7 @@ func getInheritedSensitivity(drive *orc.Drive, internalPath string) string {
 		}
 	}
 
-	return result
+	return util.OptStringIfNotEmpty(result)
 }
 
 const DefaultUid = 11042
