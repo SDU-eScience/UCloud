@@ -5,10 +5,11 @@ import {findAvatarQuery, saveAvatarQuery} from "@/Utilities/AvatarUtilities";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {initAvatar} from "@/DefaultObjects";
 import {AvatarType} from "@/AvataaarLib";
+import {PayloadAction} from "@reduxjs/toolkit";
 
 export type AvatarActions = SaveAvataaar | SetAvatarError;
 
-type SaveAvataaar = PayloadAction<typeof AVATAR_SAVE, {avatar: AvatarType, loading: true}>;
+type SaveAvataaar = PayloadAction<{avatar: AvatarType, loading: true}, typeof AVATAR_SAVE>;
 function saveAvataaar(avatar: AvatarType): SaveAvataaar {
     return {
         type: AVATAR_SAVE,

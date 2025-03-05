@@ -14,6 +14,7 @@ import {CustomTheming} from "./CustomTheme";
 import {refreshFunctionCache} from "@/Utilities/ReduxUtilities";
 import {ChangeNotificationSettings} from "./ChangeNotificationSettings";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {Action} from "redux";
 
 function UserSettings(): React.ReactNode {
 

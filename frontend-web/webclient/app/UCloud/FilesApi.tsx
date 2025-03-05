@@ -79,6 +79,7 @@ import {VirtualFile} from "@/Files/FileTree";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {setPopInChild} from "@/ui-components/PopIn";
+import {Action} from "redux";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");

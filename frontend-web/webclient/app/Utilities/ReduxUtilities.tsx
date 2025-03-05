@@ -21,7 +21,7 @@ export type UserActionType = typeof USER_LOGIN | typeof USER_LOGOUT | typeof CON
 
 export function confStore(
     initialObject: ReduxObject,
-    reducers: ReducersMapObject<ReduxObject, AnyAction>,
+    reducers: ReducersMapObject<ReduxObject, Action>,
 ): EnhancedStore<ReduxObject> {
     const combinedReducers = combineReducers(reducers);
     const rootReducer = (state: ReduxObject, action: Action): ReduxObject => {
@@ -30,7 +30,7 @@ export function confStore(
         }
         return combinedReducers(state, action);
     };
-    return configureStore<ReduxObject>({reducer: rootReducer, preloadedState: initialObject});
+    return configureStore({reducer: rootReducer, preloadedState: initialObject});
 }
 
 export const store = confStore(initObject(), {
@@ -98,7 +98,7 @@ export function useRefresh(): () => void {
 
 export class ExternalStoreBase {
     private subscribers: (() => void)[] = [];
-    
+
     public subscribe(subscription: () => void) {
         this.subscribers = [...this.subscribers, subscription];
         return () => {

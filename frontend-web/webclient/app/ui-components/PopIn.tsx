@@ -4,6 +4,7 @@ import Flex from "./Flex";
 import Icon from "./Icon";
 import {injectStyle} from "@/Unstyled";
 import {Spacer} from "./Spacer";
+import {PayloadAction} from "@reduxjs/toolkit";
 
 function PopIn({hasContent, children}: React.PropsWithChildren<{hasContent: boolean}>): React.ReactNode {
     return <div className={PopInClass} data-has-content={hasContent}>
@@ -58,7 +59,7 @@ export interface PopInArgs {
     onFullScreen?: () => void;
 }
 
-type SetPopInChildAction = PayloadAction<"SET_POP_IN_CHILD", PopInArgs | null>;
+type SetPopInChildAction = PayloadAction<PopInArgs | null, "SET_POP_IN_CHILD">;
 export function setPopInChild(args: PopInArgs | null): SetPopInChildAction {
     return {
         type: "SET_POP_IN_CHILD",

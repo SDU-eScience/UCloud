@@ -10,6 +10,7 @@ import EmailSettings = mail.EmailSettings;
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
 import HexSpin from "@/LoadingIcon/LoadingIcon";
+import {PayloadAction} from "@reduxjs/toolkit";
 
 export interface UserDetailsState {
     settings: EmailSettings
@@ -62,7 +63,7 @@ const initialState: UserDetailsState = {
     settings: defaultEmailSettings
 };
 
-export type UpdatePlaceholdersEmailSettings = PayloadAction<"UpdatePlaceholdersEmailSettings", UserDetailsState>;
+export type UpdatePlaceholdersEmailSettings = PayloadAction<UserDetailsState, "UpdatePlaceholdersEmailSettings">;
 
 const reducer = (state: UserDetailsState, action: UpdatePlaceholdersEmailSettings): UserDetailsState => {
     switch (action.type) {
@@ -78,7 +79,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
 
         const emailSettings = await invokeCommand(
             retrieveEmailSettings({}),
-            { defaultErrorHandler: false }
+            {defaultErrorHandler: false}
         );
 
         dispatch({

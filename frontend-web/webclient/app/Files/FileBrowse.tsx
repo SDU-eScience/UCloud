@@ -70,6 +70,7 @@ import {sidebarFavoriteCache} from "./FavoriteCache";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {Feature, hasFeature} from "@/Features";
+import {PayloadAction} from "@reduxjs/toolkit";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -1251,8 +1252,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                     if (!isSelector) {
                         dispatch({
-                            type: "GENERIC_SET", property: "uploadPath",
-                            newValue: newPath, defaultValue: newPath
+                            type: "GENERIC_SET", payload: {
+                                property: "uploadPath",
+                                newValue: newPath, defaultValue: newPath
+                            }
                         });
                     }
 
