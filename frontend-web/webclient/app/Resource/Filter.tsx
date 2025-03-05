@@ -492,14 +492,14 @@ export function ConditionalFilter(
     return [
         (props) => {
             if (condition()) {
-                return <>{baseFilter[0](props)}</>;
+                return baseFilter[0](props);
             } else {
                 return null;
             }
         },
         (props) => {
             if (condition()) {
-                return <>{baseFilter[1](props)}</>;
+                return baseFilter[1](props);
             } else {
                 return null;
             }

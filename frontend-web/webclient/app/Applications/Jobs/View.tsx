@@ -1253,10 +1253,9 @@ function transformToSSHUrl(command?: string | null): `ssh://${string}:${number}`
     return `ssh://${hostname}:${portNumber}`;
 }
 
-const StandardPanelBody: React.FunctionComponent<{
-    children: React.ReactNode;
-    divRef?: React.RefObject<HTMLDivElement>;
-}> = ({divRef, children}) => {
+const StandardPanelBody: React.FunctionComponent<React.PropsWithChildren<{
+    divRef?: React.RefObject<HTMLDivElement | null>;
+}>> = ({divRef, children}) => {
     return <div style={{height: "165px", overflowY: "auto"}} ref={divRef}>{children}</div>;
 };
 

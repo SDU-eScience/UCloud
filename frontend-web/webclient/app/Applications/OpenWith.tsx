@@ -38,7 +38,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
     const supportRef = React.useRef<ResolvedSupport[]>([]);
     const productsRef = React.useRef<ProductV2Compute[]>([]);
     const walletsRef = React.useRef<UCloud.PageV2<ProductV2Compute>>(emptyPageV2)
-    const machineSupportRef = React.useRef<compute.JobsRetrieveProductsResponse>();
+    const machineSupportRef = React.useRef<compute.JobsRetrieveProductsResponse>(null);
 
     const activeProject = React.useRef(Client.projectId);
 

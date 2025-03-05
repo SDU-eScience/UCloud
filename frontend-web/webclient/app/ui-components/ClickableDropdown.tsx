@@ -301,8 +301,8 @@ export default ClickableDropdown;
 
 function _onKeyDown(
     e: KeyboardEvent,
-    wrapper: React.RefObject<HTMLDivElement>,
-    index: React.MutableRefObject<number>,
+    wrapper: React.RefObject<HTMLDivElement | null>,
+    index: React.RefObject<number>,
     entryKey: string,
     onSelect: ((el: Element | undefined) => void) | undefined,
     hoverColor: ThemeColor,

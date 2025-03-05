@@ -22,7 +22,7 @@ export const DropdownClass = injectStyle("dropdown", k => `
 
 export const Dropdown: React.FunctionComponent<DropdownProps & {
     children?: React.ReactNode;
-    divRef?: React.RefObject<HTMLDivElement>;
+    divRef?: React.RefObject<HTMLDivElement | null>;
 }> = ({hover = true, ...props}) => {
     return <div
         className={DropdownClass}

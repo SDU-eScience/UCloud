@@ -904,7 +904,7 @@ function SensitivityDialog({file, invokeCommand, onUpdated}: {
     onUpdated(value: SensitivityLevelMap): void;
 }): React.ReactNode {
     const originalSensitivity = useSensitivity(file) ?? "INHERIT" as SensitivityLevel;
-    const selection = React.useRef<HTMLSelectElement>(null);
+    const selection = React.useRef<HTMLSelectElement | null>(null);
     const reason = React.useRef<HTMLInputElement>(null);
 
     const onUpdate = React.useCallback(async (e: React.SyntheticEvent) => {

@@ -446,7 +446,7 @@ export const Editor: React.FunctionComponent<{
     // NOTE(Dan): This code is quite ref heavy given that the components we are controlling are very much the
     // opposite of reactive. There isn't much we can do about this.
     const engineRef = useRef<EditorEngine>("monaco");
-    const stateRef = useRef<EditorState>();
+    const stateRef = useRef<EditorState>(null);
     const tree = useRef<TreeApi | null>(null);
     const [, setVimModeObject] = useState<any /* vimAdapter */>(null);
     const editorRef = useRef<IStandaloneCodeEditor | null>(null);

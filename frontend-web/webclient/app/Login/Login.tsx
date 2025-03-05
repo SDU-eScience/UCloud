@@ -377,7 +377,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
 
 interface TwoFactorProps {
     enabled2fa: string;
-    inputRef: React.RefObject<HTMLInputElement>;
+    inputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 const TwoFactor: React.FunctionComponent<TwoFactorProps> = ({enabled2fa, inputRef}) => enabled2fa ? (
@@ -398,8 +398,8 @@ const BorderRadiusButton = injectStyleSimple("border-radius", `
 
 interface LoginProps {
     enabled2fa: boolean;
-    usernameRef: React.RefObject<HTMLInputElement>;
-    passwordRef: React.RefObject<HTMLInputElement>;
+    usernameRef: React.RefObject<HTMLInputElement | null>;
+    passwordRef: React.RefObject<HTMLInputElement | null>;
 }
 
 const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps): React.ReactNode => !enabled2fa ? (

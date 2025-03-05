@@ -1188,7 +1188,7 @@ export class ResourceBrowser<T> {
             button.className = ButtonClass;
             button.style.height = opts?.height ?? "32px";
             button.style.width = opts?.width ?? "96px";
-            
+
             const color = opts?.color ?? "secondaryMain";
             button.style.setProperty("--bgColor", `var(--${color})`);
             button.style.setProperty("--hoverColor", `var(--${selectHoverColor(color)})`);
@@ -3473,7 +3473,7 @@ export function clearFilterStorageValue(namespace: string, key: string) {
 }
 
 export function addContextSwitcherInPortal<T>(
-    browserRef: React.RefObject<ResourceBrowser<T>>, setPortal: (el: React.ReactNode) => void,
+    browserRef: React.RefObject<ResourceBrowser<T> | null>, setPortal: (el: React.ReactNode) => void,
     managed?: {
         setLocalProject: (project: string | undefined) => void;
         initialProject?: string;
