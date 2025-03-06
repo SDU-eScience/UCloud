@@ -10,6 +10,9 @@ var devModeEnabled = func() bool {
 	if hostname == "go-slurm.ucloud" {
 		return true
 	}
+	if hostname == "gok8s" {
+		return true
+	}
 	return false
 }()
 
