@@ -1431,6 +1431,7 @@ export function FilePreview({initialFile}: {
     return <Editor
         apiRef={editorRef}
         onRequestSave={onSave}
+        promptSaveOnNavigate
         dirtyFileCountRef={dirtyFileCountRef}
         toolbarBeforeSettings={
             <>

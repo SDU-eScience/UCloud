@@ -25,6 +25,7 @@ import {useBeforeUnload} from "react-router-dom";
 import {RichSelect, RichSelectChildComponent, RichSelectProps} from "@/ui-components/RichSelect";
 import {initVimMode, VimMode} from "monaco-vim";
 import {addStandardDialog} from "@/UtilityComponents";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 export interface Vfs {
     isReal(): boolean;
@@ -384,7 +385,7 @@ export const Editor: React.FunctionComponent<{
     initialFolderPath: string;
     toolbarBeforeSettings?: React.ReactNode;
     toolbar?: React.ReactNode;
-    apiRef?: React.MutableRefObject<EditorApi | null>;
+    apiRef?: React.RefObject<EditorApi | null>;
     customContent?: React.ReactNode;
     showCustomContent?: boolean;
     onOpenFile?: (path: string, content: string | Uint8Array) => void;
@@ -392,10 +393,11 @@ export const Editor: React.FunctionComponent<{
     help?: React.ReactNode;
     fileHeaderOperations?: React.ReactNode;
     renamingFile?: string;
+    promptSaveOnNavigate?: boolean;
     onRename?: (args: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}) => Promise<boolean>;
     onRequestSave: (path: string) => Promise<void>;
     readOnly: boolean;
-    dirtyFileCountRef: React.MutableRefObject<number>;
+    dirtyFileCountRef: React.RefObject<number>;
 }> = props => {
 
     const help = props.help ?? <></>;
@@ -433,6 +435,37 @@ export const Editor: React.FunctionComponent<{
                 m.dispose();
             }
         }
+    }, []);
+
+    const dirtyFilesRef = useRef(dirtyFiles);
+    dirtyFilesRef.current = dirtyFiles;
+    React.useEffect(() => {
+        if (props.promptSaveOnNavigate) {
+            return () => {
+                if (dirtyFilesRef.current.size) {
+                    const pathsAndContent = [...dirtyFilesRef.current].map(it => ({path: it, content: getModelFromEditor(it)?.getValue()}));
+                    setTimeout(() => {
+                        addStandardDialog({
+                            title: "You have unsaved changes",
+                            message: "This will save contents of files: ".concat(pathsAndContent.map(it => fileName(it.path)).join(", ")),
+                            onConfirm() {
+                                for (const p of pathsAndContent) {
+                                    if (p.content == null) {
+                                        snackbarStore.addFailure(`${p.path} failed to save`, false);
+                                        continue;
+                                    }
+                                    props.vfs.setDirtyFileContent(p.path, p.content);
+                                    props.vfs.writeFile(p.path);
+                                }
+                            },
+                            confirmText: "Save changes",
+                            cancelText: "Dismiss changes"
+                        })
+                    }, 0);
+                }
+            }
+        }
+        return;
     }, []);
 
     const {showReleaseNoteIcon, onShowReleaseNotesShown} = useShowReleaseNoteIcon();
