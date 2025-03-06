@@ -69,6 +69,8 @@ func ModuleMain(oldModuleData []byte, args *im.ModuleArgs) {
 
 	ctrl.Init(args.ServerMultiplexer)
 	svc.Init(args)
+	ctrl.InitLate(args.ServerMultiplexer)
+	svc.InitLater(args)
 }
 
 func ModuleExit() []byte {

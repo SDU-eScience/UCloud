@@ -18,17 +18,6 @@ func InitCompute() ctrl.JobsService {
 	containerCpu = containers.Init()
 	virtCpu = kubevirt.Init()
 
-	go func() {
-		for util.IsAlive {
-			// TODO
-			// TODO Need to resubmit old in-queue entries to the queue
-			// TODO
-
-			loopMonitoring()
-			time.Sleep(100 * time.Millisecond)
-		}
-	}()
-
 	return ctrl.JobsService{
 		Submit:                   submit,
 		Terminate:                terminate,
@@ -48,6 +37,21 @@ func InitCompute() ctrl.JobsService {
 			RetrieveProducts: retrievePublicIpProducts,
 		},
 	}
+}
+
+func InitComputeLater() {
+	ctrl.ReconfigureAllIApps()
+
+	go func() {
+		for util.IsAlive {
+			// TODO
+			// TODO Need to resubmit old in-queue entries to the queue
+			// TODO
+
+			loopMonitoring()
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
 }
 
 func retrievePublicIpProducts() []orc.PublicIpSupport {
@@ -104,6 +108,11 @@ func backend(job *orc.Job) *ctrl.JobsService {
 }
 
 func submit(request ctrl.JobSubmitRequest) (util.Option[string], error) {
+	_, isIApp := ctrl.IntegratedApplications[request.JobToSubmit.Specification.Product.Category]
+	if isIApp {
+		return util.OptNone[string](), util.UserHttpError("This product does not allow job-submissions")
+	}
+
 	if reason := IsJobLocked(request.JobToSubmit); reason.Present {
 		return util.OptNone[string](), reason.Value.Err
 	}

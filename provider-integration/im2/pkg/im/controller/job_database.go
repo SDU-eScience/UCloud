@@ -100,6 +100,7 @@ func InitJobDatabase() {
 	fetchAllJobs(orc.JobStateRunning)
 
 	initIpDatabase()
+	log.Info("Job DB is ready")
 }
 
 func TrackNewJob(job orc.Job) {

@@ -245,15 +245,17 @@ func (s *Scheduler) RegisterJobInQueue(
 	submittedAt fnd.Timestamp,
 	jobLength orc.SimpleDuration,
 ) {
-	s.Queue = append(s.Queue, SchedulerQueueEntry{
-		JobId:               jobId,
-		SchedulerDimensions: dimensions,
-		Replicas:            replicas,
-		LastSeen:            s.Time,
-		Data:                data,
-		SubmittedAt:         submittedAt,
-		JobLength:           jobLength,
-	})
+	if len(s.JobReplicaEntries(jobId)) == 0 && !s.JobInQueue(jobId) {
+		s.Queue = append(s.Queue, SchedulerQueueEntry{
+			JobId:               jobId,
+			SchedulerDimensions: dimensions,
+			Replicas:            replicas,
+			LastSeen:            s.Time,
+			Data:                data,
+			SubmittedAt:         submittedAt,
+			JobLength:           jobLength,
+		})
+	}
 }
 
 func (s *Scheduler) UpdateTimeAllocation(jobId string, newJobLength orc.SimpleDuration) {
@@ -288,6 +290,29 @@ func (s *Scheduler) RemoveJobFromQueue(jobId string) bool {
 		}
 	}
 	return false
+}
+
+func (s *Scheduler) JobInQueue(jobId string) bool {
+	length := len(s.Queue)
+	for i := 0; i < length; i++ {
+		if s.Queue[i].JobId == jobId {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Scheduler) JobReplicaEntries(jobId string) []SchedulerReplicaEntry {
+	var result []SchedulerReplicaEntry
+	length := len(s.Replicas)
+	for i := 0; i < length; i++ {
+		replica := s.Replicas[i]
+		if replica.JobId == jobId {
+			result = append(result, replica)
+		}
+	}
+
+	return result
 }
 
 func (s *Scheduler) Schedule() []SchedulerReplicaEntry {

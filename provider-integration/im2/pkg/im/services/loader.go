@@ -22,3 +22,13 @@ func Init(args *im.ModuleArgs) {
 		gateway.SendMessage(gateway.ConfigurationMessage{LaunchingUserInstances: &ctrl.LaunchUserInstances})
 	}
 }
+
+func InitLater(args *im.ModuleArgs) {
+	slurmCfg := cfg.Services.Slurm()
+	k8sCfg := cfg.Services.Kubernetes()
+	if slurmCfg != nil {
+		slurm.InitLater(slurmCfg)
+	} else if k8sCfg != nil {
+		k8s.InitLater(k8sCfg)
+	}
+}

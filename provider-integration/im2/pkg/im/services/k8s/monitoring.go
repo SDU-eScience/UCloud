@@ -30,9 +30,14 @@ var nextAccounting time.Time
 var schedulers = map[string]*Scheduler{}
 
 func getScheduler(category string) (*Scheduler, bool) {
-	_, ok := shared.ServiceConfig.Compute.Machines[category]
-	if !ok {
-		return nil, false
+	_, isIApp := ctrl.IntegratedApplications[category]
+	if isIApp {
+		// TODO Ask the application about the scheduler.
+	} else {
+		_, ok := shared.ServiceConfig.Compute.Machines[category]
+		if !ok {
+			return nil, false
+		}
 	}
 
 	existing, ok := schedulers[category]
@@ -174,6 +179,17 @@ func loopMonitoring() {
 		nodeList := util.RetryOrPanic[*corev1.NodeList]("list k8s nodes", func() (*corev1.NodeList, error) {
 			return shared.K8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 		})
+
+		if util.DevelopmentModeEnabled() && len(nodeList.Items) == 1 {
+			baseNode := nodeList.Items[0]
+			nodeList.Items = []corev1.Node{baseNode}
+
+			if shared.ServiceConfig.Compute.Syncthing.Enabled {
+				syncthingNode := nodeList.Items[0]
+				syncthingNode.Labels["ucloud.dk/machine"] = "syncthing"
+				nodeList.Items = append(nodeList.Items, syncthingNode)
+			}
+		}
 
 		length := len(nodeList.Items)
 		for i := 0; i < length; i++ {

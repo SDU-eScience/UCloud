@@ -40,6 +40,9 @@ func Init() ctrl.JobsService {
 	_ = core.AddToScheme(scheme)
 	ExecCodec = runtime.NewParameterCodec(scheme)
 
+	initSyncthing()
+
+	loadIApps()
 	LoadNixModules()
 
 	return ctrl.JobsService{

@@ -55,6 +55,10 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	ctrl.RegisterProducts(shared.LicenseProducts)
 }
 
+func InitLater(config *cfg.ServicesConfigurationKubernetes) {
+	InitComputeLater()
+}
+
 type LockedReason struct {
 	Reason string
 	Err    error

@@ -18,6 +18,24 @@ import (
 )
 
 func StartScheduledJob(job *orc.Job, rank int, node string) error {
+	iappConfig := ctrl.RetrieveIAppByJobId(job.Id)
+	iappHandler := util.OptNone[ContainerIAppHandler]()
+	if iappConfig.Present {
+		jobCopy := *job
+
+		handler, ok := iapps[iappConfig.Value.AppName]
+		if !ok {
+			return fmt.Errorf("invalid iapp %s", iappConfig.Value.AppName)
+		}
+
+		iappHandler.Set(handler)
+		job = &jobCopy
+
+		if handler.MutateJobNonPersistent != nil {
+			handler.MutateJobNonPersistent(job, iappConfig.Value.Configuration)
+		}
+	}
+
 	jobFolder, drive, err := FindJobFolder(job)
 	if err != nil {
 		return fmt.Errorf("failed to initialize job folder")
@@ -98,6 +116,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 			Labels:      make(map[string]string),
 		},
 		Spec: core.PodSpec{},
+	}
+
+	if iappConfig.Present {
+		pod.Annotations[IAppAnnotationEtag] = iappConfig.Value.ETag
+		pod.Annotations[IAppAnnotationName] = iappConfig.Value.AppName
 	}
 
 	spec := &pod.Spec
@@ -266,6 +289,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		pod.Labels["ucloud.dk/workspaceId"] = job.Owner.Project
 	}
 
+	if iappHandler.Present && iappHandler.Value.MutatePod != nil {
+		err = iappHandler.Value.MutatePod(job, iappConfig.Value.Configuration, pod)
+		if err != nil {
+			// Block errors on pod, but we do not immediately block on the rest.
+			return err
+		}
+	}
+
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 	defer cancel()
 
@@ -282,11 +313,21 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	if firewall != nil && err == nil {
 		firewall.OwnerReferences = append(firewall.OwnerReferences, ownerReference)
 
+		if iappHandler.Present && iappHandler.Value.MutateNetworkPolicy != nil {
+			myError := iappHandler.Value.MutateNetworkPolicy(job, iappConfig.Value.Configuration, firewall)
+			err = util.MergeError(err, myError)
+		}
+
 		_, myError := K8sClient.NetworkingV1().NetworkPolicies(namespace).Create(ctx, firewall, meta.CreateOptions{})
 		err = util.MergeError(err, myError)
 	}
 	if service != nil && err == nil {
 		service.OwnerReferences = append(service.OwnerReferences, ownerReference)
+
+		if iappHandler.Present && iappHandler.Value.MutateService != nil {
+			myError := iappHandler.Value.MutateService(job, iappConfig.Value.Configuration, service)
+			err = util.MergeError(err, myError)
+		}
 
 		_, myError := K8sClient.CoreV1().Services(namespace).Create(ctx, service, meta.CreateOptions{})
 		err = util.MergeError(err, myError)

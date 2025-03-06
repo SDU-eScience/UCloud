@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
@@ -26,6 +27,9 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 		return
 	}
 
+	activeIApps := ctrl.RetrieveIAppsByJobId()
+	iappsHandled := map[string]util.Empty{}
+
 	length := len(allPods.Items)
 	for i := 0; i < length; i++ {
 		pod := &allPods.Items[i]
@@ -39,52 +43,121 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 		job, ok := jobs[idAndRank.First]
 		if !ok {
 			// This pod does not belong to an active job - delete it.
+			log.Info("Deleting job")
 			tracker.RequestCleanup(idAndRank.First)
 			continue
 		}
 
-		times := shared.ComputeRunningTime(job)
-		if times.TimeRemaining.Present && times.TimeRemaining.Value < 0 {
-			tracker.RequestCleanup(idAndRank.First)
+		iappName := util.OptMapGet(pod.Annotations, IAppAnnotationName)
+		iappEtag := util.OptMapGet(pod.Annotations, IAppAnnotationEtag)
+		if iappName.Present {
+			iappsHandled[job.Id] = util.Empty{}
+			iappConfig, iappOk := activeIApps[job.Id]
+			handler, handlerOk := iapps[iappName.Value]
+
+			shouldRun := handlerOk &&
+				iappOk &&
+				iappEtag.Present &&
+				handler.ShouldRun(job, iappConfig.Configuration) &&
+				iappEtag.Value == iappConfig.ETag
+
+			if !shouldRun {
+				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				_ = K8sClient.CoreV1().Pods(Namespace).Delete(ctx, pod.Name, meta.DeleteOptions{})
+				cancel()
+
+				log.Info("deleting iapp should not run %v %v %v %v", iappOk, iappEtag.Present, handler.ShouldRun(job, iappConfig.Configuration), iappEtag.Value, iappConfig.ETag)
+				tracker.TrackState(shared.JobReplicaState{
+					Id:    job.Id,
+					Rank:  0,
+					State: orc.JobStateSuspended,
+				})
+			} else {
+				state, status := podToStateAndStatus(pod)
+				if state.IsFinal() {
+					state = orc.JobStateSuspended
+				}
+
+				tracker.TrackState(shared.JobReplicaState{
+					Id:     job.Id,
+					Rank:   0,
+					State:  state,
+					Node:   util.OptValue(pod.Spec.NodeName),
+					Status: util.OptValue(status),
+				})
+			}
+		} else {
+			times := shared.ComputeRunningTime(job)
+			if times.TimeRemaining.Present && times.TimeRemaining.Value < 0 {
+				tracker.RequestCleanup(idAndRank.First)
+			}
+
+			state, status := podToStateAndStatus(pod)
+
+			if pod.ObjectMeta.DeletionTimestamp == nil {
+				// Do not track pods which have been deleted.
+
+				tracker.TrackState(shared.JobReplicaState{
+					Id:     idAndRank.First,
+					Rank:   idAndRank.Second,
+					State:  state,
+					Node:   util.OptValue(pod.Spec.NodeName),
+					Status: util.OptValue(status),
+				})
+			}
 		}
+	}
 
-		state := orc.JobStateFailure
-		status := "Unexpected state"
+	for jobId, iapp := range activeIApps {
+		_, handled := iappsHandled[jobId]
+		job, ok := jobs[jobId]
+		if !handled {
+			if ok {
+				handler, handlerOk := iapps[iapp.AppName]
+				if handlerOk {
+					if handler.ShouldRun(job, iapp.Configuration) {
+						// NOTE(Dan): The scheduler will ignore it if it is already in the queue/running.
+						shared.RequestSchedule(job)
+					}
+				}
+			}
 
-		switch pod.Status.Phase {
-		case core.PodPending:
-			state = orc.JobStateInQueue
-			status = "Job is currently in the queue"
-
-		case core.PodRunning:
-			state = orc.JobStateRunning
-			status = "Job is now running"
-
-		case core.PodSucceeded:
-			state = orc.JobStateSuccess
-			status = "Job has terminated"
-
-		case core.PodFailed:
-			state = orc.JobStateSuccess
-			status = "Job has terminated with a non-zero exit code"
-
-		case core.PodUnknown:
-			state = orc.JobStateFailure
-			status = "Job has failed due to an internal error (#1)"
-		}
-
-		if pod.ObjectMeta.DeletionTimestamp == nil {
-			// Do not track pods which have been deleted.
-
+			log.Info("in queue not handled")
 			tracker.TrackState(shared.JobReplicaState{
-				Id:     idAndRank.First,
-				Rank:   idAndRank.Second,
-				State:  state,
-				Node:   util.OptValue(pod.Spec.NodeName),
-				Status: util.OptValue(status),
+				Id:    jobId,
+				Rank:  0,
+				State: orc.JobStateInQueue,
 			})
 		}
 	}
+}
+
+func podToStateAndStatus(pod *core.Pod) (orc.JobState, string) {
+	state := orc.JobStateFailure
+	status := "Unexpected state"
+
+	switch pod.Status.Phase {
+	case core.PodPending:
+		state = orc.JobStateInQueue
+		status = "Job is currently in the queue"
+
+	case core.PodRunning:
+		state = orc.JobStateRunning
+		status = "Job is now running"
+
+	case core.PodSucceeded:
+		state = orc.JobStateSuccess
+		status = "Job has terminated"
+
+	case core.PodFailed:
+		state = orc.JobStateSuccess
+		status = "Job has terminated with a non-zero exit code"
+
+	case core.PodUnknown:
+		state = orc.JobStateFailure
+		status = "Job has failed due to an internal error (#1)"
+	}
+	return state, status
 }
 
 func OnStart(jobs []orc.Job) {
