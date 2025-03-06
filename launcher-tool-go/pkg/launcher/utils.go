@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -17,7 +18,7 @@ type StringPair struct {
 
 func SoftCheck(e error) {
 	if e != nil {
-		log.Println(e)
+		fmt.Println(e)
 	}
 }
 
@@ -28,8 +29,7 @@ func HardCheck(e error) {
 }
 
 func readLines(path string) []string {
-	inFile, err := os.Open(path)
-	HardCheck(err)
+	inFile, _ := os.Open(path)
 	r := bufio.NewReader(inFile)
 	bytes := []byte{}
 	lines := []string{}
@@ -72,7 +72,7 @@ func GenerateComposeFile(doWriteFile bool) {
 	var composeList = []ComposeService{
 		UCloudBackend{},
 		UCloudFrontend{},
-		GateWay{},
+		GateWay{false},
 	}
 
 	for _, provider := range providers {
@@ -81,7 +81,7 @@ func GenerateComposeFile(doWriteFile bool) {
 
 	Environment{
 		name:        filepath.Base(currentEnvironment.GetAbsolutePath()),
-		repoRoot:    currentEnvironment.Child("../../"),
+		repoRoot:    currentEnvironment.Child("../../", true),
 		doWriteFile: doWriteFile,
 	}.CreateComposeFile(
 		composeList,

@@ -2,7 +2,6 @@ package launcher
 
 import (
 	_ "embed"
-	"encoding/base64"
 	"fmt"
 	"log"
 	"os"
@@ -160,7 +159,7 @@ func (e Environment) CreateComposeFile(services []ComposeService) LFile {
 			absPath, _ := filepath.Abs(GetDataDirectory())
 
 			lfile := NewFile(absPath)
-			childFile := lfile.Child("docker-compose.yaml")
+			childFile := lfile.Child("docker-compose.yaml", false)
 			childFile.WriteText(cb.CreateComposeFile())
 			return err
 		},
@@ -214,11 +213,11 @@ type UCloudBackend struct{}
 
 func (uc UCloudBackend) Build(cb ComposeBuilder) {
 	dataDir := GetDataDirectory()
-	logs := NewFile(dataDir).Child("logs")
-	homeDir := NewFile(dataDir).Child("backend-home")
-	configDir := NewFile(dataDir).Child("backend-config")
-	gradleDir := NewFile(dataDir).Child("backend-gradle")
-	postgresDataDir := NewFile(dataDir).Child("pg-data")
+	logs := NewFile(dataDir).Child("logs", true)
+	homeDir := NewFile(dataDir).Child("backend-home", true)
+	configDir := NewFile(dataDir).Child("backend-config", true)
+	gradleDir := NewFile(dataDir).Child("backend-gradle", true)
+	postgresDataDir := NewFile(dataDir).Child("pg-data", true)
 
 	cb.Service(
 		"backend",
@@ -227,7 +226,7 @@ func (uc UCloudBackend) Build(cb ComposeBuilder) {
 			//language=json
 			`
 				{
-					"image": "$imDevImage",
+					"image": "` + imDevImage + `",
 					"command": ["sleep", "inf"],
 					"restart": "always",
 					"hostname": "backend",
@@ -314,7 +313,7 @@ func (uc UCloudBackend) Build(cb ComposeBuilder) {
 		`,
 	)
 
-	redisDataDir := NewFile(dataDir).Child("redis-data")
+	redisDataDir := NewFile(dataDir).Child("redis-data", true)
 	cb.Service(
 		"redis",
 		"UCloud/Core: Redis",
@@ -413,9 +412,9 @@ func (k Kubernetes) Addons() map[string]string {
 
 func (k Kubernetes) Build(cb ComposeBuilder) {
 	dataDir := GetDataDirectory()
-	k8Provider := NewFile(dataDir).Child("k8")
-	k3sDir := k8Provider.Child("k3s")
-	k3sOutput := k3sDir.Child("output")
+	k8Provider := NewFile(dataDir).Child("k8", true)
+	k3sDir := k8Provider.Child("k3s", true)
+	k3sOutput := k3sDir.Child("output", true)
 
 	k3sData := "k3sdata"
 	cb.volumes[k3sData] = k3sData
@@ -426,19 +425,19 @@ func (k Kubernetes) Build(cb ComposeBuilder) {
 	k3sEtc := "k3setcd"
 	cb.volumes[k3sEtc] = k3sEtc
 
-	imDir := k8Provider.Child("im")
-	imGradle := imDir.Child("gradle")
-	imData := imDir.Child("data")
-	imStorage := imDir.Child("storage")
-	imStorage.Child("home")
-	imStorage.Child("projects")
-	imStorage.Child("collections")
-	imLogs := NewFile(dataDir).Child("logs")
+	imDir := k8Provider.Child("im", true)
+	imGradle := imDir.Child("gradle", true)
+	imData := imDir.Child("data", true)
+	imStorage := imDir.Child("storage", true)
+	imStorage.Child("home", true)
+	imStorage.Child("projects", true)
+	imStorage.Child("collections", true)
+	imLogs := NewFile(dataDir).Child("logs", true)
 
-	passwdDir := imDir.Child("passwd")
-	passwdFile := passwdDir.Child("passwd")
-	groupFile := passwdDir.Child("group")
-	shadowFile := passwdDir.Child("shadow")
+	passwdDir := imDir.Child("passwd", true)
+	passwdFile := passwdDir.Child("passwd", false)
+	groupFile := passwdDir.Child("group", false)
+	shadowFile := passwdDir.Child("shadow", false)
 	passFileInfo, _ := os.Open(passwdFile.Name())
 
 	if passFileInfo != nil {
@@ -504,7 +503,7 @@ func (k Kubernetes) Build(cb ComposeBuilder) {
 			//language=json
 			`
 			{
-				"image": "$imDevImage",
+				"image": "` + imDevImage + `",
 				"command": ["sleep", "inf"],
 				"hostname": "k8",
 				"ports": ["` + strconv.Itoa(portAllocator.Allocate(51232)) + `:51232"],
@@ -552,17 +551,17 @@ func (k Kubernetes) Build(cb ComposeBuilder) {
 }
 
 func (k Kubernetes) Install(credentials ProviderCredentials) {
-	k8Provider := currentEnvironment.Child("k8")
-	imDir := k8Provider.Child("im")
-	imData := imDir.Child("data")
+	k8Provider := currentEnvironment.Child("k8", true)
+	imDir := k8Provider.Child("im", true)
+	imData := imDir.Child("data", true)
 
-	installMarker := imData.Child(".install-marker")
+	installMarker := imData.Child(".install-marker", false)
 	info, err := os.Stat(installMarker.Name())
 	HardCheck(err)
 	if info != nil {
 		return
 	}
-	imData.Child("core.yaml").WriteText(
+	imData.Child("core.yaml", false).WriteText(
 		//language=yaml
 		`
 			providerId: k8
@@ -582,10 +581,10 @@ func (k Kubernetes) Install(credentials ProviderCredentials) {
 				allowHosts: ["ucloud.localhost.direct"]
 	`)
 
-	imData.Child("server.yaml").WriteText(
+	imData.Child("server.yaml", false).WriteText(
 		//language=yaml
 		`
-			refreshToken: ${credentials.refreshToken}
+			refreshToken: ` + credentials.refreshToken + `
 			envoy:
 				executable: /usr/bin/envoy
 				funceWrapper: false
@@ -597,9 +596,9 @@ func (k Kubernetes) Install(credentials ProviderCredentials) {
 				password: postgrespassword
 	`)
 
-	imData.Child("ucloud_crt.pem").WriteText(credentials.publicKey)
+	imData.Child("ucloud_crt.pem", false).WriteText(credentials.publicKey)
 
-	imData.Child("products.yaml").WriteText(
+	imData.Child("products.yaml", false).WriteText(
 		//language=yaml
 		`
 			compute:
@@ -657,7 +656,7 @@ func (k Kubernetes) Install(credentials ProviderCredentials) {
 			`,
 	)
 
-	imData.Child("plugins.yaml").WriteText(
+	imData.Child("plugins.yaml", false).WriteText(
 		//language=yaml
 		`
 			connection:
@@ -885,9 +884,9 @@ func (g GoKubernetes) Addons() map[string]string {
 
 func (k GoKubernetes) Build(cb ComposeBuilder) {
 	dataDir := GetDataDirectory()
-	k8Provider := NewFile(dataDir).Child("im2k8")
-	k3sDir := k8Provider.Child("k3s")
-	k3sOutput := k3sDir.Child("output")
+	k8Provider := NewFile(dataDir).Child("im2k8", true)
+	k3sDir := k8Provider.Child("k3s", true)
+	k3sOutput := k3sDir.Child("output", true)
 
 	k3sData := "im2k3sdata"
 	cb.volumes[k3sData] = k3sData
@@ -898,13 +897,13 @@ func (k GoKubernetes) Build(cb ComposeBuilder) {
 	k3sEtc := "im2k3setcd"
 	cb.volumes[k3sEtc] = k3sEtc
 
-	imDir := k8Provider.Child("im")
-	imData := imDir.Child("data")
-	imStorage := imDir.Child("storage")
-	imStorage.Child("home")
-	imStorage.Child("projects")
-	imStorage.Child("collections")
-	imStorage.Child("trash")
+	imDir := k8Provider.Child("im", true)
+	imData := imDir.Child("data", true)
+	imStorage := imDir.Child("storage", true)
+	imStorage.Child("home", true)
+	imStorage.Child("projects", true)
+	imStorage.Child("collections", true)
+	imStorage.Child("trash", true)
 
 	cb.Service(
 		"im2k3",
@@ -948,10 +947,10 @@ func (k GoKubernetes) Build(cb ComposeBuilder) {
 			//language=json
 			`
 			{
-				"image": "$imDevImage",
+				"image": "` + imDevImage + `",
 				"command": ["sleep", "inf"],
 				"hostname": "gok8s",
-				"ports": ["${portAllocator.allocate(51240)}:51233"],
+				"ports": ["` + strconv.Itoa(portAllocator.Allocate(51240)) + `:51233"],
 				"volumes": [
 					"` + imData.GetAbsolutePath() + `:/etc/ucloud",
 					"` + k3sOutput.GetAbsolutePath() + `:/mnt/k3s",
@@ -969,7 +968,7 @@ func (k GoKubernetes) Build(cb ComposeBuilder) {
 		"",
 	)
 
-	postgresDataDir := cb.environment.repoRoot.Child("go-slurm-pg-data")
+	postgresDataDir := cb.environment.repoRoot.Child("go-slurm-pg-data", true)
 	cb.Service(
 		"go-k8s-postgres",
 		"Kubernetes (IM2): Postgres",
@@ -1003,11 +1002,11 @@ func (k GoKubernetes) Build(cb ComposeBuilder) {
 }
 
 func (k GoKubernetes) Install() {
-	k8Provider := currentEnvironment.Child("im2k8")
-	imDir := k8Provider.Child("im")
-	imData := imDir.Child("data")
+	k8Provider := currentEnvironment.Child("im2k8", true)
+	imDir := k8Provider.Child("im", true)
+	imData := imDir.Child("data", true)
 
-	installMarker := imData.Child(".install-marker")
+	installMarker := imData.Child(".install-marker", false)
 	if installMarker.Exists() {
 		return
 	}
@@ -1177,17 +1176,17 @@ func (s Slurm) Addons() map[string]string {
 
 func (s Slurm) Build(cb ComposeBuilder) {
 	dataDir := GetDataDirectory()
-	slurmProvider := NewFile(dataDir).Child("slurm")
+	slurmProvider := NewFile(dataDir).Child("slurm", true)
 
-	imDir := slurmProvider.Child("im")
-	imGradle := imDir.Child("gradle")
-	imData := imDir.Child("data")
-	imLogs := NewFile(dataDir).Child("logs")
+	imDir := slurmProvider.Child("im", true)
+	imGradle := imDir.Child("gradle", true)
+	imData := imDir.Child("data", true)
+	imLogs := NewFile(dataDir).Child("logs", true)
 
-	passwdDir := imDir.Child("passwd")
-	passwdFile := passwdDir.Child("passwd")
-	groupFile := passwdDir.Child("group")
-	shadowFile := passwdDir.Child("shadow")
+	passwdDir := imDir.Child("passwd", true)
+	passwdFile := passwdDir.Child("passwd", false)
+	groupFile := passwdDir.Child("group", false)
+	shadowFile := passwdDir.Child("shadow", false)
 	if passwdFile.Exists() {
 		passwdFile.WriteText("")
 		groupFile.WriteText("")
@@ -1206,7 +1205,7 @@ func (s Slurm) Build(cb ComposeBuilder) {
 			//language=json
 			`
 			{
-				"image": "$imDevImage",
+				"image": "` + imDevImage + `",
 				"command": ["sleep", "inf"],
 				"hostname": "slurm",
 				"volumes": [
@@ -1256,16 +1255,16 @@ func (s Slurm) Build(cb ComposeBuilder) {
 }
 
 func (s Slurm) Install(credentials ProviderCredentials) {
-	slurmProvider := currentEnvironment.Child("slurm")
-	imDir := slurmProvider.Child("im")
-	imData := imDir.Child("data")
+	slurmProvider := currentEnvironment.Child("slurm", true)
+	imDir := slurmProvider.Child("im", true)
+	imData := imDir.Child("data", true)
 
-	installMarker := imData.Child(".install-marker")
+	installMarker := imData.Child(".install-marker", false)
 	if installMarker.Exists() {
 		return
 	}
 
-	imData.Child("core.yaml").WriteText(
+	imData.Child("core.yaml", false).WriteText(
 		//language=yaml
 		`
 			providerId: slurm
@@ -1287,7 +1286,7 @@ func (s Slurm) Install(credentials ProviderCredentials) {
 		`,
 	)
 
-	imData.Child("server.yaml").WriteText(
+	imData.Child("server.yaml", false).WriteText(
 		//language=yaml
 		`
 			refreshToken: ` + credentials.refreshToken + `
@@ -1303,9 +1302,9 @@ func (s Slurm) Install(credentials ProviderCredentials) {
 		`,
 	)
 
-	imData.Child("ucloud_crt.pem").WriteText(credentials.publicKey)
+	imData.Child("ucloud_crt.pem", false).WriteText(credentials.publicKey)
 
-	imData.Child("products.yaml").WriteText(
+	imData.Child("products.yaml", false).WriteText(
 		//language=yaml
 		`
 			compute:
@@ -1330,7 +1329,7 @@ func (s Slurm) Install(credentials ProviderCredentials) {
 		`,
 	)
 
-	imData.Child("plugins.yaml").WriteText(
+	imData.Child("plugins.yaml", false).WriteText(
 		//language=yaml
 		`
 		connection:
@@ -1424,17 +1423,17 @@ func (g GoSlurm) Addons() map[string]string {
 
 func (gs GoSlurm) Build(cb ComposeBuilder) {
 	dataDir := GetDataDirectory()
-	provider := NewFile(dataDir).Child("go-slurm")
+	provider := NewFile(dataDir).Child("go-slurm", true)
 
-	imDir := provider.Child("im")
-	imGradle := imDir.Child("gradle")
-	imData := imDir.Child("data")
-	imLogs := NewFile(dataDir).Child("logs")
+	imDir := provider.Child("im", true)
+	imGradle := imDir.Child("gradle", true)
+	imData := imDir.Child("data", true)
+	imLogs := NewFile(dataDir).Child("logs", true)
 
-	passwdDir := imDir.Child("passwd")
-	passwdFile := passwdDir.Child("passwd")
-	groupFile := passwdFile.Child("group")
-	shadowFile := passwdFile.Child("shadow")
+	passwdDir := imDir.Child("passwd", true)
+	passwdFile := passwdDir.Child("passwd", false)
+	groupFile := passwdFile.Child("group", false)
+	shadowFile := passwdFile.Child("shadow", false)
 	if passwdFile.Exists() {
 		passwdFile.WriteText(
 			`
@@ -1467,7 +1466,7 @@ func (gs GoSlurm) Build(cb ComposeBuilder) {
 			//language=json
 			`
 			{
-				"image": "$imDevImage",
+				"image": "` + imDevImage + `",
 				"command": ["sleep", "inf"],
 				"hostname": "go-slurm.ucloud",
 				"init": true,
@@ -1503,7 +1502,7 @@ func (gs GoSlurm) Build(cb ComposeBuilder) {
 		"",
 	)
 
-	postgresDataDir := NewFile(dataDir).Child("go-slurm-pg-data")
+	postgresDataDir := NewFile(dataDir).Child("go-slurm-pg-data", true)
 
 	cb.Service(
 		"go-slurm-postgres",
@@ -1524,7 +1523,7 @@ func (gs GoSlurm) Build(cb ComposeBuilder) {
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/gonja:/opt/gonja"
 				],
 				"ports": [
-					"${portAllocator.allocate(51239)}:5432"
+					"` + strconv.Itoa(portAllocator.Allocate(51239)) + `:5432"
 				]
 			}
 			`,
@@ -1539,23 +1538,23 @@ func (gs GoSlurm) Build(cb ComposeBuilder) {
 
 func (gs GoSlurm) Install(credentials ProviderCredentials) {
 	dataDir := GetDataDirectory()
-	slurmProvider := NewFile(dataDir).Child("go-slurm")
-	imDir := slurmProvider.Child("im")
-	imDataDir := imDir.Child("data")
+	slurmProvider := NewFile(dataDir).Child("go-slurm", true)
+	imDir := slurmProvider.Child("im", true)
+	imDataDir := imDir.Child("data", true)
 
-	installMarker := imDataDir.Child(".install-marker")
+	installMarker := imDataDir.Child(".install-marker", false)
 	if installMarker.Exists() {
 		return
 	}
 
-	imDataDir.Child("server.yaml").WriteText(
+	imDataDir.Child("server.yaml", false).WriteText(
 		//language=yaml
 		`
 			refreshToken: ` + credentials.refreshToken + ` 
 		`,
 	)
 
-	imDataDir.Child("ucloud_crt.pem").WriteText(credentials.publicKey)
+	imDataDir.Child("ucloud_crt.pem", false).WriteText(credentials.publicKey)
 
 	SlurmInstall("go-slurm")
 
@@ -1720,40 +1719,25 @@ func (gs GoSlurm) StartAddon(addon string) {
 	}
 }
 
-type GateWay struct{}
-
-//go:embed tls.crt
-var crt []byte
-
-//go:embed tls.key
-var key []byte
+type GateWay struct {
+	didAppendInstall bool
+}
 
 func (gw GateWay) Build(cb ComposeBuilder) {
 	dataDir := GetDataDirectory()
-	gatewayDir := NewFile(dataDir).Child("gateway")
-	gatewayData := gatewayDir.Child("data")
-	certificates := gatewayDir.Child("certs")
+	gatewayDir := NewFile(dataDir).Child("gateway", true)
+	gatewayData := gatewayDir.Child("data", true)
+	certificates := gatewayDir.Child("certs", true)
 
-	var decodeCrt = make([]byte, len(crt)+1000)
-	_, err := base64.StdEncoding.Decode(decodeCrt, crt)
-	HardCheck(err)
+	certFile := certificates.Child("tls.crt", false)
+	keyFile := certificates.Child("tls.key", false)
 
-	crtString := string(decodeCrt)
-	crtWithoutReturn := strings.Replace(crtString, "\r", "", -1)
-	formattedCrt := strings.Replace(crtWithoutReturn, "\n", "", -1)
+	if (!certFile.Exists() || !keyFile.Exists()) && !gw.didAppendInstall {
+		gw.didAppendInstall = true
+		PostExecFile.WriteString("\n./launcher install-certs\n\n")
+	}
 
-	var decodeKey = make([]byte, len(key)+1000)
-	_, err = base64.StdEncoding.Decode(decodeKey, key)
-	HardCheck(err)
-
-	keyString := string(decodeKey)
-	keyWithoutReturn := strings.Replace(keyString, "\r", "", -1)
-	formattedKey := strings.Replace(keyWithoutReturn, "\n", "", -1)
-
-	certificates.Child("tls.crt").WriteBytes([]byte(formattedCrt))
-	certificates.Child("tls.key").WriteBytes([]byte(formattedKey))
-
-	gatewayConfig := gatewayDir.Child("Caddyfile")
+	gatewayConfig := gatewayDir.Child("Caddyfile", false)
 	gatewayConfig.WriteText(
 		`
 			{
@@ -1812,6 +1796,10 @@ func (gw GateWay) Build(cb ComposeBuilder) {
 
 			https://slurm-pg.localhost.direct {
 				reverse_proxy slurmpgweb:8081
+			}
+
+		  	https://go-k8s-metrics.localhost.direct {
+				reverse_proxy gok8s:7867
 			}
 
 			https://ipa.localhost.direct {
@@ -1897,8 +1885,8 @@ type SlurmInfo struct {
 }
 
 func SlurmBuild(cb ComposeBuilder, service ComposeService, imDir LFile) SlurmInfo {
-	imHome := imDir.Child("home")
-	imWork := imDir.Child("work")
+	imHome := imDir.Child("home", true)
+	imWork := imDir.Child("work", true)
 	imMySQLDb := "immysql"
 	cb.volumes[imMySQLDb] = imMySQLDb
 	etcMunge := "etc_munge"
@@ -1908,10 +1896,10 @@ func SlurmBuild(cb ComposeBuilder, service ComposeService, imDir LFile) SlurmInf
 	logSlurm := "log_slurm"
 	cb.volumes[logSlurm] = logSlurm
 
-	passwdDir := imDir.Child("passwd")
-	passwdFile := passwdDir.Child("passwd")
-	groupFile := passwdDir.Child("group")
-	shadowFile := passwdDir.Child("shadow")
+	passwdDir := imDir.Child("passwd", true)
+	passwdFile := passwdDir.Child("passwd", false)
+	groupFile := passwdDir.Child("group", false)
+	shadowFile := passwdDir.Child("shadow", false)
 
 	if !passwdFile.Exists() {
 		passwdFile.WriteText("")
@@ -2018,7 +2006,7 @@ func SlurmBuild(cb ComposeBuilder, service ComposeService, imDir LFile) SlurmInf
 		for id := range v.numberOfSlurmNodes {
 			cb.Service(
 				"c"+strconv.Itoa(id),
-				"Slurm Provider: Compute node $id",
+				"Slurm Provider: Compute node "+strconv.Itoa(id),
 				Json{
 					//language=json
 					`

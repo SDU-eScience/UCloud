@@ -116,7 +116,7 @@ func (r RemoteFile) Exists() bool {
 	panic("implement me before use")
 }
 
-func (r RemoteFile) Child(subPath string) LFile {
+func (r RemoteFile) Child(subPath string, isDir bool) LFile {
 	return NewFile(r.path + "/" + subPath)
 }
 

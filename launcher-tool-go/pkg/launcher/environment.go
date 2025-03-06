@@ -25,6 +25,14 @@ var portAllocator PortAllocator
 var composeName string
 var repoRoot LocalFile
 
+func SetRepoRoot(path string) {
+	repoRoot = LocalFile{path}
+}
+
+func GetRepoRoot() LocalFile {
+	return repoRoot
+}
+
 func GetEnvironmentIsRemote() bool {
 	return environmentIsRemote
 }
@@ -93,6 +101,29 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 		}
 	}
 
+	var newEnvironment string
+	for {
+		var env string
+		if initTest {
+			env = "test"
+		} else {
+			env = termio.TextPrompt("Select a name for your environment", "default")
+		}
+		if slices.Contains(blacklistedEnvNames, env) {
+			fmt.Println("Illegal name. Try a different one.")
+			continue
+		}
+
+		_, err := os.Stat(filepath.Join(repoRoot.GetAbsolutePath(), ".compose", env))
+		if err == nil {
+			fmt.Println("This environment already exists. Please try a different name.")
+			continue
+		}
+		newEnvironment = env
+		break
+	}
+	var operator termio.MenuItem
+
 	local := termio.MenuItem{
 		Value:   "local",
 		Message: "Local environment on this machine",
@@ -108,32 +139,12 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 		Items:  []termio.MenuItem{local, remote},
 	}
 
-	var newEnvironment string
-	for {
-		var env string
-		if initTest {
-			env = "test"
-		} else {
-			env = termio.TextPrompt("Select a name for your environment", "default")
-		}
-		if slices.Contains(blacklistedEnvNames, env) {
-			fmt.Println("Illegal name. Try a different one.")
-			continue
-		}
-		_, err := os.Stat(repoRoot.GetAbsolutePath())
-		if err == nil {
-			fmt.Println("This environment already exists. Please try a different name.")
-			continue
-		}
-		newEnvironment = env
-		break
-	}
-	var operator termio.MenuItem
 	if initTest {
 		operator = local
 	} else {
-		prompt := localOrRemoteMenu.Prompt
-		if prompt == local.Value {
+		item, err := localOrRemoteMenu.SelectSingle()
+		HardCheck(err)
+		if item.Value == local.Value {
 			operator = local
 		} else {
 			operator = remote
@@ -149,12 +160,13 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 			fmt.Println("- Your user must be in the docker group and be able to issue docker commands without sudo")
 			fmt.Println()
 
-			path := repoRoot.GetAbsolutePath() + ".compose"
+			path := filepath.Join(repoRoot.GetAbsolutePath(), ".compose", newEnvironment)
+			println("NAJKALFJAKL " + path)
 			env := NewFile(path)
 			env.MkDirs()
 
 			currentEnvironment = env
-			_, err = os.Stat(env.GetAbsolutePath() + "remote")
+			_, err = os.Stat(filepath.Join(env.GetAbsolutePath(), "remote"))
 			environmentIsRemote = err == nil
 
 			return filepath.Base(newEnvironment)
@@ -181,7 +193,7 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 			currentEnvironment = env
 			environmentIsRemote = true
 
-			env.Child("remote").WriteText(username + "@" + hostname)
+			env.Child("remote", false).WriteText(username + "@" + hostname)
 			return filepath.Base(newEnvironment)
 		}
 	default:
@@ -201,8 +213,11 @@ func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string
 		HardCheck(os.Mkdir(baseDir, os.ModeDir))
 	}
 
+	_, err := os.OpenFile(filepath.Join(baseDir, "current.txt"),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	currentText, err := os.ReadFile(filepath.Join(baseDir, "current.txt"))
 	HardCheck(err)
+
 	currentEnvironmentName := string(currentText)
 	var currentIsRemote bool
 	if currentEnvironmentName != "" {
@@ -225,15 +240,15 @@ func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string
 
 	if env == nil {
 		fmt.Println(`
-			No active environment detected!
+No active environment detected!
 
-			An environment is a complete installation of UCloud. It contains all the files and software required to
-		run UCloud. You can have multiple environments, all identified by a name, but only one environment
-		running at any given time.
+An environment is a complete installation of UCloud. It contains all the files and software required to
+run UCloud. You can have multiple environments, all identified by a name, but only one environment
+running at any given time.
 
-			In the next step, we will ask you to select a name for your environment. The name doesn't have any
-			meaning and you can simply choose the default by pressing enter.
-			`,
+In the next step, we will ask you to select a name for your environment. The name doesn't have any
+meaning and you can simply choose the default by pressing enter.
+		`,
 		)
 		fmt.Println()
 		SelectOrCreateEnvironment(baseDir, shouldInitializeTestEnvironment)
@@ -275,7 +290,7 @@ func InitIO(isNew bool) {
 		if isNew {
 			SyncRepository()
 		}
-		remoteEnvironment := remoteRepoRoot.Child(".compose/" + currentEnvironment.Name())
+		remoteEnvironment := remoteRepoRoot.Child(".compose/"+currentEnvironment.Name(), true)
 		portAllocator = Remapped{
 			portAllocator:  0,
 			allocatedPorts: nil,

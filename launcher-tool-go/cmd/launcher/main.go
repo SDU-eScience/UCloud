@@ -14,7 +14,7 @@ import (
 	"ucloud.dk/launcher/pkg/termio"
 )
 
-var repoRoot string
+var repoRootPath string
 var isHeadLess bool = false
 
 func regexpCheck(s string) bool {
@@ -37,14 +37,15 @@ func main() {
 	}
 
 	if _, err := os.Stat(".git"); err == nil {
-		repoRoot, _ = filepath.Abs(".")
+		repoRootPath, _ = filepath.Abs(".")
 	} else if _, e := os.Stat("../.git"); e == nil {
-		repoRoot, _ = filepath.Abs("..")
+		repoRootPath, _ = filepath.Abs("..")
 	} else {
 		log.Fatal("Unable to determine repository root. Please run this script from the root of the repository.")
 	}
 
-	versionFile, err := os.Open(repoRoot + "/backend/version.txt")
+	versionFile, err := os.Open(repoRootPath + "/backend/version.txt")
+	launcher.SetRepoRoot(repoRootPath)
 	launcher.HardCheck(err)
 
 	scanner := bufio.NewScanner(versionFile)
@@ -67,13 +68,14 @@ func main() {
 	isHeadLess = shouldInitializeTestEnvironment || (slices.Contains(args, "env") && slices.Contains(args, "delete")) ||
 		(slices.Contains(args, "snapshot") && (slices.IndexFunc(args, regexpCheck) != -1))
 
-	composeDir := filepath.Join(repoRoot, ".compose")
+	composeDir := filepath.Join(repoRootPath, ".compose")
 	shouldStart := launcher.InitCurrentEnvironment(shouldInitializeTestEnvironment, composeDir).ShouldStartEnvironment
 
 	compose := launcher.FindCompose()
 	launcher.SetCompose(compose)
 
 	returnedStringPair := compose.Ps(launcher.GetCurrentEnvironment()).ExecuteToText()
+
 	psText := returnedStringPair.First
 	failureText := returnedStringPair.Second
 	if psText == "" && !shouldStart {
@@ -103,7 +105,7 @@ func main() {
 	if shouldStart || len(psLines) <= 1 {
 		launcher.GenerateComposeFile(true)
 		answer, err := termio.ConfirmPrompt(
-			"The environment "+launcher.GetCurrentEnvironment().Name()+"is not running. Do you want to start it?",
+			"The environment "+launcher.GetCurrentEnvironment().Name()+" is not running. Do you want to start it?",
 			termio.ConfirmValueTrue,
 			0,
 		)
@@ -166,6 +168,21 @@ func main() {
 			commands.PortForward()
 		}
 
+	case "write-certs":
+		{
+			if len(args) > 1 {
+				if args[1] != "" {
+					commands.WriteCerts(args[1])
+				} else {
+					launcher.PrintHelp()
+				}
+			}
+		}
+
+	case "install-certs":
+		{
+			commands.InstallCerts()
+		}
 	case "Open user-interface...":
 		{
 			launcher.InitializeServiceList()
@@ -291,7 +308,7 @@ func main() {
 					basePath := filepath.Join(launcher.GetCurrentEnvironment().GetAbsolutePath(), ".compose")
 					env := launcher.SelectOrCreateEnvironment(basePath, false)
 					launcher.InitIO(true)
-					launcher.GetCurrentEnvironment().Child("..").Child(env)
+					launcher.GetCurrentEnvironment().Child("..", true).Child(env, true)
 					err := os.WriteFile(filepath.Join(basePath, "current.txt"), []byte(env), 664)
 					launcher.HardCheck(err)
 				}

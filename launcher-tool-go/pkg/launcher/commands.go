@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,6 +15,65 @@ import (
 var PostExecFile *os.File
 
 type Commands struct {
+}
+
+func (c Commands) WriteCerts(localPath string) {
+	gw := currentEnvironment
+	gw.MkDirs()
+	gateway := gw.Child("gateway", true)
+	gateway.MkDirs()
+	gateway.Child("certs", true).MkDirs()
+
+	_, err := os.OpenFile(filepath.Join(localPath, "mkcert"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0755)
+	SoftCheck(err)
+
+	keyFile, err := os.OpenFile(filepath.Join(localPath, "mkcert", "tls.key"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	HardCheck(err)
+	scanner := bufio.NewScanner(keyFile)
+	scanner.Scan()
+	key := scanner.Text()
+	gw.Child("tls.key", false).WriteText(key)
+
+	certFile, err := os.OpenFile(filepath.Join(localPath, "mkcert", "tls.crt"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	HardCheck(err)
+	scanner = bufio.NewScanner(certFile)
+	scanner.Scan()
+	cert := scanner.Text()
+	gw.Child("tls.crt", false).WriteText(cert)
+	os.Exit(0)
+}
+
+func (c Commands) InstallCerts() {
+	postef, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	HardCheck(err)
+	postef.WriteString(
+		`
+			HERE=${"$"}PWD
+                TEMP_DIR=${'$'}(mktemp -d)
+                cd ${"$"}TEMP_DIR
+                
+                echo;
+                echo;
+                echo;
+                echo "This command will install a root certificate required for local development. You will be prompted for your local sudo password during the installation."
+                echo "This process has several dependencies. See https://github.com/FiloSottile/mkcert for more information."
+                echo;
+                echo;
+                echo;
+                sleep 2;
+                
+                git clone https://github.com/FiloSottile/mkcert && cd mkcert
+                git checkout v1.4.4
+                go build -ldflags "-X main.Version=${'$'}(git describe --tags)"
+                ./mkcert localhost.direct "*.localhost.direct"
+                ./mkcert -install
+                mv *key.pem tls.key
+                mv *.pem tls.crt
+                
+                cd ${"$"}HERE
+                ./launcher write-certs ${"$"}TEMP_DIR
+		`,
+	)
 }
 
 func (c Commands) PortForward() {

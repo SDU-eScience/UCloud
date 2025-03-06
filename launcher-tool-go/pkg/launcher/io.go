@@ -7,7 +7,7 @@ import (
 type LFile interface {
 	GetAbsolutePath() string
 	Exists() bool
-	Child(subPath string) LFile
+	Child(subPath string, isDir bool) LFile
 	WriteText(text string)
 	WriteBytes(bytes []byte)
 	AppendText(text string)

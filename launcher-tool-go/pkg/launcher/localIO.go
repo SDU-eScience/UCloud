@@ -6,11 +6,12 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
+	"ucloud.dk/launcher/pkg/termio"
 )
 
 type LocalFile struct {
@@ -37,14 +38,21 @@ func (lf LocalFile) Exists() bool {
 	}
 }
 
-func (lf LocalFile) Child(subPath string) LFile {
-	var file *os.File
-	file, err := os.Open(lf.GetAbsolutePath() + subPath)
-	if err != nil {
-		file, err = os.Create(filepath.Join(lf.GetAbsolutePath(), subPath))
+func (lf LocalFile) Child(subPath string, isDir bool) LFile {
+	if isDir {
+		err := os.MkdirAll(filepath.Join(lf.path, subPath), 0755)
 		HardCheck(err)
+		file, err := os.Open(filepath.Join(lf.path, subPath))
+		HardCheck(err)
+		return NewLocalFile(file.Name())
+	} else {
+		file, err := os.Open(filepath.Join(lf.path, subPath))
+		if err != nil {
+			file, err = os.Create(filepath.Join(lf.path, subPath))
+			HardCheck(err)
+		}
+		return NewLocalFile(file.Name())
 	}
-	return NewLocalFile(file.Name())
 }
 
 func (lf LocalFile) WriteBytes(bytes []byte) {
@@ -77,7 +85,7 @@ func (lf LocalFile) Delete() {
 }
 
 func (lf LocalFile) MkDirs() {
-	err := os.MkdirAll(lf.path, 0644)
+	err := os.MkdirAll(lf.path, 0755)
 	HardCheck(err)
 }
 
@@ -154,50 +162,62 @@ func (l LocalExecutableCommand) ExecuteToText() StringPair {
 
 	deadline := time.Now().UnixMilli() + l.deadlineInMillis
 
-	//TODO(PROCESS BUILDER)
-	var procAttr = os.ProcAttr{
-		Dir:   "",
-		Env:   nil,
-		Files: nil,
-		Sys:   nil,
-	}
-
+	dir := ""
 	if l.workingDir != nil {
-		procAttr.Dir = l.workingDir.GetAbsolutePath()
+		dir = l.workingDir.GetAbsolutePath()
 	}
-	procAttr.Files = []*os.File{os.Stdin, os.Stdout, os.Stderr}
 
-	proc, err := os.StartProcess(l.args[0], l.args[1:], &procAttr)
-	HardCheck(err)
+	cmd := exec.Command(l.args[0], l.args[1:]...)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	err := cmd.Run()
+	SoftCheck(err)
 
-	err = os.Stdout.Close()
-	HardCheck(err)
-	outputReader := bufio.NewReader(os.Stdin)
+	/*outputReader := bufio.NewReader(os.Stdin)
 	errorReader := bufio.NewReader(os.Stderr)
-
+	*/
 	outputBuilder := &strings.Builder{}
 	errBuilder := &strings.Builder{}
 
-	var wg sync.WaitGroup
+	//TODO
+	go func() {
+		for time.Now().UnixMilli() < deadline {
 
-	wg.Add(1)
-	go logBuilderThread(outputReader, outputBuilder, deadline)
-	wg.Add(1)
-	go logBuilderThread(errorReader, errBuilder, deadline)
-	wg.Wait()
+			line := "YES" //, err := outputReader.ReadBytes('\n')
+			/*if err != nil {
+				if err == io.EOF {
+					break
+				} else {
+					panic(err)
+				}
+			}*/
+			if l.streamOutput == true {
+				termio.WriteLine(string(line))
+			}
+			outputBuilder.Write([]byte(line))
+		}
+	}()
 
-	err = os.Stdout.Close()
-	SoftCheck(err)
-	err = os.Stderr.Close()
-	SoftCheck(err)
-	procStat, err := proc.Wait()
-	SoftCheck(err)
-	if !procStat.Exited() {
-		err = proc.Kill()
-		SoftCheck(err)
-	}
-	exitCode := procStat.ExitCode()
+	go func() {
+		for time.Now().UnixMilli() < deadline {
+			line := "NOPE" //, err := errorReader.ReadBytes('\n')
+			/*if err != nil {
+				if err == io.EOF {
+					break
+				} else {
+					panic(err)
+				}
+			}*/
+			if l.streamOutput == true {
+				termio.WriteLine(string(line))
+			}
+			errBuilder.Write([]byte(line))
+		}
+	}()
 
+	exitCode := cmd.ProcessState.ExitCode()
 	if DebugCommandsGiven() {
 		fmt.Println("  Exit code ", strconv.Itoa(exitCode))
 		fmt.Println("  Stdout ", outputBuilder.String())
