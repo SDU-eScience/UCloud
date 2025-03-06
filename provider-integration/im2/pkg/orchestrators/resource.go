@@ -45,6 +45,22 @@ type AclEntity struct {
 	Username  string        `json:"username,omitempty"`
 }
 
+func PermissionsAdd(list []Permission, toAdd Permission) []Permission {
+	result := list
+	found := false
+	for _, perm := range list {
+		if perm == toAdd {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		result = append(result, toAdd)
+	}
+	return result
+}
+
 type AclEntityType string
 
 const (

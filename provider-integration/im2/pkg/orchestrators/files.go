@@ -175,7 +175,7 @@ func RetrieveDrive(driveId string) (Drive, error) {
 		driveCtrlNamespace+"retrieve",
 		driveCtrlContext,
 		"",
-		[]string{"id", driveId},
+		[]string{"id", driveId, "includeOthers", "true"},
 	)
 }
 

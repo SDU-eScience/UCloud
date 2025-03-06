@@ -21,7 +21,6 @@ import (
 // The drive database does not reliably track all properties. These properties should never be used for anything but
 // CLI tools as they might be out-of-date. Namely, the following properties are _not_ tracked reliably:
 //
-// - Permissions (should always be enforced by UCloud/Core)
 // - Changes to product (should not happen)
 // - Updates (should not be used)
 // - Changes in timestamps (IM generally has no use for these)
