@@ -499,7 +499,7 @@ abstract class ResourceService<
                                 if (requireAdminForCreate) listOf(Permission.ADMIN) else listOf(Permission.EDIT),
                                 ctx = session,
                                 includeUnconfirmed = true,
-                                simpleFlags = SimpleResourceIncludeFlags(includeSupport = true)
+                                simpleFlags = SimpleResourceIncludeFlags(includeSupport = true, includeOthers = true)
                             )
                         )
                     }
@@ -602,7 +602,7 @@ abstract class ResourceService<
                         request: BulkRequest<UpdatedAcl>
                     ): List<RequestWithRefOrResource<UpdatedAcl, Res>> {
                         return request.items.zip(
-                            retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.ADMIN))
+                            retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.ADMIN), simpleFlags = SimpleResourceIncludeFlags(includeOthers = true))
                                 .map { ProductRefOrResource.SomeResource(it) }
                         )
                     }
@@ -783,7 +783,7 @@ abstract class ResourceService<
                         request: BulkRequest<FindByStringId>
                     ): List<RequestWithRefOrResource<FindByStringId, Res>> {
                         return request.items.zip(
-                            retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.EDIT))
+                            retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.EDIT), simpleFlags = SimpleResourceIncludeFlags(includeOthers = true))
                                 .map { ProductRefOrResource.SomeResource(it) }
                         )
                     }
