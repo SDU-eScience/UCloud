@@ -108,6 +108,7 @@ func InitJobDatabase() {
 			var jobsInQueue float64 = 0
 			var jobsSuspended float64 = 0
 
+			activeJobsMutex.Lock()
 			for _, job := range activeJobs {
 				switch job.Status.State {
 				case orc.JobStateRunning:
@@ -118,6 +119,7 @@ func InitJobDatabase() {
 					jobsSuspended++
 				}
 			}
+			activeJobsMutex.Unlock()
 
 			metricJobsRunning.Set(jobsRunning)
 			metricJobsInQueue.Set(jobsInQueue)
