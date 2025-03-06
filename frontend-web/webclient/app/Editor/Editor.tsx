@@ -481,7 +481,8 @@ export const Editor: React.FunctionComponent<{
     const engineRef = useRef<EditorEngine>("monaco");
     const stateRef = useRef<EditorState>(null);
     const tree = useRef<TreeApi | null>(null);
-    const [, setVimModeObject] = useState<any /* vimAdapter */>(null);
+    const [vimMode, setVimModeObject] = useState<any /* vimAdapter */>(null);
+
     const editorRef = useRef<IStandaloneCodeEditor | null>(null);
     const showingCustomContent = useRef<boolean>(props.showCustomContent === true);
 
@@ -771,8 +772,19 @@ export const Editor: React.FunctionComponent<{
         const vimEnabled = getEditorOption("vim") === true;
         if (vimEnabled) {
             setVimModeObject(initVimMode(editor, getStatusBarElement()));
+
         }
     }, [monacoInstance]);
+
+    React.useEffect(() => {
+        if (vimMode) {
+            vimMode.listeners["vim-keypress"].push(() => {
+                if (!allowEditing() && editor) {
+                    allowEditDialog(editor);
+                }
+            });
+        }
+    }, [vimMode]);
 
     useLayoutEffect(() => {
         // NOTE(Dan): This timer is needed to make sure that if the file opens faster than the engine can initialize
@@ -1000,15 +1012,6 @@ export const Editor: React.FunctionComponent<{
         }
 
         invalidateTree(props.initialFolderPath);
-    }, []);
-
-    const fullRenderSelectedSyntax = useCallback((p: RichSelectProps<{
-        language: string;
-        displayName: string;
-    }>) => {
-        return <Flex key={p.element?.language} borderRight={"1px solid var(--borderColor)"} borderLeft={"1px solid var(--borderColor)"} height="32px" width="180px">
-            <LanguageItem key={p.element?.language} {...p} /><Icon mr="6px" ml="auto" mt="8px" size="14px" name="chevronDownLight" />
-        </Flex>
     }, []);
 
     const setModelLanguage = React.useCallback((element: {
@@ -1703,17 +1706,21 @@ function useShowReleaseNoteIcon() {
 
 function setReadonlyWarning(editor: IStandaloneCodeEditor) {
     editor.onDidAttemptReadOnlyEdit(e => {
-        addStandardDialog({
-            title: "Enable editing?",
-            message: "Editing files is disabled. This can be changed later in settings. Enable?",
-            confirmText: "Enable",
-            onConfirm() {
-                editor.updateOptions({readOnly: false});
-                setAllowEditing(true.toString());
-            },
-            cancelText: "Dismiss",
-            addToFront: true,
-        });
+        allowEditDialog(editor);
+    });
+}
+
+function allowEditDialog(editor: IStandaloneCodeEditor) {
+    addStandardDialog({
+        title: "Enable editing?",
+        message: "Editing files is disabled. This can be changed later in settings. Enable?",
+        confirmText: "Enable",
+        onConfirm() {
+            editor.updateOptions({readOnly: false});
+            setAllowEditing(true.toString());
+        },
+        cancelText: "Dismiss",
+        addToFront: true,
     });
 }
 
