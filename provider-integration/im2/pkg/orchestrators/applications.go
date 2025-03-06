@@ -466,15 +466,15 @@ func ApplicationParameterReadme(readme string) ApplicationParameter {
 // AppParameterValue
 
 type AppParameterValue struct {
-	Type          AppParameterValueType
-	Path          string
-	ReadOnly      bool
-	Value         any
-	Hostname      string
-	JobId         string
-	Id            string
-	Specification WorkflowSpecification
-	Modules       []string
+	Type          AppParameterValueType `json:"type"`
+	Path          string                `json:"path,omitempty"`
+	ReadOnly      bool                  `json:"readOnly,omitempty"`
+	Value         any                   `json:"value,omitempty"`
+	Hostname      string                `json:"hostname,omitempty"`
+	JobId         string                `json:"jobId,omitempty"`
+	Id            string                `json:"id,omitempty"`
+	Specification WorkflowSpecification `json:"specification"`
+	Modules       []string              `json:"modules,omitempty"`
 }
 
 type AppParameterValueType string
@@ -571,4 +571,20 @@ func AppParameterValueIngress(id string) AppParameterValue {
 		Type: AppParameterValueTypeIngress,
 		Id:   id,
 	}
+}
+
+func InvocationWord(word string) InvocationParameter {
+	result := InvocationParameter{}
+	result.Type = InvocationParameterTypeWord
+	result.Word = word
+	return result
+}
+
+func InvocationVar(varName string) InvocationParameter {
+	result := InvocationParameter{}
+	result.Type = InvocationParameterTypeVar
+	result.InvocationParameterVar = InvocationParameterVar{
+		VariableNames: []string{varName},
+	}
+	return result
 }
