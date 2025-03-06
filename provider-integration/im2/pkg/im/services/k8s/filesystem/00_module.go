@@ -1179,6 +1179,7 @@ func createShare(share orc.Share) (driveId string, err error) {
 // This is legacy functionality, and thus only implemented for backwards compatibility.
 func getInheritedSensitivity(drive *orc.Drive, internalPath string) util.Option[string] {
 	ucloudPath, ok := InternalToUCloudWithDrive(drive, internalPath)
+	validSensitivity := []string{"CONFIDENTIAL", "SENSITIVE", "PRIVATE"}
 
 	if !ok {
 		return util.OptNone[string]()
@@ -1216,9 +1217,11 @@ func getInheritedSensitivity(drive *orc.Drive, internalPath string) util.Option[
 			continue
 		}
 
-		value := string(buffer[:count])
-		if value != "" && strings.ToLower(value) != "inherit" {
-			result = value
+		value := strings.ToUpper(string(buffer[:count]))
+		if value != "" {
+			if slices.Contains(validSensitivity, value) {
+				result = value
+			}
 		}
 	}
 
