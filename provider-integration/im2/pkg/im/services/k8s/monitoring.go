@@ -6,6 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"maps"
 	"slices"
 	"time"
 	"ucloud.dk/pkg/apm"
@@ -182,10 +183,19 @@ func loopMonitoring() {
 
 		if util.DevelopmentModeEnabled() && len(nodeList.Items) == 1 {
 			baseNode := nodeList.Items[0]
-			nodeList.Items = []corev1.Node{baseNode}
+			nodeList.Items = []corev1.Node{}
+
+			for category, _ := range shared.ServiceConfig.Compute.Machines {
+				normalMachine := baseNode
+				normalMachine.Labels = maps.Clone(normalMachine.Labels)
+				normalMachine.Labels["ucloud.dk/machine"] = category
+				nodeList.Items = append(nodeList.Items, normalMachine)
+				break
+			}
 
 			if shared.ServiceConfig.Compute.Syncthing.Enabled {
 				syncthingNode := nodeList.Items[0]
+				syncthingNode.Labels = maps.Clone(syncthingNode.Labels)
 				syncthingNode.Labels["ucloud.dk/machine"] = "syncthing"
 				nodeList.Items = append(nodeList.Items, syncthingNode)
 			}

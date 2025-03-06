@@ -115,7 +115,7 @@ func HandleScriptGen() {
 		)
 	}
 
-	output = "#!/usr/bin/env sh\n" + output
+	output = "#!/usr/bin/env bash\n" + output
 	err = os.WriteFile(outputFile.Value, []byte(output), 0777)
 	if err != nil {
 		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Failed to write output file: %s", err)

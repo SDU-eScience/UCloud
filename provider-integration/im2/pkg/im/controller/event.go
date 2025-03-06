@@ -33,7 +33,7 @@ func initEvents() {
 	getLastKnownProjectIpc.Handler(func(r *ipc.Request[string]) ipc.Response[apm.Project] {
 		projectId := r.Payload
 		if BelongsToWorkspace(apm.WalletOwnerProject(projectId), r.Uid) {
-			project, ok := GetLastKnownProject(projectId)
+			project, ok := RetrieveProject(projectId)
 			if ok {
 				return ipc.Response[apm.Project]{
 					StatusCode: http.StatusOK,
@@ -138,7 +138,7 @@ func handleNotification(nType NotificationMessageType, notification any) {
 	case NotificationMessageProjectUpdated:
 		update := notification.(*NotificationProjectUpdated)
 
-		before, _ := GetLastKnownProject(update.Project.Id)
+		before, _ := RetrieveProject(update.Project.Id)
 		update.ProjectComparison = compareProjects(before, update.Project)
 
 		if projectHandler(update) {
@@ -525,7 +525,7 @@ func saveLastKnownProject(project apm.Project) {
 
 var getLastKnownProjectIpc = ipc.NewCall[string, apm.Project]("event.getlastknownproject")
 
-func GetLastKnownProject(projectId string) (apm.Project, bool) {
+func RetrieveProject(projectId string) (apm.Project, bool) {
 	if RunsServerCode() {
 		jsonData, ok := db.NewTx2[string, bool](func(tx *db.Transaction) (string, bool) {
 			jsonData, ok := db.Get[struct{ UCloudProject string }](
@@ -571,7 +571,7 @@ func BelongsToWorkspace(workspace apm.WalletOwner, uid uint32) bool {
 	if workspace.Type == apm.WalletOwnerTypeUser {
 		return ucloudUser == workspace.Username
 	} else {
-		project, ok := GetLastKnownProject(workspace.ProjectId)
+		project, ok := RetrieveProject(workspace.ProjectId)
 		if !ok {
 			return false
 		}

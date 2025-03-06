@@ -297,6 +297,12 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		}
 	}
 
+	// NOTE(Dan): Check if the job is allowed to be submitted. This most be immediately before the job creation. It
+	// must not be moved down or up. Do not add code between these two.
+	if reason := shared.IsJobLockedEx(job, pod.Annotations); reason.Present {
+		return reason.Value.Err
+	}
+
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 	defer cancel()
 

@@ -1,12 +1,14 @@
 package containers
 
 import (
+	"encoding/json"
 	"fmt"
 	core "k8s.io/api/core/v1"
 	"path/filepath"
 	"slices"
 	"strings"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
+	"ucloud.dk/pkg/im/services/k8s/shared"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
@@ -70,6 +72,7 @@ func prepareMountsOnJobCreate(
 		}
 	}
 
+	mountedDrivesAsReadOnly := map[string]bool{}
 	addUCloudMount := func(containerPath, internalPath string, readOnly bool) {
 		sub, ok := ucloudToSubpath(internalPath)
 		if ok {
@@ -85,6 +88,13 @@ func prepareMountsOnJobCreate(
 
 		if compsLen == 0 {
 			continue
+		}
+
+		alreadyMountedAsReadOnly, ok := mountedDrivesAsReadOnly[comps[0]]
+		if ok && alreadyMountedAsReadOnly {
+			mountedDrivesAsReadOnly[comps[0]] = readOnly
+		} else if !ok {
+			mountedDrivesAsReadOnly[comps[0]] = readOnly
 		}
 
 		title := comps[compsLen-1]
@@ -152,6 +162,22 @@ func prepareMountsOnJobCreate(
 				mountIdx++
 			}
 		}
+	}
+
+	{
+		var driveIds []string
+		var driveAsReadOnly []bool
+
+		for driveId, readOnly := range mountedDrivesAsReadOnly {
+			driveIds = append(driveIds, driveId)
+			driveAsReadOnly = append(driveAsReadOnly, readOnly)
+		}
+
+		driveIdsBytes, _ := json.Marshal(driveIds)
+		driveReadOnlyBytes, _ := json.Marshal(driveAsReadOnly)
+
+		pod.Annotations[shared.AnnotationMountedDriveIds] = string(driveIdsBytes)
+		pod.Annotations[shared.AnnotationMountedDriveAsReadOnly] = string(driveReadOnlyBytes)
 	}
 
 	return mountPaths

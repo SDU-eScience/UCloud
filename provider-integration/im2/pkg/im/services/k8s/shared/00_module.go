@@ -56,3 +56,16 @@ func ComputeRunningTime(job *orc.Job) JobRunningTime {
 
 	return result
 }
+
+type LockedReason struct {
+	Reason string
+	Err    error
+}
+
+var IsJobLocked func(job *orc.Job) util.Option[LockedReason]
+var IsJobLockedEx func(job *orc.Job, jobAnnotations map[string]string) util.Option[LockedReason]
+
+const (
+	AnnotationMountedDriveIds        string = "ucloud.dk/mountedDriveIds"
+	AnnotationMountedDriveAsReadOnly string = "ucloud.dk/mountedDriveAsReadOnly"
+)

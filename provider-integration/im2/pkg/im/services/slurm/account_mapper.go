@@ -392,7 +392,7 @@ func (a *defaultAccountMapper) ServerEvaluateAccountMapper(category string, owne
 		case apm.WalletOwnerTypeProject:
 			localGid, ok := ctrl.MapUCloudProjectToLocal(owner.ProjectId)
 			if !ok {
-				lastKnown, ok := ctrl.GetLastKnownProject(owner.ProjectId)
+				lastKnown, ok := ctrl.RetrieveProject(owner.ProjectId)
 				if !ok {
 					return util.OptNone[string](), fmt.Errorf("could not map project")
 				}

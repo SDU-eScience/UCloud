@@ -146,7 +146,7 @@ pkgs.mkShell {
 	}
 
 	nixJob := strings.Builder{}
-	nixJob.WriteString("#!/usr/bin/env sh\n")
+	nixJob.WriteString("#!/usr/bin/env bash\n")
 	if rank == 0 {
 		nixJob.WriteString("rsync -rah /nix-base/* /nix/\n")
 		nixJob.WriteString("touch /work/.nix-ready\n")

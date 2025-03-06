@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	cfg "ucloud.dk/pkg/im/config"
@@ -13,6 +14,11 @@ import (
 )
 
 func Init(config *cfg.ServicesConfigurationKubernetes) {
+	// TODO(Dan): Hacky work-around since these functions need to access the backends, but only sometimes.
+	//   While these functions also sometimes need to be used by the sub-systems implementing the compute.
+	shared.IsJobLocked = IsJobLocked
+	shared.IsJobLockedEx = IsJobLockedEx
+
 	ctrl.LaunchUserInstances = false
 
 	ctrl.InitJobDatabase()
@@ -59,15 +65,14 @@ func InitLater(config *cfg.ServicesConfigurationKubernetes) {
 	InitComputeLater()
 }
 
-type LockedReason struct {
-	Reason string
-	Err    error
+func IsJobLocked(job *orc.Job) util.Option[shared.LockedReason] {
+	return IsJobLockedEx(job, nil)
 }
 
-func IsJobLocked(job *orc.Job) util.Option[LockedReason] {
+func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[shared.LockedReason] {
 	if ctrl.IsResourceLocked(job.Resource, job.Specification.Product) {
 		reason := fmt.Sprintf("Insufficient funds for %v", job.Specification.Product.Category)
-		return util.OptValue(LockedReason{
+		return util.OptValue(shared.LockedReason{
 			Reason: reason,
 			Err: &util.HttpError{
 				StatusCode: http.StatusPaymentRequired,
@@ -77,11 +82,33 @@ func IsJobLocked(job *orc.Job) util.Option[LockedReason] {
 		})
 	}
 
-	drives := MountedDrives(job)
-	for _, drive := range drives {
-		if ctrl.IsResourceLocked(drive.Resource, drive.Specification.Product) {
-			reason := fmt.Sprintf("Insufficient funds for %v", drive.Specification.Product.Category)
-			return util.OptValue(LockedReason{
+	mounts := MountedDrivesEx(job, jobAnnotations)
+	for _, mount := range mounts {
+		if mount.DriveInvalid {
+			reason := "Drive is no longer valid. Was it deleted?"
+			return util.OptValue(shared.LockedReason{
+				Reason: reason,
+				Err: &util.HttpError{
+					StatusCode: http.StatusForbidden,
+					Why:        reason,
+				},
+			})
+		}
+
+		if !ctrl.CanUseDrive(job.Owner, mount.Drive.Id, mount.ReadOnly) {
+			reason := fmt.Sprintf("You no longer have permissions to use this drive: %s (%v).", mount.Drive.Specification.Title, mount.Drive.Id)
+			return util.OptValue(shared.LockedReason{
+				Reason: reason,
+				Err: &util.HttpError{
+					StatusCode: http.StatusForbidden,
+					Why:        reason,
+				},
+			})
+		}
+
+		if ctrl.IsResourceLocked(mount.Drive.Resource, mount.Drive.Specification.Product) {
+			reason := fmt.Sprintf("Insufficient funds for %v", mount.Drive.Specification.Product.Category)
+			return util.OptValue(shared.LockedReason{
 				Reason: reason,
 				Err: &util.HttpError{
 					StatusCode: http.StatusPaymentRequired,
@@ -92,10 +119,10 @@ func IsJobLocked(job *orc.Job) util.Option[LockedReason] {
 		}
 	}
 
-	return util.OptNone[LockedReason]()
+	return util.OptNone[shared.LockedReason]()
 }
 
-func MountedFiles(job *orc.Job) []orc.AppParameterValue {
+func mountedFilesFromJob(job *orc.Job) []orc.AppParameterValue {
 	var result []orc.AppParameterValue
 	for _, value := range job.Specification.Parameters {
 		if value.Type == orc.AppParameterValueTypeFile {
@@ -122,24 +149,78 @@ func MountedFiles(job *orc.Job) []orc.AppParameterValue {
 	return result
 }
 
-func MountedDrives(job *orc.Job) []orc.Drive {
-	files := MountedFiles(job)
-	driveIds := map[string]util.Empty{}
+type MountedDrive struct {
+	DriveInvalid bool
+	Drive        orc.Drive
+	ReadOnly     bool
+}
+
+func MountedDrives(job *orc.Job) []MountedDrive {
+	return MountedDrivesEx(job, nil)
+}
+
+func MountedDrivesEx(job *orc.Job, jobAnnotations map[string]string) []MountedDrive {
+	files := mountedFilesFromJob(job)
+	drives := map[string]MountedDrive{}
+
+	insertDrive := func(driveId string, readOnly bool) {
+		existing, ok := drives[driveId]
+		if ok {
+			if existing.ReadOnly {
+				drives[driveId] = MountedDrive{
+					ReadOnly: readOnly,
+				}
+			}
+		} else {
+			drives[driveId] = MountedDrive{
+				ReadOnly: readOnly,
+			}
+		}
+	}
 
 	for _, file := range files {
 		driveId, ok := orc.DriveIdFromUCloudPath(file.Path)
 		if ok {
-			driveIds[driveId] = util.Empty{}
+			insertDrive(driveId, file.ReadOnly)
 		}
 	}
 
-	var drives []orc.Drive
-	for id, _ := range driveIds {
+	if jobAnnotations == nil {
+		if backendIsContainers(job) {
+			jobAnnotations = containers.JobAnnotations(job, 0)
+		}
+	}
+
+	driveIdsString := util.OptMapGet(jobAnnotations, shared.AnnotationMountedDriveIds)
+	driveReadOnlyString := util.OptMapGet(jobAnnotations, shared.AnnotationMountedDriveAsReadOnly)
+	if driveIdsString.Present && driveReadOnlyString.Present {
+		var driveIds []string
+		var driveReadOnly []bool
+		err1 := json.Unmarshal([]byte(driveIdsString.Value), &driveIds)
+		err2 := json.Unmarshal([]byte(driveReadOnlyString.Value), &driveReadOnly)
+
+		if err1 == nil && err2 == nil && len(driveIds) == len(driveReadOnly) {
+			for i := 0; i < len(driveIds); i++ {
+				driveId := driveIds[i]
+				readOnly := driveReadOnly[i]
+
+				insertDrive(driveId, readOnly)
+			}
+		}
+	}
+
+	var result []MountedDrive
+
+	for id, entry := range drives {
 		drive, ok := ctrl.RetrieveDrive(id)
 		if ok {
-			drives = append(drives, *drive)
+			entry.Drive = *drive
+			entry.DriveInvalid = false
+		} else {
+			entry.DriveInvalid = true
 		}
+		result = append(result, entry)
 	}
 
-	return drives
+	return result
 }

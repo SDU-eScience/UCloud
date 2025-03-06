@@ -66,7 +66,7 @@ func prepareInvocationOnJobCreate(
 	_ = jobFile.Chown(filesystem.DefaultUid, filesystem.DefaultUid)
 	if ok {
 		builder := strings.Builder{}
-		builder.WriteString("#!/usr/bin/env sh\n")
+		builder.WriteString("#!/usr/bin/env bash\n")
 		builder.WriteString("export TINI_SUBREAPER=\n")
 		builder.WriteString("entrypoint() {\n\t")
 		builder.WriteString(strings.Join(actualCommand, " "))

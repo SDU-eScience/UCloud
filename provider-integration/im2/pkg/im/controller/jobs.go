@@ -166,6 +166,9 @@ func controllerJobs(mux *http.ServeMux) {
 					}
 
 					if err != nil {
+						copied := *item
+						copied.Status.State = orc.JobStateFailure
+						TrackNewJob(copied)
 						errors = append(errors, err)
 					}
 				}

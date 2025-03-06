@@ -272,3 +272,15 @@ func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) ctrl.
 		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + "-" + fmt.Sprint(rank) + suffix.Value + ServiceConfig.Compute.Web.Suffix,
 	}
 }
+
+func JobAnnotations(job *orc.Job, rank int) map[string]string {
+	podName := idAndRankToPodName(job.Id, rank)
+	timeout, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	pod, err := K8sClient.CoreV1().Pods(Namespace).Get(timeout, podName, meta.GetOptions{})
+	if err == nil {
+		return pod.Annotations
+	} else {
+		return nil
+	}
+}
