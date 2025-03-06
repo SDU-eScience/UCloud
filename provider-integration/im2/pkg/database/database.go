@@ -8,8 +8,32 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
+)
+
+var (
+	metricDatabaseTransactionsInFlight = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "database",
+		Name:      "transactions_in_flight",
+		Help:      "Number of database transactions in flight",
+	})
+
+	metricDatabaseTransactionsDuration = promauto.NewSummary(prometheus.SummaryOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "database",
+		Name:      "transactions_duration",
+		Help:      "Summary of the duration (in microseconds) it takes to make database transactions",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	})
 )
 
 type Params map[string]any
@@ -70,7 +94,12 @@ func NewTx3[A, B, C any](fn func(tx *Transaction) (A, B, C)) (A, B, C) {
 }
 
 func NewTx[T any](fn func(tx *Transaction) T) T {
-	return ContinueTx(Database, fn)
+	metricDatabaseTransactionsInFlight.Inc()
+	start := time.Now()
+	result := ContinueTx(Database, fn)
+	metricDatabaseTransactionsInFlight.Dec()
+	metricDatabaseTransactionsDuration.Observe(float64(time.Now().Sub(start).Microseconds()))
+	return result
 }
 
 func ContinueTx[T any](ctx Ctx, fn func(tx *Transaction) T) T {

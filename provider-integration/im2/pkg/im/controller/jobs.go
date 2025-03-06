@@ -11,6 +11,8 @@ import (
 	"unicode"
 
 	anyascii "github.com/anyascii/go"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	ws "github.com/gorilla/websocket"
 	fnd "ucloud.dk/pkg/foundation"
@@ -127,6 +129,36 @@ type JobOpenInteractiveSessionRequest struct {
 	Job  *orc.Job
 	Type orc.InteractiveSessionType
 }
+
+var (
+	metricJobsSubmitted = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "jobs",
+		Name:      "submitted",
+		Help:      "The total number of jobs submitted correctly to the UCloud/IM",
+	})
+
+	metricJobsInQueue = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "jobs",
+		Name:      "in_queue",
+		Help:      "The number of jobs currently in queue, registered by UCloud/IM",
+	})
+
+	metricJobsRunning = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "jobs",
+		Name:      "running",
+		Help:      "The number of jobs currently running, registered by UCloud/IM",
+	})
+
+	metricJobsSuspended = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "jobs",
+		Name:      "suspended",
+		Help:      "The number of jobs currently suspended, registered by UCloud/IM",
+	})
+)
 
 func controllerJobs(mux *http.ServeMux) {
 	if RunsServerCode() {

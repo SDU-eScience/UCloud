@@ -1,8 +1,9 @@
 package k8s
 
 import (
-	ws "github.com/gorilla/websocket"
 	"time"
+
+	ws "github.com/gorilla/websocket"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/containers"
 	"ucloud.dk/pkg/im/services/k8s/kubevirt"
