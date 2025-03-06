@@ -29,11 +29,18 @@ var (
 		Help:      "Number of requests received",
 	})
 
-	metricRequestErrorCounter = promauto.NewCounter(prometheus.CounterOpts{
+	metricRequestClientErrorCounter = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: "ucloud_im",
 		Subsystem: "server",
-		Name:      "requests_error",
-		Help:      "Number of requests that ended in failure",
+		Name:      "request_client_errors",
+		Help:      "Number of requests that ended in client error (4xx).",
+	})
+
+	metricRequestServerErrorCounter = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "server",
+		Name:      "request_server_errors",
+		Help:      "Number of requests that ended in server error (5xx).",
 	})
 
 	metricRequestInFlight = promauto.NewGauge(prometheus.GaugeOpts{
@@ -239,14 +246,16 @@ func sendResponseOrError(w http.ResponseWriter, data any, err error) {
 }
 
 func sendError(w http.ResponseWriter, err error) {
-	metricRequestErrorCounter.Inc()
 	if err == nil {
 		msg, _ := json.Marshal(commonErrorMessage{
 			Why: "Unexpected error occurred #1",
 		})
 
+		metricRequestServerErrorCounter.Inc()
+
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusInternalServerError)
+
 		_, _ = w.Write(msg)
 	} else {
 		var httpErr *util.HttpError
@@ -255,6 +264,12 @@ func sendError(w http.ResponseWriter, err error) {
 				Why:       httpErr.Why,
 				ErrorCode: httpErr.ErrorCode,
 			})
+
+			if httpErr.StatusCode < 500 {
+				metricRequestClientErrorCounter.Inc()
+			} else {
+				metricRequestServerErrorCounter.Inc()
+			}
 
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.WriteHeader(httpErr.StatusCode)
@@ -265,6 +280,8 @@ func sendError(w http.ResponseWriter, err error) {
 			msg, _ := json.Marshal(commonErrorMessage{
 				Why: "Unexpected error occurred #2",
 			})
+
+			metricRequestServerErrorCounter.Inc()
 
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.WriteHeader(http.StatusInternalServerError)
