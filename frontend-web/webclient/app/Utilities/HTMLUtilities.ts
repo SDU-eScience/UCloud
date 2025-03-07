@@ -1,6 +1,12 @@
-export function div(html: string): HTMLDivElement {
+export function divHtml(html: string): HTMLDivElement {
     const elem = document.createElement("div");
     elem.innerHTML = html;
+    return elem;
+}
+
+export function divText(text: string): HTMLDivElement {
+    const elem = document.createElement("div");
+    elem.innerText = text;
     return elem;
 }
 

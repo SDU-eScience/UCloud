@@ -59,7 +59,7 @@ import {Operation} from "@/ui-components/Operation";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
-import {div, image} from "@/Utilities/HTMLUtilities";
+import {divHtml, image} from "@/Utilities/HTMLUtilities";
 import * as Sync from "@/Syncthing/api";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -823,7 +823,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             }
                         });
 
-                        HTMLTooltip(iconWrapper, div("Synchronized with Syncthing"), {tooltipContentWidth: 230})
+                        HTMLTooltip(iconWrapper, divHtml("Synchronized with Syncthing"), {tooltipContentWidth: 230})
 
                         icon.append(iconWrapper);
                         const [syncThingIcon, setSyncthingIcon] = ResourceBrowser.defaultIconRenderer();
@@ -851,7 +851,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             }
                         });
 
-                        HTMLTooltip(iconWrapper, div("Read-only"), {tooltipContentWidth: 108})
+                        HTMLTooltip(iconWrapper, divHtml("Read-only"), {tooltipContentWidth: 108})
 
                         icon.append(iconWrapper);
                         const [readonlyIcon, setReadonlyIcon] = ResourceBrowser.defaultIconRenderer();
@@ -911,7 +911,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         row.stat1.innerHTML = ""; // NOTE(Dan): Clear the container regardless
                         if (!sensitivity) return;
 
-                        const badge = div("");
+                        const badge = divHtml("");
                         badge.classList.add("sensitivity-badge");
                         badge.classList.add(sensitivity.toString().toUpperCase());
                         badge.innerText = sensitivity.toString().charAt(0);
@@ -920,7 +920,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             browserRef.current?.refresh();
                         });
 
-                        HTMLTooltip(badge, div("File's sensitivity is " + sensitivity.toString().toLocaleLowerCase()));
+                        HTMLTooltip(badge, divHtml("File's sensitivity is " + sensitivity.toString().toLocaleLowerCase()));
                         row.stat1.append(badge);
                     });
 
