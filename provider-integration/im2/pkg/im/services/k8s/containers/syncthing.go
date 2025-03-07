@@ -1,12 +1,22 @@
 package containers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"golang.org/x/sys/unix"
 	core "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"math/rand"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
+	"time"
+	cfg "ucloud.dk/pkg/im/config"
+	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
 	"ucloud.dk/pkg/log"
@@ -14,9 +24,27 @@ import (
 	"ucloud.dk/pkg/util"
 )
 
+var syncthingPorts = map[int]bool{}
+var syncthingPortsMutex = sync.Mutex{}
+var syncthingConfig cfg.KubernetesSyncthingConfiguration
+
+var syncthingDimensions = shared.SchedulerDimensions{
+	CpuMillis:     400,
+	MemoryInBytes: 1000 * 1000 * 1000 * 2,
+	Gpu:           0,
+}
+
+const syncthingAppName = "syncthing"
+
 func initSyncthing() {
+	syncthingConfig = ServiceConfig.Compute.Syncthing
+
+	shared.RegisterJobDimensionMapper(syncthingAppName, func(job *orc.Job) shared.SchedulerDimensions {
+		return syncthingDimensions
+	})
+
 	if ServiceConfig.Compute.Syncthing.Enabled {
-		iapps["syncthing"] = ContainerIAppHandler{
+		iapps[syncthingAppName] = ContainerIAppHandler{
 			Flags:                           0,
 			BeforeRestart:                   syncthingBeforeRestart,
 			ValidateConfiguration:           syncthingValidateConfiguration,
@@ -25,9 +53,10 @@ func initSyncthing() {
 			ShouldRun:                       syncthingShouldRun,
 			MutateJobNonPersistent:          syncthingMutateJobNonPersistent,
 			MutatePod:                       syncthingMutatePod,
-			MutateService:                   nil,
+			MutateService:                   syncthingMutateService,
 			MutateNetworkPolicy:             nil,
 			MutateJobSpecBeforeRegistration: syncthingMutateJobSpec,
+			BeforeMonitor:                   syncthingBeforeMonitor,
 		}
 	}
 }
@@ -48,6 +77,42 @@ func initSyncthingFolder(owner orc.ResourceOwner) (string, string, error) {
 
 	_ = filesystem.DoCreateFolder(internalSyncthing)
 	return internalSyncthing, ucloudSyncthing, nil
+}
+
+func syncthingBeforeMonitor(pods []core.Pod, jobs map[string]*orc.Job, appsByJobId map[string]ctrl.IAppRunningConfiguration) {
+	syncthingPortsMutex.Lock()
+	defer syncthingPortsMutex.Unlock()
+
+	result := map[int]bool{}
+
+	for _, pod := range pods {
+		idAndRank, ok := podNameToIdAndRank(pod.Name)
+		if !ok {
+			continue
+		}
+		iapp, ok := appsByJobId[idAndRank.First]
+		if !ok || iapp.AppName != "syncthing" {
+			continue
+		}
+
+		assignedPort := syncthingGetAssignedPort(&pod)
+		if assignedPort.Present {
+			result[assignedPort.Value] = true
+		}
+	}
+
+	syncthingPorts = result
+}
+
+func syncthingGetAssignedPort(pod *core.Pod) util.Option[int] {
+	port := util.OptMapGet(pod.Annotations, AnnotationSyncthingPort)
+	if port.Present {
+		portValue, err := strconv.ParseInt(port.Value, 10, 64)
+		if err == nil {
+			return util.OptValue(int(portValue))
+		}
+	}
+	return util.OptNone[int]()
 }
 
 func syncthingMutateJobSpec(owner orc.ResourceOwner, spec *orc.JobSpecification) error {
@@ -116,11 +181,12 @@ func syncthingMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage
 			folder.Id = util.RandomToken(16)
 		}
 
-		// TODO Mounts permissions
-		appInvocation.Environment["f"+folder.Id] = orc.InvocationVar(folder.Id)
-		spec.Parameters[folder.Id] = orc.AppParameterValueFile(folder.UCloudPath, false)
-		appInvocation.Parameters = append(appInvocation.Parameters, orc.ApplicationParameterInputFile(folder.Id, false, "file", ""))
-		//spec.Resources = append(spec.Resources, orc.AppParameterValueFile(folder.UCloudPath, false))
+		driveId := util.GetOptionalElement(util.Components(folder.UCloudPath), 0).Value
+		if ctrl.CanUseDrive(job.Owner, driveId, false) {
+			appInvocation.Environment["f"+folder.Id] = orc.InvocationVar(folder.Id)
+			spec.Parameters[folder.Id] = orc.AppParameterValueFile(folder.UCloudPath, false)
+			appInvocation.Parameters = append(appInvocation.Parameters, orc.ApplicationParameterInputFile(folder.Id, false, "file", ""))
+		}
 	}
 
 	internalSyncthing, _, err := initSyncthingFolder(job.Owner)
@@ -138,11 +204,16 @@ func syncthingMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage
 }
 
 func syncthingMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.Pod) error {
+	port := syncthingAllocatePort(pod)
+	if !port.Present {
+		return fmt.Errorf("could not allocate a port for Syncthing")
+	}
+
 	podSpec := &pod.Spec
 	for i := 0; i < len(podSpec.Containers); i++ {
 		container := &podSpec.Containers[i]
 
-		if container.Name == "user-job" {
+		if container.Name == ContainerUserJob {
 			container.ImagePullPolicy = "Always"
 			internalSyncthing, _, err := initSyncthingFolder(job.Owner)
 			if err != nil {
@@ -155,6 +226,16 @@ func syncthingMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.P
 			}
 
 			container.Env = append(container.Env, core.EnvVar{
+				Name:  "SYNCTHING_PORT",
+				Value: fmt.Sprint(port.Value),
+			})
+
+			container.Env = append(container.Env, core.EnvVar{
+				Name:  "SYNCTHING_RELAYS",
+				Value: fmt.Sprint(syncthingConfig.RelaysEnabled),
+			})
+
+			container.Env = append(container.Env, core.EnvVar{
 				Name:  "STATE_DIR",
 				Value: "/syncthing-state",
 			})
@@ -165,6 +246,12 @@ func syncthingMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.P
 				MountPath: "/syncthing-state",
 				SubPath:   internalSyncthingSubPath,
 			})
+
+			container.Resources.Limits = map[core.ResourceName]resource.Quantity{}
+			container.Resources.Requests = map[core.ResourceName]resource.Quantity{
+				core.ResourceCPU:    *resource.NewScaledQuantity(int64(syncthingDimensions.CpuMillis), resource.Milli),
+				core.ResourceMemory: *resource.NewScaledQuantity(int64(syncthingDimensions.MemoryInBytes), 0),
+			}
 
 			if util.DevelopmentModeEnabled() && ServiceConfig.Compute.Syncthing.DevelopmentSourceCode != "" {
 				container.Image = "dreg.cloud.sdu.dk/ucloud/syncthing-go-dev:latest"
@@ -181,7 +268,87 @@ func syncthingMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.P
 			}
 		}
 	}
-
-	// TODO service
 	return nil
 }
+
+func syncthingAllocatePort(pod *core.Pod) util.Option[int] {
+	syncthingPortsMutex.Lock()
+	defer syncthingPortsMutex.Unlock()
+
+	count := syncthingConfig.PortMax - syncthingConfig.PortMin
+	if count <= 0 {
+		return util.OptNone[int]()
+	}
+
+	attempt := rand.Intn(count)
+	remaining := count
+	for remaining > 0 {
+		port := syncthingConfig.PortMin + (attempt % count)
+		if port == 8434 {
+			// Used by Syncthing for the API.
+			continue
+		}
+
+		_, exists := syncthingPorts[port]
+		if !exists {
+			pod.Annotations[AnnotationSyncthingPort] = fmt.Sprint(port)
+			syncthingPorts[port] = true
+			return util.OptValue(port)
+		}
+
+		attempt++
+		remaining--
+	}
+
+	return util.OptNone[int]()
+}
+
+func syncthingMutateService(job *orc.Job, configuration json.RawMessage, unrelatedService *core.Service, pod *core.Pod) error {
+	// NOTE(Dan): This code doesn't actually modify the already created service, but instead creates a new one.
+	// We need this function mostly to be able to grab the owner reference from the other service. We can't do it in the
+	// pod mutation function because the pod hasn't been created yet.
+
+	port := syncthingGetAssignedPort(pod)
+	if !port.Present {
+		return fmt.Errorf("no syncthing port")
+	}
+
+	serviceLabel := shared.JobIdLabel(job.Id)
+	service := &core.Service{
+		ObjectMeta: meta.ObjectMeta{
+			Name: fmt.Sprintf("j-%v-syncthing", job.Id),
+			Labels: map[string]string{
+				serviceLabel.First: serviceLabel.Second,
+			},
+			OwnerReferences: unrelatedService.OwnerReferences,
+		},
+		Spec: core.ServiceSpec{
+			Type:      core.ServiceTypeClusterIP,
+			ClusterIP: "",
+			Selector: map[string]string{
+				serviceLabel.First: serviceLabel.Second,
+			},
+			ExternalIPs: []string{syncthingConfig.IpAddress},
+			Ports: []core.ServicePort{
+				{
+					Name:     "syncthing",
+					Protocol: core.ProtocolTCP,
+					Port:     int32(port.Value),
+					TargetPort: intstr.IntOrString{
+						IntVal: int32(port.Value),
+					},
+				},
+			},
+		},
+	}
+
+	timeout, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	_, err := K8sClient.CoreV1().Services(Namespace).Create(timeout, service, meta.CreateOptions{})
+	return err
+}
+
+const (
+	AnnotationSyncthingPort = "ucloud.dk/syncthingPort"
+)

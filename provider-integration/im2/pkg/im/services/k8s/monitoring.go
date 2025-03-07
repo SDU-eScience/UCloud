@@ -100,7 +100,7 @@ func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 	}
 
 	if state.State == orc.JobStateRunning && state.Node.Present {
-		sched.RegisterRunningReplica(state.Id, state.Rank, jobDimensions(job), state.Node.Value, nil,
+		sched.RegisterRunningReplica(state.Id, state.Rank, shared.JobDimensions(job), state.Node.Value, nil,
 			timeAllocationOrDefault(job.Specification.TimeAllocation))
 	}
 
@@ -151,15 +151,6 @@ func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 func (t *jobTracker) RequestCleanup(jobId string) {
 	if !slices.Contains(t.terminationRequested, jobId) {
 		t.terminationRequested = append(t.terminationRequested, jobId)
-	}
-}
-
-func jobDimensions(job *orc.Job) SchedulerDimensions {
-	prod := &job.Status.ResolvedProduct
-	return SchedulerDimensions{
-		CpuMillis:     prod.Cpu * 1000,
-		MemoryInBytes: prod.MemoryInGigs * (1024 * 1024 * 1024),
-		Gpu:           0,
 	}
 }
 
@@ -217,13 +208,13 @@ func loopMonitoring() {
 			k8sCapacity := node.Status.Capacity
 			k8sAllocatable := node.Status.Allocatable
 
-			capacity := SchedulerDimensions{
+			capacity := shared.SchedulerDimensions{
 				CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
 				MemoryInBytes: int(k8sCapacity.Memory().Value()),
 				Gpu:           int(k8sCapacity.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
 			}
 
-			limits := SchedulerDimensions{
+			limits := shared.SchedulerDimensions{
 				CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
 				MemoryInBytes: int(k8sAllocatable.Memory().Value()),
 				Gpu:           int(k8sAllocatable.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
@@ -357,7 +348,7 @@ func loopMonitoring() {
 	for _, entry := range entriesToSubmit {
 		sched, ok := getSchedulerByJob(entry)
 		if ok {
-			sched.RegisterJobInQueue(entry.Id, jobDimensions(entry),
+			sched.RegisterJobInQueue(entry.Id, shared.JobDimensions(entry),
 				entry.Specification.Replicas, nil, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
 		}
 	}

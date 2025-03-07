@@ -29,6 +29,12 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 
 	activeIApps := ctrl.RetrieveIAppsByJobId()
 	iappsHandled := map[string]util.Empty{}
+	for _, handler := range iapps {
+		beforeMonitor := handler.BeforeMonitor
+		if beforeMonitor != nil {
+			beforeMonitor(allPods.Items, jobs, activeIApps)
+		}
+	}
 
 	length := len(allPods.Items)
 	for i := 0; i < length; i++ {

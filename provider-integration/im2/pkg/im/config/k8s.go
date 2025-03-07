@@ -64,6 +64,7 @@ type KubernetesSyncthingConfiguration struct {
 	PortMin               int
 	PortMax               int
 	DevelopmentSourceCode string
+	RelaysEnabled         bool
 }
 
 type KubernetesCompute struct {
@@ -312,6 +313,10 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			cfg.Compute.Syncthing.PortMin = int(portMin)
 			cfg.Compute.Syncthing.PortMax = int(portMax)
 
+			cfg.Compute.Syncthing.DevelopmentSourceCode = optionalChildText(filePath, syncthingNode, "developmentSourceCode", &success)
+
+			relaysEnabled, ok := optionalChildBool(filePath, syncthingNode, "relaysEnabled")
+			cfg.Compute.Syncthing.RelaysEnabled = relaysEnabled && ok
 			cfg.Compute.Syncthing.DevelopmentSourceCode = optionalChildText(filePath, syncthingNode, "developmentSourceCode", &success)
 		}
 	}

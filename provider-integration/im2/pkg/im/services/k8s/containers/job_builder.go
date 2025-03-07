@@ -128,7 +128,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	spec.AutomountServiceAccountToken = util.BoolPointer(false)
 
 	spec.Containers = append(spec.Containers, core.Container{
-		Name: "user-job",
+		Name: ContainerUserJob,
 	})
 
 	userContainer := &spec.Containers[0]
@@ -141,8 +141,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// Scheduling and runtime constraints for Kubernetes
 	// -----------------------------------------------------------------------------------------------------------------
 	addResource := func(name core.ResourceName, value int64, scale resource.Scale) {
-		userContainer.Resources.Limits.Name(name, resource.DecimalSI).SetScaled(value, scale)
-		userContainer.Resources.Requests.Name(name, resource.DecimalSI).SetScaled(value, scale)
+		quantity := resource.NewScaledQuantity(value, scale)
+		quantity.Format = resource.DecimalSI
+
+		userContainer.Resources.Limits[name] = *quantity
+		userContainer.Resources.Requests[name] = *quantity
 	}
 
 	cpuMillis := int64(job.Status.ResolvedProduct.Cpu * 1000)
@@ -320,7 +323,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		firewall.OwnerReferences = append(firewall.OwnerReferences, ownerReference)
 
 		if iappHandler.Present && iappHandler.Value.MutateNetworkPolicy != nil {
-			myError := iappHandler.Value.MutateNetworkPolicy(job, iappConfig.Value.Configuration, firewall)
+			myError := iappHandler.Value.MutateNetworkPolicy(job, iappConfig.Value.Configuration, firewall, pod)
 			err = util.MergeError(err, myError)
 		}
 
@@ -331,7 +334,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		service.OwnerReferences = append(service.OwnerReferences, ownerReference)
 
 		if iappHandler.Present && iappHandler.Value.MutateService != nil {
-			myError := iappHandler.Value.MutateService(job, iappConfig.Value.Configuration, service)
+			myError := iappHandler.Value.MutateService(job, iappConfig.Value.Configuration, service, pod)
 			err = util.MergeError(err, myError)
 		}
 

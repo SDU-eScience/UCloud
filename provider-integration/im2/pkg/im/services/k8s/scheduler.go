@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/pkg/im/services/k8s/shared"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 )
@@ -57,50 +58,12 @@ func NewScheduler() *Scheduler {
 
 type SchedulerNode struct {
 	Name            string
-	Remaining       SchedulerDimensions // Remaining dimensions before hitting the Capacity (not the Limits!)
-	Capacity        SchedulerDimensions // Capacity describes the dimensions of the node when it is not experiencing any faults
-	Limits          SchedulerDimensions // Limits describe the largest usage the node is currently able to tolerate
+	Remaining       shared.SchedulerDimensions // Remaining dimensions before hitting the Capacity (not the Limits!)
+	Capacity        shared.SchedulerDimensions // Capacity describes the dimensions of the node when it is not experiencing any faults
+	Limits          shared.SchedulerDimensions // Limits describe the largest usage the node is currently able to tolerate
 	LastSeen        int
 	Unschedulable   bool
 	MaximumReplicas int // maximum number of replicas running on the node (regardless of reservations)
-}
-
-type SchedulerDimensions struct {
-	CpuMillis     int
-	MemoryInBytes int
-	Gpu           int
-}
-
-func (dims *SchedulerDimensions) Add(other SchedulerDimensions) {
-	dims.CpuMillis += other.CpuMillis
-	dims.MemoryInBytes += other.MemoryInBytes
-	dims.Gpu += other.Gpu
-}
-
-func (dims *SchedulerDimensions) Subtract(other SchedulerDimensions) {
-	dims.CpuMillis -= other.CpuMillis
-	dims.MemoryInBytes -= other.MemoryInBytes
-	dims.Gpu -= other.Gpu
-}
-
-func (dims *SchedulerDimensions) AddImmutable(other SchedulerDimensions) SchedulerDimensions {
-	result := SchedulerDimensions{}
-	result.CpuMillis = dims.CpuMillis + other.CpuMillis
-	result.MemoryInBytes = dims.MemoryInBytes + other.MemoryInBytes
-	result.Gpu = dims.Gpu + other.Gpu
-	return result
-}
-
-func (dims *SchedulerDimensions) SubtractImmutable(other SchedulerDimensions) SchedulerDimensions {
-	result := SchedulerDimensions{}
-	result.CpuMillis = dims.CpuMillis - other.CpuMillis
-	result.MemoryInBytes = dims.MemoryInBytes - other.MemoryInBytes
-	result.Gpu = dims.Gpu - other.Gpu
-	return result
-}
-
-func (dims *SchedulerDimensions) Satisfies(request SchedulerDimensions) bool {
-	return dims.CpuMillis >= request.CpuMillis && dims.Gpu >= request.Gpu && dims.MemoryInBytes >= request.MemoryInBytes
 }
 
 type SchedulerProject struct {
@@ -110,7 +73,7 @@ type SchedulerProject struct {
 
 type SchedulerQueueEntry struct {
 	JobId string
-	SchedulerDimensions
+	shared.SchedulerDimensions
 	Replicas    int
 	LastSeen    int
 	Data        any
@@ -129,7 +92,7 @@ type SchedulerQueueEntry struct {
 type SchedulerReplicaEntry struct {
 	JobId string
 	Rank  int
-	SchedulerDimensions
+	shared.SchedulerDimensions
 	Node      string
 	LastSeen  int
 	Data      any
@@ -137,7 +100,7 @@ type SchedulerReplicaEntry struct {
 	//DefensiveScore int // inherited from the queue entry
 }
 
-func (s *Scheduler) RegisterNode(name string, capacity, limits SchedulerDimensions, unschedulable bool) {
+func (s *Scheduler) RegisterNode(name string, capacity, limits shared.SchedulerDimensions, unschedulable bool) {
 	existing, ok := s.Nodes[name]
 	if ok {
 		existing.LastSeen = s.Time
@@ -174,7 +137,7 @@ func (s *Scheduler) PruneNodes() []string {
 func (s *Scheduler) RegisterRunningReplica(
 	jobId string,
 	rank int,
-	dimensions SchedulerDimensions,
+	dimensions shared.SchedulerDimensions,
 	node string,
 	data any,
 	jobLength orc.SimpleDuration,
@@ -239,7 +202,7 @@ func (s *Scheduler) PruneReplicas() []SchedulerReplicaEntry {
 
 func (s *Scheduler) RegisterJobInQueue(
 	jobId string,
-	dimensions SchedulerDimensions,
+	dimensions shared.SchedulerDimensions,
 	replicas int,
 	data any,
 	submittedAt fnd.Timestamp,

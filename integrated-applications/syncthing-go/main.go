@@ -22,7 +22,7 @@ func main() {
 	cmd := exec.Command(
 		"/opt/syncthing/syncthing",
 		"--home", configFolder,
-		"--gui-address", "0.0.0.0:8384",
+		"--gui-address", "127.0.0.1:8384",
 	)
 
 	cmd.Stderr = os.Stderr

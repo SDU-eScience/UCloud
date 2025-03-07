@@ -167,7 +167,9 @@ func terminate(request ctrl.JobTerminateRequest) error {
 
 		// NOTE(Dan): JobUpdateBatch and monitoring logic will aggressively get rid of pods that don't belong in
 		// the namespace and as such we don't have to worry about failures here.
-		_ = K8sClient.CoreV1().Pods(Namespace).Delete(ctx, podName, meta.DeleteOptions{})
+		_ = K8sClient.CoreV1().Pods(Namespace).Delete(ctx, podName, meta.DeleteOptions{
+			GracePeriodSeconds: util.Pointer[int64](1),
+		})
 
 		cancel()
 	}
@@ -284,3 +286,7 @@ func JobAnnotations(job *orc.Job, rank int) map[string]string {
 		return nil
 	}
 }
+
+const (
+	ContainerUserJob = "user-job"
+)

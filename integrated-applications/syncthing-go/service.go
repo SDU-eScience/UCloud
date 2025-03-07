@@ -7,8 +7,29 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 )
+
+func ListenPort() int {
+	portEnv := os.Getenv("SYNCTHING_PORT")
+	if portEnv != "" {
+		parsed, err := strconv.ParseInt(portEnv, 10, 64)
+		if err == nil {
+			return int(parsed)
+		}
+	}
+	return 22000
+}
+
+func ListenAddress() string {
+	port := ListenPort()
+	return fmt.Sprintf("tcp://0.0.0.0:%d", port)
+}
+
+func RelaysEnabled() bool {
+	return os.Getenv("SYNCTHING_RELAYS") != "false"
+}
 
 type UCloudSyncthingConfigFolder struct {
 	ID string `json:"id"`
