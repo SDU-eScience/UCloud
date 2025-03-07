@@ -6,7 +6,7 @@ import {Uri} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
 import {TreeAction, TreeApi} from "@/ui-components/Tree";
-import {Box, Flex, FtIcon, Icon, Image, Markdown, Select, Truncate, Text} from "@/ui-components";
+import {Box, Flex, FtIcon, Icon, Image, Markdown, Select, Truncate, Text, Input, Label, Button} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
 import {capitalized, copyToClipboard, errorMessageOrDefault, extensionFromPath, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -16,16 +16,14 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 import EditorOption = editor.EditorOption;
-import {Feature, hasFeature} from "@/Features";
 import {EditorSidebarNode, FileTree, VirtualFile} from "@/Files/FileTree";
 import {noopCall} from "@/Authentication/DataHook";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useBeforeUnload} from "react-router-dom";
-import {RichSelect, RichSelectChildComponent, RichSelectProps} from "@/ui-components/RichSelect";
+import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {initVimMode, VimMode} from "monaco-vim";
 import {addStandardDialog} from "@/UtilityComponents";
-import {dialogStore} from "@/Dialog/DialogStore";
 
 export interface Vfs {
     isReal(): boolean;
@@ -772,6 +770,7 @@ export const Editor: React.FunctionComponent<{
         const vimEnabled = getEditorOption("vim") === true;
         if (vimEnabled) {
             setVimModeObject(initVimMode(editor, getStatusBarElement()));
+            mapStoredBindings();
 
         }
     }, [monacoInstance]);
@@ -1131,14 +1130,12 @@ export const Editor: React.FunctionComponent<{
                     {tabs.open.length === 0 || isReleaseNotesOpen || isSettingsOpen || props.customContent ? null :
                         props.toolbarBeforeSettings
                     }
-                    {!hasFeature(Feature.EDITOR_VIM) ? null : <>
-                        {showReleaseNoteIcon ? <TooltipV2 tooltip={"See release notes"} contentWidth={100}>
-                            <Icon name={"heroGift"} size={"20px"} cursor={"pointer"} onClick={toggleReleaseNotes} />
-                        </TooltipV2> : null}
-                        <TooltipV2 tooltip={"Settings"} contentWidth={100}>
-                            <Icon name={"heroCog6Tooth"} size={"20px"} cursor={"pointer"} onClick={toggleSettings} />
-                        </TooltipV2>
-                    </>}
+                    {showReleaseNoteIcon ? <TooltipV2 tooltip={"See release notes"} contentWidth={100}>
+                        <Icon name={"heroGift"} size={"20px"} cursor={"pointer"} onClick={toggleReleaseNotes} />
+                    </TooltipV2> : null}
+                    <TooltipV2 tooltip={"Settings"} contentWidth={100}>
+                        <Icon name={"heroCog6Tooth"} size={"20px"} cursor={"pointer"} onClick={toggleSettings} />
+                    </TooltipV2>
                     {props.toolbar}
                 </Flex>
             </div>
@@ -1636,10 +1633,115 @@ function MonacoEditorSettings({editor, setVimMode}: {editor: IStandaloneCodeEdit
                 <option value="Disabled">Disabled</option>
             </Select>
         </div>
-        {!getEditorOption("vim") ? null : (
-            "So much work to do here"
-        )}
+        <VimKeyBindings />
     </>;
+}
+
+interface VimBinding {
+    lhs: string;
+    rhs: string;
+    context: VimModes;
+}
+type VimModes = "insert" | "normal" | "visual";
+
+
+function getStoredVimKeyBindings(): VimBinding[] {
+    const content = localStorage.getItem("vim-key-bindings") ?? JSON.stringify([{rhs: '', lhs: ''}]);
+    return JSON.parse(content);
+}
+
+function storeVimKeyBindings(bindings: VimBinding[]): void {
+    localStorage.setItem("vim-key-bindings", JSON.stringify(bindings));
+}
+
+function mapStoredBindings(): void {
+    getStoredVimKeyBindings().forEach(binding => {
+        VimMode.Vim.map(binding.lhs, binding.rhs, binding.context);
+    })
+}
+
+function VimKeyBindings() {
+    const [vimKeybindings, setVimKeyBindings] = useState(() => {
+        const bindings = getStoredVimKeyBindings();
+        bindings.forEach(binding => {
+            VimMode.Vim.map(binding.lhs, binding.rhs, binding.context);
+        })
+        const [first] = bindings;
+        if (!first || first.lhs !== "") bindings.push({lhs: "", rhs: "", context: "normal"});
+        return bindings;
+    });
+
+    const saveAndApplyKeyBindings = React.useCallback(() => {
+        const root = document.getElementsByClassName("vim-key-bindings").item(0);
+        if (!root) return;
+        const bindings: VimBinding[] = [];
+
+        for (let i = 1; i < root.children.length; i++) {
+            const ruleWrapper = root.children.item(i);
+            const inputFields = ruleWrapper?.getElementsByTagName("input");
+            const contextSelect = ruleWrapper?.getElementsByTagName("select").item(0);
+            const lhs = inputFields?.item(0);
+            const rhs = inputFields?.item(1);
+            if (lhs?.value && rhs?.value && contextSelect?.value) {
+                const context = contextSelect.value as "normal" | "visual" | "insert";
+                console.log(lhs.value, rhs.value, context)
+                VimMode.Vim.map(lhs.value, rhs.value, context);
+                bindings.push({lhs: lhs.value, rhs: rhs.value, context});
+            }
+        }
+
+        storeVimKeyBindings(bindings);
+        snackbarStore.addSuccess("Bindings updated", false);
+    }, []);
+
+    const unmapBinding = React.useCallback((bindingIndex: number, lhs: string, context?: VimModes) => {
+        VimMode.Vim.unmap(lhs, context);
+        // TODO(Jonas): This does not work correctly
+        setVimKeyBindings(bindings => {
+            const filtered = bindings.filter((it, index) => index !== bindingIndex && it.lhs && it.rhs);
+            storeVimKeyBindings(filtered);
+            if (filtered.length === 0) return [{lhs: "", rhs: "", context: "normal"}];
+            return filtered;
+        })
+    }, []);
+
+    const addRowIfLast = React.useCallback((index: number, arrayLength: number) => {
+        if (index !== arrayLength - 1) return;
+        setVimKeyBindings(bindings => [...bindings, {lhs: "", rhs: "", context: "normal"}]);
+    }, []);
+
+    if (!getEditorOption("vim")) return null;
+
+    return (
+        <div className="vim-key-bindings">
+            <Flex>Vim key bindings <Button onClick={saveAndApplyKeyBindings} ml="auto">Save key bindings</Button></Flex>
+            <code>:map {`{lhs}`} {`{rhs}`}</code>
+            {vimKeybindings.map((binding, index) => <Flex my="12px" key={index + binding.lhs + binding.rhs + (binding.context ?? "")}>
+                <Label mr="4px">
+                    Left-hand-side (lhs):
+                    <Input defaultValue={binding.lhs} onChange={() => {
+                        addRowIfLast(index, vimKeybindings.length);
+                    }} />
+                </Label>
+                <Label mr="4px">
+                    Right-hand-side (rhs):
+                    <Input defaultValue={binding.rhs} onChange={() => {
+                        addRowIfLast(index, vimKeybindings.length);
+                    }} />
+                </Label>
+                <Label mr="4px">
+                    Mode:
+                    <Select defaultValue={binding.context}>
+                        <option>normal</option>
+                        <option>insert</option>
+                        <option>visual</option>
+                    </Select>
+                </Label>
+                <Icon ml="12px" mt="28px" onClick={() => unmapBinding(index, binding.lhs, binding.context)} name="close" />
+            </Flex>)
+            }
+        </div >
+    )
 }
 
 interface StoredSettings {

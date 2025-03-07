@@ -57,8 +57,8 @@ export interface ClickableDropdownProps<T> {
     // NOTE(Dan): I am sorry for having to go imperative but this is needed to force close a mouse positioned
     // dropdown. Otherwise, this will cause issues for confirmation buttons (which require a hold action versus a
     // click).
-    closeFnRef?: React.MutableRefObject<() => void>;
-    openFnRef?: React.MutableRefObject<(left: number, top: number) => void>;
+    closeFnRef?: React.RefObject<() => void>;
+    openFnRef?: React.RefObject<(left: number, top: number) => void>;
     onKeyDown?: (ev: KeyboardEvent) => boolean | void;
 }
 
