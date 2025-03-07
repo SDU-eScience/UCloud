@@ -38,6 +38,10 @@ func Init(mux *http.ServeMux) {
 	}
 }
 
+func InitLate(mux *http.ServeMux) {
+	controllerIntegratedApps(mux)
+}
+
 type ApiHandler[T any] func(w http.ResponseWriter, r *http.Request, request T)
 
 type HttpApiFlag int

@@ -6,6 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"maps"
 	"slices"
 	"time"
 	"ucloud.dk/pkg/apm"
@@ -30,9 +31,14 @@ var nextAccounting time.Time
 var schedulers = map[string]*Scheduler{}
 
 func getScheduler(category string) (*Scheduler, bool) {
-	_, ok := shared.ServiceConfig.Compute.Machines[category]
-	if !ok {
-		return nil, false
+	_, isIApp := ctrl.IntegratedApplications[category]
+	if isIApp {
+		// TODO Ask the application about the scheduler.
+	} else {
+		_, ok := shared.ServiceConfig.Compute.Machines[category]
+		if !ok {
+			return nil, false
+		}
 	}
 
 	existing, ok := schedulers[category]
@@ -94,7 +100,7 @@ func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 	}
 
 	if state.State == orc.JobStateRunning && state.Node.Present {
-		sched.RegisterRunningReplica(state.Id, state.Rank, jobDimensions(job), state.Node.Value, nil,
+		sched.RegisterRunningReplica(state.Id, state.Rank, shared.JobDimensions(job), state.Node.Value, nil,
 			timeAllocationOrDefault(job.Specification.TimeAllocation))
 	}
 
@@ -148,15 +154,6 @@ func (t *jobTracker) RequestCleanup(jobId string) {
 	}
 }
 
-func jobDimensions(job *orc.Job) SchedulerDimensions {
-	prod := &job.Status.ResolvedProduct
-	return SchedulerDimensions{
-		CpuMillis:     prod.Cpu * 1000,
-		MemoryInBytes: prod.MemoryInGigs * (1024 * 1024 * 1024),
-		Gpu:           0,
-	}
-}
-
 func timeAllocationOrDefault(alloc util.Option[orc.SimpleDuration]) orc.SimpleDuration {
 	return alloc.GetOrDefault(orc.SimpleDuration{
 		Hours:   24 * 365,
@@ -175,6 +172,26 @@ func loopMonitoring() {
 			return shared.K8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 		})
 
+		if util.DevelopmentModeEnabled() && len(nodeList.Items) == 1 {
+			baseNode := nodeList.Items[0]
+			nodeList.Items = []corev1.Node{}
+
+			for category, _ := range shared.ServiceConfig.Compute.Machines {
+				normalMachine := baseNode
+				normalMachine.Labels = maps.Clone(normalMachine.Labels)
+				normalMachine.Labels["ucloud.dk/machine"] = category
+				nodeList.Items = append(nodeList.Items, normalMachine)
+				break
+			}
+
+			if shared.ServiceConfig.Compute.Syncthing.Enabled {
+				syncthingNode := nodeList.Items[0]
+				syncthingNode.Labels = maps.Clone(syncthingNode.Labels)
+				syncthingNode.Labels["ucloud.dk/machine"] = "syncthing"
+				nodeList.Items = append(nodeList.Items, syncthingNode)
+			}
+		}
+
 		length := len(nodeList.Items)
 		for i := 0; i < length; i++ {
 			node := &nodeList.Items[i]
@@ -191,13 +208,13 @@ func loopMonitoring() {
 			k8sCapacity := node.Status.Capacity
 			k8sAllocatable := node.Status.Allocatable
 
-			capacity := SchedulerDimensions{
+			capacity := shared.SchedulerDimensions{
 				CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
 				MemoryInBytes: int(k8sCapacity.Memory().Value()),
 				Gpu:           int(k8sCapacity.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
 			}
 
-			limits := SchedulerDimensions{
+			limits := shared.SchedulerDimensions{
 				CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
 				MemoryInBytes: int(k8sAllocatable.Memory().Value()),
 				Gpu:           int(k8sAllocatable.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
@@ -331,7 +348,7 @@ func loopMonitoring() {
 	for _, entry := range entriesToSubmit {
 		sched, ok := getSchedulerByJob(entry)
 		if ok {
-			sched.RegisterJobInQueue(entry.Id, jobDimensions(entry),
+			sched.RegisterJobInQueue(entry.Id, shared.JobDimensions(entry),
 				entry.Specification.Replicas, nil, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
 		}
 	}

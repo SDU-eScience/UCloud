@@ -140,7 +140,7 @@ pkgs.mkShell {
 	}
 
 	newScriptName := fmt.Sprintf("job-nix-%d.sh", rank)
-	nixJobFile, ok := filesystem.OpenFile(filepath.Join(jobFolder, newScriptName), unix.O_WRONLY|unix.O_CREAT, 0660)
+	nixJobFile, ok := filesystem.OpenFile(filepath.Join(jobFolder, newScriptName), unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0660)
 	if !ok {
 		return entrypointExtension{}
 	}

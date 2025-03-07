@@ -20,6 +20,7 @@ import dk.sdu.cloud.task.api.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.internal.synchronizedImpl
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -164,7 +165,7 @@ class FilesService(
             actorAndProject,
             listOf(collection),
             listOf(permission),
-            simpleFlags = SimpleResourceIncludeFlags(includeSupport = false)
+            simpleFlags = SimpleResourceIncludeFlags(includeSupport = false, includeOthers = true)
         ).singleOrNull()?.specification?.product?.provider ?: throw RPCException(
             "File not found",
             HttpStatusCode.NotFound
@@ -183,7 +184,7 @@ class FilesService(
             actorAndProject,
             listOf(collection),
             listOf(permission),
-            simpleFlags = SimpleResourceIncludeFlags(includeSupport = true)
+            simpleFlags = SimpleResourceIncludeFlags(includeSupport = true, includeOthers = true)
         ).singleOrNull() ?: throw RPCException("File not found", HttpStatusCode.NotFound)
     }
 
@@ -523,6 +524,7 @@ class FilesService(
                 actorAndProject,
                 collectionIds,
                 listOf(Permission.READ),
+                simpleFlags = SimpleResourceIncludeFlags(includeOthers = true),
                 requireAll = false,
                 ctx = session
             )
@@ -602,6 +604,7 @@ class FilesService(
             actorAndProject,
             collectionIds,
             listOf(Permission.READ),
+            simpleFlags = SimpleResourceIncludeFlags(includeOthers = true),
             requireAll = false,
             ctx = ctx
         )
@@ -652,7 +655,7 @@ class FilesService(
                         actorAndProject,
                         currentFolder.components().getOrNull(0)
                             ?: throw RPCException("Current folder is unknown", HttpStatusCode.NotFound),
-                        FileCollectionIncludeFlags(),
+                        FileCollectionIncludeFlags(includeOthers = true),
                     )
                 } catch (ex: RPCException) {
                     if (ex.httpStatusCode == HttpStatusCode.NotFound) {
@@ -1095,7 +1098,8 @@ class FilesService(
         val collections = fileCollections.retrieveBulk(
             actorAndProject,
             uniqueCollections,
-            listOf(permission)
+            listOf(permission),
+            simpleFlags = SimpleResourceIncludeFlags(includeOthers = true)
         ).associateBy { it.id }
 
         return request.items.mapNotNull { req ->

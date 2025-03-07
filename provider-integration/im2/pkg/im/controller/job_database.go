@@ -100,6 +100,7 @@ func InitJobDatabase() {
 	fetchAllJobs(orc.JobStateRunning)
 
 	initIpDatabase()
+	log.Info("Job DB is ready")
 }
 
 func TrackNewJob(job orc.Job) {
@@ -116,6 +117,10 @@ func TrackNewJob(job orc.Job) {
 	if RunsServerCode() {
 		activeJobsMutex.Lock()
 		activeJobs[job.Id] = &job
+
+		if job.Status.State.IsFinal() {
+			delete(activeJobs, job.Id)
+		}
 		activeJobsMutex.Unlock()
 
 		trackJobUpdateServer(&job)

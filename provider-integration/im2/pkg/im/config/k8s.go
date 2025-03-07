@@ -58,12 +58,22 @@ type KubernetesSshConfiguration struct {
 	PortMax   int
 }
 
+type KubernetesSyncthingConfiguration struct {
+	Enabled               bool
+	IpAddress             string
+	PortMin               int
+	PortMax               int
+	DevelopmentSourceCode string
+	RelaysEnabled         bool
+}
+
 type KubernetesCompute struct {
 	Machines                   map[string]K8sMachineCategory
 	Namespace                  string
 	Web                        KubernetesWebConfiguration
 	PublicIps                  KubernetesIpConfiguration
 	Ssh                        KubernetesSshConfiguration
+	Syncthing                  KubernetesSyncthingConfiguration
 	VirtualMachineStorageClass util.Option[string]
 }
 
@@ -263,6 +273,51 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			if hostname != "" {
 				cfg.Compute.Ssh.Hostname.Set(hostname)
 			}
+		}
+	}
+
+	syncthingNode, _ := getChildOrNil(filePath, computeNode, "syncthing")
+	if syncthingNode != nil {
+		enabled, ok := optionalChildBool(filePath, syncthingNode, "enabled")
+		cfg.Compute.Syncthing.Enabled = enabled && ok
+
+		if cfg.Compute.Syncthing.Enabled {
+			ipAddr := requireChildText(filePath, syncthingNode, "ipAddress", &success)
+			if success {
+				ip := net.ParseIP(ipAddr)
+				if ip == nil {
+					reportError(filePath, syncthingNode, "Invalid IP address specified")
+					success = false
+				} else {
+					cfg.Compute.Syncthing.IpAddress = ipAddr
+				}
+			}
+
+			portMin := requireChildInt(filePath, syncthingNode, "portMin", &success)
+			if success && (portMin <= 0 || portMin >= math.MaxInt16) {
+				reportError(filePath, syncthingNode, "portMin is invalid")
+				success = false
+			}
+
+			portMax := requireChildInt(filePath, syncthingNode, "portMax", &success)
+			if success && (portMax <= 0 || portMax >= math.MaxInt16) {
+				reportError(filePath, syncthingNode, "portMax is invalid")
+				success = false
+			}
+
+			if success && portMin < portMin {
+				reportError(filePath, syncthingNode, "portMax is less than portMin")
+				success = false
+			}
+
+			cfg.Compute.Syncthing.PortMin = int(portMin)
+			cfg.Compute.Syncthing.PortMax = int(portMax)
+
+			cfg.Compute.Syncthing.DevelopmentSourceCode = optionalChildText(filePath, syncthingNode, "developmentSourceCode", &success)
+
+			relaysEnabled, ok := optionalChildBool(filePath, syncthingNode, "relaysEnabled")
+			cfg.Compute.Syncthing.RelaysEnabled = relaysEnabled && ok
+			cfg.Compute.Syncthing.DevelopmentSourceCode = optionalChildText(filePath, syncthingNode, "developmentSourceCode", &success)
 		}
 	}
 

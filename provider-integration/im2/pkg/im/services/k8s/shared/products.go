@@ -111,7 +111,7 @@ func initProducts() {
 		}
 
 		allowContainer := containers[machine.Category.Name]
-		allowVirtualMachine := containers[machine.Category.Name]
+		allowVirtualMachine := vms[machine.Category.Name]
 
 		if allowContainer {
 			support.Docker.Enabled = true
@@ -134,6 +134,50 @@ func initProducts() {
 			support.VirtualMachine.Suspension = true
 		}
 
+		MachineSupport = append(MachineSupport, support)
+	}
+
+	if ServiceConfig.Compute.Syncthing.Enabled {
+		// NOTE(Dan): This block must be placed after the general machine loop
+
+		support := orc.JobSupport{
+			Product: apm.ProductReference{
+				Id:       "syncthing",
+				Category: "syncthing",
+				Provider: cfg.Provider.Id,
+			},
+		}
+
+		support.Docker.Enabled = false
+		support.VirtualMachine.Enabled = false
+		support.Native.Enabled = false
+
+		machine := apm.ProductV2{
+			Type: apm.ProductTypeCCompute,
+			Category: apm.ProductCategory{
+				Name:        "syncthing",
+				Provider:    cfg.Provider.Id,
+				ProductType: apm.ProductTypeCompute,
+				AccountingUnit: apm.AccountingUnit{
+					Name:                   "Core",
+					NamePlural:             "Core",
+					FloatingPoint:          false,
+					DisplayFrequencySuffix: true,
+				},
+				AccountingFrequency: apm.AccountingFrequencyPeriodicHour,
+				FreeToUse:           true,
+				AllowSubAllocations: false,
+			},
+			Name:                      "syncthing",
+			Description:               "Product for syncthing",
+			ProductType:               apm.ProductTypeCompute,
+			Price:                     1,
+			HiddenInGrantApplications: true,
+			Cpu:                       1,
+			MemoryInGigs:              1,
+		}
+
+		Machines = append(Machines, machine)
 		MachineSupport = append(MachineSupport, support)
 	}
 

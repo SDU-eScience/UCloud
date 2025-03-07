@@ -11,6 +11,10 @@ import (
 )
 
 func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
+	if !Enabled {
+		return
+	}
+
 	activeInstances, err := KubevirtClient.VirtualMachineInstance(Namespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Info("Failed to fetch virtual machines instances: %v", err)

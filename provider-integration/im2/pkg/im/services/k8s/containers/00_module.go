@@ -40,6 +40,9 @@ func Init() ctrl.JobsService {
 	_ = core.AddToScheme(scheme)
 	ExecCodec = runtime.NewParameterCodec(scheme)
 
+	initSyncthing()
+
+	loadIApps()
 	LoadNixModules()
 
 	return ctrl.JobsService{
@@ -164,7 +167,9 @@ func terminate(request ctrl.JobTerminateRequest) error {
 
 		// NOTE(Dan): JobUpdateBatch and monitoring logic will aggressively get rid of pods that don't belong in
 		// the namespace and as such we don't have to worry about failures here.
-		_ = K8sClient.CoreV1().Pods(Namespace).Delete(ctx, podName, meta.DeleteOptions{})
+		_ = K8sClient.CoreV1().Pods(Namespace).Delete(ctx, podName, meta.DeleteOptions{
+			GracePeriodSeconds: util.Pointer[int64](1),
+		})
 
 		cancel()
 	}
@@ -269,3 +274,19 @@ func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) ctrl.
 		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + "-" + fmt.Sprint(rank) + suffix.Value + ServiceConfig.Compute.Web.Suffix,
 	}
 }
+
+func JobAnnotations(job *orc.Job, rank int) map[string]string {
+	podName := idAndRankToPodName(job.Id, rank)
+	timeout, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	pod, err := K8sClient.CoreV1().Pods(Namespace).Get(timeout, podName, meta.GetOptions{})
+	if err == nil {
+		return pod.Annotations
+	} else {
+		return nil
+	}
+}
+
+const (
+	ContainerUserJob = "user-job"
+)

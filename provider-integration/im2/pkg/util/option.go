@@ -94,3 +94,16 @@ func OptStringIfNotEmpty(value string) Option[string] {
 		return OptValue[string](value)
 	}
 }
+
+func OptMapGet[K comparable, V any](value map[K]V, key K) Option[V] {
+	if value == nil {
+		return OptNone[V]()
+	} else {
+		result, ok := value[key]
+		if ok {
+			return OptValue(result)
+		} else {
+			return OptNone[V]()
+		}
+	}
+}

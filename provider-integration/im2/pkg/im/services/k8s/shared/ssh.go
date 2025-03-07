@@ -36,6 +36,21 @@ func initSsh() {
 }
 
 func assignSshPort(job *orc.Job) (util.Option[int], error) {
+	sshMode := job.Status.ResolvedApplication.Invocation.Ssh.Mode
+	sshEnabled := false
+	switch sshMode {
+	case orc.SshModeDisabled:
+		sshEnabled = false
+	case orc.SshModeOptional:
+		sshEnabled = job.Specification.SshEnabled
+	case orc.SshModeMandatory:
+		sshEnabled = true
+	}
+
+	if !sshEnabled {
+		return util.OptNone[int](), nil
+	}
+
 	if !sshConfig.Enabled {
 		return util.OptNone[int](), util.UserHttpError("SSH not supported")
 	} else {

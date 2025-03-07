@@ -112,6 +112,7 @@ export function isSensitivitySupported(resource: UFile): boolean {
         switch (resource.specification.product.provider) {
             case "k8":
             case "K8":
+            case "gok8s":
             case "ucloud":
                 return true;
 
