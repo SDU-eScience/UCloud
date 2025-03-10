@@ -7,6 +7,7 @@ import (
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"strconv"
 	"strings"
 	"time"
@@ -104,6 +105,15 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		}
 
 		sshService = shared.AssignAndPrepareSshService(job).GetOrDefault(nil)
+		if sshService != nil {
+			allowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
+				{
+					Protocol: orc.IpProtocolTcp,
+					Start:    22,
+					End:      22,
+				},
+			})
+		}
 	}
 
 	// Setting up the basics
@@ -263,7 +273,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	// Public IP and SSH
 	// -----------------------------------------------------------------------------------------------------------------
-	preparePublicIpsAndSsh(job, service)
+	preparePublicIp(job, service, firewall)
 	injectSshKeys(job.Id, pod, userContainer)
 
 	// Shared-memory
@@ -396,6 +406,31 @@ func allowNetworkToSubnet(policy *networking.NetworkPolicy, subnet string) {
 			{
 				IPBlock: &networking.IPBlock{
 					CIDR: subnet,
+				},
+			},
+		},
+	})
+}
+
+func allowNetworkFromWorld(policy *networking.NetworkPolicy, proto []orc.PortRangeAndProto) {
+	var portEntries []networking.NetworkPolicyPort
+	for _, entry := range proto {
+		portEntries = append(portEntries, networking.NetworkPolicyPort{
+			Protocol: util.Pointer(core.Protocol(entry.Protocol)),
+			Port: &intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: int32(entry.Start),
+			},
+			EndPort: util.Pointer(int32(entry.End)),
+		})
+	}
+
+	policy.Spec.Ingress = append(policy.Spec.Ingress, networking.NetworkPolicyIngressRule{
+		Ports: portEntries,
+		From: []networking.NetworkPolicyPeer{
+			{
+				IPBlock: &networking.IPBlock{
+					CIDR: "0.0.0.0/0",
 				},
 			},
 		},

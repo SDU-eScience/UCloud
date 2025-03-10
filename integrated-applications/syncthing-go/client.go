@@ -591,7 +591,7 @@ func NewSyncthingOptions() SyncthingOptions {
 		StartBrowser:                        false, // Important. Always false.
 		StunKeepaliveMinS:                   20,
 		StunKeepaliveStartS:                 180,
-		StunServers:                         []string{"default"}, // Important. Set to empty string?
+		StunServers:                         []string{""}, // Important. Set to empty string?
 		TempIndexMinBlocks:                  10,
 		TrafficClass:                        0,
 		UnackedNotificationIDs:              []string{},

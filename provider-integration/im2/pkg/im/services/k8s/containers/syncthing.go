@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"golang.org/x/sys/unix"
 	core "k8s.io/api/core/v1"
+	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -54,7 +55,7 @@ func initSyncthing() {
 			MutateJobNonPersistent:          syncthingMutateJobNonPersistent,
 			MutatePod:                       syncthingMutatePod,
 			MutateService:                   syncthingMutateService,
-			MutateNetworkPolicy:             nil,
+			MutateNetworkPolicy:             syncthingMutateFirewall,
 			MutateJobSpecBeforeRegistration: syncthingMutateJobSpec,
 			BeforeMonitor:                   syncthingBeforeMonitor,
 		}
@@ -162,12 +163,6 @@ func syncthingMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage
 	_ = json.Unmarshal(configuration, &config)
 
 	appInvocation := &job.Status.ResolvedApplication.Invocation
-	tool := &appInvocation.Tool.Tool
-	tool.Description.Image = "alpine:latest"
-	appInvocation.Invocation = []orc.InvocationParameter{
-		orc.InvocationWord("sleep"),
-		orc.InvocationWord("inf"),
-	}
 	appInvocation.Environment = map[string]orc.InvocationParameter{}
 
 	spec := &job.Specification
@@ -265,6 +260,11 @@ func syncthingMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.P
 				container.Command = []string{
 					"bash", "-c", "cd /opt/source ; export PATH=$PATH:/usr/local/go/bin ; go run . \"$STATE_DIR\"; sleep inf",
 				}
+			} else {
+				container.Image = "dreg.cloud.sdu.dk/ucloud/syncthing-go:latest"
+				container.Command = []string{
+					"bash", "-c", "/usr/bin/ucloud-sync \"$STATE_DIR\"",
+				}
 			}
 		}
 	}
@@ -347,6 +347,23 @@ func syncthingMutateService(job *orc.Job, configuration json.RawMessage, unrelat
 
 	_, err := K8sClient.CoreV1().Services(Namespace).Create(timeout, service, meta.CreateOptions{})
 	return err
+}
+
+func syncthingMutateFirewall(job *orc.Job, configuration json.RawMessage, firewall *networking.NetworkPolicy, pod *core.Pod) error {
+	port := syncthingGetAssignedPort(pod)
+	if !port.Present {
+		return fmt.Errorf("no syncthing port")
+	}
+
+	allowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
+		{
+			Protocol: orc.IpProtocolTcp,
+			Start:    port.Value,
+			End:      port.Value,
+		},
+	})
+
+	return nil
 }
 
 const (

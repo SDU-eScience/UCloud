@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"gopkg.in/yaml.v3"
-	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -554,20 +553,7 @@ func (h HostInfo) validate(filePath string, node *yaml.Node) bool {
 		return false
 	}
 
-	_, err := net.LookupHost(h.Address)
-
-	if err != nil {
-		reportError(
-			filePath,
-			node,
-			"The host '%v:%v' appears to be invalid. Make sure that the hostname is valid and "+
-				"that you are able to connect to it.",
-			h.Address,
-			h.Port,
-		)
-	}
-
-	return err == nil
+	return true
 }
 
 func (h HostInfo) ToURL() string {
