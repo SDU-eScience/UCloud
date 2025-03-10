@@ -20,6 +20,7 @@ const (
 )
 
 type Scheduler struct {
+	Name            string
 	Queue           []SchedulerQueueEntry
 	Replicas        []SchedulerReplicaEntry
 	Nodes           map[string]*SchedulerNode
@@ -46,8 +47,9 @@ type Scheduler struct {
 	//GuaranteedResourceFraction float64
 }
 
-func NewScheduler() *Scheduler {
+func NewScheduler(name string) *Scheduler {
 	return &Scheduler{
+		Name:            name,
 		Nodes:           make(map[string]*SchedulerNode),
 		Projects:        make(map[string]*SchedulerProject),
 		WeightAge:       1,

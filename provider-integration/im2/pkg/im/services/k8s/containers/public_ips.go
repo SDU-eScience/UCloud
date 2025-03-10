@@ -3,15 +3,13 @@ package containers
 import (
 	"fmt"
 	core "k8s.io/api/core/v1"
+	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "ucloud.dk/pkg/im/controller"
 	orc "ucloud.dk/pkg/orchestrators"
 )
 
-func preparePublicIpsAndSsh(
-	job *orc.Job,
-	service *core.Service,
-) {
+func preparePublicIp(job *orc.Job, service *core.Service, firewall *networking.NetworkPolicy) {
 	if service == nil {
 		// Nothing to do if we are not supposed to touch the resources
 		return
@@ -45,11 +43,14 @@ func preparePublicIpsAndSsh(
 								Protocol: core.Protocol(portRange.Protocol),
 								Port:     int32(port),
 								TargetPort: intstr.IntOrString{
+									Type:   intstr.Int,
 									IntVal: int32(port),
 								},
 							})
 						}
 					}
+
+					allowNetworkFromWorld(firewall, fw.Value.OpenPorts)
 				}
 			}
 		}

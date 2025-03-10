@@ -9,6 +9,7 @@ init_container() {
     if docker ps --filter "name=$CONTAINER_NAME" --format '{{.Names}}' | grep -q "^$CONTAINER_NAME$"; then
         echo "$platform_short builder ready"
     else 
+        docker rm "$CONTAINER_NAME"
         docker run -d -v `realpath ..`/:/opt/ucloud --name "$CONTAINER_NAME" --platform $platform "$IMAGE_NAME" sleep inf
         echo "$platform_short builder starting"
     fi

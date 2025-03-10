@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -43,7 +44,7 @@ func getScheduler(category string) (*Scheduler, bool) {
 
 	existing, ok := schedulers[category]
 	if !ok {
-		schedulers[category] = NewScheduler()
+		schedulers[category] = NewScheduler(category)
 		existing, ok = schedulers[category]
 	}
 	return existing, ok
@@ -195,32 +196,33 @@ func loopMonitoring() {
 		length := len(nodeList.Items)
 		for i := 0; i < length; i++ {
 			node := &nodeList.Items[i]
-			category := nodeCategory(node)
-			if !category.Present {
-				continue
+			categories := nodeCategories(node)
+			for _, category := range categories {
+				sched, ok := getScheduler(category)
+				if !ok {
+					continue
+				}
+
+				k8sCapacity := node.Status.Capacity
+				k8sAllocatable := node.Status.Allocatable
+
+				capacity := shared.SchedulerDimensions{
+					CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
+					MemoryInBytes: int(k8sCapacity.Memory().Value()),
+					Gpu:           int(k8sCapacity.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
+				}
+
+				limits := shared.SchedulerDimensions{
+					CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
+					MemoryInBytes: int(k8sAllocatable.Memory().Value()),
+					Gpu:           int(k8sAllocatable.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
+				}
+
+				sched.RegisterNode(node.Name, capacity, limits, node.Spec.Unschedulable)
 			}
+		}
 
-			sched, ok := getScheduler(category.Value)
-			if !ok {
-				continue
-			}
-
-			k8sCapacity := node.Status.Capacity
-			k8sAllocatable := node.Status.Allocatable
-
-			capacity := shared.SchedulerDimensions{
-				CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
-				MemoryInBytes: int(k8sCapacity.Memory().Value()),
-				Gpu:           int(k8sCapacity.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
-			}
-
-			limits := shared.SchedulerDimensions{
-				CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
-				MemoryInBytes: int(k8sAllocatable.Memory().Value()),
-				Gpu:           int(k8sAllocatable.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
-			}
-
-			sched.RegisterNode(node.Name, capacity, limits, node.Spec.Unschedulable)
+		for _, sched := range schedulers {
 			sched.PruneNodes()
 		}
 
@@ -391,19 +393,27 @@ func loopMonitoring() {
 	_ = ctrl.TrackJobMessages(scheduleMessages)
 }
 
-func nodeCategory(node *corev1.Node) util.Option[string] {
-	machineLabel, ok := node.Labels["ucloud.dk/machine"]
-	if !ok {
-		// Dev only fix
-		if node.ObjectMeta.Name == "im2k3" {
-			for k, _ := range shared.ServiceConfig.Compute.Machines {
-				return util.OptValue(k)
+func nodeCategories(node *corev1.Node) []string {
+	// NOTE(Dan): It is really important that production providers only return 1. Being able to return more than one
+	// is just for testing in resource-constrained environments.
+	parseResult := func(machineLabel string) []string {
+		if len(machineLabel) == 0 {
+			return nil
+		} else {
+			if machineLabel[0] == '[' {
+				var nodes []string
+				_ = json.Unmarshal([]byte(machineLabel), &nodes)
+				return nodes
+			} else {
+				return []string{machineLabel}
 			}
 		}
-		return util.OptNone[string]()
 	}
 
-	return util.OptValue(machineLabel)
+	var result []string
+	result = append(result, parseResult(node.Labels["ucloud.dk/machine"])...)
+	result = append(result, parseResult(node.Annotations["ucloud.dk/machine"])...)
+	return result
 }
 
 func convertJobTimeToAccountingUnits(job *orc.Job, timeConsumed time.Duration) int64 {

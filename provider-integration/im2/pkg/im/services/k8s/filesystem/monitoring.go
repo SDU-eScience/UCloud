@@ -171,7 +171,9 @@ func scanDrive(drive orc.Drive) {
 						util.SilentClose(f.FileDescriptor)
 					}
 
-					sizeToReport += f.FileInfo.Size()
+					if f.FileInfo != nil {
+						sizeToReport += f.FileInfo.Size()
+					}
 				}
 			}
 		}()
