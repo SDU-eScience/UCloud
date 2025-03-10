@@ -21,7 +21,7 @@ const wrapper = injectStyle("command-palette", k => `
         
         
         position: fixed;
-        top: calc(50vh - var(--own-base-height));
+        top: 25%;
         left: calc(50vw - (var(--own-width) / 2));
         
         border-radius: 16px;
@@ -30,10 +30,6 @@ const wrapper = injectStyle("command-palette", k => `
         
         box-shadow: var(--defaultShadow);
         background: var(--backgroundCardHover);
-
-        &[has-items] {
-            top: 25%
-        }
 
         & input {
             width: calc(100% - 2 * 16px);
@@ -169,7 +165,7 @@ export const CommandPalette: React.FunctionComponent = () => {
 
     if (!visible) return null;
 
-    return <div ref={divRef} has-items={commands.length > 0 ? "" : undefined} className={wrapper}>
+    return <div ref={divRef} className={wrapper}>
         <input
             autoFocus
             placeholder={"Search for actions on UCloud..."}
