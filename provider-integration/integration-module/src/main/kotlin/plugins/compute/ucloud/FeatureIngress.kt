@@ -259,7 +259,7 @@ class FeatureIngress(
                         """
                     ).useAndInvoke(readRow = { row -> owners.add(row.getString(0)!!) })
                     owners.forEachGraal { owner ->
-                        accountNow(owner, session)
+                        //accountNow(owner, session)
                     }
                 } catch (ex: Throwable) {
                     log.warn("Caught exception while accounting public links: ${ex.toReadableStacktrace()}")
