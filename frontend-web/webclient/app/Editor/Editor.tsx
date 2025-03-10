@@ -1157,7 +1157,7 @@ export const Editor: React.FunctionComponent<{
                     </div>
 
                     <div style={{
-                        display: props.showCustomContent ? "block" : "none",
+                        display: props.showCustomContent && tabs.open.length > 0 ? "block" : "none",
                         width: "100%",
                         height: "100%",
                         maxHeight: "calc(100% - 64px)",
