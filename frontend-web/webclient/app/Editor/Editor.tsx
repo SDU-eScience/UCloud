@@ -352,6 +352,8 @@ const EditorClass = injectStyle("editor", k => `
         display: flex;
         width: 100%;
         height: 100%;
+        max-height: calc(100% - 32px - 21px);
+        overflow-y: scroll;
     }
     
     ${k} .panels > div > .code {
@@ -768,10 +770,9 @@ export const Editor: React.FunctionComponent<{
         setEditor(editor);
 
         const vimEnabled = getEditorOption("vim") === true;
+        mapStoredBindings();
         if (vimEnabled) {
             setVimModeObject(initVimMode(editor, getStatusBarElement()));
-            mapStoredBindings();
-
         }
     }, [monacoInstance]);
 
@@ -1641,17 +1642,22 @@ interface VimBinding {
     lhs: string;
     rhs: string;
     context: VimModes;
+    key: number;
 }
 type VimModes = "insert" | "normal" | "visual";
 
 
 function getStoredVimKeyBindings(): VimBinding[] {
     const content = localStorage.getItem("vim-key-bindings") ?? JSON.stringify([{rhs: '', lhs: ''}]);
-    return JSON.parse(content);
+    return JSON.parse(content).map((it: Omit<VimBinding, "key">) => ({...it, key: Math.random()}));
 }
 
 function storeVimKeyBindings(bindings: VimBinding[]): void {
-    localStorage.setItem("vim-key-bindings", JSON.stringify(bindings));
+    localStorage.setItem("vim-key-bindings", JSON.stringify(bindings.map(it => ({
+        lhs: it.lhs,
+        rhs: it.rhs,
+        context: it.context
+    }))));
 }
 
 function mapStoredBindings(): void {
@@ -1663,19 +1669,15 @@ function mapStoredBindings(): void {
 function VimKeyBindings() {
     const [vimKeybindings, setVimKeyBindings] = useState(() => {
         const bindings = getStoredVimKeyBindings();
-        bindings.forEach(binding => {
-            VimMode.Vim.map(binding.lhs, binding.rhs, binding.context);
-        })
         const [first] = bindings;
-        if (!first || first.lhs !== "") bindings.push({lhs: "", rhs: "", context: "normal"});
+        if (!first || first.lhs !== "") bindings.push({lhs: "", rhs: "", context: "normal", key: Math.random()});
         return bindings;
     });
 
-    const saveAndApplyKeyBindings = React.useCallback(() => {
+    const getRows = React.useCallback(() => {
         const root = document.getElementsByClassName("vim-key-bindings").item(0);
-        if (!root) return;
-        const bindings: VimBinding[] = [];
-
+        if (!root) return [];
+        const result: VimBinding[] = [];
         for (let i = 1; i < root.children.length; i++) {
             const ruleWrapper = root.children.item(i);
             const inputFields = ruleWrapper?.getElementsByTagName("input");
@@ -1684,30 +1686,51 @@ function VimKeyBindings() {
             const rhs = inputFields?.item(1);
             if (lhs?.value && rhs?.value && contextSelect?.value) {
                 const context = contextSelect.value as "normal" | "visual" | "insert";
-                console.log(lhs.value, rhs.value, context)
-                VimMode.Vim.map(lhs.value, rhs.value, context);
-                bindings.push({lhs: lhs.value, rhs: rhs.value, context});
+                result.push({lhs: lhs.value, rhs: rhs.value, context, key: Math.random()});
             }
         }
+        return result;
+    }, []);
 
-        storeVimKeyBindings(bindings);
+    const saveAndApplyKeyBindings = React.useCallback(() => {
+        setVimKeyBindings(allBindings => {
+
+            VimMode.Vim.mapclear("insert");
+            VimMode.Vim.mapclear("normal");
+            VimMode.Vim.mapclear("visual");
+
+            const rows = getRows();
+            for (const row of rows) {
+                VimMode.Vim.map(row.lhs, row.rhs, row.context);
+            }
+
+            storeVimKeyBindings(rows);
+            return rows;
+        });
         snackbarStore.addSuccess("Bindings updated", false);
     }, []);
 
-    const unmapBinding = React.useCallback((bindingIndex: number, lhs: string, context?: VimModes) => {
-        VimMode.Vim.unmap(lhs, context);
-        // TODO(Jonas): This does not work correctly
+    const unmapBinding = React.useCallback((key: number) => {
         setVimKeyBindings(bindings => {
-            const filtered = bindings.filter((it, index) => index !== bindingIndex && it.lhs && it.rhs);
-            storeVimKeyBindings(filtered);
-            if (filtered.length === 0) return [{lhs: "", rhs: "", context: "normal"}];
-            return filtered;
-        })
+            const binding = bindings.find(it => it.key === key);
+            if (binding) {
+                VimMode.Vim.unmap(binding.lhs, binding.context);
+            }
+            return [...bindings.filter(it => it.key !== key)]
+        });
+        setTimeout(() => saveAndApplyKeyBindings(), 0);
     }, []);
+
+    React.useEffect(() => {
+        // Note(Jonas): If has no input field, or no empty input-field at the end, add it.
+        const last = vimKeybindings.at(-1);
+        if (!last) setVimKeyBindings([{lhs: "", rhs: "", context: "normal", key: Math.random()}]);
+        else if (last.lhs !== "" && last.rhs !== "") setVimKeyBindings(b => [...b, {lhs: "", rhs: "", context: "normal", key: Math.random()}]);
+    }, [vimKeybindings])
 
     const addRowIfLast = React.useCallback((index: number, arrayLength: number) => {
         if (index !== arrayLength - 1) return;
-        setVimKeyBindings(bindings => [...bindings, {lhs: "", rhs: "", context: "normal"}]);
+        setVimKeyBindings(bindings => [...bindings, {lhs: "", rhs: "", context: "normal", key: Math.random()}]);
     }, []);
 
     if (!getEditorOption("vim")) return null;
@@ -1716,7 +1739,7 @@ function VimKeyBindings() {
         <div className="vim-key-bindings">
             <Flex>Vim key bindings <Button onClick={saveAndApplyKeyBindings} ml="auto">Save key bindings</Button></Flex>
             <code>:map {`{lhs}`} {`{rhs}`}</code>
-            {vimKeybindings.map((binding, index) => <Flex my="12px" key={index + binding.lhs + binding.rhs + (binding.context ?? "")}>
+            {vimKeybindings.map((binding, index) => <Flex my="12px" key={binding.key}>
                 <Label mr="4px">
                     Left-hand-side (lhs):
                     <Input defaultValue={binding.lhs} onChange={() => {
@@ -1737,11 +1760,11 @@ function VimKeyBindings() {
                         <option>visual</option>
                     </Select>
                 </Label>
-                <Icon ml="12px" mt="28px" onClick={() => unmapBinding(index, binding.lhs, binding.context)} name="close" />
+                <Icon ml="12px" mt="28px" onClick={() => unmapBinding(binding.key)} name="close" />
             </Flex>)
             }
         </div >
-    )
+    );
 }
 
 interface StoredSettings {
@@ -1845,4 +1868,4 @@ const EditorReleaseNotes = `
 
 - Nothing of note :(
 
-`
+`;
