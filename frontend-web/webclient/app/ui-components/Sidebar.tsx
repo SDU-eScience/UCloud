@@ -760,6 +760,20 @@ function SecondarySidebar({
     }, [favoriteApps]);
 
     const appFavorites = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
+    const isLight = isLightThemeStored();
+
+    useProvideCommands(staticProvider(appFavorites.map(fav => ({
+        title: fav.metadata.title,
+        icon: {type: "image", imageUrl: AppStore.retrieveAppLogo({name: fav.metadata.name, includeText: false, darkMode: !isLight})},
+        action() {
+            navigate(AppRoutes.jobs.create(fav.metadata.name, fav.metadata.version));
+        },
+        description: fav.metadata.description,
+        scope: CommandScope.Application,
+        actionText: "Go to",
+    }))));
+
+
     const isOpen = clicked !== "" || hovered !== "";
     const active = !isOpen ? lastHover.current : hovered ? hovered : clicked;
     const asPopOver = hovered && !clicked;
