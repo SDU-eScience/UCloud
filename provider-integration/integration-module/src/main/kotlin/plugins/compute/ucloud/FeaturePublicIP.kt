@@ -58,7 +58,7 @@ class FeaturePublicIP(
 
                     val containers = runtime.list()
                     val resolvedJobs = containers.mapNotNull { jobCache.findJob(it.jobId) }
-                    owners.forEachGraal { owner ->
+                    /*owners.forEachGraal { owner ->
                         if (!accountNow(owner, session)) {
                             val ipsToTerminateBecauseOf = ArrayList<String>()
                             session.prepareStatement(
@@ -83,7 +83,7 @@ class FeaturePublicIP(
                                 containers.filter { it.jobId == job.id }.forEach { it.cancel() }
                             }
                         }
-                    }
+                    }*/
                 } catch (ex: Throwable) {
                     log.warn("Caught exception while accounting public IPs: ${ex.toReadableStacktrace()}")
                 }
