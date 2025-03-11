@@ -284,7 +284,7 @@ const IMAGE_SIZE = 18;
 function CommandIcon({icon, active, label}: {icon: CommandIconProvider; active: boolean; label: string}) {
     switch (icon.type) {
         case "image": {
-            return <Image alt={label} src={icon.imageUrl} height={`${IMAGE_SIZE}px`} width={`${IMAGE_SIZE}px`} />;
+            return <Image alt={label} src={icon.imageUrl} height={`${IMAGE_SIZE}px`} objectFit="contain" width={`${IMAGE_SIZE}px`} />;
         }
         case "simple": {
             return <Icon name={icon.icon} size={IMAGE_SIZE} color={icon.color ?? (active ? "primaryContrast" : "iconColor")} color2={icon.color2 ?? (active ? "primaryContrastAlt" : "iconColor2")} />
