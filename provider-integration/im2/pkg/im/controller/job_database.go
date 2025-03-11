@@ -100,11 +100,40 @@ func InitJobDatabase() {
 	fetchAllJobs(orc.JobStateRunning)
 
 	initIpDatabase()
-	log.Info("Job DB is ready")
+
+	// Job metrics
+	go func() {
+		for util.IsAlive {
+			var jobsRunning float64 = 0
+			var jobsInQueue float64 = 0
+			var jobsSuspended float64 = 0
+
+			activeJobsMutex.Lock()
+			for _, job := range activeJobs {
+				switch job.Status.State {
+				case orc.JobStateRunning:
+					jobsRunning++
+				case orc.JobStateInQueue:
+					jobsInQueue++
+				case orc.JobStateSuspended:
+					jobsSuspended++
+				}
+			}
+			activeJobsMutex.Unlock()
+
+			metricJobsRunning.Set(jobsRunning)
+			metricJobsInQueue.Set(jobsInQueue)
+			metricJobsSuspended.Set(jobsSuspended)
+
+			time.Sleep(5 * time.Second)
+		}
+	}()
 }
 
 func TrackNewJob(job orc.Job) {
 	// NOTE(Dan): The job is supposed to be copied into this function. Do not change it to accept a pointer.
+
+	metricJobsSubmitted.Inc()
 
 	// Automatically assign timestamps to all updates that do not have one.
 	for i := 0; i < len(job.Updates); i++ {
