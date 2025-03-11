@@ -20,7 +20,7 @@ export interface ButtonProps extends HeightProps, SpaceProps, WidthProps, WithEv
     type?: string;
     disableStandardSizes?: boolean;
     standardSize?: StandardButtonSize;
-    btnRef?: React.RefObject<HTMLButtonElement>;
+    btnRef?: React.RefObject<HTMLButtonElement | null>;
     borderRadius?: string;
     className?: string;
 }

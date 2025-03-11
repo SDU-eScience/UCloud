@@ -6,7 +6,7 @@ import {Uri} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
 import {TreeAction, TreeApi} from "@/ui-components/Tree";
-import {Box, Flex, FtIcon, Icon, Image, Markdown, Select, Truncate} from "@/ui-components";
+import {Box, Flex, FtIcon, Icon, Image, Markdown, Select, Truncate, Text, Input, Label, Button} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
 import {capitalized, copyToClipboard, errorMessageOrDefault, extensionFromPath, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -16,7 +16,6 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 import EditorOption = editor.EditorOption;
-import {Feature, hasFeature} from "@/Features";
 import {EditorSidebarNode, FileTree, VirtualFile} from "@/Files/FileTree";
 import {noopCall} from "@/Authentication/DataHook";
 import {usePage} from "@/Navigation/Redux";
@@ -25,6 +24,7 @@ import {useBeforeUnload} from "react-router-dom";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {initVimMode, VimMode} from "monaco-vim";
 import {addStandardDialog} from "@/UtilityComponents";
+import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
 
 export interface Vfs {
     isReal(): boolean;
@@ -326,7 +326,6 @@ const EditorClass = injectStyle("editor", k => `
     ${k} {
         display: flex;
         width: 100%;
-        padding: 5px;
         max-width: 100%;
         height: 100%;
         --borderThickness: 2px;
@@ -354,6 +353,8 @@ const EditorClass = injectStyle("editor", k => `
         display: flex;
         width: 100%;
         height: 100%;
+        max-height: calc(100% - 32px - 21px);
+        overflow-y: scroll;
     }
     
     ${k} .panels > div > .code {
@@ -370,7 +371,7 @@ export interface EditorApi {
     notifyDirtyBuffer: () => Promise<void>;
     openFile: (path: string) => void;
     invalidateTree: (path: string) => Promise<void>;
-    onFileSaved: (path: string) => void;
+    onFileSaved: (path: string) => RevertSaveFunction;
 }
 
 const SETTINGS_PATH = "xXx__/SETTINGS\\__xXx";
@@ -385,7 +386,7 @@ export const Editor: React.FunctionComponent<{
     initialFolderPath: string;
     toolbarBeforeSettings?: React.ReactNode;
     toolbar?: React.ReactNode;
-    apiRef?: React.MutableRefObject<EditorApi | null>;
+    apiRef?: React.RefObject<EditorApi | null>;
     customContent?: React.ReactNode;
     showCustomContent?: boolean;
     onOpenFile?: (path: string, content: string | Uint8Array) => void;
@@ -393,10 +394,11 @@ export const Editor: React.FunctionComponent<{
     help?: React.ReactNode;
     fileHeaderOperations?: React.ReactNode;
     renamingFile?: string;
+    promptSaveOnNavigate?: boolean;
     onRename?: (args: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}) => Promise<boolean>;
     onRequestSave: (path: string) => Promise<void>;
     readOnly: boolean;
-    dirtyFileCountRef: React.MutableRefObject<number>;
+    dirtyFileCountRef: React.RefObject<number>;
 }> = props => {
 
     const help = props.help ?? <></>;
@@ -428,6 +430,55 @@ export const Editor: React.FunctionComponent<{
         usePage(fileName(prettyPath), SidebarTabId.FILES);
     }
 
+    const disposeModels = React.useCallback(() => {
+        if (monacoRef.current) {
+            for (const m of monacoRef.current.editor.getModels()) {
+                m.dispose();
+            }
+        }
+    }, []);
+
+    const dirtyFilesRef = useRef(dirtyFiles);
+    dirtyFilesRef.current = dirtyFiles;
+    React.useEffect(() => {
+        if (props.promptSaveOnNavigate) {
+            return () => {
+                if (dirtyFilesRef.current.size) {
+                    const pathsAndContent = [...dirtyFilesRef.current].map(it => ({path: it, content: getModelFromEditor(it)?.getValue()}));
+                    setTimeout(() => {
+                        addStandardDialog({
+                            title: "You have unsaved changes",
+                            message: "This will save contents of files: ".concat(pathsAndContent.map(it => fileName(it.path)).join(", ")),
+                            onConfirm() {
+                                for (const p of pathsAndContent) {
+                                    if (p.content == null) {
+                                        snackbarStore.addFailure(`${p.path} failed to save`, false);
+                                        continue;
+                                    }
+                                    props.vfs.setDirtyFileContent(p.path, p.content);
+                                    props.vfs.writeFile(p.path);
+
+                                    const onFileWriteFailure = (e: WriteFailureEvent) => {
+                                        const failedUpload = e.detail.find(it => it.targetPath + it.name === p.path);
+                                        if (failedUpload) {
+                                            snackbarStore.addFailure(failedUpload.error ?? "Upload for file " + fileName(failedUpload.name) + " failed.", false);
+                                        }
+                                        window.removeEventListener(FileWriteFailure, onFileWriteFailure)
+                                    }
+
+                                    window.addEventListener(FileWriteFailure, onFileWriteFailure)
+                                }
+                            },
+                            confirmText: "Save changes",
+                            cancelText: "Dismiss changes"
+                        })
+                    }, 0);
+                }
+            }
+        }
+        return;
+    }, []);
+
     const {showReleaseNoteIcon, onShowReleaseNotesShown} = useShowReleaseNoteIcon();
 
     const [operations, setOperations] = useState<Operation<any, undefined>[]>([]);
@@ -439,9 +490,10 @@ export const Editor: React.FunctionComponent<{
     // NOTE(Dan): This code is quite ref heavy given that the components we are controlling are very much the
     // opposite of reactive. There isn't much we can do about this.
     const engineRef = useRef<EditorEngine>("monaco");
-    const stateRef = useRef<EditorState>();
+    const stateRef = useRef<EditorState>(null);
     const tree = useRef<TreeApi | null>(null);
-    const [, setVimModeObject] = useState<any /* vimAdapter */>(null);
+    const [vimMode, setVimModeObject] = useState<any /* vimAdapter */>(null);
+
     const editorRef = useRef<IStandaloneCodeEditor | null>(null);
     const showingCustomContent = useRef<boolean>(props.showCustomContent === true);
 
@@ -489,19 +541,16 @@ export const Editor: React.FunctionComponent<{
                 const existingModel = getModelFromEditor(name);
                 if (!existingModel) {
                     const model = monacoRef.current?.editor?.createModel(content, syntax, Uri.file(name));
-
                     model.onDidChangeContent(e => {
-                        const altId = model.getAlternativeVersionId();
-                        if (altId === (savedAtAltVersionId.current[name] ?? 1)) {
-                            setDirtyFiles(f => {
+                        setDirtyFiles(f => {
+                            const altId = model.getAlternativeVersionId();
+                            if (altId === (savedAtAltVersionId.current[name] ?? 1)) {
                                 f.delete(name);
                                 return new Set([...f]);
-                            });
-                        } else {
-                            setDirtyFiles(f => {
-                                return new Set([...f, name]);
-                            });
-                        }
+                            } else {
+                                return new Set([...f, name])
+                            }
+                        });
                     });
                     editor.setModel(model);
                 } else {
@@ -510,7 +559,11 @@ export const Editor: React.FunctionComponent<{
                 break;
             }
         }
-    }, [dirtyFiles]); /* Maybe overkill to depend on dirty files */
+    }, [dirtyFiles]);
+
+    React.useEffect(() => {
+        return disposeModels;
+    }, []);
 
     const readBuffer = useCallback((): Promise<string> => {
         const editor = editorRef.current;
@@ -638,14 +691,28 @@ export const Editor: React.FunctionComponent<{
         dispatch({type: "EditorActionFilesLoaded", path: folder, files});
     }, [props.vfs]);
 
-    const onFileSaved = React.useCallback((path: string) => {
+    const onFileSaved = React.useCallback((path: string): RevertSaveFunction => {
         const model = getModelFromEditor(path);
+        let oldSavedAtVersionId = savedAtAltVersionId.current[path];
+        let hadAsDirty = false;
         if (model) {
             savedAtAltVersionId.current[path] = model.getAlternativeVersionId();
             setDirtyFiles(dirtyFiles => {
-                if (dirtyFiles.has(path)) dirtyFiles.delete(path);
+                if (dirtyFiles.has(path)) {
+                    dirtyFiles.delete(path);
+                    hadAsDirty = true;
+                }
                 return new Set([...dirtyFiles]);
             });
+        }
+
+        return () => {
+            savedAtAltVersionId.current[path] = oldSavedAtVersionId;
+            if (hadAsDirty) {
+                setDirtyFiles(dirtyFiles => {
+                    return new Set([...dirtyFiles, path]);
+                });
+            }
         }
     }, []);
 
@@ -728,10 +795,21 @@ export const Editor: React.FunctionComponent<{
         setEditor(editor);
 
         const vimEnabled = getEditorOption("vim") === true;
+        mapStoredBindings();
         if (vimEnabled) {
-            setVimModeObject(initVimMode(editor, document.getElementsByClassName(StatusBar).item(0)));
+            setVimModeObject(initVimMode(editor, getStatusBarElement()));
         }
     }, [monacoInstance]);
+
+    React.useEffect(() => {
+        if (vimMode) {
+            vimMode.listeners["vim-keypress"].push(() => {
+                if (!allowEditing() && editor) {
+                    allowEditDialog(editor);
+                }
+            });
+        }
+    }, [vimMode]);
 
     useLayoutEffect(() => {
         // NOTE(Dan): This timer is needed to make sure that if the file opens faster than the engine can initialize
@@ -752,7 +830,7 @@ export const Editor: React.FunctionComponent<{
         setVimModeObject(vimModeObject => {
             updateEditorSetting("vim", active);
             if (active) {
-                return initVimMode(editorRef.current, document.getElementsByClassName(StatusBar).item(0));
+                return initVimMode(editorRef.current, getStatusBarElement());
             } else {
                 vimModeObject?.dispose();
                 return null;
@@ -973,6 +1051,10 @@ export const Editor: React.FunctionComponent<{
         }
     }, [state.currentPath]);
 
+    const selectedSynax = React.useMemo(() => {
+        return {language: activeSyntax, displayName: toDisplayName(activeSyntax)};
+    }, [activeSyntax]);
+
     // VimMode.Vim.defineEx(name, shorthand, callback);
     VimMode.Vim.defineEx("write", "w", () => {
         saveBufferIfNeeded();
@@ -1070,33 +1152,16 @@ export const Editor: React.FunctionComponent<{
                         location={"IN_ROW"}
                     />
                 </div>
-                {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box width={"180px"}>
-                    <RichSelect
-                        key={activeSyntax}
-                        items={languageList}
-                        keys={["language"]}
-                        dropdownWidth="180px"
-                        FullRenderSelected={p =>
-                            <Flex key={p.element?.language} borderRight={"1px solid var(--borderColor)"} borderLeft={"1px solid var(--borderColor)"} height="32px" width="180px">
-                                <LanguageItem key={p.element?.language} {...p} /><Icon mr="6px" ml="auto" mt="8px" size="14px" name="chevronDownLight" />
-                            </Flex>}
-                        RenderRow={LanguageItem}
-                        selected={{language: activeSyntax, displayName: toDisplayName(activeSyntax)}}
-                        onSelect={setModelLanguage}
-                    />
-                </Box>}
                 <Flex alignItems={"center"} ml="16px" gap="16px">
                     {tabs.open.length === 0 || isReleaseNotesOpen || isSettingsOpen || props.customContent ? null :
                         props.toolbarBeforeSettings
                     }
-                    {!hasFeature(Feature.EDITOR_VIM) ? null : <>
-                        {showReleaseNoteIcon ? <TooltipV2 tooltip={"See release notes"} contentWidth={100}>
-                            <Icon name={"heroGift"} size={"20px"} cursor={"pointer"} onClick={toggleReleaseNotes} />
-                        </TooltipV2> : null}
-                        <TooltipV2 tooltip={"Settings"} contentWidth={100}>
-                            <Icon name={"heroCog6Tooth"} size={"20px"} cursor={"pointer"} onClick={toggleSettings} />
-                        </TooltipV2>
-                    </>}
+                    {showReleaseNoteIcon ? <TooltipV2 tooltip={"See release notes"} contentWidth={100}>
+                        <Icon name={"heroGift"} size={"20px"} cursor={"pointer"} onClick={toggleReleaseNotes} />
+                    </TooltipV2> : null}
+                    <TooltipV2 tooltip={"Settings"} contentWidth={100}>
+                        <Icon name={"heroCog6Tooth"} size={"20px"} cursor={"pointer"} onClick={toggleSettings} />
+                    </TooltipV2>
                     {props.toolbar}
                 </Flex>
             </div>
@@ -1117,7 +1182,7 @@ export const Editor: React.FunctionComponent<{
                     </div>
 
                     <div style={{
-                        display: props.showCustomContent ? "block" : "none",
+                        display: props.showCustomContent && tabs.open.length > 0 ? "block" : "none",
                         width: "100%",
                         height: "100%",
                         maxHeight: "calc(100% - 64px)",
@@ -1126,10 +1191,30 @@ export const Editor: React.FunctionComponent<{
                     }}>{props.customContent}</div>
                 </>
             </div>
-            <div style={{display: !anyTabOpen || settingsOrReleaseNotesOpen ? "none" : undefined}} className={StatusBar} />
+            <div className={StatusBarWrapper}>
+                <div className={StatusBar} />
+                {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box ml="auto" className={HoverHighlight} width={"fit-content"} mr="8px">
+                    <RichSelect
+                        key={activeSyntax}
+                        items={languageList}
+                        keys={SyntaxSelectorKeys}
+                        FullRenderSelected={p => <Text px="8px" textAlign="end">{p.element?.displayName}</Text>}
+                        elementHeight={29}
+                        RenderRow={LanguageItem}
+                        selected={selectedSynax}
+                        onSelect={setModelLanguage}
+                    />
+                </Box>}
+            </div>
         </div>
     </div>;
 };
+
+const HoverHighlight = injectStyle("hover-highlight", k => `
+    ${k}:hover {
+        background-color: var(--primaryLight);
+    }
+`);
 
 /* TODO(Jonas): Improve parameters this is... not good */
 function tabOperations(
@@ -1291,6 +1376,8 @@ function tabOperations(
     }];
 }
 
+const SyntaxSelectorKeys = ["language" as const];
+
 const LEFT_MOUSE_BUTTON = 0;
 const MIDDLE_MOUSE_BUTTON = 1;
 function EditorTab({
@@ -1360,11 +1447,22 @@ const IconHoverBlockClass = injectStyle("icon-hover-block", k => `
 `);
 
 const StatusBar = injectStyle("status-bar", k => `
+    ${k} input {
+        background: transparent;
+        border: none;
+        color: white
+    }
+`);
+
+const StatusBarWrapper = injectStyle("status-bar-wrapper", k => `
     ${k} {
+        display: flex;
         height: 24px;
         left: calc(var(--currentSidebarWidth) + 250px);
         width: 100%;
         background-color: var(--primaryMain);
+        color: white;
+        padding-left: 4px;
     }
 
     ${k} input {
@@ -1560,10 +1658,137 @@ function MonacoEditorSettings({editor, setVimMode}: {editor: IStandaloneCodeEdit
                 <option value="Disabled">Disabled</option>
             </Select>
         </div>
-        {!getEditorOption("vim") ? null : (
-            "So much work to do here"
-        )}
+        <VimKeyBindings />
     </>;
+}
+
+interface VimBinding {
+    lhs: string;
+    rhs: string;
+    context: VimModes;
+    key: number;
+}
+type VimModes = "insert" | "normal" | "visual";
+
+
+function getStoredVimKeyBindings(): VimBinding[] {
+    const content = localStorage.getItem("vim-key-bindings") ?? JSON.stringify([{rhs: '', lhs: ''}]);
+    return JSON.parse(content).map((it: Omit<VimBinding, "key">) => ({...it, key: Math.random()}));
+}
+
+function storeVimKeyBindings(bindings: VimBinding[]): void {
+    localStorage.setItem("vim-key-bindings", JSON.stringify(bindings.map(it => ({
+        lhs: it.lhs,
+        rhs: it.rhs,
+        context: it.context
+    }))));
+}
+
+function mapStoredBindings(): void {
+    getStoredVimKeyBindings().forEach(binding => {
+        VimMode.Vim.map(binding.lhs, binding.rhs, binding.context);
+    })
+}
+
+function VimKeyBindings() {
+    const [vimKeybindings, setVimKeyBindings] = useState(() => {
+        const bindings = getStoredVimKeyBindings();
+        const [first] = bindings;
+        if (!first || first.lhs !== "") bindings.push({lhs: "", rhs: "", context: "normal", key: Math.random()});
+        return bindings;
+    });
+
+    const getRows = React.useCallback(() => {
+        const root = document.getElementsByClassName("vim-key-bindings").item(0);
+        if (!root) return [];
+        const result: VimBinding[] = [];
+        for (let i = 1; i < root.children.length; i++) {
+            const ruleWrapper = root.children.item(i);
+            const inputFields = ruleWrapper?.getElementsByTagName("input");
+            const contextSelect = ruleWrapper?.getElementsByTagName("select").item(0);
+            const lhs = inputFields?.item(0);
+            const rhs = inputFields?.item(1);
+            if (lhs?.value && rhs?.value && contextSelect?.value) {
+                const context = contextSelect.value as "normal" | "visual" | "insert";
+                result.push({lhs: lhs.value, rhs: rhs.value, context, key: Math.random()});
+            }
+        }
+        return result;
+    }, []);
+
+    const saveAndApplyKeyBindings = React.useCallback(() => {
+        setVimKeyBindings(allBindings => {
+
+            VimMode.Vim.mapclear("insert");
+            VimMode.Vim.mapclear("normal");
+            VimMode.Vim.mapclear("visual");
+
+            const rows = getRows();
+            for (const row of rows) {
+                VimMode.Vim.map(row.lhs, row.rhs, row.context);
+            }
+
+            storeVimKeyBindings(rows);
+            return rows;
+        });
+        snackbarStore.addSuccess("Bindings updated", false);
+    }, []);
+
+    const unmapBinding = React.useCallback((key: number) => {
+        setVimKeyBindings(bindings => {
+            const binding = bindings.find(it => it.key === key);
+            if (binding) {
+                VimMode.Vim.unmap(binding.lhs, binding.context);
+            }
+            return [...bindings.filter(it => it.key !== key)]
+        });
+        setTimeout(() => saveAndApplyKeyBindings(), 0);
+    }, []);
+
+    React.useEffect(() => {
+        // Note(Jonas): If has no input field, or no empty input-field at the end, add it.
+        const last = vimKeybindings.at(-1);
+        if (!last) setVimKeyBindings([{lhs: "", rhs: "", context: "normal", key: Math.random()}]);
+        else if (last.lhs !== "" && last.rhs !== "") setVimKeyBindings(b => [...b, {lhs: "", rhs: "", context: "normal", key: Math.random()}]);
+    }, [vimKeybindings])
+
+    const addRowIfLast = React.useCallback((index: number, arrayLength: number) => {
+        if (index !== arrayLength - 1) return;
+        setVimKeyBindings(bindings => [...bindings, {lhs: "", rhs: "", context: "normal", key: Math.random()}]);
+    }, []);
+
+    if (!getEditorOption("vim")) return null;
+
+    return (
+        <div className="vim-key-bindings">
+            <Flex>Vim key bindings <Button onClick={saveAndApplyKeyBindings} ml="auto">Save key bindings</Button></Flex>
+            <code>:map {`{lhs}`} {`{rhs}`}</code>
+            {vimKeybindings.map((binding, index) => <Flex my="12px" key={binding.key}>
+                <Label mr="4px">
+                    Left-hand-side (lhs):
+                    <Input defaultValue={binding.lhs} onChange={() => {
+                        addRowIfLast(index, vimKeybindings.length);
+                    }} />
+                </Label>
+                <Label mr="4px">
+                    Right-hand-side (rhs):
+                    <Input defaultValue={binding.rhs} onChange={() => {
+                        addRowIfLast(index, vimKeybindings.length);
+                    }} />
+                </Label>
+                <Label mr="4px">
+                    Mode:
+                    <Select defaultValue={binding.context}>
+                        <option>normal</option>
+                        <option>insert</option>
+                        <option>visual</option>
+                    </Select>
+                </Label>
+                <Icon ml="12px" mt="28px" onClick={() => unmapBinding(binding.key)} name="close" />
+            </Flex>)
+            }
+        </div >
+    );
 }
 
 interface StoredSettings {
@@ -1630,19 +1855,29 @@ function useShowReleaseNoteIcon() {
 
 function setReadonlyWarning(editor: IStandaloneCodeEditor) {
     editor.onDidAttemptReadOnlyEdit(e => {
-        addStandardDialog({
-            title: "Enable editing?",
-            message: "Editing files is disabled. This can be changed later in settings. Enable?",
-            confirmText: "Enable",
-            onConfirm() {
-                editor.updateOptions({readOnly: false});
-                setAllowEditing(true.toString());
-            },
-            cancelText: "Dismiss",
-            addToFront: true,
-        });
+        allowEditDialog(editor);
     });
 }
+
+function allowEditDialog(editor: IStandaloneCodeEditor) {
+    addStandardDialog({
+        title: "Enable editing?",
+        message: "Editing files is disabled. This can be changed later in settings. Enable?",
+        confirmText: "Enable",
+        onConfirm() {
+            editor.updateOptions({readOnly: false});
+            setAllowEditing(true.toString());
+        },
+        cancelText: "Dismiss",
+        addToFront: true,
+    });
+}
+
+function getStatusBarElement(): Element | null {
+    return document.getElementsByClassName(StatusBar).item(0);
+}
+
+type RevertSaveFunction = () => void;
 
 const EditorReleaseNotes = `
 # Preview editor
@@ -1659,4 +1894,4 @@ const EditorReleaseNotes = `
 
 - Nothing of note :(
 
-`
+`;

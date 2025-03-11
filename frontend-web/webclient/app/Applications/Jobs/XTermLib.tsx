@@ -6,7 +6,7 @@ import "xterm/css/xterm.css";
 import {ITheme, Terminal} from "xterm";
 
 export interface XtermHook {
-    termRef: React.RefObject<HTMLDivElement>;
+    termRef: React.RefObject<HTMLDivElement | null>;
     terminal: Terminal;
     fitAddon: FitAddon;
 }

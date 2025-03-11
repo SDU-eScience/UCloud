@@ -20,7 +20,7 @@ export interface InputProps extends BorderProps, BackgroundColorProps, SpaceProp
     error?: boolean;
     overrideDisabledColor?: ThemeColor;
     rows?: number;
-    inputRef?: React.RefObject<HTMLInputElement>;
+    inputRef?: React.RefObject<HTMLInputElement | null>;
     resize?: "vertical" | "horizontal";
 }
 

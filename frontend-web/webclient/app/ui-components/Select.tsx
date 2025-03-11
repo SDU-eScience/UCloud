@@ -6,7 +6,7 @@ import {BoxProps} from "@/ui-components/Types";
 
 export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
     error?: boolean;
-    selectRef?: React.RefObject<HTMLSelectElement>;
+    selectRef?: React.RefObject<HTMLSelectElement | null>;
     slim?: boolean;
 }
 
@@ -82,7 +82,7 @@ const Select: React.FunctionComponent<SelectProps & BoxProps> = props => {
 
     return <Flex alignItems="center" style={unbox(boxProps)}>
         <select className={SelectClass} {...cleanProps} ref={props.selectRef}
-                data-slim={(props.slim === true).toString()}/>
+            data-slim={(props.slim === true).toString()} />
         <Icon name="chevronDownLight" size="14px" />
     </Flex>;
 };

@@ -760,6 +760,61 @@ function SecondarySidebar({
     }, [favoriteApps]);
 
     const appFavorites = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
+    const isLight = isLightThemeStored();
+
+    useProvideCommands(staticProvider(appFavorites.map(fav => ({
+        title: fav.metadata.title,
+        icon: {type: "image", imageUrl: AppStore.retrieveAppLogo({name: fav.metadata.name, includeText: false, darkMode: !isLight})},
+        action() {
+            navigate(AppRoutes.jobs.create(fav.metadata.name, fav.metadata.version));
+        },
+        description: "Favorite app",
+        scope: CommandScope.Application,
+        actionText: "Go to",
+    }))));
+
+    useProvideCommands(staticProvider(landingPage.carrousel.map(horse => ({
+        title: horse.title,
+        icon: {type: "image", imageUrl: AppStore.retrieveAppLogo({name: horse.resolvedLinkedApp ?? ""})},
+        action() {
+            if (horse.resolvedLinkedApp) {
+                navigate(AppRoutes.jobs.create(horse.resolvedLinkedApp));
+            } else if (horse.linkedGroup) {
+                navigate(AppRoutes.apps.group((horse.linkedGroup).toString()));
+            }
+            if (horse.linkedWebPage) navigate(horse.linkedWebPage);
+        },
+        description: "Highlighted app",
+        scope: CommandScope.Application,
+        actionText: "Go to",
+    }))));
+
+    const carrouselTitles = landingPage.carrousel.map(horse => horse.title);
+    useProvideCommands(staticProvider(landingPage.topPicks.filter(it => !carrouselTitles.includes(it.title)).map(pick => ({
+        title: pick.title,
+        icon: {
+            type: "image", imageUrl: AppStore.retrieveGroupLogo({
+                id: pick.groupId ?? -1,
+                darkMode: !isLight,
+                placeTextUnderLogo: false,
+            })
+        },
+        action() {
+            if (pick.groupId) {
+                let link = AppRoutes.apps.group(pick.groupId.toString());
+                if (pick.defaultApplicationToRun) {
+                    link = AppRoutes.jobs.create(pick.defaultApplicationToRun);
+                }
+                navigate(link);
+            }
+        },
+        description: "Top pick",
+        scope: CommandScope.Application,
+        actionText: "Go to",
+    }))));
+
+
+
     const isOpen = clicked !== "" || hovered !== "";
     const active = !isOpen ? lastHover.current : hovered ? hovered : clicked;
     const asPopOver = hovered && !clicked;

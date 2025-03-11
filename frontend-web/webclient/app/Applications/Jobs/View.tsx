@@ -473,9 +473,15 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
 
     useJobUpdates(job, jobUpdateListener);
 
+    // Note(Jonas): CSSTransition otherwise relies on removed "React.findDomNode"
+    const transitionRefOne = useRef(null);
+    const transitionRefTwo = useRef(null);
+    const transitionRefThree = useRef(null);
+
     if (jobFetcher.error !== undefined) {
         return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>} />;
     }
+
 
     const main = (
         <div className={classConcat(Container, status?.state ?? "state-loading")}>
@@ -490,6 +496,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
             </div>
             {!job || !status ? null : (
                 <CSSTransition
+                    nodeRef={transitionRefOne}
                     in={(status?.state === "IN_QUEUE" || status?.state === "SUSPENDED") && !isVirtualMachine && dataAnimationAllowed}
                     timeout={{
                         enter: 1000,
@@ -498,7 +505,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                     classNames={data.class}
                     unmountOnExit
                 >
-                    <div className={data.class}>
+                    <div ref={transitionRefOne} className={data.class}>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
                             <div className={fakeLogo.class} />
                             <div className={headerText.class}>
@@ -519,12 +526,13 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
 
             {!job || !status ? null : (
                 <CSSTransition
+                    nodeRef={transitionRefTwo}
                     in={(status?.state === "RUNNING" || (isVirtualMachine && !isJobStateTerminal(status.state))) && dataAnimationAllowed}
                     timeout={{enter: 1000, exit: 0}}
                     classNames={data.class}
                     unmountOnExit
                 >
-                    <div className={data.class}>
+                    <div ref={transitionRefTwo} className={data.class}>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
                             <div className={fakeLogo.class} />
                             <div className={headerText.class}>
@@ -543,12 +551,13 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
 
             {!job || !status ? null : (
                 <CSSTransition
+                    nodeRef={transitionRefThree}
                     in={isJobStateTerminal(status.state) && dataAnimationAllowed}
                     timeout={{enter: 1000, exit: 0}}
                     classNames={data.class}
                     unmountOnExit
                 >
-                    <div className={data.class}>
+                    <div ref={transitionRefThree} className={data.class}>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
                             <div className={fakeLogo.class} />
                             <div className={headerText.class}>
@@ -1253,10 +1262,9 @@ function transformToSSHUrl(command?: string | null): `ssh://${string}:${number}`
     return `ssh://${hostname}:${portNumber}`;
 }
 
-const StandardPanelBody: React.FunctionComponent<{
-    children: React.ReactNode;
-    divRef?: React.RefObject<HTMLDivElement>;
-}> = ({divRef, children}) => {
+const StandardPanelBody: React.FunctionComponent<React.PropsWithChildren<{
+    divRef?: React.RefObject<HTMLDivElement | null>;
+}>> = ({divRef, children}) => {
     return <div style={{height: "165px", overflowY: "auto"}} ref={divRef}>{children}</div>;
 };
 

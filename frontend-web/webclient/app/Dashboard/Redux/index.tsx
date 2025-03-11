@@ -1,6 +1,7 @@
 import {SetLoadingAction} from "@/Types";
 import {DashboardStateProps} from "@/Dashboard";
 import {initDashboard} from "@/DefaultObjects";
+import {PayloadAction} from "@reduxjs/toolkit";
 
 export type Index = DashboardErrorAction |
     SetLoadingAction<typeof SET_ALL_LOADING>;
@@ -8,7 +9,7 @@ export type Index = DashboardErrorAction |
 type DashboardError =
     typeof DASHBOARD_RECENT_JOBS_ERROR;
 
-type DashboardErrorAction = PayloadAction<DashboardError, {error?: string}>;
+type DashboardErrorAction = PayloadAction<{error?: string}, DashboardError>;
 
 /**
  * Sets all dashboard lists as either loading or not loading

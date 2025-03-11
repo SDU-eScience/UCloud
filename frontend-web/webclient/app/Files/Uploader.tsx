@@ -644,10 +644,19 @@ async function startUploads(batch: Upload[], setLookForNewUploads: (b: boolean) 
                 actualUploads[i].state = UploadState.DONE;
                 actualUploads[i].error = errorMessage;
             }
+
+            window.dispatchEvent(new CustomEvent<WriteFailure>(FileWriteFailure, {
+                detail: actualUploads.filter(it => it.error),
+            }));
+
             return;
         }
     }
 }
+
+export type WriteFailureEvent = CustomEvent<WriteFailure>;
+type WriteFailure = Upload[];
+export const FileWriteFailure = "FileWriteFailure";
 
 const Uploader: React.FunctionComponent = () => {
     const [uploadPath] = useGlobal("uploadPath", "/");

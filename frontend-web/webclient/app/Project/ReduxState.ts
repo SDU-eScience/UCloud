@@ -1,4 +1,5 @@
-import {Action, Dispatch} from "redux";
+import {PayloadAction} from "@reduxjs/toolkit";
+import {Dispatch} from "redux";
 
 export interface State {
     project?: string;
@@ -6,12 +7,10 @@ export interface State {
 
 export const initialState = {project: getStoredProject() ?? undefined};
 
-interface SetProjectAction extends Action<"SET_PROJECT"> {
-    project?: string;
-}
+type SetProjectAction = PayloadAction<{project?: string}, "SET_PROJECT">
 
 export function dispatchSetProjectAction(dispatch: Dispatch, project?: string): void {
-    dispatch<ProjectAction>({project, type: "SET_PROJECT"});
+    dispatch<ProjectAction>({payload: {project}, type: "SET_PROJECT"});
 }
 
 type ProjectAction = SetProjectAction;
@@ -19,8 +18,8 @@ type ProjectAction = SetProjectAction;
 export const reducer = (state: State = initialState, action: ProjectAction): State => {
     switch (action.type) {
         case "SET_PROJECT": {
-            setStoredProject(action.project ?? null);
-            return {...state, project: action.project};
+            setStoredProject(action.payload.project ?? null);
+            return {...state, project: action.payload.project};
         }
 
         default:

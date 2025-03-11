@@ -206,23 +206,23 @@ const DateRangeFilterWidget: React.FunctionComponent<{
     const createdAfter = props.properties[props.afterProperty] ?? getStartOfDay(new Date()).getTime();
     const createdBefore = props.properties[props.beforeProperty];
 
-    const updateDates = useCallback((dates: [Date, Date] | Date) => {
-        if (Array.isArray(dates)) {
-            const [start, end] = dates;
-            const newCreatedAfter = start.getTime();
-            const newCreatedBefore = end?.getTime();
-            const newProps: Record<string, string | undefined> = {};
-            newProps[props.afterProperty] = newCreatedAfter.toString();
-            newProps[props.beforeProperty] = newCreatedBefore?.toString() ?? undefined;
-            props.onPropertiesUpdated(newProps);
-        } else {
-            const newCreatedAfter = dates.getTime();
-            const newProps: Record<string, string | undefined> = {};
-            newProps[props.afterProperty] = newCreatedAfter.toString();
-            newProps[props.beforeProperty] = undefined;
-            props.onPropertiesUpdated(newProps);
-        }
+    const updateDate = useCallback((date: Date) => {
+        const newCreatedAfter = date.getTime();
+        const newProps: Record<string, string | undefined> = {};
+        newProps[props.afterProperty] = newCreatedAfter.toString();
+        newProps[props.beforeProperty] = undefined;
+        props.onPropertiesUpdated(newProps);
     }, [props.beforeProperty, props.afterProperty, props.onPropertiesUpdated]);
+
+    const updateRange = useCallback((dates: [Date, Date]) => {
+        const [start, end] = dates;
+        const newCreatedAfter = start.getTime();
+        const newCreatedBefore = end?.getTime();
+        const newProps: Record<string, string | undefined> = {};
+        newProps[props.afterProperty] = newCreatedAfter.toString();
+        newProps[props.beforeProperty] = newCreatedBefore?.toString() ?? undefined;
+        props.onPropertiesUpdated(newProps);
+    }, [props.beforeProperty, props.afterProperty, props.onPropertiesUpdated])
 
     const todayMs = getStartOfDay(new Date(timestampUnixMs())).getTime();
     const yesterdayEnd = todayMs - 1;
@@ -242,28 +242,28 @@ const DateRangeFilterWidget: React.FunctionComponent<{
                     title={"Today"}
                     range={dateToStringNoTime(todayMs)}
                     onClick={() => {
-                        updateDates(new Date(todayMs));
+                        updateDate(new Date(todayMs));
                     }}
                 />
                 <DateRangeEntry
                     title={"Yesterday"}
                     range={`${dateToStringNoTime(yesterdayStart)}`}
                     onClick={() => {
-                        updateDates([new Date(yesterdayStart), new Date(yesterdayEnd)]);
+                        updateRange([new Date(yesterdayStart), new Date(yesterdayEnd)]);
                     }}
                 />
                 <DateRangeEntry
                     title={"Past week"}
                     range={`${dateToStringNoTime(pastWeekStart)} - ${dateToStringNoTime(pastWeekEnd)}`}
                     onClick={() => {
-                        updateDates([new Date(pastWeekStart), new Date(pastWeekEnd)]);
+                        updateRange([new Date(pastWeekStart), new Date(pastWeekEnd)]);
                     }}
                 />
                 <DateRangeEntry
                     title={"Past month"}
                     range={`${dateToStringNoTime(pastMonthStart)} - ${dateToStringNoTime(pastMonthEnd)}`}
                     onClick={() => {
-                        updateDates([new Date(pastMonthStart), new Date(pastMonthEnd)]);
+                        updateRange([new Date(pastMonthStart), new Date(pastMonthEnd)]);
                     }}
                 />
                 <DateRangeEntry
@@ -283,15 +283,22 @@ const DateRangeFilterWidget: React.FunctionComponent<{
 
         {isSelectingRange ? "Created between:" : "Created after:"}
         <div className={SlimDatePickerClass}>
-            <ReactDatePicker
+            {isSelectingRange ? <ReactDatePicker
                 locale={enGB}
                 startDate={new Date(parseInt(createdAfter))}
                 endDate={createdBefore ? new Date(parseInt(createdBefore)) : undefined}
-                onChange={updateDates}
-                selectsRange={isSelectingRange}
+                onChange={updateRange}
+                selectsRange
                 inline
                 dateFormat="dd/MM/yy HH:mm"
-            />
+            /> : <ReactDatePicker
+                locale={enGB}
+                startDate={new Date(parseInt(createdAfter))}
+                endDate={createdBefore ? new Date(parseInt(createdBefore)) : undefined}
+                onChange={updateDate}
+                inline
+                dateFormat="dd/MM/yy HH:mm"
+            />}
         </div>
     </ExpandableDropdownFilterWidget>
 }
@@ -492,14 +499,14 @@ export function ConditionalFilter(
     return [
         (props) => {
             if (condition()) {
-                return <>{baseFilter[0](props)}</>;
+                return baseFilter[0](props);
             } else {
                 return null;
             }
         },
         (props) => {
             if (condition()) {
-                return <>{baseFilter[1](props)}</>;
+                return baseFilter[1](props);
             } else {
                 return null;
             }

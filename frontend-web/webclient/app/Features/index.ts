@@ -18,7 +18,6 @@ export enum Feature {
     NEW_TASKS,
     COMMAND_PALETTE,
     INTEGRATED_EDITOR,
-    EDITOR_VIM,
 
     PROVIDER_CONDITION,
 
@@ -106,12 +105,6 @@ const featureMap: Record<string, FeatureConfig> = {
     "integrated-editor": {
         feature: Feature.INTEGRATED_EDITOR,
         showWithoutFlag: allDevEnvironments,
-        showWithFlag: allEnvironments,
-    },
-
-    "editor-vim": {
-        feature: Feature.EDITOR_VIM,
-        showWithoutFlag: allLocalEnvironments,
         showWithFlag: allEnvironments,
     },
 

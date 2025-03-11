@@ -23,7 +23,7 @@ export interface LegacyReduxObject {
     project: ProjectRedux.State;
     terminal: TerminalState;
     popinChild: PopInArgs | null;
-    loading?: boolean;
+    loading: boolean;
     sidebar: SidebarStateProps;
 }
 
@@ -52,6 +52,7 @@ export function initObject(): ReduxObject {
         project: ProjectRedux.initialState,
         terminal: initTerminalState(),
         popinChild: null,
+        loading: false,
         sidebar: {favorites: [], theme: getThemeOrDefaultValue()}
     };
 }

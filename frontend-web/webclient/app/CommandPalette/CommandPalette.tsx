@@ -21,7 +21,7 @@ const wrapper = injectStyle("command-palette", k => `
         
         
         position: fixed;
-        top: calc(50vh - var(--own-base-height));
+        top: 25%;
         left: calc(50vw - (var(--own-width) / 2));
         
         border-radius: 16px;
@@ -30,10 +30,6 @@ const wrapper = injectStyle("command-palette", k => `
         
         box-shadow: var(--defaultShadow);
         background: var(--backgroundCardHover);
-
-        &[has-items] {
-            top: 25%
-        }
 
         & input {
             width: calc(100% - 2 * 16px);
@@ -169,7 +165,7 @@ export const CommandPalette: React.FunctionComponent = () => {
 
     if (!visible) return null;
 
-    return <div ref={divRef} has-items={commands.length > 0 ? "" : undefined} className={wrapper}>
+    return <div ref={divRef} className={wrapper}>
         <input
             autoFocus
             placeholder={"Search for actions on UCloud..."}
@@ -288,7 +284,7 @@ const IMAGE_SIZE = 18;
 function CommandIcon({icon, active, label}: {icon: CommandIconProvider; active: boolean; label: string}) {
     switch (icon.type) {
         case "image": {
-            return <Image alt={label} src={icon.imageUrl} height={`${IMAGE_SIZE}px`} width={`${IMAGE_SIZE}px`} />;
+            return <Image alt={label} src={icon.imageUrl} height={`${IMAGE_SIZE}px`} objectFit="contain" width={`${IMAGE_SIZE}px`} />;
         }
         case "simple": {
             return <Icon name={icon.icon} size={IMAGE_SIZE} color={icon.color ?? (active ? "primaryContrast" : "iconColor")} color2={icon.color2 ?? (active ? "primaryContrastAlt" : "iconColor2")} />
