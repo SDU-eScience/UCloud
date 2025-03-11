@@ -24,6 +24,7 @@ import {useBeforeUnload} from "react-router-dom";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {initVimMode, VimMode} from "monaco-vim";
 import {addStandardDialog} from "@/UtilityComponents";
+import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
 
 export interface Vfs {
     isReal(): boolean;
@@ -370,7 +371,7 @@ export interface EditorApi {
     notifyDirtyBuffer: () => Promise<void>;
     openFile: (path: string) => void;
     invalidateTree: (path: string) => Promise<void>;
-    onFileSaved: (path: string) => void;
+    onFileSaved: (path: string) => RevertSaveFunction;
 }
 
 const SETTINGS_PATH = "xXx__/SETTINGS\\__xXx";
@@ -456,6 +457,16 @@ export const Editor: React.FunctionComponent<{
                                     }
                                     props.vfs.setDirtyFileContent(p.path, p.content);
                                     props.vfs.writeFile(p.path);
+
+                                    const onFileWriteFailure = (e: WriteFailureEvent) => {
+                                        const failedUpload = e.detail.find(it => it.targetPath + it.name === p.path);
+                                        if (failedUpload) {
+                                            snackbarStore.addFailure(failedUpload.error ?? "Upload for file " + fileName(failedUpload.name) + " failed.", false);
+                                        }
+                                        window.removeEventListener(FileWriteFailure, onFileWriteFailure)
+                                    }
+
+                                    window.addEventListener(FileWriteFailure, onFileWriteFailure)
                                 }
                             },
                             confirmText: "Save changes",
@@ -680,14 +691,28 @@ export const Editor: React.FunctionComponent<{
         dispatch({type: "EditorActionFilesLoaded", path: folder, files});
     }, [props.vfs]);
 
-    const onFileSaved = React.useCallback((path: string) => {
+    const onFileSaved = React.useCallback((path: string): RevertSaveFunction => {
         const model = getModelFromEditor(path);
+        let oldSavedAtVersionId = savedAtAltVersionId.current[path];
+        let hadAsDirty = false;
         if (model) {
             savedAtAltVersionId.current[path] = model.getAlternativeVersionId();
             setDirtyFiles(dirtyFiles => {
-                if (dirtyFiles.has(path)) dirtyFiles.delete(path);
+                if (dirtyFiles.has(path)) {
+                    dirtyFiles.delete(path);
+                    hadAsDirty = true;
+                }
                 return new Set([...dirtyFiles]);
             });
+        }
+
+        return () => {
+            savedAtAltVersionId.current[path] = oldSavedAtVersionId;
+            if (hadAsDirty) {
+                setDirtyFiles(dirtyFiles => {
+                    return new Set([...dirtyFiles, path]);
+                });
+            }
         }
     }, []);
 
@@ -1852,6 +1877,8 @@ function allowEditDialog(editor: IStandaloneCodeEditor) {
 function getStatusBarElement(): Element | null {
     return document.getElementsByClassName(StatusBar).item(0);
 }
+
+type RevertSaveFunction = () => void;
 
 const EditorReleaseNotes = `
 # Preview editor

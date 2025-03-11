@@ -79,7 +79,7 @@ import {VirtualFile} from "@/Files/FileTree";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {setPopInChild} from "@/ui-components/PopIn";
-import {Action} from "redux";
+import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -1168,12 +1168,24 @@ export function FilePreview({initialFile}: {
         if (!editor) return;
         if (!hasFeature(Feature.INTEGRATED_EDITOR)) return;
 
+        const path = editor.path;
+
         await editor.notifyDirtyBuffer();
-        await vfs.writeFile(editor.path);
+        await vfs.writeFile(path);
 
-        editor.onFileSaved(editor.path);
+        const revert = editor.onFileSaved(path);
+        const successTimeout = window.setTimeout(() => snackbarStore.addSuccess("File has been saved", false, 800), 250);
+        const revertLocalSave = (e: WriteFailureEvent) => {
+            const failedUpload = e.detail.find(it => it.targetPath + it.name === path);
+            if (failedUpload) {
+                window.clearTimeout(successTimeout);
+                revert();
+                snackbarStore.addFailure(failedUpload.error ?? "Upload for file " + fileName(failedUpload.name) + " failed.", false);
+            }
+        }
 
-        snackbarStore.addSuccess("File has been saved", false, 800);
+        window.addEventListener(FileWriteFailure, revertLocalSave);
+        window.setTimeout(() => window.removeEventListener(FileWriteFailure, revertLocalSave), 30_000);
     }, [vfs]);
 
     useEffect(() => {
