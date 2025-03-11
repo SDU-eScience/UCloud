@@ -146,6 +146,10 @@ func TrackNewJob(job orc.Job) {
 	if RunsServerCode() {
 		activeJobsMutex.Lock()
 		activeJobs[job.Id] = &job
+
+		if job.Status.State.IsFinal() {
+			delete(activeJobs, job.Id)
+		}
 		activeJobsMutex.Unlock()
 
 		trackJobUpdateServer(&job)

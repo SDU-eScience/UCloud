@@ -102,3 +102,17 @@ func BrowseProjects(next string, flags ProjectBrowseFlags) (fnd.PageV2[Project],
 		append(c.StructToParameters(flags), "next", next, "itemsPerPage", "250"),
 	)
 }
+
+func IsMemberOfGroup(project Project, groupId string, username string) bool {
+	for _, group := range project.Status.Groups {
+		if group.Id == groupId {
+			for _, member := range group.Status.Members {
+				if member == username {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}

@@ -79,11 +79,6 @@ const TabbedCard: React.FunctionComponent<{style?: CSSProperties; children: Reac
         setTabs(newTabs);
     }, [children, visible]);
 
-    useLayoutEffect(() => {
-        const nav = rootDiv.current?.querySelector("nav");
-        if (!nav) return;
-    }, [tabs]);
-
     const onTabClick = useCallback((ev: React.SyntheticEvent) => {
         function findAttr(element: HTMLElement | null | undefined, attr: string): string | null {
             if (!element) return null;

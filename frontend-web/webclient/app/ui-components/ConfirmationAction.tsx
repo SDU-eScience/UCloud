@@ -6,7 +6,7 @@ import Icon, {IconName} from "@/ui-components/Icon";
 import {doNothing} from "@/UtilityFunctions";
 import {selectContrastColor, selectHoverColor, ThemeColor} from "@/ui-components/theme";
 import {classConcat, injectStyle} from "@/Unstyled";
-import {div} from "@/Utilities/HTMLUtilities";
+import {divHtml} from "@/Utilities/HTMLUtilities";
 
 const ConfirmButtonClass = injectStyle("confirm-button", k => `
     ${k} {
@@ -498,7 +498,7 @@ export function ConfirmationButtonPlainHTML(
     divEl.append(icon);
     button.append(divEl);
 
-    const icons = div(`
+    const icons = divHtml(`
         <svg class="progress" viewBox="0 0 32 32">
             <circle r="8" cx="16" cy="16" />
         </svg>

@@ -22,7 +22,8 @@ export enum Feature {
 
     PROVIDER_CONDITION,
 
-    ALTERNATIVE_USAGE_SELECTOR
+    ALTERNATIVE_USAGE_SELECTOR,
+    NEW_SYNCTHING_UI
 }
 
 enum Environment {
@@ -119,13 +120,21 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     },
+
     "job-rename": {
         feature: Feature.JOB_RENAME,
         showWithFlag: allDevEnvironments,
         showWithoutFlag: allLocalEnvironments
     },
+
     "alternative-usage-selector": {
         feature: Feature.ALTERNATIVE_USAGE_SELECTOR,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "new-syncthing-ui": {
+        feature: Feature.NEW_SYNCTHING_UI,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     }

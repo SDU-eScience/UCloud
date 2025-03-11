@@ -1,6 +1,7 @@
 package orchestrators
 
 import (
+	"slices"
 	"ucloud.dk/pkg/apm"
 	fnd "ucloud.dk/pkg/foundation"
 	"ucloud.dk/pkg/util"
@@ -43,6 +44,26 @@ type AclEntity struct {
 	ProjectId string        `json:"projectId,omitempty"`
 	Group     string        `json:"group,omitempty"`
 	Username  string        `json:"username,omitempty"`
+}
+
+func PermissionsHas(list []Permission, perm Permission) bool {
+	return slices.Contains(list, perm)
+}
+
+func PermissionsAdd(list []Permission, toAdd Permission) []Permission {
+	result := list
+	found := false
+	for _, perm := range list {
+		if perm == toAdd {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		result = append(result, toAdd)
+	}
+	return result
 }
 
 type AclEntityType string

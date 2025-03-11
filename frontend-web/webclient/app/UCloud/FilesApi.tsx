@@ -108,6 +108,7 @@ export function isSensitivitySupported(resource: UFile): boolean {
         switch (resource.specification.product.provider) {
             case "k8":
             case "K8":
+            case "gok8s":
             case "ucloud":
                 return true;
 
@@ -1479,7 +1480,7 @@ export function FilePreview({initialFile}: {
     />;
 }
 
-async function downloadFileContent(path: string): Promise<Blob> {
+export async function downloadFileContent(path: string): Promise<Blob> {
     const download = await callAPI<BulkResponse<FilesCreateDownloadResponseItem>>(
         api.createDownload(bulkRequestOf({id: path}))
     );

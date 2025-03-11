@@ -115,7 +115,7 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 	var result []orc.ApplicationParameter
 
 	if owner.Project != "" {
-		project, ok := ctrl.GetLastKnownProject(owner.Project)
+		project, ok := ctrl.RetrieveProject(owner.Project)
 		if ok && project.Status.PersonalProviderProjectFor.Present {
 			accounts := []string{"unknown"}
 			myUser, err := user.Current()
@@ -954,7 +954,7 @@ func FindJobFolder(owner apm.WalletOwner) (string, bool) {
 		dir, err := os.UserHomeDir()
 
 		if err == nil {
-			project, ok := ctrl.GetLastKnownProject(owner.ProjectId)
+			project, ok := ctrl.RetrieveProject(owner.ProjectId)
 			if !ok {
 				basePath = dir
 			} else if project.Status.PersonalProviderProjectFor.Present {

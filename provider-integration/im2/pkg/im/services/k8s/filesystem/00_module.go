@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	lru "github.com/hashicorp/golang-lru/v2/expirable"
-	"golang.org/x/sys/unix"
 	"io"
 	"math"
 	"net/http"
@@ -15,6 +13,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	lru "github.com/hashicorp/golang-lru/v2/expirable"
+	"golang.org/x/sys/unix"
 	"ucloud.dk/pkg/apm"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
@@ -28,6 +29,8 @@ import (
 var storageSupport []orc.FSSupport
 
 var browseCache *lru.LRU[string, []cachedDirEntry]
+
+const SensitivityXattr string = "user.sensitivity"
 
 type cachedDirEntry struct {
 	absPath string
@@ -438,7 +441,7 @@ func nativeStat(drive *orc.Drive, internalPath string, info os.FileInfo) orc.Pro
 			UnixGroup:                    DefaultUid,
 		},
 		CreatedAt:         fnd.Timestamp{},
-		LegacySensitivity: "",
+		LegacySensitivity: getInheritedSensitivity(drive, internalPath).Value,
 	}
 
 	result.Status.ModifiedAt = FileModTime(info)
@@ -826,7 +829,7 @@ func emptyTrash(request ctrl.EmptyTrashRequest) error {
 		return util.UserHttpError("Unable to resolve trash folder")
 	}
 
-	err := doDeleteFile(trashLocation)
+	err := DoDeleteFile(trashLocation)
 	if err != nil {
 		return err
 	}
@@ -841,7 +844,7 @@ func emptyTrash(request ctrl.EmptyTrashRequest) error {
 	return nil
 }
 
-func doDeleteFile(internalPath string) error {
+func DoDeleteFile(internalPath string) error {
 	parentDir, ok1 := OpenFile(filepath.Dir(internalPath), unix.O_RDONLY, 0)
 	stagingArea, ok2 := OpenFile(shared.ServiceConfig.FileSystem.TrashStagingArea, unix.O_RDONLY, 0)
 	defer util.SilentClose(parentDir)
@@ -1123,7 +1126,7 @@ func deleteDrive(drive orc.Drive) error {
 		return util.ServerHttpError("unknown drive")
 	}
 	reportUsedStorage(drive, 0)
-	return doDeleteFile(path)
+	return DoDeleteFile(path)
 }
 
 func renameDrive(_ orc.Drive) error {
@@ -1170,6 +1173,59 @@ func createShare(share orc.Share) (driveId string, err error) {
 	})
 
 	return
+}
+
+// NOTE(Brian) Function to support inherited sensitivity.
+// This is legacy functionality, and thus only implemented for backwards compatibility.
+func getInheritedSensitivity(drive *orc.Drive, internalPath string) util.Option[string] {
+	ucloudPath, ok := InternalToUCloudWithDrive(drive, internalPath)
+	validSensitivity := []string{"CONFIDENTIAL", "SENSITIVE", "PRIVATE"}
+
+	if !ok {
+		return util.OptNone[string]()
+	}
+
+	ancestors := util.Parents(ucloudPath)
+	ancestors = append(ancestors, ucloudPath)
+
+	result := ""
+
+	for _, ancestor := range ancestors {
+		// Skip checking drive
+		if strings.Count(ancestor, "/") < 2 {
+			continue
+		}
+
+		internalAncestorPath, ok := UCloudToInternal(ancestor)
+
+		if !ok {
+			continue
+		}
+
+		fd, ok := OpenFile(internalAncestorPath, unix.O_RDONLY, 0)
+
+		if !ok {
+			continue
+		}
+
+		// Get extended attributes
+		buffer := make([]byte, 64)
+		count, err := unix.Fgetxattr(int(fd.Fd()), SensitivityXattr, buffer)
+		util.SilentClose(fd)
+
+		if err != nil || count < 1 {
+			continue
+		}
+
+		value := strings.ToUpper(string(buffer[:count]))
+		if value != "" {
+			if slices.Contains(validSensitivity, value) {
+				result = value
+			}
+		}
+	}
+
+	return util.OptStringIfNotEmpty(result)
 }
 
 const DefaultUid = 11042

@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"time"
@@ -9,6 +10,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"maps"
+	"slices"
+	"time"
 	"ucloud.dk/pkg/apm"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
@@ -31,14 +35,19 @@ var nextAccounting time.Time
 var schedulers = map[string]*Scheduler{}
 
 func getScheduler(category string) (*Scheduler, bool) {
-	_, ok := shared.ServiceConfig.Compute.Machines[category]
-	if !ok {
-		return nil, false
+	_, isIApp := ctrl.IntegratedApplications[category]
+	if isIApp {
+		// TODO Ask the application about the scheduler.
+	} else {
+		_, ok := shared.ServiceConfig.Compute.Machines[category]
+		if !ok {
+			return nil, false
+		}
 	}
 
 	existing, ok := schedulers[category]
 	if !ok {
-		schedulers[category] = NewScheduler()
+		schedulers[category] = NewScheduler(category)
 		existing, ok = schedulers[category]
 	}
 	return existing, ok
@@ -95,7 +104,7 @@ func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 	}
 
 	if state.State == orc.JobStateRunning && state.Node.Present {
-		sched.RegisterRunningReplica(state.Id, state.Rank, jobDimensions(job), state.Node.Value, nil,
+		sched.RegisterRunningReplica(state.Id, state.Rank, shared.JobDimensions(job), state.Node.Value, nil,
 			timeAllocationOrDefault(job.Specification.TimeAllocation))
 	}
 
@@ -149,15 +158,6 @@ func (t *jobTracker) RequestCleanup(jobId string) {
 	}
 }
 
-func jobDimensions(job *orc.Job) SchedulerDimensions {
-	prod := &job.Status.ResolvedProduct
-	return SchedulerDimensions{
-		CpuMillis:     prod.Cpu * 1000,
-		MemoryInBytes: prod.MemoryInGigs * (1024 * 1024 * 1024),
-		Gpu:           0,
-	}
-}
-
 func timeAllocationOrDefault(alloc util.Option[orc.SimpleDuration]) orc.SimpleDuration {
 	return alloc.GetOrDefault(orc.SimpleDuration{
 		Hours:   24 * 365,
@@ -176,35 +176,56 @@ func loopMonitoring() {
 			return shared.K8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 		})
 
+		if util.DevelopmentModeEnabled() && len(nodeList.Items) == 1 {
+			baseNode := nodeList.Items[0]
+			nodeList.Items = []corev1.Node{}
+
+			for category, _ := range shared.ServiceConfig.Compute.Machines {
+				normalMachine := baseNode
+				normalMachine.Labels = maps.Clone(normalMachine.Labels)
+				normalMachine.Labels["ucloud.dk/machine"] = category
+				nodeList.Items = append(nodeList.Items, normalMachine)
+				break
+			}
+
+			if shared.ServiceConfig.Compute.Syncthing.Enabled {
+				syncthingNode := nodeList.Items[0]
+				syncthingNode.Labels = maps.Clone(syncthingNode.Labels)
+				syncthingNode.Labels["ucloud.dk/machine"] = "syncthing"
+				nodeList.Items = append(nodeList.Items, syncthingNode)
+			}
+		}
+
 		length := len(nodeList.Items)
 		for i := 0; i < length; i++ {
 			node := &nodeList.Items[i]
-			category := nodeCategory(node)
-			if !category.Present {
-				continue
+			categories := nodeCategories(node)
+			for _, category := range categories {
+				sched, ok := getScheduler(category)
+				if !ok {
+					continue
+				}
+
+				k8sCapacity := node.Status.Capacity
+				k8sAllocatable := node.Status.Allocatable
+
+				capacity := shared.SchedulerDimensions{
+					CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
+					MemoryInBytes: int(k8sCapacity.Memory().Value()),
+					Gpu:           int(k8sCapacity.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
+				}
+
+				limits := shared.SchedulerDimensions{
+					CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
+					MemoryInBytes: int(k8sAllocatable.Memory().Value()),
+					Gpu:           int(k8sAllocatable.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
+				}
+
+				sched.RegisterNode(node.Name, capacity, limits, node.Spec.Unschedulable)
 			}
+		}
 
-			sched, ok := getScheduler(category.Value)
-			if !ok {
-				continue
-			}
-
-			k8sCapacity := node.Status.Capacity
-			k8sAllocatable := node.Status.Allocatable
-
-			capacity := SchedulerDimensions{
-				CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
-				MemoryInBytes: int(k8sCapacity.Memory().Value()),
-				Gpu:           int(k8sCapacity.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
-			}
-
-			limits := SchedulerDimensions{
-				CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
-				MemoryInBytes: int(k8sAllocatable.Memory().Value()),
-				Gpu:           int(k8sAllocatable.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
-			}
-
-			sched.RegisterNode(node.Name, capacity, limits, node.Spec.Unschedulable)
+		for _, sched := range schedulers {
 			sched.PruneNodes()
 		}
 
@@ -332,7 +353,7 @@ func loopMonitoring() {
 	for _, entry := range entriesToSubmit {
 		sched, ok := getSchedulerByJob(entry)
 		if ok {
-			sched.RegisterJobInQueue(entry.Id, jobDimensions(entry),
+			sched.RegisterJobInQueue(entry.Id, shared.JobDimensions(entry),
 				entry.Specification.Replicas, nil, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
 		}
 	}
@@ -375,19 +396,27 @@ func loopMonitoring() {
 	_ = ctrl.TrackJobMessages(scheduleMessages)
 }
 
-func nodeCategory(node *corev1.Node) util.Option[string] {
-	machineLabel, ok := node.Labels["ucloud.dk/machine"]
-	if !ok {
-		// Dev only fix
-		if node.ObjectMeta.Name == "im2k3" {
-			for k, _ := range shared.ServiceConfig.Compute.Machines {
-				return util.OptValue(k)
+func nodeCategories(node *corev1.Node) []string {
+	// NOTE(Dan): It is really important that production providers only return 1. Being able to return more than one
+	// is just for testing in resource-constrained environments.
+	parseResult := func(machineLabel string) []string {
+		if len(machineLabel) == 0 {
+			return nil
+		} else {
+			if machineLabel[0] == '[' {
+				var nodes []string
+				_ = json.Unmarshal([]byte(machineLabel), &nodes)
+				return nodes
+			} else {
+				return []string{machineLabel}
 			}
 		}
-		return util.OptNone[string]()
 	}
 
-	return util.OptValue(machineLabel)
+	var result []string
+	result = append(result, parseResult(node.Labels["ucloud.dk/machine"])...)
+	result = append(result, parseResult(node.Annotations["ucloud.dk/machine"])...)
+	return result
 }
 
 func convertJobTimeToAccountingUnits(job *orc.Job, timeConsumed time.Duration) int64 {

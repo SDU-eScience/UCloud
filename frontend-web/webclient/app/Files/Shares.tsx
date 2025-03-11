@@ -41,7 +41,7 @@ import {fileName} from "@/Utilities/FileUtilities";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import {div} from "@/Utilities/HTMLUtilities";
+import {divHtml} from "@/Utilities/HTMLUtilities";
 import {FlexClass} from "@/ui-components/Flex";
 import {ButtonGroupClass} from "@/ui-components/ButtonGroup";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
@@ -453,7 +453,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     const pendingSharedWithMe = share.owner.createdBy !== Client.username && share.status.state === "PENDING";
 
                     // Row stat1
-                    const wrapper = div("");
+                    const wrapper = divHtml("");
                     row.stat1.append(wrapper);
                     wrapper.className = FlexClass;
                     wrapper.style.marginTop = wrapper.style.marginBottom = "auto"

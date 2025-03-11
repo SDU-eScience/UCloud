@@ -51,6 +51,8 @@ export const TitledCard: React.FunctionComponent<React.PropsWithChildren<{
     onContextMenu?: (e: React.MouseEvent) => void;
     className?: string;
     overflow?: string;
+    flexBasis?: number;
+    flexGrow?: number;
 }>> = ({
     title,
     subtitle,
@@ -68,6 +70,8 @@ export const TitledCard: React.FunctionComponent<React.PropsWithChildren<{
     className,
     children,
     overflow,
+    flexBasis,
+    flexGrow,
 }) => (
         <Card
             onClick={onClick}
@@ -79,6 +83,8 @@ export const TitledCard: React.FunctionComponent<React.PropsWithChildren<{
             maxHeight={maxHeight}
             maxWidth={maxWidth}
             onContextMenu={onContextMenu}
+            flexBasis={flexBasis}
+            flexGrow={flexGrow}
             className={classConcat(style, className)}
         >
             {title || icon || subtitle ?

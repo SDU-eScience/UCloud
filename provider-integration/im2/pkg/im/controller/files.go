@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -1033,6 +1034,66 @@ func controllerFiles(mux *http.ServeMux) {
 								TrackDrive(&driveCopy)
 							}
 						}
+
+						resp.Responses = append(
+							resp.Responses,
+							util.Option[util.Empty]{
+								Present: true,
+							},
+						)
+					}
+
+					sendResponseOrError(w, resp, nil)
+				},
+			),
+		)
+
+		type driveUpdateAclRequest struct {
+			Resource orc.Drive              `json:"resource"`
+			Added    []orc.ResourceAclEntry `json:"added"`
+			Deleted  []orc.AclEntity        `json:"deleted"`
+		}
+
+		mux.HandleFunc(driveContext+"updateAcl",
+			HttpUpdateHandler[fnd.BulkRequest[driveUpdateAclRequest]](
+				0,
+				func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[driveUpdateAclRequest]) {
+					resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+					for _, item := range request.Items {
+						// TODO The Core needs to stop doing this. Why not just send the new ACL also?
+
+						drive := item.Resource
+						for _, toDelete := range item.Deleted {
+							for i, entry := range drive.Permissions.Others {
+								if entry.Entity == toDelete {
+									slices.Delete(drive.Permissions.Others, i, i+1)
+									break
+								}
+							}
+						}
+						for _, toAdd := range item.Added {
+							found := false
+
+							for i := 0; i < len(drive.Permissions.Others); i++ {
+								entry := &drive.Permissions.Others[i]
+								if entry.Entity == toAdd.Entity {
+									for _, perm := range toAdd.Permissions {
+										entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
+									}
+									found = true
+									break
+								}
+							}
+
+							if !found {
+								drive.Permissions.Others = append(drive.Permissions.Others, orc.ResourceAclEntry{
+									Entity:      toAdd.Entity,
+									Permissions: toAdd.Permissions,
+								})
+							}
+						}
+
+						TrackDrive(&drive)
 
 						resp.Responses = append(
 							resp.Responses,
