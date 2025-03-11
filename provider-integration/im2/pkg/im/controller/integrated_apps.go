@@ -35,6 +35,7 @@ type IntegratedApplicationHandler struct {
 	ResetConfiguration           func(job *orc.Job, configuration json.RawMessage) (json.RawMessage, error)
 	RestartApplication           func(job *orc.Job) error
 	RetrieveDefaultConfiguration func(owner orc.ResourceOwner) json.RawMessage
+	RetrieveLegacyConfiguration  func(owner orc.ResourceOwner) util.Option[json.RawMessage]
 	MutateSpecBeforeRegistration func(owner orc.ResourceOwner, spec *orc.JobSpecification) error
 }
 
@@ -75,10 +76,34 @@ func controllerIntegratedApp(mux *http.ServeMux, appName string, handler Integra
 				}
 
 				if !config.Present {
-					// NOTE(Dan): When returning the default configuration we _do not_ save it in the database.
-					// This is meant only for the frontend to receive a starting point.
-					resp.Configuration = handler.RetrieveDefaultConfiguration(request.Principal)
-					resp.ETag = "initial"
+					if handler.RetrieveLegacyConfiguration != nil {
+						rawConfig := handler.RetrieveLegacyConfiguration(request.Principal)
+						if rawConfig.Present {
+							err := ConfigureIApp(appName, request.Principal, util.OptNone[string](), rawConfig.Value)
+							if err != nil {
+								sendResponseOrError(w, nil, err)
+								return
+							} else {
+								config = RetrieveIAppConfiguration(appName, request.Principal)
+								if !config.Present {
+									sendResponseOrError(w, nil, fmt.Errorf("error configuring iapp"))
+									return
+								} else {
+									resp = retrieveResponse{
+										ETag:          config.Value.ETag,
+										Configuration: config.Value.Configuration,
+									}
+								}
+							}
+						}
+					}
+
+					if !config.Present {
+						// NOTE(Dan): When returning the default configuration we _do not_ save it in the database.
+						// This is meant only for the frontend to receive a starting point.
+						resp.Configuration = handler.RetrieveDefaultConfiguration(request.Principal)
+						resp.ETag = "initial"
+					}
 				}
 
 				sendResponseOrError(w, resp, nil)

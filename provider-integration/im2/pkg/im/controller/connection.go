@@ -724,8 +724,9 @@ func allocatePortIfNeeded(uid uint32) (port int, valid bool) {
 
 var (
 	userInstancesLaunched = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "ucloud_im_launched_user_instances",
-		Help: "The total number of UCloud/IM (User) instances launched",
+		Namespace: "ucloud_im",
+		Name:      "launched_user_instances",
+		Help:      "The total number of UCloud/IM (User) instances launched",
 	})
 )
 

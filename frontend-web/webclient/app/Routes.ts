@@ -141,6 +141,7 @@ const AppRoutes = {
     accounting,
     providers,
     files,
+    prefix: "/app",
 };
 
 export default AppRoutes;

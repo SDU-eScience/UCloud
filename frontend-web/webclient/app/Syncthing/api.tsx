@@ -23,6 +23,11 @@ export async function fetchConfig(provider: string): Promise<SyncthingConfig> {
     return resp.config;
 }
 
+export async function fetchConfigAndEtag(provider: string): Promise<[SyncthingConfig, string]> {
+    const resp = await callAPI<SyncthingConfigResponse>(api.retrieveConfiguration(provider, "syncthing"));
+    return [resp.config, resp.etag];
+}
+
 export async function fetchProducts(provider: string): Promise<compute.ComputeProductSupportResolved[]> {
     const products = await callAPI<compute.JobsRetrieveProductsResponse>(compute.jobs.retrieveProducts({
         providers: provider

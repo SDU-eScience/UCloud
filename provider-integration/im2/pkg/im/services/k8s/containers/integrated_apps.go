@@ -20,6 +20,7 @@ type ContainerIAppHandler struct {
 	ValidateConfiguration        func(job *orc.Job, configuration json.RawMessage) error
 	ResetConfiguration           func(job *orc.Job, configuration json.RawMessage) (json.RawMessage, error)
 	RetrieveDefaultConfiguration func(owner orc.ResourceOwner) json.RawMessage
+	RetrieveLegacyConfiguration  func(owner orc.ResourceOwner) util.Option[json.RawMessage]
 
 	ShouldRun func(job *orc.Job, configuration json.RawMessage) bool
 
@@ -81,10 +82,20 @@ func containerIAppBridge(handler ContainerIAppHandler) ctrl.IntegratedApplicatio
 				timeout, cancelFunc := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancelFunc()
 
-				_ = K8sClient.CoreV1().Pods(Namespace).Delete(timeout, pod.Value.Name, metav1.DeleteOptions{})
+				_ = K8sClient.CoreV1().Pods(Namespace).Delete(timeout, pod.Value.Name, metav1.DeleteOptions{
+					GracePeriodSeconds: util.Pointer(int64(1)),
+				})
 			}
 
 			return nil
+		},
+
+		RetrieveLegacyConfiguration: func(owner orc.ResourceOwner) util.Option[json.RawMessage] {
+			if handler.RetrieveLegacyConfiguration == nil {
+				return util.OptNone[json.RawMessage]()
+			} else {
+				return handler.RetrieveLegacyConfiguration(owner)
+			}
 		},
 
 		RetrieveDefaultConfiguration: func(owner orc.ResourceOwner) json.RawMessage {
