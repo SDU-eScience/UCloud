@@ -829,7 +829,7 @@ func emptyTrash(request ctrl.EmptyTrashRequest) error {
 		return util.UserHttpError("Unable to resolve trash folder")
 	}
 
-	err := doDeleteFile(trashLocation)
+	err := DoDeleteFile(trashLocation)
 	if err != nil {
 		return err
 	}
@@ -844,7 +844,7 @@ func emptyTrash(request ctrl.EmptyTrashRequest) error {
 	return nil
 }
 
-func doDeleteFile(internalPath string) error {
+func DoDeleteFile(internalPath string) error {
 	parentDir, ok1 := OpenFile(filepath.Dir(internalPath), unix.O_RDONLY, 0)
 	stagingArea, ok2 := OpenFile(shared.ServiceConfig.FileSystem.TrashStagingArea, unix.O_RDONLY, 0)
 	defer util.SilentClose(parentDir)
@@ -1126,7 +1126,7 @@ func deleteDrive(drive orc.Drive) error {
 		return util.ServerHttpError("unknown drive")
 	}
 	reportUsedStorage(drive, 0)
-	return doDeleteFile(path)
+	return DoDeleteFile(path)
 }
 
 func renameDrive(_ orc.Drive) error {

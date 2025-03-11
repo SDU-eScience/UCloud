@@ -136,6 +136,13 @@ func syncthingValidateConfiguration(job *orc.Job, configuration json.RawMessage)
 }
 
 func syncthingResetConfiguration(job *orc.Job, configuration json.RawMessage) (json.RawMessage, error) {
+	internal, _, err := initSyncthingFolder(job.Owner)
+	if err == nil {
+		_ = filesystem.DoDeleteFile(internal)
+		_, _, _ = initSyncthingFolder(job.Owner)
+	} else {
+		return json.RawMessage{}, fmt.Errorf("failed to reset configuration")
+	}
 	return syncthingRetrieveDefaultConfiguration(job.Owner), nil
 }
 
@@ -193,6 +200,12 @@ func syncthingMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage
 		if ok {
 			normalizedConfig, _ := json.Marshal(config)
 			_, _ = fd.Write(normalizedConfig)
+			util.SilentClose(fd)
+		}
+
+		fd, ok = filesystem.OpenFile(filepath.Join(internalSyncthing, "job_id.txt"), unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0660)
+		if ok {
+			_, _ = fd.Write([]byte(job.Id))
 			util.SilentClose(fd)
 		}
 	}

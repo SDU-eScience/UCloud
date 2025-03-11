@@ -1480,7 +1480,7 @@ export function FilePreview({initialFile}: {
     />;
 }
 
-async function downloadFileContent(path: string): Promise<Blob> {
+export async function downloadFileContent(path: string): Promise<Blob> {
     const download = await callAPI<BulkResponse<FilesCreateDownloadResponseItem>>(
         api.createDownload(bulkRequestOf({id: path}))
     );
