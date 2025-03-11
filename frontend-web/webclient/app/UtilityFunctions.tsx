@@ -415,6 +415,10 @@ export const onDevSite = (): boolean => window.location.host === CONF.DEV_SITE |
     || window.location.hostname === "127.0.0.1" || window.location.hostname === "ucloud.localhost.direct"
     || window.location.hostname === "sandbox.dev.cloud.sdu.dk";
 
+export function onSandbox() {
+    return window.location.hostname === "sandbox.dev.cloud.sdu.dk" || localStorage.getItem("sandbox");
+}
+
 export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();
     return (target = "default-target"): string => {
