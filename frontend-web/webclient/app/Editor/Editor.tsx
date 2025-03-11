@@ -1461,7 +1461,6 @@ const StatusBarWrapper = injectStyle("status-bar-wrapper", k => `
         left: calc(var(--currentSidebarWidth) + 250px);
         width: 100%;
         background-color: var(--primaryMain);
-        font-family: var(--monospace);
         color: white;
         padding-left: 4px;
     }
