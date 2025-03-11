@@ -212,7 +212,7 @@
         {
             "id": "sdu-hsc-slurm",
             "title": "SDU HSC",
-            "logo": "sdu.png",
+            "logo": "hippo.png",
             "shortTitle": "SDU HSC",
             "shortDescription": "The DeiC Large Memory HPC system is a system consisting of large memory nodes (up to 4 TB RAM per node).",
             "description": "The DeiC Large Memory HPC system is a system consisting of large memory nodes (between 1 and 4 TB RAM per node) configured as a traditional Slurm cluster.",
