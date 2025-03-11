@@ -152,6 +152,7 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 			Applications:         ServiceConfig.Compute.Applications,
 			RequiredApplications: appsToLoad,
 			VersionPolicy:        "loose",
+			PreviouslyLoaded:     make(map[orc.NativeApplication]appCfgAndVersion),
 		}
 
 		var failedToLoad []string
