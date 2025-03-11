@@ -20,6 +20,7 @@ type ContainerIAppHandler struct {
 	ValidateConfiguration        func(job *orc.Job, configuration json.RawMessage) error
 	ResetConfiguration           func(job *orc.Job, configuration json.RawMessage) (json.RawMessage, error)
 	RetrieveDefaultConfiguration func(owner orc.ResourceOwner) json.RawMessage
+	RetrieveLegacyConfiguration  func(owner orc.ResourceOwner) util.Option[json.RawMessage]
 
 	ShouldRun func(job *orc.Job, configuration json.RawMessage) bool
 
@@ -87,6 +88,14 @@ func containerIAppBridge(handler ContainerIAppHandler) ctrl.IntegratedApplicatio
 			}
 
 			return nil
+		},
+
+		RetrieveLegacyConfiguration: func(owner orc.ResourceOwner) util.Option[json.RawMessage] {
+			if handler.RetrieveLegacyConfiguration == nil {
+				return util.OptNone[json.RawMessage]()
+			} else {
+				return handler.RetrieveLegacyConfiguration(owner)
+			}
 		},
 
 		RetrieveDefaultConfiguration: func(owner orc.ResourceOwner) json.RawMessage {

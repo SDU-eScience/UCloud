@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"golang.org/x/sys/unix"
+	"io"
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -50,6 +51,7 @@ func initSyncthing() {
 			BeforeRestart:                   syncthingBeforeRestart,
 			ValidateConfiguration:           syncthingValidateConfiguration,
 			ResetConfiguration:              syncthingResetConfiguration,
+			RetrieveLegacyConfiguration:     syncthingRetrieveLegacyConfiguration,
 			RetrieveDefaultConfiguration:    syncthingRetrieveDefaultConfiguration,
 			ShouldRun:                       syncthingShouldRun,
 			MutateJobNonPersistent:          syncthingMutateJobNonPersistent,
@@ -62,7 +64,35 @@ func initSyncthing() {
 	}
 }
 
+func syncthingRetrieveLegacyConfiguration(owner orc.ResourceOwner) util.Option[json.RawMessage] {
+	internal, _, err := initSyncthingFolderEx(owner, false)
+	if err != nil {
+		return util.OptNone[json.RawMessage]()
+	} else {
+		fd, ok := filesystem.OpenFile(filepath.Join(internal, "ucloud_config.json"), unix.O_RDONLY, 0)
+		if !ok {
+			return util.OptNone[json.RawMessage]()
+		} else {
+			defer util.SilentClose(fd)
+			finfo, err := fd.Stat()
+			if err == nil && finfo.Size() < 1024*1024 {
+				var config orc.SyncthingConfig
+				data, _ := io.ReadAll(fd)
+				err = json.Unmarshal(data, &config)
+				if err == nil {
+					return util.OptValue[json.RawMessage](data)
+				}
+			}
+		}
+	}
+	return util.OptNone[json.RawMessage]()
+}
+
 func initSyncthingFolder(owner orc.ResourceOwner) (string, string, error) {
+	return initSyncthingFolderEx(owner, true)
+}
+
+func initSyncthingFolderEx(owner orc.ResourceOwner, init bool) (string, string, error) {
 	internalFolder, drive, err := filesystem.InitializeMemberFiles(owner.CreatedBy, util.OptNone[string]())
 	if err != nil {
 		return "", "", err
@@ -76,7 +106,14 @@ func initSyncthingFolder(owner orc.ResourceOwner) (string, string, error) {
 	internalSyncthing := filepath.Join(internalFolder, "Syncthing")
 	ucloudSyncthing := filepath.Join(ucloudPath, "Syncthing")
 
-	_ = filesystem.DoCreateFolder(internalSyncthing)
+	fd, ok := filesystem.OpenFile(internalSyncthing, unix.O_RDONLY, 0)
+	if ok {
+		util.SilentClose(fd)
+	} else {
+		if init {
+			_ = filesystem.DoCreateFolder(internalSyncthing)
+		}
+	}
 	return internalSyncthing, ucloudSyncthing, nil
 }
 
