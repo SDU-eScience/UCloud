@@ -272,8 +272,8 @@ func loopAccounting() {
 func loopComputeMonitoring() {
 	jobs := SlurmClient.JobList()
 
-	batch := ctrl.BeginJobUpdates()
 	activeJobs := ctrl.GetJobs()
+	batch := ctrl.BeginJobUpdates()
 
 	jobsBySlurmId := make(map[int]string)
 	for jobId, job := range activeJobs {

@@ -132,7 +132,6 @@ func InitJobDatabase() {
 
 func TrackNewJob(job orc.Job) {
 	// NOTE(Dan): The job is supposed to be copied into this function. Do not change it to accept a pointer.
-
 	metricJobsSubmitted.Inc()
 
 	// Automatically assign timestamps to all updates that do not have one.
