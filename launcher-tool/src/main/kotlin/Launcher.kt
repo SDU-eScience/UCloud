@@ -88,8 +88,7 @@ fun main(args: Array<String>) {
         dk.sdu.cloud.compose = compose
 
         val (psText, failureText) = compose.ps(currentEnvironment).executeToText()
-        println(psText)
-        println(failureText)
+
         if (psText == null && !shouldStart) {
             println("Unable to start docker compose in ${currentEnvironment}!")
             println()

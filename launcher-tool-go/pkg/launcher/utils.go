@@ -29,6 +29,7 @@ func HardCheck(e error) {
 }
 
 func readLines(path string) []string {
+	println("READUBG POATGH : " + path)
 	inFile, _ := os.Open(path)
 	r := bufio.NewReader(inFile)
 	bytes := []byte{}

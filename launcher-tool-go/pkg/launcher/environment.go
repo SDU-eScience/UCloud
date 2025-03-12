@@ -62,7 +62,7 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 	HardCheck(err)
 	var alternativeEnvironments []os.DirEntry
 	for _, file := range files {
-		if file.IsDir() && slices.Contains(blacklistedEnvNames, file.Name()) {
+		if file.IsDir() && !slices.Contains(blacklistedEnvNames, file.Name()) {
 			alternativeEnvironments = append(alternativeEnvironments, file)
 		}
 	}
@@ -73,7 +73,7 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 		}
 
 		for _, envPath := range alternativeEnvironments {
-			fullPath, err := filepath.Abs(envPath.Name())
+			fullPath, err := filepath.Abs(filepath.Join(".compose", envPath.Name()))
 			HardCheck(err)
 			menu.Items = append(menu.Items, termio.MenuItem{
 				Value:   fullPath,
@@ -168,7 +168,7 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 			currentEnvironment = env
 			_, err = os.Stat(filepath.Join(env.GetAbsolutePath(), "remote"))
 			environmentIsRemote = err == nil
-
+			GenerateComposeFile(true)
 			return filepath.Base(newEnvironment)
 		}
 	case remote:
@@ -237,7 +237,6 @@ func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string
 			env = nil
 		}
 	}
-
 	if env == nil {
 		fmt.Println(`
 No active environment detected!
@@ -279,7 +278,7 @@ func InitIO(isNew bool) {
 		HardCheck(err)
 		lineSplit := strings.Split(string(fileContent), "@")
 		if len(lineSplit) != 2 {
-			log.Fatal("Unable to parse remote details from environment: $baseDir. Try deleting this folder.")
+			log.Fatal("Unable to parse remote details from environment: " + baseDir + ". Try deleting this folder.")
 		}
 
 		//TODO SSHCONNECTION
@@ -304,10 +303,7 @@ func InitIO(isNew bool) {
 }
 
 func ListConfiguredProviders() []string {
-	absPath, err := filepath.Abs(localEnvironment.Name())
-	HardCheck(err)
-
-	return readLines(filepath.Join(absPath, "providers.txt"))
+	return readLines(filepath.Join(localEnvironment.GetAbsolutePath(), "providers.txt"))
 }
 
 func AddProvider(providerId string) {

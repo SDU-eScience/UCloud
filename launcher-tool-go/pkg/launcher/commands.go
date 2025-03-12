@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/browser"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -44,7 +45,7 @@ func (c Commands) WriteCerts(localPath string) {
 }
 
 func (c Commands) InstallCerts() {
-	postef, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	postef, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	HardCheck(err)
 	postef.WriteString(
 		`
@@ -127,11 +128,10 @@ func (c Commands) OpenUserInterface(serviceName string) {
 	service := ServiceByName(serviceName)
 	address := service.address
 	uiHelp := service.uiHelp
-	if true {
+	err := browser.OpenURL(address)
+	if err != nil {
 		fmt.Println("Unable to open web-browser. Open this URL in your own browser:")
 		fmt.Println(address)
-	} else {
-		//TODO open in browser
 	}
 
 	if uiHelp != "" {
@@ -141,7 +141,7 @@ func (c Commands) OpenUserInterface(serviceName string) {
 }
 func (c Commands) OpenLogs(serviceName string) {
 	service := ServiceByName(serviceName)
-	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND, 644)
+	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND|os.O_CREATE|os.O_RDWR, os.ModeAppend)
 	HardCheck(err)
 	defer file.Close()
 	if service.useServiceConvention {
@@ -161,7 +161,7 @@ func (c Commands) OpenLogs(serviceName string) {
 }
 
 func (c Commands) OpenShell(serviceName string) {
-	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND, 644)
+	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND|os.O_CREATE|os.O_RDWR, os.ModeAppend)
 	HardCheck(err)
 	defer file.Close()
 	_, err = file.WriteString(compose.Exec(currentEnvironment, serviceName, []string{"/bin/sh", "-c", "bash || sh"}, true).ToBashScript())
@@ -286,7 +286,7 @@ func (c Commands) CreateProvider(providerName string) {
 	}
 }
 func (c Commands) ServiceStart(serviceName string) {
-	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND, 644)
+	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND|os.O_CREATE|os.O_RDWR, os.ModeAppend)
 	HardCheck(err)
 	defer file.Close()
 	_, err = file.WriteString(StartService(ServiceByName(serviceName)).ToBashScript())
@@ -294,7 +294,7 @@ func (c Commands) ServiceStart(serviceName string) {
 }
 
 func (c Commands) ServiceStop(serviceName string) {
-	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND, 644)
+	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND|os.O_CREATE|os.O_RDWR, os.ModeAppend)
 	HardCheck(err)
 	defer file.Close()
 	_, err = file.WriteString(StopService(ServiceByName(serviceName)).ToBashScript())
@@ -369,16 +369,15 @@ func (c Commands) EnvironmentDelete(shutdown bool) {
 			return nil
 		})
 		HardCheck(err)
-		pa, err := filepath.Abs(localEnvironment.Name())
-		HardCheck(err)
+		pa := localEnvironment.GetAbsolutePath()
 		parent := filepath.Dir(pa)
-		err = os.Remove(parent + "current.txt")
+		err = os.Remove(filepath.Join(parent, "current.txt"))
 		HardCheck(err)
 		os.RemoveAll(pa)
 	}
 }
 func (c Commands) EnvironmentStatus() {
-	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND, 644)
+	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND|os.O_CREATE|os.O_RDWR, os.ModeAppend)
 	HardCheck(err)
 	defer file.Close()
 	if _, err = file.WriteString(compose.Ps(currentEnvironment).ToBashScript()); err != nil {
@@ -395,7 +394,7 @@ func (c Commands) ImportApps() {
 			FetchAccessToken(),
 			`
 				{
-					"endpoint": "https://launcher-assets.cloud.sdu.dk/$checksum.zip",
+					"endpoint": "https://launcher-assets.cloud.sdu.dk/`+checksum+`.zip",
 					"checksum": "`+checksum+`"
 				}
 			`,
@@ -480,7 +479,7 @@ func CallService(
 	list := []string{
 		"curl",
 		"-ssS",
-		"-X$method",
+		"-X" + method,
 		url,
 		"-H",
 		"Authorization: Bearer " + bearer,
@@ -650,7 +649,7 @@ func RegisterProvider(providerId string, domain string, port int) ProviderCreden
 	resp = CallService(
 		"backend",
 		"GET",
-		"http://localhost:8080/api/providers/browse?filterName=$providerId",
+		"http://localhost:8080/api/providers/browse?filterName="+providerId,
 		accessToken,
 		"",
 		[]string{

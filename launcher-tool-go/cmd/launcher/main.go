@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"ucloud.dk/launcher/pkg/launcher"
@@ -29,8 +30,11 @@ func main() {
 		log.Fatal("Bad invocation")
 	}
 
-	postExecPath := os.Args[0]
-	launcher.PostExecFile, _ = os.Open(postExecPath)
+	postExecPath := os.Args[1]
+
+	opened, err := os.OpenFile(postExecPath, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
+	launcher.HardCheck(err)
+	launcher.PostExecFile = opened
 
 	if len(args) > 1 && args[1] == "--help" {
 		launcher.PrintHelp()
@@ -70,7 +74,7 @@ func main() {
 
 	composeDir := filepath.Join(repoRootPath, ".compose")
 	shouldStart := launcher.InitCurrentEnvironment(shouldInitializeTestEnvironment, composeDir).ShouldStartEnvironment
-
+	println("Schoulddsta " + strconv.FormatBool(shouldStart))
 	compose := launcher.FindCompose()
 	launcher.SetCompose(compose)
 
@@ -93,10 +97,10 @@ func main() {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		if len(line) >= 4 && strings.ToLower(strings.TrimSpace(line)[:4]) != "name" {
+		if strings.HasPrefix(strings.ToLower(line), "name") {
 			continue
 		}
-		if len(line) >= 3 && strings.TrimSpace(line)[:3] != "---" {
+		if strings.HasPrefix(line, "---") {
 			continue
 		}
 		psLines = append(psLines, line)
@@ -144,7 +148,6 @@ func main() {
 			"'Create provider...' entry below to do so.",
 		)
 	}
-
 	if shouldInitializeTestEnvironment {
 		providers := launcher.AllProviders
 		for _, provider := range providers {
@@ -159,9 +162,11 @@ func main() {
 	launcher.CliIntercept(args[1:])
 
 	toplevel := TopLevelMenu()
+	selectedItem, err := toplevel.SelectSingle()
+	launcher.HardCheck(err)
 	commands := launcher.Commands{}
 	//TODO correct switch?
-	switch toplevel.Prompt {
+	switch selectedItem.Value {
 	case "Enable port-forwarding (REQUIRED)":
 		{
 			CliHint("port-forward")
@@ -183,26 +188,32 @@ func main() {
 		{
 			commands.InstallCerts()
 		}
-	case "Open user-interface...":
+	case "ui":
 		{
 			launcher.InitializeServiceList()
-			commands.OpenUserInterface(ServiceMenu().Prompt)
+			selectedService, err := ServiceMenu(false, false, true).SelectSingle()
+			launcher.HardCheck(err)
+			commands.OpenUserInterface(selectedService.Value)
 		}
 	case "logs":
 		{
 			launcher.InitializeServiceList()
-			item := ServiceMenu().Prompt
-			CliHint("svc " + item + " logs")
-			commands.OpenLogs(item)
+			item, err := ServiceMenu(false, true, false).SelectSingle()
+			launcher.HardCheck(err)
+			service := launcher.ServiceByName(item.Value)
+			CliHint("svc " + service.ContainerName() + " logs")
+			commands.OpenLogs(service.ContainerName())
 		}
 	case "shell":
 		{
 			launcher.InitializeServiceList()
-			item := ServiceMenu().Prompt
-			CliHint("svc " + item + " sh")
-			commands.OpenShell(item)
+			item, err := ServiceMenu(false, true, false).SelectSingle()
+			launcher.HardCheck(err)
+			service := launcher.ServiceByName(item.Value)
+			CliHint("svc " + service.ContainerName() + " sh")
+			commands.OpenShell(service.ContainerName())
 		}
-	case "Create provider...":
+	case "providers":
 		{
 			launcher.GenerateComposeFile(true)
 			launcher.SyncRepository()
@@ -236,8 +247,12 @@ func main() {
 		{
 			launcher.GenerateComposeFile(true)
 			launcher.SyncRepository()
-			service := launcher.ServiceByName(ServiceMenu().Prompt)
-			switch ServiceActionMenu().Prompt {
+			selectedService, err := ServiceMenu(false, false, false).SelectSingle()
+			launcher.HardCheck(err)
+			service := launcher.ServiceByName(selectedService.Value)
+			action, err := ServiceActionMenu().SelectSingle()
+			launcher.HardCheck(err)
+			switch action.Value {
 			case "start":
 				{
 					CliHint("svc " + service.ContainerName() + " start")
@@ -269,7 +284,9 @@ func main() {
 			launcher.GenerateComposeFile(true)
 			launcher.SyncRepository()
 
-			switch EnvironmentMenu().Prompt {
+			envChoice, err := EnvironmentMenu().SelectSingle()
+			launcher.HardCheck(err)
+			switch envChoice.Value {
 			case "stop":
 				{
 					CliHint("env stop")
@@ -305,7 +322,7 @@ func main() {
 						downCom.ExecuteToText()
 						return nil
 					})
-					basePath := filepath.Join(launcher.GetCurrentEnvironment().GetAbsolutePath(), ".compose")
+					basePath := filepath.Join(repoRootPath, ".compose")
 					env := launcher.SelectOrCreateEnvironment(basePath, false)
 					launcher.InitIO(true)
 					launcher.GetCurrentEnvironment().Child("..", true).Child(env, true)
@@ -335,19 +352,23 @@ func main() {
 						Value:   "providers",
 						Message: "UCloud/IM and Providers",
 					},
+					{
+						Value:   "exit",
+						Message: "Exit",
+					},
 				},
 			}
 
-			var nextTopic = menu.Prompt
-			for {
-				if nextTopic == "" {
-					break
-				}
+			chosenTopic := menu.Items[1]
+			var nextTopic = chosenTopic.Value
+			for nextTopic != "" {
 				nextTopic = ""
-				switch menu.Prompt {
-				case "start":
-					{
-						fmt.Println(`
+
+				chosenTopic, err = menu.SelectSingle()
+				launcher.HardCheck(err)
+				nextTopic = chosenTopic.Value
+				if nextTopic == "start" {
+					fmt.Println(`
 					Welcome! This is a small interactive help tool. For more in-depth documentation,
 					please go here: https://docs.cloud.sdu.dk
 	
@@ -362,119 +383,138 @@ func main() {
 	
 					This is an UCloud admin account which you can use to manage the UCloud instance. You
 					can see which options are available to you from the "Admin" tab in the UCloud sidebar.
-				`)
+					`)
 
-						moreTopics := termio.Menu{
-							Prompt: "Select a topic",
-							Items: []termio.MenuItem{
-								{
-									Value:   "troubleshoot",
-									Message: "It is not working",
-								},
-								{
-									Value:   "whatNext",
-									Message: "What should I do now?",
-								},
-							},
-						}
-						switch moreTopics.Prompt {
-						case "troubleshoot":
+					moreTopics := termio.Menu{
+						Prompt: "Select a topic",
+						Items: []termio.MenuItem{
 							{
-								fmt.Println(
-									`
+								Value:   "troubleshoot",
+								Message: "It is not working",
+							},
+							{
+								Value:   "whatNext",
+								Message: "What should I do now?",
+							},
+							{
+								Value:   "back",
+								Message: "Back",
+							},
+						},
+					}
+					chosenMoreTopic, err := moreTopics.SelectSingle()
+					launcher.HardCheck(err)
+					switch chosenMoreTopic.Value {
+					case "troubleshoot":
+						{
+							fmt.Println(
+								`
 							There are a number of ways for you to troubleshoot a UCloud environment which
 							is not working. Below we will try to guide you through a number of steps which
 							might be relevant.
 						`,
-								)
+							)
 
-								if launcher.GetEnvironmentIsRemote() {
-									Suggestion(
-										`
+							if launcher.GetEnvironmentIsRemote() {
+								Suggestion(
+									`
 								It looks like your current environment is using a remote machine. Please 
 								make sure that port-forwarding is configured and working correctly. You can 
 								access port-forwarding from the interactive menu.
 							`,
-									)
-								}
+								)
+							}
 
-								Suggestion(
-									`
+							Suggestion(
+								`
 							Sometimes Docker is not able to correctly restart all the container of your
 							system. You can try to restart your environment with "./launcher env restart".
 		
 							Following this, you should attempt to verify that the backend is running and
 							not producing any errors. You can view the logs with "./launcher svc backend logs".
 						`,
-								)
+							)
 
-								Suggestion(
-									`
+							Suggestion(
+								`
 							Some development builds can be quite buggy or incompatible between versions.
 							This can, for example, happen when in-development database schemas change
 							drastically. In these cases, it is often easier to simply recreate your
 							development environment. You can do this by running "./launcher env delete".
 						`,
-								)
+							)
 
-								Suggestion(
-									`
+							Suggestion(
+								`
 							If the issue persist after recreating your environment, then you might want to
 							troubleshoot further by looking at the logs of the backend (./launcher svc backend logs)
 							and any configured providers. Finally, you may wish to inspect the
 							database (https://postgres.localhost.direct) and look for any problems here.
 						`,
-								)
-							}
-						case "whatNext":
-							{
-								nextTopic = "usage"
-							}
-
+							)
+						}
+					case "whatNext":
+						{
+							nextTopic = "usage"
+						}
+					case "back":
+						{
+							break
 						}
 					}
-				case "usage":
-					{
-						fmt.Println(
-							`
+				}
+				if nextTopic == "usage" {
+					fmt.Println(
+						`
 						UCloud has quite a number of features. If you have never used UCloud before, then
 						we recommend reading the documentation here: https://docs.cloud.sdu.dk
 						
 						You can also select one of the topics below for common operations.
 					`,
-						)
+					)
 
-						moreTopics := termio.Menu{
-							"Select a topic",
-							[]termio.MenuItem{
-								{
-									Value:   "login",
-									Message: "How do I login?",
-								},
-								{
-									Value:   "createUser",
-									Message: "How do I create a new user?",
-								},
-								{
-									Value:   "createProject",
-									Message: "How do I create a project?",
-								},
-								{
-									Value:   "certExpired",
-									Message: "The certificate has expired?",
-								},
-								{
-									Value:   "noProducts",
-									Message: "I don't se any machines when I attempt to start a job",
-								},
-								{
-									Value:   "noFiles",
-									Message: "I don't see any files when I attempt to access my files",
-								},
+					moreTopics := termio.Menu{
+						"Select a topic",
+						[]termio.MenuItem{
+							{
+								Value:   "login",
+								Message: "How do I login?",
 							},
-						}
+							{
+								Value:   "createUser",
+								Message: "How do I create a new user?",
+							},
+							{
+								Value:   "createProject",
+								Message: "How do I create a project?",
+							},
+							{
+								Value:   "certExpired",
+								Message: "The certificate has expired?",
+							},
+							{
+								Value:   "noProducts",
+								Message: "I don't se any machines when I attempt to start a job",
+							},
+							{
+								Value:   "noFiles",
+								Message: "I don't see any files when I attempt to access my files",
+							},
+							{
+								Value:   "back",
+								Message: "Back to main help menu",
+							},
+						},
+					}
 
-						switch moreTopics.Prompt {
+					var fallback = false
+					for {
+						if fallback {
+							break
+						}
+						chosenMoreTopic, err := moreTopics.SelectSingle()
+						launcher.HardCheck(err)
+						switch chosenMoreTopic.Value {
 						case "login":
 							{
 								fmt.Println(
@@ -556,13 +596,17 @@ func main() {
 						`,
 								)
 							}
+						case "back":
+							{
+								fallback = true
+								break
+							}
 						}
 					}
-
-				case "debug":
-					{
-						fmt.Println(
-							`
+				}
+				if nextTopic == "debug" {
+					fmt.Println(
+						`
 						You can access the database from the web-interface here:
 						https://postgres.localhost.direct.
 		
@@ -575,19 +619,19 @@ func main() {
 		
 						You can view the logs from the database with: "./launcher svc postgres logs"
 					`,
-						)
-					}
+					)
+				}
 
-				case "providers":
-					{
-						//TODO
-						fmt.Println("Not yet written")
-					}
+				if nextTopic == "providers" {
+					//TODO
+					fmt.Println("Not yet written")
+				}
 
+				if nextTopic == "exit" {
+					nextTopic = ""
 				}
 			}
 		}
-
 	}
 }
 
@@ -674,23 +718,34 @@ func CreateProviderMenu() termio.Menu {
 		Items:  items,
 	}
 }
-func ServiceMenu() termio.Menu {
+func ServiceMenu(requireLogs bool, requireExec bool, requireAddress bool) termio.Menu {
+	var filteredServices []launcher.Service
+	for _, service := range launcher.RetrieveAllServices() {
+		if (!requireLogs || service.LogsSupported()) &&
+			(!requireExec || service.ExecSupported()) &&
+			(!requireAddress || service.Address() != "") {
+			filteredServices = append(filteredServices, service)
+		}
+	}
+
+	var items []termio.MenuItem
+	lastPrefix := ""
+	for _, service := range filteredServices {
+		foundParts := strings.Split(service.Title(), ": ")
+		if len(foundParts) != 2 {
+			continue
+		}
+		myPrefix := foundParts[0]
+		if myPrefix != lastPrefix {
+			items = append(items, termio.MenuItem{service.ContainerName(), myPrefix, true})
+			lastPrefix = myPrefix
+		}
+		suffix := foundParts[1]
+		items = append(items, termio.MenuItem{service.ContainerName(), suffix, false})
+	}
 	return termio.Menu{
-		Prompt: "Select an action",
-		Items: []termio.MenuItem{
-			{
-				Value:   "start",
-				Message: "Start service",
-			},
-			{
-				Value:   "stop",
-				Message: "Stop service",
-			},
-			{
-				Value:   "restart",
-				Message: "Restart service",
-			},
-		},
+		Prompt: "Select a service",
+		Items:  items,
 	}
 }
 
@@ -716,10 +771,11 @@ func TopLevelMenu() termio.Menu {
 		Message:   "Management",
 		Separator: true,
 	})
+
 	if len(launcher.ListConfiguredProviders()) == 0 {
-		message = "Create providers"
-	} else {
 		message = "Create providers (Recommended)"
+	} else {
+		message = "Create providers"
 	}
 
 	items = append(items, termio.MenuItem{
@@ -767,6 +823,11 @@ func TopLevelMenu() termio.Menu {
 	items = append(items, termio.MenuItem{
 		Value:   "test",
 		Message: "Run a test suite...",
+	})
+
+	items = append(items, termio.MenuItem{
+		Value:   "help",
+		Message: "Get help with UCloud",
 	})
 
 	return termio.Menu{

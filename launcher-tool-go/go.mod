@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	atomicgo.dev/keyboard v0.2.9
-	github.com/google/uuid v1.6.0
+	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	golang.org/x/crypto v0.29.0
 )
 

@@ -235,7 +235,7 @@ func (menu *Menu) SelectMultiple() ([]*MenuItem, error) {
 
 // Prompt the user for selecting one item from the menu.
 // Returns a reference to the selected option, or error if the user cancelled (Ctrl-C or ESC).
-func (menu *Menu) SelectSingle() (*MenuItem, error) {
+func (menu Menu) SelectSingle() (MenuItem, error) {
 	done := false
 	cancelled := false
 
@@ -281,10 +281,10 @@ func (menu *Menu) SelectSingle() (*MenuItem, error) {
 	showCursor()
 
 	if cancelled {
-		return nil, fmt.Errorf("Cancelled")
+		return MenuItem{}, fmt.Errorf("Cancelled")
 	}
 
-	return &menu.Items[selected], nil
+	return menu.Items[selected], nil
 }
 
 type LoadingState string

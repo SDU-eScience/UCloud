@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"ucloud.dk/launcher/pkg/termio"
 )
@@ -131,11 +132,12 @@ func (l LocalExecutableCommand) SetStreamOutput() {
 func (l LocalExecutableCommand) ToBashScript() string {
 	sb := new(strings.Builder)
 	if l.workingDir != nil {
-		sb.WriteString("cd " + l.workingDir.GetAbsolutePath())
+		sb.WriteString("cd '" + l.workingDir.GetAbsolutePath() + "'\n")
 	}
 	for _, arg := range l.args {
 		sb.WriteString(EscapeBash(arg) + " ")
 	}
+	sb.WriteString("\n")
 	return sb.String()
 }
 
@@ -169,55 +171,70 @@ func (l LocalExecutableCommand) ExecuteToText() StringPair {
 
 	cmd := exec.Command(l.args[0], l.args[1:]...)
 	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	err := cmd.Run()
-	SoftCheck(err)
 
-	/*outputReader := bufio.NewReader(os.Stdin)
-	errorReader := bufio.NewReader(os.Stderr)
-	*/
+	stdout, err := cmd.StdoutPipe()
+	SoftCheck(err)
+	outputReader := bufio.NewReader(stdout)
+	stderr, err := cmd.StderrPipe()
+	SoftCheck(err)
+	errorReader := bufio.NewReader(stderr)
+
 	outputBuilder := &strings.Builder{}
 	errBuilder := &strings.Builder{}
 
+	err = cmd.Start()
+	SoftCheck(err)
+
+	wg := sync.WaitGroup{}
 	//TODO
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for time.Now().UnixMilli() < deadline {
-
-			line := "YES" //, err := outputReader.ReadBytes('\n')
-			/*if err != nil {
+			str, err := outputReader.ReadString('\n')
+			if len(str) == 0 && err != nil {
 				if err == io.EOF {
 					break
 				} else {
 					panic(err)
 				}
-			}*/
-			if l.streamOutput == true {
-				termio.WriteLine(string(line))
 			}
-			outputBuilder.Write([]byte(line))
+			if l.streamOutput == true {
+				termio.WriteLine(str)
+			}
+			outputBuilder.Write([]byte(str))
 		}
 	}()
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for time.Now().UnixMilli() < deadline {
-			line := "NOPE" //, err := errorReader.ReadBytes('\n')
-			/*if err != nil {
+			str, err := errorReader.ReadString('\n')
+			if len(str) == 0 && err != nil {
 				if err == io.EOF {
 					break
 				} else {
 					panic(err)
 				}
-			}*/
-			if l.streamOutput == true {
-				termio.WriteLine(string(line))
 			}
-			errBuilder.Write([]byte(line))
+			if l.streamOutput == true {
+				termio.WriteLine(str)
+			}
+			errBuilder.Write([]byte(str))
 		}
 	}()
+
+	err = cmd.Wait()
+	SoftCheck(err)
+
+	wg.Wait()
 
 	exitCode := cmd.ProcessState.ExitCode()
+
+	fmt.Println("  Exit code ", strconv.Itoa(exitCode))
+	fmt.Println("  Stdout ", outputBuilder.String())
+	fmt.Println("  Stderr ", errBuilder.String())
 	if DebugCommandsGiven() {
 		fmt.Println("  Exit code ", strconv.Itoa(exitCode))
 		fmt.Println("  Stdout ", outputBuilder.String())
