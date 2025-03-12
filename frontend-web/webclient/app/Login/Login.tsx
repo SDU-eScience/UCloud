@@ -591,8 +591,8 @@ const IdpList: React.FunctionComponent = () => {
 
 const HalricLoginHeader: React.FunctionComponent = () => {
     return <>
-        <Flex width="auto" mx="auto" paddingTop="80px" paddingBottom={"32px"}>
-            <Image ml={"48px"} src={halricWhite} alt={"Logo"}/>
+        <Flex width="auto" mx="auto" paddingTop="80px" paddingBottom={"64px"}>
+            <Image alt={"Interreg"} src={interregWhite} width={"750px"} />
         </Flex>
         <Text mx="auto" py="30px" width="fit-content" color={TEXT_COLOR} fontSize={32}>
             Hanseatic Science Cloud
@@ -601,18 +601,15 @@ const HalricLoginHeader: React.FunctionComponent = () => {
 };
 
 const HalricLoginFooter: React.FunctionComponent = () => {
-    return <Flex gap={"48px"} alignItems={"center"} justifyContent={"center"} my={"32px"}>
-        {/* Compensate for the Interreg logo's being very heavy to the right */}
-        <Box width={"100px"} />
-        <Flex justifyContent={"center"} gap={"16px"} alignItems={"center"}>
-            <Icon size={64} name={"logoEsc"}/>
+    return <Flex gap={"64px"} alignItems={"center"} justifyContent={"center"} my={"128px"}>
+        <Flex justifyContent={"center"} gap={"8px"} alignItems={"center"}>
+            <Icon size={40} name={"logoEsc"}/>
             <Flex flexDirection={"column"}>
-                <Box fontSize={12} color={TEXT_COLOR}><i>Powered by</i></Box>
-                <Box fontSize={32} color={TEXT_COLOR}><b>{PRODUCT_NAME}</b></Box>
+                <Box fontSize={10} color={TEXT_COLOR}><i>Powered by</i></Box>
+                <Box fontSize={20} color={TEXT_COLOR}><b>{PRODUCT_NAME}</b></Box>
             </Flex>
         </Flex>
-
-        <Image alt={"Interreg"} src={interregWhite} width={"400px"} />
+        <Image height={50} src={halricWhite} alt={"Logo"}/>
     </Flex>;
 };
 

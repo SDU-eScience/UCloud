@@ -363,9 +363,9 @@ function DashboardNews({news}: { news: APICallState<Page<NewsPost>> }): React.Re
                     }
                 </div>
                 {onSandbox() ? <>
-                    <Flex gap={"16px"} flexDirection={"column"} justifyContent={"center"} ml={"16px"}>
-                        <Image src={lightTheme ? halric : halricWhite} alt={"HALRIC"} width={"300px"} ml={"16px"} />
-                        <Image src={lightTheme ? interreg : interregWhite} alt={"Interreg"} width={"350px"} />
+                    <Flex gap={"16px"} flexDirection={"column"} justifyContent={"center"} alignItems={"end"} ml={"16px"} mr={"64px"}>
+                        <Image src={lightTheme ? interreg : interregWhite} alt={"Interreg"} width={"500px"} />
+                        <Image src={lightTheme ? halric : halricWhite} alt={"HALRIC"} width={"70px"} ml={"16px"} />
                     </Flex>
                 </> : <>
                     <img style={{zIndex: 1}} alt={"UCloud logo"} src={ucloudImage}/>
@@ -398,7 +398,7 @@ const NewsClass = injectStyle("with-graphic", k => `
     }
     
     ${k} > div:nth-child(2) {
-        flex-basis: 400px;
+        flex-basis: 550px;
         flex-grow: 1;
         align-items: center;
     }
