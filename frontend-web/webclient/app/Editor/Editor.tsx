@@ -941,26 +941,24 @@ export const Editor: React.FunctionComponent<{
         }
     }, [state.currentPath]);
 
-    const closeTab = useCallback((path: string, index: number) => {
-        setTabs(tabs => {
-            const result = tabs.open.filter(tabTitle => tabTitle !== path);
-            if (state.currentPath === path) {
-                const preceedingPath = result.at(index - 1);
-                if (preceedingPath) {
-                    openFile(preceedingPath, true);
-                } else {
-                    dispatch({type: "EditorActionOpenFile", path: ""});
-                }
+    const closeTab = useCallback(async (path: string, index: number) => {
+        const result = tabs.open.filter(tabTitle => tabTitle !== path);
+        if (state.currentPath === path) {
+            const preceedingPath = result.at(index - 1);
+            if (preceedingPath) {
+                await openFile(preceedingPath, true);
+            } else {
+                dispatch({type: "EditorActionOpenFile", path: ""});
             }
+        }
 
-            const closed = tabs.closed;
-            if (!closed.includes(path)) closed.push(path);
+        const closed = tabs.closed;
+        if (!closed.includes(path)) closed.push(path);
 
-            getModelFromEditor(path)?.dispose();
+        getModelFromEditor(path)?.dispose();
 
-            return {open: result, closed};
-        });
-    }, [state.currentPath]);
+        setTabs({open: result, closed});
+    }, [state.currentPath, tabs]);
 
     const openTabOperationWindow = useRef<(x: number, y: number) => void>(noopCall)
 

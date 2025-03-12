@@ -625,7 +625,7 @@ function useSidebarRunsPage(): Job[] {
     const cache = React.useSyncExternalStore(s => jobCache.subscribe(s), () => jobCache.getSnapshot());
 
     useProvideCommands(staticProvider(cache.items.map(j => ({
-        title: j.id,
+        title: j.specification.name ?? j.id,
         icon: {type: "image", imageUrl: AppStore.retrieveAppLogo({name: j.specification.application.name, includeText: false, darkMode: !isLight})},
         action() {
             navigate(AppRoutes.jobs.view(j.id));
