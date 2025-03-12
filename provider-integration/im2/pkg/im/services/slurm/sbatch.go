@@ -797,7 +797,7 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 
 		// Run the actual program
 		// ---------------------------------------------------------
-		appendLine(builder, cli)
+		appendLine(builder, "%s", cli)
 	}
 
 	return SBatchResult{
