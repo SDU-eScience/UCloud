@@ -280,8 +280,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 },
                 onClick: (_, cb) => {
                     cb.dispatch({
-                        type: "GENERIC_SET", property: "uploaderVisible", newValue: true,
-                        defaultValue: false
+                        type: "GENERIC_SET", payload: {
+                            property: "uploaderVisible", newValue: true,
+                            defaultValue: false
+                        }
                     });
                 },
                 shortcut: ShortcutKey.U
