@@ -76,7 +76,7 @@ type Period =
 // State reducer
 // =====================================================================================================================
 type UIAction =
-    {type: "LoadCharts", charts: ChartsAPI, }
+    | {type: "LoadCharts", charts: ChartsAPI, }
     | {type: "LoadJobStats", statistics: Jobs.JobStatistics, }
     | {type: "SelectTab", tabIndex: number}
     | {type: "UpdateSelectedPeriod", period: Period}
@@ -1417,7 +1417,7 @@ function usageChartToChart(
     let data = chart.dataPoints.map(it => [it.timestamp, it.usage]);
     if (data.length === 0) {
         const now = timestampUnixMs();
-        data = [[now - 1000 * 60 * 60 * 24 * 7, 0], [ now, 0]];
+        data = [[now - 1000 * 60 * 60 * 24 * 7, 0], [now, 0]];
     }
 
     result.series = [{

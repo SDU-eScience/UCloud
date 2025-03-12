@@ -588,7 +588,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     const folder = cb.directory?.id ?? "/";
 
                     cb.dispatch({type: "TerminalOpen"});
-                    cb.dispatch({type: "TerminalOpenTab", tab: {title: providerTitle, folder}});
+                    cb.dispatch({type: "TerminalOpenTab", payload: {tab: {title: providerTitle, folder}}});
                 },
                 shortcut: ShortcutKey.O
             },
@@ -1255,7 +1255,7 @@ export function FilePreview({initialFile}: {
         const folder = getParentPath(initialFile.id);
 
         dispatch({type: "TerminalOpen"});
-        dispatch({type: "TerminalOpenTab", tab: {title: providerTitle, folder}});
+        dispatch({type: "TerminalOpenTab", payload: {tab: {title: providerTitle, folder}}});
     }, [drive, initialFile]);
 
     const newFolder = useCallback(async (path: string) => {
