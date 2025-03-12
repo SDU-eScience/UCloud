@@ -8,7 +8,7 @@ import {injectStyle} from "@/Unstyled";
 import {TreeAction, TreeApi} from "@/ui-components/Tree";
 import {Box, Flex, FtIcon, Icon, Image, Markdown, Select, Truncate, Text, Input, Label, Button} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
-import {capitalized, copyToClipboard, errorMessageOrDefault, extensionFromPath, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
+import {capitalized, copyToClipboard, errorMessageOrDefault, extensionFromPath, extensionType, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {usePrettyFilePath} from "@/Files/FilePath";
@@ -1083,6 +1083,8 @@ export const Editor: React.FunctionComponent<{
     // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
     const showEditorHelp = tabs.open.length === 0;
 
+    const isMarkdown = extensionType(extensionFromPath(state.currentPath));
+
     return <div className={EditorClass} onKeyDown={onKeyDown}>
         <FileTree
             tree={tree}
@@ -1151,7 +1153,7 @@ export const Editor: React.FunctionComponent<{
                     />
                 </div>
                 <Flex alignItems={"center"} ml="16px" gap="16px">
-                    {tabs.open.length === 0 || isReleaseNotesOpen || isSettingsOpen || props.customContent ? null :
+                    {(tabs.open.length === 0 || isReleaseNotesOpen || isSettingsOpen || props.customContent) && !isMarkdown ? null :
                         props.toolbarBeforeSettings
                     }
                     {showReleaseNoteIcon ? <TooltipV2 tooltip={"See release notes"} contentWidth={100}>
@@ -1880,16 +1882,6 @@ type RevertSaveFunction = () => void;
 const EditorReleaseNotes = `
 # Preview editor
 
-
-## 1.1 - New fancy feature
-
-
-- Auto-save, maybe
-
-
 ## 1.0 initial release 
-
-
-- Nothing of note :(
 
 `;
