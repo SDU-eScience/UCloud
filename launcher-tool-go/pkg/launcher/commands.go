@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 	"ucloud.dk/launcher/pkg/termio"
 )
@@ -193,8 +192,8 @@ func (c Commands) CreateProvider(providerName string) {
 	HardCheck(err)
 
 	if resolvedProvider.CanRegisterProducts() {
-		err = termio.LoadingIndicator("Registering proudct with UCloud/Core", func(output *os.File) error {
-			compose.Exec(
+		err = termio.LoadingIndicator("Registering product with UCloud/Core", func(output *os.File) error {
+			cmdexec := compose.Exec(
 				currentEnvironment,
 				providerName,
 				[]string{
@@ -207,14 +206,19 @@ func (c Commands) CreateProvider(providerName string) {
 				},
 				false,
 			)
+			cmdexec.SetStreamOutput()
+			cmdexec.ExecuteToText()
 
-			compose.Exec(
+			cmdexec = compose.Exec(
 				currentEnvironment,
 				providerName,
 				[]string{"sh", "-c", "yes | ucloud products register"},
 				false,
 			)
-			//TODO Deadline
+			cmdexec.SetStreamOutput()
+			cmdexec.SetDeadline(30_000)
+			cmdexec.ExecuteToText()
+
 			return nil
 		})
 		HardCheck(err)
@@ -517,27 +521,24 @@ func StartProviderService(providerId string) {
 }
 
 type AccessTokenWrapper struct {
-	accessToken string
+	AccessToken string `json:"accessToken"`
 }
 
-func GetCredentialsFromJSON(json string) (publicKey string, refreshToken string) {
-	for _, line := range strings.Split(json, "\n") {
-		if strings.Contains(line, "publicKey") {
-			splitList := strings.Split(line, `"`)
-			if len(splitList) > 4 {
-				panic("Cannot get credentials (public)")
-			}
-			publicKey = splitList[len(splitList)-2]
-		}
-		if strings.Contains(line, "refreshToken") {
-			splitList := strings.Split(line, `"`)
-			if len(splitList) > 4 {
-				panic("Cannot get credentials (refresh token)")
-			}
-			refreshToken = splitList[len(splitList)-2]
-		}
+type BulkTokenResponse struct {
+	Items []CredTokens `json:"items"`
+}
+type CredTokens struct {
+	PublicKey    string `json:"publicKey"`
+	RefreshToken string `json:"refreshToken"`
+}
+
+func GetCredentialsFromJSON(response string) (publicKey string, refreshToken string) {
+	println(response)
+	bresp := BulkTokenResponse{
+		Items: []CredTokens{},
 	}
-	return publicKey, refreshToken
+	json.Unmarshal([]byte(response), &bresp)
+	return bresp.Items[0].PublicKey, bresp.Items[0].RefreshToken
 }
 
 func FetchAccessToken() string {
@@ -547,7 +548,7 @@ func FetchAccessToken() string {
 	}
 	var accessToken AccessTokenWrapper
 	json.Unmarshal([]byte(tokenJson), &accessToken)
-	return accessToken.accessToken
+	return accessToken.AccessToken
 }
 
 func RegisterProvider(providerId string, domain string, port int) ProviderCredentials {
@@ -579,14 +580,14 @@ func RegisterProvider(providerId string, domain string, port int) ProviderCreden
 	}
 
 	bresp := FindByStringIDBulkResponse{
-		responses: []FindByStringId{},
+		Responses: []FindByStringId{},
 	}
 	json.Unmarshal([]byte(resp), &bresp)
 	var projectId = ""
-	if len(bresp.responses) == 0 {
+	if len(bresp.Responses) == 0 {
 		panic("No projects found. Check backend logs.")
 	} else {
-		projectId = bresp.responses[0].id
+		projectId = bresp.Responses[0].Id
 	}
 
 	resp = CallService(
@@ -691,7 +692,7 @@ func StartCluster(compose DockerCompose, noRecreate bool) {
 			if i > 20 {
 				cmd.SetStreamOutput()
 			}
-			if cmd.ExecuteToText().First != "" {
+			if cmd.ExecuteToText().Second == "" {
 				break
 			}
 			time.Sleep(1 * time.Second)

@@ -196,6 +196,17 @@ var AllProviderNames = []string{
 	"gok8s",
 }
 
+func GenerateProviders() {
+	kubernetes = NewKubernetes()
+	AllProviders = append(AllProviders, kubernetes)
+	slurm = NewSlurmProvider(2)
+	AllProviders = append(AllProviders, slurm)
+	goSlurm = NewGoSlurm(false)
+	AllProviders = append(AllProviders, goSlurm)
+	goKubernetes = NewGoKubernetes()
+	AllProviders = append(AllProviders, goKubernetes)
+}
+
 func ProviderFromName(name string) Provider {
 	if !slices.Contains(AllProviderNames, name) {
 		log.Fatal("Unknown Provider " + name)
@@ -292,7 +303,7 @@ func (uc UCloudBackend) Build(cb ComposeBuilder) {
 				"hostname": "pgweb",
 				"restart": "always",
 				"environment": {
-					"DATABASE_URL": "postgres://postgres:postgrespassword@postgres:5432/postgres?sslmode=disable"
+					"PGWEB_DATABASE_URL": "postgres://postgres:postgrespassword@postgres:5432/postgres?sslmode=disable"
 				}
 			}`,
 		},
@@ -422,7 +433,7 @@ func (k Kubernetes) Build(cb ComposeBuilder) {
 	cb.volumes[k3sCni] = k3sCni
 	k3sKubelet := "k3skubelet"
 	cb.volumes[k3sKubelet] = k3sKubelet
-	k3sEtc := "k3setcd"
+	k3sEtc := "k3setc"
 	cb.volumes[k3sEtc] = k3sEtc
 
 	imDir := k8Provider.Child("im", true)
@@ -537,7 +548,7 @@ func (k Kubernetes) Build(cb ComposeBuilder) {
 				"hostname": "k8pgweb",
 				"restart": "always",
 				"environment":{
-					"DATABASE_URL": "postgres://postgres:postgrespassword@k8:5432/postgres?sslmode=disable"
+					"PGWEB_DATABASE_URL": "postgres://postgres:postgrespassword@k8:5432/postgres?sslmode=disable"
 				}
 			}
 			`,
@@ -556,9 +567,7 @@ func (k Kubernetes) Install(credentials ProviderCredentials) {
 	imData := imDir.Child("data", true)
 
 	installMarker := imData.Child(".install-marker", false)
-	info, err := os.Stat(installMarker.Name())
-	HardCheck(err)
-	if info != nil {
+	if installMarker.Exists() {
 		return
 	}
 	imData.Child("core.yaml", false).WriteText(
@@ -857,8 +866,8 @@ type GoKubernetes struct {
 	addons              map[string]string
 }
 
-func NewGoKubernetes() *GoKubernetes {
-	return &GoKubernetes{
+func NewGoKubernetes() GoKubernetes {
+	return GoKubernetes{
 		name:                "gok8s",
 		title:               "Kubernetes (IM2)",
 		canRegisterProducts: true,
@@ -1001,7 +1010,7 @@ func (k GoKubernetes) Build(cb ComposeBuilder) {
 	)
 }
 
-func (k GoKubernetes) Install() {
+func (k GoKubernetes) Install(credentials ProviderCredentials) {
 	k8Provider := currentEnvironment.Child("im2k8", true)
 	imDir := k8Provider.Child("im", true)
 	imData := imDir.Child("data", true)
@@ -1010,6 +1019,8 @@ func (k GoKubernetes) Install() {
 	if installMarker.Exists() {
 		return
 	}
+
+	imData.Child("ucloud_crt.pem", false).WriteText(credentials.publicKey)
 
 	var executeCom = compose.Exec(
 		currentEnvironment,
@@ -1148,8 +1159,8 @@ type Slurm struct {
 	numberOfSlurmNodes int
 }
 
-func NewSlurmProvider(numberOfSlurmNodes int) *Slurm {
-	return &Slurm{
+func NewSlurmProvider(numberOfSlurmNodes int) Slurm {
+	return Slurm{
 		name:                "slurm",
 		title:               "slurm",
 		canRegisterProducts: true,
@@ -1241,7 +1252,7 @@ func (s Slurm) Build(cb ComposeBuilder) {
 					"hostname": "slurmpgweb",
 					"restart": "always",
 					"environment":{
-						"DATABASE_URL": "postgres://postgres:postgrespassword@slurm:5432/postgres?sslmode=disable"
+						"PGWEB_DATABASE_URL": "postgres://postgres:postgrespassword@slurm:5432/postgres?sslmode=disable"
 					}
 				}
 			`,

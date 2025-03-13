@@ -161,14 +161,13 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 			fmt.Println()
 
 			path := filepath.Join(repoRoot.GetAbsolutePath(), ".compose", newEnvironment)
-			println("NAJKALFJAKL " + path)
 			env := NewFile(path)
 			env.MkDirs()
 
 			currentEnvironment = env
 			_, err = os.Stat(filepath.Join(env.GetAbsolutePath(), "remote"))
 			environmentIsRemote = err == nil
-			GenerateComposeFile(true)
+
 			return filepath.Base(newEnvironment)
 		}
 	case remote:
@@ -307,7 +306,7 @@ func ListConfiguredProviders() []string {
 }
 
 func AddProvider(providerId string) {
-	f, err := os.OpenFile(localEnvironment.Name(), os.O_APPEND, 0644)
+	f, err := os.OpenFile(filepath.Join(localEnvironment.GetAbsolutePath(), "providers.txt"), os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
 	HardCheck(err)
 	_, err = f.WriteString(providerId + "\n")
 	HardCheck(err)
@@ -315,8 +314,7 @@ func AddProvider(providerId string) {
 
 func ListAddons() map[string]map[string]string {
 	result := map[string]map[string]string{}
-	abs, err := filepath.Abs(localEnvironment.Name())
-	HardCheck(err)
+	abs := localEnvironment.GetAbsolutePath()
 	lines := readLines(abs + "/provider-addons.txt")
 	for _, line := range lines {
 		split := strings.Split(line, "/")
@@ -330,7 +328,7 @@ func ListAddons() map[string]map[string]string {
 }
 
 func AddAddon(providerId string, addon string) {
-	f, err := os.OpenFile(localEnvironment.Name()+"/provider-addons.txt", os.O_APPEND, 0644)
+	f, err := os.OpenFile(filepath.Join(localEnvironment.GetAbsolutePath(), ".compose", "provider-addons.txt"), os.O_APPEND|os.O_CREATE, 0666)
 	HardCheck(err)
 	_, err = f.WriteString(providerId + "/" + addon + "\n")
 	HardCheck(err)

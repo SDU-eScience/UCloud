@@ -3,6 +3,7 @@ package launcher
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -29,15 +30,19 @@ func HardCheck(e error) {
 }
 
 func readLines(path string) []string {
-	println("READUBG POATGH : " + path)
-	inFile, _ := os.Open(path)
+	inFile, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0666)
+	HardCheck(err)
 	r := bufio.NewReader(inFile)
 	bytes := []byte{}
 	lines := []string{}
 	for {
 		line, isPrefix, err := r.ReadLine()
 		if err != nil {
-			break
+			if err == io.EOF {
+				break
+			} else {
+				panic(err)
+			}
 		}
 		bytes = append(bytes, line...)
 		if !isPrefix {
@@ -47,9 +52,6 @@ func readLines(path string) []string {
 				bytes = []byte{}
 			}
 		}
-	}
-	if len(bytes) > 0 {
-		lines = append(lines, string(bytes))
 	}
 	return lines
 }

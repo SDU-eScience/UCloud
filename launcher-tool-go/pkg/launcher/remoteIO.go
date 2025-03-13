@@ -207,6 +207,10 @@ func NewRemoteExecutableCommand(
 	}
 }
 
+func (r RemoteExecutableCommand) SetDeadline(deadlineInMillis int64) {
+	r.deadlineInMillis = deadlineInMillis
+}
+
 func (r RemoteExecutableCommand) SetStreamOutput() {
 	r.streamOutput = true
 }

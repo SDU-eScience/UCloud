@@ -21,6 +21,7 @@ type ExecutableCommandInterface interface {
 	ExecuteToText() StringPair
 	SetStreamOutput()
 	SetAllowFailure()
+	SetDeadline(DeadlineInMillis int64)
 }
 
 func NewFile(path string) LFile {

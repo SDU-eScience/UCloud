@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 	"ucloud.dk/launcher/pkg/launcher"
@@ -66,6 +65,7 @@ func main() {
 
 	// NOTE(Dan): initCurrentEnvironment() needs these to be set. We start out by running locally.
 	launcher.SetEnvironmentIsRemote(false)
+	launcher.GenerateProviders()
 
 	shouldInitializeTestEnvironment := slices.Contains(args, "init") && slices.Contains(args, "--all-providers")
 
@@ -74,7 +74,7 @@ func main() {
 
 	composeDir := filepath.Join(repoRootPath, ".compose")
 	shouldStart := launcher.InitCurrentEnvironment(shouldInitializeTestEnvironment, composeDir).ShouldStartEnvironment
-	println("Schoulddsta " + strconv.FormatBool(shouldStart))
+
 	compose := launcher.FindCompose()
 	launcher.SetCompose(compose)
 
@@ -226,7 +226,7 @@ func main() {
 				filteredItems := []termio.MenuItem{}
 				for _, selectedItem := range multiple {
 					item := selectedItem.Value
-					if slices.Contains(configured, item) {
+					if !slices.Contains(configured, item) {
 						filteredItems = append(filteredItems, termio.MenuItem{Value: item, Message: item})
 					}
 				}

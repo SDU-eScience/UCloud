@@ -47,9 +47,9 @@ const (
 )
 
 type FindByStringIDBulkResponse struct {
-	responses []FindByStringId
+	Responses []FindByStringId `json:"responses"`
 }
 
 type FindByStringId struct {
-	id string
+	Id string `json:"id"`
 }

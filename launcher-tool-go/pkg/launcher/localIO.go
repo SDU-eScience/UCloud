@@ -121,6 +121,10 @@ func NewLocalExecutableCommand(
 	}
 }
 
+func (l LocalExecutableCommand) SetDeadline(deadlineInMillis int64) {
+	l.deadlineInMillis = deadlineInMillis
+}
+
 func (l LocalExecutableCommand) SetAllowFailure() {
 	l.allowFailure = true
 }
