@@ -179,14 +179,14 @@ func (c Commands) CreateProvider(providerName string) {
 	HardCheck(err)
 
 	err = termio.LoadingIndicator("Configuring provider...", func(output *os.File) error {
-		ProviderFromName(providerName)
-		resolvedProvider.Install(credentials)
+		ProviderFromName(providerName).Install(credentials)
 		return nil
 	})
 	HardCheck(err)
 
 	err = termio.LoadingIndicator("Starting provider...", func(output *os.File) error {
 		compose.Up(currentEnvironment, true).ExecuteToText()
+		StartService(ServiceByName(providerName)).ExecuteToText()
 		return nil
 	})
 	HardCheck(err)
@@ -215,8 +215,8 @@ func (c Commands) CreateProvider(providerName string) {
 				[]string{"sh", "-c", "yes | ucloud products register"},
 				false,
 			)
-			cmdexec.SetStreamOutput()
 			cmdexec.SetDeadline(30_000)
+			cmdexec.SetStreamOutput()
 			cmdexec.ExecuteToText()
 
 			return nil

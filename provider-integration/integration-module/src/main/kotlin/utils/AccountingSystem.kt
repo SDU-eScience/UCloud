@@ -133,7 +133,7 @@ suspend fun reportUsage(
     var balanceUsed = usageInProductUnits.toDouble() * cfgProduct.price
     balanceUsed *= timeFactor
 
-    return AccountingV2..call(
+    return AccountingV2.reportUsage.call(
         bulkRequestOf(
             UsageReportItem(
                 isDeltaCharge = false,

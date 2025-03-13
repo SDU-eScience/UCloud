@@ -704,12 +704,13 @@ func CreateProviderMenu() termio.Menu {
 			items = append(items, termio.MenuItem{
 				Value:     provider.Name(),
 				Message:   provider.Title() + " Already configured ",
-				Separator: true,
+				Separator: false,
 			})
 		} else {
 			items = append(items, termio.MenuItem{
-				Value:   provider.Name(),
-				Message: provider.Title(),
+				Value:     provider.Name(),
+				Message:   provider.Title(),
+				Separator: false,
 			})
 		}
 	}
