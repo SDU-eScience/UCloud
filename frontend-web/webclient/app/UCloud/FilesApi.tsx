@@ -1096,10 +1096,6 @@ export function FilePreview({initialFile}: {
         })
     }, []);
 
-    useEffect(() => {
-        setPreviewRequested(false);
-    }, [openFile[0]]);
-
     const mediaFileMetadata: null | {type: ExtensionType, data: string, error: string | null} = useMemo(() => {
         let [file, contentBuffer] = openFile;
         if (typeof contentBuffer === "string") {
@@ -1160,9 +1156,7 @@ export function FilePreview({initialFile}: {
     const editorRef = React.useRef<EditorApi>(null);
 
     const requestPreviewToggle = useCallback(() => {
-        editorRef.current?.notifyDirtyBuffer().then(() => {
-            setPreviewRequested(p => !p);
-        });
+        setPreviewRequested(p => !p);
     }, []);
 
     const onSave = useCallback(async () => {
@@ -1245,6 +1239,7 @@ export function FilePreview({initialFile}: {
     }
 
     const onOpenFile = useCallback((path: string, data: string | Uint8Array) => {
+        setPreviewRequested(false);
         setOpenFile([path, data]);
     }, []);
 
@@ -1285,8 +1280,6 @@ export function FilePreview({initialFile}: {
                 content: " ",
             }
         }));
-
-        // TODO(Jonas): Add check that file exists or even can be created (has active allocation)
 
         setTimeout(() => {
             editorRef.current?.invalidateTree?.(getParentPath(path));
