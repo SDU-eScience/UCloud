@@ -66,7 +66,7 @@ func Init(config *cfg.IdentityManagementOidc, mux *http.ServeMux) {
 	oidcVerifier = idp.Verifier(&oidc.Config{ClientID: config.ClientId})
 
 	ctrl.IdentityManagement.UnmanagedConnections = true
-	ctrl.IdentityManagement.ExpiresAfter.Set(1000 * 60 * 60 * 24 * 7)
+	ctrl.IdentityManagement.ExpiresAfter.Set(config.ExpiresAfterMs)
 	ctrl.IdentityManagement.InitiateConnection = func(username string) (string, error) {
 		stateToken := util.RandomToken(16)
 		nonce := util.RandomToken(16)

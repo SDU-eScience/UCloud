@@ -89,6 +89,10 @@ func CreatePersonalProviderProject(username string) (string, error) {
 }
 
 func RegisterConnectionComplete(username string, uid uint32, notifyUCloud bool) error {
+	return RegisterConnectionCompleteEx(username, uid, notifyUCloud, util.OptNone[uint64]())
+}
+
+func RegisterConnectionCompleteEx(username string, uid uint32, notifyUCloud bool, expiresAfterOverride util.Option[uint64]) error {
 	type Req struct {
 		Username string `json:"username"`
 	}
@@ -124,6 +128,10 @@ func RegisterConnectionComplete(username string, uid uint32, notifyUCloud bool) 
 	}
 
 	expiresAfter := IdentityManagement.ExpiresAfter
+	if !expiresAfter.Present {
+		expiresAfter = expiresAfterOverride
+	}
+
 	var expiresAfterStringPtr *string
 	if expiresAfter.Present {
 		expiresAfterStringPtr = util.Pointer(fmt.Sprintf("%v milliseconds", expiresAfter.Value))
@@ -607,7 +615,7 @@ func controllerConnection(mux *http.ServeMux) {
 					return
 				}
 
-				err := RegisterConnectionComplete(req.Username, uid, false)
+				err := RegisterConnectionCompleteEx(req.Username, uid, false, util.OptValue[uint64](1000*60*60*24*7))
 				if err != nil {
 					sendError(w, err)
 					return

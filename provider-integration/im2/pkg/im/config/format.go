@@ -1048,6 +1048,7 @@ type IdentityManagementOidc struct {
 	ClientId        string
 	ClientSecret    string
 	Scopes          []string
+	ExpiresAfterMs  uint64
 }
 
 type IdentityManagementFreeIPA struct {
@@ -1212,6 +1213,9 @@ func parseIdentityManagementOidc(filePath string, node *yaml.Node) (bool, Identi
 	result.Issuer = requireChildText(filePath, node, "issuer", &success)
 	result.ClientId = requireChildText(filePath, node, "clientId", &success)
 	result.ClientSecret = requireChildText(filePath, node, "clientSecret", &success)
+	result.ExpiresAfterMs = uint64(
+		optionalChildInt(filePath, node, "expiresAfterMs", &success).GetOrDefault(1000 * 60 * 60 * 24 * 7),
+	)
 
 	if child, err := getChildOrNil(filePath, node, "scopes"); child != nil && err == nil {
 		decode(filePath, child, &result.Scopes, &success)
