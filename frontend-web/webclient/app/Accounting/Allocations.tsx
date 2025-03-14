@@ -1363,12 +1363,17 @@ const Allocations: React.FunctionComponent = () => {
                     {({height, width}) =>
                         <Tree apiRef={suballocationTree} onAction={(row, action) => {
                             if (![TreeAction.TOGGLE, TreeAction.OPEN, TreeAction.CLOSE].includes(action)) return;
-                            const recipient = row.getAttribute("data-recipient");
-                            if (!recipient) return;
-                            const group = row.getAttribute("data-group");
-                            setNodeState(action, recipient, group);
-
-                            listRef.current?.resetAfterIndex(0);
+                            const grantId = row.getAttribute("data-grant-id");
+                            if (grantId && TreeAction.TOGGLE === action) {
+                                // Note(Jonas): Just `window.open(AppRoutes...)` will omit the `/app` part, so we add it this way.
+                                window.open(window.origin + "/app" + AppRoutes.grants.editor(grantId), "_blank");
+                            } else {
+                                const recipient = row.getAttribute("data-recipient");
+                                if (!recipient) return;
+                                const group = row.getAttribute("data-group");
+                                setNodeState(action, recipient, group);
+                                listRef.current?.resetAfterIndex(0);
+                            }
                         }} unhandledShortcut={onSubAllocationShortcut}>
                             <VariableSizeList
                                 height={600}
@@ -1452,7 +1457,7 @@ const Allocations: React.FunctionComponent = () => {
                                                             <TreeNode
                                                                 key={alloc.allocationId}
                                                                 className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
-                                                                data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx}
+                                                                data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx} data-grant-id={alloc.grantedIn}
                                                                 left={<Flex>
                                                                     <Flex width={"200px"}>
                                                                         <Icon name={"heroBanknotes"} ml="8px" mr={4} />
