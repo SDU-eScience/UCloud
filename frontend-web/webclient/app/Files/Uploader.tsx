@@ -872,7 +872,7 @@ const Uploader: React.FunctionComponent = () => {
                 maxHeight: `calc(${modalStyle.content?.maxHeight} - 24px - 37.5px - 20px - 20px)`,
                 overflowY: "auto"
             }}>
-                <div className="uploads" style={{width: "100%"}}>
+                <div>
                     {uploads.map((upload, idx) => (
                         <UploaderRow
                             key={`${upload.name}-${idx}`}
@@ -1145,13 +1145,15 @@ export function TaskRow({title, body, progress, icon, progressInfo, removeOrCanc
         setHovering(false);
     }, []);
 
+    const titleTitle = typeof title === "string" ? title : undefined;
+
     return (<div className={TaskRowClass} data-has-error={hasError}>
         <Flex my="auto" height="100%">
             <Box ml="8px" my="auto">{icon}</Box>
             <div className="text">
-                <Truncate>{title}</Truncate>
-                {body ? <Truncate>{body}</Truncate> : null}
-                <Truncate>{progress}</Truncate>
+                <Truncate title={titleTitle} width={"285px"}>{title}</Truncate>
+                {body ? <Truncate width="285px">{body}</Truncate> : null}
+                <Truncate width="285px">{progress}</Truncate>
             </div>
             <Box mr="auto" />
             <Box my="auto" mr="4px" height="32px" onMouseEnter={setIsHovering} onMouseLeave={setNotHovering}>
