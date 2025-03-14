@@ -4709,6 +4709,7 @@ export interface IntegrationBrowseResponseItem {
     connected: boolean;
     providerTitle: string;
     requiresMessageSigning?: boolean;
+    unmanagedConnection?: boolean;
 }
 /**
  * The base type for requesting paginated content.

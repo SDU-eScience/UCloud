@@ -31,6 +31,7 @@ data class IntegrationBrowseResponseItem(
     val connected: Boolean,
     val providerTitle: String,
     val requiresMessageSigning: Boolean,
+    val unmanagedConnection: Boolean,
 )
 
 @Serializable
