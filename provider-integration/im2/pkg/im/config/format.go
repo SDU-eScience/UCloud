@@ -1022,12 +1022,14 @@ type IdentityManagementType string
 const (
 	IdentityManagementTypeScripted IdentityManagementType = "Scripted"
 	IdentityManagementTypeFreeIpa  IdentityManagementType = "FreeIPA"
+	IdentityManagementTypeOidc     IdentityManagementType = "OIDC"
 	IdentityManagementTypeNone     IdentityManagementType = "None"
 )
 
 var IdentityManagementTypeOptions = []IdentityManagementType{
 	IdentityManagementTypeScripted,
 	IdentityManagementTypeFreeIpa,
+	IdentityManagementTypeOidc,
 }
 
 type IdentityManagement struct {
@@ -1038,6 +1040,14 @@ type IdentityManagement struct {
 type IdentityManagementScripted struct {
 	OnUserConnected  string
 	OnProjectUpdated string
+}
+
+type IdentityManagementOidc struct {
+	OnUserConnected string
+	Issuer          string
+	ClientId        string
+	ClientSecret    string
+	Scopes          []string
 }
 
 type IdentityManagementFreeIPA struct {
@@ -1061,6 +1071,13 @@ func (m *IdentityManagement) Scripted() *IdentityManagementScripted {
 func (m *IdentityManagement) FreeIPA() *IdentityManagementFreeIPA {
 	if m.Type == IdentityManagementTypeFreeIpa {
 		return m.Configuration.(*IdentityManagementFreeIPA)
+	}
+	return nil
+}
+
+func (m *IdentityManagement) OIDC() *IdentityManagementOidc {
+	if m.Type == IdentityManagementTypeOidc {
+		return m.Configuration.(*IdentityManagementOidc)
 	}
 	return nil
 }
@@ -1102,6 +1119,27 @@ func parseIdentityManagement(filePath string, node *yaml.Node) (bool, IdentityMa
 			result.Configuration = &config
 		} else {
 			result.Configuration = &IdentityManagementFreeIPA{}
+		}
+
+	case IdentityManagementTypeOidc:
+		if Mode == ServerModeServer {
+			sPath, secretsNode := requireSecrets("OIDC identity management has secret configuration!")
+			if secretsNode == nil {
+				return false, result
+			}
+
+			oidcNode := requireChild(sPath, secretsNode, "oidc", &success)
+			if !success {
+				return false, result
+			}
+
+			ok, config := parseIdentityManagementOidc(sPath, oidcNode)
+			if !ok {
+				return false, result
+			}
+			result.Configuration = &config
+		} else {
+			result.Configuration = &IdentityManagementOidc{}
 		}
 	}
 
@@ -1161,6 +1199,22 @@ func parseIdentityManagementFreeIpa(filePath string, node *yaml.Node) (bool, Ide
 			badNode, _ := getChildOrNil(filePath, node, "projectStrategy")
 			reportError(filePath, badNode, titleStrategy, "Unknown title strategy, use one of: 'Default', 'Date', 'UUID'")
 		}
+	}
+
+	return success, result
+}
+
+func parseIdentityManagementOidc(filePath string, node *yaml.Node) (bool, IdentityManagementOidc) {
+	var result IdentityManagementOidc
+	success := true
+
+	result.OnUserConnected = requireChildFile(filePath, node, "onUserConnected", FileCheckRead, &success)
+	result.Issuer = requireChildText(filePath, node, "issuer", &success)
+	result.ClientId = requireChildText(filePath, node, "clientId", &success)
+	result.ClientSecret = requireChildText(filePath, node, "clientSecret", &success)
+
+	if child, err := getChildOrNil(filePath, node, "scopes"); child != nil && err == nil {
+		decode(filePath, child, &result.Scopes, &success)
 	}
 
 	return success, result

@@ -3,6 +3,7 @@ module ucloud.dk
 require (
 	atomicgo.dev/keyboard v0.2.9
 	github.com/anyascii/go v0.3.2
+	github.com/coreos/go-oidc/v3 v3.12.0
 	github.com/envoyproxy/go-control-plane v0.12.0
 	github.com/fergusstrange/embedded-postgres v1.27.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
@@ -47,6 +48,7 @@ require (
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.0.4 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
+	github.com/go-jose/go-jose/v4 v4.0.2 // indirect
 	github.com/go-kit/kit v0.13.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
@@ -90,6 +92,7 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
 	golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0 // indirect
 	golang.org/x/net v0.36.0 // indirect
 	golang.org/x/oauth2 v0.23.0 // indirect

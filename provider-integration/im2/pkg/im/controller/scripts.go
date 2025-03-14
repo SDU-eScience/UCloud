@@ -314,8 +314,14 @@ func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
 
 	err = cmd.Run()
 
-	exitCode := cmd.ProcessState.ExitCode()
-	statusSuccess := cmd.ProcessState.Success()
+	var exitCode int
+	var statusSuccess bool
+
+	if cmd.ProcessState != nil {
+		exitCode = cmd.ProcessState.ExitCode()
+		statusSuccess = cmd.ProcessState.Success()
+	}
+
 	if err != nil {
 		s := strings.TrimSpace(stderr.String())
 		log.Warn("%v script failed: %s %v", e.Script, s, err)

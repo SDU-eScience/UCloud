@@ -25,9 +25,9 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	ctrl.InitDriveDatabase()
 	ctrl.InitScriptsLogDatabase()
 	ctrl.Connections = ctrl.ConnectionService{
-		Initiate: func(username string, signingKey util.Option[int]) (redirectToUrl string) {
+		Initiate: func(username string, signingKey util.Option[int]) (string, error) {
 			_ = ctrl.RegisterConnectionComplete(username, ctrl.UnknownUser, true)
-			return cfg.Provider.Hosts.UCloudPublic.ToURL()
+			return cfg.Provider.Hosts.UCloudPublic.ToURL(), nil
 		},
 		Unlink: func(username string, uid uint32) error {
 			return nil
@@ -35,7 +35,7 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 		RetrieveManifest: func() ctrl.Manifest {
 			return ctrl.Manifest{
 				Enabled:                true,
-				ExpiresAfterMs:         util.Option[uint64]{},
+				ExpireAfterMs:          util.Option[uint64]{},
 				RequiresMessageSigning: false,
 			}
 		},

@@ -25,22 +25,26 @@ import (
 
 type Manifest struct {
 	Enabled                bool                `json:"enabled"`
-	ExpiresAfterMs         util.Option[uint64] `json:"expiresAfterMs"`
+	ExpireAfterMs          util.Option[uint64] `json:"expireAfterMs"`
 	RequiresMessageSigning bool                `json:"requiresMessageSigning"`
+	UnmanagedConnections   bool                `json:"unmanagedConnections"`
 }
 
 var Connections ConnectionService
 
 type ConnectionService struct {
-	Initiate          func(username string, signingKey util.Option[int]) (redirectToUrl string)
+	Initiate          func(username string, signingKey util.Option[int]) (redirectToUrl string, err error)
 	Unlink            func(username string, uid uint32) error
 	RetrieveManifest  func() Manifest
 	RetrieveCondition func() Condition
 }
 
 type IdentityManagementService struct {
+	InitiateConnection        func(username string) (string, error)
 	HandleAuthentication      func(username string) (uint32, error)
 	HandleProjectNotification func(updated *NotificationProjectUpdated) bool
+	UnmanagedConnections      bool
+	ExpiresAfter              util.Option[uint64]
 }
 
 var IdentityManagement IdentityManagementService
@@ -377,8 +381,8 @@ func controllerConnection(mux *http.ServeMux) {
 						nil,
 					)
 				} else {
-					redirectTo := Connections.Initiate(request.Username, util.OptNone[int]())
-					sendResponseOrError(w, connectResponse{redirectTo}, nil)
+					redirectTo, err := Connections.Initiate(request.Username, util.OptNone[int]())
+					sendResponseOrError(w, connectResponse{redirectTo}, err)
 				}
 			}),
 		)
@@ -440,7 +444,7 @@ func controllerConnection(mux *http.ServeMux) {
 
 				keyId := RegisterSigningKey(info.Username, request.PublicKey)
 
-				redirectTo := Connections.Initiate(info.Username, util.OptValue(keyId))
+				redirectTo, _ := Connections.Initiate(info.Username, util.OptValue(keyId))
 				sendResponseOrError(w, connectResponse{redirectTo}, nil)
 			}),
 		)
