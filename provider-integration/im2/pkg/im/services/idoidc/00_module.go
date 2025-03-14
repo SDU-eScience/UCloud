@@ -160,6 +160,13 @@ func Init(config *cfg.IdentityManagementOidc, mux *http.ServeMux) {
 			return
 		}
 
+		existing, ok, _ := ctrl.MapUCloudToLocal(session.UCloudUsername)
+		if ok && existing != response.Uid {
+			http.Error(w, fmt.Sprintf("Unable to switch to a different user. Please login with the original "+
+				"account (from %v to %v)", existing, response.Uid), http.StatusBadRequest)
+			return
+		}
+
 		err = ctrl.RegisterConnectionComplete(session.UCloudUsername, response.Uid, true)
 		if err != nil {
 			log.Warn("Failed to register connection complete: %v", err)

@@ -164,7 +164,7 @@ func EvaluateLocators(owner apm.WalletOwner, category string) []LocatedDrive {
 
 	switch owner.Type {
 	case apm.WalletOwnerTypeUser:
-		localUid, ok := ctrl.MapUCloudToLocal(owner.Username)
+		localUid, ok, _ := ctrl.MapUCloudToLocal(owner.Username)
 		if ok {
 			userInfo, err := user.LookupId(fmt.Sprint(localUid))
 			if err != nil {

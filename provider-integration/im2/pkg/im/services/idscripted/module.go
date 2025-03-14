@@ -51,7 +51,7 @@ func Init(config *cfg.IdentityManagementScripted) {
 
 		for _, member := range project.Status.Members {
 			wasAdded := slices.Contains(membersAddedToProject, member.Username)
-			uid, ok := ctrl.MapUCloudToLocal(member.Username)
+			uid, ok, _ := ctrl.MapUCloudToLocal(member.Username)
 			if !ok {
 				continue
 			}
@@ -69,7 +69,7 @@ func Init(config *cfg.IdentityManagementScripted) {
 		}
 
 		for _, member := range membersRemovedFromProject {
-			uid, ok := ctrl.MapUCloudToLocal(member)
+			uid, ok, _ := ctrl.MapUCloudToLocal(member)
 			if !ok {
 				continue
 			}

@@ -58,7 +58,7 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 	}
 
 	for _, member := range updated.ProjectComparison.MembersAddedToProject {
-		memberUid, ok := ctrl.MapUCloudToLocal(member)
+		memberUid, ok, _ := ctrl.MapUCloudToLocal(member)
 		if !ok {
 			continue
 		}
@@ -78,7 +78,7 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 	}
 
 	for _, member := range updated.ProjectComparison.MembersRemovedFromProject {
-		memberUid, ok := ctrl.MapUCloudToLocal(member)
+		memberUid, ok, _ := ctrl.MapUCloudToLocal(member)
 		if !ok {
 			continue
 		}
