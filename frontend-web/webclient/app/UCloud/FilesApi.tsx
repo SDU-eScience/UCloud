@@ -1159,54 +1159,6 @@ export function FilePreview({initialFile}: {
         setPreviewRequested(p => !p);
     }, []);
 
-    const onSave = useCallback(async () => {
-        const editor = editorRef.current;
-        if (!editor) return;
-        if (!hasFeature(Feature.INTEGRATED_EDITOR)) return;
-
-        const path = editor.path;
-
-        await editor.notifyDirtyBuffer();
-        await vfs.writeFile(path);
-
-        const revert = editor.onFileSaved(path);
-        const successTimeout = window.setTimeout(() => snackbarStore.addSuccess("File has been saved", false, 800), 250);
-        const revertLocalSave = (e: WriteFailureEvent) => {
-            const failedUpload = e.detail.find(it => it.targetPath + it.name === path);
-            if (failedUpload) {
-                window.clearTimeout(successTimeout);
-                revert();
-                snackbarStore.addFailure(failedUpload.error ?? "Upload for file " + fileName(failedUpload.name) + " failed.", false);
-            }
-        }
-
-        window.addEventListener(FileWriteFailure, revertLocalSave);
-        window.setTimeout(() => window.removeEventListener(FileWriteFailure, revertLocalSave), 30_000);
-    }, [vfs]);
-
-    useEffect(() => {
-        const listener = (ev: KeyboardEvent) => {
-            const hasCtrl = ev.ctrlKey || ev.metaKey;
-            if (ev.code === "KeyS" && hasCtrl) {
-                ev.preventDefault();
-                ev.stopPropagation();
-
-                onSave().then(doNothing);
-            }
-            if (ev.code === "KeyB" && hasCtrl) {
-                ev.preventDefault();
-                ev.stopPropagation();
-
-                requestPreviewToggle();
-            }
-        };
-
-        window.addEventListener("keydown", listener);
-        return () => {
-            window.removeEventListener("keydown", listener);
-        }
-    }, [onSave, requestPreviewToggle]);
-
     let node: React.ReactNode = null;
 
     const ext = extensionType(extensionFromPath(openFile[0]));
@@ -1237,6 +1189,55 @@ export function FilePreview({initialFile}: {
     if (mediaFileMetadata && mediaFileMetadata.error !== null) {
         node = <div>{mediaFileMetadata?.error}</div>;
     }
+
+    const onSave = useCallback(async () => {
+        const editor = editorRef.current;
+        if (!editor) return;
+        if (!hasFeature(Feature.INTEGRATED_EDITOR)) return;
+        if (node) return;
+
+        const path = editor.path;
+
+        await editor.notifyDirtyBuffer();
+        await vfs.writeFile(path);
+
+        const revert = editor.onFileSaved(path);
+        const successTimeout = window.setTimeout(() => snackbarStore.addSuccess("File has been saved", false, 800), 250);
+        const revertLocalSave = (e: WriteFailureEvent) => {
+            const failedUpload = e.detail.find(it => it.targetPath + it.name === path);
+            if (failedUpload) {
+                window.clearTimeout(successTimeout);
+                revert();
+                snackbarStore.addFailure(failedUpload.error ?? "Upload for file " + fileName(failedUpload.name) + " failed.", false);
+            }
+        }
+
+        window.addEventListener(FileWriteFailure, revertLocalSave);
+        window.setTimeout(() => window.removeEventListener(FileWriteFailure, revertLocalSave), 30_000);
+    }, [vfs, node]);
+
+    useEffect(() => {
+        const listener = (ev: KeyboardEvent) => {
+            const hasCtrl = ev.ctrlKey || ev.metaKey;
+            if (ev.code === "KeyS" && hasCtrl) {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                onSave().then(doNothing);
+            }
+            if (ev.code === "KeyB" && hasCtrl) {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                requestPreviewToggle();
+            }
+        };
+
+        window.addEventListener("keydown", listener);
+        return () => {
+            window.removeEventListener("keydown", listener);
+        }
+    }, [onSave, requestPreviewToggle]);
 
     const onOpenFile = useCallback((path: string, data: string | Uint8Array) => {
         setPreviewRequested(false);
@@ -1380,6 +1381,7 @@ export function FilePreview({initialFile}: {
                             items: [{id: file.absolutePath}],
                         })
                     );
+                    editorRef.current?.onFileDeleted(file.absolutePath);
                     reload();
                     snackbarStore.addSuccess("File(s) moved to trash", false);
                 },

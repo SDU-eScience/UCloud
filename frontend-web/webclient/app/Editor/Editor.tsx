@@ -372,6 +372,7 @@ export interface EditorApi {
     openFile: (path: string) => void;
     invalidateTree: (path: string) => Promise<void>;
     onFileSaved: (path: string) => RevertSaveFunction;
+    onFileDeleted: (path: string) => void;
 }
 
 const SETTINGS_PATH = "xXx__/SETTINGS\\__xXx";
@@ -728,7 +729,20 @@ export const Editor: React.FunctionComponent<{
                 openTab(path)
             },
             invalidateTree,
-            onFileSaved
+            onFileSaved,
+            onFileDeleted(path: string) {
+                setTabs(tabs => {
+                    const withRemovedEntry = tabs.open.filter(it => it !== path);
+                    if (path === this.path) {
+                        const idx = tabs.open.findIndex(it => it === path);
+                        dispatch({type: "EditorActionOpenFile", path: withRemovedEntry.at(idx - 1) ?? ""});
+                    }
+                    return ({
+                        open: withRemovedEntry,
+                        closed: tabs.closed
+                    })
+                })
+            }
         }
     }, []);
 
@@ -1083,7 +1097,7 @@ export const Editor: React.FunctionComponent<{
     // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
     const showEditorHelp = tabs.open.length === 0;
 
-    const isMarkdown = extensionType(extensionFromPath(state.currentPath));
+    const isMarkdown = extensionType(extensionFromPath(state.currentPath)) === "markdown";
 
     return <div className={EditorClass} onKeyDown={onKeyDown}>
         <FileTree
@@ -1153,7 +1167,7 @@ export const Editor: React.FunctionComponent<{
                     />
                 </div>
                 <Flex alignItems={"center"} ml="16px" gap="16px">
-                    {(tabs.open.length === 0 || isReleaseNotesOpen || isSettingsOpen || props.customContent) && !isMarkdown ? null :
+                    {(tabs.open.length === 0 || isReleaseNotesOpen || isSettingsOpen || props.showCustomContent) && !isMarkdown ? null :
                         props.toolbarBeforeSettings
                     }
                     {showReleaseNoteIcon ? <TooltipV2 tooltip={"See release notes"} contentWidth={100}>
