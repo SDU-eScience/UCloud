@@ -15,17 +15,19 @@ import (
 	"ucloud.dk/pkg/util"
 )
 
-type GenericLicenseServer struct {
+type LicenseServer struct {
 	Product apm.ProductReference
 	Address string
 	Port    int
 	License string
 }
 
+var licenseServers = map[string]*LicenseServer{}
+
 var (
-	ipcBrowseLicense   = ipc.NewCall[util.Empty, []GenericLicenseServer]("licenses.browse")
-	ipcRetrieveLicense = ipc.NewCall[string, GenericLicenseServer]("licenses.retrieve")
-	ipcUpsertLicense   = ipc.NewCall[GenericLicenseServer, util.Empty]("licenses.upsert")
+	ipcBrowseLicense   = ipc.NewCall[util.Empty, []LicenseServer]("licenses.browse")
+	ipcRetrieveLicense = ipc.NewCall[string, LicenseServer]("licenses.retrieve")
+	ipcUpsertLicense   = ipc.NewCall[LicenseServer, util.Empty]("licenses.upsert")
 	ipcDeleteLicense   = ipc.NewCall[apm.ProductReference, util.Empty]("licenses.delete")
 )
 
@@ -34,15 +36,15 @@ func initLicenseDatabase() {
 		return
 	}
 
-	ipcBrowseLicense.Handler(func(r *ipc.Request[util.Empty]) ipc.Response[[]GenericLicenseServer] {
+	ipcBrowseLicense.Handler(func(r *ipc.Request[util.Empty]) ipc.Response[[]LicenseServer] {
 		if r.Uid != 0 {
-			return ipc.Response[[]GenericLicenseServer]{
+			return ipc.Response[[]LicenseServer]{
 				StatusCode:   http.StatusForbidden,
 				ErrorMessage: "You must be root to run this command",
 			}
 		}
 
-		type GenericLicenseServerRow struct {
+		type LicenseServerRow struct {
 			Name     string `db:"name"`
 			Category string `db:"category"`
 			Address  string `db:"address"`
@@ -50,23 +52,23 @@ func initLicenseDatabase() {
 			License  string `db:"license"`
 		}
 
-		rows := db.NewTx(func(tx *db.Transaction) []GenericLicenseServerRow {
-			return db.Select[GenericLicenseServerRow](
+		rows := db.NewTx(func(tx *db.Transaction) []LicenseServerRow {
+			return db.Select[LicenseServerRow](
 				tx,
 				`
 				select name, category, address, port, license 
-				from generic_license_servers
+				from license_servers
 				order by category, name
 			`,
 				db.Params{},
 			)
 		})
 
-		var result []GenericLicenseServer
+		var result []LicenseServer
 
 		for _, row := range rows {
 			result = append(result,
-				GenericLicenseServer{
+				LicenseServer{
 					Product: apm.ProductReference{
 						Id:       row.Name,
 						Category: row.Category,
@@ -78,27 +80,27 @@ func initLicenseDatabase() {
 			)
 		}
 
-		return ipc.Response[[]GenericLicenseServer]{
+		return ipc.Response[[]LicenseServer]{
 			StatusCode: http.StatusOK,
 			Payload:    result,
 		}
 	})
 
-	ipcRetrieveLicense.Handler(func(r *ipc.Request[string]) ipc.Response[GenericLicenseServer] {
+	ipcRetrieveLicense.Handler(func(r *ipc.Request[string]) ipc.Response[LicenseServer] {
 		if r.Uid != 0 {
-			return ipc.Response[GenericLicenseServer]{
+			return ipc.Response[LicenseServer]{
 				StatusCode:   http.StatusForbidden,
 				ErrorMessage: "You must be root to run this command",
 			}
 		}
 
-		return ipc.Response[GenericLicenseServer]{
+		return ipc.Response[LicenseServer]{
 			StatusCode: http.StatusOK,
-			Payload:    GenericLicenseServer{},
+			Payload:    LicenseServer{},
 		}
 	})
 
-	ipcUpsertLicense.Handler(func(r *ipc.Request[GenericLicenseServer]) ipc.Response[util.Empty] {
+	ipcUpsertLicense.Handler(func(r *ipc.Request[LicenseServer]) ipc.Response[util.Empty] {
 		if r.Uid != 0 {
 			return ipc.Response[util.Empty]{
 				StatusCode:   http.StatusForbidden,
@@ -114,7 +116,7 @@ func initLicenseDatabase() {
 			db.Exec(
 				tx,
 				`
-					insert into generic_license_servers (name, category, address, port, license)
+					insert into license_servers (name, category, address, port, license)
 					values (:name, :category, :address::text, :port, :license::text)
 					on conflict (name, category) do update set
 						address = excluded.address,
@@ -149,7 +151,7 @@ func initLicenseDatabase() {
 			db.Exec(
 				tx,
 				`
-				delete from generic_license_servers
+				delete from license_servers
 				where
 					name = :name and
 					category = :category
@@ -265,7 +267,7 @@ func LicenseCli(args []string) {
 		}
 
 		_, err = ipcUpsertLicense.Invoke(
-			GenericLicenseServer{
+			LicenseServer{
 				apm.ProductReference{Id: productName.Value, Category: productCategory.Value},
 				address,
 				port,
