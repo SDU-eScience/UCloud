@@ -3803,6 +3803,7 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
                     </tr>}
                 </React.Fragment>)}
                 <Shortcut name="Hide shortcuts" alt keys={"H"} />
+                <Shortcut name="Command palette" ctrl keys={"P"} />
             </tbody>
         </table>
     </div>
