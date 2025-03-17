@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 
 	"ucloud.dk/pkg/apm"
 	"ucloud.dk/pkg/cli"
@@ -16,47 +15,90 @@ import (
 	"ucloud.dk/pkg/util"
 )
 
-type LicenseEntry struct {
+type GenericLicenseServer struct {
 	Product apm.ProductReference
 	Address string
 	Port    int
 	License string
 }
 
-var licensesMutex = sync.Mutex{}
-
 var (
-	ipcBrowseLicense   = ipc.NewCall[util.Empty, []LicenseEntry]("licenses.browse")
-	ipcRetrieveLicense = ipc.NewCall[string, LicenseEntry]("licenses.retrieve")
-	ipcUpsertLicense   = ipc.NewCall[LicenseEntry, util.Empty]("licenses.upsert")
-	ipcDeleteLicense   = ipc.NewCall[string, util.Empty]("licenses.delete")
+	ipcBrowseLicense   = ipc.NewCall[util.Empty, []GenericLicenseServer]("licenses.browse")
+	ipcRetrieveLicense = ipc.NewCall[string, GenericLicenseServer]("licenses.retrieve")
+	ipcUpsertLicense   = ipc.NewCall[GenericLicenseServer, util.Empty]("licenses.upsert")
+	ipcDeleteLicense   = ipc.NewCall[apm.ProductReference, util.Empty]("licenses.delete")
 )
 
-// TODO(Brian)
 func initLicenseDatabase() {
 	if !RunsServerCode() {
 		return
 	}
 
-	licensesMutex.Lock()
-	defer licensesMutex.Unlock()
-	fetchAllLicenses()
+	ipcBrowseLicense.Handler(func(r *ipc.Request[util.Empty]) ipc.Response[[]GenericLicenseServer] {
+		if r.Uid != 0 {
+			return ipc.Response[[]GenericLicenseServer]{
+				StatusCode:   http.StatusForbidden,
+				ErrorMessage: "You must be root to run this command",
+			}
+		}
 
-	ipcBrowseLicense.Handler(func(r *ipc.Request[util.Empty]) ipc.Response[[]LicenseEntry] {
-		return ipc.Response[[]LicenseEntry]{
+		type GenericLicenseServerRow struct {
+			Name     string `db:"name"`
+			Category string `db:"category"`
+			Address  string `db:"address"`
+			Port     int    `db:"port"`
+			License  string `db:"license"`
+		}
+
+		rows := db.NewTx(func(tx *db.Transaction) []GenericLicenseServerRow {
+			return db.Select[GenericLicenseServerRow](
+				tx,
+				`
+				select name, category, address, port, license 
+				from generic_license_servers
+				order by category, name
+			`,
+				db.Params{},
+			)
+		})
+
+		var result []GenericLicenseServer
+
+		for _, row := range rows {
+			result = append(result,
+				GenericLicenseServer{
+					Product: apm.ProductReference{
+						Id:       row.Name,
+						Category: row.Category,
+					},
+					Address: row.Address,
+					Port:    row.Port,
+					License: row.License,
+				},
+			)
+		}
+
+		return ipc.Response[[]GenericLicenseServer]{
 			StatusCode: http.StatusOK,
-			Payload:    []LicenseEntry{},
+			Payload:    result,
 		}
 	})
 
-	ipcRetrieveLicense.Handler(func(r *ipc.Request[string]) ipc.Response[LicenseEntry] {
-		return ipc.Response[LicenseEntry]{
+	ipcRetrieveLicense.Handler(func(r *ipc.Request[string]) ipc.Response[GenericLicenseServer] {
+		if r.Uid != 0 {
+			return ipc.Response[GenericLicenseServer]{
+				StatusCode:   http.StatusForbidden,
+				ErrorMessage: "You must be root to run this command",
+			}
+		}
+
+		return ipc.Response[GenericLicenseServer]{
 			StatusCode: http.StatusOK,
-			Payload:    LicenseEntry{},
+			Payload:    GenericLicenseServer{},
 		}
 	})
 
-	ipcUpsertLicense.Handler(func(r *ipc.Request[LicenseEntry]) ipc.Response[util.Empty] {
+	ipcUpsertLicense.Handler(func(r *ipc.Request[GenericLicenseServer]) ipc.Response[util.Empty] {
 		if r.Uid != 0 {
 			return ipc.Response[util.Empty]{
 				StatusCode:   http.StatusForbidden,
@@ -80,9 +122,11 @@ func initLicenseDatabase() {
 						license = excluded.license
 				`,
 				db.Params{
-					"address": license.Address,
-					"port":    license.Port,
-					"license": license.License,
+					"name":     license.Product.Id,
+					"category": license.Product.Category,
+					"address":  license.Address,
+					"port":     license.Port,
+					"license":  license.License,
 				},
 			)
 
@@ -93,75 +137,36 @@ func initLicenseDatabase() {
 		}
 	})
 
-	ipcDeleteLicense.Handler(func(r *ipc.Request[string]) ipc.Response[util.Empty] {
-		// TODO (Brian)
+	ipcDeleteLicense.Handler(func(r *ipc.Request[apm.ProductReference]) ipc.Response[util.Empty] {
+		if r.Uid != 0 {
+			return ipc.Response[util.Empty]{
+				StatusCode:   http.StatusForbidden,
+				ErrorMessage: "You must be root to run this command",
+			}
+		}
+
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+				delete from generic_license_servers
+				where
+					name = :name and
+					category = :category
+			`,
+				db.Params{
+					"name":     r.Payload.Id,
+					"category": r.Payload.Category,
+				},
+			)
+		})
+
 		return ipc.Response[util.Empty]{
 			StatusCode: http.StatusOK,
 		}
 	})
 }
 
-func fetchAllLicenses() {}
-
-func DeleteLicense(ref apm.ProductReference) {
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`
-				delete from generic_license_servers
-				where
-					name = :name and
-					category = :category
-			`,
-			db.Params{
-				"name":     ref.Id,
-				"category": ref.Category,
-			},
-		)
-	})
-}
-
-func BrowseLicenses() []LicenseEntry {
-	type GenericLicenseServerRow struct {
-		Name     string `db:"name"`
-		Category string `db:"category"`
-		Address  string `db:"address"`
-		Port     int    `db:"port"`
-		License  string `db:"license"`
-	}
-
-	rows := db.NewTx(func(tx *db.Transaction) []GenericLicenseServerRow {
-		return db.Select[GenericLicenseServerRow](
-			tx,
-			`
-				select name, category, address, port, license 
-				from generic_license_servers
-				order by category, name
-			`,
-			db.Params{},
-		)
-	})
-
-	var result []LicenseEntry
-
-	for _, row := range rows {
-		result = append(result,
-			LicenseEntry{
-				Product: apm.ProductReference{
-					Id:       row.Name,
-					Category: row.Category,
-				},
-				Address: row.Address,
-				Port:    row.Port,
-				License: row.License,
-			},
-		)
-	}
-
-	return result
-}
-
-// TODO(Brian)
 func printHelp() {
 	f := termio.Frame{}
 
@@ -196,7 +201,12 @@ func LicenseCli(args []string) {
 
 	switch {
 	case cli.IsListCommand(args[0]):
-		licenses := BrowseLicenses()
+		licenses, err := ipcBrowseLicense.Invoke(util.EmptyValue)
+
+		if err != nil {
+			cli.HandleError("list licenses", err)
+			return
+		}
 
 		if len(licenses) < 1 {
 			return
@@ -218,18 +228,17 @@ func LicenseCli(args []string) {
 		table.Print()
 
 	case cli.IsAddCommand(args[0]):
-		productName := args[1]
+		productName := util.GetOptionalElement(args, 1)
 
-		if len(productName) < 1 {
-			cli.HandleError("adding license", fmt.Errorf("Missing argument: product name"))
+		if !productName.Present {
+			cli.HandleError("add license", fmt.Errorf("Missing argument: product name"))
 			printHelp()
 			return
 		}
 
-		productCategory := args[2]
-
-		if len(productCategory) < 1 {
-			cli.HandleError("adding license", fmt.Errorf("Missing argument: product category"))
+		productCategory := util.GetOptionalElement(args, 2)
+		if !productCategory.Present {
+			cli.HandleError("add license", fmt.Errorf("Missing argument: product category"))
 			printHelp()
 			return
 		}
@@ -250,14 +259,14 @@ func LicenseCli(args []string) {
 			address = strings.Join(addressStringElements[0:len(addressStringElements)-1], ":")
 		}
 
-		err = fs.Parse(args[1:])
+		err = fs.Parse(args[3:])
 		if err != nil {
 			cli.HandleError("adding license", fmt.Errorf("Error occured while parsing parameters"))
 		}
 
 		_, err = ipcUpsertLicense.Invoke(
-			LicenseEntry{
-				apm.ProductReference{},
+			GenericLicenseServer{
+				apm.ProductReference{Id: productName.Value, Category: productCategory.Value},
 				address,
 				port,
 				license,
@@ -269,8 +278,21 @@ func LicenseCli(args []string) {
 		}
 
 	case cli.IsDeleteCommand(args[0]):
-		// TODO(Brian)
-		cli.HandleError("delete license", fmt.Errorf("Not yet implemented"))
+		productName := util.GetOptionalElement(args, 1)
+		if !productName.Present {
+			cli.HandleError("delete license", fmt.Errorf("Missing argument: product name"))
+			printHelp()
+			return
+		}
+
+		productCategory := util.GetOptionalElement(args, 2)
+		if !productCategory.Present {
+			cli.HandleError("delete license", fmt.Errorf("Missing argument: product category"))
+			printHelp()
+			return
+		}
+
+		ipcDeleteLicense.Invoke(apm.ProductReference{Id: productName.Value, Category: productCategory.Value})
 
 	case cli.IsHelpCommand(args[0]):
 		printHelp()
