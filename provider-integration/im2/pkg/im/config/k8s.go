@@ -1,9 +1,10 @@
 package config
 
 import (
-	"gopkg.in/yaml.v3"
 	"math"
 	"net"
+
+	"gopkg.in/yaml.v3"
 	"ucloud.dk/pkg/util"
 )
 
@@ -50,6 +51,11 @@ type KubernetesIpConfiguration struct {
 	Name    string
 }
 
+type KubernetesLicenseConfiguration struct {
+	Enabled bool
+	Name    string
+}
+
 type KubernetesSshConfiguration struct {
 	Enabled   bool
 	IpAddress string
@@ -72,6 +78,7 @@ type KubernetesCompute struct {
 	Namespace                  string
 	Web                        KubernetesWebConfiguration
 	PublicIps                  KubernetesIpConfiguration
+	Licenses                   KubernetesLicenseConfiguration
 	Ssh                        KubernetesSshConfiguration
 	Syncthing                  KubernetesSyncthingConfiguration
 	VirtualMachineStorageClass util.Option[string]
@@ -228,6 +235,21 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 				cfg.Compute.PublicIps.Name = name
 			} else {
 				cfg.Compute.PublicIps.Name = "public-ip"
+			}
+		}
+	}
+
+	licenseNode, _ := getChildOrNil(filePath, computeNode, "licenses")
+	if licenseNode != nil {
+		enabled, ok := optionalChildBool(filePath, licenseNode, "enabled")
+		cfg.Compute.Licenses.Enabled = enabled && ok
+
+		if cfg.Compute.Licenses.Enabled {
+			name := optionalChildText(filePath, licenseNode, "name", &success)
+			if name != "" {
+				cfg.Compute.Licenses.Name = name
+			} else {
+				cfg.Compute.Licenses.Name = "license"
 			}
 		}
 	}
