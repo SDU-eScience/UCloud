@@ -415,7 +415,6 @@ function sidebarCommand(title: string, description: string, url: string, icon: I
         },
         icon: {type: "simple", icon},
         scope: CommandScope.GoTo,
-        actionText: "Go to"
     }
 }
 
@@ -557,7 +556,6 @@ function useSidebarFilesPage(): [
         },
         description: d.updates[0]?.status ?? "",
         scope: CommandScope.File,
-        actionText: "Go to",
     }))));
 
     useProvideCommands(staticProvider(favorites.items.map(f => ({
@@ -572,7 +570,6 @@ function useSidebarFilesPage(): [
         },
         description: "",
         scope: CommandScope.File,
-        actionText: "Go to",
     }))));
 
     React.useEffect(() => {
@@ -632,7 +629,6 @@ function useSidebarRunsPage(): Job[] {
         },
         description: "",
         scope: CommandScope.Job,
-        actionText: "Go to",
     }))));
 
     React.useEffect(() => {
@@ -713,7 +709,6 @@ function SecondarySidebar({
                 action() {
                     onProjectUpdated(navigate, () => dispatchSetProjectAction(dispatch, p.id), () => void 0, p.id);
                 },
-                actionText: "Switch to",
             });
         }
 
@@ -770,7 +765,6 @@ function SecondarySidebar({
         },
         description: "Favorite app",
         scope: CommandScope.Application,
-        actionText: "Go to",
     }))));
 
     useProvideCommands(staticProvider(landingPage.carrousel.map(horse => ({
@@ -786,7 +780,6 @@ function SecondarySidebar({
         },
         description: "Highlighted app",
         scope: CommandScope.Application,
-        actionText: "Go to",
     }))));
 
     const carrouselTitles = landingPage.carrousel.map(horse => horse.title);
@@ -810,7 +803,6 @@ function SecondarySidebar({
         },
         description: "Top pick",
         scope: CommandScope.Application,
-        actionText: "Go to",
     }))));
 
 
