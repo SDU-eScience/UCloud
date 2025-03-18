@@ -30,8 +30,7 @@ func (lf LocalFile) GetAbsolutePath() string {
 }
 
 func (lf LocalFile) Exists() bool {
-	file, err := os.Open(lf.path)
-	defer file.Close()
+	_, err := os.Open(lf.path)
 	if err != nil {
 		return false
 	} else {
@@ -47,11 +46,8 @@ func (lf LocalFile) Child(subPath string, isDir bool) LFile {
 		HardCheck(err)
 		return NewLocalFile(file.Name())
 	} else {
-		file, err := os.Open(filepath.Join(lf.path, subPath))
-		if err != nil {
-			file, err = os.Create(filepath.Join(lf.path, subPath))
-			HardCheck(err)
-		}
+		file, err := os.OpenFile(filepath.Join(lf.path, subPath), os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
+		HardCheck(err)
 		return NewLocalFile(file.Name())
 	}
 }
@@ -246,6 +242,7 @@ func (l LocalExecutableCommand) ExecuteToText() StringPair {
 	}
 
 	if exitCode != 0 {
+		fmt.Println("allows failure " + strconv.FormatBool(l.allowFailure))
 		if l.allowFailure {
 			return StringPair{First: "", Second: outputBuilder.String() + errBuilder.String()}
 		}

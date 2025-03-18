@@ -159,7 +159,9 @@ func main() {
 		}
 	}
 
-	launcher.CliIntercept(args[1:])
+	if len(args) > 2 {
+		launcher.CliIntercept(args[2:])
+	}
 
 	toplevel := TopLevelMenu()
 	selectedItem, err := toplevel.SelectSingle()
@@ -798,6 +800,11 @@ func TopLevelMenu() termio.Menu {
 		Value:     "Development",
 		Message:   "Development",
 		Separator: true,
+	})
+
+	items = append(items, termio.MenuItem{
+		Value:   "install-certs",
+		Message: "Install certificates",
 	})
 
 	items = append(items, termio.MenuItem{

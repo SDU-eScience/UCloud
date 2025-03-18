@@ -38,6 +38,10 @@ func PrintHelp() {
 }
 
 func CliIntercept(args []string) {
+	println("LENTHG : ", len(args))
+	for _, arg := range args {
+		println(arg)
+	}
 	cmd := args[0]
 	if cmd == "" {
 		return
@@ -46,6 +50,7 @@ func CliIntercept(args []string) {
 	switch cmd {
 	case "svc", "service":
 		{
+			println("HITTING SRVICE")
 			InitializeServiceList()
 			if len(args) < 2 {
 				PrintHelp()
@@ -244,4 +249,5 @@ func CliIntercept(args []string) {
 			commands.RestoreSnapshot(snapshotName)
 		}
 	}
+	os.Exit(0)
 }

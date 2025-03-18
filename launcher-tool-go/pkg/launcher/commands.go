@@ -47,32 +47,30 @@ func (c Commands) InstallCerts() {
 	postef, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	HardCheck(err)
 	postef.WriteString(
-		`
-			HERE=${"$"}PWD
-                TEMP_DIR=${'$'}(mktemp -d)
-                cd ${"$"}TEMP_DIR
-                
-                echo;
-                echo;
-                echo;
-                echo "This command will install a root certificate required for local development. You will be prompted for your local sudo password during the installation."
-                echo "This process has several dependencies. See https://github.com/FiloSottile/mkcert for more information."
-                echo;
-                echo;
-                echo;
-                sleep 2;
-                
-                git clone https://github.com/FiloSottile/mkcert && cd mkcert
-                git checkout v1.4.4
-                go build -ldflags "-X main.Version=${'$'}(git describe --tags)"
-                ./mkcert localhost.direct "*.localhost.direct"
-                ./mkcert -install
-                mv *key.pem tls.key
-                mv *.pem tls.crt
-                
-                cd ${"$"}HERE
-                ./launcher write-certs ${"$"}TEMP_DIR
-		`,
+		`HERE=$PWD
+TEMP_DIR=$(mktemp -d)
+cd $TEMP_DIR
+
+echo;
+echo;
+echo;
+echo "This command will install a root certificate required for local development. You will be prompted for your local sudo password during the installation."
+echo "This process has several dependencies. See https://github.com/FiloSottile/mkcert for more information."
+echo;
+echo;
+echo;
+sleep 2;
+
+git clone https://github.com/FiloSottile/mkcert && cd mkcert
+git checkout v1.4.4
+go build -ldflags "-X main.Version=$(git describe --tags)"
+./mkcert localhost.direct "*.localhost.direct"
+./mkcert -install
+mv *key.pem tls.key
+mv *.pem tls.crt
+
+cd $HERE
+./launcher write-certs $TEMP_DIR`,
 	)
 }
 
@@ -150,6 +148,8 @@ func (c Commands) OpenLogs(serviceName string) {
 				serviceName,
 				[]string{"sh", "-c", "tail -F /tmp/service.log /var/log/ucloud/*.log"},
 				true,
+				false,
+				false,
 			).ToBashScript(),
 		)
 		HardCheck(err)
@@ -163,7 +163,7 @@ func (c Commands) OpenShell(serviceName string) {
 	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND|os.O_CREATE|os.O_RDWR, os.ModeAppend)
 	HardCheck(err)
 	defer file.Close()
-	_, err = file.WriteString(compose.Exec(currentEnvironment, serviceName, []string{"/bin/sh", "-c", "bash || sh"}, true).ToBashScript())
+	_, err = file.WriteString(compose.Exec(currentEnvironment, serviceName, []string{"/bin/sh", "-c", "bash || sh"}, true, false, false).ToBashScript())
 	HardCheck(err)
 }
 
@@ -205,8 +205,9 @@ func (c Commands) CreateProvider(providerName string) {
 					`,
 				},
 				false,
+				false,
+				true,
 			)
-			cmdexec.SetStreamOutput()
 			cmdexec.ExecuteToText()
 
 			cmdexec = compose.Exec(
@@ -214,9 +215,10 @@ func (c Commands) CreateProvider(providerName string) {
 				providerName,
 				[]string{"sh", "-c", "yes | ucloud products register"},
 				false,
+				false,
+				true,
 			)
 			cmdexec.SetDeadline(30_000)
-			cmdexec.SetStreamOutput()
 			cmdexec.ExecuteToText()
 
 			return nil
@@ -425,9 +427,9 @@ func (c Commands) CreateSnapshot(snapshotName string) {
 					service.containerName,
 					[]string{"/opt/ucloud/service.sh", "snapshot", snapshotName},
 					false,
+					true,
+					true,
 				)
-				executeCom.SetAllowFailure()
-				executeCom.SetStreamOutput()
 				executeCom.ExecuteToText()
 			}
 		}
@@ -447,10 +449,9 @@ func (c Commands) RestoreSnapshot(snapshotName string) {
 					service.containerName,
 					[]string{"/opt/ucloud/service.sh", "restore", snapshotName},
 					false,
+					true,
+					true,
 				)
-
-				executeCom.SetAllowFailure()
-				executeCom.SetStreamOutput()
 				executeCom.ExecuteToText()
 			}
 		}
@@ -465,6 +466,8 @@ func StopService(service Service) ExecutableCommandInterface {
 			currentEnvironment,
 			service.containerName,
 			[]string{"/opt/ucloud/service.sh", "stop"},
+			false,
+			false,
 			false,
 		)
 	} else {
@@ -505,8 +508,9 @@ func CallService(
 		container,
 		list,
 		false,
+		true,
+		false,
 	)
-	executeCom.SetAllowFailure()
 	return executeCom.ExecuteToText().First
 }
 
@@ -685,8 +689,7 @@ func StartCluster(compose DockerCompose, noRecreate bool) {
 	HardCheck(err)
 
 	err = termio.LoadingIndicator("Waiting for UCLoud to be ready...", func(output *os.File) error {
-		cmd := compose.Exec(currentEnvironment, "backend", []string{"curl", "http://localhost:8080"}, false)
-		cmd.SetAllowFailure()
+		cmd := compose.Exec(currentEnvironment, "backend", []string{"curl", "http://localhost:8080"}, false, true, false)
 
 		for i := range 100 {
 			if i > 20 {
@@ -735,8 +738,9 @@ func StartService(service Service) ExecutableCommandInterface {
 			service.ContainerName(),
 			[]string{"/opt/ucloud/service.sh", "start"},
 			false,
+			true,
+			true,
 		)
-		com.SetStreamOutput()
 		return com
 	} else {
 		com := compose.Start(currentEnvironment, service.containerName)

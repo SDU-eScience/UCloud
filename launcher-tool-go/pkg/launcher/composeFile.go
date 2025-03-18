@@ -567,159 +567,152 @@ func (k Kubernetes) Install(credentials ProviderCredentials) {
 	imData := imDir.Child("data", true)
 
 	installMarker := imData.Child(".install-marker", false)
-	if installMarker.Exists() {
+	lines := readLines(installMarker.GetAbsolutePath())
+	if len(lines) != 0 {
 		return
 	}
 	imData.Child("core.yaml", false).WriteText(
 		//language=yaml
-		`
-			providerId: k8
-			launchRealUserInstances: false
-			allowRootMode: true
-			developmentMode: true
-			hosts:
-				ucloud:
-					host: backend
-					scheme: http
-					port: 8080
-				self:
-					host: k8.localhost.direct
-					scheme: https
-					port: 443
-			cors:
-				allowHosts: ["ucloud.localhost.direct"]
-	`)
+		`providerId: k8
+launchRealUserInstances: false
+allowRootMode: true
+developmentMode: true
+hosts:
+  ucloud:
+    host: backend
+    scheme: http
+    port: 8080
+self:
+  host: k8.localhost.direct
+  scheme: https
+  port: 443
+cors:
+  allowHosts: ["ucloud.localhost.direct"]`)
 
 	imData.Child("server.yaml", false).WriteText(
 		//language=yaml
-		`
-			refreshToken: ` + credentials.refreshToken + `
-			envoy:
-				executable: /usr/bin/envoy
-				funceWrapper: false
-				directory: /var/run/ucloud/envoy
-			database:
-				type: Embedded
-				directory: /etc/ucloud/pgsql
-				host: 0.0.0.0
-				password: postgrespassword
-	`)
+		`refreshToken: ` + credentials.refreshToken + `
+envoy:
+  executable: /usr/bin/envoy
+  funceWrapper: false
+  directory: /var/run/ucloud/envoy
+database:
+  type: Embedded
+  directory: /etc/ucloud/pgsql
+  host: 0.0.0.0
+  password: postgrespassword`)
 
 	imData.Child("ucloud_crt.pem", false).WriteText(credentials.publicKey)
 
 	imData.Child("products.yaml", false).WriteText(
 		//language=yaml
-		`
-			compute:
-				syncthing:
-					cost: { type: Free }
-					syncthing:
-						description: A product for use in syncthing
-						cpu: 1
-						memory: 1
-						gpu: 0
-				cpu:
-					cost: { type: Money }
-					template:
-						cpu: [1, 2, 200]
-						memory: 1
-						description: An example CPU machine with 1 vCPU.
-						pricePerHour: 0.5
-				cpu-h:
-					cost:
-						type: Resource
-						interval: Minutely
-					template:
-						cpu: [1, 2]
-						memory: 1
-						description: An example CPU machine with 1 vCPU.
-				storage:
-					storage:
-						cost:
-							type: Resource
-							unit: GB
-						storage:
-							description: An example storage system
-						share:
-							description: This drive type is used for shares only.
-						project-home:
-							description: This drive type is used for member files of a project only.
-				publicLinks:
-					public-link:
-						cost: { type: Free }
-						public-link:
-							description: An example public link
-				publicIps:
-					public-ip:
-						cost:
-							type: Resource
-							unit: IP
-						public-ip:
-							description: A _fake_ public IP product
-				licenses:
-					license:
-						cost: { type: Resource }
-						license:
-							description: A _fake_ license
-							tags: ["fake", "license"]
-			`,
+		`compute:
+  syncthing:
+    cost: { type: Free }
+    syncthing:
+      description: A product for use in syncthing
+      cpu: 1
+      memory: 1
+      gpu: 0
+  cpu:
+    cost: { type: Money }
+    template:
+      cpu: [1, 2, 200]
+      memory: 1
+      description: An example CPU machine with 1 vCPU.
+      pricePerHour: 0.5
+  cpu-h:
+    cost:
+      type: Resource
+      interval: Minutely
+    template:
+      cpu: [1, 2]
+      memory: 1
+      description: An example CPU machine with 1 vCPU.
+storage:
+  storage:
+    cost:
+      type: Resource
+      unit: GB
+    storage:
+      description: An example storage system
+    share:
+      description: This drive type is used for shares only.
+    project-home:
+      description: This drive type is used for member files of a project only.
+publicLinks:
+  public-link:
+    cost: { type: Free }
+    public-link:
+      description: An example public link
+publicIps:
+  public-ip:
+    cost:
+      type: Resource
+      unit: IP
+    public-ip:
+      description: A _fake_ public IP product
+licenses:
+  license:
+    cost: { type: Resource }
+    license:
+      description: A _fake_ license
+      tags: ["fake", "license"]`,
 	)
 
 	imData.Child("plugins.yaml", false).WriteText(
 		//language=yaml
-		`
-			connection:
-				type: UCloud
-				redirectTo: https://ucloud.localhost.direct
-				insecureMessageSigningForDevelopmentPurposesOnly: true
-				
-			jobs:
-				default:
-					type: UCloud
-					matches: "*"
-					kubernetes:
-						namespace: ucloud-apps
-					scheduler: Pods
-					developmentMode:
-						fakeIpMount: true
-						fakeMemoryAllocation: true
-						usePortForwarding: true
-				
-			fileCollections:
-				default:
-					type: UCloud
-					matches: "*"
-				
-			files:
-				default:
-					type: UCloud
-					matches: "*"
-					mountLocation: "/mnt/storage"
-				
-			ingresses:
-				default:
-					type: UCloud
-					matches: "*"
-					domainPrefix: k8-app-
-					domainSuffix: .localhost.direct
-				
-			publicIps:
-				default:
-					type: UCloud
-					matches: "*"
-					iface: dummy
-					gatewayCidr: null
-				
-			licenses:
-				default:
-					type: Generic
-					matches: "*"
-				
-			shares:
-				default:
-					type: UCloud
-					matches: "*"
-		`,
+		`connection:
+  type: UCloud
+  redirectTo: https://ucloud.localhost.direct
+  insecureMessageSigningForDevelopmentPurposesOnly: true
+  
+jobs:
+  default:
+    type: UCloud
+    matches: "*"
+    kubernetes:
+      namespace: ucloud-apps
+    scheduler: Pods
+    developmentMode:
+      fakeIpMount: true
+      fakeMemoryAllocation: true
+      usePortForwarding: true
+  
+fileCollections:
+  default:
+    type: UCloud
+    matches: "*"
+  
+files:
+  default:
+    type: UCloud
+    matches: "*"
+    mountLocation: "/mnt/storage"
+  
+ingresses:
+  default:
+    type: UCloud
+    matches: "*"
+    domainPrefix: k8-app-
+    domainSuffix: .localhost.direct
+  
+publicIps:
+  default:
+    type: UCloud
+    matches: "*"
+    iface: dummy
+    gatewayCidr: null
+  
+licenses:
+  default:
+    type: Generic
+    matches: "*"
+  
+shares:
+  default:
+    type: UCloud
+    matches: "*"`,
 	)
 
 	var executeCom = compose.Exec(
@@ -733,12 +726,13 @@ func (k Kubernetes) Install(credentials ProviderCredentials) {
 			"chown -R 11042:11042 /mnt/storage/*",
 		},
 		false,
+		false,
+		true,
 	)
 
-	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 
-	executeCom = compose.Exec(
+	executeCom2 := compose.Exec(
 		currentEnvironment,
 		"k8",
 		[]string{
@@ -751,12 +745,13 @@ func (k Kubernetes) Install(credentials ProviderCredentials) {
 			`,
 		},
 		false,
+		false,
+		true,
 	)
 
-	executeCom.SetStreamOutput()
-	executeCom.ExecuteToText()
+	executeCom2.ExecuteToText()
 
-	executeCom = compose.Exec(
+	executeCom3 := compose.Exec(
 		currentEnvironment,
 		"k8",
 		[]string{
@@ -766,12 +761,13 @@ func (k Kubernetes) Install(credentials ProviderCredentials) {
 			"/mnt/k3s/kubeconfig.yaml",
 		},
 		false,
+		false,
+		true,
 	)
 
-	executeCom.SetStreamOutput()
-	executeCom.ExecuteToText()
+	executeCom3.ExecuteToText()
 
-	executeCom = compose.Exec(
+	executeCom4 := compose.Exec(
 		currentEnvironment,
 		"k8",
 		[]string{
@@ -783,78 +779,77 @@ func (k Kubernetes) Install(credentials ProviderCredentials) {
 			"ucloud-apps",
 		},
 		false,
+		true,
+		true,
 	)
+	executeCom4.ExecuteToText()
 
-	executeCom.SetStreamOutput()
-	executeCom.ExecuteToText()
-
-	executeCom = compose.Exec(
+	executeCom5 := compose.Exec(
 		currentEnvironment,
 		"k8",
 		[]string{
 			"sh",
 			"-c",
-			`
-			cat > /tmp/pvc.yml << EOF
-			---
-			apiVersion: v1
-			kind: PersistentVolume
-			metadata:
-				name: cephfs
-				namespace: ucloud-apps
-			spec:
-				capacity:
-					storage: 1000Gi
-				volumeMode: Filesystem
-				accessModes:
-					- ReadWriteMany
-				persistentVolumeReclaimPolicy: Retain
-				storageClassName: ""
-				hostPath:
-					path: "/mnt/storage"
-
-			---
-			apiVersion: v1
-			kind: PersistentVolumeClaim
-			metadata:
-				name: cephfs
-				namespace: ucloud-apps
-			spec:
-				accessModes:
-					- ReadWriteMany
-				storageClassName: ""
-				volumeName: cephfs
-				resources:
-					requests:
-						storage: 1000Gi
-			EOF
-			`,
+			`cat > /tmp/pvc.yml << EOF
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: cephfs	
+  namespace: ucloud-apps
+spec:	
+  capacity:	
+    storage: 1000Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: "/mnt/storage"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cephfs
+  namespace: ucloud-apps
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  volumeName: cephfs
+  resources:
+    requests:
+      storage: 1000Gi
+EOF`,
 		},
 		false,
+		false,
+		true,
 	)
 
-	executeCom.SetStreamOutput()
-	executeCom.ExecuteToText()
+	executeCom5.ExecuteToText()
 
-	executeCom = compose.Exec(
+	executeCom6 := compose.Exec(
 		currentEnvironment,
 		"k8",
 		[]string{"kubectl", "--kubeconfig", "/mnt/k3s/kubeconfig.yaml", "create", "-f", "/tmp/pvc.yml"},
 		false,
+		true,
+		true,
 	)
+	executeCom6.ExecuteToText()
 
-	executeCom.SetStreamOutput()
-	executeCom.ExecuteToText()
-
-	executeCom = compose.Exec(
+	executeCom7 := compose.Exec(
 		currentEnvironment,
 		"k8",
 		[]string{"rm", "/tmp/pvc.yml"},
 		false,
+		false,
+		true,
 	)
 
-	executeCom.SetStreamOutput()
-	executeCom.ExecuteToText()
+	executeCom7.ExecuteToText()
 
 	installMarker.WriteText("done")
 }
@@ -1034,9 +1029,10 @@ func (k GoKubernetes) Install(credentials ProviderCredentials) {
 				`,
 		},
 		false,
+		false,
+		true,
 	)
 
-	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 
 	executeCom = compose.Exec(
@@ -1049,9 +1045,10 @@ func (k GoKubernetes) Install(credentials ProviderCredentials) {
 			"/mnt/k3s/kubeconfig.yaml",
 		},
 		false,
+		false,
+		true,
 	)
 
-	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 
 	executeCom = compose.Exec(
@@ -1066,9 +1063,10 @@ func (k GoKubernetes) Install(credentials ProviderCredentials) {
 			"ucloud-apps",
 		},
 		false,
+		false,
+		true,
 	)
 
-	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 
 	executeCom = compose.Exec(
@@ -1077,46 +1075,44 @@ func (k GoKubernetes) Install(credentials ProviderCredentials) {
 		[]string{
 			"sh",
 			"-c",
-			`
-				cat > /tmp/pvc.yml << EOF
-				---
-				apiVersion: v1
-				kind: PersistentVolume
-				metadata:
-					name: cephfs
-					namespace: ucloud-apps
-				spec:
-					capacity:
-						storage: 1000Gi
-					volumeMode: Filesystem
-					accessModes:
-						- ReadWriteMany
-					persistentVolumeReclaimPolicy: Retain
-					storageClassName: ""
-					hostPath:
-						path: "/mnt/storage"
-		
-				---
-				apiVersion: v1
-				kind: PersistentVolumeClaim
-				metadata:
-					name: cephfs
-					namespace: ucloud-apps
-				spec:
-					accessModes:
-						- ReadWriteMany
-					storageClassName: ""
-					volumeName: cephfs
-					resources:
-						requests:
-							storage: 1000Gi
-				EOF
-			`,
+			`cat > /tmp/pvc.yml << EOF
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: cephfs	
+  namespace: ucloud-apps
+spec:	
+  capacity:	
+    storage: 1000Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: "/mnt/storage"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cephfs
+  namespace: ucloud-apps
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  volumeName: cephfs
+  resources:
+    requests:
+      storage: 1000Gi
+EOF`,
 		},
 		false,
+		false,
+		true,
 	)
 
-	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 
 	executeCom = compose.Exec(
@@ -1131,19 +1127,24 @@ func (k GoKubernetes) Install(credentials ProviderCredentials) {
 			"/tmp/pvc.yml",
 		},
 		false,
+		true,
+		true,
 	)
 
-	executeCom.SetStreamOutput()
-	executeCom.ExecuteToText()
+	output := executeCom.ExecuteToText()
+	if !strings.Contains(output.Second, "persistentvolumeclaims \"cephfs\" already") {
+		panic("persistentvolumeclaims \"cephfs\" already exists")
+	}
 
 	executeCom = compose.Exec(
 		currentEnvironment,
 		"gok8s",
 		[]string{"rm", "/tmp/pvc.yml"},
 		false,
+		false,
+		true,
 	)
 
-	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 
 	installMarker.WriteText("done")
@@ -1277,39 +1278,38 @@ func (s Slurm) Install(credentials ProviderCredentials) {
 
 	imData.Child("core.yaml", false).WriteText(
 		//language=yaml
-		`
-			providerId: slurm
-			launchRealUserInstances: true
-			allowRootMode: false
-			developmentMode: true
-			disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy: true
-			hosts:
-				ucloud:
-					host: backend
-					scheme: http
-					port: 8080
-				self:
-					host: slurm.localhost.direct
-					scheme: https
-					port: 443
-			cors:
-				allowHosts: ["ucloud.localhost.direct"]
+		`providerId: slurm
+launchRealUserInstances: true
+allowRootMode: false
+developmentMode: true
+disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy: true
+hosts:
+  ucloud:
+    host: backend
+    scheme: http
+    port: 8080
+  self:
+    host: slurm.localhost.direct
+    scheme: https
+    port: 443
+cors:
+  allowHosts: ["ucloud.localhost.direct"]
 		`,
 	)
 
 	imData.Child("server.yaml", false).WriteText(
 		//language=yaml
 		`
-			refreshToken: ` + credentials.refreshToken + `
-			envoy:
-				executable: /usr/bin/envoy
-				funceWrapper: false
-				directory: /var/run/ucloud/envoy
-			database:
-				type: Embedded
-				host: 0.0.0.0
-				directory: /etc/ucloud/pgsql
-				password: postgrespassword
+refreshToken: ` + credentials.refreshToken + `
+envoy:
+  executable: /usr/bin/envoy
+  funceWrapper: false
+  directory: /var/run/ucloud/envoy
+database:
+  type: Embedded
+  host: 0.0.0.0
+  directory: /etc/ucloud/pgsql
+  password: postgrespassword
 		`,
 	)
 
@@ -1318,80 +1318,80 @@ func (s Slurm) Install(credentials ProviderCredentials) {
 	imData.Child("products.yaml", false).WriteText(
 		//language=yaml
 		`
-			compute:
-				cpu:
-					allowSubAllocations: false
-					cost:
-						type: Resource
-						interval: Minutely
-						unit: Cpu
-					template:
-						cpu: [1, 2, 200]
-						memory: 1
-						description: An example CPU machine with 1 vCPU.
-				storage:
-					storage:
-						allowSubAllocations: false
-						cost:
-							type: Resource
-							unit: GB
-						storage:
-							description: An example storage system
+compute:
+  cpu:
+    allowSubAllocations: false
+    cost:
+      type: Resource
+      interval: Minutely
+      unit: Cpu
+    template:
+      cpu: [1, 2, 200]
+      memory: 1
+      description: An example CPU machine with 1 vCPU.
+  storage:
+    storage:
+      allowSubAllocations: false
+      cost:
+        type: Resource
+        unit: GB
+      storage:
+        description: An example storage system
 		`,
 	)
 
 	imData.Child("plugins.yaml", false).WriteText(
 		//language=yaml
 		`
-		connection:
-			type: UCloud
-			redirectTo: https://ucloud.localhost.direct
-			insecureMessageSigningForDevelopmentPurposesOnly: true
-			extensions:
-				onConnectionComplete: /etc/ucloud/extensions/ucloud-connection
-		
-		allocations:
-			type: Extension
-			extensions:
-				onWalletUpdated: /etc/ucloud/extensions/on-wallet-updated
-		
-		jobs:
-			default:
-				type: Slurm
-				matches: "*"
-				partition: normal
-				useFakeMemoryAllocations: true
-				accountMapper:
-					type: Extension
-					extension: /etc/ucloud/extensions/slurm-account-extension
-				terminal:
-					type: SSH
-					generateSshKeys: true
-				web:
-					type: Simple
-					domainPrefix: slurm-
-					domainSuffix: .localhost.direct
-				extensions:
-					fetchComputeUsage: /etc/ucloud/extensions/fetch-compute-usage
-			
-			fileCollections:
-				default:
-					type: Posix
-					matches: "*"
-					accounting: /etc/ucloud/extensions/storage-du-accounting
-					extensions:
-						driveLocator: /etc/ucloud/extensions/drive-locator
-				
-			files:
-				default:
-					type: Posix
-					matches: "*"
-			
-			projects:
-				type: Simple
-				unixGroupNamespace: 42000
-				extensions:
-					all: /etc/ucloud/extensions/project-extension
+connection:
+  type: UCloud
+  redirectTo: https://ucloud.localhost.direct
+  insecureMessageSigningForDevelopmentPurposesOnly: true
+  extensions:
+    onConnectionComplete: /etc/ucloud/extensions/ucloud-connection
+
+allocations:
+  type: Extension
+  extensions:
+    onWalletUpdated: /etc/ucloud/extensions/on-wallet-updated
+
+jobs:
+  default:
+    type: Slurm
+    matches: "*"
+    partition: normal
+    useFakeMemoryAllocations: true
+    accountMapper:
+      type: Extension
+      extension: /etc/ucloud/extensions/slurm-account-extension
+    terminal:
+      type: SSH
+      generateSshKeys: true
+    web:
+      type: Simple
+      domainPrefix: slurm-
+      domainSuffix: .localhost.direct
+    extensions:
+      fetchComputeUsage: /etc/ucloud/extensions/fetch-compute-usage
+  
+  fileCollections:
+    default:
+      type: Posix
+      matches: "*"
+      accounting: /etc/ucloud/extensions/storage-du-accounting
+      extensions:
+        driveLocator: /etc/ucloud/extensions/drive-locator
+    
+  files:
+    default:
+      type: Posix
+      matches: "*"
+  
+  projects:
+    type: Simple
+    unixGroupNamespace: 42000
+    extensions:
+      all: /etc/ucloud/extensions/project-extension
 		`,
 	)
 
@@ -1560,8 +1560,7 @@ func (gs GoSlurm) Install(credentials ProviderCredentials) {
 
 	imDataDir.Child("server.yaml", false).WriteText(
 		//language=yaml
-		`
-			refreshToken: ` + credentials.refreshToken + ` 
+		`refreshToken: ` + credentials.refreshToken + ` 
 		`,
 	)
 
@@ -1643,9 +1642,10 @@ func (gs GoSlurm) InstallAddon(addon string) {
 					`,
 				},
 				false,
+				false,
+				true,
 			)
 
-			executeCom.SetStreamOutput()
 			executeCom.ExecuteToText()
 
 			executeCom = compose.Exec(
@@ -1663,9 +1663,10 @@ func (gs GoSlurm) InstallAddon(addon string) {
 					`,
 				},
 				false,
+				false,
+				true,
 			)
 
-			executeCom.SetStreamOutput()
 			executeCom.ExecuteToText()
 		}
 	}
@@ -1687,6 +1688,8 @@ func EnrollClient(client string) {
 			`,
 		},
 		false,
+		false,
+		false,
 	)
 
 	executeCom.ExecuteToText()
@@ -1703,9 +1706,10 @@ func EnrollClient(client string) {
 				"(sleep 1; sssd) || (sleep 1; sssd) || (sleep 1; sssd) || (sleep 1; sssd)",
 		},
 		true,
+		false,
+		true,
 	)
 
-	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 }
 
@@ -2063,10 +2067,10 @@ func SlurmInstall(providerContainer string) {
 				"name=linux",
 			},
 			false,
+			true,
+			true,
 		)
 
-		executeCom.SetAllowFailure()
-		executeCom.SetStreamOutput()
 		success := executeCom.ExecuteToText().First != ""
 
 		if success {
@@ -2086,9 +2090,10 @@ func SlurmInstall(providerContainer string) {
 			"chmod 0755 -R /etc/ucloud/extensions",
 		},
 		false,
+		false,
+		true,
 	)
 
-	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 
 	// This is to avoid rebuilding the image when the Slurm configuration changes
@@ -2102,8 +2107,9 @@ func SlurmInstall(providerContainer string) {
 			"/etc/slurm",
 		},
 		false,
+		false,
+		true,
 	)
-	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 
 	executeCom = compose.Exec(
@@ -2117,9 +2123,10 @@ func SlurmInstall(providerContainer string) {
 			"standard",
 		},
 		false,
+		false,
+		true,
 	)
 
-	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 
 	// Restart slurmctld in case configuration file has changed

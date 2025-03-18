@@ -21,7 +21,7 @@ type DockerCompose interface {
 	Logs(directory LFile, container string) ExecutableCommandInterface
 	Start(directory LFile, container string) ExecutableCommandInterface
 	Stop(directory LFile, container string) ExecutableCommandInterface
-	Exec(directory LFile, container string, command []string, tty bool) ExecutableCommandInterface
+	Exec(directory LFile, container string, command []string, tty bool, allowFailure bool, streamOutput bool) ExecutableCommandInterface
 }
 
 type Classic struct {
@@ -106,7 +106,7 @@ func (c Classic) Logs(directory LFile, container string) ExecutableCommandInterf
 	}
 }
 
-func (c Classic) Exec(directory LFile, container string, command []string, tty bool) ExecutableCommandInterface {
+func (c Classic) Exec(directory LFile, container string, command []string, tty bool, allowFailure bool, streamOutput bool) ExecutableCommandInterface {
 	list := c.Base(directory)
 	list = append(list, "exec")
 	if !tty {
@@ -121,9 +121,9 @@ func (c Classic) Exec(directory LFile, container string, command []string, tty b
 		list,
 		directory,
 		PostProcessorFunc,
-		false,
+		allowFailure,
 		1000 * 60 * 5,
-		false,
+		streamOutput,
 	}
 }
 
@@ -244,7 +244,7 @@ func (p Plugin) Logs(directory LFile, container string) ExecutableCommandInterfa
 	}
 }
 
-func (p Plugin) Exec(directory LFile, container string, command []string, tty bool) ExecutableCommandInterface {
+func (p Plugin) Exec(directory LFile, container string, command []string, tty bool, allowFailure bool, streamOutput bool) ExecutableCommandInterface {
 	list := p.Base(directory)
 	list = append(list, "exec")
 	if !tty {
@@ -258,9 +258,9 @@ func (p Plugin) Exec(directory LFile, container string, command []string, tty bo
 		list,
 		directory,
 		PostProcessorFunc,
-		false,
+		allowFailure,
 		1000 * 60 * 5,
-		false,
+		streamOutput,
 	}
 }
 

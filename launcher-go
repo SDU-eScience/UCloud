@@ -17,9 +17,6 @@ realpath() (
 mkdir -p /tmp/ucloud-launcher
 repo_root=$(dirname $(realpath $0))
 cd $repo_root/launcher-tool-go
-log_file=/tmp/ucloud-launcher/$(uuidgen)
-
-cd $repo_root/launcher-tool-go
 
 post_exec=/tmp/ucloud-launcher/$(uuidgen)
 go run cmd/launcher/main.go $post_exec $@
