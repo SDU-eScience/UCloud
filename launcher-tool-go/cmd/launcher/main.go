@@ -138,15 +138,14 @@ func main() {
 			)
 			launcher.HardCheck(err)
 
+			launcher.Commands{}.ImportApps()
+
+			fmt.Println()
+			fmt.Println()
+			fmt.Println("UCloud is now running. Yous should create a provider to get started. Select the " +
+				"'Create provider...' entry below to do so.",
+			)
 		}
-
-		launcher.Commands{}.ImportApps()
-
-		fmt.Println()
-		fmt.Println()
-		fmt.Println("UCloud is now running. Yous should create a provider to get started. Select the " +
-			"'Create provider...' entry below to do so.",
-		)
 	}
 	if shouldInitializeTestEnvironment {
 		providers := launcher.AllProviders
@@ -634,6 +633,10 @@ func main() {
 				}
 			}
 		}
+	case "exit":
+		{
+			os.Exit(0)
+		}
 	}
 }
 
@@ -836,6 +839,11 @@ func TopLevelMenu() termio.Menu {
 	items = append(items, termio.MenuItem{
 		Value:   "help",
 		Message: "Get help with UCloud",
+	})
+
+	items = append(items, termio.MenuItem{
+		Value:   "exit",
+		Message: "Exit",
 	})
 
 	return termio.Menu{

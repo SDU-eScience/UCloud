@@ -73,9 +73,9 @@ func GenerateComposeFile(doWriteFile bool) {
 	providers := ListConfiguredProviders()
 
 	var composeList = []ComposeService{
-		UCloudBackend{},
-		UCloudFrontend{},
-		GateWay{false},
+		&UCloudBackend{},
+		&UCloudFrontend{},
+		&GateWay{false},
 	}
 
 	for _, provider := range providers {

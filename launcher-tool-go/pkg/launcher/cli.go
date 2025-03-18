@@ -34,14 +34,12 @@ func PrintHelp() {
 	println()
 	println("- port-forward: Initializes port forwarding for remote environments")
 	println("- import-apps: Import test applications")
+	println("- write-certs <path>: Write certificates to path given")
+	println("- install-certs: Install certificates to the local machine")
 	os.Exit(0)
 }
 
 func CliIntercept(args []string) {
-	println("LENTHG : ", len(args))
-	for _, arg := range args {
-		println(arg)
-	}
 	cmd := args[0]
 	if cmd == "" {
 		return
@@ -50,7 +48,6 @@ func CliIntercept(args []string) {
 	switch cmd {
 	case "svc", "service":
 		{
-			println("HITTING SRVICE")
 			InitializeServiceList()
 			if len(args) < 2 {
 				PrintHelp()
@@ -215,6 +212,20 @@ func CliIntercept(args []string) {
 		{
 			commands.ImportApps()
 		}
+	case "install-certs":
+		{
+			commands.InstallCerts()
+		}
+	case "write-certs":
+		{
+			if len(args) < 1 {
+				PrintHelp()
+			} else {
+				path := args[1]
+				commands.WriteCerts(path)
+			}
+		}
+
 	case "add-provider":
 		{
 			if len(args) < 2 {

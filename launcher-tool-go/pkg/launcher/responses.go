@@ -1,50 +1,20 @@
 package launcher
 
 type ProductBulkResponse struct {
-	responses []ProductV2
+	Responses []ProductV2 `json:"items"`
 }
 
 type ProductV2 struct {
-	category    ProductCategory
-	name        string
-	description string
-	productType ProductType
-	price       int64
+	Category    ProductCategory `json:"category"`
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	Price       int64           `json:"pricePerUnit"`
 }
 
 type ProductCategory struct {
-	name                string
-	provider            string
-	productType         ProductType
-	accountingUnit      AccountingUnit
-	accountingFrequency AccountingFrequency
+	Name     string `json:"name"`
+	Provider string `json:"provider"`
 }
-
-type ProductType int32
-
-const (
-	STORAGE    ProductType = iota
-	COMPUTE    ProductType = iota
-	INGRESS    ProductType = iota
-	LICENSE    ProductType = iota
-	NETWORK_IP ProductType = iota
-)
-
-type AccountingUnit struct {
-	name                   string
-	namePlural             string
-	floatingPoint          bool
-	displayFrequencySuffix bool
-}
-
-type AccountingFrequency int32
-
-const (
-	ONCE            AccountingFrequency = iota
-	PERIODIC_MINUTE AccountingFrequency = iota
-	PERIODIC_HOUR   AccountingFrequency = iota
-	PERIODIC_DAY    AccountingFrequency = iota
-)
 
 type FindByStringIDBulkResponse struct {
 	Responses []FindByStringId `json:"responses"`
