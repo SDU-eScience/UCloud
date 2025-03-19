@@ -446,7 +446,7 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
                     {anyFinished ? <Flex>
                         <h4 style={{marginBottom: "8px"}}>Finished tasks</h4>
                         <Box ml="auto">
-                            <TooltipV2 contentWidth={190} tooltip={"Remove finished tasks"}>
+                            <TooltipV2 contentWidth={230} tooltip={"Remove finished tasks history"}>
                                 <Icon name="close" onClick={() => {
                                     taskStore.finishedTasks = {};
                                     uploadStore.clearUploads(fileUploads.finished, () => void 0);

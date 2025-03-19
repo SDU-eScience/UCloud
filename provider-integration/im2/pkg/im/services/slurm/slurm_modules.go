@@ -10,11 +10,11 @@ import (
 )
 
 type LmodModuleGroup struct {
-	Versions           []LmodModule        `json:"versions"`
-	Package            string              `json:"package"`
-	Url                util.Option[string] `json:"url"`
-	DefaultVersionName string              `json:"defaultVersionName"`
-	Description        string              `json:"description"`
+	Versions    []LmodModule        `json:"versions"`
+	Package     string              `json:"package"`
+	Url         util.Option[string] `json:"url"`
+	Description string              `json:"description"`
+	// NOTE(Dan): defaultVersionName very rarely sends "defaultVersionName": false which breaks the naive implementation
 }
 
 type LmodModule struct {

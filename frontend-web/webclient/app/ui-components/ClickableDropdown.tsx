@@ -57,8 +57,8 @@ export interface ClickableDropdownProps<T> {
     // NOTE(Dan): I am sorry for having to go imperative but this is needed to force close a mouse positioned
     // dropdown. Otherwise, this will cause issues for confirmation buttons (which require a hold action versus a
     // click).
-    closeFnRef?: React.MutableRefObject<() => void>;
-    openFnRef?: React.MutableRefObject<(left: number, top: number) => void>;
+    closeFnRef?: React.RefObject<() => void>;
+    openFnRef?: React.RefObject<(left: number, top: number) => void>;
     onKeyDown?: (ev: KeyboardEvent) => boolean | void;
 }
 
@@ -224,9 +224,9 @@ function ClickableDropdown<T>({
 
         let x = parseInt((left ?? "0")?.toString().replace("px", ""));
         if (isNaN(x)) x = 0;
-        let y = parseInt((top ?? "0")?.toString().replace("px", ""));
-        if (isNaN(y)) y = 0;
 
+        let y = parseInt((top ?? dropdownRef.current?.getBoundingClientRect().y ?? "0")?.toString().replace("px", ""));
+        if (isNaN(y)) y = 0;
 
         const widthAsNumber = parseInt((width ?? 300).toString().replace("px", ""));
         let heightAsNumber = 38 * children.length;
@@ -301,8 +301,8 @@ export default ClickableDropdown;
 
 function _onKeyDown(
     e: KeyboardEvent,
-    wrapper: React.RefObject<HTMLDivElement>,
-    index: React.MutableRefObject<number>,
+    wrapper: React.RefObject<HTMLDivElement | null>,
+    index: React.RefObject<number>,
     entryKey: string,
     onSelect: ((el: Element | undefined) => void) | undefined,
     hoverColor: ThemeColor,

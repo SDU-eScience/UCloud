@@ -1,8 +1,9 @@
 package k8s
 
 import (
-	ws "github.com/gorilla/websocket"
 	"time"
+
+	ws "github.com/gorilla/websocket"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/containers"
 	"ucloud.dk/pkg/im/services/k8s/kubevirt"
@@ -18,17 +19,6 @@ func InitCompute() ctrl.JobsService {
 	containerCpu = containers.Init()
 	virtCpu = kubevirt.Init()
 
-	go func() {
-		for util.IsAlive {
-			// TODO
-			// TODO Need to resubmit old in-queue entries to the queue
-			// TODO
-
-			loopMonitoring()
-			time.Sleep(100 * time.Millisecond)
-		}
-	}()
-
 	return ctrl.JobsService{
 		Submit:                   submit,
 		Terminate:                terminate,
@@ -42,7 +32,39 @@ func InitCompute() ctrl.JobsService {
 		Suspend:                  suspend,
 		Unsuspend:                unsuspend,
 		HandleBuiltInVnc:         handleBuiltInVnc,
+		PublicIPs: ctrl.PublicIPService{
+			Create:           createPublicIp,
+			Delete:           deletePublicIp,
+			RetrieveProducts: retrievePublicIpProducts,
+		},
 	}
+}
+
+func InitComputeLater() {
+	ctrl.ReconfigureAllIApps()
+
+	go func() {
+		for util.IsAlive {
+			// TODO
+			// TODO Need to resubmit old in-queue entries to the queue
+			// TODO
+
+			loopMonitoring()
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
+}
+
+func retrievePublicIpProducts() []orc.PublicIpSupport {
+	return shared.IpSupport
+}
+
+func createPublicIp(ip *orc.PublicIp) error {
+	return ctrl.AllocateIpAddress(ip)
+}
+
+func deletePublicIp(ip *orc.PublicIp) error {
+	return ctrl.DeleteIpAddress(ip)
 }
 
 func retrieveProducts() []orc.JobSupport {
@@ -87,6 +109,15 @@ func backend(job *orc.Job) *ctrl.JobsService {
 }
 
 func submit(request ctrl.JobSubmitRequest) (util.Option[string], error) {
+	_, isIApp := ctrl.IntegratedApplications[request.JobToSubmit.Specification.Product.Category]
+	if isIApp {
+		return util.OptNone[string](), util.UserHttpError("This product does not allow job-submissions")
+	}
+
+	if reason := IsJobLocked(request.JobToSubmit); reason.Present {
+		return util.OptNone[string](), reason.Value.Err
+	}
+
 	shared.RequestSchedule(request.JobToSubmit)
 	ctrl.TrackNewJob(*request.JobToSubmit)
 	return util.OptNone[string](), nil

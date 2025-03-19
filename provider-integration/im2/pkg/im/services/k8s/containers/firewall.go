@@ -1,8 +1,15 @@
 package containers
 
 import (
+	"context"
+	"encoding/json"
+	"time"
+
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 )
 
@@ -60,9 +67,74 @@ func prepareFirewallOnJobCreate(
 				Hostnames: []string{peer.Hostname},
 			})
 		}
-
-		// TODO Modify peer containers
 	}
+
+	// Update the networking policy of the peer containers
+	if len(peers) > 0 {
+		labelSelector := k8PodSelectorForJob(job.Id)
+
+		ingressPatch, err := json.Marshal(
+			[]networkPolicyIngressPatch{
+				{
+					Op:   "add",
+					Path: "/spec/ingress/-",
+					Value: networking.NetworkPolicyIngressRule{
+						From: []networking.NetworkPolicyPeer{{
+							PodSelector: &labelSelector,
+						}},
+					},
+				},
+			},
+		)
+
+		egressPatch, err := json.Marshal(
+			[]networkPolicyEgressPatch{
+				{
+					Op:   "add",
+					Path: "/spec/egress/-",
+					Value: networking.NetworkPolicyEgressRule{
+						To: []networking.NetworkPolicyPeer{{
+							PodSelector: &labelSelector,
+						}},
+					},
+				},
+			},
+		)
+
+		if err != nil {
+			log.Info("Failed to marshal networking policy patches")
+		}
+
+		networkingPolicies := K8sClient.NetworkingV1().NetworkPolicies(ServiceConfig.Compute.Namespace)
+		ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
+
+		for _, peer := range peers {
+			peerPod := findPodByJobIdAndRank(peer.JobId, 0)
+			if peerPod.Present {
+				_, err := networkingPolicies.Patch(ctx, firewallName(peer.JobId), types.JSONPatchType, ingressPatch, v1.PatchOptions{})
+				if err != nil {
+					log.Info("Failed to patch ingress: %v", err)
+				}
+
+				_, err = networkingPolicies.Patch(ctx, firewallName(peer.JobId), types.JSONPatchType, egressPatch, v1.PatchOptions{})
+				if err != nil {
+					log.Info("Failed to patch egress: %v", err)
+				}
+			}
+		}
+	}
+}
+
+type networkPolicyIngressPatch struct {
+	Op    string                              `json:"op"`
+	Path  string                              `json:"path"`
+	Value networking.NetworkPolicyIngressRule `json:"value"`
+}
+
+type networkPolicyEgressPatch struct {
+	Op    string                             `json:"op"`
+	Path  string                             `json:"path"`
+	Value networking.NetworkPolicyEgressRule `json:"value"`
 }
 
 const invalidSubnet = "192.0.2.100/32"

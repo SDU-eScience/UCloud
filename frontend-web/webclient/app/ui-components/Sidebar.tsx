@@ -415,7 +415,6 @@ function sidebarCommand(title: string, description: string, url: string, icon: I
         },
         icon: {type: "simple", icon},
         scope: CommandScope.GoTo,
-        actionText: "Go to"
     }
 }
 
@@ -557,7 +556,6 @@ function useSidebarFilesPage(): [
         },
         description: d.updates[0]?.status ?? "",
         scope: CommandScope.File,
-        actionText: "Go to",
     }))));
 
     useProvideCommands(staticProvider(favorites.items.map(f => ({
@@ -572,7 +570,6 @@ function useSidebarFilesPage(): [
         },
         description: "",
         scope: CommandScope.File,
-        actionText: "Go to",
     }))));
 
     React.useEffect(() => {
@@ -625,14 +622,13 @@ function useSidebarRunsPage(): Job[] {
     const cache = React.useSyncExternalStore(s => jobCache.subscribe(s), () => jobCache.getSnapshot());
 
     useProvideCommands(staticProvider(cache.items.map(j => ({
-        title: j.id,
+        title: j.specification.name ?? j.id,
         icon: {type: "image", imageUrl: AppStore.retrieveAppLogo({name: j.specification.application.name, includeText: false, darkMode: !isLight})},
         action() {
             navigate(AppRoutes.jobs.view(j.id));
         },
         description: "",
         scope: CommandScope.Job,
-        actionText: "Go to",
     }))));
 
     React.useEffect(() => {
@@ -713,7 +709,6 @@ function SecondarySidebar({
                 action() {
                     onProjectUpdated(navigate, () => dispatchSetProjectAction(dispatch, p.id), () => void 0, p.id);
                 },
-                actionText: "Switch to",
             });
         }
 
@@ -760,6 +755,58 @@ function SecondarySidebar({
     }, [favoriteApps]);
 
     const appFavorites = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
+    const isLight = isLightThemeStored();
+
+    useProvideCommands(staticProvider(appFavorites.map(fav => ({
+        title: fav.metadata.title,
+        icon: {type: "image", imageUrl: AppStore.retrieveAppLogo({name: fav.metadata.name, includeText: false, darkMode: !isLight})},
+        action() {
+            navigate(AppRoutes.jobs.create(fav.metadata.name, fav.metadata.version));
+        },
+        description: "Favorite app",
+        scope: CommandScope.Application,
+    }))));
+
+    useProvideCommands(staticProvider(landingPage.carrousel.map(horse => ({
+        title: horse.title,
+        icon: {type: "image", imageUrl: AppStore.retrieveAppLogo({name: horse.resolvedLinkedApp ?? ""})},
+        action() {
+            if (horse.resolvedLinkedApp) {
+                navigate(AppRoutes.jobs.create(horse.resolvedLinkedApp));
+            } else if (horse.linkedGroup) {
+                navigate(AppRoutes.apps.group((horse.linkedGroup).toString()));
+            }
+            if (horse.linkedWebPage) navigate(horse.linkedWebPage);
+        },
+        description: "Highlighted app",
+        scope: CommandScope.Application,
+    }))));
+
+    const carrouselTitles = landingPage.carrousel.map(horse => horse.title);
+    useProvideCommands(staticProvider(landingPage.topPicks.filter(it => !carrouselTitles.includes(it.title)).map(pick => ({
+        title: pick.title,
+        icon: {
+            type: "image", imageUrl: AppStore.retrieveGroupLogo({
+                id: pick.groupId ?? -1,
+                darkMode: !isLight,
+                placeTextUnderLogo: false,
+            })
+        },
+        action() {
+            if (pick.groupId) {
+                let link = AppRoutes.apps.group(pick.groupId.toString());
+                if (pick.defaultApplicationToRun) {
+                    link = AppRoutes.jobs.create(pick.defaultApplicationToRun);
+                }
+                navigate(link);
+            }
+        },
+        description: "Top pick",
+        scope: CommandScope.Application,
+    }))));
+
+
+
     const isOpen = clicked !== "" || hovered !== "";
     const active = !isOpen ? lastHover.current : hovered ? hovered : clicked;
     const asPopOver = hovered && !clicked;

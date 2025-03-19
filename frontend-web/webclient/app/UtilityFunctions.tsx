@@ -111,6 +111,8 @@ const languages = {
     "yml": "yaml",
     "sbatch": "shell",
     "rs": "rust",
+    "j2": "jinja2",
+    "jinja2": "jinja2"
 };
 
 export function getLanguageList(): {language: string}[] {
@@ -412,6 +414,10 @@ export const inDevEnvironment = (): boolean => DEVELOPMENT_ENV;
 export const onDevSite = (): boolean => window.location.host === CONF.DEV_SITE || window.location.hostname === "localhost"
     || window.location.hostname === "127.0.0.1" || window.location.hostname === "ucloud.localhost.direct"
     || window.location.hostname === "sandbox.dev.cloud.sdu.dk";
+
+export function onSandbox() {
+    return window.location.hostname === "sandbox.dev.cloud.sdu.dk" || localStorage.getItem("sandbox");
+}
 
 export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();

@@ -62,7 +62,7 @@ func prepareInvocationOnJobCreate(
 	}
 
 	path := filepath.Join(jobFolder, fmt.Sprintf("job-%d.sh", rank))
-	jobFile, ok := filesystem.OpenFile(path, unix.O_WRONLY|unix.O_CREAT, 0700)
+	jobFile, ok := filesystem.OpenFile(path, unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0700)
 	_ = jobFile.Chown(filesystem.DefaultUid, filesystem.DefaultUid)
 	if ok {
 		builder := strings.Builder{}

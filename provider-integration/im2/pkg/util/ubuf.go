@@ -112,6 +112,13 @@ func (b *UBuffer) ReadString() string {
 	return string(output)
 }
 
+func (b *UBuffer) ReadNext(count int) []byte {
+	output := make([]byte, count)
+	next := b._buf.Next(count)
+	copy(output, next)
+	return output
+}
+
 func (b *UBuffer) WriteU8(val uint8) {
 	err := binary.Write(b._buf, binary.BigEndian, val)
 	if err != nil {

@@ -35,7 +35,7 @@ import {ProductType, ProductV2} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {div, image} from "@/Utilities/HTMLUtilities";
+import {divHtml, image} from "@/Utilities/HTMLUtilities";
 import {ConfirmationButtonPlainHTML} from "./ConfirmationAction";
 import {HTMLTooltip} from "./Tooltip";
 import {ButtonClass} from "./Button";
@@ -781,7 +781,7 @@ export class ResourceBrowser<T> {
         // Mount rows and attach event handlers
         const rows: HTMLDivElement[] = [];
         for (let i = 0; i < ResourceBrowser.maxRows; i++) {
-            const row = div(`
+            const row = divHtml(`
                 <div class="favorite"></div>
                 <div class="title"></div>
                 <div class="stat-wrapper">
@@ -1188,7 +1188,7 @@ export class ResourceBrowser<T> {
             button.className = ButtonClass;
             button.style.height = opts?.height ?? "32px";
             button.style.width = opts?.width ?? "96px";
-            
+
             const color = opts?.color ?? "secondaryMain";
             button.style.setProperty("--bgColor", `var(--${color})`);
             button.style.setProperty("--hoverColor", `var(--${selectHoverColor(color)})`);
@@ -1202,6 +1202,29 @@ export class ResourceBrowser<T> {
             return button;
         }
         return null
+    }
+
+    renderDefaultRow(row: ResourceBrowserRow, title: string, opts?: { color?: ThemeColor; color2?: ThemeColor; }): {
+        title: HTMLDivElement
+    } {
+        const icon = this.emptyIconName;
+        if (icon) {
+            const [deviceIcon, setDeviceIcon] = ResourceBrowser.defaultIconRenderer();
+            row.title.append(deviceIcon);
+            ResourceBrowser.icons.renderIcon({
+                name: icon,
+                height: 32,
+                width: 32,
+                color: opts?.color ?? "iconColor",
+                color2: opts?.color2 ?? "iconColor2",
+            }).then(setDeviceIcon);
+        }
+
+        let titleElement = ResourceBrowser.defaultTitleRenderer(title, row);
+        row.title.append(titleElement);
+        return {
+            title: titleElement,
+        };
     }
 
     defaultBreadcrumbs(): {title: string; absolutePath: string;}[] {
@@ -2999,7 +3022,14 @@ export class ResourceBrowser<T> {
         startRenderPage: doNothing,
         endRenderPage: doNothing,
         beforeShortcut: doNothing,
+        unhandledShortcut: doNothing,
+        pathToEntry: () => "",
+        generateBreadcrumbs: () => [],
+        wantToFetchNextPage: async () => {},
         fetchBrowserFeatures: () => undefined,
+        renderEmptyPage: e => {
+            return this.defaultEmptyPage(this.resourceName, e, {});
+        },
         fetchFilters: () => [],
         searchHidden: () => {},
 
@@ -3336,7 +3366,10 @@ export class ResourceBrowser<T> {
         return c;
     }
 
+    private emptyIconName: IconName | null = null;
     public setEmptyIcon(icon: IconName) {
+        this.emptyIconName = icon;
+
         ResourceBrowser.icons.renderIcon({
             name: icon,
             color: "primaryContrast",
@@ -3473,7 +3506,7 @@ export function clearFilterStorageValue(namespace: string, key: string) {
 }
 
 export function addContextSwitcherInPortal<T>(
-    browserRef: React.RefObject<ResourceBrowser<T>>, setPortal: (el: React.ReactNode) => void,
+    browserRef: React.RefObject<ResourceBrowser<T> | null>, setPortal: (el: React.ReactNode) => void,
     managed?: {
         setLocalProject: (project: string | undefined) => void;
         initialProject?: string;
@@ -3595,14 +3628,14 @@ export function resourceCreationWithProductSelector<T>(
 
 export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclaration>): HTMLElement {
     const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
-    const outer = div("");
+    const outer = divHtml("");
     outer.className = "provider-icon"
     outer.style.background = "var(--secondaryMain)";
     outer.style.borderRadius = "8px";
     outer.style.width = outer.style.minWidth = opts?.width ?? "30px";
     outer.style.height = outer.style.minHeight = opts?.height ?? "30px";
 
-    const inner = div("");
+    const inner = divHtml("");
     inner.style.backgroundSize = "contain";
     inner.style.width = "100%";
     inner.style.height = "100%";
@@ -3770,6 +3803,7 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
                     </tr>}
                 </React.Fragment>)}
                 <Shortcut name="Hide shortcuts" alt keys={"H"} />
+                <Shortcut name="Command palette" ctrl keys={"P"} />
             </tbody>
         </table>
     </div>

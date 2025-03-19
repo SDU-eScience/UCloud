@@ -10,7 +10,7 @@ export interface SidebarStateProps {
 export const sidebar = (state: SidebarStateProps = {favorites: [], theme: "light"}, action: SidebarActionType): SidebarStateProps => {
     switch (action.type) {
         case SET_APP_FAVORITES: {
-            return {theme: state.theme, ...action.payload, };
+            return {theme: state.theme, ...action.payload};
         }
         case TOGGLE_APP_FAVORITE: {
             const copy = deepCopy(state);

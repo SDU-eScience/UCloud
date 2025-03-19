@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"time"
+	"ucloud.dk/pkg/im/controller/fsearch"
 	"ucloud.dk/pkg/im/external/gpfs"
 	"ucloud.dk/pkg/util"
 
@@ -16,6 +18,17 @@ func main() {
 	exeName := util.FileName(os.Args[0])
 	if exeName == "gpfs-mock" {
 		gpfs.RunMockServer()
+		return
+	}
+
+	if exeName == "search" {
+		if len(os.Args) < 4 {
+			fmt.Printf("search <query> <load> <bucketCount>")
+			return
+		}
+
+		bucketCount, _ := strconv.ParseInt(os.Args[3], 10, 64)
+		fsearch.CliMain(os.Args[1], os.Args[2] == "true", int(bucketCount))
 		return
 	}
 

@@ -42,3 +42,18 @@ func connectionsV2() migrationScript {
 		},
 	}
 }
+
+func connectionsV3() migrationScript {
+	return migrationScript{
+		Id: "connectionsV3",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table connections add column expires_at timestamptz
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}

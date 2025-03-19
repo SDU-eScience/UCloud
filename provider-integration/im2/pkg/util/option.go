@@ -28,7 +28,7 @@ func (s *Option[T]) Set(v T) {
 	s.Present = true
 }
 
-func (s *Option[T]) GetOrDefault(t T) T {
+func (s Option[T]) GetOrDefault(t T) T {
 	if s.Present {
 		return s.Value
 	}
@@ -39,7 +39,7 @@ func (s *Option[T]) Get() T {
 	return s.Value
 }
 
-func (s *Option[T]) GetPtrOrNil() *T {
+func (s Option[T]) GetPtrOrNil() *T {
 	if !s.Present {
 		return nil
 	}
@@ -92,5 +92,18 @@ func OptStringIfNotEmpty(value string) Option[string] {
 		return OptNone[string]()
 	} else {
 		return OptValue[string](value)
+	}
+}
+
+func OptMapGet[K comparable, V any](value map[K]V, key K) Option[V] {
+	if value == nil {
+		return OptNone[V]()
+	} else {
+		result, ok := value[key]
+		if ok {
+			return OptValue(result)
+		} else {
+			return OptNone[V]()
+		}
 	}
 }

@@ -2,12 +2,17 @@ package k8s
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"maps"
 	"slices"
 	"time"
+	"ucloud.dk/pkg/apm"
+	fnd "ucloud.dk/pkg/foundation"
+	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/containers"
 	"ucloud.dk/pkg/im/services/k8s/kubevirt"
@@ -19,6 +24,7 @@ import (
 
 var nextJobMonitor time.Time
 var nextNodeMonitor time.Time
+var nextAccounting time.Time
 
 // NOTE(Dan): This must only be used by code invoked from the goroutine in loopMonitoring. None of the code is
 // thread-safe.
@@ -26,14 +32,19 @@ var nextNodeMonitor time.Time
 var schedulers = map[string]*Scheduler{}
 
 func getScheduler(category string) (*Scheduler, bool) {
-	_, ok := shared.ServiceConfig.Compute.Machines[category]
-	if !ok {
-		return nil, false
+	_, isIApp := ctrl.IntegratedApplications[category]
+	if isIApp {
+		// TODO Ask the application about the scheduler.
+	} else {
+		_, ok := shared.ServiceConfig.Compute.Machines[category]
+		if !ok {
+			return nil, false
+		}
 	}
 
 	existing, ok := schedulers[category]
 	if !ok {
-		schedulers[category] = NewScheduler()
+		schedulers[category] = NewScheduler(category)
 		existing, ok = schedulers[category]
 	}
 	return existing, ok
@@ -90,7 +101,7 @@ func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 	}
 
 	if state.State == orc.JobStateRunning && state.Node.Present {
-		sched.RegisterRunningReplica(state.Id, state.Rank, jobDimensions(job), state.Node.Value, nil,
+		sched.RegisterRunningReplica(state.Id, state.Rank, shared.JobDimensions(job), state.Node.Value, nil,
 			timeAllocationOrDefault(job.Specification.TimeAllocation))
 	}
 
@@ -144,15 +155,6 @@ func (t *jobTracker) RequestCleanup(jobId string) {
 	}
 }
 
-func jobDimensions(job *orc.Job) SchedulerDimensions {
-	prod := &job.Status.ResolvedProduct
-	return SchedulerDimensions{
-		CpuMillis:     prod.Cpu * 1000,
-		MemoryInBytes: prod.MemoryInGigs * (1024 * 1024 * 1024),
-		Gpu:           0,
-	}
-}
-
 func timeAllocationOrDefault(alloc util.Option[orc.SimpleDuration]) orc.SimpleDuration {
 	return alloc.GetOrDefault(orc.SimpleDuration{
 		Hours:   24 * 365,
@@ -171,35 +173,56 @@ func loopMonitoring() {
 			return shared.K8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 		})
 
+		if util.DevelopmentModeEnabled() && len(nodeList.Items) == 1 {
+			baseNode := nodeList.Items[0]
+			nodeList.Items = []corev1.Node{}
+
+			for category, _ := range shared.ServiceConfig.Compute.Machines {
+				normalMachine := baseNode
+				normalMachine.Labels = maps.Clone(normalMachine.Labels)
+				normalMachine.Labels["ucloud.dk/machine"] = category
+				nodeList.Items = append(nodeList.Items, normalMachine)
+				break
+			}
+
+			if shared.ServiceConfig.Compute.Syncthing.Enabled {
+				syncthingNode := nodeList.Items[0]
+				syncthingNode.Labels = maps.Clone(syncthingNode.Labels)
+				syncthingNode.Labels["ucloud.dk/machine"] = "syncthing"
+				nodeList.Items = append(nodeList.Items, syncthingNode)
+			}
+		}
+
 		length := len(nodeList.Items)
 		for i := 0; i < length; i++ {
 			node := &nodeList.Items[i]
-			category := nodeCategory(node)
-			if !category.Present {
-				continue
+			categories := nodeCategories(node)
+			for _, category := range categories {
+				sched, ok := getScheduler(category)
+				if !ok {
+					continue
+				}
+
+				k8sCapacity := node.Status.Capacity
+				k8sAllocatable := node.Status.Allocatable
+
+				capacity := shared.SchedulerDimensions{
+					CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
+					MemoryInBytes: int(k8sCapacity.Memory().Value()),
+					Gpu:           int(k8sCapacity.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
+				}
+
+				limits := shared.SchedulerDimensions{
+					CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
+					MemoryInBytes: int(k8sAllocatable.Memory().Value()),
+					Gpu:           int(k8sAllocatable.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
+				}
+
+				sched.RegisterNode(node.Name, capacity, limits, node.Spec.Unschedulable)
 			}
+		}
 
-			sched, ok := getScheduler(category.Value)
-			if !ok {
-				continue
-			}
-
-			k8sCapacity := node.Status.Capacity
-			k8sAllocatable := node.Status.Allocatable
-
-			capacity := SchedulerDimensions{
-				CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
-				MemoryInBytes: int(k8sCapacity.Memory().Value()),
-				Gpu:           int(k8sCapacity.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
-			}
-
-			limits := SchedulerDimensions{
-				CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
-				MemoryInBytes: int(k8sAllocatable.Memory().Value()),
-				Gpu:           int(k8sAllocatable.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
-			}
-
-			sched.RegisterNode(node.Name, capacity, limits, node.Spec.Unschedulable)
+		for _, sched := range schedulers {
 			sched.PruneNodes()
 		}
 
@@ -207,12 +230,12 @@ func loopMonitoring() {
 	}
 
 	if now.After(nextJobMonitor) {
+		activeJobs := ctrl.GetJobs()
 		tracker := &jobTracker{
 			batch: ctrl.BeginJobUpdates(),
 			gangs: map[string]jobGang{},
 		}
 
-		activeJobs := ctrl.GetJobs()
 		tracker.jobs = activeJobs
 		containers.Monitor(tracker, activeJobs)
 		kubevirt.Monitor(tracker, activeJobs)
@@ -227,6 +250,23 @@ func loopMonitoring() {
 		}
 
 		batchResults := tracker.batch.End()
+
+		{
+			// Lock jobs which are out of resources
+
+			activeJobsAfterBatch := ctrl.GetJobs()
+			var lockedMessages []ctrl.JobMessage
+			for _, job := range activeJobsAfterBatch {
+				if reason := IsJobLocked(job); reason.Present {
+					lockedMessages = append(lockedMessages, ctrl.JobMessage{
+						JobId:   job.Id,
+						Message: reason.Value.Reason,
+					})
+					tracker.RequestCleanup(job.Id)
+				}
+			}
+			_ = ctrl.TrackJobMessages(lockedMessages)
+		}
 
 		go func() {
 			for _, jobId := range tracker.terminationRequested {
@@ -259,11 +299,49 @@ func loopMonitoring() {
 			if len(containersStarted) > 0 {
 				containers.OnStart(containersStarted)
 			}
-
 			if len(kubevirtStarted) > 0 {
 				kubevirt.OnStart(kubevirtStarted)
 			}
 		}()
+
+		if now.After(nextAccounting) {
+			var reports []apm.UsageReportItem
+
+			for _, job := range activeJobs {
+				timeReport := shared.ComputeRunningTime(job)
+				accUnits := convertJobTimeToAccountingUnits(job, timeReport.TimeConsumed)
+				reports = append(reports, apm.UsageReportItem{
+					IsDeltaCharge: false,
+					Owner:         apm.WalletOwnerFromIds(job.Owner.CreatedBy, job.Owner.Project),
+					CategoryIdV2: apm.ProductCategoryIdV2{
+						Name:     job.Specification.Product.Category,
+						Provider: job.Specification.Product.Provider,
+					},
+					Usage: accUnits,
+					Description: apm.ChargeDescription{
+						Scope: util.OptValue(fmt.Sprintf("job-%v", job.Id)),
+					},
+				})
+			}
+
+			if len(reports) > 0 {
+				reportsChunked := util.ChunkBy(reports, 500)
+
+				for chunkIdx := 0; chunkIdx < len(reportsChunked); chunkIdx++ {
+					// NOTE(Dan): Results are completely ignored here, and we rely solely on the APM events which will
+					// trigger when the wallet is locked.
+
+					reportChunk := reportsChunked[chunkIdx]
+
+					_, err := apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{Items: reportChunk})
+					if err != nil {
+						log.Info("Failed to report usage: %s", err)
+					}
+				}
+			}
+
+			nextAccounting = now.Add(30 * time.Second)
+		}
 
 		nextJobMonitor = now.Add(5 * time.Second)
 	}
@@ -272,7 +350,7 @@ func loopMonitoring() {
 	for _, entry := range entriesToSubmit {
 		sched, ok := getSchedulerByJob(entry)
 		if ok {
-			sched.RegisterJobInQueue(entry.Id, jobDimensions(entry),
+			sched.RegisterJobInQueue(entry.Id, shared.JobDimensions(entry),
 				entry.Specification.Replicas, nil, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
 		}
 	}
@@ -315,17 +393,66 @@ func loopMonitoring() {
 	_ = ctrl.TrackJobMessages(scheduleMessages)
 }
 
-func nodeCategory(node *corev1.Node) util.Option[string] {
-	machineLabel, ok := node.Labels["ucloud.dk/machine"]
-	if !ok {
-		// Dev only fix
-		if node.ObjectMeta.Name == "im2k3" {
-			for k, _ := range shared.ServiceConfig.Compute.Machines {
-				return util.OptValue(k)
+func nodeCategories(node *corev1.Node) []string {
+	// NOTE(Dan): It is really important that production providers only return 1. Being able to return more than one
+	// is just for testing in resource-constrained environments.
+	parseResult := func(machineLabel string) []string {
+		if len(machineLabel) == 0 {
+			return nil
+		} else {
+			if machineLabel[0] == '[' {
+				var nodes []string
+				_ = json.Unmarshal([]byte(machineLabel), &nodes)
+				return nodes
+			} else {
+				return []string{machineLabel}
 			}
 		}
-		return util.OptNone[string]()
 	}
 
-	return util.OptValue(machineLabel)
+	var result []string
+	result = append(result, parseResult(node.Labels["ucloud.dk/machine"])...)
+	result = append(result, parseResult(node.Annotations["ucloud.dk/machine"])...)
+	return result
+}
+
+func convertJobTimeToAccountingUnits(job *orc.Job, timeConsumed time.Duration) int64 {
+	k8sCategory := shared.ServiceConfig.Compute.Machines[job.Specification.Product.Category]
+
+	productUnits := float64(job.Specification.Replicas)
+	switch k8sCategory.Payment.Unit {
+	case cfg.MachineResourceTypeCpu:
+		productUnits *= float64(job.Status.ResolvedProduct.Cpu)
+	case cfg.MachineResourceTypeGpu:
+		productUnits *= float64(job.Status.ResolvedProduct.Gpu)
+	case cfg.MachineResourceTypeMemory:
+		productUnits *= float64(job.Status.ResolvedProduct.MemoryInGigs)
+	case "":
+		// Use just the nodes. This is used when type is currency.
+	}
+
+	baseTimeUnit := 1 * time.Minute
+	switch k8sCategory.Payment.Interval {
+	case cfg.PaymentIntervalMinutely:
+		baseTimeUnit = time.Minute
+	case cfg.PaymentIntervalHourly:
+		baseTimeUnit = time.Hour
+	case cfg.PaymentIntervalDaily:
+		baseTimeUnit = 24 * time.Hour
+	}
+
+	timeUnits := float64(timeConsumed) / float64(baseTimeUnit)
+
+	hasPrice := k8sCategory.Payment.Type == cfg.PaymentTypeMoney
+	price := float64(1)
+	if hasPrice {
+		price = float64(job.Status.ResolvedProduct.Price) / 1000000
+	}
+
+	accountingUnitsUsed := productUnits * timeUnits * price
+	if hasPrice {
+		accountingUnitsUsed *= 1000000
+	}
+
+	return int64(accountingUnitsUsed)
 }

@@ -2,6 +2,8 @@ package config
 
 import (
 	"gopkg.in/yaml.v3"
+	"math"
+	"net"
 	"ucloud.dk/pkg/util"
 )
 
@@ -15,6 +17,26 @@ type KubernetesFileSystem struct {
 	MountPoint       string
 	TrashStagingArea string
 	ClaimName        string
+	ScanMethod       KubernetesFileSystemScanMethod
+}
+
+type KubernetesFileSystemScanMethod struct {
+	Type              K8sScanMethodType
+	ExtendedAttribute string
+}
+
+type K8sScanMethodType string
+
+const (
+	K8sScanMethodTypeWalk              K8sScanMethodType = "Walk"
+	K8sScanMethodTypeExtendedAttribute K8sScanMethodType = "Xattr"
+	K8sScanMethodTypeDevFile           K8sScanMethodType = "Development"
+)
+
+var K8sScanMethodTypeValues = []K8sScanMethodType{
+	K8sScanMethodTypeWalk,
+	K8sScanMethodTypeExtendedAttribute,
+	K8sScanMethodTypeDevFile,
 }
 
 type KubernetesWebConfiguration struct {
@@ -23,10 +45,35 @@ type KubernetesWebConfiguration struct {
 	Suffix  string
 }
 
+type KubernetesIpConfiguration struct {
+	Enabled bool
+	Name    string
+}
+
+type KubernetesSshConfiguration struct {
+	Enabled   bool
+	IpAddress string
+	Hostname  util.Option[string]
+	PortMin   int
+	PortMax   int
+}
+
+type KubernetesSyncthingConfiguration struct {
+	Enabled               bool
+	IpAddress             string
+	PortMin               int
+	PortMax               int
+	DevelopmentSourceCode string
+	RelaysEnabled         bool
+}
+
 type KubernetesCompute struct {
 	Machines                   map[string]K8sMachineCategory
 	Namespace                  string
 	Web                        KubernetesWebConfiguration
+	PublicIps                  KubernetesIpConfiguration
+	Ssh                        KubernetesSshConfiguration
+	Syncthing                  KubernetesSyncthingConfiguration
 	VirtualMachineStorageClass util.Option[string]
 }
 
@@ -62,6 +109,26 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		cfg.FileSystem.MountPoint = requireChildFolder(filePath, fsNode, "mountPoint", FileCheckReadWrite, &success)
 		cfg.FileSystem.TrashStagingArea = requireChildFolder(filePath, fsNode, "trashStagingArea", FileCheckReadWrite, &success)
 		cfg.FileSystem.ClaimName = requireChildText(filePath, fsNode, "claimName", &success)
+
+		scanMethodNode, _ := getChildOrNil(filePath, fsNode, "scanMethod")
+		if scanMethodNode != nil {
+			cfg.FileSystem.ScanMethod.Type = requireChildEnum(filePath, scanMethodNode, "type",
+				K8sScanMethodTypeValues, &success)
+
+			switch cfg.FileSystem.ScanMethod.Type {
+			case K8sScanMethodTypeWalk:
+				// Do nothing
+
+			case K8sScanMethodTypeExtendedAttribute:
+				cfg.FileSystem.ScanMethod.ExtendedAttribute = requireChildText(filePath, scanMethodNode,
+					"xattr", &success)
+
+			case K8sScanMethodTypeDevFile:
+				// Do nothing
+			}
+		} else {
+			cfg.FileSystem.ScanMethod.Type = K8sScanMethodTypeWalk
+		}
 	}
 
 	computeNode := requireChild(filePath, services, "compute", &success)
@@ -147,6 +214,110 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		if cfg.Compute.Web.Enabled {
 			cfg.Compute.Web.Prefix = requireChildText(filePath, webNode, "prefix", &success)
 			cfg.Compute.Web.Suffix = requireChildText(filePath, webNode, "suffix", &success)
+		}
+	}
+
+	ipNode, _ := getChildOrNil(filePath, computeNode, "publicIps")
+	if ipNode != nil {
+		enabled, ok := optionalChildBool(filePath, ipNode, "enabled")
+		cfg.Compute.PublicIps.Enabled = enabled && ok
+
+		if cfg.Compute.PublicIps.Enabled {
+			name := optionalChildText(filePath, ipNode, "name", &success)
+			if name != "" {
+				cfg.Compute.PublicIps.Name = name
+			} else {
+				cfg.Compute.PublicIps.Name = "public-ip"
+			}
+		}
+	}
+
+	sshNode, _ := getChildOrNil(filePath, computeNode, "ssh")
+	if sshNode != nil {
+		enabled, ok := optionalChildBool(filePath, sshNode, "enabled")
+		cfg.Compute.Ssh.Enabled = enabled && ok
+
+		if cfg.Compute.Ssh.Enabled {
+			ipAddr := requireChildText(filePath, sshNode, "ipAddress", &success)
+			if success {
+				ip := net.ParseIP(ipAddr)
+				if ip == nil {
+					reportError(filePath, sshNode, "Invalid IP address specified")
+					success = false
+				} else {
+					cfg.Compute.Ssh.IpAddress = ipAddr
+				}
+			}
+
+			portMin := requireChildInt(filePath, sshNode, "portMin", &success)
+			if success && (portMin <= 0 || portMin >= math.MaxInt16) {
+				reportError(filePath, sshNode, "portMin is invalid")
+				success = false
+			}
+
+			portMax := requireChildInt(filePath, sshNode, "portMax", &success)
+			if success && (portMax <= 0 || portMax >= math.MaxInt16) {
+				reportError(filePath, sshNode, "portMax is invalid")
+				success = false
+			}
+
+			if success && portMin < portMin {
+				reportError(filePath, sshNode, "portMax is less than portMin")
+				success = false
+			}
+
+			cfg.Compute.Ssh.PortMin = int(portMin)
+			cfg.Compute.Ssh.PortMax = int(portMax)
+
+			hostname := optionalChildText(filePath, sshNode, "hostname", &success)
+			if hostname != "" {
+				cfg.Compute.Ssh.Hostname.Set(hostname)
+			}
+		}
+	}
+
+	syncthingNode, _ := getChildOrNil(filePath, computeNode, "syncthing")
+	if syncthingNode != nil {
+		enabled, ok := optionalChildBool(filePath, syncthingNode, "enabled")
+		cfg.Compute.Syncthing.Enabled = enabled && ok
+
+		if cfg.Compute.Syncthing.Enabled {
+			ipAddr := requireChildText(filePath, syncthingNode, "ipAddress", &success)
+			if success {
+				ip := net.ParseIP(ipAddr)
+				if ip == nil {
+					reportError(filePath, syncthingNode, "Invalid IP address specified")
+					success = false
+				} else {
+					cfg.Compute.Syncthing.IpAddress = ipAddr
+				}
+			}
+
+			portMin := requireChildInt(filePath, syncthingNode, "portMin", &success)
+			if success && (portMin <= 0 || portMin >= math.MaxInt16) {
+				reportError(filePath, syncthingNode, "portMin is invalid")
+				success = false
+			}
+
+			portMax := requireChildInt(filePath, syncthingNode, "portMax", &success)
+			if success && (portMax <= 0 || portMax >= math.MaxInt16) {
+				reportError(filePath, syncthingNode, "portMax is invalid")
+				success = false
+			}
+
+			if success && portMin < portMin {
+				reportError(filePath, syncthingNode, "portMax is less than portMin")
+				success = false
+			}
+
+			cfg.Compute.Syncthing.PortMin = int(portMin)
+			cfg.Compute.Syncthing.PortMax = int(portMax)
+
+			cfg.Compute.Syncthing.DevelopmentSourceCode = optionalChildText(filePath, syncthingNode, "developmentSourceCode", &success)
+
+			relaysEnabled, ok := optionalChildBool(filePath, syncthingNode, "relaysEnabled")
+			cfg.Compute.Syncthing.RelaysEnabled = relaysEnabled && ok
+			cfg.Compute.Syncthing.DevelopmentSourceCode = optionalChildText(filePath, syncthingNode, "developmentSourceCode", &success)
 		}
 	}
 

@@ -3,7 +3,7 @@ import {usePage} from "@/Navigation/Redux";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {Dispatch} from "redux";
-import {Box, Button, Flex, Icon, Link, Markdown, Text} from "@/ui-components";
+import {Box, Button, Flex, Icon, Image, Link, Markdown, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {DashboardOperations} from ".";
 import {setAllLoading} from "./Redux";
@@ -19,7 +19,7 @@ import {Connect} from "@/Providers/Connect";
 import {useProject} from "@/Project/cache";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import AppRoutes from "@/Routes";
-import {injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle} from "@/Unstyled";
 import JobsBrowse from "@/Applications/Jobs/JobsBrowse";
 import {GrantApplicationBrowse} from "@/Grants/GrantApplicationBrowse";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
@@ -39,6 +39,12 @@ import {AllocationDisplayWallet} from "@/Accounting";
 import {ProgressBar} from "@/Accounting/Allocations";
 import remarkGfm from "remark-gfm";
 import ExternalLink from "../ui-components/ExternalLink";
+import {onSandbox} from "@/UtilityFunctions";
+import halric from "@/Assets/Images/halric.png";
+import halricWhite from "@/Assets/Images/halric_white.png";
+import interreg from "@/Assets/Images/interreg.svg";
+import interregWhite from "@/Assets/Images/interreg_white.svg";
+import {useIsLightThemeStored} from "@/ui-components/theme";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
@@ -66,7 +72,6 @@ function Dashboard(): React.ReactNode {
     const reduxOps = React.useMemo(() => reduxOperations(dispatch), [dispatch]);
 
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Accounting.WalletV2>>({noop: true}, emptyPageV2);
-
 
     React.useEffect(() => {
         reload();
@@ -317,6 +322,8 @@ function DashboardGrantApplications({reloadRef}: { reloadRef: React.MutableRefOb
 };
 
 function DashboardNews({news}: { news: APICallState<Page<NewsPost>> }): React.ReactNode {
+    const lightTheme = useIsLightThemeStored();
+
     const newsItem = news.data.items.length > 0 ? news.data.items[0] : null;
     return (
         <DashboardCard
@@ -325,7 +332,7 @@ function DashboardNews({news}: { news: APICallState<Page<NewsPost>> }): React.Re
             icon={"heroNewspaper"}
             overflow={"visible"}
         >
-            <div className={NewsClass}>
+            <div className={classConcat(NewsClass, onSandbox() ? "halric" : undefined)}>
                 <div>
                     {news.data.items.length !== 0 ? null : (
                         <NoResultsCardBody title={"No news"}>
@@ -355,7 +362,15 @@ function DashboardNews({news}: { news: APICallState<Page<NewsPost>> }): React.Re
                         </Box>
                     }
                 </div>
-                <img style={{zIndex: 1}} alt={"UCloud logo"} src={ucloudImage}/>
+                {onSandbox() ? <>
+                    <Flex gap={"16px"} flexDirection={"column"} justifyContent={"center"} alignItems={"end"} ml={"16px"} mr={"64px"}>
+                        <Image src={lightTheme ? interreg : interregWhite} alt={"Interreg"} width={"500px"} />
+                        <Image src={lightTheme ? halric : halricWhite} alt={"HALRIC"} width={"70px"} ml={"16px"} />
+                    </Flex>
+                </> : <>
+                    <img style={{zIndex: 1}} alt={"UCloud logo"} src={ucloudImage}/>
+                </>}
+
             </div>
         </DashboardCard>
     );
@@ -370,9 +385,22 @@ const NewsClass = injectStyle("with-graphic", k => `
         display: flex;
         height: 270px;
     }
+    
+    ${k}.halric {
+        flex-wrap: wrap;
+        height: unset;
+    }
 
-    ${k} > div {
-        width: 800px;
+    ${k} > div:nth-child(1) {
+        flex-basis: 500px;
+        flex-grow: 4;
+        margin-right: 32px;
+    }
+    
+    ${k} > div:nth-child(2) {
+        flex-basis: 550px;
+        flex-grow: 1;
+        align-items: center;
     }
 
     ${k} > img {
@@ -393,7 +421,7 @@ const NewsClass = injectStyle("with-graphic", k => `
         display: none;
         width: 0px;
     }
-
+    
     ${k} > div {
         width: 100%;
     }

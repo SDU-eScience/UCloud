@@ -21,7 +21,7 @@ import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SafeLogo} from "../AppToolLogo";
-import {doNothing} from "@/UtilityFunctions";
+import {doNothing, stopPropagation} from "@/UtilityFunctions";
 import ReactModal from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import List, {ListRow} from "@/ui-components/List";
@@ -30,15 +30,17 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {fetchAll} from "@/Utilities/PageUtilities";
-import {useDidUnmount} from "@/Utilities/ReactUtilities";
+import {useDidUnmount, useForcedRender} from "@/Utilities/ReactUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
 import {Toggle} from "@/ui-components/Toggle";
 import {UploadAppAndTool} from "@/Applications/Studio/Uploader";
+import {injectStyle, makeKeyframe} from "@/Unstyled";
+import {Feature, hasFeature} from "@/Features";
 
 export const AppGroup: React.FunctionComponent = () => {
-    const id = parseInt(useParams<{ id: string }>().id ?? "-1");
+    const id = parseInt(useParams<{id: string}>().id ?? "-1");
 
     const [group, fetchGroup] = useCloudAPI(AppStore.retrieveStudioGroup({id}), null);
     const [filter, setFilter] = useState("");
@@ -128,6 +130,33 @@ export const AppGroup: React.FunctionComponent = () => {
     }, [id, refresh]);
 
     const navigate = useNavigate();
+
+    const currentApp = useRef(-1);
+    const forceRender = useForcedRender()
+    const swapAppPositions = React.useCallback((draggedAppIndex: number, droppedAppIndex: number) => {
+        if (draggedAppIndex === -1) return;
+        if (!group.data?.status.applications) return;
+        const draggedApp = group.data.status.applications[draggedAppIndex];
+        const droppedApp = group.data.status.applications[droppedAppIndex];
+        group.data.status.applications[draggedAppIndex] = droppedApp;
+        group.data.status.applications[droppedAppIndex] = draggedApp;
+
+        const list = document.querySelector("[data-app-list]");
+        const dragEl = list?.querySelector<HTMLDivElement>(`[data-idx="${draggedAppIndex}"]`)
+        if (dragEl) {
+            dragEl.classList.add(MovedAnimation);
+            dragEl.onanimationend = () => dragEl.classList.remove(MovedAnimation);
+        }
+        const dropEl = list?.querySelector<HTMLDivElement>(`[data-idx="${droppedAppIndex}"]`)
+        if (dropEl) {
+            dropEl.classList.add(MovedAnimation);
+            dropEl.onanimationend = () => dropEl.classList.remove(MovedAnimation);
+        }
+
+        snackbarStore.addInformation("Backend support is not yet implemented for custom sort ordering.", false);
+
+        forceRender();
+    }, [group]);
 
     useSetRefreshFunction(refresh);
 
@@ -241,6 +270,7 @@ export const AppGroup: React.FunctionComponent = () => {
                                             newDefaultFlavor: defaultApplication,
                                             newLogoHasText: logoHasText
                                             // tags
+                                            // TODO: app ordering
                                         }));
                                         refresh();
 
@@ -336,7 +366,7 @@ export const AppGroup: React.FunctionComponent = () => {
                                                 style={{marginLeft: "8px", height: "25px"}}
                                             />
                                         </Flex>
-                                        <Box mt="25px" mr="60px">Default</Box>
+                                        <Flex width="max-content" ml="auto" mr="68px">Default</Flex>
                                     </Flex>
 
                                     {appUploadError ?
@@ -344,14 +374,22 @@ export const AppGroup: React.FunctionComponent = () => {
                                         : null
                                     }
 
-                                    <List width="100%">
-                                        {group.data.status?.applications?.map(app => (
+                                    <List width="100%" data-app-list>
+                                        {group.data.status?.applications?.map((app, index) => (
                                             <ListRow
                                                 key={app.metadata.name}
+                                                onDrop={() => swapAppPositions(currentApp.current, index)}
+                                                data-idx={index}
                                                 navigate={() => navigate(`/applications/studio/a/${app.metadata.name}`)}
                                                 left={
-                                                    <Flex justifyContent="left" gap="15px">
-                                                        <Box><SafeLogo name={app.metadata.name} type="APPLICATION" size="30px" cacheBust={reloadId.toString()}/></Box>
+                                                    <Flex
+                                                        draggable
+                                                        onDrag={() => currentApp.current = index}
+                                                        onDragEnd={() => currentApp.current = -1}
+                                                        justifyContent="left" gap="15px"
+                                                    >
+                                                        {hasFeature(Feature.REORDER_APP_GROUP) ? <Box height="32px" onClick={stopPropagation} onDrag={stopPropagation} marginLeft="12px" fontSize={"24px"}>=</Box> : null}
+                                                        <Box><SafeLogo name={app.metadata.name} type="APPLICATION" size="30px" cacheBust={reloadId.toString()} /></Box>
                                                         <Box mt="6px">{app.metadata.title}</Box>
                                                     </Flex>
                                                 }
@@ -395,5 +433,24 @@ export const AppGroup: React.FunctionComponent = () => {
             </>
     );
 };
+
+
+const RippleAnimation = makeKeyframe("ripple-animation", `
+    0% {
+        background-color: var(--rowActive);
+    }
+    100% {
+        background-color: unset;
+    }
+`);
+
+const PULSE_ANIMATION_SPEED = "1.2s";
+
+const MovedAnimation = injectStyle("highlight", k => `
+    ${k} {
+        -webkit-animation: ${RippleAnimation} ${PULSE_ANIMATION_SPEED} ease-out;
+                animation: ${RippleAnimation} ${PULSE_ANIMATION_SPEED} ease-out;
+    }
+`);
 
 export default AppGroup;

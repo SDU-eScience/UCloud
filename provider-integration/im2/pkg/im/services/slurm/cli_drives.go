@@ -142,7 +142,7 @@ func singleDriveToCliDrive(drive *orc.Drive, ok bool) ipc.Response[[]cliDrive] {
 	}
 
 	if !strings.HasPrefix(drive.Owner.CreatedBy, "_") {
-		uid, ok := ctrl.MapUCloudToLocal(drive.Owner.CreatedBy)
+		uid, ok, _ := ctrl.MapUCloudToLocal(drive.Owner.CreatedBy)
 		if !ok {
 			return ipc.Response[[]cliDrive]{
 				StatusCode:   http.StatusNotFound,

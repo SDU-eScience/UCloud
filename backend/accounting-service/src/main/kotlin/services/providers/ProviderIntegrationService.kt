@@ -1,8 +1,6 @@
 package dk.sdu.cloud.accounting.services.providers
 
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.NormalizedPaginationRequestV2
+import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.invokeCall
@@ -13,21 +11,25 @@ import dk.sdu.cloud.auth.api.providerIdOrNull
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.provider.api.*
-import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import java.security.cert.CertPathValidatorException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import java.util.*
+import java.util.concurrent.atomic.AtomicReference
 
 
 class ProviderIntegrationService(
     private val db: DBContext,
     private val providers: ProviderService,
     private val serviceClient: AuthenticatedClient,
+    private val backgroundScope: BackgroundScope,
     private val devMode: Boolean = false,
 ) {
     // TODO(Dan): Unify all of this communication stuff. It is getting very confusing.
@@ -57,6 +59,9 @@ class ProviderIntegrationService(
             Communication(integrationProvider, httpClient, spec, manifest)
         }
     )
+
+    private val knownProviders = AtomicReference<Set<String>>(emptySet())
+
     private val providerConditionCache = SimpleCache<String, ProviderCondition>(
         maxAge = 1000 * 60 * 5L,
     ) { providerId ->
@@ -77,6 +82,32 @@ class ProviderIntegrationService(
         val spec: ProviderSpecification,
         val manifest: IntegrationProviderRetrieveManifestResponse,
     )
+
+    fun init() {
+        backgroundScope.launch {
+            while (coroutineContext.isActive) {
+                val providerIds = db.withSession { session ->
+                    session.sendPreparedStatement(
+                        {},
+                        """
+                            select resource
+                            from provider.providers p
+                        """
+                    ).rows.map { it.getLong(0)!!.toString() }
+                }
+
+                for (provider in providerIds) {
+                    runCatching {
+                        communicationCache.get(provider)
+                    }
+                }
+
+                knownProviders.set(providerIds.toSet())
+
+                delay(1000 * 60 * 1)
+            }
+        }
+    }
 
     suspend fun connect(
         actorAndProject: ActorAndProject,
@@ -122,9 +153,14 @@ class ProviderIntegrationService(
         actorAndProject: ActorAndProject,
         request: NormalizedPaginationRequestV2
     ): PageV2<IntegrationBrowseResponseItem> {
-        return db.withSession { session ->
-            val itemsPerPage = request.itemsPerPage
-            val rows = session.sendPreparedStatement(
+        data class Row(
+            val providerId: String,
+            val providerTitle: String,
+            val isConnected: Boolean
+        )
+
+        val rows = db.withSession { session ->
+            session.sendPreparedStatement(
                 {
                     setParameter("username", actorAndProject.actor.safeUsername())
                     setParameter("next", request.next?.toLongOrNull())
@@ -157,6 +193,11 @@ class ProviderIntegrationService(
                                 provider.providers p on pc.provider = p.unique_name
                             where
                                 wo.username = :username
+                            union
+                            select p.resource, p.unique_name
+                            from
+                                connected c
+                                join provider.providers p on p.resource = c.provider_id
                         )
                     select
                         a.resource as provider_id,
@@ -171,40 +212,57 @@ class ProviderIntegrationService(
                             a.resource > :next::bigint
                         )
                     order by provider_id
-                    limit $itemsPerPage
                 """
-            ).rows
-
-            val items = rows.mapNotNull { row ->
-                // TODO(HENRIK): Try catch might only be temp solution to help on dev
-                try {
-                    val providerTitle = row.getString(2)!!
-                    val manifest = communicationCache.get(row.getLong(0)!!.toString())
-
-                    IntegrationBrowseResponseItem(
-                        row.getLong(0)!!.toString(),
-                        when {
-                            providerTitle == "ucloud" -> true // NOTE(Dan): Backwards compatible
-                            providerTitle == "aau" -> true // NOTE(Dan): Backwards compatible
-                            manifest != null && !manifest.manifest.enabled -> true
-                            else -> row.getBoolean(1)!!
-                        },
-                        providerTitle,
-                        manifest?.manifest?.requiresMessageSigning ?: false
-                    )
-                } catch (ex: Throwable) {
-                    return@mapNotNull null
-                }
-            }
-
-            val next = if (items.size < itemsPerPage) {
-                null
-            } else {
-                items.last().provider
-            }
-
-            PageV2(itemsPerPage, items, next)
+            ).rows.map { Row(it.getLong(0)!!.toString(), it.getString(2)!!, it.getBoolean(1)!!) }
         }
+
+        val itemsByProviderId = HashMap<String, IntegrationBrowseResponseItem>()
+
+        rows.forEach { row ->
+            try {
+                val manifest = communicationCache.get(row.providerId)
+
+                itemsByProviderId[row.providerId] = IntegrationBrowseResponseItem(
+                    row.providerId,
+                    when {
+                        row.providerTitle == "ucloud" -> true // NOTE(Dan): Backwards compatible
+                        row.providerTitle == "aau" -> true // NOTE(Dan): Backwards compatible
+                        manifest != null && !manifest.manifest.enabled -> true
+                        else -> row.isConnected
+                    },
+                    row.providerTitle,
+                    manifest?.manifest?.requiresMessageSigning ?: false,
+                    false, // NOTE(Dan): Send unmanaged connection only if we are taking the other branch
+                )
+            } catch (ignored: Throwable) {
+                // Ignored
+            }
+        }
+
+        for (provider in knownProviders.get()) {
+            try {
+                val manifest = communicationCache.get(provider) ?: continue
+                if (manifest.manifest.unmanagedConnections && !itemsByProviderId.contains(provider)) {
+                    itemsByProviderId[provider] = IntegrationBrowseResponseItem(
+                        provider,
+                        when {
+                            manifest.spec.id == "ucloud" -> true // NOTE(Dan): Backwards compatible
+                            manifest.spec.id == "aau" -> true // NOTE(Dan): Backwards compatible
+                            manifest != null && !manifest.manifest.enabled -> true
+                            else -> false
+                        },
+                        manifest.spec.id,
+                        manifest.manifest.requiresMessageSigning,
+                        manifest.manifest.unmanagedConnections,
+                    )
+                }
+            } catch (ignored: Throwable) {
+                // Ignored
+            }
+        }
+
+        val items = itemsByProviderId.values.toList().sortedBy { it.providerTitle }
+        return PageV2(250, items, null)
     }
 
     suspend fun retrieveCondition(

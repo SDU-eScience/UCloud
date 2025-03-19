@@ -60,7 +60,7 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
 
     const prettyInitialFolderPath = usePrettyFilePath(props.initialFolder);
 
-    return <div style={style} className={FileTreeClass}>
+    return <div onContextMenu={e => onContextMenu(e, undefined)} style={style} className={FileTreeClass}>
         <Flex alignItems={"center"} pl="6px" className="title-bar" gap={"8px"}>
             <FtIcon fileIcon={{type: "DIRECTORY", ext: extensionFromPath(props.initialFolder)}} size={"18px"} />
             <Box width="150px"><Truncate width="150px" title={prettyInitialFolderPath} maxWidth="150px">{fileName(prettyInitialFolderPath)}</Truncate></Box>
@@ -72,7 +72,7 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
                 </>
             ) : null}
         </Flex>
-        <Box onContextMenu={e => onContextMenu(e, undefined)} overflowY="auto" maxHeight={"calc(100vh - 34px)"}>
+        <Box overflowY="auto" maxHeight={"calc(100vh - 34px)"}>
             <Tree apiRef={tree} onAction={onTreeAction}>
                 <FileNode
                     initialFolder={props.initialFolder}
@@ -187,6 +187,7 @@ const FileTreeClass = injectStyle("file-tree", k => `
     ${k} {
         width: var(--tree-width);
         max-width: var(--tree-width);
+        height: 100%;
         resize: var(--resize-setting);
         flex-shrink: 0;
         border-right: var(--borderThickness) solid var(--borderColor);

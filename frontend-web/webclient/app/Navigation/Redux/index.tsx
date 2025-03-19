@@ -4,10 +4,11 @@ import {useDispatch} from "react-redux";
 import {useEffect} from "react";
 import {initStatus, StatusReduxObject} from "@/DefaultObjects";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {PayloadAction} from "@reduxjs/toolkit";
 
 export type Index = UpdatePageTitleAction | SetLoading | SetActivePage;
 
-export type UpdatePageTitleAction = PayloadAction<typeof UPDATE_PAGE_TITLE, {title: string}>;
+export type UpdatePageTitleAction = PayloadAction<{title: string}, typeof UPDATE_PAGE_TITLE>;
 /**
  * Sets the title of the window. Stores in the redux store as well
  * @param {string} title the title to be set
@@ -25,7 +26,7 @@ export function setLoading(loading: boolean): SetLoading {
     });
 }
 
-type SetActivePage = PayloadAction<typeof SET_ACTIVE_PAGE, {tab: SidebarTabId}>
+type SetActivePage = PayloadAction<{tab: SidebarTabId}, typeof SET_ACTIVE_PAGE>
 function setActivePage(tab: SidebarTabId): SetActivePage {
     return {
         type: SET_ACTIVE_PAGE,

@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"ucloud.dk/pkg/apm"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
@@ -23,6 +25,15 @@ import (
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
+)
+
+var (
+	metricSlurmUnknownJobsRegistered = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "slurm",
+		Name:      "unknown_jobs_registered",
+		Help:      "The number of jobs registered by UCloud through Slurm (i.e. not submitted through UCloud)",
+	})
 )
 
 var Machines []apm.ProductV2
@@ -104,7 +115,7 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 	var result []orc.ApplicationParameter
 
 	if owner.Project != "" {
-		project, ok := ctrl.GetLastKnownProject(owner.Project)
+		project, ok := ctrl.RetrieveProject(owner.Project)
 		if ok && project.Status.PersonalProviderProjectFor.Present {
 			accounts := []string{"unknown"}
 			myUser, err := user.Current()
@@ -141,6 +152,7 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 			Applications:         ServiceConfig.Compute.Applications,
 			RequiredApplications: appsToLoad,
 			VersionPolicy:        "loose",
+			PreviouslyLoaded:     make(map[orc.NativeApplication]appCfgAndVersion),
 		}
 
 		var failedToLoad []string
@@ -260,8 +272,8 @@ func loopAccounting() {
 func loopComputeMonitoring() {
 	jobs := SlurmClient.JobList()
 
-	batch := ctrl.BeginJobUpdates()
 	activeJobs := ctrl.GetJobs()
+	batch := ctrl.BeginJobUpdates()
 
 	jobsBySlurmId := make(map[int]string)
 	for jobId, job := range activeJobs {
@@ -373,6 +385,7 @@ func loopComputeMonitoring() {
 					log.Warn("Error while retrieving job: %s", err.Error())
 				}
 
+				metricSlurmUnknownJobsRegistered.Inc()
 				ctrl.TrackNewJob(job)
 			}
 		}
@@ -942,7 +955,7 @@ func FindJobFolder(owner apm.WalletOwner) (string, bool) {
 		dir, err := os.UserHomeDir()
 
 		if err == nil {
-			project, ok := ctrl.GetLastKnownProject(owner.ProjectId)
+			project, ok := ctrl.RetrieveProject(owner.ProjectId)
 			if !ok {
 				basePath = dir
 			} else if project.Status.PersonalProviderProjectFor.Present {

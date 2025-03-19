@@ -18,11 +18,13 @@ export enum Feature {
     NEW_TASKS,
     COMMAND_PALETTE,
     INTEGRATED_EDITOR,
-    EDITOR_VIM,
 
     PROVIDER_CONDITION,
 
-    ALTERNATIVE_USAGE_SELECTOR
+    REORDER_APP_GROUP,
+
+    ALTERNATIVE_USAGE_SELECTOR,
+    NEW_SYNCTHING_UI
 }
 
 enum Environment {
@@ -108,26 +110,34 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithFlag: allEnvironments,
     },
 
-    "editor-vim": {
-        feature: Feature.EDITOR_VIM,
-        showWithoutFlag: allLocalEnvironments,
-        showWithFlag: allEnvironments,
-    },
-
     "provider-condition": {
         feature: Feature.PROVIDER_CONDITION,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     },
+
     "job-rename": {
         feature: Feature.JOB_RENAME,
         showWithFlag: allDevEnvironments,
         showWithoutFlag: allLocalEnvironments
     },
+
     "alternative-usage-selector": {
         feature: Feature.ALTERNATIVE_USAGE_SELECTOR,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
+    },
+
+    "new-syncthing-ui": {
+        feature: Feature.NEW_SYNCTHING_UI,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "reorder-app-group": {
+        feature: Feature.REORDER_APP_GROUP,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allDevEnvironments,
     }
 };
 

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"ucloud.dk/pkg/apm"
 	db "ucloud.dk/pkg/database"
 	fnd "ucloud.dk/pkg/foundation"
 	"ucloud.dk/pkg/im/ipc"
@@ -21,7 +22,6 @@ import (
 // The drive database does not reliably track all properties. These properties should never be used for anything but
 // CLI tools as they might be out-of-date. Namely, the following properties are _not_ tracked reliably:
 //
-// - Permissions (should always be enforced by UCloud/Core)
 // - Changes to product (should not happen)
 // - Updates (should not be used)
 // - Changes in timestamps (IM generally has no use for these)
@@ -53,6 +53,18 @@ func InitDriveDatabase() {
 			}
 		}
 		activeDrivesMutex.Unlock()
+	})
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into tracked_drives_scan_timer(zero, time)
+				values (0, now())
+				on conflict (zero) do update set time = excluded.time;
+			`,
+			db.Params{},
+		)
 	})
 
 	trackDriveIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[util.Empty] {
@@ -134,74 +146,47 @@ func TrackDrive(drive *orc.Drive) {
 func trackDrive(drive *orc.Drive, allowRegistration bool) {
 	activeDrivesMutex.Lock()
 
-	existing, ok := activeDrives[drive.Id]
-	if !ok || drivesAreMeaningfullyDifferent(drive, existing) {
-		copiedDrive := *drive
-		activeDrives[drive.Id] = &copiedDrive
+	copiedDrive := *drive
+	activeDrives[drive.Id] = &copiedDrive
 
-		if allowRegistration {
-			go func() {
-				if RunsServerCode() {
-					jsonified, _ := json.Marshal(&copiedDrive)
+	if allowRegistration {
+		go func() {
+			if RunsServerCode() {
+				jsonified, _ := json.Marshal(&copiedDrive)
 
-					db.NewTx0(func(tx *db.Transaction) {
-						db.Exec(
-							tx,
-							`
+				db.NewTx0(func(tx *db.Transaction) {
+					db.Exec(
+						tx,
+						`
 							insert into tracked_drives(drive_id, product_id, product_category, created_by,
 							    project_id, provider_generated_id, resource) 
 							values (:drive_id, :product_id, :product_category, :created_by,
 								:project_id, :provider_generated_id, :resource) 
 							on conflict (drive_id) do update set
-							    product_id = excluded.project_id,
+							    product_id = excluded.product_id,
 							    product_category = excluded.product_category,
 							    created_by = excluded.created_by,
 							    project_id = excluded.project_id,
 							    provider_generated_id = excluded.provider_generated_id,
 							    resource = excluded.resource
 					    `,
-							db.Params{
-								"drive_id":              copiedDrive.Id,
-								"product_id":            copiedDrive.Specification.Product.Id,
-								"product_category":      copiedDrive.Specification.Product.Category,
-								"created_by":            copiedDrive.Owner.CreatedBy,
-								"project_id":            copiedDrive.Owner.Project,
-								"provider_generated_id": copiedDrive.ProviderGeneratedId,
-								"resource":              string(jsonified),
-							},
-						)
-					})
-				} else {
-					_, _ = trackDriveIpc.Invoke(fnd.FindByStringId{Id: copiedDrive.Id})
-				}
-			}()
-		}
+						db.Params{
+							"drive_id":              copiedDrive.Id,
+							"product_id":            copiedDrive.Specification.Product.Id,
+							"product_category":      copiedDrive.Specification.Product.Category,
+							"created_by":            copiedDrive.Owner.CreatedBy,
+							"project_id":            copiedDrive.Owner.Project,
+							"provider_generated_id": copiedDrive.ProviderGeneratedId,
+							"resource":              string(jsonified),
+						},
+					)
+				})
+			} else {
+				_, _ = trackDriveIpc.Invoke(fnd.FindByStringId{Id: copiedDrive.Id})
+			}
+		}()
 	}
 	activeDrivesMutex.Unlock()
-}
-
-func drivesAreMeaningfullyDifferent(a, b *orc.Drive) bool {
-	if a.Id != b.Id {
-		return true
-	}
-
-	if a.Owner.Project != b.Owner.Project {
-		return true
-	}
-
-	if a.Owner.CreatedBy != b.Owner.CreatedBy {
-		return true
-	}
-
-	if a.ProviderGeneratedId != b.ProviderGeneratedId {
-		return true
-	}
-
-	if a.Specification.Title != b.Specification.Title {
-		return true
-	}
-
-	return false
 }
 
 func EnumerateKnownDrives() []orc.Drive {
@@ -237,6 +222,68 @@ func RetrieveDrive(id string) (*orc.Drive, bool) {
 	}
 
 	return existing, true
+}
+
+func CanUseDrive(actor orc.ResourceOwner, driveId string, readOnly bool) bool {
+	if !RunsServerCode() {
+		panic("Not implemented for user mode")
+	}
+
+	drive, ok := RetrieveDrive(driveId)
+	if !ok {
+		return false
+	}
+
+	if drive.Owner.Project != "" {
+		project, ok := RetrieveProject(drive.Owner.Project)
+		if !ok {
+			return false
+		}
+
+		username := actor.CreatedBy
+		if username != "" {
+			isMember := false
+			for _, member := range project.Status.Members {
+				if member.Username == username {
+					isMember = true
+					if member.Role == apm.ProjectRolePI || member.Role == apm.ProjectRoleAdmin {
+						return true
+					}
+				}
+			}
+
+			if isMember && username == drive.Owner.CreatedBy {
+				return true
+			}
+
+			for _, entry := range drive.Permissions.Others {
+				entryIsRelevant := false
+				if readOnly {
+					entryIsRelevant = orc.PermissionsHas(entry.Permissions, orc.PermissionRead)
+				} else {
+					entryIsRelevant = orc.PermissionsHas(entry.Permissions, orc.PermissionEdit)
+				}
+
+				if entryIsRelevant {
+					if entry.Entity.Type == orc.AclEntityTypeUser {
+						if entry.Entity.Username == username {
+							return true
+						}
+					} else if entry.Entity.Type == orc.AclEntityTypeProjectGroup {
+						if apm.IsMemberOfGroup(project, entry.Entity.Group, username) {
+							return true
+						}
+					}
+				}
+			}
+
+			return false
+		} else {
+			return project.Id == actor.Project
+		}
+	} else {
+		return actor.CreatedBy == drive.Owner.CreatedBy
+	}
 }
 
 func RemoveTrackedDrive(id string) bool {
@@ -368,4 +415,70 @@ outer:
 	}
 
 	return result, result != nil
+}
+
+func RetrieveDrivesNeedingScan() []orc.Drive {
+	if RunsServerCode() {
+		return db.NewTx[[]orc.Drive](func(tx *db.Transaction) []orc.Drive {
+			var result []orc.Drive
+
+			rows := db.Select[struct{ Resource string }](
+				tx,
+				`
+					with
+						drives as (
+							select drive_id
+							from
+								tracked_drives,
+								tracked_drives_scan_timer session
+							where
+								last_scan_completed_at < now() - cast('1 hour' as interval)
+								and (
+									last_scan_submitted_at < now() - cast('1 hour' as interval)
+									or last_scan_submitted_at < session.time
+								)
+								and product_id != 'share' -- TODO Should probably go somewhere else
+							order by last_scan_completed_at
+							limit 256   
+						)
+					update tracked_drives td
+					set last_scan_submitted_at = now()
+					from drives d
+					where td.drive_id = d.drive_id
+					returning td.resource
+			    `,
+				db.Params{},
+			)
+
+			for _, row := range rows {
+				var drive orc.Drive
+				err := json.Unmarshal([]byte(row.Resource), &drive)
+				if err != nil {
+					continue
+				}
+
+				result = append(result, drive)
+			}
+
+			return result
+		})
+	} else {
+		return nil
+	}
+}
+
+func UpdateDriveScannedAt(driveId string) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update tracked_drives
+				set last_scan_completed_at = now()
+				where drive_id = :drive_id
+		    `,
+			db.Params{
+				"drive_id": driveId,
+			},
+		)
+	})
 }

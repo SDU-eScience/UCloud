@@ -28,6 +28,10 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 		}
 	}
 
+	if ctrl.IsResourceLocked(request.NewDrive.Resource, request.NewDrive.Specification.Product) {
+		return util.PaymentError()
+	}
+
 	task := TaskInfoSpecification{
 		Type:              FileTaskTypeCopy,
 		CreatedAt:         fnd.Timestamp(time.Now()),
@@ -327,6 +331,7 @@ func (w *copyWorker) copyFile(entry discoveredFile) bool {
 		}
 
 		_ = unix.Fchmod(fd, uint32(entry.FileInfo.Mode().Perm()))
+		_ = unix.Fchown(fd, FileUid(entry.FileInfo), FileGid(entry.FileInfo))
 		file := os.NewFile(uintptr(fd), entry.InternalPath)
 		_, err = io.Copy(file, entry.FileDescriptor)
 		_ = file.Close()
@@ -335,6 +340,7 @@ func (w *copyWorker) copyFile(entry discoveredFile) bool {
 		}
 	} else {
 		_ = unix.Mkdirat(destFileFd, entry.InternalPath, 0770)
+		_ = unix.Fchownat(destFileFd, entry.InternalPath, FileUid(entry.FileInfo), FileGid(entry.FileInfo), 0)
 		return unix.Fchmodat(destFileFd, entry.InternalPath, uint32(entry.FileInfo.Mode().Perm()), 0) == nil
 	}
 

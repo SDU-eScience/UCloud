@@ -336,7 +336,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     callAPI(JobsApi.search({
                         query,
                         itemsPerPage: 250,
-                        flags: {},
+                        flags,
                     })).then(res => {
                         if (browser.currentPath !== "/search") return;
                         browser.registerPage(res, "/search", true);

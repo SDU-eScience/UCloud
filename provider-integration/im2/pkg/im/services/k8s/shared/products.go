@@ -10,6 +10,7 @@ import (
 )
 
 var MachineSupport []orc.JobSupport
+var IpSupport []orc.PublicIpSupport
 
 var (
 	Machines        []apm.ProductV2
@@ -110,7 +111,7 @@ func initProducts() {
 		}
 
 		allowContainer := containers[machine.Category.Name]
-		allowVirtualMachine := containers[machine.Category.Name]
+		allowVirtualMachine := vms[machine.Category.Name]
 
 		if allowContainer {
 			support.Docker.Enabled = true
@@ -134,6 +135,90 @@ func initProducts() {
 		}
 
 		MachineSupport = append(MachineSupport, support)
+	}
+
+	if ServiceConfig.Compute.Syncthing.Enabled {
+		// NOTE(Dan): This block must be placed after the general machine loop
+
+		support := orc.JobSupport{
+			Product: apm.ProductReference{
+				Id:       "syncthing",
+				Category: "syncthing",
+				Provider: cfg.Provider.Id,
+			},
+		}
+
+		support.Docker.Enabled = false
+		support.VirtualMachine.Enabled = false
+		support.Native.Enabled = false
+
+		machine := apm.ProductV2{
+			Type: apm.ProductTypeCCompute,
+			Category: apm.ProductCategory{
+				Name:        "syncthing",
+				Provider:    cfg.Provider.Id,
+				ProductType: apm.ProductTypeCompute,
+				AccountingUnit: apm.AccountingUnit{
+					Name:                   "Core",
+					NamePlural:             "Core",
+					FloatingPoint:          false,
+					DisplayFrequencySuffix: true,
+				},
+				AccountingFrequency: apm.AccountingFrequencyPeriodicHour,
+				FreeToUse:           true,
+				AllowSubAllocations: false,
+			},
+			Name:                      "syncthing",
+			Description:               "Product for syncthing",
+			ProductType:               apm.ProductTypeCompute,
+			Price:                     1,
+			HiddenInGrantApplications: true,
+			Cpu:                       1,
+			MemoryInGigs:              1,
+		}
+
+		Machines = append(Machines, machine)
+		MachineSupport = append(MachineSupport, support)
+	}
+
+	if ServiceConfig.Compute.PublicIps.Enabled {
+		ipName := ServiceConfig.Compute.PublicIps.Name
+		IpProducts = []apm.ProductV2{
+			{
+				Type: apm.ProductTypeCNetworkIp,
+				Category: apm.ProductCategory{
+					Name:        ipName,
+					Provider:    cfg.Provider.Id,
+					ProductType: apm.ProductTypeNetworkIp,
+					AccountingUnit: apm.AccountingUnit{
+						Name:                   "IP",
+						NamePlural:             "IPs",
+						FloatingPoint:          false,
+						DisplayFrequencySuffix: false,
+					},
+					AccountingFrequency: apm.AccountingFrequencyOnce,
+					FreeToUse:           false,
+					AllowSubAllocations: true,
+				},
+				Name:        ipName,
+				Description: "A public IP",
+				ProductType: apm.ProductTypeNetworkIp,
+				Price:       1,
+			},
+		}
+
+		IpSupport = []orc.PublicIpSupport{
+			{
+				Product: apm.ProductReference{
+					Id:       ipName,
+					Category: ipName,
+					Provider: cfg.Provider.Id,
+				},
+				Firewall: orc.FirewallSupport{
+					Enabled: true,
+				},
+			},
+		}
 	}
 }
 

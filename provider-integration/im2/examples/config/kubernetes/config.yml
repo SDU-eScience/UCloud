@@ -41,6 +41,16 @@ services:
       prefix: "gok8s-"
       suffix: ".localhost.direct"
 
+    publicIps:
+      enabled: true
+
+    ssh:
+      enabled: true
+      ipAddress: 10.56.32.3
+      hostname: ucloud.invalid
+      portMin: 8000
+      portMax: 16000
+
     machines:
       u1-standard:
         nameSuffix: Cpu

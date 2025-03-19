@@ -11,6 +11,8 @@ import (
 	"unicode"
 
 	anyascii "github.com/anyascii/go"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	ws "github.com/gorilla/websocket"
 	fnd "ucloud.dk/pkg/foundation"
@@ -37,6 +39,14 @@ type JobsService struct {
 	OpenWebSession           func(job *orc.Job, rank int, target util.Option[string]) (ConfiguredWebSession, error)
 	RequestDynamicParameters func(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter
 	HandleBuiltInVnc         func(job *orc.Job, rank int, conn *ws.Conn)
+
+	PublicIPs PublicIPService
+}
+
+type PublicIPService struct {
+	Create           func(ip *orc.PublicIp) error
+	Delete           func(ip *orc.PublicIp) error
+	RetrieveProducts func() []orc.PublicIpSupport
 }
 
 type ConfiguredWebSession struct {
@@ -120,6 +130,36 @@ type JobOpenInteractiveSessionRequest struct {
 	Type orc.InteractiveSessionType
 }
 
+var (
+	metricJobsSubmitted = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "jobs",
+		Name:      "submitted",
+		Help:      "The total number of jobs submitted correctly to the UCloud/IM",
+	})
+
+	metricJobsInQueue = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "jobs",
+		Name:      "in_queue",
+		Help:      "The number of jobs currently in queue, registered by UCloud/IM",
+	})
+
+	metricJobsRunning = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "jobs",
+		Name:      "running",
+		Help:      "The number of jobs currently running, registered by UCloud/IM",
+	})
+
+	metricJobsSuspended = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "jobs",
+		Name:      "suspended",
+		Help:      "The number of jobs currently suspended, registered by UCloud/IM",
+	})
+)
+
 func controllerJobs(mux *http.ServeMux) {
 	if RunsServerCode() {
 		jobsIpcServer()
@@ -134,6 +174,7 @@ func controllerJobs(mux *http.ServeMux) {
 	}
 	wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	jobContext := fmt.Sprintf("/ucloud/%v/jobs/", cfg.Provider.Id)
+	publicIpContext := fmt.Sprintf("/ucloud/%v/networkips/", cfg.Provider.Id)
 
 	if RunsUserCode() {
 		creationUrl, _ := strings.CutSuffix(jobContext, "/")
@@ -144,6 +185,8 @@ func controllerJobs(mux *http.ServeMux) {
 				var providerIds []*fnd.FindByStringId
 
 				for _, item := range request.Items {
+					TrackNewJob(*item)
+
 					providerGeneratedId, err := Jobs.Submit(JobSubmitRequest{
 						JobToSubmit: item,
 					})
@@ -155,6 +198,9 @@ func controllerJobs(mux *http.ServeMux) {
 					}
 
 					if err != nil {
+						copied := *item
+						copied.Status.State = orc.JobStateFailure
+						TrackNewJob(copied)
 						errors = append(errors, err)
 					}
 				}
@@ -622,7 +668,7 @@ func controllerJobs(mux *http.ServeMux) {
 								Stderr:   util.Option[string]{},
 							}
 							dummyData, _ := json.Marshal(dummy)
-							_ = conn.WriteJSON(WebSocketResponseFin{
+							_ = sendMessage(WebSocketResponseFin{
 								Type:     "response",
 								Status:   http.StatusOK,
 								StreamId: requestMessage.StreamId,
@@ -651,7 +697,7 @@ func controllerJobs(mux *http.ServeMux) {
 								Stderr:   util.Option[string]{},
 							}
 							dummyData, _ := json.Marshal(dummy)
-							_ = conn.WriteJSON(WebSocketResponseFin{
+							_ = sendMessage(WebSocketResponseFin{
 								Type:     "response",
 								Status:   http.StatusOK,
 								StreamId: requestMessage.StreamId,
@@ -692,7 +738,103 @@ func controllerJobs(mux *http.ServeMux) {
 			}),
 		)
 
+		publicIpCreation, _ := strings.CutSuffix(publicIpContext, "/")
+		publicIpCreateHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.PublicIp]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.PublicIp]) {
+				var errors []error
+				var providerIds []*fnd.FindByStringId
+
+				for _, item := range request.Items {
+					TrackNewPublicIp(*item)
+					providerIds = append(providerIds, nil)
+
+					fn := Jobs.PublicIPs.Create
+					if fn == nil {
+						errors = append(errors, util.HttpErr(http.StatusBadRequest, "IP creation not supported"))
+					} else {
+						err := fn(item)
+						if err != nil {
+							errors = append(errors, err)
+						}
+					}
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[*fnd.FindByStringId]
+					response.Responses = providerIds
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		)
+
+		publicIpDeleteHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.PublicIp]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.PublicIp]) {
+				var errors []error
+				var resp []util.Option[util.Empty]
+
+				for _, item := range request.Items {
+					fn := Jobs.PublicIPs.Delete
+					if fn == nil {
+						errors = append(errors, util.HttpErr(http.StatusBadRequest, "IP deletion not supported"))
+						resp = append(resp, util.Option[util.Empty]{Present: false})
+					} else {
+						err := fn(item)
+						if err != nil {
+							errors = append(errors, err)
+							resp = append(resp, util.Option[util.Empty]{Present: false})
+						} else {
+							resp = append(resp, util.Option[util.Empty]{Present: true})
+						}
+					}
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[util.Option[util.Empty]]
+					response.Responses = resp
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		)
+		mux.HandleFunc(publicIpCreation, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				publicIpCreateHandler(w, r)
+			} else if r.Method == http.MethodDelete {
+				publicIpDeleteHandler(w, r)
+			} else {
+				sendResponseOrError(w, nil, util.HttpErr(http.StatusNotFound, "Not found"))
+			}
+		})
+
+		mux.HandleFunc(publicIpContext+"firewall", HttpUpdateHandler[fnd.BulkRequest[orc.FirewallAndIp]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[orc.FirewallAndIp]) {
+				var errors []error
+				var resp []util.Option[util.Empty]
+
+				for _, item := range request.Items {
+					copied := item.Ip
+					copied.Specification.Firewall = util.OptValue(item.Firewall)
+					TrackNewPublicIp(copied)
+					resp = append(resp, util.OptValue(util.EmptyValue))
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[util.Option[util.Empty]]
+					response.Responses = resp
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		))
 	}
+
 	if RunsServerCode() {
 		mux.HandleFunc(
 			fmt.Sprintf("/ucloud/%v/authorize-app", cfg.Provider.Id),
@@ -735,6 +877,25 @@ func controllerJobs(mux *http.ServeMux) {
 					w,
 					fnd.BulkResponse[orc.JobSupport]{
 						Responses: products,
+					},
+					nil,
+				)
+			}),
+		)
+
+		mux.HandleFunc(publicIpContext+"retrieveProducts", HttpRetrieveHandler[util.Empty](
+			0,
+			func(w http.ResponseWriter, r *http.Request, _ util.Empty) {
+				var result []orc.PublicIpSupport
+				fn := Jobs.PublicIPs.RetrieveProducts
+				if fn != nil {
+					result = fn()
+				}
+
+				sendResponseOrError(
+					w,
+					fnd.BulkResponse[orc.PublicIpSupport]{
+						Responses: result,
 					},
 					nil,
 				)

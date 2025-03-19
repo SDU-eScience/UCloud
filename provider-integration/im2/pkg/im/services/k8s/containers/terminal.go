@@ -53,7 +53,7 @@ func handleShell(session *ctrl.ShellSession, cols int, rows int) {
 			Stdout:    true,
 			Stderr:    true,
 			TTY:       true,
-			Container: "user-job",
+			Container: ContainerUserJob,
 			Command:   command,
 		}, ExecCodec)
 

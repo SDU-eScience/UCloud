@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useEffect, useRef} from "react";
 
-export function useScrollToBottom(ref: React.RefObject<HTMLDivElement>) {
+export function useScrollToBottom(ref: React.RefObject<HTMLDivElement | null>) {
     const wasAtBottom = useRef(true);
     useEffect(() => {
         const current = ref.current;
@@ -16,7 +16,7 @@ export function useScrollToBottom(ref: React.RefObject<HTMLDivElement>) {
             wasAtBottom.current = newPos === Math.round(current.scrollHeight);
         };
 
-        current.addEventListener("scroll", scrollHandler, { passive: true });
+        current.addEventListener("scroll", scrollHandler, {passive: true});
         return () => {
             current.removeEventListener("scroll", scrollHandler);
         };

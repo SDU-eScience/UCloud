@@ -49,8 +49,11 @@ class Server(
         val providerService = ProviderService(projectCache, db, providerProviders, providerSupport, client)
         val providerIntegrationService = ProviderIntegrationService(
             db, providerService, client,
-            micro.developmentModeEnabled
+            micro.backgroundScope,
+            micro.developmentModeEnabled,
         )
+
+        providerIntegrationService.init()
 
         val simpleProviders = Providers(client) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
         val productCache = ProductCache(db)

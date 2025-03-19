@@ -1,17 +1,19 @@
 package slurm
 
 import (
+	"net/http"
 	"syscall"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/idfreeipa"
+	"ucloud.dk/pkg/im/services/idoidc"
 	"ucloud.dk/pkg/im/services/idscripted"
 	"ucloud.dk/pkg/im/services/nopconn"
 )
 
 var ServiceConfig *cfg.ServicesConfigurationSlurm
 
-func Init(config *cfg.ServicesConfigurationSlurm) {
+func Init(config *cfg.ServicesConfigurationSlurm, mux *http.ServeMux) {
 	ServiceConfig = config
 
 	ctrl.LaunchUserInstances = true
@@ -47,6 +49,8 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 			idscripted.Init(config.IdentityManagement.Scripted())
 		case cfg.IdentityManagementTypeFreeIpa:
 			idfreeipa.Init(config.IdentityManagement.FreeIPA())
+		case cfg.IdentityManagementTypeOidc:
+			idoidc.Init(config.IdentityManagement.OIDC(), mux)
 		}
 
 		InitCliServer()
@@ -67,6 +71,10 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 		ctrl.RegisterProducts(Machines)
 		ctrl.RegisterProducts(StorageProducts)
 	}
+}
+
+func InitLater(config *cfg.ServicesConfigurationSlurm) {
+
 }
 
 func handleApmNotification(update *ctrl.NotificationWalletUpdated) {

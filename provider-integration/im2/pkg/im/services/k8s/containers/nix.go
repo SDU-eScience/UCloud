@@ -96,7 +96,7 @@ func generateNixEntrypoint(
 		return entrypointExtension{}
 	}
 
-	memberfiles, err := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, util.OptStringIfNotEmpty(job.Owner.Project))
+	memberfiles, _, err := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, util.OptStringIfNotEmpty(job.Owner.Project))
 	if err != nil {
 		return entrypointExtension{}
 	}
@@ -140,7 +140,7 @@ pkgs.mkShell {
 	}
 
 	newScriptName := fmt.Sprintf("job-nix-%d.sh", rank)
-	nixJobFile, ok := filesystem.OpenFile(filepath.Join(jobFolder, newScriptName), unix.O_WRONLY|unix.O_CREAT, 0660)
+	nixJobFile, ok := filesystem.OpenFile(filepath.Join(jobFolder, newScriptName), unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0660)
 	if !ok {
 		return entrypointExtension{}
 	}

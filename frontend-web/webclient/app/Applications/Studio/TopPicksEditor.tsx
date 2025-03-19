@@ -89,8 +89,6 @@ const TopPicksEditor: React.FunctionComponent = () => {
     const allErrors = Object.values(errors.current);
     const firstError = allErrors.length > 0 ? allErrors[0] : null;
 
-    const selectRef = React.useRef<HTMLSelectElement>(null);
-
     const fetchTopPicks = () => {
         let didCancel = false;
         (async () => {

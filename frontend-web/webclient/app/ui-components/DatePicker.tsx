@@ -1,4 +1,4 @@
-import ReactDatePicker, {ReactDatePickerProps} from "react-datepicker";
+import ReactDatePicker, {DatePickerProps} from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {classConcat, injectStyle} from "@/Unstyled";
 import * as React from "react";
@@ -36,7 +36,7 @@ export const DatePickerClass = injectStyle("date-picker", k => `
     }
 `);
 
-export const DatePicker: React.FunctionComponent<ReactDatePickerProps & BoxProps> = props => {
+export const DatePicker: React.FunctionComponent<DatePickerProps & BoxProps> = props => {
     return <Box {...props}><ReactDatePicker {...props} className={classConcat(DatePickerClass, props.className)} /></Box>;
 };
 

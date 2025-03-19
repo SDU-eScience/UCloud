@@ -7,17 +7,53 @@ import (
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"strconv"
 	"strings"
 	"time"
+	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/im/services/k8s/filesystem"
+	"ucloud.dk/pkg/im/services/k8s/shared"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
 
 func StartScheduledJob(job *orc.Job, rank int, node string) error {
-	jobFolder, err := FindJobFolder(job)
+	iappConfig := ctrl.RetrieveIAppByJobId(job.Id)
+	iappHandler := util.OptNone[ContainerIAppHandler]()
+	if iappConfig.Present {
+		jobCopy := *job
+
+		handler, ok := iapps[iappConfig.Value.AppName]
+		if !ok {
+			return fmt.Errorf("invalid iapp %s", iappConfig.Value.AppName)
+		}
+
+		iappHandler.Set(handler)
+		job = &jobCopy
+
+		if handler.MutateJobNonPersistent != nil {
+			handler.MutateJobNonPersistent(job, iappConfig.Value.Configuration)
+		}
+	}
+
+	jobFolder, drive, err := FindJobFolder(job)
 	if err != nil {
 		return fmt.Errorf("failed to initialize job folder")
+	}
+
+	if rank == 0 {
+		ucloudFolder, ok := filesystem.InternalToUCloudWithDrive(drive, jobFolder)
+		if ok {
+			_ = ctrl.TrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
+				{
+					Id: job.Id,
+					Update: orc.JobUpdate{
+						OutputFolder: util.OptValue[string](ucloudFolder),
+					},
+				},
+			})
+		}
 	}
 
 	// TODO Get these from configuration
@@ -37,6 +73,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	var firewall *networking.NetworkPolicy
 	var service *core.Service
+	var sshService *core.Service
 
 	if rank == 0 {
 		firewall = &networking.NetworkPolicy{
@@ -50,10 +87,13 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		allowNetworkFrom(firewall, job.Id)
 		allowNetworkTo(firewall, job.Id)
 
-		serviceLabel := jobIdLabel(job.Id)
+		serviceLabel := shared.JobIdLabel(job.Id)
 		service = &core.Service{
 			ObjectMeta: meta.ObjectMeta{
 				Name: serviceName(job.Id),
+				Labels: map[string]string{
+					serviceLabel.First: serviceLabel.Second,
+				},
 			},
 			Spec: core.ServiceSpec{
 				Type:      core.ServiceTypeClusterIP,
@@ -62,6 +102,17 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 					serviceLabel.First: serviceLabel.Second,
 				},
 			},
+		}
+
+		sshService = shared.AssignAndPrepareSshService(job).GetOrDefault(nil)
+		if sshService != nil {
+			allowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
+				{
+					Protocol: orc.IpProtocolTcp,
+					Start:    22,
+					End:      22,
+				},
+			})
 		}
 	}
 
@@ -77,12 +128,17 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		Spec: core.PodSpec{},
 	}
 
+	if iappConfig.Present {
+		pod.Annotations[IAppAnnotationEtag] = iappConfig.Value.ETag
+		pod.Annotations[IAppAnnotationName] = iappConfig.Value.AppName
+	}
+
 	spec := &pod.Spec
 	spec.RestartPolicy = core.RestartPolicyNever
 	spec.AutomountServiceAccountToken = util.BoolPointer(false)
 
 	spec.Containers = append(spec.Containers, core.Container{
-		Name: "user-job",
+		Name: ContainerUserJob,
 	})
 
 	userContainer := &spec.Containers[0]
@@ -95,8 +151,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// Scheduling and runtime constraints for Kubernetes
 	// -----------------------------------------------------------------------------------------------------------------
 	addResource := func(name core.ResourceName, value int64, scale resource.Scale) {
-		userContainer.Resources.Limits.Name(name, resource.DecimalSI).SetScaled(value, scale)
-		userContainer.Resources.Requests.Name(name, resource.DecimalSI).SetScaled(value, scale)
+		quantity := resource.NewScaledQuantity(value, scale)
+		quantity.Format = resource.DecimalSI
+
+		userContainer.Resources.Limits[name] = *quantity
+		userContainer.Resources.Requests[name] = *quantity
 	}
 
 	cpuMillis := int64(job.Status.ResolvedProduct.Cpu * 1000)
@@ -212,6 +271,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// -----------------------------------------------------------------------------------------------------------------
 	prepareFirewallOnJobCreate(job, pod, firewall, service)
 
+	// Public IP and SSH
+	// -----------------------------------------------------------------------------------------------------------------
+	preparePublicIp(job, service, firewall)
+	injectSshKeys(job.Id, pod, userContainer)
+
 	// Shared-memory
 	// -----------------------------------------------------------------------------------------------------------------
 	spec.Volumes = append(spec.Volumes, core.Volume{
@@ -231,37 +295,66 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	// Job metadata
 	// -----------------------------------------------------------------------------------------------------------------
-	idLabel := jobIdLabel(job.Id)
+	idLabel := shared.JobIdLabel(job.Id)
 	pod.Annotations[idLabel.First] = idLabel.Second
 	pod.Labels[idLabel.First] = idLabel.Second
 	if job.Owner.Project != "" {
 		pod.Labels["ucloud.dk/workspaceId"] = job.Owner.Project
 	}
 
+	if iappHandler.Present && iappHandler.Value.MutatePod != nil {
+		err = iappHandler.Value.MutatePod(job, iappConfig.Value.Configuration, pod)
+		if err != nil {
+			// Block errors on pod, but we do not immediately block on the rest.
+			return err
+		}
+	}
+
+	// NOTE(Dan): Check if the job is allowed to be submitted. This most be immediately before the job creation. It
+	// must not be moved down or up. Do not add code between these two.
+	if reason := shared.IsJobLockedEx(job, pod.Annotations); reason.Present {
+		return reason.Value.Err
+	}
+
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 	defer cancel()
 
 	pod, err = K8sClient.CoreV1().Pods(namespace).Create(ctx, pod, meta.CreateOptions{})
-	if firewall != nil && err == nil {
-		firewall.OwnerReferences = append(firewall.OwnerReferences, meta.OwnerReference{
+	var ownerReference meta.OwnerReference
+	if err == nil {
+		ownerReference = meta.OwnerReference{
 			APIVersion: "v1",
 			Kind:       "Pod",
 			Name:       pod.Name,
 			UID:        pod.UID,
-		})
+		}
+	}
+	if firewall != nil && err == nil {
+		firewall.OwnerReferences = append(firewall.OwnerReferences, ownerReference)
+
+		if iappHandler.Present && iappHandler.Value.MutateNetworkPolicy != nil {
+			myError := iappHandler.Value.MutateNetworkPolicy(job, iappConfig.Value.Configuration, firewall, pod)
+			err = util.MergeError(err, myError)
+		}
 
 		_, myError := K8sClient.NetworkingV1().NetworkPolicies(namespace).Create(ctx, firewall, meta.CreateOptions{})
 		err = util.MergeError(err, myError)
 	}
 	if service != nil && err == nil {
-		service.OwnerReferences = append(service.OwnerReferences, meta.OwnerReference{
-			APIVersion: "v1",
-			Kind:       "Pod",
-			Name:       pod.Name,
-			UID:        pod.UID,
-		})
+		service.OwnerReferences = append(service.OwnerReferences, ownerReference)
+
+		if iappHandler.Present && iappHandler.Value.MutateService != nil {
+			myError := iappHandler.Value.MutateService(job, iappConfig.Value.Configuration, service, pod)
+			err = util.MergeError(err, myError)
+		}
 
 		_, myError := K8sClient.CoreV1().Services(namespace).Create(ctx, service, meta.CreateOptions{})
+		err = util.MergeError(err, myError)
+	}
+	if sshService != nil && err == nil {
+		sshService.OwnerReferences = append(sshService.OwnerReferences, ownerReference)
+
+		_, myError := K8sClient.CoreV1().Services(namespace).Create(ctx, sshService, meta.CreateOptions{})
 		err = util.MergeError(err, myError)
 	}
 
@@ -319,6 +412,31 @@ func allowNetworkToSubnet(policy *networking.NetworkPolicy, subnet string) {
 	})
 }
 
+func allowNetworkFromWorld(policy *networking.NetworkPolicy, proto []orc.PortRangeAndProto) {
+	var portEntries []networking.NetworkPolicyPort
+	for _, entry := range proto {
+		portEntries = append(portEntries, networking.NetworkPolicyPort{
+			Protocol: util.Pointer(core.Protocol(entry.Protocol)),
+			Port: &intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: int32(entry.Start),
+			},
+			EndPort: util.Pointer(int32(entry.End)),
+		})
+	}
+
+	policy.Spec.Ingress = append(policy.Spec.Ingress, networking.NetworkPolicyIngressRule{
+		Ports: portEntries,
+		From: []networking.NetworkPolicyPeer{
+			{
+				IPBlock: &networking.IPBlock{
+					CIDR: "0.0.0.0/0",
+				},
+			},
+		},
+	})
+}
+
 func firewallName(jobId string) string {
 	return "policy-" + jobId
 }
@@ -328,16 +446,12 @@ func serviceName(jobId string) string {
 }
 
 func k8PodSelectorForJob(jobId string) meta.LabelSelector {
-	l := jobIdLabel(jobId)
+	l := shared.JobIdLabel(jobId)
 	return meta.LabelSelector{
 		MatchLabels: map[string]string{
 			l.First: l.Second,
 		},
 	}
-}
-
-func jobIdLabel(jobId string) util.Tuple2[string, string] {
-	return util.Tuple2[string, string]{"ucloud.dk/jobId", jobId}
 }
 
 func idAndRankToPodName(id string, rank int) string {

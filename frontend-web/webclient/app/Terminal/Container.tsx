@@ -129,7 +129,7 @@ export const TerminalContainer: React.FunctionComponent = () => {
 
     const closeTerminal = useCallback(() => {
         if (state.activeTab >= 0) {
-            dispatch({type: "TerminalCloseTab", tabIdx: state.activeTab});
+            dispatch({type: "TerminalCloseTab", payload: {tabIdx: state.activeTab}});
         }
     }, [state.activeTab]);
 
@@ -139,7 +139,7 @@ export const TerminalContainer: React.FunctionComponent = () => {
                 <div
                     className={`tab ${state.open && idx === state.activeTab ? "active" : ""}`}
                     key={idx}
-                    onClick={() => dispatch({type: "TerminalSelectTab", tabIdx: idx})}
+                    onClick={() => dispatch({type: "TerminalSelectTab", payload: {tabIdx: idx}})}
                 >
                     {tab.title}
                 </div>
@@ -171,7 +171,7 @@ export const TerminalContainer: React.FunctionComponent = () => {
     </div>;
 };
 
-const IndividualTerminal: React.FunctionComponent<{ tab: TerminalTab, hidden: boolean }> = props => {
+const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, hidden: boolean}> = props => {
     const [size, setSize] = useState<[number, number]>([80, 40]);
     const terminal = useRef<Terminal | null>(null);
     const [sessionResp, openSession] = useCloudAPI<BulkResponse<InteractiveSession>>(
