@@ -972,7 +972,7 @@ func (k *GoKubernetes) Build(cb ComposeBuilder) {
 		"",
 	)
 
-	postgresDataDir := cb.environment.repoRoot.Child("go-k8-pg-data", true)
+	postgresDataDir := NewFile(dataDir).Child("go-k8-pg-data", true)
 	cb.Service(
 		"go-k8s-postgres",
 		"Kubernetes (IM2): Postgres",
@@ -1062,7 +1062,7 @@ func (k *GoKubernetes) Install(credentials ProviderCredentials) {
 			"ucloud-apps",
 		},
 		false,
-		false,
+		true,
 		true,
 	)
 
@@ -1289,14 +1289,12 @@ hosts:
     scheme: https
     port: 443
 cors:
-  allowHosts: ["ucloud.localhost.direct"]
-		`,
+  allowHosts: ["ucloud.localhost.direct"]`,
 	)
 
 	imData.Child("server.yaml", false).WriteText(
 		//language=yaml
-		`
-refreshToken: ` + credentials.refreshToken + `
+		`refreshToken: ` + credentials.refreshToken + `
 envoy:
   executable: /usr/bin/envoy
   funceWrapper: false
@@ -1305,8 +1303,7 @@ database:
   type: Embedded
   host: 0.0.0.0
   directory: /etc/ucloud/pgsql
-  password: postgrespassword
-		`,
+  password: postgrespassword`,
 	)
 
 	imData.Child("ucloud_crt.pem", false).WriteText(credentials.publicKey)
@@ -1325,21 +1322,19 @@ compute:
       cpu: [1, 2, 200]
       memory: 1
       description: An example CPU machine with 1 vCPU.
+storage:
   storage:
+    allowSubAllocations: false
+    cost:
+      type: Resource
+      unit: GB
     storage:
-      allowSubAllocations: false
-      cost:
-        type: Resource
-        unit: GB
-      storage:
-        description: An example storage system
-		`,
+      description: An example storage system`,
 	)
 
 	imData.Child("plugins.yaml", false).WriteText(
 		//language=yaml
-		`
-connection:
+		`connection:
   type: UCloud
   redirectTo: https://ucloud.localhost.direct
   insecureMessageSigningForDevelopmentPurposesOnly: true
@@ -1370,25 +1365,24 @@ jobs:
     extensions:
       fetchComputeUsage: /etc/ucloud/extensions/fetch-compute-usage
   
-  fileCollections:
-    default:
-      type: Posix
-      matches: "*"
-      accounting: /etc/ucloud/extensions/storage-du-accounting
-      extensions:
-        driveLocator: /etc/ucloud/extensions/drive-locator
-    
-  files:
-    default:
-      type: Posix
-      matches: "*"
-  
-  projects:
-    type: Simple
-    unixGroupNamespace: 42000
+fileCollections:
+  default:
+    type: Posix
+    matches: "*"
+    accounting: /etc/ucloud/extensions/storage-du-accounting
     extensions:
-      all: /etc/ucloud/extensions/project-extension
-		`,
+      driveLocator: /etc/ucloud/extensions/drive-locator
+    
+files:
+  default:
+    type: Posix
+    matches: "*"
+  
+projects:
+  type: Simple
+  unixGroupNamespace: 42000
+  extensions:
+    all: /etc/ucloud/extensions/project-extension`,
 	)
 
 	SlurmInstall("slurm")
@@ -1439,8 +1433,8 @@ func (gs *GoSlurm) Build(cb ComposeBuilder) {
 
 	passwdDir := imDir.Child("passwd", true)
 	passwdFile := passwdDir.Child("passwd", false)
-	groupFile := passwdFile.Child("group", false)
-	shadowFile := passwdFile.Child("shadow", false)
+	groupFile := passwdDir.Child("group", false)
+	shadowFile := passwdDir.Child("shadow", false)
 	if passwdFile.Exists() {
 		passwdFile.WriteText(
 			`
@@ -1556,8 +1550,7 @@ func (gs *GoSlurm) Install(credentials ProviderCredentials) {
 
 	imDataDir.Child("server.yaml", false).WriteText(
 		//language=yaml
-		`refreshToken: ` + credentials.refreshToken + ` 
-		`,
+		`refreshToken: ` + credentials.refreshToken,
 	)
 
 	imDataDir.Child("ucloud_crt.pem", false).WriteText(credentials.publicKey)
@@ -2111,7 +2104,7 @@ func SlurmInstall(providerContainer string) {
 			"standard",
 		},
 		false,
-		false,
+		true,
 		true,
 	)
 
