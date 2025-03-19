@@ -31,6 +31,10 @@ func licenseDatabaseV1() migrationScript {
 			db.Exec(ctx, `
 				alter table license_servers drop column category
 			`, db.Params{})
+
+			db.Exec(ctx, `
+				alter table license_servers add primary key (name)
+			`, db.Params{})
 		},
 	}
 }
