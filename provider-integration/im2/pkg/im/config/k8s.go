@@ -50,6 +50,10 @@ type KubernetesIpConfiguration struct {
 	Name    string
 }
 
+type KubernetesIntegratedTerminal struct {
+	Enabled bool
+}
+
 type KubernetesSshConfiguration struct {
 	Enabled   bool
 	IpAddress string
@@ -74,6 +78,7 @@ type KubernetesCompute struct {
 	PublicIps                  KubernetesIpConfiguration
 	Ssh                        KubernetesSshConfiguration
 	Syncthing                  KubernetesSyncthingConfiguration
+	IntegratedTerminal         KubernetesIntegratedTerminal
 	VirtualMachineStorageClass util.Option[string]
 }
 
@@ -319,6 +324,12 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			cfg.Compute.Syncthing.RelaysEnabled = relaysEnabled && ok
 			cfg.Compute.Syncthing.DevelopmentSourceCode = optionalChildText(filePath, syncthingNode, "developmentSourceCode", &success)
 		}
+	}
+
+	integratedTerminalNode, _ := getChildOrNil(filePath, computeNode, "integratedTerminal")
+	if integratedTerminalNode != nil {
+		enabled, ok := optionalChildBool(filePath, integratedTerminalNode, "enabled")
+		cfg.Compute.IntegratedTerminal.Enabled = enabled && ok
 	}
 
 	vmStorageClass := optionalChildText(filePath, computeNode, "virtualMachineStorageClass", &success)
