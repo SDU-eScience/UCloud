@@ -82,6 +82,7 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 				state, status := podToStateAndStatus(pod)
 				if state.IsFinal() {
 					state = orc.JobStateSuspended
+					tracker.RequestCleanup(job.Id)
 				}
 
 				tracker.TrackState(shared.JobReplicaState{
