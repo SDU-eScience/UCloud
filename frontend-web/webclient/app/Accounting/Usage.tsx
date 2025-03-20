@@ -941,7 +941,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: s
         </>}
 
         {datapointSum === 0 ? null : <div className="pie-wrapper">
-            <PieChart dataPoints={dataPoints.points} valueFormatter={formatter} />
+            <PieChart dataPoints={dataPoints.points} valueFormatter={formatter} onDataPointSelection={() => {}} />
         </div>}
 
         {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
@@ -971,6 +971,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: s
 
 const FullyMergedUsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: string; period: Period; charts: BreakdownChart[];}> = props => {
     const unit = props.unit ?? "";
+    const [singleChartSelected, setSingleChartSelected] = useState<string | undefined>();
 
     const fullyMergedChart = React.useMemo(() => {
         return {
@@ -995,10 +996,10 @@ const FullyMergedUsageBreakdownPanel: React.FunctionComponent<{isLoading: boolea
         return startDate.getUTCFullYear() !== endDate.getUTCFullYear();
     })();
 
-    /* TODO(Jonas): re-introduce this */
     const datapointSum = useMemo(() => dataPoints.reduce((a, b) => a + b.value, 0), [dataPoints]);
 
     if (props.isLoading) return null;
+
 
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
         <div className="panel-title">
@@ -1010,7 +1011,10 @@ const FullyMergedUsageBreakdownPanel: React.FunctionComponent<{isLoading: boolea
         </> : null}
 
         {datapointSum === 0 ? null : <div className="pie-wrapper">
-            <PieChart dataPoints={dataPoints} valueFormatter={formatter} />
+            <PieChart dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={idx => setSingleChartSelected(existingChart => {
+                const newlySelectedChart = props.charts[0].dataPoints[idx].title;
+                return newlySelectedChart === existingChart ? undefined : newlySelectedChart;
+            })} />
         </div>}
         {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
         {dataPoints.length === 0 ? "No usage data found" :
@@ -1024,7 +1028,7 @@ const FullyMergedUsageBreakdownPanel: React.FunctionComponent<{isLoading: boolea
                         </tr>
                     </thead>
                     <tbody>
-                        {dataPoints.map((point, idx) => {
+                        {dataPoints.filter(it => singleChartSelected ? it.key === singleChartSelected : true).map((point, idx) => {
                             const usage = point.value;
                             return <tr key={idx}>
                                 <td>{point.key}</td>
@@ -1190,12 +1194,11 @@ const ASPECT_RATIO_LINE_CHART: [number, number] = [1 / (16 / 9), 1 / (24 / 9)];
 const ASPECT_RATIO_PIE_CHART: [number, number] = [1, 1];
 
 const DynamicallySizedChart: React.FunctionComponent<{
-    Component: React.ComponentType<ApexChart>,
-    chart: ApexChart,
+    chart: ChartProps,
     aspectRatio: [number, number],
     maxWidth?: number,
     anyChartData: boolean,
-}> = ({Component, chart, aspectRatio, maxWidth, ...props}) => {
+}> = ({chart, aspectRatio, maxWidth, ...props}) => {
     // NOTE(Dan): This react component works around the fact that Apex charts needs to know its concrete size to
     // function. This does not play well with the fact that we want to dynamically size the chart based on a combination
     // of a grid and a flexbox.
@@ -1260,7 +1263,7 @@ const DynamicallySizedChart: React.FunctionComponent<{
         ref={mountPoint}
     >
         {dimensions.height && dimensions.width &&
-            <Component
+            <Chart
                 {...chart}
                 height={dimensions.height}
                 width={dimensions.width}
@@ -1272,7 +1275,7 @@ const DynamicallySizedChart: React.FunctionComponent<{
 const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]}> = ({charts}) => {
     const chartCounter = useRef(0); // looks like apex charts has a rendering bug if the component isn't completely thrown out
     const [shownEntries, setShownEntries] = useState<boolean[]>([]);
-    const chartProps = useMemo(() => {
+    const chartProps: ChartProps = useMemo(() => {
         chartCounter.current++;
         setShownEntries(charts.map(() => true));
         return usageChartsToChart(charts, {
@@ -1313,7 +1316,7 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]}> = ({ch
         </div>
 
         <>
-            <DynamicallySizedChart anyChartData={anyData} Component={Chart} chart={chartProps} aspectRatio={ASPECT_RATIO_LINE_CHART} />
+            <DynamicallySizedChart anyChartData={anyData} chart={chartProps} aspectRatio={ASPECT_RATIO_LINE_CHART} />
 
             {showWarning && <>
                 <Warning>
@@ -1363,7 +1366,7 @@ function DifferenceTable({charts, shownEntries}: {charts: UsageChart[]; shownEnt
                             <td>{Accounting.addThousandSeparators(point.usage.toFixed(2))}</td>
                             <td>{change >= 0 ? "+" : ""}{Accounting.addThousandSeparators(change.toFixed(2))}</td>
                         </tr>;
-                    }) : (chart.dataPoints.length === 0 ? null : <tr>
+                    }) : (chart.dataPoints.length === 0 ? null : <tr key={chart.name}>
                         <td>{chart.name}</td>
                         <td>{dateToString(chart.dataPoints[0].timestamp)}</td>
                         <td>{Accounting.addThousandSeparators(chart.dataPoints[0].usage.toFixed(0))}</td>
@@ -1408,7 +1411,7 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
         </div>
 
         {data !== undefined && dataPoints !== undefined ? <>
-            <PieChart dataPoints={dataPoints} valueFormatter={formatter} />
+            <PieChart dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={() => {}} />
 
             <div className="table-wrapper">
                 <table>
@@ -1445,6 +1448,7 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
 const PieChart: React.FunctionComponent<{
     dataPoints: {key: string, value: number}[],
     valueFormatter: (value: number) => string,
+    onDataPointSelection: (dataPointIndex: number) => void;
 }> = props => {
     const filteredList = useMemo(() => {
         const all = [...props.dataPoints];
@@ -1475,26 +1479,22 @@ const PieChart: React.FunctionComponent<{
             type: "pie",
             series,
             selection: {enabled: true},
-            // Doesn't seem to work
-            // events: {
-            //     click: (e: any, chart?: any, options?: any) => {
-            //         console.log("click", {e, chart, options})
-            //     },
-            //     legendClick: (chart: any, seriesIndex?: number, options?: any) => {
-            //         console.log("legendClick", {chart, seriesIndex, options})
-            //     },
-            //     markerClick: (e: any, chart?: any, options?: any) => {
-            //         console.log("markerClick", {e, chart, options})
-            //     },
-            //     selection: (chart: any, options?: any) => {
-            //         console.log("selection", {chart, options});
-            //     }
-            // },
             options: {
                 chart: {
                     animations: {
                         enabled: false,
                     },
+                    events: {
+                        dataPointSelection: (e: any, chart?: any, options?: any) => {
+                            const dataPointIndex = options?.dataPointIndex
+                            if (dataPointIndex != null) {
+                                props.onDataPointSelection(dataPointIndex);
+                            }
+                        }
+                    },
+                },
+                legend: {
+                    onItemClick: {toggleDataSeries: false}, /* Note(Jonas): I'm not sure we can expect same behaviour from this, as clicking on the pie, so disable */
                 },
                 labels: labels,
                 dataLabels: {
@@ -1502,9 +1502,6 @@ const PieChart: React.FunctionComponent<{
                 },
                 stroke: {
                     show: false,
-                },
-                legend: {
-                    show: true,
                 },
                 tooltip: {
                     shared: false,
@@ -1515,10 +1512,10 @@ const PieChart: React.FunctionComponent<{
                     }
                 },
             }
-        };
+        } as ChartProps;
     }, [series]);
 
-    return <DynamicallySizedChart anyChartData={filteredList.length > 0} Component={Chart} chart={chartProps} aspectRatio={ASPECT_RATIO_PIE_CHART} maxWidth={350} />;
+    return <DynamicallySizedChart anyChartData={filteredList.length > 0} chart={chartProps} aspectRatio={ASPECT_RATIO_PIE_CHART} maxWidth={350} />;
 };
 
 interface SubmissionStatistics {
