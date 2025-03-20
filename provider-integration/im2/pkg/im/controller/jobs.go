@@ -67,12 +67,13 @@ type FollowJobSession struct {
 }
 
 type ShellSession struct {
-	Alive       bool
-	Folder      string
-	Job         *orc.Job
-	Rank        int
-	InputEvents chan ShellEvent
-	EmitData    func(data []byte)
+	Alive          bool
+	Folder         string
+	Job            *orc.Job
+	Rank           int
+	InputEvents    chan ShellEvent
+	EmitData       func(data []byte)
+	UCloudUsername string
 }
 
 type ShellEvent struct {
@@ -356,7 +357,7 @@ func controllerJobs(mux *http.ServeMux) {
 
 						shellSessionsMutex.Lock()
 						tok := util.RandomToken(32)
-						shellSessions[tok] = &ShellSession{Alive: true, Job: item.Job, Rank: item.Rank}
+						shellSessions[tok] = &ShellSession{Alive: true, Job: item.Job, Rank: item.Rank, UCloudUsername: GetUCloudUsername(r)}
 						shellSessionsMutex.Unlock()
 						responses = append(
 							responses,
@@ -436,7 +437,7 @@ func controllerJobs(mux *http.ServeMux) {
 
 					shellSessionsMutex.Lock()
 					tok := util.RandomToken(32)
-					shellSessions[tok] = &ShellSession{Alive: true, Folder: item.Folder}
+					shellSessions[tok] = &ShellSession{Alive: true, Folder: item.Folder, UCloudUsername: GetUCloudUsername(r)}
 					shellSessionsMutex.Unlock()
 					responses = append(
 						responses,
@@ -532,19 +533,21 @@ func controllerJobs(mux *http.ServeMux) {
 
 							session.InputEvents = make(chan ShellEvent)
 							session.EmitData = func(data []byte) {
-								msg := map[string]string{
-									"type": "data",
-									"data": string(data),
-								}
-								asJson, _ := json.Marshal(msg)
+								if session.Alive {
+									msg := map[string]string{
+										"type": "data",
+										"data": string(data),
+									}
+									asJson, _ := json.Marshal(msg)
 
-								connMutex.Lock()
-								_ = conn.WriteJSON(WebSocketResponseMessage{
-									Type:     "message",
-									StreamId: requestMessage.StreamId,
-									Payload:  asJson,
-								})
-								connMutex.Unlock()
+									connMutex.Lock()
+									_ = conn.WriteJSON(WebSocketResponseMessage{
+										Type:     "message",
+										StreamId: requestMessage.StreamId,
+										Payload:  asJson,
+									})
+									connMutex.Unlock()
+								}
 							}
 
 							go func() {
