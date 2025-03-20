@@ -305,8 +305,16 @@ func LicenseCli(args []string) {
 
 		var license string
 		fs.StringVar(&license, "license", "", "The license key associated with the server.")
+
 		var address string
 		fs.StringVar(&address, "address", "", "A hostname and port combination associated with the license server.")
+
+		err := fs.Parse(args[2:])
+
+		if err != nil {
+			cli.HandleError("adding license", fmt.Errorf("Error occured while parsing parameters"))
+		}
+
 		addressStringElements := strings.Split(address, ":")
 		portString := addressStringElements[len(addressStringElements)-1]
 		port, err := strconv.Atoi(portString)
@@ -318,13 +326,6 @@ func LicenseCli(args []string) {
 		} else {
 			address = strings.Join(addressStringElements[0:len(addressStringElements)-1], ":")
 		}
-
-		err = fs.Parse(args[3:])
-		if err != nil {
-			cli.HandleError("adding license", fmt.Errorf("Error occured while parsing parameters"))
-		}
-
-		log.Info("license is %s", license)
 
 		_, err = ipcUpsertLicense.Invoke(
 			orc.LicenseServer{
@@ -342,14 +343,14 @@ func LicenseCli(args []string) {
 		}
 
 	case cli.IsDeleteCommand(args[0]):
-		productName := util.GetOptionalElement(args, 1)
-		if !productName.Present {
+		name := util.GetOptionalElement(args, 1)
+		if !name.Present {
 			cli.HandleError("delete license", fmt.Errorf("Missing argument: product name"))
 			printHelp()
 			return
 		}
 
-		ipcDeleteLicense.Invoke(apm.ProductReference{Id: productName.Value})
+		ipcDeleteLicense.Invoke(apm.ProductReference{Id: name.Value})
 
 	case cli.IsHelpCommand(args[0]):
 		printHelp()
