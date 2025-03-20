@@ -699,16 +699,16 @@ func ServiceActionMenu() termio.Menu {
 }
 func CreateProviderMenu() termio.Menu {
 	items := []termio.MenuItem{}
-
+	alreadyConfigured := []termio.MenuItem{}
 	configuredProviders := launcher.ListConfiguredProviders()
 	allProviders := launcher.AllProviders
 
 	for _, provider := range allProviders {
 		contains := slices.Contains(configuredProviders, provider.Name())
 		if contains {
-			items = append(items, termio.MenuItem{
+			alreadyConfigured = append(alreadyConfigured, termio.MenuItem{
 				Value:     provider.Name(),
-				Message:   provider.Title() + " Already configured ",
+				Message:   provider.Title() + " (Already configured)",
 				Separator: false,
 			})
 		} else {
@@ -719,6 +719,12 @@ func CreateProviderMenu() termio.Menu {
 			})
 		}
 	}
+	items = append(items, termio.MenuItem{
+		Value:     "Dev",
+		Message:   "Already Configured ",
+		Separator: true,
+	})
+	items = append(items, alreadyConfigured...)
 	return termio.Menu{
 		Prompt: "Select the providers you wish to configure",
 		Items:  items,

@@ -186,7 +186,7 @@ func (l LocalExecutableCommand) ExecuteToText() StringPair {
 	SoftCheck(err)
 
 	wg := sync.WaitGroup{}
-	//TODO
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()

@@ -561,6 +561,15 @@ func (k *Kubernetes) Build(cb ComposeBuilder) {
 	)
 }
 
+//go:embed config/Kubernetes/plugins.yaml
+var KubernetesPlugins []byte
+
+//go:embed config/Kubernetes/products.yaml
+var KubernetesProducts []byte
+
+//go:embed config/Kubernetes/core.yaml
+var KubernetesCore []byte
+
 func (k *Kubernetes) Install(credentials ProviderCredentials) {
 	k8Provider := currentEnvironment.Child("k8", true)
 	imDir := k8Provider.Child("im", true)
@@ -571,23 +580,7 @@ func (k *Kubernetes) Install(credentials ProviderCredentials) {
 	if len(lines) != 0 {
 		return
 	}
-	imData.Child("core.yaml", false).WriteText(
-		//language=yaml
-		`providerId: k8
-launchRealUserInstances: false
-allowRootMode: true
-developmentMode: true
-hosts:
-  ucloud:
-    host: backend
-    scheme: http
-    port: 8080
-self:
-  host: k8.localhost.direct
-  scheme: https
-  port: 443
-cors:
-  allowHosts: ["ucloud.localhost.direct"]`)
+	imData.Child("core.yaml", false).WriteBytes(KubernetesCore)
 
 	imData.Child("server.yaml", false).WriteText(
 		//language=yaml
@@ -604,116 +597,9 @@ database:
 
 	imData.Child("ucloud_crt.pem", false).WriteText(credentials.publicKey)
 
-	imData.Child("products.yaml", false).WriteText(
-		//language=yaml
-		`compute:
-  syncthing:
-    cost: { type: Free }
-    syncthing:
-      description: A product for use in syncthing
-      cpu: 1
-      memory: 1
-      gpu: 0
-  cpu:
-    cost: { type: Money }
-    template:
-      cpu: [1, 2, 200]
-      memory: 1
-      description: An example CPU machine with 1 vCPU.
-      pricePerHour: 0.5
-  cpu-h:
-    cost:
-      type: Resource
-      interval: Minutely
-    template:
-      cpu: [1, 2]
-      memory: 1
-      description: An example CPU machine with 1 vCPU.
-storage:
-  storage:
-    cost:
-      type: Resource
-      unit: GB
-    storage:
-      description: An example storage system
-    share:
-      description: This drive type is used for shares only.
-    project-home:
-      description: This drive type is used for member files of a project only.
-publicLinks:
-  public-link:
-    cost: { type: Free }
-    public-link:
-      description: An example public link
-publicIps:
-  public-ip:
-    cost:
-      type: Resource
-      unit: IP
-    public-ip:
-      description: A _fake_ public IP product
-licenses:
-  license:
-    cost: { type: Resource }
-    license:
-      description: A _fake_ license
-      tags: ["fake", "license"]`,
-	)
+	imData.Child("products.yaml", false).WriteBytes(KubernetesProducts)
 
-	imData.Child("plugins.yaml", false).WriteText(
-		//language=yaml
-		`connection:
-  type: UCloud
-  redirectTo: https://ucloud.localhost.direct
-  insecureMessageSigningForDevelopmentPurposesOnly: true
-  
-jobs:
-  default:
-    type: UCloud
-    matches: "*"
-    kubernetes:
-      namespace: ucloud-apps
-    scheduler: Pods
-    developmentMode:
-      fakeIpMount: true
-      fakeMemoryAllocation: true
-      usePortForwarding: true
-  
-fileCollections:
-  default:
-    type: UCloud
-    matches: "*"
-  
-files:
-  default:
-    type: UCloud
-    matches: "*"
-    mountLocation: "/mnt/storage"
-  
-ingresses:
-  default:
-    type: UCloud
-    matches: "*"
-    domainPrefix: k8-app-
-    domainSuffix: .localhost.direct
-  
-publicIps:
-  default:
-    type: UCloud
-    matches: "*"
-    iface: dummy
-    gatewayCidr: null
-  
-licenses:
-  default:
-    type: Generic
-    matches: "*"
-  
-shares:
-  default:
-    type: UCloud
-    matches: "*"`,
-	)
+	imData.Child("plugins.yaml", false).WriteBytes(KubernetesPlugins)
 
 	var executeCom = compose.Exec(
 		currentEnvironment,
@@ -960,7 +846,8 @@ func (k *GoKubernetes) Build(cb ComposeBuilder) {
 					"` + k3sOutput.GetAbsolutePath() + `:/mnt/k3s",
 					"` + imStorage.GetAbsolutePath() + `:/mnt/storage",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/im2:/opt/ucloud",
-					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/gonja:/opt/gonja"
+					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/gonja:/opt/gonja",
+					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/walk:/opt/walk"
 				]
 			}
 			`,
@@ -989,7 +876,8 @@ func (k *GoKubernetes) Build(cb ComposeBuilder) {
 					"volumes": [
 						"` + postgresDataDir.GetAbsolutePath() + `:/var/lib/postgresql/data",
 						"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/im2:/opt/ucloud",
-						"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/gonja:/opt/gonja"
+						"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/gonja:/opt/gonja",
+						"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/walk:/opt/walk"
 					],
 					"ports": [
 						"` + strconv.Itoa(portAllocator.Allocate(51241)) + `:5432"
@@ -1005,6 +893,9 @@ func (k *GoKubernetes) Build(cb ComposeBuilder) {
 	)
 }
 
+//go:embed config/goKubernetes/config.yaml
+var goKubernetesConfig []byte
+
 func (k *GoKubernetes) Install(credentials ProviderCredentials) {
 	k8Provider := currentEnvironment.Child("im2k8", true)
 	imDir := k8Provider.Child("im", true)
@@ -1016,6 +907,21 @@ func (k *GoKubernetes) Install(credentials ProviderCredentials) {
 	}
 
 	imData.Child("ucloud_crt.pem", false).WriteText(credentials.publicKey)
+
+	imData.Child("server.yaml", false).WriteText(
+		//language=yaml
+		`refreshToken: ` + credentials.refreshToken + `
+database:
+  embedded: false
+  username: postgres
+  password: postgrespassword
+  database: postgres
+  ssl: false
+  host:
+    address: go-k8s-postgres`,
+	)
+
+	imData.Child("config.yaml", false).WriteBytes(goKubernetesConfig)
 
 	var executeCom = compose.Exec(
 		currentEnvironment,
@@ -1262,6 +1168,15 @@ func (s *Slurm) Build(cb ComposeBuilder) {
 	)
 }
 
+//go:embed config/Slurm/core.yaml
+var SlurmCore []byte
+
+//go:embed config/Slurm/products.yaml
+var SlurmProducts []byte
+
+//go:embed config/Slurm/plugins.yaml
+var SlurmPlugins []byte
+
 func (s *Slurm) Install(credentials ProviderCredentials) {
 	slurmProvider := currentEnvironment.Child("slurm", true)
 	imDir := slurmProvider.Child("im", true)
@@ -1272,25 +1187,7 @@ func (s *Slurm) Install(credentials ProviderCredentials) {
 		return
 	}
 
-	imData.Child("core.yaml", false).WriteText(
-		//language=yaml
-		`providerId: slurm
-launchRealUserInstances: true
-allowRootMode: false
-developmentMode: true
-disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy: true
-hosts:
-  ucloud:
-    host: backend
-    scheme: http
-    port: 8080
-  self:
-    host: slurm.localhost.direct
-    scheme: https
-    port: 443
-cors:
-  allowHosts: ["ucloud.localhost.direct"]`,
-	)
+	imData.Child("core.yaml", false).WriteBytes(SlurmCore)
 
 	imData.Child("server.yaml", false).WriteText(
 		//language=yaml
@@ -1308,82 +1205,9 @@ database:
 
 	imData.Child("ucloud_crt.pem", false).WriteText(credentials.publicKey)
 
-	imData.Child("products.yaml", false).WriteText(
-		//language=yaml
-		`
-compute:
-  cpu:
-    allowSubAllocations: false
-    cost:
-      type: Resource
-      interval: Minutely
-      unit: Cpu
-    template:
-      cpu: [1, 2, 200]
-      memory: 1
-      description: An example CPU machine with 1 vCPU.
-storage:
-  storage:
-    allowSubAllocations: false
-    cost:
-      type: Resource
-      unit: GB
-    storage:
-      description: An example storage system`,
-	)
+	imData.Child("products.yaml", false).WriteBytes(SlurmProducts)
 
-	imData.Child("plugins.yaml", false).WriteText(
-		//language=yaml
-		`connection:
-  type: UCloud
-  redirectTo: https://ucloud.localhost.direct
-  insecureMessageSigningForDevelopmentPurposesOnly: true
-  extensions:
-    onConnectionComplete: /etc/ucloud/extensions/ucloud-connection
-
-allocations:
-  type: Extension
-  extensions:
-    onWalletUpdated: /etc/ucloud/extensions/on-wallet-updated
-
-jobs:
-  default:
-    type: Slurm
-    matches: "*"
-    partition: normal
-    useFakeMemoryAllocations: true
-    accountMapper:
-      type: Extension
-      extension: /etc/ucloud/extensions/slurm-account-extension
-    terminal:
-      type: SSH
-      generateSshKeys: true
-    web:
-      type: Simple
-      domainPrefix: slurm-
-      domainSuffix: .localhost.direct
-    extensions:
-      fetchComputeUsage: /etc/ucloud/extensions/fetch-compute-usage
-  
-fileCollections:
-  default:
-    type: Posix
-    matches: "*"
-    accounting: /etc/ucloud/extensions/storage-du-accounting
-    extensions:
-      driveLocator: /etc/ucloud/extensions/drive-locator
-    
-files:
-  default:
-    type: Posix
-    matches: "*"
-  
-projects:
-  type: Simple
-  unixGroupNamespace: 42000
-  extensions:
-    all: /etc/ucloud/extensions/project-extension`,
-	)
+	imData.Child("plugins.yaml", false).WriteBytes(SlurmPlugins)
 
 	SlurmInstall("slurm")
 	installMarker.WriteText("done")
@@ -1488,6 +1312,7 @@ func (gs *GoSlurm) Build(cb ComposeBuilder) {
 					"` + imWork.GetAbsolutePath() + `:/work",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/im2:/opt/ucloud",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/gonja:/opt/gonja",
+					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/walk:/opt/walk",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/integration-module/example-extensions/simple:/etc/ucloud/extensions",
 					"` + etcSlurm + `:/etc/slurm-llnl",
 					"` + passwdDir.GetAbsolutePath() + `:/mnt/passwd"
@@ -1521,7 +1346,8 @@ func (gs *GoSlurm) Build(cb ComposeBuilder) {
 				"volumes": [
 					"` + postgresDataDir.GetAbsolutePath() + `:/var/lib/postgresql/data",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/im2:/opt/ucloud",
-					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/gonja:/opt/gonja"
+					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/gonja:/opt/gonja",
+					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/walk:/opt/walk"
 				],
 				"ports": [
 					"` + strconv.Itoa(portAllocator.Allocate(51239)) + `:5432"
@@ -1537,6 +1363,12 @@ func (gs *GoSlurm) Build(cb ComposeBuilder) {
 	)
 }
 
+//go:embed config/GoSlurm/config.yaml
+var GoSlurmConfig []byte
+
+//go:embed config/GoSlurm/secrets.yaml
+var GoSlurmSecrets []byte
+
 func (gs *GoSlurm) Install(credentials ProviderCredentials) {
 	dataDir := GetDataDirectory()
 	slurmProvider := NewFile(dataDir).Child("go-slurm", true)
@@ -1550,12 +1382,26 @@ func (gs *GoSlurm) Install(credentials ProviderCredentials) {
 
 	imDataDir.Child("server.yaml", false).WriteText(
 		//language=yaml
-		`refreshToken: ` + credentials.refreshToken,
+		`refreshToken: ` + credentials.refreshToken + `
+database:
+  embedded: false
+  username: postgres
+  password: postgrespassword
+  database: postgres
+  ssl: false
+  host:
+    address: go-slurm-postgres`,
 	)
 
 	imDataDir.Child("ucloud_crt.pem", false).WriteText(credentials.publicKey)
 
+	imDataDir.Child("config.yaml", false).WriteBytes(GoSlurmConfig)
+
+	imDataDir.Child("secrets.yaml", false).WriteBytes(GoSlurmSecrets)
+
 	SlurmInstall("go-slurm")
+
+	gs.AddFreeIpaAddon()
 
 	installMarker.WriteText("done")
 }

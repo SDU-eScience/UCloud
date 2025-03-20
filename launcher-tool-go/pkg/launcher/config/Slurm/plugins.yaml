@@ -1,0 +1,49 @@
+connection:
+  type: UCloud
+  redirectTo: https://ucloud.localhost.direct
+  insecureMessageSigningForDevelopmentPurposesOnly: true
+  extensions:
+    onConnectionComplete: /etc/ucloud/extensions/ucloud-connection
+
+allocations:
+  type: Extension
+  extensions:
+    onWalletUpdated: /etc/ucloud/extensions/on-wallet-updated
+
+jobs:
+  default:
+    type: Slurm
+    matches: "*"
+    partition: normal
+    useFakeMemoryAllocations: true
+    accountMapper:
+      type: Extension
+      extension: /etc/ucloud/extensions/slurm-account-extension
+    terminal:
+      type: SSH
+      generateSshKeys: true
+    web:
+      type: Simple
+      domainPrefix: slurm-
+      domainSuffix: .localhost.direct
+    extensions:
+      fetchComputeUsage: /etc/ucloud/extensions/fetch-compute-usage
+
+fileCollections:
+  default:
+    type: Posix
+    matches: "*"
+    accounting: /etc/ucloud/extensions/storage-du-accounting
+    extensions:
+      driveLocator: /etc/ucloud/extensions/drive-locator
+
+files:
+  default:
+    type: Posix
+    matches: "*"
+
+projects:
+  type: Simple
+  unixGroupNamespace: 42000
+  extensions:
+    all: /etc/ucloud/extensions/project-extension
