@@ -600,7 +600,7 @@ invocation of the application, but is used solely to visually group applications
             ApplicationGroup.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "findGroupByApplication", roles = Roles.END_USER)
+                httpUpdate(baseContext, "findGroupByApplication", roles = Roles.END_USER + Roles.PROVIDER)
 
                 documentation {
                     summary = "Find an application group by one of its application group members"
