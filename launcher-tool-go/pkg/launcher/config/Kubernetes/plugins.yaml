@@ -1,0 +1,51 @@
+connection:
+  type: UCloud
+  redirectTo: https://ucloud.localhost.direct
+  insecureMessageSigningForDevelopmentPurposesOnly: true
+
+jobs:
+  default:
+    type: UCloud
+    matches: "*"
+    kubernetes:
+      namespace: ucloud-apps
+    scheduler: Pods
+    developmentMode:
+      fakeIpMount: true
+      fakeMemoryAllocation: true
+      usePortForwarding: true
+
+fileCollections:
+  default:
+    type: UCloud
+    matches: "*"
+
+files:
+  default:
+    type: UCloud
+    matches: "*"
+    mountLocation: "/mnt/storage"
+
+ingresses:
+  default:
+    type: UCloud
+    matches: "*"
+    domainPrefix: k8-app-
+    domainSuffix: .localhost.direct
+
+publicIps:
+  default:
+    type: UCloud
+    matches: "*"
+    iface: dummy
+    gatewayCidr: null
+
+licenses:
+  default:
+    type: Generic
+    matches: "*"
+
+shares:
+  default:
+    type: UCloud
+    matches: "*"

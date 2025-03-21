@@ -73,7 +73,7 @@ class ProviderIntegrationService(
             httpClient
         ).orNull()
 
-        (result ?: ProviderStatus()) as ProviderCondition
+        (result ?: ProviderCondition()) as ProviderCondition
     }
 
     private data class Communication(
