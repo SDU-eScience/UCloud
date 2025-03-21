@@ -665,7 +665,7 @@ func StartCluster(compose DockerCompose, noRecreate bool) {
 	})
 	HardCheck(err)
 
-	err = termio.LoadingIndicator("Waiting for UCLoud to be ready...", func(output *os.File) error {
+	err = termio.LoadingIndicator("Waiting for UCloud to be ready...", func(output *os.File) error {
 		cmd := compose.Exec(currentEnvironment, "backend", []string{"curl", "http://localhost:8080"}, false)
 		cmd.SetAllowFailure()
 

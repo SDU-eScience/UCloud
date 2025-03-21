@@ -183,7 +183,6 @@ type Provider interface {
 }
 
 var kubernetes Kubernetes
-var slurm Slurm
 var goSlurm GoSlurm
 var goKubernetes GoKubernetes
 
@@ -199,9 +198,7 @@ var AllProviderNames = []string{
 func GenerateProviders() {
 	kubernetes = NewKubernetes()
 	AllProviders = append(AllProviders, &kubernetes)
-	slurm = NewSlurmProvider(2)
-	AllProviders = append(AllProviders, &slurm)
-	goSlurm = NewGoSlurm(false)
+	goSlurm = NewGoSlurm(true, 2)
 	AllProviders = append(AllProviders, &goSlurm)
 	goKubernetes = NewGoKubernetes()
 	AllProviders = append(AllProviders, &goKubernetes)
@@ -1034,183 +1031,23 @@ EOF`,
 	installMarker.WriteText("done")
 }
 
-type Slurm struct {
-	name                string
-	title               string
-	canRegisterProducts bool
-	addons              map[string]string
-	// NOTE(Dan): Please keep this number relatively stable. This will break existing installations if it moves
-	// around too much.
-	numberOfSlurmNodes int
-}
-
-func NewSlurmProvider(numberOfSlurmNodes int) Slurm {
-	return Slurm{
-		name:                "slurm",
-		title:               "slurm",
-		canRegisterProducts: true,
-		addons:              make(map[string]string),
-		numberOfSlurmNodes:  numberOfSlurmNodes,
-	}
-}
-
-func (s *Slurm) Name() string {
-	return s.name
-}
-
-func (s *Slurm) Title() string {
-	return s.title
-}
-
-func (s *Slurm) CanRegisterProducts() bool {
-	return s.canRegisterProducts
-}
-
-func (s *Slurm) Addons() map[string]string {
-	return s.addons
-}
-
-func (s *Slurm) Build(cb ComposeBuilder) {
-	dataDir := GetDataDirectory()
-	slurmProvider := NewFile(dataDir).Child("slurm", true)
-
-	imDir := slurmProvider.Child("im", true)
-	imGradle := imDir.Child("gradle", true)
-	imData := imDir.Child("data", true)
-	imLogs := NewFile(dataDir).Child("logs", true)
-
-	passwdDir := imDir.Child("passwd", true)
-	passwdFile := passwdDir.Child("passwd", false)
-	groupFile := passwdDir.Child("group", false)
-	shadowFile := passwdDir.Child("shadow", false)
-	if passwdFile.Exists() {
-		passwdFile.WriteText("")
-		groupFile.WriteText("")
-		shadowFile.WriteText("")
-	}
-
-	info := SlurmBuild(cb, s, imDir)
-	imHome := info.imHome
-	imWork := info.imWork
-	etcSlurm := info.etcSlurm
-
-	cb.Service(
-		"slurm",
-		"Slurm Provider: Integration module",
-		Json{
-			//language=json
-			`
-			{
-				"image": "` + imDevImage + `",
-				"command": ["sleep", "inf"],
-				"hostname": "slurm",
-				"volumes": [
-					"` + imGradle.GetAbsolutePath() + `:/root/.gradle",
-					"` + imData.GetAbsolutePath() + `:/etc/ucloud",
-					"` + imLogs.GetAbsolutePath() + `:/var/log/ucloud",
-					"` + imHome.GetAbsolutePath() + `:/home",
-					"` + imWork.GetAbsolutePath() + `:/work",
-					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/integration-module:/opt/ucloud",
-					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/integration-module/example-extensions/simple:/etc/ucloud/extensions",
-					"` + etcSlurm + `:/etc/slurm-llnl",
-					"` + passwdDir.GetAbsolutePath() + `:/mnt/passwd"
-				],
-				"volumes_from": ["slurmdbd:ro"]
-			}
-			`,
-		},
-		true,
-		true,
-		true,
-		"",
-		"",
-	)
-
-	cb.Service(
-		"slurmpgweb",
-		"Slurm Provider: Postgres UI",
-		Json{
-			//language=json
-			`
-				{
-					"image": "sosedoff/pgweb",
-					"hostname": "slurmpgweb",
-					"restart": "always",
-					"environment":{
-						"PGWEB_DATABASE_URL": "postgres://postgres:postgrespassword@slurm:5432/postgres?sslmode=disable"
-					}
-				}
-			`,
-		},
-		true,
-		true,
-		false,
-		"https://slurm-pg.localhost.direct",
-		"",
-	)
-}
-
-//go:embed config/Slurm/core.yaml
-var SlurmCore []byte
-
-//go:embed config/Slurm/products.yaml
-var SlurmProducts []byte
-
-//go:embed config/Slurm/plugins.yaml
-var SlurmPlugins []byte
-
-func (s *Slurm) Install(credentials ProviderCredentials) {
-	slurmProvider := currentEnvironment.Child("slurm", true)
-	imDir := slurmProvider.Child("im", true)
-	imData := imDir.Child("data", true)
-
-	installMarker := imData.Child(".install-marker", false)
-	if len(readLines(installMarker.GetAbsolutePath())) != 0 {
-		return
-	}
-
-	imData.Child("core.yaml", false).WriteBytes(SlurmCore)
-
-	imData.Child("server.yaml", false).WriteText(
-		//language=yaml
-		`refreshToken: ` + credentials.refreshToken + `
-envoy:
-  executable: /usr/bin/envoy
-  funceWrapper: false
-  directory: /var/run/ucloud/envoy
-database:
-  type: Embedded
-  host: 0.0.0.0
-  directory: /etc/ucloud/pgsql
-  password: postgrespassword`,
-	)
-
-	imData.Child("ucloud_crt.pem", false).WriteText(credentials.publicKey)
-
-	imData.Child("products.yaml", false).WriteBytes(SlurmProducts)
-
-	imData.Child("plugins.yaml", false).WriteBytes(SlurmPlugins)
-
-	SlurmInstall("slurm")
-	installMarker.WriteText("done")
-
-}
-
 const FREE_IPA_ADDON = "free-ipa"
 
 type GoSlurm struct {
 	name                string
 	title               string
+	numberOfSlurmNodes  int
 	canRegisterProducts bool
 	addons              map[string]string
 }
 
-func NewGoSlurm(canRegisterProducts bool) GoSlurm {
+func NewGoSlurm(canRegisterProducts bool, numberOfSlurmNodes int) GoSlurm {
 	addons := make(map[string]string)
 	addons[FREE_IPA_ADDON] = FREE_IPA_ADDON
 	return GoSlurm{
 		name:                "go-slurm",
 		title:               "Slurm (Go test)",
+		numberOfSlurmNodes:  numberOfSlurmNodes,
 		canRegisterProducts: canRegisterProducts,
 		addons:              addons,
 	}
@@ -1516,6 +1353,8 @@ func EnrollClient(client string) {
 	)
 	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
+
+	fmt.Println("Client " + client + " has been enrolled in FreeIPA!")
 }
 
 func (gs *GoSlurm) StartAddon(addon string) {
@@ -1530,9 +1369,12 @@ func (gs *GoSlurm) StartAddon(addon string) {
 				"slurmdbd",
 			}
 			wg := sync.WaitGroup{}
-			wg.Add(len(clientsToEnroll))
 			for _, client := range clientsToEnroll {
-				go EnrollClient(client)
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					EnrollClient(client)
+				}()
 			}
 			wg.Wait()
 		}
@@ -1704,6 +1546,48 @@ type SlurmInfo struct {
 	etcSlurm string
 }
 
+func BuildComputeContainers(
+	cb *ComposeBuilder,
+	numberOfSlurmNodes int,
+	passwdDir LFile,
+	imHome LFile,
+	imWork LFile,
+	etcMunge string,
+	etcSlurm string,
+	logSlurm string,
+) {
+	for id := 1; id <= numberOfSlurmNodes; id++ {
+		cb.Service(
+			"c"+strconv.Itoa(id),
+			"Slurm Provider: Compute node "+strconv.Itoa(id),
+			Json{
+				//language=json
+				`{
+					"image": "` + slurmImage + `",
+					"command": ["slurmd", "sshd", "user-sync"],
+					"hostname": "c` + strconv.Itoa(id) + `.ucloud",
+					"volumes": [
+						"` + passwdDir.GetAbsolutePath() + `:/mnt/passwd",
+						"` + imHome.GetAbsolutePath() + `:/home",
+						"` + imWork.GetAbsolutePath() + `:/work",
+						"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/integration-module:/opt/ucloud",
+						"` + etcMunge + `:/etc/munge",
+						"` + etcSlurm + `:/etc/slurm",
+						"` + logSlurm + `:/var/log/slurm"
+					],
+					"depends_on": ["slurmctld"],
+					"restart": "always"
+				}`,
+			},
+			true,
+			true,
+			false,
+			"",
+			"",
+		)
+	}
+}
+
 func SlurmBuild(cb ComposeBuilder, service ComposeService, imDir LFile) SlurmInfo {
 	imHome := imDir.Child("home", true)
 	imWork := imDir.Child("work", true)
@@ -1815,39 +1699,15 @@ func SlurmBuild(cb ComposeBuilder, service ComposeService, imDir LFile) SlurmInf
 		"",
 	)
 
-	v, ok := service.(*Slurm)
-	if ok {
-		for id := range v.numberOfSlurmNodes {
-			cb.Service(
-				"c"+strconv.Itoa(id),
-				"Slurm Provider: Compute node "+strconv.Itoa(id),
-				Json{
-					//language=json
-					`{
-					"image": "` + slurmImage + `",
-					"command": ["slurmd", "sshd", "user-sync"],
-					"hostname": "c` + strconv.Itoa(id) + `.ucloud",
-					"volumes": [
-						"` + passwdDir.GetAbsolutePath() + `:/mnt/passwd",
-						"` + imHome.GetAbsolutePath() + `:/home",
-						"` + imWork.GetAbsolutePath() + `:/work",
-						"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/integration-module:/opt/ucloud",
-						"` + etcMunge + `:/etc/munge",
-						"` + etcSlurm + `:/etc/slurm",
-						"` + logSlurm + `:/var/log/slurm"
-					],
-					"depends_on": ["slurmctld"],
-					"restart": "always"
-				}`,
-				},
-				true,
-				true,
-				false,
-				"",
-				"",
-			)
+	switch v := service.(type) {
+	case *GoSlurm:
+		{
+			BuildComputeContainers(&cb, v.numberOfSlurmNodes, passwdDir, imHome, imWork, etcMunge, etcSlurm, logSlurm)
 		}
+	default:
+		log.Println("Attempting to build slurm with a non slurm service")
 	}
+
 	return SlurmInfo{imHome: imHome, imWork: imWork, etcSlurm: etcSlurm}
 }
 

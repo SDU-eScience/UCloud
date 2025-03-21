@@ -7,9 +7,9 @@ hosts:
     host: backend
     scheme: http
     port: 8080
-self:
-  host: k8.localhost.direct
-  scheme: https
-  port: 443
+  self:
+    host: k8.localhost.direct
+    scheme: https
+    port: 443
 cors:
   allowHosts: ["ucloud.localhost.direct"]
