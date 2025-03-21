@@ -145,8 +145,8 @@ func (e Environment) CreateComposeFile(services []ComposeService) LFile {
 			}
 
 			allAddons := ListAddons()
-			for _, allAddon := range allAddons {
-				for providerName, addon := range allAddon {
+			for providerName, allAddon := range allAddons {
+				for _, addon := range allAddon {
 					provider := ProviderFromName(providerName)
 					v, ok := provider.(*GoSlurm)
 					if ok {
@@ -490,13 +490,13 @@ func (k *Kubernetes) Build(cb ComposeBuilder) {
 				"hostname": "k3",
 				"restart": "always",
 				"volumes": [
-				"` + k3sOutput.GetAbsolutePath() + `:/output",
-				"` + k3sData + `:/var/lib/rancher/k3s",
-				"` + k3sCni + `:/var/lib/cni",
-				"` + k3sKubelet + `:/var/lib/kubelet",
-				"` + k3sEtc + `:/etc/rancher",
-				"` + imStorage.GetAbsolutePath() + `:/mnt/storage"
-			]
+					"` + k3sOutput.GetAbsolutePath() + `:/output",
+					"` + k3sData + `:/var/lib/rancher/k3s",
+					"` + k3sCni + `:/var/lib/cni",
+					"` + k3sKubelet + `:/var/lib/kubelet",
+					"` + k3sEtc + `:/etc/rancher",
+					"` + imStorage.GetAbsolutePath() + `:/mnt/storage"
+				]
 			}
 			`,
 		},
@@ -519,14 +519,14 @@ func (k *Kubernetes) Build(cb ComposeBuilder) {
 				"hostname": "k8",
 				"ports": ["` + strconv.Itoa(portAllocator.Allocate(51232)) + `:51232"],
 				"volumes": [
-				"` + imGradle.GetAbsolutePath() + `:/root/.gradle",
-				"` + imData.GetAbsolutePath() + `:/etc/ucloud",
-				"` + imLogs.GetAbsolutePath() + `:/var/log/ucloud",
-				"` + k3sOutput.GetAbsolutePath() + `:/mnt/k3s",
-				"` + imStorage.GetAbsolutePath() + `:/mnt/storage",
-				"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/integration-module:/opt/ucloud",
-				"` + passwdDir.GetAbsolutePath() + `:/mnt/passwd"
-			]
+					"` + imGradle.GetAbsolutePath() + `:/root/.gradle",
+					"` + imData.GetAbsolutePath() + `:/etc/ucloud",
+					"` + imLogs.GetAbsolutePath() + `:/var/log/ucloud",
+					"` + k3sOutput.GetAbsolutePath() + `:/mnt/k3s",
+					"` + imStorage.GetAbsolutePath() + `:/mnt/storage",
+					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/integration-module:/opt/ucloud",
+					"` + passwdDir.GetAbsolutePath() + `:/mnt/passwd"
+				]
 			}
 			`,
 		},
@@ -580,6 +580,7 @@ func (k *Kubernetes) Install(credentials ProviderCredentials) {
 	if len(lines) != 0 {
 		return
 	}
+
 	imData.Child("core.yaml", false).WriteBytes(KubernetesCore)
 
 	imData.Child("server.yaml", false).WriteText(
@@ -612,10 +613,8 @@ database:
 			"chown -R 11042:11042 /mnt/storage/*",
 		},
 		false,
-		false,
-		true,
 	)
-
+	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 
 	executeCom2 := compose.Exec(
@@ -631,10 +630,8 @@ database:
 			`,
 		},
 		false,
-		false,
-		true,
 	)
-
+	executeCom2.SetStreamOutput()
 	executeCom2.ExecuteToText()
 
 	executeCom3 := compose.Exec(
@@ -647,10 +644,8 @@ database:
 			"/mnt/k3s/kubeconfig.yaml",
 		},
 		false,
-		false,
-		true,
 	)
-
+	executeCom3.SetStreamOutput()
 	executeCom3.ExecuteToText()
 
 	executeCom4 := compose.Exec(
@@ -665,9 +660,9 @@ database:
 			"ucloud-apps",
 		},
 		false,
-		true,
-		true,
 	)
+	executeCom4.SetStreamOutput()
+	executeCom4.SetAllowFailure()
 	executeCom4.ExecuteToText()
 
 	executeCom5 := compose.Exec(
@@ -710,10 +705,8 @@ spec:
 EOF`,
 		},
 		false,
-		false,
-		true,
 	)
-
+	executeCom5.SetStreamOutput()
 	executeCom5.ExecuteToText()
 
 	executeCom6 := compose.Exec(
@@ -721,9 +714,9 @@ EOF`,
 		"k8",
 		[]string{"kubectl", "--kubeconfig", "/mnt/k3s/kubeconfig.yaml", "create", "-f", "/tmp/pvc.yml"},
 		false,
-		true,
-		true,
 	)
+	executeCom6.SetStreamOutput()
+	executeCom6.SetAllowFailure()
 	executeCom6.ExecuteToText()
 
 	executeCom7 := compose.Exec(
@@ -731,10 +724,8 @@ EOF`,
 		"k8",
 		[]string{"rm", "/tmp/pvc.yml"},
 		false,
-		false,
-		true,
 	)
-
+	executeCom7.SetStreamOutput()
 	executeCom7.ExecuteToText()
 
 	installMarker.WriteText("done")
@@ -934,10 +925,8 @@ database:
 				done`,
 		},
 		false,
-		false,
-		true,
 	)
-
+	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 
 	executeCom = compose.Exec(
@@ -950,10 +939,8 @@ database:
 			"/mnt/k3s/kubeconfig.yaml",
 		},
 		false,
-		false,
-		true,
 	)
-
+	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 
 	executeCom = compose.Exec(
@@ -968,10 +955,10 @@ database:
 			"ucloud-apps",
 		},
 		false,
-		true,
-		true,
 	)
 
+	executeCom.SetStreamOutput()
+	executeCom.SetAllowFailure()
 	executeCom.ExecuteToText()
 
 	executeCom = compose.Exec(
@@ -1014,10 +1001,8 @@ spec:
 EOF`,
 		},
 		false,
-		false,
-		true,
 	)
-
+	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 
 	executeCom = compose.Exec(
@@ -1032,10 +1017,9 @@ EOF`,
 			"/tmp/pvc.yml",
 		},
 		false,
-		true,
-		true,
 	)
-
+	executeCom.SetAllowFailure()
+	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 
 	executeCom = compose.Exec(
@@ -1043,10 +1027,8 @@ EOF`,
 		"gok8s",
 		[]string{"rm", "/tmp/pvc.yml"},
 		false,
-		false,
-		true,
 	)
-
+	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 
 	installMarker.WriteText("done")
@@ -1214,6 +1196,8 @@ database:
 
 }
 
+const FREE_IPA_ADDON = "free-ipa"
+
 type GoSlurm struct {
 	name                string
 	title               string
@@ -1222,11 +1206,13 @@ type GoSlurm struct {
 }
 
 func NewGoSlurm(canRegisterProducts bool) GoSlurm {
+	addons := make(map[string]string)
+	addons[FREE_IPA_ADDON] = FREE_IPA_ADDON
 	return GoSlurm{
 		name:                "go-slurm",
 		title:               "Slurm (Go test)",
 		canRegisterProducts: canRegisterProducts,
-		addons:              make(map[string]string),
+		addons:              addons,
 	}
 }
 
@@ -1401,15 +1387,7 @@ database:
 
 	SlurmInstall("go-slurm")
 
-	gs.AddFreeIpaAddon()
-
 	installMarker.WriteText("done")
-}
-
-const FREE_IPA_ADDON = "free-ipa"
-
-func (gs *GoSlurm) AddFreeIpaAddon() {
-	gs.addons[FREE_IPA_ADDON] = FREE_IPA_ADDON
 }
 
 func (gs *GoSlurm) BuildAddon(cb ComposeBuilder, addon string) {
@@ -1469,39 +1447,35 @@ func (gs *GoSlurm) InstallAddon(addon string) {
 				"go-slurm",
 				[]string{
 					"sh", "-c", `
-					while ! curl --silent -f http: //ipa.ucloud/ipa/config/ca.crt > /dev/null; do
-					sleep 1
-					date
-					echo "Waiting for FreeIPA to be ready - Test #1 (expected to take up to 15 minutes)..."
+					while ! curl --silent -f http://ipa.ucloud/ipa/config/ca.crt > /dev/null; do
+						sleep 1
+						date
+						echo "Waiting for FreeIPA to be ready - Test #1 (expected to take up to 15 minutes)..."
 					done
 					`,
 				},
 				false,
-				false,
-				true,
 			)
-
+			executeCom.SetStreamOutput()
 			executeCom.ExecuteToText()
 
 			executeCom = compose.Exec(
 				currentEnvironment,
-				"free_ipa",
+				"free-ipa",
 				[]string{
 					"sh", "-c", `
 					while ! echo adminadmin | kinit admin; do
-					sleep 1
-					date
-					echo "Waiting for FreeIPA to be ready - Test #2 (expected to take a few minutes)..."
+						sleep 1
+						date
+						echo "Waiting for FreeIPA to be ready - Test #2 (expected to take a few minutes)..."
 					done
 
 					echo "FreeIPA is now ready!"
 					`,
 				},
 				false,
-				false,
-				true,
 			)
-
+			executeCom.SetStreamOutput()
 			executeCom.ExecuteToText()
 		}
 	}
@@ -1523,8 +1497,6 @@ func EnrollClient(client string) {
 			`,
 		},
 		false,
-		false,
-		false,
 	)
 
 	executeCom.ExecuteToText()
@@ -1541,10 +1513,8 @@ func EnrollClient(client string) {
 				"(sleep 1; sssd) || (sleep 1; sssd) || (sleep 1; sssd) || (sleep 1; sssd)",
 		},
 		true,
-		false,
-		true,
 	)
-
+	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 }
 
@@ -1894,10 +1864,9 @@ func SlurmInstall(providerContainer string) {
 				"name=linux",
 			},
 			false,
-			true,
-			true,
 		)
-
+		executeCom.SetStreamOutput()
+		executeCom.SetAllowFailure()
 		success := executeCom.ExecuteToText().First != ""
 
 		if success {
@@ -1917,10 +1886,9 @@ func SlurmInstall(providerContainer string) {
 			"chmod 0755 -R /etc/ucloud/extensions",
 		},
 		false,
-		false,
-		true,
 	)
 
+	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 
 	// This is to avoid rebuilding the image when the Slurm configuration changes
@@ -1934,9 +1902,8 @@ func SlurmInstall(providerContainer string) {
 			"/etc/slurm",
 		},
 		false,
-		false,
-		true,
 	)
+	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
 
 	executeCom = compose.Exec(
@@ -1950,10 +1917,9 @@ func SlurmInstall(providerContainer string) {
 			"standard",
 		},
 		false,
-		true,
-		true,
 	)
-
+	executeCom.SetStreamOutput()
+	executeCom.SetAllowFailure()
 	executeCom.ExecuteToText()
 
 	// Restart slurmctld in case configuration file has changed

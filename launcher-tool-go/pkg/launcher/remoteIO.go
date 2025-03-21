@@ -52,7 +52,7 @@ func newSSHConnection(username string, host string) SSHConnection {
 }
 
 func SyncRepository() {
-	command, ok := commandType.(RemoteExecutableCommand)
+	command, ok := commandType.(*RemoteExecutableCommand)
 	if ok {
 		conn := command.connection
 		err := termio.LoadingIndicator(
@@ -73,9 +73,6 @@ func SyncRepository() {
 					},
 					nil,
 					PostProcessorFunc,
-					false,
-					1000*60*5,
-					false,
 				)
 				local.SetAllowFailure()
 				local.SetStreamOutput()
@@ -192,34 +189,31 @@ func NewRemoteExecutableCommand(
 	args []string,
 	workingDir LFile,
 	fn postProcessor,
-	allowFailure bool,
-	deadlineInMillis int64,
-	streamOutput bool,
 ) *RemoteExecutableCommand {
 	return &RemoteExecutableCommand{
 		connection:       connection,
 		args:             args,
 		workingDir:       workingDir,
 		fn:               fn,
-		allowFailure:     allowFailure,
-		deadlineInMillis: deadlineInMillis,
-		streamOutput:     streamOutput,
+		allowFailure:     false,
+		deadlineInMillis: 1000 * 60 * 5,
+		streamOutput:     false,
 	}
 }
 
-func (r RemoteExecutableCommand) SetDeadline(deadlineInMillis int64) {
+func (r *RemoteExecutableCommand) SetDeadline(deadlineInMillis int64) {
 	r.deadlineInMillis = deadlineInMillis
 }
 
-func (r RemoteExecutableCommand) SetStreamOutput() {
+func (r *RemoteExecutableCommand) SetStreamOutput() {
 	r.streamOutput = true
 }
 
-func (r RemoteExecutableCommand) SetAllowFailure() {
+func (r *RemoteExecutableCommand) SetAllowFailure() {
 	r.allowFailure = true
 }
 
-func (r RemoteExecutableCommand) ToBashScript() string {
+func (r *RemoteExecutableCommand) ToBashScript() string {
 	sb := new(strings.Builder)
 	sb.WriteString("ssh -t ")
 	sb.WriteString(r.connection.username)
@@ -271,7 +265,7 @@ func stderrThread(connection SSHConnection, sb *strings.Builder, boundary string
 	*/
 }
 
-func (r RemoteExecutableCommand) ExecuteToText() StringPair {
+func (r *RemoteExecutableCommand) ExecuteToText() StringPair {
 	fmt.Println("ExecuteToText call not implemented")
 	panic("implement me before use")
 	/*

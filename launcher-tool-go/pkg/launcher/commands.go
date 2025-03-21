@@ -137,8 +137,6 @@ func (c Commands) OpenLogs(serviceName string) {
 				serviceName,
 				[]string{"sh", "-c", "tail -F /tmp/service.log /var/log/ucloud/*.log"},
 				true,
-				false,
-				false,
 			).ToBashScript(),
 		)
 		HardCheck(err)
@@ -152,7 +150,7 @@ func (c Commands) OpenShell(serviceName string) {
 	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND|os.O_CREATE|os.O_RDWR, os.ModeAppend)
 	HardCheck(err)
 	defer file.Close()
-	_, err = file.WriteString(compose.Exec(currentEnvironment, serviceName, []string{"/bin/sh", "-c", "bash || sh"}, true, false, false).ToBashScript())
+	_, err = file.WriteString(compose.Exec(currentEnvironment, serviceName, []string{"/bin/sh", "-c", "bash || sh"}, true).ToBashScript())
 	HardCheck(err)
 }
 
@@ -194,9 +192,8 @@ func (c Commands) CreateProvider(providerName string) {
 					`,
 				},
 				false,
-				false,
-				true,
 			)
+			cmdexec.SetStreamOutput()
 			cmdexec.ExecuteToText()
 
 			cmdexec = compose.Exec(
@@ -204,9 +201,8 @@ func (c Commands) CreateProvider(providerName string) {
 				providerName,
 				[]string{"sh", "-c", "yes | ucloud products register"},
 				false,
-				false,
-				true,
 			)
+			cmdexec.SetStreamOutput()
 			cmdexec.SetDeadline(30_000)
 			cmdexec.ExecuteToText()
 
@@ -333,9 +329,6 @@ func (c Commands) EnvironmentDelete(shutdown bool) {
 						args,
 						nil,
 						PostProcessorFunc,
-						false,
-						1000*60*5,
-						false,
 					)
 					com.SetStreamOutput()
 					com.ExecuteToText()
@@ -351,9 +344,6 @@ func (c Commands) EnvironmentDelete(shutdown bool) {
 				[]string{FindDocker(), "run", "-v", path + ":/data", "alpine:3", "/bin/sh", "-c", "rm -rf /data/" + currentEnvironment.Name()},
 				nil,
 				PostProcessorFunc,
-				false,
-				1000*60*5,
-				false,
 			)
 
 			if shutdown {
@@ -416,9 +406,9 @@ func (c Commands) CreateSnapshot(snapshotName string) {
 					service.containerName,
 					[]string{"/opt/ucloud/service.sh", "snapshot", snapshotName},
 					false,
-					true,
-					true,
 				)
+				executeCom.SetAllowFailure()
+				executeCom.SetStreamOutput()
 				executeCom.ExecuteToText()
 			}
 		}
@@ -438,9 +428,9 @@ func (c Commands) RestoreSnapshot(snapshotName string) {
 					service.containerName,
 					[]string{"/opt/ucloud/service.sh", "restore", snapshotName},
 					false,
-					true,
-					true,
 				)
+				executeCom.SetAllowFailure()
+				executeCom.SetStreamOutput()
 				executeCom.ExecuteToText()
 			}
 		}
@@ -455,8 +445,6 @@ func StopService(service Service) ExecutableCommandInterface {
 			currentEnvironment,
 			service.containerName,
 			[]string{"/opt/ucloud/service.sh", "stop"},
-			false,
-			false,
 			false,
 		)
 	} else {
@@ -497,9 +485,8 @@ func CallService(
 		container,
 		list,
 		false,
-		true,
-		false,
 	)
+	executeCom.SetAllowFailure()
 	return executeCom.ExecuteToText().First
 }
 
@@ -679,7 +666,8 @@ func StartCluster(compose DockerCompose, noRecreate bool) {
 	HardCheck(err)
 
 	err = termio.LoadingIndicator("Waiting for UCLoud to be ready...", func(output *os.File) error {
-		cmd := compose.Exec(currentEnvironment, "backend", []string{"curl", "http://localhost:8080"}, false, true, false)
+		cmd := compose.Exec(currentEnvironment, "backend", []string{"curl", "http://localhost:8080"}, false)
+		cmd.SetAllowFailure()
 
 		for i := range 100 {
 			if i > 20 {
@@ -728,9 +716,9 @@ func StartService(service Service) ExecutableCommandInterface {
 			service.ContainerName(),
 			[]string{"/opt/ucloud/service.sh", "start"},
 			false,
-			true,
-			true,
 		)
+		com.SetStreamOutput()
+		com.SetAllowFailure()
 		return com
 	} else {
 		com := compose.Start(currentEnvironment, service.containerName)

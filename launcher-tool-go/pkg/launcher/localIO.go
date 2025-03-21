@@ -103,33 +103,30 @@ func NewLocalExecutableCommand(
 	args []string,
 	workingDir LFile,
 	fn postProcessor,
-	allowFailure bool,
-	deadlineInMillis int64,
-	streamOutput bool,
 ) *LocalExecutableCommand {
 	return &LocalExecutableCommand{
 		args:             args,
 		workingDir:       workingDir,
 		fn:               fn,
-		allowFailure:     allowFailure,
-		deadlineInMillis: deadlineInMillis,
-		streamOutput:     streamOutput,
+		allowFailure:     false,
+		deadlineInMillis: 1000 * 60 * 5,
+		streamOutput:     false,
 	}
 }
 
-func (l LocalExecutableCommand) SetDeadline(deadlineInMillis int64) {
+func (l *LocalExecutableCommand) SetDeadline(deadlineInMillis int64) {
 	l.deadlineInMillis = deadlineInMillis
 }
 
-func (l LocalExecutableCommand) SetAllowFailure() {
+func (l *LocalExecutableCommand) SetAllowFailure() {
 	l.allowFailure = true
 }
 
-func (l LocalExecutableCommand) SetStreamOutput() {
+func (l *LocalExecutableCommand) SetStreamOutput() {
 	l.streamOutput = true
 }
 
-func (l LocalExecutableCommand) ToBashScript() string {
+func (l *LocalExecutableCommand) ToBashScript() string {
 	sb := new(strings.Builder)
 	if l.workingDir != nil {
 		sb.WriteString("cd '" + l.workingDir.GetAbsolutePath() + "'\n")
@@ -141,21 +138,7 @@ func (l LocalExecutableCommand) ToBashScript() string {
 	return sb.String()
 }
 
-func logBuilderThread(buf *bufio.Reader, stringBuilder *strings.Builder, deadline int64) {
-	for time.Now().UnixMilli() < deadline {
-		line, _, err := buf.ReadLine()
-		if err != nil {
-			if err == io.EOF {
-				break
-			} else {
-				panic(err)
-			}
-		}
-		stringBuilder.Write(line)
-	}
-}
-
-func (l LocalExecutableCommand) ExecuteToText() StringPair {
+func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 	if DebugCommandsGiven() {
 		fmt.Println("Command: " + strings.Join(l.args, " "))
 	}

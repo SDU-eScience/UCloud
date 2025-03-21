@@ -314,21 +314,32 @@ func AddProvider(providerId string) {
 
 func ListAddons() map[string]map[string]string {
 	result := map[string]map[string]string{}
-	abs := localEnvironment.GetAbsolutePath()
-	lines := readLines(abs + "/provider-addons.txt")
+	path := filepath.Join(localEnvironment.GetAbsolutePath(), "provider-addons.txt")
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
+	defer file.Close()
+	HardCheck(err)
+	lines := readLines(path)
 	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
 		split := strings.Split(line, "/")
 		providerId := split[len(split)-2]
 		addon := split[len(split)-1]
 		m := result[providerId]
-		m[addon] = addon
+		if m == nil {
+			m = make(map[string]string)
+			m[addon] = addon
+		} else {
+			m[addon] = addon
+		}
 		result[providerId] = m
 	}
 	return result
 }
 
 func AddAddon(providerId string, addon string) {
-	f, err := os.OpenFile(filepath.Join(localEnvironment.GetAbsolutePath(), ".compose", "provider-addons.txt"), os.O_APPEND|os.O_CREATE, 0666)
+	f, err := os.OpenFile(filepath.Join(localEnvironment.GetAbsolutePath(), "provider-addons.txt"), os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
 	HardCheck(err)
 	_, err = f.WriteString(providerId + "/" + addon + "\n")
 	HardCheck(err)

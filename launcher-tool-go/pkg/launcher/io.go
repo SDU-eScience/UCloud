@@ -42,9 +42,6 @@ func NewExecutableCommand(
 	args []string,
 	workingDir LFile,
 	fn postProcessor,
-	allowFailure bool,
-	deadlineInMillis int64,
-	streamOutput bool,
 ) ExecutableCommandInterface {
 	if environmentIsRemote {
 		conn := GetSSHConnection()
@@ -53,17 +50,12 @@ func NewExecutableCommand(
 			args,
 			workingDir,
 			fn,
-			allowFailure,
-			deadlineInMillis,
-			streamOutput)
+		)
 	} else {
 		return NewLocalExecutableCommand(
 			args,
 			workingDir,
 			fn,
-			allowFailure,
-			deadlineInMillis,
-			streamOutput,
 		)
 	}
 }
