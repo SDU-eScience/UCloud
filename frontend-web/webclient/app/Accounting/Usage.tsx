@@ -1011,14 +1011,12 @@ const FullyMergedUsageBreakdownPanel: React.FunctionComponent<{isLoading: boolea
         </> : null}
 
         {datapointSum === 0 ? null : <div className="pie-wrapper">
-            <PieChart dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={idx => setSingleChartSelected(existingChart => {
-                const newlySelectedChart = props.charts[0].dataPoints[idx].title;
-                <PieChart dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={dataPoint => setSingleChartSelected(existingChart => {
-                    const newlySelectedChart = dataPoint.key;
-                    return newlySelectedChart === existingChart ? undefined : newlySelectedChart;
-                })} />
-            </div>}
-            {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
+            <PieChart dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={dataPoint => setSingleChartSelected(existingChart => {
+                const newlySelectedChart = dataPoint.key;
+                return newlySelectedChart === existingChart ? undefined : newlySelectedChart;
+            })} />
+        </div>}
+        {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
         {dataPoints.length === 0 ? "No usage data found" :
             <div style={{overflowY: "scroll"}}>
                 <table>
