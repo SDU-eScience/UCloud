@@ -251,7 +251,6 @@ meaning and you can simply choose the default by pressing enter.
 		fmt.Println()
 		SelectOrCreateEnvironment(baseDir, shouldInitializeTestEnvironment)
 	} else {
-		//TODO Better printing BRIAN
 		fmt.Println("Active environment: " + env.Name())
 		fmt.Println()
 		path, err := filepath.Abs(env.Name())

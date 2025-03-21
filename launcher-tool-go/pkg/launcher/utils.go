@@ -2,7 +2,6 @@ package launcher
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -19,7 +18,7 @@ type StringPair struct {
 
 func SoftCheck(e error) {
 	if e != nil {
-		fmt.Println(e)
+		log.Println(e)
 	}
 }
 

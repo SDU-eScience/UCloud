@@ -513,11 +513,11 @@ type CredTokens struct {
 }
 
 func GetCredentialsFromJSON(response string) (publicKey string, refreshToken string) {
-	println(response)
 	bresp := BulkTokenResponse{
 		Items: []CredTokens{},
 	}
-	json.Unmarshal([]byte(response), &bresp)
+	err := json.Unmarshal([]byte(response), &bresp)
+	SoftCheck(err)
 	return bresp.Items[0].PublicKey, bresp.Items[0].RefreshToken
 }
 
@@ -527,7 +527,8 @@ func FetchAccessToken() string {
 		panic("Failed to contact UCloud/Core backend. Check to see if the backend service is running.")
 	}
 	var accessToken AccessTokenWrapper
-	json.Unmarshal([]byte(tokenJson), &accessToken)
+	err := json.Unmarshal([]byte(tokenJson), &accessToken)
+	SoftCheck(err)
 	return accessToken.AccessToken
 }
 

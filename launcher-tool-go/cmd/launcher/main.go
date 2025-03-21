@@ -166,7 +166,6 @@ func main() {
 	selectedItem, err := toplevel.SelectSingle()
 	launcher.HardCheck(err)
 	commands := launcher.Commands{}
-	//TODO correct switch?
 	switch selectedItem.Value {
 	case "Enable port-forwarding (REQUIRED)":
 		{
@@ -194,6 +193,10 @@ func main() {
 			launcher.InitializeServiceList()
 			selectedService, err := ServiceMenu(false, false, true).SelectSingle()
 			launcher.HardCheck(err)
+			if selectedService.Value == "mainMenu" {
+				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+				os.Exit(0)
+			}
 			commands.OpenUserInterface(selectedService.Value)
 		}
 	case "logs":
@@ -201,6 +204,10 @@ func main() {
 			launcher.InitializeServiceList()
 			item, err := ServiceMenu(false, true, false).SelectSingle()
 			launcher.HardCheck(err)
+			if item.Value == "mainMenu" {
+				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+				os.Exit(0)
+			}
 			service := launcher.ServiceByName(item.Value)
 			CliHint("svc " + service.ContainerName() + " logs")
 			commands.OpenLogs(service.ContainerName())
@@ -210,6 +217,10 @@ func main() {
 			launcher.InitializeServiceList()
 			item, err := ServiceMenu(false, true, false).SelectSingle()
 			launcher.HardCheck(err)
+			if item.Value == "mainMenu" {
+				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+				os.Exit(0)
+			}
 			service := launcher.ServiceByName(item.Value)
 			CliHint("svc " + service.ContainerName() + " sh")
 			commands.OpenShell(service.ContainerName())
@@ -248,27 +259,47 @@ func main() {
 		{
 			launcher.GenerateComposeFile(true)
 			launcher.SyncRepository()
-			selectedService, err := ServiceMenu(false, false, false).SelectSingle()
-			launcher.HardCheck(err)
-			service := launcher.ServiceByName(selectedService.Value)
-			action, err := ServiceActionMenu().SelectSingle()
-			launcher.HardCheck(err)
-			switch action.Value {
-			case "start":
-				{
-					CliHint("svc " + service.ContainerName() + " start")
-					commands.ServiceStart(service.ContainerName())
+			for {
+				breakLoop := true
+				selectedService, err := ServiceMenu(false, false, false).SelectSingle()
+				launcher.HardCheck(err)
+				if selectedService.Value == "mainMenu" {
+					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+					os.Exit(0)
 				}
-			case "stop":
-				{
-					CliHint("svc " + service.ContainerName() + " stop")
-					commands.ServiceStop(service.ContainerName())
+				service := launcher.ServiceByName(selectedService.Value)
+				action, err := ServiceActionMenu().SelectSingle()
+				launcher.HardCheck(err)
+				switch action.Value {
+				case "start":
+					{
+						CliHint("svc " + service.ContainerName() + " start")
+						commands.ServiceStart(service.ContainerName())
+					}
+				case "stop":
+					{
+						CliHint("svc " + service.ContainerName() + " stop")
+						commands.ServiceStop(service.ContainerName())
+					}
+				case "restart":
+					{
+						CliHint("svc " + service.ContainerName() + " restart [--follow]")
+						commands.ServiceStart(service.ContainerName())
+						commands.ServiceStart(service.ContainerName())
+					}
+				case "back":
+					{
+						breakLoop = false
+					}
+				case "mainMenu":
+					{
+						launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+						os.Exit(0)
+					}
+
 				}
-			case "restart":
-				{
-					CliHint("svc " + service.ContainerName() + " restart [--follow]")
-					commands.ServiceStart(service.ContainerName())
-					commands.ServiceStart(service.ContainerName())
+				if breakLoop {
+					break
 				}
 			}
 		}
@@ -330,6 +361,12 @@ func main() {
 					err := os.WriteFile(filepath.Join(basePath, "current.txt"), []byte(env), 664)
 					launcher.HardCheck(err)
 				}
+			case "mainMenu":
+				{
+					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+					os.Exit(0)
+				}
+
 			}
 		}
 	case "help":
@@ -352,6 +389,10 @@ func main() {
 					{
 						Value:   "providers",
 						Message: "UCloud/IM and Providers",
+					},
+					{
+						Value:   "mainMenu",
+						Message: "Return to Main Menu",
 					},
 					{
 						Value:   "exit",
@@ -623,6 +664,11 @@ func main() {
 					)
 				}
 
+				if nextTopic == "mainMenu" {
+					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+					os.Exit(0)
+				}
+
 				if nextTopic == "providers" {
 					//TODO
 					fmt.Println("Not yet written")
@@ -633,6 +679,7 @@ func main() {
 				}
 			}
 		}
+
 	case "exit":
 		{
 			os.Exit(0)
@@ -674,6 +721,15 @@ func EnvironmentMenu() termio.Menu {
 				Value:   "switch",
 				Message: "Switch current environment or create a new one",
 			},
+			{
+				Value:     "navi",
+				Message:   "Navigation",
+				Separator: true,
+			},
+			{
+				Value:   "mainMenu",
+				Message: "Return to main menu",
+			},
 		},
 	}
 }
@@ -693,6 +749,19 @@ func ServiceActionMenu() termio.Menu {
 			{
 				Value:   "restart",
 				Message: "Restart service",
+			},
+			{
+				Value:     "navi",
+				Message:   "Navigation",
+				Separator: true,
+			},
+			{
+				Value:   "back",
+				Message: "Back to service overview",
+			},
+			{
+				Value:   "mainMenu",
+				Message: "Return to main menu",
 			},
 		},
 	}
@@ -755,6 +824,15 @@ func ServiceMenu(requireLogs bool, requireExec bool, requireAddress bool) termio
 		suffix := foundParts[1]
 		items = append(items, termio.MenuItem{service.ContainerName(), suffix, false})
 	}
+	items = append(items, termio.MenuItem{
+		Value:     "other",
+		Message:   "Other",
+		Separator: true,
+	})
+	items = append(items, termio.MenuItem{
+		Value:   "mainMenu",
+		Message: "Return to main menu",
+	})
 	return termio.Menu{
 		Prompt: "Select a service",
 		Items:  items,

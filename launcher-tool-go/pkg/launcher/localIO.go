@@ -143,8 +143,6 @@ func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 		fmt.Println("Command: " + strings.Join(l.args, " "))
 	}
 
-	fmt.Println("Command: " + strings.Join(l.args, " "))
-
 	deadline := time.Now().UnixMilli() + l.deadlineInMillis
 
 	dir := ""
@@ -215,9 +213,6 @@ func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 
 	exitCode := cmd.ProcessState.ExitCode()
 
-	fmt.Println("  Exit code ", strconv.Itoa(exitCode))
-	fmt.Println("  Stdout ", outputBuilder.String())
-	fmt.Println("  Stderr ", errBuilder.String())
 	if DebugCommandsGiven() {
 		fmt.Println("  Exit code ", strconv.Itoa(exitCode))
 		fmt.Println("  Stdout ", outputBuilder.String())
@@ -225,7 +220,6 @@ func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 	}
 
 	if exitCode != 0 {
-		fmt.Println("allows failure " + strconv.FormatBool(l.allowFailure))
 		if l.allowFailure {
 			return StringPair{First: "", Second: outputBuilder.String() + errBuilder.String()}
 		}

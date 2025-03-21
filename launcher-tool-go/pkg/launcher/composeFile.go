@@ -2,7 +2,6 @@ package launcher
 
 import (
 	_ "embed"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -1053,20 +1052,20 @@ func NewGoSlurm(canRegisterProducts bool, numberOfSlurmNodes int) GoSlurm {
 	}
 }
 
-func (g *GoSlurm) Name() string {
-	return g.name
+func (gs *GoSlurm) Name() string {
+	return gs.name
 }
 
-func (g *GoSlurm) Title() string {
-	return g.title
+func (gs *GoSlurm) Title() string {
+	return gs.title
 }
 
-func (g *GoSlurm) CanRegisterProducts() bool {
-	return g.canRegisterProducts
+func (gs *GoSlurm) CanRegisterProducts() bool {
+	return gs.canRegisterProducts
 }
 
-func (g *GoSlurm) Addons() map[string]string {
-	return g.addons
+func (gs *GoSlurm) Addons() map[string]string {
+	return gs.addons
 }
 
 func (gs *GoSlurm) Build(cb ComposeBuilder) {
@@ -1319,7 +1318,7 @@ func (gs *GoSlurm) InstallAddon(addon string) {
 }
 
 func EnrollClient(client string) {
-	fmt.Println("Enrolling " + client + " in FreeIPA...")
+	termio.WriteLine("Enrolling " + client + " in FreeIPA...")
 
 	// NOTE(Dan): This will "fail" with a bunch of errors and warnings because of systemd.
 	// It will, however, actually do all it needs to do. As a result, we supress the output
@@ -1353,8 +1352,7 @@ func EnrollClient(client string) {
 	)
 	executeCom.SetStreamOutput()
 	executeCom.ExecuteToText()
-
-	fmt.Println("Client " + client + " has been enrolled in FreeIPA!")
+	termio.WriteLine("Client " + client + " has been enrolled in FreeIPA!")
 }
 
 func (gs *GoSlurm) StartAddon(addon string) {
