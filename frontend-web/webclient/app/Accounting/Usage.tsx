@@ -1013,10 +1013,12 @@ const FullyMergedUsageBreakdownPanel: React.FunctionComponent<{isLoading: boolea
         {datapointSum === 0 ? null : <div className="pie-wrapper">
             <PieChart dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={idx => setSingleChartSelected(existingChart => {
                 const newlySelectedChart = props.charts[0].dataPoints[idx].title;
-                return newlySelectedChart === existingChart ? undefined : newlySelectedChart;
-            })} />
-        </div>}
-        {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
+                <PieChart dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={dataPoint => setSingleChartSelected(existingChart => {
+                    const newlySelectedChart = dataPoint.key;
+                    return newlySelectedChart === existingChart ? undefined : newlySelectedChart;
+                })} />
+            </div>}
+            {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
         {dataPoints.length === 0 ? "No usage data found" :
             <div style={{overflowY: "scroll"}}>
                 <table>
@@ -1448,7 +1450,7 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
 const PieChart: React.FunctionComponent<{
     dataPoints: {key: string, value: number}[],
     valueFormatter: (value: number) => string,
-    onDataPointSelection: (dataPointIndex: number) => void;
+    onDataPointSelection: (dataPointIndex: {key: string; value: number;}) => void;
 }> = props => {
     const filteredList = useMemo(() => {
         const all = [...props.dataPoints];
@@ -1487,8 +1489,9 @@ const PieChart: React.FunctionComponent<{
                     events: {
                         dataPointSelection: (e: any, chart?: any, options?: any) => {
                             const dataPointIndex = options?.dataPointIndex
+
                             if (dataPointIndex != null) {
-                                props.onDataPointSelection(dataPointIndex);
+                                props.onDataPointSelection(filteredList[dataPointIndex]);
                             }
                         }
                     },
@@ -1496,7 +1499,7 @@ const PieChart: React.FunctionComponent<{
                 legend: {
                     onItemClick: {toggleDataSeries: false}, /* Note(Jonas): I'm not sure we can expect same behaviour from this, as clicking on the pie, so disable */
                 },
-                labels: labels,
+                labels,
                 dataLabels: {
                     enabled: false,
                 },
