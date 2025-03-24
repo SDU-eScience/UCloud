@@ -80,6 +80,7 @@ type KubernetesCompute struct {
 	Syncthing                  KubernetesSyncthingConfiguration
 	IntegratedTerminal         KubernetesIntegratedTerminal
 	VirtualMachineStorageClass util.Option[string]
+	ImSourceCode               util.Option[string]
 }
 
 type K8sMachineCategory struct {
@@ -138,6 +139,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 	computeNode := requireChild(filePath, services, "compute", &success)
 	cfg.Compute.Namespace = optionalChildText(filePath, services, "namespace", &success)
+	cfg.Compute.ImSourceCode = util.OptStringIfNotEmpty(optionalChildText(filePath, computeNode, "imSourceCode", &success))
 	if cfg.Compute.Namespace == "" {
 		cfg.Compute.Namespace = "ucloud-apps"
 	}

@@ -1,4 +1,4 @@
-package controller
+package ucviz
 
 import (
 	"bufio"
@@ -128,7 +128,8 @@ const (
 )
 
 type WidgetLabel struct {
-	Text string `json:"text"`
+	Align WidgetLabelAlign `json:"align"`
+	Text  string           `json:"text"`
 }
 
 type WidgetTable struct {

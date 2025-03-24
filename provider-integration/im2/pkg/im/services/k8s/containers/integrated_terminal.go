@@ -103,7 +103,7 @@ func itermMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.Pod) 
 			}
 
 			container.Resources.Limits = map[core.ResourceName]resource.Quantity{
-				core.ResourceCPU:    *resource.NewScaledQuantity(int64(2000), resource.Milli),
+				core.ResourceCPU:    *resource.NewScaledQuantity(int64(1000), resource.Milli),
 				core.ResourceMemory: *resource.NewScaledQuantity(int64(integratedTerminalDimensions.MemoryInBytes), 0),
 			}
 

@@ -1848,6 +1848,7 @@ function setAllowEditing(doAllow: string) {
 function useShowReleaseNoteIcon() {
     const [showReleaseNoteIcon, setShowReleaseNotePrompt] = useState(false);
 
+    /*
     React.useEffect(() => {
         const lastUsedEditorVersion = localStorage.getItem(EDITOR_VERSION_STORAGE_KEY)
         if (!localStorage.getItem(EDITOR_VERSION_STORAGE_KEY)) {
@@ -1858,6 +1859,7 @@ function useShowReleaseNoteIcon() {
             setShowReleaseNotePrompt(true);
         }
     }, []);
+     */
 
     const onShowReleaseNotesShown = React.useCallback(() => {
         localStorage.setItem(EDITOR_VERSION_STORAGE_KEY, CURRENT_EDITOR_VERSION);

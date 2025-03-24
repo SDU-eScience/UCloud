@@ -217,8 +217,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	})
 	multinodeSidecar := &spec.InitContainers[len(spec.InitContainers)-1]
 
+	etcUCloudVolumeName := "ucloud-etc"
 	spec.Volumes = append(spec.Volumes, core.Volume{
-		Name: "ucloud-multinode",
+		Name: etcUCloudVolumeName,
 		VolumeSource: core.VolumeSource{
 			EmptyDir: &core.EmptyDirVolumeSource{},
 		},
@@ -265,6 +266,37 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		"/bin/sh",
 		"-c",
 		multiNodeScript.String(),
+	}
+
+	// UCloud visualization (ucviz)
+	// -----------------------------------------------------------------------------------------------------------------
+	spec.InitContainers = append(spec.InitContainers, core.Container{
+		Name:  "ucviz",
+		Image: "alpine:latest",
+	})
+
+	ucvizContainer := &spec.InitContainers[len(spec.InitContainers)-1]
+	ucvizContainer.VolumeMounts = append(ucvizContainer.VolumeMounts, core.VolumeMount{
+		Name:      etcUCloudVolumeName,
+		MountPath: "/etc/ucloud",
+	})
+
+	ucvizContainer.Command = []string{"sleep", "0"}
+
+	if util.DevelopmentModeEnabled() && ServiceConfig.Compute.ImSourceCode.Present {
+		ucvizContainer.Image = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.35"
+		ucvizContainer.VolumeMounts = append(ucvizContainer.VolumeMounts, core.VolumeMount{
+			Name:      "ucloud-filesystem",
+			ReadOnly:  false,
+			MountPath: "/opt/source",
+			SubPath:   ServiceConfig.Compute.ImSourceCode.Value,
+		})
+
+		// From provider-integration folder:
+		// rsync -vhra . ../.compose/default/im2k8/im/storage/source-code --exclude ucloud-im --exclude integration-module
+		ucvizContainer.Command = []string{
+			"bash", "-c", "cd /opt/source/im2 ; export PATH=$PATH:/usr/local/go/bin ; CGO_ENABLED=1 go build -o /etc/ucloud/ucviz -trimpath ucloud.dk/cmd/ucviz",
+		}
 	}
 
 	// Firewall
