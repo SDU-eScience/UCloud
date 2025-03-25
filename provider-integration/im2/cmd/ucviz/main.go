@@ -16,5 +16,5 @@ func main() {
 		panic(err)
 	}
 
-	ucviz.HandleCli(os.Args, uiChannel, dataChannel)
+	ucviz.HandleCli(os.Args[1:], uiChannel, dataChannel)
 }

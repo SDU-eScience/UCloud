@@ -295,7 +295,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		// From provider-integration folder:
 		// rsync -vhra . ../.compose/default/im2k8/im/storage/source-code --exclude ucloud-im --exclude integration-module
 		ucvizContainer.Command = []string{
-			"bash", "-c", "cd /opt/source/im2 ; export PATH=$PATH:/usr/local/go/bin ; CGO_ENABLED=1 go build -o /etc/ucloud/ucviz -trimpath ucloud.dk/cmd/ucviz",
+			"bash", "-c", "cd /opt/source/im2 ; export PATH=$PATH:/usr/local/go/bin ; CGO_ENABLED=0 go build -o /etc/ucloud/ucviz -trimpath ucloud.dk/cmd/ucviz",
 		}
 	}
 
