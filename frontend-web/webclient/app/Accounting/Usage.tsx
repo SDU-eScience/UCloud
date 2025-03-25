@@ -54,7 +54,6 @@ interface State {
     }[],
 
     activeDashboard?: {
-        idx: number,
         category: Accounting.ProductCategoryV2,
         currentAllocation: {
             usage: number,
@@ -83,9 +82,8 @@ type Period =
 // State reducer
 // =====================================================================================================================
 type UIAction =
-    | {type: "LoadCharts", charts: ChartsAPI, }
-    | {type: "LoadJobStats", statistics: Jobs.JobStatistics, }
-    | {type: "SelectTab", tabIndex: number}
+    | {type: "LoadCharts", charts: ChartsAPI}
+    | {type: "LoadJobStats", statistics: Jobs.JobStatistics}
     | {type: "UpdateSelectedPeriod", period: Period}
     | {type: "UpdateRequestsInFlight", delta: number}
     | {type: "UpdateActiveUnit", unit: string}
@@ -105,15 +103,7 @@ function stateReducer(state: State, action: UIAction): State {
         }
 
         case "UpdateActiveUnit": {
-            return {
-                ...state,
-                activeDashboard: {
-                    ...state.activeDashboard!,
-                    usageOverTime: state.summaries.filter(it => it.breakdownByProject.unit === action.unit).map(it => it.chart),
-                    breakdownByProject: state.summaries.filter(it => it.breakdownByProject.unit === action.unit).map(it => it.breakdownByProject),
-                    activeUnit: action.unit
-                },
-            };
+            return selectUnit(state, action.unit);
         }
 
         case "LoadCharts": {
@@ -195,33 +185,24 @@ function stateReducer(state: State, action: UIAction): State {
             const availableUnits = [...new Set(newSummaries.map(it => it.breakdownByProject.unit))];
             const activeUnit = availableUnits[0];
 
-            return selectChart({
+            return selectUnit({
                 ...state,
                 remoteData: {
                     ...state.remoteData,
                     chartData: data,
                 },
                 summaries: newSummaries,
-                activeDashboard: {
-                    ...(state.activeDashboard ?? initialState.activeDashboard!),
-                    availableUnits,
-                    activeUnit
-                },
-            }, selectedIndex);
+            }, activeUnit);
         }
 
         case "LoadJobStats": {
-            return selectChart({
+            return selectUnit({
                 ...state,
                 remoteData: {
                     ...state.remoteData,
-                    jobStatistics: action.statistics
-                }
-            });
-        }
-
-        case "SelectTab": {
-            return selectChart(state, action.tabIndex);
+                    jobStatistics: action.statistics,
+                },
+            }, state.activeDashboard?.activeUnit ?? JOBS_UNIT_NAME);
         }
 
         case "UpdateSelectedPeriod": {
@@ -232,18 +213,10 @@ function stateReducer(state: State, action: UIAction): State {
         }
     }
 
-    function selectChart(state: State, categoryIndex?: number): State {
+    function selectUnit(state: State, unit: string): State {
         const chartData = state.remoteData.chartData;
         if (!chartData) return {...state, activeDashboard: undefined};
-        let catIdx = categoryIndex === undefined ? state.activeDashboard?.idx : categoryIndex;
-        if (catIdx === undefined || catIdx < 0 || catIdx > chartData.categories.length) {
-            return {
-                ...state,
-                activeDashboard: undefined
-            };
-        }
-
-        const summaries = state.summaries.filter(it => it.categoryIdx === catIdx);
+        const summaries = state.summaries.filter(it => unit === JOBS_UNIT_NAME || it.breakdownByProject.unit === unit);
         if (!summaries.length) return {...state, activeDashboard: undefined};
 
         let earliestNextAllocation: number | null = null;
@@ -369,19 +342,15 @@ function stateReducer(state: State, action: UIAction): State {
         }
 
         const availableUnitsSet = new Set(state.summaries.map(it => it.breakdownByProject.unit))
-        if (jobUsageByUsers ||
-            mostUsedApplications ||
-            submissionStatistics
-        ) {
+        if (state.remoteData.jobStatistics) {
             availableUnitsSet.add(JOBS_UNIT_NAME);
         }
 
-        const availableUnits = [...availableUnitsSet]
+        const availableUnits = [...availableUnitsSet];
 
         return {
             ...state,
             activeDashboard: {
-                idx: catIdx,
                 category: summaries[0].category,
                 currentAllocation: {
                     usage: summaries[0].usage,
@@ -394,7 +363,7 @@ function stateReducer(state: State, action: UIAction): State {
                 mostUsedApplications,
                 submissionStatistics,
                 availableUnits: availableUnits,
-                activeUnit: availableUnits[0]
+                activeUnit: unit
             },
         };
     }
@@ -515,10 +484,6 @@ const Visualization: React.FunctionComponent = () => {
         };
     });
 
-    const setActiveCategory = useCallback((key: any) => {
-        dispatchEvent({type: "SelectTab", tabIndex: key});
-    }, [dispatchEvent]);
-
     const setPeriod = useCallback((period: Period) => {
         dispatchEvent({type: "UpdateSelectedPeriod", period});
     }, [dispatchEvent]);
@@ -592,27 +557,6 @@ const Visualization: React.FunctionComponent = () => {
                         </>}
                     </>)}
                 </Box>}
-
-                {hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <>
-                    <Flex flexDirection="row" gap="16px" overflowX={"auto"} paddingY={"26px"} paddingX={"12px"}>
-                        {state.summaries.map(s =>
-                            <SmallUsageCard
-                                key={s.categoryIdx}
-                                categoryName={s.category.name}
-                                usageText1={usageToString(s.category, s.usage, s.quota, false)}
-                                usageText2={usageToString(s.category, s.usage, s.quota, true)}
-                                chart={s.chart}
-                                active={
-                                    s.category.name === state.activeDashboard?.category?.name &&
-                                    s.category.provider === state.activeDashboard?.category?.provider
-                                }
-                                activationKey={s.categoryIdx}
-                                onActivate={setActiveCategory}
-                            />
-                        )}
-                    </Flex>
-
-                </>}
 
                 {state.activeDashboard ?
                     <div className="panels">
