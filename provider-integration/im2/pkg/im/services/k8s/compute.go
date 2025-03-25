@@ -37,6 +37,11 @@ func InitCompute() ctrl.JobsService {
 			Delete:           deletePublicIp,
 			RetrieveProducts: retrievePublicIpProducts,
 		},
+		Licenses: ctrl.LicenseService{
+			Create:           activateLicense,
+			Delete:           deleteLicense,
+			RetrieveProducts: retrieveLicenseProducts,
+		},
 	}
 }
 
@@ -65,6 +70,18 @@ func createPublicIp(ip *orc.PublicIp) error {
 
 func deletePublicIp(ip *orc.PublicIp) error {
 	return ctrl.DeleteIpAddress(ip)
+}
+
+func retrieveLicenseProducts() []orc.LicenseSupport {
+	return shared.LicenseSupport
+}
+
+func activateLicense(license *orc.License) error {
+	return ctrl.ActivateLicense(license)
+}
+
+func deleteLicense(license *orc.License) error {
+	return ctrl.DeleteLicense(license)
 }
 
 func retrieveProducts() []orc.JobSupport {

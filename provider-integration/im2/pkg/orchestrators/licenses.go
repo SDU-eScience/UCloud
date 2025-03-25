@@ -4,41 +4,41 @@ import (
 	"ucloud.dk/pkg/apm"
 	c "ucloud.dk/pkg/client"
 	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/pkg/util"
 )
 
-type LicenseServer struct {
+type License struct {
 	Resource
-	Specification LicenseServerSpecification `json:"specification"`
-	Status        LicenseServerStatus        `json:"status"`
-	Updates       []LicenseServerUpdate      `json:"updates,omitempty"`
+	Specification LicenseSpecification `json:"specification"`
+	Status        LicenseStatus        `json:"status"`
+	Updates       []LicenseUpdate      `json:"updates,omitempty"`
 }
 
-type LicenseServerSpecification struct {
+type LicenseSpecification struct {
 	Product apm.ProductReference `json:"product"`
-	Address string
-	Port    int
-	License string
-	ResourceSpecification
 }
 
-type LicenseServerStatus struct {
-	State LicenseServerState `json:"state"`
+type LicenseStatus struct {
+	State   LicenseState `json:"state"`
+	BoundTo []string     `json:"boundTo"`
 }
 
-type LicenseServerState string
-
-type LicenseServerUpdate struct {
-	State LicenseServerState `json:"state,omitempty"`
-	ResourceUpdate
+type LicenseUpdate struct {
+	Timestamp fnd.Timestamp             `json:"timestamp"`
+	State     util.Option[LicenseState] `json:"state,omitempty"`
+	Binding   util.Option[JobBinding]   `json:"binding"`
+	Status    util.Option[string]       `json:"status"`
 }
+
+type LicenseState string
 
 const (
-	LicenseServerStatePreparing   PublicIpState = "PREPARING"
-	LicenseServerStateReady       PublicIpState = "READY"
-	LicenseServerStateUnavailable PublicIpState = "UNAVAILABLE"
+	LicenseStatePreparing   LicenseState = "PREPARING"
+	LicenseStateReady       LicenseState = "READY"
+	LicenseStateUnavailable LicenseState = "UNAVAILABLE"
 )
 
-type LicenseServerSupport struct {
+type LicenseSupport struct {
 	Product apm.ProductReference `json:"product"`
 }
 
@@ -48,9 +48,10 @@ type LicenseServerSupport struct {
 const licenseCtrlNamespace = "licenses.control."
 const licenseCtrlContext = "/api/licenses/control/"
 
-type BrowseLicensesFlags struct {
+type LicenseIncludeFlags struct {
 	IncludeProduct bool `json:"includeProduct"`
 	IncludeUpdates bool `json:"includeUpdates"`
+	IncludeSupport bool `json:"includeSupport"`
 }
 
 /*
@@ -63,8 +64,8 @@ type BrowseLicensesFlags struct {
 		)
 	}
 */
-func BrowseLicenses(next string, flags BrowseLicensesFlags) (fnd.PageV2[LicenseServer], error) {
-	return c.ApiBrowse[fnd.PageV2[LicenseServer]](
+func BrowseLicenses(next string, flags LicenseIncludeFlags) (fnd.PageV2[License], error) {
+	return c.ApiBrowse[fnd.PageV2[License]](
 		licenseCtrlNamespace+"browse",
 		licenseCtrlContext,
 		"",
@@ -72,14 +73,12 @@ func BrowseLicenses(next string, flags BrowseLicensesFlags) (fnd.PageV2[LicenseS
 	)
 }
 
-/*
-func UpdatePublicIps(request fnd.BulkRequest[ResourceUpdateAndId[PublicIpUpdate]]) error {
+func UpdateLicenses(request fnd.BulkRequest[ResourceUpdateAndId[LicenseUpdate]]) error {
 	_, err := c.ApiUpdate[util.Empty](
-		ipsCtrlNamespace+"update",
-		ipsCtrlContext,
+		licenseCtrlNamespace+"update",
+		licenseCtrlContext,
 		"update",
 		request,
 	)
 	return err
 }
-*/

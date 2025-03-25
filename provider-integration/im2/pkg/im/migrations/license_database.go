@@ -10,7 +10,7 @@ func licenseDatabaseV1() migrationScript {
 		Execute: func(ctx *db.Transaction) {
 			db.Exec(ctx, `
 				alter table generic_license_servers
-				rename to license_servers
+				rename to licenses
 			`, db.Params{})
 
 			db.Exec(ctx, `
@@ -18,7 +18,7 @@ func licenseDatabaseV1() migrationScript {
 			`, db.Params{})
 
 			db.Exec(ctx, `
-				create table tracked_license_servers(
+				create table tracked_licenses(
 					resource_id text not null primary key,
 					created_by text not null,
 					project_id text,
@@ -29,11 +29,11 @@ func licenseDatabaseV1() migrationScript {
 			`, db.Params{})
 
 			db.Exec(ctx, `
-				alter table license_servers drop column category
+				alter table licenses drop column category
 			`, db.Params{})
 
 			db.Exec(ctx, `
-				alter table license_servers add primary key (name)
+				alter table licenses add primary key (name)
 			`, db.Params{})
 		},
 	}

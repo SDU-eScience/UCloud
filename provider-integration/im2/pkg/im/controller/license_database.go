@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"ucloud.dk/pkg/cli"
 	db "ucloud.dk/pkg/database"
 	fnd "ucloud.dk/pkg/foundation"
+	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/termio"
@@ -21,18 +23,45 @@ import (
 	orc "ucloud.dk/pkg/orchestrators"
 )
 
-var licenseServers = map[string]*orc.LicenseServer{}
+type LicenseEntry struct {
+	Name    string `db:"name"`
+	Address string `db:"address"`
+	Port    int    `db:"port"`
+	License string `db:"license"`
+}
 
-const LicenseProductCategory = "license_product"
-
+var licenses = map[string]*orc.License{}
 var licenseMutex = sync.Mutex{}
 
 var (
-	ipcBrowseLicense   = ipc.NewCall[util.Empty, []orc.LicenseServer]("licenses.browse")
-	ipcRetrieveLicense = ipc.NewCall[string, orc.LicenseServer]("licenses.retrieve")
-	ipcUpsertLicense   = ipc.NewCall[orc.LicenseServer, util.Empty]("licenses.upsert")
-	ipcDeleteLicense   = ipc.NewCall[apm.ProductReference, util.Empty]("licenses.delete")
+	ipcRetrieveLicenses = ipc.NewCall[util.Empty, []LicenseEntry]("licenses.retrieve")
+	ipcUpdateLicense    = ipc.NewCall[LicenseEntry, util.Empty]("licenses.update")
+	ipcRemoveLicense    = ipc.NewCall[string, util.Empty]("licenses.remove")
 )
+
+func (license *LicenseEntry) toProduct() apm.ProductV2 {
+	return apm.ProductV2{
+		Type: apm.ProductTypeCLicense,
+		Category: apm.ProductCategory{
+			Name:        "licenses",
+			Provider:    cfg.Provider.Id,
+			ProductType: apm.ProductTypeLicense,
+			AccountingUnit: apm.AccountingUnit{
+				Name:                   "License",
+				NamePlural:             "Licenses",
+				FloatingPoint:          false,
+				DisplayFrequencySuffix: false,
+			},
+			AccountingFrequency: apm.AccountingFrequencyOnce,
+			FreeToUse:           true,
+			AllowSubAllocations: true,
+		},
+		Name:        license.Name,
+		Description: "A software license",
+		ProductType: apm.ProductTypeLicense,
+		Price:       1,
+	}
+}
 
 func initLicenseDatabase() {
 	if !RunsServerCode() {
@@ -44,7 +73,7 @@ func initLicenseDatabase() {
 	fetchAllLicenses()
 	loadLicenses()
 
-	ipcUpsertLicense.Handler(func(r *ipc.Request[orc.LicenseServer]) ipc.Response[util.Empty] {
+	ipcUpdateLicense.Handler(func(r *ipc.Request[LicenseEntry]) ipc.Response[util.Empty] {
 		if r.Uid != 0 {
 			return ipc.Response[util.Empty]{
 				StatusCode:   http.StatusForbidden,
@@ -60,7 +89,7 @@ func initLicenseDatabase() {
 			db.Exec(
 				tx,
 				`
-					insert into license_servers (name, address, port, license)
+					insert into licenses (name, address, port, license)
 					values (:name, :address, :port, :license)
 					on conflict (name) do update set
 						address = excluded.address,
@@ -68,89 +97,61 @@ func initLicenseDatabase() {
 						license = excluded.license
 				`,
 				db.Params{
-					"name":    license.Specification.Product.Id,
-					"address": license.Specification.Address,
-					"port":    license.Specification.Port,
-					"license": license.Specification.License,
+					"name":    license.Name,
+					"address": license.Address,
+					"port":    license.Port,
+					"license": license.License,
 				},
 			)
-
 		})
+
+		RegisterProducts([]apm.ProductV2{license.toProduct()})
 
 		return ipc.Response[util.Empty]{
 			StatusCode: http.StatusOK,
 		}
 	})
 
-	ipcBrowseLicense.Handler(func(r *ipc.Request[util.Empty]) ipc.Response[[]orc.LicenseServer] {
+	ipcRetrieveLicenses.Handler(func(r *ipc.Request[util.Empty]) ipc.Response[[]LicenseEntry] {
 		if r.Uid != 0 {
-			return ipc.Response[[]orc.LicenseServer]{
+			return ipc.Response[[]LicenseEntry]{
 				StatusCode:   http.StatusForbidden,
 				ErrorMessage: "You must be root to run this command",
 			}
 		}
 
-		type LicenseServerRow struct {
-			Name    string `db:"name"`
-			Address string `db:"address"`
-			Port    int    `db:"port"`
-			License string `db:"license"`
-		}
-
-		rows := db.NewTx(func(tx *db.Transaction) []LicenseServerRow {
-			return db.Select[LicenseServerRow](
+		rows := db.NewTx(func(tx *db.Transaction) []LicenseEntry {
+			return db.Select[LicenseEntry](
 				tx,
 				`
 					select name, address, port, license 
-					from license_servers
+					from licenses
 					order by name
 				`,
 				db.Params{},
 			)
 		})
 
-		var result []orc.LicenseServer
+		var result []LicenseEntry
 
 		for _, row := range rows {
-			licenseSpec := orc.LicenseServerSpecification{
-				Product: apm.ProductReference{
-					Id: row.Name,
-				},
-				Address: row.Address,
-				Port:    row.Port,
-				License: row.License,
-			}
-
 			result = append(result,
-				orc.LicenseServer{
-					Specification: licenseSpec,
+				LicenseEntry{
+					Name:    row.Name,
+					Address: row.Address,
+					Port:    row.Port,
+					License: row.License,
 				},
 			)
 		}
 
-		return ipc.Response[[]orc.LicenseServer]{
+		return ipc.Response[[]LicenseEntry]{
 			StatusCode: http.StatusOK,
 			Payload:    result,
 		}
 	})
 
-	ipcRetrieveLicense.Handler(func(r *ipc.Request[string]) ipc.Response[orc.LicenseServer] {
-		if r.Uid != 0 {
-			return ipc.Response[orc.LicenseServer]{
-				StatusCode:   http.StatusForbidden,
-				ErrorMessage: "You must be root to run this command",
-			}
-		}
-
-		// TODO(Brian)
-
-		return ipc.Response[orc.LicenseServer]{
-			StatusCode: http.StatusOK,
-			Payload:    orc.LicenseServer{},
-		}
-	})
-
-	ipcDeleteLicense.Handler(func(r *ipc.Request[apm.ProductReference]) ipc.Response[util.Empty] {
+	ipcRemoveLicense.Handler(func(r *ipc.Request[string]) ipc.Response[util.Empty] {
 		if r.Uid != 0 {
 			return ipc.Response[util.Empty]{
 				StatusCode:   http.StatusForbidden,
@@ -162,11 +163,11 @@ func initLicenseDatabase() {
 			db.Exec(
 				tx,
 				`
-				delete from license_servers
-				where name = :name
-			`,
+					delete from licenses
+					where name = :name
+				`,
 				db.Params{
-					"name": r.Payload.Id,
+					"name": r.Payload,
 				},
 			)
 		})
@@ -181,19 +182,20 @@ func fetchAllLicenses() {
 	next := ""
 
 	for {
-		page, err := orc.BrowseLicenses(next, orc.BrowseLicensesFlags{
+		page, err := orc.BrowseLicenses(next, orc.LicenseIncludeFlags{
 			IncludeProduct: false,
 			IncludeUpdates: false,
+			IncludeSupport: false,
 		})
 
 		if err != nil {
-			log.Warn("Failed to fetch license servers: %v", err)
+			log.Warn("Failed to fetch licenses: %v", err)
 			break
 		}
 
 		for i := 0; i < len(page.Items); i++ {
 			license := &page.Items[i]
-			licenseServers[license.Id] = license
+			licenses[license.Id] = license
 		}
 
 		if !page.Next.IsSet() {
@@ -207,27 +209,144 @@ func fetchAllLicenses() {
 // TODO(Brian)
 func loadLicenses() {}
 
-// TODO(Brian)
-func TrackNewLicenseServer(licenseServer orc.LicenseServer) {
+func FetchLicenseProducts() []apm.ProductV2 {
+	result := []apm.ProductV2{}
+
+	licenseMutex.Lock()
+	internalLicenses := db.NewTx(func(tx *db.Transaction) []LicenseEntry {
+		return db.Select[LicenseEntry](
+			tx,
+			`
+				select name, address, port, license 
+				from licenses
+				order by name
+			`,
+			db.Params{},
+		)
+	})
+
+	for _, license := range internalLicenses {
+		result = append(result, license.toProduct())
+	}
+
+	licenseMutex.Unlock()
+	return result
+}
+
+func FetchLicenseSupport() []orc.LicenseSupport {
+	var result []orc.LicenseSupport
+
+	licenseMutex.Lock()
+	internalLicenses := db.NewTx(func(tx *db.Transaction) []LicenseEntry {
+		return db.Select[LicenseEntry](
+			tx,
+			`
+				select name, address, port, license 
+				from licenses 
+				order by name
+			`,
+			db.Params{},
+		)
+	})
+
+	for _, license := range internalLicenses {
+		result = append(result, orc.LicenseSupport{
+			Product: apm.ProductReference{
+				Id:       license.Name,
+				Category: "license",
+				Provider: cfg.Provider.Id,
+			},
+		})
+	}
+	licenseMutex.Unlock()
+
+	return result
+}
+
+func TrackNewLicense(license orc.License) {
 	// Automatically assign timestamps to all updates that do not have one
-	for i := 0; i < len(licenseServer.Updates); i++ {
-		update := &licenseServer.Updates[i]
+	for i := 0; i < len(license.Updates); i++ {
+		update := &license.Updates[i]
 		if update.Timestamp.UnixMilli() <= 0 {
 			update.Timestamp = fnd.Timestamp(time.Now())
 		}
 	}
 
-	licenseMutex.Lock()
-	{
-		_, ok := licenseServers[licenseServer.Id]
-		licenseServers[licenseServer.Id] = &licenseServer
+	jsonified, _ := json.Marshal(license)
 
-		// TODO(Brian)
-		if ok {
-		}
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into tracked_licenses(resource_id, created_by, project_id, product_id, product_category, resource)
+				values (:resource_id, :created_by, :project_id, :product_id, :product_category, :resource)
+				on conflict (resource_id) do update set
+					resource = excluded.resource,
+					created_by = excluded.created_by,
+					project_id = excluded.project_id,
+					product_id = excluded.product_id,
+					product_category = excluded.product_category
+			`,
+			db.Params{
+				"resource_id":      license.Id,
+				"created_by":       license.Owner.CreatedBy,
+				"project_id":       license.Owner.Project,
+				"product_id":       license.Specification.Product.Id,
+				"product_category": license.Specification.Product.Category,
+				"resource":         string(jsonified),
+			},
+		)
+	})
+}
+
+func ActivateLicense(target *orc.License) error {
+	if target == nil {
+		return fmt.Errorf("target is nil")
 	}
-	licenseMutex.Unlock()
 
+	status := util.Option[string]{}
+	status.Set("License is ready for use")
+
+	newUpdate := orc.LicenseUpdate{
+		State:     util.OptValue(orc.LicenseStateReady),
+		Timestamp: fnd.Timestamp(time.Now()),
+		Status:    status,
+	}
+
+	err := orc.UpdateLicenses(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.LicenseUpdate]]{
+		Items: []orc.ResourceUpdateAndId[orc.LicenseUpdate]{
+			{
+				Id:     target.Id,
+				Update: newUpdate,
+			},
+		},
+	})
+
+	if err == nil {
+		target.Updates = append(target.Updates, newUpdate)
+		TrackNewLicense(*target)
+		return nil
+	} else {
+		log.Info("Failed to activate license due to an error between UCloud and the provider: %s", err)
+		return err
+	}
+}
+
+func DeleteLicense(target *orc.License) error {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				delete from tracked_licenses
+				where resource_id = 
+			`,
+			db.Params{
+				"id": target.Id,
+			},
+		)
+	})
+
+	return nil
 }
 
 func printHelp() {
@@ -247,7 +366,7 @@ func printHelp() {
 	f.AppendField("  name", "The name of the product")
 	f.AppendSeparator()
 
-	f.AppendField("ls", "Lists all license servers registered with this module")
+	f.AppendField("ls", "Lists all licenses/servers registered with this module")
 
 	f.Print()
 }
@@ -262,7 +381,7 @@ func LicenseCli(args []string) {
 
 	switch {
 	case cli.IsListCommand(args[0]):
-		licenses, err := ipcBrowseLicense.Invoke(util.EmptyValue)
+		licenses, err := ipcRetrieveLicenses.Invoke(util.EmptyValue)
 
 		if err != nil {
 			cli.HandleError("list licenses", err)
@@ -280,14 +399,14 @@ func LicenseCli(args []string) {
 		table.AppendHeader("License")
 
 		for _, row := range licenses {
-			table.Cell("%s", row.Specification.Product.Id)
-			table.Cell("%s", row.Specification.Address)
-			if row.Specification.Port > 0 {
-				table.Cell("%d", row.Specification.Port)
+			table.Cell("%s", row.Name)
+			table.Cell("%s", row.Address)
+			if row.Port > 0 {
+				table.Cell("%d", row.Port)
 			} else {
 				table.Cell("")
 			}
-			table.Cell("%s", row.Specification.License)
+			table.Cell("%s", row.License)
 		}
 
 		table.Print()
@@ -327,14 +446,12 @@ func LicenseCli(args []string) {
 			address = strings.Join(addressStringElements[0:len(addressStringElements)-1], ":")
 		}
 
-		_, err = ipcUpsertLicense.Invoke(
-			orc.LicenseServer{
-				Specification: orc.LicenseServerSpecification{
-					Product: apm.ProductReference{Id: name.Value, Category: LicenseProductCategory},
-					Address: address,
-					Port:    port,
-					License: license,
-				},
+		_, err = ipcUpdateLicense.Invoke(
+			LicenseEntry{
+				Name:    name.Value,
+				Address: address,
+				Port:    port,
+				License: license,
 			},
 		)
 
@@ -350,7 +467,7 @@ func LicenseCli(args []string) {
 			return
 		}
 
-		ipcDeleteLicense.Invoke(apm.ProductReference{Id: name.Value})
+		ipcRemoveLicense.Invoke(name.Value)
 
 	case cli.IsHelpCommand(args[0]):
 		printHelp()
