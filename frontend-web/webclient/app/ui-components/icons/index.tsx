@@ -961,7 +961,7 @@ export const cpu = (props: any) => (
       style={{
         fill: "none",
         fillRule: "evenodd",
-        stroke: "#000",
+        stroke: "currentcolor",
         strokeWidth: 2.50965,
         strokeMiterlimit: 4,
         strokeDasharray: "none",
@@ -972,7 +972,7 @@ export const cpu = (props: any) => (
       d="M123.615 80.284Z"
       style={{
         fill: "none",
-        stroke: "#000",
+        stroke: "currentcolor",
         strokeWidth: ".264583px",
         strokeLinecap: "butt",
         strokeLinejoin: "miter",
@@ -985,7 +985,7 @@ export const cpu = (props: any) => (
       y={25.225}
       rx={1.009}
       style={{
-        fill: "#000",
+        fill: "currentcolor",
         fillOpacity: 1,
         stroke: "none",
         strokeWidth: 1.66209,
@@ -997,7 +997,7 @@ export const cpu = (props: any) => (
       y={35.225}
       rx={1.009}
       style={{
-        fill: "#000",
+        fill: "currentcolor",
         fillOpacity: 1,
         stroke: "none",
         strokeWidth: 1.66209,
@@ -1009,7 +1009,7 @@ export const cpu = (props: any) => (
       y={45.225}
       rx={1.009}
       style={{
-        fill: "#000",
+        fill: "currentcolor",
         fillOpacity: 1,
         stroke: "none",
         strokeWidth: 1.66209,
@@ -1021,7 +1021,7 @@ export const cpu = (props: any) => (
       y={55.225}
       rx={1.009}
       style={{
-        fill: "#000",
+        fill: "currentcolor",
         fillOpacity: 1,
         stroke: "none",
         strokeWidth: 1.66209,
@@ -1034,7 +1034,7 @@ export const cpu = (props: any) => (
       y={25.225}
       rx={1.009}
       style={{
-        fill: "#000",
+        fill: "currentcolor",
         fillOpacity: 1,
         stroke: "none",
         strokeWidth: 1.6621,
@@ -1047,7 +1047,7 @@ export const cpu = (props: any) => (
       y={35.225}
       rx={1.009}
       style={{
-        fill: "#000",
+        fill: "currentcolor",
         fillOpacity: 1,
         stroke: "none",
         strokeWidth: 1.66209,
@@ -1060,7 +1060,7 @@ export const cpu = (props: any) => (
       y={45.225}
       rx={1.009}
       style={{
-        fill: "#000",
+        fill: "currentcolor",
         fillOpacity: 1,
         stroke: "none",
         strokeWidth: 1.66209,
@@ -1073,7 +1073,7 @@ export const cpu = (props: any) => (
       y={55.225}
       rx={1.009}
       style={{
-        fill: "#000",
+        fill: "currentcolor",
         fillOpacity: 1,
         stroke: "none",
         strokeWidth: 1.66209,
@@ -1085,7 +1085,7 @@ export const cpu = (props: any) => (
       x={29.646}
       ry={1.009}
       style={{
-        fill: "#000",
+        fill: "currentcolor",
         fillOpacity: 1,
         stroke: "none",
         strokeWidth: 1.6621,
@@ -1097,7 +1097,7 @@ export const cpu = (props: any) => (
       x={39.646}
       ry={1.009}
       style={{
-        fill: "#000",
+        fill: "currentcolor",
         fillOpacity: 1,
         stroke: "none",
         strokeWidth: 1.6621,
@@ -1109,7 +1109,7 @@ export const cpu = (props: any) => (
       x={49.646}
       ry={1.009}
       style={{
-        fill: "#000",
+        fill: "currentcolor",
         fillOpacity: 1,
         stroke: "none",
         strokeWidth: 1.6621,
@@ -1122,7 +1122,7 @@ export const cpu = (props: any) => (
       y={63.285}
       ry={1.009}
       style={{
-        fill: "#000",
+        fill: "currentcolor",
         fillOpacity: 1,
         stroke: "none",
         strokeWidth: 1.6621,
@@ -1135,7 +1135,7 @@ export const cpu = (props: any) => (
       y={63.285}
       ry={1.009}
       style={{
-        fill: "#000",
+        fill: "currentcolor",
         fillOpacity: 1,
         stroke: "none",
         strokeWidth: 1.6621,
@@ -1148,7 +1148,7 @@ export const cpu = (props: any) => (
       y={63.285}
       ry={1.009}
       style={{
-        fill: "#000",
+        fill: "currentcolor",
         fillOpacity: 1,
         stroke: "none",
         strokeWidth: 1.6621,
@@ -1164,7 +1164,7 @@ export const cpu = (props: any) => (
       style={{
         fill: "none",
         fillRule: "evenodd",
-        stroke: "#000",
+        stroke: "currentcolor",
         strokeWidth: 2.00772,
         strokeMiterlimit: 4,
         strokeDasharray: "none",
@@ -1181,7 +1181,7 @@ export const cpu = (props: any) => (
         fontSize: 16,
         lineHeight: 1.25,
         fontFamily: "sans-serif",
-        fill: "#000",
+        fill: "currentcolor",
         fillOpacity: 1,
         stroke: "none",
         strokeWidth: 0.264583,
