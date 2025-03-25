@@ -25,8 +25,9 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useProject} from "@/Project/cache";
 import * as Heading from "@/ui-components/Heading";
-import {RichSelectChildComponent} from "@/ui-components/RichSelect";
+import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {Feature, hasFeature} from "@/Features";
+import {IconName} from "@/ui-components/Icon";
 
 // Constants
 // =====================================================================================================================
@@ -66,11 +67,12 @@ interface State {
         jobUsageByUsers?: JobUsageByUsers,
         mostUsedApplications?: MostUsedApplications,
         submissionStatistics?: SubmissionStatistics,
+
+        activeUnit: string;
+        availableUnits: string[];
     },
 
     selectedPeriod: Period,
-    availableUnits: string[];
-    activeUnit?: string;
 }
 
 type Period =
@@ -108,9 +110,9 @@ function stateReducer(state: State, action: UIAction): State {
                 activeDashboard: {
                     ...state.activeDashboard!,
                     usageOverTime: state.summaries.filter(it => it.breakdownByProject.unit === action.unit).map(it => it.chart),
-                    breakdownByProject: state.summaries.filter(it => it.breakdownByProject.unit === action.unit).map(it => it.breakdownByProject)
+                    breakdownByProject: state.summaries.filter(it => it.breakdownByProject.unit === action.unit).map(it => it.breakdownByProject),
+                    activeUnit: action.unit
                 },
-                activeUnit: action.unit
             };
         }
 
@@ -190,7 +192,7 @@ function stateReducer(state: State, action: UIAction): State {
                 if (selectedSummary) selectedIndex = selectedSummary.categoryIdx;
             }
 
-            const availableUnits = new Set(newSummaries.map(it => it.breakdownByProject.unit));
+            const availableUnits = [...new Set(newSummaries.map(it => it.breakdownByProject.unit))];
             const activeUnit = availableUnits[0];
 
             return selectChart({
@@ -200,8 +202,11 @@ function stateReducer(state: State, action: UIAction): State {
                     chartData: data,
                 },
                 summaries: newSummaries,
-                availableUnits: [...availableUnits],
-                activeUnit: activeUnit
+                activeDashboard: {
+                    ...(state.activeDashboard ?? initialState.activeDashboard!),
+                    availableUnits,
+                    activeUnit
+                },
             }, selectedIndex);
         }
 
@@ -363,13 +368,15 @@ function stateReducer(state: State, action: UIAction): State {
             }
         }
 
-        const availableUnits = new Set(state.summaries.map(it => it.breakdownByProject.unit))
+        const availableUnitsSet = new Set(state.summaries.map(it => it.breakdownByProject.unit))
         if (jobUsageByUsers ||
             mostUsedApplications ||
             submissionStatistics
         ) {
-            availableUnits.add(JOBS_UNIT_NAME);
+            availableUnitsSet.add(JOBS_UNIT_NAME);
         }
+
+        const availableUnits = [...availableUnitsSet]
 
         return {
             ...state,
@@ -386,9 +393,9 @@ function stateReducer(state: State, action: UIAction): State {
                 jobUsageByUsers,
                 mostUsedApplications,
                 submissionStatistics,
+                availableUnits: availableUnits,
+                activeUnit: availableUnits[0]
             },
-            availableUnits: [...availableUnits],
-            activeUnit: availableUnits[0]
         };
     }
 }
@@ -512,10 +519,6 @@ const Visualization: React.FunctionComponent = () => {
         dispatchEvent({type: "SelectTab", tabIndex: key});
     }, [dispatchEvent]);
 
-    const setActiveCategory2 = useCallback((element: State["summaries"][0]) => {
-        dispatchEvent({type: "SelectTab", tabIndex: element.categoryIdx});
-    }, [dispatchEvent]);
-
     const setPeriod = useCallback((period: Period) => {
         dispatchEvent({type: "UpdateSelectedPeriod", period});
     }, [dispatchEvent]);
@@ -528,12 +531,12 @@ const Visualization: React.FunctionComponent = () => {
     // Short-hands
     // -----------------------------------------------------------------------------------------------------------------
     const activeCategory = state.activeDashboard?.category;
-    const hasChart3And4 = activeCategory?.productType === "COMPUTE";
     const isAnyLoading = state.remoteData.initialLoadDone && state.remoteData.requestsInFlight !== 0;
     const hasNoMeaningfulData =
         state.activeDashboard === undefined ||
         state.activeDashboard.usageOverTime.every(it => it.dataPoints.every(it => it.usage === 0)) &&
         (state.summaries.length === 0 && state.remoteData.requestsInFlight === 0);
+    const unitsForRichSelect = React.useMemo(() => state.activeDashboard?.availableUnits.map(it => ({unit: it})) ?? [], [state.activeDashboard?.availableUnits]);
 
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -551,6 +554,7 @@ const Visualization: React.FunctionComponent = () => {
         />
     }
 
+
     return <MainContainer
         headerSize={0}
         main={<div
@@ -566,28 +570,27 @@ const Visualization: React.FunctionComponent = () => {
             </header>
 
             <div style={{padding: "13px 16px 16px 16px", zIndex: -1}}>
-                {!state.remoteData.chartData && !state.remoteData.jobStatistics && state.remoteData.requestsInFlight ? <>
+                {!state.remoteData.chartData && !state.remoteData.jobStatistics && state.remoteData.requestsInFlight || isAnyLoading ? <>
                     <HexSpin size={64} />
                 </> : null}
 
                 {hasNoMeaningfulData ? <NoData loading={isAnyLoading} productType={activeCategory?.productType} /> : null}
 
                 {!hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <Box pb={32}>
-                    {/* 
-                    <div><b>Resource allocation</b></div>
-                    <RichSelect
-                        items={state.summaries}
-                        keys={["title"]}
-                        RenderRow={RenderProductSelector}
-                        RenderSelected={RenderProductSelector}
-                        onSelect={setActiveCategory2}
-                        fullWidth
-                        selected={!state.activeDashboard ? undefined : state.summaries.find(it => it.category === state.activeDashboard?.category)}
-                    /> */}
-                    <div><b>Unit selection</b></div>
-                    {state.availableUnits.length === 0 ? null : <Select onChange={e => setActiveUnit(e.target.value)} defaultValue={state.availableUnits[0]}>
-                        {state.availableUnits.map(it => <option key={it} value={it}>{it}</option>)}
-                    </Select>}
+                    {isAnyLoading ? null : (<>
+                        <div><b>Unit selection</b></div>
+                        {state.activeDashboard == null ? null : unitsForRichSelect.length === 0 ? <div>No data available</div> : <>
+                            <RichSelect
+                                items={unitsForRichSelect}
+                                keys={["unit"]}
+                                RenderRow={RenderUnitSelector}
+                                RenderSelected={RenderUnitSelector}
+                                onSelect={el => setActiveUnit(el.unit)}
+                                fullWidth
+                                selected={({unit: state.activeDashboard.activeUnit})}
+                            />
+                        </>}
+                    </>)}
                 </Box>}
 
                 {hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <>
@@ -614,7 +617,7 @@ const Visualization: React.FunctionComponent = () => {
                 {state.activeDashboard ?
                     <div className="panels">
                         <div className={classConcat("panel-grid")}>
-                            {state.activeUnit === JOBS_UNIT_NAME ? <>
+                            {state.activeDashboard.activeUnit === JOBS_UNIT_NAME ? <>
                                 <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
                                 <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
                                 <JobSubmissionPanel data={state.activeDashboard.submissionStatistics} />
@@ -627,9 +630,9 @@ const Visualization: React.FunctionComponent = () => {
                                         expiresAt={state.activeDashboard.currentAllocation.expiresAt}
                                     />
                                 </>}
-                                <UsageBreakdownPanel isLoading={isAnyLoading} unit={state.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
-                                <FullyMergedUsageBreakdownPanel isLoading={isAnyLoading} unit={state.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
-                                <UsageOverTimePanel charts={state.activeDashboard.usageOverTime} />
+                                <UsageBreakdownPanel isLoading={isAnyLoading} unit={state.activeDashboard.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
+                                <FullyMergedUsageBreakdownPanel isLoading={isAnyLoading} unit={state.activeDashboard.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
+                                <UsageOverTimePanel isLoading={isAnyLoading} charts={state.activeDashboard.usageOverTime} />
                             </>}
                         </div>
                     </div> : null}
@@ -938,9 +941,9 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: s
             <h4>Usage breakdown by sub-projects (with name and provider selector)</h4>
         </div>
 
-        {datapointSum === 0 ? null : <Select onChange={e => setActiveNameAndProvider(e.target.value)} value={activeNameAndProvider}>
+        <Select onChange={e => setActiveNameAndProvider(e.target.value)} value={activeNameAndProvider}>
             {props.charts.map(({nameAndProvider}) => <option key={nameAndProvider} value={nameAndProvider}>{nameAndProvider}</option>)}
-        </Select>}
+        </Select>
 
         {showWarning && <>
             <Warning>This panel is currently unreliable when showing data across multiple allocation periods.</Warning>
@@ -1278,7 +1281,7 @@ const DynamicallySizedChart: React.FunctionComponent<{
     </div>;
 }
 
-const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]}> = ({charts}) => {
+const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoading: boolean;}> = ({charts, isLoading}) => {
     const chartCounter = useRef(0); // looks like apex charts has a rendering bug if the component isn't completely thrown out
     const [shownEntries, setShownEntries] = useState<boolean[]>([]);
     const chartProps: ChartProps = useMemo(() => {
@@ -1315,6 +1318,8 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]}> = ({ch
 
     // HACK(Jonas): Self-explanatory hack
     const anyData = (chartProps.series?.[0] as any)?.data.length > 0;
+
+    if (isLoading) return null;
 
     return <div className={classConcat(CardClass, PanelClass, UsageOverTimeStyle)}>
         <div className="panel-title">
@@ -1760,7 +1765,7 @@ const RenderProductSelector: RichSelectChildComponent<State["summaries"][0]> = (
     }, [element]);
 
     if (element === undefined) {
-        return <Flex height={40} alignItems={"center"} pl={12}>No script selected</Flex>
+        return <Flex height={40} alignItems={"center"} pl={12}>No product selected</Flex>
     }
 
     const s = element;
@@ -1777,6 +1782,40 @@ const RenderProductSelector: RichSelectChildComponent<State["summaries"][0]> = (
         <div>{usageToString(s.category, s.usage, s.quota, false)}</div>
         <div>({usageToString(s.category, s.usage, s.quota, true)})</div>
     </Flex>;
+}
+
+const RenderUnitSelector: RichSelectChildComponent<{unit: string}> = ({element, onSelect, dataProps}) => {
+
+    if (element === undefined) {
+        return <Flex height={40} alignItems={"center"} pl={12}>No unit selected</Flex>
+    }
+
+    const unit = element.unit;
+    return <Flex gap={"16px"} height="40px" {...dataProps} alignItems={"center"} py={4} px={8} mr={48} onClick={onSelect}>
+        <Icon name={toIcon(unit)} />
+        <div><b>{unit}</b></div>
+    </Flex>;
+}
+
+function toIcon(unit: string): IconName {
+    switch (unit) {
+        case "DKK":
+            return "heroBanknotes";
+        case "GPU-hours":
+            return "heroServerStack";
+        case "Core-hours":
+            return "cpu"
+        case "GB":
+            return "hdd";
+        case "IPs":
+            return "heroGlobeEuropeAfrica"
+        case "Licenses":
+            return "heroDocumentCheck";
+        case "Jobs":
+            return "heroServer"
+        default:
+            return "broom";
+    }
 }
 
 const SmallUsageCard: React.FunctionComponent<{
@@ -2276,7 +2315,6 @@ const initialState: State = {
         distance: 7,
         unit: "day"
     },
-    availableUnits: []
 };
 
 export default Visualization;
