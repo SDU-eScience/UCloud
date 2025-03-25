@@ -28,6 +28,10 @@ import * as Heading from "@/ui-components/Heading";
 import {RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {Feature, hasFeature} from "@/Features";
 
+// Constants
+// =====================================================================================================================
+const JOBS_UNIT_NAME = "Jobs";
+
 // State
 // =====================================================================================================================
 interface State {
@@ -360,6 +364,12 @@ function stateReducer(state: State, action: UIAction): State {
         }
 
         const availableUnits = new Set(state.summaries.map(it => it.breakdownByProject.unit))
+        if (jobUsageByUsers ||
+            mostUsedApplications ||
+            submissionStatistics
+        ) {
+            availableUnits.add(JOBS_UNIT_NAME);
+        }
 
         return {
             ...state,
@@ -512,7 +522,7 @@ const Visualization: React.FunctionComponent = () => {
 
     const setActiveUnit = useCallback((unit: string) => {
         dispatchEvent({type: "UpdateActiveUnit", unit});
-    }, [dispatchEvent])
+    }, [dispatchEvent]);
 
 
     // Short-hands
@@ -544,10 +554,7 @@ const Visualization: React.FunctionComponent = () => {
     return <MainContainer
         headerSize={0}
         main={<div
-            className={classConcat(
-                VisualizationStyle,
-                hasChart3And4 ? undefined : AccountingPanelsOnlyStyle
-            )}
+            className={VisualizationStyle}
         >
             <header>
                 <h3 className="title" style={{marginTop: "auto", marginBottom: "auto"}}>Resource usage</h3>
@@ -607,26 +614,25 @@ const Visualization: React.FunctionComponent = () => {
                 {state.activeDashboard ?
                     <div className="panels">
                         <div className={classConcat("panel-grid")}>
-                            {hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <>
-                                <CategoryDescriptorPanel
-                                    category={state.activeDashboard.category}
-                                    usage={state.activeDashboard.currentAllocation.usage}
-                                    quota={state.activeDashboard.currentAllocation.quota}
-                                    expiresAt={state.activeDashboard.currentAllocation.expiresAt}
-                                />
-                            </>}
-                            <UsageBreakdownPanel isLoading={isAnyLoading} unit={state.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
-                            <FullyMergedUsageBreakdownPanel isLoading={isAnyLoading} unit={state.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
-                            <UsageOverTimePanel charts={state.activeDashboard.usageOverTime} />
-                            {hasChart3And4 ? <>
+                            {state.activeUnit === JOBS_UNIT_NAME ? <>
                                 <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
                                 <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
                                 <JobSubmissionPanel data={state.activeDashboard.submissionStatistics} />
-                            </> : null}
+                            </> : <>
+                                {hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <>
+                                    <CategoryDescriptorPanel
+                                        category={state.activeDashboard.category}
+                                        usage={state.activeDashboard.currentAllocation.usage}
+                                        quota={state.activeDashboard.currentAllocation.quota}
+                                        expiresAt={state.activeDashboard.currentAllocation.expiresAt}
+                                    />
+                                </>}
+                                <UsageBreakdownPanel isLoading={isAnyLoading} unit={state.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
+                                <FullyMergedUsageBreakdownPanel isLoading={isAnyLoading} unit={state.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
+                                <UsageOverTimePanel charts={state.activeDashboard.usageOverTime} />
+                            </>}
                         </div>
-                    </div>
-                    : null
-                }
+                    </div> : null}
             </div>
         </div>}
     />;
