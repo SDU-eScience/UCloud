@@ -901,9 +901,9 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: s
                 <table>
                     <thead>
                         <tr>
-                            <SortTableHeader sortKey={"key"} sorted={sorted}>Project</SortTableHeader>
-                            <SortTableHeader sortKey={"nameAndProvider"} sorted={sorted}>Name - Provider</SortTableHeader>
-                            <SortTableHeader sortKey={"value"} sorted={sorted}>Usage</SortTableHeader>
+                            <SortTableHeader width="50%" sortKey={"key"} sorted={sorted}>Project</SortTableHeader>
+                            <SortTableHeader width="30%" sortKey={"nameAndProvider"} sorted={sorted}>Name - Provider</SortTableHeader>
+                            <SortTableHeader width="20%" sortKey={"value"} sorted={sorted}>Usage</SortTableHeader>
                         </tr>
                     </thead>
                     <tbody>
@@ -932,18 +932,20 @@ const MostUsedApplicationsStyle = injectStyle("most-used-applications", k => `
     }
 `);
 
-function boldStyle(isBold: boolean): CSSProperties | undefined {
+function thStyling(isBold: boolean, width: string): CSSProperties | undefined {
     return {
         fontWeight: isBold ? "bold" : undefined,
-
+        width,
     };
 }
-function SortTableHeader<DataType>({sortKey, sorted, children}: React.PropsWithChildren<{
-    sortKey: keyof DataType; sorted: ReturnType<typeof useSorting<DataType>>;
+
+type PercentWidth = `${string}%`;
+function SortTableHeader<DataType>({sortKey, sorted, children, width}: React.PropsWithChildren<{
+    sortKey: keyof DataType; sorted: ReturnType<typeof useSorting<DataType>>; width: PercentWidth;
 }>) {
     const isActive = sortKey === sorted.sortByKey;
-    return <th style={boldStyle(isActive)} onClick={() => sorted.doSortBy(sortKey)}>
-        {children} {isActive ? <Icon name="chevronDownLight" /> : null}
+    return <th style={thStyling(isActive, width)} onClick={() => sorted.doSortBy(sortKey)}>
+        {children} {isActive ? <Icon name="chevronDownLight" rotation={sorted.sortOrder === "asc" ? 180 : 0} /> : null}
     </th>
 }
 
@@ -1006,8 +1008,8 @@ const MostUsedApplicationsPanel: React.FunctionComponent<{data?: MostUsedApplica
                 <table>
                     <thead>
                         <tr>
-                            <SortTableHeader sortKey="applicationTitle" sorted={sorted}>Application</SortTableHeader>
-                            <SortTableHeader sortKey="count" sorted={sorted}>Number of jobs</SortTableHeader>
+                            <SortTableHeader width="70%" sortKey="applicationTitle" sorted={sorted}>Application</SortTableHeader>
+                            <SortTableHeader width="30%" sortKey="count" sorted={sorted}>Number of jobs</SortTableHeader>
                         </tr>
                     </thead>
                     <tbody>
@@ -1081,11 +1083,11 @@ const JobSubmissionPanel: React.FunctionComponent<{data?: SubmissionStatistics}>
                 <table>
                     <thead>
                         <tr>
-                            <SortTableHeader sorted={sorted} sortKey={"day"}>Day</SortTableHeader>
-                            <SortTableHeader sorted={sorted} sortKey={"hourOfDayStart"}>Time of day</SortTableHeader>
-                            <SortTableHeader sorted={sorted} sortKey={"numberOfJobs"}>Count</SortTableHeader>
-                            <SortTableHeader sorted={sorted} sortKey={"averageDurationInSeconds"}>Avg duration</SortTableHeader>
-                            <SortTableHeader sorted={sorted} sortKey={"averageQueueInSeconds"}>Avg queue</SortTableHeader>
+                            <SortTableHeader width="20%" sorted={sorted} sortKey={"day"}>Day</SortTableHeader>
+                            <SortTableHeader width="20%" sorted={sorted} sortKey={"hourOfDayStart"}>Time of day</SortTableHeader>
+                            <SortTableHeader width="20%" sorted={sorted} sortKey={"numberOfJobs"}>Count</SortTableHeader>
+                            <SortTableHeader width="20%" sorted={sorted} sortKey={"averageDurationInSeconds"}>Avg duration</SortTableHeader>
+                            <SortTableHeader width="20%" sorted={sorted} sortKey={"averageQueueInSeconds"}>Avg queue</SortTableHeader>
                         </tr>
                     </thead>
                     <tbody>
