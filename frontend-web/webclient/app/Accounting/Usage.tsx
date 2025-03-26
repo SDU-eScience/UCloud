@@ -847,6 +847,7 @@ const BreakdownStyle = injectStyle("breakdown", k => `
 `);
 
 const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: string; period: Period; charts: BreakdownChart[];}> = props => {
+
     const unit = props.unit ?? "";
     const [singleChartSelected, setSingleChartSelected] = useState<string | undefined>();
 
@@ -875,8 +876,9 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: s
 
     const datapointSum = useMemo(() => dataPoints.reduce((a, b) => a + b.value, 0), [dataPoints]);
 
-    if (props.isLoading) return null;
+    const sorted = useSorting(dataPoints, "value");
 
+    if (props.isLoading) return null;
 
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
         <div className="panel-title">
@@ -899,9 +901,9 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: s
                 <table>
                     <thead>
                         <tr>
-                            <th>Project</th>
-                            <th>Name - Provider</th>
-                            <th>Usage</th>
+                            <SortTableHeader sortKey={"key"} sorted={sorted}>Project</SortTableHeader>
+                            <SortTableHeader sortKey={"nameAndProvider"} sorted={sorted}>Name - Provider</SortTableHeader>
+                            <SortTableHeader sortKey={"value"} sorted={sorted}>Usage</SortTableHeader>
                         </tr>
                     </thead>
                     <tbody>
@@ -930,23 +932,86 @@ const MostUsedApplicationsStyle = injectStyle("most-used-applications", k => `
     }
 `);
 
+function boldStyle(isBold: boolean): CSSProperties | undefined {
+    return {
+        fontWeight: isBold ? "bold" : undefined,
+
+    };
+}
+function SortTableHeader<DataType>({sortKey, sorted, children}: React.PropsWithChildren<{
+    sortKey: keyof DataType; sorted: ReturnType<typeof useSorting<DataType>>;
+}>) {
+    const isActive = sortKey === sorted.sortByKey;
+    return <th style={boldStyle(isActive)} onClick={() => sorted.doSortBy(sortKey)}>
+        {children} {isActive ? <Icon name="chevronDownLight" /> : null}
+    </th>
+}
+
+type SortOrder = "asc" | "desc";
+function useSorting<DataType>(originalData: DataType[], sortByKey: keyof DataType, initialSortOrder?: SortOrder): {
+    data: DataType[];
+    sortOrder: SortOrder;
+    sortByKey: typeof sortByKey;
+    doSortBy(key: keyof DataType): void;
+} {
+    const [_data, setData] = useState<DataType[]>(originalData);
+    const [_sortByKey, setSortByKey] = useState(sortByKey)
+    const [_sortOrder, setSortOrder] = React.useState<SortOrder>(initialSortOrder ?? "asc");
+
+    React.useEffect(() => {
+        setData(originalData);
+    }, [originalData]);
+
+    const doSortBy = React.useCallback((sortBy: keyof DataType) => {
+        const newSortOrder = _sortByKey === sortBy ? (_sortOrder === "asc" ? "desc" : "asc") : _sortOrder;
+        if (_data.length === 0) return;
+        const type = typeof _data[0][sortBy];
+        switch (type) {
+            case "string": {
+                if (newSortOrder === "asc") {
+                    _data.sort((a, b) => (a[sortBy] as string).localeCompare(b[sortBy] as string));
+                } else {
+                    _data.sort((a, b) => (b[sortBy] as string).localeCompare(a[sortBy] as string));
+                }
+                break;
+            }
+            case "number": {
+                if (newSortOrder === "asc") {
+                    _data.sort((a, b) => (a[sortBy] as number) - (b[sortBy] as number));
+                } else {
+                    _data.sort((a, b) => (b[sortBy] as number) - (a[sortBy] as number));
+                }
+                break;
+            }
+        }
+        setData(_data);
+        setSortOrder(newSortOrder);
+        setSortByKey(sortBy);
+    }, [_data, _sortByKey, _sortOrder]);
+
+    return {data: _data, sortOrder: _sortOrder, doSortBy, sortByKey: _sortByKey};
+
+}
+
 const MostUsedApplicationsPanel: React.FunctionComponent<{data?: MostUsedApplications}> = ({data}) => {
+    const sorted = useSorting(data?.dataPoints ?? [], "count");
+
     return <div className={classConcat(CardClass, PanelClass, MostUsedApplicationsStyle)}>
         <div className="panel-title">
             <h4>Most used applications</h4>
         </div>
 
-        {data === undefined || data.dataPoints.length === 0 ? "No usage data found" :
+        {sorted.data === undefined || sorted.data.length === 0 ? "No usage data found" :
             <div className="table-wrapper">
                 <table>
                     <thead>
                         <tr>
-                            <th>Application</th>
-                            <th>Number of jobs</th>
+                            <SortTableHeader sortKey="applicationTitle" sorted={sorted}>Application</SortTableHeader>
+                            <SortTableHeader sortKey="count" sorted={sorted}>Number of jobs</SortTableHeader>
                         </tr>
                     </thead>
                     <tbody>
-                        {data.dataPoints.map(it =>
+                        {sorted.data.map(it =>
                             <React.Fragment key={it.applicationTitle}>
                                 <tr>
                                     <td>{it.applicationTitle}</td>
@@ -1004,25 +1069,27 @@ const DurationOfSeconds: React.FunctionComponent<{duration: number}> = ({duratio
 }
 
 const JobSubmissionPanel: React.FunctionComponent<{data?: SubmissionStatistics}> = ({data}) => {
+    const sorted = useSorting(data?.dataPoints ?? [], "day");
+
     return <div className={classConcat(CardClass, PanelClass, JobSubmissionStyle)}>
         <div className="panel-title">
             <h4>When are your jobs being submitted?</h4>
         </div>
 
-        {data == null || data.dataPoints.length === 0 ? "No job data found" :
+        {sorted.data == null || sorted.data.length === 0 ? "No job data found" :
             <div className="table-wrapper">
                 <table>
                     <thead>
                         <tr>
-                            <th>Day</th>
-                            <th>Time of day</th>
-                            <th>Count</th>
-                            <th>Avg duration</th>
-                            <th>Avg queue</th>
+                            <SortTableHeader sorted={sorted} sortKey={"day"}>Day</SortTableHeader>
+                            <SortTableHeader sorted={sorted} sortKey={"hourOfDayStart"}>Time of day</SortTableHeader>
+                            <SortTableHeader sorted={sorted} sortKey={"numberOfJobs"}>Count</SortTableHeader>
+                            <SortTableHeader sorted={sorted} sortKey={"averageDurationInSeconds"}>Avg duration</SortTableHeader>
+                            <SortTableHeader sorted={sorted} sortKey={"averageQueueInSeconds"}>Avg queue</SortTableHeader>
                         </tr>
                     </thead>
                     <tbody>
-                        {data.dataPoints.map((dp, i) => {
+                        {sorted.data.map((dp, i) => {
                             const day = dayNames[dp.day];
                             return <tr key={i}>
                                 <td>{day}</td>
@@ -1224,6 +1291,7 @@ function DifferenceTable({charts, shownEntries}: {charts: UsageChart[]; shownEnt
         return differences;
     }, [charts]);
 
+    //const sorted = useSorting(/* remapping before supplying */, "????");
 
     return <div className="table-wrapper">
         <table>
@@ -1283,6 +1351,10 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
         if (!data) return "";
         return Accounting.addThousandSeparators(val.toFixed(2)) + " " + data.unit;
     }, [data?.unit]);
+
+
+    // TODO(Jonas): I don't know what the default `sortBy` is.
+    //const sorted = useSorting(dataPoints ?? [], ???)
 
 
     return <div className={classConcat(CardClass, PanelClass, LargeJobsStyle)}>
