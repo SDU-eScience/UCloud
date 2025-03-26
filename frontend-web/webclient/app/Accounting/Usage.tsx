@@ -28,6 +28,7 @@ import * as Heading from "@/ui-components/Heading";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {Feature, hasFeature} from "@/Features";
 import {IconName} from "@/ui-components/Icon";
+import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 
 // Constants
 // =====================================================================================================================
@@ -560,7 +561,7 @@ const Visualization: React.FunctionComponent = () => {
 
                 {state.activeDashboard ?
                     <div className="panels">
-                        <div className={classConcat("panel-grid")}>
+                        <div className={"panel-grid"}>
                             {state.activeDashboard.activeUnit === JOBS_UNIT_NAME ? <>
                                 <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
                                 <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
@@ -575,7 +576,6 @@ const Visualization: React.FunctionComponent = () => {
                                     />
                                 </>}
                                 <UsageBreakdownPanel isLoading={isAnyLoading} unit={state.activeDashboard.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
-                                <FullyMergedUsageBreakdownPanel isLoading={isAnyLoading} unit={state.activeDashboard.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
                                 <UsageOverTimePanel isLoading={isAnyLoading} charts={state.activeDashboard.usageOverTime} />
                             </>}
                         </div>
@@ -846,83 +846,7 @@ const BreakdownStyle = injectStyle("breakdown", k => `
     }
 `);
 
-
 const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: string; period: Period; charts: BreakdownChart[];}> = props => {
-    const unit = props.unit ?? "";
-
-    const [activeNameAndProvider, setActiveNameAndProvider] = useState("");
-
-    React.useEffect(() => {
-        const nonEmptyChart = props.charts.find(it => it.dataPoints.length > 0);
-        if (nonEmptyChart) setActiveNameAndProvider(nonEmptyChart.nameAndProvider)
-        else setActiveNameAndProvider(props.charts[0]?.nameAndProvider ?? "");
-    }, [props.charts])
-
-    const dataPoints = useMemo(() => {
-        const chart = props.charts.find(it => it.nameAndProvider === activeNameAndProvider);
-        const unsorted = chart?.dataPoints.map(it => ({key: it.title, value: it.usage})) ?? [];
-        return {points: unsorted.sort((a, b) => a.value - b.value), name: chart?.nameAndProvider ?? ""};
-    }, [props.charts, activeNameAndProvider]);
-
-    const formatter = useCallback((val: number) => {
-        return Accounting.addThousandSeparators(val.toFixed(0)) + " " + unit;
-    }, [unit]);
-
-    const showWarning = (() => {
-        const {start, end} = normalizePeriod(props.period);
-        const startDate = new Date(start);
-        const endDate = new Date(end);
-        return startDate.getUTCFullYear() !== endDate.getUTCFullYear();
-    })();
-
-    /* TODO(Jonas): re-introduce this */
-    const datapointSum = useMemo(() => dataPoints.points.reduce((a, b) => a + b.value, 0), [dataPoints]);
-
-    if (props.isLoading) return null;
-
-    return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
-        <div className="panel-title">
-            <h4>Usage breakdown by sub-projects (with name and provider selector)</h4>
-        </div>
-
-        <Select onChange={e => setActiveNameAndProvider(e.target.value)} value={activeNameAndProvider}>
-            {props.charts.map(({nameAndProvider}) => <option key={nameAndProvider} value={nameAndProvider}>{nameAndProvider}</option>)}
-        </Select>
-
-        {showWarning && <>
-            <Warning>This panel is currently unreliable when showing data across multiple allocation periods.</Warning>
-        </>}
-
-        {datapointSum === 0 ? null : <div className="pie-wrapper">
-            <PieChart dataPoints={dataPoints.points} valueFormatter={formatter} onDataPointSelection={() => {}} />
-        </div>}
-
-        {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
-        {dataPoints.points.length === 0 ? <>No usage data found</> :
-            <div style={{overflowY: "scroll"}}>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Project</th>
-                            <th>Usage</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {dataPoints.points.map((point, idx) => {
-                            const usage = point.value;
-                            return <tr key={idx}>
-                                <td>{point.key}</td>
-                                <td>{Accounting.addThousandSeparators(Math.round(usage))} {unit}</td>
-                            </tr>
-                        })}
-                    </tbody>
-                </table>
-            </div>
-        }
-    </div>;
-};
-
-const FullyMergedUsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: string; period: Period; charts: BreakdownChart[];}> = props => {
     const unit = props.unit ?? "";
     const [singleChartSelected, setSingleChartSelected] = useState<string | undefined>();
 
@@ -956,7 +880,7 @@ const FullyMergedUsageBreakdownPanel: React.FunctionComponent<{isLoading: boolea
 
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
         <div className="panel-title">
-            <h4>Usage breakdown by sub-projects (all are merged)</h4>
+            <h4>Usage breakdown by sub-projects</h4>
         </div>
 
         {showWarning ? <>
@@ -976,16 +900,17 @@ const FullyMergedUsageBreakdownPanel: React.FunctionComponent<{isLoading: boolea
                     <thead>
                         <tr>
                             <th>Project</th>
-                            <th>Name/Provider</th>
+                            <th>Name - Provider</th>
                             <th>Usage</th>
                         </tr>
                     </thead>
                     <tbody>
                         {dataPoints.filter(it => singleChartSelected ? it.key === singleChartSelected : true).map((point, idx) => {
                             const usage = point.value;
+                            const [name, provider] = point.nameAndProvider.split("/");
                             return <tr key={idx}>
                                 <td>{point.key}</td>
-                                <td>{point.nameAndProvider}</td>
+                                <td>{name} - {getShortProviderTitle(provider)}</td>
                                 <td>{Accounting.addThousandSeparators(Math.round(usage))} {unit}</td>
                             </tr>
                         })}
@@ -2100,6 +2025,8 @@ function normalizePeriod(period: Period): {start: number, end: number} {
 
 // Styling
 // =====================================================================================================================
+
+const PanelGrid = makeClassName("panel-grid");
 const AccountingPanelsOnlyStyle = injectStyle("accounting-panels-only", () => "");
 const VisualizationStyle = injectStyle("visualization", k => `
     ${k} > header {
@@ -2211,7 +2138,7 @@ const VisualizationStyle = injectStyle("visualization", k => `
     
     /* Panel layouts */
     /* ============================================================================================================== */
-    ${k} .panel-grid {
+    ${k} ${PanelGrid.dot} {
         display: flex;
         flex-direction: column;
         gap: 16px;

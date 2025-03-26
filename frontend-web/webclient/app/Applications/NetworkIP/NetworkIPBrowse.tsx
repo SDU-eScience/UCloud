@@ -38,7 +38,6 @@ import {isAdminOrPI} from "@/Project";
 import {PermissionsTable} from "@/Resource/PermissionEditor";
 import {useProject} from "@/Project/cache";
 import Routes from "@/Routes";
-import PublicLinkApi from "@/UCloud/PublicLinkApi";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
