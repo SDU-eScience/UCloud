@@ -191,6 +191,13 @@ func loopMonitoring() {
 				syncthingNode.Labels["ucloud.dk/machine"] = "syncthing"
 				nodeList.Items = append(nodeList.Items, syncthingNode)
 			}
+
+			if shared.ServiceConfig.Compute.IntegratedTerminal.Enabled {
+				syncthingNode := nodeList.Items[0]
+				syncthingNode.Labels = maps.Clone(syncthingNode.Labels)
+				syncthingNode.Labels["ucloud.dk/machine"] = "terminal"
+				nodeList.Items = append(nodeList.Items, syncthingNode)
+			}
 		}
 
 		length := len(nodeList.Items)

@@ -603,7 +603,7 @@ func loadStorageProducts() {
 		defaultSupport.Files.SearchSupported = false
 		defaultSupport.Files.StreamingSearchSupported = true
 		defaultSupport.Files.SharesSupported = true
-		defaultSupport.Files.OpenInTerminal = false
+		defaultSupport.Files.OpenInTerminal = shared.ServiceConfig.Compute.IntegratedTerminal.Enabled
 	}
 
 	shareProduct := apm.ProductV2{

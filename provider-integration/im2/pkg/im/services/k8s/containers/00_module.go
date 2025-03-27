@@ -41,6 +41,7 @@ func Init() ctrl.JobsService {
 	ExecCodec = runtime.NewParameterCodec(scheme)
 
 	initSyncthing()
+	initIntegratedTerminal()
 
 	loadIApps()
 	LoadNixModules()

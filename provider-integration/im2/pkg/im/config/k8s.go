@@ -50,6 +50,10 @@ type KubernetesIpConfiguration struct {
 	Name    string
 }
 
+type KubernetesIntegratedTerminal struct {
+	Enabled bool
+}
+
 type KubernetesSshConfiguration struct {
 	Enabled   bool
 	IpAddress string
@@ -74,7 +78,9 @@ type KubernetesCompute struct {
 	PublicIps                  KubernetesIpConfiguration
 	Ssh                        KubernetesSshConfiguration
 	Syncthing                  KubernetesSyncthingConfiguration
+	IntegratedTerminal         KubernetesIntegratedTerminal
 	VirtualMachineStorageClass util.Option[string]
+	ImSourceCode               util.Option[string]
 }
 
 type K8sMachineCategory struct {
@@ -133,6 +139,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 	computeNode := requireChild(filePath, services, "compute", &success)
 	cfg.Compute.Namespace = optionalChildText(filePath, services, "namespace", &success)
+	cfg.Compute.ImSourceCode = util.OptStringIfNotEmpty(optionalChildText(filePath, computeNode, "imSourceCode", &success))
 	if cfg.Compute.Namespace == "" {
 		cfg.Compute.Namespace = "ucloud-apps"
 	}
@@ -319,6 +326,12 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			cfg.Compute.Syncthing.RelaysEnabled = relaysEnabled && ok
 			cfg.Compute.Syncthing.DevelopmentSourceCode = optionalChildText(filePath, syncthingNode, "developmentSourceCode", &success)
 		}
+	}
+
+	integratedTerminalNode, _ := getChildOrNil(filePath, computeNode, "integratedTerminal")
+	if integratedTerminalNode != nil {
+		enabled, ok := optionalChildBool(filePath, integratedTerminalNode, "enabled")
+		cfg.Compute.IntegratedTerminal.Enabled = enabled && ok
 	}
 
 	vmStorageClass := optionalChildText(filePath, computeNode, "virtualMachineStorageClass", &success)
