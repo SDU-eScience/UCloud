@@ -3,12 +3,9 @@ package ucviz
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"io"
 	"ucloud.dk/pkg/util"
 )
-
-const jobVizHeader = "#- UCloud JobViz -#"
 
 type WidgetId struct {
 	Id string `json:"id"`
@@ -26,6 +23,7 @@ const (
 	WidgetTypeTable
 	WidgetTypeContainer
 	WidgetTypeDiagram
+	WidgetTextSnippet
 )
 
 type WidgetWindow uint8
@@ -39,6 +37,7 @@ const (
 type WidgetLocation struct {
 	Window WidgetWindow `json:"window"`
 	Tab    string       `json:"tab"`
+	Icon   WidgetIcon   `json:"icon"`
 }
 
 type Widget struct {
@@ -100,8 +99,8 @@ type WidgetDimensions struct {
 type WidgetDirection uint8
 
 const (
-	WidgetDirectionRow WidgetDirection = iota
-	WidgetDirectionColumn
+	WidgetDirectionColumn WidgetDirection = iota
+	WidgetDirectionRow
 )
 
 type WidgetContainer struct {
@@ -111,6 +110,7 @@ type WidgetContainer struct {
 	Height     WidgetDimensions      `json:"height"`
 	Direction  WidgetDirection       `json:"direction"`
 	Grow       uint8                 `json:"grow"`
+	Gap        uint8                 `json:"gap"`
 	Children   []WidgetContainerOrId `json:"children"`
 }
 
@@ -153,13 +153,89 @@ type WidgetTableCell struct {
 	Label  WidgetLabel         `json:"label"`
 }
 
-type WidgetVegaLiteDiagram struct {
-	Definition json.RawMessage `json:"definition"`
-	Data       json.RawMessage `json:"data"`
+type WidgetDiagramDefinition struct {
+	Type   WidgetDiagramType     `json:"type"`
+	Series []WidgetDiagramSeries `json:"series"`
+	XAxis  WidgetDiagramAxis     `json:"xAxis"`
+	YAxis  WidgetDiagramAxis     `json:"yAxis"`
+}
+
+type WidgetDiagramType uint16
+
+const (
+	WidgetDiagramLine WidgetDiagramType = iota
+	WidgetDiagramArea
+	WidgetDiagramBar
+	WidgetDiagramPie
+)
+
+type WidgetDiagramAxis struct {
+	Unit        WidgetDiagramUnit    `json:"unit"`
+	Minimum     util.Option[float64] `json:"minimum"`
+	Maximum     util.Option[float64] `json:"maximum"`
+	Logarithmic bool                 `json:"logarithmic"`
+}
+
+type WidgetDiagramUnit uint16
+
+const (
+	UnitGenericInt WidgetDiagramUnit = iota
+	UnitGenericFloat
+	UnitGenericPercent1
+	UnitGenericPercent100
+	UnitBytes
+	UnitBytesPerSecond
+	UnitDateTime
+	UnitMilliseconds
+	UnitOperationsPerSecond
+)
+
+type WidgetDiagramSeries struct {
+	Name string                   `json:"name"`
+	Data []WidgetDiagramDataPoint `json:"data"`
+}
+
+type WidgetDiagramDataPoint struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
 }
 
 type WidgetProgressBar struct {
 	Progress float64 `json:"progress"` // Value between 0 and 1
+}
+
+type WidgetIcon uint16
+
+const (
+	IconGeneric WidgetIcon = iota
+	IconChat
+	IconCpu
+	IconGpu
+	IconMemory
+	IconNetwork
+	IconDirectory
+	IconDrive
+	IconQuestion
+	IconInfo
+	IconWarning
+)
+
+var iconNames = []string{
+	"generic",
+	"chat",
+	"cpu",
+	"gpu",
+	"memory",
+	"network",
+	"directory",
+	"drive",
+	"question",
+	"info",
+	"warning",
+}
+
+type WidgetSnippet struct {
+	Text string `json:"text"`
 }
 
 type WidgetAction uint8
@@ -190,8 +266,6 @@ func NewWidgetStream(writer io.Writer, encoding WidgetStreamEncoding) *WidgetStr
 	}
 
 	s.binEncoder = util.NewBinaryEncoder(s.writer)
-
-	_, s.Err = s.writer.WriteString(fmt.Sprintf("%s encoding=%s\n", jobVizHeader, encoding))
 	return s
 }
 
@@ -219,10 +293,16 @@ func (s *WidgetStream) CreateTable(id string, location WidgetLocation, table Wid
 	s.writeData(table, true)
 }
 
-func (s *WidgetStream) CreateDiagram(id string, location WidgetLocation, diagram WidgetVegaLiteDiagram) {
+func (s *WidgetStream) CreateDiagram(id string, location WidgetLocation, diagram WidgetDiagramDefinition) {
 	s.writeData(WidgetPacketHeader{Action: WidgetActionCreate}, false)
 	s.writeData(Widget{Id: id, Type: WidgetTypeDiagram, Location: location}, false)
 	s.writeData(diagram, true)
+}
+
+func (s *WidgetStream) CreateSnippet(id string, location WidgetLocation, snippet WidgetSnippet) {
+	s.writeData(WidgetPacketHeader{Action: WidgetActionCreate}, false)
+	s.writeData(Widget{Id: id, Type: WidgetTextSnippet, Location: location}, false)
+	s.writeData(snippet, true)
 }
 
 func (s *WidgetStream) AppendTableRows(id string, rows []WidgetTableRow) {
@@ -231,10 +311,10 @@ func (s *WidgetStream) AppendTableRows(id string, rows []WidgetTableRow) {
 	s.writeData(WidgetTable{Rows: rows}, true)
 }
 
-func (s *WidgetStream) AppendDiagramData(id string, data json.RawMessage) {
+func (s *WidgetStream) AppendDiagramData(id string, data []WidgetDiagramSeries) {
 	s.writeData(WidgetPacketHeader{Action: WidgetActionUpdate}, false)
 	s.writeData(Widget{Id: id, Type: WidgetTypeDiagram}, false)
-	s.writeData(WidgetVegaLiteDiagram{Data: data}, true)
+	s.writeData(data, true)
 }
 
 func (s *WidgetStream) UpdateProgress(id string, progress float64) {

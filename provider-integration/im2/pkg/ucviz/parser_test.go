@@ -8,7 +8,7 @@ import (
 func TestError(t *testing.T) {
 	input := `<Widget id="pbar" foo= />`
 	parser := NewParser(input)
-	node, err := parser.Parse()
+	node, err, _ := parser.Parse()
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
@@ -19,7 +19,7 @@ func TestError(t *testing.T) {
 func TestSelfClosing(t *testing.T) {
 	input := `<Widget id="pbar" />`
 	parser := NewParser(input)
-	node, err := parser.Parse()
+	node, err, _ := parser.Parse()
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
@@ -30,7 +30,7 @@ func TestSelfClosing(t *testing.T) {
 func TestNormalClose(t *testing.T) {
 	input := `<Widget id="pbar"></Widget>`
 	parser := NewParser(input)
-	node, err := parser.Parse()
+	node, err, _ := parser.Parse()
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
@@ -51,7 +51,7 @@ func TestExample1(t *testing.T) {
     </Table>
 </Box>`
 	parser := NewParser(input)
-	node, err := parser.Parse()
+	node, err, _ := parser.Parse()
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
@@ -72,7 +72,7 @@ func TestIndent(t *testing.T) {
     </Chart>
 </Box>`
 	parser := NewParser(input)
-	node, err := parser.Parse()
+	node, err, _ := parser.Parse()
 	if err != nil {
 		fmt.Println("Error:", err)
 		return

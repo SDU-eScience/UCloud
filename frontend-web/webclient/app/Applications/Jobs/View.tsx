@@ -54,6 +54,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {WebSession} from "./Web";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
+import * as JobViz from "@/Applications/Jobs/JobViz"
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -272,8 +273,9 @@ interface JobsFollowResponse {
 
 interface LogMessage {
     rank: number;
-    stdout?: string;
-    stderr?: string;
+    stdout?: string | null;
+    stderr?: string | null;
+    channel?: string | null;
 }
 
 function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowResponse) => void): void {
@@ -481,7 +483,6 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
     if (jobFetcher.error !== undefined) {
         return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>} />;
     }
-
 
     const main = (
         <div className={classConcat(Container, status?.state ?? "state-loading")}>
@@ -1038,6 +1039,30 @@ const RunningContent: React.FunctionComponent<{
         }
     }, []);
 
+    const stream = useMemo(() => new JobViz.StreamProcessor("json"), [job.id]);
+
+    useEffect(() => {
+        const logListener = () => {
+            const s = state.current;
+            if (!s) return;
+
+            const newLogQueue: LogMessage[] = [];
+            for (const l of s.logQueue) {
+                if (l.channel === "ui" || l.channel === "data") {
+                    const text = l.stdout ?? l.stderr ?? "";
+                    stream.accept(text);
+                } else {
+                    newLogQueue.push(l);
+                }
+            }
+
+            s.logQueue = newLogQueue;
+        };
+
+        state.current?.subscriptions?.push(logListener);
+        logListener();
+    }, [job.id]);
+
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
     const supportsExtension = isSupported(backendType, support, "timeExtension");
@@ -1141,6 +1166,12 @@ const RunningContent: React.FunctionComponent<{
 
             <TabbedCard style={{flexBasis: "600px"}}>
                 <StandardPanelBody>
+                    <JobViz.Renderer
+                        processor={stream}
+                        windows={[JobViz.WidgetWindow.WidgetWindowMain, JobViz.WidgetWindow.WidgetWindowAux1, JobViz.WidgetWindow.WidgetWindowAux2]}
+                        tabsOnly={true}
+                    />
+
                     {!sshAccess ? null :
                         <TabbedCardTab icon={"heroKey"} name={"SSH"}>
                             {sshAccess.success ? null : <Warning>
@@ -1375,7 +1406,7 @@ const RunningJobRank: React.FunctionComponent<{
 
             const newLogQueue: LogMessage[] = [];
             for (const l of s.logQueue) {
-                if (l.rank === rank) {
+                if (l.channel == null && l.rank === rank) {
                     if (l.stderr != null) appendToXterm(terminal, l.stderr);
                     if (l.stdout != null) appendToXterm(terminal, l.stdout);
                 } else {

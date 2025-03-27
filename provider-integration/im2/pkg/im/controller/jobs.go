@@ -63,7 +63,7 @@ type FollowJobSession struct {
 	Id       string
 	Alive    *bool
 	Job      *orc.Job
-	EmitLogs func(rank int, stdout, stderr util.Option[string])
+	EmitLogs func(rank int, stdout, stderr, channel util.Option[string])
 }
 
 type ShellSession struct {
@@ -999,6 +999,7 @@ type jobsProviderFollowResponse struct {
 	Rank     int                 `json:"rank"`
 	Stdout   util.Option[string] `json:"stdout"`
 	Stderr   util.Option[string] `json:"stderr"`
+	Channel  util.Option[string] `json:"channel"`
 }
 
 func createFollowSession(
@@ -1016,12 +1017,13 @@ func createFollowSession(
 		EmitLogs: nil,
 	}
 
-	session.EmitLogs = func(rank int, stdout, stderr util.Option[string]) {
+	session.EmitLogs = func(rank int, stdout, stderr, channel util.Option[string]) {
 		resp := jobsProviderFollowResponse{
 			StreamId: session.Id,
 			Rank:     rank,
 			Stdout:   stdout,
 			Stderr:   stderr,
+			Channel:  channel,
 		}
 
 		payload, err := json.Marshal(resp)

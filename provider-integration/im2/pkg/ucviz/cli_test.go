@@ -3,6 +3,7 @@ package ucviz
 import (
 	"os"
 	"testing"
+	"ucloud.dk/pkg/util"
 )
 
 func TestSimpleWidget(t *testing.T) {
@@ -18,5 +19,5 @@ func TestSimpleWidget(t *testing.T) {
     </Table>
 </Box>`
 
-	HandleCli([]string{"widget", input}, os.Stdout, os.Stdout)
+	HandleCli([]string{"widget", input}, os.Stdout, os.Stdout, util.OptNone[string]())
 }

@@ -85,13 +85,58 @@ func FindJobFolder(job *orc.Job) (string, *orc.Drive, error) {
 }
 
 type trackedLogFile struct {
-	Rank   int
-	Stdout bool
-	File   *os.File
+	Rank    int
+	Stdout  bool
+	Channel util.Option[string]
+	File    *os.File
 }
 
 func follow(session *ctrl.FollowJobSession) {
-	var logFiles []trackedLogFile
+	logFiles := map[string]trackedLogFile{}
+
+	job, ok := ctrl.RetrieveJob(session.Job.Id)
+	if !ok {
+		return
+	}
+
+	jobFolder, _, err := FindJobFolder(job)
+	if err != nil {
+		return
+	}
+
+	trackFile := func(baseName string, file trackedLogFile) {
+		_, exists := logFiles[baseName]
+
+		if !exists {
+			stdout, ok1 := filesystem.OpenFile(filepath.Join(jobFolder, baseName), unix.O_RDONLY, 0)
+			if ok1 {
+				file.File = stdout
+				logFiles[baseName] = file
+			}
+		}
+	}
+
+	trackAllFiles := func() {
+		for rank := 0; rank < job.Specification.Replicas; rank++ {
+			baseName := fmt.Sprintf("stdout-%d.log", rank)
+			trackFile(baseName, trackedLogFile{
+				Rank:   rank,
+				Stdout: true,
+			})
+		}
+
+		trackFile(".ucviz-ui", trackedLogFile{
+			Rank:    0,
+			Stdout:  true,
+			Channel: util.OptValue("ui"),
+		})
+
+		trackFile(".ucviz-data", trackedLogFile{
+			Rank:    0,
+			Stdout:  true,
+			Channel: util.OptValue("data"),
+		})
+	}
 
 	for util.IsAlive && *session.Alive {
 		job, ok := ctrl.RetrieveJob(session.Job.Id)
@@ -102,23 +147,6 @@ func follow(session *ctrl.FollowJobSession) {
 		if job.Status.State != orc.JobStateRunning {
 			time.Sleep(1 * time.Second)
 			continue
-		}
-
-		jobFolder, _, err := FindJobFolder(job)
-		if err != nil {
-			time.Sleep(1 * time.Second)
-			continue
-		}
-
-		for rank := 0; rank < job.Specification.Replicas; rank++ {
-			stdout, ok1 := filesystem.OpenFile(filepath.Join(jobFolder, fmt.Sprintf("stdout-%d.log", rank)), unix.O_RDONLY, 0)
-			if ok1 {
-				logFiles = append(logFiles, trackedLogFile{
-					Rank:   rank,
-					Stdout: true,
-					File:   stdout,
-				})
-			}
 		}
 
 		break
@@ -137,9 +165,11 @@ func follow(session *ctrl.FollowJobSession) {
 			break
 		}
 
+		trackAllFiles()
+
 		for _, logFile := range logFiles {
 			now := time.Now()
-			deadline := now.Add(5 * time.Millisecond)
+			deadline := now.Add(5 * time.Microsecond)
 			_ = logFile.File.SetReadDeadline(deadline)
 
 			bytesRead, _ := logFile.File.Read(readBuffer)
@@ -153,11 +183,11 @@ func follow(session *ctrl.FollowJobSession) {
 					stderr.Set(message)
 				}
 
-				session.EmitLogs(logFile.Rank, stdout, stderr)
+				session.EmitLogs(logFile.Rank, stdout, stderr, logFile.Channel)
 			}
 		}
 
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(15 * time.Millisecond)
 	}
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"ucloud.dk/pkg/ucviz"
+	"ucloud.dk/pkg/util"
 )
 
 func main() {
@@ -16,5 +17,8 @@ func main() {
 		panic(err)
 	}
 
-	ucviz.HandleCli(os.Args[1:], uiChannel, dataChannel)
+	// NOTE(Dan): Do not place the lock somewhere that we suspect could be a distributed filesystem. The reason for
+	// this is that flock (file-lock) requires FS support, and it is likely to not be implemented on many distributed
+	// filesystems.
+	ucviz.HandleCli(os.Args[1:], uiChannel, dataChannel, util.OptValue[string]("/tmp/.ucviz-lock"))
 }
