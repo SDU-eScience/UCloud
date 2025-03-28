@@ -448,7 +448,7 @@ const Visualization: React.FunctionComponent = () => {
     // these, try to avoid having dependencies on more than just dispatchEvent itself.
 
     useLayoutEffect(() => {
-        const wrappers = document.querySelectorAll(`.${VisualizationStyle} .table-wrapper`);
+        const wrappers = document.querySelectorAll(`.${VisualizationStyle} ${TableWrapper.dot}`);
         const listeners: [Element, EventListener][] = [];
         wrappers.forEach(wrapper => {
             if (wrapper.scrollTop === 0) {
@@ -560,25 +560,23 @@ const Visualization: React.FunctionComponent = () => {
                 </Box>}
 
                 {state.activeDashboard ?
-                    <div className="panels">
-                        <div className={"panel-grid"}>
-                            {state.activeDashboard.activeUnit === JOBS_UNIT_NAME ? <>
-                                <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
-                                <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
-                                <JobSubmissionPanel data={state.activeDashboard.submissionStatistics} />
-                            </> : <>
-                                {hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <>
-                                    <CategoryDescriptorPanel
-                                        category={state.activeDashboard.category}
-                                        usage={state.activeDashboard.currentAllocation.usage}
-                                        quota={state.activeDashboard.currentAllocation.quota}
-                                        expiresAt={state.activeDashboard.currentAllocation.expiresAt}
-                                    />
-                                </>}
-                                <UsageBreakdownPanel isLoading={isAnyLoading} unit={state.activeDashboard.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
-                                <UsageOverTimePanel isLoading={isAnyLoading} charts={state.activeDashboard.usageOverTime} />
+                    <div className={PanelGrid.class}>
+                        {state.activeDashboard.activeUnit === JOBS_UNIT_NAME ? <>
+                            <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
+                            <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
+                            <JobSubmissionPanel data={state.activeDashboard.submissionStatistics} />
+                        </> : <>
+                            {hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <>
+                                <CategoryDescriptorPanel
+                                    category={state.activeDashboard.category}
+                                    usage={state.activeDashboard.currentAllocation.usage}
+                                    quota={state.activeDashboard.currentAllocation.quota}
+                                    expiresAt={state.activeDashboard.currentAllocation.expiresAt}
+                                />
                             </>}
-                        </div>
+                            <UsageBreakdownPanel isLoading={isAnyLoading} unit={state.activeDashboard.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
+                            <UsageOverTimePanel isLoading={isAnyLoading} charts={state.activeDashboard.usageOverTime} />
+                        </>}
                     </div> : null}
             </div>
         </div>}
@@ -833,11 +831,18 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
 
 const BreakdownStyle = injectStyle("breakdown", k => `
     ${k} .pie-wrapper {
-        width: 350px;
-        height: 350px;
+        width: 500px;
+        height: 500px;
         margin: 20px auto;
         display: flex;
     }
+
+@media screen and (max-width: 1200px) {
+    ${k} .pie-wrapper {
+        width: 100%;
+        height: 500px;
+    }    
+}
 
     ${k} table tbody tr > td:nth-child(2),
     ${k} table tbody tr > td:nth-child(3) {
@@ -881,7 +886,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: s
     if (props.isLoading) return null;
 
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
-        <div className="panel-title">
+        <div className={PanelTitle.class}>
             <h4>Usage breakdown by sub-projects</h4>
         </div>
 
@@ -889,37 +894,39 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: s
             <Warning>This panel is currently unreliable when showing data across multiple allocation periods.</Warning>
         </> : null}
 
-        {datapointSum === 0 ? null : <div className="pie-wrapper">
-            <PieChart dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={dataPoint => setSingleChartSelected(existingChart => {
-                const newlySelectedChart = dataPoint.key;
-                return newlySelectedChart === existingChart ? undefined : newlySelectedChart;
-            })} />
-        </div>}
-        {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
-        {dataPoints.length === 0 ? "No usage data found" :
-            <div style={{overflowY: "scroll"}}>
-                <table>
-                    <thead>
-                        <tr>
-                            <SortTableHeader width="50%" sortKey={"key"} sorted={sorted}>Project</SortTableHeader>
-                            <SortTableHeader width="30%" sortKey={"nameAndProvider"} sorted={sorted}>Name - Provider</SortTableHeader>
-                            <SortTableHeader width="20%" sortKey={"value"} sorted={sorted}>Usage</SortTableHeader>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {dataPoints.filter(it => singleChartSelected ? it.key === singleChartSelected : true).map((point, idx) => {
-                            const usage = point.value;
-                            const [name, provider] = point.nameAndProvider.split("/");
-                            return <tr key={idx}>
-                                <td>{point.key}</td>
-                                <td>{name} - {getShortProviderTitle(provider)}</td>
-                                <td>{Accounting.addThousandSeparators(Math.round(usage))} {unit}</td>
+        <div className={ChartAndTable}>
+            {datapointSum === 0 ? null : <div className="pie-wrapper">
+                <PieChart dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={dataPoint => setSingleChartSelected(existingChart => {
+                    const newlySelectedChart = dataPoint.key;
+                    return newlySelectedChart === existingChart ? undefined : newlySelectedChart;
+                })} />
+            </div>}
+            {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
+            {dataPoints.length === 0 ? "No usage data found" :
+                <div className={TableWrapper.class}>
+                    <table>
+                        <thead>
+                            <tr>
+                                <SortTableHeader width="50%" sortKey={"key"} sorted={sorted}>Project</SortTableHeader>
+                                <SortTableHeader width="30%" sortKey={"nameAndProvider"} sorted={sorted}>Name - Provider</SortTableHeader>
+                                <SortTableHeader width="20%" sortKey={"value"} sorted={sorted}>Usage</SortTableHeader>
                             </tr>
-                        })}
-                    </tbody>
-                </table>
-            </div>
-        }
+                        </thead>
+                        <tbody>
+                            {dataPoints.filter(it => singleChartSelected ? it.key === singleChartSelected : true).map((point, idx) => {
+                                const usage = point.value;
+                                const [name, provider] = point.nameAndProvider.split("/");
+                                return <tr key={idx}>
+                                    <td>{point.key}</td>
+                                    <td>{name} - {getShortProviderTitle(provider)}</td>
+                                    <td>{Accounting.addThousandSeparators(Math.round(usage))} {unit}</td>
+                                </tr>
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
     </div>;
 };
 
@@ -1004,7 +1011,7 @@ const MostUsedApplicationsPanel: React.FunctionComponent<{data?: MostUsedApplica
         </div>
 
         {sorted.data === undefined || sorted.data.length === 0 ? "No usage data found" :
-            <div className="table-wrapper">
+            <div className={TableWrapper.class}>
                 <table>
                     <thead>
                         <tr>
@@ -1079,7 +1086,7 @@ const JobSubmissionPanel: React.FunctionComponent<{data?: SubmissionStatistics}>
         </div>
 
         {sorted.data == null || sorted.data.length === 0 ? "No job data found" :
-            <div className="table-wrapper">
+            <div className={TableWrapper.class}>
                 <table>
                     <thead>
                         <tr>
@@ -1264,7 +1271,7 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
             <h4>Usage over time</h4>
         </div>
 
-        <>
+        <div className={ChartAndTable}>
             <DynamicallySizedChart anyChartData={anyData} chart={chartProps} aspectRatio={ASPECT_RATIO_LINE_CHART} />
 
             {showWarning && <>
@@ -1275,7 +1282,7 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
             </>}
 
             <DifferenceTable charts={charts} shownEntries={shownEntries} />
-        </>
+        </div>
     </div>;
 };
 
@@ -1295,7 +1302,7 @@ function DifferenceTable({charts, shownEntries}: {charts: UsageChart[]; shownEnt
 
     //const sorted = useSorting(/* remapping before supplying */, "????");
 
-    return <div className="table-wrapper">
+    return <div className={TableWrapper.class}>
         <table>
             <thead>
                 <tr>
@@ -1367,7 +1374,7 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
         {data !== undefined && dataPoints !== undefined ? <>
             <PieChart dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={() => {}} />
 
-            <div className="table-wrapper">
+            <div className={TableWrapper.class}>
                 <table>
                     <thead>
                         <tr>
@@ -1428,46 +1435,53 @@ const PieChart: React.FunctionComponent<{
     const series = useMemo(() => filteredList.map(it => it.value), [filteredList]);
     const labels = useMemo(() => filteredList.map(it => it.key), [filteredList]);
 
-    const chartProps: ChartProps = useMemo(() => {
-        return {
-            type: "pie",
-            series,
-            selection: {enabled: true},
-            options: {
-                chart: {
-                    animations: {
-                        enabled: false,
-                    },
-                    events: {
-                        dataPointSelection: (e: any, chart?: any, options?: any) => {
-                            const dataPointIndex = options?.dataPointIndex
+    const chartProps = useMemo((): ChartProps => {
+        const chartProps: ChartProps = {};
+        chartProps.type = "pie";
+        chartProps.series = series;
+        const chart: ApexChart = {
+            width: "1200px",
+            animations: {
+                enabled: false,
+            },
+            events: {
+                dataPointSelection: (e: any, chart?: any, options?: any) => {
+                    const dataPointIndex = options?.dataPointIndex
 
-                            if (dataPointIndex != null) {
-                                props.onDataPointSelection(filteredList[dataPointIndex]);
-                            }
-                        }
-                    },
-                },
-                legend: {
-                    onItemClick: {toggleDataSeries: false}, /* Note(Jonas): I'm not sure we can expect same behaviour from this, as clicking on the pie, so disable */
-                },
-                labels,
-                dataLabels: {
-                    enabled: false,
-                },
-                stroke: {
-                    show: false,
-                },
-                tooltip: {
-                    shared: false,
-                    y: {
-                        formatter: function (val: number) {
-                            return props.valueFormatter(val);
-                        }
+                    if (dataPointIndex != null) {
+                        props.onDataPointSelection(filteredList[dataPointIndex]);
                     }
-                },
-            }
-        } as ChartProps;
+                }
+            },
+        };
+
+        chartProps.selection = {enabled: true};
+
+        const legend = {
+            onItemClick: {toggleDataSeries: false}, /* Note(Jonas): I'm not sure we can expect same behaviour from this, as clicking on the pie, so disable */
+        };
+
+        chartProps.options = {
+            chart,
+            legend,
+            labels,
+            dataLabels: {
+                enabled: false,
+            },
+            stroke: {
+                show: false,
+            },
+            tooltip: {
+                shared: false,
+                y: {
+                    formatter: function (val: number) {
+                        return props.valueFormatter(val);
+                    }
+                }
+            },
+        };
+
+        return chartProps;
     }, [series]);
 
     return <DynamicallySizedChart anyChartData={filteredList.length > 0} chart={chartProps} aspectRatio={ASPECT_RATIO_PIE_CHART} maxWidth={350} />;
@@ -1541,9 +1555,19 @@ function usageChartsToChart(
     result.series = charts.map(it => toSeriesChart(it));
     result.type = "area";
     result.options = {
+        responsive: [{
+            breakpoint: 1200,
+            options: {
+                legend: {
+                    position: "right",
+                    onItemClick: {
+                        toggleDataSeries: true,
+                    }
+                }
+            }
+        }],
         legend: {
-            position: "right",
-            offsetY: 50,
+            position: "bottom",
             onItemClick: {
                 toggleDataSeries: true,
             }
@@ -1699,34 +1723,6 @@ const SmallUsageCardStyle = injectStyle("small-usage-card", k => `
     }
 `);
 
-const RenderProductSelector: RichSelectChildComponent<State["summaries"][0]> = ({element, onSelect, dataProps}) => {
-    const chartKey = useRef(0);
-    const chartProps = useMemo(() => {
-        if (element === undefined) return undefined;
-        chartKey.current++;
-        return usageChartsToChart([element.chart], {removeDetails: true});
-    }, [element]);
-
-    if (element === undefined) {
-        return <Flex height={40} alignItems={"center"} pl={12}>No product selected</Flex>
-    }
-
-    const s = element;
-    return <Flex gap={"16px"} {...dataProps} alignItems={"center"} py={4} px={8} mr={48} onClick={onSelect}>
-        <Chart
-            key={chartKey.current.toString()}
-            {...chartProps}
-            width={32}
-            height={32}
-        />
-        <ProviderLogo providerId={element.category.provider} size={32} />
-        <div><b>{element.category.name}</b></div>
-        <Box flexGrow={1} />
-        <div>{usageToString(s.category, s.usage, s.quota, false)}</div>
-        <div>({usageToString(s.category, s.usage, s.quota, true)})</div>
-    </Flex>;
-}
-
 const RenderUnitSelector: RichSelectChildComponent<{unit: string}> = ({element, onSelect, dataProps}) => {
 
     if (element === undefined) {
@@ -1809,6 +1805,29 @@ const SmallUsageCard: React.FunctionComponent<{
     </a>;
 };
 
+const ChartAndTable = injectStyle("chart-and-table", k => `
+    ${k} {
+        display: flex;
+        flex-direction: row;
+    }    
+
+    ${k}:first-child {
+        width: 60%;
+    }
+
+@media screen and (max-width: 1200px) {
+    ${k} {
+        flex-direction: column;
+    }
+
+    ${k}:first-child {
+        width: 100%;
+    }
+}
+`);
+
+const TableWrapper = makeClassName("table-wrapper");
+const PanelTitle = makeClassName("panel-title");
 const PanelClass = injectStyle("panel", k => `
     ${k} {
         height: 100%;
@@ -1819,13 +1838,9 @@ const PanelClass = injectStyle("panel", k => `
            content */
         min-height: 100px; 
         max-height: 1000px;
-
-        
-        display: flex;
-        flex-direction: column;
     }
 
-    ${k} .panel-title {
+    ${k} ${PanelTitle.dot} {
         display: flex;
         flex-direction: row;
         align-items: center;
@@ -1834,43 +1849,45 @@ const PanelClass = injectStyle("panel", k => `
         z-index: 1; /* HACK(Jonas): Why is this needed for smaller widths? */
     }
 
-    ${k} .panel-title > *:nth-child(1) {
+    ${k} ${PanelTitle.dot} > *:nth-child(1) {
         font-size: 18px;
         margin: 0;
     }
 
-    ${k} .panel-title > *:nth-child(2) {
+    ${k} ${PanelTitle.dot} > *:nth-child(2) {
         flex-grow: 1;
     }
     
-    ${k} .table-wrapper {
+    ${k} ${TableWrapper.dot} {
         flex-grow: 1;
         overflow-y: auto;
+        min-width: 600px;
         min-height: 200px;
+        max-height: 600px;
         flex-shrink: 5;
     }
     
-    html.light ${k} .table-wrapper {
+    html.light ${k} ${TableWrapper.dot} {
         box-shadow: inset 0px -11px 8px -10px #ccc;
     }
     
-    html.dark ${k} .table-wrapper {
+    html.dark ${k} ${TableWrapper.dot} {
         box-shadow: inset 0px -11px 8px -10px rgba(255, 255, 255, 0.5);
     }
     
-    ${k} .table-wrapper.at-bottom {
+    ${k} ${TableWrapper.dot}.at-bottom {
         box-shadow: unset !important;
     }
     
-    html.light ${k} .table-wrapper::before {
+    html.light ${k} ${TableWrapper.dot}::before {
         box-shadow: 0px -11px 8px 11px #ccc;
     }
     
-    html.dark ${k} .table-wrapper::before {
+    html.dark ${k} ${TableWrapper.dot}::before {
         box-shadow: 0px -11px 8px 11px rgba(255, 255, 255, 0.5);
     }
     
-    ${k} .table-wrapper::before {
+    ${k} ${TableWrapper.dot}::before {
         display: block;
         content: " ";
         width: 100%;
@@ -1879,7 +1896,7 @@ const PanelClass = injectStyle("panel", k => `
         top: 24px;
     }
     
-    ${k} .table-wrapper.at-top::before {
+    ${k} ${TableWrapper.dot}.at-top::before {
         box-shadow: unset !important;
     }
 `);
@@ -2216,37 +2233,6 @@ const VisualizationStyle = injectStyle("visualization", k => `
         display: flex;
         flex-direction: column;
         gap: 16px;
-    }
-    
-    .${CategoryDescriptorPanelStyle} {
-        grid-area: category;
-    }
-    
-    .${BreakdownStyle} {
-        grid-area: breakdown;
-    }
-    
-    .${UsageOverTimeStyle} {
-        grid-area: over-time;
-    }
-    
-    ${k}.${AccountingPanelsOnlyStyle} .${UsageOverTimeStyle} {
-        grid-row-start: over-time;
-        grid-row-end: chart4;
-        grid-column-start: over-time;
-        grid-column-end: chart4;
-    }
-    
-    .${LargeJobsStyle} {
-        grid-area: chart2;
-    }
-    
-    .${MostUsedApplicationsStyle} {
-        grid-area: chart3;
-    }
-    
-    .${JobSubmissionStyle} {
-        grid-area: chart4;
     }
 `);
 
