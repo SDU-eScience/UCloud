@@ -21,6 +21,7 @@ import (
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
+	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
@@ -259,6 +260,35 @@ func terminate(request ctrl.JobTerminateRequest) error {
 
 	ctrl.UnbindIpsFromJob(request.Job)
 	shared.ClearAssignedSshPort(request.Job)
+
+	internalJobFolder, _, err := FindJobFolder(request.Job)
+	if err == nil {
+		mounts := calculateMounts(request.Job, internalJobFolder)
+		if len(mounts.Folders) > 0 {
+			jobFolder, ok := filesystem.OpenFile(internalJobFolder, os.O_RDONLY, 0)
+			if ok {
+				defer util.SilentClose(jobFolder)
+
+				for _, folder := range mounts.Folders {
+					if folderName, isMountedInJobFolder := strings.CutPrefix(folder.PodPath, "/work/"); isMountedInJobFolder {
+						if !strings.Contains(folderName, "/") {
+							child, err := filesystem.FileOpenAt(jobFolder, folderName, os.O_RDONLY, 0)
+							if err == nil {
+								folderChildren, err := child.Readdirnames(0)
+								util.SilentClose(child)
+
+								if err == nil && len(folderChildren) == 0 {
+									_ = filesystem.DoDeleteFile(filepath.Join(internalJobFolder, folderName))
+								} else {
+									log.Info("Refusing to delete %v it has children.", filepath.Join(internalJobFolder, folderName))
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 
 	if !request.IsCleanup {
 		// NOTE(Dan): There is no need to run this branch if we are cleaning up for an already terminated job

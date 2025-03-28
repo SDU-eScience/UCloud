@@ -13,15 +13,19 @@ import (
 	"ucloud.dk/pkg/util"
 )
 
-// prepareMountsOnJobCreate add relevant mounts into the pod and returns a mapping from internal paths (including the
-// mount point) to their corresponding paths inside the container.
-func prepareMountsOnJobCreate(
-	job *orc.Job,
-	pod *core.Pod,
-	userContainer *core.Container,
-	jobFolder string,
-) map[string]string {
-	spec := &pod.Spec
+type mountedFolder struct {
+	InternalPath string
+	SubPath      string
+	PodPath      string
+	ReadOnly     bool
+}
+
+type mountResult struct {
+	Folders                 map[string]mountedFolder
+	MountedDrivesAsReadOnly map[string]bool
+}
+
+func calculateMounts(job *orc.Job, internalJobFolder string) mountResult {
 	ucloudMounts := map[string]bool{}
 
 	for _, v := range job.Specification.Resources {
@@ -80,7 +84,7 @@ func prepareMountsOnJobCreate(
 		}
 	}
 
-	addInternalMount(containerMountDir, jobFolder, false)
+	addInternalMount(containerMountDir, internalJobFolder, false)
 
 	for mount, readOnly := range ucloudMounts {
 		comps := util.Components(mount)
@@ -111,6 +115,60 @@ func prepareMountsOnJobCreate(
 		addUCloudMount(filepath.Join(containerMountDir, title), mount, readOnly)
 	}
 
+	mountPaths := map[string]mountedFolder{}
+
+	mountIdx := 0
+	for containerPath, mounts := range resolvedMounts {
+		if len(mounts) == 1 {
+			mount := mounts[0]
+
+			internalPath := ServiceConfig.FileSystem.MountPoint + "/" + mount.First
+			mountPaths[internalPath] = mountedFolder{
+				InternalPath: internalPath,
+				SubPath:      mount.First,
+				PodPath:      containerPath,
+				ReadOnly:     mount.Second,
+			}
+
+			mountIdx++
+		} else {
+			// NOTE(Dan): Must remain consistent with VM mount logic for overall consistency
+			slices.SortFunc(mounts, func(a, b util.Tuple2[string, bool]) int {
+				return strings.Compare(a.First, b.First)
+			})
+
+			for i, mount := range mounts {
+				resolvedContainerPath := fmt.Sprintf("%s-%d", containerPath, i)
+
+				internalPath := ServiceConfig.FileSystem.MountPoint + "/" + mount.First
+				mountPaths[internalPath] = mountedFolder{
+					InternalPath: internalPath,
+					SubPath:      mount.First,
+					PodPath:      resolvedContainerPath,
+					ReadOnly:     mount.Second,
+				}
+
+				mountIdx++
+			}
+		}
+	}
+
+	return mountResult{
+		Folders:                 mountPaths,
+		MountedDrivesAsReadOnly: mountedDrivesAsReadOnly,
+	}
+}
+
+// prepareMountsOnJobCreate add relevant mounts into the pod and returns a mapping from internal paths (including the
+// mount point) to their corresponding paths inside the container.
+func prepareMountsOnJobCreate(
+	job *orc.Job,
+	pod *core.Pod,
+	userContainer *core.Container,
+	jobFolder string,
+) map[string]string {
+	spec := &pod.Spec
+
 	fsVolume := "ucloud-filesystem"
 	spec.Volumes = append(spec.Volumes, core.Volume{
 		Name: fsVolume,
@@ -122,46 +180,20 @@ func prepareMountsOnJobCreate(
 		},
 	})
 
-	// Internal to pod
-	mountPaths := map[string]string{}
+	mounts := calculateMounts(job, jobFolder)
+	folders := mounts.Folders
+	result := map[string]string{}
+	mountedDrivesAsReadOnly := mounts.MountedDrivesAsReadOnly
 
-	mountIdx := 0
-	for containerPath, mounts := range resolvedMounts {
-		if len(mounts) == 1 {
-			mount := mounts[0]
+	for internalPath, folder := range folders {
+		userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
+			Name:      fsVolume,
+			ReadOnly:  folder.ReadOnly,
+			MountPath: folder.PodPath,
+			SubPath:   folder.SubPath,
+		})
 
-			userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
-				Name:      fsVolume,
-				ReadOnly:  mount.Second,
-				MountPath: containerPath,
-				SubPath:   mount.First,
-			})
-
-			internalPath := ServiceConfig.FileSystem.MountPoint + "/" + mount.First
-			mountPaths[internalPath] = containerPath
-
-			mountIdx++
-		} else {
-			// NOTE(Dan): Must remain consistent with VM mount logic for overall consistency
-			slices.SortFunc(mounts, func(a, b util.Tuple2[string, bool]) int {
-				return strings.Compare(a.First, b.First)
-			})
-
-			for i, mount := range mounts {
-				resolvedContainerPath := fmt.Sprintf("%s-%d", containerPath, i)
-				userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
-					Name:      fsVolume,
-					ReadOnly:  mount.Second,
-					MountPath: resolvedContainerPath,
-					SubPath:   mount.First,
-				})
-
-				internalPath := ServiceConfig.FileSystem.MountPoint + "/" + mount.First
-				mountPaths[internalPath] = resolvedContainerPath
-
-				mountIdx++
-			}
-		}
+		result[internalPath] = folder.PodPath
 	}
 
 	{
@@ -180,5 +212,5 @@ func prepareMountsOnJobCreate(
 		pod.Annotations[shared.AnnotationMountedDriveAsReadOnly] = string(driveReadOnlyBytes)
 	}
 
-	return mountPaths
+	return result
 }
