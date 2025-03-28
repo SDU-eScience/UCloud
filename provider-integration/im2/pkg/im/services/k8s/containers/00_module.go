@@ -12,7 +12,9 @@ import (
 	"k8s.io/client-go/rest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
@@ -91,8 +93,58 @@ type trackedLogFile struct {
 	File    *os.File
 }
 
+type followMessageHandler struct {
+	handler func(rank int, message string, channel string)
+}
+
+var followSubscriptions = map[string][]*followMessageHandler{}
+var followSubscriptionsMutex = sync.Mutex{}
+
+func subscribeToFollowUpdates(jobId string, onMessage *followMessageHandler) *followMessageHandler {
+	followSubscriptionsMutex.Lock()
+	defer followSubscriptionsMutex.Unlock()
+
+	existing := followSubscriptions[jobId]
+	newList := append(existing, onMessage)
+	followSubscriptions[jobId] = newList
+	return onMessage
+}
+
+func unsubscribeFromFollowUpdates(jobId string, onMessage *followMessageHandler) {
+	followSubscriptionsMutex.Lock()
+	defer followSubscriptionsMutex.Unlock()
+
+	slice := followSubscriptions[jobId]
+	idx := slices.Index(slice, onMessage)
+	if idx != -1 {
+		slice = append(slice[:idx], slice[idx+1:]...)
+		if len(slice) == 0 {
+			delete(followSubscriptions, jobId)
+		} else {
+			followSubscriptions[jobId] = slice
+		}
+	}
+}
+
+func dispatchNonPersistentFollowMessage(jobId string, rank int, message string, channel string) {
+	followSubscriptionsMutex.Lock()
+	handlers := followSubscriptions[jobId]
+	for _, h := range handlers {
+		go h.handler(rank, message, channel)
+	}
+	followSubscriptionsMutex.Unlock()
+}
+
 func follow(session *ctrl.FollowJobSession) {
 	logFiles := map[string]trackedLogFile{}
+
+	messageHandler := &followMessageHandler{}
+	messageHandler.handler = func(rank int, message string, channel string) {
+		session.EmitLogs(rank, util.OptValue(message), util.OptNone[string](), util.OptValue(channel))
+	}
+
+	subscribeToFollowUpdates(session.Job.Id, messageHandler)
+	defer unsubscribeFromFollowUpdates(session.Job.Id, messageHandler)
 
 	job, ok := ctrl.RetrieveJob(session.Job.Id)
 	if !ok {

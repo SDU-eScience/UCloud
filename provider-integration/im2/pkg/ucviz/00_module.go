@@ -328,6 +328,17 @@ func (s *WidgetStream) Delete(id string) {
 	s.writeData(WidgetId{Id: id}, true)
 }
 
+func (s *WidgetStream) WriteDoc(docText string) error {
+	p := NewParser(docText)
+	node, err, _ := p.Parse()
+	if err != nil {
+		return err
+	}
+
+	_, err = processNode(s, s, p, node, util.OptNone[DocNode](), util.OptNone[WidgetLocation]())
+	return err
+}
+
 func (s *WidgetStream) writeData(data any, flush bool) {
 	if s.Err == nil {
 		if s.encoding == WidgetStreamBinary {

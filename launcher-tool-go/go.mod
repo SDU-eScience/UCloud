@@ -1,6 +1,6 @@
 module ucloud.dk/launcher
 
-go 1.22
+go 1.23.2
 
 require (
 	atomicgo.dev/keyboard v0.2.9

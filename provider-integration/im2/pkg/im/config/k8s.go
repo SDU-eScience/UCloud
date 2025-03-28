@@ -72,15 +72,16 @@ type KubernetesSyncthingConfiguration struct {
 }
 
 type KubernetesCompute struct {
-	Machines                   map[string]K8sMachineCategory
-	Namespace                  string
-	Web                        KubernetesWebConfiguration
-	PublicIps                  KubernetesIpConfiguration
-	Ssh                        KubernetesSshConfiguration
-	Syncthing                  KubernetesSyncthingConfiguration
-	IntegratedTerminal         KubernetesIntegratedTerminal
-	VirtualMachineStorageClass util.Option[string]
-	ImSourceCode               util.Option[string]
+	Machines                        map[string]K8sMachineCategory
+	EstimatedContainerDownloadSpeed float64 // MB/s
+	Namespace                       string
+	Web                             KubernetesWebConfiguration
+	PublicIps                       KubernetesIpConfiguration
+	Ssh                             KubernetesSshConfiguration
+	Syncthing                       KubernetesSyncthingConfiguration
+	IntegratedTerminal              KubernetesIntegratedTerminal
+	VirtualMachineStorageClass      util.Option[string]
+	ImSourceCode                    util.Option[string]
 }
 
 type K8sMachineCategory struct {
@@ -140,6 +141,17 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 	computeNode := requireChild(filePath, services, "compute", &success)
 	cfg.Compute.Namespace = optionalChildText(filePath, services, "namespace", &success)
 	cfg.Compute.ImSourceCode = util.OptStringIfNotEmpty(optionalChildText(filePath, computeNode, "imSourceCode", &success))
+
+	// NOTE(Dan): Default value was based on several tests on the current production environment. Results were very
+	// stable around 14.5MB/s. This result seems very low, but consistent. Thankfully, it is fairly rare that people
+	// run containers that are not already present on the machine.
+	cfg.Compute.EstimatedContainerDownloadSpeed = optionalChildFloat(
+		filePath,
+		computeNode,
+		"estimatedContainerDownloadSpeed",
+		&success,
+	).GetOrDefault(14.5)
+
 	if cfg.Compute.Namespace == "" {
 		cfg.Compute.Namespace = "ucloud-apps"
 	}
