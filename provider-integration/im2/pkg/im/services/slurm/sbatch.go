@@ -649,6 +649,15 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 		return internalPath
 	})
 
+	// Convert license parameters
+	for parameterId, parameterAndValue := range parametersAndValues {
+		if parameterAndValue.Parameter.Type == orc.ApplicationParameterTypeLicenseServer {
+			newParameterAndValue := parameterAndValue
+			newParameterAndValue.Value.Id = ctrl.BuildLicenseParameter(parameterAndValue.Value.Id)
+			parametersAndValues[parameterId] = newParameterAndValue
+		}
+	}
+
 	allocatedPort := util.Option[int]{}
 	if application.ApplicationType == orc.ApplicationTypeWeb || application.ApplicationType == orc.ApplicationTypeVnc {
 		allocatedPort.Set(10000 + rand.Intn(40000))

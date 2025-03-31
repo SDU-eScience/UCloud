@@ -3,14 +3,17 @@ package shared
 import (
 	"fmt"
 	"math"
+
 	"ucloud.dk/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
+	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 )
 
 var MachineSupport []orc.JobSupport
 var IpSupport []orc.PublicIpSupport
+var LicenseSupport []orc.LicenseSupport
 
 var (
 	Machines        []apm.ProductV2
@@ -264,6 +267,9 @@ func initProducts() {
 			},
 		}
 	}
+
+	LicenseProducts = ctrl.FetchLicenseProducts()
+	LicenseSupport = ctrl.FetchLicenseSupport()
 }
 
 func pickResource(resource cfg.MachineResourceType, machineConfig cfg.K8sMachineConfiguration) int {
