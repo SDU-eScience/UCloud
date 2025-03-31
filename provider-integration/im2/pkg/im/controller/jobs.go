@@ -853,7 +853,7 @@ func controllerJobs(mux *http.ServeMux) {
 				var providerIds []*fnd.FindByStringId
 
 				for _, item := range request.Items {
-					TrackNewLicense(*item)
+					TrackLicense(*item)
 					providerIds = append(providerIds, nil)
 
 					fn := Jobs.Licenses.Create
@@ -918,6 +918,65 @@ func controllerJobs(mux *http.ServeMux) {
 				sendResponseOrError(w, nil, util.HttpErr(http.StatusNotFound, "Not found"))
 			}
 		})
+
+		type licenseUpdateAclRequest struct {
+			Resource orc.License            `json:"resource"`
+			Added    []orc.ResourceAclEntry `json:"added"`
+			Deleted  []orc.AclEntity        `json:"deleted"`
+		}
+
+		mux.HandleFunc(licenseContext+"updateAcl", HttpUpdateHandler[fnd.BulkRequest[licenseUpdateAclRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[licenseUpdateAclRequest]) {
+				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+
+				for _, item := range request.Items {
+					license := item.Resource
+
+					for _, toDelete := range item.Deleted {
+						for i, entry := range license.Permissions.Others {
+							if entry.Entity == toDelete {
+								slices.Delete(license.Permissions.Others, i, i+1)
+							}
+						}
+					}
+
+					for _, toAdd := range item.Added {
+						found := false
+
+						for i := 0; i < len(license.Permissions.Others); i++ {
+							entry := &license.Permissions.Others[i]
+							if entry.Entity == toAdd.Entity {
+								for _, perm := range toAdd.Permissions {
+									entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
+								}
+								found = true
+								break
+							}
+						}
+
+						if !found {
+							license.Permissions.Others = append(license.Permissions.Others, orc.ResourceAclEntry{
+								Entity:      toAdd.Entity,
+								Permissions: toAdd.Permissions,
+							})
+						}
+					}
+
+					TrackLicense(license)
+
+					resp.Responses = append(
+						resp.Responses,
+						util.Option[util.Empty]{
+							Present: true,
+						},
+					)
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		))
+
 	}
 
 	if RunsServerCode() {

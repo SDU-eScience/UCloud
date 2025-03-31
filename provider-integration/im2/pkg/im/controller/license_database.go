@@ -291,7 +291,7 @@ func FetchLicenseSupport() []orc.LicenseSupport {
 	return result
 }
 
-func TrackNewLicense(license orc.License) {
+func TrackLicense(license orc.License) {
 	// Automatically assign timestamps to all updates that do not have one
 	for i := 0; i < len(license.Updates); i++ {
 		update := &license.Updates[i]
@@ -356,7 +356,7 @@ func ActivateLicense(target *orc.License) error {
 
 	if err == nil {
 		target.Updates = append(target.Updates, newUpdate)
-		TrackNewLicense(*target)
+		TrackLicense(*target)
 		return nil
 	} else {
 		log.Info("Failed to activate license due to an error between UCloud and the provider: %s", err)
