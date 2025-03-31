@@ -51,8 +51,8 @@ type PublicIPService struct {
 }
 
 type LicenseService struct {
-	Create           func(ip *orc.License) error
-	Delete           func(ip *orc.License) error
+	Create           func(license *orc.License) error
+	Delete           func(license *orc.License) error
 	RetrieveProducts func() []orc.LicenseSupport
 }
 
