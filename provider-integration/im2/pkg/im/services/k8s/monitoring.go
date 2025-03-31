@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
+	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"maps"
@@ -169,13 +169,13 @@ func loopMonitoring() {
 	// NOTE(Dan): Node monitoring must go before job monitoring such that the scheduler knows about the nodes before
 	// it knows about running replicas.
 	if now.After(nextNodeMonitor) {
-		nodeList := util.RetryOrPanic[*corev1.NodeList]("list k8s nodes", func() (*corev1.NodeList, error) {
+		nodeList := util.RetryOrPanic[*core.NodeList]("list k8s nodes", func() (*core.NodeList, error) {
 			return shared.K8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 		})
 
 		if util.DevelopmentModeEnabled() && len(nodeList.Items) == 1 {
 			baseNode := nodeList.Items[0]
-			nodeList.Items = []corev1.Node{}
+			nodeList.Items = []core.Node{}
 
 			for category, _ := range shared.ServiceConfig.Compute.Machines {
 				normalMachine := baseNode
@@ -223,6 +223,31 @@ func loopMonitoring() {
 					CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
 					MemoryInBytes: int(k8sAllocatable.Memory().Value()),
 					Gpu:           int(k8sAllocatable.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
+				}
+
+				for _, cond := range node.Status.Conditions {
+					setLimitsToZero := false
+					status := cond.Status
+
+					switch cond.Type {
+					case core.NodeReady:
+						setLimitsToZero = status == core.ConditionFalse
+					case core.NodeMemoryPressure:
+						setLimitsToZero = status == core.ConditionTrue
+					case core.NodeDiskPressure:
+						setLimitsToZero = status == core.ConditionTrue
+					case core.NodePIDPressure:
+						setLimitsToZero = status == core.ConditionTrue
+					case core.NodeNetworkUnavailable:
+						setLimitsToZero = status == core.ConditionTrue
+					}
+
+					if setLimitsToZero {
+						limits.CpuMillis = 0
+						limits.MemoryInBytes = 0
+						limits.Gpu = 0
+						break
+					}
 				}
 
 				sched.RegisterNode(node.Name, capacity, limits, node.Spec.Unschedulable)
@@ -400,7 +425,7 @@ func loopMonitoring() {
 	_ = ctrl.TrackJobMessages(scheduleMessages)
 }
 
-func nodeCategories(node *corev1.Node) []string {
+func nodeCategories(node *core.Node) []string {
 	// NOTE(Dan): It is really important that production providers only return 1. Being able to return more than one
 	// is just for testing in resource-constrained environments.
 	parseResult := func(machineLabel string) []string {
