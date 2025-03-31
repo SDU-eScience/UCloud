@@ -665,6 +665,14 @@ Description
 Creates a new mapping between UCloud user with user name `ucloud-name` and the local user 
 `local-name`.
 
+Note that it is not possible to change the uid which a UCloud user maps to, ever. Doing this through the CLI or through
+the interface is not possible. If you must change which uid a UCloud maps to, then you must manually do the following
+steps:
+
+1. Manually clean up any users and other resources if needed
+2. Connect directly with the IM database and remove the relevant row from `public.connections`
+3. If needed, contact UCloud support with help in removing incorrectly registered resources (such as drives)
+
 #### Parameters
 
 `--ucloud-name <string>`

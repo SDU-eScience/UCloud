@@ -21,6 +21,8 @@ export enum Feature {
 
     PROVIDER_CONDITION,
 
+    REORDER_APP_GROUP,
+
     ALTERNATIVE_USAGE_SELECTOR,
     NEW_SYNCTHING_UI
 }
@@ -130,6 +132,12 @@ const featureMap: Record<string, FeatureConfig> = {
         feature: Feature.NEW_SYNCTHING_UI,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
+    },
+
+    "reorder-app-group": {
+        feature: Feature.REORDER_APP_GROUP,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allDevEnvironments,
     }
 };
 

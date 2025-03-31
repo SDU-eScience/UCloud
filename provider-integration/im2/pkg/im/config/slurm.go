@@ -253,13 +253,9 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 	cfg := ServicesConfigurationSlurm{}
 	success := true
 
-	if !unmanaged {
-		// Identity management
-		identityManagement := requireChild(filePath, services, "identityManagement", &success)
-		if !success {
-			return false, cfg
-		}
-
+	// Identity management
+	identityManagement, _ := getChildOrNil(filePath, services, "identityManagement")
+	if identityManagement != nil {
 		ok, idm := parseIdentityManagement(filePath, identityManagement)
 		if !ok {
 			return false, cfg
@@ -267,12 +263,26 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 
 		cfg.IdentityManagement = idm
 	} else {
-		idmNode, _ := getChildOrNil(filePath, services, "identityManagement")
 		cfg.IdentityManagement.Type = IdentityManagementTypeNone
+	}
 
-		if idmNode != nil {
-			reportError(filePath, idmNode, "identityManagement must be omitted when unmanaged is true")
-		}
+	idmWorksInUnmanaged := true
+
+	switch cfg.IdentityManagement.Type {
+	case IdentityManagementTypeOidc:
+		idmWorksInUnmanaged = true
+	case IdentityManagementTypeNone:
+		idmWorksInUnmanaged = true
+	default:
+		idmWorksInUnmanaged = false
+	}
+
+	if unmanaged && !idmWorksInUnmanaged {
+		reportError(filePath, services, "identityManagement must be omitted when unmanaged is true")
+	}
+
+	if !unmanaged && idmWorksInUnmanaged {
+		reportError(filePath, services, "identityManagement is required when managed")
 	}
 
 	{

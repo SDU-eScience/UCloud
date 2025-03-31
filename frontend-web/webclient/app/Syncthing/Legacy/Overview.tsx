@@ -1096,7 +1096,11 @@ function ServerBrowse({servers, opts, callbacks}: {
 }
 
 
-function DeviceBrowse({devices, dispatch, opts}: {dispatch(action: UIAction): void; devices?: SyncthingDevice[], opts: ResourceBrowserOpts<SyncthingDevice>}): React.ReactNode {
+function DeviceBrowse({devices, dispatch, opts}: {
+    dispatch(action: UIAction): void;
+    devices?: SyncthingDevice[];
+    opts: ResourceBrowserOpts<SyncthingDevice>;
+}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<SyncthingDevice>>(null);
 
@@ -1194,7 +1198,11 @@ function DeviceBrowse({devices, dispatch, opts}: {dispatch(action: UIAction): vo
 
 let permissionProblems: Record<string, boolean> = {};
 
-function SyncedFolders({folders, dispatch, opts}: {dispatch(action: UIAction): void; folders?: SyncthingFolder[], opts: ResourceBrowserOpts<SyncthingFolder>}): React.ReactNode {
+function SyncedFolders({folders, dispatch, opts}: {
+    dispatch(action: UIAction): void;
+    folders?: SyncthingFolder[];
+    opts: ResourceBrowserOpts<SyncthingFolder>;
+}): React.ReactNode {
 
     React.useEffect(() => {
         return () => {permissionProblems = {};}

@@ -32,6 +32,8 @@ func SetFlags(flags uint) {
 }
 
 func SetLogConsole(flag bool) {
+	// TODO(Martin): This cannot simply be toggled, but I am not sure it's actually used.
+	// The logger uses io.MultiWriter where os.Stdout must be removed to disable console logging.
 	logger.logConsole = flag
 }
 

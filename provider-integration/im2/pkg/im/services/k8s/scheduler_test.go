@@ -5,13 +5,14 @@ import (
 	"testing"
 	"time"
 	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/pkg/im/services/k8s/shared"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
 
 func registerNodes(s *Scheduler, count, cpuMillis int) {
 	for i := 0; i < count; i++ {
-		dims := SchedulerDimensions{
+		dims := shared.SchedulerDimensions{
 			CpuMillis:     cpuMillis,
 			MemoryInBytes: 1000,
 		}
@@ -20,10 +21,10 @@ func registerNodes(s *Scheduler, count, cpuMillis int) {
 }
 
 func TestBasicScheduling(t *testing.T) {
-	scheduler := NewScheduler()
+	scheduler := NewScheduler("sched")
 
 	registerNodes(scheduler, 10, 1000)
-	fullNode := SchedulerDimensions{
+	fullNode := shared.SchedulerDimensions{
 		CpuMillis:     1000,
 		MemoryInBytes: 1000,
 	}
@@ -70,12 +71,12 @@ func TestBasicScheduling(t *testing.T) {
 }
 
 func TestTimeInQueueAffectsPriority(t *testing.T) {
-	s := NewScheduler()
+	s := NewScheduler("sched")
 	s.WeightJobSize = 0
 	s.WeightFairShare = 0
 
 	now := time.Now()
-	dimensions := SchedulerDimensions{
+	dimensions := shared.SchedulerDimensions{
 		CpuMillis:     1000,
 		MemoryInBytes: 1000,
 	}
@@ -128,7 +129,7 @@ func TestJobSizeAffectsPriority(t *testing.T) {
 	}
 
 	for _, config := range configs {
-		s := NewScheduler()
+		s := NewScheduler("sched")
 		s.WeightJobSize = 1
 		s.WeightFairShare = 0
 		s.WeightAge = 0
@@ -158,7 +159,7 @@ func TestJobSizeAffectsPriority(t *testing.T) {
 
 			s.RegisterJobInQueue(
 				fmt.Sprint(i),
-				SchedulerDimensions{
+				shared.SchedulerDimensions{
 					CpuMillis:     1000 + (multiplierDims * factor),
 					MemoryInBytes: 1000 + (multiplierDims * factor),
 				},
@@ -194,7 +195,7 @@ func TestJobSizeAffectsPriority(t *testing.T) {
 
 func TestJobCompaction(t *testing.T) {
 	testFn := func(flags SchedulerFlag, request, jobCount int) map[string]bool {
-		s := NewScheduler()
+		s := NewScheduler("sched")
 		cpuPerNode := 10000
 		registerNodes(s, 10, cpuPerNode)
 		s.Flags = flags
@@ -202,7 +203,7 @@ func TestJobCompaction(t *testing.T) {
 		for i := 0; i < jobCount; i++ {
 			s.RegisterJobInQueue(
 				fmt.Sprint(i),
-				SchedulerDimensions{CpuMillis: request},
+				shared.SchedulerDimensions{CpuMillis: request},
 				1,
 				0,
 				fnd.Timestamp(time.Now()),
@@ -268,14 +269,14 @@ func TestJobCompaction(t *testing.T) {
 }
 
 func TestFailingGpu(t *testing.T) {
-	s := NewScheduler()
+	s := NewScheduler("sched")
 
 	coreCount := 256
 	memoryPerCore := 1024 * 1024 * 1024 * 4
 	gpuCount := 8
 	coresPerGpu := coreCount / gpuCount
 
-	initialDims := SchedulerDimensions{
+	initialDims := shared.SchedulerDimensions{
 		CpuMillis:     1000 * coreCount,
 		MemoryInBytes: memoryPerCore * coreCount,
 		Gpu:           gpuCount,
@@ -286,7 +287,7 @@ func TestFailingGpu(t *testing.T) {
 	submit := func(jobId string, gpuCount int) {
 		s.RegisterJobInQueue(
 			"initial",
-			SchedulerDimensions{
+			shared.SchedulerDimensions{
 				CpuMillis:     1000 * coresPerGpu * gpuCount,
 				MemoryInBytes: memoryPerCore * coresPerGpu * gpuCount,
 				Gpu:           gpuCount,
@@ -327,7 +328,7 @@ func TestFailingGpu(t *testing.T) {
 
 	// Finish all jobs and fail the entire node
 	s.PruneReplicas()
-	s.RegisterNode("gpu-node", initialDims, SchedulerDimensions{}, false)
+	s.RegisterNode("gpu-node", initialDims, shared.SchedulerDimensions{}, false)
 
 	submit("third", 3)
 	scheduled = s.Schedule()

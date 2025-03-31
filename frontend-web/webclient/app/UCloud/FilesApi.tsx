@@ -588,7 +588,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     const folder = cb.directory?.id ?? "/";
 
                     cb.dispatch({type: "TerminalOpen"});
-                    cb.dispatch({type: "TerminalOpenTab", tab: {title: providerTitle, folder}});
+                    cb.dispatch({type: "TerminalOpenTab", payload: {tab: {title: providerTitle, folder}}});
                 },
                 shortcut: ShortcutKey.O
             },
@@ -1096,10 +1096,6 @@ export function FilePreview({initialFile}: {
         })
     }, []);
 
-    useEffect(() => {
-        setPreviewRequested(false);
-    }, [openFile[0]]);
-
     const mediaFileMetadata: null | {type: ExtensionType, data: string, error: string | null} = useMemo(() => {
         let [file, contentBuffer] = openFile;
         if (typeof contentBuffer === "string") {
@@ -1160,58 +1156,8 @@ export function FilePreview({initialFile}: {
     const editorRef = React.useRef<EditorApi>(null);
 
     const requestPreviewToggle = useCallback(() => {
-        editorRef.current?.notifyDirtyBuffer().then(() => {
-            setPreviewRequested(p => !p);
-        });
+        setPreviewRequested(p => !p);
     }, []);
-
-    const onSave = useCallback(async () => {
-        const editor = editorRef.current;
-        if (!editor) return;
-        if (!hasFeature(Feature.INTEGRATED_EDITOR)) return;
-
-        const path = editor.path;
-
-        await editor.notifyDirtyBuffer();
-        await vfs.writeFile(path);
-
-        const revert = editor.onFileSaved(path);
-        const successTimeout = window.setTimeout(() => snackbarStore.addSuccess("File has been saved", false, 800), 250);
-        const revertLocalSave = (e: WriteFailureEvent) => {
-            const failedUpload = e.detail.find(it => it.targetPath + it.name === path);
-            if (failedUpload) {
-                window.clearTimeout(successTimeout);
-                revert();
-                snackbarStore.addFailure(failedUpload.error ?? "Upload for file " + fileName(failedUpload.name) + " failed.", false);
-            }
-        }
-
-        window.addEventListener(FileWriteFailure, revertLocalSave);
-        window.setTimeout(() => window.removeEventListener(FileWriteFailure, revertLocalSave), 30_000);
-    }, [vfs]);
-
-    useEffect(() => {
-        const listener = (ev: KeyboardEvent) => {
-            const hasCtrl = ev.ctrlKey || ev.metaKey;
-            if (ev.code === "KeyS" && hasCtrl) {
-                ev.preventDefault();
-                ev.stopPropagation();
-
-                onSave().then(doNothing);
-            }
-            if (ev.code === "KeyB" && hasCtrl) {
-                ev.preventDefault();
-                ev.stopPropagation();
-
-                requestPreviewToggle();
-            }
-        };
-
-        window.addEventListener("keydown", listener);
-        return () => {
-            window.removeEventListener("keydown", listener);
-        }
-    }, [onSave, requestPreviewToggle]);
 
     let node: React.ReactNode = null;
 
@@ -1244,7 +1190,57 @@ export function FilePreview({initialFile}: {
         node = <div>{mediaFileMetadata?.error}</div>;
     }
 
+    const onSave = useCallback(async () => {
+        const editor = editorRef.current;
+        if (!editor) return;
+        if (!hasFeature(Feature.INTEGRATED_EDITOR)) return;
+        if (node) return;
+
+        const path = editor.path;
+
+        await editor.notifyDirtyBuffer();
+        await vfs.writeFile(path);
+
+        const revert = editor.onFileSaved(path);
+        const successTimeout = window.setTimeout(() => snackbarStore.addSuccess("File has been saved", false, 800), 250);
+        const revertLocalSave = (e: WriteFailureEvent) => {
+            const failedUpload = e.detail.find(it => it.targetPath + it.name === path);
+            if (failedUpload) {
+                window.clearTimeout(successTimeout);
+                revert();
+                snackbarStore.addFailure(failedUpload.error ?? "Upload for file " + fileName(failedUpload.name) + " failed.", false);
+            }
+        }
+
+        window.addEventListener(FileWriteFailure, revertLocalSave);
+        window.setTimeout(() => window.removeEventListener(FileWriteFailure, revertLocalSave), 30_000);
+    }, [vfs, node]);
+
+    useEffect(() => {
+        const listener = (ev: KeyboardEvent) => {
+            const hasCtrl = ev.ctrlKey || ev.metaKey;
+            if (ev.code === "KeyS" && hasCtrl) {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                onSave().then(doNothing);
+            }
+            if (ev.code === "KeyB" && hasCtrl) {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                requestPreviewToggle();
+            }
+        };
+
+        window.addEventListener("keydown", listener);
+        return () => {
+            window.removeEventListener("keydown", listener);
+        }
+    }, [onSave, requestPreviewToggle]);
+
     const onOpenFile = useCallback((path: string, data: string | Uint8Array) => {
+        setPreviewRequested(false);
         setOpenFile([path, data]);
     }, []);
 
@@ -1255,7 +1251,7 @@ export function FilePreview({initialFile}: {
         const folder = getParentPath(initialFile.id);
 
         dispatch({type: "TerminalOpen"});
-        dispatch({type: "TerminalOpenTab", tab: {title: providerTitle, folder}});
+        dispatch({type: "TerminalOpenTab", payload: {tab: {title: providerTitle, folder}}});
     }, [drive, initialFile]);
 
     const newFolder = useCallback(async (path: string) => {
@@ -1285,8 +1281,6 @@ export function FilePreview({initialFile}: {
                 content: " ",
             }
         }));
-
-        // TODO(Jonas): Add check that file exists or even can be created (has active allocation)
 
         setTimeout(() => {
             editorRef.current?.invalidateTree?.(getParentPath(path));
@@ -1387,6 +1381,7 @@ export function FilePreview({initialFile}: {
                             items: [{id: file.absolutePath}],
                         })
                     );
+                    editorRef.current?.onFileDeleted(file.absolutePath);
                     reload();
                     snackbarStore.addSuccess("File(s) moved to trash", false);
                 },

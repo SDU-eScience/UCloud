@@ -119,7 +119,7 @@ func handleNotification(nType NotificationMessageType, notification any) {
 
 		if LaunchUserInstances {
 			if update.Owner.Type == apm.WalletOwnerTypeUser {
-				_, ok := MapUCloudToLocal(update.Owner.Username)
+				_, ok, _ := MapUCloudToLocal(update.Owner.Username)
 				if ok {
 					walletHandler(update)
 				} else {
@@ -164,7 +164,7 @@ func handleNotification(nType NotificationMessageType, notification any) {
 			saveLastKnownProject(project)
 
 			for _, newMember := range update.ProjectComparison.MembersAddedToProject {
-				uid, ok := MapUCloudToLocal(newMember)
+				uid, ok, _ := MapUCloudToLocal(newMember)
 				if ok {
 					RequestUserTermination(uid)
 				}
@@ -563,7 +563,7 @@ func RetrieveProject(projectId string) (apm.Project, bool) {
 }
 
 func BelongsToWorkspace(workspace apm.WalletOwner, uid uint32) bool {
-	ucloudUser, ok := MapLocalToUCloud(uid)
+	ucloudUser, ok, _ := MapLocalToUCloud(uid)
 	if !ok {
 		return false
 	}

@@ -88,7 +88,7 @@ func (a *automaticAccountManagementService) synchronizeProjectToSlurmAccount(pro
 
 		// TODO I am worried about the performance of this loop
 		for _, member := range membersAddedToProject {
-			uid, ok := ctrl.MapUCloudToLocal(member)
+			uid, ok, _ := ctrl.MapUCloudToLocal(member)
 			if !ok {
 				continue
 			}
@@ -105,7 +105,7 @@ func (a *automaticAccountManagementService) synchronizeProjectToSlurmAccount(pro
 		}
 
 		for _, member := range membersRemovedFromProject {
-			uid, ok := ctrl.MapUCloudToLocal(member)
+			uid, ok, _ := ctrl.MapUCloudToLocal(member)
 			if !ok {
 				continue
 			}
@@ -140,7 +140,7 @@ func (a *automaticAccountManagementService) OnWalletUpdated(update *ctrl.Notific
 	// requiring that parts of the accounting handler has already run (namely the account mapper). So we trigger the
 	// account mapper first and then re-trigger the identity notifications.
 	if update.Owner.Type == apm.WalletOwnerTypeUser {
-		localUid, ok := ctrl.MapUCloudToLocal(update.Owner.Username)
+		localUid, ok, _ := ctrl.MapUCloudToLocal(update.Owner.Username)
 		if !ok {
 			return
 		}

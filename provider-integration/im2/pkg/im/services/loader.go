@@ -13,7 +13,7 @@ func Init(args *im.ModuleArgs) {
 	slurmCfg := cfg.Services.Slurm()
 	k8sCfg := cfg.Services.Kubernetes()
 	if slurmCfg != nil {
-		slurm.Init(slurmCfg)
+		slurm.Init(slurmCfg, args.ServerMultiplexer)
 	} else if k8sCfg != nil {
 		k8s.Init(k8sCfg)
 	}

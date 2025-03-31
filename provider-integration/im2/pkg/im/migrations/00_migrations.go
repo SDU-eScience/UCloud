@@ -19,5 +19,6 @@ func loadMigrations() {
 	addScript(ipDatabaseV1())
 	addScript(driveDatabaseV2())
 	addScript(integratedAppsV1())
+	addScript(connectionsV3())
 	addScript(licenseDatabaseV1())
 }

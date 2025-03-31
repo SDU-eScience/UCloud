@@ -206,6 +206,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// -----------------------------------------------------------------------------------------------------------------
 	internalToPod := prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
 
+	// Modules
+	// -----------------------------------------------------------------------------------------------------------------
+	prepareModules(job, pod, userContainer)
+
 	// Invocation
 	// -----------------------------------------------------------------------------------------------------------------
 	prepareInvocationOnJobCreate(job, rank, pod, userContainer, internalToPod, jobFolder)
@@ -218,8 +222,17 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	})
 	multinodeSidecar := &spec.InitContainers[len(spec.InitContainers)-1]
 
+	optUCloudVolumeName := "ucloud-opt"
 	spec.Volumes = append(spec.Volumes, core.Volume{
-		Name: "ucloud-multinode",
+		Name: optUCloudVolumeName,
+		VolumeSource: core.VolumeSource{
+			EmptyDir: &core.EmptyDirVolumeSource{},
+		},
+	})
+
+	etcUCloudVolumeName := "ucloud-etc"
+	spec.Volumes = append(spec.Volumes, core.Volume{
+		Name: etcUCloudVolumeName,
 		VolumeSource: core.VolumeSource{
 			EmptyDir: &core.EmptyDirVolumeSource{},
 		},
@@ -229,6 +242,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
 		Name:      multiNodeVolume.Name,
 		MountPath: "/etc/ucloud",
+	})
+	userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
+		Name:      optUCloudVolumeName,
+		MountPath: "/opt/ucloud",
 	})
 
 	multinodeSidecar.VolumeMounts = append(multinodeSidecar.VolumeMounts, core.VolumeMount{
@@ -266,6 +283,48 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		"/bin/sh",
 		"-c",
 		multiNodeScript.String(),
+	}
+
+	// UCloud visualization (ucviz)
+	// -----------------------------------------------------------------------------------------------------------------
+	spec.InitContainers = append(spec.InitContainers, core.Container{
+		Name:  "ucviz",
+		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.3.1",
+	})
+
+	ucvizContainer := &spec.InitContainers[len(spec.InitContainers)-1]
+	ucvizContainer.VolumeMounts = append(ucvizContainer.VolumeMounts, core.VolumeMount{
+		Name:      optUCloudVolumeName,
+		MountPath: "/opt/ucloud",
+	})
+
+	ucvizContainer.Command = []string{"bash", "-c", "cp /usr/bin/ucmetrics /opt/ucloud/ucmetrics ; cp /usr/bin/ucviz /opt/ucloud/ucviz"}
+
+	if util.DevelopmentModeEnabled() {
+		ucvizContainer.ImagePullPolicy = core.PullAlways
+	}
+
+	if util.DevelopmentModeEnabled() && ServiceConfig.Compute.ImSourceCode.Present {
+		ucvizContainer.Image = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.35"
+		ucvizContainer.VolumeMounts = append(ucvizContainer.VolumeMounts, core.VolumeMount{
+			Name:      "ucloud-filesystem",
+			ReadOnly:  false,
+			MountPath: "/opt/source",
+			SubPath:   ServiceConfig.Compute.ImSourceCode.Value,
+		})
+
+		userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
+			Name:      "ucloud-filesystem",
+			ReadOnly:  false,
+			MountPath: "/opt/source",
+			SubPath:   ServiceConfig.Compute.ImSourceCode.Value,
+		})
+
+		// From provider-integration folder:
+		// rsync -vhra . ../.compose/default/im2k8/im/storage/source-code --exclude ucloud-im --exclude integration-module
+		ucvizContainer.Command = []string{
+			"bash", "-c", "cd /opt/source/im2 ; export PATH=$PATH:/usr/local/go/bin ; CGO_ENABLED=0 go build -o /opt/ucloud/ucviz -trimpath ucloud.dk/cmd/ucviz ; CGO_ENABLED=0 go build -o /opt/ucloud/ucmetrics -trimpath ucloud.dk/cmd/ucmetrics",
+		}
 	}
 
 	// Firewall

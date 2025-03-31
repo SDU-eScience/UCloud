@@ -97,7 +97,7 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
                 setProviderConditions((prev) => new Map(prev.set(provider.providerTitle, condition)));
             });
         });
-    }, [providers.length])
+    }, [providers.length]);
 
     const body = <>
         {!shouldConnect ? null :
@@ -117,6 +117,10 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
                     e.preventDefault();
                     openFn.current(e.clientX, e.clientY);
                 };
+
+                if (it.unmanagedConnection === true && props.embedded === true) {
+                    return null;
+                }
 
                 return (
                     <ListRow

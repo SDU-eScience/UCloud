@@ -44,6 +44,15 @@ services:
     publicIps:
       enabled: true
 
+    syncthing:
+      enabled: true
+      ipAddress: 10.56.32.4
+      portMin: 8000
+      portMax: 16000
+
+    integratedTerminal:
+      enabled: true
+
     ssh:
       enabled: true
       ipAddress: 10.56.32.3

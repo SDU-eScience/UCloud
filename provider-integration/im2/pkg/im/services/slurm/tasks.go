@@ -101,7 +101,7 @@ var taskFrontendQueue chan *TaskInfo
 func InitTaskSystem() {
 	if cfg.Mode == cfg.ServerModeServer {
 		registerTaskCall.Handler(func(r *ipc.Request[TaskInfoSpecification]) ipc.Response[*TaskInfo] {
-			ucloudUsername, ok := ctrl.MapLocalToUCloud(r.Uid)
+			ucloudUsername, ok, _ := ctrl.MapLocalToUCloud(r.Uid)
 			if !ok {
 				return ipc.Response[*TaskInfo]{
 					StatusCode: http.StatusForbidden,

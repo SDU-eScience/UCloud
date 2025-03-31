@@ -76,7 +76,7 @@ startsvc() {
     fi
 
     if ! isrunning; then
-        CGO_ENABLED=1 $GO build -gcflags "all=-N -l" -o /usr/bin/ucloud -trimpath ucloud.dk/cmd/ucloud-im
+        CGO_ENABLED=0 $GO build -gcflags "all=-N -l" -o /usr/bin/ucloud -trimpath ucloud.dk/cmd/ucloud-im
 
         if [ -f "/etc/ucloud/gpfs_mock.yml" ]; then
             pkill gpfs-mock || true

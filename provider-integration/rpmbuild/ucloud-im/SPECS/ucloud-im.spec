@@ -24,7 +24,7 @@ Source4: %{name}.preset
 %define etcdir /etc/ucloud
 
 %description
-UCloud/IM is the middleware needed to integrated with the UCloud platform
+UCloud/IM is the middleware needed to integrate with the UCloud platform
 
 %prep
 

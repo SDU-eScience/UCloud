@@ -100,7 +100,7 @@ func (log *Logger) SetFlags(flags uint) {
 func (log *Logger) Fatal(format string, args ...any) {
 	log.write(LevelFatal, format, args...)
 	if log.file != nil {
-		_ = log.file.Close()
+		log.file.Close()
 	}
 	os.Exit(1)
 }
@@ -135,9 +135,7 @@ func (log *Logger) Debug(format string, args ...any) {
 
 func (log *Logger) open() error {
 	fn := log.logPath + "/" + log.logFile
-	perms := os.O_WRONLY | os.O_APPEND | os.O_CREATE
-
-	f, err := os.OpenFile(fn, perms, 0o640)
+	f, err := os.OpenFile(fn, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o600)
 	if err != nil {
 		return err
 	}
@@ -250,7 +248,7 @@ func (log *Logger) rotate() {
 		}
 		f.Close()
 
-		f, err = os.Create(newfn)
+		f, err = os.OpenFile(newfn, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0o600)
 		if err != nil {
 			return
 		}
