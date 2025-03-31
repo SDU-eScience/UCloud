@@ -42,6 +42,17 @@ func (n *DocNode) AttributeInt(name string) util.Option[int] {
 	return util.OptNone[int]()
 }
 
+func (n *DocNode) AttributeFloat(name string) util.Option[float64] {
+	value := n.Attribute(name)
+	if value.Present {
+		parsed, err := strconv.ParseFloat(value.Value, 64)
+		if err == nil {
+			return util.OptValue(parsed)
+		}
+	}
+	return util.OptNone[float64]()
+}
+
 func (n *DocNode) AttributeEnum(name string, options []string) util.Option[string] {
 	value := n.Attribute(name)
 	if value.Present {
@@ -67,6 +78,10 @@ type Parser struct {
 
 func NewParser(input string) *Parser {
 	return &Parser{input: input, line: 1, col: 1}
+}
+
+func (p *Parser) eof() bool {
+	return p.pos >= len(p.input)
 }
 
 func (p *Parser) peek() byte {
@@ -155,10 +170,15 @@ func (p *Parser) parseAttribute() (DocAttribute, error) {
 	return DocAttribute{Location{startLine, startCol}, key, value}, nil
 }
 
-func (p *Parser) Parse() (DocNode, error) {
+func (p *Parser) Parse() (DocNode, error, bool) {
 	p.skipWhitespace()
+
+	if p.eof() {
+		return DocNode{}, p.error("Unexpected EOF"), true
+	}
+
 	if p.peek() != '<' {
-		return DocNode{}, p.error("expected '<'")
+		return DocNode{}, p.error("expected '<'"), false
 	}
 	p.advance()
 	startLine, startCol := p.line, p.col
@@ -168,7 +188,7 @@ func (p *Parser) Parse() (DocNode, error) {
 	for p.peek() != '>' && p.peek() != '/' {
 		attr, err := p.parseAttribute()
 		if err != nil {
-			return DocNode{}, err
+			return DocNode{}, err, false
 		}
 		attributes = append(attributes, attr)
 		p.skipWhitespace()
@@ -177,10 +197,10 @@ func (p *Parser) Parse() (DocNode, error) {
 	if p.peek() == '/' {
 		p.advance()
 		if p.peek() != '>' {
-			return DocNode{}, p.error("expected '>' for self-closing tag")
+			return DocNode{}, p.error("expected '>' for self-closing tag"), false
 		}
 		p.advance()
-		return DocNode{Location{startLine, startCol}, tag, attributes, "", nil}, nil
+		return DocNode{Location{startLine, startCol}, tag, attributes, "", nil}, nil, false
 	}
 	p.advance()
 	var children []DocNode
@@ -192,9 +212,9 @@ func (p *Parser) Parse() (DocNode, error) {
 			break
 		}
 		if p.peek() == '<' {
-			child, err := p.Parse()
+			child, err, _ := p.Parse()
 			if err != nil {
-				return DocNode{}, err
+				return DocNode{}, err, false
 			}
 			children = append(children, child)
 		} else {
@@ -207,7 +227,7 @@ func (p *Parser) Parse() (DocNode, error) {
 	}
 	p.parseTagName()
 	p.advance()
-	return DocNode{Location{startLine, startCol}, tag, attributes, trimIndent(textBuilder.String()), children}, nil
+	return DocNode{Location{startLine, startCol}, tag, attributes, trimIndent(textBuilder.String()), children}, nil, false
 }
 
 func trimIndent(input string) string {

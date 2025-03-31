@@ -1,6 +1,4 @@
-import {ThemeColor} from "@/ui-components/theme";
-
-const jobVizHeader = "#- UCloud JobViz -#";
+import {IconName} from "@/ui-components/Icon";
 
 export interface WidgetId {
     id: string;
@@ -15,7 +13,8 @@ export enum WidgetType {
     WidgetTypeProgressBar,
     WidgetTypeTable,
     WidgetTypeContainer,
-    WidgetTypeDiagram
+    WidgetTypeDiagram,
+    WidgetTypeSnippet,
 }
 
 export enum WidgetWindow {
@@ -27,6 +26,7 @@ export enum WidgetWindow {
 export interface WidgetLocation {
     window: WidgetWindow;
     tab: string;
+    icon: WidgetIcon;
 }
 
 export interface Widget {
@@ -81,8 +81,8 @@ export interface WidgetDimensions {
 }
 
 export enum WidgetDirection {
+    WidgetDirectionColumn,
     WidgetDirectionRow,
-    WidgetDirectionColumn
 }
 
 export interface WidgetContainer {
@@ -92,6 +92,7 @@ export interface WidgetContainer {
     height: WidgetDimensions;
     direction: WidgetDirection;
     grow: number;
+    gap: number;
     children: WidgetContainerOrId[];
 }
 
@@ -129,13 +130,87 @@ export interface WidgetTableCell {
     label: WidgetLabel;
 }
 
-export interface WidgetVegaLiteDiagram {
-    definition: any;
-    data: any;
+export enum WidgetDiagramType {
+    Line,
+    Area,
+    Bar,
+    Pie,
+}
+
+export enum WidgetDiagramUnit {
+    GenericInt,
+    GenericFloat,
+    GenericPercent1,
+    GenericPercent100,
+    Bytes,
+    BytesPerSecond,
+    DateTime,
+    Milliseconds,
+    OperationsPerSecond,
+}
+
+export interface WidgetDiagramDataPoint {
+    x: number;
+    y: number;
+}
+
+export interface WidgetDiagramSeries {
+    name: string;
+    data: WidgetDiagramDataPoint[];
+}
+
+export interface WidgetDiagramAxis {
+    unit: WidgetDiagramUnit;
+    minimum?: number | null;
+    maximum?: number | null;
+    logarithmic: boolean;
+}
+
+export interface WidgetDiagramDefinition {
+    type: WidgetDiagramType;
+    series: WidgetDiagramSeries[];
+    xAxis: WidgetDiagramAxis;
+    yAxis: WidgetDiagramAxis;
 }
 
 export interface WidgetProgressBar {
     progress: number; // Value between 0 and 1
+}
+
+export enum WidgetIcon {
+    Generic,
+    Chat,
+    Cpu,
+    Gpu,
+    Memory,
+    Network,
+    Directory,
+    Drive,
+    Question,
+    Info,
+    Warning,
+}
+
+const iconMap: Record<WidgetIcon, IconName> = {
+    [WidgetIcon.Cpu]: "heroCpuChip",
+    [WidgetIcon.Gpu]: "heroComputerDesktop",
+    [WidgetIcon.Memory]: "memorySolid",
+    [WidgetIcon.Network]: "heroGlobeEuropeAfrica",
+    [WidgetIcon.Directory]: "heroFolder",
+    [WidgetIcon.Drive]: "ftFileSystem",
+    [WidgetIcon.Question]: "heroQuestionMarkCircle",
+    [WidgetIcon.Chat]: "heroChatBubbleBottomCenter",
+    [WidgetIcon.Info]: "heroInformationCircle",
+    [WidgetIcon.Warning]: "warning",
+    [WidgetIcon.Generic]: "heroMegaphone",
+};
+
+export function widgetIconToIcon(icon: WidgetIcon): IconName {
+    return iconMap[icon] ?? "heroBugAnt";
+}
+
+export interface WidgetSnippet {
+    text: string;
 }
 
 export enum WidgetAction {

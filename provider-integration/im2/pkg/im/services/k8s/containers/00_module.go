@@ -12,13 +12,16 @@ import (
 	"k8s.io/client-go/rest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
+	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
@@ -85,13 +88,108 @@ func FindJobFolder(job *orc.Job) (string, *orc.Drive, error) {
 }
 
 type trackedLogFile struct {
-	Rank   int
-	Stdout bool
-	File   *os.File
+	Rank    int
+	Stdout  bool
+	Channel util.Option[string]
+	File    *os.File
+}
+
+type followMessageHandler struct {
+	handler func(rank int, message string, channel string)
+}
+
+var followSubscriptions = map[string][]*followMessageHandler{}
+var followSubscriptionsMutex = sync.Mutex{}
+
+func subscribeToFollowUpdates(jobId string, onMessage *followMessageHandler) *followMessageHandler {
+	followSubscriptionsMutex.Lock()
+	defer followSubscriptionsMutex.Unlock()
+
+	existing := followSubscriptions[jobId]
+	newList := append(existing, onMessage)
+	followSubscriptions[jobId] = newList
+	return onMessage
+}
+
+func unsubscribeFromFollowUpdates(jobId string, onMessage *followMessageHandler) {
+	followSubscriptionsMutex.Lock()
+	defer followSubscriptionsMutex.Unlock()
+
+	slice := followSubscriptions[jobId]
+	idx := slices.Index(slice, onMessage)
+	if idx != -1 {
+		slice = append(slice[:idx], slice[idx+1:]...)
+		if len(slice) == 0 {
+			delete(followSubscriptions, jobId)
+		} else {
+			followSubscriptions[jobId] = slice
+		}
+	}
+}
+
+func dispatchNonPersistentFollowMessage(jobId string, rank int, message string, channel string) {
+	followSubscriptionsMutex.Lock()
+	handlers := followSubscriptions[jobId]
+	for _, h := range handlers {
+		go h.handler(rank, message, channel)
+	}
+	followSubscriptionsMutex.Unlock()
 }
 
 func follow(session *ctrl.FollowJobSession) {
-	var logFiles []trackedLogFile
+	logFiles := map[string]trackedLogFile{}
+
+	messageHandler := &followMessageHandler{}
+	messageHandler.handler = func(rank int, message string, channel string) {
+		session.EmitLogs(rank, util.OptValue(message), util.OptNone[string](), util.OptValue(channel))
+	}
+
+	subscribeToFollowUpdates(session.Job.Id, messageHandler)
+	defer unsubscribeFromFollowUpdates(session.Job.Id, messageHandler)
+
+	job, ok := ctrl.RetrieveJob(session.Job.Id)
+	if !ok {
+		return
+	}
+
+	jobFolder, _, err := FindJobFolder(job)
+	if err != nil {
+		return
+	}
+
+	trackFile := func(baseName string, file trackedLogFile) {
+		_, exists := logFiles[baseName]
+
+		if !exists {
+			stdout, ok1 := filesystem.OpenFile(filepath.Join(jobFolder, baseName), unix.O_RDONLY, 0)
+			if ok1 {
+				file.File = stdout
+				logFiles[baseName] = file
+			}
+		}
+	}
+
+	trackAllFiles := func() {
+		for rank := 0; rank < job.Specification.Replicas; rank++ {
+			baseName := fmt.Sprintf("stdout-%d.log", rank)
+			trackFile(baseName, trackedLogFile{
+				Rank:   rank,
+				Stdout: true,
+			})
+		}
+
+		trackFile(".ucviz-ui", trackedLogFile{
+			Rank:    0,
+			Stdout:  true,
+			Channel: util.OptValue("ui"),
+		})
+
+		trackFile(".ucviz-data", trackedLogFile{
+			Rank:    0,
+			Stdout:  true,
+			Channel: util.OptValue("data"),
+		})
+	}
 
 	for util.IsAlive && *session.Alive {
 		job, ok := ctrl.RetrieveJob(session.Job.Id)
@@ -102,23 +200,6 @@ func follow(session *ctrl.FollowJobSession) {
 		if job.Status.State != orc.JobStateRunning {
 			time.Sleep(1 * time.Second)
 			continue
-		}
-
-		jobFolder, _, err := FindJobFolder(job)
-		if err != nil {
-			time.Sleep(1 * time.Second)
-			continue
-		}
-
-		for rank := 0; rank < job.Specification.Replicas; rank++ {
-			stdout, ok1 := filesystem.OpenFile(filepath.Join(jobFolder, fmt.Sprintf("stdout-%d.log", rank)), unix.O_RDONLY, 0)
-			if ok1 {
-				logFiles = append(logFiles, trackedLogFile{
-					Rank:   rank,
-					Stdout: true,
-					File:   stdout,
-				})
-			}
 		}
 
 		break
@@ -137,9 +218,11 @@ func follow(session *ctrl.FollowJobSession) {
 			break
 		}
 
+		trackAllFiles()
+
 		for _, logFile := range logFiles {
 			now := time.Now()
-			deadline := now.Add(5 * time.Millisecond)
+			deadline := now.Add(5 * time.Microsecond)
 			_ = logFile.File.SetReadDeadline(deadline)
 
 			bytesRead, _ := logFile.File.Read(readBuffer)
@@ -153,15 +236,19 @@ func follow(session *ctrl.FollowJobSession) {
 					stderr.Set(message)
 				}
 
-				session.EmitLogs(logFile.Rank, stdout, stderr)
+				session.EmitLogs(logFile.Rank, stdout, stderr, logFile.Channel)
 			}
 		}
 
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(15 * time.Millisecond)
 	}
 }
 
 func terminate(request ctrl.JobTerminateRequest) error {
+	// Delete pods
+	// -----------------------------------------------------------------------------------------------------------------
+	// NOTE(Dan): Helper resources (e.g. Service) have a owner reference on the pod. For this reason, we do not need to
+	// delete this directly.
 	for rank := 0; rank < request.Job.Specification.Replicas; rank++ {
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
 		podName := idAndRankToPodName(request.Job.Id, rank)
@@ -175,8 +262,41 @@ func terminate(request ctrl.JobTerminateRequest) error {
 		cancel()
 	}
 
+	// Unbinding IP and port assignments
+	// -----------------------------------------------------------------------------------------------------------------
 	ctrl.UnbindIpsFromJob(request.Job)
 	shared.ClearAssignedSshPort(request.Job)
+
+	// Cleaning up mount dirs
+	// -----------------------------------------------------------------------------------------------------------------
+	internalJobFolder, _, err := FindJobFolder(request.Job)
+	if err == nil {
+		mounts := calculateMounts(request.Job, internalJobFolder)
+		if len(mounts.Folders) > 0 {
+			jobFolder, ok := filesystem.OpenFile(internalJobFolder, os.O_RDONLY, 0)
+			if ok {
+				defer util.SilentClose(jobFolder)
+
+				for _, folder := range mounts.Folders {
+					if folderName, isMountedInJobFolder := strings.CutPrefix(folder.PodPath, "/work/"); isMountedInJobFolder {
+						if !strings.Contains(folderName, "/") {
+							child, err := filesystem.FileOpenAt(jobFolder, folderName, os.O_RDONLY, 0)
+							if err == nil {
+								folderChildren, err := child.Readdirnames(0)
+								util.SilentClose(child)
+
+								if err == nil && len(folderChildren) == 0 {
+									_ = filesystem.DoDeleteFile(filepath.Join(internalJobFolder, folderName))
+								} else {
+									log.Info("Refusing to delete %v it has children.", filepath.Join(internalJobFolder, folderName))
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 
 	if !request.IsCleanup {
 		// NOTE(Dan): There is no need to run this branch if we are cleaning up for an already terminated job

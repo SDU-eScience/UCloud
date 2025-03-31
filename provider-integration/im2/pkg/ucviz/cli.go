@@ -2,9 +2,12 @@ package ucviz
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"slices"
+	"strconv"
 	"strings"
 	"ucloud.dk/pkg/termio"
 	"ucloud.dk/pkg/util"
@@ -19,12 +22,21 @@ func cliId() string {
 	return result
 }
 
-func HandleCli(args []string, uiChannel io.Writer, dataChannel io.Writer) {
+func HandleCli(args []string, uiChannel io.Writer, dataChannel io.Writer, lock util.Option[string]) {
+	if lock.Present {
+		lock, err := acquireLock(lock.Value)
+		if err != nil {
+			panic(err)
+		}
+
+		defer lock.Release()
+	}
+
 	if len(args) == 0 {
 		printCliHelp("")
 	}
 
-	cliIdBase = util.RandomToken(8)
+	cliIdBase = "anon-" + util.RandomTokenNoTs(8)
 
 	switch args[0] {
 	case "widget":
@@ -43,9 +55,82 @@ func HandleCli(args []string, uiChannel io.Writer, dataChannel io.Writer) {
 		_, _ = dataChannel.Write(data)
 
 	case "progress":
-	case "append-rows":
-	case "append-data":
+		if len(args) != 3 {
+			printCliHelp("Usage: ucviz progress <id> <percentage>")
+		}
 
+		id := args[1]
+		percentageRaw := args[2]
+		percentage, err := strconv.ParseFloat(percentageRaw, 64)
+		if err != nil {
+			printCliHelp(fmt.Sprintf("Invalid percentage: %s", err.Error()))
+		}
+
+		dataChannelB := &bytes.Buffer{}
+		dataChannelS := NewWidgetStream(dataChannelB, WidgetStreamJson)
+		dataChannelS.UpdateProgress(id, percentage)
+		_, _ = dataChannel.Write(dataChannelB.Bytes())
+
+	case "append-rows":
+		if len(args) != 3 {
+			printCliHelp("Usage: ucviz append-rows <id> <rows>")
+		}
+
+		id := args[1]
+		widgetText := args[2]
+		p := NewParser(widgetText)
+
+		var rows []WidgetTableRow
+
+		for {
+			node, err, eof := p.Parse()
+
+			if eof {
+				break
+			}
+
+			if err != nil {
+				termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Incorrect usage: %s", err.Error())
+				os.Exit(1)
+			}
+
+			row, err := processRow(p, node)
+			if err != nil {
+				termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Incorrect usage: %s", err.Error())
+				os.Exit(1)
+			}
+
+			rows = append(rows, row)
+		}
+
+		if len(rows) == 0 {
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "No rows supplied")
+			os.Exit(1)
+		}
+
+		dataChannelB := &bytes.Buffer{}
+		dataChannelS := NewWidgetStream(dataChannelB, WidgetStreamJson)
+		dataChannelS.AppendTableRows(id, rows)
+		_, _ = dataChannel.Write(dataChannelB.Bytes())
+
+	case "append-data":
+		if len(args) != 3 {
+			printCliHelp("Usage: ucviz append-data <id> <data>")
+		}
+
+		id := args[1]
+		dataRaw := args[2]
+
+		var data []WidgetDiagramSeries
+		err := json.Unmarshal([]byte(dataRaw), &data)
+		if err != nil {
+			printCliHelp(fmt.Sprintf("Invalid data specified: %s", err))
+		}
+
+		dataChannelB := &bytes.Buffer{}
+		dataChannelS := NewWidgetStream(dataChannelB, WidgetStreamJson)
+		dataChannelS.AppendDiagramData(id, data)
+		_, _ = dataChannel.Write(dataChannelB.Bytes())
 	}
 }
 
@@ -63,17 +148,17 @@ func cliWidget(docText string) (ui []byte, data []byte, err error) {
 	dataChannel := NewWidgetStream(dataChannelB, WidgetStreamJson)
 
 	p := NewParser(docText)
-	node, err := p.Parse()
+	node, err, _ := p.Parse()
 	if err != nil {
 		termio.Write("%s", err.Error())
 		os.Exit(1)
 	}
 
-	_, err = processNode(uiChannel, dataChannel, p, node, util.OptNone[DocNode]())
+	_, err = processNode(uiChannel, dataChannel, p, node, util.OptNone[DocNode](), util.OptNone[WidgetLocation]())
 	return uiChannelB.Bytes(), dataChannelB.Bytes(), err
 }
 
-func processNode(uiChannel *WidgetStream, dataChannel *WidgetStream, p *Parser, node DocNode, parent util.Option[DocNode]) (string, error) {
+func processNode(uiChannel *WidgetStream, dataChannel *WidgetStream, p *Parser, node DocNode, parent util.Option[DocNode], parentLoc util.Option[WidgetLocation]) (string, error) {
 	idAttr := node.Attribute("id")
 	if !idAttr.Present {
 		if !parent.Present {
@@ -86,6 +171,20 @@ func processNode(uiChannel *WidgetStream, dataChannel *WidgetStream, p *Parser, 
 	loc := WidgetLocation{
 		Window: WidgetWindowMain,
 		Tab:    "",
+	}
+
+	if parentLoc.Present {
+		loc = parentLoc.Value
+	} else {
+		tab := node.Attribute("tab")
+		if tab.Present {
+			loc.Tab = tab.Value
+		}
+
+		icon := node.AttributeEnum("icon", iconNames)
+		if icon.Present {
+			loc.Icon = WidgetIcon(slices.Index(iconNames, icon.Value))
+		}
 	}
 
 	id := idAttr.Value
@@ -118,6 +217,10 @@ func processNode(uiChannel *WidgetStream, dataChannel *WidgetStream, p *Parser, 
 			c.Grow = uint8(grow.Value)
 		}
 
+		if gap := node.AttributeInt("gap"); gap.Present {
+			c.Gap = uint8(gap.Value)
+		}
+
 		if direction := node.AttributeEnum("direction", []string{"row", "column"}); direction.Present {
 			if direction.Value == "row" {
 				c.Direction = WidgetDirectionRow
@@ -135,7 +238,7 @@ func processNode(uiChannel *WidgetStream, dataChannel *WidgetStream, p *Parser, 
 		}
 
 		for _, child := range node.Children {
-			childId, err := processNode(uiChannel, dataChannel, p, child, util.OptValue(node))
+			childId, err := processNode(uiChannel, dataChannel, p, child, util.OptValue(node), util.OptValue(loc))
 			if err != nil {
 				return "", err
 			}
@@ -150,11 +253,15 @@ func processNode(uiChannel *WidgetStream, dataChannel *WidgetStream, p *Parser, 
 
 	case "Table":
 		childrenAllowed = true
-	case "Row":
-		childrenAllowed = true
-	case "Cell":
-		childrenAllowed = false
-		textExpected = true
+		t := WidgetTable{}
+		for _, child := range node.Children {
+			row, err := processRow(p, child)
+			if err != nil {
+				return "", err
+			}
+			t.Rows = append(t.Rows, row)
+		}
+		uiChannel.CreateTable(id, loc, t)
 
 	case "Text":
 		childrenAllowed = false
@@ -179,19 +286,28 @@ func processNode(uiChannel *WidgetStream, dataChannel *WidgetStream, p *Parser, 
 		childrenAllowed = false
 
 		progress := WidgetProgressBar{}
-		if value := node.AttributeInt("value"); value.Present {
-			progress.Progress = float64(value.Value) / 100.0
+		if value := node.AttributeFloat("value"); value.Present {
+			progress.Progress = value.Value / 100.0
 		}
 		uiChannel.CreateProgressBar(id, loc, progress)
 
 	case "Chart":
-		childrenAllowed = true
-	case "Def":
-		childrenAllowed = false
 		textExpected = true
+		childrenAllowed = false
+
+		var definition WidgetDiagramDefinition
+		err := json.Unmarshal([]byte(node.Text), &definition)
+		if err != nil {
+			return "", p.errorAt(node.Location, "Invalid definition provided: %s", err)
+		}
+
+		uiChannel.CreateDiagram(id, loc, definition)
 
 	case "CodeSnippet":
 		childrenAllowed = false
+		textExpected = true
+
+		uiChannel.CreateSnippet(id, loc, WidgetSnippet{Text: node.Text})
 	}
 
 	if !childrenAllowed && len(node.Children) > 0 {
@@ -203,6 +319,78 @@ func processNode(uiChannel *WidgetStream, dataChannel *WidgetStream, p *Parser, 
 	}
 
 	return id, nil
+}
+
+func processRow(p *Parser, node DocNode) (WidgetTableRow, error) {
+	result := WidgetTableRow{}
+	if node.Tag != "Row" {
+		return WidgetTableRow{}, p.errorAt(node.Location, "Tables can only have <Row> children")
+	}
+
+	if node.Text != "" {
+		return WidgetTableRow{}, p.errorAt(node.Location, "Table rows cannot have text associated with them")
+	}
+
+	for _, child := range node.Children {
+		cell, err := processCell(p, child)
+		if err != nil {
+			return WidgetTableRow{}, err
+		}
+
+		result.Cells = append(result.Cells, cell)
+	}
+
+	return result, nil
+}
+
+func processCell(p *Parser, node DocNode) (WidgetTableCell, error) {
+	result := WidgetTableCell{}
+
+	if node.Tag != "Cell" {
+		return WidgetTableCell{}, p.errorAt(node.Location, "Tables rows can only have <Cell> children")
+	}
+
+	if len(node.Children) > 0 {
+		return WidgetTableCell{}, p.errorAt(node.Location, "Table cells cannot have any children")
+	}
+
+	headerAttr := node.Attribute("header")
+	if headerAttr.Present && headerAttr.Value == "true" {
+		result.Flags |= WidgetTableCellHeader
+	}
+
+	if minWidth := node.AttributeInt("min-width"); minWidth.Present {
+		result.Width.Minimum = uint16(minWidth.Value)
+	}
+
+	if maxWidth := node.AttributeInt("min-width"); maxWidth.Present {
+		result.Width.Maximum = uint16(maxWidth.Value)
+	}
+
+	if minHeight := node.AttributeInt("min-height"); minHeight.Present {
+		result.Height.Minimum = uint16(minHeight.Value)
+	}
+
+	if maxHeight := node.AttributeInt("max-height"); maxHeight.Present {
+		result.Height.Maximum = uint16(maxHeight.Value)
+	}
+
+	label := WidgetLabel{}
+	if align := node.AttributeEnum("align", []string{"begin", "center", "end"}); align.Present {
+		switch align.Value {
+		case "begin":
+			label.Align = WidgetLabelAlignBegin
+		case "center":
+			label.Align = WidgetLabelAlignCenter
+		case "end":
+			label.Align = WidgetLabelAlignEnd
+		}
+	}
+
+	label.Text = node.Text
+
+	result.Label = label
+	return result, nil
 }
 
 var shadeNames = map[string]WidgetColorShade{

@@ -111,6 +111,8 @@ data class JobsProviderFollowResponse(
     """
     )
     val stderr: String? = null,
+
+    val channel: String? = null,
 )
 
 typealias JobsProviderOpenInteractiveSessionRequest = BulkRequest<JobsProviderOpenInteractiveSessionRequestItem>

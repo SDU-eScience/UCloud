@@ -1,16 +1,15 @@
 import {
     Widget,
     WidgetAction,
-    WidgetContainer,
+    WidgetContainer, WidgetDiagramDefinition, WidgetDiagramSeries,
     WidgetId,
     WidgetLabel,
     WidgetLocation,
     WidgetPacketHeader,
-    WidgetProgressBar,
+    WidgetProgressBar, WidgetSnippet,
     WidgetStreamEncoding,
     WidgetTable,
     WidgetType,
-    WidgetVegaLiteDiagram
 } from "@/Applications/Jobs/JobViz/index";
 
 interface EventMap {
@@ -19,9 +18,10 @@ interface EventMap {
     "createContainer": RuntimeWidget<WidgetContainer>;
     "createProgressBar": RuntimeWidget<WidgetProgressBar>;
     "createTable": RuntimeWidget<WidgetTable>;
-    "createDiagram": RuntimeWidget<WidgetVegaLiteDiagram>;
+    "createSnippet": RuntimeWidget<WidgetSnippet>;
+    "createDiagram": RuntimeWidget<WidgetDiagramDefinition>;
     "appendTableRows": UpdateEvent<WidgetTable>;
-    "appendDiagramData": UpdateEvent<WidgetVegaLiteDiagram>;
+    "appendDiagramData": UpdateEvent<WidgetDiagramSeries[]>;
     "updateProgress": UpdateEvent<WidgetProgressBar>;
     "delete": DeleteEvent;
 }
@@ -93,9 +93,16 @@ export class StreamProcessor {
             }
 
             const line = this.buffer.substring(0, endOfLine);
-            this.buffer = this.buffer.substring(endOfLine + 1);
 
-            const parsed = JSON.parse(line);
+            let parsed: any;
+            try {
+                parsed = JSON.parse(line);
+            } catch (e) {
+                console.warn("Failed to parse buffer", line, e);
+                return;
+            }
+
+            this.buffer = this.buffer.substring(endOfLine + 1);
             switch (this.state) {
                 case 0: {
                     this.header = parsed as WidgetPacketHeader;
@@ -145,10 +152,10 @@ export class StreamProcessor {
                         }
 
                         case WidgetType.WidgetTypeDiagram: {
-                            const diagram = parsed as WidgetVegaLiteDiagram;
 
                             switch (header.action) {
                                 case WidgetAction.WidgetActionCreate: {
+                                    const diagram = parsed as WidgetDiagramDefinition;
                                     const event = {
                                         id: widget.id,
                                         location: widget.location,
@@ -161,6 +168,7 @@ export class StreamProcessor {
                                 }
 
                                 case WidgetAction.WidgetActionUpdate: {
+                                    const diagram = parsed as WidgetDiagramSeries[];
                                     this.dispatch("appendDiagramData", {
                                         id: widget.id,
                                         widget: diagram,
@@ -169,7 +177,7 @@ export class StreamProcessor {
                                 }
 
                                 default: {
-                                    console.warn("Unknown command:", widget, header, diagram);
+                                    console.warn("Unknown command:", widget, header, parsed);
                                     break;
                                 }
                             }
@@ -262,6 +270,29 @@ export class StreamProcessor {
                                 }
                             }
                             break;
+                        }
+
+                        case WidgetType.WidgetTypeSnippet: {
+                            const snippet = parsed as WidgetSnippet;
+
+                            switch (header.action) {
+                                case WidgetAction.WidgetActionCreate: {
+                                    const event = {
+                                        id: widget.id,
+                                        location: widget.location,
+                                        type: widget.type,
+                                        spec: snippet,
+                                    };
+                                    this.dispatch("createSnippet", event);
+                                    this.dispatch("createAny", event);
+                                    break;
+                                }
+
+                                default: {
+                                    console.warn("Unknown command:", widget, header, snippet);
+                                    break;
+                                }
+                            }
                         }
                     }
 
