@@ -166,8 +166,8 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 	}
 
 	cfg.Compute.Modules = map[string]KubernetesModuleEntry{}
-	modulesNode, err := getChildOrNil(filePath, computeNode, "modules")
-	if err != nil || (modulesNode != nil && modulesNode.Kind != yaml.MappingNode) {
+	modulesNode, _ := getChildOrNil(filePath, computeNode, "modules")
+	if modulesNode != nil && modulesNode.Kind != yaml.MappingNode {
 		reportError(filePath, computeNode, "expected 'modules' to be a dictionary")
 		return false, cfg
 	}
