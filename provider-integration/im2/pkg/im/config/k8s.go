@@ -82,6 +82,14 @@ type KubernetesCompute struct {
 	IntegratedTerminal              KubernetesIntegratedTerminal
 	VirtualMachineStorageClass      util.Option[string]
 	ImSourceCode                    util.Option[string]
+	Modules                         map[string]KubernetesModuleEntry
+}
+
+type KubernetesModuleEntry struct {
+	Name       string              `json:"name"`
+	VolSubPath string              `json:"claimSubPath"`
+	HostPath   util.Option[string] `json:"hostPath"`
+	ClaimName  util.Option[string] `json:"volumeClaim"`
 }
 
 type K8sMachineCategory struct {
@@ -154,6 +162,46 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 	if cfg.Compute.Namespace == "" {
 		cfg.Compute.Namespace = "ucloud-apps"
+	}
+
+	cfg.Compute.Modules = map[string]KubernetesModuleEntry{}
+	modulesNode, err := getChildOrNil(filePath, computeNode, "modules")
+	if err != nil || (modulesNode != nil && modulesNode.Kind != yaml.MappingNode) {
+		reportError(filePath, computeNode, "expected 'modules' to be a dictionary")
+		return false, cfg
+	}
+
+	if modulesNode != nil {
+		for i := 0; i < len(modulesNode.Content); i += 2 {
+			entry := KubernetesModuleEntry{}
+			_ = modulesNode.Content[i].Decode(&entry.Name)
+
+			entryNode := modulesNode.Content[i+1]
+			entry.VolSubPath = requireChildText(filePath, entryNode, "subPath", &success)
+			entry.HostPath = util.OptStringIfNotEmpty(optionalChildText(filePath, entryNode, "hostPath", &success))
+			entry.ClaimName = util.OptStringIfNotEmpty(optionalChildText(filePath, entryNode, "claimName", &success))
+
+			claimSourceCount := 0
+			if entry.HostPath.Present {
+				claimSourceCount++
+			}
+			if entry.ClaimName.Present {
+				claimSourceCount++
+			}
+
+			if claimSourceCount != 1 {
+				reportError(filePath, entryNode, "exactly one of 'hostPath' and 'volumeClaim' must be set!")
+				return false, cfg
+			}
+
+			_, exists := cfg.Compute.Modules[entry.Name]
+			if exists {
+				reportError(filePath, entryNode, "another module with this name already exists")
+				return false, cfg
+			}
+
+			cfg.Compute.Modules[entry.Name] = entry
+		}
 	}
 
 	cfg.Compute.Machines = make(map[string]K8sMachineCategory)

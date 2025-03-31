@@ -245,6 +245,10 @@ func follow(session *ctrl.FollowJobSession) {
 }
 
 func terminate(request ctrl.JobTerminateRequest) error {
+	// Delete pods
+	// -----------------------------------------------------------------------------------------------------------------
+	// NOTE(Dan): Helper resources (e.g. Service) have a owner reference on the pod. For this reason, we do not need to
+	// delete this directly.
 	for rank := 0; rank < request.Job.Specification.Replicas; rank++ {
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
 		podName := idAndRankToPodName(request.Job.Id, rank)
@@ -258,9 +262,13 @@ func terminate(request ctrl.JobTerminateRequest) error {
 		cancel()
 	}
 
+	// Unbinding IP and port assignments
+	// -----------------------------------------------------------------------------------------------------------------
 	ctrl.UnbindIpsFromJob(request.Job)
 	shared.ClearAssignedSshPort(request.Job)
 
+	// Cleaning up mount dirs
+	// -----------------------------------------------------------------------------------------------------------------
 	internalJobFolder, _, err := FindJobFolder(request.Job)
 	if err == nil {
 		mounts := calculateMounts(request.Job, internalJobFolder)

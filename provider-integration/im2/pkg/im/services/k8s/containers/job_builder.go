@@ -205,6 +205,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// -----------------------------------------------------------------------------------------------------------------
 	internalToPod := prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
 
+	// Modules
+	// -----------------------------------------------------------------------------------------------------------------
+	prepareModules(job, pod, userContainer)
+
 	// Invocation
 	// -----------------------------------------------------------------------------------------------------------------
 	prepareInvocationOnJobCreate(job, rank, pod, userContainer, internalToPod, jobFolder)
