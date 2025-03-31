@@ -73,7 +73,7 @@ func deletePublicIp(ip *orc.PublicIp) error {
 }
 
 func retrieveLicenseProducts() []orc.LicenseSupport {
-	return shared.LicenseSupport
+	return ctrl.FetchLicenseSupport()
 }
 
 func activateLicense(license *orc.License) error {

@@ -54,16 +54,6 @@ type LicenseIncludeFlags struct {
 	IncludeSupport bool `json:"includeSupport"`
 }
 
-/*
-	func RetrievePublicIp(jobId string, flags BrowseIpsFlags) (PublicIp, error) {
-		return c.ApiRetrieve[PublicIp](
-			ipsCtrlNamespace+"retrieve",
-			ipsCtrlContext,
-			"",
-			append([]string{"id", jobId}, c.StructToParameters(flags)...),
-		)
-	}
-*/
 func BrowseLicenses(next string, flags LicenseIncludeFlags) (fnd.PageV2[License], error) {
 	return c.ApiBrowse[fnd.PageV2[License]](
 		licenseCtrlNamespace+"browse",

@@ -30,20 +30,23 @@ type LicenseEntry struct {
 	License string `db:"license"`
 }
 
+const licenseCategoryName = "licenses"
+
 var licenses = map[string]*orc.License{}
 var licenseMutex = sync.Mutex{}
 
 var (
-	ipcRetrieveLicenses = ipc.NewCall[util.Empty, []LicenseEntry]("licenses.retrieve")
-	ipcUpdateLicense    = ipc.NewCall[LicenseEntry, util.Empty]("licenses.update")
-	ipcRemoveLicense    = ipc.NewCall[string, util.Empty]("licenses.remove")
+	ipcRetrieveLicense = ipc.NewCall[string, LicenseEntry]("licenses.retrieve")
+	ipcBrowseLicenses  = ipc.NewCall[util.Empty, []LicenseEntry]("licenses.browse")
+	ipcUpdateLicense   = ipc.NewCall[LicenseEntry, util.Empty]("licenses.update")
+	ipcRemoveLicense   = ipc.NewCall[string, util.Empty]("licenses.remove")
 )
 
 func (license *LicenseEntry) toProduct() apm.ProductV2 {
 	return apm.ProductV2{
 		Type: apm.ProductTypeCLicense,
 		Category: apm.ProductCategory{
-			Name:        "licenses",
+			Name:        licenseCategoryName,
 			Provider:    cfg.Provider.Id,
 			ProductType: apm.ProductTypeLicense,
 			AccountingUnit: apm.AccountingUnit{
@@ -71,7 +74,6 @@ func initLicenseDatabase() {
 	licenseMutex.Lock()
 	defer licenseMutex.Unlock()
 	fetchAllLicenses()
-	loadLicenses()
 
 	ipcUpdateLicense.Handler(func(r *ipc.Request[LicenseEntry]) ipc.Response[util.Empty] {
 		if r.Uid != 0 {
@@ -80,8 +82,6 @@ func initLicenseDatabase() {
 				ErrorMessage: "You must be root to run this command",
 			}
 		}
-
-		// TODO(Brian) Check that product allocation exists
 
 		license := r.Payload
 
@@ -112,7 +112,39 @@ func initLicenseDatabase() {
 		}
 	})
 
-	ipcRetrieveLicenses.Handler(func(r *ipc.Request[util.Empty]) ipc.Response[[]LicenseEntry] {
+	ipcRetrieveLicense.Handler(func(r *ipc.Request[string]) ipc.Response[LicenseEntry] {
+		if r.Uid != 0 {
+			return ipc.Response[LicenseEntry]{
+				StatusCode:   http.StatusForbidden,
+				ErrorMessage: "You must be root to run this command",
+			}
+		}
+
+		resource, ok := licenses[r.Payload]
+
+		if !ok {
+			return ipc.Response[LicenseEntry]{
+				StatusCode:   http.StatusNotFound,
+				ErrorMessage: "Unable to find product for license",
+			}
+		}
+
+		license, ok := retrieveLicense(resource.Specification.Product.Id)
+
+		if !ok {
+			return ipc.Response[LicenseEntry]{
+				StatusCode:   http.StatusNotFound,
+				ErrorMessage: "Unable to find license details",
+			}
+		}
+
+		return ipc.Response[LicenseEntry]{
+			StatusCode: http.StatusOK,
+			Payload:    license,
+		}
+	})
+
+	ipcBrowseLicenses.Handler(func(r *ipc.Request[util.Empty]) ipc.Response[[]LicenseEntry] {
 		if r.Uid != 0 {
 			return ipc.Response[[]LicenseEntry]{
 				StatusCode:   http.StatusForbidden,
@@ -184,8 +216,7 @@ func fetchAllLicenses() {
 	for {
 		page, err := orc.BrowseLicenses(next, orc.LicenseIncludeFlags{
 			IncludeProduct: false,
-			IncludeUpdates: false,
-			IncludeSupport: false,
+			IncludeUpdates: true,
 		})
 
 		if err != nil {
@@ -205,9 +236,6 @@ func fetchAllLicenses() {
 		}
 	}
 }
-
-// TODO(Brian)
-func loadLicenses() {}
 
 func FetchLicenseProducts() []apm.ProductV2 {
 	result := []apm.ProductV2{}
@@ -253,7 +281,7 @@ func FetchLicenseSupport() []orc.LicenseSupport {
 		result = append(result, orc.LicenseSupport{
 			Product: apm.ProductReference{
 				Id:       license.Name,
-				Category: "license",
+				Category: licenseCategoryName,
 				Provider: cfg.Provider.Id,
 			},
 		})
@@ -271,6 +299,10 @@ func TrackNewLicense(license orc.License) {
 			update.Timestamp = fnd.Timestamp(time.Now())
 		}
 	}
+
+	licenseMutex.Lock()
+	licenses[license.Id] = &license
+	licenseMutex.Unlock()
 
 	jsonified, _ := json.Marshal(license)
 
@@ -338,7 +370,7 @@ func DeleteLicense(target *orc.License) error {
 			tx,
 			`
 				delete from tracked_licenses
-				where resource_id = 
+				where resource_id = :id
 			`,
 			db.Params{
 				"id": target.Id,
@@ -347,6 +379,64 @@ func DeleteLicense(target *orc.License) error {
 	})
 
 	return nil
+}
+
+func retrieveLicense(productId string) (LicenseEntry, bool) {
+	license := db.NewTx(func(tx *db.Transaction) LicenseEntry {
+		result, _ := db.Get[LicenseEntry](
+			tx,
+			`
+				select name, address, port, license 
+				from licenses
+				where name = :id
+			`,
+			db.Params{
+				"id": productId,
+			},
+		)
+
+		return result
+	})
+
+	return license, true
+}
+
+func BuildLicenseParameter(id string) string {
+	resource, ok := licenses[id]
+
+	if !ok {
+		log.Warn("No license product found")
+		return id
+	}
+
+	license, ok := retrieveLicense(resource.Specification.Product.Id)
+
+	if !ok {
+		log.Warn("Error retrieving license")
+		return id
+	}
+
+	var result string
+
+	if len(license.Address) > 0 {
+		result += license.Address
+	} else {
+		result += "null"
+	}
+
+	result += ":"
+
+	if license.Port > 0 {
+		result += fmt.Sprintf("%d", license.Port)
+	} else {
+		result += "null"
+	}
+
+	if len(license.License) > 0 {
+		result += "/" + license.License
+	}
+
+	return result
 }
 
 func printHelp() {
@@ -381,7 +471,7 @@ func LicenseCli(args []string) {
 
 	switch {
 	case cli.IsListCommand(args[0]):
-		licenses, err := ipcRetrieveLicenses.Invoke(util.EmptyValue)
+		licenses, err := ipcBrowseLicenses.Invoke(util.EmptyValue)
 
 		if err != nil {
 			cli.HandleError("list licenses", err)
