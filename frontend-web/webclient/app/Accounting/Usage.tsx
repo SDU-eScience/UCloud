@@ -10,7 +10,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
 import {BreakdownByProjectAPI, categoryComparator, ChartsAPI, UsageOverTimeAPI} from ".";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {doNothing, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as Jobs from "@/Applications/Jobs";
@@ -502,7 +502,10 @@ const Visualization: React.FunctionComponent = () => {
         state.activeDashboard === undefined ||
         state.activeDashboard.usageOverTime.every(it => it.dataPoints.every(it => it.usage === 0)) &&
         (state.summaries.length === 0 && state.remoteData.requestsInFlight === 0);
-    const unitsForRichSelect = React.useMemo(() => state.activeDashboard?.availableUnits.map(it => ({unit: it})) ?? [], [state.activeDashboard?.availableUnits]);
+    const unitsForRichSelect = React.useMemo(() => {
+        const all = state.activeDashboard?.availableUnits.map(it => ({unit: it})).filter(it => []) ?? []
+        return all.filter(it => !["IPs", "Licenses"].includes(it.unit)); // Note(Jonas): Maybe just don't fetch the IPs, Licenses (and Links?)
+    }, [state.activeDashboard?.availableUnits]);
 
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -829,8 +832,9 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
     </div>;
 };
 
+const PieWrapper = makeClassName("pie-wrapper");
 const BreakdownStyle = injectStyle("breakdown", k => `
-    ${k} .pie-wrapper {
+    ${k} ${PieWrapper.dot} {
         width: 500px;
         height: 500px;
         margin: 20px auto;
@@ -838,9 +842,10 @@ const BreakdownStyle = injectStyle("breakdown", k => `
     }
 
 @media screen and (max-width: 1200px) {
-    ${k} .pie-wrapper {
-        width: 100%;
+    ${k} ${PieWrapper.dot} {
         height: 500px;
+        margin-left: auto;
+        margin-right: auto;
     }    
 }
 
@@ -854,7 +859,7 @@ const BreakdownStyle = injectStyle("breakdown", k => `
 const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: string; period: Period; charts: BreakdownChart[];}> = props => {
 
     const unit = props.unit ?? "";
-    const [singleChartSelected, setSingleChartSelected] = useState<string | undefined>();
+    const [chartsSelected, setChartsSelected] = useState<string[] | string | undefined>();
 
     const fullyMergedChart = React.useMemo(() => {
         return {
@@ -895,10 +900,15 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: s
         </> : null}
 
         <div className={ChartAndTable}>
-            {datapointSum === 0 ? null : <div className="pie-wrapper">
-                <PieChart dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={dataPoint => setSingleChartSelected(existingChart => {
-                    const newlySelectedChart = dataPoint.key;
-                    return newlySelectedChart === existingChart ? undefined : newlySelectedChart;
+            {datapointSum === 0 ? null : <div className={PieWrapper.class}>
+                <PieChart dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={dataPoint => setChartsSelected(existingCharts => {
+                    if (Array.isArray(dataPoint)) {
+                        if (Array.isArray(existingCharts)) return undefined;
+                        return dataPoint;
+                    } else {
+                        const newlySelectedChart = dataPoint.key;
+                        return newlySelectedChart === existingCharts ? undefined : newlySelectedChart;
+                    }
                 })} />
             </div>}
             {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
@@ -907,13 +917,19 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: s
                     <table>
                         <thead>
                             <tr>
-                                <SortTableHeader width="50%" sortKey={"key"} sorted={sorted}>Project</SortTableHeader>
+                                <SortTableHeader width="40%" sortKey={"key"} sorted={sorted}>Project</SortTableHeader>
                                 <SortTableHeader width="30%" sortKey={"nameAndProvider"} sorted={sorted}>Name - Provider</SortTableHeader>
-                                <SortTableHeader width="20%" sortKey={"value"} sorted={sorted}>Usage</SortTableHeader>
+                                <SortTableHeader width="30%" sortKey={"value"} sorted={sorted}>Usage</SortTableHeader>
                             </tr>
                         </thead>
                         <tbody>
-                            {dataPoints.filter(it => singleChartSelected ? it.key === singleChartSelected : true).map((point, idx) => {
+                            {dataPoints.filter(it => {
+                                const hasSelection = !!chartsSelected;
+                                if (!hasSelection) return true;
+                                else if (Array.isArray(chartsSelected)) return chartsSelected.includes(it.key);
+                                else return chartsSelected === it.key;
+                            }).map((point, idx) => {
+                                // TODO(Jonas): We need to handle "Other" properly
                                 const usage = point.value;
                                 const [name, provider] = point.nameAndProvider.split("/");
                                 return <tr key={idx}>
@@ -1003,7 +1019,7 @@ function useSorting<DataType>(originalData: DataType[], sortByKey: keyof DataTyp
 }
 
 const MostUsedApplicationsPanel: React.FunctionComponent<{data?: MostUsedApplications}> = ({data}) => {
-    const sorted = useSorting(data?.dataPoints ?? [], "count");
+    const sorted = useSorting(data?.dataPoints ?? [], "count", "desc");
 
     return <div className={classConcat(CardClass, PanelClass, MostUsedApplicationsStyle)}>
         <div className="panel-title">
@@ -1287,9 +1303,11 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
 };
 
 function DifferenceTable({charts, shownEntries}: {charts: UsageChart[]; shownEntries: boolean[]}) {
+    const shownCharts = React.useMemo(() => charts.filter((chart, index) => shownEntries[index]), [charts, shownEntries]);
+
     const differences = React.useMemo(() => {
-        const differences = charts.map(() => 0.0);
-        for (const [chartIdx, chart] of charts.entries()) {
+        const differences = shownCharts.map(() => 0.0);
+        for (const [chartIdx, chart] of shownCharts.entries()) {
             for (let idx = 0; idx < chart.dataPoints.length; idx++) {
                 const point = chart.dataPoints[idx];
                 if (idx == 0) continue;
@@ -1298,22 +1316,45 @@ function DifferenceTable({charts, shownEntries}: {charts: UsageChart[]; shownEnt
             }
         }
         return differences;
-    }, [charts]);
+    }, [shownCharts]);
 
-    //const sorted = useSorting(/* remapping before supplying */, "????");
+    const remappedThingies = React.useMemo(() => {
+        const result: {name: string; timestamp: number; usage: number; difference: number;}[] = [];
+        for (const chart of shownCharts) {
+            for (let idx = 0; idx < chart.dataPoints.length; idx++) {
+                const point = chart.dataPoints[idx];
+                if (idx + 1 >= chart.dataPoints.length) continue;
+                const change = point.usage - chart.dataPoints[idx + 1].usage;
+                if (change === 0) {
+                    if (result.find(it => it.name === chart.name)) {
+                        continue;
+                    }
+                }
+                result.push({name: chart.name, timestamp: point.timestamp, usage: point.usage, difference: change});
+            }
+
+            if (chart.dataPoints.length === 0) {
+                result.push({name: chart.name, timestamp: 0, usage: 0, difference: 0});
+            }
+        }
+        return result;
+    }, [shownCharts]);
+
+    const sorted = useSorting(remappedThingies, "timestamp");
+    const showOriginalData = false;
 
     return <div className={TableWrapper.class}>
         <table>
             <thead>
                 <tr>
-                    <th>Name</th>
-                    <th>Timestamp</th>
-                    <th>Usage</th>
-                    <th>Change</th>
+                    <SortTableHeader width="20%" sortKey="name" sorted={sorted}>Name</SortTableHeader>
+                    <SortTableHeader width="30%" sortKey="timestamp" sorted={sorted}>Timestamp</SortTableHeader>
+                    <SortTableHeader width="25%" sortKey="usage" sorted={sorted}>Usage</SortTableHeader>
+                    <SortTableHeader width="25%" sortKey="difference" sorted={sorted}>Change</SortTableHeader>
                 </tr>
             </thead>
             <tbody>
-                {charts.map((chart, idx) => !shownEntries[idx] ? null :
+                {(showOriginalData ? shownCharts : []).map((chart, idx) =>
                     differences[idx] != 0 ? chart.dataPoints.map((point, idx, items) => {
                         const change = (idx + 1 !== items.length) ? point.usage - items[idx + 1].usage : 0;
                         if (change === 0 && idx + 1 < items.length) return null;
@@ -1330,6 +1371,42 @@ function DifferenceTable({charts, shownEntries}: {charts: UsageChart[]; shownEnt
                         <td>N/A</td>
                     </tr>)
                 )}
+                {showOriginalData ? <>
+                    <tr>
+                        <td>–––––––––––</td>
+                        <td>–––––––––––</td>
+                        <td>–––––––––––</td>
+                        <td>–––––––––––</td>
+                    </tr>
+                    <tr>
+                        <td>DIVIDER</td>
+                        <td>DIVIDER</td>
+                        <td>DIVIDER</td>
+                        <td>DIVIDER</td>
+                    </tr>
+                    <tr>
+                        <td>–––––––––––</td>
+                        <td>–––––––––––</td>
+                        <td>–––––––––––</td>
+                        <td>–––––––––––</td>
+                    </tr></> :
+                    null}
+                {sorted.data.map((d, idx) => {
+                    if (d.difference === 0) return <tr key={d.name}>
+                        <td>{d.name}</td>
+                        <td>{dateToString(d.timestamp)}</td>
+                        <td>{Accounting.addThousandSeparators(d.usage.toFixed(0))}</td>
+                        <td>N/A</td>
+                    </tr>
+                    else {
+                        return <tr key={idx}>
+                            <td>{d.name}</td>
+                            <td>{dateToString(d.timestamp)}</td>
+                            <td>{Accounting.addThousandSeparators(d.usage.toFixed(2))}</td>
+                            <td>{d.difference >= 0 ? "+" : ""}{Accounting.addThousandSeparators(d.difference.toFixed(2))}</td>
+                        </tr>
+                    }
+                })}
             </tbody>
         </table>
     </div>
@@ -1409,9 +1486,11 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
 const PieChart: React.FunctionComponent<{
     dataPoints: {key: string, value: number}[],
     valueFormatter: (value: number) => string,
-    onDataPointSelection: (dataPointIndex: {key: string; value: number;}) => void;
+    onDataPointSelection: (dataPointIndex: {key: string; value: number;} | string[]) => void;
 }> = props => {
+    const otherKeys = React.useRef<string[]>([]);
     const filteredList = useMemo(() => {
+        otherKeys.current = [];
         const all = [...props.dataPoints];
         all.sort((a, b) => {
             if (a.value > b.value) return -1;
@@ -1423,6 +1502,7 @@ const PieChart: React.FunctionComponent<{
         if (all.length > result.length) {
             let othersSum = 0;
             for (let i = result.length; i < all.length; i++) {
+                otherKeys.current.push(all[i].key);
                 othersSum += all[i].value;
             }
             result.push({key: "Other", value: othersSum});
@@ -1431,9 +1511,22 @@ const PieChart: React.FunctionComponent<{
         return result;
     }, [props.dataPoints]);
 
-    // FIXME(Jonas): The list is at most 5 entries so it's not a big deal, but it can be done in one iteration instead of two.
-    const series = useMemo(() => filteredList.map(it => it.value), [filteredList]);
-    const labels = useMemo(() => filteredList.map(it => it.key), [filteredList]);
+    const {series, labels} = React.useMemo(() => {
+        const series: number[] = [];
+        const labels: string[] = [];
+
+        for (const element of filteredList) {
+            const idx = labels.findIndex(it => it === element.key);
+            if (idx !== -1) {
+                series[idx] += element.value;
+            } else {
+                labels.push(element.key);
+                series.push(element.value);
+            }
+        }
+
+        return {series, labels}
+    }, [filteredList]);
 
     const chartProps = useMemo((): ChartProps => {
         const chartProps: ChartProps = {};
@@ -1449,7 +1542,12 @@ const PieChart: React.FunctionComponent<{
                     const dataPointIndex = options?.dataPointIndex
 
                     if (dataPointIndex != null) {
-                        props.onDataPointSelection(filteredList[dataPointIndex]);
+                        const key = filteredList[dataPointIndex].key;
+                        if (key !== "Other") {
+                            props.onDataPointSelection({value: series[dataPointIndex], key: labels[dataPointIndex]});
+                        } else {
+                            props.onDataPointSelection(otherKeys.current);
+                        }
                     }
                 }
             },
@@ -1457,13 +1555,12 @@ const PieChart: React.FunctionComponent<{
 
         chartProps.selection = {enabled: true};
 
-        const legend = {
-            onItemClick: {toggleDataSeries: false}, /* Note(Jonas): I'm not sure we can expect same behaviour from this, as clicking on the pie, so disable */
-        };
-
         chartProps.options = {
             chart,
-            legend,
+            legend: {
+                /* Note(Jonas): I'm not sure we can expect same behaviour from this, as clicking on the pie, so disable */
+                onItemClick: {toggleDataSeries: false}
+            },
             labels,
             dataLabels: {
                 enabled: false,
@@ -1484,7 +1581,7 @@ const PieChart: React.FunctionComponent<{
         return chartProps;
     }, [series]);
 
-    return <DynamicallySizedChart anyChartData={filteredList.length > 0} chart={chartProps} aspectRatio={ASPECT_RATIO_PIE_CHART} maxWidth={350} />;
+    return <DynamicallySizedChart anyChartData={filteredList.length > 0} chart={chartProps} aspectRatio={ASPECT_RATIO_PIE_CHART} />;
 };
 
 interface SubmissionStatistics {
@@ -1815,6 +1912,14 @@ const ChartAndTable = injectStyle("chart-and-table", k => `
         width: 60%;
     }
 
+@media screen and (min-width: 1201px) {
+    ${k}:first-child {
+        width: 60%;
+        margin-top: auto;
+        margin-bottom: auto;
+    }
+}
+
 @media screen and (max-width: 1200px) {
     ${k} {
         flex-direction: column;
@@ -2051,7 +2156,7 @@ const PeriodSelector: React.FunctionComponent<{
         }
     >
         <div className={PeriodSelectorBodyStyle}>
-            <div>
+            <div onClick={stopPropagation}>
                 <b>Absolute time range</b>
 
                 <label>
