@@ -11,13 +11,13 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 	"ucloud.dk/pkg/apm"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/im/controller/fsearch"
 	"ucloud.dk/pkg/im/services/k8s/shared"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
@@ -33,6 +33,17 @@ var (
 	metricScansInProgress = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "ucloud_im_k8s_storage_scans_in_progress",
 		Help: "The total number of drives currently being scanned by UCloud/IM",
+	})
+
+	indexingSpeedFilesPerSecond = prometheus.NewSummary(prometheus.SummaryOpts{
+		Name:   "ucloud_im_k8s_storage_files_indexed_per_second",
+		Help:   "Estimated speed of indexing files within a single drive",
+		MaxAge: 24 * time.Hour,
+	})
+
+	totalFilesIndexed = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "ucloud_im_k8s_storage_total_files_indexed",
+		Help: "Total number of files indexed",
 	})
 )
 
@@ -138,49 +149,14 @@ func scanDrive(drive orc.Drive) {
 		sizeToReport = size
 
 	case cfg.K8sScanMethodTypeWalk:
-		fd, ok := OpenFile(internalPath, unix.O_RDONLY, 0)
-		if !ok {
-			log.Info("Could not open drive for reporting %v", drive.Id)
-			return
-		}
-		defer util.SilentClose(fd)
-		fdStat, err := fd.Stat()
-		if err != nil {
-			log.Info("Could not open drive for reporting %v", drive.Id)
-			return
-		}
+		bucketCount := ctrl.LoadNextSearchBucketCount(drive.Id)
+		result := fsearch.BuildIndex(bucketCount, internalPath)
 
-		files := make(chan discoveredFile)
-		ctx := context.Background()
+		indexingSpeedFilesPerSecond.Observe(result.EstimatedFilesIndexedPerSecond)
+		totalFilesIndexed.Add(float64(result.TotalFileCount))
+		ctrl.TrackSearchIndex(drive.Id, result.Index, result.SuggestNewBucketCount)
 
-		wg := sync.WaitGroup{}
-		go func() {
-			wg.Add(1)
-			defer wg.Done()
-
-		outer:
-			for {
-				select {
-				case <-ctx.Done():
-					break outer
-				case f, ok := <-files:
-					if !ok {
-						break outer
-					}
-					if f.InternalPath != "" {
-						util.SilentClose(f.FileDescriptor)
-					}
-
-					if f.FileInfo != nil {
-						sizeToReport += f.FileInfo.Size()
-					}
-				}
-			}
-		}()
-
-		normalFileWalk(ctx, files, fd, fdStat)
-		close(files)
-		wg.Wait()
+		sizeToReport = int64(result.TotalFileSize)
 	}
 
 	// NOTE(Dan): There are no configuration options on the product at the moment to change this to anything else.

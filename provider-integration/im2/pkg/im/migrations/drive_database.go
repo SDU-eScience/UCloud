@@ -62,3 +62,28 @@ func driveDatabaseV2() migrationScript {
 		},
 	}
 }
+
+func driveDatabaseV3() migrationScript {
+	return migrationScript{
+		Id: "driveDatabaseV3",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table tracked_drives
+					add column search_index bytea default null
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					alter table tracked_drives
+					add column search_next_bucket_count int not null default 4096
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}

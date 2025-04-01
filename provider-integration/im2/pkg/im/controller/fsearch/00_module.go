@@ -7,6 +7,7 @@ import (
 	"github.com/sugarme/tokenizer/pretrained"
 	"hash/fnv"
 	"strings"
+	"sync"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
@@ -49,19 +50,22 @@ type SearchBucket struct {
 }
 
 var tk *tokenizer.Tokenizer
+var initOnce sync.Once
 
 func Init() {
-	configFile, err := tokenizer.CachedPath("bert-base-uncased", "tokenizer.json")
-	if err != nil {
-		panic(err)
-	}
+	initOnce.Do(func() {
+		configFile, err := tokenizer.CachedPath("bert-base-uncased", "tokenizer.json")
+		if err != nil {
+			panic(err)
+		}
 
-	tok, err := pretrained.FromFile(configFile)
-	if err != nil {
-		panic(err)
-	}
+		tok, err := pretrained.FromFile(configFile)
+		if err != nil {
+			panic(err)
+		}
 
-	tk = tok
+		tk = tok
+	})
 }
 
 const maxBucketSize = 1024 * 32
@@ -110,6 +114,15 @@ func LoadIndex(data []byte) *SearchIndex {
 	}
 
 	return result
+}
+
+func (s *SearchIndex) BuilderAvgBucketSize() float64 {
+	acc := 0
+	for _, bucket := range s.Buckets {
+		acc += len(bucket.exactSetForBuilding)
+	}
+
+	return float64(acc) / float64(s.BucketCount)
 }
 
 func (s *SearchIndex) Marshal() []byte {

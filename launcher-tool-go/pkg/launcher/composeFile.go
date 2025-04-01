@@ -17,7 +17,7 @@ type Json struct {
 	encoded string
 }
 
-const imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.35"
+const imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.3.3"
 const slurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.35"
 
 type PortAllocator interface {
@@ -557,13 +557,13 @@ func (k *Kubernetes) Build(cb ComposeBuilder) {
 	)
 }
 
-//go:embed config/Kubernetes/plugins.yaml
+//go:embed config/im1k8s/plugins.yaml
 var KubernetesPlugins []byte
 
-//go:embed config/Kubernetes/products.yaml
+//go:embed config/im1k8s/products.yaml
 var KubernetesProducts []byte
 
-//go:embed config/Kubernetes/core.yaml
+//go:embed config/im1k8s/core.yaml
 var KubernetesCore []byte
 
 func (k *Kubernetes) Install(credentials ProviderCredentials) {
@@ -738,7 +738,7 @@ func NewGoKubernetes() GoKubernetes {
 	return GoKubernetes{
 		name:                "gok8s",
 		title:               "Kubernetes (IM2)",
-		canRegisterProducts: true,
+		canRegisterProducts: false,
 		addons:              make(map[string]string),
 	}
 }
@@ -880,7 +880,7 @@ func (k *GoKubernetes) Build(cb ComposeBuilder) {
 	)
 }
 
-//go:embed config/goKubernetes/config.yaml
+//go:embed config/im2k8s/config.yaml
 var goKubernetesConfig []byte
 
 func (k *GoKubernetes) Install(credentials ProviderCredentials) {
@@ -1185,10 +1185,10 @@ func (gs *GoSlurm) Build(cb ComposeBuilder) {
 	)
 }
 
-//go:embed config/GoSlurm/config.yaml
+//go:embed config/slurm/config.yaml
 var GoSlurmConfig []byte
 
-//go:embed config/GoSlurm/secrets.yaml
+//go:embed config/slurm/secrets.yaml
 var GoSlurmSecrets []byte
 
 func (gs *GoSlurm) Install(credentials ProviderCredentials) {

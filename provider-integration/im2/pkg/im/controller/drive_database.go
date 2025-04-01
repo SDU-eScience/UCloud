@@ -1,13 +1,17 @@
 package controller
 
 import (
+	"database/sql"
 	"encoding/json"
+	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 	"ucloud.dk/pkg/apm"
 	db "ucloud.dk/pkg/database"
 	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/pkg/im/controller/fsearch"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
@@ -30,6 +34,8 @@ func InitDriveDatabase() {
 	if !RunsServerCode() {
 		return
 	}
+
+	fsearch.Init()
 
 	db.NewTx0(func(tx *db.Transaction) {
 		rows := db.Select[struct {
@@ -222,6 +228,107 @@ func RetrieveDrive(id string) (*orc.Drive, bool) {
 	}
 
 	return existing, true
+}
+
+func TrackSearchIndex(id string, index *fsearch.SearchIndex, recommendedBucketCount int) {
+	if !RunsServerCode() {
+		panic("Not yet implemented in user mode")
+	}
+
+	if index == nil {
+		return
+	}
+
+	_, ok := RetrieveDrive(id)
+	if ok {
+		indexBytes := index.Marshal()
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					update tracked_drives
+					set
+						search_index = :index,
+						search_next_bucket_count = :count
+					where
+						drive_id = :id
+			    `,
+				db.Params{
+					"id":    id,
+					"index": db.Bytea(indexBytes),
+					"count": recommendedBucketCount,
+				},
+			)
+		})
+
+		searchIndexCache.Remove(id)
+	}
+}
+
+func LoadNextSearchBucketCount(id string) int {
+	if !RunsServerCode() {
+		panic("Not yet implemented in user mode")
+	}
+
+	return db.NewTx(func(tx *db.Transaction) int {
+		row, ok := db.Get[struct{ SearchNextBucketCount int }](
+			tx,
+			`
+				select
+					search_next_bucket_count
+				from
+					tracked_drives
+				where
+					drive_id = :id
+		    `,
+			db.Params{
+				"id": id,
+			},
+		)
+
+		if ok {
+			return row.SearchNextBucketCount
+		} else {
+			return 4096
+		}
+	})
+}
+
+var searchIndexCache = lru.NewLRU[string, fsearch.SearchIndex](128, nil, 30*time.Minute)
+var searchIndexLock = util.NewScopedMutex() // Ensure that only one goroutine attempts to read a given index. Not needed for the cache.
+
+func RetrieveSearchIndex(id string) (fsearch.SearchIndex, bool) {
+	cached, ok := searchIndexCache.Get(id)
+	if ok {
+		return cached, true
+	} else {
+		searchIndexLock.Lock(id)
+		result, ok := searchIndexCache.Get(id)
+		if !ok {
+			result, ok = db.NewTx2(func(tx *db.Transaction) (fsearch.SearchIndex, bool) {
+				index, ok := db.Get[struct{ SearchIndex sql.RawBytes }](
+					tx,
+					`
+						select search_index
+						from tracked_drives
+						where drive_id = :id
+					`,
+					db.Params{
+						"id": id,
+					},
+				)
+
+				if ok {
+					return *fsearch.LoadIndex(index.SearchIndex), true
+				} else {
+					return *fsearch.NewIndexBuilder(16), false
+				}
+			})
+		}
+		searchIndexLock.Unlock(id)
+
+		return result, ok
+	}
 }
 
 func CanUseDrive(actor orc.ResourceOwner, driveId string, readOnly bool) bool {
