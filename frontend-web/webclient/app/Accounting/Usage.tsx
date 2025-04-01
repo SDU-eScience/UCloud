@@ -835,15 +835,18 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
 const PieWrapper = makeClassName("pie-wrapper");
 const BreakdownStyle = injectStyle("breakdown", k => `
     ${k} ${PieWrapper.dot} {
-        width: 500px;
-        height: 500px;
-        margin: 20px auto;
+        width: 50%;
+        height: 100%;
         display: flex;
+        margin-top: auto;
+        margin-bottom: auto;
     }
 
-@media screen and (max-width: 1200px) {
+@media screen and (max-width: 1337px) {
     ${k} ${PieWrapper.dot} {
-        height: 500px;
+        height: 50%;
+        width: 50%;
+        max-width: 500px;
         margin-left: auto;
         margin-right: auto;
     }    
@@ -962,9 +965,9 @@ function thStyling(isBold: boolean, width: string): CSSProperties | undefined {
     };
 }
 
-type PercentWidth = `${string}%`;
+type PercentageWidth = `${number}%`;
 function SortTableHeader<DataType>({sortKey, sorted, children, width}: React.PropsWithChildren<{
-    sortKey: keyof DataType; sorted: ReturnType<typeof useSorting<DataType>>; width: PercentWidth;
+    sortKey: keyof DataType; sorted: ReturnType<typeof useSorting<DataType>>; width: PercentageWidth;
 }>) {
     const isActive = sortKey === sorted.sortByKey;
     return <th style={thStyling(isActive, width)} onClick={() => sorted.doSortBy(sortKey)}>
@@ -1215,16 +1218,8 @@ const DynamicallySizedChart: React.FunctionComponent<{
 
             let width = Math.min(brWidth, maxWidth ?? Number.MAX_SAFE_INTEGER);
             let height = width * minRatio;
-            if (height > brHeight) {
-                height = width * maxRatio;
 
-                if (height > brHeight) {
-                    height = brHeight;
-                    width = height / minRatio;
-                }
-            }
-
-            setDimensions({width: `${width}px`, height: `${Math.max(height, 250)}px`});
+            setDimensions({width: `${width}px`, height: `${Math.min(height, 400)}px`});
         }, 100);
     }, [props.anyChartData, dimensions]);
 
@@ -1439,8 +1434,7 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
     }, [data?.unit]);
 
 
-    // TODO(Jonas): I don't know what the default `sortBy` is.
-    //const sorted = useSorting(dataPoints ?? [], ???)
+    const sorted = useSorting(dataPoints ?? [], "key");
 
 
     return <div className={classConcat(CardClass, PanelClass, LargeJobsStyle)}>
@@ -1448,28 +1442,28 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
             <h4>Usage by users</h4>
         </div>
 
-        {data !== undefined && dataPoints !== undefined ? <>
-            <PieChart dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={() => {}} />
+        {data !== undefined && sorted.data.length !== 0 ? <>
+            <PieChart dataPoints={sorted.data} valueFormatter={formatter} onDataPointSelection={() => {}} />
 
             <div className={TableWrapper.class}>
                 <table>
                     <thead>
                         <tr>
-                            <th>Username</th>
-                            <th>
+                            <SortTableHeader sortKey="key" sorted={sorted} width="75%">Username</SortTableHeader>
+                            <SortTableHeader sortKey="value" sorted={sorted} width="25%">
                                 Estimated usage
                                 {" "}
                                 <TooltipV2
                                     tooltip={"This is an estimate based on the values stored in UCloud. Actual usage reported by the provider may differ from the numbers shown here."}>
                                     <Icon name={"heroQuestionMarkCircle"} />
                                 </TooltipV2>
-                            </th>
+                            </SortTableHeader>
                         </tr>
                     </thead>
                     <tbody>
-                        {data.dataPoints.map(it => <tr key={it.username}>
-                            <td>{it.username}</td>
-                            <td>{Accounting.addThousandSeparators(it.usage.toFixed(0))} {data.unit}</td>
+                        {sorted.data.map(it => <tr key={it.key}>
+                            <td>{it.key}</td>
+                            <td>{Accounting.addThousandSeparators(it.value.toFixed(0))} {data.unit}</td>
                         </tr>)}
                     </tbody>
                 </table>
@@ -1539,7 +1533,7 @@ const PieChart: React.FunctionComponent<{
             },
             events: {
                 dataPointSelection: (e: any, chart?: any, options?: any) => {
-                    const dataPointIndex = options?.dataPointIndex
+                    const dataPointIndex = options?.dataPointIndex;
 
                     if (dataPointIndex != null) {
                         const key = filteredList[dataPointIndex].key;
@@ -1653,7 +1647,7 @@ function usageChartsToChart(
     result.type = "area";
     result.options = {
         responsive: [{
-            breakpoint: 1200,
+            breakpoint: 1337,
             options: {
                 legend: {
                     position: "right",
@@ -1902,37 +1896,38 @@ const SmallUsageCard: React.FunctionComponent<{
     </a>;
 };
 
+const TableWrapper = makeClassName("table-wrapper");
+const PanelTitle = makeClassName("panel-title");
 const ChartAndTable = injectStyle("chart-and-table", k => `
     ${k} {
         display: flex;
         flex-direction: row;
-    }    
-
-    ${k}:first-child {
-        width: 60%;
     }
 
-@media screen and (min-width: 1201px) {
-    ${k}:first-child {
-        width: 60%;
+@media screen and (min-width: 1338px) {
+    ${k} > div:first-child {
         margin-top: auto;
         margin-bottom: auto;
     }
 }
 
-@media screen and (max-width: 1200px) {
+@media screen and (max-width: 1337px) {
     ${k} {
         flex-direction: column;
     }
 
-    ${k}:first-child {
+    ${k} > div:first-child {
         width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    ${k} ${TableWrapper.dot} {
+        max-height: 500px;
     }
 }
 `);
 
-const TableWrapper = makeClassName("table-wrapper");
-const PanelTitle = makeClassName("panel-title");
 const PanelClass = injectStyle("panel", k => `
     ${k} {
         height: 100%;
@@ -1965,12 +1960,18 @@ const PanelClass = injectStyle("panel", k => `
     
     ${k} ${TableWrapper.dot} {
         flex-grow: 1;
-        overflow-y: auto;
+        overflow-y: scroll;
         min-width: 600px;
         min-height: 200px;
         max-height: 600px;
-        flex-shrink: 5;
     }
+
+@media screen and (max-width: 1337px) {
+    ${k} ${TableWrapper.dot} {
+        margin-top: 12px;
+        max-height: 500px;
+    }
+}
     
     html.light ${k} ${TableWrapper.dot} {
         box-shadow: inset 0px -11px 8px -10px #ccc;
