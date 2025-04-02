@@ -304,7 +304,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	}
 
 	if util.DevelopmentModeEnabled() && ServiceConfig.Compute.ImSourceCode.Present {
-		ucvizContainer.Image = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.35"
+		ucvizContainer.Image = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.3.3"
 		ucvizContainer.VolumeMounts = append(ucvizContainer.VolumeMounts, core.VolumeMount{
 			Name:      "ucloud-filesystem",
 			ReadOnly:  false,

@@ -243,6 +243,19 @@ func Get[T any](ctx *Transaction, query string, args Params) (T, bool) {
 	return items[0], true
 }
 
+func DoSelect(ctx *Transaction, query string, args Params, fn func(res *sqlx.Rows)) {
+	res, err := ctx.tx.NamedQuery(query, transformParameters(args))
+	if err != nil && ctx.Ok {
+		ctx.Ok = false
+		ctx.error = fmt.Errorf("Database select failed: %v\nquery: %v\n", err.Error(), query)
+		return
+	}
+
+	for res.Next() {
+		fn(res)
+	}
+}
+
 func Select[T any](ctx *Transaction, query string, args Params) []T {
 	var result []T
 	res, err := ctx.tx.NamedQuery(query, transformParameters(args))
@@ -283,21 +296,26 @@ func transformParameter(param any) any {
 	// it is not exactly a complicated transform. There should be no risk involved in doing this since we are still
 	// binding everything into a prepared query.
 	if reflect.TypeOf(param).Kind() == reflect.Slice || reflect.TypeOf(param).Kind() == reflect.Array {
-		builder := strings.Builder{}
-		builder.WriteString("{")
+		_, isBytea := param.(Bytea)
+		if !isBytea {
+			builder := strings.Builder{}
+			builder.WriteString("{")
 
-		v := reflect.ValueOf(param)
-		l := v.Len()
-		for i := 0; i < l; i++ {
-			elem := v.Index(i)
-			if i > 0 {
-				builder.WriteString(",")
+			v := reflect.ValueOf(param)
+			l := v.Len()
+			for i := 0; i < l; i++ {
+				elem := v.Index(i)
+				if i > 0 {
+					builder.WriteString(",")
+				}
+
+				builder.WriteString(fmt.Sprint(elem))
 			}
-
-			builder.WriteString(fmt.Sprint(elem))
+			builder.WriteString("}")
+			return builder.String()
 		}
-		builder.WriteString("}")
-		return builder.String()
 	}
 	return param
 }
+
+type Bytea []byte

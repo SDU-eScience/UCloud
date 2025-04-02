@@ -207,16 +207,13 @@ type InitEnvironmentResult struct {
 }
 
 func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string) InitEnvironmentResult {
+	var err error
 	if shouldInitializeTestEnvironment {
-		HardCheck(os.RemoveAll(baseDir))
-		HardCheck(os.Mkdir(baseDir, os.ModeDir))
+		_ = os.RemoveAll(baseDir)
 	}
+	_ = os.Mkdir(baseDir, 0700)
 
-	_, err := os.OpenFile(filepath.Join(baseDir, "current.txt"),
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	currentText, err := os.ReadFile(filepath.Join(baseDir, "current.txt"))
-	HardCheck(err)
-
+	currentText, _ := os.ReadFile(filepath.Join(baseDir, "current.txt"))
 	currentEnvironmentName := string(currentText)
 	var currentIsRemote bool
 	if currentEnvironmentName != "" {

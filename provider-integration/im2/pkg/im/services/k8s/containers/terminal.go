@@ -92,6 +92,8 @@ func handleShellNoRetry(session *ctrl.ShellSession, cols int, rows int, isNewSes
 				parsedConfig.Folders = append(parsedConfig.Folders, "/"+driveToMount)
 				newConfiguration.Set(parsedConfig)
 			}
+		} else {
+			newConfiguration.Set(iappTermConfig{Folders: []string{"/" + driveToMount}})
 		}
 
 		if newConfiguration.Present {

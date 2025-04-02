@@ -5,7 +5,7 @@ import dk.sdu.cloud.ComposeService.Slurm.numberOfSlurmNodes
 @JvmInline
 value class Json(val encoded: String)
 
-const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.35"
+const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.3.3"
 const val slurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.35"
 
 sealed class PortAllocator {
