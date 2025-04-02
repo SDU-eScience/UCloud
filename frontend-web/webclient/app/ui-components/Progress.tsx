@@ -57,12 +57,12 @@ const Progress = ({color, percent, active, label}: Progress): React.ReactNode =>
     const secondaryStyle = {...topLevelStyle};
     secondaryStyle.width = `${percent}%`;
 
+    topLevelStyle["background"] = `var(--secondaryLight)`;
+
     return (
         <>
             <div className={ProgressBaseClass} style={topLevelStyle}>
-                <div className={ProgressBaseClass} style={secondaryStyle}>
-                    <div className={ProgressBaseClass} data-pulse={"true"} data-active={active} />
-                </div>
+                <div className={ProgressBaseClass} style={secondaryStyle} />
             </div>
             {label ? <Flex justifyContent="center"><Text>{label}</Text></Flex> : null}
         </>

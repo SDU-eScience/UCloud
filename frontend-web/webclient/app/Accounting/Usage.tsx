@@ -10,7 +10,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
 import {BreakdownByProjectAPI, categoryComparator, ChartsAPI, UsageOverTimeAPI} from ".";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {doNothing, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as Jobs from "@/Applications/Jobs";
@@ -448,7 +448,7 @@ const Visualization: React.FunctionComponent = () => {
     // these, try to avoid having dependencies on more than just dispatchEvent itself.
 
     useLayoutEffect(() => {
-        const wrappers = document.querySelectorAll(`.${VisualizationStyle} .table-wrapper`);
+        const wrappers = document.querySelectorAll(`.${VisualizationStyle} ${TableWrapper.dot}`);
         const listeners: [Element, EventListener][] = [];
         wrappers.forEach(wrapper => {
             if (wrapper.scrollTop === 0) {
@@ -502,7 +502,10 @@ const Visualization: React.FunctionComponent = () => {
         state.activeDashboard === undefined ||
         state.activeDashboard.usageOverTime.every(it => it.dataPoints.every(it => it.usage === 0)) &&
         (state.summaries.length === 0 && state.remoteData.requestsInFlight === 0);
-    const unitsForRichSelect = React.useMemo(() => state.activeDashboard?.availableUnits.map(it => ({unit: it})) ?? [], [state.activeDashboard?.availableUnits]);
+    const unitsForRichSelect = React.useMemo(() => {
+        const all = state.activeDashboard?.availableUnits.map(it => ({unit: it})).filter(it => []) ?? []
+        return all.filter(it => !["IPs", "Licenses"].includes(it.unit)); // Note(Jonas): Maybe just don't fetch the IPs, Licenses (and Links?)
+    }, [state.activeDashboard?.availableUnits]);
 
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -560,25 +563,23 @@ const Visualization: React.FunctionComponent = () => {
                 </Box>}
 
                 {state.activeDashboard ?
-                    <div className="panels">
-                        <div className={"panel-grid"}>
-                            {state.activeDashboard.activeUnit === JOBS_UNIT_NAME ? <>
-                                <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
-                                <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
-                                <JobSubmissionPanel data={state.activeDashboard.submissionStatistics} />
-                            </> : <>
-                                {hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <>
-                                    <CategoryDescriptorPanel
-                                        category={state.activeDashboard.category}
-                                        usage={state.activeDashboard.currentAllocation.usage}
-                                        quota={state.activeDashboard.currentAllocation.quota}
-                                        expiresAt={state.activeDashboard.currentAllocation.expiresAt}
-                                    />
-                                </>}
-                                <UsageBreakdownPanel isLoading={isAnyLoading} unit={state.activeDashboard.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
-                                <UsageOverTimePanel isLoading={isAnyLoading} charts={state.activeDashboard.usageOverTime} />
+                    <div className={PanelGrid.class}>
+                        {state.activeDashboard.activeUnit === JOBS_UNIT_NAME ? <>
+                            <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
+                            <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
+                            <JobSubmissionPanel data={state.activeDashboard.submissionStatistics} />
+                        </> : <>
+                            {hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <>
+                                <CategoryDescriptorPanel
+                                    category={state.activeDashboard.category}
+                                    usage={state.activeDashboard.currentAllocation.usage}
+                                    quota={state.activeDashboard.currentAllocation.quota}
+                                    expiresAt={state.activeDashboard.currentAllocation.expiresAt}
+                                />
                             </>}
-                        </div>
+                            <UsageBreakdownPanel isLoading={isAnyLoading} unit={state.activeDashboard.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
+                            <UsageOverTimePanel isLoading={isAnyLoading} charts={state.activeDashboard.usageOverTime} />
+                        </>}
                     </div> : null}
             </div>
         </div>}
@@ -831,13 +832,25 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
     </div>;
 };
 
+const PieWrapper = makeClassName("pie-wrapper");
 const BreakdownStyle = injectStyle("breakdown", k => `
-    ${k} .pie-wrapper {
-        width: 350px;
-        height: 350px;
-        margin: 20px auto;
+    ${k} ${PieWrapper.dot} {
+        width: 50%;
+        height: 100%;
         display: flex;
+        margin-top: auto;
+        margin-bottom: auto;
     }
+
+@media screen and (max-width: 1337px) {
+    ${k} ${PieWrapper.dot} {
+        height: 50%;
+        width: 50%;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+    }    
+}
 
     ${k} table tbody tr > td:nth-child(2),
     ${k} table tbody tr > td:nth-child(3) {
@@ -847,8 +860,9 @@ const BreakdownStyle = injectStyle("breakdown", k => `
 `);
 
 const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: string; period: Period; charts: BreakdownChart[];}> = props => {
+
     const unit = props.unit ?? "";
-    const [singleChartSelected, setSingleChartSelected] = useState<string | undefined>();
+    const [chartsSelected, setChartsSelected] = useState<string[] | string | undefined>();
 
     const fullyMergedChart = React.useMemo(() => {
         return {
@@ -875,11 +889,12 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: s
 
     const datapointSum = useMemo(() => dataPoints.reduce((a, b) => a + b.value, 0), [dataPoints]);
 
+    const sorted = useSorting(dataPoints, "value");
+
     if (props.isLoading) return null;
 
-
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
-        <div className="panel-title">
+        <div className={PanelTitle.class}>
             <h4>Usage breakdown by sub-projects</h4>
         </div>
 
@@ -887,37 +902,50 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: s
             <Warning>This panel is currently unreliable when showing data across multiple allocation periods.</Warning>
         </> : null}
 
-        {datapointSum === 0 ? null : <div className="pie-wrapper">
-            <PieChart dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={dataPoint => setSingleChartSelected(existingChart => {
-                const newlySelectedChart = dataPoint.key;
-                return newlySelectedChart === existingChart ? undefined : newlySelectedChart;
-            })} />
-        </div>}
-        {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
-        {dataPoints.length === 0 ? "No usage data found" :
-            <div style={{overflowY: "scroll"}}>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Project</th>
-                            <th>Name - Provider</th>
-                            <th>Usage</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {dataPoints.filter(it => singleChartSelected ? it.key === singleChartSelected : true).map((point, idx) => {
-                            const usage = point.value;
-                            const [name, provider] = point.nameAndProvider.split("/");
-                            return <tr key={idx}>
-                                <td>{point.key}</td>
-                                <td>{name} - {getShortProviderTitle(provider)}</td>
-                                <td>{Accounting.addThousandSeparators(Math.round(usage))} {unit}</td>
+        <div className={ChartAndTable}>
+            {datapointSum === 0 ? null : <div className={PieWrapper.class}>
+                <PieChart dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={dataPoint => setChartsSelected(existingCharts => {
+                    if (Array.isArray(dataPoint)) {
+                        if (Array.isArray(existingCharts)) return undefined;
+                        return dataPoint;
+                    } else {
+                        const newlySelectedChart = dataPoint.key;
+                        return newlySelectedChart === existingCharts ? undefined : newlySelectedChart;
+                    }
+                })} />
+            </div>}
+            {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
+            {dataPoints.length === 0 ? "No usage data found" :
+                <div className={TableWrapper.class}>
+                    <table>
+                        <thead>
+                            <tr>
+                                <SortTableHeader width="40%" sortKey={"key"} sorted={sorted}>Project</SortTableHeader>
+                                <SortTableHeader width="30%" sortKey={"nameAndProvider"} sorted={sorted}>Name - Provider</SortTableHeader>
+                                <SortTableHeader width="30%" sortKey={"value"} sorted={sorted}>Usage</SortTableHeader>
                             </tr>
-                        })}
-                    </tbody>
-                </table>
-            </div>
-        }
+                        </thead>
+                        <tbody>
+                            {dataPoints.filter(it => {
+                                const hasSelection = !!chartsSelected;
+                                if (!hasSelection) return true;
+                                else if (Array.isArray(chartsSelected)) return chartsSelected.includes(it.key);
+                                else return chartsSelected === it.key;
+                            }).map((point, idx) => {
+                                // TODO(Jonas): We need to handle "Other" properly
+                                const usage = point.value;
+                                const [name, provider] = point.nameAndProvider.split("/");
+                                return <tr key={idx}>
+                                    <td>{point.key}</td>
+                                    <td>{name} - {getShortProviderTitle(provider)}</td>
+                                    <td>{Accounting.addThousandSeparators(Math.round(usage))} {unit}</td>
+                                </tr>
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
     </div>;
 };
 
@@ -930,23 +958,88 @@ const MostUsedApplicationsStyle = injectStyle("most-used-applications", k => `
     }
 `);
 
+function thStyling(isBold: boolean, width: string): CSSProperties | undefined {
+    return {
+        fontWeight: isBold ? "bold" : undefined,
+        width,
+    };
+}
+
+type PercentageWidth = `${number}%`;
+function SortTableHeader<DataType>({sortKey, sorted, children, width}: React.PropsWithChildren<{
+    sortKey: keyof DataType; sorted: ReturnType<typeof useSorting<DataType>>; width: PercentageWidth;
+}>) {
+    const isActive = sortKey === sorted.sortByKey;
+    return <th style={thStyling(isActive, width)} onClick={() => sorted.doSortBy(sortKey)}>
+        {children} {isActive ? <Icon name="chevronDownLight" rotation={sorted.sortOrder === "asc" ? 180 : 0} /> : null}
+    </th>
+}
+
+type SortOrder = "asc" | "desc";
+function useSorting<DataType>(originalData: DataType[], sortByKey: keyof DataType, initialSortOrder?: SortOrder): {
+    data: DataType[];
+    sortOrder: SortOrder;
+    sortByKey: typeof sortByKey;
+    doSortBy(key: keyof DataType): void;
+} {
+    const [_data, setData] = useState<DataType[]>(originalData);
+    const [_sortByKey, setSortByKey] = useState(sortByKey)
+    const [_sortOrder, setSortOrder] = React.useState<SortOrder>(initialSortOrder ?? "asc");
+
+    React.useEffect(() => {
+        setData(originalData);
+    }, [originalData]);
+
+    const doSortBy = React.useCallback((sortBy: keyof DataType) => {
+        const newSortOrder = _sortByKey === sortBy ? (_sortOrder === "asc" ? "desc" : "asc") : _sortOrder;
+        if (_data.length === 0) return;
+        const type = typeof _data[0][sortBy];
+        switch (type) {
+            case "string": {
+                if (newSortOrder === "asc") {
+                    _data.sort((a, b) => (a[sortBy] as string).localeCompare(b[sortBy] as string));
+                } else {
+                    _data.sort((a, b) => (b[sortBy] as string).localeCompare(a[sortBy] as string));
+                }
+                break;
+            }
+            case "number": {
+                if (newSortOrder === "asc") {
+                    _data.sort((a, b) => (a[sortBy] as number) - (b[sortBy] as number));
+                } else {
+                    _data.sort((a, b) => (b[sortBy] as number) - (a[sortBy] as number));
+                }
+                break;
+            }
+        }
+        setData(_data);
+        setSortOrder(newSortOrder);
+        setSortByKey(sortBy);
+    }, [_data, _sortByKey, _sortOrder]);
+
+    return {data: _data, sortOrder: _sortOrder, doSortBy, sortByKey: _sortByKey};
+
+}
+
 const MostUsedApplicationsPanel: React.FunctionComponent<{data?: MostUsedApplications}> = ({data}) => {
+    const sorted = useSorting(data?.dataPoints ?? [], "count", "desc");
+
     return <div className={classConcat(CardClass, PanelClass, MostUsedApplicationsStyle)}>
         <div className="panel-title">
             <h4>Most used applications</h4>
         </div>
 
-        {data === undefined || data.dataPoints.length === 0 ? "No usage data found" :
-            <div className="table-wrapper">
+        {sorted.data === undefined || sorted.data.length === 0 ? "No usage data found" :
+            <div className={TableWrapper.class}>
                 <table>
                     <thead>
                         <tr>
-                            <th>Application</th>
-                            <th>Number of jobs</th>
+                            <SortTableHeader width="70%" sortKey="applicationTitle" sorted={sorted}>Application</SortTableHeader>
+                            <SortTableHeader width="30%" sortKey="count" sorted={sorted}>Number of jobs</SortTableHeader>
                         </tr>
                     </thead>
                     <tbody>
-                        {data.dataPoints.map(it =>
+                        {sorted.data.map(it =>
                             <React.Fragment key={it.applicationTitle}>
                                 <tr>
                                     <td>{it.applicationTitle}</td>
@@ -1004,25 +1097,27 @@ const DurationOfSeconds: React.FunctionComponent<{duration: number}> = ({duratio
 }
 
 const JobSubmissionPanel: React.FunctionComponent<{data?: SubmissionStatistics}> = ({data}) => {
+    const sorted = useSorting(data?.dataPoints ?? [], "day");
+
     return <div className={classConcat(CardClass, PanelClass, JobSubmissionStyle)}>
         <div className="panel-title">
             <h4>When are your jobs being submitted?</h4>
         </div>
 
-        {data == null || data.dataPoints.length === 0 ? "No job data found" :
-            <div className="table-wrapper">
+        {sorted.data == null || sorted.data.length === 0 ? "No job data found" :
+            <div className={TableWrapper.class}>
                 <table>
                     <thead>
                         <tr>
-                            <th>Day</th>
-                            <th>Time of day</th>
-                            <th>Count</th>
-                            <th>Avg duration</th>
-                            <th>Avg queue</th>
+                            <SortTableHeader width="20%" sorted={sorted} sortKey={"day"}>Day</SortTableHeader>
+                            <SortTableHeader width="20%" sorted={sorted} sortKey={"hourOfDayStart"}>Time of day</SortTableHeader>
+                            <SortTableHeader width="20%" sorted={sorted} sortKey={"numberOfJobs"}>Count</SortTableHeader>
+                            <SortTableHeader width="20%" sorted={sorted} sortKey={"averageDurationInSeconds"}>Avg duration</SortTableHeader>
+                            <SortTableHeader width="20%" sorted={sorted} sortKey={"averageQueueInSeconds"}>Avg queue</SortTableHeader>
                         </tr>
                     </thead>
                     <tbody>
-                        {data.dataPoints.map((dp, i) => {
+                        {sorted.data.map((dp, i) => {
                             const day = dayNames[dp.day];
                             return <tr key={i}>
                                 <td>{day}</td>
@@ -1123,16 +1218,8 @@ const DynamicallySizedChart: React.FunctionComponent<{
 
             let width = Math.min(brWidth, maxWidth ?? Number.MAX_SAFE_INTEGER);
             let height = width * minRatio;
-            if (height > brHeight) {
-                height = width * maxRatio;
 
-                if (height > brHeight) {
-                    height = brHeight;
-                    width = height / minRatio;
-                }
-            }
-
-            setDimensions({width: `${width}px`, height: `${Math.max(height, 250)}px`});
+            setDimensions({width: `${width}px`, height: `${Math.min(height, 400)}px`});
         }, 100);
     }, [props.anyChartData, dimensions]);
 
@@ -1195,7 +1282,7 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
             <h4>Usage over time</h4>
         </div>
 
-        <>
+        <div className={ChartAndTable}>
             <DynamicallySizedChart anyChartData={anyData} chart={chartProps} aspectRatio={ASPECT_RATIO_LINE_CHART} />
 
             {showWarning && <>
@@ -1206,14 +1293,16 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
             </>}
 
             <DifferenceTable charts={charts} shownEntries={shownEntries} />
-        </>
+        </div>
     </div>;
 };
 
 function DifferenceTable({charts, shownEntries}: {charts: UsageChart[]; shownEntries: boolean[]}) {
+    const shownCharts = React.useMemo(() => charts.filter((chart, index) => shownEntries[index]), [charts, shownEntries]);
+
     const differences = React.useMemo(() => {
-        const differences = charts.map(() => 0.0);
-        for (const [chartIdx, chart] of charts.entries()) {
+        const differences = shownCharts.map(() => 0.0);
+        for (const [chartIdx, chart] of shownCharts.entries()) {
             for (let idx = 0; idx < chart.dataPoints.length; idx++) {
                 const point = chart.dataPoints[idx];
                 if (idx == 0) continue;
@@ -1222,21 +1311,45 @@ function DifferenceTable({charts, shownEntries}: {charts: UsageChart[]; shownEnt
             }
         }
         return differences;
-    }, [charts]);
+    }, [shownCharts]);
 
+    const remappedThingies = React.useMemo(() => {
+        const result: {name: string; timestamp: number; usage: number; difference: number;}[] = [];
+        for (const chart of shownCharts) {
+            for (let idx = 0; idx < chart.dataPoints.length; idx++) {
+                const point = chart.dataPoints[idx];
+                if (idx + 1 >= chart.dataPoints.length) continue;
+                const change = point.usage - chart.dataPoints[idx + 1].usage;
+                if (change === 0) {
+                    if (result.find(it => it.name === chart.name)) {
+                        continue;
+                    }
+                }
+                result.push({name: chart.name, timestamp: point.timestamp, usage: point.usage, difference: change});
+            }
 
-    return <div className="table-wrapper">
+            if (chart.dataPoints.length === 0) {
+                result.push({name: chart.name, timestamp: 0, usage: 0, difference: 0});
+            }
+        }
+        return result;
+    }, [shownCharts]);
+
+    const sorted = useSorting(remappedThingies, "timestamp");
+    const showOriginalData = false;
+
+    return <div className={TableWrapper.class}>
         <table>
             <thead>
                 <tr>
-                    <th>Name</th>
-                    <th>Timestamp</th>
-                    <th>Usage</th>
-                    <th>Change</th>
+                    <SortTableHeader width="20%" sortKey="name" sorted={sorted}>Name</SortTableHeader>
+                    <SortTableHeader width="30%" sortKey="timestamp" sorted={sorted}>Timestamp</SortTableHeader>
+                    <SortTableHeader width="25%" sortKey="usage" sorted={sorted}>Usage</SortTableHeader>
+                    <SortTableHeader width="25%" sortKey="difference" sorted={sorted}>Change</SortTableHeader>
                 </tr>
             </thead>
             <tbody>
-                {charts.map((chart, idx) => !shownEntries[idx] ? null :
+                {(showOriginalData ? shownCharts : []).map((chart, idx) =>
                     differences[idx] != 0 ? chart.dataPoints.map((point, idx, items) => {
                         const change = (idx + 1 !== items.length) ? point.usage - items[idx + 1].usage : 0;
                         if (change === 0 && idx + 1 < items.length) return null;
@@ -1253,6 +1366,42 @@ function DifferenceTable({charts, shownEntries}: {charts: UsageChart[]; shownEnt
                         <td>N/A</td>
                     </tr>)
                 )}
+                {showOriginalData ? <>
+                    <tr>
+                        <td>–––––––––––</td>
+                        <td>–––––––––––</td>
+                        <td>–––––––––––</td>
+                        <td>–––––––––––</td>
+                    </tr>
+                    <tr>
+                        <td>DIVIDER</td>
+                        <td>DIVIDER</td>
+                        <td>DIVIDER</td>
+                        <td>DIVIDER</td>
+                    </tr>
+                    <tr>
+                        <td>–––––––––––</td>
+                        <td>–––––––––––</td>
+                        <td>–––––––––––</td>
+                        <td>–––––––––––</td>
+                    </tr></> :
+                    null}
+                {sorted.data.map((d, idx) => {
+                    if (d.difference === 0) return <tr key={d.name}>
+                        <td>{d.name}</td>
+                        <td>{dateToString(d.timestamp)}</td>
+                        <td>{Accounting.addThousandSeparators(d.usage.toFixed(0))}</td>
+                        <td>N/A</td>
+                    </tr>
+                    else {
+                        return <tr key={idx}>
+                            <td>{d.name}</td>
+                            <td>{dateToString(d.timestamp)}</td>
+                            <td>{Accounting.addThousandSeparators(d.usage.toFixed(2))}</td>
+                            <td>{d.difference >= 0 ? "+" : ""}{Accounting.addThousandSeparators(d.difference.toFixed(2))}</td>
+                        </tr>
+                    }
+                })}
             </tbody>
         </table>
     </div>
@@ -1285,33 +1434,36 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
     }, [data?.unit]);
 
 
+    const sorted = useSorting(dataPoints ?? [], "key");
+
+
     return <div className={classConcat(CardClass, PanelClass, LargeJobsStyle)}>
         <div className="panel-title">
             <h4>Usage by users</h4>
         </div>
 
-        {data !== undefined && dataPoints !== undefined ? <>
-            <PieChart dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={() => {}} />
+        {data !== undefined && sorted.data.length !== 0 ? <>
+            <PieChart dataPoints={sorted.data} valueFormatter={formatter} onDataPointSelection={() => {}} />
 
-            <div className="table-wrapper">
+            <div className={TableWrapper.class}>
                 <table>
                     <thead>
                         <tr>
-                            <th>Username</th>
-                            <th>
+                            <SortTableHeader sortKey="key" sorted={sorted} width="75%">Username</SortTableHeader>
+                            <SortTableHeader sortKey="value" sorted={sorted} width="25%">
                                 Estimated usage
                                 {" "}
                                 <TooltipV2
                                     tooltip={"This is an estimate based on the values stored in UCloud. Actual usage reported by the provider may differ from the numbers shown here."}>
                                     <Icon name={"heroQuestionMarkCircle"} />
                                 </TooltipV2>
-                            </th>
+                            </SortTableHeader>
                         </tr>
                     </thead>
                     <tbody>
-                        {data.dataPoints.map(it => <tr key={it.username}>
-                            <td>{it.username}</td>
-                            <td>{Accounting.addThousandSeparators(it.usage.toFixed(0))} {data.unit}</td>
+                        {sorted.data.map(it => <tr key={it.key}>
+                            <td>{it.key}</td>
+                            <td>{Accounting.addThousandSeparators(it.value.toFixed(0))} {data.unit}</td>
                         </tr>)}
                     </tbody>
                 </table>
@@ -1328,9 +1480,11 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
 const PieChart: React.FunctionComponent<{
     dataPoints: {key: string, value: number}[],
     valueFormatter: (value: number) => string,
-    onDataPointSelection: (dataPointIndex: {key: string; value: number;}) => void;
+    onDataPointSelection: (dataPointIndex: {key: string; value: number;} | string[]) => void;
 }> = props => {
+    const otherKeys = React.useRef<string[]>([]);
     const filteredList = useMemo(() => {
+        otherKeys.current = [];
         const all = [...props.dataPoints];
         all.sort((a, b) => {
             if (a.value > b.value) return -1;
@@ -1342,6 +1496,7 @@ const PieChart: React.FunctionComponent<{
         if (all.length > result.length) {
             let othersSum = 0;
             for (let i = result.length; i < all.length; i++) {
+                otherKeys.current.push(all[i].key);
                 othersSum += all[i].value;
             }
             result.push({key: "Other", value: othersSum});
@@ -1350,53 +1505,77 @@ const PieChart: React.FunctionComponent<{
         return result;
     }, [props.dataPoints]);
 
-    // FIXME(Jonas): The list is at most 5 entries so it's not a big deal, but it can be done in one iteration instead of two.
-    const series = useMemo(() => filteredList.map(it => it.value), [filteredList]);
-    const labels = useMemo(() => filteredList.map(it => it.key), [filteredList]);
+    const {series, labels} = React.useMemo(() => {
+        const series: number[] = [];
+        const labels: string[] = [];
 
-    const chartProps: ChartProps = useMemo(() => {
-        return {
-            type: "pie",
-            series,
-            selection: {enabled: true},
-            options: {
-                chart: {
-                    animations: {
-                        enabled: false,
-                    },
-                    events: {
-                        dataPointSelection: (e: any, chart?: any, options?: any) => {
-                            const dataPointIndex = options?.dataPointIndex
+        for (const element of filteredList) {
+            const idx = labels.findIndex(it => it === element.key);
+            if (idx !== -1) {
+                series[idx] += element.value;
+            } else {
+                labels.push(element.key);
+                series.push(element.value);
+            }
+        }
 
-                            if (dataPointIndex != null) {
-                                props.onDataPointSelection(filteredList[dataPointIndex]);
-                            }
-                        }
-                    },
-                },
-                legend: {
-                    onItemClick: {toggleDataSeries: false}, /* Note(Jonas): I'm not sure we can expect same behaviour from this, as clicking on the pie, so disable */
-                },
-                labels,
-                dataLabels: {
-                    enabled: false,
-                },
-                stroke: {
-                    show: false,
-                },
-                tooltip: {
-                    shared: false,
-                    y: {
-                        formatter: function (val: number) {
-                            return props.valueFormatter(val);
+        return {series, labels}
+    }, [filteredList]);
+
+    const chartProps = useMemo((): ChartProps => {
+        const chartProps: ChartProps = {};
+        chartProps.type = "pie";
+        chartProps.series = series;
+        const chart: ApexChart = {
+            width: "1200px",
+            animations: {
+                enabled: false,
+            },
+            events: {
+                dataPointSelection: (e: any, chart?: any, options?: any) => {
+                    const dataPointIndex = options?.dataPointIndex;
+
+                    if (dataPointIndex != null) {
+                        const key = filteredList[dataPointIndex].key;
+                        if (key !== "Other") {
+                            props.onDataPointSelection({value: series[dataPointIndex], key: labels[dataPointIndex]});
+                        } else {
+                            props.onDataPointSelection(otherKeys.current);
                         }
                     }
-                },
-            }
-        } as ChartProps;
+                }
+            },
+        };
+
+        chartProps.selection = {enabled: true};
+
+        chartProps.options = {
+            chart,
+            legend: {
+                /* Note(Jonas): I'm not sure we can expect same behaviour from this, as clicking on the pie, so disable */
+                onItemClick: {toggleDataSeries: false}
+            },
+            labels,
+            dataLabels: {
+                enabled: false,
+            },
+            stroke: {
+                show: false,
+            },
+            tooltip: {
+                shared: false,
+                y: {
+                    formatter: function (val: number) {
+                        return props.valueFormatter(val);
+                    }
+                }
+            },
+        };
+
+        return chartProps;
     }, [series]);
 
-    return <DynamicallySizedChart anyChartData={filteredList.length > 0} chart={chartProps} aspectRatio={ASPECT_RATIO_PIE_CHART} maxWidth={350} />;
+    return <DynamicallySizedChart anyChartData={filteredList.length > 0} chart={chartProps} aspectRatio={ASPECT_RATIO_PIE_CHART} />;
 };
 
 interface SubmissionStatistics {
@@ -1467,9 +1646,19 @@ function usageChartsToChart(
     result.series = charts.map(it => toSeriesChart(it));
     result.type = "area";
     result.options = {
+        responsive: [{
+            breakpoint: 1337,
+            options: {
+                legend: {
+                    position: "right",
+                    onItemClick: {
+                        toggleDataSeries: true,
+                    }
+                }
+            }
+        }],
         legend: {
-            position: "right",
-            offsetY: 50,
+            position: "bottom",
             onItemClick: {
                 toggleDataSeries: true,
             }
@@ -1625,34 +1814,6 @@ const SmallUsageCardStyle = injectStyle("small-usage-card", k => `
     }
 `);
 
-const RenderProductSelector: RichSelectChildComponent<State["summaries"][0]> = ({element, onSelect, dataProps}) => {
-    const chartKey = useRef(0);
-    const chartProps = useMemo(() => {
-        if (element === undefined) return undefined;
-        chartKey.current++;
-        return usageChartsToChart([element.chart], {removeDetails: true});
-    }, [element]);
-
-    if (element === undefined) {
-        return <Flex height={40} alignItems={"center"} pl={12}>No product selected</Flex>
-    }
-
-    const s = element;
-    return <Flex gap={"16px"} {...dataProps} alignItems={"center"} py={4} px={8} mr={48} onClick={onSelect}>
-        <Chart
-            key={chartKey.current.toString()}
-            {...chartProps}
-            width={32}
-            height={32}
-        />
-        <ProviderLogo providerId={element.category.provider} size={32} />
-        <div><b>{element.category.name}</b></div>
-        <Box flexGrow={1} />
-        <div>{usageToString(s.category, s.usage, s.quota, false)}</div>
-        <div>({usageToString(s.category, s.usage, s.quota, true)})</div>
-    </Flex>;
-}
-
 const RenderUnitSelector: RichSelectChildComponent<{unit: string}> = ({element, onSelect, dataProps}) => {
 
     if (element === undefined) {
@@ -1735,6 +1896,38 @@ const SmallUsageCard: React.FunctionComponent<{
     </a>;
 };
 
+const TableWrapper = makeClassName("table-wrapper");
+const PanelTitle = makeClassName("panel-title");
+const ChartAndTable = injectStyle("chart-and-table", k => `
+    ${k} {
+        display: flex;
+        flex-direction: row;
+    }
+
+@media screen and (min-width: 1338px) {
+    ${k} > div:first-child {
+        margin-top: auto;
+        margin-bottom: auto;
+    }
+}
+
+@media screen and (max-width: 1337px) {
+    ${k} {
+        flex-direction: column;
+    }
+
+    ${k} > div:first-child {
+        width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    ${k} ${TableWrapper.dot} {
+        max-height: 500px;
+    }
+}
+`);
+
 const PanelClass = injectStyle("panel", k => `
     ${k} {
         height: 100%;
@@ -1745,13 +1938,9 @@ const PanelClass = injectStyle("panel", k => `
            content */
         min-height: 100px; 
         max-height: 1000px;
-
-        
-        display: flex;
-        flex-direction: column;
     }
 
-    ${k} .panel-title {
+    ${k} ${PanelTitle.dot} {
         display: flex;
         flex-direction: row;
         align-items: center;
@@ -1760,43 +1949,51 @@ const PanelClass = injectStyle("panel", k => `
         z-index: 1; /* HACK(Jonas): Why is this needed for smaller widths? */
     }
 
-    ${k} .panel-title > *:nth-child(1) {
+    ${k} ${PanelTitle.dot} > *:nth-child(1) {
         font-size: 18px;
         margin: 0;
     }
 
-    ${k} .panel-title > *:nth-child(2) {
+    ${k} ${PanelTitle.dot} > *:nth-child(2) {
         flex-grow: 1;
     }
     
-    ${k} .table-wrapper {
+    ${k} ${TableWrapper.dot} {
         flex-grow: 1;
-        overflow-y: auto;
+        overflow-y: scroll;
+        min-width: 600px;
         min-height: 200px;
-        flex-shrink: 5;
+        max-height: 600px;
     }
+
+@media screen and (max-width: 1337px) {
+    ${k} ${TableWrapper.dot} {
+        margin-top: 12px;
+        max-height: 500px;
+    }
+}
     
-    html.light ${k} .table-wrapper {
+    html.light ${k} ${TableWrapper.dot} {
         box-shadow: inset 0px -11px 8px -10px #ccc;
     }
     
-    html.dark ${k} .table-wrapper {
+    html.dark ${k} ${TableWrapper.dot} {
         box-shadow: inset 0px -11px 8px -10px rgba(255, 255, 255, 0.5);
     }
     
-    ${k} .table-wrapper.at-bottom {
+    ${k} ${TableWrapper.dot}.at-bottom {
         box-shadow: unset !important;
     }
     
-    html.light ${k} .table-wrapper::before {
+    html.light ${k} ${TableWrapper.dot}::before {
         box-shadow: 0px -11px 8px 11px #ccc;
     }
     
-    html.dark ${k} .table-wrapper::before {
+    html.dark ${k} ${TableWrapper.dot}::before {
         box-shadow: 0px -11px 8px 11px rgba(255, 255, 255, 0.5);
     }
     
-    ${k} .table-wrapper::before {
+    ${k} ${TableWrapper.dot}::before {
         display: block;
         content: " ";
         width: 100%;
@@ -1805,7 +2002,7 @@ const PanelClass = injectStyle("panel", k => `
         top: 24px;
     }
     
-    ${k} .table-wrapper.at-top::before {
+    ${k} ${TableWrapper.dot}.at-top::before {
         box-shadow: unset !important;
     }
 `);
@@ -1960,7 +2157,7 @@ const PeriodSelector: React.FunctionComponent<{
         }
     >
         <div className={PeriodSelectorBodyStyle}>
-            <div>
+            <div onClick={stopPropagation}>
                 <b>Absolute time range</b>
 
                 <label>
@@ -2142,37 +2339,6 @@ const VisualizationStyle = injectStyle("visualization", k => `
         display: flex;
         flex-direction: column;
         gap: 16px;
-    }
-    
-    .${CategoryDescriptorPanelStyle} {
-        grid-area: category;
-    }
-    
-    .${BreakdownStyle} {
-        grid-area: breakdown;
-    }
-    
-    .${UsageOverTimeStyle} {
-        grid-area: over-time;
-    }
-    
-    ${k}.${AccountingPanelsOnlyStyle} .${UsageOverTimeStyle} {
-        grid-row-start: over-time;
-        grid-row-end: chart4;
-        grid-column-start: over-time;
-        grid-column-end: chart4;
-    }
-    
-    .${LargeJobsStyle} {
-        grid-area: chart2;
-    }
-    
-    .${MostUsedApplicationsStyle} {
-        grid-area: chart3;
-    }
-    
-    .${JobSubmissionStyle} {
-        grid-area: chart4;
     }
 `);
 

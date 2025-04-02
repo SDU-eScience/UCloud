@@ -512,7 +512,12 @@ data class JobsFollowResponse(
 
 @Serializable
 @UCloudApiStable
-data class JobsLog(val rank: Int, val stdout: String? = null, val stderr: String? = null)
+data class JobsLog(
+    val rank: Int,
+    val stdout: String? = null,
+    val stderr: String? = null,
+    val channel: String? = null
+)
 
 typealias JobsExtendRequest = BulkRequest<JobsExtendRequestItem>
 typealias JobsExtendResponse = BulkResponse<Unit?>

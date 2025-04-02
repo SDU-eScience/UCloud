@@ -2,6 +2,7 @@ package orchestrators
 
 import (
 	"encoding/json"
+	c "ucloud.dk/pkg/client"
 
 	fnd "ucloud.dk/pkg/foundation"
 	"ucloud.dk/pkg/util"
@@ -131,7 +132,7 @@ type ApplicationGroupSpecification struct {
 }
 
 type ApplicationGroupStatus struct {
-	Applications []ApplicationSummaryWithFavorite `json:"applications,omitempty"`
+	Applications []Application `json:"applications,omitempty"`
 }
 
 type ApplicationGroup struct {
@@ -587,4 +588,40 @@ func InvocationVar(varName string) InvocationParameter {
 		VariableNames: []string{varName},
 	}
 	return result
+}
+
+const appsNamespace = "hpc.apps."
+const appsContext = "/api/hpc/apps/"
+
+func FindGroupByApplication(applicationName string) (ApplicationGroup, error) {
+	type reqFlags struct {
+		IncludeApplications bool `json:"includeApplications"`
+		IncludeInvocation   bool `json:"includeInvocation"`
+		IncludeStars        bool `json:"includeStars"`
+		IncludeVersions     bool `json:"includeVersions"`
+	}
+
+	type req struct {
+		AppName   string   `json:"appName"`
+		Discovery string   `json:"discovery"`
+		Flags     reqFlags `json:"flags"`
+	}
+
+	group, err := c.ApiUpdate[ApplicationGroup](
+		appsNamespace+"findGroupByApplication",
+		appsContext,
+		"findGroupByApplication",
+		req{
+			AppName:   applicationName,
+			Discovery: "ALL",
+			Flags: reqFlags{
+				IncludeApplications: true,
+				IncludeInvocation:   true,
+				IncludeStars:        false,
+				IncludeVersions:     true,
+			},
+		},
+	)
+
+	return group, err
 }

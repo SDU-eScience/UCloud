@@ -249,7 +249,6 @@ type cloudInitUser struct {
 
 type cloudInit struct {
 	Users      []cloudInitUser `json:"users"`
-	Bootcmd    []string        `json:"bootcmd"`
 	Mounts     [][]string      `json:"mounts"`
 	RunCommand []string        `json:"runcmd"`
 }
@@ -470,7 +469,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 		LockPassword: false,
 		Shell:        "/bin/bash",
 	})
-	cinit.Bootcmd = []string{}
 	cinit.RunCommand = []string{
 		fmt.Sprintf("usermod -u %d ucloud", filesystem.DefaultUid),
 		fmt.Sprintf("groupmod -g %d ucloud", filesystem.DefaultUid),

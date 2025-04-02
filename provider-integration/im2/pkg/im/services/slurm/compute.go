@@ -864,7 +864,7 @@ func follow(session *ctrl.FollowJobSession) {
 					stderr.Set(message)
 				}
 
-				session.EmitLogs(logFile.Rank, stdout, stderr)
+				session.EmitLogs(logFile.Rank, stdout, stderr, util.OptNone[string]())
 			}
 		}
 

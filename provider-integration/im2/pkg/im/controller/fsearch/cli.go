@@ -5,6 +5,7 @@ import (
 	"github.com/MichaelTJones/walk"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -71,7 +72,7 @@ func CliMain(q string, loadIndex bool, bucketCount int) {
 			appendWg.Done()
 		}()
 
-		_ = walk.Walk(cwd, func(path string, info os.FileInfo, err error) error {
+		_ = walk.Walk(cwd, runtime.NumCPU(), func(path string, info os.FileInfo, err error) error {
 			filesInIndex.Add(1)
 			baseInfoCh <- FileInfo{
 				Parent: filepath.Dir(path),
@@ -106,7 +107,7 @@ func CliMain(q string, loadIndex bool, bucketCount int) {
 
 	query := NewQuery(q)
 
-	_ = walk.Walk(cwd, func(path string, info os.FileInfo, err error) error {
+	_ = walk.Walk(cwd, runtime.NumCPU(), func(path string, info os.FileInfo, err error) error {
 		visited.Add(1)
 		if query.Matches(path) {
 			matches.Add(1)

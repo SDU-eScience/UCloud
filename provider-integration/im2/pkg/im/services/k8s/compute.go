@@ -136,7 +136,11 @@ func follow(session *ctrl.FollowJobSession) {
 }
 
 func handleShell(session *ctrl.ShellSession, cols int, rows int) {
-	backend(session.Job).HandleShell(session, cols, rows)
+	if session.Folder != "" {
+		containerCpu.HandleShell(session, cols, rows)
+	} else {
+		backend(session.Job).HandleShell(session, cols, rows)
+	}
 }
 
 func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) ctrl.ConfiguredWebIngress {

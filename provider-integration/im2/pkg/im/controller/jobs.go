@@ -63,16 +63,17 @@ type FollowJobSession struct {
 	Id       string
 	Alive    *bool
 	Job      *orc.Job
-	EmitLogs func(rank int, stdout, stderr util.Option[string])
+	EmitLogs func(rank int, stdout, stderr, channel util.Option[string])
 }
 
 type ShellSession struct {
-	Alive       bool
-	Folder      string
-	Job         *orc.Job
-	Rank        int
-	InputEvents chan ShellEvent
-	EmitData    func(data []byte)
+	Alive          bool
+	Folder         string
+	Job            *orc.Job
+	Rank           int
+	InputEvents    chan ShellEvent
+	EmitData       func(data []byte)
+	UCloudUsername string
 }
 
 type ShellEvent struct {
@@ -356,7 +357,7 @@ func controllerJobs(mux *http.ServeMux) {
 
 						shellSessionsMutex.Lock()
 						tok := util.RandomToken(32)
-						shellSessions[tok] = &ShellSession{Alive: true, Job: item.Job, Rank: item.Rank}
+						shellSessions[tok] = &ShellSession{Alive: true, Job: item.Job, Rank: item.Rank, UCloudUsername: GetUCloudUsername(r)}
 						shellSessionsMutex.Unlock()
 						responses = append(
 							responses,
@@ -436,7 +437,7 @@ func controllerJobs(mux *http.ServeMux) {
 
 					shellSessionsMutex.Lock()
 					tok := util.RandomToken(32)
-					shellSessions[tok] = &ShellSession{Alive: true, Folder: item.Folder}
+					shellSessions[tok] = &ShellSession{Alive: true, Folder: item.Folder, UCloudUsername: GetUCloudUsername(r)}
 					shellSessionsMutex.Unlock()
 					responses = append(
 						responses,
@@ -532,19 +533,21 @@ func controllerJobs(mux *http.ServeMux) {
 
 							session.InputEvents = make(chan ShellEvent)
 							session.EmitData = func(data []byte) {
-								msg := map[string]string{
-									"type": "data",
-									"data": string(data),
-								}
-								asJson, _ := json.Marshal(msg)
+								if session.Alive {
+									msg := map[string]string{
+										"type": "data",
+										"data": string(data),
+									}
+									asJson, _ := json.Marshal(msg)
 
-								connMutex.Lock()
-								_ = conn.WriteJSON(WebSocketResponseMessage{
-									Type:     "message",
-									StreamId: requestMessage.StreamId,
-									Payload:  asJson,
-								})
-								connMutex.Unlock()
+									connMutex.Lock()
+									_ = conn.WriteJSON(WebSocketResponseMessage{
+										Type:     "message",
+										StreamId: requestMessage.StreamId,
+										Payload:  asJson,
+									})
+									connMutex.Unlock()
+								}
 							}
 
 							go func() {
@@ -996,6 +999,7 @@ type jobsProviderFollowResponse struct {
 	Rank     int                 `json:"rank"`
 	Stdout   util.Option[string] `json:"stdout"`
 	Stderr   util.Option[string] `json:"stderr"`
+	Channel  util.Option[string] `json:"channel"`
 }
 
 func createFollowSession(
@@ -1013,12 +1017,13 @@ func createFollowSession(
 		EmitLogs: nil,
 	}
 
-	session.EmitLogs = func(rank int, stdout, stderr util.Option[string]) {
+	session.EmitLogs = func(rank int, stdout, stderr, channel util.Option[string]) {
 		resp := jobsProviderFollowResponse{
 			StreamId: session.Id,
 			Rank:     rank,
 			Stdout:   stdout,
 			Stderr:   stderr,
+			Channel:  channel,
 		}
 
 		payload, err := json.Marshal(resp)

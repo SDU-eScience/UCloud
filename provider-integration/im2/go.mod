@@ -2,13 +2,14 @@ module ucloud.dk
 
 require (
 	atomicgo.dev/keyboard v0.2.9
+	github.com/MichaelTJones/walk v1.0.0
 	github.com/anyascii/go v0.3.2
 	github.com/bits-and-blooms/bloom/v3 v3.7.0
 	github.com/coreos/go-oidc/v3 v3.13.0
 	github.com/envoyproxy/go-control-plane v0.13.4
 	github.com/envoyproxy/go-control-plane/envoy v1.32.3
 	github.com/fergusstrange/embedded-postgres v1.30.0
-	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/golang/protobuf v1.5.4
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/golang-lru/v2 v2.0.7
@@ -30,7 +31,6 @@ require (
 	kubevirt.io/client-go v1.4.0
 	kubevirt.io/containerized-data-importer-api v1.57.0-alpha1
 	ucloud.dk/gonja/v2 v2.3.0
-	github.com/MichaelTJones/walk v1.0.0
 )
 
 replace ucloud.dk/gonja/v2 => ../gonja
@@ -127,4 +127,4 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
-go 1.23.2
+go 1.24

@@ -9,7 +9,6 @@ package walk
 import (
 	"errors"
 	"os"
-	"sort"
 	"strings"
 	"sync"
 )
@@ -34,15 +33,14 @@ var SkipDir = errors.New("skip this directory")
 // the next file.
 type WalkFunc func(path string, info os.FileInfo, err error) error
 
-var lstat = os.Lstat // for testing
-var LstatP = &lstat
-
 type VisitData struct {
 	path string
 	info os.FileInfo
 }
 
 type WalkState struct {
+	root       *os.Root
+	rootPath   string
 	walkFn     WalkFunc
 	v          chan VisitData // files to be processed
 	active     sync.WaitGroup // number of files to process
@@ -78,7 +76,9 @@ func (ws *WalkState) visitFile(file VisitData) {
 		return
 	}
 
-	err := ws.walkFn(file.path, file.info, nil)
+	absPath := Join(ws.rootPath, file.path)
+
+	err := ws.walkFn(absPath, file.info, nil)
 	if err != nil {
 		if !(file.info.IsDir() && err == SkipDir) {
 			ws.setTerminated(err)
@@ -90,9 +90,15 @@ func (ws *WalkState) visitFile(file VisitData) {
 		return
 	}
 
-	names, err := readDirNames(file.path)
+	var children []os.DirEntry
+	thisFile, err := ws.root.Open(file.path)
+	if err == nil {
+		children, err = thisFile.ReadDir(0)
+		_ = thisFile.Close()
+	}
+
 	if err != nil {
-		err = ws.walkFn(file.path, file.info, err)
+		err = ws.walkFn(absPath, file.info, err)
 		if err != nil {
 			ws.setTerminated(err)
 		}
@@ -100,29 +106,31 @@ func (ws *WalkState) visitFile(file VisitData) {
 	}
 
 	here := file.path
-	for _, name := range names {
-		file.path = Join(here, name)
-		file.info, err = lstat(file.path)
+	for _, child := range children {
+		childFile := VisitData{
+			path: Join(here, child.Name()),
+		}
+		childFile.info, err = child.Info()
 		if err != nil {
-			err = ws.walkFn(file.path, file.info, err)
-			if err != nil && (!file.info.IsDir() || err != SkipDir) {
+			err = ws.walkFn(Join(ws.rootPath, childFile.path), childFile.info, err)
+			if err != nil && (!childFile.info.IsDir() || err != SkipDir) {
 				ws.setTerminated(err)
 				return
 			}
 		} else {
-			switch file.info.IsDir() {
+			switch childFile.info.IsDir() {
 			case true:
 				ws.active.Add(1) // presume channel send will succeed
 				select {
-				case ws.v <- file:
+				case ws.v <- childFile:
 					// push directory info to queue for concurrent traversal
 				default:
 					// undo increment when send fails and handle now
 					ws.active.Add(-1)
-					ws.visitFile(file)
+					ws.visitFile(childFile)
 				}
 			case false:
-				err = ws.walkFn(file.path, file.info, nil)
+				err = ws.walkFn(Join(ws.rootPath, childFile.path), childFile.info, nil)
 				if err != nil {
 					ws.setTerminated(err)
 					return
@@ -136,23 +144,28 @@ func (ws *WalkState) visitFile(file VisitData) {
 // directory in the tree, including root. All errors that arise visiting files
 // and directories are filtered by walkFn. The files are walked in a random
 // order. Walk does not follow symbolic links.
-
-func Walk(root string, walkFn WalkFunc) error {
-	info, err := os.Lstat(root)
+func Walk(rootPath string, walkers int, walkFn WalkFunc) error {
+	root, err := os.OpenRoot(rootPath)
 	if err != nil {
-		return walkFn(root, nil, err)
+		return err
+	}
+
+	info, err := root.Lstat(".")
+	if err != nil {
+		return err
 	}
 
 	ws := &WalkState{
-		walkFn: walkFn,
-		v:      make(chan VisitData, 1024),
+		root:     root,
+		rootPath: rootPath,
+		walkFn:   walkFn,
+		v:        make(chan VisitData, 1024),
 	}
 	defer close(ws.v)
 
 	ws.active.Add(1)
-	ws.v <- VisitData{root, info}
+	ws.v <- VisitData{path: ".", info: info}
 
-	walkers := 16
 	for i := 0; i < walkers; i++ {
 		go ws.visitChannel()
 	}
@@ -164,22 +177,6 @@ func Walk(root string, walkFn WalkFunc) error {
 //
 // THE REMAINDER IS UNCHANGED FROM THE ORGINAL GO LIBRARY ORIGINAL
 //
-
-// readDirNames reads the directory named by dirname and returns
-// a sorted list of directory entries.
-func readDirNames(dirname string) ([]string, error) {
-	f, err := os.Open(dirname)
-	if err != nil {
-		return nil, err
-	}
-	names, err := f.Readdirnames(-1)
-	f.Close()
-	if err != nil {
-		return nil, err
-	}
-	sort.Strings(names) // omit sort to save 1-2%
-	return names, nil
-}
 
 // A lazybuf is a lazily constructed path buffer.
 // It supports append, reading previously appended bytes,
@@ -350,95 +347,4 @@ func Join(elem ...string) string {
 		}
 	}
 	return ""
-}
-
-// Rel returns a relative path that is lexically equivalent to targpath when
-// joined to basepath with an intervening separator. That is,
-// Join(basepath, Rel(basepath, targpath)) is equivalent to targpath itself.
-// On success, the returned path will always be relative to basepath,
-// even if basepath and targpath share no elements.
-// An error is returned if targpath can't be made relative to basepath or if
-// knowing the current working directory would be necessary to compute it.
-func Rel(basepath, targpath string) (string, error) {
-	baseVol := VolumeName(basepath)
-	targVol := VolumeName(targpath)
-	base := Clean(basepath)
-	targ := Clean(targpath)
-	if targ == base {
-		return ".", nil
-	}
-	base = base[len(baseVol):]
-	targ = targ[len(targVol):]
-	if base == "." {
-		base = ""
-	}
-	// Can't use IsAbs - `\a` and `a` are both relative in Windows.
-	baseSlashed := len(base) > 0 && base[0] == Separator
-	targSlashed := len(targ) > 0 && targ[0] == Separator
-	if baseSlashed != targSlashed || baseVol != targVol {
-		return "", errors.New("Rel: can't make " + targ + " relative to " + base)
-	}
-	// Position base[b0:bi] and targ[t0:ti] at the first differing elements.
-	bl := len(base)
-	tl := len(targ)
-	var b0, bi, t0, ti int
-	for {
-		for bi < bl && base[bi] != Separator {
-			bi++
-		}
-		for ti < tl && targ[ti] != Separator {
-			ti++
-		}
-		if targ[t0:ti] != base[b0:bi] {
-			break
-		}
-		if bi < bl {
-			bi++
-		}
-		if ti < tl {
-			ti++
-		}
-		b0 = bi
-		t0 = ti
-	}
-	if base[b0:bi] == ".." {
-		return "", errors.New("Rel: can't make " + targ + " relative to " + base)
-	}
-	if b0 != bl {
-		// Base elements left. Must go up before going down.
-		seps := strings.Count(base[b0:bl], string(Separator))
-		size := 2 + seps*3
-		if tl != t0 {
-			size += 1 + tl - t0
-		}
-		buf := make([]byte, size)
-		n := copy(buf, "..")
-		for i := 0; i < seps; i++ {
-			buf[n] = Separator
-			copy(buf[n+1:], "..")
-			n += 3
-		}
-		if t0 != tl {
-			buf[n] = Separator
-			copy(buf[n+1:], targ[t0:])
-		}
-		return string(buf), nil
-	}
-	return targ[t0:], nil
-}
-
-// VolumeName returns leading volume name.
-// Given "C:\foo\bar" it returns "C:" under windows.
-// Given "\\host\share\foo" it returns "\\host\share".
-// On other platforms it returns "".
-func VolumeName(path string) (v string) {
-	return path[:volumeNameLen(path)]
-}
-
-// EvalSymlinks returns the path name after the evaluation of any symbolic
-// links.
-// If path is relative the result will be relative to the current directory,
-// unless one of the components is an absolute symbolic link.
-func EvalSymlinks(path string) (string, error) {
-	return evalSymlinks(path)
 }

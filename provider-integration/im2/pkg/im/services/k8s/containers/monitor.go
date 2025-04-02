@@ -1,6 +1,7 @@
 package containers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,13 +18,26 @@ import (
 	"ucloud.dk/pkg/im/services/k8s/shared"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
+	"ucloud.dk/pkg/ucviz"
 	"ucloud.dk/pkg/util"
 )
+
+type PodPendingStatus struct {
+	Message            string
+	EstimatedTimeLeft  util.Option[time.Duration]
+	EstimatedProgress1 util.Option[float64]
+}
 
 func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 	allPods, err := K8sClient.CoreV1().Pods(Namespace).List(context.Background(), meta.ListOptions{})
 	if err != nil {
 		log.Info("Failed to fetch pods: %v", err)
+		return
+	}
+
+	events, err := K8sClient.CoreV1().Events(Namespace).List(context.Background(), meta.ListOptions{})
+	if err != nil {
+		log.Info("Failed to fetch events: %v", err)
 		return
 	}
 
@@ -72,7 +86,7 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 				_ = K8sClient.CoreV1().Pods(Namespace).Delete(ctx, pod.Name, meta.DeleteOptions{})
 				cancel()
 
-				log.Info("deleting iapp should not run %v %v %v %v", iappOk, iappEtag.Present, handler.ShouldRun(job, iappConfig.Configuration), iappEtag.Value, iappConfig.ETag)
+				log.Info("deleting iapp should not run %v %v %v %v %v", iappOk, iappEtag.Present, handler.ShouldRun(job, iappConfig.Configuration), iappEtag.Value, iappConfig.ETag)
 				tracker.TrackState(shared.JobReplicaState{
 					Id:    job.Id,
 					Rank:  0,
@@ -82,6 +96,7 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 				state, status := podToStateAndStatus(pod)
 				if state.IsFinal() {
 					state = orc.JobStateSuspended
+					tracker.RequestCleanup(job.Id)
 				}
 
 				tracker.TrackState(shared.JobReplicaState{
@@ -93,6 +108,124 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 				})
 			}
 		} else {
+			if idAndRank.Second == 0 && pod.Status.Phase == core.PodPending {
+				// NOTE(Dan): Events are in chronological order. We go through the events and find the most recent
+				// event to use as our message.
+
+				const (
+					PhaseInit = iota
+					PhasePulling
+					PhaseFinalPreparation
+					PhaseStarted
+				)
+
+				phaseTime := pod.CreationTimestamp.Time
+				phase := PhaseInit
+
+				for _, ev := range events.Items {
+					if ev.InvolvedObject.Name == pod.Name && ev.InvolvedObject.FieldPath == "spec.containers{user-job}" {
+						if ev.Reason == "Pulling" {
+							phase = PhasePulling
+							phaseTime = ev.LastTimestamp.Time
+						} else if ev.Reason == "Pulled" {
+							phase = PhaseFinalPreparation
+							phaseTime = ev.LastTimestamp.Time
+						} else if ev.Reason == "Started" {
+							phase = PhaseStarted
+							phaseTime = ev.LastTimestamp.Time
+						}
+					}
+				}
+
+				writer := &bytes.Buffer{}
+				stream := ucviz.NewWidgetStream(writer, ucviz.WidgetStreamJson)
+
+				var status struct {
+					Valid              bool
+					Message            string
+					EstimatedTimeLeft  util.Option[time.Duration]
+					EstimatedProgress1 util.Option[float64]
+				}
+
+				switch phase {
+				case PhaseInit:
+					status.Valid = true
+					status.Message = "Your job is currently being prepared..."
+
+				case PhasePulling:
+					status.Valid = true
+					status.Message = "The software is currently being downloaded to the machine..."
+
+					for _, container := range pod.Spec.Containers {
+						if container.Name == ContainerUserJob {
+							size, err := EstimateCompressedImageSize(container.Image)
+							if size != 0 && err == nil {
+								timeSincePullStart := time.Now().Sub(phaseTime)
+								dlSpeed := ServiceConfig.Compute.EstimatedContainerDownloadSpeed
+								estimatedProgress := (dlSpeed * 1000000) * timeSincePullStart.Seconds()
+								estimatedRemaining := float64(size) - estimatedProgress
+								if estimatedRemaining < 0 {
+									estimatedRemaining = 0
+								}
+
+								estimatedTimeLeft := time.Duration((estimatedRemaining/1000000.0)/dlSpeed) * time.Second
+								estimatedPercentComplete := estimatedProgress / float64(size)
+
+								status.EstimatedTimeLeft.Set(estimatedTimeLeft)
+								status.EstimatedProgress1.Set(estimatedPercentComplete)
+							}
+							break
+						}
+					}
+
+				case PhaseFinalPreparation:
+					status.Valid = true
+					status.Message = "Software has been download and your job will start soon!"
+
+				case PhaseStarted:
+					status.Valid = false
+				}
+
+				if status.Valid {
+					_ = stream.WriteDoc(`
+						<Box id="jobPending" tab="Status" icon="info">
+							<Widget id="jobPendingMessage" />
+							<Widget id="jobPendingTimeLeft" />
+							<Widget id="jobPendingStatus" />
+						</Box>
+					`)
+
+					stream.CreateLabel("jobPendingMessage", ucviz.WidgetLocation{}, ucviz.WidgetLabel{
+						Text: status.Message,
+					})
+
+					if status.EstimatedTimeLeft.Present {
+						stream.CreateLabel("jobPendingMessage", ucviz.WidgetLocation{}, ucviz.WidgetLabel{
+							Text: fmt.Sprintf("Estimated completion in: %s", status.EstimatedTimeLeft.Value),
+						})
+					} else {
+						stream.Delete("jobPendingTimeLeft")
+					}
+
+					if status.EstimatedProgress1.Present {
+						stream.CreateProgressBar(
+							"jobPendingStatus",
+							ucviz.WidgetLocation{},
+							ucviz.WidgetProgressBar{Progress: status.EstimatedProgress1.Value},
+						)
+					} else {
+						stream.Delete("jobPendingStatus")
+					}
+				} else {
+					stream.Delete("jobPending")
+				}
+
+				updateBytes := writer.Bytes()
+				if len(updateBytes) > 0 {
+					dispatchNonPersistentFollowMessage(idAndRank.First, idAndRank.Second, string(updateBytes), "jobPending")
+				}
+			}
+
 			times := shared.ComputeRunningTime(job)
 			if times.TimeRemaining.Present && times.TimeRemaining.Value < 0 {
 				tracker.RequestCleanup(idAndRank.First)
@@ -128,7 +261,6 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 				}
 			}
 
-			log.Info("in queue not handled")
 			tracker.TrackState(shared.JobReplicaState{
 				Id:    jobId,
 				Rank:  0,

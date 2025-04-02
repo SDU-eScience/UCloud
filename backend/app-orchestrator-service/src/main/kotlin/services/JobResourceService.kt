@@ -1013,7 +1013,7 @@ class JobResourceService(
 
                                         sendWSMessage(
                                             JobsFollowResponse(
-                                                log = listOf(JobsLog(message.rank, message.stdout, message.stderr))
+                                                log = listOf(JobsLog(message.rank, message.stdout, message.stderr, message.channel))
                                             )
                                         )
                                     }

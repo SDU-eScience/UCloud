@@ -31,7 +31,7 @@ RUN chmod +x /usr/bin/envoy
 # Go
 WORKDIR /tmp
 RUN if [ "$(uname -p)" = "aarch64" ]; then ARCH=arm64; else ARCH=amd64; fi \
-    && wget "https://go.dev./dl/go1.22.3.linux-$ARCH.tar.gz"
+    && wget "https://go.dev./dl/go1.24.1.linux-$ARCH.tar.gz"
 RUN tar -C /usr/local -xzf go*.tar.gz
 RUN echo 'export PATH=$PATH:/usr/local/go/bin' >> /root/.bashrc
 RUN rm go*.tar.gz
