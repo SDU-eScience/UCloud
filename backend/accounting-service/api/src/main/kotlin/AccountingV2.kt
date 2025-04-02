@@ -326,6 +326,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
     val adminReset = AdminReset.call
     val adminProviderDump = AdminProviderDump.call
     val adminResendNotification = AdminResendNotification.call
+    val adminGenerateTestData = AdminGenerateTestData.call
 
     private fun StringBuilder.documentationInternalUtilities() {}
 
@@ -548,6 +549,31 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             }
         )
     }
+
+    object AdminGenerateTestData {
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Request(
+            val coreHourUsage: Long = 0 ,
+            val maxStorageUsage: Long = 0,
+            val timeSpanInMillis: Long = 0,
+            val createProjectStructure: Boolean = true,
+            val clearExistingUsage: Boolean = true,
+            val makeCharges: Boolean = true
+        )
+
+        val call = call(
+            "adminGenerateTestData",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "adminGenerateTestData", roles = Roles.ADMIN)
+            }
+        )
+    }
+
+
 }
 
 // Types

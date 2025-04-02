@@ -2,6 +2,8 @@ package dk.sdu.cloud.accounting
 
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.rpc.*
+import dk.sdu.cloud.accounting.services.DataGenerator
+import dk.sdu.cloud.accounting.services.accounting.AccountingPersistence
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
 import dk.sdu.cloud.accounting.services.accounting.DataVisualization
 import dk.sdu.cloud.accounting.services.accounting.RealAccountingPersistence
@@ -57,9 +59,10 @@ class Server(
 
         val simpleProviders = Providers(client) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
         val productCache = ProductCache(db)
+        val accountingPersistence = RealAccountingPersistence(db)
         val accountingSystem = AccountingSystem(
             productCache,
-            RealAccountingPersistence(db),
+            accountingPersistence,
             IdCardService(db, micro.backgroundScope, client),
             distributedLocks,
             micro.developmentModeEnabled,
@@ -103,6 +106,11 @@ class Server(
             )
         )
 
+        val dataGenerator = if (micro.developmentModeEnabled) {
+            DataGenerator(accountingSystem, db, client, grants, idCardService, accountingPersistence)
+        } else {
+            null
+        }
         configureControllers(
             AccountingController(
                 micro,
@@ -111,6 +119,7 @@ class Server(
                 idCardService,
                 apmNotifications,
                 grants,
+                dataGenerator
             ).also { accountingController = it},
             ProductController(productService, accountingSystem, client),
             FavoritesController(db, favoriteProjects),

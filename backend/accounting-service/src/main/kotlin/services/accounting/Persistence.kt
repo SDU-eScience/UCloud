@@ -7,6 +7,7 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import org.joda.time.DateTime
 import kotlin.math.absoluteValue
 import kotlin.time.Duration.Companion.hours
 import kotlin.math.max
@@ -15,18 +16,32 @@ interface AccountingPersistence {
     suspend fun initialize()
     suspend fun flushChanges()
     suspend fun loadOldData(system: AccountingSystem)
+    suspend fun setLastSampling(newLastSampling: Long)
+    suspend fun setNextSynch(newSyncTime: Long)
 }
 
 object FakeAccountingPersistence : AccountingPersistence {
     override suspend fun initialize() {}
     override suspend fun flushChanges() {}
     override suspend fun loadOldData(system: AccountingSystem) {}
+    override suspend fun setLastSampling(newLastSampling: Long) {}
+    override suspend fun setNextSynch(newSyncTime: Long) {}
+
 }
 
 class RealAccountingPersistence(private val db: DBContext) : AccountingPersistence {
     private var nextSynchronization = 0L
     private var didChargeOldData = false
     private var lastSampling = 0L
+
+    override suspend fun setLastSampling(newLastSampling: Long) {
+        lastSampling = newLastSampling
+    }
+
+    override suspend fun setNextSynch(newSyncTime: Long) {
+        nextSynchronization = newSyncTime
+    }
+
 
     override suspend fun initialize() {
         val now = Time.now()
