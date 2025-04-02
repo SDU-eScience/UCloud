@@ -1,6 +1,8 @@
 package migrations
 
-import "ucloud.dk/pkg/database"
+import (
+	"ucloud.dk/pkg/database"
+)
 
 func genericLicensesV1() migrationScript {
 	return migrationScript{

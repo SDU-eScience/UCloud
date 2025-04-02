@@ -47,3 +47,11 @@ func fetchAllIngresses() {
 		}
 	}
 }
+
+func CreateIngress(ingress *orc.Ingress) error {
+	return nil
+}
+
+func DeleteIngress(ingress *orc.Ingress) error {
+	return nil
+}

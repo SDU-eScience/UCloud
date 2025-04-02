@@ -1,9 +1,10 @@
 package config
 
 import (
-	"gopkg.in/yaml.v3"
 	"math"
 	"net"
+
+	"gopkg.in/yaml.v3"
 	"ucloud.dk/pkg/util"
 )
 
@@ -50,6 +51,10 @@ type KubernetesIpConfiguration struct {
 	Name    string
 }
 
+type KubernetesIngressConfiguration struct {
+	Enabled bool
+}
+
 type KubernetesIntegratedTerminal struct {
 	Enabled bool
 }
@@ -77,6 +82,7 @@ type KubernetesCompute struct {
 	Namespace                       string
 	Web                             KubernetesWebConfiguration
 	PublicIps                       KubernetesIpConfiguration
+	Ingresses                       KubernetesIngressConfiguration
 	Ssh                             KubernetesSshConfiguration
 	Syncthing                       KubernetesSyncthingConfiguration
 	IntegratedTerminal              KubernetesIntegratedTerminal
@@ -165,8 +171,8 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 	}
 
 	cfg.Compute.Modules = map[string]KubernetesModuleEntry{}
-	modulesNode, err := getChildOrNil(filePath, computeNode, "modules")
-	if err != nil || (modulesNode != nil && modulesNode.Kind != yaml.MappingNode) {
+	modulesNode, _ := getChildOrNil(filePath, computeNode, "modules")
+	if modulesNode != nil && modulesNode.Kind != yaml.MappingNode {
 		reportError(filePath, computeNode, "expected 'modules' to be a dictionary")
 		return false, cfg
 	}
@@ -297,6 +303,12 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 				cfg.Compute.PublicIps.Name = "public-ip"
 			}
 		}
+	}
+
+	ingressNode, _ := getChildOrNil(filePath, computeNode, "publicLinks")
+	if ingressNode != nil {
+		enabled, ok := optionalChildBool(filePath, ingressNode, "enabled")
+		cfg.Compute.Ingresses.Enabled = enabled && ok
 	}
 
 	sshNode, _ := getChildOrNil(filePath, computeNode, "ssh")

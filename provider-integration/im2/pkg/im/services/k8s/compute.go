@@ -8,6 +8,7 @@ import (
 	"ucloud.dk/pkg/im/services/k8s/containers"
 	"ucloud.dk/pkg/im/services/k8s/kubevirt"
 	"ucloud.dk/pkg/im/services/k8s/shared"
+	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
@@ -37,6 +38,11 @@ func InitCompute() ctrl.JobsService {
 			Delete:           deletePublicIp,
 			RetrieveProducts: retrievePublicIpProducts,
 		},
+		Ingresses: ctrl.IngressService{
+			Create:           createIngress,
+			Delete:           deleteIngress,
+			RetrieveProducts: retrieveIngressProducts,
+		},
 	}
 }
 
@@ -65,6 +71,19 @@ func createPublicIp(ip *orc.PublicIp) error {
 
 func deletePublicIp(ip *orc.PublicIp) error {
 	return ctrl.DeleteIpAddress(ip)
+}
+
+func retrieveIngressProducts() []orc.IngressSupport {
+	log.Info("Retrieving ingress products")
+	return shared.IngressSupport
+}
+
+func createIngress(ingress *orc.Ingress) error {
+	return ctrl.CreateIngress(ingress)
+}
+
+func deleteIngress(ingress *orc.Ingress) error {
+	return ctrl.DeleteIngress(ingress)
 }
 
 func retrieveProducts() []orc.JobSupport {
