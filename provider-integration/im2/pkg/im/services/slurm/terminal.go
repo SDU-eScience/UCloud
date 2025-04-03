@@ -1,6 +1,7 @@
 package slurm
 
 import (
+	"fmt"
 	"golang.org/x/sys/unix"
 	"os"
 	"syscall"
@@ -86,7 +87,7 @@ func openPty() (int, int, error) {
 	}
 	log.Info("openpty 8")
 
-	slaveName := "/dev/pts/" + string(rune(ptsName+'0'))
+	slaveName := fmt.Sprintf("/dev/pts/%d", ptsName)
 	sfd, err := syscall.Open(slaveName, syscall.O_RDWR|syscall.O_NOCTTY, 0)
 	if err != nil {
 		log.Info("openpty 9")
