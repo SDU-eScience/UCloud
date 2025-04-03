@@ -429,12 +429,10 @@ func controllerJobs(mux *http.ServeMux) {
 		mux.HandleFunc(jobContext+"openTerminalInFolder", HttpUpdateHandler[fnd.BulkRequest[openTerminalInFolder]](
 			0,
 			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[openTerminalInFolder]) {
-				log.Info("OpenTerminalInFolder start (%d items)", len(request.Items))
 				var errors []error
 				var responses []orc.OpenSession
 
 				for _, item := range request.Items {
-					log.Info("...Handling %v", item.Folder)
 					cleanupShellSessions()
 
 					shellSessionsMutex.Lock()
@@ -448,13 +446,11 @@ func controllerJobs(mux *http.ServeMux) {
 				}
 
 				if len(errors) > 0 {
-					log.Info("...OpenTerminalInFolder had error(s): %s", errors[0])
 					sendError(w, errors[0])
 				} else {
 					var response fnd.BulkResponse[orc.OpenSession]
 					response.Responses = responses
 
-					log.Info("...OpenTerminalInFolder has responded with %d items", len(response.Responses))
 					sendResponseOrError(w, response, nil)
 				}
 			}),
