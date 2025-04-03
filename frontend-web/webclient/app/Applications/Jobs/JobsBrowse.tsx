@@ -14,7 +14,8 @@ import {
     ResourceBrowser,
     ResourceBrowserOpts,
     ColumnTitleList,
-    checkCanConsumeResources
+    checkCanConsumeResources,
+    useAllocations
 } from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import Icon, {IconName} from "@/ui-components/Icon";
@@ -72,6 +73,8 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
 
     const filterCreatedBy = React.useRef("");
     const [projectMemberList, setProjectMemberList] = React.useState<React.ReactNode>(<></>);
+
+    const allocations = useAllocations(browserRef, "COMPUTE");
 
     if (!opts?.embedded && !opts?.isModal) {
         usePage("Jobs", SidebarTabId.RUNS);
@@ -400,6 +403,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
         <div ref={mountRef} />
         {switcher}
         {projectMemberList}
+        {allocations}
     </>;
 
     if (opts?.embedded) return <div>{main}</div>;

@@ -1577,14 +1577,16 @@ let openNodes: Record<string, boolean> = {};
 // =====================================================================================================================
 // Various helper components used by the main user-interface.
 
-export function ProgressBar({uq}: {
+export function ProgressBar({uq, width}: {
     uq: UsageAndQuota,
+    width?: string;
 }) {
     return <NewAndImprovedProgress
         limitPercentage={uq.display.maxUsablePercentage}
         label={uq.display.usageAndQuotaPercent}
         percentage={uq.display.percentageUsed}
         withWarning={uq.display.displayOverallocationWarning}
+        width={width}
     />;
 }
 

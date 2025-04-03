@@ -13,7 +13,7 @@ import {
 } from "@/UCloud/ResourceApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {doNothing} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, useAllocations} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -68,6 +68,7 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
     usePage("Public IPs", SidebarTabId.RESOURCES);
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
     const [productSelectorPortal, setProductSelectorPortal] = React.useState<React.ReactNode>(<></>);
+    const allocations = useAllocations(browserRef, "NETWORK_IP");
 
     const dateRanges = dateRangeFilters("Date created");
 
@@ -314,6 +315,7 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
             <div ref={mountRef} />
             {switcher}
             {productSelectorPortal}
+            {allocations}
         </>}
     />
 }
