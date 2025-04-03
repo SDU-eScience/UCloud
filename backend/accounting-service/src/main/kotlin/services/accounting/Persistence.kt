@@ -610,6 +610,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 data class AllocGroup(
                     val allocGroupId: Int,
                     val treeUsage: Long,
+                    val retiredTreeUsage: Long,
                     val quota: Long,
                 )
 
@@ -621,6 +622,11 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                     var combinedTreeUsage: Long = 0L,
                     var totalQuota: Long = 0L,
                     val allocGroups: ArrayList<AllocGroup> = ArrayList(),
+                    var retiredUsage: Long = 0L,
+                    var retiredCombinedUsage: Long = 0L,
+                    var totalAllocated: Long = 0L,
+                    var totalRetiredAllocation: Long = 0L,
+                    var wasLocked: Boolean = false,
                 )
 
                 val samples = HashMap<Int, Sample>()
@@ -631,6 +637,10 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         walletId = walletId,
                         localUsage = wallet.localUsage,
                         excessUsage = wallet.excessUsage,
+                        retiredUsage = wallet.localRetiredUsage,
+                        totalAllocated = wallet.totalAllocated,
+                        totalRetiredAllocation = wallet.totalRetiredAllocated,
+                        wasLocked = wallet.wasLocked,
                     )
 
                     wallet.allocationsByParent.forEach { (parentWalletId, group) ->
@@ -647,12 +657,14 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                             AllocGroup(
                                 group.id,
                                 group.treeUsage,
+                                group.retiredTreeUsage,
                                 quota
                             )
                         )
                     }
 
                     sample.combinedTreeUsage = sample.allocGroups.sumOf { it.treeUsage }
+                    sample.retiredCombinedUsage = sample.allocGroups.sumOf { it.retiredTreeUsage }
                     sample.totalQuota = sample.allocGroups.sumOf { it.quota }
                     samples[walletId] = sample
                 }
@@ -670,12 +682,21 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                             val allocGroupIds = ArrayList<Int>().also { setParameter("group_ids", it) }
                             val allocGroupQuotas = ArrayList<Long>().also { setParameter("group_quotas", it) }
                             val allocGroupTreeUsages = ArrayList<Long>().also { setParameter("group_usages", it) }
+                            val allocGroupRetiredTreeUsages = ArrayList<Long>().also { setParameter("group_retired_tree_usages", it) }
+
+                            val retiredUsages = ArrayList<Long>().also { setParameter("retired_usages", it) }
+                            val combinedRetiredTreeUsages = ArrayList<Long>().also { setParameter("combined_retired_tree_usages", it) }
+                            val totalAllocations = ArrayList<Long>().also { setParameter("total_allocations", it) }
+                            val totalRetiredAllocations = ArrayList<Long>().also { setParameter("total_retired_allocations", it) }
+                            val locks = ArrayList<Boolean>().also { setParameter("wallet_locks", it) }
+
 
                             for ((walletId, sample) in chunk) {
                                 for (group in sample.allocGroups) {
                                     allocGroupIds.add(group.allocGroupId)
                                     allocGroupQuotas.add(group.quota)
                                     allocGroupTreeUsages.add(group.treeUsage)
+                                    allocGroupRetiredTreeUsages.add(group.retiredTreeUsage)
                                 }
 
                                 walletIds.add(walletId)
@@ -683,24 +704,30 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                                 excessUsages.add(sample.excessUsage)
                                 combinedTreeUsages.add(sample.combinedTreeUsage)
                                 totalQuota.add(sample.totalQuota)
+                                retiredUsages.add(sample.retiredUsage)
+                                combinedRetiredTreeUsages.add(sample.retiredCombinedUsage)
+                                totalAllocations.add(sample.totalAllocated)
+                                totalRetiredAllocations.add(sample.totalRetiredAllocation)
+                                locks.add(sample.wasLocked)
                             }
                         },
                         """
-                            with 
+                            with
                                 alloc_groups as (
                                     select
                                         unnest(:wallet_ids::int[]) as wallet_id,
                                         unnest(:group_ids::int[]) as group_id,
                                         unnest(:group_quotas::int8[]) as group_quota,
-                                        unnest(:group_usages::int8[]) as group_usage
-
+                                        unnest(:group_usages::int8[]) as group_usage,
+                                        unnest(:group_retired_tree_usages::int8[]) as group_retired_tree_usage
                                 ),
                                 aggregated_groups as (
                                     select
                                         wallet_id,
                                         array_agg(group_id) as group_ids,
                                         array_agg(group_quota) as quotas,
-                                        array_agg(group_usage) as usages
+                                        array_agg(group_usage) as usages,
+                                        array_agg(group_retired_tree_usage) as retired_usages
                                     from alloc_groups
                                     group by wallet_id
                                 ),
@@ -710,24 +737,33 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                                         unnest(:local_usages::int8[]) as local_usage,
                                         unnest(:excess_usages::int8[]) as excess_usage,
                                         unnest(:combined_tree_usages::int8[]) as tree_usage,
-                                        unnest(:total_quotas::int8[]) as quota        
+                                        unnest(:total_quotas::int8[]) as quota        ,
+                                        unnest(:total_allocations::int8[]) as total_allocation,
+                                        unnest(:total_retired_allocations::int8[]) as total_retired_allocation,
+                                        unnest(:combined_retired_tree_usages::int8[]) as combined_retired_tree_usage,
+                                        unnest(:retired_usages::int8[]) as retired_usage,
+                                        unnest(:wallet_locks::bool[]) as was_locked
                                 ),
                                 combined as (
                                     select
                                         to_timestamp(:now / 1000.0) t, w.wallet_id, w.local_usage, w.excess_usage, w.tree_usage, w.quota,
+                                        w.total_allocation, w.total_retired_allocation, w.combined_retired_tree_usage, w.retired_usage, w.was_locked,
                                         coalesce(gr.group_ids, array[]::int4[]) as gr_id,
                                         coalesce(gr.quotas, array[]::int8[]) as gr_quota,
-                                        coalesce(gr.usages, array[]::int8[]) as gr_usage
+                                        coalesce(gr.usages, array[]::int8[]) as gr_usage,
+                                        coalesce(gr.retired_usages, array[]::int8[]) as gr_retired_usage
                                     from
-                                        wallets w 
-                                        left join aggregated_groups gr on w.wallet_id = gr.wallet_id
+                                        wallets w
+                                            left join aggregated_groups gr on w.wallet_id = gr.wallet_id
                                 )
-                                insert into accounting.wallet_samples_v2
-                                    (sampled_at, wallet_id, quota, local_usage, excess_usage, tree_usage, 
-                                    group_ids, tree_usage_by_group, quota_by_group)
-                                select t, wallet_id, quota, local_usage, excess_usage, tree_usage,
-                                    gr_id, gr_usage, gr_quota
-                                from combined
+                            insert into accounting.wallet_samples_v2
+                                (sampled_at, wallet_id, quota, local_usage, excess_usage, tree_usage,
+                                 group_ids, tree_usage_by_group, quota_by_group, retried_tree_usage_by_group, retired_usage, retired_tree_usage, total_allocated,
+                                 total_retired_allocation, was_locked)
+                            select t, wallet_id, quota, local_usage, excess_usage, tree_usage,
+                                   gr_id, gr_usage, gr_quota, gr_retired_usage, retired_usage, combined_retired_tree_usage,
+                                   total_allocation, total_retired_allocation, was_locked
+                            from combined
                         """.trimIndent()
                     )
                 }
