@@ -429,10 +429,12 @@ func controllerJobs(mux *http.ServeMux) {
 		mux.HandleFunc(jobContext+"openTerminalInFolder", HttpUpdateHandler[fnd.BulkRequest[openTerminalInFolder]](
 			0,
 			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[openTerminalInFolder]) {
+				log.Info("OpenTerminalInFolder start (%d items)", len(request.Items))
 				var errors []error
 				var responses []orc.OpenSession
 
 				for _, item := range request.Items {
+					log.Info("...Handling %v", item.Folder)
 					cleanupShellSessions()
 
 					shellSessionsMutex.Lock()
@@ -446,11 +448,13 @@ func controllerJobs(mux *http.ServeMux) {
 				}
 
 				if len(errors) > 0 {
+					log.Info("...OpenTerminalInFolder had error(s): %s", errors[0])
 					sendError(w, errors[0])
 				} else {
 					var response fnd.BulkResponse[orc.OpenSession]
 					response.Responses = responses
 
+					log.Info("...OpenTerminalInFolder has responded with %d items", len(response.Responses))
 					sendResponseOrError(w, response, nil)
 				}
 			}),
@@ -466,16 +470,20 @@ func controllerJobs(mux *http.ServeMux) {
 		mux.HandleFunc(
 			fmt.Sprintf("/ucloud/%v/websocket", cfg.Provider.Id),
 			func(writer http.ResponseWriter, request *http.Request) {
+				log.Info("Shell session start")
 				if ok := checkEnvoySecret(writer, request); !ok {
+					log.Info("Rejecting because of UCLOUD_SECRET mismatch")
 					return
 				}
 
 				conn, err := wsUpgrader.Upgrade(writer, request, nil)
 				defer util.SilentCloseIfOk(conn, err)
 				if err != nil {
-					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
+					log.Info("Expected a websocket connection, but couldn't upgrade: %v", err)
 					return
 				}
+
+				log.Info("...Upgraded!")
 
 				connMutex := sync.Mutex{}
 
@@ -485,11 +493,13 @@ func controllerJobs(mux *http.ServeMux) {
 					timeout := 30
 					for util.IsAlive {
 						if session != nil && !session.Alive {
+							log.Info("Session break !alive")
 							_ = conn.Close()
 							break
 						}
 
 						if timeout <= 0 && session == nil {
+							log.Info("Session break timeout")
 							_ = conn.Close()
 							break
 						}
@@ -499,18 +509,22 @@ func controllerJobs(mux *http.ServeMux) {
 					}
 				}()
 
+				log.Info("...1")
 				for util.IsAlive {
 					if session != nil && !session.Alive {
+						log.Info("...2")
 						break
 					}
 
 					messageType, data, err := conn.ReadMessage()
 					if err != nil {
+						log.Info("...3")
 						break
 					}
 
 					if messageType != ws.TextMessage {
-						log.Debug("Only handling text messages but got a %v", messageType)
+						log.Info("Only handling text messages but got a %v", messageType)
+						log.Info("...4")
 						continue
 					}
 
@@ -518,6 +532,7 @@ func controllerJobs(mux *http.ServeMux) {
 					err = json.Unmarshal(data, &requestMessage)
 					if err != nil {
 						log.Info("Failed to unmarshal websocket message: %v", err)
+						log.Info("...5")
 						break
 					}
 
@@ -525,16 +540,20 @@ func controllerJobs(mux *http.ServeMux) {
 					err = json.Unmarshal(requestMessage.Payload, &req)
 					if err != nil {
 						log.Info("Failed to unmarshal follow message: %v", err)
+						log.Info("...6")
 						break
 					}
 
 					if session == nil {
+						log.Info("...No session...")
 						if req.Type == "initialize" {
+							log.Info("...Init")
 							shellSessionsMutex.Lock()
 							s, ok := shellSessions[req.SessionIdentifier]
 							session = s
 							shellSessionsMutex.Unlock()
 							if !ok || session == nil {
+								log.Info("Bad session")
 								break
 							}
 
@@ -557,9 +576,12 @@ func controllerJobs(mux *http.ServeMux) {
 								}
 							}
 
+							log.Info("Ready to start stuff")
+
 							go func() {
 								Jobs.HandleShell(session, req.Cols, req.Rows)
 								session.Alive = false
+								log.Info("Jobs.HandleShell done")
 							}()
 
 							connMutex.Lock()
@@ -569,6 +591,8 @@ func controllerJobs(mux *http.ServeMux) {
 								Payload:  json.RawMessage(`{"type":"initialize"}`),
 							})
 							connMutex.Unlock()
+
+							log.Info("OK")
 						}
 						continue
 					} else {

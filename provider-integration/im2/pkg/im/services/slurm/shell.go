@@ -11,28 +11,36 @@ import (
 )
 
 func handleFolderShell(session *ctrl.ShellSession, cols, rows int) {
+	log.Info("Folder shell")
 	homedir, err := os.UserHomeDir()
 	workDir := util.OptNone[string]()
 	if err == nil {
+		log.Info("Fs 1")
 		workDir.Set(homedir)
 	}
 
 	internalPath, ok := UCloudToInternal(session.Folder)
 	if ok {
+		log.Info("Fs 2")
 		workDir.Set(internalPath)
 	}
 
 	command := []string{"/bin/bash", "--login"}
 
+	log.Info("Fs create and fork pty")
 	masterFd, pid, err := CreateAndForkPty(command, nil, workDir)
 	if err != nil {
+		log.Info("Fs 3: %s", err)
 		fmt.Println("Error:", err)
 		return
 	}
 
+	log.Info("Fs 4")
 	ResizePty(masterFd, cols, rows)
+	log.Info("Fs 5")
 
 	go func() {
+		log.Info("Fs read ready")
 		readBuffer := make([]byte, 1024*4)
 		for util.IsAlive && session.Alive {
 			_ = masterFd.SetReadDeadline(time.Now().Add(1 * time.Second))
@@ -47,6 +55,7 @@ func handleFolderShell(session *ctrl.ShellSession, cols, rows int) {
 				session.EmitData(readBuffer[:count])
 			}
 		}
+		log.Info("Fs read break")
 	}()
 
 	for util.IsAlive && session.Alive {
@@ -54,22 +63,27 @@ func handleFolderShell(session *ctrl.ShellSession, cols, rows int) {
 		case event := <-session.InputEvents:
 			switch event.Type {
 			case ctrl.ShellEventTypeInput:
+				log.Info("Fs 7")
 				_, err = masterFd.Write([]byte(event.Data))
 				if err != nil {
+					log.Info("Fs 8")
 					session.Alive = false
 					log.Info("Error while writing to master: %v", err)
 					break
 				}
 
 			case ctrl.ShellEventTypeResize:
+				log.Info("Fs 9")
 				ResizePty(masterFd, event.Cols, event.Rows)
 			}
 
 		case _ = <-time.After(1 * time.Second):
+			log.Info("Fs 10")
 			continue
 		}
 	}
 
+	log.Info("Fs 11")
 	masterFd.Close()
 	unix.Kill(int(pid), unix.SIGTERM)
 }
@@ -147,6 +161,7 @@ func handleJobShell(session *ctrl.ShellSession, cols, rows int) {
 }
 
 func handleShell(session *ctrl.ShellSession, cols, rows int) {
+	log.Info("handleShell(%v, %v, %v, %v)", session.Folder, session.Job, cols, rows)
 	if session.Folder == "" {
 		handleJobShell(session, cols, rows)
 	} else {
