@@ -470,9 +470,7 @@ func controllerJobs(mux *http.ServeMux) {
 		mux.HandleFunc(
 			fmt.Sprintf("/ucloud/%v/websocket", cfg.Provider.Id),
 			func(writer http.ResponseWriter, request *http.Request) {
-				log.Info("Shell session start")
 				if ok := checkEnvoySecret(writer, request); !ok {
-					log.Info("Rejecting because of UCLOUD_SECRET mismatch")
 					return
 				}
 
@@ -483,8 +481,6 @@ func controllerJobs(mux *http.ServeMux) {
 					return
 				}
 
-				log.Info("...Upgraded!")
-
 				connMutex := sync.Mutex{}
 
 				var session *ShellSession = nil
@@ -493,13 +489,11 @@ func controllerJobs(mux *http.ServeMux) {
 					timeout := 30
 					for util.IsAlive {
 						if session != nil && !session.Alive {
-							log.Info("Session break !alive")
 							_ = conn.Close()
 							break
 						}
 
 						if timeout <= 0 && session == nil {
-							log.Info("Session break timeout")
 							_ = conn.Close()
 							break
 						}
@@ -509,22 +503,18 @@ func controllerJobs(mux *http.ServeMux) {
 					}
 				}()
 
-				log.Info("...1")
 				for util.IsAlive {
 					if session != nil && !session.Alive {
-						log.Info("...2")
 						break
 					}
 
 					messageType, data, err := conn.ReadMessage()
 					if err != nil {
-						log.Info("...3")
 						break
 					}
 
 					if messageType != ws.TextMessage {
 						log.Info("Only handling text messages but got a %v", messageType)
-						log.Info("...4")
 						continue
 					}
 
@@ -532,7 +522,6 @@ func controllerJobs(mux *http.ServeMux) {
 					err = json.Unmarshal(data, &requestMessage)
 					if err != nil {
 						log.Info("Failed to unmarshal websocket message: %v", err)
-						log.Info("...5")
 						break
 					}
 
@@ -540,14 +529,11 @@ func controllerJobs(mux *http.ServeMux) {
 					err = json.Unmarshal(requestMessage.Payload, &req)
 					if err != nil {
 						log.Info("Failed to unmarshal follow message: %v", err)
-						log.Info("...6")
 						break
 					}
 
 					if session == nil {
-						log.Info("...No session...")
 						if req.Type == "initialize" {
-							log.Info("...Init")
 							shellSessionsMutex.Lock()
 							s, ok := shellSessions[req.SessionIdentifier]
 							session = s
@@ -576,12 +562,9 @@ func controllerJobs(mux *http.ServeMux) {
 								}
 							}
 
-							log.Info("Ready to start stuff")
-
 							go func() {
 								Jobs.HandleShell(session, req.Cols, req.Rows)
 								session.Alive = false
-								log.Info("Jobs.HandleShell done")
 							}()
 
 							connMutex.Lock()
@@ -591,8 +574,6 @@ func controllerJobs(mux *http.ServeMux) {
 								Payload:  json.RawMessage(`{"type":"initialize"}`),
 							})
 							connMutex.Unlock()
-
-							log.Info("OK")
 						}
 						continue
 					} else {
@@ -643,8 +624,6 @@ func controllerJobs(mux *http.ServeMux) {
 					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
 					return
 				}
-
-				log.Info("We are now listening for logs (probably)")
 
 				connMutex := sync.Mutex{}
 				sendMessage := func(message any) error {
