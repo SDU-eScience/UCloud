@@ -158,7 +158,7 @@ func InitTaskSystem() {
 
 			case task := <-taskFrontendQueue:
 				b, _ := json.Marshal(task)
-				log.Info(string(b))
+				log.Info("%s", string(b))
 
 				if task.HasUCloudTask {
 					knownTasks[task.Id] = task

@@ -287,7 +287,7 @@ func LoadNextSearchBucketCount(id string) int {
 		)
 
 		if ok {
-			return row.SearchNextBucketCount
+			return max(16, row.SearchNextBucketCount)
 		} else {
 			return 4096
 		}

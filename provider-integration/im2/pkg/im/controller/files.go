@@ -656,6 +656,9 @@ func controllerFiles(mux *http.ServeMux) {
 		mux.HandleFunc(
 			uploadContext,
 			func(w http.ResponseWriter, r *http.Request) {
+				if ok := checkEnvoySecret(w, r); !ok {
+					return
+				}
 				conn, err := wsUpgrader.Upgrade(w, r, nil)
 				defer util.SilentCloseIfOk(conn, err)
 				token := r.URL.Query().Get("token")

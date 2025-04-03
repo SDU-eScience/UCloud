@@ -466,6 +466,10 @@ func controllerJobs(mux *http.ServeMux) {
 		mux.HandleFunc(
 			fmt.Sprintf("/ucloud/%v/websocket", cfg.Provider.Id),
 			func(writer http.ResponseWriter, request *http.Request) {
+				if ok := checkEnvoySecret(writer, request); !ok {
+					return
+				}
+
 				conn, err := wsUpgrader.Upgrade(writer, request, nil)
 				defer util.SilentCloseIfOk(conn, err)
 				if err != nil {
@@ -530,6 +534,9 @@ func controllerJobs(mux *http.ServeMux) {
 							s, ok := shellSessions[req.SessionIdentifier]
 							session = s
 							shellSessionsMutex.Unlock()
+							if !ok || session == nil {
+								break
+							}
 
 							session.InputEvents = make(chan ShellEvent)
 							session.EmitData = func(data []byte) {
@@ -562,9 +569,6 @@ func controllerJobs(mux *http.ServeMux) {
 								Payload:  json.RawMessage(`{"type":"initialize"}`),
 							})
 							connMutex.Unlock()
-							if !ok {
-								break
-							}
 						}
 						continue
 					} else {
@@ -908,6 +912,10 @@ func controllerJobs(mux *http.ServeMux) {
 		mux.HandleFunc(
 			fmt.Sprintf("/ucloud/%v/vnc", cfg.Provider.Id),
 			func(writer http.ResponseWriter, request *http.Request) {
+				if ok := checkEnvoySecret(writer, request); !ok {
+					return
+				}
+
 				var idAndRank jobIdAndRank
 				token := request.URL.Query().Get("token")
 				webSessionsMutex.Lock()
