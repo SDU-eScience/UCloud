@@ -65,12 +65,14 @@ func initSyncthing() {
 }
 
 func syncthingRetrieveLegacyConfiguration(owner orc.ResourceOwner) util.Option[json.RawMessage] {
-	internal, _, err := initSyncthingFolderEx(owner, false)
+	drive, subpath, err := openSyncthingFolderEx(owner, false)
+	defer drive.Close()
+
 	if err != nil {
 		return util.OptNone[json.RawMessage]()
 	} else {
-		fd, ok := filesystem.OpenFile(filepath.Join(internal, "ucloud_config.json"), unix.O_RDONLY, 0)
-		if !ok {
+		fd, err := drive.OpenSubPath(filepath.Join(subpath, "ucloud_config.json"), unix.O_RDONLY, 0)
+		if err != nil {
 			return util.OptNone[json.RawMessage]()
 		} else {
 			defer util.SilentClose(fd)
@@ -88,33 +90,32 @@ func syncthingRetrieveLegacyConfiguration(owner orc.ResourceOwner) util.Option[j
 	return util.OptNone[json.RawMessage]()
 }
 
-func initSyncthingFolder(owner orc.ResourceOwner) (string, string, error) {
-	return initSyncthingFolderEx(owner, true)
+func openSyncthingFolder(owner orc.ResourceOwner) (filesystem.OpenedDrive, string, error) {
+	return openSyncthingFolderEx(owner, true)
 }
 
-func initSyncthingFolderEx(owner orc.ResourceOwner, init bool) (string, string, error) {
-	internalFolder, drive, err := filesystem.InitializeMemberFiles(owner.CreatedBy, util.OptNone[string]())
+func openSyncthingFolderEx(owner orc.ResourceOwner, init bool) (filesystem.OpenedDrive, string, error) {
+	memberDrive, err := filesystem.InitializeMemberFiles(owner.CreatedBy, util.OptNone[string]())
 	if err != nil {
-		return "", "", err
+		return filesystem.OpenedDrive{}, "", err
 	}
 
-	ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, internalFolder)
+	drive, ok := filesystem.OpenDrive(memberDrive)
 	if !ok {
-		return "", "", util.ServerHttpError("Could not find home folder for syncthing")
+		drive.Close()
+		return filesystem.OpenedDrive{}, "", err
 	}
 
-	internalSyncthing := filepath.Join(internalFolder, "Syncthing")
-	ucloudSyncthing := filepath.Join(ucloudPath, "Syncthing")
-
-	fd, ok := filesystem.OpenFile(internalSyncthing, unix.O_RDONLY, 0)
-	if ok {
-		util.SilentClose(fd)
-	} else {
-		if init {
-			_ = filesystem.DoCreateFolder(internalSyncthing)
+	subpath := "Syncthing"
+	if init {
+		err = drive.Mkdirs(subpath, 0770)
+		if err != nil {
+			drive.Close()
+			return filesystem.OpenedDrive{}, "", err
 		}
 	}
-	return internalSyncthing, ucloudSyncthing, nil
+
+	return drive, subpath, nil
 }
 
 func syncthingBeforeMonitor(pods []core.Pod, jobs map[string]*orc.Job, appsByJobId map[string]ctrl.IAppRunningConfiguration) {
@@ -155,10 +156,12 @@ func syncthingGetAssignedPort(pod *core.Pod) util.Option[int] {
 
 func syncthingMutateJobSpec(owner orc.ResourceOwner, spec *orc.JobSpecification) error {
 	spec.Application.Version = "1"
-	_, ucloudSyncthing, err := initSyncthingFolder(owner)
+	drive, subpath, err := openSyncthingFolder(owner)
+	defer drive.Close()
 	if err != nil {
 		return err
 	}
+	ucloudSyncthing := drive.SubPathToUCloud(subpath)
 	spec.Parameters["stateFolder"] = orc.AppParameterValueFile(ucloudSyncthing, false)
 	return nil
 }
@@ -173,10 +176,12 @@ func syncthingValidateConfiguration(job *orc.Job, configuration json.RawMessage)
 }
 
 func syncthingResetConfiguration(job *orc.Job, configuration json.RawMessage) (json.RawMessage, error) {
-	internal, _, err := initSyncthingFolder(job.Owner)
+	drive, subpath, err := openSyncthingFolder(job.Owner)
+	defer drive.Close()
 	if err == nil {
-		_ = filesystem.DoDeleteFile(internal)
-		_, _, _ = initSyncthingFolder(job.Owner)
+		_ = filesystem.DoDeleteFile(drive, subpath)
+		drive, _, _ = openSyncthingFolder(job.Owner)
+		drive.Close()
 	} else {
 		return json.RawMessage{}, fmt.Errorf("failed to reset configuration")
 	}
@@ -228,20 +233,21 @@ func syncthingMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage
 		}
 	}
 
-	internalSyncthing, _, err := initSyncthingFolder(job.Owner)
+	drive, subpath, err := openSyncthingFolder(job.Owner)
+	defer drive.Close()
 	if err != nil {
 		log.Warn("Could not find syncthing folder: %v", err)
 	} else {
 		// Write configuration to filesystem for the job to consume
-		fd, ok := filesystem.OpenFile(filepath.Join(internalSyncthing, "ucloud_config.json"), unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0660)
-		if ok {
+		fd, err := drive.OpenSubPath(filepath.Join(subpath, "ucloud_config.json"), unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0660)
+		if err == nil {
 			normalizedConfig, _ := json.Marshal(config)
 			_, _ = fd.Write(normalizedConfig)
 			util.SilentClose(fd)
 		}
 
-		fd, ok = filesystem.OpenFile(filepath.Join(internalSyncthing, "job_id.txt"), unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0660)
-		if ok {
+		fd, err = drive.OpenSubPath(filepath.Join(subpath, "job_id.txt"), unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0660)
+		if err == nil {
 			_, _ = fd.Write([]byte(job.Id))
 			util.SilentClose(fd)
 		}
@@ -260,9 +266,15 @@ func syncthingMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.P
 
 		if container.Name == ContainerUserJob {
 			container.ImagePullPolicy = "Always"
-			internalSyncthing, _, err := initSyncthingFolder(job.Owner)
+			drive, subpath, err := openSyncthingFolder(job.Owner)
 			if err != nil {
 				return err
+			}
+			ucloudPath := drive.SubPathToUCloud(subpath)
+			drive.Close()
+			internalSyncthing, ok := filesystem.IReallyNeedUCloudToInternal(ucloudPath)
+			if !ok {
+				return fmt.Errorf("could not find syncthing folder")
 			}
 
 			internalSyncthingSubPath, ok := strings.CutPrefix(internalSyncthing, shared.ServiceConfig.FileSystem.MountPoint+"/")

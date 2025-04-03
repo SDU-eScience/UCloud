@@ -8,11 +8,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
@@ -37,23 +37,22 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		}
 	}
 
-	jobFolder, drive, err := FindJobFolder(job)
+	drive, jobFolderSubPath, err := CreateAndOpenJobFolder(job)
+	defer drive.Close()
 	if err != nil {
 		return fmt.Errorf("failed to initialize job folder")
 	}
+	ucloudJobFolder := drive.SubPathToUCloud(jobFolderSubPath)
 
 	if rank == 0 {
-		ucloudFolder, ok := filesystem.InternalToUCloudWithDrive(drive, jobFolder)
-		if ok {
-			_ = ctrl.TrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
-				{
-					Id: job.Id,
-					Update: orc.JobUpdate{
-						OutputFolder: util.OptValue[string](ucloudFolder),
-					},
+		_ = ctrl.TrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
+			{
+				Id: job.Id,
+				Update: orc.JobUpdate{
+					OutputFolder: util.OptValue[string](ucloudJobFolder),
 				},
-			})
-		}
+			},
+		})
 	}
 
 	// TODO Get these from configuration
@@ -203,7 +202,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	// Mounts
 	// -----------------------------------------------------------------------------------------------------------------
-	internalToPod := prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
+
+	internalToPod := prepareMountsOnJobCreate(job, pod, userContainer, filepath.Join(drive.AbsInternalPath, jobFolderSubPath))
 
 	// Modules
 	// -----------------------------------------------------------------------------------------------------------------
@@ -211,7 +211,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	// Invocation
 	// -----------------------------------------------------------------------------------------------------------------
-	prepareInvocationOnJobCreate(job, rank, pod, userContainer, internalToPod, jobFolder)
+	prepareInvocationOnJobCreate(job, rank, pod, userContainer, internalToPod, drive, jobFolderSubPath)
 
 	// Multi-node sidecar
 	// -----------------------------------------------------------------------------------------------------------------

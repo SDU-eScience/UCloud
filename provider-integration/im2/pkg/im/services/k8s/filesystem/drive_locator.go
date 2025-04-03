@@ -2,10 +2,11 @@ package filesystem
 
 import (
 	"fmt"
+	"golang.org/x/sys/unix"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
-	"ucloud.dk/pkg/apm"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/shared"
 	orc "ucloud.dk/pkg/orchestrators"
@@ -140,7 +141,160 @@ func ParseDriveDescriptor(providerId util.Option[string]) (DriveDescriptor, bool
 
 var shareCache = util.NewCache[string, orc.Share](1 * time.Minute)
 
-func DriveToLocalPath(drive *orc.Drive) (string, bool) {
+type OpenedDrive struct {
+	root            *os.Root
+	AbsInternalPath string
+	Drive           orc.Drive
+}
+
+func (d *OpenedDrive) OpenUCloud(ucloudPath string, flag int, mode os.FileMode) (*os.File, error) {
+	if d.root == nil {
+		return nil, fmt.Errorf("invalid drive")
+	}
+
+	subpath, ok := strings.CutPrefix(ucloudPath, "/"+d.Drive.Id+"/")
+	if !ok {
+		return nil, fmt.Errorf("invalid path passed to OpenUCloud")
+	}
+
+	return d.OpenSubPath(subpath, flag, mode)
+}
+
+func (d *OpenedDrive) LStatSubPath(subpath string) (os.FileInfo, error) {
+	if d.root == nil {
+		return nil, fmt.Errorf("invalid drive")
+	}
+
+	return d.root.Lstat(subpath)
+}
+
+func (d *OpenedDrive) OpenSubPath(subpath string, flag int, mode os.FileMode) (*os.File, error) {
+	if d.root == nil {
+		return nil, fmt.Errorf("invalid drive")
+	}
+
+	fd, err := d.root.OpenFile(filepath.Clean(subpath), flag, mode)
+	if err == nil {
+		if mode&unix.O_CREAT != 0 && (mode&unix.O_WRONLY != 0 || mode&unix.O_RDWR != 0) {
+			_ = unix.Fchown(int(fd.Fd()), DefaultUid, DefaultUid)
+		}
+	}
+
+	return fd, err
+}
+
+func (d *OpenedDrive) SubPathToUCloud(subpath string) string {
+	return fmt.Sprintf("/%s/%s", d.Drive.Id, subpath)
+}
+
+func (d *OpenedDrive) Close() {
+	if d.root != nil {
+		_ = d.root.Close()
+	}
+}
+
+func (d *OpenedDrive) Mkdirs(subpath string, mode os.FileMode) error {
+	components := util.Components(subpath)
+
+	builder := "."
+	for i, comp := range components {
+		isLast := i == len(components)-1
+		fileMode := os.FileMode(0770)
+		if isLast {
+			fileMode = mode
+		}
+
+		builder += "/"
+		builder += comp
+
+		err := d.root.Mkdir(builder, fileMode)
+		if err == nil {
+			file, err := d.root.OpenFile(builder, 0, 0)
+			if err == nil {
+				_ = file.Chown(DefaultUid, DefaultUid)
+				util.SilentClose(file)
+			}
+		} else if !os.IsExist(err) {
+			return err
+		}
+	}
+	return nil
+}
+
+func safeOpenRoot(path string) (*os.Root, error) {
+	// NOTE(Dan): This function is required to ensure that no symlinks are followed when opening the root which could
+	// point to something that is not already user-controlled. This is needed mostly because os.OpenRoot itself doesn't
+	// guarantee that a symlink is not followed when opening the root.
+
+	components := util.Components(path)
+	if len(components) == 0 {
+		return nil, fmt.Errorf("bad path")
+	}
+
+	root, err := os.OpenRoot("/" + components[0])
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 1; i < len(components); i++ {
+		newRoot, err := root.OpenRoot(components[i])
+		_ = root.Close()
+		if err != nil {
+			return nil, err
+		}
+
+		root = newRoot
+	}
+
+	return root, nil
+}
+
+func OpenDrive(drive *orc.Drive) (OpenedDrive, bool) {
+	internalPath, ok := driveToLocalPath(drive)
+	if !ok {
+		return OpenedDrive{}, false
+	}
+
+	root, err := safeOpenRoot(internalPath)
+	if err != nil {
+		return OpenedDrive{}, false
+	}
+
+	return OpenedDrive{
+		root:            root,
+		AbsInternalPath: internalPath,
+		Drive:           *drive,
+	}, true
+}
+
+func OpenDriveAtUCloudPath(path string) (OpenedDrive, string, bool) {
+	driveId, ok := DriveIdFromUCloudPath(path)
+	if !ok {
+		return OpenedDrive{}, "", false
+	}
+
+	drive, ok := ResolveDrive(driveId)
+	if !ok {
+		return OpenedDrive{}, "", false
+	}
+
+	subPath, ok := strings.CutPrefix(path, fmt.Sprintf("/%s/", driveId))
+	if path == "/"+driveId {
+		subPath, ok = ".", true
+	}
+	if !ok {
+		return OpenedDrive{}, "", false
+	}
+
+	openedDrive, ok := OpenDrive(drive)
+	if ok {
+		return openedDrive, subPath, true
+	} else {
+		return OpenedDrive{}, "", false
+	}
+}
+
+func driveToLocalPath(drive *orc.Drive) (string, bool) {
 	descriptor, ok := ParseDriveDescriptor(util.OptValue(drive.ProviderGeneratedId))
 	mnt := shared.ServiceConfig.FileSystem.MountPoint
 
@@ -181,7 +335,7 @@ func DriveToLocalPath(drive *orc.Drive) (string, bool) {
 		if !ok {
 			return "/dev/null", false
 		} else {
-			return UCloudToInternal(share.Specification.SourceFilePath)
+			return ucloudToInternal(share.Specification.SourceFilePath)
 		}
 
 	case DriveDescriptorTypeCollection:
@@ -215,17 +369,13 @@ func ResolveDriveByUCloudPath(path string) (*orc.Drive, string, bool) {
 	return drive, subpath, true
 }
 
-func ListDrivesByOwner(owner apm.WalletOwner) []*orc.Drive {
-	return nil
-}
-
-func UCloudToInternal(path string) (string, bool) {
+func ucloudToInternal(path string) (string, bool) {
 	drive, subpath, ok := ResolveDriveByUCloudPath(path)
 	if !ok {
 		return "", false
 	}
 
-	basePath, ok := DriveToLocalPath(drive)
+	basePath, ok := driveToLocalPath(drive)
 	if !ok {
 		return "/dev/null", false
 	}
@@ -233,9 +383,15 @@ func UCloudToInternal(path string) (string, bool) {
 	return filepath.Join(basePath, subpath), true
 }
 
-func InternalToUCloudWithDrive(drive *orc.Drive, path string) (string, bool) {
+func IReallyNeedUCloudToInternal(path string) (string, bool) {
+	// NOTE(Dan): Are you sure you do not need OpenDriveAtUCloudPath() instead? If you are going to use any of the
+	// files directly from the code, then you should really use OpenDrive/OpenDriveAtUCloudPath instead.
+	return ucloudToInternal(path)
+}
+
+func internalToUCloudWithDrive(drive *orc.Drive, path string) (string, bool) {
 	cleanPath := filepath.Clean(path)
-	basePath, ok := DriveToLocalPath(drive)
+	basePath, ok := driveToLocalPath(drive)
 	basePath += "/"
 
 	if !ok {

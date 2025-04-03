@@ -47,7 +47,6 @@ func Init() ctrl.JobsService {
 	initIntegratedTerminal()
 
 	loadIApps()
-	LoadNixModules()
 
 	return ctrl.JobsService{
 		Terminate:                terminate,
@@ -75,16 +74,21 @@ func findPodByJobIdAndRank(jobId string, rank int) util.Option[*core.Pod] {
 	}
 }
 
-// FindJobFolder finds the most relevant job folder for a given job. The returned path will be internal.
-func FindJobFolder(job *orc.Job) (string, *orc.Drive, error) {
-	path, drive, err := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, util.OptStringIfNotEmpty(job.Owner.Project))
+// CreateAndOpenJobFolder finds the most relevant job folder for a given job
+func CreateAndOpenJobFolder(job *orc.Job) (filesystem.OpenedDrive, string, error) {
+	memberDrive, err := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, util.OptStringIfNotEmpty(job.Owner.Project))
 	if err != nil {
-		return "", nil, err
+		return filesystem.OpenedDrive{}, "", err
 	}
 
-	jobFolderPath := filepath.Join(path, "Jobs", job.Status.ResolvedApplication.Metadata.Title, job.Id)
-	_ = filesystem.DoCreateFolder(jobFolderPath)
-	return jobFolderPath, drive, nil
+	drive, ok := filesystem.OpenDrive(memberDrive) // NOTE(Dan): Caller must close drive
+	if !ok {
+		return filesystem.OpenedDrive{}, "", err
+	}
+
+	subPath := filepath.Join("Jobs", job.Status.ResolvedApplication.Metadata.Title, job.Id)
+	_ = drive.Mkdirs(subPath, 0770)
+	return drive, subPath, nil
 }
 
 type trackedLogFile struct {
@@ -152,7 +156,8 @@ func follow(session *ctrl.FollowJobSession) {
 		return
 	}
 
-	jobFolder, _, err := FindJobFolder(job)
+	memberDrive, jobFolderSubPath, err := CreateAndOpenJobFolder(job)
+	defer memberDrive.Close()
 	if err != nil {
 		return
 	}
@@ -161,8 +166,8 @@ func follow(session *ctrl.FollowJobSession) {
 		_, exists := logFiles[baseName]
 
 		if !exists {
-			stdout, ok1 := filesystem.OpenFile(filepath.Join(jobFolder, baseName), unix.O_RDONLY, 0)
-			if ok1 {
+			stdout, err := memberDrive.OpenSubPath(filepath.Join(jobFolderSubPath, baseName), unix.O_RDONLY, 0)
+			if err == nil {
 				file.File = stdout
 				logFiles[baseName] = file
 			}
@@ -269,12 +274,14 @@ func terminate(request ctrl.JobTerminateRequest) error {
 
 	// Cleaning up mount dirs
 	// -----------------------------------------------------------------------------------------------------------------
-	internalJobFolder, _, err := FindJobFolder(request.Job)
+	memberDrive, jobFolderSubPath, err := CreateAndOpenJobFolder(request.Job)
+	defer memberDrive.Close()
+
 	if err == nil {
-		mounts := calculateMounts(request.Job, internalJobFolder)
+		mounts := calculateMounts(request.Job, filepath.Join(memberDrive.AbsInternalPath, jobFolderSubPath))
 		if len(mounts.Folders) > 0 {
-			jobFolder, ok := filesystem.OpenFile(internalJobFolder, os.O_RDONLY, 0)
-			if ok {
+			jobFolder, err := memberDrive.OpenSubPath(jobFolderSubPath, os.O_RDONLY, 0)
+			if err == nil {
 				defer util.SilentClose(jobFolder)
 
 				for _, folder := range mounts.Folders {
@@ -286,9 +293,9 @@ func terminate(request ctrl.JobTerminateRequest) error {
 								util.SilentClose(child)
 
 								if err == nil && len(folderChildren) == 0 {
-									_ = filesystem.DoDeleteFile(filepath.Join(internalJobFolder, folderName))
+									_ = filesystem.DoDeleteFile(memberDrive, filepath.Join(jobFolderSubPath, folderName))
 								} else {
-									log.Info("Refusing to delete %v it has children.", filepath.Join(internalJobFolder, folderName))
+									log.Info("Refusing to delete %v it has children.", filepath.Join(jobFolderSubPath, folderName))
 								}
 							}
 						}
@@ -334,7 +341,7 @@ func terminate(request ctrl.JobTerminateRequest) error {
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
-	return RequestNixParameter(app)
+	return nil
 }
 
 func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, error) {

@@ -55,7 +55,9 @@ func calculateMounts(job *orc.Job, internalJobFolder string) mountResult {
 	}
 
 	ucloudToSubpath := func(ucloudPath string) (string, bool) {
-		path, ok := filesystem.UCloudToInternal(ucloudPath)
+		// NOTE(Dan): In this case, we really need it since it will be passed directly to a container which will have
+		// to mount it like this.
+		path, ok := filesystem.IReallyNeedUCloudToInternal(ucloudPath)
 		if !ok {
 			return "", false
 		}
@@ -165,7 +167,7 @@ func prepareMountsOnJobCreate(
 	job *orc.Job,
 	pod *core.Pod,
 	userContainer *core.Container,
-	jobFolder string,
+	internalJobFolder string,
 ) map[string]string {
 	spec := &pod.Spec
 
@@ -180,7 +182,7 @@ func prepareMountsOnJobCreate(
 		},
 	})
 
-	mounts := calculateMounts(job, jobFolder)
+	mounts := calculateMounts(job, internalJobFolder)
 	folders := mounts.Folders
 	result := map[string]string{}
 	mountedDrivesAsReadOnly := mounts.MountedDrivesAsReadOnly

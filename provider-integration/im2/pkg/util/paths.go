@@ -29,17 +29,9 @@ func Parents(path string) []string {
 }
 
 func Parent(path string) string {
-	allParents := Parents(path)
-	if len(allParents) == 0 {
-		return path
-	}
-	return allParents[len(allParents)-1]
+	return filepath.Dir(path)
 }
 
 func FileName(path string) string {
-	lastIdx := strings.LastIndex(path, "/")
-	if lastIdx == -1 {
-		return path
-	}
-	return path[lastIdx+1:]
+	return filepath.Base(path)
 }

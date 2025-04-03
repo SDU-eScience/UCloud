@@ -2,7 +2,8 @@ package filesystem
 
 import (
 	"fmt"
-	"path/filepath"
+	"golang.org/x/sys/unix"
+	"os"
 	"strings"
 	"ucloud.dk/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
@@ -14,16 +15,16 @@ import (
 
 // InitializeMemberFiles ensures that a drive exists which corresponds to the member files of the given workspace.
 // The returned path will be internal.
-func InitializeMemberFiles(username string, project util.Option[string]) (string, *orc.Drive, error) {
+func InitializeMemberFiles(username string, project util.Option[string]) (*orc.Drive, error) {
 	if strings.Contains(username, "..") || strings.Contains(username, "/") {
-		return "", nil, fmt.Errorf("unexpected username: %s", username)
+		return nil, fmt.Errorf("unexpected username: %s", username)
 	}
 
 	descriptor := DriveDescriptor{}
 
 	if project.Present {
 		if strings.Contains(project.Value, "..") || strings.Contains(project.Value, "/") {
-			return "", nil, fmt.Errorf("unexpected project: %s", project.Value)
+			return nil, fmt.Errorf("unexpected project: %s", project.Value)
 		}
 
 		descriptor.Type = DriveDescriptorTypeMemberFiles
@@ -36,7 +37,7 @@ func InitializeMemberFiles(username string, project util.Option[string]) (string
 
 	providerId := descriptor.ToProviderId()
 	if !providerId.Present {
-		return "", nil, fmt.Errorf("unexpected error in ToProviderId()")
+		return nil, fmt.Errorf("unexpected error in ToProviderId()")
 	}
 
 	retrievedDrive, ok := ctrl.RetrieveDriveByProviderId([]string{providerId.Value}, []string{""})
@@ -60,12 +61,12 @@ func InitializeMemberFiles(username string, project util.Option[string]) (string
 
 		driveId, err := orc.RegisterDrive(resource)
 		if err != nil {
-			return "", nil, fmt.Errorf("failed to register drive: %s", err.Error())
+			return nil, fmt.Errorf("failed to register drive: %s", err.Error())
 		}
 
 		drive, err := orc.RetrieveDrive(driveId)
 		if err != nil {
-			return "", nil, fmt.Errorf("failed to register drive (retrieve): %s", err.Error())
+			return nil, fmt.Errorf("failed to register drive (retrieve): %s", err.Error())
 		}
 		retrievedDrive = &drive
 		ctrl.TrackDrive(&drive)
@@ -73,20 +74,27 @@ func InitializeMemberFiles(username string, project util.Option[string]) (string
 	}
 
 	if retrievedDrive == nil {
-		return "", nil, fmt.Errorf("retrievedDrive should not be nil now")
+		return nil, fmt.Errorf("retrievedDrive should not be nil now")
 	}
 
-	result, ok := DriveToLocalPath(retrievedDrive)
+	result, ok := driveToLocalPath(retrievedDrive)
 
 	if !ok {
-		return "", nil, fmt.Errorf("DriveToLocalPath should not fail here")
+		return nil, fmt.Errorf("DriveToLocalPath should not fail here")
 	}
 
 	if needsInit {
-		_ = DoCreateFolder(result)
-		_ = DoCreateFolder(filepath.Join(result, "Jobs"))
-		_ = DoCreateFolder(filepath.Join(result, "Trash"))
+		_ = os.MkdirAll(result, 0770)
+		drive, ok := OpenDrive(retrievedDrive)
+		if ok {
+			root, err := drive.OpenSubPath(".", 0, 0)
+			if err == nil {
+				_ = unix.Fchown(int(root.Fd()), DefaultUid, DefaultUid)
+				_ = drive.Mkdirs("Jobs", 0770)
+				_ = drive.Mkdirs("Trash", 0770)
+			}
+		}
 	}
 
-	return result, retrievedDrive, nil
+	return retrievedDrive, nil
 }

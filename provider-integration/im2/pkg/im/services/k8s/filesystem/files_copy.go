@@ -19,13 +19,11 @@ import (
 )
 
 func copyFiles(request ctrl.CopyFileRequest) error {
-	_, ok1 := UCloudToInternal(request.OldPath)
-	destPath, ok2 := UCloudToInternal(request.NewPath)
-	if !ok1 || !ok2 {
-		return &util.HttpError{
-			StatusCode: http.StatusNotFound,
-			Why:        "Unable to copy files. Request or destination is unknown.",
-		}
+	destDrive, destSubPath, ok := OpenDriveAtUCloudPath(request.NewPath)
+	defer destDrive.Close()
+
+	if !ok {
+		return util.ServerHttpError("Unknown destination supplied")
 	}
 
 	if ctrl.IsResourceLocked(request.NewDrive.Resource, request.NewDrive.Specification.Product) {
@@ -44,8 +42,8 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 	}
 
 	if task.ConflictPolicy == orc.WriteConflictPolicyRename {
-		newPath, err := findAvailableNameOnRename(destPath)
-		destPath = newPath
+		newPath, err := findAvailableNameOnRename(destDrive, destSubPath)
+		destSubPath = newPath
 
 		if err != nil {
 			return &util.HttpError{
@@ -54,27 +52,26 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 			}
 		}
 
-		newInternalDest, ok := InternalToUCloudWithDrive(&request.NewDrive, destPath)
-		if !ok {
-			return util.UserHttpError("Unable to copy files. Unknown drive")
-		}
-		task.UCloudDestination.Set(newInternalDest)
+		task.UCloudDestination.Set(destDrive.SubPathToUCloud(destSubPath))
 	}
 
 	return RegisterTask(task)
 }
 
 func processCopyTask(task *TaskInfo) TaskProcessingResult {
-	sourcePath, ok1 := UCloudToInternal(task.UCloudSource.Value)
-	destPath, ok2 := UCloudToInternal(task.UCloudDestination.Value)
+	sourceDrive, sourceSubPath, ok1 := OpenDriveAtUCloudPath(task.UCloudSource.Value)
+	destDrive, destSubPath, ok2 := OpenDriveAtUCloudPath(task.UCloudDestination.Value)
+	defer sourceDrive.Close()
+	defer destDrive.Close()
+
 	if !ok1 || !ok2 {
 		return TaskProcessingResult{
 			Error: fmt.Errorf("Invalid source or destination supplied"),
 		}
 	}
 
-	sourceFile, ok := OpenFile(sourcePath, unix.O_RDONLY, 0)
-	if !ok {
+	sourceFile, err := sourceDrive.OpenSubPath(sourceSubPath, unix.O_RDONLY, 0)
+	if err != nil {
 		return TaskProcessingResult{
 			Error: fmt.Errorf("Invalid source file supplied. It no longer exists."),
 		}
@@ -89,23 +86,23 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 	}
 
 	destFlags := unix.O_RDONLY
-	destMode := uint32(0770)
+	destMode := os.FileMode(0770)
 	if !sourceStat.IsDir() {
 		destMode = 0660
 		destFlags = unix.O_RDWR | unix.O_TRUNC | unix.O_CREAT
 	}
 
-	destFile, ok := OpenFile(destPath, destFlags, destMode)
-	if !ok && sourceStat.IsDir() {
-		err = DoCreateFolder(destPath)
+	destFile, err := destDrive.OpenSubPath(destSubPath, destFlags, destMode)
+	if err != nil && sourceStat.IsDir() {
+		err = destDrive.Mkdirs(destSubPath, 0770)
 		if err != nil {
 			return TaskProcessingResult{
 				Error: fmt.Errorf("Unable to open destination file"),
 			}
 		}
 
-		destFile, ok = OpenFile(destPath, destFlags, destMode)
-		if !ok {
+		destFile, err = destDrive.OpenSubPath(destSubPath, destFlags, destMode)
+		if err != nil {
 			return TaskProcessingResult{
 				Error: fmt.Errorf("Unable to open destination file"),
 			}
@@ -130,8 +127,8 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 
 	title := util.OptValue(fmt.Sprintf(
 		"Copying %s to %s",
-		util.FileName(sourcePath),
-		util.FileName(filepath.Dir(destPath)),
+		util.FileName(sourceSubPath),
+		util.FileName(filepath.Dir(destSubPath)),
 	))
 
 	task.Status.Store(&orc.TaskStatus{

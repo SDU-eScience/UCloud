@@ -18,7 +18,8 @@ func prepareInvocationOnJobCreate(
 	pod *core.Pod,
 	container *core.Container,
 	pathMapperInternalToPod map[string]string,
-	jobFolder string,
+	jobFolderDrive filesystem.OpenedDrive,
+	jobFolderSubPath string,
 ) {
 	app := &job.Status.ResolvedApplication
 
@@ -27,13 +28,13 @@ func prepareInvocationOnJobCreate(
 	environment := app.Invocation.Environment
 
 	ucloudToPod := func(ucloudPath string) string {
-		internalPath, ok := filesystem.UCloudToInternal(ucloudPath)
+		internalPath, ok := filesystem.IReallyNeedUCloudToInternal(ucloudPath)
 		if ok {
 			podPath, ok := pathMapperInternalToPod[internalPath]
 			if ok {
 				return podPath
 			} else {
-				internalPath, ok = filesystem.UCloudToInternal(util.Parent(ucloudPath))
+				internalPath, ok = filesystem.IReallyNeedUCloudToInternal(util.Parent(ucloudPath))
 				if ok {
 					podPath, ok = pathMapperInternalToPod[internalPath]
 					if ok {
@@ -58,13 +59,12 @@ func prepareInvocationOnJobCreate(
 
 	if len(invocationParameters) == 1 && invocationParameters[0].Type == orc.InvocationParameterTypeJinja {
 		actualCommand = handleJinjaInvocation(job, rank, pod, container, argBuilder, parametersAndValues,
-			jobFolder, pathMapperInternalToPod)
+			jobFolderDrive, jobFolderSubPath, pathMapperInternalToPod)
 	}
 
-	path := filepath.Join(jobFolder, fmt.Sprintf("job-%d.sh", rank))
-	jobFile, ok := filesystem.OpenFile(path, unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0700)
-	_ = jobFile.Chown(filesystem.DefaultUid, filesystem.DefaultUid)
-	if ok {
+	path := filepath.Join(jobFolderSubPath, fmt.Sprintf("job-%d.sh", rank))
+	jobFile, err := jobFolderDrive.OpenSubPath(path, unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0700)
+	if err == nil {
 		builder := strings.Builder{}
 		builder.WriteString("#!/usr/bin/env bash\n")
 		builder.WriteString("export TINI_SUBREAPER=\n")
@@ -81,15 +81,11 @@ func prepareInvocationOnJobCreate(
 
 		_, _ = jobFile.WriteString(builder.String())
 		_ = jobFile.Chmod(0755)
+		_ = jobFile.Chown(filesystem.DefaultUid, filesystem.DefaultUid)
+		_ = jobFile.Close()
 	}
-	_ = jobFile.Close()
 
 	container.Command = []string{fmt.Sprintf("/work/job-%d.sh", rank)}
-
-	commandResults := generateNixEntrypoint(job, rank, pod, container, parametersAndValues, jobFolder, container.Command)
-	if commandResults.Valid {
-		container.Command = commandResults.NewCommand
-	}
 
 	for k, param := range environment {
 		commandList := orc.BuildParameter(param, parametersAndValues, false, argBuilder, nil)
@@ -149,7 +145,8 @@ func handleJinjaInvocation(
 	container *core.Container,
 	builder orc.ArgBuilder,
 	parametersAndValues map[string]orc.ParamAndValue,
-	jobFolder string,
+	jobFolderDrive filesystem.OpenedDrive,
+	jobFolderSubPath string,
 	pathMapperInternalToPod map[string]string,
 ) []string {
 	// Handle generation of Jinja templated scripts.
@@ -167,12 +164,13 @@ func handleJinjaInvocation(
 	jinjaContainer.Name = "script-generation"
 	jinjaContainer.Image = "dreg.cloud.sdu.dk/ucloud/im2:2025.2.26" // remember to update when needed
 
-	subpath, ok := strings.CutPrefix(jobFolder, filepath.Clean(ServiceConfig.FileSystem.MountPoint)+"/")
+	jobFolderInternalPath := filepath.Join(jobFolderDrive.AbsInternalPath, jobFolderSubPath)
+	podSubPath, ok := strings.CutPrefix(jobFolderInternalPath, filepath.Clean(ServiceConfig.FileSystem.MountPoint)+"/")
 	if ok {
 		jinjaContainer.VolumeMounts = append(jinjaContainer.VolumeMounts, core.VolumeMount{
 			Name:      "ucloud-filesystem",
 			MountPath: "/work",
-			SubPath:   subpath,
+			SubPath:   podSubPath,
 		})
 	}
 
@@ -290,15 +288,15 @@ func handleJinjaInvocation(
 
 	// Write script files
 	// -----------------------------------------------------------------------------------------------------------------
-	templateFile, ok := filesystem.OpenFile(filepath.Join(jobFolder, ".script-template.j2"), unix.O_WRONLY|unix.O_CREAT, 0600)
-	if ok {
+	templateFile, err := jobFolderDrive.OpenSubPath(filepath.Join(jobFolderSubPath, ".script-template.j2"), unix.O_WRONLY|unix.O_CREAT, 0600)
+	if err == nil {
 		_ = templateFile.Chown(filesystem.DefaultUid, filesystem.DefaultUid)
 		_, _ = templateFile.Write([]byte(tpl))
 		_ = templateFile.Close()
 	}
 
-	paramsFile, ok := filesystem.OpenFile(filepath.Join(jobFolder, ".script-params.yaml"), unix.O_WRONLY|unix.O_CREAT, 0600)
-	if ok {
+	paramsFile, err := jobFolderDrive.OpenSubPath(filepath.Join(jobFolderSubPath, ".script-params.yaml"), unix.O_WRONLY|unix.O_CREAT, 0600)
+	if err == nil {
 		_ = paramsFile.Chown(filesystem.DefaultUid, filesystem.DefaultUid)
 		_, _ = paramsFile.Write(paramsYaml)
 		_ = paramsFile.Close()

@@ -36,7 +36,7 @@ var browseCache *lru.LRU[string, []cachedDirEntry]
 const SensitivityXattr string = "user.sensitivity"
 
 type cachedDirEntry struct {
-	absPath string
+	subPath string
 	hasInfo bool
 	skip    bool
 	info    os.FileInfo
@@ -77,42 +77,6 @@ func InitFiles() ctrl.FileService {
 	}
 }
 
-func OpenFile(path string, mode int, perm uint32) (*os.File, bool) {
-	components := util.Components(path)
-	componentsLength := len(components)
-
-	if componentsLength == 0 {
-		return nil, false
-	}
-
-	fd, err := unix.Open("/"+components[0], unix.O_NOFOLLOW, 0)
-	if err != nil {
-		return nil, false
-	}
-
-	for i := 1; i < componentsLength; i++ {
-		opts := unix.O_NOFOLLOW
-		thisPerms := uint32(0)
-		if i == componentsLength-1 {
-			opts |= mode
-			thisPerms = perm
-		}
-
-		newFd, err := unix.Openat(fd, components[i], opts, thisPerms)
-		_ = unix.Close(fd)
-		fd = newFd
-		if err != nil {
-			return nil, false
-		}
-	}
-
-	if mode&unix.O_CREAT != 0 && (mode&unix.O_WRONLY != 0 || mode&unix.O_RDWR != 0) {
-		_ = unix.Fchown(fd, DefaultUid, DefaultUid)
-	}
-
-	return os.NewFile(uintptr(fd), components[componentsLength-1]), true
-}
-
 func createDownload(request ctrl.DownloadSession) error {
 	fd, _, err := validateAndOpenFileForDownload(request.Path)
 	util.SilentCloseIfOk(fd, err)
@@ -129,17 +93,16 @@ func download(request ctrl.DownloadSession) (io.ReadSeekCloser, int64, error) {
 }
 
 func validateAndOpenFileForDownload(path string) (*os.File, int64, error) {
-	internalPath, ok := UCloudToInternal(path)
-	if !ok {
-		return nil, 0, util.UserHttpError("Could not find file!")
-	}
+	drive, subpath, _ := OpenDriveAtUCloudPath(path)
+	defer drive.Close()
 
-	fd, ok := OpenFile(internalPath, unix.O_RDONLY, 0)
-	if !ok {
-		return nil, 0, util.UserHttpError("Could not find file!")
+	fd, err := drive.OpenSubPath(subpath, os.O_RDONLY, 0)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	info, err := fd.Stat()
+
 	if err != nil {
 		util.SilentClose(fd)
 		return nil, 0, util.UserHttpError("Could not find file!")
@@ -158,53 +121,50 @@ func move(request ctrl.MoveFileRequest) error {
 
 func doMove(request ctrl.MoveFileRequest, updateTimestamps bool) error {
 	conflictPolicy := request.Policy
-	sourcePath, ok1 := UCloudToInternal(request.OldPath)
-	destPath, ok2 := UCloudToInternal(request.NewPath)
+
+	sourceDrive, sourceSubPath, ok1 := OpenDriveAtUCloudPath(request.OldPath)
+	destDrive, destSubPath, ok2 := OpenDriveAtUCloudPath(request.NewPath)
+
+	defer sourceDrive.Close()
+	defer destDrive.Close()
+
 	if !ok1 || !ok2 {
 		return util.ServerHttpError("Unable to resolve files needed for rename")
 	}
 
-	sourceDriveId, _ := DriveIdFromUCloudPath(request.OldPath)
-	destDriveId, _ := DriveIdFromUCloudPath(request.OldPath)
-	destDrive, ok := ctrl.RetrieveDrive(destDriveId)
-	if !ok {
-		return util.ServerHttpError("Unable to resolve files needed for rename")
-	}
-
-	if sourceDriveId != destDriveId {
-		if ctrl.IsResourceLocked(destDrive.Resource, destDrive.Specification.Product) {
+	if sourceDrive.Drive.Id != destDrive.Drive.Id {
+		if ctrl.IsResourceLocked(destDrive.Drive.Resource, destDrive.Drive.Specification.Product) {
 			return util.PaymentError()
 		}
 	}
 
+	sourceParent, err1 := sourceDrive.OpenSubPath(sourceSubPath+"/..", 0, 0)
+	destParent, err2 := destDrive.OpenSubPath(destSubPath+"/..", 0, 0)
+	defer util.SilentCloseIfOk(sourceParent, err1)
+	defer util.SilentCloseIfOk(destParent, err2)
+	if err1 != nil || err2 != nil {
+		return util.UserHttpError("Unable to rename files")
+	}
+
 	if conflictPolicy == orc.WriteConflictPolicyRename {
-		newPath, err := findAvailableNameOnRename(destPath)
-		destPath = newPath
+		newPath, err := findAvailableNameOnRename(destDrive, destSubPath)
+		destSubPath = newPath
 
 		if err != nil {
 			return err
 		}
 	}
 
-	sourceParent, ok1 := OpenFile(filepath.Dir(sourcePath), 0, 0)
-	destParent, ok2 := OpenFile(filepath.Dir(destPath), 0, 0)
-	defer util.SilentClose(sourceParent)
-	defer util.SilentClose(destParent)
-
-	if !ok1 || !ok2 {
-		return util.UserHttpError("Unable to rename files")
-	}
-
 	err := unix.Renameat(
 		int(sourceParent.Fd()),
-		filepath.Base(sourcePath),
+		filepath.Base(sourceSubPath),
 		int(destParent.Fd()),
-		filepath.Base(destPath),
+		filepath.Base(destSubPath),
 	)
 
 	if updateTimestamps {
-		targetFd, ok := OpenFile(destPath, unix.O_RDONLY, 0)
-		if ok {
+		targetFd, err := destDrive.OpenSubPath(destSubPath, unix.O_RDONLY, 0)
+		if err == nil {
 			t := time.Now()
 			utimes := []unix.Timeval{
 				unix.NsecToTimeval(t.UnixNano()),
@@ -222,72 +182,36 @@ func doMove(request ctrl.MoveFileRequest, updateTimestamps bool) error {
 	return nil
 }
 
-func DoCreateFolder(internalPath string) error {
-	components := util.Components(internalPath)
-	componentsLength := len(components)
-
-	if componentsLength == 0 {
-		return nil
-	}
-
-	fd, err := unix.Open("/"+components[0], unix.O_NOFOLLOW, 0)
-	if err != nil {
-		return util.UserHttpError("Could not find directory")
-	}
-
-	for i := 1; i < componentsLength; i++ {
-		err = unix.Mkdirat(fd, components[i], 0770)
-		didCreate := err == nil
-
-		opts := unix.O_NOFOLLOW
-		thisPerms := uint32(0)
-
-		newFd, err := unix.Openat(fd, components[i], opts, thisPerms)
-		if err == nil && didCreate {
-			_ = unix.Fchown(newFd, DefaultUid, DefaultUid)
-		}
-		_ = unix.Close(fd)
-		fd = newFd
-		if err != nil {
-			return util.UserHttpError("Failed to create directory")
-		}
-	}
-	_ = unix.Close(fd)
-	return nil
-}
-
 func createFolder(request ctrl.CreateFolderRequest) error {
 	if ctrl.IsResourceLocked(request.Drive.Resource, request.Drive.Specification.Product) {
 		return util.PaymentError()
 	}
 
-	internalPath, ok := UCloudToInternal(request.Path)
+	drive, subpath, ok := OpenDriveAtUCloudPath(request.Path)
+	defer drive.Close()
 	if !ok {
-		return util.UserHttpError("Could not find file")
+		return util.ServerHttpError("Could not find file")
 	}
 
-	return DoCreateFolder(internalPath)
+	return drive.Mkdirs(subpath, 0770)
 }
 
 func browseFiles(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], error) {
-	internalPath, ok := UCloudToInternal(request.Path)
 	sortBy := request.SortBy
 
-	if !ok {
-		return fnd.EmptyPage[orc.ProviderFile](), util.UserHttpError("Could not find directory")
-	}
+	drive, subpath, _ := OpenDriveAtUCloudPath(request.Path)
+	defer drive.Close()
 
-	fileList, ok := browseCache.Get(internalPath)
+	fileList, ok := browseCache.Get(request.Path)
 	if !ok || request.Next == "" {
 		// NOTE(Dan): Never perform caching on the initial page. This way, if a user refreshes a page they will always
 		// get up-to-date results. The caching is mostly meant to deal with extremely large folders (e.g. more than
 		// 1 million files). When dealing with large folders, the readdir syscall ends up taking a very significant
 		// amount of time, often significantly more than the combined time of calling stat on the files in a single
 		// page.
-		file, ok := OpenFile(internalPath, unix.O_RDONLY, 0)
-		defer util.SilentClose(file)
+		file, err := drive.OpenSubPath(subpath, unix.O_RDONLY, 0)
 
-		if !ok {
+		if err != nil {
 			return fnd.EmptyPage[orc.ProviderFile](), &util.HttpError{
 				StatusCode: http.StatusNotFound,
 				Why:        "Could not find directory",
@@ -308,7 +232,7 @@ func browseFiles(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile],
 
 		entries := make([]cachedDirEntry, len(fileNames))
 		for i, fileName := range fileNames {
-			entries[i].absPath = fmt.Sprintf("%v/%v", internalPath, fileName)
+			entries[i].subPath = fmt.Sprintf("%v/%v", subpath, fileName)
 		}
 
 		if sortBy != "PATH" {
@@ -316,14 +240,25 @@ func browseFiles(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile],
 			for i := 0; i < len(entries); i++ {
 				entry := &entries[i]
 
-				fd, ok := OpenFile(entry.absPath, unix.O_RDONLY, 0)
-				stat, err := fd.Stat()
-				util.SilentClose(fd)
-
-				if ok && err == nil {
-					entry.hasInfo = true
-					entry.info = stat
+				fd, err := drive.OpenSubPath(entry.subPath, unix.O_RDONLY|unix.O_NOFOLLOW, 0)
+				if err == nil {
+					stat, err := fd.Stat()
+					if err == nil {
+						entry.info = stat
+						entry.hasInfo = true
+					}
+					util.SilentClose(fd)
 				} else {
+					// This path will only be hit if the file does not exist or if it is a symlink which points
+					// outside the path. If it is a symlink, attempt to get stat info about it for display purposes.
+					stat, err := drive.LStatSubPath(entry.subPath)
+					if err == nil {
+						entry.info = stat
+						entry.hasInfo = true
+					}
+				}
+
+				if !entry.hasInfo {
 					entry.skip = true
 				}
 			}
@@ -345,7 +280,7 @@ func browseFiles(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile],
 		}
 
 		fileList = entries
-		browseCache.Add(internalPath, entries)
+		browseCache.Add(request.Path, entries)
 	}
 
 	offset := 0
@@ -368,26 +303,35 @@ func browseFiles(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile],
 		entry := &fileList[i]
 		i++
 
-		base := filepath.Base(entry.absPath)
+		base := filepath.Base(entry.subPath)
 		if request.Flags.FilterHiddenFiles && strings.HasPrefix(base, ".") {
 			continue
 		}
 
 		if !entry.hasInfo && !entry.skip {
-			fd, ok := OpenFile(entry.absPath, unix.O_RDONLY, 0)
-			stat, err := fd.Stat()
-			util.SilentClose(fd)
-
-			if ok && err == nil {
-				entry.hasInfo = true
-				entry.info = stat
+			fd, err := drive.OpenSubPath(entry.subPath, unix.O_RDONLY, 0)
+			if err == nil {
+				stat, err := fd.Stat()
+				if err == nil {
+					entry.hasInfo = true
+					entry.info = stat
+				}
+				util.SilentClose(fd)
+			} else {
+				// This path will only be hit if the file does not exist or if it is a symlink which points
+				// outside the path. If it is a symlink, attempt to get stat info about it for display purposes.
+				stat, err := drive.LStatSubPath(entry.subPath)
+				if err == nil {
+					entry.info = stat
+					entry.hasInfo = true
+				}
 			}
 		}
 
 		if !entry.hasInfo {
 			continue
 		} else {
-			items[itemIdx] = nativeStat(&request.Drive, entry.absPath, entry.info)
+			items[itemIdx] = nativeStat(drive, entry.subPath, entry.info)
 			itemIdx += 1
 		}
 	}
@@ -405,14 +349,16 @@ func browseFiles(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile],
 }
 
 func retrieveFile(request ctrl.RetrieveFileRequest) (orc.ProviderFile, error) {
-	internalPath, ok := UCloudToInternal(request.Path)
+	drive, subpath, ok := OpenDriveAtUCloudPath(request.Path)
+	defer drive.Close()
+
 	if !ok {
 		return orc.ProviderFile{}, util.UserHttpError("Could not find file: %s", util.FileName(request.Path))
 	}
 
-	file, ok := OpenFile(internalPath, unix.O_RDONLY, 0)
-	defer util.SilentClose(file)
-	if !ok {
+	file, err := drive.OpenSubPath(subpath, unix.O_RDONLY, 0)
+	defer util.SilentCloseIfOk(file, err)
+	if err != nil {
 		return orc.ProviderFile{}, util.UserHttpError("Could not find file: %s", util.FileName(request.Path))
 	}
 
@@ -421,14 +367,11 @@ func retrieveFile(request ctrl.RetrieveFileRequest) (orc.ProviderFile, error) {
 		return orc.ProviderFile{}, util.UserHttpError("Could not find file: %s", util.FileName(request.Path))
 	}
 
-	return nativeStat(&request.Drive, internalPath, info), nil
+	return nativeStat(drive, subpath, info), nil
 }
 
-func nativeStat(drive *orc.Drive, internalPath string, info os.FileInfo) orc.ProviderFile {
-	ucloudPath, ok := InternalToUCloudWithDrive(drive, internalPath)
-	if !ok {
-		ucloudPath = util.FileName(internalPath)
-	}
+func nativeStat(drive OpenedDrive, subpath string, info os.FileInfo) orc.ProviderFile {
+	ucloudPath := drive.SubPathToUCloud(subpath)
 
 	result := orc.ProviderFile{
 		Id: ucloudPath,
@@ -444,7 +387,7 @@ func nativeStat(drive *orc.Drive, internalPath string, info os.FileInfo) orc.Pro
 			UnixGroup:                    DefaultUid,
 		},
 		CreatedAt:         fnd.Timestamp{},
-		LegacySensitivity: getInheritedSensitivity(drive, internalPath).Value,
+		LegacySensitivity: getInheritedSensitivity(drive, subpath).Value,
 	}
 
 	result.Status.ModifiedAt = FileModTime(info)
@@ -456,9 +399,9 @@ func nativeStat(drive *orc.Drive, internalPath string, info os.FileInfo) orc.Pro
 	if info.IsDir() {
 		result.Status.Type = orc.FileTypeDirectory
 
-		if strings.HasSuffix(internalPath, "/Jobs") {
+		if strings.HasSuffix(subpath, "/Jobs") {
 			result.Status.Icon = orc.FileIconHintDirectoryJobs
-		} else if strings.HasSuffix(internalPath, "/Trash") {
+		} else if strings.HasSuffix(subpath, "/Trash") {
 			result.Status.Icon = orc.FileIconHintDirectoryTrash
 		}
 	}
@@ -467,8 +410,8 @@ func nativeStat(drive *orc.Drive, internalPath string, info os.FileInfo) orc.Pro
 }
 
 func compareFileByPath(a, b cachedDirEntry) int {
-	aLower := strings.ToLower(a.absPath)
-	bLower := strings.ToLower(b.absPath)
+	aLower := strings.ToLower(a.subPath)
+	bLower := strings.ToLower(b.subPath)
 	return strings.Compare(aLower, bLower)
 }
 
@@ -478,7 +421,7 @@ func compareFileBySize(a, b cachedDirEntry) int {
 	} else if !a.hasInfo && b.hasInfo {
 		return 1
 	} else if !a.hasInfo && !b.hasInfo {
-		return strings.Compare(a.absPath, b.absPath)
+		return strings.Compare(a.subPath, b.subPath)
 	}
 
 	aSize := a.info.Size()
@@ -488,7 +431,7 @@ func compareFileBySize(a, b cachedDirEntry) int {
 	} else if aSize > bSize {
 		return 1
 	} else {
-		return strings.Compare(a.absPath, b.absPath)
+		return strings.Compare(a.subPath, b.subPath)
 	}
 }
 
@@ -498,7 +441,7 @@ func compareFileByModifiedAt(a, b cachedDirEntry) int {
 	} else if !a.hasInfo && b.hasInfo {
 		return 1
 	} else if !a.hasInfo && !b.hasInfo {
-		return strings.Compare(a.absPath, b.absPath)
+		return strings.Compare(a.subPath, b.subPath)
 	}
 
 	aModTime := a.info.ModTime()
@@ -508,19 +451,20 @@ func compareFileByModifiedAt(a, b cachedDirEntry) int {
 	} else if aModTime.After(bModTime) {
 		return 1
 	} else {
-		return strings.Compare(a.absPath, b.absPath)
+		return strings.Compare(a.subPath, b.subPath)
 	}
 }
 
-func findAvailableNameOnRename(path string) (string, error) {
-	fd, ok := OpenFile(path, 0, 0)
-	util.SilentClose(fd)
-	if !ok {
-		return path, nil
+func findAvailableNameOnRename(drive OpenedDrive, subpath string) (string, error) {
+	fd, err := drive.OpenSubPath(subpath, 0, 0)
+	if err != nil {
+		return subpath, nil
 	}
 
-	parent := util.Parent(path)
-	fileName := util.FileName(path)
+	util.SilentClose(fd)
+
+	parent := filepath.Dir(subpath)
+	fileName := filepath.Base(subpath)
 	extensionIndex := strings.LastIndex(fileName, ".")
 	newExtension := ""
 
@@ -534,17 +478,17 @@ func findAvailableNameOnRename(path string) (string, error) {
 		newFilename := fmt.Sprintf("%s(%d)", fileName, i)
 		newPath := fmt.Sprintf("%s/%s%s", parent, newFilename, newExtension)
 
-		fd, ok = OpenFile(newPath, 0, 0)
-		util.SilentClose(fd)
+		fd, err = drive.OpenSubPath(newPath, 0, 0)
+		util.SilentCloseIfOk(fd, err)
 
-		if !ok {
+		if err != nil {
 			return newPath, nil
 		}
 	}
 
 	return "", &util.HttpError{
 		StatusCode: http.StatusBadRequest,
-		Why:        fmt.Sprintf("Not able to rename file: %s", path),
+		Why:        fmt.Sprintf("Not able to rename file: %s", subpath),
 	}
 }
 
@@ -644,20 +588,26 @@ func loadStorageProducts() {
 }
 
 func createUpload(request ctrl.CreateUploadRequest) (string, error) {
-	path, ok := UCloudToInternal(request.Path)
+	var err error
+	drive, subpath, ok := OpenDriveAtUCloudPath(request.Path)
+	defer drive.Close()
+
 	if !ok {
-		return "", util.UserHttpError("Unable to upload a file here, unable to find parent folder")
+		return "", util.UserHttpError("Unable to upload a file here")
 	}
 
 	if request.ConflictPolicy == orc.WriteConflictPolicyRename && request.Type != ctrl.UploadTypeFolder {
-		path, _ = findAvailableNameOnRename(path)
+		subpath, err = findAvailableNameOnRename(drive, subpath)
+		if err != nil {
+			return "", util.UserHttpError("Unable to upload a file here")
+		}
 	}
 
 	if ctrl.IsResourceLocked(request.Drive.Resource, request.Drive.Specification.Product) {
 		return "", util.PaymentError()
 	}
 
-	return path, nil
+	return drive.SubPathToUCloud(subpath), nil
 }
 
 type uploaderFileSystem struct{}
@@ -668,14 +618,21 @@ type uploaderFile struct {
 }
 
 func (u *uploaderFileSystem) OpenFileIfNeeded(session upload.ServerSession, fileMeta upload.FileMetadata) upload.ServerFile {
-	rootPath := session.UserData
-	internalPath := filepath.Join(rootPath, fileMeta.InternalPath)
+	ucloudPath := session.UserData
+	drive, rootSubPath, _ := OpenDriveAtUCloudPath(ucloudPath)
+	defer drive.Close()
 
-	fd, ok := OpenFile(internalPath, unix.O_RDONLY, 0)
-	info, err := fd.Stat()
-	util.SilentClose(fd)
-	if !ok || err != nil {
-		err = DoCreateFolder(filepath.Dir(internalPath))
+	subPath := filepath.Join(rootSubPath, fileMeta.InternalPath)
+
+	var info os.FileInfo
+	fd, err := drive.OpenSubPath(subPath, unix.O_RDONLY, 0)
+	if err == nil {
+		info, err = fd.Stat()
+		util.SilentClose(fd)
+	}
+
+	if err != nil {
+		err = drive.Mkdirs(filepath.Dir(subPath), 0770)
 		if err != nil {
 			return nil
 		}
@@ -685,8 +642,8 @@ func (u *uploaderFileSystem) OpenFileIfNeeded(session upload.ServerSession, file
 		}
 	}
 
-	file, ok := OpenFile(internalPath, unix.O_RDWR|unix.O_TRUNC|unix.O_CREAT, 0660)
-	if !ok {
+	file, err := drive.OpenSubPath(subPath, unix.O_RDWR|unix.O_TRUNC|unix.O_CREAT, 0660)
+	if err != nil {
 		return nil
 	}
 
@@ -796,25 +753,17 @@ func (u *uploaderClientFile) Close() {
 }
 
 func moveToTrash(request ctrl.MoveToTrashRequest) error {
-	driveId, _ := DriveIdFromUCloudPath(request.Path)
-	expectedTrashLocation, ok := UCloudToInternal(fmt.Sprintf("/%s/Trash", driveId))
+	drive, _, ok := OpenDriveAtUCloudPath(request.Path)
 	if !ok {
-		return fmt.Errorf("Could not resolve drive location")
+		return util.UserHttpError("Unknown file")
 	}
 
-	err := DoCreateFolder(expectedTrashLocation)
+	err := drive.Mkdirs("Trash", 0770)
 	if err != nil {
-		return fmt.Errorf("Could not create trash folder")
+		return util.ServerHttpError("Could not create trash folder")
 	}
 
-	newPath, ok := InternalToUCloudWithDrive(
-		&request.Drive,
-		fmt.Sprintf("%s/%s", expectedTrashLocation, util.FileName(request.Path)),
-	)
-
-	if !ok {
-		return util.ServerHttpError("unknown drive")
-	}
+	newPath := drive.SubPathToUCloud(fmt.Sprintf("Trash/%v", filepath.Base(request.Path)))
 
 	return doMove(ctrl.MoveFileRequest{
 		OldDrive: request.Drive,
@@ -826,39 +775,35 @@ func moveToTrash(request ctrl.MoveToTrashRequest) error {
 }
 
 func emptyTrash(request ctrl.EmptyTrashRequest) error {
-	ucloudTrashPath := request.Path
-	trashLocation, ok := UCloudToInternal(ucloudTrashPath)
+	drive, subpath, ok := OpenDriveAtUCloudPath(request.Path)
+	defer drive.Close()
 	if !ok {
 		return util.UserHttpError("Unable to resolve trash folder")
 	}
 
-	err := DoDeleteFile(trashLocation)
+	err := DoDeleteFile(drive, subpath)
 	if err != nil {
 		return err
 	}
 
-	_ = DoCreateFolder(trashLocation)
-
-	path, ok := DriveIdFromUCloudPath(request.Path)
-	if ok {
-		RequestScan(path)
-	}
-
+	_ = drive.Mkdirs(subpath, 0770)
+	RequestScan(drive.Drive.Id)
 	return nil
 }
 
-func DoDeleteFile(internalPath string) error {
-	parentDir, ok1 := OpenFile(filepath.Dir(internalPath), unix.O_RDONLY, 0)
-	stagingArea, ok2 := OpenFile(shared.ServiceConfig.FileSystem.TrashStagingArea, unix.O_RDONLY, 0)
-	defer util.SilentClose(parentDir)
-	defer util.SilentClose(stagingArea)
-	if !ok1 || !ok2 {
+func DoDeleteFile(drive OpenedDrive, subPath string) error {
+	parentDir, err1 := drive.OpenSubPath(subPath+"/..", unix.O_RDONLY, 0)
+	stagingArea, err2 := os.OpenFile(shared.ServiceConfig.FileSystem.TrashStagingArea, unix.O_RDONLY, 0)
+	defer util.SilentCloseIfOk(parentDir, err1)
+	defer util.SilentCloseIfOk(stagingArea, err2)
+
+	if err1 != nil || err2 != nil {
 		return util.UserHttpError("Unable to resolve trash folder")
 	}
 
 	err := unix.Renameat(
 		int(parentDir.Fd()),
-		filepath.Base(internalPath),
+		filepath.Base(subPath),
 		int(stagingArea.Fd()),
 		util.RandomToken(16),
 	)
@@ -882,7 +827,8 @@ func transferDestinationInitiate(request ctrl.FilesTransferRequestInitiateDestin
 		}
 	}
 
-	localDestinationPath, ok := UCloudToInternal(request.DestinationPath)
+	drive, _, ok := OpenDriveAtUCloudPath(request.DestinationPath)
+	defer drive.Close()
 	if !ok {
 		return ctrl.FilesTransferResponse{}, &util.HttpError{
 			StatusCode: http.StatusBadRequest,
@@ -890,20 +836,11 @@ func transferDestinationInitiate(request ctrl.FilesTransferRequestInitiateDestin
 		}
 	}
 
-	driveId, _ := DriveIdFromUCloudPath(request.DestinationPath)
-	drive, ok := ctrl.RetrieveDrive(driveId)
-	if !ok {
-		return ctrl.FilesTransferResponse{}, &util.HttpError{
-			StatusCode: http.StatusBadRequest,
-			Why:        "Unable to fulfill this request, unknown destination supplied.",
-		}
-	}
-
-	if ctrl.IsResourceLocked(drive.Resource, drive.Specification.Product) {
+	if ctrl.IsResourceLocked(drive.Drive.Resource, drive.Drive.Specification.Product) {
 		return ctrl.FilesTransferResponse{}, util.PaymentError()
 	}
 
-	_, target := ctrl.CreateFolderUpload(request.DestinationPath, orc.WriteConflictPolicyMergeRename, localDestinationPath)
+	_, target := ctrl.CreateFolderUpload(request.DestinationPath, orc.WriteConflictPolicyMergeRename, request.DestinationPath)
 
 	if request.SourceProvider == cfg.Provider.Id {
 		// NOTE(Dan): This only happens during local development
@@ -964,7 +901,8 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 		Path:           session.SourcePath,
 	}
 
-	internalSource, ok := UCloudToInternal(session.SourcePath)
+	drive, subpath, ok := OpenDriveAtUCloudPath(session.SourcePath)
+	defer drive.Close()
 	if !ok {
 		return TaskProcessingResult{
 			Error:           fmt.Errorf("unable to open source file"),
@@ -976,8 +914,8 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 	var uploadErr error = nil
 	for i := 0; i < numberOfAttempts; i++ {
 		// NOTE(Dan): The rootFile is automatically closed by the uploader
-		rootFile, ok := OpenFile(internalSource, unix.O_RDONLY, 0)
-		if !ok {
+		rootFile, err := drive.OpenSubPath(subpath, unix.O_RDONLY, 0)
+		if err != nil {
 			return TaskProcessingResult{
 				Error:           fmt.Errorf("unable to open source file"),
 				AllowReschedule: false,
@@ -1058,28 +996,32 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 }
 
 func search(ctx context.Context, query, folder string, flags ctrl.FileFlags, output chan orc.ProviderFile) {
-	initialFolder, ok := UCloudToInternal(folder)
-	driveId, ok2 := DriveIdFromUCloudPath(folder)
+	drive, subpath, ok := OpenDriveAtUCloudPath(folder)
+	defer drive.Close()
 	defer close(output)
 
-	if !ok || !ok2 {
-		return
-	}
-
-	drive, ok := ResolveDrive(driveId)
 	if !ok {
 		return
 	}
 
-	searchIndex, ok := ctrl.RetrieveSearchIndex(driveId)
+	internalPath := filepath.Join(drive.AbsInternalPath, subpath)
+
+	searchIndex, ok := ctrl.RetrieveSearchIndex(drive.Drive.Id)
 	q := fsearch.NewQuery(query)
-	_ = walk.Walk(initialFolder, runtime.NumCPU(), func(path string, info os.FileInfo, err error) error {
-		if q.Matches(path) {
-			match := nativeStat(drive, path, info)
+	_ = walk.Walk(internalPath, runtime.NumCPU(), func(absInternalPath string, info os.FileInfo, err error) error {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context is done")
+		default:
+		}
+
+		if q.Matches(absInternalPath) {
+			driveSubPath, _ := strings.CutPrefix(absInternalPath, drive.AbsInternalPath+"/")
+			match := nativeStat(drive, driveSubPath, info)
 			output <- match
 		}
 
-		if info.IsDir() && !searchIndex.ContinueDown(path, q) {
+		if info.IsDir() && !searchIndex.ContinueDown(absInternalPath, q) {
 			return walk.SkipDir
 		} else {
 			return nil
@@ -1088,7 +1030,7 @@ func search(ctx context.Context, query, folder string, flags ctrl.FileFlags, out
 }
 
 func createDrive(drive orc.Drive) error {
-	localPath, ok := DriveToLocalPath(&drive)
+	localPath, ok := driveToLocalPath(&drive)
 	if !ok {
 		return util.ServerHttpError("unknown drive")
 	}
@@ -1097,16 +1039,76 @@ func createDrive(drive orc.Drive) error {
 		return util.PaymentError()
 	}
 
-	return DoCreateFolder(localPath)
+	return os.Mkdir(localPath, 0770)
+}
+
+func safeOpenFileLegacy(path string, mode int, perm uint32) (*os.File, bool) {
+	// NOTE(Dan): Prefer OpenDrive for most operations
+
+	components := util.Components(path)
+	componentsLength := len(components)
+
+	if componentsLength == 0 {
+		return nil, false
+	}
+
+	fd, err := unix.Open("/"+components[0], unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, false
+	}
+
+	for i := 1; i < componentsLength; i++ {
+		opts := unix.O_NOFOLLOW
+		thisPerms := uint32(0)
+		if i == componentsLength-1 {
+			opts |= mode
+			thisPerms = perm
+		}
+
+		newFd, err := unix.Openat(fd, components[i], opts, thisPerms)
+		_ = unix.Close(fd)
+		fd = newFd
+		if err != nil {
+			return nil, false
+		}
+	}
+
+	if mode&unix.O_CREAT != 0 && (mode&unix.O_WRONLY != 0 || mode&unix.O_RDWR != 0) {
+		_ = unix.Fchown(fd, DefaultUid, DefaultUid)
+	}
+
+	return os.NewFile(uintptr(fd), components[componentsLength-1]), true
 }
 
 func deleteDrive(drive orc.Drive) error {
-	path, ok := DriveToLocalPath(&drive)
+	internalDrivePath, ok := IReallyNeedUCloudToInternal("/" + drive.Id)
 	if !ok {
 		return util.ServerHttpError("unknown drive")
 	}
-	reportUsedStorage(drive, 0)
-	return DoDeleteFile(path)
+
+	parentPath := filepath.Dir(internalDrivePath)
+
+	parentDir, ok1 := safeOpenFileLegacy(parentPath, unix.O_RDONLY, 0)
+	stagingArea, err2 := os.OpenFile(shared.ServiceConfig.FileSystem.TrashStagingArea, unix.O_RDONLY, 0)
+	defer util.SilentClose(parentDir)
+	defer util.SilentCloseIfOk(stagingArea, err2)
+
+	if !ok1 || err2 != nil {
+		return util.UserHttpError("Unable to resolve trash folder")
+	}
+
+	err := unix.Renameat(
+		int(parentDir.Fd()),
+		filepath.Base(internalDrivePath),
+		int(stagingArea.Fd()),
+		util.RandomToken(16),
+	)
+
+	if err != nil {
+		return util.UserHttpError("Unable to empty the trash at the moment")
+	}
+
+	return nil
 }
 
 func renameDrive(_ orc.Drive) error {
@@ -1116,26 +1118,28 @@ func renameDrive(_ orc.Drive) error {
 
 func createShare(share orc.Share) (driveId string, err error) {
 	sourcePath := share.Specification.SourceFilePath
-	sourceInternalPath, ok := UCloudToInternal(sourcePath)
+	drive, subPath, ok := OpenDriveAtUCloudPath(sourcePath)
+	defer drive.Close()
 	if !ok {
 		return "", util.UserHttpError("File does not exist")
 	}
 
-	file, ok := OpenFile(sourceInternalPath, unix.O_RDONLY, 0)
-	if !ok {
+	file, err := drive.OpenSubPath(subPath, unix.O_RDONLY, 0)
+	if err != nil {
 		return "", util.UserHttpError("File does not exist")
 	}
+	defer util.SilentClose(file)
+
 	stat, err := file.Stat()
 	if stat == nil || err != nil {
 		return "", util.UserHttpError("File does not exist")
 	}
-	util.SilentClose(file)
 
 	if !stat.IsDir() {
 		return "", util.UserHttpError("File is not a directory")
 	}
 
-	title := util.FileName(sourceInternalPath)
+	title := filepath.Base(subPath)
 	driveId, err = orc.RegisterDrive(orc.ProviderRegisteredResource[orc.DriveSpecification]{
 		Spec: orc.DriveSpecification{
 			Title: title,
@@ -1157,34 +1161,18 @@ func createShare(share orc.Share) (driveId string, err error) {
 
 // NOTE(Brian) Function to support inherited sensitivity.
 // This is legacy functionality, and thus only implemented for backwards compatibility.
-func getInheritedSensitivity(drive *orc.Drive, internalPath string) util.Option[string] {
-	ucloudPath, ok := InternalToUCloudWithDrive(drive, internalPath)
+func getInheritedSensitivity(drive OpenedDrive, subPath string) util.Option[string] {
 	validSensitivity := []string{"CONFIDENTIAL", "SENSITIVE", "PRIVATE"}
 
-	if !ok {
-		return util.OptNone[string]()
-	}
-
-	ancestors := util.Parents(ucloudPath)
-	ancestors = append(ancestors, ucloudPath)
+	ancestors := util.Parents(subPath)
+	ancestors = append(ancestors, subPath)
 
 	result := ""
 
 	for _, ancestor := range ancestors {
-		// Skip checking drive
-		if strings.Count(ancestor, "/") < 2 {
-			continue
-		}
+		fd, err := drive.OpenSubPath(ancestor, unix.O_RDONLY, 0)
 
-		internalAncestorPath, ok := UCloudToInternal(ancestor)
-
-		if !ok {
-			continue
-		}
-
-		fd, ok := OpenFile(internalAncestorPath, unix.O_RDONLY, 0)
-
-		if !ok {
+		if err != nil {
 			continue
 		}
 

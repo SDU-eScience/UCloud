@@ -137,12 +137,11 @@ func mountedFilesFromJob(job *orc.Job) []orc.AppParameterValue {
 	}
 
 	if backendIsContainers(job) {
-		folder, drive, err := containers.FindJobFolder(job)
+		drive, subpath, err := containers.CreateAndOpenJobFolder(job)
 		if err == nil {
-			ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, folder)
-			if ok {
-				result = append(result, orc.AppParameterValue{Path: ucloudPath})
-			}
+			ucloudPath := drive.SubPathToUCloud(subpath)
+			drive.Close()
+			result = append(result, orc.AppParameterValue{Path: ucloudPath})
 		}
 	}
 

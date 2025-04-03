@@ -7,7 +7,6 @@ import (
 	"golang.org/x/sync/semaphore"
 	"golang.org/x/sys/unix"
 	"io"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -94,7 +93,8 @@ func scanDrive(drive orc.Drive) {
 	defer scanSemaphore.Release(1)
 	defer scanSlotsAvailable.Add(1)
 
-	internalPath, ok := DriveToLocalPath(&drive)
+	oDrive, ok := OpenDrive(&drive)
+	defer oDrive.Close()
 	if !ok {
 		return
 	}
@@ -104,9 +104,9 @@ func scanDrive(drive orc.Drive) {
 	method := shared.ServiceConfig.FileSystem.ScanMethod
 	switch method.Type {
 	case cfg.K8sScanMethodTypeExtendedAttribute:
-		fd, ok := OpenFile(internalPath, unix.O_RDONLY, 0)
+		fd, err := oDrive.OpenSubPath(".", unix.O_RDONLY, 0)
 		buffer := make([]byte, 64)
-		if !ok {
+		if err != nil {
 			log.Info("Could not open drive for reporting %v", drive.Id)
 			return
 		}
@@ -127,8 +127,8 @@ func scanDrive(drive orc.Drive) {
 		sizeToReport = size
 
 	case cfg.K8sScanMethodTypeDevFile:
-		fd, ok := OpenFile(filepath.Join(internalPath, ".usage"), unix.O_RDONLY, 0)
-		if !ok {
+		fd, err := oDrive.OpenSubPath(".usage", unix.O_RDONLY, 0)
+		if err != nil {
 			log.Info("Could not open drive for reporting %v", drive.Id)
 			return
 		}
@@ -150,7 +150,7 @@ func scanDrive(drive orc.Drive) {
 
 	case cfg.K8sScanMethodTypeWalk:
 		bucketCount := ctrl.LoadNextSearchBucketCount(drive.Id)
-		result := fsearch.BuildIndex(bucketCount, internalPath)
+		result := fsearch.BuildIndex(bucketCount, oDrive.AbsInternalPath)
 
 		indexingSpeedFilesPerSecond.Observe(result.EstimatedFilesIndexedPerSecond)
 		totalFilesIndexed.Add(float64(result.TotalFileCount))

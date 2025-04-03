@@ -306,14 +306,14 @@ func OnStart(jobs []orc.Job) {
 		// Common data collection for each job
 		// -------------------------------------------------------------------------------------------------------------
 		job := &jobs[i]
-		jobFolder, _, err := FindJobFolder(job)
+		drive, jobFolderSubPath, err := CreateAndOpenJobFolder(job)
 		if err != nil {
 			continue
 		}
 
 		// Dynamic targets
 		// -------------------------------------------------------------------------------------------------------------
-		dynamicTargets := readDynamicTargets(job, jobFolder)
+		dynamicTargets := readDynamicTargets(job, drive, jobFolderSubPath)
 		for _, target := range dynamicTargets {
 			targetAsJson, _ := json.Marshal(target)
 
@@ -322,19 +322,21 @@ func OnStart(jobs []orc.Job) {
 				Message: fmt.Sprintf("Target: %s", string(targetAsJson)),
 			})
 		}
+
+		drive.Close()
 	}
 
 	// Not much we can do in this case
 	_ = ctrl.TrackJobMessages(messages)
 }
 
-func readDynamicTargets(job *orc.Job, jobFolder string) []orc.DynamicTarget {
+func readDynamicTargets(job *orc.Job, jobDrive filesystem.OpenedDrive, jobFolderSubPath string) []orc.DynamicTarget {
 	dynamicTargets := map[string]orc.DynamicTarget{}
 
 	var dynTargetLists [][]orc.DynamicTarget
 	for rank := 0; rank < job.Specification.Replicas; rank++ {
-		file, ok := filesystem.OpenFile(filepath.Join(jobFolder, fmt.Sprintf(".script-targets-%d.yaml", rank)), unix.O_RDONLY, 0)
-		if !ok {
+		file, err := jobDrive.OpenSubPath(filepath.Join(jobFolderSubPath, fmt.Sprintf(".script-targets-%d.yaml", rank)), unix.O_RDONLY, 0)
+		if err != nil {
 			continue
 		}
 
