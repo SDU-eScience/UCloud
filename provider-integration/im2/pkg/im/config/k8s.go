@@ -1,9 +1,11 @@
 package config
 
 import (
+	"fmt"
 	"gopkg.in/yaml.v3"
 	"math"
 	"net"
+	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
 
@@ -85,6 +87,38 @@ type KubernetesCompute struct {
 	Modules                         map[string]KubernetesModuleEntry
 }
 
+func (c *KubernetesCompute) ResolveMachine(name, category string) (K8sMachineCategory, K8sMachineCategoryGroup, K8sMachineConfiguration, bool) {
+	cat, ok := c.Machines[category]
+	if !ok {
+		return K8sMachineCategory{}, K8sMachineCategoryGroup{}, K8sMachineConfiguration{}, false
+	}
+
+	for groupName, group := range cat.Groups {
+		for _, machineConfig := range group.Configs {
+			mgName := fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
+			if mgName == name {
+				return cat, group, machineConfig, true
+			}
+		}
+	}
+
+	return K8sMachineCategory{}, K8sMachineCategoryGroup{}, K8sMachineConfiguration{}, false
+}
+
+func pickResource(resource MachineResourceType, machineConfig K8sMachineConfiguration) int {
+	switch resource {
+	case MachineResourceTypeCpu:
+		return machineConfig.Cpu
+	case MachineResourceTypeGpu:
+		return machineConfig.Gpu
+	case MachineResourceTypeMemory:
+		return machineConfig.MemoryInGigabytes
+	default:
+		log.Warn("Unhandled machine resource type: %v", resource)
+		return 0
+	}
+}
+
 type KubernetesModuleEntry struct {
 	Name       string              `json:"name"`
 	VolSubPath string              `json:"claimSubPath"`
@@ -98,6 +132,7 @@ type K8sMachineCategory struct {
 }
 
 type K8sMachineCategoryGroup struct {
+	GroupName            string
 	NameSuffix           MachineResourceType
 	Configs              []K8sMachineConfiguration
 	CpuModel             string
@@ -105,6 +140,7 @@ type K8sMachineCategoryGroup struct {
 	MemoryModel          string
 	AllowVirtualMachines bool
 	AllowsContainers     bool
+	GpuResourceType      string
 }
 
 type K8sMachineConfiguration struct {
@@ -228,6 +264,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 		if !hasChild(machineNode, "groups") {
 			group := parseK8sMachineGroup(filePath, machineNode, &success)
+			group.GroupName = machineCategoryName
 			category.Groups[machineCategoryName] = group
 		} else {
 			groupsNode := requireChild(filePath, machineNode, "groups", &success)
@@ -240,7 +277,9 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 				groupName := ""
 				_ = groupsNode.Content[j].Decode(&groupName)
 				groupNode := groupsNode.Content[j+1]
-				category.Groups[groupName] = parseK8sMachineGroup(filePath, groupNode, &success)
+				group := parseK8sMachineGroup(filePath, groupNode, &success)
+				group.GroupName = groupName
+				category.Groups[groupName] = group
 			}
 		}
 
@@ -413,6 +452,13 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 
 	allowContainers, ok := optionalChildBool(filePath, node, "allowContainers")
 	result.AllowsContainers = allowContainers || !ok
+
+	// NOTE(Dan): The GPU resource type is set even if the machine doesn't have GPUs. This shouldn't matter in
+	// practice since the machine will simply not report any usable GPUs and won't ever try to request any.
+	result.GpuResourceType = optionalChildText(filePath, node, "gpuType", success)
+	if result.GpuResourceType == "" {
+		result.GpuResourceType = "nvidia.com/gpu"
+	}
 
 	var cpu []int
 	var gpu []int

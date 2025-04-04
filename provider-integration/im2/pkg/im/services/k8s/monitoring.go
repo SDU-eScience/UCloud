@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"maps"
 	"slices"
+	"strings"
 	"time"
 	"ucloud.dk/pkg/apm"
 	fnd "ucloud.dk/pkg/foundation"
@@ -31,7 +32,9 @@ var nextAccounting time.Time
 
 var schedulers = map[string]*Scheduler{}
 
-func getScheduler(category string) (*Scheduler, bool) {
+func getScheduler(category string, group string) (*Scheduler, bool) {
+	schedKey := fmt.Sprintf("%s/%s", category, group)
+
 	_, isIApp := ctrl.IntegratedApplications[category]
 	if isIApp {
 		// TODO Ask the application about the scheduler.
@@ -42,16 +45,26 @@ func getScheduler(category string) (*Scheduler, bool) {
 		}
 	}
 
-	existing, ok := schedulers[category]
+	existing, ok := schedulers[schedKey]
 	if !ok {
-		schedulers[category] = NewScheduler(category)
-		existing, ok = schedulers[category]
+		schedulers[schedKey] = NewScheduler(schedKey)
+		existing, ok = schedulers[schedKey]
 	}
 	return existing, ok
 }
 
 func getSchedulerByJob(job *orc.Job) (*Scheduler, bool) {
-	return getScheduler(job.Specification.Product.Category)
+	product := job.Specification.Product
+	_, isIApp := ctrl.IntegratedApplications[product.Category]
+	if isIApp {
+		return getScheduler(product.Category, product.Category)
+	} else {
+		_, group, _, ok := shared.ServiceConfig.Compute.ResolveMachine(product.Id, product.Category)
+		if !ok {
+			return nil, false
+		}
+		return getScheduler(product.Category, group.GroupName)
+	}
 }
 
 type jobGang struct {
@@ -203,9 +216,9 @@ func loopMonitoring() {
 		length := len(nodeList.Items)
 		for i := 0; i < length; i++ {
 			node := &nodeList.Items[i]
-			categories := nodeCategories(node)
-			for _, category := range categories {
-				sched, ok := getScheduler(category)
+			catGroups := nodeCategories(node)
+			for _, catGroup := range catGroups {
+				sched, ok := getScheduler(catGroup.Category, catGroup.Group)
 				if !ok {
 					continue
 				}
@@ -213,16 +226,31 @@ func loopMonitoring() {
 				k8sCapacity := node.Status.Capacity
 				k8sAllocatable := node.Status.Allocatable
 
+				gpuType := "nvidia.com/gpu"
+				machineCategory, ok := shared.ServiceConfig.Compute.Machines[catGroup.Category]
+				if ok {
+					nodeCat, ok := machineCategory.Groups[catGroup.Category]
+					if ok {
+						gpuType = nodeCat.GpuResourceType
+					}
+				}
+
 				capacity := shared.SchedulerDimensions{
 					CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
 					MemoryInBytes: int(k8sCapacity.Memory().Value()),
-					Gpu:           int(k8sCapacity.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
 				}
 
 				limits := shared.SchedulerDimensions{
 					CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
 					MemoryInBytes: int(k8sAllocatable.Memory().Value()),
-					Gpu:           int(k8sAllocatable.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
+				}
+
+				gpuCap := k8sCapacity.Name(core.ResourceName(gpuType), resource.DecimalSI)
+				gpuLim := k8sAllocatable.Name(core.ResourceName(gpuType), resource.DecimalSI)
+
+				if gpuCap != nil && gpuLim != nil {
+					capacity.Gpu += int(gpuCap.Value())
+					limits.Gpu += int(gpuLim.Value())
 				}
 
 				for _, cond := range node.Status.Conditions {
@@ -425,24 +453,46 @@ func loopMonitoring() {
 	_ = ctrl.TrackJobMessages(scheduleMessages)
 }
 
-func nodeCategories(node *core.Node) []string {
+type NodeCatGroup struct {
+	Category string
+	Group    string
+}
+
+func nodeCategories(node *core.Node) []NodeCatGroup {
 	// NOTE(Dan): It is really important that production providers only return 1. Being able to return more than one
 	// is just for testing in resource-constrained environments.
-	parseResult := func(machineLabel string) []string {
+	parseResult := func(machineLabel string) []NodeCatGroup {
 		if len(machineLabel) == 0 {
 			return nil
 		} else {
+			var nodes []string
 			if machineLabel[0] == '[' {
-				var nodes []string
 				_ = json.Unmarshal([]byte(machineLabel), &nodes)
-				return nodes
 			} else {
-				return []string{machineLabel}
+				nodes = []string{machineLabel}
 			}
+
+			var result []NodeCatGroup
+			for _, n := range nodes {
+				toks := strings.Split(n, "/")
+				if len(toks) == 2 {
+					result = append(result, NodeCatGroup{
+						Category: toks[0],
+						Group:    toks[1],
+					})
+				} else {
+					result = append(result, NodeCatGroup{
+						Category: n,
+						Group:    n,
+					})
+				}
+			}
+
+			return result
 		}
 	}
 
-	var result []string
+	var result []NodeCatGroup
 	result = append(result, parseResult(node.Labels["ucloud.dk/machine"])...)
 	result = append(result, parseResult(node.Annotations["ucloud.dk/machine"])...)
 	return result
