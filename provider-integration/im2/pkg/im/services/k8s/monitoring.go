@@ -445,7 +445,18 @@ func loopMonitoring() {
 			if toolBackend == orc.ToolBackendVirtualMachine {
 				kubevirt.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
 			} else {
-				containers.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
+				err := containers.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
+				if err != nil {
+					scheduleMessages = append(scheduleMessages, ctrl.JobMessage{
+						JobId:   job.Id,
+						Message: fmt.Sprintf("Failed to schedule job: %s", err),
+					})
+
+					_ = terminate(ctrl.JobTerminateRequest{
+						Job:       job,
+						IsCleanup: false,
+					})
+				}
 			}
 		}
 	}

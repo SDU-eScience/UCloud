@@ -10,8 +10,9 @@ import (
 )
 
 type ServicesConfigurationKubernetes struct {
-	FileSystem KubernetesFileSystem
-	Compute    KubernetesCompute
+	FileSystem        KubernetesFileSystem
+	Compute           KubernetesCompute
+	SensitiveProjects []string
 }
 
 type KubernetesFileSystem struct {
@@ -153,6 +154,11 @@ type K8sMachineConfiguration struct {
 func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, services *yaml.Node) (bool, ServicesConfigurationKubernetes) {
 	cfg := ServicesConfigurationKubernetes{}
 	success := true
+
+	sensitiveProjects, _ := getChildOrNil(filePath, services, "sensitiveProjects")
+	if sensitiveProjects != nil {
+		decode(filePath, sensitiveProjects, &cfg.SensitiveProjects, &success)
+	}
 
 	fsNode := requireChild(filePath, services, "fileSystem", &success)
 	{

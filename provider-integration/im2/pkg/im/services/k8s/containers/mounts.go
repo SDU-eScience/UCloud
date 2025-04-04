@@ -25,7 +25,7 @@ type mountResult struct {
 	MountedDrivesAsReadOnly map[string]bool
 }
 
-func calculateMounts(job *orc.Job, internalJobFolder string) mountResult {
+func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool) {
 	ucloudMounts := map[string]bool{}
 
 	for _, v := range job.Specification.Resources {
@@ -76,9 +76,12 @@ func calculateMounts(job *orc.Job, internalJobFolder string) mountResult {
 		}
 	}
 
+	var allUCloudPaths []string
 	mountedDrivesAsReadOnly := map[string]bool{}
-	addUCloudMount := func(containerPath, internalPath string, readOnly bool) {
-		sub, ok := ucloudToSubpath(internalPath)
+	addUCloudMount := func(containerPath, ucloudPath string, readOnly bool) {
+		allUCloudPaths = append(allUCloudPaths, ucloudPath)
+
+		sub, ok := ucloudToSubpath(ucloudPath)
 		if ok {
 			addMount(containerPath, sub, readOnly)
 		}
@@ -153,10 +156,14 @@ func calculateMounts(job *orc.Job, internalJobFolder string) mountResult {
 		}
 	}
 
+	if !filesystem.AllowUCloudPathsTogetherWithProjects(allUCloudPaths, []string{job.Owner.Project}) {
+		return mountResult{}, false
+	}
+
 	return mountResult{
 		Folders:                 mountPaths,
 		MountedDrivesAsReadOnly: mountedDrivesAsReadOnly,
-	}
+	}, true
 }
 
 // prepareMountsOnJobCreate add relevant mounts into the pod and returns a mapping from internal paths (including the
@@ -166,7 +173,7 @@ func prepareMountsOnJobCreate(
 	pod *core.Pod,
 	userContainer *core.Container,
 	jobFolder string,
-) map[string]string {
+) (map[string]string, bool) {
 	spec := &pod.Spec
 
 	fsVolume := "ucloud-filesystem"
@@ -180,7 +187,11 @@ func prepareMountsOnJobCreate(
 		},
 	})
 
-	mounts := calculateMounts(job, jobFolder)
+	mounts, ok := calculateMounts(job, jobFolder)
+	if !ok {
+		return map[string]string{}, false
+	}
+
 	folders := mounts.Folders
 	result := map[string]string{}
 	mountedDrivesAsReadOnly := mounts.MountedDrivesAsReadOnly
@@ -212,5 +223,5 @@ func prepareMountsOnJobCreate(
 		pod.Annotations[shared.AnnotationMountedDriveAsReadOnly] = string(driveReadOnlyBytes)
 	}
 
-	return result
+	return result, true
 }

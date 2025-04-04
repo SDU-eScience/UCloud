@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"time"
+	"ucloud.dk/pkg/im/services/k8s/shared"
 
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
@@ -24,9 +25,7 @@ func prepareFirewallOnJobCreate(
 		return
 	}
 
-	// TODO get this from configuration
-	isSensitiveProject := false
-
+	isSensitiveProject := shared.IsSensitiveProject(job.Owner.Project)
 	if isSensitiveProject {
 		pod.ObjectMeta.Labels["ucloud.dk/firewallSensitive"] = "true"
 	}

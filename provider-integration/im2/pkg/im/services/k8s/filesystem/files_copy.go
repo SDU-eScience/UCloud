@@ -19,6 +19,10 @@ import (
 )
 
 func copyFiles(request ctrl.CopyFileRequest) error {
+	if !AllowUCloudPathsTogether([]string{request.OldPath, request.NewPath}) {
+		return util.ServerHttpError("Some of these files cannot be used together. One or more are sensitive.")
+	}
+
 	_, ok1 := UCloudToInternal(request.OldPath)
 	destPath, ok2 := UCloudToInternal(request.NewPath)
 	if !ok1 || !ok2 {

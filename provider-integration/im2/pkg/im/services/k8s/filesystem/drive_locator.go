@@ -259,3 +259,57 @@ func DriveIdFromUCloudPath(path string) (string, bool) {
 	driveId := components[0]
 	return driveId, true
 }
+
+func AllowUCloudPathsTogetherWithProjects(paths []string, projects []string) bool {
+	projectIds := map[string]util.Empty{}
+	anySensitive := false
+
+	for _, p := range projects {
+		projectIds[p] = util.Empty{}
+	}
+
+	for _, path := range paths {
+		driveId, ok := DriveIdFromUCloudPath(path)
+		if ok {
+			drive, ok := ResolveDrive(driveId)
+			if ok {
+				projectIds[drive.Owner.Project] = util.Empty{}
+				if DriveIsSensitive(drive) {
+					anySensitive = true
+				}
+			}
+		}
+	}
+
+	if anySensitive && len(projectIds) > 1 {
+		return false
+	}
+
+	return true
+}
+
+func AllowUCloudPathsTogether(paths []string) bool {
+	return AllowUCloudPathsTogetherWithProjects(paths, nil)
+}
+
+func UCloudPathIsSensitive(path string) bool {
+	driveId, ok := DriveIdFromUCloudPath(path)
+	if !ok {
+		return true
+	}
+
+	drive, ok := ResolveDrive(driveId)
+	if !ok {
+		return true
+	}
+
+	return DriveIsSensitive(drive)
+}
+
+func DriveIsSensitive(drive *orc.Drive) bool {
+	if drive == nil {
+		return true
+	}
+
+	return shared.IsSensitiveProject(drive.Owner.Project)
+}

@@ -66,6 +66,42 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	application := &job.Status.ResolvedApplication.Invocation
 	tool := &job.Status.ResolvedApplication.Invocation.Tool.Tool
 
+	// Sensitive project validation
+	// -----------------------------------------------------------------------------------------------------------------
+	if shared.IsSensitiveProject(job.Owner.Project) {
+		rejectionMessage := util.OptNone[string]()
+		for _, resc := range job.Specification.Resources {
+			if resc.Type == orc.AppParameterValueTypeIngress {
+				rejectionMessage.Set("Public links cannot be used by this project")
+				break
+			}
+
+			if resc.Type == orc.AppParameterValueTypeNetwork {
+				rejectionMessage.Set("Public IPs cannot be used by this project")
+				break
+			}
+
+			if resc.Type == orc.AppParameterValueTypePeer {
+				peerJob, ok := ctrl.RetrieveJob(resc.JobId)
+				if !ok {
+					rejectionMessage.Set("One of your connected jobs cannot be used in this project")
+					break
+				}
+
+				if job.Owner.Project != peerJob.Owner.Project {
+					rejectionMessage.Set("One of your connected jobs cannot be used in this project")
+					break
+				}
+			}
+
+			// NOTE(Dan): Files are checked by the mounts code
+		}
+
+		if rejectionMessage.Present {
+			return util.ServerHttpError("%s", rejectionMessage)
+		}
+	}
+
 	// Setting up network policy and service
 	// -----------------------------------------------------------------------------------------------------------------
 	// Only rank 0 is responsible for creating these additional resources. Their pointers will be nil if they should
@@ -203,7 +239,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	// Mounts
 	// -----------------------------------------------------------------------------------------------------------------
-	internalToPod := prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
+	internalToPod, ok := prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
+	if !ok {
+		return util.ServerHttpError("Unable to use these folders together. One or more are sensitive.")
+	}
 
 	// Modules
 	// -----------------------------------------------------------------------------------------------------------------

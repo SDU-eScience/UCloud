@@ -17,23 +17,44 @@ func (e *HttpError) Error() string {
 }
 
 func UserHttpError(whyFormat string, args ...any) *HttpError {
+	message := ""
+	if len(args) == 0 {
+		message = whyFormat
+	} else {
+		message = fmt.Sprintf(whyFormat, args...)
+	}
+
 	return &HttpError{
 		StatusCode: http.StatusBadRequest,
-		Why:        fmt.Sprintf(whyFormat, args...),
+		Why:        message,
 	}
 }
 
 func ServerHttpError(whyFormat string, args ...any) *HttpError {
+	message := ""
+	if len(args) == 0 {
+		message = whyFormat
+	} else {
+		message = fmt.Sprintf(whyFormat, args...)
+	}
+
 	return &HttpError{
 		StatusCode: http.StatusBadRequest,
-		Why:        fmt.Sprintf(whyFormat, args...),
+		Why:        message,
 	}
 }
 
 func HttpErr(statusCode int, whyFormat string, args ...any) *HttpError {
+	message := ""
+	if len(args) == 0 {
+		message = whyFormat
+	} else {
+		message = fmt.Sprintf(whyFormat, args...)
+	}
+
 	return &HttpError{
 		StatusCode: statusCode,
-		Why:        fmt.Sprintf(whyFormat, args...),
+		Why:        message,
 	}
 }
 

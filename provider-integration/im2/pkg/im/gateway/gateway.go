@@ -344,7 +344,7 @@ const xdsTcp = `
                 port_value: 52033
     http2_protocol_options: {}
     name: xds_cluster
-	type: STRICT_DNS
+    type: STRICT_DNS
 `
 
 const envoyConfigTemplate = `

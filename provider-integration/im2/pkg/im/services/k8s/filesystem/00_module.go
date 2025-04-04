@@ -114,6 +114,10 @@ func OpenFile(path string, mode int, perm uint32) (*os.File, bool) {
 }
 
 func createDownload(request ctrl.DownloadSession) error {
+	if UCloudPathIsSensitive(request.Path) {
+		return util.UserHttpError("Downloads are disabled for this project")
+	}
+
 	fd, _, err := validateAndOpenFileForDownload(request.Path)
 	util.SilentCloseIfOk(fd, err)
 	return err
@@ -157,6 +161,10 @@ func move(request ctrl.MoveFileRequest) error {
 }
 
 func doMove(request ctrl.MoveFileRequest, updateTimestamps bool) error {
+	if !AllowUCloudPathsTogether([]string{request.OldPath, request.NewPath}) {
+		return util.ServerHttpError("Some of these files cannot be used together. One or more are sensitive.")
+	}
+
 	conflictPolicy := request.Policy
 	sourcePath, ok1 := UCloudToInternal(request.OldPath)
 	destPath, ok2 := UCloudToInternal(request.NewPath)

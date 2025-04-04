@@ -271,7 +271,7 @@ func terminate(request ctrl.JobTerminateRequest) error {
 	// -----------------------------------------------------------------------------------------------------------------
 	internalJobFolder, _, err := FindJobFolder(request.Job)
 	if err == nil {
-		mounts := calculateMounts(request.Job, internalJobFolder)
+		mounts, _ := calculateMounts(request.Job, internalJobFolder)
 		if len(mounts.Folders) > 0 {
 			jobFolder, ok := filesystem.OpenFile(internalJobFolder, os.O_RDONLY, 0)
 			if ok {
