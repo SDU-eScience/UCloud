@@ -20,4 +20,5 @@ func loadMigrations() {
 	addScript(driveDatabaseV2())
 	addScript(integratedAppsV1())
 	addScript(connectionsV3())
+	addScript(ingressDatabaseV1())
 }

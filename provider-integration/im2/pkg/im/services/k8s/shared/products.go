@@ -271,9 +271,7 @@ func initProducts() {
 	}
 
 	if ServiceConfig.Compute.Ingresses.Enabled {
-		log.Info("Initializing ingress products")
 		ingressName := "public-links"
-
 		IngressProducts = []apm.ProductV2{
 			{
 				Type: apm.ProductTypeCIngress,
@@ -299,6 +297,8 @@ func initProducts() {
 
 		IngressSupport = []orc.IngressSupport{
 			{
+				Prefix: cfg.Services.Kubernetes().Compute.Ingresses.Prefix,
+				Suffix: cfg.Services.Kubernetes().Compute.Ingresses.Suffix,
 				Product: apm.ProductReference{
 					Id:       ingressName,
 					Category: ingressName,

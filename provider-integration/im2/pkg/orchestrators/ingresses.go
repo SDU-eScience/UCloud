@@ -4,6 +4,7 @@ import (
 	"ucloud.dk/pkg/apm"
 	c "ucloud.dk/pkg/client"
 	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/pkg/util"
 )
 
 type Ingress struct {
@@ -14,6 +15,8 @@ type Ingress struct {
 }
 
 type IngressSupport struct {
+	Prefix  string               `json:"domainPrefix"`
+	Suffix  string               `json:"domainSuffix"`
 	Product apm.ProductReference `json:"product"`
 }
 
@@ -29,8 +32,9 @@ type IngressStatus struct {
 }
 
 type IngressUpdate struct {
-	State IngressState `json:"state,omitempty"`
-	ResourceUpdate
+	State     util.Option[IngressState] `json:"state,omitempty"`
+	Timestamp fnd.Timestamp             `json:"timestamp"`
+	Status    util.Option[string]       `json:"status,omitempty"`
 }
 
 type IngressState string
@@ -44,8 +48,8 @@ const (
 // API
 // =====================================================================================================================
 
-const ingressesCtrlNamespace = "ingresses.control."
-const ingressesCtrlContext = "/api/ingresses/control/"
+const ingressCtrlNamespace = "ingresses.control."
+const ingressCtrlContext = "/api/ingresses/control/"
 
 type BrowseIngressesFlags struct {
 	IncludeProduct bool `json:"includeProduct"`
@@ -54,9 +58,19 @@ type BrowseIngressesFlags struct {
 
 func BrowseIngresses(next string, flags BrowseIngressesFlags) (fnd.PageV2[Ingress], error) {
 	return c.ApiBrowse[fnd.PageV2[Ingress]](
-		ingressesCtrlNamespace+"browse",
-		ingressesCtrlContext,
+		ingressCtrlNamespace+"browse",
+		ingressCtrlContext,
 		"",
 		append([]string{"next", next}, c.StructToParameters(flags)...),
 	)
+}
+
+func UpdateIngresses(request fnd.BulkRequest[ResourceUpdateAndId[IngressUpdate]]) error {
+	_, err := c.ApiUpdate[util.Empty](
+		ingressCtrlNamespace+"update",
+		ingressCtrlContext,
+		"update",
+		request,
+	)
+	return err
 }

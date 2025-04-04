@@ -53,6 +53,8 @@ type KubernetesIpConfiguration struct {
 
 type KubernetesIngressConfiguration struct {
 	Enabled bool
+	Prefix  string
+	Suffix  string
 }
 
 type KubernetesIntegratedTerminal struct {
@@ -309,6 +311,25 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 	if ingressNode != nil {
 		enabled, ok := optionalChildBool(filePath, ingressNode, "enabled")
 		cfg.Compute.Ingresses.Enabled = enabled && ok
+
+		success = true
+		prefix := optionalChildText(filePath, ingressNode, "prefix", &success)
+
+		if success && prefix != "" {
+			cfg.Compute.Ingresses.Prefix = prefix
+		} else {
+			cfg.Compute.Ingresses.Prefix = "app-"
+		}
+
+		success = true
+		suffix := optionalChildText(filePath, ingressNode, "suffix", &success)
+
+		if success && suffix != "" {
+			cfg.Compute.Ingresses.Suffix = suffix
+		} else {
+			cfg.Compute.Ingresses.Prefix = ".example.com"
+		}
+
 	}
 
 	sshNode, _ := getChildOrNil(filePath, computeNode, "ssh")

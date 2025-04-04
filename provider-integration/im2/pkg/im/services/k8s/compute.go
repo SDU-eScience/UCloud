@@ -8,7 +8,6 @@ import (
 	"ucloud.dk/pkg/im/services/k8s/containers"
 	"ucloud.dk/pkg/im/services/k8s/kubevirt"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
@@ -74,7 +73,6 @@ func deletePublicIp(ip *orc.PublicIp) error {
 }
 
 func retrieveIngressProducts() []orc.IngressSupport {
-	log.Info("Retrieving ingress products")
 	return shared.IngressSupport
 }
 
