@@ -7,7 +7,8 @@ ensure automatic management of accounts and quotas.
 ## Introduction
 
 UCloud/IM interacts with the Slurm system through the normal Slurm commands. UCloud/IM does not currently utilize the
-JSON or REST functionality. As a result, UCloud/IM only requires version TODO XXX TODO or above.
+JSON or REST functionality. As a result, UCloud/IM simply requires a somewhat recent version of Slurm. Any version
+above 20.02 is guaranteed to work, but older versions might also work.
 
 As covered in the [Architecture and Networking](./architecture.md) chapter, these commands (when responding to a user
 request) will be run as the corresponding local user. Thus, if `Donna#1234` has a local identity of `donna01` then all
@@ -136,18 +137,18 @@ See the "Code" tab for selectable text.
 
 UCloud/IM uses the following procedure to submit a job to Slurm:
 
-1. Determine the primary drive belonging to the project. Currently this is the first drive for the 
-   project, found by using the defined `driveLocator` as described in [Filesystem 
+1. Determine the primary drive belonging to the project. Currently this is the first drive for the
+   project, found by using the defined `driveLocator` as described in [Filesystem
    Integration](/slurm/file-management.html#managed-drive-locators).
-2. In the primary drive, create the job folder at `UCloud Jobs/${UCloudJobId}`.
+2. In the primary drive, create the job folder at `ucloud-jobs/${UCloudJobId}`.
 3. In the job folder, create the submission script `job.sh`.
 4. Generate the `sbatch` preamble and add it to the submission script.
 5. Generate the application start-up code using the job specification and referenced application
 6. Submit the job using:
    ```terminal
-   $ sbatch "${PrimaryDrive}/UCloud Jobs/${UCloudJobId}/job.sh"
+   $ sbatch "${PrimaryDrive}/ucloud-jobs/${UCloudJobId}/job.sh"
    412512
-   ```   
+   ```
 
 In this section, we will discuss step 4 of how UCloud/IM selects the submission parameters for the
 [`sbatch` preamble](https://slurm.schedmd.com/sbatch.html). In the coming chapters, we will also be discussing step
@@ -420,7 +421,7 @@ mapper _and_ resource allocation update trigger to re-run immediately.
 ```terminal
 # Listing Slurm mappings based on a regex
 $ sudo ucloud slurm accounts list --regex ".*_faulty_cpu.*"
-| Type    | Project title      | Local ID             | Category | Account             | 
+| Type    | Project title      | Local ID             | Category | Account             |
 |--------------------------------------------------------------------------------------|
 | User    | Donna#1234         | donna02              | CPU      | donna02_faulty_cpu  |
 
@@ -430,7 +431,7 @@ $ sudo ucloud slurm accounts rm --account donna02_faulty_cpu
 OK
 
 $ sudo ucloud slurm accounts list --regex ".*_faulty_cpu.*"
-| Type    | Project title      | Local ID             | Category | Account             | 
+| Type    | Project title      | Local ID             | Category | Account             |
 |--------------------------------------------------------------------------------------|
 | No results                                                                           |
 ```
@@ -559,23 +560,27 @@ ensure have been configured, as the integration depends on these.
 
 **1. Confirm that accounting is enabled**
 
-You should confirm that the following properties are set. *Note that the values likely need to be 
+You should confirm that the following properties are set. *Note that the values likely need to be
 different for any specific system.*
+
+The `priority/multifactor` plugin must be enabled, otherwise accounting and quotas will not work correctly.
+You should also make sure that Slurm does not decay or reset usage, because this is all handled by UCloud/IM.
 
 ```ini
 # /etc/slurm/slurm.conf
 
-JobAcctGatherType=jobacct_gather/linux
-JobAcctGatherFrequency=30
-
 AccountingStorageType=accounting_storage/slurmdbd
 AccountingStorageHost=slurmdbd
 AccountingStoragePort=6819
+
+PriorityType=priority/multifactor
+PriorityDecayHalfLife=0
+PriorityUsageResetPeriod=NONE
 ```
 
 **2. Configure accounting to enforce the correct properties**
 
-You should confirm that the accounting is actually enforced. *The property MUST include the options 
+You should confirm that the accounting is actually enforced. *The property MUST include the options
 listed here, but MAY include more.*
 
 ```ini
@@ -594,7 +599,7 @@ AccountingStorageEnforce=associations,limits,qos,safe
 **3. Configure tracking of resource consumption**
 
 Slurm will by default track CPU and memory usage. However, it does track GPUs. If the system needs to support a machine
-type with an accounting unit of GPU-hours, then this must be turned on with:
+type with an accounting unit of GPU hours, then this must be turned on with:
 
 ```ini
 # /etc/slurm/slurm.conf
