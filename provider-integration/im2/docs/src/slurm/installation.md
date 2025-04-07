@@ -16,7 +16,7 @@ System minimum requirements:
 
 HPC cluster minimum requirements:
 
-- __Slurm:__ TODO version number
+- __Slurm:__ Version 20.02 and above are guaranteed to work, older versions might work.
 - __Filesystem:__ A distributed filesystem exposing a standard POSIX interface
     - UCloud/IM for Slurm has integrations with: GPFS
 
@@ -44,7 +44,7 @@ In order to follow along with this document you also need:
 <div data-title="RHEL" data-icon="fa-brands fa-redhat">
 
 RPM packages for RHEL are automatically built. You can download the latest RPM package
-[here](https://github.com/sdu-escience/ucloud/releases/latest). Once you have downloaded the 
+[here](https://github.com/sdu-escience/ucloud/releases/latest). Once you have downloaded the
 package, you can install it with
 the following command:
 
@@ -75,7 +75,7 @@ UCloud/IM 2024.1.0
 
 **TODO** Not available yet.
 
-An executable binary of the UCloud Integration Module is available for download 
+An executable binary of the UCloud Integration Module is available for download
 [here](https://github.com/sdu-escience/ucloud/releases/latest).
 
  1. Download the archive containing the binary for your platform.
@@ -85,7 +85,7 @@ An executable binary of the UCloud Integration Module is available for download
 
 <div data-title="Building from source" data-icon="fa-brands fa-golang">
 
-The UCloud Integration Module is written in the [Go](https://go.dev) programming language, and can 
+The UCloud Integration Module is written in the [Go](https://go.dev) programming language, and can
 be build from source with a compatible version of the Go compiler.
 
 Installation instructions can be found [here](https://go.dev/doc/install).
@@ -109,7 +109,7 @@ To build:
     $ ./build.sh
     ```
 
- 3. The UCloud Integration Module binary will be located in `bin/im` when compilation has finished. 
+ 3. The UCloud Integration Module binary will be located in `bin/im` when compilation has finished.
     Rename this to `ucloud` and place somewhere in you `PATH` (e.g. `/usr/bin`).
 
 
@@ -130,8 +130,8 @@ should aim to re-use this file.
 </div>
 </div>
 
-Before you can start UCloud/IM, you must register as a service provider. This only needs to be done 
-once. You may receive a test provider in UCloud's sandbox environment by contacting the [support 
+Before you can start UCloud/IM, you must register as a service provider. This only needs to be done
+once. You may receive a test provider in UCloud's sandbox environment by contacting the [support
 team](https://servicedesk.cloud.sdu.dk).
 
 <!--
