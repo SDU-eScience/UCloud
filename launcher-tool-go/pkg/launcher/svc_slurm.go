@@ -12,31 +12,23 @@ import (
 const FreeIpaAddon = "free-ipa"
 
 type GoSlurm struct {
-	name                string
-	title               string
 	numberOfSlurmNodes  int
 	canRegisterProducts bool
-	addons              map[string]string
 }
 
 func NewGoSlurm(canRegisterProducts bool, numberOfSlurmNodes int) GoSlurm {
-	addons := make(map[string]string)
-	addons[FreeIpaAddon] = FreeIpaAddon
 	return GoSlurm{
-		name:                "go-slurm",
-		title:               "Slurm (Go test)",
 		numberOfSlurmNodes:  numberOfSlurmNodes,
 		canRegisterProducts: canRegisterProducts,
-		addons:              addons,
 	}
 }
 
 func (gs *GoSlurm) Name() string {
-	return gs.name
+	return "go-slurm"
 }
 
 func (gs *GoSlurm) Title() string {
-	return gs.title
+	return "IM2/Slurm"
 }
 
 func (gs *GoSlurm) CanRegisterProducts() bool {
@@ -44,7 +36,9 @@ func (gs *GoSlurm) CanRegisterProducts() bool {
 }
 
 func (gs *GoSlurm) Addons() map[string]string {
-	return gs.addons
+	return map[string]string{
+		FreeIpaAddon: FreeIpaAddon,
+	}
 }
 
 func (gs *GoSlurm) Build(cb ComposeBuilder) {

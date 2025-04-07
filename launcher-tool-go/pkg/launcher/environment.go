@@ -99,82 +99,24 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 		newEnvironment = env
 		break
 	}
-	var operator termio.MenuItem
 
-	local := termio.MenuItem{
-		Value:   "local",
-		Message: "Local environment on this machine",
+	{
+		fmt.Println("The following is expected of your machine:")
+		fmt.Println()
+		fmt.Println("- The machine should run Linux or macOS")
+		fmt.Println("- Docker and Docker Compose (either through `docker compose` or `docker-compose`)")
+		fmt.Println("- Your user must be in the docker group and be able to issue docker commands without sudo")
+		fmt.Println()
+
+		path := filepath.Join(repoRoot.GetAbsolutePath(), ".compose", newEnvironment)
+		env := NewFile(path)
+		env.MkDirs()
+
+		currentEnvironment = env
+		_, err = os.Stat(filepath.Join(env.GetAbsolutePath(), "remote"))
+
+		return filepath.Base(newEnvironment)
 	}
-
-	remote := termio.MenuItem{
-		Value:   "remote",
-		Message: "Remote environment on some other machine (via SSH)",
-	}
-
-	localOrRemoteMenu := termio.Menu{
-		Prompt: "Should this be a local or remote environment?",
-		Items:  []termio.MenuItem{local, remote},
-	}
-
-	if initTest {
-		operator = local
-	} else {
-		item, err := localOrRemoteMenu.SelectSingle()
-		HardCheck(err)
-		if item.Value == local.Value {
-			operator = local
-		} else {
-			operator = remote
-		}
-	}
-	switch operator {
-	case local:
-		{
-			fmt.Println("The following is expected of your machine:")
-			fmt.Println()
-			fmt.Println("- The machine should run Linux or macOS")
-			fmt.Println("- Docker and Docker Compose (either through `docker compose` or `docker-compose`)")
-			fmt.Println("- Your user must be in the docker group and be able to issue docker commands without sudo")
-			fmt.Println()
-
-			path := filepath.Join(repoRoot.GetAbsolutePath(), ".compose", newEnvironment)
-			env := NewFile(path)
-			env.MkDirs()
-
-			currentEnvironment = env
-			_, err = os.Stat(filepath.Join(env.GetAbsolutePath(), "remote"))
-
-			return filepath.Base(newEnvironment)
-		}
-	case remote:
-		{
-			fmt.Println("The following is expected of the remote machine:")
-			fmt.Println()
-			fmt.Println("- The machine should run Linux")
-			fmt.Println("- Docker and Docker Compose (either through `docker compose` or `docker-compose`)")
-			fmt.Println("- Your user must be in the docker group and be able to issue docker commands without sudo")
-			fmt.Println()
-
-			hostname := termio.TextPrompt("What is the hostname/IP of this machine? (e.g. machine42.example.com)", "machine42.example.com")
-			username := termio.TextPrompt("What is your username on this machine? (e.g. janedoe)", "janedoe")
-
-			path := repoRoot.GetAbsolutePath() + ".compose"
-			file, err := os.Open(path)
-			defer file.Close()
-			HardCheck(err)
-			env := NewFile(path)
-			env.MkDirs()
-
-			currentEnvironment = env
-
-			env.Child("remote", false).WriteText(username + "@" + hostname)
-			return filepath.Base(newEnvironment)
-		}
-	default:
-		panic("unreachable")
-
-	}
-
 }
 
 type InitEnvironmentResult struct {

@@ -7,35 +7,22 @@ import (
 )
 
 type Kubernetes struct {
-	name                string
-	title               string
-	canRegisterProducts bool
-	addons              map[string]string
-}
-
-func NewKubernetes() Kubernetes {
-	return Kubernetes{
-		name:                "k8",
-		title:               "Kubernetes",
-		canRegisterProducts: true,
-		addons:              map[string]string{},
-	}
 }
 
 func (k *Kubernetes) Name() string {
-	return k.name
+	return "k8"
 }
 
 func (k *Kubernetes) Title() string {
-	return k.title
+	return "IM1/K8s"
 }
 
 func (k *Kubernetes) CanRegisterProducts() bool {
-	return k.canRegisterProducts
+	return true
 }
 
 func (k *Kubernetes) Addons() map[string]string {
-	return k.addons
+	return map[string]string{}
 }
 
 func (k *Kubernetes) Build(cb ComposeBuilder) {

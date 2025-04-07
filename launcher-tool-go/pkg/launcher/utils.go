@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 type StringPair struct {
@@ -66,6 +67,11 @@ func DebugCommandsGiven() bool {
 	return os.Getenv("DEBUG_COMMANDS") != ""
 }
 
+var UseCore2 = sync.OnceValue(func() bool {
+	_, err := os.Stat(filepath.Join(currentEnvironment.GetAbsolutePath(), "../../.use-core2"))
+	return err == nil
+})
+
 func GenerateComposeFile(doWriteFile bool) {
 	providers := ListConfiguredProviders()
 
@@ -73,6 +79,10 @@ func GenerateComposeFile(doWriteFile bool) {
 		&UCloudBackend{},
 		&UCloudFrontend{},
 		&GateWay{false},
+	}
+
+	if UseCore2() {
+		composeList = append(composeList, &UCloudCore2{})
 	}
 
 	for _, provider := range providers {

@@ -3,7 +3,6 @@ package launcher
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -174,14 +173,10 @@ func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 		for time.Now().UnixMilli() < deadline {
 			str, err := outputReader.ReadString('\n')
 			if len(str) == 0 && err != nil {
-				if err == io.EOF {
-					break
-				} else {
-					panic(err)
-				}
+				break
 			}
 			if l.streamOutput == true {
-				termio.WriteLine(str)
+				termio.Write("%s", str)
 			}
 			outputBuilder.Write([]byte(str))
 		}
@@ -193,14 +188,10 @@ func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 		for time.Now().UnixMilli() < deadline {
 			str, err := errorReader.ReadString('\n')
 			if len(str) == 0 && err != nil {
-				if err == io.EOF {
-					break
-				} else {
-					panic(err)
-				}
+				break
 			}
 			if l.streamOutput == true {
-				termio.WriteLine(str)
+				termio.Write("%s", str)
 			}
 			errBuilder.Write([]byte(str))
 		}

@@ -1,6 +1,9 @@
 package launcher
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 type GateWay struct {
 	didAppendInstall bool
@@ -20,15 +23,24 @@ func (gw *GateWay) Build(cb ComposeBuilder) {
 		PostExecFile.WriteString("\n " + repoRoot.GetAbsolutePath() + "/launcher-go install-certs\n\n")
 	}
 
+	core2Config := TrimIndent(`
+		reverse_proxy /api/avatar/* core2:8080
+	`)
+
+	if !UseCore2() {
+		core2Config = ""
+	}
+
 	gatewayConfig := gatewayDir.Child("Caddyfile", false)
 	gatewayConfig.WriteText(
-		`
+		TrimIndent(fmt.Sprintf(`
 			{
 				order grpc_web before reverse_proxy
 			}
 			
 			https://ucloud.localhost.direct {
 				grpc_web
+				%s
 				reverse_proxy /api/auth-callback-csrf frontend:9000
 				reverse_proxy /api/auth-callback frontend:9000
 				reverse_proxy /api/sync-callback frontend:9000
@@ -126,7 +138,7 @@ func (gw *GateWay) Build(cb ComposeBuilder) {
 				}
 				reverse_proxy @gok8sapps gok8s:8889
 			}
-		`,
+		`, core2Config)),
 	)
 
 	cb.Service(

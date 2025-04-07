@@ -12,25 +12,16 @@ type GoKubernetes struct {
 	addons              map[string]string
 }
 
-func NewGoKubernetes() GoKubernetes {
-	return GoKubernetes{
-		name:                "gok8s",
-		title:               "Kubernetes (IM2)",
-		canRegisterProducts: false,
-		addons:              make(map[string]string),
-	}
-}
-
 func (g *GoKubernetes) Name() string {
-	return g.name
+	return "gok8s"
 }
 
 func (g *GoKubernetes) Title() string {
-	return g.title
+	return "IM2/K8s"
 }
 
 func (g *GoKubernetes) CanRegisterProducts() bool {
-	return g.canRegisterProducts
+	return false
 }
 
 func (g *GoKubernetes) Addons() map[string]string {

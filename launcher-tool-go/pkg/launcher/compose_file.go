@@ -2,6 +2,8 @@ package launcher
 
 import (
 	_ "embed"
+	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -179,11 +181,9 @@ var AllProviderNames = []string{
 }
 
 func GenerateProviders() {
-	kubernetes = NewKubernetes()
 	AllProviders = append(AllProviders, &kubernetes)
 	goSlurm = NewGoSlurm(true, 2)
 	AllProviders = append(AllProviders, &goSlurm)
-	goKubernetes = NewGoKubernetes()
 	AllProviders = append(AllProviders, &goKubernetes)
 }
 
@@ -204,4 +204,27 @@ type ProviderCredentials struct {
 	publicKey    string
 	refreshToken string
 	projectId    string
+}
+
+type ComposeServiceJson struct {
+	Image       string            `json:"image"`
+	Command     []string          `json:"command"`
+	Restart     string            `json:"restart"`
+	Hostname    string            `json:"hostname"`
+	Ports       []string          `json:"ports"`
+	Volumes     []string          `json:"volumes"`
+	Environment map[string]string `json:"environment,omitempty"`
+}
+
+func (s ComposeServiceJson) ToJson() Json {
+	data, _ := json.Marshal(s)
+	return Json{string(data)}
+}
+
+func ComposeVolume(local string, container string) string {
+	return fmt.Sprintf("%s:%s", local, container)
+}
+
+func ComposePort(local int, container int) string {
+	return fmt.Sprintf("%d:%d", local, container)
 }
