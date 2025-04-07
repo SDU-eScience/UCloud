@@ -849,8 +849,6 @@ func controllerJobs(mux *http.ServeMux) {
 		ingressCreateHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.Ingress]](
 			0,
 			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.Ingress]) {
-				log.Info("Create ingress called")
-
 				var errors []error
 				var providerIds []*fnd.FindByStringId
 

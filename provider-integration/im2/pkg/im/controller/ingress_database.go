@@ -2,12 +2,14 @@ package controller
 
 import (
 	"encoding/json"
-	"fmt"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 
 	db "ucloud.dk/pkg/database"
 	fnd "ucloud.dk/pkg/foundation"
+	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
@@ -16,6 +18,10 @@ import (
 var ingresses = map[string]*orc.Ingress{}
 
 var ingressesMutex = sync.Mutex{}
+
+var (
+	regex *regexp.Regexp = regexp.MustCompile("[a-z]([-_a-z0-9]){4,255}")
+)
 
 func initIngressDatabase() {
 	if !RunsServerCode() {
@@ -95,9 +101,33 @@ func TrackIngress(ingress orc.Ingress) {
 }
 
 func CreateIngress(target *orc.Ingress) error {
-	log.Debug("CreateIngress called")
 	if target == nil {
-		return fmt.Errorf("target is nil")
+		return util.ServerHttpError("Failed to create public link: target is nil")
+	}
+
+	domain := target.Specification.Domain
+	prefix := cfg.Services.Kubernetes().Compute.Ingresses.Prefix
+	suffix := cfg.Services.Kubernetes().Compute.Ingresses.Suffix
+
+	isValid := strings.HasPrefix(domain, prefix) && strings.HasSuffix(domain, suffix)
+
+	if !isValid {
+		return util.UserHttpError("Specified domain is not valid.")
+	}
+
+	id, _ := strings.CutPrefix(domain, prefix)
+	id, _ = strings.CutSuffix(id, suffix)
+
+	if len(id) < 5 {
+		return util.UserHttpError("Public links must be at least 5 characters long.")
+	}
+
+	if strings.HasSuffix(id, "-") || strings.HasSuffix(id, "_") {
+		return util.UserHttpError("Public links cannot end with a dash or underscore.")
+	}
+
+	if !regex.MatchString(id) {
+		return util.UserHttpError("Public link must only contain letters a-z, numbers (0-9), dashes and underscores.")
 	}
 
 	status := util.Option[string]{}
@@ -123,7 +153,7 @@ func CreateIngress(target *orc.Ingress) error {
 		TrackIngress(*target)
 		return nil
 	} else {
-		log.Info("Failed to activate license due to an error between UCloud and the provider: %s", err)
+		log.Warn("Failed to create public link due to an error between UCloud and the provider: %s", err)
 		return err
 	}
 }
