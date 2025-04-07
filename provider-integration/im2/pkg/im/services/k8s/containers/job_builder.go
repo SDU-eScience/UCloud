@@ -197,7 +197,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	cpuMillis := int64(job.Status.ResolvedProduct.Cpu * 1000)
 	memoryMegabytes := int64(job.Status.ResolvedProduct.MemoryInGigs * 1000)
 	gpus := int64(job.Status.ResolvedProduct.Gpu * 1000)
-	// TODO reservations and dev scheduling
 
 	addResource(core.ResourceCPU, cpuMillis, resource.Milli)
 	addResource(core.ResourceMemory, memoryMegabytes, resource.Mega)
