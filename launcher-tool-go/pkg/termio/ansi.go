@@ -79,12 +79,20 @@ func WriteStyledString(style IoStyle, fg, bg Color, formatString string, args ..
 	return builder.String()
 }
 
+func WriteStyledTo(file *os.File, style IoStyle, fg, bg Color, formatString string, args ...any) {
+	_, _ = file.WriteString(WriteStyledString(style, fg, bg, formatString, args...))
+}
+
 func WriteStyled(style IoStyle, fg, bg Color, formatString string, args ...any) {
 	_, _ = os.Stdout.WriteString(WriteStyledString(style, fg, bg, formatString, args...))
 }
 
 func WriteStyledLine(style IoStyle, fg, bg Color, formatString string, args ...any) {
 	WriteStyled(style, fg, bg, formatString+"\n", args...)
+}
+
+func WriteStyledLineTo(file *os.File, style IoStyle, fg, bg Color, formatString string, args ...any) {
+	WriteStyledTo(file, style, fg, bg, formatString+"\n", args...)
 }
 
 func Write(formatString string, args ...any) {
@@ -95,18 +103,18 @@ func WriteLine(formatString string, args ...any) {
 	Write(formatString+"\n", args...)
 }
 
-func moveCursorUp(lines int) {
-	fmt.Printf("\033[%dA", lines)
+func moveCursorUp(out *os.File, lines int) {
+	_, _ = out.WriteString(fmt.Sprintf("\033[%dA", lines))
 }
 
-func clearLine() {
-	fmt.Printf("\033[2K")
+func clearLine(out *os.File) {
+	_, _ = out.WriteString("\033[2K")
 }
 
-func hideCursor() {
-	fmt.Printf("\033[?25l")
+func hideCursor(out *os.File) {
+	_, _ = out.WriteString("\033[?25l")
 }
 
-func showCursor() {
-	fmt.Printf("\033[?25h")
+func showCursor(out *os.File) {
+	_, _ = out.WriteString("\033[?25h")
 }
