@@ -144,3 +144,10 @@ func DeleteIngress(target *orc.Ingress) error {
 
 	return nil
 }
+
+func RetrieveIngress(id string) orc.Ingress {
+	ingressesMutex.Lock()
+	result := *ingresses[id]
+	ingressesMutex.Unlock()
+	return result
+}
