@@ -2,9 +2,10 @@ package config
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"math"
 	"net"
+
+	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
@@ -54,6 +55,12 @@ type KubernetesIpConfiguration struct {
 	Name    string
 }
 
+type KubernetesIngressConfiguration struct {
+	Enabled bool
+	Prefix  string
+	Suffix  string
+}
+
 type KubernetesIntegratedTerminal struct {
 	Enabled bool
 }
@@ -81,6 +88,7 @@ type KubernetesCompute struct {
 	Namespace                       string
 	Web                             KubernetesWebConfiguration
 	PublicIps                       KubernetesIpConfiguration
+	Ingresses                       KubernetesIngressConfiguration
 	Ssh                             KubernetesSshConfiguration
 	Syncthing                       KubernetesSyncthingConfiguration
 	IntegratedTerminal              KubernetesIntegratedTerminal
@@ -343,6 +351,31 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 				cfg.Compute.PublicIps.Name = "public-ip"
 			}
 		}
+	}
+
+	ingressNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "publicLinks")
+	if ingressNode != nil {
+		enabled, ok := cfgutil.OptionalChildBool(filePath, ingressNode, "enabled")
+		cfg.Compute.Ingresses.Enabled = enabled && ok
+
+		success = true
+		prefix := cfgutil.OptionalChildText(filePath, ingressNode, "prefix", &success)
+
+		if success && prefix != "" {
+			cfg.Compute.Ingresses.Prefix = prefix
+		} else {
+			cfg.Compute.Ingresses.Prefix = "app-"
+		}
+
+		success = true
+		suffix := cfgutil.OptionalChildText(filePath, ingressNode, "suffix", &success)
+
+		if success && suffix != "" {
+			cfg.Compute.Ingresses.Suffix = suffix
+		} else {
+			cfg.Compute.Ingresses.Prefix = ".example.com"
+		}
+
 	}
 
 	sshNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "ssh")
