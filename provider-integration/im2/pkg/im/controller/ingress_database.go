@@ -42,9 +42,6 @@ func fetchAllIngresses() {
 			IncludeUpdates: true,
 		})
 
-		pageStr, _ := json.Marshal(page)
-		log.Info("Page: %s", pageStr)
-
 		if err != nil {
 			log.Warn("Failed to fetch ingresses: %v", err)
 			break
