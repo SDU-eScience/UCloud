@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"ucloud.dk/pkg/apm"
+	"ucloud.dk/shared/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 // InitializeMemberFiles ensures that a drive exists which corresponds to the member files of the given workspace.

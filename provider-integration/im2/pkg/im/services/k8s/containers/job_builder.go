@@ -14,8 +14,8 @@ import (
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func StartScheduledJob(job *orc.Job, rank int, node string) error {
@@ -65,6 +65,42 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	application := &job.Status.ResolvedApplication.Invocation
 	tool := &job.Status.ResolvedApplication.Invocation.Tool.Tool
+
+	// Sensitive project validation
+	// -----------------------------------------------------------------------------------------------------------------
+	if shared.IsSensitiveProject(job.Owner.Project) {
+		rejectionMessage := util.OptNone[string]()
+		for _, resc := range job.Specification.Resources {
+			if resc.Type == orc.AppParameterValueTypeIngress {
+				rejectionMessage.Set("Public links cannot be used by this project")
+				break
+			}
+
+			if resc.Type == orc.AppParameterValueTypeNetwork {
+				rejectionMessage.Set("Public IPs cannot be used by this project")
+				break
+			}
+
+			if resc.Type == orc.AppParameterValueTypePeer {
+				peerJob, ok := ctrl.RetrieveJob(resc.JobId)
+				if !ok {
+					rejectionMessage.Set("One of your connected jobs cannot be used in this project")
+					break
+				}
+
+				if job.Owner.Project != peerJob.Owner.Project {
+					rejectionMessage.Set("One of your connected jobs cannot be used in this project")
+					break
+				}
+			}
+
+			// NOTE(Dan): Files are checked by the mounts code
+		}
+
+		if rejectionMessage.Present {
+			return util.ServerHttpError("%s", rejectionMessage)
+		}
+	}
 
 	// Setting up network policy and service
 	// -----------------------------------------------------------------------------------------------------------------
@@ -161,7 +197,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	cpuMillis := int64(job.Status.ResolvedProduct.Cpu * 1000)
 	memoryMegabytes := int64(job.Status.ResolvedProduct.MemoryInGigs * 1000)
 	gpus := int64(job.Status.ResolvedProduct.Gpu * 1000)
-	// TODO reservations and dev scheduling
 
 	addResource(core.ResourceCPU, cpuMillis, resource.Milli)
 	addResource(core.ResourceMemory, memoryMegabytes, resource.Mega)
@@ -203,7 +238,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	// Mounts
 	// -----------------------------------------------------------------------------------------------------------------
-	internalToPod := prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
+	internalToPod, ok := prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
+	if !ok {
+		return util.ServerHttpError("Unable to use these folders together. One or more are sensitive.")
+	}
 
 	// Modules
 	// -----------------------------------------------------------------------------------------------------------------
@@ -304,7 +342,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	}
 
 	if util.DevelopmentModeEnabled() && ServiceConfig.Compute.ImSourceCode.Present {
-		ucvizContainer.Image = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.35"
+		ucvizContainer.Image = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.3.3"
 		ucvizContainer.VolumeMounts = append(ucvizContainer.VolumeMounts, core.VolumeMount{
 			Name:      "ucloud-filesystem",
 			ReadOnly:  false,

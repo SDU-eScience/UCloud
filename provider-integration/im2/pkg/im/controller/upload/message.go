@@ -1,6 +1,6 @@
 package upload
 
-import "ucloud.dk/pkg/util"
+import "ucloud.dk/shared/pkg/util"
 
 type messageType uint8
 

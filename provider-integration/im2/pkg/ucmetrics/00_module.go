@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func ReadMemoryUsage() uint64 {

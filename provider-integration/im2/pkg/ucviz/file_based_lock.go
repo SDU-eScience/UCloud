@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type fileLock struct {

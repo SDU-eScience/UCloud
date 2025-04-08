@@ -1,11 +1,11 @@
 package migrations
 
 import (
-	db "ucloud.dk/pkg/database"
+	db "ucloud.dk/shared/pkg/database"
 )
 
-func scriptLogV1() migrationScript {
-	return migrationScript{
+func scriptLogV1() db.MigrationScript {
+	return db.MigrationScript{
 		Id: "scriptLogV1",
 		Execute: func(tx *db.Transaction) {
 			db.Exec(

@@ -8,9 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 )
-
-var commandType ExecutableCommandInterface
 
 type StringPair struct {
 	First, Second string
@@ -68,6 +67,11 @@ func DebugCommandsGiven() bool {
 	return os.Getenv("DEBUG_COMMANDS") != ""
 }
 
+var UseCore2 = sync.OnceValue(func() bool {
+	_, err := os.Stat(filepath.Join(currentEnvironment.GetAbsolutePath(), "../../.use-core2"))
+	return err == nil
+})
+
 func GenerateComposeFile(doWriteFile bool) {
 	providers := ListConfiguredProviders()
 
@@ -75,6 +79,10 @@ func GenerateComposeFile(doWriteFile bool) {
 		&UCloudBackend{},
 		&UCloudFrontend{},
 		&GateWay{false},
+	}
+
+	if UseCore2() {
+		composeList = append(composeList, &UCloudCore2{})
 	}
 
 	for _, provider := range providers {
@@ -92,4 +100,42 @@ func GenerateComposeFile(doWriteFile bool) {
 
 func InitializeServiceList() {
 	GenerateComposeFile(false)
+}
+
+// TrimIndent removes the common leading whitespace from every line in a multi-line string
+func TrimIndent(s string) string {
+	lines := strings.Split(s, "\n")
+
+	// Remove leading and trailing blank lines
+	start := 0
+	end := len(lines)
+	for start < end && strings.TrimSpace(lines[start]) == "" {
+		start++
+	}
+	for end > start && strings.TrimSpace(lines[end-1]) == "" {
+		end--
+	}
+	lines = lines[start:end]
+
+	// Find the minimum indent
+	minIndent := -1
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		leading := len(line) - len(strings.TrimLeft(line, " \t"))
+		if minIndent == -1 || leading < minIndent {
+			minIndent = leading
+		}
+	}
+
+	// Remove the common indent
+	for i, line := range lines {
+		if len(line) >= minIndent {
+			lines[i] = line[minIndent:]
+		}
+	}
+
+	return strings.Join(lines, "\n")
 }

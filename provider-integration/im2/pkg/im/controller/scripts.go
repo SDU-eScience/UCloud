@@ -9,11 +9,11 @@ import (
 	"os/exec"
 	"strings"
 
-	db "ucloud.dk/pkg/database"
-	fnd "ucloud.dk/pkg/foundation"
+	db "ucloud.dk/shared/pkg/database"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type Script[Req any, Resp any] struct {

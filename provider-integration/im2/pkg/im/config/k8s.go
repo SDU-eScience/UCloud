@@ -1,16 +1,20 @@
 package config
 
 import (
+	"fmt"
 	"math"
 	"net"
 
 	"gopkg.in/yaml.v3"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/cfgutil"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type ServicesConfigurationKubernetes struct {
-	FileSystem KubernetesFileSystem
-	Compute    KubernetesCompute
+	FileSystem        KubernetesFileSystem
+	Compute           KubernetesCompute
+	SensitiveProjects []string
 }
 
 type KubernetesFileSystem struct {
@@ -93,6 +97,38 @@ type KubernetesCompute struct {
 	Modules                         map[string]KubernetesModuleEntry
 }
 
+func (c *KubernetesCompute) ResolveMachine(name, category string) (K8sMachineCategory, K8sMachineCategoryGroup, K8sMachineConfiguration, bool) {
+	cat, ok := c.Machines[category]
+	if !ok {
+		return K8sMachineCategory{}, K8sMachineCategoryGroup{}, K8sMachineConfiguration{}, false
+	}
+
+	for groupName, group := range cat.Groups {
+		for _, machineConfig := range group.Configs {
+			mgName := fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
+			if mgName == name {
+				return cat, group, machineConfig, true
+			}
+		}
+	}
+
+	return K8sMachineCategory{}, K8sMachineCategoryGroup{}, K8sMachineConfiguration{}, false
+}
+
+func pickResource(resource MachineResourceType, machineConfig K8sMachineConfiguration) int {
+	switch resource {
+	case MachineResourceTypeCpu:
+		return machineConfig.Cpu
+	case MachineResourceTypeGpu:
+		return machineConfig.Gpu
+	case MachineResourceTypeMemory:
+		return machineConfig.MemoryInGigabytes
+	default:
+		log.Warn("Unhandled machine resource type: %v", resource)
+		return 0
+	}
+}
+
 type KubernetesModuleEntry struct {
 	Name       string              `json:"name"`
 	VolSubPath string              `json:"claimSubPath"`
@@ -106,6 +142,7 @@ type K8sMachineCategory struct {
 }
 
 type K8sMachineCategoryGroup struct {
+	GroupName            string
 	NameSuffix           MachineResourceType
 	Configs              []K8sMachineConfiguration
 	CpuModel             string
@@ -113,6 +150,7 @@ type K8sMachineCategoryGroup struct {
 	MemoryModel          string
 	AllowVirtualMachines bool
 	AllowsContainers     bool
+	GpuResourceType      string
 }
 
 type K8sMachineConfiguration struct {
@@ -126,16 +164,21 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 	cfg := ServicesConfigurationKubernetes{}
 	success := true
 
-	fsNode := requireChild(filePath, services, "fileSystem", &success)
-	{
-		cfg.FileSystem.Name = requireChildText(filePath, fsNode, "name", &success)
-		cfg.FileSystem.MountPoint = requireChildFolder(filePath, fsNode, "mountPoint", FileCheckReadWrite, &success)
-		cfg.FileSystem.TrashStagingArea = requireChildFolder(filePath, fsNode, "trashStagingArea", FileCheckReadWrite, &success)
-		cfg.FileSystem.ClaimName = requireChildText(filePath, fsNode, "claimName", &success)
+	sensitiveProjects, _ := cfgutil.GetChildOrNil(filePath, services, "sensitiveProjects")
+	if sensitiveProjects != nil {
+		cfgutil.Decode(filePath, sensitiveProjects, &cfg.SensitiveProjects, &success)
+	}
 
-		scanMethodNode, _ := getChildOrNil(filePath, fsNode, "scanMethod")
+	fsNode := cfgutil.RequireChild(filePath, services, "fileSystem", &success)
+	{
+		cfg.FileSystem.Name = cfgutil.RequireChildText(filePath, fsNode, "name", &success)
+		cfg.FileSystem.MountPoint = cfgutil.RequireChildFolder(filePath, fsNode, "mountPoint", cfgutil.FileCheckReadWrite, &success)
+		cfg.FileSystem.TrashStagingArea = cfgutil.RequireChildFolder(filePath, fsNode, "trashStagingArea", cfgutil.FileCheckReadWrite, &success)
+		cfg.FileSystem.ClaimName = cfgutil.RequireChildText(filePath, fsNode, "claimName", &success)
+
+		scanMethodNode, _ := cfgutil.GetChildOrNil(filePath, fsNode, "scanMethod")
 		if scanMethodNode != nil {
-			cfg.FileSystem.ScanMethod.Type = requireChildEnum(filePath, scanMethodNode, "type",
+			cfg.FileSystem.ScanMethod.Type = cfgutil.RequireChildEnum(filePath, scanMethodNode, "type",
 				K8sScanMethodTypeValues, &success)
 
 			switch cfg.FileSystem.ScanMethod.Type {
@@ -143,7 +186,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 				// Do nothing
 
 			case K8sScanMethodTypeExtendedAttribute:
-				cfg.FileSystem.ScanMethod.ExtendedAttribute = requireChildText(filePath, scanMethodNode,
+				cfg.FileSystem.ScanMethod.ExtendedAttribute = cfgutil.RequireChildText(filePath, scanMethodNode,
 					"xattr", &success)
 
 			case K8sScanMethodTypeDevFile:
@@ -154,14 +197,14 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		}
 	}
 
-	computeNode := requireChild(filePath, services, "compute", &success)
-	cfg.Compute.Namespace = optionalChildText(filePath, services, "namespace", &success)
-	cfg.Compute.ImSourceCode = util.OptStringIfNotEmpty(optionalChildText(filePath, computeNode, "imSourceCode", &success))
+	computeNode := cfgutil.RequireChild(filePath, services, "compute", &success)
+	cfg.Compute.Namespace = cfgutil.OptionalChildText(filePath, services, "namespace", &success)
+	cfg.Compute.ImSourceCode = util.OptStringIfNotEmpty(cfgutil.OptionalChildText(filePath, computeNode, "imSourceCode", &success))
 
 	// NOTE(Dan): Default value was based on several tests on the current production environment. Results were very
 	// stable around 14.5MB/s. This result seems very low, but consistent. Thankfully, it is fairly rare that people
 	// run containers that are not already present on the machine.
-	cfg.Compute.EstimatedContainerDownloadSpeed = optionalChildFloat(
+	cfg.Compute.EstimatedContainerDownloadSpeed = cfgutil.OptionalChildFloat(
 		filePath,
 		computeNode,
 		"estimatedContainerDownloadSpeed",
@@ -173,9 +216,9 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 	}
 
 	cfg.Compute.Modules = map[string]KubernetesModuleEntry{}
-	modulesNode, _ := getChildOrNil(filePath, computeNode, "modules")
+	modulesNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "modules")
 	if modulesNode != nil && modulesNode.Kind != yaml.MappingNode {
-		reportError(filePath, computeNode, "expected 'modules' to be a dictionary")
+		cfgutil.ReportError(filePath, computeNode, "expected 'modules' to be a dictionary")
 		return false, cfg
 	}
 
@@ -185,9 +228,9 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			_ = modulesNode.Content[i].Decode(&entry.Name)
 
 			entryNode := modulesNode.Content[i+1]
-			entry.VolSubPath = requireChildText(filePath, entryNode, "subPath", &success)
-			entry.HostPath = util.OptStringIfNotEmpty(optionalChildText(filePath, entryNode, "hostPath", &success))
-			entry.ClaimName = util.OptStringIfNotEmpty(optionalChildText(filePath, entryNode, "claimName", &success))
+			entry.VolSubPath = cfgutil.RequireChildText(filePath, entryNode, "subPath", &success)
+			entry.HostPath = util.OptStringIfNotEmpty(cfgutil.OptionalChildText(filePath, entryNode, "hostPath", &success))
+			entry.ClaimName = util.OptStringIfNotEmpty(cfgutil.OptionalChildText(filePath, entryNode, "claimName", &success))
 
 			claimSourceCount := 0
 			if entry.HostPath.Present {
@@ -198,13 +241,13 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			}
 
 			if claimSourceCount != 1 {
-				reportError(filePath, entryNode, "exactly one of 'hostPath' and 'volumeClaim' must be set!")
+				cfgutil.ReportError(filePath, entryNode, "exactly one of 'hostPath' and 'volumeClaim' must be set!")
 				return false, cfg
 			}
 
 			_, exists := cfg.Compute.Modules[entry.Name]
 			if exists {
-				reportError(filePath, entryNode, "another module with this name already exists")
+				cfgutil.ReportError(filePath, entryNode, "another module with this name already exists")
 				return false, cfg
 			}
 
@@ -213,9 +256,9 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 	}
 
 	cfg.Compute.Machines = make(map[string]K8sMachineCategory)
-	machinesNode := requireChild(filePath, computeNode, "machines", &success)
+	machinesNode := cfgutil.RequireChild(filePath, computeNode, "machines", &success)
 	if machinesNode.Kind != yaml.MappingNode {
-		reportError(filePath, computeNode, "expected machines to be a dictionary")
+		cfgutil.ReportError(filePath, computeNode, "expected machines to be a dictionary")
 		return false, cfg
 	}
 
@@ -228,19 +271,20 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		category.Groups = make(map[string]K8sMachineCategoryGroup)
 		category.Payment = parsePaymentInfo(
 			filePath,
-			requireChild(filePath, machineNode, "payment", &success),
+			cfgutil.RequireChild(filePath, machineNode, "payment", &success),
 			[]string{"Cpu", "Memory", "Gpu"},
 			false,
 			&success,
 		)
 
-		if !hasChild(machineNode, "groups") {
+		if !cfgutil.HasChild(machineNode, "groups") {
 			group := parseK8sMachineGroup(filePath, machineNode, &success)
+			group.GroupName = machineCategoryName
 			category.Groups[machineCategoryName] = group
 		} else {
-			groupsNode := requireChild(filePath, machineNode, "groups", &success)
+			groupsNode := cfgutil.RequireChild(filePath, machineNode, "groups", &success)
 			if groupsNode.Kind != yaml.MappingNode {
-				reportError(filePath, groupsNode, "expected groups to be a dictionary")
+				cfgutil.ReportError(filePath, groupsNode, "expected groups to be a dictionary")
 				return false, cfg
 			}
 
@@ -248,7 +292,9 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 				groupName := ""
 				_ = groupsNode.Content[j].Decode(&groupName)
 				groupNode := groupsNode.Content[j+1]
-				category.Groups[groupName] = parseK8sMachineGroup(filePath, groupNode, &success)
+				group := parseK8sMachineGroup(filePath, groupNode, &success)
+				group.GroupName = groupName
+				category.Groups[groupName] = group
 			}
 		}
 
@@ -257,7 +303,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 				group, _ := category.Groups[key]
 				for _, machineConfig := range group.Configs {
 					if machineConfig.Price == 0 {
-						reportError(filePath, machineNode, "price must be specified for all machine groups when payment type is Money!")
+						cfgutil.ReportError(filePath, machineNode, "price must be specified for all machine groups when payment type is Money!")
 						return false, cfg
 					}
 				}
@@ -267,7 +313,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 				group, _ := category.Groups[key]
 				for _, machineConfig := range group.Configs {
 					if machineConfig.Price != 0 {
-						reportError(filePath, machineNode, "price must not be specified for all machine groups when payment type is Resource!")
+						cfgutil.ReportError(filePath, machineNode, "price must not be specified for all machine groups when payment type is Resource!")
 						return false, cfg
 					}
 				}
@@ -281,24 +327,24 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		cfg.Compute.Machines[machineCategoryName] = category
 	}
 
-	webNode, _ := getChildOrNil(filePath, computeNode, "web")
+	webNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "web")
 	if webNode != nil {
-		enabled, ok := optionalChildBool(filePath, webNode, "enabled")
+		enabled, ok := cfgutil.OptionalChildBool(filePath, webNode, "enabled")
 		cfg.Compute.Web.Enabled = enabled && ok
 
 		if cfg.Compute.Web.Enabled {
-			cfg.Compute.Web.Prefix = requireChildText(filePath, webNode, "prefix", &success)
-			cfg.Compute.Web.Suffix = requireChildText(filePath, webNode, "suffix", &success)
+			cfg.Compute.Web.Prefix = cfgutil.RequireChildText(filePath, webNode, "prefix", &success)
+			cfg.Compute.Web.Suffix = cfgutil.RequireChildText(filePath, webNode, "suffix", &success)
 		}
 	}
 
-	ipNode, _ := getChildOrNil(filePath, computeNode, "publicIps")
+	ipNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "publicIps")
 	if ipNode != nil {
-		enabled, ok := optionalChildBool(filePath, ipNode, "enabled")
+		enabled, ok := cfgutil.OptionalChildBool(filePath, ipNode, "enabled")
 		cfg.Compute.PublicIps.Enabled = enabled && ok
 
 		if cfg.Compute.PublicIps.Enabled {
-			name := optionalChildText(filePath, ipNode, "name", &success)
+			name := cfgutil.OptionalChildText(filePath, ipNode, "name", &success)
 			if name != "" {
 				cfg.Compute.PublicIps.Name = name
 			} else {
@@ -307,13 +353,13 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		}
 	}
 
-	ingressNode, _ := getChildOrNil(filePath, computeNode, "publicLinks")
+	ingressNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "publicLinks")
 	if ingressNode != nil {
-		enabled, ok := optionalChildBool(filePath, ingressNode, "enabled")
+		enabled, ok := cfgutil.OptionalChildBool(filePath, ingressNode, "enabled")
 		cfg.Compute.Ingresses.Enabled = enabled && ok
 
 		success = true
-		prefix := optionalChildText(filePath, ingressNode, "prefix", &success)
+		prefix := cfgutil.OptionalChildText(filePath, ingressNode, "prefix", &success)
 
 		if success && prefix != "" {
 			cfg.Compute.Ingresses.Prefix = prefix
@@ -322,7 +368,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		}
 
 		success = true
-		suffix := optionalChildText(filePath, ingressNode, "suffix", &success)
+		suffix := cfgutil.OptionalChildText(filePath, ingressNode, "suffix", &success)
 
 		if success && suffix != "" {
 			cfg.Compute.Ingresses.Suffix = suffix
@@ -332,102 +378,102 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 	}
 
-	sshNode, _ := getChildOrNil(filePath, computeNode, "ssh")
+	sshNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "ssh")
 	if sshNode != nil {
-		enabled, ok := optionalChildBool(filePath, sshNode, "enabled")
+		enabled, ok := cfgutil.OptionalChildBool(filePath, sshNode, "enabled")
 		cfg.Compute.Ssh.Enabled = enabled && ok
 
 		if cfg.Compute.Ssh.Enabled {
-			ipAddr := requireChildText(filePath, sshNode, "ipAddress", &success)
+			ipAddr := cfgutil.RequireChildText(filePath, sshNode, "ipAddress", &success)
 			if success {
 				ip := net.ParseIP(ipAddr)
 				if ip == nil {
-					reportError(filePath, sshNode, "Invalid IP address specified")
+					cfgutil.ReportError(filePath, sshNode, "Invalid IP address specified")
 					success = false
 				} else {
 					cfg.Compute.Ssh.IpAddress = ipAddr
 				}
 			}
 
-			portMin := requireChildInt(filePath, sshNode, "portMin", &success)
+			portMin := cfgutil.RequireChildInt(filePath, sshNode, "portMin", &success)
 			if success && (portMin <= 0 || portMin >= math.MaxInt16) {
-				reportError(filePath, sshNode, "portMin is invalid")
+				cfgutil.ReportError(filePath, sshNode, "portMin is invalid")
 				success = false
 			}
 
-			portMax := requireChildInt(filePath, sshNode, "portMax", &success)
+			portMax := cfgutil.RequireChildInt(filePath, sshNode, "portMax", &success)
 			if success && (portMax <= 0 || portMax >= math.MaxInt16) {
-				reportError(filePath, sshNode, "portMax is invalid")
+				cfgutil.ReportError(filePath, sshNode, "portMax is invalid")
 				success = false
 			}
 
 			if success && portMin < portMin {
-				reportError(filePath, sshNode, "portMax is less than portMin")
+				cfgutil.ReportError(filePath, sshNode, "portMax is less than portMin")
 				success = false
 			}
 
 			cfg.Compute.Ssh.PortMin = int(portMin)
 			cfg.Compute.Ssh.PortMax = int(portMax)
 
-			hostname := optionalChildText(filePath, sshNode, "hostname", &success)
+			hostname := cfgutil.OptionalChildText(filePath, sshNode, "hostname", &success)
 			if hostname != "" {
 				cfg.Compute.Ssh.Hostname.Set(hostname)
 			}
 		}
 	}
 
-	syncthingNode, _ := getChildOrNil(filePath, computeNode, "syncthing")
+	syncthingNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "syncthing")
 	if syncthingNode != nil {
-		enabled, ok := optionalChildBool(filePath, syncthingNode, "enabled")
+		enabled, ok := cfgutil.OptionalChildBool(filePath, syncthingNode, "enabled")
 		cfg.Compute.Syncthing.Enabled = enabled && ok
 
 		if cfg.Compute.Syncthing.Enabled {
-			ipAddr := requireChildText(filePath, syncthingNode, "ipAddress", &success)
+			ipAddr := cfgutil.RequireChildText(filePath, syncthingNode, "ipAddress", &success)
 			if success {
 				ip := net.ParseIP(ipAddr)
 				if ip == nil {
-					reportError(filePath, syncthingNode, "Invalid IP address specified")
+					cfgutil.ReportError(filePath, syncthingNode, "Invalid IP address specified")
 					success = false
 				} else {
 					cfg.Compute.Syncthing.IpAddress = ipAddr
 				}
 			}
 
-			portMin := requireChildInt(filePath, syncthingNode, "portMin", &success)
+			portMin := cfgutil.RequireChildInt(filePath, syncthingNode, "portMin", &success)
 			if success && (portMin <= 0 || portMin >= math.MaxInt16) {
-				reportError(filePath, syncthingNode, "portMin is invalid")
+				cfgutil.ReportError(filePath, syncthingNode, "portMin is invalid")
 				success = false
 			}
 
-			portMax := requireChildInt(filePath, syncthingNode, "portMax", &success)
+			portMax := cfgutil.RequireChildInt(filePath, syncthingNode, "portMax", &success)
 			if success && (portMax <= 0 || portMax >= math.MaxInt16) {
-				reportError(filePath, syncthingNode, "portMax is invalid")
+				cfgutil.ReportError(filePath, syncthingNode, "portMax is invalid")
 				success = false
 			}
 
 			if success && portMin < portMin {
-				reportError(filePath, syncthingNode, "portMax is less than portMin")
+				cfgutil.ReportError(filePath, syncthingNode, "portMax is less than portMin")
 				success = false
 			}
 
 			cfg.Compute.Syncthing.PortMin = int(portMin)
 			cfg.Compute.Syncthing.PortMax = int(portMax)
 
-			cfg.Compute.Syncthing.DevelopmentSourceCode = optionalChildText(filePath, syncthingNode, "developmentSourceCode", &success)
+			cfg.Compute.Syncthing.DevelopmentSourceCode = cfgutil.OptionalChildText(filePath, syncthingNode, "developmentSourceCode", &success)
 
-			relaysEnabled, ok := optionalChildBool(filePath, syncthingNode, "relaysEnabled")
+			relaysEnabled, ok := cfgutil.OptionalChildBool(filePath, syncthingNode, "relaysEnabled")
 			cfg.Compute.Syncthing.RelaysEnabled = relaysEnabled && ok
-			cfg.Compute.Syncthing.DevelopmentSourceCode = optionalChildText(filePath, syncthingNode, "developmentSourceCode", &success)
+			cfg.Compute.Syncthing.DevelopmentSourceCode = cfgutil.OptionalChildText(filePath, syncthingNode, "developmentSourceCode", &success)
 		}
 	}
 
-	integratedTerminalNode, _ := getChildOrNil(filePath, computeNode, "integratedTerminal")
+	integratedTerminalNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "integratedTerminal")
 	if integratedTerminalNode != nil {
-		enabled, ok := optionalChildBool(filePath, integratedTerminalNode, "enabled")
+		enabled, ok := cfgutil.OptionalChildBool(filePath, integratedTerminalNode, "enabled")
 		cfg.Compute.IntegratedTerminal.Enabled = enabled && ok
 	}
 
-	vmStorageClass := optionalChildText(filePath, computeNode, "virtualMachineStorageClass", &success)
+	vmStorageClass := cfgutil.OptionalChildText(filePath, computeNode, "virtualMachineStorageClass", &success)
 	if vmStorageClass != "" {
 		cfg.Compute.VirtualMachineStorageClass.Set(vmStorageClass)
 	}
@@ -437,15 +483,22 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMachineCategoryGroup {
 	result := K8sMachineCategoryGroup{}
-	result.CpuModel = optionalChildText(filePath, node, "cpuModel", success)
-	result.GpuModel = optionalChildText(filePath, node, "gpuModel", success)
-	result.MemoryModel = optionalChildText(filePath, node, "memoryModel", success)
+	result.CpuModel = cfgutil.OptionalChildText(filePath, node, "cpuModel", success)
+	result.GpuModel = cfgutil.OptionalChildText(filePath, node, "gpuModel", success)
+	result.MemoryModel = cfgutil.OptionalChildText(filePath, node, "memoryModel", success)
 
-	allowVms, ok := optionalChildBool(filePath, node, "allowVirtualMachines")
+	allowVms, ok := cfgutil.OptionalChildBool(filePath, node, "allowVirtualMachines")
 	result.AllowVirtualMachines = allowVms && ok
 
-	allowContainers, ok := optionalChildBool(filePath, node, "allowContainers")
+	allowContainers, ok := cfgutil.OptionalChildBool(filePath, node, "allowContainers")
 	result.AllowsContainers = allowContainers || !ok
+
+	// NOTE(Dan): The GPU resource type is set even if the machine doesn't have GPUs. This shouldn't matter in
+	// practice since the machine will simply not report any usable GPUs and won't ever try to request any.
+	result.GpuResourceType = cfgutil.OptionalChildText(filePath, node, "gpuType", success)
+	if result.GpuResourceType == "" {
+		result.GpuResourceType = "nvidia.com/gpu"
+	}
 
 	var cpu []int
 	var gpu []int
@@ -453,47 +506,47 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 	var price []float64
 
 	{
-		decode(filePath, requireChild(filePath, node, "cpu", success), &cpu, success)
+		cfgutil.Decode(filePath, cfgutil.RequireChild(filePath, node, "cpu", success), &cpu, success)
 
-		memoryNode := requireChild(filePath, node, "memory", success)
-		decode(filePath, memoryNode, &memory, success)
+		memoryNode := cfgutil.RequireChild(filePath, node, "memory", success)
+		cfgutil.Decode(filePath, memoryNode, &memory, success)
 
-		gpuNode, _ := getChildOrNil(filePath, node, "gpu")
+		gpuNode, _ := cfgutil.GetChildOrNil(filePath, node, "gpu")
 		if gpuNode != nil {
-			decode(filePath, gpuNode, &gpu, success)
+			cfgutil.Decode(filePath, gpuNode, &gpu, success)
 		}
 
-		priceNode, _ := getChildOrNil(filePath, node, "price")
+		priceNode, _ := cfgutil.GetChildOrNil(filePath, node, "price")
 		if priceNode != nil {
-			decode(filePath, priceNode, &price, success)
+			cfgutil.Decode(filePath, priceNode, &price, success)
 		}
 
 		machineLength := len(cpu)
 
 		if machineLength == 0 {
-			reportError(filePath, node, "You must specify at least one machine via cpu, memory (+ gpu/price)")
+			cfgutil.ReportError(filePath, node, "You must specify at least one machine via cpu, memory (+ gpu/price)")
 			*success = false
 		}
 
 		if gpu != nil && len(gpu) != machineLength {
-			reportError(filePath, gpuNode, "gpu must have the same length as cpu (%v != %v)", machineLength, len(gpu))
+			cfgutil.ReportError(filePath, gpuNode, "gpu must have the same length as cpu (%v != %v)", machineLength, len(gpu))
 			*success = false
 		}
 
 		if price != nil && len(price) != machineLength {
-			reportError(filePath, gpuNode, "price must have the same length as cpu (%v != %v)", machineLength, len(price))
+			cfgutil.ReportError(filePath, gpuNode, "price must have the same length as cpu (%v != %v)", machineLength, len(price))
 			*success = false
 		}
 
 		if len(memory) != machineLength {
-			reportError(filePath, memoryNode, "memory must have the same length as cpu (%v != %v)", machineLength, len(memory))
+			cfgutil.ReportError(filePath, memoryNode, "memory must have the same length as cpu (%v != %v)", machineLength, len(memory))
 			*success = false
 		}
 	}
 
 	for _, count := range cpu {
 		if count <= 0 {
-			reportError(filePath, node, "cpu count must be greater than zero")
+			cfgutil.ReportError(filePath, node, "cpu count must be greater than zero")
 			*success = false
 			break
 		}
@@ -501,7 +554,7 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 
 	for _, count := range memory {
 		if count <= 0 {
-			reportError(filePath, node, "cpu count must be greater than zero")
+			cfgutil.ReportError(filePath, node, "cpu count must be greater than zero")
 			*success = false
 			break
 		}
@@ -509,7 +562,7 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 
 	for _, count := range price {
 		if count <= 0 {
-			reportError(filePath, node, "price must be greater than zero")
+			cfgutil.ReportError(filePath, node, "price must be greater than zero")
 			*success = false
 			break
 		}
@@ -517,14 +570,14 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 
 	for _, count := range gpu {
 		if count < 0 {
-			reportError(filePath, node, "gpu count must be positive")
+			cfgutil.ReportError(filePath, node, "gpu count must be positive")
 			*success = false
 			break
 		}
 	}
 
-	if hasChild(node, "nameSuffix") {
-		result.NameSuffix = requireChildEnum(filePath, node, "nameSuffix", MachineResourceTypeOptions, success)
+	if cfgutil.HasChild(node, "nameSuffix") {
+		result.NameSuffix = cfgutil.RequireChildEnum(filePath, node, "nameSuffix", MachineResourceTypeOptions, success)
 	} else {
 		if gpu != nil {
 			result.NameSuffix = MachineResourceTypeGpu

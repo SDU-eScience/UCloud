@@ -8,8 +8,8 @@ import (
 	"ucloud.dk/pkg/im/services/k8s/containers"
 	"ucloud.dk/pkg/im/services/k8s/kubevirt"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var containerCpu ctrl.JobsService
@@ -133,6 +133,11 @@ func submit(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 
 	if reason := IsJobLocked(request.JobToSubmit); reason.Present {
 		return util.OptNone[string](), reason.Value.Err
+	}
+
+	if backendIsKubevirt(request.JobToSubmit) && shared.IsSensitiveProject(request.JobToSubmit.Owner.Project) {
+		// NOTE(Dan): Feel free to remove this once VMs have been prepared for sensitive projects.
+		return util.OptNone[string](), util.UserHttpError("This project is not allowed to use virtual machines")
 	}
 
 	shared.RequestSchedule(request.JobToSubmit)

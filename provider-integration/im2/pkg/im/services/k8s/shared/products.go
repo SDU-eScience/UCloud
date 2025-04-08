@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"math"
 
-	"ucloud.dk/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/apm"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 )
 
 var (

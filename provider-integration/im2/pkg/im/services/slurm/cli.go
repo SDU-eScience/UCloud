@@ -2,7 +2,7 @@ package slurm
 
 import (
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/pkg/log"
+	"ucloud.dk/shared/pkg/log"
 )
 
 func HandleCli(command string) {

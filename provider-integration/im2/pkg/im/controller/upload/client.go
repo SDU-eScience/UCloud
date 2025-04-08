@@ -14,9 +14,9 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 const chunkIoDeadline = 30 * time.Second

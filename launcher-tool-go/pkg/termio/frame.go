@@ -51,7 +51,7 @@ const titleHint = "TTLTTLTTL"
 var re, reErr = regexp.Compile("[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]")
 
 func (f *Frame) String() string {
-	ptyCols, _, isPty := safeQueryPtySize()
+	ptyCols, _, isPty := SafeQueryPtySize()
 	builder := strings.Builder{}
 
 	maxFieldSize := 0

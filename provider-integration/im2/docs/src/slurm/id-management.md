@@ -6,7 +6,7 @@ system.
 
 ## User Mapping
 
-User mapping is the process of transforming a UCloud identity into a local identity. Recall from a
+User mapping is the process of linking a UCloud identity to a local identity. Recall from a
 [previous chapter](./architecture.md) that UCloud/IM for Slurm uses your local identities on the HPC system for
 enforcing authentication and authorization. From the point of view of your system, users coming from UCloud are simply
 ordinary users of your system. They can do exactly the same actions as if they had used SSH to access your system.
@@ -30,7 +30,7 @@ actions as they could by accessing through SSH.
 
 ### Establishing a Mapping: Unmanaged Providers
 
-In unmanaged mode, UCloud/IM _will not_ create or manage any users, projects or any resource allocation. All of this
+In unmanaged mode, UCloud/IM _will not_ create or manage any users, projects or any resource allocations. All of this
 must be done by you through whichever means you have. As a result, in unmanaged mode, it is assumed that local
 identities have already been configured correctly by a system administrator (or via sysadmin controlled script).
 
@@ -97,7 +97,7 @@ The process is as follows:
 3. **The resources created from the successful application are registered in UCloud/Core.**
 
 4. **UCloud/Core notifies the service provider.** Whenever a workspace is updated with respect to their resource
-   allocations, a notification is sent to the service provider. The message is intercepted and 
+   allocations, a notification is sent to the service provider. The message is intercepted and
    handled by UCloud/IM (Server). A user mapping is not yet established.
 
 5. **The user connects with the provider.** Once a user has received at least one resource allocation at a provider,
@@ -260,9 +260,9 @@ freeipa:
   url: https://ipa.ucloud   # Replace this with the hostname of your FreeIPA instance
   username: ucloudipauser   # Update this to match the name of your service account
   password: adminadmin      # Update the password to match your service account
-  verifyTls: true           # (optional) TODO
-  groupName:                # (optional) TODO
-  caCertFile:               # (optional) TODO
+  verifyTls: true           # (optional) Verify SSL certificate
+  caCertFile:               # (optional) Use this CA certificate for SSL verification
+  groupName:                # (optional) Add all users to this user group (defaults to ucloud_users)
   projectStrategy:          # (optional) Should be "Default", "Date" or "UUID"
 ```
 
@@ -276,10 +276,10 @@ The configuration required for FreeIPA. Remember to change the values such that 
 
 #### Naming Policies
 
-The `projectStrategy` configuration property allows you to control how to name new users and 
-projects. Keep in mind that the naming policy is only used when users and projects are created. This 
-means that if you make changes to the naming policy then already existing projects and users will 
-not be changed in any way. UCloud/IM allows you to change the policy since it stores the ID from 
+The `projectStrategy` configuration property allows you to control how to name new users and
+projects. Keep in mind that the naming policy is only used when users and projects are created. This
+means that if you make changes to the naming policy then already existing projects and users will
+not be changed in any way. UCloud/IM allows you to change the policy since it stores the ID from
 creation and not the computed name.
 
 <div class="table-wrapper">
@@ -300,7 +300,7 @@ creation and not the computed name.
 </td>
 <td>
 
-The default naming policy will attempt to create alphanumeric names which closely resemble the name 
+The default naming policy will attempt to create alphanumeric names which closely resemble the name
 of the user and project, while remaining POSIX compliant.
 
 __Users:__ Usernames use the following format:
@@ -369,7 +369,7 @@ p${year}-${month}-${twoDigitNumber}
 For example:
 
 ```text
-Test Project 1 -> p-2025-2-01
+Test Project 1 -> p2025-2-01
 ```
 
 </td>
@@ -680,7 +680,7 @@ registered before, then the script __must:__
 
 #### Script: `onProjectUpdated`
 
-The `onProjectUpdated` script is invoked every time something related to a project occurs. At the 
+The `onProjectUpdated` script is invoked every time something related to a project occurs. At the
 time of writing, the following events trigger the `onProjectUpdated` script:
 
  - Project creation.
@@ -692,8 +692,8 @@ time of writing, the following events trigger the `onProjectUpdated` script:
 
 TODO As far as I can see notifications are not sent when a project is renamed. Is this intentional?
 
-It is the responsibility of the script to take appropriate action, and to save this state, depending 
-on how your system is configured. An example of this would be to map this information to Unix 
+It is the responsibility of the script to take appropriate action, and to save this state, depending
+on how your system is configured. An example of this would be to map this information to Unix
 groups, or make appropriate calls to your identity management system.
 
 Below is an representation of request and response types, and examples, respectively.
@@ -709,16 +709,16 @@ Below is an representation of request and response types, and examples, respecti
 {
     /* string */
     "UCloudProjectId": "",
-  
+
     /* string */
     "projectTitle": "",
 
     /* string */
     "suggestedGroupName": "",
-  
+
     /* uint32 | null */
     "unixGid": null,
-  
+
     /* object[] */
     "allMembers": [
         {
@@ -732,16 +732,16 @@ Below is an representation of request and response types, and examples, respecti
             "role": "USER"
         }
     ],
-  
+
     /* object[] */
     "membersAddedToProject": [
         {
             /* uint32 */
             "uid": 0,
-          
+
             /* string */
             "ucloudUsername": "",
-          
+
             /* "PI" | "ADMIN" | "USER" */
             "role": "USER"
         }
@@ -752,7 +752,7 @@ Below is an representation of request and response types, and examples, respecti
         {
             /* uint32 */
             "uid": 0,
-          
+
             /* string */
             "ucloudUsername": ""
         }
@@ -782,34 +782,34 @@ _No response required_
     "projectTitle": "My sandbox project",
     "suggestedGroupName": "my_sandbox_project",
     "unixGid": 5234281,
-  
+
     "allMembers": [
         {
           "uid": 41235100,
           "ucloudUsername": "UCloudUser#1234",
           "role": "PI"
-        },     
+        },
         {
           "uid": 41235101,
           "ucloudUsername": "Alice#1234",
           "role": "ADMIN"
-        },     
+        },
         {
           "uid": 41235102,
           "ucloudUsername": "Bob#1234",
           "role": "ADMIN"
-        },     
-      
+        },
+
         /* NOTE: Charlie#1234 has not yet connected to the provider and is not included
            in this list */
-      
+
         {
             "uid": 41235122,
             "ucloudUsername": "DonnaJensen#4512",
             "role": "USER"
         }
     ],
-  
+
     "membersAddedToProject": [
         {
             "uid": 41235122,

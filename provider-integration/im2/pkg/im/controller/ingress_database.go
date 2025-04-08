@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
-	db "ucloud.dk/pkg/database"
-	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	db "ucloud.dk/shared/pkg/database"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var ingresses = map[string]*orc.Ingress{}

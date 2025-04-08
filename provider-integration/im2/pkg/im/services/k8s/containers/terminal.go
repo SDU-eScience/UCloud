@@ -8,11 +8,11 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	"sync/atomic"
 	"time"
-	fnd "ucloud.dk/pkg/foundation"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type shellResizeQueue struct {
@@ -92,6 +92,8 @@ func handleShellNoRetry(session *ctrl.ShellSession, cols int, rows int, isNewSes
 				parsedConfig.Folders = append(parsedConfig.Folders, "/"+driveToMount)
 				newConfiguration.Set(parsedConfig)
 			}
+		} else {
+			newConfiguration.Set(iappTermConfig{Folders: []string{"/" + driveToMount}})
 		}
 
 		if newConfiguration.Present {

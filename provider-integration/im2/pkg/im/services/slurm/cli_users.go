@@ -9,12 +9,12 @@ import (
 	"regexp"
 	"strconv"
 	"ucloud.dk/pkg/cli"
-	db "ucloud.dk/pkg/database"
+	db "ucloud.dk/shared/pkg/database"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/termio"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func HandleUsersCommand() {

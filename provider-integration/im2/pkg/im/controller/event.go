@@ -10,15 +10,15 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"ucloud.dk/pkg/apm"
-	"ucloud.dk/pkg/client"
-	db "ucloud.dk/pkg/database"
-	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/shared/pkg/apm"
+	"ucloud.dk/shared/pkg/client"
+	db "ucloud.dk/shared/pkg/database"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var ApmHandler ApmService
@@ -129,6 +129,8 @@ func handleNotification(nType NotificationMessageType, notification any) {
 			} else {
 				walletHandler(update)
 			}
+		} else {
+			walletHandler(update)
 		}
 
 		if success {
@@ -143,30 +145,36 @@ func handleNotification(nType NotificationMessageType, notification any) {
 
 		if projectHandler(update) {
 			project := update.Project
-			realMembers := project.Status.Members
-			var usernames []string
-			for _, member := range realMembers {
-				usernames = append(usernames, member.Username)
-			}
 
-			var knownMembers []apm.ProjectMember
-			mappedUsers := MapUCloudUsersToLocalUsers(usernames)
-			for _, member := range realMembers {
-				_, ok := mappedUsers[member.Username]
-				if !ok {
-					continue
+			if LaunchUserInstances {
+				realMembers := project.Status.Members
+				var usernames []string
+				for _, member := range realMembers {
+					usernames = append(usernames, member.Username)
 				}
 
-				knownMembers = append(knownMembers, member)
+				var knownMembers []apm.ProjectMember
+				mappedUsers := MapUCloudUsersToLocalUsers(usernames)
+				for _, member := range realMembers {
+					_, ok := mappedUsers[member.Username]
+					if !ok {
+						continue
+					}
+
+					knownMembers = append(knownMembers, member)
+				}
+
+				project.Status.Members = knownMembers
 			}
 
-			project.Status.Members = knownMembers
 			saveLastKnownProject(project)
 
-			for _, newMember := range update.ProjectComparison.MembersAddedToProject {
-				uid, ok, _ := MapUCloudToLocal(newMember)
-				if ok {
-					RequestUserTermination(uid)
+			if LaunchUserInstances {
+				for _, newMember := range update.ProjectComparison.MembersAddedToProject {
+					uid, ok, _ := MapUCloudToLocal(newMember)
+					if ok {
+						RequestUserTermination(uid)
+					}
 				}
 			}
 		}

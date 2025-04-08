@@ -29,7 +29,7 @@ func queryPtySize() (int, int, bool) {
 	return int(cols), int(rows), ok
 }
 
-func safeQueryPtySize() (int, int, bool) {
+func SafeQueryPtySize() (int, int, bool) {
 	// Returns the real pty size, if possible and reasonably sized. If this is not possible, a reasonable minimum
 	// is selected instead.
 	cols, rows, ispty := queryPtySize()

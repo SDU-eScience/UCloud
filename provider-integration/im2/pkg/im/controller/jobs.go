@@ -15,13 +15,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	ws "github.com/gorilla/websocket"
-	fnd "ucloud.dk/pkg/foundation"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	gw "ucloud.dk/pkg/im/gateway"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var Jobs JobsService
@@ -474,10 +474,14 @@ func controllerJobs(mux *http.ServeMux) {
 		mux.HandleFunc(
 			fmt.Sprintf("/ucloud/%v/websocket", cfg.Provider.Id),
 			func(writer http.ResponseWriter, request *http.Request) {
+				if ok := checkEnvoySecret(writer, request); !ok {
+					return
+				}
+
 				conn, err := wsUpgrader.Upgrade(writer, request, nil)
 				defer util.SilentCloseIfOk(conn, err)
 				if err != nil {
-					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
+					log.Info("Expected a websocket connection, but couldn't upgrade: %v", err)
 					return
 				}
 
@@ -514,7 +518,7 @@ func controllerJobs(mux *http.ServeMux) {
 					}
 
 					if messageType != ws.TextMessage {
-						log.Debug("Only handling text messages but got a %v", messageType)
+						log.Info("Only handling text messages but got a %v", messageType)
 						continue
 					}
 
@@ -538,6 +542,10 @@ func controllerJobs(mux *http.ServeMux) {
 							s, ok := shellSessions[req.SessionIdentifier]
 							session = s
 							shellSessionsMutex.Unlock()
+							if !ok || session == nil {
+								log.Info("Bad session")
+								break
+							}
 
 							session.InputEvents = make(chan ShellEvent)
 							session.EmitData = func(data []byte) {
@@ -570,9 +578,6 @@ func controllerJobs(mux *http.ServeMux) {
 								Payload:  json.RawMessage(`{"type":"initialize"}`),
 							})
 							connMutex.Unlock()
-							if !ok {
-								break
-							}
 						}
 						continue
 					} else {
@@ -623,8 +628,6 @@ func controllerJobs(mux *http.ServeMux) {
 					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
 					return
 				}
-
-				log.Info("We are now listening for logs (probably)")
 
 				connMutex := sync.Mutex{}
 				sendMessage := func(message any) error {
@@ -1012,6 +1015,10 @@ func controllerJobs(mux *http.ServeMux) {
 		mux.HandleFunc(
 			fmt.Sprintf("/ucloud/%v/vnc", cfg.Provider.Id),
 			func(writer http.ResponseWriter, request *http.Request) {
+				if ok := checkEnvoySecret(writer, request); !ok {
+					return
+				}
+
 				var idAndRank jobIdAndRank
 				token := request.URL.Query().Get("token")
 				webSessionsMutex.Lock()

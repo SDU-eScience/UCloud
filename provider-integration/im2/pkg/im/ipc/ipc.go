@@ -7,8 +7,8 @@ import (
 	"io"
 	"net/http"
 	"ucloud.dk/pkg/im"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type Request[T any] struct {

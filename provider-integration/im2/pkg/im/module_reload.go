@@ -16,7 +16,7 @@ import (
 	"syscall"
 	"time"
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var _ipcMux *http.ServeMux = nil

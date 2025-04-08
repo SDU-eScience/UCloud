@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 	"ucloud.dk/pkg/ucviz"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func main() {

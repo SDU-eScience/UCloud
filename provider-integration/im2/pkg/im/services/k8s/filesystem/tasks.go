@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"sync/atomic"
 	"time"
-	db "ucloud.dk/pkg/database"
-	fnd "ucloud.dk/pkg/foundation"
+	db "ucloud.dk/shared/pkg/database"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type TaskProcessingResult struct {
@@ -158,7 +158,7 @@ func InitTaskSystem() {
 
 			case task := <-taskFrontendQueue:
 				b, _ := json.Marshal(task)
-				log.Info(string(b))
+				log.Info("%s", string(b))
 
 				if task.HasUCloudTask {
 					knownTasks[task.Id] = task

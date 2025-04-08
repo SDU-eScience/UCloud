@@ -1,11 +1,11 @@
 package migrations
 
 import (
-	db "ucloud.dk/pkg/database"
+	db "ucloud.dk/shared/pkg/database"
 )
 
-func integratedAppsV1() migrationScript {
-	return migrationScript{
+func integratedAppsV1() db.MigrationScript {
+	return db.MigrationScript{
 		Id: "integratedAppsV1",
 		Execute: func(tx *db.Transaction) {
 			db.Exec(

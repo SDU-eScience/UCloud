@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"ucloud.dk/pkg/termio"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var cliIdBase = ""
