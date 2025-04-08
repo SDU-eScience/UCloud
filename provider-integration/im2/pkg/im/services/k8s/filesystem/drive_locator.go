@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"ucloud.dk/pkg/apm"
+	"ucloud.dk/shared/pkg/apm"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type DriveDescriptorType = int

@@ -19,9 +19,12 @@ func (uc *UCloudCore2) Build(cb ComposeBuilder) {
 			Command:  []string{"sleep", "inf"},
 			Restart:  "always",
 			Hostname: "core2",
-			Ports:    []string{},
+			Ports: []string{
+				ComposePort(51245, 51233),
+			},
 			Volumes: []string{
 				ComposeVolume(filepath.Join(repoRootPath, "core2"), "/opt/ucloud"),
+				ComposeVolume(filepath.Join(repoRootPath, "provider-integration"), "/opt/provider-integration"),
 				ComposeVolume(configDir.GetAbsolutePath(), "/etc/ucloud"),
 			},
 		}.ToJson(),

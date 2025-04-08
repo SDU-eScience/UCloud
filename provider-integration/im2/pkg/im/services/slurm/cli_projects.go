@@ -8,10 +8,10 @@ import (
 	"os/user"
 	"regexp"
 	"ucloud.dk/pkg/cli"
-	db "ucloud.dk/pkg/database"
+	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/termio"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func HandleProjectsCommand() {

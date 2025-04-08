@@ -6,7 +6,7 @@ import (
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "ucloud.dk/pkg/im/controller"
-	orc "ucloud.dk/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 )
 
 func preparePublicIp(job *orc.Job, service *core.Service, firewall *networking.NetworkPolicy) {

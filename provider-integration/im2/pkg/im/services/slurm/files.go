@@ -19,16 +19,16 @@ import (
 	"time"
 
 	"golang.org/x/sys/unix"
-	"ucloud.dk/pkg/apm"
+	"ucloud.dk/shared/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/controller/upload"
 
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
-	fnd "ucloud.dk/pkg/foundation"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var browseCache *lru.LRU[string, []cachedDirEntry]

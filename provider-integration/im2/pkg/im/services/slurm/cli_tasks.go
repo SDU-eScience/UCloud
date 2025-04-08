@@ -4,11 +4,11 @@ import (
 	"net/http"
 	"os"
 	"ucloud.dk/pkg/cli"
-	db "ucloud.dk/pkg/database"
+	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/pkg/im/ipc"
-	orc "ucloud.dk/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/pkg/termio"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func HandleTasksCommand() {

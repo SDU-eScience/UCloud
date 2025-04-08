@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"sync"
 	"sync/atomic"
-	"ucloud.dk/pkg/log"
+	"ucloud.dk/shared/pkg/log"
 )
 
 const tunnelPortOffset = 30_000

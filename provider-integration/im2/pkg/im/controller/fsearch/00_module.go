@@ -8,8 +8,8 @@ import (
 	"hash/fnv"
 	"strings"
 	"sync"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func hugTokenize(input string) []string {

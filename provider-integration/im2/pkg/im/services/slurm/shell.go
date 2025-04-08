@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func handleFolderShell(session *ctrl.ShellSession, cols, rows int) {

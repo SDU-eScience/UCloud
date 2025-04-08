@@ -1,11 +1,11 @@
 package migrations
 
 import (
-	db "ucloud.dk/pkg/database"
+	db "ucloud.dk/shared/pkg/database"
 )
 
-func slurmV1() migrationScript {
-	return migrationScript{
+func slurmV1() db.MigrationScript {
+	return db.MigrationScript{
 		Id: "slurmV1",
 		Execute: func(tx *db.Transaction) {
 			db.Exec(
@@ -40,8 +40,8 @@ func slurmV1() migrationScript {
 	}
 }
 
-func slurmV2() migrationScript {
-	return migrationScript{
+func slurmV2() db.MigrationScript {
+	return db.MigrationScript{
 		Id: "slurmV2",
 		Execute: func(tx *db.Transaction) {
 			db.Exec(
@@ -74,8 +74,8 @@ func slurmV2() migrationScript {
 	}
 }
 
-func slurmV3() migrationScript {
-	return migrationScript{
+func slurmV3() db.MigrationScript {
+	return db.MigrationScript{
 		Id: "slurmV3",
 		Execute: func(tx *db.Transaction) {
 			db.Exec(

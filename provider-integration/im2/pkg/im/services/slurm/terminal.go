@@ -5,8 +5,8 @@ import (
 	"golang.org/x/sys/unix"
 	"os"
 	"syscall"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func CreateAndForkPty(cmd []string, envp []string, workingDir util.Option[string]) (*os.File, int, error) {

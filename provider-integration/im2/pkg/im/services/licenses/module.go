@@ -1,8 +1,8 @@
 package licenses
 
 import (
-	"ucloud.dk/pkg/apm"
-	"ucloud.dk/pkg/database"
+	"ucloud.dk/shared/pkg/apm"
+	"ucloud.dk/shared/pkg/database"
 )
 
 type GenericLicenseServer struct {

@@ -2,8 +2,8 @@ package shared
 
 import (
 	"sync"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type JobReplicaState struct {

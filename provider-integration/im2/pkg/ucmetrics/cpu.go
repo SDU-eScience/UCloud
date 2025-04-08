@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 // Paths for cgroup v1 and v2 files

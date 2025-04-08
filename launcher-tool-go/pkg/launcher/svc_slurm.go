@@ -107,6 +107,7 @@ func (gs *GoSlurm) Build(cb ComposeBuilder) {
 					"` + imWork.GetAbsolutePath() + `:/work",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/im2:/opt/ucloud",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/gonja:/opt/gonja",
+					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/shared:/opt/shared",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/walk:/opt/walk",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/integration-module/example-extensions/simple:/etc/ucloud/extensions",
 					"` + etcSlurm + `:/etc/slurm-llnl",
@@ -142,6 +143,7 @@ func (gs *GoSlurm) Build(cb ComposeBuilder) {
 					"` + postgresDataDir.GetAbsolutePath() + `:/var/lib/postgresql/data",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/im2:/opt/ucloud",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/gonja:/opt/gonja",
+					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/shared:/opt/shared",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/walk:/opt/walk"
 				],
 				"ports": [
