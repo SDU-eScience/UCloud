@@ -27,8 +27,8 @@ func ingressDatabaseV1() migrationScript {
 				tx,
 				`
 					create table ingresses(
-						id int not null primary key,
-						domain text not null
+						domain text not null primary key,
+						owner text not null
 					)
 			    `,
 				db.Params{},

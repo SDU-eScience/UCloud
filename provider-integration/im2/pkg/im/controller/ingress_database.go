@@ -42,6 +42,9 @@ func fetchAllIngresses() {
 			IncludeUpdates: true,
 		})
 
+		pageStr, _ := json.Marshal(page)
+		log.Info("Page: %s", pageStr)
+
 		if err != nil {
 			log.Warn("Failed to fetch ingresses: %v", err)
 			break
@@ -105,6 +108,12 @@ func CreateIngress(target *orc.Ingress) error {
 		return util.ServerHttpError("Failed to create public link: target is nil")
 	}
 
+	owner := target.Owner.CreatedBy
+
+	if len(target.Owner.Project) > 0 {
+		owner = target.Owner.Project
+	}
+
 	domain := target.Specification.Domain
 	prefix := cfg.Services.Kubernetes().Compute.Ingresses.Prefix
 	suffix := cfg.Services.Kubernetes().Compute.Ingresses.Suffix
@@ -129,6 +138,20 @@ func CreateIngress(target *orc.Ingress) error {
 	if !regex.MatchString(id) {
 		return util.UserHttpError("Public link must only contain letters a-z, numbers (0-9), dashes and underscores.")
 	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into ingresses(domain, owner)
+				values (:domain, :owner) on conflict do nothing
+			`,
+			db.Params{
+				"domain": domain,
+				"owner":  owner,
+			},
+		)
+	})
 
 	status := util.Option[string]{}
 	status.Set("Public link is ready for use")
@@ -159,6 +182,14 @@ func CreateIngress(target *orc.Ingress) error {
 }
 
 func DeleteIngress(target *orc.Ingress) error {
+	if len(target.Status.BoundTo) > 0 {
+		return util.UserHttpError("This link is currently in use by job: %v", strings.Join(target.Status.BoundTo, ", "))
+	}
+
+	ingressesMutex.Lock()
+
+	delete(ingresses, target.Id)
+
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -170,8 +201,20 @@ func DeleteIngress(target *orc.Ingress) error {
 				"id": target.Id,
 			},
 		)
+
+		db.Exec(
+			tx,
+			`
+				delete from ingresses
+				where domain = :domain
+			`,
+			db.Params{
+				"domain": target.Specification.Domain,
+			},
+		)
 	})
 
+	ingressesMutex.Unlock()
 	return nil
 }
 
