@@ -56,7 +56,7 @@ func (license *LicenseEntry) toProduct() apm.ProductV2 {
 				DisplayFrequencySuffix: false,
 			},
 			AccountingFrequency: apm.AccountingFrequencyOnce,
-			FreeToUse:           true,
+			FreeToUse:           false,
 			AllowSubAllocations: true,
 		},
 		Name:        license.Name,
@@ -120,6 +120,8 @@ func initLicenseDatabase() {
 			}
 		}
 
+		licenseMutex.Lock()
+		defer licenseMutex.Unlock()
 		resource, ok := licenses[r.Payload]
 
 		if !ok {
@@ -402,6 +404,9 @@ func retrieveLicense(productId string) (LicenseEntry, bool) {
 }
 
 func BuildLicenseParameter(id string) string {
+	licenseMutex.Lock()
+	defer licenseMutex.Unlock()
+
 	resource, ok := licenses[id]
 
 	if !ok {
