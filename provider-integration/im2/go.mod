@@ -31,9 +31,11 @@ require (
 	kubevirt.io/client-go v1.4.0
 	kubevirt.io/containerized-data-importer-api v1.57.0-alpha1
 	ucloud.dk/gonja/v2 v2.3.0
+	ucloud.dk/shared v1.0.0
 )
 
 replace ucloud.dk/gonja/v2 => ../gonja
+replace ucloud.dk/shared => ../shared
 
 replace github.com/MichaelTJones/walk => ../walk
 
@@ -127,4 +129,4 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
-go 1.23.2
+go 1.24.2

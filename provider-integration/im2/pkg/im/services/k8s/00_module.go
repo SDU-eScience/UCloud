@@ -9,8 +9,8 @@ import (
 	"ucloud.dk/pkg/im/services/k8s/containers"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func Init(config *cfg.ServicesConfigurationKubernetes) {
@@ -50,8 +50,21 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 
 	filesystem.InitTaskSystem()
 
-	ctrl.ApmHandler.HandleNotification = func(update *ctrl.NotificationWalletUpdated) {
+	ctrl.IdentityManagement.HandleProjectNotification = func(updated *ctrl.NotificationProjectUpdated) bool {
+		ok := true
+		for _, member := range updated.MembersAddedToProject {
+			_, _, err := filesystem.InitializeMemberFiles(member, util.OptValue(updated.Project.Id))
+			if err != nil {
+				ok = false
+			}
+		}
+		return ok
+	}
 
+	ctrl.ApmHandler.HandleNotification = func(update *ctrl.NotificationWalletUpdated) {
+		if !update.Project.Present {
+			_, _, _ = filesystem.InitializeMemberFiles(update.Owner.Username, util.OptNone[string]())
+		}
 	}
 
 	ctrl.RegisterProducts(shared.Machines)

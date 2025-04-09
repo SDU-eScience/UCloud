@@ -8,7 +8,7 @@ import (
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	orc "ucloud.dk/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 )
 
 func injectSshKeys(jobId string, pod *core.Pod, userContainer *core.Container) {

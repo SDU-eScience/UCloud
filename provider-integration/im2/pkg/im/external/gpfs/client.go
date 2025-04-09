@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"ucloud.dk/pkg/log"
+	"ucloud.dk/shared/pkg/log"
 )
 
 type Params map[string]any

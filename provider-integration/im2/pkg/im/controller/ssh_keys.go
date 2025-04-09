@@ -3,9 +3,9 @@ package controller
 import (
 	"fmt"
 	"net/http"
-	fnd "ucloud.dk/pkg/foundation"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var SshKeys SshKeyService

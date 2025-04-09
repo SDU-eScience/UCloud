@@ -2,8 +2,8 @@ package containers
 
 import (
 	ctrl "ucloud.dk/pkg/im/controller"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func extend(request ctrl.JobExtendRequest) error {

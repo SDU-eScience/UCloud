@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 	"ucloud.dk/pkg/cli"
-	db "ucloud.dk/pkg/database"
+	db "ucloud.dk/shared/pkg/database"
 	slurmcli "ucloud.dk/pkg/im/external/slurm"
 	"ucloud.dk/pkg/im/ipc"
-	orc "ucloud.dk/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/pkg/termio"
 )
 

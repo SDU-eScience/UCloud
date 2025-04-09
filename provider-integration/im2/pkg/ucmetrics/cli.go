@@ -7,7 +7,7 @@ import (
 	"time"
 	"ucloud.dk/pkg/termio"
 	"ucloud.dk/pkg/ucviz"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type VizData struct {

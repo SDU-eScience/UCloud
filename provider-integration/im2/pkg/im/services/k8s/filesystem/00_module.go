@@ -4,26 +4,29 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/MichaelTJones/walk"
 	"io"
 	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+	"ucloud.dk/pkg/im/controller/fsearch"
 
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	"golang.org/x/sys/unix"
-	"ucloud.dk/pkg/apm"
-	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/shared/pkg/apm"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/controller/upload"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var storageSupport []orc.FSSupport
@@ -111,6 +114,10 @@ func OpenFile(path string, mode int, perm uint32) (*os.File, bool) {
 }
 
 func createDownload(request ctrl.DownloadSession) error {
+	if UCloudPathIsSensitive(request.Path) {
+		return util.UserHttpError("Downloads are disabled for this project")
+	}
+
 	fd, _, err := validateAndOpenFileForDownload(request.Path)
 	util.SilentCloseIfOk(fd, err)
 	return err
@@ -154,6 +161,10 @@ func move(request ctrl.MoveFileRequest) error {
 }
 
 func doMove(request ctrl.MoveFileRequest, updateTimestamps bool) error {
+	if !AllowUCloudPathsTogether([]string{request.OldPath, request.NewPath}) {
+		return util.ServerHttpError("Some of these files cannot be used together. One or more are sensitive.")
+	}
+
 	conflictPolicy := request.Policy
 	sourcePath, ok1 := UCloudToInternal(request.OldPath)
 	destPath, ok2 := UCloudToInternal(request.NewPath)
@@ -1068,43 +1079,20 @@ func search(ctx context.Context, query, folder string, flags ctrl.FileFlags, out
 		return
 	}
 
-	normalizedQuery := strings.ToLower(query)
-
-	files := make(chan discoveredFile)
-	file, ok := OpenFile(initialFolder, unix.O_RDONLY, 0)
-	stat, err := file.Stat()
-	defer util.SilentClose(file)
-	if !ok || err != nil {
-		return
-	}
-
-	go func() {
-	outer:
-		for {
-			select {
-			case <-ctx.Done():
-				break outer
-			case f, ok := <-files:
-				if !ok {
-					break outer
-				}
-				if f.InternalPath != "" {
-					util.SilentClose(f.FileDescriptor)
-				}
-
-				normalizedName := strings.ToLower(util.FileName(f.InternalPath))
-				if strings.Contains(normalizedName, normalizedQuery) {
-					if err == nil {
-						result := nativeStat(drive, f.InternalPath, f.FileInfo)
-						output <- result
-					}
-				}
-			}
+	searchIndex, ok := ctrl.RetrieveSearchIndex(driveId)
+	q := fsearch.NewQuery(query)
+	_ = walk.Walk(initialFolder, runtime.NumCPU(), func(path string, info os.FileInfo, err error) error {
+		if q.Matches(path) {
+			match := nativeStat(drive, path, info)
+			output <- match
 		}
-	}()
 
-	normalFileWalk(ctx, files, file, stat)
-	close(files)
+		if info.IsDir() && !searchIndex.ContinueDown(path, q) {
+			return walk.SkipDir
+		} else {
+			return nil
+		}
+	})
 }
 
 func createDrive(drive orc.Drive) error {

@@ -14,8 +14,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var LaunchUserInstances = false
@@ -132,13 +132,20 @@ type jwtPayload struct {
 	Role string `json:"role"`
 }
 
+func checkEnvoySecret(w http.ResponseWriter, r *http.Request) bool {
+	if r.Header.Get("ucloud-secret") != cfg.OwnEnvoySecret {
+		w.WriteHeader(http.StatusUnauthorized)
+		return false
+	}
+	return true
+}
+
 func handleAuth(flags HttpApiFlag, w http.ResponseWriter, r *http.Request) bool {
 	if flags&HttpApiFlagNoAuth != 0 {
 		return true
 	}
 
-	if r.Header.Get("ucloud-secret") != cfg.OwnEnvoySecret {
-		w.WriteHeader(http.StatusUnauthorized)
+	if ok := checkEnvoySecret(w, r); !ok {
 		return false
 	}
 

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"math"
 
-	"ucloud.dk/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/apm"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 )
 
 var MachineSupport []orc.JobSupport

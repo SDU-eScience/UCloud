@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os/user"
 	"strconv"
-	fnd "ucloud.dk/pkg/foundation"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/external/freeipa"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {

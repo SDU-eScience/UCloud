@@ -11,14 +11,18 @@ import (
 	"path/filepath"
 	"sync/atomic"
 	"time"
-	fnd "ucloud.dk/pkg/foundation"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func copyFiles(request ctrl.CopyFileRequest) error {
+	if !AllowUCloudPathsTogether([]string{request.OldPath, request.NewPath}) {
+		return util.ServerHttpError("Some of these files cannot be used together. One or more are sensitive.")
+	}
+
 	_, ok1 := UCloudToInternal(request.OldPath)
 	destPath, ok2 := UCloudToInternal(request.NewPath)
 	if !ok1 || !ok2 {

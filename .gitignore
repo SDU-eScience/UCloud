@@ -160,3 +160,5 @@ backend/envoy/
 .compose/
 syncfiles/
 frontend-web/webclient/bun.lockb
+
+.use-core2

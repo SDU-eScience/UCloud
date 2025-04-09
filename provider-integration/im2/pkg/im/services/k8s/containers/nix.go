@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/pkg/termio"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var nixModules = map[string][]orc.Module{}

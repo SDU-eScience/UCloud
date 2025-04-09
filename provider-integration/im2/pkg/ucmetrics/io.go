@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 const (

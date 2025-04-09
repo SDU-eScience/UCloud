@@ -48,7 +48,7 @@ func (t *Table) Print() {
 }
 
 func (t *Table) String() string {
-	ptyCols, _, isPty := safeQueryPtySize()
+	ptyCols, _, isPty := SafeQueryPtySize()
 
 	var largestColumn []int
 	for _, _ = range t.header {

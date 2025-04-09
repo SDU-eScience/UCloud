@@ -3,7 +3,7 @@ package gateway
 import (
 	"os"
 	"ucloud.dk/pkg/termio"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func HandleCli(pluginName string) bool {

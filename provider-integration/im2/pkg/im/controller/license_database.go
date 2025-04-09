@@ -10,17 +10,17 @@ import (
 	"sync"
 	"time"
 
-	"ucloud.dk/pkg/apm"
 	"ucloud.dk/pkg/cli"
-	db "ucloud.dk/pkg/database"
-	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/termio"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/apm"
+	db "ucloud.dk/shared/pkg/database"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 
-	orc "ucloud.dk/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 )
 
 type LicenseEntry struct {

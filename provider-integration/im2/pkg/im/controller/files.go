@@ -13,19 +13,19 @@ import (
 	"strings"
 	"time"
 
-	"ucloud.dk/pkg/apm"
-	db "ucloud.dk/pkg/database"
+	"ucloud.dk/shared/pkg/apm"
+	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/pkg/im/controller/upload"
 
 	ws "github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	fnd "ucloud.dk/pkg/foundation"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var Files FileService
@@ -656,6 +656,9 @@ func controllerFiles(mux *http.ServeMux) {
 		mux.HandleFunc(
 			uploadContext,
 			func(w http.ResponseWriter, r *http.Request) {
+				if ok := checkEnvoySecret(w, r); !ok {
+					return
+				}
 				conn, err := wsUpgrader.Upgrade(w, r, nil)
 				defer util.SilentCloseIfOk(conn, err)
 				token := r.URL.Query().Get("token")

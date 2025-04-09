@@ -1,15 +1,18 @@
 package slurm
 
 import (
+	"fmt"
 	"golang.org/x/sys/unix"
 	"os"
 	"syscall"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func CreateAndForkPty(cmd []string, envp []string, workingDir util.Option[string]) (*os.File, int, error) {
 	mfd, sfd, err := openPty()
 	if err != nil {
+		log.Info("CreateAndForkPty failed: %s", err)
 		return nil, 0, err
 	}
 
@@ -52,12 +55,14 @@ func ResizePty(masterFd *os.File, cols int, rows int) {
 func openPty() (int, int, error) {
 	mfd, err := syscall.Open("/dev/ptmx", syscall.O_RDWR|syscall.O_NOCTTY, 0)
 	if err != nil {
+		log.Info("openPty failed. Could not open /dev/ptmx: %s", err)
 		return -1, -1, err
 	}
 
 	// Unlock PTY
 	err = unix.IoctlSetPointerInt(mfd, TIOCSPTLCK, 0)
 	if err != nil {
+		log.Info("openPty failed (TIOCSPTLCK): %s", err)
 		_ = syscall.Close(mfd)
 		return -1, -1, err
 	}
@@ -65,13 +70,15 @@ func openPty() (int, int, error) {
 	// Get slave PTY name
 	ptsName, err := unix.IoctlGetInt(mfd, TIOCGPTN)
 	if err != nil {
+		log.Info("openPty failed (TIOCGPTN): %s", err)
 		_ = syscall.Close(mfd)
 		return -1, -1, err
 	}
 
-	slaveName := "/dev/pts/" + string(rune(ptsName+'0'))
+	slaveName := fmt.Sprintf("/dev/pts/%d", ptsName)
 	sfd, err := syscall.Open(slaveName, syscall.O_RDWR|syscall.O_NOCTTY, 0)
 	if err != nil {
+		log.Info("openPty failed %s: %s", slaveName, err)
 		_ = syscall.Close(mfd)
 		return -1, -1, err
 	}

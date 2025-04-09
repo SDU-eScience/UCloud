@@ -7,8 +7,9 @@ import (
 	"github.com/sugarme/tokenizer/pretrained"
 	"hash/fnv"
 	"strings"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"sync"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func hugTokenize(input string) []string {
@@ -49,19 +50,22 @@ type SearchBucket struct {
 }
 
 var tk *tokenizer.Tokenizer
+var initOnce sync.Once
 
 func Init() {
-	configFile, err := tokenizer.CachedPath("bert-base-uncased", "tokenizer.json")
-	if err != nil {
-		panic(err)
-	}
+	initOnce.Do(func() {
+		configFile, err := tokenizer.CachedPath("bert-base-uncased", "tokenizer.json")
+		if err != nil {
+			panic(err)
+		}
 
-	tok, err := pretrained.FromFile(configFile)
-	if err != nil {
-		panic(err)
-	}
+		tok, err := pretrained.FromFile(configFile)
+		if err != nil {
+			panic(err)
+		}
 
-	tk = tok
+		tk = tok
+	})
 }
 
 const maxBucketSize = 1024 * 32
@@ -112,6 +116,15 @@ func LoadIndex(data []byte) *SearchIndex {
 	return result
 }
 
+func (s *SearchIndex) BuilderAvgBucketSize() float64 {
+	acc := 0
+	for _, bucket := range s.Buckets {
+		acc += len(bucket.exactSetForBuilding)
+	}
+
+	return float64(acc) / float64(s.BucketCount)
+}
+
 func (s *SearchIndex) Marshal() []byte {
 	rawBuf := &bytes.Buffer{}
 	buf := util.NewBufferWithWriter(rawBuf)
@@ -148,6 +161,10 @@ func (f *FileInfo) Prepare() PreparedFileInfo {
 }
 
 func (s *SearchIndex) Append(info PreparedFileInfo) {
+	if s.BucketCount == 0 {
+		return
+	}
+
 	for i := 0; i < len(info.parentComponents); i++ {
 		ancestor := "/" + strings.Join(info.parentComponents[:i+1], "/")
 		bucket := &s.Buckets[hash(s.BucketCount, ancestor)]
@@ -163,6 +180,10 @@ func (s *SearchIndex) Append(info PreparedFileInfo) {
 }
 
 func hash(count int, input string) int {
+	if count == 0 {
+		return 0
+	}
+
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(input))
 
