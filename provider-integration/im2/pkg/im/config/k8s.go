@@ -1,10 +1,12 @@
 package config
 
 import (
-	"fmt"
-	"gopkg.in/yaml.v3"
 	"math"
 	"net"
+
+	"fmt"
+
+	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
