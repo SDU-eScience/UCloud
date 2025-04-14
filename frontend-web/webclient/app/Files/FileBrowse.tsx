@@ -17,7 +17,8 @@ import {
     ColumnTitleList,
     SelectionMode,
     checkCanConsumeResources,
-    favoriteRowIcon
+    favoriteRowIcon,
+    useAllocations
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
@@ -136,6 +137,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
     if (!opts?.embedded && !opts?.isModal) {
         usePage("Files", SidebarTabId.FILES);
     }
+
+    const [providerRestriction, setProviderRestriction] = React.useState<string | null>(null);
+    const allocations = useAllocations(browserRef, "STORAGE", providerRestriction);
+
     const isInitialMount = useRef<boolean>(true);
     useEffect(() => {
         isInitialMount.current = false;
@@ -169,7 +174,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
         search: !opts?.isModal,
         filters: !opts?.embedded?.hideFilters,
     }
-
 
     const didUnmount = useDidUnmount();
 
@@ -1277,6 +1281,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             if (!opts?.embedded) {
                                 const collection = collectionCache.retrieveFromCacheOnly(collectionId);
                                 if (!collection?.specification.product.provider) return;
+                                setProviderRestriction(collection.specification.product.provider);
 
                                 Sync.fetchProducts(collection.specification.product.provider).then(products => {
                                     if (products.length > 0) {
@@ -1552,6 +1557,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
         main={<>
             <div ref={mountRef} />
             {switcher}
+            {allocations}
         </>}
     />;
 
