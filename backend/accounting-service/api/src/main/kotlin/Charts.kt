@@ -1,7 +1,5 @@
 package dk.sdu.cloud.accounting.api
 
-import dk.sdu.cloud.accounting.api.AllocationGroup
-import dk.sdu.cloud.accounting.api.ProductCategory
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -46,4 +44,14 @@ data class ChartsForCategoryAPI (
 data class AllocationGroupWithProductCategoryIndex(
     val group: AllocationGroup,
     val productCategoryIndex: Int
+)
+
+@Serializable
+data class ProjectTreeNode(
+    val walletId: Int,
+    val projectTitle: String,
+    val localUsage: Long,
+    val retiredLocalUsage: Long,
+    val treeUsage: Long,
+    val children: MutableSet<Int>
 )

@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.k8.KubernetesResources.node
 import kotlinx.coroutines.*
 import kotlin.time.Duration.Companion.days
 
@@ -18,6 +19,72 @@ class DataVisualization(
     private fun LongRange.overlaps(other: LongRange): Boolean {
         return first <= other.last && other.first <= last
     }
+
+    suspend fun retrieveProjectTreeFromAllocations(allocations: List<Int>): MutableMap<Int, ProjectTreeNode> {
+        val projectTree = mutableMapOf<Int, ProjectTreeNode>()
+        val allocGroups = mutableListOf<Int>()
+        allocations.forEach { allocID ->
+            allocationGroups.forEach { groupId, group ->
+                if (group.allocationSet.contains(allocID)) {
+                    allocGroups.add(groupId)
+                }
+            }
+        }
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("allocgroups", allocGroups.toSet().toList())
+                },
+                """
+                    --Get entire project tree usage
+                    with recursive children as (
+                        select associated_wallet, parent_wallet, id, tree_usage, 0 as level
+                        from accounting.allocation_groups
+                        where id = some(:allocgroups::int8[])
+
+                        union
+
+                        select ag.associated_wallet, ag.parent_wallet, ag.id, ag.tree_usage, level+1
+                        from accounting.allocation_groups ag join
+                            children c on c.associated_wallet = ag.parent_wallet
+                    )
+                    select level, parent_wallet, associated_wallet, title, w.local_usage, local_retired_usage, tree_usage--, quota
+                    from children c join
+                        accounting.wallets_v2 w on c.associated_wallet = w.id join
+                        accounting.wallet_owner wo on w.wallet_owner = wo.id join
+                        project.projects p on wo.project_id = p.id
+                    order by level, parent_wallet;
+                """.trimIndent()
+            ).rows.forEach {
+                val level = it.getInt(0)!!
+                val parentWallet = it.getInt(1)
+                val walletId = it.getInt(2)!!
+                val projectTitle = it.getString(3)!!
+                val localUsage = it.getLong(4)!!
+                val retiredLocalUsage = it.getLong(5)!!
+                val treeUsage = it.getLong(6)!!
+
+                val node = ProjectTreeNode(
+                    walletId,
+                    projectTitle,
+                    localUsage,
+                    retiredLocalUsage,
+                    treeUsage,
+                    mutableSetOf()
+                )
+                if (level == 0) {
+                    projectTree[walletId] = node
+                } else {
+                    projectTree[walletId] = node
+                    val parent = projectTree[parentWallet]
+                    parent?.children?.add(walletId)
+                }
+            }
+        }
+        return projectTree
+    }
+
+
 
     suspend fun retrieveChartsV2(
         idCard: IdCard,
