@@ -153,24 +153,23 @@ class TaskSystem(
     }
 
     fun launchScheduler(scope: CoroutineScope) {
-        repeat(100) {
-            scope.launch {
-                whileGraal({ isActive }) {
-                    val prometheusTaskName = "file_task_scheduling"
-                    debug.useContext(
-                        DebugContextType.BACKGROUND_TASK,
-                        "File background task",
-                        MessageImportance.IMPLEMENTATION_DETAIL
-                    ) {
-                        var taskInProgress: String? = null
-                        val start = Time.now()
-                        try {
-                            val task = db.withSession { session ->
-                                val processorAndTask = run {
-                                    val rows = ArrayList<Pair<String?, StorageTask>>()
-                                    session
-                                        .prepareStatement(
-                                            """
+        scope.launch {
+            whileGraal({ isActive }) {
+                val prometheusTaskName = "file_task_scheduling"
+                debug.useContext(
+                    DebugContextType.BACKGROUND_TASK,
+                    "File background task",
+                    MessageImportance.IMPLEMENTATION_DETAIL
+                ) {
+                    var taskInProgress: String? = null
+                    val start = Time.now()
+                    try {
+                        val task = db.withSession { session ->
+                            val processorAndTask = run {
+                                val rows = ArrayList<Pair<String?, StorageTask>>()
+                                session
+                                    .prepareStatement(
+                                        """
                                         select processor_id, id, request_name, requirements, request, progress,
                                                last_update
                                         from ucloud_storage_tasks 
@@ -183,54 +182,54 @@ class TaskSystem(
                                             (processor_id is null or processor_id != :processor_id)
                                         limit 1
                                     """
-                                        )
-                                        .useAndInvoke(
-                                            prepare = {
-                                                bindString("processor_id", processorId)
-                                            },
-                                            readRow = { row ->
-                                                rows.add(
-                                                    Pair(
-                                                        row.getString(0),
-                                                        StorageTask(
-                                                            row.getString(1)!!,
-                                                            row.getString(2)!!,
-                                                            row.getString(3)?.let {
-                                                                defaultMapper.decodeFromString(
-                                                                    TaskRequirements.serializer(),
-                                                                    it
-                                                                )
-                                                            },
-                                                            row.getString(4)!!.let {
-                                                                defaultMapper.decodeFromString(
-                                                                    JsonObject.serializer(),
-                                                                    it
-                                                                )
-                                                            },
-                                                            row.getString(5)?.let {
-                                                                defaultMapper.decodeFromString(
-                                                                    JsonObject.serializer(),
-                                                                    it
-                                                                )
-                                                            },
-                                                            row.getLong(6) ?: 0L
-                                                        )
+                                    )
+                                    .useAndInvoke(
+                                        prepare = {
+                                            bindString("processor_id", processorId)
+                                        },
+                                        readRow = { row ->
+                                            rows.add(
+                                                Pair(
+                                                    row.getString(0),
+                                                    StorageTask(
+                                                        row.getString(1)!!,
+                                                        row.getString(2)!!,
+                                                        row.getString(3)?.let {
+                                                            defaultMapper.decodeFromString(
+                                                                TaskRequirements.serializer(),
+                                                                it
+                                                            )
+                                                        },
+                                                        row.getString(4)!!.let {
+                                                            defaultMapper.decodeFromString(
+                                                                JsonObject.serializer(),
+                                                                it
+                                                            )
+                                                        },
+                                                        row.getString(5)?.let {
+                                                            defaultMapper.decodeFromString(
+                                                                JsonObject.serializer(),
+                                                                it
+                                                            )
+                                                        },
+                                                        row.getLong(6) ?: 0L
                                                     )
                                                 )
-                                            }
-                                        )
+                                            )
+                                        }
+                                    )
 
-                                    rows.singleOrNull()
-                                }
+                                rows.singleOrNull()
+                            }
 
-                                if (processorAndTask == null) {
-                                    null
-                                } else {
-                                    val (oldProcessor, task) = processorAndTask
+                            if (processorAndTask == null) {
+                                null
+                            } else {
+                                val (oldProcessor, task) = processorAndTask
 
-                                    var success = false
-                                    session.prepareStatement(
-                                        """
+                                var success = false
+                                session.prepareStatement(
+                                    """
                                     update ucloud_storage_tasks 
                                     set processor_id = :processor_id, last_update = now() 
                                     where 
@@ -241,40 +240,40 @@ class TaskSystem(
                                         )
                                     returning id
                                 """
-                                    ).useAndInvoke(
-                                        prepare = {
-                                            bindString("processor_id", processorId)
-                                            bindStringNullable("last_processor", oldProcessor)
-                                            bindString("id", task.taskId)
-                                        },
-                                        readRow = { success = true }
-                                    )
+                                ).useAndInvoke(
+                                    prepare = {
+                                        bindString("processor_id", processorId)
+                                        bindStringNullable("last_processor", oldProcessor)
+                                        bindString("id", task.taskId)
+                                    },
+                                    readRow = { success = true }
+                                )
 
-                                    if (!success) {
-                                        null
-                                    } else {
-                                        task
-                                    }
+                                if (!success) {
+                                    null
+                                } else {
+                                    task
                                 }
                             }
+                        }
 
-                            if (task == null) {
-                                delay(1_000)
-                                return@useContext
+                        if (task == null) {
+                            delay(1_000)
+                            return@useContext
+                        }
+
+                        Prometheus.countBackgroundTask(prometheusTaskName)
+                        taskInProgress = task.taskId
+
+                        val handler = handlers.find {
+                            with(it) {
+                                taskContext.canHandle(task.requestName, task.rawRequest)
                             }
-
-                            Prometheus.countBackgroundTask(prometheusTaskName)
-                            taskInProgress = task.taskId
-
-                            val handler = handlers.find {
-                                with(it) {
-                                    taskContext.canHandle(task.requestName, task.rawRequest)
-                                }
-                            } ?: run {
-                                log.warn("Unable to handle request: ${task}")
-                                throw RPCException("Unable to handle this request", HttpStatusCode.InternalServerError)
-                            }
-
+                        } ?: run {
+                            log.warn("Unable to handle request: ${task}")
+                            throw RPCException("Unable to handle this request", HttpStatusCode.InternalServerError)
+                        }
+                        scope.launch {
                             with(handler) {
                                 val requirements = task.requirements
                                     ?: (taskContext.collectRequirements(task.requestName, task.rawRequest, null)
@@ -294,26 +293,27 @@ class TaskSystem(
                                 } catch (ex: Exception) {
                                     log.warn("Failed to mark task (${task.taskId}) as completed")
                                     log.info(ex.message)
-                                    return@useContext
+                                    return@launch
                                 }
                                 log.debug("Completed the execution of $task")
 
                                 markJobAsComplete(db, task.taskId)
                             }
-                        } catch (ex: Throwable) {
-                            log.warn("Execution of task failed!\n${ex.stackTraceToString()}")
-                            if (taskInProgress != null) markJobAsComplete(db, taskInProgress)
-                        } finally {
-                            if (taskInProgress != null) Prometheus.measureBackgroundDuration(
-                                prometheusTaskName,
-                                Time.now() - start
-                            )
                         }
+                    } catch (ex: Throwable) {
+                        log.warn("Execution of task failed!\n${ex.stackTraceToString()}")
+                        if (taskInProgress != null) markJobAsComplete(db, taskInProgress)
+                    } finally {
+                        if (taskInProgress != null) Prometheus.measureBackgroundDuration(
+                            prometheusTaskName,
+                            Time.now() - start
+                        )
                     }
                 }
             }
         }
     }
+
 
     private suspend fun markJobAsComplete(ctx: DBContext, id: String) {
         ctx.withSession { session ->
