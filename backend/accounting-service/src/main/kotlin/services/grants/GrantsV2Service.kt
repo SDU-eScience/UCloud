@@ -584,18 +584,22 @@ class GrantsV2Service(
                         left join "grant".templates t on p.id = t.project_id
                     order by p.title
                 """
-            ).rows.map { row ->
-                GrantGiver(
-                    row.getString(0)!!,
-                    row.getString(1)!!,
-                    row.getString(2) ?: "No description",
-                    Templates.PlainText(
-                        row.getString(3) ?: defaultTemplate,
-                        row.getString(4) ?: defaultTemplate,
-                        row.getString(5) ?: defaultTemplate
-                    ),
-                    emptyList()
-                )
+            ).rows.mapNotNull { row ->
+                val ownId = actorAndProject.project
+                val grantGiverId = row.getString(0)!!
+                if (grantGiverId != ownId ) {
+                    GrantGiver(
+                        grantGiverId,
+                        row.getString(1)!!,
+                        row.getString(2) ?: "No description",
+                        Templates.PlainText(
+                            row.getString(3) ?: defaultTemplate,
+                            row.getString(4) ?: defaultTemplate,
+                            row.getString(5) ?: defaultTemplate
+                        ),
+                        emptyList()
+                    )
+                } else null
             }
         }
 
