@@ -41,12 +41,19 @@ type JobsService struct {
 	HandleBuiltInVnc         func(job *orc.Job, rank int, conn *ws.Conn)
 
 	PublicIPs PublicIPService
+	Ingresses IngressService
 }
 
 type PublicIPService struct {
 	Create           func(ip *orc.PublicIp) error
 	Delete           func(ip *orc.PublicIp) error
 	RetrieveProducts func() []orc.PublicIpSupport
+}
+
+type IngressService struct {
+	Create           func(ingress *orc.Ingress) error
+	Delete           func(ingress *orc.Ingress) error
+	RetrieveProducts func() []orc.IngressSupport
 }
 
 type ConfiguredWebSession struct {
@@ -176,6 +183,7 @@ func controllerJobs(mux *http.ServeMux) {
 	wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	jobContext := fmt.Sprintf("/ucloud/%v/jobs/", cfg.Provider.Id)
 	publicIpContext := fmt.Sprintf("/ucloud/%v/networkips/", cfg.Provider.Id)
+	ingressContext := fmt.Sprintf("/ucloud/%v/ingresses/", cfg.Provider.Id)
 
 	if RunsUserCode() {
 		creationUrl, _ := strings.CutSuffix(jobContext, "/")
@@ -839,6 +847,81 @@ func controllerJobs(mux *http.ServeMux) {
 				}
 			},
 		))
+
+		ingressCreation, _ := strings.CutSuffix(ingressContext, "/")
+		ingressCreateHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.Ingress]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.Ingress]) {
+				var errors []error
+				var providerIds []*fnd.FindByStringId
+
+				for _, item := range request.Items {
+					TrackIngress(*item)
+					providerIds = append(providerIds, nil)
+
+					fn := Jobs.Ingresses.Create
+					if fn == nil {
+						errors = append(errors, util.HttpErr(http.StatusBadRequest, "Public link creation not supported"))
+					} else {
+						err := fn(item)
+						if err != nil {
+							errors = append(errors, err)
+						}
+					}
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[*fnd.FindByStringId]
+					response.Responses = providerIds
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		)
+
+		ingressDeleteHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.Ingress]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.Ingress]) {
+				var errors []error
+				var resp []util.Option[util.Empty]
+
+				for _, item := range request.Items {
+					fn := Jobs.Ingresses.Delete
+					if fn == nil {
+						errors = append(errors, util.HttpErr(http.StatusBadRequest, "Public link deletion not supported"))
+						resp = append(resp, util.Option[util.Empty]{Present: false})
+					} else {
+						err := fn(item)
+						if err != nil {
+							errors = append(errors, err)
+							resp = append(resp, util.Option[util.Empty]{Present: false})
+						} else {
+							resp = append(resp, util.Option[util.Empty]{Present: true})
+						}
+					}
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[util.Option[util.Empty]]
+					response.Responses = resp
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		)
+
+		mux.HandleFunc(ingressCreation, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				ingressCreateHandler(w, r)
+			} else if r.Method == http.MethodDelete {
+				ingressDeleteHandler(w, r)
+			} else {
+				sendResponseOrError(w, nil, util.HttpErr(http.StatusNotFound, "Not found"))
+			}
+		})
+
 	}
 
 	if RunsServerCode() {
@@ -901,6 +984,27 @@ func controllerJobs(mux *http.ServeMux) {
 				sendResponseOrError(
 					w,
 					fnd.BulkResponse[orc.PublicIpSupport]{
+						Responses: result,
+					},
+					nil,
+				)
+			}),
+		)
+
+		mux.HandleFunc(ingressContext+"retrieveProducts", HttpRetrieveHandler[util.Empty](
+			0,
+			func(w http.ResponseWriter, r *http.Request, _ util.Empty) {
+				var result []orc.IngressSupport
+				fn := Jobs.Ingresses.RetrieveProducts
+				if fn != nil {
+					result = fn()
+				}
+
+				log.Info("retrieve ingress products called. Returning %s", result)
+
+				sendResponseOrError(
+					w,
+					fnd.BulkResponse[orc.IngressSupport]{
 						Responses: result,
 					},
 					nil,

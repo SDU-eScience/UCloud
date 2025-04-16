@@ -44,6 +44,11 @@ services:
     publicIps:
       enabled: true
 
+    publicLinks:
+      enabled: true
+      prefix: "gok8s-"
+      suffix: ".localhost.direct"
+
     syncthing:
       enabled: true
       ipAddress: 10.56.32.4

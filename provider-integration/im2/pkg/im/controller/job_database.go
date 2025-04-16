@@ -100,6 +100,7 @@ func InitJobDatabase() {
 	fetchAllJobs(orc.JobStateRunning)
 
 	initIpDatabase()
+	initIngressDatabase()
 
 	// Job metrics
 	go func() {

@@ -4,23 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/sys/unix"
-	core "k8s.io/api/core/v1"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
 	"time"
-	fnd "ucloud.dk/shared/pkg/foundation"
+
+	"golang.org/x/sys/unix"
+	core "k8s.io/api/core/v1"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -390,6 +391,17 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.Co
 }
 
 func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) ctrl.ConfiguredWebIngress {
+	for _, resource := range job.Specification.Resources {
+		if resource.Type == orc.AppParameterValueTypeIngress {
+			ingress := ctrl.RetrieveIngress(resource.Id)
+
+			return ctrl.ConfiguredWebIngress{
+				IsPublic:     true,
+				TargetDomain: ingress.Specification.Domain,
+			}
+		}
+	}
+
 	return ctrl.ConfiguredWebIngress{
 		IsPublic:     false,
 		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + "-" + fmt.Sprint(rank) + suffix.Value + ServiceConfig.Compute.Web.Suffix,
