@@ -2,6 +2,7 @@ package apm
 
 import (
 	"log"
+
 	c "ucloud.dk/shared/pkg/client"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"
@@ -102,7 +103,7 @@ type ProductV2 struct {
 	Name                      string          `json:"name,omitempty"`
 	Description               string          `json:"description,omitempty"`
 	ProductType               ProductType     `json:"productType,omitempty"`
-	Price                     int64           `json:"price,omitempty"`
+	Price                     int64           `json:"price"`
 	HiddenInGrantApplications bool            `json:"hiddenInGrantApplications,omitempty"`
 	Usage                     int64           `json:"usage,omitempty"`
 
