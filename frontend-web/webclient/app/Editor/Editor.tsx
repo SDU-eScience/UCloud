@@ -400,8 +400,8 @@ export const Editor: React.FunctionComponent<{
     onRequestSave: (path: string) => Promise<void>;
     readOnly: boolean;
     dirtyFileCountRef: React.RefObject<number>;
+    isModal?: boolean;
 }> = props => {
-
     const help = props.help ?? <></>;
     const [activeSyntax, setActiveSyntax] = React.useState("");
     const savedAtAltVersionId = React.useRef<Record<string, number>>({});
@@ -421,14 +421,17 @@ export const Editor: React.FunctionComponent<{
     const [dirtyFiles, setDirtyFiles] = React.useState<Set<string>>(new Set());
 
     const prettyPath = usePrettyFilePath(state.currentPath, !props.vfs.isReal());
-    if (state.currentPath === SETTINGS_PATH) {
-        usePage("Settings", SidebarTabId.FILES);
-    } else if (state.currentPath === RELEASE_NOTES_PATH) {
+
+    if (!props.isModal) {
+        if (state.currentPath === SETTINGS_PATH) {
+            usePage("Settings", SidebarTabId.FILES);
+        } else if (state.currentPath === RELEASE_NOTES_PATH) {
         usePage("Release notes", SidebarTabId.FILES);
     } else if (state.currentPath === "") {
         usePage("Preview", SidebarTabId.FILES);
-    } else {
-        usePage(fileName(prettyPath), SidebarTabId.FILES);
+        } else {
+            usePage(fileName(prettyPath), SidebarTabId.FILES);
+        }
     }
 
     const disposeModels = React.useCallback(() => {

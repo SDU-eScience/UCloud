@@ -27,9 +27,9 @@ const WorkflowEditor: React.FunctionComponent<{
     initialExistingPath?: string | null;
     initialId?: string | null;
     workflow: WorkflowSpecification;
-    dirtyFileCountRef: React.MutableRefObject<number>;
+    dirtyFileCountRef: React.RefObject<number>;
     applicationName: string;
-    doSaveRef: React.MutableRefObject<() => void>;
+    doSaveRef: React.RefObject<() => void>;
     onUse?: (id: string | null, path: string | null, spec: WorkflowSpecification) => void;
 }> = props => {
     const editorApi = useRef<EditorApi>(null);
@@ -189,6 +189,7 @@ const WorkflowEditor: React.FunctionComponent<{
 
     return <Editor
         vfs={vfs}
+        isModal
         dirtyFileCountRef={props.dirtyFileCountRef}
         title={props.applicationName}
         initialFolderPath={"/"}
