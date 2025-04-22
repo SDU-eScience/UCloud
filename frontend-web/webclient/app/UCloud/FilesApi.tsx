@@ -1593,6 +1593,7 @@ class PreviewVfs implements Vfs {
         const result = await callAPI(api.browse({
             path,
             itemsPerPage: 250,
+            sortBy: "PATH",
             next
         }));
 

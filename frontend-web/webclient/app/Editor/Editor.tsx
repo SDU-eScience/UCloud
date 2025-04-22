@@ -183,7 +183,7 @@ function singleEditorReducer(state: EditorState, action: EditorAction): EditorSt
                     children: [],
                 };
             });
-            leaf.children.sort((a, b) => a.file.absolutePath.toLowerCase().localeCompare(b.file.absolutePath.toLowerCase()));
+            leaf.children.sort((a, b) => virtualFileSort(a.file, b.file));
 
             return {
                 ...state,
@@ -426,9 +426,9 @@ export const Editor: React.FunctionComponent<{
         if (state.currentPath === SETTINGS_PATH) {
             usePage("Settings", SidebarTabId.FILES);
         } else if (state.currentPath === RELEASE_NOTES_PATH) {
-        usePage("Release notes", SidebarTabId.FILES);
-    } else if (state.currentPath === "") {
-        usePage("Preview", SidebarTabId.FILES);
+            usePage("Release notes", SidebarTabId.FILES);
+        } else if (state.currentPath === "") {
+            usePage("Preview", SidebarTabId.FILES);
         } else {
             usePage(fileName(prettyPath), SidebarTabId.FILES);
         }
@@ -1126,7 +1126,7 @@ export const Editor: React.FunctionComponent<{
                     {tabs.open.map((t, index) =>
                         <EditorTab
                             key={t}
-                            isDirty={dirtyFiles.has(t)}
+                            isDirty={dirtyFiles.has(t) && props.vfs.isReal()}
                             isActive={t === state.currentPath}
                             onActivate={() => openTab(t)}
                             onContextMenu={e => {
@@ -1135,6 +1135,8 @@ export const Editor: React.FunctionComponent<{
                                 openTabOperations(t, {x: e.clientX, y: e.clientY});
                             }}
                             close={() => {
+                                if (!props.vfs.isReal()) return;
+
                                 if (dirtyFiles.has(t)) {
                                     addStandardDialog({
                                         title: "Save before closing?",
@@ -1896,6 +1898,13 @@ function allowEditDialog(editor: IStandaloneCodeEditor) {
 
 function getStatusBarElement(): Element | null {
     return document.getElementsByClassName(StatusBar).item(0);
+}
+
+function virtualFileSort(a: VirtualFile, b: VirtualFile): number {
+    if (a.isDirectory && b.isDirectory) return a.absolutePath.localeCompare(b.absolutePath);
+    if (a.isDirectory) return -1;
+    if (b.isDirectory) return 1;
+    return a.absolutePath.localeCompare(b.absolutePath);
 }
 
 type RevertSaveFunction = () => void;
