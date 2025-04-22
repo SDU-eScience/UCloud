@@ -56,6 +56,7 @@ type KubernetesIpConfiguration struct {
 
 type KubernetesPublicLinkConfiguration struct {
 	Enabled bool
+	Name    string
 	Prefix  string
 	Suffix  string
 }
@@ -365,6 +366,11 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			success = true
 			suffix := cfgutil.RequireChildText(filePath, ingressNode, "suffix", &success)
 			cfg.Compute.PublicLinks.Suffix = suffix
+
+			cfg.Compute.PublicLinks.Name = cfgutil.OptionalChildText(filePath, ingressNode, "name", &success)
+			if cfg.Compute.PublicLinks.Name == "" {
+				cfg.Compute.PublicLinks.Name = "public-link"
+			}
 		}
 	}
 

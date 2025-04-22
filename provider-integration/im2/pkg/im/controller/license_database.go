@@ -381,6 +381,30 @@ func DeleteLicense(target *orc.License) error {
 	return nil
 }
 
+func RetrieveUsedLicenseCount(licenseName string, owner orc.ResourceOwner) int {
+	return db.NewTx[int](func(tx *db.Transaction) int {
+		row, _ := db.Get[struct{ Count int }](
+			tx,
+			`
+				select count(*) as count
+				from tracked_licenses
+				where
+				    (
+						(:project = '' and project_id is null and created_by = :created_by)
+						or (:project != '' and project_id = :project)
+					)
+					and product_category = :license_name
+		    `,
+			db.Params{
+				"created_by":   owner.CreatedBy,
+				"project":      owner.Project,
+				"license_name": licenseName,
+			},
+		)
+		return row.Count
+	})
+}
+
 func retrieveLicense(productId string) (LicenseEntry, bool) {
 	license := db.NewTx(func(tx *db.Transaction) LicenseEntry {
 		result, _ := db.Get[LicenseEntry](

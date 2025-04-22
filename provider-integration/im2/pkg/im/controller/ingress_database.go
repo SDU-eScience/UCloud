@@ -2,12 +2,10 @@ package controller
 
 import (
 	"encoding/json"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
 
-	cfg "ucloud.dk/pkg/im/config"
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
@@ -19,10 +17,6 @@ var ingresses = map[string]*orc.Ingress{}
 
 var ingressesMutex = sync.Mutex{}
 
-var (
-	regex *regexp.Regexp = regexp.MustCompile("[a-z]([-_a-z0-9]){4,255}")
-)
-
 func initIngressDatabase() {
 	if !RunsServerCode() {
 		return
@@ -30,10 +24,10 @@ func initIngressDatabase() {
 
 	ingressesMutex.Lock()
 	defer ingressesMutex.Unlock()
-	fetchAllIngresses()
+	fetchAllLinks()
 }
 
-func fetchAllIngresses() {
+func fetchAllLinks() {
 	next := ""
 
 	for {
@@ -60,7 +54,7 @@ func fetchAllIngresses() {
 	}
 }
 
-func TrackIngress(ingress orc.Ingress) {
+func TrackLink(ingress orc.Ingress) {
 	// Automatically assign timestamps to all updates that do not have one
 	for i := 0; i < len(ingress.Updates); i++ {
 		update := &ingress.Updates[i]
@@ -100,85 +94,7 @@ func TrackIngress(ingress orc.Ingress) {
 	})
 }
 
-func CreateIngress(target *orc.Ingress) error {
-	if target == nil {
-		return util.ServerHttpError("Failed to create public link: target is nil")
-	}
-
-	owner := target.Owner.CreatedBy
-
-	if len(target.Owner.Project) > 0 {
-		owner = target.Owner.Project
-	}
-
-	domain := target.Specification.Domain
-	prefix := cfg.Services.Kubernetes().Compute.PublicLinks.Prefix
-	suffix := cfg.Services.Kubernetes().Compute.PublicLinks.Suffix
-
-	isValid := strings.HasPrefix(domain, prefix) && strings.HasSuffix(domain, suffix)
-
-	if !isValid {
-		return util.UserHttpError("Specified domain is not valid.")
-	}
-
-	id, _ := strings.CutPrefix(domain, prefix)
-	id, _ = strings.CutSuffix(id, suffix)
-
-	if len(id) < 5 {
-		return util.UserHttpError("Public links must be at least 5 characters long.")
-	}
-
-	if strings.HasSuffix(id, "-") || strings.HasSuffix(id, "_") {
-		return util.UserHttpError("Public links cannot end with a dash or underscore.")
-	}
-
-	if !regex.MatchString(id) {
-		return util.UserHttpError("Public link must only contain letters a-z, numbers (0-9), dashes and underscores.")
-	}
-
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`
-				insert into ingresses(domain, owner)
-				values (:domain, :owner) on conflict do nothing
-			`,
-			db.Params{
-				"domain": domain,
-				"owner":  owner,
-			},
-		)
-	})
-
-	status := util.Option[string]{}
-	status.Set("Public link is ready for use")
-
-	newUpdate := orc.IngressUpdate{
-		State:     util.OptValue(orc.IngressStateReady),
-		Timestamp: fnd.Timestamp(time.Now()),
-		Status:    status,
-	}
-
-	err := orc.UpdateIngresses(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.IngressUpdate]]{
-		Items: []orc.ResourceUpdateAndId[orc.IngressUpdate]{
-			{
-				Id:     target.Id,
-				Update: newUpdate,
-			},
-		},
-	})
-
-	if err == nil {
-		target.Updates = append(target.Updates, newUpdate)
-		TrackIngress(*target)
-		return nil
-	} else {
-		log.Warn("Failed to create public link due to an error between UCloud and the provider: %s", err)
-		return err
-	}
-}
-
-func DeleteIngress(target *orc.Ingress) error {
+func DeleteTrackedLink(target *orc.Ingress, dbFn func(tx *db.Transaction)) error {
 	if len(target.Status.BoundTo) > 0 {
 		return util.UserHttpError("This link is currently in use by job: %v", strings.Join(target.Status.BoundTo, ", "))
 	}
@@ -199,16 +115,7 @@ func DeleteIngress(target *orc.Ingress) error {
 			},
 		)
 
-		db.Exec(
-			tx,
-			`
-				delete from ingresses
-				where domain = :domain
-			`,
-			db.Params{
-				"domain": target.Specification.Domain,
-			},
-		)
+		dbFn(tx)
 	})
 
 	ingressesMutex.Unlock()
@@ -220,4 +127,24 @@ func RetrieveIngress(id string) orc.Ingress {
 	result := *ingresses[id]
 	ingressesMutex.Unlock()
 	return result
+}
+
+func RetrieveUsedLinkCount(owner orc.ResourceOwner) int {
+	return db.NewTx[int](func(tx *db.Transaction) int {
+		row, _ := db.Get[struct{ Count int }](
+			tx,
+			`
+				select count(*) as count
+				from tracked_ingresses
+				where
+					(:project = '' and project_id is null and created_by = :created_by)
+					or (:project != '' and project_id = :project)
+		    `,
+			db.Params{
+				"created_by": owner.CreatedBy,
+				"project":    owner.Project,
+			},
+		)
+		return row.Count
+	})
 }

@@ -980,7 +980,7 @@ func controllerJobs(mux *http.ServeMux) {
 				var providerIds []*fnd.FindByStringId
 
 				for _, item := range request.Items {
-					TrackIngress(*item)
+					TrackLink(*item)
 					providerIds = append(providerIds, nil)
 
 					fn := Jobs.Ingresses.Create
@@ -1090,7 +1090,7 @@ func controllerJobs(mux *http.ServeMux) {
 						}
 					}
 
-					TrackIngress(ingress)
+					TrackLink(ingress)
 
 					resp.Responses = append(
 						resp.Responses,

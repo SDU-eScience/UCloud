@@ -383,6 +383,26 @@ func DeleteIpAddress(address *orc.PublicIp) error {
 	return nil
 }
 
+func RetrieveUsedIpAddressCount(owner orc.ResourceOwner) int {
+	return db.NewTx[int](func(tx *db.Transaction) int {
+		row, _ := db.Get[struct{ Count int }](
+			tx,
+			`
+				select count(*) as count
+				from tracked_ips
+				where
+					(:project = '' and project_id is null and created_by = :created_by)
+					or (:project != '' and project_id = :project)
+		    `,
+			db.Params{
+				"created_by": owner.CreatedBy,
+				"project":    owner.Project,
+			},
+		)
+		return row.Count
+	})
+}
+
 func AddToIpPool(subnet string) error {
 	ip, parsedSubnet, err := net.ParseCIDR(subnet)
 	if err != nil || parsedSubnet == nil {
