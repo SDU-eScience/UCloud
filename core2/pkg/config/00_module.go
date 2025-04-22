@@ -10,18 +10,24 @@ import (
 var Configuration *ConfigurationFormat
 
 type ConfigurationFormat struct {
-	RefreshToken    string
-	Database        Database
+	RefreshToken string
+	Database     Database
+
 	TokenValidation struct {
 		SharedSecret      string
 		PublicCertificate string
 	}
+
 	Logs struct {
 		Directory string
 		Rotation  struct {
 			Enabled               bool `yaml:"enabled"`
 			RetentionPeriodInDays int  `yaml:"retentionPeriodInDays"`
 		}
+	}
+
+	Emails struct {
+		Enabled bool
 	}
 }
 

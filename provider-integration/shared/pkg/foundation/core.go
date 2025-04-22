@@ -8,6 +8,13 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+type Page[T any] struct {
+	ItemsInTotal int `json:"itemsInTotal"`
+	ItemsPerPage int `json:"itemsPerPage"`
+	PageNumber   int `json:"pageNumber"`
+	Items        []T `json:"items"`
+}
+
 type PageV2[T any] struct {
 	Items        []T                 `json:"items"`
 	Next         util.Option[string] `json:"next,omitempty"`

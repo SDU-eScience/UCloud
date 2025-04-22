@@ -1,0 +1,13 @@
+Reminder: One or more of your projects are running low on resources on UCloud
+
+{{ bodyStart }}
+
+<p>Dear {{ recipient }},</p>
+
+<p>
+    The project '{{ projectTitle }}' is still low on the {{ category }} resource
+    from {{ provider }} after new resources were allocated. <br>
+    If this was intentional, please ignore this message.
+</p>
+
+{{ emailOptOut | safe }}

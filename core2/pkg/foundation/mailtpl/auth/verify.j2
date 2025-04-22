@@ -1,0 +1,23 @@
+Please verify your email (UCloud)
+
+{{ bodyStart }}
+
+<p>Dear {{ recipient }},</p>
+
+{% if verifyType == "registration" %}
+    <p>
+        In order to verify your email address, please open the following
+        <a href="{{ link }}">link</a>
+    </p>
+{% elif verifyType == "info-update" %}
+    <p>
+        You, or someone else, has requested changing information affecting your UCloud account.
+        We are writing to verify that this request is from you. Please verify this by clicking the following
+        <a href="{{ link }}">link</a>
+    </p>
+{% endif %}
+
+<p>
+    If you did not initiate this request, then please consider changing password at your identity provider.
+    You should also consider contacting support about this incident.
+</p>

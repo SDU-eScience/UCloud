@@ -98,6 +98,11 @@ func (c *Call[Req, Resp]) InvokeEx(client *Client, request Req) (Resp, *util.Htt
 			StructToParameters(request))
 		result, err = ParseResponse[Resp](resp)
 
+	case ConventionQueryParameters:
+		resp := CallViaQuery(client, fmt.Sprintf("/api/%s/%s", c.BaseContext, capitalized(c.Operation)),
+			StructToParameters(request))
+		result, err = ParseResponse[Resp](resp)
+
 	case ConventionBrowse:
 		resp := CallViaQuery(client, fmt.Sprintf("/api/%s/browse%s", c.BaseContext, capitalized(c.Operation)),
 			StructToParameters(request))
@@ -162,6 +167,11 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 
 	case ConventionRetrieve:
 		path = fmt.Sprintf("/api/%s/retrieve%s", c.BaseContext, capitalized(c.Operation))
+		method = http.MethodGet
+		parser = ParseRequestFromQuery
+
+	case ConventionQueryParameters:
+		path = fmt.Sprintf("/api/%s/%s", c.BaseContext, capitalized(c.Operation))
 		method = http.MethodGet
 		parser = ParseRequestFromQuery
 
@@ -338,6 +348,7 @@ const (
 	ConventionCreate
 	ConventionBrowse
 	ConventionSearch
+	ConventionQueryParameters
 )
 
 type Role uint
