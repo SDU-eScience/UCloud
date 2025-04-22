@@ -37,6 +37,11 @@ func InitCompute() ctrl.JobsService {
 			Delete:           deletePublicIp,
 			RetrieveProducts: retrievePublicIpProducts,
 		},
+		Ingresses: ctrl.IngressService{
+			Create:           createIngress,
+			Delete:           deleteIngress,
+			RetrieveProducts: retrieveIngressProducts,
+		},
 		Licenses: ctrl.LicenseService{
 			Create:           activateLicense,
 			Delete:           deleteLicense,
@@ -70,6 +75,18 @@ func createPublicIp(ip *orc.PublicIp) error {
 
 func deletePublicIp(ip *orc.PublicIp) error {
 	return ctrl.DeleteIpAddress(ip)
+}
+
+func retrieveIngressProducts() []orc.IngressSupport {
+	return shared.IngressSupport
+}
+
+func createIngress(ingress *orc.Ingress) error {
+	return ctrl.CreateIngress(ingress)
+}
+
+func deleteIngress(ingress *orc.Ingress) error {
+	return ctrl.DeleteIngress(ingress)
 }
 
 func retrieveLicenseProducts() []orc.LicenseSupport {

@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"ucloud.dk/pkg/im/ipc"
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
-	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -100,6 +100,7 @@ func InitJobDatabase() {
 	fetchAllJobs(orc.JobStateRunning)
 
 	initIpDatabase()
+	initIngressDatabase()
 	initLicenseDatabase()
 
 	// Job metrics

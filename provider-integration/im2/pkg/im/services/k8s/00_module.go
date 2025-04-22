@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/containers"
@@ -71,6 +72,7 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	ctrl.RegisterProducts(shared.StorageProducts)
 	ctrl.RegisterProducts(shared.LinkProducts)
 	ctrl.RegisterProducts(shared.IpProducts)
+	ctrl.RegisterProducts(shared.IngressProducts)
 	ctrl.RegisterProducts(shared.LicenseProducts)
 }
 
