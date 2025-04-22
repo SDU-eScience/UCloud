@@ -9,11 +9,11 @@ import (
 	"regexp"
 	"strconv"
 	"ucloud.dk/pkg/cli"
-	db "ucloud.dk/shared/pkg/database"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/termio"
+	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/shared/pkg/util"
 )
 

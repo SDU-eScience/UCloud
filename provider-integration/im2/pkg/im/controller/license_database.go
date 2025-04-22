@@ -30,8 +30,6 @@ type LicenseEntry struct {
 	License string `db:"license"`
 }
 
-const licenseCategoryName = "licenses"
-
 var licenses = map[string]*orc.License{}
 var licenseMutex = sync.Mutex{}
 
@@ -46,7 +44,7 @@ func (license *LicenseEntry) toProduct() apm.ProductV2 {
 	return apm.ProductV2{
 		Type: apm.ProductTypeCLicense,
 		Category: apm.ProductCategory{
-			Name:        licenseCategoryName,
+			Name:        license.Name,
 			Provider:    cfg.Provider.Id,
 			ProductType: apm.ProductTypeLicense,
 			AccountingUnit: apm.AccountingUnit{
@@ -283,7 +281,7 @@ func FetchLicenseSupport() []orc.LicenseSupport {
 		result = append(result, orc.LicenseSupport{
 			Product: apm.ProductReference{
 				Id:       license.Name,
-				Category: licenseCategoryName,
+				Category: license.Name,
 				Provider: cfg.Provider.Id,
 			},
 		})
@@ -469,8 +467,8 @@ func printHelp() {
 // Handle license CLI
 func LicenseCli(args []string) {
 	if len(args) == 0 {
-		cli.HandleError("license", fmt.Errorf("Unknown command"))
 		printHelp()
+		cli.HandleError("license", fmt.Errorf("Unknown command"))
 		return
 	}
 
@@ -510,8 +508,8 @@ func LicenseCli(args []string) {
 		name := util.GetOptionalElement(args, 1)
 
 		if !name.Present {
-			cli.HandleError("add license", fmt.Errorf("Missing argument: name"))
 			printHelp()
+			cli.HandleError("add license", fmt.Errorf("Missing argument: name"))
 			return
 		}
 
@@ -557,8 +555,8 @@ func LicenseCli(args []string) {
 	case cli.IsDeleteCommand(args[0]):
 		name := util.GetOptionalElement(args, 1)
 		if !name.Present {
-			cli.HandleError("delete license", fmt.Errorf("Missing argument: product name"))
 			printHelp()
+			cli.HandleError("delete license", fmt.Errorf("Missing argument: product name"))
 			return
 		}
 

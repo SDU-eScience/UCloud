@@ -78,7 +78,7 @@ func deletePublicIp(ip *orc.PublicIp) error {
 }
 
 func retrieveIngressProducts() []orc.IngressSupport {
-	return shared.IngressSupport
+	return shared.LinkSupport
 }
 
 func createIngress(ingress *orc.Ingress) error {

@@ -232,6 +232,64 @@ func controllerJobs(mux *http.ServeMux) {
 			}),
 		)
 
+		type jobUpdateAclRequest struct {
+			Resource orc.Job                `json:"resource"`
+			Added    []orc.ResourceAclEntry `json:"added"`
+			Deleted  []orc.AclEntity        `json:"deleted"`
+		}
+
+		mux.HandleFunc(jobContext+"updateAcl", HttpUpdateHandler[fnd.BulkRequest[jobUpdateAclRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[jobUpdateAclRequest]) {
+				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+
+				for _, item := range request.Items {
+					job := item.Resource
+
+					for _, toDelete := range item.Deleted {
+						for i, entry := range job.Permissions.Others {
+							if entry.Entity == toDelete {
+								slices.Delete(job.Permissions.Others, i, i+1)
+							}
+						}
+					}
+
+					for _, toAdd := range item.Added {
+						found := false
+
+						for i := 0; i < len(job.Permissions.Others); i++ {
+							entry := &job.Permissions.Others[i]
+							if entry.Entity == toAdd.Entity {
+								for _, perm := range toAdd.Permissions {
+									entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
+								}
+								found = true
+								break
+							}
+						}
+
+						if !found {
+							job.Permissions.Others = append(job.Permissions.Others, orc.ResourceAclEntry{
+								Entity:      toAdd.Entity,
+								Permissions: toAdd.Permissions,
+							})
+						}
+					}
+
+					TrackNewJob(job)
+
+					resp.Responses = append(
+						resp.Responses,
+						util.Option[util.Empty]{
+							Present: true,
+						},
+					)
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		))
+
 		mux.HandleFunc(jobContext+"terminate", HttpUpdateHandler[fnd.BulkRequest[*orc.Job]](
 			0,
 			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.Job]) {
@@ -856,6 +914,64 @@ func controllerJobs(mux *http.ServeMux) {
 			},
 		))
 
+		type publicIpUpdateAclRequest struct {
+			Resource orc.PublicIp           `json:"resource"`
+			Added    []orc.ResourceAclEntry `json:"added"`
+			Deleted  []orc.AclEntity        `json:"deleted"`
+		}
+
+		mux.HandleFunc(publicIpContext+"updateAcl", HttpUpdateHandler[fnd.BulkRequest[publicIpUpdateAclRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[publicIpUpdateAclRequest]) {
+				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+
+				for _, item := range request.Items {
+					publicIp := item.Resource
+
+					for _, toDelete := range item.Deleted {
+						for i, entry := range publicIp.Permissions.Others {
+							if entry.Entity == toDelete {
+								slices.Delete(publicIp.Permissions.Others, i, i+1)
+							}
+						}
+					}
+
+					for _, toAdd := range item.Added {
+						found := false
+
+						for i := 0; i < len(publicIp.Permissions.Others); i++ {
+							entry := &publicIp.Permissions.Others[i]
+							if entry.Entity == toAdd.Entity {
+								for _, perm := range toAdd.Permissions {
+									entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
+								}
+								found = true
+								break
+							}
+						}
+
+						if !found {
+							publicIp.Permissions.Others = append(publicIp.Permissions.Others, orc.ResourceAclEntry{
+								Entity:      toAdd.Entity,
+								Permissions: toAdd.Permissions,
+							})
+						}
+					}
+
+					TrackNewPublicIp(publicIp)
+
+					resp.Responses = append(
+						resp.Responses,
+						util.Option[util.Empty]{
+							Present: true,
+						},
+					)
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		))
+
 		ingressCreation, _ := strings.CutSuffix(ingressContext, "/")
 		ingressCreateHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.Ingress]](
 			0,
@@ -929,6 +1045,64 @@ func controllerJobs(mux *http.ServeMux) {
 				sendResponseOrError(w, nil, util.HttpErr(http.StatusNotFound, "Not found"))
 			}
 		})
+
+		type ingressUpdateAclRequest struct {
+			Resource orc.Ingress            `json:"resource"`
+			Added    []orc.ResourceAclEntry `json:"added"`
+			Deleted  []orc.AclEntity        `json:"deleted"`
+		}
+
+		mux.HandleFunc(ingressContext+"updateAcl", HttpUpdateHandler[fnd.BulkRequest[ingressUpdateAclRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[ingressUpdateAclRequest]) {
+				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+
+				for _, item := range request.Items {
+					ingress := item.Resource
+
+					for _, toDelete := range item.Deleted {
+						for i, entry := range ingress.Permissions.Others {
+							if entry.Entity == toDelete {
+								slices.Delete(ingress.Permissions.Others, i, i+1)
+							}
+						}
+					}
+
+					for _, toAdd := range item.Added {
+						found := false
+
+						for i := 0; i < len(ingress.Permissions.Others); i++ {
+							entry := &ingress.Permissions.Others[i]
+							if entry.Entity == toAdd.Entity {
+								for _, perm := range toAdd.Permissions {
+									entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
+								}
+								found = true
+								break
+							}
+						}
+
+						if !found {
+							ingress.Permissions.Others = append(ingress.Permissions.Others, orc.ResourceAclEntry{
+								Entity:      toAdd.Entity,
+								Permissions: toAdd.Permissions,
+							})
+						}
+					}
+
+					TrackIngress(ingress)
+
+					resp.Responses = append(
+						resp.Responses,
+						util.Option[util.Empty]{
+							Present: true,
+						},
+					)
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		))
 
 		licenseActivation, _ := strings.CutSuffix(licenseContext, "/")
 		licenseActivateHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.License]](
