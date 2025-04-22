@@ -14,6 +14,7 @@ import (
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
+	gonjautil "ucloud.dk/gonja/v2/utils"
 )
 
 func readFromMap[T any](input map[string]any, key string) (T, bool) {
@@ -183,6 +184,13 @@ func Launch() {
 	if logCfg.Rotation.Enabled {
 		log.SetRotation(log.RotateDaily, logCfg.Rotation.RetentionPeriodInDays, true)
 	}
+
+	// Jinja
+	// -----------------------------------------------------------------------------------------------------------------
+	// NOTE(Dan): Annoyingly, this currently needs to be set for the entire executable, meaning that we can only choose
+	// one mode of escape for Jinja. This is currently set to HTML and is used by the mail related code of the
+	// foundation layer.
+	gonjautil.EscapeMode = gonjautil.EscapeModeHtml
 
 	// Services
 	// -----------------------------------------------------------------------------------------------------------------

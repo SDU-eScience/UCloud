@@ -5,7 +5,6 @@ import (
 	"math"
 
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/shared/pkg/apm"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 )
@@ -15,6 +14,8 @@ var (
 	IpSupport      []orc.PublicIpSupport
 	IngressSupport []orc.IngressSupport
 )
+
+var LicenseSupport []orc.LicenseSupport
 
 var (
 	Machines        []apm.ProductV2
@@ -270,7 +271,7 @@ func initProducts() {
 		}
 	}
 
-	if ServiceConfig.Compute.Ingresses.Enabled {
+	if ServiceConfig.Compute.PublicLinks.Enabled {
 		ingressName := "public-links"
 		IngressProducts = []apm.ProductV2{
 			{
@@ -297,8 +298,8 @@ func initProducts() {
 
 		IngressSupport = []orc.IngressSupport{
 			{
-				Prefix: cfg.Services.Kubernetes().Compute.Ingresses.Prefix,
-				Suffix: cfg.Services.Kubernetes().Compute.Ingresses.Suffix,
+				Prefix: cfg.Services.Kubernetes().Compute.PublicLinks.Prefix,
+				Suffix: cfg.Services.Kubernetes().Compute.PublicLinks.Suffix,
 				Product: apm.ProductReference{
 					Id:       ingressName,
 					Category: ingressName,
@@ -307,6 +308,9 @@ func initProducts() {
 			},
 		}
 	}
+
+	LicenseProducts = ctrl.FetchLicenseProducts()
+	LicenseSupport = ctrl.FetchLicenseSupport()
 }
 
 func pickResource(resource cfg.MachineResourceType, machineConfig cfg.K8sMachineConfiguration) int {

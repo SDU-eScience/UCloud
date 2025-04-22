@@ -1,0 +1,12 @@
+New comment in {{ receivingProjectTitle }}
+
+{{ bodyStart }}
+
+<p>Dear {{ recipient }},</p>
+
+<p>
+    You have received a new comment from {{ sender }} in an application to the project
+    '{{ projectTitle }}' regarding the project: '{{ receivingProjectTitle }}'.
+</p>
+
+{{ emailOptOut | safe }}

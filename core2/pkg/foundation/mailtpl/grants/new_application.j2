@@ -1,0 +1,12 @@
+New application: {{ projectTitle }}
+
+{{ bodyStart }}
+
+<p>Dear {{ recipient }},</p>
+
+<p>
+    You have received a new application from {{ sender }} in the project
+    '{{ projectTitle }}'.
+</p>
+
+{{ emailOptOut | safe }}

@@ -1,0 +1,12 @@
+{{ applicationProjectTitle }} has been transferred to {{ receiverProject }}
+
+{{ bodyStart }}
+
+<p>Dear {{ recipient }},</p>
+
+<p>
+    You have been transferred an application from the project '{{ senderProject }}' to your project
+    '{{ receiverProject }}'. Application is called: '{{ applicationProjectTitle }}'
+</p>
+
+{{ emailOptOut | safe }}

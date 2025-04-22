@@ -295,9 +295,6 @@ services:
       address: frontend.localhost.direct
       port: 22
 
-  licenses:
-    enabled: false
-
   slurm:
     fakeResourceAllocation: true
 

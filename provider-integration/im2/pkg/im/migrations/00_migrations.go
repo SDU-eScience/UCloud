@@ -24,4 +24,5 @@ func Init() {
 	db.AddMigration(connectionsV3())
 	db.AddMigration(driveDatabaseV3())
 	db.AddMigration(ingressDatabaseV1())
+	db.AddMigration(licenseDatabaseV1())
 }

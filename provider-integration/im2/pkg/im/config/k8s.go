@@ -2,10 +2,9 @@ package config
 
 import (
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"math"
 	"net"
-
-	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
@@ -55,7 +54,7 @@ type KubernetesIpConfiguration struct {
 	Name    string
 }
 
-type KubernetesIngressConfiguration struct {
+type KubernetesPublicLinkConfiguration struct {
 	Enabled bool
 	Prefix  string
 	Suffix  string
@@ -88,7 +87,7 @@ type KubernetesCompute struct {
 	Namespace                       string
 	Web                             KubernetesWebConfiguration
 	PublicIps                       KubernetesIpConfiguration
-	Ingresses                       KubernetesIngressConfiguration
+	PublicLinks                     KubernetesPublicLinkConfiguration
 	Ssh                             KubernetesSshConfiguration
 	Syncthing                       KubernetesSyncthingConfiguration
 	IntegratedTerminal              KubernetesIntegratedTerminal
@@ -356,24 +355,24 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 	ingressNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "publicLinks")
 	if ingressNode != nil {
 		enabled, ok := cfgutil.OptionalChildBool(filePath, ingressNode, "enabled")
-		cfg.Compute.Ingresses.Enabled = enabled && ok
+		cfg.Compute.PublicLinks.Enabled = enabled && ok
 
 		success = true
 		prefix := cfgutil.OptionalChildText(filePath, ingressNode, "prefix", &success)
 
 		if success && prefix != "" {
-			cfg.Compute.Ingresses.Prefix = prefix
+			cfg.Compute.PublicLinks.Prefix = prefix
 		} else {
-			cfg.Compute.Ingresses.Prefix = "app-"
+			cfg.Compute.PublicLinks.Prefix = "app-"
 		}
 
 		success = true
 		suffix := cfgutil.OptionalChildText(filePath, ingressNode, "suffix", &success)
 
 		if success && suffix != "" {
-			cfg.Compute.Ingresses.Suffix = suffix
+			cfg.Compute.PublicLinks.Suffix = suffix
 		} else {
-			cfg.Compute.Ingresses.Prefix = ".example.com"
+			cfg.Compute.PublicLinks.Prefix = ".example.com"
 		}
 
 	}

@@ -1,0 +1,31 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <style type="text/css" media="screen">
+            a {
+                color: #096DE3;
+                text-decoration: none;
+            }
+            a:hover {
+                text-decoration: underline;
+            }
+        </style>
+    </head>
+    <body style='margin:0; padding:0; font-family: "IBM Plex Sans", sans-serif, system-ui, -apple-system,
+        Segoe UI, Roboto, Ubuntu, Cantarell, Oxygen, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+        "Segoe UI Symbol", "Noto Color Emoji";'>
+        <div style="padding: .4em .3em .1em 2em; background: #096DE3;">
+            <a href="https://cloud.sdu.dk">
+                <img style="margin-right: .2em;" src="cid:ucloud.png">
+            </a>
+        </div>
+        <div style="padding: 2em 4em 2em 4em; max-width: 600px; margin-left: auto; margin-right: auto;">
+            {{ body | safe }}
+            <p>Best regards,</p>
+            <p><strong>The UCloud Team<br>SDU eScience Center</strong></p>
+        </div>
+        <div style="text-align: right; padding: 1em;">
+            <a href="https://escience.sdu.dk"><img src="cid:escience.png"></a>
+        </div>
+    </body>
+</html>

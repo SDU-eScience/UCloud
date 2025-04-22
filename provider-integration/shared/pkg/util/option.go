@@ -28,6 +28,14 @@ func (s *Option[T]) Set(v T) {
 	s.Present = true
 }
 
+func OptDefaultOrMap[T any, R any](opt Option[T], defaultValue R, mapper func(val T) R) R {
+	if opt.Present {
+		return mapper(opt.Value)
+	} else {
+		return defaultValue
+	}
+}
+
 func (s Option[T]) GetOrDefault(t T) T {
 	if s.Present {
 		return s.Value

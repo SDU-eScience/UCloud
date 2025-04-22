@@ -42,6 +42,11 @@ func InitCompute() ctrl.JobsService {
 			Delete:           deleteIngress,
 			RetrieveProducts: retrieveIngressProducts,
 		},
+		Licenses: ctrl.LicenseService{
+			Create:           activateLicense,
+			Delete:           deleteLicense,
+			RetrieveProducts: retrieveLicenseProducts,
+		},
 	}
 }
 
@@ -82,6 +87,18 @@ func createIngress(ingress *orc.Ingress) error {
 
 func deleteIngress(ingress *orc.Ingress) error {
 	return ctrl.DeleteIngress(ingress)
+}
+
+func retrieveLicenseProducts() []orc.LicenseSupport {
+	return ctrl.FetchLicenseSupport()
+}
+
+func activateLicense(license *orc.License) error {
+	return ctrl.ActivateLicense(license)
+}
+
+func deleteLicense(license *orc.License) error {
+	return ctrl.DeleteLicense(license)
 }
 
 func retrieveProducts() []orc.JobSupport {

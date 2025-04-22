@@ -112,8 +112,8 @@ func CreateIngress(target *orc.Ingress) error {
 	}
 
 	domain := target.Specification.Domain
-	prefix := cfg.Services.Kubernetes().Compute.Ingresses.Prefix
-	suffix := cfg.Services.Kubernetes().Compute.Ingresses.Suffix
+	prefix := cfg.Services.Kubernetes().Compute.PublicLinks.Prefix
+	suffix := cfg.Services.Kubernetes().Compute.PublicLinks.Suffix
 
 	isValid := strings.HasPrefix(domain, prefix) && strings.HasSuffix(domain, suffix)
 

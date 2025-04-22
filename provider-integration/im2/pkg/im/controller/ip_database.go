@@ -10,14 +10,15 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	"ucloud.dk/pkg/cli"
-	db "ucloud.dk/shared/pkg/database"
-	fnd "ucloud.dk/shared/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
+	"ucloud.dk/pkg/termio"
+	db "ucloud.dk/shared/pkg/database"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
-	"ucloud.dk/pkg/termio"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -117,7 +118,7 @@ func fetchAllPublicIps() {
 		})
 
 		if err != nil {
-			log.Warn("Failed to fetch jobs: %v", err)
+			log.Warn("Failed to fetch public ips: %v", err)
 			break
 		}
 
