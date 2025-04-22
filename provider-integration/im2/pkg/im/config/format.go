@@ -7,10 +7,11 @@ import (
 	"encoding/binary"
 	"encoding/pem"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"

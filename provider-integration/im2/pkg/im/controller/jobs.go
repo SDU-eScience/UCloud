@@ -41,12 +41,19 @@ type JobsService struct {
 	HandleBuiltInVnc         func(job *orc.Job, rank int, conn *ws.Conn)
 
 	PublicIPs PublicIPService
+	Licenses  LicenseService
 }
 
 type PublicIPService struct {
 	Create           func(ip *orc.PublicIp) error
 	Delete           func(ip *orc.PublicIp) error
 	RetrieveProducts func() []orc.PublicIpSupport
+}
+
+type LicenseService struct {
+	Create           func(license *orc.License) error
+	Delete           func(license *orc.License) error
+	RetrieveProducts func() []orc.LicenseSupport
 }
 
 type ConfiguredWebSession struct {
@@ -176,6 +183,7 @@ func controllerJobs(mux *http.ServeMux) {
 	wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	jobContext := fmt.Sprintf("/ucloud/%v/jobs/", cfg.Provider.Id)
 	publicIpContext := fmt.Sprintf("/ucloud/%v/networkips/", cfg.Provider.Id)
+	licenseContext := fmt.Sprintf("/ucloud/%v/licenses/", cfg.Provider.Id)
 
 	if RunsUserCode() {
 		creationUrl, _ := strings.CutSuffix(jobContext, "/")
@@ -839,6 +847,139 @@ func controllerJobs(mux *http.ServeMux) {
 				}
 			},
 		))
+
+		licenseActivation, _ := strings.CutSuffix(licenseContext, "/")
+		licenseActivateHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.License]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.License]) {
+				var errors []error
+				var providerIds []*fnd.FindByStringId
+
+				for _, item := range request.Items {
+					TrackLicense(*item)
+					providerIds = append(providerIds, nil)
+
+					fn := Jobs.Licenses.Create
+					if fn == nil {
+						errors = append(errors, util.HttpErr(http.StatusBadRequest, "License activation not supported"))
+					} else {
+						err := fn(item)
+						if err != nil {
+							errors = append(errors, err)
+						}
+					}
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[*fnd.FindByStringId]
+					response.Responses = providerIds
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		)
+
+		licenseDeleteHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.License]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.License]) {
+				var errors []error
+				var resp []util.Option[util.Empty]
+
+				for _, item := range request.Items {
+					fn := Jobs.Licenses.Delete
+					if fn == nil {
+						errors = append(errors, util.HttpErr(http.StatusBadRequest, "License deletion not supported"))
+						resp = append(resp, util.Option[util.Empty]{Present: false})
+					} else {
+						err := fn(item)
+						if err != nil {
+							errors = append(errors, err)
+							resp = append(resp, util.Option[util.Empty]{Present: false})
+						} else {
+							resp = append(resp, util.Option[util.Empty]{Present: true})
+						}
+					}
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[util.Option[util.Empty]]
+					response.Responses = resp
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		)
+
+		mux.HandleFunc(licenseActivation, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				licenseActivateHandler(w, r)
+			} else if r.Method == http.MethodDelete {
+				licenseDeleteHandler(w, r)
+			} else {
+				sendResponseOrError(w, nil, util.HttpErr(http.StatusNotFound, "Not found"))
+			}
+		})
+
+		type licenseUpdateAclRequest struct {
+			Resource orc.License            `json:"resource"`
+			Added    []orc.ResourceAclEntry `json:"added"`
+			Deleted  []orc.AclEntity        `json:"deleted"`
+		}
+
+		mux.HandleFunc(licenseContext+"updateAcl", HttpUpdateHandler[fnd.BulkRequest[licenseUpdateAclRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[licenseUpdateAclRequest]) {
+				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+
+				for _, item := range request.Items {
+					license := item.Resource
+
+					for _, toDelete := range item.Deleted {
+						for i, entry := range license.Permissions.Others {
+							if entry.Entity == toDelete {
+								slices.Delete(license.Permissions.Others, i, i+1)
+							}
+						}
+					}
+
+					for _, toAdd := range item.Added {
+						found := false
+
+						for i := 0; i < len(license.Permissions.Others); i++ {
+							entry := &license.Permissions.Others[i]
+							if entry.Entity == toAdd.Entity {
+								for _, perm := range toAdd.Permissions {
+									entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
+								}
+								found = true
+								break
+							}
+						}
+
+						if !found {
+							license.Permissions.Others = append(license.Permissions.Others, orc.ResourceAclEntry{
+								Entity:      toAdd.Entity,
+								Permissions: toAdd.Permissions,
+							})
+						}
+					}
+
+					TrackLicense(license)
+
+					resp.Responses = append(
+						resp.Responses,
+						util.Option[util.Empty]{
+							Present: true,
+						},
+					)
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		))
+
 	}
 
 	if RunsServerCode() {
@@ -901,6 +1042,25 @@ func controllerJobs(mux *http.ServeMux) {
 				sendResponseOrError(
 					w,
 					fnd.BulkResponse[orc.PublicIpSupport]{
+						Responses: result,
+					},
+					nil,
+				)
+			}),
+		)
+
+		mux.HandleFunc(licenseContext+"retrieveProducts", HttpRetrieveHandler[util.Empty](
+			0,
+			func(w http.ResponseWriter, r *http.Request, _ util.Empty) {
+				var result []orc.LicenseSupport
+				fn := Jobs.Licenses.RetrieveProducts
+				if fn != nil {
+					result = fn()
+				}
+
+				sendResponseOrError(
+					w,
+					fnd.BulkResponse[orc.LicenseSupport]{
 						Responses: result,
 					},
 					nil,
