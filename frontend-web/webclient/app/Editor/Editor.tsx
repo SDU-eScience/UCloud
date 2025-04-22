@@ -1426,6 +1426,8 @@ function EditorTab({
                 fileName(title as string)
     );
 
+    const prettyFullPath = usePrettyFilePath(title as string)
+
     return (
         <Flex onContextMenu={onContextMenu} className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={e => {
             if (e.button === LEFT_MOUSE_BUTTON) {
@@ -1437,7 +1439,7 @@ function EditorTab({
             {isSettings ? <Icon name="heroCog6Tooth" size="18px" />
                 : isReleaseNotes ? <Icon name="heroGift" size="18px" />
                     : <FullpathFileLanguageIcon filePath={tabTitle} />}
-            <Truncate ml="8px" width="50%">{isSettings ? "Editor settings" : tabTitle}</Truncate>
+            <Truncate title={prettyFullPath} ml="8px" width="50%">{isSettings ? "Editor settings" : tabTitle}</Truncate>
             <Icon
                 className={IconHoverBlockClass}
                 onMouseEnter={() => setHovered(true)}
