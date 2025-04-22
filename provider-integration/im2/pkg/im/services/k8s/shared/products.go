@@ -3,6 +3,8 @@ package shared
 import (
 	"fmt"
 	"math"
+	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/shared/pkg/apm"
 
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/shared/pkg/log"
