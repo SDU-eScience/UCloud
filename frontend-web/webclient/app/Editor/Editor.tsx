@@ -418,6 +418,34 @@ export const Editor: React.FunctionComponent<{
         closed: [],
     });
 
+    React.useEffect(() => {
+        const tabListener = (ev: KeyboardEvent) => {
+            const hasAlt = ev.altKey;
+            const parsed = ev.code.startsWith("Digit") ? parseInt(ev.code.replace("Digit", "")) : NaN;
+
+            if (ev.code === "KeyW" && hasAlt) {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                closeTab(state.currentPath, tabs.open.findIndex(it => it === state.currentPath));
+            } else if (!isNaN(parsed) && hasAlt) {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                if (tabs.open.length > 0) {
+                    const clampedValue = Math.min(parsed - 1, tabs.open.length - 1);
+                    openTab(tabs.open[clampedValue]);
+                }
+            }
+        };
+
+        window.addEventListener("keydown", tabListener);
+        return () => {
+            window.removeEventListener("keydown", tabListener);
+        }
+
+    }, [state.currentPath, tabs]);
+
     const [dirtyFiles, setDirtyFiles] = React.useState<Set<string>>(new Set());
 
     const prettyPath = usePrettyFilePath(state.currentPath, !props.vfs.isReal());
