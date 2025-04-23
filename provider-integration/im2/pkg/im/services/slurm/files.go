@@ -361,8 +361,8 @@ func probablyHasPermissionToRead(stat os.FileInfo) bool {
 		return true
 	}
 
-	if os.Getuid() == int(sys.Uid) {
-		return mode&0400 != 0
+	if os.Getuid() == int(sys.Uid) && mode&0400 != 0 {
+		return true
 	}
 
 	if cachedGroups != nil {
@@ -384,8 +384,8 @@ func probablyHasPermissionToWrite(stat os.FileInfo) bool {
 		return true
 	}
 
-	if os.Getuid() == int(sys.Uid) {
-		return mode&0200 != 0
+	if os.Getuid() == int(sys.Uid) && mode&0200 != 0 {
+		return true
 	}
 
 	if cachedGroups != nil {
