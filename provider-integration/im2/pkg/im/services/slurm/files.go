@@ -342,9 +342,9 @@ func compareFileByModifiedAt(a, b cachedDirEntry) int {
 }
 
 var (
-	cachedUser, _ = user.Current()
-	cachedGroups  = (func() []string {
-		if cachedUser == nil {
+	cachedUser, err = user.Current()
+	cachedGroups    = (func() []string {
+		if err != nil {
 			return nil
 		} else {
 			groupIds, _ := cachedUser.GroupIds()

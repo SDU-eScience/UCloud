@@ -14,6 +14,9 @@ import (
 // to read from NSS. AS a result, we use the "getent" executable which is, more or less, omnipresent on the systems we
 // are targeting.
 //
+// The "id" executable is used to retrieve group IDs for a given user, since these are not reliably returned by
+// "getent".
+//
 // This API differs mostly by the fact that structs are returned directly instead of an interface (reference type). This
 // means that it is not possible to check if a UserInfo or GroupInfo is nil. Instead, you must look at the error being
 // returned. This, however, has the added benefit that you are very unlikely to accidentally do a nil-dereference.
@@ -22,6 +25,15 @@ type UserInfo struct {
 	Uid      string
 	Gid      string
 	Username string
+}
+
+func (u *UserInfo) GroupIds() ([]string, error) {
+	stdout, _, ok := util.RunCommand([]string{id, u.Username, "-G"})
+	if !ok {
+		return nil, fmt.Errorf("could not read groups: %s", stdout)
+	} else {
+		return strings.Split(stdout, " "), nil
+	}
 }
 
 type GroupInfo struct {
@@ -84,4 +96,7 @@ func lookupGroup(query string) (GroupInfo, error) {
 	}, nil
 }
 
-const getent = "getent"
+const (
+	getent = "getent"
+	id     = "id"
+)
