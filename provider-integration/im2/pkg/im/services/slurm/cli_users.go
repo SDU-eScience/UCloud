@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/user"
 	"regexp"
 	"strconv"
 	"ucloud.dk/pkg/cli"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/im/external/user"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/termio"
 	db "ucloud.dk/shared/pkg/database"
@@ -26,15 +26,17 @@ func HandleUsersCommand() {
 	}
 
 	var (
-		ucloudName string
-		localName  string
-		localUid   string
+		ucloudName   string
+		localName    string
+		localUid     string
+		actualRemove bool
 	)
 
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	fs.StringVar(&ucloudName, "ucloud-name", "", "Query by UCloud name, supports regex")
 	fs.StringVar(&localName, "local-name", "", "Query by a local username, supports regex")
 	fs.StringVar(&localUid, "local-uid", "", "Query by a local UID, supports regex")
+	fs.BoolVar(&actualRemove, "really-remove-mapping", false, "Causes the mapping to actually be removed instead of invalidating it")
 
 	printUsers := func() []cliUserMapping {
 		result, err := cliUsersList.Invoke(cliUsersListRequest{
@@ -126,7 +128,7 @@ func HandleUsersCommand() {
 			uids = append(uids, row.Uid)
 		}
 
-		resp, err := cliUsersDelete.Invoke(cliUsersDeleteRequest{Uids: uids})
+		resp, err := cliUsersDelete.Invoke(cliUsersDeleteRequest{Uids: uids, ActualRemove: actualRemove})
 		cli.HandleError("deleting users", err)
 
 		for i, failure := range resp.Failures {
@@ -206,8 +208,8 @@ func HandleUsersCommandServer() {
 			for _, row := range rows {
 				uidString := fmt.Sprint(row.Uid)
 				localUsername := ""
-				localUser, _ := user.LookupId(uidString)
-				if localUser != nil {
+				localUser, err := user.LookupId(uidString)
+				if err == nil {
 					localUsername = localUser.Username
 				}
 
@@ -289,7 +291,13 @@ func HandleUsersCommandServer() {
 
 		var errors []string
 		for _, uid := range r.Payload.Uids {
-			err := ctrl.RemoveConnection(uid, true)
+			var flags ctrl.RemoveConnectionFlag
+			flags = ctrl.RemoveConnectionNotify
+			if r.Payload.ActualRemove {
+				flags |= ctrl.RemoveConnectionTrulyRemove
+			}
+
+			err := ctrl.RemoveConnection(uid, flags)
 			if err != nil {
 				errors = append(errors, err.Error())
 			} else {
@@ -322,7 +330,8 @@ type cliUsersAddRequest struct {
 }
 
 type cliUsersDeleteRequest struct {
-	Uids []uint32
+	Uids         []uint32
+	ActualRemove bool
 }
 
 type cliUsersDeleteResponse struct {

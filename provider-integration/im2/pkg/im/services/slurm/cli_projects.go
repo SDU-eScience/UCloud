@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/user"
 	"regexp"
 	"ucloud.dk/pkg/cli"
-	db "ucloud.dk/shared/pkg/database"
+	"ucloud.dk/pkg/im/external/user"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/termio"
+	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/shared/pkg/util"
 )
 

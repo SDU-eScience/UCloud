@@ -7,12 +7,12 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"ucloud.dk/pkg/im/external/user"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )

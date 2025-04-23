@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/user"
 	"path/filepath"
+	"ucloud.dk/pkg/im/external/user"
 	"ucloud.dk/pkg/im/migrations"
 
 	"github.com/jmoiron/sqlx"
