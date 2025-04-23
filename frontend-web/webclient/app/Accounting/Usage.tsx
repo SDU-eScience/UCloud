@@ -2,7 +2,7 @@ import * as React from "react";
 import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
 import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
-import {Flex, Icon, Input, Radio, Text, MainContainer, Box, Select} from "@/ui-components";
+import {Flex, Icon, Input, Text, MainContainer, Box} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -10,7 +10,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
 import {BreakdownByProjectAPI, categoryComparator, ChartsAPI, UsageOverTimeAPI} from ".";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {doNothing, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as Jobs from "@/Applications/Jobs";
@@ -1240,10 +1240,15 @@ const DynamicallySizedChart: React.FunctionComponent<{
 const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoading: boolean;}> = ({charts, isLoading}) => {
     const chartCounter = useRef(0); // looks like apex charts has a rendering bug if the component isn't completely thrown out
     const [shownEntries, setShownEntries] = useState<boolean[]>([]);
+    const shownRef = React.useRef(shownEntries);
+    React.useEffect(() => {
+        shownRef.current = shownEntries;
+    }, [shownEntries]);
+
     const chartProps: ChartProps = useMemo(() => {
         chartCounter.current++;
         setShownEntries(charts.map(() => true));
-        return usageChartsToChart(charts, {
+        return usageChartsToChart(charts, shownRef, {
             valueFormatter: val => Accounting.addThousandSeparators(val.toFixed(1)),
             toggleShown: index => {
                 setShownEntries(shownEntries => {
@@ -1630,13 +1635,15 @@ function toSeriesChart(chart: UsageChart): ApexAxisChartSeries[0] {
     }
     return {
         data,
+        type: "area",
         name: chart.name,
     }
 }
 
 function usageChartsToChart(
     charts: UsageChart[],
-    options: {
+    shownRef: React.RefObject<boolean[]>,
+    chartOptions: {
         valueFormatter?: (value: number) => string;
         removeDetails?: boolean;
         toggleShown?: (index: number) => void;
@@ -1661,12 +1668,31 @@ function usageChartsToChart(
             position: "bottom",
             onItemClick: {
                 toggleDataSeries: true,
-            }
+            },
         },
         chart: {
             events: {
-                legendClick(_, seriesIndex, __) {
-                    if (seriesIndex != null) options.toggleShown?.(seriesIndex);
+                legendClick(chart, seriesIndex, options) {
+                    if (seriesIndex != null && chart != null) {
+                        const allShown = shownRef.current.every(it => it);
+                        if (allShown) {
+                            for (let i = 0; i < shownRef.current.length - 1; i++) {
+                                if (i === seriesIndex) {
+                                    /* 
+                                        Hack(Jonas): It seems that `showSeries` is called before
+                                        the chart toggles the legend entry otherwise, so this has to be "deferred" 
+                                    */
+                                    setTimeout(() => chart.showSeries(result.series?.[i]["name"]), 0);
+                                    continue;
+                                }
+                                chart.hideSeries(result.series?.[i]["name"]);
+                                chartOptions.toggleShown?.(i);
+                            }
+                        } else {
+                            chart.toggleSeries(result.series?.[seriesIndex]["name"]);
+                            chartOptions.toggleShown?.(seriesIndex);
+                        }
+                    }
                 },
             },
             type: "area",
@@ -1717,8 +1743,8 @@ function usageChartsToChart(
         yaxis: {
             labels: {
                 formatter: function (val) {
-                    if (options.valueFormatter) {
-                        return options.valueFormatter(val);
+                    if (chartOptions.valueFormatter) {
+                        return chartOptions.valueFormatter(val);
                     } else {
                         return val.toString();
                     }
@@ -1742,8 +1768,8 @@ function usageChartsToChart(
             shared: false,
             y: {
                 formatter: function (val) {
-                    if (options.valueFormatter) {
-                        let res = options.valueFormatter(val);
+                    if (chartOptions.valueFormatter) {
+                        let res = chartOptions.valueFormatter(val);
                         res += " ";
                         res += charts[0]?.unit;
                         return res;
@@ -1755,7 +1781,7 @@ function usageChartsToChart(
         },
     };
 
-    if (options.removeDetails === true) {
+    if (chartOptions.removeDetails === true) {
         delete result.options.title;
         result.options.tooltip = {enabled: false};
         const c = result.options.chart!;
@@ -1765,54 +1791,6 @@ function usageChartsToChart(
 
     return result;
 }
-
-const SmallUsageCardStyle = injectStyle("small-usage-card", k => `
-    ${k} {
-        --offset: 0px;
-        width: 300px;
-    }
-    
-    ${k} .title-row {
-        display: flex;
-        flex-direction: row;
-        margin-bottom: 10px;
-        align-items: center;
-        gap: 4px;
-        width: calc(100% + 4px); /* deal with bad SVG in checkbox */
-    }
-    
-    ${k} .title-row > *:last-child {
-        margin-right: 0;
-    }
-    
-
-    ${k} strong {
-        flex-grow: 1;
-    }
-
-    ${k} .body {
-        display: flex;
-        flex-direction: row;
-        gap: 8px;
-        align-items: center;
-    }
-
-    ${k} .border-bottom {
-        position: absolute;
-        top: var(--offset);
-        width: 112px;
-        height: 1px;
-        background: var(--borderColor);
-    }
-
-    ${k} .border-left {
-        position: absolute;
-        top: -63px;
-        height: calc(63px + var(--offset));
-        width: 1px;
-        background: var(--borderColor);
-    }
-`);
 
 const RenderUnitSelector: RichSelectChildComponent<{unit: string}> = ({element, onSelect, dataProps}) => {
 
@@ -1847,54 +1825,6 @@ function toIcon(unit: string): IconName {
             return "broom";
     }
 }
-
-const SmallUsageCard: React.FunctionComponent<{
-    categoryName: string;
-    usageText1: string;
-    usageText2: string;
-    chart: UsageChart;
-    active: boolean;
-    activationKey?: any;
-    onActivate: (activationKey?: any) => void;
-}> = props => {
-    const chartKey = useRef(0);
-    const chartProps = useMemo(() => {
-        chartKey.current++;
-        return usageChartsToChart([props.chart], {removeDetails: true});
-    }, [props.chart]);
-
-    const onClick = useCallback(() => {
-        props.onActivate(props.activationKey);
-    }, [props.activationKey, props.onActivate]);
-
-    return <a href={`#${props.categoryName}`} onClick={onClick}>
-        <div className={classConcat(CardClass, SmallUsageCardStyle)}>
-            <div className={"title-row"}>
-                <strong><code>{props.categoryName}</code></strong>
-                <Radio checked={props.active} onChange={doNothing} />
-            </div>
-
-            <div className="body">
-                <Chart
-                    key={chartKey.current.toString()}
-                    {...chartProps}
-                    width={112}
-                    height={63}
-                />
-                <div>
-                    {props.usageText1} <br />
-                    {props.usageText2}
-                </div>
-            </div>
-            <div style={{position: "relative"}}>
-                <div className="border-bottom" />
-            </div>
-            <div style={{position: "relative"}}>
-                <div className="border-left" />
-            </div>
-        </div>
-    </a>;
-};
 
 const TableWrapper = makeClassName("table-wrapper");
 const PanelTitle = makeClassName("panel-title");
