@@ -546,9 +546,8 @@ const Visualization: React.FunctionComponent = () => {
                 {hasNoMeaningfulData ? <NoData loading={isAnyLoading} productType={activeCategory?.productType} /> : null}
 
                 {!hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <Box pb={32}>
-                    {isAnyLoading ? null : (<>
-                        <div><b>Unit selection</b></div>
-                        {state.activeDashboard == null ? null : unitsForRichSelect.length === 0 ? <div>No data available</div> : <>
+                    {isAnyLoading ? null :
+                        state.activeDashboard == null ? null : unitsForRichSelect.length === 0 ? <div>No data available</div> : <>
                             <RichSelect
                                 items={unitsForRichSelect}
                                 keys={["unit"]}
