@@ -558,7 +558,6 @@ const Visualization: React.FunctionComponent = () => {
                                 selected={({unit: state.activeDashboard.activeUnit})}
                             />
                         </>}
-                    </>)}
                 </Box>}
 
                 {state.activeDashboard ?
@@ -1184,75 +1183,19 @@ const DynamicallySizedChart: React.FunctionComponent<{
     // with the correct size.
 
     // NOTE(Dan): The wrapper is required to ensure the useEffect runs every time.
-    const [dimensions, setDimensions] = useState<{height?: string, width?: string}>({});
-    const mountPoint = useRef<HTMLDivElement>(null);
     const styleForLayoutTest: CSSProperties = {flexGrow: 2, flexShrink: 1, flexBasis: "400px"};
 
-    useLayoutEffect(() => {
-        const listener = () => {
-            setDimensions({});
-        };
-        window.addEventListener("resize", listener);
-        return () => {
-            window.removeEventListener("resize", listener);
-        }
-    }, []);
-
-    useLayoutEffect(() => {
-        const wrapper = mountPoint.current;
-        if (!wrapper) return;
-        if (dimensions.height || dimensions.width) return;
-
-        // NOTE(Dan): If we do not add a bit of a delay, then we risk that this API sometimes gives us back a result
-        // which is significantly larger than it should be.
-        window.setTimeout(() => {
-            const [minRatio, maxRatio] = aspectRatio;
-
-            const boundingRect = wrapper.getBoundingClientRect();
-            const brWidth = boundingRect.width;
-            const brHeight = boundingRect.height;
-
-            // Use full width of either ratio
-            // If neither can do full width, go for the smallest ratio
-
-            let width = Math.min(brWidth, maxWidth ?? Number.MAX_SAFE_INTEGER);
-            let height = width * minRatio;
-
-            setDimensions({width: `${width}px`, height: `${Math.min(height, 400)}px`});
-        }, 100);
-    }, [props.anyChartData, dimensions]);
-
-    return <div
-        style={dimensions.height ? {...dimensions, width: "100%", display: "flex", justifyContent: "center"} : styleForLayoutTest}
-        ref={mountPoint}
-    >
-        {dimensions.height && dimensions.width &&
-            <Chart
-                {...chart}
-                height={dimensions.height}
-                width={dimensions.width}
-            />
-        }
+    return <div style={styleForLayoutTest}>
+        <Chart {...chart} height="400px" />
     </div>;
 }
 
 const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoading: boolean;}> = ({charts, isLoading}) => {
     const chartCounter = useRef(0); // looks like apex charts has a rendering bug if the component isn't completely thrown out
     const [shownEntries, setShownEntries] = useState<boolean[]>([]);
+
+    // HACK(Jonas): Used to change contents of table, based on what series are active in the chart
     const shownRef = React.useRef(shownEntries);
-
-
-    useLayoutEffect(() => {
-        const listener = () => {
-            setShownEntries(entries => {
-                return Array.from(Array(entries.length)).map(() => true);
-            })
-        };
-        window.addEventListener("resize", listener);
-        return () => {
-            window.removeEventListener("resize", listener);
-        }
-    }, []);
     React.useEffect(() => {
         shownRef.current = shownEntries;
     }, [shownEntries]);
@@ -1509,17 +1452,7 @@ const PieChart: React.FunctionComponent<{
             return 0;
         });
 
-        const result = all.slice(0, 4);
-        if (all.length > result.length) {
-            let othersSum = 0;
-            for (let i = result.length; i < all.length; i++) {
-                otherKeys.current.push(all[i].key);
-                othersSum += all[i].value;
-            }
-            result.push({key: "Other", value: othersSum});
-        }
-
-        return result;
+        return all;
     }, [props.dataPoints]);
 
     const {series, labels} = React.useMemo(() => {
@@ -1570,8 +1503,10 @@ const PieChart: React.FunctionComponent<{
             chart,
             legend: {
                 /* Note(Jonas): I'm not sure we can expect same behaviour from this, as clicking on the pie, so disable */
-                onItemClick: {toggleDataSeries: false}
+                onItemClick: {toggleDataSeries: false},
+                position: "bottom"
             },
+            responsive: [],
             labels,
             dataLabels: {
                 enabled: false,
@@ -1652,6 +1587,7 @@ function toSeriesChart(chart: UsageChart): ApexAxisChartSeries[0] {
     }
 }
 
+const ADD_FAKE_QUOTA = false;
 function usageChartsToChart(
     charts: UsageChart[],
     shownRef: React.RefObject<boolean[]>,
@@ -1663,19 +1599,17 @@ function usageChartsToChart(
 ): ChartProps {
     const result: ChartProps = {};
     result.series = charts.map(it => toSeriesChart(it));
-    result.type = "area";
+    if (ADD_FAKE_QUOTA) {
+        const last = result.series.at(-1);
+        if (last) {
+            result.series.push({
+                type: "line",
+                name: "Fake quota",
+                data: charts.at(-1)?.dataPoints.map(it => [it.timestamp, it.usage * 2]) ?? []
+            });
+        }
+    }
     result.options = {
-        responsive: [{
-            breakpoint: 1337,
-            options: {
-                legend: {
-                    position: "right",
-                    onItemClick: {
-                        toggleDataSeries: true,
-                    }
-                }
-            }
-        }],
         legend: {
             position: "bottom",
             onItemClick: {
@@ -1687,8 +1621,10 @@ function usageChartsToChart(
                 legendClick(chart, seriesIndex, options) {
                     if (seriesIndex != null && chart != null) {
                         const allShown = shownRef.current.every(it => it);
+                        const noneWillBeShown = shownRef.current.reduce((acc, shown) => acc + (+shown), 0) === 1 && shownRef.current[seriesIndex] === true;
+
                         if (allShown) {
-                            for (let i = 0; i < shownRef.current.length - 1; i++) {
+                            for (let i = 0; i < shownRef.current.length; i++) {
                                 if (i === seriesIndex) {
                                     /* 
                                         Hack(Jonas): It seems that `showSeries` is called before
@@ -1704,8 +1640,10 @@ function usageChartsToChart(
                             chart.toggleSeries(result.series?.[seriesIndex]["name"]);
                             chartOptions.toggleShown?.(seriesIndex);
                         }
+                    } else {
+                        console.log("seriesIndex and chart was null");
                     }
-                },
+                }
             },
             type: "area",
             stacked: true,
@@ -1740,6 +1678,7 @@ function usageChartsToChart(
         },
         stroke: {
             curve: "straight",
+            dashArray: Array(charts.length).map(() => 0).concat(ADD_FAKE_QUOTA ? [9] : []),
         },
         // fill: {
         //     type: "gradient",
@@ -1862,10 +1801,11 @@ const ChartAndTable = injectStyle("chart-and-table", k => `
         width: 100%;
         margin-left: auto;
         margin-right: auto;
+        max-height: 400px;
     }
 
     ${k} ${TableWrapper.dot} {
-        max-height: 500px;
+        max-height: 400px;
     }
 }
 `);
@@ -1903,15 +1843,15 @@ const PanelClass = injectStyle("panel", k => `
     ${k} ${TableWrapper.dot} {
         flex-grow: 1;
         overflow-y: scroll;
-        min-width: 600px;
+        min-width: 400px;
         min-height: 200px;
-        max-height: 600px;
+        max-height: 400px;
     }
 
 @media screen and (max-width: 1337px) {
     ${k} ${TableWrapper.dot} {
         margin-top: 12px;
-        max-height: 500px;
+        max-height: 300px;
     }
 }
     
