@@ -1241,6 +1241,19 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
     const chartCounter = useRef(0); // looks like apex charts has a rendering bug if the component isn't completely thrown out
     const [shownEntries, setShownEntries] = useState<boolean[]>([]);
     const shownRef = React.useRef(shownEntries);
+
+
+    useLayoutEffect(() => {
+        const listener = () => {
+            setShownEntries(entries => {
+                return Array.from(Array(entries.length)).map(() => true);
+            })
+        };
+        window.addEventListener("resize", listener);
+        return () => {
+            window.removeEventListener("resize", listener);
+        }
+    }, []);
     React.useEffect(() => {
         shownRef.current = shownEntries;
     }, [shownEntries]);
