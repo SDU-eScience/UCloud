@@ -360,6 +360,7 @@ func ActivateLicense(target *orc.License) error {
 		return nil
 	} else {
 		log.Info("Failed to activate license due to an error between UCloud and the provider: %s", err)
+		_ = DeleteLicense(target)
 		return err
 	}
 }

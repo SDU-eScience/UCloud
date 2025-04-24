@@ -320,6 +320,7 @@ outer:
 	publicIpsMutex.Unlock()
 
 	if !allocatedIp.Present {
+		_ = DeleteIpAddress(target)
 		return util.HttpErr(http.StatusBadRequest, "%s has no more IP addresses available", cfg.Provider.Id)
 	} else {
 		newUpdate := orc.PublicIpUpdate{
@@ -345,9 +346,7 @@ outer:
 		} else {
 			log.Info("Failed to allocate an IP address due to an error between UCloud and the provider: %s", err)
 
-			publicIpsMutex.Lock()
-			delete(externalAddressesInUse, allocatedIp.Value)
-			publicIpsMutex.Unlock()
+			_ = DeleteIpAddress(target)
 			return err
 		}
 	}

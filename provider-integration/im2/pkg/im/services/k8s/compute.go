@@ -187,6 +187,7 @@ func createIngress(ingress *orc.Ingress) error {
 		accountPublicLinks(ingress.Owner)
 		return nil
 	} else {
+		_ = deleteIngress(ingress)
 		log.Warn("Failed to create public link due to an error between UCloud and the provider: %s", err)
 		return err
 	}
