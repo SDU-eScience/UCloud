@@ -107,7 +107,7 @@ func (s *CpuSample) End() (CpuStats, error) {
 
 func calculateCGroupV1CpuCount() float64 {
 	quotaRaw := readFirstLine("/sys/fs/cgroup/cpu,cpuacct/cpu.cfs_quota_us")
-	periodRaw := readFirstLine("/sys/fs/cgroup/cpu,cpuacct/cpu.cfg_period_us")
+	periodRaw := readFirstLine("/sys/fs/cgroup/cpu,cpuacct/cpu.cfs_period_us")
 
 	quota, _ := strconv.ParseUint(quotaRaw, 10, 64)
 	period, _ := strconv.ParseUint(periodRaw, 10, 64)

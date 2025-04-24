@@ -515,6 +515,16 @@ function validateParameter(parameter: any): ApplicationParameter | string {
                 name,
             };
 
+        case "License":
+            return {
+                type: "license_server",
+                title,
+                description,
+                optional,
+                name,
+                tagged: [],
+            };
+
         default:
             return "unknown parameter type"
     }

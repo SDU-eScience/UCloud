@@ -7,9 +7,9 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	fnd "ucloud.dk/shared/pkg/foundation"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/shared"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -107,6 +107,7 @@ func itermMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.Pod) 
 				core.ResourceMemory: *resource.NewScaledQuantity(int64(integratedTerminalDimensions.MemoryInBytes), 0),
 			}
 
+			container.SecurityContext.AllowPrivilegeEscalation = util.BoolPointer(true)
 			container.SecurityContext.RunAsNonRoot = util.Pointer(false)
 			container.Image = integratedTerminalImage
 			container.Command = []string{"sleep", "inf"}

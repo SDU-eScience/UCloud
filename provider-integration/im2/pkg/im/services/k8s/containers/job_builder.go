@@ -2,7 +2,10 @@ package containers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -150,6 +153,17 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 					End:      22,
 				},
 			})
+		}
+	}
+
+	// JobParameters.json
+	// -----------------------------------------------------------------------------------------------------------------
+	if rank == 0 && job.Status.JobParametersJson.SiteVersion != 0 {
+		jsonData, _ := json.Marshal(job.Status.JobParametersJson)
+		fd, ok := filesystem.OpenFile(filepath.Join(jobFolder, "JobParameters.json"), os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0660)
+		if ok {
+			_, _ = fd.Write(jsonData)
+			_ = fd.Close()
 		}
 	}
 
@@ -327,7 +341,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// -----------------------------------------------------------------------------------------------------------------
 	spec.InitContainers = append(spec.InitContainers, core.Container{
 		Name:  "ucviz",
-		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.3.1",
+		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.3.10",
 	})
 
 	ucvizContainer := &spec.InitContainers[len(spec.InitContainers)-1]

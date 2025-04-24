@@ -38,18 +38,18 @@ type ExportedParametersRequest struct {
 	ResolvedProduct   json.RawMessage      `json:"resolvedProduct,omitempty"`
 	ResolvedSupport   json.RawMessage      `json:"resolvedSupport,omitempty"`
 	AllowDuplicateJob bool                 `json:"allowDuplicateJob"`
-	SshEnabled        bool
+	SshEnabled        bool                 `json:"sshEnabled"`
 }
 
 type ExportedParameters struct {
 	SiteVersion       int                         `json:"siteVersion"`
 	Request           ExportedParametersRequest   `json:"request"`
-	ResolvedResources ExportedParametersResources `json:"ResolvedResources"`
+	ResolvedResources ExportedParametersResources `json:"resolvedResources"`
 	MachineType       json.RawMessage             `json:"machineType"`
 }
 
 type ExportedParametersResources struct {
-	Ingress map[string]Ingress `json:"Ingress"`
+	Ingress map[string]Ingress `json:"ingress"`
 }
 
 type DynamicTarget struct {

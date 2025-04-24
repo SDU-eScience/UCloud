@@ -141,7 +141,7 @@ func RunMockServer() {
 			log.Info("%v %v %v", method, path, l)
 
 			if method == http.MethodGet && l == 1 && c(path, 0) == "info" {
-				// TODO(Dan): I have no idea what this endpoint normally sends, but our client doesn't care.
+				// NOTE(Dan): I have no idea what this endpoint normally sends, but our client doesn't care.
 				_, _ = writer.Write([]byte("{\"status\": \"OK\"}"))
 				return
 			}
