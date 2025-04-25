@@ -215,8 +215,18 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	addResource(core.ResourceCPU, cpuMillis, resource.Milli)
 	addResource(core.ResourceMemory, memoryMegabytes, resource.Mega)
+
 	if gpus > 0 {
-		addResource("nvidia.com/gpu", gpus, resource.Milli)
+		gpuType := "nvidia.com/gpu"
+		machineCategory, ok := shared.ServiceConfig.Compute.Machines[job.Specification.Product.Category]
+		if ok {
+			nodeCat, ok := machineCategory.Groups[job.Specification.Product.Category]
+			if ok {
+				gpuType = nodeCat.GpuResourceType
+			}
+		}
+
+		addResource(core.ResourceName(gpuType), gpus, 0)
 	}
 
 	// TODO We used to set a nodeselector but this appears redundant since we are already setting the node.
