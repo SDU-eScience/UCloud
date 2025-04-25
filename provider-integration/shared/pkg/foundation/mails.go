@@ -1,6 +1,7 @@
 package foundation
 
 import (
+	"encoding/json"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -75,15 +76,16 @@ const (
 	MailTypeUnknown                     MailType = "unknown"
 )
 
-type Mail map[string]any
+type Mail json.RawMessage
 
 func (m Mail) Type() MailType {
-	mType, ok := m["type"].(string)
-	if ok {
-		return MailType(mType)
-	} else {
-		return MailTypeUnknown
+	type mailWithType struct {
+		Type string `json:"type"`
 	}
+
+	var mt mailWithType
+	_ = json.Unmarshal(m, &mt)
+	return MailType(mt.Type)
 }
 
 type MailSendSupportRequest struct {

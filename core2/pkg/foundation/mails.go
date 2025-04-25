@@ -95,32 +95,30 @@ func initMails() {
 	})
 
 	fndapi.MailSendSupport.Handler(func(info rpc.RequestInfo, request fndapi.MailSendSupportRequest) (util.Empty, *util.HttpError) {
-		/*
-			mail := fndapi.NewMail(fndapi.MailTypeSupport)
-			mail["message"] = request.Message
-			mail["subject"] = request.Subject
+		rawMail := map[string]any{
+			"type":    fndapi.MailTypeSupport,
+			"message": request.Message,
+			"subject": request.Subject,
+		}
 
-			toSend := mailToSend{
-				FromName:     request.FromEmail,
-				FromEmail:    request.FromEmail,
-				ToName:       SupportName,
-				ToEmail:      SupportEmail,
-				Mail:         mail,
-				BaseTemplate: &baseSupportTemplate,
-			}
+		mailData, _ := json.Marshal(rawMail)
 
-			err := sendEmail(toSend)
-			if err != nil {
-				log.Warn("Failed to send emails: %s", err.Error())
-				return util.Empty{}, util.HttpErr(http.StatusInternalServerError, "Internal error")
-			} else {
-				return util.Empty{}, nil
-			}
-		*/
-		// TODO
-		// TODO
-		// TODO
-		return util.Empty{}, nil
+		toSend := mailToSend{
+			FromName:     request.FromEmail,
+			FromEmail:    request.FromEmail,
+			ToName:       SupportName,
+			ToEmail:      SupportEmail,
+			Mail:         fndapi.Mail(mailData),
+			BaseTemplate: &baseSupportTemplate,
+		}
+
+		err := sendEmail(toSend)
+		if err != nil {
+			log.Warn("Failed to send emails: %s", err.Error())
+			return util.Empty{}, util.HttpErr(http.StatusInternalServerError, "Internal error")
+		} else {
+			return util.Empty{}, nil
+		}
 	})
 
 	fndapi.MailRetrieveSettings.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.MailRetrieveSettingsResponse, *util.HttpError) {
@@ -417,10 +415,7 @@ func renderEmail(mail mailToSend) (string, string, error) {
 
 func transformMailParameters(mtype fndapi.MailType, mail mailToSend) map[string]any {
 	var params map[string]any
-	// TODO
-	// TODO
-	// TODO
-	// _ = json.Unmarshal(mail.Mail, &params)
+	_ = json.Unmarshal(mail.Mail, &params)
 
 	switch mtype {
 	case fndapi.MailTypeLowFunds:
@@ -432,10 +427,7 @@ func transformMailParameters(mtype fndapi.MailType, mail mailToSend) map[string]
 			ProjectTitles []*string `json:"projectTitles"`
 		}
 
-		// TODO
-		// TODO
-		// TODO
-		// _ = json.Unmarshal(mail.Mail, &info)
+		_ = json.Unmarshal(mail.Mail, &info)
 
 		if len(info.Categories) == len(info.Providers) && len(info.Providers) == len(info.ProjectTitles) {
 			for i := 0; i < len(info.Categories); i++ {
@@ -469,30 +461,36 @@ func transformMailParameters(mtype fndapi.MailType, mail mailToSend) map[string]
 			Events    []string  `json:"events"`
 		}
 
-		// TODO
-		// TODO
-		// TODO
-		// TODO
-		// _ = json.Unmarshal(mail.Mail, &info)
+		_ = json.Unmarshal(mail.Mail, &info)
 
 		if len(info.JobIds) == len(info.JobNames) && len(info.JobNames) == len(info.AppTitles) && len(info.AppTitles) == len(info.Events) {
 			for i := 0; i < len(info.JobIds); i++ {
-				// TODO This code is incomplete and so is the rest of this service.
-				// TODO This code is incomplete and so is the rest of this service.
-				// TODO This code is incomplete and so is the rest of this service.
-				// TODO This code is incomplete and so is the rest of this service.
-				// TODO This code is incomplete and so is the rest of this service.
-				// TODO This code is incomplete and so is the rest of this service.
-				/*
-					ev := map[string]any{}
+				ev := map[string]any{}
 
-					nameOrId := info.JobIds[i]
-					if info.JobNames[i] != nil {
-						nameOrId = *info.JobNames[i]
-					}
+				nameOrId := info.JobIds[i]
+				if info.JobNames[i] != nil {
+					nameOrId = *info.JobNames[i]
+				}
 
-					ev["name"]
-				*/
+				ev["jobName"] = nameOrId
+				ev["jobId"] = info.JobIds[i]
+				ev["appName"] = info.AppTitles[i]
+
+				var change string
+				switch info.Events[i] {
+				case "JOB_STARTED":
+					change = "has started successfully, and is now running."
+				case "JOB_COMPLETED":
+					change = "has completed successfully."
+				case "JOB_FAILED":
+					change = "failed unexpectedly, and has been terminated."
+				case "JOB_EXPIRED":
+					change = "has reached its time limit, and has been terminated."
+				default:
+					log.Info("Unknown job event: '%v'", info.Events[i])
+					change = "has been updated."
+				}
+				ev["change"] = change
 			}
 		}
 
