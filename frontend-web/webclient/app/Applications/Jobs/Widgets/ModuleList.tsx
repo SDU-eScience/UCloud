@@ -15,7 +15,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {injectStyle} from "@/Unstyled";
 import {SelectProps} from "@/ui-components/Select";
-import {useEffectSkipMount} from "@/UtilityFunctions";
+import {deferLike, useEffectSkipMount} from "@/UtilityFunctions";
 import {Toggle} from "@/ui-components/Toggle";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
@@ -117,10 +117,10 @@ function reorderSoftware(
                 })
             }
 
-            if (dependencyChainOk) {{
+            if (dependencyChainOk) {
                 result.push(module);
                 delete remaining[name];
-            }}
+            }
         }
 
         let prevLength = keys.length;
@@ -158,19 +158,19 @@ const highlightChange = injectStyle("highlight-change", k => `
     };
 `);
 
-const HighlightedSelected: React.FunctionComponent<SelectProps & { children: React.ReactNode; }> = ({children, ...props}) => {
+const HighlightedSelected: React.FunctionComponent<SelectProps & {children: React.ReactNode;}> = ({children, ...props}) => {
     const ref = useRef<HTMLSelectElement>(null);
     useEffectSkipMount(() => {
         const s = ref.current;
         if (s) {
             s.classList.remove(highlightChange);
-            setTimeout(() => s.classList.add(highlightChange), 0);
+            deferLike(() => s.classList.add(highlightChange));
         }
     }, [props.value]);
     return <Select selectRef={ref} {...props}>{children}</Select>;
 }
 
-const HighlightedContainer: React.FunctionComponent<{ children: React.ReactNode; }> = ({children}) => {
+const HighlightedContainer: React.FunctionComponent<{children: React.ReactNode;}> = ({children}) => {
     const ref = useRef<HTMLDivElement>(null);
     useEffectSkipMount(() => {
         const s = ref.current;
@@ -179,7 +179,7 @@ const HighlightedContainer: React.FunctionComponent<{ children: React.ReactNode;
             setTimeout(() => s.classList.add(highlightChange), 0);
         }
     }, [children]);
-    return <div style={{ color: "var(--textPrimary)", background: "var(--cardBackground)" }} ref={ref}>{children}</div>;
+    return <div style={{color: "var(--textPrimary)", background: "var(--cardBackground)"}} ref={ref}>{children}</div>;
 }
 
 function evaluateConfiguration(loadList: ApplicationParameterNS.Module[]): Record<string, true> {
@@ -235,7 +235,7 @@ export const ModuleListParameter: React.FunctionComponent<ModuleListProps> = pro
     useEffect(() => {
         const input = valueInput();
         if (input) {
-            const value: AppParameterValueNS.ModuleList & { error?: true } = {
+            const value: AppParameterValueNS.ModuleList & {error?: true} = {
                 type: "modules",
                 modules: selectedModules.map(it => it.name),
             };
@@ -249,7 +249,7 @@ export const ModuleListParameter: React.FunctionComponent<ModuleListProps> = pro
     }, [errors, selectedModules]);
 
     const [supportedModules, modulesByName] = useMemo(() => {
-        const modulesByName: Record<string, (ApplicationParameterNS.Module & { nv: NameAndVersion })[]> = {};
+        const modulesByName: Record<string, (ApplicationParameterNS.Module & {nv: NameAndVersion})[]> = {};
 
         const modules = props.parameter.supportedModules;
         modules.sort((a, b) => {
@@ -309,7 +309,7 @@ export const ModuleListParameter: React.FunctionComponent<ModuleListProps> = pro
     }, [autoSelectDepChain]);
 
     return (<Flex flexDirection={"column"}>
-        <input type="hidden" id={widgetId(props.parameter)}/>
+        <input type="hidden" id={widgetId(props.parameter)} />
         {!error ? null : <>
             <p style={{color: "var(--errorMain)"}}>{error}</p>
         </>}
@@ -326,52 +326,52 @@ export const ModuleListParameter: React.FunctionComponent<ModuleListProps> = pro
                         </TableRow>
                     </TableHeader>
                     <tbody>
-                    {selectedModules.length !== 0 ? null :
-                        <TableRow>
-                            <TableCell colSpan={4}><i>No modules selected</i></TableCell>
-                        </TableRow>
-                    }
+                        {selectedModules.length !== 0 ? null :
+                            <TableRow>
+                                <TableCell colSpan={4}><i>No modules selected</i></TableCell>
+                            </TableRow>
+                        }
 
-                    {selectedModules.toSorted((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase())).map(((m, idx) => {
-                        const [name, version] = moduleNameToNameAndVersion(m.name);
-                        return <TableRow key={idx} verticalAlign={"middle"}>
-                            <TableCell><HighlightedContainer>{name}</HighlightedContainer></TableCell>
-                            <TableCell>
-                                <HighlightedSelected
-                                    value={version}
-                                    onChange={(ev) => onAddModule(modulesByName[name].find(it => it.nv.version === ev.target.value) ?? m, false) }>
-                                    {modulesByName[name].map((it, idx) => <option key={idx}>{it.nv.version}</option>)}
-                                </HighlightedSelected>
-                            </TableCell>
-                            <TableCell>
-                                {errors[name] ? <>
-                                    <div>
-                                        Requires one of:
-                                    </div>
+                        {selectedModules.toSorted((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase())).map(((m, idx) => {
+                            const [name, version] = moduleNameToNameAndVersion(m.name);
+                            return <TableRow key={idx} verticalAlign={"middle"}>
+                                <TableCell><HighlightedContainer>{name}</HighlightedContainer></TableCell>
+                                <TableCell>
+                                    <HighlightedSelected
+                                        value={version}
+                                        onChange={(ev) => onAddModule(modulesByName[name].find(it => it.nv.version === ev.target.value) ?? m, false)}>
+                                        {modulesByName[name].map((it, idx) => <option key={idx}>{it.nv.version}</option>)}
+                                    </HighlightedSelected>
+                                </TableCell>
+                                <TableCell>
+                                    {errors[name] ? <>
+                                        <div>
+                                            Requires one of:
+                                        </div>
 
-                                    <ul>
-                                        {m.dependsOn.map((chain, idx) => <li key={idx}>{chain.join(", ")}</li>)}
-                                    </ul>
-                                </> : <>
-                                    <i>No errors</i>
-                                </>}
-                            </TableCell>
-                            <TableCell>
-                                <Flex gap={"8px"}>
-                                    <TooltipV2 tooltip={"Documentation"}>
-                                        <Button onClick={() => setShowDocs(m)}>
-                                            <Icon name={"heroQuestionMarkCircle"}/>
-                                        </Button>
-                                    </TooltipV2>
-                                    <TooltipV2 tooltip={"Remove"}>
-                                        <Button color={"errorMain"} onClick={() => onRemoveModule(m)}>
-                                            <Icon name={"heroTrash"}/>
-                                        </Button>
-                                    </TooltipV2>
-                                </Flex>
-                            </TableCell>
-                        </TableRow>;
-                    }))}
+                                        <ul>
+                                            {m.dependsOn.map((chain, idx) => <li key={idx}>{chain.join(", ")}</li>)}
+                                        </ul>
+                                    </> : <>
+                                        <i>No errors</i>
+                                    </>}
+                                </TableCell>
+                                <TableCell>
+                                    <Flex gap={"8px"}>
+                                        <TooltipV2 tooltip={"Documentation"}>
+                                            <Button onClick={() => setShowDocs(m)}>
+                                                <Icon name={"heroQuestionMarkCircle"} />
+                                            </Button>
+                                        </TooltipV2>
+                                        <TooltipV2 tooltip={"Remove"}>
+                                            <Button color={"errorMain"} onClick={() => onRemoveModule(m)}>
+                                                <Icon name={"heroTrash"} />
+                                            </Button>
+                                        </TooltipV2>
+                                    </Flex>
+                                </TableCell>
+                            </TableRow>;
+                        }))}
                     </tbody>
                 </Table>
             </Box>
@@ -389,7 +389,7 @@ export const ModuleListParameter: React.FunctionComponent<ModuleListProps> = pro
                 <Box flexShrink={0}>
                     <Button color={"successMain"}>
                         <Flex gap={"8px"}>
-                            <Icon name={"heroPlus"}/>
+                            <Icon name={"heroPlus"} />
                             <div>Load module</div>
                         </Flex>
                     </Button>
@@ -414,7 +414,7 @@ export const ModuleListParameter: React.FunctionComponent<ModuleListProps> = pro
             {showDocs ?
                 <Box>
                     <Flex gap={"8px"} alignItems={"center"} mb={16}>
-                        <AppLogo size={"32px"} hash={hashF(moduleNameToNameAndVersion(showDocs.name)[0])}/>
+                        <AppLogo size={"32px"} hash={hashF(moduleNameToNameAndVersion(showDocs.name)[0])} />
                         <Heading.h2>{showDocs.name}</Heading.h2>
                     </Flex>
                     <Flex flexDirection={"column"}>
@@ -446,7 +446,7 @@ export const ModuleListParameter: React.FunctionComponent<ModuleListProps> = pro
                             }
                         </div>
                     </Flex>
-                    <hr style={{marginBottom: "16px"}}/>
+                    <hr style={{marginBottom: "16px"}} />
 
                     <ModuleMarkdown>{showDocs.description}</ModuleMarkdown>
                 </Box> : null
@@ -472,11 +472,11 @@ export function ModuleMarkdown({children}: React.PropsWithChildren): React.React
     />
 }
 
-function LinkBlock(props: { href?: string; children: React.ReactNode & React.ReactNode[] }) {
+function LinkBlock(props: {href?: string; children: React.ReactNode & React.ReactNode[]}) {
     return <ExternalLink href={props.href}>{props.children}</ExternalLink>;
 }
 
-function SimpleHeading(props: { children: React.ReactNode & React.ReactNode[] }) {
+function SimpleHeading(props: {children: React.ReactNode & React.ReactNode[]}) {
     return <Heading.h4>{props.children}</Heading.h4>;
 }
 
@@ -489,7 +489,7 @@ const ModuleRenderRow: RichSelectChildComponent<ApplicationParameterNS.Module> =
     const [name] = moduleNameToNameAndVersion(module.name);
 
     return <Flex p={8} height={40} gap={"16px"} {...props.dataProps} onClick={props.onSelect}>
-        <AppLogo size={"24px"} hash={hashF(name)}/>
+        <AppLogo size={"24px"} hash={hashF(name)} />
         <Box minWidth={"180px"}>{name}</Box>
         <div>{module.shortDescription}</div>
     </Flex>
@@ -582,11 +582,11 @@ export const ModuleListValidator: WidgetValidator = (param) => {
     if (param.type === "modules") {
         const elem = findElement(param);
         if (elem === null) return {valid: true};
-        if (elem.value === "") return {valid: true, value: { type: "modules", modules: [] }};
+        if (elem.value === "") return {valid: true, value: {type: "modules", modules: []}};
         try {
             const parsed = JSON.parse(elem.value) as AppParameterValueNS.ModuleList;
             if ("error" in parsed) {
-                return { valid: false, message: "Unable to resolve all dependencies" };
+                return {valid: false, message: "Unable to resolve all dependencies"};
             }
 
             return {

@@ -12,7 +12,7 @@ import * as WorkflowApi from "@/Applications/Workflows";
 import {Workflow, WorkflowSpecification} from "@/Applications/Workflows";
 import {AppLogo, hashF} from "@/Applications/AppToolLogo";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
-import {bulkRequestOf, deepEquals, doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {bulkRequestOf, deepEquals, deferLike, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {SingleLineMarkdown} from "@/ui-components/Markdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {TooltipV2} from "@/ui-components/Tooltip";
@@ -260,7 +260,7 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
         setExpanded(p => !p);
         const box = descriptionRef.current;
         if (box) {
-            window.setTimeout(() => box.scrollIntoView(true), 0);
+            deferLike(() => box.scrollIntoView(true));
         }
     }, []);
 

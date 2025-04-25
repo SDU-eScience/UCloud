@@ -10,7 +10,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
 import {BreakdownByProjectAPI, categoryComparator, ChartsAPI, UsageOverTimeAPI} from ".";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {deferLike, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as Jobs from "@/Applications/Jobs";
@@ -1205,9 +1205,17 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
         setShownEntries(charts.map(() => true));
         return usageChartsToChart(charts, shownRef, {
             valueFormatter: val => Accounting.addThousandSeparators(val.toFixed(1)),
-            toggleShown: index => {
+            toggleShown: value => {
                 setShownEntries(shownEntries => {
-                    shownEntries[index] = !shownEntries[index];
+                    if (typeof value === "boolean") {
+                        for (let i = 0; i < shownEntries.length; i++) {
+                            shownEntries[i] = value;
+                        }
+                    } else {
+                        for (const index of value) {
+                            shownEntries[index] = !shownEntries[index];
+                        }
+                    }
                     return [...shownEntries];
                 });
             }
@@ -1594,7 +1602,7 @@ function usageChartsToChart(
     chartOptions: {
         valueFormatter?: (value: number) => string;
         removeDetails?: boolean;
-        toggleShown?: (index: number) => void;
+        toggleShown?: (indexOrAllState: number[] | true | false) => void;
     } = {}
 ): ChartProps {
     const result: ChartProps = {};
@@ -1618,30 +1626,42 @@ function usageChartsToChart(
         },
         chart: {
             events: {
+                // Note(Jonas): Very cool, ApexCharts https://github.com/apexcharts/apexcharts.js/issues/3725
                 legendClick(chart, seriesIndex, options) {
+
                     if (seriesIndex != null && chart != null) {
                         const allShown = shownRef.current.every(it => it);
-                        const noneWillBeShown = shownRef.current.reduce((acc, shown) => acc + (+shown), 0) === 1 && shownRef.current[seriesIndex] === true;
+
+                        const allWillBeHidden = shownRef.current[seriesIndex] === true && shownRef.current.reduce((acc, shown) => acc + (+shown), 0) === 1;
 
                         if (allShown) {
+                            const indices: number[] = [];
+
                             for (let i = 0; i < shownRef.current.length; i++) {
                                 if (i === seriesIndex) {
                                     /* 
                                         Hack(Jonas): It seems that `showSeries` is called before
                                         the chart toggles the legend entry otherwise, so this has to be "deferred" 
                                     */
-                                    setTimeout(() => chart.showSeries(result.series?.[i]["name"]), 0);
+                                    deferLike(() => chart.showSeries(result.series?.[i]["name"]));
                                     continue;
                                 }
+
                                 chart.hideSeries(result.series?.[i]["name"]);
-                                chartOptions.toggleShown?.(i);
+                                indices.push(i);
                             }
+                            chartOptions.toggleShown?.(indices);
+                        } else if (allWillBeHidden) {
+                            chartOptions.toggleShown?.(true);
+                            deferLike(() => {
+                                for (const s of (result.series) ?? []) {
+                                    chart.showSeries(s["name"]);
+                                }
+                            });
                         } else {
                             chart.toggleSeries(result.series?.[seriesIndex]["name"]);
-                            chartOptions.toggleShown?.(seriesIndex);
+                            chartOptions.toggleShown?.([seriesIndex]);
                         }
-                    } else {
-                        console.log("seriesIndex and chart was null");
                     }
                 }
             },
