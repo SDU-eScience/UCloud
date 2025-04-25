@@ -60,12 +60,10 @@ func InitCompute() ctrl.JobsService {
 func InitComputeLater() {
 	ctrl.ReconfigureAllIApps()
 
+	initJobQueue()
+
 	go func() {
 		for util.IsAlive {
-			// TODO
-			// TODO Need to resubmit old in-queue entries to the queue
-			// TODO
-
 			loopMonitoring()
 			time.Sleep(100 * time.Millisecond)
 		}

@@ -176,6 +176,17 @@ func timeAllocationOrDefault(alloc util.Option[orc.SimpleDuration]) orc.SimpleDu
 	})
 }
 
+// initJobQueue will initialize the queue with jobs which were in the queue when the integration module was last
+// shutdown.
+func initJobQueue() {
+	jobs := ctrl.JobsListServer()
+	for _, job := range jobs {
+		if job.Status.State == orc.JobStateInQueue {
+			shared.RequestSchedule(job)
+		}
+	}
+}
+
 func loopMonitoring() {
 	now := time.Now()
 
