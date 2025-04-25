@@ -463,10 +463,16 @@ func loopMonitoring() {
 						Message: fmt.Sprintf("Failed to schedule job: %s", err),
 					})
 
-					_ = terminate(ctrl.JobTerminateRequest{
-						Job:       job,
-						IsCleanup: false,
-					})
+					_, isIApp := ctrl.IntegratedApplications[job.Specification.Product.Category]
+					if !isIApp {
+						// IApps typically hits this branch if they are out of resources. We do not want them to stop
+						// attempting to re-schedule in this scenario. Generally we do not want iapps to enter a
+						// final state ever.
+						_ = terminate(ctrl.JobTerminateRequest{
+							Job:       job,
+							IsCleanup: false,
+						})
+					}
 				}
 			}
 		}
