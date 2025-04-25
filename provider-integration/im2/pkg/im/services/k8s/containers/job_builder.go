@@ -243,6 +243,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		})
 	}
 
+	spec.Hostname = fmt.Sprintf("j-%s-job-%d", job.Id, rank)
 	spec.Subdomain = fmt.Sprintf("j-%v", job.Id)
 
 	// Working directory
