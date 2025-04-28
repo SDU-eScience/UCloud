@@ -163,12 +163,12 @@ func scanDrive(drive orc.Drive) {
 	// NOTE(Dan): There are no configuration options on the product at the moment to change this to anything else.
 	sizeInGb := sizeToReport / 1000000000
 
-	ReportUsedStorage(drive, sizeInGb)
+	reportUsedStorage(drive, sizeInGb)
 
 	ctrl.UpdateDriveScannedAt(drive.Id)
 }
 
-func ReportUsedStorage(drive orc.Drive, sizeInGb int64) {
+func reportUsedStorage(drive orc.Drive, sizeInGb int64) {
 	request := fnd.BulkRequest[apm.UsageReportItem]{
 		Items: []apm.UsageReportItem{
 			{

@@ -1114,7 +1114,7 @@ func deleteDrive(drive orc.Drive) error {
 	if !ok {
 		return util.ServerHttpError("unknown drive")
 	}
-	ReportUsedStorage(drive, 0)
+	reportUsedStorage(drive, 0)
 	return DoDeleteFile(path)
 }
 
