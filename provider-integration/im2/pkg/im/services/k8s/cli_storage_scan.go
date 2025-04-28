@@ -17,6 +17,34 @@ var (
 	reportUsageIpc = ipc.NewCall[StorageScanReportUsage, util.Empty]("ctrl.drives.reportUsage")
 )
 
+func writeHelp() {
+	f := termio.Frame{}
+
+	f.AppendTitle("storage-scan help")
+	f.AppendField("", "Used to interact with storage scan functionality")
+	f.AppendSeparator()
+
+	f.AppendField("help", "Prints this help text")
+	f.AppendSeparator()
+
+	f.AppendField("scan-now", "Triggers a scan of a specific drive.")
+	f.AppendField("", "")
+	f.AppendField("  <driveId>", "The UCloud ID of the drive")
+	f.AppendSeparator()
+
+	f.AppendField("report-usage", "Send a new reportUsage() call to correct prior mistakes.")
+	f.AppendField("", "")
+	f.AppendField("  --workspace=<TEXT>", "The workspace reference.")
+	f.AppendField("  --productName=<TEXT>", "The name of the product")
+	f.AppendField("  --productCategory=<TEXT>", "The name of the product category")
+	f.AppendField("  --driveId=<NUMBER>", "The drive ID (it does not have to exist anymore)")
+	f.AppendField("  --usageInBytes=<NUMBER>", "Usage in bytes")
+	f.AppendSeparator()
+
+	f.Print()
+
+}
+
 func initStorageScanCli() {
 	requestScanIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[util.Empty] {
 		if r.Uid != 0 {
@@ -41,7 +69,15 @@ func initStorageScanCli() {
 			}
 		}
 
-		drive, _ := orchestrators.RetrieveDrive(string(r.Payload.driveId))
+		drive, err := orchestrators.RetrieveDrive(string(r.Payload.driveId))
+
+		if err != nil {
+			return ipc.Response[util.Empty]{
+				StatusCode:   http.StatusNotFound,
+				ErrorMessage: "Drive not found",
+			}
+		}
+
 		filesystem.ReportUsedStorage(drive, r.Payload.usageInBytes/1000000000)
 
 		return ipc.Response[util.Empty]{
@@ -89,6 +125,8 @@ func StorageScanCli(args []string) {
 			driveId:         driveId,
 			usageInBytes:    usageInBytes,
 		})
+	default:
+		writeHelp()
 	}
 }
 
