@@ -4,4 +4,5 @@ func Init() {
 	initAvatars()
 	initNews()
 	initMails()
+	initNotifications()
 }
