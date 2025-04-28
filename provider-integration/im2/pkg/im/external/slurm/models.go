@@ -1,7 +1,7 @@
 package slurm
 
 import (
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type Account struct {

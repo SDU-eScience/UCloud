@@ -13,7 +13,7 @@ import (
 	"time"
 	cfg "ucloud.dk/pkg/im/config"
 
-	"ucloud.dk/pkg/log"
+	"ucloud.dk/shared/pkg/log"
 
 	clusterservice "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
 	discoverygrpc "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"

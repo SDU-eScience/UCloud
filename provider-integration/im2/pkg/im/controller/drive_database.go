@@ -8,14 +8,14 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"ucloud.dk/pkg/apm"
-	db "ucloud.dk/pkg/database"
-	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/shared/pkg/apm"
+	db "ucloud.dk/shared/pkg/database"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/pkg/im/controller/fsearch"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 // This file contains an in-memory representation of drives which have been used recently. It is also used to store a
@@ -287,7 +287,7 @@ func LoadNextSearchBucketCount(id string) int {
 		)
 
 		if ok {
-			return row.SearchNextBucketCount
+			return max(16, row.SearchNextBucketCount)
 		} else {
 			return 4096
 		}

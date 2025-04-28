@@ -2,14 +2,16 @@ package containers
 
 import (
 	"fmt"
+	"path/filepath"
+	"strings"
+
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v3"
 	core "k8s.io/api/core/v1"
-	"path/filepath"
-	"strings"
+	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func prepareInvocationOnJobCreate(
@@ -48,6 +50,15 @@ func prepareInvocationOnJobCreate(
 
 	argBuilder := orc.DefaultArgBuilder(ucloudToPod)
 
+	// Convert license parameters
+	for parameterId, parameterAndValue := range parametersAndValues {
+		if parameterAndValue.Parameter.Type == orc.ApplicationParameterTypeLicenseServer {
+			newParameterAndValue := parameterAndValue
+			newParameterAndValue.Value.Id = ctrl.BuildLicenseParameter(parameterAndValue.Value.Id)
+			parametersAndValues[parameterId] = newParameterAndValue
+		}
+	}
+
 	var actualCommand []string
 	for _, param := range invocationParameters {
 		commandList := orc.BuildParameter(param, parametersAndValues, false, argBuilder, nil)
@@ -71,11 +82,13 @@ func prepareInvocationOnJobCreate(
 		builder.WriteString("entrypoint() {\n\t")
 		builder.WriteString(strings.Join(actualCommand, " "))
 		builder.WriteString("\n}\n\n")
-		builder.WriteString("resourceUtilization() {\n\t")
-		builder.WriteString("# Collects resource utilization for display in the UI\n\t")
-		builder.WriteString("/opt/ucloud/ucmetrics viz &> /dev/null\n")
-		builder.WriteString("}\n\n")
-		builder.WriteString("resourceUtilization &\n")
+		if rank == 0 {
+			builder.WriteString("resourceUtilization() {\n\t")
+			builder.WriteString("# Collects resource utilization for display in the UI\n\t")
+			builder.WriteString("/opt/ucloud/ucmetrics viz &> /dev/null\n")
+			builder.WriteString("}\n\n")
+			builder.WriteString("resourceUtilization &\n")
+		}
 		builder.WriteString("trap 'kill $(jobs -p) 2>/dev/null' EXIT\n")
 		builder.WriteString("entrypoint &> /work/stdout-$UCLOUD_RANK.log\n")
 

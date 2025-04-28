@@ -10,15 +10,16 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	"ucloud.dk/pkg/cli"
-	db "ucloud.dk/pkg/database"
-	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/termio"
-	"ucloud.dk/pkg/util"
+	db "ucloud.dk/shared/pkg/database"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 // This file contains an in-memory version of all public IPs. It is similar to the job_database.go file. This file is
@@ -117,7 +118,7 @@ func fetchAllPublicIps() {
 		})
 
 		if err != nil {
-			log.Warn("Failed to fetch jobs: %v", err)
+			log.Warn("Failed to fetch public ips: %v", err)
 			break
 		}
 
@@ -319,6 +320,7 @@ outer:
 	publicIpsMutex.Unlock()
 
 	if !allocatedIp.Present {
+		_ = DeleteIpAddress(target)
 		return util.HttpErr(http.StatusBadRequest, "%s has no more IP addresses available", cfg.Provider.Id)
 	} else {
 		newUpdate := orc.PublicIpUpdate{
@@ -344,9 +346,7 @@ outer:
 		} else {
 			log.Info("Failed to allocate an IP address due to an error between UCloud and the provider: %s", err)
 
-			publicIpsMutex.Lock()
-			delete(externalAddressesInUse, allocatedIp.Value)
-			publicIpsMutex.Unlock()
+			_ = DeleteIpAddress(target)
 			return err
 		}
 	}
@@ -380,6 +380,26 @@ func DeleteIpAddress(address *orc.PublicIp) error {
 
 	publicIpsMutex.Unlock()
 	return nil
+}
+
+func RetrieveUsedIpAddressCount(owner orc.ResourceOwner) int {
+	return db.NewTx[int](func(tx *db.Transaction) int {
+		row, _ := db.Get[struct{ Count int }](
+			tx,
+			`
+				select count(*) as count
+				from tracked_ips
+				where
+					(:project = '' and project_id is null and created_by = :created_by)
+					or (:project != '' and project_id = :project)
+		    `,
+			db.Params{
+				"created_by": owner.CreatedBy,
+				"project":    owner.Project,
+			},
+		)
+		return row.Count
+	})
 }
 
 func AddToIpPool(subnet string) error {

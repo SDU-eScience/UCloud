@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"io"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type WidgetId struct {

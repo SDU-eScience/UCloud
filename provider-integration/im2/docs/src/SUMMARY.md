@@ -66,7 +66,7 @@
 - [Resource Allocations](./ops/resource-allocation.md)
 
 -->
-
+<!--
 # Local Development
 
 - [The `launcher` Tool](./dev/launcher.md)
@@ -74,6 +74,5 @@
 - [Tutorials](./dev/tutorials.md)
     - [Slurm](./dev/slurm.md)
     - [Kubernetes](./dev/slurm.md)
-
+-->
 ---
-

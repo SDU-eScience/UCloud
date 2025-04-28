@@ -25,16 +25,8 @@ type ExecutableCommandInterface interface {
 }
 
 func NewFile(path string) LFile {
-	if environmentIsRemote {
-		conn := GetSSHConnection()
-		return RemoteFile{
-			connection: conn,
-			path:       path,
-		}
-	} else {
-		return LocalFile{
-			path: path,
-		}
+	return LocalFile{
+		path: path,
 	}
 }
 
@@ -43,21 +35,11 @@ func NewExecutableCommand(
 	workingDir LFile,
 	fn postProcessor,
 ) ExecutableCommandInterface {
-	if environmentIsRemote {
-		conn := GetSSHConnection()
-		return NewRemoteExecutableCommand(
-			conn,
-			args,
-			workingDir,
-			fn,
-		)
-	} else {
-		return NewLocalExecutableCommand(
-			args,
-			workingDir,
-			fn,
-		)
-	}
+	return NewLocalExecutableCommand(
+		args,
+		workingDir,
+		fn,
+	)
 }
 
 type postProcessor func(text ProcessResultText) string

@@ -2,7 +2,7 @@ package slurm
 
 import (
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
+	"ucloud.dk/shared/pkg/log"
 )
 
 func InitUnmanagedDrives(name string) FileManagementService {

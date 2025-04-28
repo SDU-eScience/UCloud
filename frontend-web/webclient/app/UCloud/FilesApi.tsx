@@ -1202,11 +1202,9 @@ export function FilePreview({initialFile}: {
         await vfs.writeFile(path);
 
         const revert = editor.onFileSaved(path);
-        const successTimeout = window.setTimeout(() => snackbarStore.addSuccess("File has been saved", false, 800), 250);
         const revertLocalSave = (e: WriteFailureEvent) => {
             const failedUpload = e.detail.find(it => it.targetPath + it.name === path);
             if (failedUpload) {
-                window.clearTimeout(successTimeout);
                 revert();
                 snackbarStore.addFailure(failedUpload.error ?? "Upload for file " + fileName(failedUpload.name) + " failed.", false);
             }
@@ -1595,6 +1593,7 @@ class PreviewVfs implements Vfs {
         const result = await callAPI(api.browse({
             path,
             itemsPerPage: 250,
+            sortBy: "PATH",
             next
         }));
 

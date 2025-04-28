@@ -1,14 +1,15 @@
 package main
 
+import _ "ucloud.dk/pkg/silentlog"
+
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"time"
 	"ucloud.dk/pkg/im/controller/fsearch"
 	"ucloud.dk/pkg/im/external/gpfs"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 
 	"ucloud.dk/pkg/im/launcher"
 	"ucloud.dk/pkg/termio"
@@ -29,21 +30,6 @@ func main() {
 
 		bucketCount, _ := strconv.ParseInt(os.Args[3], 10, 64)
 		fsearch.CliMain(os.Args[1], os.Args[2] == "true", int(bucketCount))
-		return
-	}
-
-	if exeName == "limiter" {
-		limiter := util.NewCpuLimiter(20.0, 0.0)
-
-		output, _ := os.OpenFile("/dev/null", os.O_WRONLY, 0)
-		cmd := exec.Command("/usr/bin/yes")
-		cmd.Stdout = output
-		cmd.Stderr = output
-
-		_ = cmd.Start()
-		limiter.Watch(int32(cmd.Process.Pid))
-
-		_ = cmd.Wait()
 		return
 	}
 

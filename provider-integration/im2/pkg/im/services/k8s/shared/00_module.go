@@ -1,9 +1,10 @@
 package shared
 
 import (
+	"slices"
 	"time"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func Init() {
@@ -69,3 +70,11 @@ const (
 	AnnotationMountedDriveIds        string = "ucloud.dk/mountedDriveIds"
 	AnnotationMountedDriveAsReadOnly string = "ucloud.dk/mountedDriveAsReadOnly"
 )
+
+func IsSensitiveProject(project string) bool {
+	if project == "" {
+		return false
+	}
+
+	return slices.Contains(ServiceConfig.SensitiveProjects, project)
+}

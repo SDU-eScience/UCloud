@@ -1,12 +1,12 @@
 package migrations
 
-import "ucloud.dk/pkg/database"
+import db "ucloud.dk/shared/pkg/database"
 
-func genericLicensesV1() migrationScript {
-	return migrationScript{
+func genericLicensesV1() db.MigrationScript {
+	return db.MigrationScript{
 		Id: "genericLicensesV1",
-		Execute: func(ctx *database.Transaction) {
-			database.Exec(ctx, `
+		Execute: func(ctx *db.Transaction) {
+			db.Exec(ctx, `
 				create table generic_license_servers(
 					name text not null,
 					category text not null,
@@ -17,7 +17,7 @@ func genericLicensesV1() migrationScript {
 				);
 			`, map[string]any{})
 
-			database.Exec(ctx, `
+			db.Exec(ctx, `
 					create table generic_license_instances(
 					id text not null primary key,
 					category text not null,

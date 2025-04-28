@@ -3,11 +3,11 @@ package slurm
 import (
 	"slices"
 
-	"ucloud.dk/pkg/apm"
+	"ucloud.dk/shared/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func InitScriptedAccountManagement() AccountingService {

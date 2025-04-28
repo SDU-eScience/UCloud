@@ -216,7 +216,7 @@ sealed class ComposeService {
                         "hostname": "pgweb",
                         "restart": "always",
                         "environment": {
-                          "DATABASE_URL": "postgres://postgres:postgrespassword@postgres:5432/postgres?sslmode=disable"
+                          "PGWEB_DATABASE_URL": "postgres://postgres:postgrespassword@postgres:5432/postgres?sslmode=disable"
                         }
                       }
                     """.trimIndent()
@@ -409,7 +409,7 @@ sealed class ComposeService {
                         "hostname": "k8pgweb",
                         "restart": "always",
                         "environment": {
-                          "DATABASE_URL": "postgres://postgres:postgrespassword@k8:5432/postgres?sslmode=disable"
+                          "PGWEB_DATABASE_URL": "postgres://postgres:postgrespassword@k8:5432/postgres?sslmode=disable"
                         }
                       }
                     """.trimIndent()
@@ -768,6 +768,7 @@ sealed class ComposeService {
                           "${imStorage.absolutePath}:/mnt/storage",
                           "${environment.repoRoot}/provider-integration/im2:/opt/ucloud",
                           "${environment.repoRoot}/provider-integration/gonja:/opt/gonja",
+                          "${environment.repoRoot}/provider-integration/shared:/opt/shared",
                           "${environment.repoRoot}/provider-integration/walk:/opt/walk"
                         ]
                       }
@@ -794,6 +795,7 @@ sealed class ComposeService {
                           "${postgresDataDir.absolutePath}:/var/lib/postgresql/data",
                           "${environment.repoRoot}/provider-integration/im2:/opt/ucloud",
                           "${environment.repoRoot}/provider-integration/gonja:/opt/gonja",
+                          "${environment.repoRoot}/provider-integration/shared:/opt/shared",
                           "${environment.repoRoot}/provider-integration/walk:/opt/walk"
                         ],
                         "ports": [
@@ -1000,7 +1002,7 @@ sealed class ComposeService {
                         "hostname": "slurmpgweb",
                         "restart": "always",
                         "environment": {
-                          "DATABASE_URL": "postgres://postgres:postgrespassword@slurm:5432/postgres?sslmode=disable"
+                          "PGWEB_DATABASE_URL": "postgres://postgres:postgrespassword@slurm:5432/postgres?sslmode=disable"
                         }
                       }
                     """.trimIndent()
@@ -1214,6 +1216,7 @@ sealed class ComposeService {
                           "${imWork.absolutePath}:/work",
                           "${environment.repoRoot}/provider-integration/im2:/opt/ucloud",
                           "${environment.repoRoot}/provider-integration/gonja:/opt/gonja",
+                          "${environment.repoRoot}/provider-integration/shared:/opt/shared",
                           "${environment.repoRoot}/provider-integration/walk:/opt/walk",
                           "${environment.repoRoot}/provider-integration/integration-module/example-extensions/simple:/etc/ucloud/extensions",
                           "$etcSlurm:/etc/slurm-llnl",
@@ -1244,6 +1247,7 @@ sealed class ComposeService {
                           "${postgresDataDir.absolutePath}:/var/lib/postgresql/data",
                           "${environment.repoRoot}/provider-integration/im2:/opt/ucloud",
                           "${environment.repoRoot}/provider-integration/gonja:/opt/gonja",
+                          "${environment.repoRoot}/provider-integration/shared:/opt/shared",
                           "${environment.repoRoot}/provider-integration/walk:/opt/walk"
                         ],
                         "ports": [

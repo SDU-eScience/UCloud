@@ -8,8 +8,8 @@ import (
 	"hash/fnv"
 	"strings"
 	"sync"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func hugTokenize(input string) []string {
@@ -161,6 +161,10 @@ func (f *FileInfo) Prepare() PreparedFileInfo {
 }
 
 func (s *SearchIndex) Append(info PreparedFileInfo) {
+	if s.BucketCount == 0 {
+		return
+	}
+
 	for i := 0; i < len(info.parentComponents); i++ {
 		ancestor := "/" + strings.Join(info.parentComponents[:i+1], "/")
 		bucket := &s.Buckets[hash(s.BucketCount, ancestor)]
@@ -176,6 +180,10 @@ func (s *SearchIndex) Append(info PreparedFileInfo) {
 }
 
 func hash(count int, input string) int {
+	if count == 0 {
+		return 0
+	}
+
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(input))
 

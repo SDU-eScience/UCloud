@@ -19,8 +19,8 @@ import (
 	"time"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 	"unicode"
 )
 
@@ -344,7 +344,7 @@ const xdsTcp = `
                 port_value: 52033
     http2_protocol_options: {}
     name: xds_cluster
-	type: STRICT_DNS
+    type: STRICT_DNS
 `
 
 const envoyConfigTemplate = `

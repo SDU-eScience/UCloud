@@ -95,11 +95,11 @@ func (menu *Menu) firstNonSeparatorItemKey() int {
 
 func (menu *Menu) displaySelectSingle(selected int) {
 	for itemKey, item := range menu.Items {
-		clearLine()
+		clearLine(os.Stdout)
 
 		if item.Separator {
 			if itemKey > 0 {
-				clearLine()
+				clearLine(os.Stdout)
 				fmt.Printf("\n")
 			}
 			item.displaySeparator()
@@ -118,7 +118,7 @@ func (menu *Menu) displaySelectSingle(selected int) {
 
 func (menu *Menu) displaySelectMultiple(hoveredItem int, selected []*MenuItem) {
 	for itemKey, item := range menu.Items {
-		clearLine()
+		clearLine(os.Stdout)
 
 		if item.Separator {
 			if itemKey > 0 {
@@ -169,7 +169,7 @@ func (menu *Menu) SelectMultiple() ([]*MenuItem, error) {
 	menuHeight := menu.lineHeight()
 	hoveredItem := menu.firstNonSeparatorItemKey()
 
-	hideCursor()
+	hideCursor(os.Stdout)
 	WriteStyledLine(Bold, DefaultColor, DefaultColor, menu.Prompt)
 
 	iteration := 0
@@ -180,7 +180,7 @@ func (menu *Menu) SelectMultiple() ([]*MenuItem, error) {
 		}
 
 		if iteration > 0 {
-			moveCursorUp(menuHeight)
+			moveCursorUp(os.Stdout, menuHeight)
 		}
 
 		menu.displaySelectMultiple(hoveredItem, selected)
@@ -224,7 +224,7 @@ func (menu *Menu) SelectMultiple() ([]*MenuItem, error) {
 	}
 
 	fmt.Printf("\n")
-	showCursor()
+	showCursor(os.Stdout)
 
 	if cancelled {
 		return nil, fmt.Errorf("Cancelled")
@@ -242,7 +242,7 @@ func (menu Menu) SelectSingle() (MenuItem, error) {
 	selected := menu.firstNonSeparatorItemKey()
 	menuHeight := menu.lineHeight()
 
-	hideCursor()
+	hideCursor(os.Stdout)
 	WriteStyledLine(Bold, DefaultColor, DefaultColor, menu.Prompt)
 
 	iteration := 0
@@ -253,7 +253,7 @@ func (menu Menu) SelectSingle() (MenuItem, error) {
 		}
 
 		if iteration > 0 {
-			moveCursorUp(menuHeight)
+			moveCursorUp(os.Stdout, menuHeight)
 		}
 
 		menu.displaySelectSingle(selected)
@@ -278,7 +278,7 @@ func (menu Menu) SelectSingle() (MenuItem, error) {
 	}
 
 	fmt.Printf("\n")
-	showCursor()
+	showCursor(os.Stdout)
 
 	if cancelled {
 		return MenuItem{}, fmt.Errorf("Cancelled")
@@ -305,15 +305,19 @@ var spinnerFrames [16]string = [16]string{
 // Creates a spinning/loading indicator with a given `title` and `code`.
 // The `code` function will be run by the LoadingIndicator, and anything written to `output` will be piped to
 // and displayed by the LoadingIndicator.
-func LoadingIndicator(title string, code func(output *os.File) error) error {
+func LoadingIndicator(title string, code func() error) error {
 	state := LoadingStateInProgress
 	const logOutputMax int = 5
 
+	origStdout := os.Stdout
+	defer (func() { os.Stdout = origStdout })()
+
 	outputReader, outputWriter, err := os.Pipe()
 	reader := bufio.NewReader(outputReader)
+	os.Stdout = outputWriter
 
 	if err != nil {
-		fmt.Printf("Problems creating pipe: %v\n", err)
+		_, _ = origStdout.WriteString(fmt.Sprintf("Problems creating pipe: %v\n", err))
 	}
 
 	logOutput := [logOutputMax]string{}
@@ -332,7 +336,7 @@ func LoadingIndicator(title string, code func(output *os.File) error) error {
 			output, err := bufioReader.ReadString('\n')
 
 			if err != nil && err != io.EOF {
-				fmt.Printf("Unexpected error: %v\n", err)
+				_, _ = origStdout.WriteString(fmt.Sprintf("Unexpected error: %v\n", err))
 			}
 
 			if len(output) > 0 {
@@ -382,15 +386,15 @@ func LoadingIndicator(title string, code func(output *os.File) error) error {
 			}
 
 			if iteration > 0 {
-				moveCursorUp(logOutputMax + 1)
+				moveCursorUp(origStdout, logOutputMax+1)
 			}
 
-			clearLine()
-			WriteStyledLine(Bold, DefaultColor, DefaultColor, "[%s] %s", symbol, title)
+			clearLine(origStdout)
+			WriteStyledLineTo(origStdout, Bold, DefaultColor, DefaultColor, "[%s] %s", symbol, title)
 
 			for _, msg := range logOutput {
-				clearLine()
-				fmt.Printf("%s\n", msg)
+				clearLine(origStdout)
+				_, _ = origStdout.WriteString(msg + "\n")
 			}
 
 			if state != LoadingStateInProgress {
@@ -402,7 +406,7 @@ func LoadingIndicator(title string, code func(output *os.File) error) error {
 		}
 	}()
 
-	err = code(outputWriter)
+	err = code()
 
 	if err != nil {
 		state = LoadingStateFailure
@@ -416,13 +420,13 @@ func LoadingIndicator(title string, code func(output *os.File) error) error {
 	outputWriter.Close()
 
 	if err != nil {
-		fmt.Printf("%v\n", err)
+		_, _ = origStdout.WriteString(fmt.Sprintf("%v\n", err))
 		return err
 	} else {
 		// Hide log if successful
 		for i := 0; i < logOutputMax; i++ {
-			moveCursorUp(1)
-			clearLine()
+			moveCursorUp(origStdout, 1)
+			clearLine(origStdout)
 		}
 	}
 
@@ -446,8 +450,8 @@ func TextPrompt(question string, defaultValue string) string {
 	}
 
 	// When result is found, overwrite the line, including the result
-	moveCursorUp(1)
-	clearLine()
+	moveCursorUp(os.Stdout, 1)
+	clearLine(os.Stdout)
 	WriteStyled(Bold, DefaultColor, DefaultColor, "%s ", question)
 
 	if defaultValue != "" {
@@ -504,8 +508,8 @@ func ConfirmPrompt(question string, defaultValue ConfirmValue, flags ConfirmProm
 			chosenColor = Green
 		}
 
-		moveCursorUp(1)
-		clearLine()
+		moveCursorUp(os.Stdout, 1)
+		clearLine(os.Stdout)
 		WriteStyled(Bold, DefaultColor, DefaultColor, question)
 		WriteStyled(NoStyle, DefaultColor, DefaultColor, " "+yesNo+" ")
 		WriteStyled(NoStyle, chosenColor, DefaultColor, chosen)

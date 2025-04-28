@@ -6,6 +6,7 @@ import dk.sdu.cloud.accounting.util.ProviderCommunicationsV2
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
@@ -94,6 +95,7 @@ class TaskService(
                             progress_percentage = coalesce(:progress_percentage, progress_percentage)
                         where
                             id = :task_id
+                            and not (state = 'SUCCESS' or state = 'FAILURE' or state='CANCELLED')
                         returning
                             id, extract(epoch from created_at)::bigint, extract(epoch from modified_at)::bigint,
                             created_by, owned_by, state, title, body, progress, progress_percentage, can_pause, can_cancel, icon
@@ -138,8 +140,10 @@ class TaskService(
     }
 
     suspend fun postStatus(actorAndProject: ActorAndProject, update: BackgroundTaskUpdate) {
-        val updatedTask = updateBackgroundTask(actorAndProject, update)
-        subscriptionService.onTaskUpdate(updatedTask.createdBy, updatedTask)
+        runCatching {
+            val updatedTask = updateBackgroundTask(actorAndProject, update)
+            subscriptionService.onTaskUpdate(updatedTask.createdBy, updatedTask)
+        }
     }
 
     suspend fun markAsComplete(actorAndProject: ActorAndProject, taskId: Long) {
@@ -248,4 +252,8 @@ class TaskService(
         ),
         getString(12)
     )
+
+    companion object : Loggable {
+        override val log = logger()
+    }
 }

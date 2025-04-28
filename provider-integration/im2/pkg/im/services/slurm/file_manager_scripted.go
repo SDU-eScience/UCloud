@@ -2,12 +2,12 @@ package slurm
 
 import (
 	"fmt"
-	"ucloud.dk/pkg/apm"
-	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/shared/pkg/apm"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func InitScriptedManager(name string, config *cfg.SlurmFsManagementScripted) FileManagementService {

@@ -4,17 +4,17 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os/user"
 	"path/filepath"
+	"ucloud.dk/pkg/im/external/user"
 
-	"ucloud.dk/pkg/apm"
-	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/apm"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var evaluateLocatorsIpc = ipc.NewCall[apm.WalletOwner, []LocatedDrive]("slurm.drives.evaluateLocators")

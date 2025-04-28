@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type Client struct {
