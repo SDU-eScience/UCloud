@@ -33,12 +33,14 @@ class Workflows(
                 session.sendPreparedStatement(
                     {
                         setParameter("workspace", actorAndProject.project ?: actorAndProject.actor.safeUsername())
+                        setParameter("application_name", request.specification.applicationName)
                         setParameter("path", request.path)
                     },
                     """
                         delete from app_store.workflows
                         where
                             coalesce(project_id, created_by) = :workspace
+                            and application_name = :application_name
                             and path = :path
                     """
                 )
