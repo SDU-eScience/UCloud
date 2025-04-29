@@ -233,6 +233,15 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
         }
     }, [props.application.metadata.name]);
 
+    const onSave = useCallback(() => {
+        fetchExistingWorkflows(
+            WorkflowApi.browse({
+                itemsPerPage: 250,
+                filterApplicationName: props.application.metadata.name
+            })
+        ).then(doNothing);
+    }, [props.application.metadata.name]);
+
     const onEdit = useCallback((id: string | null, path: string | null, specification: WorkflowSpecification) => {
         setSelectedWorkflow({id, path, specification});
     }, []);
@@ -356,6 +365,7 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
                     dirtyFileCountRef={dirtyFileCountRef}
                     workflow={selectedWorkflow.specification}
                     onUse={onUse}
+                    onSave={onSave}
                 /> : null
             }
         </ReactModal>
