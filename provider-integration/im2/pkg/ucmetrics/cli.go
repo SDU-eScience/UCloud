@@ -20,6 +20,8 @@ type VizDataPoint struct {
 	Y float64 `json:"y"`
 }
 
+const ioStatsEnabled = false
+
 func HandleCli(args []string) {
 	viz := len(args) == 1 && args[0] == "viz"
 
@@ -148,76 +150,78 @@ func HandleCli(args []string) {
 			}
 		}
 
-		if ioStatsErr == nil {
-			beforeStats := ioStats
-			now := time.Now()
-			ioTime := now.Sub(lastIo)
-			lastIo = now
-			ioStats, ioStatsErr = ReadIoStats()
+		if ioStatsEnabled {
+			if ioStatsErr == nil {
+				beforeStats := ioStats
+				now := time.Now()
+				ioTime := now.Sub(lastIo)
+				lastIo = now
+				ioStats, ioStatsErr = ReadIoStats()
 
-			if ioStatsErr == nil && !first {
-				readBytesPerSec := float64(ioStats.Read-beforeStats.Read) / ioTime.Seconds()
-				writeBytesPerSec := float64(ioStats.Write-beforeStats.Write) / ioTime.Seconds()
-				if viz {
-					if !ioDefined {
-						ioDefined = true
-						data := ucviz.WidgetDiagramDefinition{
-							Type:   ucviz.WidgetDiagramLine,
-							Series: []ucviz.WidgetDiagramSeries{},
-							XAxis: ucviz.WidgetDiagramAxis{
-								Unit: ucviz.UnitDateTime,
+				if ioStatsErr == nil && !first {
+					readBytesPerSec := float64(ioStats.Read-beforeStats.Read) / ioTime.Seconds()
+					writeBytesPerSec := float64(ioStats.Write-beforeStats.Write) / ioTime.Seconds()
+					if viz {
+						if !ioDefined {
+							ioDefined = true
+							data := ucviz.WidgetDiagramDefinition{
+								Type:   ucviz.WidgetDiagramLine,
+								Series: []ucviz.WidgetDiagramSeries{},
+								XAxis: ucviz.WidgetDiagramAxis{
+									Unit: ucviz.UnitDateTime,
+								},
+								YAxis: ucviz.WidgetDiagramAxis{
+									Unit: ucviz.UnitBytesPerSecond,
+								},
+							}
+
+							jsonData, _ := json.Marshal(data)
+							util.RunCommand([]string{
+								"/opt/ucloud/ucviz",
+								"widget",
+								fmt.Sprintf(`<Chart id="io" icon="directory" tab="File IO">%s</Chart>`, string(jsonData)),
+							})
+						}
+
+						ms := time.Now().UnixMilli()
+						data := []ucviz.WidgetDiagramSeries{
+							{
+								Name: "Read",
+								Data: []ucviz.WidgetDiagramDataPoint{
+									{
+										X: float64(ms),
+										Y: float64(readBytesPerSec),
+									},
+								},
 							},
-							YAxis: ucviz.WidgetDiagramAxis{
-								Unit: ucviz.UnitBytesPerSecond,
+							{
+								Name: "Write",
+								Data: []ucviz.WidgetDiagramDataPoint{
+									{
+										X: float64(ms),
+										Y: float64(writeBytesPerSec),
+									},
+								},
 							},
 						}
 
 						jsonData, _ := json.Marshal(data)
+
 						util.RunCommand([]string{
 							"/opt/ucloud/ucviz",
-							"widget",
-							fmt.Sprintf(`<Chart id="io" icon="directory" tab="File IO">%s</Chart>`, string(jsonData)),
+							"append-data",
+							"io",
+							string(jsonData),
 						})
+					} else {
+						termio.WriteStyledLine(termio.Bold, 0, 0, "IO read: %.2f bytes/second", readBytesPerSec)
+						termio.WriteStyledLine(termio.Bold, 0, 0, "IO write: %.2f bytes/second", writeBytesPerSec)
 					}
-
-					ms := time.Now().UnixMilli()
-					data := []ucviz.WidgetDiagramSeries{
-						{
-							Name: "Read",
-							Data: []ucviz.WidgetDiagramDataPoint{
-								{
-									X: float64(ms),
-									Y: float64(readBytesPerSec),
-								},
-							},
-						},
-						{
-							Name: "Write",
-							Data: []ucviz.WidgetDiagramDataPoint{
-								{
-									X: float64(ms),
-									Y: float64(writeBytesPerSec),
-								},
-							},
-						},
-					}
-
-					jsonData, _ := json.Marshal(data)
-
-					util.RunCommand([]string{
-						"/opt/ucloud/ucviz",
-						"append-data",
-						"io",
-						string(jsonData),
-					})
-				} else {
-					termio.WriteStyledLine(termio.Bold, 0, 0, "IO read: %.2f bytes/second", readBytesPerSec)
-					termio.WriteStyledLine(termio.Bold, 0, 0, "IO write: %.2f bytes/second", writeBytesPerSec)
 				}
+			} else {
+				lastIo = time.Now()
+				ioStats, ioStatsErr = ReadIoStats()
 			}
-		} else {
-			lastIo = time.Now()
-			ioStats, ioStatsErr = ReadIoStats()
 		}
 
 		{

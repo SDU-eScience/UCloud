@@ -82,11 +82,13 @@ func prepareInvocationOnJobCreate(
 		builder.WriteString("entrypoint() {\n\t")
 		builder.WriteString(strings.Join(actualCommand, " "))
 		builder.WriteString("\n}\n\n")
-		builder.WriteString("resourceUtilization() {\n\t")
-		builder.WriteString("# Collects resource utilization for display in the UI\n\t")
-		builder.WriteString("/opt/ucloud/ucmetrics viz &> /dev/null\n")
-		builder.WriteString("}\n\n")
-		builder.WriteString("resourceUtilization &\n")
+		if rank == 0 {
+			builder.WriteString("resourceUtilization() {\n\t")
+			builder.WriteString("# Collects resource utilization for display in the UI\n\t")
+			builder.WriteString("/opt/ucloud/ucmetrics viz &> /dev/null\n")
+			builder.WriteString("}\n\n")
+			builder.WriteString("resourceUtilization &\n")
+		}
 		builder.WriteString("trap 'kill $(jobs -p) 2>/dev/null' EXIT\n")
 		builder.WriteString("entrypoint &> /work/stdout-$UCLOUD_RANK.log\n")
 

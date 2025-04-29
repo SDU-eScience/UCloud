@@ -183,7 +183,7 @@ function singleEditorReducer(state: EditorState, action: EditorAction): EditorSt
                     children: [],
                 };
             });
-            leaf.children.sort((a, b) => a.file.absolutePath.toLowerCase().localeCompare(b.file.absolutePath.toLowerCase()));
+            leaf.children.sort((a, b) => virtualFileSort(a.file, b.file));
 
             return {
                 ...state,
@@ -400,8 +400,8 @@ export const Editor: React.FunctionComponent<{
     onRequestSave: (path: string) => Promise<void>;
     readOnly: boolean;
     dirtyFileCountRef: React.RefObject<number>;
+    isModal?: boolean;
 }> = props => {
-
     const help = props.help ?? <></>;
     const [activeSyntax, setActiveSyntax] = React.useState("");
     const savedAtAltVersionId = React.useRef<Record<string, number>>({});
@@ -418,17 +418,48 @@ export const Editor: React.FunctionComponent<{
         closed: [],
     });
 
+    React.useEffect(() => {
+        const tabListener = (ev: KeyboardEvent) => {
+            const hasAlt = ev.altKey;
+            const parsed = ev.code.startsWith("Digit") ? parseInt(ev.code.replace("Digit", "")) : NaN;
+
+            if (ev.code === "KeyW" && hasAlt) {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                closeTab(state.currentPath, tabs.open.findIndex(it => it === state.currentPath));
+            } else if (!isNaN(parsed) && hasAlt) {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                if (tabs.open.length > 0) {
+                    const clampedValue = Math.min(parsed - 1, tabs.open.length - 1);
+                    openTab(tabs.open[clampedValue]);
+                }
+            }
+        };
+
+        window.addEventListener("keydown", tabListener);
+        return () => {
+            window.removeEventListener("keydown", tabListener);
+        }
+
+    }, [state.currentPath, tabs]);
+
     const [dirtyFiles, setDirtyFiles] = React.useState<Set<string>>(new Set());
 
     const prettyPath = usePrettyFilePath(state.currentPath, !props.vfs.isReal());
-    if (state.currentPath === SETTINGS_PATH) {
-        usePage("Settings", SidebarTabId.FILES);
-    } else if (state.currentPath === RELEASE_NOTES_PATH) {
-        usePage("Release notes", SidebarTabId.FILES);
-    } else if (state.currentPath === "") {
-        usePage("Preview", SidebarTabId.FILES);
-    } else {
-        usePage(fileName(prettyPath), SidebarTabId.FILES);
+
+    if (!props.isModal) {
+        if (state.currentPath === SETTINGS_PATH) {
+            usePage("Settings", SidebarTabId.FILES);
+        } else if (state.currentPath === RELEASE_NOTES_PATH) {
+            usePage("Release notes", SidebarTabId.FILES);
+        } else if (state.currentPath === "") {
+            usePage("Preview", SidebarTabId.FILES);
+        } else {
+            usePage(fileName(prettyPath), SidebarTabId.FILES);
+        }
     }
 
     const disposeModels = React.useCallback(() => {
@@ -1123,7 +1154,7 @@ export const Editor: React.FunctionComponent<{
                     {tabs.open.map((t, index) =>
                         <EditorTab
                             key={t}
-                            isDirty={dirtyFiles.has(t)}
+                            isDirty={dirtyFiles.has(t) && props.vfs.isReal()}
                             isActive={t === state.currentPath}
                             onActivate={() => openTab(t)}
                             onContextMenu={e => {
@@ -1132,6 +1163,8 @@ export const Editor: React.FunctionComponent<{
                                 openTabOperations(t, {x: e.clientX, y: e.clientY});
                             }}
                             close={() => {
+                                if (!props.vfs.isReal()) return;
+
                                 if (dirtyFiles.has(t)) {
                                     addStandardDialog({
                                         title: "Save before closing?",
@@ -1426,6 +1459,8 @@ function EditorTab({
                 fileName(title as string)
     );
 
+    const prettyFullPath = usePrettyFilePath(title as string)
+
     return (
         <Flex onContextMenu={onContextMenu} className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={e => {
             if (e.button === LEFT_MOUSE_BUTTON) {
@@ -1437,7 +1472,7 @@ function EditorTab({
             {isSettings ? <Icon name="heroCog6Tooth" size="18px" />
                 : isReleaseNotes ? <Icon name="heroGift" size="18px" />
                     : <FullpathFileLanguageIcon filePath={tabTitle} />}
-            <Truncate ml="8px" width="50%">{isSettings ? "Editor settings" : tabTitle}</Truncate>
+            <Truncate title={prettyFullPath} ml="8px" width="50%">{isSettings ? "Editor settings" : tabTitle}</Truncate>
             <Icon
                 className={IconHoverBlockClass}
                 onMouseEnter={() => setHovered(true)}
@@ -1891,6 +1926,13 @@ function allowEditDialog(editor: IStandaloneCodeEditor) {
 
 function getStatusBarElement(): Element | null {
     return document.getElementsByClassName(StatusBar).item(0);
+}
+
+function virtualFileSort(a: VirtualFile, b: VirtualFile): number {
+    if (a.isDirectory && b.isDirectory) return a.absolutePath.localeCompare(b.absolutePath);
+    if (a.isDirectory) return -1;
+    if (b.isDirectory) return 1;
+    return a.absolutePath.localeCompare(b.absolutePath);
 }
 
 type RevertSaveFunction = () => void;

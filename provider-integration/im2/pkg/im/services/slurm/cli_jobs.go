@@ -6,17 +6,17 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/user"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
 	"ucloud.dk/pkg/cli"
-	db "ucloud.dk/shared/pkg/database"
 	slurmcli "ucloud.dk/pkg/im/external/slurm"
+	"ucloud.dk/pkg/im/external/user"
 	"ucloud.dk/pkg/im/ipc"
-	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/pkg/termio"
+	db "ucloud.dk/shared/pkg/database"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 )
 
 func HandleJobsCommand() {

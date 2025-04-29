@@ -177,6 +177,17 @@ func timeAllocationOrDefault(alloc util.Option[orc.SimpleDuration]) orc.SimpleDu
 	})
 }
 
+// initJobQueue will initialize the queue with jobs which were in the queue when the integration module was last
+// shutdown.
+func initJobQueue() {
+	jobs := ctrl.JobsListServer()
+	for _, job := range jobs {
+		if job.Status.State == orc.JobStateInQueue {
+			shared.RequestSchedule(job)
+		}
+	}
+}
+
 func loopMonitoring() {
 	now := time.Now()
 
@@ -453,10 +464,16 @@ func loopMonitoring() {
 						Message: fmt.Sprintf("Failed to schedule job: %s", err),
 					})
 
-					_ = terminate(ctrl.JobTerminateRequest{
-						Job:       job,
-						IsCleanup: false,
-					})
+					_, isIApp := ctrl.IntegratedApplications[job.Specification.Product.Category]
+					if !isIApp {
+						// IApps typically hits this branch if they are out of resources. We do not want them to stop
+						// attempting to re-schedule in this scenario. Generally we do not want iapps to enter a
+						// final state ever.
+						_ = terminate(ctrl.JobTerminateRequest{
+							Job:       job,
+							IsCleanup: false,
+						})
+					}
 				}
 			}
 		}

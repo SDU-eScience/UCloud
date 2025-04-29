@@ -1,5 +1,7 @@
 package main
 
+import _ "ucloud.dk/pkg/silentlog"
+
 import (
 	"fmt"
 	"os"

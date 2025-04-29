@@ -30,8 +30,6 @@ type LicenseEntry struct {
 	License string `db:"license"`
 }
 
-const licenseCategoryName = "licenses"
-
 var licenses = map[string]*orc.License{}
 var licenseMutex = sync.Mutex{}
 
@@ -46,7 +44,7 @@ func (license *LicenseEntry) toProduct() apm.ProductV2 {
 	return apm.ProductV2{
 		Type: apm.ProductTypeCLicense,
 		Category: apm.ProductCategory{
-			Name:        licenseCategoryName,
+			Name:        license.Name,
 			Provider:    cfg.Provider.Id,
 			ProductType: apm.ProductTypeLicense,
 			AccountingUnit: apm.AccountingUnit{
@@ -283,7 +281,7 @@ func FetchLicenseSupport() []orc.LicenseSupport {
 		result = append(result, orc.LicenseSupport{
 			Product: apm.ProductReference{
 				Id:       license.Name,
-				Category: licenseCategoryName,
+				Category: license.Name,
 				Provider: cfg.Provider.Id,
 			},
 		})
@@ -362,6 +360,7 @@ func ActivateLicense(target *orc.License) error {
 		return nil
 	} else {
 		log.Info("Failed to activate license due to an error between UCloud and the provider: %s", err)
+		_ = DeleteLicense(target)
 		return err
 	}
 }
@@ -381,6 +380,30 @@ func DeleteLicense(target *orc.License) error {
 	})
 
 	return nil
+}
+
+func RetrieveUsedLicenseCount(licenseName string, owner orc.ResourceOwner) int {
+	return db.NewTx[int](func(tx *db.Transaction) int {
+		row, _ := db.Get[struct{ Count int }](
+			tx,
+			`
+				select count(*) as count
+				from tracked_licenses
+				where
+				    (
+						(:project = '' and project_id is null and created_by = :created_by)
+						or (:project != '' and project_id = :project)
+					)
+					and product_category = :license_name
+		    `,
+			db.Params{
+				"created_by":   owner.CreatedBy,
+				"project":      owner.Project,
+				"license_name": licenseName,
+			},
+		)
+		return row.Count
+	})
 }
 
 func retrieveLicense(productId string) (LicenseEntry, bool) {
@@ -469,8 +492,8 @@ func printHelp() {
 // Handle license CLI
 func LicenseCli(args []string) {
 	if len(args) == 0 {
-		cli.HandleError("license", fmt.Errorf("Unknown command"))
 		printHelp()
+		cli.HandleError("license", fmt.Errorf("Unknown command"))
 		return
 	}
 
@@ -510,8 +533,8 @@ func LicenseCli(args []string) {
 		name := util.GetOptionalElement(args, 1)
 
 		if !name.Present {
-			cli.HandleError("add license", fmt.Errorf("Missing argument: name"))
 			printHelp()
+			cli.HandleError("add license", fmt.Errorf("Missing argument: name"))
 			return
 		}
 
@@ -557,8 +580,8 @@ func LicenseCli(args []string) {
 	case cli.IsDeleteCommand(args[0]):
 		name := util.GetOptionalElement(args, 1)
 		if !name.Present {
-			cli.HandleError("delete license", fmt.Errorf("Missing argument: product name"))
 			printHelp()
+			cli.HandleError("delete license", fmt.Errorf("Missing argument: product name"))
 			return
 		}
 

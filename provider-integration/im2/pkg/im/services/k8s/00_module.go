@@ -72,9 +72,8 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 
 	ctrl.RegisterProducts(shared.Machines)
 	ctrl.RegisterProducts(shared.StorageProducts)
-	ctrl.RegisterProducts(shared.LinkProducts)
 	ctrl.RegisterProducts(shared.IpProducts)
-	ctrl.RegisterProducts(shared.IngressProducts)
+	ctrl.RegisterProducts(shared.LinkProducts)
 	ctrl.RegisterProducts(shared.LicenseProducts)
 }
 

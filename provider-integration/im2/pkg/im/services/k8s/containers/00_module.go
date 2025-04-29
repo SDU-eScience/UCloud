@@ -408,6 +408,24 @@ func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) ctrl.
 	}
 }
 
+func extend(request ctrl.JobExtendRequest) error {
+	// NOTE(Dan): Scheduler is automatically notified by the shared monitoring loop since it will forward the time
+	// allocation from the job.
+	alloc := request.Job.Specification.TimeAllocation
+	if alloc.Present {
+		return ctrl.TrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
+			{
+				Id: request.Job.Id,
+				Update: orc.JobUpdate{
+					NewTimeAllocation: util.OptValue(alloc.Value.ToMillis() + request.RequestedTime.ToMillis()),
+				},
+			},
+		})
+	} else {
+		return nil
+	}
+}
+
 func JobAnnotations(job *orc.Job, rank int) map[string]string {
 	podName := idAndRankToPodName(job.Id, rank)
 	timeout, cancel := context.WithTimeout(context.Background(), 15*time.Second)

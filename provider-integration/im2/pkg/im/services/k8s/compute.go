@@ -1,7 +1,14 @@
 package k8s
 
 import (
+	"regexp"
+	"strings"
 	"time"
+	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/shared/pkg/apm"
+	db "ucloud.dk/shared/pkg/database"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 
 	ws "github.com/gorilla/websocket"
 	ctrl "ucloud.dk/pkg/im/controller"
@@ -53,12 +60,10 @@ func InitCompute() ctrl.JobsService {
 func InitComputeLater() {
 	ctrl.ReconfigureAllIApps()
 
+	initJobQueue()
+
 	go func() {
 		for util.IsAlive {
-			// TODO
-			// TODO Need to resubmit old in-queue entries to the queue
-			// TODO
-
 			loopMonitoring()
 			time.Sleep(100 * time.Millisecond)
 		}
@@ -70,23 +75,157 @@ func retrievePublicIpProducts() []orc.PublicIpSupport {
 }
 
 func createPublicIp(ip *orc.PublicIp) error {
-	return ctrl.AllocateIpAddress(ip)
+	result := ctrl.AllocateIpAddress(ip)
+	accountPublicIps(ip.Owner)
+	return result
+}
+
+func accountPublicIps(owner orc.ResourceOwner) {
+	productName := shared.ServiceConfig.Compute.PublicIps.Name
+	count := ctrl.RetrieveUsedIpAddressCount(owner)
+	_, _ = apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{
+		Items: []apm.UsageReportItem{
+			{
+				Owner:         apm.WalletOwnerFromIds(owner.CreatedBy, owner.Project),
+				IsDeltaCharge: false,
+				CategoryIdV2: apm.ProductCategoryIdV2{
+					Name:     productName,
+					Provider: cfg.Provider.Id,
+				},
+				Usage:       int64(count),
+				Description: apm.ChargeDescription{},
+			},
+		},
+	})
 }
 
 func deletePublicIp(ip *orc.PublicIp) error {
-	return ctrl.DeleteIpAddress(ip)
+	result := ctrl.DeleteIpAddress(ip)
+	accountPublicIps(ip.Owner)
+	return result
 }
 
 func retrieveIngressProducts() []orc.IngressSupport {
-	return shared.IngressSupport
+	return shared.LinkSupport
 }
 
+var linkRegex = regexp.MustCompile("[a-z]([-_a-z0-9]){4,255}")
+
 func createIngress(ingress *orc.Ingress) error {
-	return ctrl.CreateIngress(ingress)
+	if ingress == nil {
+		return util.ServerHttpError("Failed to create public link: ingress is nil")
+	}
+
+	owner := ingress.Owner.CreatedBy
+
+	if len(ingress.Owner.Project) > 0 {
+		owner = ingress.Owner.Project
+	}
+
+	domain := ingress.Specification.Domain
+	prefix := shared.ServiceConfig.Compute.PublicLinks.Prefix
+	suffix := shared.ServiceConfig.Compute.PublicLinks.Suffix
+
+	isValid := strings.HasPrefix(domain, prefix) && strings.HasSuffix(domain, suffix)
+
+	if !isValid {
+		return util.UserHttpError("Specified domain is not valid.")
+	}
+
+	id, _ := strings.CutPrefix(domain, prefix)
+	id, _ = strings.CutSuffix(id, suffix)
+
+	if len(id) < 5 {
+		return util.UserHttpError("Public links must be at least 5 characters long.")
+	}
+
+	if strings.HasSuffix(id, "-") || strings.HasSuffix(id, "_") {
+		return util.UserHttpError("Public links cannot end with a dash or underscore.")
+	}
+
+	if !linkRegex.MatchString(id) {
+		return util.UserHttpError("Public link must only contain letters a-z, numbers (0-9), dashes and underscores.")
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into ingresses(domain, owner)
+				values (:domain, :owner) on conflict do nothing
+			`,
+			db.Params{
+				"domain": domain,
+				"owner":  owner,
+			},
+		)
+	})
+
+	status := util.Option[string]{}
+	status.Set("Public link is ready for use")
+
+	newUpdate := orc.IngressUpdate{
+		State:     util.OptValue(orc.IngressStateReady),
+		Timestamp: fnd.Timestamp(time.Now()),
+		Status:    status,
+	}
+
+	err := orc.UpdateIngresses(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.IngressUpdate]]{
+		Items: []orc.ResourceUpdateAndId[orc.IngressUpdate]{
+			{
+				Id:     ingress.Id,
+				Update: newUpdate,
+			},
+		},
+	})
+
+	if err == nil {
+		ingress.Updates = append(ingress.Updates, newUpdate)
+		ctrl.TrackLink(*ingress)
+		accountPublicLinks(ingress.Owner)
+		return nil
+	} else {
+		_ = deleteIngress(ingress)
+		log.Warn("Failed to create public link due to an error between UCloud and the provider: %s", err)
+		return err
+	}
 }
 
 func deleteIngress(ingress *orc.Ingress) error {
-	return ctrl.DeleteIngress(ingress)
+	result := ctrl.DeleteTrackedLink(ingress, func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				delete from ingresses
+				where domain = :domain
+			`,
+			db.Params{
+				"domain": ingress.Specification.Domain,
+			},
+		)
+	})
+
+	accountPublicLinks(ingress.Owner)
+	return result
+}
+
+func accountPublicLinks(owner orc.ResourceOwner) {
+	productName := shared.ServiceConfig.Compute.PublicLinks.Name
+	count := ctrl.RetrieveUsedLinkCount(owner)
+	_, _ = apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{
+		Items: []apm.UsageReportItem{
+			{
+				Owner:         apm.WalletOwnerFromIds(owner.CreatedBy, owner.Project),
+				IsDeltaCharge: false,
+				CategoryIdV2: apm.ProductCategoryIdV2{
+					Name:     productName,
+					Provider: cfg.Provider.Id,
+				},
+				Usage:       int64(count),
+				Description: apm.ChargeDescription{},
+			},
+		},
+	})
 }
 
 func retrieveLicenseProducts() []orc.LicenseSupport {
@@ -94,11 +233,33 @@ func retrieveLicenseProducts() []orc.LicenseSupport {
 }
 
 func activateLicense(license *orc.License) error {
-	return ctrl.ActivateLicense(license)
+	result := ctrl.ActivateLicense(license)
+	accountLicenses(license.Specification.Product.Category, license.Owner)
+	return result
 }
 
 func deleteLicense(license *orc.License) error {
-	return ctrl.DeleteLicense(license)
+	result := ctrl.DeleteLicense(license)
+	accountLicenses(license.Specification.Product.Category, license.Owner)
+	return result
+}
+
+func accountLicenses(licenseName string, owner orc.ResourceOwner) {
+	count := ctrl.RetrieveUsedLicenseCount(licenseName, owner)
+	_, _ = apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{
+		Items: []apm.UsageReportItem{
+			{
+				Owner:         apm.WalletOwnerFromIds(owner.CreatedBy, owner.Project),
+				IsDeltaCharge: false,
+				CategoryIdV2: apm.ProductCategoryIdV2{
+					Name:     licenseName,
+					Provider: cfg.Provider.Id,
+				},
+				Usage:       int64(count),
+				Description: apm.ChargeDescription{},
+			},
+		},
+	})
 }
 
 func retrieveProducts() []orc.JobSupport {

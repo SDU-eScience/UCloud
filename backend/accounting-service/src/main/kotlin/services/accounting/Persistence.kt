@@ -10,6 +10,7 @@ import dk.sdu.cloud.service.db.async.withSession
 import kotlin.math.absoluteValue
 import kotlin.time.Duration.Companion.hours
 import kotlin.math.max
+import dk.sdu.cloud.service.Loggable
 
 interface AccountingPersistence {
     suspend fun initialize()
@@ -29,6 +30,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
     private var lastSampling = 0L
 
     override suspend fun initialize() {
+        log.info("Initializing accounting persistence")
         val now = Time.now()
         db.withSession { session ->
             //Fetching last sample date
@@ -43,6 +45,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 val mostRecentSample = it.getLong(0) ?: 0L
                 lastSampling = mostRecentSample
             }
+
+            log.info("accounting persistence checkpoint 1")
 
 
             // Create walletOwners
@@ -66,6 +70,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 ownersByReference[reference] = owner
                 ownersById[id] = owner
             }
+            log.info("accounting persistence checkpoint 2")
 
             // Create allocations and groups
             session.sendPreparedStatement(
@@ -139,6 +144,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 }
             }
 
+            log.info("accounting persistence checkpoint 3")
+
             //Set earliestExpiration for each allocationGroup
             allocationGroups.forEach { (groupId, group) ->
                 val allocationsIds = group.allocationSet.map { it.key }
@@ -152,6 +159,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 }
                 allocationGroups[groupId]!!.earliestExpiration = earliestExpiration
             }
+
+            log.info("accounting persistence checkpoint 4")
 
             val productCategories = HashMap<Long, ProductCategory>()
             session.sendPreparedStatement(
@@ -195,76 +204,95 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 productCategories[id] = pc
             }
 
-            // Create Wallets
-            session.sendPreparedStatement(
-                {},
-                """
-                    select 
-                        id,
-                        wallet_owner,
-                        product_category,
-                        local_usage,
-                        local_retired_usage,
-                        excess_usage,
-                        total_allocated,
-                        total_retired_allocated,
-                        was_locked,
-                        provider.timestamp_to_unix(last_significant_update_at)::int8
-                    from 
-                        accounting.wallets_v2
-                """
-            ).rows.forEach { row ->
-                val id = row.getLong(0)!!.toInt()
-                val owner = row.getLong(1)!!.toInt()
-                val productCategory = productCategories[row.getLong(2)!!]!!
-                val localUsage = row.getLong(3)!!
-                val localRetiredUsage = row.getLong(4)!!
-                val excessUsage = row.getLong(5)!!
-                val totalAllocated = row.getLong(6)!!
-                val totalRetiredAllocated = row.getLong(7)!!
-                val wasLocked = row.getBoolean(8)!!
-                val lastSignificantUpdateAt = row.getLong(9)!!
+            log.info("accounting persistence checkpoint 5")
 
-                mostRecentSignificantUpdateByProvider[productCategory.provider] = max(
-                    mostRecentSignificantUpdateByProvider[productCategory.provider] ?: 0L,
-                    lastSignificantUpdateAt
-                )
+            var minId = 0
+            while (true) {
+                // Create Wallets
+                val rows = session.sendPreparedStatement(
+                    {
+                        setParameter("minimum_id", minId)
+                    },
+                    """
+                        select 
+                            id,
+                            wallet_owner,
+                            product_category,
+                            local_usage,
+                            local_retired_usage,
+                            excess_usage,
+                            total_allocated,
+                            total_retired_allocated,
+                            was_locked,
+                            provider.timestamp_to_unix(last_significant_update_at)::int8
+                        from 
+                            accounting.wallets_v2
+                        where
+                            id > :minimum_id
+                        order by id
+                        limit 5000
+                    """
+                ).rows
 
-                val allocGroups = allocationGroups.filter { it.value.associatedWallet == id }
-                val allocationByParent = HashMap<Int, InternalAllocationGroup>()
-                allocGroups.forEach { (_, allocationGroup) ->
-                    allocationByParent[allocationGroup.parentWallet] = allocationGroup
+                if (rows.isEmpty()) break
+
+                rows.forEach { row ->
+                    val id = row.getLong(0)!!.toInt()
+                    val owner = row.getLong(1)!!.toInt()
+                    val productCategory = productCategories[row.getLong(2)!!]!!
+                    val localUsage = row.getLong(3)!!
+                    val localRetiredUsage = row.getLong(4)!!
+                    val excessUsage = row.getLong(5)!!
+                    val totalAllocated = row.getLong(6)!!
+                    val totalRetiredAllocated = row.getLong(7)!!
+                    val wasLocked = row.getBoolean(8)!!
+                    val lastSignificantUpdateAt = row.getLong(9)!!
+
+                    minId = id
+
+                    mostRecentSignificantUpdateByProvider[productCategory.provider] = max(
+                        mostRecentSignificantUpdateByProvider[productCategory.provider] ?: 0L,
+                        lastSignificantUpdateAt
+                    )
+
+                    val allocGroups = allocationGroups.filter { it.value.associatedWallet == id }
+                    val allocationByParent = HashMap<Int, InternalAllocationGroup>()
+                    allocGroups.forEach { (_, allocationGroup) ->
+                        allocationByParent[allocationGroup.parentWallet] = allocationGroup
+                    }
+
+                    val childrenAllocGroups = allocationGroups.filter { it.value.parentWallet == id }
+                    val childrenRetiredUsage = HashMap<Int, Long>()
+                    val childrenUsage = HashMap<Int, Long>()
+
+                    childrenAllocGroups.forEach { (_, group) ->
+                        val treeUsage = group.treeUsage
+                        val retriedUsage = group.retiredTreeUsage
+                        childrenUsage[group.associatedWallet] = treeUsage
+                        childrenRetiredUsage[group.associatedWallet] = retriedUsage
+                    }
+                    val wallet = InternalWallet(
+                        id = id,
+                        category = productCategory,
+                        ownedBy = owner,
+                        localUsage = localUsage,
+                        allocationsByParent = allocationByParent,
+                        childrenUsage = childrenUsage,
+                        localRetiredUsage = localRetiredUsage,
+                        childrenRetiredUsage = childrenRetiredUsage,
+                        excessUsage = excessUsage,
+                        totalAllocated = totalAllocated,
+                        totalRetiredAllocated = totalRetiredAllocated,
+                        isDirty = false,
+                        wasLocked = wasLocked,
+                        lastSignificantUpdateAt = lastSignificantUpdateAt,
+                    )
+
+                    walletsById[id] = wallet
                 }
-
-                val childrenAllocGroups = allocationGroups.filter { it.value.parentWallet == id }
-                val childrenRetiredUsage = HashMap<Int, Long>()
-                val childrenUsage = HashMap<Int, Long>()
-
-                childrenAllocGroups.forEach { (_, group) ->
-                    val treeUsage = group.treeUsage
-                    val retriedUsage = group.retiredTreeUsage
-                    childrenUsage[group.associatedWallet] = treeUsage
-                    childrenRetiredUsage[group.associatedWallet] = retriedUsage
-                }
-                val wallet = InternalWallet(
-                    id = id,
-                    category = productCategory,
-                    ownedBy = owner,
-                    localUsage = localUsage,
-                    allocationsByParent = allocationByParent,
-                    childrenUsage = childrenUsage,
-                    localRetiredUsage = localRetiredUsage,
-                    childrenRetiredUsage = childrenRetiredUsage,
-                    excessUsage = excessUsage,
-                    totalAllocated = totalAllocated,
-                    totalRetiredAllocated = totalRetiredAllocated,
-                    isDirty = false,
-                    wasLocked = wasLocked,
-                    lastSignificantUpdateAt = lastSignificantUpdateAt,
-                )
-
-                walletsById[id] = wallet
             }
+
+            log.info("accounting persistence checkpoint 6")
 
             walletsById.values
                 .groupBy { it.ownedBy }
@@ -272,6 +300,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                     val walletArrayList = ArrayList(wallets)
                     walletsByOwner[owner] = walletArrayList
                 }
+
+            log.info("accounting persistence checkpoint 7")
 
             val scopedUsageRows = session.sendPreparedStatement(
                 {},
@@ -285,6 +315,9 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
 
                 key to usage
             }
+
+            log.info("accounting persistence checkpoint 8")
+
             scopedUsage.putAll(scopedUsageRows)
 
             // Handle IDs so ID counter is ready to new inserts
@@ -307,7 +340,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
             if (maxOwnerID != null) ownersIdAccumulator.set(maxOwnerID + 1)
             if (maxGroupId != null) allocationGroupIdAccumulator.set(maxGroupId + 1)
 
-
+            log.info("accounting persistence checkpoint 9")
         }
     }
 
@@ -771,5 +804,9 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
         }
 
         nextSynchronization = now + 30_000
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

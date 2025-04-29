@@ -2,7 +2,10 @@ package containers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -153,6 +156,17 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		}
 	}
 
+	// JobParameters.json
+	// -----------------------------------------------------------------------------------------------------------------
+	if rank == 0 && job.Status.JobParametersJson.SiteVersion != 0 {
+		jsonData, _ := json.Marshal(job.Status.JobParametersJson)
+		fd, ok := filesystem.OpenFile(filepath.Join(jobFolder, "JobParameters.json"), os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0660)
+		if ok {
+			_, _ = fd.Write(jsonData)
+			_ = fd.Close()
+		}
+	}
+
 	// Setting up the basics
 	// -----------------------------------------------------------------------------------------------------------------
 	pod := &core.Pod{
@@ -201,8 +215,18 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	addResource(core.ResourceCPU, cpuMillis, resource.Milli)
 	addResource(core.ResourceMemory, memoryMegabytes, resource.Mega)
+
 	if gpus > 0 {
-		addResource("nvidia.com/gpu", gpus, resource.Milli)
+		gpuType := "nvidia.com/gpu"
+		machineCategory, ok := shared.ServiceConfig.Compute.Machines[job.Specification.Product.Category]
+		if ok {
+			nodeCat, ok := machineCategory.Groups[job.Specification.Product.Category]
+			if ok {
+				gpuType = nodeCat.GpuResourceType
+			}
+		}
+
+		addResource(core.ResourceName(gpuType), gpus, 0)
 	}
 
 	// TODO We used to set a nodeselector but this appears redundant since we are already setting the node.
@@ -229,6 +253,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		})
 	}
 
+	spec.Hostname = fmt.Sprintf("j-%s-job-%d", job.Id, rank)
 	spec.Subdomain = fmt.Sprintf("j-%v", job.Id)
 
 	// Working directory
@@ -327,7 +352,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// -----------------------------------------------------------------------------------------------------------------
 	spec.InitContainers = append(spec.InitContainers, core.Container{
 		Name:  "ucviz",
-		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.3.1",
+		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.3.10",
 	})
 
 	ucvizContainer := &spec.InitContainers[len(spec.InitContainers)-1]

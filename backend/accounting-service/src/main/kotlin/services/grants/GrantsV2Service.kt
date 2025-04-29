@@ -253,9 +253,11 @@ class GrantsV2Service(
         request: GrantsV2.SubmitRevision.Request,
     ): FindByStringId {
         val recipient = request.revision.recipient
-        if (request.revision.allocationRequests.any{ it.grantGiver == actorAndProject.project }) {
+
+        if (recipient is GrantApplication.Recipient.ExistingProject && request.revision.allocationRequests.any { it.grantGiver == recipient.id }) {
             throw RPCException("Cannot create grant to you own project", HttpStatusCode.BadRequest)
         }
+
         if (recipient is GrantApplication.Recipient.NewProject) {
             // NOTE(Dan): Used as a hint to the frontend about special projects. Not used for anything backend related.
             if (recipient.title.startsWith("%")) {

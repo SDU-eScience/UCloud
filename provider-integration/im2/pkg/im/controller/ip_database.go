@@ -320,6 +320,7 @@ outer:
 	publicIpsMutex.Unlock()
 
 	if !allocatedIp.Present {
+		_ = DeleteIpAddress(target)
 		return util.HttpErr(http.StatusBadRequest, "%s has no more IP addresses available", cfg.Provider.Id)
 	} else {
 		newUpdate := orc.PublicIpUpdate{
@@ -345,9 +346,7 @@ outer:
 		} else {
 			log.Info("Failed to allocate an IP address due to an error between UCloud and the provider: %s", err)
 
-			publicIpsMutex.Lock()
-			delete(externalAddressesInUse, allocatedIp.Value)
-			publicIpsMutex.Unlock()
+			_ = DeleteIpAddress(target)
 			return err
 		}
 	}
@@ -381,6 +380,26 @@ func DeleteIpAddress(address *orc.PublicIp) error {
 
 	publicIpsMutex.Unlock()
 	return nil
+}
+
+func RetrieveUsedIpAddressCount(owner orc.ResourceOwner) int {
+	return db.NewTx[int](func(tx *db.Transaction) int {
+		row, _ := db.Get[struct{ Count int }](
+			tx,
+			`
+				select count(*) as count
+				from tracked_ips
+				where
+					(:project = '' and project_id is null and created_by = :created_by)
+					or (:project != '' and project_id = :project)
+		    `,
+			db.Params{
+				"created_by": owner.CreatedBy,
+				"project":    owner.Project,
+			},
+		)
+		return row.Count
+	})
 }
 
 func AddToIpPool(subnet string) error {

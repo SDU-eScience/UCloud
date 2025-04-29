@@ -56,6 +56,7 @@ type KubernetesIpConfiguration struct {
 
 type KubernetesPublicLinkConfiguration struct {
 	Enabled bool
+	Name    string
 	Prefix  string
 	Suffix  string
 }
@@ -357,24 +358,20 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		enabled, ok := cfgutil.OptionalChildBool(filePath, ingressNode, "enabled")
 		cfg.Compute.PublicLinks.Enabled = enabled && ok
 
-		success = true
-		prefix := cfgutil.OptionalChildText(filePath, ingressNode, "prefix", &success)
-
-		if success && prefix != "" {
+		if enabled {
+			success = true
+			prefix := cfgutil.RequireChildText(filePath, ingressNode, "prefix", &success)
 			cfg.Compute.PublicLinks.Prefix = prefix
-		} else {
-			cfg.Compute.PublicLinks.Prefix = "app-"
-		}
 
-		success = true
-		suffix := cfgutil.OptionalChildText(filePath, ingressNode, "suffix", &success)
-
-		if success && suffix != "" {
+			success = true
+			suffix := cfgutil.RequireChildText(filePath, ingressNode, "suffix", &success)
 			cfg.Compute.PublicLinks.Suffix = suffix
-		} else {
-			cfg.Compute.PublicLinks.Prefix = ".example.com"
-		}
 
+			cfg.Compute.PublicLinks.Name = cfgutil.OptionalChildText(filePath, ingressNode, "name", &success)
+			if cfg.Compute.PublicLinks.Name == "" {
+				cfg.Compute.PublicLinks.Name = "public-link"
+			}
+		}
 	}
 
 	sshNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "ssh")

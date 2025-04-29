@@ -2,12 +2,12 @@ package slurm
 
 import (
 	"fmt"
-	"os/user"
 	"slices"
-	"ucloud.dk/shared/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	slurmcli "ucloud.dk/pkg/im/external/slurm"
+	"ucloud.dk/pkg/im/external/user"
+	"ucloud.dk/shared/pkg/apm"
 	"ucloud.dk/shared/pkg/log"
 )
 

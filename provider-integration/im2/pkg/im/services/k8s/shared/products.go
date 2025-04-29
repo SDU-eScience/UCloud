@@ -14,17 +14,14 @@ import (
 var (
 	MachineSupport []orc.JobSupport
 	IpSupport      []orc.PublicIpSupport
-	IngressSupport []orc.IngressSupport
+	LinkSupport    []orc.IngressSupport
 )
-
-var LicenseSupport []orc.LicenseSupport
 
 var (
 	Machines        []apm.ProductV2
 	StorageProducts []apm.ProductV2
-	LinkProducts    []apm.ProductV2
 	IpProducts      []apm.ProductV2
-	IngressProducts []apm.ProductV2
+	LinkProducts    []apm.ProductV2
 	LicenseProducts []apm.ProductV2
 )
 
@@ -275,7 +272,7 @@ func initProducts() {
 
 	if ServiceConfig.Compute.PublicLinks.Enabled {
 		ingressName := "public-links"
-		IngressProducts = []apm.ProductV2{
+		LinkProducts = []apm.ProductV2{
 			{
 				Type: apm.ProductTypeCIngress,
 				Category: apm.ProductCategory{
@@ -298,7 +295,7 @@ func initProducts() {
 			},
 		}
 
-		IngressSupport = []orc.IngressSupport{
+		LinkSupport = []orc.IngressSupport{
 			{
 				Prefix: cfg.Services.Kubernetes().Compute.PublicLinks.Prefix,
 				Suffix: cfg.Services.Kubernetes().Compute.PublicLinks.Suffix,
@@ -312,7 +309,6 @@ func initProducts() {
 	}
 
 	LicenseProducts = ctrl.FetchLicenseProducts()
-	LicenseSupport = ctrl.FetchLicenseSupport()
 }
 
 func pickResource(resource cfg.MachineResourceType, machineConfig cfg.K8sMachineConfiguration) int {

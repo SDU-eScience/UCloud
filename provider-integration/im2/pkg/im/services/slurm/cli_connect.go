@@ -3,9 +3,9 @@ package slurm
 import (
 	"fmt"
 	"os"
-	"os/user"
 	"time"
 	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/im/external/user"
 	"ucloud.dk/pkg/termio"
 	"ucloud.dk/shared/pkg/util"
 )

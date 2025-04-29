@@ -4,6 +4,18 @@ This page tracks a high-level overview of changes to the version of UCloud
 hosted at cloud.sdu.dk. This page is intended for internal
 use.
 
+## 24-04-25
+
+```
+UCloud/APM @ 2025.3.10
+```
+
+## 22-04-25
+
+```
+UCloud/APM @ 2025.3.8
+```
+
 ## 07-03-25
 
 ```

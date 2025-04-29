@@ -62,7 +62,7 @@ class Server(
             RealAccountingPersistence(db),
             IdCardService(db, micro.backgroundScope, client),
             distributedLocks,
-            micro.developmentModeEnabled,
+            true,
             distributedStateFactory,
             addressToSelf = micro.serviceInstance.ipAddress ?: "127.0.0.1",
         )

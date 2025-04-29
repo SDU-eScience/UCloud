@@ -13,16 +13,16 @@ import (
 	"strings"
 	"time"
 
+	"ucloud.dk/pkg/im/controller/upload"
 	"ucloud.dk/shared/pkg/apm"
 	db "ucloud.dk/shared/pkg/database"
-	"ucloud.dk/pkg/im/controller/upload"
 
 	ws "github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	fnd "ucloud.dk/shared/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -1160,6 +1160,12 @@ func controllerFiles(mux *http.ServeMux) {
 			0,
 			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[orc.Share]) {
 				// Do nothing
+				var response fnd.BulkResponse[util.Empty]
+				for _, item := range request.Items {
+					_ = item
+					response.Responses = append(response.Responses, util.Empty{})
+				}
+				sendResponseOrError(w, response, nil)
 			},
 		)
 

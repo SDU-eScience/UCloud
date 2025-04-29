@@ -102,11 +102,11 @@ func Invoke[Resp any](operation string, payload any) (Resp, error) {
 		}
 	}
 
-	resp, err := Client.Post("http://ignored.ignored/"+operation, "application/json", bytes.NewBuffer(jsonBytes))
+	resp, err := Client.Post("http://ucloud.internal/"+operation, "application/json", bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return value, &util.HttpError{
 			StatusCode: http.StatusBadGateway,
-			Why:        fmt.Sprintf("Failed to contact IPC server: %v", err),
+			Why:        fmt.Sprintf("Could not talk to the running service. Are you sure it is running? (IPC unreachable: %v)", err),
 		}
 	}
 

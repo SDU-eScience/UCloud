@@ -27,9 +27,9 @@ const WorkflowEditor: React.FunctionComponent<{
     initialExistingPath?: string | null;
     initialId?: string | null;
     workflow: WorkflowSpecification;
-    dirtyFileCountRef: React.MutableRefObject<number>;
+    dirtyFileCountRef: React.RefObject<number>;
     applicationName: string;
-    doSaveRef: React.MutableRefObject<() => void>;
+    doSaveRef: React.RefObject<() => void>;
     onUse?: (id: string | null, path: string | null, spec: WorkflowSpecification) => void;
     onSave?: () => void;
 }> = props => {
@@ -175,6 +175,23 @@ const WorkflowEditor: React.FunctionComponent<{
         savingRef.current = false;
     }, []);
 
+    useEffect(() => {
+        const listener = (ev: KeyboardEvent) => {
+            const hasCtrl = ev.ctrlKey || ev.metaKey;
+            if (ev.code === "KeyS" && hasCtrl) {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                setIsSaving(true);
+            }
+        };
+
+        window.addEventListener("keydown", listener);
+        return () => {
+            window.removeEventListener("keydown", listener);
+        }
+    }, [onSaveCopy]);
+
     const saveOverwritten = useCallback(async () => {
         setIsOverwriting(null);
 
@@ -196,6 +213,7 @@ const WorkflowEditor: React.FunctionComponent<{
 
     return <Editor
         vfs={vfs}
+        isModal
         dirtyFileCountRef={props.dirtyFileCountRef}
         title={props.applicationName}
         initialFolderPath={"/"}
@@ -502,6 +520,16 @@ function validateParameter(parameter: any): ApplicationParameter | string {
                 description,
                 optional,
                 name,
+            };
+
+        case "License":
+            return {
+                type: "license_server",
+                title,
+                description,
+                optional,
+                name,
+                tagged: [],
             };
 
         default:
