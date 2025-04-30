@@ -999,7 +999,7 @@ function useSorting<DataType>(originalData: DataType[], sortByKey: keyof DataTyp
     const [_sortOrder, setSortOrder] = React.useState<SortOrder>(initialSortOrder ?? "asc");
 
     React.useEffect(() => {
-        doSortBy(originalData, _sortByKey, "asc");
+        doSortBy(originalData, sortByKey, "asc");
     }, [originalData]);
 
     const doSortBy = React.useCallback((data: DataType[], sortBy: keyof DataType, sortOrder?: SortOrder) => {
