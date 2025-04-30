@@ -1612,7 +1612,7 @@ function toSeriesChart(chart: UsageChart): ApexAxisChartSeries[0] {
     }
 }
 
-const ADD_FAKE_QUOTA = true;
+const ADD_FAKE_QUOTA = false;
 function usageChartsToChart(
     charts: UsageChart[],
     shownRef: React.RefObject<boolean[]>,
