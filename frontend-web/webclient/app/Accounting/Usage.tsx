@@ -1,8 +1,9 @@
 import * as React from "react";
 import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
+import ApexCharts from "apexcharts";
 import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
-import {Flex, Icon, Input, Text, MainContainer, Box} from "@/ui-components";
+import {Flex, Icon, Input, Text, MainContainer, Box, Truncate} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -29,10 +30,11 @@ import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {Feature, hasFeature} from "@/Features";
 import {IconName} from "@/ui-components/Icon";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
+import {groupBy} from "@/Utilities/CollectionUtilities";
 
 // Constants
 // =====================================================================================================================
-const JOBS_UNIT_NAME = "Jobs";
+const JOBS_UNIT_NAME = "Job statistics";
 
 // State
 // =====================================================================================================================
@@ -118,7 +120,7 @@ function stateReducer(state: State, action: UIAction): State {
 
             function translateChart(category: Accounting.ProductCategoryV2, chart: UsageOverTimeAPI): UsageChart {
                 const {name} = Accounting.explainUnit(category);
-                const dataPoints = chart.data
+                const dataPoints = chart.data;
 
                 return {unit: name, dataPoints, name: category.name};
             }
@@ -857,26 +859,33 @@ const BreakdownStyle = injectStyle("breakdown", k => `
     }
 `);
 
-const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: string; period: Period; charts: BreakdownChart[];}> = props => {
-
-    const unit = props.unit ?? "";
-    const [chartsSelected, setChartsSelected] = useState<string[] | string | undefined>();
-
-    const fullyMergedChart = React.useMemo(() => {
-        return {
-            unit: props.unit ?? "",
-            dataPoints: props.charts.flatMap(it => it.dataPoints.map(d => ({...d, nameAndProvider: it.nameAndProvider})))
-        }
-    }, [props.charts, props.unit]);
+const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit: string; period: Period; charts: BreakdownChart[];}> = props => {
+    const [breakdownSelected, setBreakdownSelected] = useState<string | undefined>();
+    const fullyMergedChart = React.useMemo(() => ({
+        unit: props.unit,
+        dataPoints: props.charts.flatMap(it => it.dataPoints.map(d => ({...d, nameAndProvider: it.nameAndProvider})))
+    }), [props.charts, props.unit]);
 
     const dataPoints = useMemo(() => {
         const unsorted = fullyMergedChart.dataPoints.map(it => ({key: it.title, value: it.usage, nameAndProvider: it.nameAndProvider})) ?? [];
         return unsorted.sort((a, b) => a.value - b.value);
     }, [props.charts]);
 
+    const dataPointsByProject = React.useMemo(() => {
+        const summed = groupBy(dataPoints, el => el.key);
+
+        return Object.keys(summed).map(it => {
+            return {
+                key: it,
+                value: summed[it].reduce((acc, it) => it.value + acc, 0),
+                nameAndProvider: ""
+            }
+        }).sort((a, b) => a.value - b.value);
+    }, [dataPoints]);
+
     const formatter = useCallback((val: number) => {
-        return Accounting.addThousandSeparators(val.toFixed(0)) + " " + unit;
-    }, [unit]);
+        return Accounting.addThousandSeparators(val.toFixed(0)) + " " + props.unit;
+    }, [props.unit]);
 
     const showWarning = (() => {
         const {start, end} = normalizePeriod(props.period);
@@ -885,15 +894,27 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: s
         return startDate.getUTCFullYear() !== endDate.getUTCFullYear();
     })();
 
+    const filteredDataPoints = useMemo(() => {
+        if (!breakdownSelected) return dataPointsByProject;
+        return dataPoints.filter(it => it.key === breakdownSelected);
+    }, [breakdownSelected, dataPoints, dataPointsByProject]);
+
     const datapointSum = useMemo(() => dataPoints.reduce((a, b) => a + b.value, 0), [dataPoints]);
 
-    const sorted = useSorting(dataPoints, "value");
+    const sorted = useSorting(breakdownSelected ? filteredDataPoints : dataPointsByProject, "value");
+
+    const updateSelectedBreakdown = React.useCallback((dataPoint: {key: string}) => {
+        setBreakdownSelected(current => current === dataPoint.key ? undefined : dataPoint.key);
+    }, []);
 
     if (props.isLoading) return null;
 
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
         <div className={PanelTitle.class}>
-            <h4>Usage breakdown by sub-projects</h4>
+            <h4>Usage breakdown by sub-projects </h4><TooltipV2
+                tooltip={"Click on a project name to view more detailed usage"}>
+                <Icon name={"heroQuestionMarkCircle"} />
+            </TooltipV2>
         </div>
 
         {showWarning ? <>
@@ -902,15 +923,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: s
 
         <div className={ChartAndTable}>
             {datapointSum === 0 ? null : <div className={PieWrapper.class}>
-                <PieChart dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={dataPoint => setChartsSelected(existingCharts => {
-                    if (Array.isArray(dataPoint)) {
-                        if (Array.isArray(existingCharts)) return undefined;
-                        return dataPoint;
-                    } else {
-                        const newlySelectedChart = dataPoint.key;
-                        return newlySelectedChart === existingCharts ? undefined : newlySelectedChart;
-                    }
-                })} />
+                <PieChart chartId="UsageBreakdown" dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={updateSelectedBreakdown} />
             </div>}
             {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
             {dataPoints.length === 0 ? "No usage data found" :
@@ -918,25 +931,25 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit?: s
                     <table>
                         <thead>
                             <tr>
-                                <SortTableHeader width="40%" sortKey={"key"} sorted={sorted}>Project</SortTableHeader>
-                                <SortTableHeader width="30%" sortKey={"nameAndProvider"} sorted={sorted}>Name - Provider</SortTableHeader>
+                                <SortTableHeader width="30%" sortKey={"key"} sorted={sorted}>Project</SortTableHeader>
+                                {breakdownSelected ? <SortTableHeader width="40%" sortKey={"nameAndProvider"} sorted={sorted}>Name - Provider</SortTableHeader> : null}
                                 <SortTableHeader width="30%" sortKey={"value"} sorted={sorted}>Usage</SortTableHeader>
                             </tr>
                         </thead>
                         <tbody>
-                            {dataPoints.filter(it => {
-                                const hasSelection = !!chartsSelected;
-                                if (!hasSelection) return true;
-                                else if (Array.isArray(chartsSelected)) return chartsSelected.includes(it.key);
-                                else return chartsSelected === it.key;
-                            }).map((point, idx) => {
-                                // TODO(Jonas): We need to handle "Other" properly
+                            {sorted.data.map((point, idx) => {
                                 const usage = point.value;
-                                const [name, provider] = point.nameAndProvider.split("/");
-                                return <tr key={idx}>
-                                    <td>{point.key}</td>
-                                    <td>{name} - {getShortProviderTitle(provider)}</td>
-                                    <td>{Accounting.addThousandSeparators(Math.round(usage))} {unit}</td>
+                                const [name, provider] = point.nameAndProvider ? point.nameAndProvider.split("/") : ["", ""];
+                                return <tr key={idx} onClick={() => {
+                                    const labels: string[] = ApexCharts.getChartByID("UsageBreakdown")?.["opts"]["labels"] ?? [];
+                                    const idx = labels.findIndex(it => it === point.key);
+                                    if (idx !== -1) {
+                                        ApexCharts.exec("UsageBreakdown", "toggleDataPointSelection", idx);
+                                    }
+                                }} style={{cursor: "pointer"}}>
+                                    <td title={point.key}><Truncate maxWidth={"250px"}>{point.key}</Truncate></td>
+                                    {name && provider ? <td>{name} - {getShortProviderTitle(provider)}</td> : null}
+                                    <td>{Accounting.addThousandSeparators(Math.round(usage))} {props.unit}</td>
                                 </tr>
                             })}
                         </tbody>
@@ -969,7 +982,7 @@ function SortTableHeader<DataType>({sortKey, sorted, children, width}: React.Pro
 }>) {
     const isActive = sortKey === sorted.sortByKey;
     return <th style={thStyling(isActive, width)} onClick={() => sorted.doSortBy(sortKey)}>
-        {children} {isActive ? <Icon name="chevronDownLight" rotation={sorted.sortOrder === "asc" ? 180 : 0} /> : null}
+        <Flex>{children} {isActive ? <Icon ml="auto" my="auto" name="chevronDownLight" rotation={sorted.sortOrder === "asc" ? 180 : 0} /> : null}</Flex>
     </th>
 }
 
@@ -1411,7 +1424,7 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
         </div>
 
         {data !== undefined && sorted.data.length !== 0 ? <>
-            <PieChart dataPoints={sorted.data} valueFormatter={formatter} onDataPointSelection={() => {}} />
+            <PieChart chartId="UsageByUsers" dataPoints={sorted.data} valueFormatter={formatter} onDataPointSelection={() => {}} />
 
             <div className={TableWrapper.class}>
                 <table>
@@ -1448,12 +1461,14 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
 const PieChart: React.FunctionComponent<{
     dataPoints: {key: string, value: number}[],
     valueFormatter: (value: number) => string,
-    onDataPointSelection: (dataPointIndex: {key: string; value: number;} | string[]) => void;
+    onDataPointSelection: (dataPointIndex: {key: string; value: number;}) => void;
+    chartId: string;
 }> = props => {
     const otherKeys = React.useRef<string[]>([]);
     const filteredList = useMemo(() => {
         otherKeys.current = [];
         const all = [...props.dataPoints];
+
         all.sort((a, b) => {
             if (a.value > b.value) return -1;
             if (a.value < b.value) return 1;
@@ -1485,6 +1500,7 @@ const PieChart: React.FunctionComponent<{
         chartProps.type = "pie";
         chartProps.series = series;
         const chart: ApexChart = {
+            id: props.chartId,
             width: "1200px",
             animations: {
                 enabled: false,
@@ -1495,13 +1511,16 @@ const PieChart: React.FunctionComponent<{
 
                     if (dataPointIndex != null) {
                         const key = filteredList[dataPointIndex].key;
-                        if (key !== "Other") {
-                            props.onDataPointSelection({value: series[dataPointIndex], key: labels[dataPointIndex]});
-                        } else {
-                            props.onDataPointSelection(otherKeys.current);
-                        }
+                        props.onDataPointSelection({value: series[dataPointIndex], key: labels[dataPointIndex]});
                     }
-                }
+                },
+                legendClick(chart, seriesIndex, options) {
+                    if (seriesIndex != null) {
+                        chart.toggleDataPointSelection(seriesIndex);
+                        props.onDataPointSelection({value: series[seriesIndex], key: labels[seriesIndex]})
+                    }
+
+                },
             },
         };
 
@@ -1510,8 +1529,6 @@ const PieChart: React.FunctionComponent<{
         chartProps.options = {
             chart,
             legend: {
-                /* Note(Jonas): I'm not sure we can expect same behaviour from this, as clicking on the pie, so disable */
-                onItemClick: {toggleDataSeries: false},
                 position: "bottom"
             },
             responsive: [],
@@ -1595,7 +1612,7 @@ function toSeriesChart(chart: UsageChart): ApexAxisChartSeries[0] {
     }
 }
 
-const ADD_FAKE_QUOTA = false;
+const ADD_FAKE_QUOTA = true;
 function usageChartsToChart(
     charts: UsageChart[],
     shownRef: React.RefObject<boolean[]>,
@@ -1790,7 +1807,7 @@ function toIcon(unit: string): IconName {
             return "heroGlobeEuropeAfrica"
         case "Licenses":
             return "heroDocumentCheck";
-        case "Jobs":
+        case JOBS_UNIT_NAME:
             return "heroServer"
         default:
             return "broom";
