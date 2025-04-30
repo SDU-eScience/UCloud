@@ -25,6 +25,7 @@ import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {initVimMode, VimMode} from "monaco-vim";
 import {addStandardDialog} from "@/UtilityComponents";
 import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
+import {Feature, hasFeature} from "@/Features";
 
 export interface Vfs {
     isReal(): boolean;
@@ -817,11 +818,11 @@ export const Editor: React.FunctionComponent<{
 
         const editor: IStandaloneCodeEditor = m.editor.create(node, {
             language: languageFromExtension(extensionFromPath(state.currentPath)),
-            readOnly: props.readOnly,
-            readOnlyMessage: {
+            readOnly: props.readOnly || !hasFeature(Feature.INTEGRATED_EDITOR),
+            readOnlyMessage: hasFeature(Feature.INTEGRATED_EDITOR) ? {
                 // Note(Jonas): Setting this to null will not behave well, so this seems the best.
                 value: ""
-            },
+            } : undefined,
             minimap: {enabled: false},
             renderLineHighlight: "none",
             fontFamily: "Jetbrains Mono",
@@ -833,8 +834,10 @@ export const Editor: React.FunctionComponent<{
 
         editor.updateOptions({readOnly: props.readOnly});
 
-        if (props.readOnly) {
-            setReadonlyWarning(editor);
+        if (hasFeature(Feature.INTEGRATED_EDITOR)) {
+            if (props.readOnly) {
+                setReadonlyWarning(editor);
+            }
         }
 
         setEditor(editor);
@@ -1686,27 +1689,29 @@ function MonacoEditorSettings({editor, setVimMode}: {editor: IStandaloneCodeEdit
                 )}
             </Select>
         </div>)}
-        <div>
-            Allow file editing
-            <Select defaultValue={allowEditing() ? "Allow" : "Disallow"} onChange={e => {
-                const canEdit = e.target.value === "Allow";
-                setOption(EditorOption.readOnly, !canEdit);
+        {hasFeature(Feature.INTEGRATED_EDITOR) ? <>
+            <div>
+                Allow file editing
+                <Select defaultValue={allowEditing() ? "Allow" : "Disallow"} onChange={e => {
+                    const canEdit = e.target.value === "Allow";
+                    setOption(EditorOption.readOnly, !canEdit);
 
-                if (!canEdit) setReadonlyWarning(editor);
+                    if (!canEdit) setReadonlyWarning(editor);
 
-                setAllowEditing(canEdit.toString());
-            }}>
-                <option value={"Allow"}>Allow</option>
-                <option value={"Disallow"}>Disallow</option>
-            </Select>
-        </div>
-        <div>
-            Vim mode
-            <Select defaultValue={getEditorOption("vim") ? "Enabled" : "Disabled"} onChange={e => setVimMode(e.target.value === "Enabled")}>
-                <option value="Enabled">Enabled</option>
-                <option value="Disabled">Disabled</option>
-            </Select>
-        </div>
+                    setAllowEditing(canEdit.toString());
+                }}>
+                    <option value={"Allow"}>Allow</option>
+                    <option value={"Disallow"}>Disallow</option>
+                </Select>
+            </div>
+            <div>
+                Vim mode
+                <Select defaultValue={getEditorOption("vim") ? "Enabled" : "Disabled"} onChange={e => setVimMode(e.target.value === "Enabled")}>
+                    <option value="Enabled">Enabled</option>
+                    <option value="Disabled">Disabled</option>
+                </Select>
+            </div>
+        </> : null}
         <VimKeyBindings />
     </>;
 }
