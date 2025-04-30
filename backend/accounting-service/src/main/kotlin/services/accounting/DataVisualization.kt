@@ -13,7 +13,8 @@ import kotlin.time.Duration.Companion.days
 
 class DataVisualization(
     private val db: DBContext,
-    private val accountingSystem: AccountingSystem
+    private val accountingSystem: AccountingSystem,
+    private val predictor: SimplePredictor
 ) {
 
     private fun LongRange.overlaps(other: LongRange): Boolean {
@@ -103,7 +104,7 @@ class DataVisualization(
         var emptyUsageChart: UsageOverTimeAPI? = null
         fun createEmptyUsageChart(): UsageOverTimeAPI {
             if (emptyUsageChart != null) return emptyUsageChart!!
-            emptyUsageChart = UsageOverTimeAPI(emptyList())
+            emptyUsageChart = UsageOverTimeAPI(emptyList(), null)
             return emptyUsageChart!!
         }
 
@@ -261,7 +262,8 @@ class DataVisualization(
                                      then s.tree_usage::double precision / 60.0 / 60.0 / 24.0
                             end tusage,
                             s.quota,
-                            sample_time
+                            sample_time,
+                            w.id
                         from
                             accounting.wallets_v2 w
                             join accounting.product_categories pc on w.product_category = pc.id
@@ -274,9 +276,10 @@ class DataVisualization(
                         var currentProductCategory = -1L
 
                         var dataPoints = ArrayList<UsageOverTimeDatePointAPI>()
+                        var prediction = WalletPrediction(0, emptyList())
                         fun flushChart() {
                             if (currentProductCategory != -1L) {
-                                usageOverTimeCharts[currentProductCategory] = UsageOverTimeAPI(dataPoints.toList())
+                                usageOverTimeCharts[currentProductCategory] = UsageOverTimeAPI(dataPoints.toList(), prediction)
                                 dataPoints = ArrayList()
                             }
                         }
@@ -286,12 +289,12 @@ class DataVisualization(
                             val usage = row.getDouble(1)!!
                             val quota = row.getLong(2)!!
                             val timestamp = row.getLong(3)!!
-
+                            val walletId = row.getLong(4)!!
                             if (currentProductCategory != allocCategory) {
                                 flushChart() // no-op if currentProductCategory = -1L
                                 currentProductCategory = allocCategory
+                                prediction = predictor.getPrediction(walletId)
                             }
-
                             dataPoints.add(UsageOverTimeDatePointAPI(usage, quota, timestamp))
                         }
                         flushChart()

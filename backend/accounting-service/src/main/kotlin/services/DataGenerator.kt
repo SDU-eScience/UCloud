@@ -41,8 +41,8 @@ class DataGenerator(
 
     suspend fun createTestStructureAndData(actorAndProject: ActorAndProject, request: AccountingV2.AdminGenerateTestData.Request) {
         Time.provider = StaticTimeProvider
-        // 1st January 2025
-        StaticTimeProvider.time = 1735689600000
+        // Given start date or 1st January 2025
+        StaticTimeProvider.time = request.startDate ?: 1735689600000
 
         val provider = Projects.listProjects.call(
             ListProjectsRequest(user = actorAndProject.actor.username),

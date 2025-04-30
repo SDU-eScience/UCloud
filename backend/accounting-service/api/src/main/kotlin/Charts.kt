@@ -10,8 +10,21 @@ data class UsageOverTimeDatePointAPI(
 )
 
 @Serializable
+data class Prediction(
+    val daysInFuture: Int,
+    val value: Double,
+)
+
+@Serializable
+data class WalletPrediction(
+    val walletId: Long,
+    val predictions: List<Prediction>
+)
+
+@Serializable
 data class UsageOverTimeAPI(
-    var data: List<UsageOverTimeDatePointAPI>
+    var data: List<UsageOverTimeDatePointAPI>,
+    var future: WalletPrediction?
 )
 
 @Serializable

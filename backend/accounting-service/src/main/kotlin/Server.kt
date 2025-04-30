@@ -3,10 +3,7 @@ package dk.sdu.cloud.accounting
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.rpc.*
 import dk.sdu.cloud.accounting.services.DataGenerator
-import dk.sdu.cloud.accounting.services.accounting.AccountingPersistence
-import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
-import dk.sdu.cloud.accounting.services.accounting.DataVisualization
-import dk.sdu.cloud.accounting.services.accounting.RealAccountingPersistence
+import dk.sdu.cloud.accounting.services.accounting.*
 import dk.sdu.cloud.accounting.services.grants.*
 import dk.sdu.cloud.accounting.services.notifications.ApmNotificationService
 import dk.sdu.cloud.accounting.services.notifications.PersonalProviderProjects
@@ -82,14 +79,20 @@ class Server(
         val favoriteProjects = FavoriteProjectService(projectsV2)
         val grants = GrantsV2Service(db, idCardService, accountingSystem, client, config.defaultTemplate, projectsV2)
         val giftService = GiftService(db, accountingSystem, projectService, grants, idCardService)
-        val dataVisualization = DataVisualization(db, accountingSystem)
+        val simplePredictor = SimplePredictor(db)
+        val dataVisualization = DataVisualization(db, accountingSystem, simplePredictor)
         val apmNotifications = ApmNotificationService(accountingSystem, projectsV2, micro.tokenValidation, idCardService, micro.developmentModeEnabled)
+
 
         PersonalProviderProjects(projectsV2, productService, accountingSystem).init()
 
         accountingSystem.start(micro.backgroundScope)
         micro.backgroundScope.launch {
             grants.init()
+        }
+
+        micro.backgroundScope.launch {
+            simplePredictor.start()
         }
 
         val scriptManager = micro.feature(ScriptManager)

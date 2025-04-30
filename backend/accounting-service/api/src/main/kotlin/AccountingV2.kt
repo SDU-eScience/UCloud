@@ -559,7 +559,8 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             val timeSpanInMillis: Long = 0,
             val createProjectStructure: Boolean = true,
             val clearExistingUsage: Boolean = true,
-            val makeCharges: Boolean = true
+            val makeCharges: Boolean = true,
+            val startDate: Long? = null,
         )
 
         val call = call(
