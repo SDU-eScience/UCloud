@@ -68,6 +68,8 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 		}
 	}
 
+	initStorageScanCli()
+
 	ctrl.RegisterProducts(shared.Machines)
 	ctrl.RegisterProducts(shared.StorageProducts)
 	ctrl.RegisterProducts(shared.IpProducts)

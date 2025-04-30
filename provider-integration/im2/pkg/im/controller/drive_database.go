@@ -3,16 +3,17 @@ package controller
 import (
 	"database/sql"
 	"encoding/json"
-	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	lru "github.com/hashicorp/golang-lru/v2/expirable"
+	"ucloud.dk/pkg/im/controller/fsearch"
+	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/shared/pkg/apm"
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
-	"ucloud.dk/pkg/im/controller/fsearch"
-	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -129,6 +130,7 @@ func InitDriveDatabase() {
 			}
 		}
 	})
+
 }
 
 // The activeDrives property stores all drives which have been seen this session in-memory. This structure is valid for
