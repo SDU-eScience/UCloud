@@ -15,9 +15,9 @@ import (
 	"ucloud.dk/gonja/v2/exec"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type appCfgAndVersion struct {
@@ -648,6 +648,15 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 		internalPath, _ := UCloudToInternal(ucloudPath)
 		return internalPath
 	})
+
+	// Convert license parameters
+	for parameterId, parameterAndValue := range parametersAndValues {
+		if parameterAndValue.Parameter.Type == orc.ApplicationParameterTypeLicenseServer {
+			newParameterAndValue := parameterAndValue
+			newParameterAndValue.Value.Id = ctrl.BuildLicenseParameter(parameterAndValue.Value.Id)
+			parametersAndValues[parameterId] = newParameterAndValue
+		}
+	}
 
 	allocatedPort := util.Option[int]{}
 	if application.ApplicationType == orc.ApplicationTypeWeb || application.ApplicationType == orc.ApplicationTypeVnc {

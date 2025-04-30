@@ -14,10 +14,7 @@ import (
 
 var PostExecFile *os.File
 
-type Commands struct {
-}
-
-func (c Commands) WriteCerts(localPath string) {
+func WriteCerts(localPath string) {
 	curr := currentEnvironment
 	curr.MkDirs()
 	gateway := curr.Child("gateway", true)
@@ -32,7 +29,7 @@ func (c Commands) WriteCerts(localPath string) {
 	os.Exit(0)
 }
 
-func (c Commands) InstallCerts() {
+func InstallCerts() {
 	postef, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	HardCheck(err)
 	postef.WriteString(
@@ -63,54 +60,7 @@ cd $HERE
 	)
 }
 
-func (c Commands) PortForward() {
-	if true {
-		fmt.Println("port forward not implemented")
-	} else {
-		//TODO
-		/*InitializeServiceList()
-		ports := Remapped(portAllocator).allocatedPorts
-		conn := NewExecutableCommand(
-			nil,
-			nil,
-			nil,
-			false,
-			0,
-			false,
-			SSHConnection{
-				username:   "",
-				host:       "",
-				ssh:        nil,
-				remoteRoot: "",
-			},
-		)
-
-
-		forward := ""
-
-		for k, port := range ports {
-			forward = forward + " -L " + strconv.Itoa(k) + ":localhost:" + strconv.Itoa(port)
-		}
-		file, err := os.OpenFile(postExecFile.Name(), os.O_APPEND, 644)
-		HardCheck(err)
-		defer file.Close()
-		_, err = file.WriteString(`
-			echo;
-			echo;
-			echo;
-			echo "Please keep this window running. You will not be able to access any services without it."
-			echo "This window needs to be restarted if you add any new providers or switch environment!"
-			echo;
-			echo "This command requires your local sudo password to enable port forwarding of privileged ports (80 and 443)."
-			echo;
-			echo;
-			echo;
-			sudo -E ssh -F ~/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ` + forward + conn.username + `@` + conn.host + ` sleep inf
-		`)*/
-	}
-}
-
-func (c Commands) OpenUserInterface(serviceName string) {
+func OpenUserInterface(serviceName string) {
 	service := ServiceByName(serviceName)
 	address := service.address
 	uiHelp := service.uiHelp
@@ -125,7 +75,8 @@ func (c Commands) OpenUserInterface(serviceName string) {
 	}
 
 }
-func (c Commands) OpenLogs(serviceName string) {
+
+func OpenLogs(serviceName string) {
 	service := ServiceByName(serviceName)
 	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND|os.O_CREATE|os.O_RDWR, os.ModeAppend)
 	HardCheck(err)
@@ -146,7 +97,7 @@ func (c Commands) OpenLogs(serviceName string) {
 	}
 }
 
-func (c Commands) OpenShell(serviceName string) {
+func OpenShell(serviceName string) {
 	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND|os.O_CREATE|os.O_RDWR, os.ModeAppend)
 	HardCheck(err)
 	defer file.Close()
@@ -154,24 +105,24 @@ func (c Commands) OpenShell(serviceName string) {
 	HardCheck(err)
 }
 
-func (c Commands) CreateProvider(providerName string) {
+func CreateProvider(providerName string) {
 	resolvedProvider := ProviderFromName(providerName)
 	StartProviderService(providerName)
 
 	credentials := ProviderCredentials{}
-	err := termio.LoadingIndicator("Registering provider with UCloud/Core", func(output *os.File) error {
+	err := termio.LoadingIndicator("Registering provider with UCloud/Core", func() error {
 		credentials = RegisterProvider(providerName, providerName, 8889)
 		return nil
 	})
 	HardCheck(err)
 
-	err = termio.LoadingIndicator("Configuring provider...", func(output *os.File) error {
+	err = termio.LoadingIndicator("Configuring provider...", func() error {
 		ProviderFromName(providerName).Install(credentials)
 		return nil
 	})
 	HardCheck(err)
 
-	err = termio.LoadingIndicator("Starting provider...", func(output *os.File) error {
+	err = termio.LoadingIndicator("Starting provider...", func() error {
 		compose.Up(currentEnvironment, true).ExecuteToText()
 		StartService(ServiceByName(providerName)).ExecuteToText()
 		return nil
@@ -179,7 +130,7 @@ func (c Commands) CreateProvider(providerName string) {
 	HardCheck(err)
 
 	if resolvedProvider.CanRegisterProducts() {
-		err = termio.LoadingIndicator("Registering product with UCloud/Core", func(output *os.File) error {
+		err = termio.LoadingIndicator("Registering product with UCloud/Core", func() error {
 			cmdexec := compose.Exec(
 				currentEnvironment,
 				providerName,
@@ -210,14 +161,14 @@ func (c Commands) CreateProvider(providerName string) {
 		})
 		HardCheck(err)
 
-		err = termio.LoadingIndicator("Restarting provider...", func(output *os.File) error {
+		err = termio.LoadingIndicator("Restarting provider...", func() error {
 			StopService(ServiceByName(providerName)).ExecuteToText()
 			StartService(ServiceByName(providerName)).ExecuteToText()
 			return nil
 		})
 		HardCheck(err)
 
-		err = termio.LoadingIndicator("Granting credits to provider project", func(output *os.File) error {
+		err = termio.LoadingIndicator("Granting credits to provider project", func() error {
 			accessToken := FetchAccessToken()
 			response := CallService(
 				"backend",
@@ -276,7 +227,8 @@ func (c Commands) CreateProvider(providerName string) {
 
 	}
 }
-func (c Commands) ServiceStart(serviceName string) {
+
+func ServiceStart(serviceName string) {
 	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND|os.O_CREATE|os.O_RDWR, os.ModeAppend)
 	HardCheck(err)
 	defer file.Close()
@@ -284,15 +236,16 @@ func (c Commands) ServiceStart(serviceName string) {
 	HardCheck(err)
 }
 
-func (c Commands) ServiceStop(serviceName string) {
+func ServiceStop(serviceName string) {
 	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND|os.O_CREATE|os.O_RDWR, os.ModeAppend)
 	HardCheck(err)
 	defer file.Close()
 	_, err = file.WriteString(StopService(ServiceByName(serviceName)).ToBashScript())
 	HardCheck(err)
 }
-func (c Commands) EnvironmentStop() {
-	err := termio.LoadingIndicator("Shutting down virtual cluster...", func(output *os.File) error {
+
+func EnvironmentStop() {
+	err := termio.LoadingIndicator("Shutting down virtual cluster...", func() error {
 		downCom := compose.Down(currentEnvironment, false)
 		downCom.SetStreamOutput()
 		downCom.ExecuteToText()
@@ -300,18 +253,19 @@ func (c Commands) EnvironmentStop() {
 	})
 	HardCheck(err)
 }
-func (c Commands) EnvironmentStart() {
+
+func EnvironmentStart() {
 	StartCluster(compose, false)
 }
 
-func (c Commands) EnvironmentRestart() {
-	c.EnvironmentStop()
-	c.EnvironmentStart()
+func EnvironmentRestart() {
+	EnvironmentStop()
+	EnvironmentStart()
 }
 
-func (c Commands) EnvironmentDelete(shutdown bool) {
+func EnvironmentDelete(shutdown bool) {
 	if shutdown {
-		err := termio.LoadingIndicator("Shutting down virtual cluster...", func(output *os.File) error {
+		err := termio.LoadingIndicator("Shutting down virtual cluster...", func() error {
 			downCom := compose.Down(currentEnvironment, true)
 			downCom.SetStreamOutput()
 			downCom.ExecuteToText()
@@ -338,7 +292,7 @@ func (c Commands) EnvironmentDelete(shutdown bool) {
 		})
 		HardCheck(err)
 
-		err = termio.LoadingIndicator("Deleting files associated with cirtual cluster...", func(output *os.File) error {
+		err = termio.LoadingIndicator("Deleting files associated with virtual cluster...", func() error {
 			path := filepath.Dir(currentEnvironment.GetAbsolutePath())
 			ex := NewExecutableCommand(
 				[]string{FindDocker(), "run", "-v", path + ":/data", "alpine:3", "/bin/sh", "-c", "rm -rf /data/" + currentEnvironment.Name()},
@@ -361,7 +315,8 @@ func (c Commands) EnvironmentDelete(shutdown bool) {
 		os.RemoveAll(pa)
 	}
 }
-func (c Commands) EnvironmentStatus() {
+
+func EnvironmentStatus() {
 	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND|os.O_CREATE|os.O_RDWR, os.ModeAppend)
 	HardCheck(err)
 	defer file.Close()
@@ -369,8 +324,9 @@ func (c Commands) EnvironmentStatus() {
 		panic("Something wrong. Cannot write")
 	}
 }
-func (c Commands) ImportApps() {
-	err := termio.LoadingIndicator("Importing applications", func(output *os.File) error {
+
+func ImportApps() {
+	err := termio.LoadingIndicator("Importing applications", func() error {
 		checksum := "ea9ab32f52379756df5f5cbbcefb33928c49ef8e2c6b135a5048a459e40bc6b2"
 		response := CallService(
 			"backend",
@@ -395,10 +351,10 @@ func (c Commands) ImportApps() {
 	HardCheck(err)
 }
 
-func (c Commands) CreateSnapshot(snapshotName string) {
+func CreateSnapshot(snapshotName string) {
 	InitializeServiceList()
 
-	err := termio.LoadingIndicator("Creating snapshot...", func(output *os.File) error {
+	err := termio.LoadingIndicator("Creating snapshot...", func() error {
 		for _, service := range AllServices {
 			if service.useServiceConvention {
 				executeCom := compose.Exec(
@@ -417,10 +373,10 @@ func (c Commands) CreateSnapshot(snapshotName string) {
 	HardCheck(err)
 }
 
-func (c Commands) RestoreSnapshot(snapshotName string) {
+func RestoreSnapshot(snapshotName string) {
 	InitializeServiceList()
 
-	err := termio.LoadingIndicator("Restorting snapshot...", func(output *os.File) error {
+	err := termio.LoadingIndicator("Restorting snapshot...", func() error {
 		for _, service := range AllServices {
 			if service.useServiceConvention {
 				executeCom := compose.Exec(
@@ -493,7 +449,7 @@ func CallService(
 func StartProviderService(providerId string) {
 	AddProvider(providerId)
 	GenerateComposeFile(true)
-	err := termio.LoadingIndicator("Starting provider services...", func(output *os.File) error {
+	err := termio.LoadingIndicator("Starting provider services...", func() error {
 		compose.Up(currentEnvironment, true).ExecuteToText()
 		return nil
 	})
@@ -652,7 +608,7 @@ func RegisterProvider(providerId string, domain string, port int) ProviderCreden
 }
 
 func StartCluster(compose DockerCompose, noRecreate bool) {
-	err := termio.LoadingIndicator("Starting virtual cluster...", func(output *os.File) error {
+	err := termio.LoadingIndicator("Starting virtual cluster...", func() error {
 		upCom := compose.Up(currentEnvironment, noRecreate)
 		upCom.SetStreamOutput()
 		upCom.ExecuteToText()
@@ -660,13 +616,13 @@ func StartCluster(compose DockerCompose, noRecreate bool) {
 	})
 	HardCheck(err)
 
-	err = termio.LoadingIndicator("Starting UCloud...", func(output *os.File) error {
+	err = termio.LoadingIndicator("Starting UCloud...", func() error {
 		StartService(ServiceByName("backend")).ExecuteToText()
 		return nil
 	})
 	HardCheck(err)
 
-	err = termio.LoadingIndicator("Waiting for UCloud to be ready...", func(output *os.File) error {
+	err = termio.LoadingIndicator("Waiting for UCloud to be ready...", func() error {
 		cmd := compose.Exec(currentEnvironment, "backend", []string{"curl", "http://localhost:8080"}, false)
 		cmd.SetAllowFailure()
 
@@ -685,7 +641,7 @@ func StartCluster(compose DockerCompose, noRecreate bool) {
 
 	allAddons := ListAddons()
 	for _, provider := range ListConfiguredProviders() {
-		err = termio.LoadingIndicator("Starting provider: "+ProviderFromName(provider).Title(), func(output *os.File) error {
+		err = termio.LoadingIndicator("Starting provider: "+ProviderFromName(provider).Title(), func() error {
 			StartService(ServiceByName(provider)).ExecuteToText()
 			return nil
 		})
@@ -699,7 +655,7 @@ func StartCluster(compose DockerCompose, noRecreate bool) {
 				return
 			}
 			for _, addon := range addons {
-				err = termio.LoadingIndicator("Starting addon: "+addon, func(output *os.File) error {
+				err = termio.LoadingIndicator("Starting addon: "+addon, func() error {
 					gs.StartAddon(addon)
 					return nil
 				})

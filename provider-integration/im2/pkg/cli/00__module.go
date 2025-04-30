@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	fnd "ucloud.dk/pkg/foundation"
 	"ucloud.dk/pkg/termio"
+	fnd "ucloud.dk/shared/pkg/foundation"
 )
 
 func IsListCommand(command string) bool {

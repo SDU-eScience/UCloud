@@ -15,13 +15,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	ws "github.com/gorilla/websocket"
-	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	gw "ucloud.dk/pkg/im/gateway"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var Jobs JobsService
@@ -41,12 +41,26 @@ type JobsService struct {
 	HandleBuiltInVnc         func(job *orc.Job, rank int, conn *ws.Conn)
 
 	PublicIPs PublicIPService
+	Ingresses IngressService
+	Licenses  LicenseService
 }
 
 type PublicIPService struct {
 	Create           func(ip *orc.PublicIp) error
 	Delete           func(ip *orc.PublicIp) error
 	RetrieveProducts func() []orc.PublicIpSupport
+}
+
+type LicenseService struct {
+	Create           func(license *orc.License) error
+	Delete           func(license *orc.License) error
+	RetrieveProducts func() []orc.LicenseSupport
+}
+
+type IngressService struct {
+	Create           func(ingress *orc.Ingress) error
+	Delete           func(ingress *orc.Ingress) error
+	RetrieveProducts func() []orc.IngressSupport
 }
 
 type ConfiguredWebSession struct {
@@ -176,6 +190,8 @@ func controllerJobs(mux *http.ServeMux) {
 	wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	jobContext := fmt.Sprintf("/ucloud/%v/jobs/", cfg.Provider.Id)
 	publicIpContext := fmt.Sprintf("/ucloud/%v/networkips/", cfg.Provider.Id)
+	licenseContext := fmt.Sprintf("/ucloud/%v/licenses/", cfg.Provider.Id)
+	ingressContext := fmt.Sprintf("/ucloud/%v/ingresses/", cfg.Provider.Id)
 
 	if RunsUserCode() {
 		creationUrl, _ := strings.CutSuffix(jobContext, "/")
@@ -215,6 +231,64 @@ func controllerJobs(mux *http.ServeMux) {
 				}
 			}),
 		)
+
+		type jobUpdateAclRequest struct {
+			Resource orc.Job                `json:"resource"`
+			Added    []orc.ResourceAclEntry `json:"added"`
+			Deleted  []orc.AclEntity        `json:"deleted"`
+		}
+
+		mux.HandleFunc(jobContext+"updateAcl", HttpUpdateHandler[fnd.BulkRequest[jobUpdateAclRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[jobUpdateAclRequest]) {
+				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+
+				for _, item := range request.Items {
+					job := item.Resource
+
+					for _, toDelete := range item.Deleted {
+						for i, entry := range job.Permissions.Others {
+							if entry.Entity == toDelete {
+								slices.Delete(job.Permissions.Others, i, i+1)
+							}
+						}
+					}
+
+					for _, toAdd := range item.Added {
+						found := false
+
+						for i := 0; i < len(job.Permissions.Others); i++ {
+							entry := &job.Permissions.Others[i]
+							if entry.Entity == toAdd.Entity {
+								for _, perm := range toAdd.Permissions {
+									entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
+								}
+								found = true
+								break
+							}
+						}
+
+						if !found {
+							job.Permissions.Others = append(job.Permissions.Others, orc.ResourceAclEntry{
+								Entity:      toAdd.Entity,
+								Permissions: toAdd.Permissions,
+							})
+						}
+					}
+
+					TrackNewJob(job)
+
+					resp.Responses = append(
+						resp.Responses,
+						util.Option[util.Empty]{
+							Present: true,
+						},
+					)
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		))
 
 		mux.HandleFunc(jobContext+"terminate", HttpUpdateHandler[fnd.BulkRequest[*orc.Job]](
 			0,
@@ -466,10 +540,14 @@ func controllerJobs(mux *http.ServeMux) {
 		mux.HandleFunc(
 			fmt.Sprintf("/ucloud/%v/websocket", cfg.Provider.Id),
 			func(writer http.ResponseWriter, request *http.Request) {
+				if ok := checkEnvoySecret(writer, request); !ok {
+					return
+				}
+
 				conn, err := wsUpgrader.Upgrade(writer, request, nil)
 				defer util.SilentCloseIfOk(conn, err)
 				if err != nil {
-					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
+					log.Info("Expected a websocket connection, but couldn't upgrade: %v", err)
 					return
 				}
 
@@ -506,7 +584,7 @@ func controllerJobs(mux *http.ServeMux) {
 					}
 
 					if messageType != ws.TextMessage {
-						log.Debug("Only handling text messages but got a %v", messageType)
+						log.Info("Only handling text messages but got a %v", messageType)
 						continue
 					}
 
@@ -530,6 +608,10 @@ func controllerJobs(mux *http.ServeMux) {
 							s, ok := shellSessions[req.SessionIdentifier]
 							session = s
 							shellSessionsMutex.Unlock()
+							if !ok || session == nil {
+								log.Info("Bad session")
+								break
+							}
 
 							session.InputEvents = make(chan ShellEvent)
 							session.EmitData = func(data []byte) {
@@ -562,9 +644,6 @@ func controllerJobs(mux *http.ServeMux) {
 								Payload:  json.RawMessage(`{"type":"initialize"}`),
 							})
 							connMutex.Unlock()
-							if !ok {
-								break
-							}
 						}
 						continue
 					} else {
@@ -615,8 +694,6 @@ func controllerJobs(mux *http.ServeMux) {
 					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
 					return
 				}
-
-				log.Info("We are now listening for logs (probably)")
 
 				connMutex := sync.Mutex{}
 				sendMessage := func(message any) error {
@@ -836,6 +913,329 @@ func controllerJobs(mux *http.ServeMux) {
 				}
 			},
 		))
+
+		type publicIpUpdateAclRequest struct {
+			Resource orc.PublicIp           `json:"resource"`
+			Added    []orc.ResourceAclEntry `json:"added"`
+			Deleted  []orc.AclEntity        `json:"deleted"`
+		}
+
+		mux.HandleFunc(publicIpContext+"updateAcl", HttpUpdateHandler[fnd.BulkRequest[publicIpUpdateAclRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[publicIpUpdateAclRequest]) {
+				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+
+				for _, item := range request.Items {
+					publicIp := item.Resource
+
+					for _, toDelete := range item.Deleted {
+						for i, entry := range publicIp.Permissions.Others {
+							if entry.Entity == toDelete {
+								slices.Delete(publicIp.Permissions.Others, i, i+1)
+							}
+						}
+					}
+
+					for _, toAdd := range item.Added {
+						found := false
+
+						for i := 0; i < len(publicIp.Permissions.Others); i++ {
+							entry := &publicIp.Permissions.Others[i]
+							if entry.Entity == toAdd.Entity {
+								for _, perm := range toAdd.Permissions {
+									entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
+								}
+								found = true
+								break
+							}
+						}
+
+						if !found {
+							publicIp.Permissions.Others = append(publicIp.Permissions.Others, orc.ResourceAclEntry{
+								Entity:      toAdd.Entity,
+								Permissions: toAdd.Permissions,
+							})
+						}
+					}
+
+					TrackNewPublicIp(publicIp)
+
+					resp.Responses = append(
+						resp.Responses,
+						util.Option[util.Empty]{
+							Present: true,
+						},
+					)
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		))
+
+		ingressCreation, _ := strings.CutSuffix(ingressContext, "/")
+		ingressCreateHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.Ingress]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.Ingress]) {
+				var errors []error
+				var providerIds []*fnd.FindByStringId
+
+				for _, item := range request.Items {
+					TrackLink(*item)
+					providerIds = append(providerIds, nil)
+
+					fn := Jobs.Ingresses.Create
+					if fn == nil {
+						errors = append(errors, util.HttpErr(http.StatusBadRequest, "Public link creation not supported"))
+					} else {
+						err := fn(item)
+						if err != nil {
+							errors = append(errors, err)
+						}
+					}
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[*fnd.FindByStringId]
+					response.Responses = providerIds
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		)
+
+		ingressDeleteHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.Ingress]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.Ingress]) {
+				var errors []error
+				var resp []util.Option[util.Empty]
+
+				for _, item := range request.Items {
+					fn := Jobs.Ingresses.Delete
+					if fn == nil {
+						errors = append(errors, util.HttpErr(http.StatusBadRequest, "Public link deletion not supported"))
+						resp = append(resp, util.Option[util.Empty]{Present: false})
+					} else {
+						err := fn(item)
+						if err != nil {
+							errors = append(errors, err)
+							resp = append(resp, util.Option[util.Empty]{Present: false})
+						} else {
+							resp = append(resp, util.Option[util.Empty]{Present: true})
+						}
+					}
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[util.Option[util.Empty]]
+					response.Responses = resp
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		)
+
+		mux.HandleFunc(ingressCreation, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				ingressCreateHandler(w, r)
+			} else if r.Method == http.MethodDelete {
+				ingressDeleteHandler(w, r)
+			} else {
+				sendResponseOrError(w, nil, util.HttpErr(http.StatusNotFound, "Not found"))
+			}
+		})
+
+		type ingressUpdateAclRequest struct {
+			Resource orc.Ingress            `json:"resource"`
+			Added    []orc.ResourceAclEntry `json:"added"`
+			Deleted  []orc.AclEntity        `json:"deleted"`
+		}
+
+		mux.HandleFunc(ingressContext+"updateAcl", HttpUpdateHandler[fnd.BulkRequest[ingressUpdateAclRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[ingressUpdateAclRequest]) {
+				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+
+				for _, item := range request.Items {
+					ingress := item.Resource
+
+					for _, toDelete := range item.Deleted {
+						for i, entry := range ingress.Permissions.Others {
+							if entry.Entity == toDelete {
+								slices.Delete(ingress.Permissions.Others, i, i+1)
+							}
+						}
+					}
+
+					for _, toAdd := range item.Added {
+						found := false
+
+						for i := 0; i < len(ingress.Permissions.Others); i++ {
+							entry := &ingress.Permissions.Others[i]
+							if entry.Entity == toAdd.Entity {
+								for _, perm := range toAdd.Permissions {
+									entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
+								}
+								found = true
+								break
+							}
+						}
+
+						if !found {
+							ingress.Permissions.Others = append(ingress.Permissions.Others, orc.ResourceAclEntry{
+								Entity:      toAdd.Entity,
+								Permissions: toAdd.Permissions,
+							})
+						}
+					}
+
+					TrackLink(ingress)
+
+					resp.Responses = append(
+						resp.Responses,
+						util.Option[util.Empty]{
+							Present: true,
+						},
+					)
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		))
+
+		licenseActivation, _ := strings.CutSuffix(licenseContext, "/")
+		licenseActivateHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.License]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.License]) {
+				var errors []error
+				var providerIds []*fnd.FindByStringId
+
+				for _, item := range request.Items {
+					TrackLicense(*item)
+					providerIds = append(providerIds, nil)
+
+					fn := Jobs.Licenses.Create
+					if fn == nil {
+						errors = append(errors, util.HttpErr(http.StatusBadRequest, "License activation not supported"))
+					} else {
+						err := fn(item)
+						if err != nil {
+							errors = append(errors, err)
+						}
+					}
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[*fnd.FindByStringId]
+					response.Responses = providerIds
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		)
+
+		licenseDeleteHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.License]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.License]) {
+				var errors []error
+				var resp []util.Option[util.Empty]
+
+				for _, item := range request.Items {
+					fn := Jobs.Licenses.Delete
+					if fn == nil {
+						errors = append(errors, util.HttpErr(http.StatusBadRequest, "License deletion not supported"))
+						resp = append(resp, util.Option[util.Empty]{Present: false})
+					} else {
+						err := fn(item)
+						if err != nil {
+							errors = append(errors, err)
+							resp = append(resp, util.Option[util.Empty]{Present: false})
+						} else {
+							resp = append(resp, util.Option[util.Empty]{Present: true})
+						}
+					}
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[util.Option[util.Empty]]
+					response.Responses = resp
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		)
+
+		mux.HandleFunc(licenseActivation, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				licenseActivateHandler(w, r)
+			} else if r.Method == http.MethodDelete {
+				licenseDeleteHandler(w, r)
+			} else {
+				sendResponseOrError(w, nil, util.HttpErr(http.StatusNotFound, "Not found"))
+			}
+		})
+
+		type licenseUpdateAclRequest struct {
+			Resource orc.License            `json:"resource"`
+			Added    []orc.ResourceAclEntry `json:"added"`
+			Deleted  []orc.AclEntity        `json:"deleted"`
+		}
+
+		mux.HandleFunc(licenseContext+"updateAcl", HttpUpdateHandler[fnd.BulkRequest[licenseUpdateAclRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[licenseUpdateAclRequest]) {
+				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+
+				for _, item := range request.Items {
+					license := item.Resource
+
+					for _, toDelete := range item.Deleted {
+						for i, entry := range license.Permissions.Others {
+							if entry.Entity == toDelete {
+								slices.Delete(license.Permissions.Others, i, i+1)
+							}
+						}
+					}
+
+					for _, toAdd := range item.Added {
+						found := false
+
+						for i := 0; i < len(license.Permissions.Others); i++ {
+							entry := &license.Permissions.Others[i]
+							if entry.Entity == toAdd.Entity {
+								for _, perm := range toAdd.Permissions {
+									entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
+								}
+								found = true
+								break
+							}
+						}
+
+						if !found {
+							license.Permissions.Others = append(license.Permissions.Others, orc.ResourceAclEntry{
+								Entity:      toAdd.Entity,
+								Permissions: toAdd.Permissions,
+							})
+						}
+					}
+
+					TrackLicense(license)
+
+					resp.Responses = append(
+						resp.Responses,
+						util.Option[util.Empty]{
+							Present: true,
+						},
+					)
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		))
+
 	}
 
 	if RunsServerCode() {
@@ -905,9 +1305,53 @@ func controllerJobs(mux *http.ServeMux) {
 			}),
 		)
 
+		mux.HandleFunc(ingressContext+"retrieveProducts", HttpRetrieveHandler[util.Empty](
+			0,
+			func(w http.ResponseWriter, r *http.Request, _ util.Empty) {
+				var result []orc.IngressSupport
+				fn := Jobs.Ingresses.RetrieveProducts
+				if fn != nil {
+					result = fn()
+				}
+
+				log.Info("retrieve ingress products called. Returning %s", result)
+
+				sendResponseOrError(
+					w,
+					fnd.BulkResponse[orc.IngressSupport]{
+						Responses: result,
+					},
+					nil,
+				)
+			}),
+		)
+
+		mux.HandleFunc(licenseContext+"retrieveProducts", HttpRetrieveHandler[util.Empty](
+			0,
+			func(w http.ResponseWriter, r *http.Request, _ util.Empty) {
+				var result []orc.LicenseSupport
+				fn := Jobs.Licenses.RetrieveProducts
+				if fn != nil {
+					result = fn()
+				}
+
+				sendResponseOrError(
+					w,
+					fnd.BulkResponse[orc.LicenseSupport]{
+						Responses: result,
+					},
+					nil,
+				)
+			}),
+		)
+
 		mux.HandleFunc(
 			fmt.Sprintf("/ucloud/%v/vnc", cfg.Provider.Id),
 			func(writer http.ResponseWriter, request *http.Request) {
+				if ok := checkEnvoySecret(writer, request); !ok {
+					return
+				}
+
 				var idAndRank jobIdAndRank
 				token := request.URL.Query().Get("token")
 				webSessionsMutex.Lock()

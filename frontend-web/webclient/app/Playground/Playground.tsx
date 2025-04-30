@@ -40,7 +40,7 @@ const Playground: React.FunctionComponent = () => {
                 id: "test2",
                 type: JobViz.WidgetType.WidgetTypeLabel,
                 location: {
-                    icon: JobViz.WidgetIcon.Cpu, // Note(Jonas): Added to stop complaints from compiler
+                    icon: JobViz.WidgetIcon.Chat,
                     window: WidgetWindow.WidgetWindowMain,
                     tab: "Tab",
                 },
@@ -63,7 +63,7 @@ const Playground: React.FunctionComponent = () => {
                 id: "root",
                 type: JobViz.WidgetType.WidgetTypeContainer,
                 location: {
-                    icon: JobViz.WidgetIcon.Cpu, // Note(Jonas): Added to stop complaints from compiler
+                    icon: JobViz.WidgetIcon.Chat,
                     window: WidgetWindow.WidgetWindowMain,
                     tab: "Tab",
                 },
@@ -72,12 +72,12 @@ const Playground: React.FunctionComponent = () => {
             sendToProcessor(stream.current, widget);
 
             const container: JobViz.WidgetContainer = {
+                gap: 0,
                 foreground: {shade: JobViz.WidgetColorShade.WidgetColorPrimary, intensity: WidgetColorIntensity.WidgetColorDark},
                 background: {shade: JobViz.WidgetColorShade.WidgetColorNone, intensity: WidgetColorIntensity.WidgetColorMain},
                 width: {minimum: 0, maximum: 0},
                 height: {minimum: 0, maximum: 0},
                 grow: 0,
-                gap: 0, // Note(Jonas): Added to stop complaints from compiler
                 direction: JobViz.WidgetDirection.WidgetDirectionColumn,
                 children: [{id: {id: "test"}}]
             };
@@ -95,7 +95,7 @@ const Playground: React.FunctionComponent = () => {
                 id: "test",
                 type: JobViz.WidgetType.WidgetTypeLabel,
                 location: {
-                    icon: JobViz.WidgetIcon.Cpu, // Note(Jonas): Added to stop complaints from compiler
+                    icon: JobViz.WidgetIcon.Chat,
                     window: WidgetWindow.WidgetWindowMain,
                     tab: "Tab",
                 },
@@ -119,7 +119,7 @@ const Playground: React.FunctionComponent = () => {
                 id: "pbar",
                 type: JobViz.WidgetType.WidgetTypeProgressBar,
                 location: {
-                    icon: JobViz.WidgetIcon.Cpu, // Note(Jonas): Added to stop complaints from compiler
+                    icon: JobViz.WidgetIcon.Chat,
                     window: WidgetWindow.WidgetWindowMain,
                     tab: "Progress",
                 },
@@ -147,7 +147,7 @@ const Playground: React.FunctionComponent = () => {
                     id: "pbar",
                     type: JobViz.WidgetType.WidgetTypeProgressBar,
                     location: {
-                        icon: JobViz.WidgetIcon.Cpu, // Note(Jonas): Added to stop complaints from compiler
+                        icon: JobViz.WidgetIcon.Chat,
                         window: WidgetWindow.WidgetWindowMain,
                         tab: "Progress",
                     },

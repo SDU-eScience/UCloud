@@ -2,20 +2,24 @@ package containers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"strconv"
-	"strings"
-	"time"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func StartScheduledJob(job *orc.Job, rank int, node string) error {
@@ -65,6 +69,42 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	application := &job.Status.ResolvedApplication.Invocation
 	tool := &job.Status.ResolvedApplication.Invocation.Tool.Tool
+
+	// Sensitive project validation
+	// -----------------------------------------------------------------------------------------------------------------
+	if shared.IsSensitiveProject(job.Owner.Project) {
+		rejectionMessage := util.OptNone[string]()
+		for _, resc := range job.Specification.Resources {
+			if resc.Type == orc.AppParameterValueTypeIngress {
+				rejectionMessage.Set("Public links cannot be used by this project")
+				break
+			}
+
+			if resc.Type == orc.AppParameterValueTypeNetwork {
+				rejectionMessage.Set("Public IPs cannot be used by this project")
+				break
+			}
+
+			if resc.Type == orc.AppParameterValueTypePeer {
+				peerJob, ok := ctrl.RetrieveJob(resc.JobId)
+				if !ok {
+					rejectionMessage.Set("One of your connected jobs cannot be used in this project")
+					break
+				}
+
+				if job.Owner.Project != peerJob.Owner.Project {
+					rejectionMessage.Set("One of your connected jobs cannot be used in this project")
+					break
+				}
+			}
+
+			// NOTE(Dan): Files are checked by the mounts code
+		}
+
+		if rejectionMessage.Present {
+			return util.ServerHttpError("%s", rejectionMessage)
+		}
+	}
 
 	// Setting up network policy and service
 	// -----------------------------------------------------------------------------------------------------------------
@@ -116,6 +156,17 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		}
 	}
 
+	// JobParameters.json
+	// -----------------------------------------------------------------------------------------------------------------
+	if rank == 0 && job.Status.JobParametersJson.SiteVersion != 0 {
+		jsonData, _ := json.Marshal(job.Status.JobParametersJson)
+		fd, ok := filesystem.OpenFile(filepath.Join(jobFolder, "JobParameters.json"), os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0660)
+		if ok {
+			_, _ = fd.Write(jsonData)
+			_ = fd.Close()
+		}
+	}
+
 	// Setting up the basics
 	// -----------------------------------------------------------------------------------------------------------------
 	pod := &core.Pod{
@@ -161,12 +212,21 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	cpuMillis := int64(job.Status.ResolvedProduct.Cpu * 1000)
 	memoryMegabytes := int64(job.Status.ResolvedProduct.MemoryInGigs * 1000)
 	gpus := int64(job.Status.ResolvedProduct.Gpu * 1000)
-	// TODO reservations and dev scheduling
 
 	addResource(core.ResourceCPU, cpuMillis, resource.Milli)
 	addResource(core.ResourceMemory, memoryMegabytes, resource.Mega)
+
 	if gpus > 0 {
-		addResource("nvidia.com/gpu", gpus, resource.Milli)
+		gpuType := "nvidia.com/gpu"
+		machineCategory, ok := shared.ServiceConfig.Compute.Machines[job.Specification.Product.Category]
+		if ok {
+			nodeCat, ok := machineCategory.Groups[job.Specification.Product.Category]
+			if ok {
+				gpuType = nodeCat.GpuResourceType
+			}
+		}
+
+		addResource(core.ResourceName(gpuType), gpus, 0)
 	}
 
 	// TODO We used to set a nodeselector but this appears redundant since we are already setting the node.
@@ -193,6 +253,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		})
 	}
 
+	spec.Hostname = fmt.Sprintf("j-%s-job-%d", job.Id, rank)
 	spec.Subdomain = fmt.Sprintf("j-%v", job.Id)
 
 	// Working directory
@@ -203,7 +264,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	// Mounts
 	// -----------------------------------------------------------------------------------------------------------------
-	internalToPod := prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
+	internalToPod, ok := prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
+	if !ok {
+		return util.ServerHttpError("Unable to use these folders together. One or more are sensitive.")
+	}
 
 	// Modules
 	// -----------------------------------------------------------------------------------------------------------------
@@ -288,7 +352,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// -----------------------------------------------------------------------------------------------------------------
 	spec.InitContainers = append(spec.InitContainers, core.Container{
 		Name:  "ucviz",
-		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.3.1",
+		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.3.10",
 	})
 
 	ucvizContainer := &spec.InitContainers[len(spec.InitContainers)-1]

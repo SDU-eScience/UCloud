@@ -5,10 +5,10 @@ import (
 	"slices"
 	"strings"
 	"time"
-	fnd "ucloud.dk/pkg/foundation"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 )
 
 type SchedulerFlag int

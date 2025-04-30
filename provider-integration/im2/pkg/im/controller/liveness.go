@@ -6,10 +6,10 @@ import (
 	"os"
 	"sync"
 	"time"
-	fnd "ucloud.dk/pkg/foundation"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var usersToTerminateMutex = sync.Mutex{}

@@ -3,16 +3,18 @@ package containers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	core "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/remotecommand"
 	"sync/atomic"
 	"time"
-	fnd "ucloud.dk/pkg/foundation"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/pkg/im/services/k8s/shared"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type shellResizeQueue struct {
@@ -157,7 +159,14 @@ func handleShellNoRetry(session *ctrl.ShellSession, cols int, rows int, isNewSes
 
 			if job.Status.State.IsFinal() {
 				log.Info("Job is no longer available!")
+				session.EmitData(clearScreen)
 				session.EmitData([]byte("Job is no longer available - Internal error?"))
+				return false
+			}
+
+			if reason := shared.IsJobLocked(job); reason.Present {
+				session.EmitData(clearScreen)
+				session.EmitData([]byte(fmt.Sprintf("Unable to open a new terminal: %s.\r\n", reason.Value.Reason)))
 				return false
 			}
 

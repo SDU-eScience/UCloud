@@ -6,9 +6,9 @@ import (
 	"os"
 	"strconv"
 	"ucloud.dk/gonja/v2/exec"
-	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/termio"
-	"ucloud.dk/pkg/util"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func HandleScriptGen() {

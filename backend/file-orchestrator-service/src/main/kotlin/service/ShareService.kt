@@ -110,7 +110,7 @@ class ShareService(
             session.sendPreparedStatement(
                 {
                     request.split { into("paths") { it.id.normalize() } }
-                    request.split { into("available_at") { "/${it.id.normalize().split('/')[1]}" }}
+                    request.split { into("available_at") { "/${it.id.normalize().split('/')[1]}" } }
                 },
                 """
                     with
@@ -322,9 +322,11 @@ class ShareService(
             )
         } catch (ex: GenericDatabaseException) {
             if (ex.errorCode == "23505") {
-                throw RPCException.fromStatusCode(HttpStatusCode.Conflict, "File has already been shared with the user. Check shares page.")
-            }
-            else throw ex
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.Conflict,
+                    "File has already been shared with the user. Check shares page."
+                )
+            } else throw ex
         }
 
         if (shouldSendNotification) {
@@ -404,8 +406,10 @@ class ShareService(
         request: BulkRequest<FindByStringId>
     ) {
         db.withSession { session ->
-            val shares = retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.READ),
-                ctx = session)
+            val shares = retrieveBulk(
+                actorAndProject, request.items.map { it.id }, listOf(Permission.READ),
+                ctx = session
+            )
 
             if (shares.any { it.specification.sharedWith != actorAndProject.actor.safeUsername() }) {
                 throw RPCException("You are not allowed to approve your own share", HttpStatusCode.Forbidden)
@@ -457,8 +461,10 @@ class ShareService(
         request: BulkRequest<FindByStringId>
     ) {
         db.withSession { session ->
-            val shares = retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.READ),
-                ctx = session)
+            val shares = retrieveBulk(
+                actorAndProject, request.items.map { it.id }, listOf(Permission.READ),
+                ctx = session
+            )
 
             if (shares.any { it.specification.sharedWith != actorAndProject.actor.safeUsername() }) {
                 throw RPCException("You are not allowed to reject your own share", HttpStatusCode.Forbidden)
@@ -563,39 +569,38 @@ class ShareService(
                             select unnest(:ids::bigint[]) id,
                                    unnest(:should_update_permissions::boolean[]) should_update_permissions,
                                    regexp_split_to_array(unnest(:permissions::text[]), ',') new_permissions
-                        ),
-                        updated_shares as (
-                            update file_orchestrator.shares s
-                            set permissions = new_permissions
-                            from requests req
-                            where s.resource = req.id
-                            returning resource, shared_with, available_at
-                        ),
-                        deleted_entries as (
-                            delete from provider.resource_acl_entry entry
-                            using
-                                requests req join
-                                updated_shares share on req.id = share.resource
-                            where
-                                share.available_at is not null and
-                                entry.username = share.shared_with and
-                                entry.resource_id = (regexp_split_to_array(share.available_at, '/'))[2]::bigint and
-                                not (entry.permission = some(req.new_permissions))
                         )
-                    insert into provider.resource_acl_entry (group_id, username, permission, resource_id) 
-                    select 
-                        null, 
-                        share.shared_with, 
-                        unnest(req.new_permissions),
-                        (regexp_split_to_array(share.available_at, '/'))[2]::bigint
-                    from
-                        requests req join
-                        updated_shares share on req.id = share.resource
-                    where
-                        share.available_at is not null and req.should_update_permissions
-                    on conflict do nothing
+                    update file_orchestrator.shares s
+                    set permissions = new_permissions
+                    from requests req
+                    where s.resource = req.id
                 """
             )
+
+            val toUpdate = sharesById.values.mapNotNull { share ->
+                val availableAt = share.status.shareAvailableAt
+                if (availableAt == null) return@mapNotNull null
+                if (share.status.state != Share.State.APPROVED) return@mapNotNull null
+                val driveId = availableAt.components().getOrNull(0) ?: return@mapNotNull null
+                val reqItem = request.items.find { it.id == share.id } ?: return@mapNotNull null
+
+                val entity = AclEntity.User(share.specification.sharedWith)
+
+                UpdatedAcl(
+                    driveId,
+                    listOf(ResourceAclEntry(entity, reqItem.permissions.filter { it.canBeGranted })),
+                    listOf(entity),
+                )
+            }
+
+            if (toUpdate.isNotEmpty()) {
+                collections.updateAclWithSession(
+                    ActorAndProject.System,
+                    BulkRequest(toUpdate),
+                    session,
+                    bypassSupportCheck = true,
+                )
+            }
         }
     }
 
@@ -668,7 +673,11 @@ class ShareService(
         )
     }
 
-    override suspend fun browseQuery(actorAndProject: ActorAndProject, flags: ShareFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(
+        actorAndProject: ActorAndProject,
+        flags: ShareFlags?,
+        query: String?
+    ): PartialQuery {
         return PartialQuery(
             {
                 setParameter("filter_path", flags?.filterOriginalPath?.normalize())
@@ -702,7 +711,11 @@ class ShareService(
         )
     }
 
-    suspend fun createLink(actorAndProject: ActorAndProject, request: ShareLinksCreateRequest, ctx: DBContext = db): ShareLink {
+    suspend fun createLink(
+        actorAndProject: ActorAndProject,
+        request: ShareLinksCreateRequest,
+        ctx: DBContext = db
+    ): ShareLink {
         val token = UUID.randomUUID().toString()
 
         if (actorAndProject.project != null) {
@@ -752,7 +765,7 @@ class ShareService(
                         returning token, expires, permissions
                 """
             ).rows.firstNotNullOf { row ->
-                val permissions =  row.getAs<List<String>>("permissions")
+                val permissions = row.getAs<List<String>>("permissions")
 
                 ShareLink(
                     row.getAs<UUID>("token").toString(),
@@ -763,7 +776,11 @@ class ShareService(
         }
     }
 
-    suspend fun browseLinks(actorAndProject: ActorAndProject, request: ShareLinksBrowseRequest, ctx: DBContext = db): PageV2<ShareLink> {
+    suspend fun browseLinks(
+        actorAndProject: ActorAndProject,
+        request: ShareLinksBrowseRequest,
+        ctx: DBContext = db
+    ): PageV2<ShareLink> {
         val result = ctx.withSession { session ->
             val collectionId = extractPathMetadata(request.path).collection
             val collection = collections.retrieve(actorAndProject, collectionId, null, ctx = ctx)
@@ -831,8 +848,7 @@ class ShareService(
                     sharedBy,
                     sharePath
                 )
-            } ?:
-                throw RPCException("Link expired", HttpStatusCode.NotFound)
+            } ?: throw RPCException("Link expired", HttpStatusCode.NotFound)
 
 
         }
@@ -887,8 +903,9 @@ class ShareService(
                 {
                     setParameter("file_path", request.path)
                     setParameter("token", request.token)
-                    setParameter("permissions", "{" +
-                        request.permissions.filter { it.canBeGranted }.joinToString(",") { it.name } + "}")
+                    setParameter(
+                        "permissions", "{" +
+                            request.permissions.filter { it.canBeGranted }.joinToString(",") { it.name } + "}")
                 },
                 """
                     update file_orchestrator.shares_links
@@ -910,7 +927,7 @@ class ShareService(
         actorAndProject: ActorAndProject,
         request: ShareLinksAcceptRequest,
         ctx: DBContext = db
-    ) : ShareLinksAcceptResponse {
+    ): ShareLinksAcceptResponse {
         data class ShareLinkInfo(
             val sharedBy: String,
             val permissions: List<Permission>,
@@ -990,9 +1007,11 @@ class ShareService(
 
     suspend fun cleanUpInviteLinks(ctx: DBContext = db) {
         ctx.withSession { session ->
-            val cleaned = session.sendPreparedStatement("""
+            val cleaned = session.sendPreparedStatement(
+                """
                 delete from file_orchestrator.shares_links where expires < now()
-            """).rowsAffected
+            """
+            ).rowsAffected
 
             log.debug("Cleaned up $cleaned expired shares invite links")
         }

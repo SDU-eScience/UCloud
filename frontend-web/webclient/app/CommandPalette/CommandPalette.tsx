@@ -225,7 +225,7 @@ function CommandScopeEntry({onClick, scope, title, activeCommand}: {
 }): React.ReactNode {
     return <>
         {title ? <CommandScopeTitle title={title} count={scope.length} /> : null}
-        {scope.map(c => <EntryWrapper onClick={onClick} key={c.title} command={c} active={c === activeCommand} />)}
+        {scope.map((c, idx) => <EntryWrapper onClick={onClick} key={c.title + c.description} command={c} active={c === activeCommand} />)}
     </>
 }
 

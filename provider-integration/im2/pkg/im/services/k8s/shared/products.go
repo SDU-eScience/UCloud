@@ -3,20 +3,25 @@ package shared
 import (
 	"fmt"
 	"math"
-	"ucloud.dk/pkg/apm"
+	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/shared/pkg/apm"
+
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 )
 
-var MachineSupport []orc.JobSupport
-var IpSupport []orc.PublicIpSupport
+var (
+	MachineSupport []orc.JobSupport
+	IpSupport      []orc.PublicIpSupport
+	LinkSupport    []orc.IngressSupport
+)
 
 var (
 	Machines        []apm.ProductV2
 	StorageProducts []apm.ProductV2
-	LinkProducts    []apm.ProductV2
 	IpProducts      []apm.ProductV2
+	LinkProducts    []apm.ProductV2
 	LicenseProducts []apm.ProductV2
 )
 
@@ -264,6 +269,46 @@ func initProducts() {
 			},
 		}
 	}
+
+	if ServiceConfig.Compute.PublicLinks.Enabled {
+		ingressName := "public-links"
+		LinkProducts = []apm.ProductV2{
+			{
+				Type: apm.ProductTypeCIngress,
+				Category: apm.ProductCategory{
+					Name:        ingressName,
+					Provider:    cfg.Provider.Id,
+					ProductType: apm.ProductTypeIngress,
+					AccountingUnit: apm.AccountingUnit{
+						Name:                   "link",
+						NamePlural:             "links",
+						FloatingPoint:          false,
+						DisplayFrequencySuffix: false,
+					},
+					AccountingFrequency: apm.AccountingFrequencyOnce,
+					FreeToUse:           true,
+				},
+				Name:        ingressName,
+				Description: "A public link",
+				ProductType: apm.ProductTypeIngress,
+				Price:       1,
+			},
+		}
+
+		LinkSupport = []orc.IngressSupport{
+			{
+				Prefix: cfg.Services.Kubernetes().Compute.PublicLinks.Prefix,
+				Suffix: cfg.Services.Kubernetes().Compute.PublicLinks.Suffix,
+				Product: apm.ProductReference{
+					Id:       ingressName,
+					Category: ingressName,
+					Provider: cfg.Provider.Id,
+				},
+			},
+		}
+	}
+
+	LicenseProducts = ctrl.FetchLicenseProducts()
 }
 
 func pickResource(resource cfg.MachineResourceType, machineConfig cfg.K8sMachineConfiguration) int {

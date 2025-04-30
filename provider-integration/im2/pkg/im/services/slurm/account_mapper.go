@@ -3,18 +3,18 @@ package slurm
 import (
 	"fmt"
 	"net/http"
-	"os/user"
 	"regexp"
 	"strconv"
 	"time"
-	"ucloud.dk/pkg/apm"
-	db "ucloud.dk/pkg/database"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	slurmcli "ucloud.dk/pkg/im/external/slurm"
+	"ucloud.dk/pkg/im/external/user"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/apm"
+	db "ucloud.dk/shared/pkg/database"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func InitDefaultAccountMapper() AccountMapperService {

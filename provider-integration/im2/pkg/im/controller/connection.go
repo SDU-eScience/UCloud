@@ -12,15 +12,15 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"ucloud.dk/pkg/apm"
-	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im/ipc"
+	"ucloud.dk/shared/pkg/apm"
+	db "ucloud.dk/shared/pkg/database"
 
-	"ucloud.dk/pkg/client"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/gateway"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/client"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type Manifest struct {
@@ -176,27 +176,47 @@ func RegisterConnectionCompleteEx(username string, uid uint32, notifyUCloud bool
 	return err
 }
 
-func RemoveConnection(uid uint32, notifyUCloud bool) error {
+type RemoveConnectionFlag int
+
+const (
+	RemoveConnectionNotify RemoveConnectionFlag = 1 << iota
+	RemoveConnectionTrulyRemove
+)
+
+func RemoveConnection(uid uint32, flags RemoveConnectionFlag) error {
 	ucloud, ok, _ := MapLocalToUCloud(uid)
 	if !ok {
 		return fmt.Errorf("unknown user supplied: %v", uid)
 	}
 
 	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`
-				update connections
-				set expires_at = now()
-				where uid = :uid
-		    `,
-			db.Params{
-				"uid": uid,
-			},
-		)
+		if flags&RemoveConnectionTrulyRemove == 0 {
+			db.Exec(
+				tx,
+				`
+					update connections
+					set expires_at = now()
+					where uid = :uid
+				`,
+				db.Params{
+					"uid": uid,
+				},
+			)
+		} else {
+			db.Exec(
+				tx,
+				`
+					delete from connections
+					where uid = :uid
+				`,
+				db.Params{
+					"uid": uid,
+				},
+			)
+		}
 	})
 
-	if notifyUCloud {
+	if flags&RemoveConnectionNotify != 0 {
 		type Req struct {
 			Username string `json:"username"`
 		}
@@ -450,7 +470,7 @@ func controllerConnection(mux *http.ServeMux) {
 					}
 				}
 
-				err := RemoveConnection(local, false)
+				err := RemoveConnection(local, 0)
 				sendResponseOrError(w, util.EmptyValue, err)
 			}),
 		)

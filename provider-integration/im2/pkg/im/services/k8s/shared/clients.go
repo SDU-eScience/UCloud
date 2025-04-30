@@ -6,7 +6,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	kvclient "kubevirt.io/client-go/kubecli"
 	"os"
-	"ucloud.dk/pkg/log"
+	"ucloud.dk/shared/pkg/log"
 )
 
 var K8sClient *kubernetes.Clientset

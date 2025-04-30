@@ -1,0 +1,21 @@
+UCloud job updates
+
+{{ bodyStart }}
+
+<p>Dear {{ recipient }},</p>
+
+<p>
+    Some of your jobs on UCloud has changed state:
+</p>
+
+<ul>
+    {% for event in events %}
+        <li>
+            <a href="https://cloud.sdu.dk/app/jobs/properties/{{event.jobId}}">
+                {{event.jobName}}
+            </a>: {{ event.appName }} {{ event.change }}
+        </li>
+    {% endfor %}
+</ul>
+
+{{ emailOptOut | safe }}

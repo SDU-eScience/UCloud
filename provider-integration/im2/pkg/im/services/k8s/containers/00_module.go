@@ -4,26 +4,27 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/sys/unix"
-	core "k8s.io/api/core/v1"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
 	"time"
-	fnd "ucloud.dk/pkg/foundation"
+
+	"golang.org/x/sys/unix"
+	core "k8s.io/api/core/v1"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var K8sClient *kubernetes.Clientset
@@ -271,7 +272,7 @@ func terminate(request ctrl.JobTerminateRequest) error {
 	// -----------------------------------------------------------------------------------------------------------------
 	internalJobFolder, _, err := FindJobFolder(request.Job)
 	if err == nil {
-		mounts := calculateMounts(request.Job, internalJobFolder)
+		mounts, _ := calculateMounts(request.Job, internalJobFolder)
 		if len(mounts.Folders) > 0 {
 			jobFolder, ok := filesystem.OpenFile(internalJobFolder, os.O_RDONLY, 0)
 			if ok {
@@ -390,9 +391,38 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.Co
 }
 
 func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) ctrl.ConfiguredWebIngress {
+	for _, resource := range job.Specification.Resources {
+		if resource.Type == orc.AppParameterValueTypeIngress {
+			ingress := ctrl.RetrieveIngress(resource.Id)
+
+			return ctrl.ConfiguredWebIngress{
+				IsPublic:     true,
+				TargetDomain: ingress.Specification.Domain,
+			}
+		}
+	}
+
 	return ctrl.ConfiguredWebIngress{
 		IsPublic:     false,
 		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + "-" + fmt.Sprint(rank) + suffix.Value + ServiceConfig.Compute.Web.Suffix,
+	}
+}
+
+func extend(request ctrl.JobExtendRequest) error {
+	// NOTE(Dan): Scheduler is automatically notified by the shared monitoring loop since it will forward the time
+	// allocation from the job.
+	alloc := request.Job.Specification.TimeAllocation
+	if alloc.Present {
+		return ctrl.TrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
+			{
+				Id: request.Job.Id,
+				Update: orc.JobUpdate{
+					NewTimeAllocation: util.OptValue(alloc.Value.ToMillis() + request.RequestedTime.ToMillis()),
+				},
+			},
+		})
+	} else {
+		return nil
 	}
 }
 

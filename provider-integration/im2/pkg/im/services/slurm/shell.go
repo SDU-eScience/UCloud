@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func handleFolderShell(session *ctrl.ShellSession, cols, rows int) {
@@ -26,7 +26,6 @@ func handleFolderShell(session *ctrl.ShellSession, cols, rows int) {
 
 	masterFd, pid, err := CreateAndForkPty(command, nil, workDir)
 	if err != nil {
-		fmt.Println("Error:", err)
 		return
 	}
 
@@ -111,7 +110,6 @@ func handleJobShell(session *ctrl.ShellSession, cols, rows int) {
 			count, err := masterFd.Read(readBuffer)
 			if err != nil {
 				session.Alive = false
-				log.Info("Error while reading from master: %v", err)
 				break
 			}
 
@@ -129,7 +127,6 @@ func handleJobShell(session *ctrl.ShellSession, cols, rows int) {
 				_, err = masterFd.Write([]byte(event.Data))
 				if err != nil {
 					session.Alive = false
-					log.Info("Error while writing to master: %v", err)
 					break
 				}
 

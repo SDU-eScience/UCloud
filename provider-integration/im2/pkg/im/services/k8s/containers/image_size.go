@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var cache = lru.NewLRU[string, uint64](4096, nil, 30*time.Minute)

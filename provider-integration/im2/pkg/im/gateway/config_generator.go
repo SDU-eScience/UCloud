@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"strings"
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 
 	cluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"

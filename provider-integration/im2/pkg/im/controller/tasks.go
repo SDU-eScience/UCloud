@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	cfg "ucloud.dk/pkg/im/config"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var Tasks TaskService

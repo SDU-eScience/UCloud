@@ -12,7 +12,7 @@ import (
 	"time"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/pkg/log"
+	"ucloud.dk/shared/pkg/log"
 )
 
 func InitIpc() {

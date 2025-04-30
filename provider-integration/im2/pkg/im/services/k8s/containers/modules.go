@@ -5,8 +5,8 @@ import (
 	core "k8s.io/api/core/v1"
 	"path/filepath"
 	cfg "ucloud.dk/pkg/im/config"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func prepareModules(job *orc.Job, pod *core.Pod, userContainer *core.Container) {

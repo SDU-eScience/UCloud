@@ -2,13 +2,13 @@ package idfreeipa
 
 import (
 	"fmt"
-	"os/user"
 	"strconv"
-	fnd "ucloud.dk/pkg/foundation"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/external/freeipa"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/pkg/im/external/user"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {

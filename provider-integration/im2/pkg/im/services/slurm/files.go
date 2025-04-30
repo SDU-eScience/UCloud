@@ -10,25 +10,25 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"os/user"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
+	"ucloud.dk/pkg/im/external/user"
 
 	"golang.org/x/sys/unix"
-	"ucloud.dk/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/controller/upload"
+	"ucloud.dk/shared/pkg/apm"
 
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
-	fnd "ucloud.dk/pkg/foundation"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var browseCache *lru.LRU[string, []cachedDirEntry]
@@ -342,9 +342,9 @@ func compareFileByModifiedAt(a, b cachedDirEntry) int {
 }
 
 var (
-	cachedUser, _ = user.Current()
-	cachedGroups  = (func() []string {
-		if cachedUser == nil {
+	cachedUser, err = user.Current()
+	cachedGroups    = (func() []string {
+		if err != nil {
 			return nil
 		} else {
 			groupIds, _ := cachedUser.GroupIds()
@@ -361,8 +361,8 @@ func probablyHasPermissionToRead(stat os.FileInfo) bool {
 		return true
 	}
 
-	if os.Getuid() == int(sys.Uid) {
-		return mode&0400 != 0
+	if os.Getuid() == int(sys.Uid) && mode&0400 != 0 {
+		return true
 	}
 
 	if cachedGroups != nil {
@@ -384,8 +384,8 @@ func probablyHasPermissionToWrite(stat os.FileInfo) bool {
 		return true
 	}
 
-	if os.Getuid() == int(sys.Uid) {
-		return mode&0200 != 0
+	if os.Getuid() == int(sys.Uid) && mode&0200 != 0 {
+		return true
 	}
 
 	if cachedGroups != nil {

@@ -1,11 +1,11 @@
 package migrations
 
 import (
-	db "ucloud.dk/pkg/database"
+	db "ucloud.dk/shared/pkg/database"
 )
 
-func apmEventsV1() migrationScript {
-	return migrationScript{
+func apmEventsV1() db.MigrationScript {
+	return db.MigrationScript{
 		Id: "apmEventsV1",
 		Execute: func(tx *db.Transaction) {
 			db.Exec(
@@ -50,8 +50,8 @@ func apmEventsV1() migrationScript {
 	}
 }
 
-func apmEventsV2() migrationScript {
-	return migrationScript{
+func apmEventsV2() db.MigrationScript {
+	return db.MigrationScript{
 		Id: "apmEventsV2",
 		Execute: func(tx *db.Transaction) {
 			db.Exec(

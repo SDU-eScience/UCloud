@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"os"
+
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/containers"
 )
@@ -24,5 +25,8 @@ func HandleCli(command string) {
 		fallthrough
 	case "ips":
 		ctrl.IpPoolCliStub(os.Args[2:])
+	case "license":
+		ctrl.LicenseCli(os.Args[2:])
 	}
+
 }

@@ -2,7 +2,6 @@ package launcher
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"slices"
@@ -20,7 +19,6 @@ var blacklistedEnvNames = []string{
 
 var localEnvironment LocalFile
 var currentEnvironment LFile
-var environmentIsRemote bool
 var portAllocator PortAllocator
 var composeName string
 var repoRoot LocalFile
@@ -33,28 +31,8 @@ func GetRepoRoot() LocalFile {
 	return repoRoot
 }
 
-func GetEnvironmentIsRemote() bool {
-	return environmentIsRemote
-}
-
-func SetEnvironmentIsRemote(isRemote bool) {
-	environmentIsRemote = isRemote
-}
-
-func GetLocalEnvironment() LocalFile {
-	return localEnvironment
-}
-
-func SetLocalEnvironment(environment LocalFile) {
-	localEnvironment = environment
-}
-
 func GetCurrentEnvironment() LFile {
 	return currentEnvironment
-}
-
-func SetCurrentEnvironment(environment LFile) {
-	currentEnvironment = environment
 }
 
 func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
@@ -96,7 +74,6 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 			env := NewFile(selected.Value)
 			currentEnvironment = env
 			_, err = os.Stat(selected.Value)
-			environmentIsRemote = err != nil
 			return filepath.Base(selected.Value)
 		}
 	}
@@ -122,84 +99,24 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 		newEnvironment = env
 		break
 	}
-	var operator termio.MenuItem
 
-	local := termio.MenuItem{
-		Value:   "local",
-		Message: "Local environment on this machine",
+	{
+		fmt.Println("The following is expected of your machine:")
+		fmt.Println()
+		fmt.Println("- The machine should run Linux or macOS")
+		fmt.Println("- Docker and Docker Compose (either through `docker compose` or `docker-compose`)")
+		fmt.Println("- Your user must be in the docker group and be able to issue docker commands without sudo")
+		fmt.Println()
+
+		path := filepath.Join(repoRoot.GetAbsolutePath(), ".compose", newEnvironment)
+		env := NewFile(path)
+		env.MkDirs()
+
+		currentEnvironment = env
+		_, err = os.Stat(filepath.Join(env.GetAbsolutePath(), "remote"))
+
+		return filepath.Base(newEnvironment)
 	}
-
-	remote := termio.MenuItem{
-		Value:   "remote",
-		Message: "Remote environment on some other machine (via SSH)",
-	}
-
-	localOrRemoteMenu := termio.Menu{
-		Prompt: "Should this be a local or remote environment?",
-		Items:  []termio.MenuItem{local, remote},
-	}
-
-	if initTest {
-		operator = local
-	} else {
-		item, err := localOrRemoteMenu.SelectSingle()
-		HardCheck(err)
-		if item.Value == local.Value {
-			operator = local
-		} else {
-			operator = remote
-		}
-	}
-	switch operator {
-	case local:
-		{
-			fmt.Println("The following is expected of your machine:")
-			fmt.Println()
-			fmt.Println("- The machine should run Linux or macOS")
-			fmt.Println("- Docker and Docker Compose (either through `docker compose` or `docker-compose`)")
-			fmt.Println("- Your user must be in the docker group and be able to issue docker commands without sudo")
-			fmt.Println()
-
-			path := filepath.Join(repoRoot.GetAbsolutePath(), ".compose", newEnvironment)
-			env := NewFile(path)
-			env.MkDirs()
-
-			currentEnvironment = env
-			_, err = os.Stat(filepath.Join(env.GetAbsolutePath(), "remote"))
-			environmentIsRemote = err == nil
-
-			return filepath.Base(newEnvironment)
-		}
-	case remote:
-		{
-			fmt.Println("The following is expected of the remote machine:")
-			fmt.Println()
-			fmt.Println("- The machine should run Linux")
-			fmt.Println("- Docker and Docker Compose (either through `docker compose` or `docker-compose`)")
-			fmt.Println("- Your user must be in the docker group and be able to issue docker commands without sudo")
-			fmt.Println()
-
-			hostname := termio.TextPrompt("What is the hostname/IP of this machine? (e.g. machine42.example.com)", "machine42.example.com")
-			username := termio.TextPrompt("What is your username on this machine? (e.g. janedoe)", "janedoe")
-
-			path := repoRoot.GetAbsolutePath() + ".compose"
-			file, err := os.Open(path)
-			defer file.Close()
-			HardCheck(err)
-			env := NewFile(path)
-			env.MkDirs()
-
-			currentEnvironment = env
-			environmentIsRemote = true
-
-			env.Child("remote", false).WriteText(username + "@" + hostname)
-			return filepath.Base(newEnvironment)
-		}
-	default:
-		panic("unreachable")
-
-	}
-
 }
 
 type InitEnvironmentResult struct {
@@ -215,14 +132,6 @@ func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string
 
 	currentText, _ := os.ReadFile(filepath.Join(baseDir, "current.txt"))
 	currentEnvironmentName := string(currentText)
-	var currentIsRemote bool
-	if currentEnvironmentName != "" {
-		remoteName := filepath.Join(baseDir, currentEnvironmentName, "remote")
-		stat, _ := os.Stat(remoteName)
-		currentIsRemote = stat != nil
-	} else {
-		currentIsRemote = false
-	}
 
 	var env *os.File
 	if currentEnvironmentName == "" {
@@ -253,11 +162,10 @@ meaning and you can simply choose the default by pressing enter.
 		path, err := filepath.Abs(env.Name())
 		HardCheck(err)
 		currentEnvironment = NewFile(path)
-		environmentIsRemote = currentIsRemote
 	}
 
 	isNew := env == nil
-	InitIO(isNew)
+	InitIO()
 
 	currentName := []byte(currentEnvironment.Name())
 	err = os.WriteFile(filepath.Join(baseDir, "current.txt"), currentName, 0644)
@@ -266,35 +174,9 @@ meaning and you can simply choose the default by pressing enter.
 	return InitEnvironmentResult{ShouldStartEnvironment: isNew}
 }
 
-func InitIO(isNew bool) {
-	if environmentIsRemote {
-		baseDir, _ := filepath.Abs(currentEnvironment.Name())
-		fileContent, err := os.ReadFile(filepath.Join(baseDir, "remote"))
-		HardCheck(err)
-		lineSplit := strings.Split(string(fileContent), "@")
-		if len(lineSplit) != 2 {
-			log.Fatal("Unable to parse remote details from environment: " + baseDir + ". Try deleting this folder.")
-		}
-
-		//TODO SSHCONNECTION
-
-		localEnvironment = currentEnvironment.(LocalFile)
-
-		remoteRepoRoot := NewFile("ucloud")
-		if isNew {
-			SyncRepository()
-		}
-		remoteEnvironment := remoteRepoRoot.Child(".compose/"+currentEnvironment.Name(), true)
-		portAllocator = Remapped{
-			portAllocator:  0,
-			allocatedPorts: nil,
-		}
-		composeName = currentEnvironment.Name() + "_" + "CONNECTION" //TODO
-		currentEnvironment = remoteEnvironment
-	} else {
-		localEnvironment = currentEnvironment.(LocalFile)
-		portAllocator = Direct{}
-	}
+func InitIO() {
+	localEnvironment = currentEnvironment.(LocalFile)
+	portAllocator = Direct{}
 }
 
 func ListConfiguredProviders() []string {

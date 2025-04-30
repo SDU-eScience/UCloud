@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 
-	"ucloud.dk/pkg/log"
+	"ucloud.dk/shared/pkg/log"
 )
 
 const (

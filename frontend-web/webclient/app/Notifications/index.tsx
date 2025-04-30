@@ -38,6 +38,9 @@ function resolveNotification(event: Notification): {
     modifiedTitle?: string;
     modifiedMessage?: React.ReactNode;
 } {
+    let appTitle = event.meta["appTitles"] ? event.meta.appTitles[0] : null;
+    if (appTitle === "unknown" || appTitle == "Unknown") appTitle = null;
+
     switch (event.type) {
         case "REVIEW_PROJECT":
             return {icon: "projects", color: "textPrimary", color2: "textSecondary"};
@@ -72,14 +75,14 @@ function resolveNotification(event: Notification): {
                 if (event.meta.jobNames?.[0]) {
                     jobsCompletedTitle = `${event.meta.jobNames[0]} completed`;
                 } else {
-                    jobsCompletedTitle = `${event.meta.appTitles[0]} completed`;
+                    jobsCompletedTitle = `${appTitle ?? "Job"} completed`;
                 }
             }
 
             const jobsCompletedMessage = event.meta.jobIds.length > 1 ?
                 `${event.meta.jobIds.length} jobs completed successfully.`
                 :
-                `Your ${event.meta.appTitles[0]} job completed successfully.`
+                `Your ${appTitle ?? ""} job completed successfully.`
                 ;
 
             return {
@@ -98,13 +101,13 @@ function resolveNotification(event: Notification): {
                 if (event.meta.jobNames?.[0]) {
                     jobsStartedTitle = `${event.meta.jobNames[0]} started`;
                 } else {
-                    jobsStartedTitle = `${event.meta.appTitles[0]} started`;
+                    jobsStartedTitle = `${appTitle ?? "Job"} started`;
                 }
             }
 
             const jobsStartedMessage = event.meta.jobIds.length > 1 ?
                 `${event.meta.jobIds.length} jobs are now running.` :
-                `Your ${event.meta.appTitles[0]} job is now running`;
+                `Your ${appTitle ?? ""} job is now running`;
 
             return {
                 icon: "heroServer",
@@ -122,14 +125,14 @@ function resolveNotification(event: Notification): {
                 if (event.meta.jobNames?.[0]) {
                     jobsExpiredTitle = `${event.meta.jobNames[0]} expired`;
                 } else {
-                    jobsExpiredTitle = `${event.meta.appTitles[0]} expired`;
+                    jobsExpiredTitle = `${appTitle ?? "Job"} expired`;
                 }
             }
 
             const jobsExpiredMessage = event.meta.jobIds.length > 1 ?
                 `${event.meta.jobIds.length} jobs has reached their time limit and is no longer running.`
                 :
-                `Your ${event.meta.appTitles[0]} job has reached its time limit and is no longer running.`
+                `Your ${appTitle ?? ""} job has reached its time limit and is no longer running.`
                 ;
 
             return {
@@ -148,13 +151,13 @@ function resolveNotification(event: Notification): {
                 if (event.meta.jobNames[0]) {
                     jobsFailedTitle = `${event.meta.jobNames[0]} failed`;
                 } else {
-                    jobsFailedTitle = `${event.meta.appTitles[0]} failed`;
+                    jobsFailedTitle = `${appTitle ?? "Job"} failed`;
                 }
             }
 
             const jobsFailedMessage = event.meta.jobIds.length > 1 ?
                 `${event.meta.jobIds.length} jobs terminated with a failure.` :
-                `Your ${event.meta.appTitles[0]} job terminated with a failure.`;
+                `Your ${appTitle ?? ""} job terminated with a failure.`;
 
             return {
                 icon: "heroServer",

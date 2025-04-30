@@ -6,7 +6,7 @@ import (
 	"os"
 	"syscall"
 	"time"
-	fnd "ucloud.dk/pkg/foundation"
+	fnd "ucloud.dk/shared/pkg/foundation"
 )
 
 func FileAccessTime(info os.FileInfo) fnd.Timestamp {

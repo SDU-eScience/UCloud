@@ -60,11 +60,11 @@ func main() {
 		os.Exit(0)
 	}
 
+	width, _, _ := termio.SafeQueryPtySize()
 	fmt.Printf("UCloud %s - Launcher tool \n", version)
-	fmt.Println("-")
+	fmt.Println(strings.Repeat("-", width))
 
 	// NOTE(Dan): initCurrentEnvironment() needs these to be set. We start out by running locally.
-	launcher.SetEnvironmentIsRemote(false)
 	launcher.GenerateProviders()
 
 	shouldInitializeTestEnvironment := slices.Contains(args, "init") && slices.Contains(args, "--all-providers")
@@ -75,36 +75,41 @@ func main() {
 	composeDir := filepath.Join(repoRootPath, ".compose")
 	shouldStart := launcher.InitCurrentEnvironment(shouldInitializeTestEnvironment, composeDir).ShouldStartEnvironment
 
-	compose := launcher.FindCompose()
-	launcher.SetCompose(compose)
-
-	returnedStringPair := compose.Ps(launcher.GetCurrentEnvironment()).ExecuteToText()
-
-	psText := returnedStringPair.First
-	failureText := returnedStringPair.Second
-	if psText == "" && !shouldStart {
-		fmt.Println("Unable to start docker compose in", launcher.GetCurrentEnvironment().Name())
-		fmt.Println()
-		fmt.Println(failureText)
-		fmt.Println()
-		fmt.Println("The error message above we got from docker compose. If this isn't helpful, "+
-			"then try deleting this directory: ", launcher.GetCurrentEnvironment().Name())
-		os.Exit(1)
-	}
-
 	var psLines []string
-	for _, line := range strings.Split(psText, "\n") {
-		if strings.TrimSpace(line) == "" {
-			continue
+	var compose launcher.DockerCompose
+
+	_ = termio.LoadingIndicator("Connecting to compose environment", func() error {
+		compose = launcher.FindCompose()
+		launcher.SetCompose(compose)
+
+		returnedStringPair := compose.Ps(launcher.GetCurrentEnvironment()).ExecuteToText()
+
+		psText := returnedStringPair.First
+		failureText := returnedStringPair.Second
+		if psText == "" && !shouldStart {
+			fmt.Println("Unable to start docker compose in", launcher.GetCurrentEnvironment().Name())
+			fmt.Println()
+			fmt.Println(failureText)
+			fmt.Println()
+			fmt.Println("The error message above we got from docker compose. If this isn't helpful, "+
+				"then try deleting this directory: ", launcher.GetCurrentEnvironment().Name())
+			os.Exit(1)
 		}
-		if strings.HasPrefix(strings.ToLower(line), "name") {
-			continue
+
+		for _, line := range strings.Split(psText, "\n") {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			if strings.HasPrefix(strings.ToLower(line), "name") {
+				continue
+			}
+			if strings.HasPrefix(line, "---") {
+				continue
+			}
+			psLines = append(psLines, line)
 		}
-		if strings.HasPrefix(line, "---") {
-			continue
-		}
-		psLines = append(psLines, line)
-	}
+		return nil
+	})
 
 	if shouldStart || len(psLines) <= 1 {
 		launcher.GenerateComposeFile(true)
@@ -125,7 +130,7 @@ func main() {
 		if shouldStart {
 			err = termio.LoadingIndicator(
 				"Retrieving initial access token",
-				func(output *os.File) error {
+				func() error {
 					for range 10 {
 						success := launcher.FetchAccessToken() != ""
 						if success {
@@ -138,7 +143,7 @@ func main() {
 			)
 			launcher.HardCheck(err)
 
-			launcher.Commands{}.ImportApps()
+			launcher.ImportApps()
 
 			fmt.Println()
 			fmt.Println()
@@ -147,13 +152,14 @@ func main() {
 			)
 		}
 	}
+
 	if shouldInitializeTestEnvironment {
 		providers := launcher.AllProviders
 		for _, provider := range providers {
 			if strings.Contains(provider.Name(), "slurm") {
 				// Do nothing
 			} else {
-				launcher.Commands{}.CreateProvider(provider.Name())
+				launcher.CreateProvider(provider.Name())
 			}
 		}
 	}
@@ -165,19 +171,12 @@ func main() {
 	toplevel := TopLevelMenu()
 	selectedItem, err := toplevel.SelectSingle()
 	launcher.HardCheck(err)
-	commands := launcher.Commands{}
 	switch selectedItem.Value {
-	case "Enable port-forwarding (REQUIRED)":
-		{
-			CliHint("port-forward")
-			commands.PortForward()
-		}
-
 	case "write-certs":
 		{
 			if len(args) > 1 {
 				if args[1] != "" {
-					commands.WriteCerts(args[1])
+					launcher.WriteCerts(args[1])
 				} else {
 					launcher.PrintHelp()
 				}
@@ -186,7 +185,7 @@ func main() {
 
 	case "install-certs":
 		{
-			commands.InstallCerts()
+			launcher.InstallCerts()
 		}
 	case "ui":
 		{
@@ -197,7 +196,7 @@ func main() {
 				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
 				os.Exit(0)
 			}
-			commands.OpenUserInterface(selectedService.Value)
+			launcher.OpenUserInterface(selectedService.Value)
 		}
 	case "logs":
 		{
@@ -210,7 +209,7 @@ func main() {
 			}
 			service := launcher.ServiceByName(item.Value)
 			CliHint("svc " + service.ContainerName() + " logs")
-			commands.OpenLogs(service.ContainerName())
+			launcher.OpenLogs(service.ContainerName())
 		}
 	case "shell":
 		{
@@ -223,12 +222,11 @@ func main() {
 			}
 			service := launcher.ServiceByName(item.Value)
 			CliHint("svc " + service.ContainerName() + " sh")
-			commands.OpenShell(service.ContainerName())
+			launcher.OpenShell(service.ContainerName())
 		}
 	case "providers":
 		{
 			launcher.GenerateComposeFile(true)
-			launcher.SyncRepository()
 
 			for {
 				configured := launcher.ListConfiguredProviders()
@@ -249,7 +247,7 @@ func main() {
 				}
 
 				for _, provider := range filteredItems {
-					commands.CreateProvider(provider.Value)
+					launcher.CreateProvider(provider.Value)
 				}
 
 				break
@@ -258,7 +256,6 @@ func main() {
 	case "services":
 		{
 			launcher.GenerateComposeFile(true)
-			launcher.SyncRepository()
 			for {
 				breakLoop := true
 				selectedService, err := ServiceMenu(false, false, false).SelectSingle()
@@ -274,18 +271,18 @@ func main() {
 				case "start":
 					{
 						CliHint("svc " + service.ContainerName() + " start")
-						commands.ServiceStart(service.ContainerName())
+						launcher.ServiceStart(service.ContainerName())
 					}
 				case "stop":
 					{
 						CliHint("svc " + service.ContainerName() + " stop")
-						commands.ServiceStop(service.ContainerName())
+						launcher.ServiceStop(service.ContainerName())
 					}
 				case "restart":
 					{
 						CliHint("svc " + service.ContainerName() + " restart [--follow]")
-						commands.ServiceStart(service.ContainerName())
-						commands.ServiceStart(service.ContainerName())
+						launcher.ServiceStart(service.ContainerName())
+						launcher.ServiceStart(service.ContainerName())
 					}
 				case "back":
 					{
@@ -304,17 +301,9 @@ func main() {
 			}
 		}
 
-	case "test":
-		{
-			launcher.GenerateComposeFile(true)
-			launcher.SyncRepository()
-			println("Not yet implemented") //TODD
-		}
-
 	case "environment":
 		{
 			launcher.GenerateComposeFile(true)
-			launcher.SyncRepository()
 
 			envChoice, err := EnvironmentMenu().SelectSingle()
 			launcher.HardCheck(err)
@@ -322,12 +311,12 @@ func main() {
 			case "stop":
 				{
 					CliHint("env stop")
-					commands.EnvironmentStop()
+					launcher.EnvironmentStop()
 				}
 			case "restart":
 				{
 					CliHint("env restart")
-					commands.EnvironmentRestart()
+					launcher.EnvironmentRestart()
 				}
 			case "delete":
 				{
@@ -338,17 +327,17 @@ func main() {
 					)
 					if shouldDelete {
 						CliHint("env delete")
-						commands.EnvironmentDelete(true)
+						launcher.EnvironmentDelete(true)
 					}
 				}
 			case "status":
 				{
 					CliHint("env status")
-					commands.EnvironmentStatus()
+					launcher.EnvironmentStatus()
 				}
 			case "switch":
 				{
-					termio.LoadingIndicator("Shutting down virtual cluster", func(output *os.File) error {
+					termio.LoadingIndicator("Shutting down virtual cluster", func() error {
 						downCom := compose.Down(launcher.GetCurrentEnvironment(), false)
 						downCom.SetStreamOutput()
 						downCom.ExecuteToText()
@@ -356,7 +345,7 @@ func main() {
 					})
 					basePath := filepath.Join(repoRootPath, ".compose")
 					env := launcher.SelectOrCreateEnvironment(basePath, false)
-					launcher.InitIO(true)
+					launcher.InitIO()
 					launcher.GetCurrentEnvironment().Child("..", true).Child(env, true)
 					err := os.WriteFile(filepath.Join(basePath, "current.txt"), []byte(env), 664)
 					launcher.HardCheck(err)
@@ -456,16 +445,6 @@ func main() {
 							might be relevant.
 						`,
 							)
-
-							if launcher.GetEnvironmentIsRemote() {
-								Suggestion(
-									`
-								It looks like your current environment is using a remote machine. Please 
-								make sure that port-forwarding is configured and working correctly. You can 
-								access port-forwarding from the interactive menu.
-							`,
-								)
-							}
 
 							Suggestion(
 								`
@@ -842,19 +821,6 @@ func ServiceMenu(requireLogs bool, requireExec bool, requireAddress bool) termio
 func TopLevelMenu() termio.Menu {
 	items := []termio.MenuItem{}
 
-	if launcher.GetEnvironmentIsRemote() {
-		items = append(items, termio.MenuItem{
-			Value:     "Remote development",
-			Message:   "Remote development",
-			Separator: true,
-		})
-
-		items = append(items, termio.MenuItem{
-			Value:   "port-forward",
-			Message: "Enable port-forwarding (REQUIRED)",
-		})
-	}
-
 	var message = ""
 	items = append(items, termio.MenuItem{
 		Value:     "Management",
@@ -934,5 +900,4 @@ func TopLevelMenu() termio.Menu {
 		Prompt: "Select an item from the menu",
 		Items:  items,
 	}
-
 }

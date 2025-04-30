@@ -38,7 +38,7 @@ import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {Page, PageV2} from "@/UCloud";
 import {sharesLinksInfo} from "@/Files/Shares";
-import {ProviderLogo} from "@/Providers/ProviderLogo";
+import {ProviderLogo, providerLogoPath} from "@/Providers/ProviderLogo";
 import {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import JobsApi, {Job} from "@/UCloud/JobsApi";
@@ -550,7 +550,9 @@ function useSidebarFilesPage(): [
 
     useProvideCommands(staticProvider(drives.data.items.map(d => ({
         title: d.specification.title,
-        icon: {type: "simple", icon: "heroFolderOpen"},
+        icon: isShare(d) ?
+            {type: "simple", icon: "ftSharesFolder", color: "FtFolderColor", color2: "FtFolderColor2"} :
+            {type: "image", imageUrl: providerLogoPath(d.specification.product.provider)},
         action() {
             navigate(AppRoutes.files.drive(d.id));
         },

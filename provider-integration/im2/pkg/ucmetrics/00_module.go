@@ -8,13 +8,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func ReadMemoryUsage() uint64 {
 	line := readFirstLine("/sys/fs/cgroup/memory.current") // cgroup v2
 	if line == "" {
-		readFirstLine("/sys/fs/cgroup/memory/memory.usage_in_bytes") // cgroup v1
+		line = readFirstLine("/sys/fs/cgroup/memory/memory.usage_in_bytes") // cgroup v1
 	}
 
 	memoryUsed, _ := strconv.ParseUint(line, 10, 64)
@@ -24,7 +24,7 @@ func ReadMemoryUsage() uint64 {
 func ReadMemoryLimit() uint64 {
 	line := readFirstLine("/sys/fs/cgroup/memory.max") // cgroup v2
 	if line == "" {
-		readFirstLine("/sys/fs/cgroup/memory/memory.limit_in_bytes") // cgroup v1
+		line = readFirstLine("/sys/fs/cgroup/memory/memory.limit_in_bytes") // cgroup v1
 	}
 	memoryLimit, _ := strconv.ParseUint(line, 10, 64)
 	return memoryLimit

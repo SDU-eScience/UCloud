@@ -3,7 +3,7 @@ package ucviz
 import (
 	"os"
 	"testing"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func TestSimpleWidget(t *testing.T) {
