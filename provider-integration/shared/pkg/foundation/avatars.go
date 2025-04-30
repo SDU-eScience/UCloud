@@ -32,7 +32,7 @@ type AvatarsFindBulkRequest struct {
 }
 
 type AvatarsFindBulkResponse struct {
-	Avatars map[string]Avatar
+	Avatars map[string]Avatar `json:"avatars"`
 }
 
 var AvatarsFindBulk = rpc.Call[AvatarsFindBulkRequest, AvatarsFindBulkResponse]{

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"gopkg.in/yaml.v3"
+	"os"
 	"strings"
 	"ucloud.dk/shared/pkg/cfgutil"
 )
@@ -28,6 +29,11 @@ type ConfigurationFormat struct {
 
 	Emails struct {
 		Enabled bool
+	}
+
+	ServiceLicenseAgreement struct {
+		Version int
+		Text    string
 	}
 }
 
@@ -161,6 +167,23 @@ func Parse(configDir string) bool {
 					cfgutil.ReportError(filePath, rotationNode, "retentionPeriodInDays must be specified and must be greater than zero")
 					return false
 				}
+			}
+		}
+	}
+
+	// SLA section
+	sla, _ := cfgutil.GetChildOrNil(filePath, document, "serviceLicenseAgreement")
+	if sla != nil {
+		cfg.ServiceLicenseAgreement.Version = int(cfgutil.RequireChildInt(filePath, sla, "version", &success))
+
+		path := cfgutil.RequireChildFile(filePath, sla, "path", cfgutil.FileCheckRead, &success)
+		if success {
+			text, err := os.ReadFile(path)
+			if err != nil {
+				cfgutil.ReportError(filePath, sla, "Could not read SLA text: %s", err)
+				success = false
+			} else {
+				cfg.ServiceLicenseAgreement.Text = string(text)
 			}
 		}
 	}

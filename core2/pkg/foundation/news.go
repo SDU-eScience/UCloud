@@ -168,7 +168,7 @@ func ListNewsPosts(request fndapi.ListPostsRequest) (fndapi.Page[fndapi.NewsPost
 				from
 					news.news n
 				where
-					(:category_filter::text is null or n.category = :category_filter)
+					(cast(:category_filter as text) is null or n.category = :category_filter)
 					and (:with_hidden = true or n.show_from <= now()) 
 					and	(:with_hidden = true or (n.hide_from is null or n.hide_from > now())) 
 					and	(:with_hidden = true or n.hidden = false)

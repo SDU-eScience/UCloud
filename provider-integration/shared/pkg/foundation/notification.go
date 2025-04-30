@@ -89,12 +89,14 @@ var NotificationsCreate = rpc.Call[NotificationsCreateRequest, util.Empty]{
 	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesService,
 
+	CustomPath: "/api/notifications",
+
 	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (NotificationsCreateRequest, *util.HttpError) {
 		return rpc.ParseRequestFromBody[NotificationsCreateRequest](w, r)
 	},
 
 	CustomClientHandler: func(self *rpc.Call[NotificationsCreateRequest, util.Empty], client *rpc.Client, request NotificationsCreateRequest) (util.Empty, *util.HttpError) {
-		resp := rpc.CallViaJsonBody(client, http.MethodPut, "/api/notifications", request)
+		resp := rpc.CallViaJsonBody(client, http.MethodPut, self.CustomPath, request)
 		_, err := rpc.ParseResponse[util.Empty](resp)
 		return util.Empty{}, err
 	},

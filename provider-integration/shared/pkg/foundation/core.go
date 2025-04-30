@@ -17,7 +17,7 @@ type Page[T any] struct {
 
 type PageV2[T any] struct {
 	Items        []T                 `json:"items"`
-	Next         util.Option[string] `json:"next,omitempty"`
+	Next         util.Option[string] `json:"next"`
 	ItemsPerPage int                 `json:"itemsPerPage"`
 }
 
@@ -66,4 +66,8 @@ func TimeFromUnixMilli(millis uint64) Timestamp {
 
 type FindByStringId struct {
 	Id string `json:"id"`
+}
+
+type FindByIntId struct {
+	Id int `json:"id"`
 }

@@ -23,12 +23,26 @@ func (gw *GateWay) Build(cb ComposeBuilder) {
 		PostExecFile.WriteString("\n " + repoRoot.GetAbsolutePath() + "/launcher-go install-certs\n\n")
 	}
 
-	core2Config := TrimIndent(`
-		reverse_proxy /api/avatar/* core2:8080
-	`)
-
-	if !UseCore2() {
-		core2Config = ""
+	core2Config := ""
+	if UseCore2Experimental() {
+		core2Config = TrimIndent(`
+			reverse_proxy /api/avatar/* core2:8080
+			reverse_proxy /api/news/* core2:8080
+			reverse_proxy /api/notifications/* core2:8080
+			reverse_proxy /api/mail/* core2:8080
+			reverse_proxy /api/sla/* core2:8080
+			reverse_proxy /api/sla core2:8080
+			reverse_proxy /auth/* core2:8080
+		`)
+	} else if UseCore2() {
+		core2Config = TrimIndent(`
+			reverse_proxy /api/avatar/* core2:8080
+			reverse_proxy /auth/* backend:8080
+		`)
+	} else {
+		core2Config = TrimIndent(`
+			reverse_proxy /auth/* backend:8080
+		`)
 	}
 
 	gatewayConfig := gatewayDir.Child("Caddyfile", false)
@@ -55,7 +69,6 @@ func (gw *GateWay) Build(cb ComposeBuilder) {
 				reverse_proxy /node_modules/* frontend:9000
 				reverse_proxy /site.config.json frontend:9000
 				reverse_proxy /api/* backend:8080
-				reverse_proxy /auth/* backend:8080
 				reverse_proxy / frontend:9000
 				reverse_proxy /avatar.AvatarService/* h2c://backend:11412
 

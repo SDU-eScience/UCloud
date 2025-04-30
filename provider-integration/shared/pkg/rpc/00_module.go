@@ -60,16 +60,25 @@ type Client struct {
 type Call[Req any, Resp any] struct {
 	Convention Convention
 
-	CustomMethod        string
-	CustomPath          string
-	CustomServerParser  func(w http.ResponseWriter, r *http.Request) (Req, *util.HttpError)
-	CustomClientHandler func(self *Call[Req, Resp], client *Client, request Req) (Resp, *util.HttpError)
+	CustomMethod         string
+	CustomPath           string
+	CustomServerParser   func(w http.ResponseWriter, r *http.Request) (Req, *util.HttpError)
+	CustomServerProducer func(response Resp, err *util.HttpError, w http.ResponseWriter, r *http.Request)
+	CustomClientHandler  func(self *Call[Req, Resp], client *Client, request Req) (Resp, *util.HttpError)
 
 	BaseContext string
 	Operation   string
 
 	Roles Role // Bit-set. See roles below.
 	Audit AuditRules
+}
+
+func rpcBaseContext(context string) string {
+	if !strings.HasPrefix(context, "auth") {
+		return fmt.Sprintf("api/%s", context)
+	} else {
+		return context
+	}
 }
 
 func (c *Call[Req, Resp]) Invoke(request Req) (Resp, *util.HttpError) {
@@ -94,34 +103,34 @@ func (c *Call[Req, Resp]) InvokeEx(client *Client, request Req) (Resp, *util.Htt
 		result, err = handler(c, client, request)
 
 	case ConventionRetrieve:
-		resp := CallViaQuery(client, fmt.Sprintf("/api/%s/retrieve%s", c.BaseContext, capitalized(c.Operation)),
+		resp := CallViaQuery(client, fmt.Sprintf("/%s/retrieve%s", rpcBaseContext(c.BaseContext), capitalized(c.Operation)),
 			StructToParameters(request))
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionQueryParameters:
-		resp := CallViaQuery(client, fmt.Sprintf("/api/%s/%s", c.BaseContext, capitalized(c.Operation)),
+		resp := CallViaQuery(client, fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation),
 			StructToParameters(request))
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionBrowse:
-		resp := CallViaQuery(client, fmt.Sprintf("/api/%s/browse%s", c.BaseContext, capitalized(c.Operation)),
+		resp := CallViaQuery(client, fmt.Sprintf("/%s/browse%s", rpcBaseContext(c.BaseContext), capitalized(c.Operation)),
 			StructToParameters(request))
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionUpdate:
-		resp := CallViaJsonBody(client, "POST", fmt.Sprintf("/api/%s/%s", c.BaseContext, c.Operation), request)
+		resp := CallViaJsonBody(client, "POST", fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation), request)
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionDelete:
-		resp := CallViaJsonBody(client, "DELETE", fmt.Sprintf("/api/%s/%s", c.BaseContext, c.Operation), request)
+		resp := CallViaJsonBody(client, "DELETE", fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation), request)
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionCreate:
-		resp := CallViaJsonBody(client, "POST", fmt.Sprintf("/api/%s/%s", c.BaseContext, c.Operation), request)
+		resp := CallViaJsonBody(client, "POST", fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation), request)
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionSearch:
-		resp := CallViaJsonBody(client, "POST", fmt.Sprintf("/api/%s/search%s", c.BaseContext,
+		resp := CallViaJsonBody(client, "POST", fmt.Sprintf("/%s/search%s", rpcBaseContext(c.BaseContext),
 			capitalized(c.Operation)), request)
 		result, err = ParseResponse[Resp](resp)
 	}
@@ -161,37 +170,37 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 		parser = c.CustomServerParser
 
 	case ConventionUpdate:
-		path = fmt.Sprintf("/api/%s/%s", c.BaseContext, c.Operation)
+		path = fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation)
 		method = http.MethodPost
 		parser = ParseRequestFromBody
 
 	case ConventionRetrieve:
-		path = fmt.Sprintf("/api/%s/retrieve%s", c.BaseContext, capitalized(c.Operation))
+		path = fmt.Sprintf("/%s/retrieve%s", rpcBaseContext(c.BaseContext), capitalized(c.Operation))
 		method = http.MethodGet
 		parser = ParseRequestFromQuery
 
 	case ConventionQueryParameters:
-		path = fmt.Sprintf("/api/%s/%s", c.BaseContext, capitalized(c.Operation))
+		path = fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation)
 		method = http.MethodGet
 		parser = ParseRequestFromQuery
 
 	case ConventionDelete:
-		path = fmt.Sprintf("/api/%s/%s", c.BaseContext, c.Operation)
+		path = fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation)
 		method = http.MethodDelete
 		parser = ParseRequestFromBody
 
 	case ConventionCreate:
-		path = fmt.Sprintf("/api/%s/%s", c.BaseContext, c.Operation)
+		path = fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation)
 		method = http.MethodPost
 		parser = ParseRequestFromBody
 
 	case ConventionBrowse:
-		path = fmt.Sprintf("/api/%s/retrieve%s", c.BaseContext, capitalized(c.Operation))
+		path = fmt.Sprintf("/%s/browse%s", rpcBaseContext(c.BaseContext), capitalized(c.Operation))
 		method = http.MethodGet
 		parser = ParseRequestFromQuery
 
 	case ConventionSearch:
-		path = fmt.Sprintf("/api/%s/search%s", c.BaseContext, capitalized(c.Operation))
+		path = fmt.Sprintf("/%s/search%s", rpcBaseContext(c.BaseContext), capitalized(c.Operation))
 		method = http.MethodPost
 		parser = ParseRequestFromBody
 	}
@@ -229,17 +238,11 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 
 		end := time.Now()
 
-		if err != nil {
-			data, _ := json.Marshal(err)
-
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.WriteHeader(err.StatusCode)
-			_, _ = w.Write(data)
+		producer := c.CustomServerProducer
+		if producer != nil {
+			producer(response, err, w, r)
 		} else {
-			data, _ := json.Marshal(response)
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write(data)
+			SendResponseOrError(w, response, err)
 		}
 
 		if AuditConsumer != nil {
@@ -322,6 +325,21 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 				http.NotFound(w, r)
 			}
 		})
+	}
+}
+
+func SendResponseOrError(w http.ResponseWriter, response any, err *util.HttpError) {
+	if err != nil {
+		data, _ := json.Marshal(err)
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(err.StatusCode)
+		_, _ = w.Write(data)
+	} else {
+		data, _ := json.Marshal(response)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(data)
 	}
 }
 

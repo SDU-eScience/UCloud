@@ -10,11 +10,11 @@ import (
 	"time"
 	cfg "ucloud.dk/core/pkg/config"
 	fnd "ucloud.dk/core/pkg/foundation"
+	gonjautil "ucloud.dk/gonja/v2/utils"
 	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
-	gonjautil "ucloud.dk/gonja/v2/utils"
 )
 
 func readFromMap[T any](input map[string]any, key string) (T, bool) {
@@ -85,14 +85,15 @@ func Launch() {
 
 	rpc.DefaultServer.Mux = http.NewServeMux()
 	rpc.ServerAuthenticator = func(r *http.Request) (rpc.Actor, *util.HttpError) {
-		jwtToken, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+		authHeader := r.Header.Get("Authorization")
+		jwtToken, ok := strings.CutPrefix(authHeader, "Bearer ")
 		if !ok {
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
+			return rpc.Actor{Role: rpc.RoleGuest}, nil
 		}
 
 		tok, err := jwtParser.Parse(jwtToken, jwtKeyFunc)
 		if err != nil {
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
+			return rpc.Actor{Role: rpc.RoleGuest}, nil
 		}
 
 		subject, err := tok.Claims.GetSubject()
