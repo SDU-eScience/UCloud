@@ -35,6 +35,8 @@ type ConfigurationFormat struct {
 		Version int
 		Text    string
 	}
+
+	RequireMfa bool
 }
 
 type Database struct {
@@ -111,6 +113,8 @@ func Parse(configDir string) bool {
 
 	// Parse simple properties
 	cfg.RefreshToken = cfgutil.RequireChildText(filePath, document, "refreshToken", &success)
+
+	cfg.RequireMfa, _ = cfgutil.OptionalChildBool(filePath, document, "requireMfa")
 
 	// Token validation
 	{

@@ -3,6 +3,7 @@ package foundation
 import (
 	"github.com/golang-jwt/jwt/v5"
 	"time"
+	cfg "ucloud.dk/core/pkg/config"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -62,7 +63,7 @@ func SignPrincipalToken(principal Principal, sessionReference util.Option[string
 		LastName:                principal.LastName,
 		Email:                   principal.Email,
 		OrgId:                   principal.OrgId,
-		TwoFactorAuthentication: true, // TODO
+		TwoFactorAuthentication: !cfg.Configuration.RequireMfa || principal.MfaEnabled,
 		ServiceLicenseAgreement: principal.ServiceLicenseAgreement,
 		PrincipalType:           jwtType,
 		SessionReference:        sessionReference,

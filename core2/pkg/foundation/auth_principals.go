@@ -21,6 +21,7 @@ type Principal struct {
 	OrgId                   util.Option[string]
 	Email                   util.Option[string]
 	ServiceLicenseAgreement bool
+	MfaEnabled              bool
 	Uid                     int
 }
 
@@ -39,12 +40,15 @@ func LookupPrincipal(tx *db.Transaction, username string) (Principal, bool) {
 		Email                   sql.NullString
 		ServiceLicenseAgreement int
 		Uid                     int
+		MfaEnabled              bool
 	}](
 		tx,
 		`
-			select *
-			from auth.principals
-			where id = :username
+			select p.*, cred.id is not null as mfa_enabled
+			from
+				auth.principals p
+				left join auth.two_factor_credentials cred on p.id = cred.principal_id and cred.enforced = true
+			where p.id = :username
 	    `,
 		db.Params{
 			"username": username,
@@ -66,6 +70,7 @@ func LookupPrincipal(tx *db.Transaction, username string) (Principal, bool) {
 			Email:                   util.OptStringIfNotEmpty(row.Email.String),
 			ServiceLicenseAgreement: row.ServiceLicenseAgreement == SlaRetrieveText().Version,
 			Uid:                     row.Uid,
+			MfaEnabled:              row.MfaEnabled,
 		}
 
 		if row.HashedPassword.Valid {
