@@ -973,6 +973,7 @@ function thStyling(isBold: boolean, width: string): CSSProperties | undefined {
     return {
         fontWeight: isBold ? "bold" : undefined,
         width,
+        cursor: "pointer",
     };
 }
 
@@ -998,11 +999,11 @@ function useSorting<DataType>(originalData: DataType[], sortByKey: keyof DataTyp
     const [_sortOrder, setSortOrder] = React.useState<SortOrder>(initialSortOrder ?? "asc");
 
     React.useEffect(() => {
-        doSortBy(originalData, _sortByKey);
-    }, [originalData,]);
+        doSortBy(originalData, _sortByKey, "asc");
+    }, [originalData]);
 
-    const doSortBy = React.useCallback((data: DataType[], sortBy: keyof DataType) => {
-        const newSortOrder = _sortByKey === sortBy ? (_sortOrder === "asc" ? "desc" : "asc") : _sortOrder;
+    const doSortBy = React.useCallback((data: DataType[], sortBy: keyof DataType, sortOrder?: SortOrder) => {
+        const newSortOrder = sortOrder ?? (_sortByKey === sortBy ? (_sortOrder === "asc" ? "desc" : "asc") : _sortOrder);
         if (data.length === 0) return;
         const type = typeof data[0][sortBy];
         switch (type) {
