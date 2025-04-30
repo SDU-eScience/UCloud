@@ -10,6 +10,10 @@ import (
 func initAuth() {
 	initAuthTokens()
 
+	// TODO origin check for some of these calls
+	// TODO origin check for some of these calls
+	// TODO origin check for some of these calls
+
 	fndapi.AuthRefresh.Handler(func(info rpc.RequestInfo, request fndapi.AuthenticationTokens) (fndapi.AccessTokenAndCsrf, *util.HttpError) {
 		return SessionRefresh(request)
 	})
