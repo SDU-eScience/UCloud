@@ -22,7 +22,14 @@ import {
 } from "@/ui-components";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import * as Accounting from "@/Accounting";
-import {NO_EXPIRATION_FALLBACK, ProductType, UsageAndQuota, WalletV2} from "@/Accounting";
+import {
+    balanceToStringFromUnit,
+    explainUnit,
+    NO_EXPIRATION_FALLBACK,
+    ProductType,
+    UsageAndQuota,
+    WalletV2
+} from "@/Accounting";
 import {deepCopy, newFuzzyMatchFuse} from "@/Utilities/CollectionUtilities";
 import {useProjectId} from "@/Project/Api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -1309,6 +1316,59 @@ const Allocations: React.FunctionComponent = () => {
                                         />
                                     )
                                 }
+                            </TreeNode>
+                        )}
+                    </TreeNode>;
+                })}
+            </Tree>
+
+            <h3>Resources Granted</h3>
+            <Tree apiRef={allocationTree}>
+                {sortedAllocations.map(([rawType, tree]) => {
+                    const type = rawType as ProductType;
+
+                    return <TreeNode
+                        key={rawType}
+                        left={<Flex gap={"4px"}>
+                            <Icon name={Accounting.productTypeToIcon(type)} size={20} />
+                            {Accounting.productAreaTitle(type)}
+                        </Flex>}
+                        indent={indent}
+                    >
+                        {tree.wallets.map((wallet, idx) =>
+                            <TreeNode
+                                key={idx}
+                                left={<Flex gap={"4px"}>
+                                    <ProviderLogo providerId={wallet.category.provider} size={20} />
+                                    <code>{wallet.category.name}</code>
+                                </Flex>}
+                                right={<Flex flexDirection={"row"} gap={"8px"}>
+                                    <NewAndImprovedProgress
+                                        label={
+                                            balanceToStringFromUnit(
+                                                wallet.usageAndQuota.raw.type,
+                                                wallet.usageAndQuota.raw.unit,
+                                                explainUnit(wallet.category).balanceFactor * wallet.totalAllocated,
+                                                {
+                                                    precision: 2,
+                                                    removeUnitIfPossible: true
+                                                })
+                                            + " / " +
+                                            balanceToStringFromUnit(
+                                                wallet.usageAndQuota.raw.type,
+                                                wallet.usageAndQuota.raw.unit,
+                                                wallet.usageAndQuota.raw.quota,
+                                                {precision: 2})
+                                        }
+                                        percentage={
+                                            100 * ((explainUnit(wallet.category).balanceFactor * wallet.totalAllocated) / wallet.usageAndQuota.raw.quota)
+                                        }
+                                        limitPercentage={(explainUnit(wallet.category).balanceFactor * wallet.totalAllocated) > wallet.usageAndQuota.raw.quota ? 0 : 100}
+                                        withWarning={false}
+                                    />
+                                </Flex>}
+                                indent={indent * 2}
+                            >
                             </TreeNode>
                         )}
                     </TreeNode>;

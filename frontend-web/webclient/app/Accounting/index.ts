@@ -629,6 +629,7 @@ export const productTypesByPriority: ProductType[] = [
 export interface AllocationDisplayWallet {
     category: ProductCategoryV2;
     usageAndQuota: UsageAndQuota;
+    totalAllocated: number;
 
     allocations: {
         id: number;
@@ -854,6 +855,8 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                         type: wallet.paysFor.productType,
                         ownedByPersonalProviderProject,
                     }),
+
+                    totalAllocated: wallet.totalAllocated,
 
                     allocations: wallet.allocationGroups.flatMap(({group}) => {
                         const shouldShowRetiredAmount = wallet.paysFor.accountingFrequency !== "ONCE";
