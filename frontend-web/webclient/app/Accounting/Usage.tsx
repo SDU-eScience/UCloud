@@ -973,6 +973,7 @@ function thStyling(isBold: boolean, width: string): CSSProperties | undefined {
     return {
         fontWeight: isBold ? "bold" : undefined,
         width,
+        cursor: "pointer",
     };
 }
 
@@ -998,37 +999,37 @@ function useSorting<DataType>(originalData: DataType[], sortByKey: keyof DataTyp
     const [_sortOrder, setSortOrder] = React.useState<SortOrder>(initialSortOrder ?? "asc");
 
     React.useEffect(() => {
-        setData(originalData);
+        doSortBy(originalData, sortByKey, "asc");
     }, [originalData]);
 
-    const doSortBy = React.useCallback((sortBy: keyof DataType) => {
-        const newSortOrder = _sortByKey === sortBy ? (_sortOrder === "asc" ? "desc" : "asc") : _sortOrder;
-        if (_data.length === 0) return;
-        const type = typeof _data[0][sortBy];
+    const doSortBy = React.useCallback((data: DataType[], sortBy: keyof DataType, sortOrder?: SortOrder) => {
+        const newSortOrder = sortOrder ?? (_sortByKey === sortBy ? (_sortOrder === "asc" ? "desc" : "asc") : _sortOrder);
+        if (data.length === 0) return;
+        const type = typeof data[0][sortBy];
         switch (type) {
             case "string": {
                 if (newSortOrder === "asc") {
-                    _data.sort((a, b) => (a[sortBy] as string).localeCompare(b[sortBy] as string));
+                    data.sort((a, b) => (a[sortBy] as string).localeCompare(b[sortBy] as string));
                 } else {
-                    _data.sort((a, b) => (b[sortBy] as string).localeCompare(a[sortBy] as string));
+                    data.sort((a, b) => (b[sortBy] as string).localeCompare(a[sortBy] as string));
                 }
                 break;
             }
             case "number": {
                 if (newSortOrder === "asc") {
-                    _data.sort((a, b) => (a[sortBy] as number) - (b[sortBy] as number));
+                    data.sort((a, b) => (a[sortBy] as number) - (b[sortBy] as number));
                 } else {
-                    _data.sort((a, b) => (b[sortBy] as number) - (a[sortBy] as number));
+                    data.sort((a, b) => (b[sortBy] as number) - (a[sortBy] as number));
                 }
                 break;
             }
         }
-        setData(_data);
+        setData(data);
         setSortOrder(newSortOrder);
         setSortByKey(sortBy);
-    }, [_data, _sortByKey, _sortOrder]);
+    }, [_sortByKey, _sortOrder]);
 
-    return {data: _data, sortOrder: _sortOrder, doSortBy, sortByKey: _sortByKey};
+    return {data: _data, sortOrder: _sortOrder, doSortBy: sortBy => doSortBy(_data, sortBy), sortByKey: _sortByKey};
 
 }
 
