@@ -1,6 +1,7 @@
 module ucloud.dk/core
 
 require (
+	github.com/benbjohnson/immutable v0.4.3
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/pquerna/otp v1.4.0
 	golang.org/x/crypto v0.37.0

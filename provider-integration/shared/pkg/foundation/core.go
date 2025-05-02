@@ -21,6 +21,39 @@ type PageV2[T any] struct {
 	ItemsPerPage int                 `json:"itemsPerPage"`
 }
 
+func (result *PageV2[T]) Prepare(itemsPerPage int, next util.Option[string], keySelector func(item T) string) {
+	startSignalSeen := !next.Present
+	hasMoreItems := false
+
+	items := result.Items
+	result.ItemsPerPage = ItemsPerPage(itemsPerPage)
+
+	if len(items) < result.ItemsPerPage {
+		if len(items) == 0 {
+			result.Items = make([]T, 0)
+		} else {
+			result.Items = items
+		}
+	} else {
+		for _, item := range items {
+			if startSignalSeen {
+				if len(result.Items) == result.ItemsPerPage {
+					hasMoreItems = true
+					break
+				}
+
+				result.Items = append(result.Items, item)
+			} else if keySelector(item) == next.Value {
+				startSignalSeen = true
+			}
+		}
+
+		if hasMoreItems {
+			result.Next.Set(keySelector(result.Items[len(result.Items)-1]))
+		}
+	}
+}
+
 func EmptyPage[T any]() PageV2[T] {
 	return PageV2[T]{
 		Items: []T{},
@@ -70,4 +103,13 @@ type FindByStringId struct {
 
 type FindByIntId struct {
 	Id int `json:"id"`
+}
+
+func ItemsPerPage(number int) int {
+	switch number {
+	case 10, 25, 50, 100, 250, 1000:
+		return number
+	default:
+		return 50
+	}
 }

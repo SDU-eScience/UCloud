@@ -16,26 +16,26 @@ type Project struct {
 }
 
 type ProjectSpecification struct {
-	Parent              string `json:"parent,omitempty"`
-	Title               string `json:"title,omitempty"`
-	CanConsumeResources bool   `json:"canConsumeResources,omitempty"`
+	Parent              util.Option[string] `json:"parent"`
+	Title               string              `json:"title"`
+	CanConsumeResources bool                `json:"canConsumeResources"`
 }
 
 type ProjectStatus struct {
-	Archived                   bool                `json:"archived,omitempty"`
-	IsFavorite                 bool                `json:"isFavorite,omitempty"`
-	Members                    []ProjectMember     `json:"members,omitempty"`
-	Groups                     []ProjectGroup      `json:"groups,omitempty"`
+	Archived                   bool                `json:"archived"`
+	IsFavorite                 bool                `json:"isFavorite"`
+	Members                    []ProjectMember     `json:"members"`
+	Groups                     []ProjectGroup      `json:"groups"`
 	Settings                   ProjectSettings     `json:"settings"`
-	MyRole                     ProjectRole         `json:"myRole,omitempty"`
-	Path                       string              `json:"path,omitempty"`
+	MyRole                     ProjectRole         `json:"myRole"`
+	Path                       string              `json:"path"`
 	PersonalProviderProjectFor util.Option[string] `json:"personalProviderProjectFor"`
 }
 
 type ProjectSettings struct {
 	SubProjects struct {
-		AllowRenaming bool `json:"allowRenaming,omitempty"`
-	} `json:"subProjects,omitempty"`
+		AllowRenaming bool `json:"allowRenaming"`
+	} `json:"subProjects"`
 }
 
 type ProjectRole string
@@ -45,6 +45,43 @@ const (
 	ProjectRoleAdmin ProjectRole = "ADMIN"
 	ProjectRolePI    ProjectRole = "PI"
 )
+
+var ProjectRoleOptions = []ProjectRole{
+	ProjectRoleUser,
+	ProjectRoleAdmin,
+	ProjectRolePI,
+}
+
+func (p ProjectRole) Power() int {
+	switch p {
+	case ProjectRolePI:
+		return 3
+	case ProjectRoleAdmin:
+		return 2
+	case ProjectRoleUser:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func (p ProjectRole) Normalize() ProjectRole {
+	return util.EnumOrDefault(p, ProjectRoleOptions, ProjectRoleUser)
+}
+
+func (p ProjectRole) Satisfies(requirement ProjectRole) bool {
+	if p == requirement {
+		return true
+	}
+
+	power := p.Power()
+	requiredPower := p.Power()
+	if power > 0 && requiredPower > 0 {
+		return power >= requiredPower
+	} else {
+		return false
+	}
+}
 
 type ProjectMember struct {
 	Username string      `json:"username,omitempty"`
@@ -77,11 +114,25 @@ type ProjectFlags struct {
 	IncludePath     bool
 }
 
+type ProjectInviteLink struct {
+	Token           string      `json:"token"`
+	Expires         Timestamp   `json:"expires"`
+	GroupAssignment []string    `json:"groupAssignment"`
+	RoleAssignment  ProjectRole `json:"roleAssignment"`
+}
+
+type ProjectInviteLinkInfo struct {
+	Token    string  `json:"token"`
+	IsMember bool    `json:"isMember"`
+	Project  Project `json:"project"`
+}
+
 type ProjectRetrieveRequest struct {
 	Id string
 	ProjectFlags
 }
 
+const ProjectContextV1 = "projects"
 const ProjectContext = "projects/v2"
 
 var ProjectRetrieve = rpc.Call[ProjectRetrieveRequest, Project]{
@@ -98,6 +149,16 @@ const (
 	ProjectSortByParent   ProjectSortBy = "parent"
 )
 
+var ProjectSortByOptions = []ProjectSortBy{
+	ProjectSortByFavorite,
+	ProjectSortByTitle,
+	ProjectSortByParent,
+}
+
+func (p ProjectSortBy) Normalize() ProjectSortBy {
+	return util.EnumOrDefault(p, ProjectSortByOptions, ProjectSortByTitle)
+}
+
 type ProjectSortDirection string
 
 const (
@@ -105,8 +166,17 @@ const (
 	ProjectSortDescending ProjectSortDirection = "descending"
 )
 
+var ProjectSortDirectionOptions = []ProjectSortDirection{
+	ProjectSortAscending,
+	ProjectSortDescending,
+}
+
+func (p ProjectSortDirection) Normalize() ProjectSortDirection {
+	return util.EnumOrDefault(p, ProjectSortDirectionOptions, ProjectSortAscending)
+}
+
 type ProjectBrowseRequest struct {
-	ItemsPerPage  util.Option[int]
+	ItemsPerPage  int
 	Next          util.Option[string]
 	SortBy        util.Option[ProjectSortBy]
 	SortDirection util.Option[ProjectSortDirection]
@@ -145,7 +215,7 @@ type FindByProjectId struct {
 	Project string
 }
 
-var ProjectRetrieveAllUsersGroup = rpc.Call[BulkRequest[FindByProviderId], BulkResponse[FindByStringId]]{
+var ProjectRetrieveAllUsersGroup = rpc.Call[BulkRequest[FindByProjectId], BulkResponse[FindByStringId]]{
 	BaseContext: ProjectContext,
 	Operation:   "retrieveAllUsersGroup",
 	Convention:  rpc.ConventionUpdate,
@@ -245,7 +315,94 @@ var ProjectCreateGroupMember = rpc.Call[BulkRequest[ProjectGroupMember], util.Em
 
 var ProjectDeleteGroupMember = rpc.Call[BulkRequest[ProjectGroupMember], util.Empty]{
 	BaseContext: ProjectContext,
-	Operation:   ProjectGroupMemberResource,
-	Convention:  rpc.ConventionDelete,
+	Operation:   "deleteGroupMember",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+}
+
+type ProjectRenamableRequest struct {
+	ProjectId string `json:"projectId"`
+}
+
+type ProjectRenamableResponse struct {
+	Allowed bool `json:"allowed"`
+}
+
+var ProjectRenamable = rpc.Call[ProjectRenamableRequest, ProjectRenamableResponse]{
+	BaseContext: ProjectContextV1,
+	Operation:   "renameable",
+	Convention:  rpc.ConventionQueryParameters,
+	Roles:       rpc.RolesEndUser,
+}
+
+const ProjectInviteLinkResource = "link"
+
+var ProjectCreateInviteLink = rpc.Call[util.Empty, ProjectInviteLink]{
+	BaseContext: ProjectContext,
+	Operation:   ProjectInviteLinkResource,
+	Convention:  rpc.ConventionCreate,
+	Roles:       rpc.RolesEndUser,
+}
+
+type ProjectBrowseInviteLinksRequest struct {
+	ItemsPerPage int
+	Next         util.Option[string]
+}
+
+var ProjectBrowseInviteLinks = rpc.Call[ProjectBrowseInviteLinksRequest, PageV2[ProjectInviteLink]]{
+	BaseContext: ProjectContext,
+	Operation:   ProjectInviteLinkResource,
+	Convention:  rpc.ConventionBrowse,
+	Roles:       rpc.RolesEndUser,
+}
+
+type FindByInviteLink struct {
+	Token string `json:"token"`
+}
+
+var ProjectRetrieveInviteLink = rpc.Call[FindByInviteLink, ProjectInviteLinkInfo]{
+	BaseContext: ProjectContext,
+	Operation:   ProjectInviteLinkResource,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesEndUser,
+}
+
+var ProjectDeleteInviteLink = rpc.Call[FindByInviteLink, util.Empty]{
+	BaseContext: ProjectContext,
+	Operation:   "deleteInviteLink",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+}
+
+type ProjectUpdateInviteLinkRequest struct {
+	Token  string      `json:"token"`
+	Role   ProjectRole `json:"role"`
+	Groups []string    `json:"groups"`
+}
+
+var ProjectUpdateInviteLink = rpc.Call[ProjectUpdateInviteLinkRequest, util.Empty]{
+	BaseContext: ProjectContext,
+	Operation:   "updateInviteLink",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+}
+
+type ProjectAcceptInviteLinkResponse struct {
+	Project string `json:"project"`
+}
+
+var ProjectAcceptInviteLink = rpc.Call[FindByInviteLink, ProjectAcceptInviteLinkResponse]{
+	BaseContext: ProjectContext,
+	Operation:   "acceptInviteLink",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+}
+
+const ProjectInviteResource = "invites"
+
+var ProjectBrowseInvites = rpc.Call[util.Empty, PageV2[util.Empty]]{
+	BaseContext: ProjectContext,
+	Operation:   ProjectInviteResource,
+	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesEndUser,
 }

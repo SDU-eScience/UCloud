@@ -25,6 +25,11 @@ type Actor struct {
 	TokenInfo util.Option[TokenInfo]
 }
 
+var ActorSystem = Actor{
+	Username: "_UCloud",
+	Role:     RoleService,
+}
+
 type TokenInfo struct {
 	IssuedAt               time.Time
 	ExpiresAt              time.Time

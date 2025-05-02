@@ -21,6 +21,13 @@ func ParametersToStruct(params url.Values, s interface{}) error {
 		field := t.Field(i)
 		value := v.Field(i)
 
+		if field.Anonymous {
+			err := ParametersToStruct(params, value.Addr().Interface())
+			if err != nil {
+				return err
+			}
+		}
+
 		idx := 0
 		mappedName := strings.Map(func(r rune) rune {
 			idx++

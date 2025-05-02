@@ -40,7 +40,7 @@ func Launch() {
 		//goland:noinspection GoBoolExpressions
 		for keepWaiting {
 			// Break this loop via the debugger (the debugger can change the value of keepWaiting).
-			time.Sleep(1 * time.Second)
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 
@@ -169,6 +169,7 @@ func Launch() {
 	}
 
 	rpc.AuditConsumer = func(event rpc.HttpCallLogEntry) {
+		log.Info("%v/%v %v ms", event.RequestName, event.ResponseCode, event.ResponseTime)
 		/*
 			data, _ := json.MarshalIndent(event, "", "    ")
 			log.Info("Audit: %s", string(data))
