@@ -3,9 +3,9 @@ import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
 import ApexCharts from "apexcharts";
 import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
-import {Flex, Icon, Input, Text, MainContainer, Box, Truncate} from "@/ui-components";
+import {Flex, Icon, Input, Text, MainContainer, Box, Truncate, Button, Checkbox, Label, Select} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
-import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
+import {ProjectSwitcher, projectTitle} from "@/Project/ProjectSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
@@ -13,10 +13,11 @@ import {BreakdownByProjectAPI, categoryComparator, ChartsAPI, UsageOverTimeAPI} 
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {deferLike, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import {callAPI} from "@/Authentication/DataHook";
+import {callAPI, noopCall} from "@/Authentication/DataHook";
 import * as Jobs from "@/Applications/Jobs";
+import * as Config from "../../site.config.json";
 import {useProjectId} from "@/Project/Api";
-import {formatDistance} from "date-fns";
+import {formatDate, formatDistance} from "date-fns";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {deviceBreakpoint} from "@/ui-components/Hide";
@@ -31,6 +32,9 @@ import {Feature, hasFeature} from "@/Features";
 import {IconName} from "@/ui-components/Icon";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import {groupBy} from "@/Utilities/CollectionUtilities";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {DATE_FORMAT} from "@/Admin/NewsManagement";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 // Constants
 // =====================================================================================================================
@@ -76,6 +80,90 @@ interface State {
 
     selectedPeriod: Period,
 }
+
+interface ExportHeader<T> {
+    key: keyof T;
+    value: string;
+    defaultChecked: boolean;
+};
+
+function exportUsage<T extends object>(chartData: T[] | undefined, headers: ExportHeader<T>[], projectTitle: string | undefined): void {
+    if (!chartData?.length) {
+        snackbarStore.addFailure("No data to export found", false);
+        return;
+    }
+
+    dialogStore.addDialog(<UsageExport chartData={chartData} headers={headers} projectTitle={projectTitle} />, () => {}, true);
+}
+
+function UsageExport<T extends object>({chartData, headers, projectTitle}: {chartData: T[]; headers: ExportHeader<T>[]; projectTitle?: string}): React.ReactNode {
+    const checked = useRef(headers.map(it => it.defaultChecked));
+
+    const startExport = useCallback((format: "json" | "csv") => {
+        doExport(chartData, headers.filter((_, idx) => checked.current[idx]), ';', format, projectTitle);
+        dialogStore.success();
+    }, []);
+
+    return <Box>
+        <h2>Export usage data</h2>
+        <Box mt="12px">
+            <h3>Columns to export</h3>
+            {headers.map((h, i) =>
+                <Label key={h.value} style={{display: "flex"}}>
+                    <Text mr="4px">{h.value}</Text>
+                    <Checkbox defaultChecked={h.defaultChecked} onChange={e => checked.current[i] = e.target.checked} />
+                </Label>
+            )}
+        </Box>
+        <Flex width="100%" mt="auto">
+            <Button ml="auto" mr="12px" onClick={() => startExport("json")}>Export JSON</Button>
+            <Button mr="12px" onClick={() => startExport("csv")}>Export CSV</Button>
+            <Button onClick={() => dialogStore.failure()} color="errorMain">Dismiss</Button>
+        </Flex>
+    </Box>
+
+    function doExport<T extends object>(chartData: T[], headers: ExportHeader<T>[], delimitier: string, format: "json" | "csv", projectTitle?: string) {
+        let text = "";
+        switch (format) {
+            case "csv": {
+                text = headers.map(it => it.value).join(delimitier) + "\n";
+
+                for (const el of chartData) {
+                    for (const [idx, header] of headers.entries()) {
+                        text += el[header.key];
+                        if (idx !== headers.length - 1) text += ";";
+                    }
+                    text += "\n";
+                }
+
+                break;
+            };
+            case "json": {
+                const h = headers.map(it => it.key);
+                const data: T[] = JSON.parse(JSON.stringify(chartData));
+
+                for (const row of data) {
+                    for (const k of Object.keys(row)) {
+                        if (!h.includes(k as keyof T)) {
+                            delete row[k];
+                        }
+                    }
+                }
+
+                text = JSON.stringify(data);
+                break;
+            }
+        }
+
+        const a = document.createElement("a");
+        a.href = "data:text/plain;charset=utf-8," + encodeURIComponent(text);
+        a.download = `${Config.PRODUCT_NAME} - ${projectTitle ?? "personal workspace"} - ${formatDate(new Date(), DATE_FORMAT)}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+}
+
 
 type Period =
     | {type: "relative", distance: number, unit: "day" | "month"}
@@ -355,6 +443,7 @@ function stateReducer(state: State, action: UIAction): State {
             ...state,
             activeDashboard: {
                 category: summaries[0].category,
+                /* TODO: Remove? Hidden behind flag */
                 currentAllocation: {
                     usage: summaries[0].usage,
                     quota: summaries[0].quota,
@@ -907,6 +996,33 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit: st
         setBreakdownSelected(current => current === dataPoint.key ? undefined : dataPoint.key);
     }, []);
 
+    const project = useProject().fetch();
+
+    const startExport = useCallback(() => {
+        const datapoints = fullyMergedChart.dataPoints.map(it => {
+            const [product, provider] = it.nameAndProvider.split("/");
+            return {
+                product,
+                provider,
+                projectId: it.projectId,
+                title: it.title,
+                usage: it.usage,
+            };
+        });
+
+        exportUsage(datapoints, [{
+            key: "title", value: "Project", defaultChecked: true,
+        }, {
+            key: "product", value: "Product", defaultChecked: true,
+        }, {
+            key: "provider", value: "Provider", defaultChecked: true,
+        }, {
+            key: "usage", value: "Usage (" + props.unit + ")", defaultChecked: true,
+        }, {
+            key: "projectId", value: "Project ID", defaultChecked: false
+        }], projectTitle(project));
+    }, [fullyMergedChart, project]);
+
     if (props.isLoading) return null;
 
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
@@ -915,6 +1031,9 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit: st
                 tooltip={"Click on a project name to view more detailed usage"}>
                 <Icon name={"heroQuestionMarkCircle"} />
             </TooltipV2>
+            <Button onClick={startExport}>
+                Export
+            </Button>
         </div>
 
         {showWarning ? <>
@@ -1036,10 +1155,25 @@ function useSorting<DataType>(originalData: DataType[], sortByKey: keyof DataTyp
 const MostUsedApplicationsPanel: React.FunctionComponent<{data?: MostUsedApplications}> = ({data}) => {
     const sorted = useSorting(data?.dataPoints ?? [], "count", "desc");
 
+    const project = useProject().fetch()
+
+    const startExport = useCallback(() => {
+        exportUsage(
+            data?.dataPoints,
+            [{key: "applicationTitle", value: "Application", defaultChecked: true}, {key: "count", value: "Count", defaultChecked: true}],
+            projectTitle(project)
+        );
+    }, [data?.dataPoints, project]);
+
     return <div className={classConcat(CardClass, PanelClass, MostUsedApplicationsStyle)}>
-        <div className="panel-title">
-            <h4>Most used applications</h4>
-        </div>
+        <Flex>
+            <div className="panel-title">
+                <h4>Most used applications</h4>
+            </div>
+            <Button ml="auto" onClick={startExport}>
+                Export
+            </Button>
+        </Flex>
 
         {sorted.data === undefined || sorted.data.length === 0 ? "No usage data found" :
             <div className={TableWrapper.class}>
@@ -1110,11 +1244,27 @@ const DurationOfSeconds: React.FunctionComponent<{duration: number}> = ({duratio
 
 const JobSubmissionPanel: React.FunctionComponent<{data?: SubmissionStatistics}> = ({data}) => {
     const sorted = useSorting(data?.dataPoints ?? [], "day");
+    const project = useProject().fetch();
+
+    const startExport = useCallback(() => {
+        exportUsage(data?.dataPoints.map(it => ({...it, day: dayNames[it.day], hourOfDayStart: formatHours(it.hourOfDayStart, it.hourOfDayEnd)})), [
+            {key: "day", value: "Day", defaultChecked: true},
+            {key: "hourOfDayStart", value: "Time of day", defaultChecked: true},
+            {key: "numberOfJobs", value: "Count", defaultChecked: true},
+            {key: "averageDurationInSeconds", value: "Avg duration", defaultChecked: true},
+            {key: "averageQueueInSeconds", value: "Avg queue", defaultChecked: true},
+        ], projectTitle(project))
+    }, [data?.dataPoints, project]);
 
     return <div className={classConcat(CardClass, PanelClass, JobSubmissionStyle)}>
-        <div className="panel-title">
-            <h4>When are your jobs being submitted?</h4>
-        </div>
+        <Flex>
+            <div className="panel-title">
+                <h4>When are your jobs being submitted?</h4>
+            </div>
+            <Button ml="auto" onClick={startExport}>
+                Export
+            </Button>
+        </Flex>
 
         {sorted.data == null || sorted.data.length === 0 ? "No job data found" :
             <div className={TableWrapper.class}>
@@ -1133,10 +1283,7 @@ const JobSubmissionPanel: React.FunctionComponent<{data?: SubmissionStatistics}>
                             const day = dayNames[dp.day];
                             return <tr key={i}>
                                 <td>{day}</td>
-                                <td>
-                                    {dp.hourOfDayStart.toString().padStart(2, '0')}:00-
-                                    {dp.hourOfDayEnd.toString().padStart(2, '0')}:00
-                                </td>
+                                <td>{formatHours(dp.hourOfDayStart, dp.hourOfDayEnd)}</td>
                                 <td>{dp.numberOfJobs}</td>
                                 <td><DurationOfSeconds duration={dp.averageDurationInSeconds} /></td>
                                 <td><DurationOfSeconds duration={dp.averageQueueInSeconds} /></td>
@@ -1147,6 +1294,10 @@ const JobSubmissionPanel: React.FunctionComponent<{data?: SubmissionStatistics}>
             </div>
         }
     </div>;
+
+    function formatHours(start: number, end: number) {
+        return `${start.toString().padStart(2, '0')}:00-${end.toString().padStart(2, '0')}:00`;
+    }
 }
 
 const UsageOverTimeStyle = injectStyle("usage-over-time", k => `
@@ -1208,6 +1359,8 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
     const chartCounter = useRef(0); // looks like apex charts has a rendering bug if the component isn't completely thrown out
     const [shownEntries, setShownEntries] = useState<boolean[]>([]);
 
+    const exportRef = React.useRef(noopCall);
+
     // HACK(Jonas): Used to change contents of table, based on what series are active in the chart
     const shownRef = React.useRef(shownEntries);
     React.useEffect(() => {
@@ -1260,9 +1413,12 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
     if (isLoading) return null;
 
     return <div className={classConcat(CardClass, PanelClass, UsageOverTimeStyle)}>
-        <div className="panel-title">
-            <h4>Usage over time</h4>
-        </div>
+        <Flex>
+            <div className="panel-title">
+                <h4>Usage over time</h4>
+            </div>
+            <Button ml="auto" onClick={() => exportRef.current()}>Export</Button>
+        </Flex>
 
         <div className={ChartAndTable}>
             <DynamicallySizedChart anyChartData={anyData} chart={chartProps} aspectRatio={ASPECT_RATIO_LINE_CHART} />
@@ -1274,12 +1430,13 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
                 </Warning>
             </>}
 
-            <DifferenceTable charts={charts} shownEntries={shownEntries} />
+            <DifferenceTable charts={charts} shownEntries={shownEntries} exportRef={exportRef} />
         </div>
-    </div>;
+    </div >;
 };
 
-function DifferenceTable({charts, shownEntries}: {charts: UsageChart[]; shownEntries: boolean[]}) {
+function DifferenceTable({charts, shownEntries, exportRef}: {charts: UsageChart[]; shownEntries: boolean[]; exportRef: React.RefObject<() => void>;}) {
+    /* TODO(Jonas): Provider _should_ also be here, right */
     const shownCharts = React.useMemo(() => charts.filter((chart, index) => shownEntries[index]), [charts, shownEntries]);
 
     const differences = React.useMemo(() => {
@@ -1316,6 +1473,21 @@ function DifferenceTable({charts, shownEntries}: {charts: UsageChart[]; shownEnt
         }
         return result;
     }, [shownCharts]);
+
+
+    const project = useProject().fetch();
+    const startExport = useCallback(() => {
+        exportUsage(remappedThingies.map(it => ({...it, timestamp: formatDate(it.timestamp, DATE_FORMAT)})), [
+            {key: "name", value: "Name", defaultChecked: true},
+            {key: "timestamp", value: "Time", defaultChecked: true},
+            {key: "usage", value: "Usage", defaultChecked: true},
+            {key: "difference", value: "Difference", defaultChecked: true},
+        ], projectTitle(project));
+    }, [remappedThingies, project]);
+
+    React.useEffect(() => {
+        exportRef.current = startExport
+    }, [startExport]);
 
     const sorted = useSorting(remappedThingies, "timestamp");
     const showOriginalData = false;
@@ -1408,21 +1580,33 @@ const LargeJobsStyle = injectStyle("large-jobs", k => `
 
 const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageByUsers}> = ({loading, data}) => {
     const dataPoints = useMemo(() => {
-        return data?.dataPoints?.map(it => ({key: it.username, value: it.usage}));
+        return data?.dataPoints?.map(it => ({key: it.username, value: it.usage})) ?? [];
     }, [data?.dataPoints]);
     const formatter = useCallback((val: number) => {
         if (!data) return "";
         return Accounting.addThousandSeparators(val.toFixed(2)) + " " + data.unit;
     }, [data?.unit]);
 
+    const project = useProject().fetch();
+    const startExport = useCallback(() => {
+        exportUsage(
+            dataPoints,
+            [{key: "key", value: "Username", defaultChecked: true}, {key: "value", value: "Estimated usage", defaultChecked: true}],
+            projectTitle(project)
+        );
+    }, [dataPoints, project]);
 
-    const sorted = useSorting(dataPoints ?? [], "key");
-
+    const sorted = useSorting(dataPoints, "key");
 
     return <div className={classConcat(CardClass, PanelClass, LargeJobsStyle)}>
-        <div className="panel-title">
-            <h4>Usage by users</h4>
-        </div>
+        <Flex>
+            <div className="panel-title">
+                <h4>Usage by users</h4>
+            </div>
+            <Button ml="auto" onClick={startExport}>
+                Export
+            </Button>
+        </Flex>
 
         {data !== undefined && sorted.data.length !== 0 ? <>
             <PieChart chartId="UsageByUsers" dataPoints={sorted.data} valueFormatter={formatter} onDataPointSelection={() => {}} />
