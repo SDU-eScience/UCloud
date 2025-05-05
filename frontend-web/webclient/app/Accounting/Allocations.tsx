@@ -1322,7 +1322,10 @@ const Allocations: React.FunctionComponent = () => {
                 })}
             </Tree>
 
+            <Flex mt={32} mb={10}>
             <h3>Resources Granted</h3>
+            </Flex>
+            {state.subAllocations.recipients.length === 0 ? "You have not granted any resources to sub-projects at the moment." : <>
             <Tree apiRef={allocationTree}>
                 {sortedAllocations.map(([rawType, tree]) => {
                     const type = rawType as ProductType;
@@ -1375,6 +1378,8 @@ const Allocations: React.FunctionComponent = () => {
                 })}
             </Tree>
 
+            </>
+            }
             {projectId !== undefined && <>
                 <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
                     <h3 style={{margin: 0}}>Sub-projects</h3>
