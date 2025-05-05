@@ -226,6 +226,14 @@ func Connect(username, password, host string, port int, database string, ssl boo
 	}
 }
 
+func RequestRollback(ctx *Transaction) {
+	if ctx.Ok {
+		ctx.Ok = false
+		ctx.error = nil
+		ctx.didConsumeError = true
+	}
+}
+
 func Exec(ctx *Transaction, query string, args Params) {
 	_, err := ctx.tx.NamedExec(query, transformParameters(args))
 	if err != nil && ctx.Ok {

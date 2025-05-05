@@ -70,7 +70,7 @@ export function RichSelect<T, K extends keyof T>(props: {
             <props.FullRenderSelected element={props.selected} onSelect={doNothing} />
             :
             props.RenderSelected ?
-                <div className={TriggerClass} ref={triggerRef}>
+                <div className={TriggerClass} style={{minWidth: props.fullWidth ? "500px" : props.dropdownWidth ?? "500px"}} ref={triggerRef}>
                     <props.RenderSelected element={props.selected} onSelect={doNothing} />
                     <Icon name="chevronDownLight" />
                 </div>
@@ -184,7 +184,6 @@ const TriggerClass = injectStyle("rich-select-trigger", k => `
         width: 100%;
         user-select: none;
         -webkit-user-select: none;
-        min-width: 500px;
         background: var(--backgroundDefault);
         box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);
     }

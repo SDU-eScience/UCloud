@@ -72,6 +72,11 @@ var UseCore2 = sync.OnceValue(func() bool {
 	return err == nil
 })
 
+var UseCore2Experimental = sync.OnceValue(func() bool {
+	_, err := os.Stat(filepath.Join(currentEnvironment.GetAbsolutePath(), "../../.use-core2-exp"))
+	return err == nil
+})
+
 func GenerateComposeFile(doWriteFile bool) {
 	providers := ListConfiguredProviders()
 
@@ -81,7 +86,7 @@ func GenerateComposeFile(doWriteFile bool) {
 		&GateWay{false},
 	}
 
-	if UseCore2() {
+	if UseCore2() || UseCore2Experimental() {
 		composeList = append(composeList, &UCloudCore2{})
 	}
 

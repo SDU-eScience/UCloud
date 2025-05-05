@@ -411,6 +411,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
         }
     }
 
+    @Deprecated("No longer used")
     val bulkInvalidate = call("bulkInvalidate", BulkInvalidateRequest.serializer(), BulkInvalidateResponse.serializer(), CommonErrorMessage.serializer()) {
         audit(Unit.serializer())
 
@@ -463,6 +464,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
         }
     }
 
+    @Deprecated("No longer used")
     val claim = call("claim", ClaimOneTimeToken.serializer(), Unit.serializer(), Unit.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
@@ -482,6 +484,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
         }
     }
 
+    @Deprecated("No longer used")
     val requestOneTimeTokenWithAudience = call("requestOneTimeTokenWithAudience", RequestOneTimeToken.serializer(), OneTimeAccessToken.serializer(), Unit.serializer()) {
             auth {
                 roles = Roles.PUBLIC

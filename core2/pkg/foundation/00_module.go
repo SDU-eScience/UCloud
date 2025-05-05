@@ -5,4 +5,6 @@ func Init() {
 	initNews()
 	initMails()
 	initNotifications()
+	initAuth()
+	initProjects()
 }

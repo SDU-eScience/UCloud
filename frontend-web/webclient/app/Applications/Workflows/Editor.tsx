@@ -31,6 +31,7 @@ const WorkflowEditor: React.FunctionComponent<{
     applicationName: string;
     doSaveRef: React.RefObject<() => void>;
     onUse?: (id: string | null, path: string | null, spec: WorkflowSpecification) => void;
+    onSave?: () => void;
 }> = props => {
     const editorApi = useRef<EditorApi>(null);
     const [currentPath, setCurrentPath] = useState<string | null>(props.initialExistingPath ?? null);
@@ -51,6 +52,12 @@ const WorkflowEditor: React.FunctionComponent<{
     useEffect(() => {
         vfs.workflow = props.workflow;
     }, [props.workflow]);
+
+    useEffect(() => {
+        if (props.onSave && savedId) {
+            props.onSave();
+        }
+    }, [savedId])
 
     const readCurrentSpecification = useCallback((): WorkflowSpecification | null => {
         const params = vfs.dirtyFiles["/" + FILE_NAME_PARAMETERS] ?? "";

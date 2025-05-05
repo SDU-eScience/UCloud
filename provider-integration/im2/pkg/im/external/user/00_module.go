@@ -91,8 +91,8 @@ func lookupGroup(query string) (GroupInfo, error) {
 	}
 
 	return GroupInfo{
-		Gid:  toks[0],
-		Name: toks[2],
+		Name: toks[0],
+		Gid:  toks[2],
 	}, nil
 }
 

@@ -27,7 +27,7 @@ startsvc() {
     if ! isrunning; then
         CGO_ENABLED=0 $GO build -gcflags "all=-N -l" -o /usr/bin/ucloud -trimpath ucloud.dk/core/cmd/ucloud
 
-        nohup sudo -u "#$uid" /usr/bin/dlv exec /usr/bin/ucloud --headless --listen=0.0.0.0:51233 --api-version=2 --continue --accept-multiclient &> /tmp/service.log &
+        nohup sudo --preserve-env=UCLOUD_EARLY_DEBUG -u "#$uid" /usr/bin/dlv exec /usr/bin/ucloud --headless --listen=0.0.0.0:51233 --api-version=2 --continue --accept-multiclient &> /tmp/service.log &
         echo $! > /tmp/service.pid
         sleep 0.5 # silly workaround to make sure docker exec doesn't kill us
     fi

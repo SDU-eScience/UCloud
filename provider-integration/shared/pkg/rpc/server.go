@@ -21,6 +21,13 @@ func ParametersToStruct(params url.Values, s interface{}) error {
 		field := t.Field(i)
 		value := v.Field(i)
 
+		if field.Anonymous {
+			err := ParametersToStruct(params, value.Addr().Interface())
+			if err != nil {
+				return err
+			}
+		}
+
 		idx := 0
 		mappedName := strings.Map(func(r rune) rune {
 			idx++
@@ -92,6 +99,9 @@ func setFieldValue(value reflect.Value, paramValue string) error {
 func ParseRequestFromBody[Req any](w http.ResponseWriter, r *http.Request) (Req, *util.HttpError) {
 	var request Req
 	if r.Body == nil {
+		if _, isEmpty := any(&request).(util.EmptyMarker); isEmpty {
+			return request, nil
+		}
 		return request, util.HttpErr(http.StatusBadRequest, "No request body found")
 	}
 
@@ -99,11 +109,17 @@ func ParseRequestFromBody[Req any](w http.ResponseWriter, r *http.Request) (Req,
 	body, err := io.ReadAll(r.Body)
 
 	if err != nil {
+		if _, isEmpty := any(&request).(util.EmptyMarker); isEmpty {
+			return request, nil
+		}
 		return request, util.HttpErr(http.StatusBadRequest, "Could not read request body")
 	}
 
 	err = json.Unmarshal(body, &request)
 	if err != nil {
+		if _, isEmpty := any(&request).(util.EmptyMarker); isEmpty {
+			return request, nil
+		}
 		return request, util.HttpErr(http.StatusBadRequest, "Invalid request supplied")
 	}
 

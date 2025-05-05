@@ -27,6 +27,7 @@ func HandleCli(command string) {
 		ctrl.IpPoolCliStub(os.Args[2:])
 	case "license":
 		ctrl.LicenseCli(os.Args[2:])
+	case "storage-scan":
+		StorageScanCli(os.Args[2:])
 	}
-
 }
