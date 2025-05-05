@@ -10,6 +10,8 @@ import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {Application, ApplicationSummaryWithFavorite, ApplicationWithFavoriteAndTags} from "@/Applications/AppStoreApi";
 import {Feature, hasFeature} from "@/Features";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {RichSelect} from "@/ui-components/RichSelect";
+import {useMemo} from "react";
 
 const DEFAULT_FLAVOR_NAME = "Default";
 
@@ -22,6 +24,20 @@ export const AppHeader: React.FunctionComponent<{
     const newestVersion = props.allVersions[0];
     const navigate = useNavigate();
     const close = React.useRef(() => void 0);
+
+    const searchableFlavor: { searchKey: string, app: Application }[] = useMemo(() => {
+        return props.flavors.map(app => {
+            return { searchKey: app.metadata.flavorName ?? DEFAULT_FLAVOR_NAME, app };
+        }).sort((a, b) => {
+            return a.searchKey.localeCompare(b.searchKey);
+        });
+    }, [props.flavors]);
+
+    const searchableVersions: { searchKey: string, version: string }[] = useMemo(() => {
+        return props.allVersions.map(version => {
+            return { searchKey: version, version }
+        });
+    }, [props.flavors]);
 
     return (
         <Flex flexDirection={"row"}>
@@ -42,56 +58,42 @@ export const AppHeader: React.FunctionComponent<{
                 </Box>
                 <Flex marginTop="2px" gap={"8px"}>
                     <Box>
-                        <ClickableDropdown
-                            closeFnRef={close}
-                            paddingControlledByContent
-                            noYPadding
-                            trigger={
-                                <Flex className={FlavorSelectorClass}>
-                                    {props.application.metadata.flavorName ?? DEFAULT_FLAVOR_NAME}
-                                    {" "}
-                                    <Icon ml="8px" name="chevronDownLight" size={12} />
-                                </Flex>
-                            }>
-
-                            {props.flavors.map(f => {
-                                return <Box
-                                        cursor="pointer"
-                                        key={f.metadata.name}
-                                        minWidth={"300px"}
-                                        p={"8px"}
-                                        onClick={() => {
-                                            close.current();
-                                            navigate(Pages.runApplicationWithName(f.metadata.name));
-                                        }}
-                                    >
-                                        {f.metadata.flavorName ?? DEFAULT_FLAVOR_NAME}
-                                    </Box>;
-                                }
-                            )}
-                        </ClickableDropdown>
+                        <RichSelect
+                            items={searchableFlavor}
+                            keys={["searchKey"]}
+                            selected={{searchKey: "", app: props.application}}
+                            dropdownWidth={"300px"}
+                            RenderRow={p => {
+                                return <Box p={"8px"} onClick={p.onSelect} {...p.dataProps}>
+                                    {p.element?.app?.metadata?.flavorName ?? DEFAULT_FLAVOR_NAME}
+                                </Box>;
+                            }}
+                            RenderSelected={p => {
+                                return <Box p={"8px"} onClick={p.onSelect} {...p.dataProps}>
+                                    {p.element?.app?.metadata?.flavorName ?? DEFAULT_FLAVOR_NAME}
+                                </Box>;
+                            }}
+                            onSelect={p => {
+                                navigate(Pages.runApplicationWithName(p.app.metadata.name));
+                            }}
+                        />
                     </Box>
-                    <ClickableDropdown
-                        trigger={
-                            <Flex className={FlavorSelectorClass}>
-                                {props.application.metadata.version}
-                                {" "}
-                                <Icon ml="8px" name="chevronDownLight" size={12} />
-                            </Flex>
-                        }
-                        paddingControlledByContent
-                        noYPadding
-                    >
-                        {props.allVersions.map(it =>
-                            <Box
-                                minWidth={"300px"}
-                                p={"8px"}
-                                key={it}
-                                onClick={() => navigate(Pages.runApplication({name: props.application.metadata.name, version: it}))}>
-                                {it}
-                            </Box>
-                        )}
-                    </ClickableDropdown>
+
+                    <RichSelect
+                        items={searchableVersions}
+                        keys={["searchKey"]}
+                        selected={{searchKey: "", version: props.application.metadata.version}}
+                        dropdownWidth={"138px"}
+                        RenderRow={p => {
+                            return <Box p={"8px"} onClick={p.onSelect} {...p.dataProps}>{p.element?.version}</Box>;
+                        }}
+                        RenderSelected={p => {
+                            return <Box p={"8px"} onClick={p.onSelect} {...p.dataProps}>{p.element?.version}</Box>;
+                        }}
+                        onSelect={p => {
+                            navigate(Pages.runApplication({name: props.application.metadata.name, version: p.version}))
+                        }}
+                    />
                     {newestVersion !== props.application.metadata.version ?
                         <Tooltip tooltipContentWidth={390} trigger={
                             <div className={TriggerDiv} onClick={e => {
