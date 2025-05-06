@@ -269,6 +269,7 @@ interface JobsFollowResponse {
     updates: compute.JobUpdate[];
     log: LogMessage[];
     newStatus?: JobStatus;
+    initialJob?: Job | null;
 }
 
 interface LogMessage {
@@ -443,6 +444,33 @@ export function View(props: { id?: string; embedded?: boolean; }): React.ReactNo
         if (!e) return;
         const s = jobUpdateState.current;
 
+        if (e.initialJob) {
+            const alreadySeenUpdates = job?.updates ?? [];
+            const initialJobUpdates = e.initialJob.updates;
+            for (const update of initialJobUpdates) {
+                const seen = alreadySeenUpdates.some(it => it.timestamp == update.timestamp &&
+                    it.status == update.status && it.state == update.state && it.outputFolder == update.outputFolder);
+
+                if (!seen) {
+                    s.updateQueue.push(update);
+                    job?.updates?.push(update);
+
+                    if (job && update.outputFolder) {
+                        const j = {...job};
+                        j.output = {outputFolder: update.outputFolder};
+                        jobCache.updateCache(pageV2Of(j));
+                        jobFetcher.data = j;
+                    }
+
+                    if (job && update.state && (update.state === "RUNNING" || isJobStateTerminal(update.state))) {
+                        const j = {...job};
+                        j.status.state = update.state;
+                        jobCache.updateCache(pageV2Of(j));
+                    }
+                }
+            }
+        }
+
         if (e.log) {
             for (const msg of e.log) {
                 s.logQueue.push(msg);
@@ -453,6 +481,13 @@ export function View(props: { id?: string; embedded?: boolean; }): React.ReactNo
             for (const update of e.updates) {
                 s.updateQueue.push(update);
                 job?.updates?.push(update);
+
+                if (job && update.outputFolder) {
+                    const j = {...job};
+                    j.output = {outputFolder: update.outputFolder};
+                    jobCache.updateCache(pageV2Of(j));
+                    jobFetcher.data = j;
+                }
 
                 if (job && update.state && (update.state === "RUNNING" || isJobStateTerminal(update.state))) {
                     const j = {...job};
@@ -1500,6 +1535,14 @@ function OutputFiles({job}: React.PropsWithChildren<{ job: Job }>): React.ReactN
         console.warn("No output folder found. Showing nothing.");
         return null;
     }
+
+    useEffect(() => {
+        const newPath = job.output?.outputFolder ?? "";
+        if (newPath) {
+            pathRef.current = newPath;
+        }
+    }, [job.output?.outputFolder]);
+
     return <Card key={job.id} className={FadeInDiv} p={"0px"} minHeight={"500px"} mt={"16px"}>
         <FileBrowse
             opts={{

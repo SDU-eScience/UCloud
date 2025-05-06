@@ -1692,6 +1692,7 @@ export interface JobUpdate {
      */
     timestamp: number /* int64 */,
     state?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED" | "SUSPENDED"),
+    outputFolder?: string | null;
     /**
      * A generic text message describing the current status of the `Resource`
      */

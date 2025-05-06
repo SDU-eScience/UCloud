@@ -67,6 +67,7 @@ export interface JobUpdate extends ResourceUpdate {
     state?: JobState;
     expectedState?: JobState;
     expectedDifferentState?: boolean;
+    outputFolder?: string | null;
 }
 
 export interface JobOutput {
