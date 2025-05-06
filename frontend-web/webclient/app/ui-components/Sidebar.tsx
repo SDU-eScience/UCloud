@@ -397,18 +397,18 @@ function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Comma
 
     const projectId = state.projectCache?.project.id;
     const canApply = !projectId || isAdminOrPI(state.projectCache?.project.status.myRole);
-    const sidebarSubCommands = sidebarSubEntries(canApply, !!projectId, projectId);
+    const sidebarSubCommands = sidebarSubEntries(canApply, !projectId, projectId);
 
     for (const group of sideBarMenuElements) {
         if (group.predicate(state)) {
             for (const it of group.items) {
-                if (![SidebarTabId.FILES, SidebarTabId.RESOURCES].includes(it.label)) {
+                if (![SidebarTabId.FILES, SidebarTabId.RESOURCES, SidebarTabId.PROJECT].includes(it.label)) {
                     const to = typeof it.to === "string" ? it.to : it.to();
                     result.push(sidebarCommand(it.label, "", to, it.icon, navigate));
                 }
                 const sub = sidebarSubCommands[it.label];
                 for (const subIt of sub) {
-                    result.push(sidebarCommand(subIt.text, "", subIt.to, subIt.icon as IconName, navigate));
+                    result.push(sidebarCommand(subIt.text, "", subIt.to, subIt.icon as IconName, navigate, subIt.defaultHidden));
                 }
             }
         }
@@ -419,7 +419,7 @@ function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Comma
 
 function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, projectId: string | undefined): Record<SidebarTabId, LinkInfo[]> {
     return {
-        [SidebarTabId.FILES]: ([{to: AppRoutes.files.drives(), text: "Drives", icon: "ftFileSystem", tab: SidebarTabId.FILES}] as LinkInfo[]).concat(isPersonalWorkspace ? sharesLinksInfo : []),
+        [SidebarTabId.FILES]: [{to: AppRoutes.files.drives(), text: "Drives", icon: "ftFileSystem", tab: SidebarTabId.FILES}, ...(isPersonalWorkspace ? sharesLinksInfo : [])],
         [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId),
         [SidebarTabId.RESOURCES]: ResourceSubLinksEntries,
         [SidebarTabId.APPLICATIONS]: [],
@@ -430,7 +430,7 @@ function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, proj
     };
 }
 
-function sidebarCommand(title: string, description: string, url: string, icon: IconName, navigate: NavigateFunction): Command {
+function sidebarCommand(title: string, description: string, url: string, icon: IconName, navigate: NavigateFunction, defaultHidden?: boolean): Command {
     return {
         title,
         description,
@@ -438,6 +438,7 @@ function sidebarCommand(title: string, description: string, url: string, icon: I
             navigate(url);
         },
         icon: {type: "simple", icon},
+        defaultHidden,
         scope: CommandScope.GoTo,
     }
 }
@@ -721,15 +722,15 @@ function projectSidebarSubLinks(canApply: boolean, isPersonalWorkspace: boolean,
     return [{
         to: members(), text: "Members", icon: "heroUsers", tab, disabled: isPersonalWorkspace,
     }, {
-        to: settings(""), text: "Project settings", icon: "heroWrenchScrewdriver", tab, disabled: isPersonalWorkspace,
+        to: settings(""), text: "Project settings", icon: "heroWrenchScrewdriver", tab, disabled: isPersonalWorkspace, defaultHidden: true,
     }, {
-        to: allocations(), text: "Allocations", icon: "heroBanknotes", tab,
+        to: allocations(), text: "Allocations", icon: "heroBanknotes", tab, defaultHidden: true,
     }, {
-        to: subprojects(), icon: "heroUserGroup", text: "Sub-projects", tab, disabled: isPersonalWorkspace,
+        to: subprojects(), icon: "heroUserGroup", text: "Sub-projects", tab, disabled: isPersonalWorkspace, defaultHidden: true,
     }, {
         to: usage(), text: "Usage", icon: "heroPresentationChartLine", tab
     }, {
-        to: outgoing(), text: "Grant applications", icon: "heroDocumentText", tab,
+        to: outgoing(), text: "Grant applications", icon: "heroDocumentText", tab, defaultHidden: true,
     },
     {
         to: !canApply || isPersonalWorkspace ? AppRoutes.grants.editor() : AppRoutes.grants.newApplication({projectId: projectId}),
@@ -880,6 +881,7 @@ function SecondarySidebar({
             if (horse.linkedWebPage) navigate(horse.linkedWebPage);
         },
         description: "Highlighted app",
+        defaultHidden: true,
         scope: CommandScope.Application,
     }))));
 
@@ -903,6 +905,7 @@ function SecondarySidebar({
             }
         },
         description: "Top pick",
+        defaultHidden: true,
         scope: CommandScope.Application,
     }))));
 
