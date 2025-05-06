@@ -1,7 +1,6 @@
 package filesystem
 
 import (
-	"encoding/json"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -157,9 +156,6 @@ func InitTaskSystem() {
 				}
 
 			case task := <-taskFrontendQueue:
-				b, _ := json.Marshal(task)
-				log.Info("%s", string(b))
-
 				if task.HasUCloudTask {
 					knownTasks[task.Id] = task
 					load := task.Status.Load()
@@ -430,6 +426,7 @@ func ListActiveTasks(username string) []*TaskInfo {
 			MoreInfo          string
 			UCloudTaskId      int64
 			Paused            bool
+			UCloudUsername    string
 		}](
 			tx,
 			`
@@ -441,7 +438,8 @@ func ListActiveTasks(username string) []*TaskInfo {
 					coalesce(conflict_policy, '') as conflict_policy,
 					coalesce(more_info, '') as more_info,
 					coalesce(ucloud_task_id, -1) as ucloud_task_id,
-					paused
+					paused,
+					ucloud_username
 				from
 					k8s.tasks
 				where
@@ -463,6 +461,7 @@ func ListActiveTasks(username string) []*TaskInfo {
 					Type:           TaskType(row.TaskType),
 					ConflictPolicy: orc.WriteConflictPolicy(row.ConflictPolicy),
 					HasUCloudTask:  row.UCloudTaskId != -1,
+					UCloudUsername: row.UCloudUsername,
 				},
 			}
 
@@ -500,9 +499,7 @@ func PostTaskStatus(username string, status TaskStatusUpdate) error {
 					k8s.tasks
 				where
 					id = :id
-					and (
-						ucloud_username = :username
-					)
+					and ucloud_username = :username
 			`,
 			db.Params{
 				"id":       status.Id,

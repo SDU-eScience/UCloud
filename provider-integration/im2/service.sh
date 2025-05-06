@@ -83,7 +83,7 @@ startsvc() {
             rm -f /tmp/gpfs-mock-startup
             nohup gpfs-mock &> /tmp/gpfs-mock-startup &
         fi
-        nohup sudo -u "#$uid" /usr/bin/dlv exec /usr/bin/ucloud --headless --listen=0.0.0.0:51233 --api-version=2 --continue --accept-multiclient &> /tmp/service.log &
+        nohup sudo --preserve-env=UCLOUD_EARLY_DEBUG -u "#$uid" /usr/bin/dlv exec /usr/bin/ucloud --headless --listen=0.0.0.0:51233 --api-version=2 --continue --accept-multiclient &> /tmp/service.log &
         echo $! > /tmp/service.pid
         sleep 0.5 # silly workaround to make sure docker exec doesn't kill us
     fi

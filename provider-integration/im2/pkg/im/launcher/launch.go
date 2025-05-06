@@ -27,6 +27,17 @@ import (
 )
 
 func Launch() {
+	if os.Getenv("UCLOUD_EARLY_DEBUG") != "" {
+		fmt.Printf("Ready for debugger\n")
+		keepWaiting := true
+
+		//goland:noinspection GoBoolExpressions
+		for keepWaiting {
+			// Break this loop via the debugger (the debugger can change the value of keepWaiting).
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+
 	var (
 		configDir  = flag.String("config-dir", "/etc/ucloud", "Path to the configuration directory used by the IM")
 		reloadable = flag.Bool("reloadable", false, "Whether to enable hot-reloading of the module")
