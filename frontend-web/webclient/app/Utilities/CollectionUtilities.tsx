@@ -43,7 +43,7 @@ export function createRecordFromArray<T, V>(array: T[], keyValueMapper: (value: 
     return result;
 }
 
-export function fuzzySearch<T, K extends keyof T>(array: T[], keys: K[], query: string, opts?: { sort?: boolean }): T[] {
+export function fuzzySearch<T, K extends keyof T>(array: T[], keys: K[], query: string, opts?: {sort?: boolean}): T[] {
     if (query.length === 0) return array;
 
     let k = 3;
@@ -61,13 +61,13 @@ export function fuzzySearch<T, K extends keyof T>(array: T[], keys: K[], query: 
         profiles.push(profile);
     }
 
-    let rankings: { idx: number, score: number }[] = [];
+    let rankings: {idx: number, score: number}[] = [];
     const queryProfile = precomputeStringSimilarityProfile(query.toLowerCase(), k);
-    for (let i = 0; i < profiles.length; i++){
+    for (let i = 0; i < profiles.length; i++) {
         const profile = profiles[i];
         let score = computeStringSimilarity(queryProfile, profile);
         if (score <= 0.01) continue;
-        rankings.push({ idx: i, score: score });
+        rankings.push({idx: i, score: score});
     }
     rankings.sort((a, b) => {
         if (a.score < b.score) {
