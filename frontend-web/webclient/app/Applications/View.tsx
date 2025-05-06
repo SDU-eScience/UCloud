@@ -1,15 +1,12 @@
 import {SafeLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
-import {Box, Flex, Icon, Tooltip} from "@/ui-components";
+import {Box, Flex, Tooltip} from "@/ui-components";
 import Text from "@/ui-components/Text";
 import * as Pages from "./Pages";
 import {useNavigate} from "react-router";
 import {FavoriteToggle} from "@/Applications/FavoriteToggle";
-import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
-import {Application, ApplicationSummaryWithFavorite, ApplicationWithFavoriteAndTags} from "@/Applications/AppStoreApi";
-import {Feature, hasFeature} from "@/Features";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Application} from "@/Applications/AppStoreApi";
 import {RichSelect} from "@/ui-components/RichSelect";
 import {useMemo} from "react";
 
@@ -23,19 +20,18 @@ export const AppHeader: React.FunctionComponent<{
 }> = props => {
     const newestVersion = props.allVersions[0];
     const navigate = useNavigate();
-    const close = React.useRef(() => void 0);
 
-    const searchableFlavor: { searchKey: string, app: Application }[] = useMemo(() => {
+    const searchableFlavor: {searchKey: string, app: Application}[] = useMemo(() => {
         return props.flavors.map(app => {
-            return { searchKey: app.metadata.flavorName ?? DEFAULT_FLAVOR_NAME, app };
+            return {searchKey: app.metadata.flavorName ?? DEFAULT_FLAVOR_NAME, app};
         }).sort((a, b) => {
             return a.searchKey.localeCompare(b.searchKey);
         });
     }, [props.flavors]);
 
-    const searchableVersions: { searchKey: string, version: string }[] = useMemo(() => {
+    const searchableVersions: {searchKey: string, version: string}[] = useMemo(() => {
         return props.allVersions.map(version => {
-            return { searchKey: version, version }
+            return {searchKey: version, version}
         });
     }, [props.flavors]);
 
@@ -63,6 +59,7 @@ export const AppHeader: React.FunctionComponent<{
                             keys={["searchKey"]}
                             selected={{searchKey: "", app: props.application}}
                             dropdownWidth={"300px"}
+                            elementHeight={37}
                             RenderRow={p => {
                                 return <Box p={"8px"} onClick={p.onSelect} {...p.dataProps}>
                                     {p.element?.app?.metadata?.flavorName ?? DEFAULT_FLAVOR_NAME}
