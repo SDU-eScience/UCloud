@@ -40,12 +40,13 @@ import AppRoutes from "@/Routes";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {divHtml, divText} from "@/Utilities/HTMLUtilities";
 import {arrayToPage} from "@/Types";
-import FileCollectionsApi from "@/UCloud/FileCollectionsApi";
+import FileCollectionsApi, {FileCollection, FileCollectionFlags} from "@/UCloud/FileCollectionsApi";
 import {useProjectId} from "@/Project/Api";
 import {Client} from "@/Authentication/HttpClientInstance";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {PageV2, PaginationRequestV2} from "@/UCloud";
 
 let permissionProblems: Record<string, boolean> = {};
 
@@ -413,14 +414,20 @@ const NewOverview: React.FunctionComponent = () => {
     return <MainContainer main={main}/>;
 };
 
-function useHomeDrive(providerId: string): string | null {
-    const projectId = useProjectId();
+function useHomeDrive(providerId: string, projectOverride?: string): string | null {
+    const realProjectId = useProjectId();
+    const projectId = projectOverride ?? realProjectId;
     const [driveId, setDriveId] = useState<string | null>(null);
     const didCancel = useDidUnmount();
 
     useEffect(() => {
         (async () => {
-            const page = await callAPI(FileCollectionsApi.browse({filterProvider: providerId, itemsPerPage: 250}));
+            const page = await callAPI<PageV2<FileCollection>>(
+                {
+                    ...FileCollectionsApi.browse({filterProvider: providerId, itemsPerPage: 250}),
+                    projectOverride: projectId,
+                }
+            );
             const username = Client.username ?? "";
             const memberFilesTitle = "Member files: " + username;
             let result: string | null = null;
@@ -470,7 +477,7 @@ const ServerStatus: React.FunctionComponent<{
     providerId: string,
     reload: () => void
 }> = (props) => {
-    const homeDriveId = useHomeDrive(props.providerId);
+    const homeDriveId = useHomeDrive(props.providerId, "");
     const cacheBust = useTimedRefresh(5000);
     const [status, setStatus] = useState<ServerStatusInfo | null>(null);
     const [restartRequested, setRestartRequested] = useState(false);
