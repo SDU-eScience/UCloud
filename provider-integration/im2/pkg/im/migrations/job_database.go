@@ -41,3 +41,27 @@ func jobDatabaseV2() db.MigrationScript {
 		},
 	}
 }
+
+func jobDatabaseV3() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "jobDatabaseV3",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table if not exists web_sessions(
+						job_id text not null,
+						rank int not null,
+						target_address text not null,
+						target_port int not null,
+						address text not null,
+						suffix text,
+						auth_token text,
+						flags int not null
+					)
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}

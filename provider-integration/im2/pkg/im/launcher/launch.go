@@ -130,8 +130,6 @@ func Launch() {
 			InitialRoutes:   nil,
 		}, gatewayConfigChannel)
 
-		gateway.Resume()
-
 		dbConfig := &cfg.Server.Database
 		if dbConfig.Embedded {
 			embeddedDb := embeddedpostgres.NewDatabase(

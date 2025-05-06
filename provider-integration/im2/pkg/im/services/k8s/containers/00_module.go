@@ -339,14 +339,7 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 }
 
 func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, error) {
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
-	defer cancel()
-
 	podName := idAndRankToPodName(job.Id, rank)
-	pod, err := K8sClient.CoreV1().Pods(Namespace).Get(ctx, podName, meta.GetOptions{})
-	if err != nil {
-		return ctrl.ConfiguredWebSession{}, util.ServerHttpError("Could not find target job, is it still running?")
-	}
 
 	app := &job.Status.ResolvedApplication.Invocation
 
@@ -376,17 +369,21 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.Co
 	}
 
 	address := cfg.HostInfo{
-		Address: pod.Status.PodIP,
+		Address: jobHostName(job.Id, rank),
 		Port:    int(port),
 	}
+
+	flags := ctrl.RegisteredIngressFlags(0)
 
 	if !shared.K8sInCluster {
 		address.Address = "127.0.0.1"
 		address.Port = establishTunnel(podName, int(port))
+		flags |= ctrl.RegisteredIngressFlagsNoPersist
 	}
 
 	return ctrl.ConfiguredWebSession{
-		Host: address,
+		Host:  address,
+		Flags: flags,
 	}, nil
 }
 
