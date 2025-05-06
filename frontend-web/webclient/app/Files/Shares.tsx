@@ -53,8 +53,8 @@ import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {TruncateClass} from "@/ui-components/Truncate";
 
 export const sharesLinksInfo: LinkInfo[] = [
-    {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share", tab: SidebarTabId.FILES},
-    {text: "Shared by me", to: AppRoutes.shares.sharedByMe(), icon: "shareMenu", tab: SidebarTabId.FILES},
+    {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share", tab: SidebarTabId.FILES, defaultHidden: true},
+    {text: "Shared by me", to: AppRoutes.shares.sharedByMe(), icon: "shareMenu", tab: SidebarTabId.FILES, defaultHidden: true},
 ]
 
 function daysLeftToTimestamp(timestamp: number): number {
