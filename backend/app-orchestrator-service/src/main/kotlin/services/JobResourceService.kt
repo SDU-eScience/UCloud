@@ -985,9 +985,7 @@ class JobResourceService(
         }.isSuccess
 
         withContext<WSCall> {
-            // NOTE(Dan): We do _not_ send the initial list of updates, instead we assume that clients will
-            // retrieve them by themselves.
-            sendWSMessage(JobsFollowResponse(newStatus = initialJob.status))
+            sendWSMessage(JobsFollowResponse(newStatus = initialJob.status, initialJob = initialJob))
 
             var lastUpdate = initialJob.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
             var currentState = initialJob.status.state

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	core "k8s.io/api/core/v1"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/remotecommand"
 	"sync/atomic"
 	"time"
@@ -171,7 +172,34 @@ func handleShellNoRetry(session *ctrl.ShellSession, cols int, rows int, isNewSes
 			}
 
 			if job.Status.State == orc.JobStateRunning {
-				break
+				if session.Folder != "" {
+					// NOTE(Dan): The following check ensures that this terminal session does not start before the
+					// folder requested is actually ready. We do this by retrieving the latest iapp configuration and
+					// checking if the handler believes that this is configuration is sufficient for it to run.
+					kctx, kcancel := context.WithTimeout(context.Background(), 3*time.Second)
+					pod, err := K8sClient.CoreV1().Pods(Namespace).Get(kctx, podName, meta.GetOptions{})
+					kcancel()
+
+					if err == nil {
+						activeIApps := ctrl.RetrieveIAppsByJobId()
+						iappConfig, iappOk := activeIApps[job.Id]
+						handler, handlerOk := iapps[integratedTerminalAppName]
+
+						iappEtag := util.OptMapGet(pod.Annotations, IAppAnnotationEtag)
+
+						shouldRun := handlerOk &&
+							iappOk &&
+							iappEtag.Present &&
+							handler.ShouldRun(job, iappConfig.Configuration) &&
+							iappEtag.Value == iappConfig.ETag
+
+						if shouldRun {
+							break
+						}
+					}
+				} else {
+					break
+				}
 			}
 
 			if waitCount%(len(spinner)*10) == 0 {

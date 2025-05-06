@@ -508,6 +508,7 @@ data class JobsFollowResponse(
     val updates: List<JobUpdate> = emptyList(),
     val log: List<JobsLog> = emptyList(),
     val newStatus: JobStatus? = null,
+    val initialJob: Job? = null,
 )
 
 @Serializable

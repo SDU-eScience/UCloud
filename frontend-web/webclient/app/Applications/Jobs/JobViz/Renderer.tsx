@@ -39,13 +39,10 @@ export const Renderer: React.FunctionComponent<{
     const priorityCounter = useRef(0);
     const tabsOnly = props.tabsOnly ?? false;
 
-    console.log("New state", widgetState)
-
     useEffect(() => {
         const listeners: ((ev: unknown) => void)[] = [];
 
         listeners.push(props.processor.on("createAny", ev => {
-            console.log("createAny!", ev);
             setWidgetState(state => {
                 const copied = {...state};
                 copied[ev.id] = ev;
@@ -192,8 +189,6 @@ export const Renderer: React.FunctionComponent<{
 
         return result;
     }, [widgetState]);
-
-    console.log("widgetsByWindowAndTab", widgetsByWindowAndTab);
 
     const children = <>
         {widgetsByWindowAndTab.map((tabs, window) => {

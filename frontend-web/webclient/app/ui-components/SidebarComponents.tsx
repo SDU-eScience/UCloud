@@ -20,10 +20,11 @@ export interface LinkInfo {
     icon: IconName | React.ReactNode;
     disabled?: boolean;
     removed?: boolean;
+    defaultHidden?: boolean;
     tab: SidebarTabId;
 }
 
-export function SidebarLinkColumn({links}: { links: LinkInfo[] }): React.ReactNode {
+export function SidebarLinkColumn({links}: {links: LinkInfo[]}): React.ReactNode {
     return <>
         {links.map(l => <SidebarEntry {...l} key={l.text} />)}
     </>
@@ -58,6 +59,6 @@ export const SidebarSectionHeader: React.FunctionComponent<{
     }
 }
 
-export const SidebarEmpty: React.FunctionComponent<{ children: React.ReactNode }> = ({children}) => {
+export const SidebarEmpty: React.FunctionComponent<{children: React.ReactNode}> = ({children}) => {
     return <i>{children}</i>;
 }

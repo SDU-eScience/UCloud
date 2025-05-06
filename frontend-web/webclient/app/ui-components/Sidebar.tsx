@@ -52,6 +52,7 @@ import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {jobCache} from "@/Applications/Jobs/View";
 import {CSSVarCurrentSidebarStickyWidth, CSSVarCurrentSidebarWidth} from "./List";
 import {
+    LinkInfo,
     SidebarEmpty,
     SidebarEntry,
     SidebarLinkColumn,
@@ -394,11 +395,21 @@ const HoverClass = injectStyle("hover-class", k => `
 function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Command[] {
     const result: Command[] = []
 
+    const projectId = state.projectCache?.project.id;
+    const canApply = !projectId || isAdminOrPI(state.projectCache?.project.status.myRole);
+    const sidebarSubCommands = sidebarSubEntries(canApply, !projectId, projectId);
+
     for (const group of sideBarMenuElements) {
         if (group.predicate(state)) {
             for (const it of group.items) {
-                const to = typeof it.to === "string" ? it.to : it.to();
-                result.push(sidebarCommand(it.label, "", to, it.icon, navigate))
+                if (![SidebarTabId.FILES, SidebarTabId.RESOURCES, SidebarTabId.PROJECT].includes(it.label)) {
+                    const to = typeof it.to === "string" ? it.to : it.to();
+                    result.push(sidebarCommand(it.label, "", to, it.icon, navigate));
+                }
+                const sub = sidebarSubCommands[it.label];
+                for (const subIt of sub) {
+                    result.push(sidebarCommand(subIt.text, "", subIt.to, subIt.icon as IconName, navigate, subIt.defaultHidden));
+                }
             }
         }
     };
@@ -406,7 +417,20 @@ function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Comma
     return result;
 }
 
-function sidebarCommand(title: string, description: string, url: string, icon: IconName, navigate: NavigateFunction): Command {
+function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, projectId: string | undefined): Record<SidebarTabId, LinkInfo[]> {
+    return {
+        [SidebarTabId.FILES]: [{to: AppRoutes.files.drives(), text: "Drives", icon: "ftFileSystem", tab: SidebarTabId.FILES}, ...(isPersonalWorkspace ? sharesLinksInfo : [])],
+        [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId),
+        [SidebarTabId.RESOURCES]: ResourceSubLinksEntries,
+        [SidebarTabId.APPLICATIONS]: [],
+        [SidebarTabId.RUNS]: [],
+        [SidebarTabId.ADMIN]: [],
+        [SidebarTabId.APPLICATION_STUDIO]: ApplicationStudioSubLinksEntries,
+        [SidebarTabId.NONE]: [],
+    };
+}
+
+function sidebarCommand(title: string, description: string, url: string, icon: IconName, navigate: NavigateFunction, defaultHidden?: boolean): Command {
     return {
         title,
         description,
@@ -414,6 +438,7 @@ function sidebarCommand(title: string, description: string, url: string, icon: I
             navigate(url);
         },
         icon: {type: "simple", icon},
+        defaultHidden,
         scope: CommandScope.GoTo,
     }
 }
@@ -670,6 +695,83 @@ function myWorkspaceProjectCommand(navigate: NavigateFunction, dispatch: Dispatc
     }
 }
 
+function ResourceSubLinks(): React.ReactNode {
+    return ResourceSubLinksEntries.map(it => <SidebarEntry key={it.text} {...it} />);
+}
+
+const ResourceSubLinksEntries: LinkInfo[] = [{
+    to: AppRoutes.resources.publicLinks(), text: "Links", icon: "heroLink", tab: SidebarTabId.RESOURCES
+}, {
+    to: AppRoutes.resources.publicIps(), text: "IP addresses", icon: "heroGlobeEuropeAfrica", tab: SidebarTabId.RESOURCES
+}, {
+    to: AppRoutes.resources.sshKeys(), text: "SSH keys", icon: "heroKey", tab: SidebarTabId.RESOURCES
+}, {
+    to: AppRoutes.resources.licenses(), text: "Licenses", icon: "heroDocumentCheck", tab: SidebarTabId.RESOURCES
+}];
+
+function ProjectSubLinks({canApply, isPersonalWorkspace, projectId}: {canApply: boolean; isPersonalWorkspace: boolean; projectId?: string}) {
+    const sublinks = React.useMemo(() =>
+        projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId).filter(it => !it.disabled),
+        [canApply, isPersonalWorkspace, projectId]);
+    return sublinks.map(it => <SidebarEntry key={it.text} {...it} />);
+}
+
+function projectSidebarSubLinks(canApply: boolean, isPersonalWorkspace: boolean, projectId?: string): LinkInfo[] {
+    const tab = SidebarTabId.PROJECT;
+    const {allocations, usage} = AppRoutes.accounting;
+    const {members, settings, subprojects} = AppRoutes.project;
+    const {outgoing} = AppRoutes.grants;
+    return [{
+        to: members(), text: "Members", icon: "heroUsers", tab, disabled: isPersonalWorkspace,
+    }, {
+        to: settings(""), text: "Project settings", icon: "heroWrenchScrewdriver", tab, disabled: isPersonalWorkspace, defaultHidden: true,
+    }, {
+        to: allocations(), text: "Allocations", icon: "heroBanknotes", tab, defaultHidden: true,
+    }, {
+        to: subprojects(), icon: "heroUserGroup", text: "Sub-projects", tab, disabled: isPersonalWorkspace, defaultHidden: true,
+    }, {
+        to: usage(), text: "Usage", icon: "heroPresentationChartLine", tab
+    }, {
+        to: outgoing(), text: "Grant applications", icon: "heroDocumentText", tab, defaultHidden: true,
+    },
+    {
+        to: !canApply || isPersonalWorkspace ? AppRoutes.grants.editor() : AppRoutes.grants.newApplication({projectId: projectId}),
+        text: "Apply for resources",
+        icon: "heroPencilSquare",
+        disabled: !canApply,
+        tab,
+    }];
+}
+
+
+const ApplicationStudioSubLinksEntries = [{
+    to: AppRoutes.appStudio.groups(), text: "Applications", icon: "heroSquare3Stack3D",
+    tab: SidebarTabId.APPLICATION_STUDIO
+},
+{
+    to: AppRoutes.appStudio.categories(), text: "Categories", icon: "heroSquaresPlus",
+    tab: SidebarTabId.APPLICATION_STUDIO
+},
+{
+    to: AppRoutes.appStudio.hero(), text: "Carrousel", icon: "heroFilm",
+    tab: SidebarTabId.APPLICATION_STUDIO
+},
+{
+    to: AppRoutes.appStudio.topPicks(), text: "Top picks", icon: "heroTrophy",
+    tab: SidebarTabId.APPLICATION_STUDIO
+},
+{
+    to: AppRoutes.appStudio.spotlights(), text: "Spotlights", icon: "heroCamera",
+    tab: SidebarTabId.APPLICATION_STUDIO
+}];
+
+function ApplicationStudioSubLinks() {
+    const isAdmin = Client.userIsAdmin;
+    if (!isAdmin) return null;
+
+    return ApplicationStudioSubLinksEntries.map(it => <SidebarEntry key={it.text} {...it} />)
+}
+
 function SecondarySidebar({
     hovered,
     clicked,
@@ -781,6 +883,7 @@ function SecondarySidebar({
             if (horse.linkedWebPage) navigate(horse.linkedWebPage);
         },
         description: "Highlighted app",
+        defaultHidden: true,
         scope: CommandScope.Application,
     }))));
 
@@ -804,6 +907,7 @@ function SecondarySidebar({
             }
         },
         description: "Top pick",
+        defaultHidden: true,
         scope: CommandScope.Application,
     }))));
 
@@ -917,89 +1021,12 @@ function SecondarySidebar({
 
             {active !== SidebarTabId.PROJECT ? null : <>
                 <SidebarSectionEmptyHeader />
-                {!isPersonalWorkspace ? <>
-                    <SidebarEntry
-                        to={AppRoutes.project.members()}
-                        text={"Members"}
-                        icon={"heroUsers"}
-                        tab={SidebarTabId.PROJECT}
-                    />
-
-                    <SidebarEntry
-                        to={AppRoutes.project.settings("")}
-                        text={"Project settings"}
-                        icon={"heroWrenchScrewdriver"}
-                        tab={SidebarTabId.PROJECT}
-                    />
-                </> : null}
-
-                <SidebarEntry
-                    to={AppRoutes.accounting.allocations()}
-                    text={"Allocations"}
-                    icon={"heroBanknotes"}
-                    tab={SidebarTabId.PROJECT}
-                />
-
-                {!isPersonalWorkspace ? <>
-                    <SidebarEntry
-                        to={AppRoutes.project.subprojects()}
-                        icon={"heroUserGroup"}
-                        text={"Sub-projects"}
-                        tab={SidebarTabId.PROJECT}
-                    />
-                </> : null}
-
-                <SidebarEntry
-                    to={AppRoutes.accounting.usage()}
-                    text={"Usage"}
-                    icon={"heroPresentationChartLine"}
-                    tab={SidebarTabId.PROJECT}
-                />
-
-                <SidebarEntry
-                    to={AppRoutes.grants.outgoing()}
-                    text={"Grant applications"}
-                    icon={"heroDocumentText"}
-                    tab={SidebarTabId.PROJECT}
-                />
-
-                <SidebarEntry
-                    to={!canApply || isPersonalWorkspace ? AppRoutes.grants.editor() : AppRoutes.grants.newApplication({projectId: projectId})}
-                    text={"Apply for resources"}
-                    icon={"heroPencilSquare"}
-                    disabled={!canApply}
-                    tab={SidebarTabId.PROJECT}
-                />
+                <ProjectSubLinks canApply={canApply} isPersonalWorkspace={isPersonalWorkspace} projectId={projectId} />
             </>}
 
             {active !== SidebarTabId.RESOURCES ? null : <>
                 <SidebarSectionEmptyHeader />
-                <SidebarEntry
-                    to={AppRoutes.resources.publicLinks()}
-                    text={"Links"}
-                    icon={"heroLink"}
-                    tab={SidebarTabId.RESOURCES}
-                />
-                <SidebarEntry
-                    to={AppRoutes.resources.publicIps()}
-                    text={"IP addresses"}
-                    icon={"heroGlobeEuropeAfrica"}
-                    tab={SidebarTabId.RESOURCES}
-                />
-
-                <SidebarEntry
-                    to={AppRoutes.resources.sshKeys()}
-                    text={"SSH keys"}
-                    icon={"heroKey"}
-                    tab={SidebarTabId.RESOURCES}
-                />
-
-                <SidebarEntry
-                    to={AppRoutes.resources.licenses()}
-                    text={"Licenses"}
-                    icon={"heroDocumentCheck"}
-                    tab={SidebarTabId.RESOURCES}
-                />
+                <ResourceSubLinks />
             </>}
 
             {/* Note(Jonas) Do it this way to ensure that the frontend doesn't fetch icons every time this is shown. */}
@@ -1075,16 +1102,7 @@ function SecondarySidebar({
 
             {active !== SidebarTabId.APPLICATION_STUDIO ? null : <>
                 <SidebarSectionEmptyHeader />
-                <SidebarEntry to={AppRoutes.appStudio.groups()} text={"Applications"} icon={"heroSquare3Stack3D"}
-                    tab={SidebarTabId.APPLICATION_STUDIO} />
-                <SidebarEntry to={AppRoutes.appStudio.categories()} text={"Categories"} icon={"heroSquaresPlus"}
-                    tab={SidebarTabId.APPLICATION_STUDIO} />
-                <SidebarEntry to={AppRoutes.appStudio.hero()} text={"Carrousel"} icon={"heroFilm"}
-                    tab={SidebarTabId.APPLICATION_STUDIO} />
-                <SidebarEntry to={AppRoutes.appStudio.topPicks()} text={"Top picks"} icon={"heroTrophy"}
-                    tab={SidebarTabId.APPLICATION_STUDIO} />
-                <SidebarEntry to={AppRoutes.appStudio.spotlights()} text={"Spotlights"} icon={"heroCamera"}
-                    tab={SidebarTabId.APPLICATION_STUDIO} />
+                <ApplicationStudioSubLinks />
             </>}
 
         </Flex>
