@@ -328,13 +328,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 		appendLine("echo '%d' > /etc/ucloud/number_of_nodes.txt", job.Specification.Replicas)
 		for rank := 0; rank < job.Specification.Replicas; rank++ {
-			hostname := fmt.Sprintf(
-				"j-%v-job-%v.j-%v.%v.svc.cluster.local",
-				job.Id,
-				rank,
-				job.Id,
-				ServiceConfig.Compute.Namespace,
-			)
+			hostname := jobHostName(job.Id, rank)
 
 			appendLine("echo '%v' > /etc/ucloud/node-%v.txt", hostname, rank)
 			appendLine("echo '%v' >> /etc/ucloud/nodes.txt", hostname)
@@ -599,4 +593,14 @@ func podNameToIdAndRank(podName string) (util.Tuple2[string, int], bool) {
 	}
 
 	return util.Tuple2[string, int]{parts[0], rank}, true
+}
+
+func jobHostName(jobId string, rank int) string {
+	return fmt.Sprintf(
+		"j-%v-job-%v.j-%v.%v.svc.cluster.local",
+		jobId,
+		rank,
+		jobId,
+		ServiceConfig.Compute.Namespace,
+	)
 }

@@ -58,19 +58,19 @@ class Api {
     baseContext = "/api/iapps/syncthing";
 
     retrieveConfiguration(provider: string, productId: string): APICallParameters {
-        return apiRetrieve({ provider, productId }, this.baseContext);
+        return {...apiRetrieve({ provider, productId }, this.baseContext), projectOverride: ""};
     }
 
     updateConfiguration(request: UpdateConfigRequest): APICallParameters {
-        return apiUpdate(request, this.baseContext, "update");
+        return {...apiUpdate(request, this.baseContext, "update"), projectOverride: ""};
     }
 
     resetConfiguration(request: ResetConfigRequest): APICallParameters {
-        return apiUpdate(request, this.baseContext, "reset");
+        return {...apiUpdate(request, this.baseContext, "reset"), projectOverride: ""};
     }
 
     restart(request: RestartRequest): APICallParameters {
-        return apiUpdate(request, this.baseContext, "restart");
+        return {...apiUpdate(request, this.baseContext, "restart"), projectOverride: ""};
     }
 }
 

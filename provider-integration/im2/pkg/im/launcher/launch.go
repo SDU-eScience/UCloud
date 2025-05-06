@@ -27,6 +27,17 @@ import (
 )
 
 func Launch() {
+	if os.Getenv("UCLOUD_EARLY_DEBUG") != "" {
+		fmt.Printf("Ready for debugger\n")
+		keepWaiting := true
+
+		//goland:noinspection GoBoolExpressions
+		for keepWaiting {
+			// Break this loop via the debugger (the debugger can change the value of keepWaiting).
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+
 	var (
 		configDir  = flag.String("config-dir", "/etc/ucloud", "Path to the configuration directory used by the IM")
 		reloadable = flag.Bool("reloadable", false, "Whether to enable hot-reloading of the module")
@@ -113,13 +124,9 @@ func Launch() {
 	gatewayConfigChannel := make(chan []byte)
 	if mode == cfg.ServerModeServer {
 		gateway.Initialize(gateway.Config{
-			ListenAddress:   "0.0.0.0",
-			Port:            8889,
-			InitialClusters: nil,
-			InitialRoutes:   nil,
+			ListenAddress: "0.0.0.0",
+			Port:          8889,
 		}, gatewayConfigChannel)
-
-		gateway.Resume()
 
 		dbConfig := &cfg.Server.Database
 		if dbConfig.Embedded {

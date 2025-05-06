@@ -339,20 +339,18 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 }
 
 func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, error) {
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
-	defer cancel()
-
 	podName := idAndRankToPodName(job.Id, rank)
-	pod, err := K8sClient.CoreV1().Pods(Namespace).Get(ctx, podName, meta.GetOptions{})
-	if err != nil {
-		return ctrl.ConfiguredWebSession{}, util.ServerHttpError("Could not find target job, is it still running?")
-	}
 
 	app := &job.Status.ResolvedApplication.Invocation
+
+	flags := ctrl.RegisteredIngressFlags(0)
 
 	port := app.Web.Port
 	if app.ApplicationType == orc.ApplicationTypeVnc {
 		port = app.Vnc.Port
+		flags = ctrl.RegisteredIngressFlagsVnc
+	} else {
+		flags = ctrl.RegisteredIngressFlagsWeb
 	}
 
 	if target.Present {
@@ -370,23 +368,30 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.Co
 
 				if dynTarget.Target == target.Value && dynTarget.Rank == rank {
 					port = uint16(dynTarget.Port)
+					if dynTarget.Type == orc.InteractiveSessionTypeVnc {
+						flags = ctrl.RegisteredIngressFlagsVnc
+					} else {
+						flags = ctrl.RegisteredIngressFlagsWeb
+					}
 				}
 			}
 		}
 	}
 
 	address := cfg.HostInfo{
-		Address: pod.Status.PodIP,
+		Address: jobHostName(job.Id, rank),
 		Port:    int(port),
 	}
 
 	if !shared.K8sInCluster {
 		address.Address = "127.0.0.1"
 		address.Port = establishTunnel(podName, int(port))
+		flags |= ctrl.RegisteredIngressFlagsNoPersist
 	}
 
 	return ctrl.ConfiguredWebSession{
-		Host: address,
+		Host:  address,
+		Flags: flags,
 	}, nil
 }
 

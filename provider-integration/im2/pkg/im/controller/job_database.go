@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sync"
 	"time"
+	"ucloud.dk/pkg/im/gateway"
 
 	"ucloud.dk/pkg/im/ipc"
 	db "ucloud.dk/shared/pkg/database"
@@ -43,9 +44,6 @@ func InitJobDatabase() {
 	if !RunsServerCode() {
 		return
 	}
-
-	activeJobsMutex.Lock()
-	defer activeJobsMutex.Unlock()
 
 	trackRequest.Handler(func(r *ipc.Request[trackRequestType]) ipc.Response[util.Empty] {
 		job, err := orc.RetrieveJob(r.Payload.JobId,
@@ -95,13 +93,18 @@ func InitJobDatabase() {
 		}
 	})
 
+	activeJobsMutex.Lock()
 	fetchAllJobs(orc.JobStateInQueue)
 	fetchAllJobs(orc.JobStateSuspended)
 	fetchAllJobs(orc.JobStateRunning)
+	activeJobsMutex.Unlock()
 
 	initIpDatabase()
 	initIngressDatabase()
 	initLicenseDatabase()
+
+	jobsLoadSessions()
+	gateway.Resume()
 
 	// Job metrics
 	go func() {
@@ -134,7 +137,6 @@ func InitJobDatabase() {
 
 func TrackNewJob(job orc.Job) {
 	// NOTE(Dan): The job is supposed to be copied into this function. Do not change it to accept a pointer.
-	metricJobsSubmitted.Inc()
 
 	// Automatically assign timestamps to all updates that do not have one.
 	for i := 0; i < len(job.Updates); i++ {
@@ -145,15 +147,21 @@ func TrackNewJob(job orc.Job) {
 	}
 
 	if RunsServerCode() {
+		refreshRoutes := false
 		activeJobsMutex.Lock()
 		activeJobs[job.Id] = &job
 
 		if job.Status.State.IsFinal() {
+			refreshRoutes = true
 			delete(activeJobs, job.Id)
 		}
 		activeJobsMutex.Unlock()
 
 		trackJobUpdateServer(&job)
+
+		if refreshRoutes {
+			refreshJobRoutes()
+		}
 	} else if RunsUserCode() {
 		_, _ = trackRequest.Invoke(trackRequestType{job.Id, job.ProviderGeneratedId})
 	}
