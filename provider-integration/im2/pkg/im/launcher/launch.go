@@ -124,10 +124,8 @@ func Launch() {
 	gatewayConfigChannel := make(chan []byte)
 	if mode == cfg.ServerModeServer {
 		gateway.Initialize(gateway.Config{
-			ListenAddress:   "0.0.0.0",
-			Port:            8889,
-			InitialClusters: nil,
-			InitialRoutes:   nil,
+			ListenAddress: "0.0.0.0",
+			Port:          8889,
 		}, gatewayConfigChannel)
 
 		dbConfig := &cfg.Server.Database

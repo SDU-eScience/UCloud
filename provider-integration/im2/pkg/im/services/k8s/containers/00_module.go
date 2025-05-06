@@ -343,9 +343,14 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.Co
 
 	app := &job.Status.ResolvedApplication.Invocation
 
+	flags := ctrl.RegisteredIngressFlags(0)
+
 	port := app.Web.Port
 	if app.ApplicationType == orc.ApplicationTypeVnc {
 		port = app.Vnc.Port
+		flags = ctrl.RegisteredIngressFlagsVnc
+	} else {
+		flags = ctrl.RegisteredIngressFlagsWeb
 	}
 
 	if target.Present {
@@ -363,6 +368,11 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.Co
 
 				if dynTarget.Target == target.Value && dynTarget.Rank == rank {
 					port = uint16(dynTarget.Port)
+					if dynTarget.Type == orc.InteractiveSessionTypeVnc {
+						flags = ctrl.RegisteredIngressFlagsVnc
+					} else {
+						flags = ctrl.RegisteredIngressFlagsWeb
+					}
 				}
 			}
 		}
@@ -372,8 +382,6 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.Co
 		Address: jobHostName(job.Id, rank),
 		Port:    int(port),
 	}
-
-	flags := ctrl.RegisteredIngressFlags(0)
 
 	if !shared.K8sInCluster {
 		address.Address = "127.0.0.1"
