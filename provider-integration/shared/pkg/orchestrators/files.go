@@ -96,7 +96,7 @@ type FSSupport struct {
 
 	Files struct {
 		AclModifiable            bool `json:"aclModifiable"`
-		TrashSupport             bool `json:"trashSupport"`
+		TrashSupported           bool `json:"trashSupported"`
 		IsReadOnly               bool `json:"isReadOnly"`
 		SearchSupported          bool `json:"searchSupported"`
 		StreamingSearchSupported bool `json:"streamingSearchSupported"`
