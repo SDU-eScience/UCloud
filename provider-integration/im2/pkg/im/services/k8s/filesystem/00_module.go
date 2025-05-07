@@ -457,6 +457,7 @@ func nativeStat(drive *orc.Drive, internalPath string, info os.FileInfo) orc.Pro
 	}
 
 	result.Status.ModifiedAt = FileModTime(info)
+	result.CreatedAt = result.Status.ModifiedAt
 	result.Status.AccessedAt = FileAccessTime(info)
 	result.Status.SizeInBytes.Set(info.Size())
 	result.Status.UnixMode = int(info.Mode() & 0777)
