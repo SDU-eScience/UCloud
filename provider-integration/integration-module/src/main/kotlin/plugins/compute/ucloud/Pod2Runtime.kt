@@ -403,6 +403,8 @@ class Pod2Runtime(
     private val mutex = Mutex()
     private val scheduler = Scheduler<Pod2Data>()
 
+    lateinit var ingressFeature: FeatureIngress
+
     private var nextResourceScan = 0L
 
     private data class JobToSchedule(
@@ -618,6 +620,19 @@ class Pod2Runtime(
                 env += Pod.EnvVar(
                     name = "VC_JOB_NUM",
                     value = data.builder.replicas.toString()
+                )
+
+                val publicDomain = ingressFeature.retrieveDomainsByJobId(job.jobId.toString()).firstOrNull()
+                val domain = publicDomain
+                    ?: ingressFeature.defaultDomainByJobIdAndRank(job.jobId.toString(), job.rank)
+
+                env += Pod.EnvVar(
+                    name = "UCLOUD_BASE_URL",
+                    value = "https://$domain"
+                )
+                env += Pod.EnvVar(
+                    name = "BASE_URL",
+                    value = "https://$domain"
                 )
 
                 container.env = env
