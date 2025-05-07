@@ -520,6 +520,31 @@ class ShareService(
             ctx = session
         )
 
+        // NOTE(Dan): At the moment, we do not want to forward the delete since that might lead to buggy providers
+        // deleting the share data. Instead, we just send an updateAcl to remove all entities from it (which is used
+        // by the new IM2).
+
+        db.withSession { session ->
+            collections.updateAclWithSession(
+                ActorAndProject.System,
+                allCollections.map { collection ->
+                    val relevantShares = shares.filter {
+                        it.status.state == Share.State.APPROVED &&
+                                it.status.shareAvailableAt != null &&
+                                extractPathMetadata(it.status.shareAvailableAt!!).collection == collection.id
+                    }
+
+                    UpdatedAcl(
+                        collection.id,
+                        emptyList(),
+                        relevantShares.map { AclEntity.User(it.specification.sharedWith) }
+                    )
+                }.let { BulkRequest(it) },
+                session,
+                bypassSupportCheck = true,
+            )
+        }
+
         collections.deleteFromDatabaseSkipProvider(collectionsToDelete.map { it.toLong() }, allCollections, session)
     }
 
