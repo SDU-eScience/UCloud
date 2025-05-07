@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -214,6 +215,13 @@ func Launch() {
 		err := http.ListenAndServe(
 			fmt.Sprintf(":%v", serverPort),
 			http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				defer func() {
+					err := recover()
+					if err != nil {
+						log.Error("%v %v panic! %s %s", request.Method, request.RequestURI, err, string(debug.Stack()))
+					}
+				}()
+
 				handler, _ := im.Args.ServerMultiplexer.Handler(request)
 				newWriter := NewLoggingResponseWriter(writer)
 				handler.ServeHTTP(newWriter, request)
