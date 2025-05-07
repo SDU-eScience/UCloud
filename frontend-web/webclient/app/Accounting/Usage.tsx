@@ -11,7 +11,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
 import {BreakdownByProjectAPI, categoryComparator, ChartsAPI, UsageOverTimeAPI} from ".";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {deferLike, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {threadDeferLike, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI, noopCall} from "@/Authentication/DataHook";
 import * as Jobs from "@/Applications/Jobs";
@@ -1010,17 +1010,13 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit: st
             };
         });
 
-        exportUsage(datapoints, [{
-            key: "title", value: "Project", defaultChecked: true,
-        }, {
-            key: "product", value: "Product", defaultChecked: true,
-        }, {
-            key: "provider", value: "Provider", defaultChecked: true,
-        }, {
-            key: "usage", value: "Usage (" + props.unit + ")", defaultChecked: true,
-        }, {
-            key: "projectId", value: "Project ID", defaultChecked: false
-        }], projectTitle(project));
+        exportUsage(datapoints, [
+            header("title", "Project", true),
+            header("product", "Product", true),
+            header("provider", "Provider", true),
+            header("usage", "Usage (" + props.unit + ")", true),
+            header("projectId", "Project ID", false)
+        ], projectTitle(project));
     }, [fullyMergedChart, project]);
 
     if (props.isLoading) return null;
@@ -1078,6 +1074,10 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit: st
         </div>
     </div>;
 };
+
+function header<T>(key: keyof T, value: string, defaultChecked?: boolean): ExportHeader<T> {
+    return {key, value, defaultChecked: !!defaultChecked};
+}
 
 
 const MostUsedApplicationsStyle = injectStyle("most-used-applications", k => `
@@ -1160,7 +1160,7 @@ const MostUsedApplicationsPanel: React.FunctionComponent<{data?: MostUsedApplica
     const startExport = useCallback(() => {
         exportUsage(
             data?.dataPoints,
-            [{key: "applicationTitle", value: "Application", defaultChecked: true}, {key: "count", value: "Count", defaultChecked: true}],
+            [header("applicationTitle", "Application", true), header("count", "Count", true)],
             projectTitle(project)
         );
     }, [data?.dataPoints, project]);
@@ -1248,11 +1248,11 @@ const JobSubmissionPanel: React.FunctionComponent<{data?: SubmissionStatistics}>
 
     const startExport = useCallback(() => {
         exportUsage(data?.dataPoints.map(it => ({...it, day: dayNames[it.day], hourOfDayStart: formatHours(it.hourOfDayStart, it.hourOfDayEnd)})), [
-            {key: "day", value: "Day", defaultChecked: true},
-            {key: "hourOfDayStart", value: "Time of day", defaultChecked: true},
-            {key: "numberOfJobs", value: "Count", defaultChecked: true},
-            {key: "averageDurationInSeconds", value: "Avg duration", defaultChecked: true},
-            {key: "averageQueueInSeconds", value: "Avg queue", defaultChecked: true},
+            header("day", "Day", true),
+            header("hourOfDayStart", "Time of day", true),
+            header("numberOfJobs", "Count", true),
+            header("averageDurationInSeconds", "Avg duration", true),
+            header("averageQueueInSeconds", "Avg queue", true),
         ], projectTitle(project))
     }, [data?.dataPoints, project]);
 
@@ -1358,6 +1358,7 @@ const DynamicallySizedChart: React.FunctionComponent<{
 const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoading: boolean;}> = ({charts, isLoading}) => {
     const chartCounter = useRef(0); // looks like apex charts has a rendering bug if the component isn't completely thrown out
     const [shownEntries, setShownEntries] = useState<boolean[]>([]);
+    const ChartID = "UsageOverTime";
 
     const exportRef = React.useRef(noopCall);
 
@@ -1367,25 +1368,28 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
         shownRef.current = shownEntries;
     }, [shownEntries]);
 
+    const updateShownEntries = React.useCallback((value: boolean | number[]) => {
+        setShownEntries(shownEntries => {
+            if (typeof value === "boolean") {
+                for (let i = 0; i < shownEntries.length; i++) {
+                    shownEntries[i] = value;
+                }
+            } else {
+                for (const index of value) {
+                    shownEntries[index] = !shownEntries[index];
+                }
+            }
+            return [...shownEntries];
+        });
+    }, [])
+
     const chartProps: ChartProps = useMemo(() => {
         chartCounter.current++;
         setShownEntries(charts.map(() => true));
         return usageChartsToChart(charts, shownRef, {
             valueFormatter: val => Accounting.addThousandSeparators(val.toFixed(1)),
-            toggleShown: value => {
-                setShownEntries(shownEntries => {
-                    if (typeof value === "boolean") {
-                        for (let i = 0; i < shownEntries.length; i++) {
-                            shownEntries[i] = value;
-                        }
-                    } else {
-                        for (const index of value) {
-                            shownEntries[index] = !shownEntries[index];
-                        }
-                    }
-                    return [...shownEntries];
-                });
-            }
+            toggleShown: value => updateShownEntries(value),
+            id: ChartID,
         });
     }, [charts]);
 
@@ -1430,12 +1434,12 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
                 </Warning>
             </>}
 
-            <DifferenceTable charts={charts} shownEntries={shownEntries} exportRef={exportRef} />
+            <DifferenceTable chartId={ChartID} charts={charts} updateShownEntries={updateShownEntries} shownEntries={shownEntries} exportRef={exportRef} />
         </div>
     </div >;
 };
 
-function DifferenceTable({charts, shownEntries, exportRef}: {charts: UsageChart[]; shownEntries: boolean[]; exportRef: React.RefObject<() => void>;}) {
+function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownEntries}: {updateShownEntries: (args: boolean | number[]) => void; charts: UsageChart[]; shownEntries: boolean[]; exportRef: React.RefObject<() => void>; chartId: string;}) {
     /* TODO(Jonas): Provider _should_ also be here, right */
     const shownCharts = React.useMemo(() => charts.filter((chart, index) => shownEntries[index]), [charts, shownEntries]);
 
@@ -1478,19 +1482,25 @@ function DifferenceTable({charts, shownEntries, exportRef}: {charts: UsageChart[
     const project = useProject().fetch();
     const startExport = useCallback(() => {
         exportUsage(remappedThingies.map(it => ({...it, timestamp: formatDate(it.timestamp, DATE_FORMAT)})), [
-            {key: "name", value: "Name", defaultChecked: true},
-            {key: "timestamp", value: "Time", defaultChecked: true},
-            {key: "usage", value: "Usage", defaultChecked: true},
-            {key: "difference", value: "Difference", defaultChecked: true},
+            header("name", "Name", true),
+            header("timestamp", "Time", true),
+            header("usage", "Usage", true),
+            header("difference", "Difference", true),
         ], projectTitle(project));
     }, [remappedThingies, project]);
 
     React.useEffect(() => {
-        exportRef.current = startExport
+        exportRef.current = startExport;
     }, [startExport]);
 
+    const toggleChart = React.useCallback((productName: string) => {
+        const chart = ApexCharts.getChartByID(chartId);
+        const series = chart?.["opts"]["series"];
+        const chartEntryIndex = series.findIndex(it => it.name === productName);
+        toggleSeriesEntry(chart, chartEntryIndex, {current: shownEntries}, updateShownEntries);
+    }, [chartId, charts, shownEntries]);
+
     const sorted = useSorting(remappedThingies, "timestamp");
-    const showOriginalData = false;
 
     return <div className={TableWrapper.class}>
         <table>
@@ -1503,59 +1513,23 @@ function DifferenceTable({charts, shownEntries, exportRef}: {charts: UsageChart[
                 </tr>
             </thead>
             <tbody>
-                {(showOriginalData ? shownCharts : []).map((chart, idx) =>
+                {shownCharts.map((chart, idx) =>
                     differences[idx] != 0 ? chart.dataPoints.map((point, idx, items) => {
                         const change = (idx + 1 !== items.length) ? point.usage - items[idx + 1].usage : 0;
                         if (change === 0 && idx + 1 < items.length) return null;
-                        return <tr key={idx}>
+                        return <tr key={idx} style={{cursor: "pointer"}} onClick={() => toggleChart(chart.name)}>
                             <td>{chart.name}</td>
                             <td>{dateToString(point.timestamp)}</td>
                             <td>{Accounting.addThousandSeparators(point.usage.toFixed(2))}</td>
                             <td>{change >= 0 ? "+" : ""}{Accounting.addThousandSeparators(change.toFixed(2))}</td>
                         </tr>;
-                    }) : (chart.dataPoints.length === 0 ? null : <tr key={chart.name}>
+                    }) : (chart.dataPoints.length === 0 ? null : <tr style={{cursor: "pointer"}} onClick={() => toggleChart(chart.name)} key={chart.name}>
                         <td>{chart.name}</td>
                         <td>{dateToString(chart.dataPoints[0].timestamp)}</td>
                         <td>{Accounting.addThousandSeparators(chart.dataPoints[0].usage.toFixed(0))}</td>
                         <td>N/A</td>
                     </tr>)
                 )}
-                {showOriginalData ? <>
-                    <tr>
-                        <td>–––––––––––</td>
-                        <td>–––––––––––</td>
-                        <td>–––––––––––</td>
-                        <td>–––––––––––</td>
-                    </tr>
-                    <tr>
-                        <td>DIVIDER</td>
-                        <td>DIVIDER</td>
-                        <td>DIVIDER</td>
-                        <td>DIVIDER</td>
-                    </tr>
-                    <tr>
-                        <td>–––––––––––</td>
-                        <td>–––––––––––</td>
-                        <td>–––––––––––</td>
-                        <td>–––––––––––</td>
-                    </tr></> :
-                    null}
-                {sorted.data.map((d, idx) => {
-                    if (d.difference === 0) return <tr key={d.name}>
-                        <td>{d.name}</td>
-                        <td>{dateToString(d.timestamp)}</td>
-                        <td>{Accounting.addThousandSeparators(d.usage.toFixed(0))}</td>
-                        <td>N/A</td>
-                    </tr>
-                    else {
-                        return <tr key={idx}>
-                            <td>{d.name}</td>
-                            <td>{dateToString(d.timestamp)}</td>
-                            <td>{Accounting.addThousandSeparators(d.usage.toFixed(2))}</td>
-                            <td>{d.difference >= 0 ? "+" : ""}{Accounting.addThousandSeparators(d.difference.toFixed(2))}</td>
-                        </tr>
-                    }
-                })}
             </tbody>
         </table>
     </div>
@@ -1591,7 +1565,7 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
     const startExport = useCallback(() => {
         exportUsage(
             dataPoints,
-            [{key: "key", value: "Username", defaultChecked: true}, {key: "value", value: "Estimated usage", defaultChecked: true}],
+            [header("key", "Username", true), header("value", "Estimated usage", true)],
             projectTitle(project)
         );
     }, [dataPoints, project]);
@@ -1805,6 +1779,7 @@ function usageChartsToChart(
         valueFormatter?: (value: number) => string;
         removeDetails?: boolean;
         toggleShown?: (indexOrAllState: number[] | true | false) => void;
+        id?: string;
     } = {}
 ): ChartProps {
     const result: ChartProps = {};
@@ -1827,44 +1802,11 @@ function usageChartsToChart(
             },
         },
         chart: {
+            id: chartOptions.id,
             events: {
                 // Note(Jonas): Very cool, ApexCharts https://github.com/apexcharts/apexcharts.js/issues/3725
                 legendClick(chart, seriesIndex, options) {
-
-                    if (seriesIndex != null && chart != null) {
-                        const allShown = shownRef.current.every(it => it);
-
-                        const allWillBeHidden = shownRef.current[seriesIndex] === true && shownRef.current.reduce((acc, shown) => acc + (+shown), 0) === 1;
-
-                        if (allShown) {
-                            const indices: number[] = [];
-
-                            for (let i = 0; i < shownRef.current.length; i++) {
-                                if (i === seriesIndex) {
-                                    /* 
-                                        Hack(Jonas): It seems that `showSeries` is called before
-                                        the chart toggles the legend entry otherwise, so this has to be "deferred" 
-                                    */
-                                    deferLike(() => chart.showSeries(result.series?.[i]["name"]));
-                                    continue;
-                                }
-
-                                chart.hideSeries(result.series?.[i]["name"]);
-                                indices.push(i);
-                            }
-                            chartOptions.toggleShown?.(indices);
-                        } else if (allWillBeHidden) {
-                            chartOptions.toggleShown?.(true);
-                            deferLike(() => {
-                                for (const s of (result.series) ?? []) {
-                                    chart.showSeries(s["name"]);
-                                }
-                            });
-                        } else {
-                            chart.toggleSeries(result.series?.[seriesIndex]["name"]);
-                            chartOptions.toggleShown?.([seriesIndex]);
-                        }
-                    }
+                    toggleSeriesEntry(chart, seriesIndex, shownRef, chartOptions.toggleShown);
                 }
             },
             type: "area",
@@ -1963,6 +1905,45 @@ function usageChartsToChart(
     }
 
     return result;
+}
+
+function toggleSeriesEntry(chart: any, seriesIndex: number | undefined, shownRef: React.RefObject<boolean[]>, toggleShown?: (val: boolean | number[]) => void) {
+    if (seriesIndex != null && chart != null) {
+        const allShown = shownRef.current.every(it => it);
+
+        const series = chart["opts"]["series"] ?? [];
+
+        const allWillBeHidden = shownRef.current[seriesIndex] === true && shownRef.current.reduce((acc, shown) => acc + (+shown), 0) === 1;
+
+        if (allShown) {
+            const indices: number[] = [];
+
+            for (let i = 0; i < shownRef.current.length; i++) {
+                if (i === seriesIndex) {
+                    /* 
+                        Hack(Jonas): It seems that `showSeries` is called before
+                        the chart toggles the legend entry otherwise, so this has to be "deferred" 
+                    */
+                    threadDeferLike(() => chart.showSeries(series[i]["name"]));
+                    continue;
+                }
+
+                chart.hideSeries(series[i]["name"]);
+                indices.push(i);
+            }
+            toggleShown?.(indices);
+        } else if (allWillBeHidden) {
+            toggleShown?.(true);
+            threadDeferLike(() => {
+                for (const s of series) {
+                    chart.showSeries(s["name"]);
+                }
+            });
+        } else {
+            chart.toggleSeries(series[seriesIndex]["name"]);
+            toggleShown?.([seriesIndex]);
+        }
+    }
 }
 
 const RenderUnitSelector: RichSelectChildComponent<{unit: string}> = ({element, onSelect, dataProps}) => {

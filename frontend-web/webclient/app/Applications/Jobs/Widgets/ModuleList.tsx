@@ -15,7 +15,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {injectStyle} from "@/Unstyled";
 import {SelectProps} from "@/ui-components/Select";
-import {deferLike, useEffectSkipMount} from "@/UtilityFunctions";
+import {threadDeferLike, useEffectSkipMount} from "@/UtilityFunctions";
 import {Toggle} from "@/ui-components/Toggle";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
@@ -164,7 +164,7 @@ const HighlightedSelected: React.FunctionComponent<SelectProps & {children: Reac
         const s = ref.current;
         if (s) {
             s.classList.remove(highlightChange);
-            deferLike(() => s.classList.add(highlightChange));
+            threadDeferLike(() => s.classList.add(highlightChange));
         }
     }, [props.value]);
     return <Select selectRef={ref} {...props}>{children}</Select>;

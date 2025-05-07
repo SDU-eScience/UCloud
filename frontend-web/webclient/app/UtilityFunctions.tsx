@@ -691,9 +691,9 @@ export function getOrNull<T>(array: T[], index: number): T | null {
 }
 
 /*
-    Defer-like function. Sets timeout with 0 millis delay.
+    ThreadDefer-like function. Sets timeout with 0 millis delay.
     Do note that they will be called in order of deferment, not inverse, like other languages.
 */
-export function deferLike(func: () => void): void {
+export function threadDeferLike(func: () => void): void {
     setTimeout(func, 0);
 }
