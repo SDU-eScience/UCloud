@@ -130,7 +130,7 @@ function UsageExport<T extends object>({chartData, headers, projectTitle}: {char
 
                 for (const el of chartData) {
                     for (const [idx, header] of headers.entries()) {
-                        text += el[header.key];
+                        text += `"${el[header.key]}"`;
                         if (idx !== headers.length - 1) text += ";";
                     }
                     text += "\n";
@@ -617,9 +617,7 @@ function Visualization(): React.ReactNode {
 
     return <MainContainer
         headerSize={0}
-        main={<div
-            className={VisualizationStyle}
-        >
+        main={<div className={VisualizationStyle}>
             <header>
                 <h3 className="title" style={{marginTop: "auto", marginBottom: "auto"}}>Resource usage</h3>
                 <div className="duration-select">
@@ -2311,7 +2309,6 @@ function normalizePeriod(period: Period): {start: number, end: number} {
 // =====================================================================================================================
 
 const PanelGrid = makeClassName("panel-grid");
-const AccountingPanelsOnlyStyle = injectStyle("accounting-panels-only", () => "");
 const VisualizationStyle = injectStyle("visualization", k => `
     ${k} > header {
         display: flex;
