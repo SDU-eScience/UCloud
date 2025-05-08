@@ -122,16 +122,17 @@ function UsageExport<T extends object>({chartData, headers, projectTitle}: {char
         </Flex>
     </Box>
 
-    function doExport<T extends object>(chartData: T[], headers: ExportHeader<T>[], delimitier: string, format: "json" | "csv", projectTitle?: string) {
+    function doExport<T extends object>(chartData: T[], headers: ExportHeader<T>[], delimiter: string, format: "json" | "csv", projectTitle?: string) {
         let text = "";
         switch (format) {
             case "csv": {
-                text = headers.map(it => it.value).join(delimitier) + "\n";
+
+                text = headers.map(it => it.value).join(delimiter) + "\n";
 
                 for (const el of chartData) {
                     for (const [idx, header] of headers.entries()) {
                         text += `"${el[header.key]}"`;
-                        if (idx !== headers.length - 1) text += ";";
+                        if (idx !== headers.length - 1) text += delimiter;
                     }
                     text += "\n";
                 }
