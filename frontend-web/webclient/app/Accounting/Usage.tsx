@@ -520,7 +520,7 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
 
 // User-interface
 // =====================================================================================================================
-const Visualization: React.FunctionComponent = () => {
+function Visualization(): React.ReactNode {
     const project = useProject();
     const projectId = useProjectId();
     const [state, rawDispatch] = useReducer(stateReducer, initialState);
@@ -1463,13 +1463,7 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
         for (const chart of shownProducts) {
             for (let idx = 0; idx < chart.dataPoints.length; idx++) {
                 const point = chart.dataPoints[idx];
-                if (idx + 1 >= chart.dataPoints.length) continue;
-                const change = point.usage - chart.dataPoints[idx + 1].usage;
-                if (change === 0) {
-                    if (result.find(it => it.name === chart.name)) {
-                        continue;
-                    }
-                }
+                const change = point.usage - (chart.dataPoints[idx + 1]?.usage ?? 0);
                 result.push({name: chart.name, timestamp: point.timestamp, usage: point.usage, difference: change});
             }
 
@@ -1502,9 +1496,12 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
         toggleSeriesEntry(chart, chartEntryIndex, {current: shownEntries}, updateShownEntries);
     }, [chartId, charts, shownEntries]);
 
+
     const sorted = useSorting(tableContent, "usage");
 
+
     const shownProductNames = shownProducts.map(it => it.name);
+
 
     return <div className={TableWrapper.class}>
         <table>
@@ -1520,7 +1517,7 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
                 {sorted.data.map((point, idx, items) => {
                     if (!shownProductNames.includes(point.name)) return null;
                     const matchesNextEntry = items[idx + 1]?.name === point.name;
-                    const change = (matchesNextEntry && idx + 1 !== items.length) ? point.usage - items[idx + 1].usage : 0;
+                    const change = matchesNextEntry ? point.usage - (items[idx + 1]?.usage ?? 0) : 0;
                     if (change === 0 && matchesNextEntry) return null;
                     return <tr key={idx} style={{cursor: "pointer"}}>
                         <td onClick={() => toggleChart(point.name)}>{point.name}</td>
