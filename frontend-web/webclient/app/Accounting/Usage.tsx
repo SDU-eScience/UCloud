@@ -1055,14 +1055,14 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit: st
                             {sorted.data.map((point, idx) => {
                                 const usage = point.value;
                                 const [name, provider] = point.nameAndProvider ? point.nameAndProvider.split("/") : ["", ""];
-                                return <tr key={idx} onClick={() => {
-                                    const labels: string[] = ApexCharts.getChartByID("UsageBreakdown")?.["opts"]["labels"] ?? [];
-                                    const idx = labels.findIndex(it => it === point.key);
-                                    if (idx !== -1) {
-                                        ApexCharts.exec("UsageBreakdown", "toggleDataPointSelection", idx);
-                                    }
-                                }} style={{cursor: "pointer"}}>
-                                    <td title={point.key}><Truncate maxWidth={"250px"}>{point.key}</Truncate></td>
+                                return <tr key={idx} style={{cursor: "pointer"}}>
+                                    <td title={point.key} onClick={() => {
+                                        const labels: string[] = ApexCharts.getChartByID("UsageBreakdown")?.["opts"]["labels"] ?? [];
+                                        const idx = labels.findIndex(it => it === point.key);
+                                        if (idx !== -1) {
+                                            ApexCharts.exec("UsageBreakdown", "toggleDataPointSelection", idx);
+                                        }
+                                    }}><Truncate maxWidth={"250px"}>{point.key}</Truncate></td>
                                     {name && provider ? <td>{name} - {getShortProviderTitle(provider)}</td> : null}
                                     <td>{Accounting.addThousandSeparators(Math.round(usage))} {props.unit}</td>
                                 </tr>
@@ -1186,12 +1186,10 @@ const MostUsedApplicationsPanel: React.FunctionComponent<{data?: MostUsedApplica
                     </thead>
                     <tbody>
                         {sorted.data.map(it =>
-                            <React.Fragment key={it.applicationTitle}>
-                                <tr>
-                                    <td>{it.applicationTitle}</td>
-                                    <td>{it.count}</td>
-                                </tr>
-                            </React.Fragment>
+                            <tr key={it.applicationTitle}>
+                                <td>{it.applicationTitle}</td>
+                                <td>{it.count}</td>
+                            </tr>
                         )}
                     </tbody>
                 </table>
@@ -1441,24 +1439,28 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
 
 function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownEntries}: {updateShownEntries: (args: boolean | number[]) => void; charts: UsageChart[]; shownEntries: boolean[]; exportRef: React.RefObject<() => void>; chartId: string;}) {
     /* TODO(Jonas): Provider _should_ also be here, right */
-    const shownCharts = React.useMemo(() => charts.filter((chart, index) => shownEntries[index]), [charts, shownEntries]);
+    const shownProducts = React.useMemo(() => charts.filter((chart, index) => shownEntries[index]), [charts, shownEntries]);
 
     const differences = React.useMemo(() => {
-        const differences = shownCharts.map(() => 0.0);
-        for (const [chartIdx, chart] of shownCharts.entries()) {
+        const differences: Record<string, number> = {}
+        for (const {name} of shownProducts) {
+            differences[name] = 0.0;
+        }
+
+        for (const chart of shownProducts) {
             for (let idx = 0; idx < chart.dataPoints.length; idx++) {
                 const point = chart.dataPoints[idx];
                 if (idx == 0) continue;
                 const change = point.usage - chart.dataPoints[idx - 1].usage;
-                differences[chartIdx] += change;
+                differences[chart.name] += change;
             }
         }
         return differences;
-    }, [shownCharts]);
+    }, [shownProducts]);
 
-    const remappedThingies = React.useMemo(() => {
+    const tableContent = React.useMemo(() => {
         const result: {name: string; timestamp: number; usage: number; difference: number;}[] = [];
-        for (const chart of shownCharts) {
+        for (const chart of shownProducts) {
             for (let idx = 0; idx < chart.dataPoints.length; idx++) {
                 const point = chart.dataPoints[idx];
                 if (idx + 1 >= chart.dataPoints.length) continue;
@@ -1476,18 +1478,18 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
             }
         }
         return result;
-    }, [shownCharts]);
+    }, [shownProducts]);
 
 
     const project = useProject().fetch();
     const startExport = useCallback(() => {
-        exportUsage(remappedThingies.map(it => ({...it, timestamp: formatDate(it.timestamp, DATE_FORMAT)})), [
+        exportUsage(tableContent.map(it => ({...it, timestamp: formatDate(it.timestamp, DATE_FORMAT)})), [
             header("name", "Name", true),
             header("timestamp", "Time", true),
             header("usage", "Usage", true),
             header("difference", "Difference", true),
         ], projectTitle(project));
-    }, [remappedThingies, project]);
+    }, [tableContent, project]);
 
     React.useEffect(() => {
         exportRef.current = startExport;
@@ -1500,7 +1502,9 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
         toggleSeriesEntry(chart, chartEntryIndex, {current: shownEntries}, updateShownEntries);
     }, [chartId, charts, shownEntries]);
 
-    const sorted = useSorting(remappedThingies, "timestamp");
+    const sorted = useSorting(tableContent, "usage");
+
+    const shownProductNames = shownProducts.map(it => it.name);
 
     return <div className={TableWrapper.class}>
         <table>
@@ -1509,27 +1513,22 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
                     <SortTableHeader width="20%" sortKey="name" sorted={sorted}>Name</SortTableHeader>
                     <SortTableHeader width="30%" sortKey="timestamp" sorted={sorted}>Timestamp</SortTableHeader>
                     <SortTableHeader width="25%" sortKey="usage" sorted={sorted}>Usage</SortTableHeader>
-                    <SortTableHeader width="25%" sortKey="difference" sorted={sorted}>Change</SortTableHeader>
+                    <th>Change</th>
                 </tr>
             </thead>
             <tbody>
-                {shownCharts.map((chart, idx) =>
-                    differences[idx] != 0 ? chart.dataPoints.map((point, idx, items) => {
-                        const change = (idx + 1 !== items.length) ? point.usage - items[idx + 1].usage : 0;
-                        if (change === 0 && idx + 1 < items.length) return null;
-                        return <tr key={idx} style={{cursor: "pointer"}} onClick={() => toggleChart(chart.name)}>
-                            <td>{chart.name}</td>
-                            <td>{dateToString(point.timestamp)}</td>
-                            <td>{Accounting.addThousandSeparators(point.usage.toFixed(2))}</td>
-                            <td>{change >= 0 ? "+" : ""}{Accounting.addThousandSeparators(change.toFixed(2))}</td>
-                        </tr>;
-                    }) : (chart.dataPoints.length === 0 ? null : <tr style={{cursor: "pointer"}} onClick={() => toggleChart(chart.name)} key={chart.name}>
-                        <td>{chart.name}</td>
-                        <td>{dateToString(chart.dataPoints[0].timestamp)}</td>
-                        <td>{Accounting.addThousandSeparators(chart.dataPoints[0].usage.toFixed(0))}</td>
-                        <td>N/A</td>
-                    </tr>)
-                )}
+                {sorted.data.map((point, idx, items) => {
+                    if (!shownProductNames.includes(point.name)) return null;
+                    const matchesNextEntry = items[idx + 1]?.name === point.name;
+                    const change = (matchesNextEntry && idx + 1 !== items.length) ? point.usage - items[idx + 1].usage : 0;
+                    if (change === 0 && matchesNextEntry) return null;
+                    return <tr key={idx} style={{cursor: "pointer"}}>
+                        <td onClick={() => toggleChart(point.name)}>{point.name}</td>
+                        <td>{dateToString(point.timestamp)}</td>
+                        <td>{Accounting.addThousandSeparators(point.usage.toFixed(2))}</td>
+                        <td>{change >= 0 ? "+" : ""}{Accounting.addThousandSeparators(change.toFixed(2))}</td>
+                    </tr>;
+                })}
             </tbody>
         </table>
     </div>
@@ -1608,9 +1607,7 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
                     </tbody>
                 </table>
             </div>
-        </> : <>
-            {loading ? <HexSpin size={32} /> : "No usage data found"}
-        </>}
+        </> : loading ? <HexSpin size={32} /> : "No usage data found"}
     </div>;
 };
 
@@ -1955,8 +1952,16 @@ const RenderUnitSelector: RichSelectChildComponent<{unit: string}> = ({element, 
     const unit = element.unit;
     return <Flex gap={"16px"} height="40px" {...dataProps} alignItems={"center"} py={4} px={8} mr={48} onClick={onSelect}>
         <Icon name={toIcon(unit)} />
-        <div><b>{unit}</b></div>
+        <div><b>{unitTitle(unit)}</b></div>
     </Flex>;
+}
+
+function unitTitle(unit: string) {
+    switch (unit) {
+        case JOBS_UNIT_NAME: return JOBS_UNIT_NAME;
+        case "DKK": return "Usage in " + unit;
+        default: return unit + " usage";
+    }
 }
 
 function toIcon(unit: string): IconName {
