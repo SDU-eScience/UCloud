@@ -171,7 +171,7 @@ class TaskSystem(
                                     .prepareStatement(
                                         """
                                         select processor_id, id, request_name, requirements, request, progress,
-                                               last_update
+                                               extract(epoch from last_update)
                                         from ucloud_storage_tasks 
                                         where 
                                             complete = false and
