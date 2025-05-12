@@ -667,6 +667,7 @@ export interface AllocationDisplayTree {
             groups: {
                 category: ProductCategoryV2;
                 usageAndQuota: UsageAndQuota;
+                totalGranted: number;
 
                 allocations: {
                     allocationId: number;
@@ -934,7 +935,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                         title: childGroup.child.projectTitle,
                     },
                     groups: [],
-                    usageAndQuota: []
+                    usageAndQuota: [],
                 };
 
                 subAllocations.recipients.push(recipient);
@@ -963,7 +964,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
             const usage = combineBalances([{balance: combinedUsage, category: wallet.paysFor}]);
             const quota = combineBalances([{balance: combinedQuota, category: wallet.paysFor}]);
             const retiredAmount = combineBalances([{balance: combinedRetired, category: wallet.paysFor}]);
-
+            let totalAllocated = 0;
             const newGroup: AllocationDisplayTree["subAllocations"]["recipients"][0]["groups"][0] = {
                 category: wallet.paysFor,
                 usageAndQuota: new UsageAndQuota({
@@ -977,12 +978,16 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                     ownedByPersonalProviderProject,
                 }),
                 allocations: [],
+                totalGranted: 0
             };
 
             const uq = newGroup.usageAndQuota;
             uq.raw.maxUsable = uq.raw.quota - (localUsage[0]?.normalizedBalance ?? 0);
 
             for (const alloc of childGroup.group.allocations.reverse()) {
+                if (allocationIsActive(alloc, new Date().getTime())) {
+                    totalAllocated += alloc.quota;
+                }
                 newGroup.allocations.push({
                     allocationId: alloc.id,
                     quota: alloc.quota,
@@ -993,7 +998,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                     grantedIn: alloc.grantedIn ?? undefined,
                 });
             }
-
+            newGroup.totalGranted = totalAllocated;
             recipient.groups.push(newGroup);
         }
 

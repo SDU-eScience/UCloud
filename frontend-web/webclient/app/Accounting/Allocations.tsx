@@ -1372,6 +1372,47 @@ const Allocations: React.FunctionComponent = () => {
                                 </Flex>}
                                 indent={indent * 2}
                             >
+                                {/* TODO: Calculate this and store in useMemo instead of on every re-render */}
+                                {/* List All granted resources in descending order for each product category */}
+                                {state.subAllocations.recipients.sort((a,b) => {
+                                    const aval = a.groups.filter((g) => g.category === wallet.category).reduce((asum, element) => asum + element.totalGranted, 0)
+                                    const bval = b.groups.filter((g) => g.category === wallet.category).reduce((bsum, element) => bsum + element.totalGranted, 0)
+                                    return bval - aval;
+                                }).map((recipient, idx) =>
+                                    <TreeNode
+                                        key={idx}
+                                        left={
+                                            <Flex gap={"4px"} alignItems={"center"}>
+                                                <TooltipV2 tooltip={`Project PI: ${recipient.owner.primaryUsername}`}>
+                                                    <Avatar {...avatars.avatarFromCache(recipient.owner.primaryUsername)}
+                                                            style={{height: "32px", width: "auto", marginTop: "-4px"}}
+                                                            avatarStyle={"Circle"} />
+                                                </TooltipV2>
+                                                <Truncate title={recipient.owner.title}>{recipient.owner.title}</Truncate>
+                                            </Flex>
+                                        }
+                                        right={
+                                            <Flex flexDirection={"row"} gap={"8px"}>
+                                                {
+                                                    balanceToStringFromUnit(
+                                                        wallet.usageAndQuota.raw.type,
+                                                        wallet.usageAndQuota.raw.unit,
+                                                        explainUnit(wallet.category).balanceFactor *
+                                                            recipient.groups.filter(
+                                                                (elm) => elm.category == wallet.category
+                                                            ).reduce((sum, element) => sum + element.totalGranted, 0),
+                                                        {
+                                                            precision: 2,
+                                                            removeUnitIfPossible: true
+                                                        }
+                                                    )
+                                                }
+                                            </Flex>
+                                        }
+                                    >
+
+                                    </TreeNode>
+                                )}
                             </TreeNode>
                         )}
                     </TreeNode>;
