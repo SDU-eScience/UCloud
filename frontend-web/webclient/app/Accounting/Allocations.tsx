@@ -1402,8 +1402,7 @@ const Allocations: React.FunctionComponent = () => {
                                                                 (elm) => elm.category == wallet.category
                                                             ).reduce((sum, element) => sum + element.totalGranted, 0),
                                                         {
-                                                            precision: 2,
-                                                            removeUnitIfPossible: true
+                                                            precision: 2
                                                         }
                                                     )
                                                 }
