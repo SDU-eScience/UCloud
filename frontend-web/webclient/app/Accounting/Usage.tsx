@@ -201,17 +201,14 @@ function stateReducer(state: State, action: UIAction): State {
         case "LoadCharts": {
             // TODO Move this into selectChart
             function translateBreakdown(category: Accounting.ProductCategoryV2, chart: BreakdownByProjectAPI, nameAndProvider: string): BreakdownChart {
-                const {name} = Accounting.explainUnit(category);
                 const dataPoints = chart.data;
 
-                return {unit: name, dataPoints, nameAndProvider};
+                return {dataPoints, nameAndProvider};
             }
 
             function translateChart(category: Accounting.ProductCategoryV2, chart: UsageOverTimeAPI): UsageChart {
-                const {name} = Accounting.explainUnit(category);
                 const dataPoints = chart.data;
-
-                return {unit: name, dataPoints, name: category.name};
+                return {dataPoints, name: category.name, provider: category.provider};
             }
 
             const data = action.charts;
@@ -274,7 +271,7 @@ function stateReducer(state: State, action: UIAction): State {
                 if (selectedSummary) selectedIndex = selectedSummary.categoryIdx;
             }
 
-            const availableUnits = [...new Set(newSummaries.map(it => it.breakdownByProject.unit))];
+            const availableUnits = unitsFromSummaries(newSummaries);
             const activeUnit = availableUnits[0];
 
             return selectUnit({
@@ -308,7 +305,7 @@ function stateReducer(state: State, action: UIAction): State {
     function selectUnit(state: State, unit: string): State {
         const chartData = state.remoteData.chartData;
         if (!chartData) return {...state, activeDashboard: undefined};
-        const summaries = state.summaries.filter(it => unit === JOBS_UNIT_NAME || it.breakdownByProject.unit === unit);
+        const summaries = state.summaries.filter(it => unit === JOBS_UNIT_NAME || Accounting.explainUnit(it.category).name === unit);
         if (!summaries.length) return {...state, activeDashboard: undefined};
 
         let earliestNextAllocation: number | null = null;
@@ -433,9 +430,9 @@ function stateReducer(state: State, action: UIAction): State {
             }
         }
 
-        const availableUnitsSet = new Set(state.summaries.map(it => it.breakdownByProject.unit))
+        const availableUnitsSet = unitsFromSummaries(state.summaries);
         if (state.remoteData.jobStatistics) {
-            availableUnitsSet.add(JOBS_UNIT_NAME);
+            availableUnitsSet.push(JOBS_UNIT_NAME);
         }
 
         const availableUnits = [...availableUnitsSet];
@@ -595,7 +592,7 @@ function Visualization(): React.ReactNode {
         state.activeDashboard.usageOverTime.every(it => it.dataPoints.every(it => it.usage === 0)) &&
         (state.summaries.length === 0 && state.remoteData.requestsInFlight === 0);
     const unitsForRichSelect = React.useMemo(() => {
-        const all = state.activeDashboard?.availableUnits.map(it => ({unit: it})).filter(it => []) ?? []
+        const all = state.activeDashboard?.availableUnits.map(it => ({unit: it})) ?? [];
         return all.filter(it => !["IPs", "Licenses"].includes(it.unit)); // Note(Jonas): Maybe just don't fetch the IPs, Licenses (and Links?)
     }, [state.activeDashboard?.availableUnits]);
 
@@ -947,12 +944,24 @@ const BreakdownStyle = injectStyle("breakdown", k => `
     }
 `);
 
+const UsageBreakdownChartId = "UsageBreakdown";
 const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit: string; period: Period; charts: BreakdownChart[];}> = props => {
     const [breakdownSelected, setBreakdownSelected] = useState<string | undefined>();
-    const fullyMergedChart = React.useMemo(() => ({
-        unit: props.unit,
-        dataPoints: props.charts.flatMap(it => it.dataPoints.map(d => ({...d, nameAndProvider: it.nameAndProvider})))
-    }), [props.charts, props.unit]);
+    const breakdownRef = useRef(breakdownSelected);
+    breakdownRef.current = breakdownSelected;
+
+    const fullyMergedChart = React.useMemo(() => {
+        if (breakdownRef.current) {
+            const c = ApexCharts.getChartByID(UsageBreakdownChartId);
+            c?.toggleSeries(breakdownRef.current);
+            setBreakdownSelected(undefined);
+        }
+
+        return {
+            unit: props.unit,
+            dataPoints: props.charts.flatMap(it => it.dataPoints.map(d => ({...d, nameAndProvider: it.nameAndProvider})))
+        };
+    }, [props.charts, props.unit]);
 
     const dataPoints = useMemo(() => {
         const unsorted = fullyMergedChart.dataPoints.map(it => ({key: it.title, value: it.usage, nameAndProvider: it.nameAndProvider})) ?? [];
@@ -971,9 +980,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit: st
         }).sort((a, b) => a.value - b.value);
     }, [dataPoints]);
 
-    const formatter = useCallback((val: number) => {
-        return Accounting.addThousandSeparators(val.toFixed(0)) + " " + props.unit;
-    }, [props.unit]);
+    const formatter = useCallback((val: number) => Accounting.addThousandSeparators(val.toFixed(0)) + " " + props.unit, [props.unit]);
 
     const showWarning = (() => {
         const {start, end} = normalizePeriod(props.period);
@@ -983,7 +990,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit: st
     })();
 
     const filteredDataPoints = useMemo(() => {
-        if (!breakdownSelected) return dataPointsByProject;
+        if (!breakdownSelected) return dataPointsByProject.slice();
         return dataPoints.filter(it => it.key === breakdownSelected);
     }, [breakdownSelected, dataPoints, dataPointsByProject]);
 
@@ -1020,6 +1027,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit: st
 
     if (props.isLoading) return null;
 
+
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
         <div className={PanelTitle.class}>
             <h4>Usage breakdown by sub-projects </h4><TooltipV2
@@ -1036,8 +1044,8 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit: st
         </> : null}
 
         <div className={ChartAndTable}>
-            {datapointSum === 0 ? null : <div className={PieWrapper.class}>
-                <PieChart chartId="UsageBreakdown" dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={updateSelectedBreakdown} />
+            {datapointSum === 0 ? null : <div key={UsageBreakdownChartId} className={PieWrapper.class}>
+                <PieChart chartId={UsageBreakdownChartId} dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={updateSelectedBreakdown} />
             </div>}
             {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
             {dataPoints.length === 0 ? "No usage data found" :
@@ -1056,10 +1064,11 @@ const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit: st
                                 const [name, provider] = point.nameAndProvider ? point.nameAndProvider.split("/") : ["", ""];
                                 return <tr key={idx} style={{cursor: "pointer"}}>
                                     <td title={point.key} onClick={() => {
-                                        const labels: string[] = ApexCharts.getChartByID("UsageBreakdown")?.["opts"]["labels"] ?? [];
+                                        const chart = ApexCharts.getChartByID(UsageBreakdownChartId);
+                                        const labels: string[] = chart?.["opts"]["labels"] ?? [];
                                         const idx = labels.findIndex(it => it === point.key);
-                                        if (idx !== -1) {
-                                            ApexCharts.exec("UsageBreakdown", "toggleDataPointSelection", idx);
+                                        if (idx !== -1 && chart) {
+                                            chart.toggleDataPointSelection(idx);
                                         }
                                     }}><Truncate maxWidth={"250px"}>{point.key}</Truncate></td>
                                     {name && provider ? <td>{name} - {getShortProviderTitle(provider)}</td> : null}
@@ -1095,7 +1104,7 @@ function thStyling(isBold: boolean, width: string): CSSProperties | undefined {
     };
 }
 
-type PercentageWidth = `${number}%`;
+type PercentageWidth = `${number}%` | `${number}px`;
 function SortTableHeader<DataType>({sortKey, sorted, children, width}: React.PropsWithChildren<{
     sortKey: keyof DataType; sorted: ReturnType<typeof useSorting<DataType>>; width: PercentageWidth;
 }>) {
@@ -1328,10 +1337,9 @@ const ASPECT_RATIO_PIE_CHART: [number, number] = [1, 1];
 
 const DynamicallySizedChart: React.FunctionComponent<{
     chart: ChartProps,
-    aspectRatio: [number, number],
     maxWidth?: number,
     anyChartData: boolean,
-}> = ({chart, aspectRatio, maxWidth, ...props}) => {
+}> = ({chart, maxWidth, ...props}) => {
     // NOTE(Dan): This react component works around the fact that Apex charts needs to know its concrete size to
     // function. This does not play well with the fact that we want to dynamically size the chart based on a combination
     // of a grid and a flexbox.
@@ -1348,7 +1356,7 @@ const DynamicallySizedChart: React.FunctionComponent<{
     const styleForLayoutTest: CSSProperties = {flexGrow: 2, flexShrink: 1, flexBasis: "400px"};
 
     return <div style={styleForLayoutTest}>
-        <Chart {...chart} height="400px" />
+        <Chart {...chart} height="400px" {...props} />
     </div>;
 }
 
@@ -1386,7 +1394,7 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
         return usageChartsToChart(charts, shownRef, {
             valueFormatter: val => Accounting.addThousandSeparators(val.toFixed(1)),
             toggleShown: value => updateShownEntries(value),
-            id: ChartID,
+            id: ChartID + chartCounter.current,
         });
     }, [charts]);
 
@@ -1422,7 +1430,7 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
         </Flex>
 
         <div className={ChartAndTable}>
-            <DynamicallySizedChart anyChartData={anyData} chart={chartProps} aspectRatio={ASPECT_RATIO_LINE_CHART} />
+            <DynamicallySizedChart anyChartData={anyData} chart={chartProps} />
 
             {showWarning && <>
                 <Warning>
@@ -1431,7 +1439,7 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
                 </Warning>
             </>}
 
-            <DifferenceTable chartId={ChartID} charts={charts} updateShownEntries={updateShownEntries} shownEntries={shownEntries} exportRef={exportRef} />
+            <DifferenceTable chartId={ChartID + chartCounter.current} charts={charts} updateShownEntries={updateShownEntries} shownEntries={shownEntries} exportRef={exportRef} />
         </div>
     </div >;
 };
@@ -1440,34 +1448,17 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
     /* TODO(Jonas): Provider _should_ also be here, right */
     const shownProducts = React.useMemo(() => charts.filter((chart, index) => shownEntries[index]), [charts, shownEntries]);
 
-    const differences = React.useMemo(() => {
-        const differences: Record<string, number> = {}
-        for (const {name} of shownProducts) {
-            differences[name] = 0.0;
-        }
-
-        for (const chart of shownProducts) {
-            for (let idx = 0; idx < chart.dataPoints.length; idx++) {
-                const point = chart.dataPoints[idx];
-                if (idx == 0) continue;
-                const change = point.usage - chart.dataPoints[idx - 1].usage;
-                differences[chart.name] += change;
-            }
-        }
-        return differences;
-    }, [shownProducts]);
-
     const tableContent = React.useMemo(() => {
-        const result: {name: string; timestamp: number; usage: number; difference: number;}[] = [];
+        const result: {name: string; timestamp: number; usage: number; difference: number; quota: number}[] = [];
         for (const chart of shownProducts) {
             for (let idx = 0; idx < chart.dataPoints.length; idx++) {
                 const point = chart.dataPoints[idx];
                 const change = point.usage - (chart.dataPoints[idx + 1]?.usage ?? 0);
-                result.push({name: chart.name, timestamp: point.timestamp, usage: point.usage, difference: change});
+                result.push({name: chart.name, timestamp: point.timestamp, usage: point.usage, difference: change, quota: point.quota});
             }
 
             if (chart.dataPoints.length === 0) {
-                result.push({name: chart.name, timestamp: 0, usage: 0, difference: 0});
+                result.push({name: chart.name, timestamp: 0, usage: 0, difference: 0, quota: 0});
             }
         }
         return result;
@@ -1490,26 +1481,24 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
 
     const toggleChart = React.useCallback((productName: string) => {
         const chart = ApexCharts.getChartByID(chartId);
-        const series = chart?.["opts"]["series"];
+        const series: {name: string}[] = chart?.["opts"]["series"] ?? [];
         const chartEntryIndex = series.findIndex(it => it.name === productName);
         toggleSeriesEntry(chart, chartEntryIndex, {current: shownEntries}, updateShownEntries);
-    }, [chartId, charts, shownEntries]);
+    }, [chartId, charts, shownProducts]);
 
 
     const sorted = useSorting(tableContent, "usage");
 
-
     const shownProductNames = shownProducts.map(it => it.name);
-
 
     return <div className={TableWrapper.class}>
         <table>
             <thead>
                 <tr>
                     <SortTableHeader width="20%" sortKey="name" sorted={sorted}>Name</SortTableHeader>
-                    <SortTableHeader width="30%" sortKey="timestamp" sorted={sorted}>Timestamp</SortTableHeader>
-                    <SortTableHeader width="25%" sortKey="usage" sorted={sorted}>Usage</SortTableHeader>
-                    <th>Change</th>
+                    <SortTableHeader width="160px" sortKey="timestamp" sorted={sorted}>Timestamp</SortTableHeader>
+                    <SortTableHeader width="40%" sortKey="usage" sorted={sorted}>Usage</SortTableHeader>
+                    <th style={{width: "50px"}}>Change</th>
                 </tr>
             </thead>
             <tbody>
@@ -1521,7 +1510,7 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
                     return <tr key={idx} style={{cursor: "pointer"}}>
                         <td onClick={() => toggleChart(point.name)}>{point.name}</td>
                         <td>{dateToString(point.timestamp)}</td>
-                        <td>{Accounting.addThousandSeparators(point.usage.toFixed(2))}</td>
+                        <td>{Accounting.addThousandSeparators(point.usage.toFixed(2))} / {Accounting.addThousandSeparators(point.quota.toFixed(2))} </td>
                         <td>{change >= 0 ? "+" : ""}{Accounting.addThousandSeparators(change.toFixed(2))}</td>
                     </tr>;
                 })}
@@ -1660,9 +1649,7 @@ const PieChart: React.FunctionComponent<{
             events: {
                 dataPointSelection: (e: any, chart?: any, options?: any) => {
                     const dataPointIndex = options?.dataPointIndex;
-
                     if (dataPointIndex != null) {
-                        const key = filteredList[dataPointIndex].key;
                         props.onDataPointSelection({value: series[dataPointIndex], key: labels[dataPointIndex]});
                     }
                 },
@@ -1701,10 +1688,17 @@ const PieChart: React.FunctionComponent<{
             },
         };
 
+        threadDeferLike(() => {
+            const chart = ApexCharts.getChartByID(props.chartId);
+            if (chart) {
+                chart.updateSeries(series)
+            }
+        });
+
         return chartProps;
     }, [series]);
 
-    return <DynamicallySizedChart anyChartData={filteredList.length > 0} chart={chartProps} aspectRatio={ASPECT_RATIO_PIE_CHART} />;
+    return <DynamicallySizedChart anyChartData={filteredList.length > 0} chart={chartProps} />;
 };
 
 interface SubmissionStatistics {
@@ -1728,25 +1722,23 @@ interface JobUsageByUsers {
 }
 
 interface BreakdownChart {
-    unit: string,
     dataPoints: {projectId?: string | null, title: string, usage: number}[];
     nameAndProvider: string;
 }
 
 const emptyBreakdownChart: BreakdownChart = {
-    unit: "",
     nameAndProvider: "",
     dataPoints: [],
 };
 
 interface UsageChart {
-    unit: string;
     name: string;
+    provider: string;
     dataPoints: {timestamp: number, usage: number, quota: number}[];
 }
 
 const emptyChart: UsageChart = {
-    unit: "",
+    provider: "",
     dataPoints: [],
     name: "",
 };
@@ -1859,13 +1851,7 @@ function usageChartsToChart(
                 },
             },
             title: {
-                text: (() => {
-                    let res = "Usage";
-                    res += " (";
-                    res += charts[0]?.unit ?? "";
-                    res += ")"
-                    return res;
-                })()
+                text: "Usage"
             },
         },
         xaxis: {
@@ -1877,10 +1863,7 @@ function usageChartsToChart(
             y: {
                 formatter: function (val) {
                     if (chartOptions.valueFormatter) {
-                        let res = chartOptions.valueFormatter(val);
-                        res += " ";
-                        res += charts[0]?.unit;
-                        return res;
+                        return chartOptions.valueFormatter(val);
                     } else {
                         return val.toString();
                     }
@@ -1900,11 +1883,12 @@ function usageChartsToChart(
     return result;
 }
 
-function toggleSeriesEntry(chart: any, seriesIndex: number | undefined, shownRef: React.RefObject<boolean[]>, toggleShown?: (val: boolean | number[]) => void) {
+function toggleSeriesEntry(_chart: any, seriesIndex: number | undefined, shownRef: React.RefObject<boolean[]>, toggleShown?: (val: boolean | number[]) => void) {
+    const chart = _chart;
     if (seriesIndex != null && chart != null) {
         const allShown = shownRef.current.every(it => it);
 
-        const series = chart["opts"]["series"] ?? [];
+        const series = chart["opts"]["series"] ?? chart["opts"]["labels"];
 
         const allWillBeHidden = shownRef.current[seriesIndex] === true && shownRef.current.reduce((acc, shown) => acc + (+shown), 0) === 1;
 
@@ -1917,7 +1901,9 @@ function toggleSeriesEntry(chart: any, seriesIndex: number | undefined, shownRef
                         Hack(Jonas): It seems that `showSeries` is called before
                         the chart toggles the legend entry otherwise, so this has to be "deferred" 
                     */
-                    threadDeferLike(() => chart.showSeries(series[i]["name"]));
+                    threadDeferLike(() => {
+                        chart.showSeries(series[i]["name"])
+                    });
                     continue;
                 }
 
@@ -1928,9 +1914,7 @@ function toggleSeriesEntry(chart: any, seriesIndex: number | undefined, shownRef
         } else if (allWillBeHidden) {
             toggleShown?.(true);
             threadDeferLike(() => {
-                for (const s of series) {
-                    chart.showSeries(s["name"]);
-                }
+                chart.resetSeries();
             });
         } else {
             chart.toggleSeries(series[seriesIndex]["name"]);
@@ -2304,6 +2288,10 @@ function normalizePeriod(period: Period): {start: number, end: number} {
             return {start: period.start, end: period.end};
         }
     }
+}
+
+function unitsFromSummaries(summaries: State["summaries"]): string[] {
+    return [...new Set(summaries.map(it => Accounting.explainUnit(it.category).name))];
 }
 
 // Styling
