@@ -138,7 +138,7 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
                     pluginConfig.kubernetes.categoryToSelector,
                     pluginConfig.developmentMode.fakeIpMount,
                     pluginConfig.developmentMode.usePortForwarding,
-                    pluginConfig.kubernetes.defaultNodeType
+                    pluginConfig.kubernetes.defaultNodeType,
                 )
             }
         }

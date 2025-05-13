@@ -143,6 +143,12 @@ class JobManagement(
 
     fun register(feature: JobFeature) {
         features.add(feature)
+
+        // HACK(Dan): Weird passing of references
+        val rt = runtime
+        if (feature is FeatureIngress && rt is Pod2Runtime) {
+            rt.ingressFeature = feature
+        }
     }
 
     inline fun <reified F : JobFeature> featureOrNull(): F? {

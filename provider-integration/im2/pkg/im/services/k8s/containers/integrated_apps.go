@@ -83,7 +83,8 @@ func containerIAppBridge(handler ContainerIAppHandler) ctrl.IntegratedApplicatio
 				defer cancelFunc()
 
 				_ = K8sClient.CoreV1().Pods(Namespace).Delete(timeout, pod.Value.Name, metav1.DeleteOptions{
-					GracePeriodSeconds: util.Pointer(int64(1)),
+					GracePeriodSeconds: util.Pointer(int64(0)),
+					PropagationPolicy:  util.Pointer(metav1.DeletePropagationBackground),
 				})
 			}
 

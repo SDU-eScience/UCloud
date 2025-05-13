@@ -440,6 +440,10 @@ const RendererDiagram: React.FunctionComponent<{ widget: RuntimeWidget<WidgetDia
             logarithmic: widget.spec.yAxis.logarithmic ?? undefined,
         };
 
+        result.tooltip = {
+            theme: "dark",
+        };
+
         return result;
     }, [widget.spec.xAxis, widget.spec.yAxis, widget.spec.type]);
 

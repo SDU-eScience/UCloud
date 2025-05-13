@@ -16,9 +16,9 @@ import (
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
+	"ucloud.dk/pkg/ucviz"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
-	"ucloud.dk/pkg/ucviz"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -264,7 +264,7 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 			tracker.TrackState(shared.JobReplicaState{
 				Id:    jobId,
 				Rank:  0,
-				State: orc.JobStateInQueue,
+				State: orc.JobStateSuspended,
 			})
 		}
 	}

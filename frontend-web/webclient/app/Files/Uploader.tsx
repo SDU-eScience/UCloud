@@ -849,6 +849,10 @@ const Uploader: React.FunctionComponent = () => {
         uploadingText += ` - Approximately ${formatDistance(uploadTimings.timeRemaining * 1000, 0)}`;
     }
 
+    if (uploadsInProgress.every(it => it.paused)) {
+        uploadingText = null;
+    }
+
     return <ReactModal
         isOpen={uploaderVisible}
         style={modalStyle}
@@ -1066,7 +1070,10 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
     const stopped = upload.terminationRequested || !!upload.error;
 
     const progressInfo = {stopped: stopped && !isPaused, progress: upload.progressInBytes, limit: upload.fileSizeInBytes ?? 1, indeterminate: false};
-    const right = `${uploadProgressText(upload.progressInBytes, upload.fileSizeInBytes ?? 0)} (${sizeToString(uploadCalculateSpeed(upload))}/s)`;
+    let right = `${uploadProgressText(upload.progressInBytes, upload.fileSizeInBytes ?? 0)} (${sizeToString(uploadCalculateSpeed(upload))}/s)`;
+    if (isPaused) {
+        right = "Upload is paused.";
+    }
     const icon = <FtIcon fileIcon={{type: upload.folderName ? "DIRECTORY" : "FILE", ext: extensionFromPath(upload.name)}} size="24px" />;
 
     const title = upload.folderName ?? upload.name;
@@ -1098,7 +1105,7 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
             title={title}
             progress={right}
             isPaused={isPaused}
-            pause={inProgress || isPaused ? (
+            pause={upload.uploadResponse?.protocol === "WEBSOCKET_V2" ? undefined : inProgress || isPaused ? (
                 upload.paused ?
                     <Icon cursor="pointer" name="play" onClick={() => callbacks.resumeUploads([upload])} color="primaryMain" /> :
                     <Icon cursor="pointer" name="pauseSolid" onClick={() => callbacks.pauseUploads([upload])} color="primaryMain" />

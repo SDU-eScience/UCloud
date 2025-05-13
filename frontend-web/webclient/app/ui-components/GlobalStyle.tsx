@@ -469,6 +469,19 @@ html.dark {
 h1, h2, h3, h4, h5 {
     font-weight: normal;
 }
+
+.apexcharts-tooltip,
+.apexcharts-legend-text,
+.apexcharts-yaxis-title text,
+.apexcharts-yaxis-texts-g text,
+.apexcharts-xaxis-texts-g text {
+    fill: var(--textPrimary);
+    color: var(--textPrimary);
+}
+
+.apexcharts-legend-text {
+    color: var(--textPrimary) !important;
+}
     
 
 /*! sanitize.css v7.0.3 | CC0 License | github.com/csstools/sanitize.css */

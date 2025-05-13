@@ -391,6 +391,23 @@ func CanUseDrive(actor orc.ResourceOwner, driveId string, readOnly bool) bool {
 			return project.Id == actor.Project
 		}
 	} else {
+		for _, entry := range drive.Permissions.Others {
+			entryIsRelevant := false
+			if readOnly {
+				entryIsRelevant = orc.PermissionsHas(entry.Permissions, orc.PermissionRead)
+			} else {
+				entryIsRelevant = orc.PermissionsHas(entry.Permissions, orc.PermissionEdit)
+			}
+
+			if entryIsRelevant {
+				if entry.Entity.Type == orc.AclEntityTypeUser {
+					if entry.Entity.Username == actor.CreatedBy {
+						return true
+					}
+				}
+			}
+		}
+
 		return actor.CreatedBy == drive.Owner.CreatedBy
 	}
 }

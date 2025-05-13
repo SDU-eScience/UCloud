@@ -1041,7 +1041,7 @@ func loadStorageProducts() {
 		support.Collection.UsersCanRename = false
 
 		support.Files.AclModifiable = false
-		support.Files.TrashSupport = true
+		support.Files.TrashSupported = true
 		support.Files.IsReadOnly = false
 		support.Files.SearchSupported = false
 		support.Files.StreamingSearchSupported = true

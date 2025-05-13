@@ -576,10 +576,25 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 primary: true,
                 icon: "terminalSolid",
                 enabled: (selected, cb) => {
+                    if (cb.embedded) return false;
+
                     let support = cb.collection?.status?.resolvedSupport?.support;
                     if (!support) return false;
                     if (selected.length > 0) return false;
                     if (!hasFeature(Feature.INLINE_TERMINAL)) return false;
+
+                    if (cb.isSearch) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+                    if (!(selected.length === 0 && cb.onSelect === undefined)) {
+                        return false;
+                    }
+
+                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                        return "You do not have write permissions in this folder";
+                    }
+
                     return (support as FileCollectionSupport).files.openInTerminal === true;
                 },
                 onClick: (selected, cb) => {

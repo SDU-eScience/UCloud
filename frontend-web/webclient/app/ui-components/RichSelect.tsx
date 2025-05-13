@@ -63,7 +63,7 @@ export function RichSelect<T, K extends keyof T>(props: {
         setDropdownSize(width + "px");
     }, []);
 
-    const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + INPUT_FIELD_HEIGHT)
+    const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + INPUT_FIELD_HEIGHT);
 
     return <ClickableDropdown
         trigger={props.FullRenderSelected ?
@@ -85,7 +85,6 @@ export function RichSelect<T, K extends keyof T>(props: {
         colorOnHover={false}
         fullWidth={props.fullWidth ?? false}
         width={props.fullWidth ? undefined : dropdownSize}
-        height={height}
         onSelect={el => {
             const idxS = el?.getAttribute("data-idx") ?? "";
             const idx = parseInt(idxS);
@@ -126,7 +125,7 @@ export function RichSelect<T, K extends keyof T>(props: {
                 </Relative>
             </Flex>
 
-            <div className={ResultWrapperClass} style={{maxHeight: height + "px"}}>
+            <div className={ResultWrapperClass} style={{maxHeight: (height - INPUT_FIELD_HEIGHT) + "px", height: height + "px"}}>
                 {limitedElements.map(it => <props.RenderRow
                     element={it}
                     key={it.idx}

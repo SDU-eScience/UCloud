@@ -72,29 +72,31 @@ func Initialize(config Config, channel chan []byte) {
 			adminSection = fmt.Sprintf(adminSectionProd, filepath.Join(stateDir, "admin.sock"))
 		}
 
-		xdsSection := ""
-		switch cfg.Provider.Envoy.ListenMode {
-		case cfg.EnvoyListenModeTcp:
-			xdsSection = fmt.Sprintf(xdsTcp, cfg.Provider.Hosts.Self.Address)
-			adminSection = ""
-		case cfg.EnvoyListenModeUnix:
-			xdsSection = fmt.Sprintf(xdsUnix, filepath.Join(stateDir, "xds.sock"))
-		}
+		if stateDir != "" {
+			xdsSection := ""
+			switch cfg.Provider.Envoy.ListenMode {
+			case cfg.EnvoyListenModeTcp:
+				xdsSection = fmt.Sprintf(xdsTcp, cfg.Provider.Hosts.Self.Address)
+				adminSection = ""
+			case cfg.EnvoyListenModeUnix:
+				xdsSection = fmt.Sprintf(xdsUnix, filepath.Join(stateDir, "xds.sock"))
+			}
 
-		err := os.WriteFile(
-			fmt.Sprintf("%v/%v", stateDir, fileConfig),
-			[]byte(
-				fmt.Sprintf(
-					envoyConfigTemplate,
-					adminSection,
-					xdsSection,
-				)),
-			0o600,
-		)
+			err := os.WriteFile(
+				fmt.Sprintf("%v/%v", stateDir, fileConfig),
+				[]byte(
+					fmt.Sprintf(
+						envoyConfigTemplate,
+						adminSection,
+						xdsSection,
+					)),
+				0o600,
+			)
 
-		if err != nil {
-			log.Error("Failed to write required configuration files for the gateway: %v", err)
-			os.Exit(1)
+			if err != nil {
+				log.Error("Failed to write required configuration files for the gateway: %v", err)
+				os.Exit(1)
+			}
 		}
 	}
 

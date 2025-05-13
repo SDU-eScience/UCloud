@@ -447,7 +447,7 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 		// Envoy section
 		envoy := cfgutil.RequireChild(filePath, provider, "envoy", &success)
 
-		directory := cfgutil.RequireChildFolder(filePath, envoy, "directory", cfgutil.FileCheckReadWrite, &success)
+		directory := cfgutil.OptionalChildText(filePath, envoy, "directory", &success)
 		cfg.Envoy.StateDirectory = directory
 
 		managedExternally, _ := cfgutil.OptionalChildBool(filePath, envoy, "managedExternally")
@@ -458,6 +458,10 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 			listenMode = EnvoyListenModeUnix
 		}
 		cfg.Envoy.ListenMode = listenMode
+
+		if !managedExternally || directory != "" || listenMode == EnvoyListenModeUnix {
+			cfgutil.RequireChildFolder(filePath, envoy, "directory", cfgutil.FileCheckReadWrite, &success)
+		}
 
 		if !cfg.Envoy.ManagedExternally {
 			exe := cfgutil.RequireChildFile(filePath, envoy, "executable", cfgutil.FileCheckRead, &success)
