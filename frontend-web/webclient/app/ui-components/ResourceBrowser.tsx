@@ -175,7 +175,7 @@ interface ResourceBrowserListenerMap<T> {
     "renderRow": (entry: T, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
     "endRenderPage": () => void;
 
-    // beforeOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
+    // skipOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
     "skipOpen": (oldPath: string, path: string, resource?: T) => boolean;
     "open": (oldPath: string, path: string, resource?: T) => void;
     "wantToFetchNextPage": (path: string) => Promise<void>;
@@ -1204,7 +1204,7 @@ export class ResourceBrowser<T> {
         return null
     }
 
-    renderDefaultRow(row: ResourceBrowserRow, title: string, opts?: { color?: ThemeColor; color2?: ThemeColor; }): {
+    renderDefaultRow(row: ResourceBrowserRow, title: string, opts?: {color?: ThemeColor; color2?: ThemeColor;}): {
         title: HTMLDivElement
     } {
         const icon = this.emptyIconName;
@@ -3031,7 +3031,6 @@ export class ResourceBrowser<T> {
             return this.defaultEmptyPage(this.resourceName, e, {});
         },
         fetchFilters: () => [],
-        searchHidden: () => {},
 
         renderLocationBar: prompt => {
             return {rendered: prompt, normalized: prompt};
