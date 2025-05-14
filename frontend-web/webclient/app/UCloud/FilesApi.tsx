@@ -1377,7 +1377,7 @@ export function FilePreview({initialFile}: {
             {
                 icon: "edit",
                 text: "Rename",
-                enabled: () => true,
+                enabled: () => file.fileHint !== "DIRECTORY_TRASH",
                 onClick: () => {
                     setRenamingFile(file.absolutePath);
                 },
@@ -1386,7 +1386,7 @@ export function FilePreview({initialFile}: {
             {
                 icon: "trash",
                 text: "Move to trash",
-                enabled: () => true,
+                enabled: () => file.fileHint !== "DIRECTORY_TRASH",
                 onClick: async () => {
                     await callAPI(
                         api.trash({
@@ -1412,7 +1412,7 @@ export function FilePreview({initialFile}: {
             {
                 icon: "move",
                 text: "Move file",
-                enabled: () => true,
+                enabled: () => file.fileHint !== "DIRECTORY_TRASH",
                 onClick: () => {
                     api.moveModal([file.absolutePath], initialFile.specification.product.provider, reload);
                 },
@@ -1422,7 +1422,7 @@ export function FilePreview({initialFile}: {
             {
                 icon: "download",
                 text: "Download file",
-                enabled: () => true,
+                enabled: () => !file.isDirectory,
                 onClick: async () => {
                     api.download([file.absolutePath]);
                 },
@@ -1694,6 +1694,7 @@ function toVirtualFiles(page: PageV2<UFile>): VirtualFile[] {
         absolutePath: i.id,
         isDirectory: i.status.type === "DIRECTORY",
         requestedSyntax: extensionFromPath(i.id),
+        fileHint: i.status.icon
     }));
 }
 
