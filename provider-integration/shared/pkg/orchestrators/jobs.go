@@ -414,6 +414,10 @@ func BuildParameter(
 			result = append(result, suffixGlobal)
 		}
 
+		for i := 0; i < len(result); i++ {
+			result[i] = strings.TrimSpace(result[i])
+		}
+
 		return result
 
 	case InvocationParameterTypeBoolFlag:
@@ -428,7 +432,7 @@ func BuildParameter(
 			return nil
 		}
 
-		return []string{f.Flag}
+		return []string{strings.TrimSpace(f.Flag)}
 
 	default:
 		log.Warn("Unhandled value type: %v", param.Type)

@@ -78,10 +78,6 @@ func prepareInvocationOnJobCreate(
 	if ok {
 		builder := strings.Builder{}
 		builder.WriteString("#!/usr/bin/env bash\n")
-		builder.WriteString("export TINI_SUBREAPER=\n")
-		builder.WriteString("entrypoint() {\n\t")
-		builder.WriteString(strings.Join(actualCommand, " "))
-		builder.WriteString("\n}\n\n")
 		if rank == 0 {
 			builder.WriteString("resourceUtilization() {\n\t")
 			builder.WriteString("# Collects resource utilization for display in the UI\n\t")
@@ -89,8 +85,11 @@ func prepareInvocationOnJobCreate(
 			builder.WriteString("}\n\n")
 			builder.WriteString("resourceUtilization &\n")
 		}
-		builder.WriteString("trap 'kill $(jobs -p) 2>/dev/null' EXIT\n")
-		builder.WriteString("entrypoint &> /work/stdout-$UCLOUD_RANK.log\n")
+		builder.WriteString("trap 'kill $(jobs -p) 2>/dev/null' EXIT\n") // Does this actually work with the new exec invocation?
+
+		builder.WriteString("exec ")
+		builder.WriteString(strings.Join(actualCommand, " "))
+		builder.WriteString(" &> /work/stdout-$UCLOUD_RANK.log\n")
 
 		_, _ = jobFile.WriteString(builder.String())
 		_ = jobFile.Chmod(0755)
