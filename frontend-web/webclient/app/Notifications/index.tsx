@@ -1,4 +1,4 @@
-import {WSFactory} from "@/Authentication/HttpClientInstance";
+import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {formatDistance} from "date-fns";
 import * as React from "react";
 import {Snack} from "@/Snackbar/Snackbars";
@@ -184,7 +184,11 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
             }
             break;
         case "SHARE_REQUEST":
-            navigate("/shares");
+            if (Client.hasActiveProject) {
+                snackbarStore.addInformation("Shares can only be accepted from 'My workspace'", false);
+            } else {
+                navigate("/shares");
+            }
             break;
         case "REVIEW_PROJECT":
         case "PROJECT_INVITE":
