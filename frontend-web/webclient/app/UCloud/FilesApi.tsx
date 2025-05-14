@@ -9,7 +9,7 @@ import {
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import FileCollectionsApi, {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {Box, Button, Card, Flex, Icon, Markdown, Select, Text, TextArea, Truncate} from "@/ui-components";
+import {Box, Button, Card, Flex, Icon, MainContainer, Markdown, Select, Text, TextArea, Truncate} from "@/ui-components";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {fileName, getParentPath, readableUnixMode, sizeToString} from "@/Utilities/FileUtilities";
@@ -227,8 +227,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
         const file = fileData.data;
 
-        if (!id) return <h1>Missing file id.</h1>;
-        if (!file) return <></>;
+        if (!id) return <MainContainer main={<h1>Missing file id.</h1>} />;
+        if (!file) return <MainContainer main={<h1><Link to={AppRoutes.files.drives()}>File not found. Click to go to drives.</Link></h1>} />;
 
         return <FilePreview initialFile={file} />
     }
