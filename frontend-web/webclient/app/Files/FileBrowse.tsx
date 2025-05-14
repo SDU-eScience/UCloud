@@ -1329,7 +1329,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                 browser.on("search", query => {
                     let currentPath = browser.currentPath;
                     if (currentPath === SEARCH) currentPath = searching;
-                    else lastActiveFilePath = pathComponents(currentPath)[0];
+                    else lastActiveFilePath = currentPath;
 
                     browser.emptyReasons[SEARCH] = {
                         tag: EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS,
@@ -1380,6 +1380,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             }
                         }
                     )
+                });
+
+                browser.on("searchHidden", () => {
+                    browser.open(lastActiveFilePath, true);
                 });
 
                 // Event handlers related to user input
