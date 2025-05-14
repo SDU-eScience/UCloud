@@ -170,7 +170,7 @@ interface OperationProps<EntityType, Extras = undefined> {
     showSelectedCount?: boolean;
     displayTitle?: boolean;
     all?: EntityType[];
-    openFnRef?: React.MutableRefObject<(left: number, top: number) => void>;
+    openFnRef?: React.RefObject<(left: number, top: number) => void>;
     hidden?: boolean;
     forceEvaluationOnOpen?: boolean;
 }

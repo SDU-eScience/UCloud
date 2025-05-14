@@ -847,7 +847,7 @@ type EditorEvent =
 
 function useStateReducerMiddleware(
     doDispatch: (e: EditorAction) => void,
-    scrollToTopRef: React.MutableRefObject<boolean>,
+    scrollToTopRef: React.RefObject<boolean>,
 ): {dispatchEvent: (e: EditorEvent) => unknown} {
     const didCancel = useDidUnmount();
     const dispatchEvent = useCallback(async (event: EditorEvent) => {

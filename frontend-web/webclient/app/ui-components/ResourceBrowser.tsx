@@ -107,7 +107,7 @@ export interface EmbeddedSettings {
 
 export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string> & ResourceIncludeFlags;
-    reloadRef?: React.MutableRefObject<() => void>;
+    reloadRef?: React.RefObject<() => void>;
     // Note(Jonas): 
     //        Embedded changes a few stylings, omits shortcuts from operations, but I believe operations
     //        are entirely omitted. Fetches only the first page, based on the amount passed by additionalFeatures or default.
@@ -440,7 +440,7 @@ export class ResourceBrowser<T> {
     }
 
     public init(
-        ref: React.MutableRefObject<ResourceBrowser<T> | null>,
+        ref: React.RefObject<ResourceBrowser<T> | null>,
         features: ResourceBrowseFeatures,
         initialPath: string | undefined,
         onInit: (browser: ResourceBrowser<T>) => void,

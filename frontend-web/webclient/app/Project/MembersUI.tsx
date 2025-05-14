@@ -545,7 +545,7 @@ const GroupCard: React.FunctionComponent<{
     handleRenameGroup: (event: React.SyntheticEvent) => void;
     onDuplicate: (groupId: string) => void;
 }> = props => {
-    const openFn: React.MutableRefObject<(left: number, top: number) => void> = {current: doNothing};
+    const openFn: React.RefObject<(left: number, top: number) => void> = {current: doNothing};
     const onContextMenu: EventHandler<MouseEvent<never>> = e => {
         e.stopPropagation();
         e.preventDefault();
