@@ -238,7 +238,11 @@ function ClickableDropdown<T>({
             left = x - widthAsNumber;
         }
 
-        if (y + heightAsNumber >= screenHeight) {
+        if (props.height) {
+            if (y + props.height! >= screenHeight) {
+                top = y - props.height!;
+            }
+        } else if (y + heightAsNumber >= screenHeight) {
             top = y - heightAsNumber;
         }
     }

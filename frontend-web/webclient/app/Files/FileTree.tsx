@@ -7,6 +7,7 @@ import {usePrettyFilePath} from "./FilePath";
 import {Box, Flex, FtIcon, Icon, Input, Truncate} from "@/ui-components";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import {FullpathFileLanguageIcon} from "@/Editor/Editor";
+import {FileIconHint} from ".";
 
 export interface EditorSidebarNode {
     file: VirtualFile;
@@ -17,10 +18,11 @@ export interface VirtualFile {
     absolutePath: string;
     isDirectory: boolean;
     requestedSyntax?: string;
+    fileHint?: FileIconHint;
 }
 
 interface FileTreeProps {
-    tree: React.MutableRefObject<TreeApi | null>
+    tree: React.RefObject<TreeApi | null>
     onTreeAction: ((row: HTMLElement, action: TreeAction) => void);
     onNodeActivated(open: boolean, row: HTMLElement): void;
     root: EditorSidebarNode;
