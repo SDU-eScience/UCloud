@@ -39,7 +39,7 @@ func prepareInvocationOnJobCreate(
 				if ok {
 					podPath, ok = pathMapperInternalToPod[internalPath]
 					if ok {
-						return podPath
+						return filepath.Join(podPath, util.FileName(ucloudPath))
 					}
 				}
 			}
