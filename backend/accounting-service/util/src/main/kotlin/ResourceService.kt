@@ -1054,7 +1054,7 @@ abstract class ResourceService<
             actorAndProject.actor.safeUsername(),
             if (personalResource) null else actorAndProject.project
         )
-        val relevantProviders = findRelevantProviders(actorAndProject)
+        val relevantProviders = findRelevantProviders(actorAndProject, includeFreeToUse = true)
         relevantProviders.forEach { provider ->
             val comms = providers.prepareCommunication(provider)
             val api = providerApi(comms)
@@ -1087,12 +1087,13 @@ abstract class ResourceService<
     }
 
     override suspend fun retrieveProducts(actorAndProject: ActorAndProject): SupportByProvider<Prod, Support> {
-        val relevantProviders = findRelevantProviders(actorAndProject)
+        val relevantProviders = findRelevantProviders(actorAndProject, includeFreeToUse = false)
         return SupportByProvider(support.retrieveProducts(relevantProviders))
     }
 
     suspend fun findRelevantProviders(
         actorAndProject: ActorAndProject,
+        includeFreeToUse: Boolean,
         useProject: Boolean = true,
         ctx: DBContext? = null,
     ): List<String> {
@@ -1104,6 +1105,7 @@ abstract class ResourceService<
                     actorAndProject.project,
                     useProject,
                     productArea,
+                    includeFreeToUse = includeFreeToUse,
                 )
             ),
             serviceClient

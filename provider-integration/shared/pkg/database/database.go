@@ -1,6 +1,7 @@
 package database
 
 import (
+	"database/sql"
 	"fmt"
 	"reflect"
 	"strings"
@@ -315,6 +316,34 @@ func transformParameter(param any) any {
 				elem := v.Index(i)
 				if i > 0 {
 					builder.WriteString(",")
+				}
+
+				if elem.CanInterface() {
+					elemIface := elem.Interface()
+					if nstring, ok := elemIface.(sql.NullString); ok {
+						if nstring.Valid {
+							baseValue := nstring.String
+							baseValue = strings.ReplaceAll(baseValue, "\\", "\\\\")
+							baseValue = strings.ReplaceAll(baseValue, "\"", "\\\"")
+							builder.WriteString("\"")
+							builder.WriteString(baseValue)
+							builder.WriteString("\"")
+							continue
+						} else {
+							builder.WriteString("null")
+							continue
+						}
+					}
+				}
+
+				if elem.Kind() == reflect.String {
+					baseValue := elem.String()
+					baseValue = strings.ReplaceAll(baseValue, "\\", "\\\\")
+					baseValue = strings.ReplaceAll(baseValue, "\"", "\\\"")
+					builder.WriteString("\"")
+					builder.WriteString(baseValue)
+					builder.WriteString("\"")
+					continue
 				}
 
 				builder.WriteString(fmt.Sprint(elem))

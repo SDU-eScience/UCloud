@@ -200,7 +200,9 @@ class AccountingSystem(
                             val timeoutTime = 2000L
                             waitingOn = ""
                             var response = try {
-                                withHardTimeout(timeoutTime, { request.message.toString() + "\nWaiting on:" + waitingOn }) {
+                                withHardTimeout(
+                                    timeoutTime,
+                                    { request.message.toString() + "\nWaiting on:" + waitingOn }) {
                                     when (val msg = request.message) {
                                         is AccountingRequest.Charge -> charge(msg)
                                         is AccountingRequest.RootAllocate -> rootAllocate(msg)
@@ -214,6 +216,7 @@ class AccountingSystem(
                                         is AccountingRequest.UpdateAllocation -> updateAllocation(msg)
                                         is AccountingRequest.RetrieveProviderAllocations ->
                                             retrieveProviderAllocations(msg)
+
                                         is AccountingRequest.RegisterProviderGift ->
                                             registerProviderGift(msg)
 
@@ -261,7 +264,9 @@ class AccountingSystem(
                                             }
                                         }
 
-                                        is AccountingRequest.FillUpPersonalProviderProject -> fillUpPersonalProviderProject(msg)
+                                        is AccountingRequest.FillUpPersonalProviderProject -> fillUpPersonalProviderProject(
+                                            msg
+                                        )
                                     }
                                 }
                             } catch (e: Throwable) {
@@ -314,7 +319,10 @@ class AccountingSystem(
 
     private suspend fun registerProviderGift(msg: AccountingRequest.RegisterProviderGift): Response<out Any> {
         if (msg.idCard !is IdCard.Provider) return Response.error(HttpStatusCode.Forbidden, "Forbidden")
-        if (msg.productCategory.provider != msg.idCard.name) return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        if (msg.productCategory.provider != msg.idCard.name) return Response.error(
+            HttpStatusCode.Forbidden,
+            "Forbidden"
+        )
 
         val providerProjectId = idCardService.lookupPid(
             idCardService.retrieveProviderProjectPid(msg.idCard.name)
@@ -486,7 +494,7 @@ class AccountingSystem(
                 builder.append(",")
 
                 // last update
-                builder.append(wallet.lastSignificantUpdateAt)
+                builder.append("to_timestamp(${wallet.lastSignificantUpdateAt} / 1000.0)")
 
                 builder.append(",")
 
@@ -505,8 +513,10 @@ class AccountingSystem(
             return Response.error(HttpStatusCode.Forbidden, "Forbidden")
         } else {
             return chargeWallet(
-                walletsById[msg.walletId] ?:
-                    return Response.error(HttpStatusCode.NotFound, "unknown wallet: ${msg.walletId}"),
+                walletsById[msg.walletId] ?: return Response.error(
+                    HttpStatusCode.NotFound,
+                    "unknown wallet: ${msg.walletId}"
+                ),
                 msg.charge,
                 isDelta = msg.isDelta,
                 scope = null,
@@ -745,7 +755,7 @@ class AccountingSystem(
         val now = Time.now()
         val idCard = request.idCard
         val parentOwner = request.ownerOverride ?: lookupOwner(idCard)
-            ?: return Response.error(HttpStatusCode.Forbidden, "Could not find information about your project (${idCard})")
+        ?: return Response.error(HttpStatusCode.Forbidden, "Could not find information about your project (${idCard})")
         val internalParentWallet = authorizeAndLocateWallet(idCard, parentOwner, request.category, ActionType.READ)
             ?: return Response.error(HttpStatusCode.Forbidden, "You are not allowed to create this sub-allocation")
 
@@ -942,7 +952,7 @@ class AccountingSystem(
                 group.allocationSet.remove(alloc.id)
                 //removing the alloced value from the parent wallet.
                 val parentWallet = walletsById[parentId]
-                if (parentWallet != null){
+                if (parentWallet != null) {
                     parentWallet.totalAllocated -= alloc.quota
                 }
 
@@ -1733,7 +1743,9 @@ class AccountingSystem(
         val providers = allWorkspaces
             .flatMap { projectId ->
                 val owner = ownersByReference[projectId] ?: return@flatMap emptyList()
-                (walletsByOwner[owner.id] ?: emptyList()).map { it.category.provider }
+                (walletsByOwner[owner.id] ?: emptyList())
+                    .filter { it.allocationsByParent.isNotEmpty() }
+                    .map { it.category.provider }
             }
             .toSet()
 
@@ -1747,7 +1759,7 @@ class AccountingSystem(
 
         waitingOn = "productCache.products()"
         for (product in productCache.products()) {
-            if (request.filterProductType != null && product.productType != request.filterProductType)  {
+            if (request.filterProductType != null && product.productType != request.filterProductType) {
                 continue
             }
 
@@ -1768,7 +1780,7 @@ class AccountingSystem(
 
         val walletOwnerId = ownersByReference[request.owner.reference()]?.id
             ?: return Response.error(HttpStatusCode.NotFound, "Failed to lookup owner")
-        val key =  scopeKey(walletOwnerId, request.chargeId)
+        val key = scopeKey(walletOwnerId, request.chargeId)
         log.info("Scopedkey: $key")
         log.info("In scope ${scopedUsage.contains(key)}")
         val usage = scopedUsage[key] ?: 0L

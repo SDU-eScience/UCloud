@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.readSymbolicLink
 import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
+import dk.sdu.cloud.plugins.compute.ucloud.runIm2Migration
 import dk.sdu.cloud.utils.ResourceVerification
 import dk.sdu.cloud.plugins.storage.posix.posixFilePermissionsFromInt
 import dk.sdu.cloud.sql.*
@@ -240,6 +241,11 @@ fun main(args: Array<String>) {
                 val handler = MigrationHandler(dbConnection)
                 loadMigrations(handler)
                 handler.migrate()
+            }
+
+            if (args.contains("--im2-migration")) {
+                runIm2Migration(args)
+                exitProcess(0)
             }
 
             // Command Line Interface (CLI)

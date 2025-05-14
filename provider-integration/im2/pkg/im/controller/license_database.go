@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -24,10 +25,58 @@ import (
 )
 
 type LicenseEntry struct {
-	Name    string `db:"name"`
-	Address string `db:"address"`
-	Port    int    `db:"port"`
-	License string `db:"license"`
+	Name    string
+	Address util.Option[string]
+	Port    util.Option[int]
+	License util.Option[string]
+}
+
+type LicenseDbEntry struct {
+	Name    string
+	Address sql.NullString
+	Port    sql.NullInt32
+	License sql.NullString
+}
+
+func sqlOptString(s sql.NullString) util.Option[string] {
+	if s.Valid {
+		return util.OptValue(s.String)
+	} else {
+		return util.OptNone[string]()
+	}
+}
+
+func sqlOptInt(s sql.NullInt32) util.Option[int] {
+	if s.Valid {
+		return util.OptValue(int(s.Int32))
+	} else {
+		return util.OptNone[int]()
+	}
+}
+
+func optStringToSql(s util.Option[string]) sql.NullString {
+	if s.Present {
+		return sql.NullString{Valid: true, String: s.Value}
+	} else {
+		return sql.NullString{Valid: false}
+	}
+}
+
+func optIntToSql(s util.Option[int]) sql.NullInt32 {
+	if s.Present {
+		return sql.NullInt32{Valid: true, Int32: int32(s.Value)}
+	} else {
+		return sql.NullInt32{Valid: false}
+	}
+}
+
+func (e *LicenseDbEntry) Normalize() LicenseEntry {
+	return LicenseEntry{
+		Name:    e.Name,
+		Address: sqlOptString(e.Address),
+		Port:    sqlOptInt(e.Port),
+		License: sqlOptString(e.License),
+	}
 }
 
 var licenses = map[string]*orc.License{}
@@ -96,9 +145,9 @@ func initLicenseDatabase() {
 				`,
 				db.Params{
 					"name":    license.Name,
-					"address": license.Address,
-					"port":    license.Port,
-					"license": license.License,
+					"address": optStringToSql(license.Address),
+					"port":    optIntToSql(license.Port),
+					"license": optStringToSql(license.License),
 				},
 			)
 		})
@@ -152,8 +201,8 @@ func initLicenseDatabase() {
 			}
 		}
 
-		rows := db.NewTx(func(tx *db.Transaction) []LicenseEntry {
-			return db.Select[LicenseEntry](
+		rows := db.NewTx(func(tx *db.Transaction) []LicenseDbEntry {
+			return db.Select[LicenseDbEntry](
 				tx,
 				`
 					select name, address, port, license 
@@ -167,14 +216,7 @@ func initLicenseDatabase() {
 		var result []LicenseEntry
 
 		for _, row := range rows {
-			result = append(result,
-				LicenseEntry{
-					Name:    row.Name,
-					Address: row.Address,
-					Port:    row.Port,
-					License: row.License,
-				},
-			)
+			result = append(result, row.Normalize())
 		}
 
 		return ipc.Response[[]LicenseEntry]{
@@ -241,8 +283,8 @@ func FetchLicenseProducts() []apm.ProductV2 {
 	result := []apm.ProductV2{}
 
 	licenseMutex.Lock()
-	internalLicenses := db.NewTx(func(tx *db.Transaction) []LicenseEntry {
-		return db.Select[LicenseEntry](
+	internalLicenses := db.NewTx(func(tx *db.Transaction) []LicenseDbEntry {
+		return db.Select[LicenseDbEntry](
 			tx,
 			`
 				select name, address, port, license 
@@ -254,7 +296,8 @@ func FetchLicenseProducts() []apm.ProductV2 {
 	})
 
 	for _, license := range internalLicenses {
-		result = append(result, license.toProduct())
+		normalize := license.Normalize()
+		result = append(result, normalize.toProduct())
 	}
 
 	licenseMutex.Unlock()
@@ -265,8 +308,8 @@ func FetchLicenseSupport() []orc.LicenseSupport {
 	var result []orc.LicenseSupport
 
 	licenseMutex.Lock()
-	internalLicenses := db.NewTx(func(tx *db.Transaction) []LicenseEntry {
-		return db.Select[LicenseEntry](
+	internalLicenses := db.NewTx(func(tx *db.Transaction) []LicenseDbEntry {
+		return db.Select[LicenseDbEntry](
 			tx,
 			`
 				select name, address, port, license 
@@ -407,8 +450,8 @@ func RetrieveUsedLicenseCount(licenseName string, owner orc.ResourceOwner) int {
 }
 
 func retrieveLicense(productId string) (LicenseEntry, bool) {
-	license := db.NewTx(func(tx *db.Transaction) LicenseEntry {
-		result, _ := db.Get[LicenseEntry](
+	license, ok := db.NewTx2(func(tx *db.Transaction) (LicenseEntry, bool) {
+		result, ok := db.Get[LicenseDbEntry](
 			tx,
 			`
 				select name, address, port, license 
@@ -420,10 +463,10 @@ func retrieveLicense(productId string) (LicenseEntry, bool) {
 			},
 		)
 
-		return result
+		return result.Normalize(), ok
 	})
 
-	return license, true
+	return license, ok
 }
 
 func BuildLicenseParameter(id string) string {
@@ -446,22 +489,22 @@ func BuildLicenseParameter(id string) string {
 
 	var result string
 
-	if len(license.Address) > 0 {
-		result += license.Address
+	if license.Address.Present {
+		result += license.Address.Value
 	} else {
 		result += "null"
 	}
 
 	result += ":"
 
-	if license.Port > 0 {
-		result += fmt.Sprintf("%d", license.Port)
+	if license.Port.Present {
+		result += fmt.Sprintf("%d", license.Port.Value)
 	} else {
 		result += "null"
 	}
 
-	if len(license.License) > 0 {
-		result += "/" + license.License
+	if license.License.Present {
+		result += "/" + license.License.Value
 	}
 
 	return result
@@ -518,13 +561,13 @@ func LicenseCli(args []string) {
 
 		for _, row := range licenses {
 			table.Cell("%s", row.Name)
-			table.Cell("%s", row.Address)
-			if row.Port > 0 {
-				table.Cell("%d", row.Port)
+			table.Cell("%s", row.Address.Value)
+			if row.Port.Present {
+				table.Cell("%d", row.Port.Present)
 			} else {
 				table.Cell("")
 			}
-			table.Cell("%s", row.License)
+			table.Cell("%s", row.License.Value)
 		}
 
 		table.Print()
@@ -564,12 +607,17 @@ func LicenseCli(args []string) {
 			address = strings.Join(addressStringElements[0:len(addressStringElements)-1], ":")
 		}
 
+		portOpt := util.OptNone[int]()
+		if port > 0 {
+			portOpt.Set(port)
+		}
+
 		_, err = ipcUpdateLicense.Invoke(
 			LicenseEntry{
 				Name:    name.Value,
-				Address: address,
-				Port:    port,
-				License: license,
+				Address: util.OptStringIfNotEmpty(address),
+				Port:    portOpt,
+				License: util.OptStringIfNotEmpty(license),
 			},
 		)
 

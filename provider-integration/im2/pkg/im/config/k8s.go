@@ -369,7 +369,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 			cfg.Compute.PublicLinks.Name = cfgutil.OptionalChildText(filePath, ingressNode, "name", &success)
 			if cfg.Compute.PublicLinks.Name == "" {
-				cfg.Compute.PublicLinks.Name = "public-link"
+				cfg.Compute.PublicLinks.Name = "public-links"
 			}
 		}
 	}
@@ -392,13 +392,13 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			}
 
 			portMin := cfgutil.RequireChildInt(filePath, sshNode, "portMin", &success)
-			if success && (portMin <= 0 || portMin >= math.MaxInt16) {
+			if success && (portMin <= 0 || portMin >= math.MaxUint16) {
 				cfgutil.ReportError(filePath, sshNode, "portMin is invalid")
 				success = false
 			}
 
 			portMax := cfgutil.RequireChildInt(filePath, sshNode, "portMax", &success)
-			if success && (portMax <= 0 || portMax >= math.MaxInt16) {
+			if success && (portMax <= 0 || portMax >= math.MaxUint16) {
 				cfgutil.ReportError(filePath, sshNode, "portMax is invalid")
 				success = false
 			}
