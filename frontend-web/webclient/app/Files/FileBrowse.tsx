@@ -1147,7 +1147,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                 callAPI(
                                     FileCollectionsApi.browse({
                                         itemsPerPage: 250,
-                                        filterMemberFiles: "DONT_FILTER_COLLECTIONS",
+                                        filterMemberFiles: "all",
                                         ...opts?.additionalFilters
                                     })
                                 ).then(res => res.items)
@@ -1564,7 +1564,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
         collectionCacheForCompletion.retrieveWithInvalidCache("", () => callAPI(
             FileCollectionsApi.browse({
                 itemsPerPage: 250,
-                filterMemberFiles: "DONT_FILTER_COLLECTIONS",
+                filterMemberFiles: "all",
                 ...opts?.additionalFilters,
             })
         ).then(res => {
