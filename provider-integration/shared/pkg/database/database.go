@@ -333,6 +333,67 @@ func transformParameter(param any) any {
 							builder.WriteString("null")
 							continue
 						}
+					} else if nstring, ok := elemIface.(sql.Null[string]); ok {
+						if nstring.Valid {
+							baseValue := nstring.V
+							baseValue = strings.ReplaceAll(baseValue, "\\", "\\\\")
+							baseValue = strings.ReplaceAll(baseValue, "\"", "\\\"")
+							builder.WriteString("\"")
+							builder.WriteString(baseValue)
+							builder.WriteString("\"")
+							continue
+						} else {
+							builder.WriteString("null")
+							continue
+						}
+					} else if nstring, ok := elemIface.(sql.Null[int]); ok {
+						if nstring.Valid {
+							builder.WriteString(fmt.Sprint(nstring.V))
+							continue
+						} else {
+							builder.WriteString("null")
+							continue
+						}
+					} else if nstring, ok := elemIface.(sql.Null[int32]); ok {
+						if nstring.Valid {
+							builder.WriteString(fmt.Sprint(nstring.V))
+							continue
+						} else {
+							builder.WriteString("null")
+							continue
+						}
+					} else if nstring, ok := elemIface.(sql.Null[int64]); ok {
+						if nstring.Valid {
+							builder.WriteString(fmt.Sprint(nstring.V))
+							continue
+						} else {
+							builder.WriteString("null")
+							continue
+						}
+					} else if nstring, ok := elemIface.(sql.NullInt16); ok {
+						if nstring.Valid {
+							builder.WriteString(fmt.Sprint(nstring.Int16))
+							continue
+						} else {
+							builder.WriteString("null")
+							continue
+						}
+					} else if nstring, ok := elemIface.(sql.NullInt32); ok {
+						if nstring.Valid {
+							builder.WriteString(fmt.Sprint(nstring.Int32))
+							continue
+						} else {
+							builder.WriteString("null")
+							continue
+						}
+					} else if nstring, ok := elemIface.(sql.NullInt64); ok {
+						if nstring.Valid {
+							builder.WriteString(fmt.Sprint(nstring.Int64))
+							continue
+						} else {
+							builder.WriteString("null")
+							continue
+						}
 					}
 				}
 

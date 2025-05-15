@@ -106,10 +106,11 @@ type FindByIntId struct {
 }
 
 func ItemsPerPage(number int) int {
-	switch number {
-	case 10, 25, 50, 100, 250, 1000:
-		return number
-	default:
+	if number <= 0 {
 		return 50
+	} else if number <= 1000 {
+		return number
+	} else {
+		return 1000
 	}
 }

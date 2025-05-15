@@ -1,6 +1,7 @@
 package util
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 )
@@ -26,6 +27,14 @@ func OptNone[T any]() Option[T] {
 func (s *Option[T]) Set(v T) {
 	s.Value = v
 	s.Present = true
+}
+
+func (s *Option[T]) Sql() sql.Null[T] {
+	if s.Present {
+		return sql.Null[T]{Valid: true, V: s.Value}
+	} else {
+		return sql.Null[T]{Valid: false}
+	}
 }
 
 func OptDefaultOrMap[T any, R any](opt Option[T], defaultValue R, mapper func(val T) R) R {
@@ -113,5 +122,13 @@ func OptMapGet[K comparable, V any](value map[K]V, key K) Option[V] {
 		} else {
 			return OptNone[V]()
 		}
+	}
+}
+
+func OptSqlStringIfNotEmpty(value string) sql.NullString {
+	if value == "" {
+		return sql.NullString{Valid: false}
+	} else {
+		return sql.NullString{Valid: true, String: value}
 	}
 }
