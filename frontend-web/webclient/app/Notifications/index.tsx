@@ -23,6 +23,8 @@ import AppRoutes from "@/Routes";
 import {classConcatArray, injectStyle} from "@/Unstyled";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {SidebarDialog} from "@/ui-components/Sidebar";
+import {addStandardDialog} from "@/UtilityComponents";
+import {dispatchSetProjectAction} from "@/Project/ReduxState";
 
 // NOTE(Dan): If you are in here, then chances are you want to attach logic to one of the notifications coming from
 // the backend. You can do this by editing the following two functions: `resolveNotification()` and
@@ -171,7 +173,7 @@ function resolveNotification(event: Notification): {
     }
 }
 
-function onNotificationAction(notification: Notification, navigate: NavigateFunction) {
+function onNotificationAction(notification: Notification, navigate: NavigateFunction, dispatch: Dispatch) {
     switch (notification.type) {
         case "JOB_COMPLETED":
         case "JOB_STARTED":
@@ -185,7 +187,16 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
             break;
         case "SHARE_REQUEST":
             if (Client.hasActiveProject) {
-                snackbarStore.addInformation("Shares can only be accepted from 'My workspace'", false);
+                addStandardDialog({
+                    title: "Change workspace?",
+                    message: "Share invites can only be viewed in 'My workspace'. Change workspace?",
+                    confirmText: "Change",
+                    cancelText: "Dismiss",
+                    onConfirm() {
+                        dispatchSetProjectAction(dispatch, undefined);
+                        navigate("/shares");
+                    }
+                })
             } else {
                 navigate("/shares");
             }
@@ -598,7 +609,7 @@ interface Notification {
 function normalizeNotification(
     notification: Notification | NormalizedNotification,
 ): NormalizedNotification & {onSnooze?: () => void} {
-    const {location, refresh, navigate} = normalizationDependencies!;
+    const {location, refresh, navigate, dispatch} = normalizationDependencies!;
 
     if ("isPinned" in notification) {
         const result = {
@@ -635,7 +646,7 @@ function normalizeNotification(
         const before = location.pathname;
 
         markAsRead([result]);
-        onNotificationAction(notification, navigate);
+        onNotificationAction(notification, navigate, dispatch);
 
         const after = location.pathname;
         if (before === after && refresh.current) refresh.current();
