@@ -70,7 +70,6 @@ import {sidebarFavoriteCache} from "./FavoriteCache";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {Feature, hasFeature} from "@/Features";
-import {PayloadAction} from "@reduxjs/toolkit";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -1240,6 +1239,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         navigate(`/files/properties/${encodeURIComponent(resource.id)}/`)
                         return;
                     }
+
+                    if (newPath !== SEARCH) lastActiveFilePath = newPath;
 
                     if (openTriggeredByPath.current === newPath) {
                         openTriggeredByPath.current = null;
