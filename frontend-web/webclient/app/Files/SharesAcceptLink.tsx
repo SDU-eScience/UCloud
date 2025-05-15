@@ -6,17 +6,17 @@ import * as Heading from "@/ui-components/Heading";
 import React, {PropsWithChildren, useEffect} from "react";
 import {useNavigate, useParams} from "react-router";
 import Spinner from "@/LoadingIcon/LoadingIcon";
-import {Box, Button} from "@/ui-components";
+import {Box, Button, Flex} from "@/ui-components";
 import {Client} from "@/Authentication/HttpClientInstance";
 
-export const SharesAcceptLink: React.FunctionComponent = () => {
+export function SharesAcceptLink(): React.ReactNode {
     const navigate = useNavigate();
 
     const locationParams = useParams<{id: string;}>();
     let token = locationParams.id ? decodeURIComponent(locationParams.id) : undefined;
 
-    const [acceptedShare, acceptShare] = useCloudAPI<Share|null>({noop: true}, null);
-    const [linkInfo, fetchLinkInfo] = useCloudAPI<RetrieveLinkResponse|null>({noop: true}, null);
+    const [acceptedShare, acceptShare] = useCloudAPI<Share | null>({noop: true}, null);
+    const [linkInfo, fetchLinkInfo] = useCloudAPI<RetrieveLinkResponse | null>({noop: true}, null);
 
     useEffect(() => {
         if (token) {
@@ -33,7 +33,7 @@ export const SharesAcceptLink: React.FunctionComponent = () => {
             }
         }
     }, [linkInfo]);
-    
+
     useEffect(() => {
         if (!acceptedShare.data && !acceptedShare.error) return;
         if (acceptedShare.loading) return;
@@ -50,32 +50,32 @@ export const SharesAcceptLink: React.FunctionComponent = () => {
     return <MainContainer
         main={
             linkInfo.loading ? <Spinner /> :
-            linkInfo.error ? <AcceptProjectLinkContainer>
-                <Heading.h3>Link has expired</Heading.h3>
-                Contact the owner of the folder to get a new link.
-            </AcceptProjectLinkContainer>
-            :
-            <AcceptProjectLinkContainer>
-                <Heading.h3><strong>{linkInfo.data?.sharedBy}</strong> wants to share folder <strong>{linkInfo.data?.path.split("/").pop()}</strong> with you</Heading.h3>
-                <Box mt="15px">
-                    <Button
-                        color="successMain"
-                        mr="10px"
-                        onClick={() => {
-                            if (token) {
-                                acceptShare(shareLinksApi.accept({token}))
-                            }
-                        }}
-                    >See files</Button>
-                    <Button color="errorMain" onClick={() => navigate("/")}>Ignore</Button>
-                </Box>
-            </AcceptProjectLinkContainer>
+                linkInfo.error ? <AcceptProjectLinkContainer>
+                    <Heading.h3>Link has expired</Heading.h3>
+                    Contact the owner of the folder to get a new link.
+                </AcceptProjectLinkContainer>
+                    :
+                    <AcceptProjectLinkContainer>
+                        <Heading.h3><strong>{linkInfo.data?.sharedBy}</strong> wants to share folder <strong>{linkInfo.data?.path.split("/").pop()}</strong> with you</Heading.h3>
+                        <Flex mt="15px" justifyContent="center" mx="auto">
+                            <Button
+                                color="successMain"
+                                mr="10px"
+                                onClick={() => {
+                                    if (token) {
+                                        acceptShare(shareLinksApi.accept({token}))
+                                    }
+                                }}
+                            >See files</Button>
+                            <Button color="errorMain" onClick={() => navigate("/")}>Ignore</Button>
+                        </Flex>
+                    </AcceptProjectLinkContainer>
         }
     />;
 }
 
 function AcceptProjectLinkContainer(props: PropsWithChildren): React.ReactNode {
-    return <Box  textAlign="center" mt="50px">
+    return <Box textAlign="center" mt="50px">
         {props.children}
     </Box>
 }
