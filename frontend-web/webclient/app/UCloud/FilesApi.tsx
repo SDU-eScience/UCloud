@@ -9,7 +9,7 @@ import {
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import FileCollectionsApi, {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {Box, Button, Card, Flex, Icon, MainContainer, Markdown, Select, Text, TextArea, Truncate} from "@/ui-components";
+import {Box, Button, Card, Flex, FtIcon, Icon, MainContainer, Markdown, Select, Text, TextArea, Truncate} from "@/ui-components";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {fileName, getParentPath, readableUnixMode, sizeToString} from "@/Utilities/FileUtilities";
@@ -32,7 +32,7 @@ import * as Heading from "@/ui-components/Heading";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
+import {PrettyFilePath, prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
 import {OpenWithBrowser} from "@/Applications/OpenWith";
 import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
@@ -80,6 +80,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {setPopInChild} from "@/ui-components/PopIn";
 import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
+import {BrowseType} from "@/Resource/BrowseType";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -199,7 +200,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
     public idIsUriEncoded = true;
 
-    renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks> = {};
+    renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks> = {
+    };
 
     private defaultRetrieveFlags: Partial<UFileIncludeFlags> = {
         includeMetadata: true,
@@ -1705,44 +1707,51 @@ export interface WriteToFileEventProps {
 
 function FileProperties({file, routingNamespace}: {file: UFile, routingNamespace: string}) {
     const prettyPath = usePrettyFilePath(file.id);
-    return <Card mt="12px">
-        <div><b>Path:</b> <Truncate title={prettyPath}>{prettyPath}</Truncate></div>
-        <div>
-            <b>Product: </b>
-            {file.specification.product.id === file.specification.product.category ?
-                <>{file.specification.product.id}</> :
-                <>{file.specification.product.id} / {file.specification.product.category}</>
-            }
-        </div>
-        <Flex gap="8px">
-            <b>Provider: </b>
-            <ProviderTitle providerId={file.specification.product.provider} />
+
+    return <>
+        <Flex>
+            <FtIcon fileIcon={{type: file.status.type, ext: extensionFromPath(file.id)}} size={128} />
+            <Heading.h2><Truncate><PrettyFilePath path={file.id} /></Truncate></Heading.h2>
         </Flex>
-        <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
-        {file.status.modifiedAt ?
-            <div><b>Modified at:</b> {dateToString(file.status.modifiedAt)}</div> : null}
-        {file.status.accessedAt ?
-            <div><b>Accessed at:</b> {dateToString(file.status.accessedAt)}</div> : null}
-        {file.status.sizeInBytes != null && file.status.type !== "DIRECTORY" ?
-            <div><b>Size:</b> {sizeToString(file.status.sizeInBytes)}</div> : null}
-        {file.status.sizeIncludingChildrenInBytes != null && file.status.type === "DIRECTORY" ?
-            <div><b>Size:</b> {sizeToString(file.status.sizeIncludingChildrenInBytes)}
-            </div> : null
-        }
-        {file.status.unixOwner != null && file.status.unixGroup != null ?
-            <div><b>UID/GID</b>: {file.status.unixOwner}/{file.status.unixGroup}</div> :
-            null
-        }
-        {file.status.unixMode != null ?
-            <div><b>Unix mode:</b> {readableUnixMode(file.status.unixMode)}</div> :
-            null
-        }
-        <Box mt={"16px"} mb={"8px"}>
-            <Link to={buildQueryString(`/${routingNamespace}`, {path: getParentPath(file.id)})}>
-                <Button fullWidth>View in folder</Button>
-            </Link>
-        </Box>
-    </Card>
+        <Card mt="12px">
+            <div><b>Path:</b> <Truncate title={prettyPath}>{prettyPath}</Truncate></div>
+            <div>
+                <b>Product: </b>
+                {file.specification.product.id === file.specification.product.category ?
+                    <>{file.specification.product.id}</> :
+                    <>{file.specification.product.id} / {file.specification.product.category}</>
+                }
+            </div>
+            <Flex gap="8px">
+                <b>Provider: </b>
+                <ProviderTitle providerId={file.specification.product.provider} />
+            </Flex>
+            <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
+            {file.status.modifiedAt ?
+                <div><b>Modified at:</b> {dateToString(file.status.modifiedAt)}</div> : null}
+            {file.status.accessedAt ?
+                <div><b>Accessed at:</b> {dateToString(file.status.accessedAt)}</div> : null}
+            {file.status.sizeInBytes != null && file.status.type !== "DIRECTORY" ?
+                <div><b>Size:</b> {sizeToString(file.status.sizeInBytes)}</div> : null}
+            {file.status.sizeIncludingChildrenInBytes != null && file.status.type === "DIRECTORY" ?
+                <div><b>Size:</b> {sizeToString(file.status.sizeIncludingChildrenInBytes)}
+                </div> : null
+            }
+            {file.status.unixOwner != null && file.status.unixGroup != null ?
+                <div><b>UID/GID</b>: {file.status.unixOwner}/{file.status.unixGroup}</div> :
+                null
+            }
+            {file.status.unixMode != null ?
+                <div><b>Unix mode:</b> {readableUnixMode(file.status.unixMode)}</div> :
+                null
+            }
+            <Box mt={"16px"} mb={"8px"}>
+                <Link to={buildQueryString(`/${routingNamespace}`, {path: getParentPath(file.id)})}>
+                    <Button fullWidth>View in folder</Button>
+                </Link>
+            </Box>
+        </Card>
+    </>
 }
 
 export {api};

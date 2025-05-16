@@ -19,6 +19,7 @@ import {apiBrowse, apiCreate, apiRetrieve, apiUpdate} from "@/Authentication/Dat
 import {bulkRequestOf} from "@/UtilityFunctions";
 import ProductReference = accounting.ProductReference;
 import {ValuePill} from "@/Resource/Filter";
+import Icon from "@/ui-components/Icon";
 
 export interface ShareSpecification extends ResourceSpecification {
     sharedWith: string;
@@ -116,8 +117,8 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
             return <div />
         },
 
-        Icon() {
-            return <div />;
+        Icon({size}) {
+            return <Icon size={size} name="ftSharesFolder" color="FtFolderColor" color2="FtFolderColor2" />;
         },
 
         ImportantStats() {
@@ -127,19 +128,6 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
 
     constructor() {
         super("shares");
-
-        this.filterPills.push(props => {
-            return <ValuePill {...props} propertyName={"filterIngoing"} showValue={true} icon={"share"} title={""}
-                valueToString={value => value === "true" ? "Shared with me" : "Shared by me"}
-                canRemove={false} />
-        });
-
-        this.filterPills.push(props => {
-            return <ValuePill {...props} propertyName={"filterOriginalPath"} showValue={false} icon={"ftFolder"}
-                title={"Path"} canRemove={false}>
-                <PrettyFilePath path={props.properties["filterOriginalPath"]} />
-            </ValuePill>
-        });
     }
 
     retrieveOperations(): Operation<Share, ResourceBrowseCallbacks<Share>>[] {
@@ -207,7 +195,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
             },
             {
                 text: "Remove",
-                icon: "close",
+                icon: "heroTrash",
                 color: "errorMain",
                 confirm: true,
                 primary: true,
