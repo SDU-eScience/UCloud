@@ -1,10 +1,6 @@
 {
     "name": "ucloud",
-<<<<<<< Updated upstream
     "version": "2025.3.44",
-=======
-    "version": "2025.3.43",
->>>>>>> Stashed changes
     "description": "UCloud",
     "type": "module",
     "author": "IMADA - eScience Center, SDU",
