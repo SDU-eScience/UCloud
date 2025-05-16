@@ -1446,9 +1446,7 @@ export function FilePreview({initialFile}: {
     const navigate = useNavigate();
 
     if (initialFile.status.type === "DIRECTORY") {
-        return <Box m="12px">
-            <FileProperties file={initialFile} routingNamespace={api.routingNamespace} />
-        </Box>
+        return <MainContainer main={<FileProperties file={initialFile} routingNamespace={api.routingNamespace} />} />
     }
 
     return <Editor
