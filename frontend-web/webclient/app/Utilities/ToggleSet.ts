@@ -68,7 +68,7 @@ export interface ToggleSetHook<T> {
     toggle: (item: T) => void;
     checkAll: () => void;
     uncheckAll: () => void;
-    allItems: React.MutableRefObject<T[]>;
+    allItems: React.RefObject<T[]>;
 }
 
 export function useToggleSet<T>(items: T[]): ToggleSetHook<T> {

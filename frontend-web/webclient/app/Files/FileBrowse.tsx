@@ -70,7 +70,6 @@ import {sidebarFavoriteCache} from "./FavoriteCache";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {Feature, hasFeature} from "@/Features";
-import {PayloadAction} from "@reduxjs/toolkit";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -1241,6 +1240,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         return;
                     }
 
+                    if (newPath !== SEARCH) lastActiveFilePath = newPath;
+
                     if (openTriggeredByPath.current === newPath) {
                         openTriggeredByPath.current = null;
                     } else if (!isSelector) {
@@ -1329,7 +1330,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                 browser.on("search", query => {
                     let currentPath = browser.currentPath;
                     if (currentPath === SEARCH) currentPath = searching;
-                    else lastActiveFilePath = pathComponents(currentPath)[0];
+                    else lastActiveFilePath = currentPath;
 
                     browser.emptyReasons[SEARCH] = {
                         tag: EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS,
@@ -1380,6 +1381,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             }
                         }
                     )
+                });
+
+                browser.on("searchHidden", () => {
+                    browser.open(lastActiveFilePath, true);
                 });
 
                 // Event handlers related to user input

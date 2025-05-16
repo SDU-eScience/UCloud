@@ -82,7 +82,7 @@ export const ScaffoldedForm: React.FunctionComponent<{
     data: unknown | null;
     onUpdate: (newData: unknown) => void;
     ancestorId?: string;
-    errors: React.MutableRefObject<Record<string, string>>;
+    errors: React.RefObject<Record<string, string>>;
 }> = ({ancestorId, element, data, onUpdate, errors}) => {
     const childId = (ancestorId ?? "") + element.id;
     console.log(childId, data)

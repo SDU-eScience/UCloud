@@ -141,8 +141,8 @@ const GridClass = injectStyle("grid", k => `
 `);
 
 function Invites({projectReloadRef, inviteReloadRef}: {
-    projectReloadRef: React.MutableRefObject<() => void>,
-    inviteReloadRef: React.MutableRefObject<() => void>
+    projectReloadRef: React.RefObject<() => void>,
+    inviteReloadRef: React.RefObject<() => void>
 }): React.ReactNode {
     const [showProjectInvites, setShowProjectInvites] = React.useState(true);
     const [showShareInvites, setShowShareInvites] = React.useState(true);
@@ -191,7 +191,7 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
     };
 }
 
-function DashboardRuns({reloadRef}: { reloadRef: React.MutableRefObject<() => void> }): React.ReactNode {
+function DashboardRuns({reloadRef}: {reloadRef: React.RefObject<() => void>}): React.ReactNode {
     return <DashboardCard
         linkTo={AppRoutes.jobs.list()}
         title={"Recent runs"}
@@ -298,7 +298,7 @@ function DashboardResources({wallets}: {
     );
 }
 
-function DashboardGrantApplications({reloadRef}: { reloadRef: React.MutableRefObject<() => void> }): React.ReactNode {
+function DashboardGrantApplications({reloadRef}: {reloadRef: React.RefObject<() => void>}): React.ReactNode {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
