@@ -11,7 +11,7 @@ import {
 } from "@/UCloud/ResourceApi";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {Product} from "@/Accounting";
-import {PrettyFilePath} from "@/Files/FilePath";
+import {PrettyFileName, PrettyFilePath} from "@/Files/FilePath";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {accounting, BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud";
@@ -113,8 +113,15 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
     productType = "STORAGE" as const;
 
     renderer: ItemRenderer<Share, ResourceBrowseCallbacks<Share>> = {
-        MainTitle() {
-            return <div />
+        MainTitle({resource}) {
+            if (!resource) return null;
+            /* Note(Jonas): If this is Shared by logged-in user, we have access to original drive */
+            if (resource.owner.createdBy === Client.username) {
+                return <PrettyFilePath path={resource.specification.sourceFilePath} />
+            } else {
+                /* Note(Jonas): If this is Shared by other user, we do not have access to original drive */
+                return <PrettyFileName path={resource.specification.sourceFilePath} />
+            }
         },
 
         Icon({size}) {

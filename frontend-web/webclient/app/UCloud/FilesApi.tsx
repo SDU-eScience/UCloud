@@ -1711,7 +1711,10 @@ function FileProperties({file, routingNamespace}: {file: UFile, routingNamespace
     return <>
         <Flex>
             <FtIcon fileIcon={{type: file.status.type, ext: extensionFromPath(file.id)}} size={128} />
-            <Heading.h2><Truncate><PrettyFilePath path={file.id} /></Truncate></Heading.h2>
+            <Box ml="32px">
+                <Truncate fontSize={25}>{fileName(file.id)}</Truncate>
+                <Truncate fontSize={20}>{prettierString(file.status.type)}</Truncate>
+            </Box>
         </Flex>
         <Card mt="12px">
             <div><b>Path:</b> <Truncate title={prettyPath}>{prettyPath}</Truncate></div>

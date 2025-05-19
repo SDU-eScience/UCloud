@@ -349,7 +349,6 @@ export function ResourceProperties<Res extends Resource>(
                 </div>
 
                 <div className={ContentWrapper}>
-
                     {childrenResolved}
                 </div>
             </div>
