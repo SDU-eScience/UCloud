@@ -1456,13 +1456,12 @@ function EditorTab({
         close();
     }, [close]);
 
-    const tabTitle = (
+    const prettyFullPath =
         isSettings ? "Settings" :
             isReleaseNotes ? "Release notes" :
-                fileName(title as string)
-    );
+                usePrettyFilePath(title as string);
 
-    const prettyFullPath = usePrettyFilePath(title as string)
+    const tabTitle = fileName(prettyFullPath);
 
     return (
         <Flex onContextMenu={onContextMenu} className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={e => {

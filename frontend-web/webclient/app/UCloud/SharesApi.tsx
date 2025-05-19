@@ -115,7 +115,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
     renderer: ItemRenderer<Share, ResourceBrowseCallbacks<Share>> = {
         MainTitle({resource}) {
             if (!resource) return null;
-            /* Note(Jonas): If this is Shared by logged-in user, we have access to original drive */
+            /* Note(Jonas): If this is shared by logged-in user, we have access to original drive title */
             if (resource.owner.createdBy === Client.username) {
                 return <PrettyFilePath path={resource.specification.sourceFilePath} />
             } else {
