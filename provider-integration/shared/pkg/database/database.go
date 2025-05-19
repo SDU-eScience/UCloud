@@ -26,8 +26,8 @@ var (
 	metricDatabaseTransactionsDuration = promauto.NewSummary(prometheus.SummaryOpts{
 		Namespace: "ucloud_im",
 		Subsystem: "database",
-		Name:      "transactions_duration",
-		Help:      "Summary of the duration (in microseconds) it takes to make database transactions",
+		Name:      "transactions_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to make database transactions",
 		Objectives: map[float64]float64{
 			0.5:  0.01,
 			0.75: 0.01,
@@ -99,7 +99,7 @@ func NewTx[T any](fn func(tx *Transaction) T) T {
 	start := time.Now()
 	result := ContinueTx(Database, fn)
 	metricDatabaseTransactionsInFlight.Dec()
-	metricDatabaseTransactionsDuration.Observe(float64(time.Now().Sub(start).Microseconds()))
+	metricDatabaseTransactionsDuration.Observe(float64(time.Now().Sub(start).Seconds()))
 	return result
 }
 

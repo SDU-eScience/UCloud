@@ -53,8 +53,8 @@ var (
 	metricRequestDuration = promauto.NewSummary(prometheus.SummaryOpts{
 		Namespace: "ucloud_im",
 		Subsystem: "server",
-		Name:      "requests_duration",
-		Help:      "Summary of the duration (in microseconds) it takes to complete requests",
+		Name:      "requests_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to complete requests",
 		Objectives: map[float64]float64{
 			0.5:  0.01,
 			0.75: 0.01,
@@ -123,7 +123,7 @@ func HttpRetrieveHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w
 		// TODO This should read from query parameters but it is not
 		handler(w, r, request)
 
-		metricRequestDuration.Observe(float64(time.Now().Sub(start).Microseconds()))
+		metricRequestDuration.Observe(float64(time.Now().Sub(start).Seconds()))
 	}
 }
 
@@ -205,7 +205,7 @@ func HttpUpdateHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w h
 
 		handler(w, r, request)
 
-		metricRequestDuration.Observe(float64(time.Now().Sub(start).Microseconds()))
+		metricRequestDuration.Observe(float64(time.Now().Sub(start).Seconds()))
 	}
 }
 
