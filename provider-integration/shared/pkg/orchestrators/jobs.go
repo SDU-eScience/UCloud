@@ -507,39 +507,51 @@ func VerifyParameterType(param *ApplicationParameter, value *AppParameterValue) 
 	return true
 }
 
-func readDefaultValue(input json.RawMessage) (AppParameterValue, bool) {
+func genericDefaultParse[T any](input json.RawMessage) (T, bool) {
+	var asDirect T
+	err := json.Unmarshal(input, &asDirect)
+	if err == nil {
+		return asDirect, true
+	}
+
+	var asWrapped struct{ Value T }
+	err = json.Unmarshal(input, &asWrapped)
+	if err == nil {
+		return asWrapped.Value, true
+	} else {
+		return asDirect, false
+	}
+}
+
+func readDefaultValue(t ApplicationParameterType, input json.RawMessage) (AppParameterValue, bool) {
 	if string(input) == "null" {
 		return AppParameterValue{}, false
 	}
 
-	var value AppParameterValue
-	err := json.Unmarshal(input, &value)
-	if err == nil {
-		return value, true
-	}
+	switch t {
+	case ApplicationParameterTypeBoolean:
+		v, ok := genericDefaultParse[bool](input)
+		if ok {
+			return AppParameterValueBoolean(v), true
+		}
 
-	var asInt int64
-	err = json.Unmarshal(input, &asInt)
-	if err == nil {
-		return AppParameterValueInteger(asInt), true
-	}
+	case ApplicationParameterTypeInteger:
+		v, ok := genericDefaultParse[int64](input)
+		if ok {
+			return AppParameterValueInteger(v), true
+		}
 
-	var asFloat float64
-	err = json.Unmarshal(input, &asFloat)
-	if err == nil {
-		return AppParameterValueFloatingPoint(asFloat), true
-	}
+	case ApplicationParameterTypeFloatingPoint:
+		v, ok := genericDefaultParse[float64](input)
+		if ok {
+			return AppParameterValueFloatingPoint(v), true
+		}
 
-	var asText string
-	err = json.Unmarshal(input, &asText)
-	if err == nil {
-		return AppParameterValueText(asText), true
-	}
-
-	var asBool bool
-	err = json.Unmarshal(input, &asBool)
-	if err == nil {
-		return AppParameterValueBoolean(asBool), true
+	case ApplicationParameterTypeText, ApplicationParameterTypeTextArea, ApplicationParameterTypeEnumeration:
+		v, ok := genericDefaultParse[string](input)
+		if ok {
+			return AppParameterValueText(v), true
+		}
 	}
 
 	return AppParameterValue{}, false
@@ -563,7 +575,7 @@ func ReadParameterValuesFromJob(job *Job, application *ApplicationInvocationDesc
 			continue
 		}
 
-		value, ok := readDefaultValue(param.DefaultValue)
+		value, ok := readDefaultValue(param.Type, param.DefaultValue)
 		if !ok {
 			continue
 		}
