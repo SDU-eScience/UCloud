@@ -237,6 +237,7 @@ class DataVisualization(
                             select
                                 s.wallet_id,
                                 s.tree_usage,
+                                s.retired_tree_usage,
                                 s.quota,
                                 provider.timestamp_to_unix(s.sampled_at)::int8 sample_time
                             from
@@ -255,11 +256,11 @@ class DataVisualization(
                                  when au.floating_point = false and pc.accounting_frequency = 'ONCE'
                                      then s.tree_usage::double precision
                                  when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE'
-                                     then s.tree_usage::double precision / 60.0
+                                     then (s.tree_usage::double precision + s.retired_tree_usage::double precision) / 60.0
                                  when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR'
-                                     then s.tree_usage::double precision / 60.0 / 60.0
+                                     then (s.tree_usage::double precision + s.retired_tree_usage::double precision) / 60.0 / 60.0
                                  when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY'
-                                     then s.tree_usage::double precision / 60.0 / 60.0 / 24.0
+                                     then (s.tree_usage::double precision + s.retired_tree_usage::double precision) / 60.0 / 60.0 / 24.0
                             end tusage,
                             s.quota,
                             sample_time,
