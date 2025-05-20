@@ -711,7 +711,7 @@ export const Editor: React.FunctionComponent<{
         const state = stateRef.current!;
         const currentPath = state.currentPath;
 
-        if ([SETTINGS_PATH, RELEASE_NOTES_PATH, "", "/"].includes(currentPath)) return;
+        if (SPECIAL_PATHS.includes(currentPath)) return;
 
         if (engine === "monaco" && editor == null) return;
 
