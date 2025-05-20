@@ -13,6 +13,8 @@ func HandleCliWithoutConfig(command string) bool {
 		HandleScriptGen()
 	case "nix-process":
 		containers.HandleNixProcessCli()
+	case "im2-k8s-import":
+		HandleDataImport(os.Args[2:])
 	default:
 		return false
 	}

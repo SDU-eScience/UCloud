@@ -37,7 +37,7 @@ const KEY_MAP: Record<string, TreeAction> = {
 const TreeClass = injectStyle("tree", k => ``);
 
 export const Tree: React.FunctionComponent<{
-    apiRef?: React.MutableRefObject<TreeApi | null>;
+    apiRef?: React.RefObject<TreeApi | null>;
     unhandledShortcut?: (target: HTMLElement, ev: KeyboardEvent) => void;
     children: React.ReactNode;
     onAction?: (row: HTMLElement, action: TreeAction) => void;

@@ -114,7 +114,7 @@ export interface EmbeddedSettings {
 
 export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string> & ResourceIncludeFlags;
-    reloadRef?: React.MutableRefObject<() => void>;
+    reloadRef?: React.RefObject<() => void>;
     // Note(Jonas): 
     //        Embedded changes a few stylings, omits shortcuts from operations, but I believe operations
     //        are entirely omitted. Fetches only the first page, based on the amount passed by additionalFeatures or default.
@@ -182,7 +182,7 @@ interface ResourceBrowserListenerMap<T> {
     "renderRow": (entry: T, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
     "endRenderPage": () => void;
 
-    // beforeOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
+    // skipOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
     "skipOpen": (oldPath: string, path: string, resource?: T) => boolean;
     "open": (oldPath: string, path: string, resource?: T) => void;
     "wantToFetchNextPage": (path: string) => Promise<void>;
@@ -448,7 +448,7 @@ export class ResourceBrowser<T> {
     }
 
     public init(
-        ref: React.MutableRefObject<ResourceBrowser<T> | null>,
+        ref: React.RefObject<ResourceBrowser<T> | null>,
         features: ResourceBrowseFeatures,
         initialPath: string | undefined,
         onInit: (browser: ResourceBrowser<T>) => void,
@@ -3041,7 +3041,6 @@ export class ResourceBrowser<T> {
             return this.defaultEmptyPage(this.resourceName, e, {});
         },
         fetchFilters: () => [],
-        searchHidden: () => {},
 
         renderLocationBar: prompt => {
             return {rendered: prompt, normalized: prompt};

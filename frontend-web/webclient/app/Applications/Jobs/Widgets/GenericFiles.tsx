@@ -56,6 +56,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
         // Note(Jonas): Not meaningfully in use?
         const provider = getProviderField();
         const additionalFilters: {filterProvider: string} | {} = provider ? {filterProvider: provider} : {};
+        additionalFilters["filterMemberFiles"] == "all";
 
         async function onClick(res: UFile) {
             const target = removeTrailingSlash(res.id);

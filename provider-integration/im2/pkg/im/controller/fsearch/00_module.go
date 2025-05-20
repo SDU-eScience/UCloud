@@ -10,11 +10,17 @@ import (
 	"sync"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
+	"unicode/utf8"
 )
 
 func hugTokenize(input string) []string {
-	toks, _ := tk.Tokenize(input)
-	return toks
+	// NOTE(Dan): The library is known to crash on invalid UTF8
+	if utf8.ValidString(input) {
+		toks, _ := tk.Tokenize(input)
+		return toks
+	} else {
+		return nil
+	}
 }
 
 type SearchQuery struct {

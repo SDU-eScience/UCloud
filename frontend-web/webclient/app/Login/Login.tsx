@@ -20,6 +20,7 @@ import {Feature, hasFeature} from "@/Features";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import halricWhite from "@/Assets/Images/halric_white.png";
 import interregWhite from "@/Assets/Images/interreg_white.svg";
+import AppRoutes from "@/Routes";
 
 const IS_SANDBOX = onSandbox();
 
@@ -36,7 +37,7 @@ const inDevEnvironment = DEVELOPMENT_ENV;
 const enabledWayf = true;
 
 const TEXT_COLOR = IS_SANDBOX ? "#fff" : "#000";
-export const LoginPage: React.FC<{ initialState?: any }> = props => {
+export const LoginPage: React.FC<{initialState?: any}> = props => {
     const [challengeId, setChallengeID] = useState("");
     const verificationInput = useRef<HTMLInputElement>(null);
     const usernameInput = useRef<HTMLInputElement>(null);
@@ -63,7 +64,7 @@ export const LoginPage: React.FC<{ initialState?: any }> = props => {
 
     React.useEffect(() => {
         if (Client.isLoggedIn) {
-            navigate("/");
+            navigate(AppRoutes.login.loginSuccess());
         }
     }, [Client.isLoggedIn]);
 
@@ -112,7 +113,7 @@ export const LoginPage: React.FC<{ initialState?: any }> = props => {
         }
     }
 
-    async function attemptSaveNewPassword(e: { preventDefault(): void }): Promise<void> {
+    async function attemptSaveNewPassword(e: {preventDefault(): void}): Promise<void> {
         e.preventDefault();
 
         if (!(resetPasswordInput.current?.value) || !(resetPasswordRepeatInput.current?.value)) {
@@ -216,7 +217,7 @@ export const LoginPage: React.FC<{ initialState?: any }> = props => {
         }
     }
 
-    async function submitResetPassword(e: { preventDefault(): void }): Promise<void> {
+    async function submitResetPassword(e: {preventDefault(): void}): Promise<void> {
         e.preventDefault();
         setLoading(true);
 
@@ -249,17 +250,17 @@ export const LoginPage: React.FC<{ initialState?: any }> = props => {
 
     return (
         <LoginWrapper>
-            {IS_SANDBOX ? <HalricLoginHeader/> : <DeicLoginHeader/>}
+            {IS_SANDBOX ? <HalricLoginHeader /> : <DeicLoginHeader />}
             <Box width="315px" mx="auto" my="auto">
                 {enabledWayf && !challengeId && !isPasswordReset && showingWayf ? (<>
                     <a href={`/auth/saml/login?service=${service}`}>
                         <Button mb="8px" className={BorderRadiusButton} height={"92px"} disableStandardSizes
-                                disabled={loading} fullWidth color={IS_SANDBOX ? "primaryLight" : "wayfGreen"}>
-                            <Image alt="The Wayf logo" color="#fff" width="100px" src={wayfLogo}/>
+                            disabled={loading} fullWidth color={IS_SANDBOX ? "primaryLight" : "wayfGreen"}>
+                            <Image alt="The Wayf logo" color="#fff" width="100px" src={wayfLogo} />
                             <TextSpan className={LoginTextSpanClass} fontSize={2} ml="2.5em">Login</TextSpan>
                         </Button>
                     </a>
-                    {!hasFeature(Feature.NEW_IDPS) ? null : <IdpList/>}
+                    {!hasFeature(Feature.NEW_IDPS) ? null : <IdpList />}
                     <Text color={TEXT_COLOR} onClick={() => setShowingWayf(false)} cursor="pointer" textAlign="center">Other
                         login options →</Text>
                 </>) : null}
@@ -273,7 +274,7 @@ export const LoginPage: React.FC<{ initialState?: any }> = props => {
                                         usernameRef={usernameInput}
                                         passwordRef={passwordInput}
                                     />
-                                    <TwoFactor enabled2fa={challengeId} inputRef={verificationInput}/>
+                                    <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
                                     <LoginButton
                                         fullWidth
                                         disabled={loading}
@@ -289,7 +290,7 @@ export const LoginPage: React.FC<{ initialState?: any }> = props => {
                                 </Box>
                             </DropdownLike>
                             <Text mt="8px" color={TEXT_COLOR} cursor="pointer" onClick={() => setShowingWayf(true)}
-                                  textAlign="center">← Other login</Text>
+                                textAlign="center">← Other login</Text>
                         </>
                     ) : null) : (
                         resetToken == null ? (
@@ -359,7 +360,7 @@ export const LoginPage: React.FC<{ initialState?: any }> = props => {
                 ) : (
                     <DropdownLike>
                         <form onSubmit={preventDefault}>
-                            <TwoFactor enabled2fa={challengeId} inputRef={verificationInput}/>
+                            <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
                             <LoginButton
                                 fullWidth
                                 disabled={loading}
@@ -405,7 +406,7 @@ interface LoginProps {
 
 const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps): React.ReactNode => !enabled2fa ? (
     <>
-        <LoginInput type="hidden" value="web-csrf" name="service"/>
+        <LoginInput type="hidden" value="web-csrf" name="service" />
         <LoginInput
             inputRef={usernameRef}
             autoFocus
@@ -415,7 +416,7 @@ const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps): React.ReactN
             placeholder="Username"
         />
         <LoginInput inputRef={passwordRef} mb="0.8em" type="password" name="password" id="password"
-                    placeholder="Password"/>
+            placeholder="Password" />
     </>
 ) : null;
 
@@ -445,7 +446,7 @@ const DropdownLikeClass = injectStyleSimple("dropdown-like", `
 `);
 
 function LoginInput(props: InputProps): React.ReactNode {
-    return <Input {...props} className={LoginInputClass}/>
+    return <Input {...props} className={LoginInputClass} />
 }
 
 const LoginInputClass = injectStyle("login-input", k => `
@@ -476,7 +477,7 @@ const LoginIconClass = injectStyle("login-icon", k => `
 `);
 
 function LoginButton(props: ButtonProps): React.ReactNode {
-    return <Button {...props} textColor="fixedBlack" color="fixedWhite"/>
+    return <Button {...props} textColor="fixedBlack" color="fixedWhite" />
 }
 
 function BlackLoginText(props: React.PropsWithChildren<TextProps>): React.ReactNode {
@@ -488,7 +489,7 @@ const LoginTextClass = injectStyleSimple("login-text", `
     font-size: var(--interactiveElementsSize);
 `);
 
-function LoginWrapper(props: React.PropsWithChildren<{ selection?: boolean }>): React.ReactNode {
+function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): React.ReactNode {
     return (<Box backgroundColor="#fff" className={"dark"}>
         <Absolute right="1em" top=".5em">
             {!props.selection ? <div>
@@ -500,7 +501,7 @@ function LoginWrapper(props: React.PropsWithChildren<{ selection?: boolean }>): 
                         right="5px"
                         colorOnHover={false}
                         trigger={<Relative><Icon color={TEXT_COLOR} color2={TEXT_COLOR} mr={"1em"}
-                                                 name="suggestion"/></Relative>}
+                            name="suggestion" /></Relative>}
                     >
                         <ExternalLink href={`mailto:${SUPPORT_EMAIL}`}>
                             Need help?
@@ -510,8 +511,8 @@ function LoginWrapper(props: React.PropsWithChildren<{ selection?: boolean }>): 
                 )}
                 {!SITE_DOCUMENTATION_URL ? null : (
                     <ExternalLink className={LoginExternalLinkClass} href={SITE_DOCUMENTATION_URL}>
-                        <Icon color={TEXT_COLOR} color2={TEXT_COLOR} name="docs"/> <TextSpan
-                        color={TEXT_COLOR}>Docs</TextSpan>
+                        <Icon color={TEXT_COLOR} color2={TEXT_COLOR} name="docs" /> <TextSpan
+                            color={TEXT_COLOR}>Docs</TextSpan>
                     </ExternalLink>
                 )}
             </div> : null}
@@ -558,7 +559,7 @@ const IdpList: React.FunctionComponent = () => {
             const textResponse = await fetch("/auth/browseIdentityProviders").then(it => it.text());
             const parsed = JSON.parse(textResponse);
             if ("responses" in parsed) {
-                const providers = (parsed as { responses: IdentityProvider[] }).responses;
+                const providers = (parsed as {responses: IdentityProvider[]}).responses;
                 setIdps(providers);
             }
         })();
@@ -603,19 +604,19 @@ const HalricLoginHeader: React.FunctionComponent = () => {
 const HalricLoginFooter: React.FunctionComponent = () => {
     return <Flex gap={"64px"} alignItems={"center"} justifyContent={"center"} my={"128px"}>
         <Flex justifyContent={"center"} gap={"8px"} alignItems={"center"}>
-            <Icon size={40} name={"logoEsc"}/>
+            <Icon size={40} name={"logoEsc"} />
             <Flex flexDirection={"column"}>
                 <Box fontSize={10} color={TEXT_COLOR}><i>Powered by</i></Box>
                 <Box fontSize={20} color={TEXT_COLOR}><b>{PRODUCT_NAME}</b></Box>
             </Flex>
         </Flex>
-        <Image height={50} src={halricWhite} alt={"Logo"}/>
+        <Image height={50} src={halricWhite} alt={"Logo"} />
     </Flex>;
 };
 
 const DeicLoginHeader: React.FunctionComponent = () => {
     return <>
-        <Icon className={LoginIconClass} mx="auto" hoverColor={"fixedBlack"} name={"deiCLogo"} size="180px"/>
+        <Icon className={LoginIconClass} mx="auto" hoverColor={"fixedBlack"} name={"deiCLogo"} size="180px" />
         <Text mx="auto" py="30px" width="fit-content" color={TEXT_COLOR} fontSize={32}>Integration Portal</Text>
     </>;
 };
@@ -623,7 +624,7 @@ const DeicLoginHeader: React.FunctionComponent = () => {
 const DeicLoginFooter: React.FunctionComponent = () => {
     return <>
         <Box mx="auto" mt="auto" width="280px">
-            <img alt="UCloud logo" src={ucloudBlue}/>
+            <img alt="UCloud logo" src={ucloudBlue} />
         </Box>
         <Flex height="60px" minHeight="60px" backgroundColor="#cecfd1">
             <Text color="#000" mx="auto" my="auto" fontSize={12}>

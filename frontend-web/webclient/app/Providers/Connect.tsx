@@ -111,7 +111,7 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
                 const providerCondition = providerConditions.get(it.providerTitle);
                 const canConnect = state.canConnectToProvider(it.providerTitle);
 
-                const openFn: React.MutableRefObject<(left: number, top: number) => void> = {current: doNothing};
+                const openFn: React.RefObject<(left: number, top: number) => void> = {current: doNothing};
                 const onContextMenu: EventHandler<MouseEvent<never>> = e => {
                     e.stopPropagation();
                     e.preventDefault();

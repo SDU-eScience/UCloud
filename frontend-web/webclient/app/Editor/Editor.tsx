@@ -1217,7 +1217,7 @@ export const Editor: React.FunctionComponent<{
             </div>
             <div className={"panels"}>
                 {isSettingsOpen ?
-                    <Flex gap={"32px"} maxHeight="calc(100% - 64px)" flexDirection={"column"} margin={64} width={"100%"} height={"100%"}>
+                    <Flex gap={"32px"} maxHeight="100%" flexDirection={"column"} margin={64} width={"100%"} height={"100%"}>
                         <MonacoEditorSettings editor={editor} setVimMode={setVimMode} />
                     </Flex> : null}
                 {isReleaseNotesOpen ? <Box p="18px" maxHeight="calc(100% - 64px)"><Markdown children={EditorReleaseNotes} /></Box> : null}
@@ -1235,7 +1235,7 @@ export const Editor: React.FunctionComponent<{
                         display: props.showCustomContent && tabs.open.length > 0 ? "block" : "none",
                         width: "100%",
                         height: "100%",
-                        maxHeight: "calc(100% - 64px)",
+                        maxHeight: "100%",
                         padding: "16px",
                         overflow: "auto",
                     }}>{props.customContent}</div>

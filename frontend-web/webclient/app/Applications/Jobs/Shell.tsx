@@ -43,7 +43,7 @@ export const Shell: React.FunctionComponent = () => {
 export const ShellWithSession: React.FunctionComponent<{
     sessionWithProvider: InteractiveSession | null;
     autofit?: boolean;
-    xtermRef?: React.MutableRefObject<Terminal | null>;
+    xtermRef?: React.RefObject<Terminal | null>;
     reconnect: () => void;
 }> = ({sessionWithProvider, autofit, xtermRef, reconnect}) => {
     const {termRef, terminal, fitAddon} = useXTerm({autofit});

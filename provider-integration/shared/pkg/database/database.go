@@ -1,6 +1,7 @@
 package database
 
 import (
+	"database/sql"
 	"fmt"
 	"reflect"
 	"strings"
@@ -25,8 +26,8 @@ var (
 	metricDatabaseTransactionsDuration = promauto.NewSummary(prometheus.SummaryOpts{
 		Namespace: "ucloud_im",
 		Subsystem: "database",
-		Name:      "transactions_duration",
-		Help:      "Summary of the duration (in microseconds) it takes to make database transactions",
+		Name:      "transactions_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to make database transactions",
 		Objectives: map[float64]float64{
 			0.5:  0.01,
 			0.75: 0.01,
@@ -98,7 +99,7 @@ func NewTx[T any](fn func(tx *Transaction) T) T {
 	start := time.Now()
 	result := ContinueTx(Database, fn)
 	metricDatabaseTransactionsInFlight.Dec()
-	metricDatabaseTransactionsDuration.Observe(float64(time.Now().Sub(start).Microseconds()))
+	metricDatabaseTransactionsDuration.Observe(float64(time.Now().Sub(start).Seconds()))
 	return result
 }
 
@@ -315,6 +316,95 @@ func transformParameter(param any) any {
 				elem := v.Index(i)
 				if i > 0 {
 					builder.WriteString(",")
+				}
+
+				if elem.CanInterface() {
+					elemIface := elem.Interface()
+					if nstring, ok := elemIface.(sql.NullString); ok {
+						if nstring.Valid {
+							baseValue := nstring.String
+							baseValue = strings.ReplaceAll(baseValue, "\\", "\\\\")
+							baseValue = strings.ReplaceAll(baseValue, "\"", "\\\"")
+							builder.WriteString("\"")
+							builder.WriteString(baseValue)
+							builder.WriteString("\"")
+							continue
+						} else {
+							builder.WriteString("null")
+							continue
+						}
+					} else if nstring, ok := elemIface.(sql.Null[string]); ok {
+						if nstring.Valid {
+							baseValue := nstring.V
+							baseValue = strings.ReplaceAll(baseValue, "\\", "\\\\")
+							baseValue = strings.ReplaceAll(baseValue, "\"", "\\\"")
+							builder.WriteString("\"")
+							builder.WriteString(baseValue)
+							builder.WriteString("\"")
+							continue
+						} else {
+							builder.WriteString("null")
+							continue
+						}
+					} else if nstring, ok := elemIface.(sql.Null[int]); ok {
+						if nstring.Valid {
+							builder.WriteString(fmt.Sprint(nstring.V))
+							continue
+						} else {
+							builder.WriteString("null")
+							continue
+						}
+					} else if nstring, ok := elemIface.(sql.Null[int32]); ok {
+						if nstring.Valid {
+							builder.WriteString(fmt.Sprint(nstring.V))
+							continue
+						} else {
+							builder.WriteString("null")
+							continue
+						}
+					} else if nstring, ok := elemIface.(sql.Null[int64]); ok {
+						if nstring.Valid {
+							builder.WriteString(fmt.Sprint(nstring.V))
+							continue
+						} else {
+							builder.WriteString("null")
+							continue
+						}
+					} else if nstring, ok := elemIface.(sql.NullInt16); ok {
+						if nstring.Valid {
+							builder.WriteString(fmt.Sprint(nstring.Int16))
+							continue
+						} else {
+							builder.WriteString("null")
+							continue
+						}
+					} else if nstring, ok := elemIface.(sql.NullInt32); ok {
+						if nstring.Valid {
+							builder.WriteString(fmt.Sprint(nstring.Int32))
+							continue
+						} else {
+							builder.WriteString("null")
+							continue
+						}
+					} else if nstring, ok := elemIface.(sql.NullInt64); ok {
+						if nstring.Valid {
+							builder.WriteString(fmt.Sprint(nstring.Int64))
+							continue
+						} else {
+							builder.WriteString("null")
+							continue
+						}
+					}
+				}
+
+				if elem.Kind() == reflect.String {
+					baseValue := elem.String()
+					baseValue = strings.ReplaceAll(baseValue, "\\", "\\\\")
+					baseValue = strings.ReplaceAll(baseValue, "\"", "\\\"")
+					builder.WriteString("\"")
+					builder.WriteString(baseValue)
+					builder.WriteString("\"")
+					continue
 				}
 
 				builder.WriteString(fmt.Sprint(elem))

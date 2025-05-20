@@ -24,7 +24,6 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {ProductSelector} from "@/Products/Selector";
 import {Box, Button, ExternalLink, Flex, Label, Text} from "@/ui-components";
-import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {FirewallTable, parseAndValidatePorts} from "./FirewallEditor";
 import {compute, FindByStringId} from "@/UCloud";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -283,8 +282,8 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                                             );
                                         }
 
-                                        browser.renderRows();
                                         dialogStore.success();
+                                        browser.refresh();
                                     } catch (e) {
                                         snackbarStore.addFailure("Failed to activate public IP. " + extractErrorMessage(e), false);
                                         browser.refresh();

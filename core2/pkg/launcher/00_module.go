@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	acc "ucloud.dk/core/pkg/accounting"
 	cfg "ucloud.dk/core/pkg/config"
 	fnd "ucloud.dk/core/pkg/foundation"
 	gonjautil "ucloud.dk/gonja/v2/utils"
@@ -198,6 +199,7 @@ func Launch() {
 	// -----------------------------------------------------------------------------------------------------------------
 
 	fnd.Init()
+	acc.Init()
 
 	launchMetricsServer()
 

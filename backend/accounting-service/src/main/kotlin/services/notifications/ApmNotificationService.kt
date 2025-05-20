@@ -220,7 +220,8 @@ class ApmNotificationService(
                                     IdCard.System,
                                     pi.username,
                                     updatedProject.id,
-                                    useProject = true
+                                    useProject = true,
+                                    includeFreeToUse = false,
                                 )
                             ).contains(providerId)
                             isRelevant = projectIsRelevant.getValue(updatedProject.id)

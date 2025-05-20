@@ -182,6 +182,7 @@ class ProviderIntegrationService(
                                     pm.project_id = wo.project_id and
                                     pm.username = :username join
                                 accounting.wallets_v2 w on w.wallet_owner = wo.id join
+                                accounting.allocation_groups ag on w.id = ag.associated_wallet join
                                 accounting.product_categories pc on w.product_category = pc.id join
                                 provider.providers p on pc.provider = p.unique_name
                             union
@@ -189,6 +190,7 @@ class ProviderIntegrationService(
                             from
                                 accounting.wallet_owner wo join
                                 accounting.wallets_v2 w on w.wallet_owner = wo.id join
+                                accounting.allocation_groups ag on w.id = ag.associated_wallet join
                                 accounting.product_categories pc on w.product_category = pc.id join
                                 provider.providers p on pc.provider = p.unique_name
                             where

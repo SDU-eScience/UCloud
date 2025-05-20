@@ -271,7 +271,7 @@ func initProducts() {
 	}
 
 	if ServiceConfig.Compute.PublicLinks.Enabled {
-		ingressName := "public-links"
+		ingressName := ServiceConfig.Compute.PublicLinks.Name
 		LinkProducts = []apm.ProductV2{
 			{
 				Type: apm.ProductTypeCIngress,

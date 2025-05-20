@@ -505,6 +505,10 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     })
                 });
 
+                browser.on("searchHidden", () => {
+                    browser.open("/", true);
+                });
+
                 // Utilities required for the ResourceBrowser to understand the structure of the file-system
                 // =========================================================================================================
                 // This usually includes short functions which describe when certain actions should take place and what

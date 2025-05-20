@@ -180,7 +180,7 @@ export const ChangeOptionalUserDetails: React.FunctionComponent = () => {
     const field = (
         title: string,
         placeholder: string,
-        ref: React.MutableRefObject<HTMLInputElement | null>
+        ref: React.RefObject<HTMLInputElement | null>
     ) => {
         return <Box mt="0.5em" pt="0.5em">
             <Label>

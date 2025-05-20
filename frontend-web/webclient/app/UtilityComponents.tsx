@@ -193,7 +193,7 @@ export const NamingField: React.FunctionComponent<{
     confirmText: string;
     prefix?: string | null;
     suffix?: string | null;
-    inputRef: React.MutableRefObject<HTMLInputElement | null>;
+    inputRef: React.RefObject<HTMLInputElement | null>;
     onSubmit: (e: React.SyntheticEvent) => void;
     disabled?: boolean;
     defaultValue?: string;

@@ -503,7 +503,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "adminReset", roles = Roles.ADMIN)
+                httpUpdate(baseContext, "adminReset", roles = Roles.PRIVILEGED)
             }
         )
     }
@@ -527,7 +527,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             Response.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "adminProviderDump", roles = Roles.ADMIN)
+                httpUpdate(baseContext, "adminProviderDump", roles = Roles.PRIVILEGED)
             }
         )
     }
