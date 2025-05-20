@@ -41,16 +41,15 @@ export function RightPopIn(): React.ReactNode {
     /* Alternatively, use React.portal */
     return <PopIn hasContent={content != null} >
         <Spacer
-            mt="8px"
+            mt="16px"
             left={<Icon color="textPrimary" cursor="pointer" pt="4px" pl="4px" hoverColor="textPrimary" name="close" onClick={() => dispatch(setPopInChild(null))} />}
-
             right={content?.onFullScreen ? <Icon color="textPrimary" cursor="pointer" pt="4px" pr="4px" hoverColor="textPrimary" name="fullscreen" onClick={() => {
                 content?.onFullScreen?.();
                 dispatch(setPopInChild(null));
             }} /> : null}
 
         />
-        <Flex flexDirection="column" mx="4px" my="4px">{content?.el}</Flex>
+        <Flex flexDirection="column" m="4px">{content?.el}</Flex>
     </PopIn>
 }
 

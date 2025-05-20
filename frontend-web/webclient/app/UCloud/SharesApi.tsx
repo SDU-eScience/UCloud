@@ -205,7 +205,6 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                 icon: "heroTrash",
                 color: "errorMain",
                 confirm: true,
-                primary: true,
                 enabled: (selected, cb) => {
                     return selected.length > 0 && selected.every(share =>
                         share.owner.createdBy !== Client.username && share.status.state === "APPROVED"

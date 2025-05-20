@@ -1436,7 +1436,7 @@ export function FilePreview({initialFile}: {
                 enabled: () => vfs.isReal(),
                 onClick() {
                     vfs.getFileInfo(file.absolutePath).then(ufile => {
-                        dispatch(setPopInChild({el: <FileProperties routingNamespace={api.routingNamespace} file={ufile} />}));
+                        dispatch(setPopInChild({el: <FileProperties routingNamespace={api.routingNamespace} file={ufile} inPopIn />}));
                     });
                 },
                 shortcut: ShortcutKey.V,
@@ -1704,13 +1704,13 @@ export interface WriteToFileEventProps {
     content: string;
 }
 
-function FileProperties({file, routingNamespace}: {file: UFile, routingNamespace: string}) {
+function FileProperties({file, routingNamespace, inPopIn}: {file: UFile, routingNamespace: string, inPopIn?: boolean;}) {
     const prettyPath = usePrettyFilePath(file.id);
 
     return <>
-        <Flex>
+        <Flex maxWidth={inPopIn ? `var(--popInWidth)` : undefined}>
             <FtIcon fileIcon={{type: file.status.type, ext: extensionFromPath(file.id)}} size={128} />
-            <Box ml="32px">
+            <Box maxWidth={inPopIn ? `calc(var(--popInWidth) - 128px - 32px)` : undefined} ml={inPopIn ? "16px" : "32px"}>
                 <Truncate fontSize={25}>{fileName(file.id)}</Truncate>
                 <Truncate fontSize={20}>{prettierString(file.status.type)}</Truncate>
             </Box>
