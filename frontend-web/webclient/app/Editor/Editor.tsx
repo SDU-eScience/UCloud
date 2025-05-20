@@ -379,6 +379,8 @@ export interface EditorApi {
 const SETTINGS_PATH = "xXx__/SETTINGS\\__xXx";
 const RELEASE_NOTES_PATH = "xXx__/RELEASE_NOTES\\__xXx";
 
+const SPECIAL_PATHS = [SETTINGS_PATH, RELEASE_NOTES_PATH, "", "/"];
+
 const CURRENT_EDITOR_VERSION = "0.1";
 const EDITOR_VERSION_STORAGE_KEY = "editor-version";
 export const Editor: React.FunctionComponent<{
@@ -615,7 +617,7 @@ export const Editor: React.FunctionComponent<{
     }, []);
 
     const openFile = useCallback(async (path: string, saveState: boolean): Promise<boolean> => {
-        if ([SETTINGS_PATH, RELEASE_NOTES_PATH, "", "/"].includes(path)) {
+        if (SPECIAL_PATHS.includes(path)) {
             dispatch({type: "EditorActionOpenFile", path});
             return false;
         }
@@ -644,7 +646,7 @@ export const Editor: React.FunctionComponent<{
             if (didUnmount.current) return true;
 
             if (!showingCustomContent.current) {
-                if (![SETTINGS_PATH, RELEASE_NOTES_PATH, "/", ""].includes(oldPath) && saveState) {
+                if (!SPECIAL_PATHS.includes(oldPath) && saveState) {
                     let editorState: monaco.editor.ICodeEditorViewState | null = null;
                     const model = editor?.getModel();
                     if (editor && model) {
