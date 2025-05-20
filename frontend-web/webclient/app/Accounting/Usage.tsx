@@ -1431,14 +1431,6 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
 
         <div className={ChartAndTable}>
             <DynamicallySizedChart anyChartData={anyData} chart={chartProps} />
-
-            {showWarning && <>
-                <Warning>
-                    It looks like the graph is showing data from multiple allocations.
-                    Fluctuations in usage normally indicate that an allocation has expired.
-                </Warning>
-            </>}
-
             <DifferenceTable chartId={ChartID + chartCounter.current} charts={charts} updateShownEntries={updateShownEntries} shownEntries={shownEntries} exportRef={exportRef} />
         </div>
     </div >;
