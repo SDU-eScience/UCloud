@@ -427,7 +427,7 @@ func lInternalWalletByOwner(b *accBucket, now time.Time, owner accOwnerId) *inte
 //
 // When a charge arrives, the bucket turns the wallet tree into a min-cost residual graph where:
 //
-// - capacity edges is the unused quota
+// - capacity edges are the unused quota
 // - costs prefer less imbalanced allocations
 // - a *very* expensive escape edge models over-consumption
 //
