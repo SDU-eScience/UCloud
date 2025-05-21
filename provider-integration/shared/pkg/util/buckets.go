@@ -2,7 +2,7 @@ package util
 
 import "sync"
 
-func ReadOrInsertBucket[T any](mu *sync.RWMutex, buckets map[string]*T, key string, init func() *T) *T {
+func ReadOrInsertBucket[K comparable, T any](mu *sync.RWMutex, buckets map[K]*T, key K, init func() *T) *T {
 	mu.RLock()
 	bucket, ok := buckets[key]
 	mu.RUnlock()
@@ -19,6 +19,25 @@ func ReadOrInsertBucket[T any](mu *sync.RWMutex, buckets map[string]*T, key stri
 			buckets[key] = bucket
 		}
 		mu.Unlock()
+	}
+
+	return bucket
+}
+
+// LReadOrInsertBucket is like ReadOrInsertBucket except the lock is assumed to be held already in RW mode
+func LReadOrInsertBucket[K comparable, V any](buckets map[K]*V, key K, init func() *V) *V {
+	bucket, ok := buckets[key]
+	if !ok {
+		bucket, ok = buckets[key]
+		if !ok {
+			if init == nil {
+				var t V
+				bucket, ok = &t, true
+			} else {
+				bucket, ok = init(), true
+			}
+			buckets[key] = bucket
+		}
 	}
 
 	return bucket

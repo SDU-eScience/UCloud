@@ -135,6 +135,8 @@ func MfaIsConnected(actor rpc.Actor) bool {
 }
 
 func MfaAnswerChallenge(r *http.Request, w http.ResponseWriter, challengeId string, answer string) *util.HttpError {
+	// TODO Might want another layer of rate limiting here just to be absolutely sure that this function is
+	//   rate-limited.
 	tokens, didUpgrade, err := db.NewTx3(func(tx *db.Transaction) (fndapi.AuthenticationTokens, bool, *util.HttpError) {
 		tokens := fndapi.AuthenticationTokens{}
 

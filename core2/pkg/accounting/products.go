@@ -329,7 +329,7 @@ func ProductCreate(actor rpc.Actor, products []accapi.ProductV2) *util.HttpError
 
 		dbErr := tx.ConsumeError()
 		if dbErr != nil {
-			err = util.HttpErr(http.StatusBadRequest, dbErr.Error())
+			err = util.HttpErr(http.StatusBadRequest, "%s", dbErr.Error())
 		}
 	})
 

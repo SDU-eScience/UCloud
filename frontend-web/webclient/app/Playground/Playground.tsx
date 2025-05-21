@@ -136,7 +136,6 @@ const Playground: React.FunctionComponent = () => {
         const update = (progress: number) => {
             {
                 if (progress > 1) return;
-                console.log(progress);
 
                 const header: JobViz.WidgetPacketHeader = {
                     action: JobViz.WidgetAction.WidgetActionUpdate
