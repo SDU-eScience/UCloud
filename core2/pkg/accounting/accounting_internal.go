@@ -15,10 +15,56 @@ import (
 	"ucloud.dk/shared/pkg/util/mermaid"
 )
 
-// Core model
+// Internal accounting system
+// =====================================================================================================================
+// This file implements the internal parts of UCloud's accounting system which contain a graph of "wallets". The
+// internal accounting system is invoked by the publicly facing API in `accounting.go`. The internal accounting system
+// does not implement any authorization, this is done by the publicly facing API. The internal API is fully
+// self-contained and does not directly depend on outside concepts making it independently testable.
+//
+// These are the core concepts of the accounting system:
+//
+// - Owners: Users and projects.
+// - Wallets: One per owner *per product category*.
+// - Allocations: Hierarchical grants of quotas. All allocations have a start & end date.
+//
+// At run-time the system keeps all state in memory. The core operations in the accounting system are as follows:
+//
+// 1. Allocate: Create a new allocation (root or sub).
+// 2. ReportUsage: Normally invoked by a provider (through the public API). This reports usage to a single wallet.
+// 3. Scan: Trigger a time-driven sweep that activates or retires allocations. Normally done automatically by the
+//    public API.
+//
+// APIs in the internal API are prefixed by either "internal" or "lInternal". "internal" functions require the
+// caller to have released all locks prior to calling. "lInternal" functions require the caller to have all appropriate
+// locks already (invoked only by the internal API).
+//
+// All functions in the internal API accept the current time as a parameter, if time is relevant to the function. This
+// time is expected to be sampled exactly once by the public API and used for all subsequent functions within the
+// public API. In other words, it is expected that time _does not_ change during the invocation of a single public API
+// function. Most public API functions have an ex(tended) function which accepts the current time as a parameter for
+// testing purposes. Note that despite accepting time as a parameter, this does not imply that the system supports time
+// travel. Time is assumed to always be monotonically increasing.
+
+// Core types and globals
 // ---------------------------------------------------------------------------------------------------------------------
-// Lock order is: bucket > scopedUsage > globals
-// Note that all other data structures are locked by the bucket.
+// This section contain the core-types as already introduced along with the global data-structure. From the global
+// data-structure (accGlobals), it is possible to reach all other parts of the system.
+//
+// References in the internal accounting system are generally done through numeric IDs. These IDs are all integers, but
+// are separate Go types to reduce chance of accidental misuse. New numeric IDs are generated through the XXXIdAcc
+// atomics stored in the accGlobals. As this might imply, IDs are global to the system and are not namespaced by their
+// bucket.
+//
+// From accGlobals, it is possible to reach a bucket. There is one bucket per product category in the system. All data
+// relevant for a wallet graph is stored within a single bucket, there are _never_ links between buckets.
+//
+// ---------------------------------------------------------------------------------------------------------------------
+// accGlobals & accBucket REQUIRE A MUTEX FOR ANY READ OR WRITE OPERATION.
+// MUTEX LOCK ORDER: bucket > scopedUsage > globals
+//
+// (Note that all other data structures are locked by the bucket.)
+// ---------------------------------------------------------------------------------------------------------------------
 
 type accGrantId int
 type accGroupId int
@@ -46,8 +92,6 @@ type internalOwner struct {
 	Reference string
 	Dirty     bool
 }
-
-var projectRegex = regexp.MustCompile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
 func (o *internalOwner) WalletOwner() accapi.WalletOwner {
 	if projectRegex.MatchString(o.Reference) {
@@ -137,36 +181,16 @@ type scopedUsage struct {
 	Dirty bool
 }
 
-// Core internal API
+// Public to internal adapter
 // ---------------------------------------------------------------------------------------------------------------------
-// The core internal API is invoked by their public counterparts. This API deals with a much more constrained surface.
-// APIs in the core internal API are prefixed by either "internal" or "lInternal". "internal" functions require the
-// caller to have released all locks prior to calling (typically invoked by the public API). "lInternal" functions
-// require the caller to have all appropriate locks already (invoked only by the internal API).
+// These APIs are intended as entry points for the public API and cover the core concepts as mentioned in the
+// introduction at the top of this file.
 //
-// All functions in the internal API accept the current time as a parameter, if time is relevant to the function. This
-// time is expected to be sampled exactly once by the public API and used for all subsequent functions within the
-// public API. In other words, it is expected that time _does not_ change during the invocation of a single public API
-// function. Most public API functions have an ex(tended) function which accepts the current time as a parameter for
-// testing purposes. Note that despite accepting time as a parameter, this does not imply that the system supports time
-// travel. Time is assumed to always be monotonically increasing.
-
-func internalCategoryOrInit(category accapi.ProductCategory) *accBucket {
-	id := accapi.ProductCategoryIdV2{
-		Name:     category.Name,
-		Provider: category.Provider,
-	}
-
-	return util.ReadOrInsertBucket(&accGlobals.Mu, accGlobals.BucketsByCategory, id, func() *accBucket {
-		return &accBucket{
-			Mu:              sync.RWMutex{},
-			Category:        category,
-			WalletsById:     map[accWalletId]*internalWallet{},
-			WalletsByOwner:  map[accOwnerId]*internalWallet{},
-			AllocationsById: map[accAllocId]*internalAllocation{},
-		}
-	})
-}
+// The core APIs are (see the introduction for more info):
+//
+// - internalReportUsage
+// - internalAllocate
+// - internalScanAllocations
 
 // internalReportUsage performs a report to a target wallet. The function always returns
 // successfully. If the target wallet becomes locked, then this information can be read back from the target wallet.
@@ -248,6 +272,114 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) *util
 	return nil
 }
 
+func internalAllocate(
+	now time.Time,
+	b *accBucket,
+	start time.Time,
+	end time.Time,
+	quota int64,
+	recipient accWalletId,
+	parent accWalletId,
+	grantedIn util.Option[accGrantId],
+) (accAllocId, *util.HttpError) {
+	// TODO check that we can do this. Might need to happen in public API instead.
+
+	if start.After(end) {
+		return 0, util.HttpErr(http.StatusBadRequest, "start must occur before the end of an allocation!")
+	} else if quota < 0 {
+		return 0, util.HttpErr(http.StatusBadRequest, "quota must not be negative")
+	} else if recipient == parent {
+		return 0, util.HttpErr(http.StatusBadRequest, "cannot allocate to yourself")
+	} else {
+		// NOTE(Dan): Request at this point is semantically valid and was authorized via the public API.
+		// The call is expected to succeed from this point.
+
+		b.Mu.Lock()
+		defer b.Mu.Unlock()
+
+		recipientWallet := b.WalletsById[recipient]
+		var parentWallet *internalWallet
+		if parent != internalGraphRoot {
+			parentWallet = b.WalletsById[parent]
+		}
+
+		allocationId := accAllocId(accGlobals.AllocIdAcc.Add(1))
+		allocation := &internalAllocation{
+			Id:           allocationId,
+			BelongsTo:    recipient,
+			Parent:       parent,
+			GrantedIn:    grantedIn,
+			Quota:        quota,
+			Start:        start,
+			End:          end,
+			Retired:      false,
+			RetiredUsage: 0,
+			Active:       false,
+			Dirty:        true,
+			Committed:    false,
+		}
+
+		b.AllocationsById[allocationId] = allocation
+
+		group := util.LReadOrInsertBucket(recipientWallet.AllocationsByParent, parent, func() *internalGroup {
+			return &internalGroup{
+				Id:               accGroupId(accGlobals.GroupIdAcc.Add(1)),
+				AssociatedWallet: recipient,
+				ParentWallet:     parent,
+				TreeUsage:        0,
+				Allocations:      map[accAllocId]util.Empty{},
+				Dirty:            true,
+			}
+		})
+
+		group.Dirty = true
+		group.Allocations[allocationId] = util.Empty{}
+
+		if parentWallet != nil {
+			parentWallet.Dirty = true
+
+			// NOTE(Dan): Insert a childrenUsage entry if we don't already have one. This is required to make
+			// childrenUsage a valid tool for looking up children in the parent wallet.
+			currentUsage, _ := parentWallet.ChildrenUsage[recipient]
+			parentWallet.ChildrenUsage[recipient] = currentUsage
+		}
+
+		lInternalAttemptActivation(b, now, allocation)
+		return allocationId, nil
+	}
+}
+
+func internalScanAllocations(b *accBucket, now time.Time) {
+	b.Mu.Lock()
+	defer b.Mu.Unlock()
+	lInternalScanAllocations(b, now)
+}
+
+// Entity lookup and initialization
+// ---------------------------------------------------------------------------------------------------------------------
+// Must data-structures in the accounting system are lazily initialized the first time they are requested. In is the
+// responsibility of the caller (i.e. the public API) to ensure requests are only made to resources that exist in the
+// rest of UCloud. Users, projects and product references are _NOT_ checked in the internal API.
+//
+// Lookup functions exist for each type of entity that exist in the system.
+
+func internalCategoryOrInit(category accapi.ProductCategory) *accBucket {
+	id := accapi.ProductCategoryIdV2{
+		Name:     category.Name,
+		Provider: category.Provider,
+	}
+
+	return util.ReadOrInsertBucket(&accGlobals.Mu, accGlobals.BucketsByCategory, id, func() *accBucket {
+		return &accBucket{
+			Mu:              sync.RWMutex{},
+			Category:        category,
+			WalletsById:     map[accWalletId]*internalWallet{},
+			WalletsByOwner:  map[accOwnerId]*internalWallet{},
+			AllocationsById: map[accAllocId]*internalAllocation{},
+		}
+	})
+}
+
 func internalOwnerByReference(reference string) *internalOwner {
 	// TODO Reference must be check by caller
 	return util.ReadOrInsertBucket(&accGlobals.Mu, accGlobals.OwnersByReference, reference, func() *internalOwner {
@@ -285,6 +417,33 @@ func lInternalWalletByOwner(b *accBucket, now time.Time, owner accOwnerId) *inte
 		return result
 	})
 }
+
+// Usage reporting and wallet re-balancing
+// ---------------------------------------------------------------------------------------------------------------------
+// This section contains the 'meat' of the accounting system. It is responsible for modifying the system state in
+// response to a charge (usage report).
+//
+// The following description is a bit more theoretical that most of the other source code, but here goes.
+//
+// When a charge arrives, the bucket turns the wallet tree into a min-cost residual graph where:
+//
+// - capacity edges is the unused quota
+// - costs prefer less imbalanced allocations
+// - a *very* expensive escape edge models over-consumption
+//
+// Edmonds-Karp gives *max flow* (how much of the charge can propagate) and the resulting residual capacities
+// become the new usage.
+//
+// The graph is constructed from the other core concepts mentioned in this file. The mapping is as follows:
+//
+// - Bucket -> Graph
+// - Wallet -> Node
+// - Allocation group -> Edges between nodes
+//
+// The existing flow on the edges comes from the LocalUsage of a wallet and the TreeUsage of a group. The capacity of
+// an edge is constructed from the active quota of a group.
+//
+// The graph algorithms themselves are implemented in `accounting_graph.go`.
 
 func lInternalReportUsage(b *accBucket, now time.Time, w *internalWallet, delta int64) (int64, map[accWalletId]bool) {
 	chargeGraph := lInternalBuildGraph(b, now, w, internalGraphWithOverAllocation)
@@ -332,26 +491,6 @@ func lInternalReportUsage(b *accBucket, now time.Time, w *internalWallet, delta 
 
 	return maxUsable, walletsUpdated
 }
-
-type internalGraphFlag int
-
-const (
-	internalGraphWithOverAllocation internalGraphFlag = 1 << iota
-)
-
-const (
-	internalGraphRoot accWalletId = 0
-
-	internalGraphBalanceWeight = int64(1 << 25)
-	internalGraphTimeWeight    = int64(1)
-)
-
-// NOTE(Dan): Must be less than veryLargeNumber of accounting_graph.go
-// NOTE(Dan): Must be (significantly) larger than any cost which can naturally be created from a normal node
-var internalGraphOverAllocationEdgeCost = (&big.Int{}).Lsh(big.NewInt(1), 80)
-
-// NOTE(Dan): This number must be more expensive than the over-allocation edge
-var internalGraphRetirementCost = (&big.Int{}).Neg((&big.Int{}).Lsh(big.NewInt(1), 85))
 
 func lInternalBuildGraph(b *accBucket, now time.Time, leaf *internalWallet, flags internalGraphFlag) *Graph {
 	vertexToWallet := []accWalletId{leaf.Id, internalGraphRoot}
@@ -485,80 +624,133 @@ func lInternalBuildGraph(b *accBucket, now time.Time, leaf *internalWallet, flag
 	}
 }
 
-func internalAllocate(
-	now time.Time,
-	b *accBucket,
-	start time.Time,
-	end time.Time,
-	quota int64,
-	recipient accWalletId,
-	parent accWalletId,
-	grantedIn util.Option[accGrantId],
-) (accAllocId, *util.HttpError) {
-	// TODO check that we can do this. Might need to happen in public API instead.
+func lInternalReflowExcess(b *accBucket, now time.Time, wallet *internalWallet) {
+	// Similar to the re-balance operation, except this function will only attempt to increase usage by looking at the
+	// local excess which is not being propagated.
+	//
+	// The main purpose of this function is to ensure that if an overconsumption node was taken at some point, then
+	// this "excess" usage will eventually be propagated back into the system once there is room for it.
 
-	if start.After(end) {
-		return 0, util.HttpErr(http.StatusBadRequest, "start must occur before the end of an allocation!")
-	} else if quota < 0 {
-		return 0, util.HttpErr(http.StatusBadRequest, "quota must not be negative")
-	} else if recipient == parent {
-		return 0, util.HttpErr(http.StatusBadRequest, "cannot allocate to yourself")
-	} else {
-		// NOTE(Dan): Request at this point is semantically valid and was authorized via the public API.
-		// The call is expected to succeed from this point.
+	for childId, _ := range wallet.ChildrenUsage {
+		// TODO loops
+		child := b.WalletsById[childId]
+		lInternalReflowExcess(b, now, child)
+	}
 
-		b.Mu.Lock()
-		defer b.Mu.Unlock()
+	if wallet.LocalUsage > 0 {
+		propagated := lInternalWalletTotalPropagatedUsage(b, wallet)
+		inNode := lInternalWalletTotalUsageInNode(b, wallet)
+		excess := inNode - propagated
 
-		recipientWallet := b.WalletsById[recipient]
-		var parentWallet *internalWallet
-		if parent != internalGraphRoot {
-			parentWallet = b.WalletsById[parent]
-		}
-
-		allocationId := accAllocId(accGlobals.AllocIdAcc.Add(1))
-		allocation := &internalAllocation{
-			Id:           allocationId,
-			BelongsTo:    recipient,
-			Parent:       parent,
-			GrantedIn:    grantedIn,
-			Quota:        quota,
-			Start:        start,
-			End:          end,
-			Retired:      false,
-			RetiredUsage: 0,
-			Active:       false,
-			Dirty:        true,
-			Committed:    false,
-		}
-
-		b.AllocationsById[allocationId] = allocation
-
-		group := util.LReadOrInsertBucket(recipientWallet.AllocationsByParent, parent, func() *internalGroup {
-			return &internalGroup{
-				Id:               accGroupId(accGlobals.GroupIdAcc.Add(1)),
-				AssociatedWallet: recipient,
-				ParentWallet:     parent,
-				TreeUsage:        0,
-				Allocations:      map[accAllocId]util.Empty{},
-				Dirty:            true,
+		if excess > 0 {
+			usable := lInternalMaxUsable(b, now, wallet)
+			toReport := min(usable, excess, wallet.LocalUsage)
+			if toReport > 0 {
+				lInternalReportUsage(b, now, wallet, toReport)
 			}
-		})
+		}
+	}
+}
 
-		group.Dirty = true
-		group.Allocations[allocationId] = util.Empty{}
+func lInternalRebalance(b *accBucket, now time.Time, wallet *internalWallet, deficit util.Option[int64]) {
+	// The main purpose of this function is to ensure that retired flows are eventually moved to an active flow. This
+	// operation is _only_ done for capacity-based product categories. For time-based products, this is not done (and
+	// must not be done). Instead, time-based product utilizes a different retirement mechanism which locks usage in
+	// place. This is needed, because in time-based products utilization is ever-increasing. Unlike in capacity based
+	// products where utilization can go up and down.
 
-		if parentWallet != nil {
-			parentWallet.Dirty = true
+	recharge := func(amount int64) {
+		if amount > 0 {
+			b.disableEvaluation = true
+			lInternalReportUsage(b, now, wallet, -amount)
+			b.disableEvaluation = false
+			lInternalReportUsage(b, now, wallet, amount)
+		}
+	}
 
-			// NOTE(Dan): Insert a childrenUsage entry if we don't already have one. This is required to make
-			// childrenUsage a valid tool for looking up children in the parent wallet.
-			currentUsage, _ := parentWallet.ChildrenUsage[recipient]
-			parentWallet.ChildrenUsage[recipient] = currentUsage
+	if b.IsCapacityBased() {
+		if !deficit.Present {
+			sum := int64(0)
+			for _, g := range wallet.AllocationsByParent {
+				activeQuota := lInternalGroupTotalQuotaActive(b, g)
+				propagated := g.TreeUsage
+
+				if propagated > activeQuota {
+					sum += propagated - activeQuota
+				}
+			}
+
+			if sum > 0 {
+				deficit.Set(sum)
+			}
+		}
+		if deficit.Present {
+			// NOTE(Dan): We should attempt to rebalance because we are propagating more than we have. We start by
+			// attempting to rebalance each of our children.
+
+			// TODO loops
+			for childId, usage := range wallet.ChildrenUsage {
+				child := b.WalletsById[childId]
+				lInternalRebalance(b, now, child, util.OptValue(min(usage, deficit.Value)))
+			}
+
+			maxUsable := lInternalMaxUsable(b, now, wallet)
+			recharge(min(maxUsable, deficit.Value, wallet.LocalUsage))
+		}
+	}
+}
+
+// lInternalReevaluate will re-evaluate the state of a wallet following a significant change to its state. This will
+// ensure that the lock flag is correctly set. If rebalance is true, then excess usage is reflown and retired balance
+// is balanced to other parts of the graph.
+func lInternalReevaluate(b *accBucket, now time.Time, wallet *internalWallet, rebalance bool) {
+	if b.disableEvaluation {
+		return
+	}
+
+	// NOTE(Dan): rebalance cannot be done unconditionally since this will also be triggered by a normal report
+	// which could lead to infinite recursion. The value should be true for all calls not coming from a usage report.
+	if rebalance {
+		lInternalReflowExcess(b, now, wallet)
+		lInternalRebalance(b, now, wallet, util.OptNone[int64]())
+	}
+
+	visited := map[accWalletId]util.Empty{}
+	queue := []*internalWallet{wallet}
+	for len(queue) > 0 {
+		next := queue[0]
+		queue = queue[1:]
+
+		visited[next.Id] = util.Empty{}
+
+		maxUsable := lInternalMaxUsable(b, now, next)
+		if maxUsable <= 0 && !next.WasLocked {
+			next.WasLocked = true
+			lInternalMarkSignificantUpdate(b, now, next)
+		} else if maxUsable > 0 && next.WasLocked {
+			next.WasLocked = false
+			lInternalMarkSignificantUpdate(b, now, next)
 		}
 
-		lInternalAttemptActivation(b, now, allocation)
-		return allocationId, nil
+		for childId, _ := range wallet.ChildrenUsage {
+			if _, hasVisited := visited[childId]; !hasVisited {
+				child := b.WalletsById[childId]
+				queue = append(queue, child)
+			}
+		}
+	}
+}
+
+// Allocation life-cycle
+// ---------------------------------------------------------------------------------------------------------------------
+// The following function manage the activation and retirement of allocations. Activation sets the Active property of
+// an allocation. This flag will then never be turned off. Retirement will turn on the Retired flag and will also turn
+// on the Active flag (in the rare cases where retirement happens before activation).
+
+func lInternalScanAllocations(b *accBucket, now time.Time) {
+	for _, alloc := range b.AllocationsById {
+		lInternalAttemptActivation(b, now, alloc)
+		lInternalAttemptRetirement(b, now, alloc)
 	}
 }
 
@@ -606,124 +798,10 @@ func lInternalAttemptRetirement(b *accBucket, now time.Time, alloc *internalAllo
 	}
 }
 
-func internalScanAllocations(b *accBucket, now time.Time) {
-	b.Mu.Lock()
-	defer b.Mu.Unlock()
-	lInternalScanAllocations(b, now)
-}
-
-func lInternalScanAllocations(b *accBucket, now time.Time) {
-	for _, alloc := range b.AllocationsById {
-		lInternalAttemptActivation(b, now, alloc)
-		lInternalAttemptRetirement(b, now, alloc)
-	}
-}
-
-func lInternalReflowExcess(b *accBucket, now time.Time, wallet *internalWallet) {
-	// Similar to the re-balance operation, except this function will only attempt to increase usage by looking at the
-	// local excess which is not being propagated.
-	for childId, _ := range wallet.ChildrenUsage {
-		// TODO loops
-		child := b.WalletsById[childId]
-		lInternalReflowExcess(b, now, child)
-	}
-
-	if wallet.LocalUsage > 0 {
-		propagated := lInternalWalletTotalPropagatedUsage(b, wallet)
-		inNode := lInternalWalletTotalUsageInNode(b, wallet)
-		excess := inNode - propagated
-
-		if excess > 0 {
-			usable := lInternalMaxUsable(b, now, wallet)
-			toReport := min(usable, excess, wallet.LocalUsage)
-			if toReport > 0 {
-				lInternalReportUsage(b, now, wallet, toReport)
-			}
-		}
-	}
-}
-
-func lInternalRebalance(b *accBucket, now time.Time, wallet *internalWallet, deficit util.Option[int64]) {
-	recharge := func(amount int64) {
-		if amount > 0 {
-			b.disableEvaluation = true
-			lInternalReportUsage(b, now, wallet, -amount)
-			b.disableEvaluation = false
-			lInternalReportUsage(b, now, wallet, amount)
-		}
-	}
-
-	if b.IsCapacityBased() {
-		if !deficit.Present {
-			sum := int64(0)
-			for _, g := range wallet.AllocationsByParent {
-				activeQuota := lInternalGroupTotalQuotaActive(b, g)
-				propagated := g.TreeUsage
-
-				if propagated > activeQuota {
-					sum += propagated - activeQuota
-				}
-			}
-
-			if sum > 0 {
-				deficit.Set(sum)
-			}
-		}
-		if deficit.Present {
-			// NOTE(Dan): We should attempt to rebalance because we are propagating more than we have. We start by
-			// attempting to rebalance each of our children.
-
-			// TODO loops
-			for childId, usage := range wallet.ChildrenUsage {
-				child := b.WalletsById[childId]
-				lInternalRebalance(b, now, child, util.OptValue(min(usage, deficit.Value)))
-			}
-
-			maxUsable := lInternalMaxUsable(b, now, wallet)
-			recharge(min(maxUsable, deficit.Value, wallet.LocalUsage))
-		}
-	}
-}
-
-func lInternalReevaluate(b *accBucket, now time.Time, wallet *internalWallet, rebalance bool) {
-	if b.disableEvaluation {
-		return
-	}
-
-	// equivalent to checkAndFixExcessUsage and reevaluateWalletsAfterUpdate
-
-	// NOTE(Dan): rebalance cannot be done unconditionally since this will also be triggered by a normal report
-	// which could lead to infinite recursion. The value should be true for all calls not coming from a usage report.
-	if rebalance {
-		lInternalReflowExcess(b, now, wallet)
-		lInternalRebalance(b, now, wallet, util.OptNone[int64]())
-	}
-
-	visited := map[accWalletId]util.Empty{}
-	queue := []*internalWallet{wallet}
-	for len(queue) > 0 {
-		next := queue[0]
-		queue = queue[1:]
-
-		visited[next.Id] = util.Empty{}
-
-		maxUsable := lInternalMaxUsable(b, now, next)
-		if maxUsable <= 0 && !next.WasLocked {
-			next.WasLocked = true
-			lInternalMarkSignificantUpdate(b, now, next)
-		} else if maxUsable > 0 && next.WasLocked {
-			next.WasLocked = false
-			lInternalMarkSignificantUpdate(b, now, next)
-		}
-
-		for childId, _ := range wallet.ChildrenUsage {
-			if _, hasVisited := visited[childId]; !hasVisited {
-				child := b.WalletsById[childId]
-				queue = append(queue, child)
-			}
-		}
-	}
-}
+// Wallet, allocation and group metrics
+// ---------------------------------------------------------------------------------------------------------------------
+// The following functions compute and measure various metrics that are needed for the internal functions of the
+// accounting system. Some of these computed properties are also returned needed by the public API.
 
 func lInternalMarkSignificantUpdate(b *accBucket, now time.Time, wallet *internalWallet) {
 	b.SignificantUpdateAt = now
@@ -857,6 +935,9 @@ func lInternalGroupTotalRetired(b *accBucket, group *internalGroup) int64 {
 	return sum
 }
 
+// Mermaid diagrams (for debugging)
+// ---------------------------------------------------------------------------------------------------------------------
+
 func lInternalMermaidGraph(bucket *accBucket, now time.Time, root accWalletId) string {
 	relevantWallets := map[accWalletId]*internalWallet{}
 
@@ -948,3 +1029,28 @@ func lInternalMermaidGraph(bucket *accBucket, now time.Time, root accWalletId) s
 		}
 	})
 }
+
+// Constants
+// ---------------------------------------------------------------------------------------------------------------------
+
+var projectRegex = regexp.MustCompile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
+type internalGraphFlag int
+
+const (
+	internalGraphWithOverAllocation internalGraphFlag = 1 << iota
+)
+
+const (
+	internalGraphRoot accWalletId = 0
+
+	internalGraphBalanceWeight = int64(1 << 25)
+	internalGraphTimeWeight    = int64(1)
+)
+
+// NOTE(Dan): Must be less than veryLargeNumber of accounting_graph.go
+// NOTE(Dan): Must be (significantly) larger than any cost which can naturally be created from a normal node
+var internalGraphOverAllocationEdgeCost = (&big.Int{}).Lsh(big.NewInt(1), 80)
+
+// NOTE(Dan): This number must be more expensive than the over-allocation edge
+var internalGraphRetirementCost = (&big.Int{}).Neg((&big.Int{}).Lsh(big.NewInt(1), 85))
