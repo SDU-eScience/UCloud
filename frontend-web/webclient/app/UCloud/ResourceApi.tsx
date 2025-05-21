@@ -27,6 +27,7 @@ import {fetchAll} from "@/Utilities/PageUtilities";
 import * as Accounting from "@/Accounting";
 import {EmbeddedSettings} from "@/ui-components/ResourceBrowser";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {MainContainer} from "@/ui-components";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -209,7 +210,7 @@ export abstract class ResourceApi<Res extends Resource,
     ];
 
     public registerFilter([w, p]: [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>]): void {
-     }
+    }
 
     public idIsUriEncoded = false;
 
@@ -224,7 +225,7 @@ export abstract class ResourceApi<Res extends Resource,
         closeProperties?: () => void;
         api: ResourceApi<Res, Prod, Spec, Update, Flags, Status, Support>;
         embedded?: EmbeddedSettings;
-    }> = props => <ResourceProperties {...props} api={this} />
+    }> = props => <MainContainer main={<ResourceProperties {...props} api={this} />} />
 
     protected constructor(namespace: string) {
         this.namespace = namespace;
