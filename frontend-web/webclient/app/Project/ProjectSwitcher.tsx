@@ -238,7 +238,7 @@ export function ProjectSwitcher({managed}: {
                 onOpeningTriggerClick={reload}
                 width="500px"
             >
-                <div style={{maxHeight: "385px"}}>
+                <div style={{maxHeight: "385px", paddingRight: "8px"}}>
                     <Flex>
                         <Input
                             autoFocus
@@ -275,11 +275,12 @@ export function ProjectSwitcher({managed}: {
                                 key={"My workspace"}
                                 style={{width: "100%"}}
                                 data-active={activeProject == null}
+                                title="My workspace"
                                 className={BottomBorderedRow}
                                 onClick={() => {setActiveProject();}}
                             >
                                 <Icon onClick={stopPropagationAndPreventDefault} mx="6px" mt="6px" size="16px" color="favoriteColor" name={"starFilled"} />
-                                <Text fontSize="var(--breadText)">My workspace</Text>
+                                <Truncate fontSize="var(--breadText)">My workspace</Truncate>
                             </div>
                         ) : null}
                         {filteredProjects.map(it =>
@@ -288,11 +289,12 @@ export function ProjectSwitcher({managed}: {
                                 style={{width: "100%"}}
                                 data-active={it.id === activeProject}
                                 data-project={it.id}
+                                title={it.specification.title}
                                 className={BottomBorderedRow}
                                 onClick={() => setActiveProject(it.id)}
                             >
                                 <Favorite project={it} onClickedFavorite={sortAndScroll} />
-                                <Text fontSize="var(--breadText)">{projectTitle(it)}</Text>
+                                <Truncate fontSize="var(--breadText)">{projectTitle(it)}</Truncate>
                             </div>
                         )}
 
