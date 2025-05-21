@@ -76,10 +76,12 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
     productType = "STORAGE" as const;
 
     renderer: ItemRenderer<FileCollection> = {
-        MainTitle({resource}) {return <>{resource?.specification?.title ?? ""}</>},
+        MainTitle({resource}) {
+            const title = resource?.specification?.title;
+            return <span title={title}>{title}</span>
+        },
         Icon({resource, size}) {
             if (resource && resource.specification.product.id === "share") {
-
                 return <Icon name={productTypeToIcon("STORAGE")} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />
             }
             return <Icon name={"ftFileSystem"} size={size} />

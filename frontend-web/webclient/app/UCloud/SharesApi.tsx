@@ -11,7 +11,7 @@ import {
 } from "@/UCloud/ResourceApi";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {Product} from "@/Accounting";
-import {PrettyFilePath} from "@/Files/FilePath";
+import {PrettyFileName, PrettyFilePath} from "@/Files/FilePath";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {accounting, BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud";
@@ -19,6 +19,7 @@ import {apiBrowse, apiCreate, apiRetrieve, apiUpdate} from "@/Authentication/Dat
 import {bulkRequestOf} from "@/UtilityFunctions";
 import ProductReference = accounting.ProductReference;
 import {ValuePill} from "@/Resource/Filter";
+import Icon from "@/ui-components/Icon";
 
 export interface ShareSpecification extends ResourceSpecification {
     sharedWith: string;
@@ -112,12 +113,19 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
     productType = "STORAGE" as const;
 
     renderer: ItemRenderer<Share, ResourceBrowseCallbacks<Share>> = {
-        MainTitle() {
-            return <div />
+        MainTitle({resource}) {
+            if (!resource) return null;
+            /* Note(Jonas): If this is shared by logged-in user, we have access to original drive title */
+            if (resource.owner.createdBy === Client.username) {
+                return <PrettyFilePath path={resource.specification.sourceFilePath} />
+            } else {
+                /* Note(Jonas): If this is Shared by other user, we do not have access to original drive */
+                return <PrettyFileName path={resource.specification.sourceFilePath} />
+            }
         },
 
-        Icon() {
-            return <div />;
+        Icon({size}) {
+            return <Icon size={size} name="ftSharesFolder" color="FtFolderColor" color2="FtFolderColor2" />;
         },
 
         ImportantStats() {
@@ -127,19 +135,6 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
 
     constructor() {
         super("shares");
-
-        this.filterPills.push(props => {
-            return <ValuePill {...props} propertyName={"filterIngoing"} showValue={true} icon={"share"} title={""}
-                valueToString={value => value === "true" ? "Shared with me" : "Shared by me"}
-                canRemove={false} />
-        });
-
-        this.filterPills.push(props => {
-            return <ValuePill {...props} propertyName={"filterOriginalPath"} showValue={false} icon={"ftFolder"}
-                title={"Path"} canRemove={false}>
-                <PrettyFilePath path={props.properties["filterOriginalPath"]} />
-            </ValuePill>
-        });
     }
 
     retrieveOperations(): Operation<Share, ResourceBrowseCallbacks<Share>>[] {
@@ -207,10 +202,9 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
             },
             {
                 text: "Remove",
-                icon: "close",
+                icon: "heroTrash",
                 color: "errorMain",
                 confirm: true,
-                primary: true,
                 enabled: (selected, cb) => {
                     return selected.length > 0 && selected.every(share =>
                         share.owner.createdBy !== Client.username && share.status.state === "APPROVED"
