@@ -236,9 +236,12 @@ class DataVisualization(
                         with samples as (
                             select
                                 s.wallet_id,
+                                s.local_usage,
                                 s.tree_usage,
                                 s.retired_tree_usage,
+                                s.retired_usage,
                                 s.quota,
+                                s.total_allocated,
                                 provider.timestamp_to_unix(s.sampled_at)::int8 sample_time
                             from
                                 accounting.allocation_groups ag join
@@ -264,7 +267,19 @@ class DataVisualization(
                             end tusage,
                             s.quota,
                             sample_time,
-                            w.id
+                            w.id,
+                            case
+                                 when au.floating_point = true then s.tree_usage / 1000000.0
+                                 when au.floating_point = false and pc.accounting_frequency = 'ONCE'
+                                     then s.local_usage::double precision
+                                 when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE'
+                                     then (s.local_usage::double precision + s.retired_usage::double precision) / 60.0
+                                 when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR'
+                                     then (s.local_usage::double precision + s.retired_usage::double precision) / 60.0 / 60.0
+                                 when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY'
+                                     then (s.local_usage::double precision + s.retired_usage::double precision) / 60.0 / 60.0 / 24.0
+                            end lusage,
+                            s.total_allocated
                         from
                             accounting.wallets_v2 w
                             join accounting.product_categories pc on w.product_category = pc.id
@@ -287,16 +302,18 @@ class DataVisualization(
 
                         for (row in rows) {
                             val allocCategory = row.getLong(0)!!
-                            val usage = row.getDouble(1)!!
+                            val treeUsage = row.getDouble(1)!!
                             val quota = row.getLong(2)!!
                             val timestamp = row.getLong(3)!!
                             val walletId = row.getLong(4)!!
+                            val localUsage = row.getDouble(5)!!
+                            val totalAllocated = row.getLong(6)!!
                             if (currentProductCategory != allocCategory) {
                                 flushChart() // no-op if currentProductCategory = -1L
                                 currentProductCategory = allocCategory
                                 prediction = predictor.getPrediction(walletId)
                             }
-                            dataPoints.add(UsageOverTimeDatePointAPI(usage, quota, timestamp))
+                            dataPoints.add(UsageOverTimeDatePointAPI(treeUsage, quota, timestamp, localUsage, totalAllocated))
                         }
                         flushChart()
                     }

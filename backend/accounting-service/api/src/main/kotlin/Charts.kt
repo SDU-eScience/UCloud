@@ -6,7 +6,9 @@ import kotlinx.serialization.Serializable
 data class UsageOverTimeDatePointAPI(
     val usage: Double,
     val quota: Long,
-    val timestamp: Long
+    val timestamp: Long,
+    val localUsage: Double,
+    val totalAllocated: Long
 )
 
 @Serializable
