@@ -158,9 +158,12 @@ func Launch() {
 		project := util.OptStringIfNotEmpty(r.Header.Get("Project"))
 
 		return rpc.Actor{
-			Username: subject,
-			Role:     role,
-			Project:  project,
+			Username:         subject,
+			Role:             role,
+			Project:          project,
+			Membership:       make(rpc.ProjectMembership), // TODO implement this
+			Groups:           make(rpc.GroupMembership),   // TODO implement this
+			ProviderProjects: make(rpc.ProviderProjects),  // TODO implement this
 			TokenInfo: util.OptValue(rpc.TokenInfo{
 				IssuedAt:               issuedAt,
 				ExpiresAt:              expiresAt,

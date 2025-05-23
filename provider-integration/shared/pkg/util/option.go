@@ -37,14 +37,6 @@ func (s *Option[T]) Sql() sql.Null[T] {
 	}
 }
 
-func OptDefaultOrMap[T any, R any](opt Option[T], defaultValue R, mapper func(val T) R) R {
-	if opt.Present {
-		return mapper(opt.Value)
-	} else {
-		return defaultValue
-	}
-}
-
 func (s Option[T]) GetOrDefault(t T) T {
 	if s.Present {
 		return s.Value
@@ -130,5 +122,13 @@ func OptSqlStringIfNotEmpty(value string) sql.NullString {
 		return sql.NullString{Valid: false}
 	} else {
 		return sql.NullString{Valid: true, String: value}
+	}
+}
+
+func OptDefaultOrMap[T any, R any](opt Option[T], defaultValue R, mapper func(val T) R) R {
+	if opt.Present {
+		return mapper(opt.Value)
+	} else {
+		return defaultValue
 	}
 }

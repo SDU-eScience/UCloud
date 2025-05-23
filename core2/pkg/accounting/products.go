@@ -373,6 +373,26 @@ func ProductCreate(actor rpc.Actor, products []accapi.ProductV2) *util.HttpError
 	return err
 }
 
+func ProductCategoryRetrieve(actor rpc.Actor, name, provider string) (accapi.ProductCategory, *util.HttpError) {
+	results, err := ProductBrowse(actor, accapi.ProductsBrowseRequest{
+		ItemsPerPage: 1,
+		ProductsFilter: accapi.ProductsFilter{
+			FilterProvider:    util.OptValue(provider),
+			FilterCategory:    util.OptValue(name),
+			FilterUsable:      util.OptValue(false),
+			IncludeBalance:    util.OptValue(false),
+			IncludeMaxBalance: util.OptValue(false),
+		},
+	})
+	if err == nil {
+		if len(results.Items) > 0 {
+			return results.Items[0].Category, nil
+		}
+		err = util.HttpErr(http.StatusNotFound, "category not found")
+	}
+	return accapi.ProductCategory{}, err
+}
+
 func translateToChargeType(category accapi.ProductCategory) string {
 	switch category.AccountingFrequency {
 	case accapi.AccountingFrequencyOnce:

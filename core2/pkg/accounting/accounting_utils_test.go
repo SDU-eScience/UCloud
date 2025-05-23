@@ -14,7 +14,7 @@ import (
 
 type env struct {
 	t       *testing.T
-	Bucket  *accBucket
+	Bucket  *internalBucket
 	diagram *os.File
 }
 
@@ -55,7 +55,7 @@ func newEnv(t *testing.T, cat accapi.ProductCategory) *env {
 	accGlobals.OwnersByReference = map[string]*internalOwner{}
 	accGlobals.OwnersById = map[accOwnerId]*internalOwner{}
 	accGlobals.Usage = map[string]*scopedUsage{}
-	accGlobals.BucketsByCategory = map[accapi.ProductCategoryIdV2]*accBucket{}
+	accGlobals.BucketsByCategory = map[accapi.ProductCategoryIdV2]*internalBucket{}
 
 	internalCategoryOrInit(capacityCategory)
 	internalCategoryOrInit(timeCategory)
@@ -132,7 +132,7 @@ func (e *env) report(at int, ownerRef string, delta bool, usage int64, scope ...
 	if len(scope) > 0 && scope[0] != "" {
 		req.Description.Scope = util.OptStringIfNotEmpty(scope[0])
 	}
-	if err := internalReportUsage(e.Tm(at), req); err != nil {
+	if _, err := internalReportUsage(e.Tm(at), req); err != nil {
 		e.t.Fatalf("report usage: %v", err)
 	}
 }

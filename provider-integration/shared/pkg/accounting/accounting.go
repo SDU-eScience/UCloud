@@ -8,48 +8,48 @@ import (
 )
 
 type WalletV2 struct {
-	Owner            WalletOwner
-	PaysFor          ProductCategory
-	AllocationGroups []AllocationGroupWithParent
-	Children         []AllocationGroupWithChild
+	Owner            WalletOwner                 `json:"owner"`
+	PaysFor          ProductCategory             `json:"paysFor"`
+	AllocationGroups []AllocationGroupWithParent `json:"allocationGroups"`
+	Children         []AllocationGroupWithChild  `json:"children"`
 
-	TotalUsage     int64
-	LocalUsage     int64
-	MaxUsable      int64
-	Quota          int64
-	TotalAllocated int64
+	TotalUsage     int64 `json:"totalUsage"`
+	LocalUsage     int64 `json:"localUsage"`
+	MaxUsable      int64 `json:"maxUsable"`
+	Quota          int64 `json:"quota"`
+	TotalAllocated int64 `json:"totalAllocated"`
 
-	LastSignificantUpdateAt fnd.Timestamp
+	LastSignificantUpdateAt fnd.Timestamp `json:"lastSignificantUpdateAt"`
 }
 
 type AllocationGroup struct {
-	Id          int
-	Allocations []Allocation
-	Usage       int64
+	Id          int          `json:"id"`
+	Allocations []Allocation `json:"allocations"`
+	Usage       int64        `json:"usage"`
 }
 
 type Allocation struct {
-	Id           int64
-	StartDate    fnd.Timestamp
-	EndDate      fnd.Timestamp
-	Quota        int64
-	GrantedIn    int64
-	RetiredUsage int64
+	Id           int64              `json:"id,omitempty"`
+	StartDate    fnd.Timestamp      `json:"startDate"`
+	EndDate      fnd.Timestamp      `json:"endDate"`
+	Quota        int64              `json:"quota"`
+	GrantedIn    util.Option[int64] `json:"grantedIn"`
+	RetiredUsage int64              `json:"retiredUsage"`
 }
 
 type AllocationGroupWithParent struct {
-	Parent ParentOrChildWallet
-	Group  AllocationGroup
+	Parent util.Option[ParentOrChildWallet] `json:"parent"`
+	Group  AllocationGroup                  `json:"group"`
 }
 
 type AllocationGroupWithChild struct {
-	Child ParentOrChildWallet
-	Group AllocationGroup
+	Child util.Option[ParentOrChildWallet] `json:"child"`
+	Group AllocationGroup                  `json:"group"`
 }
 
 type ParentOrChildWallet struct {
-	ProjectId    string
-	ProjectTitle string
+	ProjectId    string `json:"projectId"`
+	ProjectTitle string `json:"projectTitle"`
 }
 
 type WalletOwner struct {
