@@ -433,12 +433,19 @@ func RetrieveUsedLicenseCount(licenseName string, owner orc.ResourceOwner) int {
 				select count(*) as count
 				from tracked_licenses
 				where
-				    (
-						(:project = '' and project_id is null and created_by = :created_by)
-						or (:project != '' and project_id = :project)
+					(
+						(
+							coalesce(:project, '') = '' 
+							and coalesce(project_id, '') = ''
+							and created_by = :created_by
+						)
+						or (
+							:project != '' 
+							and project_id = :project
+						)
 					)
 					and product_category = :license_name
-		    `,
+			`,
 			db.Params{
 				"created_by":   owner.CreatedBy,
 				"project":      owner.Project,
