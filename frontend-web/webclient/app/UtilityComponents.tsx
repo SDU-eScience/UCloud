@@ -70,7 +70,7 @@ export function addStandardDialog({
                 {title ? <Divider /> : null}
                 <div className={StandardDialogFlexClass}>{message}</div>
             </div>
-            <Flex mt="20px" style={{justifyContent: "end", gap: "8px"}}>
+            <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} mt="20px" background={"var(--dialogToolbar)"} gap={"8px"}>
                 <Button
                     onClick={validate}
                     color={confirmButtonColor}

@@ -3,7 +3,7 @@ import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
 import ApexCharts from "apexcharts";
 import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
-import {Flex, Icon, Input, Text, MainContainer, Box, Truncate, Button, Checkbox, Label, Select} from "@/ui-components";
+import {Flex, Icon, Input, Text, MainContainer, Box, Truncate, Button, Label} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
 import {ProjectSwitcher, projectTitle} from "@/Project/ProjectSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -35,6 +35,8 @@ import {groupBy} from "@/Utilities/CollectionUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {DATE_FORMAT} from "@/Admin/NewsManagement";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {slimModalStyle} from "@/Utilities/ModalUtilities";
+import {Toggle} from "@/ui-components/Toggle";
 
 // Constants
 // =====================================================================================================================
@@ -93,32 +95,36 @@ function exportUsage<T extends object>(chartData: T[] | undefined, headers: Expo
         return;
     }
 
-    dialogStore.addDialog(<UsageExport chartData={chartData} headers={headers} projectTitle={projectTitle} />, () => {}, true);
+    dialogStore.addDialog(<UsageExport chartData={chartData} headers={headers} projectTitle={projectTitle} />, () => {}, true, slimModalStyle);
 }
 
 function UsageExport<T extends object>({chartData, headers, projectTitle}: {chartData: T[]; headers: ExportHeader<T>[]; projectTitle?: string}): React.ReactNode {
-    const checked = useRef(headers.map(it => it.defaultChecked));
+    const [checked, setChecked] = useState(headers.map(it => it.defaultChecked));
 
     const startExport = useCallback((format: "json" | "csv") => {
-        doExport(chartData, headers.filter((_, idx) => checked.current[idx]), ';', format, projectTitle);
+        doExport(chartData, headers.filter((_, idx) => checked[idx]), ';', format, projectTitle);
         dialogStore.success();
-    }, []);
+    }, [checked]);
 
     return <Box>
-        <h2>Export usage data</h2>
-        <Box mt="12px">
-            <h3>Columns to export</h3>
+        <h2>Export which usage data rows?</h2>
+        <Box mt="12px" mb="36px">
             {headers.map((h, i) =>
-                <Label key={h.value} style={{display: "flex"}}>
-                    <Text mr="4px">{h.value}</Text>
-                    <Checkbox defaultChecked={h.defaultChecked} onChange={e => checked.current[i] = e.target.checked} />
+                <Label key={h.value} my="4px" style={{display: "flex"}}>
+                    <Toggle height={20} checked={checked[i]} onChange={prevValue => {
+                        setChecked(ch => {
+                            ch[i] = !prevValue
+                            return [...ch];
+                        })
+                    }} />
+                    <Text ml="8px">{h.value}</Text>
                 </Label>
             )}
         </Box>
-        <Flex width="100%" mt="auto">
-            <Button ml="auto" mr="12px" onClick={() => startExport("json")}>Export JSON</Button>
-            <Button mr="12px" onClick={() => startExport("csv")}>Export CSV</Button>
-            <Button onClick={() => dialogStore.failure()} color="errorMain">Dismiss</Button>
+        <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"} gap={"8px"}>
+            <Button onClick={() => dialogStore.failure()} color="errorMain">Cancel</Button>
+            <Button onClick={() => startExport("json")} color="successMain">Export JSON</Button>
+            <Button onClick={() => startExport("csv")} color="successMain">Export CSV</Button>
         </Flex>
     </Box>
 
