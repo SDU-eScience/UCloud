@@ -164,7 +164,7 @@ function UsageExport<T extends object>({chartData, headers, projectTitle}: {char
 
         const a = document.createElement("a");
         a.href = "data:text/plain;charset=utf-8," + encodeURIComponent(text);
-        a.download = `${Config.PRODUCT_NAME} - ${projectTitle ?? "personal workspace"} - ${formatDate(new Date(), DATE_FORMAT)}.${format}`;
+        a.download = `${Config.PRODUCT_NAME} - ${projectTitle ? projectTitle : "personal workspace"} - ${formatDate(new Date(), DATE_FORMAT)}.${format}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
