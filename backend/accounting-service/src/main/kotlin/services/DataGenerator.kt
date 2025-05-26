@@ -49,7 +49,7 @@ class DataGenerator(
             authenticatedClient
         ).orThrow()
 
-        val p= provider.items.firstOrNull { it.title == "Provider k8" } ?: throw RPCException.fromStatusCode(
+        val p = provider.items.firstOrNull { it.title == "Provider k8" ||it.title == "Provider gok8s" } ?: throw RPCException.fromStatusCode(
             HttpStatusCode.InternalServerError,
             "k8 provider is not initialized"
         )
@@ -102,7 +102,7 @@ class DataGenerator(
         }
 
         if (request.makeCharges) {
-            createUsageData(request)
+            createUsageData(request, actorAndProject)
         }
         Time.provider = SystemTimeProvider
     }
@@ -143,8 +143,29 @@ class DataGenerator(
     private val DAY = HOUR * 24
     private val YEAR = DAY * 365
 
+    private lateinit var computeWallet: WalletV2
+    private lateinit var storageWallet: WalletV2
+
+    private suspend fun setComputeAndStorageWallets(actorAndProject: ActorAndProject) {
+        println(actorAndProject)
+
+        val wallets = system.sendRequest(
+            AccountingRequest.BrowseWallets(
+                idCard = idCardService.fetchIdCard(actorAndProject)
+            )
+        )
+
+        println(wallets)
+
+        computeWallet = wallets.find { it.paysFor.productType == ProductType.COMPUTE } ?: throw RPCException("No compute wallet found", HttpStatusCode.InternalServerError)
+        storageWallet = wallets.find { it.paysFor.productType == ProductType.STORAGE } ?: throw RPCException("No storage wallet found", HttpStatusCode.InternalServerError)
+
+    }
+
     // Generates project structure with credits
     private suspend fun createProjects(rootProjectId: String, actorAndProject: ActorAndProject) {
+        setComputeAndStorageWallets(actorAndProject)
+
         var grantId = grantsV2Service.submitRevision(
             ActorAndProject(piUser, null),
             GrantsV2.SubmitRevision.Request(
@@ -152,8 +173,8 @@ class DataGenerator(
                     GrantApplication.Recipient.NewProject("sub1"),
                     listOf(
                         GrantApplication.AllocationRequest(
-                            "cpu-h",
-                            "k8",
+                            computeWallet.paysFor.name,
+                            computeWallet.paysFor.provider,
                             rootProjectId,
                             500_000,
                             GrantApplication.Period(
@@ -163,8 +184,8 @@ class DataGenerator(
                             "Provider k8"
                         ),
                         GrantApplication.AllocationRequest(
-                            "storage",
-                            "k8",
+                            storageWallet.paysFor.name,
+                            storageWallet.paysFor.provider,
                             rootProjectId,
                             500_000,
                             GrantApplication.Period(
@@ -194,8 +215,8 @@ class DataGenerator(
                     GrantApplication.Recipient.NewProject("sub2"),
                     listOf(
                         GrantApplication.AllocationRequest(
-                            "cpu-h",
-                            "k8",
+                            computeWallet.paysFor.name,
+                            computeWallet.paysFor.provider,
                             rootProjectId,
                             500_000,
                             GrantApplication.Period(
@@ -205,8 +226,8 @@ class DataGenerator(
                             "Provider k8"
                         ),
                         GrantApplication.AllocationRequest(
-                            "storage",
-                            "k8",
+                            storageWallet.paysFor.name,
+                            storageWallet.paysFor.provider,
                             rootProjectId,
                             500_000,
                             GrantApplication.Period(
@@ -249,8 +270,8 @@ class DataGenerator(
                                 GrantApplication.Recipient.NewProject("sub11"),
                                 listOf(
                                     GrantApplication.AllocationRequest(
-                                        "cpu-h",
-                                        "k8",
+                                        computeWallet.paysFor.name,
+                                        computeWallet.paysFor.provider,
                                         project.projectId,
                                         5_000,
                                         GrantApplication.Period(
@@ -260,8 +281,8 @@ class DataGenerator(
                                         project.title
                                     ),
                                     GrantApplication.AllocationRequest(
-                                        "storage",
-                                        "k8",
+                                        storageWallet.paysFor.name,
+                                        storageWallet.paysFor.provider,
                                         project.projectId,
                                         50_000,
                                         GrantApplication.Period(
@@ -289,8 +310,8 @@ class DataGenerator(
                                 GrantApplication.Recipient.NewProject("sub21"),
                                 listOf(
                                     GrantApplication.AllocationRequest(
-                                        "cpu-h",
-                                        "k8",
+                                        computeWallet.paysFor.name,
+                                        computeWallet.paysFor.provider,
                                         project.projectId,
                                         5_000,
                                         GrantApplication.Period(
@@ -300,8 +321,8 @@ class DataGenerator(
                                         project.title
                                     ),
                                     GrantApplication.AllocationRequest(
-                                        "storage",
-                                        "k8",
+                                        storageWallet.paysFor.name,
+                                        storageWallet.paysFor.provider,
                                         project.projectId,
                                         50_000,
                                         GrantApplication.Period(
@@ -328,8 +349,8 @@ class DataGenerator(
                                 GrantApplication.Recipient.NewProject("sub22"),
                                 listOf(
                                     GrantApplication.AllocationRequest(
-                                        "cpu-h",
-                                        "k8",
+                                        computeWallet.paysFor.name,
+                                        computeWallet.paysFor.provider,
                                         project.projectId,
                                         5_000,
                                         GrantApplication.Period(
@@ -339,8 +360,8 @@ class DataGenerator(
                                         project.title
                                     ),
                                     GrantApplication.AllocationRequest(
-                                        "storage",
-                                        "k8",
+                                        storageWallet.paysFor.name,
+                                        storageWallet.paysFor.provider,
                                         project.projectId,
                                         50_000,
                                         GrantApplication.Period(
@@ -385,8 +406,8 @@ class DataGenerator(
                         GrantApplication.Recipient.ExistingProject(subID.projectId),
                         listOf(
                             GrantApplication.AllocationRequest(
-                                "cpu-h",
-                                "k8",
+                                computeWallet.paysFor.name,
+                                computeWallet.paysFor.provider,
                                 rootProjectId,
                                 5_000,
                                 GrantApplication.Period(
@@ -396,8 +417,8 @@ class DataGenerator(
                                 "Provider k8"
                             ),
                             GrantApplication.AllocationRequest(
-                                "storage",
-                                "k8",
+                                storageWallet.paysFor.name,
+                                storageWallet.paysFor.provider,
                                 rootProjectId,
                                 50_000,
                                 GrantApplication.Period(
@@ -417,13 +438,15 @@ class DataGenerator(
         }
     }
 
-    private suspend fun createUsageData(request: AccountingV2.AdminGenerateTestData.Request) {
+    private suspend fun createUsageData(request: AccountingV2.AdminGenerateTestData.Request, actorAndProject: ActorAndProject) {
         val chargeableProjects = Projects.listProjects.call(
             ListProjectsRequest(
                 piUser.username,
             ),
             authenticatedClient
         ).orThrow().items.map { it.projectId }
+
+        setComputeAndStorageWallets(actorAndProject)
         //Deletes samples to remove wierd usage graphs
         db.withSession { session ->
             session.sendPreparedStatement(
@@ -444,14 +467,14 @@ class DataGenerator(
         persistence.setNextSynch(Time.now() - 100)
 
         val cpu = ProductCategoryIdV2(
-            "cpu-h",
-            "k8"
+            computeWallet.paysFor.name,
+            computeWallet.paysFor.provider,
         )
 
 
         val storage = ProductCategoryIdV2(
-            "storage",
-            "k8"
+            storageWallet.paysFor.name,
+            storageWallet.paysFor.provider,
         )
 
         val differentStorageCharges = mutableListOf<Pair<String, Long>>()
