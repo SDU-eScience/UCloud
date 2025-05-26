@@ -67,7 +67,6 @@ export function addStandardDialog({
         <div onClick={stopEventsFunc}>
             <div>
                 <Heading.h3>{title}</Heading.h3>
-                {title ? <Divider /> : null}
                 <div className={StandardDialogFlexClass}>{message}</div>
             </div>
             <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} mt="20px" background={"var(--dialogToolbar)"} gap={"8px"}>
@@ -87,6 +86,7 @@ const StandardDialogFlexClass = injectStyleSimple("standard-dialog-flex", `
     display: flex;
     flex-direction: column;
     min-height: 200px;
+    padding-top: 12px;
     overflow-y: auto;
 `);
 
