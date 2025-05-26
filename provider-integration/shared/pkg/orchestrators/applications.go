@@ -59,6 +59,7 @@ type ToolDescription struct {
 	Backend               ToolBackend                       `json:"backend"`
 	License               string                            `json:"license"`
 	Image                 string                            `json:"image,omitempty"`
+	Container             string                            `json:"container,omitempty"`
 	SupportedProviders    []string                          `json:"supportedProviders,omitempty"`
 	LoadInstructions      util.Option[ToolLoadInstructions] `json:"loadInstructions"`
 }

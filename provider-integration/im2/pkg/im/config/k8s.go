@@ -118,7 +118,7 @@ func (c *KubernetesCompute) ResolveMachine(name, category string) (K8sMachineCat
 func pickResource(resource MachineResourceType, machineConfig K8sMachineConfiguration) int {
 	switch resource {
 	case MachineResourceTypeCpu:
-		return machineConfig.Cpu
+		return machineConfig.AdvertisedCpu
 	case MachineResourceTypeGpu:
 		return machineConfig.Gpu
 	case MachineResourceTypeMemory:
@@ -154,7 +154,8 @@ type K8sMachineCategoryGroup struct {
 }
 
 type K8sMachineConfiguration struct {
-	Cpu               int
+	AdvertisedCpu     int
+	ActualCpuMillis   int
 	MemoryInGigabytes int
 	Gpu               int
 	Price             float64
@@ -497,6 +498,7 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 	}
 
 	var cpu []int
+	var actualCpuMillis []int
 	var gpu []int
 	var memory []int
 	var price []float64
@@ -515,6 +517,15 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 		priceNode, _ := cfgutil.GetChildOrNil(filePath, node, "price")
 		if priceNode != nil {
 			cfgutil.Decode(filePath, priceNode, &price, success)
+		}
+
+		actualCpuNode, _ := cfgutil.GetChildOrNil(filePath, node, "actualCpuMillis")
+		if actualCpuNode != nil {
+			cfgutil.Decode(filePath, actualCpuNode, &actualCpuMillis, success)
+		} else {
+			for i := 0; i < len(cpu); i++ {
+				actualCpuMillis = append(actualCpuMillis, cpu[i]*1000)
+			}
 		}
 
 		machineLength := len(cpu)
@@ -538,6 +549,11 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 			cfgutil.ReportError(filePath, memoryNode, "memory must have the same length as cpu (%v != %v)", machineLength, len(memory))
 			*success = false
 		}
+
+		if len(actualCpuMillis) != machineLength {
+			cfgutil.ReportError(filePath, memoryNode, "actualCpuMillis must have the same length as cpu (%v != %v)", machineLength, len(memory))
+			*success = false
+		}
 	}
 
 	for _, count := range cpu {
@@ -548,9 +564,17 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 		}
 	}
 
+	for _, count := range actualCpuMillis {
+		if count <= 0 {
+			cfgutil.ReportError(filePath, node, "actualCpuMillis must be greater than zero")
+			*success = false
+			break
+		}
+	}
+
 	for _, count := range memory {
 		if count <= 0 {
-			cfgutil.ReportError(filePath, node, "cpu count must be greater than zero")
+			cfgutil.ReportError(filePath, node, "memory must be greater than zero")
 			*success = false
 			break
 		}
@@ -589,7 +613,8 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 				gpuCount = gpu[i]
 			}
 			configuration := K8sMachineConfiguration{
-				Cpu:               cpu[i],
+				AdvertisedCpu:     cpu[i],
+				ActualCpuMillis:   actualCpuMillis[i],
 				MemoryInGigabytes: memory[i],
 				Gpu:               gpuCount,
 			}

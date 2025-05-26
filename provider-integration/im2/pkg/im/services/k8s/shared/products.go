@@ -89,7 +89,7 @@ func initProducts() {
 					Price:                     int64(math.Floor(machineConfig.Price * 1_000_000)),
 					HiddenInGrantApplications: false,
 
-					Cpu:          machineConfig.Cpu,
+					Cpu:          machineConfig.AdvertisedCpu,
 					CpuModel:     group.CpuModel,
 					MemoryInGigs: machineConfig.MemoryInGigabytes,
 					MemoryModel:  group.MemoryModel,
@@ -314,7 +314,7 @@ func initProducts() {
 func pickResource(resource cfg.MachineResourceType, machineConfig cfg.K8sMachineConfiguration) int {
 	switch resource {
 	case cfg.MachineResourceTypeCpu:
-		return machineConfig.Cpu
+		return machineConfig.AdvertisedCpu
 	case cfg.MachineResourceTypeGpu:
 		return machineConfig.Gpu
 	case cfg.MachineResourceTypeMemory:
