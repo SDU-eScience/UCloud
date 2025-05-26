@@ -27,9 +27,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	{
 		timeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		pod, _ := K8sClient.CoreV1().Pods(Namespace).Get(timeout, podName, meta.GetOptions{})
+		pod, err := K8sClient.CoreV1().Pods(Namespace).Get(timeout, podName, meta.GetOptions{})
 		cancel()
-		if pod != nil {
+		if pod != nil && err == nil {
 			// Pod already exists, do not schedule it
 			return nil
 		}
