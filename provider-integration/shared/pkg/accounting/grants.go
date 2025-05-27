@@ -1,6 +1,9 @@
 package apm
 
 import (
+	"fmt"
+	"io"
+	"net/http"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -247,4 +250,86 @@ var RetrieveGrantGivers = rpc.Call[RetrieveGrantGiversRequest, RetrieveGrantGive
 	Roles:       rpc.RolesEndUser,
 }
 
-// TODO comments and request settings
+type GrantsPostCommentRequest struct {
+	ApplicationId string `json:"applicationId"`
+	Comment       string `json:"comment"`
+}
+
+var GrantsPostComment = rpc.Call[GrantsPostCommentRequest, fnd.FindByStringId]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "postComment",
+	Roles:       rpc.RolesEndUser,
+}
+
+type GrantsDeleteCommentRequest struct {
+	ApplicationId string `json:"applicationId"`
+	CommentId     string `json:"commentId"`
+}
+
+var GrantsDeleteComment = rpc.Call[GrantsDeleteCommentRequest, util.Empty]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "postComment",
+	Roles:       rpc.RolesEndUser,
+}
+
+var GrantsUpdateRequestSettings = rpc.Call[GrantRequestSettings, util.Empty]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "updateRequestSettings",
+	Roles:       rpc.RolesEndUser | rpc.RolesService,
+}
+
+var GrantsRetrieveRequestSettings = rpc.Call[util.Empty, GrantRequestSettings]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Operation:   "requestSettings",
+	Roles:       rpc.RolesEndUser,
+}
+
+var GrantsUploadLogo = rpc.Call[[]byte, util.Empty]{
+	BaseContext: GrantsNamespace,
+	Operation:   "uploadLogo",
+	Convention:  rpc.ConventionCustom,
+	Roles:       rpc.RolesEndUser,
+
+	CustomMethod: http.MethodPost,
+	CustomPath:   fmt.Sprintf("/api/%s/uploadLogo", GrantsNamespace),
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) ([]byte, *util.HttpError) {
+		result, err := io.ReadAll(r.Body)
+		if err != nil {
+			return nil, util.HttpErr(http.StatusBadRequest, "Logo was not correctly received")
+		} else {
+			return result, nil
+		}
+	},
+	CustomClientHandler: func(self *rpc.Call[[]byte, util.Empty], client *rpc.Client, request []byte) (util.Empty, *util.HttpError) {
+		panic("client not implemented")
+	},
+}
+
+type GrantsRetrieveLogoRequest struct {
+	ProjectId string `json:"projectId"`
+}
+
+var GrantsRetrieveLogo = rpc.Call[GrantsRetrieveLogoRequest, []byte]{
+	BaseContext: GrantsNamespace,
+	Operation:   "retrieveLogo",
+	Convention:  rpc.ConventionCustom,
+	Roles:       rpc.RolesPublic,
+
+	CustomMethod: http.MethodPost,
+	CustomPath:   fmt.Sprintf("/api/%s/retrieveLogo", GrantsNamespace),
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (GrantsRetrieveLogoRequest, *util.HttpError) {
+		return rpc.ParseRequestFromQuery[GrantsRetrieveLogoRequest](w, r)
+	},
+	CustomServerProducer: func(response []byte, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/any")
+		w.WriteHeader(err.StatusCode)
+		_, _ = w.Write(response)
+	},
+	CustomClientHandler: func(self *rpc.Call[GrantsRetrieveLogoRequest, []byte], client *rpc.Client, request GrantsRetrieveLogoRequest) ([]byte, *util.HttpError) {
+		panic("client not implemented")
+	},
+}
