@@ -31,6 +31,57 @@ class ProviderMigration(
                     val outputDir = File("/tmp/provider-$providerId").also { it.mkdirs() }
                     channel.send("Ready to begin data migration: providerId=$providerId dryRun=$dryRun")
 
+                    // Change accounting units
+                    // ---------------------------------------------------------------------------------------------------------
+
+                    if (!dryRun) {
+                        session.sendPreparedStatement(
+                            {
+                                setParameter("provider", providerId)
+                            },
+                            """
+                                with d as (
+                                    insert into accounting.accounting_units (name, name_plural, floating_point, display_frequency_suffix)
+                                    values ('link', 'links', false, false)
+                                    on conflict (name, name_plural, floating_point, display_frequency_suffix) do update set name = excluded.name
+                                    returning id as new_unit
+                                )
+                                update accounting.product_categories
+                                set
+                                    accounting_unit = new_unit,
+                                    accounting_frequency = 'ONCE'
+                                from d
+                                where
+                                    provider = :provider
+                                    and product_type = 'INGRESS'
+                                ;                                
+                            """
+                        )
+
+                        session.sendPreparedStatement(
+                            {
+                                setParameter("provider", providerId)
+                            },
+                            """
+                                with d as (
+                                    insert into accounting.accounting_units (name, name_plural, floating_point, display_frequency_suffix)
+                                    values ('Core', 'Core', false, true)
+                                    on conflict (name, name_plural, floating_point, display_frequency_suffix) do update set name = excluded.name
+                                    returning id as new_unit
+                                )
+                                update accounting.product_categories
+                                set
+                                    accounting_unit = new_unit,
+                                    accounting_frequency = 'PERIODIC_HOUR'
+                                from d
+                                where
+                                    provider = :provider
+                                    and category = 'syncthing'
+                                ;                               
+                            """
+                        )
+                    }
+
                     // Resets accounting scopes in storage
                     // ---------------------------------------------------------------------------------------------------------
 
