@@ -183,7 +183,7 @@ func handleShellNoRetry(session *ctrl.ShellSession, cols int, rows int, isNewSes
 					if err == nil {
 						activeIApps := ctrl.RetrieveIAppsByJobId()
 						iappConfig, iappOk := activeIApps[job.Id]
-						handler, handlerOk := iapps[integratedTerminalAppName]
+						handler, handlerOk := IApps[integratedTerminalAppName]
 
 						iappEtag := util.OptMapGet(pod.Annotations, IAppAnnotationEtag)
 

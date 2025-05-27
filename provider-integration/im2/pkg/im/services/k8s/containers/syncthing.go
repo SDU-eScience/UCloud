@@ -46,7 +46,7 @@ func initSyncthing() {
 	})
 
 	if ServiceConfig.Compute.Syncthing.Enabled {
-		iapps[syncthingAppName] = ContainerIAppHandler{
+		IApps[syncthingAppName] = ContainerIAppHandler{
 			Flags:                           0,
 			BeforeRestart:                   syncthingBeforeRestart,
 			ValidateConfiguration:           syncthingValidateConfiguration,

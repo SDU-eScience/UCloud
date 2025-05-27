@@ -40,7 +40,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	if iappConfig.Present {
 		jobCopy := *job
 
-		handler, ok := iapps[iappConfig.Value.AppName]
+		handler, ok := IApps[iappConfig.Value.AppName]
 		if !ok {
 			return fmt.Errorf("invalid iapp %s", iappConfig.Value.AppName)
 		}
