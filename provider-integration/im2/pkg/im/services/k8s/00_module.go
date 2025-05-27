@@ -82,6 +82,21 @@ func InitLater(config *cfg.ServicesConfigurationKubernetes) {
 }
 
 func IsJobLocked(job *orc.Job) util.Option[shared.LockedReason] {
+	iappName := job.Specification.Product.Category
+	iapp, isIapp := containers.IApps[iappName]
+	if isIapp && iapp.MutateJobNonPersistent != nil {
+		// TODO(Dan): Performance of this deep copy is probably pretty bad
+		var jobCopy orc.Job
+		bytes, _ := json.Marshal(job)
+		_ = json.Unmarshal(bytes, &jobCopy)
+
+		config := ctrl.RetrieveIAppConfiguration(iappName, job.Resource.Owner)
+		if config.Present {
+			iapp.MutateJobNonPersistent(&jobCopy, config.Value.Configuration)
+			return IsJobLockedEx(&jobCopy, nil)
+		}
+	}
+
 	return IsJobLockedEx(job, nil)
 }
 

@@ -33,10 +33,10 @@ type ContainerIAppHandler struct {
 	BeforeMonitor func(pods []core.Pod, jobs map[string]*orc.Job, allActiveIApps map[string]ctrl.IAppRunningConfiguration)
 }
 
-var iapps = map[string]ContainerIAppHandler{}
+var IApps = map[string]ContainerIAppHandler{}
 
 func loadIApps() {
-	for appName, handler := range iapps {
+	for appName, handler := range IApps {
 		ctrl.IntegratedApplications[appName] = containerIAppBridge(handler)
 	}
 }

@@ -364,16 +364,20 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     const existing = page.find(it => fileName(it.id) === name);
                     let actualName: string = name;
                     if (existing != null) {
-                        const hasExtension = name.includes(".");
-                        const baseName = name.substring(0, hasExtension ? name.lastIndexOf(".") : undefined);
-                        const extension = hasExtension ? name.substring(name.lastIndexOf(".") + 1) : undefined;
+                        if (opts?.type !== "DIRECTORY") {
+                            const hasExtension = name.includes(".");
+                            const baseName = name.substring(0, hasExtension ? name.lastIndexOf(".") : undefined);
+                            const extension = hasExtension ? name.substring(name.lastIndexOf(".") + 1) : undefined;
 
-                        let attempt = 1;
-                        while (true) {
-                            actualName = `${baseName}(${attempt})`;
-                            if (hasExtension) actualName += `.${extension}`;
-                            if (page.find(it => fileName(it.id) === actualName) === undefined) break;
-                            attempt++;
+                            let attempt = 1;
+                            while (true) {
+                                actualName = `${baseName}(${attempt})`;
+                                if (hasExtension) actualName += `.${extension}`;
+                                if (page.find(it => fileName(it.id) === actualName) === undefined) break;
+                                attempt++;
+                            }
+                        } else {
+                            return existing.id;
                         }
                     }
 

@@ -83,7 +83,12 @@ func FindJobFolder(job *orc.Job) (string, *orc.Drive, error) {
 		return "", nil, err
 	}
 
-	jobFolderPath := filepath.Join(path, "Jobs", job.Status.ResolvedApplication.Metadata.Title, job.Id)
+	title := job.Status.ResolvedApplication.Metadata.Title
+	if job.Status.ResolvedApplication.Metadata.Name == "unknown" && job.Specification.Name != "" {
+		title = job.Specification.Name
+	}
+
+	jobFolderPath := filepath.Join(path, "Jobs", title, job.Id)
 	_ = filesystem.DoCreateFolder(jobFolderPath)
 	return jobFolderPath, drive, nil
 }

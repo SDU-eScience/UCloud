@@ -65,7 +65,7 @@ func initIntegratedTerminal() {
 	}
 
 	if ServiceConfig.Compute.IntegratedTerminal.Enabled {
-		iapps[integratedTerminalAppName] = ContainerIAppHandler{
+		IApps[integratedTerminalAppName] = ContainerIAppHandler{
 			Flags:                           ctrl.IntegratedAppInternal,
 			RetrieveDefaultConfiguration:    itermRetrieveDefaultConfiguration,
 			ShouldRun:                       itermShouldRun,

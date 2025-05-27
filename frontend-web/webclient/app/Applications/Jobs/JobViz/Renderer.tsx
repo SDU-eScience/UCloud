@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {RuntimeWidget, StreamProcessor} from "@/Applications/Jobs/JobViz/StreamProcessor";
 import {
     WidgetColorShade,
@@ -28,22 +28,40 @@ import {dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {SillyParser} from "@/Utilities/SillyParser";
+import {useCallbackWithLogging, useDidUnmount} from "@/Utilities/ReactUtilities";
+
+type WidgetState = Record<string, RuntimeWidget>;
 
 export const Renderer: React.FunctionComponent<{
     processor: StreamProcessor;
     windows: WidgetWindow[];
     tabsOnly?: boolean;
 }> = props => {
-    const [widgetState, setWidgetState] = useState<Record<string, RuntimeWidget>>({});
+    const didCancel = useDidUnmount();
+    const [widgetState, flushWidgetState] = useState<WidgetState>({});
     const priorityMap = useRef<Record<string, number>>({});
     const priorityCounter = useRef(0);
     const tabsOnly = props.tabsOnly ?? false;
+
+    const dispatchId = useRef(-1);
+    const stateRef = useRef<WidgetState>({});
+    const mutateState = useCallback((mutator: (state: WidgetState) => WidgetState) => {
+        stateRef.current = mutator(stateRef.current);
+        if (dispatchId.current === -1) {
+            dispatchId.current = window.setTimeout(() => {
+                if (!didCancel.current) {
+                    flushWidgetState(stateRef.current);
+                }
+                dispatchId.current = -1;
+            }, 100);
+        }
+    }, []);
 
     useEffect(() => {
         const listeners: ((ev: unknown) => void)[] = [];
 
         listeners.push(props.processor.on("createAny", ev => {
-            setWidgetState(state => {
+            mutateState(state => {
                 const copied = {...state};
                 copied[ev.id] = ev;
                 priorityMap.current[ev.id] = priorityCounter.current;
@@ -53,7 +71,7 @@ export const Renderer: React.FunctionComponent<{
         }));
 
         listeners.push(props.processor.on("appendTableRows", ev => {
-            setWidgetState(state => {
+            mutateState(state => {
                 const existing = state[ev.id];
                 if (!existing || existing.type !== WidgetType.WidgetTypeTable) {
                     return state;
@@ -62,7 +80,12 @@ export const Renderer: React.FunctionComponent<{
                     const newWidget = {...existing} as RuntimeWidget<WidgetTable>;
                     const newSpec = {...newWidget.spec};
                     newWidget.spec = newSpec;
-                    newSpec.rows = [...newSpec.rows, ...ev.widget.rows];
+                    if (newSpec.rows == null) {
+                        newSpec.rows = [];
+                    }
+                    for (const row of ev.widget.rows) {
+                        newSpec.rows.push(row);
+                    }
                     newSpec[ev.id] = newWidget;
                     return newState;
                 }
@@ -70,7 +93,7 @@ export const Renderer: React.FunctionComponent<{
         }));
 
         listeners.push(props.processor.on("appendDiagramData", ev => {
-            setWidgetState(state => {
+            mutateState(state => {
                 const existing = state[ev.id];
                 if (!existing || existing.type !== WidgetType.WidgetTypeDiagram) {
                     return state;
@@ -90,8 +113,10 @@ export const Renderer: React.FunctionComponent<{
                             const existingSeries = newSeries[i];
                             if (existingSeries.name === incomingSeries.name) {
                                 found = true;
-                                const transformedSeries = {...incomingSeries};
-                                transformedSeries.data = [...existingSeries.data, ...incomingSeries.data];
+                                const transformedSeries = {...existingSeries};
+                                for (const row of incomingSeries.data) {
+                                    transformedSeries.data.push(row);
+                                }
                                 newSeries[i] = transformedSeries;
                                 break;
                             }
@@ -108,7 +133,7 @@ export const Renderer: React.FunctionComponent<{
         }))
 
         listeners.push(props.processor.on("updateProgress", ev => {
-            setWidgetState(state => {
+            mutateState(state => {
                 const existing = state[ev.id];
                 if (!existing || existing.type !== WidgetType.WidgetTypeProgressBar) {
                     return state;
@@ -125,7 +150,7 @@ export const Renderer: React.FunctionComponent<{
         }));
 
         listeners.push(props.processor.on("delete", ev => {
-            setWidgetState(state => {
+            mutateState(state => {
                 const newState = {...state};
                 delete newState[ev.id];
                 delete priorityMap.current[ev.id];
@@ -449,9 +474,14 @@ const RendererDiagram: React.FunctionComponent<{ widget: RuntimeWidget<WidgetDia
 
     const apexSeries: ApexOptions["series"] = useMemo(() => {
         return widget.spec.series.map(s => {
+            let data = s.data;
+            if (data.length > 500) {
+                data = s.data.slice(s.data.length - 500);
+            }
+
             return {
                 name: s.name,
-                data: s.data.map(d => ({
+                data: data.map(d => ({
                     x: d.x,
                     y: d.y,
                 })),

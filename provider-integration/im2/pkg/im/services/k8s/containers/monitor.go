@@ -43,7 +43,7 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 
 	activeIApps := ctrl.RetrieveIAppsByJobId()
 	iappsHandled := map[string]util.Empty{}
-	for _, handler := range iapps {
+	for _, handler := range IApps {
 		beforeMonitor := handler.BeforeMonitor
 		if beforeMonitor != nil {
 			beforeMonitor(allPods.Items, jobs, activeIApps)
@@ -73,7 +73,7 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 		if iappName.Present {
 			iappsHandled[job.Id] = util.Empty{}
 			iappConfig, iappOk := activeIApps[job.Id]
-			handler, handlerOk := iapps[iappName.Value]
+			handler, handlerOk := IApps[iappName.Value]
 
 			shouldRun := handlerOk &&
 				iappOk &&
@@ -252,7 +252,7 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 		job, ok := jobs[jobId]
 		if !handled {
 			if ok {
-				handler, handlerOk := iapps[iapp.AppName]
+				handler, handlerOk := IApps[iapp.AppName]
 				if handlerOk {
 					if handler.ShouldRun(job, iapp.Configuration) {
 						// NOTE(Dan): The scheduler will ignore it if it is already in the queue/running.

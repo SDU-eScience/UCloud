@@ -19,15 +19,30 @@ var DefaultServer Server
 var ServerAuthenticator func(r *http.Request) (Actor, *util.HttpError)
 
 type Actor struct {
-	Username  string
-	Role      Role
-	Project   util.Option[string]
-	TokenInfo util.Option[TokenInfo]
+	Username         string
+	Role             Role
+	Project          util.Option[string]
+	TokenInfo        util.Option[TokenInfo]
+	Membership       ProjectMembership // TODO implement this
+	Groups           GroupMembership   // TODO implement this
+	ProviderProjects ProviderProjects  // TODO implement this (should only show up if also in membership)
 }
 
+type ProjectId string
+type GroupId string
+type ProjectRole string
+type ProviderId string
+
+type GroupMembership map[GroupId]ProjectId
+type ProjectMembership map[ProjectId]ProjectRole
+type ProviderProjects map[ProviderId]ProjectId
+
 var ActorSystem = Actor{
-	Username: "_UCloud",
-	Role:     RoleService,
+	Username:         "_UCloud",
+	Role:             RoleService,
+	Membership:       make(ProjectMembership),
+	Groups:           make(GroupMembership),
+	ProviderProjects: make(ProviderProjects),
 }
 
 type TokenInfo struct {

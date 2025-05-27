@@ -29,6 +29,13 @@ type ProductCategory struct {
 	AllowSubAllocations bool                `json:"allowSubAllocations,omitempty"`
 }
 
+func (c *ProductCategory) ToId() ProductCategoryIdV2 {
+	return ProductCategoryIdV2{
+		Name:     c.Name,
+		Provider: c.Provider,
+	}
+}
+
 type ProductType string
 
 const (

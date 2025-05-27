@@ -379,6 +379,8 @@ export interface EditorApi {
 const SETTINGS_PATH = "xXx__/SETTINGS\\__xXx";
 const RELEASE_NOTES_PATH = "xXx__/RELEASE_NOTES\\__xXx";
 
+const SPECIAL_PATHS = [SETTINGS_PATH, RELEASE_NOTES_PATH, "", "/"];
+
 const CURRENT_EDITOR_VERSION = "0.1";
 const EDITOR_VERSION_STORAGE_KEY = "editor-version";
 export const Editor: React.FunctionComponent<{
@@ -615,11 +617,12 @@ export const Editor: React.FunctionComponent<{
     }, []);
 
     const openFile = useCallback(async (path: string, saveState: boolean): Promise<boolean> => {
-        if (path === SETTINGS_PATH || path === RELEASE_NOTES_PATH) {
+        if (SPECIAL_PATHS.includes(path)) {
             dispatch({type: "EditorActionOpenFile", path});
             return false;
         }
 
+        const oldPath = state.currentPath;
         const cachedContent = state.cachedFiles[path] ?? getModelFromEditor(path)?.getValue();
         const dataPromise =
             cachedContent !== undefined ?
@@ -643,7 +646,7 @@ export const Editor: React.FunctionComponent<{
             if (didUnmount.current) return true;
 
             if (!showingCustomContent.current) {
-                if (state.currentPath !== "/" && state.currentPath !== "" && saveState) {
+                if (!SPECIAL_PATHS.includes(oldPath) && saveState) {
                     let editorState: monaco.editor.ICodeEditorViewState | null = null;
                     const model = editor?.getModel();
                     if (editor && model) {
@@ -651,7 +654,7 @@ export const Editor: React.FunctionComponent<{
                     }
 
                     const oldContent = await readBuffer();
-                    props.vfs.setDirtyFileContent(state.currentPath, oldContent);
+                    props.vfs.setDirtyFileContent(oldPath, oldContent);
                     dispatch({type: "EditorActionSaveState", editorState, oldContent, newPath: path});
                 } else {
                     dispatch({type: "EditorActionOpenFile", path});
@@ -685,7 +688,7 @@ export const Editor: React.FunctionComponent<{
             snackbarStore.addFailure(errorMessageOrDefault(error, "Failed to fetch file"), false);
             return true; // What does true or false mean in this context?
         }
-    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer, props.onOpenFile, dirtyFiles, state.sidebar.root]);
+    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer, props.onOpenFile, dirtyFiles, state.sidebar.root, state.cachedFiles]);
 
     useEffect(() => {
         const listener = (ev: KeyboardEvent) => {
@@ -706,18 +709,25 @@ export const Editor: React.FunctionComponent<{
         const editor = editorRef.current;
         const engine = engineRef.current;
         const state = stateRef.current!;
+        const currentPath = state.currentPath;
 
-        if (state.currentPath === "" || state.currentPath === "/") return;
+        if (SPECIAL_PATHS.includes(currentPath)) return;
 
         if (engine === "monaco" && editor == null) return;
 
-        const res = await readBuffer();
+        const cachedValue = state.cachedFiles[currentPath];
+        /* Note(Jonas): If cached value isn't a string, it's not relevant to read the buffer */
+        const res = typeof cachedValue !== "string" ? cachedValue : await readBuffer();
         if (didUnmount.current) return;
 
-        props.vfs.setDirtyFileContent(state.currentPath, res);
-        props.onOpenFile?.(state.currentPath, res);
-        dispatch({type: "EditorActionSaveState", editorState: null, oldContent: res, newPath: state.currentPath});
-    }, [props.onOpenFile, state.currentPath]);
+
+        props.onOpenFile?.(currentPath, res);
+        /* Notes(Jonas): Only save state if content of cachedValue/buffer is a string */
+        if (typeof res === "string") {
+            props.vfs.setDirtyFileContent(currentPath, res);
+            dispatch({type: "EditorActionSaveState", editorState: null, oldContent: res, newPath: currentPath});
+        }
+    }, [props.onOpenFile]);
 
     const invalidateTree = useCallback(async (folder: string): Promise<void> => {
         const files = await props.vfs.listFiles(folder);
@@ -1153,7 +1163,7 @@ export const Editor: React.FunctionComponent<{
                     e.preventDefault();
                     e.stopPropagation();
                     openTabOperations(undefined, {x: e.clientX, y: e.clientY});
-                }} style={{display: "flex", height: "32px", maxWidth: `calc(100% - 48px)`, overflowX: "auto", width: "100%"}}>
+                }} style={{display: "flex", height: "32px", maxWidth: `calc(100 % - 48px)`, overflowX: "auto", width: "100%"}}>
                     {tabs.open.map((t, index) =>
                         <EditorTab
                             key={t}
@@ -1232,7 +1242,7 @@ export const Editor: React.FunctionComponent<{
                     </div>
 
                     <div style={{
-                        display: props.showCustomContent && tabs.open.length > 0 ? "block" : "none",
+                        display: !settingsOrReleaseNotesOpen && props.showCustomContent && tabs.open.length > 0 ? "block" : "none",
                         width: "100%",
                         height: "100%",
                         maxHeight: "100%",
@@ -1264,7 +1274,7 @@ const HoverHighlight = injectStyle("hover-highlight", k => `
     ${k}:hover {
         background-color: var(--primaryLight);
     }
-`);
+        `);
 
 /* TODO(Jonas): Improve parameters this is... not good */
 function tabOperations(
@@ -1456,13 +1466,12 @@ function EditorTab({
         close();
     }, [close]);
 
-    const tabTitle = (
+    const prettyFullPath =
         isSettings ? "Settings" :
             isReleaseNotes ? "Release notes" :
-                fileName(title as string)
-    );
+                usePrettyFilePath(title as string);
 
-    const prettyFullPath = usePrettyFilePath(title as string)
+    const tabTitle = fileName(prettyFullPath);
 
     return (
         <Flex onContextMenu={onContextMenu} className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={e => {
@@ -1489,22 +1498,22 @@ function EditorTab({
 
 const IconHoverBlockClass = injectStyle("icon-hover-block", k => `
     ${k} {
-        padding: 4px;
-    }
+            padding: 4px;
+        }
 
     ${k}:hover {
-        background-color: var(--secondaryDark);
-        border-radius: 4px;
-    }
-`);
+            background-color: var(--secondaryDark);
+            border-radius: 4px;
+        }
+        `);
 
 const StatusBar = injectStyle("status-bar", k => `
     ${k} input {
-        background: transparent;
-        border: none;
-        color: white
-    }
-`);
+            background: transparent;
+            border: none;
+            color: white
+        }
+        `);
 
 const StatusBarWrapper = injectStyle("status-bar-wrapper", k => `
     ${k} {
@@ -1945,6 +1954,6 @@ type RevertSaveFunction = () => void;
 const EditorReleaseNotes = `
 # Preview editor
 
-## 1.0 initial release 
+## 1.0 initial release
 
-`;
+    `;

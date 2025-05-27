@@ -23,12 +23,24 @@ import (
 )
 
 func StartScheduledJob(job *orc.Job, rank int, node string) error {
+	podName := idAndRankToPodName(job.Id, rank)
+
+	{
+		timeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		pod, err := K8sClient.CoreV1().Pods(Namespace).Get(timeout, podName, meta.GetOptions{})
+		cancel()
+		if pod != nil && err == nil {
+			// Pod already exists, do not schedule it
+			return nil
+		}
+	}
+
 	iappConfig := ctrl.RetrieveIAppByJobId(job.Id)
 	iappHandler := util.OptNone[ContainerIAppHandler]()
 	if iappConfig.Present {
 		jobCopy := *job
 
-		handler, ok := iapps[iappConfig.Value.AppName]
+		handler, ok := IApps[iappConfig.Value.AppName]
 		if !ok {
 			return fmt.Errorf("invalid iapp %s", iappConfig.Value.AppName)
 		}
@@ -172,7 +184,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	pod := &core.Pod{
 		TypeMeta: meta.TypeMeta{},
 		ObjectMeta: meta.ObjectMeta{
-			Name:        idAndRankToPodName(job.Id, rank),
+			Name:        podName,
 			Annotations: make(map[string]string),
 			Labels:      make(map[string]string),
 		},
@@ -193,11 +205,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	})
 
 	userContainer := &spec.Containers[0]
-	userContainer.Image = tool.Description.Image
 	userContainer.ImagePullPolicy = core.PullIfNotPresent
 	userContainer.Resources.Limits = map[core.ResourceName]resource.Quantity{}
 	userContainer.Resources.Requests = map[core.ResourceName]resource.Quantity{}
 	userContainer.SecurityContext = &core.SecurityContext{}
+	userContainer.Image = tool.Description.Image
+	if userContainer.Image == "" {
+		userContainer.Image = tool.Description.Container
+	}
 
 	// Scheduling and runtime constraints for Kubernetes
 	// -----------------------------------------------------------------------------------------------------------------
@@ -209,23 +224,31 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		userContainer.Resources.Requests[name] = *quantity
 	}
 
-	cpuMillis := int64(job.Status.ResolvedProduct.Cpu * 1000)
-	memoryMegabytes := int64(job.Status.ResolvedProduct.MemoryInGigs * 1000)
-	gpus := int64(job.Status.ResolvedProduct.Gpu * 1000)
+	product := job.Status.ResolvedProduct
+	cpuMillis := int64(product.Cpu * 1000)
+	memoryMegabytes := int64(product.MemoryInGigs * 1000)
+	gpus := int64(product.Gpu * 1000)
+
+	gpuType := "nvidia.com/gpu"
+
+	machineCategory, ok := shared.ServiceConfig.Compute.Machines[job.Specification.Product.Category]
+	if ok {
+		nodeCat, ok := machineCategory.Groups[job.Specification.Product.Category]
+		if ok {
+			gpuType = nodeCat.GpuResourceType
+		}
+
+		for _, config := range nodeCat.Configs {
+			if config.AdvertisedCpu == product.Cpu && config.MemoryInGigabytes == product.MemoryInGigs && config.Gpu == product.Gpu {
+				cpuMillis = int64(config.ActualCpuMillis)
+				break
+			}
+		}
+	}
 
 	addResource(core.ResourceCPU, cpuMillis, resource.Milli)
 	addResource(core.ResourceMemory, memoryMegabytes, resource.Mega)
-
 	if gpus > 0 {
-		gpuType := "nvidia.com/gpu"
-		machineCategory, ok := shared.ServiceConfig.Compute.Machines[job.Specification.Product.Category]
-		if ok {
-			nodeCat, ok := machineCategory.Groups[job.Specification.Product.Category]
-			if ok {
-				gpuType = nodeCat.GpuResourceType
-			}
-		}
-
 		addResource(core.ResourceName(gpuType), gpus, 0)
 	}
 

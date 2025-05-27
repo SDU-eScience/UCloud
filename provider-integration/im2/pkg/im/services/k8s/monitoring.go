@@ -247,13 +247,15 @@ func loopMonitoring() {
 					}
 				}
 
+				systemReservedCpuMillis := 100 // TODO(Dan): Configurable?
+
 				capacity := shared.SchedulerDimensions{
-					CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
+					CpuMillis:     int(k8sCapacity.Cpu().MilliValue()) - systemReservedCpuMillis,
 					MemoryInBytes: int(k8sCapacity.Memory().Value()),
 				}
 
 				limits := shared.SchedulerDimensions{
-					CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
+					CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()) - systemReservedCpuMillis,
 					MemoryInBytes: int(k8sAllocatable.Memory().Value()),
 				}
 
@@ -289,6 +291,9 @@ func loopMonitoring() {
 						break
 					}
 				}
+
+				capacity.CpuMillis = max(0, capacity.CpuMillis)
+				limits.CpuMillis = max(0, limits.CpuMillis)
 
 				sched.RegisterNode(node.Name, capacity, limits, node.Spec.Unschedulable)
 			}
@@ -428,6 +433,7 @@ func loopMonitoring() {
 	}
 
 	var scheduleMessages []ctrl.JobMessage
+	var allScheduled []*SchedulerReplicaEntry
 
 	for _, sched := range schedulers {
 		jobsToSchedule := sched.Schedule()
@@ -438,6 +444,7 @@ func loopMonitoring() {
 			if !ok {
 				continue
 			}
+			allScheduled = append(allScheduled, toSchedule)
 
 			if job.Specification.Replicas == 1 {
 				scheduleMessages = append(scheduleMessages, ctrl.JobMessage{
@@ -476,6 +483,27 @@ func loopMonitoring() {
 					}
 				}
 			}
+		}
+	}
+
+	for newIdx := 0; newIdx < len(entriesToSubmit); newIdx++ {
+		newJob := entriesToSubmit[newIdx]
+
+		found := false
+		for schedIdx := 0; schedIdx < len(allScheduled); schedIdx++ {
+			scheduled := allScheduled[schedIdx]
+			if scheduled.JobId == newJob.Id {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			scheduleMessages = append(scheduleMessages, ctrl.JobMessage{
+				JobId: newJob.Id,
+				Message: "There are currently no machines available to run your job.\n" +
+					"A smaller machine might give you quicker access to your job.",
+			})
 		}
 	}
 
