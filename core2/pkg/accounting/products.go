@@ -17,7 +17,7 @@ import (
 
 var productsByProvider = struct {
 	Mu        sync.RWMutex
-	Providers []string // sorted keys stored present in Buckets
+	Providers []string // sorted keys stored present in AppBuckets
 	Buckets   map[string]*providerBucket
 }{}
 
@@ -391,6 +391,29 @@ func ProductCategoryRetrieve(actor rpc.Actor, name, provider string) (accapi.Pro
 		err = util.HttpErr(http.StatusNotFound, "category not found")
 	}
 	return accapi.ProductCategory{}, err
+}
+
+func ProductCategoriesByProvider(actor rpc.Actor, provider string) []accapi.ProductCategory {
+	results, err := ProductBrowse(actor, accapi.ProductsBrowseRequest{
+		ItemsPerPage: 10000,
+		ProductsFilter: accapi.ProductsFilter{
+			FilterProvider: util.OptValue(provider),
+		},
+	})
+
+	var result []accapi.ProductCategory
+	categorySet := map[string]util.Empty{}
+
+	if err == nil {
+		for _, item := range results.Items {
+			if _, exists := categorySet[item.Category.Name]; !exists {
+				categorySet[item.Category.Name] = util.Empty{}
+				result = append(result, item.Category)
+			}
+		}
+	}
+
+	return result
 }
 
 func translateToChargeType(category accapi.ProductCategory) string {

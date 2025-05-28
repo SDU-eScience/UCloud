@@ -57,10 +57,10 @@ func newEnv(t *testing.T, cat accapi.ProductCategory) *env {
 	accGlobals.Usage = map[string]*scopedUsage{}
 	accGlobals.BucketsByCategory = map[accapi.ProductCategoryIdV2]*internalBucket{}
 
-	internalCategoryOrInit(capacityCategory)
-	internalCategoryOrInit(timeCategory)
+	internalBucketOrInit(capacityCategory)
+	internalBucketOrInit(timeCategory)
 
-	b := internalCategoryOrInit(cat)
+	b := internalBucketOrInit(cat)
 
 	// Create a markdown scratch-file once per test and clean it up automatically.
 	fileName := fmt.Sprintf("/tmp/diagram-%s.md", strings.ReplaceAll(t.Name(), "/", "-"))

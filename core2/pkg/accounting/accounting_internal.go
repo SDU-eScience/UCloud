@@ -429,7 +429,7 @@ func internalScanAllocations(b *internalBucket, now time.Time) {
 //
 // Lookup functions exist for each type of entity that exist in the system.
 
-func internalCategoryOrInit(category accapi.ProductCategory) *internalBucket {
+func internalBucketOrInit(category accapi.ProductCategory) *internalBucket {
 	id := accapi.ProductCategoryIdV2{
 		Name:     category.Name,
 		Provider: category.Provider,
@@ -899,6 +899,17 @@ func lInternalWalletTotalAllocatedActive(b *internalBucket, w *internalWallet) i
 	return sum
 }
 
+func internalWalletTotalQuotaActive(b *internalBucket, wId accWalletId) (int64, bool) {
+	b.Mu.RLock()
+	owner, ok := b.WalletsById[wId]
+	var result int64
+	if ok {
+		result = lInternalWalletTotalQuotaActive(b, owner)
+	}
+	b.Mu.RUnlock()
+	return result, ok
+}
+
 func lInternalWalletTotalQuotaActive(b *internalBucket, w *internalWallet) int64 {
 	sum := int64(0)
 	for _, group := range w.AllocationsByParent {
@@ -1056,6 +1067,7 @@ type walletFilter struct {
 	Category    util.Option[string]
 
 	IncludeChildren bool
+	RequireActive   bool
 }
 
 func internalRetrieveWallets(
@@ -1087,15 +1099,17 @@ func internalRetrieveWallets(
 		w := lInternalWalletByOwner(b, now, owner.Id)
 
 		groups := w.AllocationsByParent
-		anyActive := false
-		for _, group := range groups {
-			if now.After(lInternalEarliestExpiration(b, group)) {
-				anyActive = true
-				break
+		shouldInclude := !filter.RequireActive
+		if filter.RequireActive {
+			for _, group := range groups {
+				if now.After(lInternalEarliestExpiration(b, group)) {
+					shouldInclude = true
+					break
+				}
 			}
 		}
 
-		if anyActive {
+		if shouldInclude {
 			apiWallet := accapi.WalletV2{
 				Owner:                   owner.WalletOwner(),
 				PaysFor:                 b.Category,

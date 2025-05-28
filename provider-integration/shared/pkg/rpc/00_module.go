@@ -18,6 +18,11 @@ var DefaultClient *Client
 var DefaultServer Server
 var ServerAuthenticator func(r *http.Request) (Actor, *util.HttpError)
 
+var LookupActor func(username string) (Actor, bool) = func(username string) (Actor, bool) {
+	panic("LookupActor has not been defined in this context. You must set " +
+		"`rpc.LookupActor = func() { ... }` before using this function.")
+}
+
 type Actor struct {
 	Username         string
 	Role             Role
@@ -26,12 +31,53 @@ type Actor struct {
 	Membership       ProjectMembership // TODO implement this
 	Groups           GroupMembership   // TODO implement this
 	ProviderProjects ProviderProjects  // TODO implement this (should only show up if also in membership)
+	Domain           string            // email domain, TODO implement this
+	OrgId            string            // TODO implement this
 }
 
 type ProjectId string
 type GroupId string
 type ProjectRole string
 type ProviderId string
+
+const (
+	ProjectRolePI    ProjectRole = "PI"
+	ProjectRoleAdmin ProjectRole = "ADMIN"
+	ProjectRoleUser  ProjectRole = "USER"
+)
+
+var ProjectRoleOptions = []ProjectRole{ProjectRolePI, ProjectRoleAdmin, ProjectRoleUser}
+
+func (p ProjectRole) Power() int {
+	switch p {
+	case ProjectRolePI:
+		return 3
+	case ProjectRoleAdmin:
+		return 2
+	case ProjectRoleUser:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func (p ProjectRole) Normalize() ProjectRole {
+	return util.EnumOrDefault(p, ProjectRoleOptions, ProjectRoleUser)
+}
+
+func (p ProjectRole) Satisfies(requirement ProjectRole) bool {
+	if p == requirement {
+		return true
+	}
+
+	power := p.Power()
+	requiredPower := p.Power()
+	if power > 0 && requiredPower > 0 {
+		return power >= requiredPower
+	} else {
+		return false
+	}
+}
 
 type GroupMembership map[GroupId]ProjectId
 type ProjectMembership map[ProjectId]ProjectRole

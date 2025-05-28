@@ -51,6 +51,7 @@ type Pool struct {
 }
 
 var Database *Pool = nil
+var DiscardingTest = false
 
 func (ctx *Pool) open() *Transaction {
 	for i := 0; i < 10; i++ {
@@ -104,6 +105,15 @@ func NewTx[T any](fn func(tx *Transaction) T) T {
 }
 
 func ContinueTx[T any](ctx Ctx, fn func(tx *Transaction) T) T {
+	if ctx == nil {
+		if !DiscardingTest {
+			panic("no database")
+		} else {
+			var t T
+			return t
+		}
+	}
+
 	// TODO(Dan): Not sure this works if ctx is not Database
 
 	var errorLog []string
