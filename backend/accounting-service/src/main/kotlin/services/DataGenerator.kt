@@ -20,7 +20,9 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.project.api.ListProjectsRequest
+import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.project.api.UserProjectSummary
 import dk.sdu.cloud.service.StaticTimeProvider
 import dk.sdu.cloud.service.SystemTimeProvider
 import dk.sdu.cloud.service.Time
@@ -51,12 +53,12 @@ class DataGenerator(
 
         val p = provider.items.firstOrNull { it.title == "Provider k8" ||it.title == "Provider gok8s" } ?: throw RPCException.fromStatusCode(
             HttpStatusCode.InternalServerError,
-            "k8 provider is not initialized"
+            "k8 go gok8s provider is not initialized"
         )
 
         if (request.createProjectStructure) {
             createUsers(testPi, testUser)
-            createProjects(p.projectId, actorAndProject)
+            createProjects(p, actorAndProject)
         } else {
             piUser = Actor.User(SecurityPrincipal(testPi, Role.ADMIN, "test", "pi", "test@test.dk", false, serviceAgreementAccepted = true))
             userUser = Actor.User(SecurityPrincipal(testUser, Role.ADMIN, "test", "user", "test@test.dk", false, serviceAgreementAccepted = true))
@@ -147,15 +149,11 @@ class DataGenerator(
     private lateinit var storageWallet: WalletV2
 
     private suspend fun setComputeAndStorageWallets(actorAndProject: ActorAndProject) {
-        println(actorAndProject)
-
         val wallets = system.sendRequest(
             AccountingRequest.BrowseWallets(
                 idCard = idCardService.fetchIdCard(actorAndProject)
             )
         )
-
-        println(wallets)
 
         computeWallet = wallets.find { it.paysFor.productType == ProductType.COMPUTE } ?: throw RPCException("No compute wallet found", HttpStatusCode.InternalServerError)
         storageWallet = wallets.find { it.paysFor.productType == ProductType.STORAGE } ?: throw RPCException("No storage wallet found", HttpStatusCode.InternalServerError)
@@ -163,7 +161,7 @@ class DataGenerator(
     }
 
     // Generates project structure with credits
-    private suspend fun createProjects(rootProjectId: String, actorAndProject: ActorAndProject) {
+    private suspend fun createProjects(rootProject: UserProjectSummary, actorAndProject: ActorAndProject) {
         setComputeAndStorageWallets(actorAndProject)
 
         var grantId = grantsV2Service.submitRevision(
@@ -175,36 +173,36 @@ class DataGenerator(
                         GrantApplication.AllocationRequest(
                             computeWallet.paysFor.name,
                             computeWallet.paysFor.provider,
-                            rootProjectId,
+                            rootProject.projectId,
                             500_000,
                             GrantApplication.Period(
                                 Time.now(),
                                 Time.now() + YEAR
                             ),
-                            "Provider k8"
+                            rootProject.title
                         ),
                         GrantApplication.AllocationRequest(
                             storageWallet.paysFor.name,
                             storageWallet.paysFor.provider,
-                            rootProjectId,
+                            rootProject.projectId,
                             500_000,
                             GrantApplication.Period(
                                 Time.now(),
                                 Time.now() + YEAR
                             ),
-                            "Provider k8"
+                            rootProject.title
                         )
                     ),
                     GrantApplication.Form.PlainText("mojn"),
                     emptyList(),
-                    parentProjectId = rootProjectId
+                    parentProjectId = rootProject.projectId
                 ),
                 "grant application"
             )
         ).id
 
         grantsV2Service.updateState(
-            ActorAndProject(actorAndProject.actor, rootProjectId),
+            ActorAndProject(actorAndProject.actor, rootProject.projectId),
             GrantsV2.UpdateState.Request(grantId, GrantApplication.State.APPROVED)
         )
 
@@ -217,36 +215,36 @@ class DataGenerator(
                         GrantApplication.AllocationRequest(
                             computeWallet.paysFor.name,
                             computeWallet.paysFor.provider,
-                            rootProjectId,
+                            rootProject.projectId,
                             500_000,
                             GrantApplication.Period(
                                 Time.now(),
                                 Time.now() + YEAR
                             ),
-                            "Provider k8"
+                            rootProject.title
                         ),
                         GrantApplication.AllocationRequest(
                             storageWallet.paysFor.name,
                             storageWallet.paysFor.provider,
-                            rootProjectId,
+                            rootProject.projectId,
                             500_000,
                             GrantApplication.Period(
                                 Time.now(),
                                 Time.now() + YEAR
                             ),
-                            "Provider k8"
+                            rootProject.title
                         )
                     ),
                     GrantApplication.Form.PlainText("mojn"),
                     emptyList(),
-                    parentProjectId = rootProjectId
+                    parentProjectId = rootProject.projectId
                 ),
                 "grant application"
             )
         ).id
 
         grantsV2Service.updateState(
-            ActorAndProject(actorAndProject.actor, rootProjectId),
+            ActorAndProject(actorAndProject.actor, rootProject.projectId),
             GrantsV2.UpdateState.Request(grantId, GrantApplication.State.APPROVED)
         )
 
@@ -408,29 +406,29 @@ class DataGenerator(
                             GrantApplication.AllocationRequest(
                                 computeWallet.paysFor.name,
                                 computeWallet.paysFor.provider,
-                                rootProjectId,
+                                rootProject.projectId,
                                 5_000,
                                 GrantApplication.Period(
                                     Time.now(),
                                     Time.now() + YEAR
                                 ),
-                                "Provider k8"
+                                rootProject.title
                             ),
                             GrantApplication.AllocationRequest(
                                 storageWallet.paysFor.name,
                                 storageWallet.paysFor.provider,
-                                rootProjectId,
+                                rootProject.projectId,
                                 50_000,
                                 GrantApplication.Period(
                                     Time.now(),
                                     Time.now() + YEAR
                                 ),
-                                "Provider k8"
+                                rootProject.title
                             )
                         ),
                         GrantApplication.Form.PlainText("mojn"),
                         emptyList(),
-                        parentProjectId = rootProjectId
+                        parentProjectId = rootProject.projectId
                     ),
                     "grant application"
                 )
@@ -439,12 +437,19 @@ class DataGenerator(
     }
 
     private suspend fun createUsageData(request: AccountingV2.AdminGenerateTestData.Request, actorAndProject: ActorAndProject) {
+        if (actorAndProject.project == null) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Should be run from Provider project")
+        }
         val chargeableProjects = Projects.listProjects.call(
             ListProjectsRequest(
                 piUser.username,
             ),
             authenticatedClient
         ).orThrow().items.map { it.projectId }
+
+        if (chargeableProjects.isEmpty()) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Test project structure missing - run with createProjectStructure: true")
+        }
 
         setComputeAndStorageWallets(actorAndProject)
         //Deletes samples to remove wierd usage graphs
