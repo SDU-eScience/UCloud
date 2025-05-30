@@ -13,7 +13,7 @@ data class UsageOverTimeDatePointAPI(
 
 @Serializable
 data class Prediction(
-    val daysInFuture: Int,
+    val timestamp: Long,
     val value: Double,
 )
 

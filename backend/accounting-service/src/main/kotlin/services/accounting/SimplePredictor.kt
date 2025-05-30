@@ -7,6 +7,7 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.delay
+import org.joda.time.DateTime
 import kotlin.math.pow
 
 class SimplePredictor(
@@ -19,7 +20,7 @@ class SimplePredictor(
         predictions = mutableMapOf<Long, WalletPrediction>()
         var lastAddition = 0L
         while (true) {
-            if (Time.now() - lastAddition > 1000L * 60 * 60 * 24 ) {
+            if (Time.now() - lastAddition > 1000L * 60 * 60 * 12 ) {
                 generatePredictions()
                 lastAddition = Time.now()
             }
@@ -33,7 +34,7 @@ class SimplePredictor(
     }
 
     fun getPrediction(walletId: Long): WalletPrediction {
-        return predictions[walletId] ?: WalletPrediction(walletId, emptyList())
+        return predictions[walletId] ?: WalletPrediction(walletId, (1..30).map { Prediction((Time.now() + 1000L * 60 * 60 * 24 * it), 0.0) })
     }
 
 
@@ -94,7 +95,7 @@ class SimplePredictor(
     // Will create the predicted values for the next 30 days
     private fun createPredictions(walletId: Long, xs: ArrayList<Int>, ys: ArrayList<Double>) {
         if (xs.size != ys.size && xs.size < 2) {
-            println("Sizes are of: xs:${xs.size}, ys:${ys.size}")
+            println("Sizes of xs and ys are inconsistent: xs:${xs.size}, ys:${ys.size}")
             return
         }
         val numberOfXs = xs.size
@@ -111,10 +112,11 @@ class SimplePredictor(
 
         val results = mutableListOf<Prediction>()
         var daysInFuture = 1
+        val now = DateTime.now()
         (numberOfXs+1..numberOfXs + 30).forEach {
             results.add(
                 Prediction(
-                    daysInFuture,
+                    now.plusDays(daysInFuture).millis,
                     simpleLinearRegression(it))
             )
             daysInFuture++
