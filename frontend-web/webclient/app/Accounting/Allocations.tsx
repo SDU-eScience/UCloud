@@ -792,6 +792,7 @@ const Allocations: React.FunctionComponent = () => {
             }
 
             await callAPI(Accounting.rootAllocate(bulkRequestOf(...requests)));
+            snackbarStore.addSuccess("Root allocation has been created", false);
             dispatchEvent({type: "ResetRootAllocation"});
             dispatchEvent({type: "Init"});
         } catch (e) {
