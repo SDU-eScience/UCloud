@@ -98,11 +98,6 @@ func prepareInvocationOnJobCreate(
 
 	container.Command = []string{fmt.Sprintf("/work/job-%d.sh", rank)}
 
-	commandResults := generateNixEntrypoint(job, rank, pod, container, parametersAndValues, jobFolder, container.Command)
-	if commandResults.Valid {
-		container.Command = commandResults.NewCommand
-	}
-
 	for k, param := range environment {
 		commandList := orc.BuildParameter(param, parametersAndValues, false, argBuilder, nil)
 		envValue := strings.Join(commandList, " ")
