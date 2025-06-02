@@ -247,7 +247,10 @@ func loopMonitoring() {
 					}
 				}
 
-				systemReservedCpuMillis := 100 // TODO(Dan): Configurable?
+				// NOTE(Dan): This needs to account for at least 200mCPU from init containers. In addition, there
+				// might be other pods running on the node which reserve some resources.
+				// TODO(Dan): Make this configurable?
+				systemReservedCpuMillis := 500
 
 				capacity := shared.SchedulerDimensions{
 					CpuMillis:     int(k8sCapacity.Cpu().MilliValue()) - systemReservedCpuMillis,
@@ -294,6 +297,8 @@ func loopMonitoring() {
 
 				capacity.CpuMillis = max(0, capacity.CpuMillis)
 				limits.CpuMillis = max(0, limits.CpuMillis)
+
+				log.Info("Register node: %s %v %v", node.Name, capacity, limits)
 
 				sched.RegisterNode(node.Name, capacity, limits, node.Spec.Unschedulable)
 			}

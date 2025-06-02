@@ -5,8 +5,8 @@ import (
 	"slices"
 	"strings"
 	"time"
-	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/pkg/im/services/k8s/shared"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 )
@@ -176,17 +176,21 @@ func (s *Scheduler) PruneReplicas() []SchedulerReplicaEntry {
 
 	now := s.Time
 
+	// Set all nodes to full capacity (state is now being recalculated)
+	for _, n := range s.Nodes {
+		n.Remaining = n.Capacity
+	}
+
 	for i := 0; i < len(s.Replicas); i++ {
 		replica := &s.Replicas[i]
-		if replica.LastSeen == now {
-			continue
-		}
 
-		// NOTE(Dan): The node can be nil if the replica lost its node
-		node := s.Nodes[replica.Node]
-		if node != nil {
-			dims := &node.Remaining
-			dims.Add(replica.SchedulerDimensions)
+		if replica.LastSeen == now {
+			// NOTE(Dan): The node can be nil if the replica lost its node
+			node := s.Nodes[replica.Node]
+			if node != nil {
+				node.Remaining.Subtract(replica.SchedulerDimensions)
+			}
+			continue
 		}
 
 		result = append(result, *replica)
@@ -458,7 +462,9 @@ outer:
 				continue
 			}
 
+			beforeS := node.Remaining.String()
 			node.Remaining.Subtract(entry.SchedulerDimensions)
+			afterS := node.Remaining.String()
 
 			// Check if the new usage on the node exceeds the limits of the node
 			usage := node.Capacity.SubtractImmutable(node.Remaining)
@@ -468,6 +474,9 @@ outer:
 			}
 
 			allocatedNodes = append(allocatedNodes, node.Name)
+
+			log.Info("New dimensions: %v: %v -> %v %v", entry.JobId, beforeS, afterS)
+
 			continue outer
 		}
 

@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"fmt"
 	"sync"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -41,6 +42,10 @@ type SchedulerDimensions struct {
 	CpuMillis     int
 	MemoryInBytes int
 	Gpu           int
+}
+
+func (dims SchedulerDimensions) String() string {
+	return fmt.Sprintf("{CpuMillis=%v,MemoryInBytes=%v,Gpu=%v}", dims.CpuMillis, dims.MemoryInBytes, dims.Gpu)
 }
 
 func (dims *SchedulerDimensions) Add(other SchedulerDimensions) {
