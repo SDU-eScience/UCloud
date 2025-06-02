@@ -151,6 +151,7 @@ type K8sMachineCategoryGroup struct {
 	AllowVirtualMachines bool
 	AllowsContainers     bool
 	GpuResourceType      string
+	CustomRuntime        string
 }
 
 type K8sMachineConfiguration struct {
@@ -496,6 +497,8 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 	if result.GpuResourceType == "" {
 		result.GpuResourceType = "nvidia.com/gpu"
 	}
+
+	result.CustomRuntime = cfgutil.OptionalChildText(filePath, node, "customRuntime", success)
 
 	var cpu []int
 	var actualCpuMillis []int

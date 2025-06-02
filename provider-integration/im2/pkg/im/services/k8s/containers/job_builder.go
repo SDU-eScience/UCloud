@@ -72,11 +72,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		}
 	}
 
-	// TODO Get these from configuration
-	tolerationKv := util.Option[util.Tuple2[string, string]]{}
-	priorityClass := util.Option[string]{}
-	customRuntimesByCategory := map[string]string{}
-
 	namespace := ServiceConfig.Compute.Namespace
 
 	application := &job.Status.ResolvedApplication.Invocation
@@ -239,6 +234,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		nodeCat, ok := machineCategory.Groups[job.Specification.Product.Category]
 		if ok {
 			gpuType = nodeCat.GpuResourceType
+			if nodeCat.CustomRuntime != "" {
+				spec.RuntimeClassName = &nodeCat.CustomRuntime
+			}
 		}
 
 		for _, config := range nodeCat.Configs {
@@ -255,29 +253,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		addResource(core.ResourceName(gpuType), gpus, 0)
 	}
 
-	// TODO We used to set a nodeselector but this appears redundant since we are already setting the node.
 	pod.Spec.NodeName = node
 
 	userContainer.SecurityContext.RunAsNonRoot = util.BoolPointer(!application.Container.RunAsRoot)
 	userContainer.SecurityContext.AllowPrivilegeEscalation = util.BoolPointer(application.Container.RunAsRoot)
-
-	customRuntime, hasRuntime := customRuntimesByCategory[job.Specification.Product.Category]
-	if hasRuntime {
-		spec.RuntimeClassName = &customRuntime
-	}
-
-	if priorityClass.IsSet() {
-		spec.PriorityClassName = priorityClass.Get()
-	}
-
-	if tolerationKv.IsSet() {
-		kv := tolerationKv.Get()
-		spec.Tolerations = append(spec.Tolerations, core.Toleration{
-			Key:      kv.First,
-			Operator: core.TolerationOpEqual,
-			Value:    kv.Second,
-		})
-	}
 
 	spec.Hostname = fmt.Sprintf("j-%s-job-%d", job.Id, rank)
 	spec.Subdomain = fmt.Sprintf("j-%v", job.Id)
