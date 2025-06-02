@@ -126,6 +126,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	var firewall *networking.NetworkPolicy
 	var service *core.Service
 	var sshService *core.Service
+	var ipService *core.Service
 
 	if rank == 0 {
 		firewall = &networking.NetworkPolicy{
@@ -166,6 +167,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 				},
 			})
 		}
+
+		ipService = preparePublicIp(job, firewall)
 	}
 
 	// JobParameters.json
@@ -411,9 +414,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// -----------------------------------------------------------------------------------------------------------------
 	prepareFirewallOnJobCreate(job, pod, firewall, service)
 
-	// Public IP and SSH
+	// SSH
 	// -----------------------------------------------------------------------------------------------------------------
-	preparePublicIp(job, service, firewall)
 	injectSshKeys(job.Id, pod, userContainer)
 
 	// Shared-memory
@@ -436,8 +438,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// Job metadata
 	// -----------------------------------------------------------------------------------------------------------------
 	idLabel := shared.JobIdLabel(job.Id)
+	rankLabel := shared.JobRankLabel(rank)
 	pod.Annotations[idLabel.First] = idLabel.Second
+	pod.Annotations[rankLabel.First] = rankLabel.Second
 	pod.Labels[idLabel.First] = idLabel.Second
+	pod.Labels[rankLabel.First] = rankLabel.Second
 	if job.Owner.Project != "" {
 		pod.Labels["ucloud.dk/workspaceId"] = job.Owner.Project
 	}
@@ -495,6 +500,12 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		sshService.OwnerReferences = append(sshService.OwnerReferences, ownerReference)
 
 		_, myError := K8sClient.CoreV1().Services(namespace).Create(ctx, sshService, meta.CreateOptions{})
+		err = util.MergeError(err, myError)
+	}
+	if ipService != nil && err == nil {
+		ipService.OwnerReferences = append(ipService.OwnerReferences, ownerReference)
+
+		_, myError := K8sClient.CoreV1().Services(namespace).Create(ctx, ipService, meta.CreateOptions{})
 		err = util.MergeError(err, myError)
 	}
 

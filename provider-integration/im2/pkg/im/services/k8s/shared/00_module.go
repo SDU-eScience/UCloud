@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"fmt"
 	"slices"
 	"time"
 	orc "ucloud.dk/shared/pkg/orchestrators"
@@ -15,6 +16,10 @@ func Init() {
 
 func JobIdLabel(jobId string) util.Tuple2[string, string] {
 	return util.Tuple2[string, string]{"ucloud.dk/jobId", jobId}
+}
+
+func JobRankLabel(rank int) util.Tuple2[string, string] {
+	return util.Tuple2[string, string]{"ucloud.dk/rank", fmt.Sprint(rank)}
 }
 
 type JobRunningTime struct {
