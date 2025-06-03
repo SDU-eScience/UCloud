@@ -96,7 +96,7 @@ func JobDimensions(job *orc.Job) SchedulerDimensions {
 	} else {
 		return SchedulerDimensions{
 			CpuMillis:     prod.Cpu * 1000,
-			MemoryInBytes: prod.MemoryInGigs * (1024 * 1024 * 1024),
+			MemoryInBytes: prod.MemoryInGigs * (1000 * 1000 * 1000),
 			Gpu:           0,
 		}
 	}

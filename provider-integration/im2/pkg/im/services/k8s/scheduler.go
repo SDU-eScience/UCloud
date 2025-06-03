@@ -462,9 +462,7 @@ outer:
 				continue
 			}
 
-			beforeS := node.Remaining.String()
 			node.Remaining.Subtract(entry.SchedulerDimensions)
-			afterS := node.Remaining.String()
 
 			// Check if the new usage on the node exceeds the limits of the node
 			usage := node.Capacity.SubtractImmutable(node.Remaining)
@@ -474,8 +472,6 @@ outer:
 			}
 
 			allocatedNodes = append(allocatedNodes, node.Name)
-
-			log.Info("New dimensions: %v: %v -> %v %v", entry.JobId, beforeS, afterS)
 
 			continue outer
 		}
@@ -494,6 +490,14 @@ outer:
 	}
 
 	return allocatedNodes
+}
+
+func (s *Scheduler) SynchronizeNodeUsage(name string, dims shared.SchedulerDimensions) {
+	node, ok := s.Nodes[name]
+	if ok {
+		node.Remaining = node.Capacity
+		node.Remaining.Subtract(dims)
+	}
 }
 
 func numericCompare(a, b int) int {
