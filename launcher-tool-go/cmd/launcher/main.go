@@ -240,10 +240,19 @@ func main() {
 						filteredItems = append(filteredItems, termio.MenuItem{Value: item, Message: item})
 					}
 				}
-				if len(filteredItems) == 0 {
+				for len(filteredItems) == 0 {
 					fmt.Println("You didn't select any providers. Use space to select a provider and enter to finish.")
 					fmt.Println("Alternatively, you can exit with crtl + c.")
 					fmt.Println()
+
+					multiple, err = providerMenu.SelectMultiple()
+					launcher.HardCheck(err)
+					for _, selectedItem := range multiple {
+						item := selectedItem.Value
+						if !slices.Contains(configured, item) {
+							filteredItems = append(filteredItems, termio.MenuItem{Value: item, Message: item})
+						}
+					}
 				}
 
 				for _, provider := range filteredItems {
@@ -767,14 +776,16 @@ func CreateProviderMenu() termio.Menu {
 			})
 		}
 	}
-	items = append(items, termio.MenuItem{
-		Value:     "Dev",
-		Message:   "Already Configured ",
-		Separator: true,
-	})
+	if len(alreadyConfigured) > 0 {
+		items = append(items, termio.MenuItem{
+			Value:     "Dev",
+			Message:   "Already Configured ",
+			Separator: true,
+		})
+	}
 	items = append(items, alreadyConfigured...)
 	return termio.Menu{
-		Prompt: "Select the providers you wish to configure",
+		Prompt: "Select the providers you wish to configure (use space to select and enter to confirm selection)",
 		Items:  items,
 	}
 }
