@@ -49,7 +49,7 @@ function convertDependencyListToObject(dependencies) {
     return result;
 }
 
-export function useMemoWithLogging<T>(fn: () => T, dependencies): T {
+export function useMemoWithLogging<T>(fn: () => T, dependencies: any): T {
     const previousDependencies = useRef(undefined);
     useEffect(() => {
         if (previousDependencies.current != null) {
