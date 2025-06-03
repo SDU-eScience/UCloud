@@ -34,6 +34,8 @@ data class BreakdownByProjectPointAPI(
     val title: String,
     val projectId: String?,
     val usage: Double,
+    val newestPoint: Double?,
+    val oldestPoint: Double?,
 )
 
 @Serializable
