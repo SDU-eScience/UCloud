@@ -164,6 +164,8 @@ func Launch() {
 			Membership:       make(rpc.ProjectMembership), // TODO implement this
 			Groups:           make(rpc.GroupMembership),   // TODO implement this
 			ProviderProjects: make(rpc.ProviderProjects),  // TODO implement this
+			Domain:           "",                          // TODO implement this
+			OrgId:            "",                          // TODO implement this
 			TokenInfo: util.OptValue(rpc.TokenInfo{
 				IssuedAt:               issuedAt,
 				ExpiresAt:              expiresAt,

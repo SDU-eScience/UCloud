@@ -44,7 +44,7 @@ func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, 
 
 	now := time.Now()
 
-	bucket := internalCategoryOrInit(category)
+	bucket := internalBucketOrInit(category)
 	recipientOwner := internalOwnerByReference(actor.Project.Value)
 	recipient := internalWalletByOwner(bucket, now, recipientOwner.Id)
 

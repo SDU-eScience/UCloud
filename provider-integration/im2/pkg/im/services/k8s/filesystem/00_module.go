@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/MichaelTJones/walk"
 	"io"
 	"math"
 	"net/http"
@@ -14,8 +15,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/MichaelTJones/walk"
 	"ucloud.dk/pkg/im/controller/fsearch"
 
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
@@ -938,11 +937,12 @@ func transferDestinationInitiate(request ctrl.FilesTransferRequestInitiateDestin
 
 func transferSourceBegin(request ctrl.FilesTransferRequestStart, session ctrl.TransferSession) error {
 	err := RegisterTask(TaskInfoSpecification{
-		Type:          FileTaskTransfer,
-		UCloudSource:  util.OptValue[string](session.SourcePath),
-		MoreInfo:      util.OptValue[string](session.Id),
-		HasUCloudTask: true,
-		Icon:          "heroPaperAirplane",
+		Type:           FileTaskTransfer,
+		UCloudUsername: session.Username,
+		UCloudSource:   util.OptValue[string](session.SourcePath),
+		MoreInfo:       util.OptValue[string](session.Id),
+		HasUCloudTask:  true,
+		Icon:           "heroPaperAirplane",
 	})
 
 	return err

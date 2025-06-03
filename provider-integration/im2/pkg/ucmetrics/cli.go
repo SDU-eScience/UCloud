@@ -265,7 +265,7 @@ func HandleCli(args []string) {
 						readBytesPerSec := float64(after.Read-before.Read) / netTime.Seconds()
 						writeBytesPerSec := float64(after.Write-before.Write) / netTime.Seconds()
 						data = append(data, ucviz.WidgetDiagramSeries{
-							Name: fmt.Sprintf("%s read", name),
+							Name: fmt.Sprintf("%s receive", name),
 							Data: []ucviz.WidgetDiagramDataPoint{
 								{
 									X: float64(ms),
@@ -274,7 +274,7 @@ func HandleCli(args []string) {
 							},
 						})
 						data = append(data, ucviz.WidgetDiagramSeries{
-							Name: fmt.Sprintf("%s write", name),
+							Name: fmt.Sprintf("%s send", name),
 							Data: []ucviz.WidgetDiagramDataPoint{
 								{
 									X: float64(ms),

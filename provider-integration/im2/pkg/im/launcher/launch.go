@@ -93,6 +93,8 @@ func Launch() {
 		return
 	}
 
+	fmt.Printf("UCloud/IM starting up... [1/4] Hello!\n")
+
 	envoySecret, userModeSecretOk := os.LookupEnv("UCLOUD_USER_SECRET")
 	if mode == cfg.ServerModeUser {
 		if !userModeSecretOk || envoySecret == "" {
@@ -119,6 +121,8 @@ func Launch() {
 		envoySecret = util.RandomToken(16)
 	}
 	cfg.OwnEnvoySecret = envoySecret
+
+	fmt.Printf("UCloud/IM starting up... [2/4] Getting things ready\n")
 
 	var dbPool *db.Pool = nil
 
@@ -172,6 +176,8 @@ func Launch() {
 		moduleArgs.Database = dbPool.Connection
 	}
 
+	fmt.Printf("UCloud/IM starting up... [3/4] Still working on it\n")
+
 	if mode == cfg.ServerModeServer {
 		// NOTE(Dan): The initial setup is _not_ reloadable. This is similar to how the HTTP server setup is also not
 		// reloadable.
@@ -202,6 +208,7 @@ func Launch() {
 		gateway.InitIpc()
 	}
 
+	fmt.Printf("UCloud/IM starting up... [4/4] Ready!\n")
 	log.Info("UCloud is ready!")
 
 	if mode == cfg.ServerModeServer || mode == cfg.ServerModeUser {

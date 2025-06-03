@@ -135,6 +135,7 @@ func AssignAndPrepareSshService(job *orc.Job) util.Option[*core.Service] {
 		return util.OptNone[*core.Service]()
 	} else {
 		serviceLabel := JobIdLabel(job.Id)
+		rankLabel := JobRankLabel(0)
 		service := &core.Service{
 			ObjectMeta: meta.ObjectMeta{
 				Name: fmt.Sprintf("j-%v-ssh", job.Id),
@@ -147,6 +148,7 @@ func AssignAndPrepareSshService(job *orc.Job) util.Option[*core.Service] {
 				ClusterIP: "",
 				Selector: map[string]string{
 					serviceLabel.First: serviceLabel.Second,
+					rankLabel.First:    rankLabel.Second,
 				},
 				ExternalIPs: []string{sshConfig.IpAddress},
 				Ports: []core.ServicePort{

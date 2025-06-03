@@ -2,9 +2,9 @@ package fsearch
 
 import (
 	"bytes"
+	_ "embed"
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/sugarme/tokenizer"
-	"github.com/sugarme/tokenizer/pretrained"
 	"hash/fnv"
 	"strings"
 	"sync"
@@ -58,14 +58,12 @@ type SearchBucket struct {
 var tk *tokenizer.Tokenizer
 var initOnce sync.Once
 
+//go:embed tokenizer/tokenizer.json
+var tokenizerData []byte
+
 func Init() {
 	initOnce.Do(func() {
-		configFile, err := tokenizer.CachedPath("bert-base-uncased", "tokenizer.json")
-		if err != nil {
-			panic(err)
-		}
-
-		tok, err := pretrained.FromFile(configFile)
+		tok, err := TokenizerFromData(tokenizerData)
 		if err != nil {
 			panic(err)
 		}

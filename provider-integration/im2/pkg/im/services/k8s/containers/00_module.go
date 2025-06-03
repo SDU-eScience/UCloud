@@ -48,7 +48,6 @@ func Init() ctrl.JobsService {
 	initIntegratedTerminal()
 
 	loadIApps()
-	LoadNixModules()
 
 	return ctrl.JobsService{
 		Terminate:                terminate,
@@ -340,7 +339,7 @@ func terminate(request ctrl.JobTerminateRequest) error {
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
-	return RequestNixParameter(app)
+	return nil
 }
 
 func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, error) {
