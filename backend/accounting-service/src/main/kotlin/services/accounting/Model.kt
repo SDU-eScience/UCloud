@@ -148,6 +148,7 @@ data class InternalWallet(
     var isDirty: Boolean,
     var wasLocked: Boolean,
     var lastSignificantUpdateAt: Long,
+    var lowBalanceNotified: Boolean = false
 ) {
     fun parentEdgeCost(parentId: Int, now: Long): Long {
         val group = allocationsByParent.getValue(parentId)

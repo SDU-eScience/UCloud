@@ -13,9 +13,7 @@ object AccountingService : Service {
         micro.install(AuthenticatorFeature)
         val config = micro.configuration.requestChunkAtOrNull<Configuration>("accounting") ?:
             Configuration(
-                computeCreditsNotificationLimit = 50_000_000,
-                computeUnitsNotificationLimit = 50 ,
-                storageCreditsNotificationLimit = 50_000_000 ,
+                computeUnitsNotificationLimit = 1200 ,
                 storageQuotaNotificationLimitInGB = 100,
                 storageUnitsNotificationLimitInGB = 100
             )
@@ -24,9 +22,7 @@ object AccountingService : Service {
 }
 
 data class Configuration(
-    val computeCreditsNotificationLimit: Long,
     val computeUnitsNotificationLimit: Long,
-    val storageCreditsNotificationLimit: Long,
     val storageQuotaNotificationLimitInGB: Long,
     val storageUnitsNotificationLimitInGB: Long,
 
