@@ -1,12 +1,13 @@
 package controller
 
 import (
+	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"net"
 	"net/http"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -27,15 +28,26 @@ import (
 // it. The file is initialized by the job_database and often controlled by the job_database in response to job events.
 // This file also exposes several IPC calls and CLI stub to manage a pool of available (external) IP addresses.
 
-var publicIps = map[string]*orc.PublicIp{}
-var ipPool []net.IPNet
-var externalAddressesInUse = map[string]string{} // Textual IP (net.IP) to orc.PublicIp identifier
+var publicIps struct {
+	Mu                     sync.Mutex
+	Ips                    map[string]*orc.PublicIp
+	Pool                   []publicIpPoolEntry
+	ExternalAddressesInUse map[string]string // Textual IP (net.IP) to orc.PublicIp identifier
+}
 
-var publicIpsMutex = sync.Mutex{}
+type publicIpPoolEntry struct {
+	Public  net.IPNet
+	Private net.IPNet
+}
+
+type ipcAddToPoolRequest struct {
+	Public  string
+	Private string
+}
 
 var (
 	ipcRetrieveIpPool = ipc.NewCall[util.Empty, []IpPoolEntry]("publicIps.retrievePool")
-	ipcAddToPool      = ipc.NewCall[string, util.Empty]("publicIps.addToPool")
+	ipcAddToPool      = ipc.NewCall[ipcAddToPoolRequest, util.Empty]("publicIps.addToPool")
 	ipcRemoveFromPool = ipc.NewCall[string, util.Empty]("publicIps.removeFromPool")
 )
 
@@ -45,12 +57,16 @@ func initIpDatabase() {
 		return
 	}
 
-	publicIpsMutex.Lock()
-	defer publicIpsMutex.Unlock()
+	publicIps.Mu.Lock()
+	defer publicIps.Mu.Unlock()
+
+	publicIps.Ips = make(map[string]*orc.PublicIp)
+	publicIps.ExternalAddressesInUse = make(map[string]string)
+
 	fetchAllPublicIps()
 	loadPool()
 
-	ipcAddToPool.Handler(func(r *ipc.Request[string]) ipc.Response[util.Empty] {
+	ipcAddToPool.Handler(func(r *ipc.Request[ipcAddToPoolRequest]) ipc.Response[util.Empty] {
 		if r.Uid != 0 {
 			return ipc.Response[util.Empty]{
 				StatusCode:   http.StatusForbidden,
@@ -58,7 +74,7 @@ func initIpDatabase() {
 			}
 		}
 
-		err := AddToIpPool(r.Payload)
+		err := AddToIpPool(r.Payload.Public, r.Payload.Private)
 		if err != nil {
 			return ipc.Response[util.Empty]{
 				StatusCode:   http.StatusBadRequest,
@@ -124,9 +140,9 @@ func fetchAllPublicIps() {
 
 		for i := 0; i < len(page.Items); i++ {
 			ip := &page.Items[i]
-			publicIps[ip.Id] = ip
+			publicIps.Ips[ip.Id] = ip
 			if ip.Status.IpAddress.Present {
-				externalAddressesInUse[ip.Status.IpAddress.Value] = ip.Id
+				publicIps.ExternalAddressesInUse[ip.Status.IpAddress.Value] = ip.Id
 			}
 		}
 
@@ -139,11 +155,17 @@ func fetchAllPublicIps() {
 }
 
 func loadPool() {
-	rows := db.NewTx(func(tx *db.Transaction) []struct{ Subnet string } {
-		return db.Select[struct{ Subnet string }](
+	rows := db.NewTx(func(tx *db.Transaction) []struct {
+		Subnet        string
+		PrivateSubnet string
+	} {
+		return db.Select[struct {
+			Subnet        string
+			PrivateSubnet string
+		}](
 			tx,
 			`
-				select subnet
+				select subnet, private_subnet
 				from ip_pool
 		    `,
 			db.Params{},
@@ -152,17 +174,23 @@ func loadPool() {
 
 	for _, row := range rows {
 		_, parsedNet, err := net.ParseCIDR(row.Subnet)
-		if err != nil {
+		if err != nil || parsedNet == nil {
 			log.Warn("Could not load subnet '%s': %s", row.Subnet, err)
 			continue
 		}
 
-		if parsedNet == nil {
-			log.Warn("Could not load subnet '%s'", row.Subnet)
+		_, parsedPrivateNet, err := net.ParseCIDR(row.PrivateSubnet)
+		if err != nil || parsedPrivateNet == nil {
+			log.Warn("Could not load subnet '%s': %s", row.Subnet, err)
 			continue
 		}
 
-		ipPool = append(ipPool, *parsedNet)
+		publicIps.Pool = append(publicIps.Pool, publicIpPoolEntry{
+			Public:  *parsedNet,
+			Private: *parsedPrivateNet,
+		})
+
+		log.Info("Loaded %v", row.Subnet)
 	}
 }
 
@@ -179,23 +207,23 @@ func TrackNewPublicIp(ip orc.PublicIp) {
 		}
 	}
 
-	publicIpsMutex.Lock()
+	publicIps.Mu.Lock()
 	{
-		existingIp, ok := publicIps[ip.Id]
-		publicIps[ip.Id] = &ip
+		existingIp, ok := publicIps.Ips[ip.Id]
+		publicIps.Ips[ip.Id] = &ip
 
 		if ok {
 			existingIpAddress := existingIp.Status.IpAddress
 			if existingIpAddress.Present {
-				delete(externalAddressesInUse, existingIpAddress.Value)
+				delete(publicIps.ExternalAddressesInUse, existingIpAddress.Value)
 			}
 		}
 
 		if ip.Status.IpAddress.Present {
-			externalAddressesInUse[ip.Status.IpAddress.Value] = ip.Id
+			publicIps.ExternalAddressesInUse[ip.Status.IpAddress.Value] = ip.Id
 		}
 	}
-	publicIpsMutex.Unlock()
+	publicIps.Mu.Unlock()
 
 	jsonified, _ := json.Marshal(ip)
 
@@ -225,9 +253,9 @@ func TrackNewPublicIp(ip orc.PublicIp) {
 }
 
 func RetrievePublicIp(id string) (*orc.PublicIp, bool) {
-	publicIpsMutex.Lock()
-	publicIp, ok := publicIps[id]
-	publicIpsMutex.Unlock()
+	publicIps.Mu.Lock()
+	publicIp, ok := publicIps.Ips[id]
+	publicIps.Mu.Unlock()
 
 	if ok {
 		return publicIp, ok
@@ -243,33 +271,35 @@ func RetrievePublicIp(id string) (*orc.PublicIp, bool) {
 }
 
 type IpPoolEntry struct {
-	Subnet    string
-	Allocated int
-	Remaining int
+	Subnet        string
+	PrivateSubnet string
+	Allocated     int
+	Remaining     int
 }
 
 func RetrieveIpPool() []IpPoolEntry {
-	publicIpsMutex.Lock()
-	defer publicIpsMutex.Unlock()
+	publicIps.Mu.Lock()
+	defer publicIps.Mu.Unlock()
 
 	var result []IpPoolEntry
 
-	for _, subnet := range ipPool {
-		included, maskSize := subnet.Mask.Size()
+	for _, subnet := range publicIps.Pool {
+		included, maskSize := subnet.Public.Mask.Size()
 		ipsInSubnet := 1 << int64(maskSize-included)
 		numAllocated := 0
 
-		for allocated, _ := range externalAddressesInUse {
+		for allocated, _ := range publicIps.ExternalAddressesInUse {
 			parsed := net.ParseIP(allocated)
-			if parsed != nil && subnet.Contains(parsed) {
+			if parsed != nil && subnet.Public.Contains(parsed) {
 				numAllocated++
 			}
 		}
 
 		result = append(result, IpPoolEntry{
-			Subnet:    subnet.String(),
-			Allocated: numAllocated,
-			Remaining: ipsInSubnet - numAllocated,
+			Subnet:        subnet.Public.String(),
+			PrivateSubnet: subnet.Private.String(),
+			Allocated:     numAllocated,
+			Remaining:     ipsInSubnet - numAllocated,
 		})
 	}
 
@@ -281,7 +311,7 @@ func AllocateIpAddress(target *orc.PublicIp) error {
 		return fmt.Errorf("target is nil")
 	}
 
-	publicIpsMutex.Lock()
+	publicIps.Mu.Lock()
 
 	allocatedIp := util.Option[string]{}
 
@@ -289,12 +319,12 @@ func AllocateIpAddress(target *orc.PublicIp) error {
 	// have today. In case we ever get a large block of IPs, someone should update the code to actually be smart
 	// about allocation.
 outer:
-	for _, subnet := range ipPool {
-		included, maskSize := subnet.Mask.Size()
+	for _, subnet := range publicIps.Pool {
+		included, maskSize := subnet.Public.Mask.Size()
 		ipsInSubnet := 1 << int64(maskSize-included)
 
 		numericIp := &big.Int{}
-		numericIp.SetBytes(subnet.IP)
+		numericIp.SetBytes(subnet.Public.IP)
 
 		for i := 0; i < ipsInSubnet; i++ {
 			toAdd := big.NewInt(int64(i))
@@ -308,16 +338,16 @@ outer:
 			}
 
 			newIpString := newIp.String()
-			_, exists := externalAddressesInUse[newIpString]
+			_, exists := publicIps.ExternalAddressesInUse[newIpString]
 			if !exists {
 				allocatedIp.Set(newIpString)
-				externalAddressesInUse[newIpString] = target.Id
+				publicIps.ExternalAddressesInUse[newIpString] = target.Id
 				break outer
 			}
 		}
 	}
 
-	publicIpsMutex.Unlock()
+	publicIps.Mu.Unlock()
 
 	if !allocatedIp.Present {
 		_ = DeleteIpAddress(target)
@@ -357,13 +387,13 @@ func DeleteIpAddress(address *orc.PublicIp) error {
 		return util.UserHttpError("This IP is currently in use by job: %v", strings.Join(address.Status.BoundTo, ", "))
 	}
 
-	publicIpsMutex.Lock()
+	publicIps.Mu.Lock()
 
 	if address.Status.IpAddress.Present {
-		delete(externalAddressesInUse, address.Status.IpAddress.Value)
+		delete(publicIps.ExternalAddressesInUse, address.Status.IpAddress.Value)
 	}
 
-	delete(publicIps, address.Id)
+	delete(publicIps.Ips, address.Id)
 
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
@@ -378,7 +408,7 @@ func DeleteIpAddress(address *orc.PublicIp) error {
 		)
 	})
 
-	publicIpsMutex.Unlock()
+	publicIps.Mu.Unlock()
 	return nil
 }
 
@@ -409,7 +439,7 @@ func RetrieveUsedIpAddressCount(owner orc.ResourceOwner) int {
 	})
 }
 
-func AddToIpPool(subnet string) error {
+func AddToIpPool(subnet string, privateSubnet string) error {
 	ip, parsedSubnet, err := net.ParseCIDR(subnet)
 	if err != nil || parsedSubnet == nil {
 		return fmt.Errorf("invalid subnet specified: %s", err)
@@ -420,32 +450,53 @@ func AddToIpPool(subnet string) error {
 		return fmt.Errorf("invalid subnet specified: non-canonical subnet specified")
 	}
 
-	publicIpsMutex.Lock()
+	_, parsedPrivateSubnet, err := net.ParseCIDR(privateSubnet)
+	if err != nil || parsedPrivateSubnet == nil {
+		return fmt.Errorf("invalid subnet specified: %s", err)
+	}
 
-	for _, existingSubnet := range ipPool {
-		if existingSubnet.Contains(ip) || parsedSubnet.Contains(existingSubnet.IP) {
-			err = fmt.Errorf("subnet overlaps with existing subnet (%s is in %s)", parsedSubnet.String(), existingSubnet.String())
+	_, publicMaskSize := parsedSubnet.Mask.Size()
+	_, privateMaskSize := parsedPrivateSubnet.Mask.Size()
+
+	if publicMaskSize == 0 || privateMaskSize == 0 {
+		// I don't think ParseCIDR will do this, but just in case.
+		return fmt.Errorf("invalid subnet specified: non-canonical subnet specified")
+	}
+
+	if publicMaskSize != privateMaskSize {
+		return fmt.Errorf("subnets must be of equal size")
+	}
+
+	publicIps.Mu.Lock()
+
+	for _, existingSubnet := range publicIps.Pool {
+		if existingSubnet.Public.Contains(ip) || parsedSubnet.Contains(existingSubnet.Public.IP) {
+			err = fmt.Errorf("subnet overlaps with existing subnet (%s is in %s)", parsedSubnet.String(), existingSubnet.Public.String())
 			break
 		}
 	}
 
 	if err == nil {
-		ipPool = append(ipPool, *parsedSubnet)
+		publicIps.Pool = append(publicIps.Pool, publicIpPoolEntry{
+			Public:  *parsedSubnet,
+			Private: *parsedPrivateSubnet,
+		})
 		db.NewTx0(func(tx *db.Transaction) {
 			db.Exec(
 				tx,
 				`
-					insert into ip_pool(subnet)
-					values (:subnet) on conflict do nothing 
+					insert into ip_pool(subnet, private_subnet)
+					values (:subnet, :private_subnet) on conflict do nothing 
 			    `,
 				db.Params{
-					"subnet": subnet,
+					"subnet":         subnet,
+					"private_subnet": privateSubnet,
 				},
 			)
 		})
 	}
 
-	publicIpsMutex.Unlock()
+	publicIps.Mu.Unlock()
 
 	return err
 }
@@ -457,12 +508,12 @@ func RemoveFromIpPool(subnet string) error {
 	}
 	parsedString := parsedSubnet.String()
 
-	publicIpsMutex.Lock()
-	defer publicIpsMutex.Unlock()
+	publicIps.Mu.Lock()
+	defer publicIps.Mu.Unlock()
 
 	subnetIdx := -1
-	for i, existingSubnet := range ipPool {
-		if existingSubnet.String() == subnet || existingSubnet.String() == parsedString {
+	for i, existingSubnet := range publicIps.Pool {
+		if existingSubnet.Public.String() == subnet || existingSubnet.Public.String() == parsedString {
 			subnetIdx = i
 			break
 		}
@@ -475,7 +526,7 @@ func RemoveFromIpPool(subnet string) error {
 	var toInvalidate []string
 	var runningJobs []string
 
-	for _, ip := range publicIps {
+	for _, ip := range publicIps.Ips {
 		if !ip.Status.IpAddress.Present {
 			continue
 		}
@@ -511,7 +562,7 @@ func RemoveFromIpPool(subnet string) error {
 
 	// TODO(Dan): Once the Core has an API to delete an IP address from the provider, use it to forcefully clean it up.
 
-	slices.Delete(ipPool, subnetIdx, subnetIdx+1)
+	publicIps.Pool = util.RemoveAtIndex(publicIps.Pool, subnetIdx)
 
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
@@ -529,14 +580,15 @@ func RemoveFromIpPool(subnet string) error {
 	return nil
 }
 
-func BindIpsToJob(job *orc.Job) ([]orc.PublicIp, error) {
-	publicIpsMutex.Lock()
+func BindIpsToJob(job *orc.Job) ([]orc.PublicIp, []net.IP, error) {
+	publicIps.Mu.Lock()
 
 	var result []orc.PublicIp
+	var privateIps []net.IP
 
 	for _, v := range job.Specification.Parameters {
 		if v.Type == orc.AppParameterValueTypeNetwork {
-			ip, ok := publicIps[v.Id]
+			ip, ok := publicIps.Ips[v.Id]
 			if ok {
 				result = append(result, *ip)
 			}
@@ -545,7 +597,7 @@ func BindIpsToJob(job *orc.Job) ([]orc.PublicIp, error) {
 
 	for _, v := range job.Specification.Resources {
 		if v.Type == orc.AppParameterValueTypeNetwork {
-			ip, ok := publicIps[v.Id]
+			ip, ok := publicIps.Ips[v.Id]
 			if ok {
 				result = append(result, *ip)
 			}
@@ -585,28 +637,84 @@ func BindIpsToJob(job *orc.Job) ([]orc.PublicIp, error) {
 		}
 
 		ip.Status.BoundTo = []string{job.Id}
+
+		publicIp := net.ParseIP(ip.Status.IpAddress.Value)
+		privateIp := publicIp
+		for _, poolEntry := range publicIps.Pool {
+			if poolEntry.Public.Contains(publicIp) {
+				privateIp, err = IpRemapAddress(publicIp, poolEntry.Public, poolEntry.Private)
+			}
+		}
+		privateIps = append(privateIps, privateIp)
 	}
 
-	publicIpsMutex.Unlock() // Need to unlock before TrackNewPublicIp
+	publicIps.Mu.Unlock() // Need to unlock before TrackNewPublicIp
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	} else {
 		for _, ip := range result {
 			TrackNewPublicIp(ip)
 		}
 
-		return result, nil
+		return result, privateIps, nil
 	}
 }
 
+// IpRemapAddress maps an IPv4 address from one subnet to an equal-sized destination subnet.
+//
+// - ip          – any host address you want to relocate
+// - src, dst    – the *net.IPNet describing the source and destination subnets
+//
+// The two subnets must have identical prefix lengths (/24, /20)
+func IpRemapAddress(ip net.IP, src, dst net.IPNet) (net.IP, error) {
+	ip = ip.To4()
+	if ip == nil {
+		return nil, errors.New("RemapAddress works only with IPv4")
+	}
+
+	srcOnes, _ := src.Mask.Size()
+	dstOnes, _ := dst.Mask.Size()
+	if srcOnes != dstOnes {
+		return nil, errors.New("source subnet must be the same size as destination subnet")
+	}
+
+	if !src.Contains(ip) {
+		return nil, errors.New("address is not inside the source subnet")
+	}
+
+	ipInt := binary.BigEndian.Uint32(ip)
+	dstNet := binary.BigEndian.Uint32(dst.IP.To4())
+	mask := binary.BigEndian.Uint32(src.Mask)
+
+	hostBits := ipInt & ^mask
+	remapped := dstNet | hostBits
+
+	return net.IPv4(
+		byte(remapped>>24),
+		byte(remapped>>16),
+		byte(remapped>>8),
+		byte(remapped),
+	), nil
+}
+
+func IpCanUse(ip net.IP) bool {
+	ip = ip.To4()
+	if ip == nil {
+		return true
+	}
+	v := binary.BigEndian.Uint32(ip)
+	last16 := v & 0xFFFF
+	return last16 != 0x0001 && last16 != 0x00FF
+}
+
 func UnbindIpsFromJob(job *orc.Job) {
-	publicIpsMutex.Lock()
+	publicIps.Mu.Lock()
 
 	var result []orc.PublicIp
 	for _, v := range job.Specification.Parameters {
 		if v.Type == orc.AppParameterValueTypeNetwork {
-			ip, ok := publicIps[v.Id]
+			ip, ok := publicIps.Ips[v.Id]
 			if ok {
 				result = append(result, *ip)
 			}
@@ -615,7 +723,7 @@ func UnbindIpsFromJob(job *orc.Job) {
 
 	for _, v := range job.Specification.Resources {
 		if v.Type == orc.AppParameterValueTypeNetwork {
-			ip, ok := publicIps[v.Id]
+			ip, ok := publicIps.Ips[v.Id]
 			if ok {
 				result = append(result, *ip)
 			}
@@ -636,7 +744,7 @@ func UnbindIpsFromJob(job *orc.Job) {
 		ip.Status.BoundTo = nil
 	}
 
-	publicIpsMutex.Unlock() // Need to unlock before TrackNewPublicIp
+	publicIps.Mu.Unlock() // Need to unlock before TrackNewPublicIp
 
 	for _, ip := range result {
 		TrackNewPublicIp(ip)
@@ -673,7 +781,14 @@ func IpPoolCliStub(args []string) {
 		if !subnet.Present {
 			err = fmt.Errorf("missing subnet argument")
 		} else {
-			_, err = ipcAddToPool.Invoke(subnet.Value)
+			privateSubnet := util.GetOptionalElement(args, 2)
+			if !privateSubnet.Present {
+				privateSubnet.Set(subnet.Value)
+			}
+			_, err = ipcAddToPool.Invoke(ipcAddToPoolRequest{
+				Public:  subnet.Value,
+				Private: privateSubnet.Value,
+			})
 		}
 
 		cli.HandleError("adding to IP pool", err)
@@ -695,9 +810,9 @@ func IpPoolCliStub(args []string) {
 }
 
 func RetrieveIp(publicIpId string) (*orc.PublicIp, bool) {
-	publicIpsMutex.Lock()
-	job, ok := publicIps[publicIpId]
-	publicIpsMutex.Unlock()
+	publicIps.Mu.Lock()
+	job, ok := publicIps.Ips[publicIpId]
+	publicIps.Mu.Unlock()
 
 	if ok {
 		return job, ok

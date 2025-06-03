@@ -13,7 +13,7 @@ import (
 )
 
 func preparePublicIp(job *orc.Job, firewall *networking.NetworkPolicy) *core.Service {
-	ips, err := ctrl.BindIpsToJob(job)
+	ips, privateIps, err := ctrl.BindIpsToJob(job)
 	if err != nil {
 		_ = ctrl.TrackJobMessages([]ctrl.JobMessage{
 			{
@@ -51,13 +51,14 @@ func preparePublicIp(job *orc.Job, firewall *networking.NetworkPolicy) *core.Ser
 
 		for ipIdx, ip := range ips {
 			if ip.Status.IpAddress.Present {
+				privateIp := privateIps[ipIdx]
 				if ipIdx != 0 {
 					message.WriteString(", ")
 				}
 				message.WriteString(ip.Status.IpAddress.Value)
 
 				// Tell K8s to use the IP
-				service.Spec.ExternalIPs = append(service.Spec.ExternalIPs, ip.Status.IpAddress.Value)
+				service.Spec.ExternalIPs = append(service.Spec.ExternalIPs, privateIp.String())
 
 				// Forward the correct ports
 				fw := &ip.Specification.Firewall

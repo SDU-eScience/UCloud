@@ -106,19 +106,22 @@ func HandleDataImport(args []string) {
 				termio.WriteLine("IP pools: %d", i*100)
 
 				var externalCidrs []string
+				var internalCidrs []string
 
 				for _, item := range chunk {
 					externalCidrs = append(externalCidrs, item[0].Value)
+					internalCidrs = append(internalCidrs, item[1].Value)
 				}
 
 				db.Exec(
 					tx,
 					`
-						insert into ip_pool(subnet)
-						select unnest(cast(:external_cidrs as text[]))
+						insert into ip_pool(subnet, private_subnet)
+						select unnest(cast(:external_cidrs as text[])), unnest(cast(:internal_cidrs as text[]))
 				    `,
 					db.Params{
 						"external_cidrs": externalCidrs,
+						"internal_cidrs": internalCidrs,
 					},
 				)
 			}
