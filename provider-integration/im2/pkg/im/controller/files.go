@@ -746,6 +746,7 @@ func controllerFiles(mux *http.ServeMux) {
 						ProtocolParameters: request.ProtocolParameters,
 					}
 
+					username := GetUCloudUsername(r)
 					_, err := selectTransferProtocolCall.Invoke(SelectTransferProtocolRequest{
 						Id:                 request.Session,
 						SelectedProtocol:   request.SelectedProtocol,
@@ -765,6 +766,8 @@ func controllerFiles(mux *http.ServeMux) {
 						})
 						return
 					}
+
+					session.Username = username
 
 					err = Files.TransferSourceBegin(payload, session)
 					sendResponseOrError(w, FilesTransferResponseStart(), err)
@@ -1482,6 +1485,7 @@ type TransferSession struct {
 
 	SelectedProtocol   string
 	ProtocolParameters json.RawMessage
+	Username           string
 }
 
 type SelectTransferProtocolRequest struct {
