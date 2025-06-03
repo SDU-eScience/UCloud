@@ -20,6 +20,7 @@ import (
 )
 
 const chunkIoDeadline = 30 * time.Second
+const chanBufferSize = 1024 * 32
 
 type ClientSession struct {
 	Endpoint       string
@@ -126,7 +127,7 @@ func (w *clientWorker) Process() {
 	listingBuffer := util.NewBuffer(&bytes.Buffer{})
 	listingTicker := time.NewTicker(50 * time.Millisecond)
 
-	combinedTaskQueue := make(chan *clientWork)
+	combinedTaskQueue := make(chan *clientWork, chanBufferSize)
 
 	go func() {
 	loop:
@@ -445,8 +446,8 @@ func ProcessClient(
 	sessionContext, cancel := context.WithCancel(context.Background())
 
 	statTicker := time.NewTicker(500 * time.Millisecond)
-	discoveredWorkForUs := make(chan *clientWork)
-	discoveredWorkForWorkers := make(chan *clientWork)
+	discoveredWorkForUs := make(chan *clientWork, chanBufferSize)
+	discoveredWorkForWorkers := make(chan *clientWork, chanBufferSize)
 	incomingWebsocket := make(chan incomingMessage)
 
 	// Stats
@@ -523,7 +524,7 @@ func ProcessClient(
 				WorkerId:     whoami,
 				Ctx:          sessionContext,
 				OpenWork:     discoveredWorkForWorkers,
-				AssignedWork: make(chan *clientWork),
+				AssignedWork: make(chan *clientWork, chanBufferSize),
 				Connection:   socket,
 				Metrics: ClientMetrics{
 					SkipReasons: make(map[string]SkipReason),

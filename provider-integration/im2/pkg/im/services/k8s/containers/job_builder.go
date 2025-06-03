@@ -72,11 +72,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		}
 	}
 
-	// TODO Get these from configuration
-	tolerationKv := util.Option[util.Tuple2[string, string]]{}
-	priorityClass := util.Option[string]{}
-	customRuntimesByCategory := map[string]string{}
-
 	namespace := ServiceConfig.Compute.Namespace
 
 	application := &job.Status.ResolvedApplication.Invocation
@@ -126,6 +121,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	var firewall *networking.NetworkPolicy
 	var service *core.Service
 	var sshService *core.Service
+	var ipService *core.Service
 
 	if rank == 0 {
 		firewall = &networking.NetworkPolicy{
@@ -166,6 +162,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 				},
 			})
 		}
+
+		ipService = preparePublicIp(job, firewall)
 	}
 
 	// JobParameters.json
@@ -236,6 +234,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		nodeCat, ok := machineCategory.Groups[job.Specification.Product.Category]
 		if ok {
 			gpuType = nodeCat.GpuResourceType
+			if nodeCat.CustomRuntime != "" {
+				spec.RuntimeClassName = &nodeCat.CustomRuntime
+			}
 		}
 
 		for _, config := range nodeCat.Configs {
@@ -252,29 +253,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		addResource(core.ResourceName(gpuType), gpus, 0)
 	}
 
-	// TODO We used to set a nodeselector but this appears redundant since we are already setting the node.
 	pod.Spec.NodeName = node
 
 	userContainer.SecurityContext.RunAsNonRoot = util.BoolPointer(!application.Container.RunAsRoot)
 	userContainer.SecurityContext.AllowPrivilegeEscalation = util.BoolPointer(application.Container.RunAsRoot)
-
-	customRuntime, hasRuntime := customRuntimesByCategory[job.Specification.Product.Category]
-	if hasRuntime {
-		spec.RuntimeClassName = &customRuntime
-	}
-
-	if priorityClass.IsSet() {
-		spec.PriorityClassName = priorityClass.Get()
-	}
-
-	if tolerationKv.IsSet() {
-		kv := tolerationKv.Get()
-		spec.Tolerations = append(spec.Tolerations, core.Toleration{
-			Key:      kv.First,
-			Operator: core.TolerationOpEqual,
-			Value:    kv.Second,
-		})
-	}
 
 	spec.Hostname = fmt.Sprintf("j-%s-job-%d", job.Id, rank)
 	spec.Subdomain = fmt.Sprintf("j-%v", job.Id)
@@ -369,7 +351,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// -----------------------------------------------------------------------------------------------------------------
 	spec.InitContainers = append(spec.InitContainers, core.Container{
 		Name:  "ucviz",
-		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.3.10",
+		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.3.55",
 	})
 
 	ucvizContainer := &spec.InitContainers[len(spec.InitContainers)-1]
@@ -411,9 +393,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// -----------------------------------------------------------------------------------------------------------------
 	prepareFirewallOnJobCreate(job, pod, firewall, service)
 
-	// Public IP and SSH
+	// SSH
 	// -----------------------------------------------------------------------------------------------------------------
-	preparePublicIp(job, service, firewall)
 	injectSshKeys(job.Id, pod, userContainer)
 
 	// Shared-memory
@@ -436,8 +417,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// Job metadata
 	// -----------------------------------------------------------------------------------------------------------------
 	idLabel := shared.JobIdLabel(job.Id)
+	rankLabel := shared.JobRankLabel(rank)
 	pod.Annotations[idLabel.First] = idLabel.Second
+	pod.Annotations[rankLabel.First] = rankLabel.Second
 	pod.Labels[idLabel.First] = idLabel.Second
+	pod.Labels[rankLabel.First] = rankLabel.Second
 	if job.Owner.Project != "" {
 		pod.Labels["ucloud.dk/workspaceId"] = job.Owner.Project
 	}
@@ -495,6 +479,12 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		sshService.OwnerReferences = append(sshService.OwnerReferences, ownerReference)
 
 		_, myError := K8sClient.CoreV1().Services(namespace).Create(ctx, sshService, meta.CreateOptions{})
+		err = util.MergeError(err, myError)
+	}
+	if ipService != nil && err == nil {
+		ipService.OwnerReferences = append(ipService.OwnerReferences, ownerReference)
+
+		_, myError := K8sClient.CoreV1().Services(namespace).Create(ctx, ipService, meta.CreateOptions{})
 		err = util.MergeError(err, myError)
 	}
 

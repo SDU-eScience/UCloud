@@ -180,7 +180,6 @@ func reportUsedStorage(drive orc.Drive, sizeInGb int64) {
 				},
 				Usage: sizeInGb,
 				Description: apm.ChargeDescription{
-					// TODO Migration: This is a different ID and will require a reset.
 					Scope: util.OptValue(fmt.Sprintf("drive-%v-%v", cfg.Provider.Id, drive.Id)),
 				},
 			},

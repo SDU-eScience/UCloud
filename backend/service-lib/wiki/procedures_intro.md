@@ -84,10 +84,8 @@ shown that with our team size, a separate staging environment did not provide su
 After the testing stage, the assigned developer will submit a pull request and the issue enters the “code review”
 stage. The code is reviewed by one or more developers in the team knowledgeable of the affected code. This typically
 includes the team leader.  The review causes a feedback loop between reviewers and the developer. Once the reviewers
-accept the proposed change, the code is merged into the `staging` or `master` branch and the associated issue is closed.
-Under normal circumstances, the `staging` branch is used, but in some cases the team leader may choose to pick the
-`master` branch. The `staging` branch is typically skipped if the change affects semi-urgent issues in production.
-This follows the same principals of how an issue may skip phases.
+accept the proposed change, the code is merged into the `master` branch and the associated issue is closed.
+Features that are not yet ready for general availability or hidden behind feature-flags and/or configuration options.
 
 ### Staging and Alpha testing
 
@@ -112,14 +110,9 @@ testing is complete, the feature is promoted to _stable_.
 ### Code and project management
 
 As UCloud, this project will be hosted on GitHub as a public repository under an open-source license. We use the GitHub
-issue system to create and close issues. We use ZenHub as a project management tool, which integrates seamlessly with
-GitHub, to track the various stages of the lifecycle of an issue and to manage both epics and the project roadmap.
-
-__NOTE(Dan, 13/02/23):__ In the cloud team, we have recently been experimenting with doing the roadmap in an external 
-spreadsheet due to unreliable behavior in ZenHub.
-
-__NOTE(Dan, 06/06/24):__ Note from 13/02/23 is still true. We will likely get rid of ZenHub for this reason, but a
-decision has not been made.
+issue system to create and close issues. We use GitHub sub-issues as a project management tool, which integrates 
+seamlessly with the rest of GitHub, to track the various stages of the lifecycle of an issue and to manage both epics 
+and the project roadmap.
 
 ### Documentation
 

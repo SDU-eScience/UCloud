@@ -24,7 +24,6 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-var nextJobMonitor time.Time
 var nextNodeMonitor time.Time
 var nextAccounting time.Time
 
@@ -241,21 +240,20 @@ func loopMonitoring() {
 				gpuType := "nvidia.com/gpu"
 				machineCategory, ok := shared.ServiceConfig.Compute.Machines[catGroup.Category]
 				if ok {
+					// TODO This seems like it will break if there is more than one category
 					nodeCat, ok := machineCategory.Groups[catGroup.Category]
 					if ok {
 						gpuType = nodeCat.GpuResourceType
 					}
 				}
 
-				systemReservedCpuMillis := 100 // TODO(Dan): Configurable?
-
 				capacity := shared.SchedulerDimensions{
-					CpuMillis:     int(k8sCapacity.Cpu().MilliValue()) - systemReservedCpuMillis,
+					CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
 					MemoryInBytes: int(k8sCapacity.Memory().Value()),
 				}
 
 				limits := shared.SchedulerDimensions{
-					CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()) - systemReservedCpuMillis,
+					CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
 					MemoryInBytes: int(k8sAllocatable.Memory().Value()),
 				}
 
@@ -306,123 +304,209 @@ func loopMonitoring() {
 		nextNodeMonitor = now.Add(15 * time.Second)
 	}
 
-	if now.After(nextJobMonitor) {
-		activeJobs := ctrl.GetJobs()
-		tracker := &jobTracker{
-			batch: ctrl.BeginJobUpdates(),
-			gangs: map[string]jobGang{},
-		}
-
-		tracker.jobs = activeJobs
-		containers.Monitor(tracker, activeJobs)
-		kubevirt.Monitor(tracker, activeJobs)
-		for _, sched := range schedulers {
-			sched.PruneReplicas()
-
-			length := len(sched.Queue)
-			for i := 0; i < length; i++ {
-				queueEntry := &sched.Queue[i]
-				tracker.batch.TrackState(queueEntry.JobId, orc.JobStateInQueue, util.OptNone[string]())
-			}
-		}
-
-		batchResults := tracker.batch.End()
-
-		{
-			// Lock jobs which are out of resources
-
-			activeJobsAfterBatch := ctrl.GetJobs()
-			var lockedMessages []ctrl.JobMessage
-			for _, job := range activeJobsAfterBatch {
-				if reason := IsJobLocked(job); reason.Present {
-					lockedMessages = append(lockedMessages, ctrl.JobMessage{
-						JobId:   job.Id,
-						Message: reason.Value.Reason,
-					})
-					tracker.RequestCleanup(job.Id)
-				}
-			}
-			_ = ctrl.TrackJobMessages(lockedMessages)
-		}
-
-		go func() {
-			for _, jobId := range tracker.terminationRequested {
-				job, ok := ctrl.RetrieveJob(jobId)
-				if ok {
-					_ = terminate(ctrl.JobTerminateRequest{Job: job, IsCleanup: true})
-				}
-			}
-
-			for _, jobId := range batchResults.TerminatedDueToUnknownState {
-				job, ok := ctrl.RetrieveJob(jobId)
-				if ok {
-					_ = terminate(ctrl.JobTerminateRequest{Job: job, IsCleanup: true})
-				}
-			}
-
-			var kubevirtStarted []orc.Job
-			var containersStarted []orc.Job
-			for _, jobId := range batchResults.NormalStart {
-				job, ok := ctrl.RetrieveJob(jobId)
-				if ok {
-					if backendIsKubevirt(job) {
-						kubevirtStarted = append(kubevirtStarted, *job)
-					} else if backendIsContainers(job) {
-						containersStarted = append(containersStarted, *job)
-					}
-				}
-			}
-
-			if len(containersStarted) > 0 {
-				containers.OnStart(containersStarted)
-			}
-			if len(kubevirtStarted) > 0 {
-				kubevirt.OnStart(kubevirtStarted)
-			}
-		}()
-
-		if now.After(nextAccounting) {
-			var reports []apm.UsageReportItem
-
-			for _, job := range activeJobs {
-				timeReport := shared.ComputeRunningTime(job)
-				accUnits := convertJobTimeToAccountingUnits(job, timeReport.TimeConsumed)
-				reports = append(reports, apm.UsageReportItem{
-					IsDeltaCharge: false,
-					Owner:         apm.WalletOwnerFromIds(job.Owner.CreatedBy, job.Owner.Project),
-					CategoryIdV2: apm.ProductCategoryIdV2{
-						Name:     job.Specification.Product.Category,
-						Provider: job.Specification.Product.Provider,
-					},
-					Usage: accUnits,
-					Description: apm.ChargeDescription{
-						Scope: util.OptValue(fmt.Sprintf("job-%v", job.Id)),
-					},
-				})
-			}
-
-			if len(reports) > 0 {
-				reportsChunked := util.ChunkBy(reports, 500)
-
-				for chunkIdx := 0; chunkIdx < len(reportsChunked); chunkIdx++ {
-					// NOTE(Dan): Results are completely ignored here, and we rely solely on the APM events which will
-					// trigger when the wallet is locked.
-
-					reportChunk := reportsChunked[chunkIdx]
-
-					_, err := apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{Items: reportChunk})
-					if err != nil {
-						log.Info("Failed to report usage: %s", err)
-					}
-				}
-			}
-
-			nextAccounting = now.Add(30 * time.Second)
-		}
-
-		nextJobMonitor = now.Add(5 * time.Second)
+	// Job monitoring
+	// -----------------------------------------------------------------------------------------------------------------
+	activeJobs := ctrl.GetJobs()
+	tracker := &jobTracker{
+		batch: ctrl.BeginJobUpdates(),
+		gangs: map[string]jobGang{},
 	}
 
+	tracker.jobs = activeJobs
+	containers.Monitor(tracker, activeJobs)
+	kubevirt.Monitor(tracker, activeJobs)
+	for _, sched := range schedulers {
+		sched.PruneReplicas()
+
+		length := len(sched.Queue)
+		for i := 0; i < length; i++ {
+			queueEntry := &sched.Queue[i]
+			tracker.batch.TrackState(queueEntry.JobId, orc.JobStateInQueue, util.OptNone[string]())
+		}
+	}
+
+	batchResults := tracker.batch.End()
+
+	// Side-effects from job monitoring
+	// -----------------------------------------------------------------------------------------------------------------
+	{
+		// Lock jobs which are out of resources
+
+		activeJobsAfterBatch := ctrl.GetJobs()
+		var lockedMessages []ctrl.JobMessage
+		for _, job := range activeJobsAfterBatch {
+			if reason := IsJobLocked(job); reason.Present {
+				lockedMessages = append(lockedMessages, ctrl.JobMessage{
+					JobId:   job.Id,
+					Message: reason.Value.Reason,
+				})
+				tracker.RequestCleanup(job.Id)
+			}
+		}
+		_ = ctrl.TrackJobMessages(lockedMessages)
+	}
+
+	go func() {
+		for _, jobId := range tracker.terminationRequested {
+			job, ok := ctrl.RetrieveJob(jobId)
+			if ok {
+				_ = terminate(ctrl.JobTerminateRequest{Job: job, IsCleanup: true})
+			}
+		}
+
+		for _, jobId := range batchResults.TerminatedDueToUnknownState {
+			job, ok := ctrl.RetrieveJob(jobId)
+			if ok {
+				_ = terminate(ctrl.JobTerminateRequest{Job: job, IsCleanup: true})
+			}
+		}
+
+		var kubevirtStarted []orc.Job
+		var containersStarted []orc.Job
+		for _, jobId := range batchResults.NormalStart {
+			job, ok := ctrl.RetrieveJob(jobId)
+			if ok {
+				if backendIsKubevirt(job) {
+					kubevirtStarted = append(kubevirtStarted, *job)
+				} else if backendIsContainers(job) {
+					containersStarted = append(containersStarted, *job)
+				}
+			}
+		}
+
+		if len(containersStarted) > 0 {
+			containers.OnStart(containersStarted)
+		}
+		if len(kubevirtStarted) > 0 {
+			kubevirt.OnStart(kubevirtStarted)
+		}
+	}()
+
+	// Accounting
+	// -----------------------------------------------------------------------------------------------------------------
+	if now.After(nextAccounting) {
+		var reports []apm.UsageReportItem
+
+		for _, job := range activeJobs {
+			timeReport := shared.ComputeRunningTime(job)
+			accUnits := convertJobTimeToAccountingUnits(job, timeReport.TimeConsumed)
+			reports = append(reports, apm.UsageReportItem{
+				IsDeltaCharge: false,
+				Owner:         apm.WalletOwnerFromIds(job.Owner.CreatedBy, job.Owner.Project),
+				CategoryIdV2: apm.ProductCategoryIdV2{
+					Name:     job.Specification.Product.Category,
+					Provider: job.Specification.Product.Provider,
+				},
+				Usage: accUnits,
+				Description: apm.ChargeDescription{
+					Scope: util.OptValue(fmt.Sprintf("job-%v", job.Id)),
+				},
+			})
+		}
+
+		if len(reports) > 0 {
+			reportsChunked := util.ChunkBy(reports, 500)
+
+			for chunkIdx := 0; chunkIdx < len(reportsChunked); chunkIdx++ {
+				// NOTE(Dan): Results are completely ignored here, and we rely solely on the APM events which will
+				// trigger when the wallet is locked.
+
+				reportChunk := reportsChunked[chunkIdx]
+
+				_, err := apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{Items: reportChunk})
+				if err != nil {
+					log.Info("Failed to report usage: %s", err)
+				}
+			}
+		}
+
+		nextAccounting = now.Add(30 * time.Second)
+	}
+
+	// Node remaining capacity calculation
+	// -----------------------------------------------------------------------------------------------------------------
+	// The following snippet of code will calculate exactly how many resources are left on the node based directly
+	// on the information available to us in Kubernetes. This solution is supposed to be as robust as possible and is
+	// intended to avoid any kind of OutOfCpu error that K8s might return to us if we schedule a pod slightly before
+	// K8s is ready for it. The scheduler, technically, works without it, but K8s might complain a lot.
+	//
+	// Unfortunately, K8s doesn't just expose a set of numbers we can read. Instead, we must compute this from a list of
+	// pods. In most deployment scenarios, the K8s client doesn't have cluster-wide read rights. As a result, we compute
+	// everything we can from the app namespace and guess what the remaining reservation is. These are configurable in
+	// the service configuration files.
+	//
+	// NOTE(Dan): This step must occur _after_ replicas being pruned.
+	//
+	// TODO(Dan): I am slightly worried that for VMs this really just serves as a minimum usage and not something that
+	//  represents the expected usage in the near future. For VMs, this might be very wrong if they haven't created
+	//   their pod immediately after the schedule.
+
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		allPods, err := shared.K8sClient.CoreV1().Pods(shared.ServiceConfig.Compute.Namespace).List(ctx, metav1.ListOptions{})
+		cancel()
+		if err != nil {
+			log.Info("Failed to get a list of pods from Kubernetes: %s", err)
+			return
+		}
+
+		resourcesByNode := map[string]map[string]int64{}
+
+		for _, pod := range allPods.Items {
+			nodeName := pod.Spec.NodeName
+			resources, ok := resourcesByNode[nodeName]
+			if !ok {
+				resources = make(map[string]int64)
+				resourcesByNode[nodeName] = resources
+			}
+
+			for _, c := range pod.Spec.Containers {
+				for resourceType, amount := range c.Resources.Limits {
+					intAmount := int64(0)
+					if resourceType == core.ResourceCPU {
+						intAmount = amount.MilliValue()
+					} else {
+						intAmount = amount.Value()
+					}
+
+					resources[string(resourceType)] = resources[string(resourceType)] + intAmount
+				}
+			}
+		}
+
+		for catName, sched := range schedulers {
+			for nodeName, _ := range sched.Nodes {
+				usage := resourcesByNode[nodeName]
+				if usage == nil {
+					usage = make(map[string]int64)
+				}
+
+				machineCategory, ok := shared.ServiceConfig.Compute.Machines[catName]
+				gpuResourceType := "nvidia.com/gpu"
+				systemReservedCpuMillis := 500
+
+				if ok {
+					// TODO This seems like it will break if there is more than one category
+					nodeCat, ok := machineCategory.Groups[catName]
+					if ok {
+						gpuResourceType = nodeCat.GpuResourceType
+						systemReservedCpuMillis = nodeCat.SystemReservedCpuMillis
+					}
+				}
+
+				dims := shared.SchedulerDimensions{
+					CpuMillis:     int(usage[string(core.ResourceCPU)]) + systemReservedCpuMillis,
+					MemoryInBytes: int(usage[string(core.ResourceMemory)]),
+					Gpu:           int(usage[gpuResourceType]),
+				}
+
+				sched.SynchronizeNodeUsage(nodeName, dims)
+			}
+		}
+	}
+
+	// Job scheduling
+	// -----------------------------------------------------------------------------------------------------------------
 	entriesToSubmit := shared.SwapScheduleQueue()
 	for _, entry := range entriesToSubmit {
 		sched, ok := getSchedulerByJob(entry)

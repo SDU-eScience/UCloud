@@ -4,18 +4,15 @@ import (
 	"fmt"
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"strings"
 	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/im/services/k8s/shared"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 )
 
-func preparePublicIp(job *orc.Job, service *core.Service, firewall *networking.NetworkPolicy) {
-	if service == nil {
-		// Nothing to do if we are not supposed to touch the resources
-		return
-	}
-
+func preparePublicIp(job *orc.Job, firewall *networking.NetworkPolicy) *core.Service {
 	ips, err := ctrl.BindIpsToJob(job)
 	if err != nil {
 		_ = ctrl.TrackJobMessages([]ctrl.JobMessage{
@@ -24,8 +21,28 @@ func preparePublicIp(job *orc.Job, service *core.Service, firewall *networking.N
 				Message: fmt.Sprintf("Failed to bind IP address. %s", err),
 			},
 		})
-		return
+		return nil
 	} else if len(ips) > 0 {
+		serviceLabel := shared.JobIdLabel(job.Id)
+		rankLabel := shared.JobRankLabel(0)
+
+		service := &core.Service{
+			ObjectMeta: meta.ObjectMeta{
+				Name: fmt.Sprintf("%s-ip", serviceName(job.Id)),
+				Labels: map[string]string{
+					serviceLabel.First: serviceLabel.Second,
+				},
+			},
+			Spec: core.ServiceSpec{
+				Type:      core.ServiceTypeClusterIP,
+				ClusterIP: core.ClusterIPNone,
+				Selector: map[string]string{
+					serviceLabel.First: serviceLabel.Second,
+					rankLabel.First:    rankLabel.Second,
+				},
+			},
+		}
+
 		// NOTE(Dan): This is needed to make sure that the IP becomes routable through the external IP
 		service.Spec.ClusterIP = ""
 
@@ -70,5 +87,9 @@ func preparePublicIp(job *orc.Job, service *core.Service, firewall *networking.N
 				Message: message.String(),
 			},
 		})
+
+		return service
+	} else {
+		return nil
 	}
 }

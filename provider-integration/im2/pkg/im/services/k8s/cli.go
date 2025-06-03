@@ -4,15 +4,12 @@ import (
 	"os"
 
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/im/services/k8s/containers"
 )
 
 func HandleCliWithoutConfig(command string) bool {
 	switch command {
 	case "script-gen":
 		HandleScriptGen()
-	case "nix-process":
-		containers.HandleNixProcessCli()
 	case "im2-k8s-import":
 		HandleDataImport(os.Args[2:])
 	default:

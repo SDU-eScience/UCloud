@@ -142,15 +142,17 @@ type K8sMachineCategory struct {
 }
 
 type K8sMachineCategoryGroup struct {
-	GroupName            string
-	NameSuffix           MachineResourceType
-	Configs              []K8sMachineConfiguration
-	CpuModel             string
-	GpuModel             string
-	MemoryModel          string
-	AllowVirtualMachines bool
-	AllowsContainers     bool
-	GpuResourceType      string
+	GroupName               string
+	NameSuffix              MachineResourceType
+	Configs                 []K8sMachineConfiguration
+	CpuModel                string
+	GpuModel                string
+	MemoryModel             string
+	AllowVirtualMachines    bool
+	AllowsContainers        bool
+	GpuResourceType         string
+	CustomRuntime           string
+	SystemReservedCpuMillis int
 }
 
 type K8sMachineConfiguration struct {
@@ -496,6 +498,9 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 	if result.GpuResourceType == "" {
 		result.GpuResourceType = "nvidia.com/gpu"
 	}
+
+	result.CustomRuntime = cfgutil.OptionalChildText(filePath, node, "customRuntime", success)
+	result.SystemReservedCpuMillis = int(cfgutil.OptionalChildInt(filePath, node, "systemReservedCpuMillis", success).GetOrDefault(500))
 
 	var cpu []int
 	var actualCpuMillis []int

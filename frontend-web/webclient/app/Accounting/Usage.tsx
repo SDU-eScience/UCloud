@@ -208,13 +208,12 @@ function stateReducer(state: State, action: UIAction): State {
             // TODO Move this into selectChart
             function translateBreakdown(category: Accounting.ProductCategoryV2, chart: BreakdownByProjectAPI, nameAndProvider: string): BreakdownChart {
                 const dataPoints = chart.data;
-
                 return {dataPoints, nameAndProvider};
             }
 
             function translateChart(category: Accounting.ProductCategoryV2, chart: UsageOverTimeAPI): UsageChart {
                 const dataPoints = chart.data;
-                return {dataPoints, name: category.name, provider: category.provider};
+                return {dataPoints, name: category.name, provider: category.provider, future: chart.future};
             }
 
             const data = action.charts;
@@ -1404,24 +1403,6 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
         });
     }, [charts]);
 
-    const showWarning = (() => {
-        for (const chart of charts) {
-            if (charts.every(chart => chart.dataPoints.length == 0)) {return false}
-            const initialUsage = chart.dataPoints[0].usage;
-            const initialQuota = chart.dataPoints[0].quota;
-            if (initialUsage !== 0) {
-                if (chart.dataPoints.some(it => it.usage === 0)) {
-                    return true;
-                }
-
-                if (chart.dataPoints.some(it => it.quota !== initialQuota)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    })();
-
     // HACK(Jonas): Self-explanatory hack
     const anyData = (chartProps.series?.[0] as any)?.data.length > 0;
 
@@ -1733,6 +1714,7 @@ interface UsageChart {
     name: string;
     provider: string;
     dataPoints: {timestamp: number, usage: number, quota: number}[];
+    future?: Accounting.WalletPrediction;
 }
 
 const emptyChart: UsageChart = {
@@ -1743,18 +1725,21 @@ const emptyChart: UsageChart = {
 
 function toSeriesChart(chart: UsageChart): ApexAxisChartSeries[0] {
     let data = chart.dataPoints.map(it => [it.timestamp, it.usage]);
-    if (data.length === 0) {
-        const now = timestampUnixMs();
-        data = [[now - 1000 * 60 * 60 * 24 * 7, 0], [now, 0]];
+    if (data.length === 0 || data.every(it => it[1] == 0)) {
+        data = [];
+    } else if (chart.future?.predictions.length) {
+        for (const pred of chart.future.predictions) {
+            data.unshift([pred.timestamp, pred.value]);
+        }
     }
+
     return {
         data,
-        type: "area",
+        type: "line",
         name: chart.name,
     }
 }
 
-const ADD_FAKE_QUOTA = false;
 function usageChartsToChart(
     charts: UsageChart[],
     shownRef: React.RefObject<boolean[]>,
@@ -1767,22 +1752,18 @@ function usageChartsToChart(
 ): ChartProps {
     const result: ChartProps = {};
     result.series = charts.map(it => toSeriesChart(it));
-    if (ADD_FAKE_QUOTA) {
-        const last = result.series.at(-1);
-        if (last) {
-            result.series.push({
-                type: "line",
-                name: "Fake quota",
-                data: charts.at(-1)?.dataPoints.map(it => [it.timestamp, it.usage * 2]) ?? []
-            });
-        }
-    }
+    const forecastCount = charts.find(it => it.future)?.future?.predictions.length ?? 0;
     result.options = {
         legend: {
             position: "bottom",
             onItemClick: {
                 toggleDataSeries: true,
             },
+        },
+        /* Again, very cool ApexCharts! https://github.com/apexcharts/apexcharts.js/issues/4447 */
+        forecastDataPoints: {
+            count: forecastCount,
+            dashArray: 1,
         },
         chart: {
             id: chartOptions.id,
@@ -1825,7 +1806,6 @@ function usageChartsToChart(
         },
         stroke: {
             curve: "straight",
-            dashArray: Array(charts.length).map(() => 0).concat(ADD_FAKE_QUOTA ? [9] : []),
         },
         // fill: {
         //     type: "gradient",

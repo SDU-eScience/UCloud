@@ -102,6 +102,17 @@ const (
 	FormTypeGrantGiverInitiated FormType = "grant_giver_initiated"
 )
 
+func (f FormType) Valid() bool {
+	switch f {
+	case FormTypePlainText:
+		return true
+	case FormTypeGrantGiverInitiated:
+		return true
+	default:
+		return false
+	}
+}
+
 type Form struct {
 	Type         FormType          `json:"type"`
 	Text         string            `json:"text"`         // plain_text, grant_giver_initiated
@@ -116,11 +127,41 @@ const (
 	RecipientTypePersonalWorkspace RecipientType = "personalWorkspace"
 )
 
+func (t RecipientType) Valid() bool {
+	switch t {
+	case RecipientTypeExistingProject:
+		return true
+	case RecipientTypeNewProject:
+		return true
+	case RecipientTypePersonalWorkspace:
+		return true
+	default:
+		return false
+	}
+}
+
 type Recipient struct {
 	Type     RecipientType       `json:"type"`
 	Id       util.Option[string] `json:"id"`       // existingProject
 	Title    util.Option[string] `json:"title"`    // newProject
 	Username util.Option[string] `json:"username"` // personalWorkspace
+}
+
+func (r *Recipient) Reference() util.Option[string] {
+	switch r.Type {
+	case RecipientTypeExistingProject:
+		return r.Id
+	case RecipientTypeNewProject:
+		return r.Title
+	case RecipientTypePersonalWorkspace:
+		return r.Username
+	default:
+		return util.OptNone[string]()
+	}
+}
+
+func (r *Recipient) Valid() bool {
+	return r.Reference().Present
 }
 
 type AllocationRequest struct {
@@ -215,6 +256,7 @@ type GrantsTransferRequest struct {
 	ApplicationId string `json:"applicationId"`
 	Target        string `json:"target"`
 	Comment       string `json:"comment"`
+	// source derived from project header
 }
 
 var GrantsTransfer = rpc.Call[GrantsTransferRequest, util.Empty]{
@@ -297,7 +339,7 @@ var GrantsUploadLogo = rpc.Call[[]byte, util.Empty]{
 	CustomMethod: http.MethodPost,
 	CustomPath:   fmt.Sprintf("/api/%s/uploadLogo", GrantsNamespace),
 	CustomServerParser: func(w http.ResponseWriter, r *http.Request) ([]byte, *util.HttpError) {
-		result, err := io.ReadAll(r.Body)
+		result, err := io.ReadAll(io.LimitReader(r.Body, 1024*1024*5))
 		if err != nil {
 			return nil, util.HttpErr(http.StatusBadRequest, "Logo was not correctly received")
 		} else {

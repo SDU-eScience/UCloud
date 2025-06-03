@@ -8,6 +8,7 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.delay
 import org.joda.time.DateTime
+import kotlin.collections.set
 import kotlin.math.pow
 
 class SimplePredictor(
@@ -20,7 +21,7 @@ class SimplePredictor(
         predictions = mutableMapOf<Long, WalletPrediction>()
         var lastAddition = 0L
         while (true) {
-            if (Time.now() - lastAddition > 1000L * 60 * 60 * 12 ) {
+            if (Time.now() - lastAddition > 1000L * 60 * 60 * 12) {
                 generatePredictions()
                 lastAddition = Time.now()
             }
@@ -34,7 +35,9 @@ class SimplePredictor(
     }
 
     fun getPrediction(walletId: Long): WalletPrediction {
-        return predictions[walletId] ?: WalletPrediction(walletId, (1..30).map { Prediction((Time.now() + 1000L * 60 * 60 * 24 * it), 0.0) })
+        return predictions[walletId] ?: WalletPrediction(
+            walletId,
+            (1..30).map { Prediction((Time.now() + 1000L * 60 * 60 * 24 * it), 0.0) })
     }
 
 
@@ -89,15 +92,22 @@ class SimplePredictor(
             ys.add(row.getDouble(2)!!)
             day++
         }
+        createPredictions(lastID, xs, ys)
     }
 
-    // Given a list of x values and y values this function creates a simple linear regression.
+    // Given a list of x values and y values, this function creates a simple linear regression.
     // Will create the predicted values for the next 30 days
-    private fun createPredictions(walletId: Long, xs: ArrayList<Int>, ys: ArrayList<Double>) {
-        if (xs.size != ys.size && xs.size < 2) {
+    private fun createPredictions(walletId: Long, xs: List<Int>, ys: List<Double>) {
+        if (xs.size != ys.size) {
             println("Sizes of xs and ys are inconsistent: xs:${xs.size}, ys:${ys.size}")
             return
         }
+
+        if (xs.size < 2) {
+            println("Sample size not big enough to make prediction")
+            return
+        }
+
         val numberOfXs = xs.size
         // Variance
         val variance = xs.sumOf { x -> (x - xs.average()).pow(2) }
@@ -113,14 +123,14 @@ class SimplePredictor(
         val results = mutableListOf<Prediction>()
         var daysInFuture = 1
         val now = DateTime.now()
-        (numberOfXs+1..numberOfXs + 30).forEach {
+        (numberOfXs + 1..numberOfXs + 30).forEach {
             results.add(
                 Prediction(
                     now.plusDays(daysInFuture).millis,
-                    simpleLinearRegression(it))
+                    simpleLinearRegression(it)
+                )
             )
             daysInFuture++
-
         }
         pushWalletPrediction(WalletPrediction(walletId, results))
     }
