@@ -38,7 +38,7 @@ __Assessment:__
 Notes and explanation go here
 ```
 
-## Backend
+## UCloud/Core and IM
 
 ### Kotlin
 
@@ -221,6 +221,20 @@ __Assessment:__
 - __How essential is knowledge of the system to develop UCloud?__ 1
 - __Difficulty of migrating to an alternative technology:__ 2
 - __Likelihood of the dependency getting discontinued in the coming 5 years:__ 1
+
+## Go
+
+- __Website:__ https://go.dev
+- __Short description:__ Programming language used for IM2 and Core2.
+- __Described in:__ Not currently described in the documentation.
+
+__Assessment:__
+
+- __How essential is the dependency for UCloud?__ 5
+- __How essential is knowledge of the system to develop UCloud?__ 5
+- __Difficulty of migrating to an alternative technology:__ 4
+- __Likelihood of the dependency getting discontinued in the coming 5 years:__ 1
+
 
 ## Frontend
 
