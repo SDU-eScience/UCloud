@@ -579,6 +579,8 @@ function Visualization(): React.ReactNode {
         };
     });
 
+    const breakdownSelection = useState<string>();
+
     const setPeriod = useCallback((period: Period) => {
         dispatchEvent({type: "UpdateSelectedPeriod", period});
     }, [dispatchEvent]);
@@ -587,6 +589,10 @@ function Visualization(): React.ReactNode {
         dispatchEvent({type: "UpdateActiveUnit", unit});
     }, [dispatchEvent]);
 
+    const unitsForRichSelect = React.useMemo(() => {
+        const all = state.activeDashboard?.availableUnits.map(it => ({unit: it})) ?? [];
+        return all.filter(it => !["IPs", "Licenses"].includes(it.unit)); // Note(Jonas): Maybe just don't fetch the IPs, Licenses (and Links?)
+    }, [state.activeDashboard?.availableUnits]);
 
     // Short-hands
     // -----------------------------------------------------------------------------------------------------------------
@@ -596,10 +602,6 @@ function Visualization(): React.ReactNode {
         state.activeDashboard === undefined ||
         state.activeDashboard.usageOverTime.every(it => it.dataPoints.every(it => it.usage === 0)) &&
         (state.summaries.length === 0 && state.remoteData.requestsInFlight === 0);
-    const unitsForRichSelect = React.useMemo(() => {
-        const all = state.activeDashboard?.availableUnits.map(it => ({unit: it})) ?? [];
-        return all.filter(it => !["IPs", "Licenses"].includes(it.unit)); // Note(Jonas): Maybe just don't fetch the IPs, Licenses (and Links?)
-    }, [state.activeDashboard?.availableUnits]);
 
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -667,8 +669,8 @@ function Visualization(): React.ReactNode {
                                     expiresAt={state.activeDashboard.currentAllocation.expiresAt}
                                 />
                             </>}
-                            <UsageBreakdownPanel isLoading={isAnyLoading} unit={state.activeDashboard.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
-                            <UsageOverTimePanel isLoading={isAnyLoading} charts={state.activeDashboard.usageOverTime} />
+                            <UsageBreakdownPanel breakdownSelection={breakdownSelection} isLoading={isAnyLoading} unit={state.activeDashboard.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
+                            <UsageOverTimePanel breakdownSelection={breakdownSelection} isLoading={isAnyLoading} charts={state.activeDashboard.usageOverTime} />
                         </>}
                     </div> : null}
             </div>
@@ -950,10 +952,19 @@ const BreakdownStyle = injectStyle("breakdown", k => `
 `);
 
 const UsageBreakdownChartId = "UsageBreakdown";
-const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit: string; period: Period; charts: BreakdownChart[];}> = props => {
-    const [breakdownSelected, setBreakdownSelected] = useState<string | undefined>();
+const UsageBreakdownPanel: React.FunctionComponent<{
+    breakdownSelection: [string | undefined, React.Dispatch<React.SetStateAction<string | undefined>>],
+    isLoading: boolean;
+    unit: string;
+    period: Period;
+    charts: BreakdownChart[];
+}> = props => {
+    const [breakdownSelected, setBreakdownSelected] = props.breakdownSelection;
+
     const breakdownRef = useRef(breakdownSelected);
     breakdownRef.current = breakdownSelected;
+
+    const [s, __] = useState("")
 
     const fullyMergedChart = React.useMemo(() => {
         if (breakdownRef.current) {
@@ -1365,7 +1376,9 @@ const DynamicallySizedChart: React.FunctionComponent<{
     </div>;
 }
 
-const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoading: boolean;}> = ({charts, isLoading}) => {
+const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoading: boolean; breakdownSelection: [string | undefined, React.Dispatch<string | undefined>]}> = ({charts, isLoading, ...props}) => {
+    const [breakdownSelected, setBreakdownSelected] = props.breakdownSelection;
+
     const chartCounter = useRef(0); // looks like apex charts has a rendering bug if the component isn't completely thrown out
     const [shownEntries, setShownEntries] = useState<boolean[]>([]);
     const ChartID = "UsageOverTime";
@@ -1773,7 +1786,6 @@ function usageChartsToChart(
                     toggleSeriesEntry(chart, seriesIndex, shownRef, chartOptions.toggleShown);
                 }
             },
-            type: "area",
             stacked: true,
             height: 350,
             animations: {
@@ -1807,17 +1819,6 @@ function usageChartsToChart(
         stroke: {
             curve: "straight",
         },
-        // fill: {
-        //     type: "gradient",
-        //     gradient: {
-        //         shadeIntensity: 1,
-        //         inverseColors: false,
-        //         opacityFrom: 0.4,
-        //         opacityTo: 0,
-        //         stops: [0, 90, 100]
-        //     }
-        // },
-        //colors: ['var(--primaryMain)'],
         yaxis: {
             labels: {
                 formatter: function (val) {
