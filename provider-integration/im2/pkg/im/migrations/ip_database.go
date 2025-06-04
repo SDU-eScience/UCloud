@@ -35,3 +35,26 @@ func ipDatabaseV1() db.MigrationScript {
 		},
 	}
 }
+
+func ipDatabaseV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "ipDatabaseV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table ip_pool add column private_subnet text not null default ''
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					update ip_pool set private_subnet = subnet where true
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}
