@@ -1,9 +1,10 @@
 package accounting
 
 import (
+	"encoding/json"
 	"fmt"
-	"hash/fnv"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,7 +21,7 @@ func initGrants() {
 
 }
 
-// lock order is: grantAppBucket -> grantApplication -> grantSettingsBucket -> grantSettings
+// lock order is: grantAppBucket -> grantApplication -> grantSettingsBucket -> grantSettings -> grantIndexBucket
 //
 // It is assumed that the accounting system never requests information from the grant system. As a result, this system
 // is allowed to freely use the functions of the internal accounting system.
@@ -28,13 +29,15 @@ func initGrants() {
 var grantGlobals struct {
 	AppBuckets     []*grantAppBucket
 	SettingBuckets []*grantSettingsBucket
+	IndexBuckets   []*grantIndexBucket
 	CommentIdAcc   atomic.Int64
 	GrantIdAcc     atomic.Int64
+	Testing        bool
 }
 
 type grantAppBucket struct {
 	Mu           sync.RWMutex
-	Applications map[int64]*grantApplication
+	Applications map[accGrantId]*grantApplication
 }
 
 type grantSettingsBucket struct {
@@ -43,9 +46,25 @@ type grantSettingsBucket struct {
 	Settings          map[string]*grantSettings
 }
 
+type grantIndexBucket struct {
+	Mu sync.RWMutex
+
+	// Guaranteed to be ordered by time of creation (for a single entity). Contains both applications sent by the entity
+	// but also being received. Note that the order is technically by order in which they are created and not
+	// timestamps. This can happen if the creation starts before another but locks acquisition happens in reverse order.
+	ApplicationsByEntity map[string][]accGrantId
+}
+
 type grantApplication struct {
 	Mu          sync.RWMutex
 	Application *accapi.GrantApplication
+}
+
+func (a *grantApplication) lDeepCopy() accapi.GrantApplication {
+	var result accapi.GrantApplication
+	b, _ := json.Marshal(a.Application)
+	_ = json.Unmarshal(b, &result)
+	return result
 }
 
 type grantSettings struct {
@@ -54,22 +73,19 @@ type grantSettings struct {
 	Settings  *accapi.GrantRequestSettings
 }
 
-func grantAB(key any) *grantAppBucket {
-	h := fnv.New32a()
-	_, err := h.Write([]byte(fmt.Sprint(key)))
-	if err != nil {
-		panic("hash fail: " + err.Error())
-	}
-	return grantGlobals.AppBuckets[int(h.Sum32())%len(grantGlobals.AppBuckets)]
+func grantGetAppBucket(key any) *grantAppBucket {
+	h := util.NonCryptographicHash(key)
+	return grantGlobals.AppBuckets[h%len(grantGlobals.AppBuckets)]
 }
 
-func grantSB(key any) *grantSettingsBucket {
-	h := fnv.New32a()
-	_, err := h.Write([]byte(fmt.Sprint(key)))
-	if err != nil {
-		panic("hash fail: " + err.Error())
-	}
-	return grantGlobals.SettingBuckets[int(h.Sum32())%len(grantGlobals.SettingBuckets)]
+func grantGetSettingsBucket(key any) *grantSettingsBucket {
+	h := util.NonCryptographicHash(key)
+	return grantGlobals.SettingBuckets[h%len(grantGlobals.SettingBuckets)]
+}
+
+func grantGetIdxBucket(key any) *grantIndexBucket {
+	h := util.NonCryptographicHash(key)
+	return grantGlobals.IndexBuckets[h%len(grantGlobals.IndexBuckets)]
 }
 
 type grantAuthType int
@@ -88,12 +104,17 @@ const (
 	grantActorRoleApprover
 )
 
-func grantsRead(actor rpc.Actor, action grantAuthType, b *grantAppBucket, id int64) (*grantApplication, grantActorRole) {
+func grantsReadEx(actor rpc.Actor, action grantAuthType, b *grantAppBucket, id accGrantId) (*grantApplication, grantActorRole) {
 	return nil, grantActorRoleSubmitter
 }
 
+// grantsRead will read a grantApplication and perform authorization according to the action.
+func grantsRead(actor rpc.Actor, action grantAuthType, id accGrantId) (*grantApplication, []grantActorRole) {
+	return nil, nil
+}
+
 func grantsRetrieveSettings(grantGiver string) (*grantSettings, bool) {
-	b := grantSB(grantGiver)
+	b := grantGetSettingsBucket(grantGiver)
 	b.Mu.RLock()
 	settings, ok := b.Settings[grantGiver]
 	b.Mu.RUnlock()
@@ -313,7 +334,7 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 	// If the grant application is an existing one, then it will be loaded from the cache or database. This step will
 	// in that case authorize that the actor is allowed to perform a submission on the application.
 
-	id := int64(0)
+	id := accGrantId(0)
 	wasExistingApplication := req.ApplicationId.Present
 	if wasExistingApplication {
 		parsed, err := strconv.ParseInt(req.ApplicationId.Value, 10, 64)
@@ -321,17 +342,17 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 			return 0, util.HttpErr(http.StatusNotFound, "unknown application")
 		}
 
-		id = parsed
+		id = accGrantId(parsed)
 	} else {
-		id = grantGlobals.GrantIdAcc.Add(1)
+		id = accGrantId(grantGlobals.GrantIdAcc.Add(1))
 	}
 
-	b := grantAB(id)
+	b := grantGetAppBucket(id)
 
 	var app *grantApplication
 	role := grantActorRoleSubmitter
 	if wasExistingApplication {
-		app, role = grantsRead(actor, grantAuthSubmit, b, id)
+		app, role = grantsReadEx(actor, grantAuthSubmit, b, id)
 		if app == nil {
 			return 0, util.HttpErr(http.StatusNotFound, "unknown application")
 		}
@@ -482,6 +503,34 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 	// -----------------------------------------------------------------------------------------------------------------
 	// Do not mutate "revision" after this point.
 
+	if !wasExistingApplication {
+		{
+			// Sender indexing
+			indexKey := ""
+			switch recipient.Type {
+			case accapi.RecipientTypeNewProject, accapi.RecipientTypePersonalWorkspace:
+				indexKey = app.Application.CreatedBy
+			case accapi.RecipientTypeExistingProject:
+				indexKey = recipient.Id.Value
+			}
+
+			idxB := grantGetIdxBucket(indexKey)
+			idxB.Mu.Lock()
+			idxB.ApplicationsByEntity[indexKey] = append(idxB.ApplicationsByEntity[indexKey], id)
+			idxB.Mu.Unlock()
+		}
+
+		{
+			// Receiver indexing
+			for grantGiver, _ := range grantGivers {
+				idxB := grantGetIdxBucket(grantGiver)
+				idxB.Mu.Lock()
+				idxB.ApplicationsByEntity[grantGiver] = append(idxB.ApplicationsByEntity[grantGiver], id)
+				idxB.Mu.Unlock()
+			}
+		}
+	}
+
 	revToInsert := accapi.GrantRevision{
 		CreatedAt:      fndapi.Timestamp(now),
 		UpdatedBy:      actor.Username,
@@ -500,7 +549,7 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 
 	app.Mu.Unlock()
 
-	return id, nil
+	return int64(id), nil
 }
 
 func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.HttpError {
@@ -516,8 +565,8 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 	}
 
 	appId, _ := strconv.ParseInt(req.ApplicationId, 10, 64)
-	b := grantAB(appId)
-	app, _ := grantsRead(actor, grantAuthApprover, b, appId)
+	b := grantGetAppBucket(appId)
+	app, _ := grantsReadEx(actor, grantAuthApprover, b, accGrantId(appId))
 	if app == nil {
 		return util.HttpErr(http.StatusNotFound, "not found")
 	}
@@ -591,8 +640,8 @@ func GrantsPostComment(actor rpc.Actor, req accapi.GrantsPostCommentRequest) *ut
 	}
 
 	appId, _ := strconv.ParseInt(req.ApplicationId, 10, 64)
-	b := grantAB(req.ApplicationId)
-	app, _ := grantsRead(actor, grantAuthRead, b, appId)
+	b := grantGetAppBucket(req.ApplicationId)
+	app, _ := grantsReadEx(actor, grantAuthRead, b, accGrantId(appId))
 	if app == nil {
 		return util.HttpErr(http.StatusNotFound, "unknown application")
 	}
@@ -615,8 +664,8 @@ func GrantsPostComment(actor rpc.Actor, req accapi.GrantsPostCommentRequest) *ut
 
 func GrantsDeleteComment(actor rpc.Actor, req accapi.GrantsDeleteCommentRequest) *util.HttpError {
 	appId, _ := strconv.ParseInt(req.ApplicationId, 10, 64)
-	b := grantAB(req.ApplicationId)
-	app, role := grantsRead(actor, grantAuthRead, b, appId)
+	b := grantGetAppBucket(req.ApplicationId)
+	app, role := grantsReadEx(actor, grantAuthRead, b, accGrantId(appId))
 	if app == nil {
 		return util.HttpErr(http.StatusNotFound, "unknown application")
 	}
@@ -643,7 +692,20 @@ func GrantsDeleteComment(actor rpc.Actor, req accapi.GrantsDeleteCommentRequest)
 }
 
 func lGrantsAwardResources(app *grantApplication) {
-
+	// TODO:
+	// The best solution to this might be to write down that we have approved and are pending award.
+	// The issue is mostly that we have both the project system, accounting system and grant system all needing to
+	// synchronize their resources.
+	//
+	// Steps:
+	// 1. Mark as success but awarded=false
+	// 2. Lookup project by grant ID (add column to DB), create if needed
+	// 3. Award through accounting system
+	// 4. When accounting system persists, set awarded to true
+	//
+	// On startup, all approved applications with awarded=false are awarded again. This will never create duplicate
+	// projects due to the grant ID being added. Accounting information is never partial. Project may temporarily dangle
+	// without any awarded resources.
 }
 
 func lGrantsPersist(app *grantApplication) {
@@ -671,8 +733,8 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 
 	case accapi.RetrieveGrantGiversTypeExistingApplication:
 		appId, _ := strconv.ParseInt(req.Id, 10, 64)
-		b := grantAB(appId)
-		app, _ := grantsRead(actor, grantAuthRead, b, appId)
+		b := grantGetAppBucket(appId)
+		app, _ := grantsReadEx(actor, grantAuthRead, b, accGrantId(appId))
 		if app == nil {
 			return nil, util.HttpErr(http.StatusNotFound, "unknown application")
 		}
@@ -716,6 +778,185 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 	}
 
 	return result, nil
+}
+
+func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2[accapi.GrantApplication] {
+	var ids []accGrantId
+
+	nextIdRaw, _ := strconv.ParseInt(req.Next.Value, 10, 64)
+	nextId := accGrantId(nextIdRaw)
+
+	idxB := grantGetIdxBucket(actor.Username)
+	idxB.Mu.RLock()
+	for _, id := range idxB.ApplicationsByEntity[actor.Username] {
+		if id > nextId {
+			ids = append(ids, id)
+		}
+	}
+	idxB.Mu.RUnlock()
+
+	if actor.Project.Present && actor.Membership[rpc.ProjectId(actor.Project.Value)].Satisfies(rpc.ProjectRoleAdmin) {
+		idxB = grantGetIdxBucket(actor.Project.Value)
+		idxB.Mu.RLock()
+		for _, id := range idxB.ApplicationsByEntity[actor.Project.Value] {
+			if id > nextId {
+				ids = append(ids, id)
+			}
+		}
+		idxB.Mu.RUnlock()
+	}
+
+	slices.SortFunc(ids, func(a, b accGrantId) int {
+		if a < b {
+			return -1
+		} else if a > b {
+			return 1
+		} else {
+			return 0
+		}
+	})
+
+	filter := req.Filter.GetOrDefault(accapi.GrantApplicationFilterActive)
+
+	itemsPerPage := fndapi.ItemsPerPage(req.ItemsPerPage)
+	var items []accapi.GrantApplication
+
+	for _, id := range ids {
+		if len(items) >= itemsPerPage {
+			break
+		}
+		a, roles := grantsRead(actor, grantAuthRead, id)
+		if a != nil {
+			a.Mu.RLock()
+
+			relevant := false
+			if filter == accapi.GrantApplicationFilterShowAll {
+				relevant = true
+			} else if a.Application.Status.OverallState == accapi.GrantApplicationStateInProgress && filter == accapi.GrantApplicationFilterActive {
+				relevant = true
+			} else if a.Application.Status.OverallState != accapi.GrantApplicationStateInProgress && filter == accapi.GrantApplicationFilterInactive {
+				relevant = true
+			}
+
+			if relevant {
+				allowIngoing := req.IncludeIngoingApplications.GetOrDefault(false)
+				allowOutgoing := req.IncludeOutgoingApplications.GetOrDefault(false)
+				isSubmitter := slices.Contains(roles, grantActorRoleSubmitter)
+				isApprover := slices.Contains(roles, grantActorRoleApprover)
+
+				relevant = false
+
+				if allowIngoing && isSubmitter {
+					relevant = true
+				} else if allowOutgoing && isApprover {
+					relevant = true
+				}
+			}
+
+			if relevant {
+				items = append(items, a.lDeepCopy())
+			}
+
+			a.Mu.RUnlock()
+		}
+	}
+
+	result := fndapi.PageV2[accapi.GrantApplication]{
+		Items:        items,
+		ItemsPerPage: itemsPerPage,
+	}
+
+	if len(items) >= itemsPerPage && itemsPerPage > 0 {
+		result.Next.Set(items[len(items)-1].Id)
+	}
+
+	return result
+}
+
+func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.HttpError) {
+	idRaw, _ := strconv.ParseInt(id, 10, 64)
+	idActual := accGrantId(idRaw)
+
+	app, _ := grantsRead(actor, grantAuthRead, idActual)
+	if app == nil {
+		return accapi.GrantApplication{}, util.HttpErr(http.StatusNotFound, "not found")
+	} else {
+		app.Mu.RLock()
+		result := app.lDeepCopy()
+		app.Mu.RUnlock()
+		return result, nil
+	}
+}
+
+func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *util.HttpError {
+	var err *util.HttpError
+	idRaw, _ := strconv.ParseInt(req.ApplicationId, 10, 64)
+	idActual := accGrantId(idRaw)
+	app, _ := grantsRead(actor, grantAuthApprover, idActual)
+	if app == nil {
+		return util.HttpErr(http.StatusNotFound, "not found")
+	}
+
+	if !actor.Project.Present {
+		return util.HttpErr(http.StatusBadRequest, "no project given, who do you represent?")
+	}
+
+	if !actor.Membership[rpc.ProjectId(actor.Project.Value)].Satisfies(rpc.ProjectRoleAdmin) {
+		return util.HttpErr(http.StatusForbidden, "you must be an admin in the grant giver project to do this")
+	}
+
+	if req.NewState == accapi.GrantApplicationStateClosed {
+		return util.HttpErr(http.StatusBadRequest, "grant givers cannot withdraw an application")
+	}
+
+	// TODO we probably need to check a lot more enums in the code base. Remove this comment when certain that all
+	//   parts of the code is OK.
+	if _, ok := util.VerifyEnum(req.NewState, accapi.GrantApplicationStates); !ok {
+		return util.HttpErr(http.StatusBadRequest, "invalid state")
+	}
+
+	app.Mu.Lock()
+	if app.Application.Status.OverallState != accapi.GrantApplicationStateInProgress {
+		err = util.HttpErr(http.StatusBadRequest, "application is no longer active")
+	}
+
+	if err == nil {
+		// Operation is now expected to succeed
+		newOverallState := accapi.GrantApplicationStateInProgress
+		anyRejected := false
+		allApproved := true
+
+		for i, _ := range app.Application.Status.StateBreakdown {
+			breakdown := &app.Application.Status.StateBreakdown[i]
+
+			if breakdown.ProjectId == actor.Project.Value {
+				breakdown.State = req.NewState
+			}
+
+			if breakdown.State != accapi.GrantApplicationStateApproved {
+				allApproved = false
+			}
+
+			if breakdown.State == accapi.GrantApplicationStateRejected {
+				anyRejected = true
+				break
+			}
+		}
+
+		if anyRejected {
+			newOverallState = accapi.GrantApplicationStateRejected
+		} else if allApproved {
+			newOverallState = accapi.GrantApplicationStateApproved
+		}
+
+		app.Application.Status.OverallState = newOverallState
+
+		if newOverallState == accapi.GrantApplicationStateApproved {
+			lGrantsAwardResources(app)
+		}
+	}
+	app.Mu.Unlock()
+	return err
 }
 
 // TODO notifications
