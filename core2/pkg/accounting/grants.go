@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -18,7 +19,21 @@ import (
 )
 
 func initGrants() {
+	for i := 0; i < runtime.NumCPU(); i++ {
+		grantGlobals.AppBuckets = append(grantGlobals.AppBuckets, &grantAppBucket{
+			Applications: make(map[accGrantId]*grantApplication),
+		})
 
+		grantGlobals.SettingBuckets = append(grantGlobals.SettingBuckets, &grantSettingsBucket{
+			PublicGrantGivers: make(map[string]util.Empty),
+			Settings:          make(map[string]*grantSettings),
+		})
+
+		grantGlobals.IndexBuckets = append(grantGlobals.IndexBuckets, &grantIndexBucket{
+			ApplicationsByEntity: make(map[string][]accGrantId),
+		})
+	}
+	go grantsAwardLoop()
 }
 
 // lock order is: grantAppBucket -> grantApplication -> grantSettingsBucket -> grantSettings -> grantIndexBucket
@@ -32,7 +47,10 @@ var grantGlobals struct {
 	IndexBuckets   []*grantIndexBucket
 	CommentIdAcc   atomic.Int64
 	GrantIdAcc     atomic.Int64
-	Testing        bool
+	Testing        struct {
+		Enabled              bool
+		ProjectCreateFailure bool
+	}
 }
 
 type grantAppBucket struct {
@@ -58,6 +76,12 @@ type grantIndexBucket struct {
 type grantApplication struct {
 	Mu          sync.RWMutex
 	Application *accapi.GrantApplication
+	Awarded     bool // true once the service has performed the award, does not mean that persist has happened
+}
+
+func (a *grantApplication) lId() accGrantId {
+	parsed, _ := strconv.ParseInt(a.Application.Id, 10, 64)
+	return accGrantId(parsed)
 }
 
 func (a *grantApplication) lDeepCopy() accapi.GrantApplication {
@@ -73,17 +97,17 @@ type grantSettings struct {
 	Settings  *accapi.GrantRequestSettings
 }
 
-func grantGetAppBucket(key any) *grantAppBucket {
+func grantGetAppBucket(key accGrantId) *grantAppBucket {
 	h := util.NonCryptographicHash(key)
 	return grantGlobals.AppBuckets[h%len(grantGlobals.AppBuckets)]
 }
 
-func grantGetSettingsBucket(key any) *grantSettingsBucket {
+func grantGetSettingsBucket(key string) *grantSettingsBucket {
 	h := util.NonCryptographicHash(key)
 	return grantGlobals.SettingBuckets[h%len(grantGlobals.SettingBuckets)]
 }
 
-func grantGetIdxBucket(key any) *grantIndexBucket {
+func grantGetIdxBucket(key string) *grantIndexBucket {
 	h := util.NonCryptographicHash(key)
 	return grantGlobals.IndexBuckets[h%len(grantGlobals.IndexBuckets)]
 }
@@ -91,10 +115,8 @@ func grantGetIdxBucket(key any) *grantIndexBucket {
 type grantAuthType int
 
 const (
-	grantAuthRead      grantAuthType = iota // generic read action
-	grantAuthSubmit                         // generic write action (e.g. comment or revision)
+	grantAuthReadWrite grantAuthType = iota // generic read/write action
 	grantAuthApprover                       // approver only action
-	grantAuthRequester                      // requester only action
 )
 
 type grantActorRole int
@@ -104,13 +126,64 @@ const (
 	grantActorRoleApprover
 )
 
-func grantsReadEx(actor rpc.Actor, action grantAuthType, b *grantAppBucket, id accGrantId) (*grantApplication, grantActorRole) {
-	return nil, grantActorRoleSubmitter
+func grantsReadEx(actor rpc.Actor, action grantAuthType, b *grantAppBucket, id accGrantId) (*grantApplication, []grantActorRole) {
+	var roles []grantActorRole
+
+	b.Mu.RLock()
+	app, ok := b.Applications[id]
+	if ok {
+		grantGivers := map[string]util.Empty{}
+
+		app.Mu.RLock()
+		for _, rev := range app.Application.Status.Revisions {
+			for _, req := range rev.Document.AllocationRequests {
+				grantGivers[req.GrantGiver] = util.Empty{}
+			}
+		}
+
+		for grantGiver, _ := range grantGivers {
+			if actor.Membership[rpc.ProjectId(grantGiver)].Satisfies(rpc.ProjectRolePI) {
+				roles = append(roles, grantActorRoleApprover)
+			}
+		}
+
+		recipient := app.Application.CurrentRevision.Document.Recipient
+		if recipient.Type == accapi.RecipientTypeExistingProject {
+			if actor.Membership[rpc.ProjectId(recipient.Id.Value)].Satisfies(rpc.ProjectRolePI) {
+				roles = append(roles, grantActorRoleSubmitter)
+			}
+		}
+
+		if app.Application.CreatedBy == actor.Username {
+			roles = append(roles, grantActorRoleSubmitter)
+		}
+
+		app.Mu.RUnlock()
+	}
+	b.Mu.RUnlock()
+
+	roles = slices.Compact(roles)
+
+	switch action {
+	case grantAuthReadWrite:
+		// Nothing special
+
+	case grantAuthApprover:
+		if !slices.Contains(roles, grantActorRoleApprover) {
+			app, roles = nil, nil
+		}
+	}
+
+	if len(roles) == 0 {
+		return nil, nil
+	} else {
+		return app, roles
+	}
 }
 
 // grantsRead will read a grantApplication and perform authorization according to the action.
 func grantsRead(actor rpc.Actor, action grantAuthType, id accGrantId) (*grantApplication, []grantActorRole) {
-	return nil, nil
+	return grantsReadEx(actor, action, grantGetAppBucket(id), id)
 }
 
 func grantsRetrieveSettings(grantGiver string) (*grantSettings, bool) {
@@ -248,7 +321,7 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 
 	if recipient.Type == accapi.RecipientTypeNewProject && strings.HasPrefix(recipient.Title.Value, "%") {
 		// NOTE(Dan): Used as a hint to the frontend about special projects. Not used for anything backend related.
-		return 0, util.HttpErr(http.StatusBadRequest, "project title cannot start with '%'")
+		return 0, util.HttpErr(http.StatusBadRequest, "project title cannot start with '%%'")
 	}
 
 	if recipient.Type != accapi.RecipientTypePersonalWorkspace {
@@ -350,9 +423,9 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 	b := grantGetAppBucket(id)
 
 	var app *grantApplication
-	role := grantActorRoleSubmitter
+	roles := []grantActorRole{grantActorRoleSubmitter}
 	if wasExistingApplication {
-		app, role = grantsReadEx(actor, grantAuthSubmit, b, id)
+		app, roles = grantsReadEx(actor, grantAuthReadWrite, b, id)
 		if app == nil {
 			return 0, util.HttpErr(http.StatusNotFound, "unknown application")
 		}
@@ -392,7 +465,7 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 	// has is held for new applications. The request can still be rejected for authorization reasons within the
 	// revision itself.
 
-	if role != grantActorRoleSubmitter {
+	if !slices.Contains(roles, grantActorRoleApprover) {
 		revision.ReferenceIds = app.Application.CurrentRevision.Document.ReferenceIds
 	}
 
@@ -427,6 +500,12 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 		}
 	}
 
+	if err == nil && app.Application.Status.OverallState != accapi.GrantApplicationStateInProgress {
+		if !slices.Contains(roles, grantActorRoleApprover) {
+			err = util.HttpErr(http.StatusBadRequest, "application has been closed and cannot be changed further")
+		}
+	}
+
 	if err == nil {
 	outer:
 		for grantGiver, categories := range grantGivers {
@@ -456,9 +535,11 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 	if err != nil {
 		if !wasExistingApplication {
 			delete(b.Applications, id)
+			app.Mu.Unlock()
+			b.Mu.Unlock()
+		} else {
+			app.Mu.Unlock()
 		}
-		app.Mu.Unlock()
-		b.Mu.Unlock()
 		return 0, err
 	}
 
@@ -565,7 +646,7 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 	}
 
 	appId, _ := strconv.ParseInt(req.ApplicationId, 10, 64)
-	b := grantGetAppBucket(appId)
+	b := grantGetAppBucket(accGrantId(appId))
 	app, _ := grantsReadEx(actor, grantAuthApprover, b, accGrantId(appId))
 	if app == nil {
 		return util.HttpErr(http.StatusNotFound, "not found")
@@ -592,6 +673,12 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 	}
 
 	if err == nil {
+		if app.Application.Status.OverallState != accapi.GrantApplicationStateInProgress {
+			err = util.HttpErr(http.StatusBadRequest, "you cannot transfer an application after it has been closed")
+		}
+	}
+
+	if err == nil {
 		// Locate the part that we are transferring and determine the new transfer set.
 
 		requests := app.Application.CurrentRevision.Document.AllocationRequests
@@ -608,6 +695,7 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 				})
 
 				if len(wallets) == 1 {
+					allocReq.GrantGiver = req.Target
 					newRequests = append(newRequests, allocReq)
 					didTransferAny = true
 				}
@@ -634,16 +722,16 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 	return err
 }
 
-func GrantsPostComment(actor rpc.Actor, req accapi.GrantsPostCommentRequest) *util.HttpError {
+func GrantsPostComment(actor rpc.Actor, req accapi.GrantsPostCommentRequest) (string, *util.HttpError) {
 	if len(req.Comment) > 1024*1024 {
-		return util.HttpErr(http.StatusForbidden, "your comment is too long")
+		return "", util.HttpErr(http.StatusForbidden, "your comment is too long")
 	}
 
 	appId, _ := strconv.ParseInt(req.ApplicationId, 10, 64)
-	b := grantGetAppBucket(req.ApplicationId)
-	app, _ := grantsReadEx(actor, grantAuthRead, b, accGrantId(appId))
+	b := grantGetAppBucket(accGrantId(appId))
+	app, _ := grantsReadEx(actor, grantAuthReadWrite, b, accGrantId(appId))
 	if app == nil {
-		return util.HttpErr(http.StatusNotFound, "unknown application")
+		return "", util.HttpErr(http.StatusNotFound, "unknown application")
 	}
 
 	app.Mu.Lock()
@@ -659,13 +747,13 @@ func GrantsPostComment(actor rpc.Actor, req accapi.GrantsPostCommentRequest) *ut
 	app.Mu.Unlock()
 
 	// TODO notifications
-	return nil
+	return fmt.Sprint(commentId), nil
 }
 
 func GrantsDeleteComment(actor rpc.Actor, req accapi.GrantsDeleteCommentRequest) *util.HttpError {
 	appId, _ := strconv.ParseInt(req.ApplicationId, 10, 64)
-	b := grantGetAppBucket(req.ApplicationId)
-	app, role := grantsReadEx(actor, grantAuthRead, b, accGrantId(appId))
+	b := grantGetAppBucket(accGrantId(appId))
+	app, roles := grantsReadEx(actor, grantAuthReadWrite, b, accGrantId(appId))
 	if app == nil {
 		return util.HttpErr(http.StatusNotFound, "unknown application")
 	}
@@ -673,8 +761,8 @@ func GrantsDeleteComment(actor rpc.Actor, req accapi.GrantsDeleteCommentRequest)
 	app.Mu.Lock()
 	found := false
 	for i, comment := range app.Application.Status.Comments {
-		if comment.Id == req.CommentId && (role == grantActorRoleApprover || comment.Username == actor.Username) {
-			util.RemoveAtIndex(app.Application.Status.Comments, i)
+		if comment.Id == req.CommentId && (slices.Contains(roles, grantActorRoleApprover) || comment.Username == actor.Username) {
+			app.Application.Status.Comments = util.RemoveAtIndex(app.Application.Status.Comments, i)
 			found = true
 			break
 		}
@@ -692,23 +780,118 @@ func GrantsDeleteComment(actor rpc.Actor, req accapi.GrantsDeleteCommentRequest)
 }
 
 func lGrantsAwardResources(app *grantApplication) {
-	// TODO:
-	// The best solution to this might be to write down that we have approved and are pending award.
-	// The issue is mostly that we have both the project system, accounting system and grant system all needing to
-	// synchronize their resources.
-	//
 	// Steps:
-	// 1. Mark as success but awarded=false
-	// 2. Lookup project by grant ID (add column to DB), create if needed
+	// 1. Mark as success but awarded=false (call persist before this function)
+	// 2. Lookup project by grant ID, create if needed
 	// 3. Award through accounting system
 	// 4. When accounting system persists, set awarded to true
 	//
 	// On startup, all approved applications with awarded=false are awarded again. This will never create duplicate
 	// projects due to the grant ID being added. Accounting information is never partial. Project may temporarily dangle
 	// without any awarded resources.
+
+	if app.Awarded {
+		return
+	}
+
+	owner := accapi.WalletOwner{}
+
+	recipient := app.Application.CurrentRevision.Document.Recipient
+	switch recipient.Type {
+	case accapi.RecipientTypeExistingProject:
+		owner = accapi.WalletOwnerProject(recipient.Id.Value)
+
+	case accapi.RecipientTypeNewProject:
+		projectId, err := lGrantsCreateProject(app, recipient.Title.Value, app.Application.CreatedBy)
+		if err != nil {
+			log.Info("Failed at project creation: %v", err)
+			return
+		} else {
+			owner = accapi.WalletOwnerProject(projectId)
+		}
+
+	case accapi.RecipientTypePersonalWorkspace:
+		owner = accapi.WalletOwnerProject(recipient.Username.Value)
+
+	default:
+		panic(fmt.Sprintf("unhandled recipient type: %v", recipient.Type))
+	}
+
+	now := time.Now()
+	period := app.Application.CurrentRevision.Document.AllocationPeriod
+	start := period.Value.Start.Value.Time()
+	end := period.Value.End.Value.Time()
+	if !period.Value.Start.Present {
+		start = now
+	}
+
+	if !period.Value.End.Present {
+		end = start.AddDate(1, 0, 0)
+	}
+
+	accOwner := internalOwnerByReference(owner.Reference()).Id
+	grantedIn := app.lId()
+
+	requests := app.Application.CurrentRevision.Document.AllocationRequests
+	for _, req := range requests {
+		quota := req.BalanceRequested.Value
+		if !req.BalanceRequested.Present {
+			quota = 0
+		}
+		if quota <= 0 {
+			continue
+		}
+
+		cat, err := ProductCategoryRetrieve(rpc.ActorSystem, req.Category, req.Provider)
+		if err != nil {
+			panic(fmt.Sprintf("could not allocate resources in %s: %s", app.Application.Id, err.Error()))
+		}
+
+		accBucket := internalBucketOrInit(cat)
+		wallet := internalWalletByOwner(accBucket, now, accOwner)
+
+		parentOwner := internalOwnerByReference(req.GrantGiver).Id
+		parentWallet := internalWalletByOwner(accBucket, now, parentOwner)
+
+		_, err = internalAllocate(now, accBucket, start, end, quota, wallet, parentWallet, util.OptValue(grantedIn))
+		if err != nil {
+			// This only happens in case of bad input. It should never happen. Not doing a panic here to avoid
+			// potential infinite allocations (from the retry loop)
+			log.Warn("could not allocate resources in %s: %s", app.Application.Id, err.Error())
+		}
+	}
+
+	app.Awarded = true
+	internalCommitAllocations(grantedIn, nil) // TODO
+}
+
+func lGrantsCreateProject(app *grantApplication, title string, pi string) (string, *util.HttpError) {
+	if grantGlobals.Testing.Enabled {
+		if grantGlobals.Testing.ProjectCreateFailure {
+			return "", util.HttpErr(http.StatusBadGateway, "bad gateway")
+		} else {
+			return fmt.Sprintf("%s-%s", app.Application.Id, title), nil
+		}
+	} else {
+		result, err := fndapi.ProjectInternalCreate.Invoke(fndapi.ProjectInternalCreateRequest{
+			BackendId:  fmt.Sprintf("grants/%s", app.Application.Id),
+			PiUsername: pi,
+		})
+
+		if err != nil {
+			return "", err
+		} else {
+			return result.Id, nil
+		}
+	}
 }
 
 func lGrantsPersist(app *grantApplication) {
+	if grantGlobals.Testing.Enabled {
+		return
+	} else {
+
+	}
 	// TODO
 }
 
@@ -733,8 +916,8 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 
 	case accapi.RetrieveGrantGiversTypeExistingApplication:
 		appId, _ := strconv.ParseInt(req.Id, 10, 64)
-		b := grantGetAppBucket(appId)
-		app, _ := grantsReadEx(actor, grantAuthRead, b, accGrantId(appId))
+		b := grantGetAppBucket(accGrantId(appId))
+		app, _ := grantsReadEx(actor, grantAuthReadWrite, b, accGrantId(appId))
 		if app == nil {
 			return nil, util.HttpErr(http.StatusNotFound, "unknown application")
 		}
@@ -820,12 +1003,16 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 
 	itemsPerPage := fndapi.ItemsPerPage(req.ItemsPerPage)
 	var items []accapi.GrantApplication
+	hasMore := false
 
-	for _, id := range ids {
-		if len(items) >= itemsPerPage {
+	for index, id := range ids {
+		if hasMore {
 			break
+		} else if index > 0 && ids[index-1] == id {
+			continue
 		}
-		a, roles := grantsRead(actor, grantAuthRead, id)
+
+		a, roles := grantsRead(actor, grantAuthReadWrite, id)
 		if a != nil {
 			a.Mu.RLock()
 
@@ -854,7 +1041,11 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 			}
 
 			if relevant {
-				items = append(items, a.lDeepCopy())
+				if len(items) >= itemsPerPage {
+					hasMore = true
+				} else {
+					items = append(items, a.lDeepCopy())
+				}
 			}
 
 			a.Mu.RUnlock()
@@ -866,7 +1057,7 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 		ItemsPerPage: itemsPerPage,
 	}
 
-	if len(items) >= itemsPerPage && itemsPerPage > 0 {
+	if hasMore {
 		result.Next.Set(items[len(items)-1].Id)
 	}
 
@@ -877,7 +1068,7 @@ func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.
 	idRaw, _ := strconv.ParseInt(id, 10, 64)
 	idActual := accGrantId(idRaw)
 
-	app, _ := grantsRead(actor, grantAuthRead, idActual)
+	app, _ := grantsRead(actor, grantAuthReadWrite, idActual)
 	if app == nil {
 		return accapi.GrantApplication{}, util.HttpErr(http.StatusNotFound, "not found")
 	} else {
@@ -950,6 +1141,7 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 		}
 
 		app.Application.Status.OverallState = newOverallState
+		lGrantsPersist(app)
 
 		if newOverallState == accapi.GrantApplicationStateApproved {
 			lGrantsAwardResources(app)
@@ -957,6 +1149,60 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 	}
 	app.Mu.Unlock()
 	return err
+}
+
+func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSettings) *util.HttpError {
+	if !actor.Project.Present || actor.Project.Value != id ||
+		!actor.Membership[rpc.ProjectId(id)].Satisfies(rpc.ProjectRoleAdmin) {
+		return util.HttpErr(http.StatusForbidden, "forbidden")
+	}
+	b := grantGetSettingsBucket(id)
+
+	if actor.Role != rpc.RolesAdmin {
+		s.Enabled = false
+	}
+
+	b.Mu.Lock()
+	w, ok := b.Settings[id]
+	if !ok {
+		w = &grantSettings{
+			Mu:        sync.RWMutex{},
+			ProjectId: actor.Project.Value,
+		}
+	}
+
+	w.Settings = &s
+
+	if s.Enabled {
+		b.PublicGrantGivers[id] = util.Empty{}
+	} else {
+		delete(b.PublicGrantGivers, id)
+	}
+
+	b.Mu.Unlock()
+	return nil
+}
+
+func grantsAwardLoop() {
+	for {
+		if grantGlobals.Testing.Enabled {
+			break
+		}
+
+		for _, b := range grantGlobals.AppBuckets {
+			b.Mu.RLock()
+			for _, g := range b.Applications {
+				g.Mu.Lock()
+				if !g.Awarded && g.Application.Status.OverallState == accapi.GrantApplicationStateApproved {
+					lGrantsAwardResources(g)
+				}
+				g.Mu.Unlock()
+			}
+			b.Mu.RUnlock()
+		}
+
+		time.Sleep(30 * time.Second)
+	}
 }
 
 // TODO notifications
