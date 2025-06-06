@@ -224,7 +224,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                             total_allocated,
                             total_retired_allocated,
                             was_locked,
-                            provider.timestamp_to_unix(last_significant_update_at)::int8
+                            provider.timestamp_to_unix(last_significant_update_at)::int8,
+                            low_balance_notified
                         from 
                             accounting.wallets_v2
                         where
@@ -247,6 +248,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                     val totalRetiredAllocated = row.getLong(7)!!
                     val wasLocked = row.getBoolean(8)!!
                     val lastSignificantUpdateAt = row.getLong(9)!!
+                    val lowBalanceNotified = row.getBoolean(10)!!
 
                     minId = id
 
@@ -286,6 +288,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         isDirty = false,
                         wasLocked = wasLocked,
                         lastSignificantUpdateAt = lastSignificantUpdateAt,
+                        lowBalanceNotified = lowBalanceNotified,
                     )
 
                     walletsById[id] = wallet
@@ -446,6 +449,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         into("total_retired_amounts") { (_, wallet) -> wallet.totalRetiredAllocated }
                         into("was_locked") { (_, wallet) -> wallet.wasLocked }
                         into("last_significant_update_at") { (_, wallet) -> wallet.lastSignificantUpdateAt }
+                        into("low_balance_notified") { (_, wallet) -> wallet.lowBalanceNotified }
                     }
                 },
                 """
@@ -460,7 +464,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                             unnest(:total_amounts_allocated::bigint[]) total_allocated,
                             unnest(:total_retired_amounts::bigint[]) total_retired_allocated,
                             unnest(:was_locked::bool[]) was_locked,
-                            to_timestamp(unnest(:last_significant_update_at::bigint[]) / 1000.0) last_significant_update_at
+                            to_timestamp(unnest(:last_significant_update_at::bigint[]) / 1000.0) last_significant_update_at,
+                            unnest(:low_balance_notified::bool[]) low_balance_notified
                     )
                     insert into accounting.wallets_v2(
                         id,
@@ -472,7 +477,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         total_allocated,
                         total_retired_allocated,
                         was_locked,
-                        last_significant_update_at
+                        last_significant_update_at,
+                        low_balance_notified
                     )
                     select
                         id,
@@ -484,7 +490,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         total_allocated,
                         total_retired_allocated,
                         was_locked,
-                        last_significant_update_at
+                        last_significant_update_at,
+                        low_balance_notified
                     from data
                     on conflict (id) 
                     do update 
@@ -495,7 +502,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         total_allocated = excluded.total_allocated,
                         total_retired_allocated = excluded.total_retired_allocated,
                         was_locked = excluded.was_locked,
-                        last_significant_update_at = excluded.last_significant_update_at
+                        last_significant_update_at = excluded.last_significant_update_at,
+                        low_balance_notified = excluded.low_balance_notified
                 """
             )
 

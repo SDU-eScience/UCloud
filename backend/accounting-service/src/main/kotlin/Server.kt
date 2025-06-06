@@ -4,6 +4,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.rpc.*
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
 import dk.sdu.cloud.accounting.services.accounting.DataVisualization
+import dk.sdu.cloud.accounting.services.accounting.LowFundsJob
 import dk.sdu.cloud.accounting.services.accounting.RealAccountingPersistence
 import dk.sdu.cloud.accounting.services.grants.*
 import dk.sdu.cloud.accounting.services.notifications.ApmNotificationService
@@ -65,6 +66,7 @@ class Server(
             true,
             distributedStateFactory,
             addressToSelf = micro.serviceInstance.ipAddress ?: "127.0.0.1",
+            config
         )
 
         val productService = ProductService(db, accountingSystem, idCardService)
@@ -81,6 +83,7 @@ class Server(
         val giftService = GiftService(db, accountingSystem, projectService, grants, idCardService)
         val dataVisualization = DataVisualization(db, accountingSystem)
         val apmNotifications = ApmNotificationService(accountingSystem, projectsV2, micro.tokenValidation, idCardService, micro.developmentModeEnabled)
+        val lowFundsJob = LowFundsJob(accountingSystem, idCardService, client)
 
         PersonalProviderProjects(projectsV2, productService, accountingSystem).init()
 
@@ -99,6 +102,19 @@ class Server(
                 ),
                 script = {
                     projectsV2.cleanUpInviteLinks()
+                }
+            )
+        )
+
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
+                    "low-funds-scan",
+                    "Low Funds Scan",
+                    WhenToStart.Daily(13, 30)
+                ),
+                script = {
+                    lowFundsJob.checkWallets()
                 }
             )
         )
