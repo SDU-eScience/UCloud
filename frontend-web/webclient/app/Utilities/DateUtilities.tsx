@@ -55,3 +55,7 @@ export function addMonthsToDate(d: Date, months: number): Date {
     d.setMonth(d.getMonth() + months);
     return d;
 }
+
+export function getTotalDays(d: Date): number {
+    return d.getTime() / 1000 / 60 / 60 / 24;
+}
