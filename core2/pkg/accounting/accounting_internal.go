@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 	accapi "ucloud.dk/shared/pkg/accounting"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/shared/pkg/util/mermaid"
@@ -273,6 +274,8 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 	return !w.WasLocked, nil
 }
 
+// If grantedIn is specified, then the allocations will not be committed to the database before
+// internalCommitAllocations is invoked with the same ID.
 func internalAllocate(
 	now time.Time,
 	b *internalBucket,
@@ -350,6 +353,12 @@ func internalAllocate(
 		lInternalAttemptActivation(b, now, allocation)
 		return allocationId, nil
 	}
+}
+
+// internalCommitAllocations ensures that all allocations granted in grantId are committed together. If onPersist is
+// specified, then it will be run when the data is persisted.
+func internalCommitAllocations(grantId accGrantId, onPersist func(tx *db.Transaction)) {
+	// TODO
 }
 
 func internalCompleteScan(now time.Time, persistence func(buckets []*internalBucket, scopes []*scopedUsage)) {
@@ -1101,10 +1110,13 @@ func internalRetrieveWallets(
 		groups := w.AllocationsByParent
 		shouldInclude := !filter.RequireActive
 		if filter.RequireActive {
+		anyActive:
 			for _, group := range groups {
-				if now.After(lInternalEarliestExpiration(b, group)) {
-					shouldInclude = true
-					break
+				for allocId, _ := range group.Allocations {
+					if b.AllocationsById[allocId].Active {
+						shouldInclude = true
+						break anyActive
+					}
 				}
 			}
 		}

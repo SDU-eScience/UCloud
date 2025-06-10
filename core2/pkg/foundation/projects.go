@@ -308,7 +308,7 @@ func projectRetrieve(
 	var isMember bool
 	var isFavorite bool
 
-	isSystem := actor == rpc.ActorSystem
+	isSystem := actor.Username == rpc.ActorSystem.Username
 	if !isSystem {
 		userInfo := projectRetrieveUserInfo(actor.Username)
 		userInfo.Mu.RLock()
