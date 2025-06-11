@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.services.accounting
 import com.google.common.primitives.Longs.min
 import dk.sdu.cloud.*
 import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.accounting.Configuration
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.IIdCardService
 import dk.sdu.cloud.accounting.util.IProductCache
@@ -47,6 +48,7 @@ class AccountingSystem(
     private val disableMasterElection: Boolean,
     private val distributedState: DistributedStateFactory,
     private val addressToSelf: String,
+    private val configuration: Configuration
 ) {
     // Active processor
     // =================================================================================================================
@@ -267,6 +269,9 @@ class AccountingSystem(
                                         is AccountingRequest.FillUpPersonalProviderProject -> fillUpPersonalProviderProject(
                                             msg
                                         )
+
+                                        is AccountingRequest.BrowseLowBalanceWallets -> browseLowBalanceWallets(msg)
+                                        is AccountingRequest.LowBalanceNotificationUpdate -> lowBalanceNotificationUpdate(msg)
                                     }
                                 }
                             } catch (e: Throwable) {
@@ -897,6 +902,11 @@ class AccountingSystem(
         val isActiveNow = now >= start
         allocationGroup.allocationSet[allocationId] = isActiveNow
 
+        if (isActiveNow) {
+            wallet.lowBalanceNotified = false
+            wallet.isDirty = true
+        }
+
         if (isActiveNow && allocationGroup.earliestExpiration > end) {
             allocationGroup.earliestExpiration = end
             allocationGroup.isDirty = true
@@ -1335,6 +1345,55 @@ class AccountingSystem(
         return Response.ok(apiWallets)
     }
 
+    private suspend fun browseLowBalanceWallets(request: AccountingRequest.BrowseLowBalanceWallets): Response<List<Pair<InternalOwner, InternalWallet>>> {
+        if (request.idCard != IdCard.System) {
+            throw RPCException("Not allowed to check for low balance.", HttpStatusCode.Forbidden)
+        }
+
+        val lowBalanceWallets = ArrayList<Pair<InternalOwner, InternalWallet>>()
+        walletsById.values.map { wal ->
+            var quota = 0L
+            allocationGroups.values.filter { it.associatedWallet == wal.id }.forEach { ag ->
+                //Filter on isActive == true
+                ag.allocationSet.filter { it.value }.keys.forEach { allocationId ->
+                    val alloc = allocations[allocationId]
+                    quota += alloc?.quota ?: 0
+
+                }
+            }
+            val treeUsage = wal.totalTreeUsage()
+            val remaining = quota - treeUsage
+            when (wal.category.productType) {
+                ProductType.COMPUTE -> {
+                    if (remaining < configuration.computeUnitsNotificationLimit) {
+                        lowBalanceWallets.add(Pair(ownersById[wal.ownedBy]!!, wal))
+                    }
+                }
+                ProductType.STORAGE -> {
+                    if (remaining < configuration.storageUnitsNotificationLimitInGB) {
+                        lowBalanceWallets.add(Pair(ownersById[wal.ownedBy]!!, wal))
+                    }
+                }
+                else -> {
+                    //IGNORE
+                }
+            }
+        }
+
+        return Response.ok(lowBalanceWallets.toList())
+    }
+
+    private fun lowBalanceNotificationUpdate(request: AccountingRequest.LowBalanceNotificationUpdate): Response<Unit> {
+        request.walletIds.forEach { id ->
+            walletsById[id]?.let {
+                it.lowBalanceNotified = true
+                it.isDirty = true
+            }
+        }
+
+        return Response.ok(Unit)
+    }
+
     private suspend fun updateAllocation(request: AccountingRequest.UpdateAllocation): Response<Unit> {
         val now = Time.now()
         val internalAllocation = allocations[request.allocationId]
@@ -1525,6 +1584,10 @@ class AccountingSystem(
 
         //Check if Excess usage needs to be handle now that an allocation has been activated
         checkAndFixExcessUsage(wallet)
+
+        //Might not be in low balance after activation and if it still is a mail would be good to recieve.
+        wallet.lowBalanceNotified = false
+        wallet.isDirty = true
 
         reevaluateWalletsAfterUpdate(walletsById.getValue(alloc.belongsToWallet))
         //Always mark since reevaluate only marks if a wallet changes lock state

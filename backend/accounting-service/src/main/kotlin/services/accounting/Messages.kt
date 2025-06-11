@@ -199,5 +199,14 @@ sealed class AccountingRequest<Resp> {
         override val idCard: IdCard,
         val walletId: Int,
     ) : AccountingRequest<Unit>()
+
+    data class BrowseLowBalanceWallets(
+        override val idCard: IdCard,
+    ): AccountingRequest<List<Pair<InternalOwner, InternalWallet>>>()
+
+    data class LowBalanceNotificationUpdate (
+        override val idCard: IdCard,
+        val walletIds: List<Int>,
+    ): AccountingRequest<Unit>()
 }
 
