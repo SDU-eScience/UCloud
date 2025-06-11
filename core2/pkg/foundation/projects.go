@@ -356,9 +356,8 @@ func ProjectRetrieveClaimsInfo(username string) ProjectClaimsInfo {
 	// this could cause an infinite loop. This function is used as part of building the actor/principal.
 
 	result := ProjectClaimsInfo{
-		Membership:       make(rpc.ProjectMembership),
-		Groups:           make(rpc.GroupMembership),
-		ProviderProjects: make(rpc.ProviderProjects), // TODO implement this
+		Membership: make(rpc.ProjectMembership),
+		Groups:     make(rpc.GroupMembership),
 	}
 
 	userInfo := projectRetrieveUserInfo(username)
@@ -392,6 +391,38 @@ func ProjectRetrieveClaimsInfo(username string) ProjectClaimsInfo {
 			delete(result.Membership, projectId)
 		}
 	}
+
+	result.ProviderProjects = db.NewTx(func(tx *db.Transaction) rpc.ProviderProjects {
+		// TODO(Dan): Quite annoying that we have to go into another deployment's implementation details on top of
+		//  doing a DB transaction here when it is otherwise not needed. On the bright side, this function only runs
+		//  every 5-10 minutes for a given user.
+		projects := rpc.ProviderProjects{}
+
+		rows := db.Select[struct {
+			ProviderId string
+			Project    string
+		}](
+			tx,
+			`
+				select p.unique_name as provider_id, r.project
+				from
+					project.project_members pm
+					join provider.resource r on pm.project_id = r.project
+					join provider.providers p on r.id = p.resource
+				where
+					pm.username = :username
+		    `,
+			db.Params{
+				"username": username,
+			},
+		)
+
+		for _, row := range rows {
+			projects[rpc.ProviderId(row.ProviderId)] = rpc.ProjectId(row.Project)
+		}
+
+		return projects
+	})
 
 	return result
 }
