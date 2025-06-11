@@ -483,9 +483,9 @@ func productFilterApplies(product accapi.ProductV2, filter accapi.ProductsFilter
 }
 
 func productsLoad() {
-	productsByProvider.Buckets = make(map[string]*providerBucket)
-
 	db.NewTx0(func(tx *db.Transaction) {
+		providers := map[string]util.Empty{}
+		productsByProvider.Buckets = make(map[string]*providerBucket)
 		rows := db.Select[struct {
 			Name                      string
 			Category                  string
@@ -576,6 +576,15 @@ func productsLoad() {
 			// NOTE(Dan): ordering done by query
 			bucket := util.ReadOrInsertBucket(&productsByProvider.Mu, productsByProvider.Buckets, p.Category.Provider, nil)
 			bucket.Products = append(bucket.Products, p)
+
+			providers[p.Category.Provider] = util.Empty{}
 		}
+
+		var providersArr []string
+		for provider := range providers {
+			providersArr = append(providersArr, provider)
+		}
+		slices.Sort(providersArr)
+		productsByProvider.Providers = providersArr
 	})
 }

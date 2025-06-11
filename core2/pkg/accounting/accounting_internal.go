@@ -455,6 +455,31 @@ func internalBucketOrInit(category accapi.ProductCategory) *internalBucket {
 	})
 }
 
+func internalWalletById(id accWalletId) (*internalBucket, *internalWallet, bool) {
+	if id == 0 {
+		return nil, nil, false
+	}
+
+	var resultBucket *internalBucket
+	var resultWallet *internalWallet
+	ok := false
+
+	accGlobals.Mu.RLock()
+	for _, b := range accGlobals.BucketsByCategory {
+		b.Mu.RLock()
+		resultWallet, ok = b.WalletsById[id]
+		b.Mu.RUnlock()
+
+		if ok {
+			resultBucket = b
+			break
+		}
+	}
+	accGlobals.Mu.RUnlock()
+
+	return resultBucket, resultWallet, ok
+}
+
 func internalOwnerByReference(reference string) *internalOwner {
 	// TODO Reference must be check by caller
 	return util.ReadOrInsertBucket(&accGlobals.Mu, accGlobals.OwnersByReference, reference, func() *internalOwner {

@@ -264,9 +264,11 @@ func Get[T any](ctx *Transaction, query string, args Params) (T, bool) {
 
 func DoSelect(ctx *Transaction, query string, args Params, fn func(res *sqlx.Rows)) {
 	res, err := ctx.tx.NamedQuery(query, transformParameters(args))
-	if err != nil && ctx.Ok {
-		ctx.Ok = false
-		ctx.error = fmt.Errorf("Database select failed: %v\nquery: %v\n", err.Error(), query)
+	if err != nil {
+		if ctx.Ok {
+			ctx.Ok = false
+			ctx.error = fmt.Errorf("Database select failed: %v\nquery: %v\n", err.Error(), query)
+		}
 		return
 	}
 
@@ -278,9 +280,11 @@ func DoSelect(ctx *Transaction, query string, args Params, fn func(res *sqlx.Row
 func Select[T any](ctx *Transaction, query string, args Params) []T {
 	var result []T
 	res, err := ctx.tx.NamedQuery(query, transformParameters(args))
-	if err != nil && ctx.Ok {
-		ctx.Ok = false
-		ctx.error = fmt.Errorf("Database select failed: %v\nquery: %v\n", err.Error(), query)
+	if err != nil {
+		if ctx.Ok {
+			ctx.Ok = false
+			ctx.error = fmt.Errorf("Database select failed: %v\nquery: %v\n", err.Error(), query)
+		}
 		return nil
 	}
 
