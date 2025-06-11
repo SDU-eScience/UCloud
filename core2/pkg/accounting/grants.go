@@ -19,6 +19,10 @@ import (
 )
 
 func initGrants() {
+	grantGlobals.AppBuckets = nil
+	grantGlobals.SettingBuckets = nil
+	grantGlobals.IndexBuckets = nil
+
 	for i := 0; i < runtime.NumCPU(); i++ {
 		grantGlobals.AppBuckets = append(grantGlobals.AppBuckets, &grantAppBucket{
 			Applications: make(map[accGrantId]*grantApplication),
@@ -142,14 +146,14 @@ func grantsReadEx(actor rpc.Actor, action grantAuthType, b *grantAppBucket, id a
 		}
 
 		for grantGiver, _ := range grantGivers {
-			if actor.Membership[rpc.ProjectId(grantGiver)].Satisfies(rpc.ProjectRolePI) {
+			if actor.Membership[rpc.ProjectId(grantGiver)].Satisfies(rpc.ProjectRoleAdmin) {
 				roles = append(roles, grantActorRoleApprover)
 			}
 		}
 
 		recipient := app.Application.CurrentRevision.Document.Recipient
 		if recipient.Type == accapi.RecipientTypeExistingProject {
-			if actor.Membership[rpc.ProjectId(recipient.Id.Value)].Satisfies(rpc.ProjectRolePI) {
+			if actor.Membership[rpc.ProjectId(recipient.Id.Value)].Satisfies(rpc.ProjectRoleAdmin) {
 				roles = append(roles, grantActorRoleSubmitter)
 			}
 		}
@@ -195,15 +199,9 @@ func grantsRetrieveSettings(grantGiver string) (*grantSettings, bool) {
 }
 
 func grantsCanApply(actor rpc.Actor, recipient accapi.Recipient, grantGiver string) bool {
-	sWrapper, ok := grantsRetrieveSettings(grantGiver)
-	if !ok {
-		return false
-	}
-
-	sWrapper.Mu.RLock()
-
 	walletOwner := ""
 	allowed := false
+	excluded := false
 
 	switch recipient.Type {
 	case accapi.RecipientTypePersonalWorkspace:
@@ -211,33 +209,39 @@ func grantsCanApply(actor rpc.Actor, recipient accapi.Recipient, grantGiver stri
 
 	case accapi.RecipientTypeExistingProject:
 		walletOwner = recipient.Id.Value
+		if !actor.Membership[rpc.ProjectId(recipient.Id.Value)].Satisfies(rpc.ProjectRoleAdmin) {
+			excluded = true
+		}
 
 	case accapi.RecipientTypeNewProject:
 		// No existing owner
 	}
+	sWrapper, hasSettings := grantsRetrieveSettings(grantGiver)
+	if hasSettings {
+		sWrapper.Mu.RLock()
+		settings := sWrapper.Settings
+		if settings.Enabled && !excluded {
+			allowFrom := settings.AllowRequestsFrom
+			excludeFrom := settings.ExcludeRequestsFrom
 
-	settings := sWrapper.Settings
-	if settings.Enabled {
-		allowFrom := settings.AllowRequestsFrom
-		excludeFrom := settings.ExcludeRequestsFrom
-
-		excluded := false
-		for _, exclude := range excludeFrom {
-			if grantUserCriteriaMatch(actor, exclude) {
-				excluded = true
+			for _, exclude := range excludeFrom {
+				if grantUserCriteriaMatch(actor, exclude) {
+					excluded = true
+				}
 			}
-		}
 
-		if excluded {
-			allowed = false
-		} else {
-			for _, include := range allowFrom {
-				if grantUserCriteriaMatch(actor, include) {
-					allowed = true
-					break
+			if excluded {
+				allowed = false
+			} else {
+				for _, include := range allowFrom {
+					if grantUserCriteriaMatch(actor, include) {
+						allowed = true
+						break
+					}
 				}
 			}
 		}
+		sWrapper.Mu.RUnlock()
 	}
 
 	// A user is _always_ allowed to apply to a parent, regardless of settings
@@ -265,8 +269,6 @@ func grantsCanApply(actor rpc.Actor, recipient accapi.Recipient, grantGiver stri
 			}
 		}
 	}
-
-	sWrapper.Mu.RUnlock()
 
 	return allowed
 }
@@ -382,6 +384,12 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 		return 0, util.HttpErr(http.StatusBadRequest, "application must contain an end-date")
 	}
 
+	if period.Present && period.Value.Start.Present && period.Value.End.Present {
+		if period.Value.Start.Value.Time().After(period.Value.End.Value.Time()) {
+			return 0, util.HttpErr(http.StatusBadRequest, "application has an invalid period specified")
+		}
+	}
+
 	// TODO only the grant giver can change reference IDs
 
 	for _, id := range revision.ReferenceIds.GetOrDefault(nil) {
@@ -398,8 +406,10 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 		return 0, util.HttpErr(http.StatusBadRequest, "grant giver initiated applications must be new applications")
 	}
 
-	if revision.Form.Type == accapi.FormTypeGrantGiverInitiated && !revision.Form.SubAllocator.Present {
-		return 0, util.HttpErr(http.StatusBadRequest, "sub-allocator field must be present")
+	if !req.ApplicationId.Present && recipient.Type == accapi.RecipientTypeExistingProject {
+		if !actor.Membership[rpc.ProjectId(recipient.Id.Value)].Satisfies(rpc.ProjectRoleAdmin) {
+			return 0, util.HttpErr(http.StatusBadRequest, "you are not allowed to apply to this project")
+		}
 	}
 
 	// Read and locate the grantApplication
@@ -473,6 +483,7 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 
 	var err *util.HttpError
 
+	grantGiverInitiatedId := ""
 	grantGivers := map[string][]accapi.ProductCategory{}
 	for _, allocReq := range revision.AllocationRequests {
 		category, catErr := ProductCategoryRetrieve(actor, allocReq.Category, allocReq.Provider)
@@ -488,13 +499,12 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 		if len(grantGivers) != 1 {
 			err = util.HttpErr(http.StatusForbidden, "invalid allocation request")
 		} else {
-			var grantGiverId string
 			for grantGiver, _ := range grantGivers {
-				grantGiverId = grantGiver
+				grantGiverInitiatedId = grantGiver
 				break
 			}
 
-			if !actor.Membership[rpc.ProjectId(grantGiverId)].Satisfies(rpc.ProjectRoleAdmin) {
+			if !actor.Membership[rpc.ProjectId(grantGiverInitiatedId)].Satisfies(rpc.ProjectRoleAdmin) {
 				err = util.HttpErr(http.StatusForbidden, "you are not an administrator of this project")
 			}
 		}
@@ -507,26 +517,34 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 	}
 
 	if err == nil {
-	outer:
-		for grantGiver, categories := range grantGivers {
-			if revision.Form.Type != accapi.FormTypeGrantGiverInitiated && !grantsCanApply(actor, recipient, grantGiver) {
-				// TODO This check should only be made if the sender is the original creator
-				err = util.HttpErr(http.StatusBadRequest, "you cannot apply to these grant givers")
-			}
+		senderActor, ok := actor, true
+		if actor.Username != app.Application.CreatedBy {
+			senderActor, ok = rpc.LookupActor(app.Application.CreatedBy)
+		}
 
-			owner := internalOwnerByReference(grantGiver)
-			for _, cat := range categories {
-				aBucket := internalBucketOrInit(cat)
-				w := internalWalletByOwner(aBucket, now, owner.Id)
-				quota, ok := internalWalletTotalQuotaActive(aBucket, w)
-				if quota == 0 || !ok {
-					err = util.HttpErr(
-						http.StatusBadRequest,
-						"%s/%s cannot be requested in this application",
-						cat.Name,
-						cat.Provider,
-					)
-					break outer
+		if !ok {
+			err = util.HttpErr(http.StatusInternalServerError, "internal error")
+		} else {
+		outer:
+			for grantGiver, categories := range grantGivers {
+				if revision.Form.Type != accapi.FormTypeGrantGiverInitiated && !grantsCanApply(senderActor, recipient, grantGiver) {
+					err = util.HttpErr(http.StatusBadRequest, "you cannot apply to these grant givers")
+				}
+
+				owner := internalOwnerByReference(grantGiver)
+				for _, cat := range categories {
+					aBucket := internalBucketOrInit(cat)
+					w := internalWalletByOwner(aBucket, now, owner.Id)
+					quota, ok := internalWalletTotalQuotaActive(aBucket, w)
+					if quota == 0 || !ok {
+						err = util.HttpErr(
+							http.StatusBadRequest,
+							"%s/%s cannot be requested in this application",
+							cat.Name,
+							cat.Provider,
+						)
+						break outer
+					}
 				}
 			}
 		}
@@ -552,6 +570,7 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 	// Application is now guaranteed to be semantically valid and the request is expected to succeed. The application
 	// mutex is still held.
 
+	didApprove := false
 	app.Application.UpdatedAt = fndapi.Timestamp(now)
 
 	overallState := app.Application.Status.OverallState
@@ -564,7 +583,16 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 		*revision = app.Application.CurrentRevision.Document
 		revision.ReferenceIds = newIds
 	} else if revision.Form.Type == accapi.FormTypeGrantGiverInitiated {
-		// TODO very different rules apply in this case
+		app.Application.Status.OverallState = accapi.GrantApplicationStateApproved
+		app.Application.Status.StateBreakdown = []accapi.GrantGiverApprovalState{
+			{
+				ProjectId:    grantGiverInitiatedId,
+				ProjectTitle: "", // TODO?
+				State:        accapi.GrantApplicationStateApproved,
+			},
+		}
+
+		didApprove = true
 	} else {
 		// NOTE(Dan): Any change in the application will automatically reset the state to in-progress
 		app.Application.Status.OverallState = accapi.GrantApplicationStateInProgress
@@ -624,7 +652,7 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 
 	lGrantsPersist(app)
 
-	if app.Application.Status.OverallState == accapi.GrantApplicationStateApproved {
+	if didApprove {
 		lGrantsAwardResources(app)
 	}
 
@@ -900,6 +928,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 	// TODO parents should be included in list and deduplicated
 
 	recipient := accapi.Recipient{}
+	parents := map[string]util.Empty{}
 
 	switch req.Type {
 	case accapi.RetrieveGrantGiversTypeNewProject:
@@ -927,38 +956,81 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 		app.Mu.RUnlock()
 	}
 
+	if recipient.Type == accapi.RecipientTypeExistingProject {
+		// NOTE(Dan): Must be outside of switch statement since existing apps can set it to existing project also
+
+		if !actor.Membership[rpc.ProjectId(req.Id)].Satisfies(rpc.ProjectRoleAdmin) {
+			return nil, util.HttpErr(http.StatusNotFound, "unknown project")
+		} else {
+			wallets := internalRetrieveWallets(now, req.Id, walletFilter{RequireActive: false}) // all wallets not just active
+			for _, wallet := range wallets {
+				for _, group := range wallet.AllocationGroups {
+					if group.Parent.Present {
+						parents[group.Parent.Value.ProjectId] = util.Empty{}
+					}
+				}
+			}
+		}
+	}
+
 	// The request is expected to succeed at this point
 	// -----------------------------------------------------------------------------------------------------------------
 
 	var result []accapi.GrantGiver
+
+	lAddPotentialGrantGiver := func(b *grantSettingsBucket, grantGiver string) {
+		if grantsCanApply(actor, recipient, grantGiver) {
+			wallets := internalRetrieveWallets(now, grantGiver, walletFilter{RequireActive: true})
+			var categories []accapi.ProductCategory
+			for _, wallet := range wallets {
+				categories = append(categories, wallet.PaysFor)
+			}
+
+			gg := accapi.GrantGiver{
+				Id:         grantGiver,
+				Title:      "", // TODO
+				Categories: categories,
+			}
+
+			if sWrapper, ok := b.Settings[grantGiver]; ok {
+				sWrapper.Mu.RLock()
+				gg.Description = sWrapper.Settings.Description
+				gg.Templates = sWrapper.Settings.Templates
+				sWrapper.Mu.RUnlock()
+			} else {
+				const defaultTemplate = "Please describe the reason for applying for resources"
+				gg.Description = ""
+				gg.Templates = accapi.Templates{
+					Type:            accapi.TemplatesTypePlainText,
+					PersonalProject: defaultTemplate,
+					NewProject:      defaultTemplate,
+					ExistingProject: defaultTemplate,
+				}
+			}
+			result = append(result, gg)
+		}
+	}
+
 	for _, b := range grantGlobals.SettingBuckets {
 		b.Mu.RLock()
 		for grantGiver, _ := range b.PublicGrantGivers {
-			sWrapper, ok := b.Settings[grantGiver]
-			sWrapper.Mu.RLock()
-
-			if ok && grantsCanApply(actor, recipient, grantGiver) {
-				wallets := internalRetrieveWallets(now, grantGiver, walletFilter{RequireActive: true})
-				var categories []accapi.ProductCategory
-				for _, wallet := range wallets {
-					categories = append(categories, wallet.PaysFor)
-				}
-
-				gg := accapi.GrantGiver{
-					Id:          grantGiver,
-					Title:       "", // TODO
-					Description: sWrapper.Settings.Description,
-					Templates:   sWrapper.Settings.Templates,
-					Categories:  categories,
-				}
-
-				result = append(result, gg)
+			if _, ok := parents[grantGiver]; !ok {
+				lAddPotentialGrantGiver(b, grantGiver)
 			}
-
-			sWrapper.Mu.RUnlock()
 		}
 		b.Mu.RUnlock()
 	}
+
+	for parent, _ := range parents {
+		b := grantGetSettingsBucket(parent)
+		b.Mu.RLock()
+		lAddPotentialGrantGiver(b, parent)
+		b.Mu.RUnlock()
+	}
+
+	slices.SortFunc(result, func(a, b accapi.GrantGiver) int {
+		return strings.Compare(a.Id, b.Id)
+	})
 
 	return result, nil
 }
@@ -1083,20 +1155,12 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 	var err *util.HttpError
 	idRaw, _ := strconv.ParseInt(req.ApplicationId, 10, 64)
 	idActual := accGrantId(idRaw)
-	app, _ := grantsRead(actor, grantAuthApprover, idActual)
+	app, roles := grantsRead(actor, grantAuthReadWrite, idActual)
 	if app == nil {
 		return util.HttpErr(http.StatusNotFound, "not found")
 	}
 
-	if !actor.Project.Present {
-		return util.HttpErr(http.StatusBadRequest, "no project given, who do you represent?")
-	}
-
-	if !actor.Membership[rpc.ProjectId(actor.Project.Value)].Satisfies(rpc.ProjectRoleAdmin) {
-		return util.HttpErr(http.StatusForbidden, "you must be an admin in the grant giver project to do this")
-	}
-
-	if req.NewState == accapi.GrantApplicationStateClosed {
+	if req.NewState == accapi.GrantApplicationStateClosed && !slices.Contains(roles, grantActorRoleSubmitter) {
 		return util.HttpErr(http.StatusBadRequest, "grant givers cannot withdraw an application")
 	}
 
@@ -1106,45 +1170,71 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 		return util.HttpErr(http.StatusBadRequest, "invalid state")
 	}
 
+	if req.NewState != accapi.GrantApplicationStateClosed {
+		if !slices.Contains(roles, grantActorRoleApprover) {
+			return util.HttpErr(http.StatusForbidden, "you cannot change this state")
+		}
+
+		if !actor.Project.Present {
+			return util.HttpErr(http.StatusBadRequest, "no project given, who do you represent?")
+		}
+	}
+
+	if req.NewState == accapi.GrantApplicationStateInProgress {
+		return util.HttpErr(http.StatusBadRequest, "you cannot update an application to be in progress")
+	}
+
 	app.Mu.Lock()
 	if app.Application.Status.OverallState != accapi.GrantApplicationStateInProgress {
 		err = util.HttpErr(http.StatusBadRequest, "application is no longer active")
 	}
 
 	if err == nil {
-		// Operation is now expected to succeed
-		newOverallState := accapi.GrantApplicationStateInProgress
-		anyRejected := false
-		allApproved := true
+		// Operation is now expected to succeed in most cases
 
-		for i, _ := range app.Application.Status.StateBreakdown {
-			breakdown := &app.Application.Status.StateBreakdown[i]
+		if req.NewState == accapi.GrantApplicationStateClosed {
+			app.Application.Status.OverallState = accapi.GrantApplicationStateClosed
+			lGrantsPersist(app)
+		} else {
+			newOverallState := accapi.GrantApplicationStateInProgress
+			anyRejected := false
+			allApproved := true
+			anyUpdated := false
 
-			if breakdown.ProjectId == actor.Project.Value {
-				breakdown.State = req.NewState
+			for i, _ := range app.Application.Status.StateBreakdown {
+				breakdown := &app.Application.Status.StateBreakdown[i]
+
+				if breakdown.ProjectId == actor.Project.Value {
+					breakdown.State = req.NewState
+					anyUpdated = true
+				}
+
+				if breakdown.State != accapi.GrantApplicationStateApproved {
+					allApproved = false
+				}
+
+				if breakdown.State == accapi.GrantApplicationStateRejected {
+					anyRejected = true
+					break
+				}
 			}
 
-			if breakdown.State != accapi.GrantApplicationStateApproved {
-				allApproved = false
+			if !anyUpdated {
+				err = util.HttpErr(http.StatusBadRequest, "which project do you represent?")
+			} else {
+				if anyRejected {
+					newOverallState = accapi.GrantApplicationStateRejected
+				} else if allApproved {
+					newOverallState = accapi.GrantApplicationStateApproved
+				}
+
+				app.Application.Status.OverallState = newOverallState
+				lGrantsPersist(app)
+
+				if newOverallState == accapi.GrantApplicationStateApproved {
+					lGrantsAwardResources(app)
+				}
 			}
-
-			if breakdown.State == accapi.GrantApplicationStateRejected {
-				anyRejected = true
-				break
-			}
-		}
-
-		if anyRejected {
-			newOverallState = accapi.GrantApplicationStateRejected
-		} else if allApproved {
-			newOverallState = accapi.GrantApplicationStateApproved
-		}
-
-		app.Application.Status.OverallState = newOverallState
-		lGrantsPersist(app)
-
-		if newOverallState == accapi.GrantApplicationStateApproved {
-			lGrantsAwardResources(app)
 		}
 	}
 	app.Mu.Unlock()
@@ -1158,7 +1248,7 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	}
 	b := grantGetSettingsBucket(id)
 
-	if actor.Role != rpc.RolesAdmin {
+	if actor.Role != rpc.RoleAdmin {
 		s.Enabled = false
 	}
 

@@ -1,6 +1,7 @@
 package accounting
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"sync"
@@ -38,6 +39,10 @@ func actor(username, project string) *rpc.Actor {
 }
 
 func addGrantGiver(t *testing.T, id string) {
+	addGrantGiverEx(t, id, true)
+}
+
+func addGrantGiverEx(t *testing.T, id string, addResources bool) {
 	b := grantGetSettingsBucket(id)
 
 	b.Mu.Lock()
@@ -56,18 +61,20 @@ func addGrantGiver(t *testing.T, id string) {
 		},
 	}
 
-	owner := internalOwnerByReference(id).Id
-	{
-		accBucket := internalBucketOrInit(cpuCategory)
-		w := internalWalletByOwner(accBucket, time.Now(), owner)
-		_, _ = internalAllocate(time.Now(), accBucket, time.Now(), time.Now().AddDate(1, 0, 0), 1000000, w, 0,
-			util.OptNone[accGrantId]())
-	}
-	{
-		accBucket := internalBucketOrInit(storageCategory)
-		w := internalWalletByOwner(accBucket, time.Now(), owner)
-		_, _ = internalAllocate(time.Now(), accBucket, time.Now(), time.Now().AddDate(1, 0, 0), 1000000, w, 0,
-			util.OptNone[accGrantId]())
+	if addResources {
+		owner := internalOwnerByReference(id).Id
+		{
+			accBucket := internalBucketOrInit(cpuCategory)
+			w := internalWalletByOwner(accBucket, time.Now(), owner)
+			_, _ = internalAllocate(time.Now(), accBucket, time.Now(), time.Now().AddDate(1, 0, 0), 1000000, w, 0,
+				util.OptNone[accGrantId]())
+		}
+		{
+			accBucket := internalBucketOrInit(storageCategory)
+			w := internalWalletByOwner(accBucket, time.Now(), owner)
+			_, _ = internalAllocate(time.Now(), accBucket, time.Now(), time.Now().AddDate(1, 0, 0), 1000000, w, 0,
+				util.OptNone[accGrantId]())
+		}
 	}
 }
 
@@ -146,6 +153,7 @@ var storageProduct = accapi.ProductV2{
 var storageCategory = storageProduct.Category
 
 func initGrantsTest(t *testing.T) {
+	grantGlobals.Testing.Enabled = true
 	accGlobals.OwnersByReference = make(map[string]*internalOwner)
 	accGlobals.OwnersById = make(map[accOwnerId]*internalOwner)
 	accGlobals.Usage = make(map[string]*scopedUsage)
@@ -531,7 +539,7 @@ func TestUnauthorizedStateUpdate(t *testing.T) {
 	appID := strconv.FormatInt(id64, 10)
 	err := GrantsUpdateState(*alice, accapi.GrantsUpdateStateRequest{ApplicationId: appID, NewState: accapi.GrantApplicationStateApproved})
 	assert.NotNil(t, err)
-	assert.Equal(t, http.StatusNotFound, err.StatusCode)
+	assert.Equal(t, http.StatusForbidden, err.StatusCode)
 	assert.Nil(t, GrantsUpdateState(*admin, accapi.GrantsUpdateStateRequest{ApplicationId: appID, NewState: accapi.GrantApplicationStateApproved}))
 }
 
@@ -635,4 +643,636 @@ func TestGrantGiverUpdateAndRetrieve(t *testing.T) {
 		}
 	}
 	assert.True(t, found)
+}
+
+func TestProjectRolesRead(t *testing.T) {
+	initGrantsTest(t)
+
+	const giver = "giver"
+	addGrantGiver(t, giver)
+
+	const project = "project"
+
+	pi := actor("pi", project)
+	pi.Membership[rpc.ProjectId(project)] = rpc.ProjectRolePI
+
+	admin := actor("admin", project)
+	admin.Membership[rpc.ProjectId(project)] = rpc.ProjectRoleAdmin
+
+	user := actor("user", project)
+	user.Membership[rpc.ProjectId(project)] = rpc.ProjectRoleUser
+
+	unknown := actor("unknown", "")
+
+	matrix := []struct {
+		Submitter *rpc.Actor
+		Reader    *rpc.Actor
+		Success   bool
+	}{
+		{Submitter: pi, Reader: pi, Success: true},
+		{Submitter: pi, Reader: admin, Success: true},
+		{Submitter: pi, Reader: user, Success: false},
+		{Submitter: pi, Reader: unknown, Success: false},
+
+		{Submitter: admin, Reader: pi, Success: true},
+		{Submitter: admin, Reader: admin, Success: true},
+		{Submitter: admin, Reader: user, Success: false},
+		{Submitter: admin, Reader: unknown, Success: false},
+
+		{Submitter: user, Success: false},
+		{Submitter: unknown, Success: false},
+	}
+
+	for _, row := range matrix {
+		readerName := "none"
+		if row.Reader != nil {
+			readerName = row.Reader.Username
+		}
+
+		t.Run(fmt.Sprintf("%v/%v/%v", row.Submitter.Username, readerName, row.Success), func(t *testing.T) {
+			request := rev(row.Submitter.Username, giver, 100)
+			request.Revision.Recipient = accapi.Recipient{
+				Type: accapi.RecipientTypeExistingProject,
+				Id:   util.OptValue(project),
+			}
+			request.Revision.ParentProjectId = util.OptValue(giver)
+
+			id, err := GrantsSubmitRevision(*row.Submitter, request)
+			if row.Reader == nil {
+				assert.True(
+					t,
+					(row.Success && err == nil) || (!row.Success && err != nil),
+					"submit test %v/%v: %s",
+					row.Submitter.Username,
+					row.Success,
+					err,
+				)
+			} else {
+				if assert.Nil(t, err) {
+					_, err = GrantsRetrieve(*row.Reader, fmt.Sprint(id))
+					assert.True(
+						t,
+						(row.Success && err == nil) || (!row.Success && err != nil),
+						"read test %v/%v/%v: %s",
+						row.Submitter.Username,
+						row.Reader.Username,
+						row.Success,
+						err,
+					)
+				}
+			}
+		})
+	}
+}
+
+func TestSyntacticValidation(t *testing.T) {
+	initGrantsTest(t)
+
+	const giver = "giver"
+	addGrantGiver(t, giver)
+
+	const project = "project"
+	admin := actor("admin", project)
+
+	matrix := []struct {
+		Name    string
+		Mutator func(r *accapi.GrantsSubmitRevisionRequest)
+	}{
+		{
+			Name: "no comment",
+			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
+				r.Comment = ""
+			},
+		},
+		{
+			Name: "bad recipient",
+			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
+				r.Revision.Recipient.Type = ""
+			},
+		},
+		{
+			Name: "bad title",
+			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
+				r.Revision.ParentProjectId = util.OptValue(giver)
+				r.Revision.Recipient = accapi.Recipient{
+					Type:  accapi.RecipientTypeNewProject,
+					Title: util.OptValue[string]("%test%"),
+				}
+			},
+		},
+		{
+			Name: "no affiliation",
+			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
+				r.Revision.Recipient = accapi.Recipient{
+					Type:  accapi.RecipientTypeNewProject,
+					Title: util.OptValue[string]("test"),
+				}
+			},
+		},
+		{
+			Name: "affiliation with user",
+			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
+				r.Revision.ParentProjectId = util.OptValue(giver)
+				r.Revision.Recipient = accapi.Recipient{
+					Type: accapi.RecipientTypePersonalWorkspace,
+				}
+			},
+		},
+		{
+			Name: "invalid form type",
+			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
+				r.Revision.Form.Type = ""
+			},
+		},
+		{
+			Name: "negative quota",
+			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
+				r.Revision.AllocationRequests[0].BalanceRequested = util.OptValue[int64](-100)
+			},
+		},
+		{
+			Name: "no requests",
+			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
+				r.Revision.AllocationRequests = nil
+			},
+		},
+		{
+			Name: "no end date",
+			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
+				r.Revision.AllocationPeriod.Set(accapi.Period{
+					Start: util.OptValue[fndapi.Timestamp](fndapi.Timestamp(time.Now())),
+					End:   util.OptNone[fndapi.Timestamp](),
+				})
+			},
+		},
+		{
+			Name: "bad inferred period",
+			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
+				r.Revision.AllocationPeriod.Clear()
+				allocs := r.Revision.AllocationRequests
+				for i := 0; i < len(allocs); i++ {
+					allocs[i].Period.Start.Set(fndapi.Timestamp(time.Now()))
+					allocs[i].Period.End.Set(fndapi.Timestamp(time.Now().AddDate(0, 0, -1)))
+				}
+			},
+		},
+		{
+			Name: "bad deic id",
+			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
+				r.Revision.ReferenceIds.Set([]string{"deic-invalid"})
+			},
+		},
+		{
+			Name: "bad deic id 2",
+			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
+				r.Revision.ReferenceIds.Set([]string{"deic-a-b-c"})
+			},
+		},
+		{
+			Name: "bad deic id 3",
+			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
+				r.Revision.ReferenceIds.Set([]string{"deic-sdu-b1-4"})
+			},
+		},
+		{
+			Name: "bad deic id 4",
+			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
+				r.Revision.ReferenceIds.Set([]string{"deic-sdu-N5-c"})
+			},
+		},
+		{
+			Name: "bad deic id 5",
+			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
+				r.Revision.ReferenceIds.Set([]string{"deic-sdu-b122-4"})
+			},
+		},
+		{
+			Name: "empty ref id",
+			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
+				r.Revision.ReferenceIds.Set([]string{""})
+			},
+		},
+		{
+			Name: "bad product reference",
+			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
+				r.Revision.AllocationRequests = append(r.Revision.AllocationRequests, accapi.AllocationRequest{
+					Category:         "bad",
+					Provider:         "category",
+					GrantGiver:       giver,
+					BalanceRequested: util.OptValue[int64](1000),
+					Period:           r.Revision.AllocationPeriod.Value,
+				})
+			},
+		},
+	}
+
+	for _, row := range matrix {
+		t.Run(row.Name, func(t *testing.T) {
+			revision := rev(admin.Username, giver, 1000)
+			row.Mutator(&revision)
+			_, err := GrantsSubmitRevision(*admin, revision)
+			assert.NotNil(t, err)
+		})
+	}
+}
+
+func TestParentApply(t *testing.T) {
+	initGrantsTest(t)
+
+	const parent = "parent"
+	const child = "child"
+	admin := actor("admin", child)
+
+	result, err := GrantsRetrieveGrantGivers(*admin, accapi.RetrieveGrantGiversRequest{
+		Type: accapi.RetrieveGrantGiversTypeExistingProject,
+		Id:   child,
+	})
+
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(result))
+
+	e := newEnv(t, cpuCategory)
+	e.Allocate(a{
+		Now:       0,
+		Start:     0,
+		End:       1000,
+		Quota:     1000,
+		Recipient: parent,
+		Parent:    "",
+	})
+
+	e.Allocate(a{
+		Now:       0,
+		Start:     0,
+		End:       1000,
+		Quota:     1000,
+		Recipient: child,
+		Parent:    parent,
+	})
+
+	result, err = GrantsRetrieveGrantGivers(*admin, accapi.RetrieveGrantGiversRequest{
+		Type: accapi.RetrieveGrantGiversTypeExistingProject,
+		Id:   child,
+	})
+
+	if assert.Nil(t, err) && assert.Equal(t, 1, len(result)) {
+		resultGrantGiver := result[0]
+		assert.Equal(t, parent, resultGrantGiver.Id)
+	}
+}
+
+func TestApplyWithNoGrantGiverResources(t *testing.T) {
+	initGrantsTest(t)
+
+	const giver = "giver"
+	addGrantGiverEx(t, giver, false)
+
+	user := actor("user", "")
+	request := rev(user.Username, giver, 1000)
+	_, err := GrantsSubmitRevision(*user, request)
+	assert.NotNil(t, err)
+}
+
+func TestCannotApply(t *testing.T) {
+	initGrantsTest(t)
+
+	const giver = "giver"
+	addGrantGiverEx(t, giver, false)
+	giverPi := actor("giverPi", giver)
+	err := GrantsUpdateSettings(*giverPi, giver, accapi.GrantRequestSettings{
+		Enabled:           true,
+		Description:       "test giver",
+		AllowRequestsFrom: []accapi.UserCriteria{},
+		Templates:         accapi.Templates{Type: accapi.TemplatesTypePlainText},
+	})
+	assert.Nil(t, err)
+
+	user := actor("user", "")
+	request := rev(user.Username, giver, 1000)
+	_, err = GrantsSubmitRevision(*user, request)
+	assert.NotNil(t, err)
+}
+
+func TestTransferToTargetWhichUserCannotApplyTo(t *testing.T) {
+	initGrantsTest(t)
+
+	const origGiver = "original"
+	addGrantGiver(t, origGiver)
+	origGiverPi := actor("origPi", origGiver)
+
+	const giver = "giver"
+	addGrantGiver(t, giver)
+	giverPi := actor("giverPi", giver)
+	err := GrantsUpdateSettings(*giverPi, giver, accapi.GrantRequestSettings{
+		Enabled:           true,
+		Description:       "test giver",
+		AllowRequestsFrom: []accapi.UserCriteria{},
+		Templates:         accapi.Templates{Type: accapi.TemplatesTypePlainText},
+	})
+	assert.Nil(t, err)
+
+	user := actor("user", "")
+	request := rev(user.Username, origGiver, 1000)
+	id, err := GrantsSubmitRevision(*user, request)
+	assert.Nil(t, err)
+
+	err = GrantsTransfer(*origGiverPi, accapi.GrantsTransferRequest{
+		ApplicationId: fmt.Sprint(id),
+		Target:        giver,
+		Comment:       "x",
+	})
+
+	assert.NotNil(t, err)
+}
+
+func TestTransferToTargetWithNoResources(t *testing.T) {
+	initGrantsTest(t)
+
+	const origGiver = "original"
+	addGrantGiver(t, origGiver)
+	origGiverPi := actor("origPi", origGiver)
+
+	const giver = "giver"
+	addGrantGiverEx(t, giver, false)
+
+	user := actor("user", "")
+	request := rev(user.Username, origGiver, 1000)
+	id, err := GrantsSubmitRevision(*user, request)
+	assert.Nil(t, err)
+
+	err = GrantsTransfer(*origGiverPi, accapi.GrantsTransferRequest{
+		ApplicationId: fmt.Sprint(id),
+		Target:        giver,
+		Comment:       "x",
+	})
+
+	assert.NotNil(t, err)
+}
+
+func TestTransferClosed(t *testing.T) {
+	initGrantsTest(t)
+
+	const origGiver = "original"
+	addGrantGiver(t, origGiver)
+	origGiverPi := actor("origPi", origGiver)
+
+	const giver = "giver"
+	addGrantGiverEx(t, giver, false)
+
+	user := actor("user", "")
+	request := rev(user.Username, origGiver, 1000)
+	id, err := GrantsSubmitRevision(*user, request)
+	assert.Nil(t, err)
+
+	err = GrantsUpdateState(*user, accapi.GrantsUpdateStateRequest{
+		ApplicationId: fmt.Sprint(id),
+		NewState:      accapi.GrantApplicationStateClosed,
+	})
+
+	assert.Nil(t, err)
+
+	err = GrantsTransfer(*origGiverPi, accapi.GrantsTransferRequest{
+		ApplicationId: fmt.Sprint(id),
+		Target:        giver,
+		Comment:       "x",
+	})
+
+	assert.NotNil(t, err)
+}
+
+func TestUpdateStateErrorCases(t *testing.T) {
+	initGrantsTest(t)
+
+	const giver = "giver"
+	addGrantGiver(t, giver)
+	admin := actor("admin", giver)
+
+	user := actor("user", "")
+
+	matrix := []struct {
+		Name         string
+		InitialState util.Option[accapi.GrantApplicationState]
+		Mutator      func(req *accapi.GrantsUpdateStateRequest)
+		Actor        *rpc.Actor
+	}{
+		{
+			Name:  "unknown application",
+			Actor: user,
+			Mutator: func(req *accapi.GrantsUpdateStateRequest) {
+				req.ApplicationId = "4444444"
+			},
+		},
+		{
+			Name:  "in progress (user)",
+			Actor: user,
+			Mutator: func(req *accapi.GrantsUpdateStateRequest) {
+				req.NewState = accapi.GrantApplicationStateInProgress
+			},
+		},
+		{
+			Name:  "in progress (admin)",
+			Actor: admin,
+			Mutator: func(req *accapi.GrantsUpdateStateRequest) {
+				req.NewState = accapi.GrantApplicationStateInProgress
+			},
+		},
+		{
+			Name:  "invalid (user)",
+			Actor: user,
+			Mutator: func(req *accapi.GrantsUpdateStateRequest) {
+				req.NewState = ""
+			},
+		},
+		{
+			Name:  "invalid (admin)",
+			Actor: admin,
+			Mutator: func(req *accapi.GrantsUpdateStateRequest) {
+				req.NewState = ""
+			},
+		},
+		{
+			Name:  "close as admin",
+			Actor: admin,
+			Mutator: func(req *accapi.GrantsUpdateStateRequest) {
+				req.NewState = accapi.GrantApplicationStateClosed
+			},
+		},
+		{
+			Name: "approve as user",
+			Actor: func() *rpc.Actor {
+				userInUnrelatedProject := actor(user.Username, "unrelated")
+				return userInUnrelatedProject
+			}(),
+			Mutator: func(req *accapi.GrantsUpdateStateRequest) {
+				req.NewState = accapi.GrantApplicationStateApproved
+			},
+		},
+		{
+			Name: "approve with incorrect project active",
+			Actor: func() *rpc.Actor {
+				adminWithDifferentProject := actor(admin.Username, giver)
+				adminWithDifferentProject.Membership["otherProject"] = rpc.ProjectRoleAdmin
+				adminWithDifferentProject.Project.Set("otherProject")
+				return adminWithDifferentProject
+			}(),
+			Mutator: func(req *accapi.GrantsUpdateStateRequest) {
+				req.NewState = accapi.GrantApplicationStateApproved
+			},
+		},
+		{
+			Name: "approve with no project active",
+			Actor: func() *rpc.Actor {
+				adminWithDifferentProject := actor(admin.Username, giver)
+				adminWithDifferentProject.Project.Clear()
+				return adminWithDifferentProject
+			}(),
+			Mutator: func(req *accapi.GrantsUpdateStateRequest) {
+				req.NewState = accapi.GrantApplicationStateApproved
+			},
+		},
+		{
+			Name:         "reject already approved",
+			Actor:        admin,
+			InitialState: util.OptValue(accapi.GrantApplicationStateApproved),
+			Mutator: func(req *accapi.GrantsUpdateStateRequest) {
+				req.NewState = accapi.GrantApplicationStateRejected
+			},
+		},
+		{
+			Name:         "approve already rejected",
+			Actor:        admin,
+			InitialState: util.OptValue(accapi.GrantApplicationStateApproved),
+			Mutator: func(req *accapi.GrantsUpdateStateRequest) {
+				req.NewState = accapi.GrantApplicationStateRejected
+			},
+		},
+		{
+			Name:         "approve already closed",
+			Actor:        admin,
+			InitialState: util.OptValue(accapi.GrantApplicationStateClosed),
+			Mutator: func(req *accapi.GrantsUpdateStateRequest) {
+				req.NewState = accapi.GrantApplicationStateApproved
+			},
+		},
+		{
+			Name: "approve as user in giver",
+			Actor: func() *rpc.Actor {
+				giverUser := actor("grantGiverUser", giver)
+				giverUser.Membership[giver] = rpc.ProjectRoleUser
+				return giverUser
+			}(),
+			Mutator: func(req *accapi.GrantsUpdateStateRequest) {
+				req.NewState = accapi.GrantApplicationStateApproved
+			},
+		},
+	}
+
+	for _, row := range matrix {
+		t.Run(row.Name, func(t *testing.T) {
+			id, err := GrantsSubmitRevision(*user, rev(user.Username, giver, 1000))
+			if !assert.Nil(t, err) {
+				return
+			}
+
+			if row.InitialState.Present {
+				initialActor := admin
+				if row.InitialState.Value == accapi.GrantApplicationStateClosed {
+					initialActor = user
+				}
+
+				err = GrantsUpdateState(*initialActor, accapi.GrantsUpdateStateRequest{
+					ApplicationId: fmt.Sprint(id),
+					NewState:      row.InitialState.Value,
+				})
+
+				if !assert.Nil(t, err) {
+					return
+				}
+			}
+
+			req := accapi.GrantsUpdateStateRequest{
+				ApplicationId: fmt.Sprint(id),
+				NewState:      accapi.GrantApplicationStateClosed,
+			}
+
+			row.Mutator(&req)
+			err = GrantsUpdateState(*row.Actor, req)
+			assert.NotNil(t, err)
+		})
+	}
+}
+
+func TestTransferErrorCases(t *testing.T) {
+	initGrantsTest(t)
+
+	const giver = "giver"
+	addGrantGiver(t, giver)
+	grantGiverAdmin := actor("grantGiverAdmin", giver)
+
+	const target = "giver"
+	addGrantGiver(t, target)
+
+	user := actor("user", "")
+
+	matrix := []struct {
+		Name    string
+		Actor   *rpc.Actor
+		Mutator func(req *accapi.GrantsTransferRequest)
+	}{
+		{
+			Name: "no actor project",
+			Actor: func() *rpc.Actor {
+				base := actor("grantGiverAdmin", giver)
+				base.Project.Clear()
+				return base
+			}(),
+			Mutator: func(req *accapi.GrantsTransferRequest) {},
+		},
+		{
+			Name: "user in source project",
+			Actor: func() *rpc.Actor {
+				base := actor("grantGiverAdmin", giver)
+				base.Membership[giver] = rpc.ProjectRoleUser
+				return base
+			}(),
+			Mutator: func(req *accapi.GrantsTransferRequest) {},
+		},
+		{
+			Name:  "bad id",
+			Actor: grantGiverAdmin,
+			Mutator: func(req *accapi.GrantsTransferRequest) {
+				req.ApplicationId = "44444444"
+			},
+		},
+		{
+			Name:  "closed",
+			Actor: grantGiverAdmin,
+			Mutator: func(req *accapi.GrantsTransferRequest) {
+				err := GrantsUpdateState(*grantGiverAdmin, accapi.GrantsUpdateStateRequest{
+					ApplicationId: req.ApplicationId,
+					NewState:      accapi.GrantApplicationStateRejected,
+				})
+				assert.Nil(t, err)
+			},
+		},
+	}
+
+	for _, row := range matrix {
+		t.Run(row.Name, func(t *testing.T) {
+			id, err := GrantsSubmitRevision(*user, rev(user.Username, giver, 1000))
+			if !assert.Nil(t, err) {
+				return
+			}
+
+			req := accapi.GrantsTransferRequest{
+				ApplicationId: fmt.Sprint(id),
+				Target:        target,
+				Comment:       "x",
+			}
+
+			row.Mutator(&req)
+			err = GrantsTransfer(*row.Actor, req)
+			assert.NotNil(t, err)
+		})
+	}
 }

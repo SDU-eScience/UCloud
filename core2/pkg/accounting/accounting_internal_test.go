@@ -34,7 +34,7 @@ func TestExcessUsageHierarchyCapacity(t *testing.T) {
 	e.Snapshot("after-new-alloc", "P2", false)
 }
 
-func TestThing(t *testing.T) {
+func TestRouting(t *testing.T) {
 	e := newEnv(t, capacityCategory)
 
 	e.Allocate(a{

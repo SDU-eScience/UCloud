@@ -75,7 +75,7 @@ func (p ProjectRole) Satisfies(requirement ProjectRole) bool {
 	}
 
 	power := p.Power()
-	requiredPower := p.Power()
+	requiredPower := requirement.Power()
 	if power > 0 && requiredPower > 0 {
 		return power >= requiredPower
 	} else {

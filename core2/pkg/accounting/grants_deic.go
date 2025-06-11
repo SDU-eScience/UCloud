@@ -10,14 +10,14 @@ import (
 var (
 	// allowed second-segment university codes
 	deicUniSet = map[string]struct{}{
-		"KU":  {},
-		"DTU": {},
-		"AU":  {},
-		"SDU": {},
-		"AAU": {},
-		"RUC": {},
-		"ITU": {},
-		"CBS": {},
+		"ku":  {},
+		"dtu": {},
+		"au":  {},
+		"sdu": {},
+		"aau": {},
+		"ruc": {},
+		"itu": {},
+		"cbs": {},
 	}
 
 	deicAllocRegex   = regexp.MustCompile(`^[LNSI][1-5]$`)
@@ -36,9 +36,6 @@ func checkDeicReferenceFormat(id string) *util.HttpError {
 	case len(parts) != 4:
 		return util.HttpErr(http.StatusBadRequest, errorMessage+
 			" It seems like you are not following request format. DeiC-XX-YY-NUMBER")
-
-	case parts[0] != "DeiC":
-		return util.HttpErr(http.StatusBadRequest, errorMessage+" First part should be DeiC.")
 
 	case !isAllowedUni(parts[1]):
 		return util.HttpErr(http.StatusBadRequest, errorMessage+" Could not recognize university.")
@@ -60,6 +57,6 @@ func checkDeicReferenceFormat(id string) *util.HttpError {
 }
 
 func isAllowedUni(code string) bool {
-	_, ok := deicUniSet[code]
+	_, ok := deicUniSet[strings.ToLower(code)]
 	return ok
 }
