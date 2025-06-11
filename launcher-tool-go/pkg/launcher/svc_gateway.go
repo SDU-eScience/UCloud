@@ -33,6 +33,9 @@ func (gw *GateWay) Build(cb ComposeBuilder) {
 			reverse_proxy /api/sla/* core2:8080
 			reverse_proxy /api/sla core2:8080
 			reverse_proxy /api/projects/* core2:8080
+			reverse_proxy /api/accounting/* core2:8080
+			reverse_proxy /api/grants/* core2:8080
+			reverse_proxy /api/gifts/* core2:8080
 			reverse_proxy /auth/* core2:8080
 		`)
 	} else if UseCore2() {

@@ -95,7 +95,9 @@ func Launch() {
 			return rpc.Actor{Role: rpc.RoleGuest}, nil
 		}
 
-		tok, err := jwtParser.Parse(jwtToken, jwtKeyFunc)
+		claims := &rpc.CorePrincipalClaims{}
+
+		tok, err := jwtParser.ParseWithClaims(jwtToken, claims, jwtKeyFunc)
 		if err != nil {
 			return rpc.Actor{Role: rpc.RoleGuest}, nil
 		}
@@ -105,43 +107,26 @@ func Launch() {
 			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
 		}
 
-		claims, ok := tok.Claims.(jwt.MapClaims)
-		if !ok {
+		sessionReference := claims.SessionReference
+
+		issuedAt, err := claims.GetIssuedAt()
+		if err != nil {
 			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
 		}
 
-		roleStr, ok := readFromMap[string](claims, "role")
-		if !ok {
+		expiresAt, err := claims.GetExpirationTime()
+		if err != nil {
 			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
 		}
-
-		sessionReference, ok := readFromMap[string](claims, "publicSessionReference")
-		if !ok {
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
-		}
-
-		issuedAtRaw, ok := readFromMap[float64](claims, "iat")
-		if !ok {
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
-		}
-
-		issuedAt := time.UnixMilli(int64(issuedAtRaw) * 1000)
-
-		expiresAtRaw, ok := readFromMap[float64](claims, "exp")
-		if !ok {
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
-		}
-
-		expiresAt := time.UnixMilli(int64(expiresAtRaw) * 1000)
 
 		// This is not needed, but let's be paranoid and check it anyway.
-		if time.Now().After(expiresAt) {
+		if time.Now().After(expiresAt.Time) {
 			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Token has expired")
 		}
 
 		var role rpc.Role
 
-		switch roleStr {
+		switch claims.Role {
 		case "USER":
 			role = rpc.RoleUser
 
@@ -159,20 +144,23 @@ func Launch() {
 		}
 
 		project := util.OptStringIfNotEmpty(r.Header.Get("Project"))
+		if _, ok := claims.Membership[rpc.ProjectId(project.Value)]; project.Present && !ok {
+			project.Clear()
+		}
 
 		return rpc.Actor{
 			Username:         subject,
 			Role:             role,
 			Project:          project,
-			Membership:       make(rpc.ProjectMembership), // TODO implement this
-			Groups:           make(rpc.GroupMembership),   // TODO implement this
-			ProviderProjects: make(rpc.ProviderProjects),  // TODO implement this
-			Domain:           "",                          // TODO implement this
-			OrgId:            "",                          // TODO implement this
+			Membership:       claims.Membership,
+			Groups:           claims.Groups,
+			ProviderProjects: claims.ProviderProjects,
+			Domain:           claims.Domain,
+			OrgId:            claims.OrgId.Value,
 			TokenInfo: util.OptValue(rpc.TokenInfo{
-				IssuedAt:               issuedAt,
-				ExpiresAt:              expiresAt,
-				PublicSessionReference: sessionReference,
+				IssuedAt:               issuedAt.Time,
+				ExpiresAt:              expiresAt.Time,
+				PublicSessionReference: sessionReference.Value,
 			}),
 		}, nil
 	}

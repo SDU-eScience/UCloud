@@ -15,10 +15,49 @@ type Page[T any] struct {
 	Items        []T `json:"items"`
 }
 
+func (p Page[T]) MarshalJSON() ([]byte, error) {
+	if p.Items == nil {
+		p.Items = []T{}
+	}
+
+	type wrapper struct {
+		ItemsInTotal int `json:"itemsInTotal"`
+		ItemsPerPage int `json:"itemsPerPage"`
+		PageNumber   int `json:"pageNumber"`
+		Items        []T `json:"items"`
+	}
+
+	return json.Marshal(wrapper{
+		Items:        p.Items,
+		ItemsPerPage: p.ItemsPerPage,
+		ItemsInTotal: p.ItemsInTotal,
+		PageNumber:   p.PageNumber,
+	})
+}
+
 type PageV2[T any] struct {
 	Items        []T                 `json:"items"`
 	Next         util.Option[string] `json:"next"`
 	ItemsPerPage int                 `json:"itemsPerPage"`
+}
+
+//goland:noinspection GoMixedReceiverTypes
+func (p PageV2[T]) MarshalJSON() ([]byte, error) {
+	if p.Items == nil {
+		p.Items = []T{}
+	}
+
+	type wrapper struct {
+		Items        []T                 `json:"items"`
+		ItemsPerPage int                 `json:"itemsPerPage"`
+		Next         util.Option[string] `json:"next"`
+	}
+
+	return json.Marshal(wrapper{
+		Items:        p.Items,
+		ItemsPerPage: p.ItemsPerPage,
+		Next:         p.Next,
+	})
 }
 
 func (result *PageV2[T]) Prepare(itemsPerPage int, next util.Option[string], keySelector func(item T) string) {

@@ -5,6 +5,7 @@ import (
 	"time"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -23,6 +24,9 @@ type Principal struct {
 	ServiceLicenseAgreement bool
 	MfaEnabled              bool
 	Uid                     int
+	Membership              rpc.ProjectMembership
+	Groups                  rpc.GroupMembership
+	ProviderProjects        rpc.ProviderProjects
 }
 
 func LookupPrincipal(tx *db.Transaction, username string) (Principal, bool) {
@@ -72,6 +76,11 @@ func LookupPrincipal(tx *db.Transaction, username string) (Principal, bool) {
 			Uid:                     row.Uid,
 			MfaEnabled:              row.MfaEnabled,
 		}
+
+		projectInfo := ProjectRetrieveClaimsInfo(row.Id)
+		principal.Membership = projectInfo.Membership
+		principal.ProviderProjects = projectInfo.ProviderProjects
+		principal.Groups = projectInfo.Groups
 
 		if row.HashedPassword.Valid {
 			principal.HashedPassword = util.OptValue(row.HashedPassword.V)

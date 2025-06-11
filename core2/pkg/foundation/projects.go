@@ -62,7 +62,7 @@ type internalProjectUserInfo struct {
 	Username  string
 	Mu        sync.RWMutex
 	Projects  map[string]util.Empty
-	Groups    map[string]util.Empty
+	Groups    map[string]string // group to project
 	Favorites map[string]util.Empty
 }
 
@@ -343,6 +343,57 @@ func projectRetrieve(
 	}
 
 	return result, p, nil
+}
+
+type ProjectClaimsInfo struct {
+	Membership       rpc.ProjectMembership
+	Groups           rpc.GroupMembership
+	ProviderProjects rpc.ProviderProjects
+}
+
+func ProjectRetrieveClaimsInfo(username string) ProjectClaimsInfo {
+	// NOTE(Dan): Be very careful that none of these functions accidentally rely on actor/principal information as
+	// this could cause an infinite loop. This function is used as part of building the actor/principal.
+
+	result := ProjectClaimsInfo{
+		Membership:       make(rpc.ProjectMembership),
+		Groups:           make(rpc.GroupMembership),
+		ProviderProjects: make(rpc.ProviderProjects), // TODO implement this
+	}
+
+	userInfo := projectRetrieveUserInfo(username)
+	userInfo.Mu.RLock()
+	for groupId, projectId := range userInfo.Groups {
+		result.Groups[rpc.GroupId(groupId)] = rpc.ProjectId(projectId)
+	}
+	for projectId, _ := range userInfo.Projects {
+		result.Membership[rpc.ProjectId(projectId)] = rpc.ProjectRoleUser
+	}
+	userInfo.Mu.RUnlock()
+
+	for projectId, _ := range result.Membership {
+		project, ok := projectRetrieveInternal(string(projectId))
+		if ok {
+			role := util.OptNone[rpc.ProjectRole]()
+			project.Mu.RLock()
+			for _, member := range project.Project.Status.Members {
+				if member.Username == username {
+					role.Set(rpc.ProjectRole(member.Role))
+				}
+			}
+			project.Mu.RUnlock()
+
+			if role.Present {
+				result.Membership[projectId] = role.Value
+			} else {
+				delete(result.Membership, projectId)
+			}
+		} else {
+			delete(result.Membership, projectId)
+		}
+	}
+
+	return result
 }
 
 func ProjectBrowse(actor rpc.Actor, request fndapi.ProjectBrowseRequest) (fndapi.PageV2[fndapi.Project], *util.HttpError) {
@@ -1295,7 +1346,7 @@ func projectAddUserToProjectAndGroups(
 				}
 			}
 
-			uinfo.Groups[gid] = util.Empty{}
+			uinfo.Groups[gid] = projectId
 		}
 	}
 
@@ -1470,7 +1521,7 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 				result := &internalProjectUserInfo{
 					Username:  username,
 					Projects:  map[string]util.Empty{},
-					Groups:    map[string]util.Empty{},
+					Groups:    map[string]string{},
 					Favorites: map[string]util.Empty{},
 				}
 
@@ -1486,11 +1537,16 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 					},
 				)
 
-				groupRows := db.Select[struct{ GroupId string }](
+				groupRows := db.Select[struct {
+					GroupId   string
+					ProjectId string
+				}](
 					tx,
 					`
-						select gm.group_id
-						from project.group_members gm
+						select gm.group_id, g.id as project_id
+						from
+							project.group_members gm
+							join project.groups g on gm.group_id = g.id
 						where gm.username = :username
 				    `,
 					db.Params{
@@ -1515,7 +1571,7 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 				}
 
 				for _, group := range groupRows {
-					result.Groups[group.GroupId] = util.Empty{}
+					result.Groups[group.GroupId] = group.ProjectId
 				}
 
 				for _, favorite := range favoriteRows {

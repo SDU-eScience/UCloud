@@ -2,8 +2,10 @@ package foundation
 
 import (
 	"github.com/golang-jwt/jwt/v5"
+	"strings"
 	"time"
 	cfg "ucloud.dk/core/pkg/config"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -16,22 +18,6 @@ func initAuthTokens() {
 	// TODO
 	jwtSigningMethod = jwt.SigningMethodHS512
 	jwtSigningKey = []byte("notverysecret")
-}
-
-type principalClaims struct {
-	Role                    string              `json:"role"`
-	Uid                     int                 `json:"uid"`
-	FirstNames              util.Option[string] `json:"firstNames"`
-	LastName                util.Option[string] `json:"lastName"`
-	Email                   util.Option[string] `json:"email"`
-	OrgId                   util.Option[string] `json:"orgId"`
-	TwoFactorAuthentication bool                `json:"twoFactorAuthentication"`
-	ServiceLicenseAgreement bool                `json:"serviceLicenseAgreement"`
-	PrincipalType           string              `json:"principalType"`
-	SessionReference        util.Option[string] `json:"publicSessionReference"`
-	ExtendedByChain         []string            `json:"extendedByChain"`
-
-	jwt.RegisteredClaims
 }
 
 func SignPrincipalToken(principal Principal, sessionReference util.Option[string]) string {
@@ -56,7 +42,13 @@ func SignPrincipalToken(principal Principal, sessionReference util.Option[string
 		jwtType = "password"
 	}
 
-	token := jwt.NewWithClaims(jwtSigningMethod, principalClaims{
+	domain := ""
+	domainSplit := strings.SplitN(principal.Email.Value, "@", 2)
+	if len(domainSplit) == 2 {
+		domain = domainSplit[1]
+	}
+
+	token := jwt.NewWithClaims(jwtSigningMethod, rpc.CorePrincipalClaims{
 		Role:                    string(principal.Role),
 		Uid:                     principal.Uid,
 		FirstNames:              principal.FirstNames,
@@ -68,6 +60,10 @@ func SignPrincipalToken(principal Principal, sessionReference util.Option[string
 		PrincipalType:           jwtType,
 		SessionReference:        sessionReference,
 		ExtendedByChain:         make([]string, 0),
+		Domain:                  domain,
+		Membership:              principal.Membership,
+		Groups:                  principal.Groups,
+		ProviderProjects:        principal.ProviderProjects,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   principal.Id,
 			ExpiresAt: jwt.NewNumericDate(now.Add(10 * time.Minute)),
