@@ -10,7 +10,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
 import {BreakdownByProjectAPI, categoryComparator, ChartsAPI, UsageOverTimeAPI} from ".";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {doNothing, getOrNull, timestampUnixMs} from "@/UtilityFunctions";
+import {doNothing, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as Jobs from "@/Applications/Jobs";
@@ -1873,7 +1873,7 @@ const PeriodSelector: React.FunctionComponent<{
         }
     >
         <div className={PeriodSelectorBodyStyle}>
-            <div>
+            <div onClick={stopPropagation}>
                 <b>Absolute time range</b>
 
                 <label>
