@@ -100,6 +100,7 @@ class DataVisualization(
         val productCategoryIdToIndex = HashMap<Long, Int>()
         val usageOverTimeCharts = HashMap<Long, UsageOverTimeAPI>()
         val breakdownByProjectCharts = HashMap<Long, BreakdownByProjectAPI>()
+        val childrenUsageOverTimeCharts = HashMap<String, HashMap<Long, UsageOverTimeAPI>>()
 
         var emptyUsageChart: UsageOverTimeAPI? = null
         fun createEmptyUsageChart(): UsageOverTimeAPI {
@@ -136,7 +137,8 @@ class DataVisualization(
             return ChartsAPI(
                 categories,
                 allocationGroups,
-                charts
+                charts,
+                childrenUsageOverTimeCharts
             )
         }
 
@@ -170,10 +172,18 @@ class DataVisualization(
                 wallet.copy(allocationGroups = newGroups)
             }
 
+        val currentProject = allWallets.first().owner.reference()
+        val childrenIds = mutableSetOf<String>()
+
         for ((walletIndex, wallet) in allWallets.withIndex()) {
             val c = wallet.paysFor
             categories.add(c)
-
+            wallet.children?.forEach {
+                val childId = it.child.projectId
+                if (childId != null) {
+                    childrenIds.add(childId)
+                }
+            }
             for (ag in wallet.allocationGroups) {
                 allocationGroups.add(
                     AllocationGroupWithProductCategoryIndex(
@@ -220,6 +230,116 @@ class DataVisualization(
             }
         }
             coroutineScope {
+                childrenIds.forEach { childId ->
+                    launch {
+                        val localChart = HashMap<Long, UsageOverTimeAPI>()
+                        val relevantAllocationGroups = mutableSetOf<Int>()
+                        allWallets.forEach { wallet -> wallet.children?.forEach {
+                            val child = it.child.projectId
+                            if (child != null && child == childId) {
+                                relevantAllocationGroups.add(it.group.id)
+                            }
+                        } }
+
+                        db.withSession { session ->
+                            val rows = session.sendPreparedStatement(
+                                {
+                                    setParameter("allocation_group_ids", relevantAllocationGroups.toList())
+                                    setParameter("start", request.start)
+                                    setParameter("end", request.end)
+                                },
+                                """
+                        with samples as (
+                            select
+                                s.wallet_id,
+                                s.local_usage,
+                                s.tree_usage,
+                                s.retired_tree_usage,
+                                s.retired_usage,
+                                s.quota,
+                                s.total_allocated,
+                                provider.timestamp_to_unix(s.sampled_at)::int8 sample_time
+                            from
+                                accounting.allocation_groups ag join
+                                accounting.wallet_samples_v2 s on ag.associated_wallet = s.wallet_id
+                            where
+                                ag.id = some (:allocation_group_ids::int8[])
+                                and s.sampled_at >= to_timestamp(:start / 1000.0)
+                                and s.sampled_at <= to_timestamp(:end / 1000.0)
+                            order by s.wallet_id
+                        )
+                        select
+                            distinct pc.id,
+                            case
+                                 when au.floating_point = true then s.tree_usage / 1000000.0
+                                 when au.floating_point = false and pc.accounting_frequency = 'ONCE'
+                                     then s.tree_usage::double precision
+                                 when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE'
+                                     then (s.tree_usage::double precision + s.retired_tree_usage::double precision) / 60.0
+                                 when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR'
+                                     then (s.tree_usage::double precision + s.retired_tree_usage::double precision) / 60.0 / 60.0
+                                 when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY'
+                                     then (s.tree_usage::double precision + s.retired_tree_usage::double precision) / 60.0 / 60.0 / 24.0
+                            end tusage,
+                            s.quota,
+                            sample_time,
+                            w.id,
+                            case
+                                 when au.floating_point = true then s.tree_usage / 1000000.0
+                                 when au.floating_point = false and pc.accounting_frequency = 'ONCE'
+                                     then s.local_usage::double precision
+                                 when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE'
+                                     then (s.local_usage::double precision + s.retired_usage::double precision) / 60.0
+                                 when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR'
+                                     then (s.local_usage::double precision + s.retired_usage::double precision) / 60.0 / 60.0
+                                 when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY'
+                                     then (s.local_usage::double precision + s.retired_usage::double precision) / 60.0 / 60.0 / 24.0
+                            end lusage,
+                            s.total_allocated
+                        from
+                            accounting.wallets_v2 w
+                            join accounting.product_categories pc on w.product_category = pc.id
+                            join accounting.accounting_units au on pc.accounting_unit = au.id
+                            join samples s on w.id = s.wallet_id
+                        order by pc.id, s.sample_time desc 
+                    """
+                            ).rows
+
+                            var currentProductCategory = -1L
+
+                            var dataPoints = ArrayList<UsageOverTimeDatePointAPI>()
+                            var prediction = WalletPrediction(0, emptyList())
+                            fun flushChart() {
+                                if (currentProductCategory != -1L) {
+                                    val index = productCategoryIdToIndex[currentProductCategory]
+                                    if (index != null) {
+                                        localChart[index.toLong()] = UsageOverTimeAPI(dataPoints.toList(), prediction)
+                                    }
+                                    dataPoints = ArrayList()
+                                }
+                            }
+
+                            for (row in rows) {
+                                val allocCategory = row.getLong(0)!!
+                                val treeUsage = row.getDouble(1)!!
+                                val quota = row.getLong(2)!!
+                                val timestamp = row.getLong(3)!!
+                                val walletId = row.getLong(4)!!
+                                val localUsage = row.getDouble(5)!!
+                                val totalAllocated = row.getLong(6)!!
+                                if (currentProductCategory != allocCategory) {
+                                    flushChart() // no-op if currentProductCategory = -1L
+                                    currentProductCategory = allocCategory
+                                    prediction = predictor.getPrediction(walletId)
+                                }
+                                dataPoints.add(UsageOverTimeDatePointAPI(treeUsage, quota, timestamp, localUsage, totalAllocated))
+                            }
+                            flushChart()
+                        }
+                        childrenUsageOverTimeCharts[childId] = localChart
+                    }
+                }
+
                 val usageOverTime = launch {
                     // Usage over time
                     db.withSession { session ->

@@ -47,7 +47,8 @@ data class BreakdownByProjectAPI (
 data class ChartsAPI (
     val categories: List<ProductCategory>,
     val allocGroups: List<AllocationGroupWithProductCategoryIndex>,
-    val charts: List<ChartsForCategoryAPI>
+    val charts: List<ChartsForCategoryAPI>,
+    val childrenUsageOverTime: HashMap<String, HashMap<Long, UsageOverTimeAPI>>
 )
 
 @Serializable
