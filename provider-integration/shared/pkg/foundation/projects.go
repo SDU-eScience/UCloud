@@ -197,6 +197,20 @@ var ProjectCreate = rpc.Call[BulkRequest[ProjectSpecification], BulkResponse[Fin
 	Roles:       rpc.RolesEndUser | rpc.RoleProvider | rpc.RoleService,
 }
 
+// TODO this is a new call
+type ProjectInternalCreateRequest struct {
+	BackendId  string
+	PiUsername string
+}
+
+// TODO this is a new call
+var ProjectInternalCreate = rpc.Call[ProjectInternalCreateRequest, FindByStringId]{
+	BaseContext: ProjectContext,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "createInternal",
+	Roles:       rpc.RoleService,
+}
+
 var ProjectToggleFavorite = rpc.Call[BulkRequest[FindByStringId], util.Empty]{
 	BaseContext: ProjectContext,
 	Operation:   "toggleFavorite",

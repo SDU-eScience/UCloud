@@ -11,6 +11,7 @@ import (
 	acc "ucloud.dk/core/pkg/accounting"
 	cfg "ucloud.dk/core/pkg/config"
 	fnd "ucloud.dk/core/pkg/foundation"
+	"ucloud.dk/core/pkg/migrations"
 	gonjautil "ucloud.dk/gonja/v2/utils"
 	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/shared/pkg/log"
@@ -60,6 +61,8 @@ func Launch() {
 		dbConfig.Ssl,
 	)
 	db.Database.Connection.MapperFunc(util.ToSnakeCase)
+	migrations.Init()
+	db.Migrate()
 
 	var jwtKeyFunc jwt.Keyfunc
 	var jwtMethods []string

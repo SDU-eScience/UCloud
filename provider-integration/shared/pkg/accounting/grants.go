@@ -26,6 +26,13 @@ const (
 	GrantApplicationStateInProgress GrantApplicationState = "IN_PROGRESS"
 )
 
+var GrantApplicationStates = []GrantApplicationState{
+	GrantApplicationStateApproved,
+	GrantApplicationStateRejected,
+	GrantApplicationStateClosed,
+	GrantApplicationStateInProgress,
+}
+
 type GrantRequestSettings struct {
 	Enabled             bool           `json:"enabled"`
 	Description         string         `json:"description"`

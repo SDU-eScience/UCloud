@@ -7,7 +7,7 @@ import {Flex, Icon, Input, Text, MainContainer, Box, Truncate, Button, Label} fr
 import {CardClass} from "@/ui-components/Card";
 import {ProjectSwitcher, projectTitle} from "@/Project/ProjectSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {dateToString} from "@/Utilities/DateUtilities";
+import {dateToString, getTotalDays} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
 import {BreakdownByProjectAPI, categoryComparator, ChartsAPI, UsageOverTimeAPI} from ".";
 import {TooltipV2} from "@/ui-components/Tooltip";
@@ -579,6 +579,8 @@ function Visualization(): React.ReactNode {
         };
     });
 
+    const breakdownSelection = useState<string>();
+
     const setPeriod = useCallback((period: Period) => {
         dispatchEvent({type: "UpdateSelectedPeriod", period});
     }, [dispatchEvent]);
@@ -587,6 +589,10 @@ function Visualization(): React.ReactNode {
         dispatchEvent({type: "UpdateActiveUnit", unit});
     }, [dispatchEvent]);
 
+    const unitsForRichSelect = React.useMemo(() => {
+        const all = state.activeDashboard?.availableUnits.map(it => ({unit: it})) ?? [];
+        return all.filter(it => !["IPs", "Licenses"].includes(it.unit)); // Note(Jonas): Maybe just don't fetch the IPs, Licenses (and Links?)
+    }, [state.activeDashboard?.availableUnits]);
 
     // Short-hands
     // -----------------------------------------------------------------------------------------------------------------
@@ -596,10 +602,6 @@ function Visualization(): React.ReactNode {
         state.activeDashboard === undefined ||
         state.activeDashboard.usageOverTime.every(it => it.dataPoints.every(it => it.usage === 0)) &&
         (state.summaries.length === 0 && state.remoteData.requestsInFlight === 0);
-    const unitsForRichSelect = React.useMemo(() => {
-        const all = state.activeDashboard?.availableUnits.map(it => ({unit: it})) ?? [];
-        return all.filter(it => !["IPs", "Licenses"].includes(it.unit)); // Note(Jonas): Maybe just don't fetch the IPs, Licenses (and Links?)
-    }, [state.activeDashboard?.availableUnits]);
 
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -667,8 +669,8 @@ function Visualization(): React.ReactNode {
                                     expiresAt={state.activeDashboard.currentAllocation.expiresAt}
                                 />
                             </>}
-                            <UsageBreakdownPanel isLoading={isAnyLoading} unit={state.activeDashboard.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
-                            <UsageOverTimePanel isLoading={isAnyLoading} charts={state.activeDashboard.usageOverTime} />
+                            <UsageBreakdownPanel breakdownSelection={breakdownSelection} isLoading={isAnyLoading} unit={state.activeDashboard.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
+                            <UsageOverTimePanel breakdownSelection={breakdownSelection} period={state.selectedPeriod} isLoading={isAnyLoading} charts={state.activeDashboard.usageOverTime} />
                         </>}
                     </div> : null}
             </div>
@@ -950,10 +952,19 @@ const BreakdownStyle = injectStyle("breakdown", k => `
 `);
 
 const UsageBreakdownChartId = "UsageBreakdown";
-const UsageBreakdownPanel: React.FunctionComponent<{isLoading: boolean; unit: string; period: Period; charts: BreakdownChart[];}> = props => {
-    const [breakdownSelected, setBreakdownSelected] = useState<string | undefined>();
+const UsageBreakdownPanel: React.FunctionComponent<{
+    breakdownSelection: [string | undefined, React.Dispatch<React.SetStateAction<string | undefined>>],
+    isLoading: boolean;
+    unit: string;
+    period: Period;
+    charts: BreakdownChart[];
+}> = props => {
+    const [breakdownSelected, setBreakdownSelected] = props.breakdownSelection;
+
     const breakdownRef = useRef(breakdownSelected);
     breakdownRef.current = breakdownSelected;
+
+    const [s, __] = useState("")
 
     const fullyMergedChart = React.useMemo(() => {
         if (breakdownRef.current) {
@@ -1344,7 +1355,7 @@ const DynamicallySizedChart: React.FunctionComponent<{
     chart: ChartProps,
     maxWidth?: number,
     anyChartData: boolean,
-}> = ({chart, maxWidth, ...props}) => {
+}> = ({chart, maxWidth, anyChartData, ...props}) => {
     // NOTE(Dan): This react component works around the fact that Apex charts needs to know its concrete size to
     // function. This does not play well with the fact that we want to dynamically size the chart based on a combination
     // of a grid and a flexbox.
@@ -1365,7 +1376,14 @@ const DynamicallySizedChart: React.FunctionComponent<{
     </div>;
 }
 
-const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoading: boolean;}> = ({charts, isLoading}) => {
+const UsageOverTimePanel: React.FunctionComponent<{
+    charts: UsageChart[];
+    isLoading: boolean;
+    breakdownSelection: [string | undefined, React.Dispatch<string | undefined>];
+    period: Period;
+}> = ({charts, isLoading, ...props}) => {
+    const [breakdownSelected, setBreakdownSelected] = props.breakdownSelection;
+
     const chartCounter = useRef(0); // looks like apex charts has a rendering bug if the component isn't completely thrown out
     const [shownEntries, setShownEntries] = useState<boolean[]>([]);
     const ChartID = "UsageOverTime";
@@ -1396,15 +1414,25 @@ const UsageOverTimePanel: React.FunctionComponent<{charts: UsageChart[]; isLoadi
     const chartProps: ChartProps = useMemo(() => {
         chartCounter.current++;
         setShownEntries(charts.map(() => true));
+        props.period;
+        const periodDays = props.period.type === "absolute" ? getTotalDays(new Date(props.period.end - props.period.start)) : (
+            props.period.distance * (props.period.unit === "day" ? 1 : 30)
+        );
         return usageChartsToChart(charts, shownRef, {
             valueFormatter: val => Accounting.addThousandSeparators(val.toFixed(1)),
             toggleShown: value => updateShownEntries(value),
             id: ChartID + chartCounter.current,
-        });
-    }, [charts]);
+        }, periodDays);
+    }, [charts, props.period]);
 
     // HACK(Jonas): Self-explanatory hack
-    const anyData = (chartProps.series?.[0] as any)?.data.length > 0;
+    const anyData = chartProps.series?.[0]?.["data"]?.length > 0;
+
+    const showingQuota = React.useRef(false);
+
+    React.useEffect(() => {
+        // ApexCharts.getChartByID(ChartID + chartCounter.current)?
+    }, [shownEntries]);
 
     if (isLoading) return null;
 
@@ -1723,13 +1751,13 @@ const emptyChart: UsageChart = {
     name: "",
 };
 
-function toSeriesChart(chart: UsageChart): ApexAxisChartSeries[0] {
-    let data = chart.dataPoints.map(it => [it.timestamp, it.usage]);
-    if (data.length === 0 || data.every(it => it[1] == 0)) {
+function toSeriesChart(chart: UsageChart, forecastCount: number): ApexAxisChartSeries[0] {
+    let data = chart.dataPoints.map(it => ({x: it.timestamp, y: it.usage}));
+    if (data.length === 0 || data.every(it => it.x == 0)) {
         data = [];
     } else if (chart.future?.predictions.length) {
-        for (const pred of chart.future.predictions) {
-            data.unshift([pred.timestamp, pred.value]);
+        for (const pred of chart.future.predictions.slice(0, forecastCount)) {
+            data.push({x: pred.timestamp, y: pred.value});
         }
     }
 
@@ -1740,6 +1768,23 @@ function toSeriesChart(chart: UsageChart): ApexAxisChartSeries[0] {
     }
 }
 
+function quotaSeriesFromDataPoints(chart: UsageChart, forecastCount: number): ApexAxisChartSeries[0] {
+    const lastElement = chart.dataPoints.at(-1);
+    const forecastPoints: {x: number; y: number}[] = []
+
+    const data = [
+        ...chart.dataPoints.map(it => ({x: it.timestamp, y: it.quota})),
+        ...forecastPoints
+    ].sort((a, b) => a.x - b.x);
+
+    return {
+        data,
+        type: "area",
+        name: `${chart.name} quota`,
+    }
+}
+
+const DEFAULT_FUTURE_COUNT = 30;
 function usageChartsToChart(
     charts: UsageChart[],
     shownRef: React.RefObject<boolean[]>,
@@ -1748,11 +1793,21 @@ function usageChartsToChart(
         removeDetails?: boolean;
         toggleShown?: (indexOrAllState: number[] | true | false) => void;
         id?: string;
-    } = {}
+    } = {},
+    // Note(Jonas): This is to reduce amount of future points. If period is 7 days, then we should cap future to 7 days.
+    maxFuturePoints: number,
 ): ChartProps {
     const result: ChartProps = {};
-    result.series = charts.map(it => toSeriesChart(it));
-    const forecastCount = charts.find(it => it.future)?.future?.predictions.length ?? 0;
+    const anyFuture = charts.find(it => it.future) != null;
+    const anyOver30 = anyFuture && charts.find(it => it.dataPoints.length > 30) != null;
+    const forecastCount = Math.min(maxFuturePoints, anyOver30 ? DEFAULT_FUTURE_COUNT : charts.reduce((max, chart) => Math.max(max, chart.dataPoints.length), 0));
+    result.series = charts.map(it => toSeriesChart(it, forecastCount));
+
+    if (charts.length === 1) {
+        const series = quotaSeriesFromDataPoints(charts[0], forecastCount);
+        result.series.push(series);
+    }
+
     result.options = {
         legend: {
             position: "bottom",
@@ -1760,11 +1815,10 @@ function usageChartsToChart(
                 toggleDataSeries: true,
             },
         },
-        /* Again, very cool ApexCharts! https://github.com/apexcharts/apexcharts.js/issues/4447 */
         forecastDataPoints: {
             count: forecastCount,
-            dashArray: 1,
         },
+        /* Again, very cool ApexCharts! https://github.com/apexcharts/apexcharts.js/issues/4447 */
         chart: {
             id: chartOptions.id,
             events: {
@@ -1773,7 +1827,6 @@ function usageChartsToChart(
                     toggleSeriesEntry(chart, seriesIndex, shownRef, chartOptions.toggleShown);
                 }
             },
-            type: "area",
             stacked: true,
             height: 350,
             animations: {
@@ -1805,19 +1858,8 @@ function usageChartsToChart(
             size: 0,
         },
         stroke: {
-            curve: "straight",
+            curve: "straight"
         },
-        // fill: {
-        //     type: "gradient",
-        //     gradient: {
-        //         shadeIntensity: 1,
-        //         inverseColors: false,
-        //         opacityFrom: 0.4,
-        //         opacityTo: 0,
-        //         stops: [0, 90, 100]
-        //     }
-        // },
-        //colors: ['var(--primaryMain)'],
         yaxis: {
             labels: {
                 formatter: function (val) {
