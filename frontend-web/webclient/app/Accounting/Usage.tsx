@@ -2281,10 +2281,11 @@ const PeriodSelector: React.FunctionComponent<{
                 </label>
                 <label>
                     To
-                    <Input className={"end"} onChange={onChange} type={"date"} value={formatTs(end)} />
-                </label>
+                        <Input className={"end"} onChange={onChange} type={"date"} value={formatTs(end)} />
+                    </label>
 
-                <Button mt="8px" onClick={() => props.onChange({start, end, type: "absolute"})}>Apply</Button>
+                    <Button mt="8px" type="submit">Apply</Button>
+                </form>
             </div>
 
             <div>
