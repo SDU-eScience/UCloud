@@ -266,7 +266,7 @@ function stateReducer(state: State, action: UIAction): State {
             }
 
             const availableUnits = unitsFromSummaries(newSummaries);
-            const activeUnit = availableUnits[0];
+            const [activeUnit] = availableUnits;
 
             return selectUnit({
                 ...state,
@@ -1923,17 +1923,18 @@ function usageChartsToChart(
     return result;
 }
 
-function toggleSeriesEntry(_chart: any, seriesName: string, shownRef: React.RefObject<string[]>, toggleShown?: (val: boolean | string[]) => void) {
+function toggleSeriesEntry(_chart: ApexCharts | undefined, seriesName: string, shownRef: React.RefObject<string[]>, toggleShown?: (val: boolean | string[]) => void) {
     const chart = _chart;
+    /* TOD(Jonas): Handle when quota is shown. */
     if (chart != null) {
-        const allShown = shownRef.current.every(it => it);
-
         const series = chart["opts"]["series"];
+
+        const allShown = shownRef.current.length === series.length;
 
         const allWillBeHidden = shownRef.current.includes(seriesName) && shownRef.current.length === 1;
 
         if (allShown) {
-            const indices: string[] = [];
+            const entries: string[] = [];
 
             for (const shownEntry of shownRef.current) {
                 if (shownEntry === seriesName) {
@@ -1942,15 +1943,15 @@ function toggleSeriesEntry(_chart: any, seriesName: string, shownRef: React.RefO
                         the chart toggles the legend entry otherwise, so this has to be "deferred" 
                     */
                     threadDeferLike(() => {
-                        chart.showSeries(series);
+                        chart.showSeries(seriesName);
                     });
                     continue;
                 }
 
                 chart.hideSeries(shownEntry);
-                indices.push(shownEntry);
+                entries.push(shownEntry);
             }
-            toggleShown?.(indices);
+            toggleShown?.(entries);
         } else if (allWillBeHidden) {
             toggleShown?.(true);
             threadDeferLike(() => {
