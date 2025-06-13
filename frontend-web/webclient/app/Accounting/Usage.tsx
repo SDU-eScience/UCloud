@@ -2269,9 +2269,13 @@ const PeriodSelector: React.FunctionComponent<{
     >
         <div className={PeriodSelectorBodyStyle}>
             <div onClick={stopPropagation}>
-                <b>Absolute time range</b>
+                <form onSubmit={e => {
+                    e.preventDefault();
+                    props.onChange({start, end, type: "absolute"})
+                }}>
+                    <b>Absolute time range</b>
 
-                <label>
+                    <label>
                     From
                     <Input className={"start"} onChange={onChange} type={"date"} value={formatTs(start)} />
                 </label>
