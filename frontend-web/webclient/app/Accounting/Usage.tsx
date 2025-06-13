@@ -11,7 +11,7 @@ import {dateToString, getTotalDays} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
 import {BreakdownByProjectAPI, categoryComparator, ChartsAPI, UsageOverTimeAPI} from ".";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {threadDeferLike, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {threadDeferLike, stopPropagation, timestampUnixMs, displayErrorMessageOrDefault} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI, noopCall} from "@/Authentication/DataHook";
 import * as Jobs from "@/Applications/Jobs";
@@ -481,11 +481,11 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
         async function doLoad(start: number, end: number) {
             invokeAPI(Jobs.retrieveStatistics({start, end})).then(statistics => {
                 dispatch({type: "LoadJobStats", statistics});
-            });
+            }).catch(e => displayErrorMessageOrDefault(e, "Failed to fetch job statistics."));
 
             invokeAPI(Accounting.retrieveChartsV2({start, end})).then(charts => {
                 dispatch({type: "LoadCharts", charts});
-            });
+            }).catch(e => displayErrorMessageOrDefault(e, "Failed to fetch charts."));
         }
 
         switch (event.type) {
@@ -2193,7 +2193,7 @@ const PeriodSelector: React.FunctionComponent<{
     value: Period;
     onChange: (period: Period) => void;
 }> = props => {
-    const {start, end} = normalizePeriod(props.value);
+    const [{start, end}, setPeriod] = React.useState(normalizePeriod(props.value));
 
     function formatTs(ts: number): string {
         const d = new Date(ts);
@@ -2247,19 +2247,19 @@ const PeriodSelector: React.FunctionComponent<{
         if (!target) return;
         const isStart = target.classList.contains("start");
 
-        const newPeriod: Period = {
-            type: "absolute",
+        const newPeriod = {
             start: isStart ? (target.valueAsDate?.getTime() ?? start) : start,
             end: isStart ? end : (target.valueAsDate?.getTime() ?? end),
         };
 
-        props.onChange(newPeriod);
-    }, [start, end, props.onChange]);
+        setPeriod(newPeriod);
+    }, [start, end]);
 
     return <ClickableDropdown
         colorOnHover={false}
         paddingControlledByContent={true}
         noYPadding={true}
+        onOpeningTriggerClick={() => setPeriod(normalizePeriod(props.value))}
         trigger={
             <div className={PeriodStyle}>
                 <div style={{width: "182px"}}>{periodToString(props.value)}</div>
@@ -2279,6 +2279,8 @@ const PeriodSelector: React.FunctionComponent<{
                     To
                     <Input className={"end"} onChange={onChange} type={"date"} value={formatTs(end)} />
                 </label>
+
+                <Button mt="8px" onClick={() => props.onChange({start, end, type: "absolute"})}>Apply</Button>
             </div>
 
             <div>
