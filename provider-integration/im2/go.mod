@@ -16,8 +16,8 @@ require (
 	github.com/prometheus/client_golang v1.21.1
 	github.com/sugarme/tokenizer v0.2.2
 	golang.org/x/oauth2 v0.28.0
-	golang.org/x/sync v0.12.0
-	golang.org/x/sys v0.31.0
+	golang.org/x/sync v0.13.0
+	golang.org/x/sys v0.32.0
 	google.golang.org/grpc v1.67.1
 	google.golang.org/protobuf v1.36.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -106,7 +106,7 @@ require (
 	golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0 // indirect
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/term v0.30.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/text v0.24.0 // indirect
 	golang.org/x/time v0.7.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240814211410-ddb44dafa142 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240814211410-ddb44dafa142 // indirect

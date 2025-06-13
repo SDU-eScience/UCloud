@@ -15,6 +15,7 @@ data class ApplicationYamlV2(
     val software: Software,
     val title: String? = null,
     val description: String? = null,
+    val license: String? = null,
     val documentation: String? = null,
     val features: Features? = null,
     val modules: ModulesSection? = null,
@@ -357,7 +358,7 @@ data class ApplicationYamlV2(
                         title = name,
                         description = "",
                         backend = ToolBackend.NATIVE,
-                        license = "",
+                        license = license ?: "",
                         image = null,
                         supportedProviders = null,
                         loadInstructions = ToolLoadInstructions.Native(

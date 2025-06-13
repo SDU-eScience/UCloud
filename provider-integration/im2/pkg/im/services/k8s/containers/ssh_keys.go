@@ -72,6 +72,13 @@ func injectSshKeys(jobId string, pod *core.Pod, userContainer *core.Container) {
 
 				sshContainer.Command = []string{"/bin/sh", "-c", bashScript.String()}
 			}
+
+			sshConfig := shared.ServiceConfig.Compute.Ssh
+			hostname := sshConfig.Hostname.GetOrDefault(sshConfig.IpAddress)
+			userContainer.Env = append(userContainer.Env, core.EnvVar{
+				Name:  "UCLOUD_PUBLIC_SSH",
+				Value: fmt.Sprintf("%s:%v", hostname, port.Value),
+			})
 		}
 	}
 }

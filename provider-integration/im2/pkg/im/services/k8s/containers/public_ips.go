@@ -12,7 +12,7 @@ import (
 	orc "ucloud.dk/shared/pkg/orchestrators"
 )
 
-func preparePublicIp(job *orc.Job, firewall *networking.NetworkPolicy) *core.Service {
+func preparePublicIp(job *orc.Job, firewall *networking.NetworkPolicy, container *core.Container) *core.Service {
 	ips, privateIps, err := ctrl.BindIpsToJob(job)
 	if err != nil {
 		_ = ctrl.TrackJobMessages([]ctrl.JobMessage{
@@ -79,6 +79,15 @@ func preparePublicIp(job *orc.Job, firewall *networking.NetworkPolicy) *core.Ser
 
 					allowNetworkFromWorld(firewall, fw.Value.OpenPorts)
 				}
+
+				envVarName := "UCLOUD_PUBLIC_IP"
+				if ipIdx != 0 {
+					envVarName += fmt.Sprintf("_%v", ipIdx+1)
+				}
+				container.Env = append(container.Env, core.EnvVar{
+					Name:  envVarName,
+					Value: ip.Status.IpAddress.Value,
+				})
 			}
 		}
 

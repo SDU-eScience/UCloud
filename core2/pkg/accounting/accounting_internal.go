@@ -83,6 +83,8 @@ var accGlobals struct {
 	Usage             map[string]*scopedUsage // TODO(Dan): quite annoying that this has to be global
 	BucketsByCategory map[accapi.ProductCategoryIdV2]*internalBucket
 
+	OnPersistHandlers []internalOnPersistHandler
+
 	OwnerIdAcc  atomic.Int64 // does not require mutex
 	WalletIdAcc atomic.Int64 // does not require mutex
 	GroupIdAcc  atomic.Int64 // does not require mutex
@@ -156,6 +158,7 @@ type internalAllocation struct {
 	Id        accAllocId
 	BelongsTo accWalletId
 	Parent    accWalletId
+	Group     accGroupId
 
 	GrantedIn util.Option[accGrantId]
 
@@ -341,6 +344,8 @@ func internalAllocate(
 		group.Dirty = true
 		group.Allocations[allocationId] = util.Empty{}
 
+		allocation.Group = group.Id
+
 		if parentWallet != nil {
 			parentWallet.Dirty = true
 
@@ -355,13 +360,23 @@ func internalAllocate(
 	}
 }
 
+type internalOnPersistHandler struct {
+	GrantId   accGrantId
+	OnPersist func(tx *db.Transaction)
+}
+
 // internalCommitAllocations ensures that all allocations granted in grantId are committed together. If onPersist is
 // specified, then it will be run when the data is persisted.
 func internalCommitAllocations(grantId accGrantId, onPersist func(tx *db.Transaction)) {
-	// TODO
+	accGlobals.Mu.Lock()
+	accGlobals.OnPersistHandlers = append(accGlobals.OnPersistHandlers, internalOnPersistHandler{
+		GrantId:   grantId,
+		OnPersist: onPersist,
+	})
+	accGlobals.Mu.Unlock()
 }
 
-func internalCompleteScan(now time.Time, persistence func(buckets []*internalBucket, scopes []*scopedUsage)) {
+func internalCompleteScan(now time.Time, persistence func(buckets []*internalBucket, scopes []*scopedUsage, onPersistHandlers []internalOnPersistHandler)) {
 	var buckets []*internalBucket
 	var scopes []*scopedUsage
 	accGlobals.Mu.Lock()
@@ -410,7 +425,7 @@ func internalCompleteScan(now time.Time, persistence func(buckets []*internalBuc
 	}
 
 	if persistence != nil {
-		persistence(buckets, scopes)
+		persistence(buckets, scopes, accGlobals.OnPersistHandlers)
 	}
 
 	for _, s := range scopes {
