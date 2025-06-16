@@ -1434,7 +1434,7 @@ const UsageOverTimePanel: React.FunctionComponent<{
         if (active) {
             setShownEntries(shown => {
                 for (const quotaSeries of charts.map(it => quotaSeriesFromDataPoints(it))) {
-                    /* Note(Jonas): Casting seems necessary as the parameter requires something different from what is actually used in the code */
+                    /* Note(Jonas): Casting seems necessary as the parameter requires something different from what is actually used in the library code */
                     chart.appendSeries(quotaSeries as unknown as ApexAxisChartSeries);
                     shown.push(quotaSeries.name!);
                 }
@@ -1473,8 +1473,8 @@ const UsageOverTimePanel: React.FunctionComponent<{
 };
 
 function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownEntries}: {updateShownEntries: (args: boolean | string[]) => void; charts: UsageChart[]; shownEntries: string[]; exportRef: React.RefObject<() => void>; chartId: string;}) {
-    /* TODO(Jonas): Provider _should_ also be here, right */
-    const shownProducts = React.useMemo(() => charts.filter((chart, index) => shownEntries[index]), [charts, shownEntries]);
+    /* TODO(Jonas): Provider _should_ also be here, right? */
+    const shownProducts = React.useMemo(() => charts.filter(chart => shownEntries.includes(chart.name)), [charts, shownEntries]);
 
     const tableContent = React.useMemo(() => {
         const result: {name: string; timestamp: number; usage: number; difference: number; quota: number}[] = [];
@@ -1511,7 +1511,6 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
         const chart = ApexCharts.getChartByID(chartId);
         toggleSeriesEntry(chart, productName, {current: shownEntries}, updateShownEntries);
     }, [chartId, charts, shownProducts]);
-
 
     const sorted = useSorting(tableContent, "usage");
 
@@ -2276,11 +2275,11 @@ const PeriodSelector: React.FunctionComponent<{
                     <b>Absolute time range</b>
 
                     <label>
-                    From
-                    <Input className={"start"} onChange={onChange} type={"date"} value={formatTs(start)} />
-                </label>
-                <label>
-                    To
+                        From
+                        <Input className={"start"} onChange={onChange} type={"date"} value={formatTs(start)} />
+                    </label>
+                    <label>
+                        To
                         <Input className={"end"} onChange={onChange} type={"date"} value={formatTs(end)} />
                     </label>
 
