@@ -86,7 +86,6 @@ class DataVisualization(
     }
 
 
-
     suspend fun retrieveChartsV2(
         idCard: IdCard,
         request: VisualizationV2.RetrieveCharts.Request,
@@ -172,7 +171,6 @@ class DataVisualization(
                 wallet.copy(allocationGroups = newGroups)
             }
 
-        val currentProject = allWallets.first().owner.reference()
         val childrenIds = mutableSetOf<String>()
 
         for ((walletIndex, wallet) in allWallets.withIndex()) {
@@ -231,18 +229,20 @@ class DataVisualization(
         }
             coroutineScope {
                 childrenIds.forEach { childId ->
-                    launch {
-                        val localChart = HashMap<Long, UsageOverTimeAPI>()
-                        val relevantAllocationGroups = mutableSetOf<Int>()
-                        allWallets.forEach { wallet -> wallet.children?.forEach {
+                launch {
+                    val localChart = HashMap<Long, UsageOverTimeAPI>()
+                    val relevantAllocationGroups = mutableSetOf<Int>()
+                    allWallets.forEach { wallet ->
+                        wallet.children?.forEach {
                             val child = it.child.projectId
                             if (child != null && child == childId) {
                                 relevantAllocationGroups.add(it.group.id)
                             }
-                        } }
+                        }
+                    }
 
-                        db.withSession { session ->
-                            val rows = session.sendPreparedStatement(
+                    db.withSession { session ->
+                        val rows = session.sendPreparedStatement(
                                 {
                                     setParameter("allocation_group_ids", relevantAllocationGroups.toList())
                                     setParameter("start", request.start)
@@ -329,13 +329,21 @@ class DataVisualization(
                                 val totalAllocated = row.getLong(6)!!
                                 if (currentProductCategory != allocCategory) {
                                     flushChart() // no-op if currentProductCategory = -1L
-                                    currentProductCategory = allocCategory
-                                    prediction = predictor.getPrediction(walletId)
-                                }
-                                dataPoints.add(UsageOverTimeDatePointAPI(treeUsage, quota, timestamp, localUsage, totalAllocated))
+                                currentProductCategory = allocCategory
+                                prediction = predictor.getPrediction(walletId)
                             }
-                            flushChart()
+                            dataPoints.add(
+                                UsageOverTimeDatePointAPI(
+                                    treeUsage,
+                                    quota,
+                                    timestamp,
+                                    localUsage,
+                                    totalAllocated
+                                )
+                            )
                         }
+                        flushChart()
+                    }
                         childrenUsageOverTimeCharts[childId] = localChart
                     }
                 }
@@ -412,13 +420,14 @@ class DataVisualization(
                         var currentProductCategory = -1L
 
                         var dataPoints = ArrayList<UsageOverTimeDatePointAPI>()
-                        var prediction = WalletPrediction(0, emptyList())
-                        fun flushChart() {
-                            if (currentProductCategory != -1L) {
-                                usageOverTimeCharts[currentProductCategory] = UsageOverTimeAPI(dataPoints.toList(), prediction)
-                                dataPoints = ArrayList()
-                            }
+                    var prediction = WalletPrediction(0, emptyList())
+                    fun flushChart() {
+                        if (currentProductCategory != -1L) {
+                            usageOverTimeCharts[currentProductCategory] =
+                                UsageOverTimeAPI(dataPoints.toList(), prediction)
+                            dataPoints = ArrayList()
                         }
+                    }
 
                         for (row in rows) {
                             val allocCategory = row.getLong(0)!!
@@ -430,13 +439,21 @@ class DataVisualization(
                             val totalAllocated = row.getLong(6)!!
                             if (currentProductCategory != allocCategory) {
                                 flushChart() // no-op if currentProductCategory = -1L
-                                currentProductCategory = allocCategory
-                                prediction = predictor.getPrediction(walletId)
-                            }
-                            dataPoints.add(UsageOverTimeDatePointAPI(treeUsage, quota, timestamp, localUsage, totalAllocated))
+                            currentProductCategory = allocCategory
+                            prediction = predictor.getPrediction(walletId)
                         }
-                        flushChart()
+                        dataPoints.add(
+                            UsageOverTimeDatePointAPI(
+                                treeUsage,
+                                quota,
+                                timestamp,
+                                localUsage,
+                                totalAllocated
+                            )
+                        )
                     }
+                    flushChart()
+                }
                 }
 
                 val breakDownByProject = launch {
