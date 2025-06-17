@@ -90,6 +90,9 @@ class DataVisualization(
         idCard: IdCard,
         request: VisualizationV2.RetrieveCharts.Request,
     ): ChartsAPI {
+        if (request.end < request.start) {
+            throw RPCException("End date cannot be before start date", HttpStatusCode.BadRequest)
+        }
         if (request.end - request.start > (365 * 15).days.inWholeMilliseconds) {
             throw RPCException("You cannot request data for more than 15 years", HttpStatusCode.BadRequest)
         }
