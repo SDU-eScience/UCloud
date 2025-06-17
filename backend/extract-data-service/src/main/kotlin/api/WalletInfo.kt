@@ -7,5 +7,6 @@ data class WalletInfo(
     val accountId: String,
     val allocated: Long,
     val localUsed: Long,
-    val productType: ProductType
+    val productType: ProductType,
+    val walletId: Long
 )

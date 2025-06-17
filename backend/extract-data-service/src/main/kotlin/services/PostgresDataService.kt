@@ -56,20 +56,33 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
     }
 
     suspend fun getProjectUsage(projectId: String, startDate: LocalDateTime, endDate: LocalDateTime) {
+
+        println(projectId)
+
+        val children = viewChildrenProjectIds(projectId)
         val sduCPUUsage = getCPUUsage(startDate, endDate, false)
         val aauCPUUsage = getCPUUsage(startDate, endDate, true)
         val sduGPUUsage = getGPUUsage(startDate, endDate, false, true)
         val aauGPUUsage = getGPUUsage(startDate, endDate, true)
 
-        var cpuUsage = 0L
-        cpuUsage += sduCPUUsage[projectId] ?: 0L
-        cpuUsage += aauCPUUsage[projectId] ?: 0L
+        var totalCPUUsage = 0L
+        var totalGPUUsage = 0L
+        children.forEach { project ->
+            var cpuUsage = 0L
+            cpuUsage += sduCPUUsage[project] ?: 0L
+            cpuUsage += aauCPUUsage[project] ?: 0L
 
-        var gpuUsage = 0L
-        gpuUsage += sduGPUUsage[projectId] ?: 0L
-        gpuUsage += aauGPUUsage[projectId] ?: 0L
+            var gpuUsage = 0L
+            gpuUsage += sduGPUUsage[project] ?: 0L
+            gpuUsage += aauGPUUsage[project] ?: 0L
 
-        println("CPU: $cpuUsage GPU: $gpuUsage")
+            totalCPUUsage += cpuUsage
+            totalGPUUsage += gpuUsage
+
+            println("$project , CPU: $cpuUsage GPU: $gpuUsage")
+        }
+
+        println("CPU: $totalCPUUsage GPU: $totalGPUUsage")
     }
 
     suspend fun getCPUUsage(
@@ -350,7 +363,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                     join accounting.product_categories pc on p.category = pc.id
                             )
                             SELECT wo.project_id, sum(walloc.quota)::bigint,
-                                wa.local_usage, pc.product_type, is_gpu
+                                wa.local_usage, pc.product_type, is_gpu, wa.id
                             FROM accounting.wallets_v2 wa join
                                 accounting.allocation_groups ag on wa.id = ag.associated_wallet join
                                 accounting.wallet_allocations_v2 walloc on ag.id = walloc.associated_allocation_group join
@@ -358,7 +371,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                 accounting.product_categories pc on pc.id = wa.product_category join
                                 lookup l on l.id = pc.id
                             WHERE wo.project_id = :projectid
-                            group by wo.project_id, pc.product_type, wa.local_usage, is_gpu;
+                            group by wo.project_id, pc.product_type, wa.local_usage, is_gpu, wa.id;
                         """
                     ).rows
                     .map {
@@ -366,7 +379,8 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                             it.getString(0)!!,
                             it.getLong(1)!!,
                             it.getLong(2)!!,
-                            ProductType.createFromType(it.getString(3)!!, it.getBoolean(4)!!)
+                            ProductType.createFromType(it.getString(3)!!, it.getBoolean(4)!!),
+                            it.getLong(5)!!
                         )
                     }
             }
@@ -530,6 +544,44 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
             }
         }
         return resultList.asReversed()
+    }
+
+    fun viewChildrenProjectIds(projectId: String): List<String> {
+        val resultList = ArrayList<String>()
+        val wallets = getWallets(projectId).map { it.walletId }
+        runBlocking {
+            db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("wallets_given", wallets)
+                    },
+                    """
+                        with recursive children as (
+                            select wall1.id walletid
+                            from accounting.wallets_v2 wall1 join
+                                accounting.allocation_groups ag1 on wall1.id = ag1.associated_wallet
+                            where
+                                wall1.id in (
+                                select
+                                    unnest(:wallets_given::bigint[])
+                            )
+                        
+                            union
+                        
+                            select wall.id
+                            from accounting.wallets_v2 wall join
+                                accounting.allocation_groups ag on wall.id = ag.associated_wallet join
+                                children c on c.walletid = ag.parent_wallet
+                        )
+                        select distinct coalesce(username, project_id)
+                        from children c join
+                        accounting.wallets_v2 wall on c.walletid = wall.id join
+                            accounting.wallet_owner wo on wall.wallet_owner = wo.id;
+                    """.trimIndent()
+                ).rows.forEach { resultList.add(it.getString(0)!!) }
+            }
+        }
+        return resultList
     }
 
     fun findProjectMembers(projectId: String): List<ProjectMemberInfo> {
