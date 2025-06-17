@@ -286,10 +286,10 @@ func TestBrowseNoDuplicates(t *testing.T) {
 
 	// sanity: Bob (approver only) sees the same single app
 	page2 := GrantsBrowse(*bob, accapi.GrantsBrowseRequest{
-		IncludeOutgoingApplications: util.OptValue(true),
-		Filter:                      util.OptValue(accapi.GrantApplicationFilterShowAll),
+		IncludeIngoingApplications: util.OptValue(true),
+		Filter:                     util.OptValue(accapi.GrantApplicationFilterShowAll),
 	})
-	assert.Equal(t, len(page2.Items), 1)
+	assert.Equal(t, 1, len(page2.Items))
 }
 
 func TestCannotMutateAfterApproval(t *testing.T) {
@@ -368,7 +368,7 @@ func TestAwardedNotSetOnCreateProjectFailure(t *testing.T) {
 	id := accGrantId(grantGlobals.GrantIdAcc.Add(1))
 	app := &grantApplication{
 		Application: &accapi.GrantApplication{
-			Id:        strconv.FormatInt(int64(id), 10),
+			Id:        util.IntOrString{strconv.FormatInt(int64(id), 10)},
 			CreatedBy: alice.Username,
 			CreatedAt: fndapi.Timestamp(time.Now()),
 			UpdatedAt: fndapi.Timestamp(time.Now()),

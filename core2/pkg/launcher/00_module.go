@@ -14,6 +14,7 @@ import (
 	"ucloud.dk/core/pkg/migrations"
 	gonjautil "ucloud.dk/gonja/v2/utils"
 	db "ucloud.dk/shared/pkg/database"
+	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -88,6 +89,48 @@ func Launch() {
 	)
 
 	rpc.DefaultServer.Mux = http.NewServeMux()
+
+	claimsToActor := func(subject string, project util.Option[string], claims rpc.CorePrincipalBaseClaims) (rpc.Actor, bool) {
+		sessionReference := claims.SessionReference
+
+		var role rpc.Role
+
+		switch claims.Role {
+		case "USER":
+			role = rpc.RoleUser
+
+		case "ADMIN":
+			role = rpc.RoleAdmin
+
+		case "PROVIDER":
+			role = rpc.RoleProvider
+
+		case "SERVICE":
+			role = rpc.RoleService
+
+		default:
+			return rpc.Actor{}, false
+		}
+
+		if _, ok := claims.Membership[rpc.ProjectId(project.Value)]; project.Present && !ok {
+			project.Clear()
+		}
+
+		return rpc.Actor{
+			Username:         subject,
+			Role:             role,
+			Project:          project,
+			Membership:       claims.Membership,
+			Groups:           claims.Groups,
+			ProviderProjects: claims.ProviderProjects,
+			Domain:           claims.Domain,
+			OrgId:            claims.OrgId.Value,
+			TokenInfo: util.OptValue(rpc.TokenInfo{
+				PublicSessionReference: sessionReference.Value,
+			}),
+		}, true
+	}
+
 	rpc.ServerAuthenticator = func(r *http.Request) (rpc.Actor, *util.HttpError) {
 		authHeader := r.Header.Get("Authorization")
 		jwtToken, ok := strings.CutPrefix(authHeader, "Bearer ")
@@ -107,8 +150,6 @@ func Launch() {
 			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
 		}
 
-		sessionReference := claims.SessionReference
-
 		issuedAt, err := claims.GetIssuedAt()
 		if err != nil {
 			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
@@ -124,45 +165,16 @@ func Launch() {
 			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Token has expired")
 		}
 
-		var role rpc.Role
-
-		switch claims.Role {
-		case "USER":
-			role = rpc.RoleUser
-
-		case "ADMIN":
-			role = rpc.RoleAdmin
-
-		case "PROVIDER":
-			role = rpc.RoleProvider
-
-		case "SERVICE":
-			role = rpc.RoleService
-
-		default:
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
-		}
-
 		project := util.OptStringIfNotEmpty(r.Header.Get("Project"))
-		if _, ok := claims.Membership[rpc.ProjectId(project.Value)]; project.Present && !ok {
-			project.Clear()
-		}
 
-		return rpc.Actor{
-			Username:         subject,
-			Role:             role,
-			Project:          project,
-			Membership:       claims.Membership,
-			Groups:           claims.Groups,
-			ProviderProjects: claims.ProviderProjects,
-			Domain:           claims.Domain,
-			OrgId:            claims.OrgId.Value,
-			TokenInfo: util.OptValue(rpc.TokenInfo{
-				IssuedAt:               issuedAt.Time,
-				ExpiresAt:              expiresAt.Time,
-				PublicSessionReference: sessionReference.Value,
-			}),
-		}, nil
+		actor, ok := claimsToActor(subject, project, claims.CorePrincipalBaseClaims)
+		if !ok {
+			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
+		} else {
+			actor.TokenInfo.Value.ExpiresAt = expiresAt.Time
+			actor.TokenInfo.Value.IssuedAt = issuedAt.Time
+			return actor, nil
+		}
 	}
 
 	rpc.AuditConsumer = func(event rpc.HttpCallLogEntry) {
@@ -171,6 +183,16 @@ func Launch() {
 			data, _ := json.MarshalIndent(event, "", "    ")
 			log.Info("Audit: %s", string(data))
 		*/
+	}
+
+	rpc.LookupActor = func(username string) (rpc.Actor, bool) {
+		resp, err := fndapi.AuthLookupUser.Invoke(fndapi.FindByStringId{Id: username})
+		if err != nil {
+			return rpc.Actor{}, false
+		} else {
+			actor, ok := claimsToActor(username, util.OptNone[string](), resp)
+			return actor, ok
+		}
 	}
 
 	logCfg := cfg.Configuration.Logs

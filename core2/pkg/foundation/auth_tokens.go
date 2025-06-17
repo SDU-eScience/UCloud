@@ -23,6 +23,28 @@ func initAuthTokens() {
 func SignPrincipalToken(principal Principal, sessionReference util.Option[string]) string {
 	now := time.Now()
 
+	base := CreatePrincipalClaims(principal, sessionReference)
+
+	token := jwt.NewWithClaims(jwtSigningMethod, rpc.CorePrincipalClaims{
+		CorePrincipalBaseClaims: base,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   principal.Id,
+			ExpiresAt: jwt.NewNumericDate(now.Add(10 * time.Minute)),
+			IssuedAt:  jwt.NewNumericDate(now),
+			Audience:  jwt.ClaimStrings{"all:write"},
+			Issuer:    "cloud.sdu.dk",
+		},
+	})
+
+	signed, err := token.SignedString(jwtSigningKey)
+	if err != nil {
+		panic(err)
+	} else {
+		return signed
+	}
+}
+
+func CreatePrincipalClaims(principal Principal, sessionReference util.Option[string]) rpc.CorePrincipalBaseClaims {
 	jwtType := ""
 	switch principal.Type {
 	case "PERSON":
@@ -48,7 +70,7 @@ func SignPrincipalToken(principal Principal, sessionReference util.Option[string
 		domain = domainSplit[1]
 	}
 
-	token := jwt.NewWithClaims(jwtSigningMethod, rpc.CorePrincipalClaims{
+	return rpc.CorePrincipalBaseClaims{
 		Role:                    string(principal.Role),
 		Uid:                     principal.Uid,
 		FirstNames:              principal.FirstNames,
@@ -64,19 +86,5 @@ func SignPrincipalToken(principal Principal, sessionReference util.Option[string
 		Membership:              principal.Membership,
 		Groups:                  principal.Groups,
 		ProviderProjects:        principal.ProviderProjects,
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   principal.Id,
-			ExpiresAt: jwt.NewNumericDate(now.Add(10 * time.Minute)),
-			IssuedAt:  jwt.NewNumericDate(now),
-			Audience:  jwt.ClaimStrings{"all:write"},
-			Issuer:    "cloud.sdu.dk",
-		},
-	})
-
-	signed, err := token.SignedString(jwtSigningKey)
-	if err != nil {
-		panic(err)
-	} else {
-		return signed
 	}
 }

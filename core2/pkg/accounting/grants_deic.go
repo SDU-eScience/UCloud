@@ -20,7 +20,7 @@ var (
 		"cbs": {},
 	}
 
-	deicAllocRegex   = regexp.MustCompile(`^[LNSI][1-5]$`)
+	deicAllocRegex   = regexp.MustCompile(`(?i)^[LNSI][1-5]$`)
 	deicNumericRegex = regexp.MustCompile(`^\d+$`)
 )
 

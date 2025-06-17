@@ -94,6 +94,10 @@ func initProjects() {
 		return ProjectRetrieve(info.Actor, request.Id, request.ProjectFlags, fndapi.ProjectRoleUser)
 	})
 
+	fndapi.ProjectRetrieveMetadata.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (fndapi.ProjectMetadata, *util.HttpError) {
+		return ProjectRetrieveMetadata(request.Id)
+	})
+
 	fndapi.ProjectBrowse.Handler(func(info rpc.RequestInfo, request fndapi.ProjectBrowseRequest) (fndapi.PageV2[fndapi.Project], *util.HttpError) {
 		return ProjectBrowse(info.Actor, request)
 	})
@@ -281,6 +285,32 @@ var projectFlagsAll = fndapi.ProjectFlags{
 	IncludeArchived: true,
 	IncludeSettings: true,
 	IncludePath:     true,
+}
+
+func ProjectRetrieveMetadata(id string) (fndapi.ProjectMetadata, *util.HttpError) {
+	p, ok := projectRetrieveInternal(id)
+	if ok {
+		p.Mu.RLock()
+
+		piUsername := "_ucloud"
+		for _, user := range p.Project.Status.Members {
+			if user.Role == fndapi.ProjectRolePI {
+				piUsername = user.Username
+				break
+			}
+		}
+
+		result := fndapi.ProjectMetadata{
+			Id:         p.Id,
+			Title:      p.Project.Specification.Title,
+			PiUsername: piUsername,
+		}
+
+		p.Mu.RUnlock()
+
+		return result, nil
+	}
+	return fndapi.ProjectMetadata{}, util.HttpErr(http.StatusNotFound, "unknown project")
 }
 
 func ProjectRetrieve(

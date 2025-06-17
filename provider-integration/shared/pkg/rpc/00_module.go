@@ -477,7 +477,7 @@ func (r Role) String() string {
 	}
 }
 
-type CorePrincipalClaims struct {
+type CorePrincipalBaseClaims struct {
 	Role                    string              `json:"role"`
 	Uid                     int                 `json:"uid"`
 	FirstNames              util.Option[string] `json:"firstNames"`
@@ -493,6 +493,9 @@ type CorePrincipalClaims struct {
 	Groups                  GroupMembership     `json:"groups"`
 	ProviderProjects        ProviderProjects    `json:"providerProjects"`
 	Domain                  string              `json:"domain"`
+}
 
+type CorePrincipalClaims struct {
+	CorePrincipalBaseClaims
 	jwt.RegisteredClaims
 }

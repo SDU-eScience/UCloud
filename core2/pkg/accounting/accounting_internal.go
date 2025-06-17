@@ -13,6 +13,7 @@ import (
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/shared/pkg/util/mermaid"
 )
@@ -515,6 +516,18 @@ func internalWalletByOwner(b *internalBucket, now time.Time, owner accOwnerId) a
 	return lInternalWalletByOwner(b, now, owner).Id
 }
 
+func internalWalletByReferenceAndCategory(now time.Time, reference string, category accapi.ProductCategoryIdV2) (accWalletId, bool) {
+	owner := internalOwnerByReference(reference)
+	cat, err := ProductCategoryRetrieve(rpc.ActorSystem, category.Name, category.Provider)
+	if err != nil {
+		return 0, false
+	} else {
+		b := internalBucketOrInit(cat)
+		w := internalWalletByOwner(b, now, owner.Id)
+		return w, true
+	}
+}
+
 func lInternalWalletByOwner(b *internalBucket, now time.Time, owner accOwnerId) *internalWallet {
 	return util.LReadOrInsertBucket(b.WalletsByOwner, owner, func() *internalWallet {
 		result := &internalWallet{
@@ -922,6 +935,18 @@ func lInternalMarkSignificantUpdate(b *internalBucket, now time.Time, wallet *in
 	b.SignificantUpdateAt = now
 	wallet.LastSignificantUpdate = now
 	wallet.Dirty = true
+}
+
+func internalMaxUsable(now time.Time, wallet accWalletId) (int64, bool) {
+	b, w, ok := internalWalletById(wallet)
+	if ok {
+		b.Mu.RLock()
+		result := lInternalMaxUsable(b, now, w)
+		b.Mu.RUnlock()
+		return result, true
+	} else {
+		return 0, false
+	}
 }
 
 func lInternalMaxUsable(b *internalBucket, now time.Time, wallet *internalWallet) int64 {

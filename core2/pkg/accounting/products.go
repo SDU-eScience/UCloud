@@ -393,6 +393,22 @@ func ProductCategoryRetrieve(actor rpc.Actor, name, provider string) (accapi.Pro
 	return accapi.ProductCategory{}, err
 }
 
+func ProductCategories() []accapi.ProductCategory {
+	productsByProvider.Mu.RLock()
+	providerIds := make([]string, len(productsByProvider.Providers))
+	copy(providerIds, productsByProvider.Providers)
+	productsByProvider.Mu.RUnlock()
+
+	slices.Sort(providerIds)
+
+	var result []accapi.ProductCategory
+	for _, providerId := range providerIds {
+		result = append(result, ProductCategoriesByProvider(rpc.ActorSystem, providerId)...)
+	}
+
+	return result
+}
+
 func ProductCategoriesByProvider(actor rpc.Actor, provider string) []accapi.ProductCategory {
 	results, err := ProductBrowse(actor, accapi.ProductsBrowseRequest{
 		ItemsPerPage: 10000,

@@ -2,6 +2,7 @@ package foundation
 
 import (
 	"net/http"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -13,6 +14,21 @@ func initAuth() {
 	// TODO origin check for some of these calls
 	// TODO origin check for some of these calls
 	// TODO origin check for some of these calls
+
+	// TODO Assert that user ID never match a UUID. Breaks too many things which assume that user IDs never collide
+	//   with project IDs.
+
+	fndapi.AuthLookupUser.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (rpc.CorePrincipalBaseClaims, *util.HttpError) {
+		principal, ok := db.NewTx2(func(tx *db.Transaction) (Principal, bool) {
+			return LookupPrincipal(tx, request.Id)
+		})
+
+		if ok {
+			return CreatePrincipalClaims(principal, util.OptNone[string]()), nil
+		} else {
+			return rpc.CorePrincipalBaseClaims{}, util.HttpErr(http.StatusNotFound, "not found")
+		}
+	})
 
 	fndapi.AuthRefresh.Handler(func(info rpc.RequestInfo, request fndapi.AuthenticationTokens) (fndapi.AccessTokenAndCsrf, *util.HttpError) {
 		return SessionRefresh(request)

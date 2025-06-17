@@ -15,6 +15,12 @@ type Project struct {
 	Status        ProjectStatus        `json:"status"`
 }
 
+type ProjectMetadata struct {
+	Id         string `json:"id"`
+	Title      string `json:"title"`
+	PiUsername string `json:"piUsername"`
+}
+
 type ProjectSpecification struct {
 	Parent              util.Option[string] `json:"parent"`
 	Title               string              `json:"title"`
@@ -138,6 +144,13 @@ const ProjectContext = "projects/v2"
 var ProjectRetrieve = rpc.Call[ProjectRetrieveRequest, Project]{
 	BaseContext: ProjectContext,
 	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesEndUser | rpc.RoleProvider | rpc.RoleService,
+}
+
+var ProjectRetrieveMetadata = rpc.Call[FindByStringId, ProjectMetadata]{
+	BaseContext: ProjectContext,
+	Convention:  rpc.ConventionRetrieve,
+	Operation:   "metadata",
 	Roles:       rpc.RolesEndUser | rpc.RoleProvider | rpc.RoleService,
 }
 
