@@ -42,6 +42,33 @@ type GrantRequestSettings struct {
 	Templates           Templates      `json:"templates"`
 }
 
+func (s GrantRequestSettings) MarshalJSON() ([]byte, error) {
+	type wrapper struct {
+		Enabled             bool           `json:"enabled"`
+		Description         string         `json:"description"`
+		AllowRequestsFrom   []UserCriteria `json:"allowRequestsFrom"`
+		ExcludeRequestsFrom []UserCriteria `json:"excludeRequestsFrom"`
+		Templates           Templates      `json:"templates"`
+	}
+
+	if s.AllowRequestsFrom == nil {
+		s.AllowRequestsFrom = []UserCriteria{}
+	}
+	if s.ExcludeRequestsFrom == nil {
+		s.ExcludeRequestsFrom = []UserCriteria{}
+	}
+
+	w := wrapper{
+		Enabled:             s.Enabled,
+		Description:         s.Description,
+		AllowRequestsFrom:   s.AllowRequestsFrom,
+		ExcludeRequestsFrom: s.ExcludeRequestsFrom,
+		Templates:           s.Templates,
+	}
+
+	return json.Marshal(w)
+}
+
 type GrantGiver struct {
 	Id          string            `json:"id"`
 	Description string            `json:"description"`
@@ -435,14 +462,18 @@ var GrantsRetrieveLogo = rpc.Call[GrantsRetrieveLogoRequest, []byte]{
 	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesPublic,
 
-	CustomMethod: http.MethodPost,
+	CustomMethod: http.MethodGet,
 	CustomPath:   fmt.Sprintf("/api/%s/retrieveLogo", GrantsNamespace),
 	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (GrantsRetrieveLogoRequest, *util.HttpError) {
 		return rpc.ParseRequestFromQuery[GrantsRetrieveLogoRequest](w, r)
 	},
 	CustomServerProducer: func(response []byte, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/any")
-		w.WriteHeader(err.StatusCode)
+		if err != nil {
+			w.WriteHeader(err.StatusCode)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
 		_, _ = w.Write(response)
 	},
 	CustomClientHandler: func(self *rpc.Call[GrantsRetrieveLogoRequest, []byte], client *rpc.Client, request GrantsRetrieveLogoRequest) ([]byte, *util.HttpError) {

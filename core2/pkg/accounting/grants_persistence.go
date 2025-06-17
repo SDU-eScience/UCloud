@@ -281,6 +281,7 @@ func grantsLoadSettings() {
 
 		for _, public := range publicGrantGivers {
 			existing := result[public.ProjectId]
+			existing.Enabled = true
 			result[public.ProjectId] = existing
 
 			b := grantGetSettingsBucket(public.ProjectId)
@@ -319,6 +320,139 @@ func grantsLoadSettings() {
 			Settings:  &settings,
 		}
 	}
+}
+
+func lGrantsPersistSettings(settings *grantSettings) {
+	if grantGlobals.Testing.Enabled {
+		return
+	}
+
+	s := settings.Settings
+
+	db.NewTx0(func(tx *db.Transaction) {
+		if s.Enabled {
+			db.Exec(
+				tx,
+				`
+					insert into "grant".is_enabled(project_id)
+					values (:project)
+					on conflict do nothing
+			    `,
+				db.Params{
+					"project": settings.ProjectId,
+				},
+			)
+		} else {
+			db.Exec(
+				tx,
+				`
+					delete from "grant".is_enabled
+					where project_id = :project
+				`,
+				db.Params{
+					"project": settings.ProjectId,
+				},
+			)
+		}
+
+		db.Exec(
+			tx,
+			`
+				insert into "grant".descriptions(project_id, description) 
+				values (:project, :description)
+				on conflict (project_id) do update set
+					description = excluded.description
+		    `,
+			db.Params{
+				"project":     settings.ProjectId,
+				"description": s.Description,
+			},
+		)
+
+		db.Exec(
+			tx,
+			`
+				insert into "grant".templates(project_id, personal_project, existing_project, new_project) 
+				values (:project, :personal, :existing, :new)
+				on conflict (project_id) do update set
+					personal_project = excluded.personal_project,
+					new_project = excluded.new_project,
+					existing_project = excluded.existing_project
+		    `,
+			db.Params{
+				"project":  settings.ProjectId,
+				"personal": s.Templates.PersonalProject,
+				"new":      s.Templates.NewProject,
+				"existing": s.Templates.ExistingProject,
+			},
+		)
+
+		db.Exec(
+			tx,
+			`delete from "grant".allow_applications_from where project_id = :project`,
+			db.Params{
+				"project": settings.ProjectId,
+			},
+		)
+
+		db.Exec(
+			tx,
+			`delete from "grant".exclude_applications_from where project_id = :project`,
+			db.Params{
+				"project": settings.ProjectId,
+			},
+		)
+
+		var allowType []string
+		var allowId []string
+		for _, allowFrom := range s.AllowRequestsFrom {
+			allowType = append(allowType, string(allowFrom.Type))
+			allowId = append(allowId, allowFrom.Domain.GetOrDefault(allowFrom.Org.GetOrDefault("")))
+		}
+
+		if len(allowId) > 0 {
+			db.Exec(
+				tx,
+				`
+					with data as (
+						select 
+							:project project, 
+							unnest(cast(:type as text[])) type,
+							unnest(cast(:applicants as text[])) applicant_id
+					)
+					insert into "grant".allow_applications_from(project_id, type, applicant_id) 
+					select project, type, case when applicant_id = '' then null else applicant_id end
+					from data
+				`,
+				db.Params{
+					"project":    settings.ProjectId,
+					"type":       allowType,
+					"applicants": allowId,
+				},
+			)
+		}
+
+		var excludeEmail []string
+		for _, excludeFrom := range s.ExcludeRequestsFrom {
+			if excludeFrom.Type == accapi.UserCriteriaTypeEmail {
+				excludeEmail = append(excludeEmail, excludeFrom.Domain.Value)
+			}
+		}
+
+		if len(excludeEmail) > 0 {
+			db.Exec(
+				tx,
+				`
+					insert into "grant".exclude_applications_from(project_id, email_suffix) 
+					select :project, unnest(cast(:suffix as text[]))
+				`,
+				db.Params{
+					"project": settings.ProjectId,
+					"suffix":  excludeEmail,
+				},
+			)
+		}
+	})
 }
 
 func grantsInitIndex(b *grantIndexBucket, recipient string) {

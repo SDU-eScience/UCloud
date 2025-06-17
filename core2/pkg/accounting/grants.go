@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 	accapi "ucloud.dk/shared/pkg/accounting"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
@@ -87,8 +88,7 @@ func initGrants() {
 		})
 
 		accapi.GrantsRetrieveRequestSettings.Handler(func(info rpc.RequestInfo, request util.Empty) (accapi.GrantRequestSettings, *util.HttpError) {
-			// TODO
-			return accapi.GrantRequestSettings{}, nil
+			return GrantsRetrieveSettings(info.Actor)
 		})
 
 		accapi.GrantsUpdateRequestSettings.Handler(func(info rpc.RequestInfo, request accapi.GrantRequestSettings) (util.Empty, *util.HttpError) {
@@ -99,13 +99,11 @@ func initGrants() {
 		})
 
 		accapi.GrantsUploadLogo.Handler(func(info rpc.RequestInfo, request []byte) (util.Empty, *util.HttpError) {
-			// TODO
-			return util.Empty{}, nil
+			return util.Empty{}, GrantsUploadLogo(info.Actor, request)
 		})
 
 		accapi.GrantsRetrieveLogo.Handler(func(info rpc.RequestInfo, request accapi.GrantsRetrieveLogoRequest) ([]byte, *util.HttpError) {
-			// TODO
-			return nil, util.HttpErr(http.StatusNotFound, "not found")
+			return GrantsRetrieveLogo(request.ProjectId)
 		})
 	}
 }
@@ -169,6 +167,13 @@ type grantSettings struct {
 	Mu        sync.RWMutex
 	ProjectId string
 	Settings  *accapi.GrantRequestSettings
+}
+
+func (a *grantSettings) lDeepCopy() accapi.GrantRequestSettings {
+	var result accapi.GrantRequestSettings
+	b, _ := json.Marshal(a.Settings)
+	_ = json.Unmarshal(b, &result)
+	return result
 }
 
 func grantGetAppBucket(key accGrantId) *grantAppBucket {
@@ -438,10 +443,9 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 
 	period := revision.AllocationPeriod
 
+	requestsSeen := map[util.Tuple3[string, string, string]]util.Empty{}
 	hasRequest := false
 	for _, allocReq := range revision.AllocationRequests {
-		// TODO Check that there are no duplicate (grantGiver, category) pairs
-
 		if allocReq.BalanceRequested.Present {
 			if allocReq.BalanceRequested.GetOrDefault(0) > 0 {
 				hasRequest = true
@@ -456,6 +460,13 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 			} else if allocReq.BalanceRequested.GetOrDefault(0) < 0 {
 				return 0, util.HttpErr(http.StatusBadRequest, "requested quota cannot be negative")
 			}
+		}
+
+		key := util.Tuple3[string, string, string]{allocReq.Category, allocReq.Provider, allocReq.GrantGiver}
+		if _, seen := requestsSeen[key]; seen {
+			return 0, util.HttpErr(http.StatusBadRequest, "duplicate request")
+		} else {
+			requestsSeen[key] = util.Empty{}
 		}
 	}
 
@@ -852,7 +863,6 @@ func GrantsPostComment(actor rpc.Actor, req accapi.GrantsPostCommentRequest) (st
 	lGrantsPersist(app)
 	app.Mu.Unlock()
 
-	// TODO notifications
 	return fmt.Sprint(commentId), nil
 }
 
@@ -1311,10 +1321,6 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	}
 	b := grantGetSettingsBucket(id)
 
-	if actor.Role != rpc.RoleAdmin {
-		s.Enabled = false
-	}
-
 	b.Mu.Lock()
 	w, ok := b.Settings[id]
 	if !ok {
@@ -1324,16 +1330,104 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 		}
 	}
 
+	_, isPublic := b.PublicGrantGivers[id]
+	s.Enabled = isPublic
+
 	w.Settings = &s
 
-	if s.Enabled {
-		b.PublicGrantGivers[id] = util.Empty{}
-	} else {
-		delete(b.PublicGrantGivers, id)
-	}
+	lGrantsPersistSettings(w)
 
 	b.Mu.Unlock()
 	return nil
+}
+
+func GrantsRetrieveSettings(actor rpc.Actor) (accapi.GrantRequestSettings, *util.HttpError) {
+	if !actor.Project.Present || !actor.Membership[rpc.ProjectId(actor.Project.Value)].Satisfies(rpc.ProjectRoleAdmin) {
+		return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "forbidden")
+	}
+
+	b := grantGetSettingsBucket(actor.Project.Value)
+
+	b.Mu.RLock()
+	w, ok := b.Settings[actor.Project.Value]
+	if !ok {
+		b.Mu.RUnlock()
+		{
+			b.Mu.Lock()
+			w = &grantSettings{
+				Mu:        sync.RWMutex{},
+				ProjectId: actor.Project.Value,
+				Settings: &accapi.GrantRequestSettings{
+					Enabled:             false,
+					Description:         "No description provided",
+					AllowRequestsFrom:   []accapi.UserCriteria{},
+					ExcludeRequestsFrom: []accapi.UserCriteria{},
+					Templates: accapi.Templates{
+						Type:            accapi.TemplatesTypePlainText,
+						PersonalProject: defaultTemplate,
+						NewProject:      defaultTemplate,
+						ExistingProject: defaultTemplate,
+					},
+				},
+			}
+			b.Mu.Unlock()
+		}
+		b.Mu.RLock()
+	}
+	result := w.lDeepCopy()
+	b.Mu.RUnlock()
+	return result, nil
+}
+
+func GrantsUploadLogo(actor rpc.Actor, logo []byte) *util.HttpError {
+	if !actor.Project.Present || !actor.Membership[rpc.ProjectId(actor.Project.Value)].Satisfies(rpc.ProjectRoleAdmin) {
+		return util.HttpErr(http.StatusForbidden, "forbidden")
+	}
+
+	rescaled, err := rescaleLogo(logo, 512, 512)
+	if err != nil {
+		return util.HttpErr(http.StatusBadRequest, "invalid or too large logo provided")
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into "grant".logos(project_id, data) 
+				values (:id, :data)
+				on conflict (project_id) do update set
+					data = excluded.data
+		    `,
+			db.Params{
+				"id":   actor.Project.Value,
+				"data": db.Bytea(rescaled),
+			},
+		)
+	})
+
+	return nil
+}
+
+func GrantsRetrieveLogo(id string) ([]byte, *util.HttpError) {
+	logo, ok := db.NewTx2(func(tx *db.Transaction) ([]byte, bool) {
+		row, ok := db.Get[struct {
+			Data db.Bytea
+		}](
+			tx,
+			`select data from "grant".logos where project_id = :project`,
+			db.Params{
+				"project": id,
+			},
+		)
+
+		return row.Data, ok
+	})
+
+	if ok {
+		return logo, nil
+	} else {
+		return nil, util.HttpErr(http.StatusNotFound, "not found")
+	}
 }
 
 func grantsAwardLoop() {
