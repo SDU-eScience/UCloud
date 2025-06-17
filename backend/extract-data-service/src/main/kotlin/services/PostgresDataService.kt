@@ -54,6 +54,24 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
             UniversityID.fromOrgId(orgId)
         }
     }
+
+    suspend fun getProjectUsage(projectId: String, startDate: LocalDateTime, endDate: LocalDateTime) {
+        val sduCPUUsage = getCPUUsage(startDate, endDate, false)
+        val aauCPUUsage = getCPUUsage(startDate, endDate, true)
+        val sduGPUUsage = getGPUUsage(startDate, endDate, false, true)
+        val aauGPUUsage = getGPUUsage(startDate, endDate, true)
+
+        var cpuUsage = 0L
+        cpuUsage += sduCPUUsage[projectId] ?: 0L
+        cpuUsage += aauCPUUsage[projectId] ?: 0L
+
+        var gpuUsage = 0L
+        gpuUsage += sduGPUUsage[projectId] ?: 0L
+        gpuUsage += aauGPUUsage[projectId] ?: 0L
+
+        println("CPU: $cpuUsage GPU: $gpuUsage")
+    }
+
     suspend fun getCPUUsage(
         startDate: LocalDateTime,
         endDate: LocalDateTime,
@@ -149,7 +167,8 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
     suspend fun getGPUUsage(
         startDate: LocalDateTime,
         endDate: LocalDateTime,
-        aau: Boolean
+        aau: Boolean,
+        includeNonDeicGPUS: Boolean = false
     ): Map<String, Long> {
         val usageForWallet = mutableMapOf<String, Long>()
         if (aau) {
@@ -159,6 +178,63 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                         setParameter("start", startDate.toLocalDate().toString())
                         setParameter("end", endDate.toLocalDate().toString())
                         setParameter("product", "uc_t%" )
+                    },
+                    """
+                    with jobs as (
+                        select
+                            r.id job_id,
+                            coalesce(job.started_at, r.created_at) job_start,
+                            case when current_state = 'RUNNING' then now() else job.last_update end job_ended,
+                            job.current_state,
+                            p.gpu,
+                            job.replicas,
+                            r.created_by,
+                            r.project
+                        from app_orchestrator.jobs job join
+                            provider.resource r on job.resource = r.id join
+                            accounting.products p on r.product = p.id
+                        where
+                            p.name like :product and
+                            (job.started_at < :end) and
+                            (job.last_update > :start)
+                    ),
+                    clamedJobs as (
+                        select job_id,
+                          case when job_start < :start then :start else job_start end jobstart,
+                          case when job_ended > :end then :end else job_ended end jobend,
+                          gpu,
+                          replicas,
+                          created_by,
+                          project
+                       from jobs
+                    ),
+                    minutes as (
+                        select *, ((extract (epoch from jobend) - extract (epoch from jobstart))/ 60) minSpend
+                        from clamedJobs
+                        ),
+                    used as (
+                        select ((minSpend * gpu * replicas)/ 60)::bigint  resourcesUsed, created_by, project
+                        from minutes )
+                    select * from used;
+                """.trimIndent()
+                ).rows.forEach {
+                    val usage = it.getLong(0)!!
+                    val username = it.getString(1)
+                    val project = it.getString(2)
+                    if (project != null ) {
+                        usageForWallet[project] = (usageForWallet[project]?:0) + usage
+                    } else {
+                        usageForWallet[username!!] = (usageForWallet[username] ?: 0) + usage
+                    }
+                }
+            }
+        } else if (includeNonDeicGPUS) {
+            db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("start", startDate.toLocalDate().toString())
+                        setParameter("end", endDate.toLocalDate().toString())
+                        setParameter("product", "%-gpu-%" )
                     },
                     """
                     with jobs as (
