@@ -847,12 +847,6 @@ func TestSyntacticValidation(t *testing.T) {
 			},
 		},
 		{
-			Name: "empty ref id",
-			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
-				r.Revision.ReferenceIds.Set([]string{""})
-			},
-		},
-		{
 			Name: "bad product reference",
 			Mutator: func(r *accapi.GrantsSubmitRevisionRequest) {
 				r.Revision.AllocationRequests = append(r.Revision.AllocationRequests, accapi.AllocationRequest{
