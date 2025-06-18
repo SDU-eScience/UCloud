@@ -3,7 +3,9 @@ package foundation
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"hash/fnv"
+	"math/rand"
 	"net/http"
 	"runtime"
 	"slices"
@@ -154,6 +156,15 @@ func initProjects() {
 			}
 		}
 		return util.Empty{}, nil
+	})
+
+	fndapi.ProjectInternalCreate.Handler(func(info rpc.RequestInfo, request fndapi.ProjectInternalCreateRequest) (fndapi.FindByStringId, *util.HttpError) {
+		id, err := ProjectCreateInternal(info.Actor, request)
+		if err != nil {
+			return fndapi.FindByStringId{}, err
+		} else {
+			return fndapi.FindByStringId{Id: id}, nil
+		}
 	})
 
 	fndapi.ProjectCreateGroup.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.ProjectGroupSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
@@ -607,6 +618,77 @@ func ProjectRenamingAllowed(actor rpc.Actor, projectId string) bool {
 		}
 
 		return parent.Status.Settings.SubProjects.AllowRenaming
+	}
+}
+
+func ProjectCreateInternal(actor rpc.Actor, req fndapi.ProjectInternalCreateRequest) (string, *util.HttpError) {
+	_, ok := rpc.LookupActor(req.PiUsername)
+	if !ok {
+		return "", util.HttpErr(http.StatusNotFound, "unknown user")
+	}
+
+	resultId := util.UUid()
+	suffix := ""
+
+	for {
+		id, ok := db.NewTx2(func(tx *db.Transaction) (string, bool) {
+			row, ok := db.Get[struct{ Id string }](
+				tx,
+				`
+					select id
+					from project.projects where backend_id = :backend
+			    `,
+				db.Params{
+					"backend": req.BackendId,
+				},
+			)
+
+			if ok {
+				return row.Id, true
+			}
+
+			db.Exec(
+				tx,
+				`
+					insert into project.projects(id, created_at, modified_at, title, archived, parent, dmp, 
+						subprojects_renameable, can_consume_resources, provider_project_for, backend_id) 
+					values (:id, now(), now(), :title, false, null, null, false, true, null, :backend_id)
+				`,
+				db.Params{
+					"id":         resultId,
+					"title":      req.Title + suffix,
+					"backend_id": req.BackendId,
+				},
+			)
+
+			if tx.ConsumeError() != nil {
+				suffix = fmt.Sprintf("-%d", rand.Intn(9000)+1000)
+				return "", false
+			} else {
+				db.Exec(
+					tx,
+					`
+						insert into project.project_members(created_at, modified_at, role, username, project_id) 
+						values (now(), now(), 'PI', :username, :project)
+				    `,
+					db.Params{
+						"username": req.PiUsername,
+						"project":  resultId,
+					},
+				)
+			}
+
+			return resultId, true
+		})
+
+		if ok {
+			b := projectBucket(req.PiUsername)
+			b.Mu.Lock()
+			delete(b.Users, req.PiUsername) // invalidate cache
+			b.Mu.Unlock()
+
+			return id, nil
+		}
 	}
 }
 

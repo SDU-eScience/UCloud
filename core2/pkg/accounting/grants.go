@@ -920,7 +920,7 @@ func lGrantsAwardResources(app *grantApplication) {
 	case accapi.RecipientTypeNewProject:
 		projectId, err := lGrantsCreateProject(app, recipient.Title.Value, app.Application.CreatedBy)
 		if err != nil {
-			log.Info("Failed at project creation: %v", err)
+			log.Info("Failed at project creation: %s", err)
 			return
 		} else {
 			owner = accapi.WalletOwnerProject(projectId)
@@ -978,7 +978,21 @@ func lGrantsAwardResources(app *grantApplication) {
 	}
 
 	app.Awarded = true
-	internalCommitAllocations(grantedIn, nil) // TODO
+	internalCommitAllocations(grantedIn, func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update "grant".applications
+				set
+					synchronized = true
+				where
+					id = :id
+		    `,
+			db.Params{
+				"id": app.lId(),
+			},
+		)
+	})
 }
 
 func lGrantsCreateProject(app *grantApplication, title string, pi string) (string, *util.HttpError) {
@@ -990,7 +1004,8 @@ func lGrantsCreateProject(app *grantApplication, title string, pi string) (strin
 		}
 	} else {
 		result, err := fndapi.ProjectInternalCreate.Invoke(fndapi.ProjectInternalCreateRequest{
-			BackendId:  fmt.Sprintf("grants/%s", app.Application.Id),
+			Title:      title,
+			BackendId:  fmt.Sprintf("grants/%s", app.Application.Id.Value),
 			PiUsername: pi,
 		})
 
@@ -1431,11 +1446,13 @@ func GrantsRetrieveLogo(id string) ([]byte, *util.HttpError) {
 }
 
 func grantsAwardLoop() {
-	for {
-		if grantGlobals.Testing.Enabled {
-			break
-		}
+	if grantGlobals.Testing.Enabled {
+		return
+	}
 
+	time.Sleep(10 * time.Second) // wait a bit to make sure that everything is ready
+
+	for {
 		for _, b := range grantGlobals.AppBuckets {
 			b.Mu.RLock()
 			for _, g := range b.Applications {

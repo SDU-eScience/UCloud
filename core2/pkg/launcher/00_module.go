@@ -206,6 +206,12 @@ func Launch() {
 		log.SetRotation(log.RotateDaily, logCfg.Rotation.RetentionPeriodInDays, true)
 	}
 
+	rpc.DefaultClient = &rpc.Client{
+		RefreshToken: cfg.Configuration.RefreshToken,
+		BasePath:     cfg.Configuration.SelfAddress.ToURL(),
+		Client:       &http.Client{},
+	}
+
 	// Jinja
 	// -----------------------------------------------------------------------------------------------------------------
 	// NOTE(Dan): Annoyingly, this currently needs to be set for the entire executable, meaning that we can only choose

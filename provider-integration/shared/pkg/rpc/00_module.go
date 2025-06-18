@@ -119,7 +119,7 @@ type Client struct {
 	RefreshToken string
 	AccessToken  string
 	BasePath     string
-	client       *http.Client
+	Client       *http.Client
 
 	refreshMutex sync.Mutex
 }

@@ -1190,8 +1190,8 @@ func internalRetrieveWallets(
 			apiWallet := accapi.WalletV2{
 				Owner:                   owner.WalletOwner(),
 				PaysFor:                 b.Category,
-				AllocationGroups:        nil,
-				Children:                nil,
+				AllocationGroups:        []accapi.AllocationGroupWithParent{},
+				Children:                []accapi.AllocationGroupWithChild{},
 				TotalUsage:              lInternalWalletTotalUsageInNode(b, w),
 				LocalUsage:              w.LocalUsage,
 				MaxUsable:               lInternalMaxUsable(b, now, w),

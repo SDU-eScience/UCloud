@@ -123,11 +123,11 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 }
 
 func grantsLoadUnawarded() {
-	// TODO load grants that have been committed fully but are successful
 	if grantGlobals.Testing.Enabled {
 		return
 	}
 
+	var toLoad []accGrantId
 	db.NewTx0(func(tx *db.Transaction) {
 		maxId, ok := db.Get[struct{ Id int64 }](
 			tx,
@@ -154,7 +154,28 @@ func grantsLoadUnawarded() {
 		if ok {
 			grantGlobals.CommentIdAcc.Store(maxId.Id)
 		}
+
+		unawarded := db.Select[struct{ Id int64 }](
+			tx,
+			`
+				select id
+				from "grant".applications
+				where
+					overall_state = 'APPROVED'
+					and synchronized = false
+		    `,
+			db.Params{},
+		)
+
+		toLoad = nil
+		for _, row := range unawarded {
+			toLoad = append(toLoad, accGrantId(row.Id))
+		}
 	})
+
+	for _, id := range toLoad {
+		grantsLoad(id, toLoad)
+	}
 }
 
 func grantsLoadSettings() {
@@ -514,7 +535,6 @@ func lGrantsPersist(app *grantApplication) {
 	if grantGlobals.Testing.Enabled {
 		return
 	} else {
-		// TODO
 		appl := app.Application
 
 		db.NewTx0(func(tx *db.Transaction) {
@@ -522,18 +542,16 @@ func lGrantsPersist(app *grantApplication) {
 				tx,
 				`
 					insert into "grant".applications(id, overall_state, requested_by, created_at, updated_at, synchronized) 
-					values (:id, :state, :requested_by, now(), now(), :awarded)
+					values (:id, :state, :requested_by, now(), now(), false)
 					on conflict (id) do update set
 						overall_state = excluded.overall_state,
 						requested_by = excluded.requested_by,
-						updated_at = excluded.updated_at,
-						synchronized = excluded.synchronized
+						updated_at = excluded.updated_at
 			    `,
 				db.Params{
 					"id":           app.lId(),
 					"state":        appl.Status.OverallState,
 					"requested_by": appl.CreatedBy,
-					"awarded":      app.Awarded,
 				},
 			)
 
@@ -639,7 +657,6 @@ func lGrantsPersist(app *grantApplication) {
 				}
 			}
 
-			// TODO This didn't work as expected
 			if len(resourceRevId) > 0 {
 				db.Exec(
 					tx,
@@ -756,6 +773,9 @@ func lGrantsPersist(app *grantApplication) {
 					from
 						data d
 						left join refs r on d.rev = r.rev
+						left join "grant".forms ff on application_id = :app_id and ff.revision_number = d.rev
+					where
+						ff.application_id is null
 					on conflict do nothing
 			    `,
 				db.Params{

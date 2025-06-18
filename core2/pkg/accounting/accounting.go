@@ -574,7 +574,7 @@ func accountingProcessTasks() {
 				TreeUsage []int64
 			}{}
 
-			var handlersToTrigger []internalOnPersistHandler
+			handlersToTrigger := map[accGrantId]internalOnPersistHandler{}
 
 			for _, owner := range accGlobals.OwnersById {
 				if owner.Dirty {
@@ -621,9 +621,7 @@ func accountingProcessTasks() {
 					if !alloc.Committed && alloc.GrantedIn.Present {
 						handler, ok := persistHandlersByGrant[alloc.GrantedIn.Value]
 						if ok {
-							handlersToTrigger = append(handlersToTrigger, handler)
-							delete(persistHandlersByGrant, alloc.GrantedIn.Value)
-
+							handlersToTrigger[alloc.GrantedIn.Value] = handler
 							alloc.Committed = true
 						}
 					}
@@ -735,7 +733,7 @@ func accountingProcessTasks() {
 					)
 				}
 
-				if len(allocationRequests.Id) > 0 {
+				if len(groupRequests.Id) > 0 {
 					db.Exec(
 						tx,
 						`
@@ -755,7 +753,8 @@ func accountingProcessTasks() {
 									else d.parent
 								end,
 								d.wallet,
-								d.tree_usage
+								d.tree_usage,
+								0
 							from
 								data d
 							on conflict (id) do update set
@@ -771,6 +770,7 @@ func accountingProcessTasks() {
 				}
 
 				if len(allocationRequests.Id) > 0 {
+					log.Info("Synchronizing %v allocations", len(allocationRequests.Id))
 					db.Exec(
 						tx,
 						`
@@ -855,7 +855,9 @@ func accountingProcessTasks() {
 
 			var remainingHandlers []internalOnPersistHandler
 			for _, handler := range persistHandlersByGrant {
-				remainingHandlers = append(remainingHandlers, handler)
+				if _, wasHandled := handlersToTrigger[handler.GrantId]; !wasHandled {
+					remainingHandlers = append(remainingHandlers, handler)
+				}
 			}
 			accGlobals.OnPersistHandlers = remainingHandlers
 		})
