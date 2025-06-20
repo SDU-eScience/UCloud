@@ -12,6 +12,7 @@ import (
 	cfg "ucloud.dk/core/pkg/config"
 	fnd "ucloud.dk/core/pkg/foundation"
 	"ucloud.dk/core/pkg/migrations"
+	orc "ucloud.dk/core/pkg/orchestrator"
 	gonjautil "ucloud.dk/gonja/v2/utils"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -224,6 +225,7 @@ func Launch() {
 
 	fnd.Init()
 	acc.Init()
+	orc.Init()
 
 	launchMetricsServer()
 
