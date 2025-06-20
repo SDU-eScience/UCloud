@@ -361,7 +361,11 @@ func CanUseDrive(actor orc.ResourceOwner, driveId string, readOnly bool) bool {
 				}
 			}
 
-			if isMember && username == drive.Owner.CreatedBy {
+			if !isMember {
+				return false
+			}
+
+			if username == drive.Owner.CreatedBy {
 				return true
 			}
 
