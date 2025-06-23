@@ -7,7 +7,7 @@ import {Flex, Icon, Input, Text, MainContainer, Box, Truncate, Button, Label} fr
 import {CardClass} from "@/ui-components/Card";
 import {ProjectSwitcher, projectTitle} from "@/Project/ProjectSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {dateToString, getTotalDays} from "@/Utilities/DateUtilities";
+import {dateToString} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
 import {BreakdownByProjectAPI, categoryComparator, ChartsAPI, UsageOverTimeAPI} from ".";
 import {TooltipV2} from "@/ui-components/Tooltip";
@@ -17,7 +17,7 @@ import {callAPI, noopCall} from "@/Authentication/DataHook";
 import * as Jobs from "@/Applications/Jobs";
 import * as Config from "../../site.config.json";
 import {useProjectId} from "@/Project/Api";
-import {formatDate, formatDistance} from "date-fns";
+import {differenceInCalendarDays, formatDate, formatDistance} from "date-fns";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {deviceBreakpoint} from "@/ui-components/Hide";
@@ -69,6 +69,7 @@ interface State {
             quota: number,
             expiresAt: number,
         },
+        selectedBreakdown: string;
         usageOverTime: UsageChart[];
         breakdownByProject: BreakdownChart[];
 
@@ -185,6 +186,7 @@ type UIAction =
     | {type: "UpdateSelectedPeriod", period: Period}
     | {type: "UpdateRequestsInFlight", delta: number}
     | {type: "UpdateActiveUnit", unit: string}
+    | {type: "SetActiveBreakdown", projectId: string}
     ;
 
 function stateReducer(state: State, action: UIAction): State {
@@ -202,6 +204,12 @@ function stateReducer(state: State, action: UIAction): State {
 
         case "UpdateActiveUnit": {
             return selectUnit(state, action.unit);
+        }
+
+        case "SetActiveBreakdown": {
+            if (!state.activeDashboard) return state;
+            const breakdown = action.projectId === state.activeDashboard.selectedBreakdown ? "" : action.projectId;
+            return {...state, activeDashboard: {...state.activeDashboard, selectedBreakdown: breakdown}};
         }
 
         case "LoadCharts": {
@@ -442,6 +450,7 @@ function stateReducer(state: State, action: UIAction): State {
                     quota: summaries[0].quota,
                     expiresAt: earliestExpiration ?? timestampUnixMs(),
                 },
+                selectedBreakdown: "",
                 usageOverTime: summaries.map(it => it.chart),
                 breakdownByProject: summaries.map(it => it.breakdownByProject),
                 jobUsageByUsers,
@@ -569,8 +578,6 @@ function Visualization(): React.ReactNode {
         };
     });
 
-    const breakdownSelection = useState<string>();
-
     const setPeriod = useCallback((period: Period) => {
         dispatchEvent({type: "UpdateSelectedPeriod", period});
     }, [dispatchEvent]);
@@ -578,6 +585,11 @@ function Visualization(): React.ReactNode {
     const setActiveUnit = useCallback((unit: string) => {
         dispatchEvent({type: "UpdateActiveUnit", unit});
     }, [dispatchEvent]);
+
+    const setBreakdown = useCallback((projectId: string) => {
+        const newBreakdown = state.activeDashboard?.selectedBreakdown === projectId ? "" : projectId;
+        dispatchEvent({type: "SetActiveBreakdown", projectId});
+    }, [state.activeDashboard?.selectedBreakdown]);
 
     const unitsForRichSelect = React.useMemo(() => {
         const all = state.activeDashboard?.availableUnits.map(it => ({unit: it})) ?? [];
@@ -659,8 +671,20 @@ function Visualization(): React.ReactNode {
                                     expiresAt={state.activeDashboard.currentAllocation.expiresAt}
                                 />
                             </>}
-                            <UsageBreakdownPanel breakdownSelection={breakdownSelection} isLoading={isAnyLoading} unit={state.activeDashboard.activeUnit} period={state.selectedPeriod} charts={state.activeDashboard.breakdownByProject} />
-                            <UsageOverTimePanel breakdownSelection={breakdownSelection} period={state.selectedPeriod} isLoading={isAnyLoading} charts={state.activeDashboard.usageOverTime} />
+                            <UsageBreakdownPanel
+                                setBreakdown={setBreakdown}
+                                selectedBreakdown={state.activeDashboard.selectedBreakdown}
+                                isLoading={isAnyLoading}
+                                unit={state.activeDashboard.activeUnit}
+                                period={state.selectedPeriod}
+                                charts={state.activeDashboard.breakdownByProject} />
+                            <UsageOverTimePanel
+                                setBreakdown={setBreakdown}
+                                selectedBreakdown={state.activeDashboard.selectedBreakdown}
+                                period={state.selectedPeriod}
+                                isLoading={isAnyLoading}
+                                charts={state.activeDashboard.usageOverTime}
+                            />
                         </>}
                     </div> : null}
             </div>
@@ -941,31 +965,46 @@ const BreakdownStyle = injectStyle("breakdown", k => `
     }
 `);
 
+function mergedCharts(unit: string, charts: BreakdownChart[]): {
+    key: string;
+    value: number;
+    nameAndProvider: string;
+}[] {
+    const mergedCharts = {
+        unit: unit,
+        dataPoints: charts.flatMap(it => it.dataPoints.map(d => ({...d, nameAndProvider: it.nameAndProvider})))
+    };
+
+    return mergedCharts.dataPoints
+        .map(it => ({key: it.title, value: it.usage, nameAndProvider: it.nameAndProvider}))
+        .sort((a, b) => a.value - b.value)
+}
+
 const UsageBreakdownChartId = "UsageBreakdown";
 const UsageBreakdownPanel: React.FunctionComponent<{
-    breakdownSelection: [string | undefined, React.Dispatch<React.SetStateAction<string | undefined>>],
+    setBreakdown(projectId: string): void;
+    selectedBreakdown: string;
     isLoading: boolean;
     unit: string;
     period: Period;
     charts: BreakdownChart[];
 }> = props => {
-    const [breakdownSelected, setBreakdownSelected] = props.breakdownSelection;
 
-    const breakdownRef = useRef(breakdownSelected);
-    breakdownRef.current = breakdownSelected;
+    const breakdownRef = useRef(props.selectedBreakdown);
+    breakdownRef.current = props.selectedBreakdown;
 
-    const fullyMergedChart = React.useMemo(() => {
+    React.useEffect(() => {
         if (breakdownRef.current) {
             const c = ApexCharts.getChartByID(UsageBreakdownChartId);
             c?.toggleSeries(breakdownRef.current);
-            setBreakdownSelected(undefined);
+            props.setBreakdown("");
         }
+    }, [breakdownRef.current]);
 
-        return {
-            unit: props.unit,
-            dataPoints: props.charts.flatMap(it => it.dataPoints.map(d => ({...d, nameAndProvider: it.nameAndProvider})))
-        };
-    }, [props.charts, props.unit]);
+    const fullyMergedChart = React.useMemo(() => ({
+        unit: props.unit,
+        dataPoints: props.charts.flatMap(it => it.dataPoints.map(d => ({...d, nameAndProvider: it.nameAndProvider})))
+    }), [props.charts, props.unit]);
 
     const dataPoints = useMemo(() => {
         const unsorted = fullyMergedChart.dataPoints.map(it => ({key: it.title, value: it.usage, nameAndProvider: it.nameAndProvider})) ?? [];
@@ -994,16 +1033,16 @@ const UsageBreakdownPanel: React.FunctionComponent<{
     })();
 
     const filteredDataPoints = useMemo(() => {
-        if (!breakdownSelected) return dataPointsByProject.slice();
-        return dataPoints.filter(it => it.key === breakdownSelected);
-    }, [breakdownSelected, dataPoints, dataPointsByProject]);
+        if (!props.selectedBreakdown) return dataPointsByProject.slice();
+        return dataPoints.filter(it => it.key === props.selectedBreakdown);
+    }, [props.selectedBreakdown, dataPoints, dataPointsByProject]);
 
     const datapointSum = useMemo(() => dataPoints.reduce((a, b) => a + b.value, 0), [dataPoints]);
 
-    const sorted = useSorting(breakdownSelected ? filteredDataPoints : dataPointsByProject, "value");
+    const sorted = useSorting(props.selectedBreakdown ? filteredDataPoints : dataPointsByProject, "value");
 
     const updateSelectedBreakdown = React.useCallback((dataPoint: {key: string}) => {
-        setBreakdownSelected(current => current === dataPoint.key ? undefined : dataPoint.key);
+        props.setBreakdown(dataPoint.key);
     }, []);
 
     const project = useProject().fetch();
@@ -1031,6 +1070,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{
 
     if (props.isLoading) return null;
 
+    const {selectedBreakdown} = props;
 
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
         <div className={PanelTitle.class}>
@@ -1058,7 +1098,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{
                         <thead>
                             <tr>
                                 <SortTableHeader width="30%" sortKey={"key"} sorted={sorted}>Project</SortTableHeader>
-                                {breakdownSelected ? <SortTableHeader width="40%" sortKey={"nameAndProvider"} sorted={sorted}>Name - Provider</SortTableHeader> : null}
+                                {selectedBreakdown ? <SortTableHeader width="40%" sortKey={"nameAndProvider"} sorted={sorted}>Name - Provider</SortTableHeader> : null}
                                 <SortTableHeader width="30%" sortKey={"value"} sorted={sorted}>Usage</SortTableHeader>
                             </tr>
                         </thead>
@@ -1371,10 +1411,10 @@ const DynamicallySizedChart: React.FunctionComponent<{
 const UsageOverTimePanel: React.FunctionComponent<{
     charts: UsageChart[];
     isLoading: boolean;
-    breakdownSelection: [string | undefined, React.Dispatch<string | undefined>];
+    selectedBreakdown: string;
+    setBreakdown(projectId: string): void;
     period: Period;
 }> = ({charts, isLoading, ...props}) => {
-    const [breakdownSelected, setBreakdownSelected] = props.breakdownSelection;
 
     const chartCounter = useRef(0); // looks like apex charts has a rendering bug if the component isn't completely thrown out
     const [shownEntries, setShownEntries] = useState<string[]>([]);
@@ -1415,16 +1455,12 @@ const UsageOverTimePanel: React.FunctionComponent<{
         chartCounter.current++;
         setShownEntries(charts.map(it => it.name));
         setShowingQuota(false);
-        // TODO(Jonas): This should probably be based on actual usage nodes and not requested period
-        const periodDays = props.period.type === "absolute" ?
-            getTotalDays(new Date(props.period.end - props.period.start)) : (
-                props.period.distance * (props.period.unit === "day" ? 1 : 30)
-            );
+        const maxPeriodInDays = maxDaysDifference(charts);
         return usageChartsToChart(charts, shownRef, {
             valueFormatter: val => Accounting.addThousandSeparators(val.toFixed(1)),
             toggleShown: value => updateShownEntries(value),
             id: ChartID + chartCounter.current,
-        }, periodDays);
+        }, maxPeriodInDays);
     }, [charts, props.period]);
 
     const toggleQuotaShown = React.useCallback((active: boolean) => {
@@ -1472,21 +1508,30 @@ const UsageOverTimePanel: React.FunctionComponent<{
     </div >;
 };
 
+function maxDaysDifference(charts: UsageChart[]) {
+    let maxDateRange = 0;
+    for (const chart of charts) {
+        const minDate = chart.dataPoints.reduce((lowestDate, d) => Math.min(lowestDate, d.timestamp), 999999999999999);
+        const maxDate = chart.dataPoints.reduce((highestDate, d) => Math.max(highestDate, d.timestamp), 0);
+        maxDateRange = Math.max(differenceInCalendarDays(maxDate, minDate), maxDateRange);
+    }
+    return maxDateRange === 0 ? 0 : maxDateRange + 1;
+}
+
 function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownEntries}: {updateShownEntries: (args: boolean | string[]) => void; charts: UsageChart[]; shownEntries: string[]; exportRef: React.RefObject<() => void>; chartId: string;}) {
     /* TODO(Jonas): Provider _should_ also be here, right? */
     const shownProducts = React.useMemo(() => charts.filter(chart => shownEntries.includes(chart.name)), [charts, shownEntries]);
 
     const tableContent = React.useMemo(() => {
-        const result: {name: string; timestamp: number; usage: number; difference: number; quota: number}[] = [];
+        const result: {name: string; timestamp: number; usage: number; quota: number}[] = [];
         for (const chart of shownProducts) {
             for (let idx = 0; idx < chart.dataPoints.length; idx++) {
                 const point = chart.dataPoints[idx];
-                const change = point.usage - (chart.dataPoints[idx + 1]?.usage ?? 0);
-                result.push({name: chart.name, timestamp: point.timestamp, usage: point.usage, difference: change, quota: point.quota});
+                result.push({name: chart.name, timestamp: point.timestamp, usage: point.usage, quota: point.quota});
             }
 
             if (chart.dataPoints.length === 0) {
-                result.push({name: chart.name, timestamp: 0, usage: 0, difference: 0, quota: 0});
+                result.push({name: chart.name, timestamp: 0, usage: 0, quota: 0});
             }
         }
         return result;
@@ -1499,7 +1544,6 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
             header("name", "Name", true),
             header("timestamp", "Time", true),
             header("usage", "Usage", true),
-            header("difference", "Difference", true),
         ], projectTitle(project));
     }, [tableContent, project]);
 
@@ -1523,7 +1567,6 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
                     <SortTableHeader width="20%" sortKey="name" sorted={sorted}>Name</SortTableHeader>
                     <SortTableHeader width="160px" sortKey="timestamp" sorted={sorted}>Timestamp</SortTableHeader>
                     <SortTableHeader width="40%" sortKey="usage" sorted={sorted}>Usage / Quota</SortTableHeader>
-                    <th style={{width: "50px"}}>Change</th>
                 </tr>
             </thead>
             <tbody>
@@ -1536,7 +1579,6 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
                         <td onClick={() => toggleChart(point.name)}>{point.name}</td>
                         <td>{dateToString(point.timestamp)}</td>
                         <td>{Accounting.addThousandSeparators(point.usage.toFixed(2))} / {Accounting.addThousandSeparators(point.quota.toFixed(2))} </td>
-                        <td>{change >= 0 ? "+" : ""}{Accounting.addThousandSeparators(change.toFixed(2))}</td>
                     </tr>;
                 })}
             </tbody>
@@ -1773,7 +1815,7 @@ function toSeriesChart(chart: UsageChart, forecastCount: number): ApexAxisChartS
     let data = chart.dataPoints.map(it => ({x: it.timestamp, y: it.usage}));
     if (data.length === 0 || data.every(it => it.x == 0)) {
         data = [];
-    } else if (chart.future?.predictions.length) {
+    } else if (chart.future?.predictions.length && hasFeature(Feature.USAGE_PREDICTION)) {
         for (const pred of chart.future.predictions.slice(0, forecastCount)) {
             data.push({x: pred.timestamp, y: pred.value});
         }
@@ -1814,7 +1856,7 @@ function usageChartsToChart(
 ): ChartProps {
     const result: ChartProps = {};
     const anyFuture = charts.find(it => it.future) != null;
-    const forecastCount = !anyFuture ? 0 : Math.min(
+    const forecastCount = !hasFeature(Feature.USAGE_PREDICTION) || !anyFuture ? 0 : Math.min(
         maxFuturePoints,
         DEFAULT_FUTURE_COUNT,
         charts.reduce((max, chart) => Math.max(max, chart.dataPoints.length), 0)
