@@ -1564,7 +1564,7 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
         <table>
             <thead>
                 <tr>
-                    <SortTableHeader width="20%" sortKey="name" sorted={sorted}>Name</SortTableHeader>
+                    <SortTableHeader width="30%" sortKey="name" sorted={sorted}>Name</SortTableHeader>
                     <SortTableHeader width="160px" sortKey="timestamp" sorted={sorted}>Timestamp</SortTableHeader>
                     <SortTableHeader width="40%" sortKey="usage" sorted={sorted}>Usage / Quota</SortTableHeader>
                 </tr>
