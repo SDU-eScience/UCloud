@@ -156,7 +156,9 @@ class UCloudFilePlugin : FilePlugin {
             install(MoveTask())
             install(TrashTask(memberFiles, trash))
 
-            launchScheduler(ProcessingScope)
+
+
+            launchScheduler(StorageTaskScope)
         }
 
         driveLocator.fillDriveDatabase()
@@ -1287,4 +1289,10 @@ enum class FolderUploadMessageType {
     SKIP,
     LISTING,
     FILES_COMPLETED,
+}
+
+object StorageTaskScope : CoroutineScope {
+    private val job = SupervisorJob()
+    @OptIn(DelicateCoroutinesApi::class)
+    override val coroutineContext: CoroutineContext = job + newFixedThreadPoolContext(32, "StorageTasks")
 }
