@@ -133,19 +133,15 @@ export const TerminalContainer: React.FunctionComponent = () => {
         }
     }, [state.activeTab]);
 
-    const tabComponents = useMemo(() => (
-        <>
-            {state.tabs.map((tab, idx) => (
-                <div
-                    className={`tab ${state.open && idx === state.activeTab ? "active" : ""}`}
-                    key={idx}
-                    onClick={() => dispatch({type: "TerminalSelectTab", payload: {tabIdx: idx}})}
-                >
-                    {tab.title}
-                </div>
-            ))}
-        </>
-    ), [state.tabs, state.activeTab, state.open]);
+    const tabComponents = useMemo(() => (state.tabs.map((tab, idx) => (
+        <div
+            className={`tab ${state.open && idx === state.activeTab ? "active" : ""}`}
+            key={idx}
+            onClick={() => dispatch({type: "TerminalSelectTab", payload: {tabIdx: idx}})}
+        >
+            {tab.title}
+        </div>
+    ))), [state.tabs, state.activeTab, state.open]);
 
     return <div className={Wrapper}>
         <div className={"resizer"} onMouseDown={onDragStart} />
