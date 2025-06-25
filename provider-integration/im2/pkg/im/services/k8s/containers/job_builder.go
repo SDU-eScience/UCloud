@@ -113,6 +113,41 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		}
 	}
 
+	// Setting up the basics
+	// -----------------------------------------------------------------------------------------------------------------
+	pod := &core.Pod{
+		TypeMeta: meta.TypeMeta{},
+		ObjectMeta: meta.ObjectMeta{
+			Name:        podName,
+			Annotations: make(map[string]string),
+			Labels:      make(map[string]string),
+		},
+		Spec: core.PodSpec{},
+	}
+
+	if iappConfig.Present {
+		pod.Annotations[IAppAnnotationEtag] = iappConfig.Value.ETag
+		pod.Annotations[IAppAnnotationName] = iappConfig.Value.AppName
+	}
+
+	spec := &pod.Spec
+	spec.RestartPolicy = core.RestartPolicyNever
+	spec.AutomountServiceAccountToken = util.BoolPointer(false)
+
+	spec.Containers = append(spec.Containers, core.Container{
+		Name: ContainerUserJob,
+	})
+
+	userContainer := &spec.Containers[0]
+	userContainer.ImagePullPolicy = core.PullIfNotPresent
+	userContainer.Resources.Limits = map[core.ResourceName]resource.Quantity{}
+	userContainer.Resources.Requests = map[core.ResourceName]resource.Quantity{}
+	userContainer.SecurityContext = &core.SecurityContext{}
+	userContainer.Image = tool.Description.Image
+	if userContainer.Image == "" {
+		userContainer.Image = tool.Description.Container
+	}
+
 	// Setting up network policy and service
 	// -----------------------------------------------------------------------------------------------------------------
 	// Only rank 0 is responsible for creating these additional resources. Their pointers will be nil if they should
@@ -163,7 +198,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 			})
 		}
 
-		ipService = preparePublicIp(job, firewall)
+		ipService = preparePublicIp(job, firewall, userContainer)
 	}
 
 	// JobParameters.json
@@ -175,41 +210,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 			_, _ = fd.Write(jsonData)
 			_ = fd.Close()
 		}
-	}
-
-	// Setting up the basics
-	// -----------------------------------------------------------------------------------------------------------------
-	pod := &core.Pod{
-		TypeMeta: meta.TypeMeta{},
-		ObjectMeta: meta.ObjectMeta{
-			Name:        podName,
-			Annotations: make(map[string]string),
-			Labels:      make(map[string]string),
-		},
-		Spec: core.PodSpec{},
-	}
-
-	if iappConfig.Present {
-		pod.Annotations[IAppAnnotationEtag] = iappConfig.Value.ETag
-		pod.Annotations[IAppAnnotationName] = iappConfig.Value.AppName
-	}
-
-	spec := &pod.Spec
-	spec.RestartPolicy = core.RestartPolicyNever
-	spec.AutomountServiceAccountToken = util.BoolPointer(false)
-
-	spec.Containers = append(spec.Containers, core.Container{
-		Name: ContainerUserJob,
-	})
-
-	userContainer := &spec.Containers[0]
-	userContainer.ImagePullPolicy = core.PullIfNotPresent
-	userContainer.Resources.Limits = map[core.ResourceName]resource.Quantity{}
-	userContainer.Resources.Requests = map[core.ResourceName]resource.Quantity{}
-	userContainer.SecurityContext = &core.SecurityContext{}
-	userContainer.Image = tool.Description.Image
-	if userContainer.Image == "" {
-		userContainer.Image = tool.Description.Container
 	}
 
 	// Scheduling and runtime constraints for Kubernetes

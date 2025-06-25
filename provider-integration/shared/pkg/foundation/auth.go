@@ -275,3 +275,10 @@ var AuthStartLogin = rpc.Call[FindByIntId, util.Empty]{
 		}
 	},
 }
+
+var AuthLookupUser = rpc.Call[FindByStringId, rpc.CorePrincipalBaseClaims]{
+	BaseContext: AuthContext,
+	Operation:   "lookupUser",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesService,
+}

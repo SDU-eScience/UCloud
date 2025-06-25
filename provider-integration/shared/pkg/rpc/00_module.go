@@ -3,6 +3,7 @@ package rpc
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/golang-jwt/jwt/v5"
 	"math"
 	"net/http"
 	"os"
@@ -71,7 +72,7 @@ func (p ProjectRole) Satisfies(requirement ProjectRole) bool {
 	}
 
 	power := p.Power()
-	requiredPower := p.Power()
+	requiredPower := requirement.Power()
 	if power > 0 && requiredPower > 0 {
 		return power >= requiredPower
 	} else {
@@ -118,7 +119,7 @@ type Client struct {
 	RefreshToken string
 	AccessToken  string
 	BasePath     string
-	client       *http.Client
+	Client       *http.Client
 
 	refreshMutex sync.Mutex
 }
@@ -474,4 +475,27 @@ func (r Role) String() string {
 	default:
 		return "UNKNOWN"
 	}
+}
+
+type CorePrincipalBaseClaims struct {
+	Role                    string              `json:"role"`
+	Uid                     int                 `json:"uid"`
+	FirstNames              util.Option[string] `json:"firstNames"`
+	LastName                util.Option[string] `json:"lastName"`
+	Email                   util.Option[string] `json:"email"`
+	OrgId                   util.Option[string] `json:"orgId"`
+	TwoFactorAuthentication bool                `json:"twoFactorAuthentication"`
+	ServiceLicenseAgreement bool                `json:"serviceLicenseAgreement"`
+	PrincipalType           string              `json:"principalType"`
+	SessionReference        util.Option[string] `json:"publicSessionReference"`
+	ExtendedByChain         []string            `json:"extendedByChain"`
+	Membership              ProjectMembership   `json:"membership"`
+	Groups                  GroupMembership     `json:"groups"`
+	ProviderProjects        ProviderProjects    `json:"providerProjects"`
+	Domain                  string              `json:"domain"`
+}
+
+type CorePrincipalClaims struct {
+	CorePrincipalBaseClaims
+	jwt.RegisteredClaims
 }

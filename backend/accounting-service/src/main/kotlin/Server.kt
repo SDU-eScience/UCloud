@@ -4,6 +4,10 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.rpc.*
 import dk.sdu.cloud.accounting.services.DataGenerator
 import dk.sdu.cloud.accounting.services.accounting.*
+import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
+import dk.sdu.cloud.accounting.services.accounting.DataVisualization
+import dk.sdu.cloud.accounting.services.accounting.LowFundsJob
+import dk.sdu.cloud.accounting.services.accounting.RealAccountingPersistence
 import dk.sdu.cloud.accounting.services.grants.*
 import dk.sdu.cloud.accounting.services.notifications.ApmNotificationService
 import dk.sdu.cloud.accounting.services.notifications.PersonalProviderProjects
@@ -65,6 +69,7 @@ class Server(
             true,
             distributedStateFactory,
             addressToSelf = micro.serviceInstance.ipAddress ?: "127.0.0.1",
+            config
         )
 
         val productService = ProductService(db, accountingSystem, idCardService)
@@ -81,7 +86,14 @@ class Server(
         val giftService = GiftService(db, accountingSystem, projectService, grants, idCardService)
         val simplePredictor = SimplePredictor(db)
         val dataVisualization = DataVisualization(db, accountingSystem, simplePredictor)
-        val apmNotifications = ApmNotificationService(accountingSystem, projectsV2, micro.tokenValidation, idCardService, micro.developmentModeEnabled)
+        val apmNotifications = ApmNotificationService(
+            accountingSystem,
+            projectsV2,
+            micro.tokenValidation,
+            idCardService,
+            micro.developmentModeEnabled
+        )
+        val lowFundsJob = LowFundsJob(accountingSystem, idCardService, client)
 
 
         PersonalProviderProjects(projectsV2, productService, accountingSystem).init()
@@ -114,6 +126,19 @@ class Server(
         } else {
             null
         }
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
+                    "low-funds-scan",
+                    "Low Funds Scan",
+                    WhenToStart.Daily(13, 30)
+                ),
+                script = {
+                    lowFundsJob.checkWallets()
+                }
+            )
+        )
+
         configureControllers(
             AccountingController(
                 micro,
@@ -123,7 +148,7 @@ class Server(
                 apmNotifications,
                 grants,
                 dataGenerator
-            ).also { accountingController = it},
+            ).also { accountingController = it },
             ProductController(productService, accountingSystem, client),
             FavoritesController(db, favoriteProjects),
             GiftController(giftService),

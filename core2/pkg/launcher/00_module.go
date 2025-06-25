@@ -12,8 +12,10 @@ import (
 	cfg "ucloud.dk/core/pkg/config"
 	fnd "ucloud.dk/core/pkg/foundation"
 	"ucloud.dk/core/pkg/migrations"
+	orc "ucloud.dk/core/pkg/orchestrator"
 	gonjautil "ucloud.dk/gonja/v2/utils"
 	db "ucloud.dk/shared/pkg/database"
+	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -88,60 +90,13 @@ func Launch() {
 	)
 
 	rpc.DefaultServer.Mux = http.NewServeMux()
-	rpc.ServerAuthenticator = func(r *http.Request) (rpc.Actor, *util.HttpError) {
-		authHeader := r.Header.Get("Authorization")
-		jwtToken, ok := strings.CutPrefix(authHeader, "Bearer ")
-		if !ok {
-			return rpc.Actor{Role: rpc.RoleGuest}, nil
-		}
 
-		tok, err := jwtParser.Parse(jwtToken, jwtKeyFunc)
-		if err != nil {
-			return rpc.Actor{Role: rpc.RoleGuest}, nil
-		}
-
-		subject, err := tok.Claims.GetSubject()
-		if err != nil {
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
-		}
-
-		claims, ok := tok.Claims.(jwt.MapClaims)
-		if !ok {
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
-		}
-
-		roleStr, ok := readFromMap[string](claims, "role")
-		if !ok {
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
-		}
-
-		sessionReference, ok := readFromMap[string](claims, "publicSessionReference")
-		if !ok {
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
-		}
-
-		issuedAtRaw, ok := readFromMap[float64](claims, "iat")
-		if !ok {
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
-		}
-
-		issuedAt := time.UnixMilli(int64(issuedAtRaw) * 1000)
-
-		expiresAtRaw, ok := readFromMap[float64](claims, "exp")
-		if !ok {
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
-		}
-
-		expiresAt := time.UnixMilli(int64(expiresAtRaw) * 1000)
-
-		// This is not needed, but let's be paranoid and check it anyway.
-		if time.Now().After(expiresAt) {
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Token has expired")
-		}
+	claimsToActor := func(subject string, project util.Option[string], claims rpc.CorePrincipalBaseClaims) (rpc.Actor, bool) {
+		sessionReference := claims.SessionReference
 
 		var role rpc.Role
 
-		switch roleStr {
+		switch claims.Role {
 		case "USER":
 			role = rpc.RoleUser
 
@@ -155,26 +110,72 @@ func Launch() {
 			role = rpc.RoleService
 
 		default:
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
+			return rpc.Actor{}, false
 		}
 
-		project := util.OptStringIfNotEmpty(r.Header.Get("Project"))
+		if _, ok := claims.Membership[rpc.ProjectId(project.Value)]; project.Present && !ok {
+			project.Clear()
+		}
 
 		return rpc.Actor{
 			Username:         subject,
 			Role:             role,
 			Project:          project,
-			Membership:       make(rpc.ProjectMembership), // TODO implement this
-			Groups:           make(rpc.GroupMembership),   // TODO implement this
-			ProviderProjects: make(rpc.ProviderProjects),  // TODO implement this
-			Domain:           "",                          // TODO implement this
-			OrgId:            "",                          // TODO implement this
+			Membership:       claims.Membership,
+			Groups:           claims.Groups,
+			ProviderProjects: claims.ProviderProjects,
+			Domain:           claims.Domain,
+			OrgId:            claims.OrgId.Value,
 			TokenInfo: util.OptValue(rpc.TokenInfo{
-				IssuedAt:               issuedAt,
-				ExpiresAt:              expiresAt,
-				PublicSessionReference: sessionReference,
+				PublicSessionReference: sessionReference.Value,
 			}),
-		}, nil
+		}, true
+	}
+
+	rpc.ServerAuthenticator = func(r *http.Request) (rpc.Actor, *util.HttpError) {
+		authHeader := r.Header.Get("Authorization")
+		jwtToken, ok := strings.CutPrefix(authHeader, "Bearer ")
+		if !ok {
+			return rpc.Actor{Role: rpc.RoleGuest}, nil
+		}
+
+		claims := &rpc.CorePrincipalClaims{}
+
+		tok, err := jwtParser.ParseWithClaims(jwtToken, claims, jwtKeyFunc)
+		if err != nil {
+			return rpc.Actor{Role: rpc.RoleGuest}, nil
+		}
+
+		subject, err := tok.Claims.GetSubject()
+		if err != nil {
+			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
+		}
+
+		issuedAt, err := claims.GetIssuedAt()
+		if err != nil {
+			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
+		}
+
+		expiresAt, err := claims.GetExpirationTime()
+		if err != nil {
+			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
+		}
+
+		// This is not needed, but let's be paranoid and check it anyway.
+		if time.Now().After(expiresAt.Time) {
+			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Token has expired")
+		}
+
+		project := util.OptStringIfNotEmpty(r.Header.Get("Project"))
+
+		actor, ok := claimsToActor(subject, project, claims.CorePrincipalBaseClaims)
+		if !ok {
+			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
+		} else {
+			actor.TokenInfo.Value.ExpiresAt = expiresAt.Time
+			actor.TokenInfo.Value.IssuedAt = issuedAt.Time
+			return actor, nil
+		}
 	}
 
 	rpc.AuditConsumer = func(event rpc.HttpCallLogEntry) {
@@ -183,6 +184,16 @@ func Launch() {
 			data, _ := json.MarshalIndent(event, "", "    ")
 			log.Info("Audit: %s", string(data))
 		*/
+	}
+
+	rpc.LookupActor = func(username string) (rpc.Actor, bool) {
+		resp, err := fndapi.AuthLookupUser.Invoke(fndapi.FindByStringId{Id: username})
+		if err != nil {
+			return rpc.Actor{}, false
+		} else {
+			actor, ok := claimsToActor(username, util.OptNone[string](), resp)
+			return actor, ok
+		}
 	}
 
 	logCfg := cfg.Configuration.Logs
@@ -194,6 +205,12 @@ func Launch() {
 
 	if logCfg.Rotation.Enabled {
 		log.SetRotation(log.RotateDaily, logCfg.Rotation.RetentionPeriodInDays, true)
+	}
+
+	rpc.DefaultClient = &rpc.Client{
+		RefreshToken: cfg.Configuration.RefreshToken,
+		BasePath:     cfg.Configuration.SelfAddress.ToURL(),
+		Client:       &http.Client{},
 	}
 
 	// Jinja
@@ -208,6 +225,7 @@ func Launch() {
 
 	fnd.Init()
 	acc.Init()
+	orc.Init()
 
 	launchMetricsServer()
 

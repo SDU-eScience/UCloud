@@ -21,6 +21,8 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	shared.IsJobLockedEx = IsJobLockedEx
 
 	ctrl.LaunchUserInstances = false
+	ctrl.MaintenanceMode = cfg.Provider.Maintenance.Enabled
+	ctrl.MaintenanceAllowlist = cfg.Provider.Maintenance.UserAllowList
 
 	ctrl.InitJobDatabase()
 	ctrl.InitDriveDatabase()
@@ -210,9 +212,9 @@ func MountedDrivesEx(job *orc.Job, jobAnnotations map[string]string) []MountedDr
 	}
 
 	for _, file := range files {
-		driveId, ok := orc.DriveIdFromUCloudPath(file.Path)
+		_, ok, drive := filesystem.UCloudToInternal(file.Path)
 		if ok {
-			insertDrive(driveId, file.ReadOnly)
+			insertDrive(drive.Id, file.ReadOnly)
 		}
 	}
 

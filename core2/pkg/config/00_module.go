@@ -13,6 +13,7 @@ var Configuration *ConfigurationFormat
 type ConfigurationFormat struct {
 	RefreshToken string
 	Database     Database
+	SelfAddress  HostInfo
 
 	TokenValidation struct {
 		SharedSecret      string
@@ -113,6 +114,9 @@ func Parse(configDir string) bool {
 
 	// Parse simple properties
 	cfg.RefreshToken = cfgutil.RequireChildText(filePath, document, "refreshToken", &success)
+
+	addrNode := cfgutil.RequireChild(filePath, document, "selfAddress", &success)
+	cfgutil.Decode(filePath, addrNode, &cfg.SelfAddress, &success)
 
 	cfg.RequireMfa, _ = cfgutil.OptionalChildBool(filePath, document, "requireMfa")
 

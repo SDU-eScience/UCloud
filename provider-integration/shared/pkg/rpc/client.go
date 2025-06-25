@@ -140,12 +140,6 @@ func ParseResponse[T any](r Response) (T, *util.HttpError) {
 	}
 }
 
-type accessTokenResponse struct {
-	Responses []struct {
-		AccessToken string `json:"accessToken"`
-	} `json:"responses"`
-}
-
 func shouldRenewTokenNow(jwtToken string) bool {
 	token, _, err := jwt.NewParser().ParseUnverified(jwtToken, jwt.MapClaims{})
 
@@ -187,23 +181,16 @@ func (c *Client) RetrieveAccessTokenOrRefresh() string {
 		return c.AccessToken
 	}
 
-	refreshReqBody := refreshRequest{Items: []refreshRequestItem{
-		{RefreshToken: c.RefreshToken},
-	}}
-	refreshReqBodyBytes, err := json.Marshal(refreshReqBody)
-	if err != nil {
-		log.Warn("Failed to create refresh request: %v. We are returning an invalid access token!", err)
-		return ""
-	}
-
-	uri := fmt.Sprintf("%v/auth/providers/refresh", c.BasePath)
-	refreshReq, err := http.NewRequest(http.MethodPost, uri, bytes.NewBuffer(refreshReqBodyBytes))
+	uri := fmt.Sprintf("%v/auth/refresh", c.BasePath)
+	refreshReq, err := http.NewRequest(http.MethodPost, uri, nil)
 	if err != nil {
 		log.Warn("Failed to create refresh request: %v. We are returning an invalid access token! (Uri=%v)", err, uri)
 		return ""
 	}
 
-	resp, err := c.client.Do(refreshReq)
+	refreshReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.RefreshToken))
+
+	resp, err := c.Client.Do(refreshReq)
 	if err != nil {
 		log.Warn("Failed to refresh authentication token: %v. We are returning an invalid access token!", err)
 		return ""
@@ -222,14 +209,18 @@ func (c *Client) RetrieveAccessTokenOrRefresh() string {
 		return ""
 	}
 
-	tok := accessTokenResponse{}
+	type AccessTokenAndCsrf struct {
+		AccessToken string `json:"accessToken"`
+		CsrfToken   string `json:"csrfToken"`
+	}
+	tok := AccessTokenAndCsrf{}
 	err = json.Unmarshal(data, &tok)
-	if err != nil || len(tok.Responses) == 0 {
+	if err != nil || tok.AccessToken == "" {
 		log.Warn("Failed to read unmarshall refreshed auth token: %v", err)
 		return ""
 	}
 
-	c.AccessToken = tok.Responses[0].AccessToken
+	c.AccessToken = tok.AccessToken
 	return c.AccessToken
 }
 
@@ -278,7 +269,7 @@ func CallViaQuery(c *Client, path string, parameters []string) Response {
 	}
 
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %v", c.RetrieveAccessTokenOrRefresh()))
-	do, err := c.client.Do(request)
+	do, err := c.Client.Do(request)
 	if err != nil {
 		// TODO log this?
 		return Response{StatusCode: http.StatusBadGateway}
@@ -302,7 +293,7 @@ func CallViaJsonBody(c *Client, method, path string, payload any) Response {
 	}
 
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %v", c.RetrieveAccessTokenOrRefresh()))
-	do, err := c.client.Do(request)
+	do, err := c.Client.Do(request)
 	if err != nil {
 		return Response{StatusCode: http.StatusBadGateway}
 	}

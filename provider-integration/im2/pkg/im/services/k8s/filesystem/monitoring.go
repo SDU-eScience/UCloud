@@ -95,7 +95,7 @@ func scanDrive(drive orc.Drive) {
 	defer scanSemaphore.Release(1)
 	defer scanSlotsAvailable.Add(1)
 
-	internalPath, ok := DriveToLocalPath(&drive)
+	internalPath, ok, _ := DriveToLocalPath(&drive)
 	if !ok {
 		return
 	}

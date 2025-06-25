@@ -1,10 +1,10 @@
 import * as React from "react";
-import {TerminalTab, useTerminalDispatcher, useTerminalState} from "@/Terminal/State";
+import {TerminalAction, TerminalState, TerminalTab, useTerminalDispatcher, useTerminalState} from "@/Terminal/State";
 import {useCallback, useEffect, useRef, useMemo, useState} from "react";
-import {Icon} from "@/ui-components";
+import {Icon, Truncate} from "@/ui-components";
 import {Feature, hasFeature} from "@/Features";
 import {injectStyle} from "@/Unstyled";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {BulkResponse} from "@/UCloud";
 import JobsApi, {InteractiveSession} from "@/UCloud/JobsApi";
 import {bulkRequestOf, bulkResponseOf} from "@/UtilityFunctions";
@@ -12,6 +12,8 @@ import {ShellWithSession} from "@/Applications/Jobs/Shell";
 import {Terminal} from "xterm";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
+import {Tab} from "@/Editor/Editor";
+import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 
 const Wrapper = injectStyle("wrapper", k => `
     ${k} {
@@ -41,13 +43,14 @@ const Wrapper = injectStyle("wrapper", k => `
 
     ${k} .controls {
         width: 100%;
+        margin-left: calc(-1 * var(--tc-pad));
+
         height: 32px;
         display: flex;
         align-items: center;
     }
 
-    ${k} .controls, ${k} .control {
-        margin-left: 16px;
+    ${k} .control {
         cursor: pointer;
     }
 
@@ -127,39 +130,60 @@ export const TerminalContainer: React.FunctionComponent = () => {
         }
     }, [state.open]);
 
-    const closeTerminal = useCallback(() => {
+    const closeTerminal = useCallback((idx: number) => {
         if (state.activeTab >= 0) {
-            dispatch({type: "TerminalCloseTab", payload: {tabIdx: state.activeTab}});
+            dispatch({type: "TerminalCloseTab", payload: {tabIdx: idx}});
         }
     }, [state.activeTab]);
 
-    const tabComponents = useMemo(() => (
-        <>
-            {state.tabs.map((tab, idx) => (
-                <div
-                    className={`tab ${state.open && idx === state.activeTab ? "active" : ""}`}
-                    key={idx}
-                    onClick={() => dispatch({type: "TerminalSelectTab", payload: {tabIdx: idx}})}
-                >
-                    {tab.title}
-                </div>
-            ))}
-        </>
-    ), [state.tabs, state.activeTab, state.open]);
+    const [operations, setOperations] = useState<Operation<any, undefined>[]>([]);
+    const openTabOperations = React.useCallback((idx: number, position: {x: number; y: number;}) => {
+        const ops = tabOperations(dispatch, idx, state);
+        setOperations(ops);
+        openTabOperationWindow.current(position.x, position.y);
+    }, [state]);
+
+    const tabComponents = useMemo(() => state.tabs.map((tab, idx) => (
+        <Tab
+            key={idx}
+            title={<Truncate>{tab.title}</Truncate>}
+            onRowClick={() => dispatch({type: "TerminalSelectTab", payload: {tabIdx: idx}})}
+            isActive={idx === state.activeTab}
+            icon={<div />}
+            onClose={e => {
+                e.stopPropagation();
+                closeTerminal(idx);
+            }}
+            cursor="close"
+            onContextMenu={e => {
+                e.preventDefault();
+                e.stopPropagation();
+                openTabOperations(idx, {x: e.clientX, y: e.clientY});
+            }}
+        />
+    )), [state.tabs, state.activeTab, closeTerminal]);
+
+    const openTabOperationWindow = useRef<(x: number, y: number) => void>(noopCall)
 
     return <div className={Wrapper}>
         <div className={"resizer"} onMouseDown={onDragStart} />
         <div className="controls">
             {tabComponents}
 
+            <Operations
+                entityNameSingular={""}
+                operations={operations}
+                forceEvaluationOnOpen={true}
+                openFnRef={openTabOperationWindow}
+                selected={[]}
+                extra={null}
+                row={42}
+                hidden
+                location={"IN_ROW"}
+            />
+
             <div style={{flexGrow: 1}} />
 
-            {state.open && state.activeTab >= 0 ?
-                <div className="control" title={"Close terminal"} onClick={closeTerminal}>
-                    <Icon name={"trash"} size={16} />
-                </div> :
-                null
-            }
             <div className="control" onClick={toggle}>
                 <Icon name={state.open ? "anglesDownSolid" : "anglesUpSolid"} size={16} />
             </div>
@@ -170,6 +194,50 @@ export const TerminalContainer: React.FunctionComponent = () => {
         )}
     </div>;
 };
+
+function tabOperations(dispatch: (action: TerminalAction) => void, tabIdx: number, state: TerminalState): Operation<any>[] {
+    return [
+        {
+            text: "Close tab",
+            enabled: () => true,
+            onClick() {
+                dispatch({type: "TerminalCloseTab", payload: {tabIdx: tabIdx}});
+            },
+            "shortcut": ShortcutKey.A,
+        },
+        {
+            text: "Close others", enabled: () => state.tabs.length > 1,
+            onClick() {
+                for (let idx = state.tabs.length - 1; idx >= 0; idx--) {
+                    if (idx === tabIdx) continue;
+                    dispatch({type: "TerminalCloseTab", payload: {tabIdx: idx}});
+                }
+            },
+            "shortcut": ShortcutKey.B,
+        },
+        {
+            text: "Close to the right", enabled: () => true /* todo */, onClick() {
+                for (let i = state.tabs.length - 1; i > tabIdx; i--) {
+                    dispatch({type: "TerminalCloseTab", payload: {tabIdx: i}});
+                }
+
+                if (tabIdx < state.activeTab) {
+                    dispatch({type: "TerminalSelectTab", payload: {tabIdx: tabIdx}})
+                }
+            },
+            "shortcut": ShortcutKey.C,
+        },
+        {
+            text: "Close all", enabled: () => true, onClick() {
+                for (let i = state.tabs.length - 1; i >= 0; i--) {
+                    dispatch({type: "TerminalCloseTab", payload: {tabIdx: i}});
+                }
+                dispatch({type: "TerminalClose"});
+            },
+            "shortcut": ShortcutKey.D,
+        },
+    ];
+}
 
 const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, hidden: boolean}> = props => {
     const [size, setSize] = useState<[number, number]>([80, 40]);

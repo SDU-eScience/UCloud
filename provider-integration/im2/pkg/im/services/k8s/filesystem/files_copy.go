@@ -23,8 +23,8 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 		return util.ServerHttpError("Some of these files cannot be used together. One or more are sensitive.")
 	}
 
-	_, ok1 := UCloudToInternal(request.OldPath)
-	destPath, ok2 := UCloudToInternal(request.NewPath)
+	_, ok1, _ := UCloudToInternal(request.OldPath)
+	destPath, ok2, destDrive := UCloudToInternal(request.NewPath)
 	if !ok1 || !ok2 {
 		return &util.HttpError{
 			StatusCode: http.StatusNotFound,
@@ -32,7 +32,7 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 		}
 	}
 
-	if ctrl.IsResourceLocked(request.NewDrive.Resource, request.NewDrive.Specification.Product) {
+	if ctrl.IsResourceLocked(destDrive.Resource, request.NewDrive.Specification.Product) {
 		return util.PaymentError()
 	}
 
@@ -69,8 +69,8 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 }
 
 func processCopyTask(task *TaskInfo) TaskProcessingResult {
-	sourcePath, ok1 := UCloudToInternal(task.UCloudSource.Value)
-	destPath, ok2 := UCloudToInternal(task.UCloudDestination.Value)
+	sourcePath, ok1, _ := UCloudToInternal(task.UCloudSource.Value)
+	destPath, ok2, _ := UCloudToInternal(task.UCloudDestination.Value)
 	if !ok1 || !ok2 {
 		return TaskProcessingResult{
 			Error: fmt.Errorf("Invalid source or destination supplied"),

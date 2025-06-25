@@ -129,10 +129,74 @@ func PrepareJinjaTemplate(source string, templateSession any, templates Template
 		},
 	}).Update(builtins.Filters)
 
+	matchOrSearch := func(isMatch bool) func(context *exec.Context, value *exec.Value, args *exec.VarArgs) (bool, error) {
+		return func(context *exec.Context, value *exec.Value, args *exec.VarArgs) (bool, error) {
+			if !value.IsString() {
+				return false, fmt.Errorf("input value must be a string")
+			}
+
+			if len(args.Args) != 1 {
+				return false, fmt.Errorf("expected a pattern to match against")
+			}
+
+			ignoreCase := false
+			ignoreCaseArg, hasIgnoreCase := args.KwArgs["ignorecase"]
+
+			if hasIgnoreCase {
+				if !ignoreCaseArg.IsBool() {
+					return false, fmt.Errorf("ignorecase must be a boolean")
+				}
+
+				ignoreCase = ignoreCaseArg.Bool()
+			}
+
+			multiline := false
+			multiLineArg, hasMultiLine := args.KwArgs["multiline"]
+			if hasMultiLine {
+				if !multiLineArg.IsBool() {
+					return false, fmt.Errorf("multiline must be a boolean")
+				}
+
+				multiline = multiLineArg.Bool()
+			}
+
+			regexPrefix := ""
+			regexSuffix := ""
+			regexFlags := ""
+			if ignoreCase {
+				regexFlags += "i"
+			}
+			if multiline {
+				regexFlags += "m"
+			}
+			if regexFlags != "" {
+				regexFlags = "(?" + regexFlags + ")"
+			}
+			if isMatch {
+				regexPrefix = "^"
+			}
+			if isMatch {
+				regexSuffix = "$"
+			}
+
+			compiled, err := regexp.Compile(regexFlags + regexPrefix + args.Args[0].String() + regexSuffix)
+			if err != nil {
+				return false, fmt.Errorf("could not compile input regex: %s", err)
+			}
+
+			return compiled.MatchString(value.String()), nil
+		}
+	}
+
+	tests := exec.NewTestSet(map[string]exec.TestFunction{
+		"match":  matchOrSearch(true),
+		"search": matchOrSearch(false),
+	}).Update(builtins.Tests)
+
 	env := &exec.Environment{
 		Context:           exec.EmptyContext().Update(builtins.GlobalFunctions),
 		Filters:           filters,
-		Tests:             builtins.Tests,
+		Tests:             tests,
 		ControlStructures: controlStructures.Safe,
 		Methods:           builtins.Methods,
 	}

@@ -26,6 +26,7 @@ import {initVimMode, VimMode} from "monaco-vim";
 import {addStandardDialog} from "@/UtilityComponents";
 import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
 import {Feature, hasFeature} from "@/Features";
+import {IconName} from "@/ui-components/Icon";
 
 export interface Vfs {
     isReal(): boolean;
@@ -1450,7 +1451,7 @@ function EditorTab({
 }: React.PropsWithChildren<{
     isActive: boolean;
     isDirty: boolean;
-    onContextMenu?: (e: React.MouseEvent<any>) => void;
+    onContextMenu?: React.MouseEventHandler<any>;
     onActivate(): void;
     close(): void;
 }>): React.ReactNode {
@@ -1473,27 +1474,49 @@ function EditorTab({
 
     const tabTitle = fileName(prettyFullPath);
 
-    return (
-        <Flex onContextMenu={onContextMenu} className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={e => {
+    return <Tab
+        isActive={isActive}
+        onContextMenu={onContextMenu}
+        onRowClick={e => {
             if (e.button === LEFT_MOUSE_BUTTON) {
                 onActivate();
             } else if (e.button == MIDDLE_MOUSE_BUTTON) {
                 onClose(e);
             }
-        }}>
-            {isSettings ? <Icon name="heroCog6Tooth" size="18px" />
-                : isReleaseNotes ? <Icon name="heroGift" size="18px" />
-                    : <FullpathFileLanguageIcon filePath={tabTitle} />}
-            <Truncate title={prettyFullPath} ml="8px" width="50%">{isSettings ? "Editor settings" : tabTitle}</Truncate>
-            <Icon
-                className={IconHoverBlockClass}
-                onMouseEnter={() => setHovered(true)}
-                onMouseLeave={() => setHovered(false)}
-                cursor="pointer" name={isDirty && !hovered ? "circle" : "close"}
-                size={16}
-                onClick={onClose} />
-        </Flex>
-    );
+        }}
+        icon={isSettings ? <Icon name="heroCog6Tooth" size="18px" />
+            : isReleaseNotes ? <Icon name="heroGift" size="18px" />
+                : <FullpathFileLanguageIcon filePath={tabTitle} />}
+        title={<Truncate title={prettyFullPath} ml="8px" width="50%">{isSettings ? "Editor settings" : tabTitle}</Truncate>}
+        iconEnter={() => setHovered(true)}
+        iconLeave={() => setHovered(false)}
+        cursor={isDirty && !hovered ? "circle" : "close"}
+        onClose={onClose}
+    />
+}
+
+export function Tab({onContextMenu, isActive, onRowClick, icon, title, iconEnter, iconLeave, cursor, onClose}: {
+    onContextMenu?: React.MouseEventHandler<any>;
+    isActive: boolean;
+    cursor: IconName;
+    onRowClick: React.MouseEventHandler<any>;
+    icon: React.ReactNode;
+    title: React.ReactNode;
+    iconEnter?: React.MouseEventHandler<HTMLDivElement>;
+    iconLeave?: React.MouseEventHandler<HTMLDivElement>;
+    onClose?: React.MouseEventHandler<HTMLDivElement>;
+}): React.ReactNode {
+    return <Flex onContextMenu={onContextMenu} className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={onRowClick}>
+        {icon}
+        {title}
+        <Icon
+            className={IconHoverBlockClass}
+            onMouseEnter={iconEnter}
+            onMouseLeave={iconLeave}
+            cursor="pointer" name={cursor}
+            size={16}
+            onClick={onClose} />
+    </Flex>
 }
 
 const IconHoverBlockClass = injectStyle("icon-hover-block", k => `

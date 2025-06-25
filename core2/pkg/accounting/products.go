@@ -393,6 +393,22 @@ func ProductCategoryRetrieve(actor rpc.Actor, name, provider string) (accapi.Pro
 	return accapi.ProductCategory{}, err
 }
 
+func ProductCategories() []accapi.ProductCategory {
+	productsByProvider.Mu.RLock()
+	providerIds := make([]string, len(productsByProvider.Providers))
+	copy(providerIds, productsByProvider.Providers)
+	productsByProvider.Mu.RUnlock()
+
+	slices.Sort(providerIds)
+
+	var result []accapi.ProductCategory
+	for _, providerId := range providerIds {
+		result = append(result, ProductCategoriesByProvider(rpc.ActorSystem, providerId)...)
+	}
+
+	return result
+}
+
 func ProductCategoriesByProvider(actor rpc.Actor, provider string) []accapi.ProductCategory {
 	results, err := ProductBrowse(actor, accapi.ProductsBrowseRequest{
 		ItemsPerPage: 10000,
@@ -483,9 +499,9 @@ func productFilterApplies(product accapi.ProductV2, filter accapi.ProductsFilter
 }
 
 func productsLoad() {
-	productsByProvider.Buckets = make(map[string]*providerBucket)
-
 	db.NewTx0(func(tx *db.Transaction) {
+		providers := map[string]util.Empty{}
+		productsByProvider.Buckets = make(map[string]*providerBucket)
 		rows := db.Select[struct {
 			Name                      string
 			Category                  string
@@ -576,6 +592,15 @@ func productsLoad() {
 			// NOTE(Dan): ordering done by query
 			bucket := util.ReadOrInsertBucket(&productsByProvider.Mu, productsByProvider.Buckets, p.Category.Provider, nil)
 			bucket.Products = append(bucket.Products, p)
+
+			providers[p.Category.Provider] = util.Empty{}
 		}
+
+		var providersArr []string
+		for provider := range providers {
+			providersArr = append(providersArr, provider)
+		}
+		slices.Sort(providersArr)
+		productsByProvider.Providers = providersArr
 	})
 }

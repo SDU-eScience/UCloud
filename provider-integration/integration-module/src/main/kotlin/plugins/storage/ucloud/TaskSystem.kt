@@ -22,6 +22,7 @@ import dk.sdu.cloud.task.api.*
 import dk.sdu.cloud.utils.whileGraal
 import io.ktor.util.collections.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.json.JsonObject
@@ -273,31 +274,37 @@ class TaskSystem(
                             log.warn("Unable to handle request: ${task}")
                             throw RPCException("Unable to handle this request", HttpStatusCode.InternalServerError)
                         }
+
+                        taskPermits.acquire()
                         scope.launch {
-                            with(handler) {
-                                val requirements = task.requirements
-                                    ?: (taskContext.collectRequirements(task.requestName, task.rawRequest, null)
-                                        ?: error("Handler returned no requirements $task"))
+                            try {
+                                with(handler) {
+                                    val requirements = task.requirements
+                                        ?: (taskContext.collectRequirements(task.requestName, task.rawRequest, null)
+                                            ?: error("Handler returned no requirements $task"))
 
-                                log.debug("Starting work of $task")
+                                    log.debug("Starting work of $task")
 
-                                taskContext.execute(task.copy(requirements = requirements))
+                                    taskContext.execute(task.copy(requirements = requirements))
 
-                                try {
-                                    Tasks.markAsComplete.call(
-                                        MarkAsCompleteRequest(
-                                            task.taskId.toLong()
-                                        ),
-                                        client
-                                    )
-                                } catch (ex: Exception) {
-                                    log.warn("Failed to mark task (${task.taskId}) as completed")
-                                    log.info(ex.message)
-                                    return@launch
+                                    try {
+                                        Tasks.markAsComplete.call(
+                                            MarkAsCompleteRequest(
+                                                task.taskId.toLong()
+                                            ),
+                                            client
+                                        )
+                                    } catch (ex: Exception) {
+                                        log.warn("Failed to mark task (${task.taskId}) as completed")
+                                        log.info(ex.message)
+                                        return@launch
+                                    }
+                                    log.debug("Completed the execution of $task")
+
+                                    markJobAsComplete(db, task.taskId)
                                 }
-                                log.debug("Completed the execution of $task")
-
-                                markJobAsComplete(db, task.taskId)
+                            } finally {
+                                taskPermits.release()
                             }
                         }
                     } catch (ex: Throwable) {
@@ -314,6 +321,7 @@ class TaskSystem(
         }
     }
 
+    private val taskPermits = Semaphore(32)
 
     private suspend fun markJobAsComplete(ctx: DBContext, id: String) {
         ctx.withSession { session ->

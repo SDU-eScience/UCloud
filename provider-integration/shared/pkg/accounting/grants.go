@@ -1,6 +1,7 @@
 package apm
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -41,12 +42,58 @@ type GrantRequestSettings struct {
 	Templates           Templates      `json:"templates"`
 }
 
+func (s GrantRequestSettings) MarshalJSON() ([]byte, error) {
+	type wrapper struct {
+		Enabled             bool           `json:"enabled"`
+		Description         string         `json:"description"`
+		AllowRequestsFrom   []UserCriteria `json:"allowRequestsFrom"`
+		ExcludeRequestsFrom []UserCriteria `json:"excludeRequestsFrom"`
+		Templates           Templates      `json:"templates"`
+	}
+
+	if s.AllowRequestsFrom == nil {
+		s.AllowRequestsFrom = []UserCriteria{}
+	}
+	if s.ExcludeRequestsFrom == nil {
+		s.ExcludeRequestsFrom = []UserCriteria{}
+	}
+
+	w := wrapper{
+		Enabled:             s.Enabled,
+		Description:         s.Description,
+		AllowRequestsFrom:   s.AllowRequestsFrom,
+		ExcludeRequestsFrom: s.ExcludeRequestsFrom,
+		Templates:           s.Templates,
+	}
+
+	return json.Marshal(w)
+}
+
 type GrantGiver struct {
 	Id          string            `json:"id"`
-	Title       string            `json:"title"`
 	Description string            `json:"description"`
 	Templates   Templates         `json:"templates"`
 	Categories  []ProductCategory `json:"categories"`
+}
+
+func (gg GrantGiver) MarshalJSON() ([]byte, error) {
+	type wrapper struct {
+		Id          string            `json:"id"`
+		Title       string            `json:"title"`
+		Description string            `json:"description"`
+		Templates   Templates         `json:"templates"`
+		Categories  []ProductCategory `json:"categories"`
+	}
+
+	w := wrapper{
+		Id:          gg.Id,
+		Title:       gg.Id,
+		Description: gg.Description,
+		Templates:   gg.Templates,
+		Categories:  gg.Categories,
+	}
+
+	return json.Marshal(w)
 }
 
 type UserCriteriaType string
@@ -77,12 +124,12 @@ type Templates struct {
 }
 
 type GrantApplication struct {
-	Id              string        `json:"id"`
-	CreatedBy       string        `json:"createdBy"`
-	CreatedAt       fnd.Timestamp `json:"createdAt"`
-	UpdatedAt       fnd.Timestamp `json:"updatedAt"`
-	CurrentRevision GrantRevision `json:"currentRevision"`
-	Status          GrantStatus   `json:"status"`
+	Id              util.IntOrString `json:"id"`
+	CreatedBy       string           `json:"createdBy"`
+	CreatedAt       fnd.Timestamp    `json:"createdAt"`
+	UpdatedAt       fnd.Timestamp    `json:"updatedAt"`
+	CurrentRevision GrantRevision    `json:"currentRevision"`
+	Status          GrantStatus      `json:"status"`
 }
 
 type GrantRevision struct {
@@ -172,12 +219,33 @@ func (r *Recipient) Valid() bool {
 }
 
 type AllocationRequest struct {
-	Category         string              `json:"category"`
-	Provider         string              `json:"provider"`
-	GrantGiver       string              `json:"grantGiver"`
-	BalanceRequested util.Option[int64]  `json:"balanceRequested"`
-	Period           Period              `json:"period"`
-	GrantGiverTitle  util.Option[string] `json:"grantGiverTitle"`
+	Category         string             `json:"category"`
+	Provider         string             `json:"provider"`
+	GrantGiver       string             `json:"grantGiver"`
+	BalanceRequested util.Option[int64] `json:"balanceRequested"`
+	Period           Period             `json:"period"`
+}
+
+func (ar AllocationRequest) MarshalJSON() ([]byte, error) {
+	type wrapper struct {
+		Category         string              `json:"category"`
+		Provider         string              `json:"provider"`
+		GrantGiver       string              `json:"grantGiver"`
+		BalanceRequested util.Option[int64]  `json:"balanceRequested"`
+		Period           Period              `json:"period"`
+		GrantGiverTitle  util.Option[string] `json:"grantGiverTitle"`
+	}
+
+	w := wrapper{
+		Category:         ar.Category,
+		Provider:         ar.Provider,
+		GrantGiver:       ar.GrantGiver,
+		BalanceRequested: ar.BalanceRequested,
+		Period:           ar.Period,
+		GrantGiverTitle:  util.OptValue(ar.GrantGiver),
+	}
+
+	return json.Marshal(w)
 }
 
 type Period struct {
@@ -195,16 +263,30 @@ type GrantStatus struct {
 }
 
 type GrantGiverApprovalState struct {
-	ProjectId    string                `json:"projectId"`
-	ProjectTitle string                `json:"projectTitle"`
-	State        GrantApplicationState `json:"state"`
+	ProjectId string                `json:"projectId"`
+	State     GrantApplicationState `json:"state"`
+}
+
+func (ga GrantGiverApprovalState) MarshalJSON() ([]byte, error) {
+	type wrapper struct {
+		ProjectId    string                `json:"projectId"`
+		ProjectTitle string                `json:"projectTitle"`
+		State        GrantApplicationState `json:"state"`
+	}
+
+	w := wrapper{
+		ProjectId:    ga.ProjectId,
+		ProjectTitle: ga.ProjectId,
+		State:        ga.State,
+	}
+	return json.Marshal(w)
 }
 
 type GrantComment struct {
-	Id        string        `json:"id"`
-	Username  string        `json:"username"`
-	CreatedAt fnd.Timestamp `json:"createdAt"`
-	Comment   string        `json:"comment"`
+	Id        util.IntOrString `json:"id"`
+	Username  string           `json:"username"`
+	CreatedAt fnd.Timestamp    `json:"createdAt"`
+	Comment   string           `json:"comment"`
 }
 
 // API
@@ -289,7 +371,19 @@ type RetrieveGrantGiversRequest struct {
 }
 
 type RetrieveGrantGiversResponse struct {
-	GrantGivers []GrantGiver
+	GrantGivers []GrantGiver `json:"grantGivers"`
+}
+
+func (g RetrieveGrantGiversResponse) MarshalJSON() ([]byte, error) {
+	if g.GrantGivers == nil {
+		g.GrantGivers = []GrantGiver{}
+	}
+
+	type wrapper struct {
+		GrantGivers []GrantGiver `json:"grantGivers"`
+	}
+
+	return json.Marshal(wrapper{GrantGivers: g.GrantGivers})
 }
 
 var RetrieveGrantGivers = rpc.Call[RetrieveGrantGiversRequest, RetrieveGrantGiversResponse]{
@@ -319,7 +413,7 @@ type GrantsDeleteCommentRequest struct {
 var GrantsDeleteComment = rpc.Call[GrantsDeleteCommentRequest, util.Empty]{
 	BaseContext: GrantsNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Operation:   "postComment",
+	Operation:   "deleteComment",
 	Roles:       rpc.RolesEndUser,
 }
 
@@ -368,14 +462,18 @@ var GrantsRetrieveLogo = rpc.Call[GrantsRetrieveLogoRequest, []byte]{
 	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesPublic,
 
-	CustomMethod: http.MethodPost,
+	CustomMethod: http.MethodGet,
 	CustomPath:   fmt.Sprintf("/api/%s/retrieveLogo", GrantsNamespace),
 	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (GrantsRetrieveLogoRequest, *util.HttpError) {
 		return rpc.ParseRequestFromQuery[GrantsRetrieveLogoRequest](w, r)
 	},
 	CustomServerProducer: func(response []byte, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/any")
-		w.WriteHeader(err.StatusCode)
+		if err != nil {
+			w.WriteHeader(err.StatusCode)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
 		_, _ = w.Write(response)
 	},
 	CustomClientHandler: func(self *rpc.Call[GrantsRetrieveLogoRequest, []byte], client *rpc.Client, request GrantsRetrieveLogoRequest) ([]byte, *util.HttpError) {

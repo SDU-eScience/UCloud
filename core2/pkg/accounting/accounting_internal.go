@@ -13,6 +13,7 @@ import (
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/shared/pkg/util/mermaid"
 )
@@ -82,6 +83,8 @@ var accGlobals struct {
 
 	Usage             map[string]*scopedUsage // TODO(Dan): quite annoying that this has to be global
 	BucketsByCategory map[accapi.ProductCategoryIdV2]*internalBucket
+
+	OnPersistHandlers []internalOnPersistHandler
 
 	OwnerIdAcc  atomic.Int64 // does not require mutex
 	WalletIdAcc atomic.Int64 // does not require mutex
@@ -156,6 +159,7 @@ type internalAllocation struct {
 	Id        accAllocId
 	BelongsTo accWalletId
 	Parent    accWalletId
+	Group     accGroupId
 
 	GrantedIn util.Option[accGrantId]
 
@@ -341,6 +345,8 @@ func internalAllocate(
 		group.Dirty = true
 		group.Allocations[allocationId] = util.Empty{}
 
+		allocation.Group = group.Id
+
 		if parentWallet != nil {
 			parentWallet.Dirty = true
 
@@ -355,13 +361,23 @@ func internalAllocate(
 	}
 }
 
+type internalOnPersistHandler struct {
+	GrantId   accGrantId
+	OnPersist func(tx *db.Transaction)
+}
+
 // internalCommitAllocations ensures that all allocations granted in grantId are committed together. If onPersist is
 // specified, then it will be run when the data is persisted.
 func internalCommitAllocations(grantId accGrantId, onPersist func(tx *db.Transaction)) {
-	// TODO
+	accGlobals.Mu.Lock()
+	accGlobals.OnPersistHandlers = append(accGlobals.OnPersistHandlers, internalOnPersistHandler{
+		GrantId:   grantId,
+		OnPersist: onPersist,
+	})
+	accGlobals.Mu.Unlock()
 }
 
-func internalCompleteScan(now time.Time, persistence func(buckets []*internalBucket, scopes []*scopedUsage)) {
+func internalCompleteScan(now time.Time, persistence func(buckets []*internalBucket, scopes []*scopedUsage, onPersistHandlers []internalOnPersistHandler)) {
 	var buckets []*internalBucket
 	var scopes []*scopedUsage
 	accGlobals.Mu.Lock()
@@ -410,7 +426,7 @@ func internalCompleteScan(now time.Time, persistence func(buckets []*internalBuc
 	}
 
 	if persistence != nil {
-		persistence(buckets, scopes)
+		persistence(buckets, scopes, accGlobals.OnPersistHandlers)
 	}
 
 	for _, s := range scopes {
@@ -455,6 +471,31 @@ func internalBucketOrInit(category accapi.ProductCategory) *internalBucket {
 	})
 }
 
+func internalWalletById(id accWalletId) (*internalBucket, *internalWallet, bool) {
+	if id == 0 {
+		return nil, nil, false
+	}
+
+	var resultBucket *internalBucket
+	var resultWallet *internalWallet
+	ok := false
+
+	accGlobals.Mu.RLock()
+	for _, b := range accGlobals.BucketsByCategory {
+		b.Mu.RLock()
+		resultWallet, ok = b.WalletsById[id]
+		b.Mu.RUnlock()
+
+		if ok {
+			resultBucket = b
+			break
+		}
+	}
+	accGlobals.Mu.RUnlock()
+
+	return resultBucket, resultWallet, ok
+}
+
 func internalOwnerByReference(reference string) *internalOwner {
 	// TODO Reference must be check by caller
 	return util.ReadOrInsertBucket(&accGlobals.Mu, accGlobals.OwnersByReference, reference, func() *internalOwner {
@@ -473,6 +514,18 @@ func internalWalletByOwner(b *internalBucket, now time.Time, owner accOwnerId) a
 	b.Mu.Lock()
 	defer b.Mu.Unlock()
 	return lInternalWalletByOwner(b, now, owner).Id
+}
+
+func internalWalletByReferenceAndCategory(now time.Time, reference string, category accapi.ProductCategoryIdV2) (accWalletId, bool) {
+	owner := internalOwnerByReference(reference)
+	cat, err := ProductCategoryRetrieve(rpc.ActorSystem, category.Name, category.Provider)
+	if err != nil {
+		return 0, false
+	} else {
+		b := internalBucketOrInit(cat)
+		w := internalWalletByOwner(b, now, owner.Id)
+		return w, true
+	}
 }
 
 func lInternalWalletByOwner(b *internalBucket, now time.Time, owner accOwnerId) *internalWallet {
@@ -884,6 +937,18 @@ func lInternalMarkSignificantUpdate(b *internalBucket, now time.Time, wallet *in
 	wallet.Dirty = true
 }
 
+func internalMaxUsable(now time.Time, wallet accWalletId) (int64, bool) {
+	b, w, ok := internalWalletById(wallet)
+	if ok {
+		b.Mu.RLock()
+		result := lInternalMaxUsable(b, now, w)
+		b.Mu.RUnlock()
+		return result, true
+	} else {
+		return 0, false
+	}
+}
+
 func lInternalMaxUsable(b *internalBucket, now time.Time, wallet *internalWallet) int64 {
 	graph := lInternalBuildGraph(b, now, wallet, 0)
 	rootIndex := graph.WalletToVertex[internalGraphRoot]
@@ -1125,8 +1190,8 @@ func internalRetrieveWallets(
 			apiWallet := accapi.WalletV2{
 				Owner:                   owner.WalletOwner(),
 				PaysFor:                 b.Category,
-				AllocationGroups:        nil,
-				Children:                nil,
+				AllocationGroups:        []accapi.AllocationGroupWithParent{},
+				Children:                []accapi.AllocationGroupWithChild{},
 				TotalUsage:              lInternalWalletTotalUsageInNode(b, w),
 				LocalUsage:              w.LocalUsage,
 				MaxUsable:               lInternalMaxUsable(b, now, w),

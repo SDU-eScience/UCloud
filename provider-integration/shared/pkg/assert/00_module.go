@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"strings"
 )
 
 // message formats the optional msgAndArgs into a single string
@@ -17,7 +18,14 @@ func message(msgAndArgs ...any) string {
 		}
 		return format
 	}
-	return fmt.Sprint(msgAndArgs...)
+
+	b := strings.Builder{}
+	for _, item := range msgAndArgs {
+		b.WriteString(fmt.Sprint(item))
+		b.WriteString(" ")
+	}
+
+	return b.String()
 }
 
 // Equal fails the test if expected and actual are not deeply equal.
@@ -48,7 +56,7 @@ func True(t *testing.T, actual any, msgAndArgs ...any) bool {
 	if v, ok := actual.(bool); ok && v {
 		return true
 	}
-	t.Errorf("assert: true failed – expected true, got %#v. %s", actual, message(msgAndArgs...))
+	t.Errorf("assert failed: %s", message(msgAndArgs...))
 	return false
 }
 

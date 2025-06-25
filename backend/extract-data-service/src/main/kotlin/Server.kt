@@ -200,6 +200,13 @@ class Server(override val micro: Micro) : CommonServer {
                             exitProcess(1)
                         }
 
+                        args.contains("--reportProject") -> {
+                            getDates(args)
+                            val projectID = args[args.indexOf("--reportProject").inc()]
+                            postgresDataService.getProjectUsage(projectID, start, end)
+                            exitProcess(0)
+                        }
+
                         else -> {
                             println("Missing argument (--center, --center-daily, --center-daily-deic or --person")
                             exitProcess(1)

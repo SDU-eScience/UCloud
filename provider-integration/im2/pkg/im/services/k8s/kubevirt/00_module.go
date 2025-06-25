@@ -609,7 +609,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	fsIdx := 0
 	for _, param := range job.Specification.Resources {
 		if param.Type == orc.AppParameterValueTypeFile {
-			internalPath, ok := filesystem.UCloudToInternal(param.Path)
+			internalPath, ok, _ := filesystem.UCloudToInternal(param.Path)
 			if !ok {
 				continue
 			}

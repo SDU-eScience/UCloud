@@ -3,7 +3,9 @@ package foundation
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"hash/fnv"
+	"math/rand"
 	"net/http"
 	"runtime"
 	"slices"
@@ -62,7 +64,7 @@ type internalProjectUserInfo struct {
 	Username  string
 	Mu        sync.RWMutex
 	Projects  map[string]util.Empty
-	Groups    map[string]util.Empty
+	Groups    map[string]string // group to project
 	Favorites map[string]util.Empty
 }
 
@@ -92,6 +94,10 @@ func initProjects() {
 
 	fndapi.ProjectRetrieve.Handler(func(info rpc.RequestInfo, request fndapi.ProjectRetrieveRequest) (fndapi.Project, *util.HttpError) {
 		return ProjectRetrieve(info.Actor, request.Id, request.ProjectFlags, fndapi.ProjectRoleUser)
+	})
+
+	fndapi.ProjectRetrieveMetadata.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (fndapi.ProjectMetadata, *util.HttpError) {
+		return ProjectRetrieveMetadata(request.Id)
 	})
 
 	fndapi.ProjectBrowse.Handler(func(info rpc.RequestInfo, request fndapi.ProjectBrowseRequest) (fndapi.PageV2[fndapi.Project], *util.HttpError) {
@@ -150,6 +156,15 @@ func initProjects() {
 			}
 		}
 		return util.Empty{}, nil
+	})
+
+	fndapi.ProjectInternalCreate.Handler(func(info rpc.RequestInfo, request fndapi.ProjectInternalCreateRequest) (fndapi.FindByStringId, *util.HttpError) {
+		id, err := ProjectCreateInternal(info.Actor, request)
+		if err != nil {
+			return fndapi.FindByStringId{}, err
+		} else {
+			return fndapi.FindByStringId{Id: id}, nil
+		}
 	})
 
 	fndapi.ProjectCreateGroup.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.ProjectGroupSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
@@ -283,6 +298,32 @@ var projectFlagsAll = fndapi.ProjectFlags{
 	IncludePath:     true,
 }
 
+func ProjectRetrieveMetadata(id string) (fndapi.ProjectMetadata, *util.HttpError) {
+	p, ok := projectRetrieveInternal(id)
+	if ok {
+		p.Mu.RLock()
+
+		piUsername := "_ucloud"
+		for _, user := range p.Project.Status.Members {
+			if user.Role == fndapi.ProjectRolePI {
+				piUsername = user.Username
+				break
+			}
+		}
+
+		result := fndapi.ProjectMetadata{
+			Id:         p.Id,
+			Title:      p.Project.Specification.Title,
+			PiUsername: piUsername,
+		}
+
+		p.Mu.RUnlock()
+
+		return result, nil
+	}
+	return fndapi.ProjectMetadata{}, util.HttpErr(http.StatusNotFound, "unknown project")
+}
+
 func ProjectRetrieve(
 	actor rpc.Actor,
 	id string,
@@ -343,6 +384,88 @@ func projectRetrieve(
 	}
 
 	return result, p, nil
+}
+
+type ProjectClaimsInfo struct {
+	Membership       rpc.ProjectMembership
+	Groups           rpc.GroupMembership
+	ProviderProjects rpc.ProviderProjects
+}
+
+func ProjectRetrieveClaimsInfo(username string) ProjectClaimsInfo {
+	// NOTE(Dan): Be very careful that none of these functions accidentally rely on actor/principal information as
+	// this could cause an infinite loop. This function is used as part of building the actor/principal.
+
+	result := ProjectClaimsInfo{
+		Membership: make(rpc.ProjectMembership),
+		Groups:     make(rpc.GroupMembership),
+	}
+
+	userInfo := projectRetrieveUserInfo(username)
+	userInfo.Mu.RLock()
+	for groupId, projectId := range userInfo.Groups {
+		result.Groups[rpc.GroupId(groupId)] = rpc.ProjectId(projectId)
+	}
+	for projectId, _ := range userInfo.Projects {
+		result.Membership[rpc.ProjectId(projectId)] = rpc.ProjectRoleUser
+	}
+	userInfo.Mu.RUnlock()
+
+	for projectId, _ := range result.Membership {
+		project, ok := projectRetrieveInternal(string(projectId))
+		if ok {
+			role := util.OptNone[rpc.ProjectRole]()
+			project.Mu.RLock()
+			for _, member := range project.Project.Status.Members {
+				if member.Username == username {
+					role.Set(rpc.ProjectRole(member.Role))
+				}
+			}
+			project.Mu.RUnlock()
+
+			if role.Present {
+				result.Membership[projectId] = role.Value
+			} else {
+				delete(result.Membership, projectId)
+			}
+		} else {
+			delete(result.Membership, projectId)
+		}
+	}
+
+	result.ProviderProjects = db.NewTx(func(tx *db.Transaction) rpc.ProviderProjects {
+		// TODO(Dan): Quite annoying that we have to go into another deployment's implementation details on top of
+		//  doing a DB transaction here when it is otherwise not needed. On the bright side, this function only runs
+		//  every 5-10 minutes for a given user.
+		projects := rpc.ProviderProjects{}
+
+		rows := db.Select[struct {
+			ProviderId string
+			Project    string
+		}](
+			tx,
+			`
+				select p.unique_name as provider_id, r.project
+				from
+					project.project_members pm
+					join provider.resource r on pm.project_id = r.project
+					join provider.providers p on r.id = p.resource
+				where
+					pm.username = :username
+		    `,
+			db.Params{
+				"username": username,
+			},
+		)
+
+		for _, row := range rows {
+			projects[rpc.ProviderId(row.ProviderId)] = rpc.ProjectId(row.Project)
+		}
+
+		return projects
+	})
+
+	return result
 }
 
 func ProjectBrowse(actor rpc.Actor, request fndapi.ProjectBrowseRequest) (fndapi.PageV2[fndapi.Project], *util.HttpError) {
@@ -495,6 +618,77 @@ func ProjectRenamingAllowed(actor rpc.Actor, projectId string) bool {
 		}
 
 		return parent.Status.Settings.SubProjects.AllowRenaming
+	}
+}
+
+func ProjectCreateInternal(actor rpc.Actor, req fndapi.ProjectInternalCreateRequest) (string, *util.HttpError) {
+	_, ok := rpc.LookupActor(req.PiUsername)
+	if !ok {
+		return "", util.HttpErr(http.StatusNotFound, "unknown user")
+	}
+
+	resultId := util.UUid()
+	suffix := ""
+
+	for {
+		id, ok := db.NewTx2(func(tx *db.Transaction) (string, bool) {
+			row, ok := db.Get[struct{ Id string }](
+				tx,
+				`
+					select id
+					from project.projects where backend_id = :backend
+			    `,
+				db.Params{
+					"backend": req.BackendId,
+				},
+			)
+
+			if ok {
+				return row.Id, true
+			}
+
+			db.Exec(
+				tx,
+				`
+					insert into project.projects(id, created_at, modified_at, title, archived, parent, dmp, 
+						subprojects_renameable, can_consume_resources, provider_project_for, backend_id) 
+					values (:id, now(), now(), :title, false, null, null, false, true, null, :backend_id)
+				`,
+				db.Params{
+					"id":         resultId,
+					"title":      req.Title + suffix,
+					"backend_id": req.BackendId,
+				},
+			)
+
+			if tx.ConsumeError() != nil {
+				suffix = fmt.Sprintf("-%d", rand.Intn(9000)+1000)
+				return "", false
+			} else {
+				db.Exec(
+					tx,
+					`
+						insert into project.project_members(created_at, modified_at, role, username, project_id) 
+						values (now(), now(), 'PI', :username, :project)
+				    `,
+					db.Params{
+						"username": req.PiUsername,
+						"project":  resultId,
+					},
+				)
+			}
+
+			return resultId, true
+		})
+
+		if ok {
+			b := projectBucket(req.PiUsername)
+			b.Mu.Lock()
+			delete(b.Users, req.PiUsername) // invalidate cache
+			b.Mu.Unlock()
+
+			return id, nil
+		}
 	}
 }
 
@@ -1295,7 +1489,7 @@ func projectAddUserToProjectAndGroups(
 				}
 			}
 
-			uinfo.Groups[gid] = util.Empty{}
+			uinfo.Groups[gid] = projectId
 		}
 	}
 
@@ -1470,7 +1664,7 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 				result := &internalProjectUserInfo{
 					Username:  username,
 					Projects:  map[string]util.Empty{},
-					Groups:    map[string]util.Empty{},
+					Groups:    map[string]string{},
 					Favorites: map[string]util.Empty{},
 				}
 
@@ -1486,11 +1680,16 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 					},
 				)
 
-				groupRows := db.Select[struct{ GroupId string }](
+				groupRows := db.Select[struct {
+					GroupId   string
+					ProjectId string
+				}](
 					tx,
 					`
-						select gm.group_id
-						from project.group_members gm
+						select gm.group_id, g.id as project_id
+						from
+							project.group_members gm
+							join project.groups g on gm.group_id = g.id
 						where gm.username = :username
 				    `,
 					db.Params{
@@ -1515,7 +1714,7 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 				}
 
 				for _, group := range groupRows {
-					result.Groups[group.GroupId] = util.Empty{}
+					result.Groups[group.GroupId] = group.ProjectId
 				}
 
 				for _, favorite := range favoriteRows {

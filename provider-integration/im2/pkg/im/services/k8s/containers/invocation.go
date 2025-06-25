@@ -2,12 +2,11 @@ package containers
 
 import (
 	"fmt"
-	"path/filepath"
-	"strings"
-
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v3"
 	core "k8s.io/api/core/v1"
+	"path/filepath"
+	"strings"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	orc "ucloud.dk/shared/pkg/orchestrators"
@@ -29,13 +28,13 @@ func prepareInvocationOnJobCreate(
 	environment := app.Invocation.Environment
 
 	ucloudToPod := func(ucloudPath string) string {
-		internalPath, ok := filesystem.UCloudToInternal(ucloudPath)
+		internalPath, ok, _ := filesystem.UCloudToInternal(ucloudPath)
 		if ok {
 			podPath, ok := pathMapperInternalToPod[internalPath]
 			if ok {
 				return podPath
 			} else {
-				internalPath, ok = filesystem.UCloudToInternal(util.Parent(ucloudPath))
+				internalPath, ok, _ = filesystem.UCloudToInternal(util.Parent(ucloudPath))
 				if ok {
 					podPath, ok = pathMapperInternalToPod[internalPath]
 					if ok {
@@ -156,11 +155,6 @@ func prepareInvocationOnJobCreate(
 	}
 }
 
-type entrypointExtension struct {
-	Valid      bool
-	NewCommand []string
-}
-
 func handleJinjaInvocation(
 	job *orc.Job,
 	rank int,
@@ -184,7 +178,7 @@ func handleJinjaInvocation(
 	jinjaContainer := &pod.Spec.InitContainers[len(pod.Spec.InitContainers)-1]
 
 	jinjaContainer.Name = "script-generation"
-	jinjaContainer.Image = "dreg.cloud.sdu.dk/ucloud/im2:2025.2.26" // remember to update when needed
+	jinjaContainer.Image = "dreg.cloud.sdu.dk/ucloud/im2:2025.3.74" // remember to update when needed
 
 	subpath, ok := strings.CutPrefix(jobFolder, filepath.Clean(ServiceConfig.FileSystem.MountPoint)+"/")
 	if ok {

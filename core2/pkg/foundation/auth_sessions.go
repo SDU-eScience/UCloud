@@ -68,7 +68,9 @@ func SessionRefresh(request fndapi.AuthenticationTokens) (fndapi.AccessTokenAndC
 				tx,
 				`
 					delete from auth.refresh_tokens
-					where now() > (created_at + cast((refresh_token_expiry || 'ms') as interval))
+					where
+					    refresh_token_expiry is not null
+						and now() > (created_at + cast((refresh_token_expiry || 'ms') as interval))
 			    `,
 				db.Params{},
 			)
@@ -89,7 +91,11 @@ func SessionRefresh(request fndapi.AuthenticationTokens) (fndapi.AccessTokenAndC
 						:csrf = ''
 						or csrf = :csrf
 					)
-					and (created_at + cast((refresh_token_expiry || 'ms') as interval)) > now()
+					and (
+					    (created_at + cast((refresh_token_expiry || 'ms') as interval)) > now()
+					    or refresh_token_expiry is null
+					)
+						
 		    `,
 			db.Params{
 				"token": request.RefreshToken,

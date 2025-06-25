@@ -15,6 +15,12 @@ type Project struct {
 	Status        ProjectStatus        `json:"status"`
 }
 
+type ProjectMetadata struct {
+	Id         string `json:"id"`
+	Title      string `json:"title"`
+	PiUsername string `json:"piUsername"`
+}
+
 type ProjectSpecification struct {
 	Parent              util.Option[string] `json:"parent"`
 	Title               string              `json:"title"`
@@ -75,7 +81,7 @@ func (p ProjectRole) Satisfies(requirement ProjectRole) bool {
 	}
 
 	power := p.Power()
-	requiredPower := p.Power()
+	requiredPower := requirement.Power()
 	if power > 0 && requiredPower > 0 {
 		return power >= requiredPower
 	} else {
@@ -141,6 +147,13 @@ var ProjectRetrieve = rpc.Call[ProjectRetrieveRequest, Project]{
 	Roles:       rpc.RolesEndUser | rpc.RoleProvider | rpc.RoleService,
 }
 
+var ProjectRetrieveMetadata = rpc.Call[FindByStringId, ProjectMetadata]{
+	BaseContext: ProjectContext,
+	Convention:  rpc.ConventionRetrieve,
+	Operation:   "metadata",
+	Roles:       rpc.RolesEndUser | rpc.RoleProvider | rpc.RoleService,
+}
+
 type ProjectSortBy string
 
 const (
@@ -199,6 +212,7 @@ var ProjectCreate = rpc.Call[BulkRequest[ProjectSpecification], BulkResponse[Fin
 
 // TODO this is a new call
 type ProjectInternalCreateRequest struct {
+	Title      string
 	BackendId  string
 	PiUsername string
 }
