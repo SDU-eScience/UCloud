@@ -229,7 +229,6 @@ func ReconfigureAllIApps() {
 				log.Info("Deleting iapp, can no longer find associated job %v", key)
 				iappDeleteWhileHoldingMutex(key)
 			} else {
-				log.Info("configure %v %v", job, config.ETag)
 				err := handler.UpdateConfiguration(job, config.ETag, config.Configuration)
 				if err != nil {
 					log.Warn("Error while reconfiguring job %v: %s", key, err)
