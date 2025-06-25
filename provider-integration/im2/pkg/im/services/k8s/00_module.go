@@ -139,8 +139,8 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 			})
 		}
 
-		if ctrl.IsResourceLocked(mount.Drive.Resource, mount.Drive.Specification.Product) {
-			reason := fmt.Sprintf("Insufficient funds for %v", mount.Drive.Specification.Product.Category)
+		if ctrl.IsResourceLocked(mount.RealDrive.Resource, mount.RealDrive.Specification.Product) {
+			reason := fmt.Sprintf("Insufficient funds for %v", mount.RealDrive.Specification.Product.Category)
 			return util.OptValue(shared.LockedReason{
 				Reason: reason,
 				Err: &util.HttpError{
@@ -185,6 +185,7 @@ func mountedFilesFromJob(job *orc.Job) []orc.AppParameterValue {
 type MountedDrive struct {
 	DriveInvalid bool
 	Drive        orc.Drive
+	RealDrive    orc.Drive // Drive to use for storage lock checks
 	ReadOnly     bool
 }
 
@@ -212,9 +213,9 @@ func MountedDrivesEx(job *orc.Job, jobAnnotations map[string]string) []MountedDr
 	}
 
 	for _, file := range files {
-		_, ok, drive := filesystem.UCloudToInternal(file.Path)
+		driveId, ok := filesystem.DriveIdFromUCloudPath(file.Path)
 		if ok {
-			insertDrive(drive.Id, file.ReadOnly)
+			insertDrive(driveId, file.ReadOnly)
 		}
 	}
 
@@ -246,8 +247,15 @@ func MountedDrivesEx(job *orc.Job, jobAnnotations map[string]string) []MountedDr
 
 	for id, entry := range drives {
 		drive, ok := ctrl.RetrieveDrive(id)
+		var realDrive *orc.Drive
+
+		if ok {
+			_, ok, realDrive = filesystem.DriveToLocalPath(drive)
+		}
+
 		if ok {
 			entry.Drive = *drive
+			entry.RealDrive = *realDrive
 			entry.DriveInvalid = false
 		} else {
 			entry.DriveInvalid = true
