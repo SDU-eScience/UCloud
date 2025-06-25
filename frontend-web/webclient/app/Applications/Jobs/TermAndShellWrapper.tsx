@@ -12,8 +12,8 @@ export function TermAndShellWrapper(props: React.PropsWithChildren<{addPadding: 
 const TermAndShellWrapperClass = injectStyle("term-and-wrapper", k => `
     ${k} {
         display: flex;
-        height: 100vh;
-        width: 100vw;
+        height: 100%;
+        width: 100%;
         flex-direction: column;
     }
 
