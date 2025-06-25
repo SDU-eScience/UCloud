@@ -7,7 +7,6 @@ import (
 	"time"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	"ucloud.dk/shared/pkg/apm"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -224,10 +223,6 @@ func ResolveDriveByUCloudPath(path string) (*orc.Drive, string, bool) {
 
 	subpath := filepath.Join(comps[1:]...)
 	return drive, subpath, true
-}
-
-func ListDrivesByOwner(owner apm.WalletOwner) []*orc.Drive {
-	return nil
 }
 
 func UCloudToInternal(path string) (string, bool, *orc.Drive) {
