@@ -6,6 +6,7 @@ import (
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/sugarme/tokenizer"
 	"hash/fnv"
+	"path/filepath"
 	"strings"
 	"sync"
 	"ucloud.dk/shared/pkg/log"
@@ -29,7 +30,7 @@ type SearchQuery struct {
 }
 
 func (q *SearchQuery) Matches(path string) bool {
-	return strings.Contains(strings.ToLower(path), q.normQuery)
+	return strings.Contains(strings.ToLower(filepath.Base(path)), q.normQuery)
 }
 
 func NewQuery(query string) SearchQuery {

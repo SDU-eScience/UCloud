@@ -1072,6 +1072,10 @@ func search(ctx context.Context, query, folder string, flags ctrl.FileFlags, out
 	driveId, ok2 := DriveIdFromUCloudPath(folder)
 	defer close(output)
 
+	if query == "" {
+		return
+	}
+
 	if !ok || !ok2 {
 		return
 	}
