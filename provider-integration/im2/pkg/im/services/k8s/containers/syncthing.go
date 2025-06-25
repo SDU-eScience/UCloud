@@ -12,6 +12,7 @@ import (
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"math/rand"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -61,6 +62,22 @@ func initSyncthing() {
 			MutateJobSpecBeforeRegistration: syncthingMutateJobSpec,
 			BeforeMonitor:                   syncthingBeforeMonitor,
 		}
+
+		go func() {
+			for {
+				reconfigureFile := "/tmp/syncthing-reconfigure"
+				_, err := os.Stat(reconfigureFile)
+				if err == nil {
+					err := os.Remove(reconfigureFile)
+					if err != nil {
+						panic(err)
+					} else {
+						syncthingReconfigure()
+					}
+				}
+				time.Sleep(1 * time.Second)
+			}
+		}()
 	}
 }
 
@@ -419,3 +436,18 @@ func syncthingMutateFirewall(job *orc.Job, configuration json.RawMessage, firewa
 const (
 	AnnotationSyncthingPort = "ucloud.dk/syncthingPort"
 )
+
+func syncthingReconfigure() {
+	drives := ctrl.EnumerateKnownDrives()
+	success := 0
+	for _, drive := range drives {
+		if strings.HasPrefix(drive.ProviderGeneratedId, "h-") {
+			config, err := ctrl.IAppConfigureFromLegacy(syncthingAppName, drive.Owner)
+			if err == nil && config.Present {
+				success++
+			}
+		}
+	}
+
+	log.Info("Configured %v instances of syncthing from %v drives", success, len(drives))
+}

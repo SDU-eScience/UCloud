@@ -53,6 +53,28 @@ func controllerIntegratedApps(mux *http.ServeMux) {
 	}
 }
 
+func IAppConfigureFromLegacy(appName string, owner orc.ResourceOwner) (util.Option[IAppRunningConfiguration], error) {
+	handler, ok := IntegratedApplications[appName]
+	if ok && handler.RetrieveLegacyConfiguration != nil {
+		rawConfig := handler.RetrieveLegacyConfiguration(owner)
+		if rawConfig.Present {
+			err := ConfigureIApp(appName, owner, util.OptNone[string](), rawConfig.Value)
+			if err != nil {
+				return util.OptNone[IAppRunningConfiguration](), err
+			} else {
+				config := RetrieveIAppConfiguration(appName, owner)
+				if !config.Present {
+					return util.OptNone[IAppRunningConfiguration](), fmt.Errorf("error configuring iapp")
+				} else {
+					return util.OptValue(config.Value), nil
+				}
+			}
+		}
+	}
+
+	return util.OptNone[IAppRunningConfiguration](), nil
+}
+
 func controllerIntegratedApp(mux *http.ServeMux, appName string, handler IntegratedApplicationHandler) {
 	if handler.Flags&IntegratedAppInternal == 0 {
 		cleanContext := fmt.Sprintf("/ucloud/%v/iapps/%v", cfg.Provider.Id, appName)
@@ -76,25 +98,15 @@ func controllerIntegratedApp(mux *http.ServeMux, appName string, handler Integra
 				}
 
 				if !config.Present {
-					if handler.RetrieveLegacyConfiguration != nil {
-						rawConfig := handler.RetrieveLegacyConfiguration(request.Principal)
-						if rawConfig.Present {
-							err := ConfigureIApp(appName, request.Principal, util.OptNone[string](), rawConfig.Value)
-							if err != nil {
-								sendResponseOrError(w, nil, err)
-								return
-							} else {
-								config = RetrieveIAppConfiguration(appName, request.Principal)
-								if !config.Present {
-									sendResponseOrError(w, nil, fmt.Errorf("error configuring iapp"))
-									return
-								} else {
-									resp = retrieveResponse{
-										ETag:          config.Value.ETag,
-										Configuration: config.Value.Configuration,
-									}
-								}
-							}
+					legacyConfig, err := IAppConfigureFromLegacy(appName, request.Principal)
+					if err != nil {
+						sendResponseOrError(w, nil, err)
+						return
+					} else if legacyConfig.Present {
+						config = legacyConfig
+						resp = retrieveResponse{
+							ETag:          config.Value.ETag,
+							Configuration: config.Value.Configuration,
 						}
 					}
 
