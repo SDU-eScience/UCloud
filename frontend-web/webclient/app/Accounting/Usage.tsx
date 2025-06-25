@@ -988,6 +988,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{
     period: Period;
     charts: BreakdownChart[];
 }> = props => {
+    const {selectedBreakdown} = props;
 
     const fullyMergedChart = React.useMemo(() => ({
         unit: props.unit,
@@ -1021,13 +1022,13 @@ const UsageBreakdownPanel: React.FunctionComponent<{
     })();
 
     const filteredDataPoints = useMemo(() => {
-        if (!props.selectedBreakdown) return dataPointsByProject.slice();
-        return dataPoints.filter(it => it.key === props.selectedBreakdown);
-    }, [props.selectedBreakdown, dataPoints, dataPointsByProject]);
+        if (!selectedBreakdown) return dataPointsByProject.slice();
+        return dataPoints.filter(it => it.key === selectedBreakdown);
+    }, [selectedBreakdown, dataPoints, dataPointsByProject]);
 
     const datapointSum = useMemo(() => dataPoints.reduce((a, b) => a + b.value, 0), [dataPoints]);
 
-    const sorted = useSorting(props.selectedBreakdown ? filteredDataPoints : dataPointsByProject, "value");
+    const sorted = useSorting(filteredDataPoints, "value");
 
     const updateSelectedBreakdown = React.useCallback((dataPoint: {key: string}) => {
         props.setBreakdown(dataPoint.key);
@@ -1036,8 +1037,12 @@ const UsageBreakdownPanel: React.FunctionComponent<{
     const project = useProject().fetch();
 
     const startExport = useCallback(() => {
-        /* TODO(Jonas): Should update based on entries  */
-        const datapoints = fullyMergedChart.dataPoints.map(it => {
+
+        const points = selectedBreakdown ?
+            fullyMergedChart.dataPoints.filter(it => it.title === selectedBreakdown) :
+            fullyMergedChart.dataPoints;
+
+        const datapoints = points.map(it => {
             const [product, provider] = it.nameAndProvider.split("/");
             return {
                 product,
@@ -1055,11 +1060,10 @@ const UsageBreakdownPanel: React.FunctionComponent<{
             header("usage", "Usage (" + props.unit + ")", true),
             header("projectId", "Project ID", false)
         ], projectTitle(project));
-    }, [fullyMergedChart, project]);
+
+    }, [fullyMergedChart, project, selectedBreakdown]);
 
     if (props.isLoading) return null;
-
-    const {selectedBreakdown} = props;
 
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
         <div className={PanelTitle.class}>
