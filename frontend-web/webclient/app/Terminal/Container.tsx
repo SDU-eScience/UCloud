@@ -150,7 +150,10 @@ export const TerminalContainer: React.FunctionComponent = () => {
             onRowClick={() => dispatch({type: "TerminalSelectTab", payload: {tabIdx: idx}})}
             isActive={idx === state.activeTab}
             icon={<div />}
-            onClose={() => closeTerminal(idx)}
+            onClose={e => {
+                e.stopPropagation();
+                closeTerminal(idx);
+            }}
             cursor="close"
             onContextMenu={e => {
                 e.preventDefault();
