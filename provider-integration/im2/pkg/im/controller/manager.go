@@ -169,6 +169,11 @@ func handleAuth(flags HttpApiFlag, w http.ResponseWriter, r *http.Request) bool 
 		w.WriteHeader(http.StatusUnauthorized)
 		return false
 	}
+
+	if !MaintenanceCheck(w, r) {
+		return false
+	}
+
 	return true
 }
 

@@ -349,6 +349,7 @@ type ProviderConfiguration struct {
 	}
 
 	Maintenance struct {
+		Enabled       bool
 		UserAllowList []string
 	}
 }
@@ -434,7 +435,9 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 		// Maintenance section
 		maintenance, _ := cfgutil.GetChildOrNil(filePath, provider, "maintenance")
 		if maintenance != nil {
-			allowListNode := cfgutil.RequireChild(filePath, maintenance, "userAllowList", &success)
+			cfg.Maintenance.Enabled = cfgutil.RequireChildBool(filePath, maintenance, "enabled", &success)
+
+			allowListNode := cfgutil.RequireChild(filePath, maintenance, "allowList", &success)
 
 			var userAllowList []string
 			cfgutil.Decode(filePath, allowListNode, &userAllowList, &success)

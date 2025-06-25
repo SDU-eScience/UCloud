@@ -21,6 +21,8 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	shared.IsJobLockedEx = IsJobLockedEx
 
 	ctrl.LaunchUserInstances = false
+	ctrl.MaintenanceMode = cfg.Provider.Maintenance.Enabled
+	ctrl.MaintenanceAllowlist = cfg.Provider.Maintenance.UserAllowList
 
 	ctrl.InitJobDatabase()
 	ctrl.InitDriveDatabase()
