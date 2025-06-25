@@ -587,7 +587,6 @@ function Visualization(): React.ReactNode {
     }, [dispatchEvent]);
 
     const setBreakdown = useCallback((projectId: string) => {
-        const newBreakdown = state.activeDashboard?.selectedBreakdown === projectId ? "" : projectId;
         dispatchEvent({type: "SetActiveBreakdown", projectId});
     }, [state.activeDashboard?.selectedBreakdown]);
 
@@ -990,17 +989,6 @@ const UsageBreakdownPanel: React.FunctionComponent<{
     charts: BreakdownChart[];
 }> = props => {
 
-    const breakdownRef = useRef(props.selectedBreakdown);
-    breakdownRef.current = props.selectedBreakdown;
-
-    React.useEffect(() => {
-        if (breakdownRef.current) {
-            const c = ApexCharts.getChartByID(UsageBreakdownChartId);
-            c?.toggleSeries(breakdownRef.current);
-            props.setBreakdown("");
-        }
-    }, [breakdownRef.current]);
-
     const fullyMergedChart = React.useMemo(() => ({
         unit: props.unit,
         dataPoints: props.charts.flatMap(it => it.dataPoints.map(d => ({...d, nameAndProvider: it.nameAndProvider})))
@@ -1048,6 +1036,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{
     const project = useProject().fetch();
 
     const startExport = useCallback(() => {
+        /* TODO(Jonas): Should update based on entries  */
         const datapoints = fullyMergedChart.dataPoints.map(it => {
             const [product, provider] = it.nameAndProvider.split("/");
             return {
@@ -1386,8 +1375,7 @@ const ASPECT_RATIO_PIE_CHART: [number, number] = [1, 1];
 const DynamicallySizedChart: React.FunctionComponent<{
     chart: ChartProps,
     maxWidth?: number,
-    anyChartData: boolean,
-}> = ({chart, maxWidth, anyChartData, ...props}) => {
+}> = ({chart, maxWidth, ...props}) => {
     // NOTE(Dan): This react component works around the fact that Apex charts needs to know its concrete size to
     // function. This does not play well with the fact that we want to dynamically size the chart based on a combination
     // of a grid and a flexbox.
@@ -1401,6 +1389,7 @@ const DynamicallySizedChart: React.FunctionComponent<{
     // with the correct size.
 
     // NOTE(Dan): The wrapper is required to ensure the useEffect runs every time.
+
     const styleForLayoutTest: CSSProperties = {flexGrow: 2, flexShrink: 1, flexBasis: "400px"};
 
     return <div style={styleForLayoutTest}>
@@ -1483,7 +1472,7 @@ const UsageOverTimePanel: React.FunctionComponent<{
     }, [charts, chartProps]);
 
     // HACK(Jonas): Self-explanatory hack
-    const anyData = chartProps.series?.[0]?.["data"]?.length > 0;
+    const anyData = chartProps.series?.find(it => it["data"]["length"]) != null;
 
     if (isLoading) return null;
 
@@ -1501,10 +1490,12 @@ const UsageOverTimePanel: React.FunctionComponent<{
             <Button ml="auto" onClick={() => exportRef.current()}>Export</Button>
         </Flex>
 
-        <div className={ChartAndTable}>
-            <DynamicallySizedChart key={ChartID + chartCounter.current} anyChartData={anyData} chart={chartProps} />
-            <DifferenceTable chartId={ChartID + chartCounter.current} charts={charts} updateShownEntries={updateShownEntries} shownEntries={shownEntries} exportRef={exportRef} />
-        </div>
+        {!anyData ? <Text>No usage data found</Text> : (
+            <div className={ChartAndTable}>
+                <DynamicallySizedChart key={ChartID + chartCounter.current} chart={chartProps} />
+                <DifferenceTable chartId={ChartID + chartCounter.current} charts={charts} updateShownEntries={updateShownEntries} shownEntries={shownEntries} exportRef={exportRef} />
+            </div>
+        )}
     </div >;
 };
 
@@ -1529,14 +1520,9 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
                 const point = chart.dataPoints[idx];
                 result.push({name: chart.name, timestamp: point.timestamp, usage: point.usage, quota: point.quota});
             }
-
-            if (chart.dataPoints.length === 0) {
-                result.push({name: chart.name, timestamp: 0, usage: 0, quota: 0});
-            }
         }
         return result;
     }, [shownProducts]);
-
 
     const project = useProject().fetch();
     const startExport = useCallback(() => {
@@ -1765,7 +1751,7 @@ const PieChart: React.FunctionComponent<{
         return chartProps;
     }, [series]);
 
-    return <DynamicallySizedChart anyChartData={filteredList.length > 0} chart={chartProps} />;
+    return <DynamicallySizedChart chart={chartProps} />;
 };
 
 interface SubmissionStatistics {
