@@ -76,7 +76,7 @@ func InitializeMemberFiles(username string, project util.Option[string]) (string
 		return "", nil, fmt.Errorf("retrievedDrive should not be nil now")
 	}
 
-	result, ok := DriveToLocalPath(retrievedDrive)
+	result, ok, _ := DriveToLocalPath(retrievedDrive)
 
 	if !ok {
 		return "", nil, fmt.Errorf("DriveToLocalPath should not fail here")

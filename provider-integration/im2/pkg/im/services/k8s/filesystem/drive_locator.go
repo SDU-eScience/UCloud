@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"ucloud.dk/shared/pkg/apm"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/shared"
+	"ucloud.dk/shared/pkg/apm"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -140,12 +140,12 @@ func ParseDriveDescriptor(providerId util.Option[string]) (DriveDescriptor, bool
 
 var shareCache = util.NewCache[string, orc.Share](1 * time.Minute)
 
-func DriveToLocalPath(drive *orc.Drive) (string, bool) {
+func DriveToLocalPath(drive *orc.Drive) (string, bool, *orc.Drive) {
 	descriptor, ok := ParseDriveDescriptor(util.OptValue(drive.ProviderGeneratedId))
 	mnt := shared.ServiceConfig.FileSystem.MountPoint
 
 	if !ok {
-		return "/dev/null", false
+		return "/dev/null", false, drive
 	}
 
 	switch descriptor.Type {
@@ -154,7 +154,7 @@ func DriveToLocalPath(drive *orc.Drive) (string, bool) {
 			mnt,
 			"home",
 			descriptor.PrimaryReference,
-		), true
+		), true, drive
 
 	case DriveDescriptorTypeProjectRepo:
 		return filepath.Join(
@@ -162,7 +162,7 @@ func DriveToLocalPath(drive *orc.Drive) (string, bool) {
 			"projects",
 			descriptor.PrimaryReference,
 			descriptor.SecondaryReference,
-		), true
+		), true, drive
 
 	case DriveDescriptorTypeMemberFiles:
 		return filepath.Join(
@@ -171,7 +171,7 @@ func DriveToLocalPath(drive *orc.Drive) (string, bool) {
 			descriptor.PrimaryReference,
 			"Members' Files",
 			descriptor.SecondaryReference,
-		), true
+		), true, drive
 
 	case DriveDescriptorTypeShare:
 		shareId := descriptor.PrimaryReference
@@ -179,9 +179,20 @@ func DriveToLocalPath(drive *orc.Drive) (string, bool) {
 			return orc.RetrieveShare(shareId)
 		})
 		if !ok {
-			return "/dev/null", false
+			return "/dev/null", false, drive
 		} else {
-			return UCloudToInternal(share.Specification.SourceFilePath)
+			realDriveId, ok := DriveIdFromUCloudPath(share.Specification.SourceFilePath)
+			if !ok {
+				return "/dev/null", false, drive
+			}
+
+			realDrive, ok := ctrl.RetrieveDrive(realDriveId)
+			if !ok {
+				return "/dev/null", false, drive
+			}
+
+			result, ok, _ := UCloudToInternal(share.Specification.SourceFilePath)
+			return result, ok, realDrive
 		}
 
 	case DriveDescriptorTypeCollection:
@@ -191,7 +202,7 @@ func DriveToLocalPath(drive *orc.Drive) (string, bool) {
 			mnt,
 			"collections",
 			drive.Id,
-		), true
+		), true, drive
 	}
 }
 
@@ -219,23 +230,23 @@ func ListDrivesByOwner(owner apm.WalletOwner) []*orc.Drive {
 	return nil
 }
 
-func UCloudToInternal(path string) (string, bool) {
+func UCloudToInternal(path string) (string, bool, *orc.Drive) {
 	drive, subpath, ok := ResolveDriveByUCloudPath(path)
 	if !ok {
-		return "", false
+		return "", false, nil
 	}
 
-	basePath, ok := DriveToLocalPath(drive)
+	basePath, ok, drive := DriveToLocalPath(drive)
 	if !ok {
-		return "/dev/null", false
+		return "/dev/null", false, nil
 	}
 
-	return filepath.Join(basePath, subpath), true
+	return filepath.Join(basePath, subpath), true, drive
 }
 
 func InternalToUCloudWithDrive(drive *orc.Drive, path string) (string, bool) {
 	cleanPath := filepath.Clean(path)
-	basePath, ok := DriveToLocalPath(drive)
+	basePath, ok, _ := DriveToLocalPath(drive)
 	basePath += "/"
 
 	if !ok {

@@ -28,13 +28,13 @@ func prepareInvocationOnJobCreate(
 	environment := app.Invocation.Environment
 
 	ucloudToPod := func(ucloudPath string) string {
-		internalPath, ok := filesystem.UCloudToInternal(ucloudPath)
+		internalPath, ok, _ := filesystem.UCloudToInternal(ucloudPath)
 		if ok {
 			podPath, ok := pathMapperInternalToPod[internalPath]
 			if ok {
 				return podPath
 			} else {
-				internalPath, ok = filesystem.UCloudToInternal(util.Parent(ucloudPath))
+				internalPath, ok, _ = filesystem.UCloudToInternal(util.Parent(ucloudPath))
 				if ok {
 					podPath, ok = pathMapperInternalToPod[internalPath]
 					if ok {

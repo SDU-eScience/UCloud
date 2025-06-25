@@ -212,9 +212,9 @@ func MountedDrivesEx(job *orc.Job, jobAnnotations map[string]string) []MountedDr
 	}
 
 	for _, file := range files {
-		driveId, ok := orc.DriveIdFromUCloudPath(file.Path)
+		_, ok, drive := filesystem.UCloudToInternal(file.Path)
 		if ok {
-			insertDrive(driveId, file.ReadOnly)
+			insertDrive(drive.Id, file.ReadOnly)
 		}
 	}
 

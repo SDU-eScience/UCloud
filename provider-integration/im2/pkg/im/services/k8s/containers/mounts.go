@@ -55,7 +55,7 @@ func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool)
 	}
 
 	ucloudToSubpath := func(ucloudPath string) (string, bool) {
-		path, ok := filesystem.UCloudToInternal(ucloudPath)
+		path, ok, _ := filesystem.UCloudToInternal(ucloudPath)
 		if !ok {
 			return "", false
 		}
