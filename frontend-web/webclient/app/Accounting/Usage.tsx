@@ -1421,24 +1421,25 @@ const UsageOverTimePanel: React.FunctionComponent<{
         shownRef.current = shownEntries;
     }, [shownEntries]);
 
-    const updateShownEntries = React.useCallback((value: boolean | string[]) => {
+    const toggleShownEntries = React.useCallback((value: boolean | string[]) => {
         setShownEntries(shownEntries => {
             if (typeof value === "boolean") {
                 if (value) {
-                    shownEntries = charts.map(it => it.name);
+                    return charts.map(it => it.name);
                 } else {
-                    shownEntries = [];
+                    return [];
                 }
             } else {
+                const existing = new Set(shownEntries);
                 for (const entry of value) {
-                    if (shownEntries.includes(entry)) {
-                        shownEntries.filter(it => it !== entry)
+                    if (existing.has(entry)) {
+                        existing.delete(entry);
                     } else {
-                        shownEntries.push(entry);
+                        existing.add(entry);
                     }
                 }
+                return [...existing];
             }
-            return [...shownEntries];
         });
     }, [charts]);
 
@@ -1451,7 +1452,7 @@ const UsageOverTimePanel: React.FunctionComponent<{
         const maxPeriodInDays = maxDaysDifference(charts);
         return usageChartsToChart(charts, shownRef, {
             valueFormatter: val => Accounting.addThousandSeparators(val.toFixed(1)),
-            toggleShown: value => updateShownEntries(value),
+            toggleShown: value => toggleShownEntries(value),
             id: ChartID + chartCounter.current,
         }, maxPeriodInDays);
     }, [charts, props.period]);
@@ -1497,7 +1498,7 @@ const UsageOverTimePanel: React.FunctionComponent<{
         {!anyData ? <Text>No usage data found</Text> : (
             <div className={ChartAndTable}>
                 <DynamicallySizedChart key={ChartID + chartCounter.current} chart={chartProps} />
-                <DifferenceTable chartId={ChartID + chartCounter.current} charts={charts} updateShownEntries={updateShownEntries} shownEntries={shownEntries} exportRef={exportRef} />
+                <DifferenceTable chartId={ChartID + chartCounter.current} charts={charts} updateShownEntries={toggleShownEntries} shownEntries={shownEntries} exportRef={exportRef} />
             </div>
         )}
     </div >;
@@ -1868,13 +1869,16 @@ function usageChartsToChart(
             id: chartOptions.id,
             events: {
                 // Note(Jonas): Very cool, ApexCharts https://github.com/apexcharts/apexcharts.js/issues/3725
-                legendClick(chart, seriesIndex, options) {
-                    if (!seriesIndex) return;
+                legendClick(chart: ApexCharts, seriesIndex?: number | null, options?: any) {
+                    if (seriesIndex == null) {
+                        return;
+                    }
 
-                    const seriesName: string = chart["opts"]["series"][seriesIndex!]?.["name"];
+                    const seriesName: string = chart["opts"]?.["series"]?.[seriesIndex!]?.["name"] ?? "";
                     if (!seriesName) {
                         return;
                     }
+
                     toggleSeriesEntry(chart, seriesName, shownRef, chartOptions.toggleShown);
                 }
             },
@@ -1954,8 +1958,7 @@ function usageChartsToChart(
     return result;
 }
 
-function toggleSeriesEntry(_chart: ApexCharts | undefined, seriesName: string, shownRef: React.RefObject<string[]>, toggleShown?: (val: boolean | string[]) => void) {
-    const chart = _chart;
+function toggleSeriesEntry(chart: ApexCharts | undefined, seriesName: string, shownRef: React.RefObject<string[]>, toggleShown?: (val: boolean | string[]) => void) {
     /* TOD(Jonas): Handle when quota is shown. */
     if (chart != null) {
         const series = chart["opts"]["series"];
@@ -1965,8 +1968,6 @@ function toggleSeriesEntry(_chart: ApexCharts | undefined, seriesName: string, s
         const allWillBeHidden = shownRef.current.includes(seriesName) && shownRef.current.length === 1;
 
         if (allShown) {
-            const entries: string[] = [];
-
             for (const shownEntry of shownRef.current) {
                 if (shownEntry === seriesName) {
                     /* 
@@ -1980,9 +1981,10 @@ function toggleSeriesEntry(_chart: ApexCharts | undefined, seriesName: string, s
                 }
 
                 chart.hideSeries(shownEntry);
-                entries.push(shownEntry);
             }
-            toggleShown?.(entries);
+
+            const toToggle = series.map((it: {name: string}) => it.name).filter((it: string) => it !== seriesName);
+            toggleShown?.(toToggle);
         } else if (allWillBeHidden) {
             toggleShown?.(true);
             threadDeferLike(() => {
