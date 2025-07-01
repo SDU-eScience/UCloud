@@ -92,18 +92,18 @@ function Dashboard(): React.ReactNode {
     useSetRefreshFunction(reload);
 
     const main = (<div>
-        <Flex pt="1px" pb="24px"><Box ml="auto"/><UtilityBar zIndex={2}/></Flex>
+        <Flex pt="1px" pb="24px"><Box ml="auto" /><UtilityBar zIndex={2} /></Flex>
         <Box>
-            <DashboardNews news={news}/>
-            <Invites inviteReloadRef={invitesReload} projectReloadRef={projectInvitesReload}/>
+            <DashboardNews news={news} />
+            <Invites inviteReloadRef={invitesReload} projectReloadRef={projectInvitesReload} />
 
             <div className={GridClass}>
-                <DashboardResources wallets={wallets}/>
-                <DashboardRuns reloadRef={runsReload}/>
+                <DashboardResources wallets={wallets} />
+                <DashboardRuns reloadRef={runsReload} />
             </div>
             <div className={GridClass}>
-                <Connect embedded/>
-                <DashboardGrantApplications reloadRef={grantsReload}/>
+                <Connect embedded />
+                <DashboardGrantApplications reloadRef={grantsReload} />
             </div>
         </Box>
     </div>);
@@ -111,7 +111,7 @@ function Dashboard(): React.ReactNode {
     return (
         <div className={Gradient}>
             <div className={GradientWithPolygons}>
-                <MainContainer main={main}/>
+                <MainContainer main={main} />
             </div>
         </div>
     );
@@ -163,17 +163,17 @@ function Invites({projectReloadRef, inviteReloadRef}: {
                     reloadRef: projectReloadRef,
                     embedded: {disableKeyhandlers: true, hideFilters: false},
                     setShowBrowser: setShowProjectInvites
-                }}/></div>
+                }} /></div>
             <div style={display(showShareInvites)}><IngoingSharesBrowse opts={{
                 reloadRef: inviteReloadRef,
                 embedded: {disableKeyhandlers: true, hideFilters: false},
                 setShowBrowser: setShowShareInvites,
                 filterState: "PENDING"
-            }}/></div>
+            }} /></div>
         </DashboardCard>
     </Flex>
 
-    function display(val: boolean): { display: "none" | undefined } {
+    function display(val: boolean): {display: "none" | undefined} {
         return {display: val ? undefined : "none"}
     }
 }
@@ -202,14 +202,14 @@ function DashboardRuns({reloadRef}: {reloadRef: React.RefObject<() => void>}): R
             omitBreadcrumbs: true,
             additionalFilters: {itemsPerPage: "10"},
             reloadRef
-        }}/>
+        }} />
     </DashboardCard>;
 }
 
 function ApplyLinkButton(): React.ReactNode {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
-    if (!canApply) return <div/>
+    if (!canApply) return <div />
 
     return <Link
         to={Client.hasActiveProject ? AppRoutes.grants.newApplication({projectId: Client.projectId}) : AppRoutes.grants.editor()}
@@ -243,7 +243,7 @@ function DashboardResources({wallets}: {
 
         const displayWallets: AllocationDisplayWallet[] = [];
         for (const provider of providers) {
-            for (const category of Accounting.productTypesByPriority) {
+            for (const category of Accounting.ProductTypesByPriority) {
                 const entry = tree[category];
                 if (!entry) continue;
                 for (const wallet of entry.wallets) {
@@ -261,37 +261,37 @@ function DashboardResources({wallets}: {
             title="Resource allocations"
             icon={"heroBanknotes"}>
             {displayWallets.length === 0 ? (
-                    <NoResultsCardBody title={"No available resources"}>
-                        {!canApply ? null : <Text>
-                            Apply for resources to use storage and compute on UCloud.
-                        </Text>}
-                        <ApplyLinkButton/>
-                    </NoResultsCardBody>
-                ) :
+                <NoResultsCardBody title={"No available resources"}>
+                    {!canApply ? null : <Text>
+                        Apply for resources to use storage and compute on UCloud.
+                    </Text>}
+                    <ApplyLinkButton />
+                </NoResultsCardBody>
+            ) :
                 <Flex flexDirection="column" flexGrow={1} height={"calc(100% - 55px)"}>
                     <Box maxHeight={`${ROW_HEIGHT_IN_PX * 10}px`} overflowY={"auto"}>
                         <Table>
                             <tbody>
-                            {displayWallets.map(({usageAndQuota, category}, i) => (
-                                <TableRow height={`${ROW_HEIGHT_IN_PX}px`} key={i}>
-                                    <TableCell fontSize={FONT_SIZE} paddingLeft={"8px"}>
-                                        <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
-                                            <ProviderLogo providerId={category.provider} size={30}/>
-                                            <code>{category.name}</code>
-                                        </Flex>
-                                    </TableCell>
-                                    <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
-                                        <Flex justifyContent="end">
-                                            <ProgressBar uq={usageAndQuota}/>
-                                        </Flex>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                                {displayWallets.map(({usageAndQuota, category}, i) => (
+                                    <TableRow height={`${ROW_HEIGHT_IN_PX}px`} key={i}>
+                                        <TableCell fontSize={FONT_SIZE} paddingLeft={"8px"}>
+                                            <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
+                                                <ProviderLogo providerId={category.provider} size={30} />
+                                                <code>{category.name}</code>
+                                            </Flex>
+                                        </TableCell>
+                                        <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
+                                            <Flex justifyContent="end">
+                                                <ProgressBar uq={usageAndQuota} />
+                                            </Flex>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
                             </tbody>
                         </Table>
                     </Box>
-                    <Box flexGrow={1}/>
-                    <Flex mx="auto"><ApplyLinkButton/></Flex>
+                    <Box flexGrow={1} />
+                    <Flex mx="auto"><ApplyLinkButton /></Flex>
                 </Flex>
             }
         </DashboardCard>
@@ -317,11 +317,11 @@ function DashboardGrantApplications({reloadRef}: {reloadRef: React.RefObject<() 
             },
             both: true,
             additionalFilters: {itemsPerPage: "10"}
-        }}/>
+        }} />
     </DashboardCard>;
 };
 
-function DashboardNews({news}: { news: APICallState<Page<NewsPost>> }): React.ReactNode {
+function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): React.ReactNode {
     const lightTheme = useIsLightThemeStored();
 
     const newsItem = news.data.items.length > 0 ? news.data.items[0] : null;
@@ -368,7 +368,7 @@ function DashboardNews({news}: { news: APICallState<Page<NewsPost>> }): React.Re
                         <Image src={lightTheme ? halric : halricWhite} alt={"HALRIC"} width={"70px"} ml={"16px"} />
                     </Flex>
                 </> : <>
-                    <img style={{zIndex: 1}} alt={"UCloud logo"} src={ucloudImage}/>
+                    <img style={{zIndex: 1}} alt={"UCloud logo"} src={ucloudImage} />
                 </>}
 
             </div>
@@ -443,7 +443,7 @@ const DashboardCard: React.FunctionComponent<{
 }> = props => {
     return <TitledCard
         title={props.linkTo ? <Link to={props.linkTo}><Heading.h3>{props.title} <Icon mt="-4px"
-                                                                                      name="heroArrowTopRightOnSquare"/></Heading.h3></Link> :
+            name="heroArrowTopRightOnSquare" /></Heading.h3></Link> :
             <Heading.h3>{props.title}</Heading.h3>}
         icon={props.icon}
         overflow={props.overflow}
