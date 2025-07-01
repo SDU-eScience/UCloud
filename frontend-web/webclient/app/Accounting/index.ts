@@ -467,7 +467,7 @@ export function priceToString(product: ProductV2, numberOfUnits: number, duratio
     if (unit.desiredFrequency !== "ONCE" && opts?.showSuffix !== false) {
         return withoutSuffix + "/" + frequencyToSuffix(unit.desiredFrequency, false);
     } else {
-        if (totalPrice === 1 && probablyCurrencies.indexOf(unit.name) === -1 && unit.desiredFrequency === "ONCE") {
+        if (totalPrice === 1 && ProbablyCurrencies.indexOf(unit.name) === -1 && unit.desiredFrequency === "ONCE") {
             if (product.productType === "STORAGE") {
                 return "Quota based (" + unit.name + ")";
             } else {
@@ -478,10 +478,10 @@ export function priceToString(product: ProductV2, numberOfUnits: number, duratio
     }
 }
 
-const standardStorageUnitsSi = ["KB", "MB", "GB", "TB", "PB", "EB"];
-const standardStorageUnits = ["KiB", "MiB", "GiB", "TiB", "PiB", "EiB"];
-const defaultUnits = ["K", "M", "B", "T"];
-const probablyCurrencies = ["DKK", "kr", "EUR", "€", "USD", "$"];
+const StandardStorageUnitsSi = ["KB", "MB", "GB", "TB", "PB", "EB"];
+const StandardStorageUnits = ["KiB", "MiB", "GiB", "TiB", "PiB", "EiB"];
+const DefaultUnits = ["K", "M", "B", "T"];
+const ProbablyCurrencies = ["DKK", "kr", "EUR", "€", "USD", "$"];
 
 interface UsageAndQuotaRaw {
     usage: number;
@@ -618,7 +618,7 @@ export interface AllocationDisplayTreeRecipientOwner {
     reference: WalletOwner;
 }
 
-export const productTypesByPriority: ProductType[] = [
+export const ProductTypesByPriority: ProductType[] = [
     "COMPUTE",
     "STORAGE",
     "NETWORK_IP",
@@ -682,6 +682,7 @@ export interface AllocationDisplayTree {
     };
 }
 
+// Fri Jan 01 2100 01:00:00 GMT+0100 (Central European Standard Time)
 export const NO_EXPIRATION_FALLBACK = 4102444800353;
 
 export interface Period {
@@ -1079,12 +1080,12 @@ export function balanceToStringFromUnit(
     let unitToDisplay = unit;
     let attachedSuffix: string | null = null;
 
-    const storageUnitSiIdx = standardStorageUnitsSi.indexOf(unit);
-    const storageUnitIdx = standardStorageUnits.indexOf(unit);
+    const storageUnitSiIdx = StandardStorageUnitsSi.indexOf(unit);
+    const storageUnitIdx = StandardStorageUnits.indexOf(unit);
     if (productType === "STORAGE" && (storageUnitSiIdx !== -1 || storageUnitIdx !== -1)) {
         canRemoveUnit = false;
         const base = storageUnitIdx !== -1 ? 1024 : 1000;
-        const array = storageUnitIdx !== -1 ? standardStorageUnits : standardStorageUnitsSi;
+        const array = storageUnitIdx !== -1 ? StandardStorageUnits : StandardStorageUnitsSi;
         let idx = storageUnitIdx !== -1 ? storageUnitIdx : storageUnitSiIdx;
 
         while (balanceToDisplay > base && idx < array.length - 1) {
@@ -1095,16 +1096,16 @@ export function balanceToStringFromUnit(
         unitToDisplay = array[idx];
     } else {
         let threshold = 1000;
-        if (probablyCurrencies.indexOf(unitToDisplay) !== -1) threshold = 1000000;
+        if (ProbablyCurrencies.indexOf(unitToDisplay) !== -1) threshold = 1000000;
 
         if (normalizedBalance >= threshold) {
             let idx = -1;
-            while (balanceToDisplay >= 1000 && idx < defaultUnits.length - 1) {
+            while (balanceToDisplay >= 1000 && idx < DefaultUnits.length - 1) {
                 balanceToDisplay /= 1000;
                 idx++;
             }
 
-            attachedSuffix = defaultUnits[idx];
+            attachedSuffix = DefaultUnits[idx];
         }
     }
 
