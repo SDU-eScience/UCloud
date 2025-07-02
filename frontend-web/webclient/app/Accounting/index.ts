@@ -550,7 +550,7 @@ export class UsageAndQuota {
         const currentBalance = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.quota - usage, {precision: 2});
 
 
-        const usageAndQuota = formatUsageAndQuota(uqRaw.usage, uqRaw.quota, uqRaw.type, uqRaw.unit, {precision: 2});
+        const usageAndQuota = formatUsageAndQuota(usage, uqRaw.quota, uqRaw.type, uqRaw.unit, {precision: 2});
 
         let usageAndQuotaPercent = usageAndQuota;
         if (uqRaw.quota !== 0) {
