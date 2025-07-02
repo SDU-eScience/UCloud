@@ -952,8 +952,8 @@ const Allocations: React.FunctionComponent = () => {
     const indent = 16;
 
     const sortedAllocations = Object.entries(state.yourAllocations).sort((a, b) => {
-        const aPriority = Accounting.productTypesByPriority.indexOf(a[0] as ProductType);
-        const bPriority = Accounting.productTypesByPriority.indexOf(b[0] as ProductType);
+        const aPriority = Accounting.ProductTypesByPriority.indexOf(a[0] as ProductType);
+        const bPriority = Accounting.ProductTypesByPriority.indexOf(b[0] as ProductType);
 
         if (aPriority === bPriority) return 0;
         if (aPriority === -1) return 1;
