@@ -101,6 +101,7 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
     
     ${k}[data-label]:after {
         content: attr(data-label);
+        white-space: pre;
         font-size: 12px;
         position: absolute;
         color: var(--textPrimary);

@@ -1521,14 +1521,14 @@ export function Tab({onContextMenu, isActive, onRowClick, icon, title, iconEnter
 
 const IconHoverBlockClass = injectStyle("icon-hover-block", k => `
     ${k} {
-            padding: 4px;
-        }
+        padding: 4px;
+    }
 
     ${k}:hover {
-            background-color: var(--secondaryDark);
-            border-radius: 4px;
-        }
-        `);
+        background-color: var(--secondaryMain);
+        border-radius: 4px;
+    }
+`);
 
 const StatusBar = injectStyle("status-bar", k => `
     ${k} input {

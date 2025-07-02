@@ -467,7 +467,7 @@ export function priceToString(product: ProductV2, numberOfUnits: number, duratio
     if (unit.desiredFrequency !== "ONCE" && opts?.showSuffix !== false) {
         return withoutSuffix + "/" + frequencyToSuffix(unit.desiredFrequency, false);
     } else {
-        if (totalPrice === 1 && probablyCurrencies.indexOf(unit.name) === -1 && unit.desiredFrequency === "ONCE") {
+        if (totalPrice === 1 && ProbablyCurrencies.indexOf(unit.name) === -1 && unit.desiredFrequency === "ONCE") {
             if (product.productType === "STORAGE") {
                 return "Quota based (" + unit.name + ")";
             } else {
@@ -478,10 +478,10 @@ export function priceToString(product: ProductV2, numberOfUnits: number, duratio
     }
 }
 
-const standardStorageUnitsSi = ["KB", "MB", "GB", "TB", "PB", "EB"];
-const standardStorageUnits = ["KiB", "MiB", "GiB", "TiB", "PiB", "EiB"];
-const defaultUnits = ["K", "M", "B", "T"];
-const probablyCurrencies = ["DKK", "kr", "EUR", "€", "USD", "$"];
+const StandardStorageUnitsSi = ["KB", "MB", "GB", "TB", "PB", "EB"];
+const StandardStorageUnits = ["KiB", "MiB", "GiB", "TiB", "PiB", "EiB"];
+const DefaultUnits = ["K", "M", "B", "T"];
+const ProbablyCurrencies = ["DKK", "kr", "EUR", "€", "USD", "$"];
 
 interface UsageAndQuotaRaw {
     usage: number;
@@ -550,15 +550,7 @@ export class UsageAndQuota {
         const currentBalance = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.quota - usage, {precision: 2});
 
 
-        let usageAndQuota = "";
-        {
-            usageAndQuota += balanceToStringFromUnit(uqRaw.type, uqRaw.unit, usage, {
-                precision: 2,
-                removeUnitIfPossible: true
-            });
-            usageAndQuota += " / ";
-            usageAndQuota += balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.quota, {precision: 2});
-        }
+        const usageAndQuota = formatUsageAndQuota(usage, uqRaw.quota, uqRaw.type, uqRaw.unit, {precision: 2});
 
         let usageAndQuotaPercent = usageAndQuota;
         if (uqRaw.quota !== 0) {
@@ -566,7 +558,6 @@ export class UsageAndQuota {
             usageAndQuotaPercent += Math.round((usage / uqRaw.quota) * 100);
             usageAndQuotaPercent += "%)";
         }
-
 
         const onlyUsage = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, usage, {precision: 2});
         const onlyQuota = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.quota, {precision: 2});
@@ -618,7 +609,7 @@ export interface AllocationDisplayTreeRecipientOwner {
     reference: WalletOwner;
 }
 
-export const productTypesByPriority: ProductType[] = [
+export const ProductTypesByPriority: ProductType[] = [
     "COMPUTE",
     "STORAGE",
     "NETWORK_IP",
@@ -684,6 +675,7 @@ export interface AllocationDisplayTree {
     };
 }
 
+// Fri Jan 01 2100 01:00:00 GMT+0100 (Central European Standard Time)
 export const NO_EXPIRATION_FALLBACK = 4102444800353;
 
 export interface Period {
@@ -1076,48 +1068,98 @@ export function balanceToString(
     return balanceToStringFromUnit(unit.productType, unit.name, normalizedBalance, opts)
 }
 
-export function balanceToStringFromUnit(
+export function truncateValues(
+    normalizedBalances: number[],
     productType: ProductType,
     unit: string,
-    normalizedBalance: number,
-    opts?: {precision?: number, removeUnitIfPossible?: boolean}
-): string {
+    opts?: {removeUnitIfPossible?: boolean}
+): {truncated: number[]; attachedSuffix: string | null, unitToDisplay: string, canRemoveUnit: boolean} {
     let canRemoveUnit = opts?.removeUnitIfPossible ?? false;
-    let balanceToDisplay = normalizedBalance;
+    let balanceToDisplay = Math.max(...normalizedBalances);
+
+    let truncated = [...normalizedBalances];
     let unitToDisplay = unit;
     let attachedSuffix: string | null = null;
 
-    const storageUnitSiIdx = standardStorageUnitsSi.indexOf(unit);
-    const storageUnitIdx = standardStorageUnits.indexOf(unit);
+    const storageUnitSiIdx = StandardStorageUnitsSi.indexOf(unit);
+    const storageUnitIdx = StandardStorageUnits.indexOf(unit);
     if (productType === "STORAGE" && (storageUnitSiIdx !== -1 || storageUnitIdx !== -1)) {
         canRemoveUnit = false;
         const base = storageUnitIdx !== -1 ? 1024 : 1000;
-        const array = storageUnitIdx !== -1 ? standardStorageUnits : standardStorageUnitsSi;
+        const array = storageUnitIdx !== -1 ? StandardStorageUnits : StandardStorageUnitsSi;
         let idx = storageUnitIdx !== -1 ? storageUnitIdx : storageUnitSiIdx;
 
         while (balanceToDisplay > base && idx < array.length - 1) {
             balanceToDisplay /= base;
+            for (let i = 0; i < truncated.length; i++) {
+                truncated[i] /= base;
+            }
             idx++;
         }
 
         unitToDisplay = array[idx];
     } else {
         let threshold = 1000;
-        if (probablyCurrencies.indexOf(unitToDisplay) !== -1) threshold = 1000000;
+        if (ProbablyCurrencies.indexOf(unitToDisplay) !== -1) threshold = 1000000;
 
-        if (normalizedBalance >= threshold) {
+        if (balanceToDisplay >= threshold) {
             let idx = -1;
-            while (balanceToDisplay >= 1000 && idx < defaultUnits.length - 1) {
+            while (balanceToDisplay >= 1000 && idx < DefaultUnits.length - 1) {
                 balanceToDisplay /= 1000;
+                for (let i = 0; i < truncated.length; i++) {
+                    truncated[i] /= 1000;
+                }
                 idx++;
             }
 
-            attachedSuffix = defaultUnits[idx];
+            attachedSuffix = DefaultUnits[idx];
         }
     }
 
+    return {truncated, attachedSuffix, unitToDisplay, canRemoveUnit};
+}
+
+function formatUsageAndQuota(usage: number, quota: number, productType: ProductType, unit: string, opts?: {precision?: number, removeUnitIfPossible?: boolean}): string {
+    const {truncated, attachedSuffix, unitToDisplay, canRemoveUnit} = truncateValues([usage, quota], productType, unit, opts);
+    const [truncatedUsage, truncatedQuota] = truncated;
+
+    let usageAndQuota = fmt(truncatedUsage, opts?.precision);
+    usageAndQuota += "/";
+    usageAndQuota += fmt(truncatedQuota, opts?.precision);
+    usageAndQuota += "  ";
+
+    if (attachedSuffix) {
+        usageAndQuota += `${attachedSuffix} `;
+    }
+
+    if (!canRemoveUnit) {
+        usageAndQuota += `${unitToDisplay}`;
+    }
+
+    return usageAndQuota;
+}
+
+function fmt(val: number, precision: number = 2): string {
+    return addThousandSeparators(removeSuffix(val.toFixed(precision), ".00"))
+}
+
+export function balanceToStringFromUnit(
+    productType: ProductType,
+    unit: string,
+    normalizedBalance: number,
+    opts?: {precision?: number, removeUnitIfPossible?: boolean}
+): string {
+    const {
+        attachedSuffix,
+        truncated,
+        unitToDisplay,
+        canRemoveUnit
+    } = truncateValues([normalizedBalance], productType, unit, opts);
+
+    const [balanceToDisplay] = truncated;
+
     let builder = "";
-    builder += addThousandSeparators(removeSuffix(balanceToDisplay.toFixed(opts?.precision ?? 2), ".00"));
+    builder += fmt(balanceToDisplay, opts?.precision);
     if (attachedSuffix) builder += attachedSuffix;
     if (!canRemoveUnit) {
         builder += " ";
