@@ -1535,6 +1535,7 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
             header("name", "Name", true),
             header("timestamp", "Time", true),
             header("usage", "Usage", true),
+            header("quota", "Quota", true),
         ], projectTitle(project));
     }, [tableContent, project]);
 
@@ -1547,7 +1548,7 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
         toggleSeriesEntry(chart, productName, {current: shownEntries}, updateShownEntries);
     }, [chartId, charts, shownProducts]);
 
-    const sorted = useSorting(tableContent, "usage");
+    const sorted = useSorting(tableContent, "usage", "desc");
 
     const shownProductNames = shownProducts.map(it => it.name);
 
