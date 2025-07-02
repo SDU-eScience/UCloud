@@ -678,6 +678,7 @@ function Visualization(): React.ReactNode {
                                 period={state.selectedPeriod}
                                 charts={state.activeDashboard.breakdownByProject} />
                             <UsageOverTimePanel
+                                unit={state.activeDashboard.activeUnit}
                                 setBreakdown={setBreakdown}
                                 selectedBreakdown={state.activeDashboard.selectedBreakdown}
                                 period={state.selectedPeriod}
@@ -1406,6 +1407,7 @@ const UsageOverTimePanel: React.FunctionComponent<{
     isLoading: boolean;
     selectedBreakdown: string;
     setBreakdown(projectId: string): void;
+    unit: string;
     period: Period;
 }> = ({charts, isLoading, ...props}) => {
 
@@ -1498,7 +1500,7 @@ const UsageOverTimePanel: React.FunctionComponent<{
         {!anyData ? <Text>No usage data found</Text> : (
             <div className={ChartAndTable}>
                 <DynamicallySizedChart key={ChartID + chartCounter.current} chart={chartProps} />
-                <DifferenceTable chartId={ChartID + chartCounter.current} charts={charts} updateShownEntries={toggleShownEntries} shownEntries={shownEntries} exportRef={exportRef} />
+                <DifferenceTable chartId={ChartID + chartCounter.current} unit={props.unit} charts={charts} updateShownEntries={toggleShownEntries} shownEntries={shownEntries} exportRef={exportRef} />
             </div>
         )}
     </div >;
@@ -1514,7 +1516,14 @@ function maxDaysDifference(charts: UsageChart[]) {
     return maxDateRange === 0 ? 0 : maxDateRange + 1;
 }
 
-function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownEntries}: {updateShownEntries: (args: boolean | string[]) => void; charts: UsageChart[]; shownEntries: string[]; exportRef: React.RefObject<() => void>; chartId: string;}) {
+function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownEntries, ...props}: {
+    updateShownEntries: (args: boolean | string[]) => void;
+    charts: UsageChart[];
+    shownEntries: string[];
+    exportRef: React.RefObject<() => void>;
+    chartId: string;
+    unit: string;
+}) {
     /* TODO(Jonas): Provider _should_ also be here, right? */
     const shownProducts = React.useMemo(() => charts.filter(chart => shownEntries.includes(chart.name)), [charts, shownEntries]);
 
@@ -1570,7 +1579,7 @@ function DifferenceTable({charts, shownEntries, exportRef, chartId, updateShownE
                     return <tr key={idx} style={{cursor: "pointer"}}>
                         <td onClick={() => toggleChart(point.name)}>{point.name}</td>
                         <td>{dateToString(point.timestamp)}</td>
-                        <td>{Accounting.addThousandSeparators(point.usage.toFixed(2))} / {Accounting.addThousandSeparators(point.quota.toFixed(2))} </td>
+                        <td style={{whiteSpace: "pre"}}>{Accounting.formatUsageAndQuota(point.usage, point.quota, props.unit === "GB", props.unit, {precision: 2})}</td>
                     </tr>;
                 })}
             </tbody>

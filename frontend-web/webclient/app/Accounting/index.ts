@@ -549,8 +549,7 @@ export class UsageAndQuota {
         const maxUsableBalance = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.maxUsable, {precision: 2});
         const currentBalance = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.quota - usage, {precision: 2});
 
-
-        const usageAndQuota = formatUsageAndQuota(usage, uqRaw.quota, uqRaw.type, uqRaw.unit, {precision: 2});
+        const usageAndQuota = formatUsageAndQuota(usage, uqRaw.quota, uqRaw.type === "STORAGE", uqRaw.unit, {precision: 2});
 
         let usageAndQuotaPercent = usageAndQuota;
         if (uqRaw.quota !== 0) {
@@ -1070,7 +1069,7 @@ export function balanceToString(
 
 export function truncateValues(
     normalizedBalances: number[],
-    productType: ProductType,
+    isStorage: boolean,
     unit: string,
     opts?: {removeUnitIfPossible?: boolean}
 ): {truncated: number[]; attachedSuffix: string | null, unitToDisplay: string, canRemoveUnit: boolean} {
@@ -1083,7 +1082,7 @@ export function truncateValues(
 
     const storageUnitSiIdx = StandardStorageUnitsSi.indexOf(unit);
     const storageUnitIdx = StandardStorageUnits.indexOf(unit);
-    if (productType === "STORAGE" && (storageUnitSiIdx !== -1 || storageUnitIdx !== -1)) {
+    if (isStorage && (storageUnitSiIdx !== -1 || storageUnitIdx !== -1)) {
         canRemoveUnit = false;
         const base = storageUnitIdx !== -1 ? 1024 : 1000;
         const array = storageUnitIdx !== -1 ? StandardStorageUnits : StandardStorageUnitsSi;
@@ -1119,8 +1118,8 @@ export function truncateValues(
     return {truncated, attachedSuffix, unitToDisplay, canRemoveUnit};
 }
 
-function formatUsageAndQuota(usage: number, quota: number, productType: ProductType, unit: string, opts?: {precision?: number, removeUnitIfPossible?: boolean}): string {
-    const {truncated, attachedSuffix, unitToDisplay, canRemoveUnit} = truncateValues([usage, quota], productType, unit, opts);
+export function formatUsageAndQuota(usage: number, quota: number, isStorage: boolean, unit: string, opts?: {precision?: number, removeUnitIfPossible?: boolean}): string {
+    const {truncated, attachedSuffix, unitToDisplay, canRemoveUnit} = truncateValues([usage, quota], isStorage, unit, opts);
     const [truncatedUsage, truncatedQuota] = truncated;
 
     let usageAndQuota = fmt(truncatedUsage, opts?.precision);
@@ -1154,7 +1153,7 @@ export function balanceToStringFromUnit(
         truncated,
         unitToDisplay,
         canRemoveUnit
-    } = truncateValues([normalizedBalance], productType, unit, opts);
+    } = truncateValues([normalizedBalance], productType === "STORAGE", unit, opts);
 
     const [balanceToDisplay] = truncated;
 
