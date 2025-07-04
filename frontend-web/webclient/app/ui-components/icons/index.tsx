@@ -1872,22 +1872,6 @@ export const ftSharesFolder = (props: any) => (
     />
   </svg>
 );
-export const fullscreen = (props: any) => (
-  <svg viewBox="0 0 500 500" fill="currentcolor" {...props}>
-    <path
-      fill="currentcolor"
-      stroke="currentcolor"
-      strokeLinejoin="round"
-      strokeWidth={20}
-      d="M10 10h190L10 200zM300 10l190 190V10zM200 490H10V300zM300 490l190-190v190z"
-    />
-    <path
-      fill="currentcolor"
-      stroke="currentcolor"
-      d="m200 160-40 40-80-80 40-40M300 160l40 40 80-80-40-40M160 300l40 40-80 80-40-40M340 300l-40 40 80 80 40-40"
-    />
-  </svg>
-);
 export const globeEuropeSolid = (props: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
