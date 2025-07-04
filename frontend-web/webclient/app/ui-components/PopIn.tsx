@@ -43,7 +43,7 @@ export function RightPopIn(): React.ReactNode {
         <Spacer
             mt="16px"
             left={<Icon color="textPrimary" cursor="pointer" pt="4px" pl="4px" hoverColor="textPrimary" name="close" onClick={() => dispatch(setPopInChild(null))} />}
-            right={content?.onFullScreen ? <Icon color="textPrimary" cursor="pointer" pt="4px" pr="4px" hoverColor="textPrimary" name="fullscreen" onClick={() => {
+            right={content?.onFullScreen ? <Icon color="textPrimary" cursor="pointer" pt="4px" pr="4px" hoverColor="textPrimary" name="heroArrowsPointingOut" onClick={() => {
                 content?.onFullScreen?.();
                 dispatch(setPopInChild(null));
             }} /> : null}

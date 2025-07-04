@@ -46,7 +46,8 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {PageV2, PaginationRequestV2} from "@/UCloud";
+import {PageV2} from "@/UCloud";
+import {addStandardDialog} from "@/UtilityComponents";
 
 let permissionProblems: Record<string, boolean> = {};
 
@@ -511,7 +512,6 @@ const ServerStatus: React.FunctionComponent<{
             const jobIdPromise = downloadFileContent(basePath + "job_id.txt").then(it => it.text());
             Promise.all([deviceIdPromise, jobIdPromise]).then(([deviceId, jobId]) => {
                 callAPI(JobsApi.retrieve({id: jobId})).then(job => {
-                    console.log(didCancel);
                     if (!didCancel) {
                         setStatus({
                             deviceId,
@@ -587,8 +587,8 @@ const ServerStatus: React.FunctionComponent<{
 
 function SyncedFolders({folders, dispatch, opts}: {
     dispatch(action: UIAction): void;
-    folders?: SyncthingFolder[],
-    opts: ResourceBrowserOpts<SyncthingFolder>
+    folders?: SyncthingFolder[];
+    opts: ResourceBrowserOpts<SyncthingFolder>;
 }): React.ReactNode {
     useEffect(() => {
         return () => {
@@ -669,6 +669,35 @@ function SyncedFolders({folders, dispatch, opts}: {
                             row.stat2.append(HTMLTooltip(permissionIcon, divText(`Some files in '${fileName(prettyPath)}' might not be synchronized due to lack of permissions.`), {tooltipContentWidth: 250}))
                         );
                     }
+
+                    const cb = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as OperationCallbacks;
+
+                    const trigger = browser.defaultButtonRenderer({
+                        onClick: res => {
+                            addStandardDialog({
+                                title: "Remove from Syncthing?",
+                                message: "This will remove the folder from synchronization",
+                                onConfirm() {
+                                    folderOperations.find(it => it.tag === "UNSYNC")?.onClick([res], cb);
+                                },
+                                confirmButtonColor: "errorMain",
+                                cancelButtonColor: "primaryMain",
+                                confirmText: "Remove",
+                            })
+                        },
+                        show: () => true,
+                        text: "",
+                    }, folder, {
+                        color: "errorMain", width: "20px", button: {
+                            name: "close", size: 18, color: "fixedWhite", color2: "fixedWhite", ml: "8px"
+                        }
+                    });
+
+                    if (trigger) {
+                        const d = divHtml("Remove from sync");
+                        const tooltip = HTMLTooltip(trigger, d, {tooltipContentWidth: 160});
+                        row.stat3.append(tooltip);
+                    }
                 });
 
                 browser.setEmptyIcon("ftFolder");
@@ -739,6 +768,7 @@ function DeviceBrowse({devices, dispatch, opts}: {
 
                     const trigger = createHTMLElements({
                         tagType: "div",
+                        style: {marginRight: "24px", marginTop: "auto", marginBottom: "auto"},
                         className: DeviceBox,
                         handlers: {
                             onClick: e => {
@@ -752,7 +782,35 @@ function DeviceBrowse({devices, dispatch, opts}: {
                         }]
                     });
                     row.stat3.append(trigger);
-                    HTMLTooltip(trigger, divHtml(`Copy device ID to clipboard`), {tooltipContentWidth: 200});
+                    HTMLTooltip(trigger, divHtml(`Copy device ID to clipboard`), {tooltipContentWidth: 300});
+
+                    const cb = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as OperationCallbacks;
+                    const buttonTrigger = browser.defaultButtonRenderer({
+                        onClick: res => {
+                            addStandardDialog({
+                                title: "Remove device from Syncthing?",
+                                message: "This will remove the device from Syncthing.",
+                                onConfirm() {
+                                    deviceOperations.find(it => it.tag === "REMOVE")?.onClick([res], cb);
+                                },
+                                confirmButtonColor: "errorMain",
+                                cancelButtonColor: "primaryMain",
+                                confirmText: "Remove",
+                            })
+                        },
+                        show: () => true,
+                        text: "",
+                    }, device, {
+                        color: "errorMain", width: "20px", button: {
+                            name: "close", size: 18, color: "fixedWhite", color2: "fixedWhite", ml: "8px"
+                        }
+                    });
+
+                    if (buttonTrigger) {
+                        const d = divHtml("Remove device");
+                        const tooltip = HTMLTooltip(buttonTrigger, d, {tooltipContentWidth: 160});
+                        row.stat3.append(tooltip);
+                    }
                 });
 
                 browser.setEmptyIcon("heroComputerDesktop");
@@ -993,6 +1051,7 @@ const deviceOperations: Operation<SyncthingDevice, OperationCallbacks>[] = [
         icon: "trash",
         color: "errorMain",
         confirm: true,
+        tag: "REMOVE",
         enabled: selected => selected.length > 0,
         onClick: (selected, cb) => {
             for (const device of selected) {
@@ -1009,6 +1068,7 @@ const folderOperations: Operation<SyncthingFolder, OperationCallbacks>[] = [
         icon: "trash",
         color: "errorMain",
         confirm: true,
+        tag: "UNSYNC",
         enabled: selected => selected.length >= 1,
         onClick: (selected, cb) => {
             for (const file of selected) {
