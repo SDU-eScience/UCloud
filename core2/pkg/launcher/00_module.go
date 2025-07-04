@@ -91,7 +91,7 @@ func Launch() {
 
 	rpc.DefaultServer.Mux = http.NewServeMux()
 
-	claimsToActor := func(subject string, project util.Option[string], claims rpc.CorePrincipalBaseClaims) (rpc.Actor, bool) {
+	claimsToActor := func(subject string, project util.Option[rpc.ProjectId], claims rpc.CorePrincipalBaseClaims) (rpc.Actor, bool) {
 		sessionReference := claims.SessionReference
 
 		var role rpc.Role
@@ -113,7 +113,7 @@ func Launch() {
 			return rpc.Actor{}, false
 		}
 
-		if _, ok := claims.Membership[rpc.ProjectId(project.Value)]; project.Present && !ok {
+		if _, ok := claims.Membership[project.Value]; project.Present && !ok {
 			project.Clear()
 		}
 
@@ -166,7 +166,11 @@ func Launch() {
 			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Token has expired")
 		}
 
-		project := util.OptStringIfNotEmpty(r.Header.Get("Project"))
+		projectHeader := r.Header.Get("Project")
+		project := util.OptNone[rpc.ProjectId]()
+		if projectHeader != "" {
+			project.Set(rpc.ProjectId(projectHeader))
+		}
 
 		actor, ok := claimsToActor(subject, project, claims.CorePrincipalBaseClaims)
 		if !ok {
@@ -191,7 +195,7 @@ func Launch() {
 		if err != nil {
 			return rpc.Actor{}, false
 		} else {
-			actor, ok := claimsToActor(username, util.OptNone[string](), resp)
+			actor, ok := claimsToActor(username, util.OptNone[rpc.ProjectId](), resp)
 			return actor, ok
 		}
 	}

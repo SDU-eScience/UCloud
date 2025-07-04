@@ -26,16 +26,7 @@ func (gw *GateWay) Build(cb ComposeBuilder) {
 	core2Config := ""
 	if UseCore2Experimental() {
 		core2Config = TrimIndent(`
-			reverse_proxy /api/avatar/* core2:8080
-			reverse_proxy /api/news/* core2:8080
-			reverse_proxy /api/notifications/* core2:8080
-			reverse_proxy /api/mail/* core2:8080
-			reverse_proxy /api/sla/* core2:8080
-			reverse_proxy /api/sla core2:8080
-			reverse_proxy /api/projects/* core2:8080
-			reverse_proxy /api/accounting/* core2:8080
-			reverse_proxy /api/grants/* core2:8080
-			reverse_proxy /api/gifts/* core2:8080
+			reverse_proxy /api/* core2:8080
 			reverse_proxy /auth/* core2:8080
 		`)
 	} else if UseCore2() {

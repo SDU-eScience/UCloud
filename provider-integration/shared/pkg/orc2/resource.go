@@ -185,11 +185,18 @@ type UpdatedAcl struct {
 	Deleted []AclEntity        `json:"deleted"`
 }
 
+type UpdatedAclWithResource[R any] struct {
+	Resource R                  `json:"resource"`
+	Added    []ResourceAclEntry `json:"added"`
+	Deleted  []AclEntity        `json:"deleted"`
+}
+
 type SupportByProvider[S any] struct {
 	ProductsByProvider map[string][]ResolvedSupport[S] `json:"productsByProvider"`
 }
 
 type ResolvedSupport[S any] struct {
-	Product acc.ProductV2 `json:"product"`
-	Support S             `json:"support"`
+	Product  acc.ProductV2 `json:"product"`
+	Support  S             `json:"support"`  // being deprecated in favor of Features
+	Features []string      `json:"features"` // use instead of Support
 }

@@ -108,6 +108,10 @@ type BulkResponse[T any] struct {
 	Responses []T `json:"responses,omitempty"`
 }
 
+func BulkRequestOf[T any](items ...T) BulkRequest[T] {
+	return BulkRequest[T]{Items: items}
+}
+
 type Timestamp time.Time
 
 func (t *Timestamp) UnmarshalJSON(data []byte) (err error) {

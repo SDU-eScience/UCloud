@@ -30,7 +30,7 @@ func actor(username, project string) *rpc.Actor {
 	}
 
 	if project != "" {
-		result.Project.Set(project)
+		result.Project.Set(rpc.ProjectId(project))
 		result.Membership[rpc.ProjectId(project)] = rpc.ProjectRoleAdmin
 	}
 

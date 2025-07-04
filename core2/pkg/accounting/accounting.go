@@ -173,7 +173,7 @@ func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, 
 
 	projectId, ok := actor.ProviderProjects[rpc.ProviderId(request.Category.Provider)]
 
-	if !ok || string(projectId) != actor.Project.Value {
+	if !ok || projectId != actor.Project.Value {
 		return "", util.HttpErr(http.StatusForbidden, "You are not allowed to create a root allocation!")
 	}
 
@@ -191,7 +191,7 @@ func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, 
 	now := time.Now()
 
 	bucket := internalBucketOrInit(category)
-	recipientOwner := internalOwnerByReference(actor.Project.Value)
+	recipientOwner := internalOwnerByReference(string(actor.Project.Value))
 	recipient := internalWalletByOwner(bucket, now, recipientOwner.Id)
 
 	id, err := internalAllocate(
@@ -265,7 +265,10 @@ func validateOwner(owner accapi.WalletOwner) bool {
 }
 
 func WalletsBrowse(actor rpc.Actor, request accapi.WalletsBrowseRequest) fndapi.PageV2[accapi.WalletV2] {
-	reference := actor.Project.GetOrDefault(actor.Username)
+	reference := actor.Username
+	if actor.Project.Present {
+		reference = string(actor.Project.Value)
+	}
 	allWallets := internalRetrieveWallets(time.Now(), reference, walletFilter{RequireActive: false})
 
 	result := fndapi.PageV2[accapi.WalletV2]{}

@@ -1,7 +1,7 @@
 package orchestrators
 
 import (
-	"ucloud.dk/shared/pkg/apm"
+	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -49,59 +49,6 @@ type ShareSupport struct {
 type ShareType string
 
 const ShareTypeManaged ShareType = "UCLOUD_MANAGED_COLLECTION"
-
-type Drive struct {
-	Resource
-	Specification DriveSpecification `json:"specification"`
-	Updates       []ResourceUpdate   `json:"updates"`
-}
-
-func DriveIdFromUCloudPath(path string) (string, bool) {
-	components := util.Components(path)
-	if len(components) == 0 {
-		return "", false
-	}
-
-	driveId := components[0]
-	return driveId, true
-}
-
-type DriveSpecification struct {
-	Title   string               `json:"title"`
-	Product apm.ProductReference `json:"product"`
-}
-
-type FSSupport struct {
-	Product apm.ProductReference `json:"product"`
-
-	Stats struct {
-		SizeInBytes                  bool `json:"sizeInBytes"`
-		SizeIncludingChildrenInBytes bool `json:"sizeIncludingChildrenInBytes"`
-		ModifiedAt                   bool `json:"modifiedAt"`
-		CreatedAt                    bool `json:"createdAt"`
-		AccessedAt                   bool `json:"accessedAt"`
-		UnixPermissions              bool `json:"unixPermissions"`
-		UnixOwner                    bool `json:"unixOwner"`
-		UnixGroup                    bool `json:"unixGroup"`
-	} `json:"stats"`
-
-	Collection struct {
-		AclModifiable  bool `json:"aclModifiable"`
-		UsersCanCreate bool `json:"usersCanCreate"`
-		UsersCanDelete bool `json:"usersCanDelete"`
-		UsersCanRename bool `json:"usersCanRename"`
-	} `json:"collection"`
-
-	Files struct {
-		AclModifiable            bool `json:"aclModifiable"`
-		TrashSupported           bool `json:"trashSupported"`
-		IsReadOnly               bool `json:"isReadOnly"`
-		SearchSupported          bool `json:"searchSupported"`
-		StreamingSearchSupported bool `json:"streamingSearchSupported"`
-		SharesSupported          bool `json:"sharesSupported"`
-		OpenInTerminal           bool `json:"openInTerminal"`
-	} `json:"files"`
-}
 
 type ProviderFile struct {
 	Id                string        `json:"id,omitempty"`
@@ -165,88 +112,6 @@ const (
 	UploadProtocolWebSocketV1 UploadProtocol = "WEBSOCKET_V1"
 	UploadProtocolWebSocketV2 UploadProtocol = "WEBSOCKET_V2"
 )
-
-type MemberFilesFilter string
-
-const (
-	MemberFilesShowMine    MemberFilesFilter = "SHOW_ONLY_MINE"
-	MemberFilesShowMembers MemberFilesFilter = "SHOW_ONLY_MEMBER_FILES"
-	MemberFilesNoFilter    MemberFilesFilter = "DONT_FILTER_COLLECTIONS"
-)
-
-type DriveFlags struct {
-	ResourceFlags
-	FilterMemberFiles util.Option[MemberFilesFilter] `json:"filterMemberFiles"`
-}
-
-// Drive API
-// =====================================================================================================================
-
-const driveNamespace = "files/collections"
-
-var DrivesCreate = rpc.Call[fnd.BulkRequest[DriveSpecification], fnd.BulkResponse[fnd.FindByStringId]]{
-	BaseContext: driveNamespace,
-	Convention:  rpc.ConventionCreate,
-	Roles:       rpc.RolesEndUser,
-}
-
-var DrivesDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
-	BaseContext: driveNamespace,
-	Convention:  rpc.ConventionDelete,
-	Roles:       rpc.RolesEndUser,
-}
-
-type DrivesSearchRequest struct {
-	ItemsPerPage int                 `json:"itemsPerPage"`
-	Next         util.Option[string] `json:"next"`
-	Query        string              `json:"query"`
-
-	DriveFlags
-}
-
-var DrivesSearch = rpc.Call[DrivesSearchRequest, fnd.PageV2[Drive]]{
-	BaseContext: driveNamespace,
-	Convention:  rpc.ConventionSearch,
-	Roles:       rpc.RolesEndUser,
-}
-
-type DrivesBrowseRequest struct {
-	ItemsPerPage int                 `json:"itemsPerPage"`
-	Next         util.Option[string] `json:"next"`
-
-	DriveFlags
-}
-
-var DrivesBrowse = rpc.Call[DrivesBrowseRequest, fnd.PageV2[Drive]]{
-	BaseContext: driveNamespace,
-	Convention:  rpc.ConventionBrowse,
-	Roles:       rpc.RolesEndUser,
-}
-
-type DrivesRetrieveRequest struct {
-	Id string
-	DriveFlags
-}
-
-var DrivesRetrieve = rpc.Call[DrivesRetrieveRequest, Drive]{
-	BaseContext: driveNamespace,
-	Convention:  rpc.ConventionRetrieve,
-	Roles:       rpc.RolesEndUser,
-}
-
-var DrivesUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[util.Empty]]{
-	BaseContext: driveNamespace,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
-	Operation:   "updateAcl",
-}
-
-var DrivesRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[FSSupport]]{
-	BaseContext: driveNamespace,
-	Convention:  rpc.ConventionRetrieve,
-	Roles:       rpc.RolesEndUser,
-	Operation:   "products",
-}
 
 // File API
 // =====================================================================================================================

@@ -73,7 +73,7 @@ func ProviderRefreshAsOrchestrator(id string) (fndapi.AccessTokenAndCsrf, *util.
 				where id = :id
 		    `,
 			db.Params{
-				"role": id,
+				"id": id,
 			},
 		)
 
@@ -181,8 +181,16 @@ func readPrivateKey(content string) (*rsa.PrivateKey, error) {
 		return nil, fmt.Errorf("invalid key")
 	}
 
-	result, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-	return result, err
+	result, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err == nil {
+		privKey, ok := result.(*rsa.PrivateKey)
+		if ok {
+			return privKey, nil
+		} else {
+			return nil, fmt.Errorf("not an rsa key?")
+		}
+	}
+	return nil, err
 }
 
 func chunkString(input string, chunkSize int) string {

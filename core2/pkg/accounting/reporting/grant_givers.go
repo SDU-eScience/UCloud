@@ -69,12 +69,6 @@ var grantGivers = map[string]GrantGiver{
 			UniversityCode: DeicUniversityRUC,
 		},
 	},
-	/*
-		"e37a704e-34e3-4f11-931c-2ecf3f07ffcb": {
-			Title: "Type 1",
-			Deic: DeicGrantGiver{
-				Access: DeicAccessNational,
-			},
-		},
-	*/
+
+	// NOTE(Dan): Do not add the Type 1 root here since that will break the aggregates in the report generator
 }
