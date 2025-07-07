@@ -823,7 +823,7 @@ function handleSyncthingWarning(files: UFile[], cb: ExtraFileCallbacks, op: () =
             title: "Syncthing warning",
             message: <div>
                 {operationText} the folder(s) will break Syncthing synchronization for this folder.
-                {["Moving", "Renaming"].includes(operationText) ?
+                {(["Moving", "Renaming"] as typeof operationText[]).includes(operationText) ?
                     <div>
                         <br />
                         To learn how to move a folder or rename a folder with Syncthing, click <ExternalLink href={"https://docs.syncthing.net/users/faq.html#how-do-i-rename-move-a-synced-folder"}>here</ExternalLink>.
