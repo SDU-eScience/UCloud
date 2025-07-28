@@ -232,7 +232,7 @@ func Launch() {
 				handler, _ := im.Args.ServerMultiplexer.Handler(request)
 				newWriter := NewLoggingResponseWriter(writer)
 				handler.ServeHTTP(newWriter, request)
-				log.Info("%v %v %v", request.Method, request.RequestURI, newWriter.statusCode)
+				log.Info("%v %v %v", request.Method, request.URL.Path, newWriter.statusCode)
 			}),
 		)
 
