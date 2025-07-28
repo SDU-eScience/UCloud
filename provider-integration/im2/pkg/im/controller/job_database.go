@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 	"slices"
 	"sync"
 	"time"
@@ -593,7 +594,7 @@ func fetchAllJobs(state orc.JobState) {
 
 		if err != nil {
 			log.Warn("Failed to fetch jobs: %v", err)
-			break
+			os.Exit(1)
 		}
 
 		for i := 0; i < len(page.Items); i++ {
