@@ -181,23 +181,57 @@ func (c *Client) RetrieveAccessTokenOrRefresh() string {
 		return c.AccessToken
 	}
 
-	uri := fmt.Sprintf("%v/auth/refresh", c.BasePath)
-	refreshReq, err := http.NewRequest(http.MethodPost, uri, nil)
+	var client *http.Client
+	var refreshReq *http.Request
+	var err error
+
+	if !c.CoreForProvider.Present {
+		uri := fmt.Sprintf("%v/auth/refresh", c.BasePath)
+		refreshReq, err = http.NewRequest(http.MethodPost, uri, nil)
+		if err == nil {
+			refreshReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.RefreshToken))
+		}
+
+		client = c.Client
+	} else {
+		// NOTE(Dan): This needs to use the default client for the refresh call
+
+		type refreshReqItem struct {
+			ProviderId string `json:"providerId"`
+		}
+		type req struct {
+			Items []refreshReqItem `json:"items"`
+		}
+
+		bodyRequest := req{}
+		bodyRequest.Items = append(bodyRequest.Items, refreshReqItem{ProviderId: c.CoreForProvider.Value})
+
+		bodyData, _ := json.Marshal(bodyRequest)
+
+		uri := fmt.Sprintf("%v/auth/providers/refreshAsOrchestrator", DefaultClient.BasePath)
+		accessTok := DefaultClient.RetrieveAccessTokenOrRefresh()
+		refreshReq, err = http.NewRequest(http.MethodPost, uri, bytes.NewReader(bodyData))
+
+		if err == nil {
+			refreshReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessTok))
+		}
+
+		client = DefaultClient.Client
+	}
+
 	if err != nil {
-		log.Warn("Failed to create refresh request: %v. We are returning an invalid access token! (Uri=%v)", err, uri)
+		log.Warn("Failed to create refresh request: %v. We are returning an invalid access token!", err)
 		return ""
 	}
 
-	refreshReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.RefreshToken))
-
-	resp, err := c.Client.Do(refreshReq)
+	resp, err := client.Do(refreshReq)
 	if err != nil {
 		log.Warn("Failed to refresh authentication token: %v. We are returning an invalid access token!", err)
 		return ""
 	}
 
 	if !isOkay(resp.StatusCode) {
-		log.Warn("Failed to refresh authentication token: status=%v. We are returning an invalid access token! (Uri=%v)", resp.StatusCode, uri)
+		log.Warn("Failed to refresh authentication token: status=%v. We are returning an invalid access token!", resp.StatusCode)
 		return ""
 	}
 
@@ -209,18 +243,35 @@ func (c *Client) RetrieveAccessTokenOrRefresh() string {
 		return ""
 	}
 
-	type AccessTokenAndCsrf struct {
-		AccessToken string `json:"accessToken"`
-		CsrfToken   string `json:"csrfToken"`
-	}
-	tok := AccessTokenAndCsrf{}
-	err = json.Unmarshal(data, &tok)
-	if err != nil || tok.AccessToken == "" {
-		log.Warn("Failed to read unmarshall refreshed auth token: %v", err)
-		return ""
-	}
+	if !c.CoreForProvider.Present {
+		type AccessTokenAndCsrf struct {
+			AccessToken string `json:"accessToken"`
+			CsrfToken   string `json:"csrfToken"`
+		}
+		tok := AccessTokenAndCsrf{}
+		err = json.Unmarshal(data, &tok)
+		if err != nil || tok.AccessToken == "" {
+			log.Warn("Failed to read unmarshall refreshed auth token: %v", err)
+			return ""
+		}
 
-	c.AccessToken = tok.AccessToken
+		c.AccessToken = tok.AccessToken
+	} else {
+		type Response struct {
+			Responses []struct {
+				AccessToken string `json:"accessToken"`
+			} `json:"responses"`
+		}
+
+		tok := Response{}
+		err = json.Unmarshal(data, &tok)
+		if err != nil || len(tok.Responses) == 0 || tok.Responses[0].AccessToken == "" {
+			log.Warn("Failed to read unmarshall refreshed auth token: %v", err)
+			return ""
+		}
+
+		c.AccessToken = tok.Responses[0].AccessToken
+	}
 	return c.AccessToken
 }
 
@@ -255,7 +306,15 @@ func capitalized(s string) string {
 }
 
 func CallViaQuery(c *Client, path string, parameters []string) Response {
+	return CallViaQueryEx(c, path, parameters, InvokeOpts{})
+}
+
+func CallViaQueryEx(c *Client, path string, parameters []string, opts InvokeOpts) Response {
 	path, _ = strings.CutSuffix(path, "/")
+
+	if c.CoreForProvider.Present {
+		path = strings.ReplaceAll(path, ProviderPlaceholder, c.CoreForProvider.Value)
+	}
 
 	query := ""
 	if parameters != nil {
@@ -269,6 +328,7 @@ func CallViaQuery(c *Client, path string, parameters []string) Response {
 	}
 
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %v", c.RetrieveAccessTokenOrRefresh()))
+	handleOpts(request, opts)
 	do, err := c.Client.Do(request)
 	if err != nil {
 		// TODO log this?
@@ -279,7 +339,15 @@ func CallViaQuery(c *Client, path string, parameters []string) Response {
 }
 
 func CallViaJsonBody(c *Client, method, path string, payload any) Response {
+	return CallViaJsonBodyEx(c, method, path, payload, InvokeOpts{})
+}
+
+func CallViaJsonBodyEx(c *Client, method, path string, payload any, opts InvokeOpts) Response {
 	path, _ = strings.CutSuffix(path, "/")
+
+	if c.CoreForProvider.Present {
+		path = strings.ReplaceAll(path, ProviderPlaceholder, c.CoreForProvider.Value)
+	}
 
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
@@ -293,6 +361,9 @@ func CallViaJsonBody(c *Client, method, path string, payload any) Response {
 	}
 
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %v", c.RetrieveAccessTokenOrRefresh()))
+
+	handleOpts(request, opts)
+
 	do, err := c.Client.Do(request)
 	if err != nil {
 		return Response{StatusCode: http.StatusBadGateway}
@@ -301,6 +372,22 @@ func CallViaJsonBody(c *Client, method, path string, payload any) Response {
 	return Response{StatusCode: do.StatusCode, Response: do.Body}
 }
 
+func handleOpts(request *http.Request, opts InvokeOpts) {
+	if opts.Headers != nil {
+		for k, values := range opts.Headers {
+			for i, v := range values {
+				if i == 0 {
+					request.Header.Set(k, v)
+				} else {
+					request.Header.Add(k, v)
+				}
+			}
+		}
+	}
+}
+
 func isOkay(code int) bool {
 	return code >= 200 && code <= 299
 }
+
+const ProviderPlaceholder = "PROVIDER_ID"

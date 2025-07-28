@@ -27,7 +27,7 @@ var LookupActor func(username string) (Actor, bool) = func(username string) (Act
 type Actor struct {
 	Username         string
 	Role             Role
-	Project          util.Option[string]
+	Project          util.Option[ProjectId]
 	TokenInfo        util.Option[TokenInfo]
 	Membership       ProjectMembership // TODO implement this
 	Groups           GroupMembership   // TODO implement this
@@ -116,10 +116,11 @@ type Server struct {
 }
 
 type Client struct {
-	RefreshToken string
-	AccessToken  string
-	BasePath     string
-	Client       *http.Client
+	RefreshToken    string
+	AccessToken     string
+	BasePath        string
+	Client          *http.Client
+	CoreForProvider util.Option[string]
 
 	refreshMutex sync.Mutex
 }
@@ -141,18 +142,56 @@ type Call[Req any, Resp any] struct {
 }
 
 func rpcBaseContext(context string) string {
-	if !strings.HasPrefix(context, "auth") {
+	if !strings.HasPrefix(context, "auth") && !strings.HasPrefix(context, "ucloud/") {
 		return fmt.Sprintf("api/%s", context)
 	} else {
 		return context
 	}
 }
 
-func (c *Call[Req, Resp]) Invoke(request Req) (Resp, *util.HttpError) {
-	return c.InvokeEx(DefaultClient, request)
+func (c *Call[Req, Resp]) FullName() string {
+	result := strings.Builder{}
+	result.WriteString(strings.ReplaceAll(c.BaseContext, "/", "."))
+	result.WriteString(".")
+
+	hasConventionName := true
+	switch c.Convention {
+	case ConventionRetrieve:
+		result.WriteString("retrieve")
+	case ConventionDelete:
+		result.WriteString("delete")
+	case ConventionCreate:
+		result.WriteString("create")
+	case ConventionBrowse:
+		result.WriteString("browse")
+	case ConventionSearch:
+		result.WriteString("search")
+	default:
+		hasConventionName = false
+	}
+
+	if hasConventionName {
+		name := []rune(c.Operation)
+		if len(name) > 0 {
+			result.WriteRune(name[0])
+			result.WriteString(string(name[1:]))
+		}
+	} else {
+		result.WriteString(c.Operation)
+	}
+
+	return result.String()
 }
 
-func (c *Call[Req, Resp]) InvokeEx(client *Client, request Req) (Resp, *util.HttpError) {
+func (c *Call[Req, Resp]) Invoke(request Req) (Resp, *util.HttpError) {
+	return c.InvokeEx(DefaultClient, request, InvokeOpts{})
+}
+
+type InvokeOpts struct {
+	Headers http.Header
+}
+
+func (c *Call[Req, Resp]) InvokeEx(client *Client, request Req, opts InvokeOpts) (Resp, *util.HttpError) {
 	var result Resp
 	var err *util.HttpError
 
@@ -313,6 +352,11 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 		}
 
 		if AuditConsumer != nil {
+			stringProject := util.OptNone[string]()
+			if actor.Project.Present {
+				stringProject.Set(string(actor.Project.Value))
+			}
+
 			ev := HttpCallLogEntry{
 				JobId: util.OptStringIfNotEmpty(r.Header.Get("Job-Id")).GetOrDefault(util.RandomTokenNoTs(8)),
 				HandledBy: ServiceInstance{
@@ -324,12 +368,12 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 					Port:     8080,
 				},
 				CausedBy:     util.OptNone[string](),
-				RequestName:  fmt.Sprintf("%s.%s", c.BaseContext, c.Operation),
+				RequestName:  c.FullName(),
 				UserAgent:    util.OptStringIfNotEmpty(r.Header.Get("User-Agent")),
 				RemoteOrigin: r.RemoteAddr,
 				Token:        util.Option[SecurityPrincipalToken]{},
 				ResponseTime: uint64(end.Sub(start).Milliseconds()),
-				Project:      actor.Project,
+				Project:      stringProject,
 			}
 
 			token := SecurityPrincipalToken{

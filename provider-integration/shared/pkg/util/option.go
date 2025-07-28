@@ -125,6 +125,14 @@ func OptSqlStringIfNotEmpty(value string) sql.NullString {
 	}
 }
 
+func SqlNullStringToOpt(value sql.NullString) Option[string] {
+	if value.Valid {
+		return OptValue(value.String)
+	} else {
+		return OptNone[string]()
+	}
+}
+
 func OptDefaultOrMap[T any, R any](opt Option[T], defaultValue R, mapper func(val T) R) R {
 	if opt.Present {
 		return mapper(opt.Value)

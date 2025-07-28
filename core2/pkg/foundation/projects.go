@@ -135,7 +135,7 @@ func initProjects() {
 		}
 
 		for _, reqItem := range request.Items {
-			err := projectRemoveMember(info.Actor, info.Actor.Project.Value, reqItem.Username, nil)
+			err := projectRemoveMember(info.Actor, string(info.Actor.Project.Value), reqItem.Username, nil)
 			if err != nil {
 				return util.Empty{}, err
 			}
@@ -740,7 +740,7 @@ func ProjectToggleFavorite(actor rpc.Actor, projectId string) *util.HttpError {
 }
 
 func ProjectUpdateSettings(actor rpc.Actor, settings fndapi.ProjectSettings) *util.HttpError {
-	_, iproject, err := projectRetrieve(actor, actor.Project.Value, projectFlagsAll, fndapi.ProjectRoleAdmin)
+	_, iproject, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll, fndapi.ProjectRoleAdmin)
 	if err != nil {
 		return err
 	}
@@ -777,7 +777,7 @@ func ProjectChangeRole(actor rpc.Actor, request fndapi.ProjectMemberChangeRoleRe
 		piTransfer = true
 	}
 
-	_, iproject, err := projectRetrieve(actor, actor.Project.Value, projectFlagsAll, requiredRole)
+	_, iproject, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll, requiredRole)
 	if err != nil {
 		return err
 	}
@@ -879,7 +879,7 @@ func ProjectCreateGroup(actor rpc.Actor, spec fndapi.ProjectGroupSpecification) 
 }
 
 func ProjectRenameGroup(actor rpc.Actor, id string, newTitle string) *util.HttpError {
-	_, iproject, err := projectRetrieve(actor, actor.Project.Value, projectFlagsAll, fndapi.ProjectRoleAdmin)
+	_, iproject, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll, fndapi.ProjectRoleAdmin)
 	if err != nil {
 		return err
 	}
@@ -921,7 +921,7 @@ func ProjectRenameGroup(actor rpc.Actor, id string, newTitle string) *util.HttpE
 }
 
 func ProjectDeleteGroup(actor rpc.Actor, id string) *util.HttpError {
-	_, iproject, err := projectRetrieve(actor, actor.Project.Value, projectFlagsAll, fndapi.ProjectRoleAdmin)
+	_, iproject, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll, fndapi.ProjectRoleAdmin)
 	if err != nil {
 		return err
 	}
@@ -1001,7 +1001,7 @@ func ProjectDeleteGroup(actor rpc.Actor, id string) *util.HttpError {
 
 func ProjectRetrieveGroup(actor rpc.Actor, groupId string) (fndapi.ProjectGroup, *util.HttpError) {
 	var result fndapi.ProjectGroup
-	_, iproject, err := projectRetrieve(actor, actor.Project.Value, projectFlagsAll, fndapi.ProjectRoleUser)
+	_, iproject, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll, fndapi.ProjectRoleUser)
 	if err != nil {
 		return result, err
 	}
@@ -1020,7 +1020,7 @@ func ProjectRetrieveGroup(actor rpc.Actor, groupId string) (fndapi.ProjectGroup,
 }
 
 func ProjectCreateGroupMember(actor rpc.Actor, groupId string, memberToAdd string) *util.HttpError {
-	_, iproject, err := projectRetrieve(actor, actor.Project.Value, projectFlagsAll, fndapi.ProjectRoleAdmin)
+	_, iproject, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll, fndapi.ProjectRoleAdmin)
 	if err != nil {
 		return err
 	}
@@ -1062,7 +1062,7 @@ func ProjectCreateGroupMember(actor rpc.Actor, groupId string, memberToAdd strin
 }
 
 func ProjectDeleteGroupMember(actor rpc.Actor, groupId string, memberToRemove string) *util.HttpError {
-	_, iproject, err := projectRetrieve(actor, actor.Project.Value, projectFlagsAll, fndapi.ProjectRoleAdmin)
+	_, iproject, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll, fndapi.ProjectRoleAdmin)
 	if err != nil {
 		return err
 	}
@@ -1105,7 +1105,7 @@ func ProjectDeleteGroupMember(actor rpc.Actor, groupId string, memberToRemove st
 
 func ProjectCreateInviteLink(actor rpc.Actor) (fndapi.ProjectInviteLink, *util.HttpError) {
 	projectId := actor.Project.GetOrDefault("")
-	_, p, err := projectRetrieve(actor, projectId, projectFlagsAll, fndapi.ProjectRoleAdmin)
+	_, p, err := projectRetrieve(actor, string(projectId), projectFlagsAll, fndapi.ProjectRoleAdmin)
 	if err != nil {
 		return fndapi.ProjectInviteLink{}, err
 	}
@@ -1135,7 +1135,7 @@ func ProjectCreateInviteLink(actor rpc.Actor) (fndapi.ProjectInviteLink, *util.H
 	}
 
 	bucket.InviteLinks[token] = &internalInviteLink{
-		Project: projectId,
+		Project: string(projectId),
 		Link:    result,
 	}
 	bucket.Mu.Unlock()
@@ -1260,7 +1260,7 @@ func ProjectBrowseInviteLinks(
 	request fndapi.ProjectBrowseInviteLinksRequest,
 ) (fndapi.PageV2[fndapi.ProjectInviteLink], *util.HttpError) {
 	var result fndapi.PageV2[fndapi.ProjectInviteLink]
-	_, p, err := projectRetrieve(actor, actor.Project.GetOrDefault(""), projectFlagsAll, fndapi.ProjectRoleAdmin)
+	_, p, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll, fndapi.ProjectRoleAdmin)
 
 	if err != nil {
 		return result, err

@@ -46,7 +46,8 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {PageV2, PaginationRequestV2} from "@/UCloud";
+import {PageV2} from "@/UCloud";
+import {addStandardDialog} from "@/UtilityComponents";
 
 let permissionProblems: Record<string, boolean> = {};
 
@@ -196,9 +197,9 @@ interface OperationCallbacks {
 // ================================================================================
 export const Overview: React.FunctionComponent = () => {
     if (!hasFeature(Feature.NEW_SYNCTHING_UI)) {
-        return <OldOverview/>
+        return <OldOverview />
     } else {
-        return <NewOverview/>;
+        return <NewOverview />;
     }
 };
 
@@ -346,7 +347,7 @@ const NewOverview: React.FunctionComponent = () => {
 
     let main: React.ReactNode;
     if (uiState.devices !== undefined && uiState.devices.length === 0) {
-        main = <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard}/>;
+        main = <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard} />;
     } else {
         main = <Flex gap={"16px"} flexWrap={"wrap"}>
             {uiState.showDeviceWizard !== true ? null :
@@ -358,7 +359,7 @@ const NewOverview: React.FunctionComponent = () => {
                     onRequestClose={closeWizard}
                     className={CardClass}
                 >
-                    <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard}/>
+                    <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard} />
                 </ReactModal>
             }
 
@@ -369,7 +370,7 @@ const NewOverview: React.FunctionComponent = () => {
                 flexGrow={1}
                 subtitle={<Flex>
                     <ExternalLink href="https://syncthing.net/downloads/" mr="8px">
-                        <Button><Icon name="open" mr="4px" size="14px"/> Download Syncthing</Button>
+                        <Button><Icon name="open" mr="4px" size="14px" /> Download Syncthing</Button>
                     </ExternalLink>
                     <Button onClick={openWizard}>Add device</Button>
                 </Flex>}
@@ -381,7 +382,7 @@ const NewOverview: React.FunctionComponent = () => {
 
                 <List mt="16px">
                     <DeviceBrowse devices={devices} dispatch={dispatch}
-                                  opts={{embedded: {disableKeyhandlers: true, hideFilters: false}}}/>
+                        opts={{embedded: {disableKeyhandlers: true, hideFilters: false}}} />
                 </List>
             </TitledCard>
 
@@ -398,20 +399,20 @@ const NewOverview: React.FunctionComponent = () => {
                 </Text>
 
                 {uiState.folders?.length === 0 ?
-                    <EmptyFolders onAddFolder={openFileSelector}/> :
+                    <EmptyFolders onAddFolder={openFileSelector} /> :
                     <SyncedFolders folders={uiState.folders} dispatch={dispatch}
-                                   opts={{embedded: {disableKeyhandlers: true, hideFilters: false}}}/>
+                        opts={{embedded: {disableKeyhandlers: true, hideFilters: false}}} />
                 }
             </TitledCard>
 
             {folders.length > 0 && devices.length > 0 ?
-                <ServerStatus productId={selectedProduct?.product.name ?? ""} providerId={provider ?? ""} reload={reload}/>
+                <ServerStatus productId={selectedProduct?.product.name ?? ""} providerId={provider ?? ""} reload={reload} />
                 : null
             }
         </Flex>;
     }
 
-    return <MainContainer main={main}/>;
+    return <MainContainer main={main} />;
 };
 
 function useHomeDrive(providerId: string, projectOverride?: string): string | null {
@@ -511,7 +512,6 @@ const ServerStatus: React.FunctionComponent<{
             const jobIdPromise = downloadFileContent(basePath + "job_id.txt").then(it => it.text());
             Promise.all([deviceIdPromise, jobIdPromise]).then(([deviceId, jobId]) => {
                 callAPI(JobsApi.retrieve({id: jobId})).then(job => {
-                    console.log(didCancel);
                     if (!didCancel) {
                         setStatus({
                             deviceId,
@@ -536,49 +536,49 @@ const ServerStatus: React.FunctionComponent<{
         {status !== null ? null : <>
             <Flex gap={"16px"} alignItems={"center"} flexDirection={"column"}>
                 <div><i>Syncthing is currently starting up. This process may take a few minutes.</i></div>
-                <div><HexSpin size={48}/></div>
+                <div><HexSpin size={48} /></div>
             </Flex>
         </>}
         {status === null ? null : <>
             <Table tableType={"presentation"}>
                 <tbody>
-                <TableRow>
-                    <TableHeaderCell width={"200px"}>Status</TableHeaderCell>
-                    <TableCell>
-                        {!restartRequested && status.state === "RUNNING" ? <>
-                            <Icon name={"heroCheck"} color={"successMain"}/> Your Syncthing server is currently running.
-                            (<a style={{color: "var(--primaryMain)"}} href={"#"} onClick={doRestart}>Restart</a>)
-                        </> : <Flex gap={"8px"} alignItems={"center"}>
-                            <HexSpin size={16} margin={"0"}/> <Box flexGrow={1}>Your Syncthing server is currently
-                            restarting.</Box>
-                        </Flex>}
-                    </TableCell>
-                </TableRow>
-                <TableRow>
-                    <TableHeaderCell width={"200px"}>Job ID</TableHeaderCell>
-                    <TableCell>
-                        <ExternalLink href={AppRoutes.prefix + AppRoutes.jobs.view(status.jobId)} target={"_blank"}>
-                            {status.jobId} <Icon name={"open"} size={10} />
-                        </ExternalLink>
-                    </TableCell>
-                </TableRow>
-                <TableRow>
-                    <TableHeaderCell width={"200px"}>Device ID</TableHeaderCell>
-                    <TableCell>{status.deviceId}</TableCell>
-                </TableRow>
-                <TableRow>
-                    <TableHeaderCell width={"200px"}>Factory reset</TableHeaderCell>
-                    <TableCell>
-                        <ConfirmationButton
-                            icon={"heroTrash"}
-                            actionText={"Factory reset"}
-                            onAction={doFactoryReset}
-                            width={280}
-                            mt="8px"
-                            mb="4px"
-                        />
-                    </TableCell>
-                </TableRow>
+                    <TableRow>
+                        <TableHeaderCell width={"200px"}>Status</TableHeaderCell>
+                        <TableCell>
+                            {!restartRequested && status.state === "RUNNING" ? <>
+                                <Icon name={"heroCheck"} color={"successMain"} /> Your Syncthing server is currently running.
+                                (<a style={{color: "var(--primaryMain)"}} href={"#"} onClick={doRestart}>Restart</a>)
+                            </> : <Flex gap={"8px"} alignItems={"center"}>
+                                <HexSpin size={16} margin={"0"} /> <Box flexGrow={1}>Your Syncthing server is currently
+                                    restarting.</Box>
+                            </Flex>}
+                        </TableCell>
+                    </TableRow>
+                    <TableRow>
+                        <TableHeaderCell width={"200px"}>Job ID</TableHeaderCell>
+                        <TableCell>
+                            <ExternalLink href={AppRoutes.prefix + AppRoutes.jobs.view(status.jobId)} target={"_blank"}>
+                                {status.jobId} <Icon name={"open"} size={10} />
+                            </ExternalLink>
+                        </TableCell>
+                    </TableRow>
+                    <TableRow>
+                        <TableHeaderCell width={"200px"}>Device ID</TableHeaderCell>
+                        <TableCell>{status.deviceId}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                        <TableHeaderCell width={"200px"}>Factory reset</TableHeaderCell>
+                        <TableCell>
+                            <ConfirmationButton
+                                icon={"heroTrash"}
+                                actionText={"Factory reset"}
+                                onAction={doFactoryReset}
+                                width={280}
+                                mt="8px"
+                                mb="4px"
+                            />
+                        </TableCell>
+                    </TableRow>
                 </tbody>
             </Table>
         </>}
@@ -587,8 +587,8 @@ const ServerStatus: React.FunctionComponent<{
 
 function SyncedFolders({folders, dispatch, opts}: {
     dispatch(action: UIAction): void;
-    folders?: SyncthingFolder[],
-    opts: ResourceBrowserOpts<SyncthingFolder>
+    folders?: SyncthingFolder[];
+    opts: ResourceBrowserOpts<SyncthingFolder>;
 }): React.ReactNode {
     useEffect(() => {
         return () => {
@@ -669,6 +669,35 @@ function SyncedFolders({folders, dispatch, opts}: {
                             row.stat2.append(HTMLTooltip(permissionIcon, divText(`Some files in '${fileName(prettyPath)}' might not be synchronized due to lack of permissions.`), {tooltipContentWidth: 250}))
                         );
                     }
+
+                    const cb = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as OperationCallbacks;
+
+                    const trigger = browser.defaultButtonRenderer({
+                        onClick: res => {
+                            addStandardDialog({
+                                title: "Remove from Syncthing?",
+                                message: "This will remove the folder from synchronization",
+                                onConfirm() {
+                                    folderOperations.find(it => it.tag === "UNSYNC")?.onClick([res], cb);
+                                },
+                                confirmButtonColor: "errorMain",
+                                cancelButtonColor: "primaryMain",
+                                confirmText: "Remove",
+                            })
+                        },
+                        show: () => true,
+                        text: "",
+                    }, folder, {
+                        color: "errorMain", width: "20px", button: {
+                            name: "close", size: 18, color: "fixedWhite", color2: "fixedWhite", ml: "8px"
+                        }
+                    });
+
+                    if (trigger) {
+                        const d = divHtml("Remove from sync");
+                        const tooltip = HTMLTooltip(trigger, d, {tooltipContentWidth: 160});
+                        row.stat3.append(tooltip);
+                    }
                 });
 
                 browser.setEmptyIcon("ftFolder");
@@ -703,7 +732,7 @@ function SyncedFolders({folders, dispatch, opts}: {
         });
     }
 
-    return <div ref={mountRef}/>;
+    return <div ref={mountRef} />;
 }
 
 function DeviceBrowse({devices, dispatch, opts}: {
@@ -739,6 +768,7 @@ function DeviceBrowse({devices, dispatch, opts}: {
 
                     const trigger = createHTMLElements({
                         tagType: "div",
+                        style: {marginRight: "24px", marginTop: "auto", marginBottom: "auto"},
                         className: DeviceBox,
                         handlers: {
                             onClick: e => {
@@ -752,7 +782,35 @@ function DeviceBrowse({devices, dispatch, opts}: {
                         }]
                     });
                     row.stat3.append(trigger);
-                    HTMLTooltip(trigger, divHtml(`Copy device ID to clipboard`), {tooltipContentWidth: 200});
+                    HTMLTooltip(trigger, divHtml(`Copy device ID to clipboard`), {tooltipContentWidth: 300});
+
+                    const cb = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as OperationCallbacks;
+                    const buttonTrigger = browser.defaultButtonRenderer({
+                        onClick: res => {
+                            addStandardDialog({
+                                title: "Remove device from Syncthing?",
+                                message: "This will remove the device from Syncthing.",
+                                onConfirm() {
+                                    deviceOperations.find(it => it.tag === "REMOVE")?.onClick([res], cb);
+                                },
+                                confirmButtonColor: "errorMain",
+                                cancelButtonColor: "primaryMain",
+                                confirmText: "Remove",
+                            })
+                        },
+                        show: () => true,
+                        text: "",
+                    }, device, {
+                        color: "errorMain", width: "20px", button: {
+                            name: "close", size: 18, color: "fixedWhite", color2: "fixedWhite", ml: "8px"
+                        }
+                    });
+
+                    if (buttonTrigger) {
+                        const d = divHtml("Remove device");
+                        const tooltip = HTMLTooltip(buttonTrigger, d, {tooltipContentWidth: 160});
+                        row.stat3.append(tooltip);
+                    }
                 });
 
                 browser.setEmptyIcon("heroComputerDesktop");
@@ -781,7 +839,7 @@ function DeviceBrowse({devices, dispatch, opts}: {
         });
     }
 
-    return <div ref={mountRef}/>;
+    return <div ref={mountRef} />;
 }
 
 const AddDeviceWizard: React.FunctionComponent<{
@@ -883,17 +941,17 @@ const AddDeviceWizard: React.FunctionComponent<{
 
                             <Flex justifyContent="center" mt="8px">
                                 <ExternalLink href="https://syncthing.net/downloads/">
-                                    <Button><Icon name="open" mr="4px" size="14px"/> Download Syncthing</Button>
+                                    <Button><Icon name="open" mr="4px" size="14px" /> Download Syncthing</Button>
                                 </ExternalLink>
                             </Flex>
                         </li>
                         <li>
-                            <b>Open the Syncthing application</b><br/><br/>
+                            <b>Open the Syncthing application</b><br /><br />
 
-                            If you are using a desktop PC/laptop then your window should now look like this:<br/>
+                            If you are using a desktop PC/laptop then your window should now look like this:<br />
 
                             <Flex justifyContent="center" mt="8px">
-                                <Screenshot src={syncthingScreen4}/>
+                                <Screenshot src={syncthingScreen4} />
                             </Flex>
                         </li>
                     </TutorialList>
@@ -919,20 +977,20 @@ const AddDeviceWizard: React.FunctionComponent<{
                                 In the <i>Actions</i> menu in the top-right corner, click the <i>Show ID</i> button:
                             </li>
                             <li>
-                                A window containing your Device ID, as well as a QR code will appear.<br/>
+                                A window containing your Device ID, as well as a QR code will appear.<br />
                                 Copy the Device ID and paste it into the field below:
                             </li>
                         </TutorialList>
 
                         <Box ml={"auto"}>
-                            <Screenshot src={syncthingScreen1}/>
+                            <Screenshot src={syncthingScreen1} />
                         </Box>
                     </Flex>
 
                     <form onSubmit={tutorialNext}>
                         <Label>
                             Device Name
-                            <Input inputRef={deviceNameRef} placeholder={"My phone"} error={deviceNameError !== null}/>
+                            <Input inputRef={deviceNameRef} placeholder={"My phone"} error={deviceNameError !== null} />
                             {!deviceNameError ?
                                 <Text color="textSecondary">
                                     A name to help you remember which device this is. For example: "Work phone".
@@ -993,6 +1051,7 @@ const deviceOperations: Operation<SyncthingDevice, OperationCallbacks>[] = [
         icon: "trash",
         color: "errorMain",
         confirm: true,
+        tag: "REMOVE",
         enabled: selected => selected.length > 0,
         onClick: (selected, cb) => {
             for (const device of selected) {
@@ -1009,6 +1068,7 @@ const folderOperations: Operation<SyncthingFolder, OperationCallbacks>[] = [
         icon: "trash",
         color: "errorMain",
         confirm: true,
+        tag: "UNSYNC",
         enabled: selected => selected.length >= 1,
         onClick: (selected, cb) => {
             for (const file of selected) {
@@ -1055,12 +1115,12 @@ const EmptyFolders: React.FunctionComponent<{
                         <p><b>Open Syncthing</b></p>
                         <p>
                             A pop-up will appear, saying that UCloud wants to connect.
-                            Click the <i>Add device</i> button, then <i>Save</i> in the window that appears. <br/>
+                            Click the <i>Add device</i> button, then <i>Save</i> in the window that appears. <br />
                             <b>Note: it can take a few minutes before the pop-up appears.</b>
                         </p>
                     </Box>
                     <Box pl={40}>
-                        <Screenshot src={syncthingScreen2}/>
+                        <Screenshot src={syncthingScreen2} />
                     </Box>
                 </Flex>
             </li>
@@ -1078,7 +1138,7 @@ const EmptyFolders: React.FunctionComponent<{
                     </Box>
 
                     <Box pl={40}>
-                        <Screenshot src={syncthingScreen3}/>
+                        <Screenshot src={syncthingScreen3} />
                     </Box>
                 </Flex>
             </li>
@@ -1111,9 +1171,9 @@ const TutorialListClass = injectStyle("tutorial-list", k => `
     }
 `);
 
-function Screenshot(props: { src: string }): React.ReactNode {
+function Screenshot(props: {src: string}): React.ReactNode {
     return <Image alt="Descriptive screenshot showing how to set up Syncthing." className={ScreenshotClass}
-                  src={props.src}/>
+        src={props.src} />
 }
 
 const ScreenshotClass = injectStyleSimple("screenshot", `

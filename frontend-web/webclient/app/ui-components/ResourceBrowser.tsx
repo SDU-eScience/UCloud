@@ -1169,7 +1169,7 @@ export class ResourceBrowser<T> {
         }
     }
 
-    static lastClickCache: Record<string, number> = {};
+    private static lastClickCache: Record<string, number> = {};
 
     static defaultIconRenderer(): [HTMLDivElement, (url: string) => void] {
         // NOTE(Dan): We have to use a div with a background image, otherwise users will be able to drag the
@@ -1189,7 +1189,9 @@ export class ResourceBrowser<T> {
     }
 
     public defaultButtonRenderer<T>(selection: ResourceBrowserOpts<T>["selection"], item: T, opts?: {
-        color?: ThemeColor, width?: string, height?: string
+        color?: ThemeColor, width?: string, height?: string, button?: {
+            name: IconName; size: number; color: ThemeColor; color2: ThemeColor; ml?: string;
+        }
     }) {
         if (!selection) return;
         if (!selection.show || selection.show(item) === true) {
@@ -1204,6 +1206,24 @@ export class ResourceBrowser<T> {
             button.style.setProperty("--hoverColor", `var(--${selectHoverColor(color)})`);
             button.style.color = `var(--${selectContrastColor(color)})`;
             button.tabIndex = 0;
+
+            if (opts?.button) {
+                const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                const b = opts.button;
+                ResourceBrowser.icons.renderIcon({
+                    name: b.name,
+                    height: 64,
+                    width: 64,
+                    color: b.color,
+                    color2: b.color2,
+                }).then(setIcon);
+
+                if (b.ml) icon.style.marginLeft = b.ml;
+                icon.style.height = b.size + "px";
+                icon.style.width = b.size + "px";
+
+                button.prepend(icon);
+            }
 
             button.onclick = e => {
                 e.stopImmediatePropagation();

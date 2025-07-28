@@ -194,7 +194,7 @@ func grantsReadEx(actor rpc.Actor, action grantAuthType, b *grantAppBucket, id a
 		}
 
 		for grantGiver, _ := range grantGivers {
-			if actor.Project.Present && actor.Project.Value == grantGiver && actor.Membership[rpc.ProjectId(grantGiver)].Satisfies(rpc.ProjectRoleAdmin) {
+			if actor.Project.Present && string(actor.Project.Value) == grantGiver && actor.Membership[rpc.ProjectId(grantGiver)].Satisfies(rpc.ProjectRoleAdmin) {
 				roles = append(roles, grantActorRoleApprover)
 			}
 		}
@@ -767,7 +767,7 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 		didTransferAny := false
 		var newRequests []accapi.AllocationRequest
 		for _, allocReq := range requests {
-			if allocReq.GrantGiver != source {
+			if allocReq.GrantGiver != string(source) {
 				newRequests = append(newRequests, allocReq)
 			} else {
 				wallets := internalRetrieveWallets(now, req.Target, walletFilter{
@@ -913,7 +913,7 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 			for i, _ := range app.Application.Status.StateBreakdown {
 				breakdown := &app.Application.Status.StateBreakdown[i]
 
-				if breakdown.ProjectId == actor.Project.Value {
+				if breakdown.ProjectId == string(actor.Project.Value) {
 					breakdown.State = req.NewState
 					anyUpdated = true
 				}
@@ -970,9 +970,9 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 	idxB.Mu.RUnlock()
 
 	if actor.Project.Present && actor.Membership[rpc.ProjectId(actor.Project.Value)].Satisfies(rpc.ProjectRoleAdmin) {
-		idxB = grantGetIdxBucket(actor.Project.Value, true)
+		idxB = grantGetIdxBucket(string(actor.Project.Value), true)
 		idxB.Mu.RLock()
-		for _, id := range idxB.ApplicationsByEntity[actor.Project.Value] {
+		for _, id := range idxB.ApplicationsByEntity[string(actor.Project.Value)] {
 			if id > nextId {
 				ids = append(ids, id)
 			}
@@ -1182,7 +1182,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 }
 
 func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSettings) *util.HttpError {
-	if !actor.Project.Present || actor.Project.Value != id ||
+	if !actor.Project.Present || string(actor.Project.Value) != id ||
 		!actor.Membership[rpc.ProjectId(id)].Satisfies(rpc.ProjectRoleAdmin) {
 		return util.HttpErr(http.StatusForbidden, "forbidden")
 	}
@@ -1193,7 +1193,7 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	if !ok {
 		w = &grantSettings{
 			Mu:        sync.RWMutex{},
-			ProjectId: actor.Project.Value,
+			ProjectId: string(actor.Project.Value),
 		}
 	}
 
@@ -1213,17 +1213,17 @@ func GrantsRetrieveSettings(actor rpc.Actor) (accapi.GrantRequestSettings, *util
 		return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "forbidden")
 	}
 
-	b := grantGetSettingsBucket(actor.Project.Value)
+	b := grantGetSettingsBucket(string(actor.Project.Value))
 
 	b.Mu.RLock()
-	w, ok := b.Settings[actor.Project.Value]
+	w, ok := b.Settings[string(actor.Project.Value)]
 	if !ok {
 		b.Mu.RUnlock()
 		{
 			b.Mu.Lock()
 			w = &grantSettings{
 				Mu:        sync.RWMutex{},
-				ProjectId: actor.Project.Value,
+				ProjectId: string(actor.Project.Value),
 				Settings: &accapi.GrantRequestSettings{
 					Enabled:             false,
 					Description:         "No description provided",
@@ -1530,7 +1530,7 @@ func initGrants() {
 			if !info.Actor.Project.Present {
 				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "bad request - no project")
 			}
-			return util.Empty{}, GrantsUpdateSettings(info.Actor, info.Actor.Project.Value, request)
+			return util.Empty{}, GrantsUpdateSettings(info.Actor, string(info.Actor.Project.Value), request)
 		})
 
 		accapi.GrantsUploadLogo.Handler(func(info rpc.RequestInfo, request []byte) (util.Empty, *util.HttpError) {
