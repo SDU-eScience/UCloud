@@ -1183,6 +1183,7 @@ function Downtimes(): React.ReactNode {
     const [intervalId, setIntervalId] = React.useState(-1);
 
     React.useEffect(() => {
+        fetchDowntimes({method: "GET", path: "/news/listDowntimes"});
         setIntervalId(window.setInterval(() => fetchDowntimes({
             method: "GET", path: "/news/listDowntimes"
         }), 600_000));
