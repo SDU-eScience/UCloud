@@ -1961,22 +1961,22 @@ function usageChartsToChart(
 }
 
 function toggleSeriesEntry(chart: ApexCharts | undefined, seriesName: string, chartsRef: React.RefObject<{name: string; shown: boolean;}[]>, toggleShown?: (val: boolean | string[]) => void) {
-    /* TOD(Jonas): Handle when quota is shown. */
+    /* TODO(Jonas): Handle when quota is shown. */
     if (chart != null) {
-
-        const isQuota = seriesName.endsWith(" quota")
-        if (isQuota) {
-            toggleShown?.([seriesName]);
-            return;
-        }
-
         const allShown = chartsRef.current.every(it => it.shown);
-
-
         const shownCount = chartsRef.current.reduce((acc, it) => acc + (+it.shown), 0);
         const allWillBeHidden = chartsRef.current.find(it => it.name === seriesName)?.shown && shownCount === 1;
 
         if (allShown) {
+            const isQuotaEntry = seriesName.endsWith(" quota");
+            const seriesWithoutQuotaSuffix = isQuotaEntry ? seriesName.replace(" quota", "") : seriesName;
+            const singleProduct = chartsRef.current.length === 2 && chartsRef.current.find(it => it.name.endsWith(" quota")) != null;
+
+            if (singleProduct) {
+                toggleShown?.([seriesName]);
+                return;
+            }
+
             for (const shownEntry of chartsRef.current) {
                 if (shownEntry.name === seriesName) {
                     /* 
@@ -1985,6 +1985,7 @@ function toggleSeriesEntry(chart: ApexCharts | undefined, seriesName: string, ch
                     */
                     threadDeferLike(() => {
                         chart.showSeries(seriesName);
+                        if (isQuotaEntry) chart.showSeries(seriesWithoutQuotaSuffix);
                     });
                     continue;
                 }
@@ -1992,7 +1993,7 @@ function toggleSeriesEntry(chart: ApexCharts | undefined, seriesName: string, ch
                 chart.hideSeries(shownEntry.name);
             }
 
-            const toToggle = chartsRef.current.map(it => it.name).filter(it => it !== seriesName);
+            const toToggle = chartsRef.current.map(it => it.name).filter(it => it !== seriesName && it !== seriesWithoutQuotaSuffix);
             toggleShown?.(toToggle);
         } else if (allWillBeHidden) {
             toggleShown?.(true);
