@@ -74,12 +74,12 @@ func initFeatures() {
 							obj, _ := json.Marshal(item)
 
 							support := providerSupport{}
-							support.Type = drive
+							support.Type = driveType
 							support.Features = readSupportFromLegacy(obj)
 							support.AppliesTo = p
 							driveSupportItems = append(driveSupportItems, support)
 						}
-						supportMap[drive] = driveSupportItems
+						supportMap[driveType] = driveSupportItems
 					}
 
 					wg.Done()
@@ -209,7 +209,7 @@ func supportToApi(provider string, supportItems []providerSupport) []orcapi.Reso
 
 				productRelevant := false
 				switch support.Type {
-				case drive:
+				case driveType:
 					productRelevant = product.Type == accapi.ProductTypeCStorage
 				}
 
@@ -288,99 +288,99 @@ type featureMapper struct {
 
 var featureMapperLegacy = []featureMapper{
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveAcl,
 		Path: "collection.aclModifiable",
 	},
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveManagement,
 		Path: "collection.usersCanCreate",
 	},
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveDeletion,
 		Path: "collection.usersCanDelete",
 	},
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveManagement,
 		Path: "collection.usersCanRename",
 	},
 
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  "", // no longer supported but keep in legacy (always false)
 		Path: "files.aclModifiable",
 	},
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveOpsTrash,
 		Path: "files.trashSupported",
 	},
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveOpsReadOnly,
 		Path: "files.isReadOnly",
 	},
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveOpsSearch,
 		Path: "files.searchSupported",
 	},
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveOpsStreamingSearch,
 		Path: "files.streamingSearchSupported",
 	},
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveOpsShares,
 		Path: "files.sharesSupported",
 	},
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveOpsTerminal,
 		Path: "files.openInTerminal",
 	},
 
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveStatsSize,
 		Path: "stats.sizeInBytes",
 	},
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveStatsRecursiveSize,
 		Path: "stats.sizeIncludingChildrenInBytes",
 	},
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveStatsTimestamps,
 		Path: "stats.modifiedAt",
 	},
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveStatsTimestamps,
 		Path: "stats.createdAt",
 	},
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveStatsTimestamps,
 		Path: "stats.accessedAt",
 	},
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveStatsUnix,
 		Path: "stats.unixPermissions",
 	},
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveStatsUnix,
 		Path: "stats.unixOwner",
 	},
 	{
-		Type: drive,
+		Type: driveType,
 		Key:  driveStatsUnix,
 		Path: "stats.unixGroup",
 	},
