@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
 	"ucloud.dk/launcher/pkg/termio"
 )
 
