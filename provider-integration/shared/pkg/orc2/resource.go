@@ -94,6 +94,11 @@ type ResourceUpdate struct {
 	Status    string        `json:"status,omitempty"`
 }
 
+type ResourceStatus[S any] struct {
+	ResolvedSupport util.Option[ResolvedSupport[S]] `json:"resolvedSupport"`
+	ResolvedProduct util.Option[acc.ProductV2]      `json:"resolvedProduct"`
+}
+
 type ProductSupport struct {
 	Product     acc.ProductReference     `json:"product"`
 	Maintenance util.Option[Maintenance] `json:"maintenance,omitempty"`
