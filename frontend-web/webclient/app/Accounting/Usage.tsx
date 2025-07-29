@@ -679,8 +679,6 @@ function Visualization(): React.ReactNode {
                                 charts={state.activeDashboard.breakdownByProject} />
                             <UsageOverTimePanel
                                 unit={state.activeDashboard.activeUnit}
-                                setBreakdown={setBreakdown}
-                                selectedBreakdown={state.activeDashboard.selectedBreakdown}
                                 period={state.selectedPeriod}
                                 isLoading={isAnyLoading}
                                 charts={state.activeDashboard.usageOverTime}
@@ -1029,7 +1027,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{
 
     const datapointSum = useMemo(() => dataPoints.reduce((a, b) => a + b.value, 0), [dataPoints]);
 
-    const sorted = useSorting(filteredDataPoints, "value");
+    const sorted = useSorting(filteredDataPoints, "value", "asc", true);
 
     const updateSelectedBreakdown = React.useCallback((dataPoint: {key: string}) => {
         props.setBreakdown(dataPoint.key);
@@ -1153,7 +1151,7 @@ function SortTableHeader<DataType>({sortKey, sorted, children, width}: React.Pro
 }
 
 type SortOrder = "asc" | "desc";
-function useSorting<DataType>(originalData: DataType[], sortByKey: keyof DataType, initialSortOrder?: SortOrder): {
+function useSorting<DataType>(originalData: DataType[], sortByKey: keyof DataType, initialSortOrder?: SortOrder, sortOnDataChange?: boolean): {
     data: DataType[];
     sortOrder: SortOrder;
     sortByKey: typeof sortByKey;
@@ -1161,10 +1159,10 @@ function useSorting<DataType>(originalData: DataType[], sortByKey: keyof DataTyp
 } {
     const [_data, setData] = useState(originalData);
     const [_sortByKey, setSortByKey] = useState(sortByKey)
-    const [_sortOrder, setSortOrder] = React.useState(initialSortOrder ?? "asc");
+    const [_sortOrder, setSortOrder] = useState(initialSortOrder ?? "asc");
 
     React.useEffect(() => {
-        doSortBy(originalData, sortByKey, initialSortOrder);
+        if (sortOnDataChange) doSortBy(originalData, sortByKey, initialSortOrder);
     }, [originalData]);
 
     const doSortBy = React.useCallback((data: DataType[], sortBy: keyof DataType, sortOrder?: SortOrder) => {
@@ -1405,8 +1403,6 @@ const DynamicallySizedChart: React.FunctionComponent<{
 const UsageOverTimePanel: React.FunctionComponent<{
     charts: UsageChart[];
     isLoading: boolean;
-    selectedBreakdown: string;
-    setBreakdown(projectId: string): void;
     unit: string;
     period: Period;
 }> = ({charts, isLoading, ...props}) => {
