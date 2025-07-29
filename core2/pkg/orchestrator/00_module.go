@@ -6,4 +6,5 @@ func Init() {
 	initFeatures()
 
 	initDrives()
+	initFiles()
 }

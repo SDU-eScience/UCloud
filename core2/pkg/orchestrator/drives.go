@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	drive = "file_collection"
+	driveType = "file_collection"
 
 	driveStatsSize          featureKey = "drive.stats.size"
 	driveStatsRecursiveSize featureKey = "drive.stats.recursiveSize"
@@ -35,7 +35,7 @@ const (
 
 func initDrives() {
 	InitResourceType(
-		drive,
+		driveType,
 		0,
 		driveLoad,
 		drivePersist,
@@ -45,7 +45,7 @@ func initDrives() {
 	orcapi.DrivesBrowse.Handler(func(info rpc.RequestInfo, request orcapi.DrivesBrowseRequest) (fndapi.PageV2[orcapi.Drive], *util.HttpError) {
 		return ResourceBrowse(
 			info.Actor,
-			drive,
+			driveType,
 			request.Next,
 			request.ItemsPerPage,
 			request.ResourceFlags,
@@ -56,7 +56,7 @@ func initDrives() {
 	})
 
 	orcapi.DrivesRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.DrivesRetrieveRequest) (orcapi.Drive, *util.HttpError) {
-		return ResourceRetrieve[orcapi.Drive](info.Actor, drive, ResourceParseId(request.Id), request.ResourceFlags)
+		return ResourceRetrieve[orcapi.Drive](info.Actor, driveType, ResourceParseId(request.Id), request.ResourceFlags)
 	})
 
 	orcapi.DrivesCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.DriveSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
@@ -86,7 +86,7 @@ func initDrives() {
 	orcapi.DrivesSearch.Handler(func(info rpc.RequestInfo, request orcapi.DrivesSearchRequest) (fndapi.PageV2[orcapi.Drive], *util.HttpError) {
 		// TODO Sorting through the items would be ideal
 
-		items := ResourceBrowse[orcapi.Drive](info.Actor, drive, request.Next, request.ItemsPerPage, request.ResourceFlags, func(item orcapi.Drive) bool {
+		items := ResourceBrowse[orcapi.Drive](info.Actor, driveType, request.Next, request.ItemsPerPage, request.ResourceFlags, func(item orcapi.Drive) bool {
 			return strings.Contains(strings.ToLower(item.Specification.Title), strings.ToLower(request.Query))
 		})
 
@@ -94,13 +94,13 @@ func initDrives() {
 	})
 
 	orcapi.DrivesRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.SupportByProvider[orcapi.FSSupport], *util.HttpError) {
-		return SupportRetrieveProducts[orcapi.FSSupport](drive), nil
+		return SupportRetrieveProducts[orcapi.FSSupport](driveType), nil
 	})
 
 	orcapi.DrivesUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
 		var responses []util.Empty
 		for _, item := range request.Items {
-			err := ResourceUpdateAcl(info.Actor, drive, item)
+			err := ResourceUpdateAcl(info.Actor, driveType, item)
 			if err != nil {
 				return fndapi.BulkResponse[util.Empty]{}, err
 			}
@@ -112,7 +112,7 @@ func initDrives() {
 	orcapi.DrivesDelete.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
 		var responses []util.Empty
 		for _, item := range request.Items {
-			err := ResourceDeleteThroughProvider(info.Actor, drive, item.Id, orcapi.DrivesProviderDelete)
+			err := ResourceDeleteThroughProvider(info.Actor, driveType, item.Id, orcapi.DrivesProviderDelete)
 			if err != nil {
 				return fndapi.BulkResponse[util.Empty]{}, err
 			}
@@ -124,7 +124,7 @@ func initDrives() {
 	orcapi.DrivesControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.DrivesControlBrowseRequest) (fndapi.PageV2[orcapi.Drive], *util.HttpError) {
 		return ResourceBrowse(
 			info.Actor,
-			drive,
+			driveType,
 			request.Next,
 			request.ItemsPerPage,
 			request.ResourceFlags,
@@ -135,7 +135,7 @@ func initDrives() {
 	})
 
 	orcapi.DrivesControlRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.DrivesControlRetrieveRequest) (orcapi.Drive, *util.HttpError) {
-		return ResourceRetrieve[orcapi.Drive](info.Actor, drive, ResourceParseId(request.Id), request.ResourceFlags)
+		return ResourceRetrieve[orcapi.Drive](info.Actor, driveType, ResourceParseId(request.Id), request.ResourceFlags)
 	})
 
 	orcapi.DrivesControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.DriveSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
@@ -159,7 +159,7 @@ func initDrives() {
 			}
 
 			id, _, err := ResourceCreateEx[orcapi.Drive](
-				drive,
+				driveType,
 				orcapi.ResourceOwner{
 					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
 					Project:   reqItem.Project.Value,
@@ -190,14 +190,14 @@ func DriveRename(actor rpc.Actor, id string, title string) *util.HttpError {
 		return util.HttpErr(http.StatusBadRequest, "invalid title specified")
 	}
 
-	resc, _, _, err := ResourceRetrieveEx[orcapi.Drive](actor, drive, ResourceParseId(id), orcapi.PermissionEdit, orcapi.ResourceFlags{})
+	resc, _, _, err := ResourceRetrieveEx[orcapi.Drive](actor, driveType, ResourceParseId(id), orcapi.PermissionEdit, orcapi.ResourceFlags{})
 	if err != nil {
 		return err
 	}
 
 	p := resc.Specification.Product
 
-	if !featureSupported(drive, p, driveManagement) {
+	if !featureSupported(driveType, p, driveManagement) {
 		return featureNotSupportedError
 	}
 
@@ -217,7 +217,7 @@ func DriveRename(actor rpc.Actor, id string, title string) *util.HttpError {
 		return err
 	}
 
-	ResourceUpdate(actor, drive, ResourceParseId(id), orcapi.PermissionEdit, func(r *resource, mapped orcapi.Drive) {
+	ResourceUpdate(actor, driveType, ResourceParseId(id), orcapi.PermissionEdit, func(r *resource, mapped orcapi.Drive) {
 		r.Extra.(*driveInfo).Title = title
 	})
 	return nil
@@ -225,12 +225,12 @@ func DriveRename(actor rpc.Actor, id string, title string) *util.HttpError {
 
 func DriveCreate(actor rpc.Actor, item orcapi.DriveSpecification) (orcapi.Drive, *util.HttpError) {
 	p := item.Product
-	if !featureSupported(drive, p, driveManagement) {
+	if !featureSupported(driveType, p, driveManagement) {
 		return orcapi.Drive{}, featureNotSupportedError
 	}
 
 	info := &driveInfo{Title: item.Title}
-	return ResourceCreateThroughProvider(actor, drive, p, info, orcapi.DrivesProviderCreate)
+	return ResourceCreateThroughProvider(actor, driveType, p, info, orcapi.DrivesProviderCreate)
 }
 
 type driveInfo struct {
@@ -272,7 +272,7 @@ func driveTransform(r orcapi.Resource, product util.Option[accapi.ProductReferen
 	}
 
 	if flags.IncludeProduct || flags.IncludeSupport {
-		support, _ := SupportByProduct[orcapi.FSSupport](drive, product.Value)
+		support, _ := SupportByProduct[orcapi.FSSupport](driveType, product.Value)
 		result.Status = orcapi.ResourceStatus[orcapi.FSSupport]{
 			ResolvedSupport: util.OptValue(support),
 			ResolvedProduct: util.OptValue(support.Product),

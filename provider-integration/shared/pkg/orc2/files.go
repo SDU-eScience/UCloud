@@ -50,6 +50,17 @@ type ShareType string
 
 const ShareTypeManaged ShareType = "UCLOUD_MANAGED_COLLECTION"
 
+type UFileSpecification struct {
+	Collection string               `json:"collection"`
+	Product    apm.ProductReference `json:"product"`
+}
+
+type UFile struct {
+	Resource
+	Specification UFileSpecification `json:"specification"`
+	Status        UFileStatus        `json:"status"`
+}
+
 type ProviderFile struct {
 	Id                string        `json:"id,omitempty"`
 	Status            UFileStatus   `json:"status"`
@@ -125,7 +136,7 @@ type FilesSourceAndDestination struct {
 }
 
 type FileFlags struct {
-	ResourceFlags `json:"resourceFlags"`
+	ResourceFlags
 
 	IncludePermissions util.Option[bool] `json:"includePermissions"`
 	IncludeTimestamps  util.Option[bool] `json:"includeTimestamps"`
@@ -134,14 +145,15 @@ type FileFlags struct {
 	IncludeMetadata    util.Option[bool] `json:"includeMetadata"`
 
 	FilterByFileExtension util.Option[string] `json:"filterByFileExtension"`
-	FilterPath            util.Option[string] `json:"filterPath"`
+	Path                  util.Option[string] `json:"path"`
 	FilterHiddenFiles     util.Option[bool]   `json:"filterHiddenFiles"`
 
 	// AllowUnsupportedInclude removed, just always true
+	// TODO sort?
 }
 
 var FilesDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
-	BaseContext: driveNamespace,
+	BaseContext: filesNamespace,
 	Convention:  rpc.ConventionDelete,
 	Roles:       rpc.RolesEndUser,
 }
@@ -154,8 +166,8 @@ type FilesSearchRequest struct {
 	FileFlags
 }
 
-var FilesSearch = rpc.Call[FilesSearchRequest, fnd.PageV2[Drive]]{
-	BaseContext: driveNamespace,
+var FilesSearch = rpc.Call[FilesSearchRequest, fnd.PageV2[UFile]]{
+	BaseContext: filesNamespace,
 	Convention:  rpc.ConventionSearch,
 	Roles:       rpc.RolesEndUser,
 }
@@ -167,46 +179,39 @@ type FilesBrowseRequest struct {
 	FileFlags
 }
 
-var FilesBrowse = rpc.Call[FilesBrowseRequest, fnd.PageV2[Drive]]{
-	BaseContext: driveNamespace,
+var FilesBrowse = rpc.Call[FilesBrowseRequest, fnd.PageV2[UFile]]{
+	BaseContext: filesNamespace,
 	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesEndUser,
 }
 
 type FilesRetrieveRequest struct {
-	Id        string `json:"id"`
-	FileFlags `json:"fileFlags"`
+	Id string `json:"id"`
+	FileFlags
 }
 
-var FilesRetrieve = rpc.Call[FilesRetrieveRequest, Drive]{
-	BaseContext: driveNamespace,
+var FilesRetrieve = rpc.Call[FilesRetrieveRequest, UFile]{
+	BaseContext: filesNamespace,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesEndUser,
 }
 
-var FilesUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[util.Empty]]{
-	BaseContext: driveNamespace,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
-	Operation:   "updateAcl",
-}
-
 var FilesRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[FSSupport]]{
-	BaseContext: driveNamespace,
+	BaseContext: filesNamespace,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "products",
 }
 
 var FilesMove = rpc.Call[fnd.BulkRequest[FilesSourceAndDestination], fnd.BulkResponse[util.Empty]]{
-	BaseContext: driveNamespace,
+	BaseContext: filesNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "move",
 }
 
 var FilesCopy = rpc.Call[fnd.BulkRequest[FilesSourceAndDestination], fnd.BulkResponse[util.Empty]]{
-	BaseContext: driveNamespace,
+	BaseContext: filesNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "copy",
@@ -226,7 +231,7 @@ type FilesCreateUploadResponse struct { // TODO(Dan): Used to be nullable
 }
 
 var FilesCreateUpload = rpc.Call[fnd.BulkRequest[FilesCreateUploadRequest], fnd.BulkResponse[FilesCreateUploadResponse]]{
-	BaseContext: driveNamespace,
+	BaseContext: filesNamespace,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "upload",
@@ -237,7 +242,7 @@ type FilesCreateDownloadResponse struct {
 }
 
 var FilesCreateDownload = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[FilesCreateDownloadResponse]]{
-	BaseContext: driveNamespace,
+	BaseContext: filesNamespace,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "download",
@@ -249,24 +254,175 @@ type FilesCreateFolderRequest struct {
 }
 
 var FilesCreateFolder = rpc.Call[fnd.BulkRequest[FilesCreateFolderRequest], fnd.BulkResponse[util.Empty]]{
-	BaseContext: driveNamespace,
+	BaseContext: filesNamespace,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "folder",
 }
 
 var FilesTrash = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
-	BaseContext: driveNamespace,
+	BaseContext: filesNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "trash",
 }
 
 var FilesEmptyTrash = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
-	BaseContext: driveNamespace,
+	BaseContext: filesNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "emptyTrash",
 }
 
 var FilesStreamingSearch = rpc.Call[util.Empty, util.Empty]{} // TODO
+
+// Files provider
+// =====================================================================================================================
+
+const fileProviderNamespace = "ucloud/" + rpc.ProviderPlaceholder + "/files"
+
+var FilesProviderDelete = rpc.Call[fnd.BulkRequest[UFile], fnd.BulkResponse[util.Empty]]{
+	BaseContext: fileProviderNamespace,
+	Convention:  rpc.ConventionDelete,
+	Roles:       rpc.RolesService,
+}
+
+type FilesProviderSearchRequest struct {
+	ItemsPerPage int                 `json:"itemsPerPage"`
+	Next         util.Option[string] `json:"next"`
+	Query        string              `json:"query"`
+
+	FileFlags
+}
+
+var FilesProviderSearch = rpc.Call[FilesProviderSearchRequest, fnd.PageV2[ProviderFile]]{
+	BaseContext: fileProviderNamespace,
+	Convention:  rpc.ConventionSearch,
+	Roles:       rpc.RolesService,
+}
+
+type FilesProviderBrowseRequest struct {
+	ResolvedCollection Drive `json:"resolvedCollection"`
+	Browse             ResourceBrowseRequest[FileFlags]
+}
+
+var FilesProviderBrowse = rpc.Call[FilesProviderBrowseRequest, fnd.PageV2[ProviderFile]]{
+	BaseContext: fileProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesService,
+	Operation:   "browse",
+}
+
+type FilesProviderRetrieveRequest struct {
+	ResolvedCollection Drive                              `json:"resolvedCollection"`
+	Retrieve           ResourceRetrieveRequest[FileFlags] `json:"retrieve"`
+}
+
+var FilesProviderRetrieve = rpc.Call[FilesProviderRetrieveRequest, ProviderFile]{
+	BaseContext: fileProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesService,
+	Operation:   "retrieve",
+}
+
+var FilesProviderRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[FSSupport]]{
+	BaseContext: fileProviderNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesService,
+	Operation:   "products",
+}
+
+type FilesProviderMoveOrCopyRequest struct {
+	ResolvedOldCollection Drive               `json:"resolvedOldCollection"`
+	ResolvedNewCollection Drive               `json:"resolvedNewCollection"`
+	OldId                 string              `json:"oldId"`
+	NewId                 string              `json:"newId"`
+	ConflictPolicy        WriteConflictPolicy `json:"conflictPolicy"`
+}
+
+var FilesProviderMove = rpc.Call[fnd.BulkRequest[FilesProviderMoveOrCopyRequest], fnd.BulkResponse[util.Empty]]{
+	BaseContext: fileProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesService,
+	Operation:   "move",
+}
+
+var FilesProviderCopy = rpc.Call[fnd.BulkRequest[FilesProviderMoveOrCopyRequest], fnd.BulkResponse[util.Empty]]{
+	BaseContext: fileProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesService,
+	Operation:   "copy",
+}
+
+type FilesProviderCreateUploadRequest struct {
+	Id                 string              `json:"id"`
+	Type               UploadType          `json:"type"`
+	SupportedProtocols []UploadProtocol    `json:"supportedProtocols"`
+	ConflictPolicy     WriteConflictPolicy `json:"conflictPolicy"`
+	ResolvedCollection Drive               `json:"resolvedCollection"`
+}
+
+type FilesProviderCreateUploadResponse struct { // TODO(Dan): Used to be nullable
+	Endpoint string         `json:"endpoint"`
+	Protocol UploadProtocol `json:"protocol"`
+	Token    string         `json:"token"`
+}
+
+var FilesProviderCreateUpload = rpc.Call[fnd.BulkRequest[FilesProviderCreateUploadRequest], fnd.BulkResponse[FilesProviderCreateUploadResponse]]{
+	BaseContext: fileProviderNamespace,
+	Convention:  rpc.ConventionCreate,
+	Roles:       rpc.RolesService,
+	Operation:   "upload",
+}
+
+type FilesProviderCreateDownloadRequest struct {
+	Id                 string `json:"id"`
+	ResolvedCollection Drive  `json:"resolvedCollection"`
+}
+
+type FilesProviderCreateDownloadResponse struct {
+	Endpoint string `json:"endpoint"`
+}
+
+var FilesProviderCreateDownload = rpc.Call[fnd.BulkRequest[FilesProviderCreateDownloadRequest], fnd.BulkResponse[FilesProviderCreateDownloadResponse]]{
+	BaseContext: fileProviderNamespace,
+	Convention:  rpc.ConventionCreate,
+	Roles:       rpc.RolesService,
+	Operation:   "download",
+}
+
+type FilesProviderCreateFolderRequest struct {
+	Id                 string              `json:"id"`
+	ConflictPolicy     WriteConflictPolicy `json:"conflictPolicy"`
+	ResolvedCollection Drive               `json:"resolvedCollection"`
+}
+
+var FilesProviderCreateFolder = rpc.Call[fnd.BulkRequest[FilesProviderCreateFolderRequest], fnd.BulkResponse[util.Empty]]{
+	BaseContext: fileProviderNamespace,
+	Convention:  rpc.ConventionCreate,
+	Roles:       rpc.RolesService,
+	Operation:   "folder",
+}
+
+type FilesProviderTrashRequest struct {
+	Id                 string `json:"id"`
+	ResolvedCollection Drive  `json:"resolvedCollection"`
+}
+
+var FilesProviderTrash = rpc.Call[fnd.BulkRequest[FilesProviderTrashRequest], fnd.BulkResponse[util.Empty]]{
+	BaseContext: fileProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesService,
+	Operation:   "trash",
+}
+
+var FilesProviderEmptyTrash = rpc.Call[fnd.BulkRequest[FilesProviderTrashRequest], fnd.BulkResponse[util.Empty]]{
+	BaseContext: fileProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesService,
+	Operation:   "emptyTrash",
+}
+
+var FilesProviderStreamingSearch = rpc.Call[util.Empty, util.Empty]{} // TODO
+
+// TODO transfer

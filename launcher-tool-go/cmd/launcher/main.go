@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+
 	"ucloud.dk/launcher/pkg/launcher"
 	"ucloud.dk/launcher/pkg/termio"
 )
@@ -193,7 +194,7 @@ func main() {
 			selectedService, err := ServiceMenu(false, false, true).SelectSingle()
 			launcher.HardCheck(err)
 			if selectedService.Value == "mainMenu" {
-				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
 				os.Exit(0)
 			}
 			launcher.OpenUserInterface(selectedService.Value)
@@ -204,7 +205,7 @@ func main() {
 			item, err := ServiceMenu(false, true, false).SelectSingle()
 			launcher.HardCheck(err)
 			if item.Value == "mainMenu" {
-				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
 				os.Exit(0)
 			}
 			service := launcher.ServiceByName(item.Value)
@@ -217,7 +218,7 @@ func main() {
 			item, err := ServiceMenu(false, true, false).SelectSingle()
 			launcher.HardCheck(err)
 			if item.Value == "mainMenu" {
-				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
 				os.Exit(0)
 			}
 			service := launcher.ServiceByName(item.Value)
@@ -270,7 +271,7 @@ func main() {
 				selectedService, err := ServiceMenu(false, false, false).SelectSingle()
 				launcher.HardCheck(err)
 				if selectedService.Value == "mainMenu" {
-					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
 					os.Exit(0)
 				}
 				service := launcher.ServiceByName(selectedService.Value)
@@ -299,7 +300,7 @@ func main() {
 					}
 				case "mainMenu":
 					{
-						launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+						launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
 						os.Exit(0)
 					}
 
@@ -356,12 +357,12 @@ func main() {
 					env := launcher.SelectOrCreateEnvironment(basePath, false)
 					launcher.InitIO()
 					launcher.GetCurrentEnvironment().Child("..", true).Child(env, true)
-					err := os.WriteFile(filepath.Join(basePath, "current.txt"), []byte(env), 664)
+					err := os.WriteFile(filepath.Join(basePath, "current.txt"), []byte(env), 0664)
 					launcher.HardCheck(err)
 				}
 			case "mainMenu":
 				{
-					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
 					os.Exit(0)
 				}
 
@@ -653,7 +654,7 @@ func main() {
 				}
 
 				if nextTopic == "mainMenu" {
-					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
 					os.Exit(0)
 				}
 
