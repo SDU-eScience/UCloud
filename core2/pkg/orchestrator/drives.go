@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	accapi "ucloud.dk/shared/pkg/accounting"
@@ -28,7 +29,8 @@ const (
 	driveOpsTerminal        featureKey = "drive.ops.terminal"
 
 	driveAcl        featureKey = "drive.acl"
-	driveManagement featureKey = "drive.management"
+	driveManagement featureKey = "drive.management" // create & rename
+	driveDeletion   featureKey = "drive.deletion"
 )
 
 func initDrives() {
@@ -51,6 +53,10 @@ func initDrives() {
 				return true
 			},
 		), nil
+	})
+
+	orcapi.DrivesRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.DrivesRetrieveRequest) (orcapi.Drive, *util.HttpError) {
+		return ResourceRetrieve[orcapi.Drive](info.Actor, drive, ResourceParseId(request.Id), request.ResourceFlags)
 	})
 
 	orcapi.DrivesCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.DriveSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
@@ -77,8 +83,104 @@ func initDrives() {
 		return util.Empty{}, nil
 	})
 
+	orcapi.DrivesSearch.Handler(func(info rpc.RequestInfo, request orcapi.DrivesSearchRequest) (fndapi.PageV2[orcapi.Drive], *util.HttpError) {
+		// TODO Sorting through the items would be ideal
+
+		items := ResourceBrowse[orcapi.Drive](info.Actor, drive, request.Next, request.ItemsPerPage, request.ResourceFlags, func(item orcapi.Drive) bool {
+			return strings.Contains(strings.ToLower(item.Specification.Title), strings.ToLower(request.Query))
+		})
+
+		return items, nil
+	})
+
 	orcapi.DrivesRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.SupportByProvider[orcapi.FSSupport], *util.HttpError) {
 		return SupportRetrieveProducts[orcapi.FSSupport](drive), nil
+	})
+
+	orcapi.DrivesUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		var responses []util.Empty
+		for _, item := range request.Items {
+			err := ResourceUpdateAcl(info.Actor, drive, item)
+			if err != nil {
+				return fndapi.BulkResponse[util.Empty]{}, err
+			}
+			responses = append(responses, util.Empty{})
+		}
+		return fndapi.BulkResponse[util.Empty]{Responses: responses}, nil
+	})
+
+	orcapi.DrivesDelete.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		var responses []util.Empty
+		for _, item := range request.Items {
+			err := ResourceDeleteThroughProvider(info.Actor, drive, item.Id, orcapi.DrivesProviderDelete)
+			if err != nil {
+				return fndapi.BulkResponse[util.Empty]{}, err
+			}
+			responses = append(responses, util.Empty{})
+		}
+		return fndapi.BulkResponse[util.Empty]{Responses: responses}, nil
+	})
+
+	orcapi.DrivesControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.DrivesControlBrowseRequest) (fndapi.PageV2[orcapi.Drive], *util.HttpError) {
+		return ResourceBrowse(
+			info.Actor,
+			drive,
+			request.Next,
+			request.ItemsPerPage,
+			request.ResourceFlags,
+			func(item orcapi.Drive) bool {
+				return true
+			},
+		), nil
+	})
+
+	orcapi.DrivesControlRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.DrivesControlRetrieveRequest) (orcapi.Drive, *util.HttpError) {
+		return ResourceRetrieve[orcapi.Drive](info.Actor, drive, ResourceParseId(request.Id), request.ResourceFlags)
+	})
+
+	orcapi.DrivesControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.DriveSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		var responses []fndapi.FindByStringId
+
+		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
+		for _, reqItem := range request.Items {
+			if reqItem.Spec.Product.Provider != providerId {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+			}
+		}
+
+		for _, reqItem := range request.Items {
+			var flags resourceCreateFlags
+			if reqItem.ProjectAllRead {
+				flags |= resourceCreateAllRead
+			}
+
+			if reqItem.ProjectAllWrite {
+				flags |= resourceCreateAllWrite
+			}
+
+			id, _, err := ResourceCreateEx[orcapi.Drive](
+				drive,
+				orcapi.ResourceOwner{
+					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
+					Project:   reqItem.Project.Value,
+				},
+				nil,
+				util.OptValue(reqItem.Spec.Product),
+				reqItem.ProviderGeneratedId,
+				&driveInfo{
+					Title: reqItem.Spec.Title,
+				},
+				flags,
+			)
+
+			if err != nil {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+			} else {
+				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
+			}
+		}
+
+		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
 	})
 }
 
@@ -88,7 +190,7 @@ func DriveRename(actor rpc.Actor, id string, title string) *util.HttpError {
 		return util.HttpErr(http.StatusBadRequest, "invalid title specified")
 	}
 
-	resc, err := ResourceRetrieveEx[orcapi.Drive](actor, drive, ResourceParseId(id), orcapi.PermissionEdit, orcapi.ResourceFlags{})
+	resc, _, _, err := ResourceRetrieveEx[orcapi.Drive](actor, drive, ResourceParseId(id), orcapi.PermissionEdit, orcapi.ResourceFlags{})
 	if err != nil {
 		return err
 	}
@@ -157,10 +259,10 @@ func driveLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resour
 	}
 }
 
-func driveTransform(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any) any {
+func driveTransform(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any {
 	info := extra.(*driveInfo)
 
-	return orcapi.Drive{
+	result := orcapi.Drive{
 		Resource: r,
 		Specification: orcapi.DriveSpecification{
 			Title:   info.Title,
@@ -168,6 +270,16 @@ func driveTransform(r orcapi.Resource, product util.Option[accapi.ProductReferen
 		},
 		Updates: make([]orcapi.ResourceUpdate, 0),
 	}
+
+	if flags.IncludeProduct || flags.IncludeSupport {
+		support, _ := SupportByProduct[orcapi.FSSupport](drive, product.Value)
+		result.Status = orcapi.ResourceStatus[orcapi.FSSupport]{
+			ResolvedSupport: util.OptValue(support),
+			ResolvedProduct: util.OptValue(support.Product),
+		}
+	}
+
+	return result
 }
 
 func drivePersist(tx *db.Transaction, resources []*resource) {

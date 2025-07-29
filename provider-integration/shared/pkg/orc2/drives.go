@@ -9,8 +9,9 @@ import (
 
 type Drive struct {
 	Resource
-	Specification DriveSpecification `json:"specification"`
-	Updates       []ResourceUpdate   `json:"updates"`
+	Specification DriveSpecification        `json:"specification"`
+	Updates       []ResourceUpdate          `json:"updates"`
+	Status        ResourceStatus[FSSupport] `json:"status"`
 }
 
 func DriveIdFromUCloudPath(path string) (string, bool) {
