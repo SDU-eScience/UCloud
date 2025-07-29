@@ -490,13 +490,11 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     browser.cachedData["/search"] = [];
                     browser.renderRows();
                     browser.renderOperations();
-                    collectionsOnOpen.retrieve("/search", () =>
-                        callAPI(FileCollectionsApi.search({
-                            query,
-                            itemsPerPage: 250,
-                            flags: {},
-                        }))
-                    ).then(res => {
+                    callAPI(FileCollectionsApi.search({
+                        query,
+                        itemsPerPage: 250,
+                        flags: {},
+                    })).then(res => {
                         if (browser.currentPath !== "/search") return;
                         browser.registerPage(res, "/search", true);
                         browser.renderRows();

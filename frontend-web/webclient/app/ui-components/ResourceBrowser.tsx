@@ -598,6 +598,7 @@ export class ResourceBrowser<T> {
                 if (e.key === "Enter") {
                     this.searchQuery = input.value;
                     this.dispatchMessage("search", fn => fn(this.searchQuery));
+                    this.renderColumnTitles();
                 }
             };
 
@@ -606,6 +607,7 @@ export class ResourceBrowser<T> {
                 input.toggleAttribute("data-hidden");
                 if (input.hasAttribute("data-hidden")) {
                     this.dispatchMessage("searchHidden", fn => fn());
+                    this.searchQuery = "";
                 } else {
                     input.focus()
                 }
@@ -3473,7 +3475,7 @@ export class ResourceBrowser<T> {
         wrapper.append(rowTitleName);
         const filter = rowTitle.sortById;
         if (!filter) return;
-        wrapper.style.cursor = "pointer";
+        if (!this.searchQuery) wrapper.style.cursor = "pointer";
         wrapper.onclick = e => {
             e.stopPropagation();
             if (this.browseFilters[SORT_BY] !== filter) {
@@ -3485,9 +3487,12 @@ export class ResourceBrowser<T> {
                     setFilterStorageValue(this.resourceName, SORT_DIRECTION, ASC);
                 }
             }
-            this.open(this.currentPath, true);
+
+            if (!this.searchQuery) {
+                this.open(this.currentPath, true);
+            }
         }
-        if (this.browseFilters["sortBy"] === filter) {
+        if (this.browseFilters["sortBy"] === filter && !this.searchQuery) {
             wrapper.style.fontWeight = "500";
             const [arrow, setArrow] = ResourceBrowser.defaultIconRenderer();
             arrow.style.minWidth = "";

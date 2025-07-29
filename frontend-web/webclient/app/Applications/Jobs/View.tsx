@@ -285,18 +285,18 @@ function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowRespons
 
         const conn = WSFactory.open(
             "/jobs", {
-                init: async conn => {
-                    await conn.subscribe({
-                        call: "jobs.follow",
-                        payload: {id: job.id},
-                        handler: message => {
-                            const streamEntry = message.payload as JobsFollowResponse;
-                            callback(streamEntry);
-                        }
-                    });
-                    conn.close();
-                },
-            });
+            init: async conn => {
+                await conn.subscribe({
+                    call: "jobs.follow",
+                    payload: {id: job.id},
+                    handler: message => {
+                        const streamEntry = message.payload as JobsFollowResponse;
+                        callback(streamEntry);
+                    }
+                });
+                conn.close();
+            },
+        });
 
         return () => {
             conn.close();
@@ -316,8 +316,8 @@ function getBackend(job?: Job): string {
     return job?.status.resolvedApplication?.invocation.tool.tool?.description.backend ?? "";
 }
 
-export function View(props: { id?: string; embedded?: boolean; }): React.ReactNode {
-    const id = props.id ?? useParams<{ id: string }>().id!;
+export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode {
+    const id = props.id ?? useParams<{id: string}>().id!;
 
     // Note: This might not match the real app name
     const location = useLocation();
@@ -516,7 +516,7 @@ export function View(props: { id?: string; embedded?: boolean; }): React.ReactNo
     const transitionRefThree = useRef(null);
 
     if (jobFetcher.error !== undefined) {
-        return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>}/>;
+        return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>} />;
     }
 
     const main = (
@@ -525,8 +525,8 @@ export function View(props: { id?: string; embedded?: boolean; }): React.ReactNo
                 <div className={logoScale.class}>
                     <div className="logo">
                         <SafeLogo name={job?.specification?.application?.name ?? appNameHint}
-                                  type={"APPLICATION"}
-                                  size={"var(--logoSize)"}/>
+                            type={"APPLICATION"}
+                            size={"var(--logoSize)"} />
                     </div>
                 </div>
             </div>
@@ -543,16 +543,16 @@ export function View(props: { id?: string; embedded?: boolean; }): React.ReactNo
                 >
                     <div ref={transitionRefOne} className={data.class}>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={fakeLogo.class}/>
+                            <div className={fakeLogo.class} />
                             <div className={headerText.class}>
-                                <InQueueText job={job} state={status.state ?? "IN_QUEUE"}/>
+                                <InQueueText job={job} state={status.state ?? "IN_QUEUE"} />
                             </div>
                         </Flex>
 
                         <div className={Content}>
                             <Box width={"100%"} maxWidth={"1572px"} margin={"0 auto"}>
                                 <TitledCard>
-                                    <ProviderUpdates key={job.id} job={job} state={jobUpdateState} addOverflow={true}/>
+                                    <ProviderUpdates key={job.id} job={job} state={jobUpdateState} addOverflow={true} />
                                 </TitledCard>
                             </Box>
                         </div>
@@ -570,9 +570,9 @@ export function View(props: { id?: string; embedded?: boolean; }): React.ReactNo
                 >
                     <div ref={transitionRefTwo} className={data.class}>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
-                            <div className={fakeLogo.class}/>
+                            <div className={fakeLogo.class} />
                             <div className={headerText.class}>
-                                <RunningText job={job} interfaceLinks={interfaceTargets}/>
+                                <RunningText job={job} interfaceLinks={interfaceTargets} />
                             </div>
                         </Flex>
 
@@ -595,22 +595,22 @@ export function View(props: { id?: string; embedded?: boolean; }): React.ReactNo
                 >
                     <div ref={transitionRefThree} className={data.class}>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
-                            <div className={fakeLogo.class}/>
+                            <div className={fakeLogo.class} />
                             <div className={headerText.class}>
-                                <CompletedText job={job} state={status.state}/>
+                                <CompletedText job={job} state={status.state} />
                             </div>
                         </Flex>
 
-                        <CompletedContent job={job} state={jobUpdateState}/>
+                        <CompletedContent job={job} state={jobUpdateState} />
                     </div>
                 </CSSTransition>
             )}
-            {status && isJobStateTerminal(status.state) && job ? <OutputFiles job={job}/> : null}
+            {status && isJobStateTerminal(status.state) && job ? <OutputFiles job={job} /> : null}
         </div>
     );
 
     if (props.embedded) return main;
-    return <MainContainer main={main}/>;
+    return <MainContainer main={main} />;
 }
 
 const CompletedContent: React.FunctionComponent<{
@@ -629,7 +629,7 @@ const CompletedContent: React.FunctionComponent<{
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
                     <Box>
                         <b>Reservation:</b>{" "}
-                        <ProviderTitle providerId={job.specification.product.provider}/>
+                        <ProviderTitle providerId={job.specification.product.provider} />
                         {" "}/{" "}
                         {job.specification.product.id}{" "}
                         (x{job.specification.replicas})
@@ -642,7 +642,7 @@ const CompletedContent: React.FunctionComponent<{
         <TabbedCard style={{flexBasis: "600px"}}>
             <StandardPanelBody>
                 <TabbedCardTab icon={"heroChatBubbleBottomCenter"} name={"Messages"}>
-                    <ProviderUpdates key={job.id} job={job} state={state} addOverflow={false}/>
+                    <ProviderUpdates key={job.id} job={job} state={state} addOverflow={false} />
                 </TabbedCardTab>
             </StandardPanelBody>
         </TabbedCard>
@@ -662,14 +662,14 @@ const Content = injectStyle("content", k => `
     }
 `);
 
-function PublicLinkEntry({id}: { id: string }): React.ReactNode {
+function PublicLinkEntry({id}: {id: string}): React.ReactNode {
     const [publicLink] = useCloudAPI<PublicLink | null>(PublicLinkApi.retrieve({id}), null);
-    if (!id.startsWith("fake-") && publicLink.data == null) return <div/>
+    if (!id.startsWith("fake-") && publicLink.data == null) return <div />
     let domain: string;
     if (id.startsWith("fake")) {
         domain = "https://fake-public-link.example.com";
     } else if (publicLink.data == null) {
-        return <li/>;
+        return <li />;
     } else {
         domain = publicLink.data.specification.domain;
     }
@@ -678,7 +678,7 @@ function PublicLinkEntry({id}: { id: string }): React.ReactNode {
     return <li><a target={"_blank"} title={domain} href={httpDomain}>{domain}</a></li>;
 }
 
-const InQueueText: React.FunctionComponent<{ job: Job, state: JobState }> = ({job, state}) => {
+const InQueueText: React.FunctionComponent<{job: Job, state: JobState}> = ({job, state}) => {
     const [utilization, setUtilization] = useCloudAPI<compute.JobsRetrieveUtilizationResponse | null>(
         {noop: true},
         null
@@ -700,10 +700,10 @@ const InQueueText: React.FunctionComponent<{ job: Job, state: JobState }> = ({jo
             {state === "IN_QUEUE" ?
                 <>
                     {job.specification.application.name === "unknown" ? <>
-                            {job.specification.name ? <>Starting {job.specification.name}</> : <>Job is starting</>}
-                            {" "}
-                            (ID: {shortUUID(job.id)})
-                        </> :
+                        {job.specification.name ? <>Starting {job.specification.name}</> : <>Job is starting</>}
+                        {" "}
+                        (ID: {shortUUID(job.id)})
+                    </> :
                         job.specification.name ?
                             (<>
                                 Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
@@ -738,7 +738,7 @@ const InQueueText: React.FunctionComponent<{ job: Job, state: JobState }> = ({jo
                 }
             </Heading.h3>
         }
-        <Busy job={job} state={state} utilization={utilization.data}/>
+        <Busy job={job} state={state} utilization={utilization.data} />
     </>;
 };
 
@@ -776,8 +776,8 @@ const Busy: React.FunctionComponent<{
             <Box>We are currently preparing your job. This step might take a few minutes.</Box>
         }
 
-        <Box flexGrow={1}/>
-        <Box><CancelButton job={job} state={"IN_QUEUE"}/></Box>
+        <Box flexGrow={1} />
+        <Box><CancelButton job={job} state={"IN_QUEUE"} /></Box>
     </Box>;
 };
 
@@ -809,10 +809,10 @@ const RunningText: React.FunctionComponent<{
                     {" "}
                     <Box style={{display: "inline"}} color={"textSecondary"}>(ID: {job.id})</Box>
                 </Heading.h2>
-                <Box flexGrow={1}/>
-                <div><CancelButton job={job} state={"RUNNING"}/></div>
+                <Box flexGrow={1} />
+                <div><CancelButton job={job} state={"RUNNING"} /></div>
             </Flex>
-            <RunningButtonGroup job={job} interfaceLinks={interfaceLinks}/>
+            <RunningButtonGroup job={job} interfaceLinks={interfaceLinks} />
         </Flex>
     </>;
 };
@@ -865,7 +865,7 @@ const RunningInfoWrapper = injectStyle("running-info-wrapper", k => `
     }
 `);
 
-function AltButtonGroup(props: React.PropsWithChildren<{ minButtonWidth: string } & MarginProps>) {
+function AltButtonGroup(props: React.PropsWithChildren<{minButtonWidth: string} & MarginProps>) {
     return <div
         style={{
             ...unbox({marginTop: props.marginTop ?? "8px", marginBottom: props.marginBottom ?? "8px", ...props}),
@@ -1182,11 +1182,11 @@ const RunningContent: React.FunctionComponent<{
                                         <b>Job expiry: </b> {dateToString(expiresAt ?? timestampUnixMs())}
                                     </Box>
                                     <Box>
-                                        <b>Time remaining: </b><TimeLeft expiresAt={expiresAt ?? -1}/>
+                                        <b>Time remaining: </b><TimeLeft expiresAt={expiresAt ?? -1} />
                                     </Box>
                                 </>
                             }
-                            <Box flexGrow={1}/>
+                            <Box flexGrow={1} />
                             <Box mb="12px">
                                 {(!expiresAt || !supportsExtension) && !localStorage.getItem("useFakeState") ? null : <>
                                     Extend allocation (hours):
@@ -1199,7 +1199,7 @@ const RunningContent: React.FunctionComponent<{
                                 {!supportsSuspend ? null :
                                     suspended ?
                                         <Button color={"successMain"} fullWidth onClick={unsuspendJob}>
-                                            <Icon name={"heroPower"} mr={"8px"}/>
+                                            <Icon name={"heroPower"} mr={"8px"} />
                                             Power on
                                         </Button> :
                                         <ConfirmationButton
@@ -1250,21 +1250,21 @@ const RunningContent: React.FunctionComponent<{
                                     </TableRow>
                                 </TableHeader>
                                 <tbody>
-                                {peers.map(it =>
-                                    <TableRow key={it.jobId}>
-                                        <TableCell textAlign="left" width={"120px"}>
-                                            <Link to={`/jobs/properties/${it.jobId}?app=`} target={"_blank"}>
-                                                {it.jobId}
-                                                {" "}
-                                                <Icon name={"heroArrowTopRightOnSquare"} mt={"-5px"}/>
-                                            </Link>
-                                        </TableCell>
+                                    {peers.map(it =>
+                                        <TableRow key={it.jobId}>
+                                            <TableCell textAlign="left" width={"120px"}>
+                                                <Link to={`/jobs/properties/${it.jobId}?app=`} target={"_blank"}>
+                                                    {it.jobId}
+                                                    {" "}
+                                                    <Icon name={"heroArrowTopRightOnSquare"} mt={"-5px"} />
+                                                </Link>
+                                            </TableCell>
 
-                                        <TableCell textAlign="left">
-                                            <code><Truncate width={1}>{it.hostname}</Truncate></code>
-                                        </TableCell>
-                                    </TableRow>
-                                )}
+                                            <TableCell textAlign="left">
+                                                <code><Truncate width={1}>{it.hostname}</Truncate></code>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
                                 </tbody>
                             </Table>
                         </TabbedCardTab>
@@ -1274,7 +1274,7 @@ const RunningContent: React.FunctionComponent<{
                         <TabbedCardTab icon={"heroGlobeEuropeAfrica"} name={`Links (${ingresses.length})`}>
                             This job is publicly available through:
                             <ul style={{paddingLeft: "2em"}}>
-                                {ingresses.map(ingress => <PublicLinkEntry key={ingress.id} id={ingress.id}/>)}
+                                {ingresses.map(ingress => <PublicLinkEntry key={ingress.id} id={ingress.id} />)}
                             </ul>
                         </TabbedCardTab>
                     }
@@ -1284,7 +1284,7 @@ const RunningContent: React.FunctionComponent<{
             <TabbedCard style={{flexBasis: "600px"}}>
                 <StandardPanelBody divRef={messagesRef}>
                     <TabbedCardTab icon={"heroChatBubbleBottomCenter"} name={"Messages"}>
-                        <ProviderUpdates key={job.id} job={job} state={state} addOverflow={false}/>
+                        <ProviderUpdates key={job.id} job={job} state={state} addOverflow={false} />
                     </TabbedCardTab>
                 </StandardPanelBody>
             </TabbedCard>
@@ -1294,7 +1294,7 @@ const RunningContent: React.FunctionComponent<{
             <TabbedCard>
                 <Box divRef={scrollRef}>
                     {Array(job.specification.replicas).fill(0).map((_, i) =>
-                        <RunningJobRank key={i} job={job} rank={i} state={state}/>
+                        <RunningJobRank key={i} job={job} rank={i} state={state} />
                     )}
                 </Box>
             </TabbedCard>
@@ -1352,7 +1352,7 @@ const StandardPanelBody: React.FunctionComponent<React.PropsWithChildren<{
     return <div style={{height: "165px", overflowY: "auto"}} ref={divRef}>{children}</div>;
 };
 
-function TimeLeft({expiresAt}: { expiresAt: number }) {
+function TimeLeft({expiresAt}: {expiresAt: number}) {
     const calculateTimeLeft = useCallback((expiresAt: number | undefined) => {
         if (!expiresAt) return {hours: 0, minutes: 0, seconds: 0};
 
@@ -1477,7 +1477,7 @@ const RunningJobRank: React.FunctionComponent<{
 
     return <TabbedCardTab icon={"heroServer"} name={`Node ${rank + 1}`}>
         <div className={RunningJobRankWrapper} data-has-replicas={hasMultipleNodes}>
-            <div ref={termRef} className="term"/>
+            <div ref={termRef} className="term" />
         </div>
     </TabbedCardTab>
 };
@@ -1499,7 +1499,7 @@ function jobStateToText(state: JobState) {
 
 const UNKNOWN_APP_NAME = "unknown";
 
-const CompletedText: React.FunctionComponent<{ job: Job, state: JobState }> = ({job, state}) => {
+const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({job, state}) => {
     const app = job.specification.application;
     const isUnknownApp = app.name === UNKNOWN_APP_NAME;
     return <Flex flexDirection={"column"} flexGrow={1}>
@@ -1520,7 +1520,7 @@ const CompletedText: React.FunctionComponent<{ job: Job, state: JobState }> = ({
             </>}
             {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>
-        <Box flexGrow={1}/>
+        <Box flexGrow={1} />
         {isUnknownApp || isSyncthingApp(job) ? null :
             <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version, import: job.id})}>
                 <Button>Run application again</Button>
@@ -1529,7 +1529,7 @@ const CompletedText: React.FunctionComponent<{ job: Job, state: JobState }> = ({
     </Flex>;
 };
 
-function OutputFiles({job}: React.PropsWithChildren<{ job: Job }>): React.ReactNode {
+function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): React.ReactNode {
     const pathRef = React.useRef(job.output?.outputFolder ?? "");
     if (!pathRef.current) {
         console.warn("No output folder found. Showing nothing.");
@@ -1595,7 +1595,7 @@ const InterfaceLinkRow: RichSelectChildComponent<SearchableInterfaceTarget> = ({
                 alignItems={"center"}
                 p={8}
             >
-                <Icon name="heroArrowTopRightOnSquare"/>
+                <Icon name="heroArrowTopRightOnSquare" />
                 <Truncate>{element.target ?? "Open interface"}</Truncate>
 
                 {!element.showNode ? null :
@@ -1608,17 +1608,13 @@ const InterfaceLinkRow: RichSelectChildComponent<SearchableInterfaceTarget> = ({
     </Box>;
 }
 
-const InterfaceLinkSelectedRow: RichSelectChildComponent<SearchableInterfaceTarget> = ({
-                                                                                           element,
-                                                                                           dataProps,
-                                                                                           onSelect
-                                                                                       }) => {
+const InterfaceLinkSelectedRow: RichSelectChildComponent<SearchableInterfaceTarget> = () => {
     return <div className={InterfaceSelectorTrigger}>
-        <Icon name="chevronDownLight"/>
+        <Icon name="chevronDownLight" />
     </div>;
 }
 
-const TerminalLinkRow: RichSelectChildComponent<SearchableTerminalTarget> = ({element, dataProps, onSelect}) => {
+const TerminalLinkRow: RichSelectChildComponent<SearchableTerminalTarget> = ({element}) => {
     if (!element) return null;
 
     return <Link to={`/applications/shell/${element.jobId}/${element.rank}?hide-frame`} target={"_blank"}>
@@ -1627,24 +1623,20 @@ const TerminalLinkRow: RichSelectChildComponent<SearchableTerminalTarget> = ({el
             alignItems={"center"}
             p={8}
         >
-            <Icon name="heroCommandLine"/>
+            <Icon name="heroCommandLine" />
             <Truncate>Node {element.rank + 1}</Truncate>
         </Flex>
     </Link>;
 }
 
-const TerminalLinkSelectedRow: RichSelectChildComponent<SearchableTerminalTarget> = ({
-                                                                                         element,
-                                                                                         dataProps,
-                                                                                         onSelect
-                                                                                     }) => {
+const TerminalLinkSelectedRow: RichSelectChildComponent<SearchableTerminalTarget> = () => {
     return <div className={InterfaceSelectorTrigger}>
-        <Icon name="chevronDownLight"/>
+        <Icon name="chevronDownLight" />
     </div>;
 }
 
-type SearchableInterfaceTarget = (InterfaceTarget & { searchString: string; showNode: boolean; })
-type SearchableTerminalTarget = (TerminalTarget & { searchString: string; })
+type SearchableInterfaceTarget = (InterfaceTarget & {searchString: string; showNode: boolean;})
+type SearchableTerminalTarget = (TerminalTarget & {searchString: string;})
 
 const RunningButtonGroup: React.FunctionComponent<{
     job: Job;
@@ -1709,7 +1701,7 @@ const RunningButtonGroup: React.FunctionComponent<{
             <Flex>
                 <Link to={`/applications/shell/${job.id}/0?hide-frame`} target={"_blank"}>
                     <Button attachedLeft={hasMultipleNodes}>
-                        <Icon name="heroCommandLine"/>
+                        <Icon name="heroCommandLine" />
                         <div style={{minWidth: hasMultipleNodes ? "130px" : "164px", maxWidth: "164px"}}>
                             <Truncate>
                                 Open terminal{hasMultipleNodes ? ` (Node 1)` : null}
@@ -1732,9 +1724,9 @@ const RunningButtonGroup: React.FunctionComponent<{
         {interfaceLinks.length < 1 ? null : (
             <Flex>
                 <Link to={interfaceLinks[defaultInterfaceId]?.link ?? ""}
-                      aria-disabled={!interfaceLinks[defaultInterfaceId]} target={"_blank"}>
+                    aria-disabled={!interfaceLinks[defaultInterfaceId]} target={"_blank"}>
                     <Button attachedLeft={interfaceLinks.length > 1} disabled={!interfaceLinks[defaultInterfaceId]}>
-                        <Icon name="heroArrowTopRightOnSquare"/>
+                        <Icon name="heroArrowTopRightOnSquare" />
                         <div style={{minWidth: interfaceLinks.length > 1 ? "130px" : "164px", maxWidth: "164px"}}>
                             <Truncate>
                                 {interfaceLinks[defaultInterfaceId]?.target ?? ("Open interface" + (hasMultipleNodes ? ` (Node 1)` : ""))}
@@ -1857,10 +1849,10 @@ const ProviderUpdates: React.FunctionComponent<{
 
     if (addOverflow) {
         return <Box height={"200px"} overflowY="auto">
-            <LogOutput updates={updates} maxHeight="200px"/>
+            <LogOutput updates={updates} maxHeight="200px" />
         </Box>
     } else {
-        return <LogOutput updates={updates}/>;
+        return <LogOutput updates={updates} />;
     }
 };
 
