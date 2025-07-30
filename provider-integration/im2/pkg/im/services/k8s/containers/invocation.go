@@ -178,7 +178,7 @@ func handleJinjaInvocation(
 	jinjaContainer := &pod.Spec.InitContainers[len(pod.Spec.InitContainers)-1]
 
 	jinjaContainer.Name = "script-generation"
-	jinjaContainer.Image = "dreg.cloud.sdu.dk/ucloud/im2:2025.3.74" // remember to update when needed
+	jinjaContainer.Image = "dreg.cloud.sdu.dk/ucloud/im2:2025.3.83" // remember to update when needed
 
 	subpath, ok := strings.CutPrefix(jobFolder, filepath.Clean(ServiceConfig.FileSystem.MountPoint)+"/")
 	if ok {
