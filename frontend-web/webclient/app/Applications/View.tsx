@@ -29,11 +29,8 @@ export const AppHeader: React.FunctionComponent<{
         });
     }, [props.flavors]);
 
-    const searchableVersions: {searchKey: string, version: string}[] = useMemo(() => {
-        return props.allVersions.map(version => {
-            return {searchKey: version, version}
-        });
-    }, [props.flavors]);
+    const searchableVersions = useMemo(() => props.allVersions.map(version => ({searchKey: version, version})),
+        [props.flavors]);
 
     return (
         <Flex flexDirection={"row"}>
@@ -60,16 +57,16 @@ export const AppHeader: React.FunctionComponent<{
                             selected={{searchKey: "", app: props.application}}
                             dropdownWidth={"300px"}
                             elementHeight={37}
-                            RenderRow={p => {
-                                return <Box p={"8px"} onClick={p.onSelect} {...p.dataProps}>
+                            RenderRow={p =>
+                                <Box p={"8px"} onClick={p.onSelect} {...p.dataProps}>
                                     {p.element?.app?.metadata?.flavorName ?? DEFAULT_FLAVOR_NAME}
-                                </Box>;
-                            }}
-                            RenderSelected={p => {
-                                return <Box p={"8px"} onClick={p.onSelect} {...p.dataProps}>
+                                </Box>
+                            }
+                            RenderSelected={p =>
+                                <Box p={"8px"} onClick={p.onSelect} {...p.dataProps}>
                                     {p.element?.app?.metadata?.flavorName ?? DEFAULT_FLAVOR_NAME}
-                                </Box>;
-                            }}
+                                </Box>
+                            }
                             onSelect={p => {
                                 navigate(Pages.runApplicationWithName(p.app.metadata.name));
                             }}
@@ -81,12 +78,8 @@ export const AppHeader: React.FunctionComponent<{
                         keys={["searchKey"]}
                         selected={{searchKey: "", version: props.application.metadata.version}}
                         dropdownWidth={"138px"}
-                        RenderRow={p => {
-                            return <Box p={"8px"} onClick={p.onSelect} {...p.dataProps}>{p.element?.version}</Box>;
-                        }}
-                        RenderSelected={p => {
-                            return <Box p={"8px"} onClick={p.onSelect} {...p.dataProps}>{p.element?.version}</Box>;
-                        }}
+                        RenderRow={p => <Box p={"8px"} onClick={p.onSelect} {...p.dataProps}>{p.element?.version}</Box>}
+                        RenderSelected={p => <Box p={"8px"} onClick={p.onSelect} {...p.dataProps}>{p.element?.version}</Box>}
                         onSelect={p => {
                             navigate(Pages.runApplication({name: props.application.metadata.name, version: p.version}))
                         }}
@@ -120,7 +113,7 @@ const TriggerDiv = injectStyleSimple("trigger-div", `
     background-color: var(--warningMain);
     border-radius: 6px;
     cursor: pointer;
-    height: 35px;
+    height: 39px;
     display: flex;
     justify-content: center;
     align-items: center;
