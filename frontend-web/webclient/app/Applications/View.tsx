@@ -5,7 +5,7 @@ import Text from "@/ui-components/Text";
 import * as Pages from "./Pages";
 import {useNavigate} from "react-router";
 import {FavoriteToggle} from "@/Applications/FavoriteToggle";
-import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {injectStyleSimple} from "@/Unstyled";
 import {Application} from "@/Applications/AppStoreApi";
 import {RichSelect} from "@/ui-components/RichSelect";
 import {useMemo} from "react";
@@ -117,15 +117,4 @@ const TriggerDiv = injectStyleSimple("trigger-div", `
     display: flex;
     justify-content: center;
     align-items: center;
-`);
-
-const FlavorSelectorClass = injectStyle("flavor-selector", k => `
-    ${k} {
-        height: 35px;
-        border-radius: 8px;
-        padding: 0px 10px;
-        align-items: center;
-        border: 1px solid var(--borderColor);
-        margin: auto 0px;
-    }
 `);
