@@ -92,6 +92,9 @@ type ToolReference struct {
 type Application struct {
 	WithAppMetadata
 	WithAppInvocation
+
+	Favorite util.Option[bool] `json:"favorite"`
+	Versions []string          `json:"versions"`
 }
 
 type WithAppMetadata struct {
@@ -157,25 +160,25 @@ type ApplicationMetadata struct {
 }
 
 type ApplicationInvocationDescription struct {
-	Tool                  ToolReference
-	Invocation            []InvocationParameter
-	Parameters            []ApplicationParameter
-	OutputFileGlobs       []string
-	ApplicationType       ApplicationType
-	Vnc                   VncDescription
-	Web                   WebDescription
-	Ssh                   SshDescription
-	Container             ContainerDescription
-	Environment           map[string]InvocationParameter
-	AllowAdditionalMounts bool
-	AllowAdditionalPeers  bool
-	AllowMultiNode        bool
-	AllowPublicIp         bool
-	AllowPublicLink       bool
-	FileExtensions        []string
-	LicenseServers        []string
-	Modules               ModulesSection
-	Sbatch                map[string]InvocationParameter
+	Tool                  ToolReference                  `json:"tool"`
+	Invocation            []InvocationParameter          `json:"invocation"`
+	Parameters            []ApplicationParameter         `json:"parameters"`
+	OutputFileGlobs       []string                       `json:"outputFileGlobs"`
+	ApplicationType       ApplicationType                `json:"applicationType"`
+	Vnc                   VncDescription                 `json:"vnc"`
+	Web                   WebDescription                 `json:"web"`
+	Ssh                   SshDescription                 `json:"ssh"`
+	Container             ContainerDescription           `json:"container"`
+	Environment           map[string]InvocationParameter `json:"environment"`
+	AllowAdditionalMounts bool                           `json:"allowAdditionalMounts"`
+	AllowAdditionalPeers  bool                           `json:"allowAdditionalPeers"`
+	AllowMultiNode        bool                           `json:"allowMultiNode"`
+	AllowPublicIp         bool                           `json:"allowPublicIp"`
+	AllowPublicLink       bool                           `json:"allowPublicLink"`
+	FileExtensions        []string                       `json:"fileExtensions"`
+	LicenseServers        []string                       `json:"licenseServers"`
+	Modules               ModulesSection                 `json:"modules"`
+	Sbatch                map[string]InvocationParameter `json:"sbatch"`
 }
 
 type VncDescription struct {
