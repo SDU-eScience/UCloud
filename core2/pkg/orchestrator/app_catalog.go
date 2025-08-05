@@ -271,7 +271,7 @@ func initAppCatalog() {
 	})
 
 	orcapi.AppsUpdatePublicFlag.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdatePublicFlagRequest) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		return util.Empty{}, AppStudioUpdatePublicFlag(request.Name, request.Version, request.Public)
 	})
 
 	orcapi.AppsRetrieveAcl.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogRetrieveAclRequest) (orcapi.AppCatalogRetrieveAclResponse, *util.HttpError) {
@@ -283,15 +283,16 @@ func initAppCatalog() {
 	})
 
 	orcapi.AppsUpdateApplicationFlavor.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateApplicationFlavorRequest) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		return util.Empty{}, AppStudioUpdateFlavorName(request.ApplicationName, request.FlavorName)
 	})
 
 	orcapi.AppsListAllApplications.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.AppCatalogListAllApplicationsResponse, *util.HttpError) {
-		panic("TODO")
+		return orcapi.AppCatalogListAllApplicationsResponse{Items: AppStudioListAll()}, nil
 	})
 
 	orcapi.AppsRetrieveStudioApplication.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogRetrieveStudioApplicationRequest) (orcapi.AppCatalogRetrieveStudioApplicationResponse, *util.HttpError) {
-		panic("TODO")
+		versions, err := AppStudioRetrieveAllVersions(request.Name)
+		return orcapi.AppCatalogRetrieveStudioApplicationResponse{Versions: versions}, err
 	})
 
 	orcapi.AppsCreateGroup.Handler(func(info rpc.RequestInfo, request orcapi.ApplicationGroupSpecification) (fndapi.FindByIntId, *util.HttpError) {
@@ -303,19 +304,22 @@ func initAppCatalog() {
 	})
 
 	orcapi.AppsUpdateGroup.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateGroupRequest) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		return util.Empty{}, AppStudioUpdateGroup(request)
 	})
 
 	orcapi.AppsAssignApplicationToGroup.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogAssignApplicationToGroupRequest) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		return util.Empty{}, AppStudioAssignToGroup(request.Name, util.OptMap(request.Group, func(value int) AppGroupId {
+			return AppGroupId(value)
+		}))
 	})
 
 	orcapi.AppsBrowseGroups.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogBrowseGroupsRequest) (fndapi.PageV2[orcapi.ApplicationGroup], *util.HttpError) {
-		panic("TODO")
+		groups := AppStudioListGroups()
+		return fndapi.PageV2[orcapi.ApplicationGroup]{Items: groups, ItemsPerPage: len(groups)}, nil
 	})
 
 	orcapi.AppsRetrieveStudioGroup.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (orcapi.ApplicationGroup, *util.HttpError) {
-		panic("TODO")
+		return AppStudioRetrieveGroup(AppGroupId(request.Id))
 	})
 
 	orcapi.AppsAddLogoToGroup.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogAddLogoToGroupRequest) (util.Empty, *util.HttpError) {
@@ -343,7 +347,11 @@ func initAppCatalog() {
 	})
 
 	orcapi.AppsBrowseStudioCategories.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogBrowseStudioCategoriesRequest) (fndapi.PageV2[orcapi.ApplicationCategory], *util.HttpError) {
-		panic("TODO")
+		result := AppStudioListCategories()
+		return fndapi.PageV2[orcapi.ApplicationCategory]{
+			ItemsPerPage: len(result),
+			Items:        result,
+		}, nil
 	})
 
 	orcapi.AppsDeleteCategory.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
@@ -363,11 +371,15 @@ func initAppCatalog() {
 	})
 
 	orcapi.AppsRetrieveSpotlight.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (orcapi.Spotlight, *util.HttpError) {
-		panic("TODO")
+		return AppStudioRetrieveSpotlight(AppSpotlightId(request.Id))
 	})
 
 	orcapi.AppsBrowseSpotlights.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogBrowseSpotlightRequest) (fndapi.PageV2[orcapi.Spotlight], *util.HttpError) {
-		panic("TODO")
+		result := AppStudioListSpotlights()
+		return fndapi.PageV2[orcapi.Spotlight]{
+			ItemsPerPage: len(result),
+			Items:        result,
+		}, nil
 	})
 
 	orcapi.AppsActivateSpotlight.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
@@ -1169,5 +1181,235 @@ func AppToggleStar(actor rpc.Actor, name string) *util.HttpError {
 		return nil
 	} else {
 		return util.HttpErr(http.StatusNotFound, "unknown application")
+	}
+}
+
+// Studio endpoints (read)
+// =====================================================================================================================
+// An important aspect of all these functions is that _no_ discovery and _no_ authorization is applied given that only
+// privileged accounts have access to these endpoints to begin with.
+
+func AppStudioListAll() []orcapi.NameAndVersion {
+	var result []orcapi.NameAndVersion
+
+	for i := 0; i < len(appCatalogGlobals.Buckets); i++ {
+		b := &appCatalogGlobals.Buckets[i]
+		b.Mu.RLock()
+		for _, versions := range b.Applications {
+			for _, app := range versions {
+				result = append(result, orcapi.NameAndVersion{app.Name, app.Version})
+			}
+		}
+		b.Mu.RUnlock()
+	}
+
+	slices.SortFunc(result, func(a, b orcapi.NameAndVersion) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+
+	return result
+}
+
+func AppStudioRetrieveAllVersions(name string) ([]orcapi.Application, *util.HttpError) {
+	discovery := AppDiscovery{Mode: orcapi.CatalogDiscoveryModeAll}
+	newest, ok := AppRetrieveNewest(rpc.ActorSystem, name, discovery,
+		AppCatalogIncludeVersionNumbers)
+
+	if !ok {
+		return nil, util.HttpErr(http.StatusNotFound, "not found")
+	}
+
+	result := []orcapi.Application{newest}
+	for _, v := range newest.Versions {
+		if v != newest.Metadata.Version {
+			app, ok := AppRetrieve(rpc.ActorSystem, name, v, discovery, 0)
+			if ok {
+				result = append(result, app)
+			}
+		}
+	}
+
+	return result, nil
+}
+
+func AppStudioListGroups() []orcapi.ApplicationGroup {
+	discovery := AppDiscovery{Mode: orcapi.CatalogDiscoveryModeAll}
+	var result []orcapi.ApplicationGroup
+	var groupIds []AppGroupId
+
+	for i := 0; i < len(appCatalogGlobals.Buckets); i++ {
+		b := &appCatalogGlobals.Buckets[i]
+		b.Mu.RLock()
+		for groupId := range b.Groups {
+			groupIds = append(groupIds, groupId)
+		}
+		b.Mu.RUnlock()
+	}
+
+	for _, groupId := range groupIds {
+		group, _, ok := AppRetrieveGroup(rpc.ActorSystem, groupId, discovery, 0)
+		if ok {
+			result = append(result, group)
+		}
+	}
+
+	return result
+}
+
+func AppStudioRetrieveGroup(groupId AppGroupId) (orcapi.ApplicationGroup, *util.HttpError) {
+	discovery := AppDiscovery{Mode: orcapi.CatalogDiscoveryModeAll}
+	group, _, ok := AppRetrieveGroup(rpc.ActorSystem, groupId, discovery, 0)
+	if ok {
+		return group, nil
+	} else {
+		return orcapi.ApplicationGroup{}, util.HttpErr(http.StatusNotFound, "not found")
+	}
+}
+
+func AppStudioListCategories() []orcapi.ApplicationCategory {
+	discovery := AppDiscovery{Mode: orcapi.CatalogDiscoveryModeAll}
+
+	var result []orcapi.ApplicationCategory
+	var categories []AppCategoryId
+
+	c := &appCatalogGlobals.Categories
+	c.Mu.RLock()
+	for _, cat := range c.Categories {
+		categories = append(categories, cat.Id)
+	}
+	c.Mu.RUnlock()
+
+	for _, catId := range categories {
+		category, ok := AppCatalogRetrieveCategory(rpc.ActorSystem, catId, discovery, 0)
+		if ok {
+			result = append(result, category)
+		}
+	}
+	return result
+}
+
+func AppStudioRetrieveSpotlight(spotlightId AppSpotlightId) (orcapi.Spotlight, *util.HttpError) {
+	discovery := AppDiscovery{Mode: orcapi.CatalogDiscoveryModeAll}
+	spotlight, ok := AppRetrieveSpotlight(rpc.ActorSystem, spotlightId, discovery)
+	if ok {
+		return spotlight, nil
+	} else {
+		return orcapi.Spotlight{}, util.HttpErr(http.StatusNotFound, "not found")
+	}
+}
+
+func AppStudioListSpotlights() []orcapi.Spotlight {
+	discovery := AppDiscovery{Mode: orcapi.CatalogDiscoveryModeAll}
+
+	var spotlightIds []AppSpotlightId
+
+	for i := 0; i < len(appCatalogGlobals.Buckets); i++ {
+		b := &appCatalogGlobals.Buckets[i]
+		b.Mu.RLock()
+		for id := range b.Spotlights {
+			spotlightIds = append(spotlightIds, id)
+		}
+		b.Mu.RUnlock()
+	}
+
+	var result []orcapi.Spotlight
+	for _, id := range spotlightIds {
+		spotlight, ok := AppRetrieveSpotlight(rpc.ActorSystem, id, discovery)
+		if ok {
+			result = append(result, spotlight)
+		}
+	}
+
+	return result
+}
+
+// Studio endpoints (write)
+// =====================================================================================================================
+
+func AppStudioUpdatePublicFlag(name string, version string, isPublic bool) *util.HttpError {
+	app, ok := appRetrieve(name, version)
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "not found")
+	}
+
+	app.Mu.Lock()
+	app.Public = isPublic
+	app.Mu.Unlock()
+
+	appPersistPublic(app)
+	return nil
+}
+
+func AppStudioUpdateFlavorName(name string, flavorName util.Option[string]) *util.HttpError {
+	b := appBucket(name)
+	b.Mu.RLock()
+	allVersions, ok := b.Applications[name]
+	if ok {
+		for _, app := range allVersions {
+			app.Mu.Lock()
+			app.FlavorName = flavorName
+			app.Mu.Unlock()
+		}
+	}
+	b.Mu.RUnlock()
+
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "not found")
+	} else {
+		appPersistFlavor(name, flavorName)
+		return nil
+	}
+}
+
+func AppStudioUpdateGroup(request orcapi.AppCatalogUpdateGroupRequest) *util.HttpError {
+	id := AppGroupId(request.Id)
+	b := appGroupBucket(id)
+
+	b.Mu.RLock()
+	group, ok := b.Groups[id]
+	b.Mu.RUnlock()
+
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "not found")
+	}
+
+	group.Mu.Lock()
+	if prop := request.NewDefaultFlavor; prop.Present {
+		group.DefaultName = prop.Value
+	}
+	if prop := request.NewTitle; prop.Present {
+		group.Title = prop.Value
+	}
+	if prop := request.NewDescription; prop.Present {
+		group.Description = prop.Value
+	}
+	if prop := request.NewLogoHasText; prop.Present {
+		group.LogoHasText = prop.Value
+	}
+	group.Mu.Unlock()
+
+	appPersistGroupMetadata(id, group)
+	return nil
+}
+
+func AppStudioAssignToGroup(name string, groupId util.Option[AppGroupId]) *util.HttpError {
+	b := appBucket(name)
+	b.Mu.RLock()
+	allVersions, ok := b.Applications[name]
+	if ok {
+		for _, app := range allVersions {
+			app.Mu.Lock()
+			app.Group = groupId
+			app.Mu.Unlock()
+		}
+	}
+
+	b.Mu.RUnlock()
+
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "not found")
+	} else {
+		appPersistUpdateGroupAssignment(name, groupId)
+		return nil
 	}
 }

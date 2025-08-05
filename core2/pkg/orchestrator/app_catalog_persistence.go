@@ -405,6 +405,10 @@ func appCatalogLoad() {
 }
 
 func appPersistStars(actor rpc.Actor, s *internalStars) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
 	s.Mu.RLock()
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
@@ -438,4 +442,106 @@ func appPersistStars(actor rpc.Actor, s *internalStars) {
 		}
 	})
 	s.Mu.RUnlock()
+}
+
+func appPersistPublic(app *internalApplication) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	app.Mu.RLock()
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update app_store.applications
+				set is_public = :public
+				where
+					name = :name
+					and version = :version
+		    `,
+			db.Params{
+				"public":  app.Public,
+				"name":    app.Name,
+				"version": app.Version,
+			},
+		)
+	})
+	app.Mu.RUnlock()
+}
+
+func appPersistFlavor(name string, flavor util.Option[string]) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update app_store.applications
+				set flavor_name = :flavor
+				where
+					name = :name
+		    `,
+			db.Params{
+				"flavor": util.OptSqlStringIfNotEmpty(flavor.GetOrDefault("")),
+				"name":   name,
+			},
+		)
+	})
+}
+
+func appPersistGroupMetadata(id AppGroupId, group *internalAppGroup) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	group.Mu.RLock()
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update app_store.application_groups
+				set
+					title = :title,
+					description = :description,
+					default_name = case when :flavor = '' then null else :flavor end,
+ 					logo_has_text = :logo_has_text
+				where
+					id = :id
+		    `,
+			db.Params{
+				"id":            id,
+				"title":         group.Title,
+				"description":   group.Description,
+				"flavor":        group.DefaultName,
+				"logo_has_text": group.LogoHasText,
+			},
+		)
+	})
+	group.Mu.RUnlock()
+}
+
+func appPersistUpdateGroupAssignment(name string, id util.Option[AppGroupId]) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update app_store.applications
+				set
+					group_id = case when :group = -1 then null else :group end
+				where
+					name = :name
+		    `,
+			db.Params{
+				"name":  name,
+				"group": id.GetOrDefault(-1),
+			},
+		)
+	})
 }
