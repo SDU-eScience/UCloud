@@ -48,14 +48,16 @@ func ModuleMain(oldModuleData []byte, args *im.ModuleArgs) {
 			}
 		}
 
-		log.SetLogConsole(false)
-		err := log.SetLogFile(filepath.Join(logCfg.Directory, logFileName+".log"))
-		if err != nil {
-			panic("Unable to open log file: " + err.Error())
-		}
+		if cfg.Mode != cfg.ServerModeServer || !cfg.Provider.Logs.ServerStdout {
+			log.SetLogConsole(false)
+			err := log.SetLogFile(filepath.Join(logCfg.Directory, logFileName+".log"))
+			if err != nil {
+				panic("Unable to open log file: " + err.Error())
+			}
 
-		if logCfg.Rotation.Enabled {
-			log.SetRotation(log.RotateDaily, logCfg.Rotation.RetentionPeriodInDays, true)
+			if logCfg.Rotation.Enabled {
+				log.SetRotation(log.RotateDaily, logCfg.Rotation.RetentionPeriodInDays, true)
+			}
 		}
 	}
 
