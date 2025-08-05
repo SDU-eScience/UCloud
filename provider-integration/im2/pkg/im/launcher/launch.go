@@ -222,6 +222,7 @@ func Launch() {
 		err := http.ListenAndServe(
 			fmt.Sprintf(":%v", serverPort),
 			http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				start := time.Now()
 				defer func() {
 					err := recover()
 					if err != nil {
@@ -232,7 +233,9 @@ func Launch() {
 				handler, _ := im.Args.ServerMultiplexer.Handler(request)
 				newWriter := NewLoggingResponseWriter(writer)
 				handler.ServeHTTP(newWriter, request)
-				log.Info("%v %v %v", request.Method, request.URL.Path, newWriter.statusCode)
+				end := time.Now()
+				duration := end.Sub(start)
+				log.Info("%v %v %v %v", request.Method, request.URL.Path, newWriter.statusCode, duration)
 			}),
 		)
 

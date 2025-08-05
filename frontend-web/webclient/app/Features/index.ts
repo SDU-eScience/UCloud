@@ -102,13 +102,13 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "command-palette": {
         feature: Feature.COMMAND_PALETTE,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments,
     },
 
     "integrated-editor": {
         feature: Feature.INTEGRATED_EDITOR,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments,
     },
 

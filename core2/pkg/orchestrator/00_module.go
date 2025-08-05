@@ -7,4 +7,7 @@ func Init() {
 
 	initDrives()
 	initFiles()
+	initAppSearchIndex()
+	initAppLogos()
+	initAppCatalog()
 }

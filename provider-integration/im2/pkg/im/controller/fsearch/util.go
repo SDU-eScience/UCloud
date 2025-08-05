@@ -4,7 +4,6 @@ import (
 	"github.com/MichaelTJones/walk"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -30,7 +29,7 @@ func BuildIndex(bucketCount int, rootPath string) BuildIndexResult {
 	prepWg := &sync.WaitGroup{}
 	appendWg := &sync.WaitGroup{}
 
-	workerCount := max(2, runtime.NumCPU()/2)
+	workerCount := 1
 
 	for i := 0; i < workerCount; i++ {
 		prepWg.Add(1)
@@ -65,11 +64,13 @@ func BuildIndex(bucketCount int, rootPath string) BuildIndexResult {
 	cleanPath = filepath.Clean(cleanPath)
 
 	_ = walk.Walk(cleanPath, workerCount, func(path string, info os.FileInfo, err error) error {
-		filesInIndex.Add(1)
-		fileSize.Add(uint64(max(0, info.Size())))
-		baseInfoCh <- FileInfo{
-			Parent: filepath.Dir(path),
-			Name:   filepath.Base(path),
+		if info != nil {
+			filesInIndex.Add(1)
+			fileSize.Add(uint64(max(0, info.Size())))
+			baseInfoCh <- FileInfo{
+				Parent: filepath.Dir(path),
+				Name:   filepath.Base(path),
+			}
 		}
 
 		return nil

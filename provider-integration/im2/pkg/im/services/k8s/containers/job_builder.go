@@ -225,7 +225,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	product := job.Status.ResolvedProduct
 	cpuMillis := int64(product.Cpu * 1000)
 	memoryMegabytes := int64(product.MemoryInGigs * 1000)
-	gpus := int64(product.Gpu * 1000)
+	gpus := int64(product.Gpu)
 
 	gpuType := "nvidia.com/gpu"
 
@@ -351,7 +351,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// -----------------------------------------------------------------------------------------------------------------
 	spec.InitContainers = append(spec.InitContainers, core.Container{
 		Name:  "ucviz",
-		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.3.55",
+		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.3.83",
 	})
 
 	ucvizContainer := &spec.InitContainers[len(spec.InitContainers)-1]

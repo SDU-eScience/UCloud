@@ -341,8 +341,9 @@ type ProviderConfiguration struct {
 	}
 
 	Logs struct {
-		Directory string
-		Rotation  struct {
+		Directory    string
+		ServerStdout bool
+		Rotation     struct {
 			Enabled               bool `yaml:"enabled"`
 			RetentionPeriodInDays int  `yaml:"retentionPeriodInDays"`
 		}
@@ -410,6 +411,12 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 		logs := cfgutil.RequireChild(filePath, provider, "logs", &success)
 		directory := cfgutil.RequireChildFolder(filePath, logs, "directory", cfgutil.FileCheckReadWrite, &success)
 		cfg.Logs.Directory = directory
+		serverStdout, ok := cfgutil.OptionalChildBool(filePath, logs, "serverStdOut")
+		if !ok {
+			cfg.Logs.ServerStdout = false
+		} else {
+			cfg.Logs.ServerStdout = serverStdout
+		}
 		if !success {
 			return false, cfg
 		}

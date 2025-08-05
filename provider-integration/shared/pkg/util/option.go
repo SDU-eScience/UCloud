@@ -140,3 +140,11 @@ func OptDefaultOrMap[T any, R any](opt Option[T], defaultValue R, mapper func(va
 		return defaultValue
 	}
 }
+
+func OptMap[A any, B any](opt Option[A], mapper func(value A) B) Option[B] {
+	if opt.Present {
+		return OptValue[B](mapper(opt.Value))
+	} else {
+		return OptNone[B]()
+	}
+}
