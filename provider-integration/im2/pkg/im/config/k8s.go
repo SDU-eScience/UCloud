@@ -157,7 +157,6 @@ type K8sMachineCategoryGroup struct {
 
 type K8sMachineConfiguration struct {
 	AdvertisedCpu     int
-	ActualCpuMillis   int
 	MemoryInGigabytes int
 	Gpu               int
 	Price             float64
@@ -503,7 +502,6 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 	result.SystemReservedCpuMillis = int(cfgutil.OptionalChildInt(filePath, node, "systemReservedCpuMillis", success).GetOrDefault(500))
 
 	var cpu []int
-	var actualCpuMillis []int
 	var gpu []int
 	var memory []int
 	var price []float64
@@ -522,15 +520,6 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 		priceNode, _ := cfgutil.GetChildOrNil(filePath, node, "price")
 		if priceNode != nil {
 			cfgutil.Decode(filePath, priceNode, &price, success)
-		}
-
-		actualCpuNode, _ := cfgutil.GetChildOrNil(filePath, node, "actualCpuMillis")
-		if actualCpuNode != nil {
-			cfgutil.Decode(filePath, actualCpuNode, &actualCpuMillis, success)
-		} else {
-			for i := 0; i < len(cpu); i++ {
-				actualCpuMillis = append(actualCpuMillis, cpu[i]*1000)
-			}
 		}
 
 		machineLength := len(cpu)
@@ -554,24 +543,11 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 			cfgutil.ReportError(filePath, memoryNode, "memory must have the same length as cpu (%v != %v)", machineLength, len(memory))
 			*success = false
 		}
-
-		if len(actualCpuMillis) != machineLength {
-			cfgutil.ReportError(filePath, memoryNode, "actualCpuMillis must have the same length as cpu (%v != %v)", machineLength, len(memory))
-			*success = false
-		}
 	}
 
 	for _, count := range cpu {
 		if count <= 0 {
 			cfgutil.ReportError(filePath, node, "cpu count must be greater than zero")
-			*success = false
-			break
-		}
-	}
-
-	for _, count := range actualCpuMillis {
-		if count <= 0 {
-			cfgutil.ReportError(filePath, node, "actualCpuMillis must be greater than zero")
 			*success = false
 			break
 		}
@@ -619,7 +595,6 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 			}
 			configuration := K8sMachineConfiguration{
 				AdvertisedCpu:     cpu[i],
-				ActualCpuMillis:   actualCpuMillis[i],
 				MemoryInGigabytes: memory[i],
 				Gpu:               gpuCount,
 			}

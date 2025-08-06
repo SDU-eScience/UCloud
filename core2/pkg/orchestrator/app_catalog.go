@@ -18,6 +18,8 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+// Lock order: bucket -> category -> group -> app
+
 func initAppCatalog() {
 	appCatalogLoad()
 
@@ -275,7 +277,26 @@ func initAppCatalog() {
 	})
 
 	orcapi.AppsRetrieveAcl.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogRetrieveAclRequest) (orcapi.AppCatalogRetrieveAclResponse, *util.HttpError) {
-		panic("TODO")
+		list := AppStudioRetrieveAccessList(request.Name)
+		var result []orcapi.AppDetailedPermissionEntry
+		for _, item := range list {
+			result = append(result, orcapi.AppDetailedPermissionEntry{
+				User: util.OptStringIfNotEmpty(item.Username),
+				Project: util.OptMap(util.OptStringIfNotEmpty(item.ProjectId), func(value string) fndapi.Project {
+					return fndapi.Project{
+						Id: value,
+						// TODO
+					}
+				}),
+				Group: util.OptMap(util.OptStringIfNotEmpty(item.Group), func(value string) fndapi.ProjectGroup {
+					return fndapi.ProjectGroup{
+						Id: value,
+						// TODO
+					}
+				}),
+			})
+		}
+		return orcapi.AppCatalogRetrieveAclResponse{Entries: result}, nil
 	})
 
 	orcapi.AppsUpdateAcl.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateAclRequest) (util.Empty, *util.HttpError) {
@@ -323,27 +344,32 @@ func initAppCatalog() {
 	})
 
 	orcapi.AppsAddLogoToGroup.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogAddLogoToGroupRequest) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		return util.Empty{}, AppStudioUpdateLogo(AppGroupId(request.GroupId), request.LogoBytes)
 	})
 
 	orcapi.AppsRemoveLogoFromGroup.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		return util.Empty{}, AppStudioUpdateLogo(AppGroupId(request.Id), nil)
 	})
 
 	orcapi.AppsCreateCategory.Handler(func(info rpc.RequestInfo, request orcapi.AppCategorySpecification) (fndapi.FindByIntId, *util.HttpError) {
-		panic("TODO")
+		id, err := AppStudioCreateCategory(request.Title)
+		if err != nil {
+			return fndapi.FindByIntId{}, err
+		} else {
+			return fndapi.FindByIntId{int(id)}, nil
+		}
 	})
 
 	orcapi.AppsAddGroupToCategory.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogAddGroupToCategoryRequest) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		return util.Empty{}, AppStudioAddGroupToCategory(AppGroupId(request.GroupId), AppCategoryId(request.CategoryId))
 	})
 
 	orcapi.AppsRemoveGroupFromCategory.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogRemoveGroupFromCategoryRequest) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		return util.Empty{}, AppStudioRemoveGroupFromCategory(AppGroupId(request.GroupId), AppCategoryId(request.CategoryId))
 	})
 
 	orcapi.AppsAssignPriorityToCategory.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogAssignPriorityToCategoryRequest) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		return util.Empty{}, AppStudioAssignPriorityToCategory(AppCategoryId(request.Id), request.Priority)
 	})
 
 	orcapi.AppsBrowseStudioCategories.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogBrowseStudioCategoriesRequest) (fndapi.PageV2[orcapi.ApplicationCategory], *util.HttpError) {
@@ -355,7 +381,7 @@ func initAppCatalog() {
 	})
 
 	orcapi.AppsDeleteCategory.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		return util.Empty{}, AppStudioDeleteCategory(AppCategoryId(request.Id))
 	})
 
 	orcapi.AppsCreateSpotlight.Handler(func(info rpc.RequestInfo, request orcapi.Spotlight) (fndapi.FindByIntId, *util.HttpError) {
@@ -482,10 +508,11 @@ type appCategories struct {
 }
 
 type internalCategory struct {
-	Mu    sync.RWMutex
-	Id    AppCategoryId
-	Title string
-	Items []AppGroupId
+	Mu       sync.RWMutex
+	Id       AppCategoryId
+	Title    string
+	Items    []AppGroupId
+	Priority int
 }
 
 type internalApplication struct {
@@ -534,10 +561,12 @@ type internalAppGroup struct {
 	LogoHasText bool
 
 	DefaultName string
-	Items       []orcapi.NameAndVersion
+	Items       []string // app name
 
 	ColorRemappingLight map[int]int
 	ColorRemappingDark  map[int]int
+
+	Categories []AppCategoryId
 }
 
 type internalSpotlight struct {
@@ -640,6 +669,22 @@ func appStarsRetrieve(name string) *internalStars {
 	})
 }
 
+func appRetrieveGroup(id AppGroupId) (*internalAppGroup, bool) {
+	b := appGroupBucket(id)
+	b.Mu.RLock()
+	group, ok := b.Groups[id]
+	b.Mu.RUnlock()
+	return group, ok
+}
+
+func appRetrieveCategory(id AppCategoryId) (*internalCategory, bool) {
+	c := &appCatalogGlobals.Categories
+	c.Mu.RLock()
+	cat, ok := c.Categories[id]
+	c.Mu.RUnlock()
+	return cat, ok
+}
+
 // Catalog read operations
 // =====================================================================================================================
 
@@ -649,6 +694,7 @@ const (
 	AppCatalogIncludeGroups AppCatalogFlags = 1 << iota
 	AppCatalogIncludeApps
 	AppCatalogIncludeVersionNumbers
+	AppCatalogIncludeCategories
 )
 
 func AppIsRelevant(
@@ -820,7 +866,7 @@ func AppRetrieve(
 		}
 	}
 
-	if flags&AppCatalogIncludeGroups != 0 && groupId.Present {
+	if (flags&AppCatalogIncludeGroups != 0 || flags&AppCatalogIncludeCategories != 0) && groupId.Present {
 		// NOTE(Dan): Do not include apps when retrieving groups to avoid infinite recursion
 		groupFlags := flags
 		groupFlags &= ^AppCatalogIncludeApps
@@ -829,7 +875,9 @@ func AppRetrieve(
 		ok = groupOk
 
 		if ok {
-			apiApplication.Metadata.Group = g
+			if flags&AppCatalogIncludeGroups != 0 {
+				apiApplication.Metadata.Group = g
+			}
 		}
 	}
 
@@ -857,7 +905,7 @@ func AppRetrieveGroup(
 	}
 
 	group.Mu.RLock()
-	var apps []orcapi.NameAndVersion
+	var apps []string
 	apiGroup := orcapi.ApplicationGroup{
 		Metadata: orcapi.ApplicationGroupMetadata{
 			Id: int(id),
@@ -878,18 +926,19 @@ func AppRetrieveGroup(
 	logo := group.Logo
 
 	if flags&AppCatalogIncludeApps != 0 {
-		apps = make([]orcapi.NameAndVersion, len(group.Items))
+		apps = make([]string, len(group.Items))
 		copy(apps, group.Items)
+	}
+	if flags&AppCatalogIncludeCategories != 0 {
+		apiGroup.Specification.Categories = make([]int, len(group.Categories))
+		for i, catId := range group.Categories {
+			apiGroup.Specification.Categories[i] = int(catId)
+		}
 	}
 	group.Mu.RUnlock()
 
 	if len(apps) > 0 {
-		names := map[string]util.Empty{}
-		for _, nameAndVersion := range apps {
-			names[nameAndVersion.Name] = util.Empty{}
-		}
-
-		for name, _ := range names {
+		for _, name := range apps {
 			// NOTE(Dan): Do not retrieve groups in the later layers to avoid infinite recursion
 			groupFlags := flags
 			groupFlags &= ^AppCatalogIncludeGroups
@@ -1253,12 +1302,16 @@ func AppStudioListGroups() []orcapi.ApplicationGroup {
 		}
 	}
 
+	slices.SortFunc(result, func(a, b orcapi.ApplicationGroup) int {
+		return strings.Compare(a.Specification.Title, b.Specification.Title)
+	})
+
 	return result
 }
 
 func AppStudioRetrieveGroup(groupId AppGroupId) (orcapi.ApplicationGroup, *util.HttpError) {
 	discovery := AppDiscovery{Mode: orcapi.CatalogDiscoveryModeAll}
-	group, _, ok := AppRetrieveGroup(rpc.ActorSystem, groupId, discovery, 0)
+	group, _, ok := AppRetrieveGroup(rpc.ActorSystem, groupId, discovery, AppCatalogIncludeApps|AppCatalogIncludeCategories)
 	if ok {
 		return group, nil
 	} else {
@@ -1320,6 +1373,18 @@ func AppStudioListSpotlights() []orcapi.Spotlight {
 		}
 	}
 
+	return result
+}
+
+func AppStudioRetrieveAccessList(appName string) []orcapi.AclEntity {
+	b := appBucket(appName)
+	b.Mu.RLock()
+	var result []orcapi.AclEntity
+	perms := b.ApplicationPermissions[appName]
+	for _, perm := range perms {
+		result = append(result, perm.Entity)
+	}
+	b.Mu.RUnlock()
 	return result
 }
 
@@ -1393,18 +1458,43 @@ func AppStudioUpdateGroup(request orcapi.AppCatalogUpdateGroupRequest) *util.Htt
 }
 
 func AppStudioAssignToGroup(name string, groupId util.Option[AppGroupId]) *util.HttpError {
+	var newGroup *internalAppGroup
+	var ok bool
+
+	if groupId.Present {
+		newGroup, ok = appRetrieveGroup(groupId.Value)
+		if !ok {
+			return util.HttpErr(http.StatusNotFound, "unknown group")
+		}
+	}
+
+	previousGroupId := util.OptNone[AppGroupId]()
+
 	b := appBucket(name)
 	b.Mu.RLock()
 	allVersions, ok := b.Applications[name]
 	if ok {
 		for _, app := range allVersions {
 			app.Mu.Lock()
+			previousGroupId = groupId
 			app.Group = groupId
 			app.Mu.Unlock()
 		}
 	}
-
 	b.Mu.RUnlock()
+
+	if previousGroupId.Present {
+		g, ok := appRetrieveGroup(previousGroupId.Value)
+		if ok {
+			g.Items = util.RemoveFirst(g.Items, name)
+		}
+	}
+
+	if newGroup != nil {
+		newGroup.Mu.Lock()
+		newGroup.Items = util.AppendUnique(newGroup.Items, name)
+		newGroup.Mu.Unlock()
+	}
 
 	if !ok {
 		return util.HttpErr(http.StatusNotFound, "not found")
@@ -1412,4 +1502,150 @@ func AppStudioAssignToGroup(name string, groupId util.Option[AppGroupId]) *util.
 		appPersistUpdateGroupAssignment(name, groupId)
 		return nil
 	}
+}
+
+func AppStudioAddGroupToCategory(groupId AppGroupId, categoryId AppCategoryId) *util.HttpError {
+	group, ok := appRetrieveGroup(groupId)
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "unknown group")
+	}
+
+	category, ok := appRetrieveCategory(categoryId)
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "unknown category")
+	}
+
+	category.Mu.Lock()
+	group.Mu.Lock()
+	group.Categories = util.AppendUnique(group.Categories, categoryId)
+	category.Items = util.AppendUnique(category.Items, groupId)
+	group.Mu.Unlock()
+	category.Mu.Unlock()
+
+	appPersistCategoryItems(category)
+	return nil
+}
+
+func AppStudioRemoveGroupFromCategory(groupId AppGroupId, categoryId AppCategoryId) *util.HttpError {
+	group, ok := appRetrieveGroup(groupId)
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "unknown group")
+	}
+
+	category, ok := appRetrieveCategory(categoryId)
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "unknown category")
+	}
+
+	category.Mu.Lock()
+	group.Mu.Lock()
+	group.Categories = util.RemoveFirst(group.Categories, categoryId)
+	category.Items = util.RemoveFirst(category.Items, groupId)
+	group.Mu.Unlock()
+	category.Mu.Unlock()
+
+	appPersistCategoryItems(category)
+	return nil
+}
+
+func AppStudioCreateCategory(title string) (AppCategoryId, *util.HttpError) {
+	var resultCategory *internalCategory
+	var result AppCategoryId
+	var err *util.HttpError = nil
+
+	cats := &appCatalogGlobals.Categories
+	cats.Mu.Lock()
+	for _, cat := range cats.Categories {
+		cat.Mu.RLock()
+		ok := strings.EqualFold(title, cat.Title)
+		cat.Mu.RUnlock()
+
+		if !ok {
+			err = util.HttpErr(http.StatusConflict, "a category with this name already exist")
+			break
+		}
+	}
+
+	if err == nil {
+		result = AppCategoryId(appCatalogGlobals.CategoryIdAcc.Add(1))
+		resultCategory = &internalCategory{
+			Id:       result,
+			Title:    title,
+			Items:    nil,
+			Priority: len(cats.Categories) + 1,
+		}
+		cats.Categories[result] = resultCategory
+	}
+
+	cats.Mu.Unlock()
+
+	if err == nil {
+		appPersistCategoryMetadata(resultCategory)
+	}
+
+	return result, err
+}
+
+func AppStudioAssignPriorityToCategory(id AppCategoryId, newPriority int) *util.HttpError {
+	category, ok := appRetrieveCategory(id)
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "unknown category")
+	}
+
+	category.Mu.Lock()
+	category.Priority = newPriority
+	category.Mu.Unlock()
+
+	appPersistCategoryMetadata(category)
+	return nil
+}
+
+func AppStudioDeleteCategory(id AppCategoryId) *util.HttpError {
+	category, ok := appRetrieveCategory(id)
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "unknown category")
+	}
+
+	cats := &appCatalogGlobals.Categories
+	cats.Mu.Lock()
+	{
+		category.Mu.Lock()
+		for _, groupId := range category.Items {
+			group, ok := appRetrieveGroup(groupId)
+			if ok {
+				group.Mu.Lock()
+				group.Categories = util.RemoveFirst(group.Categories, id)
+				group.Mu.Unlock()
+			}
+		}
+
+		category.Items = nil
+		category.Mu.Unlock()
+	}
+	delete(cats.Categories, id)
+	cats.Mu.Unlock()
+
+	appPersistDeleteCategory(id)
+	return nil
+}
+
+func AppStudioUpdateLogo(groupId AppGroupId, logo []byte) *util.HttpError {
+	group, ok := appRetrieveGroup(groupId)
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "unknown group")
+	}
+
+	resizedImage := AppLogoValidateAndResize(logo)
+	if resizedImage == nil && logo != nil {
+		return util.HttpErr(http.StatusBadRequest, "invalid or too large image")
+	}
+
+	group.Mu.Lock()
+	group.Logo = resizedImage
+	title := group.Title
+	group.Mu.Unlock()
+
+	AppLogoInvalidate(title)
+	appPersistGroupLogo(groupId, group)
+	return nil
 }

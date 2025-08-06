@@ -205,13 +205,14 @@ func appCatalogLoad() {
 			}
 
 			categories := db.Select[struct {
-				Id    int
-				Title string
+				Id       int
+				Title    string
+				Priority int
 			}](
 				tx,
 				`
 					select
-						id, tag as title
+						id, tag as title, priority
 					from
 						app_store.categories
 					order by
@@ -224,8 +225,9 @@ func appCatalogLoad() {
 				id := AppCategoryId(cat.Id)
 				c := &appCatalogGlobals.Categories
 				c.Categories[id] = &internalCategory{
-					Id:    id,
-					Title: cat.Title,
+					Id:       id,
+					Title:    cat.Title,
+					Priority: cat.Priority,
 				}
 			}
 
@@ -383,12 +385,11 @@ func appCatalogLoad() {
 		// ---------------------------------------------------------------------------------------------------------
 		for i := 0; i < len(appCatalogGlobals.Buckets); i++ {
 			b := &appCatalogGlobals.Buckets[i]
-			for _, allVersions := range b.Applications {
+			for name, allVersions := range b.Applications {
 				latest := allVersions[len(allVersions)-1]
 				if g := latest.Group; g.Present {
 					gb := appGroupBucket(g.Value)
-					gb.Groups[g.Value].Items = append(gb.Groups[g.Value].Items,
-						orcapi.NameAndVersion{latest.Name, latest.Version})
+					gb.Groups[g.Value].Items = util.AppendUnique(gb.Groups[g.Value].Items, name)
 				}
 			}
 
@@ -398,6 +399,16 @@ func appCatalogLoad() {
 
 				if ok {
 					appAddToIndex(id, g)
+				}
+			}
+		}
+
+		cats := &appCatalogGlobals.Categories
+		for _, category := range cats.Categories {
+			for _, item := range category.Items {
+				g, ok := appRetrieveGroup(item)
+				if ok {
+					g.Categories = append(g.Categories, category.Id)
 				}
 			}
 		}
@@ -523,6 +534,29 @@ func appPersistGroupMetadata(id AppGroupId, group *internalAppGroup) {
 	group.Mu.RUnlock()
 }
 
+func appPersistGroupLogo(id AppGroupId, group *internalAppGroup) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	group.Mu.RLock()
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update app_store.application_groups
+				set logo = :logo
+				where id = :id
+		    `,
+			db.Params{
+				"id":   id,
+				"logo": db.Bytea(group.Logo),
+			},
+		)
+	})
+	group.Mu.RUnlock()
+}
+
 func appPersistUpdateGroupAssignment(name string, id util.Option[AppGroupId]) {
 	if appCatalogGlobals.Testing.Enabled {
 		return
@@ -541,6 +575,82 @@ func appPersistUpdateGroupAssignment(name string, id util.Option[AppGroupId]) {
 			db.Params{
 				"name":  name,
 				"group": id.GetOrDefault(-1),
+			},
+		)
+	})
+}
+
+func appPersistCategoryItems(category *internalCategory) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	category.Mu.RLock()
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				delete from app_store.category_items
+				where tag_id = :category
+		    `,
+			db.Params{
+				"category": category.Id,
+			},
+		)
+
+		db.Exec(
+			tx,
+			`
+				insert into app_store.category_items(group_id, tag_id) 
+				select unnest(cast(:groups as int[])), :category
+				on conflict do nothing 
+		    `,
+			db.Params{
+				"category": category.Id,
+				"groups":   category.Items,
+			},
+		)
+	})
+	category.Mu.RUnlock()
+}
+
+func appPersistCategoryMetadata(category *internalCategory) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	category.Mu.RLock()
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into app_store.categories(id, tag, priority, curator)
+				values (:id, :title, :priority, 'main')
+				on conflict (id) do update set tag = excluded.tag, priority = excluded.priority
+		    `,
+			db.Params{
+				"id":       category.Id,
+				"title":    category.Title,
+				"priority": category.Priority,
+			},
+		)
+	})
+	category.Mu.RUnlock()
+}
+
+func appPersistDeleteCategory(id AppCategoryId) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				delete from app_store.categories where id = :id
+		    `,
+			db.Params{
+				"id": id,
 			},
 		)
 	})

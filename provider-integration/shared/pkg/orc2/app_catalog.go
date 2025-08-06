@@ -1,6 +1,9 @@
 package orchestrators
 
 import (
+	"io"
+	"fmt"
+	"strconv"
 	"net/http"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
@@ -365,14 +368,37 @@ var AppsRetrieveStudioGroup = rpc.Call[fnd.FindByIntId, ApplicationGroup]{
 }
 
 type AppCatalogAddLogoToGroupRequest struct {
-	GroupId int `json:"groupId"`
+	GroupId   int `json:"groupId"`
+	LogoBytes []byte
 }
 
 var AppsAddLogoToGroup = rpc.Call[AppCatalogAddLogoToGroupRequest, util.Empty]{
 	BaseContext: appCatalogNamespace,
-	Convention:  rpc.ConventionUpdate,
+	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "uploadLogo",
+
+	CustomMethod: http.MethodPost,
+	CustomPath:   fmt.Sprintf("%s/uploadLogo", appCatalogNamespace),
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (AppCatalogAddLogoToGroupRequest, *util.HttpError) {
+		uploadName := r.Header.Get("upload-name")
+		groupId, err := strconv.ParseInt(uploadName, 10, 64)
+		if uploadName == "" || err != nil {
+			return AppCatalogAddLogoToGroupRequest{}, util.HttpErr(http.StatusBadRequest, "missing/invalid group id")
+		}
+
+		reader := io.LimitReader(r.Body, 1024*1024*4)
+		logoBytes, err := io.ReadAll(reader)
+		if err != nil {
+			return AppCatalogAddLogoToGroupRequest{}, util.HttpErr(http.StatusBadRequest, "malformed request")
+		}
+
+		return AppCatalogAddLogoToGroupRequest{GroupId: int(groupId), LogoBytes: logoBytes}, nil
+	},
+
+	CustomClientHandler: func(self *rpc.Call[AppCatalogAddLogoToGroupRequest, util.Empty], client *rpc.Client, request AppCatalogAddLogoToGroupRequest) (util.Empty, *util.HttpError) {
+		panic("client not implemented")
+	},
 }
 
 var AppsRemoveLogoFromGroup = rpc.Call[fnd.FindByIntId, util.Empty]{
