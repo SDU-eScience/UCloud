@@ -18,7 +18,7 @@ func appCatalogLoad() {
 		for i := 0; i < len(appCatalogGlobals.Buckets); i++ {
 			b := &appCatalogGlobals.Buckets[i]
 			b.Applications = make(map[string][]*internalApplication)
-			b.ApplicationPermissions = make(map[string][]appPermission)
+			b.ApplicationPermissions = make(map[string][]orcapi.AclEntity)
 			b.Tools = make(map[string][]*internalTool)
 			b.Groups = make(map[AppGroupId]*internalAppGroup)
 			b.Spotlights = make(map[AppSpotlightId]*internalSpotlight)
@@ -136,14 +136,14 @@ func appCatalogLoad() {
 
 			for _, perm := range appPermissions {
 				b := appBucket(perm.ApplicationName)
-				p := appPermission{}
+				p := orcapi.AclEntity{}
 				if perm.Username != "" {
-					p.Entity.Type = orcapi.AclEntityTypeUser
-					p.Entity.Username = perm.Username
+					p.Type = orcapi.AclEntityTypeUser
+					p.Username = perm.Username
 				} else if perm.Project != "" && perm.ProjectGroup != "" {
-					p.Entity.Type = orcapi.AclEntityTypeProjectGroup
-					p.Entity.ProjectId = perm.Project
-					p.Entity.Group = perm.ProjectGroup
+					p.Type = orcapi.AclEntityTypeProjectGroup
+					p.ProjectId = perm.Project
+					p.Group = perm.ProjectGroup
 				} else {
 					continue
 				}
@@ -513,14 +513,13 @@ func appPersistGroupMetadata(id AppGroupId, group *internalAppGroup) {
 		db.Exec(
 			tx,
 			`
-				update app_store.application_groups
-				set
-					title = :title,
-					description = :description,
-					default_name = case when :flavor = '' then null else :flavor end,
- 					logo_has_text = :logo_has_text
-				where
-					id = :id
+				insert into app_store.application_groups(id, title, logo, description, default_name, logo_has_text, color_remapping, curator) 
+				values (:id, :title, null, :description, :flavor, :logo_has_text, null, 'main')
+				on conflict (id) do update set
+				    title = excluded.title,
+				    description = excluded.description,
+				    default_name = excluded.default_name,
+					logo_has_text = excluded.logo_has_text
 		    `,
 			db.Params{
 				"id":            id,
@@ -654,4 +653,238 @@ func appPersistDeleteCategory(id AppCategoryId) {
 			},
 		)
 	})
+}
+
+func appPersistAcl(name string, list []orcapi.AclEntity) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	var users []string
+	var projects []string
+	var groups []string
+
+	for _, item := range list {
+		users = append(users, item.Username)
+		projects = append(projects, item.ProjectId)
+		groups = append(groups, item.Group)
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`delete from app_store.permissions where application_name = :app`,
+			db.Params{
+				"app": name,
+			},
+		)
+
+		if len(users) > 0 {
+			db.Exec(
+				tx,
+				`
+					insert into app_store.permissions(application_name, permission, username, project, project_group) 
+					select :app, 'LAUNCH', unnest(cast(:users as text[])), unnest(cast(:projects as text[])),
+						unnest(cast(:groups as text[]))
+				`,
+				db.Params{
+					"app":      name,
+					"users":    users,
+					"projects": projects,
+					"groups":   groups,
+				},
+			)
+		}
+	})
+}
+
+func appPersistGroupDeletion(id AppGroupId) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update app_store.applications
+				set group_id = null
+				where group_id = :id
+		    `,
+			db.Params{
+				"id": id,
+			},
+		)
+
+		db.Exec(
+			tx,
+			`
+				delete from app_store.application_groups
+				where id = :id
+		    `,
+			db.Params{
+				"id": id,
+			},
+		)
+	})
+}
+
+func appPersistSpotlight(id AppSpotlightId, spotlight *internalSpotlight) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	spotlight.Mu.RLock()
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				delete from app_store.spotlight_items
+				where spotlight_id = :id
+		    `,
+			db.Params{
+				"id": id,
+			},
+		)
+
+		db.Exec(
+			tx,
+			`
+				insert into app_store.spotlights(id, title, description, active)
+				values (:id, :title, :description, false)
+				on conflict (id) do update set
+					title = excluded.title,
+					description = excluded.description
+		    `,
+			db.Params{
+				"id":          id,
+				"title":       spotlight.Title,
+				"description": spotlight.Description,
+			},
+		)
+
+		var groups []int
+		var priorities []int
+		for i, item := range spotlight.Items {
+			groups = append(groups, int(item))
+			priorities = append(priorities, i)
+		}
+
+		if len(groups) > 0 {
+			db.Exec(
+				tx,
+				`
+					insert into app_store.spotlight_items(spotlight_id, application_name, group_id, description, priority) 
+					select :id, null, unnest(cast(:groups as int[])), '', unnest(cast(:priorities as int[]))
+				`,
+				db.Params{
+					"id":         id,
+					"groups":     groups,
+					"priorities": priorities,
+				},
+			)
+		}
+
+	})
+	spotlight.Mu.RUnlock()
+}
+
+func appPersistDeleteSpotlight(id AppSpotlightId) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				delete from app_store.spotlight_items
+				where spotlight_id = :id
+		    `,
+			db.Params{
+				"id": id,
+			},
+		)
+
+		db.Exec(
+			tx,
+			`
+				delete from app_store.spotlights
+				where id = :id
+		    `,
+			db.Params{
+				"id": id,
+			},
+		)
+	})
+}
+
+func appPersistSetActiveSpotlight(id AppSpotlightId) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update app_store.spotlights
+				set active = false
+				where active = true
+		    `,
+			db.Params{},
+		)
+
+		db.Exec(
+			tx,
+			`
+				update app_store.spotlights
+				set active = true
+				where id = :id
+		    `,
+			db.Params{
+				"id": id,
+			},
+		)
+	})
+}
+
+func appPersistTopPicks(picks []AppGroupId) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	var groups []int
+	var priorities []int
+	for i, pick := range picks {
+		groups = append(groups, int(pick))
+		priorities = append(priorities, i)
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				delete from app_store.top_picks
+				where true
+		    `,
+			db.Params{},
+		)
+
+		if len(groups) > 0 {
+			db.Exec(
+				tx,
+				`
+					insert into app_store.top_picks(application_name, group_id, description, priority) 
+					select null, unnest(cast(:groups as int[])), '', unnest(cast(:priorities as int[]))
+				`,
+				db.Params{
+					"groups":     groups,
+					"priorities": priorities,
+				},
+			)
+		}
+	})
+	// TODO Stuff like this could technically cause a crash if it is deleted before persistence runs.
+	//   Might want to verify in here by joining the table.
 }
