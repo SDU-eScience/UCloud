@@ -467,7 +467,7 @@ function stateReducer(state: State, action: UIAction): State {
 // =====================================================================================================================
 type UIEvent =
     UIAction
-    | {type: "Init"}
+    | {type: "Init", period?: Period}
     ;
 
 function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (event: UIEvent) => unknown {
@@ -499,7 +499,7 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
 
         switch (event.type) {
             case "Init": {
-                const {start, end} = normalizePeriod(initialState.selectedPeriod);
+                const {start, end} = normalizePeriod(event.period ?? initialState.selectedPeriod);
                 await doLoad(start, end);
                 break;
             }
@@ -531,7 +531,7 @@ function Visualization(): React.ReactNode {
     usePage("Usage", SidebarTabId.PROJECT);
 
     useEffect(() => {
-        dispatchEvent({type: "Init"});
+        dispatchEvent({type: "Init", period: state.selectedPeriod});
     }, [projectId]);
 
     // Event handlers
@@ -2526,7 +2526,7 @@ const VisualizationStyle = injectStyle("visualization", k => `
 
 // Initial state
 // =====================================================================================================================
-const initialState: State = {
+const initialState: Readonly<State> = {
     remoteData: {requestsInFlight: 0, initialLoadDone: false},
     summaries: [],
     selectedPeriod: {
