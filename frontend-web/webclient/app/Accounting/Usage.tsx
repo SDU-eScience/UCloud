@@ -1911,6 +1911,24 @@ function usageChartsToChart(
         dataLabels: {
             enabled: false
         },
+        colors: [
+            "var(--primaryMain)",
+            "var(--green-40)",
+            "var(--red-60)",
+            "var(--purple-70)",
+            "var(--gray-50)",
+            "var(--orange-40)",
+            "var(--pink-40)",
+            "var(--yellow-30)",
+            "var(--blue-40)",
+            "var(--green-70)",
+            "var(--red-40)",
+            "var(--purple-40)",
+            "var(--gray-30)",
+            "var(--orange-70)",
+            "var(--pink-80)",
+            "var(--yellow-70)"
+        ].slice(0, result.series.length),
         markers: {
             size: 0,
         },

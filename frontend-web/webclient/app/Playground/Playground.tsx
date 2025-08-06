@@ -385,7 +385,7 @@ const colors: ThemeColor[] = [
 ];
 
 
-const paletteColors = ["purple", "red", "orange", "yellow", "green", "gray", "blue"];
+const paletteColors = ["purple", "red", "orange", "yellow", "green", "gray", "blue", "pink"];
 const numbers = [5, 10, 20, 30, 40, 50, 60, 70, 80, 90];
 
 function CSSPaletteColorVar({color, num}: {color: string, num: number}) {
