@@ -534,6 +534,29 @@ func appPersistGroupMetadata(id AppGroupId, group *internalAppGroup) {
 	group.Mu.RUnlock()
 }
 
+func appPersistGroupLogo(id AppGroupId, group *internalAppGroup) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	group.Mu.RLock()
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update app_store.application_groups
+				set logo = :logo
+				where id = :id
+		    `,
+			db.Params{
+				"id":   id,
+				"logo": db.Bytea(group.Logo),
+			},
+		)
+	})
+	group.Mu.RUnlock()
+}
+
 func appPersistUpdateGroupAssignment(name string, id util.Option[AppGroupId]) {
 	if appCatalogGlobals.Testing.Enabled {
 		return

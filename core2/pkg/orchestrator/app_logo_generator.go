@@ -5,7 +5,6 @@ import (
 	"golang.org/x/image/font/gofont/goregular"
 	"image"
 	"image/color"
-	"image/draw"
 	_ "image/jpeg"
 	"image/png"
 	"math"
@@ -16,6 +15,7 @@ import (
 	"sync"
 	"ucloud.dk/shared/pkg/util"
 
+	"golang.org/x/image/draw"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
@@ -41,6 +41,56 @@ var appLogo struct {
 
 func initAppLogos() {
 	appLogo.font = loadSystemFont()
+}
+
+const (
+	logoTargetWidth        = 300
+	logoMaxInputSize       = 1024 * 1024 * 20
+	logoMaxInputDimensions = 10000
+	logoMaxInputPixels     = 12_000_000
+)
+
+func AppLogoValidateAndResize(data []byte) []byte {
+	if len(data) == 0 || len(data) > logoMaxInputSize {
+		return nil
+	}
+
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return nil
+	}
+
+	if cfg.Width <= 0 || cfg.Height <= 0 {
+		return nil
+	}
+
+	if cfg.Width > logoMaxInputDimensions || cfg.Height > logoMaxInputDimensions {
+		return nil
+	}
+
+	if int64(cfg.Width)*int64(cfg.Height) > int64(logoMaxInputPixels) {
+		return nil
+	}
+
+	dstW := logoTargetWidth
+	dstH := int(math.Round(float64(cfg.Height) * float64(dstW) / float64(cfg.Width)))
+	if dstH <= 0 {
+		return nil
+	}
+
+	src, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil
+	}
+
+	dst := image.NewRGBA(image.Rect(0, 0, dstW, dstH))
+	draw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Over, nil)
+
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, dst); err != nil {
+		return nil
+	}
+	return buf.Bytes()
 }
 
 func AppLogoInvalidate(title string) {

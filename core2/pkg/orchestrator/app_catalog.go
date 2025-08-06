@@ -277,7 +277,26 @@ func initAppCatalog() {
 	})
 
 	orcapi.AppsRetrieveAcl.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogRetrieveAclRequest) (orcapi.AppCatalogRetrieveAclResponse, *util.HttpError) {
-		panic("TODO")
+		list := AppStudioRetrieveAccessList(request.Name)
+		var result []orcapi.AppDetailedPermissionEntry
+		for _, item := range list {
+			result = append(result, orcapi.AppDetailedPermissionEntry{
+				User: util.OptStringIfNotEmpty(item.Username),
+				Project: util.OptMap(util.OptStringIfNotEmpty(item.ProjectId), func(value string) fndapi.Project {
+					return fndapi.Project{
+						Id: value,
+						// TODO
+					}
+				}),
+				Group: util.OptMap(util.OptStringIfNotEmpty(item.Group), func(value string) fndapi.ProjectGroup {
+					return fndapi.ProjectGroup{
+						Id: value,
+						// TODO
+					}
+				}),
+			})
+		}
+		return orcapi.AppCatalogRetrieveAclResponse{Entries: result}, nil
 	})
 
 	orcapi.AppsUpdateAcl.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateAclRequest) (util.Empty, *util.HttpError) {
@@ -325,11 +344,11 @@ func initAppCatalog() {
 	})
 
 	orcapi.AppsAddLogoToGroup.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogAddLogoToGroupRequest) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		return util.Empty{}, AppStudioUpdateLogo(AppGroupId(request.GroupId), request.LogoBytes)
 	})
 
 	orcapi.AppsRemoveLogoFromGroup.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		return util.Empty{}, AppStudioUpdateLogo(AppGroupId(request.Id), nil)
 	})
 
 	orcapi.AppsCreateCategory.Handler(func(info rpc.RequestInfo, request orcapi.AppCategorySpecification) (fndapi.FindByIntId, *util.HttpError) {
@@ -1357,6 +1376,18 @@ func AppStudioListSpotlights() []orcapi.Spotlight {
 	return result
 }
 
+func AppStudioRetrieveAccessList(appName string) []orcapi.AclEntity {
+	b := appBucket(appName)
+	b.Mu.RLock()
+	var result []orcapi.AclEntity
+	perms := b.ApplicationPermissions[appName]
+	for _, perm := range perms {
+		result = append(result, perm.Entity)
+	}
+	b.Mu.RUnlock()
+	return result
+}
+
 // Studio endpoints (write)
 // =====================================================================================================================
 
@@ -1595,5 +1626,26 @@ func AppStudioDeleteCategory(id AppCategoryId) *util.HttpError {
 	cats.Mu.Unlock()
 
 	appPersistDeleteCategory(id)
+	return nil
+}
+
+func AppStudioUpdateLogo(groupId AppGroupId, logo []byte) *util.HttpError {
+	group, ok := appRetrieveGroup(groupId)
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "unknown group")
+	}
+
+	resizedImage := AppLogoValidateAndResize(logo)
+	if resizedImage == nil && logo != nil {
+		return util.HttpErr(http.StatusBadRequest, "invalid or too large image")
+	}
+
+	group.Mu.Lock()
+	group.Logo = resizedImage
+	title := group.Title
+	group.Mu.Unlock()
+
+	AppLogoInvalidate(title)
+	appPersistGroupLogo(groupId, group)
 	return nil
 }

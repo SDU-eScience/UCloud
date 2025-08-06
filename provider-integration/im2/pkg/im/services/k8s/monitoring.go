@@ -483,17 +483,19 @@ func loopMonitoring() {
 
 				machineCategory, ok := shared.ServiceConfig.Compute.Machines[catName]
 				gpuResourceType := "nvidia.com/gpu"
+				systemReservedCpuMillis := 500
 
 				if ok {
 					// TODO This seems like it will break if there is more than one category
 					nodeCat, ok := machineCategory.Groups[catName]
 					if ok {
 						gpuResourceType = nodeCat.GpuResourceType
+						systemReservedCpuMillis = nodeCat.SystemReservedCpuMillis
 					}
 				}
 
 				dims := shared.SchedulerDimensions{
-					CpuMillis:     int(usage[string(core.ResourceCPU)]),
+					CpuMillis:     int(usage[string(core.ResourceCPU)]) + systemReservedCpuMillis,
 					MemoryInBytes: int(usage[string(core.ResourceMemory)]),
 					Gpu:           int(usage[gpuResourceType]),
 				}
