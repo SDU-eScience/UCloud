@@ -1731,7 +1731,8 @@ const PieChart: React.FunctionComponent<{
         chartProps.options = {
             chart,
             legend: {
-                position: "bottom"
+                position: "bottom",
+                height: 100
             },
             responsive: [],
             labels,
