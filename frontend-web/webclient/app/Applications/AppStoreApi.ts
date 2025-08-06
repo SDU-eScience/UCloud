@@ -748,14 +748,7 @@ export interface LandingPage {
     spotlight?: Spotlight | null;
     newApplications: ApplicationSummaryWithFavorite[];
     recentlyUpdated: ApplicationSummaryWithFavorite[];
-    curator: CuratorStatus[];
     availableProviders: string[];
-}
-
-export interface CuratorStatus {
-    projectId: string;
-    canManageCatalog: boolean;
-    mandatedPrefix: string;
 }
 
 export const emptyLandingPage: LandingPage = {
@@ -764,7 +757,6 @@ export const emptyLandingPage: LandingPage = {
     categories: [],
     newApplications: [],
     recentlyUpdated: [],
-    curator: [],
     availableProviders: [],
 };
 

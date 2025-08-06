@@ -244,8 +244,7 @@ const sideBarMenuElements: [
                 {icon: "heroBuildingStorefront", label: SidebarTabId.APPLICATION_STUDIO, to: AppRoutes.appStudio.groups()}
             ],
             predicate: (state) => {
-                const curatorStatus = state.catalogLandingPage?.curator;
-                return curatorStatus != null && curatorStatus.length > 0;
+                return Client.userIsAdmin;
             }
         }
     ];
