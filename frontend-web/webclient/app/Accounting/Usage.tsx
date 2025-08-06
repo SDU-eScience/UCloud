@@ -1163,6 +1163,7 @@ function useSorting<DataType>(originalData: DataType[], sortByKey: keyof DataTyp
 
     React.useEffect(() => {
         if (sortOnDataChange) doSortBy(originalData, sortByKey, initialSortOrder);
+        else setData(originalData);
     }, [originalData]);
 
     const doSortBy = React.useCallback((data: DataType[], sortBy: keyof DataType, sortOrder?: SortOrder) => {
@@ -1408,16 +1409,16 @@ const UsageOverTimePanel: React.FunctionComponent<{
 }> = ({charts, isLoading, ...props}) => {
 
     const chartCounter = useRef(0); // looks like apex charts has a rendering bug if the component isn't completely thrown out
-    const [chartEntriesRef, updateChartEntries] = useState<{name: string; shown: boolean;}[]>([]);
+    const [chartEntries, updateChartEntries] = useState<{name: string; shown: boolean;}[]>([]);
     const ChartID = "UsageOverTime";
 
     const exportRef = React.useRef(noopCall);
 
     // HACK(Jonas): Used to change contents of table, based on what series are active in the chart
-    const shownRef = React.useRef(chartEntriesRef);
+    const shownRef = React.useRef(chartEntries);
     React.useEffect(() => {
-        shownRef.current = chartEntriesRef;
-    }, [chartEntriesRef]);
+        shownRef.current = chartEntries;
+    }, [chartEntries]);
 
     const toggleShownEntries = React.useCallback((value: boolean | string[]) => {
         updateChartEntries(entries => {
@@ -1446,7 +1447,7 @@ const UsageOverTimePanel: React.FunctionComponent<{
             toggleShown: value => toggleShownEntries(value),
             id: ChartID + chartCounter.current,
         }, maxPeriodInDays);
-    }, [charts, props.period]);
+    }, [charts, props.period, props.unit]);
 
     const toggleQuotaShown = React.useCallback((active: boolean) => {
         const chart = ApexCharts.getChartByID(ChartID + chartCounter.current);
@@ -1490,7 +1491,7 @@ const UsageOverTimePanel: React.FunctionComponent<{
         {!anyData ? <Text>No usage data found</Text> : (
             <div className={ChartAndTable}>
                 <DynamicallySizedChart key={ChartID + chartCounter.current} chart={chartProps} />
-                <DifferenceTable chartId={ChartID + chartCounter.current} unit={props.unit} charts={charts} updateShownEntries={toggleShownEntries} chartEntries={chartEntriesRef} exportRef={exportRef} />
+                <DifferenceTable chartId={ChartID + chartCounter.current} unit={props.unit} charts={charts} updateShownEntries={toggleShownEntries} chartEntries={chartEntries} exportRef={exportRef} />
             </div>
         )}
     </div >;
@@ -1515,9 +1516,11 @@ function DifferenceTable({charts, chartEntries, exportRef, chartId, updateShownE
     unit: string;
 }) {
     /* TODO(Jonas): Provider _should_ also be here, right? */
-    const shownProducts = React.useMemo(() => charts.filter(chart => {
-        return chartEntries.find(it => it.name === chart.name)?.shown;
-    }), [charts, chartEntries]);
+    const shownProducts = React.useMemo(() => {
+        return charts.filter(chart => {
+            return chartEntries.find(it => it.name === chart.name)?.shown;
+        })
+    }, [charts, chartEntries]);
 
     const tableContent = React.useMemo(() => {
         const result: {name: string; timestamp: number; usage: number; quota: number}[] = [];
