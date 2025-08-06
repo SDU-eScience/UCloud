@@ -46,6 +46,7 @@ import {MandatoryField} from "@/UtilityComponents";
 import Text from "../ui-components/Text";
 import {PermissionsTable} from "@/Resource/PermissionEditor";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
+import {connectionState} from "@/Providers/ConnectionState";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
@@ -120,6 +121,8 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     browser.rerender();
 
                 });
+
+                connectionState.fetch();
 
 
                 browser.setColumns([
@@ -449,10 +452,23 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
 
                 // Network requests
                 // =========================================================================================================
+                browser.on("skipOpen", (oldPath, newPath, resource) => {
+                    if (!resource) return true;
+                    const isConnected = connectionState.isConnected(resource?.specification.product.provider);
+                    if (!isConnected) {
+                        const canConnect = connectionState.canConnectToProvider(resource?.specification.product.provider);
+                        if (canConnect) {
+                            console.log("notifying")
+                            connectionState.notification(resource.specification.product.provider, true);
+                        }
+                    }
+                    return !isConnected;
+                });
+
                 browser.on("open", (oldPath, newPath) => {
                     if (newPath !== "/") {
                         const p = newPath.startsWith("/") ? newPath : "/" + newPath;
-                        navigate("/files?path=" + encodeURIComponent(p));
+                        navigate(AppRoutes.files.path(p));
                         return;
                     }
 
