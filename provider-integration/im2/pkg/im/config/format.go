@@ -349,6 +349,11 @@ type ProviderConfiguration struct {
 		}
 	}
 
+	Profiler struct {
+		Enabled bool
+		Port    int
+	}
+
 	Maintenance struct {
 		Enabled       bool
 		UserAllowList []string
@@ -434,6 +439,16 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 					cfgutil.ReportError(filePath, rotationNode, "retentionPeriodInDays must be specified and must be greater than zero")
 					return false, cfg
 				}
+			}
+		}
+	}
+	{
+		// Profiler section
+		profiler, _ := cfgutil.GetChildOrNil(filePath, provider, "profiler")
+		if profiler != nil {
+			cfg.Profiler.Enabled = cfgutil.RequireChildBool(filePath, profiler, "enabled", &success)
+			if cfg.Profiler.Enabled {
+				cfg.Profiler.Port = int(cfgutil.RequireChildInt(filePath, profiler, "port", &success))
 			}
 		}
 	}
