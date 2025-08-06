@@ -223,31 +223,30 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	}
 
 	product := job.Status.ResolvedProduct
-	cpuMillis := int64(product.Cpu * 1000)
+	cpuMillis := shared.NodeCpuMillisReserved(&product)
 	memoryMegabytes := int64(product.MemoryInGigs * 1000)
 	gpus := int64(product.Gpu)
 
 	gpuType := "nvidia.com/gpu"
 
-	machineCategory, ok := shared.ServiceConfig.Compute.Machines[job.Specification.Product.Category]
-	if ok {
-		nodeCat, ok := machineCategory.Groups[job.Specification.Product.Category]
-		if ok {
-			gpuType = nodeCat.GpuResourceType
-			if nodeCat.CustomRuntime != "" {
-				spec.RuntimeClassName = &nodeCat.CustomRuntime
-			}
-		}
-
-		for _, config := range nodeCat.Configs {
-			if config.AdvertisedCpu == product.Cpu && config.MemoryInGigabytes == product.MemoryInGigs && config.Gpu == product.Gpu {
-				cpuMillis = int64(config.ActualCpuMillis)
-				break
-			}
-		}
+	nodeCat, _ := shared.NodeCategoryAndConfiguration(&product)
+	if nodeCat.CustomRuntime != "" {
+		spec.RuntimeClassName = &nodeCat.CustomRuntime
+	}
+	if nodeCat.GpuResourceType != "" {
+		gpuType = nodeCat.GpuResourceType
 	}
 
-	addResource(core.ResourceCPU, cpuMillis, resource.Milli)
+	{
+		quantity := resource.NewScaledQuantity(int64(cpuMillis), resource.Milli)
+		quantity.Format = resource.DecimalSI
+		userContainer.Resources.Requests[core.ResourceCPU] = *quantity
+	}
+	{
+		quantity := resource.NewScaledQuantity(int64(product.Cpu*1000), resource.Milli)
+		quantity.Format = resource.DecimalSI
+		userContainer.Resources.Limits[core.ResourceCPU] = *quantity
+	}
 	addResource(core.ResourceMemory, memoryMegabytes, resource.Mega)
 	if gpus > 0 {
 		addResource(core.ResourceName(gpuType), gpus, 0)

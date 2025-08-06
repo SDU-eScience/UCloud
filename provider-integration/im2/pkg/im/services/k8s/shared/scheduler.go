@@ -95,20 +95,9 @@ func JobDimensions(job *orc.Job) SchedulerDimensions {
 		return mapper(job)
 	} else {
 		dims := SchedulerDimensions{
-			CpuMillis:     prod.Cpu * 1000,
+			CpuMillis:     NodeCpuMillisReserved(prod),
 			MemoryInBytes: prod.MemoryInGigs * (1000 * 1000 * 1000),
 			Gpu:           prod.Gpu,
-		}
-
-		machineCategory, ok := ServiceConfig.Compute.Machines[job.Specification.Product.Category]
-		if ok {
-			nodeCat := machineCategory.Groups[job.Specification.Product.Category]
-			for _, config := range nodeCat.Configs {
-				if config.AdvertisedCpu == prod.Cpu && config.MemoryInGigabytes == prod.MemoryInGigs && config.Gpu == prod.Gpu {
-					dims.CpuMillis = config.ActualCpuMillis
-					break
-				}
-			}
 		}
 
 		return dims
