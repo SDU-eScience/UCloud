@@ -62,7 +62,7 @@ const LandingPage: React.FunctionComponent = () => {
 
     const [landingPage] = useGlobal("catalogLandingPage", emptyLandingPage);
 
-    const [starred, fetchStarred] = useCloudAPI<{ items: AppStore.Application[] }>(
+    const [starred, fetchStarred] = useCloudAPI<{items: AppStore.Application[]}>(
         {noop: true},
         {items: []}
     );
@@ -102,18 +102,18 @@ const LandingPage: React.FunctionComponent = () => {
             <MainContainer main={
                 <article className={landingStyle}>
                     <Flex alignItems={"center"}>
-                        {hasFeature(Feature.APP_CATALOG_FILTER) ? <CatalogDiscoveryModeSwitcher/> : null}
-                        <Box flexGrow={1}/>
-                        <UtilityBar onSearch={appSearch}/>
+                        {hasFeature(Feature.APP_CATALOG_FILTER) ? <CatalogDiscoveryModeSwitcher /> : null}
+                        <Box flexGrow={1} />
+                        <UtilityBar onSearch={appSearch} />
                     </Flex>
-                    <Hero slides={landingPage.carrousel}/>
+                    <Hero slides={landingPage.carrousel} />
                     {starred.data.items.length > 0 ?
-                        <StarredApplications2 apps={starred.data.items}/> : null}
+                        <StarredApplications2 apps={starred.data.items} /> : null}
 
 
-                    <TopPicksCard2 topPicks={landingPage.topPicks}/>
+                    <TopPicksCard2 topPicks={landingPage.topPicks} />
 
-                    {landingPage.spotlight ? <SpotlightCard2 spotlight={landingPage.spotlight}/> : null}
+                    {landingPage.spotlight ? <SpotlightCard2 spotlight={landingPage.spotlight} /> : null}
 
                     {landingPage.categories.length < 1 ? null :
                         <div>
@@ -121,7 +121,7 @@ const LandingPage: React.FunctionComponent = () => {
                             <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(250px, 1fr)"}>
                                 {landingPage.categories.map((c, idx) =>
                                     <CategoryCard key={c.metadata.id} id={c.metadata.id} idx={idx}
-                                                  categoryTitle={c.specification.title}/>
+                                        categoryTitle={c.specification.title} />
                                 )}
                             </Grid>
                         </div>
@@ -135,9 +135,9 @@ const LandingPage: React.FunctionComponent = () => {
                                     <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
                                         {landingPage.newApplications.map((app, idx) => (
                                             <AppCard1 name={app.metadata.name} title={app.metadata.title}
-                                                      description={app.metadata.description} fullWidth
-                                                      key={app.metadata.name + app.metadata.version}
-                                                      isApplication/>
+                                                description={app.metadata.description} fullWidth
+                                                key={app.metadata.name + app.metadata.version}
+                                                isApplication />
                                         ))}
                                     </Flex>
                                 </TabbedCardTab>
@@ -146,15 +146,15 @@ const LandingPage: React.FunctionComponent = () => {
                                     <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
                                         {landingPage.recentlyUpdated.map(app => (
                                             <AppCard1 name={app.metadata.name} title={app.metadata.title}
-                                                      description={app.metadata.description} fullWidth
-                                                      key={app.metadata.name + app.metadata.version}
-                                                      isApplication/>
+                                                description={app.metadata.description} fullWidth
+                                                key={app.metadata.name + app.metadata.version}
+                                                isApplication />
                                         ))}
                                     </Flex>
                                 </TabbedCardTab>
                             </TabbedCard>
                         </div> : null}
-                </article>}/>
+                </article>} />
         </div>
     </div>;
 };
@@ -169,9 +169,9 @@ export const SpotlightCard: React.FunctionComponent<{
                 {spotlight.applications.map((pick, idx) => {
                     if (pick.groupId) {
                         return <AppCard1 key={idx} name={pick.groupId.toString()}
-                                         title={pick.title} description={pick.description}
-                                         applicationName={pick.defaultApplicationToRun}
-                                         fullWidth target={target}/>;
+                            title={pick.title} description={pick.description}
+                            applicationName={pick.defaultApplicationToRun}
+                            fullWidth target={target} />;
                     } else {
                         return null;
                     }
@@ -199,9 +199,9 @@ export const SpotlightCard2: React.FunctionComponent<{
                 {spotlight.applications.map((pick, idx) => {
                     if (pick.groupId) {
                         return <AppCard2 key={idx} name={pick.groupId.toString()}
-                                         title={pick.title} description={pick.description}
-                                         applicationName={pick.defaultApplicationToRun}
-                                         fullWidth target={target}/>;
+                            title={pick.title} description={pick.description}
+                            applicationName={pick.defaultApplicationToRun}
+                            fullWidth target={target} />;
                     } else {
                         return null;
                     }
@@ -302,7 +302,7 @@ const HeroIndicator: React.FunctionComponent<{
     active?: boolean;
     onClick: () => void;
 }> = (props) => {
-    return <div className={classConcat("indicator", props.active ? "active" : undefined)} onClick={props.onClick}/>;
+    return <div className={classConcat("indicator", props.active ? "active" : undefined)} onClick={props.onClick} />;
 };
 export const Hero: React.FunctionComponent<{
     slides: AppStore.CarrouselItem[];
@@ -355,12 +355,12 @@ export const Hero: React.FunctionComponent<{
 
     return <Card style={{overflow: "hidden", border: 0, padding: 0}}>
         {/* Note(Jonas): Pre-fetch next image, so text and image change at the same time in the carousel */}
-        <link rel="prefetch" as="image" href={nextImageLink}/>
+        <link rel="prefetch" as="image" href={nextImageLink} />
         <div className={HeroStyle}>
             <div className={"carousel"}>
                 <div className={"carouselImages"}>
-                    <img key={2 * activeIndex + 1} alt={"cover image"} src={imageLink}/>
-                    <img key={activeIndex} alt={"cover image"} src={prevImageLink}/>
+                    <img key={2 * activeIndex + 1} alt={"cover image"} src={imageLink} />
+                    <img key={activeIndex} alt={"cover image"} src={prevImageLink} />
                     <div className="indicators">
                         {slides.map((s, i) =>
                             <HeroIndicator
@@ -380,7 +380,7 @@ export const Hero: React.FunctionComponent<{
                             {slide.body}
                         </Markdown>
                     </div>
-                    <Box flexGrow={1}/>
+                    <Box flexGrow={1} />
                     {(slide.imageCredit != "Unknown") &&
                         <Box mb={8}><b>Image credit:</b> <i>{slide.imageCredit}</i></Box>}
                     {slideLink ?
@@ -391,17 +391,17 @@ export const Hero: React.FunctionComponent<{
                             rel="noopener"
                         >
                             <Button fullWidth>
-                                <Icon name={"heroPlay"}/>
+                                <Icon name={"heroPlay"} />
                                 <div>
                                     {slide.linkedWebPage ? "Open web-page" : "Open application"}
                                 </div>
                             </Button>
                         </ReactRouterLink>
                         : <>
-                            <TooltipV2 tooltip={<>This application is not available<br/>with your current filter!</>}>
+                            <TooltipV2 tooltip={<>This application is not available<br />with your current filter!</>}>
                                 <Button fullWidth
-                                        disabled={!slide.linkedApplication && !slide.linkedGroup && !slide.linkedWebPage}>
-                                    <Icon name={"heroPlay"}/>
+                                    disabled={!slide.linkedApplication && !slide.linkedGroup && !slide.linkedWebPage}>
+                                    <Icon name={"heroPlay"} />
                                     <div>Open application</div>
                                 </Button>
                             </TooltipV2>
@@ -480,7 +480,7 @@ const AppCard1: React.FunctionComponent<{
         target={props.target}
         className={classConcat(AppCard1Style, props.fullWidth ? "full-width" : undefined)}
     >
-        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"36px"}/>
+        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"36px"} />
         <div className={"content"}>
             <h2>{props.title}</h2>
             <div className={"description"}>
@@ -559,8 +559,8 @@ export const AppCard2: React.FunctionComponent<{
     }
 
     return <ReactRouterLink to={link} target={props.target}
-                            className={classConcat(AppCard2Style, props.fullWidth ? "full-width" : undefined)}>
-        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"56px"}/>
+        className={classConcat(AppCard2Style, props.fullWidth ? "full-width" : undefined)}>
+        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"56px"} />
         <div className={"content"}>
             <h2>{props.title}</h2>
             <div className={"description"}>
@@ -585,7 +585,7 @@ const AppCardGridStyle = injectStyle("app-card-grid", k => `
     }
 `);
 
-const AppCardGrid: React.FunctionComponent<{ children: React.ReactNode }> = ({children}) => {
+const AppCardGrid: React.FunctionComponent<{children: React.ReactNode}> = ({children}) => {
     return <div className={AppCardGridStyle}>{children}</div>;
 }
 
@@ -642,7 +642,7 @@ const CategoryCard: React.FunctionComponent<{
         <div className={CategoryCardStyle} style={style}>
             <Relative>
                 <div className={"logo-wrapper"}>
-                    <AppLogoRaw rot={60} color1Offset={1} color2Offset={2} appC={appCIdx} size={"130px"}/>
+                    <AppLogoRaw rot={60} color1Offset={1} color2Offset={2} appC={appCIdx} size={"130px"} />
                 </div>
             </Relative>
             <span>{props.categoryTitle}</span>
@@ -674,14 +674,14 @@ const SpotlightDescription = injectStyle("spotlight-description", k => `
     }
 `)
 
-export const TopPicksCard: React.FunctionComponent<{ topPicks: TopPick[] }> = ({topPicks}) => {
+export const TopPicksCard: React.FunctionComponent<{topPicks: TopPick[]}> = ({topPicks}) => {
     return <TitledCard title={"Top picks"} icon={"heroChartBar"}>
         <AppCardGrid>
             {topPicks.map(pick => {
                 if (pick.groupId) {
                     return <AppCard1 key={pick.groupId} name={pick.groupId.toString()}
-                                     title={pick.title} description={pick.description}
-                                     applicationName={pick.defaultApplicationToRun}/>;
+                        title={pick.title} description={pick.description}
+                        applicationName={pick.defaultApplicationToRun} />;
                 } else {
                     return null;
                 }
@@ -696,6 +696,10 @@ const TopPickCardGridStyle = injectStyle("top-pick-grid", k => `
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
         grid-template-rows: repeat(auto-fit, 115px);
         gap: 16px;
+    }
+    
+    ${k}:has(*:first-child:nth-last-child(n + 5)) {
+        min-height: calc(115px * 2 + 16px);
     }
     
     ${k} > *:first-child:nth-last-child(n + 5) {
@@ -745,12 +749,12 @@ const LogoCard: React.FunctionComponent<{
 }> = ({id, link, title, large}) => {
     return <ReactRouterLink to={link}>
         <div className={TopPickCardStyle}>
-            <LogoWithText id={id} title={title} size={60} forceUnder={large}/>
+            <LogoWithText id={id} title={title} size={60} forceUnder={large} />
         </div>
     </ReactRouterLink>;
 }
 
-export const TopPicksCard2: React.FunctionComponent<{ topPicks: TopPick[] }> = ({topPicks}) => {
+export const TopPicksCard2: React.FunctionComponent<{topPicks: TopPick[]}> = ({topPicks}) => {
     return topPicks.length < 1 ? null :
         <div>
             <h3>Top picks</h3>
@@ -763,7 +767,7 @@ export const TopPicksCard2: React.FunctionComponent<{ topPicks: TopPick[] }> = (
                         }
 
                         return <LogoCard key={pick.groupId} large={idx === 0 && topPicks.length > 5} id={pick.groupId}
-                                         title={pick.title} link={link}/>;
+                            title={pick.title} link={link} />;
                     } else {
                         return null;
                     }
