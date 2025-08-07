@@ -136,7 +136,7 @@ export function ReservationParameter({application, errors, onEstimatedCostChange
             {toolBackend === "DOCKER" || toolBackend === "NATIVE" ?
                 <Flex gap={"8px"} alignItems={"end"}>
                     <Label>
-                        Hours<MandatoryField/>
+                        Hours<MandatoryField />
                         <Input
                             id={reservationHours}
                             className={classConcat(JobCreateInput, "hours-kind")}
@@ -155,7 +155,7 @@ export function ReservationParameter({application, errors, onEstimatedCostChange
                 : null}
         </Flex>
         {toolBackend === "VIRTUAL_MACHINE" ?
-            <input type={"hidden"} id={reservationHours} value={"1"}/>
+            <input type={"hidden"} id={reservationHours} value={"1"} />
             : null}
         {errors["timeAllocation"] ? <TextP color={"errorMain"}>{errors["timeAllocation"]}</TextP> : null}
 
@@ -165,7 +165,7 @@ export function ReservationParameter({application, errors, onEstimatedCostChange
                     <Label>
                         Number of nodes
                         <Input id={reservationReplicas} className={JobCreateInput} onBlur={recalculateCost}
-                               defaultValue={"1"}/>
+                            defaultValue={"1"} />
                     </Label>
                 </Flex>
                 {errors["replicas"] ? <TextP color={"errorMain"}>{errors["replicas"]}</TextP> : null}
@@ -173,9 +173,9 @@ export function ReservationParameter({application, errors, onEstimatedCostChange
         )}
 
         <div style={{paddingTop: "20px"}}>
-            <Label>Machine type <MandatoryField/></Label>
+            <Label>Machine type <MandatoryField /></Label>
             <Machines machines={allMachines} loading={machineSupport.loading} support={support}
-                      onMachineChange={setSelectedMachine}/>
+                onMachineChange={setSelectedMachine} />
             {errors["product"] ? <TextP color={"errorMain"}>{errors["product"]}</TextP> : null}
         </div>
     </div>
@@ -261,4 +261,21 @@ export function setReservation(values: Partial<ReservationValues>): void {
     if (replicas != null && values.replicas !== undefined) replicas.value = values.replicas.toString(10)
 
     if (values.product !== undefined) setMachineReservationFromRef(values.product);
+}
+
+export function awaitReservationMount(): Promise<void> {
+    let intervalId = -1;
+    const now = new Date().getTime();
+    return new Promise((resolve, reject) => {
+        function pollElements() {
+            if (now + 5_000 < new Date().getTime()) reject("Failed to mount reservation component");
+            const bothMounted = document.getElementById(reservationName) != null && document.getElementById(reservationHours) != null;
+            if (bothMounted) {
+                clearInterval(intervalId);
+                resolve();
+            }
+        }
+
+        intervalId = window.setInterval(pollElements, 100);
+    });
 }

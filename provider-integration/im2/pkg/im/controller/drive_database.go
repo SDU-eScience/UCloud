@@ -273,7 +273,7 @@ func LoadNextSearchBucketCount(id string) int {
 	}
 
 	return db.NewTx(func(tx *db.Transaction) int {
-		row, ok := db.Get[struct{ SearchNextBucketCount int }](
+		row, _ := db.Get[struct{ SearchNextBucketCount int }](
 			tx,
 			`
 				select
@@ -288,15 +288,11 @@ func LoadNextSearchBucketCount(id string) int {
 			},
 		)
 
-		if ok {
-			return max(16, row.SearchNextBucketCount)
-		} else {
-			return 4096
-		}
+		return min(fsearch.MaxBucketsPerIndex, row.SearchNextBucketCount)
 	})
 }
 
-var searchIndexCache = lru.NewLRU[string, fsearch.SearchIndex](128, nil, 30*time.Minute)
+var searchIndexCache = lru.NewLRU[string, fsearch.SearchIndex](32, nil, 30*time.Minute)
 var searchIndexLock = util.NewScopedMutex() // Ensure that only one goroutine attempts to read a given index. Not needed for the cache.
 
 func RetrieveSearchIndex(id string) (fsearch.SearchIndex, bool) {
@@ -562,9 +558,9 @@ func RetrieveDrivesNeedingScan() []orc.Drive {
 								tracked_drives,
 								tracked_drives_scan_timer session
 							where
-								last_scan_completed_at < now() - cast('1 hour' as interval)
+								last_scan_completed_at < now() - cast('12 hour' as interval)
 								and (
-									last_scan_submitted_at < now() - cast('1 hour' as interval)
+									last_scan_submitted_at < now() - cast('12 hour' as interval)
 									or last_scan_submitted_at < session.time
 								)
 								and product_id != 'share' -- TODO Should probably go somewhere else

@@ -280,17 +280,22 @@ function renderNotifications() {
 
 // NOTE(Dan): The frontend can generate its own notification through `sendNotification()`. This is generally preferred
 // over using the `snackbar` functions, as these allow for greater flexibility.
-export function sendNotification(notification: NormalizedNotification) {
+export function sendNotification(notification: NormalizedNotification, forceShow: boolean = false) {
     const normalized = normalizeNotification(notification);
-    for (const item of notificationStore) {
-        if (item.uniqueId === normalized.uniqueId) return;
+    const existing = notificationStore.find(item => item.uniqueId === normalized.uniqueId);
+    if (existing) {
+        if (forceShow) Snooze.wakeNotification(normalized.uniqueId);
+        return;
     }
 
     notificationStore.unshift(normalized);
     renderNotifications();
 
     if (!notification.isPinned || Snooze.shouldAppear(normalized.uniqueId)) {
-        if (notification.isPinned) Snooze.trackAppearance(normalized.uniqueId);
+        if (notification.isPinned) {
+            Snooze.trackAppearance(normalized.uniqueId);
+        }
+
         triggerNotificationPopup(normalized);
     }
 }

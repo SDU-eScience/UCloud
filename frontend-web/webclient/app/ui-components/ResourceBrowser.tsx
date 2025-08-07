@@ -11,6 +11,7 @@ import {SvgCache} from "@/Utilities/SvgCache";
 import {
     capitalized,
     createHTMLElements,
+    displayErrorMessageOrDefault,
     doNothing,
     inDevEnvironment,
     isLikelyMac,
@@ -31,7 +32,7 @@ import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
 import {ProjectSwitcher, FilterInputClass, projectCache} from "@/Project/ProjectSwitcher";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
-import {ProductType, ProductV2} from "@/Accounting";
+import {browseWalletsV2, buildAllocationDisplayTree, ProductType, ProductV2} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -46,10 +47,16 @@ import Flex, {FlexClass} from "./Flex";
 import * as Heading from "@/ui-components/Heading";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI} from "@/Project";
-import {noopCall} from "@/Authentication/DataHook";
+import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {Feature, hasFeature} from "@/Features";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
+import {useProjectId} from "@/Project/Api";
+import {ProgressBar} from "@/Accounting/Allocations";
+import Card from "./Card";
+import Text from "./Text";
+import {ProviderLogo} from "@/Providers/ProviderLogo";
+import Box from "./Box";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const UTILITY_COLOR: ThemeColor = "textPrimary";
@@ -258,6 +265,7 @@ export class ResourceBrowser<T> {
     // DOM component references
     root: HTMLElement;
     private operations: HTMLElement;
+    allocations: HTMLElement;
     filters: HTMLElement;
     rightFilters: HTMLElement;
     sessionFilters: HTMLElement;
@@ -469,6 +477,7 @@ export class ResourceBrowser<T> {
                     <img alt="search" class="search-icon">
                     <img alt="refresh" class="refresh-icon">
                 </div>
+                <div class="allocations"></div>
                 <div class="operations"></div>
                 <div style="display: flex; overflow-x: auto;">
                     <div class="filters"></div>
@@ -505,6 +514,7 @@ export class ResourceBrowser<T> {
         `;
 
         this.operations = this.root.querySelector<HTMLElement>(".operations")!;
+        this.allocations = this.root.querySelector<HTMLElement>(".allocations")!;
         this.dragIndicator = this.root.querySelector<HTMLDivElement>(".drag-indicator")!;
         this.entryDragIndicator = this.root.querySelector<HTMLDivElement>(".file-drag-indicator")!;
         this.entryDragIndicatorContent = this.root.querySelector<HTMLDivElement>(".file-drag-indicator-content")!;

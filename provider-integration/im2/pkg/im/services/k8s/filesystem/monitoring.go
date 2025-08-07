@@ -3,6 +3,7 @@ package filesystem
 import (
 	"context"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"io"
 	"path/filepath"
 	"runtime"
@@ -31,20 +32,32 @@ var scanSlotsAvailable = atomic.Int64{}
 var maxScanSlots int64
 
 var (
-	metricScansInProgress = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "ucloud_im_k8s_storage_scans_in_progress",
-		Help: "The total number of drives currently being scanned by UCloud/IM",
+	metricScansInProgress = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im_k8s",
+		Subsystem: "storage",
+		Name:      "scans_in_progress",
+		Help:      "The total number of drives currently being scanned by UCloud/IM",
 	})
 
-	indexingSpeedFilesPerSecond = prometheus.NewSummary(prometheus.SummaryOpts{
-		Name:   "ucloud_im_k8s_storage_files_indexed_per_second",
-		Help:   "Estimated speed of indexing files within a single drive",
-		MaxAge: 24 * time.Hour,
+	timeSpentIndexingSeconds = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im_k8s",
+		Subsystem: "storage",
+		Name:      "time_spent_indexing_seconds",
+		Help:      "Time spent indexing",
 	})
 
-	totalFilesIndexed = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "ucloud_im_k8s_storage_total_files_indexed",
-		Help: "Total number of files indexed",
+	indexingBucketLive = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im_k8s",
+		Subsystem: "storage",
+		Name:      "indexing_live_buckets",
+		Help:      "Total number of live buckets used for indexing",
+	})
+
+	totalFilesIndexed = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im_k8s",
+		Subsystem: "storage",
+		Name:      "total_files_indexed",
+		Help:      "Total number of files indexed",
 	})
 )
 
@@ -68,7 +81,7 @@ func loopMonitoring() time.Duration {
 
 func initScanQueue() {
 	driveScanQueue = make(chan orc.Drive)
-	maxScanSlots = max(4, int64(runtime.NumCPU()))
+	maxScanSlots = min(8, int64(runtime.NumCPU()))
 	scanSemaphore = semaphore.NewWeighted(maxScanSlots)
 	scanSlotsAvailable.Store(maxScanSlots)
 
@@ -150,10 +163,17 @@ func scanDrive(drive orc.Drive) {
 		sizeToReport = size
 
 	case cfg.K8sScanMethodTypeWalk:
-		bucketCount := ctrl.LoadNextSearchBucketCount(drive.Id)
-		result := fsearch.BuildIndex(bucketCount, internalPath)
+		start := time.Now()
 
-		indexingSpeedFilesPerSecond.Observe(result.EstimatedFilesIndexedPerSecond)
+		bucketCount := ctrl.LoadNextSearchBucketCount(drive.Id)
+		indexingBucketLive.Add(float64(bucketCount))
+		result := fsearch.BuildIndex(bucketCount, internalPath)
+		indexingBucketLive.Sub(float64(bucketCount))
+
+		end := time.Now()
+		indexingDurationSeconds := end.Sub(start).Seconds()
+
+		timeSpentIndexingSeconds.Add(indexingDurationSeconds)
 		totalFilesIndexed.Add(float64(result.TotalFileCount))
 		ctrl.TrackSearchIndex(drive.Id, result.Index, result.SuggestNewBucketCount)
 

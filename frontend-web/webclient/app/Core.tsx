@@ -281,6 +281,7 @@ function LoginSuccess(): React.ReactNode {
     }, []);
 
     const path = sessionStorage.getItem(LOGIN_REDIRECT_KEY) ?? "/";
+    sessionStorage.removeItem(LOGIN_REDIRECT_KEY);
     return <Navigate to={path} />;
 }
 

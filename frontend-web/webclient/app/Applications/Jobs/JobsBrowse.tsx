@@ -14,7 +14,7 @@ import {
     ResourceBrowser,
     ResourceBrowserOpts,
     ColumnTitleList,
-    checkCanConsumeResources
+    checkCanConsumeResources,
 } from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import Icon, {IconName} from "@/ui-components/Icon";

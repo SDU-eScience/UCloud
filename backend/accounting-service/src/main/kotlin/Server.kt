@@ -2,6 +2,8 @@ package dk.sdu.cloud.accounting
 
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.rpc.*
+import dk.sdu.cloud.accounting.services.DataGenerator
+import dk.sdu.cloud.accounting.services.accounting.*
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
 import dk.sdu.cloud.accounting.services.accounting.DataVisualization
 import dk.sdu.cloud.accounting.services.accounting.LowFundsJob
@@ -58,9 +60,10 @@ class Server(
 
         val simpleProviders = Providers(client) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
         val productCache = ProductCache(db)
+        val accountingPersistence = RealAccountingPersistence(db)
         val accountingSystem = AccountingSystem(
             productCache,
-            RealAccountingPersistence(db),
+            accountingPersistence,
             IdCardService(db, micro.backgroundScope, client),
             distributedLocks,
             true,
@@ -82,8 +85,15 @@ class Server(
         val grants = GrantsV2Service(db, idCardService, accountingSystem, client, config.defaultTemplate, projectsV2)
         val giftService = GiftService(db, accountingSystem, projectService, grants, idCardService)
         val dataVisualization = DataVisualization(db, accountingSystem)
-        val apmNotifications = ApmNotificationService(accountingSystem, projectsV2, micro.tokenValidation, idCardService, micro.developmentModeEnabled)
+        val apmNotifications = ApmNotificationService(
+            accountingSystem,
+            projectsV2,
+            micro.tokenValidation,
+            idCardService,
+            micro.developmentModeEnabled
+        )
         val lowFundsJob = LowFundsJob(accountingSystem, idCardService, client)
+
 
         PersonalProviderProjects(projectsV2, productService, accountingSystem).init()
 
@@ -106,6 +116,11 @@ class Server(
             )
         )
 
+        val dataGenerator = if (micro.developmentModeEnabled) {
+            DataGenerator(accountingSystem, db, client, grants, idCardService, accountingPersistence)
+        } else {
+            null
+        }
         scriptManager.register(
             Script(
                 ScriptMetadata(
@@ -127,7 +142,8 @@ class Server(
                 idCardService,
                 apmNotifications,
                 grants,
-            ).also { accountingController = it},
+                dataGenerator
+            ).also { accountingController = it },
             ProductController(productService, accountingSystem, client),
             FavoritesController(db, favoriteProjects),
             GiftController(giftService),
