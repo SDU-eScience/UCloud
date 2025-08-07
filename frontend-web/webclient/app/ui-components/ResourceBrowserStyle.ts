@@ -138,8 +138,12 @@ export function injectResourceBrowserStyle(rowSize: number) {
             overflow: hidden;
         }
         
-        ${browserClass.dot} header[data-has-filters] {
+        ${browserClass.dot} header[data-has-filters], ${browserClass.dot} header[data-has-allocations] {
             height: 136px;
+        }
+
+        ${browserClass.dot} header[data-has-filters][data-has-allocations] {
+            height: 162px;
         }
 
         ${browserClass.dot} header .location-bar,

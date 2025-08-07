@@ -23,7 +23,6 @@ import {CardClass} from "@/ui-components/Card";
 import {ShortcutKey} from "@/ui-components/Operation";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/UFile";
 import {Application} from "@/Applications/AppStoreApi";
-import {deepCopy} from "@/Utilities/CollectionUtilities";
 
 export function ImportParameters({application, onImport, importDialogOpen, onImportDialogClose, setImportDialogOpen}: React.PropsWithChildren<{
     application: Application;
@@ -40,8 +39,9 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
         if (jobId) {
             callAPI(JobsApi.retrieve({id: jobId})).then(it => {
                 if (!didLoadParameters.current) {
-                    readParsedJSON(it.status.jobParametersJson);
-                    snackbarStore.addSuccess("Imported job parameters", false, 5000);
+                    readParsedJSON(it.status.jobParametersJson).then(() => {
+                        snackbarStore.addSuccess("Imported job parameters", false, 5000);
+                    });
                 }
             }).catch(it => {
                 console.warn("Failed to auto-import parameters from query params.", it);
@@ -73,7 +73,7 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
             if (typeof result.output === "undefined") {
                 // Do nothing
             } else {
-                onImport(result.output!);
+                onImport(result.output);
                 onImportDialogClose();
             }
         }
@@ -467,7 +467,7 @@ async function cleanupImportResult(
             output.replicas = undefined;
         }
     }
-    
+
     // Note(Jonas): timeAllocation is listed as undefinable, but it can also be null. Ignore null values.
     if (output.timeAllocation != null) {
         if (typeof output.timeAllocation !== "object") {

@@ -36,6 +36,7 @@ fun withTest(fn: suspend TestContext.() -> Unit) {
         true,
         NonDistributedStateFactory(),
         "127.0.0.1",
+        true
     )
 
     runBlocking {

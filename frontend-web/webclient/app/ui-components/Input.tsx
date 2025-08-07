@@ -108,6 +108,7 @@ const Input: React.FunctionComponent<InputProps & {as?: "input" | "textarea"; cu
     inputProps["step"] = props.step;
     inputProps["min"] = props.min;
     inputProps["max"] = props.max;
+    inputProps["maxLength"] = props.maxLength;
 
     inputProps["data-error"] = props.error === true;
     inputProps["data-left-label"] = props.leftLabel === true;

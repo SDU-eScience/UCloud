@@ -15,10 +15,10 @@ export function associateBy<T>(items: T[], keySelector: (t: T) => string): Recor
     return result;
 }
 
-export function groupBy<T>(items: T[], keySelector: (t: T) => string): Record<string, T[]> {
+export function groupBy<T>(items: T[], keySelector: (t: T, index: number) => string): Record<string, T[]> {
     const result: Record<string, T[]> = {};
-    items.forEach(item => {
-        const key = keySelector(item);
+    items.forEach((item, index) => {
+        const key = keySelector(item, index);
         const existing = result[key] ?? [];
         existing.push(item);
         result[key] = existing;

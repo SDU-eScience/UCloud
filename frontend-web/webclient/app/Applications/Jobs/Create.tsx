@@ -25,6 +25,7 @@ import {IngressResource, ingressResourceAllowed} from "@/Applications/Jobs/Resou
 import {PeerResource, peerResourceAllowed} from "@/Applications/Jobs/Resources/Peers";
 import {createSpaceForLoadedResources, injectResources, ResourceHook, useResource} from "@/Applications/Jobs/Resources";
 import {
+    awaitReservationMount,
     ReservationErrors,
     ReservationParameter,
     setReservation,
@@ -254,10 +255,49 @@ export const Create: React.FunctionComponent = () => {
 
     useUState(connectionState);
 
+    /* Note(Jonas): While this is a pretty weird data-type, I don't think we every need to store more than one,
+        which is why I'm not using a Record<string, T>  */
+    const appParams = React.useRef<[name: string, Partial<JobSpecification>]>(["", {}]);
+    // NOTE(Jonas): Not entirely sure a ref is strictly needed, but should be more consistent.
+    const sshEnabledRef = React.useRef(false);
+    sshEnabledRef.current = sshEnabled;
     useEffect(() => {
         if (appName === "syncthing" && !localStorage.getItem("syncthingRedirect")) {
             navigate("/drives");
         }
+
+        if (application?.metadata.name) {
+            const {values} = validateWidgets(parameters);
+            let reservationOptions: Partial<ReturnType<typeof validateReservation>["options"] | undefined> = {};
+            try {
+                reservationOptions = validateReservation().options;
+            } catch (e) {
+                console.warn(e);
+            }
+            const foldersResources = validateWidgets(folders.params);
+            const peersResources = validateWidgets(peers.params);
+            const networkResources = validateWidgets(networks.params);
+            const ingressResources = validateWidgets(ingress.params);
+            for (const err of [
+                ...Object.values(foldersResources.errors).map(it => "Folders: " + it),
+                ...Object.values(peersResources.errors).map(it => "Connected jobs: " + it),
+                ...Object.values(networkResources.errors).map(it => "IPs: " + it),
+                ...Object.values(ingressResources.errors).map(it => "Public link: " + it)
+            ]) {
+                snackbarStore.addFailure(err, false);
+            }
+
+            appParams.current = [application.metadata.name, {
+                ...reservationOptions,
+                parameters: values,
+                resources: Object.values(foldersResources.values)
+                    .concat(Object.values(peersResources.values))
+                    .concat(Object.values(ingressResources.values))
+                    .concat(Object.values(networkResources.values)),
+                sshEnabled: sshEnabledRef.current
+            }];
+        }
+
         fetchApplication(
             AppStore.findGroupByApplication({
                 appName,
@@ -277,7 +317,17 @@ export const Create: React.FunctionComponent = () => {
         if (!application) return;
         fetchInjectedParameters(JobsApi.requestDynamicParameters({
             application: {name: application.metadata.name, version: application.metadata.version}
-        }));
+        })).then(() => setTimeout(() => {
+            try {
+                const appName = application.metadata.name;
+                const [storedApp, jobSpec] = appParams.current;
+                if (storedApp === appName) {
+                    onLoadParameters(jobSpec);
+                }
+            } catch (e) {
+                console.warn(e);
+            }
+        }, 0));
     }, [application]);
 
     const parameters = useMemo(() => {
@@ -304,13 +354,14 @@ export const Create: React.FunctionComponent = () => {
         }
     }, [provider, application]);
 
-    const doLoadParameters = useCallback((importedJob: Partial<JobSpecification>, initialImport?: boolean) => {
+    const doLoadParameters = useCallback(async (importedJob: Partial<JobSpecification>, initialImport?: boolean) => {
         if (application == null) return;
         const values = importedJob.parameters ?? {};
         const resources = importedJob.resources ?? [];
 
+
         if (initialImport) {
-            setActiveOptParams(() => []);
+            setActiveOptParams([]);
         }
 
         {
@@ -320,7 +371,7 @@ export const Create: React.FunctionComponent = () => {
             for (const param of parameters) {
                 if (param.optional && values[param.name]) {
                     optionalParameters.push(param.name);
-                    if (activeOptParams.indexOf(param.name) === -1) {
+                    if (activeOptParams.indexOf(param.name) === -1 || initialImport) {
                         needsToRenderParams = true;
                     }
                 }
@@ -333,7 +384,12 @@ export const Create: React.FunctionComponent = () => {
         }
 
         // Load reservation
-        setReservation(importedJob);
+        try {
+            await awaitReservationMount();
+            setReservation(importedJob);
+        } catch (e) {
+            console.warn(e);
+        }
 
         // Load parameters
         for (const param of parameters) {
@@ -392,6 +448,8 @@ export const Create: React.FunctionComponent = () => {
             const newCount = reloadHack.count - 1;
             if (newCount > 0) {
                 setReloadHack({importFrom: reloadHack.importFrom, count: newCount});
+            } else {
+                appParams.current = ["", {}];
             }
         }
     }, [onLoadParameters, reloadHack]);

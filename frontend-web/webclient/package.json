@@ -20,7 +20,6 @@
         "@novnc/novnc": "1.5.0",
         "@observablehq/plot": "0.6.17",
         "@reduxjs/toolkit": "2.8.2",
-        "@rjsf/core": "5.24.12",
         "@svgr/cli": "8.1.0",
         "apexcharts": "4.7.0",
         "assert": "2.1.0",
