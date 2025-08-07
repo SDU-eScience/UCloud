@@ -1,5 +1,9 @@
 import {test, expect} from '@playwright/test';
-import {LOCATION_ORIGIN, login} from './shared';
+import {login} from './shared';
+
+test.beforeEach(async ({page}) => {
+  login(page);
+});
 
 test('Create and delete folder (with available resources)', async ({page}) => {
   await page.getByRole('link', {name: 'Go to Files'}).click();
@@ -9,6 +13,6 @@ test('Create and delete folder (with available resources)', async ({page}) => {
   await page.getByRole('textbox').nth(1).press('Enter');
   await page.getByText('FOOBAR').click();
   await page.locator('div').filter({hasText: /^FOOBAR$/}).nth(1).dblclick();
-  await page.goto(`${LOCATION_ORIGIN}/app/files?path=%2F9830`);
+  await page.goBack();
   expect(page.locator('div').filter({hasText: "Could not find directory"})).toBeTruthy();
 });
