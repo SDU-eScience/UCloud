@@ -18,7 +18,6 @@ import {
     SelectionMode,
     checkCanConsumeResources,
     favoriteRowIcon,
-    useAllocations
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
@@ -138,7 +137,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
     }
 
     const [providerRestriction, setProviderRestriction] = React.useState<string | null>(null);
-    const allocations = useAllocations(browserRef, "STORAGE", providerRestriction);
 
     const isInitialMount = useRef<boolean>(true);
     useEffect(() => {
@@ -1566,7 +1564,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
         main={<>
             <div ref={mountRef} />
             {switcher}
-            {allocations}
         </>}
     />;
 

@@ -8,7 +8,6 @@ import {
     addContextSwitcherInPortal,
     providerIcon,
     ResourceBrowserOpts,
-    useAllocations,
 } from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
 import MainContainer from "@/ui-components/MainContainer";
@@ -85,7 +84,6 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
 
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
     const [productSelectorPortal, setProductSelectorPortal] = React.useState(<></>);
-    const allocations = useAllocations(browserRef, "STORAGE");
 
     const isWorkspaceAdmin = React.useRef(!Client.hasActiveProject);
     const project = useProject();
@@ -536,7 +534,6 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                 <div ref={mountRef} />
                 {switcher}
                 {productSelectorPortal}
-                {allocations}
             </>
         }
     />;
