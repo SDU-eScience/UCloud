@@ -27,7 +27,7 @@ const CARD_SIZE = 61;
 const CARD_GAP = 16;
 const DEMO = false; // Set DEMO to true to see a bunch of notifications rolling in.
 
-type NotificationWithSnooze = NotificationProps & { onSnooze?: (props: NotificationProps) => void };
+type NotificationWithSnooze = NotificationProps & {onSnooze?: (props: NotificationProps) => void};
 
 // NOTE(Dan): Callback to force a rerender. This is set by <NotificationPopups> when mounting. This should only be
 // invoked through `triggerCallback()`.
@@ -79,11 +79,11 @@ export function triggerNotificationPopup(notification: NotificationWithSnooze) {
             }
         }
     } else {
-        const earliestLegalSlot = 
-            pinnedQueue.length > 0 ? Math.min(pinnedQueue.length, 2) : 
-            pinnedSlots[1] !== null ? 2 : 
-            pinnedSlots[0] !== null ? 1 : 
-            0;
+        const earliestLegalSlot =
+            pinnedQueue.length > 0 ? Math.min(pinnedQueue.length, 2) :
+                pinnedSlots[1] !== null ? 2 :
+                    pinnedSlots[0] !== null ? 1 :
+                        0;
 
         let foundSlot: ActiveNotification | null = null;
         for (let i = 0; i < normalSlots.length; i++) {
@@ -148,7 +148,7 @@ function startDeletionTimer(slot: ActiveNotification) {
         }
         // NOTE(Dan): We often get flashes if we wait until the end. This is probably because setTimeout is not 
         // super precise and React isn't always super fast.
-    }, EXIT_ANIMATION - 30); 
+    }, EXIT_ANIMATION - 30);
 }
 
 export const NotificationPopups: React.FunctionComponent = () => {
@@ -156,7 +156,7 @@ export const NotificationPopups: React.FunctionComponent = () => {
 
     useEffect(() => {
         callback = rerender;
-        return () => { callback = doNothing; };
+        return () => {callback = doNothing;};
     }, []);
 
     const onMouseEnter = useCallback((userData?: any) => {
@@ -204,12 +204,12 @@ export const NotificationPopups: React.FunctionComponent = () => {
         if (slot === null) continue;
 
         elems.push(
-            <NotificationCard 
-                key={i} 
-                top={`${baseOffset + (CARD_SIZE + CARD_GAP) * i}px`} 
-                exit={slot.needsExit} 
+            <NotificationCard
+                key={i}
+                top={`${baseOffset + (CARD_SIZE + CARD_GAP) * i}px`}
+                exit={slot.needsExit}
                 callbackItem={slot}
-                {...slot.notification} 
+                {...slot.notification}
                 onSnooze={onSnooze}
             />
         );
@@ -219,11 +219,11 @@ export const NotificationPopups: React.FunctionComponent = () => {
         const slot = normalSlots[i];
         if (slot.notification !== undefined) {
             elems.push(
-                <NotificationCard 
-                    key={slot.uniqueId} 
-                    top={`${baseOffset + (CARD_SIZE + CARD_GAP) * i}px`} 
-                    exit={slot.needsExit} 
-                    {...slot.notification} 
+                <NotificationCard
+                    key={slot.uniqueId}
+                    top={`${baseOffset + (CARD_SIZE + CARD_GAP) * i}px`}
+                    exit={slot.needsExit}
+                    {...slot.notification}
                     callbackItem={slot}
                     onMouseEnter={onMouseEnter}
                     onMouseLeave={onMouseLeave}

@@ -73,7 +73,7 @@ func Init() {
 	})
 }
 
-const maxBucketSize = 1024 * 32
+const maxBucketSize = 1024 * 16
 
 func NewIndexBuilder(bucketCount int) *SearchIndex {
 	result := &SearchIndex{

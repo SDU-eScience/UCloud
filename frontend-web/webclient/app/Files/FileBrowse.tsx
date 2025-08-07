@@ -61,7 +61,7 @@ import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
 import {divHtml, image} from "@/Utilities/HTMLUtilities";
 import * as Sync from "@/Syncthing/api";
-import {deepCopy} from "@/Utilities/CollectionUtilities";
+import {associateBy, deepCopy} from "@/Utilities/CollectionUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
@@ -70,6 +70,7 @@ import {sidebarFavoriteCache} from "./FavoriteCache";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {Feature, hasFeature} from "@/Features";
+import SharesApi, {OutgoingShareGroup} from "@/UCloud/SharesApi";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -180,9 +181,14 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
         const mount = mountRef.current;
         let searching = "";
         let lastActiveFilePath = "";
+        let shares: Record<string, OutgoingShareGroup> = {};
         if (mount && !browserRef.current) {
             new ResourceBrowser<UFile>(mount, RESOURCE_NAME, opts).init(browserRef, features, undefined, browser => {
                 browser.setColumns(rowTitles);
+
+                callAPI(SharesApi.browseOutgoing({itemsPerPage: 250})).then((result: PageV2<OutgoingShareGroup>) => {
+                    shares = associateBy(result.items, s => s.sourceFilePath);
+                });
 
                 // Syncthing data
                 // =========================================================================================================
@@ -814,56 +820,19 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     row.title.append(icon);
 
                     if (syncthingConfig?.folders.find(it => it.ucloudPath === file.id)) {
-                        const iconWrapper = createHTMLElements({
-                            tagType: "div",
-                            style: {
-                                position: "relative",
-                                left: "24px",
-                                top: "-2px",
-                                backgroundColor: "var(--primaryMain)",
-                                height: "12px",
-                                width: "12px",
-                                padding: "4px",
-                                borderRadius: "8px",
-                                cursor: "pointer"
-                            }
-                        });
-
-                        HTMLTooltip(iconWrapper, divHtml("Synchronized with Syncthing"), {tooltipContentWidth: 230})
-
-                        icon.append(iconWrapper);
-                        const [syncThingIcon, setSyncthingIcon] = ResourceBrowser.defaultIconRenderer();
-                        setIconStyling(syncThingIcon);
-                        iconWrapper.appendChild(syncThingIcon);
-                        ResourceBrowser.icons.renderIcon({name: "check", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setSyncthingIcon);
+                        folderNote(icon, "Synchronized with Syncthing", "60px", "12px", 230, "check");
                     }
 
                     const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), row);
                     row.title.append(title);
 
                     if (isReadonly(file.permissions.myself)) {
-                        const iconWrapper = createHTMLElements({
-                            tagType: "div",
-                            style: {
-                                position: "relative",
-                                left: "24px",
-                                top: "22px",
-                                backgroundColor: "var(--primaryMain)",
-                                height: "12px",
-                                width: "12px",
-                                padding: "4px",
-                                borderRadius: "8px",
-                                cursor: "pointer"
-                            }
-                        });
+                        folderNote(icon, "Read-only", "60px", "34px", 108, "heroInformationCircle");
+                    }
 
-                        HTMLTooltip(iconWrapper, divHtml("Read-only"), {tooltipContentWidth: 108})
-
-                        icon.append(iconWrapper);
-                        const [readonlyIcon, setReadonlyIcon] = ResourceBrowser.defaultIconRenderer();
-                        setIconStyling(readonlyIcon);
-                        iconWrapper.appendChild(readonlyIcon);
-                        ResourceBrowser.icons.renderIcon({name: "heroInformationCircle", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setReadonlyIcon);
+                    const share = shares[file.id];
+                    if (share) {
+                        folderNote(icon, "This files is shared with other users", "30px", "34px", 250, "heroShare", () => navigate(AppRoutes.shares.sharedByMeFile(share.sourceFilePath)))
                     }
 
                     const modifiedAt = file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs();
@@ -1599,6 +1568,41 @@ function matchesFilter(filter: string, collection: FileCollection): boolean {
     const title = collection.specification.title.toLocaleLowerCase();
     const id = collection.id;
     return title.toLocaleLowerCase().includes(lCFilter) || id.includes(lCFilter);
+}
+
+function folderNote(
+    el: HTMLElement,
+    tooltipContent: string,
+    left: string,
+    top: string,
+    contentWidth: number,
+    iconName: IconName,
+    onClick?: () => void
+): void {
+    const iconWrapper = createHTMLElements({
+        tagType: "div",
+        style: {
+            position: "absolute",
+            left,
+            top,
+            backgroundColor: "var(--primaryMain)",
+            height: "12px",
+            width: "12px",
+            padding: "4px",
+            borderRadius: "8px",
+            cursor: "pointer"
+        }
+    });
+
+    HTMLTooltip(iconWrapper, divHtml(tooltipContent), {tooltipContentWidth: contentWidth})
+
+    if (onClick) iconWrapper.onclick = e => {e.stopPropagation(); onClick();};
+
+    el.append(iconWrapper);
+    const [noteIcon, setNoteIcon] = ResourceBrowser.defaultIconRenderer();
+    setIconStyling(noteIcon);
+    iconWrapper.appendChild(noteIcon);
+    ResourceBrowser.icons.renderIcon({name: iconName, color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setNoteIcon);
 }
 
 // Note(Jonas): Temporary as there should be a better solution, not because the element is temporary

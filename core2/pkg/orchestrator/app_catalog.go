@@ -300,7 +300,16 @@ func initAppCatalog() {
 	})
 
 	orcapi.AppsUpdateAcl.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateAclRequest) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		var entities []orcapi.AclEntity
+		for _, item := range request.Changes {
+			e := orcapi.AclEntity{
+				Username:  item.Entity.User.GetOrDefault(""),
+				ProjectId: item.Entity.Project.GetOrDefault(""),
+				Group:     item.Entity.Group.GetOrDefault(""),
+			}
+			entities = append(entities, e)
+		}
+		return util.Empty{}, AppStudioUpdateAcl(request.Name, entities)
 	})
 
 	orcapi.AppsUpdateApplicationFlavor.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateApplicationFlavorRequest) (util.Empty, *util.HttpError) {
@@ -317,11 +326,12 @@ func initAppCatalog() {
 	})
 
 	orcapi.AppsCreateGroup.Handler(func(info rpc.RequestInfo, request orcapi.ApplicationGroupSpecification) (fndapi.FindByIntId, *util.HttpError) {
-		panic("TODO")
+		id, err := AppStudioCreateGroup(request)
+		return fndapi.FindByIntId{Id: int(id)}, err
 	})
 
 	orcapi.AppsDeleteGroup.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		return util.Empty{}, AppStudioDeleteGroup(AppGroupId(request.Id))
 	})
 
 	orcapi.AppsUpdateGroup.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateGroupRequest) (util.Empty, *util.HttpError) {
@@ -385,15 +395,23 @@ func initAppCatalog() {
 	})
 
 	orcapi.AppsCreateSpotlight.Handler(func(info rpc.RequestInfo, request orcapi.Spotlight) (fndapi.FindByIntId, *util.HttpError) {
-		panic("TODO")
+		if request.Id.Present {
+			return fndapi.FindByIntId{}, util.HttpErr(http.StatusBadRequest, "id must not be present")
+		}
+		id, err := AppStudioCreateOrUpdateSpotlight(request)
+		return fndapi.FindByIntId{Id: int(id)}, err
 	})
 
 	orcapi.AppsUpdateSpotlight.Handler(func(info rpc.RequestInfo, request orcapi.Spotlight) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		if !request.Id.Present {
+			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "missing id")
+		}
+		_, err := AppStudioCreateOrUpdateSpotlight(request)
+		return util.Empty{}, err
 	})
 
 	orcapi.AppsDeleteSpotlight.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		return util.Empty{}, AppStudioDeleteSpotlight(AppSpotlightId(request.Id))
 	})
 
 	orcapi.AppsRetrieveSpotlight.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (orcapi.Spotlight, *util.HttpError) {
@@ -409,7 +427,7 @@ func initAppCatalog() {
 	})
 
 	orcapi.AppsActivateSpotlight.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		return util.Empty{}, AppStudioActivateSpotlight(AppSpotlightId(request.Id))
 	})
 
 	orcapi.AppsUpdateCarrousel.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateCarrouselRequest) (util.Empty, *util.HttpError) {
@@ -417,7 +435,13 @@ func initAppCatalog() {
 	})
 
 	orcapi.AppsUpdateTopPicks.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateTopPicksRequest) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		var groupIds []AppGroupId
+		for _, pick := range request.NewTopPicks {
+			if pick.GroupId.Present {
+				groupIds = append(groupIds, AppGroupId(pick.GroupId.Value))
+			}
+		}
+		return util.Empty{}, AppStudioUpdateTopPicks(groupIds)
 	})
 
 	orcapi.AppsDevImport.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogDevImportRequest) (util.Empty, *util.HttpError) {
@@ -457,7 +481,7 @@ var appCatalogGlobals struct {
 type appCatalogBucket struct {
 	Mu                     sync.RWMutex
 	Applications           map[string][]*internalApplication
-	ApplicationPermissions map[string][]appPermission
+	ApplicationPermissions map[string][]orcapi.AclEntity
 	Tools                  map[string][]*internalTool
 	Groups                 map[AppGroupId]*internalAppGroup
 	Spotlights             map[AppSpotlightId]*internalSpotlight
@@ -474,10 +498,6 @@ type appRecentAdditions struct {
 type appTopPicks struct {
 	Mu    sync.RWMutex
 	Items []AppGroupId
-}
-
-type appPermission struct {
-	Entity orcapi.AclEntity
 }
 
 type appCarrousel struct {
@@ -685,6 +705,14 @@ func appRetrieveCategory(id AppCategoryId) (*internalCategory, bool) {
 	return cat, ok
 }
 
+func appRetrieveSpotlight(id AppSpotlightId) (*internalSpotlight, bool) {
+	b := appSpotlightBucket(id)
+	b.Mu.RLock()
+	cat, ok := b.Spotlights[id]
+	b.Mu.RUnlock()
+	return cat, ok
+}
+
 // Catalog read operations
 // =====================================================================================================================
 
@@ -779,14 +807,14 @@ func AppRetrieve(
 		if actor.Role == rpc.RoleAdmin {
 			hasPermissions = true
 		} else {
-			var permissions []appPermission
+			var permissions []orcapi.AclEntity
 			{
 				app.Mu.RUnlock()
 
 				b := appBucket(name)
 				b.Mu.RLock()
 				permList := b.ApplicationPermissions[name]
-				permissions = make([]appPermission, len(permList))
+				permissions = make([]orcapi.AclEntity, len(permList))
 				copy(permissions, permList)
 				b.Mu.RUnlock()
 
@@ -795,14 +823,14 @@ func AppRetrieve(
 
 		permLoop:
 			for _, p := range permissions {
-				switch p.Entity.Type {
+				switch p.Type {
 				case orcapi.AclEntityTypeUser:
-					if p.Entity.Username == actor.Username {
+					if p.Username == actor.Username {
 						hasPermissions = true
 						break permLoop
 					}
 				case orcapi.AclEntityTypeProjectGroup:
-					if _, ok := actor.Groups[rpc.GroupId(p.Entity.Group)]; ok {
+					if _, ok := actor.Groups[rpc.GroupId(p.Group)]; ok {
 						hasPermissions = true
 						break permLoop
 					}
@@ -1382,7 +1410,7 @@ func AppStudioRetrieveAccessList(appName string) []orcapi.AclEntity {
 	var result []orcapi.AclEntity
 	perms := b.ApplicationPermissions[appName]
 	for _, perm := range perms {
-		result = append(result, perm.Entity)
+		result = append(result, perm)
 	}
 	b.Mu.RUnlock()
 	return result
@@ -1647,5 +1675,182 @@ func AppStudioUpdateLogo(groupId AppGroupId, logo []byte) *util.HttpError {
 
 	AppLogoInvalidate(title)
 	appPersistGroupLogo(groupId, group)
+	return nil
+}
+
+func AppStudioUpdateAcl(appName string, newList []orcapi.AclEntity) *util.HttpError {
+	b := appBucket(appName)
+	b.Mu.Lock()
+	_, ok := b.Applications[appName]
+	if ok {
+		b.ApplicationPermissions[appName] = newList
+	}
+	b.Mu.Unlock()
+
+	if ok {
+		appPersistAcl(appName, newList)
+		return nil
+	} else {
+		return util.HttpErr(http.StatusNotFound, "unknown application")
+	}
+}
+
+func AppStudioCreateGroup(spec orcapi.ApplicationGroupSpecification) (AppGroupId, *util.HttpError) {
+	if spec.Title == "" {
+		return 0, util.HttpErr(http.StatusBadRequest, "missing group title")
+	} else if len(spec.Title) > 256 {
+		return 0, util.HttpErr(http.StatusBadRequest, "group title is too long")
+	} else if len(spec.Description) > 1024 {
+		return 0, util.HttpErr(http.StatusBadRequest, "group description is too long")
+	}
+
+	id := AppGroupId(appCatalogGlobals.GroupIdAcc.Add(1))
+	b := appGroupBucket(id)
+	group := &internalAppGroup{
+		Title:               spec.Title,
+		Description:         spec.Description,
+		ColorRemappingLight: spec.ColorReplacement.Light,
+		ColorRemappingDark:  spec.ColorReplacement.Dark,
+	}
+
+	b.Mu.Lock()
+	b.Groups[id] = group
+	b.Mu.Unlock()
+
+	appPersistGroupMetadata(id, group)
+	return id, nil
+}
+
+func AppStudioDeleteGroup(groupId AppGroupId) *util.HttpError {
+	b := appGroupBucket(groupId)
+	b.Mu.Lock()
+	group, ok := b.Groups[groupId]
+	if ok {
+		delete(b.Groups, groupId)
+	}
+	b.Mu.Unlock()
+
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "unknown group")
+	}
+
+	group.Mu.Lock()
+	for _, item := range group.Items {
+		b = appBucket(item)
+		b.Mu.RLock()
+		appVersions := b.Applications[item]
+		for _, app := range appVersions {
+			app.Mu.Lock()
+			if app.Group.Present && app.Group.Value == groupId {
+				app.Group.Clear()
+			}
+			app.Mu.Unlock()
+		}
+		b.Mu.RUnlock()
+	}
+
+	appPersistGroupDeletion(groupId)
+
+	group.Items = nil
+	group.Mu.Unlock()
+	return nil
+}
+
+func AppStudioCreateOrUpdateSpotlight(spec orcapi.Spotlight) (AppSpotlightId, *util.HttpError) {
+	if spec.Title == "" {
+		return 0, util.HttpErr(http.StatusBadRequest, "missing title")
+	} else if len(spec.Title) > 256 {
+		return 0, util.HttpErr(http.StatusBadRequest, "title is too long")
+	} else if len(spec.Body) > 1024 {
+		return 0, util.HttpErr(http.StatusBadRequest, "body is too long")
+	}
+
+	var groups []AppGroupId
+	for _, pick := range spec.Applications {
+		if pick.GroupId.Present {
+			_, ok := appRetrieveGroup(AppGroupId(pick.GroupId.Value))
+			if !ok {
+				return 0, util.HttpErr(http.StatusNotFound, "unknown group %v", pick.GroupId.Value)
+			} else {
+				groups = append(groups, AppGroupId(pick.GroupId.Value))
+			}
+		}
+	}
+
+	var id AppSpotlightId
+	var spotlight *internalSpotlight = nil
+	ok := true
+
+	if spec.Id.Present {
+		id = AppSpotlightId(spec.Id.Value)
+		spotlight, ok = appRetrieveSpotlight(id)
+		if !ok {
+			return 0, util.HttpErr(http.StatusNotFound, "unknown spotlight")
+		}
+	} else {
+		id = AppSpotlightId(appCatalogGlobals.SpotlightIdAcc.Add(1))
+		spotlight = &internalSpotlight{}
+	}
+
+	spotlight.Mu.Lock()
+	spotlight.Title = spec.Title
+	spotlight.Description = spec.Body
+	spotlight.Items = groups
+	spotlight.Mu.Unlock()
+
+	if !spec.Id.Present {
+		b := appSpotlightBucket(id)
+		b.Mu.Lock()
+		b.Spotlights[id] = spotlight
+		b.Mu.Unlock()
+	}
+
+	appPersistSpotlight(id, spotlight)
+	return id, nil
+}
+
+func AppStudioDeleteSpotlight(id AppSpotlightId) *util.HttpError {
+	b := appSpotlightBucket(id)
+	b.Mu.Lock()
+	_, ok := b.Spotlights[id]
+	if ok {
+		delete(b.Spotlights, id)
+	}
+	b.Mu.Unlock()
+
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "unknown spotlight")
+	}
+
+	appCatalogGlobals.ActiveSpotlight.CompareAndSwap(int64(id), -1) // conditionally deactivate the spotlight if the deleted one was active
+	appPersistDeleteSpotlight(id)
+	return nil
+}
+
+func AppStudioActivateSpotlight(id AppSpotlightId) *util.HttpError {
+	_, ok := appRetrieveSpotlight(id)
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "unknown spotlight")
+	}
+
+	appCatalogGlobals.SpotlightIdAcc.Store(int64(id))
+	appPersistSetActiveSpotlight(id)
+	return nil
+}
+
+func AppStudioUpdateTopPicks(newTopPicks []AppGroupId) *util.HttpError {
+	for _, groupId := range newTopPicks {
+		_, ok := appRetrieveGroup(groupId)
+		if !ok {
+			return util.HttpErr(http.StatusNotFound, "unknown group %v", groupId)
+		}
+	}
+
+	t := &appCatalogGlobals.TopPicks
+	t.Mu.Lock()
+	t.Items = newTopPicks
+	t.Mu.Unlock()
+
+	appPersistTopPicks(newTopPicks)
 	return nil
 }
