@@ -89,9 +89,11 @@ func BuildIndex(bucketCount int, rootPath string) BuildIndexResult {
 
 	return BuildIndexResult{
 		Index:                          index,
-		SuggestNewBucketCount:          min(1024*4, max(16, int(float64(bucketCount)*factor))),
+		SuggestNewBucketCount:          min(MaxBucketsPerIndex, max(16, int(float64(bucketCount)*factor))),
 		TotalFileSize:                  fileSize.Load(),
 		TotalFileCount:                 filesInIndex.Load(),
 		EstimatedFilesIndexedPerSecond: float64(filesInIndex.Load()) / endTime.Sub(startTime).Seconds(),
 	}
 }
+
+const MaxBucketsPerIndex = 1024 * 16

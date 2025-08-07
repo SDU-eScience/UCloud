@@ -288,7 +288,7 @@ func LoadNextSearchBucketCount(id string) int {
 			},
 		)
 
-		return max(64, row.SearchNextBucketCount)
+		return min(fsearch.MaxBucketsPerIndex, row.SearchNextBucketCount)
 	})
 }
 
@@ -558,9 +558,9 @@ func RetrieveDrivesNeedingScan() []orc.Drive {
 								tracked_drives,
 								tracked_drives_scan_timer session
 							where
-								last_scan_completed_at < now() - cast('1 hour' as interval)
+								last_scan_completed_at < now() - cast('12 hour' as interval)
 								and (
-									last_scan_submitted_at < now() - cast('1 hour' as interval)
+									last_scan_submitted_at < now() - cast('12 hour' as interval)
 									or last_scan_submitted_at < session.time
 								)
 								and product_id != 'share' -- TODO Should probably go somewhere else
