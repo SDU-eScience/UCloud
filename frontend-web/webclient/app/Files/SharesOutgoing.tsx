@@ -244,12 +244,12 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                     }
 
                     if (resource) { // NOT share group preview
-                        navigate(`/shares/outgoing?path=${resource.sourceFilePath}`);
+                        navigate(AppRoutes.shares.sharedByMeFile(resource.sourceFilePath));
                     }
 
                     if (oldPath !== newPath) {
-                        if (newPath === "/shares/outgoing") {
-                            navigate(`/shares/outgoing`);
+                        if (newPath === AppRoutes.shares.sharedByMe()) {
+                            navigate(newPath);
                         }
                         browser.rerender();
                     }
