@@ -3,6 +3,7 @@ package filesystem
 import (
 	"context"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"io"
 	"path/filepath"
 	"runtime"
@@ -31,20 +32,25 @@ var scanSlotsAvailable = atomic.Int64{}
 var maxScanSlots int64
 
 var (
-	metricScansInProgress = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "ucloud_im_k8s_storage_scans_in_progress",
-		Help: "The total number of drives currently being scanned by UCloud/IM",
+	metricScansInProgress = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im_k8s",
+		Subsystem: "storage",
+		Name:      "scans_in_progress",
+		Help:      "The total number of drives currently being scanned by UCloud/IM",
 	})
 
-	indexingSpeedFilesPerSecond = prometheus.NewSummary(prometheus.SummaryOpts{
-		Name:   "ucloud_im_k8s_storage_files_indexed_per_second",
-		Help:   "Estimated speed of indexing files within a single drive",
-		MaxAge: 24 * time.Hour,
+	indexingSpeedFilesPerSecond = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im_k8s",
+		Subsystem: "storage",
+		Name:      "files_indexed_per_second",
+		Help:      "Estimated speed of indexing files within a single drive",
 	})
 
-	totalFilesIndexed = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "ucloud_im_k8s_storage_total_files_indexed",
-		Help: "Total number of files indexed",
+	totalFilesIndexed = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im_k8s",
+		Subsystem: "storage",
+		Name:      "total_files_indexed",
+		Help:      "Total number of files indexed",
 	})
 )
 
@@ -153,7 +159,7 @@ func scanDrive(drive orc.Drive) {
 		bucketCount := ctrl.LoadNextSearchBucketCount(drive.Id)
 		result := fsearch.BuildIndex(bucketCount, internalPath)
 
-		indexingSpeedFilesPerSecond.Observe(result.EstimatedFilesIndexedPerSecond)
+		indexingSpeedFilesPerSecond.Set(result.EstimatedFilesIndexedPerSecond)
 		totalFilesIndexed.Add(float64(result.TotalFileCount))
 		ctrl.TrackSearchIndex(drive.Id, result.Index, result.SuggestNewBucketCount)
 
