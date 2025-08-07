@@ -141,12 +141,6 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allDevEnvironments,
     },
-
-    "usage-prediction": {
-        feature: Feature.USAGE_PREDICTION,
-        showWithoutFlag: [Environment.LOCAL_DEV],
-        showWithFlag: allEnvironments,
-    }
 };
 
 function getCurrentEnvironment(): Environment {

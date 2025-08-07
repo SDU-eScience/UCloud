@@ -221,7 +221,7 @@ function stateReducer(state: State, action: UIAction): State {
 
             function translateChart(category: Accounting.ProductCategoryV2, chart: UsageOverTimeAPI): UsageChart {
                 const dataPoints = chart.data;
-                return {dataPoints, name: category.name, provider: category.provider, future: chart.future};
+                return {dataPoints, name: category.name, provider: category.provider};
             }
 
             const data = action.charts;
@@ -1441,12 +1441,11 @@ const UsageOverTimePanel: React.FunctionComponent<{
         chartCounter.current++;
         updateChartEntries(charts.map(it => ({name: it.name, shown: true})));
         setShowingQuota(false);
-        const maxPeriodInDays = maxDaysDifference(charts);
         return usageChartsToChart(charts, shownRef, {
             valueFormatter: val => Accounting.addThousandSeparators(val.toFixed(1)),
             toggleShown: value => toggleShownEntries(value),
             id: ChartID + chartCounter.current,
-        }, maxPeriodInDays);
+        });
     }, [charts, props.period, props.unit]);
 
     const toggleQuotaShown = React.useCallback((active: boolean) => {
@@ -1496,16 +1495,6 @@ const UsageOverTimePanel: React.FunctionComponent<{
         )}
     </div >;
 };
-
-function maxDaysDifference(charts: UsageChart[]) {
-    let maxDateRange = 0;
-    for (const chart of charts) {
-        const minDate = chart.dataPoints.reduce((lowestDate, d) => Math.min(lowestDate, d.timestamp), 999999999999999);
-        const maxDate = chart.dataPoints.reduce((highestDate, d) => Math.max(highestDate, d.timestamp), 0);
-        maxDateRange = Math.max(differenceInCalendarDays(maxDate, minDate), maxDateRange);
-    }
-    return maxDateRange === 0 ? 0 : maxDateRange + 1;
-}
 
 function DifferenceTable({charts, chartEntries, exportRef, chartId, updateShownEntries, ...props}: {
     updateShownEntries: (args: boolean | string[]) => void;
@@ -1799,7 +1788,6 @@ interface UsageChart {
     name: string;
     provider: string;
     dataPoints: {timestamp: number, usage: number, quota: number}[];
-    future?: Accounting.WalletPrediction;
 }
 
 const emptyChart: UsageChart = {
@@ -1808,14 +1796,10 @@ const emptyChart: UsageChart = {
     name: "",
 };
 
-function toSeriesChart(chart: UsageChart, forecastCount: number): ApexAxisChartSeries[0] {
+function toSeriesChart(chart: UsageChart): ApexAxisChartSeries[0] {
     let data = chart.dataPoints.map(it => ({x: it.timestamp, y: it.usage}));
     if (data.length === 0 || data.every(it => it.x == 0)) {
         data = [];
-    } else if (chart.future?.predictions.length && hasFeature(Feature.USAGE_PREDICTION)) {
-        for (const pred of chart.future.predictions.slice(0, forecastCount)) {
-            data.push({x: pred.timestamp, y: pred.value});
-        }
     }
 
     /* TODO(Jonas): I don't understand why this should be necessary.  */
@@ -1838,7 +1822,6 @@ function quotaSeriesFromDataPoints(chart: UsageChart): ApexAxisChartSeries[0] {
     };
 }
 
-const DEFAULT_FUTURE_COUNT = 30;
 function usageChartsToChart(
     charts: UsageChart[],
     chartRef: React.RefObject<{name: string; shown: boolean;}[]>,
@@ -1848,17 +1831,9 @@ function usageChartsToChart(
         toggleShown?: (indexOrAllState: string[] | true | false) => void;
         id?: string;
     } = {},
-    // Note(Jonas): This is to reduce amount of future points. If period is 7 days, then we should cap future to 7 days.
-    maxFuturePoints: number,
 ): ChartProps {
     const result: ChartProps = {};
-    const anyFuture = charts.find(it => it.future) != null;
-    const forecastCount = !hasFeature(Feature.USAGE_PREDICTION) || !anyFuture ? 0 : Math.min(
-        maxFuturePoints,
-        DEFAULT_FUTURE_COUNT,
-        charts.reduce((max, chart) => Math.max(max, chart.dataPoints.length), 0)
-    );
-    result.series = charts.map(it => toSeriesChart(it, forecastCount));
+    result.series = charts.map(it => toSeriesChart(it));
 
     result.options = {
         legend: {
@@ -1866,9 +1841,6 @@ function usageChartsToChart(
             onItemClick: {
                 toggleDataSeries: true,
             },
-        },
-        forecastDataPoints: {
-            count: forecastCount,
         },
         /* Again, very cool ApexCharts! https://github.com/apexcharts/apexcharts.js/issues/4447 */
         chart: {

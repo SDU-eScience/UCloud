@@ -1244,27 +1244,10 @@ export interface UsageOverTimeDatePointAPI {
     usage: number;
     quota: number;
     timestamp: number;
-    /* added by Me(Jonas) */
-    localUsage: number /* double */;
-    totalAllocated: number /* long */;
-}
-
-/* added by Me(Jonas) */
-export interface Prediction {
-    timestamp: number /* Int */
-    value: number /* Double */,
-}
-
-/* added by Me(Jonas) */
-export interface WalletPrediction {
-    walletId: number /* Long */;
-    predictions: Prediction[] /* List<Prediction> */;
 }
 
 export interface UsageOverTimeAPI {
     data: UsageOverTimeDatePointAPI[];
-    /* added by Me(Jonas)  */
-    future?: WalletPrediction;
 }
 
 export interface BreakdownByProjectPointAPI {
