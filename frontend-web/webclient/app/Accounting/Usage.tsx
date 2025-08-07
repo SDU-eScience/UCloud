@@ -1454,6 +1454,7 @@ const UsageOverTimePanel: React.FunctionComponent<{
         setShowingQuota(active);
         if (active) {
             updateChartEntries(c => {
+                for (const it of c) it.shown = true;
                 for (const quotaSeries of charts.map(it => quotaSeriesFromDataPoints(it))) {
                     /* Note(Jonas): Casting seems necessary as the parameter requires something different from what is actually used in the library code */
                     chart.appendSeries(quotaSeries as unknown as ApexAxisChartSeries);
