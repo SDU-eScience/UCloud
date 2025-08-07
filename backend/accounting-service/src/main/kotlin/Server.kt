@@ -84,8 +84,7 @@ class Server(
         val favoriteProjects = FavoriteProjectService(projectsV2)
         val grants = GrantsV2Service(db, idCardService, accountingSystem, client, config.defaultTemplate, projectsV2)
         val giftService = GiftService(db, accountingSystem, projectService, grants, idCardService)
-        val simplePredictor = SimplePredictor(db)
-        val dataVisualization = DataVisualization(db, accountingSystem, simplePredictor)
+        val dataVisualization = DataVisualization(db, accountingSystem)
         val apmNotifications = ApmNotificationService(
             accountingSystem,
             projectsV2,
@@ -101,10 +100,6 @@ class Server(
         accountingSystem.start(micro.backgroundScope)
         micro.backgroundScope.launch {
             grants.init()
-        }
-
-        micro.backgroundScope.launch {
-            simplePredictor.start()
         }
 
         val scriptManager = micro.feature(ScriptManager)

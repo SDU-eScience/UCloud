@@ -12,25 +12,11 @@ data class UsageOverTimeDatePointAPI(
 )
 
 @Serializable
-data class Prediction(
-    val timestamp: Long,
-    val value: Double,
-)
-
-@Serializable
-data class WalletPrediction(
-    val walletId: Long,
-    val predictions: List<Prediction>
-)
-
-@Serializable
 data class UsageOverTimeAPI(
     var data: List<UsageOverTimeDatePointAPI>,
-    var future: WalletPrediction?
 )
 
-@Serializable
-data class BreakdownByProjectPointAPI(
+@Serializable data class BreakdownByProjectPointAPI(
     val title: String,
     val projectId: String?,
     val usage: Double,
@@ -62,14 +48,4 @@ data class ChartsForCategoryAPI (
 data class AllocationGroupWithProductCategoryIndex(
     val group: AllocationGroup,
     val productCategoryIndex: Int
-)
-
-@Serializable
-data class ProjectTreeNode(
-    val walletId: Int,
-    val projectTitle: String,
-    val localUsage: Long,
-    val retiredLocalUsage: Long,
-    val treeUsage: Long,
-    val children: MutableSet<Int>
 )
