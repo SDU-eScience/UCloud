@@ -458,7 +458,6 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     if (!isConnected) {
                         const canConnect = connectionState.canConnectToProvider(resource?.specification.product.provider);
                         if (canConnect) {
-                            console.log("notifying")
                             connectionState.notification(resource.specification.product.provider, true);
                         }
                     }
