@@ -58,8 +58,11 @@ func pushLogsToElastic(event rpc.HttpCallLogEntry) {
 
 // Delete old and expired entrieds
 func CleanUpLogs() {
-	removeExpiredLogs()
-	removeOldExpiredIndices()
+	list := GetListOfIndices()
+	for _, index := range list {
+		removeExpiredLogs(index)
+		removeOldExpiredIndices()
+	}
 }
 
 // Removes logs that has expired
@@ -145,8 +148,18 @@ func removeExpiredLogs(indexName string) {
 // Removes logs and any indices that have exceeded UCloud retainment period (DAYS_TO_KEEP_DATA)
 func removeOldExpiredIndices() {}
 
-func DeleteIndex(indexName string) {
+func GetListOfIndices() []string {}
 
+func DeleteIndex(indexName string) {
+	if strings.Contains(indexName, "*") {
+		log.Fatal("Cannot delete with wildcard. Index given " + indexName)
+	}
+	_, err := elasticClient.Indices.Delete([]string{indexName})
+	if err != nil {
+		log.Info("Failed to delete index: ", err)
+	}
 }
 
-func FlushIndex(indexName string) {}
+func FlushIndex(indexName string) {
+	elasticClient.Indices.Flush(elasticClient.Indices.Flush.WithIndex(indexName))
+}
