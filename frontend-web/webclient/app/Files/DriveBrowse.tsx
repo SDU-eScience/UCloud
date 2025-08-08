@@ -46,6 +46,7 @@ import {MandatoryField} from "@/UtilityComponents";
 import Text from "../ui-components/Text";
 import {PermissionsTable} from "@/Resource/PermissionEditor";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
+import {connectionState} from "@/Providers/ConnectionState";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
@@ -81,7 +82,6 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
     const browserRef = useRef<ResourceBrowser<FileCollection> | null>(null);
     const dispatch = useDispatch();
     usePage("Drives", SidebarTabId.FILES);
-
 
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
     const [productSelectorPortal, setProductSelectorPortal] = React.useState(<></>);
@@ -120,6 +120,8 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     browser.rerender();
 
                 });
+
+                connectionState.fetch();
 
 
                 browser.setColumns([
@@ -449,10 +451,22 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
 
                 // Network requests
                 // =========================================================================================================
+                browser.on("skipOpen", (oldPath, newPath, resource) => {
+                    if (!resource) return true;
+                    const isConnected = connectionState.isConnected(resource?.specification.product.provider);
+                    if (!isConnected) {
+                        const canConnect = connectionState.canConnectToProvider(resource?.specification.product.provider);
+                        if (canConnect) {
+                            connectionState.notification(resource.specification.product.provider, true);
+                        }
+                    }
+                    return !isConnected;
+                });
+
                 browser.on("open", (oldPath, newPath) => {
                     if (newPath !== "/") {
                         const p = newPath.startsWith("/") ? newPath : "/" + newPath;
-                        navigate("/files?path=" + encodeURIComponent(p));
+                        navigate(AppRoutes.files.path(p));
                         return;
                     }
 
@@ -490,13 +504,11 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     browser.cachedData["/search"] = [];
                     browser.renderRows();
                     browser.renderOperations();
-                    collectionsOnOpen.retrieve("/search", () =>
-                        callAPI(FileCollectionsApi.search({
-                            query,
-                            itemsPerPage: 250,
-                            flags: {},
-                        }))
-                    ).then(res => {
+                    callAPI(FileCollectionsApi.search({
+                        query,
+                        itemsPerPage: 250,
+                        flags: {},
+                    })).then(res => {
                         if (browser.currentPath !== "/search") return;
                         browser.registerPage(res, "/search", true);
                         browser.renderRows();

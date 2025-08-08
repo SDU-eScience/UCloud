@@ -9,12 +9,15 @@ interface ToggleProps {
     activeColor?: ThemeColor;
     inactiveColor?: ThemeColor;
     circleColor?: ThemeColor;
+    height?: number;
     colorAnimationDisabled?: boolean;
 }
 
+const DEFAULT_TOGGLE_HEIGHT = 26;
 export const Toggle: React.FC<ToggleProps> = ({
     checked,
     onChange,
+    height = 26,
     activeColor = "successMain",
     inactiveColor = "textSecondary",
     circleColor = "fixedWhite",
@@ -34,7 +37,9 @@ export const Toggle: React.FC<ToggleProps> = ({
     const style: React.CSSProperties = {};
     style["--inactiveColor"] = `var(--${inactiveColor})`;
     style["--activeColor"] = `var(--${activeColor})`;
-    style["--circleColor"] = `var(--${circleColor})`
+    style["--circleColor"] = `var(--${circleColor})`;
+    style["--scale"] = height / DEFAULT_TOGGLE_HEIGHT;
+
 
     return <div
         onClick={handler}
@@ -50,31 +55,31 @@ const ToggleWrapperClass = injectStyle("toggle-wrapper", k => `
     ${k} {
         --inactiveColor: #ff0;
         --activeColor: #f0f;
-        --circleColor: #0ff
+        --circleColor: #0ff;
     }
 
     ${k} {
         border-radius: 12px;
-        height: 26px;
-        width: 45px;
+        height: calc(26px * var(--scale));
+        width: calc(45px * var(--scale));
         background-color: var(--inactiveColor);
         transition: 0.2s all;
-        padding-top: 2px;
-        padding-left: 2px;
+        padding-top:  calc(2px * var(--scale));
+        padding-left: calc(2px * var(--scale));
         cursor: pointer;
     }
 
     ${k}[data-active="true"] {
         background-color: var(--activeColor);
-        padding-left: 21px;
+        padding-left: calc(21px * var(--scale));
     }
 
     ${k} > div {
         border-radius: 50%;
-        width: 22px;
+        width: calc(22px * var(--scale));
         background-color: var(--circleColor);
         animation: background-color 0.2;
-        height: 22px;
+        height: calc(22px * var(--scale));
     }
     
     ${k}.color-anim-disabled {

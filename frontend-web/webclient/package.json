@@ -1,6 +1,6 @@
 {
     "name": "ucloud",
-    "version": "2025.3.78",
+    "version": "2025.4.0",
     "description": "UCloud",
     "type": "module",
     "author": "IMADA - eScience Center, SDU",
@@ -20,7 +20,6 @@
         "@novnc/novnc": "1.5.0",
         "@observablehq/plot": "0.6.17",
         "@reduxjs/toolkit": "2.8.2",
-        "@rjsf/core": "5.24.12",
         "@svgr/cli": "8.1.0",
         "apexcharts": "4.7.0",
         "assert": "2.1.0",
@@ -34,15 +33,15 @@
         "magic-bytes.js": "1.12.1",
         "monaco-editor": "0.52.2",
         "monaco-vim": "^0.4.2",
-        "react": "19.1.0",
+        "react": "19.1.1",
         "react-apexcharts": "1.7.0",
         "react-datepicker": "8.4.0",
-        "react-dom": "19.1.0",
+        "react-dom": "19.1.1",
         "react-markdown": "10.1.0",
         "react-modal": "3.16.3",
         "react-redux": "9.2.0",
-        "react-router": "7.6.2",
-        "react-router-dom": "7.6.2",
+        "react-router": "7.7.1",
+        "react-router-dom": "7.7.1",
         "react-syntax-highlighter": "15.6.1",
         "react-transition-group": "4.4.5",
         "react-virtualized-auto-sizer": "1.0.26",
@@ -53,16 +52,16 @@
         "ua-parser-js": "1.0.40",
         "xterm": "5.3.0",
         "xterm-addon-fit": "0.8.0",
-        "yaml": "2.8.0"
+        "yaml": "2.8.1"
     },
     "devDependencies": {
         "@types/d3": "7.4.3",
         "@types/history": "5.0.0",
         "@types/json-schema": "7.0.15",
         "@types/jsrsasign": "10.5.15",
-        "@types/react": "19.1.8",
+        "@types/react": "19.1.9",
         "@types/react-datepicker": "7.0.0",
-        "@types/react-dom": "19.1.6",
+        "@types/react-dom": "19.1.7",
         "@types/react-modal": "3.16.3",
         "@types/react-redux": "7.1.34",
         "@types/react-transition-group": "4.4.12",
@@ -70,9 +69,9 @@
         "@types/rusha": "0.8.3",
         "@types/styled-system": "5.1.23",
         "@types/ua-parser-js": "0.7.39",
-        "@vitejs/plugin-react": "4.6.0",
+        "@vitejs/plugin-react": "4.7.0",
         "@vitejs/plugin-react-refresh": "1.3.6",
-        "typescript": "5.8.3",
-        "vite": "6.3.5"
+        "typescript": "5.9.2",
+        "vite": "7.0.6"
     }
 }

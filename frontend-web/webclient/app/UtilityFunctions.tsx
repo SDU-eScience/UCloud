@@ -689,3 +689,11 @@ export function getOrNull<T>(array: T[], index: number): T | null {
     if (index >= array.length) return null;
     return array[index];
 }
+
+/*
+    ThreadDefer-like function. Sets timeout with 0 millis delay.
+    Do note that they will be called in order of deferment, not inverse, like other languages.
+*/
+export function threadDeferLike(func: () => void): void {
+    setTimeout(func, 0);
+}

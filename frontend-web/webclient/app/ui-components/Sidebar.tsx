@@ -38,7 +38,7 @@ import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {Page, PageV2} from "@/UCloud";
 import {sharesLinksInfo} from "@/Files/Shares";
-import {ProviderLogo} from "@/Providers/ProviderLogo";
+import {ProviderLogo, providerLogoPath} from "@/Providers/ProviderLogo";
 import {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import JobsApi, {Job} from "@/UCloud/JobsApi";
@@ -244,8 +244,7 @@ const sideBarMenuElements: [
                 {icon: "heroBuildingStorefront", label: SidebarTabId.APPLICATION_STUDIO, to: AppRoutes.appStudio.groups()}
             ],
             predicate: (state) => {
-                const curatorStatus = state.catalogLandingPage?.curator;
-                return curatorStatus != null && curatorStatus.length > 0;
+                return Client.userIsAdmin;
             }
         }
     ];
@@ -575,7 +574,9 @@ function useSidebarFilesPage(): [
 
     useProvideCommands(staticProvider(drives.data.items.map(d => ({
         title: d.specification.title,
-        icon: {type: "simple", icon: "heroFolderOpen"},
+        icon: isShare(d) ?
+            {type: "simple", icon: "ftSharesFolder", color: "FtFolderColor", color2: "FtFolderColor2"} :
+            {type: "image", imageUrl: providerLogoPath(d.specification.product.provider)},
         action() {
             navigate(AppRoutes.files.drive(d.id));
         },
@@ -1183,6 +1184,7 @@ function Downtimes(): React.ReactNode {
     const [intervalId, setIntervalId] = React.useState(-1);
 
     React.useEffect(() => {
+        fetchDowntimes({method: "GET", path: "/news/listDowntimes"});
         setIntervalId(window.setInterval(() => fetchDowntimes({
             method: "GET", path: "/news/listDowntimes"
         }), 600_000));

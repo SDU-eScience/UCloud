@@ -17,8 +17,25 @@ func GetOptionalElement[T any](items []T, index int) Option[T] {
 	}
 }
 
+func AppendUnique[T comparable](slice []T, element T) []T {
+	if !slices.Contains(slice, element) {
+		return append(slice, element)
+	} else {
+		return slice
+	}
+}
+
 func RemoveAtIndex[T any](slice []T, index int) []T {
 	return append(slice[:index], slice[index+1:]...)
+}
+
+func RemoveFirst[T comparable](slice []T, element T) []T {
+	idx := slices.Index(slice, element)
+	if idx != -1 {
+		return RemoveAtIndex(slice, idx)
+	} else {
+		return slice
+	}
 }
 
 func RemoveElementFunc[T any](slice []T, condition func(element T) bool) []T {

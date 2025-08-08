@@ -30,15 +30,51 @@ func ResourceCreateThroughProvider[T any](
 	if err == nil {
 		providerId := resp.Responses[0].Id
 		if providerId != "" {
-			ResourceSystemUpdate(drive, id, func(r *resource, mapped orcapi.Drive) {
+			ResourceSystemUpdate(typeName, id, func(r *resource, mapped orcapi.Drive) {
 				r.ProviderId.Set(providerId)
 			})
 		}
 
-		ResourceConfirm(drive, id)
+		ResourceConfirm(typeName, id)
 		return resc, nil
 	} else {
-		ResourceDelete(actor, drive, id)
+		ResourceDelete(actor, typeName, id)
 		return t, err
 	}
+}
+
+func ResourceDeleteThroughProvider[T any](
+	actor rpc.Actor,
+	typeName string,
+	id string,
+	call rpc.Call[fndapi.BulkRequest[T], fndapi.BulkResponse[util.Empty]],
+) *util.HttpError {
+	resc, _, product, err := ResourceRetrieveEx[T](
+		actor,
+		typeName,
+		ResourceParseId(id),
+		orcapi.PermissionEdit,
+		orcapi.ResourceFlags{
+			IncludeOthers:  true,
+			IncludeUpdates: true,
+			IncludeSupport: true,
+			IncludeProduct: true,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	if !product.Present {
+		panic("ResourceDeleteThroughProvider called but with no product returned")
+	}
+
+	_, err = InvokeProvider(product.Value.Provider, call, fndapi.BulkRequestOf(resc), ProviderCallOpts{
+		Username: util.OptValue(actor.Username),
+		Reason:   util.OptValue("Deleting resource: " + typeName),
+	})
+
+	ResourceDelete(actor, typeName, ResourceParseId(id))
+	return err
 }

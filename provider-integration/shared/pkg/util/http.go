@@ -13,7 +13,7 @@ type HttpError struct {
 }
 
 func (e *HttpError) Error() string {
-	return e.Why
+	return fmt.Sprintf("%v %v", e.StatusCode, e.Why)
 }
 
 func UserHttpError(whyFormat string, args ...any) *HttpError {

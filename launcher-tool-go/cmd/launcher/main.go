@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+
 	"ucloud.dk/launcher/pkg/launcher"
 	"ucloud.dk/launcher/pkg/termio"
 )
@@ -193,7 +194,7 @@ func main() {
 			selectedService, err := ServiceMenu(false, false, true).SelectSingle()
 			launcher.HardCheck(err)
 			if selectedService.Value == "mainMenu" {
-				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
 				os.Exit(0)
 			}
 			launcher.OpenUserInterface(selectedService.Value)
@@ -204,7 +205,7 @@ func main() {
 			item, err := ServiceMenu(false, true, false).SelectSingle()
 			launcher.HardCheck(err)
 			if item.Value == "mainMenu" {
-				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
 				os.Exit(0)
 			}
 			service := launcher.ServiceByName(item.Value)
@@ -217,7 +218,7 @@ func main() {
 			item, err := ServiceMenu(false, true, false).SelectSingle()
 			launcher.HardCheck(err)
 			if item.Value == "mainMenu" {
-				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
 				os.Exit(0)
 			}
 			service := launcher.ServiceByName(item.Value)
@@ -240,10 +241,19 @@ func main() {
 						filteredItems = append(filteredItems, termio.MenuItem{Value: item, Message: item})
 					}
 				}
-				if len(filteredItems) == 0 {
+				for len(filteredItems) == 0 {
 					fmt.Println("You didn't select any providers. Use space to select a provider and enter to finish.")
 					fmt.Println("Alternatively, you can exit with crtl + c.")
 					fmt.Println()
+
+					multiple, err = providerMenu.SelectMultiple()
+					launcher.HardCheck(err)
+					for _, selectedItem := range multiple {
+						item := selectedItem.Value
+						if !slices.Contains(configured, item) {
+							filteredItems = append(filteredItems, termio.MenuItem{Value: item, Message: item})
+						}
+					}
 				}
 
 				for _, provider := range filteredItems {
@@ -261,7 +271,7 @@ func main() {
 				selectedService, err := ServiceMenu(false, false, false).SelectSingle()
 				launcher.HardCheck(err)
 				if selectedService.Value == "mainMenu" {
-					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
 					os.Exit(0)
 				}
 				service := launcher.ServiceByName(selectedService.Value)
@@ -290,7 +300,7 @@ func main() {
 					}
 				case "mainMenu":
 					{
-						launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+						launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
 						os.Exit(0)
 					}
 
@@ -347,12 +357,12 @@ func main() {
 					env := launcher.SelectOrCreateEnvironment(basePath, false)
 					launcher.InitIO()
 					launcher.GetCurrentEnvironment().Child("..", true).Child(env, true)
-					err := os.WriteFile(filepath.Join(basePath, "current.txt"), []byte(env), 664)
+					err := os.WriteFile(filepath.Join(basePath, "current.txt"), []byte(env), 0664)
 					launcher.HardCheck(err)
 				}
 			case "mainMenu":
 				{
-					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
 					os.Exit(0)
 				}
 
@@ -644,7 +654,7 @@ func main() {
 				}
 
 				if nextTopic == "mainMenu" {
-					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher-go \n\n")
+					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
 					os.Exit(0)
 				}
 
@@ -767,14 +777,16 @@ func CreateProviderMenu() termio.Menu {
 			})
 		}
 	}
-	items = append(items, termio.MenuItem{
-		Value:     "Dev",
-		Message:   "Already Configured ",
-		Separator: true,
-	})
+	if len(alreadyConfigured) > 0 {
+		items = append(items, termio.MenuItem{
+			Value:     "Dev",
+			Message:   "Already Configured ",
+			Separator: true,
+		})
+	}
 	items = append(items, alreadyConfigured...)
 	return termio.Menu{
-		Prompt: "Select the providers you wish to configure",
+		Prompt: "Select the providers you wish to configure (use space to select and enter to confirm selection)",
 		Items:  items,
 	}
 }

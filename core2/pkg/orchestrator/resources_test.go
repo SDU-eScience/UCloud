@@ -50,7 +50,7 @@ const testResource = "test"
 func initResourceTest(t *testing.T) {
 	resourceGlobals.Testing.Enabled = true
 	InitResources()
-	InitResourceType(testResource, 0, nil, nil, func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any) any {
+	InitResourceType(testResource, 0, nil, nil, func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any {
 		d := extra.(*TestResourceData)
 		return TestResource{
 			Resource: r,

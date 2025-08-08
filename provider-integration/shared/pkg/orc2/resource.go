@@ -94,6 +94,11 @@ type ResourceUpdate struct {
 	Status    string        `json:"status,omitempty"`
 }
 
+type ResourceStatus[S any] struct {
+	ResolvedSupport util.Option[ResolvedSupport[S]] `json:"resolvedSupport"`
+	ResolvedProduct util.Option[acc.ProductV2]      `json:"resolvedProduct"`
+}
+
 type ProductSupport struct {
 	Product     acc.ProductReference     `json:"product"`
 	Maintenance util.Option[Maintenance] `json:"maintenance,omitempty"`
@@ -123,11 +128,11 @@ const (
 )
 
 type ResourceBrowseRequest[Flags any] struct {
-	Flags         Flags         `json:"flags,omitempty"`
-	ItemsPerPage  int           `json:"itemsPerPage,omitempty"`
-	Next          string        `json:"next,omitempty"`
-	SortBy        string        `json:"sortBy,omitempty"`
-	SortDirection SortDirection `json:"sortDirection,omitempty"`
+	Flags         Flags                      `json:"flags,omitempty"`
+	ItemsPerPage  int                        `json:"itemsPerPage,omitempty"`
+	Next          util.Option[string]        `json:"next,omitempty"`
+	SortBy        util.Option[string]        `json:"sortBy,omitempty"`
+	SortDirection util.Option[SortDirection] `json:"sortDirection,omitempty"`
 }
 
 type ResourceSpecification struct {
@@ -177,6 +182,15 @@ type ResourceFlags struct {
 	HideProvider          util.Option[string]        `json:"hideProvider"`
 	FilterProviderIds     util.Option[string]        `json:"filterProviderIds"`
 	FilterIds             util.Option[string]        `json:"filterIds"`
+}
+
+func ResourceFlagsIncludeAll() ResourceFlags {
+	return ResourceFlags{
+		IncludeOthers:  true,
+		IncludeUpdates: true,
+		IncludeSupport: true,
+		IncludeProduct: true,
+	}
 }
 
 type UpdatedAcl struct {

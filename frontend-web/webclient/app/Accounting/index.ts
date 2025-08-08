@@ -549,8 +549,7 @@ export class UsageAndQuota {
         const maxUsableBalance = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.maxUsable, {precision: 2});
         const currentBalance = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.quota - usage, {precision: 2});
 
-
-        const usageAndQuota = formatUsageAndQuota(usage, uqRaw.quota, uqRaw.type, uqRaw.unit, {precision: 2});
+        const usageAndQuota = formatUsageAndQuota(usage, uqRaw.quota, uqRaw.type === "STORAGE", uqRaw.unit, {precision: 2});
 
         let usageAndQuotaPercent = usageAndQuota;
         if (uqRaw.quota !== 0) {
@@ -620,6 +619,7 @@ export const ProductTypesByPriority: ProductType[] = [
 export interface AllocationDisplayWallet {
     category: ProductCategoryV2;
     usageAndQuota: UsageAndQuota;
+    totalAllocated: number;
 
     allocations: {
         id: number;
@@ -657,6 +657,7 @@ export interface AllocationDisplayTree {
             groups: {
                 category: ProductCategoryV2;
                 usageAndQuota: UsageAndQuota;
+                totalGranted: number;
 
                 allocations: {
                     allocationId: number;
@@ -847,6 +848,8 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                         ownedByPersonalProviderProject,
                     }),
 
+                    totalAllocated: wallet.totalAllocated,
+
                     allocations: wallet.allocationGroups.flatMap(({group}) => {
                         const shouldShowRetiredAmount = wallet.paysFor.accountingFrequency !== "ONCE";
 
@@ -923,7 +926,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                         title: childGroup.child.projectTitle,
                     },
                     groups: [],
-                    usageAndQuota: []
+                    usageAndQuota: [],
                 };
 
                 subAllocations.recipients.push(recipient);
@@ -952,7 +955,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
             const usage = combineBalances([{balance: combinedUsage, category: wallet.paysFor}]);
             const quota = combineBalances([{balance: combinedQuota, category: wallet.paysFor}]);
             const retiredAmount = combineBalances([{balance: combinedRetired, category: wallet.paysFor}]);
-
+            let totalAllocated = 0;
             const newGroup: AllocationDisplayTree["subAllocations"]["recipients"][0]["groups"][0] = {
                 category: wallet.paysFor,
                 usageAndQuota: new UsageAndQuota({
@@ -966,12 +969,16 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                     ownedByPersonalProviderProject,
                 }),
                 allocations: [],
+                totalGranted: 0
             };
 
             const uq = newGroup.usageAndQuota;
             uq.raw.maxUsable = uq.raw.quota - (localUsage[0]?.normalizedBalance ?? 0);
 
             for (const alloc of childGroup.group.allocations.reverse()) {
+                if (allocationIsActive(alloc, new Date().getTime())) {
+                    totalAllocated += alloc.quota;
+                }
                 newGroup.allocations.push({
                     allocationId: alloc.id,
                     quota: alloc.quota,
@@ -982,7 +989,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                     grantedIn: alloc.grantedIn ?? undefined,
                 });
             }
-
+            newGroup.totalGranted = totalAllocated;
             recipient.groups.push(newGroup);
         }
 
@@ -1062,7 +1069,7 @@ export function balanceToString(
 
 export function truncateValues(
     normalizedBalances: number[],
-    productType: ProductType,
+    isStorage: boolean,
     unit: string,
     opts?: {removeUnitIfPossible?: boolean}
 ): {truncated: number[]; attachedSuffix: string | null, unitToDisplay: string, canRemoveUnit: boolean} {
@@ -1075,7 +1082,7 @@ export function truncateValues(
 
     const storageUnitSiIdx = StandardStorageUnitsSi.indexOf(unit);
     const storageUnitIdx = StandardStorageUnits.indexOf(unit);
-    if (productType === "STORAGE" && (storageUnitSiIdx !== -1 || storageUnitIdx !== -1)) {
+    if (isStorage && (storageUnitSiIdx !== -1 || storageUnitIdx !== -1)) {
         canRemoveUnit = false;
         const base = storageUnitIdx !== -1 ? 1024 : 1000;
         const array = storageUnitIdx !== -1 ? StandardStorageUnits : StandardStorageUnitsSi;
@@ -1111,8 +1118,8 @@ export function truncateValues(
     return {truncated, attachedSuffix, unitToDisplay, canRemoveUnit};
 }
 
-function formatUsageAndQuota(usage: number, quota: number, productType: ProductType, unit: string, opts?: {precision?: number, removeUnitIfPossible?: boolean}): string {
-    const {truncated, attachedSuffix, unitToDisplay, canRemoveUnit} = truncateValues([usage, quota], productType, unit, opts);
+export function formatUsageAndQuota(usage: number, quota: number, isStorage: boolean, unit: string, opts?: {precision?: number, removeUnitIfPossible?: boolean}): string {
+    const {truncated, attachedSuffix, unitToDisplay, canRemoveUnit} = truncateValues([usage, quota], isStorage, unit, opts);
     const [truncatedUsage, truncatedQuota] = truncated;
 
     let usageAndQuota = fmt(truncatedUsage, opts?.precision);
@@ -1146,7 +1153,7 @@ export function balanceToStringFromUnit(
         truncated,
         unitToDisplay,
         canRemoveUnit
-    } = truncateValues([normalizedBalance], productType, unit, opts);
+    } = truncateValues([normalizedBalance], productType === "STORAGE", unit, opts);
 
     const [balanceToDisplay] = truncated;
 

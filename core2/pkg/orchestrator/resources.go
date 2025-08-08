@@ -44,6 +44,18 @@ type resource struct {
 	// NOTE(Dan): Updates and status are now managed by the caller
 }
 
+func (r *resource) ToApi() orcapi.Resource {
+	return orcapi.Resource{
+		Id:        fmt.Sprint(r.Id),
+		CreatedAt: fndapi.Timestamp(r.CreatedAt),
+		Owner:     r.Owner,
+		Permissions: orcapi.ResourcePermissions{
+			Others: r.Acl,
+		},
+		ProviderGeneratedId: r.ProviderId.GetOrDefault(""),
+	}
+}
+
 type resourceBucket struct {
 	Mu        sync.RWMutex
 	Resources map[ResourceId]*resource
@@ -90,7 +102,7 @@ type resourceTypeGlobal struct {
 
 	OnLoad      func(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource)
 	OnPersist   func(tx *db.Transaction, resources []*resource)
-	Transformer func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any) any
+	Transformer func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any
 }
 
 func resourceGetProvider(providerId string) *resourceProvider {
@@ -134,6 +146,20 @@ func InitResources() {
 	resourceGlobals.IdAcc.Store(1)
 	resourceGlobals.ByType = map[string]*resourceTypeGlobal{}
 	resourceGlobals.Providers = map[string]*resourceProvider{}
+
+	if !resourceGlobals.Testing.Enabled {
+		db.NewTx0(func(tx *db.Transaction) {
+			id, ok := db.Get[struct{ Id int64 }](
+				tx,
+				`select max(id) as id from provider.resource`,
+				db.Params{},
+			)
+
+			if ok {
+				resourceGlobals.IdAcc.Store(id.Id)
+			}
+		})
+	}
 }
 
 func InitResourceType(
@@ -141,7 +167,7 @@ func InitResourceType(
 	flags resourceTypeFlags,
 	doLoad func(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource),
 	doPersist func(tx *db.Transaction, resources []*resource),
-	transformer func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any) any,
+	transformer func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any,
 ) {
 	if !resourceGlobals.Testing.Enabled {
 		if doLoad == nil || doPersist == nil {
@@ -385,7 +411,8 @@ func ResourceParseId(id string) ResourceId {
 }
 
 func ResourceRetrieve[T any](actor rpc.Actor, typeName string, pId ResourceId, flags orcapi.ResourceFlags) (T, *util.HttpError) {
-	return ResourceRetrieveEx[T](actor, typeName, pId, orcapi.PermissionRead, flags)
+	t, _, _, err := ResourceRetrieveEx[T](actor, typeName, pId, orcapi.PermissionRead, flags)
+	return t, err
 }
 
 func ResourceRetrieveEx[T any](
@@ -394,7 +421,7 @@ func ResourceRetrieveEx[T any](
 	pId ResourceId,
 	requiredPermission orcapi.Permission,
 	flags orcapi.ResourceFlags,
-) (T, *util.HttpError) {
+) (T, orcapi.Resource, util.Option[accapi.ProductReference], *util.HttpError) {
 	var result T
 
 	g := resourceGetGlobals(typeName)
@@ -405,16 +432,16 @@ func ResourceRetrieveEx[T any](
 		b.Mu.RLock()
 		mapped, ok := lResourceApplyFlags(r, perms, flags)
 		if ok {
-			rawResult := g.Transformer(mapped, r.Product, r.Extra)
+			rawResult := g.Transformer(mapped, r.Product, r.Extra, flags)
 			result = rawResult.(T)
 		}
 		b.Mu.RUnlock()
 		if ok {
-			return result, nil
+			return result, r.ToApi(), r.Product, nil
 		}
 	}
 
-	return result, util.HttpErr(http.StatusNotFound, "not found")
+	return result, orcapi.Resource{}, util.OptNone[accapi.ProductReference](), util.HttpErr(http.StatusNotFound, "not found")
 }
 
 func ResourceBrowse[T any](
@@ -471,7 +498,7 @@ func ResourceBrowse[T any](
 			b.Mu.RLock()
 			mapped, ok := lResourceApplyFlags(resc, perms, flags)
 			if ok {
-				item := g.Transformer(mapped, resc.Product, resc.Extra).(T)
+				item := g.Transformer(mapped, resc.Product, resc.Extra, flags).(T)
 				if filter == nil || filter(item) {
 					if len(items) >= itemsPerPage {
 						newNext.Set(fmt.Sprint(prevId))
@@ -521,7 +548,7 @@ func ResourceUpdate[T any](
 		if !ok {
 			panic("resource was not supposed to be filtered here")
 		}
-		mapped := g.Transformer(apiResc, resc.Product, resc.Extra).(T)
+		mapped := g.Transformer(apiResc, resc.Product, resc.Extra, orcapi.ResourceFlags{}).(T)
 		modification(resc, mapped)
 
 		if resc.Confirmed {
@@ -658,13 +685,14 @@ func ResourceCreateEx[T any](
 		Product:    product,
 	}
 	b.Resources[id] = r
-	apiResc, _ := lResourceApplyFlags(r, nil, orcapi.ResourceFlags{
+	resourceFlags := orcapi.ResourceFlags{
 		IncludeOthers:  true,
 		IncludeUpdates: true,
 		IncludeSupport: true,
 		IncludeProduct: true,
-	})
-	mapped := g.Transformer(apiResc, r.Product, r.Extra).(T)
+	}
+	apiResc, _ := lResourceApplyFlags(r, nil, resourceFlags)
+	mapped := g.Transformer(apiResc, r.Product, r.Extra, resourceFlags).(T)
 	b.Mu.Unlock()
 
 	return r.Id, mapped, nil

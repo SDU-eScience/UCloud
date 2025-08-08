@@ -94,10 +94,12 @@ func JobDimensions(job *orc.Job) SchedulerDimensions {
 	if hasMapper {
 		return mapper(job)
 	} else {
-		return SchedulerDimensions{
-			CpuMillis:     prod.Cpu * 1000,
+		dims := SchedulerDimensions{
+			CpuMillis:     NodeCpuMillisReserved(prod),
 			MemoryInBytes: prod.MemoryInGigs * (1000 * 1000 * 1000),
-			Gpu:           0,
+			Gpu:           prod.Gpu,
 		}
+
+		return dims
 	}
 }

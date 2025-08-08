@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.rpc
 import dk.sdu.cloud.*
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.services.DataGenerator
 import dk.sdu.cloud.accounting.services.accounting.AccountingRequest
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
 import dk.sdu.cloud.accounting.services.accounting.DataVisualization
@@ -18,6 +19,7 @@ import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
+import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.feature
 import dk.sdu.cloud.service.*
 import io.ktor.server.application.*
@@ -31,6 +33,7 @@ class AccountingController(
     private val idCards: IdCardService,
     private val apmNotifications: ApmNotificationService,
     private val grants: GrantsV2Service,
+    private val generator: DataGenerator? = null
 ) : Controller {
     private fun <R : Any, S : Any, E : Any> RpcServer.implementOrDispatch(
         call: CallDescription<R, S, E>,
@@ -316,6 +319,19 @@ class AccountingController(
                 )
             )
 
+            ok(Unit)
+        }
+
+        implementOrDispatch(AccountingV2.adminGenerateTestData) {
+            if (micro.developmentModeEnabled && generator != null) {
+                if (request.clearExistingUsage && request.makeCharges) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Cannot charge and clear in same run")
+                }
+                generator.createTestStructureAndData(
+                    actorAndProject,
+                    request
+                )
+            }
             ok(Unit)
         }
 

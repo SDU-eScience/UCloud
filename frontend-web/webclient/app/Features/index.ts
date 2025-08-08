@@ -24,7 +24,9 @@ export enum Feature {
     REORDER_APP_GROUP,
 
     ALTERNATIVE_USAGE_SELECTOR,
-    NEW_SYNCTHING_UI
+    NEW_SYNCTHING_UI,
+
+    USAGE_PREDICTION,
 }
 
 enum Environment {
@@ -100,13 +102,13 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "command-palette": {
         feature: Feature.COMMAND_PALETTE,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments,
     },
 
     "integrated-editor": {
         feature: Feature.INTEGRATED_EDITOR,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments,
     },
 
@@ -138,7 +140,7 @@ const featureMap: Record<string, FeatureConfig> = {
         feature: Feature.REORDER_APP_GROUP,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allDevEnvironments,
-    }
+    },
 };
 
 function getCurrentEnvironment(): Environment {

@@ -22,7 +22,14 @@ import {
 } from "@/ui-components";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import * as Accounting from "@/Accounting";
-import {NO_EXPIRATION_FALLBACK, ProductType, UsageAndQuota, WalletV2} from "@/Accounting";
+import {
+    balanceToStringFromUnit,
+    explainUnit,
+    NO_EXPIRATION_FALLBACK,
+    ProductType,
+    UsageAndQuota,
+    WalletV2
+} from "@/Accounting";
 import {deepCopy, newFuzzyMatchFuse} from "@/Utilities/CollectionUtilities";
 import {useProjectId} from "@/Project/Api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -785,6 +792,7 @@ const Allocations: React.FunctionComponent = () => {
             }
 
             await callAPI(Accounting.rootAllocate(bulkRequestOf(...requests)));
+            snackbarStore.addSuccess("Root allocation has been created", false);
             dispatchEvent({type: "ResetRootAllocation"});
             dispatchEvent({type: "Init"});
         } catch (e) {
@@ -1315,6 +1323,104 @@ const Allocations: React.FunctionComponent = () => {
                 })}
             </Tree>
 
+            <Flex mt={32} mb={10}>
+            <h3>Resources Granted</h3>
+            </Flex>
+            {state.subAllocations.recipients.length === 0 ? "You have not granted any resources to sub-projects at the moment." : <>
+            <Tree apiRef={allocationTree}>
+                {sortedAllocations.map(([rawType, tree]) => {
+                    const type = rawType as ProductType;
+
+                    return <TreeNode
+                        key={rawType}
+                        left={<Flex gap={"4px"}>
+                            <Icon name={Accounting.productTypeToIcon(type)} size={20} />
+                            {Accounting.productAreaTitle(type)}
+                        </Flex>}
+                        indent={indent}
+                    >
+                        {tree.wallets.map((wallet, idx) =>
+                            <TreeNode
+                                key={idx}
+                                left={<Flex gap={"4px"}>
+                                    <ProviderLogo providerId={wallet.category.provider} size={20} />
+                                    <code>{wallet.category.name}</code>
+                                </Flex>}
+                                right={<Flex flexDirection={"row"} gap={"8px"}>
+                                    <NewAndImprovedProgress
+                                        label={
+                                            balanceToStringFromUnit(
+                                                wallet.usageAndQuota.raw.type,
+                                                wallet.usageAndQuota.raw.unit,
+                                                explainUnit(wallet.category).balanceFactor * wallet.totalAllocated,
+                                                {
+                                                    precision: 2,
+                                                    removeUnitIfPossible: true
+                                                })
+                                            + " / " +
+                                            balanceToStringFromUnit(
+                                                wallet.usageAndQuota.raw.type,
+                                                wallet.usageAndQuota.raw.unit,
+                                                wallet.usageAndQuota.raw.quota,
+                                                {precision: 2})
+                                        }
+                                        percentage={
+                                            100 * ((explainUnit(wallet.category).balanceFactor * wallet.totalAllocated) / wallet.usageAndQuota.raw.quota)
+                                        }
+                                        limitPercentage={(explainUnit(wallet.category).balanceFactor * wallet.totalAllocated) > wallet.usageAndQuota.raw.quota ? 0 : 100}
+                                        withWarning={false}
+                                    />
+                                </Flex>}
+                                indent={indent * 2}
+                            >
+                                {/* TODO: Calculate this and store in useMemo instead of on every re-render */}
+                                {/* List All granted resources in descending order for each product category */}
+                                {state.subAllocations.recipients.sort((a,b) => {
+                                    const aval = a.groups.filter((g) => g.category === wallet.category).reduce((asum, element) => asum + element.totalGranted, 0)
+                                    const bval = b.groups.filter((g) => g.category === wallet.category).reduce((bsum, element) => bsum + element.totalGranted, 0)
+                                    return bval - aval;
+                                }).map((recipient, idx) =>
+                                    <TreeNode
+                                        key={idx}
+                                        left={
+                                            <Flex gap={"4px"} alignItems={"center"}>
+                                                <TooltipV2 tooltip={`Project PI: ${recipient.owner.primaryUsername}`}>
+                                                    <Avatar {...avatars.avatarFromCache(recipient.owner.primaryUsername)}
+                                                            style={{height: "32px", width: "auto", marginTop: "-4px"}}
+                                                            avatarStyle={"Circle"} />
+                                                </TooltipV2>
+                                                <Truncate title={recipient.owner.title}>{recipient.owner.title}</Truncate>
+                                            </Flex>
+                                        }
+                                        right={
+                                            <Flex flexDirection={"row"} gap={"8px"}>
+                                                {
+                                                    balanceToStringFromUnit(
+                                                        wallet.usageAndQuota.raw.type,
+                                                        wallet.usageAndQuota.raw.unit,
+                                                        explainUnit(wallet.category).balanceFactor *
+                                                            recipient.groups.filter(
+                                                                (elm) => elm.category == wallet.category
+                                                            ).reduce((sum, element) => sum + element.totalGranted, 0),
+                                                        {
+                                                            precision: 2
+                                                        }
+                                                    )
+                                                }
+                                            </Flex>
+                                        }
+                                    >
+
+                                    </TreeNode>
+                                )}
+                            </TreeNode>
+                        )}
+                    </TreeNode>;
+                })}
+            </Tree>
+
+            </>
+            }
             {projectId !== undefined && <>
                 <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
                     <h3 style={{margin: 0}}>Sub-projects</h3>
@@ -1577,14 +1683,16 @@ let openNodes: Record<string, boolean> = {};
 // =====================================================================================================================
 // Various helper components used by the main user-interface.
 
-export function ProgressBar({uq}: {
+export function ProgressBar({uq, width}: {
     uq: UsageAndQuota,
+    width?: string;
 }) {
     return <NewAndImprovedProgress
         limitPercentage={uq.display.maxUsablePercentage}
         label={uq.display.usageAndQuotaPercent}
         percentage={uq.display.percentageUsed}
         withWarning={uq.display.displayOverallocationWarning}
+        width={width}
     />;
 }
 

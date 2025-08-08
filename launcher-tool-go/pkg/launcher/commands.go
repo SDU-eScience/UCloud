@@ -3,12 +3,13 @@ package launcher
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/browser"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/pkg/browser"
 	"ucloud.dk/launcher/pkg/termio"
 )
 
@@ -56,7 +57,7 @@ mv *key.pem tls.key
 mv *.pem tls.crt
 
 cd $HERE
-` + repoRoot.GetAbsolutePath() + `/launcher-go write-certs $TEMP_DIR`,
+` + repoRoot.GetAbsolutePath() + `/launcher write-certs $TEMP_DIR`,
 	)
 }
 

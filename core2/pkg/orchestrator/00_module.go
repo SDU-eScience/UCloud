@@ -6,4 +6,8 @@ func Init() {
 	initFeatures()
 
 	initDrives()
+	initFiles()
+	initAppSearchIndex()
+	initAppLogos()
+	initAppCatalog()
 }

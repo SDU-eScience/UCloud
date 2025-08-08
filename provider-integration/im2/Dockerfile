@@ -6,6 +6,7 @@ RUN  --mount=type=bind,target=. cd /app/im2 && CGO_ENABLED=0 go build -o /usr/bi
 FROM ubuntu:24.04
 COPY --from=build /usr/bin/ucloud /usr/bin/ucloud
 RUN apt-get update && \
-    apt-get install -y ca-certificates && \
+    apt-get install -y ca-certificates fontconfig fonts-dejavu-core && \
     update-ca-certificates && \
     rm -rf /var/lib/apt/lists/*
+

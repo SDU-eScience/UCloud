@@ -14,6 +14,7 @@ import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
@@ -305,6 +306,12 @@ class JobVerificationService(
                             }
 
                             if (value != null) AppParameterValue.Text(value) else null
+                        } ?: (param.defaultValue as? JsonPrimitive)?.let { prim ->
+                            if (prim.isString) {
+                                AppParameterValue.Text(prim.content)
+                            } else {
+                                null
+                            }
                         }
                     }
 

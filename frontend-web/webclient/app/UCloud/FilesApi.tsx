@@ -9,7 +9,7 @@ import {
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import FileCollectionsApi, {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {Box, Button, Card, Flex, FtIcon, Icon, MainContainer, Markdown, Select, Text, TextArea, Truncate} from "@/ui-components";
+import {Box, Button, Card, ExternalLink, Flex, FtIcon, Icon, MainContainer, Markdown, Select, Text, TextArea, Truncate} from "@/ui-components";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {fileName, getParentPath, readableUnixMode, sizeToString} from "@/Utilities/FileUtilities";
@@ -350,8 +350,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return selected.length === 1 &&
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },
-                onClick: (selected, cb) => {
-                    cb.startRenaming?.(selected[0], fileName(selected[0].id));
+                onClick: ([selected], cb) => {
+                    const op = () => cb.startRenaming?.(selected, fileName(selected.id));
+                    handleSyncthingWarning([selected], cb, op, "Renaming");
                 },
                 shortcut: ShortcutKey.F
             },
@@ -447,7 +448,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },
                 onClick: (selected, cb) => {
-                    this.moveModal(selected.map(it => it.id), selected[0].specification.product.provider, cb.reload);
+                    const op = () => this.moveModal(selected.map(it => it.id), selected[0].specification.product.provider, cb.reload);
+                    handleSyncthingWarning(selected, cb, op, "Moving");
                 },
                 shortcut: ShortcutKey.M
             },
@@ -494,6 +496,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
                         return false;
                     }
+                    // TODO(Jonas): I believe files with some specific sensitivities should not sync, should we also notify user of that?
                     return selected.length === 1;
                 },
                 onClick(selected, extra) {
@@ -629,10 +632,13 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         && selected.every(f => f.status.icon !== "DIRECTORY_TRASH");
                 },
                 onClick: async (selected, cb) => {
-                    await cb.invokeCommand(
-                        this.trash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
-                    );
-                    cb.reload();
+                    const op = async () => {
+                        await cb.invokeCommand(
+                            this.trash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
+                        );
+                        cb.reload();
+                    }
+                    handleSyncthingWarning(selected, cb, op, "Deleting");
                 },
                 shortcut: ShortcutKey.R
             },
@@ -809,6 +815,26 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     }
 }
 
+function handleSyncthingWarning(files: UFile[], cb: ExtraFileCallbacks, op: () => void, operationText: "Moving" | "Deleting" | "Renaming"): void {
+    if (!isAnySynchronized(files, cb)) {
+        op();
+    } else {
+        addStandardDialog({
+            title: "Syncthing warning",
+            message: <div>
+                {operationText} the folder(s) will break Syncthing synchronization for this folder.
+                {(["Moving", "Renaming"] as typeof operationText[]).includes(operationText) ?
+                    <div>
+                        <br />
+                        To learn how to move a folder or rename a folder with Syncthing, click <ExternalLink href={"https://docs.syncthing.net/users/faq.html#how-do-i-rename-move-a-synced-folder"}>here</ExternalLink>.
+                    </div> : null}
+            </div>,
+            onConfirm: op,
+            confirmText: "Continue"
+        });
+    }
+}
+
 function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks): string {
     const devices: SyncthingDevice[] = callbacks.syncthingConfig?.devices ?? [];
     if (devices.length === 0) return "Sync setup";
@@ -823,6 +849,19 @@ function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallback
     } else {
         return "Add to sync";
     }
+}
+
+function isAnySynchronized(files: UFile[], callbacks: ExtraFileCallbacks): boolean {
+    const synchronizedFolders = callbacks.syncthingConfig?.folders;
+    if (!synchronizedFolders) {
+        // Note(Jonas): Is this undefined by default, or only if the call to the backend fails?
+        // If it has failed and is therefore undefined, should we still warn the user what will
+        // happen for a synchronized file, or just assume that it isn't sync'ed?
+        return false;
+    }
+
+    const filePaths = files.map(it => it.id);
+    return synchronizedFolders.find(it => it.ucloudPath && filePaths.includes(it.ucloudPath)) != null;
 }
 
 function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks): boolean | string {

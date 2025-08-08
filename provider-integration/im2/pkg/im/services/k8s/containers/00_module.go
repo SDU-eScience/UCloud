@@ -287,13 +287,24 @@ func terminate(request ctrl.JobTerminateRequest) error {
 						if !strings.Contains(folderName, "/") {
 							child, err := filesystem.FileOpenAt(jobFolder, folderName, os.O_RDONLY, 0)
 							if err == nil {
-								folderChildren, err := child.Readdirnames(0)
-								util.SilentClose(child)
+								info, err := child.Stat()
+								if err == nil {
+									if info.IsDir() {
+										folderChildren, err := child.Readdirnames(0)
+										util.SilentClose(child)
 
-								if err == nil && len(folderChildren) == 0 {
-									_ = filesystem.DoDeleteFile(filepath.Join(internalJobFolder, folderName))
-								} else {
-									log.Info("Refusing to delete %v it has children.", filepath.Join(internalJobFolder, folderName))
+										if err == nil && len(folderChildren) == 0 {
+											_ = filesystem.DoDeleteFile(filepath.Join(internalJobFolder, folderName))
+										} else {
+											log.Info("Refusing to delete %v it has children.", filepath.Join(internalJobFolder, folderName))
+										}
+									} else {
+										if info.Size() == 0 {
+											_ = filesystem.DoDeleteFile(filepath.Join(internalJobFolder, folderName))
+										} else {
+											log.Info("Refusing to delete %v it is not empty.", filepath.Join(internalJobFolder, folderName))
+										}
+									}
 								}
 							}
 						}

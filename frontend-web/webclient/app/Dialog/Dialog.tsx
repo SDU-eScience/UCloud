@@ -9,7 +9,7 @@ import {CardClass} from "@/ui-components/Card";
 
 export const Dialog: React.FunctionComponent = (): React.ReactNode => {
     const [dialogs, setDialogs] = useState<IDialog[]>([]);
-    
+
     const [activePath, setActivePath] = useState(window.location.href);
     const loc = useLocation(); // Note(Jonas): window.location.href change does not re-render.
     const currentLocation = loc.pathname + loc.search + loc.hash;
@@ -42,9 +42,8 @@ export const Dialog: React.FunctionComponent = (): React.ReactNode => {
             onAfterOpen={() => undefined}
             style={current?.style ?? defaultModalStyle}
             className={CardClass}
-        >
-            {current?.element ?? null}
-        </ReactModal>
+            children={current?.element as ReactModal.Props["children"]} /* Hack(Jonas): React Children is now different from ReactModal Children */
+        />
     );
 };
 

@@ -21,24 +21,9 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-func readFromMap[T any](input map[string]any, key string) (T, bool) {
-	var dummy T
-	value, ok := input[key]
-	if !ok {
-		return dummy, false
-	}
-
-	result, ok := value.(T)
-	if !ok {
-		return dummy, false
-	}
-
-	return result, true
-}
-
 func Launch() {
 	if os.Getenv("UCLOUD_EARLY_DEBUG") != "" {
-		fmt.Printf("Ready for debugger\n")
+		fmt.Printf("Waiting for debugger - UCloud will not start without a debugger\n")
 		keepWaiting := true
 
 		//goland:noinspection GoBoolExpressions
