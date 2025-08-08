@@ -33,9 +33,9 @@ class ConnectionState extends UState<ConnectionState> {
 
                 this.lastFetch = timestampUnixMs();
                 page.items.forEach(p => {
-                    this.connectionInfo[p.providerTitle] = p;
+                    this.connectionInfo[p.provider] = p;
 
-                    if (this.canConnectToProvider(p.providerTitle)) {
+                    if (this.canConnectToProvider(p.provider)) {
                         this.notification(p.providerTitle);
                     }
                 });
