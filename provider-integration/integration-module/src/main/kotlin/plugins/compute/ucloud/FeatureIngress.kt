@@ -257,7 +257,12 @@ class FeatureIngress(
                             select distinct owner
                             from ucloud_compute_ingresses
                         """
-                    ).useAndInvoke(readRow = { row -> owners.add(row.getString(0)!!) })
+                    ).useAndInvoke(readRow = { row ->
+                        val owner = row.getString(0)
+                        if (owner != null) {
+                            owners.add(owner)
+                        }
+                    })
                     owners.forEachGraal { owner ->
                         //accountNow(owner, session)
                     }
