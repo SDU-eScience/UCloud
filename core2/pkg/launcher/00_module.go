@@ -190,6 +190,12 @@ func Launch() {
 		*/
 	}
 
+	if cfg.Configuration.Elk.Elasticsearch.Host.Address != "" {
+		elasticConfig := cfg.Configuration
+
+		rpc.AuditConsumer = fnd.InitAuditElasticSearch(*elasticConfig)
+	}
+
 	rpc.LookupActor = func(username string) (rpc.Actor, bool) {
 		resp, err := fndapi.AuthLookupUser.Invoke(fndapi.FindByStringId{Id: username})
 		if err != nil {

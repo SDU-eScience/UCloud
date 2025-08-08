@@ -1,6 +1,7 @@
 module ucloud.dk/core
 
 require (
+	github.com/elastic/go-elasticsearch/v9 v9.0.0
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/pquerna/otp v1.4.0
