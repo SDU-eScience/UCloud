@@ -50,7 +50,7 @@ const (
 	logoMaxInputPixels     = 12_000_000
 )
 
-func AppLogoValidateAndResize(data []byte) []byte {
+func ImageResize(data []byte, targetWidth int) []byte {
 	if len(data) == 0 || len(data) > logoMaxInputSize {
 		return nil
 	}
@@ -72,7 +72,7 @@ func AppLogoValidateAndResize(data []byte) []byte {
 		return nil
 	}
 
-	dstW := logoTargetWidth
+	dstW := targetWidth
 	dstH := int(math.Round(float64(cfg.Height) * float64(dstW) / float64(cfg.Width)))
 	if dstH <= 0 {
 		return nil
@@ -91,6 +91,10 @@ func AppLogoValidateAndResize(data []byte) []byte {
 		return nil
 	}
 	return buf.Bytes()
+}
+
+func AppLogoValidateAndResize(data []byte) []byte {
+	return ImageResize(data, logoTargetWidth)
 }
 
 func AppLogoInvalidate(title string) {

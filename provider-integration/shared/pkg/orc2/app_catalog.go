@@ -1,10 +1,10 @@
 package orchestrators
 
 import (
-	"io"
 	"fmt"
-	"strconv"
+	"io"
 	"net/http"
+	"strconv"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -379,9 +379,9 @@ var AppsAddLogoToGroup = rpc.Call[AppCatalogAddLogoToGroupRequest, util.Empty]{
 	Operation:   "uploadLogo",
 
 	CustomMethod: http.MethodPost,
-	CustomPath:   fmt.Sprintf("%s/uploadLogo", appCatalogNamespace),
+	CustomPath:   fmt.Sprintf("/api/%s/uploadLogo", appCatalogNamespace),
 	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (AppCatalogAddLogoToGroupRequest, *util.HttpError) {
-		uploadName := r.Header.Get("upload-name")
+		uploadName := util.Base64DecodeToString(r.Header.Get("upload-name"))
 		groupId, err := strconv.ParseInt(uploadName, 10, 64)
 		if uploadName == "" || err != nil {
 			return AppCatalogAddLogoToGroupRequest{}, util.HttpErr(http.StatusBadRequest, "missing/invalid group id")
@@ -640,13 +640,40 @@ var AppsUpdateCarrousel = rpc.Call[AppCatalogUpdateCarrouselRequest, util.Empty]
 
 type AppCatalogUpdateCarrouselImageRequest struct {
 	SlideIndex int `json:"slideIndex"`
+	ImageBytes []byte
 }
 
 var AppsUpdateCarrouselImage = rpc.Call[AppCatalogUpdateCarrouselImageRequest, util.Empty]{
 	BaseContext: appCatalogNamespace,
-	Convention:  rpc.ConventionUpdate,
+	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "updateCarrouselImage",
+
+	CustomMethod: http.MethodPost,
+	CustomPath:   fmt.Sprintf("/api/%s/updateCarrouselImage", appCatalogNamespace),
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (AppCatalogUpdateCarrouselImageRequest, *util.HttpError) {
+		uploadName := util.Base64DecodeToString(r.Header.Get("slide-index"))
+		slideIndex, err := strconv.ParseInt(uploadName, 10, 64)
+		if uploadName == "" || err != nil {
+			return AppCatalogUpdateCarrouselImageRequest{}, util.HttpErr(http.StatusBadRequest, "missing/invalid group id")
+		}
+
+		reader := io.LimitReader(r.Body, 1024*1024*4)
+		imageBytes, err := io.ReadAll(reader)
+		if err != nil {
+			return AppCatalogUpdateCarrouselImageRequest{}, util.HttpErr(http.StatusBadRequest, "malformed request")
+		}
+
+		return AppCatalogUpdateCarrouselImageRequest{SlideIndex: int(slideIndex), ImageBytes: imageBytes}, nil
+	},
+
+	CustomClientHandler: func(
+		self *rpc.Call[AppCatalogUpdateCarrouselImageRequest, util.Empty],
+		client *rpc.Client,
+		request AppCatalogUpdateCarrouselImageRequest,
+	) (util.Empty, *util.HttpError) {
+		panic("client not implemented")
+	},
 }
 
 type AppCatalogUpdateTopPicksRequest struct {

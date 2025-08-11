@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"strconv"
 	"time"
 	db "ucloud.dk/shared/pkg/database"
 	orcapi "ucloud.dk/shared/pkg/orc2"
@@ -887,4 +888,119 @@ func appPersistTopPicks(picks []AppGroupId) {
 	})
 	// TODO Stuff like this could technically cause a crash if it is deleted before persistence runs.
 	//   Might want to verify in here by joining the table.
+}
+
+func appPersistCarrouselSlides() {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	c := &appCatalogGlobals.Carrousel
+	c.Mu.RLock()
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				delete from app_store.carrousel_items where priority >= :length
+		    `,
+			db.Params{
+				"length": len(c.Items),
+			},
+		)
+
+		var title []string
+		var body []string
+		var linkedApplication []string
+		var linkedGroup []int
+		var linkedWebPage []string
+		var priority []int
+
+		for i, slide := range c.Items {
+			title = append(title, slide.Title)
+			body = append(body, slide.Body)
+
+			lApp := ""
+			lGroup := 0
+			lPage := ""
+			if slide.LinkType == appCarrouselWebPage {
+				lPage = slide.LinkId
+			} else if slide.LinkType == appCarrouselApplication {
+				lApp = slide.LinkId
+			} else if slide.LinkType == appCarrouselGroup {
+				g, _ := strconv.ParseInt(slide.LinkId, 10, 64)
+				lGroup = int(g)
+			}
+
+			linkedApplication = append(linkedApplication, lApp)
+			linkedGroup = append(linkedGroup, lGroup)
+			linkedWebPage = append(linkedWebPage, lPage)
+			priority = append(priority, i)
+		}
+
+		if len(title) > 0 {
+			db.Exec(
+				tx,
+				`
+					with data as (
+						select 
+							unnest(cast(:title as text[])) as title,
+							unnest(cast(:body as text[])) as body,
+							unnest(cast(:linked_application as text[])) as linked_application,
+							unnest(cast(:linked_group as int[])) as linked_group, 
+							unnest(cast(:linked_web_page as text[])) as linked_web_page,
+							unnest(cast(:priority as int[])) as priority
+					)
+					insert into app_store.carrousel_items
+						(title, body, image_credit, linked_application, linked_group, linked_web_page, image, priority) 
+					select 
+						title,
+						body,
+						'', 
+						case when linked_application = '' then null else linked_application end,
+						case when linked_group = 0 then null else linked_group end,
+						case when linked_web_page = '' then null else linked_web_page end,
+						E'\\x',
+						priority
+					from
+						data
+					on conflict (priority) do update set
+						title = excluded.title,
+						body = excluded.body,
+						linked_application = excluded.linked_application,
+						linked_group = excluded.linked_group,
+						linked_web_page = excluded.linked_web_page
+				`,
+				db.Params{
+					"title":              title,
+					"body":               body,
+					"linked_application": linkedApplication,
+					"linked_group":       linkedGroup,
+					"linked_web_page":    linkedWebPage,
+					"priority":           priority,
+				},
+			)
+		}
+	})
+	c.Mu.RUnlock()
+}
+
+func appPersistCarrouselSlideImage(index int, resized []byte) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update app_store.carrousel_items
+				set image = :bytes
+				where priority = :index
+		    `,
+			db.Params{
+				"index": index,
+				"bytes": db.Bytea(resized),
+			},
+		)
+	})
 }
