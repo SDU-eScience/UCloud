@@ -360,13 +360,21 @@ func formatRoute(r *EnvoyRoute) []*route.Route {
 					PathSpecifier: &route.RouteMatch_Prefix{
 						Prefix: "/",
 					},
-					Headers: []*route.HeaderMatcher{{
-						Name:        "UCloud-Username",
-						InvertMatch: true,
-						HeaderMatchSpecifier: &route.HeaderMatcher_PresentMatch{
-							PresentMatch: true,
+					Headers: []*route.HeaderMatcher{
+						{
+							Name:        "UCloud-Username",
+							InvertMatch: true,
+							HeaderMatchSpecifier: &route.HeaderMatcher_PresentMatch{
+								PresentMatch: true,
+							},
 						},
-					}},
+						{
+							Name: ":authority",
+							HeaderMatchSpecifier: &route.HeaderMatcher_StringMatch{
+								StringMatch: exactString(cfg.Provider.Hosts.SelfPublic.Address),
+							},
+						},
+					},
 				}
 			} else {
 				// User instance
@@ -374,12 +382,20 @@ func formatRoute(r *EnvoyRoute) []*route.Route {
 					PathSpecifier: &route.RouteMatch_Prefix{
 						Prefix: "/",
 					},
-					Headers: []*route.HeaderMatcher{{
-						Name: "UCloud-Username",
-						HeaderMatchSpecifier: &route.HeaderMatcher_StringMatch{
-							StringMatch: exactString(b64(r.Identifier)),
+					Headers: []*route.HeaderMatcher{
+						{
+							Name: "UCloud-Username",
+							HeaderMatchSpecifier: &route.HeaderMatcher_StringMatch{
+								StringMatch: exactString(b64(r.Identifier)),
+							},
 						},
-					}},
+						{
+							Name: ":authority",
+							HeaderMatchSpecifier: &route.HeaderMatcher_StringMatch{
+								StringMatch: exactString(cfg.Provider.Hosts.SelfPublic.Address),
+							},
+						},
+					},
 				}
 
 				r2 := createBaseRoute()
@@ -401,6 +417,14 @@ func formatRoute(r *EnvoyRoute) []*route.Route {
 			result.Match = &route.RouteMatch{
 				PathSpecifier: &route.RouteMatch_Prefix{
 					Prefix: "/",
+				},
+				Headers: []*route.HeaderMatcher{
+					{
+						Name: ":authority",
+						HeaderMatchSpecifier: &route.HeaderMatcher_StringMatch{
+							StringMatch: exactString(cfg.Provider.Hosts.SelfPublic.Address),
+						},
+					},
 				},
 			}
 		}
