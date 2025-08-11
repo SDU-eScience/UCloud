@@ -686,38 +686,6 @@ export const calendar = (props: any) => (
     />
   </svg>
 );
-export const chat = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    xmlSpace="preserve"
-    style={{
-      fillRule: "evenodd",
-      clipRule: "evenodd",
-      strokeLinejoin: "round",
-      strokeMiterlimit: 1.41421,
-    }}
-    viewBox="0 0 24 24"
-    fill="currentcolor"
-    {...props}
-  >
-    <path
-      d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2"
-      style={{
-        fill: "currentcolor",
-        fillRule: "nonzero",
-      }}
-      transform="matrix(1.2 0 0 1.2 -2.4 -2.4)"
-    />
-    <path
-      d="M6 9h12v2H6zm8 5H6v-2h8zm4-6H6V6h12z"
-      style={{
-        fill: props.color2 ? props.color2 : "currentcolor",
-        fillRule: "nonzero",
-      }}
-      transform="matrix(1.2 0 0 1.2 -2.4 -2.4)"
-    />
-  </svg>
-);
 export const check = (props: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
