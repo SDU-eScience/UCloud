@@ -33,13 +33,18 @@ var nextAccounting time.Time
 var schedulers = map[string]*Scheduler{}
 
 func getScheduler(category string, group string) (*Scheduler, bool) {
-	schedKey := fmt.Sprintf("%s/%s", category, group)
+	mapped, ok := shared.ServiceConfig.Compute.MachineImpersonation[category]
+	if !ok {
+		mapped = category
+	}
 
-	_, isIApp := ctrl.IntegratedApplications[category]
+	schedKey := fmt.Sprintf("%s/%s", mapped, group)
+
+	_, isIApp := ctrl.IntegratedApplications[mapped]
 	if isIApp {
 		// TODO Ask the application about the scheduler.
 	} else {
-		_, ok := shared.ServiceConfig.Compute.Machines[category]
+		_, ok := shared.ServiceConfig.Compute.Machines[mapped]
 		if !ok {
 			return nil, false
 		}

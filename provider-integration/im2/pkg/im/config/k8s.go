@@ -84,6 +84,7 @@ type KubernetesSyncthingConfiguration struct {
 
 type KubernetesCompute struct {
 	Machines                        map[string]K8sMachineCategory
+	MachineImpersonation            map[string]string
 	EstimatedContainerDownloadSpeed float64 // MB/s
 	Namespace                       string
 	Web                             KubernetesWebConfiguration
@@ -327,6 +328,24 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		}
 
 		cfg.Compute.Machines[machineCategoryName] = category
+	}
+
+	cfg.Compute.MachineImpersonation = make(map[string]string)
+	impersonationNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "machineImpersonation")
+	if impersonationNode != nil {
+		if impersonationNode.Kind != yaml.MappingNode {
+			cfgutil.ReportError(filePath, computeNode, "expected machineImpersonation to be a dictionary")
+			return false, cfg
+		}
+
+		for i := 0; i < len(machinesNode.Content); i += 2 {
+			sourceName := ""
+			_ = machinesNode.Content[i].Decode(&sourceName)
+			destName := ""
+			_ = machinesNode.Content[i+1].Decode(&destName)
+
+			cfg.Compute.MachineImpersonation[sourceName] = destName
+		}
 	}
 
 	webNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "web")
