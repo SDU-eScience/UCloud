@@ -19,3 +19,13 @@ func MergeError(err1, err2 error) error {
 	}
 	return nil
 }
+
+func MergeHttpErr(err1, err2 *HttpError) *HttpError {
+	if err1 != nil {
+		return err1
+	}
+	if err2 != nil {
+		return err2
+	}
+	return nil
+}

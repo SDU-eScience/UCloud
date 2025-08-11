@@ -431,7 +431,11 @@ func initAppCatalog() {
 	})
 
 	orcapi.AppsUpdateCarrousel.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateCarrouselRequest) (util.Empty, *util.HttpError) {
-		panic("TODO")
+		return util.Empty{}, AppStudioUpdateCarrousel(request.NewSlides)
+	})
+
+	orcapi.AppsUpdateCarrouselImage.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateCarrouselImageRequest) (util.Empty, *util.HttpError) {
+		return util.Empty{}, AppStudioUpdateCarrouselSlideImage(request.SlideIndex, request.ImageBytes)
 	})
 
 	orcapi.AppsUpdateTopPicks.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateTopPicksRequest) (util.Empty, *util.HttpError) {
@@ -1853,4 +1857,114 @@ func AppStudioUpdateTopPicks(newTopPicks []AppGroupId) *util.HttpError {
 
 	appPersistTopPicks(newTopPicks)
 	return nil
+}
+
+func AppStudioUpdateCarrousel(slides []orcapi.CarrouselItem) *util.HttpError {
+	discovery := AppDiscovery{Mode: orcapi.CatalogDiscoveryModeAll}
+
+	var err *util.HttpError
+
+	for _, slide := range slides {
+		util.ValidateString(&slide.Title, "title", 0, &err)
+		util.ValidateString(&slide.Body, "body", 0, &err)
+		util.ValidateString(&slide.ImageCredit, "imageCredit", util.StringValidationAllowEmpty, &err)
+
+		linkCount := 0
+
+		if slide.LinkedWebPage.Present {
+			linkCount++
+			util.ValidateString(&slide.LinkedWebPage.Value, "linkedWebPage", 0, &err)
+		}
+
+		if slide.LinkedApplication.Present {
+			linkCount++
+			_, ok := AppRetrieveNewest(rpc.ActorSystem, slide.LinkedApplication.Value, discovery, 0)
+			if !ok {
+				err = util.MergeHttpErr(err, util.HttpErr(http.StatusBadRequest, "linkedApplication is invalid"))
+			}
+		}
+
+		if slide.LinkedGroup.Present {
+			linkCount++
+			_, ok := appRetrieveGroup(AppGroupId(slide.LinkedGroup.Value))
+			if !ok {
+				err = util.MergeHttpErr(err, util.HttpErr(http.StatusBadRequest, "linkedGroup is invalid"))
+			}
+		}
+
+		if linkCount != 1 {
+			err = util.MergeHttpErr(err, util.HttpErr(http.StatusBadRequest, "exactly one linked property must be present"))
+		}
+	}
+
+	if err != nil {
+		return err
+	}
+
+	c := &appCatalogGlobals.Carrousel
+	c.Mu.Lock()
+	{
+		if len(c.Items) > len(slides) {
+			// Slides were removed
+			c.Items = c.Items[:len(slides)]
+		} else {
+			// Add missing slides (if any)
+			for len(c.Items) < len(slides) {
+				c.Items = append(c.Items, appCarrouselItem{})
+			}
+		}
+
+		for i := 0; i < len(c.Items); i++ {
+			newSlide := slides[i]
+			existing := &c.Items[i]
+
+			existing.Title = newSlide.Title
+			existing.Body = newSlide.Body
+
+			if newSlide.LinkedGroup.Present {
+				existing.LinkType = appCarrouselGroup
+				existing.LinkId = fmt.Sprint(newSlide.LinkedGroup.Value)
+			} else if newSlide.LinkedApplication.Present {
+				existing.LinkType = appCarrouselApplication
+				existing.LinkId = newSlide.LinkedApplication.Value
+			} else if newSlide.LinkedWebPage.Present {
+				existing.LinkType = appCarrouselWebPage
+				existing.LinkId = newSlide.LinkedWebPage.Value
+			}
+		}
+	}
+	c.Mu.Unlock()
+
+	appPersistCarrouselSlides()
+
+	return err
+}
+
+func AppStudioUpdateCarrouselSlideImage(index int, imageBytes []byte) *util.HttpError {
+	if index < 0 {
+		return util.HttpErr(http.StatusBadRequest, "bad index supplied")
+	}
+
+	resized := ImageResize(imageBytes, 968)
+	if resized == nil {
+		return util.HttpErr(http.StatusBadRequest, "missing or invalid carrousel slide image")
+	}
+
+	var err *util.HttpError
+
+	c := &appCatalogGlobals.Carrousel
+	c.Mu.Lock()
+	if index >= len(c.Items) {
+		err = util.HttpErr(http.StatusBadRequest, "bad index supplied")
+	} else {
+		item := &c.Items[index]
+		item.Image = resized
+	}
+	c.Mu.Unlock()
+
+	if err == nil {
+		appPersistCarrouselSlideImage(index, resized)
+	}
+
+	return err
 }
