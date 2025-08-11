@@ -37,9 +37,9 @@ func Init() {
 	r.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.PageV2[integrationRespTemporary], *util.HttpError) {
 		p := fndapi.PageV2[integrationRespTemporary]{ItemsPerPage: 250}
 		p.Items = append(p.Items, integrationRespTemporary{
-			Provider:               "gok8s",
+			Provider:               "4412",
 			Connected:              true,
-			ProviderTitle:          "IM2/K8s",
+			ProviderTitle:          "gok8s",
 			RequiresMessageSigning: false,
 			UnmanagedConnection:    false,
 		})
