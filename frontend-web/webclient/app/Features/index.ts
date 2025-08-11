@@ -132,7 +132,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "new-syncthing-ui": {
         feature: Feature.NEW_SYNCTHING_UI,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments,
     },
 
