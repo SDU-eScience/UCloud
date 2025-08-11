@@ -974,7 +974,7 @@ function SecondarySidebar({
                 <Flex style={{position: "fixed", top: "calc(100vh - 68px)"}} alignItems="center" backgroundColor="white" height="38px" width={"30px"}
                     justifyContent={"center"} borderRadius="12px 0 0 12px"
                     onClick={clicked ? onClear : () => setSelectedPage(hovered)}>
-                    <Icon name="chevronDownLight" size={18} rotation={clicked ? 90 : -90} color="primaryMain" />
+                    <Icon name="heroChevronDown" size={18} rotation={clicked ? 90 : -90} color="primaryMain" />
                 </Flex>
             </Relative>
         </header>

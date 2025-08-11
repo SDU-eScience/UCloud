@@ -1968,3 +1968,11 @@ func AppStudioUpdateCarrouselSlideImage(index int, imageBytes []byte) *util.Http
 
 	return err
 }
+
+func AppStudioCreateApplication(app *orcapi.Application) *util.HttpError {
+	return nil
+}
+
+func AppStudioCreateTool(tool *orcapi.Tool) *util.HttpError {
+	return nil
+}

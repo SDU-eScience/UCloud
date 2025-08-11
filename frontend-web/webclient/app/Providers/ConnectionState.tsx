@@ -33,16 +33,16 @@ class ConnectionState extends UState<ConnectionState> {
 
                 this.lastFetch = timestampUnixMs();
                 page.items.forEach(p => {
-                    this.connectionInfo[p.provider] = p;
+                    this.connectionInfo[p.providerTitle] = p;
 
-                    if (this.canConnectToProvider(p.provider)) {
+                    if (this.canConnectToProvider(p.providerTitle)) {
                         this.notification(p.providerTitle);
                     }
                 });
             } catch (e) {
                 window.setTimeout(() => {
                     this.fetch(maxAgeMs);
-                }, 1000);
+                }, 10_000);
             }
         });
     }

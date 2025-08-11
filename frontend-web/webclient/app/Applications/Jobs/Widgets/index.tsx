@@ -21,7 +21,7 @@ import {compute} from "@/UCloud";
 import AppParameterValue = compute.AppParameterValue;
 import {WorkflowParameter, WorkflowSetter, WorkflowValidator} from "@/Applications/Jobs/Widgets/Workflow";
 import {MandatoryField} from "@/UtilityComponents";
-import { ReadmeParameter } from "./Readme";
+import {ReadmeParameter} from "./Readme";
 import {ModuleListParameter, ModuleListSetter, ModuleListValidator} from "@/Applications/Jobs/Widgets/ModuleList";
 
 // Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
@@ -201,7 +201,7 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                             <Text color="errorMain" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
                                 data-component={"param-remove"} zIndex={1000}>
                                 Remove
-                                <Icon ml="6px" size={16} name="heroXMark" />
+                                <Icon ml="6px" size={16} name="close" />
                             </Text>
                         </>
                     )}

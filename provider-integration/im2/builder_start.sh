@@ -2,7 +2,7 @@
 init_container() {
     platform=$1
     platform_short=$2
-    CONTAINER_NAME="ucloud-im2-macos-builder-$platform_short"
+    CONTAINER_NAME="ucloud-im2-builder-$platform_short"
     IMAGE_NAME="golang:1.24.2"
 
     # Check if the container is already running
@@ -17,3 +17,4 @@ init_container() {
 
 init_container "linux/amd64" x64
 init_container "linux/arm64/v8" arm64
+

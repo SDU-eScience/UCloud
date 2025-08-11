@@ -54,15 +54,15 @@ export function transfer(
 }
 
 export type RetrieveGrantGiversRequest =
-    { type: "PersonalWorkspace" }
-    | { type: "NewProject", title: string }
-    | { type: "ExistingProject", id: string }
-    | { type: "ExistingApplication", id: string }
+    {type: "PersonalWorkspace"}
+    | {type: "NewProject", title: string}
+    | {type: "ExistingProject", id: string}
+    | {type: "ExistingApplication", id: string}
     ;
 
 export function retrieveGrantGivers(
     request: RetrieveGrantGiversRequest
-): APICallParameters<unknown, { grantGivers: GrantGiver[] }> {
+): APICallParameters<unknown, {grantGivers: GrantGiver[]}> {
     return apiUpdate(request, baseContext, "retrieveGrantGivers");
 }
 
@@ -191,9 +191,9 @@ interface GrantGiverInitiatedForm {
 }
 
 export type Recipient =
-    { type: "existingProject", id: string; } |
-    { type: "newProject", title: string; } |
-    { type: "personalWorkspace", username: string; };
+    {type: "existingProject", id: string;} |
+    {type: "newProject", title: string;} |
+    {type: "personalWorkspace", username: string;};
 
 export interface AllocationRequest {
     category: string;
@@ -296,20 +296,20 @@ export enum ApplicationFilter {
 }
 
 export type UserCriteria =
-    { type: "anyone" }
-    | { type: "email", domain: string }
-    | { type: "wayf", org: string }
+    {type: "anyone"}
+    | {type: "email", domain: string}
+    | {type: "wayf", org: string}
     ;
 
-export function stateToIconAndColor(state: State): { icon: IconName, color: ThemeColor } {
+export function stateToIconAndColor(state: State): {icon: IconName, color: ThemeColor} {
     switch (state) {
         case State.APPROVED:
-            return { icon: "heroCheck", color: "successMain" };
+            return {icon: "heroCheck", color: "successMain"};
         case State.REJECTED:
-            return { icon: "heroXMark", color: "errorMain" };
+            return {icon: "close", color: "errorMain"};
         case State.CLOSED:
-            return { icon: "heroXMark", color: "errorMain" };
+            return {icon: "close", color: "errorMain"};
         case State.IN_PROGRESS:
-            return { icon: "heroMinus", color: "primaryMain" };
+            return {icon: "heroMinus", color: "primaryMain"};
     }
 }

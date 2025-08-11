@@ -3287,7 +3287,7 @@ export class ResourceBrowser<T> {
         }
 
         wrapper.appendChild(text);
-        const chevronIcon = this.createFilterImg("chevronDownLight");
+        const chevronIcon = this.createFilterImg("heroChevronDown");
         wrapper.appendChild(chevronIcon);
         if (["Sort by", "Sort order"].includes(filter.text)) {
             this.rightFilters.appendChild(wrapper);
