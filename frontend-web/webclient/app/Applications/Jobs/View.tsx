@@ -1610,7 +1610,7 @@ const InterfaceLinkRow: RichSelectChildComponent<SearchableInterfaceTarget> = ({
 
 const InterfaceLinkSelectedRow: RichSelectChildComponent<SearchableInterfaceTarget> = () => {
     return <div className={InterfaceSelectorTrigger}>
-        <Icon name="chevronDownLight" />
+        <Icon name="heroChevronDown" />
     </div>;
 }
 
@@ -1631,7 +1631,7 @@ const TerminalLinkRow: RichSelectChildComponent<SearchableTerminalTarget> = ({el
 
 const TerminalLinkSelectedRow: RichSelectChildComponent<SearchableTerminalTarget> = () => {
     return <div className={InterfaceSelectorTrigger}>
-        <Icon name="chevronDownLight" />
+        <Icon name="heroChevronDown" />
     </div>;
 }
 

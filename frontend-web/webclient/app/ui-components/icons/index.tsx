@@ -742,46 +742,6 @@ export const checkDouble = (props: any) => (
     />
   </svg>
 );
-export const chevronDown = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    xmlSpace="preserve"
-    style={{
-      fillRule: "evenodd",
-      clipRule: "evenodd",
-      strokeLinejoin: "round",
-      strokeMiterlimit: 2,
-    }}
-    viewBox="0 0 24 20"
-    fill="currentcolor"
-    {...props}
-  >
-    <path
-      d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608"
-      style={{
-        fill: "currentcolor",
-        fillRule: "nonzero",
-      }}
-    />
-  </svg>
-);
-export const chevronDownLight = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-    className="chevron-down-light_svg__svg-inline--fa chevron-down-light_svg__fa-chevron-down chevron-down-light_svg__fa-w-14"
-    data-icon="chevron-down"
-    data-prefix="fas"
-    viewBox="0 0 448 512"
-    fill="currentcolor"
-    {...props}
-  >
-    <path
-      fill="currentColor"
-      d="M207.029 381.476 12.686 187.132c-9.373-9.373-9.373-24.569 0-33.941l22.667-22.667c9.357-9.357 24.522-9.375 33.901-.04L224 284.505l154.745-154.021c9.379-9.335 24.544-9.317 33.901.04l22.667 22.667c9.373 9.373 9.373 24.569 0 33.941L240.971 381.476c-9.373 9.372-24.569 9.372-33.942 0"
-    />
-  </svg>
-);
 export const chrono = (props: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"

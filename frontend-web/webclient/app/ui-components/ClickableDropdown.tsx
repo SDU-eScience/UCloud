@@ -279,7 +279,7 @@ function ClickableDropdown<T>({
                     toggle(e);
                 }}
             >
-                {props.trigger}{props.chevron ? <Icon name="chevronDownLight" my="auto" size="1em" ml=".7em" color="textPrimary" /> : null}
+                {props.trigger}{props.chevron ? <Icon name="heroChevronDown" my="auto" size="1em" ml=".7em" color="textPrimary" /> : null}
             </Text.TextSpan>
             {emptyChildren || !open ? null : (
                 props.useMousePositioning ?

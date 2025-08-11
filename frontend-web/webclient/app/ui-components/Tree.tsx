@@ -2,9 +2,7 @@ import * as React from "react";
 import Icon from "@/ui-components/Icon";
 import {extractDataTags, injectStyle} from "@/Unstyled";
 import {CSSProperties, useCallback, useEffect, useRef} from "react";
-import {ListRow} from "@/ui-components/List";
 import Flex from "@/ui-components/Flex";
-import Box from "@/ui-components/Box";
 import {Cursor} from "./Types";
 
 export enum TreeAction {
@@ -316,7 +314,7 @@ export const TreeNode: React.FunctionComponent<{
                     data-chevron={"true"}
                     color="textPrimary"
                     size={15}
-                    name="chevronDownLight"
+                    name="heroChevronDown"
                     className={"open-chevron"}
                     cursor={"pointer"}
                     onClick={toggleOpen}

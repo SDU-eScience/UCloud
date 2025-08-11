@@ -235,20 +235,20 @@ export const ProductSelector: React.FunctionComponent<{
                                 {selected ? <>
                                     <table>
                                         <thead>
-                                        <tr>
-                                            {headers.map(it =>
-                                                <th key={it} style={{width: `${(1 / (headers.length + 1)) * 100}%`}}>
-                                                    {it}
-                                                </th>
-                                            )}
-                                            <th>Price</th>
-                                        </tr>
+                                            <tr>
+                                                {headers.map(it =>
+                                                    <th key={it} style={{width: `${(1 / (headers.length + 1)) * 100}%`}}>
+                                                        {it}
+                                                    </th>
+                                                )}
+                                                <th>Price</th>
+                                            </tr>
                                         </thead>
                                         <tbody>
-                                        <tr>
-                                            <ProductStats product={selected} />
-                                            <td>{priceToString(selected, 1)}</td>
-                                        </tr>
+                                            <tr>
+                                                <ProductStats product={selected} />
+                                                <td>{priceToString(selected, 1)}</td>
+                                            </tr>
                                         </tbody>
                                     </table>
                                     <ProviderLogo className={"provider-logo"} providerId={selected?.category?.provider ?? "?"} size={32} />
@@ -266,7 +266,7 @@ export const ProductSelector: React.FunctionComponent<{
                 }
             </div>
 
-            <Icon name="chevronDownLight" />
+            <Icon name="heroChevronDown" />
         </div>
 
         {!isOpen ? null :

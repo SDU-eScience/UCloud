@@ -72,7 +72,7 @@ export function RichSelect<T, K extends keyof T>(props: {
             props.RenderSelected ?
                 <div className={TriggerClass} style={{minWidth: props.fullWidth ? "500px" : props.dropdownWidth ?? "500px"}} ref={triggerRef}>
                     <props.RenderSelected element={props.selected} onSelect={doNothing} />
-                    <Icon name="chevronDownLight" />
+                    <Icon name="heroChevronDown" />
                 </div>
                 : <></>
         }
