@@ -1027,7 +1027,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             url?.prepend(driveIcon);
                             browser.header.setAttribute("shows-dropdown", "");
 
-                            ResourceBrowser.icons.renderIcon({name: "chevronDownLight", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setDriveIcon);
+                            ResourceBrowser.icons.renderIcon({name: "heroChevronDown", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setDriveIcon);
                             driveIcon.onclick = e => {
                                 e.stopImmediatePropagation();
                                 const rect = driveIcon.getBoundingClientRect();

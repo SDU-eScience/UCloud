@@ -89,7 +89,7 @@ export const CatalogDiscoveryModeSwitcher: React.FunctionComponent = () => {
 
         trigger={
             <div className={triggerClass}>
-                <Icon name={"heroFunnel"} mr={"8px"}/>
+                <Icon name={"heroFunnel"} mr={"8px"} />
                 {mode.discovery !== CatalogDiscoveryMode.ALL ? null : <>
                     All applications
                 </>}
@@ -102,7 +102,7 @@ export const CatalogDiscoveryModeSwitcher: React.FunctionComponent = () => {
                     From {joinToString(mode.selected?.split(",").map(providerId => getProviderTitle(providerId)) ?? [], ", ")}
                 </>}
 
-                <Icon name="chevronDownLight" size="14px" ml="4px" mt="4px"/>
+                <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
             </div>
         }
     >
@@ -128,7 +128,7 @@ export const CatalogDiscoveryModeSwitcher: React.FunctionComponent = () => {
             />
 
             <Relative right="24px" top="5px" width="0px" height="0px">
-                <Icon name="search"/>
+                <Icon name="search" />
             </Relative>
         </Flex>
 
@@ -144,17 +144,17 @@ export const CatalogDiscoveryModeSwitcher: React.FunctionComponent = () => {
             </> : null}
 
             {landingPage.availableProviders.map(providerId => {
-                    const title = getProviderTitle(providerId);
-                    if (filter !== "" && !fuzzyMatch({title}, ["title"], filter)) return null;
-                    return <div
-                        className={catalogDiscoverRow}
-                        data-mode={CatalogDiscoveryMode.SELECTED + "/" + providerId}
-                        key={providerId}
-                        onClick={onMouseSelect}
-                    >
-                        From {title}
-                    </div>;
-                }
+                const title = getProviderTitle(providerId);
+                if (filter !== "" && !fuzzyMatch({title}, ["title"], filter)) return null;
+                return <div
+                    className={catalogDiscoverRow}
+                    data-mode={CatalogDiscoveryMode.SELECTED + "/" + providerId}
+                    key={providerId}
+                    onClick={onMouseSelect}
+                >
+                    From {title}
+                </div>;
+            }
             )}
         </Flex>
     </ClickableDropdown>;

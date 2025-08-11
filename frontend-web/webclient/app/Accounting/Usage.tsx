@@ -1146,7 +1146,7 @@ function SortTableHeader<DataType>({sortKey, sorted, children, width}: React.Pro
 }>) {
     const isActive = sortKey === sorted.sortByKey;
     return <th style={thStyling(isActive, width)} onClick={() => sorted.doSortBy(sortKey)}>
-        <Flex>{children} {isActive ? <Icon ml="auto" my="auto" name="chevronDownLight" rotation={sorted.sortOrder === "asc" ? 180 : 0} /> : null}</Flex>
+        <Flex>{children} {isActive ? <Icon ml="auto" my="auto" name="heroChevronDown" rotation={sorted.sortOrder === "asc" ? 180 : 0} /> : null}</Flex>
     </th>
 }
 
@@ -2297,7 +2297,7 @@ const PeriodSelector: React.FunctionComponent<{
         trigger={
             <div className={PeriodStyle}>
                 <div style={{width: "182px"}}>{periodToString(props.value)}</div>
-                <Icon name="chevronDownLight" size="14px" ml="4px" mt="4px" />
+                <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
             </div>
         }
     >

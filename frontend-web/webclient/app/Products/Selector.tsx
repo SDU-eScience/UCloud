@@ -266,7 +266,7 @@ export const ProductSelector: React.FunctionComponent<{
                 }
             </div>
 
-            <Icon name="chevronDownLight" />
+            <Icon name="heroChevronDown" />
         </div>
 
         {!isOpen ? null :
