@@ -55,7 +55,7 @@ func initIntegratedTerminal() {
 	if err == nil {
 		apps := group.Status.Applications
 		if len(apps) > 0 {
-			integratedTerminalImage = apps[0].Invocation.Tool.Tool.Description.Image
+			integratedTerminalImage = apps[len(apps)-1].Invocation.Tool.Tool.Description.Image
 		}
 	}
 
