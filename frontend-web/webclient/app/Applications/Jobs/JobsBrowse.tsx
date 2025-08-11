@@ -412,7 +412,7 @@ const JOB_STATE_AND_ICON_COLOR_MAP: Record<JobState, [IconName, ThemeColor]> = {
     SUCCESS: ["heroCheck", "successMain"],
     FAILURE: ["heroXMark", "errorMain"],
     EXPIRED: ["heroClock", "warningMain"],
-    SUSPENDED: ["heroPause", "iconColor"],
+    SUSPENDED: ["pauseSolid", "iconColor"],
     CANCELING: ["heroXMark", "errorMain"]
 };
 

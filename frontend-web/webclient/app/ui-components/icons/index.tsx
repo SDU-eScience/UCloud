@@ -4177,51 +4177,6 @@ export const heroDocumentText = (props: any) => (
     <path d="M12.971 1.816A5.23 5.23 0 0 1 14.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 0 1 3.434 1.279 9.77 9.77 0 0 0-6.963-6.963" />
   </svg>
 );
-export const heroEllipsisHorizontal = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="currentcolor"
-    aria-hidden="true"
-    viewBox="0 0 24 24"
-    {...props}
-  >
-    <path
-      fillRule="evenodd"
-      d="M4.5 12a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0m6 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0m6 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-export const heroEllipsisHorizontalCircle = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="currentcolor"
-    aria-hidden="true"
-    viewBox="0 0 24 24"
-    {...props}
-  >
-    <path
-      fillRule="evenodd"
-      d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25m0 8.625a1.125 1.125 0 1 0 0 2.25 1.125 1.125 0 0 0 0-2.25M15.375 12a1.125 1.125 0 1 1 2.25 0 1.125 1.125 0 0 1-2.25 0M7.5 10.875a1.125 1.125 0 1 0 0 2.25 1.125 1.125 0 0 0 0-2.25"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-export const heroEllipsisVertical = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="currentcolor"
-    aria-hidden="true"
-    viewBox="0 0 24 24"
-    {...props}
-  >
-    <path
-      fillRule="evenodd"
-      d="M10.5 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0m0 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0m0 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0"
-      clipRule="evenodd"
-    />
-  </svg>
-);
 export const heroEnvelope = (props: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -5140,21 +5095,6 @@ export const heroPaperClip = (props: any) => (
     <path
       fillRule="evenodd"
       d="M18.97 3.659a2.25 2.25 0 0 0-3.182 0l-10.94 10.94a3.75 3.75 0 1 0 5.304 5.303l7.693-7.693a.75.75 0 0 1 1.06 1.06l-7.693 7.693a5.25 5.25 0 1 1-7.424-7.424l10.939-10.94a3.75 3.75 0 1 1 5.303 5.304L9.097 18.835l-.008.008-.007.007-.002.002-.003.002A2.25 2.25 0 0 1 5.91 15.66l7.81-7.81a.75.75 0 0 1 1.061 1.06l-7.81 7.81a.75.75 0 0 0 1.054 1.068L18.97 6.84a2.25 2.25 0 0 0 0-3.182z"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-export const heroPause = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="currentcolor"
-    aria-hidden="true"
-    viewBox="0 0 24 24"
-    {...props}
-  >
-    <path
-      fillRule="evenodd"
-      d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75z"
       clipRule="evenodd"
     />
   </svg>
