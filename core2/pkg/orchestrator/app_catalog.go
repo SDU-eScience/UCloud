@@ -490,7 +490,7 @@ var appCatalogGlobals struct {
 
 type appCatalogBucket struct {
 	Mu                     sync.RWMutex
-	Applications           map[string][]*internalApplication
+	Applications           map[string][]*internalApplication // sorted with the oldest first and newest last
 	ApplicationPermissions map[string][]orcapi.AclEntity
 	Tools                  map[string][]*internalTool
 	Groups                 map[AppGroupId]*internalAppGroup
@@ -1976,9 +1976,90 @@ func AppStudioUpdateCarrouselSlideImage(index int, imageBytes []byte) *util.Http
 }
 
 func AppStudioCreateApplication(app *orcapi.Application) *util.HttpError {
-	return nil
+	// NOTE(Dan): This function assumes that the application has already gone through validation and normalization.
+	// It should have, given that this is not the endpoint for uploading YAML from the end-user.
+
+	var err *util.HttpError
+	var result *internalApplication
+
+	_, ok := toolRetrieve(app.Invocation.Tool.Name, app.Invocation.Tool.Version)
+	if !ok {
+		err = util.HttpErr(http.StatusNotFound, "unknown tool specified in application")
+	}
+
+	if err == nil {
+		b := appBucket(app.Metadata.Name)
+		b.Mu.Lock()
+		groupId := util.OptNone[AppGroupId]()
+		flavorName := util.OptStringIfNotEmpty(app.Metadata.FlavorName)
+		allVersions := b.Applications[app.Metadata.Name]
+		for _, v := range allVersions {
+			if v.Group.Present {
+				groupId.Set(v.Group.Value)
+			}
+
+			if v.FlavorName.Present {
+				flavorName.Set(v.FlavorName.Value)
+			}
+
+			if v.Version == app.Metadata.Version {
+				err = util.HttpErr(http.StatusConflict, "an application with this version already exist")
+				break
+			}
+		}
+		if err == nil {
+			result = &internalApplication{
+				Name:              app.Metadata.Name,
+				Version:           app.Metadata.Version,
+				CreatedAt:         time.Now(),
+				Invocation:        app.Invocation,
+				Tool:              app.Invocation.Tool.NameAndVersion,
+				Title:             app.Metadata.Title,
+				Description:       app.Metadata.Description,
+				DocumentationSite: util.OptStringIfNotEmpty(app.Metadata.Website),
+				FlavorName:        flavorName,
+				Public:            false,
+				Group:             groupId,
+				ModifiedAt:        time.Now(),
+			}
+
+			b.Applications[app.Metadata.Name] = append(b.Applications[app.Metadata.Name], result)
+		}
+		b.Mu.Unlock()
+	}
+
+	if err == nil {
+		appPersistApplication(result)
+	}
+
+	return err
 }
 
-func AppStudioCreateTool(tool *orcapi.Tool) *util.HttpError {
-	return nil
+func AppStudioCreateTool(tool *orcapi.ToolReference) *util.HttpError {
+	var err *util.HttpError
+	var result *internalTool
+
+	b := appBucket(tool.Name)
+	b.Mu.Lock()
+	allVersions := b.Tools[tool.Name]
+	for _, v := range allVersions {
+		if v.Version == tool.Version {
+			err = util.HttpErr(http.StatusConflict, "a tool with this version already exist")
+			break
+		}
+	}
+	if err == nil {
+		result = &internalTool{
+			Name:    tool.Name,
+			Version: tool.Version,
+			Tool:    tool.Tool.Description,
+		}
+	}
+	b.Mu.Unlock()
+
+	if err == nil {
+		appToolPersist(result)
+	}
+
+	return err
 }

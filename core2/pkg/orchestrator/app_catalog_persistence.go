@@ -1004,3 +1004,66 @@ func appPersistCarrouselSlideImage(index int, resized []byte) {
 		)
 	})
 }
+
+func appPersistApplication(app *internalApplication) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	app.Mu.RLock()
+	db.NewTx0(func(tx *db.Transaction) {
+		appJson, _ := json.Marshal(app.Invocation)
+
+		db.Exec(
+			tx,
+			`
+				insert into app_store.applications
+					(name, version, application, created_at, modified_at, original_document, owner, 
+						tool_name, tool_version, authors, title, description, website, group_id, flavor_name) 
+				values (:name, :version, :app, :created_at, :modified_at, '{}', '_ucloud', 
+					:tool_name, :tool_version, '["Unknown"]', :title, :description, :website, 
+					case when :group_id = 0 then null else :group_id end, :flavor_name)
+		    `,
+			db.Params{
+				"name":         app.Name,
+				"version":      app.Version,
+				"app":          string(appJson),
+				"created_at":   app.CreatedAt,
+				"modified_at":  app.ModifiedAt,
+				"tool_name":    app.Invocation.Tool.Name,
+				"tool_version": app.Invocation.Tool.Version,
+				"title":        app.Title,
+				"description":  app.Description,
+				"website":      app.DocumentationSite.Sql(),
+				"group_id":     app.Group.GetOrDefault(0),
+				"flavor_name":  app.FlavorName.Sql(),
+			},
+		)
+	})
+	app.Mu.RUnlock()
+}
+
+func appToolPersist(tool *internalTool) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	tool.Mu.RLock()
+	db.NewTx0(func(tx *db.Transaction) {
+		toolJson, _ := json.Marshal(tool.Tool)
+
+		db.Exec(
+			tx,
+			`
+insert into app_store.tools(name, version, created_at, modified_at, original_document, owner, tool) 
+values (:name, :version, now(), now(), '{}', '_ucloud', :tool)
+		    `,
+			db.Params{
+				"name":    tool.Name,
+				"version": tool.Version,
+				"tool":    string(toolJson),
+			},
+		)
+	})
+	tool.Mu.RUnlock()
+}
