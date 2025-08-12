@@ -14,7 +14,12 @@
     "serve": "vite preview",
     "icons-clean": "cd app/ui-components/icons; rm -rf components index.ts",
     "icons-components": "cd app/ui-components/icons; svgr . --ext=tsx --filename-case camel -d components && rm -f components/index.tsx",
-    "icons-index": "node scripts/create-icons-index.js"
+    "icons-index": "node scripts/create-icons-index.js",
+    "refresh-icons": "npm run icons-clean && npm run icons-components && npm run icons-index",
+    "test": "npx playwright test",
+    "test-ui": "npx playwright test --ui",
+    "test-headed": "npx playwright test --headed",
+    "test-results": "npx playwright show-report"
   },
   "dependencies": {
     "@novnc/novnc": "1.5.0",
