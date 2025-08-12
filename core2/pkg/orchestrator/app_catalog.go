@@ -65,7 +65,7 @@ func initAppCatalog() {
 			}
 
 			cacheKey := fmt.Sprintf("%v%v%v%v%v", request.Id, request.DarkMode, request.IncludeText,
-				request.PlaceTextUnder, title)
+				request.PlaceTextUnderLogo, title)
 			backgroundColor := LightBackground
 			mapping := group.Specification.ColorReplacement.Light
 			if request.DarkMode {
@@ -73,7 +73,7 @@ func initAppCatalog() {
 				mapping = group.Specification.ColorReplacement.Dark
 			}
 
-			return AppLogoGenerate(cacheKey, title, logo, false, backgroundColor, mapping), nil
+			return AppLogoGenerate(cacheKey, title, logo, request.PlaceTextUnderLogo, backgroundColor, mapping), nil
 		} else {
 			return nil, util.HttpErr(http.StatusNotFound, "not found")
 		}
@@ -93,11 +93,13 @@ func initAppCatalog() {
 		} else {
 			title := app.Metadata.Title
 
+			logoHasText := false
 			groupId := AppGroupId(app.Metadata.Group.Metadata.Id)
 			if groupId != -1 {
 				var group orcapi.ApplicationGroup
 				group, logo, ok = AppRetrieveGroup(info.Actor, groupId, discovery, 0)
 				title = group.Specification.Title
+				logoHasText = group.Specification.LogoHasText
 
 				mapping = group.Specification.ColorReplacement.Light
 				if request.DarkMode {
@@ -113,14 +115,18 @@ func initAppCatalog() {
 				title = ""
 			}
 
+			if len(logo) != 0 && request.IncludeText && app.Metadata.FlavorName == "" && logoHasText {
+				title = ""
+			}
+
 			cacheKey := fmt.Sprintf("%v%v%v%v%v", request.Name, request.DarkMode, request.IncludeText,
-				request.PlaceTextUnder, title)
+				request.PlaceTextUnderLogo, title)
 			backgroundColor := LightBackground
 			if request.DarkMode {
 				backgroundColor = DarkBackground
 			}
 
-			return AppLogoGenerate(cacheKey, title, logo, false, backgroundColor, mapping), nil
+			return AppLogoGenerate(cacheKey, title, logo, request.PlaceTextUnderLogo, backgroundColor, mapping), nil
 		}
 	})
 

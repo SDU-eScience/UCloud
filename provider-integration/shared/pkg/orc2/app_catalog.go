@@ -409,10 +409,10 @@ var AppsRemoveLogoFromGroup = rpc.Call[fnd.FindByIntId, util.Empty]{
 }
 
 type AppCatalogRetrieveGroupLogoRequest struct {
-	Id             int  `json:"id"`
-	DarkMode       bool `json:"darkMode"`
-	IncludeText    bool `json:"includeText"`
-	PlaceTextUnder bool `json:"placeTextUnderLogo"`
+	Id                 int  `json:"id"`
+	DarkMode           bool `json:"darkMode"`
+	IncludeText        bool `json:"includeText"`
+	PlaceTextUnderLogo bool `json:"placeTextUnderLogo"`
 }
 
 var AppsRetrieveGroupLogo = rpc.Call[AppCatalogRetrieveGroupLogoRequest, []byte]{
@@ -427,10 +427,10 @@ var AppsRetrieveGroupLogo = rpc.Call[AppCatalogRetrieveGroupLogoRequest, []byte]
 }
 
 type AppCatalogRetrieveAppLogoRequest struct {
-	Name           string `json:"name"`
-	DarkMode       bool   `json:"darkMode"`
-	IncludeText    bool   `json:"includeText"`
-	PlaceTextUnder bool   `json:"placeTextUnderLogo"`
+	Name               string `json:"name"`
+	DarkMode           bool   `json:"darkMode"`
+	IncludeText        bool   `json:"includeText"`
+	PlaceTextUnderLogo bool   `json:"placeTextUnderLogo"`
 }
 
 var AppsRetrieveAppLogo = rpc.Call[AppCatalogRetrieveAppLogoRequest, []byte]{

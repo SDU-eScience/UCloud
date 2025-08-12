@@ -243,7 +243,8 @@ func composeVertical(img *image.NRGBA, w int, h int, title string, clr Rgb, scal
 
 	canvas := image.NewNRGBA(image.Rect(0, 0, w, h))
 	if img != nil {
-		draw.Draw(canvas, img.Bounds().Add(image.Pt((w-img.Bounds().Dx())/2, 0)), img, image.Point{}, draw.Over)
+		dst := image.Rect(0, 0, img.Bounds().Dx(), img.Bounds().Dy())
+		draw.Draw(canvas, dst, img, img.Bounds().Min, draw.Over)
 	}
 	drawString(canvas, title, (w-textW)/2, img.Bounds().Dy()+int(size*1.1), size, clr)
 	return canvas
