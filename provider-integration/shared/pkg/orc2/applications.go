@@ -37,6 +37,12 @@ const (
 	ApplicationTypeWeb   ApplicationType = "WEB"
 )
 
+var ApplicationTypeOptions = []ApplicationType{
+	ApplicationTypeBatch,
+	ApplicationTypeVnc,
+	ApplicationTypeWeb,
+}
+
 type ToolBackend string
 
 const (
@@ -197,6 +203,12 @@ const (
 	SshModeOptional  SshMode = "OPTIONAL"
 	SshModeMandatory SshMode = "MANDATORY"
 )
+
+var SshModeOptions = []SshMode{
+	SshModeDisabled,
+	SshModeOptional,
+	SshModeMandatory,
+}
 
 type SshDescription struct {
 	Mode SshMode `json:"mode"`
