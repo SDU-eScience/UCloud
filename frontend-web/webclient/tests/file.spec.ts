@@ -7,7 +7,7 @@ test.beforeEach(async ({page}) => {
 
 test('Create and delete folder (with available resources)', async ({page}) => {
   await page.getByRole('link', {name: 'Go to Files'}).click();
-  await page.getByText("Home").click();
+  await page.getByText('Home').click();
   await page.getByText('Create folder⌥ F').click();
   await page.getByRole('textbox').nth(1).fill('FOOBAR');
   await page.getByRole('textbox').nth(1).press('Enter');

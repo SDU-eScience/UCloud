@@ -1,17 +1,19 @@
 import {type Page} from '@playwright/test';
 
-const USER = "";
-const PASSWORD = "";
+// Note(Jonas): If it complains that it doesn't exist, create it.
+import {default as data} from "./test_data.json" with {type: "json"};
+
+const user = data.users.with_resources;
+
 export async function login(page: Page) {
-    if (!USER || !PASSWORD) throw Error("No username or password provided");
+    if (!user) throw Error("No username or password provided");
     await page.goto(ucloudUrl("login"));
     await page.getByText('Other login options →').click();
-    await page.getByRole('textbox', {name: 'Username'}).fill(USER);
-    await page.getByRole('textbox', {name: 'Password'}).fill(PASSWORD);
+    await page.getByRole('textbox', {name: 'Username'}).fill(user.username);
+    await page.getByRole('textbox', {name: 'Password'}).fill(user.password);
     await page.getByRole('button', {name: 'Login'}).click();
 }
 
-const LOCATION_ORIGIN = "https://dev.cloud.sdu.dk";
 export function ucloudUrl(pathname: string) {
-    return LOCATION_ORIGIN + "/app" + (pathname.startsWith("/") ? pathname : "/" + pathname);
+    return data.location_origin + "/app" + (pathname.startsWith("/") ? pathname : "/" + pathname);
 }
