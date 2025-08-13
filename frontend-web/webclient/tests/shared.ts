@@ -12,6 +12,12 @@ export async function login(page: Page) {
     await page.getByRole('textbox', {name: 'Username'}).fill(user.username);
     await page.getByRole('textbox', {name: 'Password'}).fill(user.password);
     await page.getByRole('button', {name: 'Login'}).click();
+    await stickSidebar(page);
+}
+
+async function stickSidebar(page: Page) {
+    await page.getByRole('link', {name: 'Go to Files'}).hover();
+    await page.getByRole('banner').locator('svg').click();
 }
 
 export function ucloudUrl(pathname: string) {
