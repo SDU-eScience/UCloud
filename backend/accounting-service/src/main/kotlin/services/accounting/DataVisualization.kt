@@ -382,7 +382,17 @@ class DataVisualization(
                              when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY'
                                  then (s.tree_usage::double precision + s.retired_tree_usage::double precision) / 60.0 / 60.0 / 24.0
                         end tusage,
-                        s.quota,
+                        case
+                             when au.floating_point = true then s.quota / 1000000.0
+                             when au.floating_point = false and pc.accounting_frequency = 'ONCE'
+                                 then s.quota::double precision
+                             when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE'
+                                 then (s.quota::double precision) / 60.0
+                             when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR'
+                                 then (s.quota::double precision) / 60.0 / 60.0
+                             when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY'
+                                 then (s.quota::double precision) / 60.0 / 60.0 / 24.0
+                        end normalized_quota,
                         sample_time,
                         w.id,
                         case
@@ -414,7 +424,6 @@ class DataVisualization(
             fun flushChart() {
                 if (currentProductCategory != -1L) {
                     val index = productCategoryIdToIndex[currentProductCategory]
-                    println("GIVING INDEX: $index from $productCategoryIdToIndex")
                     if (index != null) {
                         chartsByProduct[index.toLong()] = UsageOverTimeAPI(dataPoints.toList())
                     }
@@ -428,7 +437,7 @@ class DataVisualization(
                 }
                 val allocCategory = row.getLong(0)!!
                 val treeUsage = row.getDouble(1)!!
-                val quota = row.getLong(2)!!
+                val quota = row.getDouble(2)!!
                 val timestamp = row.getLong(3)!!
                 val walletId = row.getLong(4)!!
                 val localUsage = row.getDouble(5)!!
