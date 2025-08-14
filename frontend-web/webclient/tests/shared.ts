@@ -24,15 +24,33 @@ export function ucloudUrl(pathname: string) {
     return data.location_origin + "/app" + (pathname.startsWith("/") ? pathname : "/" + pathname);
 }
 
-export async function createFolder(page: Page, name: string) {
-    expect(page.url().includes("/files?path=")).toBeTruthy();
-    await page.getByText('Create folder').click();
-    await page.getByRole('textbox').nth(1).fill(name);
-    await page.getByRole('textbox').nth(1).press('Enter');
+export const Folder = {
+    async create(page: Page, name: string) {
+        expect(page.url().includes("/files?path=")).toBeTruthy();
+        await page.getByText('Create folder').click();
+        await page.getByRole('textbox').nth(1).fill(name);
+        await page.getByRole('textbox').nth(1).press('Enter');
+    },
+
+    async delete(page: Page, name: string) {
+        await page.locator('div').filter({hasText: name}).nth(1).click();
+        await page.locator('div:nth-child(6)').first().click(); // Ellipses
+        await page.getByRole('button', {name: 'Move to trash'}).click({delay: 1000 + 200});
+    }
 }
 
-export async function deleteFolder(page: Page, name: string) {
-    await page.locator('div').filter({hasText: name}).nth(1).click();
-    await page.locator('div:nth-child(6)').first().click(); // Ellipses
-    await page.getByRole('button', {name: 'Move to trash'}).click({delay: 1000 + 200});
-}
+export const Drive = {
+    async create(page: Page, name: string) {
+        await page.getByRole('link', {name: 'Go to Files'}).click();
+        await page.getByText('Create drive').click();
+        await page.getByRole('textbox', {name: 'Choose a name*'}).fill(name);
+        await page.getByRole('button', {name: 'Create', disabled: false}).click();
+    },
+
+    async delete(page: Page, name: string) {
+        await page.locator('div > span').filter({hasText: name}).click();
+        await page.getByText('Delete⌥ R').click();
+        await page.locator('#collectionName').fill(name);
+        await page.getByRole('button', {name: 'I understand what I am doing'}).click();
+    }
+};
