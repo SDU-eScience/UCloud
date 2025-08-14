@@ -96,7 +96,7 @@ func syncthingRetrieveLegacyConfiguration(owner orc.ResourceOwner) util.Option[j
 				var config orc.SyncthingConfig
 				data, _ := io.ReadAll(fd)
 				err = json.Unmarshal(data, &config)
-				if err == nil {
+				if err == nil && len(config.Devices) > 0 && len(config.Folders) > 0 {
 					return util.OptValue[json.RawMessage](data)
 				}
 			}

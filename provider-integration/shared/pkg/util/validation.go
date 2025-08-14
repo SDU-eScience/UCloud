@@ -100,3 +100,24 @@ func ValidateString(input *string, fieldName string, opts StringValidationFlag, 
 		}
 	}
 }
+
+func ValidateEnum[T comparable](input *T, options []T, fieldName string, err **HttpError) {
+	if input == nil {
+		return
+	}
+
+	if err == nil {
+		panic("err must not be nil")
+	}
+
+	setErr := func(e *HttpError) {
+		if *err == nil {
+			*err = e
+		}
+	}
+
+	_, ok := VerifyEnum(*input, options)
+	if !ok {
+		setErr(HttpErr(http.StatusBadRequest, "invalid enumeration specified in '%s'", fieldName))
+	}
+}

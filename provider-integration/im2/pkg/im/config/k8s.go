@@ -338,11 +338,11 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			return false, cfg
 		}
 
-		for i := 0; i < len(machinesNode.Content); i += 2 {
+		for i := 0; i < len(impersonationNode.Content); i += 2 {
 			sourceName := ""
-			_ = machinesNode.Content[i].Decode(&sourceName)
+			_ = impersonationNode.Content[i].Decode(&sourceName)
 			destName := ""
-			_ = machinesNode.Content[i+1].Decode(&destName)
+			_ = impersonationNode.Content[i+1].Decode(&destName)
 
 			cfg.Compute.MachineImpersonation[sourceName] = destName
 		}

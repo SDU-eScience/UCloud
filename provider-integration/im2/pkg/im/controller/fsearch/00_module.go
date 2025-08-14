@@ -3,6 +3,7 @@ package fsearch
 import (
 	"bytes"
 	_ "embed"
+	anyascii "github.com/anyascii/go"
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/sugarme/tokenizer"
 	"hash/fnv"
@@ -16,8 +17,17 @@ import (
 
 func hugTokenize(input string) []string {
 	// NOTE(Dan): The library is known to crash on invalid UTF8
+	defer func() {
+		err := recover()
+		if err != nil {
+			log.Info("hugTokenize failed on input '%s' %v", input, []byte(input))
+			panic(err)
+		}
+	}()
+
 	if utf8.ValidString(input) {
-		toks, _ := tk.Tokenize(input)
+		normalizedInput := anyascii.Transliterate(strings.TrimSpace(input))
+		toks, _ := tk.Tokenize(normalizedInput)
 		return toks
 	} else {
 		return nil
@@ -196,6 +206,10 @@ func hash(count int, input string) int {
 }
 
 func (s *SearchIndex) ContinueDown(dir string, query SearchQuery) bool {
+	if len(s.Buckets) == 0 {
+		return false
+	}
+
 	bucket := &s.Buckets[hash(s.BucketCount, dir)]
 
 	threshold := len(query.tokens)

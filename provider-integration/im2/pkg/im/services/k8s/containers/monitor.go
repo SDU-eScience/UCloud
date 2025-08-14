@@ -86,7 +86,6 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 				_ = K8sClient.CoreV1().Pods(Namespace).Delete(ctx, pod.Name, meta.DeleteOptions{})
 				cancel()
 
-				log.Info("deleting iapp should not run %v %v %v %v %v", iappOk, iappEtag.Present, handler.ShouldRun(job, iappConfig.Configuration), iappEtag.Value, iappConfig.ETag)
 				tracker.TrackState(shared.JobReplicaState{
 					Id:    job.Id,
 					Rank:  0,

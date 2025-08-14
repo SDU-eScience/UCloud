@@ -8,7 +8,6 @@ import (
 
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
-	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -28,29 +27,28 @@ func initIngressDatabase() {
 }
 
 func fetchAllLinks() {
-	next := ""
+	result := db.NewTx(func(tx *db.Transaction) []*orc.Ingress {
+		var result []*orc.Ingress
+		rows := db.Select[struct{ Resource string }](
+			tx,
+			`
+				select resource from tracked_ingresses
+		    `,
+			db.Params{},
+		)
 
-	for {
-		page, err := orc.BrowseIngresses(next, orc.BrowseIngressesFlags{
-			IncludeProduct: false,
-			IncludeUpdates: true,
-		})
-
-		if err != nil {
-			log.Warn("Failed to fetch ingresses: %v", err)
-			break
+		for _, row := range rows {
+			var ing orc.Ingress
+			err := json.Unmarshal([]byte(row.Resource), &ing)
+			if err == nil {
+				result = append(result, &ing)
+			}
 		}
+		return result
+	})
 
-		for i := 0; i < len(page.Items); i++ {
-			ingress := &page.Items[i]
-			ingresses[ingress.Id] = ingress
-		}
-
-		if !page.Next.IsSet() {
-			break
-		} else {
-			next = page.Next.Get()
-		}
+	for _, row := range result {
+		ingresses[row.Id] = row
 	}
 }
 

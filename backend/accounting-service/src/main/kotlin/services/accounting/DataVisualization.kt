@@ -45,7 +45,9 @@ class DataVisualization(
             run {
                 val allKeys = usageOverTimeCharts.keys + breakdownByProjectCharts.keys
                 for (key in allKeys) {
-                    val categoryIdx = productCategoryIdToIndex[key] ?: continue
+                    val lookUpIndex = productCategoryIdToIndex.filterValues { it.toLong() == key }.keys
+                    if (lookUpIndex.isEmpty()) {continue}
+                    val categoryIdx = productCategoryIdToIndex[lookUpIndex.first()] ?: continue
                     val usageOverTime = usageOverTimeCharts[key] ?: emptyUsageChart
                     val breakdownByProject = breakdownByProjectCharts[key] ?: emptyBreakdownChart
 
@@ -381,7 +383,17 @@ class DataVisualization(
                              when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY'
                                  then (s.tree_usage::double precision + s.retired_tree_usage::double precision) / 60.0 / 60.0 / 24.0
                         end tusage,
-                        s.quota,
+                        case
+                             when au.floating_point = true then s.quota / 1000000.0
+                             when au.floating_point = false and pc.accounting_frequency = 'ONCE'
+                                 then s.quota::double precision
+                             when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE'
+                                 then (s.quota::double precision) / 60.0
+                             when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR'
+                                 then (s.quota::double precision) / 60.0 / 60.0
+                             when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY'
+                                 then (s.quota::double precision) / 60.0 / 60.0 / 24.0
+                        end normalized_quota,
                         sample_time,
                         w.id,
                         case
@@ -421,9 +433,12 @@ class DataVisualization(
             }
 
             for (row in rows) {
+                if (currentProductCategory == -1L) {
+                    currentProductCategory = row.getLong(0)!!
+                }
                 val allocCategory = row.getLong(0)!!
                 val treeUsage = row.getDouble(1)!!
-                val quota = row.getLong(2)!!
+                val quota = row.getDouble(2)!!
                 val timestamp = row.getLong(3)!!
                 val walletId = row.getLong(4)!!
                 val localUsage = row.getDouble(5)!!

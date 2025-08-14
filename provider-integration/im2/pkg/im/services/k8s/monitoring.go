@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"maps"
 	"slices"
 	"strings"
@@ -36,6 +38,8 @@ func getScheduler(category string, group string) (*Scheduler, bool) {
 	mapped, ok := shared.ServiceConfig.Compute.MachineImpersonation[category]
 	if !ok {
 		mapped = category
+	} else {
+		group = mapped
 	}
 
 	schedKey := fmt.Sprintf("%s/%s", mapped, group)
@@ -193,11 +197,14 @@ func initJobQueue() {
 }
 
 func loopMonitoring() {
+	timer := util.NewTimer()
 	now := time.Now()
 
 	// NOTE(Dan): Node monitoring must go before job monitoring such that the scheduler knows about the nodes before
 	// it knows about running replicas.
 	if now.After(nextNodeMonitor) {
+		timer.Mark()
+
 		nodeList := util.RetryOrPanic[*core.NodeList]("list k8s nodes", func() (*core.NodeList, error) {
 			return shared.K8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 		})
@@ -307,6 +314,7 @@ func loopMonitoring() {
 		}
 
 		nextNodeMonitor = now.Add(15 * time.Second)
+		metricMonitoringNodes.Observe(timer.Mark().Seconds())
 	}
 
 	// Job monitoring
@@ -318,8 +326,15 @@ func loopMonitoring() {
 	}
 
 	tracker.jobs = activeJobs
+
+	timer.Mark()
 	containers.Monitor(tracker, activeJobs)
+	metricMonitoringContainers.Observe(timer.Mark().Seconds())
+
+	timer.Mark()
 	kubevirt.Monitor(tracker, activeJobs)
+	metricMonitoringVirtualMachines.Observe(timer.Mark().Seconds())
+
 	for _, sched := range schedulers {
 		sched.PruneReplicas()
 
@@ -334,6 +349,7 @@ func loopMonitoring() {
 
 	// Side-effects from job monitoring
 	// -----------------------------------------------------------------------------------------------------------------
+	timer.Mark()
 	{
 		// Lock jobs which are out of resources
 
@@ -350,6 +366,7 @@ func loopMonitoring() {
 		}
 		_ = ctrl.TrackJobMessages(lockedMessages)
 	}
+	metricMonitoringJobUpdates.Observe(timer.Mark().Seconds())
 
 	go func() {
 		for _, jobId := range tracker.terminationRequested {
@@ -390,6 +407,7 @@ func loopMonitoring() {
 	// Accounting
 	// -----------------------------------------------------------------------------------------------------------------
 	if now.After(nextAccounting) {
+		timer.Mark()
 		var reports []apm.UsageReportItem
 
 		for _, job := range activeJobs {
@@ -426,6 +444,7 @@ func loopMonitoring() {
 		}
 
 		nextAccounting = now.Add(30 * time.Second)
+		metricMonitoringJobAccounting.Observe(timer.Mark().Seconds())
 	}
 
 	// Node remaining capacity calculation
@@ -446,6 +465,7 @@ func loopMonitoring() {
 	//  represents the expected usage in the near future. For VMs, this might be very wrong if they haven't created
 	//   their pod immediately after the schedule.
 
+	timer.Mark()
 	{
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		allPods, err := shared.K8sClient.CoreV1().Pods(shared.ServiceConfig.Compute.Namespace).List(ctx, metav1.ListOptions{})
@@ -509,9 +529,11 @@ func loopMonitoring() {
 			}
 		}
 	}
+	metricMonitoringNodeCapacity.Observe(timer.Mark().Seconds())
 
 	// Job scheduling
 	// -----------------------------------------------------------------------------------------------------------------
+	timer.Mark()
 	entriesToSubmit := shared.SwapScheduleQueue()
 	for _, entry := range entriesToSubmit {
 		sched, ok := getSchedulerByJob(entry)
@@ -597,6 +619,7 @@ func loopMonitoring() {
 	}
 
 	_ = ctrl.TrackJobMessages(scheduleMessages)
+	metricMonitoringScheduling.Observe(timer.Mark().Seconds())
 }
 
 type NodeCatGroup struct {
@@ -683,4 +706,29 @@ func convertJobTimeToAccountingUnits(job *orc.Job, timeConsumed time.Duration) i
 	}
 
 	return int64(accountingUnitsUsed)
+}
+
+var (
+	metricMonitoringNodes           = metricMonitorDuration("containers")
+	metricMonitoringContainers      = metricMonitorDuration("containers")
+	metricMonitoringVirtualMachines = metricMonitorDuration("vms")
+	metricMonitoringJobUpdates      = metricMonitorDuration("job_updates")
+	metricMonitoringJobAccounting   = metricMonitorDuration("job_accounting")
+	metricMonitoringNodeCapacity    = metricMonitorDuration("node_capacity")
+	metricMonitoringScheduling      = metricMonitorDuration("scheduling")
+)
+
+func metricMonitorDuration(prop string) prometheus.Summary {
+	return promauto.NewSummary(prometheus.SummaryOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "jobs",
+		Name:      fmt.Sprintf("monitoring_%s_seconds", prop),
+		Help:      fmt.Sprintf("Summary of the duration (in seconds) it takes to monitor %s jobs.", prop),
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	})
 }
