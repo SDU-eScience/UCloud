@@ -39,6 +39,7 @@ class DataVisualization(
 
         val emptyUsageChart = UsageOverTimeAPI(emptyList())
         val emptyBreakdownChart = BreakdownByProjectAPI(emptyList())
+        val emptyChildrenUsageOvertimeChart = HashMap<String, HashMap<Long, UsageOverTimeAPI>>()
 
         fun assembleResult(): ChartsAPI {
             val charts = ArrayList<ChartsForCategoryAPI>()
@@ -64,7 +65,7 @@ class DataVisualization(
                 categories,
                 allocationGroups,
                 charts,
-                childrenUsageOverTimeCharts
+                emptyChildrenUsageOvertimeChart//childrenUsageOverTimeCharts
             )
         }
 
@@ -156,7 +157,7 @@ class DataVisualization(
         }
 
         coroutineScope {
-            launch {
+           /* launch {
                 db.withSession { session ->
                     childrenIds.forEach { childId ->
                         val relevantAllocationGroups = mutableSetOf<Int>()
@@ -178,7 +179,7 @@ class DataVisualization(
                         )
                     }
                 }
-            }
+            }*/
 
             launch {
                 // Usage over time
