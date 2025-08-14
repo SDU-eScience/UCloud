@@ -3,19 +3,15 @@ package foundation
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/elastic/go-elasticsearch/v9/esapi"
-	"github.com/elastic/go-elasticsearch/v9/typedapi/core/count"
-	"github.com/elastic/go-elasticsearch/v9/typedapi/types"
+	"github.com/elastic/go-elasticsearch/v9"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 	"ucloud.dk/core/pkg/config"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 )
-import "github.com/elastic/go-elasticsearch/v9"
 
 var elasticClient *elasticsearch.Client
 
@@ -187,7 +183,9 @@ func IsSameSize(firstIndexName string, secondIndexName string) bool {
 	return countDocs(firstIndexName, "") == countDocs(secondIndexName, "")
 }
 
-func GetShardCount(indexName string) int {}
+func GetShardCount(indexName string) int {
+	return 0
+}
 
 // countDocs : returns number of documents in index (indexName).
 // If no query is given it is a matchAll
