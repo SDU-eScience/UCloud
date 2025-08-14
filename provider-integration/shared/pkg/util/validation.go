@@ -116,7 +116,7 @@ func ValidateEnum[T comparable](input *T, options []T, fieldName string, err **H
 		}
 	}
 
-	result, ok := VerifyEnum(*input, options)
+	_, ok := VerifyEnum(*input, options)
 	if !ok {
 		setErr(HttpErr(http.StatusBadRequest, "invalid enumeration specified in '%s'", fieldName))
 	}

@@ -144,28 +144,6 @@ enum FolderUploadMessageType {
     // ADD STUFF HERE
 }
 
-function computeFileChecksum(file: PackagedFile, upload: Upload): Promise<string> {
-    const start = Date.now();
-    return new Promise<string>(async (resolve) => {
-        const reader = new ChunkedFileReader(file.fileObject);
-        const shaSumWorkerModule = await import("@/Files/ShaSumWorker?worker");
-        const shaSumWorker = new shaSumWorkerModule.default();
-
-        shaSumWorker.onmessage = e => {
-            resolve(e.data);
-        }
-
-        shaSumWorker.postMessage({type: "Start"});
-
-        while (!reader.isEof() && !upload.terminationRequested) {
-            const chunk = await reader.readChunk(UploadConfig.maxChunkSize);
-            shaSumWorker.postMessage({type: "Update", data: chunk});
-        }
-
-        shaSumWorker.postMessage({type: "End"});
-    });
-}
-
 function protocolHandlerWebSocketV2(
     upload: Upload,
     strategy: FilesCreateUploadResponseItem,

@@ -3,7 +3,6 @@ package controller
 import (
 	"encoding/json"
 	"net/http"
-	"os"
 	"slices"
 	"sync"
 	"time"
@@ -582,31 +581,32 @@ func TrackRawUpdates(updates []orc.ResourceUpdateAndId[orc.JobUpdate]) error {
 }
 
 func fetchAllJobs(state orc.JobState) {
-	next := ""
-	for {
-		page, err := orc.BrowseJobs(next, orc.BrowseJobsFlags{
-			FilterState:        util.OptValue(state),
-			IncludeParameters:  true,
-			IncludeApplication: true,
-			IncludeProduct:     true,
-			IncludeUpdates:     true,
-		})
+	log.Info("Fetching all jobs in state %v", state)
+	jobs := db.NewTx(func(tx *db.Transaction) []*orc.Job {
+		rows := db.Select[struct{ Resource string }](
+			tx,
+			`
+				select resource from tracked_jobs where state = :state
+		    `,
+			db.Params{
+				"state": string(state),
+			},
+		)
 
-		if err != nil {
-			log.Warn("Failed to fetch jobs: %v", err)
-			os.Exit(1)
+		var result []*orc.Job
+		for _, row := range rows {
+			var j orc.Job
+			err := json.Unmarshal([]byte(row.Resource), &j)
+			if err == nil {
+				result = append(result, &j)
+			}
 		}
+		return result
+	})
+	log.Info("Found %v in %v", len(jobs), state)
 
-		for i := 0; i < len(page.Items); i++ {
-			job := &page.Items[i]
-			activeJobs[job.Id] = job
-		}
-
-		if !page.Next.IsSet() {
-			break
-		} else {
-			next = page.Next.Get()
-		}
+	for _, item := range jobs {
+		activeJobs[item.Id] = item
 	}
 }
 

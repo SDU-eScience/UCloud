@@ -92,7 +92,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "transfer-to": {
         feature: Feature.TRANSFER_TO,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
     },
 
     "new-tasks": {
@@ -126,7 +126,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "alternative-usage-selector": {
         feature: Feature.ALTERNATIVE_USAGE_SELECTOR,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments,
     },
 

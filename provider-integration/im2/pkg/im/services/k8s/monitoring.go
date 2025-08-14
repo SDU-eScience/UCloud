@@ -36,6 +36,8 @@ func getScheduler(category string, group string) (*Scheduler, bool) {
 	mapped, ok := shared.ServiceConfig.Compute.MachineImpersonation[category]
 	if !ok {
 		mapped = category
+	} else {
+		group = mapped
 	}
 
 	schedKey := fmt.Sprintf("%s/%s", mapped, group)
