@@ -45,7 +45,8 @@ class DataVisualization(
             run {
                 val allKeys = usageOverTimeCharts.keys + breakdownByProjectCharts.keys
                 for (key in allKeys) {
-                    val categoryIdx = productCategoryIdToIndex[key] ?: continue
+                    val lookUpIndex = productCategoryIdToIndex.filterValues { it.toLong() == key }.keys
+                    val categoryIdx = productCategoryIdToIndex[lookUpIndex.first()] ?: continue
                     val usageOverTime = usageOverTimeCharts[key] ?: emptyUsageChart
                     val breakdownByProject = breakdownByProjectCharts[key] ?: emptyBreakdownChart
 
@@ -413,6 +414,7 @@ class DataVisualization(
             fun flushChart() {
                 if (currentProductCategory != -1L) {
                     val index = productCategoryIdToIndex[currentProductCategory]
+                    println("GIVING INDEX: $index from $productCategoryIdToIndex")
                     if (index != null) {
                         chartsByProduct[index.toLong()] = UsageOverTimeAPI(dataPoints.toList())
                     }
@@ -421,6 +423,9 @@ class DataVisualization(
             }
 
             for (row in rows) {
+                if (currentProductCategory == -1L) {
+                    currentProductCategory = row.getLong(0)!!
+                }
                 val allocCategory = row.getLong(0)!!
                 val treeUsage = row.getDouble(1)!!
                 val quota = row.getLong(2)!!
