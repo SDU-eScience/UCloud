@@ -46,6 +46,7 @@ class DataVisualization(
                 val allKeys = usageOverTimeCharts.keys + breakdownByProjectCharts.keys
                 for (key in allKeys) {
                     val lookUpIndex = productCategoryIdToIndex.filterValues { it.toLong() == key }.keys
+                    if (lookUpIndex.isEmpty()) {continue}
                     val categoryIdx = productCategoryIdToIndex[lookUpIndex.first()] ?: continue
                     val usageOverTime = usageOverTimeCharts[key] ?: emptyUsageChart
                     val breakdownByProject = breakdownByProjectCharts[key] ?: emptyBreakdownChart
