@@ -988,6 +988,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{
     charts: BreakdownChart[];
 }> = props => {
     const {selectedBreakdown} = props;
+    const chartIdRef = useRef(0);
 
     const fullyMergedChart = React.useMemo(() => ({
         unit: props.unit,
@@ -995,6 +996,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{
     }), [props.charts, props.unit]);
 
     const dataPoints = useMemo(() => {
+        chartIdRef.current += 1;
         const unsorted = fullyMergedChart.dataPoints.map(it => ({key: it.title, value: it.usage, nameAndProvider: it.nameAndProvider})) ?? [];
         return unsorted.sort((a, b) => a.value - b.value);
     }, [props.charts]);
@@ -1080,8 +1082,8 @@ const UsageBreakdownPanel: React.FunctionComponent<{
         </> : null}
 
         <div className={ChartAndTable}>
-            {datapointSum === 0 ? null : <div key={UsageBreakdownChartId} className={PieWrapper.class}>
-                <PieChart chartId={UsageBreakdownChartId} dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={updateSelectedBreakdown} />
+            {datapointSum === 0 ? null : <div key={UsageBreakdownChartId + chartIdRef.current} className={PieWrapper.class}>
+                <PieChart chartId={UsageBreakdownChartId + chartIdRef.current} dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={updateSelectedBreakdown} />
             </div>}
             {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
             {dataPoints.length === 0 ? "No usage data found" :
@@ -1100,7 +1102,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{
                                 const [name, provider] = point.nameAndProvider ? point.nameAndProvider.split("/") : ["", ""];
                                 return <tr key={idx} style={{cursor: "pointer"}}>
                                     <td title={point.key} onClick={() => {
-                                        const chart = ApexCharts.getChartByID(UsageBreakdownChartId);
+                                        const chart = ApexCharts.getChartByID(UsageBreakdownChartId + chartIdRef.current);
                                         const labels: string[] = chart?.["opts"]["labels"] ?? [];
                                         const idx = labels.findIndex(it => it === point.key);
                                         if (idx !== -1 && chart) {
@@ -1750,7 +1752,7 @@ const PieChart: React.FunctionComponent<{
         });
 
         return chartProps;
-    }, [series]);
+    }, [series, props.chartId]);
 
     return <DynamicallySizedChart chart={chartProps} />;
 };
