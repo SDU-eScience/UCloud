@@ -6,6 +6,8 @@ import (
 	"github.com/elastic/go-elasticsearch/v9"
 	"io"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 	"ucloud.dk/core/pkg/config"
@@ -14,9 +16,11 @@ import (
 )
 
 var elasticClient *elasticsearch.Client
+var givenConfig config.ConfigurationFormat
 
 func InitAuditElasticSearch(config config.ConfigurationFormat) func(event rpc.HttpCallLogEntry) {
 	var err error
+	givenConfig = config
 	if config.Elasticsearch.Host.Address == "" {
 		log.Info("elasticsearch host is empty")
 		return nil
@@ -40,6 +44,7 @@ func InitAuditElasticSearch(config config.ConfigurationFormat) func(event rpc.Ht
 const (
 	YYYYMMDD          = "2006.01.02"
 	DAYS_TO_KEEP_DATA = 180
+	GATHER_NODE       = "ucloud-es-nodes-1"
 )
 
 /* INSERT LOGS */
@@ -58,21 +63,18 @@ func pushLogsToElastic(event rpc.HttpCallLogEntry) {
 func CleanUpLogs() {
 	httpLogsList := GetLogs([]string{"http_logs*"})
 	now := time.Now().UTC()
+	expiredDate := now.AddDate(0, 0, -DAYS_TO_KEEP_DATA).Format(YYYYMMDD)
 	for _, index := range httpLogsList {
 		removeExpiredLogs(index)
-		if strings.Contains(index, now.Format(YYYYMMDD)) {
-			yesterdayPeriodFormat := now.AddDate(0, 0, -1).Format(YYYYMMDD)
-			yesterdaysIndexName := strings.Split(index, "-")[0] + "-" + yesterdayPeriodFormat
-			Shrink(yesterdaysIndexName)
-		}
-		expiredIndexDate := now.AddDate(0, 0, DAYS_TO_KEEP_DATA).Format(YYYYMMDD)
-		expiredIndexName := strings.Split(index, "-")[0] + "-" + expiredIndexDate
-		DeleteIndex(expiredIndexName)
 	}
-	systemLogsList := GetLogs([]string{"kubernetes*", "infrastructure*"})
-	for _, index := range systemLogsList {
-		expiredIndexName := strings.Split(index, "-")[0] + "-" + YYYYMMDD
-		DeleteIndex(expiredIndexName)
+	expiredLogs := GetLogs([]string{"*-" + expiredDate})
+	for _, expiredLog := range expiredLogs {
+		DeleteIndex(expiredLog)
+	}
+	yesterdayDateFormat := now.AddDate(0, 0, -1).Format(YYYYMMDD)
+	yesterdayIndices := GetLogs([]string{"*-" + yesterdayDateFormat})
+	for _, yesterdayLog := range yesterdayIndices {
+		Shrink(yesterdayLog)
 	}
 }
 
@@ -120,6 +122,7 @@ func removeExpiredLogs(indexName string) {
 
 // Shrink Reducing number of shards used by index to 1
 func Shrink(indexName string) {
+	targetIndex := indexName + "_small"
 	log.Info("Shrinking index: ", indexName)
 	if GetShardCount(indexName) == 1 {
 		log.Info("Index is already at 1 shard")
@@ -127,8 +130,8 @@ func Shrink(indexName string) {
 	}
 	prepareSourceIndex(indexName)
 	waitForRelocation(indexName)
-	shrinkIndex(indexName)
-	if IsSameSize(indexName, indexName+"_small") {
+	shrinkIndex(indexName, targetIndex)
+	if IsSameSize(indexName, targetIndex) {
 		DeleteIndex(indexName)
 	}
 }
@@ -138,17 +141,144 @@ func ReindexToMonthly(indexName string) {}
 
 /* SHRINKING OPERATIONS */
 
-func prepareSourceIndex(indexName string) {}
+func prepareSourceIndex(indexName string) {
+	//What node should the shards be collected on before shrink is performed
+	//"index.routing.allocation.require._name"
+	// gatherNode
 
-func waitForRelocation(indexName string) {}
+	//Make sure that no more is being written to the index. Block writing.
+	//"index.blocks.write" true
+	var buffer bytes.Buffer
+	request := map[string]interface{}{
+		"index": map[string]interface{}{
+			"routing": map[string]interface{}{
+				"allocation": map[string]interface{}{
+					"require": map[string]interface{}{
+						"_name": GATHER_NODE,
+					},
+				},
+			},
+			"blocks": map[string]interface{}{
+				"write": true,
+			},
+		},
+	}
 
-func shrinkIndex(indexName string) {
+	header := http.Header{}
+	header.Add("Content-Type", "application/json")
 
+	json.NewEncoder(&buffer).Encode(request)
+
+	scheme := givenConfig.Elasticsearch.Host.Scheme
+	host := givenConfig.Elasticsearch.Host.Address + ":" + strconv.Itoa(givenConfig.Elasticsearch.Host.Port)
+	path := "/" + indexName + "/_settings"
+
+	retries := 0
+	for retries < 3 {
+		httpRequest := http.Request{
+			Method: "PUT",
+			URL: &url.URL{
+				Scheme: scheme,
+				Host:   host,
+				Path:   path,
+			},
+			Body:   io.NopCloser(&buffer),
+			Header: header,
+		}
+		_, err := elasticClient.BaseClient.Transport.Perform(
+			&httpRequest,
+		)
+		if err != nil {
+			log.Info("Failed to perform http request: ", err)
+			retries++
+		} else {
+			return
+		}
+	}
+}
+
+func waitForRelocation(indexName string) {
+	counter := 0
+	for GetClusterHealth().RelocatingShards > 0 {
+		if counter%10 == 0 {
+			log.Info("Waiting for relocation of " + indexName + " to complete")
+		}
+		counter++
+		time.Sleep(time.Second * 1)
+	}
+}
+
+func shrinkIndex(indexName string, targetIndexName string) {
+	request := map[string]interface{}{
+		"settings": map[string]interface{}{
+			"index": map[string]interface{}{
+				"number_of_shards": 1,
+				"blocks": map[string]interface{}{
+					"write": false,
+				},
+				"number_of_replicas": 1,
+				"codec":              "best_compression",
+				"routing": map[string]interface{}{
+					"allocation": map[string]interface{}{
+						"require": map[string]interface{}{
+							"_name": "*",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	var buffer bytes.Buffer
+	json.NewEncoder(&buffer).Encode(request)
+
+	header := http.Header{}
+	header.Add("Content-Type", "application/json")
+
+	scheme := givenConfig.Elasticsearch.Host.Scheme
+	host := givenConfig.Elasticsearch.Host.Address + ":" + strconv.Itoa(givenConfig.Elasticsearch.Host.Port)
+	path := "/" + indexName + "/_shrink/" + targetIndexName
+
+	retries := 0
+	for retries < 3 {
+		httpRequest := http.Request{
+			Method: "POST",
+			URL: &url.URL{
+				Scheme: scheme,
+				Host:   host,
+				Path:   path,
+			},
+			Body:   io.NopCloser(&buffer),
+			Header: header,
+		}
+		_, err := elasticClient.BaseClient.Transport.Perform(
+			&httpRequest,
+		)
+		if err != nil {
+			log.Info("Failed to perform http request: ", err)
+			retries++
+		} else {
+			return
+		}
+	}
 }
 
 /* REINDEX OPERATIONS */
 
 /* UTILITY FUNCTIONS */
+
+func GetClusterHealth() HealthResponse {
+	resp, err := elasticClient.Cluster.Health()
+	if err != nil {
+		log.Info("Failed to get cluster health: ", err)
+		return HealthResponse{}
+	} else {
+		bytesRead, _ := io.ReadAll(resp.Body)
+		value := HealthResponse{}
+		_ = json.Unmarshal(bytesRead, &value)
+		return value
+	}
+}
 
 // GetLogs retrieves a list of indices matching the input indicesToFind. Wildcards are accepted e.g. "htto_logs*"
 func GetLogs(indicesToFind []string) []string {
@@ -183,8 +313,21 @@ func IsSameSize(firstIndexName string, secondIndexName string) bool {
 	return countDocs(firstIndexName, "") == countDocs(secondIndexName, "")
 }
 
+// GetShardCount gets number of shard for given index
 func GetShardCount(indexName string) int {
-	return 0
+	resp, err := elasticClient.Indices.GetSettings(
+		elasticClient.Indices.GetSettings.WithIndex(indexName),
+	)
+	if err != nil {
+		log.Info("Failed to get shard Count: ", err)
+		return 0
+	}
+	var result map[string]interface{}
+
+	bytesRead, err := io.ReadAll(resp.Body)
+	json.Unmarshal(bytesRead, &result)
+	shardCount, _ := strconv.Atoi(result[indexName].(map[string]interface{})["settings"].(map[string]interface{})["index"].(map[string]interface{})["number_of_shards"].(string))
+	return shardCount
 }
 
 // countDocs : returns number of documents in index (indexName).
