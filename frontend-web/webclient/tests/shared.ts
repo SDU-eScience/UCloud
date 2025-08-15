@@ -52,5 +52,17 @@ export const Drive = {
         await page.getByText('Delete⌥ R').click();
         await page.locator('#collectionName').fill(name);
         await page.getByRole('button', {name: 'I understand what I am doing'}).click();
+    },
+
+    async rename(page: Page, oldName: string, newName: string) {
+        await page.locator('div > span').filter({hasText: oldName}).click();
+        await page.getByText('Rename').click();
+        await page.getByRole('textbox').nth(1).fill(newName);
+        await page.getByRole('textbox').nth(1).press('Enter');
+    },
+
+    async properties(page: Page, name: string) {
+        await page.locator('div > span').filter({hasText: name}).click();
+        await page.getByText('Properties').click();
     }
 };
