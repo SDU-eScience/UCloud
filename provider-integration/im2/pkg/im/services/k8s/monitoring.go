@@ -354,19 +354,24 @@ func loopMonitoring() {
 		// Lock jobs which are out of resources
 
 		activeJobsAfterBatch := ctrl.GetJobs()
+		metricMonitoringFetchJobs.Observe(timer.Mark().Seconds())
 		var lockedMessages []ctrl.JobMessage
 		for _, job := range activeJobsAfterBatch {
-			if reason := IsJobLocked(job); reason.Present {
-				lockedMessages = append(lockedMessages, ctrl.JobMessage{
-					JobId:   job.Id,
-					Message: reason.Value.Reason,
-				})
-				tracker.RequestCleanup(job.Id)
+			if job.Status.State == orc.JobStateInQueue || job.Status.State == orc.JobStateRunning {
+				if reason := IsJobLocked(job); reason.Present {
+					lockedMessages = append(lockedMessages, ctrl.JobMessage{
+						JobId:   job.Id,
+						Message: reason.Value.Reason,
+					})
+					tracker.RequestCleanup(job.Id)
+				}
 			}
 		}
+
+		timer.Mark()
 		_ = ctrl.TrackJobMessages(lockedMessages)
+		metricMonitoringJobUpdates.Observe(timer.Mark().Seconds())
 	}
-	metricMonitoringJobUpdates.Observe(timer.Mark().Seconds())
 
 	go func() {
 		for _, jobId := range tracker.terminationRequested {
@@ -709,10 +714,11 @@ func convertJobTimeToAccountingUnits(job *orc.Job, timeConsumed time.Duration) i
 }
 
 var (
-	metricMonitoringNodes           = metricMonitorDuration("containers")
+	metricMonitoringNodes           = metricMonitorDuration("nodes")
 	metricMonitoringContainers      = metricMonitorDuration("containers")
 	metricMonitoringVirtualMachines = metricMonitorDuration("vms")
 	metricMonitoringJobUpdates      = metricMonitorDuration("job_updates")
+	metricMonitoringFetchJobs       = metricMonitorDuration("fetch_jobs")
 	metricMonitoringJobAccounting   = metricMonitorDuration("job_accounting")
 	metricMonitoringNodeCapacity    = metricMonitorDuration("node_capacity")
 	metricMonitoringScheduling      = metricMonitorDuration("scheduling")

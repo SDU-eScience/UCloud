@@ -2,6 +2,9 @@ package controller
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"net/http"
 	"slices"
 	"sync"
@@ -136,31 +139,37 @@ func InitJobDatabase() {
 }
 
 func TrackNewJob(job orc.Job) {
+	timer := util.NewTimer()
 	// NOTE(Dan): The job is supposed to be copied into this function. Do not change it to accept a pointer.
 
 	// Automatically assign timestamps to all updates that do not have one.
+	timer.Mark()
 	for i := 0; i < len(job.Updates); i++ {
 		update := &job.Updates[i]
 		if update.Timestamp.UnixMilli() <= 0 {
 			update.Timestamp = fnd.Timestamp(time.Now())
 		}
 	}
+	metricTrackTransform.Observe(timer.Mark().Seconds())
 
 	if RunsServerCode() {
+		timer.Mark()
 		refreshRoutes := false
 		activeJobsMutex.Lock()
 		activeJobs[job.Id] = &job
 
 		if job.Status.State.IsFinal() {
 			refreshRoutes = true
-			delete(activeJobs, job.Id)
 		}
 		activeJobsMutex.Unlock()
+		metricTrackUpdateMemory.Observe(timer.Mark().Seconds())
 
 		trackJobUpdateServer(&job)
 
 		if refreshRoutes {
+			timer.Mark()
 			refreshJobRoutes()
+			metricTrackRouteRefresh.Observe(timer.Mark().Seconds())
 		}
 	} else if RunsUserCode() {
 		_, _ = trackRequest.Invoke(trackRequestType{job.Id, job.ProviderGeneratedId})
@@ -168,7 +177,9 @@ func TrackNewJob(job orc.Job) {
 }
 
 func trackJobUpdateServer(job *orc.Job) {
+	timer := util.NewTimer()
 	jsonified, _ := json.Marshal(job)
+	metricTrackDatabaseMarshal.Observe(timer.Mark().Seconds())
 
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
@@ -194,6 +205,30 @@ func trackJobUpdateServer(job *orc.Job) {
 				"state":            job.Status.State,
 			},
 		)
+	})
+	metricTrackDatabaseQuery.Observe(timer.Mark().Seconds())
+}
+
+var (
+	metricTrackTransform       = metricJobTrack("transform")
+	metricTrackUpdateMemory    = metricJobTrack("update_memory")
+	metricTrackDatabaseQuery   = metricJobTrack("database_query")
+	metricTrackDatabaseMarshal = metricJobTrack("database_marshal")
+	metricTrackRouteRefresh    = metricJobTrack("route_refresh")
+)
+
+func metricJobTrack(region string) prometheus.Summary {
+	return promauto.NewSummary(prometheus.SummaryOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "jobs",
+		Name:      fmt.Sprintf("job_track_%s_seconds", region),
+		Help:      fmt.Sprintf("Summary of the duration (in seconds) it takes to run the region '%s' of TrackNewJob.", region),
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
 	})
 }
 
@@ -237,8 +272,10 @@ func GetJobs() map[string]*orc.Job {
 	result := map[string]*orc.Job{}
 	activeJobsMutex.Lock()
 	for _, job := range activeJobs {
-		copied := *job
-		result[copied.Id] = &copied
+		if !job.Status.State.IsFinal() {
+			copied := *job
+			result[copied.Id] = &copied
+		}
 	}
 	activeJobsMutex.Unlock()
 	return result
@@ -417,9 +454,6 @@ func (b *JobUpdateBatch) flush() {
 		}
 
 		trackJobUpdateServer(job)
-		if u.State.IsSet() && u.State.Get().IsFinal() {
-			delete(activeJobs, entry.Id)
-		}
 	}
 
 	if len(nodeAllocJobIds) > 0 {
@@ -486,7 +520,7 @@ func (b *JobUpdateBatch) End() JobUpdateBatchResults {
 	}
 
 	for activeJobId, job := range activeJobs {
-		if !filter(job) {
+		if job.Status.State.IsFinal() || !filter(job) {
 			continue
 		}
 
@@ -506,23 +540,25 @@ func (b *JobUpdateBatch) End() JobUpdateBatchResults {
 	for _, jobIdToTerminate := range jobsWithUnknownState {
 		terminationState := orc.JobStateSuccess
 
-		job, _ := activeJobs[jobIdToTerminate]
-		expiresAt := job.Status.ExpiresAt
-		if expiresAt.IsSet() && now.After(expiresAt.Get().Time()) {
-			terminationState = orc.JobStateExpired
-		}
+		job, ok := activeJobs[jobIdToTerminate]
+		if ok {
+			expiresAt := job.Status.ExpiresAt
+			if expiresAt.IsSet() && now.After(expiresAt.Get().Time()) {
+				terminationState = orc.JobStateExpired
+			}
 
-		if job.Status.State != terminationState {
-			b.AddUpdate(orc.ResourceUpdateAndId[orc.JobUpdate]{
-				Id: jobIdToTerminate,
-				Update: orc.JobUpdate{
-					State:  util.OptValue(terminationState),
-					Status: util.OptValue(b.jobUpdateMessage(terminationState)),
-				},
-			})
-		}
+			if job.Status.State != terminationState {
+				b.AddUpdate(orc.ResourceUpdateAndId[orc.JobUpdate]{
+					Id: jobIdToTerminate,
+					Update: orc.JobUpdate{
+						State:  util.OptValue(terminationState),
+						Status: util.OptValue(b.jobUpdateMessage(terminationState)),
+					},
+				})
+			}
 
-		terminatedJobs = append(terminatedJobs, job.Id)
+			terminatedJobs = append(terminatedJobs, job.Id)
+		}
 	}
 
 	b.flush()
@@ -559,9 +595,14 @@ func TrackRawUpdates(updates []orc.ResourceUpdateAndId[orc.JobUpdate]) error {
 		return nil
 	}
 
+	timer := util.NewTimer()
+
 	for _, message := range updates {
+		timer.Mark()
 		job, ok := RetrieveJob(message.Id)
+		metricUpdateRetrieve.Observe(timer.Mark().Seconds())
 		if ok {
+			timer.Mark()
 			copied := *job
 			copied.Updates = append(job.Updates, message.Update)
 			if message.Update.NewTimeAllocation.Present {
@@ -569,15 +610,41 @@ func TrackRawUpdates(updates []orc.ResourceUpdateAndId[orc.JobUpdate]) error {
 					orc.SimpleDurationFromMillis(message.Update.NewTimeAllocation.Value),
 				)
 			}
+			metricUpdateTransform.Observe(timer.Mark().Seconds())
 			TrackNewJob(copied)
+			metricUpdateTrack.Observe(timer.Mark().Seconds())
 		}
 	}
 
+	timer.Mark()
 	err := orc.UpdateJobs(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
 		Items: updates,
 	})
+	metricUpdateApi.Observe(timer.Mark().Seconds())
 
 	return err
+}
+
+var (
+	metricUpdateRetrieve  = metricJobUpdate("retrieve_job")
+	metricUpdateTransform = metricJobUpdate("transform")
+	metricUpdateTrack     = metricJobUpdate("track")
+	metricUpdateApi       = metricJobUpdate("api")
+)
+
+func metricJobUpdate(region string) prometheus.Summary {
+	return promauto.NewSummary(prometheus.SummaryOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "jobs",
+		Name:      fmt.Sprintf("job_update_%s_seconds", region),
+		Help:      fmt.Sprintf("Summary of the duration (in seconds) it takes to run the region '%s' of IsJobLocked.", region),
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	})
 }
 
 func fetchAllJobs(state orc.JobState) {
@@ -614,7 +681,9 @@ func JobsListServer() []*orc.Job {
 	var result []*orc.Job
 	activeJobsMutex.Lock()
 	for _, job := range activeJobs {
-		result = append(result, job)
+		if !job.Status.State.IsFinal() {
+			result = append(result, job)
+		}
 	}
 	defer activeJobsMutex.Unlock()
 	return result
