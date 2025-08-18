@@ -46,6 +46,7 @@ const (
 	YYYYMM            = "2006.01"
 	DAYS_TO_KEEP_DATA = 180
 	GATHER_NODE       = "ucloud-es-nodes-1"
+	MINUS_DAYS        = -8
 )
 
 /* INSERT LOGS */
@@ -64,18 +65,31 @@ func pushLogsToElastic(event rpc.HttpCallLogEntry) {
 func CleanUpLogs() {
 	httpLogsList := GetLogs([]string{"http_logs*"})
 	now := time.Now().UTC()
-	expiredDate := now.AddDate(0, 0, -DAYS_TO_KEEP_DATA).Format(YYYYMMDD)
+
+	//Remove logs that have expiry field matching expiry < now
 	for _, index := range httpLogsList {
 		removeExpiredLogs(index)
 	}
+
+	//Remove all log indices that are older than DAYS_TO_KEEP_DATA
+	expiredDate := now.AddDate(0, 0, -DAYS_TO_KEEP_DATA).Format(YYYYMMDD)
 	expiredLogs := GetLogs([]string{"*-" + expiredDate})
 	for _, expiredLog := range expiredLogs {
 		DeleteIndex(expiredLog)
 	}
+
+	//Shink yesterdays indices so they only have 1 shard usage
 	yesterdayDateFormat := now.AddDate(0, 0, -1).Format(YYYYMMDD)
 	yesterdayIndices := GetLogs([]string{"*-" + yesterdayDateFormat})
 	for _, yesterdayLog := range yesterdayIndices {
 		Shrink(yesterdayLog)
+	}
+
+	//reindex last weeks log indices into a monthly index with format YYYYMM
+	daysAgo := time.Now().AddDate(0, 0, MINUS_DAYS).UTC().Format(YYYYMMDD)
+	reindexLogs := GetLogs([]string{"*-" + daysAgo})
+	for _, reindexLog := range reindexLogs {
+		ReindexToMonthly(reindexLog)
 	}
 }
 
@@ -139,17 +153,14 @@ func Shrink(indexName string) {
 
 // ReindexToMonthly Merges daily index into the monthly index
 func ReindexToMonthly(indexName string) {
-	minusDays := -8
-	oneWeekAgo := time.Now().AddDate(0, 0, minusDays).UTC().Format(YYYYMMDD)
-	monthFormat := time.Now().AddDate(0, 0, minusDays).UTC().Format(YYYYMM)
-	indexNameOneWeekAgo := strings.Split(indexName, "-")[0] + "-" + oneWeekAgo
-	if countDocs(indexNameOneWeekAgo, "") == 0 {
+	monthFormat := time.Now().AddDate(0, 0, MINUS_DAYS).UTC().Format(YYYYMM)
+	if countDocs(indexName, "") == 0 {
 		log.Info("Index is empty - just delete it instead of attempting merge")
-		DeleteIndex(indexNameOneWeekAgo)
+		DeleteIndex(indexName)
 		return
 	}
-	toIndex := strings.Split(indexNameOneWeekAgo, "-")[0] + "-" + monthFormat
-	reindex(indexNameOneWeekAgo, toIndex)
+	toIndex := strings.Split(indexName, "-")[0] + "-" + monthFormat
+	reindex(indexName, toIndex)
 }
 
 /* REINDEX OPERATIONS */
@@ -178,8 +189,10 @@ func reindex(fromIndex string, toIndex string) {
 	if err != nil {
 		log.Info("Error reindexing: ", err)
 		log.Info(resp.String())
+		return
 	}
 
+	//Make sure all documents have been moved
 	fromCount := countDocs(fromIndex, "")
 	toCount := countDocs(toIndex, "")
 	for toCount < fromCount {
@@ -187,6 +200,8 @@ func reindex(fromIndex string, toIndex string) {
 		time.Sleep(time.Second * 10)
 		toCount = countDocs(toIndex, "")
 	}
+
+	//Delete old index
 	DeleteIndex(fromIndex)
 
 }
@@ -315,8 +330,6 @@ func shrinkIndex(indexName string, targetIndexName string) {
 	}
 }
 
-/* REINDEX OPERATIONS */
-
 /* UTILITY FUNCTIONS */
 
 func GetClusterHealth() HealthResponse {
@@ -415,8 +428,21 @@ func DeleteIndex(indexName string) {
 
 func CreateIndex(indexName string) {
 	normalizedIndexName := strings.ToLower(indexName)
+	if IndexExists(normalizedIndexName) {
+		return
+	}
+	body := map[string]interface{}{
+		"settings": map[string]interface{}{
+			"number_of_shards":   4,
+			"number_of_replicas": 4,
+		},
+	}
+	var buffer bytes.Buffer
+	json.NewEncoder(&buffer).Encode(body)
+
 	resp, err := elasticClient.Indices.Create(
 		normalizedIndexName,
+		elasticClient.Indices.Create.WithBody(io.Reader(&buffer)),
 	)
 	if err != nil {
 		log.Info("create index failed", err)
