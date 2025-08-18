@@ -42,11 +42,12 @@ func InitAuditElasticSearch(config config.ConfigurationFormat) func(event rpc.Ht
 }
 
 const (
-	YYYYMMDD          = "2006.01.02"
-	YYYYMM            = "2006.01"
-	DAYS_TO_KEEP_DATA = 180
-	GATHER_NODE       = "ucloud-es-nodes-1"
-	MINUS_DAYS        = -8
+	YYYYMMDD           = "2006.01.02"
+	YYYYMM             = "2006.01"
+	DAYS_TO_KEEP_DATA  = 180
+	GATHER_NODE        = "ucloud-es-nodes-1"
+	MINUS_DAYS         = -8
+	GRAFANA_ALIAS_DAYS = 7
 )
 
 /* INSERT LOGS */
@@ -61,7 +62,14 @@ func pushLogsToElastic(event rpc.HttpCallLogEntry) {
 	elasticClient.Index(indexName, bytes.NewReader(data))
 }
 
-/* CLEANUP */
+/*
+	CleanUpLops Daily cleanup
+
+- Removes logs with expiry < now
+- Removes indices older than DAYS_TO_KEEP_DATA
+- Shrinks yesterdays indices to 1 shard
+- Reindexes older logs to single monthly log
+*/
 func CleanUpLogs() {
 	httpLogsList := GetLogs([]string{"http_logs*"})
 	now := time.Now().UTC()
@@ -90,6 +98,22 @@ func CleanUpLogs() {
 	reindexLogs := GetLogs([]string{"*-" + daysAgo})
 	for _, reindexLog := range reindexLogs {
 		ReindexToMonthly(reindexLog)
+	}
+}
+
+/*
+	CreateGrafanaAliases
+
+Creates the "grafana" alias for http_logs for each index the last GRAFANA_ALIAS_DAYS into the past
+*/
+func CreateGrafanaAliases() {
+	for i := range GRAFANA_ALIAS_DAYS {
+		dateSuffix := time.Now().AddDate(0, 0, -i).UTC().Format(YYYYMMDD)
+		logs := GetLogs([]string{"http_logs*" + dateSuffix + "*"})
+		elasticClient.Indices.PutAlias(
+			logs,
+			"grafana",
+		)
 	}
 }
 
