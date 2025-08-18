@@ -66,20 +66,26 @@ func pushLogsToElastic(event rpc.HttpCallLogEntry) {
 	CleanUpLops Daily cleanup
 
 - Removes logs with expiry < now
+
 - Removes indices older than DAYS_TO_KEEP_DATA
-- Shrinks yesterdays indices to 1 shard
+
+- Shrinks yesterday indices to 1 shard
+
 - Reindexes older logs to single monthly log
 */
 func CleanUpLogs() {
+	log.Info("Cleaning up old logs")
 	httpLogsList := GetLogs([]string{"http_logs*"})
 	now := time.Now().UTC()
 
 	//Remove logs that have expiry field matching expiry < now
+	log.Info("Cleaning up expired logs")
 	for _, index := range httpLogsList {
 		removeExpiredLogs(index)
 	}
 
 	//Remove all log indices that are older than DAYS_TO_KEEP_DATA
+	log.Info("Cleaned up expired indices")
 	expiredDate := now.AddDate(0, 0, -DAYS_TO_KEEP_DATA).Format(YYYYMMDD)
 	expiredLogs := GetLogs([]string{"*-" + expiredDate})
 	for _, expiredLog := range expiredLogs {
@@ -87,6 +93,7 @@ func CleanUpLogs() {
 	}
 
 	//Shink yesterdays indices so they only have 1 shard usage
+	log.Info("Shrinking indices")
 	yesterdayDateFormat := now.AddDate(0, 0, -1).Format(YYYYMMDD)
 	yesterdayIndices := GetLogs([]string{"*-" + yesterdayDateFormat})
 	for _, yesterdayLog := range yesterdayIndices {
@@ -94,11 +101,13 @@ func CleanUpLogs() {
 	}
 
 	//reindex last weeks log indices into a monthly index with format YYYYMM
+	log.Info("Reindexing indices")
 	daysAgo := time.Now().AddDate(0, 0, MINUS_DAYS).UTC().Format(YYYYMMDD)
 	reindexLogs := GetLogs([]string{"*-" + daysAgo})
 	for _, reindexLog := range reindexLogs {
 		ReindexToMonthly(reindexLog)
 	}
+	log.Info("Cleanup complete")
 }
 
 /*
@@ -107,6 +116,16 @@ func CleanUpLogs() {
 Creates the "grafana" alias for http_logs for each index the last GRAFANA_ALIAS_DAYS into the past
 */
 func CreateGrafanaAliases() {
+	//Delete old grafana aliases
+	log.Info("Deleting old grafana aliases")
+	grafanaLogs := GetLogs([]string{"grafana"})
+	elasticClient.Indices.DeleteAlias(
+		grafanaLogs,
+		[]string{"grafana"},
+	)
+
+	//Create new for each index within the time limit
+	log.Info("Creating new grafana aliases")
 	for i := range GRAFANA_ALIAS_DAYS {
 		dateSuffix := time.Now().AddDate(0, 0, -i).UTC().Format(YYYYMMDD)
 		logs := GetLogs([]string{"http_logs*" + dateSuffix + "*"})
@@ -115,6 +134,7 @@ func CreateGrafanaAliases() {
 			"grafana",
 		)
 	}
+	log.Info("Done creating new grafana aliases")
 }
 
 // removeExpiredLogs Removes log entries that has exceeded set expiry field in given index
