@@ -43,6 +43,7 @@ func InitAuditElasticSearch(config config.ConfigurationFormat) func(event rpc.Ht
 
 const (
 	YYYYMMDD          = "2006.01.02"
+	YYYYMM            = "2006.01"
 	DAYS_TO_KEEP_DATA = 180
 	GATHER_NODE       = "ucloud-es-nodes-1"
 )
@@ -137,7 +138,58 @@ func Shrink(indexName string) {
 }
 
 // ReindexToMonthly Merges daily index into the monthly index
-func ReindexToMonthly(indexName string) {}
+func ReindexToMonthly(indexName string) {
+	minusDays := -8
+	oneWeekAgo := time.Now().AddDate(0, 0, minusDays).UTC().Format(YYYYMMDD)
+	monthFormat := time.Now().AddDate(0, 0, minusDays).UTC().Format(YYYYMM)
+	indexNameOneWeekAgo := strings.Split(indexName, "-")[0] + "-" + oneWeekAgo
+	if countDocs(indexNameOneWeekAgo, "") == 0 {
+		log.Info("Index is empty - just delete it instead of attempting merge")
+		DeleteIndex(indexNameOneWeekAgo)
+		return
+	}
+	toIndex := strings.Split(indexNameOneWeekAgo, "-")[0] + "-" + monthFormat
+	reindex(indexNameOneWeekAgo, toIndex)
+}
+
+/* REINDEX OPERATIONS */
+func reindex(fromIndex string, toIndex string) {
+	if !IndexExists(toIndex) {
+		CreateIndex(toIndex)
+	}
+
+	request := map[string]interface{}{
+		"source": map[string]interface{}{
+			"index": fromIndex,
+			"size":  2500,
+		},
+		"dest": map[string]interface{}{
+			"index": toIndex,
+		},
+	}
+
+	var buffer bytes.Buffer
+	json.NewEncoder(&buffer).Encode(request)
+
+	resp, err := elasticClient.Reindex(
+		io.Reader(&buffer),
+	)
+
+	if err != nil {
+		log.Info("Error reindexing: ", err)
+		log.Info(resp.String())
+	}
+
+	fromCount := countDocs(fromIndex, "")
+	toCount := countDocs(toIndex, "")
+	for toCount < fromCount {
+		log.Info("Waiting for reindex to complete. Working on " + fromIndex + " -> " + toIndex + "(CountFrom: " + strconv.Itoa(fromCount) + ", CountTo: " + strconv.Itoa(toCount) + ")")
+		time.Sleep(time.Second * 10)
+		toCount = countDocs(toIndex, "")
+	}
+	DeleteIndex(fromIndex)
+
+}
 
 /* SHRINKING OPERATIONS */
 
@@ -359,6 +411,25 @@ func DeleteIndex(indexName string) {
 	if err != nil {
 		log.Info("Failed to delete index: ", err)
 	}
+}
+
+func CreateIndex(indexName string) {
+	normalizedIndexName := strings.ToLower(indexName)
+	resp, err := elasticClient.Indices.Create(
+		normalizedIndexName,
+	)
+	if err != nil {
+		log.Info("create index failed", err)
+		log.Info("resp:", resp)
+	}
+}
+
+// IndexExists Check if the given index exists in the cluster
+func IndexExists(indexName string) bool {
+	resp, _ := elasticClient.Indices.Exists(
+		[]string{indexName},
+	)
+	return resp.Status() == "200 OK"
 }
 
 // FlushIndex Flushes the given index to force changes
