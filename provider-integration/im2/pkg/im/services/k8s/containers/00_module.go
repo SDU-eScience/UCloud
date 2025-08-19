@@ -448,10 +448,8 @@ func extend(request ctrl.JobExtendRequest) error {
 
 func JobAnnotations(job *orc.Job, rank int) map[string]string {
 	podName := idAndRankToPodName(job.Id, rank)
-	timeout, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	pod, err := K8sClient.CoreV1().Pods(Namespace).Get(timeout, podName, meta.GetOptions{})
-	if err == nil {
+	pod, ok := shared.JobPods.Retrieve(podName)
+	if ok {
 		return pod.Annotations
 	} else {
 		return nil

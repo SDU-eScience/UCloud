@@ -134,7 +134,7 @@ func initSyncthingFolderEx(owner orc.ResourceOwner, init bool) (string, string, 
 	return internalSyncthing, ucloudSyncthing, nil
 }
 
-func syncthingBeforeMonitor(pods []core.Pod, jobs map[string]*orc.Job, appsByJobId map[string]ctrl.IAppRunningConfiguration) {
+func syncthingBeforeMonitor(pods []*core.Pod, jobs map[string]*orc.Job, appsByJobId map[string]ctrl.IAppRunningConfiguration) {
 	syncthingPortsMutex.Lock()
 	defer syncthingPortsMutex.Unlock()
 
@@ -150,7 +150,7 @@ func syncthingBeforeMonitor(pods []core.Pod, jobs map[string]*orc.Job, appsByJob
 			continue
 		}
 
-		assignedPort := syncthingGetAssignedPort(&pod)
+		assignedPort := syncthingGetAssignedPort(pod)
 		if assignedPort.Present {
 			result[assignedPort.Value] = true
 		}

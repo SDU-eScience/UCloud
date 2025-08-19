@@ -132,7 +132,7 @@ func main() {
 			err = termio.LoadingIndicator(
 				"Retrieving initial access token",
 				func() error {
-					for range 10 {
+					for range 60 {
 						success := launcher.FetchAccessToken() != ""
 						if success {
 							break

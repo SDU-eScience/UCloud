@@ -1,6 +1,9 @@
 package k8s
 
 import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/tools/cache"
 	"regexp"
 	"strings"
 	"time"
@@ -57,12 +60,24 @@ func InitCompute() ctrl.JobsService {
 	}
 }
 
+var nodes *shared.K8sResourceTracker[*corev1.Node]
+
 func InitComputeLater() {
 	ctrl.ReconfigureAllIApps()
 
 	initJobQueue()
 
 	go func() {
+		nodes = shared.NewResourceTracker[*corev1.Node](
+			"",
+			func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
+				return factory.Core().V1().Nodes().Informer()
+			},
+			func(resource *corev1.Node) string {
+				return resource.Name
+			},
+		)
+
 		for util.IsAlive {
 			loopMonitoring()
 			time.Sleep(100 * time.Millisecond)

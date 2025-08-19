@@ -2,16 +2,31 @@ package shared
 
 import (
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/tools/cache"
 	"slices"
 	"time"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 
+var JobPods *K8sResourceTracker[*corev1.Pod]
+
 func Init() {
 	initClients()
 	initProducts()
 	initSsh()
+
+	JobPods = NewResourceTracker[*corev1.Pod](
+		ServiceConfig.Compute.Namespace,
+		func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
+			return factory.Core().V1().Pods().Informer()
+		},
+		func(resource *corev1.Pod) string {
+			return resource.Name
+		},
+	)
 }
 
 func JobIdLabel(jobId string) util.Tuple2[string, string] {
