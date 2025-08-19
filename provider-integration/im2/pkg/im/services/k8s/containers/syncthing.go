@@ -216,7 +216,32 @@ func syncthingShouldRun(job *orc.Job, configuration json.RawMessage) bool {
 		return false
 	}
 
-	return len(config.Folders) > 0 && len(config.Devices) > 0
+	if len(config.Folders) > 0 && len(config.Devices) > 0 {
+		for _, folder := range config.Folders {
+			driveId, ok := filesystem.DriveIdFromUCloudPath(folder.UCloudPath)
+			if !ok {
+				return false
+			}
+
+			drive, ok := ctrl.RetrieveDrive(driveId)
+			if !ok {
+				return false
+			}
+
+			storageLocked := ctrl.IsResourceLocked(drive.Resource, drive.Specification.Product)
+			if storageLocked {
+				return false
+			}
+
+			if !ctrl.CanUseDrive(job.Owner, driveId, true) {
+				return false
+			}
+		}
+
+		return true
+	} else {
+		return false
+	}
 }
 
 func syncthingMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage) {

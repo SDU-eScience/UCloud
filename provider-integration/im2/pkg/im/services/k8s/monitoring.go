@@ -7,6 +7,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"maps"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -536,6 +537,15 @@ func loopMonitoring() {
 	}
 	metricMonitoringNodeCapacity.Observe(timer.Mark().Seconds())
 
+	// NOTE(Dan): This code obviously implies that the service is always running somewhere which only sysadmins can
+	// reach it. This is the case for us. I believe it should be in the future. TODO?
+	// TODO Potentially remove this for performance
+	requestDump := false
+	if _, err := os.Stat("/tmp/scheduler-dump-requested"); err == nil {
+		_ = os.Remove("/tmp/scheduler-dump-requested")
+		requestDump = true
+	}
+
 	// Job scheduling
 	// -----------------------------------------------------------------------------------------------------------------
 	timer.Mark()
@@ -552,9 +562,17 @@ func loopMonitoring() {
 	var allScheduled []*SchedulerReplicaEntry
 
 	for _, sched := range schedulers {
+		if requestDump {
+			sched.DumpStateToFile.Set(fmt.Sprintf("/tmp/scheduler-%s.json", strings.ReplaceAll(sched.Name, "/", "_")))
+		}
+
+		timer.Mark()
 		jobsToSchedule := sched.Schedule()
+		metricMonitoringSchedulingPlacement.Observe(timer.Mark().Seconds())
+
 		length := len(jobsToSchedule)
 		for i := 0; i < length; i++ {
+			timer.Mark()
 			toSchedule := &jobsToSchedule[i]
 			job, ok := ctrl.RetrieveJob(toSchedule.JobId)
 			if !ok {
@@ -575,12 +593,21 @@ func loopMonitoring() {
 					})
 				}
 			}
+			metricMonitoringSchedulingSync.Observe(timer.Mark().Seconds())
 
 			toolBackend := job.Status.ResolvedApplication.Invocation.Tool.Tool.Description.Backend
 			if toolBackend == orc.ToolBackendVirtualMachine {
+				timer.Mark()
 				kubevirt.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
+				metricMonitoringSchedulingStartJob.Observe(timer.Mark().Seconds())
 			} else {
+				// TODO This is scheduling syncthing jobs which are out of resources and causing a billion updates to be
+				//   inserted into the json.
+
+				timer.Mark()
 				err := containers.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
+				metricMonitoringSchedulingStartJob.Observe(timer.Mark().Seconds())
+
 				if err != nil {
 					scheduleMessages = append(scheduleMessages, ctrl.JobMessage{
 						JobId:   job.Id,
@@ -592,16 +619,19 @@ func loopMonitoring() {
 						// IApps typically hits this branch if they are out of resources. We do not want them to stop
 						// attempting to re-schedule in this scenario. Generally we do not want iapps to enter a
 						// final state ever.
+						timer.Mark()
 						_ = terminate(ctrl.JobTerminateRequest{
 							Job:       job,
 							IsCleanup: false,
 						})
+						metricMonitoringSchedulingTerminateJob.Observe(timer.Mark().Seconds())
 					}
 				}
 			}
 		}
 	}
 
+	timer.Mark()
 	for newIdx := 0; newIdx < len(entriesToSubmit); newIdx++ {
 		newJob := entriesToSubmit[newIdx]
 
@@ -624,7 +654,7 @@ func loopMonitoring() {
 	}
 
 	_ = ctrl.TrackJobMessages(scheduleMessages)
-	metricMonitoringScheduling.Observe(timer.Mark().Seconds())
+	metricMonitoringJobUpdates.Observe(timer.Mark().Seconds())
 }
 
 type NodeCatGroup struct {
@@ -714,14 +744,17 @@ func convertJobTimeToAccountingUnits(job *orc.Job, timeConsumed time.Duration) i
 }
 
 var (
-	metricMonitoringNodes           = metricMonitorDuration("nodes")
-	metricMonitoringContainers      = metricMonitorDuration("containers")
-	metricMonitoringVirtualMachines = metricMonitorDuration("vms")
-	metricMonitoringJobUpdates      = metricMonitorDuration("job_updates")
-	metricMonitoringFetchJobs       = metricMonitorDuration("fetch_jobs")
-	metricMonitoringJobAccounting   = metricMonitorDuration("job_accounting")
-	metricMonitoringNodeCapacity    = metricMonitorDuration("node_capacity")
-	metricMonitoringScheduling      = metricMonitorDuration("scheduling")
+	metricMonitoringNodes                  = metricMonitorDuration("nodes")
+	metricMonitoringContainers             = metricMonitorDuration("containers")
+	metricMonitoringVirtualMachines        = metricMonitorDuration("vms")
+	metricMonitoringJobUpdates             = metricMonitorDuration("job_updates")
+	metricMonitoringFetchJobs              = metricMonitorDuration("fetch_jobs")
+	metricMonitoringJobAccounting          = metricMonitorDuration("job_accounting")
+	metricMonitoringNodeCapacity           = metricMonitorDuration("node_capacity")
+	metricMonitoringSchedulingSync         = metricMonitorDuration("scheduling_sync")
+	metricMonitoringSchedulingStartJob     = metricMonitorDuration("scheduling_start_job")
+	metricMonitoringSchedulingTerminateJob = metricMonitorDuration("scheduling_terminate_job")
+	metricMonitoringSchedulingPlacement    = metricMonitorDuration("scheduling_placement")
 )
 
 func metricMonitorDuration(prop string) prometheus.Summary {

@@ -1,7 +1,12 @@
 package k8s
 
 import (
+	"encoding/json"
+	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"math"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -9,6 +14,7 @@ import (
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type SchedulerFlag int
@@ -24,7 +30,6 @@ type Scheduler struct {
 	Queue           []SchedulerQueueEntry
 	Replicas        []SchedulerReplicaEntry
 	Nodes           map[string]*SchedulerNode
-	Projects        map[string]*SchedulerProject
 	Time            int
 	WeightAge       float64
 	WeightFairShare float64
@@ -45,13 +50,60 @@ type Scheduler struct {
 	// of the resources allowing the remaining 99% to be burstable resources. It is not possible to guarantee less than
 	// 1% of the resource request.
 	//GuaranteedResourceFraction float64
+
+	DumpStateToFile util.Option[string]
+}
+
+var (
+	metricQueueEntryCount   = schedulerMetricGauge("queue_entries")
+	metricReplicaEntryCount = schedulerMetricGauge("replica_entries")
+	metricNodeCount         = schedulerMetricGauge("node_count")
+
+	metricPruneNodesDuration    = schedulerMetricSummary("prune_nodes")
+	metricPruneReplicasDuration = schedulerMetricSummary("prune_replicas")
+
+	metricRegisterNodeDuration    = schedulerMetricSummary("register_node")
+	metricRegisterReplicaDuration = schedulerMetricSummary("register_replica")
+	metricRegisterInQueueDuration = schedulerMetricSummary("register_in_queue")
+
+	metricSchedulerTotalDuration        = schedulerMetricSummary("scheduler_total")
+	metricSchedulerPriorityDuration     = schedulerMetricSummary("scheduler_priority")
+	metricSchedulerPrioritySortDuration = schedulerMetricSummary("scheduler_priority_sort")
+	metricSchedulerPlacementDuration    = schedulerMetricSummary("scheduler_placement")
+
+	metricSchedulerAttemptDuration = schedulerMetricSummary("scheduler_attempt")
+)
+
+const schedulerNameLabel = "scheduler"
+
+func schedulerMetricSummary(region string) *prometheus.SummaryVec {
+	return promauto.NewSummaryVec(prometheus.SummaryOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "scheduler",
+		Name:      fmt.Sprintf("scheduler_%s_seconds", region),
+		Help:      fmt.Sprintf("Summary of the duration (in seconds) it takes to run the region '%s' in the K8s scheduler.", region),
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	}, []string{schedulerNameLabel})
+}
+
+func schedulerMetricGauge(region string) *prometheus.GaugeVec {
+	return promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "scheduler",
+		Name:      fmt.Sprintf("scheduler_%s", region),
+		Help:      fmt.Sprintf("%s of the K8s scheduler.", region),
+	}, []string{schedulerNameLabel})
 }
 
 func NewScheduler(name string) *Scheduler {
 	return &Scheduler{
 		Name:            name,
 		Nodes:           make(map[string]*SchedulerNode),
-		Projects:        make(map[string]*SchedulerProject),
 		WeightAge:       1,
 		WeightFairShare: 1,
 		WeightJobSize:   1,
@@ -66,11 +118,6 @@ type SchedulerNode struct {
 	LastSeen        int
 	Unschedulable   bool
 	MaximumReplicas int // maximum number of replicas running on the node (regardless of reservations)
-}
-
-type SchedulerProject struct {
-	Usage uint64 // treeUsage
-	Quota uint64 // maxUsable + treeUsage (i.e. not the actual allocation quota)
 }
 
 type SchedulerQueueEntry struct {
@@ -103,6 +150,7 @@ type SchedulerReplicaEntry struct {
 }
 
 func (s *Scheduler) RegisterNode(name string, capacity, limits shared.SchedulerDimensions, unschedulable bool) {
+	timer := util.NewTimer()
 	existing, ok := s.Nodes[name]
 	if ok {
 		existing.LastSeen = s.Time
@@ -119,9 +167,11 @@ func (s *Scheduler) RegisterNode(name string, capacity, limits shared.SchedulerD
 		LastSeen:      s.Time,
 		Unschedulable: unschedulable,
 	}
+	metricRegisterNodeDuration.WithLabelValues(s.Name).Observe(timer.Mark().Seconds())
 }
 
 func (s *Scheduler) PruneNodes() []string {
+	timer := util.NewTimer()
 	var result []string
 
 	now := s.Time
@@ -133,6 +183,7 @@ func (s *Scheduler) PruneNodes() []string {
 		}
 	}
 
+	metricPruneNodesDuration.WithLabelValues(s.Name).Observe(timer.Mark().Seconds())
 	return result
 }
 
@@ -144,6 +195,7 @@ func (s *Scheduler) RegisterRunningReplica(
 	data any,
 	jobLength orc.SimpleDuration,
 ) {
+	timer := util.NewTimer()
 	now := s.Time
 	length := len(s.Replicas)
 	for i := 0; i < length; i++ {
@@ -169,9 +221,11 @@ func (s *Scheduler) RegisterRunningReplica(
 		Data:                data,
 		JobLength:           jobLength,
 	})
+	metricRegisterReplicaDuration.WithLabelValues(s.Name).Observe(timer.Mark().Seconds())
 }
 
 func (s *Scheduler) PruneReplicas() []SchedulerReplicaEntry {
+	timer := util.NewTimer()
 	var result []SchedulerReplicaEntry
 
 	now := s.Time
@@ -203,6 +257,7 @@ func (s *Scheduler) PruneReplicas() []SchedulerReplicaEntry {
 		s.Replicas = s.Replicas[:lastIdx]
 	}
 
+	metricPruneReplicasDuration.WithLabelValues(s.Name).Observe(timer.Mark().Seconds())
 	return result
 }
 
@@ -214,6 +269,7 @@ func (s *Scheduler) RegisterJobInQueue(
 	submittedAt fnd.Timestamp,
 	jobLength orc.SimpleDuration,
 ) {
+	timer := util.NewTimer()
 	if len(s.JobReplicaEntries(jobId)) == 0 && !s.JobInQueue(jobId) {
 		s.Queue = append(s.Queue, SchedulerQueueEntry{
 			JobId:               jobId,
@@ -225,6 +281,7 @@ func (s *Scheduler) RegisterJobInQueue(
 			JobLength:           jobLength,
 		})
 	}
+	metricRegisterInQueueDuration.WithLabelValues(s.Name).Observe(timer.Mark().Seconds())
 }
 
 func (s *Scheduler) UpdateTimeAllocation(jobId string, newJobLength orc.SimpleDuration) {
@@ -285,6 +342,13 @@ func (s *Scheduler) JobReplicaEntries(jobId string) []SchedulerReplicaEntry {
 }
 
 func (s *Scheduler) Schedule() []SchedulerReplicaEntry {
+	totalTimer := util.NewTimer()
+	defer func() {
+		metricSchedulerTotalDuration.WithLabelValues(s.Name).Observe(totalTimer.Mark().Seconds())
+	}()
+
+	timer := util.NewTimer()
+
 	var result []SchedulerReplicaEntry
 
 	now := s.Time
@@ -294,6 +358,8 @@ func (s *Scheduler) Schedule() []SchedulerReplicaEntry {
 		// Calculate factors and set priority
 		// -----------------------------------------------------------------------------------------------------------------
 		{
+			timer.Mark()
+
 			nowWallTime := time.Now()
 			minWallTimeInQueue := math.MaxFloat64
 			maxWallTimeInQueue := 0.0
@@ -357,10 +423,13 @@ func (s *Scheduler) Schedule() []SchedulerReplicaEntry {
 						s.WeightJobSize*entry.Factors.JobSize +
 						s.WeightFairShare*entry.Factors.FairShare
 			}
+
+			metricSchedulerPriorityDuration.WithLabelValues(s.Name).Observe(timer.Mark().Seconds())
 		}
 
 		// Sort jobs according to priority
 		// -----------------------------------------------------------------------------------------------------------------
+		timer.Mark()
 		slices.SortFunc(s.Queue, func(a, b SchedulerQueueEntry) int {
 			if a.Priority > b.Priority {
 				return -1
@@ -376,8 +445,10 @@ func (s *Scheduler) Schedule() []SchedulerReplicaEntry {
 				}
 			}
 		})
+		metricSchedulerPrioritySortDuration.WithLabelValues(s.Name).Observe(timer.Mark().Seconds())
 	}
 
+	timer.Mark()
 	var allNodes []*SchedulerNode
 	for _, node := range s.Nodes {
 		allNodes = append(allNodes, node)
@@ -413,12 +484,50 @@ func (s *Scheduler) Schedule() []SchedulerReplicaEntry {
 			break
 		}
 	}
+	metricSchedulerPlacementDuration.WithLabelValues(s.Name).Observe(timer.Mark().Seconds())
 
 	s.Time++
+	metricQueueEntryCount.WithLabelValues(s.Name).Set(float64(len(s.Queue)))
+	metricReplicaEntryCount.WithLabelValues(s.Name).Set(float64(len(s.Replicas)))
+	metricNodeCount.WithLabelValues(s.Name).Set(float64(len(s.Nodes)))
+
+	if s.DumpStateToFile.Present {
+		path := s.DumpStateToFile.Value
+		s.DumpStateToFile.Clear()
+
+		log.Info("Dumping state to %s", path)
+
+		safeWrapper := struct {
+			Name     string
+			Queue    []SchedulerQueueEntry
+			Replicas []SchedulerReplicaEntry
+			Nodes    map[string]*SchedulerNode
+			Time     int
+		}{}
+
+		safeWrapper.Name = s.Name
+		safeWrapper.Queue = s.Queue
+		safeWrapper.Replicas = s.Replicas
+		safeWrapper.Nodes = s.Nodes
+		safeWrapper.Time = s.Time
+
+		bytes, err := json.Marshal(safeWrapper)
+		if err == nil {
+			err = os.WriteFile(path, bytes, 0600)
+			if err != nil {
+				log.Warn("Err write: %s", err)
+			}
+		} else {
+			log.Warn("Err marshal: %s", err)
+		}
+	}
+
 	return result
 }
 
 func (s *Scheduler) trySchedule(entry *SchedulerQueueEntry, allNodes []*SchedulerNode) []string {
+	timer := util.NewTimer()
+
 	var allocatedNodes []string
 
 	hasJobCompaction := s.Flags&SchedulerDisableJobCompaction == 0
@@ -489,6 +598,7 @@ outer:
 		return nil
 	}
 
+	metricSchedulerAttemptDuration.WithLabelValues(s.Name).Observe(timer.Mark().Seconds())
 	return allocatedNodes
 }
 

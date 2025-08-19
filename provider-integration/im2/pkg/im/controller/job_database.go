@@ -178,6 +178,14 @@ func TrackNewJob(job orc.Job) {
 
 func trackJobUpdateServer(job *orc.Job) {
 	timer := util.NewTimer()
+	if len(job.Updates) > 64 {
+		var truncatedJobs []orc.JobUpdate
+		for i := len(job.Updates) - 64; i < len(job.Updates); i++ {
+			truncatedJobs = append(truncatedJobs, job.Updates[i])
+		}
+		job.Updates = truncatedJobs
+	}
+
 	jsonified, _ := json.Marshal(job)
 	metricTrackDatabaseMarshal.Observe(timer.Mark().Seconds())
 
