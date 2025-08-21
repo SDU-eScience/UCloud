@@ -289,6 +289,15 @@ const UIGlobalStyle = `
     --linkColorHover: var(--primaryDark);
     --linkColor: var(--primaryMain);
     --dialogToolbar: var(--gray-5);
+    
+    --purple-fg: var(--purple-60);
+    --red-fg: var(--red-60);
+    --orange-fg: var(--orange-60);
+    --yellow-fg: var(--yellow-60);
+    --green-fg: var(--green-60);
+    --gray-fg: var(--gray-60);
+    --blue-fg: var(--blue-60);
+    --pink-fg: var(--pink-60);
   }
   html.dark {
     --modalShadow: rgba(0, 0, 0, 0.75);
@@ -338,6 +347,15 @@ const UIGlobalStyle = `
     --linkColor: var(--blue-50);
     --linkColorHover: var(--blue-70);
     --dialogToolbar: var(--gray-90);
+    
+    --purple-fg: var(--purple-40);
+    --red-fg: var(--red-40);
+    --orange-fg: var(--orange-40);
+    --yellow-fg: var(--yellow-40);
+    --green-fg: var(--green-40);
+    --gray-fg: var(--gray-40);
+    --blue-fg: var(--blue-40);
+    --pink-fg: var(--pink-40);
   }
 
 html.light {
