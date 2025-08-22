@@ -28,7 +28,7 @@ const Playground: React.FunctionComponent = () => {
         return tick.ticks(100).map((t, index, arr) => ({date: t, value: [0, 1].includes(index % 4) ? 0 : 25}));
     }, []);
 
-    const stream = useRef(new JobViz.StreamProcessor("json"));
+    const stream = useRef(new JobViz.StreamProcessor());
 
     useEffect(() => {
         {

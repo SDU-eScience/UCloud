@@ -7,12 +7,12 @@ import {
     WidgetContainer,
     WidgetDiagramAxis,
     WidgetDiagramDefinition,
-    WidgetDiagramType,
     WidgetDiagramUnit,
     WidgetIcon,
     widgetIconToIcon,
     WidgetLabel,
-    WidgetProgressBar, WidgetSnippet,
+    WidgetProgressBar,
+    WidgetSnippet,
     WidgetTable,
     WidgetTableCellFlag,
     WidgetType,
@@ -28,7 +28,11 @@ import {dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {SillyParser} from "@/Utilities/SillyParser";
-import {useCallbackWithLogging, useDidUnmount} from "@/Utilities/ReactUtilities";
+import {useDidUnmount} from "@/Utilities/ReactUtilities";
+import {TemporalLineChart} from "@/ui-components/TemporalLineChart";
+
+const lineChartColors = ["blue", "green", "red", "purple", "red", "orange",
+    "yellow", "gray", "pink"];
 
 type WidgetState = Record<string, RuntimeWidget>;
 
@@ -59,6 +63,82 @@ export const Renderer: React.FunctionComponent<{
 
     useEffect(() => {
         const listeners: ((ev: unknown) => void)[] = [];
+
+        listeners.push(props.processor.on("appendRow", ({row, channel}) => {
+            const state = stateRef.current;
+            let stateIsKnown = false;
+            for (const [k, v] of Object.entries(state)) {
+                if (v.type == WidgetType.WidgetTypeLineChart) {
+                    const widget = v as RuntimeWidget<WidgetDiagramDefinition>;
+                    if (widget.spec.channel === channel) {
+                        stateIsKnown = true;
+                        break;
+                    }
+                }
+            }
+
+            if (stateIsKnown) {
+                mutateState(state => {
+                    const copied = {...state};
+
+                    for (const [k, v] of Object.entries(state)) {
+                        if (v.type == WidgetType.WidgetTypeLineChart) {
+                            const widget = v as RuntimeWidget<WidgetDiagramDefinition>;
+                            if (widget.spec.channel === channel) {
+                                const widgetCopy = {...widget, spec: {...widget.spec}};
+                                const spec = widgetCopy.spec;
+                                if (spec.data === undefined) {
+                                    spec.data = [];
+
+                                    let i = 0;
+                                    for (const series of spec.series) {
+                                        const color = i <= lineChartColors.length ? lineChartColors[i] : "currentColor";
+
+                                        spec.data.push({
+                                            name: series.name,
+                                            color,
+                                            data: [],
+                                        });
+                                        i++;
+                                    }
+                                } else if (spec.data.length < spec.series.length) {
+                                    spec.data = [...spec.data];
+                                    for (let i = spec.data.length; i < spec.series.length; i++) {
+                                        const series = spec.series[i];
+
+                                        const color = i <= lineChartColors.length ? lineChartColors[i] : "currentColor";
+
+                                        spec.data.push({
+                                            name: series.name,
+                                            color,
+                                            data: [],
+                                        });
+                                    }
+                                } else {
+                                    spec.data = [...spec.data];
+                                }
+
+                                for (let i = 0; i < spec.data.length; i++) {
+                                    const series = spec.series[i];
+                                    const line = spec.data[i];
+
+                                    // TODO cap
+                                    line.data = [...line.data];
+                                    line.data.push({
+                                        t: new Date(row[spec.yAxisColumn]),
+                                        v: row[series.column],
+                                    });
+                                }
+
+                                copied[k] = widgetCopy;
+                            }
+                        }
+                    }
+
+                    return copied;
+                });
+            }
+        }));
 
         listeners.push(props.processor.on("createAny", ev => {
             mutateState(state => {
@@ -91,46 +171,6 @@ export const Renderer: React.FunctionComponent<{
                 }
             });
         }));
-
-        listeners.push(props.processor.on("appendDiagramData", ev => {
-            mutateState(state => {
-                const existing = state[ev.id];
-                if (!existing || existing.type !== WidgetType.WidgetTypeDiagram) {
-                    return state;
-                } else {
-                    const copied = {...state};
-                    const newWidget = {...existing} as RuntimeWidget<WidgetDiagramDefinition>;
-                    newWidget.spec = {...newWidget.spec};
-                    copied[ev.id] = newWidget;
-
-                    const incomingData = ev.widget;
-                    const newSeries = [...(newWidget.spec.series ?? [])];
-                    newWidget.spec.series = newSeries;
-
-                    for (const incomingSeries of incomingData) {
-                        let found = false;
-                        for (let i = 0; i < newSeries.length; i++) {
-                            const existingSeries = newSeries[i];
-                            if (existingSeries.name === incomingSeries.name) {
-                                found = true;
-                                const transformedSeries = {...existingSeries};
-                                for (const row of incomingSeries.data) {
-                                    transformedSeries.data.push(row);
-                                }
-                                newSeries[i] = transformedSeries;
-                                break;
-                            }
-                        }
-
-                        if (!found) {
-                            newSeries.push(incomingSeries);
-                        }
-                    }
-
-                    return copied;
-                }
-            });
-        }))
 
         listeners.push(props.processor.on("updateProgress", ev => {
             mutateState(state => {
@@ -257,7 +297,9 @@ const RendererWidget: React.FunctionComponent<{
             return <RendererProgressBar widget={widget as RuntimeWidget<WidgetProgressBar>}/>;
         case WidgetType.WidgetTypeTable:
             return <RendererTable widget={widget as RuntimeWidget<WidgetTable>}/>;
-        case WidgetType.WidgetTypeDiagram:
+        case WidgetType.Tombstone1:
+            return null;
+        case WidgetType.WidgetTypeLineChart:
             return <RendererDiagram widget={widget as RuntimeWidget<WidgetDiagramDefinition>}/>;
         case WidgetType.WidgetTypeContainer:
             return <RendererContainer widget={widget as RuntimeWidget<WidgetContainer>} state={state}/>;
@@ -371,130 +413,63 @@ function dummyWidget<K>(type: WidgetType, spec: K): RuntimeWidget<K> {
 }
 
 const RendererDiagram: React.FunctionComponent<{ widget: RuntimeWidget<WidgetDiagramDefinition> }> = ({widget}) => {
-    let chartType: any = "line";
-    switch (widget.spec.type) {
-        case WidgetDiagramType.Area:
-            chartType = "area";
-            break;
-        case WidgetDiagramType.Bar:
-            chartType = "bar";
-            break;
-        case WidgetDiagramType.Line:
-            chartType = "line";
-            break;
-        case WidgetDiagramType.Pie:
-            chartType = "pie";
-            break;
-    }
+    const labelFormatter = useCallback((value: number, isAxis: boolean): string => {
+        switch (widget.spec.yAxis.unit) {
+            case WidgetDiagramUnit.GenericInt: {
+                return value.toFixed(0);
+            }
 
-    const apexOptions: ApexOptions = useMemo(() => {
-        const result: ApexOptions = {};
+            case WidgetDiagramUnit.GenericFloat: {
+                return value.toFixed(3);
+            }
 
-        const axisLabelFormatter = (widgetAxis: WidgetDiagramAxis): (textValue: number | string) => string => {
-            return textValue => {
-                const value = typeof textValue === "number" ? textValue : parseFloat(textValue);
-                if (isNaN(value)) return textValue.toString();
+            case WidgetDiagramUnit.GenericPercent1: {
+                return (value * 100).toFixed(isAxis ? 0 : 1) + "%";
+            }
 
-                switch (widgetAxis.unit) {
-                    case WidgetDiagramUnit.GenericInt: {
-                        return value.toFixed(0);
-                    }
+            case WidgetDiagramUnit.GenericPercent100: {
+                return value.toFixed(isAxis ? 0 : 1) + "%";
+            }
 
-                    case WidgetDiagramUnit.GenericFloat: {
-                        return value.toFixed(3);
-                    }
+            case WidgetDiagramUnit.Bytes: {
+                return sizeToString(value);
+            }
 
-                    case WidgetDiagramUnit.GenericPercent1: {
-                        return (value * 100).toFixed(2) + "%";
-                    }
+            case WidgetDiagramUnit.BytesPerSecond: {
+                return sizeToString(value) + "/s";
+            }
 
-                    case WidgetDiagramUnit.GenericPercent100: {
-                        return value.toFixed(2) + "%";
-                    }
+            case WidgetDiagramUnit.DateTime: {
+                return dateToTimeOfDayString(value);
+            }
 
-                    case WidgetDiagramUnit.Bytes: {
-                        return sizeToString(value);
-                    }
-
-                    case WidgetDiagramUnit.BytesPerSecond: {
-                        return sizeToString(value) + "/s";
-                    }
-
-                    case WidgetDiagramUnit.DateTime: {
-                        return dateToTimeOfDayString(value);
-                    }
-
-                    case WidgetDiagramUnit.Milliseconds: {
-                        if (value < 1000) {
-                            return `${value} milliseconds`;
-                        } else {
-                            const duration = intervalToDuration({start: 0, end: value});
-                            const msPart = value % 1000;
-                            if (msPart !== 0) {
-                                return formatDuration(duration) + " " + `${msPart} milliseconds`;
-                            } else {
-                                return formatDuration(duration);
-                            }
-                        }
-                    }
-
-                    case WidgetDiagramUnit.OperationsPerSecond: {
-                        return value.toString() + " op/s";
+            case WidgetDiagramUnit.Milliseconds: {
+                if (value < 1000) {
+                    return `${value} milliseconds`;
+                } else {
+                    const duration = intervalToDuration({start: 0, end: value});
+                    const msPart = value % 1000;
+                    if (msPart !== 0) {
+                        return formatDuration(duration) + " " + `${msPart} milliseconds`;
+                    } else {
+                        return formatDuration(duration);
                     }
                 }
             }
-        };
 
-        result.xaxis = {
-            type: widget.spec.xAxis.unit === WidgetDiagramUnit.DateTime ? "datetime" : "numeric",
-            labels: {
-                show: true,
-                formatter: axisLabelFormatter(widget.spec.xAxis)
-            },
-            min: widget.spec.xAxis.minimum ?? undefined,
-            max: widget.spec.xAxis.maximum ?? undefined,
-        };
-
-        result.yaxis = {
-            labels: {
-                show: true,
-                formatter: axisLabelFormatter(widget.spec.yAxis)
-            },
-            min: widget.spec.yAxis.minimum ?? undefined,
-            max: widget.spec.yAxis.maximum ?? undefined,
-            logarithmic: widget.spec.yAxis.logarithmic ?? undefined,
-        };
-
-        result.tooltip = {
-            theme: "dark",
-        };
-
-        return result;
-    }, [widget.spec.xAxis, widget.spec.yAxis, widget.spec.type]);
-
-    const apexSeries: ApexOptions["series"] = useMemo(() => {
-        return widget.spec.series.map(s => {
-            let data = s.data;
-            if (data.length > 500) {
-                data = s.data.slice(s.data.length - 500);
+            case WidgetDiagramUnit.OperationsPerSecond: {
+                return value.toString() + " op/s";
             }
+        }
+    }, [widget.spec.yAxis.unit]);
 
-            return {
-                name: s.name,
-                data: data.map(d => ({
-                    x: d.x,
-                    y: d.y,
-                })),
-            };
-        })
-    }, [widget.spec.series]);
-
-    return <Chart
-        options={apexOptions}
-        series={apexSeries}
-        type={chartType}
-        width={750}
+    return <TemporalLineChart
+        lines={widget.spec.data ?? []}
+        yTickFormatter={labelFormatter}
         height={150}
+        width={750}
+        spaceForLabel={200}
+        yDomain={[widget.spec.yAxis.minimum ?? 0, widget.spec.yAxis.maximum ?? 100]}
     />;
 };
 
