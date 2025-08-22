@@ -3,10 +3,9 @@ package ucmetrics
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"time"
-	"ucloud.dk/pkg/termio"
 	"ucloud.dk/pkg/ucviz"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -20,37 +19,80 @@ type VizDataPoint struct {
 	Y float64 `json:"y"`
 }
 
-const ioStatsEnabled = false
+const (
+	channelName  = "utilization-data"
+	elementCount = 64 // NOTE(Dan): Update follow function if changing this
+)
 
-func HandleCli(args []string) {
-	viz := len(args) == 1 && args[0] == "viz"
+func HandleCli() {
+	_ = log.SetLogFile("/tmp/ucmetrics.log")
+
+	log.Info("Hi!")
 
 	cpu, cpuErr := CpuSampleStart()
-
-	lastIo := time.Now()
-	ioStats, ioStatsErr := ReadIoStats()
 
 	lastNet := time.Now()
 	net := ReadAllNetworkUsage()
 
-	networkDefined := false
-	ioDefined := false
-	gpuDefined := false
+	var networkInterfacesUsed []string
 
-	first := true
+	type chartInfo struct {
+		Id         string
+		Title      string
+		Icon       string
+		Definition ucviz.WidgetLineChartDefinition
+	}
+
+	var previousCharts []chartInfo
+
+	serializer := util.FsRingSerializer[[]float64]{
+		Serialize: func(item []float64, buf *util.UBufferWriter) {
+			for _, elem := range item {
+				buf.WriteF64(elem)
+			}
+		},
+		Deserialize: func(buf *util.UBufferReader) []float64 {
+			result := make([]float64, elementCount)
+			for i := 0; i < elementCount; i++ {
+				result[i] = buf.ReadF64()
+			}
+			return result
+		},
+	}
+
+	ring, err := util.FsRingCreate(fmt.Sprintf("/work/.ucviz-%s", channelName), 256, 8*64+util.FsRingHeaderSize, serializer)
+	if err != nil {
+		panic(err)
+	}
 
 	for {
-		if !viz {
-			clearScreen := []byte("\033[2J\033[H") // ANSI escape code to clear and move to start
-			_, _ = os.Stdout.Write(clearScreen)
-		}
+		row := make([]float64, elementCount)
+		var charts []chartInfo
+		// cpu, memory use, mem total
+		// net rx, net tx (x2)
+		// gpu util, gpu mem use, gpu mem total (x16)
+		// = 55
+
+		nextCol := 0
+
+		row[nextCol] = float64(time.Now().UnixMilli())
+		nextCol++
 
 		if cpuErr == nil {
 			if cpuStats, err := cpu.End(); err == nil {
-				if first && viz {
-					data := ucviz.WidgetDiagramDefinition{
-						Type:   ucviz.WidgetDiagramLine,
-						Series: []ucviz.WidgetDiagramSeries{},
+				log.Info("cpu sample start")
+				charts = append(charts, chartInfo{
+					Id:    "cpu",
+					Title: "CPU utilization",
+					Icon:  "cpu",
+					Definition: ucviz.WidgetLineChartDefinition{
+						Channel: channelName,
+						Series: []ucviz.WidgetLineSeriesDefinition{
+							{
+								Name:   "CPU",
+								Column: nextCol,
+							},
+						},
 						XAxis: ucviz.WidgetDiagramAxis{
 							Unit: ucviz.UnitDateTime,
 						},
@@ -59,353 +101,261 @@ func HandleCli(args []string) {
 							Minimum: util.OptValue(0.0),
 							Maximum: util.OptValue(cpuStats.Limit),
 						},
-					}
+						YAxisColumn: 0,
+					},
+				})
 
-					jsonData, _ := json.Marshal(data)
-					util.RunCommand([]string{
-						"/opt/ucloud/ucviz",
-						"widget",
-						fmt.Sprintf(`<Chart id="cpu" tab="CPU utilization" icon="cpu">%s</Chart>`, string(jsonData)),
-					})
-				}
-				if viz {
-					ms := time.Now().UnixMilli()
-					data := []ucviz.WidgetDiagramSeries{
-						{
-							Name: "CPU utilization",
-							Data: []ucviz.WidgetDiagramDataPoint{
-								{
-									X: float64(ms),
-									Y: cpuStats.Usage,
-								},
-							},
-						},
-					}
-
-					jsonData, _ := json.Marshal(data)
-
-					util.RunCommand([]string{
-						"/opt/ucloud/ucviz",
-						"append-data",
-						"cpu",
-						string(jsonData),
-					})
-				} else {
-					termio.WriteStyledLine(termio.Bold, 0, 0, "CPU usage: %.2f%%", cpuStats.Usage)
-					termio.WriteStyledLine(termio.Bold, 0, 0, "CPU limit: %.2f%%", cpuStats.Limit)
-				}
+				row[nextCol] = cpuStats.Usage
+				nextCol++
 			}
 		}
 		cpu, cpuErr = CpuSampleStart()
+		log.Info("cpu sample ok")
 
 		{
 			memory := ReadMemoryUsage()
-			if viz {
-				if first {
-					memoryLimit := ReadMemoryLimit()
-					data := ucviz.WidgetDiagramDefinition{
-						Type:   ucviz.WidgetDiagramLine,
-						Series: []ucviz.WidgetDiagramSeries{},
-						XAxis: ucviz.WidgetDiagramAxis{
-							Unit: ucviz.UnitDateTime,
-						},
-						YAxis: ucviz.WidgetDiagramAxis{
-							Unit:    ucviz.UnitBytes,
-							Minimum: util.OptValue(0.0),
-							Maximum: util.OptValue(float64(memoryLimit)),
-						},
-					}
-
-					jsonData, _ := json.Marshal(data)
-					util.RunCommand([]string{
-						"/opt/ucloud/ucviz",
-						"widget",
-						fmt.Sprintf(`<Chart id="memory" icon="memory" tab="Memory">%s</Chart>`, string(jsonData)),
-					})
-				}
-
-				ms := time.Now().UnixMilli()
-				data := []ucviz.WidgetDiagramSeries{
-					{
-						Name: "Memory used",
-						Data: []ucviz.WidgetDiagramDataPoint{
-							{
-								X: float64(ms),
-								Y: float64(memory),
-							},
+			memoryLimit := ReadMemoryLimit()
+			charts = append(charts, chartInfo{
+				Id:    "memory",
+				Title: "Memory",
+				Icon:  "memory",
+				Definition: ucviz.WidgetLineChartDefinition{
+					Channel: channelName,
+					Series: []ucviz.WidgetLineSeriesDefinition{
+						{
+							Name:   "Memory",
+							Column: 2,
 						},
 					},
-				}
+					XAxis: ucviz.WidgetDiagramAxis{
+						Unit: ucviz.UnitDateTime,
+					},
+					YAxis: ucviz.WidgetDiagramAxis{
+						Unit:    ucviz.UnitBytes,
+						Minimum: util.OptValue(0.0),
+						Maximum: util.OptValue(float64(memoryLimit)),
+					},
+					YAxisColumn: 0,
+				},
+			})
 
-				jsonData, _ := json.Marshal(data)
-
-				util.RunCommand([]string{
-					"/opt/ucloud/ucviz",
-					"append-data",
-					"memory",
-					string(jsonData),
-				})
-			} else {
-				termio.WriteStyledLine(termio.Bold, 0, 0, "Memory: %v bytes", memory)
-			}
+			row[nextCol] = float64(memory)
+			nextCol++
 		}
-
-		if ioStatsEnabled {
-			if ioStatsErr == nil {
-				beforeStats := ioStats
-				now := time.Now()
-				ioTime := now.Sub(lastIo)
-				lastIo = now
-				ioStats, ioStatsErr = ReadIoStats()
-
-				if ioStatsErr == nil && !first {
-					readBytesPerSec := float64(ioStats.Read-beforeStats.Read) / ioTime.Seconds()
-					writeBytesPerSec := float64(ioStats.Write-beforeStats.Write) / ioTime.Seconds()
-					if viz {
-						if !ioDefined {
-							ioDefined = true
-							data := ucviz.WidgetDiagramDefinition{
-								Type:   ucviz.WidgetDiagramLine,
-								Series: []ucviz.WidgetDiagramSeries{},
-								XAxis: ucviz.WidgetDiagramAxis{
-									Unit: ucviz.UnitDateTime,
-								},
-								YAxis: ucviz.WidgetDiagramAxis{
-									Unit: ucviz.UnitBytesPerSecond,
-								},
-							}
-
-							jsonData, _ := json.Marshal(data)
-							util.RunCommand([]string{
-								"/opt/ucloud/ucviz",
-								"widget",
-								fmt.Sprintf(`<Chart id="io" icon="directory" tab="File IO">%s</Chart>`, string(jsonData)),
-							})
-						}
-
-						ms := time.Now().UnixMilli()
-						data := []ucviz.WidgetDiagramSeries{
-							{
-								Name: "Read",
-								Data: []ucviz.WidgetDiagramDataPoint{
-									{
-										X: float64(ms),
-										Y: float64(readBytesPerSec),
-									},
-								},
-							},
-							{
-								Name: "Write",
-								Data: []ucviz.WidgetDiagramDataPoint{
-									{
-										X: float64(ms),
-										Y: float64(writeBytesPerSec),
-									},
-								},
-							},
-						}
-
-						jsonData, _ := json.Marshal(data)
-
-						util.RunCommand([]string{
-							"/opt/ucloud/ucviz",
-							"append-data",
-							"io",
-							string(jsonData),
-						})
-					} else {
-						termio.WriteStyledLine(termio.Bold, 0, 0, "IO read: %.2f bytes/second", readBytesPerSec)
-						termio.WriteStyledLine(termio.Bold, 0, 0, "IO write: %.2f bytes/second", writeBytesPerSec)
-					}
-				}
-			} else {
-				lastIo = time.Now()
-				ioStats, ioStatsErr = ReadIoStats()
-			}
-		}
+		log.Info("memory ok")
 
 		{
+			networkInterfacesUsed = nil
+
 			beforeNet := net
 			now := time.Now()
 			netTime := now.Sub(lastNet)
 			lastNet = now
 			net = ReadAllNetworkUsage()
 
-			if !first {
-				if viz {
-					if !networkDefined {
-						networkDefined = true
-						data := ucviz.WidgetDiagramDefinition{
-							Type:   ucviz.WidgetDiagramLine,
-							Series: []ucviz.WidgetDiagramSeries{},
-							XAxis: ucviz.WidgetDiagramAxis{
-								Unit: ucviz.UnitDateTime,
-							},
-							YAxis: ucviz.WidgetDiagramAxis{
-								Unit: ucviz.UnitBytesPerSecond,
-							},
-						}
+			data := ucviz.WidgetLineChartDefinition{
+				Channel: channelName,
+				Series:  []ucviz.WidgetLineSeriesDefinition{},
+				XAxis: ucviz.WidgetDiagramAxis{
+					Unit: ucviz.UnitDateTime,
+				},
+				YAxis: ucviz.WidgetDiagramAxis{
+					Unit: ucviz.UnitBytesPerSecond,
+				},
+				YAxisColumn: 0,
+			}
 
-						jsonData, _ := json.Marshal(data)
-						util.RunCommand([]string{
-							"/opt/ucloud/ucviz",
-							"widget",
-							fmt.Sprintf(`<Chart id="network" icon="network" tab="Network">%s</Chart>`, string(jsonData)),
-						})
-					}
+			i := 0
+			for name, _ := range beforeNet {
+				if i >= 2 {
+					break
+				}
 
-					ms := time.Now().UnixMilli()
-					var data []ucviz.WidgetDiagramSeries
-					for name, before := range beforeNet {
-						after, ok := net[name]
-						if !ok {
-							continue
-						}
+				data.Series = append(data.Series, ucviz.WidgetLineSeriesDefinition{
+					Name:   fmt.Sprintf("%s receive", name),
+					Column: nextCol + (i * 2) + 0,
+				})
 
-						readBytesPerSec := float64(after.Read-before.Read) / netTime.Seconds()
-						writeBytesPerSec := float64(after.Write-before.Write) / netTime.Seconds()
-						data = append(data, ucviz.WidgetDiagramSeries{
-							Name: fmt.Sprintf("%s receive", name),
-							Data: []ucviz.WidgetDiagramDataPoint{
-								{
-									X: float64(ms),
-									Y: readBytesPerSec,
-								},
-							},
-						})
-						data = append(data, ucviz.WidgetDiagramSeries{
-							Name: fmt.Sprintf("%s send", name),
-							Data: []ucviz.WidgetDiagramDataPoint{
-								{
-									X: float64(ms),
-									Y: writeBytesPerSec,
-								},
-							},
-						})
-					}
+				data.Series = append(data.Series, ucviz.WidgetLineSeriesDefinition{
+					Name:   fmt.Sprintf("%s transmit", name),
+					Column: nextCol + (i * 2) + 1,
+				})
 
-					jsonData, _ := json.Marshal(data)
+				networkInterfacesUsed = append(networkInterfacesUsed, name)
 
-					util.RunCommand([]string{
-						"/opt/ucloud/ucviz",
-						"append-data",
-						"network",
-						string(jsonData),
-					})
+				i++
+			}
+
+			charts = append(charts, chartInfo{
+				Id:         "network",
+				Title:      "Network",
+				Icon:       "network",
+				Definition: data,
+			})
+
+			for _, name := range networkInterfacesUsed {
+				before, ok1 := beforeNet[name]
+				after, ok2 := net[name]
+				if ok1 && ok2 {
+					receiveBytesPerSec := float64(after.Read-before.Read) / netTime.Seconds()
+					transmitBytesPerSec := float64(after.Write-before.Write) / netTime.Seconds()
+
+					row[nextCol] = receiveBytesPerSec
+					nextCol++
+
+					row[nextCol] = transmitBytesPerSec
+					nextCol++
+				} else {
+					nextCol += 2
 				}
 			}
 		}
+		log.Info("memory ok")
 
 		gpu := ReadNvidiaGpuUsage()
 		if len(gpu) > 0 {
-			if viz && !gpuDefined {
-				gpuDefined = true
-				{
-					data := ucviz.WidgetDiagramDefinition{
-						Type:   ucviz.WidgetDiagramLine,
-						Series: []ucviz.WidgetDiagramSeries{},
-						XAxis: ucviz.WidgetDiagramAxis{
-							Unit: ucviz.UnitDateTime,
-						},
-						YAxis: ucviz.WidgetDiagramAxis{
-							Unit:    ucviz.UnitGenericPercent100,
-							Minimum: util.OptValue(0.0),
-							Maximum: util.OptValue(100.0),
-						},
+			{
+				utilData := ucviz.WidgetLineChartDefinition{
+					Channel: channelName,
+					Series:  []ucviz.WidgetLineSeriesDefinition{},
+					XAxis: ucviz.WidgetDiagramAxis{
+						Unit: ucviz.UnitDateTime,
+					},
+					YAxis: ucviz.WidgetDiagramAxis{
+						Unit:    ucviz.UnitGenericPercent100,
+						Minimum: util.OptValue(0.0),
+						Maximum: util.OptValue(100.0),
+					},
+					YAxisColumn: 0,
+				}
+
+				maxMemory := uint64(0)
+				for _, g := range gpu {
+					totalMem := g.MemoryTotalBytes * 1024 * 1024
+					if totalMem > maxMemory {
+						maxMemory = totalMem
+					}
+				}
+
+				memoryData := ucviz.WidgetLineChartDefinition{
+					Channel: channelName,
+					Series:  []ucviz.WidgetLineSeriesDefinition{},
+					XAxis: ucviz.WidgetDiagramAxis{
+						Unit: ucviz.UnitDateTime,
+					},
+					YAxis: ucviz.WidgetDiagramAxis{
+						Unit:    ucviz.UnitBytes,
+						Minimum: util.OptValue(0.0),
+						Maximum: util.OptValue(float64(maxMemory)),
+					},
+					YAxisColumn: 0,
+				}
+
+				for i, _ := range gpu {
+					if i >= 16 {
+						break
 					}
 
-					jsonData, _ := json.Marshal(data)
-					util.RunCommand([]string{
-						"/opt/ucloud/ucviz",
-						"widget",
-						fmt.Sprintf(`<Chart id="gpu-util" icon="gpu" tab="GPU utilization">%s</Chart>`, string(jsonData)),
+					utilData.Series = append(utilData.Series, ucviz.WidgetLineSeriesDefinition{
+						Name:   fmt.Sprintf("GPU %d", i+1),
+						Column: nextCol + (i * 2) + 0,
+					})
+
+					memoryData.Series = append(utilData.Series, ucviz.WidgetLineSeriesDefinition{
+						Name:   fmt.Sprintf("GPU %d", i+1),
+						Column: nextCol + (i * 2) + 1,
 					})
 				}
-				{
-					maxMemory := uint64(0)
-					for _, g := range gpu {
-						totalMem := g.MemoryTotalBytes * 1024 * 1024
-						if totalMem > maxMemory {
-							maxMemory = totalMem
-						}
-					}
 
-					data := ucviz.WidgetDiagramDefinition{
-						Type:   ucviz.WidgetDiagramLine,
-						Series: []ucviz.WidgetDiagramSeries{},
-						XAxis: ucviz.WidgetDiagramAxis{
-							Unit: ucviz.UnitDateTime,
-						},
-						YAxis: ucviz.WidgetDiagramAxis{
-							Unit:    ucviz.UnitBytes,
-							Minimum: util.OptValue(0.0),
-							Maximum: util.OptValue(float64(maxMemory)),
-						},
-					}
+				charts = append(charts, chartInfo{
+					Id:         "gpu-util",
+					Title:      "GPU utilization",
+					Icon:       "gpu",
+					Definition: utilData,
+				})
 
-					jsonData, _ := json.Marshal(data)
-					util.RunCommand([]string{
-						"/opt/ucloud/ucviz",
-						"widget",
-						fmt.Sprintf(`<Chart id="gpu-mem" icon="gpu" tab="GPU memory">%s</Chart>`, string(jsonData)),
-					})
-				}
+				charts = append(charts, chartInfo{
+					Id:         "gpu-memory",
+					Title:      "GPU memory",
+					Icon:       "gpu",
+					Definition: memoryData,
+				})
 			}
-
-			ms := time.Now().UnixMilli()
-			var utilData []ucviz.WidgetDiagramSeries
-			var memData []ucviz.WidgetDiagramSeries
 
 			for i, stat := range gpu {
-				if viz {
-					gpuName := fmt.Sprintf("GPU %d", i+1)
-					utilData = append(utilData, ucviz.WidgetDiagramSeries{
-						Name: gpuName,
-						Data: []ucviz.WidgetDiagramDataPoint{
-							{
-								X: float64(ms),
-								Y: stat.Utilization,
-							},
-						},
-					})
-
-					memData = append(memData, ucviz.WidgetDiagramSeries{
-						Name: gpuName,
-						Data: []ucviz.WidgetDiagramDataPoint{
-							{
-								X: float64(ms),
-								Y: float64(stat.MemoryUsedBytes * 1024 * 1024),
-							},
-						},
-					})
-				} else {
-					termio.WriteStyledLine(termio.Bold, 0, 0, "GPU %d: %v %v %v", i, stat.Utilization, stat.MemoryUsedBytes, stat.MemoryTotalBytes)
+				if i >= 16 {
+					break
 				}
+
+				row[nextCol] = stat.Utilization
+				nextCol++
+
+				row[nextCol] = float64(stat.MemoryUsedBytes)
+				nextCol++
 			}
+		}
+		log.Info("nvidia ok")
 
-			if viz {
-				{
-					jsonData, _ := json.Marshal(utilData)
-					util.RunCommand([]string{
-						"/opt/ucloud/ucviz",
-						"append-data",
-						"gpu-util",
-						string(jsonData),
-					})
+		didChangeCharts := false
+		if len(charts) != len(previousCharts) {
+			log.Info("Chart change 1")
+			didChangeCharts = true
+		} else {
+			for i := 0; i < len(charts); i++ {
+				a := previousCharts[i]
+				b := charts[i]
+
+				if a.Id != b.Id {
+					log.Info("Chart change 1")
+					didChangeCharts = true
+					break
 				}
-				{
-					jsonData, _ := json.Marshal(memData)
-					util.RunCommand([]string{
-						"/opt/ucloud/ucviz",
-						"append-data",
-						"gpu-mem",
-						string(jsonData),
-					})
+
+				if a.Title != b.Title {
+					log.Info("Chart change 2")
+					didChangeCharts = true
+					break
+				}
+
+				if a.Icon != b.Icon {
+					log.Info("Chart change 3")
+					didChangeCharts = true
+					break
+				}
+
+				if len(a.Definition.Series) != len(b.Definition.Series) {
+					log.Info("Chart change 4")
+					didChangeCharts = true
+					break
 				}
 			}
 		}
 
-		first = false
-		time.Sleep(2 * time.Second)
+		if didChangeCharts {
+			for _, chart := range charts {
+				jsonData, _ := json.Marshal(chart.Definition)
+				util.RunCommand([]string{
+					"/opt/ucloud/ucviz",
+					"widget",
+					fmt.Sprintf(
+						`<LineChart id="%s" icon="%s" tab="%s">%s</LineChart>`,
+						chart.Id,
+						chart.Icon,
+						chart.Title,
+						string(jsonData),
+					),
+				})
+			}
+		}
+
+		err := ring.Write(row)
+		if err != nil {
+			log.Info("ring write error: %s", err)
+		} else {
+			log.Info("Ring write OK")
+		}
+
+		previousCharts = charts
+		time.Sleep(250 * time.Millisecond)
 	}
 }

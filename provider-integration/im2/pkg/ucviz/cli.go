@@ -67,7 +67,7 @@ func HandleCli(args []string, uiChannel io.Writer, dataChannel io.Writer, lock u
 		}
 
 		dataChannelB := &bytes.Buffer{}
-		dataChannelS := NewWidgetStream(dataChannelB, WidgetStreamJson)
+		dataChannelS := NewWidgetStream(dataChannelB)
 		dataChannelS.UpdateProgress(id, percentage)
 		_, _ = dataChannel.Write(dataChannelB.Bytes())
 
@@ -109,27 +109,8 @@ func HandleCli(args []string, uiChannel io.Writer, dataChannel io.Writer, lock u
 		}
 
 		dataChannelB := &bytes.Buffer{}
-		dataChannelS := NewWidgetStream(dataChannelB, WidgetStreamJson)
+		dataChannelS := NewWidgetStream(dataChannelB)
 		dataChannelS.AppendTableRows(id, rows)
-		_, _ = dataChannel.Write(dataChannelB.Bytes())
-
-	case "append-data":
-		if len(args) != 3 {
-			printCliHelp("Usage: ucviz append-data <id> <data>")
-		}
-
-		id := args[1]
-		dataRaw := args[2]
-
-		var data []WidgetDiagramSeries
-		err := json.Unmarshal([]byte(dataRaw), &data)
-		if err != nil {
-			printCliHelp(fmt.Sprintf("Invalid data specified: %s", err))
-		}
-
-		dataChannelB := &bytes.Buffer{}
-		dataChannelS := NewWidgetStream(dataChannelB, WidgetStreamJson)
-		dataChannelS.AppendDiagramData(id, data)
 		_, _ = dataChannel.Write(dataChannelB.Bytes())
 	}
 }
@@ -144,8 +125,8 @@ func printCliHelp(reason string) {
 func cliWidget(docText string) (ui []byte, data []byte, err error) {
 	uiChannelB := &bytes.Buffer{}
 	dataChannelB := &bytes.Buffer{}
-	uiChannel := NewWidgetStream(uiChannelB, WidgetStreamJson)
-	dataChannel := NewWidgetStream(dataChannelB, WidgetStreamJson)
+	uiChannel := NewWidgetStream(uiChannelB)
+	dataChannel := NewWidgetStream(dataChannelB)
 
 	p := NewParser(docText)
 	node, err, _ := p.Parse()
@@ -291,17 +272,17 @@ func processNode(uiChannel *WidgetStream, dataChannel *WidgetStream, p *Parser, 
 		}
 		uiChannel.CreateProgressBar(id, loc, progress)
 
-	case "Chart":
+	case "LineChart":
 		textExpected = true
 		childrenAllowed = false
 
-		var definition WidgetDiagramDefinition
+		var definition WidgetLineChartDefinition
 		err := json.Unmarshal([]byte(node.Text), &definition)
 		if err != nil {
 			return "", p.errorAt(node.Location, "Invalid definition provided: %s", err)
 		}
 
-		uiChannel.CreateDiagram(id, loc, definition)
+		uiChannel.CreateLineChart(id, loc, definition)
 
 	case "CodeSnippet":
 		childrenAllowed = false

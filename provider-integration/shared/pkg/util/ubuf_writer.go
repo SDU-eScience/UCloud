@@ -3,6 +3,7 @@ package util
 import (
 	"encoding/binary"
 	"io"
+	"math"
 )
 
 // NOTE(Dan): This is a simple wrapper around a buffer providing convenient functions for dealing with binary messages
@@ -87,4 +88,12 @@ func (b *UBufferWriter) WriteBytes(val []byte) {
 	if err != nil {
 		b.Error = err
 	}
+}
+
+func (b *UBufferWriter) WriteF32(value float32) {
+	b.WriteU32(math.Float32bits(value))
+}
+
+func (b *UBufferWriter) WriteF64(value float64) {
+	b.WriteU64(math.Float64bits(value))
 }
