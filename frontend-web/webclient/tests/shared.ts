@@ -25,6 +25,10 @@ export function ucloudUrl(pathname: string) {
 }
 
 export const Folder = {
+    newFolderName(): string {
+        return "FolderName" + Math.random().toString().slice(2, 7);
+    },
+
     async create(page: Page, name: string) {
         expect(page.url().includes("/files?path=")).toBeTruthy();
         await page.getByText('Create folder').click();
@@ -40,8 +44,13 @@ export const Folder = {
 }
 
 export const Drive = {
+    newDriveName(): string {
+        return "DriveName" + Math.random().toString().slice(2, 7);
+    },
+
     async create(page: Page, name: string) {
         await page.getByRole('link', {name: 'Go to Files'}).click();
+        await Components.projectSwitcher(page, "HOVER");
         await page.getByText('Create drive').click();
         await page.getByRole('textbox', {name: 'Choose a name*'}).fill(name);
         await page.getByRole('button', {name: 'Create', disabled: false}).click();
@@ -66,3 +75,19 @@ export const Drive = {
         await page.getByText('Properties').click();
     }
 };
+
+export const Components = {
+    async projectSwitcher(page: Page, action: "CLICK" | "HOVER") {
+        const loc = page.locator("div.project-switcher").first();
+        switch (action) {
+            case "CLICK": {
+                await loc.click();
+                break;
+            }
+            case "HOVER": {
+                await loc.hover();
+                break;
+            }
+        }
+    }
+}

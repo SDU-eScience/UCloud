@@ -8,7 +8,7 @@ test.beforeEach(async ({page}) => {
 /// Drive operations
 
 test('Create and delete drive (with available resources)', async ({page}) => {
-    const driveName = "DriveName" + `${(Math.random() * 100_000)}`.slice(0, 4);
+    const driveName = Drive.newDriveName();
     await Drive.create(page, driveName);
     await expect(page.locator('div > span').filter({hasText: driveName})).toHaveCount(1);
     await Drive.delete(page, driveName);
@@ -16,7 +16,7 @@ test('Create and delete drive (with available resources)', async ({page}) => {
 });
 
 test('Rename drive', async ({page}) => {
-    const driveName = "DriveName" + `${(Math.random() * 100_000)}`.slice(0, 4);
+    const driveName = Drive.newDriveName();
     const newDriveName = "NewDriveName" + `${(Math.random() * 100_000)}`.slice(0, 4);
     await Drive.create(page, driveName);
     await expect(page.locator('div > span').filter({hasText: driveName})).toHaveCount(1);
@@ -27,7 +27,7 @@ test('Rename drive', async ({page}) => {
 });
 
 test('View properties', async ({page}) => {
-    const driveName = "DriveName" + `${(Math.random() * 100_000)}`.slice(0, 5);
+    const driveName = Drive.newDriveName();
     await Drive.create(page, driveName);
     await expect(page.locator('div > span').filter({hasText: driveName})).toHaveCount(1);
     await Drive.properties(page, driveName);
