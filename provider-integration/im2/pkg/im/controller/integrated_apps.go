@@ -21,7 +21,7 @@ type iappConfigKey struct {
 }
 
 var iappConfigs = map[iappConfigKey]IAppRunningConfiguration{}
-var iappConfigsMutex = sync.Mutex{} // lock order is activeJobsMutex -> iappConfigsMutex
+var iappConfigsMutex = sync.Mutex{}
 
 type IntegratedApplicationFlag int
 

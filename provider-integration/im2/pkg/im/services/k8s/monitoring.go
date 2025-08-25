@@ -353,6 +353,15 @@ func loopMonitoring() {
 	batchResults := tracker.batch.End()
 	metricMonitoring.WithLabelValues("EndBatch").Observe(timer.Mark().Seconds())
 
+	timer.Mark()
+	for _, job := range activeJobs {
+		expiresAt := job.Status.ExpiresAt.GetOrDefault(fnd.Timestamp(now))
+		if now.After(expiresAt.Time()) {
+			tracker.batch.TrackState(job.Id, orc.JobStateExpired, util.OptNone[string]())
+		}
+	}
+	metricMonitoring.WithLabelValues("ExpirationLoop").Observe(timer.Mark().Seconds())
+
 	// Side-effects from job monitoring
 	// -----------------------------------------------------------------------------------------------------------------
 	timer.Mark()
@@ -382,41 +391,39 @@ func loopMonitoring() {
 		metricMonitoring.WithLabelValues("JobUpdates").Observe(timer.Mark().Seconds())
 	}
 
-	go func() {
-		for _, jobId := range tracker.terminationRequested {
-			job, ok := ctrl.RetrieveJob(jobId)
-			if ok {
-				_ = terminate(ctrl.JobTerminateRequest{Job: job, IsCleanup: true})
+	for _, jobId := range tracker.terminationRequested {
+		job, ok := ctrl.RetrieveJob(jobId)
+		if ok {
+			_ = terminate(ctrl.JobTerminateRequest{Job: job, IsCleanup: true})
+		}
+	}
+
+	for _, jobId := range batchResults.TerminatedDueToUnknownState {
+		job, ok := ctrl.RetrieveJob(jobId)
+		if ok {
+			_ = terminate(ctrl.JobTerminateRequest{Job: job, IsCleanup: true})
+		}
+	}
+
+	var kubevirtStarted []orc.Job
+	var containersStarted []orc.Job
+	for _, jobId := range batchResults.NormalStart {
+		job, ok := ctrl.RetrieveJob(jobId)
+		if ok {
+			if backendIsKubevirt(job) {
+				kubevirtStarted = append(kubevirtStarted, *job)
+			} else if backendIsContainers(job) {
+				containersStarted = append(containersStarted, *job)
 			}
 		}
+	}
 
-		for _, jobId := range batchResults.TerminatedDueToUnknownState {
-			job, ok := ctrl.RetrieveJob(jobId)
-			if ok {
-				_ = terminate(ctrl.JobTerminateRequest{Job: job, IsCleanup: true})
-			}
-		}
-
-		var kubevirtStarted []orc.Job
-		var containersStarted []orc.Job
-		for _, jobId := range batchResults.NormalStart {
-			job, ok := ctrl.RetrieveJob(jobId)
-			if ok {
-				if backendIsKubevirt(job) {
-					kubevirtStarted = append(kubevirtStarted, *job)
-				} else if backendIsContainers(job) {
-					containersStarted = append(containersStarted, *job)
-				}
-			}
-		}
-
-		if len(containersStarted) > 0 {
-			containers.OnStart(containersStarted)
-		}
-		if len(kubevirtStarted) > 0 {
-			kubevirt.OnStart(kubevirtStarted)
-		}
-	}()
+	if len(containersStarted) > 0 {
+		containers.OnStart(containersStarted)
+	}
+	if len(kubevirtStarted) > 0 {
+		kubevirt.OnStart(kubevirtStarted)
+	}
 
 	// Accounting
 	// -----------------------------------------------------------------------------------------------------------------
