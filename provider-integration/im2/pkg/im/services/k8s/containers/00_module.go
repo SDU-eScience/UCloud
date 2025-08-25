@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -168,6 +169,12 @@ func follow(session *ctrl.FollowJobSession) {
 		if !exists {
 			stdout, ok1 := filesystem.OpenFile(filepath.Join(jobFolder, baseName), unix.O_RDONLY, 0)
 			if ok1 {
+				sinfo, err := stdout.Stat()
+				if err == nil {
+					if sinfo.Size() > 1024*256 {
+						_, _ = stdout.Seek(sinfo.Size()-1024*256, io.SeekStart)
+					}
+				}
 				file.File = stdout
 				logFiles[baseName] = file
 			}
@@ -239,7 +246,7 @@ func follow(session *ctrl.FollowJobSession) {
 				utilizationDataTracked = true
 
 				go func() {
-					_ = ring.Follow(context.Background(), utilizationChannel, 128)
+					_ = ring.Follow(context.Background(), utilizationChannel, 256)
 					util.SilentClose(ring)
 				}()
 			}

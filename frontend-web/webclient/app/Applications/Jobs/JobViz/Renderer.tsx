@@ -5,7 +5,6 @@ import {
     WidgetColorShade,
     widgetColorToVariable,
     WidgetContainer,
-    WidgetDiagramAxis,
     WidgetDiagramDefinition,
     WidgetDiagramUnit,
     WidgetIcon,
@@ -20,8 +19,6 @@ import {
 } from "@/Applications/Jobs/JobViz/index";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import Progress from "@/ui-components/Progress";
-import Chart from "react-apexcharts";
-import {ApexOptions} from "apexcharts";
 import {sizeToString} from "@/Utilities/FileUtilities";
 import {formatDuration, intervalToDuration} from "date-fns";
 import {dateToTimeOfDayString} from "@/Utilities/DateUtilities";
@@ -29,7 +26,8 @@ import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {SillyParser} from "@/Utilities/SillyParser";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import {TemporalLineChart} from "@/ui-components/TemporalLineChart";
+import {Line, TemporalLineChart} from "@/ui-components/TemporalLineChart";
+import {produce} from "immer";
 
 const lineChartColors = ["blue", "green", "red", "purple", "red", "orange",
     "yellow", "gray", "pink"];
@@ -49,8 +47,9 @@ export const Renderer: React.FunctionComponent<{
 
     const dispatchId = useRef(-1);
     const stateRef = useRef<WidgetState>({});
-    const mutateState = useCallback((mutator: (state: WidgetState) => WidgetState) => {
-        stateRef.current = mutator(stateRef.current);
+
+    const mutateState = useCallback((mutator: (state: WidgetState) => void) => {
+        stateRef.current = produce(stateRef.current, mutator);
         if (dispatchId.current === -1) {
             dispatchId.current = window.setTimeout(() => {
                 if (!didCancel.current) {
@@ -79,20 +78,18 @@ export const Renderer: React.FunctionComponent<{
 
             if (stateIsKnown) {
                 mutateState(state => {
-                    const copied = {...state};
-
-                    for (const [k, v] of Object.entries(state)) {
+                    for (const v of Object.values(state)) {
                         if (v.type == WidgetType.WidgetTypeLineChart) {
                             const widget = v as RuntimeWidget<WidgetDiagramDefinition>;
                             if (widget.spec.channel === channel) {
-                                const widgetCopy = {...widget, spec: {...widget.spec}};
-                                const spec = widgetCopy.spec;
+                                const spec = widget.spec;
+
                                 if (spec.data === undefined) {
                                     spec.data = [];
 
                                     let i = 0;
                                     for (const series of spec.series) {
-                                        const color = i <= lineChartColors.length ? lineChartColors[i] : "currentColor";
+                                        const color = i < lineChartColors.length ? `var(--${lineChartColors[i]}-fg)` : "currentColor";
 
                                         spec.data.push({
                                             name: series.name,
@@ -102,11 +99,10 @@ export const Renderer: React.FunctionComponent<{
                                         i++;
                                     }
                                 } else if (spec.data.length < spec.series.length) {
-                                    spec.data = [...spec.data];
                                     for (let i = spec.data.length; i < spec.series.length; i++) {
                                         const series = spec.series[i];
 
-                                        const color = i <= lineChartColors.length ? lineChartColors[i] : "currentColor";
+                                        const color = i < lineChartColors.length ? `var(--${lineChartColors[i]}-fg)` : "currentColor";
 
                                         spec.data.push({
                                             name: series.name,
@@ -114,60 +110,44 @@ export const Renderer: React.FunctionComponent<{
                                             data: [],
                                         });
                                     }
-                                } else {
-                                    spec.data = [...spec.data];
                                 }
 
                                 for (let i = 0; i < spec.data.length; i++) {
                                     const series = spec.series[i];
                                     const line = spec.data[i];
 
-                                    // TODO cap
-                                    line.data = [...line.data];
-                                    line.data.push({
+                                    pushCapped(line.data, {
                                         t: new Date(row[spec.yAxisColumn]),
                                         v: row[series.column],
                                     });
                                 }
-
-                                copied[k] = widgetCopy;
                             }
                         }
                     }
-
-                    return copied;
                 });
             }
         }));
 
         listeners.push(props.processor.on("createAny", ev => {
             mutateState(state => {
-                const copied = {...state};
-                copied[ev.id] = ev;
+                state[ev.id] = ev;
                 priorityMap.current[ev.id] = priorityCounter.current;
                 priorityCounter.current++;
-                return copied;
             });
         }));
 
         listeners.push(props.processor.on("appendTableRows", ev => {
             mutateState(state => {
                 const existing = state[ev.id];
-                if (!existing || existing.type !== WidgetType.WidgetTypeTable) {
-                    return state;
-                } else {
-                    const newState = {...state};
-                    const newWidget = {...existing} as RuntimeWidget<WidgetTable>;
-                    const newSpec = {...newWidget.spec};
-                    newWidget.spec = newSpec;
-                    if (newSpec.rows == null) {
-                        newSpec.rows = [];
+                if (existing && existing.type === WidgetType.WidgetTypeTable) {
+                    const widget = existing as RuntimeWidget<WidgetTable>;
+                    const spec = widget.spec;
+                    if (spec.rows == null) {
+                        spec.rows = [];
                     }
                     for (const row of ev.widget.rows) {
-                        newSpec.rows.push(row);
+                        spec.rows.push(row);
                     }
-                    newSpec[ev.id] = newWidget;
-                    return newState;
                 }
             });
         }));
@@ -175,26 +155,17 @@ export const Renderer: React.FunctionComponent<{
         listeners.push(props.processor.on("updateProgress", ev => {
             mutateState(state => {
                 const existing = state[ev.id];
-                if (!existing || existing.type !== WidgetType.WidgetTypeProgressBar) {
-                    return state;
-                } else {
-                    const newState = {...state};
-                    const newWidget = {...existing} as RuntimeWidget<WidgetProgressBar>;
-                    const newSpec = {...newWidget.spec};
-                    newWidget.spec = newSpec;
-                    newSpec.progress = ev.widget.progress;
-                    newState[ev.id] = newWidget;
-                    return newState;
+                if (existing && existing.type === WidgetType.WidgetTypeProgressBar) {
+                    const widget = existing as RuntimeWidget<WidgetProgressBar>;
+                    widget.spec.progress = ev.widget.progress;
                 }
             });
         }));
 
         listeners.push(props.processor.on("delete", ev => {
             mutateState(state => {
-                const newState = {...state};
-                delete newState[ev.id];
+                delete state[ev.id];
                 delete priorityMap.current[ev.id];
-                return newState;
             });
         }));
 
@@ -463,13 +434,17 @@ const RendererDiagram: React.FunctionComponent<{ widget: RuntimeWidget<WidgetDia
         }
     }, [widget.spec.yAxis.unit]);
 
+    let yDomain: [number, number] | undefined = undefined;
+    if (widget.spec.yAxis.minimum != null && widget.spec.yAxis.maximum != null)  {
+        yDomain = [widget.spec.yAxis.minimum, widget.spec.yAxis.maximum];
+    }
+
     return <TemporalLineChart
         lines={widget.spec.data ?? []}
         yTickFormatter={labelFormatter}
-        height={150}
+        height={160}
         width={750}
-        spaceForLabel={200}
-        yDomain={[widget.spec.yAxis.minimum ?? 0, widget.spec.yAxis.maximum ?? 100]}
+        yDomain={yDomain}
     />;
 };
 
@@ -520,3 +495,8 @@ const RendererContainer: React.FunctionComponent<{
         })}
     </div>;
 };
+
+function pushCapped<T>(arr: T[], item: T, cap = 5_000) {
+    if (arr.length >= cap) arr.shift();
+    arr.push(item);
+}

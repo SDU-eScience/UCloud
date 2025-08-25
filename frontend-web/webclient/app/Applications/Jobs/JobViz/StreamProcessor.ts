@@ -50,9 +50,10 @@ export class StreamProcessor {
     }
 
     acceptGenericData(data: string, channel: string) {
-        // TODO Deal with something other than table data
-        const row = data.split(",").map(it => parseFloat(it));
-        this.dispatch("appendRow", {row, channel});
+        if (channel === "utilization-data") {
+            const row = data.split(",").map(it => parseFloat(it));
+            this.dispatch("appendRow", {row, channel});
+        }
     }
 
     on<K extends keyof EventMap>(type: K, listener: (ev: EventMap[K]) => void): (ev: EventMap[K]) => void {

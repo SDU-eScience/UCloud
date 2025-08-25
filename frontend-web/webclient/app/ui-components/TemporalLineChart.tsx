@@ -1,12 +1,31 @@
 import {DependencyList, useEffect, useId, useRef} from "react";
 import {pointer, select} from "d3-selection";
-import {Selection} from "d3";
+import {Selection, timeDay, timeHour, timeMinute, timeMonth, timeSecond, timeWeek, timeYear} from "d3";
 import {bisector, extent} from "d3-array";
 import {scaleLinear, scaleTime} from "d3-scale";
 import {axisBottom, axisLeft} from "d3-axis";
 import {timeFormat} from "d3-time-format";
 import {line} from "d3-shape";
 import * as React from "react";
+
+const formatMillisecond = timeFormat(".%L"),
+    formatSecond = timeFormat(":%S"),
+    formatMinute = timeFormat("%H:%M"),
+    formatHour = timeFormat("%H:%M"),
+    formatDay = timeFormat("%b %d"),
+    formatWeek = timeFormat("%b %d"),
+    formatMonth = timeFormat("%B"),
+    formatYear = timeFormat("%Y");
+
+function multiFormat(date: Date) {
+    return (timeSecond(date) < date ? formatMillisecond
+        : timeMinute(date) < date ? formatSecond
+            : timeHour(date)   < date ? formatMinute
+                : timeDay(date)    < date ? formatHour
+                    : timeMonth(date)  < date ? (timeWeek(date) < date ? formatDay : formatWeek)
+                        : timeYear(date)   < date ? formatMonth
+                            : formatYear)(date);
+}
 
 function useD3(render: (elem: SVGSVGElement) => void, deps: DependencyList | undefined) {
     const ref = useRef<SVGSVGElement>(null);
@@ -36,7 +55,6 @@ export interface TemporalLineChartProps {
     // Style
     width?: number;
     height?: number;
-    spaceForLabel?: number;
 
     // Data
     lines: Line[];
@@ -53,16 +71,20 @@ export function TemporalLineChart(
         width = 750,
         height = 150,
         liveDomainMs = 5 * 60 * 1000,
-        yDomain = [0, 100],
-        spaceForLabel = 115,
+        yDomain,
         yTickFormatter,
     }: TemporalLineChartProps
 ) {
+    let spaceForRightLabel = 70; // Reserve at least N pixels for the label.
+    for (const line of lines) {
+        const spaceForThisLabel = line.name.length * 8;
+        if (spaceForThisLabel > spaceForRightLabel) spaceForRightLabel = spaceForThisLabel;
+    }
     const margin = {
         top: 16,
         bottom: 28,
-        left: 44,
-        right: 16 + spaceForLabel,
+        left: 50,
+        right: 16 + spaceForRightLabel,
     };
 
     const clipId = useId().replace(/:/g, "_");
@@ -104,13 +126,31 @@ export function TemporalLineChart(
                 ? [new Date(now.getTime() - liveDomainMs), now]
                 : (extent(lines[0].data, (d) => d.t) as [Date, Date]) ?? [now, now];
 
+        if (yDomain === undefined) {
+            let min = 0;
+            let max = 0;
+            for (const line of lines) {
+                for (const point of line.data) {
+                    if (point.v < min) min = point.v;
+                    if (point.v > max) max = point.v;
+                }
+            }
+
+            if (min === 0 && max === 0) {
+                min = 0;
+                max = 100;
+            }
+
+            yDomain = [min, max];
+        }
+
         const xScale = scaleTime().domain(xDomain).range([0, innerW]);
         const yScale = scaleLinear().domain(yDomain as [number, number]).nice().range([innerH, 0]);
 
         const gXAxis = g
             .append("g")
             .attr("transform", `translate(0,${innerH})`)
-            .call(axisBottom(xScale).tickFormat(timeFormat("%H:%M")));
+            .call(axisBottom(xScale).tickFormat(multiFormat));
 
         gXAxis.selectAll("path, line")
             .style("stroke-width", 2)
@@ -178,12 +218,29 @@ export function TemporalLineChart(
             .style("stroke", "white")
             .style("fill", d => d.color);
 
+        const textOffsetX = 10;
+        const textBaseY = 5;
+        const valueIndent = 10;
+        const lineHeight = 15;
+
         const labels = valueLabel.append("text")
-            .text(d => d.data.length > 0 ? `${d.name}: ${yTickFormatter(last(d.data).v, false)}` : "")
-            .attr("dy", 5)
-            .attr("dx", 10)
+            .attr("x", textOffsetX)
+            .attr("y", textBaseY)
             .style("font-family", "monospace")
+            .style("text-anchor", "start")
             .style("fill", d => d.color);
+
+        labels
+            .append("tspan")
+            .attr("x", valueIndent)
+            .attr("dy", lineHeight)
+            .text(d => `${d.name}`);
+
+        labels
+            .append("tspan")
+            .attr("x", 10)
+            .attr("dy", 15)
+            .text(d => d.data.length > 0 ?yTickFormatter(last(d.data).v, false) : "");
 
         // Sort labels and deal with overlap
         // -------------------------------------------------------------------------------------------------------------
@@ -254,8 +311,9 @@ export function TemporalLineChart(
             items.forEach((it, i) => {
                 const desiredTopLocal = tops[i] - it.anchorY;   // group-local top
                 const dyNeeded = desiredTopLocal - it.boxY;     // how much to move text within the group
-                const currentDy = +select(it.txt).attr("dy") || 0;
-                select(it.txt).attr("dy", currentDy + dyNeeded);
+
+                const currentY = +select(it.txt).attr("y") || 0;
+                select(it.txt).attr("y", currentY + dyNeeded);
             });
         }
 
