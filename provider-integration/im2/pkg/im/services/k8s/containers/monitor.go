@@ -137,7 +137,7 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 				*/
 
 				writer := &bytes.Buffer{}
-				stream := ucviz.NewWidgetStream(writer, ucviz.WidgetStreamJson)
+				stream := ucviz.NewWidgetStream(writer)
 
 				var status struct {
 					Valid              bool
