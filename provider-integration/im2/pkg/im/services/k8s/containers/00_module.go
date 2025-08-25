@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -168,6 +169,12 @@ func follow(session *ctrl.FollowJobSession) {
 		if !exists {
 			stdout, ok1 := filesystem.OpenFile(filepath.Join(jobFolder, baseName), unix.O_RDONLY, 0)
 			if ok1 {
+				sinfo, err := stdout.Stat()
+				if err == nil {
+					if sinfo.Size() > 1024*256 {
+						_, _ = stdout.Seek(sinfo.Size()-1024*256, io.SeekStart)
+					}
+				}
 				file.File = stdout
 				logFiles[baseName] = file
 			}
@@ -188,12 +195,19 @@ func follow(session *ctrl.FollowJobSession) {
 			Stdout:  true,
 			Channel: util.OptValue("ui"),
 		})
+	}
 
-		trackFile(".ucviz-data", trackedLogFile{
-			Rank:    0,
-			Stdout:  true,
-			Channel: util.OptValue("data"),
-		})
+	utilizationChannel := make(chan []float64)
+	utilizationDataTracked := false
+	var utilizationData *util.FsRingReader[[]float64]
+	utilSerializer := util.FsRingSerializer[[]float64]{
+		Deserialize: func(buf *util.UBufferReader) []float64 {
+			result := make([]float64, 64) // NOTE(Dan): change ucmetrics if changing this
+			for i := 0; i < 64; i++ {
+				result[i] = buf.ReadF64()
+			}
+			return result
+		},
 	}
 
 	for util.IsAlive && *session.Alive {
@@ -224,6 +238,19 @@ func follow(session *ctrl.FollowJobSession) {
 		}
 
 		trackAllFiles()
+		if !utilizationDataTracked {
+			path := filepath.Join(jobFolder, ".ucviz-utilization-data")
+			ring, err := util.FsRingOpen(path, utilSerializer)
+			if err == nil {
+				utilizationData = ring
+				utilizationDataTracked = true
+
+				go func() {
+					_ = ring.Follow(context.Background(), utilizationChannel, 256)
+					util.SilentClose(ring)
+				}()
+			}
+		}
 
 		for _, logFile := range logFiles {
 			now := time.Now()
@@ -245,7 +272,32 @@ func follow(session *ctrl.FollowJobSession) {
 			}
 		}
 
+		if utilizationData != nil {
+		loop:
+			for {
+				select {
+				case row := <-utilizationChannel:
+					b := strings.Builder{}
+					for i, elem := range row {
+						if i > 0 {
+							b.WriteString(",")
+						}
+						b.WriteString(fmt.Sprint(elem))
+					}
+
+					session.EmitLogs(0, util.OptValue(b.String()), util.OptNone[string](), util.OptValue("utilization-data"))
+
+				default:
+					break loop
+				}
+			}
+		}
+
 		time.Sleep(15 * time.Millisecond)
+	}
+
+	if utilizationData != nil {
+		util.SilentClose(utilizationData)
 	}
 }
 
@@ -448,10 +500,8 @@ func extend(request ctrl.JobExtendRequest) error {
 
 func JobAnnotations(job *orc.Job, rank int) map[string]string {
 	podName := idAndRankToPodName(job.Id, rank)
-	timeout, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	pod, err := K8sClient.CoreV1().Pods(Namespace).Get(timeout, podName, meta.GetOptions{})
-	if err == nil {
+	pod, ok := shared.JobPods.Retrieve(podName)
+	if ok {
 		return pod.Annotations
 	} else {
 		return nil

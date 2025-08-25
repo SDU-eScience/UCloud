@@ -58,14 +58,15 @@ func (k *GoKubernetes) Build(cb ComposeBuilder) {
 			//language=json
 			`
 			{
-				"image": "rancher/k3s:v1.21.6-rc2-k3s1",
+				"image": "rancher/k3s:v1.31.12-rc1-k3s1",
 				"privileged": true,
 				"tmpfs": ["/run", "/var/run"],
 				"environment": [
 					"K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml",
-					"K3S_KUBECONFIG_MODE=666"
+					"K3S_KUBECONFIG_MODE=666",
+					"K3S_FLANNEL_BACKEND=host-gw"
 				],
-				"command": ["server"],
+				"command": ["server", "--disable=traefik", "--disable-network-policy"],
 				"hostname": "im2k3",
 				"restart": "always",
 				"volumes": [

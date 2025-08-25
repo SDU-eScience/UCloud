@@ -134,7 +134,7 @@ func initSyncthingFolderEx(owner orc.ResourceOwner, init bool) (string, string, 
 	return internalSyncthing, ucloudSyncthing, nil
 }
 
-func syncthingBeforeMonitor(pods []core.Pod, jobs map[string]*orc.Job, appsByJobId map[string]ctrl.IAppRunningConfiguration) {
+func syncthingBeforeMonitor(pods []*core.Pod, jobs map[string]*orc.Job, appsByJobId map[string]ctrl.IAppRunningConfiguration) {
 	syncthingPortsMutex.Lock()
 	defer syncthingPortsMutex.Unlock()
 
@@ -150,7 +150,7 @@ func syncthingBeforeMonitor(pods []core.Pod, jobs map[string]*orc.Job, appsByJob
 			continue
 		}
 
-		assignedPort := syncthingGetAssignedPort(&pod)
+		assignedPort := syncthingGetAssignedPort(pod)
 		if assignedPort.Present {
 			result[assignedPort.Value] = true
 		}
@@ -216,7 +216,32 @@ func syncthingShouldRun(job *orc.Job, configuration json.RawMessage) bool {
 		return false
 	}
 
-	return len(config.Folders) > 0 && len(config.Devices) > 0
+	if len(config.Folders) > 0 && len(config.Devices) > 0 {
+		for _, folder := range config.Folders {
+			driveId, ok := filesystem.DriveIdFromUCloudPath(folder.UCloudPath)
+			if !ok {
+				return false
+			}
+
+			drive, ok := ctrl.RetrieveDrive(driveId)
+			if !ok {
+				return false
+			}
+
+			storageLocked := ctrl.IsResourceLocked(drive.Resource, drive.Specification.Product)
+			if storageLocked {
+				return false
+			}
+
+			if !ctrl.CanUseDrive(job.Owner, driveId, true) {
+				return false
+			}
+		}
+
+		return true
+	} else {
+		return false
+	}
 }
 
 func syncthingMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage) {

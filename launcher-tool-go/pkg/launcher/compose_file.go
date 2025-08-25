@@ -167,7 +167,6 @@ type Provider interface {
 	Build(cb ComposeBuilder)
 }
 
-var kubernetes Kubernetes
 var goSlurm GoSlurm
 var goKubernetes GoKubernetes
 
@@ -181,7 +180,6 @@ var AllProviderNames = []string{
 }
 
 func GenerateProviders() {
-	AllProviders = append(AllProviders, &kubernetes)
 	goSlurm = NewGoSlurm(true, 2)
 	AllProviders = append(AllProviders, &goSlurm)
 	AllProviders = append(AllProviders, &goKubernetes)

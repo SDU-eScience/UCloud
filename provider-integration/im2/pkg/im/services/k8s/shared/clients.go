@@ -33,6 +33,8 @@ func initClients() {
 
 	if k8sClient == nil {
 		k8sConfig, err = rest.InClusterConfig()
+		k8sConfig.QPS = 1000
+		k8sConfig.Burst = 5000
 		if err == nil {
 			c, err := kubernetes.NewForConfig(k8sConfig)
 			if err == nil {

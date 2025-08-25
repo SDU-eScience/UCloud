@@ -13,6 +13,7 @@ import * as plot from "@observablehq/plot";
 import * as Plot from "@observablehq/plot";
 import * as JobViz from "@/Applications/Jobs/JobViz"
 import {WidgetColorIntensity, WidgetWindow} from "@/Applications/Jobs/JobViz"
+import {CpuChartDemo} from "@/Playground/D3Test";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -27,7 +28,7 @@ const Playground: React.FunctionComponent = () => {
         return tick.ticks(100).map((t, index, arr) => ({date: t, value: [0, 1].includes(index % 4) ? 0 : 25}));
     }, []);
 
-    const stream = useRef(new JobViz.StreamProcessor("json"));
+    const stream = useRef(new JobViz.StreamProcessor());
 
     useEffect(() => {
         {
@@ -170,14 +171,15 @@ const Playground: React.FunctionComponent = () => {
 
     const main = (
         <>
-            <JobViz.Renderer processor={stream.current} windows={[JobViz.WidgetWindow.WidgetWindowMain]} />
-            <AreaPlot data={data} keyX="date" keyY="value" />
-
-            <Box mb="60px" />
-
-            <PaletteColors />
-            <Colors />
-            <EveryIcon />
+            <CpuChartDemo />
+            {/*<JobViz.Renderer processor={stream.current} windows={[JobViz.WidgetWindow.WidgetWindowMain]} />*/}
+            {/*<AreaPlot data={data} keyX="date" keyY="value" />*/}
+            {/**/}
+            {/*<Box mb="60px" />*/}
+            {/**/}
+            {/*<PaletteColors />*/}
+            {/*<Colors />*/}
+            {/*<EveryIcon />*/}
             {/*
             <Button onClick={() => {
                 messageTest();

@@ -29,30 +29,28 @@ type PodPendingStatus struct {
 }
 
 func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
-	allPods, err := K8sClient.CoreV1().Pods(Namespace).List(context.Background(), meta.ListOptions{})
-	if err != nil {
-		log.Info("Failed to fetch pods: %v", err)
-		return
-	}
+	allPods := shared.JobPods.List()
 
-	events, err := K8sClient.CoreV1().Events(Namespace).List(context.Background(), meta.ListOptions{})
-	if err != nil {
-		log.Info("Failed to fetch events: %v", err)
-		return
-	}
+	/*
+		events, err := K8sClient.CoreV1().Events(Namespace).List(context.Background(), meta.ListOptions{})
+		if err != nil {
+			log.Info("Failed to fetch events: %v", err)
+			return
+		}
+	*/
 
 	activeIApps := ctrl.RetrieveIAppsByJobId()
 	iappsHandled := map[string]util.Empty{}
 	for _, handler := range IApps {
 		beforeMonitor := handler.BeforeMonitor
 		if beforeMonitor != nil {
-			beforeMonitor(allPods.Items, jobs, activeIApps)
+			beforeMonitor(allPods, jobs, activeIApps)
 		}
 	}
 
-	length := len(allPods.Items)
+	length := len(allPods)
 	for i := 0; i < length; i++ {
-		pod := &allPods.Items[i]
+		pod := allPods[i]
 		idAndRank, ok := podNameToIdAndRank(pod.Name)
 
 		if !ok {
@@ -63,7 +61,7 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 		job, ok := jobs[idAndRank.First]
 		if !ok {
 			// This pod does not belong to an active job - delete it.
-			log.Info("Deleting job")
+			log.Info("Deleting pod - job is no longer active: %v", idAndRank.First)
 			tracker.RequestCleanup(idAndRank.First)
 			continue
 		}
@@ -121,23 +119,25 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 				phaseTime := pod.CreationTimestamp.Time
 				phase := PhaseInit
 
-				for _, ev := range events.Items {
-					if ev.InvolvedObject.Name == pod.Name && ev.InvolvedObject.FieldPath == "spec.containers{user-job}" {
-						if ev.Reason == "Pulling" {
-							phase = PhasePulling
-							phaseTime = ev.LastTimestamp.Time
-						} else if ev.Reason == "Pulled" {
-							phase = PhaseFinalPreparation
-							phaseTime = ev.LastTimestamp.Time
-						} else if ev.Reason == "Started" {
-							phase = PhaseStarted
-							phaseTime = ev.LastTimestamp.Time
+				/*
+					for _, ev := range events.Items {
+						if ev.InvolvedObject.Name == pod.Name && ev.InvolvedObject.FieldPath == "spec.containers{user-job}" {
+							if ev.Reason == "Pulling" {
+								phase = PhasePulling
+								phaseTime = ev.LastTimestamp.Time
+							} else if ev.Reason == "Pulled" {
+								phase = PhaseFinalPreparation
+								phaseTime = ev.LastTimestamp.Time
+							} else if ev.Reason == "Started" {
+								phase = PhaseStarted
+								phaseTime = ev.LastTimestamp.Time
+							}
 						}
 					}
-				}
+				*/
 
 				writer := &bytes.Buffer{}
-				stream := ucviz.NewWidgetStream(writer, ucviz.WidgetStreamJson)
+				stream := ucviz.NewWidgetStream(writer)
 
 				var status struct {
 					Valid              bool
