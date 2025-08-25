@@ -353,15 +353,6 @@ func loopMonitoring() {
 	batchResults := tracker.batch.End()
 	metricMonitoring.WithLabelValues("EndBatch").Observe(timer.Mark().Seconds())
 
-	timer.Mark()
-	for _, job := range activeJobs {
-		expiresAt := job.Status.ExpiresAt.GetOrDefault(fnd.Timestamp(now))
-		if now.After(expiresAt.Time()) {
-			tracker.batch.TrackState(job.Id, orc.JobStateExpired, util.OptNone[string]())
-		}
-	}
-	metricMonitoring.WithLabelValues("ExpirationLoop").Observe(timer.Mark().Seconds())
-
 	// Side-effects from job monitoring
 	// -----------------------------------------------------------------------------------------------------------------
 	timer.Mark()
