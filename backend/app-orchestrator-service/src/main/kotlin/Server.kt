@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.orchestrator
 
-import dk.sdu.cloud.Prometheus
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.ProviderCommunicationsV2
@@ -23,19 +22,12 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.toReadableStacktrace
 import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
-import io.ktor.server.request.header
 import io.ktor.server.response.respondText
 import io.ktor.server.response.respondTextWriter
 import io.ktor.server.routing.get
-import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
-import io.ktor.util.pipeline.PipelineContext
-import io.ktor.utils.io.writer
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.runBlocking
 
 object AppOrchestratorServices {
@@ -76,8 +68,6 @@ object AppOrchestratorServices {
     lateinit var sshKeys: SshKeyService
 
     lateinit var jobMonitoring: JobMonitoringService
-
-    lateinit var statistics: StatisticsService
 }
 
 class Server(override val micro: Micro) : CommonServer {
@@ -164,7 +154,6 @@ class Server(override val micro: Micro) : CommonServer {
             sshKeys = SshKeyService()
             exporter = ParameterExportService()
             jobMonitoring = JobMonitoringService()
-            statistics = StatisticsService()
             runBlocking { jobMonitoring.initialize(!micro.developmentModeEnabled) }
 
             micro.serverProvider(33301) {

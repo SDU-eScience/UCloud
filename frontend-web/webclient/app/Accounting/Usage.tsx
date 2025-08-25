@@ -355,14 +355,19 @@ function stateReducer(state: State, action: UIAction): State {
         let jobUsageByUsers: JobUsageByUsers | undefined = undefined;
         let mostUsedApplications: MostUsedApplications | undefined = undefined;
         let submissionStatistics: SubmissionStatistics | undefined = undefined;
+        const mostUsedResult: MostUsedApplications = {dataPoints: []};
+        console.log("summaries ", summaries);
         for (const summary of summaries) {
             if (summary.category.productType === "COMPUTE" && state.remoteData.jobStatistics) {
                 const stats = state.remoteData.jobStatistics;
+                console.log("stats", stats);
                 let catIdx: number = -1;
                 const catCount = stats.categories.count;
                 for (let i = 0; i < catCount; i++) {
                     const cat = stats.categories.get(i);
+                    console.log("cat", cat, " and ", cat.name);
                     if (cat.name === summary.category.name && cat.provider === summary.category.provider) {
+                        console.log("hit: " + cat.name);
                         catIdx = i;
                         break;
                     }
@@ -373,11 +378,14 @@ function stateReducer(state: State, action: UIAction): State {
                 if (catIdx !== -1) {
                     const usageCount = stats.usageByUser.count;
                     for (let i = 0; i < usageCount; i++) {
+                        console.log(`i is : ${i} usage count: ${usageCount}`);
                         const usage = stats.usageByUser.get(i);
+                        console.log("BII");
+                        console.log(usage);
                         if (usage.categoryIndex !== catIdx) continue;
 
                         const result: JobUsageByUsers = {unit: unit.name, dataPoints: []};
-
+                        console.log("RESULT: ", result);
                         const pointCount = usage.dataPoints.count;
                         for (let j = 0; j < pointCount; j++) {
                             const dataPoint = usage.dataPoints.get(j);
@@ -391,21 +399,22 @@ function stateReducer(state: State, action: UIAction): State {
                     }
 
                     const appCount = stats.mostUsedApplications.count;
+                    console.log("AppCount", appCount);
                     for (let i = 0; i < appCount; i++) {
                         const appStats = stats.mostUsedApplications.get(i);
                         if (appStats.categoryIndex !== catIdx) continue;
 
-                        const result: MostUsedApplications = {dataPoints: []};
                         const pointCount = appStats.dataPoints.count;
                         for (let j = 0; j < pointCount; j++) {
+                            console.log("WHAAAT")
                             const dataPoint = appStats.dataPoints.get(j);
-                            result.dataPoints.push(({
+                            console.log(`pushing title: ${dataPoint.applicationName} + count: ${dataPoint.numberOfJobs}`);
+                            mostUsedResult.dataPoints.push(({
                                 applicationTitle: dataPoint.applicationName,
                                 count: dataPoint.numberOfJobs
                             }));
                         }
 
-                        mostUsedApplications = result;
                     }
 
                     const submissionCount = stats.jobSubmissionStatistics.count;
@@ -432,6 +441,8 @@ function stateReducer(state: State, action: UIAction): State {
                 }
             }
         }
+        mostUsedApplications = mostUsedResult;
+
 
         const availableUnitsSet = unitsFromSummaries(state.summaries);
         if (state.remoteData.jobStatistics) {
@@ -1592,6 +1603,8 @@ const LargeJobsStyle = injectStyle("large-jobs", k => `
 `);
 
 const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageByUsers}> = ({loading, data}) => {
+console.log("HE")
+    console.log(data)
     const dataPoints = useMemo(() => {
         return data?.dataPoints?.map(it => ({key: it.username, value: it.usage})) ?? [];
     }, [data?.dataPoints]);
@@ -1610,7 +1623,8 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
     }, [dataPoints, project]);
 
     const sorted = useSorting(dataPoints, "key");
-
+    console.log("sorte");
+    console.log(sorted.data)
     return <div className={classConcat(CardClass, PanelClass, LargeJobsStyle)}>
         <Flex>
             <div className="panel-title">

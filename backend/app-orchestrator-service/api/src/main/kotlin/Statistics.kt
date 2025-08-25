@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.httpRetrieve
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 object Statistics : CallDescriptionContainer("jobs.statistics") {
     val baseContext = Jobs.baseContext + "/statistics"
@@ -18,7 +19,7 @@ object Statistics : CallDescriptionContainer("jobs.statistics") {
             val end: Long,
         )
 
-        val call = call("retrieveStatistics", Request.serializer(), JobStatistics.serializer(), CommonErrorMessage.serializer()) {
+        val call = call("retrieveStatistics", Request.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
             httpRetrieve(baseContext)
         }
     }
