@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	ws "github.com/gorilla/websocket"
 	"golang.org/x/sync/semaphore"
+	"io"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -119,9 +121,16 @@ type clientWorker struct {
 	Metrics          ClientMetrics
 }
 
+const (
+	minChunkSize = 1024 * 16
+	maxChunkSize = 1024 * 1024 * 4
+)
+
 func (w *clientWorker) Process() {
-	chunkBytes1 := make([]byte, 1024*1024*16)
-	chunkBytes2 := make([]byte, 1024*1024*16)
+	rawChunkBytes1 := make([]byte, maxChunkSize)
+	rawChunkBytes2 := make([]byte, maxChunkSize)
+	recommendedChunkSize := atomic.Int64{}
+	recommendedChunkSize.Store(minChunkSize)
 
 	skipBuffer := util.NewBuffer(&bytes.Buffer{})
 	listingBuffer := util.NewBuffer(&bytes.Buffer{})
@@ -160,7 +169,7 @@ func (w *clientWorker) Process() {
 				// TODO(Dan): This shouldn't be needed, but it seems like we often fail a ping right as the
 				//   connection is shutting down and this is causing some issues with the entire transfer.
 				pingFailures++
-				if pingFailures >= 10 {
+				if pingFailures >= 30 {
 					_ = w.Connection.Close()
 					log.Warn("Uploader client failed to send ping: %v", err)
 					return false
@@ -221,8 +230,12 @@ outer:
 				writeBuffers := make(chan []byte, 2)
 
 				go func() {
+					size := recommendedChunkSize.Load()
+					chunkBytes1 := rawChunkBytes1[:size]
+					chunkBytes2 := rawChunkBytes2[:size]
+					bufIdx := uint64(0)
+
 					chunkBytes := chunkBytes1
-					nextBuf := chunkBytes2
 					for {
 						// Acquire read permit (in-case writing is too slow, it usually is)
 						err := readBuffersAvailable.Acquire(w.Ctx, 1)
@@ -243,8 +256,7 @@ outer:
 
 						if isDone {
 							if err != nil {
-								stringErr := err.Error()
-								if stringErr != "EOF" {
+								if errors.Is(err, io.EOF) {
 									w.Metrics.SkipFile(err.Error(), work.Metadata.InternalPath)
 								}
 							}
@@ -252,13 +264,26 @@ outer:
 							break
 						}
 
+						// Reload size recommendation
+						oldSize := size
+						size = recommendedChunkSize.Load()
+						if size != oldSize {
+							log.Info("New size! %v -> %v", oldSize, size)
+						}
+						chunkBytes1 = rawChunkBytes1[:size]
+						chunkBytes2 = rawChunkBytes2[:size]
+
 						// Swap buffers
-						tmp := chunkBytes
-						chunkBytes = nextBuf
-						nextBuf = tmp
+						bufIdx++
+						if bufIdx%2 == 0 {
+							chunkBytes = chunkBytes1
+						} else {
+							chunkBytes = chunkBytes2
+						}
 					}
 				}()
 
+				chunkStartTime := time.Now()
 				for {
 					data := <-writeBuffers
 					if data == nil {
@@ -267,7 +292,7 @@ outer:
 							(&messageSkip{FileId: work.Id}).Marshal(skipBuffer, true)
 
 							err1 := w.Connection.SetWriteDeadline(time.Now().Add(chunkIoDeadline))
-							err2 := w.Connection.WriteMessage(ws.BinaryMessage, data)
+							err2 := w.Connection.WriteMessage(ws.BinaryMessage, skipBuffer.ReadRemainingBytes())
 							if err := util.FindError(err1, err2); err != nil {
 								_ = w.Connection.Close()
 								log.Warn("Uploader client failed to send message: %v", err)
@@ -288,6 +313,13 @@ outer:
 						_ = w.Connection.Close()
 						log.Warn("Uploader client failed to send message: %v", err)
 						break outer
+					}
+
+					chunkEndTime := time.Now()
+					if chunkEndTime.Sub(chunkStartTime) < 250*time.Millisecond && len(data) > 0 {
+						newSize := int64(len(data) * 2)
+						newSize = min(maxChunkSize, max(minChunkSize, newSize))
+						recommendedChunkSize.Store(newSize)
 					}
 
 					readBuffersAvailable.Release(1)

@@ -227,7 +227,7 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 
 			times := shared.ComputeRunningTime(job)
 			if times.TimeRemaining.Present && times.TimeRemaining.Value < 0 {
-				tracker.RequestCleanup(idAndRank.First)
+				tracker.RequestCleanup(idAndRank.First) // Will implicitly set state to JobStateExpired
 			}
 
 			state, status := podToStateAndStatus(pod)

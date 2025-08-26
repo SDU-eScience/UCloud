@@ -43,9 +43,7 @@ func getScheduler(category string, group string) (*Scheduler, bool) {
 	schedKey := fmt.Sprintf("%s/%s", mapped, group)
 
 	_, isIApp := ctrl.IntegratedApplications[mapped]
-	if isIApp {
-		// TODO Ask the application about the scheduler.
-	} else {
+	if !isIApp {
 		_, ok := shared.ServiceConfig.Compute.Machines[mapped]
 		if !ok {
 			return nil, false
@@ -330,6 +328,19 @@ func loopMonitoring() {
 	metricMonitoring.WithLabelValues("ActiveJobs").Observe(timer.Mark().Seconds())
 
 	timer.Mark()
+	entriesToRemove := shared.SwapScheduleRemoveFromQueue()
+	for _, jobId := range entriesToRemove {
+		job, ok := ctrl.RetrieveJob(jobId)
+		if ok {
+			sched, ok := getSchedulerByJob(job)
+			if ok {
+				sched.RemoveJobFromQueue(jobId)
+			}
+		}
+	}
+	metricMonitoring.WithLabelValues("RemoveFromQueue").Observe(timer.Mark().Seconds())
+
+	timer.Mark()
 	containers.Monitor(tracker, activeJobs)
 	metricMonitoring.WithLabelValues("ContainerMonitor").Observe(timer.Mark().Seconds())
 
@@ -382,39 +393,41 @@ func loopMonitoring() {
 		metricMonitoring.WithLabelValues("JobUpdates").Observe(timer.Mark().Seconds())
 	}
 
-	for _, jobId := range tracker.terminationRequested {
-		job, ok := ctrl.RetrieveJob(jobId)
-		if ok {
-			_ = terminate(ctrl.JobTerminateRequest{Job: job, IsCleanup: true})
-		}
-	}
-
-	for _, jobId := range batchResults.TerminatedDueToUnknownState {
-		job, ok := ctrl.RetrieveJob(jobId)
-		if ok {
-			_ = terminate(ctrl.JobTerminateRequest{Job: job, IsCleanup: true})
-		}
-	}
-
-	var kubevirtStarted []orc.Job
-	var containersStarted []orc.Job
-	for _, jobId := range batchResults.NormalStart {
-		job, ok := ctrl.RetrieveJob(jobId)
-		if ok {
-			if backendIsKubevirt(job) {
-				kubevirtStarted = append(kubevirtStarted, *job)
-			} else if backendIsContainers(job) {
-				containersStarted = append(containersStarted, *job)
+	go func() {
+		for _, jobId := range tracker.terminationRequested {
+			job, ok := ctrl.RetrieveJob(jobId)
+			if ok {
+				_ = terminate(ctrl.JobTerminateRequest{Job: job, IsCleanup: true})
 			}
 		}
-	}
 
-	if len(containersStarted) > 0 {
-		containers.OnStart(containersStarted)
-	}
-	if len(kubevirtStarted) > 0 {
-		kubevirt.OnStart(kubevirtStarted)
-	}
+		for _, jobId := range batchResults.TerminatedDueToUnknownState {
+			job, ok := ctrl.RetrieveJob(jobId)
+			if ok {
+				_ = terminate(ctrl.JobTerminateRequest{Job: job, IsCleanup: true})
+			}
+		}
+
+		var kubevirtStarted []orc.Job
+		var containersStarted []orc.Job
+		for _, jobId := range batchResults.NormalStart {
+			job, ok := ctrl.RetrieveJob(jobId)
+			if ok {
+				if backendIsKubevirt(job) {
+					kubevirtStarted = append(kubevirtStarted, *job)
+				} else if backendIsContainers(job) {
+					containersStarted = append(containersStarted, *job)
+				}
+			}
+		}
+
+		if len(containersStarted) > 0 {
+			containers.OnStart(containersStarted)
+		}
+		if len(kubevirtStarted) > 0 {
+			kubevirt.OnStart(kubevirtStarted)
+		}
+	}()
 
 	// Accounting
 	// -----------------------------------------------------------------------------------------------------------------
