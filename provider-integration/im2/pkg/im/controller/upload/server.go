@@ -357,7 +357,7 @@ outer:
 
 						upload, ok := uploads[msg.FileId]
 						if !ok {
-							log.Warn("Received an unknown chunk with ID %v", msg.FileId, len(msg.Data))
+							log.Warn("Received an unknown chunk with ID %v (len = %v)", msg.FileId, len(msg.Data))
 							break outer
 						}
 

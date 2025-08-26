@@ -1,4 +1,5 @@
 import {IconName} from "@/ui-components/Icon";
+import {Line} from "@/ui-components/TemporalLineChart";
 
 export interface WidgetId {
     id: string;
@@ -13,8 +14,9 @@ export enum WidgetType {
     WidgetTypeProgressBar,
     WidgetTypeTable,
     WidgetTypeContainer,
-    WidgetTypeDiagram,
+    Tombstone1,
     WidgetTypeSnippet,
+    WidgetTypeLineChart,
 }
 
 export enum WidgetWindow {
@@ -130,13 +132,6 @@ export interface WidgetTableCell {
     label: WidgetLabel;
 }
 
-export enum WidgetDiagramType {
-    Line,
-    Area,
-    Bar,
-    Pie,
-}
-
 export enum WidgetDiagramUnit {
     GenericInt,
     GenericFloat,
@@ -149,14 +144,9 @@ export enum WidgetDiagramUnit {
     OperationsPerSecond,
 }
 
-export interface WidgetDiagramDataPoint {
-    x: number;
-    y: number;
-}
-
 export interface WidgetDiagramSeries {
     name: string;
-    data: WidgetDiagramDataPoint[];
+    column: number;
 }
 
 export interface WidgetDiagramAxis {
@@ -167,10 +157,14 @@ export interface WidgetDiagramAxis {
 }
 
 export interface WidgetDiagramDefinition {
-    type: WidgetDiagramType;
     series: WidgetDiagramSeries[];
     xAxis: WidgetDiagramAxis;
     yAxis: WidgetDiagramAxis;
+
+    channel: string;
+    yAxisColumn: number;
+
+    data?: Line[]; // frontend only property
 }
 
 export interface WidgetProgressBar {
@@ -218,8 +212,6 @@ export enum WidgetAction {
     WidgetActionUpdate,
     WidgetActionDelete
 }
-
-export type WidgetStreamEncoding = "binary" | "json";
 
 const shadeToBaseName: string[] = [
     "",

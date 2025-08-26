@@ -24,7 +24,7 @@ import (
 // InitJobDatabase().
 
 var activeJobs = make(map[string]*orc.Job)
-var activeJobsMutex = sync.Mutex{}
+var activeJobsMutex = sync.RWMutex{}
 
 type trackRequestType struct {
 	JobId      string
@@ -39,7 +39,6 @@ type JobUpdateBatch struct {
 	trackedDirtyStates    map[string]orc.JobState
 	trackedNodeAllocation map[string][]string
 	failed                bool
-	relevancyFilter       func(job *orc.Job) bool
 	results               JobUpdateBatchResults
 }
 
@@ -116,7 +115,7 @@ func InitJobDatabase() {
 			var jobsInQueue float64 = 0
 			var jobsSuspended float64 = 0
 
-			activeJobsMutex.Lock()
+			activeJobsMutex.RLock()
 			for _, job := range activeJobs {
 				switch job.Status.State {
 				case orc.JobStateRunning:
@@ -127,7 +126,7 @@ func InitJobDatabase() {
 					jobsSuspended++
 				}
 			}
-			activeJobsMutex.Unlock()
+			activeJobsMutex.RUnlock()
 
 			metricJobsRunning.Set(jobsRunning)
 			metricJobsInQueue.Set(jobsInQueue)
@@ -155,13 +154,13 @@ func TrackNewJob(job orc.Job) {
 	if RunsServerCode() {
 		timer.Mark()
 		refreshRoutes := false
-		activeJobsMutex.Lock()
+		activeJobsMutex.RLock()
 		activeJobs[job.Id] = &job
 
 		if job.Status.State.IsFinal() {
 			refreshRoutes = true
 		}
-		activeJobsMutex.Unlock()
+		activeJobsMutex.RUnlock()
 		metricTrackUpdateMemory.Observe(timer.Mark().Seconds())
 
 		trackJobUpdateServer(&job)
@@ -242,9 +241,9 @@ func metricJobTrack(region string) prometheus.Summary {
 
 func RetrieveJob(jobId string) (*orc.Job, bool) {
 	if RunsServerCode() {
-		activeJobsMutex.Lock()
+		activeJobsMutex.RLock()
 		job, ok := activeJobs[jobId]
-		activeJobsMutex.Unlock()
+		activeJobsMutex.RUnlock()
 
 		if ok {
 			return job, ok
@@ -268,29 +267,24 @@ func RetrieveJob(jobId string) (*orc.Job, bool) {
 	}
 }
 
-func BeginJobUpdates() *JobUpdateBatch {
-	activeJobsMutex.Lock()
-	return &JobUpdateBatch{
-		trackedDirtyStates:    make(map[string]orc.JobState),
-		trackedNodeAllocation: make(map[string][]string),
-	}
-}
-
 func GetJobs() map[string]*orc.Job {
 	result := map[string]*orc.Job{}
-	activeJobsMutex.Lock()
+	activeJobsMutex.RLock()
 	for _, job := range activeJobs {
 		if !job.Status.State.IsFinal() {
 			copied := *job
 			result[copied.Id] = &copied
 		}
 	}
-	activeJobsMutex.Unlock()
+	activeJobsMutex.RUnlock()
 	return result
 }
 
-func (b *JobUpdateBatch) SetRelevancyFilter(filter func(job *orc.Job) bool) {
-	b.relevancyFilter = filter
+func BeginJobUpdates() *JobUpdateBatch {
+	return &JobUpdateBatch{
+		trackedDirtyStates:    make(map[string]orc.JobState),
+		trackedNodeAllocation: make(map[string][]string),
+	}
 }
 
 func (b *JobUpdateBatch) AddUpdate(update orc.ResourceUpdateAndId[orc.JobUpdate]) {
@@ -300,11 +294,7 @@ func (b *JobUpdateBatch) AddUpdate(update orc.ResourceUpdateAndId[orc.JobUpdate]
 		case orc.JobStateRunning:
 			b.results.NormalStart = append(b.results.NormalStart, update.Id)
 
-		case orc.JobStateExpired:
-			fallthrough
-		case orc.JobStateSuccess:
-			fallthrough
-		case orc.JobStateFailure:
+		case orc.JobStateExpired, orc.JobStateSuccess, orc.JobStateFailure:
 			b.results.NormalTermination = append(b.results.NormalTermination, update.Id)
 
 		case orc.JobStateSuspended:
@@ -319,8 +309,15 @@ func (b *JobUpdateBatch) AddUpdate(update orc.ResourceUpdateAndId[orc.JobUpdate]
 func (b *JobUpdateBatch) TrackState(jobId string, state orc.JobState, status util.Option[string]) bool {
 	b.trackedDirtyStates[jobId] = state
 
+	activeJobsMutex.RLock()
 	currentJob, ok := activeJobs[jobId]
-	if ok && currentJob.Status.State != state {
+	var currentState orc.JobState
+	if ok {
+		currentState = currentJob.Status.State
+	}
+	activeJobsMutex.RUnlock()
+
+	if ok && currentState != state {
 		message := ""
 		if status.IsSet() {
 			message = status.Get()
@@ -393,76 +390,79 @@ func (b *JobUpdateBatch) flush() {
 	var nodeAllocJobIds []string
 	var nodeAllocNodeIds []string
 
+	activeJobsMutex.Lock()
 	for _, entry := range b.entries {
 		u := &entry.Update
 		u.Timestamp = fnd.Timestamp(time.Now())
 		job, ok := activeJobs[entry.Id]
 
-		if !ok {
-			continue
-		}
-
-		if u.ExpectedState.IsSet() {
-			if u.ExpectedState.Get() != job.Status.State {
-				continue
+		expectationsMet := ok
+		if ok {
+			if u.ExpectedState.IsSet() {
+				if u.ExpectedState.Get() != job.Status.State {
+					expectationsMet = false
+				}
 			}
-		}
 
-		if u.ExpectedDifferentState.Get() {
-			if u.ExpectedDifferentState.Get() && job.Status.State == u.State.Get() {
-				continue
-			}
-		}
-
-		if u.State.IsSet() {
-			job.Status.State = u.State.Get()
-
-			if u.State.Get() == orc.JobStateRunning {
-				job.Status.StartedAt.Set(fnd.Timestamp(time.Now()))
-
-				alloc := job.Specification.TimeAllocation
-				if alloc.IsSet() {
-					job.Status.ExpiresAt.Set(fnd.Timestamp(
-						job.Status.StartedAt.Get().Time().Add(time.Duration(alloc.Get().ToMillis()) * time.Millisecond),
-					))
+			if u.ExpectedDifferentState.GetOrDefault(false) {
+				if job.Status.State == u.State.Get() {
+					expectationsMet = false
 				}
 			}
 		}
 
-		if u.NewTimeAllocation.IsSet() {
-			newDuration := orc.SimpleDurationFromMillis(u.NewTimeAllocation.Get())
-			job.Specification.TimeAllocation.Set(newDuration)
-			if job.Status.StartedAt.IsSet() {
-				job.Status.ExpiresAt.Set(fnd.Timestamp(
-					job.Status.StartedAt.Get().Time().Add(time.Duration(newDuration.ToMillis()) * time.Millisecond),
-				))
+		if ok && expectationsMet {
+			if u.State.IsSet() {
+				job.Status.State = u.State.Get()
+
+				if u.State.Get() == orc.JobStateRunning {
+					job.Status.StartedAt.Set(fnd.Timestamp(time.Now()))
+
+					alloc := job.Specification.TimeAllocation
+					if alloc.IsSet() {
+						job.Status.ExpiresAt.Set(fnd.Timestamp(
+							job.Status.StartedAt.Get().Time().Add(time.Duration(alloc.Get().ToMillis()) * time.Millisecond),
+						))
+					}
+				}
 			}
-		}
 
-		if u.AllowRestart.IsSet() {
-			job.Status.AllowRestart = u.AllowRestart.Get()
-		}
-
-		if u.OutputFolder.IsSet() {
-			job.Output.OutputFolder.Set(u.OutputFolder.Get())
-		}
-
-		// NOTE(Dan): Mounts are not tracked here since we do not know if they should be added or not. Instead, we rely
-		// on UCloud/Core sending the job one more time which should cause TrackNewJob() to be called again (correcting
-		// the state).
-
-		job.Updates = append(job.Updates, *u)
-
-		alloc, ok := b.trackedNodeAllocation[job.Id]
-		if ok {
-			for _, node := range alloc {
-				nodeAllocJobIds = append(nodeAllocJobIds, job.Id)
-				nodeAllocNodeIds = append(nodeAllocNodeIds, node)
+			if u.NewTimeAllocation.IsSet() {
+				newDuration := orc.SimpleDurationFromMillis(u.NewTimeAllocation.Get())
+				job.Specification.TimeAllocation.Set(newDuration)
+				if job.Status.StartedAt.IsSet() {
+					job.Status.ExpiresAt.Set(fnd.Timestamp(
+						job.Status.StartedAt.Get().Time().Add(time.Duration(newDuration.ToMillis()) * time.Millisecond),
+					))
+				}
 			}
-		}
 
-		trackJobUpdateServer(job)
+			if u.AllowRestart.IsSet() {
+				job.Status.AllowRestart = u.AllowRestart.Get()
+			}
+
+			if u.OutputFolder.IsSet() {
+				job.Output.OutputFolder.Set(u.OutputFolder.Get())
+			}
+
+			// NOTE(Dan): Mounts are not tracked here since we do not know if they should be added or not. Instead, we rely
+			// on UCloud/Core sending the job one more time which should cause TrackNewJob() to be called again (correcting
+			// the state).
+
+			job.Updates = append(job.Updates, *u)
+
+			alloc, ok := b.trackedNodeAllocation[job.Id]
+			if ok {
+				for _, node := range alloc {
+					nodeAllocJobIds = append(nodeAllocJobIds, job.Id)
+					nodeAllocNodeIds = append(nodeAllocNodeIds, node)
+				}
+			}
+
+			trackJobUpdateServer(job)
+		}
 	}
+	activeJobsMutex.Unlock()
 
 	if len(nodeAllocJobIds) > 0 {
 		db.NewTx0(func(tx *db.Transaction) {
@@ -512,23 +512,16 @@ type JobUpdateBatchResults struct {
 // End flushes out any remaining job updates and return a list of jobs which were terminated due to missing
 // tracking data.
 func (b *JobUpdateBatch) End() JobUpdateBatchResults {
-	defer activeJobsMutex.Unlock()
-
 	if b.failed {
 		return JobUpdateBatchResults{}
 	}
 
 	var jobsWithUnknownState []string
 	now := time.Now()
-	filter := b.relevancyFilter
-	if filter == nil {
-		filter = func(job *orc.Job) bool {
-			return true
-		}
-	}
 
+	activeJobsMutex.RLock()
 	for activeJobId, job := range activeJobs {
-		if job.Status.State.IsFinal() || !filter(job) {
+		if job.Status.State.IsFinal() {
 			continue
 		}
 
@@ -543,19 +536,34 @@ func (b *JobUpdateBatch) End() JobUpdateBatchResults {
 			jobsWithUnknownState = append(jobsWithUnknownState, activeJobId)
 		}
 	}
+	activeJobsMutex.RUnlock()
 
-	var terminatedJobs []string
 	for _, jobIdToTerminate := range jobsWithUnknownState {
 		terminationState := orc.JobStateSuccess
 
-		job, ok := activeJobs[jobIdToTerminate]
+		var id string
+		var state orc.JobState
+		var expiresAt util.Option[fnd.Timestamp]
+		ok := false
+
+		{
+			activeJobsMutex.RLock()
+			job, hasJob := activeJobs[jobIdToTerminate]
+			if hasJob {
+				ok = true
+				expiresAt = job.Status.ExpiresAt
+				state = job.Status.State
+				id = job.Id
+			}
+			activeJobsMutex.RUnlock()
+		}
+
 		if ok {
-			expiresAt := job.Status.ExpiresAt
 			if expiresAt.IsSet() && now.After(expiresAt.Get().Time()) {
 				terminationState = orc.JobStateExpired
 			}
 
-			if job.Status.State != terminationState {
+			if state != terminationState {
 				b.AddUpdate(orc.ResourceUpdateAndId[orc.JobUpdate]{
 					Id: jobIdToTerminate,
 					Update: orc.JobUpdate{
@@ -565,7 +573,7 @@ func (b *JobUpdateBatch) End() JobUpdateBatchResults {
 				})
 			}
 
-			terminatedJobs = append(terminatedJobs, job.Id)
+			b.results.TerminatedDueToUnknownState = append(b.results.TerminatedDueToUnknownState, id)
 		}
 	}
 
@@ -687,12 +695,12 @@ func fetchAllJobs(state orc.JobState) {
 
 func JobsListServer() []*orc.Job {
 	var result []*orc.Job
-	activeJobsMutex.Lock()
+	activeJobsMutex.RLock()
 	for _, job := range activeJobs {
 		if !job.Status.State.IsFinal() {
 			result = append(result, job)
 		}
 	}
-	defer activeJobsMutex.Unlock()
+	activeJobsMutex.RUnlock()
 	return result
 }

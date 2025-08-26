@@ -7,23 +7,16 @@ import {
     WidgetLocation,
     WidgetPacketHeader,
     WidgetProgressBar, WidgetSnippet,
-    WidgetStreamEncoding,
     WidgetTable,
     WidgetType,
 } from "@/Applications/Jobs/JobViz/index";
 
 interface EventMap {
     "createAny": RuntimeWidget;
-    "createLabel": RuntimeWidget<WidgetLabel>;
-    "createContainer": RuntimeWidget<WidgetContainer>;
-    "createProgressBar": RuntimeWidget<WidgetProgressBar>;
-    "createTable": RuntimeWidget<WidgetTable>;
-    "createSnippet": RuntimeWidget<WidgetSnippet>;
-    "createDiagram": RuntimeWidget<WidgetDiagramDefinition>;
     "appendTableRows": UpdateEvent<WidgetTable>;
-    "appendDiagramData": UpdateEvent<WidgetDiagramSeries[]>;
     "updateProgress": UpdateEvent<WidgetProgressBar>;
     "delete": DeleteEvent;
+    "appendRow": {row: number[], channel: string};
 }
 
 export interface RuntimeWidget<K = unknown> {
@@ -43,7 +36,6 @@ export interface DeleteEvent {
 }
 
 export class StreamProcessor {
-    private encoding: WidgetStreamEncoding;
     private buffer: string = "";
     private state: number = 0;
 
@@ -52,14 +44,16 @@ export class StreamProcessor {
 
     private listeners: ([string, (ev: any) => void])[] = [];
 
-    constructor(encoding: WidgetStreamEncoding) {
-        this.encoding = encoding;
-        if (encoding != "json") throw "TODO";
-    }
-
     accept(data: string) {
         this.buffer += data;
         this.processBuffer();
+    }
+
+    acceptGenericData(data: string, channel: string) {
+        if (channel === "utilization-data") {
+            const row = data.split(",").map(it => parseFloat(it));
+            this.dispatch("appendRow", {row, channel});
+        }
     }
 
     on<K extends keyof EventMap>(type: K, listener: (ev: EventMap[K]) => void): (ev: EventMap[K]) => void {
@@ -138,7 +132,6 @@ export class StreamProcessor {
                                         type: widget.type,
                                         spec: container,
                                     };
-                                    this.dispatch("createContainer", event);
                                     this.dispatch("createAny", event);
                                     break;
                                 }
@@ -151,8 +144,7 @@ export class StreamProcessor {
                             break;
                         }
 
-                        case WidgetType.WidgetTypeDiagram: {
-
+                        case WidgetType.WidgetTypeLineChart: {
                             switch (header.action) {
                                 case WidgetAction.WidgetActionCreate: {
                                     const diagram = parsed as WidgetDiagramDefinition;
@@ -162,17 +154,7 @@ export class StreamProcessor {
                                         type: widget.type,
                                         spec: diagram,
                                     };
-                                    this.dispatch("createDiagram", event);
                                     this.dispatch("createAny", event);
-                                    break;
-                                }
-
-                                case WidgetAction.WidgetActionUpdate: {
-                                    const diagram = parsed as WidgetDiagramSeries[];
-                                    this.dispatch("appendDiagramData", {
-                                        id: widget.id,
-                                        widget: diagram,
-                                    });
                                     break;
                                 }
 
@@ -195,7 +177,6 @@ export class StreamProcessor {
                                         type: widget.type,
                                         spec: label,
                                     };
-                                    this.dispatch("createLabel", event);
                                     this.dispatch("createAny", event);
                                     break;
                                 }
@@ -219,7 +200,6 @@ export class StreamProcessor {
                                         type: widget.type,
                                         spec: progressBar,
                                     };
-                                    this.dispatch("createProgressBar", event);
                                     this.dispatch("createAny", event);
                                     break;
                                 }
@@ -251,7 +231,6 @@ export class StreamProcessor {
                                         type: widget.type,
                                         spec: table,
                                     };
-                                    this.dispatch("createTable", event);
                                     this.dispatch("createAny", event);
                                     break;
                                 }
@@ -283,7 +262,6 @@ export class StreamProcessor {
                                         type: widget.type,
                                         spec: snippet,
                                     };
-                                    this.dispatch("createSnippet", event);
                                     this.dispatch("createAny", event);
                                     break;
                                 }

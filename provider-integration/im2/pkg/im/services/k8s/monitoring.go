@@ -43,9 +43,7 @@ func getScheduler(category string, group string) (*Scheduler, bool) {
 	schedKey := fmt.Sprintf("%s/%s", mapped, group)
 
 	_, isIApp := ctrl.IntegratedApplications[mapped]
-	if isIApp {
-		// TODO Ask the application about the scheduler.
-	} else {
+	if !isIApp {
 		_, ok := shared.ServiceConfig.Compute.Machines[mapped]
 		if !ok {
 			return nil, false
@@ -328,6 +326,19 @@ func loopMonitoring() {
 
 	tracker.jobs = activeJobs
 	metricMonitoring.WithLabelValues("ActiveJobs").Observe(timer.Mark().Seconds())
+
+	timer.Mark()
+	entriesToRemove := shared.SwapScheduleRemoveFromQueue()
+	for _, jobId := range entriesToRemove {
+		job, ok := ctrl.RetrieveJob(jobId)
+		if ok {
+			sched, ok := getSchedulerByJob(job)
+			if ok {
+				sched.RemoveJobFromQueue(jobId)
+			}
+		}
+	}
+	metricMonitoring.WithLabelValues("RemoveFromQueue").Observe(timer.Mark().Seconds())
 
 	timer.Mark()
 	containers.Monitor(tracker, activeJobs)
