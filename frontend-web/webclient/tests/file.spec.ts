@@ -1,40 +1,48 @@
 import {test, expect} from '@playwright/test';
-import {Folder, login} from "./shared";
+import {Drive, Folder, login} from "./shared";
 
-test.beforeEach(async ({page}) => {
+const Drives: Record<string, string> = {};
+
+test.beforeEach(async ({page, userAgent}) => {
+    const driveName = Drive.newDriveName();
     await login(page);
+    await Drive.create(page, driveName);
+    Drives[userAgent!] = driveName
 });
 
 /// File operations
 
-test('Create and delete folder (with available resources)', async ({page}) => {
+test('Create and delete folder (with available resources)', async ({page, userAgent}) => {
+    const driveName = Drives[userAgent!];
     const folderName = Folder.newFolderName();
-    await page.getByRole('link', {name: 'Go to Files'}).click();
-    await page.getByText('Home').click();
+    await Drive.goToDrives(page);
+    await page.getByText(driveName).dblclick();
     await Folder.create(page, folderName);
-    await page.locator('div').filter({hasText: folderName}).nth(1).dblclick();
-    await page.goBack();
+    await expect(page.locator('div > span', {hasText: folderName})).toHaveCount(1);
     await Folder.delete(page, folderName);
-    await page.goForward();
-    await expect(page.locator('div').filter({hasText: "Could not find directory"})).toHaveCount(0);
+    await expect(page.locator('div > span', {hasText: folderName})).toHaveCount(0);
 });
 
 test('Rename (with available resources)', async ({page}) => {
     const folderName = Folder.newFolderName();
     const newFolderName = Folder.newFolderName();
-    await page.getByRole('link', {name: 'Go to Files'}).click();
-    await page.locator('span').filter({hasText: 'Home'}).dblclick();
-    await page.getByText('Create folder').click();
-    await page.getByRole('textbox').nth(1).fill(folderName);
-    await page.keyboard.press('Enter');
-    await page.locator('div').filter({hasText: folderName}).nth(1).click();
+    const driveName = Drive.newDriveName();
+    await Drive.create(page, driveName);
+    await page.locator('span').filter({hasText: driveName}).dblclick();
+    await Folder.create(page, folderName);
+    await page.locator('div > span').filter({hasText: folderName}).click();
     await page.getByText('Rename').click();
     await page.locator('.rename-field').fill(newFolderName);
     await page.keyboard.press('Enter');
     await page.getByText(newFolderName).dblclick();
     await expect(page.getByText('This folder is empty')).toHaveCount(1);
-    await page.goBack();
 
     // Cleanup
+    await page.goBack();
     await Folder.delete(page, newFolderName);
 });
+
+test.afterEach(async ({page, userAgent}) => {
+    const driveName = Drives[userAgent!];
+    await Drive.delete(page, driveName);
+})

@@ -1,4 +1,4 @@
-import {expect, type Page} from '@playwright/test';
+import {expect, Locator, type Page} from '@playwright/test';
 
 // Note(Jonas): If it complains that it doesn't exist, create it.
 import {default as data} from "./test_data.json" with {type: "json"};
@@ -37,41 +37,69 @@ export const Folder = {
     },
 
     async delete(page: Page, name: string) {
-        await page.locator('div').filter({hasText: name}).nth(1).click();
-        await page.locator('div:nth-child(6)').first().click(); // Ellipses
+        await Rows.actionByRowTitle(page, name, "click");
+        await page.locator('.operation.button6.in-header:nth-child(6)').click(); // Ellipses
         await page.getByRole('button', {name: 'Move to trash'}).click({delay: 1000 + 200});
     }
 }
+
+const Rows = {
+    async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover", retries = 5) {
+        // If not found, wait 3 seconds. If already waited, find height of table and scroll by height. If at bottom, fail.
+        try {
+            await page.waitForTimeout(200);
+            const loc = page.locator('div > span', {hasText: name});
+            if (loc) {
+                console.log(loc);
+                await loc[action]();
+            }
+        } catch (e) {
+            if (retries === 0) {
+                throw e;
+            }
+            await page.locator(".scrolling").hover();
+            page.mouse.wheel(0, 400);
+            console.log("scrolling")
+            Rows.actionByRowTitle(page, name, action, retries - 1);
+        }
+    },
+};
 
 export const Drive = {
     newDriveName(): string {
         return "DriveName" + Math.random().toString().slice(2, 7);
     },
 
-    async create(page: Page, name: string) {
+    async goToDrives(page: Page) {
         await page.getByRole('link', {name: 'Go to Files'}).click();
         await Components.projectSwitcher(page, "HOVER");
-        await page.getByText('Create drive').click();
+    },
+
+    async create(page: Page, name: string) {
+        await Drive.goToDrives(page);
+        await page.waitForTimeout(200);
+        await page.locator("div.operation").filter({hasText: 'Create drive'}).click();
         await page.getByRole('textbox', {name: 'Choose a name*'}).fill(name);
         await page.getByRole('button', {name: 'Create', disabled: false}).click();
     },
 
     async delete(page: Page, name: string) {
-        await page.locator('div > span').filter({hasText: name}).click();
-        await page.getByText('Delete⌥ R').click();
+        await Drive.goToDrives(page);
+        await Rows.actionByRowTitle(page, name, "click");
+        await page.getByText('Delete').click();
         await page.locator('#collectionName').fill(name);
-        await page.getByRole('button', {name: 'I understand what I am doing'}).click();
+        await page.getByRole('button', {name: 'I understand what I am doing', disabled: false}).click();
     },
 
     async rename(page: Page, oldName: string, newName: string) {
-        await page.locator('div > span').filter({hasText: oldName}).click();
+        await Rows.actionByRowTitle(page, oldName, "click");
         await page.getByText('Rename').click();
         await page.getByRole('textbox').nth(1).fill(newName);
         await page.getByRole('textbox').nth(1).press('Enter');
     },
 
     async properties(page: Page, name: string) {
-        await page.locator('div > span').filter({hasText: name}).click();
+        await Rows.actionByRowTitle(page, name, "click");
         await page.getByText('Properties').click();
     }
 };
