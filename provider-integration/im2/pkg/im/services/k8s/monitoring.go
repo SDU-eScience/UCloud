@@ -43,9 +43,7 @@ func getScheduler(category string, group string) (*Scheduler, bool) {
 	schedKey := fmt.Sprintf("%s/%s", mapped, group)
 
 	_, isIApp := ctrl.IntegratedApplications[mapped]
-	if isIApp {
-		// TODO Ask the application about the scheduler.
-	} else {
+	if !isIApp {
 		_, ok := shared.ServiceConfig.Compute.Machines[mapped]
 		if !ok {
 			return nil, false

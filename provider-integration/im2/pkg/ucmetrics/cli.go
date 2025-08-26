@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 	"ucloud.dk/pkg/ucviz"
-	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -25,10 +24,6 @@ const (
 )
 
 func HandleCli() {
-	_ = log.SetLogFile("/tmp/ucmetrics.log")
-
-	log.Info("Hi!")
-
 	cpu, cpuErr := CpuSampleStart()
 
 	lastNet := time.Now()
@@ -80,7 +75,6 @@ func HandleCli() {
 
 		if cpuErr == nil {
 			if cpuStats, err := cpu.End(); err == nil {
-				log.Info("cpu sample start")
 				charts = append(charts, chartInfo{
 					Id:    "cpu",
 					Title: "CPU utilization",
@@ -110,7 +104,6 @@ func HandleCli() {
 			}
 		}
 		cpu, cpuErr = CpuSampleStart()
-		log.Info("cpu sample ok")
 
 		{
 			memory := ReadMemoryUsage()
@@ -142,7 +135,6 @@ func HandleCli() {
 			row[nextCol] = float64(memory)
 			nextCol++
 		}
-		log.Info("memory ok")
 
 		{
 			networkInterfacesUsed = nil
@@ -210,7 +202,6 @@ func HandleCli() {
 				}
 			}
 		}
-		log.Info("memory ok")
 
 		gpu := ReadNvidiaGpuUsage()
 		if len(gpu) > 0 {
@@ -294,11 +285,9 @@ func HandleCli() {
 				nextCol++
 			}
 		}
-		log.Info("nvidia ok")
 
 		didChangeCharts := false
 		if len(charts) != len(previousCharts) {
-			log.Info("Chart change 1")
 			didChangeCharts = true
 		} else {
 			for i := 0; i < len(charts); i++ {
@@ -306,25 +295,21 @@ func HandleCli() {
 				b := charts[i]
 
 				if a.Id != b.Id {
-					log.Info("Chart change 1")
 					didChangeCharts = true
 					break
 				}
 
 				if a.Title != b.Title {
-					log.Info("Chart change 2")
 					didChangeCharts = true
 					break
 				}
 
 				if a.Icon != b.Icon {
-					log.Info("Chart change 3")
 					didChangeCharts = true
 					break
 				}
 
 				if len(a.Definition.Series) != len(b.Definition.Series) {
-					log.Info("Chart change 4")
 					didChangeCharts = true
 					break
 				}
@@ -348,12 +333,7 @@ func HandleCli() {
 			}
 		}
 
-		err := ring.Write(row)
-		if err != nil {
-			log.Info("ring write error: %s", err)
-		} else {
-			log.Info("Ring write OK")
-		}
+		_ = ring.Write(row)
 
 		previousCharts = charts
 		time.Sleep(250 * time.Millisecond)
