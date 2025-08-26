@@ -312,13 +312,12 @@ class DataVisualization(
                         val provider = row.getString(2)!!
                         val usage = row.getLong(3)!!
 
+                        val pc = categories.find { it.name == category && it.provider == provider } ?: continue
+
                         dataPoints.add(
                             UsagePerUserPointAPI(
                                 createdBy,
-                                ProductCategoryIdV2(
-                                    category,
-                                    provider
-                                ),
+                                pc,
                                 usage
                             )
                         )

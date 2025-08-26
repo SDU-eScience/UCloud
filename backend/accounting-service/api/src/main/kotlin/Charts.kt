@@ -32,7 +32,7 @@ data class BreakdownByProjectAPI (
 @Serializable
 data class UsagePerUserPointAPI(
     val username: String,
-    val categoryIdV2: ProductCategoryIdV2,
+    val category: ProductCategory,
     val usage:  Long
 )
 

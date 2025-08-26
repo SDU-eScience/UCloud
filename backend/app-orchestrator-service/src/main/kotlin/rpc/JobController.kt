@@ -108,10 +108,6 @@ class JobController(
             ok(jobs.chargeOrCheckCredits(actorAndProject, request, checkOnly = true))
         }
 
-        implement(Statistics.retrieveStatistics) {
-            ok(Unit)
-        }
-
         implement(Jobs.requestDynamicParameters) {
             ok(jobs.requestDynamicParameters(actorAndProject, request))
         }
