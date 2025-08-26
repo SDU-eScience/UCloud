@@ -5,6 +5,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+
 	"ucloud.dk/launcher/pkg/termio"
 )
 
@@ -218,6 +219,43 @@ func CliIntercept(args []string) {
 			PrintHelp()
 		}
 		RestoreSnapshot(snapshotName)
+
+	case "test-e2e":
+		cmdToRun := []string{"npx", "playwright"}
+		if len(args) > 1 {
+			arg := args[1]
+
+			switch arg {
+			case "ui":
+				cmdToRun = append(cmdToRun, "test", "--ui")
+			case "headed":
+				cmdToRun = append(cmdToRun, "test", "--headed")
+			case "report":
+				cmdToRun = append(cmdToRun, "show-report")
+			default:
+				fmt.Println("Unknown argument for testing: '" + arg + "'")
+				os.Exit(0)
+			}
+		} else {
+			cmdToRun = append(cmdToRun, "test")
+		}
+
+		fmt.Println(strings.Join(cmdToRun, " "))
+
+		// TODO: Write file with this content to `/frontend-web/webclient/tests/test_data.json`
+
+		// type SimpleUser struct {
+		// 	username String
+		// 	password String
+		// }
+		// type JSONContent struct {
+		// 	location_origin string
+		// 	users           struct {
+		// 		with_resources    SimpleUser
+		// 		without_resources SimpleUser
+		// 	}
+		// }
 	}
+
 	os.Exit(0)
 }
