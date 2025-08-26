@@ -11,7 +11,6 @@ import {SvgCache} from "@/Utilities/SvgCache";
 import {
     capitalized,
     createHTMLElements,
-    displayErrorMessageOrDefault,
     doNothing,
     inDevEnvironment,
     isLikelyMac,
@@ -32,7 +31,7 @@ import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
 import {ProjectSwitcher, FilterInputClass, projectCache} from "@/Project/ProjectSwitcher";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
-import {browseWalletsV2, buildAllocationDisplayTree, ProductType, ProductV2} from "@/Accounting";
+import {ProductType, ProductV2} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -47,16 +46,10 @@ import Flex, {FlexClass} from "./Flex";
 import * as Heading from "@/ui-components/Heading";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI} from "@/Project";
-import {callAPI, noopCall} from "@/Authentication/DataHook";
+import {noopCall} from "@/Authentication/DataHook";
 import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {Feature, hasFeature} from "@/Features";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
-import {useProjectId} from "@/Project/Api";
-import {ProgressBar} from "@/Accounting/Allocations";
-import Card from "./Card";
-import Text from "./Text";
-import {ProviderLogo} from "@/Providers/ProviderLogo";
-import Box from "./Box";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const UTILITY_COLOR: ThemeColor = "textPrimary";

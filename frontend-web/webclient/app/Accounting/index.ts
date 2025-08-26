@@ -640,37 +640,41 @@ export interface AllocationDisplayWallet {
     }[];
 }
 
+export interface AllocationDisplayTreeYourAllocation {
+    usageAndQuota: UsageAndQuota[];
+    wallets: AllocationDisplayWallet[];
+}
+
+export interface AllocationDisplayTreeRecipient {
+    owner: AllocationDisplayTreeRecipientOwner;
+
+    usageAndQuota: UsageAndQuota[];
+
+    groups: {
+        category: ProductCategoryV2;
+        usageAndQuota: UsageAndQuota;
+        totalGranted: number;
+
+        allocations: {
+            allocationId: number;
+            quota: number;
+            note?: AllocationNote;
+            isEditing: boolean;
+            grantedIn?: number;
+
+            start: number;
+            end: number;
+        }[];
+    }[];
+}
+
 export interface AllocationDisplayTree {
     yourAllocations: {
-        [P in ProductType]?: {
-            usageAndQuota: UsageAndQuota[];
-            wallets: AllocationDisplayWallet[];
-        }
+        [P in ProductType]?: AllocationDisplayTreeYourAllocation;
     };
 
     subAllocations: {
-        recipients: {
-            owner: AllocationDisplayTreeRecipientOwner;
-
-            usageAndQuota: UsageAndQuota[];
-
-            groups: {
-                category: ProductCategoryV2;
-                usageAndQuota: UsageAndQuota;
-                totalGranted: number;
-
-                allocations: {
-                    allocationId: number;
-                    quota: number;
-                    note?: AllocationNote;
-                    isEditing: boolean;
-                    grantedIn?: number;
-
-                    start: number;
-                    end: number;
-                }[];
-            }[];
-        }[];
+        recipients: AllocationDisplayTreeRecipient[];
     };
 }
 
