@@ -1692,7 +1692,7 @@ function usageChartsToChart(
         },
         tooltip: {
             theme: "dark",
-            shared: false,
+            shared: true,
             y: {
                 formatter: function (val) {
                     if (chartOptions.valueFormatter) {
