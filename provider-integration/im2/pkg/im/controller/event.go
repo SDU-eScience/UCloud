@@ -6,16 +6,17 @@ import (
 	"encoding/json"
 	"fmt"
 	ws "github.com/gorilla/websocket"
+	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/shared/pkg/apm"
 	"ucloud.dk/shared/pkg/client"
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
-	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -511,6 +512,8 @@ func (b *buf) GetString() string {
 }
 
 func saveLastKnownProject(project apm.Project) {
+	projectCacheServerOnly.Add(project.Id, project)
+
 	data, _ := json.Marshal(project)
 
 	db.NewTx0(func(tx *db.Transaction) {
@@ -532,35 +535,42 @@ func saveLastKnownProject(project apm.Project) {
 }
 
 var getLastKnownProjectIpc = ipc.NewCall[string, apm.Project]("event.getlastknownproject")
+var projectCacheServerOnly = lru.NewLRU[string, apm.Project](1024, nil, 10*time.Minute)
 
 func RetrieveProject(projectId string) (apm.Project, bool) {
 	if RunsServerCode() {
-		jsonData, ok := db.NewTx2[string, bool](func(tx *db.Transaction) (string, bool) {
-			jsonData, ok := db.Get[struct{ UCloudProject string }](
-				tx,
-				`
-				select ucloud_project
-				from tracked_projects
-				where project_id = :project_id
-			`,
-				db.Params{
-					"project_id": projectId,
-				},
-			)
-			return jsonData.UCloudProject, ok
-		})
-
+		result, ok := projectCacheServerOnly.Get(projectId)
 		if !ok {
-			return apm.Project{}, false
-		}
+			jsonData, ok := db.NewTx2[string, bool](func(tx *db.Transaction) (string, bool) {
+				jsonData, ok := db.Get[struct{ UCloudProject string }](
+					tx,
+					`
+					select ucloud_project
+					from tracked_projects
+					where project_id = :project_id
+				`,
+					db.Params{
+						"project_id": projectId,
+					},
+				)
+				return jsonData.UCloudProject, ok
+			})
 
-		var result apm.Project
-		err := json.Unmarshal([]byte(jsonData), &result)
-		if err != nil {
-			log.Warn("Could not unmarshal last known project %v -> %v", projectId, jsonData)
-			return apm.Project{}, false
+			if !ok {
+				return apm.Project{}, false
+			}
+
+			var result apm.Project
+			err := json.Unmarshal([]byte(jsonData), &result)
+			if err != nil {
+				log.Warn("Could not unmarshal last known project %v -> %v", projectId, jsonData)
+				return apm.Project{}, false
+			}
+			projectCacheServerOnly.Add(projectId, result)
+			return result, true
+		} else {
+			return result, true
 		}
-		return result, true
 	} else {
 		project, err := getLastKnownProjectIpc.Invoke(projectId)
 		if err != nil {

@@ -35,6 +35,19 @@ var (
 			0.99: 0.01,
 		},
 	})
+
+	metricDatabaseQueryDuration = promauto.NewSummaryVec(prometheus.SummaryOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "database",
+		Name:      "query_duration",
+		Help:      "Summary of a single query by its source-code origin",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	}, []string{"file", "line"})
 )
 
 type Params map[string]any
@@ -246,15 +259,19 @@ func RequestRollback(ctx *Transaction) {
 }
 
 func Exec(ctx *Transaction, query string, args Params) {
+	caller := util.GetCaller()
+	start := time.Now()
 	_, err := ctx.tx.NamedExec(query, transformParameters(args))
 	if err != nil && ctx.Ok {
 		ctx.Ok = false
 		ctx.error = fmt.Errorf("Database exec failed: %v\nquery: %v\n", err.Error(), query)
 	}
+	end := time.Now()
+	metricDatabaseQueryDuration.WithLabelValues(caller.File, fmt.Sprint(caller.Line)).Observe(end.Sub(start).Seconds())
 }
 
 func Get[T any](ctx *Transaction, query string, args Params) (T, bool) {
-	items := Select[T](ctx, query, args)
+	items := SelectEx[T](util.GetCaller(), ctx, query, args)
 	if len(items) != 1 {
 		var dummy T
 		return dummy, false
@@ -278,6 +295,11 @@ func DoSelect(ctx *Transaction, query string, args Params, fn func(res *sqlx.Row
 }
 
 func Select[T any](ctx *Transaction, query string, args Params) []T {
+	return SelectEx[T](util.GetCaller(), ctx, query, args)
+}
+
+func SelectEx[T any](caller util.FileAndLine, ctx *Transaction, query string, args Params) []T {
+	start := time.Now()
 	var result []T
 	res, err := ctx.tx.NamedQuery(query, transformParameters(args))
 	if err != nil {
@@ -301,6 +323,8 @@ func Select[T any](ctx *Transaction, query string, args Params) []T {
 		}
 	}
 
+	end := time.Now()
+	metricDatabaseQueryDuration.WithLabelValues(caller.File, fmt.Sprint(caller.Line)).Observe(end.Sub(start).Seconds())
 	return result
 }
 
