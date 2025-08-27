@@ -1695,10 +1695,14 @@ function usageChartsToChart(
             shared: true,
             y: {
                 formatter: function (val) {
-                    if (chartOptions.valueFormatter) {
-                        return chartOptions.valueFormatter(val);
+                    if (val !== undefined) {
+                        if (chartOptions.valueFormatter) {
+                            return chartOptions.valueFormatter(val);
+                        } else {
+                            return val.toString();
+                        }
                     } else {
-                        return val.toString();
+                        return "";
                     }
                 }
             }
