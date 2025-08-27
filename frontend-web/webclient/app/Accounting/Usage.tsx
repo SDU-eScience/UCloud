@@ -1622,7 +1622,7 @@ function usageChartsToChart(
                     toggleSeriesEntry(chart, seriesName, chartRef, chartOptions.toggleShown);
                 }
             },
-            stacked: true,
+            stacked: false,
             height: 350,
             animations: {
                 enabled: false,
