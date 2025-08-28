@@ -1,13 +1,11 @@
 package dk.sdu.cloud.app.orchestrator.rpc
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.statistics
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.JobResourceService
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkResponseOf
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.Controller
@@ -108,10 +106,6 @@ class JobController(
 
         implement(JobsControl.checkCredits) {
             ok(jobs.chargeOrCheckCredits(actorAndProject, request, checkOnly = true))
-        }
-
-        implement(Statistics.retrieveStatistics) {
-            ok(statistics.retrieveStatistics(ctx.responseAllocator, actorAndProject, request.start, request.end))
         }
 
         implement(Jobs.requestDynamicParameters) {
