@@ -46,11 +46,8 @@ test('Change sensitivity (with available resources)', async ({page, userAgent}) 
 
     /* TODO(Jonas): One should be enough! */
     await Components.clickRefreshAndWait(page);
-
     await Components.clickRefreshAndWait(page);
-
     await Components.clickRefreshAndWait(page);
-
     await Components.clickRefreshAndWait(page);
     /* TODO(Jonas): One should be enough! */
 
@@ -64,10 +61,28 @@ test('Change sensitivity (with available resources)', async ({page, userAgent}) 
     // TODO(Jonas): Ensure 1 confidential is present (or ensure that specific one has?)
 
     await expect(page.getByText("C", {exact: true})).toHaveCount(1);
-    // Cleanup    
+});
+
+test("View properties", async ({page, userAgent}) => {
+    const driveName = Drives[userAgent!];
+    await Drive.openDrive(page, driveName);
+    const folderName = Folder.newFolderName();
+    await Folder.create(page, folderName);
+    await Rows.actionByRowTitle(page, folderName, "click");
+    await page.locator("div:nth-child(6)").first().click();
+    await page.getByText("Properties").click();
+
+    await expect(page.locator("b").filter({hasText: "Path"})).toHaveCount(1);
+    await expect(page.locator("b").filter({hasText: "Product"})).toHaveCount(1);
+    await expect(page.locator("b").filter({hasText: "Provider"})).toHaveCount(1);
+    await expect(page.locator("b").filter({hasText: "Created at"})).toHaveCount(1);
+    await expect(page.locator("b").filter({hasText: "Modified at"})).toHaveCount(1);
+    await expect(page.locator("b").filter({hasText: "Accessed at"})).toHaveCount(1);
+    await expect(page.locator("b").filter({hasText: "UID/GID"})).toHaveCount(1);
+    await expect(page.locator("b").filter({hasText: "Unix mode"})).toHaveCount(1);
 });
 
 test.afterEach(async ({page, userAgent}) => {
     const driveName = Drives[userAgent!];
-    await Drive.delete(page, driveName);
+    if (driveName) await Drive.delete(page, driveName);
 })

@@ -237,10 +237,13 @@ func CliIntercept(args []string) {
 				os.Exit(0)
 			}
 		} else {
+			// Default that should run on CI
 			cmdToRun = append(cmdToRun, "test")
 		}
 
 		fmt.Println(strings.Join(cmdToRun, " "))
+
+		// TODO: Create users, one with resources, and one without.
 
 		// TODO: Write file with this content to `/frontend-web/webclient/tests/test_data.json`
 
