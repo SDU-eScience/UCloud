@@ -1,8 +1,10 @@
 package shared
 
 import (
+	"math"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/shared/pkg/apm"
+	"ucloud.dk/shared/pkg/log"
 )
 
 var ServiceConfig *cfg.ServicesConfigurationKubernetes
@@ -46,6 +48,7 @@ func NodeCpuMillisReserved(product *apm.ProductV2) int {
 		}
 	}
 
-	reservedPerCore := float64(nodeCat.SystemReservedCpuMillis) / float64(maxCpu)
+	reservedPerCore := math.Ceil(float64(nodeCat.SystemReservedCpuMillis) / float64(maxCpu))
+	log.Info("Reserved per core: %v (%v %v)", reservedPerCore, nodeCat.SystemReservedCpuMillis, maxCpu)
 	return product.Cpu*1000 - int(float64(product.Cpu)*reservedPerCore)
 }

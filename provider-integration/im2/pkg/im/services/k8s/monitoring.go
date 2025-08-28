@@ -505,7 +505,7 @@ func loopMonitoring() {
 			}
 
 			for _, c := range pod.Spec.Containers {
-				for resourceType, amount := range c.Resources.Limits {
+				for resourceType, amount := range c.Resources.Requests {
 					intAmount := int64(0)
 					if resourceType == core.ResourceCPU {
 						intAmount = amount.MilliValue()
