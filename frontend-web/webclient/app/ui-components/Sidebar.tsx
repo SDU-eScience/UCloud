@@ -725,7 +725,7 @@ function projectSidebarSubLinks(canApply: boolean, isPersonalWorkspace: boolean,
     }, {
         to: settings(""), text: "Project settings", icon: "heroWrenchScrewdriver", tab, disabled: isPersonalWorkspace, defaultHidden: true,
     }, {
-        to: allocations(), text: "Index", icon: "heroBanknotes", tab, defaultHidden: true,
+        to: allocations(), text: "Allocations", icon: "heroBanknotes", tab, defaultHidden: true,
     }, {
         to: subprojects(), icon: "heroUserGroup", text: "Sub-projects", tab, disabled: isPersonalWorkspace, defaultHidden: true,
     }, {

@@ -15,7 +15,7 @@ function targetFromConfig(mode: Mode): string {
 
     switch (mode) {
         case "development":
-            return `https://${DEV_SITE}`;
+            return `https://${PRODUCTION_SITE}`;
         case "sandbox":
             return `https://${SANDBOX_SITE}`;
         case "compose":

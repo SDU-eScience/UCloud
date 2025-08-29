@@ -41,7 +41,13 @@ import {OldProjectRole} from "@/Project";
 import {VariableSizeList} from "react-window";
 import {State, initialState, stateReducer, useEventReducer} from "./State"
 import {ProviderOnlySections} from "./ProviderOnlySections";
-import {YourAllocations, SubProjectList, ResourcesGranted, resetOpenNodes} from "./CommonSections";
+import {
+    YourAllocations,
+    SubProjectList,
+    ResourcesGranted,
+    resetOpenNodes,
+    SubProjectAllocations
+} from "./CommonSections";
 
 // Styling
 // =====================================================================================================================
@@ -337,7 +343,7 @@ const Allocations: React.FunctionComponent = () => {
         resetOpenNodes();
     }, [projectId]);
 
-    const listRef = useRef<VariableSizeList<State["subAllocations"]["recipients"]>>(null);
+    const listRef = useRef<VariableSizeList<number[]>>(null);
 
     return <MainContainer
         headerSize={0}
@@ -350,10 +356,12 @@ const Allocations: React.FunctionComponent = () => {
 
             <ProviderOnlySections state={state} dispatchEvent={dispatchEvent}/>
 
-            <YourAllocations sortedAllocations={sortedAllocations} allocationTree={allocationTree} indent={indent}/>
+            <YourAllocations allocations={sortedAllocations} allocationTree={allocationTree} indent={indent}/>
 
-            <ResourcesGranted state={state} allocationTree={allocationTree} sortedAllocations={sortedAllocations}
-                              indent={indent} avatars={avatars}/>
+            {/*<ResourcesGranted state={state} allocationTree={allocationTree} sortedAllocations={sortedAllocations}*/}
+            {/*                  indent={indent} avatars={avatars}/>*/}
+
+            <SubProjectAllocations allocations={sortedAllocations} indent={indent} />
 
             <SubProjectList projectId={projectId} onNewSubProject={onNewSubProject} projectRole={projectRole}
                                    state={state} onSearchInput={onSearchInput} onSearchKey={onSearchKey}

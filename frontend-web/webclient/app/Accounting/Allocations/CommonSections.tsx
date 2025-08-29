@@ -1,5 +1,6 @@
 import * as React from "react";
 import {
+    AllocationDisplayTreeYourAllocation,
     AllocationDisplayWallet,
     balanceToStringFromUnit,
     explainUnit,
@@ -12,7 +13,8 @@ import {Box, Button, Checkbox, Flex, Icon, Input, Label, Link, Relative, Text, T
 import AppRoutes from "@/Routes";
 import * as Accounting from "@/Accounting";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {chunkedString, timestampUnixMs} from "@/UtilityFunctions"; import {dateToStringNoTime} from "@/Utilities/DateUtilities";
+import {chunkedString, timestampUnixMs} from "@/UtilityFunctions";
+import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {OldProjectRole} from "@/Project";
 import {State, UIEvent} from "@/Accounting/Allocations/State";
@@ -26,23 +28,22 @@ import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {useCallback, useRef} from "react";
 import {ProgressBar} from "@/Accounting/Allocations/ProgressBar";
+import {file} from "@/UCloud";
+import ucloud = file.orchestrator.ucloud;
 
 export const YourAllocations: React.FunctionComponent<{
-    sortedAllocations: [string, {
-        usageAndQuota: UsageAndQuota[];
-        wallets: AllocationDisplayWallet[]
-    }][],
+    allocations: [string, AllocationDisplayTreeYourAllocation][],
     allocationTree: React.RefObject<TreeApi | null>,
     indent: number
-}> = ({sortedAllocations, allocationTree, indent}) => {
+}> = ({allocations, allocationTree, indent}) => {
     return <>
         <h3>Your allocations</h3>
-        {sortedAllocations.length !== 0 ? null : <>
+        {allocations.length !== 0 ? null : <>
             You do not have any allocations at the moment. You can apply for resources{" "}
             <Link to={AppRoutes.grants.editor()}>here</Link>.
         </>}
         <Tree apiRef={allocationTree}>
-            {sortedAllocations.map(([rawType, tree]) => {
+            {allocations.map(([rawType, tree]) => {
                 const type = rawType as ProductType;
 
                 return <TreeNode
@@ -122,6 +123,158 @@ export const YourAllocations: React.FunctionComponent<{
         </Tree>
     </>;
 }
+
+const subprojectStyle = injectStyle("sub-project-allocations", k => `
+/* Styling goes here */
+    ${k} .sub-project-allocations-container {
+        width: 80%;
+        border: 1px solid lightgray;
+        padding: 20px;
+        border-radius: 5px;
+        overflow: auto;
+    }
+    
+    ${k} .key-metrics-container {
+        display: flex;
+        flex-direction: row;
+        gap: 14px;
+        margin-top: 14px;
+    }
+    
+    ${k} .key-metrics-container > h3 {
+        flex-grow: 1;
+    }
+    
+    ${k} .filters-button {
+        width: 35px;
+    }
+    
+    ${k} .key-metrics-input {
+        width: 400px;
+        display: flex;
+        gap: 10px;
+    }
+    
+    ${k} .key-metrics-input > .key-metrics-search-box {
+        flex-grow: 1;
+        display: flex;
+    }
+    
+    ${k} .key-metrics-card-container {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        flex-basis: 400px;
+        flex-shrink: 0;
+        flex-grow: 0;
+        gap: 14px;
+    }
+    
+    ${k} .key-metrics-card {
+        width: 25%;
+        background: var(--primaryMain);
+        border-radius: 5px;
+        padding: 20px 20px 20px 16px;
+        color: white;
+        font-size: 20px;
+        flex-grow: 1;
+    }
+    
+    ${k} .key-metrics-card h3 {
+        font-weight: 500;
+    }
+    
+    ${k} .key-metrics-list {
+        width: 100%;
+        border: 1px solid lightgray;
+        border-radius: 5px;
+        padding-left: 16px;
+    }
+`);
+
+export const SubProjectAllocations: React.FunctionComponent<{
+    allocations: [string, AllocationDisplayTreeYourAllocation][];
+    indent: number;
+}> = ({allocations, indent}) => {
+    const treeApi = useRef<TreeApi>(null);
+    return <Box mt={32} mb={10} className={subprojectStyle}>
+        <div className="key-metrics-container">
+            <h3>Key metrics</h3>
+            <div className="key-metrics-input">
+                <div className="key-metrics-search-box">
+                    <Input placeholder="Search in your key metrics"></Input>
+                    <div style={{position: "relative"}}>
+                        <div style={{position: "absolute", top: "5px", right: "10px"}}>
+                            <Icon name={"heroMagnifyingGlass"}/>
+                        </div>
+                    </div>
+                </div>
+
+                <Button className="filters-button"><Icon name={"heroAdjustmentsHorizontal"}/></Button>
+            </div>
+        </div>
+        <div className="key-metrics-container">
+            <div className="sub-project-allocations-container">
+                <h3>Sub-project allocations</h3>
+                <Tree apiRef={treeApi}>
+                    {allocations.map(([rawType, tree]) => {
+                        const type = rawType as ProductType;
+
+                        return <TreeNode
+                            key={rawType}
+                            left={
+                                <Flex gap={"4px"}>
+                                    <Icon name={Accounting.productTypeToIcon(type)} size={20}/>
+                                    {Accounting.productAreaTitle(type)}
+                                </Flex>
+                            }
+                            right={<Flex flexDirection={"row"} gap={"8px"}>
+                                {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
+                                        <ProgressBar uq={uq}/>
+                                    </React.Fragment>
+                                )}
+                            </Flex>}
+                            indent={indent}
+                        >
+                            <TreeNode
+                                left={
+                                    <Flex gap={"4px"}>
+                                        <ProviderLogo providerId={"ucloud"} size={20}/>
+                                        <h3>u1-cephfs</h3>
+                                    </Flex>
+                                }
+                                right={<Flex flexDirection={"row"} gap={"8px"}>
+                                    {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
+                                            <ProgressBar uq={uq}/>
+                                        </React.Fragment>
+                                    )}
+                                </Flex>}
+                            >
+                            </TreeNode>
+                        </TreeNode>;
+                    })}
+                </Tree>
+            </div>
+            <div className="key-metrics-card-container">
+                <div className="key-metrics-card">
+                    <h3>41</h3>
+                    <br/>
+                    <h3>Cards <br/> were shown</h3>
+                </div>
+                <div className="key-metrics-card">
+                    <h3>984</h3>
+                    <br/>
+                    <h3>Other cards <br/>go here</h3>
+                </div>
+                <div className="key-metrics-list">
+                    <p>Key metrics content goes here</p>
+                    <p>More content on this line</p>
+                    <p>This one is also a key metric</p>
+                </div>
+            </div>
+        </div>
+    </Box>;
+};
 
 export const SubProjectList: React.FunctionComponent<{
     projectId: string | undefined,

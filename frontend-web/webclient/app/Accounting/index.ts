@@ -50,7 +50,7 @@ export function updateAllocation(request: BulkRequest<UpdateAllocationRequestIte
     return apiUpdate(request, "/api/accounting", "allocation");
 }
 
-export type WalletOwner = {type: "user"; username: string} | {type: "project"; projectId: string;};
+export type WalletOwner = { type: "user"; username: string } | { type: "project"; projectId: string; };
 
 export function productCategoryEquals(a: ProductCategoryId, b: ProductCategoryId): boolean {
     return a.provider === b.provider && a.name === b.name;
@@ -365,8 +365,8 @@ export function guesstimateProductCategoryDescription(
     return hardcodedProductCategoryDescriptions[provider]?.[normalizedCategory] ?? "";
 }
 
-type BalanceAndCategory = {balance: number; category: ProductCategoryV2;}
-type CombinedBalance = {productType: ProductType, normalizedBalance: number, unit: string};
+type BalanceAndCategory = { balance: number; category: ProductCategoryV2; }
+type CombinedBalance = { productType: ProductType, normalizedBalance: number, unit: string };
 
 export function combineBalances(
     balances: BalanceAndCategory[]
@@ -549,8 +549,7 @@ export class UsageAndQuota {
         const maxUsableBalance = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.maxUsable, {precision: 2});
         const currentBalance = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.quota - usage, {precision: 2});
 
-        const usageAndQuota = formatUsageAndQuota(usage, uqRaw.quota, uqRaw.type === "STORAGE", uqRaw.unit, {precision: 2});
-
+        const usageAndQuota = formatUsageAndQuota(usage, uqRaw.quota, uqRaw.type === "STORAGE", uqRaw.unit, {precision: 1});
         let usageAndQuotaPercent = usageAndQuota;
         if (uqRaw.quota !== 0) {
             usageAndQuotaPercent += " (";
@@ -809,17 +808,18 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                 const maxUsable = combineMaxUsable[i]
                 const retired = combineRetire[i]
                 const shouldUseRetired = combineShouldUseRetired[i]
-
-                entry.usageAndQuota.push(new UsageAndQuota({
-                    usage: usage.normalizedBalance,
-                    quota: quota.normalizedBalance,
-                    unit: usage.unit,
-                    maxUsable: maxUsable.normalizedBalance,
-                    retiredAmount: retired.normalizedBalance,
-                    retiredAmountStillCounts: shouldUseRetired,
-                    type: type as ProductType,
-                    ownedByPersonalProviderProject,
-                }));
+                if (quota.normalizedBalance !== 0) {
+                    entry.usageAndQuota.push(new UsageAndQuota({
+                        usage: usage.normalizedBalance,
+                        quota: quota.normalizedBalance,
+                        unit: usage.unit,
+                        maxUsable: maxUsable.normalizedBalance,
+                        retiredAmount: retired.normalizedBalance,
+                        retiredAmountStillCounts: shouldUseRetired,
+                        type: type as ProductType,
+                        ownedByPersonalProviderProject,
+                    }));
+                }
             }
 
             for (const wallet of wallets) {
@@ -838,59 +838,61 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
 
                 const retiredAmount = combineBalances([{balance: totalRetired, category: wallet.paysFor}])
                 const shouldUseRetired = wallet.paysFor.accountingFrequency === "ONCE";
-                entry.wallets.push({
-                    category: wallet.paysFor,
+                if ((quota?.[0]?.normalizedBalance ?? 0) !== 0) {
+                    entry.wallets.push({
+                        category: wallet.paysFor,
 
-                    usageAndQuota: new UsageAndQuota({
-                        usage: usage?.[0]?.normalizedBalance ?? 0,
-                        quota: quota?.[0]?.normalizedBalance ?? 0,
-                        unit: usage?.[0]?.unit ?? "",
-                        maxUsable: maxUsable?.[0]?.normalizedBalance ?? 0,
-                        retiredAmount: retiredAmount?.[0]?.normalizedBalance ?? 0,
-                        retiredAmountStillCounts: shouldUseRetired,
-                        type: wallet.paysFor.productType,
-                        ownedByPersonalProviderProject,
-                    }),
+                        usageAndQuota: new UsageAndQuota({
+                            usage: usage?.[0]?.normalizedBalance ?? 0,
+                            quota: quota?.[0]?.normalizedBalance ?? 0,
+                            unit: usage?.[0]?.unit ?? "",
+                            maxUsable: maxUsable?.[0]?.normalizedBalance ?? 0,
+                            retiredAmount: retiredAmount?.[0]?.normalizedBalance ?? 0,
+                            retiredAmountStillCounts: shouldUseRetired,
+                            type: wallet.paysFor.productType,
+                            ownedByPersonalProviderProject,
+                        }),
 
-                    totalAllocated: wallet.totalAllocated,
+                        totalAllocated: wallet.totalAllocated,
 
-                    allocations: wallet.allocationGroups.flatMap(({group}) => {
-                        const shouldShowRetiredAmount = wallet.paysFor.accountingFrequency !== "ONCE";
+                        allocations: wallet.allocationGroups.flatMap(({group}) => {
+                            const shouldShowRetiredAmount = wallet.paysFor.accountingFrequency !== "ONCE";
 
-                        return group.allocations.map(alloc => {
-                            const note = allocationNote(alloc);
+                            return group.allocations.map(alloc => {
+                                const note = allocationNote(alloc);
 
-                            let quotaString = "";
-                            if (shouldShowRetiredAmount && note !== undefined) {
-                                quotaString += balanceToString(
-                                    wallet.paysFor,
-                                    alloc.retiredUsage ?? 0,
-                                    {precision: 2}
-                                );
-                                quotaString += " / ";
-                                quotaString += balanceToString(wallet.paysFor, alloc.quota, {precision: 2});
-                            } else {
-                                quotaString += balanceToString(wallet.paysFor, alloc.quota, {precision: 2});
-                            }
+                                let quotaString = "";
+                                if (shouldShowRetiredAmount && note !== undefined) {
+                                    quotaString += balanceToString(
+                                        wallet.paysFor,
+                                        alloc.retiredUsage ?? 0,
+                                        {precision: 2}
+                                    );
+                                    quotaString += " / ";
+                                    quotaString += balanceToString(wallet.paysFor, alloc.quota, {precision: 2});
+                                } else {
+                                    quotaString += balanceToString(wallet.paysFor, alloc.quota, {precision: 2});
+                                }
 
-                            return ({
-                                id: alloc.id,
-                                grantedIn: alloc.grantedIn ?? undefined,
-                                note,
-                                start: alloc.startDate,
-                                end: alloc.endDate ?? NO_EXPIRATION_FALLBACK,
-                                raw: {
-                                    quota: alloc.quota,
-                                    retiredAmount: alloc.retiredUsage ?? 0,
-                                    shouldShowRetiredAmount,
-                                },
-                                display: {
-                                    quota: quotaString,
-                                },
+                                return ({
+                                    id: alloc.id,
+                                    grantedIn: alloc.grantedIn ?? undefined,
+                                    note,
+                                    start: alloc.startDate,
+                                    end: alloc.endDate ?? NO_EXPIRATION_FALLBACK,
+                                    raw: {
+                                        quota: alloc.quota,
+                                        retiredAmount: alloc.retiredUsage ?? 0,
+                                        shouldShowRetiredAmount,
+                                    },
+                                    display: {
+                                        quota: quotaString,
+                                    },
+                                });
                             });
-                        });
-                    }),
-                });
+                        }),
+                    });
+                }
             }
         }
     }
@@ -1064,7 +1066,7 @@ export function explainWallet(wallet: WalletV2): AllocationDisplayWallet | null 
 export function balanceToString(
     category: ProductCategoryV2,
     balance: number,
-    opts?: {precision?: number, removeUnitIfPossible?: boolean}
+    opts?: { precision?: number, removeUnitIfPossible?: boolean }
 ): string {
     const unit = explainUnit(category);
     const normalizedBalance = balance * unit.balanceFactor;
@@ -1075,8 +1077,8 @@ export function truncateValues(
     normalizedBalances: number[],
     isStorage: boolean,
     unit: string,
-    opts?: {removeUnitIfPossible?: boolean}
-): {truncated: number[]; attachedSuffix: string | null, unitToDisplay: string, canRemoveUnit: boolean} {
+    opts?: { removeUnitIfPossible?: boolean }
+): { truncated: number[]; attachedSuffix: string | null, unitToDisplay: string, canRemoveUnit: boolean } {
     let canRemoveUnit = opts?.removeUnitIfPossible ?? false;
     let balanceToDisplay = Math.max(...normalizedBalances);
 
@@ -1122,18 +1124,27 @@ export function truncateValues(
     return {truncated, attachedSuffix, unitToDisplay, canRemoveUnit};
 }
 
-export function formatUsageAndQuota(usage: number, quota: number, isStorage: boolean, unit: string, opts?: {precision?: number, removeUnitIfPossible?: boolean}): string {
-    const {truncated, attachedSuffix, unitToDisplay, canRemoveUnit} = truncateValues([usage, quota], isStorage, unit, opts);
+export function formatUsageAndQuota(usage: number, quota: number, isStorage: boolean, unit: string, opts?: {
+    precision?: number,
+    removeUnitIfPossible?: boolean
+}): string {
+    const {
+        truncated,
+        attachedSuffix,
+        unitToDisplay,
+        canRemoveUnit
+    } = truncateValues([usage, quota], isStorage, unit, opts);
     const [truncatedUsage, truncatedQuota] = truncated;
 
     let usageAndQuota = fmt(truncatedUsage, opts?.precision);
-    usageAndQuota += "/";
-    usageAndQuota += fmt(truncatedQuota, opts?.precision);
-    usageAndQuota += "  ";
-
-    if (attachedSuffix) {
-        usageAndQuota += `${attachedSuffix} `;
+    if (attachedSuffix) usageAndQuota += `${attachedSuffix}`;
+    if (isStorage) {
+        usageAndQuota += ` ${unitToDisplay}`;
     }
+    usageAndQuota += " / ";
+    usageAndQuota += fmt(truncatedQuota, opts?.precision);
+    if (attachedSuffix) usageAndQuota += `${attachedSuffix}`;
+    usageAndQuota += " ";
 
     if (!canRemoveUnit) {
         usageAndQuota += `${unitToDisplay}`;
@@ -1142,15 +1153,15 @@ export function formatUsageAndQuota(usage: number, quota: number, isStorage: boo
     return usageAndQuota;
 }
 
-function fmt(val: number, precision: number = 2): string {
-    return addThousandSeparators(removeSuffix(val.toFixed(precision), ".00"))
+function fmt(val: number, precision: number = 1): string {
+    return addThousandSeparators(removeSuffix(val.toFixed(precision), ".0"))
 }
 
 export function balanceToStringFromUnit(
     productType: ProductType,
     unit: string,
     normalizedBalance: number,
-    opts?: {precision?: number, removeUnitIfPossible?: boolean}
+    opts?: { precision?: number, removeUnitIfPossible?: boolean }
 ): string {
     const {
         attachedSuffix,
@@ -1309,6 +1320,6 @@ export function utcDate(ts: number): string {
     return `${d.getUTCDate().toString().padStart(2, '0')}/${(d.getUTCMonth() + 1).toString().padStart(2, '0')}/${d.getUTCFullYear()}`;
 }
 
-export function periodsOverlap(a: {start: number, end: number}, b: {start: number, end: number}): boolean {
+export function periodsOverlap(a: { start: number, end: number }, b: { start: number, end: number }): boolean {
     return a.start <= b.end && b.start <= a.end;
 }
