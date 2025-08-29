@@ -14,7 +14,7 @@ import * as AppStore from "@/Applications/AppStoreApi";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {doNothing} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
-import {Link as ReactRouterLink} from "react-router-dom";
+import {Link as ReactRouterLink, useNavigate} from "react-router-dom";
 import {useAppSearch} from "@/Applications/Search";
 import {emptyLandingPage, Spotlight, TopPick} from "@/Applications/AppStoreApi";
 import {shade, tint} from "@/ui-components/GlobalStyle";
@@ -239,6 +239,7 @@ const HeroStyle = injectStyle("hero", k => `
         display: flex;
         flex-direction: row;
         overflow: hidden;
+        cursor: pointer;
     }
     
     @keyframes translateImage {
@@ -300,7 +301,7 @@ const HeroStyle = injectStyle("hero", k => `
 
 const HeroIndicator: React.FunctionComponent<{
     active?: boolean;
-    onClick: () => void;
+    onClick: React.MouseEventHandler<HTMLDivElement>;
 }> = (props) => {
     return <div className={classConcat("indicator", props.active ? "active" : undefined)} onClick={props.onClick} />;
 };
@@ -310,6 +311,7 @@ export const Hero: React.FunctionComponent<{
     isPreview?: boolean;
 }> = ({slides, imageLinks, isPreview}) => {
     const [activeIndex, setActiveIndex] = useState(0);
+    const navigate = useNavigate();
     const autoPage = useRef(true);
     useEffect(() => {
         const t = setInterval(() => {
@@ -353,12 +355,16 @@ export const Hero: React.FunctionComponent<{
         slideTitle: prevSlide.title
     });
 
+    const navigation = React.useCallback(() => {
+        if (slideLink) navigate(slideLink);
+    }, [slideLink])
+
     return <Card style={{overflow: "hidden", border: 0, padding: 0}}>
         {/* Note(Jonas): Pre-fetch next image, so text and image change at the same time in the carousel */}
         <link rel="prefetch" as="image" href={nextImageLink} />
         <div className={HeroStyle}>
             <div className={"carousel"}>
-                <div className={"carouselImages"}>
+                <div onClick={navigation} className={"carouselImages"}>
                     <img key={2 * activeIndex + 1} alt={"cover image"} src={imageLink} />
                     <img key={activeIndex} alt={"cover image"} src={prevImageLink} />
                     <div className="indicators">
@@ -366,7 +372,8 @@ export const Hero: React.FunctionComponent<{
                             <HeroIndicator
                                 key={i}
                                 active={i === (activeIndex % slides.length)}
-                                onClick={() => {
+                                onClick={e => {
+                                    e.stopPropagation();
                                     setActiveIndex(i);
                                     autoPage.current = false;
                                 }}
@@ -374,7 +381,7 @@ export const Hero: React.FunctionComponent<{
                     </div>
                 </div>
                 <div className={"carouselText"}>
-                    <h1>{slide.title}</h1>
+                    <h1 style={{cursor: "pointer"}} onClick={navigation}>{slide.title}</h1>
                     <div className={SpotlightDescription}>
                         <Markdown allowedElements={["p"]}>
                             {slide.body}
