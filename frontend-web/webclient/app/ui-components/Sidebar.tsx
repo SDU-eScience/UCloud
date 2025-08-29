@@ -1044,7 +1044,7 @@ function SecondarySidebar({
                 </> : null}
 
                 <SidebarSectionHeader to={AppRoutes.apps.landing()} tab={SidebarTabId.APPLICATIONS}>
-                    Store
+                    Categories
                 </SidebarSectionHeader>
 
                 {landingPage.categories.length === 0 && <>
