@@ -3,7 +3,7 @@ import * as UCloud from "@/UCloud";
 import {Button, Flex, Input, Label} from "@/ui-components";
 import {TextP} from "@/ui-components/Text";
 import {
-    findRelevantMachinesForApplication, Machines, setMachineReservationFromRef, validateMachineReservation
+    findRelevantMachinesForApplication, getMachineReservation, Machines, setMachineReservationFromRef, validateMachineReservation
 } from "@/Applications/Jobs/Widgets/Machines";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
@@ -198,10 +198,37 @@ export type ReservationErrors = {
     [P in keyof ReservationValues]?: string;
 }
 
+export function getReservationElements(): {
+    name: HTMLInputElement | null;
+    hours: HTMLInputElement | null;
+    replicas: HTMLInputElement | null;
+} {
+    return {
+        name: document.getElementById(reservationName) as HTMLInputElement | null,
+        hours: document.getElementById(reservationHours) as HTMLInputElement | null,
+        replicas: document.getElementById(reservationReplicas) as HTMLInputElement | null,
+    }
+}
+
+export function getReservationValues(): Partial<ReservationValues> {
+    const {name, hours, replicas} = getReservationElements();
+    const machine = getMachineReservation();
+
+    return {
+        name: name?.value,
+        product: machine?.value ? JSON.parse(machine.value) : undefined,
+        replicas: replicas?.value ? parseInt(replicas.value, 10) : undefined,
+        timeAllocation: hours?.value ? {
+            hours: parseInt(hours.value, 10),
+            minutes: 0,
+            seconds: 0,
+        } : undefined
+    }
+}
+
+
 export function validateReservation(): ValidationAnswer {
-    const name = document.getElementById(reservationName) as HTMLInputElement | null;
-    const hours = document.getElementById(reservationHours) as HTMLInputElement | null;
-    const replicas = document.getElementById(reservationReplicas) as HTMLInputElement | null;
+    const {name, hours, replicas} = getReservationElements();
 
     if (name === null || hours === null) throw "Reservation component not mounted";
 
