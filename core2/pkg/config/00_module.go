@@ -20,14 +20,6 @@ type ConfigurationFormat struct {
 		PublicCertificate string
 	}
 
-	Elasticsearch struct {
-		Host        HostInfo
-		Credentials struct {
-			Username string
-			Password string
-		}
-	}
-
 	Logs struct {
 		Directory string
 		Rotation  struct {
@@ -160,20 +152,6 @@ func Parse(configDir string) bool {
 	cfg.Database.Password = cfgutil.RequireChildText(filePath, dbNode, "password", &success)
 	cfg.Database.Database = cfgutil.RequireChildText(filePath, dbNode, "database", &success)
 	cfg.Database.Ssl = cfgutil.RequireChildBool(filePath, dbNode, "ssl", &success)
-
-	//elastic section
-	{
-		elasticNode := cfgutil.RequireChild(filePath, document, "elasticsearch", &success)
-		if success {
-			elasticCredNode := cfgutil.RequireChild(filePath, elasticNode, "credentials", &success)
-			cfgutil.Decode(filePath, elasticNode, &cfg.Elasticsearch, &success)
-			if !cfg.Elasticsearch.Host.validate(filePath, elasticCredNode) {
-				success = false
-			}
-			cfg.Elasticsearch.Credentials.Username = cfgutil.RequireChildText(filePath, elasticCredNode, "username", &success)
-			cfg.Elasticsearch.Credentials.Password = cfgutil.RequireChildText(filePath, elasticCredNode, "password", &success)
-		}
-	}
 
 	{
 		// Logs section

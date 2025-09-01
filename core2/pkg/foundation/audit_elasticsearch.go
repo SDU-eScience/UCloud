@@ -16,19 +16,30 @@ import (
 )
 
 var elasticClient *elasticsearch.Client
-var elasticConfig config.ConfigurationFormat
+var elasticConfig *rpc.ElasticConfig
+var elasticHost *config.HostInfo
 
-func InitAuditElasticSearch(config config.ConfigurationFormat) func(event rpc.HttpCallLogEntry) {
+type elasticIndexRequest struct {
+	index    string
+	document []byte
+}
+
+func InitAuditElasticSearch(configDir string) func(event rpc.HttpCallLogEntry) {
 	var err error
-	elasticConfig = config
-	if config.Elasticsearch.Host.Address == "" {
+	elasticConfig = rpc.ElasticConfigRetrieve(configDir)
+	elasticHost = &config.HostInfo{
+		Address: elasticConfig.Address,
+		Port:    elasticConfig.Port,
+		Scheme:  elasticConfig.Scheme,
+	}
+	if elasticConfig == nil || elasticHost.Address == "" {
 		panic("InitAuditElasticSearch was called without proper configuration")
 	}
 	cfg := elasticsearch.Config{
-		Addresses: []string{config.Elasticsearch.Host.ToURL()},
+		Addresses: []string{elasticHost.ToURL()},
 		Transport: http.DefaultTransport,
-		Username:  config.Elasticsearch.Credentials.Username,
-		Password:  config.Elasticsearch.Credentials.Password,
+		Username:  elasticConfig.Credentials.Username,
+		Password:  elasticConfig.Credentials.Password,
 	}
 
 	elasticClient, err = elasticsearch.NewClient(cfg)
@@ -36,6 +47,8 @@ func InitAuditElasticSearch(config config.ConfigurationFormat) func(event rpc.Ht
 	if err != nil {
 		panic(fmt.Sprintf("Could not construct elasticsearch client: %v", err))
 	}
+
+	go elasticAuditChannelProcessor()
 
 	return func(event rpc.HttpCallLogEntry) {
 		data, err := json.Marshal(event)
@@ -45,10 +58,91 @@ func InitAuditElasticSearch(config config.ConfigurationFormat) func(event rpc.Ht
 		}
 		dateSuffix := time.Now().UTC().Format(elasticDateFormat)
 		indexName := "http_logs_" + event.RequestName + "-" + dateSuffix
-		_, err = elasticClient.Index(indexName, bytes.NewReader(data))
-		if err != nil {
-			log.Info("Failed to index event: ", event, " error: ", err)
+		elasticAuditChannel <- elasticIndexRequest{index: indexName, document: data}
+	}
+}
+
+type elasticBulkIndexOp struct {
+	Index struct {
+		Name string `json:"_index"`
+		Id   string `json:"_id,omitempty"`
+	} `json:"index"`
+}
+
+var elasticAuditChannel = make(chan elasticIndexRequest)
+
+func elasticAuditChannelProcessor() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	indexer := &elasticBulkIndexer{}
+
+	for {
+		select {
+		case request := <-elasticAuditChannel:
+			err := indexer.IndexDoc(request.index, request.document)
+			log.Info("could not insert documents into elastic search: %s", err)
+
+		case _ = <-ticker.C:
+			err := indexer.Flush()
+			log.Info("could not insert documents into elastic search: %s", err)
 		}
+	}
+}
+
+type elasticBulkIndexer struct {
+	builder  strings.Builder
+	docCount int
+}
+
+func (b *elasticBulkIndexer) IndexDoc(indexName string, doc []byte) error {
+	op := elasticBulkIndexOp{}
+	op.Index.Name = indexName
+	opBytes, _ := json.Marshal(op)
+
+	b.builder.Write(opBytes)
+	b.builder.WriteString("\n")
+
+	b.builder.Write(doc)
+	b.builder.WriteString("\n")
+
+	b.docCount++
+	if b.docCount >= 250 {
+		return b.Flush()
+	} else {
+		return nil
+	}
+}
+
+func (b *elasticBulkIndexer) payload() []byte {
+	return []byte(b.builder.String())
+}
+
+func (b *elasticBulkIndexer) Flush() error {
+	if b.docCount == 0 {
+		return nil
+	}
+
+	header := http.Header{}
+	header.Add("Content-Type", "application/json")
+
+	requestUrl, _ := url.Parse(fmt.Sprintf("%s/_bulk", elasticHost.ToURL()))
+
+	httpRequest := http.Request{
+		Method: "POST",
+		URL:    requestUrl,
+		Body:   io.NopCloser(bytes.NewReader(b.payload())),
+		Header: header,
+	}
+	_, err := elasticClient.BaseClient.Transport.Perform(
+		&httpRequest,
+	)
+
+	if err != nil {
+		return err
+	} else {
+		b.builder.Reset()
+		b.docCount = 0
+		return nil
 	}
 }
 
@@ -56,7 +150,6 @@ const (
 	elasticDateFormat       = "2006.01.02"
 	elasticMonthFormat      = "2006.01"
 	elasticDaysToKeepData   = 180
-	elasticGatherNode       = "ucloud-es-nodes-1"
 	grafanaElasticAliasDays = 7
 )
 
@@ -70,7 +163,7 @@ const (
 // - Reindex old logs into an index for a full month
 func ElasticDailyCleanup() {
 	log.Debug("Cleaning up old logs")
-	httpLogsList := elasticGetLogs([]string{"http_logs*"})
+	httpLogsList := elasticGetIndexTitles([]string{"http_logs*"})
 	now := time.Now().UTC()
 
 	// Remove logs that have expiry field matching expiry < now
@@ -82,7 +175,7 @@ func ElasticDailyCleanup() {
 	// Remove all log indices that are older than elasticDaysToKeepData
 	log.Debug("Cleaned up expired indices")
 	expiredDate := now.AddDate(0, 0, -elasticDaysToKeepData).Format(elasticDateFormat)
-	expiredLogs := elasticGetLogs([]string{"*-" + expiredDate})
+	expiredLogs := elasticGetIndexTitles([]string{"*-" + expiredDate})
 	for _, expiredLog := range expiredLogs {
 		elasticDeleteIndex(expiredLog)
 	}
@@ -90,15 +183,15 @@ func ElasticDailyCleanup() {
 	// Shink yesterday's indices so they only have 1 shard usage
 	log.Debug("Shrinking indices")
 	yesterdayDateFormat := now.AddDate(0, 0, -1).Format(elasticDateFormat)
-	yesterdayIndices := elasticGetLogs([]string{"*-" + yesterdayDateFormat})
+	yesterdayIndices := elasticGetIndexTitles([]string{"*-" + yesterdayDateFormat})
 	for _, yesterdayLog := range yesterdayIndices {
 		elasticShrink(yesterdayLog)
 	}
 
 	// Reindex last weeks log indices into a monthly index with format YYYYMM
 	log.Debug("Reindexing indices")
-	daysAgo := time.Now().AddDate(0, 0, MINUS_DAYS).UTC().Format(elasticDateFormat)
-	reindexLogs := elasticGetLogs([]string{"*-" + daysAgo})
+	daysAgo := time.Now().AddDate(0, 0, -grafanaElasticAliasDays-1).UTC().Format(elasticDateFormat)
+	reindexLogs := elasticGetIndexTitles([]string{"*-" + daysAgo})
 	for _, reindexLog := range reindexLogs {
 		elasticReindexToMonthly(reindexLog)
 	}
@@ -113,7 +206,7 @@ func ElasticDailyCleanup() {
 func ElasticDailyCreateAliasesForGrafana() {
 	//Delete old grafana aliases
 	log.Debug("Deleting old grafana aliases")
-	grafanaLogs := elasticGetLogs([]string{"grafana"})
+	grafanaLogs := elasticGetIndexTitles([]string{"grafana"})
 	_, err := elasticClient.Indices.DeleteAlias(
 		grafanaLogs,
 		[]string{"grafana"},
@@ -126,7 +219,7 @@ func ElasticDailyCreateAliasesForGrafana() {
 	log.Debug("Creating new grafana aliases")
 	for i := range grafanaElasticAliasDays {
 		dateSuffix := time.Now().AddDate(0, 0, -i).UTC().Format(elasticDateFormat)
-		logs := elasticGetLogs([]string{"http_logs*" + dateSuffix + "*"})
+		logs := elasticGetIndexTitles([]string{"http_logs*" + dateSuffix + "*"})
 		_, err := elasticClient.Indices.PutAlias(
 			logs,
 			"grafana",
@@ -192,7 +285,7 @@ func elasticRemoveExpiredLogs(indexName string) {
 
 // The elasticReindexToMonthly function merges a daily index into the monthly index
 func elasticReindexToMonthly(indexName string) {
-	monthFormat := time.Now().AddDate(0, 0, MINUS_DAYS).UTC().Format(elasticMonthFormat)
+	monthFormat := time.Now().AddDate(0, 0, -grafanaElasticAliasDays-1).UTC().Format(elasticMonthFormat)
 	if elasticCountDocs(indexName, "") == 0 {
 		elasticDeleteIndex(indexName)
 		return
@@ -286,7 +379,7 @@ func elasticPrepareSourceIndex(indexName string) {
 			"routing": map[string]any{
 				"allocation": map[string]any{
 					"require": map[string]any{
-						"_name": elasticGatherNode,
+						"_name": elasticConfig.GatherNode,
 					},
 				},
 			},
@@ -301,7 +394,7 @@ func elasticPrepareSourceIndex(indexName string) {
 	header := http.Header{}
 	header.Add("Content-Type", "application/json")
 
-	requestUrl, _ := url.Parse(fmt.Sprintf("%s/%s/_settings", elasticConfig.Elasticsearch.Host.ToURL(), indexName))
+	requestUrl, _ := url.Parse(fmt.Sprintf("%s/%s/_settings", elasticHost.ToURL(), indexName))
 
 	retries := 0
 	for retries < 3 {
@@ -373,7 +466,7 @@ func elasticShrinkIndex(indexName string, targetIndexName string) {
 	header := http.Header{}
 	header.Add("Content-Type", "application/json")
 
-	requestUrl, _ := url.Parse(fmt.Sprintf("%s/%s/_shrink/%s", elasticConfig.Elasticsearch.Host.ToURL(), indexName, targetIndexName))
+	requestUrl, _ := url.Parse(fmt.Sprintf("%s/%s/_shrink/%s", elasticHost.ToURL(), indexName, targetIndexName))
 
 	retries := 0
 	for retries < 3 {
