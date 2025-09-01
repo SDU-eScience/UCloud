@@ -1112,7 +1112,7 @@ function isFileFileSizeExceeded(file: UFile) {
 export function FilePreview({initialFile}: {
     initialFile: UFile,
 }): React.ReactNode {
-    const [openFile, setOpenFile] = useState<[string, string | Uint8Array]>(["", ""]);
+    const [openFile, setOpenFile] = useState<[string, string | Uint8Array<ArrayBuffer>]>(["", ""]);
     const [previewRequested, setPreviewRequested] = useState(false);
     const [drive, setDrive] = useState<FileCollection | null>(null);
     const [renamingFile, setRenamingFile] = useState<string>();
@@ -1292,7 +1292,7 @@ export function FilePreview({initialFile}: {
         }
     }, [onSave, requestPreviewToggle]);
 
-    const onOpenFile = useCallback((path: string, data: string | Uint8Array) => {
+    const onOpenFile = useCallback((path: string, data: string | Uint8Array<ArrayBuffer>) => {
         setPreviewRequested(false);
         setOpenFile([path, data]);
     }, []);
