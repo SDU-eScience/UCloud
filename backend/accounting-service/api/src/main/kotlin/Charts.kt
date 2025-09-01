@@ -30,11 +30,24 @@ data class BreakdownByProjectAPI (
 )
 
 @Serializable
+data class UsagePerUserPointAPI(
+    val username: String,
+    val category: ProductCategory,
+    val usage:  Long
+)
+
+@Serializable
+data class UsagePerUserAPI (
+    var data: List<UsagePerUserPointAPI>,
+)
+
+@Serializable
 data class ChartsAPI (
     val categories: List<ProductCategory>,
     val allocGroups: List<AllocationGroupWithProductCategoryIndex>,
     val charts: List<ChartsForCategoryAPI>,
-    val childrenUsageOverTime: HashMap<String, HashMap<Long, UsageOverTimeAPI>>
+    val childrenUsageOverTime: HashMap<String, HashMap<Long, UsageOverTimeAPI>>,
+    val usagePerUser: UsagePerUserAPI
 )
 
 @Serializable

@@ -23,6 +23,34 @@ const (
 	elementCount = 64 // NOTE(Dan): Update follow function if changing this
 )
 
+func timeColumn() int {
+	return 0
+}
+
+func cpuUtilColumn() int {
+	return 1
+}
+
+func memoryUtilColumn() int {
+	return 2
+}
+
+func networkReceiveColumn(interfaceId int) int {
+	return 3 + (interfaceId * 2) + 0
+}
+
+func networkTransmitColumn(interfaceId int) int {
+	return 3 + (interfaceId * 2) + 1
+}
+
+func gpuUtilColumn(cardId int) int {
+	return 7 + (cardId * 2) + 0
+}
+
+func gpuMemoryUtilColumn(cardId int) int {
+	return 7 + (cardId * 2) + 1
+}
+
 func HandleCli() {
 	cpu, cpuErr := CpuSampleStart()
 
@@ -68,10 +96,7 @@ func HandleCli() {
 		// gpu util, gpu mem use, gpu mem total (x16)
 		// = 55
 
-		nextCol := 0
-
-		row[nextCol] = float64(time.Now().UnixMilli())
-		nextCol++
+		row[timeColumn()] = float64(time.Now().UnixMilli())
 
 		if cpuErr == nil {
 			if cpuStats, err := cpu.End(); err == nil {
@@ -84,7 +109,7 @@ func HandleCli() {
 						Series: []ucviz.WidgetLineSeriesDefinition{
 							{
 								Name:   "CPU",
-								Column: nextCol,
+								Column: cpuUtilColumn(),
 							},
 						},
 						XAxis: ucviz.WidgetDiagramAxis{
@@ -99,8 +124,7 @@ func HandleCli() {
 					},
 				})
 
-				row[nextCol] = cpuStats.Usage
-				nextCol++
+				row[cpuUtilColumn()] = cpuStats.Usage
 			}
 		}
 		cpu, cpuErr = CpuSampleStart()
@@ -117,7 +141,7 @@ func HandleCli() {
 					Series: []ucviz.WidgetLineSeriesDefinition{
 						{
 							Name:   "Memory",
-							Column: 2,
+							Column: memoryUtilColumn(),
 						},
 					},
 					XAxis: ucviz.WidgetDiagramAxis{
@@ -132,8 +156,7 @@ func HandleCli() {
 				},
 			})
 
-			row[nextCol] = float64(memory)
-			nextCol++
+			row[memoryUtilColumn()] = float64(memory)
 		}
 
 		{
@@ -165,12 +188,12 @@ func HandleCli() {
 
 				data.Series = append(data.Series, ucviz.WidgetLineSeriesDefinition{
 					Name:   fmt.Sprintf("%s receive", name),
-					Column: nextCol + (i * 2) + 0,
+					Column: networkReceiveColumn(i),
 				})
 
 				data.Series = append(data.Series, ucviz.WidgetLineSeriesDefinition{
 					Name:   fmt.Sprintf("%s transmit", name),
-					Column: nextCol + (i * 2) + 1,
+					Column: networkTransmitColumn(i),
 				})
 
 				networkInterfacesUsed = append(networkInterfacesUsed, name)
@@ -185,6 +208,7 @@ func HandleCli() {
 				Definition: data,
 			})
 
+			i = 0
 			for _, name := range networkInterfacesUsed {
 				before, ok1 := beforeNet[name]
 				after, ok2 := net[name]
@@ -192,14 +216,11 @@ func HandleCli() {
 					receiveBytesPerSec := float64(after.Read-before.Read) / netTime.Seconds()
 					transmitBytesPerSec := float64(after.Write-before.Write) / netTime.Seconds()
 
-					row[nextCol] = receiveBytesPerSec
-					nextCol++
-
-					row[nextCol] = transmitBytesPerSec
-					nextCol++
-				} else {
-					nextCol += 2
+					row[networkReceiveColumn(i)] = receiveBytesPerSec
+					row[networkTransmitColumn(i)] = transmitBytesPerSec
 				}
+
+				i++
 			}
 		}
 
@@ -249,12 +270,12 @@ func HandleCli() {
 
 					utilData.Series = append(utilData.Series, ucviz.WidgetLineSeriesDefinition{
 						Name:   fmt.Sprintf("GPU %d", i+1),
-						Column: nextCol + (i * 2) + 0,
+						Column: gpuUtilColumn(i),
 					})
 
-					memoryData.Series = append(utilData.Series, ucviz.WidgetLineSeriesDefinition{
+					memoryData.Series = append(memoryData.Series, ucviz.WidgetLineSeriesDefinition{
 						Name:   fmt.Sprintf("GPU %d", i+1),
-						Column: nextCol + (i * 2) + 1,
+						Column: gpuMemoryUtilColumn(i),
 					})
 				}
 
@@ -278,11 +299,8 @@ func HandleCli() {
 					break
 				}
 
-				row[nextCol] = stat.Utilization
-				nextCol++
-
-				row[nextCol] = float64(stat.MemoryUsedBytes)
-				nextCol++
+				row[gpuUtilColumn(i)] = stat.Utilization
+				row[gpuMemoryUtilColumn(i)] = float64(stat.MemoryUsedBytes)
 			}
 		}
 

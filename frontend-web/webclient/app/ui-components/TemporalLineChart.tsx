@@ -92,6 +92,10 @@ export function TemporalLineChart(
     const innerH = height - margin.top - margin.bottom;
 
     const ref = useD3((node: SVGSVGElement) => {
+        if (lines.length === 0) {
+            return;
+        }
+
         // Panel and setup
         // -------------------------------------------------------------------------------------------------------------
         const svg = select(node);

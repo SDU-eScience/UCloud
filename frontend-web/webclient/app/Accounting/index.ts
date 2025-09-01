@@ -1279,6 +1279,17 @@ export interface ChartsAPI {
     categories: ProductCategoryV2[];
     allocGroups: AllocationGroupWithProductCategoryIndex[];
     charts: ChartsForCategoryAPI[];
+    usagePerUser: UsagePerUserAPI
+}
+
+export interface UsagePerUserAPI {
+    data: UsagePerUserPointAPI[]
+}
+
+export interface UsagePerUserPointAPI {
+    username: string;
+    category: ProductCategoryV2;
+    usage: number;
 }
 
 export interface ChartsForCategoryAPI {

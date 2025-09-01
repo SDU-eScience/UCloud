@@ -154,13 +154,13 @@ func TrackNewJob(job orc.Job) {
 	if RunsServerCode() {
 		timer.Mark()
 		refreshRoutes := false
-		activeJobsMutex.RLock()
+		activeJobsMutex.Lock()
 		activeJobs[job.Id] = &job
 
 		if job.Status.State.IsFinal() {
 			refreshRoutes = true
 		}
-		activeJobsMutex.RUnlock()
+		activeJobsMutex.Unlock()
 		metricTrackUpdateMemory.Observe(timer.Mark().Seconds())
 
 		trackJobUpdateServer(&job)
