@@ -1,9 +1,12 @@
 package orchestrator
 
 import (
+	"encoding/json"
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"net/http"
+	"time"
+	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -28,11 +31,11 @@ type A1ApplicationParameterYaml struct {
 }
 
 type A1ParamBase struct {
-	Name         string              `yaml:"name"`
-	Optional     bool                `yaml:"optional"`
-	Title        util.Option[string] `yaml:"title"`
-	Description  string              `yaml:"description"`
-	DefaultValue *yaml.Node          `yaml:"defaultValue"`
+	Name         string                 `yaml:"name"`
+	Optional     bool                   `yaml:"optional"`
+	Title        util.Option[string]    `yaml:"title"`
+	Description  string                 `yaml:"description"`
+	DefaultValue util.Option[yaml.Node] `yaml:"defaultValue"`
 }
 
 type A1InputFile struct {
@@ -231,7 +234,7 @@ type A1Yaml struct {
 	Authors               []string                                 `yaml:"authors"`
 	Title                 string                                   `yaml:"title"`
 	Description           string                                   `yaml:"description"`
-	Invocation            []orcapi.InvocationParameter             `yaml:"invocation"`
+	Invocation            []A1InvocationParameter                  `yaml:"invocation"`
 	Parameters            map[string]A1ApplicationParameterYaml    `yaml:"parameters"`
 	OutputFileGlobs       []string                                 `yaml:"outputFileGlobs"`
 	ApplicationType       util.Option[orcapi.ApplicationType]      `yaml:"applicationType"`
@@ -239,7 +242,7 @@ type A1Yaml struct {
 	Web                   util.Option[orcapi.WebDescription]       `yaml:"web"`
 	Ssh                   util.Option[orcapi.SshDescription]       `yaml:"ssh"`
 	Container             util.Option[orcapi.ContainerDescription] `yaml:"container"`
-	Environment           map[string]orcapi.InvocationParameter    `yaml:"environment"`
+	Environment           map[string]A1InvocationParameter         `yaml:"environment"`
 	AllowAdditionalMounts util.Option[bool]                        `yaml:"allowAdditionalMounts"`
 	AllowAdditionalPeers  util.Option[bool]                        `yaml:"allowAdditionalPeers"`
 	AllowMultiNode        util.Option[bool]                        `yaml:"allowMultiNode"`
@@ -273,6 +276,147 @@ func (y *A1Yaml) UnmarshalYAML(n *yaml.Node) error {
 	return nil
 }
 
+type A1StringList []string
+
+func (s *A1StringList) UnmarshalYAML(value *yaml.Node) error {
+	switch value.Kind {
+	case yaml.ScalarNode:
+		var str string
+		if err := value.Decode(&str); err != nil {
+			return err
+		}
+		*s = []string{str}
+		return nil
+	case yaml.SequenceNode:
+		var list []string
+		if err := value.Decode(&list); err != nil {
+			return err
+		}
+		*s = list
+		return nil
+	default:
+		return fmt.Errorf("unexpected YAML node kind %d", value.Kind)
+	}
+}
+
+type A1InvocationParameter struct {
+	Type                        orcapi.InvocationParameterType `json:"type" yaml:"type"`
+	InvocationParameterEnv      `yaml:",inline"`
+	InvocationParameterWord     `yaml:",inline"`
+	InvocationParameterVar      `yaml:",inline"`
+	InvocationParameterBoolFlag `yaml:",inline"`
+	InvocationParameterJinja    `yaml:",inline"`
+}
+
+type InvocationParameterEnv struct {
+	Variable string `json:"variable,omitempty" yaml:"variable"`
+}
+
+type InvocationParameterWord struct {
+	Word string `json:"word,omitempty" yaml:"word"`
+}
+
+type InvocationParameterVar struct {
+	VariableNames             A1StringList `json:"variableNames,omitempty" yaml:"vars"`
+	PrefixGlobal              string       `json:"prefixGlobal,omitempty" yaml:"prefixGlobal"`
+	SuffixGlobal              string       `json:"suffixGlobal,omitempty" yaml:"suffixGlobal"`
+	PrefixVariable            string       `json:"prefixVariable,omitempty" yaml:"prefixVariable"`
+	SuffixVariable            string       `json:"suffixVariable,omitempty" yaml:"suffixVariable"`
+	IsPrefixVariablePartOfArg bool         `json:"isPrefixVariablePartOfArg,omitempty" yaml:"isPrefixVariablePartOfArg"`
+	IsSuffixVariablePartOfArg bool         `json:"isSuffixVariablePartOfArg,omitempty" yaml:"isSuffixVariablePartOfArg"`
+}
+
+type InvocationParameterBoolFlag struct {
+	VariableName string `json:"variableName" yaml:"var"`
+	Flag         string `json:"flag,omitempty" yaml:"flag"`
+}
+
+type InvocationParameterJinja struct {
+	Template string `json:"template,omitempty" yaml:"template"`
+}
+
+func (p *A1InvocationParameter) UnmarshalYAML(n *yaml.Node) error {
+	if n.Tag == "!!str" || n.Tag == "!!int" {
+		var word string
+		_ = n.Decode(&word)
+		p.Type = orcapi.InvocationParameterTypeWord
+		p.Word = word
+	} else {
+		var typeWrapper struct {
+			Type string
+		}
+		_ = n.Decode(&typeWrapper)
+
+		p.Type = orcapi.InvocationParameterType(typeWrapper.Type)
+
+		var err error
+
+		switch orcapi.InvocationParameterType(typeWrapper.Type) {
+		case orcapi.InvocationParameterTypeEnv:
+			err = n.Decode(&p.InvocationParameterEnv)
+		case orcapi.InvocationParameterTypeWord:
+			err = n.Decode(&p.InvocationParameterWord)
+		case orcapi.InvocationParameterTypeVar:
+			err = n.Decode(&p.InvocationParameterVar)
+		case orcapi.InvocationParameterTypeBoolFlag, "flag":
+			err = n.Decode(&p.InvocationParameterBoolFlag)
+		case orcapi.InvocationParameterTypeJinja:
+			err = n.Decode(&p.InvocationParameterJinja)
+		}
+
+		return err
+	}
+	return nil
+}
+
+func (p *A1InvocationParameter) ToParameter() orcapi.InvocationParameter {
+	switch p.Type {
+	case orcapi.InvocationParameterTypeEnv:
+		return orcapi.InvocationParameter{
+			Type: p.Type,
+			InvocationParameterEnv: orcapi.InvocationParameterEnv{
+				Variable: p.InvocationParameterEnv.Variable,
+			},
+		}
+	case orcapi.InvocationParameterTypeWord:
+		return orcapi.InvocationParameter{
+			Type: p.Type,
+			InvocationParameterWord: orcapi.InvocationParameterWord{
+				Word: p.InvocationParameterWord.Word,
+			},
+		}
+	case orcapi.InvocationParameterTypeVar:
+		return orcapi.InvocationParameter{
+			Type: p.Type,
+			InvocationParameterVar: orcapi.InvocationParameterVar{
+				VariableNames:             p.VariableNames,
+				PrefixGlobal:              p.PrefixGlobal,
+				SuffixGlobal:              p.SuffixGlobal,
+				PrefixVariable:            p.PrefixVariable,
+				SuffixVariable:            p.SuffixGlobal,
+				IsPrefixVariablePartOfArg: p.IsPrefixVariablePartOfArg,
+				IsSuffixVariablePartOfArg: p.IsSuffixVariablePartOfArg,
+			},
+		}
+	case orcapi.InvocationParameterTypeBoolFlag, "flag":
+		return orcapi.InvocationParameter{
+			Type: orcapi.InvocationParameterTypeBoolFlag,
+			InvocationParameterBoolFlag: orcapi.InvocationParameterBoolFlag{
+				VariableName: p.InvocationParameterBoolFlag.VariableName,
+				Flag:         p.InvocationParameterBoolFlag.Flag,
+			},
+		}
+	case orcapi.InvocationParameterTypeJinja:
+		return orcapi.InvocationParameter{
+			Type: p.Type,
+			InvocationParameterJinja: orcapi.InvocationParameterJinja{
+				Template: p.InvocationParameterJinja.Template,
+			},
+		}
+	}
+	return orcapi.InvocationParameter{}
+}
+
 type A1Module struct {
 	MountPath string   `yaml:"mountPath"`
 	Optional  []string `yaml:"optional"`
@@ -281,7 +425,7 @@ type A1Module struct {
 // Normalization
 // =====================================================================================================================
 
-func a1ReadDefaultValue[T any](n *yaml.Node, fieldName string, outErr **util.HttpError) T {
+func a1ReadDefaultValue[T any](n *yaml.Node, fieldName string, outErr **util.HttpError) (T, json.RawMessage) {
 	type wrapper struct {
 		Value T `yaml:"value"`
 	}
@@ -289,14 +433,18 @@ func a1ReadDefaultValue[T any](n *yaml.Node, fieldName string, outErr **util.Htt
 	var w wrapper
 	err := n.Decode(&w)
 	if err == nil {
-		return w.Value
+		data, _ := json.Marshal(w.Value)
+		return w.Value, data
 	} else {
 		var t T
+		var data []byte
 		err = n.Decode(&t)
 		if err != nil {
 			*outErr = util.HttpErr(http.StatusBadRequest, "%s invalid default value", fieldName)
+		} else {
+			data, _ = json.Marshal(t)
 		}
-		return t
+		return t, data
 	}
 }
 
@@ -315,7 +463,7 @@ func (y *A1Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 		util.ValidateEnum(&y.ApplicationType.Value, orcapi.ApplicationTypeOptions, "applicationType", &err)
 	}
 
-	appType := y.ApplicationType.Value
+	appType := y.ApplicationType.GetOrDefault(orcapi.ApplicationTypeBatch)
 
 	if y.Website.Present {
 		util.ValidateString(&y.Website.Value, "website", 0, &err)
@@ -336,79 +484,226 @@ func (y *A1Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 		util.ValidateEnum(&ssh.Mode, orcapi.SshModeOptions, "ssh.mode", &err)
 	}
 
+	var mappedParameters []orcapi.ApplicationParameter
 	for name, param := range y.Parameters {
+		mapped := orcapi.ApplicationParameter{}
+
 		fieldName := fmt.Sprintf("parameters[%v]", name)
 
 		var base *A1ParamBase
 		if param.InputFile != nil {
+			mapped.Type = orcapi.ApplicationParameterTypeInputFile
 			base = &param.InputFile.A1ParamBase
-			if base.DefaultValue != nil {
-				err = util.MergeHttpErr(err,
-					util.HttpErr(http.StatusBadRequest, "%s must not have a defaultValue", fieldName))
+			if base.DefaultValue.Present {
+				err = util.MergeHttpErr(err, util.HttpErr(
+					http.StatusBadRequest,
+					"%s must not have a defaultValue",
+					fieldName,
+				))
 			}
 		} else if param.InputDirectory != nil {
+			mapped.Type = orcapi.ApplicationParameterTypeInputDirectory
 			base = &param.InputDirectory.A1ParamBase
-			if base.DefaultValue != nil {
-				err = util.MergeHttpErr(err,
-					util.HttpErr(http.StatusBadRequest, "%s must not have a defaultValue", fieldName))
+			if base.DefaultValue.Present {
+				err = util.MergeHttpErr(err, util.HttpErr(
+					http.StatusBadRequest,
+					"%s must not have a defaultValue",
+					fieldName,
+				))
 			}
 		} else if param.Text != nil {
+			mapped.Type = orcapi.ApplicationParameterTypeText
 			base = &param.Text.A1ParamBase
-			if base.DefaultValue != nil {
-				a1ReadDefaultValue[string](base.DefaultValue, fieldName, &err)
+			if base.DefaultValue.Present {
+				_, jsDefault := a1ReadDefaultValue[string](&base.DefaultValue.Value, fieldName, &err)
+				mapped.DefaultValue = jsDefault
 			}
 		} else if param.TextArea != nil {
+			mapped.Type = orcapi.ApplicationParameterTypeTextArea
 			base = &param.TextArea.A1ParamBase
-			if base.DefaultValue != nil {
-				a1ReadDefaultValue[string](base.DefaultValue, fieldName, &err)
+			if base.DefaultValue.Present {
+				_, jsDefault := a1ReadDefaultValue[string](&base.DefaultValue.Value, fieldName, &err)
+				mapped.DefaultValue = jsDefault
 			}
 		} else if param.Integer != nil {
-			base = &param.Integer.A1ParamBase
-			if base.DefaultValue != nil {
-				a1ReadDefaultValue[int](base.DefaultValue, fieldName, &err)
+			mapped.Type = orcapi.ApplicationParameterTypeInteger
+			i := param.Integer
+			base = &i.A1ParamBase
+			if base.DefaultValue.Present {
+				_, jsDefault := a1ReadDefaultValue[int](&base.DefaultValue.Value, fieldName, &err)
+				mapped.DefaultValue = jsDefault
 			}
 
-			// todo check min, max, step and unit name
+			if i.Min.Present && i.Max.Present {
+				if i.Min.Value > i.Max.Value {
+					err = util.MergeHttpErr(err, util.HttpErr(
+						http.StatusBadRequest,
+						"%s min value must not exceed max value (%v > %v)",
+						fieldName, i.Min.Value, i.Max.Value,
+					))
+				}
+			}
+
+			if i.Step.Present && i.Step.Value <= 0 {
+				err = util.MergeHttpErr(err, util.HttpErr(
+					http.StatusBadRequest,
+					"%s step value must be > 0",
+					fieldName,
+				))
+			}
+
+			if i.Min.Present {
+				mapped.MinValue = i.Min.Value
+			}
+
+			if i.Max.Present {
+				mapped.MaxValue = i.Max.Value
+			}
+
+			if i.Step.Present {
+				mapped.Step = i.Step.Value
+			}
+
+			if i.UnitName.Present {
+				util.ValidateString(&i.UnitName.Value, fmt.Sprintf("%s.unitName", fieldName), 0, &err)
+				mapped.UnitName = i.UnitName.Value
+			}
 		} else if param.FloatingPoint != nil {
+			mapped.Type = orcapi.ApplicationParameterTypeFloatingPoint
+			f := param.FloatingPoint
 			base = &param.FloatingPoint.A1ParamBase
-			if base.DefaultValue != nil {
-				a1ReadDefaultValue[float64](base.DefaultValue, fieldName, &err)
+			if base.DefaultValue.Present {
+				defaultValue, jsDefault := a1ReadDefaultValue[float64](&base.DefaultValue.Value, fieldName, &err)
+				mapped.DefaultValue = jsDefault
+
+				if f.Min.Present && defaultValue < f.Min.Value {
+					err = util.MergeHttpErr(err, util.HttpErr(
+						http.StatusBadRequest,
+						"%s default value must not be lower than minimum",
+						fieldName,
+					))
+				}
+
+				if f.Max.Present && defaultValue > f.Max.Value {
+					err = util.MergeHttpErr(err, util.HttpErr(
+						http.StatusBadRequest,
+						"%s default value must not be higher than maximum",
+						fieldName,
+					))
+				}
 			}
 
-			// todo check min, max, step and unit name
+			if f.Min.Present && f.Max.Present {
+				if f.Min.Value > f.Max.Value {
+					err = util.MergeHttpErr(err, util.HttpErr(
+						http.StatusBadRequest,
+						"%s min value must not exceed max value (%v > %v)",
+						fieldName, f.Min.Value, f.Max.Value,
+					))
+				}
+			}
+
+			if f.Step.Present && f.Step.Value <= 0 {
+				err = util.MergeHttpErr(err, util.HttpErr(
+					http.StatusBadRequest,
+					"%s step value must be > 0",
+					fieldName,
+				))
+			}
+
+			if f.Min.Present {
+				mapped.MinValue = f.Min.Value
+			}
+
+			if f.Max.Present {
+				mapped.MaxValue = f.Max.Value
+			}
+
+			if f.Step.Present {
+				mapped.Step = f.Step.Value
+			}
+
+			if f.UnitName.Present {
+				util.ValidateString(&f.UnitName.Value, fmt.Sprintf("%s.unitName", fieldName), 0, &err)
+				mapped.UnitName = f.UnitName.Value
+			}
 		} else if param.Bool != nil {
+			mapped.Type = orcapi.ApplicationParameterTypeBoolean
+			b := param.Bool
 			base = &param.Bool.A1ParamBase
-			if base.DefaultValue != nil {
-				a1ReadDefaultValue[bool](base.DefaultValue, fieldName, &err)
+			if base.DefaultValue.Present {
+				a1ReadDefaultValue[bool](&base.DefaultValue.Value, fieldName, &err)
+			}
+
+			mapped.TrueValue = b.TrueValue
+			mapped.FalseValue = b.FalseValue
+
+			if mapped.TrueValue == "" {
+				mapped.TrueValue = "true"
+			}
+			if mapped.FalseValue == "" {
+				mapped.FalseValue = "false"
 			}
 		} else if param.Enumeration != nil {
+			mapped.Type = orcapi.ApplicationParameterTypeEnumeration
+			e := param.Enumeration
 			base = &param.Enumeration.A1ParamBase
-			if base.DefaultValue != nil {
-				a1ReadDefaultValue[string](base.DefaultValue, fieldName, &err)
-				// TODO check if present in values
+
+			if base.DefaultValue.Present {
+				defaultValue, jsDefault := a1ReadDefaultValue[string](&base.DefaultValue.Value, fieldName, &err)
+				mapped.DefaultValue = jsDefault
+
+				found := false
+				for _, opt := range e.Options {
+					if opt.Value == defaultValue {
+						found = true
+						break
+					}
+				}
+
+				if !found {
+					err = util.MergeHttpErr(err, util.HttpErr(
+						http.StatusBadRequest,
+						"%s.defaultValue must be present in options",
+						fieldName,
+					))
+				}
 			}
-			// todo check options
+
+			for i, opt := range e.Options {
+				util.ValidateString(&opt.Name, fmt.Sprintf("%s.options[%v].name", fieldName, i), 0, &err)
+				util.ValidateString(&opt.Value, fmt.Sprintf("%s.options[%v].value", fieldName, i), 0, &err)
+
+				mapped.Options = append(mapped.Options, orcapi.EnumOption{
+					Name:  opt.Name,
+					Value: opt.Value,
+				})
+			}
 		} else if param.Peer != nil {
+			mapped.Type = orcapi.ApplicationParameterTypePeer
 			base = &param.Peer.A1ParamBase
-			if base.DefaultValue != nil {
+			if base.DefaultValue.Present {
 				err = util.MergeHttpErr(err,
 					util.HttpErr(http.StatusBadRequest, "%s must not have a defaultValue", fieldName))
 			}
 		} else if param.LicenseServer != nil {
+			mapped.Type = orcapi.ApplicationParameterTypeLicenseServer
 			base = &param.LicenseServer.A1ParamBase
-			if base.DefaultValue != nil {
+			if base.DefaultValue.Present {
 				err = util.MergeHttpErr(err,
 					util.HttpErr(http.StatusBadRequest, "%s must not have a defaultValue", fieldName))
 			}
 		} else if param.Ingress != nil {
+			mapped.Type = orcapi.ApplicationParameterTypeIngress
 			base = &param.Ingress.A1ParamBase
-			if base.DefaultValue != nil {
+			if base.DefaultValue.Present {
 				err = util.MergeHttpErr(err,
 					util.HttpErr(http.StatusBadRequest, "%s must not have a defaultValue", fieldName))
 			}
 		} else if param.NetworkIP != nil {
+			mapped.Type = orcapi.ApplicationParameterTypeNetworkIp
 			base = &param.NetworkIP.A1ParamBase
-			if base.DefaultValue != nil {
+			if base.DefaultValue.Present {
 				err = util.MergeHttpErr(err,
 					util.HttpErr(http.StatusBadRequest, "%s must not have a defaultValue", fieldName))
 			}
@@ -429,14 +724,143 @@ func (y *A1Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 			util.ValidateString(&base.Title.Value, fmt.Sprintf("%s.title", fieldName), 0, &err)
 		}
 
+		mapped.Name = name
+		mapped.Title = base.Title.GetOrDefault("")
+		mapped.Optional = base.Optional
+		mapped.Description = base.Description
+		mappedParameters = append(mappedParameters, mapped)
+	}
+
+	var invocation []orcapi.InvocationParameter
+
+	for i, invocationParam := range y.Invocation {
+		paramName := fmt.Sprintf("invocation[%d]", i)
+		y.validateInvocationParam(invocationParam.ToParameter(), paramName, &err)
+		invocation = append(invocation, invocationParam.ToParameter())
+	}
+
+	environment := map[string]orcapi.InvocationParameter{}
+
+	for name, value := range y.Environment {
+		paramName := fmt.Sprintf("environment[%s]", name)
+		util.ValidateString(&name, paramName, 0, &err)
+		y.validateInvocationParam(value.ToParameter(), paramName, &err)
+		environment[name] = value.ToParameter()
 	}
 
 	// NOTE(Dan): vnc and web nothing to check
 	// NOTE(Dan): globs are ignored
+	// NOTE(Dan): container nothing to check
 
-	// TODO invocation
-	// TODO container
-	// TODO environment
+	if err != nil {
+		return orcapi.Application{}, err
+	} else {
+		isInteractive := appType == orcapi.ApplicationTypeVnc || appType == orcapi.ApplicationTypeWeb
 
-	return orcapi.Application{}, err
+		app := orcapi.Application{
+			WithAppMetadata: orcapi.WithAppMetadata{
+				Metadata: orcapi.ApplicationMetadata{
+					NameAndVersion: orcapi.NameAndVersion{
+						Name:    y.Name,
+						Version: y.Version,
+					},
+					Authors:     []string{"UCloud"},
+					Title:       y.Title,
+					Description: y.Description,
+					Website:     y.Website.GetOrDefault(""),
+					Public:      false,
+					FlavorName:  "",
+					Group:       orcapi.ApplicationGroup{},
+					CreatedAt:   fndapi.Timestamp(time.Now()),
+				},
+			},
+			WithAppInvocation: orcapi.WithAppInvocation{
+				Invocation: orcapi.ApplicationInvocationDescription{
+					Tool: orcapi.ToolReference{
+						NameAndVersion: y.Tool,
+					},
+					Invocation:      invocation,
+					Parameters:      mappedParameters,
+					OutputFileGlobs: []string{"*"},
+					ApplicationType: y.ApplicationType.GetOrDefault(""),
+					Vnc:             y.Vnc.GetOrDefault(orcapi.VncDescription{}),
+					Web:             y.Web.GetOrDefault(orcapi.WebDescription{}),
+					Ssh:             y.Ssh.GetOrDefault(orcapi.SshDescription{}),
+					Container: y.Container.GetOrDefault(orcapi.ContainerDescription{
+						ChangeWorkingDirectory: true,
+						RunAsRoot:              true,
+						RunAsRealUser:          false,
+					}),
+					Environment:           environment,
+					AllowAdditionalMounts: y.AllowAdditionalMounts.GetOrDefault(isInteractive),
+					AllowAdditionalPeers:  y.AllowAdditionalPeers.GetOrDefault(isInteractive),
+					AllowMultiNode:        y.AllowMultiNode.GetOrDefault(isInteractive),
+					AllowPublicIp:         y.AllowPublicIp.GetOrDefault(false),
+					AllowPublicLink:       y.AllowPublicLink.GetOrDefault(isInteractive),
+					FileExtensions:        y.FileExtensions,
+					LicenseServers:        y.LicenseServers,
+					Modules: orcapi.ModulesSection{
+						MountPath: y.Modules.Value.MountPath,
+						Optional:  y.Modules.Value.Optional,
+					},
+					Sbatch: map[string]orcapi.InvocationParameter{},
+				},
+			},
+		}
+
+		return app, nil
+	}
+}
+
+func (y *A1Yaml) validateInvocationParam(
+	invocationParam orcapi.InvocationParameter,
+	paramName string,
+	err **util.HttpError,
+) {
+	switch invocationParam.Type {
+	case orcapi.InvocationParameterTypeEnv:
+		e := invocationParam.InvocationParameterEnv
+		util.ValidateString(&e.Variable, paramName, 0, err)
+
+	case orcapi.InvocationParameterTypeWord:
+		w := invocationParam.InvocationParameterWord
+		util.ValidateString(&w.Word, paramName, util.StringValidationAllowMultiline, err)
+
+	case orcapi.InvocationParameterTypeVar:
+		v := invocationParam.InvocationParameterVar
+		if len(v.VariableNames) == 0 {
+			*err = util.MergeHttpErr(*err, util.HttpErr(
+				http.StatusBadRequest,
+				"%s.variableNames must not be empty",
+				paramName,
+			))
+		}
+
+		for _, varName := range v.VariableNames {
+			_, ok := y.Parameters[varName]
+			if !ok {
+				*err = util.MergeHttpErr(*err, util.HttpErr(
+					http.StatusBadRequest,
+					"%s variable '%s' does not exist",
+					paramName,
+					varName,
+				))
+			}
+		}
+
+	case orcapi.InvocationParameterTypeBoolFlag, "flag":
+		b := invocationParam.InvocationParameterBoolFlag
+		_, ok := y.Parameters[b.VariableName]
+		if !ok {
+			*err = util.MergeHttpErr(*err, util.HttpErr(
+				http.StatusBadRequest,
+				"%s variable '%s' does not exist",
+				paramName,
+				b.VariableName,
+			))
+		}
+
+	case orcapi.InvocationParameterTypeJinja:
+		// Nothing to check
+	}
 }

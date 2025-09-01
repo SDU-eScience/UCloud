@@ -1,0 +1,119 @@
+---
+application: v1
+
+title: MongoDB
+name: mongodb
+version: 8.0.9
+
+website: https://docs.cloud.sdu.dk/Apps/mongodb.html
+
+applicationType: BATCH
+
+tool:
+  name: mongodb
+  version: 8.0.9
+
+authors:
+  - MongoDB Inc.
+
+description: >
+  MongoDB is a cross-platform NoSQL document-oriented database program.
+  MongoDB uses JSON-like documents with optional schemas.
+
+allowAdditionalMounts: true
+allowPublicLink: false
+allowPublicIp: true
+allowMultiNode: false
+
+container:
+  runAsRoot: true
+
+invocation:
+  - start_app
+  - type: var
+    vars: mongo_data
+    prefixGlobal: '-d '
+  - type: flag
+    flag: '-b '
+    var: backup
+  - type: var
+    vars: mongo_backup_data
+    prefixGlobal: '-e '
+  - type: var
+    vars: config_file
+    prefixGlobal: '-c '
+  - type: var
+    vars: initdb_root_username
+    prefixGlobal: '-u '
+  - type: var
+    vars: initdb_root_password
+    prefixGlobal: '-p '
+  - type: var
+    vars: initdb_root_password_file
+    prefixGlobal: '-f '
+  - type: var
+    vars: mongo_port
+    prefixGlobal: '-r '
+  - type: var
+    vars: initialization
+    prefixGlobal: '-s '
+
+parameters:
+  mongo_data:
+    title: "Database path"
+    type: input_directory
+    description: >
+      Select the database. Choose an empty directory to create a new database.
+    optional: false
+  backup:
+    title: 'Schedule backups'
+    type: boolean
+    description: >
+      Run a backup of the database every hour.
+    optional: true
+  mongo_backup_data:
+    title: "Restore database"
+    type: input_directory
+    description: >
+      Select a databse backup folder to be restored.
+    optional: true
+  config_file:
+    title: "Configuration file"
+    type: input_file
+    description: >
+      Read MongoDB server startup options from file.
+    optional: true
+  initdb_root_username:
+    title: "Admin user"
+    type: text
+    description: >
+      Admin username for authentication (default: none).
+    optional: true
+  initdb_root_password:
+    title: "Admin password"
+    type: text
+    description: >
+      Admin password for authentication (default: none).
+    optional: true
+  initdb_root_password_file:
+    title: "Admin password file"
+    type: input_file
+    description: >
+      Admin password file for authentication (default: none).
+    optional: true
+  mongo_port:
+    title: "MongoDB port"
+    type: integer
+    defaultValue: 27017
+    description: >
+      Port to connect to (default: 27017).
+    optional: true
+  initialization:
+    title: "Initialization"
+    type: input_file
+    description: >
+      Run initialization Bash script (*.sh).
+    optional: true
+
+outputFileGlobs:
+  - "*"

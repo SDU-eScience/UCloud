@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"gopkg.in/yaml.v3"
 )
 
 type OptString = Option[string]
@@ -92,6 +93,30 @@ func (s *Option[T]) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	s.Present = true
+	return nil
+}
+
+func (s Option[T]) MarshalYAML() (any, error) {
+	if s.Present {
+		return s.Value, nil
+	}
+	return nil, nil
+}
+
+func (s *Option[T]) UnmarshalYAML(node *yaml.Node) error {
+	if node.Tag == "!!null" {
+		s.Present = false
+		var zero T
+		s.Value = zero
+		return nil
+	}
+
+	var v T
+	if err := node.Decode(&v); err != nil {
+		return err
+	}
+	s.Value = v
 	s.Present = true
 	return nil
 }

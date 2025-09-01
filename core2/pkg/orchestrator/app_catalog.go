@@ -885,11 +885,11 @@ func AppRetrieve(
 
 		if ok {
 			t.Mu.RLock()
-			apiApplication.Invocation.Tool.Tool = orcapi.Tool{
+			apiApplication.Invocation.Tool.Tool = util.OptValue(orcapi.Tool{
 				Owner:       "_ucloud",
 				CreatedAt:   apiApplication.Metadata.CreatedAt,
 				Description: t.Tool,
-			}
+			})
 			t.Mu.RUnlock()
 		}
 
@@ -2052,7 +2052,7 @@ func AppStudioCreateTool(tool *orcapi.ToolReference) *util.HttpError {
 		result = &internalTool{
 			Name:    tool.Name,
 			Version: tool.Version,
-			Tool:    tool.Tool.Description,
+			Tool:    tool.Tool.Value.Description,
 		}
 	}
 	b.Mu.Unlock()
