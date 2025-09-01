@@ -46,7 +46,7 @@ class DataVisualization(
         val emptyChildrenUsageOvertimeChart = HashMap<String, HashMap<Long, UsageOverTimeAPI>>()
 
         val projectId = if (idCard is IdCard.User) {
-            if (idCard.activeProject == 0 ) {
+            if (idCard.activeProject == 0) {
                 null
             } else {
                 idCardService.lookupProjectInformation(idCard.activeProject)?.projectId
@@ -301,7 +301,7 @@ class DataVisualization(
                             j.created_by, j.category, j.provider
                         order by 
                             j.provider, j.category, usage desc,j.created_by;
-                """, debug = true
+                """
                     ).rows
 
                     var dataPoints = ArrayList<UsagePerUserPointAPI>()
