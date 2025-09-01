@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"os"
-	"strconv"
 	"strings"
 	"ucloud.dk/shared/pkg/cfgutil"
 )
@@ -21,7 +20,6 @@ type ConfigurationFormat struct {
 		PublicCertificate string
 	}
 
-	//Changes to original struct
 	Elasticsearch struct {
 		Host        HostInfo
 		Credentials struct {
@@ -168,13 +166,10 @@ func Parse(configDir string) bool {
 		elasticNode := cfgutil.RequireChild(filePath, document, "elasticsearch", &success)
 		if success {
 			elasticCredNode := cfgutil.RequireChild(filePath, elasticNode, "credentials", &success)
-			cfg.Elasticsearch.Host.Address = cfgutil.RequireChildText(filePath, elasticNode, "hostName", &success)
-			port, err := strconv.Atoi(cfgutil.RequireChildText(filePath, elasticNode, "port", &success))
-			if err != nil || port == 0 {
-				panic("Failed to parse elasticsearch port")
+			cfgutil.Decode(filePath, elasticNode, &cfg.Elasticsearch, &success)
+			if !cfg.Elasticsearch.Host.validate(filePath, elasticCredNode) {
+				success = false
 			}
-			cfg.Elasticsearch.Host.Port = port
-			cfg.Elasticsearch.Host.Scheme = cfgutil.RequireChildText(filePath, elasticNode, "scheme", &success)
 			cfg.Elasticsearch.Credentials.Username = cfgutil.RequireChildText(filePath, elasticCredNode, "username", &success)
 			cfg.Elasticsearch.Credentials.Password = cfgutil.RequireChildText(filePath, elasticCredNode, "password", &success)
 		}

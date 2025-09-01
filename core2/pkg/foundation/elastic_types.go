@@ -1,18 +1,18 @@
 package foundation
 
-type Shards struct {
+type ElasticShards struct {
 	Total      int `json:"total"`
 	Successful int `json:"successful"`
 	Skipped    int `json:"skipped"`
 	Failed     int `json:"failed"`
 }
 
-type CountResponseType struct {
-	Count  int    `json:"count"`
-	Shards Shards `json:"_shards"`
+type ElasticCountResponse struct {
+	Count  int           `json:"count"`
+	Shards ElasticShards `json:"_shards"`
 }
 
-type HealthResponse struct {
+type ElasticHealthResponse struct {
 	ClusterName                 string  `json:"cluster_name"`
 	Status                      string  `json:"status"`
 	TimedOut                    bool    `json:"timed_out"`
