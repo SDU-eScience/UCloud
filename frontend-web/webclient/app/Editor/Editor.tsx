@@ -155,7 +155,7 @@ function findOrAppendNodeForMutation(root: EditorSidebarNode, path: string): [Ed
                 copied,
             ];
 
-            selfCopy.children.sort((a, b) => a.file.absolutePath.toLowerCase().localeCompare(b.file.absolutePath.toLowerCase()));
+            selfCopy.children.sort((a, b) => virtualFileSort(a.file, b.file));
         } else {
             leafNode = selfCopy;
         }
@@ -170,6 +170,7 @@ function findOrAppendNodeForMutation(root: EditorSidebarNode, path: string): [Ed
 }
 
 function singleEditorReducer(state: EditorState, action: EditorAction): EditorState {
+    console.log(action.type);
     switch (action.type) {
         case "EditorActionCreate": {
             // NOTE(Dan): Handled by the root reducer, should not be called like this.
