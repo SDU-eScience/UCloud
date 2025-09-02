@@ -1,10 +1,8 @@
 import * as React from "react";
-import {Feature, hasFeature} from "@/Features";
 import {Editor, EditorApi, Vfs} from "@/Editor/Editor";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {
     bulkRequestOf,
-    delay,
     displayErrorMessageOrDefault,
     extractErrorCode,
     stopPropagation
