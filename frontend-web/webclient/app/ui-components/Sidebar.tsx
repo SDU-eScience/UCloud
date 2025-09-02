@@ -857,7 +857,7 @@ function SecondarySidebar({
         dispatch(setAppFavorites(favoriteApps.data.items));
     }, [favoriteApps]);
 
-    const appFavorites = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
+    const appFavorites = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites) ?? [];
     const isLight = isLightThemeStored();
 
     useProvideCommands(staticProvider(appFavorites.map(fav => ({

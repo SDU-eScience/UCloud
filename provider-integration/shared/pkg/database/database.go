@@ -261,10 +261,11 @@ func RequestRollback(ctx *Transaction) {
 func Exec(ctx *Transaction, query string, args Params) {
 	caller := util.GetCaller()
 	start := time.Now()
-	_, err := ctx.tx.NamedExec(query, transformParameters(args))
+	parameters := transformParameters(args)
+	_, err := ctx.tx.NamedExec(query, parameters)
 	if err != nil && ctx.Ok {
 		ctx.Ok = false
-		ctx.error = fmt.Errorf("Database exec failed: %v\nquery: %v\n", err.Error(), query)
+		ctx.error = fmt.Errorf("Database exec failed: %v\nquery: %v\nArgs: %#v\nTransformed: %#v\n", err.Error(), query, args, parameters)
 	}
 	end := time.Now()
 	metricDatabaseQueryDuration.WithLabelValues(caller.File, fmt.Sprint(caller.Line)).Observe(end.Sub(start).Seconds())

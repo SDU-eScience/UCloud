@@ -422,6 +422,22 @@ type A1Module struct {
 	Optional  []string `yaml:"optional"`
 }
 
+type A1Tool struct {
+	Name                  string                             `yaml:"name"`
+	Version               string                             `yaml:"version"`
+	Title                 string                             `yaml:"title"`
+	Container             util.Option[string]                `yaml:"container"`
+	Backend               orcapi.ToolBackend                 `yaml:"backend"`
+	Authors               []string                           `yaml:"authors"`
+	DefaultNumberOfNodes  util.Option[int]                   `yaml:"defaultNumberOfNodes"`
+	DefaultTimeAllocation util.Option[orcapi.SimpleDuration] `yaml:"defaultTimeAllocation"`
+	RequiredModules       []string                           `yaml:"requiredModules"`
+	Description           string                             `yaml:"description"`
+	License               string                             `yaml:"license"`
+	Image                 util.Option[string]                `yaml:"image"`
+	SupportedProviders    []string                           `yaml:"supportedProviders"`
+}
+
 // Normalization
 // =====================================================================================================================
 
@@ -769,7 +785,7 @@ func (y *A1Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 					Description: y.Description,
 					Website:     y.Website.GetOrDefault(""),
 					Public:      false,
-					FlavorName:  "",
+					FlavorName:  util.OptNone[string](),
 					Group:       orcapi.ApplicationGroup{},
 					CreatedAt:   fndapi.Timestamp(time.Now()),
 				},
@@ -862,5 +878,48 @@ func (y *A1Yaml) validateInvocationParam(
 
 	case orcapi.InvocationParameterTypeJinja:
 		// Nothing to check
+	}
+}
+
+func (y *A1Tool) Normalize() (orcapi.ToolReference, *util.HttpError) {
+	var err *util.HttpError
+	util.ValidateString(&y.Name, "name", 0, &err)
+	util.ValidateString(&y.Version, "version", 0, &err)
+	util.ValidateString(&y.Title, "title", 0, &err)
+	if y.Container.Present {
+		util.ValidateString(&y.Container.Value, "container", 0, &err)
+	}
+	util.ValidateEnum(&y.Backend,
+		[]orcapi.ToolBackend{orcapi.ToolBackendNative, orcapi.ToolBackendVirtualMachine, orcapi.ToolBackendDocker},
+		"backend", &err)
+
+	if err != nil {
+		return orcapi.ToolReference{}, err
+	} else {
+		return orcapi.ToolReference{
+			NameAndVersion: orcapi.NameAndVersion{
+				Name:    y.Name,
+				Version: y.Version,
+			},
+			Tool: util.OptValue(orcapi.Tool{
+				Owner:     "UCloud",
+				CreatedAt: fndapi.Timestamp(time.Now()),
+				Description: orcapi.ToolDescription{
+					Info: orcapi.NameAndVersion{
+						Name:    y.Name,
+						Version: y.Version,
+					},
+					DefaultNumberOfNodes:  y.DefaultNumberOfNodes.GetOrDefault(1),
+					DefaultTimeAllocation: y.DefaultTimeAllocation.GetOrDefault(orcapi.SimpleDuration{Hours: 1}),
+					Authors:               []string{"UCloud"},
+					Title:                 y.Title,
+					Description:           y.Description,
+					Backend:               y.Backend,
+					License:               y.License,
+					Image:                 y.Image.GetOrDefault(y.Container.Value),
+					Container:             y.Container.GetOrDefault(y.Image.Value),
+				},
+			}),
+		}, nil
 	}
 }

@@ -155,14 +155,14 @@ type ApplicationSummary struct {
 
 type ApplicationMetadata struct {
 	NameAndVersion
-	Authors     []string         `json:"authors" yaml:"authors"`
-	Title       string           `json:"title" yaml:"title"`
-	Description string           `json:"description" yaml:"description"`
-	Website     string           `json:"website" yaml:"website"`
-	Public      bool             `json:"public" yaml:"public"`
-	FlavorName  string           `json:"flavorName" yaml:"flavorName"`
-	Group       ApplicationGroup `json:"group" yaml:"group"`
-	CreatedAt   fnd.Timestamp    `json:"createdAt" yaml:"createdAt"`
+	Authors     []string            `json:"authors" yaml:"authors"`
+	Title       string              `json:"title" yaml:"title"`
+	Description string              `json:"description" yaml:"description"`
+	Website     string              `json:"website" yaml:"website"`
+	Public      bool                `json:"public" yaml:"public"`
+	FlavorName  util.Option[string] `json:"flavorName" yaml:"flavorName"`
+	Group       ApplicationGroup    `json:"group" yaml:"group"`
+	CreatedAt   fnd.Timestamp       `json:"createdAt" yaml:"createdAt"`
 }
 
 type ApplicationInvocationDescription struct {

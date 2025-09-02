@@ -46,3 +46,11 @@ func RemoveElementFunc[T any](slice []T, condition func(element T) bool) []T {
 		return RemoveAtIndex(slice, idx)
 	}
 }
+
+func NonNilSlice[T any](slice []T) []T {
+	if slice == nil {
+		return []T{}
+	} else {
+		return slice
+	}
+}

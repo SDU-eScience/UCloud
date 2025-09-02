@@ -15,6 +15,8 @@ import (
 
 func appCatalogLoad() {
 	reset := func() {
+		appCatalogGlobals.TopPicks.Items = nil
+
 		appCatalogGlobals.Buckets = make([]appCatalogBucket, runtime.NumCPU())
 		for i := 0; i < len(appCatalogGlobals.Buckets); i++ {
 			b := &appCatalogGlobals.Buckets[i]
@@ -515,7 +517,7 @@ func appPersistGroupMetadata(id AppGroupId, group *internalAppGroup) {
 			tx,
 			`
 				insert into app_store.application_groups(id, title, logo, description, default_name, logo_has_text, color_remapping, curator) 
-				values (:id, :title, null, :description, :flavor, :logo_has_text, null, 'main')
+				values (:id, :title, null, :description, case when :flavor = '' then null else :flavor end, :logo_has_text, null, 'main')
 				on conflict (id) do update set
 				    title = excluded.title,
 				    description = excluded.description,
@@ -568,7 +570,7 @@ func appPersistUpdateGroupAssignment(name string, id util.Option[AppGroupId]) {
 			`
 				update app_store.applications
 				set
-					group_id = case when :group = -1 then null else :group end
+					group_id = cast(case when :group = -1 then null else :group end as int)
 				where
 					name = :name
 		    `,
@@ -1022,7 +1024,7 @@ func appPersistApplication(app *internalApplication) {
 						tool_name, tool_version, authors, title, description, website, group_id, flavor_name) 
 				values (:name, :version, :app, :created_at, :modified_at, '{}', '_ucloud', 
 					:tool_name, :tool_version, '["Unknown"]', :title, :description, :website, 
-					case when :group_id = 0 then null else :group_id end, :flavor_name)
+					cast(case when :group_id = 0 then null else :group_id end as int), :flavor_name)
 		    `,
 			db.Params{
 				"name":         app.Name,
@@ -1035,7 +1037,7 @@ func appPersistApplication(app *internalApplication) {
 				"title":        app.Title,
 				"description":  app.Description,
 				"website":      app.DocumentationSite.Sql(),
-				"group_id":     app.Group.GetOrDefault(0),
+				"group_id":     int(app.Group.GetOrDefault(0)),
 				"flavor_name":  app.FlavorName.Sql(),
 			},
 		)
