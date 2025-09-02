@@ -726,8 +726,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                 productId: "syncthing",
                                 config: newConfig
                             })).then(() => {
-                                syncthingConfig = newConfig
-                                browser.renderOperations();
+                                syncthingConfig = newConfig;
+                                browser.rerender();
                             }).catch(e => {
                                 if (didUnmount.current) return;
                                 defaultErrorHandler(e);

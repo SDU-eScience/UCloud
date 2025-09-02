@@ -493,11 +493,24 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "sensitivity",
                 enabled(selected, cb) {
                     if (cb.isSearch) return false;
+                    if (!cb.syncthingConfig) return false;
                     if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
                         return false;
                     }
-                    // TODO(Jonas): I believe files with some specific sensitivities should not sync, should we also notify user of that?
-                    return selected.length === 1;
+
+                    if (selected.length !== 1) return false;
+                    const [file] = selected;
+                    const syncthingEntry = cb.syncthingConfig.folders.find(it => file.id.startsWith(it.ucloudPath));
+                    if (syncthingEntry) {
+                        const isSynchronizationRoot = syncthingEntry.ucloudPath === file.id;
+                        if (isSynchronizationRoot) {
+                            return "Remove this folder from syncthing to change sensitivity.";
+                        } else {
+                            return "Remove synchronized parent folder from syncthing to change sensitivity.";
+                        }
+                    }
+
+                    return true;
                 },
                 onClick(selected, extra) {
                     addFileSensitivityDialog(selected[0], extra.invokeCommand, extra.reload);
@@ -571,7 +584,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "refresh",
                 enabled: (selected, cb) => !cb.isSearch && synchronizationOpEnabled(false, selected, cb),
                 onClick: (selected, cb) => {
-                    synchronizationOpOnClick(selected, cb)
+                    synchronizationOpOnClick(selected, cb);
                 },
                 shortcut: ShortcutKey.Y
             },
