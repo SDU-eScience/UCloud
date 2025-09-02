@@ -13,7 +13,6 @@ import (
 	"sync/atomic"
 	"time"
 	fndapi "ucloud.dk/shared/pkg/foundation"
-	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -63,7 +62,7 @@ type appCatalogBucket struct {
 type appRecentAdditions struct {
 	Mu sync.RWMutex
 
-	RecentlyUpdated []orcapi.NameAndVersion
+	RecentlyUpdated []string
 	NewApplications []AppGroupId
 }
 
@@ -767,6 +766,57 @@ func AppCatalogRetrieveLandingPage(
 		discovery,
 	)
 
+	var newApps []orcapi.Application
+	var recentlyUpdated []orcapi.Application
+	{
+		additions := &appCatalogGlobals.RecentAdditions
+		additions.Mu.RLock()
+
+		recentsSeen := map[string]util.Empty{}
+		for i := len(additions.RecentlyUpdated) - 1; i >= 0; i-- {
+			name := additions.RecentlyUpdated[i]
+			if _, seen := recentsSeen[name]; seen {
+				continue
+			}
+
+			recentsSeen[name] = util.Empty{}
+
+			app, ok := AppRetrieveNewest(actor, name, discovery, AppCatalogIncludeGroups)
+			if ok {
+				recentlyUpdated = append(recentlyUpdated, app)
+				if len(recentlyUpdated) >= 5 {
+					break
+				}
+			}
+		}
+
+		for i := len(additions.NewApplications) - 1; i >= 0; i-- {
+			groupId := additions.NewApplications[i]
+			group, _, ok := AppRetrieveGroup(actor, groupId, discovery, AppCatalogIncludeApps|AppCatalogIncludeCategories)
+			if ok {
+				apps := group.Status.Applications
+				if len(apps) > 0 {
+					if group.Specification.DefaultFlavor != "" {
+						for _, app := range apps {
+							if app.Metadata.Name == group.Specification.DefaultFlavor {
+								newApps = append(newApps, app)
+								break
+							}
+						}
+					} else {
+						newApps = append(newApps, apps[len(apps)-1])
+					}
+
+					if len(newApps) >= 5 {
+						break
+					}
+				}
+			}
+		}
+
+		additions.Mu.RUnlock()
+	}
+
 	return orcapi.AppCatalogRetrieveLandingPageResponse{
 		Carrousel:  util.NonNilSlice(carrousel),
 		TopPicks:   util.NonNilSlice(topPicks),
@@ -775,10 +825,10 @@ func AppCatalogRetrieveLandingPage(
 			Present: hasSpotlight,
 			Value:   spotlight,
 		},
-		NewApplications:    make([]orcapi.Application, 0),
-		RecentlyUpdated:    make([]orcapi.Application, 0),
-		AvailableProviders: make([]string, 0),
-		Curator:            make([]orcapi.AppCatalogCuratorStatus, 0),
+		NewApplications:    util.NonNilSlice(newApps),
+		RecentlyUpdated:    util.NonNilSlice(recentlyUpdated),
+		AvailableProviders: make([]string, 0),                         // TODO
+		Curator:            make([]orcapi.AppCatalogCuratorStatus, 0), // TODO deprecated?
 	}, nil
 }
 
@@ -1311,6 +1361,7 @@ func AppStudioCreateGroup(spec orcapi.ApplicationGroupSpecification) (AppGroupId
 	b.Mu.Unlock()
 
 	appPersistGroupMetadata(id, group)
+	appStudioTrackNewGroup(id)
 	return id, nil
 }
 
@@ -1615,6 +1666,7 @@ func AppStudioCreateApplication(app *orcapi.Application) *util.HttpError {
 
 	if err == nil {
 		appPersistApplication(result)
+		appStudioTrackUpdate(app.Metadata.NameAndVersion)
 	}
 
 	return err
@@ -1628,9 +1680,6 @@ func AppStudioCreateToolDirect(tool *orcapi.Tool) *util.HttpError {
 }
 
 func AppStudioCreateTool(tool *orcapi.ToolReference) *util.HttpError {
-	if tool.Name == "spaceranger" {
-		log.Info("stop me")
-	}
 	var err *util.HttpError
 	var result *internalTool
 
@@ -1722,4 +1771,21 @@ func AppStudioUploadTool(data []byte) *util.HttpError {
 	} else {
 		return AppStudioCreateTool(&ntool)
 	}
+}
+
+func appStudioTrackUpdate(app orcapi.NameAndVersion) {
+	additions := &appCatalogGlobals.RecentAdditions
+
+	additions.Mu.Lock()
+	additions.RecentlyUpdated = append(additions.RecentlyUpdated, app.Name)
+
+	additions.Mu.Unlock()
+}
+
+func appStudioTrackNewGroup(group AppGroupId) {
+	additions := &appCatalogGlobals.RecentAdditions
+
+	additions.Mu.Lock()
+	additions.NewApplications = append(additions.NewApplications, group)
+	additions.Mu.Unlock()
 }

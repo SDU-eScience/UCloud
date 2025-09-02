@@ -16,6 +16,9 @@ import (
 func appCatalogLoad() {
 	reset := func() {
 		appCatalogGlobals.TopPicks.Items = nil
+		appCatalogGlobals.Carrousel.Items = nil
+		appCatalogGlobals.RecentAdditions.NewApplications = nil
+		appCatalogGlobals.RecentAdditions.RecentlyUpdated = nil
 
 		appCatalogGlobals.Buckets = make([]appCatalogBucket, runtime.NumCPU())
 		for i := 0; i < len(appCatalogGlobals.Buckets); i++ {
@@ -94,6 +97,23 @@ func appCatalogLoad() {
 				b.Applications[app.Name] = append(b.Applications[app.Name], i)
 			}
 
+			appsByCreatedAt := db.Select[struct {
+				Name    string
+				Version string
+			}](
+				tx,
+				`
+					select name, version
+					from app_store.applications
+					order by created_at
+			    `,
+				db.Params{},
+			)
+
+			for _, nv := range appsByCreatedAt {
+				appStudioTrackUpdate(orcapi.NameAndVersion{Name: nv.Name, Version: nv.Version})
+			}
+
 			tools := db.Select[struct {
 				Name    string
 				Version string
@@ -170,6 +190,7 @@ func appCatalogLoad() {
 						default_name, color_remapping
 					from
 						app_store.application_groups
+					order by id asc
 				`,
 				db.Params{},
 			)
@@ -205,6 +226,7 @@ func appCatalogLoad() {
 				}
 
 				b.Groups[id] = &appGroup
+				appStudioTrackNewGroup(id)
 			}
 
 			categories := db.Select[struct {
