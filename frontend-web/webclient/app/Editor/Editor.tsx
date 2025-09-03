@@ -46,7 +46,7 @@ export interface EditorState {
     title: string;
     sidebar: EditorSidebar;
     cachedFiles: Record<string, string | Uint8Array>;
-    viewState: Record<string, monaco.editor.ICodeEditorViewState>;
+    viewState: Record<string, editor.ICodeEditorViewState>;
     currentPath: string;
 }
 
@@ -78,7 +78,7 @@ export interface EditorActionFilesLoaded {
 
 export interface EditorActionSaveState {
     type: "EditorActionSaveState";
-    editorState: monaco.editor.ICodeEditorViewState | null;
+    editorState: editor.ICodeEditorViewState | null;
     newPath: string;
     oldContent: string;
 }
@@ -1015,7 +1015,16 @@ export const Editor: React.FunctionComponent<{
         const closed = tabs.closed;
         if (!closed.includes(path)) closed.push(path);
 
-        getModelFromEditor(path)?.dispose();
+        if (props.vfs.isReal()) {
+            getModelFromEditor(path)?.dispose();
+            delete savedAtAltVersionId.current[path];
+            setDirtyFiles(f => {
+                f.delete(path);
+                return f;
+            })
+        } else {
+            props.vfs.setDirtyFileContent(path, getModelFromEditor(path)?.getValue() ?? "")
+        }
 
         setTabs({open: result, closed});
     }, [state.currentPath, tabs]);
@@ -1029,7 +1038,6 @@ export const Editor: React.FunctionComponent<{
     }, [tabs, state.currentPath, dirtyFiles]);
 
     useBeforeUnload((e: BeforeUnloadEvent): BeforeUnloadEvent => {
-        // TODO(Jonas): Only handles closing window, not UCloud navigation 
         const anyDirty = dirtyFiles.size > 0;
         if (anyDirty) {
             // Note(Jonas): Both should be done for best compatibility:

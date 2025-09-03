@@ -86,7 +86,8 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
                 },
                 cancelText: "Don't save",
                 onCancel: () => {
-                    setSelectedWorkflow(null)
+                    setSelectedWorkflow(null);
+
                 }
             });
         } else {
@@ -234,6 +235,7 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
     }, [props.application.metadata.name]);
 
     const onSave = useCallback(() => {
+        dirtyFileCountRef.current = 0;
         fetchExistingWorkflows(
             WorkflowApi.browse({
                 itemsPerPage: 250,
