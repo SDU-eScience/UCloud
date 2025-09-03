@@ -1113,6 +1113,26 @@ export const Editor: React.FunctionComponent<{
         return {language: activeSyntax, displayName: toDisplayName(activeSyntax)};
     }, [activeSyntax]);
 
+    function doClose(t: string, index: number) {
+        if (dirtyFiles.has(t) && props.vfs.isReal()) {
+            addStandardDialog({
+                title: "Save before closing?",
+                message: "The changes made to this file has not been saved. Save before closing?",
+                confirmText: "Save",
+                async onConfirm() {
+                    await props.onRequestSave(t);
+                    closeTab(t, index);
+                },
+                cancelText: "Don't save",
+                onCancel() {
+                    closeTab(t, index);
+                }
+            });
+        } else {
+            closeTab(t, index);
+        }
+    }
+
     // VimMode.Vim.defineEx(name, shorthand, callback);
     VimMode.Vim.defineEx("write", "w", () => {
         saveBufferIfNeeded();
@@ -1122,7 +1142,7 @@ export const Editor: React.FunctionComponent<{
 
     VimMode.Vim.defineEx("quit", "q", (args, b, c) => {
         const idx = tabs.open.findIndex(it => it === state.currentPath);
-        closeTab(state.currentPath, idx);
+        doClose(state.currentPath, idx);
     });
 
     VimMode.Vim.defineEx("x-write-and-quit", "x", () => {
@@ -1130,7 +1150,7 @@ export const Editor: React.FunctionComponent<{
         props.onRequestSave(state.currentPath).then(() => {
             onFileSaved(state.currentPath);
             const idx = tabs.open.findIndex(it => it === state.currentPath);
-            closeTab(state.currentPath, idx);
+            doClose(state.currentPath, idx);
         });
     });
 
@@ -1178,25 +1198,7 @@ export const Editor: React.FunctionComponent<{
                                 openTabOperations(t, {x: e.clientX, y: e.clientY});
                             }}
                             close={() => {
-                                if (!props.vfs.isReal()) return;
-
-                                if (dirtyFiles.has(t)) {
-                                    addStandardDialog({
-                                        title: "Save before closing?",
-                                        message: "The changes made to this file has not been saved. Save before closing?",
-                                        confirmText: "Save",
-                                        async onConfirm() {
-                                            await props.onRequestSave(t);
-                                            closeTab(t, index);
-                                        },
-                                        cancelText: "Don't save",
-                                        onCancel() {
-                                            closeTab(t, index);
-                                        }
-                                    });
-                                } else {
-                                    closeTab(t, index);
-                                }
+                                doClose(t, index)
                             }}
                             children={t}
                         />
