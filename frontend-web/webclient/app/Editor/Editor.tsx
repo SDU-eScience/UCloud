@@ -170,7 +170,7 @@ function findOrAppendNodeForMutation(root: EditorSidebarNode, path: string): [Ed
 }
 
 function singleEditorReducer(state: EditorState, action: EditorAction): EditorState {
-    console.log(action.type);
+
     switch (action.type) {
         case "EditorActionCreate": {
             // NOTE(Dan): Handled by the root reducer, should not be called like this.
@@ -649,7 +649,7 @@ export const Editor: React.FunctionComponent<{
 
             if (!showingCustomContent.current) {
                 if (!SPECIAL_PATHS.includes(oldPath) && saveState) {
-                    let editorState: monaco.editor.ICodeEditorViewState | null = null;
+                    let editorState: editor.ICodeEditorViewState | null = null;
                     const model = editor?.getModel();
                     if (editor && model) {
                         editorState = editor.saveViewState();
@@ -991,7 +991,7 @@ export const Editor: React.FunctionComponent<{
     const openTab = React.useCallback(async (path: string) => {
         if (state.currentPath === path) return;
         await openFile(path, true);
-        const fileWasFetched = getModelFromEditor(path)?.getValue ?? state.cachedFiles[path] != null;
+        const fileWasFetched = getModelFromEditor(path)?.getValue() ?? state.cachedFiles[path] != null;
         if (fileWasFetched) {
             setTabs(tabs => {
                 if (tabs.open.includes(path)) {

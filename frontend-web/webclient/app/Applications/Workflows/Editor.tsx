@@ -75,7 +75,7 @@ const WorkflowEditor: React.FunctionComponent<{
             if (typeof parsed !== "object" || Array.isArray(parsed)) {
                 error = errPrefix + "expected parameters to contain a dictionary of parameters"
             } else {
-                for (let [name, param] of Object.entries(parsed)) {
+                for (const [name, param] of Object.entries(parsed)) {
                     if (typeof param !== "object") {
                         error = errPrefix + "error in parameter " + name + ": expected an object";
                         break;
