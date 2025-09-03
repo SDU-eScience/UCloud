@@ -287,7 +287,7 @@ func appRetrieveSpotlight(id AppSpotlightId) (*internalSpotlight, bool) {
 // Catalog read operations
 // =====================================================================================================================
 
-type AppCatalogFlags int
+type AppCatalogFlags uint64
 
 const (
 	AppCatalogIncludeGroups AppCatalogFlags = 1 << iota
