@@ -63,23 +63,46 @@ func initFeatures() {
 				supportMap := map[string][]providerSupport{}
 				newSupport[provider] = supportMap
 				go func() {
-					resp, err := InvokeProvider(provider, orcapi.DrivesProviderRetrieveProducts, util.Empty{}, ProviderCallOpts{
-						Reason: util.OptValue("Periodic pull for supported features"),
-					})
+					{
+						resp, err := InvokeProvider(provider, orcapi.DrivesProviderRetrieveProducts, util.Empty{}, ProviderCallOpts{
+							Reason: util.OptValue("Periodic pull for supported features"),
+						})
 
-					if err == nil {
-						var driveSupportItems []providerSupport
-						for _, item := range resp.Responses {
-							p := item.Product
-							obj, _ := json.Marshal(item)
+						if err == nil {
+							var driveSupportItems []providerSupport
+							for _, item := range resp.Responses {
+								p := item.Product
+								obj, _ := json.Marshal(item)
 
-							support := providerSupport{}
-							support.Type = driveType
-							support.Features = readSupportFromLegacy(obj)
-							support.AppliesTo = p
-							driveSupportItems = append(driveSupportItems, support)
+								support := providerSupport{}
+								support.Type = driveType
+								support.Features = readSupportFromLegacy(obj)
+								support.AppliesTo = p
+								driveSupportItems = append(driveSupportItems, support)
+							}
+							supportMap[driveType] = driveSupportItems
 						}
-						supportMap[driveType] = driveSupportItems
+					}
+
+					{
+						resp, err := InvokeProvider(provider, orcapi.JobsProviderRetrieveProducts, util.Empty{}, ProviderCallOpts{
+							Reason: util.OptValue("Periodic pull for supported features"),
+						})
+
+						if err == nil {
+							var driveSupportItems []providerSupport
+							for _, item := range resp.Responses {
+								p := item.Product
+								obj, _ := json.Marshal(item)
+
+								support := providerSupport{}
+								support.Type = jobType
+								support.Features = readSupportFromLegacy(obj)
+								support.AppliesTo = p
+								driveSupportItems = append(driveSupportItems, support)
+							}
+							supportMap[jobType] = driveSupportItems
+						}
 					}
 
 					wg.Done()
@@ -211,6 +234,8 @@ func supportToApi(provider string, supportItems []providerSupport) []orcapi.Reso
 				switch support.Type {
 				case driveType:
 					productRelevant = product.Type == accapi.ProductTypeCStorage
+				case jobType:
+					productRelevant = product.Type == accapi.ProductTypeCCompute
 				}
 
 				if !productRelevant {
@@ -286,105 +311,10 @@ type featureMapper struct {
 	Path string
 }
 
-var featureMapperLegacy = []featureMapper{
-	{
-		Type: driveType,
-		Key:  driveAcl,
-		Path: "collection.aclModifiable",
-	},
-	{
-		Type: driveType,
-		Key:  driveManagement,
-		Path: "collection.usersCanCreate",
-	},
-	{
-		Type: driveType,
-		Key:  driveDeletion,
-		Path: "collection.usersCanDelete",
-	},
-	{
-		Type: driveType,
-		Key:  driveManagement,
-		Path: "collection.usersCanRename",
-	},
-
-	{
-		Type: driveType,
-		Key:  "", // no longer supported but keep in legacy (always false)
-		Path: "files.aclModifiable",
-	},
-	{
-		Type: driveType,
-		Key:  driveOpsTrash,
-		Path: "files.trashSupported",
-	},
-	{
-		Type: driveType,
-		Key:  driveOpsReadOnly,
-		Path: "files.isReadOnly",
-	},
-	{
-		Type: driveType,
-		Key:  driveOpsSearch,
-		Path: "files.searchSupported",
-	},
-	{
-		Type: driveType,
-		Key:  driveOpsStreamingSearch,
-		Path: "files.streamingSearchSupported",
-	},
-	{
-		Type: driveType,
-		Key:  driveOpsShares,
-		Path: "files.sharesSupported",
-	},
-	{
-		Type: driveType,
-		Key:  driveOpsTerminal,
-		Path: "files.openInTerminal",
-	},
-
-	{
-		Type: driveType,
-		Key:  driveStatsSize,
-		Path: "stats.sizeInBytes",
-	},
-	{
-		Type: driveType,
-		Key:  driveStatsRecursiveSize,
-		Path: "stats.sizeIncludingChildrenInBytes",
-	},
-	{
-		Type: driveType,
-		Key:  driveStatsTimestamps,
-		Path: "stats.modifiedAt",
-	},
-	{
-		Type: driveType,
-		Key:  driveStatsTimestamps,
-		Path: "stats.createdAt",
-	},
-	{
-		Type: driveType,
-		Key:  driveStatsTimestamps,
-		Path: "stats.accessedAt",
-	},
-	{
-		Type: driveType,
-		Key:  driveStatsUnix,
-		Path: "stats.unixPermissions",
-	},
-	{
-		Type: driveType,
-		Key:  driveStatsUnix,
-		Path: "stats.unixOwner",
-	},
-	{
-		Type: driveType,
-		Key:  driveStatsUnix,
-		Path: "stats.unixGroup",
-	},
-}
+var featureMapperLegacy = util.Combined(
+	driveFeatureMapper,
+	jobFeatureMapper,
+)
 
 var featureNotSupportedError = &util.HttpError{
 	StatusCode: http.StatusBadRequest,

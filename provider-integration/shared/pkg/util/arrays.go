@@ -54,3 +54,18 @@ func NonNilSlice[T any](slice []T) []T {
 		return slice
 	}
 }
+
+func Combined[T any](slices ...[]T) []T {
+	totalLen := 0
+	for _, s := range slices {
+		totalLen += len(s)
+	}
+
+	result := make([]T, totalLen)
+	pos := 0
+	for _, s := range slices {
+		n := copy(result[pos:], s)
+		pos += n
+	}
+	return result
+}

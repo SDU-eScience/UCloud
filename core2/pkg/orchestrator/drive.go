@@ -14,23 +14,6 @@ import (
 
 const (
 	driveType = "file_collection"
-
-	driveStatsSize          featureKey = "drive.stats.size"
-	driveStatsRecursiveSize featureKey = "drive.stats.recursiveSize"
-	driveStatsTimestamps    featureKey = "drive.stats.timestamps"
-	driveStatsUnix          featureKey = "drive.stats.unix"
-
-	// NOTE(Dan): No acl for files
-	driveOpsTrash           featureKey = "drive.ops.trash"
-	driveOpsReadOnly        featureKey = "drive.ops.readOnly"
-	driveOpsSearch          featureKey = "drive.ops.search"
-	driveOpsStreamingSearch featureKey = "drive.ops.streamingSearch"
-	driveOpsShares          featureKey = "drive.ops.shares"
-	driveOpsTerminal        featureKey = "drive.ops.terminal"
-
-	driveAcl        featureKey = "drive.acl"
-	driveManagement featureKey = "drive.management" // create & rename
-	driveDeletion   featureKey = "drive.deletion"
 )
 
 func initDrives() {

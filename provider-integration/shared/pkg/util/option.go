@@ -158,6 +158,14 @@ func SqlNullStringToOpt(value sql.NullString) Option[string] {
 	}
 }
 
+func SqlNullToOpt[T any](value sql.Null[T]) Option[T] {
+	if value.Valid {
+		return OptValue(value.V)
+	} else {
+		return OptNone[T]()
+	}
+}
+
 func OptDefaultOrMap[T any, R any](opt Option[T], defaultValue R, mapper func(val T) R) R {
 	if opt.Present {
 		return mapper(opt.Value)

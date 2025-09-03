@@ -748,6 +748,8 @@ type AppDiscovery struct {
 	Selected util.Option[string]
 }
 
+var AppDiscoveryAll = AppDiscovery{Mode: orcapi.CatalogDiscoveryModeAll}
+
 func AppCatalogRetrieveLandingPage(
 	actor rpc.Actor,
 	request orcapi.AppCatalogRetrieveLandingPageRequest,
