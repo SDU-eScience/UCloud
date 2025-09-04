@@ -82,6 +82,12 @@ test("View properties", async ({page, userAgent}) => {
     await expect(page.locator("b").filter({hasText: "Unix mode"})).toHaveCount(1);
 });
 
+test("Just testing the row selector", async ({page, userAgent}) => {
+    const driveName = "TestingDrive";
+    await Drive.openDrive(page, driveName);
+    await Drive.actionByRowTitle(page, "Folder66", "click");
+});
+
 test.afterEach(async ({page, userAgent}) => {
     const driveName = Drives[userAgent!];
     if (driveName) await Drive.delete(page, driveName);
