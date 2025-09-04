@@ -829,11 +829,11 @@ export const Editor: React.FunctionComponent<{
 
         const editor: IStandaloneCodeEditor = m.editor.create(node, {
             language: languageFromExtension(extensionFromPath(state.currentPath)),
-            readOnly: props.readOnly || !hasFeature(Feature.INTEGRATED_EDITOR),
-            readOnlyMessage: hasFeature(Feature.INTEGRATED_EDITOR) ? {
+            readOnly: props.readOnly,
+            readOnlyMessage: {
                 // Note(Jonas): Setting this to null will not behave well, so this seems the best.
                 value: ""
-            } : undefined,
+            },
             minimap: {enabled: false},
             renderLineHighlight: "none",
             fontFamily: "Jetbrains Mono",
@@ -845,11 +845,10 @@ export const Editor: React.FunctionComponent<{
 
         editor.updateOptions({readOnly: props.readOnly});
 
-        if (hasFeature(Feature.INTEGRATED_EDITOR)) {
-            if (props.readOnly) {
-                setReadonlyWarning(editor);
-            }
+        if (props.readOnly) {
+            setReadonlyWarning(editor);
         }
+
 
         setEditor(editor);
 
@@ -1721,10 +1720,9 @@ function MonacoEditorSettings({editor, setVimMode}: {editor: IStandaloneCodeEdit
                 )}
             </Select>
         </div>)}
-        {hasFeature(Feature.INTEGRATED_EDITOR) ? <>
-            <div>
-                Allow file editing
-                <Select defaultValue={allowEditing() ? "Allow" : "Disallow"} onChange={e => {
+        <div>
+            Allow file editing
+            <Select defaultValue={allowEditing() ? "Allow" : "Disallow"} onChange={e => {
                     const canEdit = e.target.value === "Allow";
                     setOption(EditorOption.readOnly, !canEdit);
 
@@ -1740,10 +1738,9 @@ function MonacoEditorSettings({editor, setVimMode}: {editor: IStandaloneCodeEdit
                 Vim mode
                 <Select defaultValue={getEditorOption("vim") ? "Enabled" : "Disabled"} onChange={e => setVimMode(e.target.value === "Enabled")}>
                     <option value="Enabled">Enabled</option>
-                    <option value="Disabled">Disabled</option>
-                </Select>
-            </div>
-        </> : null}
+                <option value="Disabled">Disabled</option>
+            </Select>
+        </div>
         <VimKeyBindings />
     </>;
 }
