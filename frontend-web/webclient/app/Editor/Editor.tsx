@@ -46,7 +46,7 @@ export interface EditorState {
     title: string;
     sidebar: EditorSidebar;
     cachedFiles: Record<string, string | Uint8Array>;
-    viewState: Record<string, monaco.editor.ICodeEditorViewState>;
+    viewState: Record<string, editor.ICodeEditorViewState>;
     currentPath: string;
 }
 
@@ -78,7 +78,7 @@ export interface EditorActionFilesLoaded {
 
 export interface EditorActionSaveState {
     type: "EditorActionSaveState";
-    editorState: monaco.editor.ICodeEditorViewState | null;
+    editorState: editor.ICodeEditorViewState | null;
     newPath: string;
     oldContent: string;
 }
@@ -155,7 +155,7 @@ function findOrAppendNodeForMutation(root: EditorSidebarNode, path: string): [Ed
                 copied,
             ];
 
-            selfCopy.children.sort((a, b) => a.file.absolutePath.toLowerCase().localeCompare(b.file.absolutePath.toLowerCase()));
+            selfCopy.children.sort((a, b) => virtualFileSort(a.file, b.file));
         } else {
             leafNode = selfCopy;
         }
@@ -170,6 +170,7 @@ function findOrAppendNodeForMutation(root: EditorSidebarNode, path: string): [Ed
 }
 
 function singleEditorReducer(state: EditorState, action: EditorAction): EditorState {
+
     switch (action.type) {
         case "EditorActionCreate": {
             // NOTE(Dan): Handled by the root reducer, should not be called like this.
@@ -648,7 +649,7 @@ export const Editor: React.FunctionComponent<{
 
             if (!showingCustomContent.current) {
                 if (!SPECIAL_PATHS.includes(oldPath) && saveState) {
-                    let editorState: monaco.editor.ICodeEditorViewState | null = null;
+                    let editorState: editor.ICodeEditorViewState | null = null;
                     const model = editor?.getModel();
                     if (editor && model) {
                         editorState = editor.saveViewState();
@@ -989,7 +990,7 @@ export const Editor: React.FunctionComponent<{
     const openTab = React.useCallback(async (path: string) => {
         if (state.currentPath === path) return;
         await openFile(path, true);
-        const fileWasFetched = getModelFromEditor(path)?.getValue ?? state.cachedFiles[path] != null;
+        const fileWasFetched = getModelFromEditor(path)?.getValue() ?? state.cachedFiles[path] != null;
         if (fileWasFetched) {
             setTabs(tabs => {
                 if (tabs.open.includes(path)) {
@@ -1013,7 +1014,16 @@ export const Editor: React.FunctionComponent<{
         const closed = tabs.closed;
         if (!closed.includes(path)) closed.push(path);
 
-        getModelFromEditor(path)?.dispose();
+        if (props.vfs.isReal()) {
+            getModelFromEditor(path)?.dispose();
+            delete savedAtAltVersionId.current[path];
+            setDirtyFiles(f => {
+                f.delete(path);
+                return f;
+            })
+        } else {
+            props.vfs.setDirtyFileContent(path, getModelFromEditor(path)?.getValue() ?? "")
+        }
 
         setTabs({open: result, closed});
     }, [state.currentPath, tabs]);
@@ -1027,7 +1037,6 @@ export const Editor: React.FunctionComponent<{
     }, [tabs, state.currentPath, dirtyFiles]);
 
     useBeforeUnload((e: BeforeUnloadEvent): BeforeUnloadEvent => {
-        // TODO(Jonas): Only handles closing window, not UCloud navigation 
         const anyDirty = dirtyFiles.size > 0;
         if (anyDirty) {
             // Note(Jonas): Both should be done for best compatibility:
@@ -1111,6 +1120,26 @@ export const Editor: React.FunctionComponent<{
         return {language: activeSyntax, displayName: toDisplayName(activeSyntax)};
     }, [activeSyntax]);
 
+    function doClose(t: string, index: number) {
+        if (dirtyFiles.has(t) && props.vfs.isReal()) {
+            addStandardDialog({
+                title: "Save before closing?",
+                message: "The changes made to this file has not been saved. Save before closing?",
+                confirmText: "Save",
+                async onConfirm() {
+                    await props.onRequestSave(t);
+                    closeTab(t, index);
+                },
+                cancelText: "Don't save",
+                onCancel() {
+                    closeTab(t, index);
+                }
+            });
+        } else {
+            closeTab(t, index);
+        }
+    }
+
     // VimMode.Vim.defineEx(name, shorthand, callback);
     VimMode.Vim.defineEx("write", "w", () => {
         saveBufferIfNeeded();
@@ -1120,7 +1149,7 @@ export const Editor: React.FunctionComponent<{
 
     VimMode.Vim.defineEx("quit", "q", (args, b, c) => {
         const idx = tabs.open.findIndex(it => it === state.currentPath);
-        closeTab(state.currentPath, idx);
+        doClose(state.currentPath, idx);
     });
 
     VimMode.Vim.defineEx("x-write-and-quit", "x", () => {
@@ -1128,7 +1157,7 @@ export const Editor: React.FunctionComponent<{
         props.onRequestSave(state.currentPath).then(() => {
             onFileSaved(state.currentPath);
             const idx = tabs.open.findIndex(it => it === state.currentPath);
-            closeTab(state.currentPath, idx);
+            doClose(state.currentPath, idx);
         });
     });
 
@@ -1176,25 +1205,7 @@ export const Editor: React.FunctionComponent<{
                                 openTabOperations(t, {x: e.clientX, y: e.clientY});
                             }}
                             close={() => {
-                                if (!props.vfs.isReal()) return;
-
-                                if (dirtyFiles.has(t)) {
-                                    addStandardDialog({
-                                        title: "Save before closing?",
-                                        message: "The changes made to this file has not been saved. Save before closing?",
-                                        confirmText: "Save",
-                                        async onConfirm() {
-                                            await props.onRequestSave(t);
-                                            closeTab(t, index);
-                                        },
-                                        cancelText: "Don't save",
-                                        onCancel() {
-                                            closeTab(t, index);
-                                        }
-                                    });
-                                } else {
-                                    closeTab(t, index);
-                                }
+                                doClose(t, index)
                             }}
                             children={t}
                         />

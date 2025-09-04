@@ -3,6 +3,7 @@ package orchestrators
 import (
 	"ucloud.dk/shared/pkg/apm"
 	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -43,3 +44,169 @@ const (
 	IngressStateReady       IngressState = "READY"
 	IngressStateUnavailable IngressState = "UNAVAILABLE"
 )
+
+type IngressFlags struct {
+	ResourceFlags
+}
+
+// Ingress API
+// =====================================================================================================================
+
+const ingressNamespace = "ingresses"
+
+var IngressesCreate = rpc.Call[fnd.BulkRequest[PublicIPSpecification], fnd.BulkResponse[fnd.FindByStringId]]{
+	BaseContext: ingressNamespace,
+	Convention:  rpc.ConventionCreate,
+	Roles:       rpc.RolesEndUser,
+}
+
+var IngressesDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
+	BaseContext: ingressNamespace,
+	Convention:  rpc.ConventionDelete,
+	Roles:       rpc.RolesEndUser,
+}
+
+type IngressRenameRequest struct {
+	Id       string `json:"id"`
+	NewTitle string `json:"newTitle"`
+}
+
+var IngressesRename = rpc.Call[fnd.BulkRequest[IngressRenameRequest], util.Empty]{
+	BaseContext: ingressNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "rename",
+}
+
+type IngressesSearchRequest struct {
+	ItemsPerPage int                 `json:"itemsPerPage"`
+	Next         util.Option[string] `json:"next"`
+	Query        string              `json:"query"`
+
+	IngressFlags
+}
+
+var IngressesSearch = rpc.Call[IngressesSearchRequest, fnd.PageV2[Ingress]]{
+	BaseContext: ingressNamespace,
+	Convention:  rpc.ConventionSearch,
+	Roles:       rpc.RolesEndUser,
+}
+
+type IngressesBrowseRequest struct {
+	ItemsPerPage int                 `json:"itemsPerPage"`
+	Next         util.Option[string] `json:"next"`
+
+	IngressFlags
+}
+
+var IngressesBrowse = rpc.Call[IngressesBrowseRequest, fnd.PageV2[Ingress]]{
+	BaseContext: ingressNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Roles:       rpc.RolesEndUser,
+}
+
+type IngressesRetrieveRequest struct {
+	Id string
+	IngressFlags
+}
+
+var IngressesRetrieve = rpc.Call[IngressesRetrieveRequest, Ingress]{
+	BaseContext: ingressNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesEndUser,
+}
+
+var IngressesUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[util.Empty]]{
+	BaseContext: ingressNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updateAcl",
+}
+
+var IngressesRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[FSSupport]]{
+	BaseContext: ingressNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "products",
+}
+
+// Ingress Control API
+// =====================================================================================================================
+
+const ingressControlNamespace = "ingresses/control"
+
+type IngressesControlRetrieveRequest struct {
+	Id string `json:"id"`
+	IngressFlags
+}
+
+var IngressesControlRetrieve = rpc.Call[IngressesControlRetrieveRequest, Ingress]{
+	BaseContext: ingressControlNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesProvider,
+}
+
+type IngressesControlBrowseRequest struct {
+	ItemsPerPage int                 `json:"itemsPerPage"`
+	Next         util.Option[string] `json:"next"`
+
+	IngressFlags
+}
+
+var IngressesControlBrowse = rpc.Call[IngressesControlBrowseRequest, fnd.PageV2[Ingress]]{
+	BaseContext: ingressControlNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Roles:       rpc.RolesProvider,
+}
+
+var IngressesControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResource[PublicIPSpecification]], fnd.BulkResponse[fnd.FindByStringId]]{
+	BaseContext: ingressControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "register",
+}
+
+// Ingress Provider API
+// =====================================================================================================================
+
+const ingressProviderNamespace = "ucloud/" + rpc.ProviderPlaceholder + "/ingresses"
+
+var IngressesProviderCreate = rpc.Call[fnd.BulkRequest[Ingress], fnd.BulkResponse[fnd.FindByStringId]]{
+	BaseContext: ingressProviderNamespace,
+	Convention:  rpc.ConventionCreate,
+	Roles:       rpc.RolesPrivileged,
+}
+
+var IngressesProviderDelete = rpc.Call[fnd.BulkRequest[Ingress], fnd.BulkResponse[util.Empty]]{
+	BaseContext: ingressProviderNamespace,
+	Convention:  rpc.ConventionDelete,
+	Roles:       rpc.RolesPrivileged,
+}
+
+var IngressesProviderVerify = rpc.Call[fnd.BulkRequest[Ingress], util.Empty]{
+	BaseContext: ingressProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "verify",
+}
+
+var IngressesProviderRetrieveProducts = rpc.Call[util.Empty, fnd.BulkResponse[FSSupport]]{
+	BaseContext: ingressProviderNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "products",
+}
+
+var IngressesProviderUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAclWithResource[Ingress]], fnd.BulkResponse[util.Empty]]{
+	BaseContext: ingressProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "updateAcl",
+}
+
+var IngressesProviderRename = rpc.Call[fnd.BulkRequest[IngressRenameRequest], fnd.BulkResponse[util.Empty]]{
+	BaseContext: ingressProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesService,
+	Operation:   "rename",
+}

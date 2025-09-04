@@ -353,7 +353,7 @@ func browseFiles(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile],
 	offset := 0
 	if request.Next != "" {
 		converted, err := strconv.ParseInt(request.Next, 10, 64)
-		if err != nil {
+		if err == nil {
 			offset = int(converted)
 		}
 	}
