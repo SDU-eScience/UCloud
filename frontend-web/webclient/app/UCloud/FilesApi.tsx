@@ -1166,9 +1166,22 @@ export function FilePreview({initialFile}: {
 
     const mediaFileMetadata: null | {type: ExtensionType, data: string, error: string | null} = useMemo(() => {
         let [file, contentBuffer] = openFile;
+
+        const isSvg = extensionFromPath(file) === "svg";
         if (typeof contentBuffer === "string") {
             if (previewRequested) {
                 contentBuffer = new TextEncoder().encode(contentBuffer);
+            } else if (isSvg) {
+                return {
+                    type: "image" as const,
+                    data: URL.createObjectURL(
+                        new Blob(
+                            [contentBuffer],
+                            {type: "image/svg+xml"}
+                        )
+                    ),
+                    error: null
+                }
             } else {
                 return null;
             }
@@ -1261,7 +1274,6 @@ export function FilePreview({initialFile}: {
     const onSave = useCallback(async () => {
         const editor = editorRef.current;
         if (!editor) return;
-        if (!hasFeature(Feature.INTEGRATED_EDITOR)) return;
         if (node) return;
 
         const path = editor.path;
@@ -1379,7 +1391,6 @@ export function FilePreview({initialFile}: {
     }, []);
 
     const operations = useCallback((file?: VirtualFile): Operation<any>[] => {
-        if (!hasFeature(Feature.INTEGRATED_EDITOR)) return [];
         const reload = () => {
             editorRef.current?.invalidateTree(removeTrailingSlash(getParentPath(initialFile.id)));
         }
@@ -1519,21 +1530,20 @@ export function FilePreview({initialFile}: {
                         />
                     </TooltipV2> : null}
 
-                {!hasFeature(Feature.INTEGRATED_EDITOR) ? null :
-                    <TooltipV2 tooltip={"Save (ctrl+s)"} contentWidth={100}>
-                        <Icon
-                            name={"floppyDisk"}
-                            size={"20px"}
-                            cursor={"pointer"}
-                            onClick={onSave}
-                        />
-                    </TooltipV2>
-                }
+                <TooltipV2 tooltip={"Save (ctrl+s)"} contentWidth={100}>
+                    <Icon
+                        name={"floppyDisk"}
+                        size={"20px"}
+                        cursor={"pointer"}
+                        onClick={onSave}
+                    />
+                </TooltipV2>
+
             </>
         }
         toolbar={
             <>
-                {!supportsTerminal || !hasFeature(Feature.INLINE_TERMINAL) || !hasFeature(Feature.INTEGRATED_EDITOR) ? null :
+                {!supportsTerminal || !hasFeature(Feature.INLINE_TERMINAL) ? null :
                     <TooltipV2 tooltip={"Open terminal"} contentWidth={130}>
                         <Icon
                             name={"terminalSolid"}
@@ -1573,7 +1583,7 @@ export function FilePreview({initialFile}: {
                 </Box>
             </Flex>
         }
-        readOnly={!hasFeature(Feature.INTEGRATED_EDITOR) || !allowEditing()}
+        readOnly={!allowEditing()}
     />;
 }
 
