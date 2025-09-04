@@ -1,0 +1,196 @@
+---
+application: v1
+
+title: Chat UI
+name: chat-ui
+version: 0.6.9
+
+website: https://docs.cloud.sdu.dk/Apps/chat-ui.html
+
+applicationType: WEB
+
+web:
+  port: 3000
+
+tool:
+  name: chat-ui
+  version: 0.6.9
+
+authors:
+  - SDU eScience
+
+description: >
+  UCloud Chat UI is a user-friendly web interface for LLMs.
+  It supports various LLM runners, including Ollama and OpenAI-compatible APIs.
+
+allowAdditionalMounts: true
+allowPublicLink: true
+allowPublicIp: false
+allowMultiNode: false
+
+container:
+  runAsRoot: false
+
+invocation:
+  - /sbin/tini
+  - --
+  - start_app
+  - -p
+  - 3000
+  - type: var
+    vars: initialization
+    prefixGlobal: '-s '
+  - type: flag
+    flag: '-b '
+    var: b_flag
+  - type: var
+    vars: env_file
+    prefixGlobal: '-c '
+  - type: var
+    vars: data_dir
+    prefixGlobal: '-d '
+  - type: flag
+    flag: '-e '
+    var: e_flag
+  - type: flag
+    flag: '-f '
+    var: f_flag
+  - type: var
+    vars: models_dir
+    prefixGlobal: '-m '
+  - type: var
+    vars: llm
+    prefixGlobal: '-l '
+  - type: var
+    vars: embedding_model
+    prefixGlobal: '-t '
+  - type: var
+    vars: reranker_model
+    prefixGlobal: '-v '
+  - type: var
+    vars: whisper_model
+    prefixGlobal: '-u '
+
+parameters:
+  initialization:
+    title: "Initialization"
+    type: input_file
+    description: >
+      Run initialization Bash script (*.sh).
+    optional: true
+  b_flag:
+    title: "Disable UI"
+    type: boolean
+    description: >
+      Just start the Ollama server without the web interface.
+    optional: true
+  env_file:
+    title: "Local settings"
+    type: input_file
+    description: >
+      Path to file with local environment settings.
+    optional: true
+  data_dir:
+    title: "Data volume: DATA_DIR"
+    type: input_directory
+    description: >
+      Import directory for data persistence. If empty, a new directory tree is generated.
+    optional: false
+  e_flag:
+    title: "Disable signup"
+    type: boolean
+    description: >
+      Disable creation of new user accounts.
+    optional: true
+  f_flag:
+    title: "Enable text-to-image generation"
+    type: boolean
+    description: >
+      Run Stable Diffusion text-to-image generation.
+    optional: true
+  models_dir:
+    title: "Import Ollama models"
+    type: input_directory
+    description: >
+      Path to Ollama models repository folder (default: DATA_DIR/models).
+    optional: true
+  llm:
+    title: "Select Ollama model"
+    type: text
+    description: >
+      Select a model from the imported repository folder or download a new model (e.g.: 'llama3.1:8b').
+    optional: true
+  embedding_model:
+    title: "Select text embedding model"
+    type: text
+    defaultValue: "intfloat/multilingual-e5-large"
+    description: >
+      Select Sentence-Transformers text embedding model (default: 'intfloat/multilingual-e5-large').
+    optional: true
+  reranker_model:
+    title: "Select text reranker model"
+    type: text
+    description: >
+      Select text reranker model.
+    optional: true
+  whisper_model:
+    title: "Select Whisper model"
+    type: enumeration
+    defaultValue:
+      type: enumeration
+      value: "large"
+    options:
+      -
+        name: "tiny.en"
+        value: "tiny.en"
+      -
+        name: "tiny"
+        value: "tiny"
+      -
+        name: "base.en"
+        value: "base.en"
+      -
+        name: "base"
+        value: "base"
+      -
+        name: "small.en"
+        value: "small.en"
+      -
+        name: "small"
+        value: "small"
+      -
+        name: "medium.en"
+        value: "medium.en"
+      -
+        name: "medium"
+        value: "medium"
+      -
+        name: "large-v1"
+        value: "large-v1"
+      -
+        name: "large-v2"
+        value: "large-v2"
+      -
+        name: "large-v3"
+        value: "large-v3"
+      -
+        name: "large"
+        value: "large"
+      -
+        name: "distil-large-v3"
+        value: "distil-large-v3"
+      -
+        name: "distil-large-v2"
+        value: "distil-large-v2"
+      -
+        name: "distil-medium.en"
+        value: "distil-medium.en"
+      -
+        name: "distil-small.en"
+        value: "distil-small.en"
+    description: >
+      Select Whisper model for speech to text generation (default: 'large').
+    optional: true
+
+outputFileGlobs:
+  - "*"

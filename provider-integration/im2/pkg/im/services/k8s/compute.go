@@ -99,11 +99,11 @@ func monitoringHealthLoop() {
 	for util.IsAlive {
 		current := monitoringHealthCounter.Load()
 		if current == prevValue {
-			log.Error("Monitoring loop hasn't been run at least once in the last 30 seconds. Monitoring is too low. Deadlock?")
+			log.Error("Monitoring loop hasn't been run at least once in the last 60 seconds. Monitoring is too slow. Deadlock?")
 			os.Exit(1)
 		}
 		prevValue = current
-		time.Sleep(30 * time.Second)
+		time.Sleep(60 * time.Second)
 	}
 }
 

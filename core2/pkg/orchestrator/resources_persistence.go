@@ -324,9 +324,9 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 					left join accounting.product_categories pc on p.category = pc.id
 				where
 				    (
-						(r.created_by = :reference and r.project is null and r.provider != :reference)
-						or (r.project = :reference and r.created_by != :reference and r.provider != :reference)
-						or (pc.provider = :reference and r.created_by != :reference and r.project != :reference)
+						(r.created_by = :reference and r.project is null and pc.provider is distinct from :reference)
+						or (r.project = :reference and r.created_by != :reference and pc.provider is distinct from :reference)
+						or (pc.provider is not distinct from :reference and r.created_by != :reference and r.project != :reference)
 					)
 					and r.type = :type
 		    `,

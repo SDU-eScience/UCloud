@@ -13,7 +13,6 @@ import (
 	"time"
 	ctrl "ucloud.dk/pkg/im/controller"
 	fnd "ucloud.dk/shared/pkg/foundation"
-	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -329,7 +328,6 @@ func (w *copyWorker) copyFile(entry discoveredFile) bool {
 		} else {
 			fd, err = unix.Openat(destFileFd, entry.InternalPath, unix.O_RDWR|unix.O_TRUNC|unix.O_CREAT, 0660)
 			if err != nil {
-				log.Info("Could not write file? %v", entry.InternalPath)
 				return false
 			}
 		}

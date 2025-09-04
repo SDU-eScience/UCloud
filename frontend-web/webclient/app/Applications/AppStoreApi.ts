@@ -768,7 +768,7 @@ export async function doExport(): Promise<string> {
     const actualHeaders: Record<string, string> = {};
     actualHeaders["Authorization"] = `Bearer ${token}`;
 
-    const response = await fetch(Client.computeURL("/", `${baseContext}/export`), {
+    const response = await fetch(Client.computeURL("", `${baseContext}/export`), {
         method: "POST",
         headers: actualHeaders,
     });

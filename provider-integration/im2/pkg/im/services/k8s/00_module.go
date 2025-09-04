@@ -195,6 +195,7 @@ func metricJobLocked(region string) prometheus.Summary {
 }
 
 func mountedFilesFromJob(job *orc.Job) []orc.AppParameterValue {
+	timer := util.NewTimer()
 	var result []orc.AppParameterValue
 	for _, value := range job.Specification.Parameters {
 		if value.Type == orc.AppParameterValueTypeFile {
@@ -207,15 +208,20 @@ func mountedFilesFromJob(job *orc.Job) []orc.AppParameterValue {
 			result = append(result, value)
 		}
 	}
+	metricMountedDrivesTiming.WithLabelValues("JobParameterCollection").Observe(timer.Mark().Seconds())
 
 	if backendIsContainers(job) {
-		folder, drive, err := containers.FindJobFolder(job)
+		timer.Mark()
+		folder, drive, err := containers.FindJobFolderEx(job, containers.FindJobFolderNoInitFolder)
+		metricMountedDrivesTiming.WithLabelValues("FindJobFolder").Observe(timer.Mark().Seconds())
+
 		if err == nil {
 			ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, folder)
 			if ok {
 				result = append(result, orc.AppParameterValue{Path: ucloudPath})
 			}
 		}
+		metricMountedDrivesTiming.WithLabelValues("InternalToUCloud").Observe(timer.Mark().Seconds())
 	}
 
 	return result
@@ -233,6 +239,7 @@ func MountedDrives(job *orc.Job) []MountedDrive {
 }
 
 func MountedDrivesEx(job *orc.Job, jobAnnotations map[string]string) []MountedDrive {
+	timer := util.NewTimer()
 	files := mountedFilesFromJob(job)
 	drives := map[string]MountedDrive{}
 
@@ -251,19 +258,24 @@ func MountedDrivesEx(job *orc.Job, jobAnnotations map[string]string) []MountedDr
 		}
 	}
 
+	timer.Mark()
 	for _, file := range files {
 		driveId, ok := filesystem.DriveIdFromUCloudPath(file.Path)
 		if ok {
 			insertDrive(driveId, file.ReadOnly)
 		}
 	}
+	metricMountedDrivesTiming.WithLabelValues("InsertDriveParams").Observe(timer.Mark().Seconds())
 
+	timer.Mark()
 	if jobAnnotations == nil {
 		if backendIsContainers(job) {
 			jobAnnotations = containers.JobAnnotations(job, 0)
 		}
 	}
+	metricMountedDrivesTiming.WithLabelValues("JobAnnotations").Observe(timer.Mark().Seconds())
 
+	timer.Mark()
 	driveIdsString := util.OptMapGet(jobAnnotations, shared.AnnotationMountedDriveIds)
 	driveReadOnlyString := util.OptMapGet(jobAnnotations, shared.AnnotationMountedDriveAsReadOnly)
 	if driveIdsString.Present && driveReadOnlyString.Present {
@@ -281,9 +293,10 @@ func MountedDrivesEx(job *orc.Job, jobAnnotations map[string]string) []MountedDr
 			}
 		}
 	}
+	metricMountedDrivesTiming.WithLabelValues("InsertDriveAnnotations").Observe(timer.Mark().Seconds())
 
+	timer.Mark()
 	var result []MountedDrive
-
 	for id, entry := range drives {
 		drive, ok := ctrl.RetrieveDrive(id)
 		var realDrive *orc.Drive
@@ -301,6 +314,20 @@ func MountedDrivesEx(job *orc.Job, jobAnnotations map[string]string) []MountedDr
 		}
 		result = append(result, entry)
 	}
+	metricMountedDrivesTiming.WithLabelValues("CollectingMountedDrives").Observe(timer.Mark().Seconds())
 
 	return result
 }
+
+var metricMountedDrivesTiming = promauto.NewSummaryVec(prometheus.SummaryOpts{
+	Namespace: "ucloud_im",
+	Subsystem: "jobs",
+	Name:      "mounted_drives_timing",
+	Help:      "Timing of different regions in MountedDrives",
+	Objectives: map[float64]float64{
+		0.5:  0.01,
+		0.75: 0.01,
+		0.95: 0.01,
+		0.99: 0.01,
+	},
+}, []string{"region"})

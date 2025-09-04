@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"ucloud.dk/shared/pkg/rpc"
 
-	"ucloud.dk/shared/pkg/apm"
+	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
@@ -93,13 +94,14 @@ type Job struct {
 }
 
 type JobStatus struct {
-	State               JobState
-	JobParametersJson   ExportedParameters         `json:"jobParametersJson,omitempty"`
-	StartedAt           util.Option[fnd.Timestamp] `json:"startedAt,omitempty"`
-	ExpiresAt           util.Option[fnd.Timestamp] `json:"expiresAt,omitempty"`
-	ResolvedApplication Application                `json:"resolvedApplication,omitempty"`
-	ResolvedProduct     apm.ProductV2              `json:"resolvedProduct,omitempty"`
-	AllowRestart        bool                       `json:"allowRestart"`
+	State               JobState                    `json:"state"`
+	JobParametersJson   ExportedParameters          `json:"jobParametersJson,omitempty"`
+	StartedAt           util.Option[fnd.Timestamp]  `json:"startedAt,omitempty"`
+	ExpiresAt           util.Option[fnd.Timestamp]  `json:"expiresAt,omitempty"`
+	ResolvedApplication Application                 `json:"resolvedApplication,omitempty"`
+	ResolvedProduct     apm.ProductV2               `json:"resolvedProduct,omitempty"`
+	ResolvedSupport     ResolvedSupport[JobSupport] `json:"resolvedSupport"`
+	AllowRestart        bool                        `json:"allowRestart"`
 }
 
 type JobUpdate struct {
@@ -115,7 +117,7 @@ type JobUpdate struct {
 }
 
 type JobSpecification struct {
-	ResourceSpecification
+	Product           apm.ProductReference         `json:"product"`
 	Application       NameAndVersion               `json:"application"`
 	Name              string                       `json:"name,omitempty"`
 	Replicas          int                          `json:"replicas"`
@@ -507,4 +509,106 @@ type UniversalBackendSupport struct {
 	Terminal      bool `json:"terminal,omitempty"`
 	Peers         bool `json:"peers,omitempty"`
 	TimeExtension bool `json:"timeExtension,omitempty"`
+}
+
+// Job API
+// =====================================================================================================================
+
+type JobFlags struct {
+	ResourceFlags
+	FilterApplication  util.Option[string]   `json:"filterApplication"`
+	FilterState        util.Option[JobState] `json:"filterState"`
+	IncludeParameters  bool                  `json:"includeParameters"`
+	IncludeApplication bool                  `json:"includeApplication"`
+}
+
+const jobNamespace = "jobs"
+const jobProviderNamespace = "ucloud/" + rpc.ProviderPlaceholder + "/jobs"
+
+var JobsCreate = rpc.Call[fnd.BulkRequest[JobSpecification], fnd.BulkResponse[fnd.FindByStringId]]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionCreate,
+	Roles:       rpc.RolesEndUser,
+}
+
+var JobsDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionDelete,
+	Roles:       rpc.RolesEndUser,
+}
+
+/*
+type JobRenameRequest struct {
+	Id       string `json:"id"`
+	NewTitle string `json:"newTitle"`
+}
+
+var JobsRename = rpc.Call[fnd.BulkRequest[JobRenameRequest], util.Empty]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "rename",
+}
+*/
+
+type JobsSearchRequest struct {
+	ItemsPerPage int                 `json:"itemsPerPage"`
+	Next         util.Option[string] `json:"next"`
+	Query        string              `json:"query"`
+
+	JobFlags
+}
+
+var JobsSearch = rpc.Call[JobsSearchRequest, fnd.PageV2[Job]]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionSearch,
+	Roles:       rpc.RolesEndUser,
+}
+
+type JobsBrowseRequest struct {
+	ItemsPerPage int                 `json:"itemsPerPage"`
+	Next         util.Option[string] `json:"next"`
+
+	JobFlags
+}
+
+var JobsBrowse = rpc.Call[JobsBrowseRequest, fnd.PageV2[Job]]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Roles:       rpc.RolesEndUser,
+}
+
+type JobsRetrieveRequest struct {
+	Id string
+	JobFlags
+}
+
+var JobsRetrieve = rpc.Call[JobsRetrieveRequest, Job]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesEndUser,
+}
+
+var JobsUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[util.Empty]]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updateAcl",
+}
+
+var JobsRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[JobSupport]]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "products",
+}
+
+// Job provider API
+// =====================================================================================================================
+
+var JobsProviderRetrieveProducts = rpc.Call[util.Empty, fnd.BulkResponse[JobSupport]]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "products",
 }

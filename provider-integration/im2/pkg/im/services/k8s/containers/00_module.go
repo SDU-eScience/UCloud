@@ -76,8 +76,16 @@ func findPodByJobIdAndRank(jobId string, rank int) util.Option[*core.Pod] {
 	}
 }
 
-// FindJobFolder finds the most relevant job folder for a given job. The returned path will be internal.
 func FindJobFolder(job *orc.Job) (string, *orc.Drive, error) {
+	return FindJobFolderEx(job, 0)
+}
+
+const (
+	FindJobFolderNoInitFolder int = 1 << iota
+)
+
+// FindJobFolderEx finds the most relevant job folder for a given job. The returned path will be internal.
+func FindJobFolderEx(job *orc.Job, flags int) (string, *orc.Drive, error) {
 	path, drive, err := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, util.OptStringIfNotEmpty(job.Owner.Project))
 	if err != nil {
 		return "", nil, err
@@ -89,7 +97,9 @@ func FindJobFolder(job *orc.Job) (string, *orc.Drive, error) {
 	}
 
 	jobFolderPath := filepath.Join(path, "Jobs", title, job.Id)
-	_ = filesystem.DoCreateFolder(jobFolderPath)
+	if flags&FindJobFolderNoInitFolder == 0 {
+		_ = filesystem.DoCreateFolder(jobFolderPath)
+	}
 	return jobFolderPath, drive, nil
 }
 

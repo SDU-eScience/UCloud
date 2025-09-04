@@ -84,7 +84,7 @@ class Server(
         val favoriteProjects = FavoriteProjectService(projectsV2)
         val grants = GrantsV2Service(db, idCardService, accountingSystem, client, config.defaultTemplate, projectsV2)
         val giftService = GiftService(db, accountingSystem, projectService, grants, idCardService)
-        val dataVisualization = DataVisualization(db, accountingSystem)
+        val dataVisualization = DataVisualization(db, accountingSystem, idCardService)
         val apmNotifications = ApmNotificationService(
             accountingSystem,
             projectsV2,

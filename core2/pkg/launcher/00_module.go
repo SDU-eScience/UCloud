@@ -1,12 +1,16 @@
 package launcher
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 	acc "ucloud.dk/core/pkg/accounting"
 	cfg "ucloud.dk/core/pkg/config"
@@ -60,7 +64,7 @@ func Launch() {
 			return []byte(cfg.Configuration.TokenValidation.SharedSecret), nil
 		}
 	} else if cfg.Configuration.TokenValidation.PublicCertificate != "" {
-		log.Info("Not yet implemented")
+		log.Info("Not yet implemented") // TODO
 		os.Exit(1)
 	} else {
 		log.Info("Bad token validation supplied")
@@ -75,6 +79,8 @@ func Launch() {
 	)
 
 	rpc.DefaultServer.Mux = http.NewServeMux()
+
+	providerJwtParserCacheInit()
 
 	claimsToActor := func(subject string, project util.Option[rpc.ProjectId], claims rpc.CorePrincipalBaseClaims) (rpc.Actor, bool) {
 		sessionReference := claims.SessionReference
@@ -124,46 +130,104 @@ func Launch() {
 			return rpc.Actor{Role: rpc.RoleGuest}, nil
 		}
 
-		claims := &rpc.CorePrincipalClaims{}
+		unverifiedSubject := ""
+		{
+			unverifiedTok, _, err := jwtParser.ParseUnverified(jwtToken, &jwt.MapClaims{})
+			if err != nil {
+				return rpc.Actor{Role: rpc.RoleGuest}, nil
+			}
 
-		tok, err := jwtParser.ParseWithClaims(jwtToken, claims, jwtKeyFunc)
-		if err != nil {
-			return rpc.Actor{Role: rpc.RoleGuest}, nil
+			unverifiedSubject, err = unverifiedTok.Claims.GetSubject()
+			if err != nil {
+				return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
+			}
 		}
 
-		subject, err := tok.Claims.GetSubject()
-		if err != nil {
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
-		}
+		if strings.HasPrefix(unverifiedSubject, fndapi.ProviderSubjectPrefix) {
+			verifier, ok := providerJwtParserRetrieve(unverifiedSubject)
+			if !ok {
+				return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
+			}
 
-		issuedAt, err := claims.GetIssuedAt()
-		if err != nil {
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
-		}
+			tok, err := verifier.Parser.ParseWithClaims(jwtToken, &jwt.MapClaims{}, verifier.KeyFunc)
+			if err != nil {
+				return rpc.Actor{Role: rpc.RoleGuest}, nil
+			}
 
-		expiresAt, err := claims.GetExpirationTime()
-		if err != nil {
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
-		}
+			claims := tok.Claims.(*jwt.MapClaims)
 
-		// This is not needed, but let's be paranoid and check it anyway.
-		if time.Now().After(expiresAt.Time) {
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Token has expired")
-		}
+			subject, err := tok.Claims.GetSubject()
+			if err != nil {
+				return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
+			}
 
-		projectHeader := r.Header.Get("Project")
-		project := util.OptNone[rpc.ProjectId]()
-		if projectHeader != "" {
-			project.Set(rpc.ProjectId(projectHeader))
-		}
+			issuedAt, err := claims.GetIssuedAt()
+			if err != nil {
+				return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
+			}
 
-		actor, ok := claimsToActor(subject, project, claims.CorePrincipalBaseClaims)
-		if !ok {
-			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
-		} else {
-			actor.TokenInfo.Value.ExpiresAt = expiresAt.Time
-			actor.TokenInfo.Value.IssuedAt = issuedAt.Time
+			expiresAt, err := claims.GetExpirationTime()
+			if err != nil {
+				return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
+			}
+
+			// This is not needed, but let's be paranoid and check it anyway.
+			if time.Now().After(expiresAt.Time) {
+				return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Token has expired")
+			}
+
+			actor := rpc.Actor{
+				Username: subject,
+				Role:     rpc.RoleProvider,
+				TokenInfo: util.OptValue[rpc.TokenInfo](rpc.TokenInfo{
+					IssuedAt:  issuedAt.Time,
+					ExpiresAt: expiresAt.Time,
+				}),
+			}
+
 			return actor, nil
+		} else {
+			claims := &rpc.CorePrincipalClaims{}
+
+			tok, err := jwtParser.ParseWithClaims(jwtToken, claims, jwtKeyFunc)
+			if err != nil {
+				return rpc.Actor{Role: rpc.RoleGuest}, nil
+			}
+
+			subject, err := tok.Claims.GetSubject()
+			if err != nil {
+				return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
+			}
+
+			issuedAt, err := claims.GetIssuedAt()
+			if err != nil {
+				return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
+			}
+
+			expiresAt, err := claims.GetExpirationTime()
+			if err != nil {
+				return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
+			}
+
+			// This is not needed, but let's be paranoid and check it anyway.
+			if time.Now().After(expiresAt.Time) {
+				return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Token has expired")
+			}
+
+			projectHeader := r.Header.Get("Project")
+			project := util.OptNone[rpc.ProjectId]()
+			if projectHeader != "" {
+				project.Set(rpc.ProjectId(projectHeader))
+			}
+
+			actor, ok := claimsToActor(subject, project, claims.CorePrincipalBaseClaims)
+			if !ok {
+				return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
+			} else {
+				actor.TokenInfo.Value.ExpiresAt = expiresAt.Time
+				actor.TokenInfo.Value.IssuedAt = issuedAt.Time
+				return actor, nil
+			}
 		}
 	}
 
@@ -245,4 +309,99 @@ func launchMetricsServer() {
 			log.Warn("Prometheus metrics server has failed unexpectedly! %v", err)
 		}
 	}()
+}
+
+type providerJwtParser struct {
+	Parser  *jwt.Parser
+	KeyFunc jwt.Keyfunc
+}
+
+var providerJwtParserCache struct {
+	Mu        sync.RWMutex
+	Providers map[string]providerJwtParser
+}
+
+func providerJwtParserCacheInit() {
+	providerJwtParserCache.Providers = map[string]providerJwtParser{}
+}
+
+func providerJwtParserRetrieve(actorName string) (providerJwtParser, bool) {
+	providerId, _ := strings.CutPrefix(actorName, fndapi.ProviderSubjectPrefix)
+	cache := &providerJwtParserCache
+
+	cache.Mu.RLock()
+	cached, ok := cache.Providers[providerId]
+	cache.Mu.RUnlock()
+
+	if ok {
+		return cached, true
+	} else {
+		cache.Mu.Lock()
+		cached, ok = cache.Providers[providerId]
+		if !ok {
+			var key string
+			key, ok = db.NewTx2(func(tx *db.Transaction) (string, bool) {
+				row, ok := db.Get[struct{ PubKey string }](
+					tx,
+					`
+						select pub_key
+						from auth.providers
+						where id = :provider_id
+				    `,
+					db.Params{
+						"provider_id": providerId,
+					},
+				)
+
+				return row.PubKey, ok
+			})
+
+			if ok {
+				pubKey, err := readPublicKey(key)
+				if err == nil {
+					entry := providerJwtParser{
+						Parser: jwt.NewParser(
+							jwt.WithIssuer("cloud.sdu.dk"),
+							jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Name}),
+							jwt.WithIssuedAt(),
+							jwt.WithExpirationRequired(),
+						),
+						KeyFunc: func(token *jwt.Token) (interface{}, error) {
+							return pubKey, nil
+						},
+					}
+
+					cache.Providers[providerId] = entry
+					cached, ok = entry, true
+				}
+			}
+		}
+		cache.Mu.Unlock()
+		return cached, ok
+	}
+}
+
+func readPublicKey(content string) (*rsa.PublicKey, error) {
+	var keyBuilder strings.Builder
+	keyBuilder.WriteString("-----BEGIN PUBLIC KEY-----\n")
+	keyBuilder.WriteString(util.ChunkString(content, 64))
+	keyBuilder.WriteString("\n-----END PUBLIC KEY-----\n")
+
+	key := keyBuilder.String()
+
+	block, _ := pem.Decode([]byte(key))
+	if block == nil {
+		return nil, fmt.Errorf("invalid key")
+	}
+
+	result, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err == nil {
+		publicKey, ok := result.(*rsa.PublicKey)
+		if ok {
+			return publicKey, nil
+		} else {
+			return nil, fmt.Errorf("not an rsa key")
+		}
+	}
+	return nil, err
 }

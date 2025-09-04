@@ -3,6 +3,7 @@ module ucloud.dk/core
 require (
 	github.com/blevesearch/bleve v1.0.14
 	github.com/golang-jwt/jwt/v5 v5.2.2
+	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/pquerna/otp v1.4.0
 	golang.org/x/crypto v0.37.0
