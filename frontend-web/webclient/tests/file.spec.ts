@@ -43,14 +43,7 @@ test('Change sensitivity (with available resources)', async ({page, userAgent}) 
 
     const folderName = Folder.newFolderName();
     await Folder.create(page, folderName);
-
-    /* TODO(Jonas): One should be enough! */
     await Components.clickRefreshAndWait(page);
-    await Components.clickRefreshAndWait(page);
-    await Components.clickRefreshAndWait(page);
-    await Components.clickRefreshAndWait(page);
-    /* TODO(Jonas): One should be enough! */
-
     await Rows.actionByRowTitle(page, folderName, "click");
     await page.locator('div:nth-child(6)').first().click();
     await page.getByText('Change sensitivity').click();
