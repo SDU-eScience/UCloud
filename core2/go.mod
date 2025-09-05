@@ -1,7 +1,7 @@
 module ucloud.dk/core
 
 require (
-	github.com/blevesearch/bleve v1.0.14
+	github.com/elastic/go-elasticsearch/v9 v9.0.0
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/golang-lru/v2 v2.0.7

@@ -2,10 +2,44 @@ package rpc
 
 import (
 	"encoding/json"
+	"ucloud.dk/shared/pkg/cfgutil"
 	"ucloud.dk/shared/pkg/util"
 )
 
 var AuditConsumer func(event HttpCallLogEntry)
+
+type ElasticConfig struct {
+	Address     string `yaml:"address"`
+	Port        int    `yaml:"port"`
+	Scheme      string `yaml:"scheme"`
+	Credentials struct {
+		Username string `yaml:"username"`
+		Password string `yaml:"password"`
+	}
+	GatherNode bool `yaml:"gatherNode"`
+}
+
+func ElasticConfigRetrieve(configDir string) *ElasticConfig {
+	filePath, document := cfgutil.ReadAndParse(configDir, "config")
+	success := true
+	elasticNode := cfgutil.RequireChild(filePath, document, "elasticsearch", &success)
+	var elasticConfig ElasticConfig
+	if success {
+		elasticCredNode := cfgutil.RequireChild(filePath, elasticNode, "credentials", &success)
+		cfgutil.Decode(filePath, elasticNode, &elasticConfig, &success)
+
+		if elasticConfig.Port <= 0 || elasticConfig.Port >= 1024*64 {
+			success = false
+		}
+		elasticConfig.Credentials.Username = cfgutil.RequireChildText(filePath, elasticCredNode, "username", &success)
+		elasticConfig.Credentials.Password = cfgutil.RequireChildText(filePath, elasticCredNode, "password", &success)
+	}
+	if success {
+		return &elasticConfig
+	} else {
+		return nil
+	}
+}
 
 type ServiceInstance struct {
 	Definition ServiceDefinition   `json:"definition"`
