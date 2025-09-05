@@ -442,6 +442,13 @@ function useHomeDrive(providerId: string, projectOverride?: string): string | nu
                 }
             }
 
+            for (const drive of page.items) {
+                if (drive.specification.title.toLowerCase().indexOf("home") !== -1) {
+                    result = drive.id;
+                    break;
+                }
+            }
+
             if (didCancel.current === false) {
                 setDriveId(result);
             }
