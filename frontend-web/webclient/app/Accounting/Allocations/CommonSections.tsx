@@ -126,8 +126,10 @@ export const YourAllocations: React.FunctionComponent<{
 
 const subprojectStyle = injectStyle("sub-project-allocations", k => `
 /* Styling goes here */
+/* Key metrics section styling */
     ${k} .sub-project-allocations-container {
         width: 80%;
+        height: 350px;
         border: 1px solid lightgray;
         padding: 20px;
         border-radius: 5px;
@@ -189,6 +191,26 @@ const subprojectStyle = injectStyle("sub-project-allocations", k => `
         border: 1px solid lightgray;
         border-radius: 5px;
         padding-left: 16px;
+        padding-right: 16px;
+    }
+    
+    ${k} .key-metrics-line {
+        display: flex;
+    }
+    
+    ${k} .key-metric-table-left {
+        flex-grow: 1;
+    }
+    
+    ${k} .key-metric-table-right {
+        flex-shrink: 0; 
+    }
+ 
+ /* Sub-projects section styling */
+    ${k} .sub-projects-search-bar-container {
+        display: flex;
+        flex-grow: 1;
+        gap: 10px;
     }
 `);
 
@@ -267,9 +289,18 @@ export const SubProjectAllocations: React.FunctionComponent<{
                     <h3>Other cards <br/>go here</h3>
                 </div>
                 <div className="key-metrics-list">
-                    <p>Key metrics content goes here</p>
-                    <p>More content on this line</p>
-                    <p>This one is also a key metric</p>
+                    <div className="key-metrics-line">
+                        <p className="key-metric-table-left">Key metrics content goes here:</p>
+                        <p className="key-metric-table-right">12%</p>
+                    </div>
+                    <div className="key-metrics-line">
+                        <p className="key-metric-table-left">More content on this line:</p>
+                        <p className="key-metric-table-right">73%</p>
+                    </div>
+                    <div className="key-metrics-line">
+                        <p className="key-metric-table-left">This one is also a key metric:</p>
+                        <p className="key-metric-table-right">100%</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -315,28 +346,31 @@ export const SubProjectList: React.FunctionComponent<{
         {projectId !== undefined && <>
             <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
                 <h3 style={{margin: 0}}>Sub-projects</h3>
-                <Box flexGrow={1}/>
-                <Button height={35} onClick={onNewSubProject} disabled={projectRole == OldProjectRole.USER}>
-                    <Icon name={"heroPlus"} mr={8}/>
-                    New sub-project
-                </Button>
+                <div className="sub-projects-search-bar-container">
+                    <Box flexGrow={1}/>
+                    <Button height={35} onClick={onNewSubProject} disabled={projectRole == OldProjectRole.USER}>
+                        <Icon name={"heroPlus"} mr={8}/>
+                        New sub-project
+                    </Button>
 
-                <Box width={"300px"}>
-                    <Input
-                        placeholder={"Search in your sub-projects"}
-                        height={35}
-                        value={state.searchQuery}
-                        onInput={onSearchInput}
-                        onKeyDown={onSearchKey}
-                        disabled={state.editControlsDisabled}
-                        inputRef={searchBox}
-                    />
-                    <div style={{position: "relative"}}>
-                        <div style={{position: "absolute", top: "-30px", right: "11px"}}>
-                            <Icon name={"heroMagnifyingGlass"}/>
+                    <Box width={"300px"}>
+                        <Input
+                            placeholder={"Search in your sub-projects"}
+                            height={35}
+                            value={state.searchQuery}
+                            onInput={onSearchInput}
+                            onKeyDown={onSearchKey}
+                            disabled={state.editControlsDisabled}
+                            inputRef={searchBox}
+                        />
+                        <div style={{position: "relative"}}>
+                            <div style={{position: "absolute", top: "-30px", right: "11px"}}>
+                                <Icon name={"heroMagnifyingGlass"}/>
+                            </div>
                         </div>
-                    </div>
-                </Box>
+                        <Button className="filters-button"><Icon name={"heroAdjustmentsHorizontal"}/></Button>
+                    </Box>
+                </div>
             </Flex>
             <Flex>
                 <Label width="160px" ml="auto">
@@ -416,19 +450,18 @@ export const SubProjectList: React.FunctionComponent<{
                                                         subAllocator: false,
                                                     })}
                                                 >
-                                                    <SmallIconButton title="View grant application"
-                                                                     icon={"heroBanknotes"}
-                                                                     subIcon={"heroPlusCircle"}
-                                                                     subColor1={"primaryContrast"}
-                                                                     subColor2={"primaryContrast"}/>
                                                 </Link>
                                             }
-
 
                                             {recipient.usageAndQuota.map((uq, idx) => {
                                                 if (idx > 2) return null;
                                                 return <ProgressBar key={idx} uq={uq}/>;
                                             })}
+                                            <SmallIconButton title="View grant application"
+                                                             icon={"heroBanknotes"}
+                                                             subIcon={"heroPlusCircle"}
+                                                             subColor1={"primaryContrast"}
+                                                             subColor2={"primaryContrast"}/>
                                         </div>}
                                     >
                                         {recipient.groups.map((g, gidx) =>
