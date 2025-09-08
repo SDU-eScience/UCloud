@@ -127,7 +127,7 @@ export const YourAllocations: React.FunctionComponent<{
 
 const yourAllocationsStyle = injectStyle("your-allocations", k => `
     ${k} {
-        border: 1px solid lightgray;
+        border: 1px solid var(--borderColor);
         border-radius: 5px;
         padding: 5px 20px 10px 20px;
     }
@@ -137,7 +137,7 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
     ${k} .sub-project-allocations-container {
         width: 80%;
         height: 350px;
-        border: 1px solid lightgray;
+        border: 1px solid var(--borderColor);
         padding: 20px;
         border-radius: 5px;
         overflow: auto;
@@ -195,7 +195,7 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
     
     ${k} .key-metrics-list {
         width: 100%;
-        border: 1px solid lightgray;
+        border: 1px solid var(--borderColor);
         border-radius: 5px;
         padding-left: 16px;
         padding-right: 16px;
@@ -212,6 +212,8 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
     ${k} .key-metric-table-right {
         flex-shrink: 0; 
     }
+    
+    ${k} .sub-project- {}
 `);
 
 const subProjectsStyle = injectStyle("sub-projects", k => ` 
@@ -222,8 +224,8 @@ const subProjectsStyle = injectStyle("sub-projects", k => `
     }
     
     ${k} .sub-projects-container {
-        border: 1px solid lightgray;
-        padding: 5px 20px 10px 20px;
+        border: 1px solid var(--borderColor);
+        padding: 5px 0px 10px 0px;
         border-radius: 5px;
     }
     
@@ -232,7 +234,11 @@ const subProjectsStyle = injectStyle("sub-projects", k => `
     }
     
     ${k} .new-sub-project-button {
-        
+        margin-right: 4px;
+    }
+    
+    ${k} .sub-project-list-row {
+        padding: 0 20px;
     }
 `);
 
@@ -301,14 +307,14 @@ export const SubProjectAllocations: React.FunctionComponent<{
             </div>
             <div className="key-metrics-card-container">
                 <div className="key-metrics-card">
-                    <h3>41</h3>
+                    <h3>41%</h3>
                     <br/>
-                    <h3>Cards <br/> were shown</h3>
+                    <h3>Storage <br/> utilization</h3>
                 </div>
                 <div className="key-metrics-card">
-                    <h3>984</h3>
+                    <h3>73</h3>
                     <br/>
-                    <h3>Other cards <br/>go here</h3>
+                    <h3>Idle <br/> projects</h3>
                 </div>
                 <div className="key-metrics-list">
                     <div className="key-metrics-line">
@@ -369,6 +375,7 @@ const SubProjectListRow: React.FunctionComponent<{
 }> = ({style, recipient, listRef, rowIdx, avatars, onEdit, state, onEditKey, onEditBlur}) => {
     return <div style={style}>
         <TreeNode
+            className={"sub-project-list-row"}
             key={recipient.owner.title}
             data-recipient={recipient.owner.title}
             data-open={openNodes[recipient.owner.title]}
@@ -430,11 +437,7 @@ const SubProjectListRow: React.FunctionComponent<{
                     </Flex>}
                     right={<div className={"sub-alloc"}>
                         <ProgressBar uq={g.usageAndQuota}/>
-                        <SmallIconButton title="View grant application"
-                                         icon={"heroBanknotes"}
-                                         subIcon={"heroPlusCircle"}
-                                         subColor1={"primaryContrast"}
-                                         subColor2={"primaryContrast"}/>
+                        <Box width={25} height={25} />
                 </div>}
                     onActivate={open => {
                         if (open) setNodeState(TreeAction.OPEN, recipient.owner.title, g.category.name);
