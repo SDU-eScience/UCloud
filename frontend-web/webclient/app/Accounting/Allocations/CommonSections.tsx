@@ -1,5 +1,6 @@
 import * as React from "react";
 import {
+    AllocationDisplayTreeRecipient,
     AllocationDisplayTreeYourAllocation,
     AllocationDisplayWallet,
     balanceToStringFromUnit,
@@ -28,9 +29,6 @@ import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {useCallback, useRef} from "react";
 import {ProgressBar} from "@/Accounting/Allocations/ProgressBar";
-import {file} from "@/UCloud";
-import ucloud = file.orchestrator.ucloud;
-import divider from "@/ui-components/Divider";
 
 export const YourAllocations: React.FunctionComponent<{
     allocations: [string, AllocationDisplayTreeYourAllocation][],
@@ -130,6 +128,8 @@ export const YourAllocations: React.FunctionComponent<{
 const yourAllocationsStyle = injectStyle("your-allocations", k => `
     ${k} {
         border: 1px solid lightgray;
+        border-radius: 5px;
+        padding: 5px 20px 10px 20px;
     }
 `);
 
@@ -223,7 +223,16 @@ const subProjectsStyle = injectStyle("sub-projects", k => `
     
     ${k} .sub-projects-container {
         border: 1px solid lightgray;
-        padding: 10px;
+        padding: 5px 20px 10px 20px;
+        border-radius: 5px;
+    }
+    
+    ${k} .filters-button {
+        width: 35px;
+    }
+    
+    ${k} .new-sub-project-button {
+        
     }
 `);
 
@@ -320,6 +329,198 @@ export const SubProjectAllocations: React.FunctionComponent<{
     </Box>;
 };
 
+const FilteredUsageAndQuota: React.FunctionComponent<{
+    entries: UsageAndQuota[];
+}> = ({ entries }) => {
+    const filteredEntries = entries
+        .filter(it => {
+            return it.type === "STORAGE" || it.type === "COMPUTE";
+        })
+        .sort((a, b) => {
+            const order: Record<string, number> = {
+                "GPU-hours": 1,
+                "Core-hours": 2,
+                "GB": 3,
+                "TB": 3,
+                "PB": 3,
+                "EB": 3,
+            };
+            return (order[a.raw.unit] ?? 99) - (order[b.raw.unit] ?? 99);
+        });
+
+    return <>
+        {filteredEntries.map((uq, idx) => {
+            if (idx > 2) return null;
+            return <ProgressBar key={idx} uq={uq}/>;
+        })}
+    </>
+}
+
+const SubProjectListRow: React.FunctionComponent<{
+    style: React.CSSProperties;
+    recipient: AllocationDisplayTreeRecipient;
+    listRef: React.RefObject<VariableSizeList<number[]> | null>;
+    rowIdx: number;
+    avatars: AvatarState;
+    onEdit: (elem: HTMLElement) => void;
+    state: State;
+    onEditKey: (ev: React.KeyboardEvent) => Promise<void>;
+    onEditBlur: (ev: React.SyntheticEvent) => void;
+}> = ({style, recipient, listRef, rowIdx, avatars, onEdit, state, onEditKey, onEditBlur}) => {
+    return <div style={style}>
+        <TreeNode
+            key={recipient.owner.title}
+            data-recipient={recipient.owner.title}
+            data-open={openNodes[recipient.owner.title]}
+            onActivate={open => {
+                if (open) setNodeState(TreeAction.OPEN, recipient.owner.title);
+                else setNodeState(TreeAction.CLOSE, recipient.owner.title);
+                listRef.current?.resetAfterIndex(rowIdx);
+            }}
+            left={<Flex gap={"4px"} alignItems={"center"}>
+                <TooltipV2 tooltip={`Project PI: ${recipient.owner.primaryUsername}`}>
+                    <Avatar {...avatars.avatarFromCache(recipient.owner.primaryUsername)}
+                            style={{height: "32px", width: "auto", marginTop: "-4px"}}
+                            avatarStyle={"Circle"}/>
+                </TooltipV2>
+                <Truncate
+                    title={recipient.owner.title}
+                    width={400}
+                >
+                    {recipient.owner.title}
+                </Truncate>
+            </Flex>}
+            right={<div className={"sub-alloc"}>
+                {recipient.owner.reference.type === "project" &&
+                    <Link
+                        to={AppRoutes.grants.grantGiverInitiatedEditor({
+                            title: recipient.owner.title,
+                            piUsernameHint: recipient.owner.primaryUsername,
+                            projectId: recipient.owner.reference.projectId,
+                            start: timestampUnixMs(),
+                            end: timestampUnixMs() + (1000 * 60 * 60 * 24 * 365),
+                            subAllocator: false,
+                        })}
+                    >
+                    </Link>
+                }
+                <FilteredUsageAndQuota entries={recipient.usageAndQuota} />
+                <SmallIconButton title="View grant application"
+                                 icon={"heroBanknotes"}
+                                 subIcon={"heroPlusCircle"}
+                                 subColor1={"primaryContrast"}
+                                 subColor2={"primaryContrast"}/>
+            </div>}
+        >
+
+            {recipient.groups.map((g, gidx) =>
+                <TreeNode
+                    key={g.category.name}
+                    data-recipient={recipient.owner.title}
+                    data-group={g.category.name}
+                    data-open={openNodes[makeCategoryKey(recipient.owner.title, g.category.name)]}
+                    left={<Flex gap={"4px"}>
+                        <Flex gap={"4px"} width={"200px"}>
+                            <ProviderLogo providerId={g.category.provider} size={20}/>
+                            <Icon
+                                name={Accounting.productTypeToIcon(g.category.productType)}
+                                size={20}/>
+                            <code>{g.category.name}</code>
+                        </Flex>
+                    </Flex>}
+                    right={<div className={"sub-alloc"}>
+                        <ProgressBar uq={g.usageAndQuota}/>
+                        <SmallIconButton title="View grant application"
+                                         icon={"heroBanknotes"}
+                                         subIcon={"heroPlusCircle"}
+                                         subColor1={"primaryContrast"}
+                                         subColor2={"primaryContrast"}/>
+                </div>}
+                    onActivate={open => {
+                        if (open) setNodeState(TreeAction.OPEN, recipient.owner.title, g.category.name);
+                        else setNodeState(TreeAction.CLOSE, recipient.owner.title, g.category.name);
+                        listRef.current?.resetAfterIndex(rowIdx);
+                    }}
+                >
+                    {g.allocations
+                        .map((alloc, idx) =>
+                            <TreeNode
+                                key={alloc.allocationId}
+                                className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
+                                data-ridx={rowIdx} data-idx={idx} data-gidx={gidx}
+                                data-grant-id={alloc.grantedIn}
+                                left={<Flex>
+                                    <Flex width={"200px"}>
+                                        <Icon name={"heroBanknotes"} ml="8px" mr={4}/>
+                                        <div>
+                                            <b>Allocation ID:</b>
+                                            {" "}
+                                            <code>{chunkedString(alloc.allocationId.toString().padStart(6, "0"), 3, false).join(" ")}</code>
+                                        </div>
+                                    </Flex>
+
+                                    <Flex width={"250px"}>
+                                        Period:
+                                        {" "}
+                                        {dateToStringNoTime(alloc.start)}
+                                        {" "}&mdash;{" "}
+                                        {dateToStringNoTime(alloc.end)}
+                                    </Flex>
+
+                                    {alloc.grantedIn && <>
+                                        <Link target={"_blank"}
+                                              to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                            View grant application{" "}
+                                            <Icon name={"heroArrowTopRightOnSquare"}
+                                                  mt={-6}/>
+                                        </Link>
+                                    </>}
+                                </Flex>}
+                                right={<Flex flexDirection={"row"} gap={"8px"}>
+
+                                    {alloc.isEditing ?
+                                        <Flex gap={"4px"} width={"250px"}>
+                                            <Input
+                                                height={"24px"}
+                                                defaultValue={Math.ceil(Accounting.explainUnit(g.category).priceFactor * alloc.quota)}
+                                                autoFocus
+                                                onKeyDown={onEditKey}
+                                                onBlur={onEditBlur}
+                                                data-ridx={rowIdx} data-idx={idx}
+                                                data-gidx={gidx}
+                                            />
+                                            <Text
+                                                width="120px">{Accounting.explainUnit(g.category).name}</Text>
+                                        </Flex>
+                                        : <Text>
+                                            {Accounting.balanceToString(g.category, alloc.quota)}
+                                        </Text>
+                                    }
+
+                                    {alloc.note?.rowShouldBeGreyedOut !== true && !alloc.isEditing &&
+                                        <SmallIconButton
+                                            icon={"heroPencil"} onClick={onEdit}
+                                            disabled={state.editControlsDisabled}
+                                            data-ridx={rowIdx} data-idx={idx}
+                                            data-gidx={gidx}/>
+                                    }
+
+                                    {alloc.note && <>
+                                        <TooltipV2 tooltip={alloc.note.text}>
+                                            <Icon name={alloc.note.icon}
+                                                  color={alloc.note.iconColor}/>
+                                        </TooltipV2>
+                                    </>}
+
+                                </Flex>}
+                            />
+                        )
+                    }
+                </TreeNode>)}
+        </TreeNode>
+    </div>;
+}
+
 export const SubProjectList: React.FunctionComponent<{
     projectId: string | undefined,
     onNewSubProject: () => Promise<void>,
@@ -361,12 +562,11 @@ export const SubProjectList: React.FunctionComponent<{
                 <h3 style={{margin: 0}}>Sub-projects</h3>
                 <div className="sub-projects-search-bar-container">
                     <Box flexGrow={1}/>
-                    <Button height={35} onClick={onNewSubProject} disabled={projectRole == OldProjectRole.USER}>
+                    <Button className="new-sub-project-button" height={35} onClick={onNewSubProject} disabled={projectRole == OldProjectRole.USER}>
                         <Icon name={"heroPlus"} mr={8}/>
                         New sub-project
                     </Button>
-
-                    <Box width={"300px"}>
+                    <Box width={"355px"}>
                         <Input
                             placeholder={"Search in your sub-projects"}
                             height={35}
@@ -381,11 +581,11 @@ export const SubProjectList: React.FunctionComponent<{
                                 <Icon name={"heroMagnifyingGlass"}/>
                             </div>
                         </div>
-                        <Button className="filters-button"><Icon name={"heroAdjustmentsHorizontal"}/></Button>
                     </Box>
+                    <Button className="filters-button"><Icon name={"heroAdjustmentsHorizontal"}/></Button>
                 </div>
             </Flex>
-            <Flex>
+            <Flex paddingBottom={10}>
                 <Label width="160px" ml="auto">
                     <Checkbox onChange={e => dispatchEvent({
                         type: "ToggleViewOnlyProjects",
@@ -403,7 +603,7 @@ export const SubProjectList: React.FunctionComponent<{
                 </>}
             </>}
 
-            <div className="sub-projects-container" style={{ height: "600px", width: "100%" }}>
+            <div className="sub-projects-container" style={{ height: "500px", width: "100%" }}>
                 <AutoSizer>
                     {({height, width}) => (
                         <Tree
@@ -436,154 +636,17 @@ export const SubProjectList: React.FunctionComponent<{
                                     const recipientIdx = data[rowIdx];
                                     const recipient = state.subAllocations.recipients[recipientIdx];
 
-                                    return <div style={style}>
-                                        <TreeNode
-                                            key={recipient.owner.title}
-                                            data-recipient={recipient.owner.title}
-                                            data-open={openNodes[recipient.owner.title]}
-                                            onActivate={open => {
-                                                if (open) setNodeState(TreeAction.OPEN, recipient.owner.title);
-                                                else setNodeState(TreeAction.CLOSE, recipient.owner.title);
-                                                listRef.current?.resetAfterIndex(rowIdx);
-                                            }}
-                                            left={<Flex gap={"4px"} alignItems={"center"}>
-                                                <TooltipV2 tooltip={`Project PI: ${recipient.owner.primaryUsername}`}>
-                                                    <Avatar {...avatars.avatarFromCache(recipient.owner.primaryUsername)}
-                                                            style={{height: "32px", width: "auto", marginTop: "-4px"}}
-                                                            avatarStyle={"Circle"}/>
-                                                </TooltipV2>
-                                                <Truncate
-                                                    title={recipient.owner.title}
-                                                    width={400}
-                                                >
-                                                    {recipient.owner.title}
-                                                </Truncate>
-                                            </Flex>}
-                                            right={<div className={"sub-alloc"}>
-                                                {recipient.owner.reference.type === "project" &&
-                                                    <Link
-                                                        to={AppRoutes.grants.grantGiverInitiatedEditor({
-                                                            title: recipient.owner.title,
-                                                            piUsernameHint: recipient.owner.primaryUsername,
-                                                            projectId: recipient.owner.reference.projectId,
-                                                            start: timestampUnixMs(),
-                                                            end: timestampUnixMs() + (1000 * 60 * 60 * 24 * 365),
-                                                            subAllocator: false,
-                                                        })}
-                                                    >
-                                                    </Link>
-                                                }
-
-                                                {recipient.usageAndQuota.map((uq, idx) => {
-                                                    if (idx > 2) return null;
-                                                    return <ProgressBar key={idx} uq={uq}/>;
-                                                })}
-                                                <SmallIconButton title="View grant application"
-                                                                 icon={"heroBanknotes"}
-                                                                 subIcon={"heroPlusCircle"}
-                                                                 subColor1={"primaryContrast"}
-                                                                 subColor2={"primaryContrast"}/>
-                                            </div>}
-                                        >
-
-                                            {recipient.groups.map((g, gidx) =>
-                                                <TreeNode
-                                                    key={g.category.name}
-                                                    data-recipient={recipient.owner.title}
-                                                    data-group={g.category.name}
-                                                    data-open={openNodes[makeCategoryKey(recipient.owner.title, g.category.name)]}
-                                                    left={<Flex gap={"4px"}>
-                                                        <Flex gap={"4px"} width={"200px"}>
-                                                            <ProviderLogo providerId={g.category.provider} size={20}/>
-                                                            <Icon
-                                                                name={Accounting.productTypeToIcon(g.category.productType)}
-                                                                size={20}/>
-                                                            <code>{g.category.name}</code>
-                                                        </Flex>
-                                                    </Flex>}
-                                                    right={
-                                                        <ProgressBar uq={g.usageAndQuota}/>
-                                                    }
-                                                    onActivate={open => {
-                                                        if (open) setNodeState(TreeAction.OPEN, recipient.owner.title, g.category.name);
-                                                        else setNodeState(TreeAction.CLOSE, recipient.owner.title, g.category.name);
-                                                        listRef.current?.resetAfterIndex(rowIdx);
-                                                    }}
-                                                >
-                                                    {g.allocations
-                                                        .map((alloc, idx) =>
-                                                            <TreeNode
-                                                                key={alloc.allocationId}
-                                                                className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
-                                                                data-ridx={rowIdx} data-idx={idx} data-gidx={gidx}
-                                                                data-grant-id={alloc.grantedIn}
-                                                                left={<Flex>
-                                                                    <Flex width={"200px"}>
-                                                                        <Icon name={"heroBanknotes"} ml="8px" mr={4}/>
-                                                                        <div>
-                                                                            <b>Allocation ID:</b>
-                                                                            {" "}
-                                                                            <code>{chunkedString(alloc.allocationId.toString().padStart(6, "0"), 3, false).join(" ")}</code>
-                                                                        </div>
-                                                                    </Flex>
-
-                                                                    <Flex width={"250px"}>
-                                                                        Period:
-                                                                        {" "}
-                                                                        {dateToStringNoTime(alloc.start)}
-                                                                        {" "}&mdash;{" "}
-                                                                        {dateToStringNoTime(alloc.end)}
-                                                                    </Flex>
-
-                                                                    {alloc.grantedIn && <>
-                                                                        <Link target={"_blank"}
-                                                                              to={AppRoutes.grants.editor(alloc.grantedIn)}>
-                                                                            View grant application{" "}
-                                                                            <Icon name={"heroArrowTopRightOnSquare"}
-                                                                                  mt={-6}/>
-                                                                        </Link>
-                                                                    </>}
-                                                                </Flex>}
-                                                                right={<Flex flexDirection={"row"} gap={"8px"}>
-                                                                    {alloc.note?.rowShouldBeGreyedOut !== true && !alloc.isEditing &&
-                                                                        <SmallIconButton
-                                                                            icon={"heroPencil"} onClick={onEdit}
-                                                                            disabled={state.editControlsDisabled}
-                                                                            data-ridx={rowIdx} data-idx={idx}
-                                                                            data-gidx={gidx}/>
-                                                                    }
-                                                                    {alloc.note && <>
-                                                                        <TooltipV2 tooltip={alloc.note.text}>
-                                                                            <Icon name={alloc.note.icon}
-                                                                                  color={alloc.note.iconColor}/>
-                                                                        </TooltipV2>
-                                                                    </>}
-
-                                                                    {alloc.isEditing ?
-                                                                        <Flex gap={"4px"} width={"250px"}>
-                                                                            <Input
-                                                                                height={"24px"}
-                                                                                defaultValue={Math.ceil(Accounting.explainUnit(g.category).priceFactor * alloc.quota)}
-                                                                                autoFocus
-                                                                                onKeyDown={onEditKey}
-                                                                                onBlur={onEditBlur}
-                                                                                data-ridx={rowIdx} data-idx={idx}
-                                                                                data-gidx={gidx}
-                                                                            />
-                                                                            <Text
-                                                                                width="120px">{Accounting.explainUnit(g.category).name}</Text>
-                                                                        </Flex>
-                                                                        : <Text>
-                                                                            {Accounting.balanceToString(g.category, alloc.quota)}
-                                                                        </Text>
-                                                                    }
-                                                                </Flex>}
-                                                            />
-                                                        )
-                                                    }
-                                                </TreeNode>)}
-                                        </TreeNode>
-                                    </div>;
+                                    return <SubProjectListRow
+                                        style={style}
+                                        recipient={recipient}
+                                        listRef={listRef}
+                                        rowIdx={rowIdx}
+                                        avatars={avatars}
+                                        onEdit={onEdit}
+                                        state={state}
+                                        onEditKey={onEditKey}
+                                        onEditBlur={onEditBlur}
+                                    />
                                 }}
                             </VariableSizeList>
                         </Tree>
