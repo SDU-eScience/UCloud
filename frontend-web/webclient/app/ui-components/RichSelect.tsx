@@ -7,6 +7,7 @@ import {injectStyle} from "@/Unstyled";
 import {Flex, Icon, Input, Relative} from "@/ui-components/index";
 import {FilterInputClass} from "@/Project/ProjectSwitcher";
 import Box from "@/ui-components/Box";
+import {Simple} from "@/UCloud/Scratch";
 
 export type RichSelectChildComponent<T> = React.FunctionComponent<RichSelectProps<T>>;
 
@@ -14,6 +15,44 @@ export interface RichSelectProps<T> {
     element?: T;
     dataProps?: Record<string, string>;
     onSelect: () => void;
+}
+
+export interface SimpleRichItem {
+    key: string;
+    value: string;
+}
+
+export const SimpleRichSelect: React.FunctionComponent<{
+    items: SimpleRichItem[];
+    selected?: SimpleRichItem;
+    onSelect: (item: SimpleRichItem) => void;
+
+    fullWidth?: boolean;
+    dropdownWidth?: string;
+    elementHeight?: number;
+    placeholder?: string;
+    noResultsItem?: SimpleRichItem;
+}> = props => {
+    return <RichSelect
+        items={props.items}
+        keys={["key"]}
+        RenderRow={p =>
+            <Box p={"8px"} minHeight={35} onClick={p.onSelect} {...p.dataProps}>
+                {p?.element?.value}
+            </Box>
+        }
+        RenderSelected={p =>
+            <Box p={"8px"} minHeight={35} onClick={p.onSelect} {...p.dataProps}>
+                {p?.element?.value}
+            </Box>
+        }
+        onSelect={props.onSelect}
+        placeholder={props.placeholder}
+        dropdownWidth={props.dropdownWidth}
+        elementHeight={props.elementHeight ?? 35}
+        selected={props.selected}
+        noResultsItem={props.noResultsItem}
+    />
 }
 
 const INPUT_FIELD_HEIGHT = 35;

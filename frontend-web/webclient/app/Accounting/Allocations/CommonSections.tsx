@@ -14,7 +14,7 @@ import {Box, Button, Checkbox, Flex, Icon, Input, Label, Link, Relative, Text, T
 import AppRoutes from "@/Routes";
 import * as Accounting from "@/Accounting";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {chunkedString, timestampUnixMs} from "@/UtilityFunctions";
+import {chunkedString, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {OldProjectRole} from "@/Project";
@@ -24,11 +24,18 @@ import {AvatarState} from "@/AvataaarLib/hook";
 import AutoSizer from "react-virtualized-auto-sizer";
 import Avatar from "@/AvataaarLib/avatar";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
-import {extractDataTags, injectStyle} from "@/Unstyled";
+import {classConcat, extractDataTags, injectStyle} from "@/Unstyled";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import {useCallback, useRef} from "react";
+import {useCallback, useRef, useState} from "react";
 import {ProgressBar} from "@/Accounting/Allocations/ProgressBar";
+import {default as ReactModal} from "react-modal";
+import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
+import {CardClass} from "@/ui-components/Card";
+import * as Heading from "@/ui-components/Heading";
+import { ListRow } from "@/ui-components/List";
+import {RichSelect, SimpleRichSelect} from "@/ui-components/RichSelect";
+import * as Pages from "@/Applications/Pages";
 
 export const YourAllocations: React.FunctionComponent<{
     allocations: [string, AllocationDisplayTreeYourAllocation][],
@@ -213,7 +220,9 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
         flex-shrink: 0; 
     }
     
-    ${k} .sub-project- {}
+    ${k} .key-metrics-settings-container {
+        flex-grow: 1;
+    }
 `);
 
 const subProjectsStyle = injectStyle("sub-projects", k => ` 
@@ -247,50 +256,103 @@ export const SubProjectAllocations: React.FunctionComponent<{
     indent: number;
 }> = ({allocations, indent}) => {
     const treeApi = useRef<TreeApi>(null);
-    return <Box mt={32} mb={10} className={keyMetricsStyle}>
-        <div className="key-metrics-container">
-            <h3>Key metrics</h3>
-            <div className="key-metrics-input">
-                <div className="key-metrics-search-box">
-                    <Input placeholder="Search in your key metrics"></Input>
-                    <div style={{position: "relative"}}>
-                        <div style={{position: "absolute", top: "5px", right: "10px"}}>
-                            <Icon name={"heroMagnifyingGlass"}/>
+    const [filtersShown, setFiltersShown] = useState(false);
+    const closeFilters = useCallback(() => {
+        setFiltersShown(false);
+    }, []);
+    const openFilters = useCallback(() => {
+        setFiltersShown(true);
+    }, []);
+
+    return <>
+        <ReactModal
+            isOpen={filtersShown}
+            shouldCloseOnEsc
+            onRequestClose={closeFilters}
+            style={largeModalStyle}
+            ariaHideApp={false}
+            className={classConcat(CardClass, keyMetricsStyle)}
+        >
+
+            <Flex>
+                <div className="key-metrics-settings-container">
+                    <Heading.h3>Key metrics settings</Heading.h3>
+                    <Heading.h4 color={"textSecondary"}>Select key metrics to display</Heading.h4>
+                </div>
+                <div className="key-metrics-input">
+                    <div className="key-metrics-search-box">
+                        <Input placeholder="Search in your key metrics"></Input>
+                        <div style={{position: "relative"}}>
+                            <div style={{position: "absolute", top: "5px", right: "10px"}}>
+                                <Icon name={"heroMagnifyingGlass"}/>
+                            </div>
                         </div>
                     </div>
+                    <Button>Apply</Button>
                 </div>
+            </Flex>
+            <Flex>
+                <ListRow
+                    left={
+                        <Heading.h3>Your resource utilisation</Heading.h3>
+                    }
+                    right={<>
+                        <SimpleRichSelect
+                            items={[{ key: "1", value: "1" }, { key: "2", value: "2" }, { key: "3", value: "3" }]}
+                            onSelect={doNothing}
+                            dropdownWidth={"300px"}
+                            elementHeight={37}
+                        />
+                        <Checkbox>
 
-                <Button className="filters-button"><Icon name={"heroAdjustmentsHorizontal"}/></Button>
+                        </Checkbox>
+                    </>
+                    }
+                >
+                </ListRow>
+            </Flex>
+            {/* Heading flex */}
+            {/*     Left: Title & subtitle */}
+            {/*     Right: Search and apply*/}
+            {/* end of heading*/}
+
+            {/* Rows */}
+            {/*     Left: Star & title */}
+            {/*     Right: Options and enable checkbox */}
+
+        </ReactModal>
+
+        <Box mt={32} mb={10} className={keyMetricsStyle}>
+            <div className="key-metrics-container">
+                <h3>Key metrics</h3>
+                <div className="key-metrics-input">
+                    <div className="key-metrics-search-box">
+                        <Input placeholder="Search in your key metrics"></Input>
+                        <div style={{position: "relative"}}>
+                            <div style={{position: "absolute", top: "5px", right: "10px"}}>
+                                <Icon name={"heroMagnifyingGlass"}/>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Button className="filters-button" onClick={openFilters}>
+                        <Icon name={"heroAdjustmentsHorizontal"}/>
+                    </Button>
+                </div>
             </div>
-        </div>
-        <div className="key-metrics-container">
-            <div className="sub-project-allocations-container">
-                <h3>Sub-project allocations</h3>
-                <Tree apiRef={treeApi}>
-                    {allocations.map(([rawType, tree]) => {
-                        const type = rawType as ProductType;
+            <div className="key-metrics-container">
+                <div className="sub-project-allocations-container">
+                    <h3>Sub-project allocations</h3>
+                    <Tree apiRef={treeApi}>
+                        {allocations.map(([rawType, tree]) => {
+                            const type = rawType as ProductType;
 
-                        return <TreeNode
-                            key={rawType}
-                            left={
-                                <Flex gap={"4px"}>
-                                    <Icon name={Accounting.productTypeToIcon(type)} size={20}/>
-                                    {Accounting.productAreaTitle(type)}
-                                </Flex>
-                            }
-                            right={<Flex flexDirection={"row"} gap={"8px"}>
-                                {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                        <ProgressBar uq={uq}/>
-                                    </React.Fragment>
-                                )}
-                            </Flex>}
-                            indent={indent}
-                        >
-                            <TreeNode
+                            return <TreeNode
+                                key={rawType}
                                 left={
                                     <Flex gap={"4px"}>
-                                        <ProviderLogo providerId={"ucloud"} size={20}/>
-                                        <h3>u1-cephfs</h3>
+                                        <Icon name={Accounting.productTypeToIcon(type)} size={20}/>
+                                        {Accounting.productAreaTitle(type)}
                                     </Flex>
                                 }
                                 right={<Flex flexDirection={"row"} gap={"8px"}>
@@ -299,45 +361,61 @@ export const SubProjectAllocations: React.FunctionComponent<{
                                         </React.Fragment>
                                     )}
                                 </Flex>}
+                                indent={indent}
                             >
-                            </TreeNode>
-                        </TreeNode>;
-                    })}
-                </Tree>
+                                <TreeNode
+                                    left={
+                                        <Flex gap={"4px"}>
+                                            <ProviderLogo providerId={"ucloud"} size={20}/>
+                                            <Heading.h3>u1-cephfs</Heading.h3>
+                                        </Flex>
+                                    }
+                                    right={<Flex flexDirection={"row"} gap={"8px"}>
+                                        {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
+                                                <ProgressBar uq={uq}/>
+                                            </React.Fragment>
+                                        )}
+                                    </Flex>}
+                                >
+                                </TreeNode>
+                            </TreeNode>;
+                        })}
+                    </Tree>
+                </div>
+                <div className="key-metrics-card-container">
+                    <div className="key-metrics-card">
+                        <h3>41%</h3>
+                        <br/>
+                        <h3>Storage <br/> utilization</h3>
+                    </div>
+                    <div className="key-metrics-card">
+                        <h3>73</h3>
+                        <br/>
+                        <h3>Idle <br/> projects</h3>
+                    </div>
+                    <div className="key-metrics-list">
+                        <div className="key-metrics-line">
+                            <p className="key-metric-table-left">Key metrics content goes here:</p>
+                            <p className="key-metric-table-right">12%</p>
+                        </div>
+                        <div className="key-metrics-line">
+                            <p className="key-metric-table-left">More content on this line:</p>
+                            <p className="key-metric-table-right">73%</p>
+                        </div>
+                        <div className="key-metrics-line">
+                            <p className="key-metric-table-left">This one is also a key metric:</p>
+                            <p className="key-metric-table-right">100%</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div className="key-metrics-card-container">
-                <div className="key-metrics-card">
-                    <h3>41%</h3>
-                    <br/>
-                    <h3>Storage <br/> utilization</h3>
-                </div>
-                <div className="key-metrics-card">
-                    <h3>73</h3>
-                    <br/>
-                    <h3>Idle <br/> projects</h3>
-                </div>
-                <div className="key-metrics-list">
-                    <div className="key-metrics-line">
-                        <p className="key-metric-table-left">Key metrics content goes here:</p>
-                        <p className="key-metric-table-right">12%</p>
-                    </div>
-                    <div className="key-metrics-line">
-                        <p className="key-metric-table-left">More content on this line:</p>
-                        <p className="key-metric-table-right">73%</p>
-                    </div>
-                    <div className="key-metrics-line">
-                        <p className="key-metric-table-left">This one is also a key metric:</p>
-                        <p className="key-metric-table-right">100%</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </Box>;
+        </Box>
+    </>;
 };
 
 const FilteredUsageAndQuota: React.FunctionComponent<{
     entries: UsageAndQuota[];
-}> = ({ entries }) => {
+}> = ({entries}) => {
     const filteredEntries = entries
         .filter(it => {
             return it.type === "STORAGE" || it.type === "COMPUTE";
@@ -411,7 +489,7 @@ const SubProjectListRow: React.FunctionComponent<{
                     >
                     </Link>
                 }
-                <FilteredUsageAndQuota entries={recipient.usageAndQuota} />
+                <FilteredUsageAndQuota entries={recipient.usageAndQuota}/>
                 <SmallIconButton title="View grant application"
                                  icon={"heroBanknotes"}
                                  subIcon={"heroPlusCircle"}
@@ -437,8 +515,8 @@ const SubProjectListRow: React.FunctionComponent<{
                     </Flex>}
                     right={<div className={"sub-alloc"}>
                         <ProgressBar uq={g.usageAndQuota}/>
-                        <Box width={25} height={25} />
-                </div>}
+                        <Box width={25} height={25}/>
+                    </div>}
                     onActivate={open => {
                         if (open) setNodeState(TreeAction.OPEN, recipient.owner.title, g.category.name);
                         else setNodeState(TreeAction.CLOSE, recipient.owner.title, g.category.name);
@@ -565,7 +643,8 @@ export const SubProjectList: React.FunctionComponent<{
                 <h3 style={{margin: 0}}>Sub-projects</h3>
                 <div className="sub-projects-search-bar-container">
                     <Box flexGrow={1}/>
-                    <Button className="new-sub-project-button" height={35} onClick={onNewSubProject} disabled={projectRole == OldProjectRole.USER}>
+                    <Button className="new-sub-project-button" height={35} onClick={onNewSubProject}
+                            disabled={projectRole == OldProjectRole.USER}>
                         <Icon name={"heroPlus"} mr={8}/>
                         New sub-project
                     </Button>
@@ -606,7 +685,7 @@ export const SubProjectList: React.FunctionComponent<{
                 </>}
             </>}
 
-            <div className="sub-projects-container" style={{ height: "500px", width: "100%" }}>
+            <div className="sub-projects-container" style={{height: "500px", width: "100%"}}>
                 <AutoSizer>
                     {({height, width}) => (
                         <Tree
@@ -635,7 +714,7 @@ export const SubProjectList: React.FunctionComponent<{
                                 itemCount={state.filteredSubProjectIndices.length}
                                 itemData={state.filteredSubProjectIndices}
                             >
-                                {({ index: rowIdx, style, data }) => {
+                                {({index: rowIdx, style, data}) => {
                                     const recipientIdx = data[rowIdx];
                                     const recipient = state.subAllocations.recipients[recipientIdx];
 
