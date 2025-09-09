@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database"
+	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
@@ -257,7 +257,7 @@ func driveTransform(r orcapi.Resource, product util.Option[accapi.ProductReferen
 	if flags.IncludeProduct || flags.IncludeSupport {
 		support, _ := SupportByProduct[orcapi.FSSupport](driveType, product.Value)
 		result.Status = orcapi.ResourceStatus[orcapi.FSSupport]{
-			ResolvedSupport: util.OptValue(support),
+			ResolvedSupport: util.OptValue(support.ToApi()),
 			ResolvedProduct: util.OptValue(support.Product),
 		}
 	}

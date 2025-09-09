@@ -1,6 +1,6 @@
 package migrations
 
-import db "ucloud.dk/shared/pkg/database"
+import db "ucloud.dk/shared/pkg/database2"
 
 func projectsV1() db.MigrationScript {
 	return db.MigrationScript{

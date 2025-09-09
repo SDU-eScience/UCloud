@@ -1016,19 +1016,6 @@ class ResourceStore<T>(
         output: Array<ResourceDocument<T>>,
         permission: Permission = Permission.READ,
     ): Int {
-        if (idCard is IdCard.Provider) {
-            // HACK(Dan): Yeah... The current path is too slow, and it is killing performance for everybody, need to
-            // do something about it here and this is probably good enough.
-            val fastPathCount = retrieveBulk(IdCard.System, ids, output, permission)
-            for (i in 0 until fastPathCount) {
-                val item = output[i]
-                if (!idCard.providerOf.contains(item.product)) {
-                    return 0
-                }
-            }
-            return fastPathCount
-        }
-
         try {
             if (ids.isEmpty()) return 0
             val storesVisited = HashSet<Pair<Int, Int>>()

@@ -31,7 +31,7 @@ type ExportedParametersRequest struct {
 	Name              string               `json:"name,omitempty"`
 	Replicas          int                  `json:"replicas"`
 	Parameters        json.RawMessage      `json:"parameters"`
-	Resources         []json.RawMessage    `json:"resources"`
+	Resources         json.RawMessage      `json:"resources"`
 	TimeAllocation    SimpleDuration       `json:"timeAllocation,omitempty"`
 	ResolvedProduct   json.RawMessage      `json:"resolvedProduct,omitempty"`
 	ResolvedSupport   json.RawMessage      `json:"resolvedSupport,omitempty"`
@@ -111,8 +111,8 @@ type JobUpdate struct {
 	ExpectedState          util.Option[JobState] `json:"expectedState"`
 	ExpectedDifferentState util.Option[bool]     `json:"expectedDifferentState"`
 	NewTimeAllocation      util.Option[int64]    `json:"newTimeAllocation"`
-	AllowRestart           util.Option[bool]     `json:"allowRestart"`
-	NewMounts              util.Option[[]string] `json:"newMounts"`
+	AllowRestart           util.Option[bool]     `json:"allowRestart"` // TODO deprecated
+	NewMounts              util.Option[[]string] `json:"newMounts"`    // TODO deprecated
 	Timestamp              fnd.Timestamp         `json:"timestamp"`
 }
 
@@ -121,12 +121,12 @@ type JobSpecification struct {
 	Application       NameAndVersion               `json:"application"`
 	Name              string                       `json:"name,omitempty"`
 	Replicas          int                          `json:"replicas"`
-	AllowDuplicateJob bool                         `json:"allowDuplicateJob"`
+	AllowDuplicateJob bool                         `json:"allowDuplicateJob"` // TODO deprecated
 	Parameters        map[string]AppParameterValue `json:"parameters"`
 	Resources         []AppParameterValue          `json:"resources"`
 	TimeAllocation    util.Option[SimpleDuration]  `json:"timeAllocation,omitempty"`
 	OpenedFile        string                       `json:"openedFile,omitempty"`
-	RestartOnExit     bool                         `json:"restartOnExit,omitempty"`
+	RestartOnExit     bool                         `json:"restartOnExit,omitempty"` // TODO deprecated
 	SshEnabled        bool                         `json:"sshEnabled,omitempty"`
 }
 
@@ -603,8 +603,70 @@ var JobsRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[JobSupport]]{
 	Operation:   "products",
 }
 
-// Job provider API
+// Job Control API
 // =====================================================================================================================
+
+const jobControlNamespace = "jobs/control"
+
+type JobsControlRetrieveRequest struct {
+	Id string `json:"id"`
+	JobFlags
+}
+
+var JobsControlRetrieve = rpc.Call[JobsControlRetrieveRequest, Job]{
+	BaseContext: jobControlNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesProvider,
+}
+
+type JobsControlBrowseRequest struct {
+	ItemsPerPage int                 `json:"itemsPerPage"`
+	Next         util.Option[string] `json:"next"`
+
+	JobFlags
+}
+
+var JobsControlBrowse = rpc.Call[JobsControlBrowseRequest, fnd.PageV2[Job]]{
+	BaseContext: jobControlNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Roles:       rpc.RolesProvider,
+}
+
+var JobsControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResource[JobSpecification]], fnd.BulkResponse[fnd.FindByStringId]]{
+	BaseContext: jobControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "register",
+}
+
+var JobsControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[JobUpdate]], util.Empty]{
+	BaseContext: jobControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "update",
+}
+
+// Job Provider API
+// =====================================================================================================================
+
+var JobsProviderCreate = rpc.Call[fnd.BulkRequest[Job], fnd.BulkResponse[fnd.FindByStringId]]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionCreate,
+	Roles:       rpc.RolesPrivileged,
+}
+
+var JobsProviderDelete = rpc.Call[fnd.BulkRequest[Job], fnd.BulkResponse[util.Empty]]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionDelete,
+	Roles:       rpc.RolesPrivileged,
+}
+
+var JobsProviderVerify = rpc.Call[fnd.BulkRequest[Job], util.Empty]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "verify",
+}
 
 var JobsProviderRetrieveProducts = rpc.Call[util.Empty, fnd.BulkResponse[JobSupport]]{
 	BaseContext: jobProviderNamespace,
@@ -612,3 +674,19 @@ var JobsProviderRetrieveProducts = rpc.Call[util.Empty, fnd.BulkResponse[JobSupp
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "products",
 }
+
+var JobsProviderUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAclWithResource[Job]], fnd.BulkResponse[util.Empty]]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "updateAcl",
+}
+
+/*
+var JobsProviderRename = rpc.Call[fnd.BulkRequest[JobRenameRequest], fnd.BulkResponse[util.Empty]]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesService,
+	Operation:   "rename",
+}
+*/

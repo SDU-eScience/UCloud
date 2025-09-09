@@ -17,6 +17,7 @@ import dk.sdu.cloud.messages.BinaryTypeSerializer
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.systemName
+import dk.sdu.cloud.toReadableStacktrace
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.client.utils.EmptyContent
@@ -29,12 +30,60 @@ import io.ktor.utils.io.charsets.*
 import io.ktor.utils.io.core.*
 import io.prometheus.client.Counter
 import io.prometheus.client.Gauge
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.encodeToString
+import java.io.FileWriter
 import kotlin.random.Random
 import kotlin.reflect.KClass
 
 typealias KtorHttpRequestBuilder = io.ktor.client.request.HttpRequestBuilder
+
+data class HttpDebugWriter(val mutex: Mutex, val writer: FileWriter)
+val debugFiles = HashMap<String, HttpDebugWriter>()
+val debugFilesLock = Mutex()
+
+suspend fun debugHttpCall(ctx: OutgoingHttpCall, resp: HttpResponse?) {
+    val host = ctx.attributes.outgoingTargetHost.host
+    if (!host.contains("cloud.sdu.dk") && !ctx.builder.url.toString().contains("/auth/")) {
+        val file = debugFilesLock.withLock {
+            val existing = debugFiles[host]
+            if (existing == null) {
+                val result = HttpDebugWriter(Mutex(), FileWriter("/tmp/$host.log"))
+                debugFiles[host] = result
+                result
+            } else {
+                existing
+            }
+        }
+
+        file.mutex.withLock {
+            file.writer.write(buildString {
+                append(ctx.builder.method.value)
+                append(" ")
+                append(ctx.builder.url)
+                append("\n")
+                val body = ctx.builder.body
+                if (body is TextContent) {
+                    append(body.text)
+                }
+                append("\n\n")
+                if (resp == null) {
+                    appendLine("NO RESPONSE")
+                } else {
+                    append(resp.status)
+                    append("\n")
+                    append(resp.bodyAsText())
+                }
+                append("\n-------------------------------------------------\n")
+            })
+
+            file.writer.flush()
+        }
+    }
+}
 
 class OutgoingHttpCall(
     val debugCall: CallDescription<*, *, *>,
@@ -154,6 +203,8 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
                     try {
                         httpClient.request(ctx.builder)
                     } catch (ex: Throwable) {
+                        debugHttpCall(ctx, null)
+
                         if (ex.stackTraceToString().contains("ConnectException") || ex is EOFException) {
                             log.debug("[$callId] ConnectException: ${ex.message}")
                             return IngoingCallResponse.Error(null as E?, HttpStatusCode.BadGateway, ctx)
@@ -162,6 +213,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
                         throw ex
                     }
                 }
+                debugHttpCall(ctx, resp)
                 log.trace("Received response")
 
                 ctx.response = resp
@@ -171,6 +223,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
                 val responseDebug =
                     "[$callId] name=${call.fullName} status=${result.statusCode.value} time=${end - start}ms"
+
 
                 log.debug(responseDebug)
                 if (result.statusCode.isSuccess()) {

@@ -18,7 +18,7 @@ import (
 	"ucloud.dk/core/pkg/migrations"
 	orc "ucloud.dk/core/pkg/orchestrator"
 	gonjautil "ucloud.dk/gonja/v2/utils"
-	db "ucloud.dk/shared/pkg/database"
+	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
@@ -51,7 +51,6 @@ func Launch() {
 		dbConfig.Database,
 		dbConfig.Ssl,
 	)
-	db.Database.Connection.MapperFunc(util.ToSnakeCase)
 	migrations.Init()
 	db.Migrate()
 

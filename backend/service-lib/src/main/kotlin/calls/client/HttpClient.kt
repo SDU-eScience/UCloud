@@ -20,8 +20,8 @@ fun createHttpClient() = HttpClient(CIO) {
 
     install(HttpTimeout) {
         requestTimeoutMillis = 1000 * 60 * 5
-        connectTimeoutMillis = 1000
-        socketTimeoutMillis = 1000
+        connectTimeoutMillis = 1000 * 30
+        socketTimeoutMillis = 1000 * 30
     }
 
     engine {
