@@ -195,8 +195,9 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
                                             fetchAndImportParameters(res);
                                             dialogStore.success();
                                         },
-                                        show: res => res.status.type === "FILE" && res.id.endsWith(".json")
-                                    }
+                                        show: res => res.status.type === "FILE" && res.id.endsWith(".json"),
+                                        provider: null
+                                    },
                                 }}
                             />,
                             () => undefined,
@@ -214,7 +215,8 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
                     onClick(res) {
                         readParsedJSON(res.status.jobParametersJson);
                         dialogStore.success();
-                    }
+                    },
+                    provider: null
                 },
                 additionalFilters: {filterApplication: application.metadata.name, includeParameters: "true"},
             }} />

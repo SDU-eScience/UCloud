@@ -8,6 +8,7 @@ import FavoritesBrowse from "./FavoritesBrowse";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
+import {getProviderField} from "@/Applications/Jobs/Create";
 
 
 
@@ -34,7 +35,8 @@ export function addFavoriteSelect(onSelect: (file: UFile) => void, isFileAllowed
         show(res) {
             if ("path" in res) return true;
             else return isFileAllowed(res);
-        }
+        },
+        provider: getProviderField() ?? null,
     }} />, () => void 0);
 }
 

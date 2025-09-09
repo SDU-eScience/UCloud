@@ -901,18 +901,22 @@ export function getProviderField(): string | undefined {
     try {
         const validatedMachineReservation = validateMachineReservation();
         return validatedMachineReservation?.provider;
-    } catch (e) {
+    } catch {
         return undefined;
     }
 }
 
-export function checkProviderMismatch(resource: Resource, resourceType: string): string | false {
-    const provider = getProviderField();
-    const resourceProvider = resource.specification.product.provider;
+export function checkProviderMismatch<T>(provider: string | undefined, resource: T & {specification?: Resource["specification"]}, resourceType: string): string | false {
+    const resourceProvider = resource.specification?.product.provider;
+    if (!resourceProvider) return false;
     if (provider && provider !== resourceProvider) {
         return providerMismatchError(resourceProvider, resourceType);
     }
     return false;
+}
+
+export function checkMachineProviderMismatch(resource: Resource, resourceType: string): string | false {
+    return checkProviderMismatch(getProviderField(), resource, resourceType);
 }
 
 export function providerMismatchError(resourceProvider: string, resourceType: string): string {

@@ -484,7 +484,8 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                             show() {
                                 return true;
                             },
-                            text: "Accept"
+                            text: "Accept",
+                            provider: null,
                         }, share, {color: "successMain", width: "72px"})!);
                         group.appendChild(browser.defaultButtonRenderer({
                             onClick: async () => {
@@ -494,7 +495,8 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                             show() {
                                 return true;
                             },
-                            text: "Decline"
+                            text: "Decline",
+                            provider: null,
                         }, share, {color: "errorMain", width: "72px"})!);
                     } else {
                         const {state} = share.status;

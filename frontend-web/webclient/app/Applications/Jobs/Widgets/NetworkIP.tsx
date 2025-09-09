@@ -8,7 +8,7 @@ import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {NetworkIP} from "@/UCloud/NetworkIPApi";
-import {checkProviderMismatch} from "../Create";
+import {checkProviderMismatch, getProviderField} from "../Create";
 import {NetworkIPBrowse} from "@/Applications/NetworkIP/NetworkIPBrowse";
 import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -31,11 +31,10 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
                         dialogStore.success();
                     },
                     show(res) {
-                        const errorMessage = checkProviderMismatch(res, "Public IPs");
-                        if (errorMessage) return errorMessage;
                         return res.status.boundTo.length === 0;
                     },
-                }
+                    provider: getProviderField() ?? null,
+                },
             }}
         />, noopCall, true, largeModalStyle);
     }, []);

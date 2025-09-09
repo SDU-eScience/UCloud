@@ -421,7 +421,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                     } catch (e) {
                                         displayErrorMessageOrDefault(e, "Failed to move to folder");
                                     }
-                                }
+                                },
+                                provider: null,
                             },
                             initialPath: pathRef.current,
                         }} />,
@@ -744,7 +745,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         }
     }
 
-    public copyModal(ids: string[], provider: string, reload: (result: any) => void) {
+    public copyModal(ids: string[], provider: string, reload: (result) => void) {
         const pathRef = {current: getParentPath(ids[0])};
         dialogStore.addDialog(
             <FileBrowse opts={{
@@ -774,7 +775,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             displayErrorMessageOrDefault(e, "Failed to move to folder");
                             return false;
                         }
-                    }
+                    },
+                    provider
                 },
                 additionalFilters: {
                     filterProvider: provider
@@ -816,7 +818,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         } catch (e) {
                             displayErrorMessageOrDefault(e, "Failed to move to folder");
                         }
-                    }
+                    },
+                    provider
                 },
                 initialPath: pathRef.current,
                 additionalFilters: {filterProvider: provider}

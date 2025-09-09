@@ -156,7 +156,8 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                         show(res) {
                             return true
                         },
-                        text: "Accept"
+                        text: "Accept",
+                        provider: null
                     }, invite, {color: "successMain", width: "72px"})!);
                     group.appendChild(browser.defaultButtonRenderer({
                         onClick: async () => {
@@ -166,7 +167,8 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                         show(res) {
                             return true
                         },
-                        text: "Decline"
+                        text: "Decline",
+                        provider: null
                     }, invite, {color: "errorMain", width: "72px"})!);
                 });
 

@@ -389,6 +389,7 @@ export const Overview: React.FunctionComponent = () => {
                             dispatch({type: "AddFolder", folderPath: target});
                             dialogStore.success();
                         },
+                        provider,
                     }
                 }}
             />,
