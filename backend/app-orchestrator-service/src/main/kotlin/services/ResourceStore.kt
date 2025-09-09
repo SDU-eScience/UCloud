@@ -233,7 +233,7 @@ class ResourceStore<T>(
                     synchronizeNow()
                     val end = Time.now()
 
-                    delay(max(1000, 10_000 - (end - start)))
+                    delay(max(1000, 30_000 - (end - start)))
                 } catch (ex: Throwable) {
                     log.warn(ex.toReadableStacktrace().toString())
                 }
@@ -1016,6 +1016,19 @@ class ResourceStore<T>(
         output: Array<ResourceDocument<T>>,
         permission: Permission = Permission.READ,
     ): Int {
+        if (idCard is IdCard.Provider) {
+            // HACK(Dan): Yeah... The current path is too slow, and it is killing performance for everybody, need to
+            // do something about it here and this is probably good enough.
+            val fastPathCount = retrieveBulk(IdCard.System, ids, output, permission)
+            for (i in 0 until fastPathCount) {
+                val item = output[i]
+                if (!idCard.providerOf.contains(item.product)) {
+                    return 0
+                }
+            }
+            return fastPathCount
+        }
+
         try {
             if (ids.isEmpty()) return 0
             val storesVisited = HashSet<Pair<Int, Int>>()
@@ -1122,7 +1135,7 @@ class ResourceStore<T>(
         }
 
         companion object {
-            const val BLOCK_SIZE = 1024 * 128
+            const val BLOCK_SIZE = 1024 * 4
         }
     }
 
@@ -1183,6 +1196,10 @@ class ResourceStore<T>(
         val slot = (id - loaded.minimumId).toInt()
         val reference = loaded.entries[slot]
         val referenceIsUid = loaded.entryIsUid[slot]
+
+        if (reference == 0) {
+            return null
+        }
 
         return findOrLoadBucket(if (referenceIsUid) reference else 0, if (referenceIsUid) 0 else reference)
     }
