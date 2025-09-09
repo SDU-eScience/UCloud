@@ -20,19 +20,20 @@ type ServiceDefinition struct {
 }
 
 type HttpCallLogEntry struct {
-	JobId        string                              `json:"jobId"`
-	HandledBy    ServiceInstance                     `json:"handledBy"` // dummy value/not set
-	CausedBy     util.Option[string]                 `json:"causedBy"`  // not set
-	RequestName  string                              `json:"requestName"`
-	UserAgent    util.Option[string]                 `json:"userAgent"`
-	RemoteOrigin string                              `json:"remoteOrigin"`
-	Token        util.Option[SecurityPrincipalToken] `json:"token"`
-	RequestSize  uint64                              `json:"requestSize"`
-	RequestJson  util.Option[json.RawMessage]        `json:"requestJson"`
-	ResponseCode int                                 `json:"responseCode"`
-	ResponseTime uint64                              `json:"responseTime"`
-	Expiry       uint64                              `json:"expiry"`
-	Project      util.Option[string]                 `json:"project"`
+	JobId             string                              `json:"jobId"`
+	HandledBy         ServiceInstance                     `json:"handledBy"` // dummy value/not set
+	CausedBy          util.Option[string]                 `json:"causedBy"`  // not set
+	RequestName       string                              `json:"requestName"`
+	UserAgent         util.Option[string]                 `json:"userAgent"`
+	RemoteOrigin      string                              `json:"remoteOrigin"`
+	Token             util.Option[SecurityPrincipalToken] `json:"token"`
+	RequestSize       uint64                              `json:"requestSize"`
+	RequestJson       util.Option[json.RawMessage]        `json:"requestJson"`
+	ResponseCode      int                                 `json:"responseCode"`
+	ResponseTime      uint64                              `json:"responseTime"`
+	ResponseTimeNanos uint64                              `json:"responseTimeNanos"`
+	Expiry            uint64                              `json:"expiry"`
+	Project           util.Option[string]                 `json:"project"`
 }
 
 type SecurityPrincipalToken struct {

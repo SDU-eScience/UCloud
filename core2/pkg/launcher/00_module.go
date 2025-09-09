@@ -231,7 +231,7 @@ func Launch() {
 	}
 
 	rpc.AuditConsumer = func(event rpc.HttpCallLogEntry) {
-		log.Info("%v/%v %v ms", event.RequestName, event.ResponseCode, event.ResponseTime)
+		log.Info("%v/%v %v", event.RequestName, event.ResponseCode, time.Duration(event.ResponseTimeNanos)*time.Nanosecond)
 		/*
 			data, _ := json.MarshalIndent(event, "", "    ")
 			log.Info("Audit: %s", string(data))
