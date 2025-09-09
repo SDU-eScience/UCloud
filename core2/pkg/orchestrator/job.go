@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -96,6 +98,8 @@ func initJobs() {
 	})
 
 	orcapi.JobsControlAddUpdate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.JobUpdate]]) (util.Empty, *util.HttpError) {
+		now := time.Now()
+
 		updatesById := map[string][]orcapi.JobUpdate{}
 		for _, item := range request.Items {
 			updatesById[item.Id] = append(updatesById[item.Id], item.Update)
@@ -104,8 +108,11 @@ func initJobs() {
 		for jobId, updates := range updatesById {
 			ok := ResourceUpdate(info.Actor, jobType, ResourceParseId(jobId), orcapi.PermissionProvider, func(r *resource, mapped orcapi.Job) {
 				job := r.Extra.(*internalJob)
+				job.ChangeFlags = internalJobPartialChange | internalJobChangeUpdates | internalJobChangeMetadata
 
 				for _, update := range updates {
+					update.Timestamp = fndapi.Timestamp(now)
+
 					shouldApply := true
 					if s := update.ExpectedState; s.Present {
 						shouldApply = job.State == s.Value
@@ -143,7 +150,7 @@ func initJobs() {
 			})
 
 			if !ok {
-				return util.Empty{}, util.HttpErr(http.StatusNotFound, "unknown job or permission denied")
+				return util.Empty{}, util.HttpErr(http.StatusNotFound, "unknown job or permission denied (%v)", jobId)
 			}
 		}
 
@@ -447,6 +454,16 @@ func JobsRetrieve(actor rpc.Actor, id string, flags orcapi.JobFlags) (orcapi.Job
 	return ResourceRetrieve[orcapi.Job](actor, jobType, ResourceParseId(id), flags.ResourceFlags)
 }
 
+type internalJobChangeFlag uint64
+
+const (
+	internalJobPartialChange internalJobChangeFlag = 1 << iota
+	internalJobChangeMetadata
+	internalJobChangeResources
+	internalJobChangeParameters
+	internalJobChangeUpdates
+)
+
 type internalJob struct {
 	Application    orcapi.NameAndVersion
 	Name           string
@@ -462,6 +479,9 @@ type internalJob struct {
 	JobParametersJson orcapi.ExportedParameters
 	StartedAt         util.Option[fndapi.Timestamp]
 	Updates           []orcapi.JobUpdate
+
+	ChangeFlags       internalJobChangeFlag
+	LastFlushedUpdate atomic.Uint64
 }
 
 func jobLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource) {
@@ -610,34 +630,202 @@ func jobLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource
 			info.OutputFolder.Set(row.OutputFolder.String)
 		}
 
+		info.LastFlushedUpdate.Store(uint64(len(info.Updates)))
 		r.Extra = info
 	}
 }
 
-func jobPersist(tx *db.Transaction, resources []*resource) {
-	db.Exec(
-		tx,
-		`
-with data as (
-	select
-		unnest(cast(:app_names as text[])) app_name,
-		unnest(cast(:app_versions as text[])) app_version,
-		unnest(cast(:time_allocs as int8[])) time_alloc,
-		unnest(cast(:names as text[])) name,
-		unnest(cast(:folders as text[])) folder,
-		unnest(cast(:states as text[])) state,
-		unnest(cast(:started_at as text[])) started_at,
-		unnest(cast(:ids as text[])) id,
-		unnest(cast(:exported_params as text[])) exported_params,
-		unnest(cast(:opened_files as text[])) opened_files
-)
-insert into app_orchestrator.jobs(application_name, application_version, time_allocation_millis, 
-	name, output_folder, current_state, started_at, resource, job_parameters, opened_file) 
-values (:app_name, :app_version, :time_alloc, :name, :folder, :current_state, :started_at, 
-	:job_id, :params, :opened_file)
-	    `,
-		db.Params{},
-	)
+func jobPersist(b *db.Batch, r *resource) {
+	timer := util.NewTimer()
+
+	if r.MarkedForDeletion {
+		db.BatchExec(
+			b,
+			`
+				delete from app_orchestrator.job_resources
+				where job_id = :job_id
+		    `,
+			db.Params{
+				"job_id": r.Id,
+			},
+		)
+
+		db.BatchExec(
+			b,
+			`
+				delete from app_orchestrator.job_input_parameters
+				where job_id = :job_id
+		    `,
+			db.Params{
+				"job_id": r.Id,
+			},
+		)
+
+		db.BatchExec(
+			b,
+			`
+				delete from app_orchestrator.jobs
+				where resource = :job_id
+		    `,
+			db.Params{
+				"job_id": r.Id,
+			},
+		)
+	} else {
+		info := r.Extra.(*internalJob)
+
+		timeAlloc := sql.NullInt64{}
+		if info.TimeAllocation.Present {
+			timeAlloc.Valid = true
+			timeAlloc.Int64 = info.TimeAllocation.Value.ToMillis()
+		}
+
+		startedAt := sql.NullTime{}
+		if info.StartedAt.Present {
+			startedAt.Valid = true
+			startedAt.Time = info.StartedAt.Value.Time()
+		}
+
+		exportedParams, _ := json.Marshal(info.JobParametersJson)
+
+		isPartial := info.ChangeFlags&internalJobPartialChange != 0
+
+		if !isPartial || info.ChangeFlags&internalJobChangeMetadata != 0 {
+			db.BatchExec(
+				b,
+				`
+					insert into app_orchestrator.jobs (application_name, application_version, time_allocation_millis, 
+						replicas, name, output_folder, current_state, started_at, resource, job_parameters, 
+						opened_file, ssh_enabled)
+					values (:app_name, :app_version, :time_alloc, :replicas, :name, :output_folder, :state, :started_at,
+						:resource, :exported_params, :opened_file, :ssh_enabled)
+					on conflict (resource) do update set
+						application_name = excluded.application_name,
+						application_version = excluded.application_version,
+						time_allocation_millis = excluded.time_allocation_millis,
+						replicas = excluded.replicas,
+						name = excluded.name,
+						output_folder = excluded.output_folder,
+						current_state = excluded.current_state,
+						started_at = excluded.started_at,
+						resource = excluded.resource,
+						job_parameters = excluded.job_parameters,
+						opened_file = excluded.opened_file,
+						ssh_enabled = excluded.ssh_enabled,
+						last_update = now()
+				`,
+				db.Params{
+					"app_name":        info.Application.Name,
+					"app_version":     info.Application.Version,
+					"time_alloc":      timeAlloc,
+					"replicas":        info.Replicas,
+					"name":            util.OptSqlStringIfNotEmpty(info.Name),
+					"output_folder":   util.OptSqlStringIfNotEmpty(info.OutputFolder.GetOrDefault("")),
+					"state":           info.State,
+					"started_at":      startedAt,
+					"resource":        r.Id,
+					"exported_params": exportedParams,
+					"opened_file":     util.OptSqlStringIfNotEmpty(info.OpenedFile),
+					"ssh_enabled":     info.SshEnabled,
+				},
+			)
+		}
+
+		if !isPartial || info.ChangeFlags&internalJobChangeParameters != 0 {
+			db.BatchExec(
+				b,
+				`
+					delete from app_orchestrator.job_input_parameters
+					where job_id = :job_id
+				`,
+				db.Params{
+					"job_id": r.Id,
+				},
+			)
+
+			for name, param := range info.Parameters {
+				paramValue, _ := json.Marshal(param)
+
+				db.BatchExec(
+					b,
+					`
+						insert into app_orchestrator.job_input_parameters (name, value, job_id) 
+						values (:name, :value, :job_id)
+					`,
+					db.Params{
+						"job_id": r.Id,
+						"name":   name,
+						"value":  paramValue,
+					},
+				)
+			}
+		}
+
+		if !isPartial || info.ChangeFlags&internalJobChangeResources != 0 {
+			db.BatchExec(
+				b,
+				`
+					delete from app_orchestrator.job_resources
+					where job_id = :job_id
+				`,
+				db.Params{
+					"job_id": r.Id,
+				},
+			)
+
+			for _, param := range info.Resources {
+				paramValue, _ := json.Marshal(param)
+
+				db.BatchExec(
+					b,
+					`
+						insert into app_orchestrator.job_resources(resource, job_id) 
+						values (:value, :job_id)
+					`,
+					db.Params{
+						"job_id": r.Id,
+						"value":  paramValue,
+					},
+				)
+			}
+		}
+
+		if !isPartial || info.ChangeFlags&internalJobChangeUpdates != 0 {
+			lastUpdate := int(info.LastFlushedUpdate.Load())
+			if !isPartial || lastUpdate == 0 {
+				db.BatchExec(
+					b,
+					`delete from provider.resource_update where resource = :job_id`,
+					db.Params{
+						"job_id": r.Id,
+					},
+				)
+			}
+
+			for i := lastUpdate; i < len(info.Updates); i++ {
+				update := info.Updates[i]
+				extra, _ := json.Marshal(update)
+
+				db.BatchExec(
+					b,
+					`
+						insert into provider.resource_update(resource, created_at, status, extra) 
+						values (:job_id, :created_at, :status, :extra)
+					`,
+					db.Params{
+						"job_id":     r.Id,
+						"created_at": update.Timestamp.Time(),
+						"status":     util.OptSqlStringIfNotEmpty(update.Status.GetOrDefault("")),
+						"extra":      extra,
+					},
+				)
+			}
+
+			info.LastFlushedUpdate.Store(uint64(len(info.Updates)))
+		}
+	}
+
+	log.Info("job persist took %v", timer.Mark())
 }
 
 func jobTransform(

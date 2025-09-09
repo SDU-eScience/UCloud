@@ -265,24 +265,30 @@ func driveTransform(r orcapi.Resource, product util.Option[accapi.ProductReferen
 	return result
 }
 
-func drivePersist(tx *db.Transaction, resources []*resource) {
-	var ids []int64
-	var titles []string
-	for _, r := range resources {
-		ids = append(ids, int64(r.Id))
-		titles = append(titles, r.Extra.(*driveInfo).Title)
+func drivePersist(b *db.Batch, resource *resource) {
+	if resource.MarkedForDeletion {
+		db.BatchExec(
+			b,
+			`
+				delete from file_orchestrator.file_collections
+				where resource = :resource
+		    `,
+			db.Params{
+				"resource": resource.Id,
+			},
+		)
+	} else {
+		db.BatchExec(
+			b,
+			`
+				insert into file_orchestrator.file_collections(resource, title)
+				values (:resource, :title)
+				on conflict (resource) do update set title = excluded.title
+		    `,
+			db.Params{
+				"resource": resource.Id,
+				"title":    resource.Extra.(*driveInfo).Title,
+			},
+		)
 	}
-
-	db.Exec(
-		tx,
-		`
-			insert into file_orchestrator.file_collections(resource, title) 
-			select unnest(cast(:ids as int8[])), unnest(cast(:titles as text[]))
-			on conflict (resource) do update set title = excluded.title
-	    `,
-		db.Params{
-			"ids":    ids,
-			"titles": titles,
-		},
-	)
 }

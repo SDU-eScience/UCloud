@@ -101,7 +101,7 @@ type resourceTypeGlobal struct {
 	Flags resourceTypeFlags
 
 	OnLoad      func(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource)
-	OnPersist   func(tx *db.Transaction, resources []*resource)
+	OnPersist   func(b *db.Batch, resources *resource)
 	Transformer func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any
 }
 
@@ -166,7 +166,7 @@ func InitResourceType(
 	typeName string,
 	flags resourceTypeFlags,
 	doLoad func(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource),
-	doPersist func(tx *db.Transaction, resources []*resource),
+	doPersist func(b *db.Batch, resources *resource),
 	transformer func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any,
 ) {
 	if !resourceGlobals.Testing.Enabled {
@@ -238,7 +238,7 @@ func resourcesReadEx(
 			permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionRead)
 			permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionEdit)
 		} else {
-			providerId, isProvider := strings.CutPrefix(fndapi.ProviderSubjectPrefix, actor.Username)
+			providerId, isProvider := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
 
 			if isProvider {
 				if r.Product.Present {

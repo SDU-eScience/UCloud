@@ -167,15 +167,17 @@ func lResourcePersist(r *resource) {
 
 	g := resourceGetGlobals(r.Type)
 	db.NewTx0(func(tx *db.Transaction) {
+		b := db.BatchNew(tx)
+
 		if r.MarkedForDeletion {
-			g.OnPersist(tx, []*resource{r})
+			g.OnPersist(b, r)
 
 			params := db.Params{
 				"id": r.Id,
 			}
 
-			db.Exec(
-				tx,
+			db.BatchExec(
+				b,
 				`
 					delete from provider.resource_acl_entry
 					where resource_id = :id
@@ -185,8 +187,8 @@ func lResourcePersist(r *resource) {
 
 			// NOTE(Dan): Shouldn't technically be needed, but for backward-compatibility reasons we put this here
 			// to be certain that updates are definitely deleted.
-			db.Exec(
-				tx,
+			db.BatchExec(
+				b,
 				`
 					delete from provider.resource_update
 					where resource = :id
@@ -194,8 +196,8 @@ func lResourcePersist(r *resource) {
 				params,
 			)
 
-			db.Exec(
-				tx,
+			db.BatchExec(
+				b,
 				`
 					delete from provider.resource
 					where id = :id
@@ -209,8 +211,8 @@ func lResourcePersist(r *resource) {
 				Provider: "_ucloud",
 			})
 
-			db.Exec(
-				tx,
+			db.BatchExec(
+				b,
 				`
 					with products as (
 						select (
@@ -245,8 +247,8 @@ func lResourcePersist(r *resource) {
 				},
 			)
 
-			db.Exec(
-				tx,
+			db.BatchExec(
+				b,
 				`
 					delete from provider.resource_acl_entry
 					where resource_id = :id
@@ -269,8 +271,8 @@ func lResourcePersist(r *resource) {
 					}
 				}
 
-				db.Exec(
-					tx,
+				db.BatchExec(
+					b,
 					`
 						with
 							raw_entries as (
@@ -305,8 +307,10 @@ func lResourcePersist(r *resource) {
 				)
 			}
 
-			g.OnPersist(tx, []*resource{r})
+			g.OnPersist(b, r)
 		}
+
+		db.BatchSend(b)
 	})
 }
 

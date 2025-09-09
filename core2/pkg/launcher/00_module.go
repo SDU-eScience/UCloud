@@ -283,10 +283,12 @@ func Launch() {
 
 	log.Info("UCloud is ready!")
 
-	err = http.ListenAndServe("0.0.0.0:8080", http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		handler, _ := rpc.DefaultServer.Mux.Handler(request)
-		handler.ServeHTTP(writer, request)
-	}))
+	err = http.ListenAndServe("0.0.0.0:8080", collapseServerSlashes(
+		http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			handler, _ := rpc.DefaultServer.Mux.Handler(request)
+			handler.ServeHTTP(writer, request)
+		}),
+	))
 
 	log.Warn("Failed to start listener: %s", err)
 	os.Exit(1)
@@ -403,4 +405,42 @@ func readPublicKey(content string) (*rsa.PublicKey, error) {
 		}
 	}
 	return nil, err
+}
+
+func collapseServerSlashes(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := r.URL.Path
+		if p == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Preserve a trailing slash (except for root)
+		trailing := strings.HasSuffix(p, "/") && p != "/"
+
+		// Replace until stable
+		clean := p
+		for {
+			newp := strings.ReplaceAll(clean, "//", "/")
+			if newp == clean {
+				break
+			}
+			clean = newp
+		}
+		if trailing && clean != "/" && !strings.HasSuffix(clean, "/") {
+			clean += "/"
+		}
+
+		if clean == p {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Clone request and update path (leave query untouched)
+		r2 := r.Clone(r.Context())
+		u := *r.URL
+		u.Path = clean
+		r2.URL = &u
+		next.ServeHTTP(w, r2)
+	})
 }

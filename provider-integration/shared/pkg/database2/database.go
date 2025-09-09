@@ -71,7 +71,7 @@ db.NewTx0(func(tx *db.Transaction) {
 		db.Params{},
 	)
 
-	db.BatchSend(tx, b)
+	db.BatchSend(b)
 
 	rows := *rowPromise
 
@@ -79,8 +79,6 @@ db.NewTx0(func(tx *db.Transaction) {
 	for _, row := range rows {
 		sum += row.Hello
 	}
-
-	log.Info("end with %v rows sum = %v", len(rows), sum)
 })
 
 db.NewTx0(func(tx *db.Transaction) {
@@ -477,13 +475,13 @@ func transformQuery(query string, args Params) (string, []any, error) {
 }
 
 type Batch struct {
-	ctx      *Transaction
+	Tx       *Transaction
 	delegate *pgx.Batch
 }
 
 func BatchNew(ctx *Transaction) *Batch {
 	return &Batch{
-		ctx:      ctx,
+		Tx:       ctx,
 		delegate: &pgx.Batch{},
 	}
 }
@@ -491,8 +489,8 @@ func BatchNew(ctx *Transaction) *Batch {
 func BatchExec(batch *Batch, query string, args Params) {
 	statement, params, err := transformQuery(query, args)
 	if err != nil {
-		batch.ctx.Ok = false
-		batch.ctx.error = err
+		batch.Tx.Ok = false
+		batch.Tx.error = err
 		return
 	}
 	promise := batch.delegate.Queue(statement, params...)
@@ -506,8 +504,8 @@ func BatchGet[T any](batch *Batch, query string, args Params) *util.Option[T] {
 	var result util.Option[T]
 	statement, params, err := transformQuery(query, args)
 	if err != nil {
-		batch.ctx.Ok = false
-		batch.ctx.error = err
+		batch.Tx.Ok = false
+		batch.Tx.error = err
 		return &util.Option[T]{}
 	}
 	promise := batch.delegate.Queue(statement, params...)
@@ -515,9 +513,9 @@ func BatchGet[T any](batch *Batch, query string, args Params) *util.Option[T] {
 		var scanned []T
 		scanner := pgxscan.NewScanner(rows, pgxscan.ErrNoRowsQuery(false))
 
-		if err := scanner.Scan(&scanned); err != nil && batch.ctx.Ok {
-			batch.ctx.Ok = false
-			batch.ctx.error = fmt.Errorf("Database select failed: %v. Query: %v", err, query)
+		if err := scanner.Scan(&scanned); err != nil && batch.Tx.Ok {
+			batch.Tx.Ok = false
+			batch.Tx.error = fmt.Errorf("Database select failed: %v. Query: %v", err, query)
 			return nil
 		}
 
@@ -534,17 +532,17 @@ func BatchSelect[T any](batch *Batch, query string, args Params) *[]T {
 	var result []T
 	statement, params, err := transformQuery(query, args)
 	if err != nil {
-		batch.ctx.Ok = false
-		batch.ctx.error = err
+		batch.Tx.Ok = false
+		batch.Tx.error = err
 		return &result
 	}
 	promise := batch.delegate.Queue(statement, params...)
 	promise.Query(func(rows pgx.Rows) error {
 		scanner := pgxscan.NewScanner(rows, pgxscan.ErrNoRowsQuery(false))
 
-		if err := scanner.Scan(&result); err != nil && batch.ctx.Ok {
-			batch.ctx.Ok = false
-			batch.ctx.error = fmt.Errorf("Database select failed: %v. Query: %v", err, query)
+		if err := scanner.Scan(&result); err != nil && batch.Tx.Ok {
+			batch.Tx.Ok = false
+			batch.Tx.error = fmt.Errorf("Database select failed: %v. Query: %v", err, query)
 			return nil
 		}
 
@@ -553,18 +551,18 @@ func BatchSelect[T any](batch *Batch, query string, args Params) *[]T {
 	return &result
 }
 
-func BatchSend(ctx *Transaction, batch *Batch) {
-	if !batch.ctx.Ok {
+func BatchSend(batch *Batch) {
+	if !batch.Tx.Ok {
 		return
 	}
 
 	caller := util.GetCaller()
 	start := time.Now()
 
-	results := ctx.tx.SendBatch(context.Background(), batch.delegate)
-	if err := results.Close(); err != nil && batch.ctx.Ok {
-		batch.ctx.Ok = false
-		batch.ctx.error = err
+	results := batch.Tx.tx.SendBatch(context.Background(), batch.delegate)
+	if err := results.Close(); err != nil && batch.Tx.Ok {
+		batch.Tx.Ok = false
+		batch.Tx.error = err
 	}
 
 	end := time.Now()
