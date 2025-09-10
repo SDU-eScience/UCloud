@@ -84,6 +84,15 @@ func initProviders() {
 	providerLogFiles.Logs = map[string]*providerLogFile{}
 }
 
+func ProviderDomain(providerId string) (string, bool) {
+	client, ok := providerClient(providerId)
+	if ok {
+		return client.BasePath, true
+	} else {
+		return "", false
+	}
+}
+
 func providerClient(providerId string) (*rpc.Client, bool) {
 	return providerClients.Get(providerId, func() (*rpc.Client, error) {
 		basePath, ok := db.NewTx2(func(tx *db.Transaction) (string, bool) {

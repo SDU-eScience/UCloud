@@ -122,16 +122,14 @@ func Launch() {
 		}, true
 	}
 
-	rpc.ServerAuthenticator = func(r *http.Request) (rpc.Actor, *util.HttpError) {
-		authHeader := r.Header.Get("Authorization")
-		jwtToken, ok := strings.CutPrefix(authHeader, "Bearer ")
-		if !ok {
+	rpc.BearerAuthenticator = func(bearer string, projectHeader string) (rpc.Actor, *util.HttpError) {
+		if bearer == "" {
 			return rpc.Actor{Role: rpc.RoleGuest}, nil
 		}
 
 		unverifiedSubject := ""
 		{
-			unverifiedTok, _, err := jwtParser.ParseUnverified(jwtToken, &jwt.MapClaims{})
+			unverifiedTok, _, err := jwtParser.ParseUnverified(bearer, &jwt.MapClaims{})
 			if err != nil {
 				return rpc.Actor{Role: rpc.RoleGuest}, nil
 			}
@@ -148,7 +146,7 @@ func Launch() {
 				return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Bad token supplied")
 			}
 
-			tok, err := verifier.Parser.ParseWithClaims(jwtToken, &jwt.MapClaims{}, verifier.KeyFunc)
+			tok, err := verifier.Parser.ParseWithClaims(bearer, &jwt.MapClaims{}, verifier.KeyFunc)
 			if err != nil {
 				return rpc.Actor{Role: rpc.RoleGuest}, nil
 			}
@@ -188,7 +186,7 @@ func Launch() {
 		} else {
 			claims := &rpc.CorePrincipalClaims{}
 
-			tok, err := jwtParser.ParseWithClaims(jwtToken, claims, jwtKeyFunc)
+			tok, err := jwtParser.ParseWithClaims(bearer, claims, jwtKeyFunc)
 			if err != nil {
 				return rpc.Actor{Role: rpc.RoleGuest}, nil
 			}
@@ -213,7 +211,6 @@ func Launch() {
 				return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "Token has expired")
 			}
 
-			projectHeader := r.Header.Get("Project")
 			project := util.OptNone[rpc.ProjectId]()
 			if projectHeader != "" {
 				project.Set(rpc.ProjectId(projectHeader))
@@ -228,6 +225,13 @@ func Launch() {
 				return actor, nil
 			}
 		}
+	}
+
+	rpc.ServerAuthenticator = func(r *http.Request) (rpc.Actor, *util.HttpError) {
+		authHeader := r.Header.Get("Authorization")
+		bearer, _ := strings.CutPrefix(authHeader, "Bearer ")
+		projectHeader := r.Header.Get("Project")
+		return rpc.BearerAuthenticator(bearer, projectHeader)
 	}
 
 	rpc.AuditConsumer = func(event rpc.HttpCallLogEntry) {

@@ -312,6 +312,8 @@ func lResourcePersist(r *resource) {
 
 		db.BatchSend(b)
 	})
+
+	g.OnPersistCommitted(r)
 }
 
 func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string) {

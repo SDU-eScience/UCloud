@@ -154,12 +154,14 @@ func (job *Job) getParameterValues(ofType AppParameterValueType) []AppParameterV
 }
 
 type OpenSessionWithProvider struct {
+	// TODO Make sure we do not put this in the audit log
 	ProviderDomain string      `json:"providerDomain"`
 	ProviderId     string      `json:"providerId"`
 	Session        OpenSession `json:"session"`
 }
 
 type OpenSession struct {
+	// TODO Make sure we do not put this in the audit log
 	Type           OpenSessionType `json:"type"`
 	JobId          string          `json:"jobId"`
 	Rank           int             `json:"rank"`
@@ -531,10 +533,72 @@ var JobsCreate = rpc.Call[fnd.BulkRequest[JobSpecification], fnd.BulkResponse[fn
 	Roles:       rpc.RolesEndUser,
 }
 
-var JobsDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
+var JobsTerminate = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
 	BaseContext: jobNamespace,
-	Convention:  rpc.ConventionDelete,
+	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
+	Operation:   "terminate",
+}
+
+var JobsExtend = rpc.Call[fnd.BulkRequest[JobsExtendRequestItem], fnd.BulkResponse[util.Empty]]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "extend",
+}
+
+var JobsSuspend = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "suspend",
+}
+
+var JobsUnsuspend = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "unsuspend",
+}
+
+type JobsOpenInteractiveSessionRequestItem struct {
+	Id          string                 `json:"id"`
+	Rank        int                    `json:"rank"`
+	SessionType InteractiveSessionType `json:"sessionType"`
+	Target      util.Option[string]    `json:"target"`
+}
+
+var JobsOpenInteractiveSession = rpc.Call[fnd.BulkRequest[JobsOpenInteractiveSessionRequestItem], fnd.BulkResponse[OpenSessionWithProvider]]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "interactiveSession",
+}
+
+type JobsRequestDynamicParametersRequest struct {
+	Application NameAndVersion `json:"application"`
+}
+
+type JobsRequestDynamicParametersResponse struct {
+	ParametersByProvider map[string][]ApplicationParameter `json:"parametersByProvider"`
+}
+
+var JobsRequestDynamicParameters = rpc.Call[JobsRequestDynamicParametersRequest, JobsRequestDynamicParametersResponse]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "requestDynamicParameters",
+}
+
+type JobsOpenTerminalInFolderRequestItem struct {
+	Folder string `json:"folder"`
+}
+
+var JobsOpenTerminalInFolder = rpc.Call[fnd.BulkRequest[JobsOpenTerminalInFolderRequestItem], fnd.BulkResponse[OpenSessionWithProvider]]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "openTerminalInFolder",
 }
 
 /*
@@ -603,6 +667,22 @@ var JobsRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[JobSupport]]{
 	Operation:   "products",
 }
 
+const JobsFollowEndpoint = "/api/jobs"
+
+type JobLogMessage struct {
+	Rank    int                 `json:"rank"`
+	Stdout  util.Option[string] `json:"stdout"`
+	Stderr  util.Option[string] `json:"stderr"`
+	Channel util.Option[string] `json:"channel"`
+}
+
+type JobsFollowMessage struct {
+	Updates    []JobUpdate            `json:"updates"`
+	Log        []JobLogMessage        `json:"log"`
+	NewStatus  util.Option[JobStatus] `json:"newStatus"`
+	InitialJob util.Option[Job]       `json:"initialJob"`
+}
+
 // Job Control API
 // =====================================================================================================================
 
@@ -655,19 +735,6 @@ var JobsProviderCreate = rpc.Call[fnd.BulkRequest[Job], fnd.BulkResponse[fnd.Fin
 	Roles:       rpc.RolesPrivileged,
 }
 
-var JobsProviderDelete = rpc.Call[fnd.BulkRequest[Job], fnd.BulkResponse[util.Empty]]{
-	BaseContext: jobProviderNamespace,
-	Convention:  rpc.ConventionDelete,
-	Roles:       rpc.RolesPrivileged,
-}
-
-var JobsProviderVerify = rpc.Call[fnd.BulkRequest[Job], util.Empty]{
-	BaseContext: jobProviderNamespace,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesPrivileged,
-	Operation:   "verify",
-}
-
 var JobsProviderRetrieveProducts = rpc.Call[util.Empty, fnd.BulkResponse[JobSupport]]{
 	BaseContext: jobProviderNamespace,
 	Convention:  rpc.ConventionRetrieve,
@@ -680,6 +747,93 @@ var JobsProviderUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAclWithResource[Job]
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "updateAcl",
+}
+
+type JobsProviderExtendRequestItem struct {
+	Job           Job            `json:"job"`
+	RequestedTime SimpleDuration `json:"requestedTime"`
+}
+
+var JobsProviderExtend = rpc.Call[fnd.BulkRequest[JobsProviderExtendRequestItem], fnd.BulkResponse[util.Empty]]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "extend",
+}
+
+var JobsProviderTerminate = rpc.Call[fnd.BulkRequest[Job], fnd.BulkResponse[util.Empty]]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "terminate",
+}
+
+type JobsProviderSuspendRequestItem struct {
+	Job Job `json:"job"`
+}
+
+var JobsProviderSuspend = rpc.Call[fnd.BulkRequest[JobsProviderSuspendRequestItem], fnd.BulkResponse[util.Empty]]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "suspend",
+}
+
+type JobsProviderUnsuspendRequestItem struct {
+	Job Job `json:"job"`
+}
+
+var JobsProviderUnsuspend = rpc.Call[fnd.BulkRequest[JobsProviderUnsuspendRequestItem], fnd.BulkResponse[util.Empty]]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "unsuspend",
+}
+
+type JobsProviderOpenInteractiveSessionRequestItem struct {
+	Job         Job                    `json:"job"`
+	Rank        int                    `json:"rank"`
+	SessionType InteractiveSessionType `json:"sessionType"`
+	Target      util.Option[string]    `json:"target"`
+}
+
+var JobsProviderOpenInteractiveSession = rpc.Call[fnd.BulkRequest[JobsProviderOpenInteractiveSessionRequestItem], fnd.BulkResponse[OpenSession]]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "interactiveSession",
+}
+
+type JobsProviderRequestDynamicParametersRequest struct {
+	Owner       ResourceOwner `json:"owner"`
+	Application Application   `json:"application"`
+}
+
+type JobsProviderRequestDynamicParametersResponse struct {
+	Parameters []ApplicationParameter `json:"parameters"`
+}
+
+var JobsProviderRequestDynamicParameters = rpc.Call[JobsProviderRequestDynamicParametersRequest, JobsProviderRequestDynamicParametersResponse]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "requestDynamicParameters",
+}
+
+var JobsProviderOpenTerminalInFolder = rpc.Call[fnd.BulkRequest[JobsOpenTerminalInFolderRequestItem], fnd.BulkResponse[OpenSession]]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "openTerminalInFolder",
+}
+
+func JobsProviderFollowEndpoint(providerId string) string {
+	return fmt.Sprintf("/ucloud/jobs.provider.%s/websocket", providerId)
+}
+
+type JobsProviderFollowRequest struct {
+	Type string `json:"type"` // must be "init"
+	Job  Job    `json:"job"`
 }
 
 /*

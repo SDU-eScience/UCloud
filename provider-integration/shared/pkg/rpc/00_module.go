@@ -17,6 +17,7 @@ import (
 
 var DefaultClient *Client
 var DefaultServer Server
+var BearerAuthenticator func(bearer string, project string) (Actor, *util.HttpError)
 var ServerAuthenticator func(r *http.Request) (Actor, *util.HttpError)
 
 var LookupActor func(username string) (Actor, bool) = func(username string) (Actor, bool) {

@@ -100,9 +100,10 @@ type resourceTypeGlobal struct {
 
 	Flags resourceTypeFlags
 
-	OnLoad      func(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource)
-	OnPersist   func(b *db.Batch, resources *resource)
-	Transformer func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any
+	OnLoad             func(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource)
+	OnPersist          func(b *db.Batch, resources *resource)
+	OnPersistCommitted func(r *resource)
+	Transformer        func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any
 }
 
 func resourceGetProvider(providerId string) *resourceProvider {
@@ -168,6 +169,7 @@ func InitResourceType(
 	doLoad func(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource),
 	doPersist func(b *db.Batch, resources *resource),
 	transformer func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any,
+	persistCommitted func(r *resource),
 ) {
 	if !resourceGlobals.Testing.Enabled {
 		if doLoad == nil || doPersist == nil {
@@ -186,10 +188,11 @@ func InitResourceType(
 	}
 
 	tGlobals := &resourceTypeGlobal{
-		Flags:       flags,
-		OnLoad:      doLoad,
-		OnPersist:   doPersist,
-		Transformer: transformer,
+		Flags:              flags,
+		OnLoad:             doLoad,
+		OnPersist:          doPersist,
+		OnPersistCommitted: persistCommitted,
+		Transformer:        transformer,
 	}
 	resourceGlobals.ByType[typeName] = tGlobals
 

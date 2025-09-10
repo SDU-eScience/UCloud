@@ -23,6 +23,7 @@ func initDrives() {
 		driveLoad,
 		drivePersist,
 		driveTransform,
+		nil,
 	)
 
 	orcapi.DrivesBrowse.Handler(func(info rpc.RequestInfo, request orcapi.DrivesBrowseRequest) (fndapi.PageV2[orcapi.Drive], *util.HttpError) {
