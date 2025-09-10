@@ -1,6 +1,6 @@
 import * as React from "react";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
-import {useCallback, useMemo, useRef, useState} from "react";
+import {CSSProperties, useCallback, useMemo, useRef, useState} from "react";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {doNothing, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {injectStyle} from "@/Unstyled";
@@ -29,7 +29,6 @@ export const SimpleRichSelect: React.FunctionComponent<{
 
     fullWidth?: boolean;
     dropdownWidth?: string;
-    elementHeight?: number;
     placeholder?: string;
     noResultsItem?: SimpleRichItem;
 }> = props => {
@@ -37,21 +36,22 @@ export const SimpleRichSelect: React.FunctionComponent<{
         items={props.items}
         keys={["key"]}
         RenderRow={p =>
-            <Box p={"8px"} minHeight={35} onClick={p.onSelect} {...p.dataProps}>
+            <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
                 {p?.element?.value}
             </Box>
         }
         RenderSelected={p =>
-            <Box p={"8px"} minHeight={35} onClick={p.onSelect} {...p.dataProps}>
+            <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
                 {p?.element?.value}
             </Box>
         }
         onSelect={props.onSelect}
         placeholder={props.placeholder}
         dropdownWidth={props.dropdownWidth}
-        elementHeight={props.elementHeight ?? 35}
+        elementHeight={25}
         selected={props.selected}
         noResultsItem={props.noResultsItem}
+        chevronPlacement={{position: "absolute", bottom: "5px", right: "5px"}}
     />
 }
 
@@ -69,6 +69,8 @@ export function RichSelect<T, K extends keyof T>(props: {
 
     selected?: T;
     onSelect: (element: T) => void;
+
+    chevronPlacement?: CSSProperties; // hack
 
     placeholder?: string;
     noResultsItem?: T;
@@ -111,7 +113,7 @@ export function RichSelect<T, K extends keyof T>(props: {
             props.RenderSelected ?
                 <div className={TriggerClass} style={{minWidth: props.fullWidth ? "500px" : props.dropdownWidth ?? "500px"}} ref={triggerRef}>
                     <props.RenderSelected element={props.selected} onSelect={doNothing} />
-                    <Icon name="heroChevronDown" />
+                    <Icon name="heroChevronDown" style={props.chevronPlacement} />
                 </div>
                 : <></>
         }

@@ -34,8 +34,11 @@ import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 import * as Heading from "@/ui-components/Heading";
 import { ListRow } from "@/ui-components/List";
-import {RichSelect, SimpleRichSelect} from "@/ui-components/RichSelect";
+import {RichSelect, SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
 import * as Pages from "@/Applications/Pages";
+import {NotificationType} from "@/UserSettings/ChangeNotificationSettings";
+import {produce} from "immer";
+import {heroStar} from "@/ui-components/icons";
 
 export const YourAllocations: React.FunctionComponent<{
     allocations: [string, AllocationDisplayTreeYourAllocation][],
@@ -44,11 +47,11 @@ export const YourAllocations: React.FunctionComponent<{
 }> = ({allocations, allocationTree, indent}) => {
     return <>
         <h3>Your allocations</h3>
-        {allocations.length !== 0 ? null : <>
-            You do not have any allocations at the moment. You can apply for resources{" "}
-            <Link to={AppRoutes.grants.editor()}>here</Link>.
-        </>}
         <div className={yourAllocationsStyle}>
+            {allocations.length !== 0 ? null : <>
+                You do not have any allocations at the moment. You can apply for resources{" "}
+                <Link to={AppRoutes.grants.editor()}>here</Link>.
+            </>}
             <Tree apiRef={allocationTree}>
                 {allocations.map(([rawType, tree]) => {
                     const type = rawType as ProductType;
@@ -223,6 +226,15 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
     ${k} .key-metrics-settings-container {
         flex-grow: 1;
     }
+    
+    ${k} .key-metrics-setting-title {
+        font-size: 11pt;
+        padding-left: 10px;
+    }
+    
+    ${k} .key-metrics-checkbox {
+        padding: 10px 0 10px 0;
+    }
 `);
 
 const subProjectsStyle = injectStyle("sub-projects", k => ` 
@@ -251,6 +263,91 @@ const subProjectsStyle = injectStyle("sub-projects", k => `
     }
 `);
 
+interface KeyMetricSetting {
+    title: string;
+    options: string[];
+    selected?: string;
+    starred: boolean;
+    enabled: boolean;
+}
+
+const KeyMetricSettingsRow: React.FunctionComponent<{
+    setting: KeyMetricSetting;
+    onChange: (setting: KeyMetricSetting) => void;
+}> = (props) => {
+
+    const onChecked = useCallback(() => {
+        props.onChange(produce(props.setting, draft => {
+            draft.enabled = !draft.enabled;
+        }))
+    }, [props.setting, props.onChange])
+
+    const onSelectOption = useCallback((item: SimpleRichItem) => {
+        props.onChange(produce(props.setting, draft => {
+            draft.selected = item.key
+        }))
+    }, [props.setting, props.onChange])
+
+    const onStarring = useCallback(() => {
+        props.onChange(produce(props.setting, draft => {
+            draft.starred = !draft.starred;
+        }))
+    }, [props.setting, props.onChange])
+
+    let selectedOpt = props.setting.selected;
+    return <ListRow
+        left={<Flex>
+                <Icon
+                    name={props.setting.starred ? "starFilled" : "starEmpty"}
+                    color={props.setting.starred ? "favoriteColor" : "favoriteColorEmpty"}
+                    onClick={onStarring}
+                />
+                <h3 className="key-metrics-setting-title">{props.setting.title}</h3>
+        </Flex>
+        }
+        right={<>
+            <SimpleRichSelect
+                items={props.setting.options.map((it) => ({key: it, value: it}) )}
+                onSelect={onSelectOption}
+                selected={selectedOpt ? {key: selectedOpt, value: selectedOpt} : undefined}
+                dropdownWidth={"300px"}
+            />
+            <Checkbox
+                className="key-metrics-checkbox"
+                size={30}
+                checked={props.setting.enabled}
+                handleWrapperClick={onChecked}
+            />
+        </>
+        }
+    >
+    </ListRow>
+}
+
+const defaultSettings: Record<string, KeyMetricSetting>= {
+    "Idle projects": {
+        title: "Idle projects",
+        options: ["1 month", "2 months", "3 months"],
+        selected: "1 month",
+        starred: true,
+        enabled: true
+    },
+    "Sub-project resource utilization": {
+        title: "Sub-project resource utilization",
+        options: ["Core-hours", "GPU-hours", "Storage"],
+        selected: "Core-hours",
+        starred: true,
+        enabled: true
+    },
+    "Your resource utilization": {
+        title: "Your resource utilization",
+        options: ["Core-hours", "GPU-hours", "Storage"],
+        selected: "Core-hours",
+        starred: false,
+        enabled: false
+    },
+};
+
 export const SubProjectAllocations: React.FunctionComponent<{
     allocations: [string, AllocationDisplayTreeYourAllocation][];
     indent: number;
@@ -262,6 +359,16 @@ export const SubProjectAllocations: React.FunctionComponent<{
     }, []);
     const openFilters = useCallback(() => {
         setFiltersShown(true);
+    }, []);
+
+    const [settings, setSettings] = useState<Record<string, KeyMetricSetting>>(defaultSettings);
+
+    const onSettingsChanged = useCallback((setting: KeyMetricSetting) => {
+        setSettings(prev => {
+            return produce(prev, draft => {
+                draft[setting.title] = setting;
+            });
+        });
     }, []);
 
     return <>
@@ -276,8 +383,8 @@ export const SubProjectAllocations: React.FunctionComponent<{
 
             <Flex>
                 <div className="key-metrics-settings-container">
-                    <Heading.h3>Key metrics settings</Heading.h3>
-                    <Heading.h4 color={"textSecondary"}>Select key metrics to display</Heading.h4>
+                    <h3>Key metrics settings</h3>
+                    <h4 color={"textSecondary"}>Select key metrics to display</h4>
                 </div>
                 <div className="key-metrics-input">
                     <div className="key-metrics-search-box">
@@ -291,35 +398,10 @@ export const SubProjectAllocations: React.FunctionComponent<{
                     <Button>Apply</Button>
                 </div>
             </Flex>
-            <Flex>
-                <ListRow
-                    left={
-                        <Heading.h3>Your resource utilisation</Heading.h3>
-                    }
-                    right={<>
-                        <SimpleRichSelect
-                            items={[{ key: "1", value: "1" }, { key: "2", value: "2" }, { key: "3", value: "3" }]}
-                            onSelect={doNothing}
-                            dropdownWidth={"300px"}
-                            elementHeight={37}
-                        />
-                        <Checkbox>
 
-                        </Checkbox>
-                    </>
-                    }
-                >
-                </ListRow>
-            </Flex>
-            {/* Heading flex */}
-            {/*     Left: Title & subtitle */}
-            {/*     Right: Search and apply*/}
-            {/* end of heading*/}
-
-            {/* Rows */}
-            {/*     Left: Star & title */}
-            {/*     Right: Options and enable checkbox */}
-
+            {Object.values(settings).map(setting => (
+                <KeyMetricSettingsRow key={setting.title} setting={setting} onChange={onSettingsChanged} />
+            ))}
         </ReactModal>
 
         <Box mt={32} mb={10} className={keyMetricsStyle}>
@@ -677,15 +759,14 @@ export const SubProjectList: React.FunctionComponent<{
                 </Label>
             </Flex>
 
-            {state.filteredSubProjectIndices.length !== 0 ? null : <>
-                You do not have any sub-allocations {state.searchQuery ? "with the active search" : ""} at the
-                moment.
-                {projectRole === OldProjectRole.USER ? null : <>
-                    You can create a sub-project by clicking <a href="#" onClick={onNewSubProject}>here</a>.
-                </>}
-            </>}
-
             <div className="sub-projects-container" style={{height: "500px", width: "100%"}}>
+                {state.filteredSubProjectIndices.length !== 0 ? null : <>
+                    You do not have any sub-allocations {state.searchQuery ? "with the active search" : ""} at the
+                    moment.
+                    {projectRole === OldProjectRole.USER ? null : <>
+                        You can create a sub-project by clicking <a href="#" onClick={onNewSubProject}>here</a>.
+                    </>}
+                </>}
                 <AutoSizer>
                     {({height, width}) => (
                         <Tree
