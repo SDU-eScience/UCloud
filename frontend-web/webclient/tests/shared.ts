@@ -23,7 +23,7 @@ export const Rows = {
         let iterations = 100;
         while (!await page.locator("div > span", {hasText: name}).isVisible()) {
             await page.locator(".scrolling").hover();
-            await page.mouse.wheel(0, 200);
+            await page.mouse.wheel(0, 150);
             await page.waitForTimeout(200);
             iterations -= 1;
             if (iterations <= 0) {
@@ -51,7 +51,7 @@ export const Folder = {
     async delete(page: Page, name: string) {
         await this.actionByRowTitle(page, name, "click");
         await page.locator(".operation.button6.in-header:nth-child(6)").click(); // Ellipses
-        await page.getByRole("button", {name: "Move to trash"}).click({delay: 1000 + 200});
+        await Components.clickConfirmationButton(page, "Move to trash");
     }
 }
 
@@ -116,5 +116,24 @@ export const Components = {
     async setSidebarSticky(page: Page) {
         await page.getByRole("link", {name: "Go to Files"}).hover();
         await page.getByRole("banner").locator("svg").click();
+    },
+
+    async clickConfirmationButton(page: Page, text: string, delay = 1200) {
+        await page.getByRole('button', {name: text}).click({delay});
+    }
+}
+
+export const Applications = {
+    async gotoApplications(page: Page) {
+        await page.getByRole('link', {name: 'Go to Applications'}).click();
+    }
+}
+
+export const Runs = {
+    newJobName() {
+        return "JobName" + Math.random().toString().slice(2, 7);
+    },
+    async goToRuns(page: Page) {
+        await page.getByRole('link', {name: 'Go to Runs'}).click();
     }
 }

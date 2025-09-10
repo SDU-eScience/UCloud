@@ -1,28 +1,12 @@
 import {expect, test, type Page} from '@playwright/test';
-import {login} from './shared';
+import {Applications, Components, login, Runs} from './shared';
 
 test.beforeEach(async ({page}) => {
     login(page);
 });
 
-const Applications = {
-
-
-    async gotoApplications(page: Page) {
-        await page.getByRole('link', {name: 'Go to Applications'}).click();
-    }
-}
-
-const Runs = {
-    newJobName() {
-        return "JobName" + Math.random().toString().slice(2, 7);
-    },
-    async goToRuns(page: Page) {
-        await page.getByRole('link', {name: 'Go to Runs'}).click();
-    }
-}
-
-test.skip("Run job with jobname, extend time, stop job, validate jobname in runs", async ({page}) => {
+test("Run job with jobname, extend time, stop job, validate jobname in runs", async ({page}) => {
+    test.setTimeout(240_000);
     await Applications.gotoApplications(page);
     await page.getByRole('button', {name: 'Open application'}).click();
     await page.getByRole('textbox', {name: 'Job name'}).click();
@@ -32,11 +16,23 @@ test.skip("Run job with jobname, extend time, stop job, validate jobname in runs
     await page.getByRole('cell', {name: 'standard-cpu-1', exact: true}).click();
     await page.getByRole('button', {name: '+1'}).click();
     await page.getByRole('button', {name: 'Submit'}).click();
-    /* TODO(Jonas): find better thing to wait for */
-    await page.waitForTimeout(20_000);
-    await expect(page.getByText('Time remaining: 01')).toHaveCount(1);
+
+    while (!await page.getByText("Time remaining: 01").isVisible()) {
+        await page.waitForTimeout(1000);
+    }
+
     await page.getByRole('button', {name: '+1'}).click();
-    await page.waitForTimeout(3_000);
-    await expect(page.getByText('Time remaining: 02')).toHaveCount(1);
-    await page.getByRole('button', {name: 'Stop application'}).click({delay: 1000 + 200});
+
+    while (!await page.getByText("Time remaining: 02").isVisible()) {
+        await page.waitForTimeout(1000);
+    }
+
+    await Components.clickConfirmationButton(page, "Stop application");
+
+    // Note(Jonas): I would have thought that the `expect` below would be enough, but 
+    while (!await page.getByText("Run application again").isVisible()) {
+        await page.waitForTimeout(1000);
+    }
+
+    await expect(page.getByText("Run application again")).toHaveCount(1);
 });
