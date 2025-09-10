@@ -8,17 +8,17 @@ import (
 	"sync"
 	"time"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database"
+	db "ucloud.dk/shared/pkg/database2"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
-type featureKey string
+type SupportFeatureKey string
 
 type providerSupport struct {
 	Type      string
 	AppliesTo accapi.ProductReference
-	Features  map[featureKey]util.Empty
+	Features  map[SupportFeatureKey]util.Empty
 }
 
 var providerSupportGlobals struct {
@@ -133,7 +133,7 @@ func initFeatures() {
 	}()
 }
 
-func featureSupported(typeName string, product accapi.ProductReference, feature featureKey) bool {
+func featureSupported(typeName string, product accapi.ProductReference, feature SupportFeatureKey) bool {
 	var s []providerSupport
 
 	providerSupportGlobals.Mu.RLock()
@@ -157,7 +157,7 @@ func featureSupported(typeName string, product accapi.ProductReference, feature 
 	return false
 }
 
-func walkFeatureObject(node json.RawMessage, path string, output map[featureKey]util.Empty) {
+func walkFeatureObject(node json.RawMessage, path string, output map[SupportFeatureKey]util.Empty) {
 	if path != "product" {
 		// Leaf
 		var b bool
@@ -186,8 +186,8 @@ func walkFeatureObject(node json.RawMessage, path string, output map[featureKey]
 	}
 }
 
-func readSupportFromLegacy(obj json.RawMessage) map[featureKey]util.Empty {
-	result := map[featureKey]util.Empty{}
+func readSupportFromLegacy(obj json.RawMessage) map[SupportFeatureKey]util.Empty {
+	result := map[SupportFeatureKey]util.Empty{}
 	walkFeatureObject(obj, "", result)
 	return result
 }
@@ -261,6 +261,9 @@ func supportToApi(provider string, supportItems []providerSupport) []orcapi.Reso
 }
 
 func SupportRetrieveProducts[T any](typeName string) orcapi.SupportByProvider[T] {
+	// TODO It seems like this function needs to wait for at least one round of support retrieval before being okay
+	//   with returning
+
 	result := orcapi.SupportByProvider[T]{
 		ProductsByProvider: make(map[string][]orcapi.ResolvedSupport[T]),
 	}
@@ -288,26 +291,43 @@ func SupportRetrieveProducts[T any](typeName string) orcapi.SupportByProvider[T]
 	return result
 }
 
-func SupportByProduct[S any](typeName string, product accapi.ProductReference) (orcapi.ResolvedSupport[S], bool) {
+func SupportByProduct[S any](typeName string, product accapi.ProductReference) (ProductSupport[S], bool) {
 	var result orcapi.ResolvedSupport[S]
 	all := SupportRetrieveProducts[S](typeName)
 	byProvider, ok := all.ProductsByProvider[product.Provider]
 	if !ok {
-		return result, false
+		return ProductSupport[S]{result}, false
 	}
 
 	for _, item := range byProvider {
 		if item.Product.Name == product.Id && item.Product.Category.Name == product.Category {
-			return item, true
+			return ProductSupport[S]{item}, true
 		}
 	}
 
-	return result, false
+	return ProductSupport[S]{result}, false
+}
+
+type ProductSupport[T any] struct {
+	orcapi.ResolvedSupport[T]
+}
+
+func (t *ProductSupport[T]) ToApi() orcapi.ResolvedSupport[T] {
+	return t.ResolvedSupport
+}
+
+func (t *ProductSupport[T]) Has(key SupportFeatureKey) bool {
+	for _, feature := range t.Features {
+		if feature == string(key) {
+			return true
+		}
+	}
+	return false
 }
 
 type featureMapper struct {
 	Type string
-	Key  featureKey
+	Key  SupportFeatureKey
 	Path string
 }
 

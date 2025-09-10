@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 	cfg "ucloud.dk/core/pkg/config"
-	db "ucloud.dk/shared/pkg/database"
+	db "ucloud.dk/shared/pkg/database2"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"

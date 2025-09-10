@@ -367,13 +367,14 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 					Hostname: "hostname",
 					Port:     8080,
 				},
-				CausedBy:     util.OptNone[string](),
-				RequestName:  c.FullName(),
-				UserAgent:    util.OptStringIfNotEmpty(r.Header.Get("User-Agent")),
-				RemoteOrigin: r.RemoteAddr,
-				Token:        util.Option[SecurityPrincipalToken]{},
-				ResponseTime: uint64(end.Sub(start).Milliseconds()),
-				Project:      stringProject,
+				CausedBy:          util.OptNone[string](),
+				RequestName:       c.FullName(),
+				UserAgent:         util.OptStringIfNotEmpty(r.Header.Get("User-Agent")),
+				RemoteOrigin:      r.RemoteAddr,
+				Token:             util.Option[SecurityPrincipalToken]{},
+				ResponseTime:      uint64(end.Sub(start).Milliseconds()),
+				ResponseTimeNanos: uint64(end.Sub(start).Nanoseconds()),
+				Project:           stringProject,
 			}
 
 			token := SecurityPrincipalToken{

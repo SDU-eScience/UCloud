@@ -104,6 +104,7 @@ func (k *GoKubernetes) Build(cb ComposeBuilder) {
 					"` + imStorage.GetAbsolutePath() + `:/mnt/storage",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/im2:/opt/ucloud",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/gonja:/opt/gonja",
+					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/pgxscan:/opt/pgxscan",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/shared:/opt/shared",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/walk:/opt/walk"
 				]
@@ -135,6 +136,7 @@ func (k *GoKubernetes) Build(cb ComposeBuilder) {
 						"` + postgresDataDir.GetAbsolutePath() + `:/var/lib/postgresql/data",
 						"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/im2:/opt/ucloud",
 						"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/gonja:/opt/gonja",
+						"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/pgxscan:/opt/pgxscan",
 						"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/shared:/opt/shared",
 						"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/walk:/opt/walk"
 					],

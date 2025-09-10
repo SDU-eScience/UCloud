@@ -28,6 +28,12 @@ const (
 	StringValidationNoTrim
 )
 
+func ValidateStringE(input *string, fieldName string, opts StringValidationFlag) *HttpError {
+	var e *HttpError = nil
+	ValidateString(input, fieldName, opts, &e)
+	return e
+}
+
 func ValidateString(input *string, fieldName string, opts StringValidationFlag, err **HttpError) {
 	if input == nil {
 		return
