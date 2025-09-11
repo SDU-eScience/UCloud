@@ -33,7 +33,7 @@ import {default as ReactModal} from "react-modal";
 import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 import * as Heading from "@/ui-components/Heading";
-import { ListRow } from "@/ui-components/List";
+import {ListRow} from "@/ui-components/List";
 import {RichSelect, SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
 import * as Pages from "@/Applications/Pages";
 import {NotificationType} from "@/UserSettings/ChangeNotificationSettings";
@@ -233,7 +233,11 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
     }
     
     ${k} .key-metrics-checkbox {
-        padding: 10px 0 10px 0;
+        padding: 0 5px 0 0;
+    }
+    
+    ${k} .key-metrics-selector {
+        padding-right: 6px;
     }
 `);
 
@@ -297,36 +301,40 @@ const KeyMetricSettingsRow: React.FunctionComponent<{
     let selectedOpt = props.setting.selected;
     return <ListRow
         left={<Flex>
-                <Icon
-                    name={props.setting.starred ? "starFilled" : "starEmpty"}
-                    color={props.setting.starred ? "favoriteColor" : "favoriteColorEmpty"}
-                    onClick={onStarring}
-                />
-                <h3 className="key-metrics-setting-title">{props.setting.title}</h3>
+            <Icon
+                name={props.setting.starred ? "starFilled" : "starEmpty"}
+                color={props.setting.starred ? "favoriteColor" : "favoriteColorEmpty"}
+                onClick={onStarring}
+            />
+            <h3 className="key-metrics-setting-title">{props.setting.title}</h3>
         </Flex>
         }
         right={<>
-            <SimpleRichSelect
-                items={props.setting.options.map((it) => ({key: it, value: it}) )}
-                onSelect={onSelectOption}
-                selected={selectedOpt ? {key: selectedOpt, value: selectedOpt} : undefined}
-                dropdownWidth={"300px"}
-            />
-            <Checkbox
-                className="key-metrics-checkbox"
-                size={30}
-                checked={props.setting.enabled}
-                handleWrapperClick={onChecked}
-            />
+            {props.setting.options.length === 0 ? null : <div className="key-metrics-selector">
+                <SimpleRichSelect
+                    items={props.setting.options.map((it) => ({key: it, value: it}))}
+                    onSelect={onSelectOption}
+                    selected={selectedOpt ? {key: selectedOpt, value: selectedOpt} : undefined}
+                    dropdownWidth={"300px"}
+                />
+            </div>}
+
+            <div className="key-metrics-checkbox">
+                <Checkbox
+                    size={30}
+                    checked={props.setting.enabled}
+                    handleWrapperClick={onChecked}
+                />
+            </div>
         </>
         }
     >
     </ListRow>
 }
 
-const defaultSettings: Record<string, KeyMetricSetting>= {
-    "Idle projects": {
-        title: "Idle projects",
+const defaultSettings: Record<string, KeyMetricSetting> = {
+    "Idle sub-projects": {
+        title: "Idle sub-projects",
         options: ["1 month", "2 months", "3 months"],
         selected: "1 month",
         starred: true,
@@ -343,6 +351,20 @@ const defaultSettings: Record<string, KeyMetricSetting>= {
         title: "Your resource utilization",
         options: ["Core-hours", "GPU-hours", "Storage"],
         selected: "Core-hours",
+        starred: false,
+        enabled: false
+    },
+    "Allocation expiration": {
+        title: "Allocation expiration",
+        options: ["1 month", "2 months", "3 months", "6 months", "1 year"],
+        selected: "1 month",
+        starred: false,
+        enabled: false
+    },
+    "Overallocation indicators": {
+        title: "Overallocation indicators",
+        options: [],
+        selected: "",
         starred: false,
         enabled: false
     },
@@ -395,12 +417,12 @@ export const SubProjectAllocations: React.FunctionComponent<{
                             </div>
                         </div>
                     </div>
-                    <Button>Apply</Button>
+                    <Button onClick={closeFilters}>Apply</Button>
                 </div>
             </Flex>
 
             {Object.values(settings).map(setting => (
-                <KeyMetricSettingsRow key={setting.title} setting={setting} onChange={onSettingsChanged} />
+                <KeyMetricSettingsRow key={setting.title} setting={setting} onChange={onSettingsChanged}/>
             ))}
         </ReactModal>
 
@@ -719,105 +741,145 @@ export const SubProjectList: React.FunctionComponent<{
         onEditBlur
     }
 ) => {
-    return <div className={subProjectsStyle}>
-        {projectId !== undefined && <>
-            <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
-                <h3 style={{margin: 0}}>Sub-projects</h3>
-                <div className="sub-projects-search-bar-container">
-                    <Box flexGrow={1}/>
-                    <Button className="new-sub-project-button" height={35} onClick={onNewSubProject}
-                            disabled={projectRole == OldProjectRole.USER}>
-                        <Icon name={"heroPlus"} mr={8}/>
-                        New sub-project
-                    </Button>
-                    <Box width={"355px"}>
-                        <Input
-                            placeholder={"Search in your sub-projects"}
-                            height={35}
-                            value={state.searchQuery}
-                            onInput={onSearchInput}
-                            onKeyDown={onSearchKey}
-                            disabled={state.editControlsDisabled}
-                            inputRef={searchBox}
-                        />
+    const [filtersShown, setFiltersShown] = useState(false);
+    const closeFilters = useCallback(() => {
+        setFiltersShown(false);
+    }, []);
+    const openFilters = useCallback(() => {
+        setFiltersShown(true);
+    }, []);
+
+    return <>
+        <ReactModal
+            isOpen={filtersShown}
+            shouldCloseOnEsc
+            onRequestClose={closeFilters}
+            style={largeModalStyle}
+            ariaHideApp={false}
+            className={classConcat(CardClass, keyMetricsStyle)}
+        >
+
+            <Flex>
+                <div className="key-metrics-settings-container">
+                    <h3>Sub-project filters</h3>
+                    <h4 color={"textSecondary"}>Select filters to apply</h4>
+                </div>
+                <div className="key-metrics-input">
+                    <div className="key-metrics-search-box">
+                        <Input placeholder="Search in your sub-project filters"></Input>
                         <div style={{position: "relative"}}>
-                            <div style={{position: "absolute", top: "-30px", right: "11px"}}>
+                            <div style={{position: "absolute", top: "5px", right: "10px"}}>
                                 <Icon name={"heroMagnifyingGlass"}/>
                             </div>
                         </div>
-                    </Box>
-                    <Button className="filters-button"><Icon name={"heroAdjustmentsHorizontal"}/></Button>
+                    </div>
+                    <Button onClick={closeFilters}>Apply</Button>
                 </div>
             </Flex>
-            <Flex paddingBottom={10}>
-                <Label width="160px" ml="auto">
-                    <Checkbox onChange={e => dispatchEvent({
-                        type: "ToggleViewOnlyProjects",
-                        viewOnlyProjects: e.target.checked
-                    })} defaultChecked={state.viewOnlyProjects}/>
-                    <span>View only projects</span>
-                </Label>
-            </Flex>
+        </ReactModal>
 
-            <div className="sub-projects-container" style={{height: "500px", width: "100%"}}>
-                {state.filteredSubProjectIndices.length !== 0 ? null : <>
-                    You do not have any sub-allocations {state.searchQuery ? "with the active search" : ""} at the
-                    moment.
-                    {projectRole === OldProjectRole.USER ? null : <>
-                        You can create a sub-project by clicking <a href="#" onClick={onNewSubProject}>here</a>.
+        <div className={subProjectsStyle}>
+            {projectId !== undefined && <>
+                <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
+                    <h3 style={{margin: 0}}>Sub-projects</h3>
+                    <div className="sub-projects-search-bar-container">
+                        <Box flexGrow={1}/>
+                        <Button className="new-sub-project-button" height={35} onClick={onNewSubProject}
+                                disabled={projectRole == OldProjectRole.USER}>
+                            <Icon name={"heroPlus"} mr={8}/>
+                            New sub-project
+                        </Button>
+                        <Box width={"355px"}>
+                            <Input
+                                placeholder={"Search in your sub-projects"}
+                                height={35}
+                                value={state.searchQuery}
+                                onInput={onSearchInput}
+                                onKeyDown={onSearchKey}
+                                disabled={state.editControlsDisabled}
+                                inputRef={searchBox}
+                            />
+                            <div style={{position: "relative"}}>
+                                <div style={{position: "absolute", top: "-30px", right: "11px"}}>
+                                    <Icon name={"heroMagnifyingGlass"}/>
+                                </div>
+                            </div>
+                        </Box>
+                        <Button className="filters-button" onClick={openFilters}>
+                            <Icon name={"heroAdjustmentsHorizontal"}/>
+                        </Button>
+                    </div>
+                </Flex>
+                <Flex paddingBottom={10}>
+                    <Label width="160px" ml="auto">
+                        <Checkbox onChange={e => dispatchEvent({
+                            type: "ToggleViewOnlyProjects",
+                            viewOnlyProjects: e.target.checked
+                        })} defaultChecked={state.viewOnlyProjects}/>
+                        <span>View only projects</span>
+                    </Label>
+                </Flex>
+
+                <div className="sub-projects-container" style={{height: "500px", width: "100%"}}>
+                    {state.filteredSubProjectIndices.length !== 0 ? null : <>
+                        You do not have any sub-allocations {state.searchQuery ? "with the active search" : ""} at the
+                        moment.
+                        {projectRole === OldProjectRole.USER ? null : <>
+                            You can create a sub-project by clicking <a href="#" onClick={onNewSubProject}>here</a>.
+                        </>}
                     </>}
-                </>}
-                <AutoSizer>
-                    {({height, width}) => (
-                        <Tree
-                            apiRef={suballocationTree}
-                            onAction={(row, action) => {
-                                if (![TreeAction.TOGGLE, TreeAction.OPEN, TreeAction.CLOSE].includes(action)) return;
-                                const grantId = row.getAttribute("data-grant-id");
-                                if (grantId && TreeAction.TOGGLE === action) {
-                                    // Note(Jonas): Just `window.open(AppRoutes...)` will omit the `/app` part, so we add it this way.
-                                    window.open(window.origin + "/app" + AppRoutes.grants.editor(grantId), "_blank");
-                                } else {
-                                    const recipient = row.getAttribute("data-recipient");
-                                    if (!recipient) return;
-                                    const group = row.getAttribute("data-group");
-                                    setNodeState(action, recipient, group);
-                                    listRef.current?.resetAfterIndex(0);
-                                }
-                            }}
-                            unhandledShortcut={onSubAllocationShortcut}
-                        >
-                            <VariableSizeList
-                                itemSize={(idx) => calculateHeightInPx(idx, state)}
-                                height={height}
-                                width={width}
-                                ref={listRef}
-                                itemCount={state.filteredSubProjectIndices.length}
-                                itemData={state.filteredSubProjectIndices}
-                            >
-                                {({index: rowIdx, style, data}) => {
-                                    const recipientIdx = data[rowIdx];
-                                    const recipient = state.subAllocations.recipients[recipientIdx];
-
-                                    return <SubProjectListRow
-                                        style={style}
-                                        recipient={recipient}
-                                        listRef={listRef}
-                                        rowIdx={rowIdx}
-                                        avatars={avatars}
-                                        onEdit={onEdit}
-                                        state={state}
-                                        onEditKey={onEditKey}
-                                        onEditBlur={onEditBlur}
-                                    />
+                    <AutoSizer>
+                        {({height, width}) => (
+                            <Tree
+                                apiRef={suballocationTree}
+                                onAction={(row, action) => {
+                                    if (![TreeAction.TOGGLE, TreeAction.OPEN, TreeAction.CLOSE].includes(action)) return;
+                                    const grantId = row.getAttribute("data-grant-id");
+                                    if (grantId && TreeAction.TOGGLE === action) {
+                                        // Note(Jonas): Just `window.open(AppRoutes...)` will omit the `/app` part, so we add it this way.
+                                        window.open(window.origin + "/app" + AppRoutes.grants.editor(grantId), "_blank");
+                                    } else {
+                                        const recipient = row.getAttribute("data-recipient");
+                                        if (!recipient) return;
+                                        const group = row.getAttribute("data-group");
+                                        setNodeState(action, recipient, group);
+                                        listRef.current?.resetAfterIndex(0);
+                                    }
                                 }}
-                            </VariableSizeList>
-                        </Tree>
-                    )}
-                </AutoSizer>
-            </div>
-        </>}
-    </div>;
+                                unhandledShortcut={onSubAllocationShortcut}
+                            >
+                                <VariableSizeList
+                                    itemSize={(idx) => calculateHeightInPx(idx, state)}
+                                    height={height}
+                                    width={width}
+                                    ref={listRef}
+                                    itemCount={state.filteredSubProjectIndices.length}
+                                    itemData={state.filteredSubProjectIndices}
+                                >
+                                    {({index: rowIdx, style, data}) => {
+                                        const recipientIdx = data[rowIdx];
+                                        const recipient = state.subAllocations.recipients[recipientIdx];
+
+                                        return <SubProjectListRow
+                                            style={style}
+                                            recipient={recipient}
+                                            listRef={listRef}
+                                            rowIdx={rowIdx}
+                                            avatars={avatars}
+                                            onEdit={onEdit}
+                                            state={state}
+                                            onEditKey={onEditKey}
+                                            onEditBlur={onEditBlur}
+                                        />
+                                    }}
+                                </VariableSizeList>
+                            </Tree>
+                        )}
+                    </AutoSizer>
+                </div>
+            </>}
+        </div>
+    </>;
 }
 
 export const ResourcesGranted: React.FunctionComponent<{
