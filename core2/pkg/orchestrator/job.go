@@ -719,7 +719,6 @@ func jobsFollow(conn *ws.Conn) {
 						Type: "init",
 						Job:  initialJob,
 					},
-					Bearer: client.RetrieveAccessTokenOrRefresh(),
 				})
 
 				err = providerConn.WriteMessage(ws.TextMessage, dataBytes)

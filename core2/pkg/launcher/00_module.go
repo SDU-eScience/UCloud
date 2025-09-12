@@ -266,7 +266,9 @@ func Launch() {
 	rpc.DefaultClient = &rpc.Client{
 		RefreshToken: cfg.Configuration.RefreshToken,
 		BasePath:     cfg.Configuration.SelfAddress.ToURL(),
-		Client:       &http.Client{},
+		Client: &http.Client{
+			Timeout: 10 * time.Second,
+		},
 	}
 
 	// Jinja
