@@ -61,7 +61,7 @@ var jobFeatureMapper = []featureMapper{
 	{
 		Type: jobType,
 		Key:  jobDockerExtension,
-		Path: "docker.extension",
+		Path: "docker.timeExtension",
 	},
 
 	{
@@ -97,7 +97,7 @@ var jobFeatureMapper = []featureMapper{
 	{
 		Type: jobType,
 		Key:  jobNativeExtension,
-		Path: "native.extension",
+		Path: "native.timeExtension",
 	},
 
 	{
@@ -133,7 +133,7 @@ var jobFeatureMapper = []featureMapper{
 	{
 		Type: jobType,
 		Key:  jobVmExtension,
-		Path: "virtualMachine.extension",
+		Path: "virtualMachine.timeExtension",
 	},
 	{
 		Type: jobType,

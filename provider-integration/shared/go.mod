@@ -2,8 +2,8 @@ module ucloud.dk/shared
 
 require (
 	github.com/anyascii/go v0.3.2
-	github.com/georgysavva/scany v1.2.3
 	github.com/golang-jwt/jwt/v5 v5.2.2
+	github.com/gorilla/websocket v1.5.3
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/lib/pq v1.10.9

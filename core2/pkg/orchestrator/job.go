@@ -544,31 +544,13 @@ func initJobs() {
 
 	followCall := rpc.Call[util.Empty, util.Empty]{
 		BaseContext: "jobs",
-		Convention:  rpc.ConventionCustom,
-		Roles:       rpc.RolesPublic,
-
-		CustomMethod: http.MethodGet,
-		CustomPath:   orcapi.JobsFollowEndpoint,
-		CustomServerProducer: func(response util.Empty, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
-			// Do nothing
-		},
-		CustomServerParser: func(w http.ResponseWriter, r *http.Request) (util.Empty, *util.HttpError) {
-			return util.Empty{}, nil
-		},
+		Convention:  rpc.ConventionWebSocket,
 	}
 
 	followCall.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
-		w := info.HttpWriter
-		r := info.HttpRequest
-
-		conn, err := wsUpgrader.Upgrade(w, r, nil)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write(nil)
-		} else {
-			jobsFollow(conn)
-			util.SilentClose(conn)
-		}
+		conn := info.WebSocket
+		jobsFollow(conn)
+		util.SilentClose(conn)
 
 		return util.Empty{}, nil
 	})

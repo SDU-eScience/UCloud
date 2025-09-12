@@ -44,6 +44,24 @@ func initNotifications() {
 		UpdateNotificationSettings(info.Actor, request)
 		return util.Empty{}, nil
 	})
+
+	followCall := rpc.Call[util.Empty, util.Empty]{
+		BaseContext: "notifications",
+		Convention:  rpc.ConventionWebSocket,
+	}
+
+	followCall.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
+		conn := info.WebSocket
+		for {
+			_, _, err := conn.ReadMessage()
+			if err != nil {
+				break
+			}
+		}
+		util.SilentClose(conn)
+
+		return util.Empty{}, nil
+	})
 }
 
 func CreateNotifications(notifications []fndapi.NotificationsCreateRequest) {

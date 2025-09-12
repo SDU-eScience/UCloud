@@ -133,7 +133,7 @@ type JobSpecification struct {
 type ComputeProductReference apm.ProductReference
 
 type JobOutput struct {
-	OutputFolder util.Option[string] `json:"ouputfolder"`
+	OutputFolder util.Option[string] `json:"outputFolder"`
 }
 
 type JobsExtendRequestItem struct {
