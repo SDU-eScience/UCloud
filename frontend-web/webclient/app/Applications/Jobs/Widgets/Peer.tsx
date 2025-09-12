@@ -7,7 +7,7 @@ import Input from "@/ui-components/Input";
 import Label from "@/ui-components/Label";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {checkProviderMismatch} from "../Create";
+import {checkProviderMismatch, getProviderField} from "../Create";
 import JobBrowse from "../JobsBrowse";
 import {CardClass} from "@/ui-components/Card";
 import {ApplicationParameter, ApplicationParameterNS} from "@/Applications/AppStoreApi";
@@ -138,11 +138,10 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
                     isModal: true,
                     selection: {
                         text: "Use",
-                        show(job) {
-                            const errorMessage = checkProviderMismatch(job, "Jobs");
-                            if (errorMessage) return errorMessage;
+                        show() {
                             return true;
                         },
+                        provider: getProviderField() ?? null,
                         onClick(job) {
                             const el = document.getElementById(widgetId(props.parameter) + "job");
                             if (el) {
