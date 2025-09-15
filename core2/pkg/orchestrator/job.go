@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"database/sql"
+	base64 "encoding/base64"
 	"encoding/json"
 	"fmt"
 	ws "github.com/gorilla/websocket"
@@ -706,7 +707,12 @@ func jobsFollow(conn *ws.Conn) {
 		if ok {
 			url := strings.ReplaceAll(client.BasePath, "http://", "")
 			url = strings.ReplaceAll(url, "https://", "")
-			url = fmt.Sprintf("ws://%s%s", url, orcapi.JobsProviderFollowEndpoint(providerId))
+			url = fmt.Sprintf(
+				"ws://%s%s?usernameHint=%s",
+				url,
+				orcapi.JobsProviderFollowEndpoint(providerId),
+				base64.URLEncoding.EncodeToString([]byte(actor.Username)),
+			)
 
 			providerConn, _, err := ws.DefaultDialer.Dial(url, http.Header{
 				"Authorization": []string{fmt.Sprintf("Bearer %s", client.RetrieveAccessTokenOrRefresh())},

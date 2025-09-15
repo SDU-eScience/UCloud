@@ -104,6 +104,9 @@ type resourceTypeGlobal struct {
 	OnPersist          func(b *db.Batch, resources *resource)
 	OnPersistCommitted func(r *resource)
 	Transformer        func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any
+
+	IndexersMu sync.RWMutex
+	Indexers   []func(r *resource) ResourceIndexer
 }
 
 func resourceGetProvider(providerId string) *resourceProvider {
@@ -552,6 +555,25 @@ func ResourceUpdate[T any](
 			panic("resource was not supposed to be filtered here")
 		}
 		mapped := g.Transformer(apiResc, resc.Product, resc.Extra, orcapi.ResourceFlags{}).(T)
+
+		// Indexing before modification
+		var indexers []ResourceIndexer
+		{
+			g.IndexersMu.RLock()
+			for _, begin := range g.Indexers {
+				indexers = append(indexers, begin(resc))
+			}
+			g.IndexersMu.RUnlock()
+		}
+
+		for _, idx := range indexers {
+			idx.Begin()
+		}
+
+		for _, idx := range indexers {
+			idx.Remove()
+		}
+
 		modification(resc, mapped)
 
 		if resc.Confirmed {
@@ -561,6 +583,18 @@ func ResourceUpdate[T any](
 				// TODO Delete from index or don't bother?
 				delete(b.Resources, id)
 			}
+		}
+
+		// Indexing after modification
+		if !resc.MarkedForDeletion {
+			for _, idx := range indexers {
+				idx.Add()
+			}
+		}
+
+		// Commit indexing
+		for _, idx := range indexers {
+			idx.Commit()
 		}
 
 		b.Mu.Unlock()
@@ -696,6 +730,23 @@ func ResourceCreateEx[T any](
 	}
 	apiResc, _ := lResourceApplyFlags(r, nil, resourceFlags)
 	mapped := g.Transformer(apiResc, r.Product, r.Extra, resourceFlags).(T)
+
+	var indexers []ResourceIndexer
+	g.IndexersMu.RLock()
+	for _, begin := range g.Indexers {
+		indexers = append(indexers, begin(r))
+	}
+	g.IndexersMu.RUnlock()
+	for _, idx := range indexers {
+		idx.Begin()
+	}
+	for _, idx := range indexers {
+		idx.Add()
+	}
+	for _, idx := range indexers {
+		idx.Commit()
+	}
+
 	b.Mu.Unlock()
 
 	return r.Id, mapped, nil
@@ -746,4 +797,18 @@ func ResourceDelete(actor rpc.Actor, typeName string, id ResourceId) {
 			r.MarkedForDeletion = true
 		},
 	)
+}
+
+type ResourceIndexer interface {
+	Remove()
+	Add()
+	Begin()
+	Commit()
+}
+
+func ResourceAddIndexer(typeName string, indexer func(r *resource) ResourceIndexer) {
+	g := resourceGetGlobals(typeName)
+	g.IndexersMu.Lock()
+	g.Indexers = append(g.Indexers, indexer)
+	g.IndexersMu.Unlock()
 }

@@ -9,7 +9,9 @@ import (
 	"time"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
+	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -18,7 +20,7 @@ type SupportFeatureKey string
 type providerSupport struct {
 	Type      string
 	AppliesTo accapi.ProductReference
-	Features  map[SupportFeatureKey]util.Empty
+	Features  map[SupportFeatureKey]string
 }
 
 var providerSupportGlobals struct {
@@ -63,47 +65,35 @@ func initFeatures() {
 				supportMap := map[string][]providerSupport{}
 				newSupport[provider] = supportMap
 				go func() {
-					{
-						resp, err := InvokeProvider(provider, orcapi.DrivesProviderRetrieveProducts, util.Empty{}, ProviderCallOpts{
-							Reason: util.OptValue("Periodic pull for supported features"),
-						})
+					featureFetchProviderSupport(
+						provider,
+						orcapi.DrivesProviderRetrieveProducts,
+						driveType,
+						supportMap,
+						func(item orcapi.FSSupport) accapi.ProductReference {
+							return item.Product
+						},
+					)
 
-						if err == nil {
-							var driveSupportItems []providerSupport
-							for _, item := range resp.Responses {
-								p := item.Product
-								obj, _ := json.Marshal(item)
+					featureFetchProviderSupport(
+						provider,
+						orcapi.JobsProviderRetrieveProducts,
+						jobType,
+						supportMap,
+						func(item orcapi.JobSupport) accapi.ProductReference {
+							return item.Product
+						},
+					)
 
-								support := providerSupport{}
-								support.Type = driveType
-								support.Features = readSupportFromLegacy(obj)
-								support.AppliesTo = p
-								driveSupportItems = append(driveSupportItems, support)
-							}
-							supportMap[driveType] = driveSupportItems
-						}
-					}
-
-					{
-						resp, err := InvokeProvider(provider, orcapi.JobsProviderRetrieveProducts, util.Empty{}, ProviderCallOpts{
-							Reason: util.OptValue("Periodic pull for supported features"),
-						})
-
-						if err == nil {
-							var driveSupportItems []providerSupport
-							for _, item := range resp.Responses {
-								p := item.Product
-								obj, _ := json.Marshal(item)
-
-								support := providerSupport{}
-								support.Type = jobType
-								support.Features = readSupportFromLegacy(obj)
-								support.AppliesTo = p
-								driveSupportItems = append(driveSupportItems, support)
-							}
-							supportMap[jobType] = driveSupportItems
-						}
-					}
+					featureFetchProviderSupport(
+						provider,
+						orcapi.IngressesProviderRetrieveProducts,
+						ingressType,
+						supportMap,
+						func(item orcapi.IngressSupport) accapi.ProductReference {
+							return item.Product
+						},
+					)
 
 					wg.Done()
 				}()
@@ -133,6 +123,33 @@ func initFeatures() {
 	}()
 }
 
+func featureFetchProviderSupport[T any](
+	providerId string,
+	call rpc.Call[util.Empty, fndapi.BulkResponse[T]],
+	resourceType string,
+	supportMap map[string][]providerSupport,
+	productGetter func(item T) accapi.ProductReference,
+) {
+	resp, err := InvokeProvider(providerId, call, util.Empty{}, ProviderCallOpts{
+		Reason: util.OptValue("Periodic pull for supported features"),
+	})
+
+	if err == nil {
+		var supportItems []providerSupport
+		for _, item := range resp.Responses {
+			p := productGetter(item)
+			obj, _ := json.Marshal(item)
+
+			support := providerSupport{}
+			support.Type = resourceType
+			support.Features = readSupportFromLegacy(obj)
+			support.AppliesTo = p
+			supportItems = append(supportItems, support)
+		}
+		supportMap[resourceType] = supportItems
+	}
+}
+
 func featureSupported(typeName string, product accapi.ProductReference, feature SupportFeatureKey) bool {
 	var s []providerSupport
 
@@ -157,7 +174,7 @@ func featureSupported(typeName string, product accapi.ProductReference, feature 
 	return false
 }
 
-func walkFeatureObject(node json.RawMessage, path string, output map[SupportFeatureKey]util.Empty) {
+func walkFeatureObject(node json.RawMessage, path string, output map[SupportFeatureKey]string) {
 	if path != "product" {
 		// Leaf
 		var b bool
@@ -165,29 +182,39 @@ func walkFeatureObject(node json.RawMessage, path string, output map[SupportFeat
 			if b {
 				for _, l := range featureMapperLegacy {
 					if l.Path == path {
-						output[l.Key] = util.Empty{}
-						break
+						output[l.Key] = ""
+						return
 					}
 				}
 			}
-		} else {
-			// Node
-			var obj map[string]json.RawMessage
-			if err := json.Unmarshal(node, &obj); err == nil {
-				for key, child := range obj {
-					childPath := key
-					if path != "" {
-						childPath = path + "." + key
-					}
-					walkFeatureObject(child, childPath, output)
+		}
+
+		var s string
+		if err := json.Unmarshal(node, &s); err == nil {
+			for _, l := range featureMapperLegacy {
+				if l.Path == path {
+					output[l.Key] = s
+					return
 				}
+			}
+		}
+
+		// Node
+		var obj map[string]json.RawMessage
+		if err := json.Unmarshal(node, &obj); err == nil {
+			for key, child := range obj {
+				childPath := key
+				if path != "" {
+					childPath = path + "." + key
+				}
+				walkFeatureObject(child, childPath, output)
 			}
 		}
 	}
 }
 
-func readSupportFromLegacy(obj json.RawMessage) map[SupportFeatureKey]util.Empty {
-	result := map[SupportFeatureKey]util.Empty{}
+func readSupportFromLegacy(obj json.RawMessage) map[SupportFeatureKey]string {
+	result := map[SupportFeatureKey]string{}
 	walkFeatureObject(obj, "", result)
 	return result
 }
@@ -203,13 +230,17 @@ func supportToApi(provider string, supportItems []providerSupport) []orcapi.Reso
 				legacyMap := map[string]any{}
 				for _, feature := range featureMapperLegacy {
 					if feature.Type == support.Type {
-						_, hasFeature := support.Features[feature.Key]
+						featureValue, hasFeature := support.Features[feature.Key]
 						components := strings.Split(feature.Path, ".")
 						currentMap := legacyMap
 						for i, comp := range components {
 							leaf := i == len(components)-1
 							if leaf {
-								currentMap[comp] = hasFeature
+								if featureValue == "" {
+									currentMap[comp] = hasFeature
+								} else {
+									currentMap[comp] = featureValue
+								}
 							} else {
 								child, hasMap := currentMap[comp]
 								if !hasMap {
@@ -236,6 +267,8 @@ func supportToApi(provider string, supportItems []providerSupport) []orcapi.Reso
 					productRelevant = product.Type == accapi.ProductTypeCStorage
 				case jobType:
 					productRelevant = product.Type == accapi.ProductTypeCCompute
+				case ingressType:
+					productRelevant = product.Type == accapi.ProductTypeCIngress
 				}
 
 				if !productRelevant {
@@ -325,6 +358,13 @@ func (t *ProductSupport[T]) Has(key SupportFeatureKey) bool {
 	return false
 }
 
+func (t *ProductSupport[T]) Get(key SupportFeatureKey) (string, bool) {
+	obj, _ := json.Marshal(t.Support)
+	m := readSupportFromLegacy(obj)
+	value, ok := m[key]
+	return value, ok
+}
+
 type featureMapper struct {
 	Type string
 	Key  SupportFeatureKey
@@ -334,6 +374,7 @@ type featureMapper struct {
 var featureMapperLegacy = util.Combined(
 	driveFeatureMapper,
 	jobFeatureMapper,
+	ingressFeatureMapper,
 )
 
 var featureNotSupportedError = &util.HttpError{
