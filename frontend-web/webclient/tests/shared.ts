@@ -41,17 +41,48 @@ export const Folder = {
         return "FolderName" + Math.random().toString().slice(2, 7);
     },
 
-    async create(page: Page, name: string) {
+    async create(page: Page, name: string): Promise<void> {
         expect(page.url().includes("/files?path=")).toBeTruthy();
         await page.getByText("Create folder").click();
         await page.getByRole("textbox").nth(1).fill(name);
         await page.getByRole("textbox").nth(1).press("Enter");
     },
 
-    async delete(page: Page, name: string) {
+    async delete(page: Page, name: string): Promise<void> {
         await this.actionByRowTitle(page, name, "click");
         await page.locator(".operation.button6.in-header:nth-child(6)").click(); // Ellipses
         await Components.clickConfirmationButton(page, "Move to trash");
+    },
+
+    async uploadFiles(page: Page, files: {name: string, contents: string}[]): Promise<void> {
+        await page.waitForTimeout(200); // We need to wait for Redux to propagate the changes of the drive, for use with the upload.
+        await page.getByText("Upload files").click();
+        await page.locator("#fileUploadBrowse").setInputFiles(files.map(f => ({
+            name: f.name,
+            mimeType: "text/plain",
+            buffer: Buffer.from(f.contents),
+        })));
+        await page.waitForTimeout(1000);
+        await page.keyboard.press("Escape");
+        await Components.clickRefreshAndWait(page);
+    },
+
+    async moveFileTo(page: Page, fileToMove: string, targetFolder: string): Promise<void> {
+        await Folder.actionByRowTitle(page, fileToMove, "click");
+        await page.locator(".operation.button6.in-header:nth-child(6)").click();
+        await page.getByText('Move to...').click();
+
+        await page.getByRole("dialog").filter({has: page.locator(".row"), hasText: targetFolder})
+            .getByRole("button").filter({hasText: "Move to"}).click();
+
+        await page.waitForTimeout(200);
+    },
+
+    async rename(page: Page, currentName: string, newName: string): Promise<void> {
+        await page.locator('div > span').filter({hasText: currentName}).click();
+        await page.getByText('Rename').click();
+        await page.locator('.rename-field').fill(newName);
+        await page.keyboard.press('Enter');
     }
 }
 
@@ -77,7 +108,7 @@ export const Drive = {
         await this.goToDrives(page);
         await page.waitForTimeout(200);
         await page.locator("div.operation").filter({hasText: "Create drive"}).click();
-        await page.getByRole("textbox", {name: "Choose a name*"}).fill(name);
+        await page.getByRole("textbox", {name: "Choose a name"}).fill(name);
         await page.getByRole("button", {name: "Create", disabled: false}).click();
     },
 

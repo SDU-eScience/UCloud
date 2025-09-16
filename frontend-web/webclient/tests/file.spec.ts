@@ -20,31 +20,6 @@ test.afterEach(async ({page, userAgent}) => {
 
 /// File operations
 
-test('Create and delete folder (with available resources)', async ({page, userAgent}) => {
-    const driveName = Drives[userAgent!];
-    const folderName = Folder.newFolderName();
-    await Drive.openDrive(page, driveName);
-    await Folder.create(page, folderName);
-    await expect(page.locator('div > span', {hasText: folderName})).toHaveCount(1);
-    await Folder.delete(page, folderName);
-    await expect(page.locator('div > span', {hasText: folderName})).toHaveCount(0);
-});
-
-test('Rename (with available resources)', async ({page, userAgent}) => {
-    const driveName = Drives[userAgent!];
-    const folderName = Folder.newFolderName();
-    const newFolderName = Folder.newFolderName();
-    await Drive.openDrive(page, driveName);
-    await Folder.create(page, folderName);
-    await page.locator('div > span').filter({hasText: folderName}).click();
-    await page.getByText('Rename').click();
-    await page.locator('.rename-field').fill(newFolderName);
-    await page.keyboard.press('Enter');
-    await page.getByText(newFolderName).dblclick();
-    await expect(page.getByText('This folder is empty')).toHaveCount(1);
-});
-
-
 test('Change sensitivity (with available resources)', async ({page, userAgent}) => {
     const driveName = Drives[userAgent!];
     await Drive.openDrive(page, driveName);
@@ -95,70 +70,119 @@ test("Upload file", async ({page, userAgent}) => {
     const testFileName = "test_single_file.txt";
     const testFileContents = "Single test file content.";
     await Drive.openDrive(page, driveName);
-    await page.waitForTimeout(200); // We need to wait for Redux to propagate the changes of the drive, for use with the upload.
-    await page.getByText("Upload files").click();
-    await page.locator("#fileUploadBrowse").setInputFiles({
-        name: testFileName,
-        mimeType: "text/plain",
-        buffer: Buffer.from(testFileContents)
-    });
-    await page.waitForTimeout(1000); // I don't know what's a better selector.
-    await page.keyboard.press("Escape");
-    await Components.clickRefreshAndWait(page);
+
+    await Folder.uploadFiles(page, [{name: testFileName, contents: testFileContents}]);
     await Folder.actionByRowTitle(page, testFileName, "dblclick");
     await expect(page.getByText(testFileContents)).toHaveCount(1);
 });
 
-test("Upload folder", async ({page, userAgent}) => {
+// setInputFiles doesn't allow folders
+test.skip("Upload folder", async ({page, userAgent}) => {
     const driveName = Drives[userAgent!];
     await Drive.openDrive(page, driveName);
     await page.waitForTimeout(200); // We need to wait for Redux to propagate the changes of the drive, for use with the upload.
     await page.getByText("Upload files").click();
+    // Folders are not allowed, keeping this test for now.
     await page.locator("#fileUploadBrowse").setInputFiles(dirname + "/" + "upload_folder");
     await page.waitForTimeout(1000); // I don't know what's a better selector.
     await page.keyboard.press("Escape");
     await Components.clickRefreshAndWait(page);
 });
 
-test("Upload files after running out of space (and again after cleaning up)", async ({page, userAgent}) => {
+test.skip("Upload files after running out of space (and again after cleaning up)", async ({page, userAgent}) => {
     throw Error("Not implemented")
 });
-test("Create single folder", async ({page, userAgent}) => {
-    throw Error("Not implemented")
+
+test("Create single folder, delete single folder", async ({page, userAgent}) => {
+    const driveName = Drives[userAgent!];
+    const folderName = Folder.newFolderName();
+    await Drive.openDrive(page, driveName);
+    await Folder.create(page, folderName);
+    await expect(page.locator('div > span', {hasText: folderName})).toHaveCount(1);
+    await Folder.delete(page, folderName);
+    await expect(page.locator('div > span', {hasText: folderName})).toHaveCount(0);
 });
+
 test("Create multiple folders (use / in the name)", async ({page, userAgent}) => {
-    throw Error("Not implemented")
+    const driveName = Drives[userAgent!];
+    const folderName1 = Folder.newFolderName();
+    const folderName2 = Folder.newFolderName();
+    const folderName3 = Folder.newFolderName();
+    await Drive.openDrive(page, driveName);
+    await Folder.create(page, folderName1 + "/" + folderName2 + "/" + folderName3);
+    await Folder.actionByRowTitle(page, folderName1, "dblclick");
+    await Folder.actionByRowTitle(page, folderName2, "dblclick");
+    await Folder.actionByRowTitle(page, folderName3, "dblclick");
 });
+
 test("Rename", async ({page, userAgent}) => {
-    throw Error("Not implemented")
+    const driveName = Drives[userAgent!];
+    const folderName = Folder.newFolderName();
+    const newFolderName = Folder.newFolderName();
+    await Drive.openDrive(page, driveName);
+    await Folder.create(page, folderName);
+    await Folder.rename(page, folderName, newFolderName)
+    await page.getByText(newFolderName).dblclick();
+    await expect(page.getByText('This folder is empty')).toHaveCount(1);
 });
+
 test("Move file", async ({page, userAgent}) => {
-    throw Error("Not implemented")
+    const driveName = Drives[userAgent!];
+    const folderTarget = Folder.newFolderName();
+    const uploadedFileName = "uploadedFile.txt";
+    await Drive.openDrive(page, driveName);
+    await Folder.create(page, folderTarget);
+    // UPLOAD FILE TO `folderTarget`
+    await Folder.uploadFiles(page, [{name: uploadedFileName, contents: "Some content. Doesn't matter."}]);
+    // MOVE FILE INTO `folderTarget`
+    await Folder.moveFileTo(page, uploadedFileName, folderTarget);
+
+    await Folder.actionByRowTitle(page, folderTarget, "dblclick");
+
+    await expect(page.getByText(uploadedFileName)).toHaveCount(1);
 });
+
 test("Move folder", async ({page, userAgent}) => {
+    const driveName = Drives[userAgent!];
+    const folderToMove = Folder.newFolderName();
+    const folderTarget = Folder.newFolderName();
+    await Drive.openDrive(page, driveName);
+    await Folder.create(page, folderToMove);
+    await Folder.create(page, folderTarget);
+    await Folder.moveFileTo(page, folderToMove, folderTarget);
+    await Folder.actionByRowTitle(page, folderTarget, "dblclick");
+
+    await expect(page.getByText(folderToMove)).toHaveCount(1);
+});
+
+test.skip("Move folder to child (invalid op)", async ({page, userAgent}) => {
     throw Error("Not implemented")
 });
-test("Move folder to child (invalid op)", async ({page, userAgent}) => {
+
+test.skip("Copy file", async ({page, userAgent}) => {
     throw Error("Not implemented")
 });
-test("Copy file", async ({page, userAgent}) => {
+
+test.skip("Copy file to self (check renaming)", async ({page, userAgent}) => {
     throw Error("Not implemented")
 });
-test("Copy file to self (check renaming)", async ({page, userAgent}) => {
+
+test.skip("Copy folder", async ({page, userAgent}) => {
     throw Error("Not implemented")
 });
-test("Copy folder", async ({page, userAgent}) => {
+
+test.skip("Move to trash", async ({page, userAgent}) => {
     throw Error("Not implemented")
 });
-test("Move to trash", async ({page, userAgent}) => {
+
+test.skip("Empty trash", async ({page, userAgent}) => {
     throw Error("Not implemented")
 });
-test("Empty trash", async ({page, userAgent}) => {
+
+test.skip("File search (use empty trash to trigger scan)", async ({page, userAgent}) => {
     throw Error("Not implemented")
 });
-test("File search (use empty trash to trigger scan)", async ({page, userAgent}) => {
-    throw Error("Not implemented")
-});
-test("Start a large amount of heavy tasks and observe completion", async ({page, userAgent}) => {
+
+test.skip("Start a large amount of heavy tasks and observe completion", async ({page, userAgent}) => {
     throw Error("Not implemented")
 });
