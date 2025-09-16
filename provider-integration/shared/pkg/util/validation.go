@@ -127,3 +127,19 @@ func ValidateEnum[T comparable](input *T, options []T, fieldName string, err **H
 		setErr(HttpErr(http.StatusBadRequest, "invalid enumeration specified in '%s'", fieldName))
 	}
 }
+
+func ValidateInteger(input int, fieldName string, minValue Option[int], maxValue Option[int], err **HttpError) {
+	setErr := func(e *HttpError) {
+		if *err == nil {
+			*err = e
+		}
+	}
+
+	if minValue.Present && input < minValue.Value {
+		setErr(HttpErr(http.StatusBadRequest, "%v must not be less than %v", fieldName, minValue.Value))
+	}
+
+	if maxValue.Present && input > maxValue.Value {
+		setErr(HttpErr(http.StatusBadRequest, "%v must not be more than %v", fieldName, maxValue.Value))
+	}
+}

@@ -170,7 +170,7 @@ func InitResourceType(
 	typeName string,
 	flags resourceTypeFlags,
 	doLoad func(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource),
-	doPersist func(b *db.Batch, resources *resource),
+	doPersist func(b *db.Batch, r *resource),
 	transformer func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any,
 	persistCommitted func(r *resource),
 ) {

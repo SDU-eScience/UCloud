@@ -95,6 +95,16 @@ func initFeatures() {
 						},
 					)
 
+					featureFetchProviderSupport(
+						provider,
+						orcapi.PublicIpsProviderRetrieveProducts,
+						publicIpType,
+						supportMap,
+						func(item orcapi.PublicIpSupport) accapi.ProductReference {
+							return item.Product
+						},
+					)
+
 					wg.Done()
 				}()
 			}
@@ -269,6 +279,8 @@ func supportToApi(provider string, supportItems []providerSupport) []orcapi.Reso
 					productRelevant = product.Type == accapi.ProductTypeCCompute
 				case ingressType:
 					productRelevant = product.Type == accapi.ProductTypeCIngress
+				case publicIpType:
+					productRelevant = product.Type == accapi.ProductTypeCNetworkIp
 				}
 
 				if !productRelevant {
@@ -375,6 +387,7 @@ var featureMapperLegacy = util.Combined(
 	driveFeatureMapper,
 	jobFeatureMapper,
 	ingressFeatureMapper,
+	publicIpFeatureMapper,
 )
 
 var featureNotSupportedError = &util.HttpError{

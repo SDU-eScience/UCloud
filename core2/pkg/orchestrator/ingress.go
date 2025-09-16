@@ -322,7 +322,7 @@ func ingressLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*reso
 
 		resources[ResourceId(row.Resource)].Extra = &internalIngress{
 			Domain:  row.Domain,
-			BoundTo: boundTo,
+			BoundTo: boundTo, // TODO Update this when job starts
 		}
 	}
 }
@@ -338,8 +338,8 @@ func ingressPersist(b *db.Batch, r *resource) {
 		)
 	} else {
 		ing := r.Extra.(*internalIngress)
-		boundTo := []int64{}
 
+		boundTo := []int64{}
 		for _, jobId := range ing.BoundTo {
 			id, _ := strconv.ParseInt(jobId, 10, 64)
 			boundTo = append(boundTo, id)
@@ -362,6 +362,7 @@ func ingressPersist(b *db.Batch, r *resource) {
 }
 
 func ingressTransform(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any {
+	// TODO Resolved product and support
 	ing := extra.(*internalIngress)
 	return orcapi.Ingress{
 		Resource: r,
