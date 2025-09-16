@@ -1,6 +1,8 @@
 import {test, expect} from '@playwright/test';
 import {Components, Drive, Folder, login, Rows} from "./shared";
 
+const {dirname} = import.meta;
+
 const Drives: Record<string, string> = {};
 
 test.beforeEach(async ({page, userAgent}) => {
@@ -8,6 +10,12 @@ test.beforeEach(async ({page, userAgent}) => {
     await login(page);
     await Drive.create(page, driveName);
     Drives[userAgent!] = driveName
+});
+
+
+test.afterEach(async ({page, userAgent}) => {
+    const driveName = Drives[userAgent!];
+    if (driveName) await Drive.delete(page, driveName);
 });
 
 /// File operations
@@ -76,12 +84,81 @@ test("View properties", async ({page, userAgent}) => {
 });
 
 test("Just testing the row selector", async ({page, userAgent}) => {
-    const driveName = "TestingDrive";
+    const driveName = Drives[userAgent!];
     await Drive.openDrive(page, driveName);
     await Drive.actionByRowTitle(page, "Folder66", "click");
 });
 
-test.afterEach(async ({page, userAgent}) => {
+
+test("Upload file", async ({page, userAgent}) => {
     const driveName = Drives[userAgent!];
-    if (driveName) await Drive.delete(page, driveName);
-})
+    const testFileName = "test_single_file.txt";
+    const testFileContents = "Single test file content.";
+    await Drive.openDrive(page, driveName);
+    await page.waitForTimeout(200); // We need to wait for Redux to propagate the changes of the drive, for use with the upload.
+    await page.getByText("Upload files").click();
+    await page.locator("#fileUploadBrowse").setInputFiles({
+        name: testFileName,
+        mimeType: "text/plain",
+        buffer: Buffer.from(testFileContents)
+    });
+    await page.waitForTimeout(1000); // I don't know what's a better selector.
+    await page.keyboard.press("Escape");
+    await Components.clickRefreshAndWait(page);
+    await Folder.actionByRowTitle(page, testFileName, "dblclick");
+    await expect(page.getByText(testFileContents)).toHaveCount(1);
+});
+
+test("Upload folder", async ({page, userAgent}) => {
+    const driveName = Drives[userAgent!];
+    await Drive.openDrive(page, driveName);
+    await page.waitForTimeout(200); // We need to wait for Redux to propagate the changes of the drive, for use with the upload.
+    await page.getByText("Upload files").click();
+    await page.locator("#fileUploadBrowse").setInputFiles(dirname + "/" + "upload_folder");
+    await page.waitForTimeout(1000); // I don't know what's a better selector.
+    await page.keyboard.press("Escape");
+    await Components.clickRefreshAndWait(page);
+});
+
+test("Upload files after running out of space (and again after cleaning up)", async ({page, userAgent}) => {
+    throw Error("Not implemented")
+});
+test("Create single folder", async ({page, userAgent}) => {
+    throw Error("Not implemented")
+});
+test("Create multiple folders (use / in the name)", async ({page, userAgent}) => {
+    throw Error("Not implemented")
+});
+test("Rename", async ({page, userAgent}) => {
+    throw Error("Not implemented")
+});
+test("Move file", async ({page, userAgent}) => {
+    throw Error("Not implemented")
+});
+test("Move folder", async ({page, userAgent}) => {
+    throw Error("Not implemented")
+});
+test("Move folder to child (invalid op)", async ({page, userAgent}) => {
+    throw Error("Not implemented")
+});
+test("Copy file", async ({page, userAgent}) => {
+    throw Error("Not implemented")
+});
+test("Copy file to self (check renaming)", async ({page, userAgent}) => {
+    throw Error("Not implemented")
+});
+test("Copy folder", async ({page, userAgent}) => {
+    throw Error("Not implemented")
+});
+test("Move to trash", async ({page, userAgent}) => {
+    throw Error("Not implemented")
+});
+test("Empty trash", async ({page, userAgent}) => {
+    throw Error("Not implemented")
+});
+test("File search (use empty trash to trigger scan)", async ({page, userAgent}) => {
+    throw Error("Not implemented")
+});
+test("Start a large amount of heavy tasks and observe completion", async ({page, userAgent}) => {
+    throw Error("Not implemented")
+});
