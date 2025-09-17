@@ -10,7 +10,6 @@ import (
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/shared"
 	"ucloud.dk/shared/pkg/apm"
-	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -51,8 +50,6 @@ func InitializeMemberFiles(username string, project util.Option[string]) (string
 	metricInitMemberFiles.WithLabelValues("RetrieveDriveByProviderId").Observe(timer.Mark().Seconds())
 
 	if !ok {
-		log.Info("Creating member files folder for %s in %s", username, project.Value)
-
 		timer.Mark()
 		category := shared.ServiceConfig.FileSystem.Name
 		resource := orc.ProviderRegisteredResource[orc.DriveSpecification]{

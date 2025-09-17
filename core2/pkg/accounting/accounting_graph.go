@@ -13,7 +13,7 @@ type Graph struct {
 	VertexCount    int
 	Adjacent       [][]int64           // residual capacities
 	Cost           [][]*big.Int        // per-edge costs (signed)
-	Original       [][]bool            // marks “original” edges
+	Original       [][]bool            // marks "original" edges
 	VertexToWallet []accWalletId       // vertex -> wallet
 	WalletToVertex map[accWalletId]int // wallet -> vertex
 }

@@ -466,7 +466,6 @@ export const Notifications: React.FunctionComponent<SidebarDialog> = props => {
 
         return () => {
             notificationCallbacks.delete(rerender);
-            normalizationDependencies = null;
             deinitStore();
         };
     }, []);

@@ -76,7 +76,6 @@ func handleShellNoRetry(session *ctrl.ShellSession, cols int, rows int, isNewSes
 
 				startedAt := job.Status.StartedAt.GetOrDefault(fnd.Timestamp(time.Now())).Time()
 				if time.Now().Sub(startedAt) > itermInactivityDuration {
-					log.Info("Resetting folders!")
 					parsedConfig.Folders = nil
 				}
 			}
@@ -159,7 +158,6 @@ func handleShellNoRetry(session *ctrl.ShellSession, cols int, rows int, isNewSes
 			}
 
 			if job.Status.State.IsFinal() {
-				log.Info("Job is no longer available!")
 				session.EmitData(clearScreen)
 				session.EmitData([]byte("Job is no longer available - Internal error?"))
 				return false
@@ -316,7 +314,6 @@ func handleShellNoRetry(session *ctrl.ShellSession, cols int, rows int, isNewSes
 					_, err = stdinWriter.Write([]byte(event.Data))
 					if err != nil {
 						session.Alive = false
-						log.Info("Error while writing to master: %v", err)
 						break
 					}
 

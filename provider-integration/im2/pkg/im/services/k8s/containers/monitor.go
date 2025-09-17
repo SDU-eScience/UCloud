@@ -17,7 +17,6 @@ import (
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
 	"ucloud.dk/pkg/ucviz"
-	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -61,7 +60,6 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 		job, ok := jobs[idAndRank.First]
 		if !ok {
 			// This pod does not belong to an active job - delete it.
-			log.Info("Deleting pod - job is no longer active: %v", idAndRank.First)
 			tracker.RequestCleanup(idAndRank.First)
 			continue
 		}

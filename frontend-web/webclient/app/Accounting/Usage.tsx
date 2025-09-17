@@ -344,19 +344,20 @@ function stateReducer(state: State, action: UIAction): State {
         }
 
         let jobUsageByUsers: UsagePerUser
-        state.remoteData.chartData?.usagePerUser
 
         if (state.remoteData.chartData?.usagePerUser === undefined) {
             jobUsageByUsers = emptyUsagePerUserList
         } else {
-            const usage = state.remoteData.chartData?.usagePerUser!!.data
+            const usage = state.remoteData.chartData?.usagePerUser!.data
             jobUsageByUsers = {dataPoints: usage}
         }
 
         const availableUnitsSet = unitsFromSummaries(state.summaries);
 
-        availableUnitsSet.push(JOBS_UNIT_NAME);
-
+        //TODO() Need better if statement, but at the moment this is the only thing that is shown on this page
+        if (state.remoteData.chartData?.usagePerUser !== undefined) {
+            availableUnitsSet.push(JOBS_UNIT_NAME);
+        }
         const availableUnits = [...availableUnitsSet];
 
         return {
@@ -1413,7 +1414,7 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: UsagePerUs
                     </thead>
                     <tbody>
                         {data.dataPoints.map(it =>
-                            <tr>
+                            <tr key={it.username + " - " + it.category.name + " (" + getShortProviderTitle(it.category.provider) + ")"}>
                                 <td>{it.username}</td>
                                 <td>{it.category.name + " (" + getShortProviderTitle(it.category.provider) + ")" }</td>
                                 <td>{Accounting.addThousandSeparators(it.usage.toFixed(0))} {explainUnit(it.category).name}</td>

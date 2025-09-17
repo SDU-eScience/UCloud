@@ -17,7 +17,6 @@ export enum Feature {
 
     NEW_TASKS,
     COMMAND_PALETTE,
-    INTEGRATED_EDITOR,
 
     PROVIDER_CONDITION,
 
@@ -102,12 +101,6 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "command-palette": {
         feature: Feature.COMMAND_PALETTE,
-        showWithoutFlag: allEnvironments,
-        showWithFlag: allEnvironments,
-    },
-
-    "integrated-editor": {
-        feature: Feature.INTEGRATED_EDITOR,
         showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments,
     },

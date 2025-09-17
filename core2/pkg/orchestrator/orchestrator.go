@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 	cfg "ucloud.dk/core/pkg/config"
-	db "ucloud.dk/shared/pkg/database"
+	db "ucloud.dk/shared/pkg/database2"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -82,6 +82,15 @@ func providerAppendLog(provider string, entry ProviderCallLog) {
 
 func initProviders() {
 	providerLogFiles.Logs = map[string]*providerLogFile{}
+}
+
+func ProviderDomain(providerId string) (string, bool) {
+	client, ok := providerClient(providerId)
+	if ok {
+		return client.BasePath, true
+	} else {
+		return "", false
+	}
 }
 
 func providerClient(providerId string) (*rpc.Client, bool) {

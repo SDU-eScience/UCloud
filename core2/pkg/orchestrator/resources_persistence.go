@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"time"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database"
+	db "ucloud.dk/shared/pkg/database2"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -167,15 +167,17 @@ func lResourcePersist(r *resource) {
 
 	g := resourceGetGlobals(r.Type)
 	db.NewTx0(func(tx *db.Transaction) {
+		b := db.BatchNew(tx)
+
 		if r.MarkedForDeletion {
-			g.OnPersist(tx, []*resource{r})
+			g.OnPersist(b, r)
 
 			params := db.Params{
 				"id": r.Id,
 			}
 
-			db.Exec(
-				tx,
+			db.BatchExec(
+				b,
 				`
 					delete from provider.resource_acl_entry
 					where resource_id = :id
@@ -185,8 +187,8 @@ func lResourcePersist(r *resource) {
 
 			// NOTE(Dan): Shouldn't technically be needed, but for backward-compatibility reasons we put this here
 			// to be certain that updates are definitely deleted.
-			db.Exec(
-				tx,
+			db.BatchExec(
+				b,
 				`
 					delete from provider.resource_update
 					where resource = :id
@@ -194,8 +196,8 @@ func lResourcePersist(r *resource) {
 				params,
 			)
 
-			db.Exec(
-				tx,
+			db.BatchExec(
+				b,
 				`
 					delete from provider.resource
 					where id = :id
@@ -209,8 +211,8 @@ func lResourcePersist(r *resource) {
 				Provider: "_ucloud",
 			})
 
-			db.Exec(
-				tx,
+			db.BatchExec(
+				b,
 				`
 					with products as (
 						select (
@@ -245,8 +247,8 @@ func lResourcePersist(r *resource) {
 				},
 			)
 
-			db.Exec(
-				tx,
+			db.BatchExec(
+				b,
 				`
 					delete from provider.resource_acl_entry
 					where resource_id = :id
@@ -269,8 +271,8 @@ func lResourcePersist(r *resource) {
 					}
 				}
 
-				db.Exec(
-					tx,
+				db.BatchExec(
+					b,
 					`
 						with
 							raw_entries as (
@@ -305,9 +307,15 @@ func lResourcePersist(r *resource) {
 				)
 			}
 
-			g.OnPersist(tx, []*resource{r})
+			g.OnPersist(b, r)
 		}
+
+		db.BatchSend(b)
 	})
+
+	if fn := g.OnPersistCommitted; fn != nil {
+		fn(r)
+	}
 }
 
 func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string) {
@@ -324,9 +332,9 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 					left join accounting.product_categories pc on p.category = pc.id
 				where
 				    (
-						(r.created_by = :reference and r.project is null and r.provider != :reference)
-						or (r.project = :reference and r.created_by != :reference and r.provider != :reference)
-						or (pc.provider = :reference and r.created_by != :reference and r.project != :reference)
+						(r.created_by = :reference and r.project is null and pc.provider is distinct from :reference)
+						or (r.project = :reference and r.created_by != :reference and pc.provider is distinct from :reference)
+						or (pc.provider is not distinct from :reference and r.created_by != :reference and r.project != :reference)
 					)
 					and r.type = :type
 		    `,

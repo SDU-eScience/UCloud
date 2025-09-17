@@ -260,6 +260,52 @@ var AppsFindGroupByApplication = rpc.Call[AppCatalogFindGroupByApplicationReques
 	Operation:   "findGroupByApplication",
 }
 
+var AppsUpload = rpc.Call[[]byte, util.Empty]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionCustom,
+	Roles:       rpc.RolesAdmin,
+	Operation:   "upload",
+
+	CustomPath:   "/api/" + appCatalogNamespace + "/upload",
+	CustomMethod: http.MethodPost,
+
+	CustomClientHandler: func(self *rpc.Call[[]byte, util.Empty], client *rpc.Client, request []byte) (util.Empty, *util.HttpError) {
+		panic("Client not implemented")
+	},
+
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) ([]byte, *util.HttpError) {
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			return nil, util.HttpErr(http.StatusBadRequest, "Bad request")
+		} else {
+			return data, nil
+		}
+	},
+}
+
+var AppsUploadTool = rpc.Call[[]byte, util.Empty]{
+	BaseContext: appCatalogNamespace + "/tools",
+	Convention:  rpc.ConventionCustom,
+	Roles:       rpc.RolesAdmin,
+	Operation:   "upload",
+
+	CustomPath:   "/api/" + appCatalogNamespace + "/tools/upload",
+	CustomMethod: http.MethodPost,
+
+	CustomClientHandler: func(self *rpc.Call[[]byte, util.Empty], client *rpc.Client, request []byte) (util.Empty, *util.HttpError) {
+		panic("Client not implemented")
+	},
+
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) ([]byte, *util.HttpError) {
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			return nil, util.HttpErr(http.StatusBadRequest, "Bad request")
+		} else {
+			return data, nil
+		}
+	},
+}
+
 // Studio endpoints
 // =====================================================================================================================
 
@@ -702,16 +748,50 @@ var AppsDevImport = rpc.Call[AppCatalogDevImportRequest, util.Empty]{
 	Operation:   "devImport",
 }
 
-var AppsImportFromFile = rpc.Call[util.Empty, util.Empty]{
+var AppsImportFromFile = rpc.Call[[]byte, util.Empty]{
 	BaseContext: appCatalogNamespace,
-	Convention:  rpc.ConventionUpdate,
+	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "importFromFile",
+
+	CustomPath:   "/api/" + appCatalogNamespace + "/importFromFile",
+	CustomMethod: http.MethodPost,
+
+	CustomClientHandler: func(self *rpc.Call[[]byte, util.Empty], client *rpc.Client, request []byte) (util.Empty, *util.HttpError) {
+		panic("Client not implemented")
+	},
+
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) ([]byte, *util.HttpError) {
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			return nil, util.HttpErr(http.StatusBadRequest, "corrupt payload received")
+		}
+
+		return data, nil
+	},
 }
 
-var AppsExport = rpc.Call[util.Empty, util.Empty]{
+var AppsExport = rpc.Call[util.Empty, []byte]{
 	BaseContext: appCatalogNamespace,
-	Convention:  rpc.ConventionUpdate,
+	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "export",
+
+	CustomMethod: http.MethodPost,
+	CustomPath:   fmt.Sprintf("/api/%s/export", appCatalogNamespace),
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (util.Empty, *util.HttpError) {
+		return util.Empty{}, nil
+	},
+	CustomServerProducer: func(response []byte, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/zip")
+		if err != nil {
+			w.WriteHeader(err.StatusCode)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+		_, _ = w.Write(response)
+	},
+	CustomClientHandler: func(self *rpc.Call[util.Empty, []byte], client *rpc.Client, request util.Empty) ([]byte, *util.HttpError) {
+		panic("client not implemented")
+	},
 }

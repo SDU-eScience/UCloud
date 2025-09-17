@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"hash/fnv"
 	"math/rand"
 	"net/http"
 	"runtime"
@@ -12,7 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-	db "ucloud.dk/shared/pkg/database"
+	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -50,19 +49,14 @@ type internalProjectBucket struct {
 	InviteLinks map[string]*internalInviteLink
 }
 
-func projectBucket(id string) *internalProjectBucket {
-	h := fnv.New32a()
-	_, err := h.Write([]byte(id))
-	if err != nil {
-		panic("hash fail: " + err.Error())
-	}
-
-	return &projectBuckets[int(h.Sum32())%len(projectBuckets)]
+func projectBucket(key string) *internalProjectBucket {
+	hash := util.NonCryptographicHash(key)
+	return &projectBuckets[hash%len(projectBuckets)]
 }
 
 type internalProjectUserInfo struct {
-	Username  string
 	Mu        sync.RWMutex
+	Username  string
 	Projects  map[string]util.Empty
 	Groups    map[string]string // group to project
 	Favorites map[string]util.Empty

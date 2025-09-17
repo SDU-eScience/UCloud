@@ -494,11 +494,24 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "sensitivity",
                 enabled(selected, cb) {
                     if (cb.isSearch) return false;
+                    if (!cb.syncthingConfig) return false;
                     if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
                         return false;
                     }
-                    // TODO(Jonas): I believe files with some specific sensitivities should not sync, should we also notify user of that?
-                    return selected.length === 1;
+
+                    if (selected.length !== 1) return false;
+                    const [file] = selected;
+                    const syncthingEntry = cb.syncthingConfig.folders.find(it => file.id.startsWith(it.ucloudPath));
+                    if (syncthingEntry) {
+                        const isSynchronizationRoot = syncthingEntry.ucloudPath === file.id;
+                        if (isSynchronizationRoot) {
+                            return "Remove this folder from syncthing to change sensitivity.";
+                        } else {
+                            return "Remove synchronized parent folder from syncthing to change sensitivity.";
+                        }
+                    }
+
+                    return true;
                 },
                 onClick(selected, extra) {
                     addFileSensitivityDialog(selected[0], extra.invokeCommand, extra.reload);
@@ -572,7 +585,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "refresh",
                 enabled: (selected, cb) => !cb.isSearch && synchronizationOpEnabled(false, selected, cb),
                 onClick: (selected, cb) => {
-                    synchronizationOpOnClick(selected, cb)
+                    synchronizationOpOnClick(selected, cb);
                 },
                 shortcut: ShortcutKey.Y
             },
@@ -1113,7 +1126,7 @@ function isFileFileSizeExceeded(file: UFile) {
 export function FilePreview({initialFile}: {
     initialFile: UFile,
 }): React.ReactNode {
-    const [openFile, setOpenFile] = useState<[string, string | Uint8Array]>(["", ""]);
+    const [openFile, setOpenFile] = useState<[string, string | Uint8Array<ArrayBuffer>]>(["", ""]);
     const [previewRequested, setPreviewRequested] = useState(false);
     const [drive, setDrive] = useState<FileCollection | null>(null);
     const [renamingFile, setRenamingFile] = useState<string>();
@@ -1154,9 +1167,22 @@ export function FilePreview({initialFile}: {
 
     const mediaFileMetadata: null | {type: ExtensionType, data: string, error: string | null} = useMemo(() => {
         let [file, contentBuffer] = openFile;
+
+        const isSvg = extensionFromPath(file) === "svg";
         if (typeof contentBuffer === "string") {
             if (previewRequested) {
                 contentBuffer = new TextEncoder().encode(contentBuffer);
+            } else if (isSvg) {
+                return {
+                    type: "image" as const,
+                    data: URL.createObjectURL(
+                        new Blob(
+                            [contentBuffer],
+                            {type: "image/svg+xml"}
+                        )
+                    ),
+                    error: null
+                }
             } else {
                 return null;
             }
@@ -1249,7 +1275,6 @@ export function FilePreview({initialFile}: {
     const onSave = useCallback(async () => {
         const editor = editorRef.current;
         if (!editor) return;
-        if (!hasFeature(Feature.INTEGRATED_EDITOR)) return;
         if (node) return;
 
         const path = editor.path;
@@ -1293,7 +1318,7 @@ export function FilePreview({initialFile}: {
         }
     }, [onSave, requestPreviewToggle]);
 
-    const onOpenFile = useCallback((path: string, data: string | Uint8Array) => {
+    const onOpenFile = useCallback((path: string, data: string | Uint8Array<ArrayBuffer>) => {
         setPreviewRequested(false);
         setOpenFile([path, data]);
     }, []);
@@ -1367,7 +1392,6 @@ export function FilePreview({initialFile}: {
     }, []);
 
     const operations = useCallback((file?: VirtualFile): Operation<any>[] => {
-        if (!hasFeature(Feature.INTEGRATED_EDITOR)) return [];
         const reload = () => {
             editorRef.current?.invalidateTree(removeTrailingSlash(getParentPath(initialFile.id)));
         }
@@ -1507,21 +1531,20 @@ export function FilePreview({initialFile}: {
                         />
                     </TooltipV2> : null}
 
-                {!hasFeature(Feature.INTEGRATED_EDITOR) ? null :
-                    <TooltipV2 tooltip={"Save (ctrl+s)"} contentWidth={100}>
-                        <Icon
-                            name={"floppyDisk"}
-                            size={"20px"}
-                            cursor={"pointer"}
-                            onClick={onSave}
-                        />
-                    </TooltipV2>
-                }
+                <TooltipV2 tooltip={"Save (ctrl+s)"} contentWidth={100}>
+                    <Icon
+                        name={"floppyDisk"}
+                        size={"20px"}
+                        cursor={"pointer"}
+                        onClick={onSave}
+                    />
+                </TooltipV2>
+
             </>
         }
         toolbar={
             <>
-                {!supportsTerminal || !hasFeature(Feature.INLINE_TERMINAL) || !hasFeature(Feature.INTEGRATED_EDITOR) ? null :
+                {!supportsTerminal || !hasFeature(Feature.INLINE_TERMINAL) ? null :
                     <TooltipV2 tooltip={"Open terminal"} contentWidth={130}>
                         <Icon
                             name={"terminalSolid"}
@@ -1561,7 +1584,7 @@ export function FilePreview({initialFile}: {
                 </Box>
             </Flex>
         }
-        readOnly={!hasFeature(Feature.INTEGRATED_EDITOR) || !allowEditing()}
+        readOnly={!allowEditing()}
     />;
 }
 

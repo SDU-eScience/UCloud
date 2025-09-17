@@ -4,7 +4,7 @@ import dk.sdu.cloud.accounting.util.ResourceDocument
 import io.ktor.utils.io.pool.*
 import java.util.*
 
-object ResourceOutputPool : DefaultPool<Array<ResourceDocument<Any>>>(128) {
+object ResourceOutputPool : DefaultPool<Array<ResourceDocument<Any>>>(512) {
     override fun produceInstance(): Array<ResourceDocument<Any>> = Array(CAPACITY) { ResourceDocument() }
 
     override fun clearInstance(instance: Array<ResourceDocument<Any>>): Array<ResourceDocument<Any>> {

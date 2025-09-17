@@ -26,6 +26,7 @@ import {PeerResource, peerResourceAllowed} from "@/Applications/Jobs/Resources/P
 import {createSpaceForLoadedResources, injectResources, ResourceHook, useResource} from "@/Applications/Jobs/Resources";
 import {
     awaitReservationMount,
+    getReservationValues,
     ReservationErrors,
     ReservationParameter,
     setReservation,
@@ -257,7 +258,7 @@ export const Create: React.FunctionComponent = () => {
 
     /* Note(Jonas): While this is a pretty weird data-type, I don't think we every need to store more than one,
         which is why I'm not using a Record<string, T>  */
-    const appParams = React.useRef<[name: string, Partial<JobSpecification>]>(["", {}]);
+    const appParams = React.useRef<[groupId: number, Partial<JobSpecification>]>([-1, {}]);
     // NOTE(Jonas): Not entirely sure a ref is strictly needed, but should be more consistent.
     const sshEnabledRef = React.useRef(false);
     sshEnabledRef.current = sshEnabled;
@@ -266,15 +267,12 @@ export const Create: React.FunctionComponent = () => {
             navigate("/drives");
         }
 
-        if (application?.metadata.name) {
+        if (application?.metadata.groupId) {
+            const reservationOptions = getReservationValues();
+
             const {values} = validateWidgets(parameters);
-            let reservationOptions: Partial<ReturnType<typeof validateReservation>["options"] | undefined> = {};
-            try {
-                reservationOptions = validateReservation().options;
-            } catch (e) {
-                console.warn(e);
-            }
             const foldersResources = validateWidgets(folders.params);
+            // TODO(Jonas): This should preferably not validate, but just get the values (e.g. one field could be missing)
             const peersResources = validateWidgets(peers.params);
             const networkResources = validateWidgets(networks.params);
             const ingressResources = validateWidgets(ingress.params);
@@ -287,7 +285,7 @@ export const Create: React.FunctionComponent = () => {
                 snackbarStore.addFailure(err, false);
             }
 
-            appParams.current = [application.metadata.name, {
+            appParams.current = [application.metadata.groupId, {
                 ...reservationOptions,
                 parameters: values,
                 resources: Object.values(foldersResources.values)
@@ -319,9 +317,9 @@ export const Create: React.FunctionComponent = () => {
             application: {name: application.metadata.name, version: application.metadata.version}
         })).then(() => setTimeout(() => {
             try {
-                const appName = application.metadata.name;
-                const [storedApp, jobSpec] = appParams.current;
-                if (storedApp === appName) {
+                const groupId = application.metadata.groupId;
+                const [storedGroupId, jobSpec] = appParams.current;
+                if (storedGroupId === groupId) {
                     onLoadParameters(jobSpec);
                 }
             } catch (e) {
@@ -358,7 +356,6 @@ export const Create: React.FunctionComponent = () => {
         if (application == null) return;
         const values = importedJob.parameters ?? {};
         const resources = importedJob.resources ?? [];
-
 
         if (initialImport) {
             setActiveOptParams([]);
@@ -449,7 +446,7 @@ export const Create: React.FunctionComponent = () => {
             if (newCount > 0) {
                 setReloadHack({importFrom: reloadHack.importFrom, count: newCount});
             } else {
-                appParams.current = ["", {}];
+                appParams.current = [-1, {}];
             }
         }
     }, [onLoadParameters, reloadHack]);
@@ -877,6 +874,8 @@ function findProviderMismatches(
         }
         if (anyErrors) {
             group.setErrors({...group.errors});
+        } else {
+            group.setErrors({});
         }
     }
 }

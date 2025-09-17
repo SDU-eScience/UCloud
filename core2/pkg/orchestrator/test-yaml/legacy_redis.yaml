@@ -1,0 +1,155 @@
+---
+application: v1
+
+title: Redis Server
+name: redis
+version: 8.2.0
+
+website: https://docs.cloud.sdu.dk/Apps/redis.html
+
+applicationType: WEB
+
+web:
+  port: 8001
+
+tool:
+  name: redis
+  version: 8.2.0
+
+authors:
+  - Salvatore Sanfilippo
+
+description: >
+  Redis is an open-source in-memory storage, used as a distributed, in-memory key-value database,
+  cache and message broker, with optional durability.
+
+fileExtensions:
+  - ".aof"
+  - ".rdb"
+
+allowAdditionalMounts: true
+allowPublicLink: false
+allowPublicIp: true
+allowMultiNode: false
+
+container:
+  runAsRoot: true
+
+invocation:
+  - start_app
+  - -o
+  - 8001
+  - type: var
+    vars: initialization
+    prefixGlobal: '-I '
+  - type: flag
+    var: backup
+    flag: '-k '
+  - type: var
+    vars: config_file
+    prefixGlobal: '-c '
+  - type: var
+    vars: data_dir
+    prefixGlobal: '-d '
+  - type: var
+    vars: ri_data
+    prefixGlobal: '-m '
+  - type: var
+    vars: server_port
+    prefixGlobal: '-r '
+  - type: var
+    vars: server_acl
+    prefixGlobal: '-a '
+  - type: var
+    vars: redis_args
+    prefixGlobal: '-f '
+  - type: var
+    vars: redissearch_args
+    prefixGlobal: '-e '
+  - type: var
+    vars: redistimeseries_args
+    prefixGlobal: '-t '
+  - type: var
+    vars: redisjson_args
+    prefixGlobal: '-j '
+  - type: var
+    vars: redisbloom_args
+    prefixGlobal: '-b '
+
+parameters:
+  initialization:
+    title: "Initialization"
+    type: input_file
+    description: >
+      Run initialization Bash script (*.sh).
+    optional: true
+  backup:
+    title: "Database backup"
+    type: boolean
+    description: >
+      Enable hourly backups of Redis database.
+    optional: true
+  config_file:
+    title: "Redis server configuration"
+    type: input_file
+    description: >
+      Path to custom Redis configuration file.
+    optional: true
+  data_dir:
+    title: "Redis data"
+    type: input_directory
+    description: >
+      Directory of Redis data (default: '/data/redis').
+    optional: true
+  ri_data:
+    title: "RedisInsight data"
+    type: input_directory
+    description: >
+      RedisInsight application data directory (default: '/data/redisinsight').
+    optional: true
+  server_port:
+    title: "Redis server port"
+    type: integer
+    default_value: 6379
+    description: >
+      Specify port of Redis (default: 6379).
+    optional: true
+  server_acl:
+    title: "Redis ACL"
+    type: input_file
+    description: >
+      Redis Access Control List file.
+    optional: true
+  redis_args:
+    title: "REDIS_ARGS"
+    type: text
+    description: >
+      Specify additional arguments for Redis.
+    optional: true
+  redissearch_args:
+    title: "REDISEARCH_ARGS"
+    type: text
+    description: >
+      Specify additional arguments for RediSearch module.
+    optional: true
+  redistimeseries_args:
+    title: "REDISTIMESERIES_ARGS"
+    type: text
+    description: >
+      Specify additional arguments for RedisTimeSeries module.
+    optional: true
+  redisjson_args:
+    title: "REDISJSON_ARGS"
+    type: text
+    description: >
+      Specify additional arguments for RedisJSON module.
+    optional: true
+  redisbloom_args:
+    title: "REDISBLOOM_ARGS"
+    type: text
+    description: >
+      Specify additional arguments for RedisBloom module.
+    optional: true
+
+outputFileGlobs:
+  - "*"
