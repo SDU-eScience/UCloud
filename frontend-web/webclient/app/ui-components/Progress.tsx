@@ -8,6 +8,7 @@ import {TooltipV2} from "./Tooltip";
 import Icon from "./Icon";
 import {UNABLE_TO_USE_FULL_ALLOC_MESSAGE} from "@/Accounting";
 import {OverallocationLink} from "@/UtilityComponents";
+import Box from "@/ui-components/Box";
 
 const ProgressBaseClass = injectStyle("progress-base", k => `
     ${k} {
@@ -62,7 +63,7 @@ const Progress = ({color, percent, active, label}: Progress): React.ReactNode =>
     return (
         <>
             <div className={ProgressBaseClass} style={topLevelStyle}>
-                <div className={ProgressBaseClass} style={secondaryStyle} />
+                <div className={ProgressBaseClass} style={secondaryStyle}/>
             </div>
             {label ? <Flex justifyContent="center"><Text>{label}</Text></Flex> : null}
         </>
@@ -76,19 +77,14 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
         border-radius: 5px;
         position: relative;
         display: inline-flex;
+        margin-top: 20px;
         background: linear-gradient(
             120deg,
             var(--progress-bar-color-start) 0%, var(--progress-bar-color-end) var(--percentage),
-            var(--secondaryMain) var(--percentage), var(--secondaryDark)
-            var(--limit));
+            var(--secondaryMain) var(--percentage), var(--secondaryDark) var(--limit));
     }
 
-    ${k}[data-label] {
-        margin-top: 20px;
-    }
-    
-    ${k}:before {
-        content: '';
+    ${k} .progress-limit-overlay {
         border-radius: 5px;
         position: absolute;
         top: 0;
@@ -97,17 +93,18 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
         height: 100%;
         background: linear-gradient(
             120deg, #0000 0%, #0000 var(--limit), var(--limit-bar-color-start) var(--limit), var(--limit-bar-color-end) 100%);
+        pointer-events: none;
     }
-    
-    ${k}[data-label]:after {
-        content: attr(data-label);
+
+    ${k} .progress-label {
         white-space: pre;
         font-size: 12px;
         position: absolute;
         color: var(--textPrimary);
-        text-align: center;
         top: -1.8em;
         width: 100%;
+        display: flex;
+        justify-content: center;
     }
 `);
 
@@ -123,23 +120,25 @@ export function NewAndImprovedProgress({
     withWarning,
     width = "250px",
     height = "5px",
-    progressColor = {
-        start: "primaryLight",
-        end: "primaryDark",
-    },
-    limitColor = {
-        start: "errorLight",
-        end: "errorDark",
-    },
-}: {label?: string; percentage: number; limitPercentage: number; withWarning?: boolean; width?: string, height?: string; progressColor?: ColorPair; limitColor?: ColorPair;}): React.ReactNode {
+    progressColor = {start: "primaryLight", end: "primaryDark"},
+    limitColor = {start: "errorLight", end: "errorDark"},
+}: {
+    label?: string;
+    percentage: number;
+    limitPercentage: number;
+    withWarning?: boolean;
+    width?: string;
+    height?: string;
+    progressColor?: ColorPair;
+    limitColor?: ColorPair;
+}): React.ReactNode {
     const style: CSSProperties = {};
-    // for visualization purposes we offset values too small or too close to 100%
-    if (percentage > 0.1 && percentage < 2) {
-        percentage = 2
-    }
-    if (limitPercentage < 99.9 && limitPercentage > 98) {
-        limitPercentage = 98
-    }
+
+    // clamp percentages for visualization
+    if (percentage > 0.1 && percentage < 2) percentage = 2;
+    percentage = Math.max(0, percentage);
+    if (limitPercentage < 99.9 && limitPercentage > 98) limitPercentage = 98;
+
     style["--percentage"] = percentage + "%";
     style["--limit"] = limitPercentage + "%";
     style["--progress-bar-width"] = width;
@@ -151,10 +150,29 @@ export function NewAndImprovedProgress({
     style["--limit-bar-color-start"] = `var(--${limitColor.start})`;
     style["--limit-bar-color-end"] = `var(--${limitColor.end})`;
 
-    const warning = withWarning ? <OverallocationLink><TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
-        <Icon size={"20px"} mr="8px" name={"heroExclamationTriangle"} color={"warningMain"} />
-    </TooltipV2></OverallocationLink> : null;
-    return <Flex alignItems={"center"}>{warning}<div className={NewAndImprovedProgressStyle} data-label={label} style={style} /></Flex>
+    const warning = withWarning ? (
+        <div style={{position: "relative"}}>
+            <div style={{position: "absolute", left: "-20px"}}>
+                <OverallocationLink>
+                    <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
+                        <Icon size="20px" mr="8px" name="heroExclamationTriangle" color="warningMain"/>
+                    </TooltipV2>
+                </OverallocationLink>
+            </div>
+        </div>
+    ) : null;
+
+    return (
+        <Flex alignItems="center">
+            <div className={NewAndImprovedProgressStyle} style={style}>
+                <div className="progress-limit-overlay"/>
+                {label && <span className="progress-label">
+                    <Box flexGrow={1} textAlign={"center"}>{label}</Box>
+                    {warning}
+                </span>}
+            </div>
+        </Flex>
+    );
 }
 
 export default Progress;
