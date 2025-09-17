@@ -12,7 +12,6 @@ test.beforeEach(async ({page, userAgent}) => {
     Drives[userAgent!] = driveName
 });
 
-
 test.afterEach(async ({page, userAgent}) => {
     const driveName = Drives[userAgent!];
     if (driveName) await Drive.delete(page, driveName);
@@ -58,7 +57,7 @@ test("View properties", async ({page, userAgent}) => {
     await expect(page.locator("b").filter({hasText: "Unix mode"})).toHaveCount(1);
 });
 
-test("Just testing the row selector", async ({page, userAgent, ...r}) => {
+test("Just testing the row selector", async ({page, userAgent}) => {
     const driveName = Drives[userAgent!];
     await Drive.openDrive(page, driveName);
     for (let i = 0; i < 100; i++) {

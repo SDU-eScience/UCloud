@@ -1,4 +1,4 @@
-import {expect, test, type Page} from '@playwright/test';
+import {expect, test} from '@playwright/test';
 import {Applications, Components, login, Runs} from './shared';
 
 test.beforeEach(async ({page}) => {
