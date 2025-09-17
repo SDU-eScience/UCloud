@@ -586,7 +586,6 @@ func ResourceUpdate[T any](
 			lResourcePersist(resc)
 
 			if resc.MarkedForDeletion {
-				// TODO Delete from index or don't bother?
 				delete(b.Resources, id)
 			}
 		}
