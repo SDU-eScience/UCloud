@@ -2,7 +2,7 @@ import * as React from "react";
 import Flex from "./Flex";
 import Text from "./Text";
 import {ThemeColor} from "./theme";
-import {injectStyle} from "@/Unstyled";
+import {injectStyle, makeClassName} from "@/Unstyled";
 import {CSSProperties} from "react";
 import {TooltipV2} from "./Tooltip";
 import Icon from "./Icon";
@@ -70,6 +70,9 @@ const Progress = ({color, percent, active, label}: Progress): React.ReactNode =>
     );
 };
 
+const progressLimitOverlays = makeClassName("progress-limit-overlay");
+const progressLabel = makeClassName("progress-label");
+
 const NewAndImprovedProgressStyle = injectStyle("progress", k => `
     ${k} {
         height: var(--progress-bar-height);
@@ -84,7 +87,7 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
             var(--secondaryMain) var(--percentage), var(--secondaryDark) var(--limit));
     }
 
-    ${k} .progress-limit-overlay {
+    ${k} ${progressLimitOverlays.dot} {
         border-radius: 5px;
         position: absolute;
         top: 0;
@@ -96,7 +99,7 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
         pointer-events: none;
     }
 
-    ${k} .progress-label {
+    ${k} ${progressLabel.dot} {
         white-space: pre;
         font-size: 12px;
         position: absolute;
@@ -165,8 +168,8 @@ export function NewAndImprovedProgress({
     return (
         <Flex alignItems="center">
             <div className={NewAndImprovedProgressStyle} style={style}>
-                <div className="progress-limit-overlay"/>
-                {label && <span className="progress-label">
+                <div className={progressLimitOverlays.class}/>
+                {label && <span className={progressLabel.class}>
                     <Box flexGrow={1} textAlign={"center"}>{label}</Box>
                     {warning}
                 </span>}
