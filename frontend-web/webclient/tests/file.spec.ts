@@ -58,10 +58,13 @@ test("View properties", async ({page, userAgent}) => {
     await expect(page.locator("b").filter({hasText: "Unix mode"})).toHaveCount(1);
 });
 
-test("Just testing the row selector", async ({page, userAgent}) => {
+test("Just testing the row selector", async ({page, userAgent, ...r}) => {
     const driveName = Drives[userAgent!];
     await Drive.openDrive(page, driveName);
-    await Drive.actionByRowTitle(page, "Folder66", "click");
+    for (let i = 0; i < 100; i++) {
+        await Folder.create(page, "Folder" + i);
+    }
+    await Drive.actionByRowTitle(page, "Folder" + Math.floor(Math.random() * 100), "click");
 });
 
 
@@ -132,13 +135,9 @@ test("Move file", async ({page, userAgent}) => {
     const uploadedFileName = "uploadedFile.txt";
     await Drive.openDrive(page, driveName);
     await Folder.create(page, folderTarget);
-    // UPLOAD FILE TO `folderTarget`
     await Folder.uploadFiles(page, [{name: uploadedFileName, contents: "Some content. Doesn't matter."}]);
-    // MOVE FILE INTO `folderTarget`
     await Folder.moveFileTo(page, uploadedFileName, folderTarget);
-
     await Folder.actionByRowTitle(page, folderTarget, "dblclick");
-
     await expect(page.getByText(uploadedFileName)).toHaveCount(1);
 });
 
