@@ -33,13 +33,15 @@ func ResourceValidateAllocation(actor rpc.Actor, productRef accapi.ProductRefere
 			return util.HttpErr(
 				http.StatusBadGateway,
 				"could not validate that you have access to '%v' - try again later",
-				productRef.Category,
+				util.OptStringIfNotEmpty(productRef.Category).GetOrDefault(productRef.Provider),
 			)
 		}
 
 		for _, wallet := range resp.Wallets {
 			if len(wallet.AllocationGroups) > 0 {
 				resourceAllocationCache.Add(resourceRefKey(actor, wallet.PaysFor.Name, wallet.PaysFor.Provider), util.Empty{})
+
+				// NOTE(Dan): An empty category entry is used to signify access to the provider through any allocation
 				resourceAllocationCache.Add(resourceRefKey(actor, "", wallet.PaysFor.Provider), util.Empty{})
 			}
 		}
@@ -51,7 +53,7 @@ func ResourceValidateAllocation(actor rpc.Actor, productRef accapi.ProductRefere
 		return util.HttpErr(
 			http.StatusPaymentRequired,
 			"you do not have any valid allocations for '%v'",
-			productRef.Category,
+			util.OptStringIfNotEmpty(productRef.Category).GetOrDefault(productRef.Provider),
 		)
 	} else {
 		return nil
