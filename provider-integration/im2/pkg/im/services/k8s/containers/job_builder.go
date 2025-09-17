@@ -351,7 +351,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// -----------------------------------------------------------------------------------------------------------------
 	spec.InitContainers = append(spec.InitContainers, core.Container{
 		Name:  "ucviz",
-		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.4.77",
+		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.4.107",
 	})
 
 	ucvizContainer := &spec.InitContainers[len(spec.InitContainers)-1]
