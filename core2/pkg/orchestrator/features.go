@@ -10,6 +10,7 @@ import (
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -37,6 +38,8 @@ func initFeatures() {
 	providerSupportGlobals.ByType = map[string]providerSupportByType{}
 
 	go func() {
+		providersBeingMonitored := map[string]util.Empty{}
+
 		for {
 			providers := db.NewTx(func(tx *db.Transaction) []string {
 				rows := db.Select[struct{ ProviderId string }](
@@ -55,92 +58,96 @@ func initFeatures() {
 				return result
 			})
 
-			wg := sync.WaitGroup{}
-			wg.Add(len(providers))
-
-			// provider -> type -> support
-			newSupport := map[string]map[string][]providerSupport{}
-
 			for _, provider := range providers {
-				supportMap := map[string][]providerSupport{}
-				newSupport[provider] = supportMap
-				go func() {
-					featureFetchProviderSupport(
-						provider,
-						orcapi.DrivesProviderRetrieveProducts,
-						driveType,
-						supportMap,
-						func(item orcapi.FSSupport) accapi.ProductReference {
-							return item.Product
-						},
-					)
-
-					featureFetchProviderSupport(
-						provider,
-						orcapi.JobsProviderRetrieveProducts,
-						jobType,
-						supportMap,
-						func(item orcapi.JobSupport) accapi.ProductReference {
-							return item.Product
-						},
-					)
-
-					featureFetchProviderSupport(
-						provider,
-						orcapi.IngressesProviderRetrieveProducts,
-						ingressType,
-						supportMap,
-						func(item orcapi.IngressSupport) accapi.ProductReference {
-							return item.Product
-						},
-					)
-
-					featureFetchProviderSupport(
-						provider,
-						orcapi.PublicIpsProviderRetrieveProducts,
-						publicIpType,
-						supportMap,
-						func(item orcapi.PublicIpSupport) accapi.ProductReference {
-							return item.Product
-						},
-					)
-
-					featureFetchProviderSupport(
-						provider,
-						orcapi.LicensesProviderRetrieveProducts,
-						licenseType,
-						supportMap,
-						func(item orcapi.LicenseSupport) accapi.ProductReference {
-							return item.Product
-						},
-					)
-
-					wg.Done()
-				}()
+				_, isBeingMonitored := providersBeingMonitored[provider]
+				if !isBeingMonitored {
+					providersBeingMonitored[provider] = util.Empty{}
+					go featureMonitorProvider(provider)
+				}
 			}
 
-			wg.Wait()
+			time.Sleep(10 * time.Second)
+		}
+	}()
+}
 
+func featureMonitorProvider(provider string) {
+	log.Info("Starting provider feature monitoring: %s", provider)
+	for {
+		// type -> support
+		supportMap := map[string][]providerSupport{}
+
+		featureFetchProviderSupport(
+			provider,
+			orcapi.DrivesProviderRetrieveProducts,
+			driveType,
+			supportMap,
+			func(item orcapi.FSSupport) accapi.ProductReference {
+				return item.Product
+			},
+		)
+
+		featureFetchProviderSupport(
+			provider,
+			orcapi.JobsProviderRetrieveProducts,
+			jobType,
+			supportMap,
+			func(item orcapi.JobSupport) accapi.ProductReference {
+				return item.Product
+			},
+		)
+
+		featureFetchProviderSupport(
+			provider,
+			orcapi.IngressesProviderRetrieveProducts,
+			ingressType,
+			supportMap,
+			func(item orcapi.IngressSupport) accapi.ProductReference {
+				return item.Product
+			},
+		)
+
+		featureFetchProviderSupport(
+			provider,
+			orcapi.PublicIpsProviderRetrieveProducts,
+			publicIpType,
+			supportMap,
+			func(item orcapi.PublicIpSupport) accapi.ProductReference {
+				return item.Product
+			},
+		)
+
+		featureFetchProviderSupport(
+			provider,
+			orcapi.LicensesProviderRetrieveProducts,
+			licenseType,
+			supportMap,
+			func(item orcapi.LicenseSupport) accapi.ProductReference {
+				return item.Product
+			},
+		)
+
+		if len(supportMap) == 0 {
+			time.Sleep(100 * time.Millisecond)
+		} else {
 			providerSupportGlobals.Mu.Lock()
-			for provider, info := range newSupport {
-				for typeName, support := range info {
-					typeMap, ok := providerSupportGlobals.ByType[typeName]
-					if !ok {
-						typeMap = providerSupportByType{
-							Type:       typeName,
-							ByProvider: map[string][]providerSupport{},
-						}
-						providerSupportGlobals.ByType[typeName] = typeMap
+			for typeName, support := range supportMap {
+				typeMap, ok := providerSupportGlobals.ByType[typeName]
+				if !ok {
+					typeMap = providerSupportByType{
+						Type:       typeName,
+						ByProvider: map[string][]providerSupport{},
 					}
-
-					typeMap.ByProvider[provider] = support
+					providerSupportGlobals.ByType[typeName] = typeMap
 				}
+
+				typeMap.ByProvider[provider] = support
 			}
 			providerSupportGlobals.Mu.Unlock()
 
 			time.Sleep(10 * time.Second)
 		}
-	}()
+	}
 }
 
 func featureFetchProviderSupport[T any](
