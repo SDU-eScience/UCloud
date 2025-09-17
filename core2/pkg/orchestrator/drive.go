@@ -44,6 +44,7 @@ func initDrives() {
 	})
 
 	orcapi.DrivesCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.DriveSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		// TODO Check if we have an allocation?
 		var responses []fndapi.FindByStringId
 		for _, reqItem := range request.Items {
 			d, err := DriveCreate(info.Actor, reqItem)

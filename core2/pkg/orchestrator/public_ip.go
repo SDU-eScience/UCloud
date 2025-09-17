@@ -65,6 +65,7 @@ func initPublicIps() {
 	})
 
 	orcapi.PublicIpsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PublicIPSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		// TODO Check if we have an allocation?
 		var ids []fndapi.FindByStringId
 		for _, item := range request.Items {
 			supp, ok := SupportByProduct[orcapi.PublicIpSupport](publicIpType, item.Product)

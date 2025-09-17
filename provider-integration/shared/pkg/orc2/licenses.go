@@ -1,7 +1,7 @@
 package orchestrators
 
 import (
-	"ucloud.dk/shared/pkg/apm"
+	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -21,6 +21,7 @@ type LicenseSpecification struct {
 type LicenseStatus struct {
 	State   LicenseState `json:"state"`
 	BoundTo []string     `json:"boundTo"`
+	ResourceStatus[LicenseSupport]
 }
 
 type LicenseUpdate struct {
@@ -68,13 +69,6 @@ type LicenseRenameRequest struct {
 	NewTitle string `json:"newTitle"`
 }
 
-var LicensesRename = rpc.Call[fnd.BulkRequest[LicenseRenameRequest], util.Empty]{
-	BaseContext: licenseNamespace,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
-	Operation:   "rename",
-}
-
 type LicensesSearchRequest struct {
 	ItemsPerPage int                 `json:"itemsPerPage"`
 	Next         util.Option[string] `json:"next"`
@@ -120,7 +114,7 @@ var LicensesUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[u
 	Operation:   "updateAcl",
 }
 
-var LicensesRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[FSSupport]]{
+var LicensesRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[LicenseSupport]]{
 	BaseContext: licenseNamespace,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesEndUser,
@@ -163,6 +157,13 @@ var LicensesControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResourc
 	Operation:   "register",
 }
 
+var LicensesControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[LicenseUpdate]], util.Empty]{
+	BaseContext: licenseControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "update",
+}
+
 // License Provider API
 // =====================================================================================================================
 
@@ -187,7 +188,7 @@ var LicensesProviderVerify = rpc.Call[fnd.BulkRequest[License], util.Empty]{
 	Operation:   "verify",
 }
 
-var LicensesProviderRetrieveProducts = rpc.Call[util.Empty, fnd.BulkResponse[FSSupport]]{
+var LicensesProviderRetrieveProducts = rpc.Call[util.Empty, fnd.BulkResponse[LicenseSupport]]{
 	BaseContext: licenseProviderNamespace,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesPrivileged,
@@ -199,11 +200,4 @@ var LicensesProviderUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAclWithResource[
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "updateAcl",
-}
-
-var LicensesProviderRename = rpc.Call[fnd.BulkRequest[LicenseRenameRequest], fnd.BulkResponse[util.Empty]]{
-	BaseContext: licenseProviderNamespace,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesService,
-	Operation:   "rename",
 }

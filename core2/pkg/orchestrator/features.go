@@ -105,6 +105,16 @@ func initFeatures() {
 						},
 					)
 
+					featureFetchProviderSupport(
+						provider,
+						orcapi.LicensesProviderRetrieveProducts,
+						licenseType,
+						supportMap,
+						func(item orcapi.LicenseSupport) accapi.ProductReference {
+							return item.Product
+						},
+					)
+
 					wg.Done()
 				}()
 			}
@@ -281,6 +291,8 @@ func supportToApi(provider string, supportItems []providerSupport) []orcapi.Reso
 					productRelevant = product.Type == accapi.ProductTypeCIngress
 				case publicIpType:
 					productRelevant = product.Type == accapi.ProductTypeCNetworkIp
+				case licenseType:
+					productRelevant = product.Type == accapi.ProductTypeCLicense
 				}
 
 				if !productRelevant {

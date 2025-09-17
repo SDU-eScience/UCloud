@@ -396,10 +396,6 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 		if !hasAllocFromAffiliation {
 			return 0, util.HttpErr(http.StatusBadRequest, "no requests made to primary affiliation")
 		}
-	} else {
-		if revision.ParentProjectId.Present {
-			return 0, util.HttpErr(http.StatusBadRequest, "a primary affiliation must not be present")
-		}
 	}
 
 	if !revision.Form.Type.Valid() {

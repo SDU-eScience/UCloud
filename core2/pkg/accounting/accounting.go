@@ -33,6 +33,8 @@ func initAccounting() {
 	})
 
 	accapi.ReportUsage.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.ReportUsageRequest]) (fndapi.BulkResponse[bool], *util.HttpError) {
+		// TODO Currently (when bypassing the allocation check in the orchestrator) I can create a license with no
+		//   allocation. I don't think this correctly returns false in that case.
 		var result []bool
 		for _, reqItem := range request.Items {
 			resp, err := ReportUsage(info.Actor, reqItem)
