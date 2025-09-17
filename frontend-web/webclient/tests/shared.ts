@@ -1,4 +1,4 @@
-import {expect, Locator, type Page} from "@playwright/test";
+import {expect, type Page} from "@playwright/test";
 
 // Note(Jonas): If it complains that it doesn"t exist, create it.
 import {default as data} from "./test_data.json" with {type: "json"};
@@ -20,11 +20,14 @@ export function ucloudUrl(pathname: string) {
 
 export const Rows = {
     async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover") {
-        let iterations = 100;
+        let iterations = 1000;
+
+        await page.locator(".scrolling").hover();
+        await page.mouse.wheel(0, -Number.MAX_SAFE_INTEGER);
+    
         while (!await page.locator("div > span", {hasText: name}).isVisible()) {
-            await page.locator(".scrolling").hover();
             await page.mouse.wheel(0, 150);
-            await page.waitForTimeout(200);
+            await page.waitForTimeout(50);
             iterations -= 1;
             if (iterations <= 0) {
                 console.warn("Many such iterations, no result");

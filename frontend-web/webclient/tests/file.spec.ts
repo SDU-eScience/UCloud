@@ -19,7 +19,8 @@ test.afterEach(async ({page, userAgent}) => {
 
 /// File operations
 
-test('Change sensitivity (with available resources)', async ({page, userAgent}) => {
+// Depends on an update to `dev` (or run it with your own up to date backend)
+test.skip('Change sensitivity (with available resources)', async ({page, userAgent}) => {
     const driveName = Drives[userAgent!];
     await Drive.openDrive(page, driveName);
 
@@ -63,7 +64,8 @@ test("Just testing the row selector", async ({page, userAgent}) => {
     for (let i = 0; i < 100; i++) {
         await Folder.create(page, "Folder" + i);
     }
-    await Drive.actionByRowTitle(page, "Folder" + Math.floor(Math.random() * 100), "click");
+    await Folder.actionByRowTitle(page, "Folder0", "click");
+    await Folder.actionByRowTitle(page, "Folder99", "click");
 });
 
 
