@@ -1,7 +1,6 @@
 package foundation
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -11,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
@@ -1738,124 +1738,14 @@ func projectRetrieveInternal(id string) (*internalProject, bool) {
 		project, ok = bucket.Projects[id]
 		if !ok {
 			project, ok = db.NewTx2(func(tx *db.Transaction) (*internalProject, bool) {
-				projectInfo, ok := db.Get[struct {
-					Id                   string
-					CreatedAt            time.Time
-					ModifiedAt           time.Time
-					Title                string
-					Archived             bool
-					Parent               sql.NullString
-					SubProjectsCanRename bool
-					Pid                  int
-					ProviderProjectFor   sql.NullString
-					CanConsumeResources  bool
-				}](
-					tx,
-					`
-						select
-							id, created_at, modified_at, title, archived, parent, subprojects_renameable as sub_projects_can_rename,
-							pid, provider_project_for, can_consume_resources
-						from
-							project.projects
-						where
-							id = :id
-				    `,
-					db.Params{
-						"id": id,
-					},
-				)
-
+				projectInfo, ok := coreutil.RetrieveProjectFromDatabase(tx, id)
 				if !ok {
 					return nil, false
 				} else {
 					result := &internalProject{
-						Id: id,
-						Project: fndapi.Project{
-							Id:         id,
-							CreatedAt:  fndapi.Timestamp(projectInfo.CreatedAt),
-							ModifiedAt: fndapi.Timestamp(projectInfo.ModifiedAt),
-							Specification: fndapi.ProjectSpecification{
-								Parent:              util.OptStringIfNotEmpty(projectInfo.Parent.String),
-								Title:               projectInfo.Title,
-								CanConsumeResources: projectInfo.CanConsumeResources,
-							},
-							Status: fndapi.ProjectStatus{
-								Archived:                   projectInfo.Archived,
-								PersonalProviderProjectFor: util.OptStringIfNotEmpty(projectInfo.ProviderProjectFor.String),
-								Members:                    make([]fndapi.ProjectMember, 0),
-								Groups:                     make([]fndapi.ProjectGroup, 0),
-							},
-						},
+						Id:          id,
+						Project:     projectInfo,
 						InviteLinks: make(map[string]util.Empty),
-					}
-
-					p := &result.Project
-
-					p.Status.Settings.SubProjects.AllowRenaming = projectInfo.SubProjectsCanRename
-
-					projectMembers := db.Select[struct {
-						Username string
-						Role     string
-					}](
-						tx,
-						`
-							select pm.username, pm.role
-							from project.project_members pm
-							where project_id = :id
-					    `,
-						db.Params{
-							"id": id,
-						},
-					)
-
-					for _, pm := range projectMembers {
-						p.Status.Members = append(p.Status.Members, fndapi.ProjectMember{
-							Username: pm.Username,
-							Role:     fndapi.ProjectRole(pm.Role),
-						})
-					}
-
-					groups := db.Select[struct {
-						Id           string
-						Gid          string
-						Title        string
-						GroupMembers string // json
-					}](
-						tx,
-						`
-							select
-								g.id, g.gid, g.title, jsonb_agg(gm.username) as group_members
-							from
-								project.groups g
-								left join project.group_members gm on g.id = gm.group_id
-							where
-								g.project = :id
-							group by
-								g.id, g.gid, g.title
-					    `,
-						db.Params{
-							"id": id,
-						},
-					)
-
-					for _, g := range groups {
-						var memberNames []string
-						_ = json.Unmarshal([]byte(g.GroupMembers), &memberNames)
-
-						if len(memberNames) == 1 && memberNames[0] == "" {
-							memberNames = make([]string, 0)
-						}
-
-						p.Status.Groups = append(p.Status.Groups, fndapi.ProjectGroup{
-							Id: g.Id,
-							Specification: fndapi.ProjectGroupSpecification{
-								Project: p.Id,
-								Title:   g.Title,
-							},
-							Status: fndapi.ProjectGroupStatus{
-								Members: memberNames,
-							},
-						})
 					}
 
 					links := db.Select[struct{ Token string }](
