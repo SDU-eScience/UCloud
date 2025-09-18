@@ -91,7 +91,8 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
         const selection: Selection<UFile> = {
             text: "Use",
             onClick,
-            show: providerRestriction
+            show: providerRestriction,
+            provider: provider ?? null,
         };
 
         const navigateToFolder = (path: string, projectId?: string) => {

@@ -128,7 +128,7 @@ function FavoriteBrowse({selection, navigateToFolder}: {navigateToFolder: (path:
                     return renderFileIconFromProperties(ext4, isDirectory || isLikelyDirectory(filePath), fileInfo?.status.icon);
                 };
 
-                browser.on("renderRow", (fav, row, containerWidth) => {
+                browser.on("renderRow", (fav, row) => {
                     const fileInfo = sidebarFavoriteCache.fileInfoIfPresent(fav.path);
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     renderFileIcon(fav.path).then(setIcon)
@@ -149,9 +149,11 @@ function FavoriteBrowse({selection, navigateToFolder}: {navigateToFolder: (path:
 
                     row.star.setAttribute("data-favorite", "true");
 
-                    const button = browser.defaultButtonRenderer(selection, fileInfo ?? fav);
-                    if (button) {
-                        row.stat3.append(button);
+                    if (fileInfo) {
+                        const button = (browser as unknown as ResourceBrowser<UFile>).defaultButtonRenderer(selection, fileInfo);
+                        if (button) {
+                            row.stat3.append(button);
+                        }
                     }
                 });
 

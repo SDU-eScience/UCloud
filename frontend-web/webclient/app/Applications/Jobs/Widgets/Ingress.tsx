@@ -9,7 +9,7 @@ import AppParameterValueNS = compute.AppParameterValueNS;
 import {noopCall, useCloudCommand} from "@/Authentication/DataHook";
 import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {checkProviderMismatch} from "../Create";
+import {checkProviderMismatch, getProviderField} from "../Create";
 import {PublicLinkBrowse} from "@/Applications/PublicLinks/PublicLinkBrowse";
 import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -31,10 +31,10 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
                         dialogStore.success();
                     },
                     show(res) {
-                        const errorMessage = checkProviderMismatch(res, "Public links");
-                        if (errorMessage) return errorMessage;
-                        return res.status.boundTo.length === 0;
-                    }
+                        if (res.status.boundTo.length === 0) return true;
+                        else return "Public link already in use";
+                    },
+                    provider: getProviderField() ?? null,
                 },
                 isModal: true,
                 additionalFilters: filters

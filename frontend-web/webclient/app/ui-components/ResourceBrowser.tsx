@@ -11,7 +11,6 @@ import {SvgCache} from "@/Utilities/SvgCache";
 import {
     capitalized,
     createHTMLElements,
-    displayErrorMessageOrDefault,
     doNothing,
     inDevEnvironment,
     isLikelyMac,
@@ -32,31 +31,26 @@ import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
 import {ProjectSwitcher, FilterInputClass, projectCache} from "@/Project/ProjectSwitcher";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
-import {browseWalletsV2, buildAllocationDisplayTree, ProductType, ProductV2} from "@/Accounting";
+import {ProductType, ProductV2} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {divHtml, image} from "@/Utilities/HTMLUtilities";
+import {divHtml, divText, image} from "@/Utilities/HTMLUtilities";
 import {ConfirmationButtonPlainHTML} from "./ConfirmationAction";
 import {HTMLTooltip} from "./Tooltip";
 import {ButtonClass} from "./Button";
-import {DELETE_TAG, ResourceIncludeFlags} from "@/UCloud/ResourceApi";
+import {DELETE_TAG, Resource, ResourceIncludeFlags} from "@/UCloud/ResourceApi";
 import {TruncateClass} from "./Truncate";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import Flex, {FlexClass} from "./Flex";
 import * as Heading from "@/ui-components/Heading";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI} from "@/Project";
-import {callAPI, noopCall} from "@/Authentication/DataHook";
+import {noopCall} from "@/Authentication/DataHook";
 import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {Feature, hasFeature} from "@/Features";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
-import {useProjectId} from "@/Project/Api";
-import {ProgressBar} from "@/Accounting/Allocations";
-import Card from "./Card";
-import Text from "./Text";
-import {ProviderLogo} from "@/Providers/ProviderLogo";
-import Box from "./Box";
+import {checkProviderMismatch} from "@/Applications/Jobs/Create";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const UTILITY_COLOR: ThemeColor = "textPrimary";
@@ -105,6 +99,7 @@ export interface Selection<T> {
     onClick(res: T): void;
     show(res: T): boolean | string;
     text: string;
+    provider: string | null;
 }
 
 export interface EmbeddedSettings {
@@ -1190,12 +1185,12 @@ export class ResourceBrowser<T> {
         return [icon, (url) => icon.style.backgroundImage = `url(${url})`];
     }
 
-    public defaultButtonRenderer<T>(selection: ResourceBrowserOpts<T>["selection"], item: T, opts?: {
+    public defaultButtonRenderer(selection: ResourceBrowserOpts<T>["selection"], item: T & {specification?: Resource["specification"]}, opts?: {
         color?: ThemeColor, width?: string, height?: string, button?: {
             name: IconName; size: number; color: ThemeColor; color2: ThemeColor; ml?: string;
         }
-    }) {
-        if (!selection) return;
+    }): HTMLElement | null {
+        if (!selection) return null;
         if (!selection.show || selection.show(item) === true) {
             const button = document.createElement("button");
             button.innerText = selection.text;
@@ -1212,6 +1207,7 @@ export class ResourceBrowser<T> {
             if (opts?.button) {
                 const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                 const b = opts.button;
+
                 ResourceBrowser.icons.renderIcon({
                     name: b.name,
                     height: 64,
@@ -1227,13 +1223,23 @@ export class ResourceBrowser<T> {
                 button.prepend(icon);
             }
 
+            if (selection.provider != null) {
+                const mismatchError = checkProviderMismatch(selection.provider, item, capitalized(this.resourceName));
+                if (mismatchError) {
+                    button.disabled = true;
+                    HTMLTooltip(button, divText(mismatchError));
+                    button.title = "Provider mismatch."
+                    return button;
+                }
+            }
+
             button.onclick = e => {
                 e.stopImmediatePropagation();
                 selection?.onClick(item);
             }
             return button;
         }
-        return null
+        return null;
     }
 
     renderDefaultRow(row: ResourceBrowserRow, title: string, opts?: {color?: ThemeColor; color2?: ThemeColor;}): {
