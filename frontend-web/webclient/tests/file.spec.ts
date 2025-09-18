@@ -58,7 +58,7 @@ test("View properties", async ({page, userAgent}) => {
     await expect(page.locator("b").filter({hasText: "Unix mode"})).toHaveCount(1);
 });
 
-test("Just testing the row selector", async ({page, userAgent}) => {
+test("Stress testing the row selector", async ({page, userAgent}) => {
     const driveName = Drives[userAgent!];
     await Drive.openDrive(page, driveName);
     for (let i = 0; i < 100; i++) {
@@ -93,9 +93,8 @@ test.skip("Upload folder", async ({page, userAgent}) => {
     await Components.clickRefreshAndWait(page);
 });
 
-test.skip("Upload files after running out of space (and again after cleaning up)", async ({page, userAgent}) => {
-    throw Error("Not implemented")
-});
+test.skip("Upload files after running out of space (and again after cleaning up)", async ({page, userAgent}) => {});
+
 
 test("Create single folder, delete single folder", async ({page, userAgent}) => {
     const driveName = Drives[userAgent!];
@@ -127,7 +126,7 @@ test("Rename", async ({page, userAgent}) => {
     await Folder.create(page, folderName);
     await Folder.rename(page, folderName, newFolderName)
     await page.getByText(newFolderName).dblclick();
-    await expect(page.getByText('This folder is empty')).toHaveCount(1);
+    await expect(page.getByText("This folder is empty")).toHaveCount(1);
 });
 
 test("Move file", async ({page, userAgent}) => {
@@ -159,30 +158,53 @@ test.skip("Move folder to child (invalid op)", async ({page, userAgent}) => {
     throw Error("Not implemented")
 });
 
-test.skip("Copy file", async ({page, userAgent}) => {
-    throw Error("Not implemented")
+test("Copy file", async ({page, userAgent}) => {
+    const driveName = Drives[userAgent!];
+    const fileToUpload = {name: "File.txt", contents: "Contents"};
+    const fileToCopy = fileToUpload.name;
+    const folder = Folder.newFolderName();
+    await Drive.openDrive(page, driveName);
+    await Folder.create(page, folder);
+    await Folder.uploadFiles(page, [fileToUpload]);
+    await Folder.copyFileTo(page, fileToCopy, folder);
+    await Folder.actionByRowTitle(page, folder, "dblclick");
+    await expect(page.getByText(fileToCopy)).toHaveCount(1);
 });
 
-test.skip("Copy file to self (check renaming)", async ({page, userAgent}) => {
-    throw Error("Not implemented")
+test("Copy file to self (check renaming)", async ({page, userAgent}) => {
+    const driveName = Drives[userAgent!];
+    const fileToUpload = {name: "File.txt", contents: "Contents"};
+    const fileToCopy = fileToUpload.name;
+    const folder = Folder.newFolderName();
+    await Drive.openDrive(page, driveName);
+    await Folder.create(page, folder);
+    await Folder.uploadFiles(page, [fileToUpload]);
+    await Folder.copyFileInPlace(page, fileToCopy);
+    await expect(page.getByText("File.txt")).toHaveCount(1);
+    await expect(page.getByText("File(1).txt")).toHaveCount(1);
 });
 
-test.skip("Copy folder", async ({page, userAgent}) => {
-    throw Error("Not implemented")
+test("Copy folder", async ({page, userAgent}) => {
+    const driveName = Drives[userAgent!];
+    const folderToCopy = Folder.newFolderName();
+    await Drive.openDrive(page, driveName);
+    await Folder.create(page, folderToCopy);
+    await Folder.copyFileInPlace(page, folderToCopy);
+    await expect(page.getByText(folderToCopy + "(1)")).toHaveCount(1);
 });
 
 test.skip("Move to trash", async ({page, userAgent}) => {
-    throw Error("Not implemented")
+
 });
 
 test.skip("Empty trash", async ({page, userAgent}) => {
-    throw Error("Not implemented")
+
 });
 
 test.skip("File search (use empty trash to trigger scan)", async ({page, userAgent}) => {
-    throw Error("Not implemented")
+
 });
 
 test.skip("Start a large amount of heavy tasks and observe completion", async ({page, userAgent}) => {
-    throw Error("Not implemented")
+
 });

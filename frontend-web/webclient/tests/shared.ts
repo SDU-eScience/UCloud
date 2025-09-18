@@ -24,8 +24,9 @@ export const Rows = {
 
         await page.locator(".scrolling").hover();
         await page.mouse.wheel(0, -Number.MAX_SAFE_INTEGER);
-    
+
         while (!await page.locator("div > span", {hasText: name}).isVisible()) {
+            await page.locator(".scrolling").hover();
             await page.mouse.wheel(0, 150);
             await page.waitForTimeout(50);
             iterations -= 1;
@@ -36,6 +37,13 @@ export const Rows = {
         }
         await page.locator("div > span", {hasText: name})[action]();
     },
+
+    async rename(page: Page, oldName: string, newName: string): Promise<void> {
+        await Rows.actionByRowTitle(page, oldName, "click");
+        await page.getByText("Rename").click();
+        await page.getByRole("textbox").nth(1).fill(newName);
+        await page.getByRole("textbox").nth(1).press("Enter");
+    }
 };
 
 export const Folder = {
@@ -58,7 +66,7 @@ export const Folder = {
     },
 
     async uploadFiles(page: Page, files: {name: string, contents: string}[]): Promise<void> {
-        await page.waitForTimeout(200); // We need to wait for Redux to propagate the changes of the drive, for use with the upload.
+        await page.waitForTimeout(500); // We need to wait for Redux to propagate the changes of the drive, for use with the upload.
         await page.getByText("Upload files").click();
         await page.locator("#fileUploadBrowse").setInputFiles(files.map(f => ({
             name: f.name,
@@ -75,18 +83,30 @@ export const Folder = {
         await page.locator(".operation.button6.in-header:nth-child(6)").click();
         await page.getByText('Move to...').click();
 
-        await page.getByRole("dialog").filter({has: page.locator(".row"), hasText: targetFolder})
+        await page.locator("div.ReactModal__Content div.row", {hasText: targetFolder})
             .getByRole("button").filter({hasText: "Move to"}).click();
 
         await page.waitForTimeout(200);
     },
 
-    async rename(page: Page, currentName: string, newName: string): Promise<void> {
-        await page.locator('div > span').filter({hasText: currentName}).click();
-        await page.getByText('Rename').click();
-        await page.locator('.rename-field').fill(newName);
-        await page.keyboard.press('Enter');
-    }
+    async copyFileTo(page: Page, fileToCopy: string, targetFolder: string): Promise<void> {
+        await Folder.actionByRowTitle(page, fileToCopy, "click");
+        await page.locator(".operation.button6.in-header:nth-child(6)").click();
+        await page.getByText('Copy to...').click();
+
+        await page.locator("div.ReactModal__Content div.row", {hasText: targetFolder})
+            .getByRole("button").filter({hasText: "Copy to"}).click();
+
+        await page.waitForTimeout(200);
+    },
+
+    async copyFileInPlace(page: Page, folderName: string): Promise<void> {
+        await Folder.actionByRowTitle(page, folderName, "click");
+        await page.locator(".operation.button6.in-header:nth-child(6)").click();
+        await page.getByText("Copy to...").click();
+        await page.getByText("Use this folder").first().click();
+        await page.waitForTimeout(200);
+    },
 }
 
 export const Drive = {
@@ -121,13 +141,6 @@ export const Drive = {
         await page.getByText("Delete").click();
         await page.locator("#collectionName").fill(name);
         await page.getByRole("button", {name: "I understand what I am doing", disabled: false}).click();
-    },
-
-    async rename(page: Page, oldName: string, newName: string) {
-        await Rows.actionByRowTitle(page, oldName, "click");
-        await page.getByText("Rename").click();
-        await page.getByRole("textbox").nth(1).fill(newName);
-        await page.getByRole("textbox").nth(1).press("Enter");
     },
 
     async properties(page: Page, name: string) {

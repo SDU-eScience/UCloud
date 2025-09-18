@@ -16,10 +16,10 @@ test('Create and delete drive (with available resources)', async ({page}) => {
 
 test('Rename drive', async ({page}) => {
     const driveName = Drive.newDriveName();
-    const newDriveName = "NewDriveName" + `${(Math.random() * 100_000)}`.slice(0, 4);
+    const newDriveName = Drive.newDriveName();
     await Drive.create(page, driveName);
     await Drive.rename(page, driveName, newDriveName);
-    await expect(page.locator('div > span').filter({hasText: newDriveName})).toHaveCount(1);
+    await expect(page.locator("span").filter({hasText: newDriveName})).toHaveCount(1);
     // Cleanup
     await Drive.delete(page, newDriveName);
 });
