@@ -1,0 +1,55 @@
+application: v2
+
+name: coder-native
+version: 1.91
+
+software:
+  type: Native
+  load:
+    - name: coder
+      version: 1.91
+
+web:
+  enabled: true
+
+features:
+  multiNode: false
+  folders: false
+  jobLinking: false
+
+parameters:
+  wf:
+    type: Workflow
+    optional: false
+    title: "Workflow"
+    description: |
+      You can customize how Code server is started by editing this parameter.
+
+    init: ""
+
+    job: |
+      {# Preambles start - Avoid touching these unless required. #}
+        {- systemLoad -}
+        {- applicationLoad -}
+      {# Preambles end #}
+        
+      {# =============================================================================================================== #}
+      {# Start the job - change as required                                                                              #}
+      {# =============================================================================================================== #}
+                
+      export PASSWORD=$(uuidgen)
+      echo "Password: ${PASSWORD}"
+      echo
+  
+      code-server --bind-addr 0.0.0.0:${UCLOUD_PORT} --cert false --auth password
+  
+      {# =============================================================================================================== #}
+      {# End of job                                                                                                      #}
+      {# =============================================================================================================== #}
+
+      {# Postambles start - Avoid touching these unless required. #}
+        {- applicationUnload -}
+        {- systemUnload -}
+      {# Postambles end #}
+
+invocation: ""

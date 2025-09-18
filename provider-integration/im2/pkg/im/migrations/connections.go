@@ -1,11 +1,11 @@
 package migrations
 
 import (
-	db "ucloud.dk/pkg/database"
+	db "ucloud.dk/shared/pkg/database"
 )
 
-func connectionsV1() migrationScript {
-	return migrationScript{
+func connectionsV1() db.MigrationScript {
+	return db.MigrationScript{
 		Id: "connectionsV1",
 		Execute: func(tx *db.Transaction) {
 			db.Exec(tx, `
@@ -25,8 +25,8 @@ func connectionsV1() migrationScript {
 	}
 }
 
-func connectionsV2() migrationScript {
-	return migrationScript{
+func connectionsV2() db.MigrationScript {
+	return db.MigrationScript{
 		Id: "connectionsV2",
 		Execute: func(tx *db.Transaction) {
 			db.Exec(
@@ -36,6 +36,21 @@ func connectionsV2() migrationScript {
 						uid int not null,
 						token text not null primary key
 					)
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func connectionsV3() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "connectionsV3",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table connections add column expires_at timestamptz
 			    `,
 				db.Params{},
 			)

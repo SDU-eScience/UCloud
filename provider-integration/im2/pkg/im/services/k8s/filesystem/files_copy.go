@@ -11,21 +11,28 @@ import (
 	"path/filepath"
 	"sync/atomic"
 	"time"
-	fnd "ucloud.dk/pkg/foundation"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func copyFiles(request ctrl.CopyFileRequest) error {
-	_, ok1 := UCloudToInternal(request.OldPath)
-	destPath, ok2 := UCloudToInternal(request.NewPath)
+	if !AllowUCloudPathsTogether([]string{request.OldPath, request.NewPath}) {
+		return util.ServerHttpError("Some of these files cannot be used together. One or more are sensitive.")
+	}
+
+	_, ok1, _ := UCloudToInternal(request.OldPath)
+	destPath, ok2, destDrive := UCloudToInternal(request.NewPath)
 	if !ok1 || !ok2 {
 		return &util.HttpError{
 			StatusCode: http.StatusNotFound,
 			Why:        "Unable to copy files. Request or destination is unknown.",
 		}
+	}
+
+	if ctrl.IsResourceLocked(destDrive.Resource, request.NewDrive.Specification.Product) {
+		return util.PaymentError()
 	}
 
 	task := TaskInfoSpecification{
@@ -50,7 +57,10 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 			}
 		}
 
-		newInternalDest := InternalToUCloudWithDrive(&request.NewDrive, destPath)
+		newInternalDest, ok := InternalToUCloudWithDrive(&request.NewDrive, destPath)
+		if !ok {
+			return util.UserHttpError("Unable to copy files. Unknown drive")
+		}
 		task.UCloudDestination.Set(newInternalDest)
 	}
 
@@ -58,15 +68,15 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 }
 
 func processCopyTask(task *TaskInfo) TaskProcessingResult {
-	sourcePath, ok1 := UCloudToInternal(task.UCloudSource.Value)
-	destPath, ok2 := UCloudToInternal(task.UCloudDestination.Value)
+	sourcePath, ok1, _ := UCloudToInternal(task.UCloudSource.Value)
+	destPath, ok2, _ := UCloudToInternal(task.UCloudDestination.Value)
 	if !ok1 || !ok2 {
 		return TaskProcessingResult{
 			Error: fmt.Errorf("Invalid source or destination supplied"),
 		}
 	}
 
-	sourceFile, ok := openFile(sourcePath, unix.O_RDONLY, 0)
+	sourceFile, ok := OpenFile(sourcePath, unix.O_RDONLY, 0)
 	if !ok {
 		return TaskProcessingResult{
 			Error: fmt.Errorf("Invalid source file supplied. It no longer exists."),
@@ -88,16 +98,16 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 		destFlags = unix.O_RDWR | unix.O_TRUNC | unix.O_CREAT
 	}
 
-	destFile, ok := openFile(destPath, destFlags, destMode)
+	destFile, ok := OpenFile(destPath, destFlags, destMode)
 	if !ok && sourceStat.IsDir() {
-		err = doCreateFolder(destPath)
+		err = DoCreateFolder(destPath)
 		if err != nil {
 			return TaskProcessingResult{
 				Error: fmt.Errorf("Unable to open destination file"),
 			}
 		}
 
-		destFile, ok = openFile(destPath, destFlags, destMode)
+		destFile, ok = OpenFile(destPath, destFlags, destMode)
 		if !ok {
 			return TaskProcessingResult{
 				Error: fmt.Errorf("Unable to open destination file"),
@@ -318,12 +328,12 @@ func (w *copyWorker) copyFile(entry discoveredFile) bool {
 		} else {
 			fd, err = unix.Openat(destFileFd, entry.InternalPath, unix.O_RDWR|unix.O_TRUNC|unix.O_CREAT, 0660)
 			if err != nil {
-				log.Info("Could not write file? %v", entry.InternalPath)
 				return false
 			}
 		}
 
 		_ = unix.Fchmod(fd, uint32(entry.FileInfo.Mode().Perm()))
+		_ = unix.Fchown(fd, FileUid(entry.FileInfo), FileGid(entry.FileInfo))
 		file := os.NewFile(uintptr(fd), entry.InternalPath)
 		_, err = io.Copy(file, entry.FileDescriptor)
 		_ = file.Close()
@@ -332,6 +342,7 @@ func (w *copyWorker) copyFile(entry discoveredFile) bool {
 		}
 	} else {
 		_ = unix.Mkdirat(destFileFd, entry.InternalPath, 0770)
+		_ = unix.Fchownat(destFileFd, entry.InternalPath, FileUid(entry.FileInfo), FileGid(entry.FileInfo), 0)
 		return unix.Fchmodat(destFileFd, entry.InternalPath, uint32(entry.FileInfo.Mode().Perm()), 0) == nil
 	}
 

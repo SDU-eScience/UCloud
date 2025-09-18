@@ -12,7 +12,7 @@ import (
 	"time"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/pkg/log"
+	"ucloud.dk/shared/pkg/log"
 )
 
 func InitIpc() {
@@ -20,7 +20,7 @@ func InitIpc() {
 	_ = os.Remove(socketPath)
 	listener, err := net.Listen("unix", socketPath)
 	if err != nil {
-		log.Error("Failed to create IPC socket at %v", socketPath)
+		log.Error("Failed to create IPC socket at %v: %s", socketPath, err)
 		os.Exit(1)
 	}
 

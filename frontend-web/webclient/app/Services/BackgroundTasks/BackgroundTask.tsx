@@ -18,6 +18,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import * as icons from "@/ui-components/icons";
 import {Feature, hasFeature} from "@/Features";
 import {SidebarDialog} from "@/ui-components/Sidebar";
+import {groupBy} from "@/Utilities/CollectionUtilities";
 
 const iconNames = Object.keys(icons) as IconName[];
 
@@ -312,7 +313,7 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
     const [websocket, setWebsocket] = React.useState<WebSocketConnection>();
 
     const fileUploads = React.useMemo(() => {
-        const uploadGrouping = Object.groupBy(uploads, t => uploadIsTerminal(t) ? "finished" : "uploading")
+        const uploadGrouping = groupBy(uploads, t => uploadIsTerminal(t) ? "finished" : "uploading")
         if (uploadGrouping.finished == null) uploadGrouping.finished = [];
         if (uploadGrouping.uploading == null) uploadGrouping.uploading = [];
         return uploadGrouping as Record<"finished" | "uploading", Upload[]>;
@@ -419,7 +420,7 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
     if (!websocket || !hasFeature(Feature.NEW_TASKS)) return null;
 
     const noEntries = (inProgressCount + fileUploads.finished.length + fileUploads.finished.length + finishedTaskList.length) === 0;
-    
+
     const isOpen = dialog === "BackgroundTask";
 
     return (
@@ -443,9 +444,9 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
                     {fileUploads.uploading.map((u, i) => <UploaderRow key={u.name + u.targetPath + i} upload={u} callbacks={uploadCallbacks} />)}
                     {inProgressTaskList.map(t => <TaskItem key={t.taskId} task={t} ws={websocket} />)}
                     {anyFinished ? <Flex>
-                        <h4 style={{marginBottom: "4px"}}>Finished tasks</h4>
+                        <h4 style={{marginBottom: "8px"}}>Finished tasks</h4>
                         <Box ml="auto">
-                            <TooltipV2 contentWidth={190} tooltip={"Remove finished tasks"}>
+                            <TooltipV2 contentWidth={230} tooltip={"Remove finished tasks history"}>
                                 <Icon name="close" onClick={() => {
                                     taskStore.finishedTasks = {};
                                     uploadStore.clearUploads(fileUploads.finished, () => void 0);

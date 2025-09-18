@@ -1,13 +1,12 @@
 # Filesystem Integration
 
 In this chapter we are going to cover how UCloud/IM for Slurm integrates with your local distributed filesystem. We will
-start by covering the concept of UCloud drives and how these are mapped to your local environment. Following that will
-be a discussion on how to manage various integrations which are needed for fully managed providers.
+start by covering the concept of UCloud drives and how these are mapped to your local environment. This will be follwed by a discussion on how to manage various integrations which are needed for fully managed providers.
 
 ## Software and Hardware Requirements
 
 UCloud/IM for Slurm targets POSIX-compliant distributed filesystems. It will use the standard APIs to open, close, read
-and write to both files and directories. Said differently, any normal filesystem on which you can run your normal
+and write to both files and directories. In other words, any normal filesystem on which you can run your normal
 command line tools should be compatible with UCloud/IM.
 
 <figure>
@@ -42,10 +41,13 @@ will run as the real local identity. This also means that all filesystem permiss
 normal permission model. Thus, if `Donna#1234` has a local identity of `donna01` then all files created by her will be
 owned by `donna01`. She will also only be able to access files she has the appropriate permissions for.
 
-To ensure proper file permissions when collaborating, the UCloud/IM instance will always create files using a `umask`
-value of `0007`. This ensures that the group (i.e. the rest of the project) will be able any newly created files.
-UCloud/IM does not make any attempts to modify file ACLs, but any ACLs set manually will be enforced. For
-managed providers, UCloud/IM will recommend an owner, group and permissions for all drives, these are as follows:
+To ensure proper file permissions when collaborating, the UCloud/IM instance will always create
+files using a `umask` value of `0007`. This ensures that the group (i.e. the rest of the project)
+will be able to access any newly created files.
+
+UCloud/IM does not make any attempts to modify file ACLs, but any ACLs set manually will be
+enforced. For managed providers, UCloud/IM will recommend an owner, group and permissions for all
+drives, these are as follows:
 
 <figure>
 
@@ -79,7 +81,7 @@ around 200-300% seems like a reasonable default.
 UCloud has a concept of (virtual) drives. A drive in UCloud is simply a named entrypoint to your files, UCloud itself
 does not impose any requirements on what a drive is specifically backed by, only that it is a meaningful entrypoint.
 
-In most HPC environments, we commonly find a few different of these entrypoints. For example, you might have a `/home`
+In most HPC environments, we commonly find a few different entrypoints. For example, you might have a `/home`
 folder containing your own personal files. On top of that, you usually have a different entrypoint when you are
 collaborating with others. This could, for example, be one or more shared project workspaces stored in different
 folders.
@@ -189,7 +191,7 @@ separate resource allocations.
 
 | Entity             | Variable          | Description                                                                |
 |--------------------|-------------------|----------------------------------------------------------------------------|
-| _Always available_ | `locatorName`     | The name of the drive locator (e.g. `home` or `project`)                   |
+| _Always available_ | `locatorName`     | The name of the drive locator (e.g. `home` or `projects`)                  |
 | _Always available_ | `categoryName`    | The name of the product category (e.g. `hpc-storage` or `archive`)         |
 | `User`             | `ucloudUsername`  | The username of the UCloud identity (e.g. `Donna#1234`)                    |
 | `User`             | `localUsername`   | The username of the local identity (e.g. `donna03`)                        |
@@ -244,18 +246,41 @@ management. You can read more about the process [here](./id-management.md).
 
 ### GPFS
 
-GPFS (also known as "IBM Storage Scale" or "IBM Spectrum Scale") is clustered file system developed by IBM. This
+GPFS (also known as "IBM Storage Scale" or "IBM Spectrum Scale") is a parallel filesystem developed by IBM. This
 integration will allow for automatic creation and management of filesets. UCloud/IM will create exactly one fileset
-per drive. The quota is automatically adjusted to match the values stored in UCloud.
+per drive. The quota is automatically adjusted to match the allocated resources in UCloud.
 
-This integration works by using the
+The integration has been tested against IBM Spectrum Scale 5.x and it works by using the
 [IBM Storage Scale management API endpoints](https://www.ibm.com/docs/en/storage-scale/5.2.0?topic=overview-storage-scale-management-api).
-
-TODO Version requirements and so on
 
 #### Creating a Service Account
 
-TODO How to create a service account
+A service account is needed to communicate with the REST API. Navigate to the IBM Spectrum Scale web interface and click on `Services` in the menu. After clicking the `GUI` tab on the left you should see the following interface.
+
+<figure>
+
+<img src="./gpfs_users.png">
+
+<figcaption>
+
+User management in the IBM Spectrum Scale web interface.
+
+</figcaption>
+</figure>
+
+Click `Create user` in the menu to create a new service account, which will open the window showed below. Choose a username and a password for the service account and select `Disable Automatic Password Expiry`. Assign one or more user groups, such that the service account has privileges to create filesets and manage quotas. Which user groups are necessary depends on the local configuration, in the example below we have chosen the `StorageAdmin` and `CsiAdmin` groups.
+
+<figure>
+
+<img src="./gpfs_create_user.png" style="width: 50%">
+
+<figcaption>
+
+User creation in the IBM Spectrum Scale web interface.
+
+</figcaption>
+</figure>
+
 
 #### Configuring the integration
 
@@ -268,14 +293,14 @@ services:
   type: Slurm
 
   fileSystems:
-    storage:
+    my-gpfs-storage:
       management:
         type: GPFS
 ```
 
 <figcaption>
 
-The GPFS integration is enabled by setting the `type` property of `storage.management` to `GPFS`.
+The GPFS integration is enabled by setting the `management.type` variable to `GPFS`. As previously explained, the section `my-gpfs-storage` is the name of the product category and it can be chosen freely by the provider.
 
 </figcaption>
 
@@ -306,28 +331,28 @@ Inside the file, the `gpfs` section can be used to configure the integration.
 
 ```yaml
 gpfs:
-  storage: # This is the product category name
-    username: gpfs
-    password: gpfspassword
+  my-gpfs-storage: # This is the product category name
+    username: ucloud
+    password: ucloudpassword
     verifyTls: false
     host:
-      address: localhost
-      port: 62394
-      scheme: http
+      address: <spectrum-scale-host>
+      port: 443
+      scheme: https
     mapping:
       home: # This is a locator name
-        fileSystem: "gpfs"
-        parentFileSet: "home"
+        fileSystem: gpfs
+        parentFileSet: home
         # This has the same variables as the drive locator has
         fileSetPattern: "home-#{localUsername}"
       projects:
-        fileSystem: "gpfs"
-        parentFileSet: "work"
+        fileSystem: gpfs
+        parentFileSet: work
         # This has the same variables as the drive locator has
         fileSetPattern: "work-#{localGroupName}-#{gid}"
       archive:
-        fileSystem: "gpfsarchive"
-        parentFileSet: "archive"
+        fileSystem: gpfsarchive
+        parentFileSet: archive
         # This has the same variables as the drive locator has
         fileSetPattern: "archive-#{localGroupName}"
 ```
@@ -340,7 +365,12 @@ The configuration required for GPFS. Remember to change the values such that the
 
 </figure>
 
-TODO explain what this does and provide a better example
+The above example shows how to configure UCloud/IM to communicate the the IBM Spectrum Scale system and how drives can
+be mapped onto different filesystems. Let's try to break it down.
+
+* The name `my-gpfs-storage` must match the name chosen in `config.yml` for the product category.
+* Next we have the `username` and `password` for the previously created service account. We also have the `host` section to configure the endpoint for accessing the REST API.
+* Under `mapping` we have the different products available to the users, such as home folders, workspace folders, and archive folders. The variables `fileSystem` and `parentFileSet` should match an existing filesystem and fileset on the storage system. The variable `fileSetPattern` should match up with the `driveLocators` used in the `config.yml` file.
 
 #### Breakdown of operations executed by UCloud/IM
 
@@ -487,14 +517,6 @@ will trigger the "Resource allocation updated" process.
 </tbody>
 </table>
 </div>
-
-### WEKA
-
-TODO Not yet implemented.
-
-### CephFS
-
-TODO Not yet implemented.
 
 ### Scripted (any filesystem)
 
@@ -723,4 +745,3 @@ taken by the user.
 </tbody>
 </table>
 </div>
-

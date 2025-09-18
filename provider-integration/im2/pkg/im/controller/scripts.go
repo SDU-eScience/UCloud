@@ -9,11 +9,11 @@ import (
 	"os/exec"
 	"strings"
 
-	db "ucloud.dk/pkg/database"
-	fnd "ucloud.dk/pkg/foundation"
+	db "ucloud.dk/shared/pkg/database"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type Script[Req any, Resp any] struct {
@@ -314,8 +314,14 @@ func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
 
 	err = cmd.Run()
 
-	exitCode := cmd.ProcessState.ExitCode()
-	statusSuccess := cmd.ProcessState.Success()
+	var exitCode int
+	var statusSuccess bool
+
+	if cmd.ProcessState != nil {
+		exitCode = cmd.ProcessState.ExitCode()
+		statusSuccess = cmd.ProcessState.Success()
+	}
+
 	if err != nil {
 		s := strings.TrimSpace(stderr.String())
 		log.Warn("%v script failed: %s %v", e.Script, s, err)

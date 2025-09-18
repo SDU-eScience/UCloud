@@ -151,31 +151,6 @@ section are mandatory and which are optional.
 </figure>
 </div>
 
-<div data-title="MPI">
-<figure>
-
-````yaml
-{{#include app_mpi.yaml}}
-````
-
-<figcaption>
-
-An example showing how to launch an MPI program with through a UCloud application.
-
-</figcaption>
-</figure>
-</div>
-
-<div data-title="Web">
-<figure>
-
-````yaml
-{{#include app_web.yaml}}
-````
-
-</figure>
-</div>
-
 </div>
 
 
@@ -416,67 +391,6 @@ to load the software. This is supplied in the `software` top-level section.
 <td>
 
 Must be `"Native"` for application used in the UCloud/IM for Slurm integration.
-
-</td>
-</tr>
-
-<tr>
-<td><code>load</code></td>
-<td><code>object[]</code><br>(optional, see below)</td>
-<td>
-
-Default value: `null`
-
-Contains information about how to load a specific piece of software. If this property is not supplied, then it is
-assumed that no load procedure is required and that the software can be run without any additional commands.
-
-</td>
-</tr>
-
-</tbody>
-</table>
-</div>
-
-### Software - Load
-
-The software load section contains information about how to load software. It is specified as an array of objects. The
-schema for the object is defined in the table below.
-
-In non-customizable applications, the load step is always executed prior to the program invocation. In 
-customizable applications, they are loaded when requested via `{- loadApplication("name", "version") -}` (load generic 
-dependency not specified in the application) or `{- applicationLoad -}` (load all dependencies specified in the 
-application).
-
-You can learn more about how to configure what happens when software is loaded [here](./built-in-apps.md).
-
-<div class="table-wrapper no-code-wrap">
-<table>
-<thead>
-<tr>
-<th>Property</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-
-<tr>
-<td><code>name</code></td>
-<td><code>string</code></td>
-<td>
-
-The name of the software to load. This is independent from the name of application, but is commonly tightly bound to it.
-
-</td>
-</tr>
-
-<tr>
-<td><code>version</code></td>
-<td><code>string</code></td>
-<td>
-
-The version of the software to load. This version is independent from the version specified in the application, but is
-commonly tightly bound to it.
 
 </td>
 </tr>

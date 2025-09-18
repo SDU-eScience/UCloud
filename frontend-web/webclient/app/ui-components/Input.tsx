@@ -20,7 +20,7 @@ export interface InputProps extends BorderProps, BackgroundColorProps, SpaceProp
     error?: boolean;
     overrideDisabledColor?: ThemeColor;
     rows?: number;
-    inputRef?: React.RefObject<HTMLInputElement>;
+    inputRef?: React.RefObject<HTMLInputElement | null>;
     resize?: "vertical" | "horizontal";
 }
 
@@ -108,6 +108,7 @@ const Input: React.FunctionComponent<InputProps & {as?: "input" | "textarea"; cu
     inputProps["step"] = props.step;
     inputProps["min"] = props.min;
     inputProps["max"] = props.max;
+    inputProps["maxLength"] = props.maxLength;
 
     inputProps["data-error"] = props.error === true;
     inputProps["data-left-label"] = props.leftLabel === true;

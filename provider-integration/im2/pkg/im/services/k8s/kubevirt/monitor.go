@@ -5,12 +5,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kvcore "kubevirt.io/api/core/v1"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
+	if !Enabled {
+		return
+	}
+
 	activeInstances, err := KubevirtClient.VirtualMachineInstance(Namespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Info("Failed to fetch virtual machines instances: %v", err)
@@ -49,6 +53,7 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 				},
 			)
 		} else {
+			log.Info("Waiting for %v (hasInstance = %v, machine.Status.Ready = %v)", jobId, hasInstance, hasInstance && machine.Status.Ready)
 			tracker.TrackState(
 				shared.JobReplicaState{
 					Id:    jobId,
@@ -59,4 +64,8 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 			)
 		}
 	}
+}
+
+func OnStart(jobs []orc.Job) {
+
 }

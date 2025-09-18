@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net"
 	"syscall"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func (l *ipcListener) Accept() (net.Conn, error) {

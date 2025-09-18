@@ -6,6 +6,7 @@ import * as Heading from "@/ui-components/Heading";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {NotificationSettings, retrieveNotificationSettings, updateNotificationSettings} from ".";
+import {PayloadAction} from "@reduxjs/toolkit";
 
 interface UserDetailsState {
     settings: NotificationSettings
@@ -25,7 +26,7 @@ const initialState: UserDetailsState = {
     settings: defaultNotificationSettings
 };
 
-type UpdatePlaceholdersNotificationSettings = PayloadAction<"UpdatePlaceholdersNotificationSettings", UserDetailsState>;
+type UpdatePlaceholdersNotificationSettings = PayloadAction<UserDetailsState, "UpdatePlaceholdersNotificationSettings">;
 
 function reducer(state: UserDetailsState, action: UpdatePlaceholdersNotificationSettings): UserDetailsState {
     switch (action.type) {
@@ -41,7 +42,7 @@ export const ChangeNotificationSettings: React.FunctionComponent<{setLoading: (l
 
         const notificationSettings = await invokeCommand(
             retrieveNotificationSettings({}),
-            { defaultErrorHandler: false }
+            {defaultErrorHandler: false}
         );
 
         dispatch({

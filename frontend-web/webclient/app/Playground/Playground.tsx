@@ -1,6 +1,6 @@
 import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
-import {useEffect} from "react";
+import {useEffect, useRef} from "react";
 import {EveryIcon, IconName} from "@/ui-components/Icon";
 import {Box, Flex} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
@@ -10,9 +10,16 @@ import * as icons from "@/ui-components/icons";
 import {Project} from "@/Project";
 import * as d3 from "d3";
 import * as plot from "@observablehq/plot";
+import * as Plot from "@observablehq/plot";
+import * as JobViz from "@/Applications/Jobs/JobViz"
+import {WidgetColorIntensity, WidgetWindow} from "@/Applications/Jobs/JobViz"
+import {CpuChartDemo} from "@/Playground/D3Test";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
+function sendToProcessor(processor: JobViz.StreamProcessor, message: any) {
+    processor.accept(JSON.stringify(message) + "\n");
+}
 
 const Playground: React.FunctionComponent = () => {
     const data = React.useMemo((): PlottingData[] => {
@@ -21,15 +28,158 @@ const Playground: React.FunctionComponent = () => {
         return tick.ticks(100).map((t, index, arr) => ({date: t, value: [0, 1].includes(index % 4) ? 0 : 25}));
     }, []);
 
+    const stream = useRef(new JobViz.StreamProcessor());
+
+    useEffect(() => {
+        {
+            const header: JobViz.WidgetPacketHeader = {
+                action: JobViz.WidgetAction.WidgetActionCreate
+            };
+            sendToProcessor(stream.current, header);
+
+            const widget: JobViz.Widget = {
+                id: "test2",
+                type: JobViz.WidgetType.WidgetTypeLabel,
+                location: {
+                    icon: JobViz.WidgetIcon.Chat,
+                    window: WidgetWindow.WidgetWindowMain,
+                    tab: "Tab",
+                },
+            };
+
+            sendToProcessor(stream.current, widget);
+
+            const label: JobViz.WidgetLabel = {
+                text: "Hello world 2"
+            };
+            sendToProcessor(stream.current, label);
+        }
+        {
+            const header: JobViz.WidgetPacketHeader = {
+                action: JobViz.WidgetAction.WidgetActionCreate
+            };
+            sendToProcessor(stream.current, header);
+
+            const widget: JobViz.Widget = {
+                id: "root",
+                type: JobViz.WidgetType.WidgetTypeContainer,
+                location: {
+                    icon: JobViz.WidgetIcon.Chat,
+                    window: WidgetWindow.WidgetWindowMain,
+                    tab: "Tab",
+                },
+            };
+
+            sendToProcessor(stream.current, widget);
+
+            const container: JobViz.WidgetContainer = {
+                gap: 0,
+                foreground: {shade: JobViz.WidgetColorShade.WidgetColorPrimary, intensity: WidgetColorIntensity.WidgetColorDark},
+                background: {shade: JobViz.WidgetColorShade.WidgetColorNone, intensity: WidgetColorIntensity.WidgetColorMain},
+                width: {minimum: 0, maximum: 0},
+                height: {minimum: 0, maximum: 0},
+                grow: 0,
+                direction: JobViz.WidgetDirection.WidgetDirectionColumn,
+                children: [{id: {id: "test"}}]
+            };
+            sendToProcessor(stream.current, container);
+        }
+
+
+        {
+            const header: JobViz.WidgetPacketHeader = {
+                action: JobViz.WidgetAction.WidgetActionCreate
+            };
+            sendToProcessor(stream.current, header);
+
+            const widget: JobViz.Widget = {
+                id: "test",
+                type: JobViz.WidgetType.WidgetTypeLabel,
+                location: {
+                    icon: JobViz.WidgetIcon.Chat,
+                    window: WidgetWindow.WidgetWindowMain,
+                    tab: "Tab",
+                },
+            };
+
+            sendToProcessor(stream.current, widget);
+
+            const label: JobViz.WidgetLabel = {
+                text: "Hello world"
+            };
+            sendToProcessor(stream.current, label);
+        }
+
+        {
+            const header: JobViz.WidgetPacketHeader = {
+                action: JobViz.WidgetAction.WidgetActionCreate
+            };
+            sendToProcessor(stream.current, header);
+
+            const widget: JobViz.Widget = {
+                id: "pbar",
+                type: JobViz.WidgetType.WidgetTypeProgressBar,
+                location: {
+                    icon: JobViz.WidgetIcon.Chat,
+                    window: WidgetWindow.WidgetWindowMain,
+                    tab: "Progress",
+                },
+            };
+
+            sendToProcessor(stream.current, widget);
+
+            const label: JobViz.WidgetProgressBar = {
+                progress: 0,
+            };
+            sendToProcessor(stream.current, label);
+        }
+
+        const update = (progress: number) => {
+            {
+                if (progress > 1) return;
+
+                const header: JobViz.WidgetPacketHeader = {
+                    action: JobViz.WidgetAction.WidgetActionUpdate
+                };
+                sendToProcessor(stream.current, header);
+
+                const widget: JobViz.Widget = {
+                    id: "pbar",
+                    type: JobViz.WidgetType.WidgetTypeProgressBar,
+                    location: {
+                        icon: JobViz.WidgetIcon.Chat,
+                        window: WidgetWindow.WidgetWindowMain,
+                        tab: "Progress",
+                    },
+                };
+
+                sendToProcessor(stream.current, widget);
+
+                const label: JobViz.WidgetProgressBar = {
+                    progress: progress,
+                };
+                sendToProcessor(stream.current, label);
+            }
+
+            setTimeout(() => {
+                update(progress + 0.001);
+            }, 100);
+        }
+
+        update(0);
+    }, []);
+
     const main = (
         <>
-            <AreaPlot data={data} keyX="date" keyY="value" />
-
-            <Box mb="60px" />
-
-            <PaletteColors />
-            <Colors />
-            <EveryIcon />
+            <CpuChartDemo />
+            {/*<JobViz.Renderer processor={stream.current} windows={[JobViz.WidgetWindow.WidgetWindowMain]} />*/}
+            {/*<AreaPlot data={data} keyX="date" keyY="value" />*/}
+            {/**/}
+            {/*<Box mb="60px" />*/}
+            {/**/}
+            {/*<PaletteColors />*/}
+            {/*<Colors />*/}
+            {/*<EveryIcon />*/}
             {/*
             <Button onClick={() => {
                 messageTest();
@@ -140,7 +290,6 @@ const Playground: React.FunctionComponent = () => {
 };
 
 type PlottingData = {value: number; date: Date}
-import * as Plot from "@observablehq/plot";
 
 export function DealersChoicePlot({data, keyX, keyY}: {data: PlottingData[]; keyX: string; keyY: string}) {
     const containerRef = React.useRef<HTMLDivElement>(null);
@@ -161,14 +310,14 @@ export function AreaPlot({data, keyX, keyY, fill = "pink", grid = false}: {data:
     useEffect(() => {
         const p = Plot.plot({
             y: {
-              grid,
+                grid,
             },
             marks: [
-              Plot.areaY(data, {x: keyX, y: keyY, fill, fillOpacity: 0.3}),
-              Plot.lineY(data, {x: keyX, y: keyY, fill}),
-              Plot.ruleY([0])
+                Plot.areaY(data, {x: keyX, y: keyY, fill, fillOpacity: 0.3}),
+                Plot.lineY(data, {x: keyX, y: keyY, fill}),
+                Plot.ruleY([0])
             ]
-          })
+        })
         containerRef.current?.append(p);
         return () => p.remove();
     }, [data]);
@@ -238,7 +387,7 @@ const colors: ThemeColor[] = [
 ];
 
 
-const paletteColors = ["purple", "red", "orange", "yellow", "green", "gray", "blue"];
+const paletteColors = ["purple", "red", "orange", "yellow", "green", "gray", "blue", "pink"];
 const numbers = [5, 10, 20, 30, 40, 50, 60, 70, 80, 90];
 
 function CSSPaletteColorVar({color, num}: {color: string, num: number}) {

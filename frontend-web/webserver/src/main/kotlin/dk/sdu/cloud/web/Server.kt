@@ -1,9 +1,7 @@
 package dk.sdu.cloud.web
 
-import io.ktor.http.CacheControl
-import io.ktor.http.ContentType
+import io.ktor.http.*
 import io.ktor.http.ContentType.Application
-import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.*
 import io.ktor.server.application.*
 import io.ktor.server.application.*
@@ -91,11 +89,20 @@ class Server {
                     call.respondRedirect("/app/dashboard", false)
                 }
 
+                val indexBytes = File(staticContent, "index.html").readBytes()
                 get("/app/{...}") {
                     if (staticContent == null) {
                         call.respond(HttpStatusCode.InternalServerError)
                     } else {
-                        call.respondFile(File(staticContent, "index.html"))
+                        call.response.header(HttpHeaders.CacheControl, "no-store, no-cache, must-revalidate, max-age=0")
+                        call.response.header(HttpHeaders.Pragma, "no-cache")
+                        call.response.header(HttpHeaders.Expires, "0")
+
+                        call.respondBytes(
+                            indexBytes,
+                            contentType = ContentType.Text.Html,
+                            status = HttpStatusCode.OK,
+                        )
                     }
                 }
             }

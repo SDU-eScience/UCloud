@@ -42,13 +42,15 @@ export interface Command {
     action: () => void;
     scope: CommandScope;
     actionText?: string;
+    defaultHidden?: boolean;
 }
 
 export type CommandProvider = (query: string, emit: (cmd: Command) => void) => {onCancel: () => void};
 
 export function staticProvider(commands: Command[]): CommandProvider {
     return (query, emit) => {
-        const results = fuzzySearch(commands, ["title", "description"], query, {sort: true});
+        const filteredCommands = query.length > 2 ? commands : commands.filter(it => !it.defaultHidden);
+        const results = fuzzySearch(filteredCommands, ["title", "description"], query, {sort: true});
         for (const result of results) {
             emit(result);
         }

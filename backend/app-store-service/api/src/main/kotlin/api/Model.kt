@@ -85,6 +85,8 @@ private const val TYPE_LICENSE_SERVER = "license_server"
 private const val TYPE_INGRESS = "ingress"
 private const val TYPE_NETWORK_IP = "network_ip"
 private const val TYPE_WORKFLOW = "workflow"
+private const val TYPE_README = "readme"
+private const val TYPE_MODULES = "modules"
 
 @Serializable
 @UCloudApiDoc("""
@@ -369,6 +371,55 @@ sealed class ApplicationParameter {
     ) : ApplicationParameter() {
         override fun referencesResource(): Boolean = false
     }
+
+    @Serializable
+    @SerialName(TYPE_README)
+    @UCloudApiDoc("""
+        A readme which does not produce a value, but instead provides service providers a way to communicate about an app.
+        
+        The description is expected to hold the actual README. The title is expected to be ignored by user-interfaces
+        and should be set to "README".
+        
+        __Compatible with:__ Nothing, no value is expected.
+    """, importance = 919)
+    class Readme(
+        override var name: String = "",
+        override val title: String = "",
+        override val description: String = "",
+        override val defaultValue: JsonElement? = null,
+        override val optional: Boolean = true,
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = false
+    }
+
+    @Serializable
+    @SerialName(TYPE_MODULES)
+    @UCloudApiDoc("""
+        A parameter allowing an end-user to select from a list of modules.
+        
+        This parameter is intended to only be injected by SPs and never be hardcoded into an application.
+        
+        __Compatible with:__ $TYPE_REF AppParameterValue.ModuleList
+    """, importance = 919)
+    class ModuleList(
+        override var name: String = "",
+        override val title: String = "",
+        override val description: String = "",
+        override val defaultValue: JsonElement? = null,
+        override val optional: Boolean = true,
+        val supportedModules: List<Module>,
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = false
+    }
+
+    @Serializable
+    data class Module(
+        val name: String,
+        val description: String = "",
+        val shortDescription: String = "",
+        val dependsOn: List<List<String>> = emptyList(),
+        val documentationUrl: String? = null,
+    )
 }
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -555,6 +606,11 @@ When this is used with an `Enumeration` it must match the value of one of the as
     @Serializable
     @SerialName("workflow")
     data class Workflow(val specification: dk.sdu.cloud.app.store.api.Workflow.Specification) : AppParameterValue()
+
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+    @Serializable
+    @SerialName("modules")
+    data class ModuleList(val modules: List<String>) : AppParameterValue()
 }
 
 private val hostNameRegex =
@@ -1083,6 +1139,8 @@ interface ArgumentBuilder {
                     return (value as AppParameterValue.Network).id
                 }
 
+                is ApplicationParameter.Readme,
+                is ApplicationParameter.ModuleList,
                 is ApplicationParameter.Workflow -> {
                     // NOTE(Dan): Not implemented here
                     return ""

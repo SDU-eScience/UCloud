@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"os"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -17,9 +15,9 @@ import (
 	"ucloud.dk/gonja/v2/exec"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type appCfgAndVersion struct {
@@ -35,6 +33,8 @@ type sbatchTemplateSession struct {
 	Error                error
 	PreviouslyLoaded     map[orc.NativeApplication]appCfgAndVersion
 	SrunOverride         util.Option[cfg.SrunConfiguration]
+	ParametersAndValues  map[string]orc.ParamAndValue
+	Parameters           map[string]orc.AppParameterValue
 }
 
 func (s *sbatchTemplateSession) compareVersions(a, b string, missingComponentIsEquality bool) int {
@@ -325,7 +325,17 @@ func sbatchTemplate(session any, fn string, args []string) string {
 		return templateSession.UnloadApplication(args[0], args[1])
 
 	case "systemLoad":
-		return ServiceConfig.Compute.SystemLoadCommand.GetOrDefault("")
+		sysLoad := ServiceConfig.Compute.SystemLoadCommand.GetOrDefault("")
+		builder := sysLoad + "\n"
+
+		modulesToLoad, ok := templateSession.Parameters[SlurmModulesParameter]
+		if ok {
+			for _, m := range modulesToLoad.Modules {
+				builder += fmt.Sprintf("module load %s\n", orc.EscapeBash(m))
+			}
+		}
+
+		return builder
 
 	case "systemUnload":
 		return ServiceConfig.Compute.SystemUnloadCommand.GetOrDefault("")
@@ -336,33 +346,6 @@ func sbatchTemplate(session any, fn string, args []string) string {
 	}
 }
 
-// sanitizeMapForSerialization recursively removes non-serializable values from a map[string]any
-func sanitizeMapForSerialization(input map[string]any) map[string]any {
-	safeMap := make(map[string]any)
-	for key, value := range input {
-		if isSerializable(value) {
-			switch v := value.(type) {
-			case map[string]any:
-				safeMap[key] = sanitizeMapForSerialization(v)
-			default:
-				safeMap[key] = v
-			}
-		}
-	}
-	return safeMap
-}
-
-// isSerializable checks if a value is serializable by JSON or YAML
-func isSerializable(value any) bool {
-	v := reflect.ValueOf(value)
-	switch v.Kind() {
-	case reflect.Func, reflect.Chan, reflect.Complex64, reflect.Complex128, reflect.Invalid:
-		return false
-	default:
-		return true
-	}
-}
-
 func prepareDefaultEnvironment(
 	job *orc.Job,
 	jobFolder string,
@@ -370,11 +353,11 @@ func prepareDefaultEnvironment(
 	parametersAndValues map[string]orc.ParamAndValue,
 	argBuilder orc.ArgBuilder,
 	allocatedPort util.Option[int],
-) (directives map[string]string, jinjaContextParameters map[string]any, targets *[]DynamicTarget) {
+) (directives map[string]string, jinjaContextParameters map[string]any, targets *[]orc.DynamicTarget) {
 	directives = make(map[string]string)
 	jinjaContextParameters = make(map[string]any)
 
-	targets = &[]DynamicTarget{} // needed to avoid a nil dereference
+	targets = &[]orc.DynamicTarget{} // needed to avoid a nil dereference
 
 	// SBatch directives
 	// =================================================================================================================
@@ -569,10 +552,25 @@ func prepareDefaultEnvironment(
 	}
 
 	jinjaContextParameters["sbatch"] = func(param string, value any) *exec.Value {
+		if param == "gpus-per-task" {
+			if f, ok := value.(float64); ok && f <= 0 {
+				return exec.AsSafeValue("")
+			}
+		}
+
 		if !slices.Contains(directivesWhichCannotBeChanged, param) {
 			directives[param] = fmt.Sprint(value)
 		}
+
 		return exec.AsSafeValue("")
+	}
+
+	jinjaContextParameters["ternary"] = func(condition bool, ifTrue *exec.Value, ifFalse *exec.Value) *exec.Value {
+		if condition {
+			return ifTrue
+		} else {
+			return ifFalse
+		}
 	}
 
 	jinjaContextParameters["dynamicInterface"] = func(rank int, interactiveType string, target string, port int) *exec.Value {
@@ -588,7 +586,7 @@ func prepareDefaultEnvironment(
 			return exec.AsSafeValue("\n# Port must be > 0\n")
 		}
 
-		*targets = append(*targets, DynamicTarget{
+		*targets = append(*targets, orc.DynamicTarget{
 			Rank:   rank,
 			Type:   orc.InteractiveSessionType(interactiveType),
 			Target: target,
@@ -619,21 +617,18 @@ func prepareDefaultEnvironment(
 }
 
 type SBatchResult struct {
-	Content        string
-	Error          error
-	DynamicTargets []DynamicTarget
-}
-
-type DynamicTarget struct {
-	Rank   int                        `json:"rank"`
-	Type   orc.InteractiveSessionType `json:"type"`
-	Target string                     `json:"target"`
-	Port   int                        `json:"port"`
+	Content             string
+	JinjaTemplateFile   string
+	JinjaParametersFile string
+	Error               error
+	DynamicTargets      []orc.DynamicTarget
 }
 
 func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatchResult {
 	application := &job.Status.ResolvedApplication.Invocation
 	tool := &job.Status.ResolvedApplication.Invocation.Tool.Tool
+	jinjaTemplateFile := ""
+	jinjaParametersFile := ""
 
 	_, ok := ServiceConfig.Compute.Machines[job.Specification.Product.Category]
 	if !ok {
@@ -653,6 +648,15 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 		internalPath, _ := UCloudToInternal(ucloudPath)
 		return internalPath
 	})
+
+	// Convert license parameters
+	for parameterId, parameterAndValue := range parametersAndValues {
+		if parameterAndValue.Parameter.Type == orc.ApplicationParameterTypeLicenseServer {
+			newParameterAndValue := parameterAndValue
+			newParameterAndValue.Value.Id = ctrl.BuildLicenseParameter(parameterAndValue.Value.Id)
+			parametersAndValues[parameterId] = newParameterAndValue
+		}
+	}
 
 	allocatedPort := util.Option[int]{}
 	if application.ApplicationType == orc.ApplicationTypeWeb || application.ApplicationType == orc.ApplicationTypeVnc {
@@ -685,12 +689,14 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 		}
 
 		sbatchTplSession := &sbatchTemplateSession{
-			Applications:     ServiceConfig.Compute.Applications,
-			VersionPolicy:    "loose",
-			VersionTarget:    util.Option[string]{},
-			Error:            nil,
-			PreviouslyLoaded: make(map[orc.NativeApplication]appCfgAndVersion),
-			SrunOverride:     ServiceConfig.Compute.Srun,
+			Applications:        ServiceConfig.Compute.Applications,
+			VersionPolicy:       "loose",
+			VersionTarget:       util.Option[string]{},
+			Error:               nil,
+			PreviouslyLoaded:    make(map[orc.NativeApplication]appCfgAndVersion),
+			SrunOverride:        ServiceConfig.Compute.Srun,
+			ParametersAndValues: parametersAndValues,
+			Parameters:          job.Specification.Parameters,
 		}
 
 		load := tool.Description.LoadInstructions.Get()
@@ -718,23 +724,23 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 			return exec.AsSafeValue(srunCommand)
 		}
 
-		jinjaContextParameters["debug"] = func() *exec.Value {
-			safeMap := sanitizeMapForSerialization(jinjaContextParameters)
+		jinjaContext = exec.NewContext(jinjaContextParameters)
+
+		{
+			safeMap := util.SanitizeMapForSerialization(jinjaContextParameters)
 			buf := &bytes.Buffer{}
 			yamlEncoder := yaml.NewEncoder(buf)
 			_ = yamlEncoder.Encode(safeMap)
-			_ = os.WriteFile(filepath.Join(jobFolder, "jinja-context.yml"), buf.Bytes(), 0660)
-			_ = os.WriteFile(filepath.Join(jobFolder, "job.jinja"), []byte(tpl), 0660)
 
-			return exec.AsSafeValue("")
+			jinjaTemplateFile = tpl
+			jinjaParametersFile = string(buf.Bytes())
 		}
 
-		jinjaContext = exec.NewContext(jinjaContextParameters)
-		output, ok := orc.ExecuteJinjaTemplate(tpl, 0, nil, jinjaContext, orc.JinjaFlagsNoPreProcess)
-		if !ok {
+		output, err := orc.ExecuteJinjaTemplate(tpl, 0, nil, jinjaContext, orc.JinjaFlagsNoPreProcess)
+		if err != nil {
 			log.Warn("Jinja generation failure for %s %s",
 				job.Specification.Application.Name, job.Specification.Application.Version)
-			cli = "# Failure during generation of invocation"
+			cli = "# Failure during generation of invocation: " + err.Error()
 		} else {
 			cli = output
 		}
@@ -800,12 +806,14 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 
 		// Run the actual program
 		// ---------------------------------------------------------
-		appendLine(builder, cli)
+		appendLine(builder, "%s", cli)
 	}
 
 	return SBatchResult{
-		Content:        builder.String(),
-		DynamicTargets: *targets,
+		Content:             builder.String(),
+		DynamicTargets:      *targets,
+		JinjaTemplateFile:   jinjaTemplateFile,
+		JinjaParametersFile: jinjaParametersFile,
 	}
 }
 

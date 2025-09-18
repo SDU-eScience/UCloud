@@ -2,14 +2,15 @@ package slurm
 
 import (
 	"fmt"
+	"syscall"
 	"time"
-	"ucloud.dk/pkg/apm"
-	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/shared/pkg/apm"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	gpfs2 "ucloud.dk/pkg/im/external/gpfs"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func InitGpfsManager(name string, config *cfg.SlurmFsManagementGpfs) FileManagementService {
@@ -67,8 +68,8 @@ type GpfsManager struct {
 }
 
 func (g *GpfsManager) HandleQuotaUpdate(drives []LocatedDrive, update *ctrl.NotificationWalletUpdated) {
-	log.Info("handle quota update gpfs %v", drives)
 	for _, drive := range drives {
+		log.Info("Handle GPFS quota update for %s (locked=%v): %v GB", drive.FilePath, update.Locked, update.CombinedQuota)
 		mapping, filesetName, ok := g.resolveLocatedDrive(drive, update.Category.Name)
 		if !ok {
 			continue
@@ -77,6 +78,12 @@ func (g *GpfsManager) HandleQuotaUpdate(drives []LocatedDrive, update *ctrl.Noti
 		filesQuota := 0
 		if update.Locked {
 			filesQuota = 1
+		}
+
+		byteQuota := int(update.CombinedQuota * g.unitInBytes)
+		if byteQuota == 0 {
+			// NOTE(Dan): A quota of 0 means unlimited and 1 doesn't work, set it to 50MB instead
+			byteQuota = 50 * 1000 * 1000
 		}
 
 		if !g.client.FilesetExists(mapping.FileSystem, filesetName) {
@@ -95,7 +102,7 @@ func (g *GpfsManager) HandleQuotaUpdate(drives []LocatedDrive, update *ctrl.Noti
 		g.client.FilesetQuota(&gpfs2.Fileset{
 			Name:       filesetName,
 			Filesystem: mapping.FileSystem,
-			QuotaBytes: int(update.CombinedQuota * g.unitInBytes),
+			QuotaBytes: byteQuota,
 			QuotaFiles: filesQuota,
 		})
 
@@ -117,40 +124,87 @@ func (g *GpfsManager) resolveLocatedDrive(drive LocatedDrive, category string) (
 	return mapping, util.InjectParametersIntoString(mapping.FileSetPattern, drive.Parameters), true
 }
 
+func getDiskUsage(path string) (uint64, error) {
+	var stat syscall.Statfs_t
+
+	err := syscall.Statfs(path, &stat)
+	if err != nil {
+		return 0, err
+	}
+
+	total := stat.Blocks * uint64(stat.Bsize)          // Total space
+	used := total - (stat.Bavail * uint64(stat.Bsize)) // Used space (user-available blocks)
+
+	return used, nil
+}
+
 func (g *GpfsManager) RunAccountingLoop() {
 	var batch []apm.UsageReportItem
 
-	allocations := ctrl.FindAllAllocations(g.name)
-	for _, allocation := range allocations {
-		locatedDrives := EvaluateAllLocators(allocation.Owner)
-		for _, locatedDrive := range locatedDrives {
-			mapping, filesetName, ok := g.resolveLocatedDrive(locatedDrive, allocation.Category)
-			if !ok {
+	if g.config.UseStatFsForAccounting {
+		drives := ctrl.EnumerateKnownDrives()
+		log.Info("Accounting %v drives", len(drives))
+		for _, d := range drives {
+			internalPath := DriveToLocalPath(d)
+
+			usageBytes, err := getDiskUsage(internalPath)
+			if err != nil {
 				continue
 			}
 
-			fileset, ok := g.client.FilesetQuery(mapping.FileSystem, filesetName)
-			if !ok {
-				continue
-			}
+			unitsUsed := int64(usageBytes) / int64(g.unitInBytes)
 
-			unitsUsed := int64(fileset.UsageBytes) / int64(g.unitInBytes)
 			batch = append(batch, apm.UsageReportItem{
 				IsDeltaCharge: false,
-				Owner:         allocation.Owner,
+				Owner:         apm.WalletOwnerFromIds(d.Owner.CreatedBy, d.Owner.Project),
 				CategoryIdV2: apm.ProductCategoryIdV2{
-					Name:     allocation.Category,
+					Name:     d.Specification.Product.Category,
 					Provider: cfg.Provider.Id,
 				},
 				Usage: unitsUsed,
 				Description: apm.ChargeDescription{
-					Scope: util.OptValue(fmt.Sprintf("%v-%v-%v", cfg.Provider.Id, g.name, locatedDrive.LocatorName)),
+					Scope: util.OptValue(fmt.Sprintf("%v-%v-%v", cfg.Provider.Id, g.name, d.Id)),
 				},
 			})
 
 			g.flushBatch(&batch, false)
 		}
+	} else {
+		allocations := ctrl.FindAllAllocations(g.name)
+
+		for _, allocation := range allocations {
+			locatedDrives := EvaluateAllLocators(allocation.Owner)
+			for _, locatedDrive := range locatedDrives {
+				mapping, filesetName, ok := g.resolveLocatedDrive(locatedDrive, allocation.Category)
+				if !ok {
+					continue
+				}
+
+				fileset, ok := g.client.FilesetQuery(mapping.FileSystem, filesetName)
+				if !ok {
+					continue
+				}
+
+				unitsUsed := int64(fileset.UsageBytes) / int64(g.unitInBytes)
+
+				batch = append(batch, apm.UsageReportItem{
+					IsDeltaCharge: false,
+					Owner:         allocation.Owner,
+					CategoryIdV2: apm.ProductCategoryIdV2{
+						Name:     allocation.Category,
+						Provider: cfg.Provider.Id,
+					},
+					Usage: unitsUsed,
+					Description: apm.ChargeDescription{
+						Scope: util.OptValue(fmt.Sprintf("%v-%v-%v", cfg.Provider.Id, g.name, locatedDrive.LocatorName)),
+					},
+				})
+
+				g.flushBatch(&batch, false)
+			}
+		}
 	}
+
 	g.flushBatch(&batch, true)
 }
 

@@ -1,7 +1,7 @@
 import {useCallback, useRef, useState} from "react";
 import {setWidgetValues} from "@/Applications/Jobs/Widgets";
 import {flushSync} from "react-dom";
-import { ApplicationParameter } from "@/Applications/AppStoreApi";
+import {ApplicationParameter} from "@/Applications/AppStoreApi";
 import {compute} from "@/UCloud";
 import AppParameterValue = compute.AppParameterValue;
 
@@ -35,7 +35,7 @@ export function useResource(ns: ResourceTypes, provider: string | undefined,
 
     const onRemove = useCallback((id: string) => {
         setParams(oldParams => oldParams.filter(it => it.name !== id));
-        if (errors[id]) { 
+        if (errors[id]) {
             delete errors[id];
             setErrors(({...errors}));
         }

@@ -82,6 +82,16 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                     supportByProvider.retrieve(p ?? "", () => retrieveSupportV2(LicenseApi));
                 });
 
+                browser.on("skipOpen", (oldPath, newPath, resource) => {
+                    if (resource && opts?.selection) {
+                        if (opts.selection.show(resource) === true) {
+                            opts.selection.onClick(resource);
+                        }
+                        return true;
+                    }
+                    return false;
+                });
+
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
                         navigate(AppRoutes.resource.properties("licenses", resource.id));

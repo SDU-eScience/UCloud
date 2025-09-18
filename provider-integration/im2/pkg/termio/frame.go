@@ -195,5 +195,5 @@ func (f *Frame) String() string {
 }
 
 func (f *Frame) Print() {
-	_, _ = os.Stdout.WriteString(f.String())
+	os.Stdout.WriteString(f.String())
 }

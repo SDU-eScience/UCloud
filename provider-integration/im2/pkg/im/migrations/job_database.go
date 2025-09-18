@@ -1,11 +1,11 @@
 package migrations
 
 import (
-	db "ucloud.dk/pkg/database"
+	db "ucloud.dk/shared/pkg/database"
 )
 
-func jobDatabaseV1() migrationScript {
-	return migrationScript{
+func jobDatabaseV1() db.MigrationScript {
+	return db.MigrationScript{
 		Id: "jobDatabaseV1",
 		Execute: func(tx *db.Transaction) {
 			db.Exec(
@@ -27,14 +27,38 @@ func jobDatabaseV1() migrationScript {
 	}
 }
 
-func jobDatabaseV2() migrationScript {
-	return migrationScript{
+func jobDatabaseV2() db.MigrationScript {
+	return db.MigrationScript{
 		Id: "jobDatabaseV2",
 		Execute: func(tx *db.Transaction) {
 			db.Exec(
 				tx,
 				`
 					alter table tracked_jobs add column allocated_nodes text[] default null
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func jobDatabaseV3() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "jobDatabaseV3",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table if not exists web_sessions(
+						job_id text not null,
+						rank int not null,
+						target_address text not null,
+						target_port int not null,
+						address text not null,
+						suffix text,
+						auth_token text,
+						flags int not null
+					)
 			    `,
 				db.Params{},
 			)

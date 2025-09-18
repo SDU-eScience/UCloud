@@ -502,7 +502,7 @@ data class GrantApplication(
         val parentProjectId: String? = null,
 
         @UCloudApiDoc("Active period for the every requested resource")
-        val allocationPeriod: Period?
+        val allocationPeriod: Period? = null,
     )
 
     @Serializable

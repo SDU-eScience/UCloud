@@ -19,8 +19,8 @@ import (
 	"time"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 	"unicode"
 )
 
@@ -43,10 +43,8 @@ type ConfigurationMessage struct {
 }
 
 type Config struct {
-	ListenAddress   string
-	Port            int
-	InitialClusters []*EnvoyCluster
-	InitialRoutes   []*EnvoyRoute
+	ListenAddress string
+	Port          int
 }
 
 var configChannel chan []byte
@@ -74,51 +72,52 @@ func Initialize(config Config, channel chan []byte) {
 			adminSection = fmt.Sprintf(adminSectionProd, filepath.Join(stateDir, "admin.sock"))
 		}
 
-		err := os.WriteFile(
-			fmt.Sprintf("%v/%v", stateDir, fileConfig),
-			[]byte(
-				fmt.Sprintf(
-					envoyConfigTemplate,
-					adminSection,
-					filepath.Join(stateDir, "xds.sock"),
-				)),
-			0o600,
-		)
+		if stateDir != "" {
+			xdsSection := ""
+			switch cfg.Provider.Envoy.ListenMode {
+			case cfg.EnvoyListenModeTcp:
+				xdsSection = fmt.Sprintf(xdsTcp, cfg.Provider.Hosts.Self.Address)
+				adminSection = ""
+			case cfg.EnvoyListenModeUnix:
+				xdsSection = fmt.Sprintf(xdsUnix, filepath.Join(stateDir, "xds.sock"))
+			}
 
-		if err != nil {
-			log.Error("Failed to write required configuration files for the gateway: %v", err)
-			os.Exit(1)
+			err := os.WriteFile(
+				fmt.Sprintf("%v/%v", stateDir, fileConfig),
+				[]byte(
+					fmt.Sprintf(
+						envoyConfigTemplate,
+						adminSection,
+						xdsSection,
+					)),
+				0o600,
+			)
+
+			if err != nil {
+				log.Error("Failed to write required configuration files for the gateway: %v", err)
+				os.Exit(1)
+			}
 		}
 	}
 
-	if len(config.InitialClusters) > 0 || len(config.InitialRoutes) > 0 {
-		for _, route := range config.InitialRoutes {
-			routes[route] = true
-		}
+	routes[&EnvoyRoute{
+		Type:           RouteTypeUser,
+		Cluster:        ServerClusterName,
+		Identifier:     "",
+		EnvoySecretKey: cfg.OwnEnvoySecret,
+	}] = true
 
-		for _, cluster := range config.InitialClusters {
-			clusters[cluster.Name] = cluster
-		}
-	} else {
-		routes[&EnvoyRoute{
-			Type:           RouteTypeUser,
-			Cluster:        ServerClusterName,
-			Identifier:     "",
-			EnvoySecretKey: cfg.OwnEnvoySecret,
-		}] = true
+	routes[&EnvoyRoute{
+		Type:           RouteTypeAuthorize,
+		Cluster:        ServerClusterName,
+		EnvoySecretKey: cfg.OwnEnvoySecret,
+	}] = true
 
-		routes[&EnvoyRoute{
-			Type:           RouteTypeAuthorize,
-			Cluster:        ServerClusterName,
-			EnvoySecretKey: cfg.OwnEnvoySecret,
-		}] = true
-
-		clusters[ServerClusterName] = &EnvoyCluster{
-			Name:    ServerClusterName,
-			Address: internalAddress,
-			Port:    ServerClusterPort,
-			UseDNS:  !unicode.IsDigit([]rune(internalAddress)[0]),
-		}
+	clusters[ServerClusterName] = &EnvoyCluster{
+		Name:    ServerClusterName,
+		Address: internalAddress,
+		Port:    ServerClusterPort,
+		UseDNS:  !unicode.IsDigit([]rune(internalAddress)[0]),
 	}
 
 	go startConfigurationServer()
@@ -307,6 +306,37 @@ admin:
       mode: 448
 `
 
+const xdsUnix = `
+  - connect_timeout: 1s
+    load_assignment:
+      cluster_name: xds_cluster
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              pipe:
+                path: %v
+                mode: 448
+    http2_protocol_options: {}
+    name: xds_cluster
+`
+
+const xdsTcp = `
+  - connect_timeout: 1s
+    load_assignment:
+      cluster_name: xds_cluster
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: %v
+                port_value: 52033
+    http2_protocol_options: {}
+    name: xds_cluster
+    type: STRICT_DNS
+`
+
 const envoyConfigTemplate = `
 %v
 
@@ -337,18 +367,7 @@ node:
   cluster: ucloudim_cluster
 static_resources:
   clusters:
-  - connect_timeout: 1s
-    load_assignment:
-      cluster_name: xds_cluster
-      endpoints:
-      - lb_endpoints:
-        - endpoint:
-            address:
-              pipe:
-                path: %v
-                mode: 448
-    http2_protocol_options: {}
-    name: xds_cluster
+%v
 layered_runtime:
   layers:
     - name: runtime-0

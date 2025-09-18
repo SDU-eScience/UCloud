@@ -152,8 +152,12 @@ export function setMachineReservationFromRef(ref: ComputeProductReference): void
     valueInput.dispatchEvent(new Event("change"));
 }
 
+export function getMachineReservation(): HTMLInputElement | null {
+    return document.getElementById(reservationMachine) as HTMLInputElement | null;
+}
+
 export function validateMachineReservation(): ComputeProductReference | null {
-    const valueInput = document.getElementById(reservationMachine) as HTMLInputElement | null;
+    const valueInput = getMachineReservation();
     if (valueInput === null) throw "Component is no longer mounted but validateMachineReservation was called";
 
     if (valueInput.value === "") return null;

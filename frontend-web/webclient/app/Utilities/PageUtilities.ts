@@ -6,7 +6,7 @@ export async function fetchAll<T>(paginator: (next?: string) => Promise<PageV2<T
 
     while (true) {
         const page = await paginator(next);
-        result.push(...page.items);
+        result.push(...(page.items ?? []));
         if (page.next == null) break;
         if (result.length >= limit) break;
         next = page.next;

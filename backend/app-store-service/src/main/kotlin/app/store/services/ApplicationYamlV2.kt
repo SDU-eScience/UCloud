@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Time
-import io.lettuce.core.dynamic.annotation.Param
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlin.reflect.KProperty0
@@ -14,13 +13,19 @@ data class ApplicationYamlV2(
     val name: String,
     val version: String,
     val software: Software,
+    val title: String? = null,
+    val description: String? = null,
+    val license: String? = null,
+    val documentation: String? = null,
     val features: Features? = null,
+    val modules: ModulesSection? = null,
     val parameters: Map<String, Parameter>? = null,
     val sbatch: Map<String, String>? = null,
     val invocation: String,
     val environment: Map<String, String>? = null,
     val web: Web? = null,
     val vnc: Vnc? = null,
+    val ssh: Ssh? = null,
     val extensions: List<String>? = null,
 ) : ApplicationYaml("v2") {
     @JsonTypeInfo(
@@ -30,6 +35,8 @@ data class ApplicationYamlV2(
     )
     @JsonSubTypes(
         JsonSubTypes.Type(value = NativeSoftware::class, name = "Native"),
+        JsonSubTypes.Type(value = ContainerSoftware::class, name = "Container"),
+        JsonSubTypes.Type(value = VirtualMachineSoftware::class, name = "VirtualMachine"),
     )
     sealed class Software
 
@@ -38,6 +45,14 @@ data class ApplicationYamlV2(
     ) : Software() {
         data class ApplicationToLoad(val name: String, val version: String)
     }
+
+    data class ContainerSoftware(
+        val image: String,
+    ) : Software()
+
+    data class VirtualMachineSoftware(
+        val image: String,
+    ) : Software()
 
     @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
@@ -64,38 +79,38 @@ data class ApplicationYamlV2(
         abstract val optional: Boolean
 
         data class File(
-            override val title: String,
-            override val description: String,
+            override val title: String = "",
+            override val description: String = "",
             override val optional: Boolean = true,
         ) : Parameter()
 
         data class Directory(
-            override val title: String,
-            override val description: String,
+            override val title: String = "",
+            override val description: String = "",
             override val optional: Boolean = true,
         ) : Parameter()
 
         data class License(
-            override val title: String,
-            override val description: String,
+            override val title: String = "",
+            override val description: String = "",
             override val optional: Boolean = true,
         ) : Parameter()
 
         data class Job(
-            override val title: String,
-            override val description: String,
+            override val title: String = "",
+            override val description: String = "",
             override val optional: Boolean = true,
         ) : Parameter()
 
         data class PublicIP(
-            override val title: String,
-            override val description: String,
+            override val title: String = "",
+            override val description: String = "",
             override val optional: Boolean = true,
         ) : Parameter()
 
         data class Integer(
-            override val title: String,
-            override val description: String,
+            override val title: String = "",
+            override val description: String = "",
             override val optional: Boolean = true,
             val defaultValue: Long? = null,
             val min: Long? = null,
@@ -104,8 +119,8 @@ data class ApplicationYamlV2(
         ) : Parameter()
 
         data class FloatingPoint(
-            override val title: String,
-            override val description: String,
+            override val title: String = "",
+            override val description: String = "",
             override val optional: Boolean = true,
             val defaultValue: Double? = null,
             val min: Double? = null,
@@ -114,22 +129,22 @@ data class ApplicationYamlV2(
         ) : Parameter()
 
         data class Bool(
-            override val title: String,
-            override val description: String,
+            override val title: String = "",
+            override val description: String = "",
             override val optional: Boolean = true,
             val defaultValue: Boolean? = null,
         ) : Parameter()
 
         data class Text(
-            override val title: String,
-            override val description: String,
+            override val title: String = "",
+            override val description: String = "",
             override val optional: Boolean = true,
             val defaultValue: String? = null,
         ) : Parameter()
 
         data class TextArea(
-            override val title: String,
-            override val description: String,
+            override val title: String = "",
+            override val description: String = "",
             override val optional: Boolean = true,
             val defaultValue: String? = null,
         ) : Parameter()
@@ -140,16 +155,16 @@ data class ApplicationYamlV2(
         )
 
         data class Enumeration(
-            override val title: String,
-            override val description: String,
+            override val title: String = "",
+            override val description: String = "",
             override val optional: Boolean = true,
             val defaultValue: String? = null, // references the value
             val options: List<EnumOption>,
         ) : Parameter()
 
         data class Workflow(
-            override val title: String,
-            override val description: String,
+            override val title: String = "",
+            override val description: String = "",
             override val optional: Boolean = true,
             val init: String? = null,
             val job: String? = null,
@@ -160,8 +175,6 @@ data class ApplicationYamlV2(
 
     data class Features(
         val multiNode: Boolean = false,
-        val forkable: Boolean? = null,
-        val requireFork: Boolean? = null,
         val links: Boolean? = null,
         val ipAddresses: Boolean? = null,
         val folders: Boolean? = null,
@@ -178,6 +191,16 @@ data class ApplicationYamlV2(
         val port: Int? = null,
         val password: String? = null,
     )
+
+    data class Ssh(
+        val mode: SshMode
+    )
+
+    enum class SshMode {
+        Mandatory,
+        Optional,
+        Disabled,
+    }
 
     private fun KProperty0<String>.requireNotBlank() {
         if (get().isBlank()) throw ApplicationVerificationException.BadValue(name, "Cannot be empty")
@@ -222,11 +245,9 @@ data class ApplicationYamlV2(
             ::name.disallowCharacters('\n')
             ::name.requireSize(maxSize = 255)
 
-            param::title.requireNotBlank()
-            param::title.requireSize(maxSize = 512)
+            param::title.requireSize(maxSize = 512, minSize = 0)
 
-            param::description.requireNotBlank()
-            param::description.requireSize(maxSize = 1024 * 8)
+            param::description.requireSize(maxSize = 1024 * 8, minSize = 0)
 
             if (name.startsWith(injectedPrefix)) {
                 throw ApplicationVerificationException.BadValue(name, "Parameters must not start with _injected_")
@@ -247,7 +268,10 @@ data class ApplicationYamlV2(
 
                 is Parameter.Enumeration -> {
                     if (param.options.isEmpty()) {
-                        throw ApplicationVerificationException.BadValue("options", "Options of an enumeration must not be empty!")
+                        throw ApplicationVerificationException.BadValue(
+                            "options",
+                            "Options of an enumeration must not be empty!"
+                        )
                     }
 
                     val default = param.defaultValue
@@ -318,7 +342,7 @@ data class ApplicationYamlV2(
         // TODO There is currently not much we can do about the validation of Jinja templates since we do not wish
         //  to, currently, introduce this dependency in the Kotlin codebase.
 
-        val tool = when(software) {
+        val tool = when (software) {
             is NativeSoftware -> {
                 Tool(
                     "_ucloud",
@@ -334,12 +358,58 @@ data class ApplicationYamlV2(
                         title = name,
                         description = "",
                         backend = ToolBackend.NATIVE,
-                        license = "",
+                        license = license ?: "",
                         image = null,
                         supportedProviders = null,
                         loadInstructions = ToolLoadInstructions.Native(
                             software.load.map { ToolLoadInstructions.NativeApplication(it.name, it.version) }
                         ),
+                    )
+                )
+            }
+
+            is ContainerSoftware -> {
+                Tool(
+                    "_ucloud",
+                    Time.now(),
+                    Time.now(),
+                    NormalizedToolDescription(
+                        info = NameAndVersion(name, version),
+                        container = software.image,
+                        defaultNumberOfNodes = 1,
+                        defaultTimeAllocation = SimpleDuration(1, 0, 0),
+                        requiredModules = emptyList(),
+                        authors = listOf("UCloud"),
+                        title = name,
+                        description = "",
+                        backend = ToolBackend.DOCKER,
+                        license = "",
+                        image = software.image,
+                        supportedProviders = null,
+                        loadInstructions = null,
+                    )
+                )
+            }
+
+            is VirtualMachineSoftware -> {
+                Tool(
+                    "_ucloud",
+                    Time.now(),
+                    Time.now(),
+                    NormalizedToolDescription(
+                        info = NameAndVersion(name, version),
+                        container = software.image,
+                        defaultNumberOfNodes = 1,
+                        defaultTimeAllocation = SimpleDuration(1, 0, 0),
+                        requiredModules = emptyList(),
+                        authors = listOf("UCloud"),
+                        title = name,
+                        description = "",
+                        backend = ToolBackend.VIRTUAL_MACHINE,
+                        license = "",
+                        image = software.image,
+                        supportedProviders = null,
+                        loadInstructions = null,
                     )
                 )
             }
@@ -349,6 +419,7 @@ data class ApplicationYamlV2(
             // TODO Support both?
             web != null && web.enabled -> ApplicationType.WEB
             vnc != null && vnc.enabled -> ApplicationType.VNC
+            software is VirtualMachineSoftware -> ApplicationType.VNC
             else -> ApplicationType.BATCH
         }
         val app = Application(
@@ -356,9 +427,9 @@ data class ApplicationYamlV2(
                 name,
                 version,
                 authors = listOf("UCloud"),
-                title = name,
-                description = "",
-                website = null,
+                title = title?.takeIf { it.isNotEmpty() } ?: name,
+                description = description ?: "",
+                website = documentation,
                 public = false,
                 flavorName = null,
                 createdAt = Time.now(),
@@ -379,15 +450,31 @@ data class ApplicationYamlV2(
                         it.port.takeIf { p -> p != 0 } ?: 80,
                     )
                 },
-                // TODO(Dan): Add ssh
-                ssh = null,
+
+                ssh = ssh?.let {
+                    SshDescription(
+                       when (it.mode) {
+                           SshMode.Mandatory -> SshDescription.Mode.MANDATORY
+                           SshMode.Optional -> SshDescription.Mode.OPTIONAL
+                           SshMode.Disabled -> SshDescription.Mode.DISABLED
+                       }
+                    )
+                },
 
                 // TODO(Dan): License server hints (if they are even used?)
                 licenseServers = emptyList(),
 
                 // TODO(Dan): Add docker based apps
-                container = null,
-                modules = null,
+                container = if (software is ContainerSoftware) {
+                    ContainerDescription(
+                        changeWorkingDirectory = true,
+                        runAsRoot = true,
+                        runAsRealUser = false
+                    )
+                } else {
+                    null
+                },
+                modules = modules,
 
                 environment = (environment ?: emptyMap()).map { (key, value) ->
                     key to JinjaInvocationParameter(value)
@@ -412,114 +499,117 @@ data class ApplicationYamlV2(
     private fun mapApplicationParameter(
         param: Parameter,
         name: String
-    ): ApplicationParameter = when (param) {
-        is Parameter.Bool -> ApplicationParameter.Bool(
-            name,
-            param.optional,
-            param.defaultValue?.let { JsonPrimitive(it) },
-            param.title,
-            param.description
-        )
+    ): ApplicationParameter {
+        val title = param.title.takeIf { it.isNotEmpty() } ?: name
+        return when (param) {
+            is Parameter.Bool -> ApplicationParameter.Bool(
+                name,
+                param.optional,
+                param.defaultValue?.let { JsonPrimitive(it) },
+                title,
+                param.description
+            )
 
-        is Parameter.Directory -> ApplicationParameter.InputDirectory(
-            name,
-            param.optional,
-            null,
-            param.title,
-            param.description,
-        )
+            is Parameter.Directory -> ApplicationParameter.InputDirectory(
+                name,
+                param.optional,
+                null,
+                title,
+                param.description,
+            )
 
-        is Parameter.Enumeration -> ApplicationParameter.Enumeration(
-            name,
-            param.optional,
-            param.defaultValue?.let { JsonPrimitive(it) },
-            param.title,
-            param.description,
-            param.options.map { ApplicationParameter.EnumOption(it.value, it.title) }
-        )
+            is Parameter.Enumeration -> ApplicationParameter.Enumeration(
+                name,
+                param.optional,
+                param.defaultValue?.let { JsonPrimitive(it) },
+                title,
+                param.description,
+                param.options.map { ApplicationParameter.EnumOption(it.title, it.value) }
+            )
 
-        is Parameter.File -> ApplicationParameter.InputFile(
-            name,
-            param.optional,
-            null,
-            param.title,
-            param.description
-        )
+            is Parameter.File -> ApplicationParameter.InputFile(
+                name,
+                param.optional,
+                null,
+                title,
+                param.description
+            )
 
-        is Parameter.FloatingPoint -> ApplicationParameter.FloatingPoint(
-            name,
-            param.optional,
-            param.defaultValue?.let { JsonPrimitive(it) },
-            param.title,
-            param.description,
-            param.min,
-            param.max,
-            param.step,
-            null
-        )
+            is Parameter.FloatingPoint -> ApplicationParameter.FloatingPoint(
+                name,
+                param.optional,
+                param.defaultValue?.let { JsonPrimitive(it) },
+                title,
+                param.description,
+                param.min,
+                param.max,
+                param.step,
+                null
+            )
 
-        is Parameter.Integer -> ApplicationParameter.Integer(
-            name,
-            param.optional,
-            param.defaultValue?.let { JsonPrimitive(it) },
-            param.title,
-            param.description,
-            param.min,
-            param.max,
-            param.step,
-            null
-        )
+            is Parameter.Integer -> ApplicationParameter.Integer(
+                name,
+                param.optional,
+                param.defaultValue?.let { JsonPrimitive(it) },
+                title,
+                param.description,
+                param.min,
+                param.max,
+                param.step,
+                null
+            )
 
-        is Parameter.Job -> ApplicationParameter.Peer(
-            name,
-            param.title,
-            param.description,
-            null,
-        )
+            is Parameter.Job -> ApplicationParameter.Peer(
+                name,
+                title,
+                param.description,
+                null,
+            )
 
-        is Parameter.License -> ApplicationParameter.LicenseServer(
-            name,
-            param.title,
-            param.optional,
-            param.description,
-            emptyList(),
-        )
+            is Parameter.License -> ApplicationParameter.LicenseServer(
+                name,
+                title,
+                param.optional,
+                param.description,
+                emptyList(),
+            )
 
-        is Parameter.PublicIP -> ApplicationParameter.NetworkIP(
-            name,
-            param.title,
-            param.description,
-        )
+            is Parameter.PublicIP -> ApplicationParameter.NetworkIP(
+                name,
+                title,
+                param.description,
+            )
 
-        is Parameter.Text -> ApplicationParameter.Text(
-            name,
-            param.optional,
-            param.defaultValue?.let { JsonPrimitive(it) },
-            param.title,
-            param.description,
-        )
+            is Parameter.Text -> ApplicationParameter.Text(
+                name,
+                param.optional,
+                param.defaultValue?.let { JsonPrimitive(it) },
+                title,
+                param.description,
+            )
 
-        is Parameter.TextArea -> ApplicationParameter.TextArea(
-            name,
-            param.optional,
-            param.defaultValue?.let { JsonPrimitive(it) },
-            param.title,
-            param.description,
-        )
+            is Parameter.TextArea -> ApplicationParameter.TextArea(
+                name,
+                param.optional,
+                param.defaultValue?.let { JsonPrimitive(it) },
+                title,
+                param.description,
+            )
 
-        is Parameter.Workflow -> ApplicationParameter.Workflow(
-            name,
-            param.title,
-            param.description,
-            Workflow.Specification(
-                "",
-                WorkflowLanguage.JINJA2,
-                param.init,
-                param.job,
-                param.parameters.map { mapApplicationParameter(it.value, it.key) },
-                param.readme,
-            ).let { defaultMapper.encodeToJsonElement(it) },
-            param.optional,
-        )
+            is Parameter.Workflow -> ApplicationParameter.Workflow(
+                name,
+                title,
+                param.description,
+                Workflow.Specification(
+                    "",
+                    WorkflowLanguage.JINJA2,
+                    param.init,
+                    param.job,
+                    param.parameters.map { mapApplicationParameter(it.value, it.key) },
+                    param.readme,
+                ).let { defaultMapper.encodeToJsonElement(it) },
+                param.optional,
+            )
+        }
     }
 }

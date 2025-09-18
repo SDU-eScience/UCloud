@@ -452,10 +452,12 @@ class Catalog(
                 resolvedApps[nameAndVersion] = app
             }
 
-            if (result.size >= 50) break
+            if (result.size >= 25) break
         }
 
-        return result.entries.sortedByDescending { it.value }.mapNotNull { resolvedApps[it.key] }
+        val sortedByDescending = result.entries.sortedByDescending { it.value }
+        val bestScore = sortedByDescending.getOrNull(0)?.value ?: 1.0
+        return sortedByDescending.filter { it.value / bestScore >= 0.1 }.mapNotNull { resolvedApps[it.key] }
     }
 
     suspend fun openWithApplication(
@@ -816,7 +818,7 @@ class Catalog(
             throw RPCException("Failed to fetch information about service providers", HttpStatusCode.BadGateway)
         },
         retrieve = { _ ->
-            db.withSession { session ->
+            db.withSession(reason = "catalog supportCache") { session ->
                 val rows = session.sendPreparedStatement(
                     {},
                     """

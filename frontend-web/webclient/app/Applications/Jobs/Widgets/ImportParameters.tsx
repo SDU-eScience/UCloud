@@ -39,8 +39,9 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
         if (jobId) {
             callAPI(JobsApi.retrieve({id: jobId})).then(it => {
                 if (!didLoadParameters.current) {
-                    readParsedJSON(it.status.jobParametersJson);
-                    snackbarStore.addSuccess("Imported job parameters", false, 5000);
+                    readParsedJSON(it.status.jobParametersJson).then(() => {
+                        snackbarStore.addSuccess("Imported job parameters", false, 5000);
+                    });
                 }
             }).catch(it => {
                 console.warn("Failed to auto-import parameters from query params.", it);
@@ -72,11 +73,11 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
             if (typeof result.output === "undefined") {
                 // Do nothing
             } else {
-                onImport(result.output!);
+                onImport(result.output);
                 onImportDialogClose();
             }
         }
-    }, [])
+    }, []);
 
     const importParameters = useCallback((file: File) => {
         const fileReader = new FileReader();
@@ -355,22 +356,31 @@ async function cleanupImportResult(
         return result;
     }
 
-    const parameters = output.parameters ?? {};
+    let parameterTypes = [...application.invocation.parameters];
+    const values = output.parameters ?? {};
     const resources = output.resources ?? [];
 
     const badParam: (paramName: string) => void = (paramName) => {
         result.messages.push({type: "warning", message: "Corrupt parameter: " + paramName});
-        delete parameters[paramName];
+        delete values[paramName];
     }
 
-    for (const paramName of Object.keys(parameters)) {
-        const param = parameters[paramName];
+    for (const paramName of Object.keys(values)) {
+        const param = values[paramName];
+        if (param.type === "workflow") {
+            const inputs = param.specification.inputs;
+            parameterTypes = [...parameterTypes, ...inputs];
+        }
+    }
+
+    for (const paramName of Object.keys(values)) {
+        const param = values[paramName];
         if (typeof param !== "object") {
             badParam(paramName);
             continue;
         }
 
-        const type = application.invocation.parameters.find(it => it.name === paramName)?.type;
+        const type = parameterTypes.find(it => it.name === paramName)?.type;
         if (type == null) {
             badParam(paramName);
             continue;
@@ -408,7 +418,7 @@ async function cleanupImportResult(
         }
 
         if (type === "input_file" || type === "input_directory") {
-            if (!param["path"]) delete parameters[paramName];
+            if (!param["path"]) delete values[paramName];
         }
     }
 
@@ -457,7 +467,7 @@ async function cleanupImportResult(
             output.replicas = undefined;
         }
     }
-    
+
     // Note(Jonas): timeAllocation is listed as undefinable, but it can also be null. Ignore null values.
     if (output.timeAllocation != null) {
         if (typeof output.timeAllocation !== "object") {

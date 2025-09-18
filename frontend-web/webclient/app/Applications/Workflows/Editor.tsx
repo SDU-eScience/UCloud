@@ -1,8 +1,12 @@
 import * as React from "react";
-import {Feature, hasFeature} from "@/Features";
-import {Editor, EditorApi, Vfs, VirtualFile} from "@/Editor/Editor";
+import {Editor, EditorApi, Vfs} from "@/Editor/Editor";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {bulkRequestOf, displayErrorMessageOrDefault, extractErrorCode, stopPropagation} from "@/UtilityFunctions";
+import {
+    bulkRequestOf,
+    displayErrorMessageOrDefault,
+    extractErrorCode,
+    stopPropagation
+} from "@/UtilityFunctions";
 import {WorkflowSpecification} from "@/Applications/Workflows/index";
 import {Box, Button, Flex, Icon, Input, Label} from "@/ui-components";
 import {TooltipV2} from "@/ui-components/Tooltip";
@@ -15,23 +19,29 @@ import {ApplicationParameter} from "@/Applications/AppStoreApi";
 import EnumOption = AppStore.ApplicationParameterNS.EnumOption;
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {VirtualFile} from "@/Files/FileTree";
 
 const WorkflowEditor: React.FunctionComponent<{
     initialExistingPath?: string | null;
     initialId?: string | null;
     workflow: WorkflowSpecification;
+    dirtyFileCountRef: React.RefObject<number>;
     applicationName: string;
+    doSaveRef: React.RefObject<() => void>;
     onUse?: (id: string | null, path: string | null, spec: WorkflowSpecification) => void;
+    onSave?: () => void;
 }> = props => {
-    if (!hasFeature(Feature.COPY_APP_MOCKUP)) return null;
-
     const editorApi = useRef<EditorApi>(null);
     const [currentPath, setCurrentPath] = useState<string | null>(props.initialExistingPath ?? null);
     const [isSaving, setIsSaving] = useState(false);
     const [isOverwriting, setIsOverwriting] = useState<string | null>(null);
     const didUnmount = useDidUnmount();
     const [error, setError] = useState<string | null>(null);
-    const [savedId, setSavedId] = useState<string | null>(props.initialId ?? null);
+    const [savedId, setSavedId] = useState<string | null>(null);
+
+    React.useEffect(() => {
+        props.doSaveRef.current = () => setIsSaving(true);
+    }, [setIsSaving]);
 
     const vfs = useMemo(() => {
         return new WorkflowVfs(props.workflow);
@@ -40,6 +50,12 @@ const WorkflowEditor: React.FunctionComponent<{
     useEffect(() => {
         vfs.workflow = props.workflow;
     }, [props.workflow]);
+
+    useEffect(() => {
+        if (props.onSave && savedId) {
+            props.onSave();
+        }
+    }, [savedId])
 
     const readCurrentSpecification = useCallback((): WorkflowSpecification | null => {
         const params = vfs.dirtyFiles["/" + FILE_NAME_PARAMETERS] ?? "";
@@ -59,7 +75,7 @@ const WorkflowEditor: React.FunctionComponent<{
             if (typeof parsed !== "object" || Array.isArray(parsed)) {
                 error = errPrefix + "expected parameters to contain a dictionary of parameters"
             } else {
-                for (let [name, param] of Object.entries(parsed)) {
+                for (const [name, param] of Object.entries(parsed)) {
                     if (typeof param !== "object") {
                         error = errPrefix + "error in parameter " + name + ": expected an object";
                         break;
@@ -149,12 +165,30 @@ const WorkflowEditor: React.FunctionComponent<{
                 if (statusCode === 409) {
                     setIsOverwriting(name);
                 } else {
-                    displayErrorMessageOrDefault(e, "Could not save workflow");
+                    displayErrorMessageOrDefault(e, "Could not save script");
                 }
             }
         })();
+        editorApi.current?.onFileSaved(name);
         savingRef.current = false;
     }, []);
+
+    useEffect(() => {
+        const listener = (ev: KeyboardEvent) => {
+            const hasCtrl = ev.ctrlKey || ev.metaKey;
+            if (ev.code === "KeyS" && hasCtrl) {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                setIsSaving(true);
+            }
+        };
+
+        window.addEventListener("keydown", listener);
+        return () => {
+            window.removeEventListener("keydown", listener);
+        }
+    }, [onSaveCopy]);
 
     const saveOverwritten = useCallback(async () => {
         setIsOverwriting(null);
@@ -171,16 +205,20 @@ const WorkflowEditor: React.FunctionComponent<{
 
             setSavedId(res.responses[0].id);
         } catch (e) {
-            displayErrorMessageOrDefault(e, "Could not save workflow");
+            displayErrorMessageOrDefault(e, "Could not save script");
         }
     }, [isOverwriting]);
 
     return <Editor
         vfs={vfs}
+        isModal
+        dirtyFileCountRef={props.dirtyFileCountRef}
         title={props.applicationName}
         initialFolderPath={"/"}
         initialFilePath={"/" + FILE_NAME_JOB}
         apiRef={editorApi}
+        onRequestSave={async () => setIsSaving(true)}
+        readOnly={false}
         toolbarBeforeSettings={<>
             {!error ? null :
                 <TooltipV2>
@@ -218,64 +256,60 @@ const WorkflowEditor: React.FunctionComponent<{
             <TooltipV2 tooltip={"Save copy"} contentWidth={100}>
                 <Icon name={"floppyDisk"} size={"20px"} cursor={"pointer"} onClick={() => setIsSaving(true)} />
                 {!isSaving ? null :
-                    <div style={{position: "absolute"}} onMouseMove={stopPropagation}>
-                        <div style={{
-                            position: "relative",
-                            left: -280,
-                            top: 5,
-                            width: 300,
-                            padding: 16,
-                            borderRadius: 8,
-                            backgroundColor: "var(--backgroundCard)",
-                            boxShadow: "var(--defaultShadow)",
-                            zIndex: 1000000000,
+                    <div onMouseMove={stopPropagation} style={{
+                        position: "absolute",
+                        right: 20,
+                        top: 44,
+                        width: 300,
+                        padding: 16,
+                        borderRadius: 8,
+                        backgroundColor: "var(--backgroundCard)",
+                        boxShadow: "var(--defaultShadow)",
+                        zIndex: 1000000000,
+                    }}>
+                        <form onSubmit={onSaveCopy} onBlur={(ev) => {
+                            if (!savingRef.current) setIsSaving(false);
                         }}>
-                            <form onSubmit={onSaveCopy} onBlur={(ev) => {
-                                if (!savingRef.current) setIsSaving(false);
-                            }}>
-                                <Label>
-                                    What should we call this workflow?
-                                    <Input
-                                        name={"name"}
-                                        onKeyDown={saveKeyDown}
-                                        placeholder={"My workflow"}
-                                        defaultValue={currentPath ?? ""}
-                                        autoFocus
-                                    />
-                                </Label>
-                                <Flex gap={"8px"} mt={"8px"}>
-                                    <Box flexGrow={1} />
-                                    <Button color={"errorMain"} type={"button"}
-                                        onClick={() => setIsSaving(false)}>Cancel</Button>
-                                    <Button color={"successMain"} type={"submit"}
-                                        onMouseDown={() => savingRef.current = true}>Save</Button>
-                                </Flex>
-                            </form>
-                        </div>
-                    </div>
-                }
-                {!isOverwriting ? null :
-                    <div style={{position: "absolute"}} onMouseMove={stopPropagation}>
-                        <div style={{
-                            position: "relative",
-                            left: -280,
-                            top: 5,
-                            width: 300,
-                            padding: 16,
-                            borderRadius: 8,
-                            backgroundColor: "var(--backgroundCard)",
-                            boxShadow: "var(--defaultShadow)",
-                            zIndex: 1000000000,
-                        }}>
-                            This workflow already exists, do you want to overwrite it?
+                            <Label>
+                                What should we call this script?
+                                <Input
+                                    name={"name"}
+                                    onKeyDown={saveKeyDown}
+                                    placeholder={"My script"}
+                                    defaultValue={currentPath ?? ""}
+                                    autoFocus
+                                />
+                            </Label>
                             <Flex gap={"8px"} mt={"8px"}>
                                 <Box flexGrow={1} />
                                 <Button color={"errorMain"} type={"button"}
-                                    onClick={() => setIsOverwriting(null)}>No</Button>
-                                <Button color={"successMain"} onMouseDown={() => savingRef.current = true}
-                                    onClick={saveOverwritten}>Yes</Button>
+                                    onClick={() => setIsSaving(false)}>Cancel</Button>
+                                <Button color={"successMain"} type={"submit"}
+                                    onMouseDown={() => savingRef.current = true}>Save</Button>
                             </Flex>
-                        </div>
+                        </form>
+                    </div>
+                }
+                {!isOverwriting ? null :
+                    <div onMouseMove={stopPropagation} style={{
+                        position: "absolute",
+                        right: 20,
+                        top: 44,
+                        width: 300,
+                        padding: 16,
+                        borderRadius: 8,
+                        backgroundColor: "var(--backgroundCard)",
+                        boxShadow: "var(--defaultShadow)",
+                        zIndex: 1000000000,
+                    }}>
+                        This script already exists, do you want to overwrite it?
+                        <Flex gap={"8px"} mt={"8px"}>
+                            <Box flexGrow={1} />
+                            <Button color={"errorMain"} type={"button"}
+                                onClick={() => setIsOverwriting(null)}>No</Button>
+                            <Button color={"successMain"} onMouseDown={() => savingRef.current = true}
+                                onClick={saveOverwritten}>Yes</Button>
+                        </Flex>
                     </div>
                 }
             </TooltipV2>
@@ -486,6 +520,16 @@ function validateParameter(parameter: any): ApplicationParameter | string {
                 name,
             };
 
+        case "License":
+            return {
+                type: "license_server",
+                title,
+                description,
+                optional,
+                name,
+                tagged: [],
+            };
+
         default:
             return "unknown parameter type"
     }
@@ -513,6 +557,10 @@ class WorkflowVfs implements Vfs {
                 this.dirtyFiles[thisFile] = content;
             });
         }
+    }
+
+    isReal() {
+        return false;
     }
 
     async listFiles(path: string): Promise<VirtualFile[]> {

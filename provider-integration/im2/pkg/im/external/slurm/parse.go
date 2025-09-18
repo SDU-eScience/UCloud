@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type Tag struct {

@@ -1,24 +1,29 @@
 package controller
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
-	anyascii "github.com/anyascii/go"
 	"net/http"
 	"slices"
 	"strings"
 	"sync"
 	"time"
+	db "ucloud.dk/shared/pkg/database"
 	"unicode"
 
+	anyascii "github.com/anyascii/go"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+
 	ws "github.com/gorilla/websocket"
-	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	gw "ucloud.dk/pkg/im/gateway"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var Jobs JobsService
@@ -32,10 +37,32 @@ type JobsService struct {
 	RetrieveProducts         func() []orc.JobSupport
 	Follow                   func(session *FollowJobSession)
 	HandleShell              func(session *ShellSession, cols, rows int)
-	ServerFindIngress        func(job *orc.Job, suffix util.Option[string]) ConfiguredWebIngress
+	ServerFindIngress        func(job *orc.Job, rank int, suffix util.Option[string]) ConfiguredWebIngress
 	OpenWebSession           func(job *orc.Job, rank int, target util.Option[string]) (ConfiguredWebSession, error)
 	RequestDynamicParameters func(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter
 	HandleBuiltInVnc         func(job *orc.Job, rank int, conn *ws.Conn)
+
+	PublicIPs PublicIPService
+	Ingresses IngressService
+	Licenses  LicenseService
+}
+
+type PublicIPService struct {
+	Create           func(ip *orc.PublicIp) error
+	Delete           func(ip *orc.PublicIp) error
+	RetrieveProducts func() []orc.PublicIpSupport
+}
+
+type LicenseService struct {
+	Create           func(license *orc.License) error
+	Delete           func(license *orc.License) error
+	RetrieveProducts func() []orc.LicenseSupport
+}
+
+type IngressService struct {
+	Create           func(ingress *orc.Ingress) error
+	Delete           func(ingress *orc.Ingress) error
+	RetrieveProducts func() []orc.IngressSupport
 }
 
 type ConfiguredWebSession struct {
@@ -52,16 +79,17 @@ type FollowJobSession struct {
 	Id       string
 	Alive    *bool
 	Job      *orc.Job
-	EmitLogs func(rank int, stdout, stderr util.Option[string])
+	EmitLogs func(rank int, stdout, stderr, channel util.Option[string])
 }
 
 type ShellSession struct {
-	Alive       bool
-	Folder      string
-	Job         *orc.Job
-	Rank        int
-	InputEvents chan ShellEvent
-	EmitData    func(data []byte)
+	Alive          bool
+	Folder         string
+	Job            *orc.Job
+	Rank           int
+	InputEvents    chan ShellEvent
+	EmitData       func(data []byte)
+	UCloudUsername string
 }
 
 type ShellEvent struct {
@@ -92,7 +120,8 @@ const (
 )
 
 type JobTerminateRequest struct {
-	Job *orc.Job
+	Job       *orc.Job
+	IsCleanup bool
 }
 
 type JobSuspendRequest struct {
@@ -118,6 +147,36 @@ type JobOpenInteractiveSessionRequest struct {
 	Type orc.InteractiveSessionType
 }
 
+var (
+	metricJobsSubmitted = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "jobs",
+		Name:      "submitted",
+		Help:      "The total number of jobs submitted correctly to the UCloud/IM",
+	})
+
+	metricJobsInQueue = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "jobs",
+		Name:      "in_queue",
+		Help:      "The number of jobs currently in queue, registered by UCloud/IM",
+	})
+
+	metricJobsRunning = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "jobs",
+		Name:      "running",
+		Help:      "The number of jobs currently running, registered by UCloud/IM",
+	})
+
+	metricJobsSuspended = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "jobs",
+		Name:      "suspended",
+		Help:      "The number of jobs currently suspended, registered by UCloud/IM",
+	})
+)
+
 func controllerJobs(mux *http.ServeMux) {
 	if RunsServerCode() {
 		jobsIpcServer()
@@ -126,9 +185,15 @@ func controllerJobs(mux *http.ServeMux) {
 	wsUpgrader := ws.Upgrader{
 		ReadBufferSize:  1024 * 4,
 		WriteBufferSize: 1024 * 4,
+
+		// The binary sub-protocol is needed to support VNC handled directly by the IM
+		Subprotocols: []string{"binary"},
 	}
 	wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	jobContext := fmt.Sprintf("/ucloud/%v/jobs/", cfg.Provider.Id)
+	publicIpContext := fmt.Sprintf("/ucloud/%v/networkips/", cfg.Provider.Id)
+	licenseContext := fmt.Sprintf("/ucloud/%v/licenses/", cfg.Provider.Id)
+	ingressContext := fmt.Sprintf("/ucloud/%v/ingresses/", cfg.Provider.Id)
 
 	if RunsUserCode() {
 		creationUrl, _ := strings.CutSuffix(jobContext, "/")
@@ -139,6 +204,8 @@ func controllerJobs(mux *http.ServeMux) {
 				var providerIds []*fnd.FindByStringId
 
 				for _, item := range request.Items {
+					TrackNewJob(*item)
+
 					providerGeneratedId, err := Jobs.Submit(JobSubmitRequest{
 						JobToSubmit: item,
 					})
@@ -150,6 +217,9 @@ func controllerJobs(mux *http.ServeMux) {
 					}
 
 					if err != nil {
+						copied := *item
+						copied.Status.State = orc.JobStateFailure
+						TrackNewJob(copied)
 						errors = append(errors, err)
 					}
 				}
@@ -157,12 +227,71 @@ func controllerJobs(mux *http.ServeMux) {
 				if len(errors) == 1 && len(request.Items) == 1 {
 					sendError(w, errors[0])
 				} else {
+					metricJobsSubmitted.Inc()
 					var response fnd.BulkResponse[*fnd.FindByStringId]
 					response.Responses = providerIds
 					sendResponseOrError(w, response, nil)
 				}
 			}),
 		)
+
+		type jobUpdateAclRequest struct {
+			Resource orc.Job                `json:"resource"`
+			Added    []orc.ResourceAclEntry `json:"added"`
+			Deleted  []orc.AclEntity        `json:"deleted"`
+		}
+
+		mux.HandleFunc(jobContext+"updateAcl", HttpUpdateHandler[fnd.BulkRequest[jobUpdateAclRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[jobUpdateAclRequest]) {
+				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+
+				for _, item := range request.Items {
+					job := item.Resource
+
+					for _, toDelete := range item.Deleted {
+						for i, entry := range job.Permissions.Others {
+							if entry.Entity == toDelete {
+								slices.Delete(job.Permissions.Others, i, i+1)
+							}
+						}
+					}
+
+					for _, toAdd := range item.Added {
+						found := false
+
+						for i := 0; i < len(job.Permissions.Others); i++ {
+							entry := &job.Permissions.Others[i]
+							if entry.Entity == toAdd.Entity {
+								for _, perm := range toAdd.Permissions {
+									entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
+								}
+								found = true
+								break
+							}
+						}
+
+						if !found {
+							job.Permissions.Others = append(job.Permissions.Others, orc.ResourceAclEntry{
+								Entity:      toAdd.Entity,
+								Permissions: toAdd.Permissions,
+							})
+						}
+					}
+
+					TrackNewJob(job)
+
+					resp.Responses = append(
+						resp.Responses,
+						util.Option[util.Empty]{
+							Present: true,
+						},
+					)
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		))
 
 		mux.HandleFunc(jobContext+"terminate", HttpUpdateHandler[fnd.BulkRequest[*orc.Job]](
 			0,
@@ -252,7 +381,7 @@ func controllerJobs(mux *http.ServeMux) {
 		)
 
 		type extendRequest struct {
-			Job           *orc.Job           `json:"jobId"`
+			Job           *orc.Job           `json:"job"`
 			RequestedTime orc.SimpleDuration `json:"requestedTime"`
 		}
 
@@ -305,7 +434,7 @@ func controllerJobs(mux *http.ServeMux) {
 
 						shellSessionsMutex.Lock()
 						tok := util.RandomToken(32)
-						shellSessions[tok] = &ShellSession{Alive: true, Job: item.Job, Rank: item.Rank}
+						shellSessions[tok] = &ShellSession{Alive: true, Job: item.Job, Rank: item.Rank, UCloudUsername: GetUCloudUsername(r)}
 						shellSessionsMutex.Unlock()
 						responses = append(
 							responses,
@@ -385,7 +514,7 @@ func controllerJobs(mux *http.ServeMux) {
 
 					shellSessionsMutex.Lock()
 					tok := util.RandomToken(32)
-					shellSessions[tok] = &ShellSession{Alive: true, Folder: item.Folder}
+					shellSessions[tok] = &ShellSession{Alive: true, Folder: item.Folder, UCloudUsername: GetUCloudUsername(r)}
 					shellSessionsMutex.Unlock()
 					responses = append(
 						responses,
@@ -414,29 +543,51 @@ func controllerJobs(mux *http.ServeMux) {
 		mux.HandleFunc(
 			fmt.Sprintf("/ucloud/%v/websocket", cfg.Provider.Id),
 			func(writer http.ResponseWriter, request *http.Request) {
+				if ok := checkEnvoySecret(writer, request); !ok {
+					return
+				}
+
 				conn, err := wsUpgrader.Upgrade(writer, request, nil)
 				defer util.SilentCloseIfOk(conn, err)
 				if err != nil {
-					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
+					log.Info("Expected a websocket connection, but couldn't upgrade: %v", err)
 					return
 				}
 
 				connMutex := sync.Mutex{}
 
 				var session *ShellSession = nil
+
+				go func() {
+					timeout := 30
+					for util.IsAlive {
+						if session != nil && !session.Alive {
+							_ = conn.Close()
+							break
+						}
+
+						if timeout <= 0 && session == nil {
+							_ = conn.Close()
+							break
+						}
+
+						time.Sleep(1 * time.Second)
+						timeout--
+					}
+				}()
+
 				for util.IsAlive {
 					if session != nil && !session.Alive {
 						break
 					}
 
 					messageType, data, err := conn.ReadMessage()
-
 					if err != nil {
 						break
 					}
 
 					if messageType != ws.TextMessage {
-						log.Debug("Only handling text messages but got a %v", messageType)
+						log.Info("Only handling text messages but got a %v", messageType)
 						continue
 					}
 
@@ -460,22 +611,28 @@ func controllerJobs(mux *http.ServeMux) {
 							s, ok := shellSessions[req.SessionIdentifier]
 							session = s
 							shellSessionsMutex.Unlock()
+							if !ok || session == nil {
+								log.Info("Bad session")
+								break
+							}
 
 							session.InputEvents = make(chan ShellEvent)
 							session.EmitData = func(data []byte) {
-								msg := map[string]string{
-									"type": "data",
-									"data": string(data),
-								}
-								asJson, _ := json.Marshal(msg)
+								if session.Alive {
+									msg := map[string]string{
+										"type": "data",
+										"data": string(data),
+									}
+									asJson, _ := json.Marshal(msg)
 
-								connMutex.Lock()
-								_ = conn.WriteJSON(WebSocketResponseMessage{
-									Type:     "message",
-									StreamId: requestMessage.StreamId,
-									Payload:  asJson,
-								})
-								connMutex.Unlock()
+									connMutex.Lock()
+									_ = conn.WriteJSON(WebSocketResponseMessage{
+										Type:     "message",
+										StreamId: requestMessage.StreamId,
+										Payload:  asJson,
+									})
+									connMutex.Unlock()
+								}
 							}
 
 							go func() {
@@ -490,9 +647,6 @@ func controllerJobs(mux *http.ServeMux) {
 								Payload:  json.RawMessage(`{"type":"initialize"}`),
 							})
 							connMutex.Unlock()
-							if !ok {
-								break
-							}
 						}
 						continue
 					} else {
@@ -543,8 +697,6 @@ func controllerJobs(mux *http.ServeMux) {
 					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
 					return
 				}
-
-				log.Info("We are now listening for logs (probably)")
 
 				connMutex := sync.Mutex{}
 				sendMessage := func(message any) error {
@@ -599,7 +751,7 @@ func controllerJobs(mux *http.ServeMux) {
 								Stderr:   util.Option[string]{},
 							}
 							dummyData, _ := json.Marshal(dummy)
-							_ = conn.WriteJSON(WebSocketResponseFin{
+							_ = sendMessage(WebSocketResponseFin{
 								Type:     "response",
 								Status:   http.StatusOK,
 								StreamId: requestMessage.StreamId,
@@ -619,22 +771,24 @@ func controllerJobs(mux *http.ServeMux) {
 						session, ok := followSessions[followRequest.StreamId]
 						if ok {
 							*session.Alive = false
-						}
-						followSessionsMutex.Unlock()
+							followSessionsMutex.Unlock()
 
-						dummy := jobsProviderFollowResponse{
-							StreamId: session.Id,
-							Rank:     0,
-							Stdout:   util.Option[string]{},
-							Stderr:   util.Option[string]{},
+							dummy := jobsProviderFollowResponse{
+								StreamId: session.Id,
+								Rank:     0,
+								Stdout:   util.Option[string]{},
+								Stderr:   util.Option[string]{},
+							}
+							dummyData, _ := json.Marshal(dummy)
+							_ = sendMessage(WebSocketResponseFin{
+								Type:     "response",
+								Status:   http.StatusOK,
+								StreamId: requestMessage.StreamId,
+								Payload:  dummyData,
+							})
+						} else {
+							followSessionsMutex.Unlock()
 						}
-						dummyData, _ := json.Marshal(dummy)
-						_ = conn.WriteJSON(WebSocketResponseFin{
-							Type:     "response",
-							Status:   http.StatusOK,
-							StreamId: requestMessage.StreamId,
-							Payload:  dummyData,
-						})
 					}
 				}
 
@@ -667,33 +821,454 @@ func controllerJobs(mux *http.ServeMux) {
 			}),
 		)
 
+		publicIpCreation, _ := strings.CutSuffix(publicIpContext, "/")
+		publicIpCreateHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.PublicIp]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.PublicIp]) {
+				var errors []error
+				var providerIds []*fnd.FindByStringId
+
+				for _, item := range request.Items {
+					TrackNewPublicIp(*item)
+					providerIds = append(providerIds, nil)
+
+					fn := Jobs.PublicIPs.Create
+					if fn == nil {
+						errors = append(errors, util.HttpErr(http.StatusBadRequest, "IP creation not supported"))
+					} else {
+						err := fn(item)
+						if err != nil {
+							errors = append(errors, err)
+						}
+					}
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[*fnd.FindByStringId]
+					response.Responses = providerIds
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		)
+
+		publicIpDeleteHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.PublicIp]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.PublicIp]) {
+				var errors []error
+				var resp []util.Option[util.Empty]
+
+				for _, item := range request.Items {
+					fn := Jobs.PublicIPs.Delete
+					if fn == nil {
+						errors = append(errors, util.HttpErr(http.StatusBadRequest, "IP deletion not supported"))
+						resp = append(resp, util.Option[util.Empty]{Present: false})
+					} else {
+						err := fn(item)
+						if err != nil {
+							errors = append(errors, err)
+							resp = append(resp, util.Option[util.Empty]{Present: false})
+						} else {
+							resp = append(resp, util.Option[util.Empty]{Present: true})
+						}
+					}
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[util.Option[util.Empty]]
+					response.Responses = resp
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		)
+		mux.HandleFunc(publicIpCreation, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				publicIpCreateHandler(w, r)
+			} else if r.Method == http.MethodDelete {
+				publicIpDeleteHandler(w, r)
+			} else {
+				sendResponseOrError(w, nil, util.HttpErr(http.StatusNotFound, "Not found"))
+			}
+		})
+
+		mux.HandleFunc(publicIpContext+"firewall", HttpUpdateHandler[fnd.BulkRequest[orc.FirewallAndIp]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[orc.FirewallAndIp]) {
+				var errors []error
+				var resp []util.Option[util.Empty]
+
+				for _, item := range request.Items {
+					copied := item.Ip
+					copied.Specification.Firewall = util.OptValue(item.Firewall)
+					TrackNewPublicIp(copied)
+					resp = append(resp, util.OptValue(util.EmptyValue))
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[util.Option[util.Empty]]
+					response.Responses = resp
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		))
+
+		type publicIpUpdateAclRequest struct {
+			Resource orc.PublicIp           `json:"resource"`
+			Added    []orc.ResourceAclEntry `json:"added"`
+			Deleted  []orc.AclEntity        `json:"deleted"`
+		}
+
+		mux.HandleFunc(publicIpContext+"updateAcl", HttpUpdateHandler[fnd.BulkRequest[publicIpUpdateAclRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[publicIpUpdateAclRequest]) {
+				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+
+				for _, item := range request.Items {
+					publicIp := item.Resource
+
+					for _, toDelete := range item.Deleted {
+						for i, entry := range publicIp.Permissions.Others {
+							if entry.Entity == toDelete {
+								slices.Delete(publicIp.Permissions.Others, i, i+1)
+							}
+						}
+					}
+
+					for _, toAdd := range item.Added {
+						found := false
+
+						for i := 0; i < len(publicIp.Permissions.Others); i++ {
+							entry := &publicIp.Permissions.Others[i]
+							if entry.Entity == toAdd.Entity {
+								for _, perm := range toAdd.Permissions {
+									entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
+								}
+								found = true
+								break
+							}
+						}
+
+						if !found {
+							publicIp.Permissions.Others = append(publicIp.Permissions.Others, orc.ResourceAclEntry{
+								Entity:      toAdd.Entity,
+								Permissions: toAdd.Permissions,
+							})
+						}
+					}
+
+					TrackNewPublicIp(publicIp)
+
+					resp.Responses = append(
+						resp.Responses,
+						util.Option[util.Empty]{
+							Present: true,
+						},
+					)
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		))
+
+		ingressCreation, _ := strings.CutSuffix(ingressContext, "/")
+		ingressCreateHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.Ingress]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.Ingress]) {
+				var errors []error
+				var providerIds []*fnd.FindByStringId
+
+				for _, item := range request.Items {
+					TrackLink(*item)
+					providerIds = append(providerIds, nil)
+
+					fn := Jobs.Ingresses.Create
+					if fn == nil {
+						errors = append(errors, util.HttpErr(http.StatusBadRequest, "Public link creation not supported"))
+					} else {
+						err := fn(item)
+						if err != nil {
+							errors = append(errors, err)
+						}
+					}
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[*fnd.FindByStringId]
+					response.Responses = providerIds
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		)
+
+		ingressDeleteHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.Ingress]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.Ingress]) {
+				var errors []error
+				var resp []util.Option[util.Empty]
+
+				for _, item := range request.Items {
+					fn := Jobs.Ingresses.Delete
+					if fn == nil {
+						errors = append(errors, util.HttpErr(http.StatusBadRequest, "Public link deletion not supported"))
+						resp = append(resp, util.Option[util.Empty]{Present: false})
+					} else {
+						err := fn(item)
+						if err != nil {
+							errors = append(errors, err)
+							resp = append(resp, util.Option[util.Empty]{Present: false})
+						} else {
+							resp = append(resp, util.Option[util.Empty]{Present: true})
+						}
+					}
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[util.Option[util.Empty]]
+					response.Responses = resp
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		)
+
+		mux.HandleFunc(ingressCreation, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				ingressCreateHandler(w, r)
+			} else if r.Method == http.MethodDelete {
+				ingressDeleteHandler(w, r)
+			} else {
+				sendResponseOrError(w, nil, util.HttpErr(http.StatusNotFound, "Not found"))
+			}
+		})
+
+		type ingressUpdateAclRequest struct {
+			Resource orc.Ingress            `json:"resource"`
+			Added    []orc.ResourceAclEntry `json:"added"`
+			Deleted  []orc.AclEntity        `json:"deleted"`
+		}
+
+		mux.HandleFunc(ingressContext+"updateAcl", HttpUpdateHandler[fnd.BulkRequest[ingressUpdateAclRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[ingressUpdateAclRequest]) {
+				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+
+				for _, item := range request.Items {
+					ingress := item.Resource
+
+					for _, toDelete := range item.Deleted {
+						for i, entry := range ingress.Permissions.Others {
+							if entry.Entity == toDelete {
+								slices.Delete(ingress.Permissions.Others, i, i+1)
+							}
+						}
+					}
+
+					for _, toAdd := range item.Added {
+						found := false
+
+						for i := 0; i < len(ingress.Permissions.Others); i++ {
+							entry := &ingress.Permissions.Others[i]
+							if entry.Entity == toAdd.Entity {
+								for _, perm := range toAdd.Permissions {
+									entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
+								}
+								found = true
+								break
+							}
+						}
+
+						if !found {
+							ingress.Permissions.Others = append(ingress.Permissions.Others, orc.ResourceAclEntry{
+								Entity:      toAdd.Entity,
+								Permissions: toAdd.Permissions,
+							})
+						}
+					}
+
+					TrackLink(ingress)
+
+					resp.Responses = append(
+						resp.Responses,
+						util.Option[util.Empty]{
+							Present: true,
+						},
+					)
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		))
+
+		licenseActivation, _ := strings.CutSuffix(licenseContext, "/")
+		licenseActivateHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.License]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.License]) {
+				var errors []error
+				var providerIds []*fnd.FindByStringId
+
+				for _, item := range request.Items {
+					TrackLicense(*item)
+					providerIds = append(providerIds, nil)
+
+					fn := Jobs.Licenses.Create
+					if fn == nil {
+						errors = append(errors, util.HttpErr(http.StatusBadRequest, "License activation not supported"))
+					} else {
+						err := fn(item)
+						if err != nil {
+							errors = append(errors, err)
+						}
+					}
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[*fnd.FindByStringId]
+					response.Responses = providerIds
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		)
+
+		licenseDeleteHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.License]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.License]) {
+				var errors []error
+				var resp []util.Option[util.Empty]
+
+				for _, item := range request.Items {
+					fn := Jobs.Licenses.Delete
+					if fn == nil {
+						errors = append(errors, util.HttpErr(http.StatusBadRequest, "License deletion not supported"))
+						resp = append(resp, util.Option[util.Empty]{Present: false})
+					} else {
+						err := fn(item)
+						if err != nil {
+							errors = append(errors, err)
+							resp = append(resp, util.Option[util.Empty]{Present: false})
+						} else {
+							resp = append(resp, util.Option[util.Empty]{Present: true})
+						}
+					}
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[util.Option[util.Empty]]
+					response.Responses = resp
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		)
+
+		mux.HandleFunc(licenseActivation, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				licenseActivateHandler(w, r)
+			} else if r.Method == http.MethodDelete {
+				licenseDeleteHandler(w, r)
+			} else {
+				sendResponseOrError(w, nil, util.HttpErr(http.StatusNotFound, "Not found"))
+			}
+		})
+
+		type licenseUpdateAclRequest struct {
+			Resource orc.License            `json:"resource"`
+			Added    []orc.ResourceAclEntry `json:"added"`
+			Deleted  []orc.AclEntity        `json:"deleted"`
+		}
+
+		mux.HandleFunc(licenseContext+"updateAcl", HttpUpdateHandler[fnd.BulkRequest[licenseUpdateAclRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[licenseUpdateAclRequest]) {
+				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+
+				for _, item := range request.Items {
+					license := item.Resource
+
+					for _, toDelete := range item.Deleted {
+						for i, entry := range license.Permissions.Others {
+							if entry.Entity == toDelete {
+								slices.Delete(license.Permissions.Others, i, i+1)
+							}
+						}
+					}
+
+					for _, toAdd := range item.Added {
+						found := false
+
+						for i := 0; i < len(license.Permissions.Others); i++ {
+							entry := &license.Permissions.Others[i]
+							if entry.Entity == toAdd.Entity {
+								for _, perm := range toAdd.Permissions {
+									entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
+								}
+								found = true
+								break
+							}
+						}
+
+						if !found {
+							license.Permissions.Others = append(license.Permissions.Others, orc.ResourceAclEntry{
+								Entity:      toAdd.Entity,
+								Permissions: toAdd.Permissions,
+							})
+						}
+					}
+
+					TrackLicense(license)
+
+					resp.Responses = append(
+						resp.Responses,
+						util.Option[util.Empty]{
+							Present: true,
+						},
+					)
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		))
+
 	}
+
 	if RunsServerCode() {
 		mux.HandleFunc(
 			fmt.Sprintf("/ucloud/%v/authorize-app", cfg.Provider.Id),
 			func(writer http.ResponseWriter, request *http.Request) {
 				token := request.URL.Query().Get("token")
-				webSessionsMutex.Lock()
+				webSessionsMutex.RLock()
 				found := false
 				for _, session := range webSessions {
-					if slices.Contains(session.AuthToken, token) {
-						authCookie := http.Cookie{
-							Name:     "ucloud-compute-session-" + session.Ingress,
-							Value:    token,
-							Secure:   request.URL.Scheme == "https",
-							HttpOnly: true,
-							MaxAge:   1000 * 60 * 60 * 24 * 30,
-							Path:     "/",
-							Domain:   request.URL.Host,
+					for _, ing := range session.IngressBySuffix {
+						if ing.AuthToken.Present && ing.AuthToken.Value == token {
+							authCookie := http.Cookie{
+								Name:     fmt.Sprintf("ucloud-compute-session-%v-%v-%v", ing.JobId, ing.Rank, ing.Suffix),
+								Value:    token,
+								Secure:   request.URL.Scheme == "https",
+								HttpOnly: true,
+								MaxAge:   1000 * 60 * 60 * 24 * 30,
+								Path:     "/",
+								Domain:   request.URL.Host,
+							}
+							http.SetCookie(writer, &authCookie)
+							writer.Header().Set("Location", "/")
+							writer.WriteHeader(http.StatusFound)
+							found = true
+							break
 						}
-						http.SetCookie(writer, &authCookie)
-						writer.Header().Set("Location", "/")
-						writer.WriteHeader(http.StatusFound)
-						found = true
-						break
 					}
 				}
-				webSessionsMutex.Unlock()
+				webSessionsMutex.RUnlock()
 
 				if !found {
 					writer.WriteHeader(http.StatusNotFound)
@@ -716,19 +1291,84 @@ func controllerJobs(mux *http.ServeMux) {
 			}),
 		)
 
+		mux.HandleFunc(publicIpContext+"retrieveProducts", HttpRetrieveHandler[util.Empty](
+			0,
+			func(w http.ResponseWriter, r *http.Request, _ util.Empty) {
+				var result []orc.PublicIpSupport
+				fn := Jobs.PublicIPs.RetrieveProducts
+				if fn != nil {
+					result = fn()
+				}
+
+				sendResponseOrError(
+					w,
+					fnd.BulkResponse[orc.PublicIpSupport]{
+						Responses: result,
+					},
+					nil,
+				)
+			}),
+		)
+
+		mux.HandleFunc(ingressContext+"retrieveProducts", HttpRetrieveHandler[util.Empty](
+			0,
+			func(w http.ResponseWriter, r *http.Request, _ util.Empty) {
+				var result []orc.IngressSupport
+				fn := Jobs.Ingresses.RetrieveProducts
+				if fn != nil {
+					result = fn()
+				}
+
+				log.Info("retrieve ingress products called. Returning %s", result)
+
+				sendResponseOrError(
+					w,
+					fnd.BulkResponse[orc.IngressSupport]{
+						Responses: result,
+					},
+					nil,
+				)
+			}),
+		)
+
+		mux.HandleFunc(licenseContext+"retrieveProducts", HttpRetrieveHandler[util.Empty](
+			0,
+			func(w http.ResponseWriter, r *http.Request, _ util.Empty) {
+				var result []orc.LicenseSupport
+				fn := Jobs.Licenses.RetrieveProducts
+				if fn != nil {
+					result = fn()
+				}
+
+				sendResponseOrError(
+					w,
+					fnd.BulkResponse[orc.LicenseSupport]{
+						Responses: result,
+					},
+					nil,
+				)
+			}),
+		)
+
 		mux.HandleFunc(
 			fmt.Sprintf("/ucloud/%v/vnc", cfg.Provider.Id),
 			func(writer http.ResponseWriter, request *http.Request) {
+				if ok := checkEnvoySecret(writer, request); !ok {
+					return
+				}
+
 				var idAndRank jobIdAndRank
 				token := request.URL.Query().Get("token")
-				webSessionsMutex.Lock()
+				webSessionsMutex.RLock()
 				for key, session := range webSessions {
-					if slices.Contains(session.AuthToken, token) {
-						idAndRank = key
-						break
+					for _, ing := range session.IngressBySuffix {
+						if ing.AuthToken.Present && ing.AuthToken.Value == token {
+							idAndRank = key
+							break
+						}
 					}
 				}
-				webSessionsMutex.Unlock()
+				webSessionsMutex.RUnlock()
 
 				if idAndRank.JobId == "" {
 					sendError(writer, &util.HttpError{
@@ -759,7 +1399,7 @@ func controllerJobs(mux *http.ServeMux) {
 				conn, err := wsUpgrader.Upgrade(writer, request, nil)
 				defer util.SilentCloseIfOk(conn, err)
 				if err != nil {
-					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
+					log.Info("Expected a websocket connection, but couldn't upgrade: %v", err)
 					return
 				}
 
@@ -810,6 +1450,7 @@ type jobsProviderFollowResponse struct {
 	Rank     int                 `json:"rank"`
 	Stdout   util.Option[string] `json:"stdout"`
 	Stderr   util.Option[string] `json:"stderr"`
+	Channel  util.Option[string] `json:"channel"`
 }
 
 func createFollowSession(
@@ -827,12 +1468,13 @@ func createFollowSession(
 		EmitLogs: nil,
 	}
 
-	session.EmitLogs = func(rank int, stdout, stderr util.Option[string]) {
+	session.EmitLogs = func(rank int, stdout, stderr, channel util.Option[string]) {
 		resp := jobsProviderFollowResponse{
 			StreamId: session.Id,
 			Rank:     rank,
 			Stdout:   stdout,
 			Stderr:   stderr,
+			Channel:  channel,
 		}
 
 		payload, err := json.Marshal(resp)
@@ -898,9 +1540,20 @@ type jobRegisteredIngress struct {
 var jobsRegisterIngressCall = ipc.NewCall[jobRegisteredIngress, string]("ctrl.jobs.register_ingress")
 
 type webSession struct {
-	AuthToken []string
+	JobId              string
+	Rank               int
+	IngressBySuffix    map[string]webSessionIngress
+	IngressInitialized map[string]util.Empty
+}
+
+type webSessionIngress struct {
+	JobId     string
+	Rank      int
 	Target    cfg.HostInfo
-	Ingress   string
+	Suffix    string
+	Flags     RegisteredIngressFlags
+	AuthToken util.Option[string]
+	Address   string
 }
 
 type jobIdAndRank struct {
@@ -908,8 +1561,8 @@ type jobIdAndRank struct {
 	Rank  int
 }
 
-var webSessions = make(map[jobIdAndRank]webSession)
-var webSessionsMutex = sync.Mutex{}
+var webSessions = make(map[jobIdAndRank]*webSession)
+var webSessionsMutex = sync.RWMutex{}
 
 func jobsIpcServer() {
 	jobsRegisterIngressCall.Handler(func(r *ipc.Request[jobRegisteredIngress]) ipc.Response[string] {
@@ -949,6 +1602,7 @@ const (
 	RegisteredIngressFlagsWeb RegisteredIngressFlags = 1 << iota
 	RegisteredIngressFlagsVnc
 	RegisteredIngressFlagsNoGatewayConfig
+	RegisteredIngressFlagsNoPersist
 )
 
 // ToHostnameSafe transforms a string into a hostname-safe version
@@ -1010,72 +1664,272 @@ func RegisterIngress(job *orc.Job, rank int, target cfg.HostInfo, requestedSuffi
 			suffix = "-" + ToHostnameSafe(requestedSuffix.Value)
 		}
 
-		var ingress ConfiguredWebIngress
-		if isWeb {
-			ingress = Jobs.ServerFindIngress(job, util.Option[string]{Present: requestedSuffix.Present, Value: suffix})
-		} else if isVnc {
-			ingress = ConfiguredWebIngress{
-				IsPublic:     false,
-				TargetDomain: cfg.Provider.Hosts.SelfPublic.Address,
-			}
-		}
+		var ingress webSessionIngress
 
-		var authToken []string
-		if !ingress.IsPublic {
-			authToken = []string{util.RandomToken(12)}
-		}
-
+		webSessionsMutex.RLock()
 		key := jobIdAndRank{
 			JobId: job.Id,
 			Rank:  rank,
 		}
-		webSessionsMutex.Lock()
+		needInit := false
 		session, ok := webSessions[key]
 		if ok {
-			authToken = session.AuthToken
+			ingress, ok = session.IngressBySuffix[suffix]
+			needInit = !ok
+		} else {
+			needInit = true
 		}
-		webSessions[key] = webSession{
-			AuthToken: authToken,
-			Target:    target,
-			Ingress:   ingress.TargetDomain,
-		}
-		webSessionsMutex.Unlock()
+		webSessionsMutex.RUnlock()
 
-		if flags&RegisteredIngressFlagsNoGatewayConfig == 0 {
-			routeType := gw.RouteTypeIngress
-			if isVnc {
-				routeType = gw.RouteTypeVnc
+		if needInit {
+			var ingressConfig ConfiguredWebIngress
+
+			if isWeb {
+				ingressConfig = Jobs.ServerFindIngress(job, rank, util.Option[string]{Present: requestedSuffix.Present, Value: suffix})
+			} else {
+				ingressConfig = ConfiguredWebIngress{
+					IsPublic:     false,
+					TargetDomain: cfg.Provider.Hosts.SelfPublic.Address,
+				}
 			}
 
-			gw.SendMessage(gw.ConfigurationMessage{
-				ClusterUp: &gw.EnvoyCluster{
-					Name:    "job_" + job.Id,
-					Address: target.Address,
-					Port:    target.Port,
-					UseDNS:  !unicode.IsDigit([]rune(target.Address)[0]),
-				},
+			webSessionsMutex.Lock()
+			session, ok = webSessions[key]
+			if !ok {
+				session = &webSession{
+					JobId:              job.Id,
+					Rank:               rank,
+					IngressBySuffix:    make(map[string]webSessionIngress),
+					IngressInitialized: make(map[string]util.Empty),
+				}
 
-				RouteUp: &gw.EnvoyRoute{
-					Cluster:      "job_" + job.Id,
-					CustomDomain: ingress.TargetDomain,
-					AuthTokens:   authToken,
-					Type:         routeType,
-				},
-			})
+				webSessions[key] = session
+			}
+			ingress, ok = session.IngressBySuffix[suffix]
+			if !ok {
+				token := util.Option[string]{}
+				if !ingressConfig.IsPublic {
+					token.Set(util.RandomToken(12))
+				}
+
+				ingress = webSessionIngress{
+					JobId:     job.Id,
+					Rank:      rank,
+					Target:    target,
+					Suffix:    suffix,
+					Flags:     flags,
+					AuthToken: token,
+					Address:   ingressConfig.TargetDomain,
+				}
+
+				session.IngressBySuffix[suffix] = ingress
+
+				if flags&RegisteredIngressFlagsNoPersist == 0 {
+					db.NewTx0(func(tx *db.Transaction) {
+						sqlSuffix := sql.NullString{}
+						if suffix != "" {
+							sqlSuffix.Valid = true
+							sqlSuffix.String = suffix
+						}
+
+						sqlToken := sql.NullString{}
+						if token.Present {
+							sqlToken.Valid = true
+							sqlToken.String = token.Value
+						}
+
+						db.Exec(
+							tx,
+							`
+								insert into web_sessions(job_id, rank, target_address, target_port, address, suffix, 
+									auth_token, flags) 
+								values (:job_id, :rank, :target_address, :target_port, :address, :suffix, 
+									:auth_token, :flags)
+							`,
+							db.Params{
+								"job_id":         job.Id,
+								"rank":           rank,
+								"target_address": target.Address,
+								"target_port":    target.Port,
+								"suffix":         sqlSuffix,
+								"auth_token":     sqlToken,
+								"flags":          flags,
+								"address":        ingressConfig.TargetDomain,
+							},
+						)
+					})
+				}
+			}
+			webSessionsMutex.Unlock()
+			refreshJobRoutes()
 		}
 
 		if isWeb {
-			if ingress.IsPublic {
-				return "https://" + ingress.TargetDomain, nil
+			if !ingress.AuthToken.Present {
+				return "https://" + ingress.Address, nil
 			} else {
-				return fmt.Sprintf("https://%v/ucloud/%v/authorize-app?token=%v", ingress.TargetDomain,
-					cfg.Provider.Id, authToken[0]), nil
+				return fmt.Sprintf("https://%v/ucloud/%v/authorize-app?token=%v", ingress.Address,
+					cfg.Provider.Id, ingress.AuthToken.Value), nil
 			}
 		} else if isVnc {
-			return fmt.Sprintf("https://%v/ucloud/%v/vnc?token=%v", ingress.TargetDomain,
-				cfg.Provider.Id, authToken[0]), nil
+			return fmt.Sprintf("https://%v/ucloud/%v/vnc?token=%v", ingress.Address,
+				cfg.Provider.Id, ingress.AuthToken.Value), nil
 		} else {
 			return "", fmt.Errorf("unhandled case %v", flags)
 		}
 	}
+}
+
+func jobsLoadSessions() {
+	webSessionsMutex.Lock()
+	db.NewTx0(func(tx *db.Transaction) {
+		rows := db.Select[struct {
+			JobId         string
+			Rank          int
+			TargetAddress string
+			TargetPort    int
+			Suffix        sql.NullString
+			AuthToken     sql.NullString
+			Flags         int
+			Address       string
+		}](
+			tx,
+			`
+				select job_id, rank, target_address, target_port, address, suffix, auth_token, flags
+				from web_sessions
+		    `,
+			db.Params{},
+		)
+
+		for _, row := range rows {
+			key := jobIdAndRank{
+				JobId: row.JobId,
+				Rank:  row.Rank,
+			}
+
+			session, ok := webSessions[key]
+			if !ok {
+				session = &webSession{
+					JobId:              row.JobId,
+					Rank:               row.Rank,
+					IngressBySuffix:    make(map[string]webSessionIngress),
+					IngressInitialized: make(map[string]util.Empty),
+				}
+
+				webSessions[key] = session
+			}
+
+			tok := util.Option[string]{}
+			if row.AuthToken.Valid {
+				tok.Set(row.AuthToken.String)
+			}
+
+			session.IngressBySuffix[row.Suffix.String] = webSessionIngress{
+				JobId: row.JobId,
+				Rank:  row.Rank,
+				Target: cfg.HostInfo{
+					Address: row.TargetAddress,
+					Port:    row.TargetPort,
+				},
+				Suffix:    row.Suffix.String,
+				Flags:     RegisteredIngressFlags(row.Flags),
+				AuthToken: tok,
+				Address:   row.Address,
+			}
+		}
+	})
+	webSessionsMutex.Unlock()
+
+	refreshJobRoutes()
+}
+
+func refreshJobRoutes() {
+	allJobs := JobsListServer()
+	allJobsById := map[string]*orc.Job{}
+	for _, job := range allJobs {
+		allJobsById[job.Id] = job
+	}
+
+	getClusterName := func(session *webSession, suffix string) string {
+		return "job_" + session.JobId + "_" + fmt.Sprint(session.Rank) + suffix
+	}
+
+	webSessionsMutex.Lock()
+	var sessionsToDelete []jobIdAndRank
+	for key, session := range webSessions {
+		if _, ok := allJobsById[key.JobId]; !ok {
+			sessionsToDelete = append(sessionsToDelete, key)
+		} else {
+			for suffix, ingress := range session.IngressBySuffix {
+				if _, didInit := session.IngressInitialized[suffix]; !didInit {
+					session.IngressInitialized[suffix] = util.Empty{}
+
+					flags := ingress.Flags
+					isVnc := (flags & RegisteredIngressFlagsVnc) != 0
+
+					if flags&RegisteredIngressFlagsNoGatewayConfig == 0 {
+						routeType := gw.RouteTypeIngress
+						if isVnc {
+							routeType = gw.RouteTypeVnc
+						}
+
+						var tokens []string
+						if ingress.AuthToken.Present {
+							tokens = []string{ingress.AuthToken.Value}
+						}
+
+						clusterName := getClusterName(session, suffix)
+
+						gw.SendMessage(gw.ConfigurationMessage{
+							ClusterUp: &gw.EnvoyCluster{
+								Name:    clusterName,
+								Address: ingress.Target.Address,
+								Port:    ingress.Target.Port,
+								UseDNS:  !unicode.IsDigit([]rune(ingress.Target.Address)[0]),
+							},
+
+							RouteUp: &gw.EnvoyRoute{
+								Cluster:      clusterName,
+								CustomDomain: ingress.Address,
+								AuthTokens:   tokens,
+								Type:         routeType,
+							},
+						})
+					}
+				}
+			}
+		}
+	}
+
+	var jobIds []string
+	for _, toDeleteKey := range sessionsToDelete {
+		jobIds = append(jobIds, toDeleteKey.JobId)
+		session := webSessions[toDeleteKey]
+		delete(webSessions, toDeleteKey)
+
+		for suffix := range session.IngressBySuffix {
+			if _, didInit := session.IngressInitialized[suffix]; didInit {
+				clusterName := getClusterName(session, suffix)
+
+				// NOTE(Dan): Routes are automatically deleted by the gateway, we only need to take down the cluster.
+				gw.SendMessage(gw.ConfigurationMessage{
+					ClusterDown: &gw.EnvoyCluster{
+						Name: clusterName,
+					},
+				})
+			}
+		}
+	}
+
+	if len(jobIds) > 0 {
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`delete from web_sessions where job_id = some(:job_ids)`,
+				db.Params{"job_ids": jobIds},
+			)
+		})
+	}
+
+	webSessionsMutex.Unlock()
 }

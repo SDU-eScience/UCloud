@@ -29,7 +29,7 @@ import {
     uploadTrackProgress,
     useUploads
 } from "@/Files/Upload";
-import {api as FilesApi, WriteToFileEventKey, WriteToFileEventProps} from "@/UCloud/FilesApi";
+import {api as FilesApi, EventKeys, WriteToFileEventProps} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {BulkResponse} from "@/UCloud";
@@ -142,28 +142,6 @@ enum FolderUploadMessageType {
     LISTING,
     FILES_COMPLETED,
     // ADD STUFF HERE
-}
-
-function computeFileChecksum(file: PackagedFile, upload: Upload): Promise<string> {
-    const start = Date.now();
-    return new Promise<string>(async (resolve) => {
-        const reader = new ChunkedFileReader(file.fileObject);
-        const shaSumWorkerModule = await import("@/Files/ShaSumWorker?worker");
-        const shaSumWorker = new shaSumWorkerModule.default();
-
-        shaSumWorker.onmessage = e => {
-            resolve(e.data);
-        }
-
-        shaSumWorker.postMessage({type: "Start"});
-
-        while (!reader.isEof() && !upload.terminationRequested) {
-            const chunk = await reader.readChunk(UploadConfig.maxChunkSize);
-            shaSumWorker.postMessage({type: "Update", data: chunk});
-        }
-
-        shaSumWorker.postMessage({type: "End"});
-    });
 }
 
 function protocolHandlerWebSocketV2(
@@ -644,10 +622,19 @@ async function startUploads(batch: Upload[], setLookForNewUploads: (b: boolean) 
                 actualUploads[i].state = UploadState.DONE;
                 actualUploads[i].error = errorMessage;
             }
+
+            window.dispatchEvent(new CustomEvent<WriteFailure>(FileWriteFailure, {
+                detail: actualUploads.filter(it => it.error),
+            }));
+
             return;
         }
     }
 }
+
+export type WriteFailureEvent = CustomEvent<WriteFailure>;
+type WriteFailure = Upload[];
+export const FileWriteFailure = "FileWriteFailure";
 
 const Uploader: React.FunctionComponent = () => {
     const [uploadPath] = useGlobal("uploadPath", "/");
@@ -778,7 +765,7 @@ const Uploader: React.FunctionComponent = () => {
         const oldOnDragOver = document.ondragover;
         const oldOnDragEnter = document.ondragenter;
         const oldOnDragLeave = document.ondragleave;
-        window.addEventListener(WriteToFileEventKey, stopGapMethodForUploadingFilesFromTheEditor);
+        window.addEventListener(EventKeys.WriteToFile, stopGapMethodForUploadingFilesFromTheEditor);
 
         if (uploaderVisible) {
             document.ondrop = onSelectedFile;
@@ -840,6 +827,10 @@ const Uploader: React.FunctionComponent = () => {
         uploadingText += ` - Approximately ${formatDistance(uploadTimings.timeRemaining * 1000, 0)}`;
     }
 
+    if (uploadsInProgress.every(it => it.paused)) {
+        uploadingText = null;
+    }
+
     return <ReactModal
         isOpen={uploaderVisible}
         style={modalStyle}
@@ -853,7 +844,7 @@ const Uploader: React.FunctionComponent = () => {
                 <Flex>
                     <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads}>Upload files</div>
                     {uploads.length > 0 && uploads.find(upload => uploadIsTerminal(upload)) !== null ?
-                        <Button mt="7px" ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear finished uploads</Button>
+                        <Button mt="7px" ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear upload history</Button>
                         : null}
                 </Flex>
                 <Text fontSize={10} className={UploaderSpeedTextClass}>{uploadingText}</Text>
@@ -863,7 +854,7 @@ const Uploader: React.FunctionComponent = () => {
                 maxHeight: `calc(${modalStyle.content?.maxHeight} - 24px - 37.5px - 20px - 20px)`,
                 overflowY: "auto"
             }}>
-                <div className="uploads" style={{width: "100%"}}>
+                <div>
                     {uploads.map((upload, idx) => (
                         <UploaderRow
                             key={`${upload.name}-${idx}`}
@@ -882,7 +873,7 @@ const Uploader: React.FunctionComponent = () => {
                                 {hasUploads ? null :
                                     <UploaderArt />
                                 }
-                                <div className="upload-more-text" style={{marginTop: "22px"}}>
+                                <div style={{marginTop: "22px"}}>
                                     <TextSpan mr="0.5em"><Icon hoverColor="primaryContrast"
                                         name="upload" /></TextSpan>
                                     <TextSpan mr="0.3em">Drop files or folders here or</TextSpan>
@@ -930,7 +921,7 @@ const Uploader: React.FunctionComponent = () => {
                                     <Icon cursor="pointer" title="Resume upload" name="play"
                                         color="primaryMain" mr="12px" />
                                 </label>}
-                                removeOrCancel={<Icon cursor="pointer" title="Remove" name="close" color="errorMain" onClick={() => {
+                                removeOrCancel={<Icon cursor="pointer" title="Remove" name="close" my="auto" height="24px" color="errorMain" onClick={() => {
                                     setPausedFilesInFolder(files => files.filter(file => file !== it));
                                     removeUploadFromStorage(it);
                                 }} />}
@@ -1009,10 +1000,11 @@ const UploadMoreClass = injectStyle("upload-more", k => `
 export const TaskRowClass = injectStyle("uploader-row", k => `
     ${k} {
         border-radius: 10px;
-        height: 64px;
+        height: 62px;
         width: 100%;
-        margin-top: 12px;
-        margin-bottom: 12px;
+        padding-top: 4px;
+        padding-bottom: 4px;
+        margin-bottom: 4px;
     }
     
     ${k} > div > .text {
@@ -1027,7 +1019,7 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
     }
 
     ${k}[data-has-error="true"] {
-        height: 90px;
+        height: auto;
     }
 
     ${k} > div.error-box {
@@ -1056,14 +1048,17 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
     const stopped = upload.terminationRequested || !!upload.error;
 
     const progressInfo = {stopped: stopped && !isPaused, progress: upload.progressInBytes, limit: upload.fileSizeInBytes ?? 1, indeterminate: false};
-    const right = `${uploadProgressText(upload.progressInBytes, upload.fileSizeInBytes ?? 0)} (${sizeToString(uploadCalculateSpeed(upload))}/s)`;
+    let right = `${uploadProgressText(upload.progressInBytes, upload.fileSizeInBytes ?? 0)} (${sizeToString(uploadCalculateSpeed(upload))}/s)`;
+    if (isPaused) {
+        right = "Upload is paused.";
+    }
     const icon = <FtIcon fileIcon={{type: upload.folderName ? "DIRECTORY" : "FILE", ext: extensionFromPath(upload.name)}} size="24px" />;
 
     const title = upload.folderName ?? upload.name;
-    const removeOperation = <TooltipV2 tooltip={"Click to remove row"}>
+    const removeOperation = <TooltipV2 contentWidth={170} tooltip={"Clear from history"}>
         <Icon
             cursor="pointer"
-            name={"close"}
+            name={stopped ? "close" : "check"}
             onClick={() => {
                 callbacks.clearUploads([upload]);
                 const fullFilePath = upload.targetPath + "/" + upload.name;
@@ -1088,7 +1083,7 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
             title={title}
             progress={right}
             isPaused={isPaused}
-            pause={inProgress || isPaused ? (
+            pause={upload.uploadResponse?.protocol === "WEBSOCKET_V2" ? undefined : inProgress || isPaused ? (
                 upload.paused ?
                     <Icon cursor="pointer" name="play" onClick={() => callbacks.resumeUploads([upload])} color="primaryMain" /> :
                     <Icon cursor="pointer" name="pauseSolid" onClick={() => callbacks.pauseUploads([upload])} color="primaryMain" />
@@ -1100,7 +1095,7 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
         />;
 }
 
-export function TaskRow({title, body, progress, icon, progressInfo, removeOrCancel, pause, error, isPaused}: {
+interface TaskRowProps {
     icon: React.ReactNode;
     title: string | React.ReactNode;
     body?: string | React.ReactNode;
@@ -1115,7 +1110,9 @@ export function TaskRow({title, body, progress, icon, progressInfo, removeOrCanc
         progress: number;
         limit: number;
     };
-}): React.ReactNode {
+}
+
+export function TaskRow({title, body, progress, icon, progressInfo, removeOrCancel, pause, error, isPaused}: TaskRowProps): React.ReactNode {
     const hasError = error != null;
     const [hovering, setHovering] = useState(false);
 
@@ -1133,13 +1130,15 @@ export function TaskRow({title, body, progress, icon, progressInfo, removeOrCanc
         setHovering(false);
     }, []);
 
+    const titleTitle = typeof title === "string" ? title : undefined;
+
     return (<div className={TaskRowClass} data-has-error={hasError}>
-        <Flex height={hasError ? "calc(100% - 28px)" : "100%"}>
+        <Flex my="auto" height="100%">
             <Box ml="8px" my="auto">{icon}</Box>
             <div className="text">
-                <Truncate>{title}</Truncate>
-                {body ? <Truncate>{body}</Truncate> : null}
-                <Truncate>{progress}</Truncate>
+                <Truncate title={titleTitle} width={"285px"}>{title}</Truncate>
+                {body ? <Truncate width="285px">{body}</Truncate> : null}
+                <Truncate width="285px">{progress}</Truncate>
             </div>
             <Box mr="auto" />
             <Box my="auto" mr="4px" height="32px" onMouseEnter={setIsHovering} onMouseLeave={setNotHovering}>
@@ -1154,7 +1153,7 @@ export function TaskRow({title, body, progress, icon, progressInfo, removeOrCanc
                         size={32}
                     />)}
             </Box>
-            <Box mt="19px" mr="8px">{removeOrCancel}</Box>
+            <Box my="auto" mr="8px">{removeOrCancel}</Box>
         </Flex>
         <div className="error-box">
             {hasError ? <div className={ErrorSpan}>{error}</div> : null}

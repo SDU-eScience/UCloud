@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLocation, useNavigate} from "react-router";
 import {MainContainer} from "@/ui-components/MainContainer";
@@ -25,6 +25,8 @@ import {IngressResource, ingressResourceAllowed} from "@/Applications/Jobs/Resou
 import {PeerResource, peerResourceAllowed} from "@/Applications/Jobs/Resources/Peers";
 import {createSpaceForLoadedResources, injectResources, ResourceHook, useResource} from "@/Applications/Jobs/Resources";
 import {
+    awaitReservationMount,
+    getReservationValues,
     ReservationErrors,
     ReservationParameter,
     setReservation,
@@ -52,7 +54,6 @@ import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {Feature, hasFeature} from "@/Features";
 import {useUState} from "@/Utilities/UState";
-import {flushSync} from "react-dom";
 import {Spacer} from "@/ui-components/Spacer";
 import {injectStyle} from "@/Unstyled";
 import {UtilityBar} from "@/Navigation/UtilityBar";
@@ -153,6 +154,7 @@ export const Create: React.FunctionComponent = () => {
         numberOfNodes: 1,
         product: null
     });
+    const [reloadHack, setReloadHack] = useState<{importFrom: Partial<JobSpecification>, count: number} | null>(null);
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [initialSshEnabled, setInitialSshEnabled] = useState<boolean | undefined>(undefined);
@@ -193,8 +195,8 @@ export const Create: React.FunctionComponent = () => {
     }, []);
 
     useEffect(() => {
-        const jobStarted = emailNotifications.settings.jobStarted
-        const jobStopped = emailNotifications.settings.jobStopped
+        const jobStarted = emailNotifications.settings.jobStarted;
+        const jobStopped = emailNotifications.settings.jobStopped;
 
         if (jobStarted && jobStopped) {
             setJobEmailNotifications("start_or_ends");
@@ -254,10 +256,46 @@ export const Create: React.FunctionComponent = () => {
 
     useUState(connectionState);
 
+    /* Note(Jonas): While this is a pretty weird data-type, I don't think we every need to store more than one,
+        which is why I'm not using a Record<string, T>  */
+    const appParams = React.useRef<[groupId: number, Partial<JobSpecification>]>([-1, {}]);
+    // NOTE(Jonas): Not entirely sure a ref is strictly needed, but should be more consistent.
+    const sshEnabledRef = React.useRef(false);
+    sshEnabledRef.current = sshEnabled;
     useEffect(() => {
         if (appName === "syncthing" && !localStorage.getItem("syncthingRedirect")) {
             navigate("/drives");
         }
+
+        if (application?.metadata.groupId) {
+            const reservationOptions = getReservationValues();
+
+            const {values} = validateWidgets(parameters);
+            const foldersResources = validateWidgets(folders.params);
+            // TODO(Jonas): This should preferably not validate, but just get the values (e.g. one field could be missing)
+            const peersResources = validateWidgets(peers.params);
+            const networkResources = validateWidgets(networks.params);
+            const ingressResources = validateWidgets(ingress.params);
+            for (const err of [
+                ...Object.values(foldersResources.errors).map(it => "Folders: " + it),
+                ...Object.values(peersResources.errors).map(it => "Connected jobs: " + it),
+                ...Object.values(networkResources.errors).map(it => "IPs: " + it),
+                ...Object.values(ingressResources.errors).map(it => "Public link: " + it)
+            ]) {
+                snackbarStore.addFailure(err, false);
+            }
+
+            appParams.current = [application.metadata.groupId, {
+                ...reservationOptions,
+                parameters: values,
+                resources: Object.values(foldersResources.values)
+                    .concat(Object.values(peersResources.values))
+                    .concat(Object.values(ingressResources.values))
+                    .concat(Object.values(networkResources.values)),
+                sshEnabled: sshEnabledRef.current
+            }];
+        }
+
         fetchApplication(
             AppStore.findGroupByApplication({
                 appName,
@@ -277,7 +315,17 @@ export const Create: React.FunctionComponent = () => {
         if (!application) return;
         fetchInjectedParameters(JobsApi.requestDynamicParameters({
             application: {name: application.metadata.name, version: application.metadata.version}
-        }));
+        })).then(() => setTimeout(() => {
+            try {
+                const groupId = application.metadata.groupId;
+                const [storedGroupId, jobSpec] = appParams.current;
+                if (storedGroupId === groupId) {
+                    onLoadParameters(jobSpec);
+                }
+            } catch (e) {
+                console.warn(e);
+            }
+        }, 0));
     }, [application]);
 
     const parameters = useMemo(() => {
@@ -291,6 +339,7 @@ export const Create: React.FunctionComponent = () => {
         return [...injected, ...fromApp, ...workflowInjectedParameters];
     }, [application, injectedParameters, workflowInjectedParameters, estimatedCost]);
 
+
     React.useEffect(() => {
         if (application && provider) {
             const params = parameters.filter(it =>
@@ -303,14 +352,14 @@ export const Create: React.FunctionComponent = () => {
         }
     }, [provider, application]);
 
-    const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
+    const doLoadParameters = useCallback(async (importedJob: Partial<JobSpecification>, initialImport?: boolean) => {
         if (application == null) return;
         const values = importedJob.parameters ?? {};
         const resources = importedJob.resources ?? [];
 
-        flushSync(() => {
-            setActiveOptParams(() => []);
-        });
+        if (initialImport) {
+            setActiveOptParams([]);
+        }
 
         {
             // Find optional parameters and make sure the widgets are initialized
@@ -319,28 +368,33 @@ export const Create: React.FunctionComponent = () => {
             for (const param of parameters) {
                 if (param.optional && values[param.name]) {
                     optionalParameters.push(param.name);
-                    if (activeOptParams.indexOf(param.name) === -1) {
+                    if (activeOptParams.indexOf(param.name) === -1 || initialImport) {
                         needsToRenderParams = true;
                     }
                 }
             }
 
-            if (needsToRenderParams) {
+            if (needsToRenderParams && initialImport) {
                 // Not all widgets have been initialized. Trigger an initialization and start over after render.
-                flushSync(() => {
-                    setActiveOptParams(() => optionalParameters);
-                });
+                setActiveOptParams(() => optionalParameters);
             }
         }
 
         // Load reservation
-        setReservation(importedJob);
+        try {
+            await awaitReservationMount();
+            setReservation(importedJob);
+        } catch (e) {
+            console.warn(e);
+        }
 
         // Load parameters
         for (const param of parameters) {
             const value = values[param.name];
             if (value) {
-                setWidgetValues([{param, value}]);
+                try {
+                    setWidgetValues([{param, value}]);
+                } catch (e) {}
             }
         }
 
@@ -353,21 +407,23 @@ export const Create: React.FunctionComponent = () => {
         // Load resources
         // Note(Jonas): An older version could have run with one of these resources while a newer might not allow them.
         // Therefore, check to see if allowed!
+        // Note(Jonas) Pt. II: The actual injection of resources should happen after the function terminates, as React will re-render the component,
+        // and only then will the required input-fields be present. The setTimeout-callback will then be called to fill in the newly created input-fields.
         if (folderResourceAllowed(application)) {
             const newSpace = createSpaceForLoadedResources(folders, resources, "file");
-            injectResources(newSpace, resources, "file");
+            setTimeout(() => injectResources(newSpace, resources, "file"), 0);
         }
         if (peerResourceAllowed(application)) {
             const newSpace = createSpaceForLoadedResources(peers, resources, "peer");
-            injectResources(newSpace, resources, "peer");
+            setTimeout(() => injectResources(newSpace, resources, "peer"), 0);
         }
         if (ingressResourceAllowed(application)) {
             const newSpace = createSpaceForLoadedResources(ingress, resources, "ingress");
-            injectResources(newSpace, resources, "ingress");
+            setTimeout(() => injectResources(newSpace, resources, "ingress"), 0);
         }
         if (networkIPResourceAllowed(application)) {
             const newSpace = createSpaceForLoadedResources(networks, resources, "network");
-            injectResources(newSpace, resources, "network");
+            setTimeout(() => injectResources(newSpace, resources, "network"), 0);
         }
 
         folders.setErrors({});
@@ -377,6 +433,23 @@ export const Create: React.FunctionComponent = () => {
         setErrors({});
         setReservationErrors({});
     }, [application, activeOptParams, folders, peers, networks, ingress, parameters]);
+
+    const reloadCount = 3;
+    const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
+        setReloadHack({importFrom: importedJob, count: reloadCount});
+    }, []);
+
+    useEffect(() => {
+        if (reloadHack) {
+            doLoadParameters(reloadHack.importFrom, reloadHack.count === reloadCount);
+            const newCount = reloadHack.count - 1;
+            if (newCount > 0) {
+                setReloadHack({importFrom: reloadHack.importFrom, count: newCount});
+            } else {
+                appParams.current = [-1, {}];
+            }
+        }
+    }, [onLoadParameters, reloadHack]);
 
     const submitJob = useCallback(async (allowDuplicateJob: boolean) => {
         if (!application) return;
@@ -465,16 +538,21 @@ export const Create: React.FunctionComponent = () => {
     let mandatoryWorkflow = parameters.filter(it => !it.optional && it.type === "workflow");
     if (mandatoryWorkflow.length > 1) mandatoryWorkflow = [mandatoryWorkflow[0]];
 
+    let modulesParam = parameters.filter(it => it.type === "modules");
+    if (modulesParam.length > 0) modulesParam = [modulesParam[0]];
+
+    let readmeParams = parameters.filter(it => it.type === "readme");
+
     const mandatoryParameters = parameters.filter(it =>
-        !it.optional && it.type !== "workflow"
+        !it.optional && it.type !== "workflow" && it.type !== "modules" && it.type !== "readme"
     );
 
     const activeParameters = parameters.filter(it =>
-        it.optional && activeOptParams.indexOf(it.name) !== -1
+        it.optional && activeOptParams.indexOf(it.name) !== -1 && it.type !== "readme"
     )
 
     const inactiveParameters = parameters.filter(it =>
-        !(!it.optional || activeOptParams.indexOf(it.name) !== -1)
+        !(!it.optional || activeOptParams.indexOf(it.name) !== -1) && it.type !== "readme"
     );
 
     const isMissingConnection = hasFeature(Feature.PROVIDER_CONNECTION) && estimatedCost.product != null &&
@@ -613,7 +691,7 @@ export const Create: React.FunctionComponent = () => {
                                                             <td>
                                                                 <OverallocationLink>
                                                                     <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
-                                                                        <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
+                                                                        <Icon name={"heroExclamationTriangle"} color={"warningMain"} />
                                                                         {displayWallet.usageAndQuota.display.maxUsableBalance}
                                                                     </TooltipV2>
                                                                 </OverallocationLink>
@@ -645,12 +723,45 @@ export const Create: React.FunctionComponent = () => {
                         {/*Workflow*/}
                         {mandatoryWorkflow.length === 0 ? null : (
                             <Card>
-                                <Heading.h4>Workflow</Heading.h4>
+                                <Heading.h4>Script</Heading.h4>
                                 <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
                                     {mandatoryWorkflow.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                                injectWorkflowParameters={setWorkflowInjectParameters}
-                                                setErrors={setErrors} active application={application} />
+                                            injectWorkflowParameters={setWorkflowInjectParameters}
+                                            setErrors={setErrors} active application={application} />
+                                    ))}
+                                </Grid>
+                            </Card>
+                        )}
+
+                        {/*Readme*/}
+                        {readmeParams.length === 0 ? null : (
+                            <Card backgroundColor={"var(--warningMain)"} color={"warningContrast"}>
+                                <Heading.h4>
+                                    {estimatedCost.product == null ?
+                                        "Information" :
+                                        `Information from ${getProviderTitle(estimatedCost.product.category.provider)}`
+                                    }
+                                </Heading.h4>
+                                <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
+                                    {readmeParams.map(param => (
+                                        <Widget key={param.name} parameter={param} errors={errors} provider={provider}
+                                            injectWorkflowParameters={setWorkflowInjectParameters}
+                                            setErrors={setErrors} active application={application} />
+                                    ))}
+                                </Grid>
+                            </Card>
+                        )}
+
+                        {/*Modules*/}
+                        {modulesParam.length === 0 ? null : (
+                            <Card>
+                                <Heading.h4>Modules</Heading.h4>
+                                <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
+                                    {modulesParam.map(param => (
+                                        <Widget key={param.name} parameter={param} errors={errors} provider={provider}
+                                            injectWorkflowParameters={setWorkflowInjectParameters}
+                                            setErrors={setErrors} active application={application} />
                                     ))}
                                 </Grid>
                             </Card>
@@ -763,6 +874,8 @@ function findProviderMismatches(
         }
         if (anyErrors) {
             group.setErrors({...group.errors});
+        } else {
+            group.setErrors({});
         }
     }
 }

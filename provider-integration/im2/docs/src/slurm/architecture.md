@@ -1,12 +1,7 @@
 # Architecture and Networking
 
-In this article we will go through the overall architecture and networking modes of UCloud/IM for Slurm. The integration
-module can run in two different networking modes, direct and proxy. Only direct networking mode is supported in
-production mode, but it is slightly more complicated to configure. The default mode when integrating with the sandbox
-environment is proxy mode.
-
-We will start by explaining the overall architecture, followed with a discussion on direct networking versus proxy
-networking.
+In this article we will go through the overall architecture and networking modes of UCloud/IM for Slurm. 
+We will start by explaining the overall architecture, followed with a discussion on networking requirements.
 
 ## Overall Architecture
 
@@ -40,7 +35,8 @@ In the architecture above, we have several actors. We have summarised the role o
 <td>
 
 The end-user is a user of the UCloud platform and of the service provider. As we have discussed in the introduction
-chapter, the end-user primarily communicates with UCloud/Core, and in rare cases directly with a service provider.
+chapter (TODO where?), the end-user primarily communicates with UCloud/Core, and in rare cases 
+directly with a service provider.
 
 In this diagram, we assume that the user has already gone through the connection procedure (TODO link) and has
 established a mapping from a UCloud identity to a local identity with uid `41231`.
@@ -182,39 +178,6 @@ Followed by periodic monitoring by `UCloud/IM (Server)`:
 2. `UCloud/IM (Server)` → `UCloud/Core`: Send job updates
 3. `UCloud/Core` → `End-user(s)`: Notify about relevant job updates
 
-## Proxy Mode Networking
-
-
-<div class="info-box warning">
-<i class="fa fa-warning"></i>
-<div>
-
-Proxy mode networking is only available in the sandbox environment. You must transition your provider to use direct mode
-networking before becoming a production provider.
-
-</div>
-</div>
-
-Proxy mode, is a mode which relaxes some of the more complicated requirements for service providers, which allows them
-to get started more quickly. In proxy mode, providers do not need to configure any DNS, accompanying certificates, or
-deal with any firewall rules. Instead, a reverse proxy is established between UCloud and the service provider using only
-outgoing network connections.
-
-A result of this, is that all user information, is proxied through a UCloud controlled server. 
-
-<figure class="diagram">
-
-<img class="light" src="./arch_proxy_light.svg">
-<img class="dark" src="./arch_proxy_dark.svg">
-
-<figcaption>
-
-In proxy mode networking, all traffic is tunneled through a reverse proxy established by the service provider through
-an outgoing network connection.
-
-</figcaption>
-</figure>
-
 ## Direct Mode Networking Requirements
 
 In this section, we will recap the requirements listed from the section above. Direct mode is required for production
@@ -252,23 +215,3 @@ for concrete values:
 | Production  | `1.2.3.4/99` |
 
 TODO Subnets.
-
-### UCloud/Proxy Implementation Notes
-
-TODO This section is not part of the documentation, but simply some notes on how it can be implemented in practice.
-
-https://github.com/jpillora/chisel
-
-The UCloud/Proxy system will run a command along the lines of:
-
-```terminal
-$ chisel server --port 42000 --auth user:password --reverse
-```
-
-The Integration module will then run a command along the lines of:
-
-```terminal
-$ chisel client --auth user:password hostname R:42000
-```
-
-At this point UCloud/Proxy will be able to access localhost of the integration module at 42000.

@@ -1,9 +1,10 @@
-import {Application, ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
+import {Application} from "@/Applications/AppStoreApi";
+import {PayloadAction} from "@reduxjs/toolkit";
 
 export type SidebarActionType = SetAppFavorites | ToggleFavorite | ToggleTheme;
 
 export const SET_APP_FAVORITES = "SET_APP_FAVORITES";
-type SetAppFavorites = PayloadAction<typeof SET_APP_FAVORITES, {favorites: Application[]}>;
+type SetAppFavorites = PayloadAction<{favorites: Application[]}, typeof SET_APP_FAVORITES>;
 
 export function setAppFavorites(favorites: Application[]): SetAppFavorites {
     return {
@@ -13,7 +14,7 @@ export function setAppFavorites(favorites: Application[]): SetAppFavorites {
 }
 
 export const TOGGLE_APP_FAVORITE = "TOGGLE_APP_FAVORITE";
-type ToggleFavorite = PayloadAction<typeof TOGGLE_APP_FAVORITE, {app: Application, favorite: boolean}>;
+type ToggleFavorite = PayloadAction<{app: Application, favorite: boolean}, typeof TOGGLE_APP_FAVORITE>;
 
 export function toggleAppFavorite(app: Application, favorite: boolean): ToggleFavorite {
     return {
@@ -26,7 +27,7 @@ export function toggleAppFavorite(app: Application, favorite: boolean): ToggleFa
 }
 
 export const TOGGLE_THEME_REDUX = "TOGGLE_THEME";
-type ToggleTheme = PayloadAction<typeof TOGGLE_THEME_REDUX, "light" | "dark">
+type ToggleTheme = PayloadAction<"light" | "dark", typeof TOGGLE_THEME_REDUX>
 export function toggleThemeRedux(theme: "light" | "dark"): ToggleTheme {
     return {
         type: TOGGLE_THEME_REDUX,

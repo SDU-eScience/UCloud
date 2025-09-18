@@ -1,11 +1,11 @@
 package migrations
 
 import (
-	db "ucloud.dk/pkg/database"
+	db "ucloud.dk/shared/pkg/database"
 )
 
-func apmEventsV1() migrationScript {
-	return migrationScript{
+func apmEventsV1() db.MigrationScript {
+	return db.MigrationScript{
 		Id: "apmEventsV1",
 		Execute: func(tx *db.Transaction) {
 			db.Exec(
@@ -44,6 +44,21 @@ func apmEventsV1() migrationScript {
 						last_update timestamptz not null default now()
 					)
 				`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func apmEventsV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "apmEventsV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table tracked_allocations add column local_retired_usage int8 not null default 0
+			    `,
 				db.Params{},
 			)
 		},

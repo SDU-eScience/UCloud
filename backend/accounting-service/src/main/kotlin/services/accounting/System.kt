@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.services.accounting
 import com.google.common.primitives.Longs.min
 import dk.sdu.cloud.*
 import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.accounting.Configuration
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.IIdCardService
 import dk.sdu.cloud.accounting.util.IProductCache
@@ -47,6 +48,7 @@ class AccountingSystem(
     private val disableMasterElection: Boolean,
     private val distributedState: DistributedStateFactory,
     private val addressToSelf: String,
+    private val configuration: Configuration
 ) {
     // Active processor
     // =================================================================================================================
@@ -167,7 +169,7 @@ class AccountingSystem(
     }
 
     private val toCheck = ArrayList<Int>()
-    private var nextRetirementScan = 0L
+    private var nextAllocationScan = 0L
 
     private var waitingOn = ""
 
@@ -200,7 +202,9 @@ class AccountingSystem(
                             val timeoutTime = 2000L
                             waitingOn = ""
                             var response = try {
-                                withHardTimeout(timeoutTime, { request.message.toString() + "\nWaiting on:" + waitingOn }) {
+                                withHardTimeout(
+                                    timeoutTime,
+                                    { request.message.toString() + "\nWaiting on:" + waitingOn }) {
                                     when (val msg = request.message) {
                                         is AccountingRequest.Charge -> charge(msg)
                                         is AccountingRequest.RootAllocate -> rootAllocate(msg)
@@ -208,11 +212,13 @@ class AccountingSystem(
                                         is AccountingRequest.CommitAllocations -> commitAllocations(msg)
                                         is AccountingRequest.RollBackGrantAllocations -> rollBackGrantAllocations(msg)
                                         is AccountingRequest.ScanRetirement -> scanRetirement(msg)
+                                        is AccountingRequest.ScanActivation -> scanActivation(msg)
                                         is AccountingRequest.MaxUsable -> maxUsable(msg)
                                         is AccountingRequest.BrowseWallets -> browseWallets(msg)
                                         is AccountingRequest.UpdateAllocation -> updateAllocation(msg)
                                         is AccountingRequest.RetrieveProviderAllocations ->
                                             retrieveProviderAllocations(msg)
+
                                         is AccountingRequest.RegisterProviderGift ->
                                             registerProviderGift(msg)
 
@@ -227,6 +233,9 @@ class AccountingSystem(
                                         }
 
                                         is AccountingRequest.RetrieveScopedUsage -> retrieveScopedUsage(msg)
+                                        is AccountingRequest.ResetWalletHierarchy -> resetWalletHierarchy(msg)
+                                        is AccountingRequest.ProviderDump -> providerDump(msg)
+                                        is AccountingRequest.ResendNotification -> resendNotification(msg)
                                         is AccountingRequest.DebugCharge -> debugCharge(msg)
                                         is AccountingRequest.DebugWallet -> debugWallet(msg)
                                         is AccountingRequest.DebugState -> {
@@ -257,7 +266,12 @@ class AccountingSystem(
                                             }
                                         }
 
-                                        is AccountingRequest.FillUpPersonalProviderProject -> fillUpPersonalProviderProject(msg)
+                                        is AccountingRequest.FillUpPersonalProviderProject -> fillUpPersonalProviderProject(
+                                            msg
+                                        )
+
+                                        is AccountingRequest.BrowseLowBalanceWallets -> browseLowBalanceWallets(msg)
+                                        is AccountingRequest.LowBalanceNotificationUpdate -> lowBalanceNotificationUpdate(msg)
                                     }
                                 }
                             } catch (e: Throwable) {
@@ -310,7 +324,10 @@ class AccountingSystem(
 
     private suspend fun registerProviderGift(msg: AccountingRequest.RegisterProviderGift): Response<out Any> {
         if (msg.idCard !is IdCard.Provider) return Response.error(HttpStatusCode.Forbidden, "Forbidden")
-        if (msg.productCategory.provider != msg.idCard.name) return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        if (msg.productCategory.provider != msg.idCard.name) return Response.error(
+            HttpStatusCode.Forbidden,
+            "Forbidden"
+        )
 
         val providerProjectId = idCardService.lookupPid(
             idCardService.retrieveProviderProjectPid(msg.idCard.name)
@@ -411,15 +428,102 @@ class AccountingSystem(
         return Response.ok(Unit)
     }
 
+    private suspend fun resetWalletHierarchy(msg: AccountingRequest.ResetWalletHierarchy): Response<Unit> {
+        if (msg.idCard != IdCard.System) {
+            return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        } else {
+            for ((_, wallet) in walletsById) {
+                if (wallet.category.toId() != msg.category) continue
+                chargeWallet(wallet, 0L, isDelta = false)
+            }
+        }
+
+        return Response.ok(Unit)
+    }
+
+    private fun resendNotification(msg: AccountingRequest.ResendNotification): Response<Unit> {
+        if (msg.idCard != IdCard.System) {
+            return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        } else {
+            val wallet = walletsById[msg.walletId] ?: return Response.error(HttpStatusCode.NotFound, "unknown wallet")
+            markSignificantUpdate(wallet, Time.now())
+            return Response.ok(Unit)
+        }
+    }
+
+    private fun providerDump(msg: AccountingRequest.ProviderDump): Response<String> {
+        if (msg.idCard != IdCard.System) {
+            return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        } else {
+            val builder = StringBuilder()
+            for ((_, wallet) in walletsById) {
+                if (wallet.category.toId() != msg.category) continue
+
+                val owner = ownersById.getValue(wallet.ownedBy)
+
+                // username
+                if (owner.isProject()) {
+                    builder.append("''")
+                } else {
+                    builder.append("'${owner.reference}'")
+                }
+
+                builder.append(",")
+
+                // project
+                if (owner.isProject()) {
+                    builder.append("'${owner.reference}'")
+                } else {
+                    builder.append("''")
+                }
+
+                builder.append(",")
+
+                // category
+                builder.append("'${wallet.category.name}'")
+
+                builder.append(",")
+
+                // combined quota
+                builder.append(wallet.totalActiveQuota())
+
+                builder.append(",")
+
+                // locked
+                if (wallet.wasLocked) {
+                    builder.append("true")
+                } else {
+                    builder.append("false")
+                }
+
+                builder.append(",")
+
+                // last update
+                builder.append("to_timestamp(${wallet.lastSignificantUpdateAt} / 1000.0)")
+
+                builder.append(",")
+
+                // local_retired_usage
+                builder.append(wallet.localRetiredUsage)
+
+                builder.append("\n")
+            }
+
+            return Response.ok(builder.toString())
+        }
+    }
+
     private suspend fun debugCharge(msg: AccountingRequest.DebugCharge): Response<Unit> {
         if (msg.idCard != IdCard.System) {
             return Response.error(HttpStatusCode.Forbidden, "Forbidden")
         } else {
             return chargeWallet(
-                walletsById[msg.walletId] ?:
-                    return Response.error(HttpStatusCode.NotFound, "unknown wallet: ${msg.walletId}"),
+                walletsById[msg.walletId] ?: return Response.error(
+                    HttpStatusCode.NotFound,
+                    "unknown wallet: ${msg.walletId}"
+                ),
                 msg.charge,
-                isDelta = true,
+                isDelta = msg.isDelta,
                 scope = null,
                 debug = true,
             )
@@ -442,9 +546,11 @@ class AccountingSystem(
         }
 
         val now = Time.now()
-        if (now > nextRetirementScan) {
+
+        if (now > nextAllocationScan) {
+            scanActivation(AccountingRequest.ScanActivation(IdCard.System))
             scanRetirement(AccountingRequest.ScanRetirement(IdCard.System))
-            nextRetirementScan = now + 60_000L
+            nextAllocationScan = now + 60_000L
         }
     }
 
@@ -654,7 +760,7 @@ class AccountingSystem(
         val now = Time.now()
         val idCard = request.idCard
         val parentOwner = request.ownerOverride ?: lookupOwner(idCard)
-            ?: return Response.error(HttpStatusCode.Forbidden, "Could not find information about your project (${idCard})")
+        ?: return Response.error(HttpStatusCode.Forbidden, "Could not find information about your project (${idCard})")
         val internalParentWallet = authorizeAndLocateWallet(idCard, parentOwner, request.category, ActionType.READ)
             ?: return Response.error(HttpStatusCode.Forbidden, "You are not allowed to create this sub-allocation")
 
@@ -796,6 +902,11 @@ class AccountingSystem(
         val isActiveNow = now >= start
         allocationGroup.allocationSet[allocationId] = isActiveNow
 
+        if (isActiveNow) {
+            wallet.lowBalanceNotified = false
+            wallet.isDirty = true
+        }
+
         if (isActiveNow && allocationGroup.earliestExpiration > end) {
             allocationGroup.earliestExpiration = end
             allocationGroup.isDirty = true
@@ -812,7 +923,17 @@ class AccountingSystem(
             parentWallet.childrenUsage[wallet.id] = parentWallet.childrenUsage[wallet.id] ?: 0L
         }
 
+        checkAndFixExcessUsage(wallet)
+
+        markSignificantUpdate(wallet, now)
+        reevaluateWalletsAfterUpdate(wallet)
+
+        return allocationId
+    }
+
+    private fun checkAndFixExcessUsage(wallet: InternalWallet) {
         // Re-balance excess usage
+        val now = Time.now()
         if (wallet.excessUsage > 0) {
             val amount = wallet.excessUsage
             wallet.localUsage -= amount
@@ -820,11 +941,6 @@ class AccountingSystem(
             wallet.localUsage += amount
             wallet.excessUsage = amount - chargedAmount
         }
-
-        markSignificantUpdate(wallet, now)
-        reevaluateWalletsAfterUpdate(wallet)
-
-        return allocationId
     }
 
     private fun rollBackGrantAllocations(request: AccountingRequest.RollBackGrantAllocations): Response<Unit> {
@@ -846,7 +962,7 @@ class AccountingSystem(
                 group.allocationSet.remove(alloc.id)
                 //removing the alloced value from the parent wallet.
                 val parentWallet = walletsById[parentId]
-                if (parentWallet != null){
+                if (parentWallet != null) {
                     parentWallet.totalAllocated -= alloc.quota
                 }
 
@@ -1121,9 +1237,17 @@ class AccountingSystem(
                 }
             }
 
+
             var error: String? = null
-            if (overSpendingWallets.isNotEmpty()) {
-                error = "${overSpendingWallets.take(10).joinToString(", ")} is overspending"
+
+            // NOTE(Dan): We only consider this an error if our wallet is locked now. This property should naturally
+            //   be set by reevaluateWalletsAfterUpdate. We do not use overSpendingWallets for this since it might
+            //   cause problems when a wallet has multiple parents.
+            if (wallet.wasLocked) {
+                error = "${wallet.id} is overspending"
+                if (overSpendingWallets.isNotEmpty()) {
+                    error = "${overSpendingWallets.take(10).joinToString(", ")} is overspending"
+                }
             }
 
             debug {
@@ -1214,10 +1338,60 @@ class AccountingSystem(
                 wallet.totalActiveQuota(),
                 wallet.totalAllocated,
                 wallet.lastSignificantUpdateAt,
+                wallet.localRetiredUsage,
             )
         }
 
         return Response.ok(apiWallets)
+    }
+
+    private suspend fun browseLowBalanceWallets(request: AccountingRequest.BrowseLowBalanceWallets): Response<List<Pair<InternalOwner, InternalWallet>>> {
+        if (request.idCard != IdCard.System) {
+            throw RPCException("Not allowed to check for low balance.", HttpStatusCode.Forbidden)
+        }
+
+        val lowBalanceWallets = ArrayList<Pair<InternalOwner, InternalWallet>>()
+        walletsById.values.map { wal ->
+            var quota = 0L
+            allocationGroups.values.filter { it.associatedWallet == wal.id }.forEach { ag ->
+                //Filter on isActive == true
+                ag.allocationSet.filter { it.value }.keys.forEach { allocationId ->
+                    val alloc = allocations[allocationId]
+                    quota += alloc?.quota ?: 0
+
+                }
+            }
+            val treeUsage = wal.totalTreeUsage()
+            val remaining = quota - treeUsage
+            when (wal.category.productType) {
+                ProductType.COMPUTE -> {
+                    if (remaining < configuration.computeUnitsNotificationLimit) {
+                        lowBalanceWallets.add(Pair(ownersById[wal.ownedBy]!!, wal))
+                    }
+                }
+                ProductType.STORAGE -> {
+                    if (remaining < configuration.storageUnitsNotificationLimitInGB) {
+                        lowBalanceWallets.add(Pair(ownersById[wal.ownedBy]!!, wal))
+                    }
+                }
+                else -> {
+                    //IGNORE
+                }
+            }
+        }
+
+        return Response.ok(lowBalanceWallets.toList())
+    }
+
+    private fun lowBalanceNotificationUpdate(request: AccountingRequest.LowBalanceNotificationUpdate): Response<Unit> {
+        request.walletIds.forEach { id ->
+            walletsById[id]?.let {
+                it.lowBalanceNotified = true
+                it.isDirty = true
+            }
+        }
+
+        return Response.ok(Unit)
     }
 
     private suspend fun updateAllocation(request: AccountingRequest.UpdateAllocation): Response<Unit> {
@@ -1381,6 +1555,44 @@ class AccountingSystem(
         }
 
         return g
+    }
+
+    //Note that this does not affect already active allocations.
+    // New allocations that are active at creation time are already marked as active
+    private suspend fun scanActivation(request: AccountingRequest.ScanActivation): Response<Unit> {
+        if (request.idCard != IdCard.System) return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        val now = Time.now()
+        for ((id, alloc) in allocations) {
+            if (alloc.retired) continue
+            if (now >= alloc.start && now < alloc.end) {
+                activateAllocation(id)
+            }
+        }
+
+        return Response.ok(Unit)
+    }
+
+    private suspend fun activateAllocation(allocationId: Int) {
+        val alloc = allocations[allocationId] ?: return
+        val wallet = walletsById.getValue(alloc.belongsToWallet)
+        val group = wallet.allocationsByParent.getValue(alloc.parentWallet)
+
+        if (group.allocationSet[alloc.id] == true) return
+
+        group.allocationSet[alloc.id] = true
+        group.isDirty = true
+
+        //Check if Excess usage needs to be handle now that an allocation has been activated
+        checkAndFixExcessUsage(wallet)
+
+        //Might not be in low balance after activation and if it still is a mail would be good to recieve.
+        wallet.lowBalanceNotified = false
+        wallet.isDirty = true
+
+        reevaluateWalletsAfterUpdate(walletsById.getValue(alloc.belongsToWallet))
+        //Always mark since reevaluate only marks if a wallet changes lock state
+        markSignificantUpdate(wallet, Time.now())
+
     }
 
     private suspend fun scanRetirement(request: AccountingRequest.ScanRetirement): Response<Unit> {
@@ -1594,7 +1806,9 @@ class AccountingSystem(
         val providers = allWorkspaces
             .flatMap { projectId ->
                 val owner = ownersByReference[projectId] ?: return@flatMap emptyList()
-                (walletsByOwner[owner.id] ?: emptyList()).map { it.category.provider }
+                (walletsByOwner[owner.id] ?: emptyList())
+                    .filter { it.allocationsByParent.isNotEmpty() }
+                    .map { it.category.provider }
             }
             .toSet()
 
@@ -1608,7 +1822,7 @@ class AccountingSystem(
 
         waitingOn = "productCache.products()"
         for (product in productCache.products()) {
-            if (request.filterProductType != null && product.productType != request.filterProductType)  {
+            if (request.filterProductType != null && product.productType != request.filterProductType) {
                 continue
             }
 
@@ -1629,7 +1843,7 @@ class AccountingSystem(
 
         val walletOwnerId = ownersByReference[request.owner.reference()]?.id
             ?: return Response.error(HttpStatusCode.NotFound, "Failed to lookup owner")
-        val key =  scopeKey(walletOwnerId, request.chargeId)
+        val key = scopeKey(walletOwnerId, request.chargeId)
         log.info("Scopedkey: $key")
         log.info("In scope ${scopedUsage.contains(key)}")
         val usage = scopedUsage[key] ?: 0L

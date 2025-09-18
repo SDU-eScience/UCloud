@@ -21,7 +21,7 @@ const wrapper = injectStyle("command-palette", k => `
         
         
         position: fixed;
-        top: calc(50vh - var(--own-base-height));
+        top: 25%;
         left: calc(50vw - (var(--own-width) / 2));
         
         border-radius: 16px;
@@ -30,10 +30,6 @@ const wrapper = injectStyle("command-palette", k => `
         
         box-shadow: var(--defaultShadow);
         background: var(--backgroundCardHover);
-
-        &[has-items] {
-            top: 25%
-        }
 
         & input {
             width: calc(100% - 2 * 16px);
@@ -169,23 +165,24 @@ export const CommandPalette: React.FunctionComponent = () => {
 
     if (!visible) return null;
 
-    return <div ref={divRef} has-items={commands.length > 0 ? "" : undefined} className={wrapper}>
+    return <div ref={divRef} className={wrapper}>
         <input
             autoFocus
-            placeholder={"Search for anything on UCloud..."}
+            placeholder={"Search for actions on UCloud..."}
             onKeyDown={onInput}
             onChange={onChange}
             value={query}
         />
         <Box maxHeight="400px" px="8px" pb="8px" overflowY="auto" data-command-palette>
-            {Object.values(CommandScope).map(scope => (<React.Fragment key={scope}>
+            {Object.values(CommandScope).map((scope: CommandScope) =>
                 <CommandScopeEntry
+                    key={scope}
                     onClick={onActivate}
                     scope={groupedCommands[scope] ?? []}
                     title={scope}
                     activeCommand={activeCommand}
                 />
-            </React.Fragment>))}
+            )}
         </Box>
     </div>;
 };
@@ -229,7 +226,7 @@ function CommandScopeEntry({onClick, scope, title, activeCommand}: {
 }): React.ReactNode {
     return <>
         {title ? <CommandScopeTitle title={title} count={scope.length} /> : null}
-        {scope.map(c => <EntryWrapper onClick={onClick} key={c.title} command={c} active={c === activeCommand} />)}
+        {scope.map((c, idx) => <EntryWrapper onClick={onClick} key={c.title + idx} command={c} active={c === activeCommand} />)}
     </>
 }
 
@@ -245,15 +242,14 @@ function EntryWrapper({command, active, onClick}: {
         }}
         height="32px"
         cursor="pointer"
-        className={EntryHover}
         borderRadius={"6px"}
         backgroundColor={active ? `var(--primaryMain)` : undefined}
         color={active ? "primaryContrast" : undefined}
         data-entry
     >
-        <div style={{marginTop: "auto", marginBottom: "auto", marginLeft: "16px"}}>
+        <Box my="auto" ml="16px">
             <CommandIcon key={command.icon.type} label={command.title + " icon"} icon={command.icon} active={active} />
-        </div>
+        </Box>
 
         <Flex my="auto" mx="8px" width="100%">
             <Truncate maxWidth={"250px"} title={command.title}>
@@ -278,17 +274,11 @@ function EntryWrapper({command, active, onClick}: {
     </Flex>
 }
 
-const EntryHover = injectStyle("entry-hover", k => `
-    ${k}:hover {
-        background-color: var(--primaryMain);
-    }
-`);
-
 const IMAGE_SIZE = 18;
 function CommandIcon({icon, active, label}: {icon: CommandIconProvider; active: boolean; label: string}) {
     switch (icon.type) {
         case "image": {
-            return <Image alt={label} src={icon.imageUrl} height={`${IMAGE_SIZE}px`} width={`${IMAGE_SIZE}px`} />;
+            return <Image alt={label} src={icon.imageUrl} height={`${IMAGE_SIZE}px`} objectFit="contain" width={`${IMAGE_SIZE}px`} />;
         }
         case "simple": {
             return <Icon name={icon.icon} size={IMAGE_SIZE} color={icon.color ?? (active ? "primaryContrast" : "iconColor")} color2={icon.color2 ?? (active ? "primaryContrastAlt" : "iconColor2")} />

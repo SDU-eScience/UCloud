@@ -2,8 +2,11 @@ package dk.sdu.cloud.accounting
 
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.rpc.*
+import dk.sdu.cloud.accounting.services.DataGenerator
+import dk.sdu.cloud.accounting.services.accounting.*
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
 import dk.sdu.cloud.accounting.services.accounting.DataVisualization
+import dk.sdu.cloud.accounting.services.accounting.LowFundsJob
 import dk.sdu.cloud.accounting.services.accounting.RealAccountingPersistence
 import dk.sdu.cloud.accounting.services.grants.*
 import dk.sdu.cloud.accounting.services.notifications.ApmNotificationService
@@ -49,19 +52,24 @@ class Server(
         val providerService = ProviderService(projectCache, db, providerProviders, providerSupport, client)
         val providerIntegrationService = ProviderIntegrationService(
             db, providerService, client,
-            micro.developmentModeEnabled
+            micro.backgroundScope,
+            micro.developmentModeEnabled,
         )
+
+        providerIntegrationService.init()
 
         val simpleProviders = Providers(client) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
         val productCache = ProductCache(db)
+        val accountingPersistence = RealAccountingPersistence(db)
         val accountingSystem = AccountingSystem(
             productCache,
-            RealAccountingPersistence(db),
+            accountingPersistence,
             IdCardService(db, micro.backgroundScope, client),
             distributedLocks,
-            micro.developmentModeEnabled,
+            true,
             distributedStateFactory,
             addressToSelf = micro.serviceInstance.ipAddress ?: "127.0.0.1",
+            config
         )
 
         val productService = ProductService(db, accountingSystem, idCardService)
@@ -76,8 +84,16 @@ class Server(
         val favoriteProjects = FavoriteProjectService(projectsV2)
         val grants = GrantsV2Service(db, idCardService, accountingSystem, client, config.defaultTemplate, projectsV2)
         val giftService = GiftService(db, accountingSystem, projectService, grants, idCardService)
-        val dataVisualization = DataVisualization(db, accountingSystem)
-        val apmNotifications = ApmNotificationService(accountingSystem, projectsV2, micro.tokenValidation, idCardService, micro.developmentModeEnabled)
+        val dataVisualization = DataVisualization(db, accountingSystem, idCardService)
+        val apmNotifications = ApmNotificationService(
+            accountingSystem,
+            projectsV2,
+            micro.tokenValidation,
+            idCardService,
+            micro.developmentModeEnabled
+        )
+        val lowFundsJob = LowFundsJob(accountingSystem, idCardService, client)
+
 
         PersonalProviderProjects(projectsV2, productService, accountingSystem).init()
 
@@ -100,6 +116,24 @@ class Server(
             )
         )
 
+        val dataGenerator = if (micro.developmentModeEnabled) {
+            DataGenerator(accountingSystem, db, client, grants, idCardService, accountingPersistence)
+        } else {
+            null
+        }
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
+                    "low-funds-scan",
+                    "Low Funds Scan",
+                    WhenToStart.Daily(13, 30)
+                ),
+                script = {
+                    lowFundsJob.checkWallets()
+                }
+            )
+        )
+
         configureControllers(
             AccountingController(
                 micro,
@@ -108,7 +142,8 @@ class Server(
                 idCardService,
                 apmNotifications,
                 grants,
-            ).also { accountingController = it},
+                dataGenerator
+            ).also { accountingController = it },
             ProductController(productService, accountingSystem, client),
             FavoritesController(db, favoriteProjects),
             GiftController(giftService),

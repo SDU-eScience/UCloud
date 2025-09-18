@@ -46,13 +46,14 @@ import {MandatoryField} from "@/UtilityComponents";
 import Text from "../ui-components/Text";
 import {PermissionsTable} from "@/Resource/PermissionEditor";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
+import {connectionState} from "@/Providers/ConnectionState";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
     globalTtl: 60_000
 });
 
-const defaultRetrieveFlags: { itemsPerPage: number, includeOthers: true } = {
+const defaultRetrieveFlags: {itemsPerPage: number, includeOthers: true} = {
     itemsPerPage: 250,
     includeOthers: true, // Used to show permissions on load: issue #4209
 };
@@ -75,13 +76,12 @@ const FEATURES: ResourceBrowseFeatures = {
 };
 
 const RESOURCE_NAME = "Drive";
-const DriveBrowse: React.FunctionComponent<{ opts?: ResourceBrowserOpts<FileCollection> }> = ({opts}) => {
+const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileCollection>}> = ({opts}) => {
     const navigate = useNavigate();
     const mountRef = useRef<HTMLDivElement | null>(null);
     const browserRef = useRef<ResourceBrowser<FileCollection> | null>(null);
     const dispatch = useDispatch();
     usePage("Drives", SidebarTabId.FILES);
-
 
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
     const [productSelectorPortal, setProductSelectorPortal] = React.useState(<></>);
@@ -120,6 +120,8 @@ const DriveBrowse: React.FunctionComponent<{ opts?: ResourceBrowserOpts<FileColl
                     browser.rerender();
 
                 });
+
+                connectionState.fetch();
 
 
                 browser.setColumns([
@@ -255,63 +257,63 @@ const DriveBrowse: React.FunctionComponent<{ opts?: ResourceBrowserOpts<FileColl
                                     products={creatableProducts}
                                     onCancel={() => dialogStore.failure()}
                                     onCreate={async (product, title, permissions) => {
-                                       const productReference = {
-                                           id: product.name,
-                                           category: product.category.name,
-                                           provider: product.category.provider
-                                       };
+                                        const productReference = {
+                                            id: product.name,
+                                            category: product.category.name,
+                                            provider: product.category.provider
+                                        };
 
-                                       const driveBeingCreated = {
-                                           owner: {createdBy: Client.username ?? "",},
-                                           updates: [],
-                                           createdAt: timestampUnixMs(),
-                                           status: {},
-                                           permissions: {myself: []},
-                                           id: title,
-                                           specification: {
-                                               title,
-                                               product: productReference
-                                           },
-                                       } as FileCollection;
+                                        const driveBeingCreated = {
+                                            owner: {createdBy: Client.username ?? "", },
+                                            updates: [],
+                                            createdAt: timestampUnixMs(),
+                                            status: {},
+                                            permissions: {myself: []},
+                                            id: title,
+                                            specification: {
+                                                title,
+                                                product: productReference
+                                            },
+                                        } as FileCollection;
 
-                                       browser.insertEntryIntoCurrentPage(driveBeingCreated);
-                                       browser.renderRows();
-                                       browser.selectAndShow(it => it === driveBeingCreated);
+                                        browser.insertEntryIntoCurrentPage(driveBeingCreated);
+                                        browser.renderRows();
+                                        browser.selectAndShow(it => it === driveBeingCreated);
 
-                                       try {
-                                           const response = (await callAPI(FileCollectionsApi.create(bulkRequestOf({
-                                               product: productReference,
-                                               title
-                                           })))).responses[0] as unknown as FindByStringId;
+                                        try {
+                                            const response = (await callAPI(FileCollectionsApi.create(bulkRequestOf({
+                                                product: productReference,
+                                                title
+                                            })))).responses[0] as unknown as FindByStringId;
 
-                                           driveBeingCreated.id = response.id;
+                                            driveBeingCreated.id = response.id;
 
-                                           for (const permission of permissions) {
-                                               const fixedPermissions: Permission[] = permission.permissions.find(it => it === "EDIT") ? ["READ", "EDIT"] : ["READ"];
-                                               const newEntry: ResourceAclEntry = {
-                                                   entity: {type: "project_group", projectId: permission.entity["projectId"], group: permission.entity["group"]},
-                                                   permissions: fixedPermissions
-                                               };
+                                            for (const permission of permissions) {
+                                                const fixedPermissions: Permission[] = permission.permissions.find(it => it === "EDIT") ? ["READ", "EDIT"] : ["READ"];
+                                                const newEntry: ResourceAclEntry = {
+                                                    entity: {type: "project_group", projectId: permission.entity["projectId"], group: permission.entity["group"]},
+                                                    permissions: fixedPermissions
+                                                };
 
-                                               await callAPI(
-                                                   FileCollectionsApi.updateAcl(bulkRequestOf(
-                                                       {
-                                                           id: response.id,
-                                                           added: [newEntry],
-                                                           deleted: [permission.entity]
-                                                       }
-                                                   ))
-                                               );
-                                           }
+                                                await callAPI(
+                                                    FileCollectionsApi.updateAcl(bulkRequestOf(
+                                                        {
+                                                            id: response.id,
+                                                            added: [newEntry],
+                                                            deleted: [permission.entity]
+                                                        }
+                                                    ))
+                                                );
+                                            }
 
-                                           browser.renderRows();
-                                           dialogStore.success();
-                                       } catch (e) {
-                                           snackbarStore.addFailure("Failed to create new drive. " + extractErrorMessage(e), false);
-                                           browser.refresh();
-                                           return;
-                                       }
-                                   }}
+                                            browser.renderRows();
+                                            dialogStore.success();
+                                        } catch (e) {
+                                            snackbarStore.addFailure("Failed to create new drive. " + extractErrorMessage(e), false);
+                                            browser.refresh();
+                                            return;
+                                        }
+                                    }}
                                 />,
                                 () => {},
                                 true,
@@ -449,10 +451,22 @@ const DriveBrowse: React.FunctionComponent<{ opts?: ResourceBrowserOpts<FileColl
 
                 // Network requests
                 // =========================================================================================================
+                browser.on("skipOpen", (oldPath, newPath, resource) => {
+                    if (!resource) return true;
+                    const isConnected = connectionState.isConnected(resource?.specification.product.provider);
+                    if (!isConnected) {
+                        const canConnect = connectionState.canConnectToProvider(resource?.specification.product.provider);
+                        if (canConnect) {
+                            connectionState.notification(resource.specification.product.provider, true);
+                        }
+                    }
+                    return !isConnected;
+                });
+
                 browser.on("open", (oldPath, newPath) => {
                     if (newPath !== "/") {
                         const p = newPath.startsWith("/") ? newPath : "/" + newPath;
-                        navigate("/files?path=" + encodeURIComponent(p));
+                        navigate(AppRoutes.files.path(p));
                         return;
                     }
 
@@ -490,18 +504,20 @@ const DriveBrowse: React.FunctionComponent<{ opts?: ResourceBrowserOpts<FileColl
                     browser.cachedData["/search"] = [];
                     browser.renderRows();
                     browser.renderOperations();
-                    collectionsOnOpen.retrieve("/search", () =>
-                        callAPI(FileCollectionsApi.search({
-                            query,
-                            itemsPerPage: 250,
-                            flags: {},
-                        }))
-                    ).then(res => {
+                    callAPI(FileCollectionsApi.search({
+                        query,
+                        itemsPerPage: 250,
+                        flags: {},
+                    })).then(res => {
                         if (browser.currentPath !== "/search") return;
                         browser.registerPage(res, "/search", true);
                         browser.renderRows();
                         browser.renderBreadcrumbs();
                     })
+                });
+
+                browser.on("searchHidden", () => {
+                    browser.open("/", true);
                 });
 
                 // Utilities required for the ResourceBrowser to understand the structure of the file-system
@@ -530,7 +546,7 @@ const DriveBrowse: React.FunctionComponent<{ opts?: ResourceBrowserOpts<FileColl
     return <MainContainer
         main={
             <>
-                <div ref={mountRef}/>
+                <div ref={mountRef} />
                 {switcher}
                 {productSelectorPortal}
             </>
@@ -586,7 +602,7 @@ export function DriveCreate({onCreate, onCancel, products}: CreationWithInputFie
         </Box>
 
         <Label>
-            Choose a name<MandatoryField/>
+            Choose a name<MandatoryField />
             <Input
                 placeholder="Enter drive name..."
                 onKeyDown={e => e.stopPropagation()}
@@ -596,7 +612,7 @@ export function DriveCreate({onCreate, onCancel, products}: CreationWithInputFie
         </Label>
 
         <Box>
-            <Label>Choose a product<MandatoryField/></Label>
+            <Label>Choose a product<MandatoryField /></Label>
             <ProductSelector
                 onSelect={setSelectedProduct}
                 products={products}

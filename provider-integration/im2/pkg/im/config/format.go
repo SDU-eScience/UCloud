@@ -6,17 +6,15 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/pem"
-	"errors"
 	"fmt"
-	"gopkg.in/yaml.v3"
-	"net"
 	"os"
-	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+
+	"gopkg.in/yaml.v3"
+	"ucloud.dk/shared/pkg/cfgutil"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type ServerMode int
@@ -37,8 +35,6 @@ var Server *ServerConfiguration
 var secretsPath string
 var secrets *yaml.Node
 
-var enableErrorReporting = true
-
 type Jwk struct {
 	Kty string `json:"kty"`
 	N   string `json:"n"`
@@ -53,352 +49,9 @@ type JwkSet struct {
 
 var Jwks JwkSet
 
-func reportError(path string, node *yaml.Node, format string, args ...any) {
-	if !enableErrorReporting {
-		return
-	}
-
-	if node != &dummyNode {
-		if node != nil {
-			combinedArgs := []any{path, node.Line, node.Column}
-			combinedArgs = append(combinedArgs, args...)
-
-			log.Error("%v at line %v (column %v): "+format, combinedArgs...)
-		} else {
-			combinedArgs := []any{path}
-			combinedArgs = append(combinedArgs, args...)
-			log.Error("%v: "+format, combinedArgs...)
-		}
-	}
-}
-
-func getChildOrNil(path string, node *yaml.Node, child string) (*yaml.Node, error) {
-	if node == nil {
-		return nil, errors.New("node is nil")
-	}
-
-	if node.Kind == yaml.DocumentNode {
-		if node.Content == nil {
-			return nil, errors.New("document is empty")
-		}
-
-		return getChildOrNil(path, node.Content[0], child)
-	}
-
-	if node.Kind != yaml.MappingNode {
-		return nil, fmt.Errorf("expected a dictionary but got %v", node.Kind)
-	}
-
-	length := len(node.Content)
-	for i := 0; i < length; i += 2 {
-		key := node.Content[i]
-		value := node.Content[i+1]
-		if key.Tag == "!!str" && key.Value == child {
-			return value, nil
-		}
-	}
-
-	return nil, fmt.Errorf("could not find property '%v' but it is mandatory", child)
-}
-
-func hasChild(node *yaml.Node, child string) bool {
-	node, _ = getChildOrNil("", node, child)
-	return node != nil
-}
-
-var dummyNode = yaml.Node{}
-
-func requireChild(path string, node *yaml.Node, child string, success *bool) *yaml.Node {
-	result, err := getChildOrNil(path, node, child)
-	if err != nil {
-		*success = false
-		reportError(path, node, err.Error())
-		return &dummyNode
-	}
-
-	return result
-}
-
-func optionalChildInt(path string, node *yaml.Node, child string, success *bool) util.Option[int64] {
-	n, err := getChildOrNil(path, node, child)
-	if n == nil {
-		return util.OptNone[int64]()
-	}
-
-	var result int64
-	err = n.Decode(&result)
-	if err != nil {
-		reportError(path, n, "Expected a string here")
-		*success = false
-		return util.OptNone[int64]()
-	}
-
-	return util.OptValue(result)
-}
-
-func optionalChildText(path string, node *yaml.Node, child string, success *bool) string {
-	n, err := getChildOrNil(path, node, child)
-	if n == nil {
-		return ""
-	}
-
-	var result string
-	err = n.Decode(&result)
-	if err != nil {
-		reportError(path, n, "Expected a string here")
-		*success = false
-		return ""
-	}
-
-	return result
-}
-
-func requireChildText(path string, node *yaml.Node, child string, success *bool) string {
-	n := requireChild(path, node, child, success)
-	if !*success {
-		return ""
-	}
-
-	var result string
-	err := n.Decode(&result)
-	if err != nil {
-		reportError(path, n, "Expected a string here")
-		*success = false
-		return ""
-	}
-
-	return result
-}
-
-func requireChildFloat(path string, node *yaml.Node, child string, success *bool) float64 {
-	n := requireChild(path, node, child, success)
-	if !*success {
-		return 0
-	}
-
-	var result float64
-	err := n.Decode(&result)
-	if err != nil {
-		reportError(path, n, "Expected a float here")
-		*success = false
-		return 0
-	}
-
-	return result
-}
-
-func requireChildBool(path string, node *yaml.Node, child string, success *bool) bool {
-	n := requireChild(path, node, child, success)
-	if !*success {
-		return false
-	}
-
-	var result bool
-	err := n.Decode(&result)
-	if err != nil {
-		reportError(path, n, "Expected a string here")
-		*success = false
-		return false
-	}
-
-	return result
-}
-
-func optionalChildBool(path string, node *yaml.Node, child string) (value bool, ok bool) {
-	enableErrorReporting = false
-	ok = true
-
-	value = requireChildBool(path, node, child, &ok)
-
-	enableErrorReporting = true
-	return
-}
-
-func requireChildEnum[T any](filePath string, node *yaml.Node, child string, options []T, success *bool) T {
-	var result T
-	text := requireChildText(filePath, node, child, success)
-	if !*success {
-		return result
-	}
-
-	for _, option := range options {
-		if fmt.Sprint(option) == text {
-			return option
-		}
-	}
-
-	reportError(filePath, node, "expected '%v' to be one of %v", text, options)
-	*success = false
-	return result
-}
-
-type FileCheckFlags int
-
-const (
-	FileCheckNone  FileCheckFlags = 0
-	FileCheckRead  FileCheckFlags = 1 << 0
-	FileCheckWrite FileCheckFlags = 1 << 1
-
-	FileCheckReadWrite = FileCheckRead | FileCheckWrite
-)
-
-func requireChildFolder(filePath string, node *yaml.Node, child string, flags FileCheckFlags, success *bool) string {
-	text := requireChildText(filePath, node, child, success)
-	if !*success {
-		return ""
-	}
-
-	info, err := os.Stat(text)
-	if err != nil || !info.IsDir() {
-		reportError(filePath, node, "Expected this value to point to a valid directory, but %v is not a valid directory!", text)
-		*success = false
-		return ""
-	}
-
-	if flags&FileCheckRead != 0 {
-		_, err = os.ReadDir(text)
-		if err != nil {
-			reportError(
-				filePath,
-				node,
-				"Expected '%v' to be readable but failed to read a directory listing [UID=%v GID=%v] (%v).",
-				text,
-				os.Getuid(),
-				os.Getgid(),
-				err.Error(),
-			)
-			*success = false
-			return ""
-		}
-	}
-
-	if flags&FileCheckWrite != 0 {
-		temporaryFile := path.Join(text, "."+util.RandomToken(16))
-		err = os.WriteFile(temporaryFile, []byte("UCloud/IM test file"), 0700)
-		if err != nil {
-			reportError(
-				filePath,
-				node,
-				"Expected '%v' to be writeable but failed to create a file [UID=%v GID=%v] (%v).",
-				text,
-				os.Getuid(),
-				os.Getgid(),
-				err.Error(),
-			)
-			*success = false
-			return ""
-		}
-
-		_ = os.Remove(temporaryFile)
-	}
-
-	return text
-}
-
-func requireChildFile(filePath string, node *yaml.Node, child string, flags FileCheckFlags, success *bool) string {
-	text := requireChildText(filePath, node, child, success)
-	if !*success {
-		return ""
-	}
-
-	info, err := os.Stat(text)
-	if err != nil || !info.Mode().IsRegular() {
-		reportError(filePath, node, "Expected this value to point to a valid regular file, but %v is not a regular file!", text)
-		*success = false
-		return ""
-	}
-
-	if flags&FileCheckRead != 0 {
-		handle, err := os.OpenFile(text, os.O_RDONLY, 0)
-		if err != nil {
-			reportError(
-				filePath,
-				node,
-				"Expected '%v' to be readable but failed to open the file [UID=%v GID=%v] (%v).",
-				text,
-				os.Getuid(),
-				os.Getgid(),
-				err.Error(),
-			)
-			*success = false
-			return ""
-		} else {
-			_ = handle.Close()
-		}
-	}
-
-	if flags&FileCheckWrite != 0 {
-		handle, err := os.OpenFile(text, os.O_WRONLY, 0600)
-		if err != nil {
-			reportError(
-				filePath,
-				node,
-				"Expected '%v' to be writeable but failed to create a file [UID=%v GID=%v] (%v).",
-				text,
-				os.Getuid(),
-				os.Getgid(),
-				err.Error(),
-			)
-			*success = false
-			return ""
-		} else {
-			_ = handle.Close()
-		}
-	}
-
-	return text
-}
-
-func decode(filePath string, node *yaml.Node, result any, success *bool) {
-	err := node.Decode(result)
-	if err != nil {
-		cleanedError := err.Error()
-		cleanedError = strings.ReplaceAll(cleanedError, "yaml: unmarshal errors:\n", "")
-		cleanedError = strings.ReplaceAll(cleanedError, "unmarshal", "convert")
-		cleanedError = strings.ReplaceAll(cleanedError, "!!str", "text")
-		cleanedError = strings.TrimSpace(cleanedError)
-		regex := regexp.MustCompile("line \\d+: ")
-		cleanedError = regex.ReplaceAllString(cleanedError, "")
-		reportError(filePath, node, "Failed to parse value %v", cleanedError)
-		*success = false
-	}
-}
-
-func readAndParse(filePath string) *yaml.Node {
-	fileBytes, err := os.ReadFile(filePath)
-	if err != nil {
-		reportError(
-			filePath,
-			nil,
-			"Failed to read file. Does it exist/is it readable by the UCloud process? Current user is uid=%v gid=%v. "+
-				"Underlying error message: %v.",
-			os.Getuid(),
-			os.Getgid(),
-			err.Error(),
-		)
-		return nil
-	}
-
-	var document yaml.Node
-
-	err = yaml.Unmarshal(fileBytes, &document)
-	if err != nil {
-		reportError(
-			filePath,
-			nil,
-			"Failed to parse this configuration file as valid YAML. Please check for errors. "+
-				"Underlying error message: %v.",
-			err.Error(),
-		)
-		return nil
-	}
-
-	return &document
-}
-
 func requireSecrets(reason string) (string, *yaml.Node) {
 	if secrets == nil {
-		reportError("", &dummyNode, "Could not find secrets.yaml but it is required for this configuration. %v", reason)
+		cfgutil.ReportError("", &cfgutil.DummyNode, "Could not find secrets.yaml but it is required for this configuration. %v", reason)
 		return "", nil
 	}
 
@@ -414,12 +67,17 @@ func Parse(serverMode ServerMode, configDir string) bool {
 		filePath := filepath.Join(configDir, "secrets.yml")
 		fileBytes, err := os.ReadFile(filePath)
 
+		if err != nil {
+			filePath = filepath.Join(configDir, "secrets.yaml")
+			fileBytes, err = os.ReadFile(filePath)
+		}
+
 		if err == nil {
 			var document yaml.Node
 
 			err = yaml.Unmarshal(fileBytes, &document)
 			if err != nil {
-				reportError(
+				cfgutil.ReportError(
 					filePath,
 					nil,
 					"Failed to parse this configuration file as valid YAML. Please check for errors. "+
@@ -435,8 +93,7 @@ func Parse(serverMode ServerMode, configDir string) bool {
 	}
 
 	if Mode == ServerModeServer {
-		filePath := filepath.Join(configDir, "server.yml")
-		document := readAndParse(filePath)
+		filePath, document := cfgutil.ReadAndParse(configDir, "server")
 		if document == nil {
 			return false
 		}
@@ -448,13 +105,12 @@ func Parse(serverMode ServerMode, configDir string) bool {
 		Server = &server
 	}
 
-	filePath := filepath.Join(configDir, "config.yml")
-	document := readAndParse(filePath)
+	filePath, document := cfgutil.ReadAndParse(configDir, "config")
 	if document == nil {
 		return false
 	}
 
-	providerNode := requireChild(filePath, document, "provider", &success)
+	providerNode := cfgutil.RequireChild(filePath, document, "provider", &success)
 	if !success {
 		return false
 	}
@@ -463,7 +119,7 @@ func Parse(serverMode ServerMode, configDir string) bool {
 		return false
 	}
 
-	servicesNode := requireChild(filePath, document, "services", &success)
+	servicesNode := cfgutil.RequireChild(filePath, document, "services", &success)
 	if !success {
 		return false
 	}
@@ -477,7 +133,7 @@ func Parse(serverMode ServerMode, configDir string) bool {
 
 	key := readPublicKey(configDir)
 	if key == nil {
-		reportError(configDir, nil, "Failed to parse/locate public key in %v", configDir)
+		cfgutil.ReportError(configDir, nil, "Failed to parse/locate public key in %v", configDir)
 		return false
 	}
 	eBytes := make([]byte, 4)
@@ -504,27 +160,14 @@ type HostInfo struct {
 func (h HostInfo) validate(filePath string, node *yaml.Node) bool {
 	if h.Port <= 0 || h.Port >= 1024*64 {
 		if h.Port == 0 {
-			reportError(filePath, node, "Port 0 is not a valid choice. Did you remember to specify a port?")
+			cfgutil.ReportError(filePath, node, "Port 0 is not a valid choice. Did you remember to specify a port?")
 		} else {
-			reportError(filePath, node, "Invalid TCP/IP port specified %v", h.Port)
+			cfgutil.ReportError(filePath, node, "Invalid TCP/IP port specified %v", h.Port)
 		}
 		return false
 	}
 
-	_, err := net.LookupHost(h.Address)
-
-	if err != nil {
-		reportError(
-			filePath,
-			node,
-			"The host '%v:%v' appears to be invalid. Make sure that the hostname is valid and "+
-				"that you are able to connect to it.",
-			h.Address,
-			h.Port,
-		)
-	}
-
-	return err == nil
+	return true
 }
 
 func (h HostInfo) ToURL() string {
@@ -581,31 +224,31 @@ func parseServer(filePath string, provider *yaml.Node) (bool, ServerConfiguratio
 	cfg := ServerConfiguration{}
 
 	// Parse simple properties
-	cfg.RefreshToken = requireChildText(filePath, provider, "refreshToken", &success)
+	cfg.RefreshToken = cfgutil.RequireChildText(filePath, provider, "refreshToken", &success)
 
 	// Parse the database section
-	dbNode, _ := getChildOrNil(filePath, provider, "database")
+	dbNode, _ := cfgutil.GetChildOrNil(filePath, provider, "database")
 	if dbNode != nil {
-		cfg.Database.Embedded = requireChildBool(filePath, dbNode, "embedded", &success)
+		cfg.Database.Embedded = cfgutil.RequireChildBool(filePath, dbNode, "embedded", &success)
 	} else {
 		cfg.Database.Embedded = true
 	}
 
 	if !cfg.Database.Embedded {
-		hostNode := requireChild(filePath, dbNode, "host", &success)
-		decode(filePath, hostNode, &cfg.Database.Host, &success)
+		hostNode := cfgutil.RequireChild(filePath, dbNode, "host", &success)
+		cfgutil.Decode(filePath, hostNode, &cfg.Database.Host, &success)
 		if cfg.Database.Host.Port == 0 {
 			cfg.Database.Host.Port = 5432
 		}
 
-		cfg.Database.Username = requireChildText(filePath, dbNode, "username", &success)
-		cfg.Database.Password = requireChildText(filePath, dbNode, "password", &success)
-		cfg.Database.Database = requireChildText(filePath, dbNode, "database", &success)
-		cfg.Database.Ssl = requireChildBool(filePath, dbNode, "ssl", &success)
+		cfg.Database.Username = cfgutil.RequireChildText(filePath, dbNode, "username", &success)
+		cfg.Database.Password = cfgutil.RequireChildText(filePath, dbNode, "password", &success)
+		cfg.Database.Database = cfgutil.RequireChildText(filePath, dbNode, "database", &success)
+		cfg.Database.Ssl = cfgutil.RequireChildBool(filePath, dbNode, "ssl", &success)
 	} else {
 		db := &cfg.Database
 		if dbNode != nil {
-			db.EmbeddedDataDirectory = optionalChildText(filePath, dbNode, "directory", &success)
+			db.EmbeddedDataDirectory = cfgutil.OptionalChildText(filePath, dbNode, "directory", &success)
 		}
 
 		if db.EmbeddedDataDirectory == "" {
@@ -618,7 +261,7 @@ func parseServer(filePath string, provider *yaml.Node) (bool, ServerConfiguratio
 				if os.IsNotExist(err) {
 					err = os.Mkdir(db.EmbeddedDataDirectory, 0700)
 					if err != nil {
-						reportError(filePath, dbNode, "Could not create postgres data directory at %v: %v", db.EmbeddedDataDirectory, err)
+						cfgutil.ReportError(filePath, dbNode, "Could not create postgres data directory at %v: %v", db.EmbeddedDataDirectory, err)
 						success = false
 					}
 				}
@@ -633,7 +276,7 @@ func parseServer(filePath string, provider *yaml.Node) (bool, ServerConfiguratio
 				password = []byte(util.RandomToken(32))
 				err = os.WriteFile(passwordFile, password, 0600)
 				if err != nil {
-					reportError(filePath, dbNode, "Could not write postgres password file to disk: %v", err)
+					cfgutil.ReportError(filePath, dbNode, "Could not write postgres password file to disk: %v", err)
 					success = false
 				}
 			}
@@ -662,6 +305,18 @@ func parseServer(filePath string, provider *yaml.Node) (bool, ServerConfiguratio
 	return success, cfg
 }
 
+type EnvoyListenMode string
+
+const (
+	EnvoyListenModeUnix EnvoyListenMode = "Unix"
+	EnvoyListenModeTcp  EnvoyListenMode = "Tcp"
+)
+
+var envoyListenModes = []EnvoyListenMode{
+	EnvoyListenModeUnix,
+	EnvoyListenModeTcp,
+}
+
 type ProviderConfiguration struct {
 	Id string
 
@@ -682,14 +337,26 @@ type ProviderConfiguration struct {
 		Executable                string
 		InternalAddressToProvider string
 		ManagedExternally         bool
+		ListenMode                EnvoyListenMode
 	}
 
 	Logs struct {
-		Directory string
-		Rotation  struct {
+		Directory    string
+		ServerStdout bool
+		Rotation     struct {
 			Enabled               bool `yaml:"enabled"`
 			RetentionPeriodInDays int  `yaml:"retentionPeriodInDays"`
 		}
+	}
+
+	Profiler struct {
+		Enabled bool
+		Port    int
+	}
+
+	Maintenance struct {
+		Enabled       bool
+		UserAllowList []string
 	}
 }
 
@@ -697,26 +364,26 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 	cfg := ProviderConfiguration{}
 	success := true
 
-	cfg.Id = requireChildText(filePath, provider, "id", &success)
+	cfg.Id = cfgutil.RequireChildText(filePath, provider, "id", &success)
 
 	{
 		// Hosts section
-		hosts := requireChild(filePath, provider, "hosts", &success)
-		ucloudHost := requireChild(filePath, hosts, "ucloud", &success)
-		selfHost := requireChild(filePath, hosts, "self", &success)
-		decode(filePath, ucloudHost, &cfg.Hosts.UCloud, &success)
-		decode(filePath, selfHost, &cfg.Hosts.Self, &success)
+		hosts := cfgutil.RequireChild(filePath, provider, "hosts", &success)
+		ucloudHost := cfgutil.RequireChild(filePath, hosts, "ucloud", &success)
+		selfHost := cfgutil.RequireChild(filePath, hosts, "self", &success)
+		cfgutil.Decode(filePath, ucloudHost, &cfg.Hosts.UCloud, &success)
+		cfgutil.Decode(filePath, selfHost, &cfg.Hosts.Self, &success)
 
-		ucloudPublic, _ := getChildOrNil(filePath, hosts, "ucloudPublic")
+		ucloudPublic, _ := cfgutil.GetChildOrNil(filePath, hosts, "ucloudPublic")
 		if ucloudPublic != nil {
-			decode(filePath, ucloudPublic, &cfg.Hosts.UCloudPublic, &success)
+			cfgutil.Decode(filePath, ucloudPublic, &cfg.Hosts.UCloudPublic, &success)
 		} else {
 			cfg.Hosts.UCloudPublic = cfg.Hosts.UCloud
 		}
 
-		selfPublic, _ := getChildOrNil(filePath, hosts, "selfPublic")
+		selfPublic, _ := cfgutil.GetChildOrNil(filePath, hosts, "selfPublic")
 		if selfPublic != nil {
-			decode(filePath, selfPublic, &cfg.Hosts.SelfPublic, &success)
+			cfgutil.Decode(filePath, selfPublic, &cfg.Hosts.SelfPublic, &success)
 		} else {
 			cfg.Hosts.SelfPublic = cfg.Hosts.Self
 		}
@@ -732,12 +399,12 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 
 	{
 		// IPC section
-		ipc := requireChild(filePath, provider, "ipc", &success)
-		ipcDirModeRequired := FileCheckRead
+		ipc := cfgutil.RequireChild(filePath, provider, "ipc", &success)
+		ipcDirModeRequired := cfgutil.FileCheckRead
 		if Mode == ServerModeServer {
-			ipcDirModeRequired = FileCheckReadWrite
+			ipcDirModeRequired = cfgutil.FileCheckReadWrite
 		}
-		directory := requireChildFolder(filePath, ipc, "directory", ipcDirModeRequired, &success)
+		directory := cfgutil.RequireChildFolder(filePath, ipc, "directory", ipcDirModeRequired, &success)
 		cfg.Ipc.Directory = directory
 		if !success {
 			return false, cfg
@@ -746,16 +413,22 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 
 	{
 		// Logs section
-		logs := requireChild(filePath, provider, "logs", &success)
-		directory := requireChildFolder(filePath, logs, "directory", FileCheckReadWrite, &success)
+		logs := cfgutil.RequireChild(filePath, provider, "logs", &success)
+		directory := cfgutil.RequireChildFolder(filePath, logs, "directory", cfgutil.FileCheckReadWrite, &success)
 		cfg.Logs.Directory = directory
+		serverStdout, ok := cfgutil.OptionalChildBool(filePath, logs, "serverStdOut")
+		if !ok {
+			cfg.Logs.ServerStdout = false
+		} else {
+			cfg.Logs.ServerStdout = serverStdout
+		}
 		if !success {
 			return false, cfg
 		}
 
-		rotationNode, _ := getChildOrNil(filePath, logs, "rotation")
+		rotationNode, _ := cfgutil.GetChildOrNil(filePath, logs, "rotation")
 		if rotationNode != nil {
-			decode(filePath, rotationNode, &cfg.Logs.Rotation, &success)
+			cfgutil.Decode(filePath, rotationNode, &cfg.Logs.Rotation, &success)
 			if !success {
 				return false, cfg
 			}
@@ -763,32 +436,67 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 			rotation := &cfg.Logs.Rotation
 			if rotation.Enabled {
 				if rotation.RetentionPeriodInDays <= 0 {
-					reportError(filePath, rotationNode, "retentionPeriodInDays must be specified and must be greater than zero")
+					cfgutil.ReportError(filePath, rotationNode, "retentionPeriodInDays must be specified and must be greater than zero")
 					return false, cfg
 				}
 			}
 		}
 	}
+	{
+		// Profiler section
+		profiler, _ := cfgutil.GetChildOrNil(filePath, provider, "profiler")
+		if profiler != nil {
+			cfg.Profiler.Enabled = cfgutil.RequireChildBool(filePath, profiler, "enabled", &success)
+			if cfg.Profiler.Enabled {
+				cfg.Profiler.Port = int(cfgutil.RequireChildInt(filePath, profiler, "port", &success))
+			}
+		}
+	}
+
+	{
+		// Maintenance section
+		maintenance, _ := cfgutil.GetChildOrNil(filePath, provider, "maintenance")
+		if maintenance != nil {
+			cfg.Maintenance.Enabled = cfgutil.RequireChildBool(filePath, maintenance, "enabled", &success)
+
+			allowListNode := cfgutil.RequireChild(filePath, maintenance, "allowList", &success)
+
+			var userAllowList []string
+			cfgutil.Decode(filePath, allowListNode, &userAllowList, &success)
+
+			cfg.Maintenance.UserAllowList = userAllowList
+		}
+	}
 
 	if Mode == ServerModeServer {
 		// Envoy section
-		envoy := requireChild(filePath, provider, "envoy", &success)
+		envoy := cfgutil.RequireChild(filePath, provider, "envoy", &success)
 
-		directory := requireChildFolder(filePath, envoy, "directory", FileCheckReadWrite, &success)
+		directory := cfgutil.OptionalChildText(filePath, envoy, "directory", &success)
 		cfg.Envoy.StateDirectory = directory
 
-		managedExternally, _ := optionalChildBool(filePath, envoy, "managedExternally")
+		managedExternally, _ := cfgutil.OptionalChildBool(filePath, envoy, "managedExternally")
 		cfg.Envoy.ManagedExternally = managedExternally
 
+		listenMode, hasListenMode := cfgutil.OptionalChildEnum(filePath, envoy, "listenMode", envoyListenModes, &success)
+		if !hasListenMode {
+			listenMode = EnvoyListenModeUnix
+		}
+		cfg.Envoy.ListenMode = listenMode
+
+		if !managedExternally || directory != "" || listenMode == EnvoyListenModeUnix {
+			cfgutil.RequireChildFolder(filePath, envoy, "directory", cfgutil.FileCheckReadWrite, &success)
+		}
+
 		if !cfg.Envoy.ManagedExternally {
-			exe := requireChildFile(filePath, envoy, "executable", FileCheckRead, &success)
+			exe := cfgutil.RequireChildFile(filePath, envoy, "executable", cfgutil.FileCheckRead, &success)
 			cfg.Envoy.Executable = exe
 
-			funceWrapper, _ := optionalChildBool(filePath, envoy, "funceWrapper")
+			funceWrapper, _ := cfgutil.OptionalChildBool(filePath, envoy, "funceWrapper")
 			cfg.Envoy.FunceWrapper = funceWrapper
 		}
 
-		internalAddressToProvider := optionalChildText(filePath, envoy, "internalAddressToProvider", &success)
+		internalAddressToProvider := cfgutil.OptionalChildText(filePath, envoy, "internalAddressToProvider", &success)
 		if internalAddressToProvider == "" {
 			internalAddressToProvider = "127.0.0.1"
 		}
@@ -807,13 +515,11 @@ type ServicesType string
 const (
 	ServicesSlurm      ServicesType = "Slurm"
 	ServicesKubernetes ServicesType = "Kubernetes"
-	ServicesPuhuri     ServicesType = "Puhuri"
 )
 
 var ServicesTypeOptions = []ServicesType{
 	ServicesSlurm,
 	ServicesKubernetes,
-	ServicesPuhuri,
 }
 
 type ServicesConfiguration struct {
@@ -836,15 +542,6 @@ func (cfg *ServicesConfiguration) Kubernetes() *ServicesConfigurationKubernetes 
 	}
 	return nil
 }
-
-func (cfg *ServicesConfiguration) Puhuri() *ServicesConfigurationPuhuri {
-	if cfg.Type == ServicesPuhuri {
-		return cfg.Configuration.(*ServicesConfigurationPuhuri)
-	}
-	return nil
-}
-
-type ServicesConfigurationPuhuri struct{}
 
 type MachineResourceType = string
 
@@ -897,29 +594,29 @@ type PaymentInfo struct {
 func parsePaymentInfo(filePath string, node *yaml.Node, validUnits []string, withPrice bool, success *bool) PaymentInfo {
 	result := PaymentInfo{}
 
-	result.Type = requireChildEnum(filePath, node, "type", PaymentTypeOptions, success)
+	result.Type = cfgutil.RequireChildEnum(filePath, node, "type", PaymentTypeOptions, success)
 
-	if hasChild(node, "unit") {
-		result.Unit = requireChildEnum(filePath, node, "unit", validUnits, success)
+	if cfgutil.HasChild(node, "unit") {
+		result.Unit = cfgutil.RequireChildEnum(filePath, node, "unit", validUnits, success)
 	}
 
-	if hasChild(node, "interval") {
-		result.Interval = requireChildEnum(filePath, node, "interval", PaymentIntervalOptions, success)
+	if cfgutil.HasChild(node, "interval") {
+		result.Interval = cfgutil.RequireChildEnum(filePath, node, "interval", PaymentIntervalOptions, success)
 	}
 
 	if result.Type == PaymentTypeMoney {
 		if withPrice {
-			result.Price = requireChildFloat(filePath, node, "price", success)
+			result.Price = cfgutil.RequireChildFloat(filePath, node, "price", success)
 		}
-		result.Currency = requireChildText(filePath, node, "currency", success)
+		result.Currency = cfgutil.RequireChildText(filePath, node, "currency", success)
 		if result.Price <= 0 && result.Type == PaymentTypeMoney && withPrice {
 			*success = false
-			reportError(filePath, node, "A price greater than 0 must be specified with type = Money")
+			cfgutil.ReportError(filePath, node, "A price greater than 0 must be specified with type = Money")
 		}
 	} else {
-		priceNode, _ := getChildOrNil(filePath, node, "price")
+		priceNode, _ := cfgutil.GetChildOrNil(filePath, node, "price")
 		if priceNode != nil {
-			reportError(filePath, node, "A price cannot be specified with type = Resource")
+			cfgutil.ReportError(filePath, node, "A price cannot be specified with type = Resource")
 		}
 	}
 
@@ -934,13 +631,13 @@ func parsePaymentInfo(filePath string, node *yaml.Node, validUnits []string, wit
 func parseServices(serverMode ServerMode, filePath string, services *yaml.Node) (bool, ServicesConfiguration) {
 	result := ServicesConfiguration{}
 	success := true
-	kind := requireChildEnum(filePath, services, "type", ServicesTypeOptions, &success)
+	kind := cfgutil.RequireChildEnum(filePath, services, "type", ServicesTypeOptions, &success)
 	if !success {
 		return false, result
 	}
 	result.Type = kind
 
-	isUnmanaged, ok := optionalChildBool(filePath, services, "unmanaged")
+	isUnmanaged, ok := cfgutil.OptionalChildBool(filePath, services, "unmanaged")
 	result.Unmanaged = isUnmanaged && ok
 
 	switch kind {
@@ -968,12 +665,14 @@ type IdentityManagementType string
 const (
 	IdentityManagementTypeScripted IdentityManagementType = "Scripted"
 	IdentityManagementTypeFreeIpa  IdentityManagementType = "FreeIPA"
+	IdentityManagementTypeOidc     IdentityManagementType = "OIDC"
 	IdentityManagementTypeNone     IdentityManagementType = "None"
 )
 
 var IdentityManagementTypeOptions = []IdentityManagementType{
 	IdentityManagementTypeScripted,
 	IdentityManagementTypeFreeIpa,
+	IdentityManagementTypeOidc,
 }
 
 type IdentityManagement struct {
@@ -986,13 +685,24 @@ type IdentityManagementScripted struct {
 	OnProjectUpdated string
 }
 
+type IdentityManagementOidc struct {
+	OnUserConnected string
+	Issuer          string
+	ClientId        string
+	ClientSecret    string
+	Scopes          []string
+	ExpiresAfterMs  uint64
+}
+
 type IdentityManagementFreeIPA struct {
-	Url        string
-	VerifyTls  bool
-	CaCertFile util.Option[string]
-	Username   string
-	Password   string
-	GroupName  string
+	Url             string
+	VerifyTls       bool
+	CaCertFile      util.Option[string]
+	Username        string
+	Password        string
+	GroupName       string
+	ProjectStrategy fnd.ProjectTitleStrategy
+	ProjectPrefix   string // only if ProjectStrategy is ProjectTitleDate
 }
 
 func (m *IdentityManagement) Scripted() *IdentityManagementScripted {
@@ -1009,10 +719,17 @@ func (m *IdentityManagement) FreeIPA() *IdentityManagementFreeIPA {
 	return nil
 }
 
+func (m *IdentityManagement) OIDC() *IdentityManagementOidc {
+	if m.Type == IdentityManagementTypeOidc {
+		return m.Configuration.(*IdentityManagementOidc)
+	}
+	return nil
+}
+
 func parseIdentityManagement(filePath string, node *yaml.Node) (bool, IdentityManagement) {
 	var result IdentityManagement
 	success := true
-	mType := requireChildEnum(filePath, node, "type", IdentityManagementTypeOptions, &success)
+	mType := cfgutil.RequireChildEnum(filePath, node, "type", IdentityManagementTypeOptions, &success)
 	result.Type = mType
 	if !success {
 		return false, result
@@ -1034,7 +751,7 @@ func parseIdentityManagement(filePath string, node *yaml.Node) (bool, IdentityMa
 				return false, result
 			}
 
-			freeipaNode := requireChild(sPath, secretsNode, "freeipa", &success)
+			freeipaNode := cfgutil.RequireChild(sPath, secretsNode, "freeipa", &success)
 			if !success {
 				return false, result
 			}
@@ -1047,6 +764,27 @@ func parseIdentityManagement(filePath string, node *yaml.Node) (bool, IdentityMa
 		} else {
 			result.Configuration = &IdentityManagementFreeIPA{}
 		}
+
+	case IdentityManagementTypeOidc:
+		if Mode == ServerModeServer {
+			sPath, secretsNode := requireSecrets("OIDC identity management has secret configuration!")
+			if secretsNode == nil {
+				return false, result
+			}
+
+			oidcNode := cfgutil.RequireChild(sPath, secretsNode, "oidc", &success)
+			if !success {
+				return false, result
+			}
+
+			ok, config := parseIdentityManagementOidc(sPath, oidcNode)
+			if !ok {
+				return false, result
+			}
+			result.Configuration = &config
+		} else {
+			result.Configuration = &IdentityManagementOidc{}
+		}
 	}
 
 	return success, result
@@ -1055,8 +793,8 @@ func parseIdentityManagement(filePath string, node *yaml.Node) (bool, IdentityMa
 func parseIdentityManagementScripted(filePath string, node *yaml.Node) (bool, IdentityManagementScripted) {
 	var result IdentityManagementScripted
 	success := true
-	result.OnUserConnected = requireChildFile(filePath, node, "onUserConnected", FileCheckRead, &success)
-	result.OnProjectUpdated = requireChildFile(filePath, node, "onProjectUpdated", FileCheckRead, &success)
+	result.OnUserConnected = cfgutil.RequireChildFile(filePath, node, "onUserConnected", cfgutil.FileCheckRead, &success)
+	result.OnProjectUpdated = cfgutil.RequireChildFile(filePath, node, "onProjectUpdated", cfgutil.FileCheckRead, &success)
 	return success, result
 }
 
@@ -1064,24 +802,66 @@ func parseIdentityManagementFreeIpa(filePath string, node *yaml.Node) (bool, Ide
 	var result IdentityManagementFreeIPA
 	success := true
 
-	result.Url = requireChildText(filePath, node, "url", &success)
+	result.Url = cfgutil.RequireChildText(filePath, node, "url", &success)
 
-	verifyTls, hasVerifyTls := optionalChildBool(filePath, node, "verifyTls")
+	verifyTls, hasVerifyTls := cfgutil.OptionalChildBool(filePath, node, "verifyTls")
 	result.VerifyTls = verifyTls || !hasVerifyTls
 
-	caCertFile := optionalChildText(filePath, node, "caCertFile", &success)
+	caCertFile := cfgutil.OptionalChildText(filePath, node, "caCertFile", &success)
 	if caCertFile != "" {
-		requireChildFile(filePath, node, "caCertFile", FileCheckRead, &success)
+		cfgutil.RequireChildFile(filePath, node, "caCertFile", cfgutil.FileCheckRead, &success)
 		result.CaCertFile.Set(caCertFile)
 	}
 
-	result.Username = requireChildText(filePath, node, "username", &success)
-	result.Password = requireChildText(filePath, node, "password", &success)
-	groupName := optionalChildText(filePath, node, "groupName", &success)
+	result.Username = cfgutil.RequireChildText(filePath, node, "username", &success)
+	result.Password = cfgutil.RequireChildText(filePath, node, "password", &success)
+	groupName := cfgutil.OptionalChildText(filePath, node, "groupName", &success)
 	if groupName != "" {
 		result.GroupName = groupName
 	} else {
 		result.GroupName = "ucloud_users"
+	}
+
+	titleStrategy := cfgutil.OptionalChildText(filePath, node, "projectStrategy", &success)
+	if titleStrategy != "" {
+		switch titleStrategy {
+		case "Default":
+			result.ProjectStrategy = fnd.ProjectTitleDefault
+
+		case "Date":
+			result.ProjectStrategy = fnd.ProjectTitleDate
+			result.ProjectPrefix = cfgutil.OptionalChildText(filePath, node, "projectPrefix", &success)
+			if result.ProjectPrefix == "" {
+				result.ProjectPrefix = "p"
+			}
+
+		case "UUID":
+			result.ProjectStrategy = fnd.ProjectTitleUuid
+
+		default:
+			success = false
+			badNode, _ := cfgutil.GetChildOrNil(filePath, node, "projectStrategy")
+			cfgutil.ReportError(filePath, badNode, titleStrategy, "Unknown title strategy, use one of: 'Default', 'Date', 'UUID'")
+		}
+	}
+
+	return success, result
+}
+
+func parseIdentityManagementOidc(filePath string, node *yaml.Node) (bool, IdentityManagementOidc) {
+	var result IdentityManagementOidc
+	success := true
+
+	result.OnUserConnected = cfgutil.RequireChildFile(filePath, node, "onUserConnected", cfgutil.FileCheckRead, &success)
+	result.Issuer = cfgutil.RequireChildText(filePath, node, "issuer", &success)
+	result.ClientId = cfgutil.RequireChildText(filePath, node, "clientId", &success)
+	result.ClientSecret = cfgutil.RequireChildText(filePath, node, "clientSecret", &success)
+	result.ExpiresAfterMs = uint64(
+		cfgutil.OptionalChildInt(filePath, node, "expiresAfterMs", &success).GetOrDefault(1000 * 60 * 60 * 24 * 7),
+	)
+
+	if child, err := cfgutil.GetChildOrNil(filePath, node, "scopes"); child != nil && err == nil {
+		cfgutil.Decode(filePath, child, &result.Scopes, &success)
 	}
 
 	return success, result

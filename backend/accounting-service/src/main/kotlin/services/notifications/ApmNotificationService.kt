@@ -64,6 +64,8 @@ class ApmNotificationService(
         val replayFrom: Long
         val providerId: String
 
+        var includeRetiredAmounts = false
+
         run {
             val frame = incoming.receiveCatching().getOrNull() ?: return
             val buf = frame.buffer
@@ -74,7 +76,7 @@ class ApmNotificationService(
             replayFrom = buf.getLong()
             val incomingFlags = buf.getLong()
 
-            if (incomingFlags != 0L) return
+            includeRetiredAmounts = (incomingFlags and 0x1L) != 0L
 
             val authToken = buf.getString()
             val principal = tokenValidator.validateAndDecodeOrNull(authToken)?.principal ?: return
@@ -218,7 +220,8 @@ class ApmNotificationService(
                                     IdCard.System,
                                     pi.username,
                                     updatedProject.id,
-                                    useProject = true
+                                    useProject = true,
+                                    includeFreeToUse = false,
                                 )
                             ).contains(providerId)
                             isRelevant = projectIsRelevant.getValue(updatedProject.id)
@@ -272,6 +275,9 @@ class ApmNotificationService(
                                 walletBuf.putLong(wallet.quota)
                                 walletBuf.putInt(flags)
                                 walletBuf.putLong(wallet.lastSignificantUpdateAt)
+                                if (includeRetiredAmounts) {
+                                    walletBuf.putLong(wallet.localRetiredUsage)
+                                }
                             }
                         }
                         break
@@ -303,6 +309,9 @@ class ApmNotificationService(
                                 walletBuf.putLong(wallet.totalActiveQuota())
                                 walletBuf.putInt(flags)
                                 walletBuf.putLong(wallet.lastSignificantUpdateAt)
+                                if (includeRetiredAmounts) {
+                                    walletBuf.putLong(wallet.localRetiredUsage)
+                                }
                             }
                         )
                     )

@@ -9,7 +9,10 @@ export const WSFactory = new WebSocketFactory(Client);
 // Note(Jonas): This code adds an event listener on localhost and the dev site. With my current setup, I get logged out on
 // retrieving a new JWT, so this solution will allow me to more quickly fetch the token values from `dev`, and copy them to my
 // localhost run on my machine.
-if (onDevSite()) {
+// 
+// Note(Jonas): This is also sometimes useful on production, if I'm using the production system as the backend.
+// For safety, this is hidden behind an opt-in localStorage item, as to not frighten the common user.
+if (onDevSite() || localStorage.getItem("ALLOW_JWT_COPY")) {
     document.body.addEventListener("keydown", async e => {
         if (e.altKey) {
             if (e.code === "KeyK") {

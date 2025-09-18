@@ -54,6 +54,37 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
             UniversityID.fromOrgId(orgId)
         }
     }
+
+    suspend fun getProjectUsage(projectId: String, startDate: LocalDateTime, endDate: LocalDateTime) {
+
+        println(projectId)
+
+        val children = viewChildrenProjectIds(projectId)
+        val sduCPUUsage = getCPUUsage(startDate, endDate, false)
+        val aauCPUUsage = getCPUUsage(startDate, endDate, true)
+        val sduGPUUsage = getGPUUsage(startDate, endDate, false, true)
+        val aauGPUUsage = getGPUUsage(startDate, endDate, true)
+
+        var totalCPUUsage = 0L
+        var totalGPUUsage = 0L
+        children.forEach { project ->
+            var cpuUsage = 0L
+            cpuUsage += sduCPUUsage[project] ?: 0L
+            cpuUsage += aauCPUUsage[project] ?: 0L
+
+            var gpuUsage = 0L
+            gpuUsage += sduGPUUsage[project] ?: 0L
+            gpuUsage += aauGPUUsage[project] ?: 0L
+
+            totalCPUUsage += cpuUsage
+            totalGPUUsage += gpuUsage
+
+            println("$project , CPU: $cpuUsage GPU: $gpuUsage")
+        }
+
+        println("CPU: $totalCPUUsage GPU: $totalGPUUsage")
+    }
+
     suspend fun getCPUUsage(
         startDate: LocalDateTime,
         endDate: LocalDateTime,
@@ -149,7 +180,8 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
     suspend fun getGPUUsage(
         startDate: LocalDateTime,
         endDate: LocalDateTime,
-        aau: Boolean
+        aau: Boolean,
+        includeNonDeicGPUS: Boolean = false
     ): Map<String, Long> {
         val usageForWallet = mutableMapOf<String, Long>()
         if (aau) {
@@ -159,6 +191,63 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                         setParameter("start", startDate.toLocalDate().toString())
                         setParameter("end", endDate.toLocalDate().toString())
                         setParameter("product", "uc_t%" )
+                    },
+                    """
+                    with jobs as (
+                        select
+                            r.id job_id,
+                            coalesce(job.started_at, r.created_at) job_start,
+                            case when current_state = 'RUNNING' then now() else job.last_update end job_ended,
+                            job.current_state,
+                            p.gpu,
+                            job.replicas,
+                            r.created_by,
+                            r.project
+                        from app_orchestrator.jobs job join
+                            provider.resource r on job.resource = r.id join
+                            accounting.products p on r.product = p.id
+                        where
+                            p.name like :product and
+                            (job.started_at < :end) and
+                            (job.last_update > :start)
+                    ),
+                    clamedJobs as (
+                        select job_id,
+                          case when job_start < :start then :start else job_start end jobstart,
+                          case when job_ended > :end then :end else job_ended end jobend,
+                          gpu,
+                          replicas,
+                          created_by,
+                          project
+                       from jobs
+                    ),
+                    minutes as (
+                        select *, ((extract (epoch from jobend) - extract (epoch from jobstart))/ 60) minSpend
+                        from clamedJobs
+                        ),
+                    used as (
+                        select ((minSpend * gpu * replicas)/ 60)::bigint  resourcesUsed, created_by, project
+                        from minutes )
+                    select * from used;
+                """.trimIndent()
+                ).rows.forEach {
+                    val usage = it.getLong(0)!!
+                    val username = it.getString(1)
+                    val project = it.getString(2)
+                    if (project != null ) {
+                        usageForWallet[project] = (usageForWallet[project]?:0) + usage
+                    } else {
+                        usageForWallet[username!!] = (usageForWallet[username] ?: 0) + usage
+                    }
+                }
+            }
+        } else if (includeNonDeicGPUS) {
+            db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("start", startDate.toLocalDate().toString())
+                        setParameter("end", endDate.toLocalDate().toString())
+                        setParameter("product", "%-gpu-%" )
                     },
                     """
                     with jobs as (
@@ -274,7 +363,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                     join accounting.product_categories pc on p.category = pc.id
                             )
                             SELECT wo.project_id, sum(walloc.quota)::bigint,
-                                wa.local_usage, pc.product_type, is_gpu
+                                wa.local_usage, pc.product_type, is_gpu, wa.id
                             FROM accounting.wallets_v2 wa join
                                 accounting.allocation_groups ag on wa.id = ag.associated_wallet join
                                 accounting.wallet_allocations_v2 walloc on ag.id = walloc.associated_allocation_group join
@@ -282,7 +371,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                 accounting.product_categories pc on pc.id = wa.product_category join
                                 lookup l on l.id = pc.id
                             WHERE wo.project_id = :projectid
-                            group by wo.project_id, pc.product_type, wa.local_usage, is_gpu;
+                            group by wo.project_id, pc.product_type, wa.local_usage, is_gpu, wa.id;
                         """
                     ).rows
                     .map {
@@ -290,7 +379,8 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                             it.getString(0)!!,
                             it.getLong(1)!!,
                             it.getLong(2)!!,
-                            ProductType.createFromType(it.getString(3)!!, it.getBoolean(4)!!)
+                            ProductType.createFromType(it.getString(3)!!, it.getBoolean(4)!!),
+                            it.getLong(5)!!
                         )
                     }
             }
@@ -454,6 +544,44 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
             }
         }
         return resultList.asReversed()
+    }
+
+    fun viewChildrenProjectIds(projectId: String): List<String> {
+        val resultList = ArrayList<String>()
+        val wallets = getWallets(projectId).map { it.walletId }
+        runBlocking {
+            db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("wallets_given", wallets)
+                    },
+                    """
+                        with recursive children as (
+                            select wall1.id walletid
+                            from accounting.wallets_v2 wall1 join
+                                accounting.allocation_groups ag1 on wall1.id = ag1.associated_wallet
+                            where
+                                wall1.id in (
+                                select
+                                    unnest(:wallets_given::bigint[])
+                            )
+                        
+                            union
+                        
+                            select wall.id
+                            from accounting.wallets_v2 wall join
+                                accounting.allocation_groups ag on wall.id = ag.associated_wallet join
+                                children c on c.walletid = ag.parent_wallet
+                        )
+                        select distinct coalesce(username, project_id)
+                        from children c join
+                        accounting.wallets_v2 wall on c.walletid = wall.id join
+                            accounting.wallet_owner wo on wall.wallet_owner = wo.id;
+                    """.trimIndent()
+                ).rows.forEach { resultList.add(it.getString(0)!!) }
+            }
+        }
+        return resultList
     }
 
     fun findProjectMembers(projectId: String): List<ProjectMemberInfo> {

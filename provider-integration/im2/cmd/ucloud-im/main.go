@@ -1,15 +1,16 @@
 package main
 
+import _ "ucloud.dk/pkg/silentlog"
+
 import (
 	"fmt"
 	"os"
-	"os/exec"
-	"time"
+	"strconv"
+	"ucloud.dk/pkg/im/controller/fsearch"
 	"ucloud.dk/pkg/im/external/gpfs"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 
 	"ucloud.dk/pkg/im/launcher"
-	"ucloud.dk/pkg/termio"
 )
 
 func main() {
@@ -19,100 +20,14 @@ func main() {
 		return
 	}
 
-	if exeName == "limiter" {
-		limiter := util.NewCpuLimiter(20.0, 0.0)
-
-		output, _ := os.OpenFile("/dev/null", os.O_WRONLY, 0)
-		cmd := exec.Command("/usr/bin/yes")
-		cmd.Stdout = output
-		cmd.Stderr = output
-
-		_ = cmd.Start()
-		limiter.Watch(int32(cmd.Process.Pid))
-
-		_ = cmd.Wait()
-		return
-	}
-
-	// NOTE(Brian): Prompt examples
-	if false {
-		termio.LoadingIndicator("Loading some stuff", func(output *os.File) error {
-			fmt.Fprintf(output, "Testing 1\n")
-			fmt.Fprintf(output, "Testing 2\n")
-			time.Sleep(1 * time.Second)
-			fmt.Fprintf(output, "Done\n")
-			return nil
-		})
-
-		termio.LoadingIndicator("This one will succeed", func(output *os.File) error {
-			fmt.Fprintf(output, "Testing 1 Really long really really really long\n")
-			fmt.Fprintf(output, "Testing 2\n")
-			fmt.Fprintf(output, "Testing 3\n")
-			time.Sleep(1 * time.Second)
-			fmt.Fprintf(output, "Testing 4 Really long really really really long\n")
-			fmt.Fprintf(output, "Testing 5 Really long really really really long\n")
-			time.Sleep(1 * time.Second)
-			fmt.Fprintf(output, "Testing 6\n")
-			time.Sleep(1 * time.Second)
-			fmt.Fprintf(output, "Testing 7\n")
-			fmt.Fprintf(output, "Testing 8\n")
-			time.Sleep(1 * time.Second)
-			fmt.Fprintf(output, "Done\n")
-			return nil
-		})
-
-		termio.LoadingIndicator("This one will fail", func(output *os.File) error {
-			fmt.Fprintf(output, "Testing 1 Really long\n")
-			fmt.Fprintf(output, "Testing 2\n")
-			fmt.Fprintf(output, "Testing 3\n")
-			fmt.Fprintf(output, "Testing 4\n")
-			fmt.Fprintf(output, "Testing 5\n")
-			time.Sleep(1 * time.Second)
-			return fmt.Errorf("Oh no, this is bad..")
-		})
-
-		menu := termio.NewMenu("Test menu, please select one or more items (space to select):")
-		menu.Separator("Primary")
-		menu.Item("one", "One")
-		menu.Item("two", "Two")
-		menu.Item("three", "Three")
-		menu.Separator("Some secondary options")
-		menu.Item("four", "Four")
-		menu.Item("five", "Five")
-		menu.Separator("")
-		menu.Item("six", "Six")
-		menu.Item("seven", "Seven")
-		menu.Item("eight", "Eight")
-		result, err := menu.SelectMultiple()
-
-		if err != nil {
+	if exeName == "search" {
+		if len(os.Args) < 4 {
+			fmt.Printf("search <query> <load> <bucketCount>")
 			return
 		}
 
-		fmt.Printf("Elements selected: %v\n\n", result)
-
-		textQuery := termio.TextPrompt("Please enter some text", "")
-		fmt.Printf("You entered the following text: %s\n\n", textQuery)
-
-		confirm, err := termio.ConfirmPrompt("Is it raining today?", termio.ConfirmValueTrue, 0)
-
-		if err != nil {
-			return
-		}
-
-		fmt.Printf("Selected: %v\n\n", confirm)
-
-		singleMenu := termio.NewMenu("Test menu, please select an item:")
-		singleMenu.Item("first", "This is an item")
-		singleMenu.Item("second", "This is another item")
-		singleResult, err := singleMenu.SelectSingle()
-
-		if err != nil {
-			return
-		}
-
-		fmt.Printf("Result was: %v\n\n", singleResult)
-
+		bucketCount, _ := strconv.ParseInt(os.Args[3], 10, 64)
+		fsearch.CliMain(os.Args[1], os.Args[2] == "true", int(bucketCount))
 		return
 	}
 

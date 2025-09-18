@@ -20,6 +20,14 @@ import dk.sdu.cloud.file.orchestrator.service.StorageProviders
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.toReadableStacktrace
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.call
+import io.ktor.server.response.respondText
+import io.ktor.server.response.respondTextWriter
+import io.ktor.server.routing.get
+import io.ktor.server.routing.routing
 import kotlinx.coroutines.runBlocking
 
 object AppOrchestratorServices {
@@ -60,8 +68,6 @@ object AppOrchestratorServices {
     lateinit var sshKeys: SshKeyService
 
     lateinit var jobMonitoring: JobMonitoringService
-
-    lateinit var statistics: StatisticsService
 }
 
 class Server(override val micro: Micro) : CommonServer {
@@ -148,8 +154,36 @@ class Server(override val micro: Micro) : CommonServer {
             sshKeys = SshKeyService()
             exporter = ParameterExportService()
             jobMonitoring = JobMonitoringService()
-            statistics = StatisticsService()
             runBlocking { jobMonitoring.initialize(!micro.developmentModeEnabled) }
+
+            micro.serverProvider(33301) {
+                routing {
+                    get("/") {
+                        val providerId = call.request.queryParameters["providerId"]
+                        val dry = call.request.queryParameters["dry"]
+
+                        if (providerId == null || dry == null) {
+                            call.respondText("Bad invocation", status = HttpStatusCode.BadRequest)
+                        } else {
+                            call.respondTextWriter(ContentType.Text.Plain, status = HttpStatusCode.OK) {
+                                val channel =
+                                    ProviderMigration(db).dumpProviderData(providerId, dryRun = dry != "false")
+                                try {
+                                    for (message in channel) {
+                                        write(message + "\n")
+                                        flush()
+                                    }
+                                } catch (ex: Throwable) {
+                                    write("ERROR: ${ex.toReadableStacktrace()}")
+                                    flush()
+                                } finally {
+                                    close()
+                                }
+                            }
+                        }
+                    }
+                }
+            }.start(wait = false)
 
             configureControllers(
                 JobController(jobs, micro),

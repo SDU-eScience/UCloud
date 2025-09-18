@@ -4,6 +4,7 @@ import Flex from "./Flex";
 import Icon from "./Icon";
 import {injectStyle} from "@/Unstyled";
 import {Spacer} from "./Spacer";
+import {PayloadAction} from "@reduxjs/toolkit";
 
 function PopIn({hasContent, children}: React.PropsWithChildren<{hasContent: boolean}>): React.ReactNode {
     return <div className={PopInClass} data-has-content={hasContent}>
@@ -40,15 +41,15 @@ export function RightPopIn(): React.ReactNode {
     /* Alternatively, use React.portal */
     return <PopIn hasContent={content != null} >
         <Spacer
+            mt="16px"
             left={<Icon color="textPrimary" cursor="pointer" pt="4px" pl="4px" hoverColor="textPrimary" name="close" onClick={() => dispatch(setPopInChild(null))} />}
-
-            right={<Icon color="textPrimary" cursor="pointer" pt="4px" pr="4px" hoverColor="textPrimary" name="fullscreen" onClick={() => {
+            right={content?.onFullScreen ? <Icon color="textPrimary" cursor="pointer" pt="4px" pr="4px" hoverColor="textPrimary" name="heroArrowsPointingOut" onClick={() => {
                 content?.onFullScreen?.();
                 dispatch(setPopInChild(null));
-            }} />}
+            }} /> : null}
 
         />
-        <Flex flexDirection="column" mx="4px" my="4px">{content?.el}</Flex>
+        <Flex flexDirection="column" m="4px">{content?.el}</Flex>
     </PopIn>
 }
 
@@ -57,7 +58,7 @@ export interface PopInArgs {
     onFullScreen?: () => void;
 }
 
-type SetPopInChildAction = PayloadAction<"SET_POP_IN_CHILD", PopInArgs | null>;
+type SetPopInChildAction = PayloadAction<PopInArgs | null, "SET_POP_IN_CHILD">;
 export function setPopInChild(args: PopInArgs | null): SetPopInChildAction {
     return {
         type: "SET_POP_IN_CHILD",

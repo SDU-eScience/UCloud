@@ -11,16 +11,21 @@ export enum Feature {
     // current policies.
     ADDITIONAL_USER_INFO,
 
-    COPY_APP_MOCKUP,
-
     JOB_RENAME,
 
     APP_CATALOG_FILTER,
 
     NEW_TASKS,
     COMMAND_PALETTE,
-    INTEGRATED_EDITOR,
-    EDITOR_VIM,
+
+    PROVIDER_CONDITION,
+
+    REORDER_APP_GROUP,
+
+    ALTERNATIVE_USAGE_SELECTOR,
+    NEW_SYNCTHING_UI,
+
+    USAGE_PREDICTION,
 }
 
 enum Environment {
@@ -31,14 +36,14 @@ enum Environment {
     PROD
 }
 
-const allEnvironments: Environment[] =
-    [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK, Environment.PUBLIC_DEV, Environment.PROD];
-
-const allDevEnvironments: Environment[] =
-    [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK, Environment.SANDBOX_DEV, Environment.PUBLIC_DEV];
-
 const allLocalEnvironments: Environment[] =
     [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK];
+
+const allDevEnvironments: Environment[] =
+    [...allLocalEnvironments, Environment.SANDBOX_DEV, Environment.PUBLIC_DEV];
+
+const allEnvironments: Environment[] =
+    [...allDevEnvironments, Environment.PROD];
 
 function publicFeature(feature: Feature): FeatureConfig {
     return {
@@ -70,13 +75,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "inline-terminal": {
         feature: Feature.INLINE_TERMINAL,
-        showWithoutFlag: allDevEnvironments,
-    },
-
-    "copy-app": {
-        feature: Feature.COPY_APP_MOCKUP,
-        showWithFlag: allDevEnvironments,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
     },
 
     "component-stored-cut-copy": {
@@ -86,36 +85,29 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "app-catalog-filter": {
         feature: Feature.APP_CATALOG_FILTER,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments
     },
 
     "transfer-to": {
         feature: Feature.TRANSFER_TO,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
     },
 
     "new-tasks": {
         feature: Feature.NEW_TASKS,
-        showWithoutFlag: allDevEnvironments,
-        showWithFlag: allEnvironments,
+        showWithoutFlag: allEnvironments,
     },
 
     "command-palette": {
         feature: Feature.COMMAND_PALETTE,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments,
     },
 
-    "integrated-editor": {
-        feature: Feature.INTEGRATED_EDITOR,
+    "provider-condition": {
+        feature: Feature.PROVIDER_CONDITION,
         showWithoutFlag: allDevEnvironments,
-        showWithFlag: allEnvironments,
-    },
-
-    "editor-vim": {
-        feature: Feature.EDITOR_VIM,
-        showWithoutFlag: allLocalEnvironments,
         showWithFlag: allEnvironments,
     },
 
@@ -123,7 +115,25 @@ const featureMap: Record<string, FeatureConfig> = {
         feature: Feature.JOB_RENAME,
         showWithFlag: allDevEnvironments,
         showWithoutFlag: allLocalEnvironments
-    }
+    },
+
+    "alternative-usage-selector": {
+        feature: Feature.ALTERNATIVE_USAGE_SELECTOR,
+        showWithoutFlag: allEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "new-syncthing-ui": {
+        feature: Feature.NEW_SYNCTHING_UI,
+        showWithoutFlag: allEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "reorder-app-group": {
+        feature: Feature.REORDER_APP_GROUP,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allDevEnvironments,
+    },
 };
 
 function getCurrentEnvironment(): Environment {
@@ -148,8 +158,10 @@ export function hasFeature(feature: Feature): boolean {
 
         const withFlag = config.showWithFlag ?? [];
         const withoutFlag = config.showWithoutFlag ?? [];
+        const flagValue = localStorage.getItem(key);
+        if (flagValue === "false") return false;
         if (withoutFlag.indexOf(env) !== -1) return true;
-        if (withFlag.indexOf(env) !== -1 && localStorage.getItem(key) !== null) return true;
+        if (withFlag.indexOf(env) !== -1 && flagValue != null) return true;
     }
     return false;
 }

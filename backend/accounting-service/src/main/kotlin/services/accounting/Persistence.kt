@@ -7,20 +7,27 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import org.joda.time.DateTime
 import kotlin.math.absoluteValue
 import kotlin.time.Duration.Companion.hours
 import kotlin.math.max
+import dk.sdu.cloud.service.Loggable
 
 interface AccountingPersistence {
     suspend fun initialize()
     suspend fun flushChanges()
     suspend fun loadOldData(system: AccountingSystem)
+    suspend fun setLastSampling(newLastSampling: Long)
+    suspend fun setNextSynch(newSyncTime: Long)
 }
 
 object FakeAccountingPersistence : AccountingPersistence {
     override suspend fun initialize() {}
     override suspend fun flushChanges() {}
     override suspend fun loadOldData(system: AccountingSystem) {}
+    override suspend fun setLastSampling(newLastSampling: Long) {}
+    override suspend fun setNextSynch(newSyncTime: Long) {}
+
 }
 
 class RealAccountingPersistence(private val db: DBContext) : AccountingPersistence {
@@ -28,7 +35,17 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
     private var didChargeOldData = false
     private var lastSampling = 0L
 
+    override suspend fun setLastSampling(newLastSampling: Long) {
+        lastSampling = newLastSampling
+    }
+
+    override suspend fun setNextSynch(newSyncTime: Long) {
+        nextSynchronization = newSyncTime
+    }
+
+
     override suspend fun initialize() {
+        log.info("Initializing accounting persistence")
         val now = Time.now()
         db.withSession { session ->
             //Fetching last sample date
@@ -43,6 +60,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 val mostRecentSample = it.getLong(0) ?: 0L
                 lastSampling = mostRecentSample
             }
+
+            log.info("accounting persistence checkpoint 1")
 
 
             // Create walletOwners
@@ -66,6 +85,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 ownersByReference[reference] = owner
                 ownersById[id] = owner
             }
+            log.info("accounting persistence checkpoint 2")
 
             // Create allocations and groups
             session.sendPreparedStatement(
@@ -139,6 +159,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 }
             }
 
+            log.info("accounting persistence checkpoint 3")
+
             //Set earliestExpiration for each allocationGroup
             allocationGroups.forEach { (groupId, group) ->
                 val allocationsIds = group.allocationSet.map { it.key }
@@ -152,6 +174,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 }
                 allocationGroups[groupId]!!.earliestExpiration = earliestExpiration
             }
+
+            log.info("accounting persistence checkpoint 4")
 
             val productCategories = HashMap<Long, ProductCategory>()
             session.sendPreparedStatement(
@@ -195,76 +219,98 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 productCategories[id] = pc
             }
 
-            // Create Wallets
-            session.sendPreparedStatement(
-                {},
-                """
-                    select 
-                        id,
-                        wallet_owner,
-                        product_category,
-                        local_usage,
-                        local_retired_usage,
-                        excess_usage,
-                        total_allocated,
-                        total_retired_allocated,
-                        was_locked,
-                        provider.timestamp_to_unix(last_significant_update_at)::int8
-                    from 
-                        accounting.wallets_v2
-                """
-            ).rows.forEach { row ->
-                val id = row.getLong(0)!!.toInt()
-                val owner = row.getLong(1)!!.toInt()
-                val productCategory = productCategories[row.getLong(2)!!]!!
-                val localUsage = row.getLong(3)!!
-                val localRetiredUsage = row.getLong(4)!!
-                val excessUsage = row.getLong(5)!!
-                val totalAllocated = row.getLong(6)!!
-                val totalRetiredAllocated = row.getLong(7)!!
-                val wasLocked = row.getBoolean(8)!!
-                val lastSignificantUpdateAt = row.getLong(9)!!
+            log.info("accounting persistence checkpoint 5")
 
-                mostRecentSignificantUpdateByProvider[productCategory.provider] = max(
-                    mostRecentSignificantUpdateByProvider[productCategory.provider] ?: 0L,
-                    lastSignificantUpdateAt
-                )
+            var minId = 0
+            while (true) {
+                // Create Wallets
+                val rows = session.sendPreparedStatement(
+                    {
+                        setParameter("minimum_id", minId)
+                    },
+                    """
+                        select 
+                            id,
+                            wallet_owner,
+                            product_category,
+                            local_usage,
+                            local_retired_usage,
+                            excess_usage,
+                            total_allocated,
+                            total_retired_allocated,
+                            was_locked,
+                            provider.timestamp_to_unix(last_significant_update_at)::int8,
+                            low_balance_notified
+                        from 
+                            accounting.wallets_v2
+                        where
+                            id > :minimum_id
+                        order by id
+                        limit 5000
+                    """
+                ).rows
 
-                val allocGroups = allocationGroups.filter { it.value.associatedWallet == id }
-                val allocationByParent = HashMap<Int, InternalAllocationGroup>()
-                allocGroups.forEach { (_, allocationGroup) ->
-                    allocationByParent[allocationGroup.parentWallet] = allocationGroup
+                if (rows.isEmpty()) break
+
+                rows.forEach { row ->
+                    val id = row.getLong(0)!!.toInt()
+                    val owner = row.getLong(1)!!.toInt()
+                    val productCategory = productCategories[row.getLong(2)!!]!!
+                    val localUsage = row.getLong(3)!!
+                    val localRetiredUsage = row.getLong(4)!!
+                    val excessUsage = row.getLong(5)!!
+                    val totalAllocated = row.getLong(6)!!
+                    val totalRetiredAllocated = row.getLong(7)!!
+                    val wasLocked = row.getBoolean(8)!!
+                    val lastSignificantUpdateAt = row.getLong(9)!!
+                    val lowBalanceNotified = row.getBoolean(10)!!
+
+                    minId = id
+
+                    mostRecentSignificantUpdateByProvider[productCategory.provider] = max(
+                        mostRecentSignificantUpdateByProvider[productCategory.provider] ?: 0L,
+                        lastSignificantUpdateAt
+                    )
+
+                    val allocGroups = allocationGroups.filter { it.value.associatedWallet == id }
+                    val allocationByParent = HashMap<Int, InternalAllocationGroup>()
+                    allocGroups.forEach { (_, allocationGroup) ->
+                        allocationByParent[allocationGroup.parentWallet] = allocationGroup
+                    }
+
+                    val childrenAllocGroups = allocationGroups.filter { it.value.parentWallet == id }
+                    val childrenRetiredUsage = HashMap<Int, Long>()
+                    val childrenUsage = HashMap<Int, Long>()
+
+                    childrenAllocGroups.forEach { (_, group) ->
+                        val treeUsage = group.treeUsage
+                        val retriedUsage = group.retiredTreeUsage
+                        childrenUsage[group.associatedWallet] = treeUsage
+                        childrenRetiredUsage[group.associatedWallet] = retriedUsage
+                    }
+                    val wallet = InternalWallet(
+                        id = id,
+                        category = productCategory,
+                        ownedBy = owner,
+                        localUsage = localUsage,
+                        allocationsByParent = allocationByParent,
+                        childrenUsage = childrenUsage,
+                        localRetiredUsage = localRetiredUsage,
+                        childrenRetiredUsage = childrenRetiredUsage,
+                        excessUsage = excessUsage,
+                        totalAllocated = totalAllocated,
+                        totalRetiredAllocated = totalRetiredAllocated,
+                        isDirty = false,
+                        wasLocked = wasLocked,
+                        lastSignificantUpdateAt = lastSignificantUpdateAt,
+                        lowBalanceNotified = lowBalanceNotified,
+                    )
+
+                    walletsById[id] = wallet
                 }
-
-                val childrenAllocGroups = allocationGroups.filter { it.value.parentWallet == id }
-                val childrenRetiredUsage = HashMap<Int, Long>()
-                val childrenUsage = HashMap<Int, Long>()
-
-                childrenAllocGroups.forEach { (_, group) ->
-                    val treeUsage = group.treeUsage
-                    val retriedUsage = group.retiredTreeUsage
-                    childrenUsage[group.associatedWallet] = treeUsage
-                    childrenRetiredUsage[group.associatedWallet] = retriedUsage
-                }
-                val wallet = InternalWallet(
-                    id = id,
-                    category = productCategory,
-                    ownedBy = owner,
-                    localUsage = localUsage,
-                    allocationsByParent = allocationByParent,
-                    childrenUsage = childrenUsage,
-                    localRetiredUsage = localRetiredUsage,
-                    childrenRetiredUsage = childrenRetiredUsage,
-                    excessUsage = excessUsage,
-                    totalAllocated = totalAllocated,
-                    totalRetiredAllocated = totalRetiredAllocated,
-                    isDirty = false,
-                    wasLocked = wasLocked,
-                    lastSignificantUpdateAt = lastSignificantUpdateAt,
-                )
-
-                walletsById[id] = wallet
             }
+
+            log.info("accounting persistence checkpoint 6")
 
             walletsById.values
                 .groupBy { it.ownedBy }
@@ -272,6 +318,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                     val walletArrayList = ArrayList(wallets)
                     walletsByOwner[owner] = walletArrayList
                 }
+
+            log.info("accounting persistence checkpoint 7")
 
             val scopedUsageRows = session.sendPreparedStatement(
                 {},
@@ -285,6 +333,9 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
 
                 key to usage
             }
+
+            log.info("accounting persistence checkpoint 8")
+
             scopedUsage.putAll(scopedUsageRows)
 
             // Handle IDs so ID counter is ready to new inserts
@@ -307,7 +358,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
             if (maxOwnerID != null) ownersIdAccumulator.set(maxOwnerID + 1)
             if (maxGroupId != null) allocationGroupIdAccumulator.set(maxGroupId + 1)
 
-
+            log.info("accounting persistence checkpoint 9")
         }
     }
 
@@ -413,6 +464,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         into("total_retired_amounts") { (_, wallet) -> wallet.totalRetiredAllocated }
                         into("was_locked") { (_, wallet) -> wallet.wasLocked }
                         into("last_significant_update_at") { (_, wallet) -> wallet.lastSignificantUpdateAt }
+                        into("low_balance_notified") { (_, wallet) -> wallet.lowBalanceNotified }
                     }
                 },
                 """
@@ -427,7 +479,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                             unnest(:total_amounts_allocated::bigint[]) total_allocated,
                             unnest(:total_retired_amounts::bigint[]) total_retired_allocated,
                             unnest(:was_locked::bool[]) was_locked,
-                            to_timestamp(unnest(:last_significant_update_at::bigint[]) / 1000.0) last_significant_update_at
+                            to_timestamp(unnest(:last_significant_update_at::bigint[]) / 1000.0) last_significant_update_at,
+                            unnest(:low_balance_notified::bool[]) low_balance_notified
                     )
                     insert into accounting.wallets_v2(
                         id,
@@ -439,7 +492,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         total_allocated,
                         total_retired_allocated,
                         was_locked,
-                        last_significant_update_at
+                        last_significant_update_at,
+                        low_balance_notified
                     )
                     select
                         id,
@@ -451,7 +505,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         total_allocated,
                         total_retired_allocated,
                         was_locked,
-                        last_significant_update_at
+                        last_significant_update_at,
+                        low_balance_notified
                     from data
                     on conflict (id) 
                     do update 
@@ -462,7 +517,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         total_allocated = excluded.total_allocated,
                         total_retired_allocated = excluded.total_retired_allocated,
                         was_locked = excluded.was_locked,
-                        last_significant_update_at = excluded.last_significant_update_at
+                        last_significant_update_at = excluded.last_significant_update_at,
+                        low_balance_notified = excluded.low_balance_notified
                 """
             )
 
@@ -595,6 +651,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 data class AllocGroup(
                     val allocGroupId: Int,
                     val treeUsage: Long,
+                    val retiredTreeUsage: Long,
                     val quota: Long,
                 )
 
@@ -606,6 +663,11 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                     var combinedTreeUsage: Long = 0L,
                     var totalQuota: Long = 0L,
                     val allocGroups: ArrayList<AllocGroup> = ArrayList(),
+                    var retiredUsage: Long = 0L,
+                    var retiredCombinedUsage: Long = 0L,
+                    var totalAllocated: Long = 0L,
+                    var totalRetiredAllocation: Long = 0L,
+                    var wasLocked: Boolean = false,
                 )
 
                 val samples = HashMap<Int, Sample>()
@@ -616,6 +678,10 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         walletId = walletId,
                         localUsage = wallet.localUsage,
                         excessUsage = wallet.excessUsage,
+                        retiredUsage = wallet.localRetiredUsage,
+                        totalAllocated = wallet.totalAllocated,
+                        totalRetiredAllocation = wallet.totalRetiredAllocated,
+                        wasLocked = wallet.wasLocked,
                     )
 
                     wallet.allocationsByParent.forEach { (parentWalletId, group) ->
@@ -632,12 +698,14 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                             AllocGroup(
                                 group.id,
                                 group.treeUsage,
+                                group.retiredTreeUsage,
                                 quota
                             )
                         )
                     }
 
                     sample.combinedTreeUsage = sample.allocGroups.sumOf { it.treeUsage }
+                    sample.retiredCombinedUsage = sample.allocGroups.sumOf { it.retiredTreeUsage }
                     sample.totalQuota = sample.allocGroups.sumOf { it.quota }
                     samples[walletId] = sample
                 }
@@ -655,12 +723,21 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                             val allocGroupIds = ArrayList<Int>().also { setParameter("group_ids", it) }
                             val allocGroupQuotas = ArrayList<Long>().also { setParameter("group_quotas", it) }
                             val allocGroupTreeUsages = ArrayList<Long>().also { setParameter("group_usages", it) }
+                            val allocGroupRetiredTreeUsages = ArrayList<Long>().also { setParameter("group_retired_tree_usages", it) }
+
+                            val retiredUsages = ArrayList<Long>().also { setParameter("retired_usages", it) }
+                            val combinedRetiredTreeUsages = ArrayList<Long>().also { setParameter("combined_retired_tree_usages", it) }
+                            val totalAllocations = ArrayList<Long>().also { setParameter("total_allocations", it) }
+                            val totalRetiredAllocations = ArrayList<Long>().also { setParameter("total_retired_allocations", it) }
+                            val locks = ArrayList<Boolean>().also { setParameter("wallet_locks", it) }
+
 
                             for ((walletId, sample) in chunk) {
                                 for (group in sample.allocGroups) {
                                     allocGroupIds.add(group.allocGroupId)
                                     allocGroupQuotas.add(group.quota)
                                     allocGroupTreeUsages.add(group.treeUsage)
+                                    allocGroupRetiredTreeUsages.add(group.retiredTreeUsage)
                                 }
 
                                 walletIds.add(walletId)
@@ -668,24 +745,30 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                                 excessUsages.add(sample.excessUsage)
                                 combinedTreeUsages.add(sample.combinedTreeUsage)
                                 totalQuota.add(sample.totalQuota)
+                                retiredUsages.add(sample.retiredUsage)
+                                combinedRetiredTreeUsages.add(sample.retiredCombinedUsage)
+                                totalAllocations.add(sample.totalAllocated)
+                                totalRetiredAllocations.add(sample.totalRetiredAllocation)
+                                locks.add(sample.wasLocked)
                             }
                         },
                         """
-                            with 
+                            with
                                 alloc_groups as (
                                     select
                                         unnest(:wallet_ids::int[]) as wallet_id,
                                         unnest(:group_ids::int[]) as group_id,
                                         unnest(:group_quotas::int8[]) as group_quota,
-                                        unnest(:group_usages::int8[]) as group_usage
-
+                                        unnest(:group_usages::int8[]) as group_usage,
+                                        unnest(:group_retired_tree_usages::int8[]) as group_retired_tree_usage
                                 ),
                                 aggregated_groups as (
                                     select
                                         wallet_id,
                                         array_agg(group_id) as group_ids,
                                         array_agg(group_quota) as quotas,
-                                        array_agg(group_usage) as usages
+                                        array_agg(group_usage) as usages,
+                                        array_agg(group_retired_tree_usage) as retired_usages
                                     from alloc_groups
                                     group by wallet_id
                                 ),
@@ -695,24 +778,33 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                                         unnest(:local_usages::int8[]) as local_usage,
                                         unnest(:excess_usages::int8[]) as excess_usage,
                                         unnest(:combined_tree_usages::int8[]) as tree_usage,
-                                        unnest(:total_quotas::int8[]) as quota        
+                                        unnest(:total_quotas::int8[]) as quota        ,
+                                        unnest(:total_allocations::int8[]) as total_allocation,
+                                        unnest(:total_retired_allocations::int8[]) as total_retired_allocation,
+                                        unnest(:combined_retired_tree_usages::int8[]) as combined_retired_tree_usage,
+                                        unnest(:retired_usages::int8[]) as retired_usage,
+                                        unnest(:wallet_locks::bool[]) as was_locked
                                 ),
                                 combined as (
                                     select
                                         to_timestamp(:now / 1000.0) t, w.wallet_id, w.local_usage, w.excess_usage, w.tree_usage, w.quota,
+                                        w.total_allocation, w.total_retired_allocation, w.combined_retired_tree_usage, w.retired_usage, w.was_locked,
                                         coalesce(gr.group_ids, array[]::int4[]) as gr_id,
                                         coalesce(gr.quotas, array[]::int8[]) as gr_quota,
-                                        coalesce(gr.usages, array[]::int8[]) as gr_usage
+                                        coalesce(gr.usages, array[]::int8[]) as gr_usage,
+                                        coalesce(gr.retired_usages, array[]::int8[]) as gr_retired_usage
                                     from
-                                        wallets w 
-                                        left join aggregated_groups gr on w.wallet_id = gr.wallet_id
+                                        wallets w
+                                            left join aggregated_groups gr on w.wallet_id = gr.wallet_id
                                 )
-                                insert into accounting.wallet_samples_v2
-                                    (sampled_at, wallet_id, quota, local_usage, excess_usage, tree_usage, 
-                                    group_ids, tree_usage_by_group, quota_by_group)
-                                select t, wallet_id, quota, local_usage, excess_usage, tree_usage,
-                                    gr_id, gr_usage, gr_quota
-                                from combined
+                            insert into accounting.wallet_samples_v2
+                                (sampled_at, wallet_id, quota, local_usage, excess_usage, tree_usage,
+                                 group_ids, tree_usage_by_group, quota_by_group, retried_tree_usage_by_group, retired_usage, retired_tree_usage, total_allocated,
+                                 total_retired_allocation, was_locked)
+                            select t, wallet_id, quota, local_usage, excess_usage, tree_usage,
+                                   gr_id, gr_usage, gr_quota, gr_retired_usage, retired_usage, combined_retired_tree_usage,
+                                   total_allocation, total_retired_allocation, was_locked
+                            from combined
                         """.trimIndent()
                     )
                 }
@@ -771,5 +863,9 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
         }
 
         nextSynchronization = now + 30_000
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

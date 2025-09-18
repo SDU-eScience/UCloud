@@ -3,11 +3,12 @@ package slurm
 import (
 	"net/http"
 	"os"
-	db "ucloud.dk/pkg/database"
+	"ucloud.dk/pkg/cli"
+	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/pkg/im/ipc"
-	orc "ucloud.dk/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/pkg/termio"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func HandleTasksCommand() {
@@ -25,7 +26,7 @@ func HandleTasksCommand() {
 	switch {
 	case command == "kill-all":
 		_, err := cliTasksKillAll.Invoke(util.EmptyValue)
-		cliHandleError("killing tasks", err)
+		cli.HandleError("killing tasks", err)
 		termio.WriteStyledLine(termio.Bold, termio.Green, 0, "OK")
 	}
 }

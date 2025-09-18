@@ -1562,7 +1562,21 @@ export interface ComputeSupport {
  *   used as a resource.
  *
  */
-export type AppParameterValue = AppParameterValueNS.File | AppParameterValueNS.Bool | AppParameterValueNS.Text | AppParameterValueNS.TextArea | AppParameterValueNS.Integer | AppParameterValueNS.FloatingPoint | AppParameterValueNS.Peer | AppParameterValueNS.License | AppParameterValueNS.BlockStorage | AppParameterValueNS.Network | AppParameterValueNS.Ingress | AppParameterValueNS.Workflow
+export type AppParameterValue =
+    | AppParameterValueNS.File
+    | AppParameterValueNS.Bool
+    | AppParameterValueNS.Text
+    | AppParameterValueNS.TextArea
+    | AppParameterValueNS.Integer
+    | AppParameterValueNS.FloatingPoint
+    | AppParameterValueNS.Peer
+    | AppParameterValueNS.License
+    | AppParameterValueNS.BlockStorage
+    | AppParameterValueNS.Network
+    | AppParameterValueNS.Ingress
+    | AppParameterValueNS.Workflow
+    | AppParameterValueNS.ModuleList
+    ;
 export interface SimpleDuration {
     hours: number /* int32 */,
     minutes: number /* int32 */,
@@ -1678,6 +1692,7 @@ export interface JobUpdate {
      */
     timestamp: number /* int64 */,
     state?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED" | "SUSPENDED"),
+    outputFolder?: string | null;
     /**
      * A generic text message describing the current status of the `Resource`
      */
@@ -2684,6 +2699,11 @@ export interface Ingress {
 export interface Workflow {
     type: ("workflow"),
     specification: WorkflowSpecification,
+}
+
+export interface ModuleList {
+    type: ("modules"),
+    modules: string[];
 }
 }
 export namespace NetworkIPSpecificationNS {
@@ -4690,6 +4710,7 @@ export interface IntegrationBrowseResponseItem {
     connected: boolean;
     providerTitle: string;
     requiresMessageSigning?: boolean;
+    unmanagedConnection?: boolean;
 }
 /**
  * The base type for requesting paginated content.

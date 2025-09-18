@@ -67,10 +67,9 @@ export function addStandardDialog({
         <div onClick={stopEventsFunc}>
             <div>
                 <Heading.h3>{title}</Heading.h3>
-                {title ? <Divider /> : null}
                 <div className={StandardDialogFlexClass}>{message}</div>
             </div>
-            <Flex mt="20px" style={{justifyContent: "end", gap: "8px"}}>
+            <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} mt="20px" background={"var(--dialogToolbar)"} gap={"8px"}>
                 <Button
                     onClick={validate}
                     color={confirmButtonColor}
@@ -87,6 +86,7 @@ const StandardDialogFlexClass = injectStyleSimple("standard-dialog-flex", `
     display: flex;
     flex-direction: column;
     min-height: 200px;
+    padding-top: 12px;
     overflow-y: auto;
 `);
 
@@ -193,7 +193,7 @@ export const NamingField: React.FunctionComponent<{
     confirmText: string;
     prefix?: string | null;
     suffix?: string | null;
-    inputRef: React.MutableRefObject<HTMLInputElement | null>;
+    inputRef: React.RefObject<HTMLInputElement | null>;
     onSubmit: (e: React.SyntheticEvent) => void;
     disabled?: boolean;
     defaultValue?: string;

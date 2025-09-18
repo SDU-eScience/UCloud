@@ -6,16 +6,17 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/user"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
-	db "ucloud.dk/pkg/database"
+	"ucloud.dk/pkg/cli"
 	slurmcli "ucloud.dk/pkg/im/external/slurm"
+	"ucloud.dk/pkg/im/external/user"
 	"ucloud.dk/pkg/im/ipc"
-	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/termio"
+	db "ucloud.dk/shared/pkg/database"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 )
 
 func HandleJobsCommand() {
@@ -31,12 +32,12 @@ func HandleJobsCommand() {
 	}
 
 	switch {
-	case isListCommand(command):
+	case cli.IsListCommand(command):
 		req := cliJobsListRequest{}
 		req.Parse()
 
 		jobs, err := cliJobsList.Invoke(req)
-		cliHandleError("listing jobs", err)
+		cli.HandleError("listing jobs", err)
 
 		t := termio.Table{}
 		t.AppendHeader("Submitted at")
@@ -47,7 +48,7 @@ func HandleJobsCommand() {
 		t.AppendHeader("Project (local)")
 
 		for _, job := range jobs {
-			t.Cell("%v", cliFormatTime(job.Job.CreatedAt))
+			t.Cell("%v", cli.FormatTime(job.Job.CreatedAt))
 			t.Cell("%v", job.Job.Id)
 			t.Cell("%v", job.SlurmId)
 			t.Cell("%v", job.Job.Status.State)
@@ -61,12 +62,12 @@ func HandleJobsCommand() {
 
 		t.Print()
 
-	case isGetCommand(command):
+	case cli.IsGetCommand(command):
 		req := cliJobsListRequest{IncludeSlurmStats: true}
 		req.Parse()
 
 		jobs, err := cliJobsList.Invoke(req)
-		cliHandleError("listing jobs", err)
+		cli.HandleError("listing jobs", err)
 
 		if len(jobs) > 1 {
 			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Query has returned more than one job. Please be more specific in your query.")
@@ -86,9 +87,9 @@ func HandleJobsCommand() {
 			f.AppendTitle("UCloud metadata")
 
 			f.AppendField("ID", job.Job.Id)
-			f.AppendField("Submitted at", cliFormatTime(job.Job.CreatedAt))
+			f.AppendField("Submitted at", cli.FormatTime(job.Job.CreatedAt))
 			if job.Job.Status.StartedAt.IsSet() {
-				f.AppendField("Started at", cliFormatTime(job.Job.Status.StartedAt.Value))
+				f.AppendField("Started at", cli.FormatTime(job.Job.Status.StartedAt.Value))
 			}
 			f.AppendField("Current state", string(job.Job.Status.State))
 			if job.SlurmJob != nil && job.SlurmJob.State == "FAILED" && job.Job.Status.State == orc.JobStateSuccess {
@@ -217,7 +218,7 @@ func HandleJobsCommand() {
 		f.Print()
 		termio.WriteLine("")
 
-	case isAddCommand(command):
+	case cli.IsAddCommand(command):
 		termio.WriteStyledLine(
 			termio.Bold,
 			termio.Red,
@@ -250,7 +251,7 @@ func HandleJobsCommandServer() {
 			partitionRegex *regexp.Regexp
 		)
 
-		err := cliValidateRegexes(
+		err := cli.ValidateRegexes(
 			&stateRegex, "state", r.Payload.State,
 			&ucloudIdRegex, "ucloud-id", r.Payload.UCloudId,
 			&slurmIdRegex, "slurm-id", r.Payload.SlurmId,

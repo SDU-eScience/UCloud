@@ -6,17 +6,20 @@ import (
 	"encoding/json"
 	"fmt"
 	ws "github.com/gorilla/websocket"
+	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
-	"ucloud.dk/pkg/apm"
-	"ucloud.dk/pkg/client"
-	db "ucloud.dk/pkg/database"
-	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/apm"
+	"ucloud.dk/shared/pkg/client"
+	db "ucloud.dk/shared/pkg/database"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var ApmHandler ApmService
@@ -31,7 +34,7 @@ func initEvents() {
 	getLastKnownProjectIpc.Handler(func(r *ipc.Request[string]) ipc.Response[apm.Project] {
 		projectId := r.Payload
 		if BelongsToWorkspace(apm.WalletOwnerProject(projectId), r.Uid) {
-			project, ok := GetLastKnownProject(projectId)
+			project, ok := RetrieveProject(projectId)
 			if ok {
 				return ipc.Response[apm.Project]{
 					StatusCode: http.StatusOK,
@@ -117,7 +120,7 @@ func handleNotification(nType NotificationMessageType, notification any) {
 
 		if LaunchUserInstances {
 			if update.Owner.Type == apm.WalletOwnerTypeUser {
-				_, ok := MapUCloudToLocal(update.Owner.Username)
+				_, ok, _ := MapUCloudToLocal(update.Owner.Username)
 				if ok {
 					walletHandler(update)
 				} else {
@@ -127,6 +130,8 @@ func handleNotification(nType NotificationMessageType, notification any) {
 			} else {
 				walletHandler(update)
 			}
+		} else {
+			walletHandler(update)
 		}
 
 		if success {
@@ -136,35 +141,41 @@ func handleNotification(nType NotificationMessageType, notification any) {
 	case NotificationMessageProjectUpdated:
 		update := notification.(*NotificationProjectUpdated)
 
-		before, _ := GetLastKnownProject(update.Project.Id)
+		before, _ := RetrieveProject(update.Project.Id)
 		update.ProjectComparison = compareProjects(before, update.Project)
 
 		if projectHandler(update) {
 			project := update.Project
-			realMembers := project.Status.Members
-			var usernames []string
-			for _, member := range realMembers {
-				usernames = append(usernames, member.Username)
-			}
 
-			var knownMembers []apm.ProjectMember
-			mappedUsers := MapUCloudUsersToLocalUsers(usernames)
-			for _, member := range realMembers {
-				_, ok := mappedUsers[member.Username]
-				if !ok {
-					continue
+			if LaunchUserInstances {
+				realMembers := project.Status.Members
+				var usernames []string
+				for _, member := range realMembers {
+					usernames = append(usernames, member.Username)
 				}
 
-				knownMembers = append(knownMembers, member)
+				var knownMembers []apm.ProjectMember
+				mappedUsers := MapUCloudUsersToLocalUsers(usernames)
+				for _, member := range realMembers {
+					_, ok := mappedUsers[member.Username]
+					if !ok {
+						continue
+					}
+
+					knownMembers = append(knownMembers, member)
+				}
+
+				project.Status.Members = knownMembers
 			}
 
-			project.Status.Members = knownMembers
 			saveLastKnownProject(project)
 
-			for _, newMember := range update.ProjectComparison.MembersAddedToProject {
-				uid, ok := MapUCloudToLocal(newMember)
-				if ok {
-					RequestUserTermination(uid)
+			if LaunchUserInstances {
+				for _, newMember := range update.ProjectComparison.MembersAddedToProject {
+					uid, ok, _ := MapUCloudToLocal(newMember)
+					if ok {
+						RequestUserTermination(uid)
+					}
 				}
 			}
 		}
@@ -203,6 +214,10 @@ const (
 	OpReplayUser   uint8 = 5
 )
 
+const (
+	apmIncludeRetired uint64 = 1 << iota
+)
+
 func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom int64) {
 	defer util.SilentClose(session)
 
@@ -213,7 +228,7 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom i
 	writeBuf := buf{}
 	writeBuf.PutU8(OpAuth)
 	writeBuf.PutU64(uint64(replayFrom))
-	writeBuf.PutU64(0) // flags (unused)
+	writeBuf.PutU64(apmIncludeRetired) // flags
 	writeBuf.PutString(client.DefaultClient.RetrieveAccessTokenOrRefresh())
 
 	_ = session.WriteMessage(ws.TextMessage, writeBuf.Bytes())
@@ -251,23 +266,41 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom i
 					combinedQuota := readBuf.GetU64()
 					flags := readBuf.GetU32()
 					lastUpdate := readBuf.GetU64()
+					localRetiredUsage := readBuf.GetU64()
+
+					category, ok := products[categoryRef]
+					if !ok || category.Name == "" {
+						log.Error("Received an APM event with invalid product reference. Refusing to handle this event!")
+						return
+					}
 
 					isLocked := (flags & 0x1) != 0
 					isProject := (flags & 0x2) != 0
 
 					notification := NotificationWalletUpdated{
-						CombinedQuota: combinedQuota,
-						LastUpdate:    fnd.TimeFromUnixMilli(lastUpdate),
-						Locked:        isLocked,
-						Category:      products[categoryRef],
+						CombinedQuota:     combinedQuota,
+						LastUpdate:        fnd.TimeFromUnixMilli(lastUpdate),
+						Locked:            isLocked,
+						Category:          category,
+						LocalRetiredUsage: localRetiredUsage,
 					}
 
 					if isProject {
 						notification.Owner.Type = apm.WalletOwnerTypeProject
 						notification.Owner.ProjectId = projects[workspaceRef].Id
-						notification.Project.Set(projects[workspaceRef])
+						projectInfo, ok := projects[workspaceRef]
+						if !ok || projectInfo.Id == "" {
+							log.Error("Received an APM event with invalid project reference. Refusing to handle this event!")
+							return
+						}
+						notification.Project.Set(projectInfo)
 					} else {
 						notification.Owner.Type = apm.WalletOwnerTypeUser
+						userInfo, ok := users[workspaceRef]
+						if !ok || userInfo == "" {
+							log.Error("Received an APM event with an invalid user reference. Refusing to handle this event!")
+							return
+						}
 						notification.Owner.Username = users[workspaceRef]
 					}
 
@@ -331,12 +364,13 @@ const (
 )
 
 type NotificationWalletUpdated struct {
-	Owner         apm.WalletOwner
-	Category      apm.ProductCategory
-	CombinedQuota uint64
-	Locked        bool
-	LastUpdate    fnd.Timestamp
-	Project       util.Option[apm.Project]
+	Owner             apm.WalletOwner
+	Category          apm.ProductCategory
+	CombinedQuota     uint64
+	Locked            bool
+	LastUpdate        fnd.Timestamp
+	Project           util.Option[apm.Project]
+	LocalRetiredUsage uint64
 }
 
 type NotificationProjectUpdated struct {
@@ -478,6 +512,8 @@ func (b *buf) GetString() string {
 }
 
 func saveLastKnownProject(project apm.Project) {
+	projectCacheServerOnly.Add(project.Id, project)
+
 	data, _ := json.Marshal(project)
 
 	db.NewTx0(func(tx *db.Transaction) {
@@ -499,35 +535,42 @@ func saveLastKnownProject(project apm.Project) {
 }
 
 var getLastKnownProjectIpc = ipc.NewCall[string, apm.Project]("event.getlastknownproject")
+var projectCacheServerOnly = lru.NewLRU[string, apm.Project](1024, nil, 10*time.Minute)
 
-func GetLastKnownProject(projectId string) (apm.Project, bool) {
+func RetrieveProject(projectId string) (apm.Project, bool) {
 	if RunsServerCode() {
-		jsonData, ok := db.NewTx2[string, bool](func(tx *db.Transaction) (string, bool) {
-			jsonData, ok := db.Get[struct{ UCloudProject string }](
-				tx,
-				`
-				select ucloud_project
-				from tracked_projects
-				where project_id = :project_id
-			`,
-				db.Params{
-					"project_id": projectId,
-				},
-			)
-			return jsonData.UCloudProject, ok
-		})
-
+		result, ok := projectCacheServerOnly.Get(projectId)
 		if !ok {
-			return apm.Project{}, false
-		}
+			jsonData, ok := db.NewTx2[string, bool](func(tx *db.Transaction) (string, bool) {
+				jsonData, ok := db.Get[struct{ UCloudProject string }](
+					tx,
+					`
+					select ucloud_project
+					from tracked_projects
+					where project_id = :project_id
+				`,
+					db.Params{
+						"project_id": projectId,
+					},
+				)
+				return jsonData.UCloudProject, ok
+			})
 
-		var result apm.Project
-		err := json.Unmarshal([]byte(jsonData), &result)
-		if err != nil {
-			log.Warn("Could not unmarshal last known project %v -> %v", projectId, jsonData)
-			return apm.Project{}, false
+			if !ok {
+				return apm.Project{}, false
+			}
+
+			var result apm.Project
+			err := json.Unmarshal([]byte(jsonData), &result)
+			if err != nil {
+				log.Warn("Could not unmarshal last known project %v -> %v", projectId, jsonData)
+				return apm.Project{}, false
+			}
+			projectCacheServerOnly.Add(projectId, result)
+			return result, true
+		} else {
+			return result, true
 		}
-		return result, true
 	} else {
 		project, err := getLastKnownProjectIpc.Invoke(projectId)
 		if err != nil {
@@ -538,7 +581,7 @@ func GetLastKnownProject(projectId string) (apm.Project, bool) {
 }
 
 func BelongsToWorkspace(workspace apm.WalletOwner, uid uint32) bool {
-	ucloudUser, ok := MapLocalToUCloud(uid)
+	ucloudUser, ok, _ := MapLocalToUCloud(uid)
 	if !ok {
 		return false
 	}
@@ -546,7 +589,7 @@ func BelongsToWorkspace(workspace apm.WalletOwner, uid uint32) bool {
 	if workspace.Type == apm.WalletOwnerTypeUser {
 		return ucloudUser == workspace.Username
 	} else {
-		project, ok := GetLastKnownProject(workspace.ProjectId)
+		project, ok := RetrieveProject(workspace.ProjectId)
 		if !ok {
 			return false
 		}
@@ -610,32 +653,40 @@ func compareProjects(before apm.Project, after apm.Project) ProjectComparison {
 }
 
 type TrackedAllocation struct {
-	Owner         apm.WalletOwner
-	Category      string
-	CombinedQuota uint64
-	Locked        bool
-	LastUpdate    fnd.Timestamp
+	Owner             apm.WalletOwner
+	Category          string
+	CombinedQuota     uint64
+	Locked            bool
+	LastUpdate        fnd.Timestamp
+	LocalRetiredUsage uint64
 }
 
 func trackAllocation(update *NotificationWalletUpdated) {
+	cacheKey := lockedCacheKey{Owner: update.Owner, Category: update.Category.Name}
+	isLockedCacheMutex.Lock()
+	isLockedCache[cacheKey] = update.Locked
+	isLockedCacheMutex.Unlock()
+
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
 				insert into tracked_allocations(owner_username, owner_project, category, combined_quota,
-					locked, last_update)
-				values (:owner_username, :owner_project, :category, :combined_quota, :locked, now())
+					locked, last_update, local_retired_usage)
+				values (:owner_username, :owner_project, :category, :combined_quota, :locked, now(), :local_retired_usage)
 				on conflict(category, owner_username, owner_project) do update set
 					combined_quota = excluded.combined_quota,
 					locked = excluded.locked,
-					last_update = excluded.last_update
+					last_update = excluded.last_update,
+					local_retired_usage = excluded.local_retired_usage
 			`,
 			db.Params{
-				"owner_username": update.Owner.Username,
-				"owner_project":  update.Owner.ProjectId,
-				"category":       update.Category.Name,
-				"combined_quota": update.CombinedQuota,
-				"locked":         update.Locked,
+				"owner_username":      update.Owner.Username,
+				"owner_project":       update.Owner.ProjectId,
+				"category":            update.Category.Name,
+				"combined_quota":      update.CombinedQuota,
+				"locked":              update.Locked,
+				"local_retired_usage": update.LocalRetiredUsage,
 			},
 		)
 	})
@@ -645,12 +696,13 @@ func FindAllAllocations(categoryName string) []TrackedAllocation {
 	return db.NewTx[[]TrackedAllocation](func(tx *db.Transaction) []TrackedAllocation {
 		var result []TrackedAllocation
 		rows := db.Select[struct {
-			OwnerUsername string
-			OwnerProject  string
-			Category      string
-			CombinedQuota uint64
-			LastUpdate    time.Time
-			Locked        bool
+			OwnerUsername     string
+			OwnerProject      string
+			Category          string
+			CombinedQuota     uint64
+			LastUpdate        time.Time
+			Locked            bool
+			LocalRetiredUsage uint64
 		}](
 			tx,
 			`
@@ -666,14 +718,72 @@ func FindAllAllocations(categoryName string) []TrackedAllocation {
 
 		for _, row := range rows {
 			result = append(result, TrackedAllocation{
-				Owner:         apm.WalletOwnerFromIds(row.OwnerUsername, row.OwnerProject),
-				Category:      row.Category,
-				CombinedQuota: row.CombinedQuota,
-				Locked:        row.Locked,
-				LastUpdate:    fnd.Timestamp(row.LastUpdate),
+				Owner:             apm.WalletOwnerFromIds(row.OwnerUsername, row.OwnerProject),
+				Category:          row.Category,
+				CombinedQuota:     row.CombinedQuota,
+				Locked:            row.Locked,
+				LastUpdate:        fnd.Timestamp(row.LastUpdate),
+				LocalRetiredUsage: row.LocalRetiredUsage,
 			})
 		}
 
 		return result
 	})
+}
+
+type lockedCacheKey struct {
+	Owner    apm.WalletOwner
+	Category string
+}
+
+var isLockedCache = map[lockedCacheKey]bool{}
+var isLockedCacheMutex = sync.Mutex{}
+
+func IsLocked(owner apm.WalletOwner, category string) bool {
+	if RunsServerCode() {
+		cacheKey := lockedCacheKey{Owner: owner, Category: category}
+		isLockedCacheMutex.Lock()
+		locked, isCached := isLockedCache[cacheKey]
+		isLockedCacheMutex.Unlock()
+
+		if isCached {
+			return locked
+		}
+
+		locked = db.NewTx[bool](func(tx *db.Transaction) bool {
+			row, ok := db.Get[struct{ Locked bool }](
+				tx,
+				`
+					select a.locked
+					from tracked_allocations a
+					where
+						a.category = :category
+						and a.owner_project = :project
+						and a.owner_username = :username
+				`,
+				db.Params{
+					"username": owner.Username,
+					"project":  owner.ProjectId,
+					"category": category,
+				},
+			)
+
+			if !ok {
+				return false
+			} else {
+				return row.Locked
+			}
+		})
+
+		isLockedCacheMutex.Lock()
+		isLockedCache[cacheKey] = locked
+		isLockedCacheMutex.Unlock()
+		return locked
+	} else {
+		panic("IsLocked is only implemented for server mode")
+	}
+}
+
+func IsResourceLocked(resource orc.Resource, ref apm.ProductReference) bool {
+	return IsLocked(apm.WalletOwnerFromIds(resource.Owner.CreatedBy, resource.Owner.Project), ref.Category)
 }

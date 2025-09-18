@@ -73,14 +73,14 @@ abstract class ResourceService<
 
     protected open val resourceType: String by lazy {
         runBlocking {
-            db.withSession { session ->
+            db.withSession(reason = "resourcestore resource type") { session ->
                 table.verify({ session }).substringAfterLast('.').removePluralSuffix()
             }
         }
     }
     protected open val sqlJsonConverter: SqlObject.Function by lazy {
         runBlocking {
-            db.withSession { session ->
+            db.withSession(reason = "resourceservice sql json convert") { session ->
                 SqlObject.Function(table.verify({ session }).removePluralSuffix() + "_to_json")
             }
         }
@@ -194,7 +194,7 @@ abstract class ResourceService<
         )
 
         @Suppress("SqlResolve")
-        val rows = (ctx ?: db).withSession { session ->
+        val rows = (ctx ?: db).withSession(reason = "resourceservice retrievebulk") { session ->
             when (browseStrategy) {
                 ResourceBrowseStrategy.OLD -> {
                     session.sendPreparedStatement(
@@ -316,7 +316,7 @@ abstract class ResourceService<
 
     private suspend fun verifyCreationInProject(actorAndProject: ActorAndProject, ctx: DBContext? = null, isCoreResource: Boolean = false) {
         if (actorAndProject.project == null) return
-        (ctx ?: db).withSession { session ->
+        (ctx ?: db).withSession(reason = "verify creation in project") { session ->
             val row = session
                 .sendPreparedStatement(
                     {
@@ -401,7 +401,7 @@ abstract class ResourceService<
                     actorAndProject: ActorAndProject,
                     request: BulkRequest<Spec>
                 ): List<RequestWithRefOrResource<Spec, Res>> {
-                    (ctx as? AsyncDBConnection ?: db).withSession { session ->
+                    (ctx as? AsyncDBConnection ?: db).withSession(reason = "resourceservice create 1") { session ->
                         verifyCreationInProject(
                             actorAndProject,
                             session,
@@ -420,7 +420,7 @@ abstract class ResourceService<
                     provider: String,
                     resources: List<RequestWithRefOrResource<Spec, Res>>
                 ): BulkRequest<Res> {
-                    return (ctx as? AsyncDBConnection ?: db).withSession(remapExceptions = true) { session ->
+                    return (ctx as? AsyncDBConnection ?: db).withSession(reason = "resourceservice create 2", remapExceptions = true) { session ->
                         if (!isCoreResource) {
                             val project = resolvedActorAndProject.project
                             payment.creditCheck(
@@ -499,7 +499,7 @@ abstract class ResourceService<
                                 if (requireAdminForCreate) listOf(Permission.ADMIN) else listOf(Permission.EDIT),
                                 ctx = session,
                                 includeUnconfirmed = true,
-                                simpleFlags = SimpleResourceIncludeFlags(includeSupport = true)
+                                simpleFlags = SimpleResourceIncludeFlags(includeSupport = true, includeOthers = true)
                             )
                         )
                     }
@@ -514,7 +514,7 @@ abstract class ResourceService<
                         throw RPCException("Provider generated ID cannot contain ','", HttpStatusCode.BadGateway)
                     }
 
-                    (ctx as? AsyncDBConnection ?: db).withSession { session ->
+                    (ctx as? AsyncDBConnection ?: db).withSession(reason = "resourceservice cerate 3") { session ->
                         session
                             .sendPreparedStatement(
                                 {
@@ -580,137 +580,147 @@ abstract class ResourceService<
         // Empty by default
     }
 
+    suspend fun updateAclWithSession(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<UpdatedAcl>,
+        session: DBTransaction,
+        bypassSupportCheck: Boolean = false,
+    ): BulkResponse<Unit?> {
+        val resolvedActorAndProject =
+            if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
+
+        return proxy.bulkProxy(
+            resolvedActorAndProject,
+            request,
+            object : BulkProxyInstructions<Comms, Support, Res, UpdatedAcl,
+                    BulkRequest<UpdatedAclWithResource<Res>>, Unit>() {
+                override val isUserRequest: Boolean = true
+
+                override fun retrieveCall(comms: Comms) = providerApi(comms).updateAcl
+
+                override suspend fun verifyAndFetchResources(
+                    actorAndProject: ActorAndProject,
+                    request: BulkRequest<UpdatedAcl>
+                ): List<RequestWithRefOrResource<UpdatedAcl, Res>> {
+                    return request.items.zip(
+                        retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.ADMIN), simpleFlags = SimpleResourceIncludeFlags(includeOthers = true))
+                            .map { ProductRefOrResource.SomeResource(it) }
+                    )
+                }
+
+                override suspend fun verifyRequest(
+                    request: UpdatedAcl,
+                    res: ProductRefOrResource<Res>,
+                    support: Support
+                ) {
+                    if (bypassSupportCheck) return
+                    return verifyProviderSupportsUpdateAcl(request, res, support)
+                }
+
+                override suspend fun beforeCall(
+                    provider: String,
+                    resources: List<RequestWithRefOrResource<UpdatedAcl, Res>>
+                ): BulkRequest<UpdatedAclWithResource<Res>> {
+                    db.openTransaction(session)
+                    resources.forEach { (acl) ->
+                        session
+                            .sendPreparedStatement(
+                                {
+                                    setParameter("id", acl.id.toLongOrNull() ?: error("Logic error"))
+
+                                    val toAddGroups = ArrayList<String?>()
+                                    val toAddUsers = ArrayList<String?>()
+                                    val toAddPermissions = ArrayList<String>()
+                                    acl.added.forEach { entityAndPermissions ->
+                                        entityAndPermissions.permissions.forEach p@{
+                                            if (!it.canBeGranted) return@p
+
+                                            when (val entity = entityAndPermissions.entity) {
+                                                is AclEntity.ProjectGroup -> {
+                                                    toAddGroups.add(entity.group)
+                                                    toAddUsers.add(null)
+                                                }
+                                                is AclEntity.User -> {
+                                                    toAddGroups.add(null)
+                                                    toAddUsers.add(entity.username)
+                                                }
+                                            }
+                                            toAddPermissions.add(it.name)
+                                        }
+                                    }
+
+                                    setParameter("to_add_groups", toAddGroups)
+                                    setParameter("to_add_users", toAddUsers)
+                                    setParameter("to_add_users", toAddUsers)
+                                    setParameter("to_add_permissions", toAddPermissions)
+
+                                    val toRemoveGroups = ArrayList<String?>()
+                                    val toRemoveUsers = ArrayList<String?>()
+                                    acl.deleted.forEach { entity ->
+                                        when (entity) {
+                                            is AclEntity.ProjectGroup -> {
+                                                toRemoveGroups.add(entity.group)
+                                                toRemoveUsers.add(null)
+                                            }
+
+                                            is AclEntity.User -> {
+                                                toRemoveGroups.add(null)
+                                                toRemoveUsers.add(entity.username)
+                                            }
+                                        }
+                                    }
+
+                                    setParameter("to_remove_groups", toRemoveGroups)
+                                    setParameter("to_remove_users", toRemoveUsers)
+                                },
+                                """
+                                        select provider.update_acl(:id, :to_add_groups, :to_add_users, 
+                                            :to_add_permissions, :to_remove_groups, :to_remove_users)
+                                    """,
+                                "${this::class.simpleName} updateAcl"
+                            )
+                    }
+
+                    val bulkRequest = BulkRequest(resources.map {
+                        UpdatedAclWithResource(
+                            (it.second as ProductRefOrResource.SomeResource<Res>).resource,
+                            it.first.added,
+                            it.first.deleted
+                        )
+                    })
+
+                    onUpdateAcl(session, bulkRequest)
+
+                    return bulkRequest
+                }
+
+                override suspend fun afterCall(
+                    provider: String,
+                    resources: List<RequestWithRefOrResource<UpdatedAcl, Res>>,
+                    response: BulkResponse<Unit?>
+                ) {
+                    db.commit(session)
+                }
+
+                override suspend fun onFailure(
+                    provider: String,
+                    resources: List<RequestWithRefOrResource<UpdatedAcl, Res>>,
+                    cause: Throwable,
+                    mappedRequestIfAny: BulkRequest<UpdatedAclWithResource<Res>>?
+                ) {
+                    db.rollback(session)
+                }
+            }
+        )
+    }
+
     override suspend fun updateAcl(
         actorAndProject: ActorAndProject,
         request: BulkRequest<UpdatedAcl>
     ): BulkResponse<Unit?> {
-        val resolvedActorAndProject =
-            if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
         val session = db.openSession()
         return try {
-            proxy.bulkProxy(
-                resolvedActorAndProject,
-                request,
-                object : BulkProxyInstructions<Comms, Support, Res, UpdatedAcl,
-                        BulkRequest<UpdatedAclWithResource<Res>>, Unit>() {
-                    override val isUserRequest: Boolean = true
-
-                    override fun retrieveCall(comms: Comms) = providerApi(comms).updateAcl
-
-                    override suspend fun verifyAndFetchResources(
-                        actorAndProject: ActorAndProject,
-                        request: BulkRequest<UpdatedAcl>
-                    ): List<RequestWithRefOrResource<UpdatedAcl, Res>> {
-                        return request.items.zip(
-                            retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.ADMIN))
-                                .map { ProductRefOrResource.SomeResource(it) }
-                        )
-                    }
-
-                    override suspend fun verifyRequest(
-                        request: UpdatedAcl,
-                        res: ProductRefOrResource<Res>,
-                        support: Support
-                    ) {
-                        return verifyProviderSupportsUpdateAcl(request, res, support)
-                    }
-
-                    override suspend fun beforeCall(
-                        provider: String,
-                        resources: List<RequestWithRefOrResource<UpdatedAcl, Res>>
-                    ): BulkRequest<UpdatedAclWithResource<Res>> {
-                        db.openTransaction(session)
-                        resources.forEach { (acl) ->
-                            session
-                                .sendPreparedStatement(
-                                    {
-                                        setParameter("id", acl.id.toLongOrNull() ?: error("Logic error"))
-
-                                        val toAddGroups = ArrayList<String?>()
-                                        val toAddUsers = ArrayList<String?>()
-                                        val toAddPermissions = ArrayList<String>()
-                                        acl.added.forEach { entityAndPermissions ->
-                                            entityAndPermissions.permissions.forEach p@{
-                                                if (!it.canBeGranted) return@p
-
-                                                when (val entity = entityAndPermissions.entity) {
-                                                    is AclEntity.ProjectGroup -> {
-                                                        toAddGroups.add(entity.group)
-                                                        toAddUsers.add(null)
-                                                    }
-                                                    is AclEntity.User -> {
-                                                        toAddGroups.add(null)
-                                                        toAddUsers.add(entity.username)
-                                                    }
-                                                }
-                                                toAddPermissions.add(it.name)
-                                            }
-                                        }
-
-                                        setParameter("to_add_groups", toAddGroups)
-                                        setParameter("to_add_users", toAddUsers)
-                                        setParameter("to_add_users", toAddUsers)
-                                        setParameter("to_add_permissions", toAddPermissions)
-
-                                        val toRemoveGroups = ArrayList<String?>()
-                                        val toRemoveUsers = ArrayList<String?>()
-                                        acl.deleted.forEach { entity ->
-                                            when (entity) {
-                                                is AclEntity.ProjectGroup -> {
-                                                    toRemoveGroups.add(entity.group)
-                                                    toRemoveUsers.add(null)
-                                                }
-
-                                                is AclEntity.User -> {
-                                                    toRemoveGroups.add(null)
-                                                    toRemoveUsers.add(entity.username)
-                                                }
-                                            }
-                                        }
-
-                                        setParameter("to_remove_groups", toRemoveGroups)
-                                        setParameter("to_remove_users", toRemoveUsers)
-                                    },
-                                    """
-                                        select provider.update_acl(:id, :to_add_groups, :to_add_users, 
-                                            :to_add_permissions, :to_remove_groups, :to_remove_users)
-                                    """,
-                                    "${this::class.simpleName} updateAcl"
-                                )
-                        }
-
-                        val bulkRequest = BulkRequest(resources.map {
-                            UpdatedAclWithResource(
-                                (it.second as ProductRefOrResource.SomeResource<Res>).resource,
-                                it.first.added,
-                                it.first.deleted
-                            )
-                        })
-
-                        onUpdateAcl(session, bulkRequest)
-
-                        return bulkRequest
-                    }
-
-                    override suspend fun afterCall(
-                        provider: String,
-                        resources: List<RequestWithRefOrResource<UpdatedAcl, Res>>,
-                        response: BulkResponse<Unit?>
-                    ) {
-                        db.commit(session)
-                    }
-
-                    override suspend fun onFailure(
-                        provider: String,
-                        resources: List<RequestWithRefOrResource<UpdatedAcl, Res>>,
-                        cause: Throwable,
-                        mappedRequestIfAny: BulkRequest<UpdatedAclWithResource<Res>>?
-                    ) {
-                        db.rollback(session)
-                    }
-
-                }
-            )
+            updateAclWithSession(actorAndProject, request, session)
         } finally {
             db.closeSession(session)
         }
@@ -783,7 +793,7 @@ abstract class ResourceService<
                         request: BulkRequest<FindByStringId>
                     ): List<RequestWithRefOrResource<FindByStringId, Res>> {
                         return request.items.zip(
-                            retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.EDIT))
+                            retrieveBulk(actorAndProject, request.items.map { it.id }, listOf(Permission.EDIT), simpleFlags = SimpleResourceIncludeFlags(includeOthers = true))
                                 .map { ProductRefOrResource.SomeResource(it) }
                         )
                     }
@@ -851,7 +861,7 @@ abstract class ResourceService<
     ) {
         val resolvedActorAndProject =
             if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
-        db.withSession { session ->
+        db.withSession(reason = "resourceservice addupdate") { session ->
             val ids = updates.items.asSequence().map { it.id }.toSet()
             val resources = retrieveBulk(
                 resolvedActorAndProject,
@@ -917,7 +927,7 @@ abstract class ResourceService<
             throw RPCException("Provider generated ID cannot contain ','", HttpStatusCode.BadRequest)
         }
 
-        return BulkResponse(db.withSession(remapExceptions = true) { session ->
+        return BulkResponse(db.withSession(reason = "resourceservice register", remapExceptions = true) { session ->
             val generatedIds = session
                 .sendPreparedStatement(
                     {
@@ -1044,7 +1054,7 @@ abstract class ResourceService<
             actorAndProject.actor.safeUsername(),
             if (personalResource) null else actorAndProject.project
         )
-        val relevantProviders = findRelevantProviders(actorAndProject)
+        val relevantProviders = findRelevantProviders(actorAndProject, includeFreeToUse = true)
         relevantProviders.forEach { provider ->
             val comms = providers.prepareCommunication(provider)
             val api = providerApi(comms)
@@ -1077,12 +1087,13 @@ abstract class ResourceService<
     }
 
     override suspend fun retrieveProducts(actorAndProject: ActorAndProject): SupportByProvider<Prod, Support> {
-        val relevantProviders = findRelevantProviders(actorAndProject)
+        val relevantProviders = findRelevantProviders(actorAndProject, includeFreeToUse = false)
         return SupportByProvider(support.retrieveProducts(relevantProviders))
     }
 
     suspend fun findRelevantProviders(
         actorAndProject: ActorAndProject,
+        includeFreeToUse: Boolean,
         useProject: Boolean = true,
         ctx: DBContext? = null,
     ): List<String> {
@@ -1094,6 +1105,7 @@ abstract class ResourceService<
                     actorAndProject.project,
                     useProject,
                     productArea,
+                    includeFreeToUse = includeFreeToUse,
                 )
             ),
             serviceClient
@@ -1721,7 +1733,7 @@ abstract class ResourceService<
             query = query
         )
 
-        val rows = (ctx ?: db).withSession { session ->
+        val rows = (ctx ?: db).withSession(reason = "resourceservice paginatedquery") { session ->
             when (browseStrategy) {
                 ResourceBrowseStrategy.OLD -> {
                     if (sortBy == "created_by") {

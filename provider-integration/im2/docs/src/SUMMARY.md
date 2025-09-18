@@ -1,13 +1,18 @@
 # Summary
 
+<!--
+
 [Welcome](./introduction.md)
 
 ---
 
+--->
+
+<!--
 # UCloud Overview
 
 - [Introduction](./overview/introduction.md)
-- [Project and Resource Managment](./overview/apm.md)
+- [Project and Resource Management](./overview/apm.md)
 - [Orchestration](./overview/orchestration.md)
 - [Glossary](./overview/glossary.md)
 
@@ -16,6 +21,7 @@
 - [Getting Started](./provider/getting-started.md)
 - [Sandbox Access](./provider/sandbox.md)
 - [Production Access](./provider/production.md)
+-->
 
 # UCloud/IM for Slurm-based HPC
 
@@ -29,13 +35,13 @@
   - [Built-in Applications](./slurm/built-in-apps.md)
   - [Interactive Jobs](./slurm/interactive-jobs.md)
   - [SSH Key Upload](./slurm/ssh-keys.md)
-  - [Licenses](./slurm/licenses.md)
 - [Reference](./slurm/reference.md)
     - [Configuration](./slurm/config-reference.md)
     - [CLI](./slurm/cli-reference.md)
 - [Appendix](./slurm/appendix.md)
-  - [Advanced Scheduling](./slurm/advanced_scheduling.md)
   - [Built-in Application Index](./slurm/built-in-app-index.md)
+
+<!--
 
 # UCloud/IM for Kubernetes
 
@@ -59,6 +65,8 @@
 - [Metrics and Alerts](./ops/metrics.md)
 - [Resource Allocations](./ops/resource-allocation.md)
 
+-->
+<!--
 # Local Development
 
 - [The `launcher` Tool](./dev/launcher.md)
@@ -66,6 +74,5 @@
 - [Tutorials](./dev/tutorials.md)
     - [Slurm](./dev/slurm.md)
     - [Kubernetes](./dev/slurm.md)
-
+-->
 ---
-

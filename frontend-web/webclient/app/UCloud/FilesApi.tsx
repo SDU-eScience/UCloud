@@ -9,10 +9,10 @@ import {
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import FileCollectionsApi, {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {Button, Icon, Markdown, Select, Text, TextArea} from "@/ui-components";
+import {Box, Button, Card, ExternalLink, Flex, FtIcon, Icon, MainContainer, Markdown, Select, Text, TextArea, Truncate} from "@/ui-components";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
-import {fileName, getParentPath} from "@/Utilities/FileUtilities";
+import {fileName, getParentPath, readableUnixMode, sizeToString} from "@/Utilities/FileUtilities";
 import {
     bulkRequestOf,
     displayErrorMessageOrDefault,
@@ -32,7 +32,7 @@ import * as Heading from "@/ui-components/Heading";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
+import {PrettyFilePath, prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
 import {OpenWithBrowser} from "@/Applications/OpenWith";
 import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
@@ -45,14 +45,13 @@ import metadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api";
-import {useParams} from "react-router";
+import {Link, useNavigate, useParams} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
 import {classConcat, injectStyleSimple} from "@/Unstyled";
-import {usePage} from "@/Navigation/Redux";
 import fileType from "magic-bytes.js";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
@@ -71,12 +70,16 @@ import {
     UFileSpecification,
     UFileStatus
 } from "./UFile";
-import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
-import {Editor, EditorApi, Vfs, VirtualFile} from "@/Editor/Editor";
+import {allowEditing, Editor, EditorApi, Vfs} from "@/Editor/Editor";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {useDispatch} from "react-redux";
+import {VirtualFile} from "@/Files/FileTree";
+import {dateToString} from "@/Utilities/DateUtilities";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {setPopInChild} from "@/ui-components/PopIn";
+import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -109,6 +112,7 @@ export function isSensitivitySupported(resource: UFile): boolean {
         switch (resource.specification.product.provider) {
             case "k8":
             case "K8":
+            case "gok8s":
             case "ucloud":
                 return true;
 
@@ -195,7 +199,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
     public idIsUriEncoded = true;
 
-    renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks> = {};
+    renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks> = {
+    };
 
     private defaultRetrieveFlags: Partial<UFileIncludeFlags> = {
         includeMetadata: true,
@@ -206,7 +211,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     };
 
     public Properties = () => {
-        const {id} = useParams<{ id?: string }>();
+        const {id} = useParams<{id?: string}>();
 
         const [fileData, fetchFile] = useCloudAPI<UFile | null>({noop: true}, null);
 
@@ -221,15 +226,12 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             }))
         }, [id]);
 
-        const prettyPath = usePrettyFilePath(id ?? "");
-        usePage(prettyPath, SidebarTabId.FILES);
-
         const file = fileData.data;
 
-        if (!id) return <h1>Missing file id.</h1>;
-        if (!file) return <></>;
+        if (!id) return <MainContainer main={<h1>Missing file id.</h1>} />;
+        if (!file) return <MainContainer main={<h1><Link to={AppRoutes.files.drives()}>File not found. Click to go to drives.</Link></h1>} />;
 
-        return <FilePreview initialFile={file}/>
+        return <FilePreview initialFile={file} />
     }
 
     public retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[] {
@@ -279,8 +281,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 },
                 onClick: (_, cb) => {
                     cb.dispatch({
-                        type: "GENERIC_SET", property: "uploaderVisible", newValue: true,
-                        defaultValue: false
+                        type: "GENERIC_SET", payload: {
+                            property: "uploaderVisible", newValue: true,
+                            defaultValue: false
+                        }
                     });
                 },
                 shortcut: ShortcutKey.U
@@ -312,7 +316,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => selected.length === 1 && cb.collection != null,
                 onClick: (selected) => {
                     dialogStore.addDialog(
-                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]}/>,
+                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle,
@@ -330,7 +334,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     const [file] = selected;
                     extra.navigate(AppRoutes.files.path(getParentPath(file.id)));
                 },
-                shortcut: ShortcutKey.P,
+                shortcut: ShortcutKey.V,
             },
             {
                 text: "Rename",
@@ -346,8 +350,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return selected.length === 1 &&
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },
-                onClick: (selected, cb) => {
-                    cb.startRenaming?.(selected[0], fileName(selected[0].id));
+                onClick: ([selected], cb) => {
+                    const op = () => cb.startRenaming?.(selected, fileName(selected.id));
+                    handleSyncthingWarning([selected], cb, op, "Renaming");
                 },
                 shortcut: ShortcutKey.F
             },
@@ -356,22 +361,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "download",
                 enabled: selected => selected.length > 0 && selected.every(it => it.status.type === "FILE"),
                 onClick: async (selected, cb) => {
-                    // TODO(Dan): We should probably add a feature flag for file types
-
-                    if (selected.length > 1) {
-                        snackbarStore.addInformation("For downloading multiple files, you may need to enable pop-ups.", false, 8000);
-                    }
-
-                    const result = await cb.invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
-                        this.createDownload(bulkRequestOf(
-                            ...selected.map(it => ({id: it.id})),
-                        ))
-                    );
-
-                    const responses = result?.responses ?? [];
-                    for (const {endpoint} of responses) {
-                        downloadFile(normalizeDownloadEndpoint(endpoint), responses.length > 1);
-                    }
+                    this.download(selected.map(it => it.id));
                 },
                 shortcut: ShortcutKey.D
             },
@@ -384,44 +374,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
                 onClick: (selected, cb) => {
-                    const pathRef = {current: getParentPath(selected[0].id)};
-                    dialogStore.addDialog(
-                        <FileBrowse opts={{
-                            isModal: true, managesLocalProject: true, selection: {
-                                text: "Copy to",
-                                show(res) {
-                                    return res.status.type === "DIRECTORY"
-                                },
-                                onClick: async (res) => {
-                                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-                                    try {
-                                        const result = await cb.invokeCommand(
-                                            this.copy({
-                                                type: "bulk",
-                                                items: selected.map(file => ({
-                                                    oldId: file.id,
-                                                    conflictPolicy: "RENAME",
-                                                    newId: target + "/" + fileName(file.id)
-                                                }))
-                                            })
-                                        );
-                                        cb.reload();
-                                        dialogStore.success();
-                                        snackbarStore.addSuccess("Files copied", false);
-                                    } catch (e) {
-                                        displayErrorMessageOrDefault(e, "Failed to move to folder");
-                                    }
-                                }
-                            },
-                            additionalFilters: {
-                                filterProvider: selected[0].specification.product.provider
-                            },
-                            initialPath: pathRef.current,
-                        }}/>,
-                        doNothing,
-                        true,
-                        this.fileSelectorModalStyle
-                    );
+                    this.copyModal(selected.map(it => it.id), selected[0].specification.product.provider, cb.reload);
                 },
                 shortcut: ShortcutKey.C
             },
@@ -471,7 +424,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 }
                             },
                             initialPath: pathRef.current,
-                        }}/>,
+                        }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -495,43 +448,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },
                 onClick: (selected, cb) => {
-                    const pathRef = {current: getParentPath(selected[0].id)};
-                    dialogStore.addDialog(
-                        <FileBrowse opts={{
-                            isModal: true, managesLocalProject: true, selection: {
-                                text: "Move to",
-                                show(res) {
-                                    return res.status.type === "DIRECTORY"
-                                },
-                                onClick: async (res) => {
-                                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-
-                                    try {
-                                        const result = await cb.invokeCommand(
-                                            this.move({
-                                                type: "bulk",
-                                                items: selected.map(file => ({
-                                                    oldId: file.id,
-                                                    conflictPolicy: "RENAME",
-                                                    newId: target + "/" + fileName(file.id)
-                                                }))
-                                            })
-                                        );
-                                        cb.reload();
-                                        dialogStore.success();
-                                        snackbarStore.addSuccess("Files moved", false);
-                                    } catch (e) {
-                                        displayErrorMessageOrDefault(e, "Failed to move to folder");
-                                    }
-                                }
-                            },
-                            initialPath: pathRef.current,
-                            additionalFilters: {filterProvider: selected[0].specification.product.provider}
-                        }}/>,
-                        doNothing,
-                        true,
-                        this.fileSelectorModalStyle
-                    );
+                    const op = () => this.moveModal(selected.map(it => it.id), selected[0].specification.product.provider, cb.reload);
+                    handleSyncthingWarning(selected, cb, op, "Moving");
                 },
                 shortcut: ShortcutKey.M
             },
@@ -575,10 +493,24 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "sensitivity",
                 enabled(selected, cb) {
                     if (cb.isSearch) return false;
+                    if (!cb.syncthingConfig) return false;
                     if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
                         return false;
                     }
-                    return selected.length === 1;
+
+                    if (selected.length !== 1) return false;
+                    const [file] = selected;
+                    const syncthingEntry = cb.syncthingConfig.folders.find(it => file.id.startsWith(it.ucloudPath));
+                    if (syncthingEntry) {
+                        const isSynchronizationRoot = syncthingEntry.ucloudPath === file.id;
+                        if (isSynchronizationRoot) {
+                            return "Remove this folder from syncthing to change sensitivity.";
+                        } else {
+                            return "Remove synchronized parent folder from syncthing to change sensitivity.";
+                        }
+                    }
+
+                    return true;
                 },
                 onClick(selected, extra) {
                     addFileSensitivityDialog(selected[0], extra.invokeCommand, extra.reload);
@@ -652,7 +584,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "refresh",
                 enabled: (selected, cb) => !cb.isSearch && synchronizationOpEnabled(false, selected, cb),
                 onClick: (selected, cb) => {
-                    synchronizationOpOnClick(selected, cb)
+                    synchronizationOpOnClick(selected, cb);
                 },
                 shortcut: ShortcutKey.Y
             },
@@ -661,10 +593,25 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 primary: true,
                 icon: "terminalSolid",
                 enabled: (selected, cb) => {
+                    if (cb.embedded) return false;
+
                     let support = cb.collection?.status?.resolvedSupport?.support;
                     if (!support) return false;
                     if (selected.length > 0) return false;
                     if (!hasFeature(Feature.INLINE_TERMINAL)) return false;
+
+                    if (cb.isSearch) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+                    if (!(selected.length === 0 && cb.onSelect === undefined)) {
+                        return false;
+                    }
+
+                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                        return "You do not have write permissions in this folder";
+                    }
+
                     return (support as FileCollectionSupport).files.openInTerminal === true;
                 },
                 onClick: (selected, cb) => {
@@ -673,7 +620,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     const folder = cb.directory?.id ?? "/";
 
                     cb.dispatch({type: "TerminalOpen"});
-                    cb.dispatch({type: "TerminalOpenTab", tab: {title: providerTitle, folder}});
+                    cb.dispatch({type: "TerminalOpenTab", payload: {tab: {title: providerTitle, folder}}});
                 },
                 shortcut: ShortcutKey.O
             },
@@ -698,10 +645,13 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         && selected.every(f => f.status.icon !== "DIRECTORY_TRASH");
                 },
                 onClick: async (selected, cb) => {
-                    await cb.invokeCommand(
-                        this.trash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
-                    );
-                    cb.reload();
+                    const op = async () => {
+                        await cb.invokeCommand(
+                            this.trash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
+                        );
+                        cb.reload();
+                    }
+                    handleSyncthingWarning(selected, cb, op, "Deleting");
                 },
                 shortcut: ShortcutKey.R
             },
@@ -774,6 +724,128 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     }
 
     fileSelectorModalStyle = largeModalStyle;
+
+    // -- Shared file operations -- 
+    // TODO(Dan): We should probably add a feature flag for file types
+    public async download(ids: string[]) {
+        if (ids.length > 1) {
+            snackbarStore.addInformation("For downloading multiple files, you may need to enable pop-ups.", false, 8000);
+        }
+
+        const result = await callAPI<BulkResponse<FilesCreateDownloadResponseItem>>(
+            this.createDownload(bulkRequestOf(
+                ...ids.map(id => ({id})),
+            ))
+        );
+
+        const responses = result?.responses ?? [];
+        for (const {endpoint} of responses) {
+            downloadFile(normalizeDownloadEndpoint(endpoint), responses.length > 1);
+        }
+    }
+
+    public copyModal(ids: string[], provider: string, reload: (result: any) => void) {
+        const pathRef = {current: getParentPath(ids[0])};
+        dialogStore.addDialog(
+            <FileBrowse opts={{
+                isModal: true, managesLocalProject: true, selection: {
+                    text: "Copy to",
+                    show(res) {
+                        return res.status.type === "DIRECTORY"
+                    },
+                    onClick: async (res) => {
+                        const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                        try {
+                            const result = await callAPI(
+                                this.copy({
+                                    type: "bulk",
+                                    items: ids.map(id => ({
+                                        oldId: id,
+                                        conflictPolicy: "RENAME",
+                                        newId: target + "/" + fileName(id)
+                                    }))
+                                })
+                            );
+                            reload(result);
+                            dialogStore.success();
+                            snackbarStore.addSuccess("Files copied", false);
+                            return true;
+                        } catch (e) {
+                            displayErrorMessageOrDefault(e, "Failed to move to folder");
+                            return false;
+                        }
+                    }
+                },
+                additionalFilters: {
+                    filterProvider: provider
+                },
+                initialPath: pathRef.current,
+            }} />,
+            doNothing,
+            true,
+            this.fileSelectorModalStyle
+        );
+    }
+
+    public moveModal(ids: string[], provider: string, reload: (result: any) => void) {
+        const pathRef = {current: getParentPath(ids[0])};
+        dialogStore.addDialog(
+            <FileBrowse opts={{
+                isModal: true, managesLocalProject: true, selection: {
+                    text: "Move to",
+                    show(res) {
+                        return res.status.type === "DIRECTORY"
+                    },
+                    onClick: async (res) => {
+                        const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+
+                        try {
+                            const result = await callAPI(
+                                this.move({
+                                    type: "bulk",
+                                    items: ids.map(id => ({
+                                        oldId: id,
+                                        conflictPolicy: "RENAME",
+                                        newId: target + "/" + fileName(id)
+                                    }))
+                                })
+                            );
+                            reload(result);
+                            dialogStore.success();
+                            snackbarStore.addSuccess("Files moved", false);
+                        } catch (e) {
+                            displayErrorMessageOrDefault(e, "Failed to move to folder");
+                        }
+                    }
+                },
+                initialPath: pathRef.current,
+                additionalFilters: {filterProvider: provider}
+            }} />,
+            doNothing,
+            true,
+            this.fileSelectorModalStyle
+        );
+    }
+}
+
+function handleSyncthingWarning(files: UFile[], cb: ExtraFileCallbacks, op: () => void, operationText: "Moving" | "Deleting" | "Renaming"): void {
+    if (!isAnySynchronized(files, cb)) {
+        op();
+    } else {
+        addStandardDialog({
+            title: "Syncthing warning",
+            message: <div>
+                {operationText} the folder(s) will break Syncthing synchronization for this folder.
+                {(["Moving", "Renaming"] as typeof operationText[]).includes(operationText) ?
+                    <div>
+                        <br />
+                        To learn how to move a folder or rename a folder with Syncthing, click <ExternalLink href={"https://docs.syncthing.net/users/faq.html#how-do-i-rename-move-a-synced-folder"}>here</ExternalLink>.
+                    </div> : null}
+            </div>,
+            onConfirm: op,
+            confirmText: "Continue"
+        });
+    }
 }
 
 function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks): string {
@@ -790,6 +862,19 @@ function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallback
     } else {
         return "Add to sync";
     }
+}
+
+function isAnySynchronized(files: UFile[], callbacks: ExtraFileCallbacks): boolean {
+    const synchronizedFolders = callbacks.syncthingConfig?.folders;
+    if (!synchronizedFolders) {
+        // Note(Jonas): Is this undefined by default, or only if the call to the backend fails?
+        // If it has failed and is therefore undefined, should we still warn the user what will
+        // happen for a synchronized file, or just assume that it isn't sync'ed?
+        return false;
+    }
+
+    const filePaths = files.map(it => it.id);
+    return synchronizedFolders.find(it => it.ucloudPath && filePaths.includes(it.ucloudPath)) != null;
 }
 
 function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks): boolean | string {
@@ -891,7 +976,7 @@ function SensitivityDialog({file, invokeCommand, onUpdated}: {
     onUpdated(value: SensitivityLevelMap): void;
 }): React.ReactNode {
     const originalSensitivity = useSensitivity(file) ?? "INHERIT" as SensitivityLevel;
-    const selection = React.useRef<HTMLSelectElement>(null);
+    const selection = React.useRef<HTMLSelectElement | null>(null);
     const reason = React.useRef<HTMLInputElement>(null);
 
     const onUpdate = React.useCallback(async (e: React.SyntheticEvent) => {
@@ -994,10 +1079,10 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
         dialogStore.addDialog(
             <>
                 <Heading.h2>
-                    Sensitive files not supported <Icon name="warning" color="errorMain" size="32"/>
+                    Sensitive files not supported <Icon name="warning" color="errorMain" size="32" />
                 </Heading.h2>
                 <p>
-                    This provider (<ProviderTitle providerId={file.specification.product.provider}/>) has declared
+                    This provider (<ProviderTitle providerId={file.specification.product.provider} />) has declared
                     that they do not support sensitive data. This means that you <b>cannot/should not</b>:
 
                     <ul>
@@ -1025,25 +1110,26 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
     }
 
     dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand}
-                                             onUpdated={onUpdated}/>, () => undefined, true);
+        onUpdated={onUpdated} />, () => undefined, true);
 }
 
 const api = new FilesApi();
 
 export const MAX_PREVIEW_SIZE_IN_BYTES = PREVIEW_MAX_SIZE;
 
-function isDownloadAllowed(file: UFile) {
-    if (file.status.type !== "FILE") return false;
+function isFileFileSizeExceeded(file: UFile) {
     const size = file.status.sizeInBytes;
-    return size != null && size < MAX_PREVIEW_SIZE_IN_BYTES && size > 0;
+    return size != null && size > MAX_PREVIEW_SIZE_IN_BYTES && size > 0;
 }
 
 export function FilePreview({initialFile}: {
     initialFile: UFile,
 }): React.ReactNode {
-    const [openFile, setOpenFile] = useState<[string, string | Uint8Array]>(["", ""]);
+    const [openFile, setOpenFile] = useState<[string, string | Uint8Array<ArrayBuffer>]>(["", ""]);
     const [previewRequested, setPreviewRequested] = useState(false);
     const [drive, setDrive] = useState<FileCollection | null>(null);
+    const [renamingFile, setRenamingFile] = useState<string>();
+    const dirtyFileCountRef = React.useRef(0);
     const didUnmount = useDidUnmount();
 
     useEffect(() => {
@@ -1078,15 +1164,24 @@ export function FilePreview({initialFile}: {
         })
     }, []);
 
-    useEffect(() => {
-        setPreviewRequested(false);
-    }, [openFile[0]]);
-
-    const mediaFileMetadata: null | { type: ExtensionType, data: string, error: string | null } = useMemo(() => {
+    const mediaFileMetadata: null | {type: ExtensionType, data: string, error: string | null} = useMemo(() => {
         let [file, contentBuffer] = openFile;
+
+        const isSvg = extensionFromPath(file) === "svg";
         if (typeof contentBuffer === "string") {
             if (previewRequested) {
                 contentBuffer = new TextEncoder().encode(contentBuffer);
+            } else if (isSvg) {
+                return {
+                    type: "image" as const,
+                    data: URL.createObjectURL(
+                        new Blob(
+                            [contentBuffer],
+                            {type: "image/svg+xml"}
+                        )
+                    ),
+                    error: null
+                }
             } else {
                 return null;
             }
@@ -1094,7 +1189,7 @@ export function FilePreview({initialFile}: {
         const foundFileType = getFileTypesFromContentBuffer(contentBuffer);
         let typeFromFileType =
             foundFileType.length > 0 ?
-            typeFromMime(foundFileType[0].mime ?? "") : null;
+                typeFromMime(foundFileType[0].mime ?? "") : null;
 
         if (!typeFromFileType) {
             typeFromFileType = extensionType(extensionFromPath(file));
@@ -1142,21 +1237,62 @@ export function FilePreview({initialFile}: {
     const editorRef = React.useRef<EditorApi>(null);
 
     const requestPreviewToggle = useCallback(() => {
-        editorRef.current?.notifyDirtyBuffer().then(() => {
-            setPreviewRequested(p => !p);
-        });
+        setPreviewRequested(p => !p);
     }, []);
+
+    let node: React.ReactNode = null;
+
+    const ext = extensionType(extensionFromPath(openFile[0]));
+
+    switch (mediaFileMetadata?.type) {
+        case "text":
+        case "code":
+            node = null;
+            break;
+        case "image":
+            // Note(Jonas): extensions like .HEIC will fallback to just showing the alt.
+            node = <img className={Image} alt={fileName(openFile[0])} src={mediaFileMetadata.data} />
+            break;
+        case "audio":
+            node = <audio className={Audio} controls src={mediaFileMetadata.data} />;
+            break;
+        case "video":
+            node = <video className={Video} src={mediaFileMetadata.data} controls />;
+            break;
+        case "pdf":
+            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={mediaFileMetadata.data} />;
+            break;
+        case "markdown":
+            node = <div className={MarkdownStyling}><Markdown>{mediaFileMetadata.data}</Markdown></div>;
+            break;
+    }
+
+    if (mediaFileMetadata && mediaFileMetadata.error !== null) {
+        node = <div>{mediaFileMetadata?.error}</div>;
+    }
 
     const onSave = useCallback(async () => {
         const editor = editorRef.current;
         if (!editor) return;
-        if (!hasFeature(Feature.INTEGRATED_EDITOR)) return;
+        if (node) return;
+
+        const path = editor.path;
 
         await editor.notifyDirtyBuffer();
-        await vfs.writeFile(editor.path);
+        await vfs.writeFile(path);
 
-        snackbarStore.addSuccess("File has been saved", false, 800);
-    }, [vfs]);
+        const revert = editor.onFileSaved(path);
+        const revertLocalSave = (e: WriteFailureEvent) => {
+            const failedUpload = e.detail.find(it => it.targetPath + it.name === path);
+            if (failedUpload) {
+                revert();
+                snackbarStore.addFailure(failedUpload.error ?? "Upload for file " + fileName(failedUpload.name) + " failed.", false);
+            }
+        }
+
+        window.addEventListener(FileWriteFailure, revertLocalSave);
+        window.setTimeout(() => window.removeEventListener(FileWriteFailure, revertLocalSave), 30_000);
+    }, [vfs, node]);
 
     useEffect(() => {
         const listener = (ev: KeyboardEvent) => {
@@ -1181,40 +1317,8 @@ export function FilePreview({initialFile}: {
         }
     }, [onSave, requestPreviewToggle]);
 
-
-    if (initialFile.status.type !== "FILE") return null;
-
-    let node: React.ReactNode = null;
-
-    const ext = extensionType(extensionFromPath(openFile[0]));
-
-    switch (mediaFileMetadata?.type) {
-        case "text":
-        case "code":
-            node = null;
-            break;
-        case "image":
-            node = <img className={Image} alt={fileName(initialFile.id)} src={mediaFileMetadata.data}/>
-            break;
-        case "audio":
-            node = <audio className={Audio} controls src={mediaFileMetadata.data}/>;
-            break;
-        case "video":
-            node = <video className={Video} src={mediaFileMetadata.data} controls/>;
-            break;
-        case "pdf":
-            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={mediaFileMetadata.data}/>;
-            break;
-        case "markdown":
-            node = <div className={MarkdownStyling}><Markdown>{mediaFileMetadata.data}</Markdown></div>;
-            break;
-    }
-
-    if (mediaFileMetadata && mediaFileMetadata.error !== null) {
-        node = <div>{mediaFileMetadata?.error}</div>;
-    }
-
-    const onOpenFile = useCallback((path: string, data: string | Uint8Array) => {
+    const onOpenFile = useCallback((path: string, data: string | Uint8Array<ArrayBuffer>) => {
+        setPreviewRequested(false);
         setOpenFile([path, data]);
     }, []);
 
@@ -1225,7 +1329,7 @@ export function FilePreview({initialFile}: {
         const folder = getParentPath(initialFile.id);
 
         dispatch({type: "TerminalOpen"});
-        dispatch({type: "TerminalOpenTab", tab: {title: providerTitle, folder}});
+        dispatch({type: "TerminalOpenTab", payload: {tab: {title: providerTitle, folder}}});
     }, [drive, initialFile]);
 
     const newFolder = useCallback(async (path: string) => {
@@ -1249,27 +1353,74 @@ export function FilePreview({initialFile}: {
         })).result;
 
         const newPath = getParentPath(path) + name;
-        window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(WriteToFileEventKey, {
+        window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(EventKeys.WriteToFile, {
             detail: {
                 path: newPath,
-                content: "",
+                content: " ",
             }
         }));
 
         setTimeout(() => {
             editorRef.current?.invalidateTree?.(getParentPath(path));
             editorRef.current?.openFile?.(newPath);
-        }, 200);
+        }, 1000);
     }, [openFile[0]]);
 
-    const operations = useCallback((file: VirtualFile): Operation<any>[] => {
-        if (!hasFeature(Feature.INTEGRATED_EDITOR)) return [];
-        return [
-            {
-                primary: false,
+    const onRename = React.useCallback(async ({newAbsolutePath, oldAbsolutePath, cancel}: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}): Promise<boolean> => {
+        let success = false;
+        if (cancel) {
+            setRenamingFile(undefined);
+            return false;
+        }
+
+        try {
+            await callAPI(api.move({
+                type: "bulk",
+                items: [{oldId: oldAbsolutePath, newId: newAbsolutePath, conflictPolicy: "REJECT"}]
+            }));
+            setRenamingFile(undefined);
+
+            vfs.moveFileContent(removeTrailingSlash(oldAbsolutePath), removeTrailingSlash(newAbsolutePath));
+
+            success = true;
+        } catch (e) {
+            displayErrorMessageOrDefault(e, "Failed to rename file");
+        }
+
+        return success;
+    }, []);
+
+    const operations = useCallback((file?: VirtualFile): Operation<any>[] => {
+        const reload = () => {
+            editorRef.current?.invalidateTree(removeTrailingSlash(getParentPath(initialFile.id)));
+        }
+
+        if (!file) {
+            return [{
                 icon: "heroFolderPlus",
                 text: "New folder",
-                confirm: false,
+                enabled: () => true,
+                onClick: () => {
+                    const suffix = initialFile.status.type === "DIRECTORY" ? "/placeholder" : "";
+                    newFolder(initialFile.id + suffix).then(doNothing);
+                },
+                shortcut: ShortcutKey.F,
+            }, {
+                icon: "heroDocumentPlus",
+                text: "New file",
+                enabled: () => true,
+                onClick: () => {
+                    const suffix = initialFile.status.type === "DIRECTORY" ? "/placeholder" : "";
+                    newFile(initialFile.id + suffix).then(doNothing);
+                },
+                shortcut: ShortcutKey.G,
+            }];
+        }
+
+        return [
+            {
+                icon: "heroFolderPlus",
+                text: "New folder",
                 enabled: () => true,
                 onClick: () => {
                     const suffix = file.isDirectory ? "/placeholder" : "";
@@ -1278,22 +1429,95 @@ export function FilePreview({initialFile}: {
                 shortcut: ShortcutKey.F,
             },
             {
-                primary: false,
                 icon: "heroDocumentPlus",
                 text: "New file",
-                confirm: false,
                 enabled: () => true,
                 onClick: () => {
                     const suffix = file.isDirectory ? "/placeholder" : "";
                     newFile(file.absolutePath + suffix).then(doNothing);
                 },
                 shortcut: ShortcutKey.G,
-            }
+            },
+            {
+                icon: "edit",
+                text: "Rename",
+                enabled: () => file.fileHint !== "DIRECTORY_TRASH",
+                onClick: () => {
+                    setRenamingFile(file.absolutePath);
+                },
+                shortcut: ShortcutKey.E
+            },
+            {
+                icon: "trash",
+                text: "Move to trash",
+                enabled: () => file.fileHint !== "DIRECTORY_TRASH",
+                onClick: async () => {
+                    await callAPI(
+                        api.trash({
+                            type: "bulk",
+                            items: [{id: file.absolutePath}],
+                        })
+                    );
+                    editorRef.current?.onFileDeleted(file.absolutePath);
+                    reload();
+                    snackbarStore.addSuccess("File(s) moved to trash", false);
+                },
+                shortcut: ShortcutKey.R
+            },
+            {
+                icon: "copy",
+                text: "Copy file",
+                enabled: () => true,
+                onClick: () => {
+                    api.copyModal([file.absolutePath], initialFile.specification.product.provider, reload);
+                },
+                shortcut: ShortcutKey.C
+            },
+            {
+                icon: "move",
+                text: "Move file",
+                enabled: () => file.fileHint !== "DIRECTORY_TRASH",
+                onClick: () => {
+                    api.moveModal([file.absolutePath], initialFile.specification.product.provider, reload);
+                },
+                shortcut: ShortcutKey.M
+                // MOVE
+            },
+            {
+                icon: "download",
+                text: "Download file",
+                enabled: () => !file.isDirectory,
+                onClick: async () => {
+                    api.download([file.absolutePath]);
+                },
+                shortcut: ShortcutKey.D
+                // DOWNLOAD
+            },
+            {
+                icon: "properties",
+                text: "View properties",
+                enabled: () => vfs.isReal(),
+                onClick() {
+                    vfs.getFileInfo(file.absolutePath).then(ufile => {
+                        dispatch(setPopInChild({el: <FileProperties routingNamespace={api.routingNamespace} file={ufile} inPopIn />}));
+                    });
+                },
+                shortcut: ShortcutKey.V,
+            },
         ];
     }, []);
 
+    const navigate = useNavigate();
+
+    if (initialFile.status.type === "DIRECTORY") {
+        return <MainContainer main={<FileProperties file={initialFile} routingNamespace={api.routingNamespace} />} />
+    }
+
     return <Editor
         apiRef={editorRef}
+        onRequestSave={onSave}
+        promptSaveOnNavigate
+        dirtyFileCountRef={dirtyFileCountRef}
         toolbarBeforeSettings={
             <>
                 {ext === "markdown" ?
@@ -1306,21 +1530,20 @@ export function FilePreview({initialFile}: {
                         />
                     </TooltipV2> : null}
 
-                {!hasFeature(Feature.INTEGRATED_EDITOR) ? null :
-                    <TooltipV2 tooltip={"Save (ctrl+s)"} contentWidth={100}>
-                        <Icon
-                            name={"floppyDisk"}
-                            size={"20px"}
-                            cursor={"pointer"}
-                            onClick={onSave}
-                        />
-                    </TooltipV2>
-                }
+                <TooltipV2 tooltip={"Save (ctrl+s)"} contentWidth={100}>
+                    <Icon
+                        name={"floppyDisk"}
+                        size={"20px"}
+                        cursor={"pointer"}
+                        onClick={onSave}
+                    />
+                </TooltipV2>
+
             </>
         }
         toolbar={
             <>
-                {!supportsTerminal && hasFeature(Feature.INLINE_TERMINAL) ? null :
+                {!supportsTerminal || !hasFeature(Feature.INLINE_TERMINAL) ? null :
                     <TooltipV2 tooltip={"Open terminal"} contentWidth={130}>
                         <Icon
                             name={"terminalSolid"}
@@ -1339,11 +1562,32 @@ export function FilePreview({initialFile}: {
         showCustomContent={node != null}
         customContent={node}
         onOpenFile={onOpenFile}
+        onRename={onRename}
+        renamingFile={renamingFile}
         operations={operations}
+        fileHeaderOperations={
+            <>
+                <Icon name="heroDocumentPlus" cursor="pointer" size="18px" onClick={() => newFile(initialFile.id)} />
+                <Icon name="heroFolderPlus" cursor="pointer" size="18px" onClick={() => newFolder(initialFile.id)} />
+            </>
+        }
+        help={
+            <Flex mx="auto" mt="150px">
+                <Box>
+                    <Text mb="12px">Create new file and start working</Text>
+                    <Flex mx="auto">
+                        <Button mx="auto" onClick={() => newFile(initialFile.id)}>New file</Button>
+                        <Button mx="auto" onClick={() => newFolder(initialFile.id)}>New folder</Button>
+                    </Flex>
+                    <Button width="95%" m="5px" onClick={() => navigate(AppRoutes.files.path(getParentPath(initialFile.id)))}>Go to parent folder</Button>
+                </Box>
+            </Flex>
+        }
+        readOnly={!allowEditing()}
     />;
 }
 
-async function downloadFileContent(path: string): Promise<Blob> {
+export async function downloadFileContent(path: string): Promise<Blob> {
     const download = await callAPI<BulkResponse<FilesCreateDownloadResponseItem>>(
         api.createDownload(bulkRequestOf({id: path}))
     );
@@ -1356,7 +1600,7 @@ async function downloadFileContent(path: string): Promise<Blob> {
 }
 
 const MAX_HEIGHT = `calc(100vw - 15px - 15px - 240px - var(${CSSVarCurrentSidebarStickyWidth}));`
-const HEIGHT = "calc(100vh - 100px);"
+const HEIGHT = "calc(100vh - 100px);";
 
 const MarkdownStyling = injectStyleSimple("markdown-styling", `
     max-width: 900px;
@@ -1382,6 +1626,7 @@ const Video = injectStyleSimple("preview-video", `
 const PreviewObject = injectStyleSimple("preview-pdf", `
     max-width: ${MAX_HEIGHT}
     width: 100%;
+    height: ${HEIGHT};
     max-height: ${HEIGHT}
 `)
 
@@ -1408,6 +1653,10 @@ class PreviewVfs implements Vfs {
         this.ufiles[previewedFile.id] = previewedFile;
     }
 
+    isReal() {
+        return true;
+    }
+
     async listFiles(path: string): Promise<VirtualFile[]> {
         try {
             return this.folders[path] = await this.fetchFiles(path);
@@ -1420,6 +1669,7 @@ class PreviewVfs implements Vfs {
         const result = await callAPI(api.browse({
             path,
             itemsPerPage: 250,
+            sortBy: "PATH",
             next
         }));
 
@@ -1434,6 +1684,20 @@ class PreviewVfs implements Vfs {
         this.dirtyFileContent[path] = content;
     }
 
+    public moveFileContent(oldPath: string, newPath: string) {
+        if (this.dirtyFileContent[oldPath]) {
+            const content = this.dirtyFileContent[oldPath];
+            delete this.dirtyFileContent[oldPath];
+            this.dirtyFileContent[newPath] = content;
+        }
+
+        if (this.fetchedFiles[oldPath]) {
+            const content = this.fetchedFiles[oldPath];
+            delete this.fetchedFiles[oldPath];
+            this.fetchedFiles[newPath] = content;
+        }
+    }
+
     async readFile(path: string): Promise<string | Uint8Array> {
         const dirty = this.dirtyFileContent[path];
         if (dirty !== undefined) return dirty;
@@ -1442,9 +1706,13 @@ class PreviewVfs implements Vfs {
         const file = this.ufiles[path] ?? await callAPI(api.retrieve({id: path}));
         this.ufiles[path] = file;
 
-        if (!isDownloadAllowed(file) && file.status.sizeInBytes !== 0) {
-            throw window.Error("File cannot be viewed in editor");
+        if (isFileFileSizeExceeded(file)) {
+            throw window.Error("File is to large to preview.");
         }
+
+        if (file.status.type !== "FILE") {
+            throw window.Error("Only files can be previewed");
+        };
 
         if (file.status.sizeInBytes === 0) {
             return "";
@@ -1456,8 +1724,13 @@ class PreviewVfs implements Vfs {
         if (!text) {
             return contentBuffer;
         } else {
+            this.fetchedFiles[path] = text;
             return text;
         }
+    }
+
+    async getFileInfo(path: string): Promise<UFile> {
+        return this.ufiles[path] ?? await callAPI(api.retrieve({id: path}));
     }
 
     async writeFile(path: string): Promise<void> {
@@ -1465,7 +1738,7 @@ class PreviewVfs implements Vfs {
         if (content === undefined) return;
 
         try {
-            window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(WriteToFileEventKey, {
+            window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(EventKeys.WriteToFile, {
                 detail: {
                     path,
                     content
@@ -1482,14 +1755,67 @@ function toVirtualFiles(page: PageV2<UFile>): VirtualFile[] {
         absolutePath: i.id,
         isDirectory: i.status.type === "DIRECTORY",
         requestedSyntax: extensionFromPath(i.id),
+        fileHint: i.status.icon
     }));
 }
 
-export const WriteToFileEventKey = "write-to-file-event";
+export const EventKeys = {WriteToFile: "write-to-file-event"};
 
 export interface WriteToFileEventProps {
     path: string;
     content: string;
+}
+
+function FileProperties({file, routingNamespace, inPopIn}: {file: UFile, routingNamespace: string, inPopIn?: boolean;}) {
+    const prettyPath = usePrettyFilePath(file.id);
+
+    return <>
+        <Flex maxWidth={inPopIn ? `var(--popInWidth)` : undefined}>
+            <FtIcon fileIcon={{type: file.status.type, ext: extensionFromPath(file.id)}} size={128} />
+            <Box maxWidth={inPopIn ? `calc(var(--popInWidth) - 128px - 32px)` : undefined} ml={inPopIn ? "16px" : "32px"}>
+                <Truncate fontSize={25}>{fileName(file.id)}</Truncate>
+                <Truncate fontSize={20}>{prettierString(file.status.type)}</Truncate>
+            </Box>
+        </Flex>
+        <Card mt="12px">
+            <div><b>Path:</b> <Truncate title={prettyPath}>{prettyPath}</Truncate></div>
+            <div>
+                <b>Product: </b>
+                {file.specification.product.id === file.specification.product.category ?
+                    <>{file.specification.product.id}</> :
+                    <>{file.specification.product.id} / {file.specification.product.category}</>
+                }
+            </div>
+            <Flex gap="8px">
+                <b>Provider: </b>
+                <ProviderTitle providerId={file.specification.product.provider} />
+            </Flex>
+            <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
+            {file.status.modifiedAt ?
+                <div><b>Modified at:</b> {dateToString(file.status.modifiedAt)}</div> : null}
+            {file.status.accessedAt ?
+                <div><b>Accessed at:</b> {dateToString(file.status.accessedAt)}</div> : null}
+            {file.status.sizeInBytes != null && file.status.type !== "DIRECTORY" ?
+                <div><b>Size:</b> {sizeToString(file.status.sizeInBytes)}</div> : null}
+            {file.status.sizeIncludingChildrenInBytes != null && file.status.type === "DIRECTORY" ?
+                <div><b>Size:</b> {sizeToString(file.status.sizeIncludingChildrenInBytes)}
+                </div> : null
+            }
+            {file.status.unixOwner != null && file.status.unixGroup != null ?
+                <div><b>UID/GID</b>: {file.status.unixOwner}/{file.status.unixGroup}</div> :
+                null
+            }
+            {file.status.unixMode != null ?
+                <div><b>Unix mode:</b> {readableUnixMode(file.status.unixMode)}</div> :
+                null
+            }
+            <Box mt={"16px"} mb={"8px"}>
+                <Link to={buildQueryString(`/${routingNamespace}`, {path: getParentPath(file.id)})}>
+                    <Button fullWidth>View in folder</Button>
+                </Link>
+            </Box>
+        </Card>
+    </>
 }
 
 export {api};

@@ -1,13 +1,13 @@
 import MainContainer from "@/ui-components/MainContainer";
-import {Box, Button, Flex, Icon, Input, Label, Link, List, Select} from "@/ui-components";
+import {Box, Button, Flex, Input, List} from "@/ui-components";
 import React, {useRef, useState} from "react";
-import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useNavigate} from "react-router";
 import {SafeLogo} from "../AppToolLogo";
 import {ListRow} from "@/ui-components/List";
 import * as AppStore from "@/Applications/AppStoreApi";
 import * as Heading from "@/ui-components/Heading";
-import {doNothing, inDevEnvironment, onDevSite} from "@/UtilityFunctions";
+import {doNothing, inDevEnvironment} from "@/UtilityFunctions";
 import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -15,8 +15,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
-import {Client} from "@/Authentication/HttpClientInstance";
+import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {useProjectId} from "@/Project/Api";
 import {UploadAppAndTool} from "@/Applications/Studio/Uploader";
@@ -24,9 +23,8 @@ import {UploadAppAndTool} from "@/Applications/Studio/Uploader";
 export const ApplicationGroups: React.FunctionComponent = () => {
     const projectId = useProjectId();
     const [filter, setTitleFilter] = React.useState("");
-    const [commandLoading, invokeCommand] = useCloudCommand();
+    const [, invokeCommand] = useCloudCommand();
     const navigate = useNavigate();
-    const selectRef = useRef<HTMLSelectElement>(null);
 
     const createRef = React.useRef<HTMLInputElement>(null);
     const filterRef = React.useRef<HTMLInputElement>(null);
@@ -55,7 +53,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
             header={
                 <Flex justifyContent="space-between">
                     <Heading.h2>Application groups</Heading.h2>
-                    <ContextSwitcher />
+                    <ProjectSwitcher />
                 </Flex>
             }
             main={
@@ -138,7 +136,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                 mb="20px"
                                 rightLabel
                             />
-                            <Button type="submit" attached>Create</Button>
+                            <Button type="submit" attachedRight>Create</Button>
                         </Flex>
                     </form>
 

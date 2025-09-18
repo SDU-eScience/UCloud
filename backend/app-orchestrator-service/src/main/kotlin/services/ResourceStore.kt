@@ -213,7 +213,7 @@ class ResourceStore<T>(
     }
 
     suspend fun synchronizeNow() {
-        queries.withSession { session ->
+        queries.withSession("synchronizeNow") { session ->
             syncTable(session, uidShortcut)
             syncTable(session, pidShortcut)
         }
@@ -233,7 +233,7 @@ class ResourceStore<T>(
                     synchronizeNow()
                     val end = Time.now()
 
-                    delay(max(1000, 10_000 - (end - start)))
+                    delay(max(1000, 30_000 - (end - start)))
                 } catch (ex: Throwable) {
                     log.warn(ex.toReadableStacktrace().toString())
                 }
@@ -1122,14 +1122,14 @@ class ResourceStore<T>(
         }
 
         companion object {
-            const val BLOCK_SIZE = 1024 * 128
+            const val BLOCK_SIZE = 1024 * 4
         }
     }
 
     private suspend fun initializeIdIndex(baseId: Long): IdIndex {
         val result = IdIndex(baseId)
 
-        queries.withSession { session ->
+        queries.withSession("initializeIdIndex") { session ->
             queries.loadIdIndex(session, type, baseId, baseId + IdIndex.BLOCK_SIZE) { id, ref, isUser ->
                 result.register(id, ref, isUser)
             }
@@ -1184,6 +1184,10 @@ class ResourceStore<T>(
         val reference = loaded.entries[slot]
         val referenceIsUid = loaded.entryIsUid[slot]
 
+        if (reference == 0) {
+            return null
+        }
+
         return findOrLoadBucket(if (referenceIsUid) reference else 0, if (referenceIsUid) 0 else reference)
     }
 
@@ -1232,7 +1236,7 @@ class ResourceStore<T>(
 
             val result = ProviderIndex(provider)
 
-            queries.withSession { session ->
+            queries.withSession("findOrLoadProviderIndex") { session ->
                 queries.loadProviderIndex(session, type, provider) { uid, pid ->
                     result.registerUsage(uid, pid)
                 }
@@ -1361,7 +1365,7 @@ class ResourceStoreBucket<T>(
             }
         }
 
-        queries.withSession { session ->
+        queries.withSession("evictAll") { session ->
             var current: ResourceStoreBucket<T> = this
             while (true) {
                 current.synchronizeToDatabase(session, hasLock = true)
@@ -1406,7 +1410,7 @@ class ResourceStoreBucket<T>(
         mutex.withLock {
             if (evicted) throw EvictionException()
 
-            val nextId = queries.withSession { session ->
+            val nextId = queries.withSession("load(minimumId = $minimumId)") { session ->
                 queries.loadResources(session, this, minimumId)
             }
 
@@ -2253,7 +2257,7 @@ object ResourceIdAllocator {
     private suspend fun init(queries: ResourceStoreDatabaseQueries<*>) {
         initMutex.withLock {
             if (idAllocator.get() >= 0L) return
-            queries.withSession { session ->
+            queries.withSession("init") { session ->
                 idAllocator.set(max(5_000_000L, queries.loadMaximumId(session)))
             }
         }
@@ -2355,7 +2359,7 @@ fun Permission.toByte(): Byte {
 }
 
 interface ResourceStoreDatabaseQueries<T> {
-    suspend fun startTransaction(): Any
+    suspend fun startTransaction(reason: String): Any
     suspend fun commitTransaction(transaction: Any)
     suspend fun abortTransaction(transaction: Any)
     suspend fun loadResources(transaction: Any, bucket: ResourceStoreBucket<T>, minimumId: Long): Long?
@@ -2378,8 +2382,8 @@ interface ResourceStoreDatabaseQueries<T> {
     suspend fun loadMaximumId(transaction: Any): Long
 }
 
-suspend inline fun <R> ResourceStoreDatabaseQueries<*>.withSession(block: (Any) -> R): R {
-    val session = startTransaction()
+suspend inline fun <R> ResourceStoreDatabaseQueries<*>.withSession(reason: String = "unknown", block: (Any) -> R): R {
+    val session = startTransaction(reason)
     var success = true
     try {
         return block(session)
@@ -2431,7 +2435,7 @@ class ResourceStoreDatabaseQueriesImpl<T>(
         // NOTE(Dan): We do not need to check the table since it will fail the hasTrigger check if it contains an
         // invalid reference.
 
-        db.withSession { session ->
+        db.withSession(reason = "initializeEvictionTriggers") { session ->
             val hasTrigger = session.sendPreparedStatement(
                 { setParameter("table", qualifiedTable) },
                 """
@@ -2506,8 +2510,8 @@ class ResourceStoreDatabaseQueriesImpl<T>(
         }
     }
 
-    override suspend fun startTransaction(): Any {
-        val session = db.openSession()
+    override suspend fun startTransaction(reason: String): Any {
+        val session = db.openSession(reason = "ResourceStore." + reason)
         db.openTransaction(session)
         session.sendQuery("set local ucloud.performed_by_cache to 'true';")
         return session

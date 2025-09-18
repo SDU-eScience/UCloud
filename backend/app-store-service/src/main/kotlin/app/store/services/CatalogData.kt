@@ -77,7 +77,7 @@ class CatalogData(
     // TODO(Dan): This function is currently not able to actually reloadData. It is only capable of loading data.
     //  We should add functionality which allows us to reload parts of the database as needed.
     suspend fun reloadData(id: NameAndVersion? = null) {
-        db.withSession { session ->
+        db.withSession(reason = "catalog reload") { session ->
             val toolRows = session.sendPreparedStatement(
                 {
                     setParameter("name", id?.name)
@@ -510,7 +510,7 @@ class CatalogData(
         }
 
         if (flush) {
-            db.withSession { session ->
+            db.withSession(reason = "catalog register app") { session ->
                 session.sendPreparedStatement(
                     {
                         setParameter("owner", "_ucloud")
@@ -579,7 +579,7 @@ class CatalogData(
         }
 
         if (flush) {
-            db.withSession { session ->
+            db.withSession(reason = "catalog register tool") { session ->
                 session.sendPreparedStatement(
                     {
                         setParameter("owner", "_ucloud")
@@ -701,7 +701,7 @@ class CatalogData(
         stars.computeIfAbsent(actorAndProject.actor.safeUsername()) { InternalStars(emptySet()) }
             .set(isStarred, application)
         if (flush) {
-            db.withSession { session ->
+            db.withSession(reason = "catalog star") { session ->
                 session.sendPreparedStatement(
                     {
                         setParameter("starred", listOfNotNull(if (isStarred) application else null))

@@ -508,11 +508,17 @@ data class JobsFollowResponse(
     val updates: List<JobUpdate> = emptyList(),
     val log: List<JobsLog> = emptyList(),
     val newStatus: JobStatus? = null,
+    val initialJob: Job? = null,
 )
 
 @Serializable
 @UCloudApiStable
-data class JobsLog(val rank: Int, val stdout: String? = null, val stderr: String? = null)
+data class JobsLog(
+    val rank: Int,
+    val stdout: String? = null,
+    val stderr: String? = null,
+    val channel: String? = null
+)
 
 typealias JobsExtendRequest = BulkRequest<JobsExtendRequestItem>
 typealias JobsExtendResponse = BulkResponse<Unit?>
@@ -582,6 +588,7 @@ data class JobsOpenInteractiveSessionRequestItem(
     val id: String,
     val rank: Int,
     val sessionType: InteractiveSessionType,
+    val target: String? = null,
 )
 
 typealias JobsOpenInteractiveSessionResponse = BulkResponse<OpenSessionWithProvider?>
@@ -1351,6 +1358,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                             1_000_000 * 499L,
                             1_000_00L * 1,
                             1_000_000 * 500,
+                            0L,
                             0L,
                             0L,
                         )

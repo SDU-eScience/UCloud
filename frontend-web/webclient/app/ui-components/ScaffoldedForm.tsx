@@ -82,7 +82,7 @@ export const ScaffoldedForm: React.FunctionComponent<{
     data: unknown | null;
     onUpdate: (newData: unknown) => void;
     ancestorId?: string;
-    errors: React.MutableRefObject<Record<string, string>>;
+    errors: React.RefObject<Record<string, string>>;
 }> = ({ancestorId, element, data, onUpdate, errors}) => {
     const childId = (ancestorId ?? "") + element.id;
     console.log(childId, data)
@@ -90,7 +90,7 @@ export const ScaffoldedForm: React.FunctionComponent<{
 
     const didMount = useDidMount();
 
-    function validate(newValue: unknown): { didChange: boolean } {
+    function validate(newValue: unknown): {didChange: boolean} {
         let errorMessage: string | null = null;
         if ("validator" in element && element.validator) {
             errorMessage = element.validator(newValue)
@@ -159,7 +159,7 @@ export const ScaffoldedForm: React.FunctionComponent<{
                             newArray.push({});
                             updateAndValidate(newArray);
                         }}>
-                            <Icon name={"heroPlus"}/>
+                            <Icon name={"heroPlus"} />
                             <div>Create {element.title}</div>
                         </Button>
                     </>}
@@ -173,16 +173,16 @@ export const ScaffoldedForm: React.FunctionComponent<{
                                     newArray.splice(idx + 1, 0, {});
                                     updateAndValidate(newArray);
                                 }}>
-                                    <Icon name={"heroPlus"}/>
+                                    <Icon name={"heroPlus"} />
                                 </Button>
                                 <Button disabled={deleteDisabled} color={"errorMain"} onClick={() => {
                                     const newArray = [...eArray];
                                     newArray.splice(idx, 1);
                                     updateAndValidate(newArray);
                                 }}>
-                                    <Icon name={"heroTrash"}/>
+                                    <Icon name={"heroTrash"} />
                                 </Button>
-                                <Box flexGrow={1}/>
+                                <Box flexGrow={1} />
                                 <Button disabled={idx == 0} onClick={() => {
                                     if (idx == 0) return;
                                     const newArray = [...eArray];
@@ -191,7 +191,7 @@ export const ScaffoldedForm: React.FunctionComponent<{
                                     newArray[idx] = tmp;
                                     updateAndValidate(newArray);
                                 }}>
-                                    <Icon name={"heroArrowUp"}/>
+                                    <Icon name={"heroArrowUp"} />
                                 </Button>
 
                                 <Button disabled={idx == eArray.length - 1} onClick={() => {
@@ -202,7 +202,7 @@ export const ScaffoldedForm: React.FunctionComponent<{
                                     newArray[idx] = tmp;
                                     updateAndValidate(newArray);
                                 }}>
-                                    <Icon name={"heroArrowDown"}/>
+                                    <Icon name={"heroArrowDown"} />
                                 </Button>
                             </Flex>
 
@@ -262,7 +262,7 @@ export const ScaffoldedForm: React.FunctionComponent<{
             }, [data])
 
             return <BaseComponent element={element} error={myError} isEmpty={data == null || data == ""}>
-                <Input value={data as string ?? ""} onChange={updateData} placeholder={element.placeholder}/>
+                <Input value={data as string ?? ""} onChange={updateData} placeholder={element.placeholder} />
             </BaseComponent>;
         }
         case "TextArea": {
@@ -277,7 +277,7 @@ export const ScaffoldedForm: React.FunctionComponent<{
 
             return <BaseComponent element={element} error={myError} isEmpty={data == null || data == ""}>
                 <TextArea rows={element.rows} value={data as string ?? ""} onChange={updateData}
-                          placeholder={element.placeholder}/>
+                    placeholder={element.placeholder} />
             </BaseComponent>;
         }
         case "Toggle": {
@@ -291,7 +291,7 @@ export const ScaffoldedForm: React.FunctionComponent<{
             }, [])
 
             return <BaseComponent element={element} error={myError}>
-                <Toggle checked={data as boolean ?? false} onChange={updateData}/>
+                <Toggle checked={data as boolean ?? false} onChange={updateData} />
             </BaseComponent>;
         }
 
@@ -321,7 +321,7 @@ export const ScaffoldedForm: React.FunctionComponent<{
                     <Button color={"errorMain"} onClick={() => {
                         updateAndValidate(null);
                     }}>
-                        <Icon name={"heroXMark"} />
+                        <Icon name={"close"} />
                     </Button>
                 </Flex>
             </BaseComponent>;

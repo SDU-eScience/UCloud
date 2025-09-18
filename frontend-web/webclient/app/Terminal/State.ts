@@ -1,5 +1,6 @@
 import {useDispatch, useSelector} from "react-redux";
 import {randomUUID} from "@/UtilityFunctions";
+import {Action, PayloadAction} from "@reduxjs/toolkit";
 
 export interface TerminalTab {
     title: string;
@@ -13,28 +14,15 @@ export interface TerminalState {
     open: boolean;
 }
 
-interface TerminalOpenTab {
-    type: "TerminalOpenTab";
-    tab: TerminalTab;
-}
+type TerminalOpenTab = PayloadAction<{tab: TerminalTab}, "TerminalOpenTab">;
 
-interface TerminalCloseTab {
-    type: "TerminalCloseTab";
-    tabIdx: number;
-}
+type TerminalCloseTab = PayloadAction<{tabIdx: number}, "TerminalCloseTab">;
 
-interface TerminalOpen {
-    type: "TerminalOpen";
-}
+type TerminalOpen = Action<"TerminalOpen">;
 
-interface TerminalClose {
-    type: "TerminalClose";
-}
+type TerminalClose = Action<"TerminalClose">;
 
-interface TerminalSelectTab {
-    type: "TerminalSelectTab";
-    tabIdx: number;
-}
+type TerminalSelectTab = PayloadAction<{tabIdx: number}, "TerminalSelectTab">;
 
 export type TerminalAction = TerminalOpenTab | TerminalCloseTab | TerminalOpen | TerminalClose | TerminalSelectTab;
 
@@ -57,7 +45,7 @@ export function terminalReducer(state: TerminalState = initTerminalState(), acti
         }
 
         case "TerminalOpenTab": {
-            const tabWithId = {...action.tab};
+            const tabWithId = {...action.payload.tab};
             tabWithId.uniqueId = randomUUID();
 
             const tabs = [...state.tabs, tabWithId];
@@ -66,13 +54,13 @@ export function terminalReducer(state: TerminalState = initTerminalState(), acti
 
         case "TerminalCloseTab": {
             const tabs = [...state.tabs];
-            tabs.splice(action.tabIdx, 1);
+            tabs.splice(action.payload.tabIdx, 1);
             const newActiveTab = Math.min(state.tabs.length - 2, state.activeTab);
             return {...state, tabs, activeTab: newActiveTab, open: state.open && tabs.length > 0};
         }
 
         case "TerminalSelectTab": {
-            return {...state, activeTab: action.tabIdx, open: true};
+            return {...state, activeTab: action.payload.tabIdx, open: true};
         }
 
         default:

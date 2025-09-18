@@ -3,12 +3,12 @@ package idscripted
 import (
 	"errors"
 	"slices"
-	"ucloud.dk/pkg/apm"
-	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/shared/pkg/apm"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func Init(config *cfg.IdentityManagementScripted) {
@@ -42,7 +42,7 @@ func Init(config *cfg.IdentityManagementScripted) {
 		req := syncProjectRequest{}
 		req.UCloudProjectId = project.Id
 		req.ProjectTitle = project.Specification.Title
-		req.SuggestedGroupName = fnd.GenerateProjectName(project.Specification.Title)
+		req.SuggestedGroupName, _ = fnd.GenerateProjectName(project.Id, project.Specification.Title, fnd.ProjectTitleDefault, "")
 
 		gid, hasGid := ctrl.MapUCloudProjectToLocal(updated.Project.Id)
 		if hasGid {
@@ -51,7 +51,7 @@ func Init(config *cfg.IdentityManagementScripted) {
 
 		for _, member := range project.Status.Members {
 			wasAdded := slices.Contains(membersAddedToProject, member.Username)
-			uid, ok := ctrl.MapUCloudToLocal(member.Username)
+			uid, ok, _ := ctrl.MapUCloudToLocal(member.Username)
 			if !ok {
 				continue
 			}
@@ -69,7 +69,7 @@ func Init(config *cfg.IdentityManagementScripted) {
 		}
 
 		for _, member := range membersRemovedFromProject {
-			uid, ok := ctrl.MapUCloudToLocal(member)
+			uid, ok, _ := ctrl.MapUCloudToLocal(member)
 			if !ok {
 				continue
 			}

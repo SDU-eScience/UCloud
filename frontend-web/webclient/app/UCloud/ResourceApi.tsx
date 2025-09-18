@@ -15,7 +15,7 @@ import {
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
-import {doNothing} from "@/UtilityFunctions";
+import {doNothing, errorMessageOrDefault} from "@/UtilityFunctions";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {FilterWidgetProps, PillProps, SortEntry, SortFlags} from "@/Resource/Filter";
 import {Dispatch} from "redux";
@@ -26,6 +26,8 @@ import {NavigateFunction} from "react-router";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import * as Accounting from "@/Accounting";
 import {EmbeddedSettings} from "@/ui-components/ResourceBrowser";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {MainContainer} from "@/ui-components";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -208,7 +210,7 @@ export abstract class ResourceApi<Res extends Resource,
     ];
 
     public registerFilter([w, p]: [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>]): void {
-     }
+    }
 
     public idIsUriEncoded = false;
 
@@ -223,7 +225,7 @@ export abstract class ResourceApi<Res extends Resource,
         closeProperties?: () => void;
         api: ResourceApi<Res, Prod, Spec, Update, Flags, Status, Support>;
         embedded?: EmbeddedSettings;
-    }> = props => <ResourceProperties {...props} api={this} />
+    }> = props => <MainContainer main={<ResourceProperties {...props} api={this} />} />
 
     protected constructor(namespace: string) {
         this.namespace = namespace;
@@ -305,12 +307,16 @@ export abstract class ResourceApi<Res extends Resource,
                 confirm: true,
                 enabled: (selected) => selected.length >= 1,
                 onClick: async (selected, cb) => {
-                    await cb.invokeCommand(cb.api.remove(bulkRequestOf(...selected.map(it => ({id: it.id})))));
-                    cb.reload();
-                    cb.closeProperties?.();
+                    try {
+                        await cb.invokeCommand(cb.api.remove(bulkRequestOf(...selected.map(it => ({id: it.id})))));
+                        cb.reload();
+                        cb.closeProperties?.();
 
-                    if (!cb.viewProperties && !cb.embedded) {
-                        cb.navigate(`/${cb.api.routingNamespace}`)
+                        if (!cb.viewProperties && !cb.embedded) {
+                            cb.navigate(`/${cb.api.routingNamespace}`)
+                        }
+                    } catch (e) {
+                        snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to delete item"), false);
                     }
                 },
                 tag: DELETE_TAG,

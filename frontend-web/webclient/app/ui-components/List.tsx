@@ -4,7 +4,7 @@ import {ThemeColor} from "./theme";
 import {BoxProps, Cursor} from "./Types";
 import {EventHandler, MouseEvent, useCallback} from "react";
 import {deviceBreakpoint} from "./Hide";
-import {classConcat, extractSize, injectStyle, unbox} from "@/Unstyled";
+import {classConcat, extractDataTags, extractSize, injectStyle, unbox} from "@/Unstyled";
 
 export const CSSVarCurrentSidebarWidth = "--currentSidebarWidth";
 export const CSSVarCurrentSidebarStickyWidth = "--currentSidebarStickyWidth";
@@ -28,7 +28,7 @@ const List: React.FunctionComponent<BoxProps & {
     childPadding?: number | string;
     bordered?: boolean;
     children?: React.ReactNode;
-}> = ({bordered = true,...props}) => {
+}> = ({bordered = true, ...props}) => {
     const style = unbox(props);
     if (props.childPadding) style["--listChildPadding"] = extractSize(props.childPadding);
     return <div
@@ -36,6 +36,7 @@ const List: React.FunctionComponent<BoxProps & {
         data-bordered={bordered}
         children={props.children}
         style={style}
+        {...extractDataTags(props)}
     />;
 };
 
@@ -57,6 +58,8 @@ interface ListRowProps {
     onContextMenu?: EventHandler<MouseEvent<never>>;
     disableSelection?: boolean;
     className?: string;
+    draggable?: boolean;
+    onDrop?: () => void
 }
 
 export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
@@ -73,6 +76,7 @@ export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
 
     return <div
         className={classConcat(ListRowClass, props.className)}
+        draggable={props.draggable}
         data-component={"list-row"}
         data-highlighted={props.highlight === true}
         data-hoh={props.highlightOnHover != false}
@@ -81,12 +85,15 @@ export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
         onClick={doSelect}
         style={{fontSize: props.fontSize ?? "14px"}}
         onContextMenu={props.onContextMenu}
+        onDrop={props.onDrop}
+        onDragOver={e => props.onDrop ? e.preventDefault() : null}
+        {...extractDataTags(props)}
     >
         {props.icon ? <div className="row-icon">{props.icon}</div> : null}
         <div className="row-left">
             <div className="row-left-wrapper">
                 <div className="row-left-content" onClick={doNavigate}>{props.left}</div>
-                <div className="row-left-padding"/>
+                <div className="row-left-padding" />
             </div>
             <div className="row-left-sub">{props.leftSub}</div>
         </div>
@@ -94,7 +101,7 @@ export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
     </div>;
 }
 
-export const ListStatContainer: React.FunctionComponent<{ children: React.ReactNode }> = props => <>{props.children}</>;
+export const ListStatContainer: React.FunctionComponent<{children: React.ReactNode}> = props => <>{props.children}</>;
 
 export const ListRowStat: React.FunctionComponent<{
     icon?: IconName;
@@ -108,7 +115,7 @@ export const ListRowStat: React.FunctionComponent<{
     const color: ThemeColor = props.color ?? "iconColor";
     const color2: ThemeColor = props.color2 ?? "iconColor2";
     const body = <>
-        {!props.icon ? null : <Icon size={"10"} color={color} color2={color2} name={props.icon}/>}
+        {!props.icon ? null : <Icon size={"10"} color={color} color2={color2} name={props.icon} />}
         {props.children}
     </>;
 

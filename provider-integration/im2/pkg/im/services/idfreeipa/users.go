@@ -3,10 +3,10 @@ package idfreeipa
 import (
 	"fmt"
 	"strconv"
-	fnd "ucloud.dk/pkg/foundation"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/pkg/im/external/freeipa"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func handleAuthentication(ucloudUsername string) (uint32, error) {

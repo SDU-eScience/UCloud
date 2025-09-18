@@ -16,9 +16,9 @@ System minimum requirements:
 
 HPC cluster minimum requirements:
 
-- __Slurm:__ TODO version number
+- __Slurm:__ Version 20.02 and above are guaranteed to work, older versions might work.
 - __Filesystem:__ A distributed filesystem exposing a standard POSIX interface
-    - UCloud/IM for Slurm has integrations with: GPFS, CephFS (TODO), WEKA (TODO)
+    - UCloud/IM for Slurm has integrations with: GPFS
 
 In addition, the machine must be able to perform the following actions:
 
@@ -44,7 +44,8 @@ In order to follow along with this document you also need:
 <div data-title="RHEL" data-icon="fa-brands fa-redhat">
 
 RPM packages for RHEL are automatically built. You can download the latest RPM package
-[here](https://github.com/sdu-escience/ucloud/releases). Once you have downloaded the package, you can install it with
+[here](https://github.com/sdu-escience/ucloud/releases/latest). Once you have downloaded the
+package, you can install it with
 the following command:
 
 TODO Consider if this installation script should enforce a cgroup on user instances since this might limit abuse of
@@ -62,43 +63,55 @@ $ ucloud version
 UCloud/IM 2024.1.0
 ```
 
-You can additionally verify that your machine is configured correctly by running:
-
-```terminal
-$ sudo ucloud slurm verify
-Software
--------------------------------------------------------------------------------
-UCloud/IM        | 2024.1.0 (OK)
-Slurm            | 23.11.7 (OK)
-
-Machine
--------------------------------------------------------------------------------
-OS               | AlmaLinux 8.9 (Midnight Oncilla) x86_64 (OK)
-CPU              | AMD EPYC 7282 (64) @ 2.800GHz (OK)
-Memory           | 128771MiB (OK)
-Filesystem       | GPFS (estimated from /home/, OK)
-
-Machine and service configuration
--------------------------------------------------------------------------------
-Service          | Configured (OK)
-sudo             | OK
-sudo config      | OK
-IM config        | Awaiting init (OK)
-
-[green]TEST SUCCESSFUL🖌️
-```
-
 </div>
 
 <div data-title="Ubuntu" data-icon="fa-brands fa-ubuntu">
 
-Ubuntu instructions **go here**.
+**TODO** Not available yet.
 
 </div>
 
-<div data-title="Manual" data-icon="fa-brands fa-golang">
+<div data-title="Pre-compiled binaries" data-icon="fa-brands fa-golang">
 
-Manual instructions **go here**.
+**TODO** Not available yet.
+
+An executable binary of the UCloud Integration Module is available for download
+[here](https://github.com/sdu-escience/ucloud/releases/latest).
+
+ 1. Download the archive containing the binary for your platform.
+ 2. Extract the binary and place it somwhere in your `PATH` (e.g. `/usr/bin`).
+</div>
+
+
+<div data-title="Building from source" data-icon="fa-brands fa-golang">
+
+The UCloud Integration Module is written in the [Go](https://go.dev) programming language, and can
+be build from source with a compatible version of the Go compiler.
+
+Installation instructions can be found [here](https://go.dev/doc/install).
+
+The latest source for the UCloud Integration Module can be downloaded from
+[here](https://github.com/sdu-escience/ucloud/releases/latest).
+
+To build:
+
+ 1. Extract the source directory and change to the `provider-integration/im2` directory, i.e:
+
+    ```terminal
+    $ cd $UCLOUD_DIRECTORY/provider-integration/im2
+    ```
+
+    where `$UCLOUD_DIRECTORY` is the name of the extracted directory.
+
+ 2. To build the executable, run
+
+    ```terminal
+    $ ./build.sh
+    ```
+
+ 3. The UCloud Integration Module binary will be located in `bin/im` when compilation has finished.
+    Rename this to `ucloud` and place somewhere in you `PATH` (e.g. `/usr/bin`).
+
 
 </div>
 
@@ -117,7 +130,13 @@ should aim to re-use this file.
 </div>
 </div>
 
-Before you can start UCloud/IM, you must register as a service provider. This is only needs to be done once. You can
+Before you can start UCloud/IM, you must register as a service provider. This only needs to be done
+once. You may receive a test provider in UCloud's sandbox environment by contacting the [support
+team](https://servicedesk.cloud.sdu.dk).
+
+<!--
+
+You can
 automatically register with the sandbox environment by running the following command:
 
 ```terminal
@@ -127,6 +146,8 @@ Please finish the registration by going to https://sandbox.dev.cloud.sdu.dk/app/
 Waiting for registration to complete (Please keep this window open)...
 Registration complete! You may now proceed with the installation.
 ```
+
+-->
 
 Once the registration is complete, you now have a provider on UCloud's sandbox environment. From the UCloud interface,
 you should now be able to select your provider project from the project switcher. You can add other UCloud users to help
@@ -147,71 +168,16 @@ provider project which you are automatically added to.
 
 ## Bootstrapping the Configuration
 
-In this section we will bootstrap the configuration of your provider such that you may test that everything is working
-as intended. Your provider will start out in an _unmanaged_ state.
-
 <div class="info-box info">
 <i class="fa fa-info-circle"></i>
 <div>
 
-__As an unmanaged provider__, UCloud will be running with limited
-functionality towards your service provider. In particular, quota management and project management will be disabled and
-will have to be done by hand. This means that UCloud/IM _will not_ create or manage any users, projects or any resource
-allocation. All of this must be done by you through whichever means you have.
-
-__Managed providers__ have all UCloud functionality turned on. This allows UCloud/IM to automatically manage users,
-projects
-and quotas. This can co-exist with users and projects created through other means. UCloud/IM will _only_ manage users
-that have been created through UCloud. During the following section we will explain how to transition your provider from
-an unmanaged state to a managed state.
+TODO Provide default configurations that are good enough that you can start the service. It will not be functional
+yet, due to lack of proper networking.
 
 </div>
 </div>
 
-In order to start the bootstrapping process, you can run the following command:
-
-```terminal
-$ sudo ucloud slurm bootstrap
-```
-
-This will take you through a configuration wizard, as shown below:
-
-```terminal
-Welcome, $providerName. This configuration wizard will take you through the bootstrapping process. You will need to
-answer a few questions about your environment.
-
-You will have a chance to review the configuration at the end.
-
-Some default values have been chosen based on your installation method (RPM package).
-
-Now configuring: Filesystem
-------------------------------------------------------------------------------------------------------------------------
-[🙋] Please select all root-folders relevant for end users. (e.g. /home)    /work
-
-Now configuring: Slurm
-------------------------------------------------------------------------------------------------------------------------
-[🙋] Please select a Slurm partition to configure.                          fat
-[🙋] Select an accompanying QoS                                             normal
-[🙋] What should we call the (fat/normal) combination in UCloud?            hippo-fat
-[🙋] Do you use full-node reservations?                                     no
-[🙋] How many (v)CPU does a full node have (hippo-fat)?                     128
-[🙋] How much memory does a full node have in GB (hippo-fat)?               4096
-[🙋] How many GPUs does a full node have (hippo-fat)?                       0
-
-Now configuring: SSH
-------------------------------------------------------------------------------------------------------------------------
-[🙋] Do you allow user to SSH to your frontend from their own machine?      yes
-[🙋] What is the hostname of your SSH frontend?                             frontend.hippo.example.com
-[🙋] Should end-users be allowed to upload new SSH keys via UCloud?         yes
-
-Now configuring: Applications
-------------------------------------------------------------------------------------------------------------------------
-[🙋] Do you wish to support interactive applications (web-based)?           yes
-[🙋] Do you wish to support remote desktop applications?                    yes
-```
-
-This configuration wizard will finish up your configuration and place it in UCloud's configuration folder. The
-default/recommended folder, regardless of installation method, is `/etc/ucloud`.
 
 ## Testing the Configuration
 
@@ -312,7 +278,7 @@ configuration bootstrap procedure.
 <figcaption>
 
 The `/work` folder has appeared inside UCloud. This is the same folder which was configured during the bootstrapping
-process. Depending on the folder(s) you chose, you might see something different.
+process (TODO where??). Depending on the folder(s) you chose, you might see something different.
 
 </figcaption>
 </figure>
@@ -320,8 +286,5 @@ process. Depending on the folder(s) you chose, you might see something different
 ## Next Steps
 
 You have now successfully connected your service provider to UCloud's sandbox environment! Your service provider is
-currently _unmanaged_ and running in _proxy_ networking-mode.
-
-In order to get your service-provider into UCloud's production system you must upgrade the networking-mode and should
-change it into a managed provider. During the next chapters, we will discuss how to do this. In the next section we will
-explain what is going on behind the scenes with your new UCloud provider and also discuss networking-modes.
+currently _unmanaged_. During the next chapters, we will discuss how to configure networking for UCloud/IM. In the next
+section we will explain what is going on behind the scenes with your new UCloud provider.

@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"ucloud.dk/pkg/apm"
+	"time"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type DriveDescriptorType = int
@@ -26,6 +25,25 @@ type DriveDescriptor struct {
 	Type               DriveDescriptorType
 	PrimaryReference   string
 	SecondaryReference string
+}
+
+func (d DriveDescriptor) ProductName() string {
+	switch d.Type {
+	case DriveDescriptorTypeShare:
+		return "share"
+
+	case DriveDescriptorTypeMemberFiles:
+		return "project-home"
+
+	case DriveDescriptorTypeHome:
+		fallthrough
+	case DriveDescriptorTypeProjectRepo:
+		fallthrough
+	case DriveDescriptorTypeCollection:
+		fallthrough
+	default:
+		return shared.ServiceConfig.FileSystem.Name
+	}
 }
 
 func (d DriveDescriptor) ToProviderId() util.Option[string] {
@@ -51,7 +69,7 @@ func (d DriveDescriptor) ToProviderId() util.Option[string] {
 }
 
 // ToTitle returns the natural title of a drive descriptor. For drives of the "Collection" type this will return
-// an empty string. For shares, this will return "Share (ID)" should be changed by the share-system.
+// an empty string. For shares, this will return the share ID and should be changed by the share-system.
 func (d DriveDescriptor) ToTitle() string {
 	switch d.Type {
 	case DriveDescriptorTypeHome:
@@ -61,7 +79,7 @@ func (d DriveDescriptor) ToTitle() string {
 		return d.SecondaryReference
 
 	case DriveDescriptorTypeMemberFiles:
-		return d.SecondaryReference
+		return "Member Files: " + d.SecondaryReference
 
 	case DriveDescriptorTypeCollection:
 		return ""
@@ -105,7 +123,7 @@ func ParseDriveDescriptor(providerId util.Option[string]) (DriveDescriptor, bool
 			return DriveDescriptor{}, false
 		}
 		return DriveDescriptor{
-			Type:               DriveDescriptorTypeProjectRepo,
+			Type:               DriveDescriptorTypeMemberFiles,
 			PrimaryReference:   split[0],
 			SecondaryReference: split[1],
 		}, true
@@ -119,9 +137,15 @@ func ParseDriveDescriptor(providerId util.Option[string]) (DriveDescriptor, bool
 	}
 }
 
-func DriveToLocalPath(drive *orc.Drive) string {
-	descriptor, _ := ParseDriveDescriptor(util.OptValue(drive.ProviderGeneratedId))
+var shareCache = util.NewCache[string, orc.Share](1 * time.Minute)
+
+func DriveToLocalPath(drive *orc.Drive) (string, bool, *orc.Drive) {
+	descriptor, ok := ParseDriveDescriptor(util.OptValue(drive.ProviderGeneratedId))
 	mnt := shared.ServiceConfig.FileSystem.MountPoint
+
+	if !ok {
+		return "/dev/null", false, drive
+	}
 
 	switch descriptor.Type {
 	case DriveDescriptorTypeHome:
@@ -129,7 +153,7 @@ func DriveToLocalPath(drive *orc.Drive) string {
 			mnt,
 			"home",
 			descriptor.PrimaryReference,
-		)
+		), true, drive
 
 	case DriveDescriptorTypeProjectRepo:
 		return filepath.Join(
@@ -137,7 +161,7 @@ func DriveToLocalPath(drive *orc.Drive) string {
 			"projects",
 			descriptor.PrimaryReference,
 			descriptor.SecondaryReference,
-		)
+		), true, drive
 
 	case DriveDescriptorTypeMemberFiles:
 		return filepath.Join(
@@ -146,12 +170,29 @@ func DriveToLocalPath(drive *orc.Drive) string {
 			descriptor.PrimaryReference,
 			"Members' Files",
 			descriptor.SecondaryReference,
-		)
+		), true, drive
 
 	case DriveDescriptorTypeShare:
-		// TODO TODO TODO
-		log.Warn("Shares not yet implemented")
-		return "/dev/null/TODO"
+		shareId := descriptor.PrimaryReference
+		share, ok := shareCache.Get(shareId, func() (orc.Share, error) {
+			return orc.RetrieveShare(shareId)
+		})
+		if !ok {
+			return "/dev/null", false, drive
+		} else {
+			realDriveId, ok := DriveIdFromUCloudPath(share.Specification.SourceFilePath)
+			if !ok {
+				return "/dev/null", false, drive
+			}
+
+			realDrive, ok := ctrl.RetrieveDrive(realDriveId)
+			if !ok {
+				return "/dev/null", false, drive
+			}
+
+			result, ok, _ := UCloudToInternal(share.Specification.SourceFilePath)
+			return result, ok, realDrive
+		}
 
 	case DriveDescriptorTypeCollection:
 		fallthrough
@@ -160,7 +201,7 @@ func DriveToLocalPath(drive *orc.Drive) string {
 			mnt,
 			"collections",
 			drive.Id,
-		)
+		), true, drive
 	}
 }
 
@@ -184,32 +225,35 @@ func ResolveDriveByUCloudPath(path string) (*orc.Drive, string, bool) {
 	return drive, subpath, true
 }
 
-func ListDrivesByOwner(owner apm.WalletOwner) []*orc.Drive {
-	return nil
+func UCloudToInternal(path string) (string, bool, *orc.Drive) {
+	drive, subpath, ok := ResolveDriveByUCloudPath(path)
+	if !ok {
+		return "", false, nil
+	}
+
+	basePath, ok, drive := DriveToLocalPath(drive)
+	if !ok {
+		return "/dev/null", false, nil
+	}
+
+	return filepath.Join(basePath, subpath), true, drive
 }
 
-func UCloudToInternal(path string) (string, bool) {
-	drive, subpath, ok := ResolveDriveByUCloudPath(path)
+func InternalToUCloudWithDrive(drive *orc.Drive, path string) (string, bool) {
+	cleanPath := filepath.Clean(path)
+	basePath, ok, _ := DriveToLocalPath(drive)
+	basePath += "/"
+
 	if !ok {
 		return "", false
 	}
 
-	return filepath.Join(DriveToLocalPath(drive), subpath), true
-}
-
-func InternalToUCloudWithDrive(drive *orc.Drive, path string) string {
-	cleanPath := filepath.Clean(path)
-	basePath := DriveToLocalPath(drive) + "/"
 	withoutBasePath, _ := strings.CutPrefix(cleanPath, basePath)
 	if cleanPath+"/" == basePath {
-		return "/" + drive.Id
+		return "/" + drive.Id, true
 	} else {
-		return "/" + drive.Id + "/" + withoutBasePath
+		return "/" + drive.Id + "/" + withoutBasePath, true
 	}
-}
-
-func EnsureDriveExists(descriptor DriveDescriptor) (string, bool) {
-	return "", false
 }
 
 func DriveIdFromUCloudPath(path string) (string, bool) {
@@ -220,4 +264,58 @@ func DriveIdFromUCloudPath(path string) (string, bool) {
 
 	driveId := components[0]
 	return driveId, true
+}
+
+func AllowUCloudPathsTogetherWithProjects(paths []string, projects []string) bool {
+	projectIds := map[string]util.Empty{}
+	anySensitive := false
+
+	for _, p := range projects {
+		projectIds[p] = util.Empty{}
+	}
+
+	for _, path := range paths {
+		driveId, ok := DriveIdFromUCloudPath(path)
+		if ok {
+			drive, ok := ResolveDrive(driveId)
+			if ok {
+				projectIds[drive.Owner.Project] = util.Empty{}
+				if DriveIsSensitive(drive) {
+					anySensitive = true
+				}
+			}
+		}
+	}
+
+	if anySensitive && len(projectIds) > 1 {
+		return false
+	}
+
+	return true
+}
+
+func AllowUCloudPathsTogether(paths []string) bool {
+	return AllowUCloudPathsTogetherWithProjects(paths, nil)
+}
+
+func UCloudPathIsSensitive(path string) bool {
+	driveId, ok := DriveIdFromUCloudPath(path)
+	if !ok {
+		return true
+	}
+
+	drive, ok := ResolveDrive(driveId)
+	if !ok {
+		return true
+	}
+
+	return DriveIsSensitive(drive)
+}
+
+func DriveIsSensitive(drive *orc.Drive) bool {
+	if drive == nil {
+		return true
+	}
+
+	return shared.IsSensitiveProject(drive.Owner.Project)
 }

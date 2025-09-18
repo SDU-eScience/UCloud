@@ -7,29 +7,40 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"os/user"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+	"ucloud.dk/pkg/im/external/user"
 
-	"ucloud.dk/pkg/apm"
-	fnd "ucloud.dk/pkg/foundation"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	slurmcli "ucloud.dk/pkg/im/external/slurm"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/apm"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
+)
+
+var (
+	metricSlurmUnknownJobsRegistered = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "slurm",
+		Name:      "unknown_jobs_registered",
+		Help:      "The number of jobs registered by UCloud through Slurm (i.e. not submitted through UCloud)",
+	})
 )
 
 var Machines []apm.ProductV2
 var machineSupport []orc.JobSupport
 var SlurmClient *slurmcli.Client
 
-var jobNameUnsafeRegex *regexp.Regexp = regexp.MustCompile(`[^\w ():_-]`)
+var jobNameUnsafeRegex = regexp.MustCompile(`[^\w ():_-]`)
 var unknownApplication = orc.NameAndVersion{Name: "unknown", Version: "unknown"}
 
 var ipcRegisterJobUpdate = ipc.NewCall[[]orc.ResourceUpdateAndId[orc.JobUpdate], util.Empty]("slurm.register_job_update")
@@ -41,6 +52,8 @@ func InitCompute() ctrl.JobsService {
 	if SlurmClient == nil && len(Machines) > 0 {
 		panic("Failed to initialize SlurmClient!")
 	}
+
+	ReloadModulesFromLmod()
 
 	if cfg.Mode == cfg.ServerModeServer {
 		ipcRegisterJobUpdate.Handler(func(r *ipc.Request[[]orc.ResourceUpdateAndId[orc.JobUpdate]]) ipc.Response[util.Empty] {
@@ -99,46 +112,100 @@ func InitCompute() ctrl.JobsService {
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
-	if owner.Project == "" {
-		return nil
+	var result []orc.ApplicationParameter
+
+	if owner.Project != "" {
+		project, ok := ctrl.RetrieveProject(owner.Project)
+		if ok && project.Status.PersonalProviderProjectFor.Present {
+			accounts := []string{"unknown"}
+			myUser, err := user.Current()
+			if err == nil {
+				accounts = SlurmClient.UserListAccounts(myUser.Username)
+			}
+
+			var opts []orc.EnumOption
+			for _, account := range accounts {
+				opts = append(opts, orc.EnumOption{
+					Name:  account,
+					Value: account,
+				})
+			}
+
+			// NOTE(Dan): Send the parameter even if we have no options to make it clear to the user why this is
+			// failing/going to fail.
+
+			result = append(result, orc.ApplicationParameterEnumeration(
+				SlurmAccountParameter,
+				false,
+				"Slurm account",
+				"The slurm account to use for this job.",
+				opts,
+			))
+		}
 	}
 
-	project, ok := ctrl.GetLastKnownProject(owner.Project)
-	if !ok {
-		return nil
+	appsToLoad := app.Invocation.Tool.Tool.Description.LoadInstructions.Value.Applications
+	allowMoreModules := len(appsToLoad) == 0
+
+	if len(appsToLoad) > 0 {
+		session := sbatchTemplateSession{
+			Applications:         ServiceConfig.Compute.Applications,
+			RequiredApplications: appsToLoad,
+			VersionPolicy:        "loose",
+			PreviouslyLoaded:     make(map[orc.NativeApplication]appCfgAndVersion),
+		}
+
+		var failedToLoad []string
+
+		for _, toLoad := range appsToLoad {
+			appCfg, _, ok := session.FindApplication(toLoad.Name, toLoad.Version)
+			if appCfg.Readme.Present {
+				result = append(result, orc.ApplicationParameterReadme(appCfg.Readme.Value))
+			}
+
+			if !ok {
+				failedToLoad = append(failedToLoad, "`"+toLoad.Name+"/"+toLoad.Version+"`")
+				session.Error = nil
+			}
+		}
+
+		if len(failedToLoad) > 0 {
+			allowMoreModules = true
+
+			if len(AvailableModules) > 0 {
+				result = append(result, orc.ApplicationParameterReadme(
+					fmt.Sprintf(
+						"This application has not been configured for this system yet. "+
+							"You can try to select the appropriate modules from the \"Modules\" section below. "+
+							"\n\nCould not load: %s.", strings.Join(failedToLoad, ", "),
+					)),
+				)
+			} else {
+				result = append(result, orc.ApplicationParameterReadme(
+					fmt.Sprintf(
+						"This application has not been configured for this system yet. "+
+							"\n\nCould not load: %s.", strings.Join(failedToLoad, ", "),
+					),
+				))
+			}
+		}
 	}
 
-	if !project.Status.PersonalProviderProjectFor.Present {
-		return nil
+	if allowMoreModules && len(AvailableModules) > 0 {
+		result = append(result, orc.ApplicationParameterModuleList(
+			SlurmModulesParameter,
+			"Modules",                 // TODO better description
+			"List of modules to load", // TODO better description
+			AvailableModules,
+		))
 	}
 
-	accounts := []string{"unknown"}
-	myUser, err := user.Current()
-	if err == nil {
-		accounts = SlurmClient.UserListAccounts(myUser.Username)
-	}
-
-	var opts []orc.EnumOption
-	for _, account := range accounts {
-		opts = append(opts, orc.EnumOption{
-			Name:  account,
-			Value: account,
-		})
-	}
-
-	return []orc.ApplicationParameter{
-		orc.ApplicationParameterEnumeration(
-			SlurmAccountParameter,
-			false,
-			"Slurm account",
-			"The slurm account to use for this job.",
-			opts,
-		),
-	}
+	return result
 }
 
 const InjectedPrefix = "_injected_"
 const SlurmAccountParameter = InjectedPrefix + "slurmAccount"
+const SlurmModulesParameter = InjectedPrefix + "modules"
 
 var nextComputeAccountingTime = time.Now()
 
@@ -205,8 +272,8 @@ func loopAccounting() {
 func loopComputeMonitoring() {
 	jobs := SlurmClient.JobList()
 
-	batch := ctrl.BeginJobUpdates()
 	activeJobs := ctrl.GetJobs()
+	batch := ctrl.BeginJobUpdates()
 
 	jobsBySlurmId := make(map[int]string)
 	for jobId, job := range activeJobs {
@@ -318,6 +385,7 @@ func loopComputeMonitoring() {
 					log.Warn("Error while retrieving job: %s", err.Error())
 				}
 
+				metricSlurmUnknownJobsRegistered.Inc()
 				ctrl.TrackNewJob(job)
 			}
 		}
@@ -485,6 +553,14 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 	sbatchFileContent := sbatchResult.Content
 	if err != nil {
 		return util.OptNone[string](), err
+	}
+
+	if sbatchResult.JinjaTemplateFile != "" {
+		templateFile := filepath.Join(jobFolder, "job_template.j2")
+		paramsFile := filepath.Join(jobFolder, "job_template_params.yml")
+
+		_ = os.WriteFile(templateFile, []byte(sbatchResult.JinjaTemplateFile), 0770)
+		_ = os.WriteFile(paramsFile, []byte(sbatchResult.JinjaParametersFile), 0770)
 	}
 
 	sbatchFilePath := filepath.Join(jobFolder, "job.sbatch")
@@ -788,7 +864,7 @@ func follow(session *ctrl.FollowJobSession) {
 					stderr.Set(message)
 				}
 
-				session.EmitLogs(logFile.Rank, stdout, stderr)
+				session.EmitLogs(logFile.Rank, stdout, stderr, util.OptNone[string]())
 			}
 		}
 
@@ -796,10 +872,10 @@ func follow(session *ctrl.FollowJobSession) {
 	}
 }
 
-func serverFindIngress(job *orc.Job, suffix util.Option[string]) ctrl.ConfiguredWebIngress {
+func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) ctrl.ConfiguredWebIngress {
 	return ctrl.ConfiguredWebIngress{
 		IsPublic:     false,
-		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + suffix.Value + ServiceConfig.Compute.Web.Suffix,
+		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + "-" + fmt.Sprint(rank) + suffix.Value + ServiceConfig.Compute.Web.Suffix,
 	}
 }
 
@@ -819,9 +895,9 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.Co
 		length := len(updates)
 		for i := 0; i < length; i++ {
 			update := &job.Updates[i]
-			if strings.HasPrefix("Target: ", update.Status.Value) {
-				asJson := strings.TrimPrefix("Target: ", update.Status.Value)
-				var dynTarget DynamicTarget
+			if strings.HasPrefix(update.Status.Value, "Target: ") {
+				asJson := strings.TrimPrefix(update.Status.Value, "Target: ")
+				var dynTarget orc.DynamicTarget
 				err := json.Unmarshal([]byte(asJson), &dynTarget)
 				if err != nil {
 					continue
@@ -879,7 +955,7 @@ func FindJobFolder(owner apm.WalletOwner) (string, bool) {
 		dir, err := os.UserHomeDir()
 
 		if err == nil {
-			project, ok := ctrl.GetLastKnownProject(owner.ProjectId)
+			project, ok := ctrl.RetrieveProject(owner.ProjectId)
 			if !ok {
 				basePath = dir
 			} else if project.Status.PersonalProviderProjectFor.Present {
@@ -888,7 +964,7 @@ func FindJobFolder(owner apm.WalletOwner) (string, bool) {
 		}
 	}
 
-	folder := filepath.Join(basePath, JobFolderName)
+	folder := filepath.Join(basePath, ServiceConfig.Compute.JobFolderName)
 	if _, err := os.Stat(folder); err != nil {
 		err = os.MkdirAll(folder, 0770)
 		if err != nil {
@@ -899,5 +975,3 @@ func FindJobFolder(owner apm.WalletOwner) (string, bool) {
 
 	return folder, true
 }
-
-const JobFolderName = "UCloud Jobs"

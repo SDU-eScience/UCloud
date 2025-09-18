@@ -2,9 +2,8 @@ import * as React from "react";
 import Icon from "@/ui-components/Icon";
 import {extractDataTags, injectStyle} from "@/Unstyled";
 import {CSSProperties, useCallback, useEffect, useRef} from "react";
-import {ListRow} from "@/ui-components/List";
 import Flex from "@/ui-components/Flex";
-import Box from "@/ui-components/Box";
+import {Cursor} from "./Types";
 
 export enum TreeAction {
     TOGGLE,
@@ -36,7 +35,7 @@ const KEY_MAP: Record<string, TreeAction> = {
 const TreeClass = injectStyle("tree", k => ``);
 
 export const Tree: React.FunctionComponent<{
-    apiRef?: React.MutableRefObject<TreeApi | null>;
+    apiRef?: React.RefObject<TreeApi | null>;
     unhandledShortcut?: (target: HTMLElement, ev: KeyboardEvent) => void;
     children: React.ReactNode;
     onAction?: (row: HTMLElement, action: TreeAction) => void;
@@ -245,13 +244,16 @@ export const TreeNode: React.FunctionComponent<{
     right?: React.ReactNode;
     children?: React.ReactNode;
     className?: string;
+    onContextMenu?: React.MouseEventHandler<HTMLDivElement>;
     indent?: number;
     onActivate?: (open: boolean, element: HTMLElement) => void;
     slim?: boolean;
+    cursor?: Cursor;
 }> = props => {
     const ref = useRef<HTMLDivElement>(null);
     const style: CSSProperties = {};
     style["--indent"] = (props.indent ?? (props.slim ? 16 : 32)) + "px";
+    if (props.cursor) style.cursor = props.cursor;
 
     const activate = useCallback((ev?: React.SyntheticEvent) => {
         ev?.stopPropagation();
@@ -290,6 +292,12 @@ export const TreeNode: React.FunctionComponent<{
         style={style}
         ref={ref}
         onClick={activate}
+        onContextMenu={e => {
+            if (props.onContextMenu) {
+                activate(e);
+                props.onContextMenu(e);
+            }
+        }}
         onDoubleClick={toggleOpen}
         {...extractDataTags(props)}
     >
@@ -306,7 +314,7 @@ export const TreeNode: React.FunctionComponent<{
                     data-chevron={"true"}
                     color="textPrimary"
                     size={15}
-                    name="chevronDownLight"
+                    name="heroChevronDown"
                     className={"open-chevron"}
                     cursor={"pointer"}
                     onClick={toggleOpen}

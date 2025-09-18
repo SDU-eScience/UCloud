@@ -323,6 +323,10 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
     val browseProviderAllocations = BrowseProviderAllocations.call
     val adminDebug = AdminDebug.call
     val adminCharge = AdminCharge.call
+    val adminReset = AdminReset.call
+    val adminProviderDump = AdminProviderDump.call
+    val adminResendNotification = AdminResendNotification.call
+    val adminGenerateTestData = AdminGenerateTestData.call
 
     private fun StringBuilder.documentationInternalUtilities() {}
 
@@ -466,6 +470,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
         data class Request(
             val walletId: Int,
             val amount: Long,
+            val isDeltaCharge: Boolean = true
         )
 
         @Serializable
@@ -484,6 +489,92 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             }
         )
     }
+
+    object AdminReset {
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Request(
+            val category: ProductCategoryIdV2,
+        )
+
+        val call = call(
+            "adminReset",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "adminReset", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
+
+    object AdminProviderDump {
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Request(
+            val category: ProductCategoryIdV2,
+        )
+
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Response(
+            val dump: String,
+        )
+
+        val call = call(
+            "adminProviderDump",
+            Request.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "adminProviderDump", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
+
+    object AdminResendNotification {
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Request(
+            val walletId: Int,
+        )
+
+        val call = call(
+            "adminResendNotification",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "adminResendNotification", roles = Roles.ADMIN)
+            }
+        )
+    }
+
+    object AdminGenerateTestData {
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Request(
+            val coreHourUsage: Long = 0 ,
+            val maxStorageUsage: Long = 0,
+            val timeSpanInMillis: Long = 0,
+            val createProjectStructure: Boolean = true,
+            val clearExistingUsage: Boolean = true,
+            val makeCharges: Boolean = true,
+            val startDate: Long? = null,
+        )
+
+        val call = call(
+            "adminGenerateTestData",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "adminGenerateTestData", roles = Roles.ADMIN)
+            }
+        )
+    }
+
+
 }
 
 // Types
@@ -547,6 +638,8 @@ data class WalletV2(
     val totalAllocated: Long,
 
     val lastSignificantUpdateAt: Long,
+
+    val localRetiredUsage: Long,
 )
 
 @Serializable

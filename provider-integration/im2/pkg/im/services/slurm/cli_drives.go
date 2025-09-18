@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/user"
 	"regexp"
 	"strings"
-	db "ucloud.dk/pkg/database"
+	"ucloud.dk/pkg/cli"
 	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/im/external/user"
 	"ucloud.dk/pkg/im/ipc"
-	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/termio"
+	db "ucloud.dk/shared/pkg/database"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 )
 
 func HandleDrivesCommand() {
@@ -29,11 +30,11 @@ func HandleDrivesCommand() {
 	}
 
 	switch {
-	case isListCommand(command):
+	case cli.IsListCommand(command):
 		req := cliDrivesListRequest{}
 		req.Parse()
 		drives, err := cliDrivesList.Invoke(req)
-		cliHandleError("listing drives", err)
+		cli.HandleError("listing drives", err)
 
 		t := termio.Table{}
 		t.AppendHeader("Created at")
@@ -42,7 +43,7 @@ func HandleDrivesCommand() {
 		t.AppendHeader("Project (local)")
 
 		for _, drive := range drives {
-			t.Cell(cliFormatTime(drive.Drive.CreatedAt))
+			t.Cell(cli.FormatTime(drive.Drive.CreatedAt))
 			t.Cell(drive.Drive.Id)
 			t.Cell(drive.LocalPath)
 			t.Cell(drive.LocalGroupName)
@@ -51,11 +52,11 @@ func HandleDrivesCommand() {
 		t.Print()
 		termio.WriteLine("")
 
-	case isGetCommand(command):
+	case cli.IsGetCommand(command):
 		req := cliDrivesListRequest{}
 		req.Parse()
 		drives, err := cliDrivesList.Invoke(req)
-		cliHandleError("listing drives", err)
+		cli.HandleError("listing drives", err)
 
 		if len(drives) > 1 {
 			termio.WriteStyledString(termio.Bold, termio.Red, 0, "Too many results, try with a more precise query")
@@ -74,7 +75,7 @@ func HandleDrivesCommand() {
 			f.AppendTitle("UCloud metadata")
 
 			f.AppendField("ID", drive.Drive.Id)
-			f.AppendField("Created at", cliFormatTime(drive.Drive.CreatedAt))
+			f.AppendField("Created at", cli.FormatTime(drive.Drive.CreatedAt))
 			f.AppendSeparator()
 
 			createdBy := drive.Drive.Owner.CreatedBy
@@ -141,7 +142,7 @@ func singleDriveToCliDrive(drive *orc.Drive, ok bool) ipc.Response[[]cliDrive] {
 	}
 
 	if !strings.HasPrefix(drive.Owner.CreatedBy, "_") {
-		uid, ok := ctrl.MapUCloudToLocal(drive.Owner.CreatedBy)
+		uid, ok, _ := ctrl.MapUCloudToLocal(drive.Owner.CreatedBy)
 		if !ok {
 			return ipc.Response[[]cliDrive]{
 				StatusCode:   http.StatusNotFound,
@@ -179,7 +180,7 @@ func HandleDrivesCommandServer() {
 			ucloudProjectIdRegex *regexp.Regexp
 		)
 
-		err := cliValidateRegexes(
+		err := cli.ValidateRegexes(
 			&ucloudIdRegex, "ucloud-id", r.Payload.UCloudId,
 			&localUsernameRegex, "local-username", r.Payload.LocalUsername,
 			&localGroupNameRegex, "local-group-name", r.Payload.LocalGroupName,

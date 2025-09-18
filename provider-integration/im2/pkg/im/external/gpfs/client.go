@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"ucloud.dk/pkg/log"
+	"ucloud.dk/shared/pkg/log"
 )
 
 type Params map[string]any
@@ -92,8 +92,6 @@ func (c *Client) Request(method, url string, params *Params, rd any) bool {
 	req.Header.Set("Accept", "application/json")
 	req.SetBasicAuth(c.username, c.password)
 
-	log.Info("GPFS %v %v %v %v %v", method, url, params, c.username, len(c.password))
-
 	resp, err := c.httpClient.Do(req)
 	if resp != nil {
 		defer resp.Body.Close()
@@ -106,7 +104,7 @@ func (c *Client) Request(method, url string, params *Params, rd any) bool {
 	// Response error
 	if resp.StatusCode < 200 || resp.StatusCode > 204 {
 		respBody, _ := io.ReadAll(resp.Body)
-		log.Info("GPFS %v %v %v failed: %v %v\n%v", method, url, params, resp.StatusCode, string(respBody), string(p))
+		_ = respBody
 		return false
 	}
 

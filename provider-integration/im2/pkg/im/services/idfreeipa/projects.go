@@ -1,26 +1,24 @@
 package idfreeipa
 
 import (
-	"os/user"
+	"fmt"
 	"strconv"
-	fnd "ucloud.dk/pkg/foundation"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/external/freeipa"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/pkg/im/external/user"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 	gid, ok := ctrl.MapUCloudProjectToLocal(updated.Project.Id)
 	if !ok {
 		success := false
-		for ext := 0; ext <= 99; ext++ {
-			suggestedName := fnd.GenerateProjectName(updated.Project.Specification.Title)
-			if ext > 0 && ext < 10 {
-				suggestedName += "0" + strconv.Itoa(ext)
-			} else if ext >= 10 {
-				suggestedName += strconv.Itoa(ext)
-			}
+		strategy := config.ProjectStrategy
+		for ext := 0; ext <= 10000; ext++ {
+			suggestedName, digits := fnd.GenerateProjectName(updated.Project.Id, updated.Project.Specification.Title, strategy, config.ProjectPrefix)
+			suggestedName += fmt.Sprintf("%0*d", digits, ext)
 
 			_, groupExists := client.GroupQuery(suggestedName)
 			if !groupExists {
@@ -44,7 +42,7 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 		}
 
 		if !success {
-			log.Warn("Did not manage to create project group within 100 tries: %v %v", updated.Project.Id,
+			log.Warn("Did not manage to create project group within 10000 tries: %v %v", updated.Project.Id,
 				updated.Project.Specification.Title)
 			return false
 		} else {
@@ -60,7 +58,7 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 	}
 
 	for _, member := range updated.ProjectComparison.MembersAddedToProject {
-		memberUid, ok := ctrl.MapUCloudToLocal(member)
+		memberUid, ok, _ := ctrl.MapUCloudToLocal(member)
 		if !ok {
 			continue
 		}
@@ -80,7 +78,7 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 	}
 
 	for _, member := range updated.ProjectComparison.MembersRemovedFromProject {
-		memberUid, ok := ctrl.MapUCloudToLocal(member)
+		memberUid, ok, _ := ctrl.MapUCloudToLocal(member)
 		if !ok {
 			continue
 		}

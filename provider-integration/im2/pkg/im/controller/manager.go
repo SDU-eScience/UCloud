@@ -5,17 +5,64 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	ws "github.com/gorilla/websocket"
 	"io"
 	"net/http"
+	"time"
+
+	ws "github.com/gorilla/websocket"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var LaunchUserInstances = false
 var UCloudUsername = ""
+
+var (
+	metricRequestCounter = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "server",
+		Name:      "requests_started",
+		Help:      "Number of requests received",
+	})
+
+	metricRequestClientErrorCounter = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "server",
+		Name:      "request_client_errors",
+		Help:      "Number of requests that ended in client error (4xx).",
+	})
+
+	metricRequestServerErrorCounter = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "server",
+		Name:      "request_server_errors",
+		Help:      "Number of requests that ended in server error (5xx).",
+	})
+
+	metricRequestInFlight = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "server",
+		Name:      "requests_in_flight",
+		Help:      "Number of requests currently in-flight",
+	})
+
+	metricRequestDuration = promauto.NewSummary(prometheus.SummaryOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "server",
+		Name:      "requests_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to complete requests",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	})
+)
 
 func RunsUserCode() bool {
 	return cfg.Mode == cfg.ServerModeUser || (!LaunchUserInstances && cfg.Mode == cfg.ServerModeServer)
@@ -38,6 +85,10 @@ func Init(mux *http.ServeMux) {
 	}
 }
 
+func InitLate(mux *http.ServeMux) {
+	controllerIntegratedApps(mux)
+}
+
 type ApiHandler[T any] func(w http.ResponseWriter, r *http.Request, request T)
 
 type HttpApiFlag int
@@ -53,6 +104,12 @@ type commonErrorMessage struct {
 
 func HttpRetrieveHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		metricRequestCounter.Inc()
+		metricRequestInFlight.Inc()
+		defer metricRequestInFlight.Dec()
+
+		start := time.Now()
+
 		if r.Method != http.MethodGet {
 			sendStatusCode(w, http.StatusMethodNotAllowed)
 			return
@@ -65,6 +122,8 @@ func HttpRetrieveHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w
 		var request T
 		// TODO This should read from query parameters but it is not
 		handler(w, r, request)
+
+		metricRequestDuration.Observe(float64(time.Now().Sub(start).Seconds()))
 	}
 }
 
@@ -73,13 +132,20 @@ type jwtPayload struct {
 	Role string `json:"role"`
 }
 
+func checkEnvoySecret(w http.ResponseWriter, r *http.Request) bool {
+	if r.Header.Get("ucloud-secret") != cfg.OwnEnvoySecret {
+		w.WriteHeader(http.StatusUnauthorized)
+		return false
+	}
+	return true
+}
+
 func handleAuth(flags HttpApiFlag, w http.ResponseWriter, r *http.Request) bool {
 	if flags&HttpApiFlagNoAuth != 0 {
 		return true
 	}
 
-	if r.Header.Get("ucloud-secret") != cfg.OwnEnvoySecret {
-		w.WriteHeader(http.StatusUnauthorized)
+	if ok := checkEnvoySecret(w, r); !ok {
 		return false
 	}
 
@@ -103,11 +169,21 @@ func handleAuth(flags HttpApiFlag, w http.ResponseWriter, r *http.Request) bool 
 		w.WriteHeader(http.StatusUnauthorized)
 		return false
 	}
+
+	if !MaintenanceCheck(w, r) {
+		return false
+	}
+
 	return true
 }
 
 func HttpUpdateHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		metricRequestCounter.Inc()
+		metricRequestInFlight.Inc()
+		defer metricRequestInFlight.Dec()
+		start := time.Now()
+
 		if !handleAuth(flags, w, r) {
 			return
 		}
@@ -133,6 +209,8 @@ func HttpUpdateHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w h
 		}
 
 		handler(w, r, request)
+
+		metricRequestDuration.Observe(float64(time.Now().Sub(start).Seconds()))
 	}
 }
 
@@ -189,8 +267,11 @@ func sendError(w http.ResponseWriter, err error) {
 			Why: "Unexpected error occurred #1",
 		})
 
+		metricRequestServerErrorCounter.Inc()
+
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusInternalServerError)
+
 		_, _ = w.Write(msg)
 	} else {
 		var httpErr *util.HttpError
@@ -199,6 +280,12 @@ func sendError(w http.ResponseWriter, err error) {
 				Why:       httpErr.Why,
 				ErrorCode: httpErr.ErrorCode,
 			})
+
+			if httpErr.StatusCode < 500 {
+				metricRequestClientErrorCounter.Inc()
+			} else {
+				metricRequestServerErrorCounter.Inc()
+			}
 
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.WriteHeader(httpErr.StatusCode)
@@ -209,6 +296,8 @@ func sendError(w http.ResponseWriter, err error) {
 			msg, _ := json.Marshal(commonErrorMessage{
 				Why: "Unexpected error occurred #2",
 			})
+
+			metricRequestServerErrorCounter.Inc()
 
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.WriteHeader(http.StatusInternalServerError)

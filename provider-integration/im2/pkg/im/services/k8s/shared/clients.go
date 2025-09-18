@@ -6,12 +6,13 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	kvclient "kubevirt.io/client-go/kubecli"
 	"os"
-	"ucloud.dk/pkg/log"
+	"ucloud.dk/shared/pkg/log"
 )
 
 var K8sClient *kubernetes.Clientset
 var K8sConfig *rest.Config
 var KubevirtClient kvclient.KubevirtClient
+var K8sInCluster bool
 
 func initClients() {
 	composeFile := "/mnt/k3s/kubeconfig.yaml"
@@ -32,10 +33,13 @@ func initClients() {
 
 	if k8sClient == nil {
 		k8sConfig, err = rest.InClusterConfig()
+		k8sConfig.QPS = 1000
+		k8sConfig.Burst = 5000
 		if err == nil {
 			c, err := kubernetes.NewForConfig(k8sConfig)
 			if err == nil {
 				k8sClient = c
+				K8sInCluster = true
 			}
 		}
 	}

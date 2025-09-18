@@ -6,7 +6,7 @@ import {BoxProps} from "./Types";
 export const BoxClass = injectStyleSimple("box", ``);
 const Box: React.FunctionComponent<BoxProps & {
     children?: React.ReactNode;
-    divRef?: React.RefObject<HTMLDivElement>;
+    divRef?: React.RefObject<HTMLDivElement | null>;
     title?: string;
     style?: React.CSSProperties;
     className?: string;

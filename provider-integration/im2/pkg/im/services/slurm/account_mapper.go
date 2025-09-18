@@ -3,18 +3,18 @@ package slurm
 import (
 	"fmt"
 	"net/http"
-	"os/user"
 	"regexp"
 	"strconv"
 	"time"
-	"ucloud.dk/pkg/apm"
-	db "ucloud.dk/pkg/database"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	slurmcli "ucloud.dk/pkg/im/external/slurm"
+	"ucloud.dk/pkg/im/external/user"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/apm"
+	db "ucloud.dk/shared/pkg/database"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func InitDefaultAccountMapper() AccountMapperService {
@@ -137,7 +137,7 @@ func InitDefaultAccountMapper() AccountMapperService {
 					localName := ""
 
 					if row.Username != "" {
-						local, ok := ctrl.MapUCloudToLocal(row.Username)
+						local, ok, _ := ctrl.MapUCloudToLocal(row.Username)
 						if !ok {
 							continue
 						}
@@ -256,7 +256,7 @@ func InitDefaultAccountMapper() AccountMapperService {
 					isProject = true
 					workspaceRef = projectId
 				} else {
-					ucloudUsername, found := ctrl.MapLocalToUCloud(numericId)
+					ucloudUsername, found, _ := ctrl.MapLocalToUCloud(numericId)
 					ok = found
 					isProject = false
 					workspaceRef = ucloudUsername
@@ -375,7 +375,7 @@ func (a *defaultAccountMapper) ServerEvaluateAccountMapper(category string, owne
 
 		switch owner.Type {
 		case apm.WalletOwnerTypeUser:
-			localUid, ok := ctrl.MapUCloudToLocal(owner.Username)
+			localUid, ok, _ := ctrl.MapUCloudToLocal(owner.Username)
 			if !ok {
 				return util.OptNone[string](), fmt.Errorf("could not map user")
 			}
@@ -392,7 +392,7 @@ func (a *defaultAccountMapper) ServerEvaluateAccountMapper(category string, owne
 		case apm.WalletOwnerTypeProject:
 			localGid, ok := ctrl.MapUCloudProjectToLocal(owner.ProjectId)
 			if !ok {
-				lastKnown, ok := ctrl.GetLastKnownProject(owner.ProjectId)
+				lastKnown, ok := ctrl.RetrieveProject(owner.ProjectId)
 				if !ok {
 					return util.OptNone[string](), fmt.Errorf("could not map project")
 				}
@@ -539,7 +539,7 @@ func (a *defaultAccountMapper) ServerSlurmJobToConfiguration(job *slurmcli.Job) 
 		return
 	}
 
-	ucloudUser, ok := ctrl.MapLocalToUCloud(uint32(uid))
+	ucloudUser, ok, _ := ctrl.MapLocalToUCloud(uint32(uid))
 	if !ok {
 		return
 	}

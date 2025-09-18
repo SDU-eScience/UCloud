@@ -1,0 +1,26 @@
+One or more of your projects are running low on resources on UCloud
+
+{{ bodyStart }}
+
+<p>Dear {{ recipient }},</p>
+
+<p>
+    Following allocations are getting low on resources:
+    <ul>
+        {% for resource in resources %}
+            <li>
+                {{ resource.workspaceTitle }}:
+                <ul>
+                    <li>Resource: {{ resource.category }}</li>
+                    <li>Provider: {{ resource.provider }}</li>
+                </ul>
+            </li>
+        {% endfor %}
+    </ul>
+</p>
+
+<p>
+    If needed, you can request additional resources from the resource page within the specific workspace.
+</p>
+
+{{ emailOptOut | safe }}

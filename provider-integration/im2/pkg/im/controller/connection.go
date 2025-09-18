@@ -2,42 +2,49 @@ package controller
 
 import (
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
-	"ucloud.dk/pkg/apm"
-	db "ucloud.dk/pkg/database"
-	"ucloud.dk/pkg/im/ipc"
 
-	"ucloud.dk/pkg/client"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"ucloud.dk/pkg/im/ipc"
+	"ucloud.dk/shared/pkg/apm"
+	db "ucloud.dk/shared/pkg/database"
+
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/gateway"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/client"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type Manifest struct {
 	Enabled                bool                `json:"enabled"`
-	ExpiresAfterMs         util.Option[uint64] `json:"expiresAfterMs"`
+	ExpireAfterMs          util.Option[uint64] `json:"expireAfterMs"`
 	RequiresMessageSigning bool                `json:"requiresMessageSigning"`
+	UnmanagedConnections   bool                `json:"unmanagedConnections"`
 }
 
 var Connections ConnectionService
 
 type ConnectionService struct {
-	Initiate         func(username string, signingKey util.Option[int]) (redirectToUrl string)
-	Unlink           func(username string, uid uint32) error
-	RetrieveManifest func() Manifest
+	Initiate          func(username string, signingKey util.Option[int]) (redirectToUrl string, err error)
+	Unlink            func(username string, uid uint32) error
+	RetrieveManifest  func() Manifest
+	RetrieveCondition func() Condition
 }
 
 type IdentityManagementService struct {
+	InitiateConnection        func(username string) (string, error)
 	HandleAuthentication      func(username string) (uint32, error)
 	HandleProjectNotification func(updated *NotificationProjectUpdated) bool
+	UnmanagedConnections      bool
+	ExpiresAfter              util.Option[uint64]
 }
 
 var IdentityManagement IdentityManagementService
@@ -82,10 +89,25 @@ func CreatePersonalProviderProject(username string) (string, error) {
 }
 
 func RegisterConnectionComplete(username string, uid uint32, notifyUCloud bool) error {
+	return RegisterConnectionCompleteEx(username, uid, notifyUCloud, util.OptNone[uint64]())
+}
+
+func RegisterConnectionCompleteEx(username string, uid uint32, notifyUCloud bool, expiresAfterOverride util.Option[uint64]) error {
 	type Req struct {
 		Username string `json:"username"`
 	}
 	type Resp struct{}
+
+	if LaunchUserInstances {
+		existing, ok, _ := MapUCloudToLocal(username)
+		if ok && existing != uid {
+			log.Info("Wanted to perform registration which would change the UID for %s from %v to %v! "+
+				"This is not possible. Please clean up manually if this is intended!", username, existing, uid)
+
+			return util.UserHttpError("Unable to switch to a different user. Please login with the original "+
+				"account (from %v to %v).", existing, uid)
+		}
+	}
 
 	if notifyUCloud {
 		log.Info("Registering connection complete %v -> %v", username, uid)
@@ -105,16 +127,29 @@ func RegisterConnectionComplete(username string, uid uint32, notifyUCloud bool) 
 		return nil
 	}
 
+	expiresAfter := IdentityManagement.ExpiresAfter
+	if !expiresAfter.Present {
+		expiresAfter = expiresAfterOverride
+	}
+
+	var expiresAfterStringPtr *string
+	if expiresAfter.Present {
+		expiresAfterStringPtr = util.Pointer(fmt.Sprintf("%v milliseconds", expiresAfter.Value))
+	}
+
 	err := db.NewTx[error](func(tx *db.Transaction) error {
 		db.Exec(
 			tx,
 			`
-				insert into connections(ucloud_username, uid)
-				values (:username, :uid)
+				insert into connections(ucloud_username, uid, expires_at)
+				values (:username, :uid, now() + cast(:expires_after as interval))
+				on conflict (ucloud_username) do update set
+					expires_at = excluded.expires_at
 			`,
 			db.Params{
-				"username": username,
-				"uid":      uid,
+				"username":      username,
+				"uid":           uid,
+				"expires_after": expiresAfterStringPtr,
 			},
 		)
 
@@ -141,26 +176,47 @@ func RegisterConnectionComplete(username string, uid uint32, notifyUCloud bool) 
 	return err
 }
 
-func RemoveConnection(uid uint32, notifyUCloud bool) error {
-	ucloud, ok := MapLocalToUCloud(uid)
+type RemoveConnectionFlag int
+
+const (
+	RemoveConnectionNotify RemoveConnectionFlag = 1 << iota
+	RemoveConnectionTrulyRemove
+)
+
+func RemoveConnection(uid uint32, flags RemoveConnectionFlag) error {
+	ucloud, ok, _ := MapLocalToUCloud(uid)
 	if !ok {
 		return fmt.Errorf("unknown user supplied: %v", uid)
 	}
 
 	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`
-				delete from connections
-				where uid = :uid
-		    `,
-			db.Params{
-				"uid": uid,
-			},
-		)
+		if flags&RemoveConnectionTrulyRemove == 0 {
+			db.Exec(
+				tx,
+				`
+					update connections
+					set expires_at = now()
+					where uid = :uid
+				`,
+				db.Params{
+					"uid": uid,
+				},
+			)
+		} else {
+			db.Exec(
+				tx,
+				`
+					delete from connections
+					where uid = :uid
+				`,
+				db.Params{
+					"uid": uid,
+				},
+			)
+		}
 	})
 
-	if notifyUCloud {
+	if flags&RemoveConnectionNotify != 0 {
 		type Req struct {
 			Username string `json:"username"`
 		}
@@ -182,21 +238,26 @@ func RemoveConnection(uid uint32, notifyUCloud bool) error {
 
 func getDebugPort(ucloudUsername string) (int, bool) {
 	// TODO add this to config make it clear that this is insecure and for development _only_
-	if ucloudUsername == "user" {
-		return 51234, true
-	}
-	if ucloudUsername == "user2" {
-		return 51235, true
+	if util.DevelopmentModeEnabled() {
+		if ucloudUsername == "user" {
+			return 51234, true
+		}
+		if ucloudUsername == "user2" {
+			return 51235, true
+		}
 	}
 	return 0, false
 }
 
-func MapUCloudToLocal(username string) (uint32, bool) {
-	return db.NewTx2[uint32, bool](func(tx *db.Transaction) (uint32, bool) {
-		val, ok := db.Get[struct{ Uid uint32 }](
+func MapUCloudToLocal(username string) (uint32, bool, bool) {
+	return db.NewTx3[uint32, bool, bool](func(tx *db.Transaction) (uint32, bool, bool) {
+		val, ok := db.Get[struct {
+			Uid      uint32
+			IsActive bool
+		}](
 			tx,
 			`
-				select uid
+				select uid, expires_at is null or now() < expires_at as is_active
 				from connections
 				where
 					ucloud_username = :username
@@ -206,10 +267,10 @@ func MapUCloudToLocal(username string) (uint32, bool) {
 			},
 		)
 		if !ok {
-			return UnknownUser, false
+			return UnknownUser, false, false
 		}
 
-		return val.Uid, true
+		return val.Uid, true, val.IsActive
 	})
 }
 
@@ -244,12 +305,15 @@ func MapUCloudUsersToLocalUsers(usernames []string) map[string]uint32 {
 	})
 }
 
-func MapLocalToUCloud(uid uint32) (string, bool) {
-	return db.NewTx2[string, bool](func(tx *db.Transaction) (string, bool) {
-		val, ok := db.Get[struct{ UCloudUsername string }](
+func MapLocalToUCloud(uid uint32) (string, bool, bool) {
+	return db.NewTx3[string, bool, bool](func(tx *db.Transaction) (string, bool, bool) {
+		val, ok := db.Get[struct {
+			UCloudUsername string
+			IsActive       bool
+		}](
 			tx,
 			`
-				select ucloud_username
+				select ucloud_username, expires_at is null or now() < expires_at as is_active
 				from connections
 				where
 					uid = :uid
@@ -260,10 +324,10 @@ func MapLocalToUCloud(uid uint32) (string, bool) {
 		)
 
 		if !ok {
-			return "_guest", false
+			return "_guest", false, false
 		}
 
-		return val.UCloudUsername, true
+		return val.UCloudUsername, true, val.IsActive
 	})
 }
 
@@ -348,6 +412,11 @@ var redirectStore = make(map[string]redirectEntry)
 
 func controllerConnection(mux *http.ServeMux) {
 	providerId := cfg.Provider.Id
+
+	if RunsServerCode() {
+		go monitorInstances()
+	}
+
 	if RunsServerCode() {
 		baseContext := fmt.Sprintf("/ucloud/%v/integration/", providerId)
 
@@ -374,8 +443,8 @@ func controllerConnection(mux *http.ServeMux) {
 						nil,
 					)
 				} else {
-					redirectTo := Connections.Initiate(request.Username, util.OptNone[int]())
-					sendResponseOrError(w, connectResponse{redirectTo}, nil)
+					redirectTo, err := Connections.Initiate(request.Username, util.OptNone[int]())
+					sendResponseOrError(w, connectResponse{redirectTo}, err)
 				}
 			}),
 		)
@@ -386,7 +455,7 @@ func controllerConnection(mux *http.ServeMux) {
 		mux.HandleFunc(
 			baseContext+"unlinked",
 			HttpUpdateHandler[unlinkedRequest](0, func(w http.ResponseWriter, r *http.Request, request unlinkedRequest) {
-				local, ok := MapUCloudToLocal(request.Username)
+				local, ok, _ := MapUCloudToLocal(request.Username)
 				if !ok {
 					sendError(w, util.UserHttpError("Unknown user is being unlinked"))
 					return
@@ -401,8 +470,21 @@ func controllerConnection(mux *http.ServeMux) {
 					}
 				}
 
-				err := RemoveConnection(local, false)
+				err := RemoveConnection(local, 0)
 				sendResponseOrError(w, util.EmptyValue, err)
+			}),
+		)
+
+		type retrieveConditionRequest struct{}
+		mux.HandleFunc(
+			baseContext+"retrieveCondition",
+			HttpRetrieveHandler[retrieveConditionRequest](0, func(w http.ResponseWriter, r *http.Request, _ retrieveConditionRequest) {
+				fn := Connections.RetrieveCondition
+				if fn != nil {
+					sendResponseOrError(w, Connections.RetrieveCondition(), nil)
+				} else {
+					sendResponseOrError(w, nil, util.HttpErr(404, "Not found"))
+				}
 			}),
 		)
 
@@ -424,7 +506,7 @@ func controllerConnection(mux *http.ServeMux) {
 
 				keyId := RegisterSigningKey(info.Username, request.PublicKey)
 
-				redirectTo := Connections.Initiate(info.Username, util.OptValue(keyId))
+				redirectTo, _ := Connections.Initiate(info.Username, util.OptValue(keyId))
 				sendResponseOrError(w, connectResponse{redirectTo}, nil)
 			}),
 		)
@@ -449,7 +531,7 @@ func controllerConnection(mux *http.ServeMux) {
 					return
 				}
 
-				uid, ok := MapUCloudToLocal(request.Username)
+				uid, ok, _ := MapUCloudToLocal(request.Username)
 				if uid <= 0 || !ok {
 					log.Warn("Could not map UCloud to local identity: %v -> %v (%v)", request.Username, uid, ok)
 					sendStatusCode(w, http.StatusBadRequest)
@@ -469,7 +551,7 @@ func controllerConnection(mux *http.ServeMux) {
 				}
 			}
 
-			_, exists := MapLocalToUCloud(req.Uid)
+			_, exists, _ := MapLocalToUCloud(req.Uid)
 			if exists {
 				return ipc.Response[string]{
 					StatusCode:   http.StatusConflict,
@@ -507,7 +589,7 @@ func controllerConnection(mux *http.ServeMux) {
 		})
 
 		Whoami.Handler(func(req *ipc.Request[util.Empty]) ipc.Response[string] {
-			username, exists := MapLocalToUCloud(req.Uid)
+			username, exists, _ := MapLocalToUCloud(req.Uid)
 			if exists {
 				return ipc.Response[string]{
 					StatusCode: http.StatusOK,
@@ -553,7 +635,7 @@ func controllerConnection(mux *http.ServeMux) {
 					return
 				}
 
-				err := RegisterConnectionComplete(req.Username, uid, false)
+				err := RegisterConnectionCompleteEx(req.Username, uid, false, util.OptValue[uint64](1000*60*60*24*7))
 				if err != nil {
 					sendError(w, err)
 					return
@@ -566,14 +648,63 @@ func controllerConnection(mux *http.ServeMux) {
 	}
 }
 
+func monitorInstances() {
+	for util.IsAlive {
+		if LaunchUserInstances {
+			instanceMutex.Lock()
+			for uid, _ := range runningInstances {
+				_, ok, isActive := MapLocalToUCloud(uid)
+				if !ok || !isActive {
+					RequestUserTermination(uid)
+				}
+			}
+			instanceMutex.Unlock()
+		}
+
+		time.Sleep(5 * time.Second)
+	}
+}
+
 func LaunchUserInstance(uid uint32) error {
+	return LaunchUserInstanceEx(uid, true)
+}
+
+func LaunchUserInstanceEx(uid uint32, tryAgain bool) error {
 	if !LaunchUserInstances {
 		return fmt.Errorf("attempting to launch user instance, but this IM will not launch user instances")
 	}
 
-	ucloudUsername, ok := MapLocalToUCloud(uid)
+	ucloudUsername, ok, isActive := MapLocalToUCloud(uid)
 	if !ok {
 		return fmt.Errorf("unknown user")
+	}
+
+	if !isActive {
+		type clearReq struct {
+			Username string `json:"username"`
+			Provider string `json:"provider"`
+		}
+		_, err := client.ApiUpdate[util.Empty](
+			"providers.im.control.clearConnection",
+			"/api/providers/integration/control",
+			"clearConnection",
+			clearReq{
+				Username: ucloudUsername,
+				Provider: cfg.Provider.Id,
+			},
+		)
+
+		if err != nil {
+			log.Warn("Failed to clear connection at UCloud for %s: %v", ucloudUsername, err)
+		}
+		return util.UserHttpError("You need to reauthenticate with the system before continuing to use it.")
+	}
+
+	allowList := cfg.Provider.Maintenance.UserAllowList
+	if len(allowList) > 0 {
+		if !slices.Contains(allowList, ucloudUsername) {
+			return util.ServerHttpError("System is currently undergoing maintenance")
+		}
 	}
 
 	// Try in a few different ways to get the most reliable exe which we will pass to `sudo`
@@ -665,8 +796,10 @@ func LaunchUserInstance(uid uint32) error {
 
 			util.SilentClose(logFile)
 
-			time.Sleep(5 * time.Second)
-			_ = LaunchUserInstance(uid)
+			if tryAgain {
+				time.Sleep(5 * time.Second)
+				_ = LaunchUserInstanceEx(uid, false)
+			}
 		}()
 
 		gateway.SendMessage(gateway.ConfigurationMessage{
@@ -701,8 +834,9 @@ func allocatePortIfNeeded(uid uint32) (port int, valid bool) {
 
 var (
 	userInstancesLaunched = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "ucloud_im_launched_user_instances",
-		Help: "The total number of UCloud/IM (User) instances launched",
+		Namespace: "ucloud_im",
+		Name:      "launched_user_instances",
+		Help:      "The total number of UCloud/IM (User) instances launched",
 	})
 )
 

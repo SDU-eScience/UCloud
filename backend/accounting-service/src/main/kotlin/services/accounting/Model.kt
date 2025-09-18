@@ -75,10 +75,13 @@ data class InternalAllocationGroup(
     val associatedWallet: Int,
     //Which wallet has created the allocations in this group
     val parentWallet: Int,
+    // TreeUsage = usage from all descendants including own local usage
     var treeUsage: Long,
     var retiredTreeUsage: Long,
     var earliestExpiration: Long,
+    // AllocationID and isActive
     var allocationSet: HashMap<Int, Boolean>,
+    // Must be synced
     var isDirty: Boolean
 ) {
     fun isActive(): Boolean {
@@ -128,6 +131,7 @@ data class InternalWallet(
     val id: Int,
     val ownedBy: Int,
     val category: ProductCategory,
+    // Usage generated just in this workspace
     var localUsage: Long,
     //Mapping between parent wallet ID and the allocations given
     val allocationsByParent: HashMap<Int, InternalAllocationGroup>,
@@ -136,12 +140,15 @@ data class InternalWallet(
     var localRetiredUsage: Long,
     //Mapping between chile wallet ID and the retired tree usage of the allocation group given by this wallet
     val childrenRetiredUsage: HashMap<Int, Long>,
+    // Usage that exceeds the quota given
     var excessUsage: Long,
+    // How much has this wallet granted subprojects
     var totalAllocated: Long,
     var totalRetiredAllocated: Long,
     var isDirty: Boolean,
     var wasLocked: Boolean,
     var lastSignificantUpdateAt: Long,
+    var lowBalanceNotified: Boolean = false
 ) {
     fun parentEdgeCost(parentId: Int, now: Long): Long {
         val group = allocationsByParent.getValue(parentId)
@@ -170,6 +177,24 @@ data class InternalWallet(
         return totalUsage
     }
 
+    fun totalActiveUsage(): Long {
+        var totalUsage = localUsage
+        if (!category.isCapacityBased()) {
+            totalUsage -= localRetiredUsage
+        }
+
+        for ((_, childUse) in childrenUsage) {
+            totalUsage += childUse
+        }
+
+        if (!category.isCapacityBased()) {
+            for ((_, childUse) in childrenRetiredUsage) {
+                totalUsage += childUse
+            }
+        }
+        return totalUsage
+    }
+
     fun totalActiveQuota(): Long {
         var result = 0L
         for ((_, group) in allocationsByParent) {
@@ -180,7 +205,7 @@ data class InternalWallet(
 
     fun isOverspending(): Boolean {
         if (excessUsage > 0) return true
-        if (totalUsage() > totalActiveQuota()) return true
+        if (totalActiveUsage() > totalActiveQuota()) return true
         return false
     }
 

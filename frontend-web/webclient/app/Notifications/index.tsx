@@ -1,4 +1,4 @@
-import {WSFactory} from "@/Authentication/HttpClientInstance";
+import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {formatDistance} from "date-fns";
 import * as React from "react";
 import {Snack} from "@/Snackbar/Snackbars";
@@ -23,6 +23,8 @@ import AppRoutes from "@/Routes";
 import {classConcatArray, injectStyle} from "@/Unstyled";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {SidebarDialog} from "@/ui-components/Sidebar";
+import {addStandardDialog} from "@/UtilityComponents";
+import {dispatchSetProjectAction} from "@/Project/ReduxState";
 
 // NOTE(Dan): If you are in here, then chances are you want to attach logic to one of the notifications coming from
 // the backend. You can do this by editing the following two functions: `resolveNotification()` and
@@ -38,6 +40,9 @@ function resolveNotification(event: Notification): {
     modifiedTitle?: string;
     modifiedMessage?: React.ReactNode;
 } {
+    let appTitle = event.meta["appTitles"] ? event.meta.appTitles[0] : null;
+    if (appTitle === "unknown" || appTitle == "Unknown") appTitle = null;
+
     switch (event.type) {
         case "REVIEW_PROJECT":
             return {icon: "projects", color: "textPrimary", color2: "textSecondary"};
@@ -72,14 +77,14 @@ function resolveNotification(event: Notification): {
                 if (event.meta.jobNames?.[0]) {
                     jobsCompletedTitle = `${event.meta.jobNames[0]} completed`;
                 } else {
-                    jobsCompletedTitle = `${event.meta.appTitles[0]} completed`;
+                    jobsCompletedTitle = `${appTitle ?? "Job"} completed`;
                 }
             }
 
             const jobsCompletedMessage = event.meta.jobIds.length > 1 ?
                 `${event.meta.jobIds.length} jobs completed successfully.`
                 :
-                `Your ${event.meta.appTitles[0]} job completed successfully.`
+                `Your ${appTitle ?? ""} job completed successfully.`
                 ;
 
             return {
@@ -98,13 +103,13 @@ function resolveNotification(event: Notification): {
                 if (event.meta.jobNames?.[0]) {
                     jobsStartedTitle = `${event.meta.jobNames[0]} started`;
                 } else {
-                    jobsStartedTitle = `${event.meta.appTitles[0]} started`;
+                    jobsStartedTitle = `${appTitle ?? "Job"} started`;
                 }
             }
 
             const jobsStartedMessage = event.meta.jobIds.length > 1 ?
                 `${event.meta.jobIds.length} jobs are now running.` :
-                `Your ${event.meta.appTitles[0]} job is now running`;
+                `Your ${appTitle ?? ""} job is now running`;
 
             return {
                 icon: "heroServer",
@@ -122,14 +127,14 @@ function resolveNotification(event: Notification): {
                 if (event.meta.jobNames?.[0]) {
                     jobsExpiredTitle = `${event.meta.jobNames[0]} expired`;
                 } else {
-                    jobsExpiredTitle = `${event.meta.appTitles[0]} expired`;
+                    jobsExpiredTitle = `${appTitle ?? "Job"} expired`;
                 }
             }
 
             const jobsExpiredMessage = event.meta.jobIds.length > 1 ?
                 `${event.meta.jobIds.length} jobs has reached their time limit and is no longer running.`
                 :
-                `Your ${event.meta.appTitles[0]} job has reached its time limit and is no longer running.`
+                `Your ${appTitle ?? ""} job has reached its time limit and is no longer running.`
                 ;
 
             return {
@@ -148,13 +153,13 @@ function resolveNotification(event: Notification): {
                 if (event.meta.jobNames[0]) {
                     jobsFailedTitle = `${event.meta.jobNames[0]} failed`;
                 } else {
-                    jobsFailedTitle = `${event.meta.appTitles[0]} failed`;
+                    jobsFailedTitle = `${appTitle ?? "Job"} failed`;
                 }
             }
 
             const jobsFailedMessage = event.meta.jobIds.length > 1 ?
                 `${event.meta.jobIds.length} jobs terminated with a failure.` :
-                `Your ${event.meta.appTitles[0]} job terminated with a failure.`;
+                `Your ${appTitle ?? ""} job terminated with a failure.`;
 
             return {
                 icon: "heroServer",
@@ -168,7 +173,7 @@ function resolveNotification(event: Notification): {
     }
 }
 
-function onNotificationAction(notification: Notification, navigate: NavigateFunction) {
+function onNotificationAction(notification: Notification, navigate: NavigateFunction, dispatch: Dispatch) {
     switch (notification.type) {
         case "JOB_COMPLETED":
         case "JOB_STARTED":
@@ -181,7 +186,20 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
             }
             break;
         case "SHARE_REQUEST":
-            navigate("/shares");
+            if (Client.hasActiveProject) {
+                addStandardDialog({
+                    title: "Change workspace?",
+                    message: "Share invites can only be viewed in 'My workspace'. Change workspace?",
+                    confirmText: "Change",
+                    cancelText: "Dismiss",
+                    onConfirm() {
+                        dispatchSetProjectAction(dispatch, undefined);
+                        navigate("/shares");
+                    }
+                })
+            } else {
+                navigate("/shares");
+            }
             break;
         case "REVIEW_PROJECT":
         case "PROJECT_INVITE":
@@ -262,17 +280,22 @@ function renderNotifications() {
 
 // NOTE(Dan): The frontend can generate its own notification through `sendNotification()`. This is generally preferred
 // over using the `snackbar` functions, as these allow for greater flexibility.
-export function sendNotification(notification: NormalizedNotification) {
+export function sendNotification(notification: NormalizedNotification, forceShow: boolean = false) {
     const normalized = normalizeNotification(notification);
-    for (const item of notificationStore) {
-        if (item.uniqueId === normalized.uniqueId) return;
+    const existing = notificationStore.find(item => item.uniqueId === normalized.uniqueId);
+    if (existing) {
+        if (forceShow) Snooze.wakeNotification(normalized.uniqueId);
+        return;
     }
 
     notificationStore.unshift(normalized);
     renderNotifications();
 
     if (!notification.isPinned || Snooze.shouldAppear(normalized.uniqueId)) {
-        if (notification.isPinned) Snooze.trackAppearance(normalized.uniqueId);
+        if (notification.isPinned) {
+            Snooze.trackAppearance(normalized.uniqueId);
+        }
+
         triggerNotificationPopup(normalized);
     }
 }
@@ -443,7 +466,6 @@ export const Notifications: React.FunctionComponent<SidebarDialog> = props => {
 
         return () => {
             notificationCallbacks.delete(rerender);
-            normalizationDependencies = null;
             deinitStore();
         };
     }, []);
@@ -591,7 +613,7 @@ interface Notification {
 function normalizeNotification(
     notification: Notification | NormalizedNotification,
 ): NormalizedNotification & {onSnooze?: () => void} {
-    const {location, refresh, navigate} = normalizationDependencies!;
+    const {location, refresh, navigate, dispatch} = normalizationDependencies!;
 
     if ("isPinned" in notification) {
         const result = {
@@ -628,7 +650,7 @@ function normalizeNotification(
         const before = location.pathname;
 
         markAsRead([result]);
-        onNotificationAction(notification, navigate);
+        onNotificationAction(notification, navigate, dispatch);
 
         const after = location.pathname;
         if (before === after && refresh.current) refresh.current();

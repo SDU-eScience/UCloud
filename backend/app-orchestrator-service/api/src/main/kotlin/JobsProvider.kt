@@ -111,6 +111,8 @@ data class JobsProviderFollowResponse(
     """
     )
     val stderr: String? = null,
+
+    val channel: String? = null,
 )
 
 typealias JobsProviderOpenInteractiveSessionRequest = BulkRequest<JobsProviderOpenInteractiveSessionRequestItem>
@@ -131,6 +133,8 @@ data class JobsProviderOpenInteractiveSessionRequestItem(
     val rank: Int,
     @UCloudApiDoc("The type of session")
     val sessionType: InteractiveSessionType,
+    @UCloudApiDoc("Session target path")
+    val target: String? = null
 )
 
 typealias JobsProviderOpenInteractiveSessionResponse = BulkResponse<OpenSession?>

@@ -6,14 +6,14 @@ import (
 	"net/http"
 	"sync/atomic"
 	"time"
-	db "ucloud.dk/pkg/database"
-	fnd "ucloud.dk/pkg/foundation"
+	db "ucloud.dk/shared/pkg/database"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type TaskProcessingResult struct {
@@ -101,7 +101,7 @@ var taskFrontendQueue chan *TaskInfo
 func InitTaskSystem() {
 	if cfg.Mode == cfg.ServerModeServer {
 		registerTaskCall.Handler(func(r *ipc.Request[TaskInfoSpecification]) ipc.Response[*TaskInfo] {
-			ucloudUsername, ok := ctrl.MapLocalToUCloud(r.Uid)
+			ucloudUsername, ok, _ := ctrl.MapLocalToUCloud(r.Uid)
 			if !ok {
 				return ipc.Response[*TaskInfo]{
 					StatusCode: http.StatusForbidden,

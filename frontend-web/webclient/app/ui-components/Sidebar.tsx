@@ -7,6 +7,7 @@ import {
     copyToClipboard,
     displayErrorMessageOrDefault, doNothing,
     isLightThemeStored,
+    isLikelyMac,
     joinToString,
     useEffectSkipMount,
     useFrameHidden
@@ -37,7 +38,7 @@ import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {Page, PageV2} from "@/UCloud";
 import {sharesLinksInfo} from "@/Files/Shares";
-import {ProviderLogo} from "@/Providers/ProviderLogo";
+import {ProviderLogo, providerLogoPath} from "@/Providers/ProviderLogo";
 import {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import JobsApi, {Job} from "@/UCloud/JobsApi";
@@ -51,6 +52,7 @@ import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {jobCache} from "@/Applications/Jobs/View";
 import {CSSVarCurrentSidebarStickyWidth, CSSVarCurrentSidebarWidth} from "./List";
 import {
+    LinkInfo,
     SidebarEmpty,
     SidebarEntry,
     SidebarLinkColumn,
@@ -65,13 +67,14 @@ import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
 import {isAdminOrPI} from "@/Project";
 import {FileType} from "@/Files";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
-import {onProjectUpdated, projectCache, projectTitle} from "@/Project/ContextSwitcher";
+import {onProjectUpdated, projectCache, projectTitle} from "@/Project/ProjectSwitcher";
 import {HookStore, useGlobal} from "@/Utilities/ReduxHooks";
 import {useDiscovery} from "@/Applications/Hooks";
-import {Command, CommandPalette, CommandScope, staticProvider, useCommandProviderList, useProvideCommands} from "@/CommandPalette";
+import {Command, CommandPalette, CommandScope, staticProvider, useProvideCommands} from "@/CommandPalette";
 import {NavigateFunction, useNavigate} from "react-router";
 import {dispatchSetProjectAction} from "@/Project/ReduxState";
 import {Dispatch} from "redux";
+import {Feature, hasFeature} from "@/Features";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -241,8 +244,7 @@ const sideBarMenuElements: [
                 {icon: "heroBuildingStorefront", label: SidebarTabId.APPLICATION_STUDIO, to: AppRoutes.appStudio.groups()}
             ],
             predicate: (state) => {
-                const curatorStatus = state.catalogLandingPage?.curator;
-                return curatorStatus != null && curatorStatus.length > 0;
+                return Client.userIsAdmin;
             }
         }
     ];
@@ -357,6 +359,7 @@ function UserMenu({avatar, dialog, setOpenDialog}: {
             <Divider />
             <Username close={close.current} />
             <ProjectID close={close.current} />
+            <CommandPaletteEntry />
             <Divider />
             <Flex className={HoverClass} onClick={() => Client.logout()} data-component={"logout-button"}>
                 <Icon name="heroArrowRightOnRectangle" color2="textPrimary" mr="0.5em" my="0.2em" size="1.3em" />
@@ -364,6 +367,18 @@ function UserMenu({avatar, dialog, setOpenDialog}: {
             </Flex>
         </Box>
     </ClickableDropdown>;
+}
+
+const CTRL_KEY = isLikelyMac ? "⌘" : "ctrl";
+
+function CommandPaletteEntry(): React.ReactNode {
+    if (!hasFeature(Feature.COMMAND_PALETTE)) return null;
+    return <Flex className={HoverClass} onClick={e => {
+        window.dispatchEvent(new KeyboardEvent("keydown", {code: "KeyP", ctrlKey: true, metaKey: true}));
+    }}>
+        <Icon name="heroCommandLine" color2="textPrimary" mr="0.5em" my="0.2em" size="1.3em" /> Command palette
+        <TextSpan ml="0.5em" color="textSecondary">({CTRL_KEY} + P)</TextSpan>
+    </Flex>
 }
 
 const HoverClass = injectStyle("hover-class", k => `
@@ -379,11 +394,21 @@ const HoverClass = injectStyle("hover-class", k => `
 function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Command[] {
     const result: Command[] = []
 
+    const projectId = state.projectCache?.project.id;
+    const canApply = !projectId || isAdminOrPI(state.projectCache?.project.status.myRole);
+    const sidebarSubCommands = sidebarSubEntries(canApply, !projectId, projectId);
+
     for (const group of sideBarMenuElements) {
         if (group.predicate(state)) {
             for (const it of group.items) {
-                const to = typeof it.to === "string" ? it.to : it.to();
-                result.push(sidebarCommand(it.label, "", to, it.icon, navigate))
+                if (![SidebarTabId.FILES, SidebarTabId.RESOURCES, SidebarTabId.PROJECT].includes(it.label)) {
+                    const to = typeof it.to === "string" ? it.to : it.to();
+                    result.push(sidebarCommand(it.label, "", to, it.icon, navigate));
+                }
+                const sub = sidebarSubCommands[it.label];
+                for (const subIt of sub) {
+                    result.push(sidebarCommand(subIt.text, "", subIt.to, subIt.icon as IconName, navigate, subIt.defaultHidden));
+                }
             }
         }
     };
@@ -391,7 +416,20 @@ function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Comma
     return result;
 }
 
-function sidebarCommand(title: string, description: string, url: string, icon: IconName, navigate: NavigateFunction): Command {
+function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, projectId: string | undefined): Record<SidebarTabId, LinkInfo[]> {
+    return {
+        [SidebarTabId.FILES]: [{to: AppRoutes.files.drives(), text: "Drives", icon: "ftFileSystem", tab: SidebarTabId.FILES}, ...(isPersonalWorkspace ? sharesLinksInfo : [])],
+        [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId),
+        [SidebarTabId.RESOURCES]: ResourceSubLinksEntries,
+        [SidebarTabId.APPLICATIONS]: [],
+        [SidebarTabId.RUNS]: [],
+        [SidebarTabId.ADMIN]: [],
+        [SidebarTabId.APPLICATION_STUDIO]: ApplicationStudioSubLinksEntries,
+        [SidebarTabId.NONE]: [],
+    };
+}
+
+function sidebarCommand(title: string, description: string, url: string, icon: IconName, navigate: NavigateFunction, defaultHidden?: boolean): Command {
     return {
         title,
         description,
@@ -399,8 +437,8 @@ function sidebarCommand(title: string, description: string, url: string, icon: I
             navigate(url);
         },
         icon: {type: "simple", icon},
+        defaultHidden,
         scope: CommandScope.GoTo,
-        actionText: "Go to"
     }
 }
 
@@ -536,13 +574,14 @@ function useSidebarFilesPage(): [
 
     useProvideCommands(staticProvider(drives.data.items.map(d => ({
         title: d.specification.title,
-        icon: {type: "simple", icon: "heroFolderOpen"},
+        icon: isShare(d) ?
+            {type: "simple", icon: "ftSharesFolder", color: "FtFolderColor", color2: "FtFolderColor2"} :
+            {type: "image", imageUrl: providerLogoPath(d.specification.product.provider)},
         action() {
             navigate(AppRoutes.files.drive(d.id));
         },
         description: d.updates[0]?.status ?? "",
         scope: CommandScope.File,
-        actionText: "Go to",
     }))));
 
     useProvideCommands(staticProvider(favorites.items.map(f => ({
@@ -557,7 +596,6 @@ function useSidebarFilesPage(): [
         },
         description: "",
         scope: CommandScope.File,
-        actionText: "Go to",
     }))));
 
     React.useEffect(() => {
@@ -610,14 +648,13 @@ function useSidebarRunsPage(): Job[] {
     const cache = React.useSyncExternalStore(s => jobCache.subscribe(s), () => jobCache.getSnapshot());
 
     useProvideCommands(staticProvider(cache.items.map(j => ({
-        title: j.id,
+        title: j.specification.name ?? j.id,
         icon: {type: "image", imageUrl: AppStore.retrieveAppLogo({name: j.specification.application.name, includeText: false, darkMode: !isLight})},
         action() {
             navigate(AppRoutes.jobs.view(j.id));
         },
         description: "",
         scope: CommandScope.Job,
-        actionText: "Go to",
     }))));
 
     React.useEffect(() => {
@@ -657,6 +694,83 @@ function myWorkspaceProjectCommand(navigate: NavigateFunction, dispatch: Dispatc
     }
 }
 
+function ResourceSubLinks(): React.ReactNode {
+    return ResourceSubLinksEntries.map(it => <SidebarEntry key={it.text} {...it} />);
+}
+
+const ResourceSubLinksEntries: LinkInfo[] = [{
+    to: AppRoutes.resources.publicLinks(), text: "Links", icon: "heroLink", tab: SidebarTabId.RESOURCES
+}, {
+    to: AppRoutes.resources.publicIps(), text: "IP addresses", icon: "heroGlobeEuropeAfrica", tab: SidebarTabId.RESOURCES
+}, {
+    to: AppRoutes.resources.sshKeys(), text: "SSH keys", icon: "heroKey", tab: SidebarTabId.RESOURCES
+}, {
+    to: AppRoutes.resources.licenses(), text: "Licenses", icon: "heroDocumentCheck", tab: SidebarTabId.RESOURCES
+}];
+
+function ProjectSubLinks({canApply, isPersonalWorkspace, projectId}: {canApply: boolean; isPersonalWorkspace: boolean; projectId?: string}) {
+    const sublinks = React.useMemo(() =>
+        projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId).filter(it => !it.disabled),
+        [canApply, isPersonalWorkspace, projectId]);
+    return sublinks.map(it => <SidebarEntry key={it.text} {...it} />);
+}
+
+function projectSidebarSubLinks(canApply: boolean, isPersonalWorkspace: boolean, projectId?: string): LinkInfo[] {
+    const tab = SidebarTabId.PROJECT;
+    const {allocations, usage} = AppRoutes.accounting;
+    const {members, settings, subprojects} = AppRoutes.project;
+    const {outgoing} = AppRoutes.grants;
+    return [{
+        to: members(), text: "Members", icon: "heroUsers", tab, disabled: isPersonalWorkspace,
+    }, {
+        to: settings(""), text: "Project settings", icon: "heroWrenchScrewdriver", tab, disabled: isPersonalWorkspace, defaultHidden: true,
+    }, {
+        to: allocations(), text: "Allocations", icon: "heroBanknotes", tab, defaultHidden: true,
+    }, {
+        to: subprojects(), icon: "heroUserGroup", text: "Sub-projects", tab, disabled: isPersonalWorkspace, defaultHidden: true,
+    }, {
+        to: usage(), text: "Usage", icon: "heroPresentationChartLine", tab
+    }, {
+        to: outgoing(), text: "Grant applications", icon: "heroDocumentText", tab, defaultHidden: true,
+    },
+    {
+        to: !canApply || isPersonalWorkspace ? AppRoutes.grants.editor() : AppRoutes.grants.newApplication({projectId: projectId}),
+        text: "Apply for resources",
+        icon: "heroPencilSquare",
+        disabled: !canApply,
+        tab,
+    }];
+}
+
+
+const ApplicationStudioSubLinksEntries = [{
+    to: AppRoutes.appStudio.groups(), text: "Applications", icon: "heroSquare3Stack3D",
+    tab: SidebarTabId.APPLICATION_STUDIO
+},
+{
+    to: AppRoutes.appStudio.categories(), text: "Categories", icon: "heroSquaresPlus",
+    tab: SidebarTabId.APPLICATION_STUDIO
+},
+{
+    to: AppRoutes.appStudio.hero(), text: "Carrousel", icon: "heroFilm",
+    tab: SidebarTabId.APPLICATION_STUDIO
+},
+{
+    to: AppRoutes.appStudio.topPicks(), text: "Top picks", icon: "heroTrophy",
+    tab: SidebarTabId.APPLICATION_STUDIO
+},
+{
+    to: AppRoutes.appStudio.spotlights(), text: "Spotlights", icon: "heroCamera",
+    tab: SidebarTabId.APPLICATION_STUDIO
+}];
+
+function ApplicationStudioSubLinks() {
+    const isAdmin = Client.userIsAdmin;
+    if (!isAdmin) return null;
+
+    return ApplicationStudioSubLinksEntries.map(it => <SidebarEntry key={it.text} {...it} />)
+}
+
 function SecondarySidebar({
     hovered,
     clicked,
@@ -685,20 +799,27 @@ function SecondarySidebar({
 
     const projects = projectCache.retrieveFromCacheOnly("");
     const navigate = useNavigate();
-    const activeProject = useProjectId();
     const dispatch = useDispatch();
 
     const projectCommands: Command[] = React.useMemo(() => {
-        return projects?.items.map(p => ({
-            title: p.specification.title,
-            description: "",
-            icon: {type: "simple", icon: "heroUserGroup"},
-            scope: CommandScope.Project,
-            action() {
-                onProjectUpdated(navigate, () => dispatchSetProjectAction(dispatch, p.id), () => void 0, p.id);
-            },
-            actionText: "Switch to",
-        }) as Command).concat(activeProject ? [myWorkspaceProjectCommand(navigate, dispatch)] : []) ?? [];
+        const projectActivations: Command[] = []
+        for (const p of (projects?.items ?? [])) {
+            projectActivations.push({
+                title: p.specification.title,
+                description: "",
+                icon: {type: "simple", icon: "heroUserGroup"},
+                scope: CommandScope.Project,
+                action() {
+                    onProjectUpdated(navigate, () => dispatchSetProjectAction(dispatch, p.id), () => void 0, p.id);
+                },
+            });
+        }
+
+        if (activeProjectId) {
+            projectActivations.push(myWorkspaceProjectCommand(navigate, dispatch));
+        }
+
+        return projectActivations;
     }, [projects?.items, activeProjectId]);
 
     useProvideCommands(staticProvider(projectCommands));
@@ -736,7 +857,61 @@ function SecondarySidebar({
         dispatch(setAppFavorites(favoriteApps.data.items));
     }, [favoriteApps]);
 
-    const appFavorites = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
+    const appFavorites = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites) ?? [];
+    const isLight = isLightThemeStored();
+
+    useProvideCommands(staticProvider(appFavorites.map(fav => ({
+        title: fav.metadata.title,
+        icon: {type: "image", imageUrl: AppStore.retrieveAppLogo({name: fav.metadata.name, includeText: false, darkMode: !isLight})},
+        action() {
+            navigate(AppRoutes.jobs.create(fav.metadata.name, fav.metadata.version));
+        },
+        description: "Favorite app",
+        scope: CommandScope.Application,
+    }))));
+
+    useProvideCommands(staticProvider(landingPage.carrousel.map(horse => ({
+        title: horse.title,
+        icon: {type: "image", imageUrl: AppStore.retrieveAppLogo({name: horse.resolvedLinkedApp ?? ""})},
+        action() {
+            if (horse.resolvedLinkedApp) {
+                navigate(AppRoutes.jobs.create(horse.resolvedLinkedApp));
+            } else if (horse.linkedGroup) {
+                navigate(AppRoutes.apps.group((horse.linkedGroup).toString()));
+            }
+            if (horse.linkedWebPage) navigate(horse.linkedWebPage);
+        },
+        description: "Highlighted app",
+        defaultHidden: true,
+        scope: CommandScope.Application,
+    }))));
+
+    const carrouselTitles = landingPage.carrousel.map(horse => horse.title);
+    useProvideCommands(staticProvider(landingPage.topPicks.filter(it => !carrouselTitles.includes(it.title)).map(pick => ({
+        title: pick.title,
+        icon: {
+            type: "image", imageUrl: AppStore.retrieveGroupLogo({
+                id: pick.groupId ?? -1,
+                darkMode: !isLight,
+                placeTextUnderLogo: false,
+            })
+        },
+        action() {
+            if (pick.groupId) {
+                let link = AppRoutes.apps.group(pick.groupId.toString());
+                if (pick.defaultApplicationToRun) {
+                    link = AppRoutes.jobs.create(pick.defaultApplicationToRun);
+                }
+                navigate(link);
+            }
+        },
+        description: "Top pick",
+        defaultHidden: true,
+        scope: CommandScope.Application,
+    }))));
+
+
+
     const isOpen = clicked !== "" || hovered !== "";
     const active = !isOpen ? lastHover.current : hovered ? hovered : clicked;
     const asPopOver = hovered && !clicked;
@@ -799,7 +974,7 @@ function SecondarySidebar({
                 <Flex style={{position: "fixed", top: "calc(100vh - 68px)"}} alignItems="center" backgroundColor="white" height="38px" width={"30px"}
                     justifyContent={"center"} borderRadius="12px 0 0 12px"
                     onClick={clicked ? onClear : () => setSelectedPage(hovered)}>
-                    <Icon name="chevronDownLight" size={18} rotation={clicked ? 90 : -90} color="primaryMain" />
+                    <Icon name="heroChevronDown" size={18} rotation={clicked ? 90 : -90} color="primaryMain" />
                 </Flex>
             </Relative>
         </header>
@@ -845,89 +1020,12 @@ function SecondarySidebar({
 
             {active !== SidebarTabId.PROJECT ? null : <>
                 <SidebarSectionEmptyHeader />
-                {!isPersonalWorkspace ? <>
-                    <SidebarEntry
-                        to={AppRoutes.project.members()}
-                        text={"Members"}
-                        icon={"heroUsers"}
-                        tab={SidebarTabId.PROJECT}
-                    />
-
-                    <SidebarEntry
-                        to={AppRoutes.project.settings("")}
-                        text={"Project settings"}
-                        icon={"heroWrenchScrewdriver"}
-                        tab={SidebarTabId.PROJECT}
-                    />
-                </> : null}
-
-                <SidebarEntry
-                    to={AppRoutes.accounting.allocations()}
-                    text={"Allocations"}
-                    icon={"heroBanknotes"}
-                    tab={SidebarTabId.PROJECT}
-                />
-
-                {!isPersonalWorkspace ? <>
-                    <SidebarEntry
-                        to={AppRoutes.project.subprojects()}
-                        icon={"heroUserGroup"}
-                        text={"Sub-projects"}
-                        tab={SidebarTabId.PROJECT}
-                    />
-                </> : null}
-
-                <SidebarEntry
-                    to={AppRoutes.accounting.usage()}
-                    text={"Usage"}
-                    icon={"heroPresentationChartLine"}
-                    tab={SidebarTabId.PROJECT}
-                />
-
-                <SidebarEntry
-                    to={AppRoutes.grants.outgoing()}
-                    text={"Grant applications"}
-                    icon={"heroDocumentText"}
-                    tab={SidebarTabId.PROJECT}
-                />
-
-                <SidebarEntry
-                    to={!canApply || isPersonalWorkspace ? AppRoutes.grants.editor() : AppRoutes.grants.newApplication({projectId: projectId})}
-                    text={"Apply for resources"}
-                    icon={"heroPencilSquare"}
-                    disabled={!canApply}
-                    tab={SidebarTabId.PROJECT}
-                />
+                <ProjectSubLinks canApply={canApply} isPersonalWorkspace={isPersonalWorkspace} projectId={projectId} />
             </>}
 
             {active !== SidebarTabId.RESOURCES ? null : <>
                 <SidebarSectionEmptyHeader />
-                <SidebarEntry
-                    to={AppRoutes.resources.publicLinks()}
-                    text={"Links"}
-                    icon={"heroLink"}
-                    tab={SidebarTabId.RESOURCES}
-                />
-                <SidebarEntry
-                    to={AppRoutes.resources.publicIps()}
-                    text={"IP addresses"}
-                    icon={"heroGlobeEuropeAfrica"}
-                    tab={SidebarTabId.RESOURCES}
-                />
-
-                <SidebarEntry
-                    to={AppRoutes.resources.sshKeys()}
-                    text={"SSH keys"}
-                    icon={"heroKey"}
-                    tab={SidebarTabId.RESOURCES}
-                />
-
-                <SidebarEntry
-                    to={AppRoutes.resources.licenses()}
-                    text={"Licenses"}
-                    icon={"heroDocumentCheck"}
-                    tab={SidebarTabId.RESOURCES}
-                />
+                <ResourceSubLinks />
             </>}
 
             {/* Note(Jonas) Do it this way to ensure that the frontend doesn't fetch icons every time this is shown. */}
@@ -946,7 +1044,7 @@ function SecondarySidebar({
                 </> : null}
 
                 <SidebarSectionHeader to={AppRoutes.apps.landing()} tab={SidebarTabId.APPLICATIONS}>
-                    Store
+                    Categories
                 </SidebarSectionHeader>
 
                 {landingPage.categories.length === 0 && <>
@@ -1003,16 +1101,7 @@ function SecondarySidebar({
 
             {active !== SidebarTabId.APPLICATION_STUDIO ? null : <>
                 <SidebarSectionEmptyHeader />
-                <SidebarEntry to={AppRoutes.appStudio.groups()} text={"Applications"} icon={"heroSquare3Stack3D"}
-                    tab={SidebarTabId.APPLICATION_STUDIO} />
-                <SidebarEntry to={AppRoutes.appStudio.categories()} text={"Categories"} icon={"heroSquaresPlus"}
-                    tab={SidebarTabId.APPLICATION_STUDIO} />
-                <SidebarEntry to={AppRoutes.appStudio.hero()} text={"Carrousel"} icon={"heroFilm"}
-                    tab={SidebarTabId.APPLICATION_STUDIO} />
-                <SidebarEntry to={AppRoutes.appStudio.topPicks()} text={"Top picks"} icon={"heroTrophy"}
-                    tab={SidebarTabId.APPLICATION_STUDIO} />
-                <SidebarEntry to={AppRoutes.appStudio.spotlights()} text={"Spotlights"} icon={"heroCamera"}
-                    tab={SidebarTabId.APPLICATION_STUDIO} />
+                <ApplicationStudioSubLinks />
             </>}
 
         </Flex>
@@ -1095,6 +1184,7 @@ function Downtimes(): React.ReactNode {
     const [intervalId, setIntervalId] = React.useState(-1);
 
     React.useEffect(() => {
+        fetchDowntimes({method: "GET", path: "/news/listDowntimes"});
         setIntervalId(window.setInterval(() => fetchDowntimes({
             method: "GET", path: "/news/listDowntimes"
         }), 600_000));

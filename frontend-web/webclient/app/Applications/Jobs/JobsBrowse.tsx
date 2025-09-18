@@ -14,7 +14,7 @@ import {
     ResourceBrowser,
     ResourceBrowserOpts,
     ColumnTitleList,
-    checkCanConsumeResources
+    checkCanConsumeResources,
 } from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import Icon, {IconName} from "@/ui-components/Icon";
@@ -38,7 +38,7 @@ import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {createPortal} from "react-dom";
 import {AvatarType} from "@/AvataaarLib";
-import {FilterInputClass} from "@/Project/ContextSwitcher";
+import {FilterInputClass} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
 import {injectStyle} from "@/Unstyled";
 import {Feature, hasFeature} from "@/Features";
@@ -336,7 +336,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     callAPI(JobsApi.search({
                         query,
                         itemsPerPage: 250,
-                        flags: {},
+                        flags,
                     })).then(res => {
                         if (browser.currentPath !== "/search") return;
                         browser.registerPage(res, "/search", true);
@@ -410,10 +410,10 @@ const JOB_STATE_AND_ICON_COLOR_MAP: Record<JobState, [IconName, ThemeColor]> = {
     IN_QUEUE: ["heroCalendar", "iconColor"],
     RUNNING: ["heroClock", "successMain"],
     SUCCESS: ["heroCheck", "successMain"],
-    FAILURE: ["heroXMark", "errorMain"],
+    FAILURE: ["close", "errorMain"],
     EXPIRED: ["heroClock", "warningMain"],
-    SUSPENDED: ["heroPause", "iconColor"],
-    CANCELING: ["heroXMark", "errorMain"]
+    SUSPENDED: ["pauseSolid", "iconColor"],
+    CANCELING: ["close", "errorMain"]
 };
 
 export function ProjectMemberFilter({onSelect}: {onSelect: (username: string) => void}) {

@@ -6,6 +6,12 @@ import {injectStyle} from "@/Unstyled";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 
+export function providerLogoPath(providerId: string): string {
+    const logo = ProviderInfo.providers.find(p => p.id === providerId)?.logo ?? "";
+    if (logo) return `/Images/${logo}`;
+    return "";
+}
+
 export const ProviderLogo: React.FunctionComponent<{providerId: string; size: number; className?: string;}> = ({providerId, size, className}) => {
     const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
     const style: React.CSSProperties = {};

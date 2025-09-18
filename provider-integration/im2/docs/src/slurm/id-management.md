@@ -6,7 +6,7 @@ system.
 
 ## User Mapping
 
-User mapping is the process of transforming a UCloud identity into a local identity. Recall from a
+User mapping is the process of linking a UCloud identity to a local identity. Recall from a
 [previous chapter](./architecture.md) that UCloud/IM for Slurm uses your local identities on the HPC system for
 enforcing authentication and authorization. From the point of view of your system, users coming from UCloud are simply
 ordinary users of your system. They can do exactly the same actions as if they had used SSH to access your system.
@@ -30,7 +30,7 @@ actions as they could by accessing through SSH.
 
 ### Establishing a Mapping: Unmanaged Providers
 
-In unmanaged mode, UCloud/IM _will not_ create or manage any users, projects or any resource allocation. All of this
+In unmanaged mode, UCloud/IM _will not_ create or manage any users, projects or any resource allocations. All of this
 must be done by you through whichever means you have. As a result, in unmanaged mode, it is assumed that local
 identities have already been configured correctly by a system administrator (or via sysadmin controlled script).
 
@@ -97,8 +97,8 @@ The process is as follows:
 3. **The resources created from the successful application are registered in UCloud/Core.**
 
 4. **UCloud/Core notifies the service provider.** Whenever a workspace is updated with respect to their resource
-   allocations, a notification is sent to the service provider. The message is intercepted and handled by UCloud/IM (
-   Server). A user mapping is not yet established.
+   allocations, a notification is sent to the service provider. The message is intercepted and
+   handled by UCloud/IM (Server). A user mapping is not yet established.
 
 5. **The user connects with the provider.** Once a user has received at least one resource allocation at a provider,
    they are allowed to connect to it. The user connects to the provider by clicking the appropriate button in the UCloud
@@ -260,9 +260,10 @@ freeipa:
   url: https://ipa.ucloud   # Replace this with the hostname of your FreeIPA instance
   username: ucloudipauser   # Update this to match the name of your service account
   password: adminadmin      # Update the password to match your service account
-  verifyTls: true
-  namingPolicy: # This controls how to name users and projects
-    type: Default
+  verifyTls: true           # (optional) Verify SSL certificate
+  caCertFile:               # (optional) Use this CA certificate for SSL verification
+  groupName:                # (optional) Add all users to this user group (defaults to ucloud_users)
+  projectStrategy:          # (optional) Should be "Default", "Date" or "UUID"
 ```
 
 <figcaption>
@@ -275,13 +276,11 @@ The configuration required for FreeIPA. Remember to change the values such that 
 
 #### Naming Policies
 
-TODO The `namingPolicy` configuration property has not yet been implemented. What is described here is simply the only
-behavior currently implemented.
-
-The `namingPolicy` configuration property allows you to control how to name new users and projects. Keep in mind that
-the naming policy is only used when users and projects are created. This means that if you make changes to the naming
-policy then already existing projects and users will not be changed in any way. UCloud/IM allows you to change the
-policy since it stores the ID from creation and not the computed name.
+The `projectStrategy` configuration property allows you to control how to name new users and
+projects. Keep in mind that the naming policy is only used when users and projects are created. This
+means that if you make changes to the naming policy then already existing projects and users will
+not be changed in any way. UCloud/IM allows you to change the policy since it stores the ID from
+creation and not the computed name.
 
 <div class="table-wrapper">
 <table>
@@ -301,8 +300,8 @@ policy since it stores the ID from creation and not the computed name.
 </td>
 <td>
 
-The default naming policy will attempt to create alphanumeric names which closely resemble the name of the user and
-project, while remaining POSIX compliant.
+The default naming policy will attempt to create alphanumeric names which closely resemble the name
+of the user and project, while remaining POSIX compliant.
 
 __Users:__ Usernames use the following format:
 
@@ -327,7 +326,7 @@ JensHågensen#5128 -> jhagensen01
 Usernames are cut off to ensure they do not become too long. Take for example this exaggerated example:
 
 ```text
-ThisisaverylongusernameLongerthanwewouldexpectmostpeopletohave#1234 -> tlongerthanwewouldexpectmost01
+ThisisaVerylongusernamelongerthanexpected#1234 -> tverylongusernamelongerthane01
 ```
 
 For users where their last name is not apparent, their first name is used instead.
@@ -349,6 +348,50 @@ replace them with underscores. Below is a number of examples:
 testProject -> testproject01
 My SandBox PrOject -> my_sandbox_project01
 this is my long project nåme what will it be -> this_is_my_long_project_name01
+```
+
+</td>
+</tr>
+<tr>
+<td>
+
+`Date`
+
+</td>
+<td>
+
+Projects will be named using the current year and month, in the format:
+
+```text
+p${year}-${month}-${twoDigitNumber}
+```
+
+For example:
+
+```text
+Test Project 1 -> p2025-2-01
+```
+
+</td>
+</tr>
+<tr>
+<td>
+
+`UUID`
+
+</td>
+<td>
+
+Projects will be named using the first part of the UCloud UUID for the project, in the format:
+
+```text
+p${uuid}-${twoDigitNumber}
+```
+
+For example:
+
+```text
+Test Project 1 -> pae0cba6e-01
 ```
 
 </td>
@@ -637,6 +680,24 @@ registered before, then the script __must:__
 
 #### Script: `onProjectUpdated`
 
+The `onProjectUpdated` script is invoked every time something related to a project occurs. At the
+time of writing, the following events trigger the `onProjectUpdated` script:
+
+ - Project creation.
+ - Archival or unarchival of a project.
+ - Members were added or removed from a project.
+ - The roles of one or more members changed.
+ - A project group was created, renamed or deleted.
+ - Members were added or removed from a group within the project.
+
+TODO As far as I can see notifications are not sent when a project is renamed. Is this intentional?
+
+It is the responsibility of the script to take appropriate action, and to save this state, depending
+on how your system is configured. An example of this would be to map this information to Unix
+groups, or make appropriate calls to your identity management system.
+
+Below is an representation of request and response types, and examples, respectively.
+
 <div class="table-wrapper script-example">
 <table>
 
@@ -647,17 +708,17 @@ registered before, then the script __must:__
 ```json
 {
     /* string */
-    "ucloudProjectId": "",
-  
+    "UCloudProjectId": "",
+
     /* string */
     "projectTitle": "",
 
     /* string */
     "suggestedGroupName": "",
-  
+
     /* uint32 | null */
     "unixGid": null,
-  
+
     /* object[] */
     "allMembers": [
         {
@@ -671,16 +732,16 @@ registered before, then the script __must:__
             "role": "USER"
         }
     ],
-  
+
     /* object[] */
     "membersAddedToProject": [
         {
             /* uint32 */
             "uid": 0,
-          
+
             /* string */
             "ucloudUsername": "",
-          
+
             /* "PI" | "ADMIN" | "USER" */
             "role": "USER"
         }
@@ -691,7 +752,7 @@ registered before, then the script __must:__
         {
             /* uint32 */
             "uid": 0,
-          
+
             /* string */
             "ucloudUsername": ""
         }
@@ -721,34 +782,34 @@ _No response required_
     "projectTitle": "My sandbox project",
     "suggestedGroupName": "my_sandbox_project",
     "unixGid": 5234281,
-  
+
     "allMembers": [
         {
           "uid": 41235100,
           "ucloudUsername": "UCloudUser#1234",
           "role": "PI"
-        },     
+        },
         {
           "uid": 41235101,
           "ucloudUsername": "Alice#1234",
           "role": "ADMIN"
-        },     
+        },
         {
           "uid": 41235102,
           "ucloudUsername": "Bob#1234",
           "role": "ADMIN"
-        },     
-      
+        },
+
         /* NOTE: Charlie#1234 has not yet connected to the provider and is not included
            in this list */
-      
+
         {
             "uid": 41235122,
             "ucloudUsername": "DonnaJensen#4512",
             "role": "USER"
         }
     ],
-  
+
     "membersAddedToProject": [
         {
             "uid": 41235122,
@@ -780,10 +841,6 @@ _No response_
 
 </table>
 </div>
-
-### OpenID Connect
-
-TODO Design tbd
 
 ## Migrating from an Unmanaged to Managed Provider
 

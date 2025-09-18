@@ -1,9 +1,12 @@
 package controller
 
 import (
+	"encoding/json"
 	"os"
-	"ucloud.dk/pkg/apm"
-	"ucloud.dk/pkg/log"
+	"ucloud.dk/shared/pkg/apm"
+	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func RegisterProducts(products []apm.ProductV2) {
@@ -11,7 +14,7 @@ func RegisterProducts(products []apm.ProductV2) {
 	existingProducts := map[string]map[string]apm.ProductV2{}
 	next := ""
 	for {
-		page, err := apm.BrowseProducts(next, apm.ProductsFilter{})
+		page, err := apm.BrowseProducts(next, apm.ProductsFilter{FilterProvider: util.OptValue(cfg.Provider.Id)})
 		if err != nil {
 			log.Error("Unable to fetch products from UCloud: %v", err)
 			os.Exit(1)
@@ -53,11 +56,15 @@ func RegisterProducts(products []apm.ProductV2) {
 		newCategory := newCategories[categoryId]
 		oldCategory, exists := existingCategories[categoryId]
 		if exists {
+			newJson, _ := json.Marshal(newCategories)
+			oldJson, _ := json.Marshal(oldCategory)
 			if newCategory.AccountingUnit != oldCategory.AccountingUnit {
 				log.Error(
 					"Product with category %v has changed accounting unit which is not allowed. Please create a new category instead.",
 					categoryId,
 				)
+				log.Error("New: %v", string(newJson))
+				log.Error("Old: %v", string(oldJson))
 				os.Exit(1)
 			}
 
@@ -66,6 +73,8 @@ func RegisterProducts(products []apm.ProductV2) {
 					"Product with category %v has changed accounting frequency which is not allowed. Please create a new category instead.",
 					categoryId,
 				)
+				log.Error("New: %v", string(newJson))
+				log.Error("Old: %v", string(oldJson))
 				os.Exit(1)
 			}
 
@@ -74,6 +83,8 @@ func RegisterProducts(products []apm.ProductV2) {
 					"Product with category %v has changed freeToUse flag which is not allowed. Please create a new category instead.",
 					categoryId,
 				)
+				log.Error("New: %v", string(newJson))
+				log.Error("Old: %v", string(oldJson))
 				os.Exit(1)
 			}
 		}

@@ -31,6 +31,12 @@ data class IntegrationBrowseResponseItem(
     val connected: Boolean,
     val providerTitle: String,
     val requiresMessageSigning: Boolean,
+    val unmanagedConnection: Boolean,
+)
+
+@Serializable
+data class IntegrationRetrieveConditionRequest(
+    val provider: String
 )
 
 @Serializable
@@ -49,6 +55,10 @@ object Integration : CallDescriptionContainer("providers.im") {
 
     val browse = call("browse", IntegrationBrowseRequest.serializer(), PageV2.serializer(IntegrationBrowseResponseItem.serializer()), CommonErrorMessage.serializer()) {
         httpBrowse(baseContext)
+    }
+
+    val condition = call("condition", IntegrationRetrieveConditionRequest.serializer(), ProviderCondition.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve(baseContext, "condition", roles = Roles.PUBLIC)
     }
 
     val clearConnection = call("clearConnection", IntegrationClearConnectionRequest.serializer(), IntegrationClearConnectionResponse.serializer(), CommonErrorMessage.serializer()) {

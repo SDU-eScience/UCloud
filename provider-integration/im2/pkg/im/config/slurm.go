@@ -7,8 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/cfgutil"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type ServicesConfigurationSlurm struct {
@@ -28,6 +29,8 @@ type SlurmCompute struct {
 	SystemLoadCommand      util.Option[string]
 	SystemUnloadCommand    util.Option[string]
 	Srun                   util.Option[SrunConfiguration]
+	ModulesFile            util.Option[string]
+	JobFolderName          string
 }
 
 type SrunConfiguration struct {
@@ -40,6 +43,7 @@ type SlurmApplicationConfiguration struct {
 	Load     string
 	Unload   string
 	Srun     util.Option[SrunConfiguration]
+	Readme   util.Option[string]
 }
 
 type SlurmWebConfiguration struct {
@@ -225,13 +229,14 @@ func (m *SlurmFsManagement) Scripted() *SlurmFsManagementScripted {
 }
 
 type SlurmFsManagementGpfs struct {
-	Valid      bool // Only true in server mode
-	Username   string
-	Password   string
-	Server     HostInfo
-	VerifyTls  bool
-	CaCertFile util.Option[string]
-	Mapping    map[string]GpfsMapping // Maps a locator name to a mapping
+	Valid                  bool // Only true in server mode
+	Username               string
+	Password               string
+	Server                 HostInfo
+	VerifyTls              bool
+	CaCertFile             util.Option[string]
+	Mapping                map[string]GpfsMapping // Maps a locator name to a mapping
+	UseStatFsForAccounting bool
 }
 
 type GpfsMapping struct {
@@ -249,13 +254,9 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 	cfg := ServicesConfigurationSlurm{}
 	success := true
 
-	if !unmanaged {
-		// Identity management
-		identityManagement := requireChild(filePath, services, "identityManagement", &success)
-		if !success {
-			return false, cfg
-		}
-
+	// Identity management
+	identityManagement, _ := cfgutil.GetChildOrNil(filePath, services, "identityManagement")
+	if identityManagement != nil {
 		ok, idm := parseIdentityManagement(filePath, identityManagement)
 		if !ok {
 			return false, cfg
@@ -263,12 +264,26 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 
 		cfg.IdentityManagement = idm
 	} else {
-		idmNode, _ := getChildOrNil(filePath, services, "identityManagement")
 		cfg.IdentityManagement.Type = IdentityManagementTypeNone
+	}
 
-		if idmNode != nil {
-			reportError(filePath, idmNode, "identityManagement must be omitted when unmanaged is true")
-		}
+	idmWorksInUnmanaged := true
+
+	switch cfg.IdentityManagement.Type {
+	case IdentityManagementTypeOidc:
+		idmWorksInUnmanaged = true
+	case IdentityManagementTypeNone:
+		idmWorksInUnmanaged = true
+	default:
+		idmWorksInUnmanaged = false
+	}
+
+	if unmanaged && !idmWorksInUnmanaged {
+		cfgutil.ReportError(filePath, services, "identityManagement must be omitted when unmanaged is true")
+	}
+
+	if !unmanaged && idmWorksInUnmanaged {
+		cfgutil.ReportError(filePath, services, "identityManagement is required when managed")
 	}
 
 	{
@@ -276,13 +291,13 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 		fileSystems := make(map[string]SlurmFs)
 		cfg.FileSystems = fileSystems
 
-		fsNode := requireChild(filePath, services, "fileSystems", &success)
+		fsNode := cfgutil.RequireChild(filePath, services, "fileSystems", &success)
 		if !success {
 			return false, cfg
 		}
 
 		if fsNode.Kind != yaml.MappingNode {
-			reportError(filePath, fsNode, "expected fileSystems to be a dictionary")
+			cfgutil.ReportError(filePath, fsNode, "expected fileSystems to be a dictionary")
 			return false, cfg
 		}
 
@@ -291,7 +306,7 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 			fsValueNode := fsNode.Content[i+1]
 
 			var fileSystemName string
-			decode(filePath, fsNameNode, &fileSystemName, &success)
+			cfgutil.Decode(filePath, fsNameNode, &fileSystemName, &success)
 			if !success {
 				return false, cfg
 			}
@@ -302,12 +317,12 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 
 			if !unmanaged {
 				// Management
-				managementNode := requireChild(filePath, fsValueNode, "management", &success)
+				managementNode := cfgutil.RequireChild(filePath, fsValueNode, "management", &success)
 				if !success {
 					return false, cfg
 				}
 
-				fs.Management.Type = requireChildEnum(filePath, managementNode, "type", SlurmFsManagementTypeOptions,
+				fs.Management.Type = cfgutil.RequireChildEnum(filePath, managementNode, "type", SlurmFsManagementTypeOptions,
 					&success)
 
 				switch fs.Management.Type {
@@ -316,26 +331,28 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 
 					if serverMode == ServerModeServer {
 						sPath, sNode := requireSecrets("GPFS management")
-						gpfsTopLevel := requireChild(sPath, sNode, "gpfs", &success)
-						gpfsNode := requireChild(sPath, gpfsTopLevel, fileSystemName, &success)
+						gpfsTopLevel := cfgutil.RequireChild(sPath, sNode, "gpfs", &success)
+						gpfsNode := cfgutil.RequireChild(sPath, gpfsTopLevel, fileSystemName, &success)
 
-						ess.Username = requireChildText(sPath, gpfsNode, "username", &success)
-						ess.Password = requireChildText(sPath, gpfsNode, "password", &success)
-						essHost := requireChild(sPath, gpfsNode, "host", &success)
-						decode(filePath, essHost, &ess.Server, &success)
+						ess.Username = cfgutil.RequireChildText(sPath, gpfsNode, "username", &success)
+						ess.Password = cfgutil.RequireChildText(sPath, gpfsNode, "password", &success)
+						essHost := cfgutil.RequireChild(sPath, gpfsNode, "host", &success)
+						cfgutil.Decode(filePath, essHost, &ess.Server, &success)
 						ess.Server.validate(sPath, essHost)
 
-						verifyTls, hasVerifyTls := optionalChildBool(filePath, gpfsNode, "verifyTls")
+						verifyTls, hasVerifyTls := cfgutil.OptionalChildBool(filePath, gpfsNode, "verifyTls")
 						ess.VerifyTls = verifyTls || !hasVerifyTls
 
-						caCertFile := optionalChildText(filePath, gpfsNode, "caCertFile", &success)
+						caCertFile := cfgutil.OptionalChildText(filePath, gpfsNode, "caCertFile", &success)
 						if caCertFile != "" {
-							requireChildFile(filePath, gpfsNode, "caCertFile", FileCheckRead, &success)
+							cfgutil.RequireChildFile(filePath, gpfsNode, "caCertFile", cfgutil.FileCheckRead, &success)
 							ess.CaCertFile.Set(caCertFile)
 						}
 
-						mappingNode := requireChild(sPath, gpfsNode, "mapping", &success)
-						decode(sPath, mappingNode, &ess.Mapping, &success)
+						mappingNode := cfgutil.RequireChild(sPath, gpfsNode, "mapping", &success)
+						cfgutil.Decode(sPath, mappingNode, &ess.Mapping, &success)
+
+						ess.UseStatFsForAccounting, _ = cfgutil.OptionalChildBool(sPath, gpfsNode, "useStatFsForAccounting")
 
 						ess.Valid = true
 
@@ -348,26 +365,26 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 
 				case SlurmFsManagementTypeScripted:
 					scripted := SlurmFsManagementScripted{}
-					scripted.OnQuotaUpdated = requireChildText(filePath, managementNode, "onQuotaUpdated", &success)
-					scripted.OnUsageReporting = requireChildText(filePath, managementNode, "onUsageReporting", &success)
+					scripted.OnQuotaUpdated = cfgutil.RequireChildText(filePath, managementNode, "onQuotaUpdated", &success)
+					scripted.OnUsageReporting = cfgutil.RequireChildText(filePath, managementNode, "onUsageReporting", &success)
 					fs.Management.Configuration = &scripted
 
 				}
 			} else {
-				managementNode, _ := getChildOrNil(filePath, fsValueNode, "management")
+				managementNode, _ := cfgutil.GetChildOrNil(filePath, fsValueNode, "management")
 				fs.Management.Type = SlurmFsManagementTypeNone
 				if managementNode != nil {
-					reportError(filePath, managementNode, "management must be omitted when unmanaged is true")
+					cfgutil.ReportError(filePath, managementNode, "management must be omitted when unmanaged is true")
 					success = false
 				}
 			}
 
-			fs.Payment = parsePaymentInfo(filePath, requireChild(filePath, fsValueNode, "payment", &success),
+			fs.Payment = parsePaymentInfo(filePath, cfgutil.RequireChild(filePath, fsValueNode, "payment", &success),
 				[]string{"GB", "TB", "PB", "EB", "GiB", "TiB", "PiB", "EiB"}, true, &success)
 
-			driveLocatorsNode := requireChild(filePath, fsValueNode, "driveLocators", &success)
+			driveLocatorsNode := cfgutil.RequireChild(filePath, fsValueNode, "driveLocators", &success)
 			if driveLocatorsNode.Kind != yaml.MappingNode {
-				reportError(filePath, driveLocatorsNode, "expected driveLocators to be a dictionary")
+				cfgutil.ReportError(filePath, driveLocatorsNode, "expected driveLocators to be a dictionary")
 				return false, cfg
 			}
 
@@ -379,33 +396,33 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 				locatorNode := driveLocatorsNode.Content[i+1]
 
 				if !unmanaged {
-					locator.Entity = requireChildEnum(filePath, locatorNode, "entity", SlurmDriveLocatorEntityTypeOptions, &success)
+					locator.Entity = cfgutil.RequireChildEnum(filePath, locatorNode, "entity", SlurmDriveLocatorEntityTypeOptions, &success)
 				} else {
-					entityNode, _ := getChildOrNil(filePath, locatorNode, "entity")
+					entityNode, _ := cfgutil.GetChildOrNil(filePath, locatorNode, "entity")
 					if entityNode != nil {
-						reportError(filePath, entityNode, "entity must be omitted when unmanaged is true")
+						cfgutil.ReportError(filePath, entityNode, "entity must be omitted when unmanaged is true")
 						success = false
 					}
 					locator.Entity = SlurmDriveLocatorEntityTypeNone
 				}
-				locator.Pattern = optionalChildText(filePath, locatorNode, "pattern", &success)
-				locator.Script = optionalChildText(filePath, locatorNode, "script", &success)
-				locator.Title = optionalChildText(filePath, locatorNode, "title", &success)
+				locator.Pattern = cfgutil.OptionalChildText(filePath, locatorNode, "pattern", &success)
+				locator.Script = cfgutil.OptionalChildText(filePath, locatorNode, "script", &success)
+				locator.Title = cfgutil.OptionalChildText(filePath, locatorNode, "title", &success)
 
 				if locator.Pattern == "" && locator.Script == "" {
 					success = false
-					reportError(filePath, locatorNode, "You must specify either a pattern or a script!")
+					cfgutil.ReportError(filePath, locatorNode, "You must specify either a pattern or a script!")
 				}
 
-				freeQuota := optionalChildInt(filePath, locatorNode, "freeQuota", &success)
+				freeQuota := cfgutil.OptionalChildInt(filePath, locatorNode, "freeQuota", &success)
 				if freeQuota.Present && locator.Entity != SlurmDriveLocatorEntityTypeUser {
 					success = false
-					reportError(filePath, locatorNode, "freeQuota can only be specified for user mappings")
+					cfgutil.ReportError(filePath, locatorNode, "freeQuota can only be specified for user mappings")
 				}
 
 				if !freeQuota.Present && locator.Entity == SlurmDriveLocatorEntityTypeUser {
 					success = false
-					reportError(filePath, locatorNode, "freeQuota must be specified for user mappings")
+					cfgutil.ReportError(filePath, locatorNode, "freeQuota must be specified for user mappings")
 				}
 
 				locator.FreeQuota = freeQuota
@@ -415,7 +432,7 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 
 			if len(fs.DriveLocators) == 0 {
 				success = false
-				reportError(filePath, fsNode, "You must specify at least one driveLocator!")
+				cfgutil.ReportError(filePath, fsNode, "You must specify at least one driveLocator!")
 			}
 
 			if !success {
@@ -428,13 +445,13 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 
 	{
 		// SSH
-		sshNode, _ := getChildOrNil(filePath, services, "ssh")
+		sshNode, _ := cfgutil.GetChildOrNil(filePath, services, "ssh")
 		cfg.Ssh.Enabled = false
 		if sshNode != nil {
-			cfg.Ssh.Enabled = requireChildBool(filePath, sshNode, "enabled", &success)
-			cfg.Ssh.InstallKeys = requireChildBool(filePath, sshNode, "installKeys", &success)
-			hostNode := requireChild(filePath, sshNode, "host", &success)
-			decode(filePath, hostNode, &cfg.Ssh.Host, &success)
+			cfg.Ssh.Enabled = cfgutil.RequireChildBool(filePath, sshNode, "enabled", &success)
+			cfg.Ssh.InstallKeys = cfgutil.RequireChildBool(filePath, sshNode, "installKeys", &success)
+			hostNode := cfgutil.RequireChild(filePath, sshNode, "host", &success)
+			cfgutil.Decode(filePath, hostNode, &cfg.Ssh.Host, &success)
 
 			if !cfg.Ssh.Host.validate(filePath, hostNode) {
 				success = false
@@ -450,14 +467,14 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 
 	{
 		// Slurm
-		slurmNode := requireChild(filePath, services, "slurm", &success)
+		slurmNode := cfgutil.RequireChild(filePath, services, "slurm", &success)
 
 		management := &cfg.Compute.AccountManagement
 		if !unmanaged {
-			managementNode := requireChild(filePath, slurmNode, "accountManagement", &success)
+			managementNode := cfgutil.RequireChild(filePath, slurmNode, "accountManagement", &success)
 
-			accountingNode := requireChild(filePath, managementNode, "accounting", &success)
-			management.Accounting.Type = requireChildEnum(filePath, accountingNode, "type", SlurmAccountingTypeOptions, &success)
+			accountingNode := cfgutil.RequireChild(filePath, managementNode, "accounting", &success)
+			management.Accounting.Type = cfgutil.RequireChildEnum(filePath, accountingNode, "type", SlurmAccountingTypeOptions, &success)
 			if !success {
 				return false, cfg
 			}
@@ -471,8 +488,8 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 				management.Accounting.Configuration = &res
 			}
 
-			accountMapperNode := requireChild(filePath, managementNode, "accountMapper", &success)
-			management.AccountMapper.Type = requireChildEnum(filePath, accountMapperNode, "type", SlurmAccountMapperTypeOptions, &success)
+			accountMapperNode := cfgutil.RequireChild(filePath, managementNode, "accountMapper", &success)
+			management.AccountMapper.Type = cfgutil.RequireChildEnum(filePath, accountMapperNode, "type", SlurmAccountMapperTypeOptions, &success)
 			if !success {
 				return false, cfg
 			}
@@ -489,36 +506,36 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 				return false, cfg
 			}
 		} else {
-			entityNode, _ := getChildOrNil(filePath, slurmNode, "accountManagement")
+			entityNode, _ := cfgutil.GetChildOrNil(filePath, slurmNode, "accountManagement")
 			if entityNode != nil {
-				reportError(filePath, entityNode, "accountManagement must be omitted when unmanaged is true")
+				cfgutil.ReportError(filePath, entityNode, "accountManagement must be omitted when unmanaged is true")
 				success = false
 			}
 			management.Accounting.Type = SlurmAccountingTypeNone
 			management.AccountMapper.Type = SlurmAccountMapperTypeNone
 		}
 
-		fakeResourceAllocation, ok := optionalChildBool(filePath, slurmNode, "fakeResourceAllocation")
+		fakeResourceAllocation, ok := cfgutil.OptionalChildBool(filePath, slurmNode, "fakeResourceAllocation")
 		cfg.Compute.FakeResourceAllocation = fakeResourceAllocation && ok
 
-		webNode, _ := getChildOrNil(filePath, slurmNode, "web")
+		webNode, _ := cfgutil.GetChildOrNil(filePath, slurmNode, "web")
 		if webNode != nil {
-			enabled, ok := optionalChildBool(filePath, webNode, "enabled")
+			enabled, ok := cfgutil.OptionalChildBool(filePath, webNode, "enabled")
 			cfg.Compute.Web.Enabled = enabled && ok
 
 			if cfg.Compute.Web.Enabled {
-				cfg.Compute.Web.Prefix = requireChildText(filePath, webNode, "prefix", &success)
-				cfg.Compute.Web.Suffix = requireChildText(filePath, webNode, "suffix", &success)
+				cfg.Compute.Web.Prefix = cfgutil.RequireChildText(filePath, webNode, "prefix", &success)
+				cfg.Compute.Web.Suffix = cfgutil.RequireChildText(filePath, webNode, "suffix", &success)
 			}
 		}
 
-		srunChild, _ := getChildOrNil(filePath, slurmNode, "srun")
+		srunChild, _ := cfgutil.GetChildOrNil(filePath, slurmNode, "srun")
 		if srunChild != nil {
 			cfg.Compute.Srun.Set(parseSrunConfiguration(filePath, srunChild, &success))
 		}
 
-		globalLoad := optionalChildText(filePath, slurmNode, "systemLoad", &success)
-		globalUnload := optionalChildText(filePath, slurmNode, "systemUnload", &success)
+		globalLoad := cfgutil.OptionalChildText(filePath, slurmNode, "systemLoad", &success)
+		globalUnload := cfgutil.OptionalChildText(filePath, slurmNode, "systemUnload", &success)
 		if globalLoad != "" {
 			cfg.Compute.SystemLoadCommand.Set(globalLoad)
 		}
@@ -527,6 +544,17 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 			cfg.Compute.SystemUnloadCommand.Set(globalUnload)
 		}
 
+		moduleFile := cfgutil.OptionalChildText(filePath, slurmNode, "modulesFile", &success)
+		if moduleFile != "" {
+			cfg.Compute.ModulesFile.Set(moduleFile)
+		}
+
+		jobFolder := cfgutil.OptionalChildText(filePath, slurmNode, "jobFolder", &success)
+		if jobFolder == "" {
+			jobFolder = "ucloud-jobs"
+		}
+		cfg.Compute.JobFolderName = jobFolder
+
 		apps, ok := parseSlurmApplications(filePath)
 		if !ok {
 			return false, cfg
@@ -534,9 +562,9 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 		cfg.Compute.Applications = apps
 
 		cfg.Compute.Machines = make(map[string]SlurmMachineCategory)
-		machinesNode := requireChild(filePath, slurmNode, "machines", &success)
+		machinesNode := cfgutil.RequireChild(filePath, slurmNode, "machines", &success)
 		if machinesNode.Kind != yaml.MappingNode {
-			reportError(filePath, slurmNode, "expected machines to be a dictionary")
+			cfgutil.ReportError(filePath, slurmNode, "expected machines to be a dictionary")
 			return false, cfg
 		}
 
@@ -549,25 +577,25 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 			category.Groups = make(map[string]SlurmMachineCategoryGroup)
 			category.Payment = parsePaymentInfo(
 				filePath,
-				requireChild(filePath, machineNode, "payment", &success),
+				cfgutil.RequireChild(filePath, machineNode, "payment", &success),
 				[]string{"Cpu", "Memory", "Gpu"},
 				false,
 				&success,
 			)
 
-			category.Partition = requireChildText(filePath, machineNode, "partition", &success)
-			qos := optionalChildText(filePath, machineNode, "qos", &success)
+			category.Partition = cfgutil.RequireChildText(filePath, machineNode, "partition", &success)
+			qos := cfgutil.OptionalChildText(filePath, machineNode, "qos", &success)
 			if qos != "" {
 				category.Qos.Set(qos)
 			}
 
-			if !hasChild(machineNode, "groups") {
+			if !cfgutil.HasChild(machineNode, "groups") {
 				group := parseSlurmMachineGroup(filePath, machineNode, &success)
 				category.Groups[machineCategoryName] = group
 			} else {
-				groupsNode := requireChild(filePath, machineNode, "groups", &success)
+				groupsNode := cfgutil.RequireChild(filePath, machineNode, "groups", &success)
 				if groupsNode.Kind != yaml.MappingNode {
-					reportError(filePath, groupsNode, "expected groups to be a dictionary")
+					cfgutil.ReportError(filePath, groupsNode, "expected groups to be a dictionary")
 					return false, cfg
 				}
 
@@ -584,7 +612,7 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 					group, _ := category.Groups[key]
 					for _, machineConfig := range group.Configs {
 						if machineConfig.Price == 0 {
-							reportError(filePath, machineNode, "price must be specified for all machine groups when payment type is Money!")
+							cfgutil.ReportError(filePath, machineNode, "price must be specified for all machine groups when payment type is Money!")
 							return false, cfg
 						}
 					}
@@ -594,7 +622,7 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 					group, _ := category.Groups[key]
 					for _, machineConfig := range group.Configs {
 						if machineConfig.Price != 0 {
-							reportError(filePath, machineNode, "price must not be specified for all machine groups when payment type is Resource!")
+							cfgutil.ReportError(filePath, machineNode, "price must not be specified for all machine groups when payment type is Resource!")
 							return false, cfg
 						}
 					}
@@ -614,10 +642,10 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 
 func parseSlurmMachineGroup(filePath string, node *yaml.Node, success *bool) SlurmMachineCategoryGroup {
 	result := SlurmMachineCategoryGroup{}
-	result.Constraint = optionalChildText(filePath, node, "constraint", success)
-	result.CpuModel = optionalChildText(filePath, node, "cpuModel", success)
-	result.GpuModel = optionalChildText(filePath, node, "gpuModel", success)
-	result.MemoryModel = optionalChildText(filePath, node, "memoryModel", success)
+	result.Constraint = cfgutil.OptionalChildText(filePath, node, "constraint", success)
+	result.CpuModel = cfgutil.OptionalChildText(filePath, node, "cpuModel", success)
+	result.GpuModel = cfgutil.OptionalChildText(filePath, node, "gpuModel", success)
+	result.MemoryModel = cfgutil.OptionalChildText(filePath, node, "memoryModel", success)
 
 	var cpu []int
 	var gpu []int
@@ -625,47 +653,47 @@ func parseSlurmMachineGroup(filePath string, node *yaml.Node, success *bool) Slu
 	var price []float64
 
 	{
-		decode(filePath, requireChild(filePath, node, "cpu", success), &cpu, success)
+		cfgutil.Decode(filePath, cfgutil.RequireChild(filePath, node, "cpu", success), &cpu, success)
 
-		memoryNode := requireChild(filePath, node, "memory", success)
-		decode(filePath, memoryNode, &memory, success)
+		memoryNode := cfgutil.RequireChild(filePath, node, "memory", success)
+		cfgutil.Decode(filePath, memoryNode, &memory, success)
 
-		gpuNode, _ := getChildOrNil(filePath, node, "gpu")
+		gpuNode, _ := cfgutil.GetChildOrNil(filePath, node, "gpu")
 		if gpuNode != nil {
-			decode(filePath, gpuNode, &gpu, success)
+			cfgutil.Decode(filePath, gpuNode, &gpu, success)
 		}
 
-		priceNode, _ := getChildOrNil(filePath, node, "price")
+		priceNode, _ := cfgutil.GetChildOrNil(filePath, node, "price")
 		if priceNode != nil {
-			decode(filePath, priceNode, &price, success)
+			cfgutil.Decode(filePath, priceNode, &price, success)
 		}
 
 		machineLength := len(cpu)
 
 		if machineLength == 0 {
-			reportError(filePath, node, "You must specify at least one machine via cpu, memory (+ gpu/price)")
+			cfgutil.ReportError(filePath, node, "You must specify at least one machine via cpu, memory (+ gpu/price)")
 			*success = false
 		}
 
 		if gpu != nil && len(gpu) != machineLength {
-			reportError(filePath, gpuNode, "gpu must have the same length as cpu (%v != %v)", machineLength, len(gpu))
+			cfgutil.ReportError(filePath, gpuNode, "gpu must have the same length as cpu (%v != %v)", machineLength, len(gpu))
 			*success = false
 		}
 
 		if price != nil && len(price) != machineLength {
-			reportError(filePath, gpuNode, "price must have the same length as cpu (%v != %v)", machineLength, len(price))
+			cfgutil.ReportError(filePath, gpuNode, "price must have the same length as cpu (%v != %v)", machineLength, len(price))
 			*success = false
 		}
 
 		if len(memory) != machineLength {
-			reportError(filePath, memoryNode, "memory must have the same length as cpu (%v != %v)", machineLength, len(memory))
+			cfgutil.ReportError(filePath, memoryNode, "memory must have the same length as cpu (%v != %v)", machineLength, len(memory))
 			*success = false
 		}
 	}
 
 	for _, count := range cpu {
 		if count <= 0 {
-			reportError(filePath, node, "cpu count must be greater than zero")
+			cfgutil.ReportError(filePath, node, "cpu count must be greater than zero")
 			*success = false
 			break
 		}
@@ -673,7 +701,7 @@ func parseSlurmMachineGroup(filePath string, node *yaml.Node, success *bool) Slu
 
 	for _, count := range memory {
 		if count <= 0 {
-			reportError(filePath, node, "cpu count must be greater than zero")
+			cfgutil.ReportError(filePath, node, "cpu count must be greater than zero")
 			*success = false
 			break
 		}
@@ -681,7 +709,7 @@ func parseSlurmMachineGroup(filePath string, node *yaml.Node, success *bool) Slu
 
 	for _, count := range price {
 		if count <= 0 {
-			reportError(filePath, node, "price must be greater than zero")
+			cfgutil.ReportError(filePath, node, "price must be greater than zero")
 			*success = false
 			break
 		}
@@ -689,14 +717,14 @@ func parseSlurmMachineGroup(filePath string, node *yaml.Node, success *bool) Slu
 
 	for _, count := range gpu {
 		if count < 0 {
-			reportError(filePath, node, "gpu count must be positive")
+			cfgutil.ReportError(filePath, node, "gpu count must be positive")
 			*success = false
 			break
 		}
 	}
 
-	if hasChild(node, "nameSuffix") {
-		result.NameSuffix = requireChildEnum(filePath, node, "nameSuffix", MachineResourceTypeOptions, success)
+	if cfgutil.HasChild(node, "nameSuffix") {
+		result.NameSuffix = cfgutil.RequireChildEnum(filePath, node, "nameSuffix", MachineResourceTypeOptions, success)
 	} else {
 		if gpu != nil {
 			result.NameSuffix = MachineResourceTypeGpu
@@ -732,39 +760,44 @@ func parseAccountingAutomatic(filePath string, node *yaml.Node, success *bool) S
 
 func parseAccountingScripted(filePath string, node *yaml.Node, success *bool) SlurmAccountingScripted {
 	result := SlurmAccountingScripted{}
-	result.OnUsageReporting = requireChildFile(filePath, node, "onUsageReporting", FileCheckRead, success)
-	result.OnQuotaUpdated = requireChildFile(filePath, node, "onQuotaUpdated", FileCheckRead, success)
-	result.OnProjectUpdated = requireChildFile(filePath, node, "onProjectUpdated", FileCheckRead, success)
+	result.OnUsageReporting = cfgutil.RequireChildFile(filePath, node, "onUsageReporting", cfgutil.FileCheckRead, success)
+	result.OnQuotaUpdated = cfgutil.RequireChildFile(filePath, node, "onQuotaUpdated", cfgutil.FileCheckRead, success)
+	result.OnProjectUpdated = cfgutil.RequireChildFile(filePath, node, "onProjectUpdated", cfgutil.FileCheckRead, success)
 	return result
 }
 
 func parseAccountMapperPattern(filePath string, node *yaml.Node, success *bool) SlurmAccountMapperPattern {
 	result := SlurmAccountMapperPattern{}
-	result.Users = requireChildText(filePath, node, "users", success)
-	result.Projects = requireChildText(filePath, node, "projects", success)
+	result.Users = cfgutil.RequireChildText(filePath, node, "users", success)
+	result.Projects = cfgutil.RequireChildText(filePath, node, "projects", success)
 	return result
 }
 
 func parseAccountMapperScripted(filePath string, node *yaml.Node, success *bool) SlurmAccountMapperScripted {
 	result := SlurmAccountMapperScripted{}
-	result.Script = requireChildFile(filePath, node, "script", FileCheckRead, success)
+	result.Script = cfgutil.RequireChildFile(filePath, node, "script", cfgutil.FileCheckRead, success)
 	return result
 }
 
 func parseSlurmApplication(filePath string, name string, node *yaml.Node, success *bool) SlurmApplicationConfiguration {
 	result := SlurmApplicationConfiguration{}
-	versionsNode := requireChild(filePath, node, "versions", success)
+	versionsNode := cfgutil.RequireChild(filePath, node, "versions", success)
 	if versionsNode.Kind != yaml.SequenceNode {
-		reportError(filePath, node, "expected versions to be a list")
+		cfgutil.ReportError(filePath, node, "expected versions to be a list")
 		*success = false
 		return result
 	}
 
-	decode(filePath, versionsNode, &result.Versions, success)
+	cfgutil.Decode(filePath, versionsNode, &result.Versions, success)
 
-	result.Load = optionalChildText(filePath, node, "load", success)
-	result.Unload = optionalChildText(filePath, node, "unload", success)
-	srunChild, _ := getChildOrNil(filePath, node, "srun")
+	result.Load = cfgutil.OptionalChildText(filePath, node, "load", success)
+	result.Unload = cfgutil.OptionalChildText(filePath, node, "unload", success)
+	result.Readme.Set(cfgutil.OptionalChildText(filePath, node, "readme", success))
+	if result.Readme.Value == "" {
+		result.Readme.Present = false
+	}
+
+	srunChild, _ := cfgutil.GetChildOrNil(filePath, node, "srun")
 	if srunChild != nil {
 		result.Srun.Set(parseSrunConfiguration(filePath, srunChild, success))
 	}
@@ -774,7 +807,7 @@ func parseSlurmApplication(filePath string, name string, node *yaml.Node, succes
 
 func parseSrunConfiguration(filePath string, node *yaml.Node, success *bool) SrunConfiguration {
 	result := SrunConfiguration{}
-	decode(filePath, node, &result, success)
+	cfgutil.Decode(filePath, node, &result, success)
 	return result
 }
 
@@ -822,7 +855,7 @@ func parseSlurmApplications(filePath string) (map[string][]SlurmApplicationConfi
 				var document yaml.Node
 				err = yaml.Unmarshal([]byte(doc), &document)
 				if err != nil {
-					reportError(
+					cfgutil.ReportError(
 						fakeFilePath,
 						nil,
 						"Failed to parse this configuration file as valid YAML. Please check for errors. "+
@@ -833,8 +866,8 @@ func parseSlurmApplications(filePath string) (map[string][]SlurmApplicationConfi
 				}
 
 				success := true
-				name := requireChildText(fakeFilePath, &document, "name", &success)
-				configs := requireChild(fakeFilePath, &document, "configurations", &success)
+				name := cfgutil.RequireChildText(fakeFilePath, &document, "name", &success)
+				configs := cfgutil.RequireChild(fakeFilePath, &document, "configurations", &success)
 				if !success || configs.Kind != yaml.SequenceNode {
 					return apps, false
 				}
@@ -843,7 +876,7 @@ func parseSlurmApplications(filePath string) (map[string][]SlurmApplicationConfi
 				for j := 0; j < len(configs.Content); j++ {
 					varApp := configs.Content[j]
 					if varApp.Kind != yaml.MappingNode {
-						reportError(filePath, varApp, "expected node to be a dictionary")
+						cfgutil.ReportError(filePath, varApp, "expected node to be a dictionary")
 						success = false
 					}
 

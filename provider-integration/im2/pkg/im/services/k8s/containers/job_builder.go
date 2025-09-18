@@ -1,58 +1,116 @@
 package containers
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strconv"
-	"strings"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/im/services/k8s/filesystem"
+	"ucloud.dk/pkg/im/services/k8s/shared"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
-type UnboundJobResource struct {
-	Pod      *core.Pod
-	Firewall *networking.NetworkPolicy
-	Service  *core.Service
-}
+func StartScheduledJob(job *orc.Job, rank int, node string) error {
+	podName := idAndRankToPodName(job.Id, rank)
 
-func CreateJobResource(job *orc.Job, jobFolder string) UnboundJobResource {
-	// TODO Get these from configuration
-	tolerationKv := util.Option[util.Tuple2[string, string]]{}
-	priorityClass := util.Option[string]{}
-	customRuntimesByCategory := map[string]string{}
+	{
+		timeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		pod, err := K8sClient.CoreV1().Pods(Namespace).Get(timeout, podName, meta.GetOptions{})
+		cancel()
+		if pod != nil && err == nil {
+			// Pod already exists, do not schedule it
+			return nil
+		}
+	}
+
+	iappConfig := ctrl.RetrieveIAppByJobId(job.Id)
+	iappHandler := util.OptNone[ContainerIAppHandler]()
+	if iappConfig.Present {
+		jobCopy := *job
+
+		handler, ok := IApps[iappConfig.Value.AppName]
+		if !ok {
+			return fmt.Errorf("invalid iapp %s", iappConfig.Value.AppName)
+		}
+
+		iappHandler.Set(handler)
+		job = &jobCopy
+
+		if handler.MutateJobNonPersistent != nil {
+			handler.MutateJobNonPersistent(job, iappConfig.Value.Configuration)
+		}
+	}
+
+	jobFolder, drive, err := FindJobFolder(job)
+	if err != nil {
+		return fmt.Errorf("failed to initialize job folder")
+	}
+
+	if rank == 0 {
+		ucloudFolder, ok := filesystem.InternalToUCloudWithDrive(drive, jobFolder)
+		if ok {
+			_ = ctrl.TrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
+				{
+					Id: job.Id,
+					Update: orc.JobUpdate{
+						OutputFolder: util.OptValue[string](ucloudFolder),
+					},
+				},
+			})
+		}
+	}
+
+	namespace := ServiceConfig.Compute.Namespace
 
 	application := &job.Status.ResolvedApplication.Invocation
 	tool := &job.Status.ResolvedApplication.Invocation.Tool.Tool
 
-	// Setting up network policy and service
+	// Sensitive project validation
 	// -----------------------------------------------------------------------------------------------------------------
-	firewall := &networking.NetworkPolicy{
-		ObjectMeta: meta.ObjectMeta{
-			Name: firewallName(job.Id),
-		},
-		Spec: networking.NetworkPolicySpec{
-			PodSelector: k8PodSelectorForJob(job.Id),
-		},
-	}
+	if shared.IsSensitiveProject(job.Owner.Project) {
+		rejectionMessage := util.OptNone[string]()
+		for _, resc := range job.Specification.Resources {
+			if resc.Type == orc.AppParameterValueTypeIngress {
+				rejectionMessage.Set("Public links cannot be used by this project")
+				break
+			}
 
-	allowNetworkFrom(firewall, job.Id)
-	allowNetworkTo(firewall, job.Id)
+			if resc.Type == orc.AppParameterValueTypeNetwork {
+				rejectionMessage.Set("Public IPs cannot be used by this project")
+				break
+			}
 
-	serviceLabel := jobIdLabel(job.Id)
-	service := &core.Service{
-		ObjectMeta: meta.ObjectMeta{
-			Name: serviceName(job.Id),
-		},
-		Spec: core.ServiceSpec{
-			Type:      core.ServiceTypeClusterIP,
-			ClusterIP: core.ClusterIPNone,
-			Selector: map[string]string{
-				serviceLabel.First: serviceLabel.Second,
-			},
-		},
+			if resc.Type == orc.AppParameterValueTypePeer {
+				peerJob, ok := ctrl.RetrieveJob(resc.JobId)
+				if !ok {
+					rejectionMessage.Set("One of your connected jobs cannot be used in this project")
+					break
+				}
+
+				if job.Owner.Project != peerJob.Owner.Project {
+					rejectionMessage.Set("One of your connected jobs cannot be used in this project")
+					break
+				}
+			}
+
+			// NOTE(Dan): Files are checked by the mounts code
+		}
+
+		if rejectionMessage.Present {
+			return util.ServerHttpError("%s", rejectionMessage)
+		}
 	}
 
 	// Setting up the basics
@@ -60,70 +118,146 @@ func CreateJobResource(job *orc.Job, jobFolder string) UnboundJobResource {
 	pod := &core.Pod{
 		TypeMeta: meta.TypeMeta{},
 		ObjectMeta: meta.ObjectMeta{
+			Name:        podName,
 			Annotations: make(map[string]string),
 			Labels:      make(map[string]string),
 		},
 		Spec: core.PodSpec{},
 	}
 
+	if iappConfig.Present {
+		pod.Annotations[IAppAnnotationEtag] = iappConfig.Value.ETag
+		pod.Annotations[IAppAnnotationName] = iappConfig.Value.AppName
+	}
+
 	spec := &pod.Spec
 	spec.RestartPolicy = core.RestartPolicyNever
-	spec.AutomountServiceAccountToken = util.FalsePointer
+	spec.AutomountServiceAccountToken = util.BoolPointer(false)
 
 	spec.Containers = append(spec.Containers, core.Container{
-		Name: "user-job",
+		Name: ContainerUserJob,
 	})
 
 	userContainer := &spec.Containers[0]
-	userContainer.Image = tool.Description.Image
 	userContainer.ImagePullPolicy = core.PullIfNotPresent
 	userContainer.Resources.Limits = map[core.ResourceName]resource.Quantity{}
 	userContainer.Resources.Requests = map[core.ResourceName]resource.Quantity{}
+	userContainer.SecurityContext = &core.SecurityContext{}
+	userContainer.Image = tool.Description.Image
+	if userContainer.Image == "" {
+		userContainer.Image = tool.Description.Container
+	}
+
+	// Setting up network policy and service
+	// -----------------------------------------------------------------------------------------------------------------
+	// Only rank 0 is responsible for creating these additional resources. Their pointers will be nil if they should
+	// not be created by this invocation.
+
+	var firewall *networking.NetworkPolicy
+	var service *core.Service
+	var sshService *core.Service
+	var ipService *core.Service
+
+	if rank == 0 {
+		firewall = &networking.NetworkPolicy{
+			ObjectMeta: meta.ObjectMeta{
+				Name: firewallName(job.Id),
+			},
+			Spec: networking.NetworkPolicySpec{
+				PodSelector: k8PodSelectorForJob(job.Id),
+			},
+		}
+		allowNetworkFrom(firewall, job.Id)
+		allowNetworkTo(firewall, job.Id)
+
+		serviceLabel := shared.JobIdLabel(job.Id)
+		service = &core.Service{
+			ObjectMeta: meta.ObjectMeta{
+				Name: serviceName(job.Id),
+				Labels: map[string]string{
+					serviceLabel.First: serviceLabel.Second,
+				},
+			},
+			Spec: core.ServiceSpec{
+				Type:      core.ServiceTypeClusterIP,
+				ClusterIP: core.ClusterIPNone,
+				Selector: map[string]string{
+					serviceLabel.First: serviceLabel.Second,
+				},
+			},
+		}
+
+		sshService = shared.AssignAndPrepareSshService(job).GetOrDefault(nil)
+		if sshService != nil {
+			allowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
+				{
+					Protocol: orc.IpProtocolTcp,
+					Start:    22,
+					End:      22,
+				},
+			})
+		}
+
+		ipService = preparePublicIp(job, firewall, userContainer)
+	}
+
+	// JobParameters.json
+	// -----------------------------------------------------------------------------------------------------------------
+	if rank == 0 && job.Status.JobParametersJson.SiteVersion != 0 {
+		jsonData, _ := json.Marshal(job.Status.JobParametersJson)
+		fd, ok := filesystem.OpenFile(filepath.Join(jobFolder, "JobParameters.json"), os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0660)
+		if ok {
+			_, _ = fd.Write(jsonData)
+			_ = fd.Close()
+		}
+	}
 
 	// Scheduling and runtime constraints for Kubernetes
 	// -----------------------------------------------------------------------------------------------------------------
 	addResource := func(name core.ResourceName, value int64, scale resource.Scale) {
-		userContainer.Resources.Limits.Name(name, resource.DecimalSI).SetScaled(value, scale)
-		userContainer.Resources.Requests.Name(name, resource.DecimalSI).SetScaled(value, scale)
+		quantity := resource.NewScaledQuantity(value, scale)
+		quantity.Format = resource.DecimalSI
+
+		userContainer.Resources.Limits[name] = *quantity
+		userContainer.Resources.Requests[name] = *quantity
 	}
 
-	cpuMillis := int64(job.Status.ResolvedProduct.Cpu * 1000)
-	memoryMegabytes := int64(job.Status.ResolvedProduct.MemoryInGigs * 1000)
-	gpus := int64(job.Status.ResolvedProduct.Gpu * 1000)
-	// TODO reservations and dev scheduling
+	product := job.Status.ResolvedProduct
+	cpuMillis := shared.NodeCpuMillisReserved(&product)
+	memoryMegabytes := int64(product.MemoryInGigs * 1000)
+	gpus := int64(product.Gpu)
 
-	addResource(core.ResourceCPU, cpuMillis, resource.Milli)
+	gpuType := "nvidia.com/gpu"
+
+	nodeCat, _ := shared.NodeCategoryAndConfiguration(&product)
+	if nodeCat.CustomRuntime != "" {
+		spec.RuntimeClassName = &nodeCat.CustomRuntime
+	}
+	if nodeCat.GpuResourceType != "" {
+		gpuType = nodeCat.GpuResourceType
+	}
+
+	{
+		quantity := resource.NewScaledQuantity(int64(cpuMillis), resource.Milli)
+		quantity.Format = resource.DecimalSI
+		userContainer.Resources.Requests[core.ResourceCPU] = *quantity
+	}
+	{
+		quantity := resource.NewScaledQuantity(int64(product.Cpu*1000), resource.Milli)
+		quantity.Format = resource.DecimalSI
+		userContainer.Resources.Limits[core.ResourceCPU] = *quantity
+	}
 	addResource(core.ResourceMemory, memoryMegabytes, resource.Mega)
 	if gpus > 0 {
-		addResource("nvidia.com/gpu", gpus, resource.Milli)
+		addResource(core.ResourceName(gpuType), gpus, 0)
 	}
 
-	spec.NodeSelector = map[string]string{
-		// TODO(Dan): Map this according to configuration
-		"ucloud.dk/machine": job.Specification.Product.Category,
-	}
+	pod.Spec.NodeName = node
 
 	userContainer.SecurityContext.RunAsNonRoot = util.BoolPointer(!application.Container.RunAsRoot)
 	userContainer.SecurityContext.AllowPrivilegeEscalation = util.BoolPointer(application.Container.RunAsRoot)
 
-	customRuntime, hasRuntime := customRuntimesByCategory[job.Specification.Product.Category]
-	if hasRuntime {
-		spec.RuntimeClassName = &customRuntime
-	}
-
-	if priorityClass.IsSet() {
-		spec.PriorityClassName = priorityClass.Get()
-	}
-
-	if tolerationKv.IsSet() {
-		kv := tolerationKv.Get()
-		spec.Tolerations = append(spec.Tolerations, core.Toleration{
-			Key:      kv.First,
-			Operator: core.TolerationOpEqual,
-			Value:    kv.Second,
-		})
-	}
-
+	spec.Hostname = fmt.Sprintf("j-%s-job-%d", job.Id, rank)
 	spec.Subdomain = fmt.Sprintf("j-%v", job.Id)
 
 	// Working directory
@@ -132,23 +266,41 @@ func CreateJobResource(job *orc.Job, jobFolder string) UnboundJobResource {
 		userContainer.WorkingDir = "/work"
 	}
 
-	// Invocation
-	// -----------------------------------------------------------------------------------------------------------------
-
 	// Mounts
 	// -----------------------------------------------------------------------------------------------------------------
-	prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
+	internalToPod, ok := prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
+	if !ok {
+		return util.ServerHttpError("Unable to use these folders together. One or more are sensitive.")
+	}
+
+	// Modules
+	// -----------------------------------------------------------------------------------------------------------------
+	prepareModules(job, pod, userContainer)
+
+	// Invocation
+	// -----------------------------------------------------------------------------------------------------------------
+	prepareInvocationOnJobCreate(job, rank, pod, userContainer, internalToPod, jobFolder)
 
 	// Multi-node sidecar
 	// -----------------------------------------------------------------------------------------------------------------
 	spec.InitContainers = append(spec.InitContainers, core.Container{
-		Name:  "ucloud-compat",
-		Image: "alpine:latest",
+		Name:            "ucloud-compat",
+		Image:           "alpine:latest",
+		ImagePullPolicy: core.PullIfNotPresent,
 	})
 	multinodeSidecar := &spec.InitContainers[len(spec.InitContainers)-1]
 
+	optUCloudVolumeName := "ucloud-opt"
 	spec.Volumes = append(spec.Volumes, core.Volume{
-		Name: "ucloud-multinode",
+		Name: optUCloudVolumeName,
+		VolumeSource: core.VolumeSource{
+			EmptyDir: &core.EmptyDirVolumeSource{},
+		},
+	})
+
+	etcUCloudVolumeName := "ucloud-etc"
+	spec.Volumes = append(spec.Volumes, core.Volume{
+		Name: etcUCloudVolumeName,
 		VolumeSource: core.VolumeSource{
 			EmptyDir: &core.EmptyDirVolumeSource{},
 		},
@@ -158,6 +310,10 @@ func CreateJobResource(job *orc.Job, jobFolder string) UnboundJobResource {
 	userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
 		Name:      multiNodeVolume.Name,
 		MountPath: "/etc/ucloud",
+	})
+	userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
+		Name:      optUCloudVolumeName,
+		MountPath: "/opt/ucloud",
 	})
 
 	multinodeSidecar.VolumeMounts = append(multinodeSidecar.VolumeMounts, core.VolumeMount{
@@ -172,23 +328,17 @@ func CreateJobResource(job *orc.Job, jobFolder string) UnboundJobResource {
 	multiNodeScript := strings.Builder{}
 	{
 		appendLine := func(format string, args ...any) {
-			multiNodeScript.WriteString(fmt.Sprintf(format, args...))
+			multiNodeScript.WriteString(fmt.Sprintf(format+"\n", args...))
 		}
 
 		appendLine("echo '%d' > /etc/ucloud/number_of_nodes.txt", job.Specification.Replicas)
 		for rank := 0; rank < job.Specification.Replicas; rank++ {
-			hostname := fmt.Sprintf(
-				"j-%v-job-%v.j-%v.%v.svc.cluster.local",
-				job.Id,
-				rank,
-				job.Id,
-				ServiceConfig.Compute.Namespace,
-			)
+			hostname := jobHostName(job.Id, rank)
 
 			appendLine("echo '%v' > /etc/ucloud/node-%v.txt", hostname, rank)
 			appendLine("echo '%v' >> /etc/ucloud/nodes.txt", hostname)
 		}
-		appendLine("echo $UCLOUD_RANK > /etc/ucloud/rank.txt")
+		appendLine("echo %v > /etc/ucloud/rank.txt", rank)
 	}
 
 	multinodeSidecar.Command = []string{
@@ -197,9 +347,51 @@ func CreateJobResource(job *orc.Job, jobFolder string) UnboundJobResource {
 		multiNodeScript.String(),
 	}
 
+	// UCloud visualization (ucviz)
+	// -----------------------------------------------------------------------------------------------------------------
+	spec.InitContainers = append(spec.InitContainers, core.Container{
+		Name:  "ucviz",
+		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.4.107",
+	})
+
+	ucvizContainer := &spec.InitContainers[len(spec.InitContainers)-1]
+	ucvizContainer.VolumeMounts = append(ucvizContainer.VolumeMounts, core.VolumeMount{
+		Name:      optUCloudVolumeName,
+		MountPath: "/opt/ucloud",
+	})
+
+	ucvizContainer.Command = []string{"bash", "-c", "cp /usr/bin/ucmetrics /opt/ucloud/ucmetrics ; cp /usr/bin/ucviz /opt/ucloud/ucviz"}
+
+	if util.DevelopmentModeEnabled() && ServiceConfig.Compute.ImSourceCode.Present {
+		ucvizContainer.Image = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.3.3"
+		ucvizContainer.VolumeMounts = append(ucvizContainer.VolumeMounts, core.VolumeMount{
+			Name:      "ucloud-filesystem",
+			ReadOnly:  false,
+			MountPath: "/opt/source",
+			SubPath:   ServiceConfig.Compute.ImSourceCode.Value,
+		})
+
+		userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
+			Name:      "ucloud-filesystem",
+			ReadOnly:  false,
+			MountPath: "/opt/source",
+			SubPath:   ServiceConfig.Compute.ImSourceCode.Value,
+		})
+
+		// From provider-integration folder:
+		// rsync -vhra . ../.compose/default/im2k8/im/storage/source-code --exclude ucloud-im --exclude integration-module
+		ucvizContainer.Command = []string{
+			"bash", "-c", "cd /opt/source/im2 ; export PATH=$PATH:/usr/local/go/bin ; CGO_ENABLED=0 go build -o /opt/ucloud/ucviz -trimpath ucloud.dk/cmd/ucviz ; CGO_ENABLED=0 go build -o /opt/ucloud/ucmetrics -trimpath ucloud.dk/cmd/ucmetrics",
+		}
+	}
+
 	// Firewall
 	// -----------------------------------------------------------------------------------------------------------------
 	prepareFirewallOnJobCreate(job, pod, firewall, service)
+
+	// SSH
+	// -----------------------------------------------------------------------------------------------------------------
+	injectSshKeys(job.Id, pod, userContainer)
 
 	// Shared-memory
 	// -----------------------------------------------------------------------------------------------------------------
@@ -218,27 +410,84 @@ func CreateJobResource(job *orc.Job, jobFolder string) UnboundJobResource {
 		MountPath: "/dev/shm",
 	})
 
-	// Expiration
-	// -----------------------------------------------------------------------------------------------------------------
-	prepareExpirationOnJobCreate(job, pod)
-
 	// Job metadata
 	// -----------------------------------------------------------------------------------------------------------------
-	pod.Labels["volcano.sh/job-name"] = fmt.Sprintf("j-%v", job.Id)
-	pod.Annotations["volcano.sh/job-name"] = fmt.Sprintf("j-%v", job.Id)
-
-	idLabel := jobIdLabel(job.Id)
+	idLabel := shared.JobIdLabel(job.Id)
+	rankLabel := shared.JobRankLabel(rank)
 	pod.Annotations[idLabel.First] = idLabel.Second
+	pod.Annotations[rankLabel.First] = rankLabel.Second
 	pod.Labels[idLabel.First] = idLabel.Second
+	pod.Labels[rankLabel.First] = rankLabel.Second
 	if job.Owner.Project != "" {
 		pod.Labels["ucloud.dk/workspaceId"] = job.Owner.Project
 	}
 
-	return UnboundJobResource{
-		Pod:      pod,
-		Firewall: firewall,
-		Service:  service,
+	if iappHandler.Present && iappHandler.Value.MutatePod != nil {
+		err = iappHandler.Value.MutatePod(job, iappConfig.Value.Configuration, pod)
+		if err != nil {
+			// Block errors on pod, but we do not immediately block on the rest.
+			return err
+		}
 	}
+
+	// NOTE(Dan): Check if the job is allowed to be submitted. This must be immediately before the job creation. It
+	// must not be moved down or up. Do not add code between these two.
+	if reason := shared.IsJobLockedEx(job, pod.Annotations); reason.Present {
+		return reason.Value.Err
+	}
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+	defer cancel()
+
+	pod, err = K8sClient.CoreV1().Pods(namespace).Create(ctx, pod, meta.CreateOptions{})
+	var ownerReference meta.OwnerReference
+	if err == nil {
+		ownerReference = meta.OwnerReference{
+			APIVersion: "v1",
+			Kind:       "Pod",
+			Name:       pod.Name,
+			UID:        pod.UID,
+		}
+	}
+	if firewall != nil && err == nil {
+		firewall.OwnerReferences = append(firewall.OwnerReferences, ownerReference)
+
+		if iappHandler.Present && iappHandler.Value.MutateNetworkPolicy != nil {
+			myError := iappHandler.Value.MutateNetworkPolicy(job, iappConfig.Value.Configuration, firewall, pod)
+			err = util.MergeError(err, myError)
+		}
+
+		_, myError := K8sClient.NetworkingV1().NetworkPolicies(namespace).Create(ctx, firewall, meta.CreateOptions{})
+		err = util.MergeError(err, myError)
+	}
+	if service != nil && err == nil {
+		service.OwnerReferences = append(service.OwnerReferences, ownerReference)
+
+		if iappHandler.Present && iappHandler.Value.MutateService != nil {
+			myError := iappHandler.Value.MutateService(job, iappConfig.Value.Configuration, service, pod)
+			err = util.MergeError(err, myError)
+		}
+
+		_, myError := K8sClient.CoreV1().Services(namespace).Create(ctx, service, meta.CreateOptions{})
+		err = util.MergeError(err, myError)
+	}
+	if sshService != nil && err == nil {
+		sshService.OwnerReferences = append(sshService.OwnerReferences, ownerReference)
+
+		_, myError := K8sClient.CoreV1().Services(namespace).Create(ctx, sshService, meta.CreateOptions{})
+		err = util.MergeError(err, myError)
+	}
+	if ipService != nil && err == nil {
+		ipService.OwnerReferences = append(ipService.OwnerReferences, ownerReference)
+
+		_, myError := K8sClient.CoreV1().Services(namespace).Create(ctx, ipService, meta.CreateOptions{})
+		err = util.MergeError(err, myError)
+	}
+
+	// NOTE(Dan): Cleanup in case of errors are centralized in the delete code. This is mostly to do with the fact that
+	//   we have multiple replicas.
+
+	return err
 }
 
 func allowNetworkFrom(policy *networking.NetworkPolicy, jobId string) {
@@ -289,6 +538,31 @@ func allowNetworkToSubnet(policy *networking.NetworkPolicy, subnet string) {
 	})
 }
 
+func allowNetworkFromWorld(policy *networking.NetworkPolicy, proto []orc.PortRangeAndProto) {
+	var portEntries []networking.NetworkPolicyPort
+	for _, entry := range proto {
+		portEntries = append(portEntries, networking.NetworkPolicyPort{
+			Protocol: util.Pointer(core.Protocol(entry.Protocol)),
+			Port: &intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: int32(entry.Start),
+			},
+			EndPort: util.Pointer(int32(entry.End)),
+		})
+	}
+
+	policy.Spec.Ingress = append(policy.Spec.Ingress, networking.NetworkPolicyIngressRule{
+		Ports: portEntries,
+		From: []networking.NetworkPolicyPeer{
+			{
+				IPBlock: &networking.IPBlock{
+					CIDR: "0.0.0.0/0",
+				},
+			},
+		},
+	})
+}
+
 func firewallName(jobId string) string {
 	return "policy-" + jobId
 }
@@ -298,16 +572,12 @@ func serviceName(jobId string) string {
 }
 
 func k8PodSelectorForJob(jobId string) meta.LabelSelector {
-	l := jobIdLabel(jobId)
+	l := shared.JobIdLabel(jobId)
 	return meta.LabelSelector{
 		MatchLabels: map[string]string{
 			l.First: l.Second,
 		},
 	}
-}
-
-func jobIdLabel(jobId string) util.Tuple2[string, string] {
-	return util.Tuple2[string, string]{"ucloud.dk/jobId", jobId}
 }
 
 func idAndRankToPodName(id string, rank int) string {
@@ -332,4 +602,14 @@ func podNameToIdAndRank(podName string) (util.Tuple2[string, int], bool) {
 	}
 
 	return util.Tuple2[string, int]{parts[0], rank}, true
+}
+
+func jobHostName(jobId string, rank int) string {
+	return fmt.Sprintf(
+		"j-%v-job-%v.j-%v.%v.svc.cluster.local",
+		jobId,
+		rank,
+		jobId,
+		ServiceConfig.Compute.Namespace,
+	)
 }

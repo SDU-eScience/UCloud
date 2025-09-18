@@ -23,6 +23,11 @@ export async function fetchConfig(provider: string): Promise<SyncthingConfig> {
     return resp.config;
 }
 
+export async function fetchConfigAndEtag(provider: string): Promise<[SyncthingConfig, string]> {
+    const resp = await callAPI<SyncthingConfigResponse>(api.retrieveConfiguration(provider, "syncthing"));
+    return [resp.config, resp.etag];
+}
+
 export async function fetchProducts(provider: string): Promise<compute.ComputeProductSupportResolved[]> {
     const products = await callAPI<compute.JobsRetrieveProductsResponse>(compute.jobs.retrieveProducts({
         providers: provider
@@ -53,19 +58,19 @@ class Api {
     baseContext = "/api/iapps/syncthing";
 
     retrieveConfiguration(provider: string, productId: string): APICallParameters {
-        return apiRetrieve({ provider, productId }, this.baseContext);
+        return {...apiRetrieve({ provider, productId }, this.baseContext), projectOverride: ""};
     }
 
     updateConfiguration(request: UpdateConfigRequest): APICallParameters {
-        return apiUpdate(request, this.baseContext, "update");
+        return {...apiUpdate(request, this.baseContext, "update"), projectOverride: ""};
     }
 
     resetConfiguration(request: ResetConfigRequest): APICallParameters {
-        return apiUpdate(request, this.baseContext, "reset");
+        return {...apiUpdate(request, this.baseContext, "reset"), projectOverride: ""};
     }
 
     restart(request: RestartRequest): APICallParameters {
-        return apiUpdate(request, this.baseContext, "restart");
+        return {...apiUpdate(request, this.baseContext, "restart"), projectOverride: ""};
     }
 }
 

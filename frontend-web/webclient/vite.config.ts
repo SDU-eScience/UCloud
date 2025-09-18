@@ -39,7 +39,7 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
             "Cross-Origin-Opener-Policy": "same-origin",
             "Cross-Origin-Embedder-Policy": "require-corp",
         }
-    }
+    };
 
     return defineConfig({
         clearScreen: false,
@@ -50,6 +50,8 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
             /*
                 Note(Jonas): Added because of React-Markdown using the `assert` function,
                 which is why the assert package is installed.
+
+                Note(Jonas, 30/6/2025): Is this still an issue?
             */
             "process.env": {},
             DEVELOPMENT_ENV: mode !== "production",
@@ -63,6 +65,7 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
             }
         },
         server: {
+            allowedHosts: ["ucloud.localhost.direct", "localhost:9000"],
             port: port ?? 9000,
             host: "0.0.0.0",
             cors: {

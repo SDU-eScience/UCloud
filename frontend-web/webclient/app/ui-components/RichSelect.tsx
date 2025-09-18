@@ -1,25 +1,32 @@
 import * as React from "react";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
-import {useCallback, useLayoutEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useMemo, useRef, useState} from "react";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {doNothing, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {injectStyle} from "@/Unstyled";
-import {Flex, Icon, Input, Relative, Text} from "@/ui-components/index";
-import {FilterInputClass} from "@/Project/ContextSwitcher";
+import {Flex, Icon, Input, Relative} from "@/ui-components/index";
+import {FilterInputClass} from "@/Project/ProjectSwitcher";
 import Box from "@/ui-components/Box";
 
-export type RichSelectChildComponent<T> = React.FunctionComponent<{
+export type RichSelectChildComponent<T> = React.FunctionComponent<RichSelectProps<T>>;
+
+export interface RichSelectProps<T> {
     element?: T;
     dataProps?: Record<string, string>;
     onSelect: () => void;
-}>;
+}
 
+const INPUT_FIELD_HEIGHT = 35;
 export function RichSelect<T, K extends keyof T>(props: {
     items: T[];
     keys: K[];
 
     RenderRow: RichSelectChildComponent<T>;
-    RenderSelected: RichSelectChildComponent<T>;
+    RenderSelected?: RichSelectChildComponent<T>;
+    FullRenderSelected?: RichSelectChildComponent<T>;
+    fullWidth?: boolean;
+    dropdownWidth?: string;
+    elementHeight?: number;
 
     selected?: T;
     onSelect: (element: T) => void;
@@ -31,37 +38,54 @@ export function RichSelect<T, K extends keyof T>(props: {
     const closeFn = useRef<() => void>(doNothing);
 
     const filteredElements = useMemo(() => {
-        const withKeys = props.items.map((it, itIdx) => ({ idx: itIdx, ...it }));
+        const withKeys = props.items.map((it, itIdx) => ({idx: itIdx, ...it}));
         if (query === "") return withKeys;
-        return fuzzySearch(withKeys, props.keys, query, { sort: true });
+        return fuzzySearch(withKeys, props.keys, query, {sort: true});
     }, [query, props.items, props.keys]);
+
+    const limitedElements = useMemo(() => {
+        if (filteredElements.length > 500) {
+            return filteredElements.slice(0, 500);
+        } else {
+            return filteredElements;
+        }
+    }, [filteredElements]);
 
     const triggerRef = useRef<HTMLDivElement>(null);
 
-    const [dropdownSize, setDropdownSize] = useState("300px");
+    const [dropdownSize, setDropdownSize] = useState(props.dropdownWidth ?? "300px");
 
     const onTriggerClick = useCallback(() => {
         const trigger = triggerRef.current;
         if (!trigger) return;
         const width = trigger.getBoundingClientRect().width;
+        setQuery("");
         setDropdownSize(width + "px");
     }, []);
 
+    const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + INPUT_FIELD_HEIGHT);
+
     return <ClickableDropdown
-        trigger={
-            <div className={TriggerClass} ref={triggerRef}>
-                <props.RenderSelected element={props.selected} onSelect={doNothing}/>
-                <Icon name="chevronDownLight"/>
-            </div>
+        trigger={props.FullRenderSelected ?
+            <props.FullRenderSelected element={props.selected} onSelect={doNothing} />
+            :
+            props.RenderSelected ?
+                <div className={TriggerClass} style={{minWidth: props.fullWidth ? "500px" : props.dropdownWidth ?? "500px"}} ref={triggerRef}>
+                    <props.RenderSelected element={props.selected} onSelect={doNothing} />
+                    <Icon name="heroChevronDown" />
+                </div>
+                : <></>
         }
         onOpeningTriggerClick={onTriggerClick}
         rightAligned
+        height={height}
         closeFnRef={closeFn}
         paddingControlledByContent
         arrowkeyNavigationKey={"data-active"}
         hoverColor={"rowHover"}
         colorOnHover={false}
-        fullWidth
+        fullWidth={props.fullWidth ?? false}
+        width={props.fullWidth ? undefined : dropdownSize}
         onSelect={el => {
             const idxS = el?.getAttribute("data-idx") ?? "";
             const idx = parseInt(idxS);
@@ -74,7 +98,7 @@ export function RichSelect<T, K extends keyof T>(props: {
             closeFn.current();
         }}
     >
-        <div style={{maxHeight: "385px", width: dropdownSize}}>
+        <div style={{height: height + "px", width: dropdownSize}}>
             <Flex>
                 <Input
                     autoFocus
@@ -98,12 +122,12 @@ export function RichSelect<T, K extends keyof T>(props: {
                 />
 
                 <Relative right="24px" top="5px" width="0px" height="0px">
-                    <Icon name="search"/>
+                    <Icon name="search" />
                 </Relative>
             </Flex>
 
-            <div className={ResultWrapperClass}>
-                {filteredElements.map(it => <props.RenderRow
+            <div className={ResultWrapperClass} style={{maxHeight: (height - INPUT_FIELD_HEIGHT) + "px", height: height + "px"}}>
+                {limitedElements.map(it => <props.RenderRow
                     element={it}
                     key={it.idx}
                     onSelect={() => {
@@ -115,12 +139,11 @@ export function RichSelect<T, K extends keyof T>(props: {
                     }}
                 />)}
 
-                {filteredElements.length !== 0 ? null : <>
+                {limitedElements.length !== 0 ? null : <>
                     {props.noResultsItem ?
                         <props.RenderRow
                             element={props.noResultsItem}
                             onSelect={() => {
-                                console.log(props.noResultsItem);
                                 props.onSelect(props.noResultsItem as T)
                             }}
                             dataProps={{
@@ -139,7 +162,6 @@ const ResultWrapperClass = injectStyle("rich-select-result-wrapper", k => `
     ${k} {
         cursor: default;
         overflow-y: auto;
-        max-height: 285px;
     }
     
     ${k} > *:hover {
@@ -162,7 +184,6 @@ const TriggerClass = injectStyle("rich-select-trigger", k => `
         width: 100%;
         user-select: none;
         -webkit-user-select: none;
-        min-width: 500px;
         background: var(--backgroundDefault);
         box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);
     }

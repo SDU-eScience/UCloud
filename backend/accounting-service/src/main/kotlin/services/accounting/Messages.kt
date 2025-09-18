@@ -73,6 +73,10 @@ sealed class AccountingRequest<Resp> {
         override val idCard: IdCard
     ) : AccountingRequest<Unit>()
 
+    data class ScanActivation(
+        override val idCard: IdCard
+    ) : AccountingRequest<Unit>()
+
     data class MaxUsable(
         override val idCard: IdCard,
         val category: ProductCategoryIdV2,
@@ -160,10 +164,16 @@ sealed class AccountingRequest<Resp> {
         override val idCard: IdCard,
         val walletId: Int,
         val charge: Long,
+        val isDelta: Boolean
     ) : AccountingRequest<Unit>()
 
     data class DebugUsable(
         override val idCard: IdCard,
+    ) : AccountingRequest<Unit>()
+
+    data class ResetWalletHierarchy(
+        override val idCard: IdCard,
+        val category: ProductCategoryIdV2,
     ) : AccountingRequest<Unit>()
 
     data class FillUpPersonalProviderProject(
@@ -179,5 +189,24 @@ sealed class AccountingRequest<Resp> {
         val quota: Long,
         val expiresAt: Long?,
     ) : AccountingRequest<Unit>()
+
+    data class ProviderDump(
+        override val idCard: IdCard,
+        val category: ProductCategoryIdV2,
+    ) : AccountingRequest<String>()
+
+    data class ResendNotification(
+        override val idCard: IdCard,
+        val walletId: Int,
+    ) : AccountingRequest<Unit>()
+
+    data class BrowseLowBalanceWallets(
+        override val idCard: IdCard,
+    ): AccountingRequest<List<Pair<InternalOwner, InternalWallet>>>()
+
+    data class LowBalanceNotificationUpdate (
+        override val idCard: IdCard,
+        val walletIds: List<Int>,
+    ): AccountingRequest<Unit>()
 }
 

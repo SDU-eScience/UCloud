@@ -50,7 +50,7 @@ export class DataList extends React.PureComponent<DataListProps, {
                 colorOnHover={results.length !== 0}
                 fullWidth
                 trigger={(
-                    <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+                    <div style={{display: "flex", alignItems: "center", width: "100%"}}>
                         <Input
                             leftLabel={this.props.leftLabel}
                             rightLabel={this.props.rightLabel}
@@ -68,7 +68,7 @@ export class DataList extends React.PureComponent<DataListProps, {
                                 }
                             }}
                         />
-                        <Icon name="chevronDownLight" ml="-32px" size={14} />
+                        <Icon name="heroChevronDown" ml="-32px" size={14} />
                     </div>
                 )}
             >

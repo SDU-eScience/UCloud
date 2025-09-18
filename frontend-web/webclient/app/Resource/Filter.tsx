@@ -42,24 +42,7 @@ export interface PillProps {
     onDelete: (keys: string[]) => void;
 }
 
-function mergeProperties(
-    properties: Record<string, string>,
-    newProperties: Record<string, string | undefined>,
-    setProperties: (p: Record<string, string>) => void
-): Record<string, string> {
-    const result: Record<string, string> = {...properties};
-    for (const [key, value] of Object.entries(newProperties)) {
-        if (value === undefined) {
-            delete result[key];
-        } else {
-            result[key] = value;
-        }
-    }
-    setProperties(result);
-    return result;
-}
-
-export const FilterPill: React.FunctionComponent<{
+const FilterPill: React.FunctionComponent<{
     icon: IconName;
     onRemove: () => void;
     canRemove?: boolean;
@@ -82,7 +65,7 @@ const FilterWidgetWrapper = injectStyleSimple("filter-widget-wrapper", `
     -webkit-user-select: none;
 `);
 
-export const FilterWidget: React.FunctionComponent<{
+const FilterWidget: React.FunctionComponent<{
     cursor?: Cursor;
     onClick?: () => void;
     browseType?: BrowseType;
@@ -95,22 +78,7 @@ export const FilterWidget: React.FunctionComponent<{
     </Box>
 };
 
-export const ExpandableFilterWidget: React.FunctionComponent<{
-    expanded: boolean;
-    onExpand: () => void;
-    browseType?: BrowseType;
-    children: React.ReactNode;
-} & BaseFilterWidgetProps> = props => {
-    return <div>
-        <FilterWidget icon={props.icon} browseType={props.browseType} title={props.title} onClick={props.onExpand} cursor={"pointer"}>
-            <Box flexGrow={1} />
-            <Icon name={"chevronDownLight"} rotation={props.expanded ? 0 : -90} size={"16px"} color={"iconColor"} />
-        </FilterWidget>
-        {!props.expanded ? null : props.children}
-    </div>;
-};
-
-export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
+const ExpandableDropdownFilterWidget: React.FunctionComponent<{
     expanded: boolean;
     dropdownContent: React.ReactElement;
     onExpand: () => void;
@@ -125,7 +93,7 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
         <FilterWidget browseType={props.browseType} icon={props.icon} title={props.title} cursor={"pointer"}
             onClick={props.expanded ? props.onExpand : undefined}>
             <Box flexGrow={1} />
-            <Icon ml="6px" name={"chevronDownLight"} rotation={props.expanded || props.facedownChevron || open ? 0 : -90} size={"16px"}
+            <Icon ml="6px" name={"heroChevronDown"} rotation={props.expanded || props.facedownChevron || open ? 0 : -90} size={"16px"}
                 color={"iconColor"} />
         </FilterWidget>
     );
@@ -156,159 +124,6 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
         {!props.expanded ? null : props.children}
     </div>;
 };
-
-export const DateRangePill: React.FunctionComponent<{
-    beforeProperty: string;
-    afterProperty: string
-} & PillProps & BaseFilterWidgetProps> = props => {
-    const onRemove = useCallback(() => {
-        props.onDelete([props.beforeProperty, props.afterProperty]);
-    }, [props.onDelete, props.beforeProperty, props.afterProperty]);
-
-    const after = props.properties[props.afterProperty];
-    if (!after) return null;
-
-    const before = props.properties[props.beforeProperty];
-
-    return <>
-        <FilterPill icon={props.icon} onRemove={onRemove} canRemove={props.canRemove}>
-            {before ?
-                <>
-                    {props.title} between: {dateToStringNoTime(parseInt(after))} - {dateToStringNoTime(parseInt(before))}
-                </> :
-                <>
-                    {props.title} after: {dateToStringNoTime(parseInt(after))}
-                </>
-            }
-        </FilterPill>
-    </>;
-};
-
-const DateRangeEntry: React.FunctionComponent<{title: string; range: string; onClick?: () => void;}> = props => {
-    return <ListRow
-        select={props.onClick}
-        fontSize={"16px"}
-        icon={<Icon name={"calendar"} size={"20px"} ml={"16px"} />}
-        left={props.title}
-        leftSub={<ListRowStat>{props.range}</ListRowStat>}
-        right={null}
-        stopPropagation={false}
-    />;
-};
-
-const DateRangeFilterWidget: React.FunctionComponent<{
-    beforeProperty: string;
-    afterProperty: string
-} & BaseFilterWidgetProps & FilterWidgetProps> = props => {
-    const onExpand = useCallback(() => props.onExpand(props.id), [props.onExpand, props.id]);
-    const [isSelectingRange, setIsSelectingRange] = useState(false);
-    const toggleIsSelectingRange = useCallback(() => setIsSelectingRange(prev => !prev), [setIsSelectingRange]);
-    const createdAfter = props.properties[props.afterProperty] ?? getStartOfDay(new Date()).getTime();
-    const createdBefore = props.properties[props.beforeProperty];
-
-    const updateDates = useCallback((dates: [Date, Date] | Date) => {
-        if (Array.isArray(dates)) {
-            const [start, end] = dates;
-            const newCreatedAfter = start.getTime();
-            const newCreatedBefore = end?.getTime();
-            const newProps: Record<string, string | undefined> = {};
-            newProps[props.afterProperty] = newCreatedAfter.toString();
-            newProps[props.beforeProperty] = newCreatedBefore?.toString() ?? undefined;
-            props.onPropertiesUpdated(newProps);
-        } else {
-            const newCreatedAfter = dates.getTime();
-            const newProps: Record<string, string | undefined> = {};
-            newProps[props.afterProperty] = newCreatedAfter.toString();
-            newProps[props.beforeProperty] = undefined;
-            props.onPropertiesUpdated(newProps);
-        }
-    }, [props.beforeProperty, props.afterProperty, props.onPropertiesUpdated]);
-
-    const todayMs = getStartOfDay(new Date(timestampUnixMs())).getTime();
-    const yesterdayEnd = todayMs - 1;
-    const yesterdayStart = getStartOfDay(new Date(todayMs - 1)).getTime();
-    const pastWeekEnd = new Date(timestampUnixMs()).getTime();
-    const pastWeekStart = getStartOfDay(new Date(pastWeekEnd - (7 * 1000 * 60 * 60 * 24))).getTime();
-    const pastMonthEnd = new Date(timestampUnixMs()).getTime();
-    const pastMonthStart = getStartOfDay(new Date(pastMonthEnd - (30 * 1000 * 60 * 60 * 24))).getTime();
-
-    return <ExpandableDropdownFilterWidget
-        expanded={props.expanded}
-        contentWidth={"300px"}
-        browseType={BrowseType.Embedded}
-        dropdownContent={
-            <>
-                <DateRangeEntry
-                    title={"Today"}
-                    range={dateToStringNoTime(todayMs)}
-                    onClick={() => {
-                        updateDates(new Date(todayMs));
-                    }}
-                />
-                <DateRangeEntry
-                    title={"Yesterday"}
-                    range={`${dateToStringNoTime(yesterdayStart)}`}
-                    onClick={() => {
-                        updateDates([new Date(yesterdayStart), new Date(yesterdayEnd)]);
-                    }}
-                />
-                <DateRangeEntry
-                    title={"Past week"}
-                    range={`${dateToStringNoTime(pastWeekStart)} - ${dateToStringNoTime(pastWeekEnd)}`}
-                    onClick={() => {
-                        updateDates([new Date(pastWeekStart), new Date(pastWeekEnd)]);
-                    }}
-                />
-                <DateRangeEntry
-                    title={"Past month"}
-                    range={`${dateToStringNoTime(pastMonthStart)} - ${dateToStringNoTime(pastMonthEnd)}`}
-                    onClick={() => {
-                        updateDates([new Date(pastMonthStart), new Date(pastMonthEnd)]);
-                    }}
-                />
-                <DateRangeEntry
-                    title={"Custom"}
-                    range={"Enter your own period"}
-                    onClick={onExpand}
-                />
-            </>
-        }
-        onExpand={onExpand}
-        icon={props.icon}
-        title={props.title}>
-        <Flex mt={"8px"} mb={"16px"}>
-            <Box flexGrow={1} cursor={"pointer"} onClick={toggleIsSelectingRange}>Filter by period</Box>
-            <Toggle onChange={toggleIsSelectingRange} checked={isSelectingRange} />
-        </Flex>
-
-        {isSelectingRange ? "Created between:" : "Created after:"}
-        <div className={SlimDatePickerClass}>
-            <ReactDatePicker
-                locale={enGB}
-                startDate={new Date(parseInt(createdAfter))}
-                endDate={createdBefore ? new Date(parseInt(createdBefore)) : undefined}
-                onChange={updateDates}
-                selectsRange={isSelectingRange}
-                inline
-                dateFormat="dd/MM/yy HH:mm"
-            />
-        </div>
-    </ExpandableDropdownFilterWidget>
-}
-
-export function DateRangeFilter(
-    icon: IconName,
-    title: string,
-    beforeProperty: string,
-    afterProperty: string
-): [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>] {
-    return [
-        (props) => <DateRangeFilterWidget beforeProperty={beforeProperty} afterProperty={afterProperty}
-            icon={icon} title={title} {...props} />,
-        (props) => <DateRangePill beforeProperty={beforeProperty} afterProperty={afterProperty}
-            icon={icon} title={title} {...props} />,
-    ];
-}
 
 export const ValuePill: React.FunctionComponent<{
     propertyName: string;
@@ -492,14 +307,14 @@ export function ConditionalFilter(
     return [
         (props) => {
             if (condition()) {
-                return <>{baseFilter[0](props)}</>;
+                return baseFilter[0](props);
             } else {
                 return null;
             }
         },
         (props) => {
             if (condition()) {
-                return <>{baseFilter[1](props)}</>;
+                return baseFilter[1](props);
             } else {
                 return null;
             }

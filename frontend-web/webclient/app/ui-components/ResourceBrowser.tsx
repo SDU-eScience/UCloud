@@ -11,8 +11,10 @@ import {SvgCache} from "@/Utilities/SvgCache";
 import {
     capitalized,
     createHTMLElements,
+    displayErrorMessageOrDefault,
     doNothing,
     inDevEnvironment,
+    isLikelyMac,
     stopPropagation,
     stopPropagationAndPreventDefault,
     timestampUnixMs
@@ -28,13 +30,13 @@ import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
-import {ContextSwitcher, FilterInputClass, projectCache} from "@/Project/ContextSwitcher";
+import {ProjectSwitcher, FilterInputClass, projectCache} from "@/Project/ProjectSwitcher";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
-import {ProductType, ProductV2} from "@/Accounting";
+import {browseWalletsV2, buildAllocationDisplayTree, ProductType, ProductV2} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {div, image} from "@/Utilities/HTMLUtilities";
+import {divHtml, image} from "@/Utilities/HTMLUtilities";
 import {ConfirmationButtonPlainHTML} from "./ConfirmationAction";
 import {HTMLTooltip} from "./Tooltip";
 import {ButtonClass} from "./Button";
@@ -45,10 +47,16 @@ import Flex, {FlexClass} from "./Flex";
 import * as Heading from "@/ui-components/Heading";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI} from "@/Project";
-import {noopCall} from "@/Authentication/DataHook";
+import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {Feature, hasFeature} from "@/Features";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
+import {useProjectId} from "@/Project/Api";
+import {ProgressBar} from "@/Accounting/Allocations";
+import Card from "./Card";
+import Text from "./Text";
+import {ProviderLogo} from "@/Providers/ProviderLogo";
+import Box from "./Box";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const UTILITY_COLOR: ThemeColor = "textPrimary";
@@ -106,7 +114,7 @@ export interface EmbeddedSettings {
 
 export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string> & ResourceIncludeFlags;
-    reloadRef?: React.MutableRefObject<() => void>;
+    reloadRef?: React.RefObject<() => void>;
     // Note(Jonas): 
     //        Embedded changes a few stylings, omits shortcuts from operations, but I believe operations
     //        are entirely omitted. Fetches only the first page, based on the amount passed by additionalFeatures or default.
@@ -174,7 +182,7 @@ interface ResourceBrowserListenerMap<T> {
     "renderRow": (entry: T, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
     "endRenderPage": () => void;
 
-    // beforeOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
+    // skipOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
     "skipOpen": (oldPath: string, path: string, resource?: T) => boolean;
     "open": (oldPath: string, path: string, resource?: T) => void;
     "wantToFetchNextPage": (path: string) => Promise<void>;
@@ -257,6 +265,7 @@ export class ResourceBrowser<T> {
     // DOM component references
     root: HTMLElement;
     private operations: HTMLElement;
+    allocations: HTMLElement;
     filters: HTMLElement;
     rightFilters: HTMLElement;
     sessionFilters: HTMLElement;
@@ -439,7 +448,7 @@ export class ResourceBrowser<T> {
     }
 
     public init(
-        ref: React.MutableRefObject<ResourceBrowser<T> | null>,
+        ref: React.RefObject<ResourceBrowser<T> | null>,
         features: ResourceBrowseFeatures,
         initialPath: string | undefined,
         onInit: (browser: ResourceBrowser<T>) => void,
@@ -468,6 +477,7 @@ export class ResourceBrowser<T> {
                     <img alt="search" class="search-icon">
                     <img alt="refresh" class="refresh-icon">
                 </div>
+                <div class="allocations"></div>
                 <div class="operations"></div>
                 <div style="display: flex; overflow-x: auto;">
                     <div class="filters"></div>
@@ -504,6 +514,7 @@ export class ResourceBrowser<T> {
         `;
 
         this.operations = this.root.querySelector<HTMLElement>(".operations")!;
+        this.allocations = this.root.querySelector<HTMLElement>(".allocations")!;
         this.dragIndicator = this.root.querySelector<HTMLDivElement>(".drag-indicator")!;
         this.entryDragIndicator = this.root.querySelector<HTMLDivElement>(".file-drag-indicator")!;
         this.entryDragIndicatorContent = this.root.querySelector<HTMLDivElement>(".file-drag-indicator-content")!;
@@ -597,6 +608,7 @@ export class ResourceBrowser<T> {
                 if (e.key === "Enter") {
                     this.searchQuery = input.value;
                     this.dispatchMessage("search", fn => fn(this.searchQuery));
+                    this.renderColumnTitles();
                 }
             };
 
@@ -605,6 +617,7 @@ export class ResourceBrowser<T> {
                 input.toggleAttribute("data-hidden");
                 if (input.hasAttribute("data-hidden")) {
                     this.dispatchMessage("searchHidden", fn => fn());
+                    this.searchQuery = "";
                 } else {
                     input.focus()
                 }
@@ -624,7 +637,7 @@ export class ResourceBrowser<T> {
 
         if (this.features.contextSwitcher) {
             const div = document.createElement("div");
-            div.className = "context-switcher";
+            div.className = "project-switcher";
             const headerThing = this.header.querySelector<HTMLDivElement>(".header-first-row")!;
             headerThing.appendChild(div);
         }
@@ -780,7 +793,7 @@ export class ResourceBrowser<T> {
         // Mount rows and attach event handlers
         const rows: HTMLDivElement[] = [];
         for (let i = 0; i < ResourceBrowser.maxRows; i++) {
-            const row = div(`
+            const row = divHtml(`
                 <div class="favorite"></div>
                 <div class="title"></div>
                 <div class="stat-wrapper">
@@ -1158,7 +1171,7 @@ export class ResourceBrowser<T> {
         }
     }
 
-    static lastClickCache: Record<string, number> = {};
+    private static lastClickCache: Record<string, number> = {};
 
     static defaultIconRenderer(): [HTMLDivElement, (url: string) => void] {
         // NOTE(Dan): We have to use a div with a background image, otherwise users will be able to drag the
@@ -1178,7 +1191,9 @@ export class ResourceBrowser<T> {
     }
 
     public defaultButtonRenderer<T>(selection: ResourceBrowserOpts<T>["selection"], item: T, opts?: {
-        color?: ThemeColor, width?: string, height?: string
+        color?: ThemeColor, width?: string, height?: string, button?: {
+            name: IconName; size: number; color: ThemeColor; color2: ThemeColor; ml?: string;
+        }
     }) {
         if (!selection) return;
         if (!selection.show || selection.show(item) === true) {
@@ -1187,12 +1202,30 @@ export class ResourceBrowser<T> {
             button.className = ButtonClass;
             button.style.height = opts?.height ?? "32px";
             button.style.width = opts?.width ?? "96px";
-            
+
             const color = opts?.color ?? "secondaryMain";
             button.style.setProperty("--bgColor", `var(--${color})`);
             button.style.setProperty("--hoverColor", `var(--${selectHoverColor(color)})`);
             button.style.color = `var(--${selectContrastColor(color)})`;
             button.tabIndex = 0;
+
+            if (opts?.button) {
+                const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                const b = opts.button;
+                ResourceBrowser.icons.renderIcon({
+                    name: b.name,
+                    height: 64,
+                    width: 64,
+                    color: b.color,
+                    color2: b.color2,
+                }).then(setIcon);
+
+                if (b.ml) icon.style.marginLeft = b.ml;
+                icon.style.height = b.size + "px";
+                icon.style.width = b.size + "px";
+
+                button.prepend(icon);
+            }
 
             button.onclick = e => {
                 e.stopImmediatePropagation();
@@ -1201,6 +1234,29 @@ export class ResourceBrowser<T> {
             return button;
         }
         return null
+    }
+
+    renderDefaultRow(row: ResourceBrowserRow, title: string, opts?: {color?: ThemeColor; color2?: ThemeColor;}): {
+        title: HTMLDivElement
+    } {
+        const icon = this.emptyIconName;
+        if (icon) {
+            const [deviceIcon, setDeviceIcon] = ResourceBrowser.defaultIconRenderer();
+            row.title.append(deviceIcon);
+            ResourceBrowser.icons.renderIcon({
+                name: icon,
+                height: 32,
+                width: 32,
+                color: opts?.color ?? "iconColor",
+                color2: opts?.color2 ?? "iconColor2",
+            }).then(setDeviceIcon);
+        }
+
+        let titleElement = ResourceBrowser.defaultTitleRenderer(title, row);
+        row.title.append(titleElement);
+        return {
+            title: titleElement,
+        };
     }
 
     defaultBreadcrumbs(): {title: string; absolutePath: string;}[] {
@@ -2031,7 +2087,10 @@ export class ResourceBrowser<T> {
 
     closeRenameField(why: "submit" | "cancel", render: boolean = true) {
         if (this.renameFieldIndex !== -1) {
-            if (why === "submit") this.renameOnSubmit();
+            if (why === "submit") {
+                this.renameValue = this.renameValue.trim();
+                this.renameOnSubmit();
+            }
             else this.renameOnCancel();
         }
 
@@ -2995,9 +3054,15 @@ export class ResourceBrowser<T> {
         startRenderPage: doNothing,
         endRenderPage: doNothing,
         beforeShortcut: doNothing,
+        unhandledShortcut: doNothing,
+        pathToEntry: () => "",
+        generateBreadcrumbs: () => [],
+        wantToFetchNextPage: async () => {},
         fetchBrowserFeatures: () => undefined,
+        renderEmptyPage: e => {
+            return this.defaultEmptyPage(this.resourceName, e, {});
+        },
         fetchFilters: () => [],
-        searchHidden: () => {},
 
         renderLocationBar: prompt => {
             return {rendered: prompt, normalized: prompt};
@@ -3222,7 +3287,7 @@ export class ResourceBrowser<T> {
         }
 
         wrapper.appendChild(text);
-        const chevronIcon = this.createFilterImg("chevronDownLight");
+        const chevronIcon = this.createFilterImg("heroChevronDown");
         wrapper.appendChild(chevronIcon);
         if (["Sort by", "Sort order"].includes(filter.text)) {
             this.rightFilters.appendChild(wrapper);
@@ -3332,7 +3397,10 @@ export class ResourceBrowser<T> {
         return c;
     }
 
+    private emptyIconName: IconName | null = null;
     public setEmptyIcon(icon: IconName) {
+        this.emptyIconName = icon;
+
         ResourceBrowser.icons.renderIcon({
             name: icon,
             color: "primaryContrast",
@@ -3417,7 +3485,7 @@ export class ResourceBrowser<T> {
         wrapper.append(rowTitleName);
         const filter = rowTitle.sortById;
         if (!filter) return;
-        wrapper.style.cursor = "pointer";
+        if (!this.searchQuery) wrapper.style.cursor = "pointer";
         wrapper.onclick = e => {
             e.stopPropagation();
             if (this.browseFilters[SORT_BY] !== filter) {
@@ -3429,9 +3497,12 @@ export class ResourceBrowser<T> {
                     setFilterStorageValue(this.resourceName, SORT_DIRECTION, ASC);
                 }
             }
-            this.open(this.currentPath, true);
+
+            if (!this.searchQuery) {
+                this.open(this.currentPath, true);
+            }
         }
-        if (this.browseFilters["sortBy"] === filter) {
+        if (this.browseFilters["sortBy"] === filter && !this.searchQuery) {
             wrapper.style.fontWeight = "500";
             const [arrow, setArrow] = ResourceBrowser.defaultIconRenderer();
             arrow.style.minWidth = "";
@@ -3469,7 +3540,7 @@ export function clearFilterStorageValue(namespace: string, key: string) {
 }
 
 export function addContextSwitcherInPortal<T>(
-    browserRef: React.RefObject<ResourceBrowser<T>>, setPortal: (el: React.ReactNode) => void,
+    browserRef: React.RefObject<ResourceBrowser<T> | null>, setPortal: (el: React.ReactNode) => void,
     managed?: {
         setLocalProject: (project: string | undefined) => void;
         initialProject?: string;
@@ -3477,9 +3548,9 @@ export function addContextSwitcherInPortal<T>(
 ) {
     const browser = browserRef.current;
     if (browser != null) {
-        const contextSwitcher = browser.header.querySelector<HTMLDivElement>(".context-switcher");
-        if (contextSwitcher) {
-            setPortal(createPortal(<ContextSwitcher managed={managed} />, contextSwitcher));
+        const projectSwitcher = browser.header.querySelector<HTMLDivElement>(".project-switcher");
+        if (projectSwitcher) {
+            setPortal(createPortal(<ProjectSwitcher managed={managed} />, projectSwitcher));
         }
     }
 }
@@ -3591,14 +3662,14 @@ export function resourceCreationWithProductSelector<T>(
 
 export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclaration>): HTMLElement {
     const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
-    const outer = div("");
+    const outer = divHtml("");
     outer.className = "provider-icon"
     outer.style.background = "var(--secondaryMain)";
     outer.style.borderRadius = "8px";
     outer.style.width = outer.style.minWidth = opts?.width ?? "30px";
     outer.style.height = outer.style.minHeight = opts?.height ?? "30px";
 
-    const inner = div("");
+    const inner = divHtml("");
     inner.style.backgroundSize = "contain";
     inner.style.width = "100%";
     inner.style.height = "100%";
@@ -3669,10 +3740,6 @@ function printDuplicateShortcuts<T>(operations: OperationOrGroup<T, unknown>[]) 
         entries[short.shortcut ?? ""] = short.text;
     }
 }
-
-const isLikelyMac = navigator["userAgentData"]?.["platform"] === "macOS" ||
-    navigator["platform"]?.toLocaleLowerCase().includes("mac") ||
-    navigator["userAgent"]?.toLocaleLowerCase().includes("macintosh");
 
 const ARROW_UP = "↑";
 const ARROW_DOWN = "↓";
@@ -3770,6 +3837,7 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
                     </tr>}
                 </React.Fragment>)}
                 <Shortcut name="Hide shortcuts" alt keys={"H"} />
+                <Shortcut name="Command palette" ctrl keys={"P"} />
             </tbody>
         </table>
     </div>

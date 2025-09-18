@@ -1,32 +1,16 @@
 package termio
 
-/*
-#cgo LDFLAGS: -lutil
-
-#include <stdlib.h>
-#include <sys/ioctl.h>
-
-int queryPtySize(int *cols, int *rows) {
-	struct winsize winp = {0};
-	int result = ioctl(0, TIOCGWINSZ, &winp);
-
-	*cols = (int) winp.ws_col;
-	*rows = (int) winp.ws_row;
-	return result;
-}
-*/
-import "C"
+import (
+	"golang.org/x/sys/unix"
+)
 
 func queryPtySize() (int, int, bool) {
-	var cols C.int
-	var rows C.int
-
-	ok := C.queryPtySize(&cols, &rows) == 0
-	if !ok {
-		return 160, 48, ok // Default size for non-ptys
+	ws, err := unix.IoctlGetWinsize(0, unix.TIOCGWINSZ)
+	if err != nil {
+		return 160, 48, false // Default size for non-ptys
 	}
 
-	return int(cols), int(rows), ok
+	return int(ws.Col), int(ws.Row), true
 }
 
 func safeQueryPtySize() (int, int, bool) {

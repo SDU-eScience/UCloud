@@ -4,31 +4,100 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	ws "github.com/gorilla/websocket"
 	"golang.org/x/sync/semaphore"
+	"io"
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 const chunkIoDeadline = 30 * time.Second
+const chanBufferSize = 1024 * 32
 
 type ClientSession struct {
 	Endpoint       string
 	ConflictPolicy orc.WriteConflictPolicy
 	Path           string
+	Metrics        ClientMetrics
+}
+
+type ClientMetrics struct {
+	lock             sync.Mutex
+	BytesTransferred int64
+	FilesCompleted   int64
+	FilesSkipped     int64
+	SkipReasons      map[string]SkipReason
+}
+
+func (m *ClientMetrics) Absorb(other *ClientMetrics) {
+	other.lock.Lock()
+	defer other.lock.Unlock()
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	m.FilesCompleted += other.FilesCompleted
+	m.BytesTransferred += other.BytesTransferred
+	m.FilesSkipped += other.FilesSkipped
+
+	for key, reasons := range other.SkipReasons {
+		myReasons := m.SkipReasons[key]
+		initialCount := myReasons.Count
+		for i := 0; i < len(reasons.Paths); i++ {
+			myReasons.AddSkip(reasons.Reasons[i], reasons.Paths[i])
+		}
+		myReasons.Count = initialCount + reasons.Count
+		m.SkipReasons[key] = myReasons
+	}
+}
+
+func (m *ClientMetrics) CompleteFile(size int64) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	m.BytesTransferred += size
+	m.FilesCompleted++
+}
+
+func (m *ClientMetrics) SkipFile(reason string, path string) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	m.FilesSkipped++
+	truncatedReason := reason[:min(len(reason), 16)]
+	skips, _ := m.SkipReasons[truncatedReason]
+	skips.AddSkip(reason, path)
+	m.SkipReasons[reason] = skips
+}
+
+type SkipReason struct {
+	Count   int
+	Reasons []string
+	Paths   []string // Will not store more than 16 example paths
+}
+
+func (s *SkipReason) AddSkip(reason, path string) {
+	s.Count++
+	if len(s.Paths) < 16 {
+		s.Paths = append(s.Paths, path)
+		s.Reasons = append(s.Reasons, reason)
+	}
 }
 
 type ClientFile interface {
 	ListChildren(ctx context.Context) []string
 	OpenChild(ctx context.Context, name string) (FileMetadata, ClientFile)
-	Read(ctx context.Context, target []byte) (int, bool)
+	Read(ctx context.Context, target []byte) (int, bool, error)
 	Close()
 }
 
@@ -49,17 +118,25 @@ type clientWorker struct {
 	Connection       *ws.Conn
 	FilesCompleted   atomic.Int32
 	BytesTransferred atomic.Int64
+	Metrics          ClientMetrics
 }
 
+const (
+	minChunkSize = 1024 * 16
+	maxChunkSize = 1024 * 1024 * 4
+)
+
 func (w *clientWorker) Process() {
-	chunkBytes1 := make([]byte, 1024*1024*16)
-	chunkBytes2 := make([]byte, 1024*1024*16)
+	rawChunkBytes1 := make([]byte, maxChunkSize)
+	rawChunkBytes2 := make([]byte, maxChunkSize)
+	recommendedChunkSize := atomic.Int64{}
+	recommendedChunkSize.Store(minChunkSize)
 
 	skipBuffer := util.NewBuffer(&bytes.Buffer{})
 	listingBuffer := util.NewBuffer(&bytes.Buffer{})
 	listingTicker := time.NewTicker(50 * time.Millisecond)
 
-	combinedTaskQueue := make(chan *clientWork)
+	combinedTaskQueue := make(chan *clientWork, chanBufferSize)
 
 	go func() {
 	loop:
@@ -92,7 +169,7 @@ func (w *clientWorker) Process() {
 				// TODO(Dan): This shouldn't be needed, but it seems like we often fail a ping right as the
 				//   connection is shutting down and this is causing some issues with the entire transfer.
 				pingFailures++
-				if pingFailures >= 10 {
+				if pingFailures >= 30 {
 					_ = w.Connection.Close()
 					log.Warn("Uploader client failed to send ping: %v", err)
 					return false
@@ -153,8 +230,12 @@ outer:
 				writeBuffers := make(chan []byte, 2)
 
 				go func() {
+					size := recommendedChunkSize.Load()
+					chunkBytes1 := rawChunkBytes1[:size]
+					chunkBytes2 := rawChunkBytes2[:size]
+					bufIdx := uint64(0)
+
 					chunkBytes := chunkBytes1
-					nextBuf := chunkBytes2
 					for {
 						// Acquire read permit (in-case writing is too slow, it usually is)
 						err := readBuffersAvailable.Acquire(w.Ctx, 1)
@@ -164,7 +245,7 @@ outer:
 
 						chunkBytes[0] = uint8(messageTypeChunk)
 						binary.BigEndian.PutUint32(chunkBytes[1:], uint32(work.Id))
-						count, isDone := work.File.Read(w.Ctx, chunkBytes[5:])
+						count, isDone, err := work.File.Read(w.Ctx, chunkBytes[5:])
 						if count > 0 {
 							written += int64(count)
 							w.BytesTransferred.Add(int64(count))
@@ -174,17 +255,35 @@ outer:
 						}
 
 						if isDone {
+							if err != nil {
+								if errors.Is(err, io.EOF) {
+									w.Metrics.SkipFile(err.Error(), work.Metadata.InternalPath)
+								}
+							}
 							writeBuffers <- nil
 							break
 						}
 
+						// Reload size recommendation
+						oldSize := size
+						size = recommendedChunkSize.Load()
+						if size != oldSize {
+							log.Info("New size! %v -> %v", oldSize, size)
+						}
+						chunkBytes1 = rawChunkBytes1[:size]
+						chunkBytes2 = rawChunkBytes2[:size]
+
 						// Swap buffers
-						tmp := chunkBytes
-						chunkBytes = nextBuf
-						nextBuf = tmp
+						bufIdx++
+						if bufIdx%2 == 0 {
+							chunkBytes = chunkBytes1
+						} else {
+							chunkBytes = chunkBytes2
+						}
 					}
 				}()
 
+				chunkStartTime := time.Now()
 				for {
 					data := <-writeBuffers
 					if data == nil {
@@ -193,7 +292,7 @@ outer:
 							(&messageSkip{FileId: work.Id}).Marshal(skipBuffer, true)
 
 							err1 := w.Connection.SetWriteDeadline(time.Now().Add(chunkIoDeadline))
-							err2 := w.Connection.WriteMessage(ws.BinaryMessage, data)
+							err2 := w.Connection.WriteMessage(ws.BinaryMessage, skipBuffer.ReadRemainingBytes())
 							if err := util.FindError(err1, err2); err != nil {
 								_ = w.Connection.Close()
 								log.Warn("Uploader client failed to send message: %v", err)
@@ -216,26 +315,52 @@ outer:
 						break outer
 					}
 
+					chunkEndTime := time.Now()
+					if chunkEndTime.Sub(chunkStartTime) < 250*time.Millisecond && len(data) > 0 {
+						newSize := int64(len(data) * 2)
+						newSize = min(maxChunkSize, max(minChunkSize, newSize))
+						recommendedChunkSize.Store(newSize)
+					}
+
 					readBuffersAvailable.Release(1)
 				}
 
 				work.Done.Swap(true)
 				w.FilesCompleted.Add(1)
 				work.File.Close()
+				w.Metrics.CompleteFile(work.Metadata.Size)
 
 			case 2:
 				// Skip the file
 				work.Done.Swap(true)
 				w.FilesCompleted.Add(1)
 				work.File.Close()
+				w.Metrics.SkipFile("server skip", work.Metadata.InternalPath)
 			}
 		}
 	}
 }
 
-func goDiscoverClientWork(ctx context.Context, root ClientFile, output chan *clientWork) {
+func goDiscoverClientWork(ctx context.Context, root ClientFile, rootMetadata FileMetadata, output chan *clientWork) {
 	idAcc := int32(0)
-	stack := []ClientFile{root}
+	stack := []ClientFile{}
+
+	if rootMetadata.Type == FileTypeFile {
+		work := &clientWork{
+			Id:       idAcc,
+			File:     root,
+			Metadata: rootMetadata,
+		}
+		select {
+		case <-ctx.Done():
+			// All good
+		case output <- work:
+			// All good
+		}
+		idAcc++
+	} else {
+		stack = append(stack, root)
+	}
 
 outer:
 	for len(stack) > 0 {
@@ -304,6 +429,7 @@ type StatusReport struct {
 func ProcessClient(
 	session ClientSession,
 	rootFile ClientFile,
+	rootMetadata FileMetadata,
 	status *atomic.Pointer[orc.TaskStatus],
 	requestCancel chan util.Empty,
 ) StatusReport {
@@ -352,8 +478,8 @@ func ProcessClient(
 	sessionContext, cancel := context.WithCancel(context.Background())
 
 	statTicker := time.NewTicker(500 * time.Millisecond)
-	discoveredWorkForUs := make(chan *clientWork)
-	discoveredWorkForWorkers := make(chan *clientWork)
+	discoveredWorkForUs := make(chan *clientWork, chanBufferSize)
+	discoveredWorkForWorkers := make(chan *clientWork, chanBufferSize)
 	incomingWebsocket := make(chan incomingMessage)
 
 	// Stats
@@ -430,8 +556,11 @@ func ProcessClient(
 				WorkerId:     whoami,
 				Ctx:          sessionContext,
 				OpenWork:     discoveredWorkForWorkers,
-				AssignedWork: make(chan *clientWork),
+				AssignedWork: make(chan *clientWork, chanBufferSize),
 				Connection:   socket,
+				Metrics: ClientMetrics{
+					SkipReasons: make(map[string]SkipReason),
+				},
 			}
 			workers = append(workers, worker)
 			filesCompletedFromServer = append(filesCompletedFromServer, 0)
@@ -443,7 +572,7 @@ func ProcessClient(
 		}
 	}
 
-	go goDiscoverClientWork(sessionContext, rootFile, discoveredWorkForUs)
+	go goDiscoverClientWork(sessionContext, rootFile, rootMetadata, discoveredWorkForUs)
 
 	flushStats := func() {
 		now := time.Now()
@@ -620,6 +749,37 @@ outer:
 	totalFilesCompleted := int64(0)
 	for _, f := range filesCompletedFromServer {
 		totalFilesCompleted += int64(f)
+	}
+
+	combined := ClientMetrics{
+		SkipReasons: make(map[string]SkipReason),
+	}
+	for _, w := range workers {
+		if w != nil {
+			combined.Absorb(&w.Metrics)
+		}
+	}
+
+	if combined.FilesCompleted != 0 || combined.FilesSkipped != 0 || combined.BytesTransferred != 0 {
+		b := strings.Builder{}
+		b.WriteString(fmt.Sprintf(
+			"Upload session complete (client): %v file(s) transferred | %v bytes transferred | %v file(s) skipped\n",
+			combined.FilesCompleted,
+			combined.BytesTransferred,
+			combined.FilesSkipped,
+		))
+		for trunc, f := range combined.SkipReasons {
+			b.WriteString("\t")
+			b.WriteString(trunc)
+			b.WriteString(":\n")
+			b.WriteString(fmt.Sprintf("\t\tCount: %v\n", f.Count))
+			for i := 0; i < len(f.Paths); i++ {
+				b.WriteString(fmt.Sprintf("\t\t%v: %v\n", f.Reasons[i], f.Paths[i]))
+			}
+		}
+
+		output := b.String()
+		log.Info(output)
 	}
 
 	return StatusReport{

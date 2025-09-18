@@ -1,0 +1,367 @@
+---
+# yaml-language-server: $schema=https://launcher-assets.cloud.sdu.dk/schemas/app
+application: v2
+
+name: "terminal-ubuntu"
+version: "Aug2025-1"
+
+title: "Terminal Ubuntu"
+documentation: "https://docs.cloud.sdu.dk/Apps/terminal.html"
+description: |
+  Web terminal server based on [ttyd](https://github.com/tsl0922/ttyd) command-line tool.
+
+software:
+  type: "Container"
+  image: "dreg.cloud.sdu.dk/ucloud-apps/terminal-ubuntu:Aug2025-1"
+
+features:
+  multiNode: true
+  links: false
+  folders: true
+  jobLinking: true
+  ipAddresses: true
+
+modules:
+  mountPath: "/opt/easybuild"
+  optional: ["ubuntu-24.04"]
+
+web:
+  enabled: true
+  port: 7681
+
+ssh:
+  mode: "Optional"
+
+extensions:
+  - ".py"
+  - ".R"
+  - ".jl"
+  - ".JL"
+  - ".go"
+  - ".GO"
+  - ".CLJ"
+  - ".clj"
+  - ".groovy"
+  - ".gvy"
+  - ".gy"
+  - ".gsh"
+  - ".sh"
+  - ".java"
+  - ".json"
+  - ".md"
+  - ".rst"
+  - ".txt"
+  - ".tex"
+  - ".csv"
+  - ".xlm"
+  - ".js"
+  - ".JS"
+  - ".kt"
+  - ".ktm"
+  - ".kts"
+  - ".m"
+  - ".rs"
+  - ".sc"
+  - ".sqlite"
+  - ".db"
+  - ".c"
+  - ".cc"
+  - ".c++"
+  - ".cpp"
+  - ".cp"
+  - ".C"
+  - ".CPP"
+  - ".cxx"
+  - ".h"
+  - ".hpp"
+  - ".ii"
+  - ".f"
+  - ".for"
+  - ".f90"
+  - ".f95"
+  - ".f03"
+  - ".F90"
+  - ".F"
+  - "Makefile"
+  - "Dockerfile"
+  - ".eb"
+
+parameters:
+  shell:
+    type: "Enumeration"
+    title: "Shell type"
+    description: "Select your preferred shell."
+    defaultValue: "bash"
+    options:
+      - title: "Bash"
+        value: "bash"
+      - title: "Zsh"
+        value: "zsh"
+      - title: "Fish"
+        value: "fish"
+    optional: true
+
+  enableTmux:
+    type: "Boolean"
+    title: "Enable tmux"
+    description: "Start a tmux session with the selected shell (default: false)."
+    defaultValue: false
+    optional: true
+
+  modules:
+    type: "Directory"
+    title: "Modules path"
+    description: "Import environment modules folder."
+    optional: true
+
+  initScript:
+    type: "File"
+    title: "Initialization"
+    description: "Shell script to run during startup. File format: Bash script (.sh)."
+    optional: true
+
+  batchScript:
+    type: "File"
+    title: "Batch processing"
+    description: "Script to run in batch mode. File format: Bash script (.sh)."
+    optional: true
+
+  extraArgs:
+    type: "Text"
+    title: "Extra options"
+    description: "Explicitly pass additional arguments to the initialization or the batch script."
+    optional: true
+
+  slurm:
+    type: "Boolean"
+    title: "Slurm cluster"
+    description: " Initialize a Slurm cluster (default: false)."
+    defaultValue: false
+    optional: true
+
+  numWeb:
+    type: "Integer"
+    title: "Additional web interfaces"
+    description: >
+      Number of extra web interfaces to open for each node.
+      Each interface will be assigned an incremental port number
+      and the assigned ports will be shown in the job output.
+    defaultValue: 0
+    optional: true
+
+invocation: |
+
+  {% set N = (numWeb | default(0)) | int %}
+  {% set r = ucloud.rank | default(0) %}
+  {% set prefix = namePrefix | default('App') %}
+  {% set base = (basePort | default(7681)) | int %}
+
+  {%- if N > 0 -%}
+  {%- for i in range(1, N + 1) -%}
+  {{ dynamicInterface(r, "WEB", prefix ~ " " ~ i, base + i) }}
+  {%- endfor %}
+
+  cat <<'WEB_SUMMARY'
+  ===============================
+  == Additional web interfaces ==
+  ===============================
+
+  Published endpoints:
+  {%- for i in range(1, N + 1) %}
+  - {{ prefix ~ " " ~ i }}: port {{ base + i }}
+  {%- endfor %}
+
+  WEB_SUMMARY
+  {%- endif %}
+
+  ttyd_options=(
+    --writable
+    -p "7681"
+    -t altClickMovesCursor=true
+    -t disableLeaveAlert=true
+    -t enableZmodem=true
+    -t enableTrzsz=true
+    -t enableSixel=true
+    -t titleFixed="UCloud Terminal"
+    -t fontSize=20
+    -t theme='\{"background": "#242A31"\}'
+  )
+
+  # Update permissions of /etc/ucloud
+  if [[ -n "${UCLOUD_PUBLIC_SSH:-}" ]]; then
+    sudo chmod 555 /etc/ucloud
+  fi
+
+  # Placeholders for Slurm configuration
+  CORES={{ ucloud.machine.cpu | default(4) }}
+  MEMORY={{ ucloud.machine.memoryInGigs | default(8) }}
+  GPUS={{ ucloud.machine.gpu | default(0) }}
+  GPU_TYPE={{ ucloud.machine.category | default('u1-standard-h') }}
+  RANK={{ ucloud.rank | default(0) }}
+
+  sed "s/UCORES/$CORES/g; s/UMEMORY/$MEMORY/g; s/UGPUS/$GPUS/g; s/UGPU_TYPE/$GPU_TYPE/g" /usr/bin/gen_slurm_conf > /tmp/tm1.sh
+  sed "s/URANK/$RANK/g" /usr/bin/gen_slurmdb_conf > /tmp/tm2.sh
+  cp /tmp/tm1.sh /usr/bin/gen_slurm_conf
+  cp /tmp/tm2.sh /usr/bin/gen_slurmdb_conf
+
+  NODES={{ ucloud.nodes | default(1) }}
+
+  # Add multi-node configuration for Slurm cluster
+  {% if (ucloud.rank | default(0)) == 0 %}
+  # ▶ code for the master node (rank = 0)
+  sudo update_hosts {{ ucloud.nodes | default(1) }}
+  sudo service ssh start
+  sudo bash /usr/bin/init_user.sh {{ ucloud.nodes | default(1) }}
+
+  waitPORTS="node0:22"
+  hostN=$(( {{ ucloud.nodes | default(1) }} - 1 ))
+  for i in $(seq 1 "$hostN"); do
+      waitPORTS+=",node$i:22"
+  done
+  wait-for -t 200 -it "$waitPORTS"
+  {% else %}
+  # ▶ code for worker nodes (rank > 0)
+  sudo update_hosts {{ ucloud.nodes | default(1) }}
+  sudo service ssh start
+  sudo bash /usr/bin/init_user.sh {{ ucloud.nodes | default(1) }}
+  {% endif %}
+
+  # Initialize Slurm cluster if enabled
+  {% if (slurm | default(false)) and ((ucloud.rank | default(0)) == 0) %}
+  echo -e "Initializing Slurm cluster..."
+  init_slurm_cluster
+  {% endif %}
+
+  # Update modules root path
+  MODULEMOUNTPATH="/opt/easybuild/ubuntu-24.04"
+  if [ -n "$MODULEMOUNTPATH" ]; then
+      # Check if MODULEMOUNTPATH directory exists
+      if [ -d "$MODULEMOUNTPATH" ]; then
+          # Dynamically initializing the VENDOR variable
+          CPU_VENDOR=$(lscpu | grep "Vendor ID" | awk '{print $3}')
+
+          if [[ "$CPU_VENDOR" == *Intel* ]]; then
+              VENDOR="intel"
+          elif [[ "$CPU_VENDOR" == *AMD* ]]; then
+              VENDOR="amd"
+          else
+              echo "Unknown CPU Vendor."
+              VENDOR=""
+          fi
+
+          if [ -n "$VENDOR" ]; then
+              MODULEPATH="$MODULEMOUNTPATH/$VENDOR/modules/all"
+              export MODULEPATH
+              echo "MODULEPATH=$MODULEPATH" >> "$HOME/.bashrc"
+              echo "MODULEPATH=$MODULEPATH" >> "$HOME/.zshrc"
+          fi
+      else
+          echo -e "\nWarning: $MODULEMOUNTPATH does not exist. MODULEPATH has not been updated.\n"
+      fi
+  fi
+
+  {% if modules is defined and modules|trim %}
+  echo -e "=========================="
+  echo -e "== Import local modules =="
+  echo -e "==========================\n"
+
+  modules_root={{ modules }}
+  modules_root="${modules_root%/}"
+
+  if [[ -d "${modules_root}/modules/all" ]]; then
+    for shell_config in ".bashrc" ".zshrc" ".config/fish/config.fish"; do
+      echo "module use ${modules_root}/modules/all" >> "/home/$USER/${shell_config}"
+    done
+    echo -e "Done.\n"
+  else
+    echo -e "There are no module files in the selected directory.\n"
+  fi
+  {% endif %}
+
+  {% if extraArgs is defined and extraArgs|trim %}
+  {% set extraArgs = extraArgs|trim %}
+  EXTRA_ARGS=( {{ extraArgs }} )
+  {% else %}
+  EXTRA_ARGS=()
+  {% endif %}
+
+  {% if initScript %}
+  echo -e "===================="
+  echo -e "== Initialization =="
+  echo -e "====================\n"
+
+  source /opt/lmod/lmod/init/bash
+
+  # Use MODULEPATH if set, otherwise fallback to /opt/easybuild/modules/all
+  if [ -n "$MODULEPATH" ]; then
+    module use "$MODULEPATH"
+  else
+    module use /opt/easybuild/modules/all
+  fi
+
+  {% if modules %}
+  module use {{ modules }}/modules/all
+  {% endif %}
+
+  {% if batchScript is defined %}
+  bash {{ initScript }}
+  {% else %}
+  bash {{ initScript }} ${EXTRA_ARGS[*]}
+  {% endif %}
+  {% endif %}
+
+  {% if batchScript is defined and batchScript|trim %}
+  echo -e "=============================="
+  echo -e "== Run script in batch mode =="
+  echo -e "==============================\n"
+
+  source /opt/lmod/lmod/init/bash
+
+  # Use MODULEPATH if set, otherwise fallback to /opt/easybuild/modules/all
+  if [ -n "$MODULEPATH" ]; then
+    module use "$MODULEPATH"
+  else
+    module use /opt/easybuild/modules/all
+  fi
+
+  {% if modules %}
+  module use {{ modules }}/modules/all
+  {% endif %}
+
+  # Define COMPLETION_FILE using a consistent identifier
+  COMPLETION_FILE="/work/complete_${USER}_$(basename \"{{ batchScript }}\")"
+
+  # Remove any existing completion file (on master node)
+  {% if (ucloud.rank | default(0)) == 0 %}
+  # ── master node (rank 0) ───────────────────────────────────────────
+  rm -f "$COMPLETION_FILE"
+
+  {% if (slurm | default(false)) %}
+  sbatch --wait {{ batchScript }} ${EXTRA_ARGS[*]}
+  {% else %}
+  bash {{ batchScript }} ${EXTRA_ARGS[*]}
+  {% endif %}
+
+  touch "$COMPLETION_FILE"
+  sleep 5
+  {% else %}
+  # ── worker nodes (rank > 0) ───────────────────────────────────────
+  until [ -f "$COMPLETION_FILE" ]; do sleep 1; done
+  {% endif %}
+
+  printf "\nRUN completed.\n"
+  exit 0
+  {% endif %}
+
+  {% set shell_map = {
+    "bash": "/bin/bash",
+    "zsh": "/bin/zsh",
+    "fish": "/usr/bin/fish"
+  } %}
+
+  # Start the web terminal
+  {% if enableTmux %}
+  ttyd "${ttyd_options[@]}" bash -c "SHELL={{ shell_map[shell] }} tmux"
+  {% else %}
+  ttyd "${ttyd_options[@]}" bash -c "SHELL={{ shell_map[shell] }} {{ shell }}"
+  {% endif %}

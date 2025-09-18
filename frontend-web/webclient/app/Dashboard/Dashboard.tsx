@@ -3,7 +3,7 @@ import {usePage} from "@/Navigation/Redux";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {Dispatch} from "redux";
-import {Box, Button, Flex, Icon, Link, Markdown, Text} from "@/ui-components";
+import {Box, Button, Flex, Icon, Image, Link, Markdown, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {DashboardOperations} from ".";
 import {setAllLoading} from "./Redux";
@@ -19,7 +19,7 @@ import {Connect} from "@/Providers/Connect";
 import {useProject} from "@/Project/cache";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import AppRoutes from "@/Routes";
-import {injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle} from "@/Unstyled";
 import JobsBrowse from "@/Applications/Jobs/JobsBrowse";
 import {GrantApplicationBrowse} from "@/Grants/GrantApplicationBrowse";
 import ucloudImage from "@/Assets/Images/ucloud-2.png";
@@ -31,19 +31,28 @@ import * as Accounting from "@/Accounting";
 import {IconName} from "@/ui-components/Icon";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {NewsPost} from "@/NewsPost";
-import {NoResultsCardBody, OverallocationLink} from "@/UtilityComponents";
+import {NoResultsCardBody} from "@/UtilityComponents";
 import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
-import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {AllocationDisplayWallet} from "@/Accounting";
+import {ProgressBar} from "@/Accounting/Allocations";
+import remarkGfm from "remark-gfm";
+import ExternalLink from "../ui-components/ExternalLink";
+import {onSandbox} from "@/UtilityFunctions";
+import halric from "@/Assets/Images/halric.png";
+import halricWhite from "@/Assets/Images/halric_white.png";
+import interreg from "@/Assets/Images/interreg.svg";
+import interregWhite from "@/Assets/Images/interreg_white.svg";
+import {useIsLightThemeStored} from "@/ui-components/theme";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
     withHidden: boolean;
 }
 
-function initialCall(): void {}
+function initialCall(): void {
+}
 
 function Dashboard(): React.ReactNode {
     const [news, fetchNews, newsParams] = useCloudAPI<Page<NewsPost>>(newsRequest({
@@ -63,7 +72,6 @@ function Dashboard(): React.ReactNode {
     const reduxOps = React.useMemo(() => reduxOperations(dispatch), [dispatch]);
 
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Accounting.WalletV2>>({noop: true}, emptyPageV2);
-
 
     React.useEffect(() => {
         reload();
@@ -133,8 +141,8 @@ const GridClass = injectStyle("grid", k => `
 `);
 
 function Invites({projectReloadRef, inviteReloadRef}: {
-    projectReloadRef: React.MutableRefObject<() => void>,
-    inviteReloadRef: React.MutableRefObject<() => void>
+    projectReloadRef: React.RefObject<() => void>,
+    inviteReloadRef: React.RefObject<() => void>
 }): React.ReactNode {
     const [showProjectInvites, setShowProjectInvites] = React.useState(true);
     const [showShareInvites, setShowShareInvites] = React.useState(true);
@@ -151,7 +159,11 @@ function Invites({projectReloadRef, inviteReloadRef}: {
             title="Invites"
         >
             <div style={display(showProjectInvites)}><ProjectInviteBrowse
-                opts={{reloadRef: projectReloadRef, embedded: {disableKeyhandlers: true, hideFilters: false}, setShowBrowser: setShowProjectInvites}} /></div>
+                opts={{
+                    reloadRef: projectReloadRef,
+                    embedded: {disableKeyhandlers: true, hideFilters: false},
+                    setShowBrowser: setShowProjectInvites
+                }} /></div>
             <div style={display(showShareInvites)}><IngoingSharesBrowse opts={{
                 reloadRef: inviteReloadRef,
                 embedded: {disableKeyhandlers: true, hideFilters: false},
@@ -179,14 +191,17 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
     };
 }
 
-function DashboardRuns({reloadRef}: {reloadRef: React.MutableRefObject<() => void>}): React.ReactNode {
+function DashboardRuns({reloadRef}: {reloadRef: React.RefObject<() => void>}): React.ReactNode {
     return <DashboardCard
         linkTo={AppRoutes.jobs.list()}
         title={"Recent runs"}
         icon="heroServer"
     >
         <JobsBrowse opts={{
-            embedded: {hideFilters: true, disableKeyhandlers: true}, omitBreadcrumbs: true, additionalFilters: {itemsPerPage: "10"}, reloadRef
+            embedded: {hideFilters: true, disableKeyhandlers: true},
+            omitBreadcrumbs: true,
+            additionalFilters: {itemsPerPage: "10"},
+            reloadRef
         }} />
     </DashboardCard>;
 }
@@ -196,10 +211,14 @@ function ApplyLinkButton(): React.ReactNode {
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
     if (!canApply) return <div />
 
-    return <Link to={Client.hasActiveProject ? AppRoutes.grants.newApplication({projectId: Client.projectId}) : AppRoutes.grants.editor()} mt={8}>
+    return <Link
+        to={Client.hasActiveProject ? AppRoutes.grants.newApplication({projectId: Client.projectId}) : AppRoutes.grants.editor()}
+        mt={8}>
         <Button mt={8}>Apply for resources</Button>
     </Link>;
 }
+
+const ROW_HEIGHT_IN_PX = 55;
 
 function DashboardResources({wallets}: {
     wallets: APICallState<PageV2<Accounting.WalletV2>>;
@@ -207,24 +226,41 @@ function DashboardResources({wallets}: {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
-    const mapped = wallets.data.items.filter(it => !it.paysFor.freeToUse && it.quota > 0);
-    const tree = Accounting.buildAllocationDisplayTree(mapped).yourAllocations;
+    const displayWallets = React.useMemo(() => {
+        const mapped = wallets.data.items.filter(it => !it.paysFor.freeToUse && it.quota > 0);
+        const tree = Accounting.buildAllocationDisplayTree(mapped).yourAllocations;
 
-    const displayWallets: AllocationDisplayWallet[] = [];
-    for (const category of Accounting.productTypesByPriority) {
-        const entry = tree[category];
-        if (!entry) continue;
-        for (const wallet of entry.wallets) {
-            displayWallets.push(wallet);
+        const providers: string[] = [];
+        for (const node of Object.values(tree)) {
+            for (const wallet of node.wallets) {
+                if (providers.indexOf(wallet.category.provider) === -1) {
+                    providers.push(wallet.category.provider);
+                }
+            }
         }
-    }
+
+        providers.sort();
+
+        const displayWallets: AllocationDisplayWallet[] = [];
+        for (const provider of providers) {
+            for (const category of Accounting.ProductTypesByPriority) {
+                const entry = tree[category];
+                if (!entry) continue;
+                for (const wallet of entry.wallets) {
+                    if (wallet.category.provider !== provider) continue;
+                    displayWallets.push(wallet);
+                }
+            }
+        }
+        return displayWallets;
+    }, [wallets]);
 
     return (
         <DashboardCard
             linkTo={AppRoutes.project.allocations()}
             title="Resource allocations"
             icon={"heroBanknotes"}>
-            {mapped.length === 0 ? (
+            {displayWallets.length === 0 ? (
                 <NoResultsCardBody title={"No available resources"}>
                     {!canApply ? null : <Text>
                         Apply for resources to use storage and compute on UCloud.
@@ -233,11 +269,11 @@ function DashboardResources({wallets}: {
                 </NoResultsCardBody>
             ) :
                 <Flex flexDirection="column" flexGrow={1} height={"calc(100% - 55px)"}>
-                    <Box maxHeight={"600px"} overflowY={"auto"}>
+                    <Box maxHeight={`${ROW_HEIGHT_IN_PX * 10}px`} overflowY={"auto"}>
                         <Table>
                             <tbody>
                                 {displayWallets.map(({usageAndQuota, category}, i) => (
-                                    <TableRow height="55px" key={i}>
+                                    <TableRow height={`${ROW_HEIGHT_IN_PX}px`} key={i}>
                                         <TableCell fontSize={FONT_SIZE} paddingLeft={"8px"}>
                                             <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
                                                 <ProviderLogo providerId={category.provider} size={30} />
@@ -246,13 +282,7 @@ function DashboardResources({wallets}: {
                                         </TableCell>
                                         <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
                                             <Flex justifyContent="end">
-                                                {!usageAndQuota.display.displayOverallocationWarning ? null :
-                                                    <OverallocationLink>
-                                                        <TooltipV2 tooltip={Accounting.UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
-                                                            <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
-                                                        </TooltipV2>
-                                                    </OverallocationLink>}
-                                                {usageAndQuota.display.usageAndQuota} ({Math.round(usageAndQuota.display.percentageUsed)}% used)
+                                                <ProgressBar uq={usageAndQuota} />
                                             </Flex>
                                         </TableCell>
                                     </TableRow>
@@ -268,7 +298,7 @@ function DashboardResources({wallets}: {
     );
 }
 
-function DashboardGrantApplications({reloadRef}: {reloadRef: React.MutableRefObject<() => void>}): React.ReactNode {
+function DashboardGrantApplications({reloadRef}: {reloadRef: React.RefObject<() => void>}): React.ReactNode {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
@@ -292,6 +322,8 @@ function DashboardGrantApplications({reloadRef}: {reloadRef: React.MutableRefObj
 };
 
 function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): React.ReactNode {
+    const lightTheme = useIsLightThemeStored();
+
     const newsItem = news.data.items.length > 0 ? news.data.items[0] : null;
     return (
         <DashboardCard
@@ -300,7 +332,7 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): React.Reac
             icon={"heroNewspaper"}
             overflow={"visible"}
         >
-            <div className={NewsClass}>
+            <div className={classConcat(NewsClass, onSandbox() ? "halric" : undefined)}>
                 <div>
                     {news.data.items.length !== 0 ? null : (
                         <NoResultsCardBody title={"No news"}>
@@ -316,18 +348,36 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): React.Reac
                                 right={<Heading.h5>{dateToString(newsItem.showFrom)}</Heading.h5>}
                             />
 
-                            <Box maxHeight={240} overflow={"auto"}>
-                                <Markdown unwrapDisallowed>
+                            <Box maxHeight={240} overflow={"auto"} pr={16}>
+                                <Markdown
+                                    components={{
+                                        a: LinkBlock,
+                                    }}
+                                    unwrapDisallowed
+                                    remarkPlugins={[remarkGfm]}
+                                >
                                     {newsItem.body}
                                 </Markdown>
                             </Box>
                         </Box>
                     }
                 </div>
-                <img style={{zIndex: 1}} alt={"UCloud logo"} src={ucloudImage} />
+                {onSandbox() ? <>
+                    <Flex gap={"16px"} flexDirection={"column"} justifyContent={"center"} alignItems={"end"} ml={"16px"} mr={"64px"}>
+                        <Image src={lightTheme ? interreg : interregWhite} alt={"Interreg"} width={"500px"} />
+                        <Image src={lightTheme ? halric : halricWhite} alt={"HALRIC"} width={"70px"} ml={"16px"} />
+                    </Flex>
+                </> : <>
+                    <img style={{zIndex: 1}} alt={"UCloud logo"} src={ucloudImage} />
+                </>}
+
             </div>
         </DashboardCard>
     );
+}
+
+function LinkBlock(props: {href?: string; children: React.ReactNode & React.ReactNode[]}) {
+    return <ExternalLink color={"primaryMain"} href={props.href}>{props.children}</ExternalLink>;
 }
 
 const NewsClass = injectStyle("with-graphic", k => `
@@ -335,9 +385,22 @@ const NewsClass = injectStyle("with-graphic", k => `
         display: flex;
         height: 270px;
     }
+    
+    ${k}.halric {
+        flex-wrap: wrap;
+        height: unset;
+    }
 
-    ${k} > div {
-        width: 800px;
+    ${k} > div:nth-child(1) {
+        flex-basis: 500px;
+        flex-grow: 4;
+        margin-right: 32px;
+    }
+    
+    ${k} > div:nth-child(2) {
+        flex-basis: 550px;
+        flex-grow: 1;
+        align-items: center;
     }
 
     ${k} > img {
@@ -358,7 +421,7 @@ const NewsClass = injectStyle("with-graphic", k => `
         display: none;
         width: 0px;
     }
-
+    
     ${k} > div {
         width: 100%;
     }
@@ -379,7 +442,8 @@ const DashboardCard: React.FunctionComponent<{
     overflow?: string;
 }> = props => {
     return <TitledCard
-        title={props.linkTo ? <Link to={props.linkTo}><Heading.h3>{props.title} <Icon mt="-4px" name="heroArrowTopRightOnSquare" /></Heading.h3></Link> :
+        title={props.linkTo ? <Link to={props.linkTo}><Heading.h3>{props.title} <Icon mt="-4px"
+            name="heroArrowTopRightOnSquare" /></Heading.h3></Link> :
             <Heading.h3>{props.title}</Heading.h3>}
         icon={props.icon}
         overflow={props.overflow}

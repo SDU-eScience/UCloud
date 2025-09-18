@@ -4,7 +4,8 @@ import {BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 import {ThemeColor} from "@/ui-components/theme";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import {projectCache} from "@/Project/ContextSwitcher";
+import {projectCache} from "@/Project/ProjectSwitcher";
+import {groupBy} from "@/Utilities/CollectionUtilities";
 
 export const UCLOUD_PROVIDER = "ucloud";
 export const UNABLE_TO_USE_FULL_ALLOC_MESSAGE =
@@ -49,7 +50,7 @@ export function updateAllocation(request: BulkRequest<UpdateAllocationRequestIte
     return apiUpdate(request, "/api/accounting", "allocation");
 }
 
-export type WalletOwner = { type: "user"; username: string } | { type: "project"; projectId: string; };
+export type WalletOwner = {type: "user"; username: string} | {type: "project"; projectId: string;};
 
 export function productCategoryEquals(a: ProductCategoryId, b: ProductCategoryId): boolean {
     return a.provider === b.provider && a.name === b.name;
@@ -148,7 +149,7 @@ export function addThousandSeparators(numberOrString: string | number): string {
         result += char;
         i += 1;
         if ((i - len) % 3 === 0 && i !== len) {
-            result += ".";
+            result += " ";
         }
     }
 
@@ -364,8 +365,8 @@ export function guesstimateProductCategoryDescription(
     return hardcodedProductCategoryDescriptions[provider]?.[normalizedCategory] ?? "";
 }
 
-type BalanceAndCategory = { balance: number; category: ProductCategoryV2; }
-type CombinedBalance = { productType: ProductType, normalizedBalance: number, unit: string };
+type BalanceAndCategory = {balance: number; category: ProductCategoryV2;}
+type CombinedBalance = {productType: ProductType, normalizedBalance: number, unit: string};
 
 export function combineBalances(
     balances: BalanceAndCategory[]
@@ -466,7 +467,7 @@ export function priceToString(product: ProductV2, numberOfUnits: number, duratio
     if (unit.desiredFrequency !== "ONCE" && opts?.showSuffix !== false) {
         return withoutSuffix + "/" + frequencyToSuffix(unit.desiredFrequency, false);
     } else {
-        if (totalPrice === 1 && probablyCurrencies.indexOf(unit.name) === -1 && unit.desiredFrequency === "ONCE") {
+        if (totalPrice === 1 && ProbablyCurrencies.indexOf(unit.name) === -1 && unit.desiredFrequency === "ONCE") {
             if (product.productType === "STORAGE") {
                 return "Quota based (" + unit.name + ")";
             } else {
@@ -477,10 +478,10 @@ export function priceToString(product: ProductV2, numberOfUnits: number, duratio
     }
 }
 
-const standardStorageUnitsSi = ["KB", "MB", "GB", "TB", "PB", "EB"];
-const standardStorageUnits = ["KiB", "MiB", "GiB", "TiB", "PiB", "EiB"];
-const defaultUnits = ["K", "M", "B", "T"];
-const probablyCurrencies = ["DKK", "kr", "EUR", "€", "USD", "$"];
+const StandardStorageUnitsSi = ["KB", "MB", "GB", "TB", "PB", "EB"];
+const StandardStorageUnits = ["KiB", "MiB", "GiB", "TiB", "PiB", "EiB"];
+const DefaultUnits = ["K", "M", "B", "T"];
+const ProbablyCurrencies = ["DKK", "kr", "EUR", "€", "USD", "$"];
 
 interface UsageAndQuotaRaw {
     usage: number;
@@ -530,7 +531,7 @@ export class UsageAndQuota {
                 displayOverallocationWarning: false,
                 usageAndQuotaPercent: "-",
                 maxUsableBalance: "-",
-                currentBalance: "-",
+                currentBalance: "-"
             };
             return;
         }
@@ -541,22 +542,15 @@ export class UsageAndQuota {
         } else {
             usage = uqRaw.usage - uqRaw.retiredAmount;
         }
+        usage = Math.max(0, usage);
 
-        const maxUsablePercentage = uqRaw.quota === 0 ? 100 : ((uqRaw.maxUsable + uqRaw.usage) / uqRaw.quota) * 100;
+        const maxUsablePercentage = uqRaw.quota === 0 ? 100 : ((uqRaw.maxUsable + usage) / uqRaw.quota) * 100;
         const percentageUsed = uqRaw.quota === 0 ? 0 : (usage / uqRaw.quota) * 100;
-        const displayOverallocationWarning = showWarning(uqRaw.quota, uqRaw.maxUsable, uqRaw.usage);
+        const displayOverallocationWarning = showWarning(uqRaw.quota, uqRaw.maxUsable, usage);
         const maxUsableBalance = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.maxUsable, {precision: 2});
-        const currentBalance = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.quota - uqRaw.usage, {precision: 2});
+        const currentBalance = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.quota - usage, {precision: 2});
 
-        let usageAndQuota = "";
-        {
-            usageAndQuota += balanceToStringFromUnit(uqRaw.type, uqRaw.unit, usage, {
-                precision: 2,
-                removeUnitIfPossible: true
-            });
-            usageAndQuota += " / ";
-            usageAndQuota += balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.quota, {precision: 2});
-        }
+        const usageAndQuota = formatUsageAndQuota(usage, uqRaw.quota, uqRaw.type === "STORAGE", uqRaw.unit, {precision: 2});
 
         let usageAndQuotaPercent = usageAndQuota;
         if (uqRaw.quota !== 0) {
@@ -564,7 +558,6 @@ export class UsageAndQuota {
             usageAndQuotaPercent += Math.round((usage / uqRaw.quota) * 100);
             usageAndQuotaPercent += "%)";
         }
-
 
         const onlyUsage = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, usage, {precision: 2});
         const onlyQuota = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.quota, {precision: 2});
@@ -578,15 +571,29 @@ export class UsageAndQuota {
             displayOverallocationWarning,
             usageAndQuotaPercent,
             maxUsableBalance,
-            currentBalance,
+            currentBalance
         };
     }
 }
 
-export function showWarning(quota: number, maxUsable: number, usage: number): boolean {
+function showWarning(quota: number, maxUsable: number, usage: number): boolean {
+    // Have we used everything? In that case, we don't want to show an overallocation warning.
     if (maxUsable + usage >= quota) return false;
-    if (maxUsable + usage === 0) return false;
-    return usage / (maxUsable + usage) >= 0.95; // Note(Jonas): Also handles usage === 0
+
+    // If we don't have a quota, then don't show a warning.
+    if (quota === 0) return false;
+
+    // Here we try to remove our usages from the quota to determine what our effective quota is.
+    const expectedEffectiveQuota = quota;
+    const actualEffectiveQuota = maxUsable + usage;
+
+    if (actualEffectiveQuota === expectedEffectiveQuota) return false;
+
+    const showBecauseOfMismatch = (actualEffectiveQuota / expectedEffectiveQuota) < 0.95;
+    if (showBecauseOfMismatch) return true;
+
+    // If we are almost out of resources and we don't have matching effective quotas then warn once we close to the limit
+    return (usage / actualEffectiveQuota) >= 0.9;
 }
 
 export interface AllocationNote {
@@ -602,7 +609,7 @@ export interface AllocationDisplayTreeRecipientOwner {
     reference: WalletOwner;
 }
 
-export const productTypesByPriority: ProductType[] = [
+export const ProductTypesByPriority: ProductType[] = [
     "COMPUTE",
     "STORAGE",
     "NETWORK_IP",
@@ -613,6 +620,7 @@ export const productTypesByPriority: ProductType[] = [
 export interface AllocationDisplayWallet {
     category: ProductCategoryV2;
     usageAndQuota: UsageAndQuota;
+    totalAllocated: number;
 
     allocations: {
         id: number;
@@ -650,6 +658,7 @@ export interface AllocationDisplayTree {
             groups: {
                 category: ProductCategoryV2;
                 usageAndQuota: UsageAndQuota;
+                totalGranted: number;
 
                 allocations: {
                     allocationId: number;
@@ -666,6 +675,7 @@ export interface AllocationDisplayTree {
     };
 }
 
+// Fri Jan 01 2100 01:00:00 GMT+0100 (Central European Standard Time)
 export const NO_EXPIRATION_FALLBACK = 4102444800353;
 
 export interface Period {
@@ -752,7 +762,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
 
     const yourAllocations = tree.yourAllocations;
     {
-        const walletsByType = Object.groupBy(relevantWallets, it => it.paysFor.productType);
+        const walletsByType = groupBy(relevantWallets, it => it.paysFor.productType);
         for (const [type, wallets] of Object.entries(walletsByType)) {
             yourAllocations[type as ProductType] = {
                 usageAndQuota: [],
@@ -839,6 +849,8 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                         ownedByPersonalProviderProject,
                     }),
 
+                    totalAllocated: wallet.totalAllocated,
+
                     allocations: wallet.allocationGroups.flatMap(({group}) => {
                         const shouldShowRetiredAmount = wallet.paysFor.accountingFrequency !== "ONCE";
 
@@ -915,7 +927,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                         title: childGroup.child.projectTitle,
                     },
                     groups: [],
-                    usageAndQuota: []
+                    usageAndQuota: [],
                 };
 
                 subAllocations.recipients.push(recipient);
@@ -944,7 +956,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
             const usage = combineBalances([{balance: combinedUsage, category: wallet.paysFor}]);
             const quota = combineBalances([{balance: combinedQuota, category: wallet.paysFor}]);
             const retiredAmount = combineBalances([{balance: combinedRetired, category: wallet.paysFor}]);
-
+            let totalAllocated = 0;
             const newGroup: AllocationDisplayTree["subAllocations"]["recipients"][0]["groups"][0] = {
                 category: wallet.paysFor,
                 usageAndQuota: new UsageAndQuota({
@@ -958,12 +970,16 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                     ownedByPersonalProviderProject,
                 }),
                 allocations: [],
+                totalGranted: 0
             };
 
             const uq = newGroup.usageAndQuota;
             uq.raw.maxUsable = uq.raw.quota - (localUsage[0]?.normalizedBalance ?? 0);
 
             for (const alloc of childGroup.group.allocations.reverse()) {
+                if (allocationIsActive(alloc, new Date().getTime())) {
+                    totalAllocated += alloc.quota;
+                }
                 newGroup.allocations.push({
                     allocationId: alloc.id,
                     quota: alloc.quota,
@@ -974,7 +990,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                     grantedIn: alloc.grantedIn ?? undefined,
                 });
             }
-
+            newGroup.totalGranted = totalAllocated;
             recipient.groups.push(newGroup);
         }
 
@@ -1045,55 +1061,105 @@ export function explainWallet(wallet: WalletV2): AllocationDisplayWallet | null 
 export function balanceToString(
     category: ProductCategoryV2,
     balance: number,
-    opts?: { precision?: number, removeUnitIfPossible?: boolean }
+    opts?: {precision?: number, removeUnitIfPossible?: boolean}
 ): string {
     const unit = explainUnit(category);
     const normalizedBalance = balance * unit.balanceFactor;
     return balanceToStringFromUnit(unit.productType, unit.name, normalizedBalance, opts)
 }
 
-export function balanceToStringFromUnit(
-    productType: ProductType,
+export function truncateValues(
+    normalizedBalances: number[],
+    isStorage: boolean,
     unit: string,
-    normalizedBalance: number,
-    opts?: { precision?: number, removeUnitIfPossible?: boolean }
-): string {
+    opts?: {removeUnitIfPossible?: boolean}
+): {truncated: number[]; attachedSuffix: string | null, unitToDisplay: string, canRemoveUnit: boolean} {
     let canRemoveUnit = opts?.removeUnitIfPossible ?? false;
-    let balanceToDisplay = normalizedBalance;
+    let balanceToDisplay = Math.max(...normalizedBalances);
+
+    let truncated = [...normalizedBalances];
     let unitToDisplay = unit;
     let attachedSuffix: string | null = null;
 
-    const storageUnitSiIdx = standardStorageUnitsSi.indexOf(unit);
-    const storageUnitIdx = standardStorageUnits.indexOf(unit);
-    if (productType === "STORAGE" && (storageUnitSiIdx !== -1 || storageUnitIdx !== -1)) {
+    const storageUnitSiIdx = StandardStorageUnitsSi.indexOf(unit);
+    const storageUnitIdx = StandardStorageUnits.indexOf(unit);
+    if (isStorage && (storageUnitSiIdx !== -1 || storageUnitIdx !== -1)) {
         canRemoveUnit = false;
         const base = storageUnitIdx !== -1 ? 1024 : 1000;
-        const array = storageUnitIdx !== -1 ? standardStorageUnits : standardStorageUnitsSi;
+        const array = storageUnitIdx !== -1 ? StandardStorageUnits : StandardStorageUnitsSi;
         let idx = storageUnitIdx !== -1 ? storageUnitIdx : storageUnitSiIdx;
 
         while (balanceToDisplay > base && idx < array.length - 1) {
             balanceToDisplay /= base;
+            for (let i = 0; i < truncated.length; i++) {
+                truncated[i] /= base;
+            }
             idx++;
         }
 
         unitToDisplay = array[idx];
     } else {
         let threshold = 1000;
-        if (probablyCurrencies.indexOf(unitToDisplay) !== -1) threshold = 1000000;
+        if (ProbablyCurrencies.indexOf(unitToDisplay) !== -1) threshold = 1000000;
 
-        if (normalizedBalance >= threshold) {
+        if (balanceToDisplay >= threshold) {
             let idx = -1;
-            while (balanceToDisplay >= 1000 && idx < defaultUnits.length - 1) {
+            while (balanceToDisplay >= 1000 && idx < DefaultUnits.length - 1) {
                 balanceToDisplay /= 1000;
+                for (let i = 0; i < truncated.length; i++) {
+                    truncated[i] /= 1000;
+                }
                 idx++;
             }
 
-            attachedSuffix = defaultUnits[idx];
+            attachedSuffix = DefaultUnits[idx];
         }
     }
 
+    return {truncated, attachedSuffix, unitToDisplay, canRemoveUnit};
+}
+
+export function formatUsageAndQuota(usage: number, quota: number, isStorage: boolean, unit: string, opts?: {precision?: number, removeUnitIfPossible?: boolean}): string {
+    const {truncated, attachedSuffix, unitToDisplay, canRemoveUnit} = truncateValues([usage, quota], isStorage, unit, opts);
+    const [truncatedUsage, truncatedQuota] = truncated;
+
+    let usageAndQuota = fmt(truncatedUsage, opts?.precision);
+    usageAndQuota += "/";
+    usageAndQuota += fmt(truncatedQuota, opts?.precision);
+    usageAndQuota += "  ";
+
+    if (attachedSuffix) {
+        usageAndQuota += `${attachedSuffix} `;
+    }
+
+    if (!canRemoveUnit) {
+        usageAndQuota += `${unitToDisplay}`;
+    }
+
+    return usageAndQuota;
+}
+
+function fmt(val: number, precision: number = 2): string {
+    return addThousandSeparators(removeSuffix(val.toFixed(precision), ".00"))
+}
+
+export function balanceToStringFromUnit(
+    productType: ProductType,
+    unit: string,
+    normalizedBalance: number,
+    opts?: {precision?: number, removeUnitIfPossible?: boolean}
+): string {
+    const {
+        attachedSuffix,
+        truncated,
+        unitToDisplay,
+        canRemoveUnit
+    } = truncateValues([normalizedBalance], productType === "STORAGE", unit, opts);
+
+    const [balanceToDisplay] = truncated;
+
     let builder = "";
-    builder += addThousandSeparators(removeSuffix(balanceToDisplay.toFixed(opts?.precision ?? 2), ".00"));
+    builder += fmt(balanceToDisplay, opts?.precision);
     if (attachedSuffix) builder += attachedSuffix;
     if (!canRemoveUnit) {
         builder += " ";
@@ -1199,6 +1265,17 @@ export interface ChartsAPI {
     categories: ProductCategoryV2[];
     allocGroups: AllocationGroupWithProductCategoryIndex[];
     charts: ChartsForCategoryAPI[];
+    usagePerUser: UsagePerUserAPI
+}
+
+export interface UsagePerUserAPI {
+    data: UsagePerUserPointAPI[]
+}
+
+export interface UsagePerUserPointAPI {
+    username: string;
+    category: ProductCategoryV2;
+    usage: number;
 }
 
 export interface ChartsForCategoryAPI {
@@ -1240,6 +1317,6 @@ export function utcDate(ts: number): string {
     return `${d.getUTCDate().toString().padStart(2, '0')}/${(d.getUTCMonth() + 1).toString().padStart(2, '0')}/${d.getUTCFullYear()}`;
 }
 
-export function periodsOverlap(a: { start: number, end: number }, b: { start: number, end: number }): boolean {
+export function periodsOverlap(a: {start: number, end: number}, b: {start: number, end: number}): boolean {
     return a.start <= b.end && b.start <= a.end;
 }

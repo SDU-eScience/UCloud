@@ -2,13 +2,13 @@ package slurm
 
 import (
 	"fmt"
-	"os/user"
 	"slices"
-	"ucloud.dk/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	slurmcli "ucloud.dk/pkg/im/external/slurm"
-	"ucloud.dk/pkg/log"
+	"ucloud.dk/pkg/im/external/user"
+	"ucloud.dk/shared/pkg/apm"
+	"ucloud.dk/shared/pkg/log"
 )
 
 func InitAutomaticAccountManagement() AccountingService {
@@ -88,7 +88,7 @@ func (a *automaticAccountManagementService) synchronizeProjectToSlurmAccount(pro
 
 		// TODO I am worried about the performance of this loop
 		for _, member := range membersAddedToProject {
-			uid, ok := ctrl.MapUCloudToLocal(member)
+			uid, ok, _ := ctrl.MapUCloudToLocal(member)
 			if !ok {
 				continue
 			}
@@ -105,7 +105,7 @@ func (a *automaticAccountManagementService) synchronizeProjectToSlurmAccount(pro
 		}
 
 		for _, member := range membersRemovedFromProject {
-			uid, ok := ctrl.MapUCloudToLocal(member)
+			uid, ok, _ := ctrl.MapUCloudToLocal(member)
 			if !ok {
 				continue
 			}
@@ -140,7 +140,7 @@ func (a *automaticAccountManagementService) OnWalletUpdated(update *ctrl.Notific
 	// requiring that parts of the accounting handler has already run (namely the account mapper). So we trigger the
 	// account mapper first and then re-trigger the identity notifications.
 	if update.Owner.Type == apm.WalletOwnerTypeUser {
-		localUid, ok := ctrl.MapUCloudToLocal(update.Owner.Username)
+		localUid, ok, _ := ctrl.MapUCloudToLocal(update.Owner.Username)
 		if !ok {
 			return
 		}
@@ -173,12 +173,13 @@ func (a *automaticAccountManagementService) OnWalletUpdated(update *ctrl.Notific
 		multiplier = 60 * 24
 	}
 	quotaInMinutes := update.CombinedQuota * multiplier
+	retiredInMinutes := update.LocalRetiredUsage * multiplier
 
 	if account.QuotaTRES == nil {
 		account.QuotaTRES = make(map[string]int)
 	}
-	account.QuotaTRES["billing"] = int(quotaInMinutes)
-	account.RawShares = int(quotaInMinutes / 60 / 24)
+	account.QuotaTRES["billing"] = int(quotaInMinutes) + int(retiredInMinutes)
+	account.RawShares = int((quotaInMinutes + retiredInMinutes) / 60 / 24)
 
 	SlurmClient.AccountModify(account)
 }
@@ -186,10 +187,28 @@ func (a *automaticAccountManagementService) OnWalletUpdated(update *ctrl.Notific
 func (a *automaticAccountManagementService) FetchUsageInMinutes() map[SlurmAccountOwner]int64 {
 	result := map[SlurmAccountOwner]int64{}
 	billing := SlurmClient.AccountBillingList()
+
+	allocations := map[string][]ctrl.TrackedAllocation{}
+
 	for account, usage := range billing {
+		actualUsage := usage
 		owners := AccountMapper.ServerLookupOwnerOfAccount(account)
 		for _, owner := range owners {
-			result[owner] = usage
+			_, ok := allocations[owner.AssociatedWithCategory]
+			if !ok {
+				allocations[owner.AssociatedWithCategory] = ctrl.FindAllAllocations(owner.AssociatedWithCategory)
+			}
+
+			allocList := allocations[owner.AssociatedWithCategory]
+			for _, a := range allocList {
+				if a.Owner == owner.Owner {
+					if actualUsage >= int64(a.LocalRetiredUsage) {
+						actualUsage -= int64(a.LocalRetiredUsage)
+					}
+				}
+			}
+
+			result[owner] = actualUsage
 		}
 	}
 	return result

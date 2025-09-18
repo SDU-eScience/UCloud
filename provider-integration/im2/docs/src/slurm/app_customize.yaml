@@ -10,17 +10,6 @@ version: 2021.5
 software:
   type: Native
 
-  # The software to be loaded. These are matched with the files located at the
-  # service provider (see service-provider-config)
-  load: 
-    - name: gromacs
-
-      # Does a heuristics-based lookup to find the best version. Dont't 
-      # include patch releases. For example, use "1.2" even if the real version 
-      # might be "1.2.54". The integration software will automatically
-      # find the best match based on what is available at the service-provider.
-      version: 2021.5   
-
 features:
   multiNode: true # NOTE: Without this, you will not be able to select multiple nodes
 

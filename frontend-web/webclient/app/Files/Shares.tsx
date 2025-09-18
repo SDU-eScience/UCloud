@@ -41,7 +41,7 @@ import {fileName} from "@/Utilities/FileUtilities";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import {div} from "@/Utilities/HTMLUtilities";
+import {divHtml} from "@/Utilities/HTMLUtilities";
 import {FlexClass} from "@/ui-components/Flex";
 import {ButtonGroupClass} from "@/ui-components/ButtonGroup";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
@@ -53,8 +53,8 @@ import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {TruncateClass} from "@/ui-components/Truncate";
 
 export const sharesLinksInfo: LinkInfo[] = [
-    {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share", tab: SidebarTabId.FILES},
-    {text: "Shared by me", to: AppRoutes.shares.sharedByMe(), icon: "shareMenu", tab: SidebarTabId.FILES},
+    {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share", tab: SidebarTabId.FILES, defaultHidden: true},
+    {text: "Shared by me", to: AppRoutes.shares.sharedByMe(), icon: "shareMenu", tab: SidebarTabId.FILES, defaultHidden: true},
 ]
 
 function daysLeftToTimestamp(timestamp: number): number {
@@ -185,7 +185,7 @@ const ShareModal: React.FunctionComponent<{
             }}>
                 <Flex>
                     <Input inputRef={usernameRef} placeholder={"Username"} rightLabel />
-                    <Button type={"submit"} color={"successMain"} attached>Share</Button>
+                    <Button type={"submit"} color={"successMain"} attachedRight>Share</Button>
                 </Flex>
             </form>
         </Box>
@@ -453,7 +453,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     const pendingSharedWithMe = share.owner.createdBy !== Client.username && share.status.state === "PENDING";
 
                     // Row stat1
-                    const wrapper = div("");
+                    const wrapper = divHtml("");
                     row.stat1.append(wrapper);
                     wrapper.className = FlexClass;
                     wrapper.style.marginTop = wrapper.style.marginBottom = "auto"

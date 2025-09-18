@@ -39,26 +39,35 @@ export async function prettyFilePath(path: string): Promise<string> {
     return await prettyFilePathFromComponents(components)
 }
 
-export function usePrettyFilePath(rawPath: string): string {
+export function usePrettyFilePath(rawPath: string, virtualPath?: boolean): string {
     const components = useMemo(() => pathComponents(rawPath), [rawPath]);
     const [path, setPath] = useState("");
+
     useEffect(() => {
         let didCancel = false;
-        const cached = getCachedPrettyFilePath(components);
-        if (cached !== null) {
-            setPath(cached);
-        } else {
-            setPath("");
-        }
 
-        prettyFilePathFromComponents(components).then(res => {
-            if (!didCancel) setPath(res);
-        });
+        if (components.length === 0) {
+            setPath("");
+        } else {
+            if (/^\d+$/g.test(components[0]) && virtualPath !== true) {
+                const cached = getCachedPrettyFilePath(components);
+                if (cached !== null) {
+                    setPath(cached);
+                } else {
+                    prettyFilePathFromComponents(components).then(res => {
+                        if (!didCancel) setPath(res);
+                    });
+                    setPath("");
+                }
+            } else {
+                setPath(fileName(rawPath));
+            }
+        }
 
         return () => {
             didCancel = true;
         };
-    }, [components]);
+    }, [components, virtualPath]);
 
     return path;
 }

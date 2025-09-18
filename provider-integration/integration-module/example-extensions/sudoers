@@ -1,1 +1,0 @@
-ucloud ALL=(ALL) NOPASSWD: /usr/bin/ucloud, /etc/ucloud/extensions/*

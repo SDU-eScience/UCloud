@@ -22,7 +22,7 @@ export const DropdownClass = injectStyle("dropdown", k => `
 
 export const Dropdown: React.FunctionComponent<DropdownProps & {
     children?: React.ReactNode;
-    divRef?: React.RefObject<HTMLDivElement>;
+    divRef?: React.RefObject<HTMLDivElement | null>;
 }> = ({hover = true, ...props}) => {
     return <div
         className={DropdownClass}
@@ -65,7 +65,6 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
         margin-right: -17px;
         padding-left: 17px;
         padding-right: 17px;
-        white-space: nowrap;
     }
 
     ${k}[data-no-y-padding="false"] > div {
@@ -99,6 +98,22 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
     }
     
     ${k}[data-hover-color="true"] > *:hover:not(.${ButtonClass}) {
+        background: var(--rowHover);
+    }
+
+    ${k} a {
+        color: var(--textPrimary);
+    }
+
+    ${k} a:hover {
+        color: var(--textPrimary);
+    }
+
+    ${k} a div {
+        background: none;
+    }
+
+    ${k} a div:hover {
         background: var(--rowHover);
     }
 `);

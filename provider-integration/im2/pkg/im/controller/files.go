@@ -9,19 +9,23 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"time"
-	"ucloud.dk/pkg/apm"
-	db "ucloud.dk/pkg/database"
+
 	"ucloud.dk/pkg/im/controller/upload"
+	"ucloud.dk/shared/pkg/apm"
+	db "ucloud.dk/shared/pkg/database"
 
 	ws "github.com/gorilla/websocket"
-	fnd "ucloud.dk/pkg/foundation"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
-	orc "ucloud.dk/pkg/orchestrators"
-	"ucloud.dk/pkg/util"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var Files FileService
@@ -58,6 +62,12 @@ type FileService struct {
 	TransferSourceBegin         func(request FilesTransferRequestStart, session TransferSession) error
 	Search                      func(ctx context.Context, query, folder string, flags FileFlags, outputChannel chan orc.ProviderFile)
 	Uploader                    upload.ServerFileSystem
+
+	CreateDrive func(drive orc.Drive) error
+	DeleteDrive func(drive orc.Drive) error
+	RenameDrive func(drive orc.Drive) error
+
+	CreateShare func(share orc.Share) (driveId string, err error)
 }
 
 type FilesBrowseFlags struct {
@@ -155,6 +165,33 @@ type FilesTransferRequest struct {
 	Payload any
 }
 
+var (
+	metricFilesUploadSessionsCurrent = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "files",
+		Name:      "upload_sessions_current",
+		Help:      "Number of upload sessions that are currently open",
+	})
+	metricFilesUploadSessionsTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "files",
+		Name:      "upload_sessions_total",
+		Help:      "Total number of upload sessions that has been opened",
+	})
+	metricFilesDownloadSessionsCurrent = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "files",
+		Name:      "download_sessions_current",
+		Help:      "The number of download sessions that are currently open",
+	})
+	metricFilesDownloadSessionsTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "files",
+		Name:      "download_sessions_total",
+		Help:      "Total number of download sessions that has been opened",
+	})
+)
+
 func (t *FilesTransferRequest) InitiateSource() *FilesTransferRequestInitiateSource {
 	if t.Type == FilesTransferRequestTypeInitiateSource {
 		return t.Payload.(*FilesTransferRequestInitiateSource)
@@ -240,6 +277,7 @@ func controllerFiles(mux *http.ServeMux) {
 	fileContext := fmt.Sprintf("/ucloud/%v/files/", cfg.Provider.Id)
 	uploadContext := fmt.Sprintf("/ucloud/%v/upload", cfg.Provider.Id)
 	driveContext := fmt.Sprintf("/ucloud/%v/files/collections/", cfg.Provider.Id)
+	shareContext := fmt.Sprintf("/ucloud/%v/shares/", cfg.Provider.Id)
 
 	type filesProviderBrowseRequest struct {
 		ResolvedCollection orc.Drive
@@ -430,6 +468,9 @@ func controllerFiles(mux *http.ServeMux) {
 
 		mux.HandleFunc(fmt.Sprintf("/ucloud/%v/download", cfg.Provider.Id), func(w http.ResponseWriter, r *http.Request) {
 			uid := uint32(os.Getuid())
+			metricFilesDownloadSessionsCurrent.Inc()
+			metricFilesDownloadSessionsTotal.Inc()
+			defer metricFilesDownloadSessionsCurrent.Dec()
 
 			token := r.URL.Query().Get("token")
 			session, ok := downloadSessions.GetNow(token)
@@ -612,14 +653,19 @@ func controllerFiles(mux *http.ServeMux) {
 			),
 		)
 
-		mux.HandleFunc(fileContext+"streamingSearch", func(w http.ResponseWriter, r *http.Request) {})
-
 		mux.HandleFunc(
 			uploadContext,
 			func(w http.ResponseWriter, r *http.Request) {
+				if ok := checkEnvoySecret(w, r); !ok {
+					return
+				}
 				conn, err := wsUpgrader.Upgrade(w, r, nil)
 				defer util.SilentCloseIfOk(conn, err)
 				token := r.URL.Query().Get("token")
+
+				metricFilesUploadSessionsCurrent.Inc()
+				metricFilesUploadSessionsTotal.Inc()
+				defer metricFilesUploadSessionsCurrent.Dec()
 
 				if err != nil {
 					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
@@ -700,6 +746,7 @@ func controllerFiles(mux *http.ServeMux) {
 						ProtocolParameters: request.ProtocolParameters,
 					}
 
+					username := GetUCloudUsername(r)
 					_, err := selectTransferProtocolCall.Invoke(SelectTransferProtocolRequest{
 						Id:                 request.Session,
 						SelectedProtocol:   request.SelectedProtocol,
@@ -719,6 +766,8 @@ func controllerFiles(mux *http.ServeMux) {
 						})
 						return
 					}
+
+					session.Username = username
 
 					err = Files.TransferSourceBegin(payload, session)
 					sendResponseOrError(w, FilesTransferResponseStart(), err)
@@ -882,7 +931,258 @@ func controllerFiles(mux *http.ServeMux) {
 				cancel()
 			},
 		)
+
+		// Drives
+		driveCreateHandler := HttpUpdateHandler[fnd.BulkRequest[orc.Drive]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[orc.Drive]) {
+				resp := fnd.BulkResponse[util.Option[fnd.FindByStringId]]{}
+				for _, item := range request.Items {
+					TrackDrive(&item)
+
+					fn := Files.CreateDrive
+					if fn == nil {
+						sendResponseOrError(w, nil, util.ServerHttpError("Drive creation is not supported"))
+						return
+					} else {
+						err := fn(item)
+						if err != nil {
+							sendResponseOrError(w, nil, err)
+							return
+						}
+					}
+
+					resp.Responses = append(
+						resp.Responses,
+						util.Option[fnd.FindByStringId]{},
+					)
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		)
+
+		driveDeleteHandler := HttpUpdateHandler[fnd.BulkRequest[orc.Drive]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[orc.Drive]) {
+				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+				for _, item := range request.Items {
+					fn := Files.DeleteDrive
+					if fn == nil {
+						sendResponseOrError(w, nil, util.ServerHttpError("Drive deletion is not supported"))
+						return
+					} else {
+						err := fn(item)
+						if err != nil {
+							resp.Responses = append(
+								resp.Responses,
+								util.Option[util.Empty]{
+									Present: false,
+								},
+							)
+						} else {
+							resp.Responses = append(
+								resp.Responses,
+								util.Option[util.Empty]{
+									Present: true,
+								},
+							)
+
+							RemoveTrackedDrive(item.Id)
+						}
+					}
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		)
+
+		driveEndpoint, _ := strings.CutSuffix(driveContext, "/")
+		mux.HandleFunc(driveEndpoint, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodDelete {
+				driveDeleteHandler(w, r)
+			} else if r.Method == http.MethodPost {
+				driveCreateHandler(w, r)
+			} else {
+				sendResponseOrError(w, nil, util.ServerHttpError("Unknown endpoint"))
+			}
+		})
+
+		type driveRenameRequestItem struct {
+			Id       string `json:"id"`
+			NewTitle string `json:"newTitle"`
+		}
+
+		mux.HandleFunc(driveContext+"rename",
+			HttpUpdateHandler[fnd.BulkRequest[driveRenameRequestItem]](
+				0,
+				func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[driveRenameRequestItem]) {
+					resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+					for _, item := range request.Items {
+						retrievedDrive, ok := RetrieveDrive(item.Id)
+						if !ok {
+							sendResponseOrError(w, nil, util.ServerHttpError("Unknown drive"))
+							return
+						}
+						driveCopy := *retrievedDrive
+						oldTitle := driveCopy.Specification.Title
+						driveCopy.Specification.Title = item.NewTitle
+						TrackDrive(&driveCopy)
+
+						fn := Files.RenameDrive
+						if fn != nil {
+							err := fn(driveCopy)
+							if err != nil {
+								sendResponseOrError(w, nil, err)
+								return
+							} else {
+								driveCopy.Specification.Title = oldTitle
+								TrackDrive(&driveCopy)
+							}
+						}
+
+						resp.Responses = append(
+							resp.Responses,
+							util.Option[util.Empty]{
+								Present: true,
+							},
+						)
+					}
+
+					sendResponseOrError(w, resp, nil)
+				},
+			),
+		)
+
+		type driveUpdateAclRequest struct {
+			Resource orc.Drive              `json:"resource"`
+			Added    []orc.ResourceAclEntry `json:"added"`
+			Deleted  []orc.AclEntity        `json:"deleted"`
+		}
+
+		mux.HandleFunc(driveContext+"updateAcl",
+			HttpUpdateHandler[fnd.BulkRequest[driveUpdateAclRequest]](
+				0,
+				func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[driveUpdateAclRequest]) {
+					resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+					for _, item := range request.Items {
+						// TODO The Core needs to stop doing this. Why not just send the new ACL also?
+
+						drive := item.Resource
+						for _, toDelete := range item.Deleted {
+							for i, entry := range drive.Permissions.Others {
+								if entry.Entity == toDelete {
+									slices.Delete(drive.Permissions.Others, i, i+1)
+									break
+								}
+							}
+						}
+						for _, toAdd := range item.Added {
+							found := false
+
+							for i := 0; i < len(drive.Permissions.Others); i++ {
+								entry := &drive.Permissions.Others[i]
+								if entry.Entity == toAdd.Entity {
+									for _, perm := range toAdd.Permissions {
+										entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
+									}
+									found = true
+									break
+								}
+							}
+
+							if !found {
+								drive.Permissions.Others = append(drive.Permissions.Others, orc.ResourceAclEntry{
+									Entity:      toAdd.Entity,
+									Permissions: toAdd.Permissions,
+								})
+							}
+						}
+
+						TrackDrive(&drive)
+
+						resp.Responses = append(
+							resp.Responses,
+							util.Option[util.Empty]{
+								Present: true,
+							},
+						)
+					}
+
+					sendResponseOrError(w, resp, nil)
+				},
+			),
+		)
+
+		shareEndpoint, _ := strings.CutSuffix(shareContext, "/")
+		shareCreateHandler := HttpUpdateHandler[fnd.BulkRequest[orc.Share]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[orc.Share]) {
+				fn := Files.CreateShare
+				if fn == nil {
+					sendResponseOrError(w, nil, util.ServerHttpError("shares not supported"))
+					return
+				}
+
+				var resp []util.Option[fnd.FindByStringId]
+				var updates []orc.ResourceUpdateAndId[orc.ShareUpdate]
+
+				for _, share := range request.Items {
+					driveId, err := fn(share)
+					if err != nil {
+						sendResponseOrError(w, r, err)
+						return
+					} else {
+						updates = append(updates, orc.ResourceUpdateAndId[orc.ShareUpdate]{
+							Id: share.Id,
+							Update: orc.ShareUpdate{
+								NewState:         orc.ShareStatePending,
+								ShareAvailableAt: util.OptValue(fmt.Sprintf("/%s", driveId)),
+								Timestamp:        fnd.Timestamp(time.Now()),
+							},
+						})
+						resp = append(resp, util.Option[fnd.FindByStringId]{})
+					}
+				}
+
+				err := orc.UpdateShares(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.ShareUpdate]]{
+					Items: updates,
+				})
+
+				if err != nil {
+					log.Warn("Failed to update shares: %v", err)
+					sendResponseOrError(w, r, util.ServerHttpError("Failed to update shares"))
+					return
+				}
+
+				sendResponseOrError(w, fnd.BulkResponse[util.Option[fnd.FindByStringId]]{Responses: resp}, nil)
+			},
+		)
+
+		shareDeleteHandler := HttpUpdateHandler[fnd.BulkRequest[orc.Share]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[orc.Share]) {
+				// Do nothing
+				var response fnd.BulkResponse[util.Empty]
+				for _, item := range request.Items {
+					_ = item
+					response.Responses = append(response.Responses, util.Empty{})
+				}
+				sendResponseOrError(w, response, nil)
+			},
+		)
+
+		mux.HandleFunc(shareEndpoint, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				shareCreateHandler(w, r)
+			} else if r.Method == http.MethodDelete {
+				shareDeleteHandler(w, r)
+			} else {
+				sendResponseOrError(w, nil, util.ServerHttpError("unknown endpoint"))
+			}
+		})
 	}
+
 	if RunsServerCode() {
 		type retrieveProductsRequest struct{}
 		mux.HandleFunc(
@@ -896,6 +1196,23 @@ func controllerFiles(mux *http.ServeMux) {
 					},
 					nil,
 				)
+			}),
+		)
+
+		mux.HandleFunc(
+			shareContext+"retrieveProducts",
+			HttpRetrieveHandler(0, func(w http.ResponseWriter, r *http.Request, request util.Empty) {
+				support := Files.RetrieveProducts()
+				var result []orc.ShareSupport
+				for _, item := range support {
+					if item.Files.SharesSupported {
+						result = append(result, orc.ShareSupport{
+							Product: item.Product,
+							Type:    orc.ShareTypeManaged,
+						})
+					}
+				}
+				sendResponseOrError(w, fnd.BulkResponse[orc.ShareSupport]{Responses: result}, nil)
 			}),
 		)
 
@@ -1168,6 +1485,7 @@ type TransferSession struct {
 
 	SelectedProtocol   string
 	ProtocolParameters json.RawMessage
+	Username           string
 }
 
 type SelectTransferProtocolRequest struct {

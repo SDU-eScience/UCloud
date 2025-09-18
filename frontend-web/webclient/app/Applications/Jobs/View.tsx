@@ -2,7 +2,7 @@ import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {useLocation, useParams} from "react-router";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "@/ui-components/Heading";
 import {usePage} from "@/Navigation/Redux";
@@ -50,9 +50,11 @@ import CodeSnippet from "@/ui-components/CodeSnippet";
 import {useScrollToBottom} from "@/ui-components/ScrollToBottom";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import {appendToXterm, useXTerm} from "./XTermLib";
-import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {WebSession} from "./Web";
+import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
+import {useDidUnmount} from "@/Utilities/ReactUtilities";
+import * as JobViz from "@/Applications/Jobs/JobViz"
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -192,7 +194,7 @@ const Container = injectStyle("job-container", k => `
 
   ${k} ${data.dot}${dataEnterDone.dot} {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 
   ${k} ${data.dot}${dataEnterActive.dot} {
@@ -267,12 +269,14 @@ interface JobsFollowResponse {
     updates: compute.JobUpdate[];
     log: LogMessage[];
     newStatus?: JobStatus;
+    initialJob?: Job | null;
 }
 
 interface LogMessage {
     rank: number;
-    stdout?: string;
-    stderr?: string;
+    stdout?: string | null;
+    stderr?: string | null;
+    channel?: string | null;
 }
 
 function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowResponse) => void): void {
@@ -320,10 +324,9 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
     const appNameHint = getQueryParamOrElse(location.search, "app", "");
     const [jobFetcher, fetchJob] = useCloudAPI<Job | undefined>({noop: true}, undefined);
     const job = jobFetcher.data;
-
-    const interfaceLinks = useRedirectToWebLinks(job);
-
+    const [interfaceTargets, setInterfaceTargets] = useState<InterfaceTarget[]>([]);
     const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
+    const [jobUpdates, setJobUpdates] = useState(job?.updates ?? []);
 
     if (!props.embedded) {
         usePage(`Job ${shortUUID(id)}`, SidebarTabId.RUNS);
@@ -341,6 +344,21 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
     const [dataAnimationAllowed, setDataAnimationAllowed] = useState<boolean>(false);
     const [status, setStatus] = useState<JobStatus | null>(null);
     const jobUpdateState = useRef<JobUpdates>({updateQueue: [], logQueue: [], statusQueue: [], subscriptions: []});
+    const didUnmount = useDidUnmount();
+
+    const targetRequests = useMemo(() => {
+        if (!job) return {requestsToMake: [], fixedTargets: []};
+        return findTargetRequests(job);
+    }, [jobUpdates.length]);
+
+    useEffect(() => {
+        (async () => {
+            const targets = await resolveInterfaceTargets(targetRequests);
+            if (!didUnmount.current) {
+                setInterfaceTargets(targets);
+            }
+        })();
+    }, [targetRequests.requestsToMake.length, targetRequests.fixedTargets.length]);
 
     useEffect(() => {
         if (useFakeState) {
@@ -426,6 +444,33 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
         if (!e) return;
         const s = jobUpdateState.current;
 
+        if (e.initialJob) {
+            const alreadySeenUpdates = job?.updates ?? [];
+            const initialJobUpdates = e.initialJob.updates;
+            for (const update of initialJobUpdates) {
+                const seen = alreadySeenUpdates.some(it => it.timestamp == update.timestamp &&
+                    it.status == update.status && it.state == update.state && it.outputFolder == update.outputFolder);
+
+                if (!seen) {
+                    s.updateQueue.push(update);
+                    job?.updates?.push(update);
+
+                    if (job && update.outputFolder) {
+                        const j = {...job};
+                        j.output = {outputFolder: update.outputFolder};
+                        jobCache.updateCache(pageV2Of(j));
+                        jobFetcher.data = j;
+                    }
+
+                    if (job && update.state && (update.state === "RUNNING" || isJobStateTerminal(update.state))) {
+                        const j = {...job};
+                        j.status.state = update.state;
+                        jobCache.updateCache(pageV2Of(j));
+                    }
+                }
+            }
+        }
+
         if (e.log) {
             for (const msg of e.log) {
                 s.logQueue.push(msg);
@@ -436,6 +481,13 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
             for (const update of e.updates) {
                 s.updateQueue.push(update);
                 job?.updates?.push(update);
+
+                if (job && update.outputFolder) {
+                    const j = {...job};
+                    j.output = {outputFolder: update.outputFolder};
+                    jobCache.updateCache(pageV2Of(j));
+                    jobFetcher.data = j;
+                }
 
                 if (job && update.state && (update.state === "RUNNING" || isJobStateTerminal(update.state))) {
                     const j = {...job};
@@ -449,12 +501,19 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
             s.statusQueue.push(e.newStatus);
         }
 
+        setJobUpdates([...(job?.updates ?? [])]);
+
         s.subscriptions.forEach(it => it());
     }, [job]);
 
     const isVirtualMachine = status?.resolvedApplication?.invocation.tool?.tool?.description.backend === "VIRTUAL_MACHINE";
 
     useJobUpdates(job, jobUpdateListener);
+
+    // Note(Jonas): CSSTransition otherwise relies on removed "React.findDomNode"
+    const transitionRefOne = useRef(null);
+    const transitionRefTwo = useRef(null);
+    const transitionRefThree = useRef(null);
 
     if (jobFetcher.error !== undefined) {
         return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>} />;
@@ -473,6 +532,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
             </div>
             {!job || !status ? null : (
                 <CSSTransition
+                    nodeRef={transitionRefOne}
                     in={(status?.state === "IN_QUEUE" || status?.state === "SUSPENDED") && !isVirtualMachine && dataAnimationAllowed}
                     timeout={{
                         enter: 1000,
@@ -481,7 +541,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                     classNames={data.class}
                     unmountOnExit
                 >
-                    <div className={data.class}>
+                    <div ref={transitionRefOne} className={data.class}>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
                             <div className={fakeLogo.class} />
                             <div className={headerText.class}>
@@ -502,16 +562,17 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
 
             {!job || !status ? null : (
                 <CSSTransition
+                    nodeRef={transitionRefTwo}
                     in={(status?.state === "RUNNING" || (isVirtualMachine && !isJobStateTerminal(status.state))) && dataAnimationAllowed}
                     timeout={{enter: 1000, exit: 0}}
                     classNames={data.class}
                     unmountOnExit
                 >
-                    <div className={data.class}>
+                    <div ref={transitionRefTwo} className={data.class}>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
                             <div className={fakeLogo.class} />
                             <div className={headerText.class}>
-                                <RunningText job={job} interfaceLinks={interfaceLinks} />
+                                <RunningText job={job} interfaceLinks={interfaceTargets} />
                             </div>
                         </Flex>
 
@@ -519,21 +580,20 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                             job={job}
                             state={jobUpdateState}
                             status={status}
-                            interfaceLinks={interfaceLinks}
                         />
                     </div>
                 </CSSTransition>
             )}
 
-
             {!job || !status ? null : (
                 <CSSTransition
+                    nodeRef={transitionRefThree}
                     in={isJobStateTerminal(status.state) && dataAnimationAllowed}
                     timeout={{enter: 1000, exit: 0}}
                     classNames={data.class}
                     unmountOnExit
                 >
-                    <div className={data.class}>
+                    <div ref={transitionRefThree} className={data.class}>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
                             <div className={fakeLogo.class} />
                             <div className={headerText.class}>
@@ -639,15 +699,20 @@ const InQueueText: React.FunctionComponent<{job: Job, state: JobState}> = ({job,
         <Heading.h2>
             {state === "IN_QUEUE" ?
                 <>
-                    {job.specification.name ?
-                        (<>
-                            Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
-                            {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
-                        </>) :
-                        (<>
-                            Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
-                            {" "}(ID: {shortUUID(job.id)})
-                        </>)
+                    {job.specification.application.name === "unknown" ? <>
+                        {job.specification.name ? <>Starting {job.specification.name}</> : <>Job is starting</>}
+                        {" "}
+                        (ID: {shortUUID(job.id)})
+                    </> :
+                        job.specification.name ?
+                            (<>
+                                Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                                {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
+                            </>) :
+                            (<>
+                                Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                                {" "}(ID: {shortUUID(job.id)})
+                            </>)
                     }
                 </> :
                 "Your job is temporarily suspended"
@@ -655,15 +720,21 @@ const InQueueText: React.FunctionComponent<{job: Job, state: JobState}> = ({job,
         </Heading.h2>
         {state === "SUSPENDED" &&
             <Heading.h3>
-                {job.specification.name ?
-                    (<>
-                        {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
-                        {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
-                    </>) :
-                    (<>
-                        {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
-                        {" "}(ID: {shortUUID(job.id)})
-                    </>)
+                {job.specification.application.name === "unknown" ? <>
+                    {job.specification.name ? <>{job.specification.name}</> : <></>}
+                    {" "}(ID: {shortUUID(job.id)})
+                </> : <>
+                    {job.specification.name ?
+                        (<>
+                            {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                            {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
+                        </>) :
+                        (<>
+                            {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                            {" "}(ID: {shortUUID(job.id)})
+                        </>)
+                    }
+                </>
                 }
             </Heading.h3>
         }
@@ -725,22 +796,59 @@ function isSupported(jobBackend: string | undefined, support: ComputeSupport | u
     }
 }
 
-const RunningText: React.FunctionComponent<{job: Job; interfaceLinks: string[]}> = ({job, interfaceLinks}) => {
+const RunningText: React.FunctionComponent<{
+    job: Job;
+    interfaceLinks: InterfaceTarget[];
+}> = ({job, interfaceLinks}) => {
     return <>
         <Flex justifyContent={"space-between"} height={"var(--logoSize)"}>
             <Flex flexDirection={"column"}>
                 <Heading.h2>
-                    {job.specification?.name ?? job.status.resolvedApplication?.metadata?.title ?? "Your job"} is now running
+                    {job.specification?.name ?? job.status.resolvedApplication?.metadata?.title ?? "Your job"} is now
+                    running
                     {" "}
                     <Box style={{display: "inline"}} color={"textSecondary"}>(ID: {job.id})</Box>
                 </Heading.h2>
                 <Box flexGrow={1} />
                 <div><CancelButton job={job} state={"RUNNING"} /></div>
             </Flex>
-            <RunningButtonGroup job={job} rank={0} redirectToWeb={interfaceLinks[0]} />
+            <RunningButtonGroup job={job} interfaceLinks={interfaceLinks} />
         </Flex>
     </>;
 };
+
+
+const InterfaceSelectorTrigger = injectStyle("interface-selector-trigger", k => `
+    ${k} {
+        position: relative;
+        width: 35px;
+        height: 35px;
+        border-radius: 8px;
+        user-select: none;
+        -webkit-user-select: none;
+        background: var(--primaryMain);
+        box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);
+        padding: 6px;
+        border-top-left-radius: 0px;
+        border-bottom-left-radius: 0px;
+    }
+
+    ${k}:hover {
+        background: var(--primaryDark);
+    }
+
+    ${k}[data-omit-border="true"] {
+        border: unset;
+    }
+
+    ${k} > svg {
+        color: var(--primaryContrast);
+        position: absolute;
+        bottom: 9px;
+        right: 10px;
+        height: 16px;
+    }
+`);
 
 const RunningInfoWrapper = injectStyle("running-info-wrapper", k => `
     ${k} {
@@ -829,12 +937,113 @@ function parseUpdatesForAccess(updates: JobUpdate[]): ParsedSshAccess | null {
     return null;
 }
 
+interface InterfaceTarget {
+    rank: number,
+    type: "WEB" | "VNC";
+    target?: string,
+    port?: number,
+    link?: string,
+}
+
+interface TerminalTarget {
+    jobId: string,
+    rank: number,
+}
+
+interface TargetRequests {
+    requestsToMake: OpenInteractiveSessionRequest[];
+    fixedTargets: InterfaceTarget[];
+}
+
+function findTargetRequests(job: Job): TargetRequests {
+    let requestsToMake: OpenInteractiveSessionRequest[] = [];
+    const fixedTargets: InterfaceTarget[] = [];
+
+    const appType = getAppType(job);
+    const backendType = getBackend(job);
+    const support = job.status.resolvedSupport ?
+        (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
+    const isVirtualMachine =
+        job.status?.resolvedApplication?.invocation.tool?.tool?.description.backend === "VIRTUAL_MACHINE";
+    const canShowVnc = (appType === "VNC" || isVirtualMachine) && isSupported(backendType, support, "vnc");
+    const canShowWeb = (appType === "WEB") && isSupported(backendType, support, "web");
+
+    // Parse targets from job updates
+    for (let i = 0; i < job.updates.length; i++) {
+        const status = job.updates[i].status;
+        if (!status) continue;
+
+        const messages = status.split("\n");
+        for (const message of messages) {
+            if (message.startsWith("Target: ")) {
+                const parsedTarget = JSON.parse(message.substring("Target: ".length)) as InterfaceTarget;
+                const canShowVnc = (parsedTarget.type === "VNC" || isVirtualMachine) && isSupported(backendType, support, "vnc");
+                const canShowWeb = (parsedTarget.type === "WEB") && isSupported(backendType, support, "web");
+
+                if (canShowWeb && job.status.state === "RUNNING") {
+                    requestsToMake.push({
+                        sessionType: "WEB",
+                        id: job.id,
+                        rank: parsedTarget.rank,
+                        target: parsedTarget.target,
+                        port: parsedTarget.port
+                    });
+                } else if (canShowVnc && job.status.state === "RUNNING") {
+                    fixedTargets.push({
+                        target: parsedTarget.target,
+                        rank: parsedTarget.rank,
+                        type: "WEB",
+                        link: `/applications/vnc/${job.id}/${parsedTarget.rank}?hide-frame`
+                    });
+                }
+            }
+        }
+    }
+
+    if (canShowWeb && job.status.state === "RUNNING") {
+        requestsToMake = requestsToMake.concat(Array(job.specification.replicas)
+            .fill(0).map((_, i) => ({sessionType: 'WEB', id: job.id, rank: i} as OpenInteractiveSessionRequest)));
+    }
+
+    if (canShowVnc && job.status.state === "RUNNING") {
+        fixedTargets.push({rank: 0, type: "VNC", link: `/applications/vnc/${job.id}/0?hide-frame`} as InterfaceTarget);
+    }
+
+    return {requestsToMake, fixedTargets};
+}
+
+async function resolveInterfaceTargets(request: TargetRequests): Promise<InterfaceTarget[]> {
+    const result: InterfaceTarget[] = [...request.fixedTargets];
+
+    if (request.requestsToMake.length > 0) {
+        try {
+            const sessionResult = await callAPI<BulkResponse<InteractiveSession>>(
+                JobsApi.openInteractiveSession(bulkRequestOf(...request.requestsToMake))
+            );
+            let i = 0;
+            for (const res of sessionResult?.responses ?? []) {
+                const webSession = (res.session as WebSession);
+                result.push({
+                    target: request.requestsToMake[i].target ?? undefined,
+                    rank: webSession.rank,
+                    type: "WEB",
+                    link: webSession.redirectClientTo,
+                });
+                i++;
+            }
+        } catch (e) {
+            console.warn(e);
+        }
+    }
+
+    return result;
+}
+
 const RunningContent: React.FunctionComponent<{
     job: Job;
     state: React.RefObject<JobUpdates>;
     status: JobStatus;
-    interfaceLinks: string[];
-}> = ({job, state, status, interfaceLinks}) => {
+}> = ({job, state, status}) => {
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [expiresAt, setExpiresAt] = useState(status.expiresAt);
     const backendType = getBackend(job);
@@ -881,6 +1090,32 @@ const RunningContent: React.FunctionComponent<{
             displayErrorMessageOrDefault(e, "Failed to resume virtual machine.");
         }
     }, []);
+
+    const stream = useMemo(() => new JobViz.StreamProcessor(), [job.id]);
+
+    useEffect(() => {
+        const logListener = () => {
+            const s = state.current;
+            if (!s) return;
+
+            const newLogQueue: LogMessage[] = [];
+            for (const l of s.logQueue) {
+                if (l.channel === "ui" || l.channel === "data") {
+                    const text = l.stdout ?? l.stderr ?? "";
+                    stream.accept(text);
+                } else if (l.channel != null) {
+                    stream.acceptGenericData(l.stdout ?? l.stderr ?? "", l.channel);
+                } else {
+                    newLogQueue.push(l);
+                }
+            }
+
+            s.logQueue = newLogQueue;
+        };
+
+        state.current?.subscriptions?.push(logListener);
+        logListener();
+    }, [job.id]);
 
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
@@ -940,7 +1175,8 @@ const RunningContent: React.FunctionComponent<{
                                 <b>Job submitted at: </b> {dateToString(job.createdAt)}
                             </Box>
                             <Box>
-                                <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
+                                <b>Job
+                                    start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
                             </Box>
                             {!expiresAt && !localStorage.getItem("useFakeState") ? null :
                                 <>
@@ -985,6 +1221,12 @@ const RunningContent: React.FunctionComponent<{
 
             <TabbedCard style={{flexBasis: "600px"}}>
                 <StandardPanelBody>
+                    <JobViz.Renderer
+                        processor={stream}
+                        windows={[JobViz.WidgetWindow.WidgetWindowMain, JobViz.WidgetWindow.WidgetWindowAux1, JobViz.WidgetWindow.WidgetWindowAux2]}
+                        tabsOnly={true}
+                    />
+
                     {!sshAccess ? null :
                         <TabbedCardTab icon={"heroKey"} name={"SSH"}>
                             {sshAccess.success ? null : <Warning>
@@ -1051,10 +1293,10 @@ const RunningContent: React.FunctionComponent<{
         </div>
 
         {!supportsLogs ? null :
-            <TabbedCard style={{height: "max(50vh, 420px)"}}>
+            <TabbedCard>
                 <Box divRef={scrollRef}>
                     {Array(job.specification.replicas).fill(0).map((_, i) =>
-                        <RunningJobRank key={i} job={job} rank={i} state={state} interfaceLinks={interfaceLinks} />
+                        <RunningJobRank key={i} job={job} rank={i} state={state} />
                     )}
                 </Box>
             </TabbedCard>
@@ -1106,10 +1348,9 @@ function transformToSSHUrl(command?: string | null): `ssh://${string}:${number}`
     return `ssh://${hostname}:${portNumber}`;
 }
 
-const StandardPanelBody: React.FunctionComponent<{
-    children: React.ReactNode;
-    divRef?: React.RefObject<HTMLDivElement>;
-}> = ({divRef, children}) => {
+const StandardPanelBody: React.FunctionComponent<React.PropsWithChildren<{
+    divRef?: React.RefObject<HTMLDivElement | null>;
+}>> = ({divRef, children}) => {
     return <div style={{height: "165px", overflowY: "auto"}} ref={divRef}>{children}</div>;
 };
 
@@ -1206,13 +1447,11 @@ const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
     }
 `);
 
-
 const RunningJobRank: React.FunctionComponent<{
     job: Job,
     rank: number,
     state: React.RefObject<JobUpdates>,
-    interfaceLinks: string[];
-}> = ({job, rank, state, interfaceLinks}) => {
+}> = ({job, rank, state}) => {
     const {termRef, terminal} = useXTerm({autofit: true});
 
     useEffect(() => {
@@ -1222,7 +1461,7 @@ const RunningJobRank: React.FunctionComponent<{
 
             const newLogQueue: LogMessage[] = [];
             for (const l of s.logQueue) {
-                if (l.rank === rank) {
+                if (l.channel == null && l.rank === rank) {
                     if (l.stderr != null) appendToXterm(terminal, l.stderr);
                     if (l.stdout != null) appendToXterm(terminal, l.stdout);
                 } else {
@@ -1241,12 +1480,6 @@ const RunningJobRank: React.FunctionComponent<{
     return <TabbedCardTab icon={"heroServer"} name={`Node ${rank + 1}`}>
         <div className={RunningJobRankWrapper} data-has-replicas={hasMultipleNodes}>
             <div ref={termRef} className="term" />
-
-            {job.specification.replicas === 1 ? null : (
-                <Flex flexDirection="column" mt="auto" ml="auto" mb="-16px" width="450px">
-                    <RunningButtonGroup job={job} rank={rank} redirectToWeb={interfaceLinks[rank]} />
-                </Flex>
-            )}
         </div>
     </TabbedCardTab>
 };
@@ -1304,9 +1537,21 @@ function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): React.ReactNod
         console.warn("No output folder found. Showing nothing.");
         return null;
     }
+
+    useEffect(() => {
+        const newPath = job.output?.outputFolder ?? "";
+        if (newPath) {
+            pathRef.current = newPath;
+        }
+    }, [job.output?.outputFolder]);
+
     return <Card key={job.id} className={FadeInDiv} p={"0px"} minHeight={"500px"} mt={"16px"}>
         <FileBrowse
-            opts={{initialPath: pathRef.current, managesLocalProject: true, embedded: {hideFilters: true, disableKeyhandlers: false}}}
+            opts={{
+                initialPath: pathRef.current,
+                managesLocalProject: true,
+                embedded: {hideFilters: true, disableKeyhandlers: false}
+            }}
         />
     </Card>;
 }
@@ -1337,50 +1582,73 @@ function getAppType(job: Job): string {
     return job.status.resolvedApplication!.invocation.applicationType;
 }
 
-function useRedirectToWebLinks(job?: Job): string[] {
-    const [links, setLinks] = useState<string[]>([]);
-    const [, call] = useCloudCommand();
 
-    React.useEffect(() => {
-        if (!job) return;
-        const appType = getAppType(job);
-        const backendType = getBackend(job);
-        const support = job.status.resolvedSupport ?
-            (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
-        const supportsInterface =
-            (appType === "WEB" && isSupported(backendType, support, "web")) ||
-            (appType === "VNC" && isSupported(backendType, support, "vnc"));
+const InterfaceLinkRow: RichSelectChildComponent<SearchableInterfaceTarget> = ({element, dataProps, onSelect}) => {
+    if (!element) return null;
 
-        if (appType === "WEB" && supportsInterface && job.status.state === "RUNNING") {
+    return <Box {...dataProps}>
+        <Link
+            to={element.link ?? ""}
+            key={element.link ?? (element.rank + (element.port?.toString() ?? ""))}
+            target={"_blank"}
+        >
+            <Flex
+                gap="5px"
+                alignItems={"center"}
+                p={8}
+            >
+                <Icon name="heroArrowTopRightOnSquare" />
+                <Truncate>{element.target ?? "Open interface"}</Truncate>
 
-            const requests: OpenInteractiveSessionRequest[] = Array(job.specification.replicas)
-                .fill(0).map((_, i) => ({sessionType: "WEB", id: job.id, rank: i}));
-
-            (async () => {
-                try {
-                    const result = await call<BulkResponse<InteractiveSession>>(JobsApi.openInteractiveSession(bulkRequestOf(...requests)));
-                    setLinks(links => {
-                        for (const res of result?.responses ?? []) {
-                            links[res.session.rank] = (res.session as WebSession).redirectClientTo
-                        }
-                        return links;
-                    })
-                } catch (e) {
-                    console.warn(e);
+                {!element.showNode ? null :
+                    <div style={{color: "var(--textSecondary)"}}>
+                        Node {element.rank + 1}
+                    </div>
                 }
-            })();
-        }
-    }, [job, job?.status.state]);
-
-    return links;
+            </Flex>
+        </Link>
+    </Box>;
 }
+
+const InterfaceLinkSelectedRow: RichSelectChildComponent<SearchableInterfaceTarget> = () => {
+    return <div className={InterfaceSelectorTrigger}>
+        <Icon name="heroChevronDown" />
+    </div>;
+}
+
+const TerminalLinkRow: RichSelectChildComponent<SearchableTerminalTarget> = ({element}) => {
+    if (!element) return null;
+
+    return <Link to={`/applications/shell/${element.jobId}/${element.rank}?hide-frame`} target={"_blank"}>
+        <Flex
+            gap="5px"
+            alignItems={"center"}
+            p={8}
+        >
+            <Icon name="heroCommandLine" />
+            <Truncate>Node {element.rank + 1}</Truncate>
+        </Flex>
+    </Link>;
+}
+
+const TerminalLinkSelectedRow: RichSelectChildComponent<SearchableTerminalTarget> = () => {
+    return <div className={InterfaceSelectorTrigger}>
+        <Icon name="heroChevronDown" />
+    </div>;
+}
+
+type SearchableInterfaceTarget = (InterfaceTarget & {searchString: string; showNode: boolean;})
+type SearchableTerminalTarget = (TerminalTarget & {searchString: string;})
 
 const RunningButtonGroup: React.FunctionComponent<{
     job: Job;
-    rank: number;
-    redirectToWeb?: string;
-}> = ({job, rank, redirectToWeb}) => {
+    interfaceLinks: InterfaceTarget[];
+}> = ({job, interfaceLinks}) => {
     const hasMultipleNodes = job.specification.replicas > 1;
+    const terminalLinks: TerminalTarget[] = Array.from(Array(job.specification.replicas).keys()).map(rank => ({
+        jobId: job.id,
+        rank: rank,
+    }));
 
     const backendType = getBackend(job);
     const support = job.status.resolvedSupport ?
@@ -1388,62 +1656,99 @@ const RunningButtonGroup: React.FunctionComponent<{
     const supportTerminal = isSupported(backendType, support, "terminal");
     const appType = getAppType(job);
 
+    let defaultInterfaceId = interfaceLinks.findIndex(link => !link.target && link.rank === 0);
+
+    if (defaultInterfaceId < 0) {
+        defaultInterfaceId = interfaceLinks.findIndex(it => !it.target);
+
+        if (defaultInterfaceId < 0) {
+            defaultInterfaceId = 0
+        }
+    }
+
+    const searchableInterfaceLinks: SearchableInterfaceTarget[] = interfaceLinks
+        .filter(it => it !== interfaceLinks[defaultInterfaceId])
+        .map(it => {
+            const isDouble = interfaceLinks.filter(existing => it.target === existing.target).length > 1;
+
+            return {
+                searchString: it.target + " " + (it.rank + 1),
+                showNode: isDouble,
+                ...it
+            };
+        });
+
+    const searchableTerminalLinks: SearchableTerminalTarget[] = terminalLinks
+        .filter(it => it.rank > 0)
+        .map(it => ({
+            searchString: (it.rank + 1).toString(), ...it
+        }));
+
     const isVirtualMachine =
         job.status?.resolvedApplication?.invocation.tool?.tool?.description.backend === "VIRTUAL_MACHINE";
 
     const canShowVnc = (appType === "VNC" || isVirtualMachine) && isSupported(backendType, support, "vnc");
     const canShowWeb = (appType === "WEB") && isSupported(backendType, support, "web");
 
+    const onInterfaceSelect = useCallback((target: SearchableInterfaceTarget) => {
+        window.open(target.link, "_blank");
+    }, []);
+
+    const onTerminalSelect = useCallback((target: SearchableTerminalTarget) => {
+        window.open(`/applications/shell/${target.jobId}/${target.rank}?hide-frame`, "_blank");
+    }, []);
+
     return <div className={topButtons.class}>
         {!supportTerminal ? null : (
-            <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
-                e.preventDefault();
-
-                const link = findDomAttributeFromAncestors(e.target, "href");
-                if (!link) return;
-
-                window.open(
-                    link,
-                    undefined,
-                    "width=800,height=600,status=no"
-                );
-            }}>
-                <Button width="220px" type={"button"}>
-                    <Icon name={"heroCommandLine"} />
-                    <div>Open terminal {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
-                </Button>
-            </Link>
+            <Flex>
+                <Link to={`/applications/shell/${job.id}/0?hide-frame`} target={"_blank"}>
+                    <Button attachedLeft={hasMultipleNodes}>
+                        <Icon name="heroCommandLine" />
+                        <div style={{minWidth: hasMultipleNodes ? "130px" : "164px", maxWidth: "164px"}}>
+                            <Truncate>
+                                Open terminal{hasMultipleNodes ? ` (Node 1)` : null}
+                            </Truncate>
+                        </div>
+                    </Button>
+                </Link>
+                {!hasMultipleNodes ? null :
+                    <RichSelect
+                        items={searchableTerminalLinks}
+                        keys={["searchString"]}
+                        RenderRow={TerminalLinkRow}
+                        FullRenderSelected={TerminalLinkSelectedRow}
+                        onSelect={onTerminalSelect}
+                    />
+                }
+            </Flex>
         )}
-        {!canShowWeb ? null : (
-            <Link to={redirectToWeb ?? ""} aria-disabled={!redirectToWeb} target={"_blank"}>
-                <Button width="220px" disabled={!redirectToWeb}>
-                    <Icon name={"heroArrowTopRightOnSquare"} />
-                    <div>Open interface {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
-                </Button>
-            </Link>
-        )}
-        {!canShowVnc ? null : (
-            <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
-                e.preventDefault();
 
-                const link = findDomAttributeFromAncestors(e.target, "href");
-                if (!link) return;
-
-                window.open(
-                    link,
-                    `vnc-${job.id}-${rank}`,
-                    "width=800,height=450,status=no"
-                );
-            }}>
-                <Button width="220px">
-                    <Icon name={"heroArrowTopRightOnSquare"} />
-                    <div>Open interface {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
-                </Button>
-            </Link>
+        {interfaceLinks.length < 1 ? null : (
+            <Flex>
+                <Link to={interfaceLinks[defaultInterfaceId]?.link ?? ""}
+                    aria-disabled={!interfaceLinks[defaultInterfaceId]} target={"_blank"}>
+                    <Button attachedLeft={interfaceLinks.length > 1} disabled={!interfaceLinks[defaultInterfaceId]}>
+                        <Icon name="heroArrowTopRightOnSquare" />
+                        <div style={{minWidth: interfaceLinks.length > 1 ? "130px" : "164px", maxWidth: "164px"}}>
+                            <Truncate>
+                                {interfaceLinks[defaultInterfaceId]?.target ?? ("Open interface" + (hasMultipleNodes ? ` (Node 1)` : ""))}
+                            </Truncate>
+                        </div>
+                    </Button>
+                </Link>
+                {interfaceLinks.length <= 1 ? null :
+                    <RichSelect
+                        items={searchableInterfaceLinks}
+                        keys={["searchString"]}
+                        RenderRow={InterfaceLinkRow}
+                        FullRenderSelected={InterfaceLinkSelectedRow}
+                        onSelect={onInterfaceSelect}
+                    />
+                }
+            </Flex>
         )}
     </div>
 };
-
 
 const CancelButton: React.FunctionComponent<{
     job: Job,
@@ -1471,6 +1776,7 @@ const ProviderUpdates: React.FunctionComponent<{
 
     const appendUpdate = useCallback((update: JobUpdate) => {
         if (update.status && update.status.startsWith("SSH:")) return;
+        if (update.status && update.status.startsWith("Target:")) return;
 
         if (!update.status && !update.state) {
             setUpdates(u => {

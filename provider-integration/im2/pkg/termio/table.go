@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"unicode/utf8"
 )
 
 type Table struct {
@@ -44,29 +45,22 @@ func (t *Table) Cell(formatString string, args ...any) {
 }
 
 func (t *Table) Print() {
-	_, _ = os.Stdout.WriteString(t.String())
+	os.Stdout.WriteString(t.String())
 }
 
 func (t *Table) String() string {
 	ptyCols, _, isPty := safeQueryPtySize()
 
-	var largestColumn []int
-	for _, _ = range t.header {
-		largestColumn = append(largestColumn, 0)
-	}
-
+	largestColumn := make([]int, len(t.header))
 	for _, row := range t.rows {
 		for col, val := range row {
-			if len(val) > largestColumn[col] {
-				largestColumn[col] = len(val)
+			if w := utf8.RuneCountInString(val); w > largestColumn[col] {
+				largestColumn[col] = w
 			}
 		}
 	}
 
-	var spaceAssignment []int
-	for _, _ = range t.header {
-		spaceAssignment = append(spaceAssignment, 0)
-	}
+	spaceAssignment := make([]int, len(t.header))
 	minimumSpaceRequired := 1
 	for col, colWidth := range largestColumn {
 		spaceAssignment[col] = colWidth
@@ -98,7 +92,7 @@ func (t *Table) String() string {
 	// Header top border
 	{
 		builder.WriteString(boxNwCorner)
-		for col, _ := range t.header {
+		for col := range t.header {
 			paddingRequired := spaceAssignment[col]
 			if paddingRequired > 0 {
 				builder.WriteString(strings.Repeat(boxHorizontalBar, paddingRequired+2))
@@ -116,7 +110,7 @@ func (t *Table) String() string {
 	{
 		builder.WriteString(boxVerticalBar)
 		for col, header := range t.header {
-			paddingRequired := spaceAssignment[col] - len(header.Title)
+			paddingRequired := spaceAssignment[col] - utf8.RuneCountInString(header.Title)
 			builder.WriteString(" ")
 			builder.WriteString(WriteStyledStringIfPty(isPty, Bold, 0, 0, header.Title))
 			if paddingRequired > 0 {
@@ -131,7 +125,7 @@ func (t *Table) String() string {
 	// Header bottom border
 	{
 		builder.WriteString(boxVerticalRight)
-		for col, _ := range t.header {
+		for col := range t.header {
 			paddingRequired := spaceAssignment[col]
 			if paddingRequired > 0 {
 				builder.WriteString(strings.Repeat(boxHorizontalBar, paddingRequired+2))
@@ -164,7 +158,7 @@ func (t *Table) String() string {
 			for col, value := range row {
 				colFlags := t.header[col].Flags
 
-				paddingRequired := spaceAssignment[col] - len(value)
+				paddingRequired := spaceAssignment[col] - utf8.RuneCountInString(value)
 				if colFlags&TableHeaderAlignRight != 0 {
 					builder.WriteString(" ")
 					if paddingRequired > 0 {
@@ -190,7 +184,7 @@ func (t *Table) String() string {
 	// Table bottom border
 	{
 		builder.WriteString(boxSwCorner)
-		for col, _ := range t.header {
+		for col := range t.header {
 			paddingRequired := spaceAssignment[col]
 			if paddingRequired > 0 {
 				builder.WriteString(strings.Repeat(boxHorizontalBar, paddingRequired+2))

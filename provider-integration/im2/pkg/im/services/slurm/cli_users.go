@@ -5,15 +5,16 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/user"
 	"regexp"
 	"strconv"
-	db "ucloud.dk/pkg/database"
+	"ucloud.dk/pkg/cli"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/im/external/user"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/termio"
-	"ucloud.dk/pkg/util"
+	db "ucloud.dk/shared/pkg/database"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func HandleUsersCommand() {
@@ -25,15 +26,17 @@ func HandleUsersCommand() {
 	}
 
 	var (
-		ucloudName string
-		localName  string
-		localUid   string
+		ucloudName   string
+		localName    string
+		localUid     string
+		actualRemove bool
 	)
 
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	fs.StringVar(&ucloudName, "ucloud-name", "", "Query by UCloud name, supports regex")
 	fs.StringVar(&localName, "local-name", "", "Query by a local username, supports regex")
 	fs.StringVar(&localUid, "local-uid", "", "Query by a local UID, supports regex")
+	fs.BoolVar(&actualRemove, "really-remove-mapping", false, "Causes the mapping to actually be removed instead of invalidating it")
 
 	printUsers := func() []cliUserMapping {
 		result, err := cliUsersList.Invoke(cliUsersListRequest{
@@ -42,7 +45,7 @@ func HandleUsersCommand() {
 			LocalUid:   localUid,
 		})
 
-		cliHandleError("fetching user mapping", err)
+		cli.HandleError("fetching user mapping", err)
 
 		t := termio.Table{}
 		t.AppendHeader("UCloud username")
@@ -65,10 +68,10 @@ func HandleUsersCommand() {
 	}
 
 	switch {
-	case isListCommand(command):
+	case cli.IsListCommand(command):
 		_ = printUsers()
 
-	case isAddCommand(command):
+	case cli.IsAddCommand(command):
 		if ucloudName == "" {
 			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "ucloud-name must be supplied")
 			os.Exit(1)
@@ -91,10 +94,10 @@ func HandleUsersCommand() {
 			},
 		)
 
-		cliHandleError("adding user", err)
+		cli.HandleError("adding user", err)
 		termio.WriteStyledLine(termio.Bold, termio.Green, 0, "OK")
 
-	case isDeleteCommand(command):
+	case cli.IsDeleteCommand(command):
 		if ucloudName == "" && localName == "" && localUid == "" {
 			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "either ucloud-name, local-name or local-uid must be supplied")
 			os.Exit(1)
@@ -125,8 +128,8 @@ func HandleUsersCommand() {
 			uids = append(uids, row.Uid)
 		}
 
-		resp, err := cliUsersDelete.Invoke(cliUsersDeleteRequest{Uids: uids})
-		cliHandleError("deleting users", err)
+		resp, err := cliUsersDelete.Invoke(cliUsersDeleteRequest{Uids: uids, ActualRemove: actualRemove})
+		cli.HandleError("deleting users", err)
 
 		for i, failure := range resp.Failures {
 			if failure != "" {
@@ -205,8 +208,8 @@ func HandleUsersCommandServer() {
 			for _, row := range rows {
 				uidString := fmt.Sprint(row.Uid)
 				localUsername := ""
-				localUser, _ := user.LookupId(uidString)
-				if localUser != nil {
+				localUser, err := user.LookupId(uidString)
+				if err == nil {
 					localUsername = localUser.Username
 				}
 
@@ -264,9 +267,11 @@ func HandleUsersCommandServer() {
 
 		if cfg.Services.Unmanaged {
 			_, err = ctrl.CreatePersonalProviderProject(r.Payload.UCloudName)
-			return ipc.Response[util.Empty]{
-				StatusCode:   http.StatusBadRequest,
-				ErrorMessage: fmt.Sprintf("%s", err),
+			if err != nil {
+				return ipc.Response[util.Empty]{
+					StatusCode:   http.StatusBadRequest,
+					ErrorMessage: fmt.Sprintf("%s", err),
+				}
 			}
 		}
 
@@ -286,7 +291,13 @@ func HandleUsersCommandServer() {
 
 		var errors []string
 		for _, uid := range r.Payload.Uids {
-			err := ctrl.RemoveConnection(uid, true)
+			var flags ctrl.RemoveConnectionFlag
+			flags = ctrl.RemoveConnectionNotify
+			if r.Payload.ActualRemove {
+				flags |= ctrl.RemoveConnectionTrulyRemove
+			}
+
+			err := ctrl.RemoveConnection(uid, flags)
 			if err != nil {
 				errors = append(errors, err.Error())
 			} else {
@@ -319,7 +330,8 @@ type cliUsersAddRequest struct {
 }
 
 type cliUsersDeleteRequest struct {
-	Uids []uint32
+	Uids         []uint32
+	ActualRemove bool
 }
 
 type cliUsersDeleteResponse struct {

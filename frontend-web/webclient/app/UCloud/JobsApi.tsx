@@ -67,6 +67,7 @@ export interface JobUpdate extends ResourceUpdate {
     state?: JobState;
     expectedState?: JobState;
     expectedDifferentState?: boolean;
+    outputFolder?: string | null;
 }
 
 export interface JobOutput {
@@ -156,6 +157,8 @@ export interface OpenInteractiveSessionRequest {
     id: string;
     rank: number;
     sessionType: "WEB" | "VNC" | "SHELL";
+    target?: string | null;
+    port?: number;
 }
 
 export interface OpenTerminalInFolderRequest {

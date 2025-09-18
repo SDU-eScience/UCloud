@@ -27,10 +27,10 @@ export function snooze(notificationId: string) {
     const mySnooze = globalData[notificationId];
     const now = timestampUnixMs();
     if (!mySnooze) {
-        globalData[notificationId] = { lastSnooze: now, snoozeCounter: 1 };
+        globalData[notificationId] = {lastSnooze: now, snoozeCounter: 1};
     } else {
         globalData[notificationId] = {
-            lastSnooze: now, 
+            lastSnooze: now,
             snoozeCounter: mySnooze.snoozeCounter + 1,
         };
     }
@@ -41,6 +41,14 @@ export function snooze(notificationId: string) {
 export function trackAppearance(notificationId: string) {
     const now = timestampUnixMs();
     sessionAppearance[notificationId] = now;
+}
+
+export function wakeNotification(notificationId: string) {
+    const globalData = globalSnoozeData.retrieve() ?? {};
+    delete globalData[notificationId];
+    globalSnoozeData.update(globalData);
+
+    delete sessionAppearance[notificationId];
 }
 
 export function shouldAppear(notificationId: string): boolean {

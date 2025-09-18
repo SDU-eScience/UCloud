@@ -5,6 +5,7 @@ import {Box, Button, Input, Label} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {Feature, hasFeature} from "@/Features";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {PayloadAction} from "@reduxjs/toolkit";
 
 interface UserDetailsState {
     placeHolderFirstNames: string;
@@ -18,7 +19,7 @@ const initialState: UserDetailsState = {
     placeHolderEmail: "Enter Email"
 };
 
-type UpdatePlaceholderFirstNames = PayloadAction<"UpdatePlaceholders", UserDetailsState>;
+type UpdatePlaceholderFirstNames = PayloadAction<UserDetailsState, "UpdatePlaceholders">;
 
 const reducer = (state: UserDetailsState, action: UpdatePlaceholderFirstNames): UserDetailsState => {
     switch (action.type) {
@@ -179,12 +180,12 @@ export const ChangeOptionalUserDetails: React.FunctionComponent = () => {
     const field = (
         title: string,
         placeholder: string,
-        ref: React.MutableRefObject<HTMLInputElement | null>
+        ref: React.RefObject<HTMLInputElement | null>
     ) => {
         return <Box mt="0.5em" pt="0.5em">
             <Label>
                 {title}
-                <Input inputRef={ref} type="text" placeholder={"Example: " + placeholder}/>
+                <Input inputRef={ref} type="text" placeholder={"Example: " + placeholder} />
             </Label>
         </Box>
     };

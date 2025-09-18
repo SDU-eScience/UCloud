@@ -810,7 +810,7 @@ class JobResourceService(
         val now = Time.now()
         val nextSave = nextSupportInfoSave.get()
         if (now > nextSave && nextSupportInfoSave.compareAndSet(nextSave, now + 60_000)) {
-            db.withSession { session ->
+            db.withSession(reason = "JobResourceService.saveSupportInfoIfNeeded") { session ->
                 session.sendPreparedStatement(
                     {
                         val productNames = ArrayList<String>().also { setParameter("product_names", it) }
@@ -985,9 +985,7 @@ class JobResourceService(
         }.isSuccess
 
         withContext<WSCall> {
-            // NOTE(Dan): We do _not_ send the initial list of updates, instead we assume that clients will
-            // retrieve them by themselves.
-            sendWSMessage(JobsFollowResponse(newStatus = initialJob.status))
+            sendWSMessage(JobsFollowResponse(newStatus = initialJob.status, initialJob = initialJob))
 
             var lastUpdate = initialJob.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
             var currentState = initialJob.status.state
@@ -1013,7 +1011,7 @@ class JobResourceService(
 
                                         sendWSMessage(
                                             JobsFollowResponse(
-                                                log = listOf(JobsLog(message.rank, message.stdout, message.stderr))
+                                                log = listOf(JobsLog(message.rank, message.stdout, message.stderr, message.channel))
                                             )
                                         )
                                     }
@@ -1202,16 +1200,11 @@ class JobResourceService(
                     if (reqItem.id != job.id) continue
                     when (reqItem.sessionType) {
                         InteractiveSessionType.WEB -> {
-                            require(app.invocation!!.web != null)
                             require(block is ComputeSupport.WithWeb)
                             block.checkFeature(block.web)
                         }
 
                         InteractiveSessionType.VNC -> {
-                            if (tool.description.backend != ToolBackend.VIRTUAL_MACHINE) {
-                                require(app.invocation!!.vnc != null)
-                            }
-
                             block.checkFeature(block.vnc)
                         }
 
@@ -1230,7 +1223,8 @@ class JobResourceService(
                         JobsProviderOpenInteractiveSessionRequestItem(
                             job,
                             req.rank,
-                            req.sessionType
+                            req.sessionType,
+                            req.target,
                         )
                     }
                     .toList()
@@ -1429,6 +1423,7 @@ class JobResourceService(
     }
 
     suspend fun initializeProviders(actorAndProject: ActorAndProject) {
+        /*
         providers.forEachRelevantProvider(actorAndProject, filterProductType = ProductType.COMPUTE) { provider ->
             try {
                 providers.call(
@@ -1446,6 +1441,7 @@ class JobResourceService(
                 log.info("Failed to initialize jobs at provider: $provider. ${ex.toReadableStacktrace()}")
             }
         }
+         */
     }
 
     // Provider utilities
@@ -1674,7 +1670,7 @@ class JobResourceService(
     // This state is loaded at startup and then periodically maintained as we receive state updates from the provider.
     private val allActiveJobs = NonBlockingHashMapLong<Unit>()
     private suspend fun initializeActiveJobsIndex() {
-        db.withSession { session ->
+        db.withSession(reason = "JobResourceService.initializeActiveJobsIndex") { session ->
             val rows = session.sendPreparedStatement(
                 {},
                 """
@@ -1853,7 +1849,7 @@ class JobResourceService(
                                         to_timestamp(unnest(:started_at::int8[]) / 1000) started_at,
                                         unnest(:job_id::int8[]) job_id,
                                         unnest(:job_parameters::jsonb[]) job_parameters,
-                                        unnest(:opened_file::text[][]) opened_file
+                                        unnest(:opened_file::text[]) opened_file
                                 )
                             insert into app_orchestrator.jobs 
                                 (application_name, application_version, time_allocation_millis, name, output_folder, 

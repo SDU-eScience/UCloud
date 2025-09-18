@@ -4,18 +4,18 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/user"
 	"path/filepath"
+	"ucloud.dk/pkg/im/external/user"
+	"ucloud.dk/pkg/im/migrations"
 
 	"github.com/jmoiron/sqlx"
-	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/im/migrations"
 	svc "ucloud.dk/pkg/im/services"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	db "ucloud.dk/shared/pkg/database"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func ModuleMain(oldModuleData []byte, args *im.ModuleArgs) {
@@ -48,14 +48,16 @@ func ModuleMain(oldModuleData []byte, args *im.ModuleArgs) {
 			}
 		}
 
-		log.SetLogConsole(false)
-		err := log.SetLogFile(filepath.Join(logCfg.Directory, logFileName+".log"))
-		if err != nil {
-			panic("Unable to open log file: " + err.Error())
-		}
+		if cfg.Mode != cfg.ServerModeServer || !cfg.Provider.Logs.ServerStdout {
+			log.SetLogConsole(false)
+			err := log.SetLogFile(filepath.Join(logCfg.Directory, logFileName+".log"))
+			if err != nil {
+				panic("Unable to open log file: " + err.Error())
+			}
 
-		if logCfg.Rotation.Enabled {
-			log.SetRotation(log.RotateDaily, logCfg.Rotation.RetentionPeriodInDays, true)
+			if logCfg.Rotation.Enabled {
+				log.SetRotation(log.RotateDaily, logCfg.Rotation.RetentionPeriodInDays, true)
+			}
 		}
 	}
 
@@ -64,11 +66,14 @@ func ModuleMain(oldModuleData []byte, args *im.ModuleArgs) {
 
 		args.Database.MapperFunc(util.ToSnakeCase)
 		db.Database = &db.Pool{Connection: args.Database}
-		migrations.Migrate()
+		migrations.Init()
+		db.Migrate()
 	}
 
 	ctrl.Init(args.ServerMultiplexer)
 	svc.Init(args)
+	ctrl.InitLate(args.ServerMultiplexer)
+	svc.InitLater(args)
 }
 
 func ModuleExit() []byte {

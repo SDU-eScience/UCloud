@@ -3,11 +3,11 @@ package slurm
 import (
 	"slices"
 
-	"ucloud.dk/pkg/apm"
+	"ucloud.dk/shared/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func InitScriptedAccountManagement() AccountingService {
@@ -161,7 +161,7 @@ func (u *scriptedAccountManagementService) synchronizeProjectToSlurmAccount(proj
 
 		for _, member := range project.Status.Members {
 			wasAdded := slices.Contains(membersAddedToProject, member.Username)
-			uid, ok := ctrl.MapUCloudToLocal(member.Username)
+			uid, ok, _ := ctrl.MapUCloudToLocal(member.Username)
 			if !ok {
 				continue
 			}
@@ -179,7 +179,7 @@ func (u *scriptedAccountManagementService) synchronizeProjectToSlurmAccount(proj
 		}
 
 		for _, member := range membersRemovedFromProject {
-			uid, ok := ctrl.MapUCloudToLocal(member)
+			uid, ok, _ := ctrl.MapUCloudToLocal(member)
 			if !ok {
 				continue
 			}

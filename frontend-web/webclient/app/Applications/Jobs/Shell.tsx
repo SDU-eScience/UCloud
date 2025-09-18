@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useXTerm} from "@/Applications/Jobs/XTermLib";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {useParams} from "react-router";
 import {Box, Button} from "@/ui-components";
@@ -26,24 +26,28 @@ export const Shell: React.FunctionComponent = () => {
 
     usePage(`Job ${shortUUID(jobId)} [Node: ${parseInt(rank, 10) + 1}]`, SidebarTabId.APPLICATIONS);
 
-    useEffect(() => {
+    const doReconnect = useCallback(() => {
         openSession(JobsApi.openInteractiveSession(
             bulkRequestOf({id: jobId, rank: parseInt(rank, 10), sessionType: "SHELL"}))
         );
     }, [jobId, rank]);
 
+    useEffect(() => {
+        doReconnect();
+    }, [jobId, rank]);
+
     const sessionWithProvider = sessionResp.data.responses.length > 0 ? sessionResp.data.responses[0] : null;
-    return <ShellWithSession sessionWithProvider={sessionWithProvider} />
+    return <ShellWithSession sessionWithProvider={sessionWithProvider} reconnect={doReconnect} />
 };
 
 export const ShellWithSession: React.FunctionComponent<{
     sessionWithProvider: InteractiveSession | null;
     autofit?: boolean;
-    xtermRef?: React.MutableRefObject<Terminal | null>;
-}> = ({sessionWithProvider, autofit, xtermRef}) => {
+    xtermRef?: React.RefObject<Terminal | null>;
+    reconnect: () => void;
+}> = ({sessionWithProvider, autofit, xtermRef, reconnect}) => {
     const {termRef, terminal, fitAddon} = useXTerm({autofit});
     const [closed, setClosed] = useState<boolean>(false);
-    const [reconnect, setReconnect] = useState<number>(0);
     let sessionIdentifier: string | null = null;
     if (sessionWithProvider?.session?.type === "shell") {
         sessionIdentifier = sessionWithProvider.session.sessionIdentifier;
@@ -121,15 +125,13 @@ export const ShellWithSession: React.FunctionComponent<{
             wsConnection.close();
             window.removeEventListener("resize", resizeListener);
         };
-    }, [termRef.current, sessionIdentifier, reconnect]);
+    }, [termRef.current, sessionIdentifier]);
 
     return <TermAndShellWrapper addPadding>
         {!closed ? null : (
             <div className={`warn`}>
                 <Box flexGrow={1}>Your connection has been closed!</Box>
-                <Button ml={"16px"} onClick={() => {
-                    setReconnect(reconnect + 1);
-                }}>Reconnect</Button>
+                <Button ml={"16px"} onClick={reconnect}>Reconnect</Button>
             </div>
         )}
 

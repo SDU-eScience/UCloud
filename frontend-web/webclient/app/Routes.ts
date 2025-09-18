@@ -20,13 +20,14 @@ const admin = {
     scripts: () => "/admin/scripts",
     playground: () => "/playground",
 };
-    
+
 const providers = {
     detailed: (id: string) => `/providers/detailed/${id}`
 }
 
 const shares = {
     sharedByMe: () => "/shares/outgoing",
+    sharedByMeFile: (path: string) => `/shares/outgoing?path=${encodeURI(path)}`,
     sharedWithMe: () => "/shares",
 }
 
@@ -141,6 +142,7 @@ const AppRoutes = {
     accounting,
     providers,
     files,
+    prefix: "/app",
 };
 
 export default AppRoutes;

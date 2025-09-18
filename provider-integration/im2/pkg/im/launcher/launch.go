@@ -4,27 +4,42 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"net"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"time"
-	"ucloud.dk/pkg/client"
-	db "ucloud.dk/pkg/database"
+
+	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/im/services/k8s"
 	"ucloud.dk/pkg/im/services/slurm"
 	"ucloud.dk/pkg/termio"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/client"
+	db "ucloud.dk/shared/pkg/database"
+	"ucloud.dk/shared/pkg/util"
 
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/gateway"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
+	"ucloud.dk/shared/pkg/log"
 )
 
 func Launch() {
+	if os.Getenv("UCLOUD_EARLY_DEBUG") != "" {
+		fmt.Printf("Ready for debugger\n")
+		keepWaiting := true
+
+		//goland:noinspection GoBoolExpressions
+		for keepWaiting {
+			// Break this loop via the debugger (the debugger can change the value of keepWaiting).
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+
 	var (
 		configDir  = flag.String("config-dir", "/etc/ucloud", "Path to the configuration directory used by the IM")
 		reloadable = flag.Bool("reloadable", false, "Whether to enable hot-reloading of the module")
@@ -51,6 +66,12 @@ func Launch() {
 		pluginName = flag.Arg(0)
 	}
 
+	if pluginName != "" {
+		if k8s.HandleCliWithoutConfig(pluginName) {
+			return
+		}
+	}
+
 	if !cfg.Parse(mode, *configDir) {
 		fmt.Printf("Failed to parse configuration!\n")
 		return
@@ -66,10 +87,14 @@ func Launch() {
 		switch cfg.Services.Type {
 		case cfg.ServicesSlurm:
 			slurm.HandleCli(pluginName)
+		case cfg.ServicesKubernetes:
+			k8s.HandleCli(pluginName)
 		}
 
 		return
 	}
+
+	fmt.Printf("UCloud/IM starting up... [1/4] Hello!\n")
 
 	envoySecret, userModeSecretOk := os.LookupEnv("UCLOUD_USER_SECRET")
 	if mode == cfg.ServerModeUser {
@@ -98,18 +123,16 @@ func Launch() {
 	}
 	cfg.OwnEnvoySecret = envoySecret
 
+	fmt.Printf("UCloud/IM starting up... [2/4] Getting things ready\n")
+
 	var dbPool *db.Pool = nil
 
 	gatewayConfigChannel := make(chan []byte)
 	if mode == cfg.ServerModeServer {
 		gateway.Initialize(gateway.Config{
-			ListenAddress:   "0.0.0.0",
-			Port:            8889,
-			InitialClusters: nil,
-			InitialRoutes:   nil,
+			ListenAddress: "0.0.0.0",
+			Port:          8889,
 		}, gatewayConfigChannel)
-
-		gateway.Resume()
 
 		dbConfig := &cfg.Server.Database
 		if dbConfig.Embedded {
@@ -154,6 +177,8 @@ func Launch() {
 		moduleArgs.Database = dbPool.Connection
 	}
 
+	fmt.Printf("UCloud/IM starting up... [3/4] Still working on it\n")
+
 	if mode == cfg.ServerModeServer {
 		// NOTE(Dan): The initial setup is _not_ reloadable. This is similar to how the HTTP server setup is also not
 		// reloadable.
@@ -182,10 +207,30 @@ func Launch() {
 	if mode == cfg.ServerModeServer {
 		launchMetricsServer()
 		gateway.InitIpc()
-		log.Info("GW is ready now")
 	}
 
+	fmt.Printf("UCloud/IM starting up... [4/4] Ready!\n")
 	log.Info("UCloud is ready!")
+
+	if mode == cfg.ServerModeServer && cfg.Provider.Profiler.Enabled {
+		go func() {
+			// NOTE(Dan): The pprof net handler is ridiculously designed and will, without doing anything other
+			// than importing it, automatically attach itself to which http server happens to be available.
+			// This is probably a very bad design, but it appears to be here to stay. To make sure that these endpoints
+			// never become available on any of our public servers, we must make sure to _never_ use the
+			// http.ListenAndServe utility function anywhere. Instead, we must create an http.Server manually with a
+			// separate handler.
+			//
+			// NOTE(Dan): Usage example:
+			//
+			// curl http://localhost:$PORT/debug/pprof/heap -o heap.pprof
+			// go tool pprof heap.pprof (common commands: top and list)
+			//
+			// curl http://localhost:$PORT/debug/pprof/profile -o profile.pprof # takes 30 seconds
+			// go tool pprof profile.pprof
+			log.Fatal("%s", http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", cfg.Provider.Profiler.Port), nil))
+		}()
+	}
 
 	if mode == cfg.ServerModeServer || mode == cfg.ServerModeUser {
 		serverPort := gateway.ServerClusterPort
@@ -195,15 +240,25 @@ func Launch() {
 			ctrl.UCloudUsername = flag.Arg(2)
 		}
 
-		err := http.ListenAndServe(
-			fmt.Sprintf(":%v", serverPort),
-			http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-				handler, _ := im.Args.ServerMultiplexer.Handler(request)
-				newWriter := NewLoggingResponseWriter(writer)
-				handler.ServeHTTP(newWriter, request)
-				log.Info("%v %v %v", request.Method, request.RequestURI, newWriter.statusCode)
-			}),
-		)
+		sMux := http.NewServeMux()
+		sMux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+			start := time.Now()
+			defer func() {
+				err := recover()
+				if err != nil {
+					log.Error("%v %v panic! %s %s", request.Method, request.RequestURI, err, string(debug.Stack()))
+				}
+			}()
+
+			handler, _ := im.Args.ServerMultiplexer.Handler(request)
+			newWriter := NewLoggingResponseWriter(writer)
+			handler.ServeHTTP(newWriter, request)
+			end := time.Now()
+			duration := end.Sub(start)
+			log.Info("%v %v %v %v", request.Method, request.URL.Path, newWriter.statusCode, duration)
+		})
+		s := &http.Server{Addr: fmt.Sprintf(":%v", serverPort), Handler: sMux}
+		err := s.ListenAndServe()
 
 		if err != nil {
 			fmt.Printf("Failed to start listener on port %v\n", gateway.ServerClusterPort)
@@ -239,14 +294,17 @@ var metricsServerHandler func(writer http.ResponseWriter, request *http.Request)
 
 func launchMetricsServer() {
 	go func() {
-		http.HandleFunc("/metrics", func(writer http.ResponseWriter, request *http.Request) {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/metrics", func(writer http.ResponseWriter, request *http.Request) {
 			if metricsServerHandler != nil {
 				metricsServerHandler(writer, request)
 			} else {
 				writer.WriteHeader(http.StatusNotFound)
 			}
 		})
-		err := http.ListenAndServe(":7867", nil)
+
+		s := &http.Server{Addr: ":7867", Handler: mux}
+		err := s.ListenAndServe()
 		if err != nil {
 			log.Warn("Prometheus metrics server has failed unexpectedly! %v", err)
 		}

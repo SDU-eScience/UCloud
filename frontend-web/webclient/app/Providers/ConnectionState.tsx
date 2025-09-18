@@ -25,40 +25,44 @@ class ConnectionState extends UState<ConnectionState> {
             if (now - this.lastFetch < maxAgeMs) return;
 
             try {
-                this.lastFetch = timestampUnixMs() - maxAgeMs + 500; 
+                this.lastFetch = timestampUnixMs() - maxAgeMs + 500;
 
                 const page = await callAPI<PageV2<provider.IntegrationBrowseResponseItem>>(
                     IntegrationApi.browse({itemsPerPage: 250})
                 );
 
                 this.lastFetch = timestampUnixMs();
-
                 page.items.forEach(p => {
                     this.connectionInfo[p.providerTitle] = p;
 
                     if (this.canConnectToProvider(p.providerTitle)) {
-                        sendNotification({
-                            icon: "key",
-                            title: `Connection required`,
-                            body: <>
-                                You must <BaseLink href="#">re-connect</BaseLink> with
-                                '<ProviderTitle providerId={p.providerTitle} />' to continue using it.
-                            </>,
-                            isPinned: true,
-                            uniqueId: `${p.providerTitle}-${this.lastConnectionAt.retrieve() ?? 0}`,
-                            onAction: () => {
-                                // Hacky way to navigate to the connection page. We are missing the navigate hook here.
-                                document.location.href = "/app/providers/connect";
-                            }
-                        });
+                        this.notification(p.providerTitle);
                     }
                 });
             } catch (e) {
                 window.setTimeout(() => {
                     this.fetch(maxAgeMs);
-                }, 1000);
+                }, 10_000);
             }
         });
+    }
+
+    public notification(providerTitle: string, forceShow: boolean = false) {
+        sendNotification({
+            icon: "key",
+            title: "Connection required",
+            body: <>
+                You must <BaseLink href="#">re-connect</BaseLink> with
+                '<ProviderTitle providerId={providerTitle} />' to continue using it.
+            </>,
+            isPinned: true,
+            uniqueId: `${providerTitle}-${this.lastConnectionAt.retrieve() ?? 0}`,
+            onAction: () => {
+
+                // Hacky way to navigate to the connection page. We are missing the navigate hook here.
+                document.location.href = "/app/providers/connect";
+            },
+        }, forceShow);
     }
 
     public fetchFresh() {
@@ -78,6 +82,10 @@ class ConnectionState extends UState<ConnectionState> {
 
         return !data.connected ||
             (data.requiresMessageSigning === true && !hasUploadedSigningKeyToProvider(data.providerTitle));
+    }
+
+    public isConnected(providerId: string): boolean {
+        return this.connectionInfo[providerId]?.connected ?? false;
     }
 
     public get providers(): provider.IntegrationBrowseResponseItem[] {

@@ -253,6 +253,33 @@ export namespace ApplicationParameterNS {
         optional: boolean;
         type: ("workflow");
     }
+
+    export interface Readme {
+        name: string;
+        title: string;
+        description: string;
+        defaultValue?: any;
+        optional: boolean;
+        type: ("readme");
+    }
+
+    export interface ModuleList {
+        name: string;
+        title: string;
+        description: string;
+        defaultValue?: any;
+        optional: boolean;
+        type: ("modules");
+        supportedModules: Module[];
+    }
+
+    export interface Module {
+        name: string;
+        description: string;
+        shortDescription: string;
+        dependsOn: string[][];
+        documentationUrl?: string | null;
+    }
 }
 
 export type ApplicationParameter =
@@ -269,6 +296,8 @@ export type ApplicationParameter =
     | ApplicationParameterNS.LicenseServer
     | ApplicationParameterNS.NetworkIP
     | ApplicationParameterNS.Workflow
+    | ApplicationParameterNS.Readme
+    | ApplicationParameterNS.ModuleList
 
 export interface VncDescription {
     password?: string;
@@ -453,7 +482,7 @@ async function uploadFile(method: string, path: string, file: File, headers?: Re
     const projectId = getStoredProject();
     if (projectId) actualHeaders["Project"] = projectId;
 
-    const response = await fetch(Client.computeURL("/", path), {
+    const response = await fetch(Client.computeURL("", path), {
         method: method,
         headers: actualHeaders,
         body: file,
@@ -719,14 +748,7 @@ export interface LandingPage {
     spotlight?: Spotlight | null;
     newApplications: ApplicationSummaryWithFavorite[];
     recentlyUpdated: ApplicationSummaryWithFavorite[];
-    curator: CuratorStatus[];
     availableProviders: string[];
-}
-
-export interface CuratorStatus {
-    projectId: string;
-    canManageCatalog: boolean;
-    mandatedPrefix: string;
 }
 
 export const emptyLandingPage: LandingPage = {
@@ -735,7 +757,6 @@ export const emptyLandingPage: LandingPage = {
     categories: [],
     newApplications: [],
     recentlyUpdated: [],
-    curator: [],
     availableProviders: [],
 };
 
@@ -747,7 +768,7 @@ export async function doExport(): Promise<string> {
     const actualHeaders: Record<string, string> = {};
     actualHeaders["Authorization"] = `Bearer ${token}`;
 
-    const response = await fetch(Client.computeURL("/", `${baseContext}/export`), {
+    const response = await fetch(Client.computeURL("", `${baseContext}/export`), {
         method: "POST",
         headers: actualHeaders,
     });

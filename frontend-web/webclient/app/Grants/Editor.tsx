@@ -22,7 +22,7 @@ import {useLocation, useNavigate} from "react-router";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {errorMessageOrDefault, timestampUnixMs} from "@/UtilityFunctions";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
-import {dateToString} from "@/Utilities/DateUtilities";
+import {addMonthsToDate, dateToString} from "@/Utilities/DateUtilities";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -38,6 +38,7 @@ import {formatDistance} from "date-fns/formatDistance";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {interval, isBefore, isWithinInterval, subDays} from "date-fns";
 import Warning from "@/ui-components/Warning";
+import {SimpleMarkdown} from "@/ui-components/Markdown";
 
 // State model
 // =====================================================================================================================
@@ -279,9 +280,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         sectionForProvider = newResources[category.provider]!;
                     }
 
+
                     const existing = sectionForProvider.find(it => it.category.name === category.name);
                     if (existing) {
-                        if (existing.allocators.values().find(grantGiver => grantGiver.grantGiverId == allocator.id && grantGiver.grantGiverTitle === allocator.title)) {
+                        if ([...existing.allocators.values()].find(grantGiver => grantGiver.grantGiverId == allocator.id && grantGiver.grantGiverTitle === allocator.title)) {
                             //DO NOTHING
                         } else {
                             existing.allocators.add({grantGiverId: allocator.id, grantGiverTitle: allocator.title});
@@ -373,7 +375,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             const start = new Date(Math.max(timestampUnixMs(), action.start));
             const end = new Date(action.end + 1000);
 
-            const minimumDurationInMonths = 1
+            const minimumDurationInMonths = 1;
 
             const newState: EditorState = {
                 ...state,
@@ -415,12 +417,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                             text: "",
                         },
                         allocationPeriod: {
-                            start: start.getMilliseconds(),
-                            end: Math.max(
+                            start: start.getTime(),
+                            end: addMonthsToDate(start, Math.max(
                                 minimumDurationInMonths,
                                 ((end.getUTCFullYear() - start.getUTCFullYear()) * 12) +
                                 (end.getUTCMonth() - start.getUTCMonth())
-                            )
+                            )).getTime()
                         }
                     }
                 }
@@ -740,7 +742,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 const {balanceFactor} = Accounting.explainUnit(category.category);
                 if (request.category !== category.category.name) continue;
 
-                let alreadyThere = category.allocators.values().find(allocator => allocator.grantGiverId === request.grantGiver && allocator.grantGiverTitle === request.grantGiverTitle)
+                let alreadyThere = [...category.allocators.values()].find(allocator => allocator.grantGiverId === request.grantGiver && allocator.grantGiverTitle === request.grantGiverTitle)
                 if (alreadyThere) {
                     category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * balanceFactor;
                 } else {
@@ -845,7 +847,7 @@ type EditorEvent =
 
 function useStateReducerMiddleware(
     doDispatch: (e: EditorAction) => void,
-    scrollToTopRef: React.MutableRefObject<boolean>,
+    scrollToTopRef: React.RefObject<boolean>,
 ): {dispatchEvent: (e: EditorEvent) => unknown} {
     const didCancel = useDidUnmount();
     const dispatchEvent = useCallback(async (event: EditorEvent) => {
@@ -2390,7 +2392,7 @@ const FormField: React.FunctionComponent<{
                     className={`description ${props.showDescriptionInEditMode === false ? "optional" : ""}`}
                     style={props.icon && {marginLeft: "38px"}}
                 >
-                    {props.description}
+                    {typeof props.description === "string" ? <SimpleMarkdown>{props.description}</SimpleMarkdown> : props.description}
                 </div>
             }
         </div>
@@ -2494,7 +2496,7 @@ const GrantGiver: React.FunctionComponent<{
             {props.replaceReject}
             {!props.replaceReject && <>
                 <TooltipV2 tooltip={"Reject (hold to confirm)"}>
-                    <ConfirmationButton color={"errorMain"} icon={"heroXMark"} onAction={onReject} height={40} />
+                    <ConfirmationButton color={"errorMain"} icon={"close"} onAction={onReject} height={40} />
                 </TooltipV2>
             </>}
         </>}
@@ -2583,7 +2585,8 @@ function parseIntoSections(text: string): ApplicationSection[] {
         "Add a ",
         "Describe the ",
         "Provide a ",
-        "Please describe the reason for applying"
+        "Please describe the reason for applying",
+        "Required:"
     ];
 
     for (let i = 0; i < titles.length; i++) {

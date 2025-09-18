@@ -1,21 +1,28 @@
 import * as React from "react";
 import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
+import ApexCharts from "apexcharts";
 import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
-import {Flex, Icon, Input, Radio, Text, MainContainer} from "@/ui-components";
+import {Flex, Icon, Input, Text, MainContainer, Box, Truncate, Button, Label} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {ProjectSwitcher, projectTitle} from "@/Project/ProjectSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
-import {BreakdownByProjectAPI, categoryComparator, ChartsAPI, UsageOverTimeAPI} from ".";
+import {
+    BreakdownByProjectAPI,
+    categoryComparator,
+    ChartsAPI,
+    explainUnit,
+    UsageOverTimeAPI, UsagePerUserPointAPI
+} from ".";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {threadDeferLike, stopPropagation, timestampUnixMs, displayErrorMessageOrDefault} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import {callAPI} from "@/Authentication/DataHook";
-import * as Jobs from "@/Applications/Jobs";
+import {callAPI, noopCall} from "@/Authentication/DataHook";
+import * as Config from "../../site.config.json";
 import {useProjectId} from "@/Project/Api";
-import {formatDistance} from "date-fns";
+import {differenceInCalendarDays, formatDate, formatDistance} from "date-fns";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {deviceBreakpoint} from "@/ui-components/Hide";
@@ -25,17 +32,32 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useProject} from "@/Project/cache";
 import * as Heading from "@/ui-components/Heading";
+import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
+import {Feature, hasFeature} from "@/Features";
+import {IconName} from "@/ui-components/Icon";
+import {getShortProviderTitle} from "@/Providers/ProviderTitle";
+import {groupBy} from "@/Utilities/CollectionUtilities";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {DATE_FORMAT} from "@/Admin/NewsManagement";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {slimModalStyle} from "@/Utilities/ModalUtilities";
+import {Toggle} from "@/ui-components/Toggle";
+
+// Constants
+// =====================================================================================================================
+const JOBS_UNIT_NAME = "Job statistics";
 
 // State
 // =====================================================================================================================
 interface State {
     remoteData: {
         chartData?: ChartsAPI;
-        jobStatistics?: Jobs.JobStatistics;
         requestsInFlight: number;
+        initialLoadDone: boolean;
     },
 
     summaries: {
+        title: string,
         usage: number,
         quota: number,
         category: Accounting.ProductCategoryV2,
@@ -45,37 +67,127 @@ interface State {
     }[],
 
     activeDashboard?: {
-        idx: number,
         category: Accounting.ProductCategoryV2,
         currentAllocation: {
             usage: number,
             quota: number,
             expiresAt: number,
         },
-        usageOverTime: UsageChart,
-        breakdownByProject: BreakdownChart,
+        selectedBreakdown: string;
+        usageOverTime: UsageChart[];
+        breakdownByProject: BreakdownChart[];
 
-        jobUsageByUsers?: JobUsageByUsers,
-        mostUsedApplications?: MostUsedApplications,
-        submissionStatistics?: SubmissionStatistics,
+        usagePerUser: UsagePerUser;
+
+        activeUnit: string;
+        availableUnits: string[];
     },
 
     selectedPeriod: Period,
 }
 
+interface ExportHeader<T> {
+    key: keyof T;
+    value: string;
+    defaultChecked: boolean;
+};
+
+function exportUsage<T extends object>(chartData: T[] | undefined, headers: ExportHeader<T>[], projectTitle: string | undefined): void {
+    if (!chartData?.length) {
+        snackbarStore.addFailure("No data to export found", false);
+        return;
+    }
+
+    dialogStore.addDialog(<UsageExport chartData={chartData} headers={headers} projectTitle={projectTitle} />, () => {}, true, slimModalStyle);
+}
+
+function UsageExport<T extends object>({chartData, headers, projectTitle}: {chartData: T[]; headers: ExportHeader<T>[]; projectTitle?: string}): React.ReactNode {
+    const [checked, setChecked] = useState(headers.map(it => it.defaultChecked));
+
+    const startExport = useCallback((format: "json" | "csv") => {
+        doExport(chartData, headers.filter((_, idx) => checked[idx]), ';', format, projectTitle);
+        dialogStore.success();
+    }, [checked]);
+
+    return <Box>
+        <h2>Export which usage data rows?</h2>
+        <Box mt="12px" mb="36px">
+            {headers.map((h, i) =>
+                <Label key={h.value} my="4px" style={{display: "flex"}}>
+                    <Toggle height={20} checked={checked[i]} onChange={prevValue => {
+                        setChecked(ch => {
+                            ch[i] = !prevValue
+                            return [...ch];
+                        })
+                    }} />
+                    <Text ml="8px">{h.value}</Text>
+                </Label>
+            )}
+        </Box>
+        <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"} gap={"8px"}>
+            <Button onClick={() => dialogStore.failure()} color="errorMain">Cancel</Button>
+            <Button onClick={() => startExport("json")} color="successMain">Export JSON</Button>
+            <Button onClick={() => startExport("csv")} color="successMain">Export CSV</Button>
+        </Flex>
+    </Box>
+
+    function doExport<T extends object>(chartData: T[], headers: ExportHeader<T>[], delimiter: string, format: "json" | "csv", projectTitle?: string) {
+        let text = "";
+        switch (format) {
+            case "csv": {
+
+                text = headers.map(it => it.value).join(delimiter) + "\n";
+
+                for (const el of chartData) {
+                    for (const [idx, header] of headers.entries()) {
+                        text += `"${el[header.key]}"`;
+                        if (idx !== headers.length - 1) text += delimiter;
+                    }
+                    text += "\n";
+                }
+
+                break;
+            };
+            case "json": {
+                const h = headers.map(it => it.key);
+                const data: T[] = JSON.parse(JSON.stringify(chartData));
+
+                for (const row of data) {
+                    for (const k of Object.keys(row)) {
+                        if (!h.includes(k as keyof T)) {
+                            delete row[k];
+                        }
+                    }
+                }
+
+                text = JSON.stringify(data);
+                break;
+            }
+        }
+
+        const a = document.createElement("a");
+        a.href = "data:text/plain;charset=utf-8," + encodeURIComponent(text);
+        a.download = `${Config.PRODUCT_NAME} - ${projectTitle ? projectTitle : "personal workspace"} - ${formatDate(new Date(), DATE_FORMAT)}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+}
+
+
 type Period =
-    {type: "relative", distance: number, unit: "day" | "month"}
+    | {type: "relative", distance: number, unit: "day" | "month"}
     | {type: "absolute", start: number, end: number}
     ;
 
 // State reducer
 // =====================================================================================================================
 type UIAction =
-    {type: "LoadCharts", charts: ChartsAPI, }
-    | {type: "LoadJobStats", statistics: Jobs.JobStatistics, }
-    | {type: "SelectTab", tabIndex: number}
+    | {type: "LoadCharts", charts: ChartsAPI}
     | {type: "UpdateSelectedPeriod", period: Period}
     | {type: "UpdateRequestsInFlight", delta: number}
+    | {type: "UpdateActiveUnit", unit: string}
+    | {type: "SetActiveBreakdown", projectId: string}
     ;
 
 function stateReducer(state: State, action: UIAction): State {
@@ -85,32 +197,40 @@ function stateReducer(state: State, action: UIAction): State {
                 ...state,
                 remoteData: {
                     ...state.remoteData,
-                    requestsInFlight: state.remoteData.requestsInFlight + action.delta
+                    requestsInFlight: state.remoteData.requestsInFlight + action.delta,
+                    initialLoadDone: true,
                 }
             };
         }
 
+        case "UpdateActiveUnit": {
+            return selectUnit(state, action.unit);
+        }
+
+        case "SetActiveBreakdown": {
+            if (!state.activeDashboard) return state;
+            const breakdown = action.projectId === state.activeDashboard.selectedBreakdown ? "" : action.projectId;
+            return {...state, activeDashboard: {...state.activeDashboard, selectedBreakdown: breakdown}};
+        }
+
         case "LoadCharts": {
             // TODO Move this into selectChart
-            function translateBreakdown(category: Accounting.ProductCategoryV2, chart: BreakdownByProjectAPI): BreakdownChart {
-                const {name} = Accounting.explainUnit(category);
-                const dataPoints = chart.data
-
-                return {unit: name, dataPoints};
+            function translateBreakdown(chart: BreakdownByProjectAPI, nameAndProvider: string): BreakdownChart {
+                const dataPoints = chart.data;
+                return {dataPoints, nameAndProvider};
             }
 
             function translateChart(category: Accounting.ProductCategoryV2, chart: UsageOverTimeAPI): UsageChart {
-                const {name} = Accounting.explainUnit(category);
-                const dataPoints = chart.data
-
-                return {unit: name, dataPoints};
+                const dataPoints = chart.data;
+                return {dataPoints, name: category.name, provider: category.provider};
             }
 
             const data = action.charts;
             const newSummaries: State["summaries"] = [];
-            const now = BigInt(timestampUnixMs());
 
-            const sorted = data.allocGroups.sort((a, b) => categoryComparator(data.categories[a.productCategoryIndex], data.categories[b.productCategoryIndex]));
+            const sorted = data.allocGroups.sort((a, b) =>
+                categoryComparator(data.categories[a.productCategoryIndex], data.categories[b.productCategoryIndex])
+            );
 
             for (let i = 0; i < data.allocGroups.length; i++) {
                 const group = sorted[i];
@@ -124,6 +244,7 @@ function stateReducer(state: State, action: UIAction): State {
                 let summary: State["summaries"][0];
                 if (existingIndex === -1) {
                     summary = {
+                        title: category.name + "/" + category.provider,
                         usage: 0,
                         quota: 0,
                         category: category,
@@ -148,44 +269,22 @@ function stateReducer(state: State, action: UIAction): State {
                 const chart = data.charts[i];
                 const summary = newSummaries.find(it => it.categoryIdx === chart.categoryIndex);
                 if (!summary) continue;
+
                 summary.chart = translateChart(summary.category, chart.overTime);
-                summary.breakdownByProject = translateBreakdown(summary.category, chart.breakdownByProject);
+                summary.breakdownByProject = translateBreakdown(chart.breakdownByProject, summary.title);
             }
 
-            const currentlySelectedCategory = state.activeDashboard?.category;
-            let selectedIndex = sorted[0]?.productCategoryIndex ?? 0;
+            const availableUnits = unitsFromSummaries(newSummaries);
+            const [activeUnit] = availableUnits;
 
-            if (currentlySelectedCategory) {
-                const selectedSummary = newSummaries.find(it =>
-                    it.category.name === currentlySelectedCategory.name &&
-                    it.category.provider === currentlySelectedCategory.provider
-                );
-
-                if (selectedSummary) selectedIndex = selectedSummary.categoryIdx;
-            }
-
-            return selectChart({
+            return selectUnit({
                 ...state,
                 remoteData: {
                     ...state.remoteData,
                     chartData: data,
                 },
                 summaries: newSummaries,
-            }, selectedIndex);
-        }
-
-        case "LoadJobStats": {
-            return selectChart({
-                ...state,
-                remoteData: {
-                    ...state.remoteData,
-                    jobStatistics: action.statistics
-                }
-            });
-        }
-
-        case "SelectTab": {
-            return selectChart(state, action.tabIndex);
+            }, activeUnit);
         }
 
         case "UpdateSelectedPeriod": {
@@ -196,19 +295,11 @@ function stateReducer(state: State, action: UIAction): State {
         }
     }
 
-    function selectChart(state: State, categoryIndex?: number): State {
+    function selectUnit(state: State, unit: string): State {
         const chartData = state.remoteData.chartData;
         if (!chartData) return {...state, activeDashboard: undefined};
-        let catIdx = categoryIndex === undefined ? state.activeDashboard?.idx : categoryIndex;
-        if (catIdx === undefined || catIdx < 0 || catIdx > chartData.categories.length) {
-            return {
-                ...state,
-                activeDashboard: undefined
-            };
-        }
-
-        const summary = state.summaries.find(it => it.categoryIdx === catIdx);
-        if (!summary) return {...state, activeDashboard: undefined};
+        const summaries = state.summaries.filter(it => unit === JOBS_UNIT_NAME || Accounting.explainUnit(it.category).name === unit);
+        if (!summaries.length) return {...state, activeDashboard: undefined};
 
         let earliestNextAllocation: number | null = null;
         let earliestExpiration: number | null = null;
@@ -245,107 +336,47 @@ function stateReducer(state: State, action: UIAction): State {
                     if (earliestNextAllocation < alloc.startDate || earliestNextAllocation > alloc.endDate) {
                         //nothing
                     } else {
+                        // What is the Number-boxing here for?
                         nextQuota += Number(alloc.quota);
                     }
                 })
             }
         }
 
-        let jobUsageByUsers: JobUsageByUsers | undefined = undefined;
-        let mostUsedApplications: MostUsedApplications | undefined = undefined;
-        let submissionStatistics: SubmissionStatistics | undefined = undefined;
-        if (summary.category.productType === "COMPUTE" && state.remoteData.jobStatistics) {
-            const stats = state.remoteData.jobStatistics;
-            let catIdx: number = -1;
-            const catCount = stats.categories.count;
-            for (let i = 0; i < catCount; i++) {
-                const cat = stats.categories.get(i);
-                if (cat.name === summary.category.name && cat.provider === summary.category.provider) {
-                    catIdx = i;
-                    break;
-                }
-            }
+        let jobUsageByUsers: UsagePerUser
 
-            const unit = Accounting.explainUnit(summary.category);
-
-            if (catIdx !== -1) {
-                const usageCount = stats.usageByUser.count;
-                for (let i = 0; i < usageCount; i++) {
-                    const usage = stats.usageByUser.get(i);
-                    if (usage.categoryIndex !== catIdx) continue;
-
-                    const result: JobUsageByUsers = {unit: unit.name, dataPoints: []};
-
-                    const pointCount = usage.dataPoints.count;
-                    for (let j = 0; j < pointCount; j++) {
-                        const dataPoint = usage.dataPoints.get(j);
-                        result.dataPoints.push(({
-                            usage: Number(dataPoint.usage) * unit.priceFactor,
-                            username: dataPoint.username
-                        }));
-                    }
-
-                    jobUsageByUsers = result;
-                }
-
-                const appCount = stats.mostUsedApplications.count;
-                for (let i = 0; i < appCount; i++) {
-                    const appStats = stats.mostUsedApplications.get(i);
-                    if (appStats.categoryIndex !== catIdx) continue;
-
-                    const result: MostUsedApplications = {dataPoints: []};
-                    const pointCount = appStats.dataPoints.count;
-                    for (let j = 0; j < pointCount; j++) {
-                        const dataPoint = appStats.dataPoints.get(j);
-                        result.dataPoints.push(({
-                            applicationTitle: dataPoint.applicationName,
-                            count: dataPoint.numberOfJobs
-                        }));
-                    }
-
-                    mostUsedApplications = result;
-                }
-
-                const submissionCount = stats.jobSubmissionStatistics.count;
-                for (let i = 0; i < submissionCount; i++) {
-                    const submissionStats = stats.jobSubmissionStatistics.get(i);
-                    if (submissionStats.categoryIndex !== catIdx) continue;
-
-                    const result: SubmissionStatistics = {dataPoints: []};
-                    const pointCount = submissionStats.dataPoints.count;
-                    for (let j = 0; j < pointCount; j++) {
-                        const dataPoint = submissionStats.dataPoints.get(j);
-                        result.dataPoints.push({
-                            day: dataPoint.day,
-                            hourOfDayStart: dataPoint.hourOfDayStart,
-                            hourOfDayEnd: dataPoint.hourOfDayEnd,
-                            numberOfJobs: dataPoint.numberOfJobs,
-                            averageQueueInSeconds: dataPoint.averageQueueInSeconds,
-                            averageDurationInSeconds: dataPoint.averageDurationInSeconds,
-                        });
-                    }
-
-                    submissionStatistics = result;
-                }
-            }
+        if (state.remoteData.chartData?.usagePerUser === undefined) {
+            jobUsageByUsers = emptyUsagePerUserList
+        } else {
+            const usage = state.remoteData.chartData?.usagePerUser!.data
+            jobUsageByUsers = {dataPoints: usage}
         }
+
+        const availableUnitsSet = unitsFromSummaries(state.summaries);
+
+        //TODO() Need better if statement, but at the moment this is the only thing that is shown on this page
+        if (state.remoteData.chartData?.usagePerUser !== undefined) {
+            availableUnitsSet.push(JOBS_UNIT_NAME);
+        }
+        const availableUnits = [...availableUnitsSet];
 
         return {
             ...state,
             activeDashboard: {
-                idx: catIdx,
-                category: summary.category,
+                category: summaries[0].category,
+                /* TODO: Remove? Hidden behind flag */
                 currentAllocation: {
-                    usage: summary.usage,
-                    quota: summary.quota,
+                    usage: summaries[0].usage,
+                    quota: summaries[0].quota,
                     expiresAt: earliestExpiration ?? timestampUnixMs(),
                 },
-                usageOverTime: summary.chart,
-                breakdownByProject: summary.breakdownByProject,
-                jobUsageByUsers,
-                mostUsedApplications,
-                submissionStatistics,
-            }
+                selectedBreakdown: "",
+                usageOverTime: summaries.map(it => it.chart),
+                breakdownByProject: summaries.map(it => it.breakdownByProject),
+                usagePerUser: jobUsageByUsers,
+                availableUnits: availableUnits,
+                activeUnit: unit
+            },
         };
     }
 }
@@ -354,7 +385,7 @@ function stateReducer(state: State, action: UIAction): State {
 // =====================================================================================================================
 type UIEvent =
     UIAction
-    | {type: "Init"}
+    | {type: "Init", period?: Period}
     ;
 
 function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (event: UIEvent) => unknown {
@@ -375,18 +406,14 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
         }
 
         async function doLoad(start: number, end: number) {
-            invokeAPI(Jobs.retrieveStatistics({start, end})).then(statistics => {
-                dispatch({type: "LoadJobStats", statistics});
-            });
-
             invokeAPI(Accounting.retrieveChartsV2({start, end})).then(charts => {
                 dispatch({type: "LoadCharts", charts});
-            });
+            }).catch(e => displayErrorMessageOrDefault(e, "Failed to fetch charts."));
         }
 
         switch (event.type) {
             case "Init": {
-                const {start, end} = normalizePeriod(initialState.selectedPeriod);
+                const {start, end} = normalizePeriod(event.period ?? initialState.selectedPeriod);
                 await doLoad(start, end);
                 break;
             }
@@ -409,7 +436,7 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
 
 // User-interface
 // =====================================================================================================================
-const Visualization: React.FunctionComponent = () => {
+function Visualization(): React.ReactNode {
     const project = useProject();
     const projectId = useProjectId();
     const [state, rawDispatch] = useReducer(stateReducer, initialState);
@@ -418,7 +445,7 @@ const Visualization: React.FunctionComponent = () => {
     usePage("Usage", SidebarTabId.PROJECT);
 
     useEffect(() => {
-        dispatchEvent({type: "Init"});
+        dispatchEvent({type: "Init", period: state.selectedPeriod});
     }, [projectId]);
 
     // Event handlers
@@ -428,7 +455,7 @@ const Visualization: React.FunctionComponent = () => {
     // these, try to avoid having dependencies on more than just dispatchEvent itself.
 
     useLayoutEffect(() => {
-        const wrappers = document.querySelectorAll(`.${VisualizationStyle} .table-wrapper`);
+        const wrappers = document.querySelectorAll(`.${VisualizationStyle} ${TableWrapper.dot}`);
         const listeners: [Element, EventListener][] = [];
         wrappers.forEach(wrapper => {
             if (wrapper.scrollTop === 0) {
@@ -465,23 +492,30 @@ const Visualization: React.FunctionComponent = () => {
         };
     });
 
-    const setActiveCategory = useCallback((key: any) => {
-        dispatchEvent({type: "SelectTab", tabIndex: key});
-    }, [dispatchEvent]);
-
     const setPeriod = useCallback((period: Period) => {
         dispatchEvent({type: "UpdateSelectedPeriod", period});
     }, [dispatchEvent]);
 
+    const setActiveUnit = useCallback((unit: string) => {
+        dispatchEvent({type: "UpdateActiveUnit", unit});
+    }, [dispatchEvent]);
+
+    const setBreakdown = useCallback((projectId: string) => {
+        dispatchEvent({type: "SetActiveBreakdown", projectId});
+    }, [state.activeDashboard?.selectedBreakdown]);
+
+    const unitsForRichSelect = React.useMemo(() => {
+        const all = state.activeDashboard?.availableUnits.map(it => ({unit: it})) ?? [];
+        return all.filter(it => !["IPs", "Licenses"].includes(it.unit)); // Note(Jonas): Maybe just don't fetch the IPs, Licenses (and Links?)
+    }, [state.activeDashboard?.availableUnits]);
 
     // Short-hands
     // -----------------------------------------------------------------------------------------------------------------
     const activeCategory = state.activeDashboard?.category;
-    const hasChart3And4 = activeCategory?.productType === "COMPUTE";
-    const isAnyLoading = state.remoteData.requestsInFlight !== 0;
+    const isAnyLoading = state.remoteData.initialLoadDone && state.remoteData.requestsInFlight !== 0;
     const hasNoMeaningfulData =
         state.activeDashboard === undefined ||
-        state.activeDashboard.usageOverTime.dataPoints.every(it => it.usage === 0) &&
+        state.activeDashboard.usageOverTime.every(it => it.dataPoints.every(it => it.usage === 0)) &&
         (state.summaries.length === 0 && state.remoteData.requestsInFlight === 0);
 
     // Actual user-interface
@@ -500,68 +534,69 @@ const Visualization: React.FunctionComponent = () => {
         />
     }
 
+
     return <MainContainer
         headerSize={0}
-        main={<div
-            className={classConcat(
-                VisualizationStyle,
-                hasChart3And4 ? undefined : AccountingPanelsOnlyStyle
-            )}
-        >
+        main={<div className={VisualizationStyle}>
             <header>
                 <h3 className="title" style={{marginTop: "auto", marginBottom: "auto"}}>Resource usage</h3>
                 <div className="duration-select">
                     <PeriodSelector value={state.selectedPeriod} onChange={setPeriod} />
                 </div>
                 <div style={{flexGrow: "1"}} />
-                <ContextSwitcher />
+                <ProjectSwitcher />
             </header>
 
             <div style={{padding: "13px 16px 16px 16px", zIndex: -1}}>
-                {!state.remoteData.chartData && !state.remoteData.jobStatistics && state.remoteData.requestsInFlight ? <>
+                {!state.remoteData.chartData && state.remoteData.requestsInFlight || isAnyLoading ? <>
                     <HexSpin size={64} />
                 </> : null}
 
-                {hasNoMeaningfulData ? <NoData productType={activeCategory?.productType} /> : null}
+                {hasNoMeaningfulData ? <NoData loading={isAnyLoading} productType={activeCategory?.productType} /> : null}
 
-                <Flex flexDirection="row" gap="16px" overflowX={"auto"} paddingY={"26px"} paddingX={"12px"}>
-                    {state.summaries.map(s =>
-                        <SmallUsageCard
-                            key={s.categoryIdx}
-                            categoryName={s.category.name}
-                            usageText1={usageToString(s.category, s.usage, s.quota, false)}
-                            usageText2={usageToString(s.category, s.usage, s.quota, true)}
-                            chart={s.chart}
-                            active={
-                                s.category.name === state.activeDashboard?.category?.name &&
-                                s.category.provider === state.activeDashboard?.category?.provider
-                            }
-                            activationKey={s.categoryIdx}
-                            onActivate={setActiveCategory}
-                        />
-                    )}
-                </Flex>
+                {!hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <Box pb={32}>
+                    {isAnyLoading ? null :
+                        state.activeDashboard == null ? null : unitsForRichSelect.length === 0 ? <div>No data available</div> : <>
+                            <RichSelect
+                                items={unitsForRichSelect}
+                                keys={["unit"]}
+                                RenderRow={RenderUnitSelector}
+                                RenderSelected={RenderUnitSelector}
+                                onSelect={el => setActiveUnit(el.unit)}
+                                fullWidth
+                                selected={({unit: state.activeDashboard.activeUnit})}
+                            />
+                        </>}
+                </Box>}
 
                 {state.activeDashboard ?
-                    <div className="panels">
-                        <div className={classConcat("panel-grid", hasChart3And4 ? HasAlotOfInfoClass.class : undefined)}>
-                            <CategoryDescriptorPanel
-                                category={state.activeDashboard.category}
-                                usage={state.activeDashboard.currentAllocation.usage}
-                                quota={state.activeDashboard.currentAllocation.quota}
-                                expiresAt={state.activeDashboard.currentAllocation.expiresAt}
+                    <div className={PanelGrid.class}>
+                        {state.activeDashboard.activeUnit === JOBS_UNIT_NAME ? <>
+                            <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.usagePerUser} />
+                        </> : <>
+                            {hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <>
+                                <CategoryDescriptorPanel
+                                    category={state.activeDashboard.category}
+                                    usage={state.activeDashboard.currentAllocation.usage}
+                                    quota={state.activeDashboard.currentAllocation.quota}
+                                    expiresAt={state.activeDashboard.currentAllocation.expiresAt}
+                                />
+                            </>}
+                            <UsageBreakdownPanel
+                                setBreakdown={setBreakdown}
+                                selectedBreakdown={state.activeDashboard.selectedBreakdown}
+                                isLoading={isAnyLoading}
+                                unit={state.activeDashboard.activeUnit}
+                                period={state.selectedPeriod}
+                                charts={state.activeDashboard.breakdownByProject} />
+                            <UsageOverTimePanel
+                                unit={state.activeDashboard.activeUnit}
+                                period={state.selectedPeriod}
+                                isLoading={isAnyLoading}
+                                charts={state.activeDashboard.usageOverTime}
                             />
-                            <UsageBreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject} />
-                            <UsageOverTimePanel chart={state.activeDashboard.usageOverTime} />
-                            {hasChart3And4 ? <>
-                                <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
-                                <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
-                                <JobSubmissionPanel data={state.activeDashboard.submissionStatistics} />
-                            </> : null}
-                        </div>
-                    </div>
-                    : null
-                }
+                        </>}
+                    </div> : null}
             </div>
         </div>}
     />;
@@ -579,7 +614,8 @@ const NoDataClass = injectStyle("no-data", k => `
     }
 `);
 
-function NoData({productType}: {productType?: Accounting.ProductArea}): React.ReactNode {
+function NoData({productType, loading}: {loading: boolean; productType?: Accounting.ProductArea;}): React.ReactNode {
+    if (loading) return null;
     return <Flex mx="auto" my="auto" flexDirection="column" alignItems="center" justifyContent="center" width="400px" height="400px">
         <div className={NoDataClass}>
             <Icon name={Accounting.productTypeToIcon(productType ?? "STORAGE")} color2="primaryContrast" color="primaryContrast" size={60} />
@@ -784,7 +820,7 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
             <figure>
                 <Icon name={Accounting.productTypeToIcon(props.category.productType)} size={128} />
                 <div style={{position: "relative"}}>
-                    <ProviderLogo providerId={props.category.provider} size={isCompute ? 32 : 64} />
+                    <ProviderLogo providerId={props.category.provider} size={32} />
                 </div>
             </figure>
             <h1><code>{props.category.name}</code></h1>
@@ -812,13 +848,25 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
     </div>;
 };
 
+const PieWrapper = makeClassName("pie-wrapper");
 const BreakdownStyle = injectStyle("breakdown", k => `
-    ${k} .pie-wrapper {
-        width: 350px;
-        height: 350px;
-        margin: 20px auto;
+    ${k} ${PieWrapper.dot} {
+        width: 50%;
+        height: 100%;
         display: flex;
+        margin-top: auto;
+        margin-bottom: auto;
     }
+
+@media screen and (max-width: 1337px) {
+    ${k} ${PieWrapper.dot} {
+        height: 50%;
+        width: 50%;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+    }    
+}
 
     ${k} table tbody tr > td:nth-child(2),
     ${k} table tbody tr > td:nth-child(3) {
@@ -827,20 +875,57 @@ const BreakdownStyle = injectStyle("breakdown", k => `
     }
 `);
 
-const UsageBreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownChart}> = props => {
-    const unit = props.chart.unit;
+function mergedCharts(unit: string, charts: BreakdownChart[]): {
+    key: string;
+    value: number;
+    nameAndProvider: string;
+}[] {
+    const mergedCharts = {
+        unit: unit,
+        dataPoints: charts.flatMap(it => it.dataPoints.map(d => ({...d, nameAndProvider: it.nameAndProvider})))
+    };
 
-    const dataPoints = useMemo(
-        () => {
-            const unsorted = props.chart.dataPoints.map(it => ({key: it.title, value: it.usage}));
-            return unsorted.sort((a, b) => a.value - b.value);
-        },
-        [props.chart]
-    );
+    return mergedCharts.dataPoints
+        .map(it => ({key: it.title, value: it.usage, nameAndProvider: it.nameAndProvider}))
+        .sort((a, b) => a.value - b.value)
+}
 
-    const formatter = useCallback((val: number) => {
-        return Accounting.addThousandSeparators(val.toFixed(0)) + " " + unit;
-    }, [unit]);
+const UsageBreakdownChartId = "UsageBreakdown";
+const UsageBreakdownPanel: React.FunctionComponent<{
+    setBreakdown(projectId: string): void;
+    selectedBreakdown: string;
+    isLoading: boolean;
+    unit: string;
+    period: Period;
+    charts: BreakdownChart[];
+}> = props => {
+    const {selectedBreakdown} = props;
+    const chartIdRef = useRef(0);
+
+    const fullyMergedChart = React.useMemo(() => ({
+        unit: props.unit,
+        dataPoints: props.charts.flatMap(it => it.dataPoints.map(d => ({...d, nameAndProvider: it.nameAndProvider})))
+    }), [props.charts, props.unit]);
+
+    const dataPoints = useMemo(() => {
+        chartIdRef.current += 1;
+        const unsorted = fullyMergedChart.dataPoints.map(it => ({key: it.title, value: it.usage, nameAndProvider: it.nameAndProvider})) ?? [];
+        return unsorted.sort((a, b) => a.value - b.value);
+    }, [props.charts]);
+
+    const dataPointsByProject = React.useMemo(() => {
+        const summed = groupBy(dataPoints, el => el.key);
+
+        return Object.keys(summed).map(it => {
+            return {
+                key: it,
+                value: summed[it].reduce((acc, it) => it.value + acc, 0),
+                nameAndProvider: ""
+            }
+        }).sort((a, b) => a.value - b.value);
+    }, [dataPoints]);
+
+    const formatter = useCallback((val: number) => Accounting.addThousandSeparators(val.toFixed(0)) + " " + props.unit, [props.unit]);
 
     const showWarning = (() => {
         const {start, end} = normalizePeriod(props.period);
@@ -849,116 +934,178 @@ const UsageBreakdownPanel: React.FunctionComponent<{period: Period, chart: Break
         return startDate.getUTCFullYear() !== endDate.getUTCFullYear();
     })();
 
-    const datapointSum = useMemo(() => {
-        return dataPoints.reduce((a, b) => a + b.value, 0);
-    }, [dataPoints]);
+    const filteredDataPoints = useMemo(() => {
+        if (!selectedBreakdown) return dataPointsByProject.slice();
+        return dataPoints.filter(it => it.key === selectedBreakdown);
+    }, [selectedBreakdown, dataPoints, dataPointsByProject]);
+
+    const datapointSum = useMemo(() => dataPoints.reduce((a, b) => a + b.value, 0), [dataPoints]);
+
+    const sorted = useSorting(filteredDataPoints, "value", "asc", true);
+
+    const updateSelectedBreakdown = React.useCallback((dataPoint: {key: string}) => {
+        props.setBreakdown(dataPoint.key);
+    }, []);
+
+    const project = useProject().fetch();
+
+    const startExport = useCallback(() => {
+
+        const points = selectedBreakdown ?
+            fullyMergedChart.dataPoints.filter(it => it.title === selectedBreakdown) :
+            fullyMergedChart.dataPoints;
+
+        const datapoints = points.map(it => {
+            const [product, provider] = it.nameAndProvider.split("/");
+            return {
+                product,
+                provider,
+                projectId: it.projectId,
+                title: it.title,
+                usage: it.usage,
+            };
+        });
+
+        exportUsage(datapoints, [
+            header("title", "Project", true),
+            header("product", "Product", true),
+            header("provider", "Provider", true),
+            header("usage", "Usage (" + props.unit + ")", true),
+            header("projectId", "Project ID", false)
+        ], projectTitle(project));
+
+    }, [fullyMergedChart, project, selectedBreakdown]);
+
+    if (props.isLoading) return null;
 
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
-        <div className="panel-title">
-            <h4>Usage breakdown by sub-projects</h4>
+        <div className={PanelTitle.class}>
+            <div>Usage breakdown by sub-projects </div>
+            <TooltipV2 tooltip={"Click on a project name to view more detailed usage"}>
+                <Icon name={"heroQuestionMarkCircle"} />
+            </TooltipV2>
+            <Button onClick={startExport}>
+                Export
+            </Button>
         </div>
 
-        {showWarning && <>
+        {showWarning ? <>
             <Warning>This panel is currently unreliable when showing data across multiple allocation periods.</Warning>
-        </>}
+        </> : null}
 
-        {datapointSum === 0 ? null : <div className="pie-wrapper">
-            <PieChart dataPoints={dataPoints} valueFormatter={formatter} />
-        </div>}
-
-        {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected  */}
-        <div style={{overflowY: "scroll"}}>
+        <div className={ChartAndTable}>
+            {datapointSum === 0 ? null : <div key={UsageBreakdownChartId + chartIdRef.current} className={PieWrapper.class}>
+                <PieChart chartId={UsageBreakdownChartId + chartIdRef.current} dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={updateSelectedBreakdown} />
+            </div>}
+            {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
             {dataPoints.length === 0 ? "No usage data found" :
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Project</th>
-                            <th>Usage</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {dataPoints.map((point, idx) => {
-                            const usage = point.value;
-
-                            return <tr key={idx}>
-                                <td>{point.key}</td>
-                                <td>{Accounting.addThousandSeparators(Math.round(usage))} {unit}</td>
+                <div className={TableWrapper.class}>
+                    <table>
+                        <thead>
+                            <tr>
+                                <SortTableHeader width="30%" sortKey={"key"} sorted={sorted}>Project</SortTableHeader>
+                                {selectedBreakdown ? <SortTableHeader width="40%" sortKey={"nameAndProvider"} sorted={sorted}>Name - Provider</SortTableHeader> : null}
+                                <SortTableHeader width="30%" sortKey={"value"} sorted={sorted}>Usage</SortTableHeader>
                             </tr>
-                        })}
-                    </tbody>
-                </table>}
-        </div>
-    </div>;
-};
-
-const MostUsedApplicationsStyle = injectStyle("most-used-applications", k => `
-    ${k} table tr > td:nth-child(2),
-    ${k} table tr > td:nth-child(3) {
-        font-family: var(--monospace);
-        text-align: right;
-    }
-`);
-
-const MostUsedApplicationsPanel: React.FunctionComponent<{data?: MostUsedApplications}> = ({data}) => {
-    return <div className={classConcat(CardClass, PanelClass, MostUsedApplicationsStyle)}>
-        <div className="panel-title">
-            <h4>Most used applications</h4>
-        </div>
-
-        {data === undefined || data.dataPoints.length === 0 ? "No usage data found" :
-            <div className="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Application</th>
-                            <th>Number of jobs</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {data.dataPoints.map(it =>
-                            <React.Fragment key={it.applicationTitle}>
-                                <tr>
-                                    <td>{it.applicationTitle}</td>
-                                    <td>{it.count}</td>
+                        </thead>
+                        <tbody>
+                            {sorted.data.map((point, idx) => {
+                                const usage = point.value;
+                                const [name, provider] = point.nameAndProvider ? point.nameAndProvider.split("/") : ["", ""];
+                                return <tr key={idx} style={{cursor: "pointer"}}>
+                                    <td title={point.key} onClick={() => {
+                                        const chart = ApexCharts.getChartByID(UsageBreakdownChartId + chartIdRef.current);
+                                        const labels: string[] = chart?.["opts"]["labels"] ?? [];
+                                        const idx = labels.findIndex(it => it === point.key);
+                                        if (idx !== -1 && chart) {
+                                            chart.toggleDataPointSelection(idx);
+                                        }
+                                    }}><Truncate maxWidth={"250px"}>{point.key}</Truncate></td>
+                                    {name && provider ? <td>{name} - {getShortProviderTitle(provider)}</td> : null}
+                                    <td>{Accounting.addThousandSeparators(Math.round(usage))} {props.unit}</td>
                                 </tr>
-                            </React.Fragment>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-        }
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
     </div>;
 };
 
-const JobSubmissionStyle = injectStyle("job-submission", k => `
-    ${k} table tr > td:nth-child(2),
-    ${k} table tr > td:nth-child(3),
-    ${k} table tr > td:nth-child(4),
-    ${k} table tr > td:nth-child(5) {
-        font-family: var(--monospace);
-    }
-    
-    ${k} table tr > td:nth-child(3),
-    ${k} table tr > td:nth-child(4),
-    ${k} table tr > td:nth-child(5) {
-        text-align: right;
-    }
-    
-    ${k} table tr > *:nth-child(1) {
-        width: 100px;
-    }
-    
-    ${k} table tr > *:nth-child(2) {
-        width: 130px;
-    }
-    
-    ${k} table tr > *:nth-child(4),
-    ${k} table tr > *:nth-child(5) {
-        width: 120px;
-    }
-`);
+function header<T>(key: keyof T, value: string, defaultChecked?: boolean): ExportHeader<T> {
+    return {key, value, defaultChecked: !!defaultChecked};
+}
 
-const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+function thStyling(isBold: boolean, width: string): CSSProperties | undefined {
+    return {
+        fontWeight: isBold ? "bold" : undefined,
+        width,
+        cursor: "pointer",
+    };
+}
+
+type PercentageWidth = `${number}%` | `${number}px`;
+function SortTableHeader<DataType>({sortKey, sorted, children, width}: React.PropsWithChildren<{
+    sortKey: keyof DataType; sorted: ReturnType<typeof useSorting<DataType>>; width: PercentageWidth;
+}>) {
+    const isActive = sortKey === sorted.sortByKey;
+    return <th style={thStyling(isActive, width)} onClick={() => sorted.doSortBy(sortKey)}>
+        <Flex>{children} {isActive ? <Icon ml="auto" my="auto" name="heroChevronDown" rotation={sorted.sortOrder === "asc" ? 180 : 0} /> : null}</Flex>
+    </th>
+}
+
+type SortOrder = "asc" | "desc";
+function useSorting<DataType>(originalData: DataType[], sortByKey: keyof DataType, initialSortOrder?: SortOrder, sortOnDataChange?: boolean): {
+    data: DataType[];
+    sortOrder: SortOrder;
+    sortByKey: typeof sortByKey;
+    doSortBy(key: keyof DataType): void;
+} {
+    const [_data, setData] = useState(originalData);
+    const [_sortByKey, setSortByKey] = useState(sortByKey)
+    const [_sortOrder, setSortOrder] = useState(initialSortOrder ?? "asc");
+
+    React.useEffect(() => {
+        if (sortOnDataChange) doSortBy(originalData, sortByKey, initialSortOrder);
+        else setData(originalData);
+    }, [originalData]);
+
+    const doSortBy = React.useCallback((data: DataType[], sortBy: keyof DataType, sortOrder?: SortOrder) => {
+        const newSortOrder = sortOrder ?? (_sortByKey === sortBy ? (_sortOrder === "asc" ? "desc" : "asc") : _sortOrder);
+        if (data.length === 0) return;
+        const type = typeof data[0][sortBy];
+        switch (type) {
+            case "string": {
+                if (newSortOrder === "asc") {
+                    data.sort((a, b) => (a[sortBy] as string).localeCompare(b[sortBy] as string));
+                } else {
+                    data.sort((a, b) => (b[sortBy] as string).localeCompare(a[sortBy] as string));
+                }
+                break;
+            }
+            case "number": {
+                if (newSortOrder === "asc") {
+                    data.sort((a, b) => (a[sortBy] as number) - (b[sortBy] as number));
+                } else {
+                    data.sort((a, b) => (b[sortBy] as number) - (a[sortBy] as number));
+                }
+                break;
+            }
+            default: {
+                console.warn("Unhandled type in `useSorting`:", type);
+                break;
+            }
+        }
+        setData(data);
+        setSortOrder(newSortOrder);
+        setSortByKey(sortBy);
+    }, [_sortByKey, _sortOrder]);
+
+    return {data: _data, sortOrder: _sortOrder, doSortBy: sortBy => doSortBy(_data, sortBy), sortByKey: _sortByKey};
+
+}
 
 const DurationOfSeconds: React.FunctionComponent<{duration: number}> = ({duration}) => {
     if (duration > 3600) {
@@ -970,45 +1117,6 @@ const DurationOfSeconds: React.FunctionComponent<{duration: number}> = ({duratio
         const seconds = duration % 60;
         return <>{minutes.toString().padStart(2, '0')}M {seconds.toString().padStart(2, '0')}S</>;
     }
-}
-
-const JobSubmissionPanel: React.FunctionComponent<{data?: SubmissionStatistics}> = ({data}) => {
-    return <div className={classConcat(CardClass, PanelClass, JobSubmissionStyle)}>
-        <div className="panel-title">
-            <h4>When are your jobs being submitted?</h4>
-        </div>
-
-        {data == null || data.dataPoints.length === 0 ? "No job data found" :
-            <div className="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Day</th>
-                            <th>Time of day</th>
-                            <th>Count</th>
-                            <th>Avg duration</th>
-                            <th>Avg queue</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {data.dataPoints.map((dp, i) => {
-                            const day = dayNames[dp.day];
-                            return <tr key={i}>
-                                <td>{day}</td>
-                                <td>
-                                    {dp.hourOfDayStart.toString().padStart(2, '0')}:00-
-                                    {dp.hourOfDayEnd.toString().padStart(2, '0')}:00
-                                </td>
-                                <td>{dp.numberOfJobs}</td>
-                                <td><DurationOfSeconds duration={dp.averageDurationInSeconds} /></td>
-                                <td><DurationOfSeconds duration={dp.averageQueueInSeconds} /></td>
-                            </tr>;
-                        })}
-                    </tbody>
-                </table>
-            </div>
-        }
-    </div>;
 }
 
 const UsageOverTimeStyle = injectStyle("usage-over-time", k => `
@@ -1041,12 +1149,9 @@ const ASPECT_RATIO_LINE_CHART: [number, number] = [1 / (16 / 9), 1 / (24 / 9)];
 const ASPECT_RATIO_PIE_CHART: [number, number] = [1, 1];
 
 const DynamicallySizedChart: React.FunctionComponent<{
-    Component: React.ComponentType<any>,
-    chart: any,
-    aspectRatio: [number, number],
+    chart: ChartProps,
     maxWidth?: number,
-    anyChartData: boolean,
-}> = ({Component, chart, aspectRatio, maxWidth, ...props}) => {
+}> = ({chart, maxWidth, ...props}) => {
     // NOTE(Dan): This react component works around the fact that Apex charts needs to know its concrete size to
     // function. This does not play well with the fact that we want to dynamically size the chart based on a combination
     // of a grid and a flexbox.
@@ -1060,151 +1165,184 @@ const DynamicallySizedChart: React.FunctionComponent<{
     // with the correct size.
 
     // NOTE(Dan): The wrapper is required to ensure the useEffect runs every time.
-    const [dimensions, setDimensions] = useState<{height?: string, width?: string}>({});
-    const mountPoint = useRef<HTMLDivElement>(null);
+
     const styleForLayoutTest: CSSProperties = {flexGrow: 2, flexShrink: 1, flexBasis: "400px"};
 
-    useLayoutEffect(() => {
-        const listener = () => {
-            setDimensions({});
-        };
-        window.addEventListener("resize", listener);
-        return () => {
-            window.removeEventListener("resize", listener);
-        }
-    }, []);
-
-    useLayoutEffect(() => {
-        const wrapper = mountPoint.current;
-        if (!wrapper) return;
-        if (dimensions.height || dimensions.width) return;
-
-        // NOTE(Dan): If we do not add a bit of a delay, then we risk that this API sometimes gives us back a result
-        // which is significantly larger than it should be.
-        window.setTimeout(() => {
-            const [minRatio, maxRatio] = aspectRatio;
-
-            const boundingRect = wrapper.getBoundingClientRect();
-            const brWidth = boundingRect.width;
-            const brHeight = boundingRect.height;
-
-            // Use full width of either ratio
-            // If neither can do full width, go for the smallest ratio
-
-            let width = Math.min(brWidth, maxWidth ?? Number.MAX_SAFE_INTEGER);
-            let height = width * minRatio;
-            if (height > brHeight) {
-                height = width * maxRatio;
-
-                if (height > brHeight) {
-                    height = brHeight;
-                    width = height / minRatio;
-                }
-            }
-
-            setDimensions({width: `${width}px`, height: `${Math.max(height, 250)}px`});
-        }, 100);
-    }, [props.anyChartData, dimensions]);
-
-    return <div
-        style={dimensions.height ? {...dimensions, width: "100%", display: "flex", justifyContent: "center"} : styleForLayoutTest}
-        ref={mountPoint}
-    >
-        {dimensions.height && dimensions.width &&
-            <Component
-                {...chart}
-                height={dimensions.height}
-                width={dimensions.width}
-            />
-        }
+    return <div style={styleForLayoutTest}>
+        <Chart {...chart} height="400px" {...props} />
     </div>;
 }
 
-const UsageOverTimePanel: React.FunctionComponent<{chart: UsageChart}> = ({chart}) => {
-    let sum = 0;
+const UsageOverTimePanel: React.FunctionComponent<{
+    charts: UsageChart[];
+    isLoading: boolean;
+    unit: string;
+    period: Period;
+}> = ({charts, isLoading, ...props}) => {
+
     const chartCounter = useRef(0); // looks like apex charts has a rendering bug if the component isn't completely thrown out
-    const chartProps = useMemo(() => {
-        chartCounter.current++;
-        return usageChartToChart(chart, {
-            valueFormatter: val => Accounting.addThousandSeparators(val.toFixed(1)),
+    const [chartEntries, updateChartEntries] = useState<{name: string; shown: boolean;}[]>([]);
+    const ChartID = "UsageOverTime";
+
+    const exportRef = React.useRef(noopCall);
+
+    // HACK(Jonas): Used to change contents of table, based on what series are active in the chart
+    const shownRef = React.useRef(chartEntries);
+    React.useEffect(() => {
+        shownRef.current = chartEntries;
+    }, [chartEntries]);
+
+    const toggleShownEntries = React.useCallback((value: boolean | string[]) => {
+        updateChartEntries(entries => {
+            if (typeof value === "boolean") {
+                return [...entries.map(it => ({name: it.name, shown: value}))];
+            } else {
+                for (const entry of entries) {
+                    if (value.includes(entry.name)) {
+                        entry.shown = !entry.shown;
+                    }
+                }
+                return [...entries];
+            }
         });
-    }, [chart]);
+    }, [charts]);
 
-    const showWarning = (() => {
-        if (chart.dataPoints.length == 0) {return false}
-        const initialUsage = chart.dataPoints[0].usage;
-        const initialQuota = chart.dataPoints[0].quota;
-        if (initialUsage !== 0) {
-            if (chart.dataPoints.some(it => it.usage === 0)) {
-                return true;
-            }
+    const [showingQuota, setShowingQuota] = React.useState(false);
 
-            if (chart.dataPoints.some(it => it.quota !== initialQuota)) {
-                return true;
-            }
+    const chartProps: ChartProps = useMemo(() => {
+        chartCounter.current++;
+        updateChartEntries(charts.map(it => ({name: it.name, shown: true})));
+        setShowingQuota(false);
+        return usageChartsToChart(charts, shownRef, {
+            valueFormatter: val => Accounting.addThousandSeparators(val.toFixed(1)),
+            toggleShown: value => toggleShownEntries(value),
+            id: ChartID + chartCounter.current,
+        });
+    }, [charts, props.period, props.unit]);
+
+    const toggleQuotaShown = React.useCallback((active: boolean) => {
+        const chart = ApexCharts.getChartByID(ChartID + chartCounter.current);
+        if (!chart) return;
+        setShowingQuota(active);
+        if (active) {
+            updateChartEntries(c => {
+                for (const it of c) it.shown = true;
+                for (const quotaSeries of charts.map(it => quotaSeriesFromDataPoints(it))) {
+                    /* Note(Jonas): Casting seems necessary as the parameter requires something different from what is actually used in the library code */
+                    chart.appendSeries(quotaSeries as unknown as ApexAxisChartSeries);
+                    c.push({name: quotaSeries.name!, shown: true});
+                }
+                return [...c];
+            });
+        } else {
+            chart.updateSeries(chartProps.series!);
+            const chartNames = charts.map(it => ({name: it.name, shown: true}));
+            updateChartEntries(chartNames);
         }
-        return false;
-    })();
-
-    const difference = React.useMemo(() => {
-        let difference = 0.0;
-        for (let idx = 0; idx < chart.dataPoints.length; idx++) {
-            const point = chart.dataPoints[idx];
-            if (idx == 0) continue;
-            const change = point.usage - chart.dataPoints[idx - 1].usage;
-            difference += change;
-        }
-        return difference;
-    }, [chart.dataPoints]);
+    }, [charts, chartProps]);
 
     // HACK(Jonas): Self-explanatory hack
-    const anyData = (chartProps.series?.[0] as any)?.data.length > 0;
+    const anyData = chartProps.series?.find(it => it["data"]["length"]) != null;
+
+    if (isLoading) return null;
 
     return <div className={classConcat(CardClass, PanelClass, UsageOverTimeStyle)}>
-        <div className="panel-title">
-            <h4>Usage over time</h4>
-        </div>
-
-        <>
-            <DynamicallySizedChart anyChartData={sum !== 0 || anyData} Component={Chart} chart={chartProps} aspectRatio={ASPECT_RATIO_LINE_CHART} />
-
-            {showWarning && <>
-                <Warning>
-                    It looks like the graph is showing data from multiple allocations.
-                    Fluctuations in usage normally indicate that an allocation has expired.
-                </Warning>
-            </>}
-
-            <div className="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Timestamp</th>
-                            <th>Usage</th>
-                            <th>Change</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {difference != 0 ? chart.dataPoints.map((point, idx, items) => {
-                            const change = (idx + 1 !== items.length) ? point.usage - items[idx + 1].usage : 0;
-                            sum += change;
-                            if (change === 0 && idx + 1 < items.length) return null;
-                            return <tr key={idx}>
-                                <td>{dateToString(point.timestamp)}</td>
-                                <td>{Accounting.addThousandSeparators(point.usage.toFixed(2))}</td>
-                                <td>{change >= 0 ? "+" : ""}{Accounting.addThousandSeparators(change.toFixed(2))}</td>
-                            </tr>;
-                        }) : (chart.dataPoints.length === 0 ? null : <tr>
-                            <td>{dateToString(chart.dataPoints[0].timestamp)}</td>
-                            <td>{Accounting.addThousandSeparators(chart.dataPoints[0].usage.toFixed(0))}</td>
-                            <td>N/A</td>
-                        </tr>)}
-                    </tbody>
-                </table>
+        <Flex>
+            <div className="panel-title">
+                <Box>
+                    <div>Usage over time</div>
+                    <Label style={{display: "flex", marginTop: "6px", fontSize: "14px", gap: "8px"}} width="250px">
+                        <Toggle checked={showingQuota} height={20} onChange={(prevValue: boolean) => toggleQuotaShown(!prevValue)} />
+                        With quotas
+                    </Label>
+                </Box>
             </div>
-        </>
-    </div>;
+            <Button ml="auto" onClick={() => exportRef.current()}>Export</Button>
+        </Flex>
+
+        {!anyData ? <Text>No usage data found</Text> : (
+            <div className={ChartAndTable}>
+                <DynamicallySizedChart key={ChartID + chartCounter.current} chart={chartProps} />
+                <DifferenceTable chartId={ChartID + chartCounter.current} unit={props.unit} charts={charts} updateShownEntries={toggleShownEntries} chartEntries={chartEntries} exportRef={exportRef} />
+            </div>
+        )}
+    </div >;
 };
+
+function DifferenceTable({charts, chartEntries, exportRef, chartId, updateShownEntries, ...props}: {
+    updateShownEntries: (args: boolean | string[]) => void;
+    charts: UsageChart[];
+    chartEntries: {name: string; shown: boolean;}[];
+    exportRef: React.RefObject<() => void>;
+    chartId: string;
+    unit: string;
+}) {
+    /* TODO(Jonas): Provider _should_ also be here, right? */
+    const shownProducts = React.useMemo(() => {
+        return charts.filter(chart => {
+            return chartEntries.find(it => it.name === chart.name)?.shown;
+        })
+    }, [charts, chartEntries]);
+
+    const tableContent = React.useMemo(() => {
+        const result: {name: string; timestamp: number; usage: number; quota: number}[] = [];
+        for (const chart of shownProducts) {
+            for (let idx = 0; idx < chart.dataPoints.length; idx++) {
+                const point = chart.dataPoints[idx];
+                result.push({name: chart.name, timestamp: point.timestamp, usage: point.usage, quota: point.quota});
+            }
+        }
+        return result;
+    }, [shownProducts]);
+
+    const project = useProject().fetch();
+    const startExport = useCallback(() => {
+        exportUsage(tableContent.map(it => ({...it, timestamp: formatDate(it.timestamp, DATE_FORMAT)})), [
+            header("name", "Name", true),
+            header("timestamp", "Time", true),
+            header("usage", "Usage", true),
+            header("quota", "Quota", true),
+        ], projectTitle(project));
+    }, [tableContent, project]);
+
+    React.useEffect(() => {
+        exportRef.current = startExport;
+    }, [startExport]);
+
+    const toggleChart = React.useCallback((productName: string) => {
+        const chart = ApexCharts.getChartByID(chartId);
+        toggleSeriesEntry(chart, productName, {current: chartEntries}, updateShownEntries);
+    }, [chartId, charts, shownProducts]);
+
+    const sorted = useSorting(tableContent, "usage", "desc");
+
+    const shownProductNames = shownProducts.map(it => it.name);
+
+    return <div className={TableWrapper.class}>
+        <table>
+            <thead>
+                <tr>
+                    <SortTableHeader width="30%" sortKey="name" sorted={sorted}>Name</SortTableHeader>
+                    <SortTableHeader width="160px" sortKey="timestamp" sorted={sorted}>Timestamp</SortTableHeader>
+                    <SortTableHeader width="40%" sortKey="usage" sorted={sorted}>Usage / Quota</SortTableHeader>
+                </tr>
+            </thead>
+            <tbody>
+                {sorted.data.map((point, idx, items) => {
+                    if (!shownProductNames.includes(point.name)) return null;
+                    const matchesNextEntry = items[idx + 1]?.name === point.name;
+                    const change = matchesNextEntry ? point.usage - (items[idx + 1]?.usage ?? 0) : 0;
+                    if (change === 0 && matchesNextEntry) return null;
+                    return <tr key={idx} style={{cursor: "pointer"}}>
+                        <td onClick={() => toggleChart(point.name)}>{point.name}</td>
+                        <td>{dateToString(point.timestamp)}</td>
+                        <td style={{whiteSpace: "pre"}}>{Accounting.formatUsageAndQuota(point.usage, point.quota, props.unit === "GB", props.unit, {precision: 2})}</td>
+                    </tr>;
+                })}
+            </tbody>
+        </table>
+    </div>
+}
 
 const LargeJobsStyle = injectStyle("large-jobs", k => `
     ${k} table tbody tr > td:nth-child(2) {
@@ -1223,50 +1361,69 @@ const LargeJobsStyle = injectStyle("large-jobs", k => `
     }
 `);
 
-const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageByUsers}> = ({loading, data}) => {
+const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: UsagePerUser}> = ({loading, data}) => {
     const dataPoints = useMemo(() => {
-        return data?.dataPoints?.map(it => ({key: it.username, value: it.usage}));
+        return data?.dataPoints ?? [];
     }, [data?.dataPoints]);
     const formatter = useCallback((val: number) => {
         if (!data) return "";
-        return Accounting.addThousandSeparators(val.toFixed(2)) + " " + data.unit;
-    }, [data?.unit]);
+        return Accounting.addThousandSeparators(val.toFixed(2));
+    }, [data?.dataPoints]);
 
+    const project = useProject().fetch();
+    const startExport = useCallback(() => {
+        exportUsage(
+            dataPoints,
+            [header("username", "Username", true), header("category", "Product Category", ), header("usage", "Estimated usage", true)],
+            projectTitle(project)
+        );
+    }, [dataPoints, project]);
+
+    const pied = dataPoints.map(s => ({key: s.username + " - " + s.category.name + "(" +getShortProviderTitle(s.category.provider) + ")", value: s.usage}));
 
     return <div className={classConcat(CardClass, PanelClass, LargeJobsStyle)}>
-        <div className="panel-title">
-            <h4>Usage by users</h4>
-        </div>
+        <Flex>
+            <div className="panel-title">
+                <h4>Usage by users</h4>
+            </div>
+            <Button ml="auto" onClick={startExport}>
+                Export
+            </Button>
+        </Flex>
 
-        {data !== undefined && dataPoints !== undefined ? <>
-            <PieChart dataPoints={dataPoints} valueFormatter={formatter} />
+        {data !== undefined && dataPoints.length !== 0 ? <>
+            <PieChart chartId="UsageByUsers" dataPoints={pied} valueFormatter={formatter} onDataPointSelection={() => {}} />
 
-            <div className="table-wrapper">
+            <div className={TableWrapper.class}>
                 <table>
                     <thead>
                         <tr>
-                            <th>Username</th>
-                            <th>
+                            <th style={thStyling(false, "50%")}>Username</th>
+                            <th style={thStyling(false, "25%")} align={"right"}>Product category (Provider)</th>
+                            <th style={thStyling(false, "25%")}>
+                                <Flex>
                                 Estimated usage
-                                {" "}
+                                <Box width={"8px"}/>
                                 <TooltipV2
                                     tooltip={"This is an estimate based on the values stored in UCloud. Actual usage reported by the provider may differ from the numbers shown here."}>
                                     <Icon name={"heroQuestionMarkCircle"} />
                                 </TooltipV2>
+                                </Flex>
                             </th>
                         </tr>
                     </thead>
                     <tbody>
-                        {data.dataPoints.map(it => <tr key={it.username}>
-                            <td>{it.username}</td>
-                            <td>{Accounting.addThousandSeparators(it.usage.toFixed(0))} {data.unit}</td>
-                        </tr>)}
+                        {data.dataPoints.map(it =>
+                            <tr key={it.username + " - " + it.category.name + " (" + getShortProviderTitle(it.category.provider) + ")"}>
+                                <td>{it.username}</td>
+                                <td>{it.category.name + " (" + getShortProviderTitle(it.category.provider) + ")" }</td>
+                                <td>{Accounting.addThousandSeparators(it.usage.toFixed(0))} {explainUnit(it.category).name}</td>
+                            </tr>)
+                        }
                     </tbody>
                 </table>
             </div>
-        </> : <>
-            {loading ? <HexSpin size={32} /> : "No usage data found"}
-        </>}
+        </> : loading ? <HexSpin size={32} /> : "No usage data found"}
     </div>;
 };
 
@@ -1276,123 +1433,196 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
 const PieChart: React.FunctionComponent<{
     dataPoints: {key: string, value: number}[],
     valueFormatter: (value: number) => string,
+    onDataPointSelection: (dataPointIndex: {key: string; value: number;}) => void;
+    chartId: string;
 }> = props => {
+    const otherKeys = React.useRef<string[]>([]);
     const filteredList = useMemo(() => {
+        otherKeys.current = [];
         const all = [...props.dataPoints];
+
         all.sort((a, b) => {
             if (a.value > b.value) return -1;
             if (a.value < b.value) return 1;
             return 0;
         });
 
-        const result = all.slice(0, 4);
-        if (all.length > result.length) {
-            let othersSum = 0;
-            for (let i = result.length; i < all.length; i++) {
-                othersSum += all[i].value;
-            }
-            result.push({key: "Other", value: othersSum});
-        }
-
-        return result;
+        return all;
     }, [props.dataPoints]);
 
-    // FIXME(Jonas): The list is at most 5 entries so it's not a big deal, but it can be done in one iteration instead of two.
-    const series = useMemo(() => filteredList.map(it => it.value), [filteredList]);
-    const labels = useMemo(() => filteredList.map(it => it.key), [filteredList]);
+    const {series, labels} = React.useMemo(() => {
+        const series: number[] = [];
+        const labels: string[] = [];
 
-    const chartProps = useMemo(() => {
-        return {
-            type: "pie",
-            series,
-            options: {
-                chart: {
-                    animations: {
-                        enabled: false,
-                    },
-                },
-                labels: labels,
-                dataLabels: {
-                    enabled: false,
-                },
-                stroke: {
-                    show: false,
-                },
-                legend: {
-                    show: false,
-                },
-                tooltip: {
-                    shared: false,
-                    y: {
-                        formatter: function (val: number) {
-                            return props.valueFormatter(val);
-                        }
+        for (const element of filteredList) {
+            const idx = labels.findIndex(it => it === element.key);
+            if (idx !== -1) {
+                series[idx] += element.value;
+            } else {
+                labels.push(element.key);
+                series.push(element.value);
+            }
+        }
+
+        return {series, labels}
+    }, [filteredList]);
+
+    const chartProps = useMemo((): ChartProps => {
+        const chartProps: ChartProps = {};
+        chartProps.type = "pie";
+        chartProps.series = series;
+        const chart: ApexChart = {
+            id: props.chartId,
+            width: "1200px",
+            animations: {
+                enabled: false,
+            },
+            events: {
+                dataPointSelection: (e: any, chart?: any, options?: any) => {
+                    const dataPointIndex = options?.dataPointIndex;
+                    if (dataPointIndex != null) {
+                        props.onDataPointSelection({value: series[dataPointIndex], key: labels[dataPointIndex]});
                     }
                 },
-            }
-        };
-    }, [series]);
+                legendClick(chart, seriesIndex, options) {
+                    if (seriesIndex != null) {
+                        chart.toggleDataPointSelection(seriesIndex);
+                        props.onDataPointSelection({value: series[seriesIndex], key: labels[seriesIndex]})
+                    }
 
-    return <DynamicallySizedChart anyChartData={filteredList.length > 0} Component={Chart} chart={chartProps} aspectRatio={ASPECT_RATIO_PIE_CHART} maxWidth={350} />;
+                },
+            },
+        };
+
+        chartProps.selection = {enabled: true};
+
+        chartProps.options = {
+            chart,
+            legend: {
+                position: "bottom",
+                height: 100
+            },
+            responsive: [],
+            labels,
+            dataLabels: {
+                enabled: false,
+            },
+            stroke: {
+                show: false,
+            },
+            tooltip: {
+                shared: false,
+                y: {
+                    formatter: function (val: number) {
+                        return props.valueFormatter(val);
+                    }
+                }
+            },
+        };
+
+        threadDeferLike(() => {
+            const chart = ApexCharts.getChartByID(props.chartId);
+            if (chart) {
+                chart.updateSeries(series)
+            }
+        });
+
+        return chartProps;
+    }, [series, props.chartId]);
+
+    return <DynamicallySizedChart chart={chartProps} />;
 };
 
-interface SubmissionStatistics {
-    dataPoints: {
-        day: number;
-        hourOfDayStart: number;
-        hourOfDayEnd: number;
-        numberOfJobs: number;
-        averageDurationInSeconds: number;
-        averageQueueInSeconds: number;
-    }[];
-}
-
-interface MostUsedApplications {
-    dataPoints: {applicationTitle: string; count: number;}[],
-}
-
-interface JobUsageByUsers {
-    unit: string,
-    dataPoints: {username: string; usage: number;}[],
-}
-
 interface BreakdownChart {
-    unit: string,
     dataPoints: {projectId?: string | null, title: string, usage: number}[];
+    nameAndProvider: string;
 }
 
 const emptyBreakdownChart: BreakdownChart = {
-    unit: "",
+    nameAndProvider: "",
     dataPoints: [],
 };
 
+interface UsagePerUser {
+    dataPoints: UsagePerUserPointAPI[];
+}
+
+const emptyUsagePerUserList: UsagePerUser = {
+    dataPoints: []
+}
+
 interface UsageChart {
-    unit: string,
+    name: string;
+    provider: string;
     dataPoints: {timestamp: number, usage: number, quota: number}[];
 }
 
 const emptyChart: UsageChart = {
-    unit: "",
+    provider: "",
     dataPoints: [],
+    name: "",
 };
 
-function usageChartToChart(
-    chart: UsageChart,
-    options: {
-        valueFormatter?: (value: number) => string,
-        removeDetails?: boolean,
-    } = {}
+function toSeriesChart(chart: UsageChart): ApexAxisChartSeries[0] {
+    let data = chart.dataPoints.map(it => ({x: it.timestamp, y: it.usage}));
+    if (data.length === 0 || data.every(it => it.x == 0)) {
+        data = [];
+    }
+
+    /* TODO(Jonas): I don't understand why this should be necessary.  */
+    data.sort((a, b) => a.x - b.x);
+
+    return {
+        data,
+        type: "line",
+        name: chart.name,
+    }
+}
+
+function quotaSeriesFromDataPoints(chart: UsageChart): ApexAxisChartSeries[0] {
+    const data = chart.dataPoints.map(it => ({x: it.timestamp, y: it.quota})).sort((a, b) => a.x - b.x);
+
+    return {
+        data,
+        type: "line",
+        name: `${chart.name} quota`,
+    };
+}
+
+function usageChartsToChart(
+    charts: UsageChart[],
+    chartRef: React.RefObject<{name: string; shown: boolean;}[]>,
+    chartOptions: {
+        valueFormatter?: (value: number) => string;
+        removeDetails?: boolean;
+        toggleShown?: (indexOrAllState: string[] | true | false) => void;
+        id?: string;
+    } = {},
 ): ChartProps {
     const result: ChartProps = {};
-    const data = chart.dataPoints.map(it => [it.timestamp, it.usage]);
-    result.series = [{
-        name: "",
-        data,
-    }];
-    result.type = "area";
+    result.series = charts.map(it => toSeriesChart(it));
+
     result.options = {
+        legend: {
+            position: "bottom",
+            onItemClick: {
+                toggleDataSeries: true,
+            },
+        },
+        /* Again, very cool ApexCharts! https://github.com/apexcharts/apexcharts.js/issues/4447 */
         chart: {
-            type: "area",
+            id: chartOptions.id,
+            events: {
+                // Note(Jonas): Very cool, ApexCharts https://github.com/apexcharts/apexcharts.js/issues/3725
+                legendClick(chart: ApexCharts, seriesIndex?: number | null, options?: any) {
+                    if (seriesIndex == null) {
+                        return;
+                    }
+
+                    const seriesName = chartRef.current[seriesIndex].name;
+                    toggleSeriesEntry(chart, seriesName, chartRef, chartOptions.toggleShown);
+                }
+            },
             stacked: false,
             height: 350,
             animations: {
@@ -1420,41 +1650,42 @@ function usageChartToChart(
         dataLabels: {
             enabled: false
         },
+        colors: [
+            "var(--primaryMain)",
+            "var(--green-40)",
+            "var(--red-60)",
+            "var(--purple-70)",
+            "var(--gray-50)",
+            "var(--orange-40)",
+            "var(--pink-40)",
+            "var(--yellow-30)",
+            "var(--blue-40)",
+            "var(--green-70)",
+            "var(--red-40)",
+            "var(--purple-40)",
+            "var(--gray-30)",
+            "var(--orange-70)",
+            "var(--pink-80)",
+            "var(--yellow-70)"
+        ].slice(0, result.series.length),
         markers: {
             size: 0,
         },
         stroke: {
-            curve: "straight",
+            curve: "straight"
         },
-        fill: {
-            type: "gradient",
-            gradient: {
-                shadeIntensity: 1,
-                inverseColors: false,
-                opacityFrom: 0.4,
-                opacityTo: 0,
-                stops: [0, 90, 100]
-            }
-        },
-        colors: ['var(--primaryMain)'],
         yaxis: {
             labels: {
                 formatter: function (val) {
-                    if (options.valueFormatter) {
-                        return options.valueFormatter(val);
+                    if (chartOptions.valueFormatter) {
+                        return chartOptions.valueFormatter(val);
                     } else {
                         return val.toString();
                     }
                 },
             },
             title: {
-                text: (() => {
-                    let res = "Usage";
-                    res += " (";
-                    res += chart.unit;
-                    res += ")"
-                    return res;
-                })()
+                text: "Usage"
             },
         },
         xaxis: {
@@ -1462,23 +1693,24 @@ function usageChartToChart(
         },
         tooltip: {
             theme: "dark",
-            shared: false,
+            shared: true,
             y: {
                 formatter: function (val) {
-                    if (options.valueFormatter) {
-                        let res = options.valueFormatter(val);
-                        res += " ";
-                        res += chart.unit;
-                        return res;
+                    if (val !== undefined) {
+                        if (chartOptions.valueFormatter) {
+                            return chartOptions.valueFormatter(val);
+                        } else {
+                            return val.toString();
+                        }
                     } else {
-                        return val.toString();
+                        return "";
                     }
                 }
             }
         },
     };
 
-    if (options.removeDetails === true) {
+    if (chartOptions.removeDetails === true) {
         delete result.options.title;
         result.options.tooltip = {enabled: false};
         const c = result.options.chart!;
@@ -1489,101 +1721,127 @@ function usageChartToChart(
     return result;
 }
 
-const SmallUsageCardStyle = injectStyle("small-usage-card", k => `
+function toggleSeriesEntry(chart: ApexCharts | undefined, seriesName: string, chartsRef: React.RefObject<{name: string; shown: boolean;}[]>, toggleShown?: (val: boolean | string[]) => void) {
+    /* TODO(Jonas): Handle when quota is shown. */
+    if (chart != null) {
+        const allShown = chartsRef.current.every(it => it.shown);
+        const shownCount = chartsRef.current.reduce((acc, it) => acc + (+it.shown), 0);
+        const allWillBeHidden = chartsRef.current.find(it => it.name === seriesName)?.shown && shownCount === 1;
+
+        if (allShown) {
+            const isQuotaEntry = seriesName.endsWith(" quota");
+            const seriesWithoutQuotaSuffix = isQuotaEntry ? seriesName.replace(" quota", "") : seriesName;
+            const singleProduct = chartsRef.current.length === 2 && chartsRef.current.find(it => it.name.endsWith(" quota")) != null;
+
+            if (singleProduct) {
+                toggleShown?.([seriesName]);
+                return;
+            }
+
+            for (const shownEntry of chartsRef.current) {
+                if (shownEntry.name === seriesName) {
+                    /* 
+                        Hack(Jonas): It seems that `showSeries` is called before
+                        the chart toggles the legend entry otherwise, so this has to be "deferred" 
+                    */
+                    threadDeferLike(() => {
+                        chart.showSeries(seriesName);
+                        if (isQuotaEntry) chart.showSeries(seriesWithoutQuotaSuffix);
+                    });
+                    continue;
+                }
+
+                chart.hideSeries(shownEntry.name);
+            }
+
+            const toToggle = chartsRef.current.map(it => it.name).filter(it => it !== seriesName && it !== seriesWithoutQuotaSuffix);
+            toggleShown?.(toToggle);
+        } else if (allWillBeHidden) {
+            toggleShown?.(true);
+            threadDeferLike(() => {
+                chart.resetSeries();
+            });
+        } else {
+            chart.toggleSeries(seriesName);
+            toggleShown?.([seriesName]);
+        }
+    }
+}
+
+const RenderUnitSelector: RichSelectChildComponent<{unit: string}> = ({element, onSelect, dataProps}) => {
+
+    if (element === undefined) {
+        return <Flex height={40} alignItems={"center"} pl={12}>No unit selected</Flex>
+    }
+
+    const unit = element.unit;
+    return <Flex gap={"16px"} height="40px" {...dataProps} alignItems={"center"} py={4} px={8} mr={48} onClick={onSelect}>
+        <Icon name={toIcon(unit)} />
+        <div><b>{unitTitle(unit)}</b></div>
+    </Flex>;
+}
+
+function unitTitle(unit: string) {
+    switch (unit) {
+        case JOBS_UNIT_NAME: return JOBS_UNIT_NAME;
+        case "DKK": return "Usage in " + unit;
+        default: return unit + " usage";
+    }
+}
+
+function toIcon(unit: string): IconName {
+    switch (unit) {
+        case "DKK":
+            return "heroBanknotes";
+        case "GPU-hours":
+            return "heroServerStack";
+        case "Core-hours":
+            return "cpu"
+        case "GB":
+            return "hdd";
+        case "IPs":
+            return "heroGlobeEuropeAfrica"
+        case "Licenses":
+            return "heroDocumentCheck";
+        case JOBS_UNIT_NAME:
+            return "heroServer"
+        default:
+            return "broom";
+    }
+}
+
+const TableWrapper = makeClassName("table-wrapper");
+const PanelTitle = makeClassName("panel-title");
+const ChartAndTable = injectStyle("chart-and-table", k => `
     ${k} {
-        --offset: 0px;
-        width: 300px;
-    }
-    
-    ${k} .title-row {
         display: flex;
         flex-direction: row;
-        margin-bottom: 10px;
-        align-items: center;
-        gap: 4px;
-        width: calc(100% + 4px); /* deal with bad SVG in checkbox */
-    }
-    
-    ${k} .title-row > *:last-child {
-        margin-right: 0;
-    }
-    
-
-    ${k} strong {
-        flex-grow: 1;
     }
 
-    ${k} .body {
-        display: flex;
-        flex-direction: row;
-        gap: 8px;
-        align-items: center;
+@media screen and (min-width: 1338px) {
+    ${k} > div:first-child {
+        margin-top: auto;
+        margin-bottom: auto;
+    }
+}
+
+@media screen and (max-width: 1337px) {
+    ${k} {
+        flex-direction: column;
     }
 
-    ${k} .border-bottom {
-        position: absolute;
-        top: var(--offset);
-        width: 112px;
-        height: 1px;
-        background: var(--borderColor);
+    ${k} > div:first-child {
+        width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+        max-height: 400px;
     }
 
-    ${k} .border-left {
-        position: absolute;
-        top: -63px;
-        height: calc(63px + var(--offset));
-        width: 1px;
-        background: var(--borderColor);
+    ${k} ${TableWrapper.dot} {
+        max-height: 400px;
     }
+}
 `);
-
-const SmallUsageCard: React.FunctionComponent<{
-    categoryName: string;
-    usageText1: string;
-    usageText2: string;
-    chart: UsageChart;
-    active: boolean;
-    activationKey?: any;
-    onActivate: (activationKey?: any) => void;
-}> = props => {
-    const chartKey = useRef(0);
-    const chartProps = useMemo(() => {
-        chartKey.current++;
-        return usageChartToChart(props.chart, {removeDetails: true});
-    }, [props.chart]);
-
-    const onClick = useCallback(() => {
-        props.onActivate(props.activationKey);
-    }, [props.activationKey, props.onActivate]);
-
-    return <a href={`#${props.categoryName}`} onClick={onClick}>
-        <div className={classConcat(CardClass, SmallUsageCardStyle)}>
-            <div className={"title-row"}>
-                <strong><code>{props.categoryName}</code></strong>
-                <Radio checked={props.active} onChange={doNothing} />
-            </div>
-
-            <div className="body">
-                <Chart
-                    key={chartKey.current.toString()}
-                    {...chartProps}
-                    width={112}
-                    height={63}
-                />
-                <div>
-                    {props.usageText1} <br />
-                    {props.usageText2}
-                </div>
-            </div>
-            <div style={{position: "relative"}}>
-                <div className="border-bottom" />
-            </div>
-            <div style={{position: "relative"}}>
-                <div className="border-left" />
-            </div>
-        </div>
-    </a>;
-};
 
 const PanelClass = injectStyle("panel", k => `
     ${k} {
@@ -1595,58 +1853,62 @@ const PanelClass = injectStyle("panel", k => `
            content */
         min-height: 100px; 
         max-height: 1000px;
-
-        
-        display: flex;
-        flex-direction: column;
     }
 
-    ${k} .panel-title {
+    ${k} ${PanelTitle.dot} {
         display: flex;
         flex-direction: row;
         align-items: center;
         gap: 8px;
-        margin: 10px 0;
+        margin-bottom: 10px;
         z-index: 1; /* HACK(Jonas): Why is this needed for smaller widths? */
     }
 
-    ${k} .panel-title > *:nth-child(1) {
+    ${k} ${PanelTitle.dot} > *:nth-child(1) {
         font-size: 18px;
         margin: 0;
     }
 
-    ${k} .panel-title > *:nth-child(2) {
+    ${k} ${PanelTitle.dot} > *:nth-child(2) {
         flex-grow: 1;
     }
     
-    ${k} .table-wrapper {
+    ${k} ${TableWrapper.dot} {
         flex-grow: 1;
-        overflow-y: auto;
+        overflow-y: scroll;
+        min-width: 400px;
         min-height: 200px;
-        flex-shrink: 5;
+        max-height: 400px;
     }
+
+@media screen and (max-width: 1337px) {
+    ${k} ${TableWrapper.dot} {
+        margin-top: 12px;
+        max-height: 300px;
+    }
+}
     
-    html.light ${k} .table-wrapper {
+    html.light ${k} ${TableWrapper.dot} {
         box-shadow: inset 0px -11px 8px -10px #ccc;
     }
     
-    html.dark ${k} .table-wrapper {
+    html.dark ${k} ${TableWrapper.dot} {
         box-shadow: inset 0px -11px 8px -10px rgba(255, 255, 255, 0.5);
     }
     
-    ${k} .table-wrapper.at-bottom {
+    ${k} ${TableWrapper.dot}.at-bottom {
         box-shadow: unset !important;
     }
     
-    html.light ${k} .table-wrapper::before {
+    html.light ${k} ${TableWrapper.dot}::before {
         box-shadow: 0px -11px 8px 11px #ccc;
     }
     
-    html.dark ${k} .table-wrapper::before {
+    html.dark ${k} ${TableWrapper.dot}::before {
         box-shadow: 0px -11px 8px 11px rgba(255, 255, 255, 0.5);
     }
     
-    ${k} .table-wrapper::before {
+    ${k} ${TableWrapper.dot}::before {
         display: block;
         content: " ";
         width: 100%;
@@ -1655,7 +1917,7 @@ const PanelClass = injectStyle("panel", k => `
         top: 24px;
     }
     
-    ${k} .table-wrapper.at-top::before {
+    ${k} ${TableWrapper.dot}.at-top::before {
         box-shadow: unset !important;
     }
 `);
@@ -1735,7 +1997,7 @@ const PeriodSelector: React.FunctionComponent<{
     value: Period;
     onChange: (period: Period) => void;
 }> = props => {
-    const {start, end} = normalizePeriod(props.value);
+    const [{start, end}, setPeriod] = React.useState(normalizePeriod(props.value));
 
     function formatTs(ts: number): string {
         const d = new Date(ts);
@@ -1789,38 +2051,45 @@ const PeriodSelector: React.FunctionComponent<{
         if (!target) return;
         const isStart = target.classList.contains("start");
 
-        const newPeriod: Period = {
-            type: "absolute",
+        const newPeriod = {
             start: isStart ? (target.valueAsDate?.getTime() ?? start) : start,
             end: isStart ? end : (target.valueAsDate?.getTime() ?? end),
         };
 
-        props.onChange(newPeriod);
-    }, [start, end, props.onChange]);
+        setPeriod(newPeriod);
+    }, [start, end]);
 
     return <ClickableDropdown
         colorOnHover={false}
         paddingControlledByContent={true}
         noYPadding={true}
+        onOpeningTriggerClick={() => setPeriod(normalizePeriod(props.value))}
         trigger={
             <div className={PeriodStyle}>
                 <div style={{width: "182px"}}>{periodToString(props.value)}</div>
-                <Icon name="chevronDownLight" size="14px" ml="4px" mt="4px" />
+                <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
             </div>
         }
     >
         <div className={PeriodSelectorBodyStyle}>
-            <div>
-                <b>Absolute time range</b>
+            <div onClick={stopPropagation}>
+                <form onSubmit={e => {
+                    e.preventDefault();
+                    props.onChange({start, end, type: "absolute"})
+                }}>
+                    <b>Absolute time range</b>
 
-                <label>
-                    From
-                    <Input className={"start"} onChange={onChange} type={"date"} value={formatTs(start)} />
-                </label>
-                <label>
-                    To
-                    <Input className={"end"} onChange={onChange} type={"date"} value={formatTs(end)} />
-                </label>
+                    <label>
+                        From
+                        <Input className={"start"} onChange={onChange} type={"date"} value={formatTs(start)} />
+                    </label>
+                    <label>
+                        To
+                        <Input className={"end"} onChange={onChange} type={"date"} value={formatTs(end)} />
+                    </label>
+
+                    <Button mt="8px" type="submit">Apply</Button>
+                </form>
             </div>
 
             <div>
@@ -1873,9 +2142,14 @@ function normalizePeriod(period: Period): {start: number, end: number} {
     }
 }
 
+function unitsFromSummaries(summaries: State["summaries"]): string[] {
+    return [...new Set(summaries.map(it => Accounting.explainUnit(it.category).name))];
+}
+
 // Styling
 // =====================================================================================================================
-const AccountingPanelsOnlyStyle = injectStyle("accounting-panels-only", () => "");
+
+const PanelGrid = makeClassName("panel-grid");
 const VisualizationStyle = injectStyle("visualization", k => `
     ${k} > header {
         display: flex;
@@ -1986,143 +2260,23 @@ const VisualizationStyle = injectStyle("visualization", k => `
     
     /* Panel layouts */
     /* ============================================================================================================== */
-    ${k} .panel-grid {
+    ${k} ${PanelGrid.dot} {
+        display: flex;
+        flex-direction: column;
         gap: 16px;
-    }
-    
-
-    ${deviceBreakpoint({minWidth: "2400px"})} {
-        ${k} .panel-grid {
-            display: grid;
-            height: max(600px, calc(100vh - 241px));
-        }
-
-        ${k} .panel-grid:not(${HasAlotOfInfoClass.dot}) {
-             display: grid;
-                grid-template-areas:
-                    "category breakdown over-time chart2"
-                    "category breakdown over-time chart2"
-                    "category breakdown over-time chart2"
-                    "category breakdown chart3 chart4"
-                    "category breakdown chart3 chart4";
-            grid-template-columns: 300px 450px 1fr 1fr;
-        }
-
-        ${k} .panel-grid${HasAlotOfInfoClass.dot} {
-            display: grid;
-            grid-template-areas:
-                "category category  category  category"
-                "chart2   breakdown over-time over-time"
-                "chart3   chart3    chart4   chart4";
-            grid-template-rows: 160px 900px 500px;
-        }
-    }
-
-    ${deviceBreakpoint({minWidth: "1901px", maxWidth: "2399px"})} {
-        ${k} .panel-grid {
-            display: grid;
-            grid-template-areas: 
-                "category breakdown over-time chart2"
-                "category breakdown over-time chart2"
-                "category breakdown over-time chart2"
-                "category breakdown chart3 chart4"
-                "category breakdown chart3 chart4";
-            height: max(600px, calc(100vh - 241px));
-            grid-template-columns: 300px 450px 1fr 1fr;
-        }
-
-        ${k} .panel-grid${HasAlotOfInfoClass.dot} {
-            grid-template-areas:
-                "category category category"
-                "over-time breakdown breakdown"
-                "chart4 chart2 chart3";
-            grid-template-rows: 160px 800px 600px 500px;
-            grid-template-columns: 50%;
-        }
-    }
-    
-    ${deviceBreakpoint({maxWidth: "1900px"})} {
-        ${k} .panel-grid:not(${HasAlotOfInfoClass.dot}) {
-            display: grid;
-            grid-template-areas:
-                "category category category"
-                "breakdown over-time chart2"
-                "breakdown chart3 chart4";
-            grid-template-rows: 160px 650px;
-        }
-
-        ${k} .panel-grid${HasAlotOfInfoClass.dot} {
-            display: grid;
-            grid-template-areas:
-                "category category"
-                "breakdown chart2"
-                "over-time over-time"
-                "chart3 chart4";
-        }
-    }
-    
-    ${deviceBreakpoint({maxWidth: "1500px"})} {
-        ${k} .panel-grid {
-            display: grid;
-            grid-template-areas: 
-                "category category"
-                "over-time over-time"
-                "breakdown chart2"
-                "chart3 chart4";
-            grid-template-rows: 160px 1000px 900px 500px;
-        }
-     }
-    
-    ${deviceBreakpoint({maxWidth: "900px"})} {
-        ${k} .panel-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-    }
-    
-    .${CategoryDescriptorPanelStyle} {
-        grid-area: category;
-    }
-    
-    .${BreakdownStyle} {
-        grid-area: breakdown;
-    }
-    
-    .${UsageOverTimeStyle} {
-        grid-area: over-time;
-    }
-    
-    ${k}.${AccountingPanelsOnlyStyle} .${UsageOverTimeStyle} {
-        grid-row-start: over-time;
-        grid-row-end: chart4;
-        grid-column-start: over-time;
-        grid-column-end: chart4;
-    }
-    
-    .${LargeJobsStyle} {
-        grid-area: chart2;
-    }
-    
-    .${MostUsedApplicationsStyle} {
-        grid-area: chart3;
-    }
-    
-    .${JobSubmissionStyle} {
-        grid-area: chart4;
     }
 `);
 
 // Initial state
 // =====================================================================================================================
-const initialState: State = {
-    remoteData: {requestsInFlight: 0},
+const initialState: Readonly<State> = {
+    remoteData: {requestsInFlight: 0, initialLoadDone: false},
     summaries: [],
     selectedPeriod: {
         type: "relative",
         distance: 7,
         unit: "day"
-    }
+    },
 };
 
 export default Visualization;

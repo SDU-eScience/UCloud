@@ -16,27 +16,12 @@ realpath() (
 
 mkdir -p /tmp/ucloud-launcher
 repo_root=$(dirname $(realpath $0))
-cd $repo_root/launcher-tool
-log_file=/tmp/ucloud-launcher/$(uuidgen)
-if [[ -d ./build ]] ; then
-    ./gradlew installDist --console=plain &> $log_file
-else
-    echo "Compiling launcher tool..."
-    ./gradlew installDist --console=plain
-fi
-
-if [ $? != 0 ]; then
-    echo "Unable to start launcher tool. Perhaps you are missing a dependency?"
-    cat $log_file
-    exit 1
-fi
-
-cd $repo_root
+cd $repo_root/launcher-tool-go
 
 post_exec=/tmp/ucloud-launcher/$(uuidgen)
-$repo_root/launcher-tool/build/install/launcher-tool/bin/launcher-tool $post_exec $@
+go run cmd/launcher/main.go $post_exec $@
 if test -f $post_exec; then
+    cat $post_exec
     bash $post_exec
 fi
-#rm -f $post_exec
-
+rm -f $post_exec

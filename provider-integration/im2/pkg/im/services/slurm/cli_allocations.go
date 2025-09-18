@@ -5,17 +5,18 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/user"
 	"regexp"
 	"strings"
 	"time"
-	"ucloud.dk/pkg/apm"
-	db "ucloud.dk/pkg/database"
-	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/pkg/cli"
 	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/im/external/user"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/termio"
-	"ucloud.dk/pkg/util"
+	"ucloud.dk/shared/pkg/apm"
+	db "ucloud.dk/shared/pkg/database"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func HandleAllocationsCommand() {
@@ -31,12 +32,12 @@ func HandleAllocationsCommand() {
 	}
 
 	switch {
-	case isListCommand(command):
+	case cli.IsListCommand(command):
 		req := cliAllocationsListRequest{}
 		req.Parse()
 
 		allocations, err := cliAllocationsList.Invoke(req)
-		cliHandleError("listing allocations", err)
+		cli.HandleError("listing allocations", err)
 
 		t := termio.Table{}
 		t.AppendHeader("Local owner")
@@ -64,14 +65,14 @@ func HandleAllocationsCommand() {
 
 		t.Print()
 
-	case isGetCommand(command):
+	case cli.IsGetCommand(command):
 		req := cliAllocationsListRequest{}
 		req.Parse()
 		req.ExpectFewElements = true
 		req.IncludeAllocationInformation = true
 
 		wallets, err := cliAllocationsList.Invoke(req)
-		cliHandleError("listing allocations", err)
+		cli.HandleError("listing allocations", err)
 
 		if len(wallets) == 0 {
 			termio.WriteStyledString(termio.Bold, termio.Red, 0, "No results found, try a different query")
@@ -88,7 +89,7 @@ func HandleAllocationsCommand() {
 				f.AppendField("Product", wallet.Category)
 				f.AppendField("Quota", fmt.Sprintf("%v %v", wallet.Quota, wallet.Unit))
 				f.AppendField("Locked", fmt.Sprint(wallet.Locked))
-				f.AppendField("Last update", cliFormatTime(wallet.LastUpdate))
+				f.AppendField("Last update", cli.FormatTime(wallet.LastUpdate))
 				f.AppendSeparator()
 
 				if wallet.ProjectId != "" {
@@ -128,8 +129,8 @@ func HandleAllocationsCommand() {
 
 					f.AppendSeparator()
 
-					f.AppendField("Start date", cliFormatTime(a.Start))
-					f.AppendField("End date", cliFormatTime(a.End))
+					f.AppendField("Start date", cli.FormatTime(a.Start))
+					f.AppendField("End date", cli.FormatTime(a.End))
 					f.AppendSeparator()
 
 					if a.Grant.IsSet() {
@@ -165,7 +166,7 @@ func HandleAllocationsCommandServer() {
 			categoryRegex *regexp.Regexp
 		)
 
-		err := cliValidateRegexes(
+		err := cli.ValidateRegexes(
 			&localUsernameRegex, "local-user", r.Payload.LocalUsername,
 			&localGroupNameRegex, "local-group", r.Payload.LocalGroupName,
 			&localUidRegex, "local-uid", r.Payload.LocalUid,
