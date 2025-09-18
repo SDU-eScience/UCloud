@@ -9,7 +9,8 @@ test.beforeEach(async ({page, userAgent}) => {
     const driveName = Drive.newDriveName();
     await login(page);
     await Drive.create(page, driveName);
-    Drives[userAgent!] = driveName
+    Drives[userAgent!] = driveName;
+    await Drive.openDrive(page, driveName);
 });
 
 test.afterEach(async ({page, userAgent}) => {
@@ -20,10 +21,7 @@ test.afterEach(async ({page, userAgent}) => {
 /// File operations
 
 // Depends on an update to `dev` (or run it with your own up to date backend)
-test.skip('Change sensitivity (with available resources)', async ({page, userAgent}) => {
-    const driveName = Drives[userAgent!];
-    await Drive.openDrive(page, driveName);
-
+test.skip('Change sensitivity (with available resources)', async ({page}) => {
     const folderName = Folder.newFolderName();
     await Folder.create(page, folderName);
     await Components.clickRefreshAndWait(page);
@@ -39,9 +37,7 @@ test.skip('Change sensitivity (with available resources)', async ({page, userAge
     await expect(page.getByText("C", {exact: true})).toHaveCount(1);
 });
 
-test("View properties", async ({page, userAgent}) => {
-    const driveName = Drives[userAgent!];
-    await Drive.openDrive(page, driveName);
+test("View properties", async ({page}) => {
     const folderName = Folder.newFolderName();
     await Folder.create(page, folderName);
     await Rows.actionByRowTitle(page, folderName, "click");
@@ -58,9 +54,7 @@ test("View properties", async ({page, userAgent}) => {
     await expect(page.locator("b").filter({hasText: "Unix mode"})).toHaveCount(1);
 });
 
-test("Stress testing the row selector", async ({page, userAgent}) => {
-    const driveName = Drives[userAgent!];
-    await Drive.openDrive(page, driveName);
+test("Stress testing the row selector", async ({page}) => {
     for (let i = 0; i < 100; i++) {
         await Folder.create(page, "Folder" + i);
     }
@@ -69,21 +63,16 @@ test("Stress testing the row selector", async ({page, userAgent}) => {
 });
 
 
-test("Upload file", async ({page, userAgent}) => {
-    const driveName = Drives[userAgent!];
+test("Upload file", async ({page}) => {
     const testFileName = "test_single_file.txt";
     const testFileContents = "Single test file content.";
-    await Drive.openDrive(page, driveName);
-
     await Folder.uploadFiles(page, [{name: testFileName, contents: testFileContents}]);
     await Folder.actionByRowTitle(page, testFileName, "dblclick");
     await expect(page.getByText(testFileContents)).toHaveCount(1);
 });
 
 // setInputFiles doesn't allow folders
-test.skip("Upload folder", async ({page, userAgent}) => {
-    const driveName = Drives[userAgent!];
-    await Drive.openDrive(page, driveName);
+test.skip("Upload folder", async ({page}) => {
     await page.waitForTimeout(200); // We need to wait for Redux to propagate the changes of the drive, for use with the upload.
     await page.getByText("Upload files").click();
     // Folders are not allowed, keeping this test for now.
@@ -93,47 +82,39 @@ test.skip("Upload folder", async ({page, userAgent}) => {
     await Components.clickRefreshAndWait(page);
 });
 
-test.skip("Upload files after running out of space (and again after cleaning up)", async ({page, userAgent}) => {});
+test.skip("Upload files after running out of space (and again after cleaning up)", async ({page}) => {});
 
 
-test("Create single folder, delete single folder", async ({page, userAgent}) => {
-    const driveName = Drives[userAgent!];
+test("Create single folder, delete single folder", async ({page}) => {
     const folderName = Folder.newFolderName();
-    await Drive.openDrive(page, driveName);
     await Folder.create(page, folderName);
     await expect(page.locator('div > span', {hasText: folderName})).toHaveCount(1);
     await Folder.delete(page, folderName);
     await expect(page.locator('div > span', {hasText: folderName})).toHaveCount(0);
 });
 
-test("Create multiple folders (use / in the name)", async ({page, userAgent}) => {
-    const driveName = Drives[userAgent!];
+test("Create multiple folders (use / in the name)", async ({page}) => {
     const folderName1 = Folder.newFolderName();
     const folderName2 = Folder.newFolderName();
     const folderName3 = Folder.newFolderName();
-    await Drive.openDrive(page, driveName);
     await Folder.create(page, folderName1 + "/" + folderName2 + "/" + folderName3);
     await Folder.actionByRowTitle(page, folderName1, "dblclick");
     await Folder.actionByRowTitle(page, folderName2, "dblclick");
     await Folder.actionByRowTitle(page, folderName3, "dblclick");
 });
 
-test("Rename", async ({page, userAgent}) => {
-    const driveName = Drives[userAgent!];
+test("Rename", async ({page}) => {
     const folderName = Folder.newFolderName();
     const newFolderName = Folder.newFolderName();
-    await Drive.openDrive(page, driveName);
     await Folder.create(page, folderName);
     await Folder.rename(page, folderName, newFolderName)
     await page.getByText(newFolderName).dblclick();
     await expect(page.getByText("This folder is empty")).toHaveCount(1);
 });
 
-test("Move file", async ({page, userAgent}) => {
-    const driveName = Drives[userAgent!];
+test("Move file", async ({page}) => {
     const folderTarget = Folder.newFolderName();
     const uploadedFileName = "uploadedFile.txt";
-    await Drive.openDrive(page, driveName);
     await Folder.create(page, folderTarget);
     await Folder.uploadFiles(page, [{name: uploadedFileName, contents: "Some content. Doesn't matter."}]);
     await Folder.moveFileTo(page, uploadedFileName, folderTarget);
@@ -141,11 +122,9 @@ test("Move file", async ({page, userAgent}) => {
     await expect(page.getByText(uploadedFileName)).toHaveCount(1);
 });
 
-test("Move folder", async ({page, userAgent}) => {
-    const driveName = Drives[userAgent!];
+test("Move folder", async ({page}) => {
     const folderToMove = Folder.newFolderName();
     const folderTarget = Folder.newFolderName();
-    await Drive.openDrive(page, driveName);
     await Folder.create(page, folderToMove);
     await Folder.create(page, folderTarget);
     await Folder.moveFileTo(page, folderToMove, folderTarget);
@@ -154,16 +133,14 @@ test("Move folder", async ({page, userAgent}) => {
     await expect(page.getByText(folderToMove)).toHaveCount(1);
 });
 
-test.skip("Move folder to child (invalid op)", async ({page, userAgent}) => {
+test.skip("Move folder to child (invalid op)", async ({page}) => {
     throw Error("Not implemented")
 });
 
-test("Copy file", async ({page, userAgent}) => {
-    const driveName = Drives[userAgent!];
+test("Copy file", async ({page}) => {
     const fileToUpload = {name: "File.txt", contents: "Contents"};
     const fileToCopy = fileToUpload.name;
     const folder = Folder.newFolderName();
-    await Drive.openDrive(page, driveName);
     await Folder.create(page, folder);
     await Folder.uploadFiles(page, [fileToUpload]);
     await Folder.copyFileTo(page, fileToCopy, folder);
@@ -171,12 +148,10 @@ test("Copy file", async ({page, userAgent}) => {
     await expect(page.getByText(fileToCopy)).toHaveCount(1);
 });
 
-test("Copy file to self (check renaming)", async ({page, userAgent}) => {
-    const driveName = Drives[userAgent!];
+test("Copy file to self (check renaming)", async ({page}) => {
     const fileToUpload = {name: "File.txt", contents: "Contents"};
     const fileToCopy = fileToUpload.name;
     const folder = Folder.newFolderName();
-    await Drive.openDrive(page, driveName);
     await Folder.create(page, folder);
     await Folder.uploadFiles(page, [fileToUpload]);
     await Folder.copyFileInPlace(page, fileToCopy);
@@ -184,27 +159,20 @@ test("Copy file to self (check renaming)", async ({page, userAgent}) => {
     await expect(page.getByText("File(1).txt")).toHaveCount(1);
 });
 
-test("Copy folder", async ({page, userAgent}) => {
-    const driveName = Drives[userAgent!];
+test("Copy folder", async ({page}) => {
     const folderToCopy = Folder.newFolderName();
-    await Drive.openDrive(page, driveName);
     await Folder.create(page, folderToCopy);
     await Folder.copyFileInPlace(page, folderToCopy);
     await expect(page.getByText(folderToCopy + "(1)")).toHaveCount(1);
 });
 
-test.skip("Move to trash", async ({page, userAgent}) => {
+test.skip("Move to trash, empty trash", async ({page}) => {
+});
+
+test.skip("File search (use empty trash to trigger scan)", async ({page}) => {
 
 });
 
-test.skip("Empty trash", async ({page, userAgent}) => {
-
-});
-
-test.skip("File search (use empty trash to trigger scan)", async ({page, userAgent}) => {
-
-});
-
-test.skip("Start a large amount of heavy tasks and observe completion", async ({page, userAgent}) => {
+test.skip("Start a large amount of heavy tasks and observe completion", async ({page}) => {
 
 });
