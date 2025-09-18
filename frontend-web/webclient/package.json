@@ -73,7 +73,6 @@
     "@types/json-schema": "7.0.15",
     "@types/jsrsasign": "10.5.15",
     "@types/react": "19.1.11",
-    "@types/react-datepicker": "7.0.0",
     "@types/react-dom": "19.1.7",
     "@types/react-modal": "3.16.3",
     "@types/react-redux": "7.1.34",
