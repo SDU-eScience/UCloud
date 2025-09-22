@@ -6,13 +6,14 @@ import (
 	"time"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
 // NOTE(Dan): The purpose of this package is to have a place to put code which is shared amongst all deployments of the
 // Core. Any deployment is free to call anything from this package. Put code here sparringly and only when needed.
 
-// RetrieveProjectFromDatabase will retrieve a project directly from the database. No authentication or authorization
+// ProjectRetrieveFromDatabase will retrieve a project directly from the database. No authentication or authorization
 // will be performed. The project is guaranteed to be up-to-date because the foundation deployment only does
 // write-through updates. The result of this function is always fetched from the database with no caching. Callers of
 // this function are recommended to introduce their own caching if needed.
@@ -21,7 +22,7 @@ import (
 // With this function, the accounting stream can listen for project updates purely through a trigger at the database
 // level and fetch information directly from the database. The alternative to this would be to re-invent the exact
 // same functionality in the code, but this was deemed unnecessary.
-func RetrieveProjectFromDatabase(tx *db.Transaction, id string) (fndapi.Project, bool) {
+func ProjectRetrieveFromDatabase(tx *db.Transaction, id string) (fndapi.Project, bool) {
 	projectInfo, ok := db.Get[struct {
 		Id                   string
 		CreatedAt            time.Time
@@ -138,4 +139,42 @@ func RetrieveProjectFromDatabase(tx *db.Transaction, id string) (fndapi.Project,
 	}
 
 	return p, true
+}
+
+func ProjectRetrieveFromDatabaseViaGroupId(tx *db.Transaction, groupId string) (fndapi.Project, bool) {
+	row, ok := db.Get[struct{ Project string }](
+		tx,
+		`select project from project.groups where id = :id`,
+		db.Params{"id": groupId},
+	)
+
+	if !ok {
+		return fndapi.Project{}, false
+	} else {
+		return ProjectRetrieveFromDatabase(tx, row.Project)
+	}
+}
+
+func ProjectsListUpdatedAfter(timestamp time.Time) []rpc.ProjectId {
+	return db.NewTx(func(tx *db.Transaction) []rpc.ProjectId {
+		rows := db.Select[struct{ Id string }](
+			tx,
+			`
+				select id
+				from project.projects
+				where
+					modified_at > :timestamp
+		    `,
+			db.Params{
+				"timestamp": timestamp,
+			},
+		)
+
+		var result []rpc.ProjectId
+		for _, row := range rows {
+			result = append(result, rpc.ProjectId(row.Id))
+		}
+
+		return result
+	})
 }

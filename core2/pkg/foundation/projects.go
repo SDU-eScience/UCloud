@@ -40,6 +40,10 @@ import (
 //
 // You are not allowed to perform any read or write operation without first acquiring the lock.
 
+// NOTE(Dan): This service is currently _required_ to do all writes immediately to the database. This is required since
+// some services will read directly from the database through the coreutil package. If batching of writes needs to be
+// introduced then ensure that the function from coreutil (and their uses) are dealt with first.
+
 var projectBuckets []internalProjectBucket
 
 type internalProjectBucket struct {
@@ -1738,7 +1742,7 @@ func projectRetrieveInternal(id string) (*internalProject, bool) {
 		project, ok = bucket.Projects[id]
 		if !ok {
 			project, ok = db.NewTx2(func(tx *db.Transaction) (*internalProject, bool) {
-				projectInfo, ok := coreutil.RetrieveProjectFromDatabase(tx, id)
+				projectInfo, ok := coreutil.ProjectRetrieveFromDatabase(tx, id)
 				if !ok {
 					return nil, false
 				} else {

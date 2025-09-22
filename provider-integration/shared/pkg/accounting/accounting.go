@@ -291,3 +291,9 @@ var WalletsAdminReset = rpc.Call[WalletsAdminResetRequest, util.Empty]{
 	Operation:   "adminReset",
 	Roles:       rpc.RolesAdmin,
 }
+
+var ProviderNotificationStream = rpc.Call[util.Empty, util.Empty]{
+	BaseContext: "accounting",
+	Operation:   "notifications",
+	Convention:  rpc.ConventionWebSocket,
+}
