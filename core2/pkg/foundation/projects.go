@@ -19,11 +19,10 @@ import (
 
 // TODO(Dan): This service is not completed yet, this is a rough list of things missing:
 //   - Invites
-//   - Provider access (when relevant
+//   - Provider access (when relevant)
 //   - Unmanaged provider projects
 //   - Project creation (we might want to do this purely through grants moving forward and make this a purely internal
 //     call)
-//   - Notifications for accounting (not obvious this can be done right now)
 
 // NOTE(Dan): Locks are always acquired in this order: bucket -> project -> link -> userinfo.
 //
@@ -577,8 +576,11 @@ func ProjectRename(actor rpc.Actor, request fndapi.ProjectRenameRequest) *util.H
 				tx,
 				`
 					update project.projects
-					set title = :new_title
-					where id = :id
+					set
+						title = :new_title,
+						modified_at = now()
+					where
+						id = :id
 				`,
 				db.Params{
 					"id":        request.Id,
@@ -749,8 +751,11 @@ func ProjectUpdateSettings(actor rpc.Actor, settings fndapi.ProjectSettings) *ut
 			tx,
 			`
 				update project.projects
-				set subprojects_renameable = :renamable
-				where id = :project
+				set
+					subprojects_renameable = :renamable,
+					modified_at = now()
+				where
+					id = :project
 		    `,
 			db.Params{
 				"renamable": settings.SubProjects.AllowRenaming,
@@ -815,6 +820,18 @@ func ProjectChangeRole(actor rpc.Actor, request fndapi.ProjectMemberChangeRoleRe
 				},
 			)
 		}
+
+		db.Exec(
+			tx,
+			`
+				update project.projects
+				set modified_at = now()
+				where id = :project
+		    `,
+			db.Params{
+				"project": actor.Project.Value,
+			},
+		)
 	})
 
 	pStatus := &iproject.Project.Status
@@ -850,6 +867,18 @@ func ProjectCreateGroup(actor rpc.Actor, spec fndapi.ProjectGroupSpecification) 
 				"title":    spec.Title,
 				"project":  spec.Project,
 				"group_id": groupId,
+			},
+		)
+
+		db.Exec(
+			tx,
+			`
+				update project.projects
+				set modified_at = now()
+				where id = :project
+		    `,
+			db.Params{
+				"project": spec.Project,
 			},
 		)
 
@@ -901,6 +930,18 @@ func ProjectRenameGroup(actor rpc.Actor, id string, newTitle string) *util.HttpE
 				db.Params{
 					"id":        id,
 					"new_title": newTitle,
+				},
+			)
+
+			db.Exec(
+				tx,
+				`
+				update project.projects
+				set modified_at = now()
+				where id = :project
+		    `,
+				db.Params{
+					"project": id,
 				},
 			)
 
@@ -970,6 +1011,18 @@ func ProjectDeleteGroup(actor rpc.Actor, id string) *util.HttpError {
 			    `,
 				db.Params{
 					"group_id": id,
+				},
+			)
+
+			db.Exec(
+				tx,
+				`
+				update project.projects
+				set modified_at = now()
+				where id = :project
+		    `,
+				db.Params{
+					"project": iproject.Id,
 				},
 			)
 		})
@@ -1050,6 +1103,18 @@ func ProjectCreateGroupMember(actor rpc.Actor, groupId string, memberToAdd strin
 						"group":    groupId,
 					},
 				)
+
+				db.Exec(
+					tx,
+					`
+						update project.projects
+						set modified_at = now()
+						where id = :project
+					`,
+					db.Params{
+						"project": iproject.Id,
+					},
+				)
 			})
 
 			group.Status.Members = append(group.Status.Members, memberToAdd)
@@ -1090,6 +1155,18 @@ func ProjectDeleteGroupMember(actor rpc.Actor, groupId string, memberToRemove st
 					db.Params{
 						"username": memberToRemove,
 						"group":    groupId,
+					},
+				)
+
+				db.Exec(
+					tx,
+					`
+						update project.projects
+						set modified_at = now()
+						where id = :project
+					`,
+					db.Params{
+						"project": iproject.Id,
 					},
 				)
 			})
@@ -1465,6 +1542,18 @@ func projectAddUserToProjectAndGroups(
 			)
 		}
 
+		db.Exec(
+			tx,
+			`
+				update project.projects
+				set modified_at = now()
+				where id = :project
+			`,
+			db.Params{
+				"project": projectId,
+			},
+		)
+
 		if sideEffects != nil {
 			err = sideEffects(tx)
 		}
@@ -1563,6 +1652,18 @@ func projectRemoveMember(actor rpc.Actor, projectId string, memberToRemove strin
 					pm.role = 'PI'
 					and pm.project_id = :project
 		    `,
+			db.Params{
+				"project": projectId,
+			},
+		)
+
+		db.Exec(
+			tx,
+			`
+				update project.projects
+				set modified_at = now()
+				where id = :project
+			`,
 			db.Params{
 				"project": projectId,
 			},
