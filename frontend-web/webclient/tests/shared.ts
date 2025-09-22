@@ -38,6 +38,10 @@ export const Rows = {
         await page.locator("div > span", {hasText: name})[action]();
     },
 
+    async open(page: Page, folder: string): Promise<void> {
+        this.actionByRowTitle(page, folder, "dblclick");
+    },
+
     async rename(page: Page, oldName: string, newName: string): Promise<void> {
         await Rows.actionByRowTitle(page, oldName, "click");
         await page.getByText("Rename").click();
@@ -78,20 +82,21 @@ export const Folder = {
         await Components.clickRefreshAndWait(page);
     },
 
-    async moveFileTo(page: Page, fileToMove: string, targetFolder: string): Promise<void> {
-        await Folder.actionByRowTitle(page, fileToMove, "click");
+    async openOperationsDropsdown(page: Page, file: string): Promise<void> {
+        await Folder.actionByRowTitle(page, file, "click");
         await page.locator(".operation.button6.in-header:nth-child(6)").click();
-        await page.getByText('Move to...').click();
+    },
 
+    async moveFileTo(page: Page, fileToMove: string, targetFolder: string): Promise<void> {
+        await this.openOperationsDropsdown(page, fileToMove);
+        await page.getByText('Move to...').click();
         await page.locator("div.ReactModal__Content div.row", {hasText: targetFolder})
             .getByRole("button").filter({hasText: "Move to"}).click();
-
         await page.waitForTimeout(200);
     },
 
     async copyFileTo(page: Page, fileToCopy: string, targetFolder: string): Promise<void> {
-        await Folder.actionByRowTitle(page, fileToCopy, "click");
-        await page.locator(".operation.button6.in-header:nth-child(6)").click();
+        await this.openOperationsDropsdown(page, fileToCopy);
         await page.getByText('Copy to...').click();
 
         await page.locator("div.ReactModal__Content div.row", {hasText: targetFolder})
@@ -101,12 +106,28 @@ export const Folder = {
     },
 
     async copyFileInPlace(page: Page, folderName: string): Promise<void> {
-        await Folder.actionByRowTitle(page, folderName, "click");
-        await page.locator(".operation.button6.in-header:nth-child(6)").click();
+        await this.openOperationsDropsdown(page, folderName);
         await page.getByText("Copy to...").click();
         await page.getByText("Use this folder").first().click();
         await page.waitForTimeout(200);
     },
+
+    async moveFileToTrash(page: Page, fileName: string): Promise<void> {
+        await this.openOperationsDropsdown(page, fileName);
+        await Components.clickConfirmationButton(page, "Move to trash");
+
+    },
+
+    async emptyTrash(page: Page): Promise<void> {
+        await page.getByText("Empty Trash").click();
+        await page.getByRole("button", {name: "Empty trash"}).click();
+    },
+
+    async searchFor(page: Page, query: string): Promise<void> {
+        await Components.toggleSearch(page);
+        await page.getByRole("textbox").fill(query);
+        await page.keyboard.press("Enter");
+    }
 }
 
 export const Drive = {
@@ -158,6 +179,10 @@ export const Components = {
     async clickRefreshAndWait(page: Page, waitForMs: number = 500) {
         await page.locator(".refresh-icon").click();
         if (waitForMs > 0) await page.waitForTimeout(waitForMs);
+    },
+
+    async toggleSearch(page: Page) {
+        await page.locator(".search-icon").click();
     },
 
     async setSidebarSticky(page: Page) {

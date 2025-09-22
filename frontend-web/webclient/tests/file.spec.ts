@@ -82,8 +82,8 @@ test.skip("Upload folder", async ({page}) => {
     await Components.clickRefreshAndWait(page);
 });
 
-test.skip("Upload files after running out of space (and again after cleaning up)", async ({page}) => {});
 
+test.skip("Upload files after running out of space (and again after cleaning up)", async ({page}) => {});
 
 test("Create single folder, delete single folder", async ({page}) => {
     const folderName = Folder.newFolderName();
@@ -133,8 +133,12 @@ test("Move folder", async ({page}) => {
     await expect(page.getByText(folderToMove)).toHaveCount(1);
 });
 
-test.skip("Move folder to child (invalid op)", async ({page}) => {
-    throw Error("Not implemented")
+test("Move folder to child (invalid op)", async ({page}) => {
+    const rootFolder = "From";
+    await Folder.create(page, rootFolder);
+    await Folder.moveFileTo(page, rootFolder, rootFolder);
+    await expect(page.getByText("Unable to move file.")).toHaveCount(1);
+    await page.keyboard.press("Escape");
 });
 
 test("Copy file", async ({page}) => {
@@ -166,11 +170,35 @@ test("Copy folder", async ({page}) => {
     await expect(page.getByText(folderToCopy + "(1)")).toHaveCount(1);
 });
 
-test.skip("Move to trash, empty trash", async ({page}) => {
+test("Move to trash, empty trash", async ({page}) => {
+    const folderName = Folder.newFolderName();
+    await Folder.create(page, folderName);
+    await Folder.moveFileToTrash(page, folderName);
+    // Note(Jonas): Trash folder doesn't show up until refresh if not already present.
+    await Components.clickRefreshAndWait(page);
+    await Folder.open(page, "Trash");
+    await expect(page.getByText(folderName)).toHaveCount(1);
+    await Folder.emptyTrash(page);
+    await page.waitForTimeout(200);
+    await Folder.open(page, "Trash");
+    await expect(page.getByText(folderName)).toHaveCount(0);
 });
 
-test.skip("File search (use empty trash to trigger scan)", async ({page}) => {
-
+test("File search (use empty trash to trigger scan)", async ({page}) => {
+    const theFolderToFind = "Please find meeee";
+    const foldersToCreate = `A/B/C/D/${theFolderToFind}`;
+    await Folder.create(page, foldersToCreate);
+    await expect(page.getByText(theFolderToFind)).toHaveCount(0);
+    const triggerFolder = "trigger";
+    await Folder.create(page, triggerFolder);
+    await Folder.moveFileToTrash(page, triggerFolder);
+    // Note(Jonas): Trash folder doesn't show up until refresh if not already present.
+    await Components.clickRefreshAndWait(page);
+    await Folder.open(page, "Trash");
+    await Folder.emptyTrash(page);
+    await page.waitForTimeout(200);
+    await Folder.searchFor(page, theFolderToFind);
+    await expect(page.getByText(theFolderToFind)).toHaveCount(1);
 });
 
 test.skip("Start a large amount of heavy tasks and observe completion", async ({page}) => {
