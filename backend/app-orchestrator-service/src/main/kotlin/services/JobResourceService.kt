@@ -1849,7 +1849,7 @@ class JobResourceService(
                                         to_timestamp(unnest(:started_at::int8[]) / 1000) started_at,
                                         unnest(:job_id::int8[]) job_id,
                                         unnest(:job_parameters::jsonb[]) job_parameters,
-                                        unnest(:opened_file::text[][]) opened_file
+                                        unnest(:opened_file::text[]) opened_file
                                 )
                             insert into app_orchestrator.jobs 
                                 (application_name, application_version, time_allocation_millis, name, output_folder, 

@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"strconv"
 	"time"
-	db "ucloud.dk/shared/pkg/database"
+	db "ucloud.dk/shared/pkg/database2"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -334,7 +334,7 @@ func appCatalogLoad() {
 				LinkedApplication sql.NullString
 				LinkedGroup       sql.NullInt64
 				LinkedWebPage     sql.NullString
-				Image             db.Bytea
+				Image             []byte
 			}](
 				tx,
 				`
@@ -574,7 +574,7 @@ func appPersistGroupLogo(id AppGroupId, group *internalAppGroup) {
 		    `,
 			db.Params{
 				"id":   id,
-				"logo": db.Bytea(group.Logo),
+				"logo": group.Logo,
 			},
 		)
 	})
@@ -1023,7 +1023,7 @@ func appPersistCarrouselSlideImage(index int, resized []byte) {
 		    `,
 			db.Params{
 				"index": index,
-				"bytes": db.Bytea(resized),
+				"bytes": resized,
 			},
 		)
 	})

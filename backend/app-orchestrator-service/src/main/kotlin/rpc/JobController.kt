@@ -11,6 +11,7 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.actorAndProject
+import dk.sdu.cloud.service.withHardTimeout
 
 class JobController(
     private val jobs: JobResourceService,
@@ -19,11 +20,20 @@ class JobController(
 
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Jobs.browse) {
-            ok(jobs.browseBy(actorAndProject, request))
+            withHardTimeout(5_000, { "jobs.browse" }) {
+                ok(jobs.browseBy(actorAndProject, request))
+            }
         }
 
         implement(Jobs.retrieve) {
-            ok(jobs.retrieve(actorAndProject, request) ?: throw RPCException("Unknown job", HttpStatusCode.NotFound))
+            withHardTimeout(5_000, { "jobs.retrieve" }) {
+                ok(
+                    jobs.retrieve(actorAndProject, request) ?: throw RPCException(
+                        "Unknown job",
+                        HttpStatusCode.NotFound
+                    )
+                )
+            }
         }
 
         implement(Jobs.create) {
@@ -31,11 +41,20 @@ class JobController(
         }
 
         implement(JobsControl.browse) {
-            ok(jobs.browseBy(actorAndProject, request))
+            withHardTimeout(30_000, { "jobs.control.browse" }) {
+                ok(jobs.browseBy(actorAndProject, request))
+            }
         }
 
         implement(JobsControl.retrieve) {
-            ok(jobs.retrieve(actorAndProject, request) ?: throw RPCException("Unknown job", HttpStatusCode.NotFound))
+            withHardTimeout(30_000, { "jobs.control.retrieve" }) {
+                ok(
+                    jobs.retrieve(actorAndProject, request) ?: throw RPCException(
+                        "Unknown job",
+                        HttpStatusCode.NotFound
+                    )
+                )
+            }
         }
 
         implement(JobsControl.update) {

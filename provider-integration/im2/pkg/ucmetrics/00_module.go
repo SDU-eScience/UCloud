@@ -123,8 +123,8 @@ func ReadNvidiaGpuUsage() []NvidiaStats {
 			if err1 == nil && err2 == nil && err3 == nil {
 				result = append(result, NvidiaStats{
 					Utilization:      usage,
-					MemoryTotalBytes: memTotal,
-					MemoryUsedBytes:  memUsed,
+					MemoryTotalBytes: memTotal * 1024 * 1024,
+					MemoryUsedBytes:  memUsed * 1024 * 1024,
 				})
 			}
 		}

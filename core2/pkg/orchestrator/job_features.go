@@ -1,30 +1,30 @@
 package orchestrator
 
 const (
-	jobDockerEnabled   featureKey = "jobs.docker.enabled"
-	jobDockerWeb       featureKey = "jobs.docker.web"
-	jobDockerVnc       featureKey = "jobs.docker.vnc"
-	jobDockerLogs      featureKey = "jobs.docker.logs"
-	jobDockerTerminal  featureKey = "jobs.docker.terminal"
-	jobDockerPeers     featureKey = "jobs.docker.peers"
-	jobDockerExtension featureKey = "jobs.docker.extension"
+	jobDockerEnabled   SupportFeatureKey = "jobs.docker.enabled"
+	jobDockerWeb       SupportFeatureKey = "jobs.docker.web"
+	jobDockerVnc       SupportFeatureKey = "jobs.docker.vnc"
+	jobDockerLogs      SupportFeatureKey = "jobs.docker.logs"
+	jobDockerTerminal  SupportFeatureKey = "jobs.docker.terminal"
+	jobDockerPeers     SupportFeatureKey = "jobs.docker.peers"
+	jobDockerExtension SupportFeatureKey = "jobs.docker.extension"
 
-	jobNativeEnabled   featureKey = "jobs.native.enabled"
-	jobNativeWeb       featureKey = "jobs.native.web"
-	jobNativeVnc       featureKey = "jobs.native.vnc"
-	jobNativeLogs      featureKey = "jobs.native.logs"
-	jobNativeTerminal  featureKey = "jobs.native.terminal"
-	jobNativePeers     featureKey = "jobs.native.peers"
-	jobNativeExtension featureKey = "jobs.native.extension"
+	jobNativeEnabled   SupportFeatureKey = "jobs.native.enabled"
+	jobNativeWeb       SupportFeatureKey = "jobs.native.web"
+	jobNativeVnc       SupportFeatureKey = "jobs.native.vnc"
+	jobNativeLogs      SupportFeatureKey = "jobs.native.logs"
+	jobNativeTerminal  SupportFeatureKey = "jobs.native.terminal"
+	jobNativePeers     SupportFeatureKey = "jobs.native.peers"
+	jobNativeExtension SupportFeatureKey = "jobs.native.extension"
 
-	jobVmEnabled    featureKey = "jobs.vm.enabled"
-	jobVmWeb        featureKey = "jobs.vm.web"
-	jobVmVnc        featureKey = "jobs.vm.vnc"
-	jobVmLogs       featureKey = "jobs.vm.logs"
-	jobVmTerminal   featureKey = "jobs.vm.terminal"
-	jobVmPeers      featureKey = "jobs.vm.peers"
-	jobVmExtension  featureKey = "jobs.vm.extension"
-	jobVmSuspension featureKey = "jobs.vm.suspension"
+	jobVmEnabled    SupportFeatureKey = "jobs.vm.enabled"
+	jobVmWeb        SupportFeatureKey = "jobs.vm.web"
+	jobVmVnc        SupportFeatureKey = "jobs.vm.vnc"
+	jobVmLogs       SupportFeatureKey = "jobs.vm.logs"
+	jobVmTerminal   SupportFeatureKey = "jobs.vm.terminal"
+	jobVmPeers      SupportFeatureKey = "jobs.vm.peers"
+	jobVmExtension  SupportFeatureKey = "jobs.vm.extension"
+	jobVmSuspension SupportFeatureKey = "jobs.vm.suspension"
 )
 
 var jobFeatureMapper = []featureMapper{
@@ -61,7 +61,7 @@ var jobFeatureMapper = []featureMapper{
 	{
 		Type: jobType,
 		Key:  jobDockerExtension,
-		Path: "docker.extension",
+		Path: "docker.timeExtension",
 	},
 
 	{
@@ -97,7 +97,7 @@ var jobFeatureMapper = []featureMapper{
 	{
 		Type: jobType,
 		Key:  jobNativeExtension,
-		Path: "native.extension",
+		Path: "native.timeExtension",
 	},
 
 	{
@@ -133,7 +133,7 @@ var jobFeatureMapper = []featureMapper{
 	{
 		Type: jobType,
 		Key:  jobVmExtension,
-		Path: "virtualMachine.extension",
+		Path: "virtualMachine.timeExtension",
 	},
 	{
 		Type: jobType,

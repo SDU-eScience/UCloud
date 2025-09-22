@@ -1,7 +1,7 @@
 package orchestrators
 
 import (
-	"ucloud.dk/shared/pkg/apm"
+	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -54,7 +54,7 @@ type IngressFlags struct {
 
 const ingressNamespace = "ingresses"
 
-var IngressesCreate = rpc.Call[fnd.BulkRequest[PublicIPSpecification], fnd.BulkResponse[fnd.FindByStringId]]{
+var IngressesCreate = rpc.Call[fnd.BulkRequest[IngressSpecification], fnd.BulkResponse[fnd.FindByStringId]]{
 	BaseContext: ingressNamespace,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesEndUser,
@@ -64,18 +64,6 @@ var IngressesDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResp
 	BaseContext: ingressNamespace,
 	Convention:  rpc.ConventionDelete,
 	Roles:       rpc.RolesEndUser,
-}
-
-type IngressRenameRequest struct {
-	Id       string `json:"id"`
-	NewTitle string `json:"newTitle"`
-}
-
-var IngressesRename = rpc.Call[fnd.BulkRequest[IngressRenameRequest], util.Empty]{
-	BaseContext: ingressNamespace,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
-	Operation:   "rename",
 }
 
 type IngressesSearchRequest struct {
@@ -123,7 +111,7 @@ var IngressesUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[
 	Operation:   "updateAcl",
 }
 
-var IngressesRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[FSSupport]]{
+var IngressesRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[IngressSupport]]{
 	BaseContext: ingressNamespace,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesEndUser,
@@ -166,6 +154,13 @@ var IngressesControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResour
 	Operation:   "register",
 }
 
+var IngressesControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[IngressUpdate]], util.Empty]{
+	BaseContext: ingressControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "update",
+}
+
 // Ingress Provider API
 // =====================================================================================================================
 
@@ -190,7 +185,7 @@ var IngressesProviderVerify = rpc.Call[fnd.BulkRequest[Ingress], util.Empty]{
 	Operation:   "verify",
 }
 
-var IngressesProviderRetrieveProducts = rpc.Call[util.Empty, fnd.BulkResponse[FSSupport]]{
+var IngressesProviderRetrieveProducts = rpc.Call[util.Empty, fnd.BulkResponse[IngressSupport]]{
 	BaseContext: ingressProviderNamespace,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesPrivileged,
@@ -202,11 +197,4 @@ var IngressesProviderUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAclWithResource
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "updateAcl",
-}
-
-var IngressesProviderRename = rpc.Call[fnd.BulkRequest[IngressRenameRequest], fnd.BulkResponse[util.Empty]]{
-	BaseContext: ingressProviderNamespace,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesService,
-	Operation:   "rename",
 }

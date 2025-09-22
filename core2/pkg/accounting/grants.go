@@ -12,7 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database"
+	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
@@ -395,10 +395,6 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 
 		if !hasAllocFromAffiliation {
 			return 0, util.HttpErr(http.StatusBadRequest, "no requests made to primary affiliation")
-		}
-	} else {
-		if revision.ParentProjectId.Present {
-			return 0, util.HttpErr(http.StatusBadRequest, "a primary affiliation must not be present")
 		}
 	}
 
@@ -1267,7 +1263,7 @@ func GrantsUploadLogo(actor rpc.Actor, logo []byte) *util.HttpError {
 		    `,
 			db.Params{
 				"id":   actor.Project.Value,
-				"data": db.Bytea(rescaled),
+				"data": rescaled,
 			},
 		)
 	})
@@ -1278,7 +1274,7 @@ func GrantsUploadLogo(actor rpc.Actor, logo []byte) *util.HttpError {
 func GrantsRetrieveLogo(id string) ([]byte, *util.HttpError) {
 	logo, ok := db.NewTx2(func(tx *db.Transaction) ([]byte, bool) {
 		row, ok := db.Get[struct {
-			Data db.Bytea
+			Data []byte
 		}](
 			tx,
 			`select data from "grant".logos where project_id = :project`,

@@ -12,6 +12,7 @@ suspend fun <T> withHardTimeout(
     block: suspend CoroutineScope.() -> T
 ): T {
     return coroutineScope {
+        /*
         val done = AtomicBoolean(false)
 
         GlobalScope.launch {
@@ -28,5 +29,7 @@ suspend fun <T> withHardTimeout(
         } finally {
             done.set(true)
         }
+         */
+        block()
     }
 }

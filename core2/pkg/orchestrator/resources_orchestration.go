@@ -17,6 +17,11 @@ func ResourceCreateThroughProvider[T any](
 ) (T, *util.HttpError) {
 	var t T
 
+	err := ResourceValidateAllocation(actor, product)
+	if err != nil {
+		return t, err
+	}
+
 	id, resc, err := ResourceCreate[T](actor, typeName, util.OptValue(product), extra)
 	if err != nil {
 		return t, err

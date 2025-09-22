@@ -233,7 +233,7 @@ class ResourceStore<T>(
                     synchronizeNow()
                     val end = Time.now()
 
-                    delay(max(1000, 10_000 - (end - start)))
+                    delay(max(1000, 30_000 - (end - start)))
                 } catch (ex: Throwable) {
                     log.warn(ex.toReadableStacktrace().toString())
                 }
@@ -1122,7 +1122,7 @@ class ResourceStore<T>(
         }
 
         companion object {
-            const val BLOCK_SIZE = 1024 * 128
+            const val BLOCK_SIZE = 1024 * 4
         }
     }
 
@@ -1183,6 +1183,10 @@ class ResourceStore<T>(
         val slot = (id - loaded.minimumId).toInt()
         val reference = loaded.entries[slot]
         val referenceIsUid = loaded.entryIsUid[slot]
+
+        if (reference == 0) {
+            return null
+        }
 
         return findOrLoadBucket(if (referenceIsUid) reference else 0, if (referenceIsUid) 0 else reference)
     }

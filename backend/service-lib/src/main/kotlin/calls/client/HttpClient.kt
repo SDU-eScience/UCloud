@@ -2,6 +2,7 @@ package dk.sdu.cloud.calls.client
 
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.*
 import io.ktor.client.plugins.websocket.*
 import java.io.InputStream
 import java.net.URLEncoder
@@ -16,6 +17,12 @@ var trustManagerForHttpClient: TrustManager? = null
 
 fun createHttpClient() = HttpClient(CIO) {
     expectSuccess = false
+
+    install(HttpTimeout) {
+        requestTimeoutMillis = 1000 * 60 * 5
+        connectTimeoutMillis = 1000 * 30
+        socketTimeoutMillis = 1000 * 30
+    }
 
     engine {
         requestTimeout = 1000 * 60 * 5
@@ -80,6 +87,7 @@ fun createCustomX509TrustManagerFromStore(store: InputStream, password: CharArra
                 defaultX509Manager.checkServerTrusted(chain, authType);
             }
         }
+
         override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {
             defaultX509Manager.checkClientTrusted(chain, authType);
         }
