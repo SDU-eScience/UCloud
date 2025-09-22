@@ -3,5 +3,9 @@ package migrations
 import db "ucloud.dk/shared/pkg/database2"
 
 func Init() {
+	// TODO(Dan): This is assuming an already existing database created by an older Core. This will be inserted here
+	//   near the end of the porting process.
+
 	db.AddMigration(projectsV1())
+	db.AddMigration(projectsV2())
 }

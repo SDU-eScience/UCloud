@@ -243,13 +243,21 @@ func Launch() {
 	}
 
 	rpc.LookupActor = func(username string) (rpc.Actor, bool) {
-		resp, err := fndapi.AuthLookupUser.Invoke(fndapi.FindByStringId{Id: username})
-		if err != nil {
-			return rpc.Actor{}, false
-		} else {
-			actor, ok := claimsToActor(username, util.OptNone[rpc.ProjectId](), resp)
-			return actor, ok
-		}
+		atuple := util.RetryOrPanic("rpc.LookupActor", func() (util.Tuple2[rpc.Actor, bool], error) {
+			resp, err := fndapi.AuthLookupUser.Invoke(fndapi.FindByStringId{Id: username})
+			if err != nil {
+				if err.StatusCode == http.StatusNotFound {
+					return util.Tuple2[rpc.Actor, bool]{rpc.Actor{}, false}, nil
+				} else {
+					return util.Tuple2[rpc.Actor, bool]{}, err
+				}
+			} else {
+				actor, ok := claimsToActor(username, util.OptNone[rpc.ProjectId](), resp)
+				return util.Tuple2[rpc.Actor, bool]{actor, ok}, nil
+			}
+		})
+
+		return atuple.First, atuple.Second
 	}
 
 	logCfg := cfg.Configuration.Logs

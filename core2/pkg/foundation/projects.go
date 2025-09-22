@@ -19,11 +19,10 @@ import (
 
 // TODO(Dan): This service is not completed yet, this is a rough list of things missing:
 //   - Invites
-//   - Provider access (when relevant
+//   - Provider access (when relevant)
 //   - Unmanaged provider projects
 //   - Project creation (we might want to do this purely through grants moving forward and make this a purely internal
 //     call)
-//   - Notifications for accounting (not obvious this can be done right now)
 
 // NOTE(Dan): Locks are always acquired in this order: bucket -> project -> link -> userinfo.
 //
@@ -39,6 +38,10 @@ import (
 // order.
 //
 // You are not allowed to perform any read or write operation without first acquiring the lock.
+
+// NOTE(Dan): This service is currently _required_ to do all writes immediately to the database. This is required since
+// some services will read directly from the database through the coreutil package. If batching of writes needs to be
+// introduced then ensure that the function from coreutil (and their uses) are dealt with first.
 
 var projectBuckets []internalProjectBucket
 
@@ -573,8 +576,11 @@ func ProjectRename(actor rpc.Actor, request fndapi.ProjectRenameRequest) *util.H
 				tx,
 				`
 					update project.projects
-					set title = :new_title
-					where id = :id
+					set
+						title = :new_title,
+						modified_at = now()
+					where
+						id = :id
 				`,
 				db.Params{
 					"id":        request.Id,
@@ -745,8 +751,11 @@ func ProjectUpdateSettings(actor rpc.Actor, settings fndapi.ProjectSettings) *ut
 			tx,
 			`
 				update project.projects
-				set subprojects_renameable = :renamable
-				where id = :project
+				set
+					subprojects_renameable = :renamable,
+					modified_at = now()
+				where
+					id = :project
 		    `,
 			db.Params{
 				"renamable": settings.SubProjects.AllowRenaming,
@@ -811,6 +820,18 @@ func ProjectChangeRole(actor rpc.Actor, request fndapi.ProjectMemberChangeRoleRe
 				},
 			)
 		}
+
+		db.Exec(
+			tx,
+			`
+				update project.projects
+				set modified_at = now()
+				where id = :project
+		    `,
+			db.Params{
+				"project": actor.Project.Value,
+			},
+		)
 	})
 
 	pStatus := &iproject.Project.Status
@@ -846,6 +867,18 @@ func ProjectCreateGroup(actor rpc.Actor, spec fndapi.ProjectGroupSpecification) 
 				"title":    spec.Title,
 				"project":  spec.Project,
 				"group_id": groupId,
+			},
+		)
+
+		db.Exec(
+			tx,
+			`
+				update project.projects
+				set modified_at = now()
+				where id = :project
+		    `,
+			db.Params{
+				"project": spec.Project,
 			},
 		)
 
@@ -897,6 +930,18 @@ func ProjectRenameGroup(actor rpc.Actor, id string, newTitle string) *util.HttpE
 				db.Params{
 					"id":        id,
 					"new_title": newTitle,
+				},
+			)
+
+			db.Exec(
+				tx,
+				`
+				update project.projects
+				set modified_at = now()
+				where id = :project
+		    `,
+				db.Params{
+					"project": id,
 				},
 			)
 
@@ -966,6 +1011,18 @@ func ProjectDeleteGroup(actor rpc.Actor, id string) *util.HttpError {
 			    `,
 				db.Params{
 					"group_id": id,
+				},
+			)
+
+			db.Exec(
+				tx,
+				`
+				update project.projects
+				set modified_at = now()
+				where id = :project
+		    `,
+				db.Params{
+					"project": iproject.Id,
 				},
 			)
 		})
@@ -1046,6 +1103,18 @@ func ProjectCreateGroupMember(actor rpc.Actor, groupId string, memberToAdd strin
 						"group":    groupId,
 					},
 				)
+
+				db.Exec(
+					tx,
+					`
+						update project.projects
+						set modified_at = now()
+						where id = :project
+					`,
+					db.Params{
+						"project": iproject.Id,
+					},
+				)
 			})
 
 			group.Status.Members = append(group.Status.Members, memberToAdd)
@@ -1086,6 +1155,18 @@ func ProjectDeleteGroupMember(actor rpc.Actor, groupId string, memberToRemove st
 					db.Params{
 						"username": memberToRemove,
 						"group":    groupId,
+					},
+				)
+
+				db.Exec(
+					tx,
+					`
+						update project.projects
+						set modified_at = now()
+						where id = :project
+					`,
+					db.Params{
+						"project": iproject.Id,
 					},
 				)
 			})
@@ -1461,6 +1542,18 @@ func projectAddUserToProjectAndGroups(
 			)
 		}
 
+		db.Exec(
+			tx,
+			`
+				update project.projects
+				set modified_at = now()
+				where id = :project
+			`,
+			db.Params{
+				"project": projectId,
+			},
+		)
+
 		if sideEffects != nil {
 			err = sideEffects(tx)
 		}
@@ -1559,6 +1652,18 @@ func projectRemoveMember(actor rpc.Actor, projectId string, memberToRemove strin
 					pm.role = 'PI'
 					and pm.project_id = :project
 		    `,
+			db.Params{
+				"project": projectId,
+			},
+		)
+
+		db.Exec(
+			tx,
+			`
+				update project.projects
+				set modified_at = now()
+				where id = :project
+			`,
 			db.Params{
 				"project": projectId,
 			},
@@ -1738,7 +1843,7 @@ func projectRetrieveInternal(id string) (*internalProject, bool) {
 		project, ok = bucket.Projects[id]
 		if !ok {
 			project, ok = db.NewTx2(func(tx *db.Transaction) (*internalProject, bool) {
-				projectInfo, ok := coreutil.RetrieveProjectFromDatabase(tx, id)
+				projectInfo, ok := coreutil.ProjectRetrieveFromDatabase(tx, id)
 				if !ok {
 					return nil, false
 				} else {

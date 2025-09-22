@@ -29,6 +29,7 @@ export const PeerParameter: React.FunctionComponent<PeerProps> = props => {
                     value={props.parameter.title.length !== 0 ? props.parameter.name : undefined}
                     disabled={props.parameter.title.length !== 0}
                     height={39}
+                    pattern={'[a-z0-9]([\\-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([\\-a-z0-9]*[a-z0-9])?)*'}
                 />
             </Label>
         </div>
@@ -54,7 +55,13 @@ export function PeerValidator(param: ApplicationParameter): WidgetValidationAnsw
         const jobElem = findElementJob(param);
         if (nameElem === null || jobElem === null) return {valid: true};
         if (nameElem.value === "" && jobElem.value === "") return {valid: true};
-
+        if (!nameElem.checkValidity()) {
+            return {
+                valid: false,
+                message: "Hostname must consist of lower case alphanumeric characters, '-' or '.', " +
+                    "and must start and end with an alphanumeric character."
+            };
+        }
         if (nameElem.value === "" || jobElem.value === "") {
             return {valid: false, message: "All fields must be filled out."};
         }
