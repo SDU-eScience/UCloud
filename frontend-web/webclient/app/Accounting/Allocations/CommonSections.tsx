@@ -324,6 +324,7 @@ const KeyMetricSettingsRow: React.FunctionComponent<{
                     size={30}
                     checked={props.setting.enabled}
                     handleWrapperClick={onChecked}
+                    onChange={onChecked}
                 />
             </div>
         </>
@@ -332,7 +333,7 @@ const KeyMetricSettingsRow: React.FunctionComponent<{
     </ListRow>
 }
 
-const defaultSettings: Record<string, KeyMetricSetting> = {
+const keyMetricDefaultSettings: Record<string, KeyMetricSetting> = {
     "Idle sub-projects": {
         title: "Idle sub-projects",
         options: ["1 month", "2 months", "3 months"],
@@ -383,7 +384,7 @@ export const SubProjectAllocations: React.FunctionComponent<{
         setFiltersShown(true);
     }, []);
 
-    const [settings, setSettings] = useState<Record<string, KeyMetricSetting>>(defaultSettings);
+    const [settings, setSettings] = useState<Record<string, KeyMetricSetting>>(keyMetricDefaultSettings);
 
     const onSettingsChanged = useCallback((setting: KeyMetricSetting) => {
         setSettings(prev => {
@@ -406,7 +407,7 @@ export const SubProjectAllocations: React.FunctionComponent<{
             <Flex>
                 <div className="key-metrics-settings-container">
                     <h3>Key metrics settings</h3>
-                    <h4 color={"textSecondary"}>Select key metrics to display</h4>
+                    <h4 style={{color: "var(--textSecondary)"}}>Select key metrics to display</h4>
                 </div>
                 <div className="key-metrics-input">
                     <div className="key-metrics-search-box">
@@ -471,7 +472,7 @@ export const SubProjectAllocations: React.FunctionComponent<{
                                     left={
                                         <Flex gap={"4px"}>
                                             <ProviderLogo providerId={"ucloud"} size={20}/>
-                                            <Heading.h3>u1-cephfs</Heading.h3>
+                                            <h3>u1-cephfs</h3>
                                         </Flex>
                                     }
                                     right={<Flex flexDirection={"row"} gap={"8px"}>
@@ -706,6 +707,161 @@ const SubProjectListRow: React.FunctionComponent<{
     </div>;
 }
 
+interface SubProjectFilter {
+    title: string;
+    options: string[];
+    selected?: string;
+    enabled: boolean;
+}
+
+const SubProjectFiltersRow: React.FunctionComponent<{
+    setting: SubProjectFilter;
+    onChange: (setting: SubProjectFilter) => void;
+}> = (props) => {
+
+    const onChecked = useCallback(() => {
+        props.onChange(produce(props.setting, draft => {
+            draft.enabled = !draft.enabled;
+        }))
+    }, [props.setting, props.onChange])
+
+    const onSelectOption = useCallback((item: SimpleRichItem) => {
+        props.onChange(produce(props.setting, draft => {
+            draft.selected = item.key
+        }))
+    }, [props.setting, props.onChange])
+
+    let selectedOpt = props.setting.selected;
+    return <ListRow
+        left={<Flex>
+            <h3 className="sub-project-filter-title">{props.setting.title}</h3>
+        </Flex>
+        }
+        right={<>
+            {props.setting.options.length === 0 ? null : <div className="key-metrics-selector">
+                <SimpleRichSelect
+                    items={props.setting.options.map((it) => ({key: it, value: it}))}
+                    onSelect={onSelectOption}
+                    selected={selectedOpt ? {key: selectedOpt, value: selectedOpt} : undefined}
+                    dropdownWidth={"300px"}
+                />
+            </div>}
+
+            <div className="key-metrics-checkbox">
+                <Checkbox
+                    size={30}
+                    checked={props.setting.enabled}
+                    handleWrapperClick={onChecked}
+                    onChange={onChecked}
+                />
+            </div>
+        </>
+        }
+    >
+    </ListRow>
+}
+
+const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
+    "Idle sub-projects": {
+        title: "Idle sub-projects",
+        options: ["1 month", "2 months", "3 months", "6 months"],
+        selected: "1 month",
+        enabled: false
+    },
+    "Allocated resource by product type": {
+        title: "Allocated resource by product type",
+        options: ["Compute", "Storage", "Public IP", "Application licence"],
+        selected: "Compute",
+        enabled: false
+    },
+    "Allocated resource by product": {
+        title: "Allocated resource by product",
+        options: [/*TODO list products here*/],
+        selected: "u1-standard-h",
+        enabled: false
+    },
+    "Allocated resource by provider": {
+        title: "Allocated resource by provider",
+        options: ["SDU/K8s", "AAU/K8s", "AAU/VM"],
+        selected: "SDU/K8s",
+        enabled: false
+    },
+    "Expired allocations": {
+        title: "Expired allocations",
+        options: [],
+        selected: "",
+        enabled: false
+    },
+    "Single user sub-projects": {
+        title: "Single user sub-projects",
+        options: [],
+        selected: "",
+        enabled: false
+    },
+    "Overallocations at risk": {
+        title: "Overallocations at risk",
+        options: [],
+        selected: "",
+        enabled: false
+    },
+};
+
+export const SubProjectFilters: React.FunctionComponent<{
+    filtersShown: boolean;
+    closeFilters: () => void;
+}> = ({filtersShown, closeFilters}) => {
+    const [settings, setSettings] = useState<Record<string, SubProjectFilter>>(subProjectsDefaultSettings);
+
+    const onSettingsChanged = useCallback((setting: SubProjectFilter) => {
+        setSettings(prev => {
+            return produce(prev, draft => {
+                draft[setting.title] = setting;
+            });
+        });
+    }, []);
+
+    return <ReactModal
+        isOpen={filtersShown}
+        shouldCloseOnEsc
+        onRequestClose={closeFilters}
+        style={largeModalStyle}
+        ariaHideApp={false}
+        className={classConcat(CardClass, keyMetricsStyle)}
+    >
+        <Flex>
+            <div className="key-metrics-settings-container">
+                <h3>Sub-project filters</h3>
+                <h4 style={{color: "var(--textSecondary)"}}>Select filters to apply</h4>
+            </div>
+            <div className="key-metrics-input">
+                <div className="key-metrics-search-box">
+                    <Input placeholder="Search in your sub-project filters"></Input>
+                    <div style={{position: "relative"}}>
+                        <div style={{position: "absolute", top: "5px", right: "10px"}}>
+                            <Icon name={"heroMagnifyingGlass"}/>
+                        </div>
+                    </div>
+                </div>
+                <Button onClick={closeFilters}>Apply</Button>
+            </div>
+        </Flex>
+        {Object.values(settings).map(setting => (
+            <SubProjectFiltersRow key={setting.title} setting={setting} onChange={onSettingsChanged}/>
+        ))}
+        <div className="sub-projects-sorting-container">
+            <h3>Sub-project sorting</h3>
+            <h4 style={{color: "var(--textSecondary)"}}>Select sorting criteria to apply</h4>
+            <SimpleRichSelect
+                items={[{key: "", value: ""}]}
+                    onSelect={doNothing}
+                    selected={undefined}
+                    dropdownWidth={"300px"}>
+            </SimpleRichSelect>
+            <SmallIconButton icon={"heroArrowsUpDown"}/>
+        </div>
+    </ReactModal>;
+}
+
 export const SubProjectList: React.FunctionComponent<{
     projectId: string | undefined,
     onNewSubProject: () => Promise<void>,
@@ -750,33 +906,7 @@ export const SubProjectList: React.FunctionComponent<{
     }, []);
 
     return <>
-        <ReactModal
-            isOpen={filtersShown}
-            shouldCloseOnEsc
-            onRequestClose={closeFilters}
-            style={largeModalStyle}
-            ariaHideApp={false}
-            className={classConcat(CardClass, keyMetricsStyle)}
-        >
-
-            <Flex>
-                <div className="key-metrics-settings-container">
-                    <h3>Sub-project filters</h3>
-                    <h4 color={"textSecondary"}>Select filters to apply</h4>
-                </div>
-                <div className="key-metrics-input">
-                    <div className="key-metrics-search-box">
-                        <Input placeholder="Search in your sub-project filters"></Input>
-                        <div style={{position: "relative"}}>
-                            <div style={{position: "absolute", top: "5px", right: "10px"}}>
-                                <Icon name={"heroMagnifyingGlass"}/>
-                            </div>
-                        </div>
-                    </div>
-                    <Button onClick={closeFilters}>Apply</Button>
-                </div>
-            </Flex>
-        </ReactModal>
+        <SubProjectFilters filtersShown={filtersShown} closeFilters={closeFilters} />
 
         <div className={subProjectsStyle}>
             {projectId !== undefined && <>
