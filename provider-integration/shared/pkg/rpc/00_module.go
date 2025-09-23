@@ -213,36 +213,39 @@ func (c *Call[Req, Resp]) InvokeEx(client *Client, request Req, opts InvokeOpts)
 		result, err = handler(c, client, request)
 
 	case ConventionRetrieve:
-		resp := CallViaQuery(client, fmt.Sprintf("/%s/retrieve%s", rpcBaseContext(c.BaseContext), capitalized(c.Operation)),
-			StructToParameters(request))
+		resp := CallViaQueryEx(client, fmt.Sprintf("/%s/retrieve%s", rpcBaseContext(c.BaseContext), capitalized(c.Operation)),
+			StructToParameters(request), opts)
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionQueryParameters:
-		resp := CallViaQuery(client, fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation),
-			StructToParameters(request))
+		resp := CallViaQueryEx(client, fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation),
+			StructToParameters(request), opts)
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionBrowse:
-		resp := CallViaQuery(client, fmt.Sprintf("/%s/browse%s", rpcBaseContext(c.BaseContext), capitalized(c.Operation)),
-			StructToParameters(request))
+		resp := CallViaQueryEx(client, fmt.Sprintf("/%s/browse%s", rpcBaseContext(c.BaseContext), capitalized(c.Operation)),
+			StructToParameters(request), opts)
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionUpdate:
-		resp := CallViaJsonBody(client, "POST", fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation), request)
+		resp := CallViaJsonBodyEx(client, "POST", fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation), request, opts)
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionDelete:
-		resp := CallViaJsonBody(client, "DELETE", fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation), request)
+		resp := CallViaJsonBodyEx(client, "DELETE", fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation), request, opts)
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionCreate:
-		resp := CallViaJsonBody(client, "POST", fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation), request)
+		resp := CallViaJsonBodyEx(client, "POST", fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation), request, opts)
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionSearch:
-		resp := CallViaJsonBody(client, "POST", fmt.Sprintf("/%s/search%s", rpcBaseContext(c.BaseContext),
-			capitalized(c.Operation)), request)
+		resp := CallViaJsonBodyEx(client, "POST", fmt.Sprintf("/%s/search%s", rpcBaseContext(c.BaseContext),
+			capitalized(c.Operation)), request, opts)
 		result, err = ParseResponse[Resp](resp)
+
+	case ConventionWebSocket:
+		log.Fatal("Client is not supported for this endpoint")
 	}
 
 	return result, err

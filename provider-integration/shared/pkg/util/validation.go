@@ -107,6 +107,12 @@ func ValidateString(input *string, fieldName string, opts StringValidationFlag, 
 	}
 }
 
+func ValidateStringIfPresent(input *Option[string], fieldName string, opts StringValidationFlag, err **HttpError) {
+	if input.Present {
+		ValidateString(&input.Value, fieldName, opts, err)
+	}
+}
+
 func ValidateEnum[T comparable](input *T, options []T, fieldName string, err **HttpError) {
 	if input == nil {
 		return
