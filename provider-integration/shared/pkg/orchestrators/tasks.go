@@ -54,7 +54,7 @@ const (
 func CreateTask(username string, operation, progress util.Option[string], icon string, flags TaskFlags) (uint64, error) {
 	type req struct {
 		User      string              `json:"user"`
-		Operation util.Option[string] `json:"operation"`
+		Operation util.Option[string] `json:"titlke"`
 		Progress  util.Option[string] `json:"progress"`
 		CanPause  bool                `json:"canPause"`
 		CanCancel bool                `json:"canCancel"`

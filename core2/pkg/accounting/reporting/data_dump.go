@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"time"
-	db "ucloud.dk/shared/pkg/database"
+	db "ucloud.dk/shared/pkg/database2"
 )
 
 func fetchAndDumpWallets(provider string, start, end time.Time) []byte {

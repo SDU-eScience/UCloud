@@ -3,7 +3,6 @@ package orchestrators
 import (
 	"slices"
 	acc "ucloud.dk/shared/pkg/accounting"
-	"ucloud.dk/shared/pkg/apm"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -136,7 +135,7 @@ type ResourceBrowseRequest[Flags any] struct {
 }
 
 type ResourceSpecification struct {
-	Product apm.ProductReference `json:"product"`
+	Product acc.ProductReference `json:"product"`
 }
 
 type ResourceRetrieveRequest[Flags any] struct {
@@ -153,11 +152,11 @@ type ProviderRegisteredResource[Spec any] struct {
 	ProjectAllWrite     bool                `json:"projectAllWrite"`
 }
 
-func ResourceOwnerToWalletOwner(resource Resource) apm.WalletOwner {
+func ResourceOwnerToWalletOwner(resource Resource) acc.WalletOwner {
 	if resource.Owner.Project != "" {
-		return apm.WalletOwnerProject(resource.Owner.Project)
+		return acc.WalletOwnerProject(resource.Owner.Project)
 	} else {
-		return apm.WalletOwnerUser(resource.Owner.CreatedBy)
+		return acc.WalletOwnerUser(resource.Owner.CreatedBy)
 	}
 }
 

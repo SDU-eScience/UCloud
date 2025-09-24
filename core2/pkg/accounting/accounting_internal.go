@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database"
+	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -931,10 +931,39 @@ func lInternalAttemptRetirement(b *internalBucket, now time.Time, alloc *interna
 // The following functions compute and measure various metrics that are needed for the internal functions of the
 // accounting system. Some of these computed properties are also returned needed by the public API.
 
+func internalWalletsUpdatedAfter(timestamp time.Time, providerId string) []accWalletId {
+	var buckets []*internalBucket
+	var wallets []accWalletId
+
+	accGlobals.Mu.RLock()
+	for cat, b := range accGlobals.BucketsByCategory {
+		if cat.Provider == providerId {
+			if b.SignificantUpdateAt.Equal(timestamp) || b.SignificantUpdateAt.After(timestamp) {
+				buckets = append(buckets, b)
+			}
+		}
+	}
+	accGlobals.Mu.RUnlock()
+
+	for _, b := range buckets {
+		b.Mu.RLock()
+		for wid, wallet := range b.WalletsById {
+			wUpdate := wallet.LastSignificantUpdate
+			if wUpdate.Equal(timestamp) || wUpdate.After(timestamp) {
+				wallets = append(wallets, wid)
+			}
+		}
+		b.Mu.RUnlock()
+	}
+
+	return wallets
+}
+
 func lInternalMarkSignificantUpdate(b *internalBucket, now time.Time, wallet *internalWallet) {
 	b.SignificantUpdateAt = now
 	wallet.LastSignificantUpdate = now
 	wallet.Dirty = true
+	providerWalletNotifications <- wallet.Id
 }
 
 func internalMaxUsable(now time.Time, wallet accWalletId) (int64, bool) {
@@ -1135,6 +1164,111 @@ func internalFindRelevantProviders(
 	return result
 }
 
+func internalRetrieveWallet(
+	now time.Time,
+	id accWalletId,
+	includeChildren bool,
+) (accapi.WalletV2, bool) {
+	b, w, ok := internalWalletById(id)
+
+	if !ok {
+		return accapi.WalletV2{}, false
+	} else {
+		accGlobals.Mu.RLock()
+		b.Mu.RLock()
+
+		ownerId := w.OwnedBy
+		owner := accGlobals.OwnersById[ownerId].WalletOwner()
+		apiWallet := lInternalWalletToApi(now, b, w, owner, includeChildren)
+
+		b.Mu.RUnlock()
+		accGlobals.Mu.RUnlock()
+
+		return apiWallet, true
+	}
+}
+
+func lInternalWalletToApi(
+	now time.Time,
+	b *internalBucket,
+	w *internalWallet,
+	owner accapi.WalletOwner,
+	includeChildren bool,
+) accapi.WalletV2 {
+	groups := w.AllocationsByParent
+	apiWallet := accapi.WalletV2{
+		Owner:                   owner,
+		PaysFor:                 b.Category,
+		AllocationGroups:        []accapi.AllocationGroupWithParent{},
+		Children:                []accapi.AllocationGroupWithChild{},
+		TotalUsage:              lInternalWalletTotalUsageInNode(b, w),
+		LocalUsage:              w.LocalUsage,
+		MaxUsable:               lInternalMaxUsable(b, now, w),
+		Quota:                   lInternalWalletTotalQuotaActive(b, w),
+		TotalAllocated:          lInternalWalletTotalAllocatedActive(b, w),
+		LastSignificantUpdateAt: fndapi.Timestamp(w.LastSignificantUpdate),
+	}
+
+	allocGroupApi := func(g *internalGroup) accapi.AllocationGroup {
+		var apiAllocs []accapi.Allocation
+
+		for allocId, _ := range g.Allocations {
+			alloc := b.AllocationsById[allocId]
+			apiAllocs = append(apiAllocs, accapi.Allocation{
+				Id:        int64(allocId),
+				StartDate: fndapi.Timestamp(alloc.Start),
+				EndDate:   fndapi.Timestamp(alloc.End),
+				Quota:     alloc.Quota,
+				GrantedIn: util.OptDefaultOrMap(alloc.GrantedIn, util.OptNone[int64](), func(val accGrantId) util.Option[int64] {
+					return util.OptValue(int64(val))
+				}),
+				RetiredUsage: alloc.RetiredUsage,
+			})
+		}
+
+		return accapi.AllocationGroup{
+			Id:          int(g.Id),
+			Allocations: apiAllocs,
+			Usage:       g.TreeUsage,
+		}
+	}
+
+	for _, g := range groups {
+		var parentWalletRef util.Option[accapi.ParentOrChildWallet]
+		if g.ParentWallet != internalGraphRoot {
+			pw := b.WalletsById[g.ParentWallet]
+			po := accGlobals.OwnersById[pw.OwnedBy]
+			parentWalletRef.Set(accapi.ParentOrChildWallet{
+				ProjectId:    po.Reference,
+				ProjectTitle: "", // NOTE(Dan)/TODO: This API will not do this
+			})
+		}
+
+		apiWallet.AllocationGroups = append(apiWallet.AllocationGroups, accapi.AllocationGroupWithParent{
+			Parent: parentWalletRef,
+			Group:  allocGroupApi(g),
+		})
+	}
+
+	if includeChildren {
+		for childId, _ := range w.ChildrenUsage {
+			childWallet := b.WalletsById[childId]
+			childOwner := accGlobals.OwnersById[childWallet.OwnedBy]
+
+			g := childWallet.AllocationsByParent[w.Id]
+			apiWallet.Children = append(apiWallet.Children, accapi.AllocationGroupWithChild{
+				Child: util.OptValue(accapi.ParentOrChildWallet{
+					ProjectId:    childOwner.Reference,
+					ProjectTitle: "", // NOTE(Dan)/TODO: This API will not do this
+				}),
+				Group: allocGroupApi(g),
+			})
+		}
+	}
+
+	return apiWallet
+}
+
 type walletFilter struct {
 	ProductType util.Option[accapi.ProductType]
 	Provider    util.Option[string]
@@ -1187,76 +1321,7 @@ func internalRetrieveWallets(
 		}
 
 		if shouldInclude {
-			apiWallet := accapi.WalletV2{
-				Owner:                   owner.WalletOwner(),
-				PaysFor:                 b.Category,
-				AllocationGroups:        []accapi.AllocationGroupWithParent{},
-				Children:                []accapi.AllocationGroupWithChild{},
-				TotalUsage:              lInternalWalletTotalUsageInNode(b, w),
-				LocalUsage:              w.LocalUsage,
-				MaxUsable:               lInternalMaxUsable(b, now, w),
-				Quota:                   lInternalWalletTotalQuotaActive(b, w),
-				TotalAllocated:          lInternalWalletTotalAllocatedActive(b, w),
-				LastSignificantUpdateAt: fndapi.Timestamp(w.LastSignificantUpdate),
-			}
-
-			allocGroupApi := func(g *internalGroup) accapi.AllocationGroup {
-				var apiAllocs []accapi.Allocation
-
-				for allocId, _ := range g.Allocations {
-					alloc := b.AllocationsById[allocId]
-					apiAllocs = append(apiAllocs, accapi.Allocation{
-						Id:        int64(allocId),
-						StartDate: fndapi.Timestamp(alloc.Start),
-						EndDate:   fndapi.Timestamp(alloc.End),
-						Quota:     alloc.Quota,
-						GrantedIn: util.OptDefaultOrMap(alloc.GrantedIn, util.OptNone[int64](), func(val accGrantId) util.Option[int64] {
-							return util.OptValue(int64(val))
-						}),
-						RetiredUsage: alloc.RetiredUsage,
-					})
-				}
-
-				return accapi.AllocationGroup{
-					Id:          int(g.Id),
-					Allocations: apiAllocs,
-					Usage:       g.TreeUsage,
-				}
-			}
-
-			for _, g := range groups {
-				var parentWalletRef util.Option[accapi.ParentOrChildWallet]
-				if g.ParentWallet != internalGraphRoot {
-					pw := b.WalletsById[g.ParentWallet]
-					po := accGlobals.OwnersById[pw.OwnedBy]
-					parentWalletRef.Set(accapi.ParentOrChildWallet{
-						ProjectId:    po.Reference,
-						ProjectTitle: "", // NOTE(Dan)/TODO: This API will not do this
-					})
-				}
-
-				apiWallet.AllocationGroups = append(apiWallet.AllocationGroups, accapi.AllocationGroupWithParent{
-					Parent: parentWalletRef,
-					Group:  allocGroupApi(g),
-				})
-			}
-
-			if filter.IncludeChildren {
-				for childId, _ := range w.ChildrenUsage {
-					childWallet := b.WalletsById[childId]
-					childOwner := accGlobals.OwnersById[childWallet.OwnedBy]
-
-					g := childWallet.AllocationsByParent[w.Id]
-					apiWallet.Children = append(apiWallet.Children, accapi.AllocationGroupWithChild{
-						Child: util.OptValue(accapi.ParentOrChildWallet{
-							ProjectId:    childOwner.Reference,
-							ProjectTitle: "", // NOTE(Dan)/TODO: This API will not do this
-						}),
-						Group: allocGroupApi(g),
-					})
-				}
-			}
-
+			apiWallet := lInternalWalletToApi(now, b, w, owner.WalletOwner(), filter.IncludeChildren)
 			wallets = append(wallets, apiWallet)
 		}
 

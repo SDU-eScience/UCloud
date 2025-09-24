@@ -1,8 +1,13 @@
 package k8s
 
 import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/tools/cache"
+	"os"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/shared/pkg/apm"
@@ -57,17 +62,49 @@ func InitCompute() ctrl.JobsService {
 	}
 }
 
+var nodes *shared.K8sResourceTracker[*corev1.Node]
+
+var monitoringHealthCounter = atomic.Int64{}
+
 func InitComputeLater() {
 	ctrl.ReconfigureAllIApps()
 
 	initJobQueue()
 
 	go func() {
+		nodes = shared.NewResourceTracker[*corev1.Node](
+			"",
+			func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
+				return factory.Core().V1().Nodes().Informer()
+			},
+			func(resource *corev1.Node) string {
+				return resource.Name
+			},
+		)
+
 		for util.IsAlive {
 			loopMonitoring()
+			monitoringHealthCounter.Add(1)
 			time.Sleep(100 * time.Millisecond)
 		}
 	}()
+
+	go monitoringHealthLoop()
+}
+
+func monitoringHealthLoop() {
+	prevValue := int64(0)
+	time.Sleep(2 * time.Minute) // Wait at least 2 minutes before starting health loop
+
+	for util.IsAlive {
+		current := monitoringHealthCounter.Load()
+		if current == prevValue {
+			log.Error("Monitoring loop hasn't been run at least once in the last 60 seconds. Monitoring is too slow. Deadlock?")
+			os.Exit(1)
+		}
+		prevValue = current
+		time.Sleep(60 * time.Second)
+	}
 }
 
 func retrievePublicIpProducts() []orc.PublicIpSupport {

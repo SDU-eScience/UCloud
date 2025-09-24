@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"strconv"
 	"time"
-	db "ucloud.dk/shared/pkg/database"
+	db "ucloud.dk/shared/pkg/database2"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -14,6 +15,11 @@ import (
 
 func appCatalogLoad() {
 	reset := func() {
+		appCatalogGlobals.TopPicks.Items = nil
+		appCatalogGlobals.Carrousel.Items = nil
+		appCatalogGlobals.RecentAdditions.NewApplications = nil
+		appCatalogGlobals.RecentAdditions.RecentlyUpdated = nil
+
 		appCatalogGlobals.Buckets = make([]appCatalogBucket, runtime.NumCPU())
 		for i := 0; i < len(appCatalogGlobals.Buckets); i++ {
 			b := &appCatalogGlobals.Buckets[i]
@@ -89,6 +95,23 @@ func appCatalogLoad() {
 					panic(fmt.Sprintf("Could not load application: %s %s", app.Name, app.Version))
 				}
 				b.Applications[app.Name] = append(b.Applications[app.Name], i)
+			}
+
+			appsByCreatedAt := db.Select[struct {
+				Name    string
+				Version string
+			}](
+				tx,
+				`
+					select name, version
+					from app_store.applications
+					order by created_at
+			    `,
+				db.Params{},
+			)
+
+			for _, nv := range appsByCreatedAt {
+				appStudioTrackUpdate(orcapi.NameAndVersion{Name: nv.Name, Version: nv.Version})
 			}
 
 			tools := db.Select[struct {
@@ -167,6 +190,7 @@ func appCatalogLoad() {
 						default_name, color_remapping
 					from
 						app_store.application_groups
+					order by id asc
 				`,
 				db.Params{},
 			)
@@ -202,6 +226,7 @@ func appCatalogLoad() {
 				}
 
 				b.Groups[id] = &appGroup
+				appStudioTrackNewGroup(id)
 			}
 
 			categories := db.Select[struct {
@@ -309,7 +334,7 @@ func appCatalogLoad() {
 				LinkedApplication sql.NullString
 				LinkedGroup       sql.NullInt64
 				LinkedWebPage     sql.NullString
-				Image             db.Bytea
+				Image             []byte
 			}](
 				tx,
 				`
@@ -514,7 +539,7 @@ func appPersistGroupMetadata(id AppGroupId, group *internalAppGroup) {
 			tx,
 			`
 				insert into app_store.application_groups(id, title, logo, description, default_name, logo_has_text, color_remapping, curator) 
-				values (:id, :title, null, :description, :flavor, :logo_has_text, null, 'main')
+				values (:id, :title, null, :description, case when :flavor = '' then null else :flavor end, :logo_has_text, null, 'main')
 				on conflict (id) do update set
 				    title = excluded.title,
 				    description = excluded.description,
@@ -549,7 +574,7 @@ func appPersistGroupLogo(id AppGroupId, group *internalAppGroup) {
 		    `,
 			db.Params{
 				"id":   id,
-				"logo": db.Bytea(group.Logo),
+				"logo": group.Logo,
 			},
 		)
 	})
@@ -567,7 +592,7 @@ func appPersistUpdateGroupAssignment(name string, id util.Option[AppGroupId]) {
 			`
 				update app_store.applications
 				set
-					group_id = case when :group = -1 then null else :group end
+					group_id = cast(case when :group = -1 then null else :group end as int)
 				where
 					name = :name
 		    `,
@@ -887,4 +912,182 @@ func appPersistTopPicks(picks []AppGroupId) {
 	})
 	// TODO Stuff like this could technically cause a crash if it is deleted before persistence runs.
 	//   Might want to verify in here by joining the table.
+}
+
+func appPersistCarrouselSlides() {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	c := &appCatalogGlobals.Carrousel
+	c.Mu.RLock()
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				delete from app_store.carrousel_items where priority >= :length
+		    `,
+			db.Params{
+				"length": len(c.Items),
+			},
+		)
+
+		var title []string
+		var body []string
+		var linkedApplication []string
+		var linkedGroup []int
+		var linkedWebPage []string
+		var priority []int
+
+		for i, slide := range c.Items {
+			title = append(title, slide.Title)
+			body = append(body, slide.Body)
+
+			lApp := ""
+			lGroup := 0
+			lPage := ""
+			if slide.LinkType == appCarrouselWebPage {
+				lPage = slide.LinkId
+			} else if slide.LinkType == appCarrouselApplication {
+				lApp = slide.LinkId
+			} else if slide.LinkType == appCarrouselGroup {
+				g, _ := strconv.ParseInt(slide.LinkId, 10, 64)
+				lGroup = int(g)
+			}
+
+			linkedApplication = append(linkedApplication, lApp)
+			linkedGroup = append(linkedGroup, lGroup)
+			linkedWebPage = append(linkedWebPage, lPage)
+			priority = append(priority, i)
+		}
+
+		if len(title) > 0 {
+			db.Exec(
+				tx,
+				`
+					with data as (
+						select 
+							unnest(cast(:title as text[])) as title,
+							unnest(cast(:body as text[])) as body,
+							unnest(cast(:linked_application as text[])) as linked_application,
+							unnest(cast(:linked_group as int[])) as linked_group, 
+							unnest(cast(:linked_web_page as text[])) as linked_web_page,
+							unnest(cast(:priority as int[])) as priority
+					)
+					insert into app_store.carrousel_items
+						(title, body, image_credit, linked_application, linked_group, linked_web_page, image, priority) 
+					select 
+						title,
+						body,
+						'', 
+						case when linked_application = '' then null else linked_application end,
+						case when linked_group = 0 then null else linked_group end,
+						case when linked_web_page = '' then null else linked_web_page end,
+						E'\\x',
+						priority
+					from
+						data
+					on conflict (priority) do update set
+						title = excluded.title,
+						body = excluded.body,
+						linked_application = excluded.linked_application,
+						linked_group = excluded.linked_group,
+						linked_web_page = excluded.linked_web_page
+				`,
+				db.Params{
+					"title":              title,
+					"body":               body,
+					"linked_application": linkedApplication,
+					"linked_group":       linkedGroup,
+					"linked_web_page":    linkedWebPage,
+					"priority":           priority,
+				},
+			)
+		}
+	})
+	c.Mu.RUnlock()
+}
+
+func appPersistCarrouselSlideImage(index int, resized []byte) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update app_store.carrousel_items
+				set image = :bytes
+				where priority = :index
+		    `,
+			db.Params{
+				"index": index,
+				"bytes": resized,
+			},
+		)
+	})
+}
+
+func appPersistApplication(app *internalApplication) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	app.Mu.RLock()
+	db.NewTx0(func(tx *db.Transaction) {
+		appJson, _ := json.Marshal(app.Invocation)
+
+		db.Exec(
+			tx,
+			`
+				insert into app_store.applications
+					(name, version, application, created_at, modified_at, original_document, owner, 
+						tool_name, tool_version, authors, title, description, website, group_id, flavor_name) 
+				values (:name, :version, :app, :created_at, :modified_at, '{}', '_ucloud', 
+					:tool_name, :tool_version, '["Unknown"]', :title, :description, :website, 
+					cast(case when :group_id = 0 then null else :group_id end as int), :flavor_name)
+		    `,
+			db.Params{
+				"name":         app.Name,
+				"version":      app.Version,
+				"app":          string(appJson),
+				"created_at":   app.CreatedAt,
+				"modified_at":  app.ModifiedAt,
+				"tool_name":    app.Invocation.Tool.Name,
+				"tool_version": app.Invocation.Tool.Version,
+				"title":        app.Title,
+				"description":  app.Description,
+				"website":      app.DocumentationSite.Sql(),
+				"group_id":     int(app.Group.GetOrDefault(0)),
+				"flavor_name":  app.FlavorName.Sql(),
+			},
+		)
+	})
+	app.Mu.RUnlock()
+}
+
+func appToolPersist(tool *internalTool) {
+	if appCatalogGlobals.Testing.Enabled {
+		return
+	}
+
+	tool.Mu.RLock()
+	db.NewTx0(func(tx *db.Transaction) {
+		toolJson, _ := json.Marshal(tool.Tool)
+
+		db.Exec(
+			tx,
+			`
+insert into app_store.tools(name, version, created_at, modified_at, original_document, owner, tool) 
+values (:name, :version, now(), now(), '{}', '_ucloud', :tool)
+		    `,
+			db.Params{
+				"name":    tool.Name,
+				"version": tool.Version,
+				"tool":    string(toolJson),
+			},
+		)
+	})
+	tool.Mu.RUnlock()
 }

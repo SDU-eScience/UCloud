@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
@@ -55,7 +56,7 @@ func initIntegratedTerminal() {
 	if err == nil {
 		apps := group.Status.Applications
 		if len(apps) > 0 {
-			integratedTerminalImage = apps[0].Invocation.Tool.Tool.Description.Image
+			integratedTerminalImage = apps[len(apps)-1].Invocation.Tool.Tool.Description.Image
 		}
 	}
 
@@ -167,6 +168,27 @@ func itermShouldRun(job *orc.Job, configuration json.RawMessage) bool {
 
 	if time.Now().Sub(ts) > itermInactivityDuration {
 		return false
+	}
+
+	for _, folder := range config.Folders {
+		driveId, ok := filesystem.DriveIdFromUCloudPath(folder)
+		if !ok {
+			return false
+		}
+
+		drive, ok := ctrl.RetrieveDrive(driveId)
+		if !ok {
+			return false
+		}
+
+		storageLocked := ctrl.IsResourceLocked(drive.Resource, drive.Specification.Product)
+		if storageLocked {
+			return false
+		}
+
+		if !ctrl.CanUseDrive(job.Owner, driveId, false) {
+			return false
+		}
 	}
 
 	return true

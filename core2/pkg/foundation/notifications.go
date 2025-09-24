@@ -3,7 +3,7 @@ package foundation
 import (
 	"encoding/json"
 	"time"
-	db "ucloud.dk/shared/pkg/database"
+	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -42,6 +42,24 @@ func initNotifications() {
 
 	fndapi.NotificationsUpdateSettings.Handler(func(info rpc.RequestInfo, request fndapi.NotificationSettings) (util.Empty, *util.HttpError) {
 		UpdateNotificationSettings(info.Actor, request)
+		return util.Empty{}, nil
+	})
+
+	followCall := rpc.Call[util.Empty, util.Empty]{
+		BaseContext: "notifications",
+		Convention:  rpc.ConventionWebSocket,
+	}
+
+	followCall.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
+		conn := info.WebSocket
+		for {
+			_, _, err := conn.ReadMessage()
+			if err != nil {
+				break
+			}
+		}
+		util.SilentClose(conn)
+
 		return util.Empty{}, nil
 	})
 }

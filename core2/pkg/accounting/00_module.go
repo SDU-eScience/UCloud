@@ -4,4 +4,5 @@ func Init() {
 	initProducts()
 	initAccounting()
 	initGrants()
+	initProviderNotifications()
 }

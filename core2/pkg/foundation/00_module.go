@@ -7,4 +7,5 @@ func Init() {
 	initNotifications()
 	initAuth()
 	initProjects()
+	initTasks()
 }

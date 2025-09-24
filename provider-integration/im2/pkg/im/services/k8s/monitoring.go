@@ -1,17 +1,18 @@
 package k8s
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"maps"
+	"os"
 	"slices"
 	"strings"
 	"time"
 
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/containers"
@@ -24,7 +25,6 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-var nextNodeMonitor time.Time
 var nextAccounting time.Time
 
 // NOTE(Dan): This must only be used by code invoked from the goroutine in loopMonitoring. None of the code is
@@ -33,13 +33,18 @@ var nextAccounting time.Time
 var schedulers = map[string]*Scheduler{}
 
 func getScheduler(category string, group string) (*Scheduler, bool) {
-	schedKey := fmt.Sprintf("%s/%s", category, group)
-
-	_, isIApp := ctrl.IntegratedApplications[category]
-	if isIApp {
-		// TODO Ask the application about the scheduler.
+	mapped, ok := shared.ServiceConfig.Compute.MachineImpersonation[category]
+	if !ok {
+		mapped = category
 	} else {
-		_, ok := shared.ServiceConfig.Compute.Machines[category]
+		group = mapped
+	}
+
+	schedKey := fmt.Sprintf("%s/%s", mapped, group)
+
+	_, isIApp := ctrl.IntegratedApplications[mapped]
+	if !isIApp {
+		_, ok := shared.ServiceConfig.Compute.Machines[mapped]
 		if !ok {
 			return nil, false
 		}
@@ -188,45 +193,51 @@ func initJobQueue() {
 }
 
 func loopMonitoring() {
+	timerTotal := util.NewTimer()
+	defer func() {
+		metricMonitoring.WithLabelValues("Total").Observe(timerTotal.Mark().Seconds())
+	}()
+
+	timer := util.NewTimer()
 	now := time.Now()
 
 	// NOTE(Dan): Node monitoring must go before job monitoring such that the scheduler knows about the nodes before
 	// it knows about running replicas.
-	if now.After(nextNodeMonitor) {
-		nodeList := util.RetryOrPanic[*core.NodeList]("list k8s nodes", func() (*core.NodeList, error) {
-			return shared.K8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-		})
+	{
+		timer.Mark()
 
-		if util.DevelopmentModeEnabled() && len(nodeList.Items) == 1 {
-			baseNode := nodeList.Items[0]
-			nodeList.Items = []core.Node{}
+		nodeList := nodes.List()
+
+		if util.DevelopmentModeEnabled() && len(nodeList) == 1 {
+			baseNode := nodeList[0]
+			nodeList = []*core.Node{}
 
 			for category, _ := range shared.ServiceConfig.Compute.Machines {
 				normalMachine := baseNode
 				normalMachine.Labels = maps.Clone(normalMachine.Labels)
 				normalMachine.Labels["ucloud.dk/machine"] = category
-				nodeList.Items = append(nodeList.Items, normalMachine)
+				nodeList = append(nodeList, normalMachine)
 				break
 			}
 
 			if shared.ServiceConfig.Compute.Syncthing.Enabled {
-				syncthingNode := nodeList.Items[0]
+				syncthingNode := nodeList[0]
 				syncthingNode.Labels = maps.Clone(syncthingNode.Labels)
 				syncthingNode.Labels["ucloud.dk/machine"] = "syncthing"
-				nodeList.Items = append(nodeList.Items, syncthingNode)
+				nodeList = append(nodeList, syncthingNode)
 			}
 
 			if shared.ServiceConfig.Compute.IntegratedTerminal.Enabled {
-				syncthingNode := nodeList.Items[0]
+				syncthingNode := nodeList[0]
 				syncthingNode.Labels = maps.Clone(syncthingNode.Labels)
 				syncthingNode.Labels["ucloud.dk/machine"] = "terminal"
-				nodeList.Items = append(nodeList.Items, syncthingNode)
+				nodeList = append(nodeList, syncthingNode)
 			}
 		}
 
-		length := len(nodeList.Items)
+		length := len(nodeList)
 		for i := 0; i < length; i++ {
-			node := &nodeList.Items[i]
+			node := nodeList[i]
 			catGroups := nodeCategories(node)
 			for _, catGroup := range catGroups {
 				sched, ok := getScheduler(catGroup.Category, catGroup.Group)
@@ -301,11 +312,12 @@ func loopMonitoring() {
 			sched.PruneNodes()
 		}
 
-		nextNodeMonitor = now.Add(15 * time.Second)
+		metricMonitoring.WithLabelValues("Nodes").Observe(timer.Mark().Seconds())
 	}
 
 	// Job monitoring
 	// -----------------------------------------------------------------------------------------------------------------
+	timer.Mark()
 	activeJobs := ctrl.GetJobs()
 	tracker := &jobTracker{
 		batch: ctrl.BeginJobUpdates(),
@@ -313,8 +325,30 @@ func loopMonitoring() {
 	}
 
 	tracker.jobs = activeJobs
+	metricMonitoring.WithLabelValues("ActiveJobs").Observe(timer.Mark().Seconds())
+
+	timer.Mark()
+	entriesToRemove := shared.SwapScheduleRemoveFromQueue()
+	for _, jobId := range entriesToRemove {
+		job, ok := ctrl.RetrieveJob(jobId)
+		if ok {
+			sched, ok := getSchedulerByJob(job)
+			if ok {
+				sched.RemoveJobFromQueue(jobId)
+			}
+		}
+	}
+	metricMonitoring.WithLabelValues("RemoveFromQueue").Observe(timer.Mark().Seconds())
+
+	timer.Mark()
 	containers.Monitor(tracker, activeJobs)
+	metricMonitoring.WithLabelValues("ContainerMonitor").Observe(timer.Mark().Seconds())
+
+	timer.Mark()
 	kubevirt.Monitor(tracker, activeJobs)
+	metricMonitoring.WithLabelValues("VirtualMachineMonitor").Observe(timer.Mark().Seconds())
+
+	timer.Mark()
 	for _, sched := range schedulers {
 		sched.PruneReplicas()
 
@@ -324,26 +358,39 @@ func loopMonitoring() {
 			tracker.batch.TrackState(queueEntry.JobId, orc.JobStateInQueue, util.OptNone[string]())
 		}
 	}
+	metricMonitoring.WithLabelValues("PruneAndTrack").Observe(timer.Mark().Seconds())
 
+	timer.Mark()
 	batchResults := tracker.batch.End()
+	metricMonitoring.WithLabelValues("EndBatch").Observe(timer.Mark().Seconds())
 
 	// Side-effects from job monitoring
 	// -----------------------------------------------------------------------------------------------------------------
+	timer.Mark()
 	{
 		// Lock jobs which are out of resources
 
 		activeJobsAfterBatch := ctrl.GetJobs()
+		metricMonitoring.WithLabelValues("FetchJobs").Observe(timer.Mark().Seconds())
+
+		timer.Mark()
 		var lockedMessages []ctrl.JobMessage
 		for _, job := range activeJobsAfterBatch {
-			if reason := IsJobLocked(job); reason.Present {
-				lockedMessages = append(lockedMessages, ctrl.JobMessage{
-					JobId:   job.Id,
-					Message: reason.Value.Reason,
-				})
-				tracker.RequestCleanup(job.Id)
+			if job.Status.State == orc.JobStateInQueue || job.Status.State == orc.JobStateRunning {
+				if reason := IsJobLocked(job); reason.Present {
+					lockedMessages = append(lockedMessages, ctrl.JobMessage{
+						JobId:   job.Id,
+						Message: reason.Value.Reason,
+					})
+					tracker.RequestCleanup(job.Id)
+				}
 			}
 		}
+		metricMonitoring.WithLabelValues("CheckingLockState").Observe(timer.Mark().Seconds())
+
+		timer.Mark()
 		_ = ctrl.TrackJobMessages(lockedMessages)
+		metricMonitoring.WithLabelValues("JobUpdates").Observe(timer.Mark().Seconds())
 	}
 
 	go func() {
@@ -385,6 +432,7 @@ func loopMonitoring() {
 	// Accounting
 	// -----------------------------------------------------------------------------------------------------------------
 	if now.After(nextAccounting) {
+		timer.Mark()
 		var reports []apm.UsageReportItem
 
 		for _, job := range activeJobs {
@@ -421,6 +469,7 @@ func loopMonitoring() {
 		}
 
 		nextAccounting = now.Add(30 * time.Second)
+		metricMonitoring.WithLabelValues("JobAccounting").Observe(timer.Mark().Seconds())
 	}
 
 	// Node remaining capacity calculation
@@ -441,18 +490,13 @@ func loopMonitoring() {
 	//  represents the expected usage in the near future. For VMs, this might be very wrong if they haven't created
 	//   their pod immediately after the schedule.
 
+	timer.Mark()
 	{
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		allPods, err := shared.K8sClient.CoreV1().Pods(shared.ServiceConfig.Compute.Namespace).List(ctx, metav1.ListOptions{})
-		cancel()
-		if err != nil {
-			log.Info("Failed to get a list of pods from Kubernetes: %s", err)
-			return
-		}
+		allPods := shared.JobPods.List()
 
 		resourcesByNode := map[string]map[string]int64{}
 
-		for _, pod := range allPods.Items {
+		for _, pod := range allPods {
 			nodeName := pod.Spec.NodeName
 			resources, ok := resourcesByNode[nodeName]
 			if !ok {
@@ -461,7 +505,7 @@ func loopMonitoring() {
 			}
 
 			for _, c := range pod.Spec.Containers {
-				for resourceType, amount := range c.Resources.Limits {
+				for resourceType, amount := range c.Resources.Requests {
 					intAmount := int64(0)
 					if resourceType == core.ResourceCPU {
 						intAmount = amount.MilliValue()
@@ -504,9 +548,20 @@ func loopMonitoring() {
 			}
 		}
 	}
+	metricMonitoring.WithLabelValues("NodeCapacity").Observe(timer.Mark().Seconds())
+
+	// NOTE(Dan): This code obviously implies that the service is always running somewhere which only sysadmins can
+	// reach it. This is the case for us. I believe it should be in the future. TODO?
+	// TODO Potentially remove this for performance
+	requestDump := false
+	if _, err := os.Stat("/tmp/scheduler-dump-requested"); err == nil {
+		_ = os.Remove("/tmp/scheduler-dump-requested")
+		requestDump = true
+	}
 
 	// Job scheduling
 	// -----------------------------------------------------------------------------------------------------------------
+	timer.Mark()
 	entriesToSubmit := shared.SwapScheduleQueue()
 	for _, entry := range entriesToSubmit {
 		sched, ok := getSchedulerByJob(entry)
@@ -515,14 +570,23 @@ func loopMonitoring() {
 				entry.Specification.Replicas, nil, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
 		}
 	}
+	metricMonitoring.WithLabelValues("RegisterInQueue").Observe(timer.Mark().Seconds())
 
 	var scheduleMessages []ctrl.JobMessage
 	var allScheduled []*SchedulerReplicaEntry
 
 	for _, sched := range schedulers {
+		if requestDump {
+			sched.DumpStateToFile.Set(fmt.Sprintf("/tmp/scheduler-%s.json", strings.ReplaceAll(sched.Name, "/", "_")))
+		}
+
+		timer.Mark()
 		jobsToSchedule := sched.Schedule()
+		metricMonitoring.WithLabelValues("Placement").Observe(timer.Mark().Seconds())
+
 		length := len(jobsToSchedule)
 		for i := 0; i < length; i++ {
+			timer.Mark()
 			toSchedule := &jobsToSchedule[i]
 			job, ok := ctrl.RetrieveJob(toSchedule.JobId)
 			if !ok {
@@ -543,12 +607,18 @@ func loopMonitoring() {
 					})
 				}
 			}
+			metricMonitoring.WithLabelValues("Sync").Observe(timer.Mark().Seconds())
 
 			toolBackend := job.Status.ResolvedApplication.Invocation.Tool.Tool.Description.Backend
 			if toolBackend == orc.ToolBackendVirtualMachine {
+				timer.Mark()
 				kubevirt.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
+				metricMonitoring.WithLabelValues("StartJob").Observe(timer.Mark().Seconds())
 			} else {
+				timer.Mark()
 				err := containers.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
+				metricMonitoring.WithLabelValues("StartJob").Observe(timer.Mark().Seconds())
+
 				if err != nil {
 					scheduleMessages = append(scheduleMessages, ctrl.JobMessage{
 						JobId:   job.Id,
@@ -560,16 +630,19 @@ func loopMonitoring() {
 						// IApps typically hits this branch if they are out of resources. We do not want them to stop
 						// attempting to re-schedule in this scenario. Generally we do not want iapps to enter a
 						// final state ever.
+						timer.Mark()
 						_ = terminate(ctrl.JobTerminateRequest{
 							Job:       job,
 							IsCleanup: false,
 						})
+						metricMonitoring.WithLabelValues("TerminateJobs").Observe(timer.Mark().Seconds())
 					}
 				}
 			}
 		}
 	}
 
+	timer.Mark()
 	for newIdx := 0; newIdx < len(entriesToSubmit); newIdx++ {
 		newJob := entriesToSubmit[newIdx]
 
@@ -592,6 +665,7 @@ func loopMonitoring() {
 	}
 
 	_ = ctrl.TrackJobMessages(scheduleMessages)
+	metricMonitoring.WithLabelValues("JobUpdates").Observe(timer.Mark().Seconds())
 }
 
 type NodeCatGroup struct {
@@ -679,3 +753,21 @@ func convertJobTimeToAccountingUnits(job *orc.Job, timeConsumed time.Duration) i
 
 	return int64(accountingUnitsUsed)
 }
+
+var (
+	metricMonitoring = promauto.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Namespace: "ucloud_im",
+			Subsystem: "jobs",
+			Name:      "monitoring_seconds",
+			Help:      "Summary of the duration (in seconds) it takes to monitor a specific section",
+			Objectives: map[float64]float64{
+				0.5:  0.01,
+				0.75: 0.01,
+				0.95: 0.01,
+				0.99: 0.01,
+			},
+		},
+		[]string{"section"},
+	)
+)

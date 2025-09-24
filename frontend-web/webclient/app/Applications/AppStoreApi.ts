@@ -482,7 +482,7 @@ async function uploadFile(method: string, path: string, file: File, headers?: Re
     const projectId = getStoredProject();
     if (projectId) actualHeaders["Project"] = projectId;
 
-    const response = await fetch(Client.computeURL("/", path), {
+    const response = await fetch(Client.computeURL("", path), {
         method: method,
         headers: actualHeaders,
         body: file,
@@ -768,7 +768,7 @@ export async function doExport(): Promise<string> {
     const actualHeaders: Record<string, string> = {};
     actualHeaders["Authorization"] = `Bearer ${token}`;
 
-    const response = await fetch(Client.computeURL("/", `${baseContext}/export`), {
+    const response = await fetch(Client.computeURL("", `${baseContext}/export`), {
         method: "POST",
         headers: actualHeaders,
     });

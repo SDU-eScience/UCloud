@@ -30,7 +30,7 @@ type ContainerIAppHandler struct {
 	MutateNetworkPolicy             func(job *orc.Job, configuration json.RawMessage, np *networking.NetworkPolicy, pod *core.Pod) error
 	MutateJobSpecBeforeRegistration func(owner orc.ResourceOwner, spec *orc.JobSpecification) error
 
-	BeforeMonitor func(pods []core.Pod, jobs map[string]*orc.Job, allActiveIApps map[string]ctrl.IAppRunningConfiguration)
+	BeforeMonitor func(pods []*core.Pod, jobs map[string]*orc.Job, allActiveIApps map[string]ctrl.IAppRunningConfiguration)
 }
 
 var IApps = map[string]ContainerIAppHandler{}

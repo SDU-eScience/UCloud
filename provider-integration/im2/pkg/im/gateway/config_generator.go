@@ -356,30 +356,56 @@ func formatRoute(r *EnvoyRoute) []*route.Route {
 		if isLaunchingUserInstances {
 			if r.Identifier == "" {
 				// Service instance
-				result.Match = &route.RouteMatch{
-					PathSpecifier: &route.RouteMatch_Prefix{
-						Prefix: "/",
-					},
-					Headers: []*route.HeaderMatcher{{
+				matchers := []*route.HeaderMatcher{
+					{
 						Name:        "UCloud-Username",
 						InvertMatch: true,
 						HeaderMatchSpecifier: &route.HeaderMatcher_PresentMatch{
 							PresentMatch: true,
 						},
-					}},
+					},
 				}
-			} else {
-				// User instance
+
+				if cfg.Provider.Hosts.Self.Address == cfg.Provider.Hosts.SelfPublic.Address {
+					matchers = append(matchers, &route.HeaderMatcher{
+						Name: ":authority",
+						HeaderMatchSpecifier: &route.HeaderMatcher_StringMatch{
+							StringMatch: exactString(cfg.Provider.Hosts.SelfPublic.Address),
+						},
+					})
+				}
+
 				result.Match = &route.RouteMatch{
 					PathSpecifier: &route.RouteMatch_Prefix{
 						Prefix: "/",
 					},
-					Headers: []*route.HeaderMatcher{{
+					Headers: matchers,
+				}
+			} else {
+				// User instance
+				matchers := []*route.HeaderMatcher{
+					{
 						Name: "UCloud-Username",
 						HeaderMatchSpecifier: &route.HeaderMatcher_StringMatch{
 							StringMatch: exactString(b64(r.Identifier)),
 						},
-					}},
+					},
+				}
+
+				if cfg.Provider.Hosts.Self.Address == cfg.Provider.Hosts.SelfPublic.Address {
+					matchers = append(matchers, &route.HeaderMatcher{
+						Name: ":authority",
+						HeaderMatchSpecifier: &route.HeaderMatcher_StringMatch{
+							StringMatch: exactString(cfg.Provider.Hosts.SelfPublic.Address),
+						},
+					})
+				}
+
+				result.Match = &route.RouteMatch{
+					PathSpecifier: &route.RouteMatch_Prefix{
+						Prefix: "/",
+					},
+					Headers: matchers,
 				}
 
 				r2 := createBaseRoute()
@@ -398,10 +424,24 @@ func formatRoute(r *EnvoyRoute) []*route.Route {
 				routes = append(routes, r2)
 			}
 		} else {
+			matchers := []*route.HeaderMatcher{
+				{
+					Name: ":authority",
+					HeaderMatchSpecifier: &route.HeaderMatcher_StringMatch{
+						StringMatch: exactString(cfg.Provider.Hosts.SelfPublic.Address),
+					},
+				},
+			}
+
+			if cfg.Provider.Hosts.Self.Address != cfg.Provider.Hosts.SelfPublic.Address {
+				matchers = nil
+			}
+
 			result.Match = &route.RouteMatch{
 				PathSpecifier: &route.RouteMatch_Prefix{
 					Prefix: "/",
 				},
+				Headers: matchers,
 			}
 		}
 

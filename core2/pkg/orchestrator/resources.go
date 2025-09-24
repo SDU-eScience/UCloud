@@ -12,7 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database"
+	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
@@ -100,9 +100,13 @@ type resourceTypeGlobal struct {
 
 	Flags resourceTypeFlags
 
-	OnLoad      func(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource)
-	OnPersist   func(tx *db.Transaction, resources []*resource)
-	Transformer func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any
+	OnLoad             func(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource)
+	OnPersist          func(b *db.Batch, resources *resource)
+	OnPersistCommitted func(r *resource)
+	Transformer        func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any
+
+	IndexersMu sync.RWMutex
+	Indexers   []func(r *resource) ResourceIndexer
 }
 
 func resourceGetProvider(providerId string) *resourceProvider {
@@ -166,8 +170,9 @@ func InitResourceType(
 	typeName string,
 	flags resourceTypeFlags,
 	doLoad func(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource),
-	doPersist func(tx *db.Transaction, resources []*resource),
+	doPersist func(b *db.Batch, r *resource),
 	transformer func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any,
+	persistCommitted func(r *resource),
 ) {
 	if !resourceGlobals.Testing.Enabled {
 		if doLoad == nil || doPersist == nil {
@@ -186,10 +191,11 @@ func InitResourceType(
 	}
 
 	tGlobals := &resourceTypeGlobal{
-		Flags:       flags,
-		OnLoad:      doLoad,
-		OnPersist:   doPersist,
-		Transformer: transformer,
+		Flags:              flags,
+		OnLoad:             doLoad,
+		OnPersist:          doPersist,
+		OnPersistCommitted: persistCommitted,
+		Transformer:        transformer,
 	}
 	resourceGlobals.ByType[typeName] = tGlobals
 
@@ -238,7 +244,7 @@ func resourcesReadEx(
 			permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionRead)
 			permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionEdit)
 		} else {
-			providerId, isProvider := strings.CutPrefix(fndapi.ProviderSubjectPrefix, actor.Username)
+			providerId, isProvider := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
 
 			if isProvider {
 				if r.Product.Present {
@@ -549,18 +555,67 @@ func ResourceUpdate[T any](
 			panic("resource was not supposed to be filtered here")
 		}
 		mapped := g.Transformer(apiResc, resc.Product, resc.Extra, orcapi.ResourceFlags{}).(T)
+
+		// Indexing before modification
+		var indexers []ResourceIndexer
+		{
+			g.IndexersMu.RLock()
+			for _, begin := range g.Indexers {
+				indexers = append(indexers, begin(resc))
+			}
+			g.IndexersMu.RUnlock()
+		}
+
+		for _, idx := range indexers {
+			idx.Begin()
+		}
+
+		for _, idx := range indexers {
+			idx.Remove()
+		}
+
 		modification(resc, mapped)
+
+		isDeleting := resc.Confirmed && resc.MarkedForDeletion
+		rescOwnerRef := resc.Owner.CreatedBy
+		if resc.Owner.Project != "" {
+			rescOwnerRef = resc.Owner.Project
+		}
 
 		if resc.Confirmed {
 			lResourcePersist(resc)
 
 			if resc.MarkedForDeletion {
-				// TODO Delete from index or don't bother?
 				delete(b.Resources, id)
 			}
 		}
 
+		// Indexing after modification
+		if !resc.MarkedForDeletion {
+			for _, idx := range indexers {
+				idx.Add()
+			}
+		}
+
+		// Commit indexing
+		for _, idx := range indexers {
+			idx.Commit()
+		}
+
 		b.Mu.Unlock()
+
+		if isDeleting {
+			// NOTE(Dan): There is technically a race-condition here where the resource may remain in the index, but
+			// it has already been deleted from the store. This is not super important since the only thing this does
+			// is to cause a brief load from the database to realise that it is in fact not in the store.
+
+			idxBucket := resourceGetAndLoadIndex(typeName, rescOwnerRef)
+
+			idxBucket.Mu.Lock()
+			idx := idxBucket.ByOwner[rescOwnerRef]
+			idxBucket.ByOwner[rescOwnerRef] = util.RemoveFirst(idx, id)
+			idxBucket.Mu.Unlock()
+		}
 
 		return true
 	} else {
@@ -693,6 +748,23 @@ func ResourceCreateEx[T any](
 	}
 	apiResc, _ := lResourceApplyFlags(r, nil, resourceFlags)
 	mapped := g.Transformer(apiResc, r.Product, r.Extra, resourceFlags).(T)
+
+	var indexers []ResourceIndexer
+	g.IndexersMu.RLock()
+	for _, begin := range g.Indexers {
+		indexers = append(indexers, begin(r))
+	}
+	g.IndexersMu.RUnlock()
+	for _, idx := range indexers {
+		idx.Begin()
+	}
+	for _, idx := range indexers {
+		idx.Add()
+	}
+	for _, idx := range indexers {
+		idx.Commit()
+	}
+
 	b.Mu.Unlock()
 
 	return r.Id, mapped, nil
@@ -743,4 +815,18 @@ func ResourceDelete(actor rpc.Actor, typeName string, id ResourceId) {
 			r.MarkedForDeletion = true
 		},
 	)
+}
+
+type ResourceIndexer interface {
+	Remove()
+	Add()
+	Begin()
+	Commit()
+}
+
+func ResourceAddIndexer(typeName string, indexer func(r *resource) ResourceIndexer) {
+	g := resourceGetGlobals(typeName)
+	g.IndexersMu.Lock()
+	g.Indexers = append(g.Indexers, indexer)
+	g.IndexersMu.Unlock()
 }

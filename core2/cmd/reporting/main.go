@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 	acc "ucloud.dk/core/pkg/accounting/reporting"
-	db "ucloud.dk/shared/pkg/database"
+	db "ucloud.dk/shared/pkg/database2"
 	"ucloud.dk/shared/pkg/util"
 )
 

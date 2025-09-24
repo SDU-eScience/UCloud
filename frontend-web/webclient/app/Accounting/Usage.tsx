@@ -9,12 +9,17 @@ import {ProjectSwitcher, projectTitle} from "@/Project/ProjectSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
-import {BreakdownByProjectAPI, categoryComparator, ChartsAPI, UsageOverTimeAPI} from ".";
+import {
+    BreakdownByProjectAPI,
+    categoryComparator,
+    ChartsAPI,
+    explainUnit,
+    UsageOverTimeAPI, UsagePerUserPointAPI
+} from ".";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {threadDeferLike, stopPropagation, timestampUnixMs, displayErrorMessageOrDefault} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI, noopCall} from "@/Authentication/DataHook";
-import * as Jobs from "@/Applications/Jobs";
 import * as Config from "../../site.config.json";
 import {useProjectId} from "@/Project/Api";
 import {differenceInCalendarDays, formatDate, formatDistance} from "date-fns";
@@ -47,7 +52,6 @@ const JOBS_UNIT_NAME = "Job statistics";
 interface State {
     remoteData: {
         chartData?: ChartsAPI;
-        jobStatistics?: Jobs.JobStatistics;
         requestsInFlight: number;
         initialLoadDone: boolean;
     },
@@ -73,9 +77,7 @@ interface State {
         usageOverTime: UsageChart[];
         breakdownByProject: BreakdownChart[];
 
-        jobUsageByUsers?: JobUsageByUsers,
-        mostUsedApplications?: MostUsedApplications,
-        submissionStatistics?: SubmissionStatistics,
+        usagePerUser: UsagePerUser;
 
         activeUnit: string;
         availableUnits: string[];
@@ -182,7 +184,6 @@ type Period =
 // =====================================================================================================================
 type UIAction =
     | {type: "LoadCharts", charts: ChartsAPI}
-    | {type: "LoadJobStats", statistics: Jobs.JobStatistics}
     | {type: "UpdateSelectedPeriod", period: Period}
     | {type: "UpdateRequestsInFlight", delta: number}
     | {type: "UpdateActiveUnit", unit: string}
@@ -286,16 +287,6 @@ function stateReducer(state: State, action: UIAction): State {
             }, activeUnit);
         }
 
-        case "LoadJobStats": {
-            return selectUnit({
-                ...state,
-                remoteData: {
-                    ...state.remoteData,
-                    jobStatistics: action.statistics,
-                },
-            }, state.activeDashboard?.activeUnit ?? JOBS_UNIT_NAME);
-        }
-
         case "UpdateSelectedPeriod": {
             return {
                 ...state,
@@ -352,92 +343,21 @@ function stateReducer(state: State, action: UIAction): State {
             }
         }
 
-        let jobUsageByUsers: JobUsageByUsers | undefined = undefined;
-        let mostUsedApplications: MostUsedApplications | undefined = undefined;
-        let submissionStatistics: SubmissionStatistics | undefined = undefined;
-        for (const summary of summaries) {
-            if (summary.category.productType === "COMPUTE" && state.remoteData.jobStatistics) {
-                const stats = state.remoteData.jobStatistics;
-                let catIdx: number = -1;
-                const catCount = stats.categories.count;
-                for (let i = 0; i < catCount; i++) {
-                    const cat = stats.categories.get(i);
-                    if (cat.name === summary.category.name && cat.provider === summary.category.provider) {
-                        catIdx = i;
-                        break;
-                    }
-                }
+        let jobUsageByUsers: UsagePerUser
 
-                const unit = Accounting.explainUnit(summary.category);
-
-                if (catIdx !== -1) {
-                    const usageCount = stats.usageByUser.count;
-                    for (let i = 0; i < usageCount; i++) {
-                        const usage = stats.usageByUser.get(i);
-                        if (usage.categoryIndex !== catIdx) continue;
-
-                        const result: JobUsageByUsers = {unit: unit.name, dataPoints: []};
-
-                        const pointCount = usage.dataPoints.count;
-                        for (let j = 0; j < pointCount; j++) {
-                            const dataPoint = usage.dataPoints.get(j);
-                            result.dataPoints.push(({
-                                usage: Number(dataPoint.usage) * unit.priceFactor,
-                                username: dataPoint.username
-                            }));
-                        }
-
-                        jobUsageByUsers = result;
-                    }
-
-                    const appCount = stats.mostUsedApplications.count;
-                    for (let i = 0; i < appCount; i++) {
-                        const appStats = stats.mostUsedApplications.get(i);
-                        if (appStats.categoryIndex !== catIdx) continue;
-
-                        const result: MostUsedApplications = {dataPoints: []};
-                        const pointCount = appStats.dataPoints.count;
-                        for (let j = 0; j < pointCount; j++) {
-                            const dataPoint = appStats.dataPoints.get(j);
-                            result.dataPoints.push(({
-                                applicationTitle: dataPoint.applicationName,
-                                count: dataPoint.numberOfJobs
-                            }));
-                        }
-
-                        mostUsedApplications = result;
-                    }
-
-                    const submissionCount = stats.jobSubmissionStatistics.count;
-                    for (let i = 0; i < submissionCount; i++) {
-                        const submissionStats = stats.jobSubmissionStatistics.get(i);
-                        if (submissionStats.categoryIndex !== catIdx) continue;
-
-                        const result: SubmissionStatistics = {dataPoints: []};
-                        const pointCount = submissionStats.dataPoints.count;
-                        for (let j = 0; j < pointCount; j++) {
-                            const dataPoint = submissionStats.dataPoints.get(j);
-                            result.dataPoints.push({
-                                day: dataPoint.day,
-                                hourOfDayStart: dataPoint.hourOfDayStart,
-                                hourOfDayEnd: dataPoint.hourOfDayEnd,
-                                numberOfJobs: dataPoint.numberOfJobs,
-                                averageQueueInSeconds: dataPoint.averageQueueInSeconds,
-                                averageDurationInSeconds: dataPoint.averageDurationInSeconds,
-                            });
-                        }
-
-                        submissionStatistics = result;
-                    }
-                }
-            }
+        if (state.remoteData.chartData?.usagePerUser === undefined) {
+            jobUsageByUsers = emptyUsagePerUserList
+        } else {
+            const usage = state.remoteData.chartData?.usagePerUser!.data
+            jobUsageByUsers = {dataPoints: usage}
         }
 
         const availableUnitsSet = unitsFromSummaries(state.summaries);
-        if (state.remoteData.jobStatistics) {
+
+        //TODO() Need better if statement, but at the moment this is the only thing that is shown on this page
+        if (state.remoteData.chartData?.usagePerUser !== undefined) {
             availableUnitsSet.push(JOBS_UNIT_NAME);
         }
-
         const availableUnits = [...availableUnitsSet];
 
         return {
@@ -453,9 +373,7 @@ function stateReducer(state: State, action: UIAction): State {
                 selectedBreakdown: "",
                 usageOverTime: summaries.map(it => it.chart),
                 breakdownByProject: summaries.map(it => it.breakdownByProject),
-                jobUsageByUsers,
-                mostUsedApplications,
-                submissionStatistics,
+                usagePerUser: jobUsageByUsers,
                 availableUnits: availableUnits,
                 activeUnit: unit
             },
@@ -488,10 +406,6 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
         }
 
         async function doLoad(start: number, end: number) {
-            invokeAPI(Jobs.retrieveStatistics({start, end})).then(statistics => {
-                dispatch({type: "LoadJobStats", statistics});
-            }).catch(e => displayErrorMessageOrDefault(e, "Failed to fetch job statistics."));
-
             invokeAPI(Accounting.retrieveChartsV2({start, end})).then(charts => {
                 dispatch({type: "LoadCharts", charts});
             }).catch(e => displayErrorMessageOrDefault(e, "Failed to fetch charts."));
@@ -634,7 +548,7 @@ function Visualization(): React.ReactNode {
             </header>
 
             <div style={{padding: "13px 16px 16px 16px", zIndex: -1}}>
-                {!state.remoteData.chartData && !state.remoteData.jobStatistics && state.remoteData.requestsInFlight || isAnyLoading ? <>
+                {!state.remoteData.chartData && state.remoteData.requestsInFlight || isAnyLoading ? <>
                     <HexSpin size={64} />
                 </> : null}
 
@@ -658,9 +572,7 @@ function Visualization(): React.ReactNode {
                 {state.activeDashboard ?
                     <div className={PanelGrid.class}>
                         {state.activeDashboard.activeUnit === JOBS_UNIT_NAME ? <>
-                            <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
-                            <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
-                            <JobSubmissionPanel data={state.activeDashboard.submissionStatistics} />
+                            <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.usagePerUser} />
                         </> : <>
                             {hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <>
                                 <CategoryDescriptorPanel
@@ -988,6 +900,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{
     charts: BreakdownChart[];
 }> = props => {
     const {selectedBreakdown} = props;
+    const chartIdRef = useRef(0);
 
     const fullyMergedChart = React.useMemo(() => ({
         unit: props.unit,
@@ -995,6 +908,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{
     }), [props.charts, props.unit]);
 
     const dataPoints = useMemo(() => {
+        chartIdRef.current += 1;
         const unsorted = fullyMergedChart.dataPoints.map(it => ({key: it.title, value: it.usage, nameAndProvider: it.nameAndProvider})) ?? [];
         return unsorted.sort((a, b) => a.value - b.value);
     }, [props.charts]);
@@ -1080,8 +994,8 @@ const UsageBreakdownPanel: React.FunctionComponent<{
         </> : null}
 
         <div className={ChartAndTable}>
-            {datapointSum === 0 ? null : <div key={UsageBreakdownChartId} className={PieWrapper.class}>
-                <PieChart chartId={UsageBreakdownChartId} dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={updateSelectedBreakdown} />
+            {datapointSum === 0 ? null : <div key={UsageBreakdownChartId + chartIdRef.current} className={PieWrapper.class}>
+                <PieChart chartId={UsageBreakdownChartId + chartIdRef.current} dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={updateSelectedBreakdown} />
             </div>}
             {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
             {dataPoints.length === 0 ? "No usage data found" :
@@ -1100,7 +1014,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{
                                 const [name, provider] = point.nameAndProvider ? point.nameAndProvider.split("/") : ["", ""];
                                 return <tr key={idx} style={{cursor: "pointer"}}>
                                     <td title={point.key} onClick={() => {
-                                        const chart = ApexCharts.getChartByID(UsageBreakdownChartId);
+                                        const chart = ApexCharts.getChartByID(UsageBreakdownChartId + chartIdRef.current);
                                         const labels: string[] = chart?.["opts"]["labels"] ?? [];
                                         const idx = labels.findIndex(it => it === point.key);
                                         if (idx !== -1 && chart) {
@@ -1124,14 +1038,6 @@ function header<T>(key: keyof T, value: string, defaultChecked?: boolean): Expor
 }
 
 
-const MostUsedApplicationsStyle = injectStyle("most-used-applications", k => `
-    ${k} table tr > td:nth-child(2),
-    ${k} table tr > td:nth-child(3) {
-        font-family: var(--monospace);
-        text-align: right;
-    }
-`);
-
 function thStyling(isBold: boolean, width: string): CSSProperties | undefined {
     return {
         fontWeight: isBold ? "bold" : undefined,
@@ -1146,7 +1052,7 @@ function SortTableHeader<DataType>({sortKey, sorted, children, width}: React.Pro
 }>) {
     const isActive = sortKey === sorted.sortByKey;
     return <th style={thStyling(isActive, width)} onClick={() => sorted.doSortBy(sortKey)}>
-        <Flex>{children} {isActive ? <Icon ml="auto" my="auto" name="chevronDownLight" rotation={sorted.sortOrder === "asc" ? 180 : 0} /> : null}</Flex>
+        <Flex>{children} {isActive ? <Icon ml="auto" my="auto" name="heroChevronDown" rotation={sorted.sortOrder === "asc" ? 180 : 0} /> : null}</Flex>
     </th>
 }
 
@@ -1201,82 +1107,6 @@ function useSorting<DataType>(originalData: DataType[], sortByKey: keyof DataTyp
 
 }
 
-const MostUsedApplicationsPanel: React.FunctionComponent<{data?: MostUsedApplications}> = ({data}) => {
-    const sorted = useSorting(data?.dataPoints ?? [], "count", "desc");
-
-    const project = useProject().fetch()
-
-    const startExport = useCallback(() => {
-        exportUsage(
-            data?.dataPoints,
-            [header("applicationTitle", "Application", true), header("count", "Count", true)],
-            projectTitle(project)
-        );
-    }, [data?.dataPoints, project]);
-
-    return <div className={classConcat(CardClass, PanelClass, MostUsedApplicationsStyle)}>
-        <Flex>
-            <div className="panel-title">
-                <h4>Most used applications</h4>
-            </div>
-            <Button ml="auto" onClick={startExport}>
-                Export
-            </Button>
-        </Flex>
-
-        {sorted.data === undefined || sorted.data.length === 0 ? "No usage data found" :
-            <div className={TableWrapper.class}>
-                <table>
-                    <thead>
-                        <tr>
-                            <SortTableHeader width="70%" sortKey="applicationTitle" sorted={sorted}>Application</SortTableHeader>
-                            <SortTableHeader width="30%" sortKey="count" sorted={sorted}>Number of jobs</SortTableHeader>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sorted.data.map(it =>
-                            <tr key={it.applicationTitle}>
-                                <td>{it.applicationTitle}</td>
-                                <td>{it.count}</td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-        }
-    </div>;
-};
-
-const JobSubmissionStyle = injectStyle("job-submission", k => `
-    ${k} table tr > td:nth-child(2),
-    ${k} table tr > td:nth-child(3),
-    ${k} table tr > td:nth-child(4),
-    ${k} table tr > td:nth-child(5) {
-        font-family: var(--monospace);
-    }
-    
-    ${k} table tr > td:nth-child(3),
-    ${k} table tr > td:nth-child(4),
-    ${k} table tr > td:nth-child(5) {
-        text-align: right;
-    }
-    
-    ${k} table tr > *:nth-child(1) {
-        width: 100px;
-    }
-    
-    ${k} table tr > *:nth-child(2) {
-        width: 130px;
-    }
-    
-    ${k} table tr > *:nth-child(4),
-    ${k} table tr > *:nth-child(5) {
-        width: 120px;
-    }
-`);
-
-const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-
 const DurationOfSeconds: React.FunctionComponent<{duration: number}> = ({duration}) => {
     if (duration > 3600) {
         const hours = Math.floor(duration / 3600);
@@ -1286,64 +1116,6 @@ const DurationOfSeconds: React.FunctionComponent<{duration: number}> = ({duratio
         const minutes = Math.floor(duration / 60);
         const seconds = duration % 60;
         return <>{minutes.toString().padStart(2, '0')}M {seconds.toString().padStart(2, '0')}S</>;
-    }
-}
-
-const JobSubmissionPanel: React.FunctionComponent<{data?: SubmissionStatistics}> = ({data}) => {
-    const sorted = useSorting(data?.dataPoints ?? [], "day");
-    const project = useProject().fetch();
-
-    const startExport = useCallback(() => {
-        exportUsage(data?.dataPoints.map(it => ({...it, day: dayNames[it.day], hourOfDayStart: formatHours(it.hourOfDayStart, it.hourOfDayEnd)})), [
-            header("day", "Day", true),
-            header("hourOfDayStart", "Time of day", true),
-            header("numberOfJobs", "Count", true),
-            header("averageDurationInSeconds", "Avg duration", true),
-            header("averageQueueInSeconds", "Avg queue", true),
-        ], projectTitle(project))
-    }, [data?.dataPoints, project]);
-
-    return <div className={classConcat(CardClass, PanelClass, JobSubmissionStyle)}>
-        <Flex>
-            <div className="panel-title">
-                <h4>When are your jobs being submitted?</h4>
-            </div>
-            <Button ml="auto" onClick={startExport}>
-                Export
-            </Button>
-        </Flex>
-
-        {sorted.data == null || sorted.data.length === 0 ? "No job data found" :
-            <div className={TableWrapper.class}>
-                <table>
-                    <thead>
-                        <tr>
-                            <SortTableHeader width="20%" sorted={sorted} sortKey={"day"}>Day</SortTableHeader>
-                            <SortTableHeader width="20%" sorted={sorted} sortKey={"hourOfDayStart"}>Time of day</SortTableHeader>
-                            <SortTableHeader width="20%" sorted={sorted} sortKey={"numberOfJobs"}>Count</SortTableHeader>
-                            <SortTableHeader width="20%" sorted={sorted} sortKey={"averageDurationInSeconds"}>Avg duration</SortTableHeader>
-                            <SortTableHeader width="20%" sorted={sorted} sortKey={"averageQueueInSeconds"}>Avg queue</SortTableHeader>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sorted.data.map((dp, i) => {
-                            const day = dayNames[dp.day];
-                            return <tr key={i}>
-                                <td>{day}</td>
-                                <td>{formatHours(dp.hourOfDayStart, dp.hourOfDayEnd)}</td>
-                                <td>{dp.numberOfJobs}</td>
-                                <td><DurationOfSeconds duration={dp.averageDurationInSeconds} /></td>
-                                <td><DurationOfSeconds duration={dp.averageQueueInSeconds} /></td>
-                            </tr>;
-                        })}
-                    </tbody>
-                </table>
-            </div>
-        }
-    </div>;
-
-    function formatHours(start: number, end: number) {
-        return `${start.toString().padStart(2, '0')}:00-${end.toString().padStart(2, '0')}:00`;
     }
 }
 
@@ -1589,25 +1361,25 @@ const LargeJobsStyle = injectStyle("large-jobs", k => `
     }
 `);
 
-const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageByUsers}> = ({loading, data}) => {
+const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: UsagePerUser}> = ({loading, data}) => {
     const dataPoints = useMemo(() => {
-        return data?.dataPoints?.map(it => ({key: it.username, value: it.usage})) ?? [];
+        return data?.dataPoints ?? [];
     }, [data?.dataPoints]);
     const formatter = useCallback((val: number) => {
         if (!data) return "";
-        return Accounting.addThousandSeparators(val.toFixed(2)) + " " + data.unit;
-    }, [data?.unit]);
+        return Accounting.addThousandSeparators(val.toFixed(2));
+    }, [data?.dataPoints]);
 
     const project = useProject().fetch();
     const startExport = useCallback(() => {
         exportUsage(
             dataPoints,
-            [header("key", "Username", true), header("value", "Estimated usage", true)],
+            [header("username", "Username", true), header("category", "Product Category", ), header("usage", "Estimated usage", true)],
             projectTitle(project)
         );
     }, [dataPoints, project]);
 
-    const sorted = useSorting(dataPoints, "key");
+    const pied = dataPoints.map(s => ({key: s.username + " - " + s.category.name + "(" +getShortProviderTitle(s.category.provider) + ")", value: s.usage}));
 
     return <div className={classConcat(CardClass, PanelClass, LargeJobsStyle)}>
         <Flex>
@@ -1619,29 +1391,35 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
             </Button>
         </Flex>
 
-        {data !== undefined && sorted.data.length !== 0 ? <>
-            <PieChart chartId="UsageByUsers" dataPoints={sorted.data} valueFormatter={formatter} onDataPointSelection={() => {}} />
+        {data !== undefined && dataPoints.length !== 0 ? <>
+            <PieChart chartId="UsageByUsers" dataPoints={pied} valueFormatter={formatter} onDataPointSelection={() => {}} />
 
             <div className={TableWrapper.class}>
                 <table>
                     <thead>
                         <tr>
-                            <SortTableHeader sortKey="key" sorted={sorted} width="75%">Username</SortTableHeader>
-                            <SortTableHeader sortKey="value" sorted={sorted} width="25%">
+                            <th style={thStyling(false, "50%")}>Username</th>
+                            <th style={thStyling(false, "25%")} align={"right"}>Product category (Provider)</th>
+                            <th style={thStyling(false, "25%")}>
+                                <Flex>
                                 Estimated usage
-                                {" "}
+                                <Box width={"8px"}/>
                                 <TooltipV2
                                     tooltip={"This is an estimate based on the values stored in UCloud. Actual usage reported by the provider may differ from the numbers shown here."}>
                                     <Icon name={"heroQuestionMarkCircle"} />
                                 </TooltipV2>
-                            </SortTableHeader>
+                                </Flex>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
-                        {sorted.data.map(it => <tr key={it.key}>
-                            <td>{it.key}</td>
-                            <td>{Accounting.addThousandSeparators(it.value.toFixed(0))} {data.unit}</td>
-                        </tr>)}
+                        {data.dataPoints.map(it =>
+                            <tr key={it.username + " - " + it.category.name + " (" + getShortProviderTitle(it.category.provider) + ")"}>
+                                <td>{it.username}</td>
+                                <td>{it.category.name + " (" + getShortProviderTitle(it.category.provider) + ")" }</td>
+                                <td>{Accounting.addThousandSeparators(it.usage.toFixed(0))} {explainUnit(it.category).name}</td>
+                            </tr>)
+                        }
                     </tbody>
                 </table>
             </div>
@@ -1750,30 +1528,10 @@ const PieChart: React.FunctionComponent<{
         });
 
         return chartProps;
-    }, [series]);
+    }, [series, props.chartId]);
 
     return <DynamicallySizedChart chart={chartProps} />;
 };
-
-interface SubmissionStatistics {
-    dataPoints: {
-        day: number;
-        hourOfDayStart: number;
-        hourOfDayEnd: number;
-        numberOfJobs: number;
-        averageDurationInSeconds: number;
-        averageQueueInSeconds: number;
-    }[];
-}
-
-interface MostUsedApplications {
-    dataPoints: {applicationTitle: string; count: number;}[],
-}
-
-interface JobUsageByUsers {
-    unit: string,
-    dataPoints: {username: string; usage: number;}[],
-}
 
 interface BreakdownChart {
     dataPoints: {projectId?: string | null, title: string, usage: number}[];
@@ -1784,6 +1542,14 @@ const emptyBreakdownChart: BreakdownChart = {
     nameAndProvider: "",
     dataPoints: [],
 };
+
+interface UsagePerUser {
+    dataPoints: UsagePerUserPointAPI[];
+}
+
+const emptyUsagePerUserList: UsagePerUser = {
+    dataPoints: []
+}
 
 interface UsageChart {
     name: string;
@@ -1857,7 +1623,7 @@ function usageChartsToChart(
                     toggleSeriesEntry(chart, seriesName, chartRef, chartOptions.toggleShown);
                 }
             },
-            stacked: true,
+            stacked: false,
             height: 350,
             animations: {
                 enabled: false,
@@ -1927,13 +1693,17 @@ function usageChartsToChart(
         },
         tooltip: {
             theme: "dark",
-            shared: false,
+            shared: true,
             y: {
                 formatter: function (val) {
-                    if (chartOptions.valueFormatter) {
-                        return chartOptions.valueFormatter(val);
+                    if (val !== undefined) {
+                        if (chartOptions.valueFormatter) {
+                            return chartOptions.valueFormatter(val);
+                        } else {
+                            return val.toString();
+                        }
                     } else {
-                        return val.toString();
+                        return "";
                     }
                 }
             }
@@ -2297,7 +2067,7 @@ const PeriodSelector: React.FunctionComponent<{
         trigger={
             <div className={PeriodStyle}>
                 <div style={{width: "182px"}}>{periodToString(props.value)}</div>
-                <Icon name="chevronDownLight" size="14px" ml="4px" mt="4px" />
+                <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
             </div>
         }
     >

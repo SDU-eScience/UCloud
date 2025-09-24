@@ -3,6 +3,7 @@ package util
 import (
 	"encoding/binary"
 	"io"
+	"math"
 )
 
 // NOTE(Dan): This is a simple wrapper around a buffer providing convenient functions for dealing with binary messages
@@ -82,6 +83,14 @@ func (b *UBufferReader) ReadS64() int64 {
 		b.Error = err
 	}
 	return val
+}
+
+func (b *UBufferReader) ReadF32() float32 {
+	return math.Float32frombits(b.ReadU32())
+}
+
+func (b *UBufferReader) ReadF64() float64 {
+	return math.Float64frombits(b.ReadU64())
 }
 
 func (b *UBufferReader) ReadRemainingBytes() []byte {

@@ -116,7 +116,10 @@ const languages = {
 };
 
 export function getLanguageList(): {language: string}[] {
-    return [...new Set(Object.values(languages))].map(it => ({language: it}));
+    const result = [...new Set(Object.values(languages))].map(it => ({language: it}));
+    return result.sort((a, b) => {
+        return a.language.localeCompare(b.language);
+    })
 }
 
 export function populateLanguages(langs: {language: string; extensions: string[]}[]): void {

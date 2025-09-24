@@ -2,8 +2,7 @@ import * as React from "react";
 import {useEffect, useMemo, useState} from "react";
 import {accounting, compute} from "@/UCloud";
 import ComputeProductReference = accounting.ProductReference;
-import {ProductV2, productCategoryEquals, ProductV2Compute, ProductCompute} from "@/Accounting";
-import * as UCloud from "@/UCloud";
+import {ProductV2, productCategoryEquals, ProductV2Compute, ProductCompute, WalletV2} from "@/Accounting";
 import {ProductSelector} from "@/Products/Selector";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import JobsRetrieveProductsResponse = compute.JobsRetrieveProductsResponse;
@@ -14,12 +13,13 @@ export const reservationMachine = "reservation-machine";
 export function findRelevantMachinesForApplication(
     application: Application,
     machineSupport: JobsRetrieveProductsResponse,
-    wallets: UCloud.PageV2<ProductV2Compute>
+    computeProducts: ProductV2Compute[],
+    wallets: WalletV2[]
 ): ProductV2Compute[] {
     const supportedProducts: ProductCompute[] = ([] as ProductCompute[]).concat.apply(
         [],
-        Object.values(machineSupport.productsByProvider).map(products => {
-            return products
+        Object.values(machineSupport.productsByProvider).map(products =>
+            products
                 .filter(it => {
                     const tool = application.invocation.tool.tool!;
                     const backend = tool.description.backend;
@@ -40,19 +40,21 @@ export function findRelevantMachinesForApplication(
                     }
                 })
                 .filter(product =>
-                    wallets.items.some(wallet => productCategoryEquals(product.product.category, wallet.category))
+                    computeProducts.some(wallet => productCategoryEquals(product.product.category, wallet.category))
                 )
-                .map(it => it.product);
-        })
+                .map(it => it.product)
+        )
     );
 
     const result: ProductV2Compute[] = [];
 
     for (const oldProduct of supportedProducts) {
         if (!oldProduct) continue;
-        const newProduct = wallets.items.find(it =>
+        const newProduct = computeProducts.find(it =>
             `${it.category.provider}-${it.category.name}-${it.name}` === `${oldProduct.category.provider}-${oldProduct.category.name}-${oldProduct.name}`
         ) as ProductV2Compute;
+
+        if (!hasPositiveMaxUsable(newProduct, wallets)) continue;
 
         if (newProduct) {
             result.push(newProduct);
@@ -60,6 +62,12 @@ export function findRelevantMachinesForApplication(
     }
 
     return result;
+
+    function hasPositiveMaxUsable(product: ProductV2Compute, wallets: WalletV2[]): boolean {
+        const wallet = wallets.find(w => w.paysFor.name === product.category.name && w.paysFor.provider === product.category.provider);
+        if (wallet) return wallet.maxUsable > 0;
+        return false;
+    }
 }
 
 export const Machines: React.FunctionComponent<{
@@ -144,8 +152,12 @@ export function setMachineReservationFromRef(ref: ComputeProductReference): void
     valueInput.dispatchEvent(new Event("change"));
 }
 
+export function getMachineReservation(): HTMLInputElement | null {
+    return document.getElementById(reservationMachine) as HTMLInputElement | null;
+}
+
 export function validateMachineReservation(): ComputeProductReference | null {
-    const valueInput = document.getElementById(reservationMachine) as HTMLInputElement | null;
+    const valueInput = getMachineReservation();
     if (valueInput === null) throw "Component is no longer mounted but validateMachineReservation was called";
 
     if (valueInput.value === "") return null;

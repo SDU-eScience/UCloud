@@ -35,6 +35,19 @@ var (
 			0.99: 0.01,
 		},
 	})
+
+	metricDatabaseQueryDuration = promauto.NewSummaryVec(prometheus.SummaryOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "database",
+		Name:      "query_duration",
+		Help:      "Summary of a single query by its source-code origin",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	}, []string{"file", "line"})
 )
 
 type Params map[string]any
@@ -98,13 +111,13 @@ func NewTx3[A, B, C any](fn func(tx *Transaction) (A, B, C)) (A, B, C) {
 func NewTx[T any](fn func(tx *Transaction) T) T {
 	metricDatabaseTransactionsInFlight.Inc()
 	start := time.Now()
-	result := ContinueTx(Database, fn)
+	result := continueTx(Database, fn)
 	metricDatabaseTransactionsInFlight.Dec()
 	metricDatabaseTransactionsDuration.Observe(float64(time.Now().Sub(start).Seconds()))
 	return result
 }
 
-func ContinueTx[T any](ctx Ctx, fn func(tx *Transaction) T) T {
+func continueTx[T any](ctx Ctx, fn func(tx *Transaction) T) T {
 	if ctx == nil {
 		if !DiscardingTest {
 			panic("no database")
@@ -113,8 +126,6 @@ func ContinueTx[T any](ctx Ctx, fn func(tx *Transaction) T) T {
 			return t
 		}
 	}
-
-	// TODO(Dan): Not sure this works if ctx is not Database
 
 	var errorLog []string
 	devMode := util.DevelopmentModeEnabled()
@@ -157,29 +168,6 @@ func ContinueTx[T any](ctx Ctx, fn func(tx *Transaction) T) T {
 			strings.Join(errorLog, "\n"),
 		),
 	)
-}
-
-func ContinueTx0(ctx Ctx, fn func(tx *Transaction)) {
-	ContinueTx(ctx, func(tx *Transaction) util.Empty {
-		fn(tx)
-		return util.Empty{}
-	})
-}
-
-func ContinueTx2[A, B any](ctx Ctx, fn func(tx *Transaction) (A, B)) (A, B) {
-	t := ContinueTx(ctx, func(tx *Transaction) util.Tuple2[A, B] {
-		a, b := fn(tx)
-		return util.Tuple2[A, B]{a, b}
-	})
-	return t.First, t.Second
-}
-
-func ContinueTx3[A, B, C any](ctx Ctx, fn func(tx *Transaction) (A, B, C)) (A, B, C) {
-	t := ContinueTx(ctx, func(tx *Transaction) util.Tuple3[A, B, C] {
-		a, b, c := fn(tx)
-		return util.Tuple3[A, B, C]{a, b, c}
-	})
-	return t.First, t.Second, t.Third
 }
 
 type Transaction struct {
@@ -246,15 +234,20 @@ func RequestRollback(ctx *Transaction) {
 }
 
 func Exec(ctx *Transaction, query string, args Params) {
-	_, err := ctx.tx.NamedExec(query, transformParameters(args))
+	caller := util.GetCaller()
+	start := time.Now()
+	parameters := transformParameters(args)
+	_, err := ctx.tx.NamedExec(query, parameters)
 	if err != nil && ctx.Ok {
 		ctx.Ok = false
-		ctx.error = fmt.Errorf("Database exec failed: %v\nquery: %v\n", err.Error(), query)
+		ctx.error = fmt.Errorf("Database exec failed: %v\nquery: %v\nArgs: %#v\nTransformed: %#v\n", err.Error(), query, args, parameters)
 	}
+	end := time.Now()
+	metricDatabaseQueryDuration.WithLabelValues(caller.File, fmt.Sprint(caller.Line)).Observe(end.Sub(start).Seconds())
 }
 
 func Get[T any](ctx *Transaction, query string, args Params) (T, bool) {
-	items := Select[T](ctx, query, args)
+	items := SelectEx[T](util.GetCaller(), ctx, query, args)
 	if len(items) != 1 {
 		var dummy T
 		return dummy, false
@@ -262,22 +255,12 @@ func Get[T any](ctx *Transaction, query string, args Params) (T, bool) {
 	return items[0], true
 }
 
-func DoSelect(ctx *Transaction, query string, args Params, fn func(res *sqlx.Rows)) {
-	res, err := ctx.tx.NamedQuery(query, transformParameters(args))
-	if err != nil {
-		if ctx.Ok {
-			ctx.Ok = false
-			ctx.error = fmt.Errorf("Database select failed: %v\nquery: %v\n", err.Error(), query)
-		}
-		return
-	}
-
-	for res.Next() {
-		fn(res)
-	}
+func Select[T any](ctx *Transaction, query string, args Params) []T {
+	return SelectEx[T](util.GetCaller(), ctx, query, args)
 }
 
-func Select[T any](ctx *Transaction, query string, args Params) []T {
+func SelectEx[T any](caller util.FileAndLine, ctx *Transaction, query string, args Params) []T {
+	start := time.Now()
 	var result []T
 	res, err := ctx.tx.NamedQuery(query, transformParameters(args))
 	if err != nil {
@@ -301,6 +284,8 @@ func Select[T any](ctx *Transaction, query string, args Params) []T {
 		}
 	}
 
+	end := time.Now()
+	metricDatabaseQueryDuration.WithLabelValues(caller.File, fmt.Sprint(caller.Line)).Observe(end.Sub(start).Seconds())
 	return result
 }
 

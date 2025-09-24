@@ -1091,7 +1091,7 @@ const RunningContent: React.FunctionComponent<{
         }
     }, []);
 
-    const stream = useMemo(() => new JobViz.StreamProcessor("json"), [job.id]);
+    const stream = useMemo(() => new JobViz.StreamProcessor(), [job.id]);
 
     useEffect(() => {
         const logListener = () => {
@@ -1103,6 +1103,8 @@ const RunningContent: React.FunctionComponent<{
                 if (l.channel === "ui" || l.channel === "data") {
                     const text = l.stdout ?? l.stderr ?? "";
                     stream.accept(text);
+                } else if (l.channel != null) {
+                    stream.acceptGenericData(l.stdout ?? l.stderr ?? "", l.channel);
                 } else {
                     newLogQueue.push(l);
                 }
@@ -1610,7 +1612,7 @@ const InterfaceLinkRow: RichSelectChildComponent<SearchableInterfaceTarget> = ({
 
 const InterfaceLinkSelectedRow: RichSelectChildComponent<SearchableInterfaceTarget> = () => {
     return <div className={InterfaceSelectorTrigger}>
-        <Icon name="chevronDownLight" />
+        <Icon name="heroChevronDown" />
     </div>;
 }
 
@@ -1631,7 +1633,7 @@ const TerminalLinkRow: RichSelectChildComponent<SearchableTerminalTarget> = ({el
 
 const TerminalLinkSelectedRow: RichSelectChildComponent<SearchableTerminalTarget> = () => {
     return <div className={InterfaceSelectorTrigger}>
-        <Icon name="chevronDownLight" />
+        <Icon name="heroChevronDown" />
     </div>;
 }
 

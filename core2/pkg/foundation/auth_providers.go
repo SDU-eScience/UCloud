@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
-	db "ucloud.dk/shared/pkg/database"
+	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -171,7 +171,7 @@ func ProviderRenew(id string) (fndapi.PublicKeyAndRefreshToken, *util.HttpError)
 func readPrivateKey(content string) (*rsa.PrivateKey, error) {
 	var keyBuilder strings.Builder
 	keyBuilder.WriteString("-----BEGIN PRIVATE KEY-----\n")
-	keyBuilder.WriteString(chunkString(content, 64))
+	keyBuilder.WriteString(util.ChunkString(content, 64))
 	keyBuilder.WriteString("\n-----END PRIVATE KEY-----\n")
 
 	key := keyBuilder.String()
@@ -191,15 +191,4 @@ func readPrivateKey(content string) (*rsa.PrivateKey, error) {
 		}
 	}
 	return nil, err
-}
-
-func chunkString(input string, chunkSize int) string {
-	var builder strings.Builder
-	for i, c := range input {
-		if i != 0 && i%chunkSize == 0 {
-			builder.WriteString("\n")
-		}
-		builder.WriteRune(c)
-	}
-	return builder.String()
 }

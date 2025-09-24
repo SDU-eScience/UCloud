@@ -2496,7 +2496,7 @@ const GrantGiver: React.FunctionComponent<{
             {props.replaceReject}
             {!props.replaceReject && <>
                 <TooltipV2 tooltip={"Reject (hold to confirm)"}>
-                    <ConfirmationButton color={"errorMain"} icon={"heroXMark"} onAction={onReject} height={40} />
+                    <ConfirmationButton color={"errorMain"} icon={"close"} onAction={onReject} height={40} />
                 </TooltipV2>
             </>}
         </>}

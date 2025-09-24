@@ -410,10 +410,10 @@ const JOB_STATE_AND_ICON_COLOR_MAP: Record<JobState, [IconName, ThemeColor]> = {
     IN_QUEUE: ["heroCalendar", "iconColor"],
     RUNNING: ["heroClock", "successMain"],
     SUCCESS: ["heroCheck", "successMain"],
-    FAILURE: ["heroXMark", "errorMain"],
+    FAILURE: ["close", "errorMain"],
     EXPIRED: ["heroClock", "warningMain"],
-    SUSPENDED: ["heroPause", "iconColor"],
-    CANCELING: ["heroXMark", "errorMain"]
+    SUSPENDED: ["pauseSolid", "iconColor"],
+    CANCELING: ["close", "errorMain"]
 };
 
 export function ProjectMemberFilter({onSelect}: {onSelect: (username: string) => void}) {

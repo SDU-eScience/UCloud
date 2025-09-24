@@ -327,15 +327,15 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         size?: number
                     }
                 ): UFile => {
-                    const page = browser.cachedData[browser.currentPath] ?? [];
                     let likelyProduct: ProductReference = {id: "", provider: "", category: ""};
-                    if (page.length > 0) likelyProduct = page[0].specification.product;
+                    const drive = collectionCache.retrieveFromCacheOnly(pathComponents(path)[0]);
+                    if (drive) likelyProduct = drive.specification.product;
 
                     let likelyOwner: ResourceOwner = {createdBy: Client.username ?? "", project: Client.projectId};
-                    if (page.length > 0) likelyOwner = page[0].owner;
+                    if (drive) likelyOwner = drive.owner;
 
                     let likelyPermissions: ResourcePermissions = {myself: ["ADMIN", "READ", "EDIT"]};
-                    if (page.length > 0) likelyPermissions = page[0].permissions;
+                    if (drive) likelyPermissions = drive.permissions;
 
                     return {
                         createdAt: opts?.modifiedAt ?? 0,
@@ -726,8 +726,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                 productId: "syncthing",
                                 config: newConfig
                             })).then(() => {
-                                syncthingConfig = newConfig
-                                browser.renderOperations();
+                                syncthingConfig = newConfig;
+                                browser.rerender();
                             }).catch(e => {
                                 if (didUnmount.current) return;
                                 defaultErrorHandler(e);
@@ -1027,7 +1027,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             url?.prepend(driveIcon);
                             browser.header.setAttribute("shows-dropdown", "");
 
-                            ResourceBrowser.icons.renderIcon({name: "chevronDownLight", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setDriveIcon);
+                            ResourceBrowser.icons.renderIcon({name: "heroChevronDown", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setDriveIcon);
                             driveIcon.onclick = e => {
                                 e.stopImmediatePropagation();
                                 const rect = driveIcon.getBoundingClientRect();

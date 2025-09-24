@@ -13,6 +13,10 @@ type UBuffer struct {
 	Error error
 }
 
+func NewBufferBytes(buf []byte) *UBuffer {
+	return &UBuffer{_buf: bytes.NewBuffer(buf)}
+}
+
 func NewBuffer(buf *bytes.Buffer) *UBuffer {
 	return &UBuffer{_buf: buf}
 }

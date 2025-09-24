@@ -7,14 +7,14 @@ import (
 )
 
 type NameAndVersion struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
+	Name    string `json:"name" yaml:"name"`
+	Version string `json:"version" yaml:"version"`
 }
 
 type SimpleDuration struct {
-	Hours   int `json:"hours"`
-	Minutes int `json:"minutes"`
-	Seconds int `json:"seconds"`
+	Hours   int `json:"hours" yaml:"hours"`
+	Minutes int `json:"minutes" yaml:"minutes"`
+	Seconds int `json:"seconds" yaml:"seconds"`
 }
 
 func (d SimpleDuration) ToMillis() int64 {
@@ -37,6 +37,12 @@ const (
 	ApplicationTypeWeb   ApplicationType = "WEB"
 )
 
+var ApplicationTypeOptions = []ApplicationType{
+	ApplicationTypeBatch,
+	ApplicationTypeVnc,
+	ApplicationTypeWeb,
+}
+
 type ToolBackend string
 
 const (
@@ -56,9 +62,9 @@ type ToolDescription struct {
 	Description           string                            `json:"description"`
 	Backend               ToolBackend                       `json:"backend"`
 	License               string                            `json:"license"`
-	Image                 string                            `json:"image,omitempty"`
-	Container             string                            `json:"container,omitempty"`
-	SupportedProviders    []string                          `json:"supportedProviders,omitempty"`
+	Image                 string                            `json:"image"`
+	Container             string                            `json:"container"`
+	SupportedProviders    []string                          `json:"supportedProviders"`
 	LoadInstructions      util.Option[ToolLoadInstructions] `json:"loadInstructions"`
 }
 
@@ -69,8 +75,8 @@ const (
 )
 
 type ToolLoadInstructions struct {
-	Type         ToolLoadInstructionsType `json:"type"`
-	Applications []NativeApplication      `json:"applications"`
+	Type         ToolLoadInstructionsType `json:"type" yaml:"type"`
+	Applications []NativeApplication      `json:"applications" yaml:"applications"`
 }
 
 type NativeApplication struct {
@@ -79,40 +85,40 @@ type NativeApplication struct {
 }
 
 type Tool struct {
-	Owner       string          `json:"owner"`
-	CreatedAt   fnd.Timestamp   `json:"createdAt"`
-	Description ToolDescription `json:"description"`
+	Owner       string          `json:"owner" yaml:"owner"`
+	CreatedAt   fnd.Timestamp   `json:"createdAt" yaml:"createdAt"`
+	Description ToolDescription `json:"description" yaml:"description"`
 }
 
 type ToolReference struct {
 	NameAndVersion
-	Tool Tool `json:"tool,omitempty"`
+	Tool util.Option[Tool] `json:"tool" yaml:"tool"`
 }
 
 type Application struct {
 	WithAppMetadata
 	WithAppInvocation
 
-	Favorite util.Option[bool] `json:"favorite"`
-	Versions []string          `json:"versions"`
+	Favorite util.Option[bool] `json:"favorite" yaml:"favorite"`
+	Versions []string          `json:"versions" yaml:"versions"`
 }
 
 type WithAppMetadata struct {
-	Metadata ApplicationMetadata `json:"metadata"`
+	Metadata ApplicationMetadata `json:"metadata" yaml:"metadata"`
 }
 
 type WithAppInvocation struct {
-	Invocation ApplicationInvocationDescription `json:"invocation"`
+	Invocation ApplicationInvocationDescription `json:"invocation" yaml:"invocation"`
 }
 
 type WithAppFavorite struct {
-	Favorite bool `json:"favorite"`
+	Favorite bool `json:"favorite" yaml:"favorite"`
 }
 
 type ApplicationSummaryWithFavorite struct {
 	WithAppMetadata
 	WithAppFavorite
-	Tags []string `json:"tags"`
+	Tags []string `json:"tags" yaml:"tags"`
 }
 
 type ApplicationGroupMetadata struct {
@@ -120,27 +126,27 @@ type ApplicationGroupMetadata struct {
 }
 
 type ColorReplacements struct {
-	Light map[int]int `json:"light,omitempty"`
-	Dark  map[int]int `json:"dark,omitempty"`
+	Light map[int]int `json:"light"`
+	Dark  map[int]int `json:"dark"`
 }
 
 type ApplicationGroupSpecification struct {
-	Title            string            `json:"title"`
-	Description      string            `json:"description"`
-	DefaultFlavor    string            `json:"defaultFlavor,omitempty"`
-	Categories       []int             `json:"categories"`
-	ColorReplacement ColorReplacements `json:"colorReplacement"`
-	LogoHasText      bool              `json:"logoHasText"`
+	Title            string            `json:"title" yaml:"title"`
+	Description      string            `json:"description" yaml:"description"`
+	DefaultFlavor    string            `json:"defaultFlavor" yaml:"defaultFlavor"`
+	Categories       []int             `json:"categories" yaml:"categories"`
+	ColorReplacement ColorReplacements `json:"colorReplacement" yaml:"colorReplacement"`
+	LogoHasText      bool              `json:"logoHasText" yaml:"logoHasText"`
 }
 
 type ApplicationGroupStatus struct {
-	Applications []Application `json:"applications,omitempty"`
+	Applications []Application `json:"applications" yaml:"applications"`
 }
 
 type ApplicationGroup struct {
-	Metadata      ApplicationGroupMetadata      `json:"metadata"`
-	Specification ApplicationGroupSpecification `json:"specification"`
-	Status        ApplicationGroupStatus        `json:"status"`
+	Metadata      ApplicationGroupMetadata      `json:"metadata" yaml:"metadata"`
+	Specification ApplicationGroupSpecification `json:"specification" yaml:"specification"`
+	Status        ApplicationGroupStatus        `json:"status" yaml:"status"`
 }
 
 type ApplicationSummary struct {
@@ -149,45 +155,45 @@ type ApplicationSummary struct {
 
 type ApplicationMetadata struct {
 	NameAndVersion
-	Authors     []string         `json:"authors"`
-	Title       string           `json:"title"`
-	Description string           `json:"description"`
-	Website     string           `json:"website,omitempty"`
-	Public      bool             `json:"public"`
-	FlavorName  string           `json:"flavorName,omitempty"`
-	Group       ApplicationGroup `json:"group,omitempty"`
-	CreatedAt   fnd.Timestamp    `json:"createdAt"`
+	Authors     []string            `json:"authors" yaml:"authors"`
+	Title       string              `json:"title" yaml:"title"`
+	Description string              `json:"description" yaml:"description"`
+	Website     string              `json:"website" yaml:"website"`
+	Public      bool                `json:"public" yaml:"public"`
+	FlavorName  util.Option[string] `json:"flavorName" yaml:"flavorName"`
+	Group       ApplicationGroup    `json:"group" yaml:"group"`
+	CreatedAt   fnd.Timestamp       `json:"createdAt" yaml:"createdAt"`
 }
 
 type ApplicationInvocationDescription struct {
-	Tool                  ToolReference                  `json:"tool"`
-	Invocation            []InvocationParameter          `json:"invocation"`
-	Parameters            []ApplicationParameter         `json:"parameters"`
-	OutputFileGlobs       []string                       `json:"outputFileGlobs"`
-	ApplicationType       ApplicationType                `json:"applicationType"`
-	Vnc                   VncDescription                 `json:"vnc"`
-	Web                   WebDescription                 `json:"web"`
-	Ssh                   SshDescription                 `json:"ssh"`
-	Container             ContainerDescription           `json:"container"`
-	Environment           map[string]InvocationParameter `json:"environment"`
-	AllowAdditionalMounts bool                           `json:"allowAdditionalMounts"`
-	AllowAdditionalPeers  bool                           `json:"allowAdditionalPeers"`
-	AllowMultiNode        bool                           `json:"allowMultiNode"`
-	AllowPublicIp         bool                           `json:"allowPublicIp"`
-	AllowPublicLink       bool                           `json:"allowPublicLink"`
-	FileExtensions        []string                       `json:"fileExtensions"`
-	LicenseServers        []string                       `json:"licenseServers"`
-	Modules               ModulesSection                 `json:"modules"`
-	Sbatch                map[string]InvocationParameter `json:"sbatch"`
+	Tool                  ToolReference                  `json:"tool" yaml:"tool"`
+	Invocation            []InvocationParameter          `json:"invocation" yaml:"invocation"`
+	Parameters            []ApplicationParameter         `json:"parameters" yaml:"parameters"`
+	OutputFileGlobs       []string                       `json:"outputFileGlobs" yaml:"outputFileGlobs"`
+	ApplicationType       ApplicationType                `json:"applicationType" yaml:"applicationType"`
+	Vnc                   VncDescription                 `json:"vnc" yaml:"vnc"`
+	Web                   WebDescription                 `json:"web" yaml:"web"`
+	Ssh                   SshDescription                 `json:"ssh" yaml:"ssh"`
+	Container             ContainerDescription           `json:"container" yaml:"container"`
+	Environment           map[string]InvocationParameter `json:"environment" yaml:"environment"`
+	AllowAdditionalMounts bool                           `json:"allowAdditionalMounts" yaml:"allowAdditionalMounts"`
+	AllowAdditionalPeers  bool                           `json:"allowAdditionalPeers" yaml:"allowAdditionalPeers"`
+	AllowMultiNode        bool                           `json:"allowMultiNode" yaml:"allowMultiNode"`
+	AllowPublicIp         bool                           `json:"allowPublicIp" yaml:"allowPublicIp"`
+	AllowPublicLink       bool                           `json:"allowPublicLink" yaml:"allowPublicLink"`
+	FileExtensions        []string                       `json:"fileExtensions" yaml:"fileExtensions"`
+	LicenseServers        []string                       `json:"licenseServers" yaml:"licenseServers"`
+	Modules               ModulesSection                 `json:"modules" yaml:"modules"`
+	Sbatch                map[string]InvocationParameter `json:"sbatch" yaml:"sbatch"`
 }
 
 type VncDescription struct {
-	Password string `json:"password,omitempty"`
-	Port     uint16 `json:"port"`
+	Password string `json:"password" yaml:"password"`
+	Port     uint16 `json:"port" yaml:"port"`
 }
 
 type WebDescription struct {
-	Port uint16 `json:"port"`
+	Port uint16 `json:"port" yaml:"port"`
 }
 
 type SshMode string
@@ -198,14 +204,20 @@ const (
 	SshModeMandatory SshMode = "MANDATORY"
 )
 
+var SshModeOptions = []SshMode{
+	SshModeDisabled,
+	SshModeOptional,
+	SshModeMandatory,
+}
+
 type SshDescription struct {
-	Mode SshMode `json:"mode"`
+	Mode SshMode `json:"mode" yaml:"mode"`
 }
 
 type ContainerDescription struct {
-	ChangeWorkingDirectory bool `json:"changeWorkingDirectory"`
-	RunAsRoot              bool `json:"runAsRoot"`
-	RunAsRealUser          bool `json:"runAsRealUser"`
+	ChangeWorkingDirectory bool `json:"changeWorkingDirectory" yaml:"changeWorkingDirectory"`
+	RunAsRoot              bool `json:"runAsRoot" yaml:"runAsRoot"`
+	RunAsRealUser          bool `json:"runAsRealUser" yaml:"runAsRealUser"`
 }
 
 type InvocationParameterType string
@@ -219,72 +231,72 @@ const (
 )
 
 type InvocationParameter struct {
-	Type InvocationParameterType `json:"type"`
-	InvocationParameterEnv
-	InvocationParameterWord
-	InvocationParameterVar
-	InvocationParameterBoolFlag
-	InvocationParameterJinja
+	Type                        InvocationParameterType `json:"type" yaml:"type"`
+	InvocationParameterEnv      `yaml:",inline"`
+	InvocationParameterWord     `yaml:",inline"`
+	InvocationParameterVar      `yaml:",inline"`
+	InvocationParameterBoolFlag `yaml:",inline"`
+	InvocationParameterJinja    `yaml:",inline"`
 }
 
 type InvocationParameterEnv struct {
-	Variable string `json:"variable,omitempty"`
+	Variable string `json:"variable" yaml:"variable"`
 }
 
 type InvocationParameterWord struct {
-	Word string `json:"word,omitempty"`
+	Word string `json:"word" yaml:"word"`
 }
 
 type InvocationParameterVar struct {
-	VariableNames             []string `json:"variableNames,omitempty"`
-	PrefixGlobal              string   `json:"prefixGlobal,omitempty"`
-	SuffixGlobal              string   `json:"suffixGlobal,omitempty"`
-	PrefixVariable            string   `json:"prefixVariable,omitempty"`
-	SuffixVariable            string   `json:"suffixVariable,omitempty"`
-	IsPrefixVariablePartOfArg bool     `json:"isPrefixVariablePartOfArg,omitempty"`
-	IsSuffixVariablePartOfArg bool     `json:"isSuffixVariablePartOfArg,omitempty"`
+	VariableNames             []string `json:"variableNames" yaml:"VariableNames"`
+	PrefixGlobal              string   `json:"prefixGlobal" yaml:"prefixGlobal"`
+	SuffixGlobal              string   `json:"suffixGlobal" yaml:"suffixGlobal"`
+	PrefixVariable            string   `json:"prefixVariable" yaml:"prefixVariable"`
+	SuffixVariable            string   `json:"suffixVariable" yaml:"suffixVariable"`
+	IsPrefixVariablePartOfArg bool     `json:"isPrefixVariablePartOfArg" yaml:"isPrefixVariablePartOfArg"`
+	IsSuffixVariablePartOfArg bool     `json:"isSuffixVariablePartOfArg" yaml:"isSuffixVariablePartOfArg"`
 }
 
 type InvocationParameterBoolFlag struct {
-	VariableName string `json:"variableName,omitempty"`
-	Flag         string `json:"flag,omitempty"`
+	VariableName string `json:"variableName" yaml:"variableName"`
+	Flag         string `json:"flag" yaml:"flag"`
 }
 
 type InvocationParameterJinja struct {
-	Template string `json:"template,omitempty"`
+	Template string `json:"template" yaml:"template"`
 }
 
 type ModulesSection struct {
-	MountPath string   `json:"mountPath"`
-	Optional  []string `json:"optional"`
+	MountPath string   `json:"mountPath" yaml:"mountPath"`
+	Optional  []string `json:"optional" yaml:"optional"`
 }
 
 // Application Parameters
 
 type ApplicationParameter struct {
-	Type             ApplicationParameterType `json:"type"`
-	Name             string                   `json:"name"`
-	Optional         bool                     `json:"optional"`
-	DefaultValue     json.RawMessage          `json:"defaultValue,omitempty"`
-	Title            string                   `json:"title"`
-	Description      string                   `json:"description"`
-	MinValue         any                      `json:"min"`
-	MaxValue         any                      `json:"max"`
-	Step             any                      `json:"step"`
-	UnitName         string                   `json:"unitName"`
-	TrueValue        string                   `json:"trueValue"`
-	FalseValue       string                   `json:"falseValue"`
-	Options          []EnumOption             `json:"options"`
-	Tagged           []string                 `json:"tagged"`
-	SupportedModules []Module                 `json:"supportedModules"`
+	Type             ApplicationParameterType `json:"type" yaml:"type"`
+	Name             string                   `json:"name" yaml:"name"`
+	Optional         bool                     `json:"optional" yaml:"optional"`
+	DefaultValue     json.RawMessage          `json:"defaultValue" yaml:"defaultValue"`
+	Title            string                   `json:"title" yaml:"title"`
+	Description      string                   `json:"description" yaml:"description"`
+	MinValue         any                      `json:"min" yaml:"minValue"`
+	MaxValue         any                      `json:"max" yaml:"maxValue"`
+	Step             any                      `json:"step" yaml:"step"`
+	UnitName         string                   `json:"unitName" yaml:"unitName"`
+	TrueValue        string                   `json:"trueValue" yaml:"trueValue"`
+	FalseValue       string                   `json:"falseValue" yaml:"falseValue"`
+	Options          []EnumOption             `json:"options" yaml:"options"`
+	Tagged           []string                 `json:"tagged" yaml:"tagged"`
+	SupportedModules []Module                 `json:"supportedModules" yaml:"supportedModules"`
 }
 
 type Module struct {
-	Name             string     `json:"name"`
-	Description      string     `json:"description,omitempty"`
-	ShortDescription string     `json:"shortDescription,omitempty"`
-	DependsOn        [][]string `json:"dependsOn,omitempty"`
-	DocumentationUrl string     `json:"documentationUrl,omitempty"`
+	Name             string     `json:"name" yaml:"name"`
+	Description      string     `json:"description" yaml:"description"`
+	ShortDescription string     `json:"shortDescription" yaml:"shortDescription"`
+	DependsOn        [][]string `json:"dependsOn" yaml:"dependsOn"`
+	DocumentationUrl string     `json:"documentationUrl" yaml:"documentationUrl"`
 }
 
 type ApplicationParameterType string
@@ -469,15 +481,15 @@ func ApplicationParameterReadme(readme string) ApplicationParameter {
 // AppParameterValue
 
 type AppParameterValue struct {
-	Type          AppParameterValueType `json:"type"`
-	Path          string                `json:"path,omitempty"`
-	ReadOnly      bool                  `json:"readOnly,omitempty"`
-	Value         any                   `json:"value,omitempty"`
-	Hostname      string                `json:"hostname,omitempty"`
-	JobId         string                `json:"jobId,omitempty"`
-	Id            string                `json:"id,omitempty"`
-	Specification WorkflowSpecification `json:"specification"`
-	Modules       []string              `json:"modules,omitempty"`
+	Type          AppParameterValueType `json:"type" yaml:"type"`
+	Path          string                `json:"path" yaml:"path"`
+	ReadOnly      bool                  `json:"readOnly" yaml:"readOnly"`
+	Value         any                   `json:"value" yaml:"value"`
+	Hostname      string                `json:"hostname" yaml:"hostname"`
+	JobId         string                `json:"jobId" yaml:"jobId"`
+	Id            string                `json:"id" yaml:"id"`
+	Specification WorkflowSpecification `json:"specification" yaml:"specification"`
+	Modules       []string              `json:"modules" yaml:"modules"`
 }
 
 type AppParameterValueType string

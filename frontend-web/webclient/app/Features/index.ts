@@ -17,7 +17,6 @@ export enum Feature {
 
     NEW_TASKS,
     COMMAND_PALETTE,
-    INTEGRATED_EDITOR,
 
     PROVIDER_CONDITION,
 
@@ -92,7 +91,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "transfer-to": {
         feature: Feature.TRANSFER_TO,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
     },
 
     "new-tasks": {
@@ -102,12 +101,6 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "command-palette": {
         feature: Feature.COMMAND_PALETTE,
-        showWithoutFlag: allEnvironments,
-        showWithFlag: allEnvironments,
-    },
-
-    "integrated-editor": {
-        feature: Feature.INTEGRATED_EDITOR,
         showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments,
     },
@@ -126,13 +119,13 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "alternative-usage-selector": {
         feature: Feature.ALTERNATIVE_USAGE_SELECTOR,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments,
     },
 
     "new-syncthing-ui": {
         feature: Feature.NEW_SYNCTHING_UI,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments,
     },
 

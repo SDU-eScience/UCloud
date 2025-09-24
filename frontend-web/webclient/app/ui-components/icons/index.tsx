@@ -686,38 +686,6 @@ export const calendar = (props: any) => (
     />
   </svg>
 );
-export const chat = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    xmlSpace="preserve"
-    style={{
-      fillRule: "evenodd",
-      clipRule: "evenodd",
-      strokeLinejoin: "round",
-      strokeMiterlimit: 1.41421,
-    }}
-    viewBox="0 0 24 24"
-    fill="currentcolor"
-    {...props}
-  >
-    <path
-      d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2"
-      style={{
-        fill: "currentcolor",
-        fillRule: "nonzero",
-      }}
-      transform="matrix(1.2 0 0 1.2 -2.4 -2.4)"
-    />
-    <path
-      d="M6 9h12v2H6zm8 5H6v-2h8zm4-6H6V6h12z"
-      style={{
-        fill: props.color2 ? props.color2 : "currentcolor",
-        fillRule: "nonzero",
-      }}
-      transform="matrix(1.2 0 0 1.2 -2.4 -2.4)"
-    />
-  </svg>
-);
 export const check = (props: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -771,46 +739,6 @@ export const checkDouble = (props: any) => (
         fillRule: "nonzero",
       }}
       transform="translate(2.909 -6.818)scale(1.36364)"
-    />
-  </svg>
-);
-export const chevronDown = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    xmlSpace="preserve"
-    style={{
-      fillRule: "evenodd",
-      clipRule: "evenodd",
-      strokeLinejoin: "round",
-      strokeMiterlimit: 2,
-    }}
-    viewBox="0 0 24 20"
-    fill="currentcolor"
-    {...props}
-  >
-    <path
-      d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608"
-      style={{
-        fill: "currentcolor",
-        fillRule: "nonzero",
-      }}
-    />
-  </svg>
-);
-export const chevronDownLight = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-    className="chevron-down-light_svg__svg-inline--fa chevron-down-light_svg__fa-chevron-down chevron-down-light_svg__fa-w-14"
-    data-icon="chevron-down"
-    data-prefix="fas"
-    viewBox="0 0 448 512"
-    fill="currentcolor"
-    {...props}
-  >
-    <path
-      fill="currentColor"
-      d="M207.029 381.476 12.686 187.132c-9.373-9.373-9.373-24.569 0-33.941l22.667-22.667c9.357-9.357 24.522-9.375 33.901-.04L224 284.505l154.745-154.021c9.379-9.335 24.544-9.317 33.901.04l22.667 22.667c9.373 9.373 9.373 24.569 0 33.941L240.971 381.476c-9.373 9.372-24.569 9.372-33.942 0"
     />
   </svg>
 );
@@ -4177,51 +4105,6 @@ export const heroDocumentText = (props: any) => (
     <path d="M12.971 1.816A5.23 5.23 0 0 1 14.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 0 1 3.434 1.279 9.77 9.77 0 0 0-6.963-6.963" />
   </svg>
 );
-export const heroEllipsisHorizontal = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="currentcolor"
-    aria-hidden="true"
-    viewBox="0 0 24 24"
-    {...props}
-  >
-    <path
-      fillRule="evenodd"
-      d="M4.5 12a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0m6 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0m6 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-export const heroEllipsisHorizontalCircle = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="currentcolor"
-    aria-hidden="true"
-    viewBox="0 0 24 24"
-    {...props}
-  >
-    <path
-      fillRule="evenodd"
-      d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25m0 8.625a1.125 1.125 0 1 0 0 2.25 1.125 1.125 0 0 0 0-2.25M15.375 12a1.125 1.125 0 1 1 2.25 0 1.125 1.125 0 0 1-2.25 0M7.5 10.875a1.125 1.125 0 1 0 0 2.25 1.125 1.125 0 0 0 0-2.25"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-export const heroEllipsisVertical = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="currentcolor"
-    aria-hidden="true"
-    viewBox="0 0 24 24"
-    {...props}
-  >
-    <path
-      fillRule="evenodd"
-      d="M10.5 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0m0 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0m0 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0"
-      clipRule="evenodd"
-    />
-  </svg>
-);
 export const heroEnvelope = (props: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -5140,21 +5023,6 @@ export const heroPaperClip = (props: any) => (
     <path
       fillRule="evenodd"
       d="M18.97 3.659a2.25 2.25 0 0 0-3.182 0l-10.94 10.94a3.75 3.75 0 1 0 5.304 5.303l7.693-7.693a.75.75 0 0 1 1.06 1.06l-7.693 7.693a5.25 5.25 0 1 1-7.424-7.424l10.939-10.94a3.75 3.75 0 1 1 5.303 5.304L9.097 18.835l-.008.008-.007.007-.002.002-.003.002A2.25 2.25 0 0 1 5.91 15.66l7.81-7.81a.75.75 0 0 1 1.061 1.06l-7.81 7.81a.75.75 0 0 0 1.054 1.068L18.97 6.84a2.25 2.25 0 0 0 0-3.182z"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-export const heroPause = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="currentcolor"
-    aria-hidden="true"
-    viewBox="0 0 24 24"
-    {...props}
-  >
-    <path
-      fillRule="evenodd"
-      d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75z"
       clipRule="evenodd"
     />
   </svg>
@@ -6237,21 +6105,6 @@ export const heroXCircle = (props: any) => (
     <path
       fillRule="evenodd"
       d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25m-1.72 6.97a.75.75 0 1 0-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 1 0 1.06 1.06L12 13.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L13.06 12l1.72-1.72a.75.75 0 1 0-1.06-1.06L12 10.94z"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-export const heroXMark = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="currentcolor"
-    aria-hidden="true"
-    viewBox="0 0 24 24"
-    {...props}
-  >
-    <path
-      fillRule="evenodd"
-      d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06"
       clipRule="evenodd"
     />
   </svg>

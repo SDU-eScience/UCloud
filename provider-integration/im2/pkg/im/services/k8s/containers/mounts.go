@@ -112,7 +112,7 @@ func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool)
 				continue
 			}
 
-			title = strings.ReplaceAll(drive.Specification.Title, "Members' Files: ", "")
+			title = strings.ReplaceAll(drive.Specification.Title, "Member Files: ", "")
 		}
 
 		addUCloudMount(filepath.Join(containerMountDir, title), mount, readOnly)

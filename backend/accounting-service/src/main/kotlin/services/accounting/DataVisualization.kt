@@ -2,8 +2,10 @@ package dk.sdu.cloud.accounting.services.accounting
 
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.IdCard
+import dk.sdu.cloud.accounting.util.IdCardService
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
@@ -14,6 +16,7 @@ import kotlin.time.Duration.Companion.days
 class DataVisualization(
     private val db: DBContext,
     private val accountingSystem: AccountingSystem,
+    private val idCardService: IdCardService
 ) {
     private fun LongRange.overlaps(other: LongRange): Boolean {
         return first <= other.last && other.first <= last
@@ -36,16 +39,36 @@ class DataVisualization(
         var usageOverTimeCharts = HashMap<Long, UsageOverTimeAPI>()
         val breakdownByProjectCharts = HashMap<Long, BreakdownByProjectAPI>()
         val childrenUsageOverTimeCharts = HashMap<String, HashMap<Long, UsageOverTimeAPI>>()
+        var usagePerUserData = UsagePerUserAPI(emptyList())
 
         val emptyUsageChart = UsageOverTimeAPI(emptyList())
         val emptyBreakdownChart = BreakdownByProjectAPI(emptyList())
+        val emptyChildrenUsageOvertimeChart = HashMap<String, HashMap<Long, UsageOverTimeAPI>>()
+
+        val projectId = if (idCard is IdCard.User) {
+            if (idCard.activeProject == 0) {
+                null
+            } else {
+                idCardService.lookupProjectInformation(idCard.activeProject)?.projectId
+            }
+        } else {
+            null
+        }
+
+        val username = if (idCard is IdCard.User) {
+            idCardService.lookupUid(idCard.uid)
+        } else {
+            null
+        }
 
         fun assembleResult(): ChartsAPI {
             val charts = ArrayList<ChartsForCategoryAPI>()
             run {
                 val allKeys = usageOverTimeCharts.keys + breakdownByProjectCharts.keys
                 for (key in allKeys) {
-                    val categoryIdx = productCategoryIdToIndex[key] ?: continue
+                    val lookUpIndex = productCategoryIdToIndex.filterValues { it.toLong() == key }.keys
+                    if (lookUpIndex.isEmpty()) {continue}
+                    val categoryIdx = productCategoryIdToIndex[lookUpIndex.first()] ?: continue
                     val usageOverTime = usageOverTimeCharts[key] ?: emptyUsageChart
                     val breakdownByProject = breakdownByProjectCharts[key] ?: emptyBreakdownChart
 
@@ -59,10 +82,11 @@ class DataVisualization(
                 }
             }
             return ChartsAPI(
-                categories,
-                allocationGroups,
-                charts,
-                childrenUsageOverTimeCharts
+                categories = categories,
+                allocGroups = allocationGroups,
+                charts = charts,
+                childrenUsageOverTime = emptyChildrenUsageOvertimeChart,
+                usagePerUser = usagePerUserData
             )
         }
 
@@ -154,7 +178,7 @@ class DataVisualization(
         }
 
         coroutineScope {
-            launch {
+           /* launch {
                 db.withSession { session ->
                     childrenIds.forEach { childId ->
                         val relevantAllocationGroups = mutableSetOf<Int>()
@@ -176,6 +200,132 @@ class DataVisualization(
                         )
                     }
                 }
+            }*/
+
+            launch {
+                // Usage by users
+                db.withSession { session ->
+                    val rows = session.sendPreparedStatement(
+                        {
+                            setParameter("start", request.start)
+                            setParameter("end", request.end)
+                            setParameter("project_id", projectId)
+                            setParameter("username", username.takeIf {
+                                projectId == null
+                            })
+                        },
+                        """
+                        with
+                            project_wallets as (
+                                    select wal.id, wal.product_category, wal.wallet_owner
+                                    from
+                                        accounting.wallet_owner wo join
+                                        accounting.wallets_v2 wal on wo.id = wal.wallet_owner
+                                    where
+                                        (
+                                            wo.project_id = :project_id
+                                            or wo.username = :username::text
+                                        )
+        
+                                ),
+                            workspaces_with_category as (
+                                select
+                                    distinct p.id as product_id,
+                                    pc.category,
+                                    pc.provider,
+                                    wo.username,
+                                    wo.project_id
+                                from
+                                    project_wallets pw join
+                                    accounting.wallet_owner wo on pw.wallet_owner = wo.id join
+                                    accounting.allocation_groups ag on ag.associated_wallet = pw.id join
+                                    accounting.wallet_allocations_v2 alloc on ag.id = alloc.associated_allocation_group join
+                                    accounting.product_categories pc on pc.id = pw.product_category join
+                                    accounting.products p on pc.id = p.category
+                                where
+                                    pc.product_type = 'COMPUTE'
+                                    and alloc.allocation_start_time <= to_timestamp(:end / 1000)
+                                    and to_timestamp(:start / 1000) <= alloc.allocation_end_time
+                                ),
+                            jobs as (
+                                select distinct
+                                    terminal_update.created_at - running_update.created_at as run_time,
+                                    running_update.created_at - r.created_at as queue_time,
+                                    job.replicas,
+                                    job.resource,
+                                    r.created_at,
+                                    r.created_by,
+                                    wr.category, wr.provider,
+                                    r.product
+                                from
+                                    workspaces_with_category wr
+                                    join provider.resource r on
+                                        (
+                                            wr.project_id = r.project
+                                            or (wr.username = r.created_by and r.project is null)
+                                        )
+                                        and wr.product_id = r.product
+                                    join app_orchestrator.jobs job on r.id = job.resource
+                                    join provider.resource_update terminal_update on r.id = terminal_update.resource
+                                    join provider.resource_update running_update on r.id = running_update.resource
+                                where
+                                    r.created_at >= to_timestamp(:start / 1000)
+                                    and r.created_at <= to_timestamp(:end / 1000)
+                                    and (
+                                        terminal_update.extra->>'state' = 'SUCCESS'
+                                        or terminal_update.extra->>'state' = 'FAILURE'
+                                        or terminal_update.extra->>'state' = 'EXPIRED'
+                                    )
+                                    and running_update.extra->>'state' = 'RUNNING'
+                            ),
+                            jobs_with_usage_factor as (
+                                select
+                                    j.*,
+                                    case
+                                        when pc.accounting_frequency = 'PERIODIC_MINUTE' then p.price::float8
+                                        when pc.accounting_frequency = 'PERIODIC_HOUR' then p.price::float8 / 60
+                                        when pc.accounting_frequency = 'PERIODIC_DAY' then p.price::float8 / (60 * 24)
+                                    end * replicas as price_per_minute
+                                from
+                                    jobs j
+                                    join accounting.products p on j.product = p.id
+                                    join accounting.product_categories pc on p.category = pc.id
+                                    join accounting.accounting_units unit on pc.accounting_unit = unit.id
+                            )
+                        select
+                            j.created_by, j.category, j.provider,
+                            round(sum((extract(epoch from run_time) / 60) * price_per_minute))::int8 as usage
+                        from
+                            jobs_with_usage_factor j
+                        group by
+                            j.created_by, j.category, j.provider
+                        order by 
+                            j.provider, j.category, usage desc,j.created_by;
+                """
+                    ).rows
+
+                    var dataPoints = ArrayList<UsagePerUserPointAPI>()
+
+                    for (row in rows) {
+                        val createdBy = row.getString(0)!!
+                        val category = row.getString(1)!!
+                        val provider = row.getString(2)!!
+                        val usage = row.getLong(3)!!
+
+                        val pc = categories.find { it.name == category && it.provider == provider } ?: continue
+
+                        dataPoints.add(
+                            UsagePerUserPointAPI(
+                                createdBy,
+                                pc,
+                                usage
+                            )
+                        )
+                    }
+
+                    usagePerUserData.data = dataPoints
+
+                }
             }
 
             launch {
@@ -187,19 +337,10 @@ class DataVisualization(
 
             launch {
                 // Breakdown by project
-                val children = mutableListOf<String>()
-                allWallets.forEach { wallet ->
-                    wallet.children?.forEach {
-                        if (it.child.projectId != null) {
-                            children.add(it.child.projectId!!)
-                        }
-                    }
-                }
                 db.withSession { session ->
                     val rows = session.sendPreparedStatement(
                         {
-                            setParameter("project_ids", children.toSet().toList())
-
+                            setParameter("project_ids", childrenIds.toSet().toList())
                             setParameter("start", request.start)
                             setParameter("end", request.end)
                         },
@@ -381,7 +522,17 @@ class DataVisualization(
                              when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY'
                                  then (s.tree_usage::double precision + s.retired_tree_usage::double precision) / 60.0 / 60.0 / 24.0
                         end tusage,
-                        s.quota,
+                        case
+                             when au.floating_point = true then s.quota / 1000000.0
+                             when au.floating_point = false and pc.accounting_frequency = 'ONCE'
+                                 then s.quota::double precision
+                             when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE'
+                                 then (s.quota::double precision) / 60.0
+                             when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR'
+                                 then (s.quota::double precision) / 60.0 / 60.0
+                             when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY'
+                                 then (s.quota::double precision) / 60.0 / 60.0 / 24.0
+                        end normalized_quota,
                         sample_time,
                         w.id,
                         case
@@ -421,9 +572,12 @@ class DataVisualization(
             }
 
             for (row in rows) {
+                if (currentProductCategory == -1L) {
+                    currentProductCategory = row.getLong(0)!!
+                }
                 val allocCategory = row.getLong(0)!!
                 val treeUsage = row.getDouble(1)!!
-                val quota = row.getLong(2)!!
+                val quota = row.getDouble(2)!!
                 val timestamp = row.getLong(3)!!
                 val walletId = row.getLong(4)!!
                 val localUsage = row.getDouble(5)!!

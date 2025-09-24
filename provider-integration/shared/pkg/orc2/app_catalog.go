@@ -1,10 +1,10 @@
 package orchestrators
 
 import (
-	"io"
 	"fmt"
-	"strconv"
+	"io"
 	"net/http"
+	"strconv"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -260,6 +260,52 @@ var AppsFindGroupByApplication = rpc.Call[AppCatalogFindGroupByApplicationReques
 	Operation:   "findGroupByApplication",
 }
 
+var AppsUpload = rpc.Call[[]byte, util.Empty]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionCustom,
+	Roles:       rpc.RolesAdmin,
+	Operation:   "upload",
+
+	CustomPath:   "/api/" + appCatalogNamespace + "/upload",
+	CustomMethod: http.MethodPost,
+
+	CustomClientHandler: func(self *rpc.Call[[]byte, util.Empty], client *rpc.Client, request []byte) (util.Empty, *util.HttpError) {
+		panic("Client not implemented")
+	},
+
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) ([]byte, *util.HttpError) {
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			return nil, util.HttpErr(http.StatusBadRequest, "Bad request")
+		} else {
+			return data, nil
+		}
+	},
+}
+
+var AppsUploadTool = rpc.Call[[]byte, util.Empty]{
+	BaseContext: appCatalogNamespace + "/tools",
+	Convention:  rpc.ConventionCustom,
+	Roles:       rpc.RolesAdmin,
+	Operation:   "upload",
+
+	CustomPath:   "/api/" + appCatalogNamespace + "/tools/upload",
+	CustomMethod: http.MethodPost,
+
+	CustomClientHandler: func(self *rpc.Call[[]byte, util.Empty], client *rpc.Client, request []byte) (util.Empty, *util.HttpError) {
+		panic("Client not implemented")
+	},
+
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) ([]byte, *util.HttpError) {
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			return nil, util.HttpErr(http.StatusBadRequest, "Bad request")
+		} else {
+			return data, nil
+		}
+	},
+}
+
 // Studio endpoints
 // =====================================================================================================================
 
@@ -379,9 +425,9 @@ var AppsAddLogoToGroup = rpc.Call[AppCatalogAddLogoToGroupRequest, util.Empty]{
 	Operation:   "uploadLogo",
 
 	CustomMethod: http.MethodPost,
-	CustomPath:   fmt.Sprintf("%s/uploadLogo", appCatalogNamespace),
+	CustomPath:   fmt.Sprintf("/api/%s/uploadLogo", appCatalogNamespace),
 	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (AppCatalogAddLogoToGroupRequest, *util.HttpError) {
-		uploadName := r.Header.Get("upload-name")
+		uploadName := util.Base64DecodeToString(r.Header.Get("upload-name"))
 		groupId, err := strconv.ParseInt(uploadName, 10, 64)
 		if uploadName == "" || err != nil {
 			return AppCatalogAddLogoToGroupRequest{}, util.HttpErr(http.StatusBadRequest, "missing/invalid group id")
@@ -409,10 +455,10 @@ var AppsRemoveLogoFromGroup = rpc.Call[fnd.FindByIntId, util.Empty]{
 }
 
 type AppCatalogRetrieveGroupLogoRequest struct {
-	Id             int  `json:"id"`
-	DarkMode       bool `json:"darkMode"`
-	IncludeText    bool `json:"includeText"`
-	PlaceTextUnder bool `json:"placeTextUnderLogo"`
+	Id                 int  `json:"id"`
+	DarkMode           bool `json:"darkMode"`
+	IncludeText        bool `json:"includeText"`
+	PlaceTextUnderLogo bool `json:"placeTextUnderLogo"`
 }
 
 var AppsRetrieveGroupLogo = rpc.Call[AppCatalogRetrieveGroupLogoRequest, []byte]{
@@ -427,10 +473,10 @@ var AppsRetrieveGroupLogo = rpc.Call[AppCatalogRetrieveGroupLogoRequest, []byte]
 }
 
 type AppCatalogRetrieveAppLogoRequest struct {
-	Name           string `json:"name"`
-	DarkMode       bool   `json:"darkMode"`
-	IncludeText    bool   `json:"includeText"`
-	PlaceTextUnder bool   `json:"placeTextUnderLogo"`
+	Name               string `json:"name"`
+	DarkMode           bool   `json:"darkMode"`
+	IncludeText        bool   `json:"includeText"`
+	PlaceTextUnderLogo bool   `json:"placeTextUnderLogo"`
 }
 
 var AppsRetrieveAppLogo = rpc.Call[AppCatalogRetrieveAppLogoRequest, []byte]{
@@ -640,13 +686,40 @@ var AppsUpdateCarrousel = rpc.Call[AppCatalogUpdateCarrouselRequest, util.Empty]
 
 type AppCatalogUpdateCarrouselImageRequest struct {
 	SlideIndex int `json:"slideIndex"`
+	ImageBytes []byte
 }
 
 var AppsUpdateCarrouselImage = rpc.Call[AppCatalogUpdateCarrouselImageRequest, util.Empty]{
 	BaseContext: appCatalogNamespace,
-	Convention:  rpc.ConventionUpdate,
+	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "updateCarrouselImage",
+
+	CustomMethod: http.MethodPost,
+	CustomPath:   fmt.Sprintf("/api/%s/updateCarrouselImage", appCatalogNamespace),
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (AppCatalogUpdateCarrouselImageRequest, *util.HttpError) {
+		uploadName := util.Base64DecodeToString(r.Header.Get("slide-index"))
+		slideIndex, err := strconv.ParseInt(uploadName, 10, 64)
+		if uploadName == "" || err != nil {
+			return AppCatalogUpdateCarrouselImageRequest{}, util.HttpErr(http.StatusBadRequest, "missing/invalid group id")
+		}
+
+		reader := io.LimitReader(r.Body, 1024*1024*4)
+		imageBytes, err := io.ReadAll(reader)
+		if err != nil {
+			return AppCatalogUpdateCarrouselImageRequest{}, util.HttpErr(http.StatusBadRequest, "malformed request")
+		}
+
+		return AppCatalogUpdateCarrouselImageRequest{SlideIndex: int(slideIndex), ImageBytes: imageBytes}, nil
+	},
+
+	CustomClientHandler: func(
+		self *rpc.Call[AppCatalogUpdateCarrouselImageRequest, util.Empty],
+		client *rpc.Client,
+		request AppCatalogUpdateCarrouselImageRequest,
+	) (util.Empty, *util.HttpError) {
+		panic("client not implemented")
+	},
 }
 
 type AppCatalogUpdateTopPicksRequest struct {
@@ -675,16 +748,50 @@ var AppsDevImport = rpc.Call[AppCatalogDevImportRequest, util.Empty]{
 	Operation:   "devImport",
 }
 
-var AppsImportFromFile = rpc.Call[util.Empty, util.Empty]{
+var AppsImportFromFile = rpc.Call[[]byte, util.Empty]{
 	BaseContext: appCatalogNamespace,
-	Convention:  rpc.ConventionUpdate,
+	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "importFromFile",
+
+	CustomPath:   "/api/" + appCatalogNamespace + "/importFromFile",
+	CustomMethod: http.MethodPost,
+
+	CustomClientHandler: func(self *rpc.Call[[]byte, util.Empty], client *rpc.Client, request []byte) (util.Empty, *util.HttpError) {
+		panic("Client not implemented")
+	},
+
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) ([]byte, *util.HttpError) {
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			return nil, util.HttpErr(http.StatusBadRequest, "corrupt payload received")
+		}
+
+		return data, nil
+	},
 }
 
-var AppsExport = rpc.Call[util.Empty, util.Empty]{
+var AppsExport = rpc.Call[util.Empty, []byte]{
 	BaseContext: appCatalogNamespace,
-	Convention:  rpc.ConventionUpdate,
+	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "export",
+
+	CustomMethod: http.MethodPost,
+	CustomPath:   fmt.Sprintf("/api/%s/export", appCatalogNamespace),
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (util.Empty, *util.HttpError) {
+		return util.Empty{}, nil
+	},
+	CustomServerProducer: func(response []byte, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/zip")
+		if err != nil {
+			w.WriteHeader(err.StatusCode)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+		_, _ = w.Write(response)
+	},
+	CustomClientHandler: func(self *rpc.Call[util.Empty, []byte], client *rpc.Client, request util.Empty) ([]byte, *util.HttpError) {
+		panic("client not implemented")
+	},
 }

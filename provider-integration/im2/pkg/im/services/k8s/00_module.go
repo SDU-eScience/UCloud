@@ -3,6 +3,8 @@ package k8s
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"net/http"
 
 	cfg "ucloud.dk/pkg/im/config"
@@ -103,7 +105,11 @@ func IsJobLocked(job *orc.Job) util.Option[shared.LockedReason] {
 }
 
 func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[shared.LockedReason] {
-	if ctrl.IsResourceLocked(job.Resource, job.Specification.Product) {
+	timer := util.NewTimer()
+	isLocked := ctrl.IsResourceLocked(job.Resource, job.Specification.Product)
+	metricComputeLocked.Observe(timer.Mark().Seconds())
+
+	if isLocked {
 		reason := fmt.Sprintf("Insufficient funds for %v", job.Specification.Product.Category)
 		return util.OptValue(shared.LockedReason{
 			Reason: reason,
@@ -115,7 +121,10 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 		})
 	}
 
+	timer.Mark()
 	mounts := MountedDrivesEx(job, jobAnnotations)
+	metricMountedDrives.Observe(timer.Mark().Seconds())
+
 	for _, mount := range mounts {
 		if mount.DriveInvalid {
 			reason := "Drive is no longer valid. Was it deleted?"
@@ -128,7 +137,11 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 			})
 		}
 
-		if !ctrl.CanUseDrive(job.Owner, mount.Drive.Id, mount.ReadOnly) {
+		timer.Mark()
+		canUse := ctrl.CanUseDrive(job.Owner, mount.Drive.Id, mount.ReadOnly)
+		metricCanUseDrive.Observe(timer.Mark().Seconds())
+
+		if !canUse {
 			reason := fmt.Sprintf("You no longer have permissions to use this drive: %s (%v).", mount.Drive.Specification.Title, mount.Drive.Id)
 			return util.OptValue(shared.LockedReason{
 				Reason: reason,
@@ -139,7 +152,11 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 			})
 		}
 
-		if ctrl.IsResourceLocked(mount.RealDrive.Resource, mount.RealDrive.Specification.Product) {
+		timer.Mark()
+		storageLocked := ctrl.IsResourceLocked(mount.RealDrive.Resource, mount.RealDrive.Specification.Product)
+		metricStorageLocked.Observe(timer.Mark().Seconds())
+
+		if storageLocked {
 			reason := fmt.Sprintf("Insufficient funds for %v", mount.RealDrive.Specification.Product.Category)
 			return util.OptValue(shared.LockedReason{
 				Reason: reason,
@@ -155,7 +172,30 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 	return util.OptNone[shared.LockedReason]()
 }
 
+var (
+	metricComputeLocked = metricJobLocked("compute_locked")
+	metricMountedDrives = metricJobLocked("mounted_drives")
+	metricCanUseDrive   = metricJobLocked("can_use_drive")
+	metricStorageLocked = metricJobLocked("storage_locked")
+)
+
+func metricJobLocked(region string) prometheus.Summary {
+	return promauto.NewSummary(prometheus.SummaryOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "jobs",
+		Name:      fmt.Sprintf("job_locked_%s_seconds", region),
+		Help:      fmt.Sprintf("Summary of the duration (in seconds) it takes to run the region '%s' of IsJobLocked.", region),
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	})
+}
+
 func mountedFilesFromJob(job *orc.Job) []orc.AppParameterValue {
+	timer := util.NewTimer()
 	var result []orc.AppParameterValue
 	for _, value := range job.Specification.Parameters {
 		if value.Type == orc.AppParameterValueTypeFile {
@@ -168,15 +208,20 @@ func mountedFilesFromJob(job *orc.Job) []orc.AppParameterValue {
 			result = append(result, value)
 		}
 	}
+	metricMountedDrivesTiming.WithLabelValues("JobParameterCollection").Observe(timer.Mark().Seconds())
 
 	if backendIsContainers(job) {
-		folder, drive, err := containers.FindJobFolder(job)
+		timer.Mark()
+		folder, drive, err := containers.FindJobFolderEx(job, containers.FindJobFolderNoInitFolder)
+		metricMountedDrivesTiming.WithLabelValues("FindJobFolder").Observe(timer.Mark().Seconds())
+
 		if err == nil {
 			ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, folder)
 			if ok {
 				result = append(result, orc.AppParameterValue{Path: ucloudPath})
 			}
 		}
+		metricMountedDrivesTiming.WithLabelValues("InternalToUCloud").Observe(timer.Mark().Seconds())
 	}
 
 	return result
@@ -194,6 +239,7 @@ func MountedDrives(job *orc.Job) []MountedDrive {
 }
 
 func MountedDrivesEx(job *orc.Job, jobAnnotations map[string]string) []MountedDrive {
+	timer := util.NewTimer()
 	files := mountedFilesFromJob(job)
 	drives := map[string]MountedDrive{}
 
@@ -212,19 +258,24 @@ func MountedDrivesEx(job *orc.Job, jobAnnotations map[string]string) []MountedDr
 		}
 	}
 
+	timer.Mark()
 	for _, file := range files {
 		driveId, ok := filesystem.DriveIdFromUCloudPath(file.Path)
 		if ok {
 			insertDrive(driveId, file.ReadOnly)
 		}
 	}
+	metricMountedDrivesTiming.WithLabelValues("InsertDriveParams").Observe(timer.Mark().Seconds())
 
+	timer.Mark()
 	if jobAnnotations == nil {
 		if backendIsContainers(job) {
 			jobAnnotations = containers.JobAnnotations(job, 0)
 		}
 	}
+	metricMountedDrivesTiming.WithLabelValues("JobAnnotations").Observe(timer.Mark().Seconds())
 
+	timer.Mark()
 	driveIdsString := util.OptMapGet(jobAnnotations, shared.AnnotationMountedDriveIds)
 	driveReadOnlyString := util.OptMapGet(jobAnnotations, shared.AnnotationMountedDriveAsReadOnly)
 	if driveIdsString.Present && driveReadOnlyString.Present {
@@ -242,9 +293,10 @@ func MountedDrivesEx(job *orc.Job, jobAnnotations map[string]string) []MountedDr
 			}
 		}
 	}
+	metricMountedDrivesTiming.WithLabelValues("InsertDriveAnnotations").Observe(timer.Mark().Seconds())
 
+	timer.Mark()
 	var result []MountedDrive
-
 	for id, entry := range drives {
 		drive, ok := ctrl.RetrieveDrive(id)
 		var realDrive *orc.Drive
@@ -262,6 +314,20 @@ func MountedDrivesEx(job *orc.Job, jobAnnotations map[string]string) []MountedDr
 		}
 		result = append(result, entry)
 	}
+	metricMountedDrivesTiming.WithLabelValues("CollectingMountedDrives").Observe(timer.Mark().Seconds())
 
 	return result
 }
+
+var metricMountedDrivesTiming = promauto.NewSummaryVec(prometheus.SummaryOpts{
+	Namespace: "ucloud_im",
+	Subsystem: "jobs",
+	Name:      "mounted_drives_timing",
+	Help:      "Timing of different regions in MountedDrives",
+	Objectives: map[float64]float64{
+		0.5:  0.01,
+		0.75: 0.01,
+		0.95: 0.01,
+		0.99: 0.01,
+	},
+}, []string{"region"})

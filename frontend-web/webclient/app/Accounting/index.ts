@@ -542,6 +542,7 @@ export class UsageAndQuota {
         } else {
             usage = uqRaw.usage - uqRaw.retiredAmount;
         }
+        usage = Math.max(0, usage);
 
         const maxUsablePercentage = uqRaw.quota === 0 ? 100 : ((uqRaw.maxUsable + usage) / uqRaw.quota) * 100;
         const percentageUsed = uqRaw.quota === 0 ? 0 : (usage / uqRaw.quota) * 100;
@@ -1264,6 +1265,17 @@ export interface ChartsAPI {
     categories: ProductCategoryV2[];
     allocGroups: AllocationGroupWithProductCategoryIndex[];
     charts: ChartsForCategoryAPI[];
+    usagePerUser: UsagePerUserAPI
+}
+
+export interface UsagePerUserAPI {
+    data: UsagePerUserPointAPI[]
+}
+
+export interface UsagePerUserPointAPI {
+    username: string;
+    category: ProductCategoryV2;
+    usage: number;
 }
 
 export interface ChartsForCategoryAPI {

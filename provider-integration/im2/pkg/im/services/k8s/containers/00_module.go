@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -75,8 +76,16 @@ func findPodByJobIdAndRank(jobId string, rank int) util.Option[*core.Pod] {
 	}
 }
 
-// FindJobFolder finds the most relevant job folder for a given job. The returned path will be internal.
 func FindJobFolder(job *orc.Job) (string, *orc.Drive, error) {
+	return FindJobFolderEx(job, 0)
+}
+
+const (
+	FindJobFolderNoInitFolder int = 1 << iota
+)
+
+// FindJobFolderEx finds the most relevant job folder for a given job. The returned path will be internal.
+func FindJobFolderEx(job *orc.Job, flags int) (string, *orc.Drive, error) {
 	path, drive, err := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, util.OptStringIfNotEmpty(job.Owner.Project))
 	if err != nil {
 		return "", nil, err
@@ -88,7 +97,9 @@ func FindJobFolder(job *orc.Job) (string, *orc.Drive, error) {
 	}
 
 	jobFolderPath := filepath.Join(path, "Jobs", title, job.Id)
-	_ = filesystem.DoCreateFolder(jobFolderPath)
+	if flags&FindJobFolderNoInitFolder == 0 {
+		_ = filesystem.DoCreateFolder(jobFolderPath)
+	}
 	return jobFolderPath, drive, nil
 }
 
@@ -168,6 +179,12 @@ func follow(session *ctrl.FollowJobSession) {
 		if !exists {
 			stdout, ok1 := filesystem.OpenFile(filepath.Join(jobFolder, baseName), unix.O_RDONLY, 0)
 			if ok1 {
+				sinfo, err := stdout.Stat()
+				if err == nil {
+					if sinfo.Size() > 1024*256 {
+						_, _ = stdout.Seek(sinfo.Size()-1024*256, io.SeekStart)
+					}
+				}
 				file.File = stdout
 				logFiles[baseName] = file
 			}
@@ -188,12 +205,19 @@ func follow(session *ctrl.FollowJobSession) {
 			Stdout:  true,
 			Channel: util.OptValue("ui"),
 		})
+	}
 
-		trackFile(".ucviz-data", trackedLogFile{
-			Rank:    0,
-			Stdout:  true,
-			Channel: util.OptValue("data"),
-		})
+	utilizationChannel := make(chan []float64)
+	utilizationDataTracked := false
+	var utilizationData *util.FsRingReader[[]float64]
+	utilSerializer := util.FsRingSerializer[[]float64]{
+		Deserialize: func(buf *util.UBufferReader) []float64 {
+			result := make([]float64, 64) // NOTE(Dan): change ucmetrics if changing this
+			for i := 0; i < 64; i++ {
+				result[i] = buf.ReadF64()
+			}
+			return result
+		},
 	}
 
 	for util.IsAlive && *session.Alive {
@@ -224,6 +248,19 @@ func follow(session *ctrl.FollowJobSession) {
 		}
 
 		trackAllFiles()
+		if !utilizationDataTracked {
+			path := filepath.Join(jobFolder, ".ucviz-utilization-data")
+			ring, err := util.FsRingOpen(path, utilSerializer)
+			if err == nil {
+				utilizationData = ring
+				utilizationDataTracked = true
+
+				go func() {
+					_ = ring.Follow(context.Background(), utilizationChannel, 256)
+					util.SilentClose(ring)
+				}()
+			}
+		}
 
 		for _, logFile := range logFiles {
 			now := time.Now()
@@ -245,7 +282,32 @@ func follow(session *ctrl.FollowJobSession) {
 			}
 		}
 
+		if utilizationData != nil {
+		loop:
+			for {
+				select {
+				case row := <-utilizationChannel:
+					b := strings.Builder{}
+					for i, elem := range row {
+						if i > 0 {
+							b.WriteString(",")
+						}
+						b.WriteString(fmt.Sprint(elem))
+					}
+
+					session.EmitLogs(0, util.OptValue(b.String()), util.OptNone[string](), util.OptValue("utilization-data"))
+
+				default:
+					break loop
+				}
+			}
+		}
+
 		time.Sleep(15 * time.Millisecond)
+	}
+
+	if utilizationData != nil {
+		util.SilentClose(utilizationData)
 	}
 }
 
@@ -255,22 +317,29 @@ func terminate(request ctrl.JobTerminateRequest) error {
 	// NOTE(Dan): Helper resources (e.g. Service) have a owner reference on the pod. For this reason, we do not need to
 	// delete this directly.
 	for rank := 0; rank < request.Job.Specification.Replicas; rank++ {
-		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
 		podName := idAndRankToPodName(request.Job.Id, rank)
+		pod, ok := shared.JobPods.Retrieve(podName)
 
-		// NOTE(Dan): JobUpdateBatch and monitoring logic will aggressively get rid of pods that don't belong in
-		// the namespace and as such we don't have to worry about failures here.
-		_ = K8sClient.CoreV1().Pods(Namespace).Delete(ctx, podName, meta.DeleteOptions{
-			GracePeriodSeconds: util.Pointer[int64](1),
-		})
+		// NOTE(Dan): Do not waste time on pods that we know are not in the system. The K8s API is really slow and this
+		// can waste a lot of time if someone attempts to schedule a 1 million node job (which we cannot possibly host
+		// anyway).
+		if ok && pod.DeletionTimestamp == nil {
+			ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
+			// NOTE(Dan): JobUpdateBatch and monitoring logic will aggressively get rid of pods that don't belong in
+			// the namespace and as such we don't have to worry about failures here.
+			_ = K8sClient.CoreV1().Pods(Namespace).Delete(ctx, podName, meta.DeleteOptions{
+				GracePeriodSeconds: util.Pointer[int64](1),
+			})
 
-		cancel()
+			cancel()
+		}
 	}
 
 	// Unbinding IP and port assignments
 	// -----------------------------------------------------------------------------------------------------------------
 	ctrl.UnbindIpsFromJob(request.Job)
 	shared.ClearAssignedSshPort(request.Job)
+	shared.RemoveFromQueue(request.Job.Id)
 
 	// Cleaning up mount dirs
 	// -----------------------------------------------------------------------------------------------------------------
@@ -448,10 +517,8 @@ func extend(request ctrl.JobExtendRequest) error {
 
 func JobAnnotations(job *orc.Job, rank int) map[string]string {
 	podName := idAndRankToPodName(job.Id, rank)
-	timeout, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	pod, err := K8sClient.CoreV1().Pods(Namespace).Get(timeout, podName, meta.GetOptions{})
-	if err == nil {
+	pod, ok := shared.JobPods.Retrieve(podName)
+	if ok {
 		return pod.Annotations
 	} else {
 		return nil

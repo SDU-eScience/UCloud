@@ -99,14 +99,18 @@ class ProviderMigration(
                         """
                             insert into scopes_to_delete(key)
                             select u.key
-                            from
-                                file_orchestrator.file_collections fc
-                                join provider.resource r on fc.resource = r.id
-                                join accounting.products p on r.product = p.id
-                                join accounting.product_categories pc on p.category = pc.id
-                                join accounting.scoped_usage u on u.key ilike e'%\n' || fc.resource
-                            where
-                                pc.provider = :provider
+                            from 
+                                (
+                                    select distinct fc.resource::text as resource_txt
+                                    from 
+                                        file_orchestrator.file_collections fc
+                                        join provider.resource r on fc.resource = r.id
+                                        join accounting.products p on r.product = p.id
+                                        join accounting.product_categories pc on p.category = pc.id
+                                    where
+                                        pc.provider = :provider
+                                ) s
+                                join accounting.scoped_usage u on u.resource_suffix = s.resource_txt;
                         """
                     )
                     channel.send("Reset accounting scopes 3/4")

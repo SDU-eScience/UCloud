@@ -21,7 +21,7 @@ type iappConfigKey struct {
 }
 
 var iappConfigs = map[iappConfigKey]IAppRunningConfiguration{}
-var iappConfigsMutex = sync.Mutex{} // lock order is activeJobsMutex -> iappConfigsMutex
+var iappConfigsMutex = sync.Mutex{}
 
 type IntegratedApplicationFlag int
 
@@ -227,7 +227,9 @@ func ReconfigureAllIApps() {
 			job, ok := jobsById[config.JobId]
 			if !ok {
 				log.Info("Deleting iapp, can no longer find associated job %v", key)
-				iappDeleteWhileHoldingMutex(key)
+				iappConfigsMutex.Unlock() // unlock for the delete function
+				iappDelete(key)
+				iappConfigsMutex.Lock() // relock following delete
 			} else {
 				err := handler.UpdateConfiguration(job, config.ETag, config.Configuration)
 				if err != nil {
@@ -239,13 +241,11 @@ func ReconfigureAllIApps() {
 	iappConfigsMutex.Unlock()
 }
 
-func ConfigureIApp(appName string, owner orc.ResourceOwner, etag util.Option[string], configuration json.RawMessage) error {
-	iappConfigsMutex.Lock()
+const iappConfigWaitingForJob = "0"
 
-	key := iappConfigKey{
-		AppName: appName,
-		Owner:   owner,
-	}
+func ConfigureIApp(appName string, owner orc.ResourceOwner, etag util.Option[string], configuration json.RawMessage) error {
+	newEtag := util.RandomToken(16)
+	etagsMatched := false
 
 	svc, ok := IntegratedApplications[appName]
 	if !ok {
@@ -253,7 +253,24 @@ func ConfigureIApp(appName string, owner orc.ResourceOwner, etag util.Option[str
 		return util.UserHttpError("This application (%s) is not configured for this provider!", appName)
 	}
 
+	key := iappConfigKey{
+		AppName: appName,
+		Owner:   owner,
+	}
+
+	iappConfigsMutex.Lock()
 	config, ok := iappConfigs[key]
+	if !ok {
+		iappConfigs[key] = IAppRunningConfiguration{JobId: iappConfigWaitingForJob}
+	} else {
+		etagsMatched = !etag.Present || etag.Value == config.ETag
+		if etagsMatched {
+			config.ETag = newEtag
+			iappConfigs[key] = config
+		}
+	}
+	iappConfigsMutex.Unlock()
+
 	if !ok {
 		res := orc.ProviderRegisteredResource[orc.JobSpecification]{
 			Spec: orc.JobSpecification{
@@ -309,34 +326,51 @@ func ConfigureIApp(appName string, owner orc.ResourceOwner, etag util.Option[str
 			JobId:         jobId,
 		}
 		ok = true
-		iappConfigs[key] = config
-	}
-	iappConfigsMutex.Unlock()
+		etagsMatched = true
 
-	// Temporarily unlock the iappConfigsMutex to get the job
+		iappConfigsMutex.Lock()
+		iappConfigs[key] = config
+		iappConfigsMutex.Unlock()
+	} else {
+		// Spin until registered by branch above
+		for config.JobId == iappConfigWaitingForJob {
+			iappConfigsMutex.Lock()
+			config, ok = iappConfigs[key]
+			etagsMatched = !etag.Present || etag.Value == config.ETag
+			if etagsMatched {
+				config.ETag = newEtag
+				iappConfigs[key] = config
+			}
+			iappConfigsMutex.Unlock()
+
+			if config.JobId == iappConfigWaitingForJob {
+				time.Sleep(500 * time.Millisecond)
+			}
+		}
+	}
+
 	job, ok := RetrieveJob(config.JobId)
 	if !ok || job.Status.State.IsFinal() {
 		log.Warn("Unable to retrieve running job for %v: %v", appName, config)
-
-		iappDeleteWhileHoldingMutex(key)
+		iappDelete(key)
 		return util.ServerHttpError("Internal error in %s. Try again later.", appName)
 	}
 
-	iappConfigsMutex.Lock()
-	defer iappConfigsMutex.Unlock()
-
-	if etag.Present && config.ETag != etag.Value {
+	if !etagsMatched {
 		return util.UserHttpError("The application configuration has changed since you last loaded the page. " +
 			"Please reload the page and try again.")
 	}
 
-	newEtag := util.RandomToken(16)
 	err := svc.UpdateConfiguration(job, newEtag, configuration)
 	if err == nil {
 		config.Configuration = configuration
 		config.ETag = newEtag
 		config.UpdatedAt = time.Now()
+
+		iappConfigsMutex.Lock()
 		iappConfigs[key] = config
+		iappConfigsMutex.Unlock()
+
 		db.NewTx0(func(tx *db.Transaction) {
 			db.Exec(
 				tx,
@@ -377,13 +411,15 @@ type IAppRunningConfiguration struct {
 }
 
 func RetrieveIAppConfiguration(appName string, owner orc.ResourceOwner) util.Option[IAppRunningConfiguration] {
-	iappConfigsMutex.Lock()
-	defer iappConfigsMutex.Unlock()
 	key := iappConfigKey{
 		AppName: appName,
 		Owner:   owner,
 	}
+
+	iappConfigsMutex.Lock()
 	result, ok := iappConfigs[key]
+	iappConfigsMutex.Unlock()
+
 	if ok {
 		return util.OptValue(result)
 	} else {
@@ -415,21 +451,18 @@ func ResetIApp(appName string, owner orc.ResourceOwner, etag util.Option[string]
 	var newConfig json.RawMessage
 	var err error
 
-	iappConfigsMutex.Lock()
-	{
-		if !ok {
-			// Nothing further to reset, but something was probably wrong so we log it
-			log.Warn("No job associated with iapp: %v", result)
-			iappDeleteWhileHoldingMutex(key)
-			newConfig = handler.RetrieveDefaultConfiguration(owner)
-		} else if etag.Present && etag.Value != result.ETag {
-			err = util.UserHttpError("The configuration has changed since you last loaded the page. Reload it and try again.")
-		} else {
-			newConfig, err = handler.ResetConfiguration(job, result.Configuration)
-		}
+	if !ok {
+		// Nothing further to reset, but something was probably wrong so we log it
+		log.Warn("No job associated with iapp: %v", result)
 
+		iappDelete(key)
+
+		newConfig = handler.RetrieveDefaultConfiguration(owner)
+	} else if etag.Present && etag.Value != result.ETag {
+		err = util.UserHttpError("The configuration has changed since you last loaded the page. Reload it and try again.")
+	} else {
+		newConfig, err = handler.ResetConfiguration(job, result.Configuration)
 	}
-	iappConfigsMutex.Unlock()
 
 	if err != nil {
 		return err
@@ -452,12 +485,10 @@ func RestartIApp(appName string, owner orc.ResourceOwner) error {
 
 	job, ok := RetrieveJob(config.Value.JobId)
 	if !ok {
-		iappConfigsMutex.Lock()
-		iappDeleteWhileHoldingMutex(iappConfigKey{
+		iappDelete(iappConfigKey{
 			AppName: appName,
 			Owner:   owner,
 		})
-		iappConfigsMutex.Unlock()
 		return util.ServerHttpError("Internal error. Reload the page and try again later.")
 	}
 
@@ -466,13 +497,13 @@ func RestartIApp(appName string, owner orc.ResourceOwner) error {
 }
 
 func RetrieveIAppsByJobId() map[string]IAppRunningConfiguration {
-	iappConfigsMutex.Lock()
-	defer iappConfigsMutex.Unlock()
-
 	result := map[string]IAppRunningConfiguration{}
+
+	iappConfigsMutex.Lock()
 	for _, config := range iappConfigs {
 		result[config.JobId] = config
 	}
+	iappConfigsMutex.Unlock()
 
 	return result
 }
@@ -489,8 +520,11 @@ func RetrieveIAppByJobId(jobId string) util.Option[IAppRunningConfiguration] {
 	return util.OptNone[IAppRunningConfiguration]()
 }
 
-func iappDeleteWhileHoldingMutex(key iappConfigKey) {
+func iappDelete(key iappConfigKey) {
+	iappConfigsMutex.Lock()
 	delete(iappConfigs, key)
+	iappConfigsMutex.Unlock()
+
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,

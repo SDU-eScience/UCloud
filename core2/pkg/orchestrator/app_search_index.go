@@ -31,7 +31,7 @@ func appAddToIndex(id AppGroupId, group orcapi.ApplicationGroup) {
 	toIndex.Description = group.Specification.Description
 	flavors := strings.Builder{}
 	for _, app := range group.Status.Applications {
-		flavors.WriteString(app.Metadata.FlavorName)
+		flavors.WriteString(app.Metadata.FlavorName.Value)
 		flavors.WriteString(" ")
 	}
 	toIndex.Flavor = flavors.String()

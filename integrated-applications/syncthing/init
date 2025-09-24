@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-# TODO Bash some stuff
-/opt/service/bin/service $1

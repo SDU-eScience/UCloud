@@ -284,8 +284,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// Multi-node sidecar
 	// -----------------------------------------------------------------------------------------------------------------
 	spec.InitContainers = append(spec.InitContainers, core.Container{
-		Name:  "ucloud-compat",
-		Image: "alpine:latest",
+		Name:            "ucloud-compat",
+		Image:           "alpine:latest",
+		ImagePullPolicy: core.PullIfNotPresent,
 	})
 	multinodeSidecar := &spec.InitContainers[len(spec.InitContainers)-1]
 
@@ -350,7 +351,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// -----------------------------------------------------------------------------------------------------------------
 	spec.InitContainers = append(spec.InitContainers, core.Container{
 		Name:  "ucviz",
-		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.3.83",
+		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.4.107",
 	})
 
 	ucvizContainer := &spec.InitContainers[len(spec.InitContainers)-1]
@@ -360,10 +361,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	})
 
 	ucvizContainer.Command = []string{"bash", "-c", "cp /usr/bin/ucmetrics /opt/ucloud/ucmetrics ; cp /usr/bin/ucviz /opt/ucloud/ucviz"}
-
-	if util.DevelopmentModeEnabled() {
-		ucvizContainer.ImagePullPolicy = core.PullAlways
-	}
 
 	if util.DevelopmentModeEnabled() && ServiceConfig.Compute.ImSourceCode.Present {
 		ucvizContainer.Image = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.3.3"
@@ -433,7 +430,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		}
 	}
 
-	// NOTE(Dan): Check if the job is allowed to be submitted. This most be immediately before the job creation. It
+	// NOTE(Dan): Check if the job is allowed to be submitted. This must be immediately before the job creation. It
 	// must not be moved down or up. Do not add code between these two.
 	if reason := shared.IsJobLockedEx(job, pod.Annotations); reason.Present {
 		return reason.Value.Err

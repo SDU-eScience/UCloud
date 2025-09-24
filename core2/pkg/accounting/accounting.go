@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database"
+	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
@@ -33,6 +33,8 @@ func initAccounting() {
 	})
 
 	accapi.ReportUsage.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.ReportUsageRequest]) (fndapi.BulkResponse[bool], *util.HttpError) {
+		// TODO Currently (when bypassing the allocation check in the orchestrator) I can create a license with no
+		//   allocation. I don't think this correctly returns false in that case.
 		var result []bool
 		for _, reqItem := range request.Items {
 			resp, err := ReportUsage(info.Actor, reqItem)
@@ -209,7 +211,7 @@ func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, 
 }
 
 func ReportUsage(actor rpc.Actor, request accapi.ReportUsageRequest) (bool, *util.HttpError) {
-	providerId, ok := strings.CutPrefix(fndapi.ProviderSubjectPrefix, actor.Username)
+	providerId, ok := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
 	if !ok {
 		return false, util.HttpErr(http.StatusForbidden, "You cannot report usage")
 	}

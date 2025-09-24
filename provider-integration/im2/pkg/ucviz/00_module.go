@@ -17,13 +17,15 @@ type WidgetPacketHeader struct {
 
 type WidgetType uint16
 
+//goland:noinspection GoUnusedConst
 const (
 	WidgetTypeLabel WidgetType = iota
 	WidgetTypeProgressBar
 	WidgetTypeTable
 	WidgetTypeContainer
-	WidgetTypeDiagram
+	_widgetTombstone1
 	WidgetTextSnippet
+	WidgetTypeLineChart
 )
 
 type WidgetWindow uint8
@@ -153,27 +155,18 @@ type WidgetTableCell struct {
 	Label  WidgetLabel         `json:"label"`
 }
 
-type WidgetDiagramDefinition struct {
-	Type   WidgetDiagramType     `json:"type"`
-	Series []WidgetDiagramSeries `json:"series"`
-	XAxis  WidgetDiagramAxis     `json:"xAxis"`
-	YAxis  WidgetDiagramAxis     `json:"yAxis"`
+type WidgetLineChartDefinition struct {
+	Channel     string                       `json:"channel"`
+	Series      []WidgetLineSeriesDefinition `json:"series"`
+	XAxis       WidgetDiagramAxis            `json:"xAxis"`
+	YAxis       WidgetDiagramAxis            `json:"yAxis"`
+	YAxisColumn int                          `json:"yAxisColumn"`
 }
 
-type WidgetDiagramType uint16
-
-const (
-	WidgetDiagramLine WidgetDiagramType = iota
-	WidgetDiagramArea
-	WidgetDiagramBar
-	WidgetDiagramPie
-)
-
 type WidgetDiagramAxis struct {
-	Unit        WidgetDiagramUnit    `json:"unit"`
-	Minimum     util.Option[float64] `json:"minimum"`
-	Maximum     util.Option[float64] `json:"maximum"`
-	Logarithmic bool                 `json:"logarithmic"`
+	Unit    WidgetDiagramUnit    `json:"unit"`
+	Minimum util.Option[float64] `json:"minimum"`
+	Maximum util.Option[float64] `json:"maximum"`
 }
 
 type WidgetDiagramUnit uint16
@@ -190,14 +183,9 @@ const (
 	UnitOperationsPerSecond
 )
 
-type WidgetDiagramSeries struct {
-	Name string                   `json:"name"`
-	Data []WidgetDiagramDataPoint `json:"data"`
-}
-
-type WidgetDiagramDataPoint struct {
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
+type WidgetLineSeriesDefinition struct {
+	Name   string `json:"name"`
+	Column int    `json:"column"`
 }
 
 type WidgetProgressBar struct {
@@ -246,21 +234,13 @@ const (
 	WidgetActionDelete
 )
 
-type WidgetStreamEncoding string
-
-const (
-	WidgetStreamBinary WidgetStreamEncoding = "binary"
-	WidgetStreamJson   WidgetStreamEncoding = "json"
-)
-
 type WidgetStream struct {
 	writer     *bufio.Writer
 	binEncoder *util.BinaryEncoder
-	encoding   WidgetStreamEncoding
 	Err        error
 }
 
-func NewWidgetStream(writer io.Writer, encoding WidgetStreamEncoding) *WidgetStream {
+func NewWidgetStream(writer io.Writer) *WidgetStream {
 	s := &WidgetStream{
 		writer: bufio.NewWriter(writer),
 	}
@@ -293,9 +273,9 @@ func (s *WidgetStream) CreateTable(id string, location WidgetLocation, table Wid
 	s.writeData(table, true)
 }
 
-func (s *WidgetStream) CreateDiagram(id string, location WidgetLocation, diagram WidgetDiagramDefinition) {
+func (s *WidgetStream) CreateLineChart(id string, location WidgetLocation, diagram WidgetLineChartDefinition) {
 	s.writeData(WidgetPacketHeader{Action: WidgetActionCreate}, false)
-	s.writeData(Widget{Id: id, Type: WidgetTypeDiagram, Location: location}, false)
+	s.writeData(Widget{Id: id, Type: WidgetTypeLineChart, Location: location}, false)
 	s.writeData(diagram, true)
 }
 
@@ -309,12 +289,6 @@ func (s *WidgetStream) AppendTableRows(id string, rows []WidgetTableRow) {
 	s.writeData(WidgetPacketHeader{Action: WidgetActionUpdate}, false)
 	s.writeData(Widget{Id: id, Type: WidgetTypeTable}, false)
 	s.writeData(WidgetTable{Rows: rows}, true)
-}
-
-func (s *WidgetStream) AppendDiagramData(id string, data []WidgetDiagramSeries) {
-	s.writeData(WidgetPacketHeader{Action: WidgetActionUpdate}, false)
-	s.writeData(Widget{Id: id, Type: WidgetTypeDiagram}, false)
-	s.writeData(data, true)
 }
 
 func (s *WidgetStream) UpdateProgress(id string, progress float64) {
@@ -341,17 +315,13 @@ func (s *WidgetStream) WriteDoc(docText string) error {
 
 func (s *WidgetStream) writeData(data any, flush bool) {
 	if s.Err == nil {
-		if s.encoding == WidgetStreamBinary {
-			s.Err = s.binEncoder.Encode(data)
+		data, err := json.Marshal(data)
+		if err != nil {
+			s.Err = err
 		} else {
-			data, err := json.Marshal(data)
-			if err != nil {
-				s.Err = err
-			} else {
-				_, s.Err = s.writer.Write(data)
-				if s.Err == nil {
-					_, s.Err = s.writer.Write([]byte("\n"))
-				}
+			_, s.Err = s.writer.Write(data)
+			if s.Err == nil {
+				_, s.Err = s.writer.Write([]byte("\n"))
 			}
 		}
 

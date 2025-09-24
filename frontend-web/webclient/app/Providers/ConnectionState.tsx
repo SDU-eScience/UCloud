@@ -42,7 +42,7 @@ class ConnectionState extends UState<ConnectionState> {
             } catch (e) {
                 window.setTimeout(() => {
                     this.fetch(maxAgeMs);
-                }, 1000);
+                }, 10_000);
             }
         });
     }

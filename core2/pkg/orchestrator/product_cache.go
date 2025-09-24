@@ -37,3 +37,13 @@ func productsByProvider(providerId string) []accapi.ProductV2 {
 
 	return products
 }
+
+func productFromCache(ref accapi.ProductReference) (accapi.ProductV2, bool) {
+	allProducts := productsByProvider(ref.Provider)
+	for _, product := range allProducts {
+		if product.Name == ref.Id && product.Category.Name == ref.Category {
+			return product, true
+		}
+	}
+	return accapi.ProductV2{}, false
+}
