@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"encoding/json"
+	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -19,12 +20,11 @@ type ElasticConfig struct {
 	GatherNode bool `yaml:"gatherNode"`
 }
 
-func ElasticConfigRetrieve(configDir string) *ElasticConfig {
-	filePath, document := cfgutil.ReadAndParse(configDir, "config")
+func ElasticConfigRetrieve(filePath string, document *yaml.Node) (util.Option[ElasticConfig], bool) {
 	success := true
-	elasticNode := cfgutil.RequireChild(filePath, document, "elasticsearch", &success)
+	elasticNode, _ := cfgutil.GetChildOrNil(filePath, document, "elasticsearch")
 	var elasticConfig ElasticConfig
-	if success {
+	if elasticNode != nil {
 		elasticCredNode := cfgutil.RequireChild(filePath, elasticNode, "credentials", &success)
 		cfgutil.Decode(filePath, elasticNode, &elasticConfig, &success)
 
@@ -33,12 +33,14 @@ func ElasticConfigRetrieve(configDir string) *ElasticConfig {
 		}
 		elasticConfig.Credentials.Username = cfgutil.RequireChildText(filePath, elasticCredNode, "username", &success)
 		elasticConfig.Credentials.Password = cfgutil.RequireChildText(filePath, elasticCredNode, "password", &success)
+
+		if success {
+			return util.OptValue(elasticConfig), true
+		} else {
+			return util.OptNone[ElasticConfig](), false
+		}
 	}
-	if success {
-		return &elasticConfig
-	} else {
-		return nil
-	}
+	return util.OptNone[ElasticConfig](), true
 }
 
 type ServiceInstance struct {

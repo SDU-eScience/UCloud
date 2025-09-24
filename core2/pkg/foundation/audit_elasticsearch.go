@@ -24,15 +24,14 @@ type elasticIndexRequest struct {
 	document []byte
 }
 
-func InitAuditElasticSearch(configDir string) func(event rpc.HttpCallLogEntry) {
+func InitAuditElasticSearch(elasticConfig rpc.ElasticConfig) func(event rpc.HttpCallLogEntry) {
 	var err error
-	elasticConfig = rpc.ElasticConfigRetrieve(configDir)
 	elasticHost = &config.HostInfo{
 		Address: elasticConfig.Address,
 		Port:    elasticConfig.Port,
 		Scheme:  elasticConfig.Scheme,
 	}
-	if elasticConfig == nil || elasticHost.Address == "" {
+	if elasticHost.Address == "" {
 		panic("InitAuditElasticSearch was called without proper configuration")
 	}
 	cfg := elasticsearch.Config{

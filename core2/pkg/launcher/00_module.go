@@ -236,16 +236,10 @@ func Launch() {
 
 	rpc.AuditConsumer = func(event rpc.HttpCallLogEntry) {
 		log.Info("%v/%v %v", event.RequestName, event.ResponseCode, time.Duration(event.ResponseTimeNanos)*time.Nanosecond)
-		/*
-			data, _ := json.MarshalIndent(event, "", "    ")
-			log.Info("Audit: %s", string(data))
-		*/
 	}
 
-	if cfg.Configuration.Elk.Elasticsearch.Host.Address != "" {
-		elasticConfig := cfg.Configuration
-
-		rpc.AuditConsumer = fnd.InitAuditElasticSearch(*elasticConfig)
+	if elastic := cfg.Configuration.ElasticSearch; elastic.Present {
+		rpc.AuditConsumer = fnd.InitAuditElasticSearch(elastic.Value)
 	}
 
 	rpc.LookupActor = func(username string) (rpc.Actor, bool) {
