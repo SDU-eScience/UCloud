@@ -12,8 +12,7 @@ test("Run job with jobname, extend time, stop job, validate jobname in runs", as
     await page.getByRole('textbox', {name: 'Job name'}).click();
     const jobName = Runs.newJobName();
     await page.getByRole('textbox', {name: 'Job name'}).fill(jobName);
-    await page.getByText('No machine type selected').click();
-    await page.getByRole('cell', {name: 'standard-cpu-1', exact: true}).click();
+    await Components.selectAvailableMachineType(page);
     await page.getByRole('button', {name: '+1'}).click();
     await page.getByRole('button', {name: 'Submit'}).click();
 

@@ -5,21 +5,21 @@ import {default as data} from "./test_data.json" with {type: "json"};
 
 const user = data.users.with_resources;
 
-export async function login(page: Page) {
+export async function login(page: Page): Promise<void> {
     if (!user) throw Error("No username or password provided");
     await page.goto(ucloudUrl("login"));
     await page.getByText("Other login options →").click();
     await page.getByRole("textbox", {name: "Username"}).fill(user.username);
     await page.getByRole("textbox", {name: "Password"}).fill(user.password);
     await page.getByRole("button", {name: "Login"}).click();
-}
+};
 
-export function ucloudUrl(pathname: string) {
+export function ucloudUrl(pathname: string): string {
     return data.location_origin + "/app" + (pathname.startsWith("/") ? pathname : "/" + pathname);
-}
+};
 
 export const Rows = {
-    async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover") {
+    async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover"): Promise<void> {
         let iterations = 1000;
 
         await page.locator(".scrolling").hover();
@@ -38,8 +38,8 @@ export const Rows = {
         await page.locator("div > span", {hasText: name})[action]();
     },
 
-    async open(page: Page, folder: string): Promise<void> {
-        this.actionByRowTitle(page, folder, "dblclick");
+    async open(page: Page, resourceTitle: string): Promise<void> {
+        this.actionByRowTitle(page, resourceTitle, "dblclick");
     },
 
     async rename(page: Page, oldName: string, newName: string): Promise<void> {
@@ -53,7 +53,7 @@ export const Rows = {
 export const Folder = {
     ...Rows,
     newFolderName(): string {
-        return "FolderName" + Math.random().toString().slice(2, 7);
+        return Help.newResourceName("FolderName");
     },
 
     async create(page: Page, name: string): Promise<void> {
@@ -128,27 +128,27 @@ export const Folder = {
         await page.getByRole("textbox").fill(query);
         await page.keyboard.press("Enter");
     }
-}
+};
 
 export const Drive = {
     ...Rows,
     newDriveName(): string {
-        return "DriveName" + Math.random().toString().slice(2, 7);
+        return Help.newResourceName("DriveName");
     },
 
-    async goToDrives(page: Page) {
+    async goToDrives(page: Page): Promise<void> {
         await page.getByRole("link", {name: "Go to Files"}).click();
         await Components.projectSwitcher(page, "hover");
     },
 
-    async openDrive(page: Page, name: string) {
+    async openDrive(page: Page, name: string): Promise<void> {
         if (!page.url().includes("/app/drives")) {
             await this.goToDrives(page);
         }
         await this.actionByRowTitle(page, name, "dblclick");
     },
 
-    async create(page: Page, name: string) {
+    async create(page: Page, name: string): Promise<void> {
         await this.goToDrives(page);
         await page.waitForTimeout(200);
         await page.locator("div.operation").filter({hasText: "Create drive"}).click();
@@ -156,7 +156,7 @@ export const Drive = {
         await page.getByRole("button", {name: "Create", disabled: false}).click();
     },
 
-    async delete(page: Page, name: string) {
+    async delete(page: Page, name: string): Promise<void> {
         await this.goToDrives(page);
         await Rows.actionByRowTitle(page, name, "click");
         await page.getByText("Delete").click();
@@ -164,48 +164,161 @@ export const Drive = {
         await page.getByRole("button", {name: "I understand what I am doing", disabled: false}).click();
     },
 
-    async properties(page: Page, name: string) {
+    async permissions(page: Page, name: string): Promise<void> {
+        await Rows.actionByRowTitle(page, name, "click");
+        await page.getByText("Permissions").click();
+    },
+
+    async properties(page: Page, name: string): Promise<void> {
         await Rows.actionByRowTitle(page, name, "click");
         await page.getByText("Properties").click();
     }
 };
 
 export const Components = {
-    async projectSwitcher(page: Page, action: "click" | "hover") {
+    async projectSwitcher(page: Page, action: "click" | "hover"): Promise<void> {
         const loc = page.locator("div.project-switcher").first();
         await loc[action]();
     },
 
-    async clickRefreshAndWait(page: Page, waitForMs: number = 500) {
+    async clickRefreshAndWait(page: Page, waitForMs: number = 500): Promise<void> {
         await page.locator(".refresh-icon").click();
         if (waitForMs > 0) await page.waitForTimeout(waitForMs);
     },
 
-    async toggleSearch(page: Page) {
+    async toggleSearch(page: Page): Promise<void> {
         await page.locator(".search-icon").click();
     },
 
-    async setSidebarSticky(page: Page) {
+    async setSidebarSticky(page: Page): Promise<void> {
         await page.getByRole("link", {name: "Go to Files"}).hover();
         await page.getByRole("banner").locator("svg").click();
     },
 
-    async clickConfirmationButton(page: Page, text: string, delay = 1200) {
+    async clickConfirmationButton(page: Page, text: string, delay = 1200): Promise<void> {
         await page.getByRole('button', {name: text}).click({delay});
+    },
+
+    async selectAvailableMachineType(page: Page): Promise<void> {
+        await page.getByText('No machine type selected').click();
+        await page.getByRole('cell', {disabled: false}).first().click();
+    },
+
+    async selectAvailableProduct(page: Page): Promise<void> {
+        await page.getByText('No product selected').click();
+        for (const row of await page.locator("tbody > tr", {}).all()) {
+            if (await row.isDisabled() === false) {
+                await row.click();
+                return;
+            }
+        }
+        throw Error("No available product found");
     }
-}
+};
 
 export const Applications = {
-    async gotoApplications(page: Page) {
+    async gotoApplications(page: Page): Promise<void> {
         await page.getByRole('link', {name: 'Go to Applications'}).click();
     }
-}
+};
 
 export const Runs = {
-    newJobName() {
-        return "JobName" + Math.random().toString().slice(2, 7);
+    newJobName(): string {
+        return Help.newResourceName("JobName");
     },
-    async goToRuns(page: Page) {
+
+    async goToRuns(page: Page): Promise<void> {
         await page.getByRole('link', {name: 'Go to Runs'}).click();
     }
+};
+
+export const Project = {
+    newProjectName(): string {
+        return Help.newResourceName("ProjectName");
+    },
+
+    async changeTo(page: Page, projectName: string): Promise<void> {
+        await Components.projectSwitcher(page, "click");
+        await page.getByText(projectName).click();
+    },
+
+    async create(page: Page, projectName: string): Promise<void> {
+        throw Error("Not implemented")
+    },
+};
+
+export const Resources = {
+    ...Rows,
+    async goTo(page: Page, resource: "Links" | "IP addresses" | "SSH keys" | "Licenses") {
+        await page.getByRole("link", {name: "Go to Resources"}).hover();
+        await page.getByText(resource).click();
+        await Components.projectSwitcher(page, "hover");
+    },
+
+    PublicLinks: {
+        newPublicLinkName(): string {
+            return Help.newResourceName("PublicLink");
+        },
+
+        async createNew(page: Page, publicLinkName?: string): Promise<string> {
+            const name = publicLinkName ?? this.newPublicLinkName();
+            await page.getByText("Create public link").click();
+            // Note(Jonas): nth(1) because we are skipping the hidden search field
+            await page.getByRole("textbox").nth(1).fill(name);
+            await Components.selectAvailableProduct(page);
+            return name;
+            //return `app-${name}.dev.cloud.sdu.dk`;
+        },
+
+        async delete(page: Page, name: string): Promise<void> {
+            await Rows.actionByRowTitle(page, name, "click");
+            await Components.clickConfirmationButton(page, "Delete");
+        }
+    },
+
+    IPs: {
+        async createNew(page: Page): Promise<void> {
+            await page.getByText("Create public IP").click();
+            await Components.selectAvailableProduct(page);
+        },
+
+        async delete(page: Page, name: string): Promise<void> {
+            throw Error("Not implemented");
+        }
+    },
+
+    SSHKeys: {
+        newSSHKeyName(): string {
+            return Help.newResourceName("SSHKey")
+        },
+
+        async delete(page: Page, name: string): Promise<void> {
+            throw Error("Not implemented");
+        },
+
+        async createNew(page: Page): Promise<string> {
+            await page.getByText("Add SSH key").click();
+            const title = this.newSSHKeyName();
+            await page.locator("#key-title").fill(title);
+            await page.locator("#key-contents").fill("ssh-rsa" + "a-bunch-of-text");
+            await page.getByRole("button", {name: "Add SSH key"}).click();
+            return title;
+        }
+    },
+
+    Licenses: {
+        async activateLicense(page: Page): Promise<void> {
+            await page.getByText("Activate license").click();
+            await Components.selectAvailableProduct(page);
+            await page.getByText("Activate").click();
+            // TODO(Jonas): Find out how to get the name of the newly activated license.
+        }
+    },
 }
+
+
+const Help = {
+    newResourceName(namespace: string): string {
+        return namespace + Math.random().toString().slice(2, 7);
+    }
+};
