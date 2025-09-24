@@ -265,6 +265,15 @@ const subProjectsStyle = injectStyle("sub-projects", k => `
     ${k} .sub-project-list-row {
         padding: 0 20px;
     }
+    
+    ${k} .sub-projects-sorting-container {
+        
+    }
+    
+    ${k} .sub-projects-sorting-selector {
+        display: flex;
+        
+    }
 `);
 
 interface KeyMetricSetting {
@@ -818,7 +827,13 @@ export const SubProjectFilters: React.FunctionComponent<{
                 draft[setting.title] = setting;
             });
         });
-    }, []);
+    }, [setSettings]);
+
+    const [ascending, setAscending] = useState<boolean>(true);
+
+    const onSortingToggle = useCallback(() => {
+       setAscending(current => !current);
+    }, [setAscending]);
 
     return <ReactModal
         isOpen={filtersShown}
@@ -826,7 +841,7 @@ export const SubProjectFilters: React.FunctionComponent<{
         onRequestClose={closeFilters}
         style={largeModalStyle}
         ariaHideApp={false}
-        className={classConcat(CardClass, keyMetricsStyle)}
+        className={classConcat(CardClass, keyMetricsStyle, subProjectsStyle)}
     >
         <Flex>
             <div className="key-metrics-settings-container">
@@ -851,13 +866,19 @@ export const SubProjectFilters: React.FunctionComponent<{
         <div className="sub-projects-sorting-container">
             <h3>Sub-project sorting</h3>
             <h4 style={{color: "var(--textSecondary)"}}>Select sorting criteria to apply</h4>
-            <SimpleRichSelect
-                items={[{key: "", value: ""}]}
-                    onSelect={doNothing}
-                    selected={undefined}
-                    dropdownWidth={"300px"}>
-            </SimpleRichSelect>
-            <SmallIconButton icon={"heroArrowsUpDown"}/>
+            <div className="sub-projects-sorting-selector">
+                <SimpleRichSelect
+                    items={[{key: "", value: ""}]}
+                        onSelect={doNothing}
+                        selected={undefined}
+                        dropdownWidth={"300px"}>
+                </SimpleRichSelect>
+                <TooltipV2 tooltip={ascending ? "Set to ascending" : "Set to descending"}>
+                    <SmallIconButton
+                        icon={ascending ? "heroBarsArrowUp" : "heroBarsArrowDown"}
+                        onClick={onSortingToggle}/>
+                </TooltipV2>
+            </div>
         </div>
     </ReactModal>;
 }
@@ -950,6 +971,8 @@ export const SubProjectList: React.FunctionComponent<{
                     </Label>
                 </Flex>
 
+                {/*TODO implement loading spinner here to replace the often incorrect "You do not have any sub-allocations at the
+                        moment" statement*/}
                 <div className="sub-projects-container" style={{height: "500px", width: "100%"}}>
                     {state.filteredSubProjectIndices.length !== 0 ? null : <>
                         You do not have any sub-allocations {state.searchQuery ? "with the active search" : ""} at the
