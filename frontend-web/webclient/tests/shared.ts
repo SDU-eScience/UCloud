@@ -280,6 +280,14 @@ export const Resources = {
         async createNew(page: Page): Promise<void> {
             await page.getByText("Create public IP").click();
             await Components.selectAvailableProduct(page);
+            await this.fillPortRowInDialog(page);
+        },
+
+        async fillPortRowInDialog(page: Page): Promise<void> {
+            await page.getByRole("dialog").locator("input").first().fill("123");
+            await page.getByRole("dialog").locator("input").nth(1).fill("321");
+            await page.locator("td > button").click();
+            await page.getByRole("button", {name: "create", disabled: false}).click();
         },
 
         async delete(page: Page, name: string): Promise<void> {

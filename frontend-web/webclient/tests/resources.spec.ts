@@ -1,5 +1,5 @@
 import {expect, test} from "@playwright/test";
-import {Components, login, Resources} from "./shared";
+import {login, Resources} from "./shared";
 
 Resources.PublicLinks;
 
@@ -25,7 +25,7 @@ test("Create public link, view properties, delete", async ({page}) => {
 /* Resources.IPs */
 test("Create ip and view properties", async ({page}) => {
     await Resources.goTo(page, "IP addresses");
-    const publicIpName = await IPs.createNew(page); 
+    const publicIpName = await IPs.createNew(page);
 });
 
 test("Create ssh keys", async ({page}) => {
