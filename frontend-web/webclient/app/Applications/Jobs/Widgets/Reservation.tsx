@@ -61,7 +61,7 @@ export function ReservationParameter({application, errors, onEstimatedCostChange
         }
     }, [products]);
 
-    const allMachines = findRelevantMachinesForApplication(application, machineSupport.data, products.data);
+    const allMachines = findRelevantMachinesForApplication(application, machineSupport.data, products.data.items, wallets.data.items);
     const support = useMemo(() => {
         const items: ResolvedSupport[] = [];
         let productsByProvider = machineSupport.data.productsByProvider;

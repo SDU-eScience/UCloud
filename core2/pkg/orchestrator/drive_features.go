@@ -1,22 +1,22 @@
 package orchestrator
 
 const (
-	driveStatsSize          featureKey = "drive.stats.size"
-	driveStatsRecursiveSize featureKey = "drive.stats.recursiveSize"
-	driveStatsTimestamps    featureKey = "drive.stats.timestamps"
-	driveStatsUnix          featureKey = "drive.stats.unix"
+	driveStatsSize          SupportFeatureKey = "drive.stats.size"
+	driveStatsRecursiveSize SupportFeatureKey = "drive.stats.recursiveSize"
+	driveStatsTimestamps    SupportFeatureKey = "drive.stats.timestamps"
+	driveStatsUnix          SupportFeatureKey = "drive.stats.unix"
 
 	// NOTE(Dan): No acl for files
-	driveOpsTrash           featureKey = "drive.ops.trash"
-	driveOpsReadOnly        featureKey = "drive.ops.readOnly"
-	driveOpsSearch          featureKey = "drive.ops.search"
-	driveOpsStreamingSearch featureKey = "drive.ops.streamingSearch"
-	driveOpsShares          featureKey = "drive.ops.shares"
-	driveOpsTerminal        featureKey = "drive.ops.terminal"
+	driveOpsTrash           SupportFeatureKey = "drive.ops.trash"
+	driveOpsReadOnly        SupportFeatureKey = "drive.ops.readOnly"
+	driveOpsSearch          SupportFeatureKey = "drive.ops.search"
+	driveOpsStreamingSearch SupportFeatureKey = "drive.ops.streamingSearch"
+	driveOpsShares          SupportFeatureKey = "drive.ops.shares"
+	driveOpsTerminal        SupportFeatureKey = "drive.ops.terminal"
 
-	driveAcl        featureKey = "drive.acl"
-	driveManagement featureKey = "drive.management" // create & rename
-	driveDeletion   featureKey = "drive.deletion"
+	driveAcl        SupportFeatureKey = "drive.acl"
+	driveManagement SupportFeatureKey = "drive.management" // create & rename
+	driveDeletion   SupportFeatureKey = "drive.deletion"
 )
 
 var driveFeatureMapper = []featureMapper{

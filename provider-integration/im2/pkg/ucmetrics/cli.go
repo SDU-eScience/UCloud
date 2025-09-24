@@ -243,7 +243,7 @@ func HandleCli() {
 
 				maxMemory := uint64(0)
 				for _, g := range gpu {
-					totalMem := g.MemoryTotalBytes * 1024 * 1024
+					totalMem := g.MemoryTotalBytes
 					if totalMem > maxMemory {
 						maxMemory = totalMem
 					}
@@ -268,13 +268,20 @@ func HandleCli() {
 						break
 					}
 
+					gpuFmtString := "GPU %d"
+					if len(gpu) >= 4 {
+						// NOTE(Dan): Make space in the chart by making the format string slightly shorter. We don't
+						// have a lot of space in the UI. This should ensure that we don't wrap to the next line.
+						gpuFmtString = "G%d"
+					}
+
 					utilData.Series = append(utilData.Series, ucviz.WidgetLineSeriesDefinition{
-						Name:   fmt.Sprintf("GPU %d", i+1),
+						Name:   fmt.Sprintf(gpuFmtString, i+1),
 						Column: gpuUtilColumn(i),
 					})
 
 					memoryData.Series = append(memoryData.Series, ucviz.WidgetLineSeriesDefinition{
-						Name:   fmt.Sprintf("GPU %d", i+1),
+						Name:   fmt.Sprintf(gpuFmtString, i+1),
 						Column: gpuMemoryUtilColumn(i),
 					})
 				}

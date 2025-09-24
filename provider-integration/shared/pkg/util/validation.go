@@ -28,6 +28,12 @@ const (
 	StringValidationNoTrim
 )
 
+func ValidateStringE(input *string, fieldName string, opts StringValidationFlag) *HttpError {
+	var e *HttpError = nil
+	ValidateString(input, fieldName, opts, &e)
+	return e
+}
+
 func ValidateString(input *string, fieldName string, opts StringValidationFlag, err **HttpError) {
 	if input == nil {
 		return
@@ -101,6 +107,12 @@ func ValidateString(input *string, fieldName string, opts StringValidationFlag, 
 	}
 }
 
+func ValidateStringIfPresent(input *Option[string], fieldName string, opts StringValidationFlag, err **HttpError) {
+	if input.Present {
+		ValidateString(&input.Value, fieldName, opts, err)
+	}
+}
+
 func ValidateEnum[T comparable](input *T, options []T, fieldName string, err **HttpError) {
 	if input == nil {
 		return
@@ -119,5 +131,21 @@ func ValidateEnum[T comparable](input *T, options []T, fieldName string, err **H
 	_, ok := VerifyEnum(*input, options)
 	if !ok {
 		setErr(HttpErr(http.StatusBadRequest, "invalid enumeration specified in '%s'", fieldName))
+	}
+}
+
+func ValidateInteger(input int, fieldName string, minValue Option[int], maxValue Option[int], err **HttpError) {
+	setErr := func(e *HttpError) {
+		if *err == nil {
+			*err = e
+		}
+	}
+
+	if minValue.Present && input < minValue.Value {
+		setErr(HttpErr(http.StatusBadRequest, "%v must not be less than %v", fieldName, minValue.Value))
+	}
+
+	if maxValue.Present && input > maxValue.Value {
+		setErr(HttpErr(http.StatusBadRequest, "%v must not be more than %v", fieldName, maxValue.Value))
 	}
 }

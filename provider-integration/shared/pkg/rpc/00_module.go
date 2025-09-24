@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
+	ws "github.com/gorilla/websocket"
 	"math"
 	"net/http"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,6 +19,7 @@ import (
 
 var DefaultClient *Client
 var DefaultServer Server
+var BearerAuthenticator func(bearer string, project string) (Actor, *util.HttpError)
 var ServerAuthenticator func(r *http.Request) (Actor, *util.HttpError)
 
 var LookupActor func(username string) (Actor, bool) = func(username string) (Actor, bool) {
@@ -101,6 +104,7 @@ type TokenInfo struct {
 type RequestInfo struct {
 	HttpWriter  http.ResponseWriter
 	HttpRequest *http.Request
+	WebSocket   *ws.Conn
 	Actor       Actor
 }
 
@@ -209,36 +213,39 @@ func (c *Call[Req, Resp]) InvokeEx(client *Client, request Req, opts InvokeOpts)
 		result, err = handler(c, client, request)
 
 	case ConventionRetrieve:
-		resp := CallViaQuery(client, fmt.Sprintf("/%s/retrieve%s", rpcBaseContext(c.BaseContext), capitalized(c.Operation)),
-			StructToParameters(request))
+		resp := CallViaQueryEx(client, fmt.Sprintf("/%s/retrieve%s", rpcBaseContext(c.BaseContext), capitalized(c.Operation)),
+			StructToParameters(request), opts)
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionQueryParameters:
-		resp := CallViaQuery(client, fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation),
-			StructToParameters(request))
+		resp := CallViaQueryEx(client, fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation),
+			StructToParameters(request), opts)
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionBrowse:
-		resp := CallViaQuery(client, fmt.Sprintf("/%s/browse%s", rpcBaseContext(c.BaseContext), capitalized(c.Operation)),
-			StructToParameters(request))
+		resp := CallViaQueryEx(client, fmt.Sprintf("/%s/browse%s", rpcBaseContext(c.BaseContext), capitalized(c.Operation)),
+			StructToParameters(request), opts)
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionUpdate:
-		resp := CallViaJsonBody(client, "POST", fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation), request)
+		resp := CallViaJsonBodyEx(client, "POST", fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation), request, opts)
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionDelete:
-		resp := CallViaJsonBody(client, "DELETE", fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation), request)
+		resp := CallViaJsonBodyEx(client, "DELETE", fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation), request, opts)
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionCreate:
-		resp := CallViaJsonBody(client, "POST", fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation), request)
+		resp := CallViaJsonBodyEx(client, "POST", fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation), request, opts)
 		result, err = ParseResponse[Resp](resp)
 
 	case ConventionSearch:
-		resp := CallViaJsonBody(client, "POST", fmt.Sprintf("/%s/search%s", rpcBaseContext(c.BaseContext),
-			capitalized(c.Operation)), request)
+		resp := CallViaJsonBodyEx(client, "POST", fmt.Sprintf("/%s/search%s", rpcBaseContext(c.BaseContext),
+			capitalized(c.Operation)), request, opts)
 		result, err = ParseResponse[Resp](resp)
+
+	case ConventionWebSocket:
+		log.Fatal("Client is not supported for this endpoint")
 	}
 
 	return result, err
@@ -248,7 +255,15 @@ func (c *Call[Req, Resp]) Handler(handler ServerHandler[Req, Resp]) {
 	c.HandlerEx(&DefaultServer, handler)
 }
 
+var wsUpgrader = ws.Upgrader{
+	ReadBufferSize:  1024 * 4,
+	WriteBufferSize: 1024 * 4,
+	Subprotocols:    []string{"binary"},
+}
+
 func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, Resp]) {
+	const websocketMethod = "\n\nwebsocket\n\n" // fake method used for multiplexing to websockets
+
 	if server == nil {
 		log.Warn("server (DefaultServer?) has not been initialized before Handler was invoked!")
 		os.Exit(1)
@@ -309,6 +324,27 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 		path = fmt.Sprintf("/%s/search%s", rpcBaseContext(c.BaseContext), capitalized(c.Operation))
 		method = http.MethodPost
 		parser = ParseRequestFromBody
+
+	case ConventionWebSocket:
+		path = fmt.Sprintf("/%s/%s", rpcBaseContext(c.BaseContext), c.Operation)
+		method = websocketMethod
+		parser = func(w http.ResponseWriter, r *http.Request) (Req, *util.HttpError) {
+			var req Req
+			return req, nil
+		}
+
+		if c.Roles != RolesPublic && c.Roles != 0 {
+			panic("ConventionWebSocket does not support direct authentication, please do it within the connection.")
+		}
+
+		var req Req
+		var resp Resp
+		if !reflect.TypeOf(req).AssignableTo(reflect.TypeOf(util.Empty{})) {
+			panic("ConventionWebSocket does not support direct request parsing, do it in the connection.")
+		}
+		if !reflect.TypeOf(resp).AssignableTo(reflect.TypeOf(util.Empty{})) {
+			panic("ConventionWebSocket does not support direct response production, do it in the connection.")
+		}
 	}
 
 	path, _ = strings.CutSuffix(path, "/")
@@ -318,7 +354,52 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 		handlerGroup = &serverHandlerData{byMethod: make(map[string]func(w http.ResponseWriter, r *http.Request))}
 	}
 
+	if _, existingGetHandler := handlerGroup.byMethod[http.MethodGet]; !existingGetHandler && method == websocketMethod {
+		handlerGroup.byMethod[http.MethodGet] = func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.Header.Get("Upgrade"), "websocket") {
+				wsHandler, ok := handlerGroup.byMethod[websocketMethod]
+				if ok {
+					wsHandler(w, r)
+					return
+				}
+			}
+
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write(nil)
+		}
+	}
+
 	handlerGroup.byMethod[method] = func(w http.ResponseWriter, r *http.Request) {
+		if method == websocketMethod {
+			conn, err := wsUpgrader.Upgrade(w, r, nil)
+
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write(nil)
+			} else {
+				var req Req
+
+				_, _ = handler(RequestInfo{
+					HttpWriter:  w,
+					HttpRequest: r,
+					WebSocket:   conn,
+					Actor:       Actor{Role: RoleGuest},
+				}, req)
+			}
+
+			return
+		}
+
+		// NOTE(Dan): This if-statement only needs to catch that we should upgrade, it doesn't need to validate
+		// anything.
+		if strings.Contains(r.Header.Get("Upgrade"), "websocket") {
+			wsHandler, ok := handlerGroup.byMethod[websocketMethod]
+			if ok {
+				wsHandler(w, r)
+				return
+			}
+		}
+
 		start := time.Now()
 		var request Req
 		var response Resp
@@ -367,13 +448,14 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 					Hostname: "hostname",
 					Port:     8080,
 				},
-				CausedBy:     util.OptNone[string](),
-				RequestName:  c.FullName(),
-				UserAgent:    util.OptStringIfNotEmpty(r.Header.Get("User-Agent")),
-				RemoteOrigin: r.RemoteAddr,
-				Token:        util.Option[SecurityPrincipalToken]{},
-				ResponseTime: uint64(end.Sub(start).Milliseconds()),
-				Project:      stringProject,
+				CausedBy:          util.OptNone[string](),
+				RequestName:       c.FullName(),
+				UserAgent:         util.OptStringIfNotEmpty(r.Header.Get("User-Agent")),
+				RemoteOrigin:      r.RemoteAddr,
+				Token:             util.Option[SecurityPrincipalToken]{},
+				ResponseTime:      uint64(end.Sub(start).Milliseconds()),
+				ResponseTimeNanos: uint64(end.Sub(start).Nanoseconds()),
+				Project:           stringProject,
 			}
 
 			token := SecurityPrincipalToken{
@@ -478,6 +560,7 @@ const (
 	ConventionBrowse
 	ConventionSearch
 	ConventionQueryParameters
+	ConventionWebSocket
 )
 
 type Role uint

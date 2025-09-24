@@ -874,6 +874,8 @@ function findProviderMismatches(
         }
         if (anyErrors) {
             group.setErrors({...group.errors});
+        } else {
+            group.setErrors({});
         }
     }
 }
