@@ -132,3 +132,10 @@ var TasksListen = rpc.Call[util.Empty, util.Empty]{
 	BaseContext: tasksNamespace,
 	Convention:  rpc.ConventionWebSocket,
 }
+
+var TasksProviderPauseOrCancel = rpc.Call[TasksPauseOrCancelRequest, util.Empty]{
+	BaseContext: "ucloud/" + rpc.ProviderPlaceholder + "/tasks",
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "pauseOrCancel",
+	Roles:       rpc.RolesService,
+}

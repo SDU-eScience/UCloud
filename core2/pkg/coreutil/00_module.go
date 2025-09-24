@@ -179,12 +179,20 @@ func ProjectsListUpdatedAfter(timestamp time.Time) []rpc.ProjectId {
 	})
 }
 
-func TaskRetrieveOriginProvider(taskId int) (string, bool) {
-	return db.NewTx2(func(tx *db.Transaction) (string, bool) {
-		row, ok := db.Get[struct{ OwnedBy string }](
+type TaskOwner struct {
+	User     string
+	Provider string
+}
+
+func TaskRetrieveOwner(taskId int) (TaskOwner, bool) {
+	return db.NewTx2(func(tx *db.Transaction) (TaskOwner, bool) {
+		row, ok := db.Get[struct {
+			OwnedBy   string
+			CreatedBy string
+		}](
 			tx,
 			`
-				select owned_by
+				select owned_by, created_by
 				from task.tasks_v2
 				where id = :id
 		    `,
@@ -194,9 +202,9 @@ func TaskRetrieveOriginProvider(taskId int) (string, bool) {
 		)
 
 		if ok {
-			return row.OwnedBy, true
+			return TaskOwner{Provider: row.OwnedBy, User: row.CreatedBy}, true
 		} else {
-			return "", false
+			return TaskOwner{}, false
 		}
 	})
 }
