@@ -41,3 +41,45 @@ test("Favorite app, unfavorite app", async ({page}) => {
     // so maybe consider adding test ids? I don't know what makes the most sense.
     throw Error("Not implemented");
 });
+
+test("Start app and stop app from runs page. Start it from runs page, testing parameter import", async ({page}) => {
+    test.setTimeout(240_000);
+    const jobName = Runs.newJobName();
+
+    await Applications.gotoApplications(page);
+    await page.getByRole('button', {name: 'Open application'}).click();
+    await page.getByRole('textbox', {name: 'Job name'}).click();
+    await page.getByRole('textbox', {name: 'Job name'}).fill(jobName);
+    await Components.selectAvailableMachineType(page);
+    await page.getByRole('button', {name: '+1'}).click();
+    await page.getByRole('button', {name: 'Submit'}).click();
+
+    while (!await page.getByText("Time remaining: 01").isVisible()) {
+        await page.waitForTimeout(1000);
+    }
+
+    await Applications.gotoRuns(page);
+    await page.locator(".row").nth(1).click();
+    await Components.clickConfirmationButton(page, "Stop");
+    await page.waitForTimeout(500);
+    await Applications.actionByRowTitle(page, jobName, "dblclick");
+    await expect(page.getByText("Your job has completed")).toHaveCount(1);
+
+    await Applications.gotoRuns(page);
+
+    await Applications.actionByRowTitle(page, jobName, "click");
+    await page.getByText("Run application again").click();
+    await page.waitForTimeout(500);
+    await page.getByText("Submit").click();
+    while (!await page.getByText("Time remaining: 01").isVisible()) {
+        await page.waitForTimeout(1000);
+    }
+
+    await Components.clickConfirmationButton(page, "Stop application");
+    // Note(Jonas): I would have thought that the `expect` below would be enough, but 
+    while (!await page.getByText("Run application again").isVisible()) {
+        await page.waitForTimeout(1000);
+    }
+    await expect(page.getByText("Run application again")).toHaveCount(1);
+
+});

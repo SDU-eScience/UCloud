@@ -89,7 +89,7 @@ export const File = {
 
     async moveFileTo(page: Page, fileToMove: string, targetFolder: string): Promise<void> {
         await this.openOperationsDropsdown(page, fileToMove);
-        await page.getByText('Move to...').click();
+        await page.getByText("Move to...").click();
         await page.locator("div.ReactModal__Content div.row", {hasText: targetFolder})
             .getByRole("button").filter({hasText: "Move to"}).click();
         await page.waitForTimeout(200);
@@ -97,7 +97,7 @@ export const File = {
 
     async copyFileTo(page: Page, fileToCopy: string, targetFolder: string): Promise<void> {
         await this.openOperationsDropsdown(page, fileToCopy);
-        await page.getByText('Copy to...').click();
+        await page.getByText("Copy to...").click();
 
         await page.locator("div.ReactModal__Content div.row", {hasText: targetFolder})
             .getByRole("button").filter({hasText: "Copy to"}).click();
@@ -229,8 +229,13 @@ export const Components = {
 };
 
 export const Applications = {
+    ...Rows,
     async gotoApplications(page: Page): Promise<void> {
-        await page.getByRole('link', {name: 'Go to Applications'}).click();
+        await page.getByRole("link", {name: "Go to Applications"}).click();
+    },
+
+    async gotoRuns(page: Page): Promise<void> {
+        await page.getByRole("link", {name: "Go to Runs"}).click();
     }
 };
 
@@ -240,7 +245,7 @@ export const Runs = {
     },
 
     async goToRuns(page: Page): Promise<void> {
-        await page.getByRole('link', {name: 'Go to Runs'}).click();
+        await page.getByRole("link", {name: "Go to Runs"}).click();
     }
 };
 
