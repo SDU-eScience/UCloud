@@ -81,6 +81,13 @@ type UFileStatus struct {
 	UnixMode  int `json:"unixMode"`
 	UnixOwner int `json:"unixOwner"`
 	UnixGroup int `json:"unixGroup"`
+
+	Metadata FileMetadata `json:"metadata"`
+}
+
+type FileMetadata struct {
+	// TODO(Dan): Templates removed on purpose here. Hopefully this doesn't break the frontend.
+	Metadata map[string][]FileMetadataDocument `json:"metadata"`
 }
 
 type FileIconHint string
