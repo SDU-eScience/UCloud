@@ -50,7 +50,7 @@ export const Rows = {
     }
 };
 
-export const Folder = {
+export const File = {
     ...Rows,
     newFolderName(): string {
         return Help.newResourceName("FolderName");
@@ -83,7 +83,7 @@ export const Folder = {
     },
 
     async openOperationsDropsdown(page: Page, file: string): Promise<void> {
-        await Folder.actionByRowTitle(page, file, "click");
+        await File.actionByRowTitle(page, file, "click");
         await page.locator(".operation.button6.in-header:nth-child(6)").click();
     },
 
@@ -127,6 +127,12 @@ export const Folder = {
         await Components.toggleSearch(page);
         await page.getByRole("textbox").fill(query);
         await page.keyboard.press("Enter");
+    },
+
+    async toggleFavorite(page: Page, name: string): Promise<void> {
+        await this.actionByRowTitle(page, name, "hover");
+        // TODO(Jonas): This will click the first favorited rows icon, not necessarily the one we want.
+        await page.getByRole('img', {name: 'Star', includeHidden: false}).first().click();
     }
 };
 
@@ -201,7 +207,8 @@ export const Components = {
 
     async selectAvailableMachineType(page: Page): Promise<void> {
         await page.getByText('No machine type selected').click();
-        await page.getByRole('cell', {disabled: false}).first().click();
+        // Find a way of getting the first non-disabled table-row with a product
+        await page.getByRole('cell', {name: "standard-cpu-1", disabled: false}).first().click();
     },
 
     async selectAvailableProduct(page: Page): Promise<void> {

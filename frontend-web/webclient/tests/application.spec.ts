@@ -35,3 +35,9 @@ test("Run job with jobname, extend time, stop job, validate jobname in runs", as
 
     await expect(page.getByText("Run application again")).toHaveCount(1);
 });
+
+test("Favorite app, unfavorite app", async ({page}) => {
+    // Note(Jonas): Stuff like finding the favorite icon is pretty difficult through selectors,
+    // so maybe consider adding test ids? I don't know what makes the most sense.
+    throw Error("Not implemented");
+});

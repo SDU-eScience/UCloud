@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {Components, Drive, Folder, login, Rows} from "./shared";
+import {Components, Drive, File, login, Rows} from "./shared";
 
 const {dirname} = import.meta;
 
@@ -22,8 +22,8 @@ test.afterEach(async ({page, userAgent}) => {
 
 // Depends on an update to `dev` (or run it with your own up to date backend)
 test.skip('Change sensitivity (with available resources)', async ({page}) => {
-    const folderName = Folder.newFolderName();
-    await Folder.create(page, folderName);
+    const folderName = File.newFolderName();
+    await File.create(page, folderName);
     await Components.clickRefreshAndWait(page);
     await Rows.actionByRowTitle(page, folderName, "click");
     await page.locator('div:nth-child(6)').first().click();
@@ -37,9 +37,21 @@ test.skip('Change sensitivity (with available resources)', async ({page}) => {
     await expect(page.getByText("C", {exact: true})).toHaveCount(1);
 });
 
+test("Favorite file, unfavorite file", async ({page}) => {
+    const folder = File.newFolderName();
+    await File.create(page, folder);
+    await File.toggleFavorite(page, folder);
+    await page.getByRole("link", {name: "Go to Files"}).hover();
+    await expect(page.getByText(folder)).toHaveCount(2);
+    await Components.projectSwitcher(page, "hover");
+    await File.toggleFavorite(page, folder);
+    await page.getByRole("link", {name: "Go to Files"}).hover();
+    await expect(page.getByText(folder)).toHaveCount(1);
+});
+
 test("View properties", async ({page}) => {
-    const folderName = Folder.newFolderName();
-    await Folder.create(page, folderName);
+    const folderName = File.newFolderName();
+    await File.create(page, folderName);
     await Rows.actionByRowTitle(page, folderName, "click");
     await page.locator("div:nth-child(6)").first().click();
     await page.getByText("Properties").click();
@@ -56,18 +68,18 @@ test("View properties", async ({page}) => {
 
 test("Stress testing the row selector", async ({page}) => {
     for (let i = 0; i < 100; i++) {
-        await Folder.create(page, "Folder" + i);
+        await File.create(page, "Folder" + i);
     }
-    await Folder.actionByRowTitle(page, "Folder0", "click");
-    await Folder.actionByRowTitle(page, "Folder99", "click");
+    await File.actionByRowTitle(page, "Folder0", "click");
+    await File.actionByRowTitle(page, "Folder99", "click");
 });
 
 
 test("Upload file", async ({page}) => {
     const testFileName = "test_single_file.txt";
     const testFileContents = "Single test file content.";
-    await Folder.uploadFiles(page, [{name: testFileName, contents: testFileContents}]);
-    await Folder.actionByRowTitle(page, testFileName, "dblclick");
+    await File.uploadFiles(page, [{name: testFileName, contents: testFileContents}]);
+    await File.actionByRowTitle(page, testFileName, "dblclick");
     await expect(page.getByText(testFileContents)).toHaveCount(1);
 });
 
@@ -86,57 +98,57 @@ test.skip("Upload folder", async ({page}) => {
 test.skip("Upload files after running out of space (and again after cleaning up)", async ({page}) => {});
 
 test("Create single folder, delete single folder", async ({page}) => {
-    const folderName = Folder.newFolderName();
-    await Folder.create(page, folderName);
+    const folderName = File.newFolderName();
+    await File.create(page, folderName);
     await expect(page.locator('div > span', {hasText: folderName})).toHaveCount(1);
-    await Folder.delete(page, folderName);
+    await File.delete(page, folderName);
     await expect(page.locator('div > span', {hasText: folderName})).toHaveCount(0);
 });
 
 test("Create multiple folders (use / in the name)", async ({page}) => {
-    const folderName1 = Folder.newFolderName();
-    const folderName2 = Folder.newFolderName();
-    const folderName3 = Folder.newFolderName();
-    await Folder.create(page, folderName1 + "/" + folderName2 + "/" + folderName3);
-    await Folder.actionByRowTitle(page, folderName1, "dblclick");
-    await Folder.actionByRowTitle(page, folderName2, "dblclick");
-    await Folder.actionByRowTitle(page, folderName3, "dblclick");
+    const folderName1 = File.newFolderName();
+    const folderName2 = File.newFolderName();
+    const folderName3 = File.newFolderName();
+    await File.create(page, folderName1 + "/" + folderName2 + "/" + folderName3);
+    await File.actionByRowTitle(page, folderName1, "dblclick");
+    await File.actionByRowTitle(page, folderName2, "dblclick");
+    await File.actionByRowTitle(page, folderName3, "dblclick");
 });
 
 test("Rename", async ({page}) => {
-    const folderName = Folder.newFolderName();
-    const newFolderName = Folder.newFolderName();
-    await Folder.create(page, folderName);
-    await Folder.rename(page, folderName, newFolderName)
+    const folderName = File.newFolderName();
+    const newFolderName = File.newFolderName();
+    await File.create(page, folderName);
+    await File.rename(page, folderName, newFolderName)
     await page.getByText(newFolderName).dblclick();
     await expect(page.getByText("This folder is empty")).toHaveCount(1);
 });
 
 test("Move file", async ({page}) => {
-    const folderTarget = Folder.newFolderName();
+    const folderTarget = File.newFolderName();
     const uploadedFileName = "uploadedFile.txt";
-    await Folder.create(page, folderTarget);
-    await Folder.uploadFiles(page, [{name: uploadedFileName, contents: "Some content. Doesn't matter."}]);
-    await Folder.moveFileTo(page, uploadedFileName, folderTarget);
-    await Folder.actionByRowTitle(page, folderTarget, "dblclick");
+    await File.create(page, folderTarget);
+    await File.uploadFiles(page, [{name: uploadedFileName, contents: "Some content. Doesn't matter."}]);
+    await File.moveFileTo(page, uploadedFileName, folderTarget);
+    await File.actionByRowTitle(page, folderTarget, "dblclick");
     await expect(page.getByText(uploadedFileName)).toHaveCount(1);
 });
 
 test("Move folder", async ({page}) => {
-    const folderToMove = Folder.newFolderName();
-    const folderTarget = Folder.newFolderName();
-    await Folder.create(page, folderToMove);
-    await Folder.create(page, folderTarget);
-    await Folder.moveFileTo(page, folderToMove, folderTarget);
-    await Folder.actionByRowTitle(page, folderTarget, "dblclick");
+    const folderToMove = File.newFolderName();
+    const folderTarget = File.newFolderName();
+    await File.create(page, folderToMove);
+    await File.create(page, folderTarget);
+    await File.moveFileTo(page, folderToMove, folderTarget);
+    await File.actionByRowTitle(page, folderTarget, "dblclick");
 
     await expect(page.getByText(folderToMove)).toHaveCount(1);
 });
 
 test("Move folder to child (invalid op)", async ({page}) => {
     const rootFolder = "From";
-    await Folder.create(page, rootFolder);
-    await Folder.moveFileTo(page, rootFolder, rootFolder);
+    await File.create(page, rootFolder);
+    await File.moveFileTo(page, rootFolder, rootFolder);
     await expect(page.getByText("Unable to move file.")).toHaveCount(1);
     await page.keyboard.press("Escape");
 });
@@ -144,60 +156,60 @@ test("Move folder to child (invalid op)", async ({page}) => {
 test("Copy file", async ({page}) => {
     const fileToUpload = {name: "File.txt", contents: "Contents"};
     const fileToCopy = fileToUpload.name;
-    const folder = Folder.newFolderName();
-    await Folder.create(page, folder);
-    await Folder.uploadFiles(page, [fileToUpload]);
-    await Folder.copyFileTo(page, fileToCopy, folder);
-    await Folder.actionByRowTitle(page, folder, "dblclick");
+    const folder = File.newFolderName();
+    await File.create(page, folder);
+    await File.uploadFiles(page, [fileToUpload]);
+    await File.copyFileTo(page, fileToCopy, folder);
+    await File.actionByRowTitle(page, folder, "dblclick");
     await expect(page.getByText(fileToCopy)).toHaveCount(1);
 });
 
 test("Copy file to self (check renaming)", async ({page}) => {
     const fileToUpload = {name: "File.txt", contents: "Contents"};
     const fileToCopy = fileToUpload.name;
-    const folder = Folder.newFolderName();
-    await Folder.create(page, folder);
-    await Folder.uploadFiles(page, [fileToUpload]);
-    await Folder.copyFileInPlace(page, fileToCopy);
+    const folder = File.newFolderName();
+    await File.create(page, folder);
+    await File.uploadFiles(page, [fileToUpload]);
+    await File.copyFileInPlace(page, fileToCopy);
     await expect(page.getByText("File.txt")).toHaveCount(1);
     await expect(page.getByText("File(1).txt")).toHaveCount(1);
 });
 
 test("Copy folder", async ({page}) => {
-    const folderToCopy = Folder.newFolderName();
-    await Folder.create(page, folderToCopy);
-    await Folder.copyFileInPlace(page, folderToCopy);
+    const folderToCopy = File.newFolderName();
+    await File.create(page, folderToCopy);
+    await File.copyFileInPlace(page, folderToCopy);
     await expect(page.getByText(folderToCopy + "(1)")).toHaveCount(1);
 });
 
 test("Move to trash, empty trash", async ({page}) => {
-    const folderName = Folder.newFolderName();
-    await Folder.create(page, folderName);
-    await Folder.moveFileToTrash(page, folderName);
+    const folderName = File.newFolderName();
+    await File.create(page, folderName);
+    await File.moveFileToTrash(page, folderName);
     // Note(Jonas): Trash folder doesn't show up until refresh if not already present.
     await Components.clickRefreshAndWait(page);
-    await Folder.open(page, "Trash");
+    await File.open(page, "Trash");
     await expect(page.getByText(folderName)).toHaveCount(1);
-    await Folder.emptyTrash(page);
+    await File.emptyTrash(page);
     await page.waitForTimeout(200);
-    await Folder.open(page, "Trash");
+    await File.open(page, "Trash");
     await expect(page.getByText(folderName)).toHaveCount(0);
 });
 
 test("File search (use empty trash to trigger scan)", async ({page}) => {
     const theFolderToFind = "Please find meeee";
     const foldersToCreate = `A/B/C/D/${theFolderToFind}`;
-    await Folder.create(page, foldersToCreate);
+    await File.create(page, foldersToCreate);
     await expect(page.getByText(theFolderToFind)).toHaveCount(0);
     const triggerFolder = "trigger";
-    await Folder.create(page, triggerFolder);
-    await Folder.moveFileToTrash(page, triggerFolder);
+    await File.create(page, triggerFolder);
+    await File.moveFileToTrash(page, triggerFolder);
     // Note(Jonas): Trash folder doesn't show up until refresh if not already present.
     await Components.clickRefreshAndWait(page);
-    await Folder.open(page, "Trash");
-    await Folder.emptyTrash(page);
+    await File.open(page, "Trash");
+    await File.emptyTrash(page);
     await page.waitForTimeout(200);
-    await Folder.searchFor(page, theFolderToFind);
+    await File.searchFor(page, theFolderToFind);
     await expect(page.getByText(theFolderToFind)).toHaveCount(1);
 });
 
