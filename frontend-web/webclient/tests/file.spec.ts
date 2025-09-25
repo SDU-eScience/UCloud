@@ -75,12 +75,14 @@ test("Stress testing the row selector", async ({page}) => {
 });
 
 
-test("Upload file", async ({page}) => {
+test("Upload file, validate contents, ensure shown as task", async ({page}) => {
     const testFileName = "test_single_file.txt";
     const testFileContents = "Single test file content.";
     await File.uploadFiles(page, [{name: testFileName, contents: testFileContents}]);
     await File.actionByRowTitle(page, testFileName, "dblclick");
     await expect(page.getByText(testFileContents)).toHaveCount(1);
+    await Components.toggleTasksDialog(page);
+    await expect(page.locator("svg > circle").first()).toHaveCount(1);
 });
 
 // setInputFiles doesn't allow folders

@@ -220,7 +220,12 @@ export const Components = {
             }
         }
         throw Error("No available product found");
-    }
+    },
+
+    async toggleTasksDialog(page: Page) {
+        // Note(Jonas): Selector for class that starts with 'static-circle'.
+        await page.locator("[class*='static-circle']").click();
+    },
 };
 
 export const Applications = {
