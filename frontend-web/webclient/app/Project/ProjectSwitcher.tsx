@@ -7,7 +7,6 @@ import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error} from "@/ui-comp
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {NavigateFunction, useNavigate} from "react-router";
-import {initializeResources} from "@/Services/ResourceInit";
 import {useProject} from "./cache";
 import ProjectAPI, {ProjectBrowseParams, useProjectId} from "@/Project/Api";
 import {injectStyle} from "@/Unstyled";
@@ -348,7 +347,6 @@ export function onProjectUpdated(navigate: NavigateFunction, runThisFunction: ()
         }
     }
 
-    initializeResources();
     if (doRefresh) refresh?.();
 }
 
