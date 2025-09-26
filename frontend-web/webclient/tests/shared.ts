@@ -70,7 +70,7 @@ export const File = {
     },
 
     async uploadFiles(page: Page, files: {name: string, contents: string}[]): Promise<void> {
-        await page.waitForTimeout(500); // We need to wait for Redux to propagate the changes of the drive, for use with the upload.
+        await page.waitForTimeout(1000); // We need to wait for Redux to propagate the changes of the drive, for use with the upload.
         await page.getByText("Upload files").click();
         await page.locator("#fileUploadBrowse").setInputFiles(files.map(f => ({
             name: f.name,
@@ -133,6 +133,21 @@ export const File = {
         await this.actionByRowTitle(page, name, "hover");
         // TODO(Jonas): This will click the first favorited rows icon, not necessarily the one we want.
         await page.getByRole('img', {name: 'Star', includeHidden: false}).first().click();
+    },
+
+    async ensureDialogDriveActive(page: Page, driveName: string): Promise<void> {
+        // Check locator input for content
+        const correctDrive = await page.getByRole('listitem', {name: driveName}).isVisible();
+
+        if (correctDrive) {
+            // Already matches. No work to be done.
+            return;
+        }
+
+        // if not matches, click
+        await page.getByRole("dialog").locator("div.drive-icon-dropdown").click();
+        await page.getByText(driveName).click();
+        await page.waitForTimeout(200);
     }
 };
 
@@ -233,10 +248,6 @@ export const Applications = {
     async gotoApplications(page: Page): Promise<void> {
         await page.getByRole("link", {name: "Go to Applications"}).click();
     },
-
-    async gotoRuns(page: Page): Promise<void> {
-        await page.getByRole("link", {name: "Go to Runs"}).click();
-    }
 };
 
 export const Runs = {
@@ -246,6 +257,45 @@ export const Runs = {
 
     async goToRuns(page: Page): Promise<void> {
         await page.getByRole("link", {name: "Go to Runs"}).click();
+    },
+
+    async runApplicationAgain(page: Page, jobName: string): Promise<void> {
+        await Runs.goToRuns(page);
+        await Applications.actionByRowTitle(page, jobName, "click");
+        await page.getByText("Run application again").click();
+        await page.waitForTimeout(500);
+        await Runs.submitAndWaitForRunning(page);
+    },
+
+    async stopRun(page: Page, jobName: string): Promise<void> {
+        await this.goToRuns(page);
+        await page.locator(".row").getByText(jobName).click();
+        await Components.clickConfirmationButton(page, "Stop");
+        await page.waitForTimeout(500);
+    },
+
+    async setJobTitle(page: Page, name: string): Promise<void> {
+        await page.getByRole("textbox", {name: "Job name"}).fill(name);
+    },
+
+    async addFolderResource(page: Page, driveName: string, folderName: string): Promise<void> {
+        await page.getByRole("button", {name: "Add folder"}).click();
+        await page.getByRole("textbox", {name: "No directory selected"}).click();
+
+        await File.ensureDialogDriveActive(page, driveName);
+        await page.getByRole("dialog").locator(".row", {hasText: folderName}).getByRole("button", {name: "Use"}).click();
+    },
+
+    async submitAndWaitForRunning(page: Page): Promise<void> {
+        await page.getByRole("button", {name: "Submit"}).click();
+
+        while (!await page.getByText("is now running").first().isVisible()) {
+            await page.waitForTimeout(500);
+        }
+    },
+
+    async extendTimeBy(page: Page, extension: 1 | 8 | 24) {
+        await page.getByRole("button", {name: `+${extension}`}).click();
     }
 };
 
@@ -339,6 +389,16 @@ export const Resources = {
             // TODO(Jonas): Find out how to get the name of the newly activated license.
         }
     },
+}
+
+export const Terminal = {
+    async enterCmd(page: Page, command: string) {
+        for (const key of command) {
+            await page.keyboard.press(key);
+        }
+
+        await page.keyboard.press("Enter");
+    }
 }
 
 
