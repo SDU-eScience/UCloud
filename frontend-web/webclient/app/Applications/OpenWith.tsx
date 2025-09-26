@@ -112,8 +112,17 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                             }
                         },
                         show: () => true,
-                        text: "Launch"
-                    }, entry);
+                        text: "Launch",
+                        provider: null,
+                    }, {
+                        ...entry, specification: {
+                            product: {
+                                category: "",
+                                id: "",
+                                provider: ""
+                            }
+                        }
+                    });
                     if (button) {
                         row.stat3.replaceChildren(button);
                     }

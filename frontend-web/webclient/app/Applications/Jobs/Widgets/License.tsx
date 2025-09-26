@@ -6,7 +6,7 @@ import AppParameterValueNS = compute.AppParameterValueNS;
 import {useCallback} from "react";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {License} from "@/UCloud/LicenseApi";
-import {checkProviderMismatch} from "../Create";
+import {checkProviderMismatch, getProviderField} from "../Create";
 import {Input} from "@/ui-components";
 import {LicenseBrowse} from "@/Applications/LicenseBrowse";
 import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
@@ -19,6 +19,7 @@ interface LicenseProps extends WidgetProps {
 
 export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => {
     const error = props.errors[props.parameter.name] != null;
+    const provider = getProviderField();
     const doOpen = useCallback(() => {
         dialogStore.addDialog(<LicenseBrowse
             opts={{
@@ -31,10 +32,9 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
                         dialogStore.success();
                     },
                     show(res) {
-                        const errorMessage = checkProviderMismatch(res, "Licenses");
-                        if (errorMessage) return errorMessage;
                         return true;
                     },
+                    provider: provider ?? null
                 }
             }}
         />, noopCall, true, largeModalStyle);

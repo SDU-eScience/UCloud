@@ -276,7 +276,6 @@ const NewOverview: React.FunctionComponent = () => {
                         show(file) {
                             if (file.status.type !== "DIRECTORY") return false;
                             if (file.specification.product.id === "share") return false;
-                            if (file.specification.product.provider != provider) return false;
                             if (file.permissions.myself.indexOf("EDIT") === -1 && file.permissions.myself.indexOf("ADMIN") === -1) return false;
 
                             return true;
@@ -296,6 +295,7 @@ const NewOverview: React.FunctionComponent = () => {
                             dispatch({type: "AddFolder", folderPath: target});
                             dialogStore.success();
                         },
+                        provider,
                     }
                 }}
             />,
@@ -694,6 +694,7 @@ function SyncedFolders({folders, dispatch, opts}: {
                         },
                         show: () => true,
                         text: "",
+                        provider: null,
                     }, folder, {
                         color: "errorMain", width: "20px", button: {
                             name: "close", size: 18, color: "fixedWhite", color2: "fixedWhite", ml: "8px"
@@ -807,6 +808,7 @@ function DeviceBrowse({devices, dispatch, opts}: {
                         },
                         show: () => true,
                         text: "",
+                        provider: null
                     }, device, {
                         color: "errorMain", width: "20px", button: {
                             name: "close", size: 18, color: "fixedWhite", color2: "fixedWhite", ml: "8px"
