@@ -200,7 +200,7 @@ const Allocations: React.FunctionComponent = () => {
                             }
                         }} id={"subproject-name"} autoFocus/>
                     </Label>
-                    {state.remoteData.managedProviders.length > 0 || !checkCanConsumeResources(Client.projectId ?? null, {api: {isCoreResource: false}}) ?
+                    {(state.remoteData.managedProviders ?? []).length > 0 || !checkCanConsumeResources(Client.projectId ?? null, {api: {isCoreResource: false}}) ?
                         <Label>
                             <Checkbox id={"subproject-suballocator"}/>
                             This sub-project is a sub-allocator
@@ -215,7 +215,7 @@ const Allocations: React.FunctionComponent = () => {
             </form>,
             doNothing
         );
-    }, [currentPeriodEnd, state.remoteData.managedProviders.length]);
+    }, [currentPeriodEnd, (state.remoteData.managedProviders ?? []).length]);
 
     const onEdit = useCallback((elem: HTMLElement) => {
         const idx = parseInt(elem.getAttribute("data-idx") ?? "");
@@ -356,7 +356,7 @@ const Allocations: React.FunctionComponent = () => {
 
             <ProviderOnlySections state={state} dispatchEvent={dispatchEvent}/>
 
-            <YourAllocations allocations={sortedAllocations} allocationTree={allocationTree} indent={indent}/>
+            <YourAllocations state={state} allocations={sortedAllocations} allocationTree={allocationTree} indent={indent}/>
 
             {/*<ResourcesGranted state={state} allocationTree={allocationTree} sortedAllocations={sortedAllocations}*/}
             {/*                  indent={indent} avatars={avatars}/>*/}

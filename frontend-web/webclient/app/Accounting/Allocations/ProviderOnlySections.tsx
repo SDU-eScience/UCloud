@@ -87,7 +87,7 @@ export const ProviderOnlySections: React.FunctionComponent<{
         }
 
         try {
-            const products = state.remoteData.managedProducts;
+            const products = (state.remoteData.managedProducts ?? {});
             creatingRootAllocation.current = true;
 
             const requests: Accounting.RootAllocateRequestItem[] = [];
@@ -217,7 +217,7 @@ export const ProviderOnlySections: React.FunctionComponent<{
             });
         }
 
-        const products = state.remoteData.managedProducts;
+        const products = (state.remoteData.managedProducts ?? {});
         for (const [categoryAndProvider, amount] of Object.entries(state.gifts.resources)) {
             const [category, provider] = categoryAndProvider.split("/");
             const resolvedCategory = products[provider]?.find(it => it.name === category);
@@ -276,8 +276,9 @@ export const ProviderOnlySections: React.FunctionComponent<{
         dispatchEvent({type: "GiftDeleted", id});
     }, []);
 
+    let gifts = state.remoteData.gifts ?? [];
     return <>
-        {state.remoteData.managedProviders.length > 0 && <>
+        {(state.remoteData.managedProviders ?? []).length > 0 && <>
             {state.rootAllocations && <>
                 <h3>Root allocations</h3>
                 <div>
@@ -307,7 +308,7 @@ export const ProviderOnlySections: React.FunctionComponent<{
 
                     <h4>Step 2: Select allocation size</h4>
                     <Tree>
-                        {Object.entries(state.remoteData.managedProducts).map(([providerId, page]) =>
+                        {Object.entries((state.remoteData.managedProducts ?? {})).map(([providerId, page]) =>
                             <React.Fragment
                                 key={providerId}>
                                 {page.map(cat => <TreeNode
@@ -350,9 +351,9 @@ export const ProviderOnlySections: React.FunctionComponent<{
                     </ul>
                 </div>
 
-                <Accordion title={`View existing gifts (${state.remoteData.gifts.length})`}>
-                    {state.remoteData.gifts.length === 0 ? <>This project currently has no active gifts!</> : <Tree>
-                        {state.remoteData.gifts.map(g =>
+                <Accordion title={`View existing gifts (${gifts.length})`}>
+                    {gifts.length === 0 ? <>This project currently has no active gifts!</> : <Tree>
+                        {gifts.map(g =>
                             <TreeNode
                                 key={g.id}
                                 left={g.title}
@@ -386,7 +387,7 @@ export const ProviderOnlySections: React.FunctionComponent<{
                                         <td>
                                             <ul>
                                                 {g.resources.map((r, idx) => {
-                                                    const pc = state.remoteData.managedProducts[r.provider]?.find(it => it.name === r.category);
+                                                    const pc = (state.remoteData.managedProducts ?? {})[r.provider]?.find(it => it.name === r.category);
                                                     if (!pc) return null;
                                                     return <li key={idx}>
                                                         {r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}
@@ -479,7 +480,7 @@ export const ProviderOnlySections: React.FunctionComponent<{
 
                             <Label>Resources</Label>
                             <Tree>
-                                {Object.entries(state.remoteData.managedProducts).map(([providerId, page]) =>
+                                {Object.entries((state.remoteData.managedProducts ?? {})).map(([providerId, page]) =>
                                     <React.Fragment
                                         key={providerId}>
                                         {page.map(cat => <TreeNode

@@ -39,98 +39,106 @@ import * as Pages from "@/Applications/Pages";
 import {NotificationType} from "@/UserSettings/ChangeNotificationSettings";
 import {produce} from "immer";
 import {heroStar} from "@/ui-components/icons";
+import HexSpin from "@/LoadingIcon/LoadingIcon";
 
 export const YourAllocations: React.FunctionComponent<{
     allocations: [string, AllocationDisplayTreeYourAllocation][],
     allocationTree: React.RefObject<TreeApi | null>,
-    indent: number
-}> = ({allocations, allocationTree, indent}) => {
+    indent: number;
+    state: State;
+}> = ({allocations, allocationTree, indent, state}) => {
     return <>
-        <h3>Your allocations</h3>
         <div className={yourAllocationsStyle}>
-            {allocations.length !== 0 ? null : <>
-                You do not have any allocations at the moment. You can apply for resources{" "}
-                <Link to={AppRoutes.grants.editor()}>here</Link>.
-            </>}
-            <Tree apiRef={allocationTree}>
-                {allocations.map(([rawType, tree]) => {
-                    const type = rawType as ProductType;
+            <h3>Your allocations</h3>
+            {state.remoteData.wallets === undefined ? <>
+                <HexSpin size={64} />
+            </> : <>
+                <div>
+                    {allocations.length !== 0 ? null : <>
+                        You do not have any allocations at the moment. You can apply for resources{" "}
+                        <Link to={AppRoutes.grants.editor()}>here</Link>.
+                    </>}
+                    <Tree apiRef={allocationTree}>
+                        {allocations.map(([rawType, tree]) => {
+                            const type = rawType as ProductType;
 
-                    return <TreeNode
-                        key={rawType}
-                        left={<Flex gap={"4px"}>
-                            <Icon name={Accounting.productTypeToIcon(type)} size={20}/>
-                            {Accounting.productAreaTitle(type)}
-                        </Flex>}
-                        right={<Flex flexDirection={"row"} gap={"8px"}>
-                            {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                    <ProgressBar uq={uq}/>
-                                </React.Fragment>
-                            )}
-                        </Flex>}
-                        indent={indent}
-                    >
-                        {tree.wallets.map((wallet, idx) =>
-                            <TreeNode
-                                key={idx}
+                            return <TreeNode
+                                key={rawType}
                                 left={<Flex gap={"4px"}>
-                                    <ProviderLogo providerId={wallet.category.provider} size={20}/>
-                                    <code>{wallet.category.name}</code>
+                                    <Icon name={Accounting.productTypeToIcon(type)} size={20}/>
+                                    {Accounting.productAreaTitle(type)}
                                 </Flex>}
                                 right={<Flex flexDirection={"row"} gap={"8px"}>
-                                    <ProgressBar uq={wallet.usageAndQuota}/>
+                                    {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
+                                            <ProgressBar uq={uq}/>
+                                        </React.Fragment>
+                                    )}
                                 </Flex>}
-                                indent={indent * 2}
+                                indent={indent}
                             >
-                                {wallet.allocations
-                                    .map(alloc =>
-                                        <TreeNode
-                                            key={alloc.id}
-                                            className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
-                                            left={<Flex gap={"32px"}>
-                                                <Flex width={"200px"}>
-                                                    <Icon name={"heroBanknotes"} ml={"8px"} mr={4}/>
-                                                    <div>
-                                                        <b>Allocation ID:</b>
-                                                        {" "}
-                                                        <code>{chunkedString(alloc.id.toString().padStart(6, "0"), 3, false).join(" ")}</code>
-                                                    </div>
-                                                </Flex>
+                                {tree.wallets.map((wallet, idx) =>
+                                    <TreeNode
+                                        key={idx}
+                                        left={<Flex gap={"4px"}>
+                                            <ProviderLogo providerId={wallet.category.provider} size={20}/>
+                                            <code>{wallet.category.name}</code>
+                                        </Flex>}
+                                        right={<Flex flexDirection={"row"} gap={"8px"}>
+                                            <ProgressBar uq={wallet.usageAndQuota}/>
+                                        </Flex>}
+                                        indent={indent * 2}
+                                    >
+                                        {wallet.allocations
+                                            .map(alloc =>
+                                                <TreeNode
+                                                    key={alloc.id}
+                                                    className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
+                                                    left={<Flex gap={"32px"}>
+                                                        <Flex width={"200px"}>
+                                                            <Icon name={"heroBanknotes"} ml={"8px"} mr={4}/>
+                                                            <div>
+                                                                <b>Allocation ID:</b>
+                                                                {" "}
+                                                                <code>{chunkedString(alloc.id.toString().padStart(6, "0"), 3, false).join(" ")}</code>
+                                                            </div>
+                                                        </Flex>
 
-                                                <Flex width={"250px"}>
-                                                    Period:
-                                                    {" "}
-                                                    {dateToStringNoTime(alloc.start)}
-                                                    {" "}&mdash;{" "}
-                                                    {dateToStringNoTime(alloc.end)}
-                                                </Flex>
+                                                        <Flex width={"250px"}>
+                                                            Period:
+                                                            {" "}
+                                                            {dateToStringNoTime(alloc.start)}
+                                                            {" "}&mdash;{" "}
+                                                            {dateToStringNoTime(alloc.end)}
+                                                        </Flex>
 
-                                                {alloc.grantedIn && <>
-                                                    <Link target={"_blank"}
-                                                          to={AppRoutes.grants.editor(alloc.grantedIn)}>
-                                                        View grant application{" "}
-                                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                                                    </Link>
-                                                </>}
-                                            </Flex>}
-                                            right={<Flex flexDirection={"row"} gap={"8px"}>
-                                                {alloc.note && <>
-                                                    <TooltipV2 tooltip={alloc.note.text}>
-                                                        <Icon name={alloc.note.icon} color={alloc.note.iconColor}/>
-                                                    </TooltipV2>
-                                                </>}
-                                                <div className="low-opaqueness">
-                                                    {alloc.display.quota}
-                                                </div>
-                                            </Flex>}
-                                        />
-                                    )
-                                }
-                            </TreeNode>
-                        )}
-                    </TreeNode>;
-                })}
-            </Tree>
+                                                        {alloc.grantedIn && <>
+                                                            <Link target={"_blank"}
+                                                                  to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                                                View grant application{" "}
+                                                                <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
+                                                            </Link>
+                                                        </>}
+                                                    </Flex>}
+                                                    right={<Flex flexDirection={"row"} gap={"8px"}>
+                                                        {alloc.note && <>
+                                                            <TooltipV2 tooltip={alloc.note.text}>
+                                                                <Icon name={alloc.note.icon} color={alloc.note.iconColor}/>
+                                                            </TooltipV2>
+                                                        </>}
+                                                        <div className="low-opaqueness">
+                                                            {alloc.display.quota}
+                                                        </div>
+                                                    </Flex>}
+                                                />
+                                            )
+                                        }
+                                    </TreeNode>
+                                )}
+                            </TreeNode>;
+                        })}
+                    </Tree>
+                </div>
+            </>}
         </div>
     </>;
 }
@@ -971,64 +979,66 @@ export const SubProjectList: React.FunctionComponent<{
                     </Label>
                 </Flex>
 
-                {/*TODO implement loading spinner here to replace the often incorrect "You do not have any sub-allocations at the
-                        moment" statement*/}
                 <div className="sub-projects-container" style={{height: "500px", width: "100%"}}>
-                    {state.filteredSubProjectIndices.length !== 0 ? null : <>
-                        You do not have any sub-allocations {state.searchQuery ? "with the active search" : ""} at the
-                        moment.
-                        {projectRole === OldProjectRole.USER ? null : <>
-                            You can create a sub-project by clicking <a href="#" onClick={onNewSubProject}>here</a>.
+                    {state.remoteData.wallets === undefined ? <>
+                        <HexSpin size={64} />
+                    </> : <>
+                        {state.filteredSubProjectIndices.length !== 0 ? null : <>
+                            You do not have any sub-allocations {state.searchQuery ? "with the active search" : ""} at the
+                            moment.
+                            {projectRole === OldProjectRole.USER ? null : <>
+                                You can create a sub-project by clicking <a href="#" onClick={onNewSubProject}>here</a>.
+                            </>}
                         </>}
-                    </>}
-                    <AutoSizer>
-                        {({height, width}) => (
-                            <Tree
-                                apiRef={suballocationTree}
-                                onAction={(row, action) => {
-                                    if (![TreeAction.TOGGLE, TreeAction.OPEN, TreeAction.CLOSE].includes(action)) return;
-                                    const grantId = row.getAttribute("data-grant-id");
-                                    if (grantId && TreeAction.TOGGLE === action) {
-                                        // Note(Jonas): Just `window.open(AppRoutes...)` will omit the `/app` part, so we add it this way.
-                                        window.open(window.origin + "/app" + AppRoutes.grants.editor(grantId), "_blank");
-                                    } else {
-                                        const recipient = row.getAttribute("data-recipient");
-                                        if (!recipient) return;
-                                        const group = row.getAttribute("data-group");
-                                        setNodeState(action, recipient, group);
-                                        listRef.current?.resetAfterIndex(0);
-                                    }
-                                }}
-                                unhandledShortcut={onSubAllocationShortcut}
-                            >
-                                <VariableSizeList
-                                    itemSize={(idx) => calculateHeightInPx(idx, state)}
-                                    height={height}
-                                    width={width}
-                                    ref={listRef}
-                                    itemCount={state.filteredSubProjectIndices.length}
-                                    itemData={state.filteredSubProjectIndices}
-                                >
-                                    {({index: rowIdx, style, data}) => {
-                                        const recipientIdx = data[rowIdx];
-                                        const recipient = state.subAllocations.recipients[recipientIdx];
-
-                                        return <SubProjectListRow
-                                            style={style}
-                                            recipient={recipient}
-                                            listRef={listRef}
-                                            rowIdx={rowIdx}
-                                            avatars={avatars}
-                                            onEdit={onEdit}
-                                            state={state}
-                                            onEditKey={onEditKey}
-                                            onEditBlur={onEditBlur}
-                                        />
+                        <AutoSizer>
+                            {({height, width}) => (
+                                <Tree
+                                    apiRef={suballocationTree}
+                                    onAction={(row, action) => {
+                                        if (![TreeAction.TOGGLE, TreeAction.OPEN, TreeAction.CLOSE].includes(action)) return;
+                                        const grantId = row.getAttribute("data-grant-id");
+                                        if (grantId && TreeAction.TOGGLE === action) {
+                                            // Note(Jonas): Just `window.open(AppRoutes...)` will omit the `/app` part, so we add it this way.
+                                            window.open(window.origin + "/app" + AppRoutes.grants.editor(grantId), "_blank");
+                                        } else {
+                                            const recipient = row.getAttribute("data-recipient");
+                                            if (!recipient) return;
+                                            const group = row.getAttribute("data-group");
+                                            setNodeState(action, recipient, group);
+                                            listRef.current?.resetAfterIndex(0);
+                                        }
                                     }}
-                                </VariableSizeList>
-                            </Tree>
-                        )}
-                    </AutoSizer>
+                                    unhandledShortcut={onSubAllocationShortcut}
+                                >
+                                    <VariableSizeList
+                                        itemSize={(idx) => calculateHeightInPx(idx, state)}
+                                        height={height}
+                                        width={width}
+                                        ref={listRef}
+                                        itemCount={state.filteredSubProjectIndices.length}
+                                        itemData={state.filteredSubProjectIndices}
+                                    >
+                                        {({index: rowIdx, style, data}) => {
+                                            const recipientIdx = data[rowIdx];
+                                            const recipient = state.subAllocations.recipients[recipientIdx];
+
+                                            return <SubProjectListRow
+                                                style={style}
+                                                recipient={recipient}
+                                                listRef={listRef}
+                                                rowIdx={rowIdx}
+                                                avatars={avatars}
+                                                onEdit={onEdit}
+                                                state={state}
+                                                onEditKey={onEditKey}
+                                                onEditBlur={onEditBlur}
+                                            />
+                                        }}
+                                    </VariableSizeList>
+                                </Tree>
+                            )}
+                        </AutoSizer>
+                    </>}
                 </div>
             </>}
         </div>

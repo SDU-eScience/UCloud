@@ -15,10 +15,10 @@ const fuzzyMatcher = newFuzzyMatchFuse<Accounting.AllocationDisplayTreeRecipient
 // =====================================================================================================================
 export interface State extends Accounting.AllocationDisplayTree {
     remoteData: {
-        wallets: Accounting.WalletV2[];
-        managedProviders: string[];
-        managedProducts: Record<string, Accounting.ProductCategoryV2[]>;
-        gifts: Gifts.GiftWithCriteria[];
+        wallets?: Accounting.WalletV2[];
+        managedProviders?: string[];
+        managedProducts?: Record<string, Accounting.ProductCategoryV2[]>;
+        gifts?: Gifts.GiftWithCriteria[];
     };
 
     searchQuery: string;
@@ -181,7 +181,7 @@ export function stateReducer(state: State, action: UIAction): State {
                 ...state,
                 remoteData: {
                     ...state.remoteData,
-                    gifts: [...state.remoteData.gifts, action.gift]
+                    gifts: [...(state.remoteData.gifts ?? []), action.gift]
                 },
                 gifts: {
                     title: "",
@@ -199,7 +199,7 @@ export function stateReducer(state: State, action: UIAction): State {
                 ...state,
                 remoteData: {
                     ...state.remoteData,
-                    gifts: state.remoteData.gifts.filter(it => it.id !== action.id)
+                    gifts: (state.remoteData.gifts ?? []).filter(it => it.id !== action.id)
                 }
             };
         }
@@ -267,7 +267,7 @@ export function stateReducer(state: State, action: UIAction): State {
                 },
             };
 
-            outer: for (const wallet of newState.remoteData.wallets) {
+            outer: for (const wallet of (newState.remoteData.wallets ?? [])) {
                 const allChildren = wallet.children ?? [];
                 for (const childGroup of allChildren) {
                     for (const alloc of childGroup.group.allocations) {
@@ -295,7 +295,7 @@ export function stateReducer(state: State, action: UIAction): State {
     }
 
     function rebuildTree(state: State): State {
-        const newTree = Accounting.buildAllocationDisplayTree(state.remoteData.wallets);
+        const newTree = Accounting.buildAllocationDisplayTree((state.remoteData.wallets ?? []));
         const query = state.searchQuery;
 
         const filteredSubProjectIndices: number[] = [];
@@ -396,7 +396,7 @@ async function fetchManagedProviders(): Promise<string[]> {
 // =====================================================================================================================
 export function initialState(): State {
     return {
-        remoteData: {wallets: [], managedProviders: [], managedProducts: {}, gifts: []},
+        remoteData: {},
         subAllocations: {recipients: []},
         searchQuery: "",
         yourAllocations: {},
