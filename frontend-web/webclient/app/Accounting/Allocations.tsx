@@ -71,6 +71,7 @@ import {OldProjectRole} from "@/Project";
 import {VariableSizeList} from "react-window";
 import ReactVirtualizedAutoSizer from "react-virtualized-auto-sizer";
 import {MandatoryField} from "@/UtilityComponents";
+import {ProjectPiForNewCore, ProjectTitleForNewCore} from "@/Project/InfoCache";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -1384,12 +1385,22 @@ const Allocations: React.FunctionComponent = () => {
                                         key={idx}
                                         left={
                                             <Flex gap={"4px"} alignItems={"center"}>
-                                                <TooltipV2 tooltip={`Project PI: ${recipient.owner.primaryUsername}`}>
+                                                <TooltipV2
+                                                    tooltip={<>
+                                                        Project PI:{" "}
+                                                        <ProjectPiForNewCore
+                                                            id={recipient.owner.reference["projectId"]}
+                                                            piUsername={recipient.owner.primaryUsername}
+                                                        />
+                                                    </>}
+                                                >
                                                     <Avatar {...avatars.avatarFromCache(recipient.owner.primaryUsername)}
                                                             style={{height: "32px", width: "auto", marginTop: "-4px"}}
                                                             avatarStyle={"Circle"} />
                                                 </TooltipV2>
-                                                <Truncate title={recipient.owner.title}>{recipient.owner.title}</Truncate>
+                                                <Truncate title={recipient.owner.title}>
+                                                    <ProjectTitleForNewCore id={recipient.owner.reference["projectId"]} title={recipient.owner.title} />
+                                                </Truncate>
                                             </Flex>
                                         }
                                         right={
@@ -1503,12 +1514,22 @@ const Allocations: React.FunctionComponent = () => {
                                                 listRef.current?.resetAfterIndex(recipientIdx);
                                             }}
                                             left={<Flex gap={"4px"} alignItems={"center"}>
-                                                <TooltipV2 tooltip={`Project PI: ${recipient.owner.primaryUsername}`}>
+                                                <TooltipV2
+                                                    tooltip={<>
+                                                        Project PI:{" "}
+                                                        <ProjectPiForNewCore
+                                                            id={recipient.owner.reference["projectId"]}
+                                                            piUsername={recipient.owner.primaryUsername}
+                                                        />
+                                                    </>}
+                                                >
                                                     <Avatar {...avatars.avatarFromCache(recipient.owner.primaryUsername)}
                                                         style={{height: "32px", width: "auto", marginTop: "-4px"}}
                                                         avatarStyle={"Circle"} />
                                                 </TooltipV2>
-                                                <Truncate title={recipient.owner.title}>{recipient.owner.title}</Truncate>
+                                                <Truncate title={recipient.owner.title}>
+                                                    <ProjectTitleForNewCore id={recipient.owner.reference["projectId"]} title={recipient.owner.title} />
+                                                </Truncate>
                                             </Flex>}
                                             right={<div className={"sub-alloc"}>
                                                 {recipient.owner.reference.type === "project" &&

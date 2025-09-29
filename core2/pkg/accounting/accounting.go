@@ -271,7 +271,10 @@ func WalletsBrowse(actor rpc.Actor, request accapi.WalletsBrowseRequest) fndapi.
 	if actor.Project.Present {
 		reference = string(actor.Project.Value)
 	}
-	allWallets := internalRetrieveWallets(time.Now(), reference, walletFilter{RequireActive: false})
+	allWallets := internalRetrieveWallets(time.Now(), reference, walletFilter{
+		RequireActive:   false,
+		IncludeChildren: request.IncludeChildren,
+	})
 
 	result := fndapi.PageV2[accapi.WalletV2]{}
 

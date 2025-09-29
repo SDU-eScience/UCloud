@@ -434,3 +434,23 @@ var ProjectBrowseInvites = rpc.Call[util.Empty, PageV2[util.Empty]]{
 	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesEndUser,
 }
+
+type ProjectRetrieveInformationResponse struct {
+	Projects map[string]ProjectInformation `json:"projects"`
+}
+
+type ProjectInformation struct {
+	Id         string `json:"id"`
+	PiUsername string `json:"piUsername"`
+	Title      string `json:"title"`
+}
+
+// TODO This is a new call returning information about projects to all authenticated users. You do not need to be a
+//  member of the project to look up the information. You just need the ID.
+
+var ProjectRetrieveInformation = rpc.Call[BulkRequest[FindByStringId], ProjectRetrieveInformationResponse]{
+	BaseContext: ProjectContext,
+	Operation:   "retrieveInformation",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+}

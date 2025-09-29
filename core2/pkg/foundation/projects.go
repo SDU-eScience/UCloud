@@ -284,6 +284,42 @@ func initProjects() {
 	fndapi.ProjectBrowseInvites.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.PageV2[util.Empty], *util.HttpError) {
 		return fndapi.PageV2[util.Empty]{Items: make([]util.Empty, 0)}, nil
 	})
+
+	fndapi.ProjectRetrieveInformation.Handler(func(
+		info rpc.RequestInfo,
+		request fndapi.BulkRequest[fndapi.FindByStringId],
+	) (fndapi.ProjectRetrieveInformationResponse, *util.HttpError) {
+		result := fndapi.ProjectRetrieveInformationResponse{
+			Projects: map[string]fndapi.ProjectInformation{},
+		}
+
+		for _, reqItem := range request.Items {
+			project, err := ProjectRetrieve(
+				rpc.ActorSystem,
+				reqItem.Id,
+				fndapi.ProjectFlags{IncludeMembers: true},
+				fndapi.ProjectRoleUser,
+			)
+
+			if err == nil {
+				piUsername := "_ucloud"
+				for _, member := range project.Status.Members {
+					if member.Role == fndapi.ProjectRolePI {
+						piUsername = member.Username
+						break
+					}
+				}
+
+				result.Projects[project.Id] = fndapi.ProjectInformation{
+					Id:         project.Id,
+					PiUsername: piUsername,
+					Title:      project.Specification.Title,
+				}
+			}
+		}
+
+		return result, nil
+	})
 }
 
 var projectFlagsAll = fndapi.ProjectFlags{

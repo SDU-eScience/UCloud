@@ -39,6 +39,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {interval, isBefore, isWithinInterval, subDays} from "date-fns";
 import Warning from "@/ui-components/Warning";
 import {SimpleMarkdown} from "@/ui-components/Markdown";
+import {ProjectTitleForNewCore} from "@/Project/InfoCache";
 
 // State model
 // =====================================================================================================================
@@ -2454,7 +2455,7 @@ const GrantGiver: React.FunctionComponent<{
         <div className={"grow"}>
             <label htmlFor={checkboxId}>
                 <ProjectLogo projectId={props.projectId} size={`${size}px`} />
-                {props.title}
+                <ProjectTitleForNewCore id={props.projectId} title={props.title} />
             </label>
             {!props.isEditing &&
                 <div className={"description"} style={{marginLeft: (size + 8) + "px"}}>{props.description}</div>
