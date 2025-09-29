@@ -58,20 +58,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		return fmt.Errorf("failed to initialize job folder")
 	}
 
-	if rank == 0 {
-		ucloudFolder, ok := filesystem.InternalToUCloudWithDrive(drive, jobFolder)
-		if ok {
-			_ = ctrl.TrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
-				{
-					Id: job.Id,
-					Update: orc.JobUpdate{
-						OutputFolder: util.OptValue[string](ucloudFolder),
-					},
-				},
-			})
-		}
-	}
-
 	namespace := ServiceConfig.Compute.Namespace
 
 	application := &job.Status.ResolvedApplication.Invocation
@@ -486,6 +472,20 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	// NOTE(Dan): Cleanup in case of errors are centralized in the delete code. This is mostly to do with the fact that
 	//   we have multiple replicas.
+
+	if err == nil && rank == 0 {
+		ucloudFolder, ok := filesystem.InternalToUCloudWithDrive(drive, jobFolder)
+		if ok {
+			_ = ctrl.TrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
+				{
+					Id: job.Id,
+					Update: orc.JobUpdate{
+						OutputFolder: util.OptValue[string](ucloudFolder),
+					},
+				},
+			})
+		}
+	}
 
 	return err
 }

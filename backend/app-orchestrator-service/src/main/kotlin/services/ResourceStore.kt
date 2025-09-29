@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.Prometheus
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductReferenceV2
 import dk.sdu.cloud.accounting.api.providers.SortDirection
@@ -229,11 +230,9 @@ class ResourceStore<T>(
         return scope.launch {
             while (coroutineContext.isActive) {
                 try {
-                    val start = Time.now()
                     synchronizeNow()
-                    val end = Time.now()
 
-                    delay(max(1000, 30_000 - (end - start)))
+                    delay(30_000)
                 } catch (ex: Throwable) {
                     log.warn(ex.toReadableStacktrace().toString())
                 }
@@ -1284,7 +1283,11 @@ class ResourceStoreBucket<T>(
         return next!!.findTail()
     }
 
-    suspend fun expand(loadRequired: Boolean = false, hasLock: Boolean = false): ResourceStoreBucket<T> {
+    suspend fun expand(
+        loadRequired: Boolean = false,
+        hasLock: Boolean = false,
+        lockNextStore: Boolean = false
+    ): ResourceStoreBucket<T> {
         val currentNext = next
         if (currentNext != null) return currentNext
 
@@ -1294,6 +1297,9 @@ class ResourceStoreBucket<T>(
             if (nextAfterMutex != null) return nextAfterMutex
 
             val newStore = ResourceStoreBucket<T>(type, uid, pid, queries, callbacks)
+            if (lockNextStore) {
+                newStore.mutex.lock()
+            }
             newStore.previous = this
             next = newStore
             if (!loadRequired) newStore.ready.set(true)
@@ -1406,19 +1412,29 @@ class ResourceStoreBucket<T>(
     // 1. Declare a SQL cursor which will fetch the data
     // 2. Fetch data from the cursor and translate into our internal representation
     // 3. If we run out of space in the current bucket, `expand()` with a new bucket and begin a new `load()`
-    suspend fun load(minimumId: Long = 0) {
-        mutex.withLock {
+    suspend fun load(minimumId: Long = 0, alreadyLocked: Boolean = false) {
+        var nextStore: ResourceStoreBucket<T>? = null
+        var nextId: Long?
+
+        if (!alreadyLocked) mutex.lock()
+        try {
             if (evicted) throw EvictionException()
 
-            val nextId = queries.withSession("load(minimumId = $minimumId)") { session ->
+            nextId = queries.withSession("load(minimumId = $minimumId)") { session ->
                 queries.loadResources(session, this, minimumId)
             }
 
             if (nextId != null) {
-                expand(loadRequired = true, hasLock = true).load(nextId)
+                nextStore = expand(loadRequired = true, hasLock = true, lockNextStore = true)
             }
 
             ready.set(true)
+        } finally {
+            mutex.unlock() // always unlocked at end
+        }
+
+        if (nextStore != null && nextId != null) {
+            nextStore.load(nextId, alreadyLocked = true)
         }
     }
 
@@ -2383,6 +2399,7 @@ interface ResourceStoreDatabaseQueries<T> {
 }
 
 suspend inline fun <R> ResourceStoreDatabaseQueries<*>.withSession(reason: String = "unknown", block: (Any) -> R): R {
+    val sessionStart = Time.now()
     val session = startTransaction(reason)
     var success = true
     try {
@@ -2393,6 +2410,7 @@ suspend inline fun <R> ResourceStoreDatabaseQueries<*>.withSession(reason: Strin
         throw ex
     } finally {
         if (success) commitTransaction(session)
+        Prometheus.measureBackgroundDuration("resource_store_${reason.substringBefore("(")}", Time.now() - sessionStart)
     }
 }
 

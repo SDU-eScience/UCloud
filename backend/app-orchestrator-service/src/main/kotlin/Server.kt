@@ -66,8 +66,6 @@ object AppOrchestratorServices {
     lateinit var licenses: LicenseService
     lateinit var syncthing: SyncthingService
     lateinit var sshKeys: SshKeyService
-
-    lateinit var jobMonitoring: JobMonitoringService
 }
 
 class Server(override val micro: Micro) : CommonServer {
@@ -153,8 +151,6 @@ class Server(override val micro: Micro) : CommonServer {
             syncthing = SyncthingService()
             sshKeys = SshKeyService()
             exporter = ParameterExportService()
-            jobMonitoring = JobMonitoringService()
-            runBlocking { jobMonitoring.initialize(!micro.developmentModeEnabled) }
 
             micro.serverProvider(33301) {
                 routing {
