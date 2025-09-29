@@ -72,6 +72,7 @@ import {VariableSizeList} from "react-window";
 import ReactVirtualizedAutoSizer from "react-virtualized-auto-sizer";
 import {MandatoryField} from "@/UtilityComponents";
 import {ProjectPiForNewCore, ProjectTitleForNewCore} from "@/Project/InfoCache";
+import HexSpin from "@/LoadingIcon/LoadingIcon";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -79,10 +80,10 @@ const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 // =====================================================================================================================
 interface State extends Accounting.AllocationDisplayTree {
     remoteData: {
-        wallets: Accounting.WalletV2[];
-        managedProviders: string[];
-        managedProducts: Record<string, Accounting.ProductCategoryV2[]>;
-        gifts: Gifts.GiftWithCriteria[];
+        wallets?: Accounting.WalletV2[];
+        managedProviders?: string[];
+        managedProducts?: Record<string, Accounting.ProductCategoryV2[]>;
+        gifts?: Gifts.GiftWithCriteria[];
     };
 
     searchQuery: string;
@@ -108,20 +109,20 @@ interface State extends Accounting.AllocationDisplayTree {
 // State reducer
 // =====================================================================================================================
 type UIAction =
-    | {type: "Reset"}
-    | {type: "WalletsLoaded", wallets: Accounting.WalletV2[];}
-    | {type: "ManagedProvidersLoaded", providerIds: string[]}
-    | {type: "ManagedProductsLoaded", products: Record<string, Accounting.ProductCategoryV2[]>}
-    | {type: "GiftsLoaded", gifts: Gifts.GiftWithCriteria[]}
-    | {type: "UpdateSearchQuery", newQuery: string}
-    | {type: "SetEditing", recipientIdx: number, groupIdx: number, allocationIdx: number, isEditing: boolean}
-    | {type: "UpdateAllocation", allocationIdx: number, groupIdx: number, recipientIdx: number, newQuota: number}
-    | {type: "UpdateGift", data: Partial<State["gifts"]>}
-    | {type: "GiftCreated", gift: Gifts.GiftWithCriteria}
-    | {type: "GiftDeleted", id: number}
-    | {type: "UpdateRootAllocations", data: Partial<State["rootAllocations"]>}
-    | {type: "ResetRootAllocation"}
-    | {type: "ToggleViewOnlyProjects", viewOnlyProjects: boolean}
+    | { type: "Reset" }
+    | { type: "WalletsLoaded", wallets: Accounting.WalletV2[]; }
+    | { type: "ManagedProvidersLoaded", providerIds: string[] }
+    | { type: "ManagedProductsLoaded", products: Record<string, Accounting.ProductCategoryV2[]> }
+    | { type: "GiftsLoaded", gifts: Gifts.GiftWithCriteria[] }
+    | { type: "UpdateSearchQuery", newQuery: string }
+    | { type: "SetEditing", recipientIdx: number, groupIdx: number, allocationIdx: number, isEditing: boolean }
+    | { type: "UpdateAllocation", allocationIdx: number, groupIdx: number, recipientIdx: number, newQuota: number }
+    | { type: "UpdateGift", data: Partial<State["gifts"]> }
+    | { type: "GiftCreated", gift: Gifts.GiftWithCriteria }
+    | { type: "GiftDeleted", id: number }
+    | { type: "UpdateRootAllocations", data: Partial<State["rootAllocations"]> }
+    | { type: "ResetRootAllocation" }
+    | { type: "ToggleViewOnlyProjects", viewOnlyProjects: boolean }
     ;
 
 
@@ -239,7 +240,7 @@ function stateReducer(state: State, action: UIAction): State {
                 ...state,
                 remoteData: {
                     ...state.remoteData,
-                    gifts: [...state.remoteData.gifts, action.gift]
+                    gifts: [...state.remoteData.gifts ?? [], action.gift]
                 },
                 gifts: {
                     title: "",
@@ -257,7 +258,7 @@ function stateReducer(state: State, action: UIAction): State {
                 ...state,
                 remoteData: {
                     ...state.remoteData,
-                    gifts: state.remoteData.gifts.filter(it => it.id !== action.id)
+                    gifts: (state.remoteData.gifts ?? []).filter(it => it.id !== action.id)
                 }
             };
         }
@@ -325,7 +326,7 @@ function stateReducer(state: State, action: UIAction): State {
                 },
             };
 
-            outer: for (const wallet of newState.remoteData.wallets) {
+            outer: for (const wallet of newState.remoteData.wallets ?? []) {
                 const allChildren = wallet.children ?? [];
                 for (const childGroup of allChildren) {
                     for (const alloc of childGroup.group.allocations) {
@@ -353,7 +354,7 @@ function stateReducer(state: State, action: UIAction): State {
     }
 
     function rebuildTree(state: State): State {
-        const newTree = Accounting.buildAllocationDisplayTree(state.remoteData.wallets);
+        const newTree = Accounting.buildAllocationDisplayTree(state.remoteData.wallets ?? []);
         const query = state.searchQuery;
         newTree.subAllocations.recipients = newTree.subAllocations.recipients.filter(recipient => {
             if (recipient.owner.reference.type === "user" && state.viewOnlyProjects) return false;
@@ -374,7 +375,7 @@ function stateReducer(state: State, action: UIAction): State {
 // =====================================================================================================================
 type UIEvent =
     UIAction
-    | {type: "Init"}
+    | { type: "Init" }
     ;
 
 function useStateReducerMiddleware(didCancel: React.RefObject<boolean>, doDispatch: (action: UIAction) => void): (event: UIEvent) => unknown {
@@ -602,31 +603,31 @@ const Allocations: React.FunctionComponent = () => {
             }}>
                 <div>
                     <Heading.h3>New sub-project</Heading.h3>
-                    <Divider />
+                    <Divider/>
                     <Label>
                         Project title
                         <Input onKeyDown={e => {
                             if (e.code !== "Escape") {
                                 e.stopPropagation();
                             }
-                        }} id={"subproject-name"} autoFocus />
+                        }} id={"subproject-name"} autoFocus/>
                     </Label>
-                    {state.remoteData.managedProviders.length > 0 || !checkCanConsumeResources(Client.projectId ?? null, {api: {isCoreResource: false}}) ?
+                    {(state.remoteData.managedProviders ?? []).length > 0 || !checkCanConsumeResources(Client.projectId ?? null, {api: {isCoreResource: false}}) ?
                         <Label>
-                            <Checkbox id={"subproject-suballocator"} />
+                            <Checkbox id={"subproject-suballocator"}/>
                             This sub-project is a sub-allocator
                         </Label> : null
                     }
                 </div>
                 <Flex mt="20px">
                     <Button type={"button"} onClick={dialogStore.failure.bind(dialogStore)} color={"errorMain"}
-                        mr="5px">Cancel</Button>
+                            mr="5px">Cancel</Button>
                     <Button type={"submit"} color={"successMain"}>Create sub-project</Button>
                 </Flex>
             </form>,
             doNothing
         );
-    }, [currentPeriodEnd, state.remoteData.managedProviders.length]);
+    }, [currentPeriodEnd, (state.remoteData.managedProviders ?? []).length]);
 
     const onEdit = useCallback((elem: HTMLElement) => {
         const idx = parseInt(elem.getAttribute("data-idx") ?? "");
@@ -767,7 +768,7 @@ const Allocations: React.FunctionComponent = () => {
         }
 
         try {
-            const products = state.remoteData.managedProducts;
+            const products = (state.remoteData.managedProducts ?? {});
             creatingRootAllocation.current = true;
 
             const requests: Accounting.RootAllocateRequestItem[] = [];
@@ -897,7 +898,7 @@ const Allocations: React.FunctionComponent = () => {
             });
         }
 
-        const products = state.remoteData.managedProducts;
+        const products = (state.remoteData.managedProducts ?? {});
         for (const [categoryAndProvider, amount] of Object.entries(state.gifts.resources)) {
             const [category, provider] = categoryAndProvider.split("/");
             const resolvedCategory = products[provider]?.find(it => it.name === category);
@@ -998,11 +999,11 @@ const Allocations: React.FunctionComponent = () => {
         main={<div className={AllocationsStyle}>
             <header>
                 <h3 className="title">Resource allocations</h3>
-                <Box flexGrow={1} />
-                <ProjectSwitcher />
+                <Box flexGrow={1}/>
+                <ProjectSwitcher/>
             </header>
 
-            {state.remoteData.managedProviders.length > 0 && <>
+            {(state.remoteData.managedProviders ?? []).length > 0 && <>
                 {state.rootAllocations && <>
                     <h3>Root allocations</h3>
                     <div>
@@ -1032,13 +1033,13 @@ const Allocations: React.FunctionComponent = () => {
 
                         <h4>Step 2: Select allocation size</h4>
                         <Tree>
-                            {Object.entries(state.remoteData.managedProducts).map(([providerId, page]) =>
+                            {Object.entries(state.remoteData.managedProducts ?? {}).map(([providerId, page]) =>
                                 <React.Fragment
                                     key={providerId}>
                                     {page.map(cat => <TreeNode
                                         key={cat.name + cat.provider}
                                         left={<Flex gap={"4px"}>
-                                            <Icon name={Accounting.productTypeToIcon(cat.productType)} size={20} />
+                                            <Icon name={Accounting.productTypeToIcon(cat.productType)} size={20}/>
                                             <code>{cat.name} / {cat.provider}</code>
                                         </Flex>}
                                         right={<Flex gap={"4px"}>
@@ -1059,7 +1060,7 @@ const Allocations: React.FunctionComponent = () => {
                         <Button my={16} onClick={onCreateRootAllocation}>Create root allocations</Button>
                     </Accordion>
 
-                    <Box mt={32} />
+                    <Box mt={32}/>
                 </>}
 
                 {state.gifts && <>
@@ -1075,68 +1076,69 @@ const Allocations: React.FunctionComponent = () => {
                         </ul>
                     </div>
 
-                    <Accordion title={`View existing gifts (${state.remoteData.gifts.length})`}>
-                        {state.remoteData.gifts.length === 0 ? <>This project currently has no active gifts!</> : <Tree>
-                            {state.remoteData.gifts.map(g =>
+                    <Accordion title={`View existing gifts (${(state.remoteData.gifts ?? []).length})`}>
+                        {(state.remoteData.gifts ?? []).length === 0 ? <>This project currently has no active
+                            gifts!</> : <Tree>
+                            {(state.remoteData.gifts ?? []).map(g =>
                                 <TreeNode
                                     key={g.id}
                                     left={g.title}
                                 >
                                     <table className={giftClass}>
                                         <tbody>
-                                            <tr>
-                                                <th>Description</th>
-                                                <td>{g.description}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Criteria</th>
-                                                <td>
-                                                    <ul>
-                                                        {g.criteria.map(c => {
-                                                            switch (c.type) {
-                                                                case "anyone":
-                                                                    return <li key={c.type}>All UCloud users</li>
-                                                                case "wayf":
-                                                                    return <li key={c.org + "wayf"}>Users
-                                                                        from <i>{c.org}</i></li>
-                                                                case "email":
-                                                                    return <li key={c.domain + "email"}>@{c.domain}</li>
-                                                            }
-                                                        })}
-                                                    </ul>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <th>Resources</th>
-                                                <td>
-                                                    <ul>
-                                                        {g.resources.map((r, idx) => {
-                                                            const pc = state.remoteData.managedProducts[r.provider]?.find(it => it.name === r.category);
-                                                            if (!pc) return null;
-                                                            return <li key={idx}>
-                                                                {r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}
-                                                            </li>
-                                                        })}
-                                                    </ul>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <th>Granted</th>
-                                                <td>
-                                                    {g.renewEvery == 0 ? "Once" : (g.renewEvery == 1 ? "Every month" : "Every " + g.renewEvery.toString() + " months")}
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <th>Delete</th>
-                                                <td>
-                                                    <ConfirmationButton
-                                                        actionText={"Delete"}
-                                                        icon={"heroTrash"}
-                                                        onAction={onDeleteGift}
-                                                        actionKey={g.id.toString()}
-                                                    />
-                                                </td>
-                                            </tr>
+                                        <tr>
+                                            <th>Description</th>
+                                            <td>{g.description}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Criteria</th>
+                                            <td>
+                                                <ul>
+                                                    {g.criteria.map(c => {
+                                                        switch (c.type) {
+                                                            case "anyone":
+                                                                return <li key={c.type}>All UCloud users</li>
+                                                            case "wayf":
+                                                                return <li key={c.org + "wayf"}>Users
+                                                                    from <i>{c.org}</i></li>
+                                                            case "email":
+                                                                return <li key={c.domain + "email"}>@{c.domain}</li>
+                                                        }
+                                                    })}
+                                                </ul>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Resources</th>
+                                            <td>
+                                                <ul>
+                                                    {g.resources.map((r, idx) => {
+                                                        const pc = (state.remoteData.managedProducts ?? {})[r.provider]?.find(it => it.name === r.category);
+                                                        if (!pc) return null;
+                                                        return <li key={idx}>
+                                                            {r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}
+                                                        </li>
+                                                    })}
+                                                </ul>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Granted</th>
+                                            <td>
+                                                {g.renewEvery == 0 ? "Once" : (g.renewEvery == 1 ? "Every month" : "Every " + g.renewEvery.toString() + " months")}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Delete</th>
+                                            <td>
+                                                <ConfirmationButton
+                                                    actionText={"Delete"}
+                                                    icon={"heroTrash"}
+                                                    onAction={onDeleteGift}
+                                                    actionKey={g.id.toString()}
+                                                />
+                                            </td>
+                                        </tr>
                                         </tbody>
                                     </table>
                                 </TreeNode>
@@ -1148,7 +1150,7 @@ const Allocations: React.FunctionComponent = () => {
                         <form onSubmit={onCreateGift}>
                             <Flex gap={"8px"} flexDirection={"column"}>
                                 <Label>
-                                    Title <MandatoryField />
+                                    Title <MandatoryField/>
                                     <Input
                                         name={"gift-title"}
                                         value={state.gifts.title}
@@ -1169,7 +1171,7 @@ const Allocations: React.FunctionComponent = () => {
                                     />
                                 </Label>
                                 <Label>
-                                    Is this gift periodically renewed or a one-time grant? <MandatoryField />
+                                    Is this gift periodically renewed or a one-time grant? <MandatoryField/>
                                     <Select
                                         name={"gift-renewal"}
                                         slim
@@ -1204,14 +1206,14 @@ const Allocations: React.FunctionComponent = () => {
 
                                 <Label>Resources</Label>
                                 <Tree>
-                                    {Object.entries(state.remoteData.managedProducts).map(([providerId, page]) =>
+                                    {Object.entries(state.remoteData.managedProducts ?? {}).map(([providerId, page]) =>
                                         <React.Fragment
                                             key={providerId}>
                                             {page.map(cat => <TreeNode
                                                 key={cat.name + cat.provider}
                                                 left={<Flex gap={"4px"}>
                                                     <Icon name={Accounting.productTypeToIcon(cat.productType)}
-                                                        size={20} />
+                                                          size={20}/>
                                                     <code>{cat.name} / {cat.provider}</code>
                                                 </Flex>}
                                                 right={<Flex gap={"4px"}>
@@ -1235,14 +1237,20 @@ const Allocations: React.FunctionComponent = () => {
                         </form>
                     </Accordion>
 
-                    <Box mt={32} />
+                    <Box mt={32}/>
                 </>}
             </>}
 
             <h3>Your allocations</h3>
-            {sortedAllocations.length !== 0 ? null : <>
-                You do not have any allocations at the moment. You can apply for resources{" "}
-                <Link to={AppRoutes.grants.editor()}>here</Link>.
+            {state.remoteData.wallets === undefined ? <>
+                <HexSpin size={64}/>
+            </> : <>
+                <div>
+                    {sortedAllocations.length !== 0 ? null : <>
+                        You do not have any allocations at the moment. You can apply for resources{" "}
+                        <Link to={AppRoutes.grants.editor()}>here</Link>.
+                    </>}
+                </div>
             </>}
             <Tree apiRef={allocationTree}>
                 {sortedAllocations.map(([rawType, tree]) => {
@@ -1251,13 +1259,13 @@ const Allocations: React.FunctionComponent = () => {
                     return <TreeNode
                         key={rawType}
                         left={<Flex gap={"4px"}>
-                            <Icon name={Accounting.productTypeToIcon(type)} size={20} />
+                            <Icon name={Accounting.productTypeToIcon(type)} size={20}/>
                             {Accounting.productAreaTitle(type)}
                         </Flex>}
                         right={<Flex flexDirection={"row"} gap={"8px"}>
                             {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                <ProgressBar uq={uq} />
-                            </React.Fragment>
+                                    <ProgressBar uq={uq}/>
+                                </React.Fragment>
                             )}
                         </Flex>}
                         indent={indent}
@@ -1266,11 +1274,11 @@ const Allocations: React.FunctionComponent = () => {
                             <TreeNode
                                 key={idx}
                                 left={<Flex gap={"4px"}>
-                                    <ProviderLogo providerId={wallet.category.provider} size={20} />
+                                    <ProviderLogo providerId={wallet.category.provider} size={20}/>
                                     <code>{wallet.category.name}</code>
                                 </Flex>}
                                 right={<Flex flexDirection={"row"} gap={"8px"}>
-                                    <ProgressBar uq={wallet.usageAndQuota} />
+                                    <ProgressBar uq={wallet.usageAndQuota}/>
                                 </Flex>}
                                 indent={indent * 2}
                             >
@@ -1281,7 +1289,7 @@ const Allocations: React.FunctionComponent = () => {
                                             className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
                                             left={<Flex gap={"32px"}>
                                                 <Flex width={"200px"}>
-                                                    <Icon name={"heroBanknotes"} ml={"8px"} mr={4} />
+                                                    <Icon name={"heroBanknotes"} ml={"8px"} mr={4}/>
                                                     <div>
                                                         <b>Allocation ID:</b>
                                                         {" "}
@@ -1299,16 +1307,16 @@ const Allocations: React.FunctionComponent = () => {
 
                                                 {alloc.grantedIn && <>
                                                     <Link target={"_blank"}
-                                                        to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                                          to={AppRoutes.grants.editor(alloc.grantedIn)}>
                                                         View grant application{" "}
-                                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
+                                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
                                                     </Link>
                                                 </>}
                                             </Flex>}
                                             right={<Flex flexDirection={"row"} gap={"8px"}>
                                                 {alloc.note && <>
                                                     <TooltipV2 tooltip={alloc.note.text}>
-                                                        <Icon name={alloc.note.icon} color={alloc.note.iconColor} />
+                                                        <Icon name={alloc.note.icon} color={alloc.note.iconColor}/>
                                                     </TooltipV2>
                                                 </>}
                                                 <div className="low-opaqueness">
@@ -1325,119 +1333,129 @@ const Allocations: React.FunctionComponent = () => {
             </Tree>
 
             <Flex mt={32} mb={10}>
-            <h3>Resources Granted</h3>
+                <h3>Resources Granted</h3>
             </Flex>
-            {state.subAllocations.recipients.length === 0 ? "You have not granted any resources to sub-projects at the moment." : <>
-            <Tree apiRef={allocationTree}>
-                {sortedAllocations.map(([rawType, tree]) => {
-                    const type = rawType as ProductType;
+            {state.remoteData.wallets === undefined ? <>
+                <HexSpin size={64}/>
+            </> : <>
+                {state.subAllocations.recipients.length === 0 ? "You have not granted any resources to sub-projects at the moment." : <>
+                    <Tree apiRef={allocationTree}>
+                        {sortedAllocations.map(([rawType, tree]) => {
+                            const type = rawType as ProductType;
 
-                    return <TreeNode
-                        key={rawType}
-                        left={<Flex gap={"4px"}>
-                            <Icon name={Accounting.productTypeToIcon(type)} size={20} />
-                            {Accounting.productAreaTitle(type)}
-                        </Flex>}
-                        indent={indent}
-                    >
-                        {tree.wallets.map((wallet, idx) =>
-                            <TreeNode
-                                key={idx}
+                            return <TreeNode
+                                key={rawType}
                                 left={<Flex gap={"4px"}>
-                                    <ProviderLogo providerId={wallet.category.provider} size={20} />
-                                    <code>{wallet.category.name}</code>
+                                    <Icon name={Accounting.productTypeToIcon(type)} size={20}/>
+                                    {Accounting.productAreaTitle(type)}
                                 </Flex>}
-                                right={<Flex flexDirection={"row"} gap={"8px"}>
-                                    <NewAndImprovedProgress
-                                        label={
-                                            balanceToStringFromUnit(
-                                                wallet.usageAndQuota.raw.type,
-                                                wallet.usageAndQuota.raw.unit,
-                                                explainUnit(wallet.category).balanceFactor * wallet.totalAllocated,
-                                                {
-                                                    precision: 2,
-                                                    removeUnitIfPossible: true
-                                                })
-                                            + " / " +
-                                            balanceToStringFromUnit(
-                                                wallet.usageAndQuota.raw.type,
-                                                wallet.usageAndQuota.raw.unit,
-                                                wallet.usageAndQuota.raw.quota,
-                                                {precision: 2})
-                                        }
-                                        percentage={
-                                            100 * ((explainUnit(wallet.category).balanceFactor * wallet.totalAllocated) / wallet.usageAndQuota.raw.quota)
-                                        }
-                                        limitPercentage={(explainUnit(wallet.category).balanceFactor * wallet.totalAllocated) > wallet.usageAndQuota.raw.quota ? 0 : 100}
-                                        withWarning={false}
-                                    />
-                                </Flex>}
-                                indent={indent * 2}
+                                indent={indent}
                             >
-                                {/* TODO: Calculate this and store in useMemo instead of on every re-render */}
-                                {/* List All granted resources in descending order for each product category */}
-                                {state.subAllocations.recipients.sort((a,b) => {
-                                    const aval = a.groups.filter((g) => g.category === wallet.category).reduce((asum, element) => asum + element.totalGranted, 0)
-                                    const bval = b.groups.filter((g) => g.category === wallet.category).reduce((bsum, element) => bsum + element.totalGranted, 0)
-                                    return bval - aval;
-                                }).map((recipient, idx) =>
+                                {tree.wallets.map((wallet, idx) =>
                                     <TreeNode
                                         key={idx}
-                                        left={
-                                            <Flex gap={"4px"} alignItems={"center"}>
-                                                <TooltipV2
-                                                    tooltip={<>
-                                                        Project PI:{" "}
-                                                        <ProjectPiForNewCore
-                                                            id={recipient.owner.reference["projectId"]}
-                                                            piUsername={recipient.owner.primaryUsername}
-                                                        />
-                                                    </>}
-                                                >
-                                                    <Avatar {...avatars.avatarFromCache(recipient.owner.primaryUsername)}
-                                                            style={{height: "32px", width: "auto", marginTop: "-4px"}}
-                                                            avatarStyle={"Circle"} />
-                                                </TooltipV2>
-                                                <Truncate title={recipient.owner.title}>
-                                                    <ProjectTitleForNewCore id={recipient.owner.reference["projectId"]} title={recipient.owner.title} />
-                                                </Truncate>
-                                            </Flex>
-                                        }
-                                        right={
-                                            <Flex flexDirection={"row"} gap={"8px"}>
-                                                {
+                                        left={<Flex gap={"4px"}>
+                                            <ProviderLogo providerId={wallet.category.provider} size={20}/>
+                                            <code>{wallet.category.name}</code>
+                                        </Flex>}
+                                        right={<Flex flexDirection={"row"} gap={"8px"}>
+                                            <NewAndImprovedProgress
+                                                label={
                                                     balanceToStringFromUnit(
                                                         wallet.usageAndQuota.raw.type,
                                                         wallet.usageAndQuota.raw.unit,
-                                                        explainUnit(wallet.category).balanceFactor *
-                                                            recipient.groups.filter(
-                                                                (elm) => elm.category == wallet.category
-                                                            ).reduce((sum, element) => sum + element.totalGranted, 0),
+                                                        explainUnit(wallet.category).balanceFactor * wallet.totalAllocated,
                                                         {
-                                                            precision: 2
-                                                        }
-                                                    )
+                                                            precision: 2,
+                                                            removeUnitIfPossible: true
+                                                        })
+                                                    + " / " +
+                                                    balanceToStringFromUnit(
+                                                        wallet.usageAndQuota.raw.type,
+                                                        wallet.usageAndQuota.raw.unit,
+                                                        wallet.usageAndQuota.raw.quota,
+                                                        {precision: 2})
                                                 }
-                                            </Flex>
-                                        }
+                                                percentage={
+                                                    100 * ((explainUnit(wallet.category).balanceFactor * wallet.totalAllocated) / wallet.usageAndQuota.raw.quota)
+                                                }
+                                                limitPercentage={(explainUnit(wallet.category).balanceFactor * wallet.totalAllocated) > wallet.usageAndQuota.raw.quota ? 0 : 100}
+                                                withWarning={false}
+                                            />
+                                        </Flex>}
+                                        indent={indent * 2}
                                     >
+                                        {/* TODO: Calculate this and store in useMemo instead of on every re-render */}
+                                        {/* List All granted resources in descending order for each product category */}
+                                        {state.subAllocations.recipients.sort((a, b) => {
+                                            const aval = a.groups.filter((g) => g.category === wallet.category).reduce((asum, element) => asum + element.totalGranted, 0)
+                                            const bval = b.groups.filter((g) => g.category === wallet.category).reduce((bsum, element) => bsum + element.totalGranted, 0)
+                                            return bval - aval;
+                                        }).map((recipient, idx) =>
+                                            <TreeNode
+                                                key={idx}
+                                                left={
+                                                    <Flex gap={"4px"} alignItems={"center"}>
+                                                        <TooltipV2
+                                                            tooltip={<>
+                                                                Project PI:{" "}
+                                                                <ProjectPiForNewCore
+                                                                    id={recipient.owner.reference["projectId"]}
+                                                                    piUsername={recipient.owner.primaryUsername}
+                                                                />
+                                                            </>}
+                                                        >
+                                                            <Avatar {...avatars.avatarFromCache(recipient.owner.primaryUsername)}
+                                                                    style={{
+                                                                        height: "32px",
+                                                                        width: "auto",
+                                                                        marginTop: "-4px"
+                                                                    }}
+                                                                    avatarStyle={"Circle"}/>
+                                                        </TooltipV2>
+                                                        <Truncate title={recipient.owner.title}>
+                                                            <ProjectTitleForNewCore
+                                                                id={recipient.owner.reference["projectId"]}
+                                                                title={recipient.owner.title}/>
+                                                        </Truncate>
+                                                    </Flex>
+                                                }
+                                                right={
+                                                    <Flex flexDirection={"row"} gap={"8px"}>
+                                                        {
+                                                            balanceToStringFromUnit(
+                                                                wallet.usageAndQuota.raw.type,
+                                                                wallet.usageAndQuota.raw.unit,
+                                                                explainUnit(wallet.category).balanceFactor *
+                                                                recipient.groups.filter(
+                                                                    (elm) => elm.category == wallet.category
+                                                                ).reduce((sum, element) => sum + element.totalGranted, 0),
+                                                                {
+                                                                    precision: 2
+                                                                }
+                                                            )
+                                                        }
+                                                    </Flex>
+                                                }
+                                            >
 
+                                            </TreeNode>
+                                        )}
                                     </TreeNode>
                                 )}
-                            </TreeNode>
-                        )}
-                    </TreeNode>;
-                })}
-            </Tree>
+                            </TreeNode>;
+                        })}
+                    </Tree>
+                </>
+                }
+            </>}
 
-            </>
-            }
             {projectId !== undefined && <>
                 <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
                     <h3 style={{margin: 0}}>Sub-projects</h3>
-                    <Box flexGrow={1} />
+                    <Box flexGrow={1}/>
                     <Button height={35} onClick={onNewSubProject} disabled={projectRole == OldProjectRole.USER}>
-                        <Icon name={"heroPlus"} mr={8} />
+                        <Icon name={"heroPlus"} mr={8}/>
                         New sub-project
                     </Button>
 
@@ -1453,7 +1471,7 @@ const Allocations: React.FunctionComponent = () => {
                         />
                         <div style={{position: "relative"}}>
                             <div style={{position: "absolute", top: "-30px", right: "11px"}}>
-                                <Icon name={"heroMagnifyingGlass"} />
+                                <Icon name={"heroMagnifyingGlass"}/>
                             </div>
                         </div>
                     </Box>
@@ -1463,16 +1481,20 @@ const Allocations: React.FunctionComponent = () => {
                         <Checkbox onChange={e => dispatchEvent({
                             type: "ToggleViewOnlyProjects",
                             viewOnlyProjects: e.target.checked
-                        })} defaultChecked={state.viewOnlyProjects} />
+                        })} defaultChecked={state.viewOnlyProjects}/>
                         <span>View only projects</span>
                     </Label>
                 </Flex>
 
-                {state.subAllocations.recipients.length !== 0 ? null : <>
-                    You do not have any sub-allocations {state.searchQuery ? "with the active search" : ""} at the
-                    moment.
-                    {projectRole === OldProjectRole.USER ? null : <>
-                        You can create a sub-project by clicking <a href="#" onClick={onNewSubProject}>here</a>.
+                {state.remoteData.wallets === undefined ? <>
+                    <HexSpin size={64}/>
+                </> : <>
+                    {state.subAllocations.recipients.length !== 0 ? null : <>
+                        You do not have any sub-allocations {state.searchQuery ? "with the active search" : ""} at the
+                        moment.
+                        {projectRole === OldProjectRole.USER ? null : <>
+                            You can create a sub-project by clicking <a href="#" onClick={onNewSubProject}>here</a>.
+                        </>}
                     </>}
                 </>}
 
@@ -1524,11 +1546,12 @@ const Allocations: React.FunctionComponent = () => {
                                                     </>}
                                                 >
                                                     <Avatar {...avatars.avatarFromCache(recipient.owner.primaryUsername)}
-                                                        style={{height: "32px", width: "auto", marginTop: "-4px"}}
-                                                        avatarStyle={"Circle"} />
+                                                            style={{height: "32px", width: "auto", marginTop: "-4px"}}
+                                                            avatarStyle={"Circle"}/>
                                                 </TooltipV2>
                                                 <Truncate title={recipient.owner.title}>
-                                                    <ProjectTitleForNewCore id={recipient.owner.reference["projectId"]} title={recipient.owner.title} />
+                                                    <ProjectTitleForNewCore id={recipient.owner.reference["projectId"]}
+                                                                            title={recipient.owner.title}/>
                                                 </Truncate>
                                             </Flex>}
                                             right={<div className={"sub-alloc"}>
@@ -1543,16 +1566,18 @@ const Allocations: React.FunctionComponent = () => {
                                                             subAllocator: false,
                                                         })}
                                                     >
-                                                        <SmallIconButton title="View grant application" icon={"heroBanknotes"}
-                                                            subIcon={"heroPlusCircle"}
-                                                            subColor1={"primaryContrast"} subColor2={"primaryContrast"} />
+                                                        <SmallIconButton title="View grant application"
+                                                                         icon={"heroBanknotes"}
+                                                                         subIcon={"heroPlusCircle"}
+                                                                         subColor1={"primaryContrast"}
+                                                                         subColor2={"primaryContrast"}/>
                                                     </Link>
                                                 }
 
 
                                                 {recipient.usageAndQuota.map((uq, idx) => {
                                                     if (idx > 2) return null;
-                                                    return <ProgressBar key={idx} uq={uq} />;
+                                                    return <ProgressBar key={idx} uq={uq}/>;
                                                 })}
                                             </div>}
                                         >
@@ -1564,14 +1589,15 @@ const Allocations: React.FunctionComponent = () => {
                                                     data-open={openNodes[makeCategoryKey(recipient.owner.title, g.category.name)]}
                                                     left={<Flex gap={"4px"}>
                                                         <Flex gap={"4px"} width={"200px"}>
-                                                            <ProviderLogo providerId={g.category.provider} size={20} />
-                                                            <Icon name={Accounting.productTypeToIcon(g.category.productType)}
-                                                                size={20} />
+                                                            <ProviderLogo providerId={g.category.provider} size={20}/>
+                                                            <Icon
+                                                                name={Accounting.productTypeToIcon(g.category.productType)}
+                                                                size={20}/>
                                                             <code>{g.category.name}</code>
                                                         </Flex>
                                                     </Flex>}
                                                     right={
-                                                        <ProgressBar uq={g.usageAndQuota} />
+                                                        <ProgressBar uq={g.usageAndQuota}/>
                                                     }
                                                     onActivate={open => {
                                                         if (open) setNodeState(TreeAction.OPEN, recipient.owner.title, g.category.name);
@@ -1584,10 +1610,11 @@ const Allocations: React.FunctionComponent = () => {
                                                             <TreeNode
                                                                 key={alloc.allocationId}
                                                                 className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
-                                                                data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx} data-grant-id={alloc.grantedIn}
+                                                                data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx}
+                                                                data-grant-id={alloc.grantedIn}
                                                                 left={<Flex>
                                                                     <Flex width={"200px"}>
-                                                                        <Icon name={"heroBanknotes"} ml="8px" mr={4} />
+                                                                        <Icon name={"heroBanknotes"} ml="8px" mr={4}/>
                                                                         <div>
                                                                             <b>Allocation ID:</b>
                                                                             {" "}
@@ -1605,9 +1632,10 @@ const Allocations: React.FunctionComponent = () => {
 
                                                                     {alloc.grantedIn && <>
                                                                         <Link target={"_blank"}
-                                                                            to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                                                              to={AppRoutes.grants.editor(alloc.grantedIn)}>
                                                                             View grant application{" "}
-                                                                            <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
+                                                                            <Icon name={"heroArrowTopRightOnSquare"}
+                                                                                  mt={-6}/>
                                                                         </Link>
                                                                     </>}
                                                                 </Flex>}
@@ -1616,11 +1644,13 @@ const Allocations: React.FunctionComponent = () => {
                                                                         <SmallIconButton
                                                                             icon={"heroPencil"} onClick={onEdit}
                                                                             disabled={state.editControlsDisabled}
-                                                                            data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx} />
+                                                                            data-ridx={recipientIdx} data-idx={idx}
+                                                                            data-gidx={gidx}/>
                                                                     }
                                                                     {alloc.note && <>
                                                                         <TooltipV2 tooltip={alloc.note.text}>
-                                                                            <Icon name={alloc.note.icon} color={alloc.note.iconColor} />
+                                                                            <Icon name={alloc.note.icon}
+                                                                                  color={alloc.note.iconColor}/>
                                                                         </TooltipV2>
                                                                     </>}
 
@@ -1635,7 +1665,8 @@ const Allocations: React.FunctionComponent = () => {
                                                                                 data-ridx={recipientIdx} data-idx={idx}
                                                                                 data-gidx={gidx}
                                                                             />
-                                                                            <Text width="120px">{Accounting.explainUnit(g.category).name}</Text>
+                                                                            <Text
+                                                                                width="120px">{Accounting.explainUnit(g.category).name}</Text>
                                                                         </Flex>
                                                                         : <Text>
                                                                             {Accounting.balanceToString(g.category, alloc.quota)}
@@ -1676,8 +1707,9 @@ function setNodeState(action: TreeAction, recipient: string, group?: string | nu
 }
 
 const ROW_HEIGHT = 48;
+
 function calculateHeightInPx(idx: number, state: State): number {
-    if (state.subAllocations.recipients.length <= idx) return 0; // Already handled 
+    if (state.subAllocations.recipients.length <= idx) return 0; // Already handled
     const recipient = state.subAllocations.recipients[idx];
     let height = ROW_HEIGHT;
     const isOpen = openNodes[recipient.owner.title]
@@ -1797,12 +1829,12 @@ const SmallIconButton: React.FunctionComponent<{
         data-has-sub={props.subIcon !== undefined}
         {...extractDataTags(props)}
     >
-        <Icon name={props.icon} hoverColor={"primaryContrast"} />
+        <Icon name={props.icon} hoverColor={"primaryContrast"}/>
         {props.subIcon &&
             <Relative>
                 <div className={"sub"}>
                     <Icon name={props.subIcon} hoverColor={props.subColor1} color={props.subColor1}
-                        color2={props.subColor2} />
+                          color2={props.subColor2}/>
                 </div>
             </Relative>
         }
@@ -1818,7 +1850,7 @@ async function fetchManagedProviders(): Promise<string[]> {
 // =====================================================================================================================
 function initialState(): State {
     return {
-        remoteData: {wallets: [], managedProviders: [], managedProducts: {}, gifts: []},
+        remoteData: {},
         subAllocations: {recipients: []},
         searchQuery: "",
         yourAllocations: {},
