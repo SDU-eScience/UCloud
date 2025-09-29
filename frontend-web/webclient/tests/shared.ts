@@ -307,6 +307,15 @@ export const Runs = {
 
     async extendTimeBy(page: Page, extension: 1 | 8 | 24) {
         await page.getByRole("button", {name: `+${extension}`}).click();
+    },
+
+    async openTerminal(page: Page): Promise<Page> {
+        const terminalPagePromise = page.waitForEvent("popup");
+        await page.getByRole('button', {name: 'Open terminal'}).click();
+        const terminalPage = await terminalPagePromise;
+        await terminalPage.waitForTimeout(1000);
+        await terminalPage.getByText("ucloud@").click();
+        return terminalPage;
     }
 };
 

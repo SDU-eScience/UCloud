@@ -80,14 +80,7 @@ test("Mount folder with file in job, and cat inside contents", async ({page}) =>
     await Runs.addFolderResource(page, driveName, folderName);
     await Runs.submitAndWaitForRunning(page);
 
-    const terminalPagePromise = page.waitForEvent("popup");
-
-    await page.getByRole('button', {name: 'Open terminal'}).click();
-
-    const terminalPage = await terminalPagePromise;
-
-    await terminalPage.waitForTimeout(1000);
-    await terminalPage.getByText("ucloud@").click();
+    const terminalPage = await Runs.openTerminal(page);
 
     await Terminal.enterCmd(terminalPage, `cat ${folderName}/${uploadedFileName}`)
     
