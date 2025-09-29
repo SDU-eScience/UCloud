@@ -15,6 +15,7 @@ test("Run job with jobname, extend time, stop job, validate jobname in runs", as
     await Components.selectAvailableMachineType(page);
     await Runs.extendTimeBy(page, 1);
     await Runs.submitAndWaitForRunning(page);
+    await Runs.extendTimeBy(page, 1);
 
     while (!await page.getByText("Time remaining: 02").isVisible()) {
         await page.waitForTimeout(1000);

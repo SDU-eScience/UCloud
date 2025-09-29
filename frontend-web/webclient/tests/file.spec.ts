@@ -79,7 +79,7 @@ test("Upload file, validate contents, ensure shown as task", async ({page}) => {
     const testFileName = "test_single_file.txt";
     const testFileContents = "Single test file content.";
     await File.uploadFiles(page, [{name: testFileName, contents: testFileContents}]);
-    await File.actionByRowTitle(page, testFileName, "dblclick");
+    await File.open(page, testFileName);
     await expect(page.getByText(testFileContents)).toHaveCount(1);
     await Components.toggleTasksDialog(page);
     await expect(page.locator("svg > circle").first()).toHaveCount(1);
@@ -112,9 +112,9 @@ test("Create multiple folders (use / in the name)", async ({page}) => {
     const folderName2 = File.newFolderName();
     const folderName3 = File.newFolderName();
     await File.create(page, folderName1 + "/" + folderName2 + "/" + folderName3);
-    await File.actionByRowTitle(page, folderName1, "dblclick");
-    await File.actionByRowTitle(page, folderName2, "dblclick");
-    await File.actionByRowTitle(page, folderName3, "dblclick");
+    await File.open(page, folderName1);
+    await File.open(page, folderName2);
+    await File.open(page, folderName3);
 });
 
 test("Rename", async ({page}) => {
@@ -122,7 +122,7 @@ test("Rename", async ({page}) => {
     const newFolderName = File.newFolderName();
     await File.create(page, folderName);
     await File.rename(page, folderName, newFolderName)
-    await page.getByText(newFolderName).dblclick();
+    await File.open(page, newFolderName);
     await expect(page.getByText("This folder is empty")).toHaveCount(1);
 });
 

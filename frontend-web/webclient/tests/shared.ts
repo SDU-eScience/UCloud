@@ -25,7 +25,7 @@ export const Rows = {
         await page.locator(".scrolling").hover();
         await page.mouse.wheel(0, -Number.MAX_SAFE_INTEGER);
 
-        while (!await page.locator("div > span", {hasText: name}).isVisible()) {
+        while (!await page.locator(".row div > span", {hasText: name}).isVisible()) {
             await page.locator(".scrolling").hover();
             await page.mouse.wheel(0, 150);
             await page.waitForTimeout(50);
@@ -35,11 +35,11 @@ export const Rows = {
                 break;
             }
         }
-        await page.locator("div > span", {hasText: name})[action]();
+        await page.locator(".row div > span", {hasText: name})[action]();
     },
 
     async open(page: Page, resourceTitle: string): Promise<void> {
-        this.actionByRowTitle(page, resourceTitle, "dblclick");
+        await this.actionByRowTitle(page, resourceTitle, "dblclick");
     },
 
     async rename(page: Page, oldName: string, newName: string): Promise<void> {
@@ -137,7 +137,14 @@ export const File = {
 
     async ensureDialogDriveActive(page: Page, driveName: string): Promise<void> {
         // Check locator input for content
-        const correctDrive = await page.getByRole('listitem', {name: driveName}).isVisible();
+        while (!await page.locator("div.location").isVisible()) {
+            await page.waitForTimeout(500);
+        }
+
+        await page.waitForTimeout(500);
+
+        const correctDrive = await page.getByRole("dialog")
+            .getByRole('listitem', {name: driveName}).isVisible();
 
         if (correctDrive) {
             // Already matches. No work to be done.
@@ -286,7 +293,11 @@ export const Runs = {
         await page.getByRole("dialog").locator(".row", {hasText: folderName}).getByRole("button", {name: "Use"}).click();
     },
 
-    async submitAndWaitForRunning(page: Page): Promise<void> {
+    async submitAndWaitForRunning(page: Page, extension?: 1 | 8 | 24): Promise<void> {
+        if (extension != null) {
+            await this.extendTimeBy(page, extension);
+        }
+
         await page.getByRole("button", {name: "Submit"}).click();
 
         while (!await page.getByText("is now running").first().isVisible()) {
