@@ -205,7 +205,7 @@ export const Drive = {
 
 export const Components = {
     async projectSwitcher(page: Page, action: "click" | "hover"): Promise<void> {
-        const loc = page.locator("div.project-switcher").first();
+        const loc = page.locator(`div[data-component="project-switcher"]`).first();
         await loc[action]();
     },
 
@@ -252,9 +252,39 @@ export const Components = {
 
 export const Applications = {
     ...Rows,
-    async gotoApplications(page: Page): Promise<void> {
+    async goToApplications(page: Page): Promise<void> {
         await page.getByRole("link", {name: "Go to Applications"}).click();
     },
+
+    async openApp(page: Page, appName: string, exact: boolean = true): Promise<void> {
+        this.goToApplications(page);
+        await Components.projectSwitcher(page, "hover");
+        const locatorString = exact ? `img[alt=${appName}]` : `img[alt^=${appName}]`;
+        let iterations = 1000;
+        await page.mouse.wheel(0, -Number.MAX_SAFE_INTEGER);
+        while (!await page.locator(locatorString).first().isVisible()) {
+            await page.mouse.wheel(0, 150);
+            await page.waitForTimeout(50);
+            iterations -= 1;
+            if (iterations <= 0) {
+                console.warn("Many such iterations, no result");
+                break;
+            }
+        }
+
+        await page.locator(locatorString).first().click();
+    },
+
+    async toggleFavorite(page: Page): Promise<void> {
+        // Ensure mount of svg before checking value
+        await page.waitForTimeout(500);
+        const isFavorited = await page.locator("svg[data-component='icon-starFilled']").isVisible();
+        const emptyIcon = "icon-starEmpty";
+        const filledIcon = "icon-starFilled";
+        await page.locator(`svg[data-component=${isFavorited ? filledIcon : emptyIcon}]`).click();
+        // Expect flipped data-component value.
+        await page.locator(`svg[data-component=${isFavorited ? emptyIcon : filledIcon}]`).isVisible();
+    }
 };
 
 export const Runs = {

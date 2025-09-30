@@ -7,18 +7,18 @@ test.beforeEach(async ({page}) => {
 
 test("Run job with jobname, extend time, stop job, validate jobname in runs", async ({page}) => {
     test.setTimeout(240_000);
-    await Applications.gotoApplications(page);
+    await Applications.goToApplications(page);
     await page.getByRole("button", {name: "Open application"}).click();
     const jobName = Runs.newJobName();
-    await page.getByRole("textbox", {name: "Job name"}).click();
-    await page.getByRole("textbox", {name: "Job name"}).fill(jobName);
+
+    await Runs.setJobTitle(page, jobName);
     await Components.selectAvailableMachineType(page);
     await Runs.extendTimeBy(page, 1);
     await Runs.submitAndWaitForRunning(page);
     await Runs.extendTimeBy(page, 1);
 
     while (!await page.getByText("Time remaining: 02").isVisible()) {
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(200);
     }
 
     await Components.clickConfirmationButton(page, "Stop application");
@@ -32,16 +32,17 @@ test("Run job with jobname, extend time, stop job, validate jobname in runs", as
 });
 
 test("Favorite app, unfavorite app", async ({page}) => {
-    // Note(Jonas): Stuff like finding the favorite icon is pretty difficult through selectors,
-    // so maybe consider adding test ids? I don"t know what makes the most sense.
-    throw Error("Not implemented");
+    const AppNameThatIsExpectedToBePresent = "Coder";
+    await Applications.openApp(page, AppNameThatIsExpectedToBePresent);
+    await Applications.toggleFavorite(page);
+    await Applications.toggleFavorite(page);
 });
 
 test("Start app and stop app from runs page. Start it from runs page, testing parameter import", async ({page}) => {
     test.setTimeout(240_000);
     const jobName = Runs.newJobName();
 
-    await Applications.gotoApplications(page);
+    await Applications.goToApplications(page);
     await page.getByRole("button", {name: "Open application"}).click();
     await Runs.setJobTitle(page, jobName);
     await Components.selectAvailableMachineType(page);
@@ -52,7 +53,7 @@ test("Start app and stop app from runs page. Start it from runs page, testing pa
     await expect(page.getByText("Your job has completed")).toHaveCount(1);
     await Runs.runApplicationAgain(page, jobName);
     await Components.clickConfirmationButton(page, "Stop application");
-    // Note(Jonas): I would have thought that the `expect` below would be enough, but 
+    // Note(Jonas): I would have thought that the `expect` below would be enough, but alas!
     while (!await page.getByText("Run application again").isVisible()) {
         await page.waitForTimeout(1000);
     }
@@ -66,13 +67,12 @@ test("Mount folder with file in job, and cat inside contents", async ({page}) =>
     const [uploadedFileName, contents] = ["UploadedFile.txt", "Am I not invisible???"];
     const jobName = Runs.newJobName();
 
-
     await Drive.create(page, driveName);
     await Drive.openDrive(page, driveName);
     await File.create(page, folderName);
     await File.open(page, folderName);
     await File.uploadFiles(page, [{name: uploadedFileName, contents: contents}]);
-    await Applications.gotoApplications(page);
+    await Applications.goToApplications(page);
     await page.getByRole("button", {name: "Open application"}).click();
 
     await Runs.setJobTitle(page, jobName)
@@ -89,4 +89,16 @@ test("Mount folder with file in job, and cat inside contents", async ({page}) =>
     await terminalPage.close();
     await Runs.stopRun(page, jobName);
     await Drive.delete(page, driveName);
+});
+
+test("Ensure 'New version available' button shows up and works.", async ({page}) => {
+    await Applications.openApp(page, "Coder");
+    const versionSelect = page.locator("div[class^=rich-select-trigger]").last();
+    const newestVersion = await versionSelect.innerText();
+    await versionSelect.click();
+    await page.locator("div[class^=rich-select-result-wrapper] > div").last().click();
+    await page.getByText("New version available.").click();
+    await page.waitForTimeout(500);
+    const latestVersionSelectContent = await versionSelect.innerText();
+    expect(newestVersion).toMatch(latestVersionSelectContent);
 });
