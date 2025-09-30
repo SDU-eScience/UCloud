@@ -1,8 +1,8 @@
 import {test, expect} from "@playwright/test";
-import {login, Drive, Project} from "./shared";
+import {User, Drive, Project} from "./shared";
 
 test.beforeEach(async ({page}) => {
-    await login(page);
+    await User.login(page);
 });
 
 /// Drive operations

@@ -1,8 +1,8 @@
 import {expect, test} from "@playwright/test";
-import {Applications, Components, login, Runs, File, Drive, Terminal} from "./shared";
+import {Applications, Components, User, Runs, File, Drive, Terminal} from "./shared";
 
 test.beforeEach(async ({page}) => {
-    login(page);
+    await User.login(page);
 });
 
 test("Run job with jobname, extend time, stop job, validate jobname in runs", async ({page}) => {

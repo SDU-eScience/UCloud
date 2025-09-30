@@ -5,14 +5,22 @@ import {default as data} from "./test_data.json" with {type: "json"};
 
 const user = data.users.with_resources;
 
-export async function login(page: Page): Promise<void> {
-    if (!user) throw Error("No username or password provided");
-    await page.goto(ucloudUrl("login"));
-    await page.getByText("Other login options →").click();
-    await page.getByRole("textbox", {name: "Username"}).fill(user.username);
-    await page.getByRole("textbox", {name: "Password"}).fill(user.password);
-    await page.getByRole("button", {name: "Login"}).click();
-};
+export const User = {
+    async login(page: Page): Promise<void> {
+        if (!user) throw Error("No username or password provided");
+        await page.goto(ucloudUrl("login"));
+        await page.getByText("Other login options →").click();
+        await page.getByRole("textbox", {name: "Username"}).fill(user.username);
+        await page.getByRole("textbox", {name: "Password"}).fill(user.password);
+        await page.getByRole("button", {name: "Login"}).click();
+    },
+
+
+    async logout(page: Page) {
+        await Components.toggleUserMenu(page);
+        await page.getByText("Logout").click();
+    },
+}
 
 export function ucloudUrl(pathname: string): string {
     return data.location_origin + "/app" + (pathname.startsWith("/") ? pathname : "/" + pathname);
@@ -248,6 +256,10 @@ export const Components = {
         // Note(Jonas): Selector for class that starts with 'static-circle'.
         await page.locator("[class*='static-circle']").click();
     },
+
+    async toggleUserMenu(page: Page): Promise<void> {
+        await page.locator(".SIDEBAR_IDENTIFIER > div[class^=flex] > div[class^=dropdown]").last().click();
+    }
 };
 
 export const Applications = {

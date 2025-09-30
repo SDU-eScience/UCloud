@@ -1,10 +1,10 @@
 import {expect, test} from "@playwright/test";
-import {login, Resources} from "./shared";
+import {User, Resources} from "./shared";
 
 Resources.PublicLinks;
 
 test.beforeEach(async ({page}) => {
-    await login(page);
+    await User.login(page);
 });
 
 const {PublicLinks, IPs, SSHKeys, Licenses} = Resources;
