@@ -559,6 +559,9 @@ class JobResourceService(
         if (notificationsToAdd.isNotEmpty()) {
             backgroundScope.launch {
                 for (notification in notificationsToAdd) {
+                    val appName = notification.application.name
+                    if (appName == "unknown" || appName == "syncthing") continue
+
                     notificationMutex.withLock {
                         addNotification(notification)
                     }

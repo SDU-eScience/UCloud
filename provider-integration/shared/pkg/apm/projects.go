@@ -1,7 +1,6 @@
 package apm
 
 import (
-	c "ucloud.dk/shared/pkg/client"
 	"ucloud.dk/shared/pkg/util"
 )
 import fnd "ucloud.dk/shared/pkg/foundation"
@@ -68,39 +67,6 @@ type ProjectGroupSpecification struct {
 
 type ProjectGroupStatus struct {
 	Members []string `json:"members,omitempty"`
-}
-
-type ProjectFlags struct {
-	IncludeMembers  bool
-	IncludeGroups   bool
-	IncludeFavorite bool
-	IncludeArchived bool
-	IncludeSettings bool
-	IncludePath     bool
-}
-
-func RetrieveProject(id string, flags ProjectFlags) (project Project, err error) {
-	return c.ApiRetrieve[Project](
-		projectsNamespace+"retrieve",
-		projectsContext,
-		"",
-		append(c.StructToParameters(flags), "id", id),
-	)
-}
-
-type ProjectBrowseFlags struct {
-	ProjectFlags
-	SortBy        string
-	SortDirection string
-}
-
-func BrowseProjects(next string, flags ProjectBrowseFlags) (fnd.PageV2[Project], error) {
-	return c.ApiBrowse[fnd.PageV2[Project]](
-		projectsNamespace+"browse",
-		projectsContext,
-		"",
-		append(c.StructToParameters(flags), "next", next, "itemsPerPage", "250"),
-	)
 }
 
 func IsMemberOfGroup(project Project, groupId string, username string) bool {

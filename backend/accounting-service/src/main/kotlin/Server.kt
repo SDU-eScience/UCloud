@@ -121,6 +121,7 @@ class Server(
         } else {
             null
         }
+        /*
         scriptManager.register(
             Script(
                 ScriptMetadata(
@@ -132,7 +133,7 @@ class Server(
                     lowFundsJob.checkWallets()
                 }
             )
-        )
+         */
 
         configureControllers(
             AccountingController(
