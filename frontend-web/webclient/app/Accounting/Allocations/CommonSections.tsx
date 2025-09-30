@@ -10,7 +10,20 @@ import {
     WalletV2
 } from "@/Accounting";
 import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
-import {Box, Button, Checkbox, Flex, Icon, Input, Label, Link, Relative, Text, Truncate} from "@/ui-components";
+import {
+    Box,
+    Button,
+    Checkbox,
+    Divider,
+    Flex,
+    Icon,
+    Input,
+    Label,
+    Link,
+    Relative,
+    Text,
+    Truncate
+} from "@/ui-components";
 import AppRoutes from "@/Routes";
 import * as Accounting from "@/Accounting";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -275,12 +288,23 @@ const subProjectsStyle = injectStyle("sub-projects", k => `
     }
     
     ${k} .sub-projects-sorting-container {
-        
+        display: flex;
+        padding-top: 6px;            
+    }
+    
+    ${k} .sub-projects-sorting-headers {
+        display: block;
+        flex-grow: 1;
     }
     
     ${k} .sub-projects-sorting-selector {
         display: flex;
-        
+        align-items: center;
+        gap: 9px;  
+    }
+    
+    ${k} .sort-button {
+        padding-right: 22px;
     }
 `);
 
@@ -702,6 +726,7 @@ const SubProjectListRow: React.FunctionComponent<{
 
                                     {alloc.note?.rowShouldBeGreyedOut !== true && !alloc.isEditing &&
                                         <SmallIconButton
+
                                             icon={"heroPencil"} onClick={onEdit}
                                             disabled={state.editControlsDisabled}
                                             data-ridx={rowIdx} data-idx={idx}
@@ -871,9 +896,12 @@ export const SubProjectFilters: React.FunctionComponent<{
         {Object.values(settings).map(setting => (
             <SubProjectFiltersRow key={setting.title} setting={setting} onChange={onSettingsChanged}/>
         ))}
+        <Divider/>
         <div className="sub-projects-sorting-container">
-            <h3>Sub-project sorting</h3>
-            <h4 style={{color: "var(--textSecondary)"}}>Select sorting criteria to apply</h4>
+            <div className="sub-projects-sorting-headers">
+                <h3>Sub-project sorting</h3>
+                <h4 style={{color: "var(--textSecondary)"}}>Select sorting criteria to apply</h4>
+            </div>
             <div className="sub-projects-sorting-selector">
                 <SimpleRichSelect
                     items={[{key: "", value: ""}]}
@@ -881,11 +909,13 @@ export const SubProjectFilters: React.FunctionComponent<{
                         selected={undefined}
                         dropdownWidth={"300px"}>
                 </SimpleRichSelect>
-                <TooltipV2 tooltip={ascending ? "Set to ascending" : "Set to descending"}>
-                    <SmallIconButton
-                        icon={ascending ? "heroBarsArrowUp" : "heroBarsArrowDown"}
-                        onClick={onSortingToggle}/>
-                </TooltipV2>
+                <div className="sort-button">
+                    <TooltipV2 tooltip={ascending ? "Set to ascending" : "Set to descending"}>
+                        <SmallIconButton
+                            icon={ascending ? "heroBarsArrowUp" : "heroBarsArrowDown"}
+                            onClick={onSortingToggle}/>
+                    </TooltipV2>
+                </div>
             </div>
         </div>
     </ReactModal>;
@@ -978,7 +1008,6 @@ export const SubProjectList: React.FunctionComponent<{
                         <span>View only projects</span>
                     </Label>
                 </Flex>
-
                 <div className="sub-projects-container" style={{height: "500px", width: "100%"}}>
                     {state.remoteData.wallets === undefined ? <>
                         <HexSpin size={64} />
@@ -1148,7 +1177,6 @@ export const ResourcesGranted: React.FunctionComponent<{
                                                 </Flex>
                                             }
                                         >
-
                                         </TreeNode>
                                     )}
                                 </TreeNode>;
@@ -1157,7 +1185,6 @@ export const ResourcesGranted: React.FunctionComponent<{
                     </TreeNode>;
                 })}
             </Tree>
-
         </>
         }
     </>;

@@ -1028,6 +1028,8 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
             recipient.groups.sort((a, b) => {
                 const providerCmp = a.category.provider.localeCompare(b.category.provider);
                 if (providerCmp !== 0) return providerCmp;
+                const productTypeCmp = a.category.productType.localeCompare(b.category.productType);
+                if (productTypeCmp !== 0) return productTypeCmp;
                 const categoryCmp = a.category.name.localeCompare(b.category.name);
                 if (categoryCmp !== 0) return categoryCmp;
                 return 0;

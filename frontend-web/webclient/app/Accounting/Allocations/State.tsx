@@ -23,6 +23,9 @@ export interface State extends Accounting.AllocationDisplayTree {
 
     searchQuery: string;
 
+    subprojectSortBy?: string;
+    subprojectSortByAscending: boolean;
+
     gifts?: {
         title: string;
         description: string;
@@ -60,6 +63,7 @@ export type UIAction =
     | { type: "UpdateRootAllocations", data: Partial<State["rootAllocations"]> }
     | { type: "ResetRootAllocation" }
     | { type: "ToggleViewOnlyProjects", viewOnlyProjects: boolean }
+    | { type: "SortSubprojects", sortBy?: string, ascending: boolean }
     ;
 
 function searchQueryMatches(recipient: AllocationDisplayTreeRecipient, state: State, query: string) {
@@ -71,6 +75,16 @@ function searchQueryMatches(recipient: AllocationDisplayTreeRecipient, state: St
 
 export function stateReducer(state: State, action: UIAction): State {
     switch (action.type) {
+        case "SortSubprojects": {
+            const newState = {
+                ...state,
+                subprojectSortBy: action.sortBy,
+                subprojectSortByAscending: action.ascending,
+            };
+
+            return rebuildTree(newState);
+        }
+
         case "WalletsLoaded": {
             const newState = {
                 ...state,
@@ -296,6 +310,20 @@ export function stateReducer(state: State, action: UIAction): State {
 
     function rebuildTree(state: State): State {
         const newTree = Accounting.buildAllocationDisplayTree((state.remoteData.wallets ?? []));
+
+        newTree.subAllocations.recipients.sort((a, b) => {
+            switch (state.subprojectSortBy) {
+                case "PI": {
+                    return a.owner.primaryUsername.localeCompare(b.owner.primaryUsername);
+                }
+
+                case "title":
+                default: {
+                    return a.owner.title.localeCompare(b.owner.title);
+                }
+            }
+        });
+
         const query = state.searchQuery;
 
         const filteredSubProjectIndices: number[] = [];
@@ -403,5 +431,6 @@ export function initialState(): State {
         editControlsDisabled: false,
         viewOnlyProjects: true,
         filteredSubProjectIndices: [],
+        subprojectSortByAscending: true,
     };
 }
