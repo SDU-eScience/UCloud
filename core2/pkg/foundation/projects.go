@@ -18,7 +18,6 @@ import (
 )
 
 // TODO(Dan): This service is not completed yet, this is a rough list of things missing:
-//   - Invites
 //   - Unmanaged provider projects
 //   - Project creation (we might want to do this purely through grants moving forward and make this a purely internal
 //     call)
