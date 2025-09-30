@@ -19,7 +19,6 @@ import (
 
 // TODO(Dan): This service is not completed yet, this is a rough list of things missing:
 //   - Invites
-//   - Provider access (when relevant)
 //   - Unmanaged provider projects
 //   - Project creation (we might want to do this purely through grants moving forward and make this a purely internal
 //     call)
@@ -376,8 +375,6 @@ func projectRetrieve(
 	if id == "" {
 		return fndapi.Project{}, nil, util.HttpErr(http.StatusNotFound, "This action only works in a non-personal project")
 	}
-
-	// TODO providers need to take a special path
 
 	var isMember bool
 	var isFavorite bool
