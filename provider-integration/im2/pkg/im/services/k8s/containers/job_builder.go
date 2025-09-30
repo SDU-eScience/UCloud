@@ -266,6 +266,17 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// Invocation
 	// -----------------------------------------------------------------------------------------------------------------
 	prepareInvocationOnJobCreate(job, rank, pod, userContainer, internalToPod, jobFolder)
+	hasPublicLink := false
+	for _, r := range job.Specification.Resources {
+		if r.Type == orc.AppParameterValueTypeIngress {
+			hasPublicLink = true
+			break
+		}
+	}
+	userContainer.Env = append(userContainer.Env, core.EnvVar{
+		Name:  "UCLOUD_URL_IS_PUBLIC",
+		Value: fmt.Sprint(hasPublicLink),
+	})
 
 	// Multi-node sidecar
 	// -----------------------------------------------------------------------------------------------------------------
