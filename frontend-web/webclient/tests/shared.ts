@@ -6,9 +6,13 @@ import {default as data} from "./test_data.json" with {type: "json"};
 const user = data.users.with_resources;
 
 export const User = {
+    async toLoginPage(page: Page): Promise<void> {
+        await page.goto(ucloudUrl("login"));
+    },
+
     async login(page: Page): Promise<void> {
         if (!user) throw Error("No username or password provided");
-        await page.goto(ucloudUrl("login"));
+        await this.toLoginPage(page);
         await page.getByText("Other login options →").click();
         await page.getByRole("textbox", {name: "Username"}).fill(user.username);
         await page.getByRole("textbox", {name: "Password"}).fill(user.password);
