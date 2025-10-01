@@ -572,7 +572,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
                             <div className={fakeLogo.class} />
                             <div className={headerText.class}>
-                                <RunningText job={job} interfaceLinks={interfaceTargets} />
+                                <RunningText job={job} interfaceLinks={interfaceTargets} defaultInterfaceName={targetRequests.defaultName}/>
                             </div>
                         </Flex>
 
@@ -799,7 +799,8 @@ function isSupported(jobBackend: string | undefined, support: ComputeSupport | u
 const RunningText: React.FunctionComponent<{
     job: Job;
     interfaceLinks: InterfaceTarget[];
-}> = ({job, interfaceLinks}) => {
+    defaultInterfaceName?: string;
+}> = ({job, interfaceLinks, defaultInterfaceName}) => {
     return <>
         <Flex justifyContent={"space-between"} height={"var(--logoSize)"}>
             <Flex flexDirection={"column"}>
@@ -812,7 +813,7 @@ const RunningText: React.FunctionComponent<{
                 <Box flexGrow={1} />
                 <div><CancelButton job={job} state={"RUNNING"} /></div>
             </Flex>
-            <RunningButtonGroup job={job} interfaceLinks={interfaceLinks} />
+            <RunningButtonGroup job={job} interfaceLinks={interfaceLinks} defaultInterfaceName={defaultInterfaceName}/>
         </Flex>
     </>;
 };
@@ -943,6 +944,7 @@ interface InterfaceTarget {
     target?: string,
     port?: number,
     link?: string,
+    defaultName?: string | null,
 }
 
 interface TerminalTarget {
@@ -953,11 +955,13 @@ interface TerminalTarget {
 interface TargetRequests {
     requestsToMake: OpenInteractiveSessionRequest[];
     fixedTargets: InterfaceTarget[];
+    defaultName?: string;
 }
 
 function findTargetRequests(job: Job): TargetRequests {
     let requestsToMake: OpenInteractiveSessionRequest[] = [];
     const fixedTargets: InterfaceTarget[] = [];
+    let defaultName: string | undefined;
 
     const appType = getAppType(job);
     const backendType = getBackend(job);
@@ -977,6 +981,10 @@ function findTargetRequests(job: Job): TargetRequests {
         for (const message of messages) {
             if (message.startsWith("Target: ")) {
                 const parsedTarget = JSON.parse(message.substring("Target: ".length)) as InterfaceTarget;
+                if (parsedTarget.defaultName != null) {
+                    defaultName = parsedTarget.defaultName;
+                    continue;
+                }
                 const canShowVnc = (parsedTarget.type === "VNC" || isVirtualMachine) && isSupported(backendType, support, "vnc");
                 const canShowWeb = (parsedTarget.type === "WEB") && isSupported(backendType, support, "web");
 
@@ -1009,7 +1017,7 @@ function findTargetRequests(job: Job): TargetRequests {
         fixedTargets.push({rank: 0, type: "VNC", link: `/applications/vnc/${job.id}/0?hide-frame`} as InterfaceTarget);
     }
 
-    return {requestsToMake, fixedTargets};
+    return {requestsToMake, fixedTargets, defaultName};
 }
 
 async function resolveInterfaceTargets(request: TargetRequests): Promise<InterfaceTarget[]> {
@@ -1598,7 +1606,7 @@ const InterfaceLinkRow: RichSelectChildComponent<SearchableInterfaceTarget> = ({
                 p={8}
             >
                 <Icon name="heroArrowTopRightOnSquare" />
-                <Truncate>{element.target ?? "Open interface"}</Truncate>
+                <Truncate>{element.target ?? element.defaultName ?? "Open interface"}</Truncate>
 
                 {!element.showNode ? null :
                     <div style={{color: "var(--textSecondary)"}}>
@@ -1643,7 +1651,8 @@ type SearchableTerminalTarget = (TerminalTarget & {searchString: string;})
 const RunningButtonGroup: React.FunctionComponent<{
     job: Job;
     interfaceLinks: InterfaceTarget[];
-}> = ({job, interfaceLinks}) => {
+    defaultInterfaceName?: string;
+}> = ({job, interfaceLinks, defaultInterfaceName}) => {
     const hasMultipleNodes = job.specification.replicas > 1;
     const terminalLinks: TerminalTarget[] = Array.from(Array(job.specification.replicas).keys()).map(rank => ({
         jobId: job.id,
@@ -1674,6 +1683,7 @@ const RunningButtonGroup: React.FunctionComponent<{
             return {
                 searchString: it.target + " " + (it.rank + 1),
                 showNode: isDouble,
+                defaultName: defaultInterfaceName,
                 ...it
             };
         });
@@ -1731,7 +1741,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                         <Icon name="heroArrowTopRightOnSquare" />
                         <div style={{minWidth: interfaceLinks.length > 1 ? "130px" : "164px", maxWidth: "164px"}}>
                             <Truncate>
-                                {interfaceLinks[defaultInterfaceId]?.target ?? ("Open interface" + (hasMultipleNodes ? ` (Node 1)` : ""))}
+                                {interfaceLinks[defaultInterfaceId]?.target ?? (defaultInterfaceName ?? "Open interface" + (hasMultipleNodes ? ` (Node 1)` : ""))}
                             </Truncate>
                         </div>
                     </Button>

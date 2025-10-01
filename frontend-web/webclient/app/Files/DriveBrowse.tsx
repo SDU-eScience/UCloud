@@ -47,6 +47,7 @@ import Text from "../ui-components/Text";
 import {PermissionsTable} from "@/Resource/PermissionEditor";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import {connectionState} from "@/Providers/ConnectionState";
+import {useProjectId} from "@/Project/Api";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
@@ -84,25 +85,27 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
     usePage("Drives", SidebarTabId.FILES);
 
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
-    const [productSelectorPortal, setProductSelectorPortal] = React.useState(<></>);
-
     const isWorkspaceAdmin = React.useRef(!Client.hasActiveProject);
     const project = useProject();
+    const projectId = useProjectId();
 
     React.useEffect(() => {
         const p = project.fetch();
-        const oldPermission = isWorkspaceAdmin.current;
-        if (p.id) {
+        const oldPermission = isWorkspaceAdmin.current; 
+        // Note(Jonas): project.fetch() always returns a project after having had one active before,
+        // so use `projectId` instead.
+        if (projectId) {
             isWorkspaceAdmin.current = isAdminOrPI(p.status.myRole);
         } else {
             isWorkspaceAdmin.current = true;
         }
+
         if (isWorkspaceAdmin.current !== oldPermission) {
             if (browserRef.current) {
                 browserRef.current.renderOperations();
             }
         }
-    }, [project.fetch()]);
+    }, [projectId]);
 
     useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -548,7 +551,6 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
             <>
                 <div ref={mountRef} />
                 {switcher}
-                {productSelectorPortal}
             </>
         }
     />;

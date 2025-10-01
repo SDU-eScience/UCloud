@@ -2,9 +2,10 @@ package k8s
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"os"
 	"strconv"
+
+	"gopkg.in/yaml.v3"
 	"ucloud.dk/gonja/v2/exec"
 	"ucloud.dk/pkg/termio"
 	orc "ucloud.dk/shared/pkg/orchestrators"
@@ -96,6 +97,18 @@ func HandleScriptGen() {
 			Type:   orc.InteractiveSessionType(interactiveType),
 			Target: target,
 			Port:   port,
+		})
+
+		return exec.AsSafeValue("")
+	}
+
+	jinjaContextParameters["setInterfaceName"] = func(name string) *exec.Value {
+		if name == "" {
+			return exec.AsSafeValue("\n echo Name must be entered\n")
+		}
+
+		targets = append(targets, orc.DynamicTarget{
+			DefaultName: util.OptValue(name),
 		})
 
 		return exec.AsSafeValue("")
