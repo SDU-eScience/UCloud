@@ -42,5 +42,14 @@ test("Docs link on login page", async ({page}) => {
 test("Help button on login page", async ({page}) => {
     await User.toLoginPage(page);
     await page.locator("svg[data-component=icon-suggestion]").click();
-    expect(page.getByText("Need help?")).toBeVisible();
+    await expect(page.getByText("Need help?")).toBeVisible();
+});
+
+// Maybe useless. Do we have a default news story on local backends?
+test("News entry links to working entry", async ({page}) => {
+    await User.login(page);
+    await page.locator("a[href^='/app/news/detailed/']").click();
+    // If we have no default, then change to `toHaveCount(1)` instead.
+    await expect(page.getByText("News post not found")).toHaveCount(0);
+    // I did try adding testing if clicking tags work, but at that point, it seemed like I was testing whether link-tags works.
 });
