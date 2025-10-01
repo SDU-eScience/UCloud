@@ -227,7 +227,7 @@ export const Components = {
     },
 
     async toggleSearch(page: Page): Promise<void> {
-        await page.locator(".search-icon").click();
+        await page.locator("svg[data-component=icon-heroMagnifyingGlass]").click();
     },
 
     async setSidebarSticky(page: Page): Promise<void> {
@@ -300,7 +300,13 @@ export const Applications = {
         await page.locator(`svg[data-component=${isFavorited ? filledIcon : emptyIcon}]`).click();
         // Expect flipped data-component value.
         await page.locator(`svg[data-component=${isFavorited ? emptyIcon : filledIcon}]`).isVisible();
-    }
+    },
+
+    async searchFor(page: Page, query: string): Promise<void> {
+        await Components.toggleSearch(page);
+        await page.getByRole("textbox").fill(query);
+        await page.keyboard.press("Enter");
+    },
 };
 
 export const Runs = {

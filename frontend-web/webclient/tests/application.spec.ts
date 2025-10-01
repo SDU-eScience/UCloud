@@ -102,3 +102,10 @@ test("Ensure 'New version available' button shows up and works.", async ({page})
     const latestVersionSelectContent = await versionSelect.innerText();
     expect(newestVersion).toMatch(latestVersionSelectContent);
 });
+
+test("Test application search", async ({page}) => {
+    await Applications.goToApplications(page);
+    await Applications.searchFor(page, "Coder");
+    await page.locator("a[class^=app-card]").getByText("Coder").first().click();
+    expect(page.url()).toContain("/create?app=");
+});
