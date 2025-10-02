@@ -8,4 +8,5 @@ func Init() {
 
 	db.AddMigration(projectsV1())
 	db.AddMigration(projectsV2())
+	db.AddMigration(sharesV1())
 }
