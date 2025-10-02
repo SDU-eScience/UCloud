@@ -1317,7 +1317,11 @@ export function FilePreview({initialFile}: {
 
     const onOpenFile = useCallback((path: string, data: string | Uint8Array<ArrayBuffer>) => {
         setPreviewRequested(false);
-        setOpenFile([path, data]);
+        setOpenFile(file => {
+            const [currentPath] = file;
+            if (path != currentPath || data !== file[1]) return [path, data];
+            return file;
+        });
     }, []);
 
     const openTerminal = useCallback(() => {
