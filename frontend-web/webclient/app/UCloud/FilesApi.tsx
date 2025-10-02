@@ -1240,36 +1240,34 @@ export function FilePreview({initialFile}: {
         setPreviewRequested(p => !p);
     }, []);
 
-    let node: React.ReactNode = null;
-
     const ext = extensionType(extensionFromPath(openFile[0]));
 
-    switch (mediaFileMetadata?.type) {
-        case "text":
-        case "code":
-            node = null;
-            break;
-        case "image":
-            // Note(Jonas): extensions like .HEIC will fallback to just showing the alt.
-            node = <img className={Image} alt={fileName(openFile[0])} src={mediaFileMetadata.data} />
-            break;
-        case "audio":
-            node = <audio className={Audio} controls src={mediaFileMetadata.data} />;
-            break;
-        case "video":
-            node = <video className={Video} src={mediaFileMetadata.data} controls />;
-            break;
-        case "pdf":
-            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={mediaFileMetadata.data} />;
-            break;
-        case "markdown":
-            node = <div className={MarkdownStyling}><Markdown>{mediaFileMetadata.data}</Markdown></div>;
-            break;
-    }
+    const node: React.ReactNode = useMemo(() => {
+        if (mediaFileMetadata && mediaFileMetadata.error !== null) {
+            return <div>{mediaFileMetadata?.error}</div>;
+        }
 
-    if (mediaFileMetadata && mediaFileMetadata.error !== null) {
-        node = <div>{mediaFileMetadata?.error}</div>;
-    }
+        const elementKey = fileName(openFile[0]);
+
+        switch (mediaFileMetadata?.type) {
+            case "text":
+            case "code":
+                return null;
+            case "image":
+                // Note(Jonas): extensions like .HEIC will fall back to just showing the alt.
+                return <img key={elementKey} className={Image} alt={elementKey} src={mediaFileMetadata.data} />
+            case "audio":
+                return <audio key={elementKey} className={Audio} controls src={mediaFileMetadata.data} />;
+            case "video":
+                return <video key={elementKey} className={Video} src={mediaFileMetadata.data} controls />;
+            case "pdf":
+                return <object key={elementKey} type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={mediaFileMetadata.data} />;
+            case "markdown":
+                return <div key={elementKey} className={MarkdownStyling}><Markdown>{mediaFileMetadata.data}</Markdown></div>;
+        }
+
+        return null;
+    }, [mediaFileMetadata, openFile[0]]);
 
     const onSave = useCallback(async () => {
         const editor = editorRef.current;
@@ -1319,7 +1317,11 @@ export function FilePreview({initialFile}: {
 
     const onOpenFile = useCallback((path: string, data: string | Uint8Array<ArrayBuffer>) => {
         setPreviewRequested(false);
-        setOpenFile([path, data]);
+        setOpenFile(file => {
+            const [currentPath] = file;
+            if (path != currentPath || data !== file[1]) return [path, data];
+            return file;
+        });
     }, []);
 
     const openTerminal = useCallback(() => {

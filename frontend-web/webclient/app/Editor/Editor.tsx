@@ -25,7 +25,6 @@ import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {initVimMode, VimMode} from "monaco-vim";
 import {addStandardDialog} from "@/UtilityComponents";
 import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
-import {Feature, hasFeature} from "@/Features";
 import {IconName} from "@/ui-components/Icon";
 
 export interface Vfs {
@@ -631,7 +630,8 @@ export const Editor: React.FunctionComponent<{
                 Promise.resolve(cachedContent) :
                 props.vfs.readFile(path);
 
-        const syntaxExtension = findNode(state.sidebar.root, path)?.file?.requestedSyntax;
+        const file = findNode(state.sidebar.root, path)?.file;
+        const syntaxExtension = file?.requestedSyntax;
         const syntax = languageFromExtension(syntaxExtension ?? extensionFromPath(path));
 
         try {
@@ -1734,21 +1734,21 @@ function MonacoEditorSettings({editor, setVimMode}: {editor: IStandaloneCodeEdit
         <div>
             Allow file editing
             <Select defaultValue={allowEditing() ? "Allow" : "Disallow"} onChange={e => {
-                    const canEdit = e.target.value === "Allow";
-                    setOption(EditorOption.readOnly, !canEdit);
+                const canEdit = e.target.value === "Allow";
+                setOption(EditorOption.readOnly, !canEdit);
 
-                    if (!canEdit) setReadonlyWarning(editor);
+                if (!canEdit) setReadonlyWarning(editor);
 
-                    setAllowEditing(canEdit.toString());
-                }}>
-                    <option value={"Allow"}>Allow</option>
-                    <option value={"Disallow"}>Disallow</option>
-                </Select>
-            </div>
-            <div>
-                Vim mode
-                <Select defaultValue={getEditorOption("vim") ? "Enabled" : "Disabled"} onChange={e => setVimMode(e.target.value === "Enabled")}>
-                    <option value="Enabled">Enabled</option>
+                setAllowEditing(canEdit.toString());
+            }}>
+                <option value={"Allow"}>Allow</option>
+                <option value={"Disallow"}>Disallow</option>
+            </Select>
+        </div>
+        <div>
+            Vim mode
+            <Select defaultValue={getEditorOption("vim") ? "Enabled" : "Disabled"} onChange={e => setVimMode(e.target.value === "Enabled")}>
+                <option value="Enabled">Enabled</option>
                 <option value="Disabled">Disabled</option>
             </Select>
         </div>
