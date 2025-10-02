@@ -14,6 +14,7 @@ import * as Plot from "@observablehq/plot";
 import * as JobViz from "@/Applications/Jobs/JobViz"
 import {WidgetColorIntensity, WidgetWindow} from "@/Applications/Jobs/JobViz"
 import {CpuChartDemo} from "@/Playground/D3Test";
+import {MyTodo} from "@/Playground/Todo";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -171,7 +172,8 @@ const Playground: React.FunctionComponent = () => {
 
     const main = (
         <>
-            <CpuChartDemo />
+            {/*<CpuChartDemo />*/}
+            <MyTodo />
             {/*<JobViz.Renderer processor={stream.current} windows={[JobViz.WidgetWindow.WidgetWindowMain]} />*/}
             {/*<AreaPlot data={data} keyX="date" keyY="value" />*/}
             {/**/}
