@@ -76,19 +76,16 @@ class SimpleCache<K, V : Any>(
             }
         }
 
-        mutex.withLock {
-            val existingAfterLock = internalMap[key]
-            if (existingAfterLock != null) {
-                if (maxAge == DONT_EXPIRE) {
-                    return existingAfterLock.value
-                } else if (now - existingAfterLock.timestamp < maxAge) {
-                    return existingAfterLock.value
-                }
-            }
+        val loaded = lookup(key) ?: return null
+        val loadedAt = Time.now()
 
-            val result = lookup(key) ?: return null
-            internalMap[key] = CacheEntry(now, result)
-            return result
+        mutex.withLock {
+            val existing = internalMap[key]
+            if (existing != null && (maxAge == DONT_EXPIRE || loadedAt - existing.timestamp < maxAge)) {
+                return existing.value
+            }
+            internalMap[key] = CacheEntry(loadedAt, loaded)
+            return loaded
         }
     }
 
