@@ -31,7 +31,7 @@ import {chunkedString, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {OldProjectRole} from "@/Project";
-import {State, UIEvent} from "@/Accounting/Allocations/State";
+import {State, UIAction, UIEvent} from "@/Accounting/Allocations/State";
 import {VariableSizeList} from "react-window";
 import {AvatarState} from "@/AvataaarLib/hook";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -40,7 +40,7 @@ import {NewAndImprovedProgress} from "@/ui-components/Progress";
 import {classConcat, extractDataTags, injectStyle} from "@/Unstyled";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import {useCallback, useRef, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import {ProgressBar} from "@/Accounting/Allocations/ProgressBar";
 import {default as ReactModal} from "react-modal";
 import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
@@ -51,8 +51,9 @@ import {RichSelect, SimpleRichItem, SimpleRichSelect} from "@/ui-components/Rich
 import * as Pages from "@/Applications/Pages";
 import {NotificationType} from "@/UserSettings/ChangeNotificationSettings";
 import {produce} from "immer";
-import {heroStar} from "@/ui-components/icons";
+import {heroStar, sortAscending} from "@/ui-components/icons";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
+import {SORT_BY} from "@/ui-components/ResourceBrowserFilters";
 
 export const YourAllocations: React.FunctionComponent<{
     allocations: [string, AllocationDisplayTreeYourAllocation][],
@@ -851,7 +852,8 @@ const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
 export const SubProjectFilters: React.FunctionComponent<{
     filtersShown: boolean;
     closeFilters: () => void;
-}> = ({filtersShown, closeFilters}) => {
+    dispatchEvent: (event: UIEvent) => unknown;
+}> = ({filtersShown, closeFilters, dispatchEvent}) => {
     const [settings, setSettings] = useState<Record<string, SubProjectFilter>>(subProjectsDefaultSettings);
 
     const onSettingsChanged = useCallback((setting: SubProjectFilter) => {
@@ -863,6 +865,14 @@ export const SubProjectFilters: React.FunctionComponent<{
     }, [setSettings]);
 
     const [ascending, setAscending] = useState<boolean>(true);
+
+    useEffect(() => {
+        dispatchEvent({
+            type: "SortSubprojects",
+            sortBy: "",
+            ascending: ascending
+        })
+    }, [ascending]);
 
     const onSortingToggle = useCallback(() => {
        setAscending(current => !current);
@@ -965,7 +975,7 @@ export const SubProjectList: React.FunctionComponent<{
     }, []);
 
     return <>
-        <SubProjectFilters filtersShown={filtersShown} closeFilters={closeFilters} />
+        <SubProjectFilters filtersShown={filtersShown} closeFilters={closeFilters} dispatchEvent={dispatchEvent}/>
 
         <div className={subProjectsStyle}>
             {projectId !== undefined && <>
