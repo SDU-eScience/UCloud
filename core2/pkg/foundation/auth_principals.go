@@ -29,6 +29,23 @@ type Principal struct {
 	ProviderProjects        rpc.ProviderProjects
 }
 
+func LookupUsernamesByEmail(tx *db.Transaction, email string) ([]string, bool) {
+	ok := db.Select[string](
+		tx,
+		`
+			select username
+			from auth.principals
+			where email = :email
+		`,
+		db.Params{
+			"email": email,
+		},
+	)
+
+	return ok, len(ok) > 0
+
+}
+
 func LookupPrincipal(tx *db.Transaction, username string) (Principal, bool) {
 	row, ok := db.Get[struct {
 		Dtype                   string
