@@ -33,9 +33,13 @@ export function ucloudUrl(pathname: string): string {
 export const Rows = {
     async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover"): Promise<void> {
         let iterations = 1000;
-
-        await page.locator(".scrolling").hover();
-        await page.mouse.wheel(0, -Number.MAX_SAFE_INTEGER);
+        await Components.projectSwitcher(page, "click");
+        await page.keyboard.press("Escape");
+        for (let i = 0; i < 10; i++) {
+            await page.locator(".scrolling").hover();
+            await page.mouse.wheel(0, -5000);
+            await page.waitForTimeout(50);
+        }
 
         while (!await page.locator(".row div > span", {hasText: name}).isVisible()) {
             await page.locator(".scrolling").hover();
@@ -136,7 +140,7 @@ export const File = {
     },
 
     async searchFor(page: Page, query: string): Promise<void> {
-        await Components.toggleSearch(page);
+        await page.locator("img[class=search-icon]").click();
         await page.getByRole("textbox").fill(query);
         await page.keyboard.press("Enter");
     },
@@ -320,6 +324,7 @@ export const Runs = {
 
     async runApplicationAgain(page: Page, jobName: string): Promise<void> {
         await Runs.goToRuns(page);
+        await Components.projectSwitcher(page, "hover");
         await Applications.actionByRowTitle(page, jobName, "click");
         await page.getByText("Run application again").click();
         await page.waitForTimeout(500);
@@ -363,7 +368,7 @@ export const Runs = {
 
     async openTerminal(page: Page): Promise<Page> {
         const terminalPagePromise = page.waitForEvent("popup");
-        await page.getByRole('button', {name: 'Open terminal'}).click();
+        await page.getByRole("button", {name: "Open terminal"}).click();
         const terminalPage = await terminalPagePromise;
         await terminalPage.waitForTimeout(1000);
         await terminalPage.getByText("ucloud@").click();
@@ -440,7 +445,8 @@ export const Resources = {
         },
 
         async delete(page: Page, name: string): Promise<void> {
-            throw Error("Not implemented");
+            await Rows.actionByRowTitle(page, name, "click");
+            await Components.clickConfirmationButton(page, "Delete");
         },
 
         async createNew(page: Page): Promise<string> {
@@ -457,7 +463,7 @@ export const Resources = {
         async activateLicense(page: Page): Promise<void> {
             await page.getByText("Activate license").click();
             await Components.selectAvailableProduct(page);
-            await page.getByText("Activate").click();
+            await page.getByRole("dialog").getByText("Activate").click();
             // TODO(Jonas): Find out how to get the name of the newly activated license.
         }
     },

@@ -28,9 +28,12 @@ test("Create ip and view properties", async ({page}) => {
     const publicIpName = await IPs.createNew(page);
 });
 
-test("Create ssh keys", async ({page}) => {
+test("Create ssh key, delete ssh key", async ({page}) => {
     await Resources.goTo(page, "SSH keys");
-    const sshkey = SSHKeys.createNew(page);
+    const sshkey = await SSHKeys.createNew(page);
+    await expect(page.getByText(sshkey)).toHaveCount(1);
+    await SSHKeys.delete(page, sshkey);
+    await expect(page.getByText(sshkey)).toHaveCount(0);
 });
 
 test("Create licenses", async ({page}) => {

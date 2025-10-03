@@ -70,8 +70,8 @@ test("Stress testing the row selector", async ({page}) => {
     for (let i = 0; i < 100; i++) {
         await File.create(page, "Folder" + i);
     }
-    await File.actionByRowTitle(page, "Folder0", "click");
     await File.actionByRowTitle(page, "Folder99", "click");
+    await File.actionByRowTitle(page, "Folder0", "click");
 });
 
 
@@ -193,7 +193,7 @@ test("Move to trash, empty trash", async ({page}) => {
     await File.open(page, "Trash");
     await expect(page.getByText(folderName)).toHaveCount(1);
     await File.emptyTrash(page);
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(500);
     await File.open(page, "Trash");
     await expect(page.getByText(folderName)).toHaveCount(0);
 });
