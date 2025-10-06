@@ -1269,6 +1269,34 @@ func lInternalWalletToApi(
 	return apiWallet
 }
 
+func internalRetrieveWalletByAllocationId(
+	now time.Time,
+	allocationId int,
+) (accapi.WalletV2, bool) {
+	accGlobals.Mu.RLock()
+
+	var wallet accapi.WalletV2
+	var found = false
+	for _, bucket := range accGlobals.BucketsByCategory {
+		locatedAllocation := bucket.AllocationsById[accAllocId(allocationId)]
+		if locatedAllocation != nil {
+			walletId := locatedAllocation.BelongsTo
+			iWallet := bucket.WalletsById[walletId]
+			if iWallet != nil {
+				owner := accGlobals.OwnersById[iWallet.OwnedBy]
+				if owner != nil {
+					wallet = lInternalWalletToApi(now, bucket, iWallet, owner.WalletOwner(), false)
+					found = true
+					break
+				}
+			}
+		}
+	}
+
+	accGlobals.Mu.RUnlock()
+	return wallet, found
+}
+
 type walletFilter struct {
 	ProductType util.Option[accapi.ProductType]
 	Provider    util.Option[string]

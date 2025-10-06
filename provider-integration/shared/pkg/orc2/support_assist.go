@@ -14,60 +14,63 @@ type SupportAssistProjectInfoFlags struct {
 }
 
 type SupportAssistRetrieveProjectInfoRequest struct {
-	projectId string
-	flags     SupportAssistProjectInfoFlags
+	ProjectId string
+	Flags     SupportAssistProjectInfoFlags
 }
 
 type WalletIssue struct {
-	associatedAllocation apm.Allocation
-	problematicWallet    apm.WalletV2
-	description          string
+	AssociatedAllocation apm.Allocation
+	ProblematicWallet    apm.WalletV2
+	Description          string
 }
 
 type SupportAssistRetrieveProjectInfoResponse struct {
-	projectMembers   []foundation.ProjectMember
-	projectWallet    apm.WalletV2
-	accountingIssues []WalletIssue
-	jobs             []orchestrators.Job
+	Project          foundation.Project
+	ProjectWallets   []apm.WalletV2
+	AccountingIssues []WalletIssue
+	Jobs             []Job
 }
 
-type SupportAssistRetrieveJobsInfoRequest struct {
-	jobId string
+type SupportAssistRetrieveJobInfoRequest struct {
+	JobId string
 }
 
-type SupportAssistRetrieveJobsInfoResponse struct {
-	jobInfo orchestrators.Job
+type SupportAssistRetrieveJobInfoResponse struct {
+	JobInfo orchestrators.Job
 }
 type SupportAssistWalletInfoFlags struct {
 	IncludeAccountingGraph bool
 }
 type SupportAssistRetrieveWalletInfoRequest struct {
-	allocationId string
-	walletId     string
-	flags        SupportAssistWalletInfoFlags
+	AllocationId string
+	WalletId     string
+	Flags        SupportAssistWalletInfoFlags
 }
 
 type SupportAssistRetrieveWalletInfoResponse struct {
-	wallet          apm.WalletV2
-	accountingGraph string
+	Wallet          apm.WalletV2
+	AccountingGraph string
 }
 
 const SupportAssistOrcContext = "support-assist-orc"
 
 var SupportAssistRetrieveProjectInfo = rpc.Call[SupportAssistRetrieveProjectInfoRequest, SupportAssistRetrieveProjectInfoResponse]{
 	BaseContext: SupportAssistOrcContext,
-	Convention:  rpc.ConventionRetrieve,
+	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesAdmin,
+	Operation:   "retrieve_project_info",
 }
 
-var SupportAssistRetrieveJobsInfo = rpc.Call[SupportAssistRetrieveJobsInfoRequest, SupportAssistRetrieveJobsInfoResponse]{
+var SupportAssistRetrieveJobsInfo = rpc.Call[SupportAssistRetrieveJobInfoRequest, SupportAssistRetrieveJobInfoResponse]{
 	BaseContext: SupportAssistOrcContext,
-	Convention:  rpc.ConventionRetrieve,
+	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesAdmin,
+	Operation:   "retrieve_job_info",
 }
 
 var SupportAssistRetrieveWalletsInfo = rpc.Call[SupportAssistRetrieveWalletInfoRequest, SupportAssistRetrieveWalletInfoResponse]{
 	BaseContext: SupportAssistOrcContext,
-	Convention:  rpc.ConventionRetrieve,
+	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesAdmin,
+	Operation:   "retrieve_wallets_info",
 }

@@ -30,6 +30,7 @@ const SupportAssistAccContext = "support-assist-acc"
 
 var SupportAssistRetrieveUserInfo = rpc.Call[SupportAssistRetrieveUserInfoRequest, SupportAssistRetrieveUserInfoResponse]{
 	BaseContext: SupportAssistAccContext,
-	Convention:  rpc.ConventionRetrieve,
+	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesAdmin,
+	Operation:   "retrieve_user_info",
 }
