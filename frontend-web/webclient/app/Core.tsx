@@ -85,6 +85,12 @@ import LicenseRouter from "./Applications/Licenses";
 import PublicLinksRouter from "./Applications/PublicLinks/Router";
 import SharesApi from "./UCloud/SharesApi";
 import {findCustomThemeColorOnLaunch} from "./UserSettings/CustomTheme";
+import SupportPage, {
+    AllocationSupportContent,
+    JobSupportContent,
+    ProjectSupportContent,
+    UserSupportContent
+} from "./Admin/SupportPage";
 
 const NotFound = (): React.ReactNode => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -162,6 +168,13 @@ const Core = (): React.ReactNode => (
                         element={React.createElement(requireAuth(NewsManagement))} />
                     <Route path={AppRoutes.admin.scripts()} element={React.createElement(requireAuth(Scripts))} />
 
+                    <Route path={AppRoutes.supportAssist.base()} element={React.createElement(requireAuth(SupportPage))} />
+                    <Route path={AppRoutes.supportAssist.user()} element={React.createElement(requireAuth(UserSupportContent))} />
+                    <Route path={AppRoutes.supportAssist.project()} element={React.createElement(requireAuth(ProjectSupportContent))} />
+                    <Route path={AppRoutes.supportAssist.job()} element={React.createElement(requireAuth(JobSupportContent))} />
+                    <Route path={AppRoutes.supportAssist.allocation()} element={React.createElement(requireAuth(AllocationSupportContent))} />
+
+
                     <Route path="/admin/providers" element={React.createElement(requireAuth(Providers))} />
                     <Route path="/admin/providers/create"
                         element={React.createElement(requireAuth(CreateProvider))} />
@@ -223,6 +236,7 @@ const Core = (): React.ReactNode => (
                             requireSla: false
                         }))}
                     />
+
                     <Route path="*" element={<NotFound />} />
                 </Routes>
             </React.Suspense>

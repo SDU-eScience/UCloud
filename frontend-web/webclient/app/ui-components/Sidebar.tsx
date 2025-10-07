@@ -741,7 +741,7 @@ function projectSidebarSubLinks(canApply: boolean, isPersonalWorkspace: boolean,
 }
 
 
-const ApplicationStudioSubLinksEntries = [{
+const ApplicationStudioSubLinksEntries: LinkInfo[] = [{
     to: AppRoutes.appStudio.groups(), text: "Applications", icon: "heroSquare3Stack3D",
     tab: SidebarTabId.APPLICATION_STUDIO
 },
@@ -1092,6 +1092,8 @@ function SecondarySidebar({
                 <SidebarEntry to={AppRoutes.admin.providers()} text={"Providers"} icon={"heroCloud"}
                     tab={SidebarTabId.ADMIN} />
                 <SidebarEntry to={AppRoutes.admin.scripts()} text={"Scripts"} icon={"heroPlayPause"}
+                    tab={SidebarTabId.ADMIN} />
+                <SidebarEntry to={AppRoutes.supportAssist.base()} text="User support" icon="heroUser"
                     tab={SidebarTabId.ADMIN} />
                 <SidebarEntry to={AppRoutes.admin.playground()} text={"Playground"} icon={"heroCake"}
                     tab={SidebarTabId.ADMIN} />
