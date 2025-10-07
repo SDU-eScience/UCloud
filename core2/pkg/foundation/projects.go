@@ -18,8 +18,6 @@ import (
 )
 
 // TODO(Dan): This service is not completed yet, this is a rough list of things missing:
-//   - Invites
-//   - Provider access (when relevant)
 //   - Unmanaged provider projects
 //   - Project creation (we might want to do this purely through grants moving forward and make this a purely internal
 //     call)
@@ -63,6 +61,7 @@ type internalProjectUserInfo struct {
 	Projects  map[string]util.Empty
 	Groups    map[string]string // group to project
 	Favorites map[string]util.Empty
+	InvitedTo map[string]util.Empty
 }
 
 type internalProject struct {
@@ -70,6 +69,7 @@ type internalProject struct {
 	Mu          sync.RWMutex
 	Project     fndapi.Project
 	InviteLinks map[string]util.Empty
+	InvitesSent map[string]fndapi.ProjectInvite
 }
 
 type internalInviteLink struct {
@@ -281,8 +281,40 @@ func initProjects() {
 		return fndapi.ProjectAcceptInviteLinkResponse{Project: linkInfo.Project.Id}, err
 	})
 
-	fndapi.ProjectBrowseInvites.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.PageV2[util.Empty], *util.HttpError) {
-		return fndapi.PageV2[util.Empty]{Items: make([]util.Empty, 0)}, nil
+	fndapi.ProjectBrowseInvites.Handler(func(info rpc.RequestInfo, request fndapi.ProjectBrowseInvitesRequest) (fndapi.PageV2[fndapi.ProjectInvite], *util.HttpError) {
+		return ProjectBrowseInvites(info.Actor, request)
+	})
+
+	fndapi.ProjectCreateInvite.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.ProjectCreateInviteRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ProjectCreateInvite(info.Actor, reqItem.Recipient)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+		return util.Empty{}, nil
+	})
+
+	fndapi.ProjectDeleteInvite.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.ProjectDeleteInviteRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ProjectDeleteInvite(info.Actor, reqItem.Project, reqItem.Username)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		return util.Empty{}, nil
+	})
+
+	fndapi.ProjectAcceptInvite.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.ProjectAcceptInviteRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ProjectAcceptInvite(info.Actor, reqItem.Project)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		return util.Empty{}, nil
 	})
 
 	fndapi.ProjectRetrieveInformation.Handler(func(
@@ -376,8 +408,6 @@ func projectRetrieve(
 	if id == "" {
 		return fndapi.Project{}, nil, util.HttpErr(http.StatusNotFound, "This action only works in a non-personal project")
 	}
-
-	// TODO providers need to take a special path
 
 	var isMember bool
 	var isFavorite bool
@@ -1461,6 +1491,241 @@ func ProjectAcceptInviteLink(actor rpc.Actor, token string) (fndapi.ProjectInvit
 	return linkInfo, err
 }
 
+func ProjectBrowseInvites(actor rpc.Actor, request fndapi.ProjectBrowseInvitesRequest) (fndapi.PageV2[fndapi.ProjectInvite], *util.HttpError) {
+	result := fndapi.PageV2[fndapi.ProjectInvite]{}
+
+	if request.FilterType == "INGOING" {
+		uinfo := projectRetrieveUserInfo(actor.Username)
+
+		var invitedToProjects []string
+		uinfo.Mu.RLock()
+		for projectId := range uinfo.InvitedTo {
+			invitedToProjects = append(invitedToProjects, projectId)
+		}
+		uinfo.Mu.RUnlock()
+
+		for _, pId := range invitedToProjects {
+			info, ok := projectRetrieveInternal(pId)
+			if ok {
+				info.Mu.RLock()
+				title := info.Project.Specification.Title
+				invite, ok := info.InvitesSent[actor.Username]
+				if ok {
+					inviteCopy := invite
+					inviteCopy.ProjectTitle = title
+
+					result.Items = append(result.Items, inviteCopy)
+				}
+				info.Mu.RUnlock()
+			}
+		}
+
+		result.ItemsPerPage = len(result.Items)
+		return result, nil
+	} else if request.FilterType == "OUTGOING" {
+		if actor.Project.Present {
+			_, info, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll,
+				fndapi.ProjectRoleAdmin)
+
+			if err == nil {
+				info.Mu.RLock()
+				title := info.Project.Specification.Title
+				for _, invite := range info.InvitesSent {
+					inviteCopy := invite
+					inviteCopy.ProjectTitle = title
+
+					result.Items = append(result.Items, inviteCopy)
+				}
+				info.Mu.RUnlock()
+
+				result.ItemsPerPage = len(result.Items)
+				return result, nil
+			} else {
+				return fndapi.PageV2[fndapi.ProjectInvite]{}, err
+			}
+		} else {
+			return fndapi.PageV2[fndapi.ProjectInvite]{}, util.HttpErr(http.StatusBadRequest, "bad request - missing project")
+		}
+
+	} else {
+		return fndapi.PageV2[fndapi.ProjectInvite]{}, util.HttpErr(http.StatusBadRequest, "bad request - missing filterType")
+	}
+}
+
+func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
+	_, info, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll,
+		fndapi.ProjectRoleAdmin)
+
+	if err != nil {
+		return err
+	}
+
+	recipientActor, ok := rpc.LookupActor(recipient)
+	if !ok || recipientActor.Role&rpc.RolesEndUser == 0 {
+		return util.HttpErr(http.StatusBadRequest, "you cannot invite this user to the project")
+	}
+
+	info.Mu.Lock()
+	alreadyAMember := false
+	for _, member := range info.Project.Status.Members {
+		if member.Username == recipient {
+			alreadyAMember = true
+			break
+		}
+	}
+
+	_, alreadyInvited := info.InvitesSent[recipient]
+	if !alreadyInvited && !alreadyAMember {
+		info.InvitesSent[recipient] = fndapi.ProjectInvite{
+			CreatedAt: fndapi.Timestamp(time.Now()),
+			InvitedBy: actor.Username,
+			InvitedTo: string(actor.Project.Value),
+			Recipient: recipient,
+		}
+	}
+	info.Mu.Unlock()
+
+	if !alreadyInvited && !alreadyAMember {
+		recipientInfo := projectRetrieveUserInfo(recipient)
+		recipientInfo.Mu.Lock()
+		recipientInfo.InvitedTo[string(actor.Project.Value)] = util.Empty{}
+		recipientInfo.Mu.Unlock()
+
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					insert into project.invites(project_id, username, invited_by) 
+					values (:id, :recipient, :invited_by)
+					on conflict do nothing
+				`,
+				db.Params{
+					"id":         string(actor.Project.Value),
+					"recipient":  recipient,
+					"invited_by": actor.Username,
+				},
+			)
+		})
+		return nil
+	} else if alreadyInvited {
+		return util.HttpErr(http.StatusConflict, "this user has already been invited to the project")
+	} else {
+		return util.HttpErr(http.StatusConflict, "this user is already a member of the project")
+	}
+}
+
+func ProjectDeleteInvite(actor rpc.Actor, projectId string, recipient string) *util.HttpError {
+	var project *internalProject
+	var err *util.HttpError
+
+	allowed := actor.Username == recipient
+	if !allowed {
+		_, project, err = projectRetrieve(actor, projectId, projectFlagsAll, fndapi.ProjectRoleAdmin)
+		allowed = err == nil
+
+		_, ok := rpc.LookupActor(recipient)
+		if !ok {
+			allowed = false
+		}
+	} else {
+		project, _ = projectRetrieveInternal(projectId)
+	}
+
+	if !allowed {
+		return util.HttpErr(http.StatusForbidden, "you are not allowed to delete this invite")
+	} else if project == nil {
+		return util.HttpErr(http.StatusNotFound, "unknown project")
+	} else {
+		project.Mu.Lock()
+		delete(project.InvitesSent, recipient)
+		project.Mu.Unlock()
+
+		recipientInfo := projectRetrieveUserInfo(recipient)
+		recipientInfo.Mu.Lock()
+		delete(recipientInfo.InvitedTo, projectId)
+		recipientInfo.Mu.Unlock()
+
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					delete from project.invites
+					where
+						project_id = :project
+						and username = :username
+			    `,
+				db.Params{
+					"project":  projectId,
+					"username": recipient,
+				},
+			)
+		})
+
+		return nil
+	}
+}
+
+func ProjectAcceptInvite(actor rpc.Actor, projectId string) *util.HttpError {
+	willAdd := false
+	validInvite := false
+
+	uinfo := projectRetrieveUserInfo(actor.Username)
+
+	pinfo, ok := projectRetrieveInternal(projectId)
+	if ok {
+		pinfo.Mu.Lock()
+		isMember := false
+		for _, member := range pinfo.Project.Status.Members {
+			if member.Username == actor.Username {
+				isMember = true
+				validInvite = true
+				break
+			}
+		}
+
+		if !isMember {
+			_, ok := pinfo.InvitesSent[actor.Username]
+			if ok {
+				delete(pinfo.InvitesSent, actor.Username)
+				willAdd = true
+				validInvite = true
+			}
+		}
+		pinfo.Mu.Unlock()
+	}
+
+	if willAdd {
+		uinfo.Mu.Lock()
+		delete(uinfo.InvitedTo, projectId)
+		uinfo.Mu.Unlock()
+
+		_ = projectAddUserToProjectAndGroups(projectId, actor.Username, fndapi.ProjectRoleUser, nil, func(tx *db.Transaction) *util.HttpError {
+			db.Exec(
+				tx,
+				`
+					delete from project.invites
+					where
+						username = :username
+						and project_id = :project
+			    `,
+				db.Params{
+					"username": actor.Username,
+					"project":  projectId,
+				},
+			)
+			return nil
+		})
+
+		return nil
+	} else {
+		if validInvite {
+			return nil
+		} else {
+			return util.HttpErr(http.StatusBadRequest, "unable to accept invite")
+		}
+	}
+}
+
 func projectRetrieveLink(id string) (*internalInviteLink, bool) {
 	bucket := projectBucket(id)
 	bucket.Mu.RLock()
@@ -1614,6 +1879,9 @@ func projectAddUserToProjectAndGroups(
 
 			uinfo.Groups[gid] = projectId
 		}
+
+		delete(iproject.InvitesSent, userToAdd)
+		delete(uinfo.InvitedTo, projectId)
 	}
 
 	uinfo.Mu.Unlock()
@@ -1801,6 +2069,7 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 					Projects:  map[string]util.Empty{},
 					Groups:    map[string]string{},
 					Favorites: map[string]util.Empty{},
+					InvitedTo: map[string]util.Empty{},
 				}
 
 				projectRows := db.Select[struct{ ProjectId string }](
@@ -1844,6 +2113,18 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 					},
 				)
 
+				invitedTo := db.Select[struct{ ProjectId string }](
+					tx,
+					`
+						select project_id
+						from project.invites
+						where username = :username
+				    `,
+					db.Params{
+						"username": username,
+					},
+				)
+
 				for _, project := range projectRows {
 					result.Projects[project.ProjectId] = util.Empty{}
 				}
@@ -1854,6 +2135,10 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 
 				for _, favorite := range favoriteRows {
 					result.Favorites[favorite.ProjectId] = util.Empty{}
+				}
+
+				for _, invite := range invitedTo {
+					result.InvitedTo[invite.ProjectId] = util.Empty{}
 				}
 
 				return result
@@ -1886,7 +2171,8 @@ func projectRetrieveInternal(id string) (*internalProject, bool) {
 					result := &internalProject{
 						Id:          id,
 						Project:     projectInfo,
-						InviteLinks: make(map[string]util.Empty),
+						InviteLinks: map[string]util.Empty{},
+						InvitesSent: map[string]fndapi.ProjectInvite{},
 					}
 
 					links := db.Select[struct{ Token string }](
@@ -1901,8 +2187,33 @@ func projectRetrieveInternal(id string) (*internalProject, bool) {
 						},
 					)
 
+					invites := db.Select[struct {
+						Username  string
+						CreatedAt time.Time
+						InvitedBy string
+					}](
+						tx,
+						`
+							select username, created_at, invited_by
+							from project.invites
+							where project_id = :id
+					    `,
+						db.Params{
+							"id": id,
+						},
+					)
+
 					for _, link := range links {
 						result.InviteLinks[link.Token] = util.Empty{}
+					}
+
+					for _, invite := range invites {
+						result.InvitesSent[invite.Username] = fndapi.ProjectInvite{
+							CreatedAt: fndapi.Timestamp(invite.CreatedAt),
+							InvitedBy: invite.InvitedBy,
+							InvitedTo: id,
+							Recipient: invite.Username,
+						}
 					}
 
 					return result, true

@@ -31,3 +31,7 @@ func RandomTokenNoTs(byteCount int) string {
 	_, _ = rand.Read(bytes)
 	return hex.EncodeToString(bytes)
 }
+
+func SecureToken() string {
+	return RandomTokenNoTs(32)
+}

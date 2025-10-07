@@ -7,49 +7,6 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-type Share struct {
-	Resource
-	Specification ShareSpecification `json:"specification"`
-	Status        ShareStatus        `json:"status"`
-	Updates       []ShareUpdate      `json:"updates"`
-}
-
-type ShareSpecification struct {
-	SharedWith     string               `json:"sharedWith"`
-	SourceFilePath string               `json:"sourceFilePath"`
-	Permissions    []Permission         `json:"permissions"`
-	Product        apm.ProductReference `json:"product"`
-}
-
-type ShareStatus struct {
-	ShareAvailableAt util.Option[string] `json:"shareAvailableAt"`
-	State            ShareState          `json:"newState"`
-}
-
-type ShareUpdate struct {
-	NewState         ShareState          `json:"newState"`
-	ShareAvailableAt util.Option[string] `json:"shareAvailableAt"`
-	Timestamp        fnd.Timestamp       `json:"timestamp"`
-	Status           util.Option[string] `json:"status"`
-}
-
-type ShareState string
-
-const (
-	ShareStateApproved ShareState = "APPROVED"
-	ShareStateRejected ShareState = "REJECTED"
-	ShareStatePending  ShareState = "PENDING"
-)
-
-type ShareSupport struct {
-	Product apm.ProductReference `json:"product"`
-	Type    ShareType            `json:"type"`
-}
-
-type ShareType string
-
-const ShareTypeManaged ShareType = "UCLOUD_MANAGED_COLLECTION"
-
 type UFileSpecification struct {
 	Collection string               `json:"collection"`
 	Product    apm.ProductReference `json:"product"`

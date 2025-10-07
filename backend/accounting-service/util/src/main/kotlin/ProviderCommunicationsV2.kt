@@ -346,20 +346,21 @@ class ProviderCommunicationsV2(
         val result = HashMap<String, ArrayList<ResolvedSupport<P, Support>>>()
 
         val time = measureTime {
-            mutex.lock() // Lock, just in case any of the coroutines haven't stopped yet
-            for ((provider, elements) in support) {
-                val list = result.getOrPut(provider) { ArrayList() }
-                for (elem in elements) {
-                    val product = productCache.referenceToProductId(elem.product)?.let {
-                        @Suppress("UNCHECKED_CAST")
-                        productCache.productIdToProduct(it)?.toV1() as? P?
-                    }
+            mutex.withLock {
+                for ((provider, elements) in support) {
+                    val list = result.getOrPut(provider) { ArrayList() }
+                    for (elem in elements) {
+                        val product = productCache.referenceToProductId(elem.product)?.let {
+                            @Suppress("UNCHECKED_CAST")
+                            productCache.productIdToProduct(it)?.toV1() as? P?
+                        }
 
 
-                    if (product == null) {
-                        if (elem.product.provider != "aau") log.info("Could not resolve product: ${elem.product}")
-                    } else {
-                        list.add(ResolvedSupport(product, elem))
+                        if (product == null) {
+                            if (elem.product.provider != "aau") log.info("Could not resolve product: ${elem.product}")
+                        } else {
+                            list.add(ResolvedSupport(product, elem))
+                        }
                     }
                 }
             }

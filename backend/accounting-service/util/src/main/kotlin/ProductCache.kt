@@ -48,6 +48,47 @@ class ProductCache(private val db: DBContext) : IProductCache {
 
     private suspend fun fillCache(force: Boolean = false) {
         if (!force && Time.now() < nextFill.get()) return
+
+        val newRefToId = HashMap<ProductReferenceV2, Int>()
+        val newIdToRef = HashMap<Int, ProductReferenceV2>()
+        val newInfo = HashMap<Int, ProductV2>()
+        val newByName = HashMap<String, ArrayList<Int>>()
+        val newByCat = HashMap<String, ArrayList<Int>>()
+        val newByProv = HashMap<String, ArrayList<Int>>()
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {},
+                """
+                    declare product_load cursor for
+                    select accounting.product_to_json(p, pc, au, 0), p.id
+                    from
+                        accounting.products p join
+                        accounting.product_categories pc on p.category = pc.id join
+                        accounting.accounting_units au on pc.accounting_unit = au.id
+                """
+            )
+
+            while (true) {
+                val rows = session.sendPreparedStatement({}, "fetch forward 100 from product_load").rows
+                if (rows.isEmpty()) break
+
+                rows.forEach { row ->
+                    val product = defaultMapper.decodeFromString(ProductV2.serializer(), row.getString(0)!!)
+                    val id = row.getLong(1)!!.toInt()
+
+                    val reference = ProductReferenceV2(product.name, product.category.name, product.category.provider)
+                    newRefToId[reference] = id
+                    newIdToRef[id] = reference
+                    newInfo[id] = product
+
+                    newByName.getOrPut(product.name) { ArrayList() }.add(id)
+                    newByCat.getOrPut(product.category.name) { ArrayList() }.add(id)
+                    newByProv.getOrPut(product.category.provider) { ArrayList() }.add(id)
+                }
+            }
+        }
+
         mutex.withWriter {
             if (!force && Time.now() < nextFill.get()) return
 
@@ -58,38 +99,12 @@ class ProductCache(private val db: DBContext) : IProductCache {
             productCategoryToProductIds.clear()
             productProviderToProductIds.clear()
 
-            db.withSession { session ->
-                session.sendPreparedStatement(
-                    {},
-                    """
-                        declare product_load cursor for
-                        select accounting.product_to_json(p, pc, au, 0), p.id
-                        from
-                            accounting.products p join
-                            accounting.product_categories pc on p.category = pc.id join
-                            accounting.accounting_units au on pc.accounting_unit = au.id
-                    """
-                )
-
-                while (true) {
-                    val rows = session.sendPreparedStatement({}, "fetch forward 100 from product_load").rows
-                    if (rows.isEmpty()) break
-
-                    rows.forEach { row ->
-                        val product = defaultMapper.decodeFromString(ProductV2.serializer(), row.getString(0)!!)
-                        val id = row.getLong(1)!!.toInt()
-
-                        val reference = ProductReferenceV2(product.name, product.category.name, product.category.provider)
-                        referenceToProductId[reference] = id
-                        productIdToReference[id] = reference
-                        productInformation[id] = product
-
-                        productNameToProductIds.getOrPut(product.name) { ArrayList() }.add(id)
-                        productCategoryToProductIds.getOrPut(product.category.name) { ArrayList() }.add(id)
-                        productProviderToProductIds.getOrPut(product.category.provider) { ArrayList() }.add(id)
-                    }
-                }
-            }
+            referenceToProductId.putAll(newRefToId)
+            productIdToReference.putAll(newIdToRef)
+            productInformation.putAll(newInfo)
+            productNameToProductIds.putAll(newByName)
+            productCategoryToProductIds.putAll(newByCat)
+            productProviderToProductIds.putAll(newByProv)
 
             nextFill.set(Time.now() + 60_000 * 5)
         }
@@ -150,7 +165,7 @@ class ProductCache(private val db: DBContext) : IProductCache {
     override suspend fun productProviderToProductIds(provider: String): List<Int>? {
         return tryOrRetry {
             fillCache()
-            return mutex.withReader {
+            mutex.withReader {
                 productProviderToProductIds[provider]
             }
         }

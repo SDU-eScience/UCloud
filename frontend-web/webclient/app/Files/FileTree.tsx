@@ -4,7 +4,7 @@ import {injectStyle} from "@/Unstyled";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {doNothing, extensionFromPath} from "@/UtilityFunctions";
 import {usePrettyFilePath} from "./FilePath";
-import {Box, Flex, FtIcon, Icon, Input, Truncate} from "@/ui-components";
+import {Box, Flex, FtIcon, Input, Truncate} from "@/ui-components";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import {FullpathFileLanguageIcon} from "@/Editor/Editor";
 import {FileIconHint} from ".";
