@@ -8,7 +8,7 @@ import AppRoutes from "@/Routes";
 import {Allocation, WalletV2} from "@/Accounting";
 import {Project} from "@/Project";
 import {apiRetrieve, callAPI} from "@/Authentication/DataHook";
-import {capitalized, displayErrorMessageOrDefault, errorMessageOrDefault} from "@/UtilityFunctions";
+import {capitalized, errorMessageOrDefault} from "@/UtilityFunctions";
 import {mail} from "@/UCloud";
 import {Application} from "@/Grants";
 import EmailSettings = mail.EmailSettings;
@@ -156,19 +156,21 @@ export function UserSupportContent() {
     const user = getQueryParam(location.search, "id");
     const isEmail = getQueryParam(location.search, "isEmail");
 
+    const [error, setError] = React.useState("");
     const [userInfo, setInfo] = React.useState<SupportAssistRetrieveUserInfoResponse | null>({info: []});
 
     React.useEffect(() => {
         if (!user) return;
         callAPI(Api.retrieveUserInfo(isEmail ? {email: user} : {username: user}))
             .then(result => setInfo(result))
-            .catch(e => displayErrorMessageOrDefault(e, "Failed to fetch user"));
+            .catch(e => setError(errorMessageOrDefault(e, "Failed to fetch user")));
     }, [user, isEmail]);
 
     if (!Client.userIsAdmin || userInfo == null) return null;
 
     return <MainContainer
         main={<div>
+            <Error error={error} />
             {user} {userInfo.info.length > 1 ? `${userInfo.info.length} entries found` : null}
 
             {userInfo.info.map(it => <div>
@@ -315,6 +317,7 @@ export function AllocationSupportContent() {
     const flags = {
         includeAccountingGraph: getQueryParam(location.search, "includeAccountingGraph") === "true"
     }
+    const [error, setError] = React.useState("");
     const [allocation, setAllocation] = React.useState<SupportAssistRetrieveWalletInfoResponse | null>(null);
 
     React.useEffect(() => {
@@ -324,13 +327,14 @@ export function AllocationSupportContent() {
             {walletId: id, flags} :
             {allocationId: id, flags}))
             .then(setAllocation)
-            .catch(e => displayErrorMessageOrDefault(e, "Failed to fetch"));
+            .catch(e => setError(errorMessageOrDefault(e, "Failed to fetch")));
     }, [id, isWalletId, flags]);
 
     if (!Client.userIsAdmin || allocation == null) return null;
 
     return <MainContainer
         main={<>
+            <Error error={error} />
             Allocation group count
             {allocation.wallet.allocationGroups.length}
         </>}
