@@ -1,30 +1,10 @@
 import * as React from "react";
 import {ChangeEvent, useCallback, useEffect, useState} from "react";
+import {Button, Checkbox} from "@/ui-components";
+import {injectStyle} from "@/Unstyled";
+import {stopPropagation} from "@/UtilityFunctions";
 
-/* TODO Make a todo type that can store information about id (number), task(string we get from formState) and completed/checked state(boolean)*/
-type Todo = {
-  id: number;
-  task: string;
-  isCompleted: boolean;
-};
-
-/* TODO Make state with handlers for deleting, completing/checking, editing etc.*/
-// Deleting TODOs
-const handleDelete = (id: number) => {
-
-};
-
-// Toggle completed TODOs on/off
-const handleToggleCompleted = (event) => {
-
-};
-
-// Editing TODOs
-const handleTaskEdit = (event) => {
-
-};
-
-function useFormState(initialState: Record<string, string> = {}): [Record<string, string>, (name: string) => any] {
+function useFormState(initialState: Record<string, string> = {}): [Record<string, string>, (name: string) => any, (name: string, value: string) => void] {
     const [formState, setFormState] = useState<Record<string, string>>(initialState);
     const onInputUpdate = useCallback((e: React.SyntheticEvent) => {
         const elem = e.target as HTMLInputElement;
@@ -41,35 +21,116 @@ function useFormState(initialState: Record<string, string> = {}): [Record<string
         };
     }, [formState]);
 
-    return [formState, attributeGetter];
+    const attributeSetter = useCallback((name: string, value: string) => {
+        setFormState(prev => {
+            return {...prev, [name]: value};
+        })
+    }, [setFormState]);
+
+    return [formState, attributeGetter, attributeSetter];
 }
 
-export const MyTodo: React.FunctionComponent = () => {
-    const [formState, registerField] = useFormState({});
+type Todo = {
+    id: number,
+    task: string,
+    isCompleted: boolean
+};
 
-    const todoAdd = useCallback((e: React.SyntheticEvent) => {
-        e.preventDefault();
-        console.log("1", formState);
-    }, [formState]);
+let nextId = 0;
 
-    /*TODO Make a todo from the fromState here?*/
-    const todo: Todo = {
-        id: 73,
-        task: "",
-        isCompleted: false
-    };
+export const TodoList: React.FunctionComponent = () => {
 
+    const [formState, registerField, setFieldValue] = useFormState({});
 
-    console.log("2", formState);
+    const [todos, setTodos] = useState<Todo[]>([]);
 
-    return <div>
-        <h3>My TODO here</h3>
-        <form onSubmit={todoAdd}>
-            <input type="text" placeholder="placeholder text" {...registerField("task")} />
-        </form>
-        <ul>
-            {/*TODO Insert code in the object below to display todo tasks as list entries*/}
-            {}
-        </ul>
-    </div>;
+    const addTodo = useCallback((event: React.SyntheticEvent) => {
+        event.preventDefault()
+        setTodos([
+            ...todos,
+            {
+                id: nextId++,
+                task: formState["task"],
+                isCompleted: false
+            }
+        ]);
+        setFieldValue("task", "");
+    }, [todos, formState]);
+
+    const handleDelete = useCallback((id: number) => {
+        setTodos(todos.filter((todo) => id != todo.id));
+    }, [todos, setTodos]);
+
+    const handleChecked = useCallback((id: number)=> {
+        setTodos(prev =>
+            prev.map(todo => todo.id === id ? { ...todo, isCompleted: !todo.isCompleted } : todo
+            )
+        );
+    }, [setTodos]);
+
+    const [editing, setEditing] = useState<number>(-1);
+
+    const handleActiveEditing = useCallback((id: number) => {
+        setEditing(id)
+    }, [setEditing]);
+
+    const handleEditingCompleted = useCallback((id: number) => {
+        setTodos(prev =>
+            prev.map(todo => todo.id === id ? { ...todo, task: formState.edit } : todo
+            )
+        );
+        setEditing(-1);
+    }, [setTodos, setEditing]);
+
+    const todoStyle = injectStyle("todo-style", k => `
+    ${k} ul {
+        display: block;
+    }
+    
+    ${k} li {
+        list-style: none;
+    }
+    
+    ${k} .delete-button {
+        background: red;
+    }
+`)
+    return <>
+        <div className={todoStyle}>
+            <form  onSubmit={addTodo}>
+                <h3>TODO list</h3>
+                <input type="text" placeholder="Type your TODO here" {...registerField("task")}/>
+            </form>
+            <ul>
+                {todos.map(todo =>
+                    <li key={todo.id}>
+                        {editing === todo.id ? <>
+                            <Checkbox
+                                checked={todo.isCompleted}
+                                handleWrapperClick={() => handleChecked(todo.id)}
+                                onChange={stopPropagation}/>
+                            {todo.task}
+                            <Button onClick={() => handleActiveEditing}>Edit todo</Button>
+                            <Button
+                                className="delete-button"
+                                onClick={() => handleDelete(todo.id)}>
+                                Delete todo
+                            </Button>
+                        </> : <>
+                            <Checkbox
+                                checked={todo.isCompleted}
+                                handleWrapperClick={() => handleChecked(todo.id)}
+                                onChange={stopPropagation}/>
+                            {todo.task}
+                            <Button onClick={() => handleEditingCompleted}>Edit todo</Button>
+                            <Button
+                                className="delete-button"
+                                onClick={() => handleDelete(todo.id)}>
+                                Delete todo
+                            </Button>
+                        </>}
+                </li>)}
+            </ul>
+        </div>
+    </>
 };
