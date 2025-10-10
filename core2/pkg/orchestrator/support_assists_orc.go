@@ -13,7 +13,7 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-func initSupportAssistsOrd() {
+func initSupportAssistsOrc() {
 	orcapi.SupportAssistRetrieveProjectInfo.Handler(func(info rpc.RequestInfo, request orcapi.SupportAssistRetrieveProjectInfoRequest) (orcapi.SupportAssistRetrieveProjectInfoResponse, *util.HttpError) {
 		return retrieveProjectInfo(request.ProjectId, request.Flags)
 	})
@@ -65,7 +65,17 @@ func retrieveProjectInfo(projectId string, flags orcapi.SupportAssistProjectInfo
 			apm.WalletsBrowseRequest{},
 		).Items
 
-		issues := nil
+		/*for _, wallet := range wallets {
+
+			//If not able to use all available resource we have an issue
+			if wallet.MaxUsable < wallet.Quota-wallet.TotalUsage {
+				for _, group := range wallet.AllocationGroups {
+					if group.Parent.Present {
+						parent := group.Parent.Value
+					}
+				}
+			}
+		}*/
 	}
 
 	if flags.IncludeJobsInfo {
@@ -106,7 +116,6 @@ func retrieveJobInfo(jobId string) (orcapi.SupportAssistRetrieveJobInfoResponse,
 }
 
 func retrieveWalletInfo(allocationId string, walletId string, flags orcapi.SupportAssistWalletInfoFlags) (orcapi.SupportAssistRetrieveWalletInfoResponse, *util.HttpError) {
-
 	if walletId != "" && allocationId != "" {
 		return orcapi.SupportAssistRetrieveWalletInfoResponse{}, util.HttpErr(http.StatusBadRequest, "Cannot specify both walletId and allocationId")
 	}
@@ -141,6 +150,6 @@ func retrieveWalletInfo(allocationId string, walletId string, flags orcapi.Suppo
 			Wallet: wallet,
 		}, nil
 	}
-	
+
 	return orcapi.SupportAssistRetrieveWalletInfoResponse{}, util.HttpErr(http.StatusNotFound, "Wallet not found")
 }

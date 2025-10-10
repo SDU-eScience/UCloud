@@ -279,7 +279,10 @@ func WalletV2ById(actor rpc.Actor, walletId int) (accapi.WalletV2, bool) {
 
 func WalletV2ByAllocationID(actor rpc.Actor, allocationId int) (accapi.WalletV2, bool) {
 	if actor.Username == rpc.ActorSystem.Username {
-		internalRetrieveWallets(time.Now())
+		wallet, found := internalRetrieveWalletByAllocationId(time.Now(), allocationId)
+		if found {
+			return wallet, true
+		}
 	}
 	return accapi.WalletV2{}, false
 }
