@@ -6,7 +6,7 @@ import Icon from "@/ui-components/Icon";
 
 interface ErrorProps {
     clearError?: () => void;
-    error?: React.ReactNode;
+    error: React.ReactNode;
     width?: string | number
 }
 

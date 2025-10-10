@@ -1,5 +1,5 @@
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Box, Button, Checkbox, Flex, Heading, Input, Label, MainContainer} from "@/ui-components";
+import {Box, Button, Checkbox, Flex, Heading, Input, Label, MainContainer, Error} from "@/ui-components";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import * as React from "react";
 import {useLocation, useNavigate} from "react-router";
@@ -8,7 +8,7 @@ import AppRoutes from "@/Routes";
 import {Allocation, WalletV2} from "@/Accounting";
 import {Project} from "@/Project";
 import {apiRetrieve, callAPI} from "@/Authentication/DataHook";
-import {capitalized, displayErrorMessageOrDefault} from "@/UtilityFunctions";
+import {capitalized, errorMessageOrDefault} from "@/UtilityFunctions";
 import {mail} from "@/UCloud";
 import {Application} from "@/Grants";
 import EmailSettings = mail.EmailSettings;
@@ -19,7 +19,8 @@ const {supportAssist} = AppRoutes;
 enum Index {
     MembersAndInvites = 0,
     AccountingInfo = 1,
-    RecentJobs = 2
+    RecentJobs = 2,
+    IncludeGraph = 3,
 };
 
 export default function () {
@@ -31,7 +32,7 @@ export default function () {
     const jobRef = React.useRef<HTMLInputElement>(null);
     const allocationRef = React.useRef<HTMLInputElement>(null);
 
-    const [checkMarks, setChecks] = React.useState([false, false, false]);
+    const [checkMarks, setChecks] = React.useState([false, false, false, false]);
 
     const toggleCheckbox = React.useCallback((idx: number) => {
         setChecks(checks => {
@@ -43,6 +44,7 @@ export default function () {
     const membersAndInvites = checkMarks[Index.MembersAndInvites];
     const accountingInfo = checkMarks[Index.AccountingInfo];
     const recentJobs = checkMarks[Index.RecentJobs];
+    const includeGraph = checkMarks[Index.IncludeGraph];
 
     const navigateTo = React.useCallback((url: string, id: string | undefined, additional?: Record<string, any>) => {
         if (!id) {
@@ -70,14 +72,7 @@ export default function () {
                         e-mail
                         <Input placeholder="Type e-mail..." inputRef={emailRef} />
                     </Label>
-                    <Button ml="24px" mt="auto" onClick={() => {
-                        const id = emailRef.current?.value;
-                        if (!id) {
-                            snackbarStore.addFailure("Field cannot be empty", false);
-                            return;
-                        }
-                        navigate(buildQueryString(supportAssist.user(), {id, isEmail: true}));
-                    }}>Search</Button>
+                    <Button ml="24px" mt="auto" onClick={() => navigateTo(supportAssist.user(), emailRef.current?.value, {isEmail: true})}>Search</Button>
                 </Flex>
                 <Box my="12px">
                     <Flex>
@@ -114,13 +109,19 @@ export default function () {
                     </Label>
                     <Button ml="24px" mt="auto" onClick={() => navigateTo(supportAssist.job(), jobRef.current?.value)}>Search</Button>
                 </Flex>
-                <Flex my="12px">
-                    <Label>
-                        Allocation ID
-                        <Input placeholder="Type allocation/wallet ID..." inputRef={allocationRef} />
+                <Box my="12px">
+                    <Flex>
+                        <Label>
+                            Allocation ID
+                            <Input placeholder="Type allocation/wallet ID..." inputRef={allocationRef} />
+                        </Label>
+                        <Button ml="24px" mt="auto" onClick={() => navigateTo(supportAssist.allocation(), allocationRef.current?.value)}>Search</Button>
+                    </Flex>
+                    <Label mr="12px">
+                        <Checkbox checked={includeGraph} onChange={() => toggleCheckbox(Index.IncludeGraph)} />
+                        Include graph
                     </Label>
-                    <Button ml="24px" mt="auto" onClick={() => navigateTo(supportAssist.allocation(), allocationRef.current?.value)}>Search</Button>
-                </Flex>
+                </Box>
             </Box>
         </>
         }
@@ -155,19 +156,21 @@ export function UserSupportContent() {
     const user = getQueryParam(location.search, "id");
     const isEmail = getQueryParam(location.search, "isEmail");
 
-    const [userInfo, setInfo] = React.useState<SupportAssistRetrieveUserInfoResponse>({info: []});
+    const [error, setError] = React.useState("");
+    const [userInfo, setInfo] = React.useState<SupportAssistRetrieveUserInfoResponse | null>({info: []});
 
     React.useEffect(() => {
         if (!user) return;
         callAPI(Api.retrieveUserInfo(isEmail ? {email: user} : {username: user}))
             .then(result => setInfo(result))
-            .catch(e => displayErrorMessageOrDefault(e, "Failed to fetch user"));
+            .catch(e => setError(errorMessageOrDefault(e, "Failed to fetch user")));
     }, [user, isEmail]);
 
-    if (!Client.userIsAdmin) return null;
+    if (!Client.userIsAdmin || userInfo == null) return null;
 
     return <MainContainer
         main={<div>
+            <Error error={error} />
             {user} {userInfo.info.length > 1 ? `${userInfo.info.length} entries found` : null}
 
             {userInfo.info.map(it => <div>
@@ -231,6 +234,7 @@ export function ProjectSupportContent() {
     const includeAccountingInfo = getQueryParam(location.search, "includeAccountingInfo") === "true";
     const includeJobsInfo = getQueryParam(location.search, "includeJobsInfo") === "true";
 
+    const [error, setError] = React.useState("");
     const [project, setProject] = React.useState<SupportAssistRetrieveProjectInfoResponse | null>(null);
 
     React.useEffect(() => {
@@ -242,13 +246,13 @@ export function ProjectSupportContent() {
                 includeAccountingInfo,
                 includeJobsInfo
             }
-        })).then(setProject).catch(e => displayErrorMessageOrDefault(e, "Failed to fetch project"));
+        })).then(setProject).catch(e => setError(errorMessageOrDefault(e, "Failed to fetch project")));
     }, [projectId]);
 
     if (!Client.userIsAdmin || project == null) return null;
     return <MainContainer
         main={<div>
-
+            <Error error={error} />
         </div>}
     />
 }
@@ -266,27 +270,34 @@ interface SupportAssistRetrieveJobInfoResponse {
 export function JobSupportContent() {
     const location = useLocation();
     const jobId = getQueryParam(location.search, "id");
+    const [error, setError] = React.useState("");
     const [job, setJob] = React.useState<SupportAssistRetrieveJobInfoResponse | null>(null);
     React.useEffect(() => {
         if (!jobId) return
         callAPI(Api.retrieveJobInfo({jobId}))
             .then(setJob)
-            .catch(e => displayErrorMessageOrDefault(e, "Failed to fetch job"));
+            .catch(e => setError(errorMessageOrDefault(e, "Failed to fetch job")));
     }, [jobId]);
     if (!Client.userIsAdmin || job == null) return null;
 
     return <MainContainer
-        main={<div>{job.jobInfo.id}</div>}
+        header={"Job"}
+        main={<>
+            <Error error={error} />
+            <div>
+                {job.jobInfo.id}
+            </div>
+        </>}
     />
 }
 
 // ALLOCATION/WALLET
 
-type SupportAssistRetrieveWalletInfoRequest = {
+type SupportAssistRetrieveWalletInfoRequest = ({
     allocationId: string;
 } | {
     walletId: string;
-} & {
+}) & {
     flags?: SupportAssistWalletInfoFlags;
 }
 
@@ -302,20 +313,28 @@ interface SupportAssistRetrieveWalletInfoResponse {
 export function AllocationSupportContent() {
     const location = useLocation();
     const id = getQueryParam(location.search, "id");
+    const isWalletId = getQueryParam(location.search, "isWalletId") === "true";
+    const flags = {
+        includeAccountingGraph: getQueryParam(location.search, "includeAccountingGraph") === "true"
+    }
+    const [error, setError] = React.useState("");
     const [allocation, setAllocation] = React.useState<SupportAssistRetrieveWalletInfoResponse | null>(null);
 
     React.useEffect(() => {
         if (!id) return;
         // or wallet id? handle graph thing flag
-        callAPI(Api.retrieveWalletInfo({allocationId: id}))
+        callAPI(Api.retrieveWalletInfo(isWalletId ?
+            {walletId: id, flags} :
+            {allocationId: id, flags}))
             .then(setAllocation)
-            .catch(e => displayErrorMessageOrDefault(e, "Failed to fetch"));
-    }, [id]);
+            .catch(e => setError(errorMessageOrDefault(e, "Failed to fetch")));
+    }, [id, isWalletId, flags]);
 
     if (!Client.userIsAdmin || allocation == null) return null;
 
     return <MainContainer
         main={<>
+            <Error error={error} />
             Allocation group count
             {allocation.wallet.allocationGroups.length}
         </>}
