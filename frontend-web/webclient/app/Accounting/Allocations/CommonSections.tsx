@@ -54,6 +54,16 @@ import {produce} from "immer";
 import {heroStar, sortAscending} from "@/ui-components/icons";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {SORT_BY} from "@/ui-components/ResourceBrowserFilters";
+import {projectTitle} from "@/Project/ProjectSwitcher";
+import {exportUsage, header} from "@/Accounting/Usage";
+
+interface Datapoint {
+    product: string;
+    provider: string;
+    usage: number;
+    quota: number;
+    unit: string;
+}
 
 export const YourAllocations: React.FunctionComponent<{
     allocations: [string, AllocationDisplayTreeYourAllocation][],
@@ -61,104 +71,147 @@ export const YourAllocations: React.FunctionComponent<{
     indent: number;
     state: State;
 }> = ({allocations, allocationTree, indent, state}) => {
+    const onExportData = useCallback(() => {
+        exportUsage<Datapoint>([
+            {
+                product: "Fie",
+                provider: "Dan",
+                usage: 5,
+                quota: 8,
+                unit: "hund"
+            },
+            {
+                product: "Frida",
+                provider: "Dan",
+                usage: 1,
+                quota: 9,
+                unit: "hund"
+            }
+        ], [
+            header("product", "Product", true),
+            header("provider", "Provider", true),
+            header("usage", "Usage", true),
+            header("quota", "Quota", true),
+            header("unit", "Unit", true)
+        ], "");
+    }, []);
+
     return <>
         <div className={yourAllocationsStyle}>
-            <h3>Your allocations</h3>
-            {state.remoteData.wallets === undefined ? <>
-                <HexSpin size={64} />
-            </> : <>
-                <div>
-                    {allocations.length !== 0 ? null : <>
-                        You do not have any allocations at the moment. You can apply for resources{" "}
-                        <Link to={AppRoutes.grants.editor()}>here</Link>.
-                    </>}
-                    <Tree apiRef={allocationTree}>
-                        {allocations.map(([rawType, tree]) => {
-                            const type = rawType as ProductType;
+            <div className="your-allocations-header">
+                <h3>Your allocations</h3>
+                <Button onClick={onExportData}>
+                    Export
+                </Button>
+            </div>
+            <div className="your-allocations-container">
+                {state.remoteData.wallets === undefined ? <>
+                    <HexSpin size={64}/>
+                </> : <>
+                    <div>
+                        {allocations.length !== 0 ? null : <>
+                            You do not have any allocations at the moment. You can apply for resources{" "}
+                            <Link to={AppRoutes.grants.editor()}>here</Link>.
+                        </>}
+                        <Tree apiRef={allocationTree}>
+                            {allocations.map(([rawType, tree]) => {
+                                const type = rawType as ProductType;
 
-                            return <TreeNode
-                                key={rawType}
-                                left={<Flex gap={"4px"}>
-                                    <Icon name={Accounting.productTypeToIcon(type)} size={20}/>
-                                    {Accounting.productAreaTitle(type)}
-                                </Flex>}
-                                right={<Flex flexDirection={"row"} gap={"8px"}>
-                                    {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                            <ProgressBar uq={uq}/>
-                                        </React.Fragment>
-                                    )}
-                                </Flex>}
-                                indent={indent}
-                            >
-                                {tree.wallets.map((wallet, idx) =>
-                                    <TreeNode
-                                        key={idx}
-                                        left={<Flex gap={"4px"}>
-                                            <ProviderLogo providerId={wallet.category.provider} size={20}/>
-                                            <code>{wallet.category.name}</code>
-                                        </Flex>}
-                                        right={<Flex flexDirection={"row"} gap={"8px"}>
-                                            <ProgressBar uq={wallet.usageAndQuota}/>
-                                        </Flex>}
-                                        indent={indent * 2}
-                                    >
-                                        {wallet.allocations
-                                            .map(alloc =>
-                                                <TreeNode
-                                                    key={alloc.id}
-                                                    className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
-                                                    left={<Flex gap={"32px"}>
-                                                        <Flex width={"200px"}>
-                                                            <Icon name={"heroBanknotes"} ml={"8px"} mr={4}/>
-                                                            <div>
-                                                                <b>Allocation ID:</b>
+                                return <TreeNode
+                                    key={rawType}
+                                    left={<Flex gap={"4px"}>
+                                        <Icon name={Accounting.productTypeToIcon(type)} size={20}/>
+                                        {Accounting.productAreaTitle(type)}
+                                    </Flex>}
+                                    right={<Flex flexDirection={"row"} gap={"8px"}>
+                                        {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
+                                                <ProgressBar uq={uq}/>
+                                            </React.Fragment>
+                                        )}
+                                    </Flex>}
+                                    indent={indent}
+                                >
+                                    {tree.wallets.map((wallet, idx) =>
+                                        <TreeNode
+                                            key={idx}
+                                            left={<Flex gap={"4px"}>
+                                                <ProviderLogo providerId={wallet.category.provider} size={20}/>
+                                                <code>{wallet.category.name}</code>
+                                            </Flex>}
+                                            right={<Flex flexDirection={"row"} gap={"8px"}>
+                                                <ProgressBar uq={wallet.usageAndQuota}/>
+                                            </Flex>}
+                                            indent={indent * 2}
+                                        >
+                                            {wallet.allocations
+                                                .map(alloc =>
+                                                    <TreeNode
+                                                        key={alloc.id}
+                                                        className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
+                                                        left={<Flex gap={"32px"}>
+                                                            <Flex width={"200px"}>
+                                                                <Icon name={"heroBanknotes"} ml={"8px"} mr={4}/>
+                                                                <div>
+                                                                    <b>Allocation ID:</b>
+                                                                    {" "}
+                                                                    <code>{chunkedString(alloc.id.toString().padStart(6, "0"), 3, false).join(" ")}</code>
+                                                                </div>
+                                                            </Flex>
+
+                                                            <Flex width={"250px"}>
+                                                                Period:
                                                                 {" "}
-                                                                <code>{chunkedString(alloc.id.toString().padStart(6, "0"), 3, false).join(" ")}</code>
+                                                                {dateToStringNoTime(alloc.start)}
+                                                                {" "}&mdash;{" "}
+                                                                {dateToStringNoTime(alloc.end)}
+                                                            </Flex>
+
+                                                            {alloc.grantedIn && <>
+                                                                <Link target={"_blank"}
+                                                                      to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                                                    View grant application{" "}
+                                                                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
+                                                                </Link>
+                                                            </>}
+                                                        </Flex>}
+                                                        right={<Flex flexDirection={"row"} gap={"8px"}>
+                                                            {alloc.note && <>
+                                                                <TooltipV2 tooltip={alloc.note.text}>
+                                                                    <Icon name={alloc.note.icon}
+                                                                          color={alloc.note.iconColor}/>
+                                                                </TooltipV2>
+                                                            </>}
+                                                            <div className="low-opaqueness">
+                                                                {alloc.display.quota}
                                                             </div>
-                                                        </Flex>
-
-                                                        <Flex width={"250px"}>
-                                                            Period:
-                                                            {" "}
-                                                            {dateToStringNoTime(alloc.start)}
-                                                            {" "}&mdash;{" "}
-                                                            {dateToStringNoTime(alloc.end)}
-                                                        </Flex>
-
-                                                        {alloc.grantedIn && <>
-                                                            <Link target={"_blank"}
-                                                                  to={AppRoutes.grants.editor(alloc.grantedIn)}>
-                                                                View grant application{" "}
-                                                                <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                                                            </Link>
-                                                        </>}
-                                                    </Flex>}
-                                                    right={<Flex flexDirection={"row"} gap={"8px"}>
-                                                        {alloc.note && <>
-                                                            <TooltipV2 tooltip={alloc.note.text}>
-                                                                <Icon name={alloc.note.icon} color={alloc.note.iconColor}/>
-                                                            </TooltipV2>
-                                                        </>}
-                                                        <div className="low-opaqueness">
-                                                            {alloc.display.quota}
-                                                        </div>
-                                                    </Flex>}
-                                                />
-                                            )
-                                        }
-                                    </TreeNode>
-                                )}
-                            </TreeNode>;
-                        })}
-                    </Tree>
-                </div>
-            </>}
+                                                        </Flex>}
+                                                    />
+                                                )
+                                            }
+                                        </TreeNode>
+                                    )}
+                                </TreeNode>;
+                            })}
+                        </Tree>
+                    </div>
+                </>}
+            </div>
         </div>
     </>;
 }
 
 const yourAllocationsStyle = injectStyle("your-allocations", k => `
-    ${k} {
+    ${k} .your-allocations-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 14px;
+    }
+    
+    ${k} .your-allocations-header > h3 {
+        flex-grow: 1;
+    }
+    
+    ${k} .your-allocations-container {
         border: 1px solid var(--borderColor);
         border-radius: 5px;
         padding: 5px 20px 10px 20px;
@@ -175,17 +228,26 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
         overflow: auto;
     }
     
+    ${k} .key-metrics-header-container {
+        display: flex;
+        align
+        flex-direction: row;
+        gap: 14px;
+        margin-top: 14px;
+        align-items: center;
+    }
+   
+    ${k} .key-metrics-header-container > h3 {
+        flex-grow: 1;
+    }
+    
     ${k} .key-metrics-container {
         display: flex;
+        align
         flex-direction: row;
         gap: 14px;
         margin-top: 14px;
     }
-    
-    ${k} .key-metrics-container > h3 {
-        flex-grow: 1;
-    }
-    
     ${k} .filters-button {
         width: 35px;
     }
@@ -470,7 +532,7 @@ export const SubProjectAllocations: React.FunctionComponent<{
         </ReactModal>
 
         <Box mt={32} mb={10} className={keyMetricsStyle}>
-            <div className="key-metrics-container">
+            <div className="key-metrics-header-container">
                 <h3>Key metrics</h3>
                 <div className="key-metrics-input">
                     <div className="key-metrics-search-box">
@@ -875,7 +937,7 @@ export const SubProjectFilters: React.FunctionComponent<{
     }, [ascending]);
 
     const onSortingToggle = useCallback(() => {
-       setAscending(current => !current);
+        setAscending(current => !current);
     }, [setAscending]);
 
     return <ReactModal
@@ -915,9 +977,9 @@ export const SubProjectFilters: React.FunctionComponent<{
             <div className="sub-projects-sorting-selector">
                 <SimpleRichSelect
                     items={[{key: "", value: ""}]}
-                        onSelect={doNothing}
-                        selected={undefined}
-                        dropdownWidth={"300px"}>
+                    onSelect={doNothing}
+                    selected={undefined}
+                    dropdownWidth={"300px"}>
                 </SimpleRichSelect>
                 <div className="sort-button">
                     <TooltipV2 tooltip={ascending ? "Set to ascending" : "Set to descending"}>
@@ -1020,10 +1082,11 @@ export const SubProjectList: React.FunctionComponent<{
                 </Flex>
                 <div className="sub-projects-container" style={{height: "500px", width: "100%"}}>
                     {state.remoteData.wallets === undefined ? <>
-                        <HexSpin size={64} />
+                        <HexSpin size={64}/>
                     </> : <>
                         {state.filteredSubProjectIndices.length !== 0 ? null : <>
-                            You do not have any sub-allocations {state.searchQuery ? "with the active search" : ""} at the
+                            You do not have any sub-allocations {state.searchQuery ? "with the active search" : ""} at
+                            the
                             moment.
                             {projectRole === OldProjectRole.USER ? null : <>
                                 You can create a sub-project by clicking <a href="#" onClick={onNewSubProject}>here</a>.
