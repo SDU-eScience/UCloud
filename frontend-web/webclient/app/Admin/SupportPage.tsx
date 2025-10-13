@@ -60,32 +60,47 @@ export default function () {
         main={<>
             <Heading mb="32px">Support page</Heading>
             <Box>
-                <Flex my="12px">
-                    <Label>
-                        Username
-                        <Input placeholder="Type username..." inputRef={userRef} />
-                    </Label>
-                    <Button ml="24px" mt="auto" onClick={() => navigateTo(supportAssist.user(), userRef.current?.value, {isEmail: false})}>Search</Button>
-                </Flex>
-                <Flex my="12px">
-                    <Label>
-                        e-mail
-                        <Input placeholder="Type e-mail..." inputRef={emailRef} />
-                    </Label>
-                    <Button ml="24px" mt="auto" onClick={() => navigateTo(supportAssist.user(), emailRef.current?.value, {isEmail: true})}>Search</Button>
-                </Flex>
-                <Box my="12px">
-                    <Flex>
+                <form onSubmit={e => {
+                    e.preventDefault();
+                    navigateTo(supportAssist.user(), userRef.current?.value, {isEmail: false})
+                }}>
+                    <Flex my="12px">
                         <Label>
-                            Project ID
-                            <Input placeholder="Type project ID..." inputRef={projectRef} />
+                            Username
+                            <Input placeholder="Type username..." inputRef={userRef} />
                         </Label>
-                        <Button ml="24px" mt="auto" onClick={() => navigateTo(supportAssist.project(), projectRef.current?.value, {
+                        <SearchButton />
+                    </Flex>
+                </form>
+                <form onSubmit={e => {
+                    e.preventDefault();
+                    navigateTo(supportAssist.user(), emailRef.current?.value, {isEmail: true})
+                }}>
+                    <Flex my="12px">
+                        <Label>
+                            e-mail
+                            <Input placeholder="Type e-mail..." inputRef={emailRef} />
+                        </Label>
+                        <SearchButton />
+                    </Flex>
+                </form>
+                <Box my="12px">
+                    <form onSubmit={e => {
+                        e.preventDefault();
+                        navigateTo(supportAssist.project(), projectRef.current?.value, {
                             includeMembers: membersAndInvites,
                             includeAccountingInfo: accountingInfo,
                             includeJobsInfo: recentJobs
-                        })}>Search</Button>
-                    </Flex>
+                        })
+                    }}>
+                        <Flex>
+                            <Label>
+                                Project ID
+                                <Input placeholder="Type project ID..." inputRef={projectRef} />
+                            </Label>
+                            <SearchButton />
+                        </Flex>
+                    </form>
 
                     <Label mr="12px">
                         <Checkbox checked={membersAndInvites} onChange={() => toggleCheckbox(Index.MembersAndInvites)} />
@@ -102,21 +117,31 @@ export default function () {
                         Most recent jobs
                     </Label>
                 </Box>
-                <Flex my="12px">
-                    <Label>
-                        Job ID
-                        <Input placeholder="Type job ID..." inputRef={jobRef} />
-                    </Label>
-                    <Button ml="24px" mt="auto" onClick={() => navigateTo(supportAssist.job(), jobRef.current?.value)}>Search</Button>
-                </Flex>
-                <Box my="12px">
-                    <Flex>
+                <form onSubmit={e => {
+                    e.preventDefault();
+                    navigateTo(supportAssist.job(), jobRef.current?.value);
+                }}>
+                    <Flex my="12px">
                         <Label>
-                            Allocation ID
-                            <Input placeholder="Type allocation/wallet ID..." inputRef={allocationRef} />
+                            Job ID
+                            <Input placeholder="Type job ID..." inputRef={jobRef} />
                         </Label>
-                        <Button ml="24px" mt="auto" onClick={() => navigateTo(supportAssist.allocation(), allocationRef.current?.value)}>Search</Button>
+                        <SearchButton />
                     </Flex>
+                </form>
+                <Box my="12px">
+                    <form onSubmit={e => {
+                        e.preventDefault();
+                        navigateTo(supportAssist.allocation(), allocationRef.current?.value, {includeGraph});
+                    }}>
+                        <Flex>
+                            <Label>
+                                Allocation ID
+                                <Input placeholder="Type allocation/wallet ID..." inputRef={allocationRef} />
+                            </Label>
+                            <SearchButton />
+                        </Flex>
+                    </form>
                     <Label mr="12px">
                         <Checkbox checked={includeGraph} onChange={() => toggleCheckbox(Index.IncludeGraph)} />
                         Include graph
@@ -126,6 +151,10 @@ export default function () {
         </>
         }
     />
+}
+
+function SearchButton() {
+    return <Button ml="24px" mt="auto">Search</Button>;
 }
 
 // USER
