@@ -1003,6 +1003,8 @@ const Allocations: React.FunctionComponent = () => {
     }, [projectId]);
     const listRef = useRef<VariableSizeList<State["subAllocations"]["recipients"]>>(null);
 
+    const project = useProject();
+
     const onExportData = useCallback(() => {
         const toExport: Datapoint[] = [];
         for (const allocationTree of Object.values(state.yourAllocations)) {
@@ -1021,14 +1023,21 @@ const Allocations: React.FunctionComponent = () => {
             }
         }
 
-        exportUsage<Datapoint>(toExport, [
-            header("product", "Product", true),
-            header("provider", "Provider", true),
-            header("usage", "Usage", true),
-            header("quota", "Quota", true),
-            header("unit", "Unit", true)
-        ], "");
-    }, [state.yourAllocations]);
+        if (!project.error || projectId === undefined) {
+            const title = projectId === undefined ? undefined : project.fetch().specification.title;
+            exportUsage<Datapoint>(
+                toExport,
+                [
+                    header("product", "Product", true),
+                    header("provider", "Provider", true),
+                    header("usage", "Usage", true),
+                    header("quota", "Quota", true),
+                    header("unit", "Unit", true)
+                ],
+                title
+            );
+        }
+    }, [state.yourAllocations, project, projectId]);
 
     return <MainContainer
         headerSize={0}
