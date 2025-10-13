@@ -4,8 +4,8 @@ import (
 	"net/http"
 	fnd "ucloud.dk/core/pkg/foundation"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	"ucloud.dk/shared/pkg/apm"
 	db "ucloud.dk/shared/pkg/database2"
+	"ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -33,11 +33,12 @@ func usernameToUserInfo(tx *db.Transaction, username string) accapi.SupportAssis
 	}
 
 	emailSettings := fnd.RetrieveEmailSettings(username)
-	var projects []apm.Project
+	var projects []foundation.Project
 	for projectId, _ := range principal.Membership {
-		project, err := apm.RetrieveProject(
+		project, err := fnd.ProjectRetrieve(
+			rpc.ActorSystem,
 			string(projectId),
-			apm.ProjectFlags{
+			foundation.ProjectFlags{
 				IncludeMembers:  false,
 				IncludeGroups:   false,
 				IncludeFavorite: false,
@@ -45,6 +46,7 @@ func usernameToUserInfo(tx *db.Transaction, username string) accapi.SupportAssis
 				IncludeSettings: false,
 				IncludePath:     false,
 			},
+			foundation.ProjectRoleAdmin,
 		)
 		if err == nil {
 			projects = append(projects, project)

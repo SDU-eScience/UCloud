@@ -1,7 +1,6 @@
 package apm
 
 import (
-	"ucloud.dk/shared/pkg/apm"
 	"ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 )
@@ -17,7 +16,7 @@ type SupportAssistUserInfo struct {
 	LastName                 string
 	Email                    string
 	EmailSettings            foundation.EmailSettings
-	AssociatedProjects       []apm.Project
+	AssociatedProjects       []foundation.Project
 	ActiveGrants             []GrantApplication
 	PersonalProjectResources WalletV2
 }
