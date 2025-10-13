@@ -1073,6 +1073,10 @@ func search(ctx context.Context, query, folder string, flags ctrl.FileFlags, out
 	searchIndex, ok := ctrl.RetrieveSearchIndex(driveId)
 	q := fsearch.NewQuery(query)
 	_ = walk.Walk(initialFolder, runtime.NumCPU(), func(path string, info os.FileInfo, err error) error {
+		if info == nil || err != nil {
+			return walk.SkipDir
+		}
+
 		if q.Matches(path) {
 			match := nativeStat(drive, path, info)
 			output <- match
