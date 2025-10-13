@@ -13,6 +13,8 @@ import {mail} from "@/UCloud";
 import {Application} from "@/Grants";
 import EmailSettings = mail.EmailSettings;
 import {Job} from "@/UCloud/JobsApi";
+import {usePage} from "@/Navigation/Redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 const {supportAssist} = AppRoutes;
 
 // Note(Jonas): Maybe a bit overengineered?
@@ -24,6 +26,8 @@ enum Index {
 };
 
 export default function () {
+    usePage("User support", SidebarTabId.ADMIN);
+
     const navigate = useNavigate();
 
     const userRef = React.useRef<HTMLInputElement>(null);
@@ -184,8 +188,9 @@ export function UserSupportContent() {
     const location = useLocation();
     const user = getQueryParam(location.search, "id");
     const isEmail = getQueryParam(location.search, "isEmail");
+    usePage("User support", SidebarTabId.ADMIN);
 
-    const [error, setError] = React.useState("");
+    const {Error, setError} = useError();
     const [userInfo, setInfo] = React.useState<SupportAssistRetrieveUserInfoResponse | null>({info: []});
 
     React.useEffect(() => {
@@ -199,7 +204,7 @@ export function UserSupportContent() {
 
     return <MainContainer
         main={<div>
-            <Error error={error} />
+            {Error}
             {user} {userInfo.info.length > 1 ? `${userInfo.info.length} entries found` : null}
 
             {userInfo.info.map(it => <div>
@@ -257,13 +262,14 @@ interface WalletIssue {
 }
 
 export function ProjectSupportContent() {
+    usePage("Project support", SidebarTabId.ADMIN);
     const location = useLocation();
     const projectId = getQueryParam(location.search, "id");
     const includeMembers = getQueryParam(location.search, "includeMembers") === "true";
     const includeAccountingInfo = getQueryParam(location.search, "includeAccountingInfo") === "true";
     const includeJobsInfo = getQueryParam(location.search, "includeJobsInfo") === "true";
 
-    const [error, setError] = React.useState("");
+    const {Error, setError} = useError();
     const [project, setProject] = React.useState<SupportAssistRetrieveProjectInfoResponse | null>(null);
 
     React.useEffect(() => {
@@ -281,7 +287,7 @@ export function ProjectSupportContent() {
     if (!Client.userIsAdmin || project == null) return null;
     return <MainContainer
         main={<div>
-            <Error error={error} />
+            {Error}
         </div>}
     />
 }
@@ -299,7 +305,7 @@ interface SupportAssistRetrieveJobInfoResponse {
 export function JobSupportContent() {
     const location = useLocation();
     const jobId = getQueryParam(location.search, "id");
-    const [error, setError] = React.useState("");
+    const {Error, setError} = useError();
     const [job, setJob] = React.useState<SupportAssistRetrieveJobInfoResponse | null>(null);
     React.useEffect(() => {
         if (!jobId) return
@@ -312,7 +318,7 @@ export function JobSupportContent() {
     return <MainContainer
         header={"Job"}
         main={<>
-            <Error error={error} />
+            {Error}
             <div>
                 {job.jobInfo.id}
             </div>
@@ -346,7 +352,7 @@ export function AllocationSupportContent() {
     const flags = {
         includeAccountingGraph: getQueryParam(location.search, "includeAccountingGraph") === "true"
     }
-    const [error, setError] = React.useState("");
+    const {Error, setError} = useError();
     const [allocation, setAllocation] = React.useState<SupportAssistRetrieveWalletInfoResponse | null>(null);
 
     React.useEffect(() => {
@@ -363,11 +369,17 @@ export function AllocationSupportContent() {
 
     return <MainContainer
         main={<>
-            <Error error={error} />
+            {Error}
             Allocation group count
             {allocation.wallet.allocationGroups.length}
         </>}
     />
+}
+
+// Note(Jonas): I have no idea if this makes any sense. It's the same amount of lines in the components that use it.
+function useError(): {setError: (e: string) => void; Error: React.ReactNode} {
+    const [error, setError] = React.useState("");
+    return {setError, Error: <Error error={error} />}
 }
 
 
