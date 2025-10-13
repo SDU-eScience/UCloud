@@ -86,13 +86,13 @@ interface State {
     selectedPeriod: Period,
 }
 
-interface ExportHeader<T> {
+export interface ExportHeader<T> {
     key: keyof T;
     value: string;
     defaultChecked: boolean;
 };
 
-function exportUsage<T extends object>(chartData: T[] | undefined, headers: ExportHeader<T>[], projectTitle: string | undefined): void {
+export function exportUsage<T extends object>(chartData: T[] | undefined, headers: ExportHeader<T>[], projectTitle: string | undefined): void {
     if (!chartData?.length) {
         snackbarStore.addFailure("No data to export found", false);
         return;
@@ -1033,7 +1033,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{
     </div>;
 };
 
-function header<T>(key: keyof T, value: string, defaultChecked?: boolean): ExportHeader<T> {
+export function header<T>(key: keyof T, value: string, defaultChecked?: boolean): ExportHeader<T> {
     return {key, value, defaultChecked: !!defaultChecked};
 }
 
