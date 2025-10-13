@@ -56,6 +56,8 @@ import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {SORT_BY} from "@/ui-components/ResourceBrowserFilters";
 import {projectTitle} from "@/Project/ProjectSwitcher";
 import {exportUsage, header} from "@/Accounting/Usage";
+import {useProject} from "@/Project/cache";
+import {useProjectId} from "@/Project/Api";
 
 interface Datapoint {
     product: string;
@@ -71,6 +73,9 @@ export const YourAllocations: React.FunctionComponent<{
     indent: number;
     state: State;
 }> = ({allocations, allocationTree, indent, state}) => {
+    const project = useProject();
+    const projectId = useProjectId();
+
     const onExportData = useCallback(() => {
         const toExport: Datapoint[] = [];
         for (const [, allocationTree] of allocations) {
@@ -88,14 +93,21 @@ export const YourAllocations: React.FunctionComponent<{
                 });
             }
         }
-        exportUsage<Datapoint>(toExport, [
-            header("product", "Product", true),
-            header("provider", "Provider", true),
-            header("usage", "Usage", true),
-            header("quota", "Quota", true),
-            header("unit", "Unit", true)
-        ], "");
-    }, [allocations]);
+        if (!project.error || projectId === undefined) {
+            const title = projectId === undefined ? undefined : project.fetch().specification.title;
+            exportUsage<Datapoint>(
+                toExport,
+                [
+                    header("product", "Product", true),
+                    header("provider", "Provider", true),
+                    header("usage", "Usage", true),
+                    header("quota", "Quota", true),
+                    header("unit", "Unit", true)
+                ],
+                title
+            );
+        }
+    }, [allocations, project, projectId]);
 
     return <>
         <div className={yourAllocationsStyle}>
