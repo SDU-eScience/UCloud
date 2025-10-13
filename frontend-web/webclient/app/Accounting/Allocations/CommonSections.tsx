@@ -72,29 +72,30 @@ export const YourAllocations: React.FunctionComponent<{
     state: State;
 }> = ({allocations, allocationTree, indent, state}) => {
     const onExportData = useCallback(() => {
-        exportUsage<Datapoint>([
-            {
-                product: "Fie",
-                provider: "Dan",
-                usage: 5,
-                quota: 8,
-                unit: "hund"
-            },
-            {
-                product: "Frida",
-                provider: "Dan",
-                usage: 1,
-                quota: 9,
-                unit: "hund"
+        const toExport: Datapoint[] = [];
+        for (const [, allocationTree] of allocations) {
+            for (let wallet of allocationTree.wallets) {
+                let usage = wallet.usageAndQuota.raw.usage;
+                if (!wallet.usageAndQuota.raw.retiredAmountStillCounts) {
+                    usage -= wallet.usageAndQuota.raw.retiredAmount;
+                }
+                toExport.push({
+                    product: wallet.category.name,
+                    provider: wallet.category.provider,
+                    usage,
+                    quota: wallet.usageAndQuota.raw.quota,
+                    unit: wallet.usageAndQuota.raw.unit
+                });
             }
-        ], [
+        }
+        exportUsage<Datapoint>(toExport, [
             header("product", "Product", true),
             header("provider", "Provider", true),
             header("usage", "Usage", true),
             header("quota", "Quota", true),
             header("unit", "Unit", true)
         ], "");
-    }, []);
+    }, [allocations]);
 
     return <>
         <div className={yourAllocationsStyle}>
