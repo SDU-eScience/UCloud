@@ -13,6 +13,8 @@ import {mail} from "@/UCloud";
 import {Application} from "@/Grants";
 import EmailSettings = mail.EmailSettings;
 import {Job} from "@/UCloud/JobsApi";
+import {usePage} from "@/Navigation/Redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 const {supportAssist} = AppRoutes;
 
 // Note(Jonas): Maybe a bit overengineered?
@@ -24,6 +26,8 @@ enum Index {
 };
 
 export default function () {
+    usePage("User support", SidebarTabId.ADMIN);
+
     const navigate = useNavigate();
 
     const userRef = React.useRef<HTMLInputElement>(null);
@@ -60,32 +64,47 @@ export default function () {
         main={<>
             <Heading mb="32px">Support page</Heading>
             <Box>
-                <Flex my="12px">
-                    <Label>
-                        Username
-                        <Input placeholder="Type username..." inputRef={userRef} />
-                    </Label>
-                    <Button ml="24px" mt="auto" onClick={() => navigateTo(supportAssist.user(), userRef.current?.value, {isEmail: false})}>Search</Button>
-                </Flex>
-                <Flex my="12px">
-                    <Label>
-                        e-mail
-                        <Input placeholder="Type e-mail..." inputRef={emailRef} />
-                    </Label>
-                    <Button ml="24px" mt="auto" onClick={() => navigateTo(supportAssist.user(), emailRef.current?.value, {isEmail: true})}>Search</Button>
-                </Flex>
-                <Box my="12px">
-                    <Flex>
+                <form onSubmit={e => {
+                    e.preventDefault();
+                    navigateTo(supportAssist.user(), userRef.current?.value, {isEmail: false})
+                }}>
+                    <Flex my="12px">
                         <Label>
-                            Project ID
-                            <Input placeholder="Type project ID..." inputRef={projectRef} />
+                            Username
+                            <Input placeholder="Type username..." inputRef={userRef} />
                         </Label>
-                        <Button ml="24px" mt="auto" onClick={() => navigateTo(supportAssist.project(), projectRef.current?.value, {
+                        <SearchButton />
+                    </Flex>
+                </form>
+                <form onSubmit={e => {
+                    e.preventDefault();
+                    navigateTo(supportAssist.user(), emailRef.current?.value, {isEmail: true})
+                }}>
+                    <Flex my="12px">
+                        <Label>
+                            e-mail
+                            <Input placeholder="Type e-mail..." inputRef={emailRef} />
+                        </Label>
+                        <SearchButton />
+                    </Flex>
+                </form>
+                <Box my="12px">
+                    <form onSubmit={e => {
+                        e.preventDefault();
+                        navigateTo(supportAssist.project(), projectRef.current?.value, {
                             includeMembers: membersAndInvites,
                             includeAccountingInfo: accountingInfo,
                             includeJobsInfo: recentJobs
-                        })}>Search</Button>
-                    </Flex>
+                        })
+                    }}>
+                        <Flex>
+                            <Label>
+                                Project ID
+                                <Input placeholder="Type project ID..." inputRef={projectRef} />
+                            </Label>
+                            <SearchButton />
+                        </Flex>
+                    </form>
 
                     <Label mr="12px">
                         <Checkbox checked={membersAndInvites} onChange={() => toggleCheckbox(Index.MembersAndInvites)} />
@@ -102,21 +121,31 @@ export default function () {
                         Most recent jobs
                     </Label>
                 </Box>
-                <Flex my="12px">
-                    <Label>
-                        Job ID
-                        <Input placeholder="Type job ID..." inputRef={jobRef} />
-                    </Label>
-                    <Button ml="24px" mt="auto" onClick={() => navigateTo(supportAssist.job(), jobRef.current?.value)}>Search</Button>
-                </Flex>
-                <Box my="12px">
-                    <Flex>
+                <form onSubmit={e => {
+                    e.preventDefault();
+                    navigateTo(supportAssist.job(), jobRef.current?.value);
+                }}>
+                    <Flex my="12px">
                         <Label>
-                            Allocation ID
-                            <Input placeholder="Type allocation/wallet ID..." inputRef={allocationRef} />
+                            Job ID
+                            <Input placeholder="Type job ID..." inputRef={jobRef} />
                         </Label>
-                        <Button ml="24px" mt="auto" onClick={() => navigateTo(supportAssist.allocation(), allocationRef.current?.value)}>Search</Button>
+                        <SearchButton />
                     </Flex>
+                </form>
+                <Box my="12px">
+                    <form onSubmit={e => {
+                        e.preventDefault();
+                        navigateTo(supportAssist.allocation(), allocationRef.current?.value, {includeGraph});
+                    }}>
+                        <Flex>
+                            <Label>
+                                Allocation ID
+                                <Input placeholder="Type allocation/wallet ID..." inputRef={allocationRef} />
+                            </Label>
+                            <SearchButton />
+                        </Flex>
+                    </form>
                     <Label mr="12px">
                         <Checkbox checked={includeGraph} onChange={() => toggleCheckbox(Index.IncludeGraph)} />
                         Include graph
@@ -126,6 +155,10 @@ export default function () {
         </>
         }
     />
+}
+
+function SearchButton() {
+    return <Button ml="24px" mt="auto">Search</Button>;
 }
 
 // USER
@@ -155,8 +188,9 @@ export function UserSupportContent() {
     const location = useLocation();
     const user = getQueryParam(location.search, "id");
     const isEmail = getQueryParam(location.search, "isEmail");
+    usePage("User support", SidebarTabId.ADMIN);
 
-    const [error, setError] = React.useState("");
+    const {Error, setError} = useError();
     const [userInfo, setInfo] = React.useState<SupportAssistRetrieveUserInfoResponse | null>({info: []});
 
     React.useEffect(() => {
@@ -170,7 +204,7 @@ export function UserSupportContent() {
 
     return <MainContainer
         main={<div>
-            <Error error={error} />
+            {Error}
             {user} {userInfo.info.length > 1 ? `${userInfo.info.length} entries found` : null}
 
             {userInfo.info.map(it => <div>
@@ -228,13 +262,14 @@ interface WalletIssue {
 }
 
 export function ProjectSupportContent() {
+    usePage("Project support", SidebarTabId.ADMIN);
     const location = useLocation();
     const projectId = getQueryParam(location.search, "id");
     const includeMembers = getQueryParam(location.search, "includeMembers") === "true";
     const includeAccountingInfo = getQueryParam(location.search, "includeAccountingInfo") === "true";
     const includeJobsInfo = getQueryParam(location.search, "includeJobsInfo") === "true";
 
-    const [error, setError] = React.useState("");
+    const {Error, setError} = useError();
     const [project, setProject] = React.useState<SupportAssistRetrieveProjectInfoResponse | null>(null);
 
     React.useEffect(() => {
@@ -252,7 +287,7 @@ export function ProjectSupportContent() {
     if (!Client.userIsAdmin || project == null) return null;
     return <MainContainer
         main={<div>
-            <Error error={error} />
+            {Error}
         </div>}
     />
 }
@@ -270,7 +305,7 @@ interface SupportAssistRetrieveJobInfoResponse {
 export function JobSupportContent() {
     const location = useLocation();
     const jobId = getQueryParam(location.search, "id");
-    const [error, setError] = React.useState("");
+    const {Error, setError} = useError();
     const [job, setJob] = React.useState<SupportAssistRetrieveJobInfoResponse | null>(null);
     React.useEffect(() => {
         if (!jobId) return
@@ -283,7 +318,7 @@ export function JobSupportContent() {
     return <MainContainer
         header={"Job"}
         main={<>
-            <Error error={error} />
+            {Error}
             <div>
                 {job.jobInfo.id}
             </div>
@@ -317,7 +352,7 @@ export function AllocationSupportContent() {
     const flags = {
         includeAccountingGraph: getQueryParam(location.search, "includeAccountingGraph") === "true"
     }
-    const [error, setError] = React.useState("");
+    const {Error, setError} = useError();
     const [allocation, setAllocation] = React.useState<SupportAssistRetrieveWalletInfoResponse | null>(null);
 
     React.useEffect(() => {
@@ -334,11 +369,17 @@ export function AllocationSupportContent() {
 
     return <MainContainer
         main={<>
-            <Error error={error} />
+            {Error}
             Allocation group count
             {allocation.wallet.allocationGroups.length}
         </>}
     />
+}
+
+// Note(Jonas): I have no idea if this makes any sense. It's the same amount of lines in the components that use it.
+function useError(): {setError: (e: string) => void; Error: React.ReactNode} {
+    const [error, setError] = React.useState("");
+    return {setError, Error: <Error error={error} />}
 }
 
 

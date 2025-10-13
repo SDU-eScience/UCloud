@@ -26,6 +26,8 @@ import {initVimMode, VimMode} from "monaco-vim";
 import {addStandardDialog} from "@/UtilityComponents";
 import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
 import {IconName} from "@/ui-components/Icon";
+import ITextModel = editor.ITextModel;
+import EndOfLineSequence = editor.EndOfLineSequence;
 
 export interface Vfs {
     isReal(): boolean;
@@ -576,7 +578,8 @@ export const Editor: React.FunctionComponent<{
                 if (!editor) return;
                 const existingModel = getModelFromEditor(name);
                 if (!existingModel) {
-                    const model = monacoRef.current?.editor?.createModel(content, syntax, Uri.file(name));
+                    const model = monacoRef.current?.editor?.createModel(content, syntax, Uri.file(name)) as ITextModel;
+                    model.setEOL(EndOfLineSequence.LF);
                     model.onDidChangeContent(e => {
                         setDirtyFiles(f => {
                             const altId = model.getAlternativeVersionId();

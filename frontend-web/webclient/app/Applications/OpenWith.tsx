@@ -38,7 +38,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
     const supportRef = React.useRef<ResolvedSupport[]>([]);
     const productsRef = React.useRef<ProductV2Compute[]>([]);
     const productComputeRef = React.useRef<UCloud.PageV2<ProductV2Compute>>(emptyPageV2);
-    const machineSupportRef = React.useRef<compute.JobsRetrieveProductsResponse>();
+    const machineSupportRef = React.useRef<compute.JobsRetrieveProductsResponse>(null);
     const walletsRef = React.useRef<WalletV2[]>([]);
 
     const activeProject = React.useRef(Client.projectId);
@@ -59,7 +59,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
         if (mount && !browserRef.current) {
             new ResourceBrowser(mount, "Launch with", opts).init(browserRef, {
                 breadcrumbsSeparatedBySlashes: false,
-                contextSwitcher: true,
+                projectSwitcher: true,
             }, "", browser => {
                 fetchInfo();
 
@@ -273,7 +273,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
 async function fetchWallets(next?: string): Promise<WalletV2[]> {
     const result = await callAPI(browseWalletsV2({
         itemsPerPage: 250,
-        next 
+        next
     }));
 
     if (result.next) {
