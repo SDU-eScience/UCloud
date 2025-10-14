@@ -284,7 +284,7 @@ func loopMonitoring() {
 
 					switch cond.Type {
 					case core.NodeReady:
-						setLimitsToZero = status == core.ConditionFalse
+						setLimitsToZero = status == core.ConditionFalse || status == core.ConditionUnknown
 					case core.NodeMemoryPressure:
 						setLimitsToZero = status == core.ConditionTrue
 					case core.NodeDiskPressure:
