@@ -231,7 +231,7 @@ export function emptyProject(): Project {
         status: {
             archived: false,
             needsVerification: false,
-        }
+        },
     }
 }
 

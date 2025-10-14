@@ -3,7 +3,7 @@ import {useDispatch} from "react-redux";
 import {bulkRequestOf, threadDeferLike, displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
 import {dispatchSetProjectAction, emitProjects, getStoredProject} from "@/Project/ReduxState";
-import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error} from "@/ui-components";
+import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error, Tooltip} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {NavigateFunction, useNavigate} from "react-router";
@@ -18,8 +18,14 @@ import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {Project} from ".";
+import {Feature, hasFeature} from "@/Features";
+import {IconName} from "@/ui-components/Icon";
+import {Toggle} from "@/ui-components/Toggle";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
+
+// TODO(Jonas): Handle key-down skipping toggle entry
+// TODO(Jonas): Ensure that this feature doesn't bleed throught without the flag.
 
 const CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS: ProjectBrowseParams = {
     itemsPerPage: PROJECT_ITEMS_PER_PAGE,
@@ -74,6 +80,7 @@ export function ProjectSwitcher({managed}: {
     managed?: {setLocalProject: (project?: string) => void, initialProject?: string}
 }): React.ReactNode {
     const refresh = useRefresh();
+    const [showHidden, setShowHidden] = React.useState(false);
 
     const project = useProject();
     const projectId = useProjectId();
@@ -121,6 +128,14 @@ export function ProjectSwitcher({managed}: {
         })
     }, []);
 
+    const rerender = React.useCallback((projectId: string) => {
+        setProjectList(projects => {
+            const idx = projects.items.findIndex(it => it.id === projectId);
+            if (idx !== -1) projects.items[idx].status.isHidden = !projects.items[idx].status.isHidden;
+            return ({...projects});
+        });
+    }, []);
+
     const arrowKeyIndex = React.useRef(-1);
 
     const navigate = useNavigate();
@@ -128,13 +143,16 @@ export function ProjectSwitcher({managed}: {
     const [filter, setTitleFilter] = React.useState("");
 
     const filteredProjects: Project[] = React.useMemo(() => {
-        if (filter === "") return projectList.items;
+        const viewableProjects = projectList.items.filter(it => showHidden || !it.status.isHidden);
 
-        const searchResults = fuzzySearch(projectList.items.map(it => it.specification), ["title"], filter, {sort: true});
+        if (filter === "") return viewableProjects;
+
+        const searchResults = fuzzySearch(viewableProjects.map(it => it.specification), ["title"], filter, {sort: true});
         return searchResults
-            .map(it => projectList.items.find(p => it.title === p.specification.title))
+            .map(it => viewableProjects.find(p => it.title === p.specification.title))
             .filter(it => it !== undefined) as Project[];
-    }, [projectList, filter]);
+    }, [projectList, filter, showHidden]);
+    const hiddenProjectCount = projectList.items.reduce((acc, project) => acc + (project.status.isHidden ? 1 : 0), 0)
 
     const divRef = React.useRef<HTMLDivElement>(null);
 
@@ -237,7 +255,7 @@ export function ProjectSwitcher({managed}: {
                 onOpeningTriggerClick={reload}
                 width="500px"
             >
-                <div style={{maxHeight: "385px", paddingRight: "8px"}}>
+                <div style={{maxHeight: "385px"}}>
                     <Flex>
                         <Input
                             autoFocus
@@ -268,6 +286,7 @@ export function ProjectSwitcher({managed}: {
 
                     <div ref={divRef} style={{overflowY: "auto", maxHeight: "285px", lineHeight: "2em"}}>
                         <Error error={error} />
+                        <ProjectHiddenToggle hiddenCount={hiddenProjectCount} shown={showHidden} setShown={setShowHidden} />
 
                         {showMyWorkspace ? (
                             <div
@@ -294,6 +313,7 @@ export function ProjectSwitcher({managed}: {
                             >
                                 <Favorite project={it} onClickedFavorite={sortAndScroll} />
                                 <Truncate fontSize="var(--breadText)">{projectTitle(it)}</Truncate>
+                                {hasFeature(Feature.HIDE_PROJECTS) ? <ProjectHide rerender={rerender} project={it} /> : null}
                             </div>
                         )}
 
@@ -305,6 +325,25 @@ export function ProjectSwitcher({managed}: {
             </ClickableDropdown>
         </Flex>
     );
+}
+
+function ProjectHiddenToggle(props: {hiddenCount: number; setShown: (show: boolean) => void; shown: boolean;}): React.ReactNode {
+    if (!hasFeature(Feature.HIDE_PROJECTS)) return null;
+    if (!props.hiddenCount) return null;
+    return <Flex style={{borderBottom: "0.5px solid var(--borderColor)"}} pl="8px">You have {props.hiddenCount} hidden projects. Toggle to {props.shown ? "hide" : "show"}. <Box mr="16px" my="auto" ml="auto">
+        <Toggle height={18} checked={props.shown} onChange={checked => props.setShown(!checked)} />
+    </Box></Flex>
+}
+
+function ProjectHide(props: {project: Project, rerender: (projectId: string) => void;}) {
+    const isHidden = props.project.status.isHidden;
+    const icon: IconName = isHidden ? "heroEyeSlash" : "heroEye";
+    return <Box height="100%" mr="18px" title={isHidden ? "Click to unhide" : "Click to hide"}>
+        <Icon data-hide-icon={!isHidden} mt="-2px" name={icon} onClick={e => {
+            e.stopPropagation();
+            props.rerender(props.project.id);
+        }} />
+    </Box>
 }
 
 function Favorite({project, onClickedFavorite}: {project: Project; onClickedFavorite(id: string): void;}): React.ReactNode {
@@ -363,6 +402,10 @@ const BottomBorderedRow = injectStyle("bottom-bordered-row", k => `
         transition: 0.1s background-color;
         display: flex;
         border-bottom: 0.5px solid var(--borderColor);
+    }
+
+    ${k}:not(:hover) [data-hide-icon=true] {
+        display: none;
     }
 `);
 

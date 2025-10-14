@@ -26,6 +26,8 @@ export enum Feature {
     NEW_SYNCTHING_UI,
 
     USAGE_PREDICTION,
+
+    HIDE_PROJECTS,
 }
 
 enum Environment {
@@ -35,6 +37,8 @@ enum Environment {
     SANDBOX_DEV,
     PROD
 }
+
+const noEnvironments: Environment[] = [];
 
 const allLocalEnvironments: Environment[] =
     [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK];
@@ -134,6 +138,12 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allDevEnvironments,
     },
+
+    "hide-projects": {
+        feature: Feature.HIDE_PROJECTS,
+        showWithFlag: allDevEnvironments,
+        showWithoutFlag: noEnvironments
+    }
 };
 
 function getCurrentEnvironment(): Environment {
