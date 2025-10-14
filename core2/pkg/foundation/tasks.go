@@ -62,7 +62,7 @@ func initTasks() {
 
 	if !taskGlobals.TestingEnabled {
 		db.NewTx0(func(tx *db.Transaction) {
-			row, ok := db.Get[struct{ MaxId int }](
+			row, ok := db.Get[struct{ MaxId sql.Null[int] }](
 				tx,
 				`
 					select max(id) as max_id
@@ -71,8 +71,8 @@ func initTasks() {
 				db.Params{},
 			)
 
-			if ok {
-				taskGlobals.IdAcc.Store(int64(row.MaxId))
+			if ok && row.MaxId.Valid {
+				taskGlobals.IdAcc.Store(int64(row.MaxId.V))
 			}
 		})
 	}
