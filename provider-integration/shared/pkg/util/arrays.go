@@ -69,3 +69,12 @@ func Combined[T any](slices ...[]T) []T {
 	}
 	return result
 }
+
+func PopHead[T any](slice []T) (T, []T) {
+	if len(slice) == 0 {
+		var def T
+		return def, nil
+	} else {
+		return slice[0], slice[1:]
+	}
+}

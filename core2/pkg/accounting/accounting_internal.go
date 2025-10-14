@@ -679,7 +679,7 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 				sourceVertex := walletToVertex[parentId]
 				destinationVertex := vertexIndex
 
-				activeQuota := lInternalGroupTotalQuotaActive(b, allocationGroup)
+				activeQuota := lInternalGroupTotalQuotaContributing(b, allocationGroup)
 
 				{
 					// Capacity
@@ -721,8 +721,8 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 					// through. This edge is purposefully made very expensive such that this path will only be chosen
 					// for a flow if there are no other ways of using up the charge.
 
-					totalAllocated := lInternalWalletTotalAllocatedActive(b, wallet)
-					activeQuota := lInternalWalletTotalQuotaActive(b, wallet)
+					totalAllocated := lInternalWalletTotalAllocatedContributing(b, wallet)
+					activeQuota := lInternalWalletTotalQuotaContributing(b, wallet)
 
 					overAllocation := totalAllocated + wallet.LocalUsage - activeQuota
 					if overAllocation > 0 {
@@ -800,7 +800,7 @@ func lInternalRebalance(b *internalBucket, now time.Time, wallet *internalWallet
 		if !deficit.Present {
 			sum := int64(0)
 			for _, g := range wallet.AllocationsByParent {
-				activeQuota := lInternalGroupTotalQuotaActive(b, g)
+				activeQuota := lInternalGroupTotalQuotaContributing(b, g)
 				propagated := g.TreeUsage
 
 				if propagated > activeQuota {
@@ -984,7 +984,7 @@ func lInternalMaxUsable(b *internalBucket, now time.Time, wallet *internalWallet
 	return graph.MaxFlow(rootIndex, 0)
 }
 
-func lInternalWalletTotalAllocatedActive(b *internalBucket, w *internalWallet) int64 {
+func lInternalWalletTotalAllocatedContributing(b *internalBucket, w *internalWallet) int64 {
 	retiredAllocationsContribute := !b.IsCapacityBased()
 
 	sum := int64(0)
@@ -1002,21 +1002,54 @@ func lInternalWalletTotalAllocatedActive(b *internalBucket, w *internalWallet) i
 	return sum
 }
 
-func internalWalletTotalQuotaActive(b *internalBucket, wId accWalletId) (int64, bool) {
+// NOTE(Dan): Do NOT use for internal accounting operations. Use this ONLY for understanding the data.
+func internalWalletTotalQuotaFromActiveAllocations(b *internalBucket, wId accWalletId) (int64, bool) {
 	b.Mu.RLock()
 	owner, ok := b.WalletsById[wId]
 	var result int64
 	if ok {
-		result = lInternalWalletTotalQuotaActive(b, owner)
+		result = lInternalWalletTotalQuotaFromActiveAllocations(b, owner)
 	}
 	b.Mu.RUnlock()
 	return result, ok
 }
 
-func lInternalWalletTotalQuotaActive(b *internalBucket, w *internalWallet) int64 {
+// NOTE(Dan): Do NOT use for internal accounting operations. Use this ONLY for understanding the data.
+func lInternalWalletTotalQuotaFromActiveAllocations(b *internalBucket, w *internalWallet) int64 {
 	sum := int64(0)
 	for _, group := range w.AllocationsByParent {
-		sum += lInternalGroupTotalQuotaActive(b, group)
+		sum += lInternalGroupTotalQuotaFromActiveAllocations(b, group)
+	}
+	return sum
+}
+
+// NOTE(Dan): Do NOT use for internal accounting operations. Use this ONLY for understanding the data.
+func lInternalGroupTotalQuotaFromActiveAllocations(b *internalBucket, group *internalGroup) int64 {
+	sum := int64(0)
+	for allocId, _ := range group.Allocations {
+		alloc := b.AllocationsById[allocId]
+		if alloc.Active && !alloc.Retired {
+			sum += alloc.Quota
+		}
+	}
+	return sum
+}
+
+func internalWalletTotalQuotaContributing(b *internalBucket, wId accWalletId) (int64, bool) {
+	b.Mu.RLock()
+	owner, ok := b.WalletsById[wId]
+	var result int64
+	if ok {
+		result = lInternalWalletTotalQuotaContributing(b, owner)
+	}
+	b.Mu.RUnlock()
+	return result, ok
+}
+
+func lInternalWalletTotalQuotaContributing(b *internalBucket, w *internalWallet) int64 {
+	sum := int64(0)
+	for _, group := range w.AllocationsByParent {
+		sum += lInternalGroupTotalQuotaContributing(b, group)
 	}
 	return sum
 }
@@ -1044,7 +1077,7 @@ func lInternalWalletTotalPropagatedUsage(b *internalBucket, w *internalWallet) i
 	return sum
 }
 
-func lInternalGroupTotalQuotaActive(b *internalBucket, group *internalGroup) int64 {
+func lInternalGroupTotalQuotaContributing(b *internalBucket, group *internalGroup) int64 {
 	retiredAllocationsContribute := !b.IsCapacityBased()
 
 	sum := int64(0)
@@ -1204,8 +1237,8 @@ func lInternalWalletToApi(
 		TotalUsage:              lInternalWalletTotalUsageInNode(b, w),
 		LocalUsage:              w.LocalUsage,
 		MaxUsable:               lInternalMaxUsable(b, now, w),
-		Quota:                   lInternalWalletTotalQuotaActive(b, w),
-		TotalAllocated:          lInternalWalletTotalAllocatedActive(b, w),
+		Quota:                   lInternalWalletTotalQuotaContributing(b, w),
+		TotalAllocated:          lInternalWalletTotalAllocatedContributing(b, w),
 		LastSignificantUpdateAt: fndapi.Timestamp(w.LastSignificantUpdate),
 	}
 
@@ -1376,8 +1409,8 @@ func lInternalMermaidGraph(bucket *internalBucket, now time.Time, root accWallet
 				body := strings.Builder{}
 				body.WriteString("<b>Info</b><br>")
 				body.WriteString(fmt.Sprintf("local: %d<br>", wallet.LocalUsage))
-				body.WriteString(fmt.Sprintf("allocated: %d<br>", lInternalWalletTotalAllocatedActive(bucket, wallet)))
-				body.WriteString(fmt.Sprintf("quota: %d<br>", lInternalWalletTotalQuotaActive(bucket, wallet)))
+				body.WriteString(fmt.Sprintf("allocated: %d<br>", lInternalWalletTotalAllocatedContributing(bucket, wallet)))
+				body.WriteString(fmt.Sprintf("quota: %d<br>", lInternalWalletTotalQuotaContributing(bucket, wallet)))
 				body.WriteString(fmt.Sprintf("usable: %d<br>", lInternalMaxUsable(bucket, now, wallet)))
 				body.WriteString(fmt.Sprintf("usage: %d<br>", lInternalWalletTotalUsageInNode(bucket, wallet)))
 				body.WriteString(fmt.Sprintf("..propagated: %d<br>", lInternalWalletTotalPropagatedUsage(bucket, wallet)))

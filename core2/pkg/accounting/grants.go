@@ -586,7 +586,7 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 				for _, cat := range categories {
 					aBucket := internalBucketOrInit(cat)
 					w := internalWalletByOwner(aBucket, now, owner.Id)
-					quota, ok := internalWalletTotalQuotaActive(aBucket, w)
+					quota, ok := internalWalletTotalQuotaContributing(aBucket, w)
 					if quota == 0 || !ok {
 						err = util.HttpErr(
 							http.StatusBadRequest,
