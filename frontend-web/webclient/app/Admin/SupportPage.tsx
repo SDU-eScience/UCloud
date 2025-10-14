@@ -26,7 +26,7 @@ enum Index {
 };
 
 export default function () {
-    usePage("User support", SidebarTabId.ADMIN);
+    usePage("Support", SidebarTabId.ADMIN);
 
     const navigate = useNavigate();
 
@@ -141,7 +141,7 @@ export default function () {
                         <Flex>
                             <Label>
                                 Allocation ID
-                                <Input placeholder="Type allocation/wallet ID..." inputRef={allocationRef} />
+                                <Input placeholder="Type allocation ID..." inputRef={allocationRef} />
                             </Label>
                             <SearchButton />
                         </Flex>
