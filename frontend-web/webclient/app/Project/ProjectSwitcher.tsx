@@ -3,7 +3,7 @@ import {useDispatch} from "react-redux";
 import {bulkRequestOf, threadDeferLike, displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
 import {dispatchSetProjectAction, emitProjects, getStoredProject} from "@/Project/ReduxState";
-import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error, Tooltip} from "@/ui-components";
+import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error, Tooltip, Label} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {NavigateFunction, useNavigate} from "react-router";
@@ -23,9 +23,6 @@ import {IconName} from "@/ui-components/Icon";
 import {Toggle} from "@/ui-components/Toggle";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
-
-// TODO(Jonas): Handle key-down skipping toggle entry
-// TODO(Jonas): Ensure that this feature doesn't bleed throught without the flag.
 
 const CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS: ProjectBrowseParams = {
     itemsPerPage: PROJECT_ITEMS_PER_PAGE,
@@ -153,8 +150,6 @@ export function ProjectSwitcher({managed}: {
             .filter(it => it !== undefined) as Project[];
     }, [projectList, filter, showHidden]);
     const hiddenProjectCount = projectList.items.reduce((acc, project) => acc + (project.status.isHidden ? 1 : 0), 0)
-
-    const divRef = React.useRef<HTMLDivElement>(null);
 
     const setActiveProject = React.useCallback((id?: string) => {
         if (managed?.setLocalProject) {
@@ -284,9 +279,9 @@ export function ProjectSwitcher({managed}: {
                         </Relative>
                     </Flex>
 
-                    <div ref={divRef} style={{overflowY: "auto", maxHeight: "285px", lineHeight: "2em"}}>
+                    <ProjectHiddenToggle hiddenCount={hiddenProjectCount} shown={showHidden} setShown={setShowHidden} />
+                    <div style={{overflowY: "auto", maxHeight: "285px", lineHeight: "2em"}}>
                         <Error error={error} />
-                        <ProjectHiddenToggle hiddenCount={hiddenProjectCount} shown={showHidden} setShown={setShowHidden} />
 
                         {showMyWorkspace ? (
                             <div
@@ -313,7 +308,7 @@ export function ProjectSwitcher({managed}: {
                             >
                                 <Favorite project={it} onClickedFavorite={sortAndScroll} />
                                 <Truncate fontSize="var(--breadText)">{projectTitle(it)}</Truncate>
-                                {hasFeature(Feature.HIDE_PROJECTS) ? <ProjectHide rerender={rerender} project={it} /> : null}
+                                <ProjectHide rerender={rerender} project={it} />
                             </div>
                         )}
 
@@ -330,12 +325,17 @@ export function ProjectSwitcher({managed}: {
 function ProjectHiddenToggle(props: {hiddenCount: number; setShown: (show: boolean) => void; shown: boolean;}): React.ReactNode {
     if (!hasFeature(Feature.HIDE_PROJECTS)) return null;
     if (!props.hiddenCount) return null;
-    return <Flex style={{borderBottom: "0.5px solid var(--borderColor)"}} pl="8px">You have {props.hiddenCount} hidden projects. Toggle to {props.shown ? "hide" : "show"}. <Box mr="16px" my="auto" ml="auto">
-        <Toggle height={18} checked={props.shown} onChange={checked => props.setShown(!checked)} />
-    </Box></Flex>
+    return <Box height="28px" pt="2px" onClick={stopPropagationAndPreventDefault} style={{borderBottom: "0.5px solid var(--borderColor)"}} pl="8px">
+        <Label style={{display: "flex"}}>You have {props.hiddenCount} hidden projects. Toggle to {props.shown ? "hide" : "show"}.
+            <Box mt="2px" mr="4px" ml="auto">
+                <Toggle height={18} checked={props.shown} onChange={checked => props.setShown(!checked)} />
+            </Box>
+        </Label>
+    </Box>
 }
 
 function ProjectHide(props: {project: Project, rerender: (projectId: string) => void;}) {
+    if (!hasFeature(Feature.HIDE_PROJECTS)) return null;
     const isHidden = props.project.status.isHidden;
     const icon: IconName = isHidden ? "heroEyeSlash" : "heroEye";
     return <Box height="100%" mr="18px" title={isHidden ? "Click to unhide" : "Click to hide"}>
