@@ -7,7 +7,7 @@ import {useCallback} from "react";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import ProvidersApi from "@/UCloud/ProvidersApi";
-import {AllocationDisplayTree, AllocationDisplayTreeRecipient} from "@/Accounting";
+import {AllocationDisplayTree, AllocationDisplayTreeRecipient, ProductType} from "@/Accounting";
 
 const fuzzyMatcher = newFuzzyMatchFuse<Accounting.AllocationDisplayTreeRecipientOwner, "title" | "primaryUsername">(["title", "primaryUsername"]);
 
@@ -62,7 +62,7 @@ export type UIAction =
     | { type: "GiftDeleted", id: number }
     | { type: "UpdateRootAllocations", data: Partial<State["rootAllocations"]> }
     | { type: "ResetRootAllocation" }
-    | { type: "ToggleViewOnlyProjects", viewOnlyProjects: boolean }
+    | { type: "ToggleViewOnlyProjects" }
     | { type: "SortSubprojects", sortBy?: string, ascending: boolean }
     ;
 
@@ -260,7 +260,7 @@ export function stateReducer(state: State, action: UIAction): State {
         }
 
         case "ToggleViewOnlyProjects": {
-            return rebuildTree({...state, viewOnlyProjects: action.viewOnlyProjects});
+            return rebuildTree({...state, viewOnlyProjects: !state.viewOnlyProjects});
         }
 
         case "UpdateAllocation": {
@@ -312,15 +312,93 @@ export function stateReducer(state: State, action: UIAction): State {
         const newTree = Accounting.buildAllocationDisplayTree((state.remoteData.wallets ?? []));
 
         newTree.subAllocations.recipients.sort((a, b) => {
-            switch (state.subprojectSortBy) {
-                case "PI": {
-                    return a.owner.primaryUsername.localeCompare(b.owner.primaryUsername);
-                }
+            let naturalOrderResult = (() => {
+                switch (state.subprojectSortBy) {
+                    case "usagePercentageCompute":
+                    case "usagePercentageStorage":
+                    case "usagePercentagePublicIP":
+                    case "usagePercentageLicence": {
+                        let productType: ProductType = "COMPUTE";
+                        if (state.subprojectSortBy === "usagePercentageCompute") productType = "COMPUTE";
+                        if (state.subprojectSortBy === "usagePercentageStorage") productType = "STORAGE";
+                        if (state.subprojectSortBy === "usagePercentagePublicIP") productType = "NETWORK_IP";
+                        if (state.subprojectSortBy === "usagePercentageLicence") productType = "LICENSE";
 
-                case "title":
-                default: {
-                    return a.owner.title.localeCompare(b.owner.title);
+                        let sumOfPercentagesA = 0;
+                        for (const uq of a.usageAndQuota) {
+                            if (uq.type !== productType || uq.raw.quota === 0) continue;
+                            let usage = uq.raw.usage;
+                            if (!uq.raw.retiredAmountStillCounts) {
+                                usage -= uq.raw.retiredAmount;
+                            }
+                            sumOfPercentagesA += usage / uq.raw.quota;
+                        }
+
+                        let sumOfPercentagesB = 0;
+                        for (const uq of b.usageAndQuota) {
+                            if (uq.type !== productType || uq.raw.quota === 0) continue;
+                            let usage = uq.raw.usage;
+                            if (!uq.raw.retiredAmountStillCounts) {
+                                usage -= uq.raw.retiredAmount;
+                            }
+                            sumOfPercentagesB += usage / uq.raw.quota;
+                        }
+
+                        let averageUtilizationA = sumOfPercentagesA / a.usageAndQuota.length;
+                        let averageUtilizationB = sumOfPercentagesB / b.usageAndQuota.length;
+
+                        if (averageUtilizationA < averageUtilizationB) {
+                            return -1;
+                        } else if (averageUtilizationA > averageUtilizationB) {
+                            return 1;
+                        }
+                        return 0;
+                    }
+
+                    case "age": {
+                        let earliestStartA = Number.MAX_SAFE_INTEGER;
+
+                        for (const group of a.groups) {
+                            for (const allocation of group.allocations) {
+                                if (earliestStartA > allocation.start) {
+                                    earliestStartA = allocation.start;
+                                }
+                            }
+                        }
+
+                        let earliestStartB = Number.MAX_SAFE_INTEGER;
+
+                        for (const group of b.groups) {
+                            for (const allocation of group.allocations) {
+                                if (earliestStartB > allocation.start) {
+                                    earliestStartB = allocation.start
+                                }
+                            }
+                        }
+
+                        if (earliestStartA > earliestStartB) {
+                            return -1;
+                        } else if (earliestStartA < earliestStartB) {
+                            return 1;
+                        }
+                        return 0;
+                    }
+
+                    case "PI": {
+                        return a.owner.primaryUsername.localeCompare(b.owner.primaryUsername);
+                    }
+
+                    case "title":
+                    default: {
+                        return a.owner.title.localeCompare(b.owner.title);
+                    }
                 }
+            })();
+
+            if (!state.subprojectSortByAscending) {
+                return naturalOrderResult * -1;
+            }  else {
+                return naturalOrderResult;
             }
         });
 

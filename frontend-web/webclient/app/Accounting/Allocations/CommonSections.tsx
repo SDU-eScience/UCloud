@@ -58,6 +58,7 @@ import {projectTitle} from "@/Project/ProjectSwitcher";
 import {exportUsage, header} from "@/Accounting/Usage";
 import {useProject} from "@/Project/cache";
 import {useProjectId} from "@/Project/Api";
+import {AllocationBar} from "@/Accounting/Allocations/AllocationBar";
 
 interface Datapoint {
     product: string;
@@ -578,8 +579,9 @@ export const SubProjectAllocations: React.FunctionComponent<{
                                     </Flex>
                                 }
                                 right={<Flex flexDirection={"row"} gap={"8px"}>
-                                    {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                            <ProgressBar uq={uq}/>
+                                    {tree.usageAndQuota.map((uq, idx) =>
+                                        <React.Fragment key={idx}>
+                                            <AllocationBar label={"65% Ok | 5% At risk | 30% Underused"} okPercentage={65} atRiskPercentage={5} underusedPercentage={30} />
                                         </React.Fragment>
                                     )}
                                 </Flex>}
@@ -835,13 +837,21 @@ interface SubProjectFilter {
 const SubProjectFiltersRow: React.FunctionComponent<{
     setting: SubProjectFilter;
     onChange: (setting: SubProjectFilter) => void;
+    state: State;
+    dispatchEvent: (action: UIAction) => void;
 }> = (props) => {
 
     const onChecked = useCallback(() => {
-        props.onChange(produce(props.setting, draft => {
-            draft.enabled = !draft.enabled;
-        }))
-    }, [props.setting, props.onChange])
+        if (props.setting.title === "Single user sub-projects") {
+            props.dispatchEvent({
+                type: "ToggleViewOnlyProjects",
+        });
+        } else {
+            props.onChange(produce(props.setting, draft => {
+                draft.enabled = !draft.enabled;
+            }));
+        }
+    }, [props.setting, props.onChange, props.dispatchEvent])
 
     const onSelectOption = useCallback((item: SimpleRichItem) => {
         props.onChange(produce(props.setting, draft => {
@@ -868,7 +878,8 @@ const SubProjectFiltersRow: React.FunctionComponent<{
             <div className="key-metrics-checkbox">
                 <Checkbox
                     size={30}
-                    checked={props.setting.enabled}
+                    checked={props.setting.title === "Single user sub-projects" ?
+                        !props.state.viewOnlyProjects : props.setting.enabled}
                     handleWrapperClick={onChecked}
                     onChange={onChecked}
                 />
@@ -927,8 +938,9 @@ const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
 export const SubProjectFilters: React.FunctionComponent<{
     filtersShown: boolean;
     closeFilters: () => void;
+    state: State;
     dispatchEvent: (event: UIEvent) => unknown;
-}> = ({filtersShown, closeFilters, dispatchEvent}) => {
+}> = ({filtersShown, closeFilters, dispatchEvent, state}) => {
     const [settings, setSettings] = useState<Record<string, SubProjectFilter>>(subProjectsDefaultSettings);
 
     const onSettingsChanged = useCallback((setting: SubProjectFilter) => {
@@ -940,14 +952,15 @@ export const SubProjectFilters: React.FunctionComponent<{
     }, [setSettings]);
 
     const [ascending, setAscending] = useState<boolean>(true);
+    const [sortBy, setSortBy] = useState<SimpleRichItem>({key: "title", value: "Title"});
 
     useEffect(() => {
         dispatchEvent({
             type: "SortSubprojects",
-            sortBy: "",
+            sortBy: sortBy.key,
             ascending: ascending
         })
-    }, [ascending]);
+    }, [ascending, sortBy]);
 
     const onSortingToggle = useCallback(() => {
         setAscending(current => !current);
@@ -979,7 +992,13 @@ export const SubProjectFilters: React.FunctionComponent<{
             </div>
         </Flex>
         {Object.values(settings).map(setting => (
-            <SubProjectFiltersRow key={setting.title} setting={setting} onChange={onSettingsChanged}/>
+            <SubProjectFiltersRow
+                key={setting.title}
+                setting={setting}
+                onChange={onSettingsChanged}
+                dispatchEvent={dispatchEvent}
+                state={state}
+            />
         ))}
         <Divider/>
         <div className="sub-projects-sorting-container">
@@ -989,9 +1008,19 @@ export const SubProjectFilters: React.FunctionComponent<{
             </div>
             <div className="sub-projects-sorting-selector">
                 <SimpleRichSelect
-                    items={[{key: "", value: ""}]}
-                    onSelect={doNothing}
-                    selected={undefined}
+                    items={
+                        [
+                            {key: "title", value: "Title"},
+                            {key: "PI", value: "PI"},
+                            {key: "age", value: "Age"},
+                            {key: "usagePercentageCompute", value: "Usage percentage (Compute)"},
+                            {key: "usagePercentageStorage", value: "Usage percentage (Storage)"},
+                            {key: "usagePercentagePublicIP", value: "Usage percentage (Public IP)"},
+                            {key: "usagePercentageLicence", value: "Usage percentage (Application license)"},
+                        ]
+                    }
+                    onSelect={setSortBy}
+                    selected={sortBy}
                     dropdownWidth={"300px"}>
                 </SimpleRichSelect>
                 <div className="sort-button">
@@ -1050,7 +1079,8 @@ export const SubProjectList: React.FunctionComponent<{
     }, []);
 
     return <>
-        <SubProjectFilters filtersShown={filtersShown} closeFilters={closeFilters} dispatchEvent={dispatchEvent}/>
+        <SubProjectFilters filtersShown={filtersShown} closeFilters={closeFilters}
+                           dispatchEvent={dispatchEvent} state={state}/>
 
         <div className={subProjectsStyle}>
             {projectId !== undefined && <>
@@ -1084,15 +1114,7 @@ export const SubProjectList: React.FunctionComponent<{
                         </Button>
                     </div>
                 </Flex>
-                <Flex paddingBottom={10}>
-                    <Label width="160px" ml="auto">
-                        <Checkbox onChange={e => dispatchEvent({
-                            type: "ToggleViewOnlyProjects",
-                            viewOnlyProjects: e.target.checked
-                        })} defaultChecked={state.viewOnlyProjects}/>
-                        <span>View only projects</span>
-                    </Label>
-                </Flex>
+
                 <div className="sub-projects-container" style={{height: "500px", width: "100%"}}>
                     {state.remoteData.wallets === undefined ? <>
                         <HexSpin size={64}/>
