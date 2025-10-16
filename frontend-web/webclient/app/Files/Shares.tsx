@@ -4,7 +4,7 @@ import SharesApi, {Share, ShareLink, shareLinksApi, ShareState} from "@/UCloud/S
 import {NavigateFunction, useNavigate} from "react-router";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as Heading from "@/ui-components/Heading";
-import {useAvatars} from "@/AvataaarLib/hook";
+import {avatarState, useAvatars} from "@/AvataaarLib/hook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {LinkInfo, SidebarTabId} from "@/ui-components/SidebarComponents";
 import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, Tooltip} from "@/ui-components";
@@ -98,7 +98,7 @@ export const SimpleAvatarComponentCache = new class {
         this.componentCache[username] = avatar;
     }
 
-    appendTo(el: HTMLElement, username: string, avatar: AvatarType, tooltipText: string, wrapperStyle?: Partial<CSSStyleDeclaration>) {
+    async appendTo(el: HTMLElement, username: string, avatar: AvatarType, tooltipText: string, wrapperStyle?: Partial<CSSStyleDeclaration>): Promise<void> {
         this.addToBeFetch(username);
         const avatarWrapper = createHTMLElements({tagType: "div", style: wrapperStyle});
         el.append(avatarWrapper);
@@ -108,13 +108,12 @@ export const SimpleAvatarComponentCache = new class {
             const avatar = a.clone();
             avatarWrapper.appendChild(avatar);
         } else {
-            new ReactStaticRenderer(() =>
+            const avatarComponent = await new ReactStaticRenderer(() =>
                 <Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />
-            ).promise.then(it => {
-                this.setAvatar(username, it);
-                const avatar = it.clone();
-                avatarWrapper.appendChild(avatar);
-            });
+            ).promise;
+            this.setAvatar(username, avatarComponent);
+            const avatarElement = avatarComponent.clone();
+            avatarWrapper.appendChild(avatarElement);
         }
     }
 }
@@ -396,8 +395,6 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
     const navigate = useNavigate();
     const dispatch = useDispatch();
 
-    const avatars = useAvatars();
-
     if (!opts?.embedded) {
         usePage(TITLE, SidebarTabId.FILES);
     }
@@ -409,15 +406,15 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
 
     const dateRanges = dateRangeFilters("Created after");
 
-    avatars.subscribe(() => {
-        SimpleAvatarComponentCache.clear();
-        browserRef.current?.renderRows()
-    });
-
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Share>(mount, TITLE, opts).init(browserRef, features, "", browser => {
+                avatarState.subscribe(() => {
+                    SimpleAvatarComponentCache.clear();
+                    browserRef.current?.renderRows()
+                });
+
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
@@ -472,7 +469,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                 }, dateRangeFilters("Date created")]);
 
                 browser.on("endRenderPage", () => {
-                    avatars.updateCache(SimpleAvatarComponentCache.getAvatarsToFetch());
+                    avatarState.updateCache(SimpleAvatarComponentCache.getAvatarsToFetch());
                 });
 
                 browser.on("renderRow", (share, row, dims) => {
@@ -566,7 +563,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     }));
 
                     // Row stat3
-                    const avatar = avatars.avatarFromCache(share.owner.createdBy);
+                    const avatar = avatarState.avatarFromCache(share.owner.createdBy);
                     SimpleAvatarComponentCache.appendTo(row.stat3, share.owner.createdBy, avatar, `Shared by ${share.owner.createdBy}`);
                 });
 

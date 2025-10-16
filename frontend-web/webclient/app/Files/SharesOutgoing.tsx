@@ -154,16 +154,11 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
     const dateRanges = dateRangeFilters("Created after");
     var isInitial = true;
 
-    avatarState.subscribe(() => {
-        SimpleAvatarComponentCache.clear();
-        browserRef.current?.renderRows();
-    });
-
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
+
         if (mount && !browserRef.current) {
             new ResourceBrowser<OutgoingShareGroup | OutgoingShareGroupPreview>(mount, TITLE, opts).init(browserRef, features, "", browser => {
-
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
                 let shouldRemoveFakeDirectory = true;
@@ -343,7 +338,10 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                     avatarState.updateCache(SimpleAvatarComponentCache.getAvatarsToFetch());
                 });
 
-                avatarState.subscribe(() => browser.rerender());
+                avatarState.subscribe(() => {
+                    SimpleAvatarComponentCache.clear();
+                    browser.rerender();
+                });
 
                 browser.on("renderRow", (share, row, dims) => {
 
@@ -505,6 +503,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
 
                         sharedWithAvatars.forEach(s => {
                             const avatar = avatarState.avatarFromCache(s.sharedWith);
+                            console.log(avatar);
                             SimpleAvatarComponentCache.appendTo(flexWrapper, s.sharedWith, avatar, `Shared with ${s.sharedWith}`, {marginRight: "-26px"});
                         });
                     }
