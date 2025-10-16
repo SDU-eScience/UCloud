@@ -14,9 +14,12 @@ type UsageGenApi struct {
 }
 
 type UsageGenConfig struct {
-	Days            int
-	BreadthPerLevel []int
-	Seed            int64
+	Days               int
+	BreadthPerLevel    []int
+	Seed               int64
+	CheckpointInterval int
+	Expiration         bool
+	MinuteStep         int
 }
 
 type UsageGenProject struct {
@@ -197,17 +200,20 @@ func UsageGenGenerate(api UsageGenApi, cfg UsageGenConfig) *UsageGenProject {
 
 		startOfDay := day * 1440
 		endOfDay := (day + 1) * 1440
-		for minute := startOfDay; minute <= endOfDay; minute += 5 {
+		minuteStep := g.Cfg.MinuteStep
+		if minuteStep == 0 {
+			minuteStep = 5
+		}
+
+		for minute := startOfDay; minute <= endOfDay; minute += minuteStep {
 			minuteOfDay := minute - startOfDay
 
 			for _, project := range activeProjectsToday {
 				myJobs := activeJobsPerProject[project.Title]
 				for _, job := range myJobs {
-					// tick window is [minuteOfDay, minuteOfDay+5)
 					tickStart := minuteOfDay
-					tickEnd := minuteOfDay + 5
+					tickEnd := minuteOfDay + minuteStep
 
-					// overlap with job window [StartMinute, EndMinute)
 					overlapStart := tickStart
 					if job.StartMinute > overlapStart {
 						overlapStart = job.StartMinute
@@ -218,16 +224,18 @@ func UsageGenGenerate(api UsageGenApi, cfg UsageGenConfig) *UsageGenProject {
 					}
 
 					if overlapEnd > overlapStart {
-						slice := overlapEnd - overlapStart // 1..5 minutes
+						slice := overlapEnd - overlapStart
 						usageInPeriod := int64(slice * job.CoreCount)
 						project.LocalUsage2 += usageInPeriod
 						api.ReportDelta(minute, project.Title, usageInPeriod)
 					}
 				}
 			}
-		}
 
-		api.Checkpoint(endOfDay)
+			if minute%cfg.CheckpointInterval == 0 {
+				api.Checkpoint(minute)
+			}
+		}
 	}
 
 	log.Info("Jobs created: %v", jobsCreated)
@@ -261,6 +269,18 @@ func usageGenAllocateProjects(g *usageGenerator, parent *UsageGenProject, breadt
 		}
 		parent.Children = append(parent.Children, child)
 
-		g.Api.AllocateEx(0, 0, 1440*g.Cfg.Days, child.Quota, child.Title, child.Parent)
+		if g.Cfg.Expiration {
+			currentDay := 0
+			remainingDays := g.Cfg.Days
+
+			for remainingDays > 0 {
+				count := min(remainingDays, 1+g.Rng.Intn(2))
+				g.Api.AllocateEx(1440*currentDay, 1440*currentDay, (1440*(currentDay+count))-1, child.Quota, child.Title, child.Parent)
+				currentDay += count
+				remainingDays -= count
+			}
+		} else {
+			g.Api.AllocateEx(0, 0, 1440*g.Cfg.Days, child.Quota, child.Title, child.Parent)
+		}
 	}
 }

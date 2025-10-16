@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 	accapi "ucloud.dk/shared/pkg/accounting"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -123,26 +124,236 @@ type internalSnapshotComparison struct {
 }
 
 var dashboardGlobals struct {
-	Mu                 sync.RWMutex
-	Dashboards         map[accWalletId]*internalUsageDashboard
-	Snapshots          map[accWalletId]internalWalletSnapshot
-	HistoricCache      []*dashboardCacheEntry
-	HistoricCacheIndex map[time.Time]map[accWalletId]int
+	Mu                          sync.RWMutex
+	Dashboards                  map[accWalletId]*internalUsageDashboard
+	Snapshots                   map[accWalletId]internalWalletSnapshot
+	HistoricCache               []dashboardCacheEntry
+	HistoricCacheSlotsAvailable int
+	HistoricCacheLastEmptySlot  int
+	HistoricCacheIndex          map[time.Time]map[accWalletId]int
 }
 
 type dashboardCacheEntry struct {
-	Slot       int
+	InUse      bool
 	LastUsedAt atomic.Pointer[time.Time]
-	Dashboard  *internalUsageDashboard
+	Dashboard  internalUsageDashboard
 }
 
 func initUsageDashboards() {
 	dashboardGlobals.Dashboards = map[accWalletId]*internalUsageDashboard{}
 	dashboardGlobals.Snapshots = map[accWalletId]internalWalletSnapshot{}
+	dashboardGlobals.HistoricCache = make([]dashboardCacheEntry, 1024*1024)
+	dashboardGlobals.HistoricCacheIndex = map[time.Time]map[accWalletId]int{}
+	dashboardGlobals.HistoricCacheSlotsAvailable = len(dashboardGlobals.HistoricCache)
 }
 
-func usageRetrieveHistoric(now time.Time, wallet accWalletId) (*internalUsageDashboard, bool) {
-	var result *internalUsageDashboard
+func usageRetrieveHistoricDashboards(from time.Time, until time.Time, wallet accWalletId) []internalUsageDashboard {
+	// NOTE(Dan, 15/10/2025): Current tests will break in the year 2100, but I will let that be a problem for the
+	// future.
+	now := time.Now()
+	earliestFromTime := now.Add(-100 * 365 * 24 * time.Hour)
+	if from.Before(earliestFromTime) {
+		from = earliestFromTime
+	}
+
+	from = util.StartOfDayUTC(from)
+	until = util.StartOfDayUTC(until)
+
+	if until.Before(from) {
+		return nil
+	}
+
+	var result []internalUsageDashboard
+	current := from
+	for current.Before(until) {
+		dashboard, ok := usageRetrieveHistoric(current, wallet)
+
+		if ok {
+			result = append(result, dashboard)
+		}
+
+		current = current.AddDate(0, 0, 1)
+	}
+
+	if now == until || now.After(until) {
+		g := &dashboardGlobals
+		g.Mu.RLock()
+		currentDashboard, ok := g.Dashboards[wallet]
+		if ok {
+			result = append(result, *currentDashboard)
+		}
+		g.Mu.RUnlock()
+	}
+
+	// TODO These results can be evicted from the cache while we are working with them
+	return result
+}
+
+func usageCollapseDashboards(dashboards []internalUsageDashboard) internalUsageDashboard {
+	if len(dashboards) == 0 {
+		return internalUsageDashboard{}
+	}
+
+	firstDashboard := dashboards[0]
+	lastDashboard := dashboards[len(dashboards)-1]
+
+	result := internalUsageDashboard{
+		Wallet:     firstDashboard.Wallet,
+		ValidFrom:  firstDashboard.ValidFrom,
+		ValidUntil: util.OptValue(lastDashboard.ValidUntil.GetOrDefault(lastDashboard.ValidFrom)),
+	}
+
+	result.Kpis = internalUsageDashboardKpis{
+		QuotaAtStart:          firstDashboard.Kpis.QuotaAtStart,
+		ActiveQuotaAtStart:    firstDashboard.Kpis.ActiveQuotaAtStart,
+		MaxUsableAtStart:      firstDashboard.Kpis.MaxUsableAtStart,
+		LocalUsageAtStart:     firstDashboard.Kpis.LocalUsageAtStart,
+		TotalUsageAtStart:     firstDashboard.Kpis.TotalUsageAtStart,
+		TotalAllocatedAtStart: firstDashboard.Kpis.TotalAllocatedAtStart,
+
+		QuotaAtEnd:          lastDashboard.Kpis.QuotaAtEnd,
+		ActiveQuotaAtEnd:    lastDashboard.Kpis.ActiveQuotaAtEnd,
+		MaxUsableAtEnd:      lastDashboard.Kpis.MaxUsableAtEnd,
+		LocalUsageAtEnd:     lastDashboard.Kpis.LocalUsageAtEnd,
+		TotalUsageAtEnd:     lastDashboard.Kpis.TotalUsageAtEnd,
+		TotalAllocatedAtEnd: lastDashboard.Kpis.TotalAllocatedAtEnd,
+	}
+
+	result.SubProjectHealth = lastDashboard.SubProjectHealth // NOTE(Dan): Idle is recomputed below
+	result.SubProjectUtilization = lastDashboard.SubProjectUtilization
+
+	deltaUsageByChild := map[accWalletId]int64{}
+	for _, dashboard := range dashboards {
+		for _, item := range dashboard.UsageOverTime.Delta {
+			if item.Child.Present {
+				deltaUsageByChild[item.Child.Value] = deltaUsageByChild[item.Child.Value] + item.Change
+			}
+		}
+
+		for _, item := range dashboard.UsageOverTime.Absolute {
+			result.UsageOverTime.Absolute = append(result.UsageOverTime.Absolute, item)
+		}
+	}
+	result.SubProjectHealth.Idle = result.SubProjectHealth.SubProjectCount - len(deltaUsageByChild)
+
+	topUsersFromChildren := util.TopNKeys(deltaUsageByChild, 10)
+	deltaDataPointsByChild := map[util.Option[accWalletId]]map[time.Time]internalUsageOverTimeDeltaDataPoint{}
+	allDeltaTimestamps := map[time.Time]util.Empty{}
+
+	for _, dashboard := range dashboards {
+		for _, item := range dashboard.UsageOverTime.Delta {
+			itemCopy := item
+			if !item.Child.Present {
+				itemCopy.Child = util.OptNone[accWalletId]()
+			} else {
+				if !slices.Contains(topUsersFromChildren, item.Child.Value) {
+					itemCopy.Child = util.OptValue(accWalletId(-1))
+				}
+			}
+
+			m, ok := deltaDataPointsByChild[itemCopy.Child]
+			if !ok {
+				m = map[time.Time]internalUsageOverTimeDeltaDataPoint{}
+				deltaDataPointsByChild[itemCopy.Child] = m
+			}
+
+			curr, ok := m[itemCopy.Timestamp]
+			if ok {
+				curr.Change += itemCopy.Change
+			} else {
+				curr = itemCopy
+			}
+			deltaDataPointsByChild[itemCopy.Child][itemCopy.Timestamp] = curr
+			allDeltaTimestamps[itemCopy.Timestamp] = util.Empty{}
+		}
+	}
+
+	// Ensure that all timestamps are filled out
+	for child, m := range deltaDataPointsByChild {
+		for ts := range allDeltaTimestamps {
+			_, ok := m[ts]
+			if !ok {
+				m[ts] = internalUsageOverTimeDeltaDataPoint{
+					Timestamp: ts,
+					Child:     child,
+					Change:    0,
+				}
+			}
+		}
+	}
+
+	{
+		for _, dataMap := range deltaDataPointsByChild {
+			var data []internalUsageOverTimeDeltaDataPoint
+
+			for _, item := range dataMap {
+				data = append(data, item)
+			}
+			slices.SortFunc(data, func(a, b internalUsageOverTimeDeltaDataPoint) int {
+				return a.Timestamp.Compare(b.Timestamp)
+			})
+
+			// NOTE(Dan): The step size controls roughly how many elements we want to display before we consolidate
+			// data points. In this case, we are aiming to store up to 540 before we start consolidation. Which
+			// corresponds to roughly 90 days with sampling every 4 hours.
+			stepSize := max(1.0, float64(len(data))/540.0)
+			acc := 0.0
+
+			currentEntry := internalUsageOverTimeDeltaDataPoint{}
+			needNewEntry := true
+
+			for _, entry := range data {
+				acc += 1
+				if acc >= stepSize {
+					acc -= stepSize
+
+					if currentEntry.Change != -1 {
+						result.UsageOverTime.Delta = append(result.UsageOverTime.Delta, currentEntry)
+						needNewEntry = true
+					}
+				}
+
+				if needNewEntry {
+					currentEntry = internalUsageOverTimeDeltaDataPoint{
+						Timestamp: entry.Timestamp,
+						Child:     entry.Child,
+						Change:    0,
+					}
+					needNewEntry = false
+				}
+
+				currentEntry.Change += entry.Change
+			}
+
+			if !needNewEntry {
+				result.UsageOverTime.Delta = append(result.UsageOverTime.Delta, currentEntry)
+			}
+		}
+	}
+
+	slices.SortFunc(result.UsageOverTime.Delta, func(a, b internalUsageOverTimeDeltaDataPoint) int {
+		if a.Timestamp.Before(b.Timestamp) {
+			return -1
+		} else if a.Timestamp.After(b.Timestamp) {
+			return 1
+		} else {
+			aId := a.Child.GetOrDefault(-2)
+			bId := b.Child.GetOrDefault(-2)
+			if aId < bId {
+				return -1
+			} else if aId > bId {
+				return 1
+			} else {
+				return 0
+			}
+		}
+	})
+
+	return result
+}
+
+func usageRetrieveHistoric(now time.Time, wallet accWalletId) (internalUsageDashboard, bool) {
+	var result internalUsageDashboard
 
 	now = util.StartOfDayUTC(now)
 
@@ -155,17 +366,83 @@ func usageRetrieveHistoric(now time.Time, wallet accWalletId) (*internalUsageDas
 	}
 
 	if ok {
-		entry := g.HistoricCache[slot]
+		entry := &g.HistoricCache[slot]
 		entry.LastUsedAt.Store(util.Pointer(time.Now()))
 		result = entry.Dashboard
+	} else {
+		// TODO This will require reading from the database. Ideally it should pre-fetch longer periods since this
+		//   function is invoked in a loop.
 	}
 	g.Mu.RUnlock()
 
 	return result, ok
 }
 
-func usageSample(now time.Time) {
-	now = util.StartOfDayUTC(now)
+func lUsageRetireDashboard(dashboard *internalUsageDashboard) {
+	// TODO Persistence
+	g := &dashboardGlobals
+	lUsageEvictHistoricCache()
+
+	slot := -1
+
+	for iteration := 0; iteration < len(g.HistoricCache); iteration++ {
+		i := (iteration + g.HistoricCacheLastEmptySlot) % len(g.HistoricCache)
+		entry := &g.HistoricCache[i]
+		if !entry.InUse {
+			slot = i
+			entry.InUse = true
+			entry.LastUsedAt.Store(util.Pointer(time.Now()))
+			entry.Dashboard = *dashboard
+			g.HistoricCacheSlotsAvailable--
+			g.HistoricCacheLastEmptySlot = i
+			break
+		}
+	}
+
+	if slot == -1 {
+		log.Fatal("no space in cache? internal error")
+	}
+
+	dictOnDay, ok := g.HistoricCacheIndex[dashboard.ValidFrom]
+	if !ok {
+		dictOnDay = map[accWalletId]int{}
+		g.HistoricCacheIndex[dashboard.ValidFrom] = dictOnDay
+	}
+
+	dictOnDay[dashboard.Wallet] = slot
+}
+
+func lUsageEvictHistoricCache() {
+	g := &dashboardGlobals
+
+	if g.HistoricCacheSlotsAvailable == 0 {
+		oldestEntry := time.Now()
+		for i := range g.HistoricCache {
+			entry := &g.HistoricCache[i]
+			if entry.InUse {
+				usedAt := *entry.LastUsedAt.Load()
+				if usedAt.Before(oldestEntry) {
+					oldestEntry = usedAt
+				}
+			}
+		}
+
+		evictBefore := oldestEntry.Add(60 * time.Minute)
+
+		for i := range g.HistoricCache {
+			entry := &g.HistoricCache[i]
+			if entry.InUse && entry.LastUsedAt.Load().Before(evictBefore) {
+				entry.InUse = false
+				entry.Dashboard = internalUsageDashboard{}
+				entry.LastUsedAt.Store(util.Pointer(time.Now()))
+				g.HistoricCacheSlotsAvailable++
+			}
+		}
+	}
+}
+
+func lUsageSample(now time.Time) {
+	startOfDay := util.StartOfDayUTC(now)
 
 	dashboardGlobals.Mu.Lock()
 
@@ -198,15 +475,12 @@ func usageSample(now time.Time) {
 	snapshotsById := map[accWalletId]internalSnapshotComparison{}
 	for _, b := range buckets {
 		for _, w := range b.WalletsById {
-			snapshotsById[w.Id] = lSnapshotWallet(now, b, w)
+			snapshotsById[w.Id] = lSnapshotWallet(startOfDay, b, w)
 		}
 	}
 
 	for _, dashboard := range dashboardGlobals.Dashboards {
 		dashboard.Dirty = false
-
-		dashboard.SubProjectHealth = internalSubProjectHealth{}
-		dashboard.SubProjectUtilization = internalSubProjectUtilization{}
 	}
 
 	for _, b := range buckets {
@@ -324,19 +598,22 @@ func lSnapshotWallet(now time.Time, b *internalBucket, w *internalWallet) intern
 }
 
 func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison) {
+	startOfDay := util.StartOfDayUTC(now)
+
 	prevWallet := cmp.Previous
 	currWallet := cmp.Current
 
 	dashboard, ok := dashboardGlobals.Dashboards[currWallet.Id]
-	if !ok || dashboard.ValidFrom.Before(now) {
-		if ok && dashboard.ValidFrom.Before(now) {
-			// TODO Save old dashboard
+	if !ok || dashboard.ValidFrom.Before(startOfDay) {
+		if ok && dashboard.ValidFrom.Before(startOfDay) {
 			// TODO Possibly extend old dashboard if no changes
+
+			lUsageRetireDashboard(dashboard)
 		}
 
 		dashboard = &internalUsageDashboard{
 			Wallet:     currWallet.Id,
-			ValidFrom:  now,
+			ValidFrom:  startOfDay,
 			ValidUntil: util.Option[time.Time]{},
 
 			Kpis: internalUsageDashboardKpis{
@@ -356,6 +633,8 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison) {
 
 		dashboardGlobals.Dashboards[currWallet.Id] = dashboard
 	}
+	dashboard.SubProjectHealth = internalSubProjectHealth{}
+	dashboard.SubProjectUtilization = internalSubProjectUtilization{}
 
 	kpis := &dashboard.Kpis
 	kpis.QuotaAtEnd = currWallet.Quota
