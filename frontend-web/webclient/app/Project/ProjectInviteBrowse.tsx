@@ -17,6 +17,7 @@ import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {TruncateClass} from "@/ui-components/Truncate";
 import Avatar from "@/AvataaarLib/avatar";
+import {SimpleAvatarComponentCache} from "@/Files/Shares";
 
 const defaultRetrieveFlags: {itemsPerPage: number; filterType: "INGOING"} = {
     itemsPerPage: 250,
@@ -106,11 +107,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                 });
 
                 browser.on("endRenderPage", () => {
-                    if (currentAvatars.size > 0) {
-                        avatars.updateCache([...currentAvatars]);
-                        currentAvatars.forEach(it => fetchedAvatars.add(it));
-                        currentAvatars.clear();
-                    }
+                    avatars.updateCache(SimpleAvatarComponentCache.getAvatarsToFetch());
                 });
 
                 browser.on("fetchFilters", () => []);
@@ -118,27 +115,8 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                 browser.on("renderRow", (invite, row, dims) => {
                     row.title.append(ResourceBrowser.defaultTitleRenderer(invite.projectTitle, row));
 
-                    const avatarWrapper = document.createElement("div");
-                    row.stat3.append(avatarWrapper);
-                    HTMLTooltip(avatarWrapper, createHTMLElements({tagType: "div", className: TruncateClass, innerText: `Invited by ${invite.invitedBy}`}), {tooltipContentWidth: 250});
-                    if (avatarCache[invite.invitedBy]) {
-                        const avatar = avatarCache[invite.invitedBy].clone()
-                        avatarWrapper.appendChild(avatar);
-                    } else {
-                        // Row stat3
-                        const avatar = avatars.avatar(invite.invitedBy);
-                        if (!fetchedAvatars.has(invite.invitedBy)) {
-                            currentAvatars.add(invite.invitedBy);
-                        }
-
-                        new ReactStaticRenderer(() =>
-                            <Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />
-                        ).promise.then(it => {
-                            avatarCache[invite.invitedBy] = it;
-                            const avatar = it.clone();
-                            avatarWrapper.appendChild(avatar);
-                        });
-                    }
+                    const avatar = avatars.avatarFromCache(invite.invitedBy);
+                    SimpleAvatarComponentCache.appendTo(row.stat3, invite.invitedBy, avatar, `Invited by ${invite.invitedBy}`);
 
                     row.stat2.innerText = format(invite.createdAt, "hh:mm dd/MM/yyyy");
                     row.stat2.style.marginTop = row.stat2.style.marginBottom = "auto";

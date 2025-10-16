@@ -51,6 +51,7 @@ import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {useProjectId} from "@/Project/Api";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {TruncateClass} from "@/ui-components/Truncate";
+import {AvatarType} from "@/AvataaarLib";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share", tab: SidebarTabId.FILES, defaultHidden: true},
@@ -65,7 +66,58 @@ function inviteLinkFromToken(token: string): string {
     return window.location.origin + "/app/shares/invite/" + token;
 }
 
-let avatarCache: Record<string, ReactStaticRenderer> = {}
+
+export const SimpleAvatarComponentCache = new class {
+    private componentCache: Record<string, ReactStaticRenderer> = {};
+    private avatarsToFetch = new Set<string>();
+    private fetchedAvatars = new Set<string>();
+
+    private addToBeFetch(username: string) {
+        if (this.fetchedAvatars.has(username) || this.avatarsToFetch.has(username)) return;
+        this.avatarsToFetch.add(username);
+    }
+
+    getAvatarsToFetch(): string[] {
+        const toFetch = [...this.avatarsToFetch];
+        for (const a of toFetch) {
+            this.fetchedAvatars.add(a);
+        }
+        this.avatarsToFetch.clear();
+        return toFetch;
+    }
+
+    clear() {
+        this.componentCache = {};
+    }
+
+    getAvatar(username: string): ReactStaticRenderer | undefined {
+        return this.componentCache[username];
+    }
+
+    setAvatar(username: string, avatar: ReactStaticRenderer): void {
+        this.componentCache[username] = avatar;
+    }
+
+    appendTo(el: HTMLElement, username: string, avatar: AvatarType, tooltipText: string, wrapperStyle?: Partial<CSSStyleDeclaration>) {
+        this.addToBeFetch(username);
+        const avatarWrapper = createHTMLElements({tagType: "div", style: wrapperStyle});
+        el.append(avatarWrapper);
+        HTMLTooltip(avatarWrapper, createHTMLElements({tagType: "div", className: TruncateClass, innerText: tooltipText}), {tooltipContentWidth: 250});
+        const a = this.getAvatar(username);
+        if (a) {
+            const avatar = a.clone();
+            avatarWrapper.appendChild(avatar);
+        } else {
+            new ReactStaticRenderer(() =>
+                <Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />
+            ).promise.then(it => {
+                this.setAvatar(username, it);
+                const avatar = it.clone();
+                avatarWrapper.appendChild(avatar);
+            });
+        }
+    }
+}
 
 const ShareModalStyle = {
     ...defaultModalStyle,
@@ -358,7 +410,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
     const dateRanges = dateRangeFilters("Created after");
 
     avatars.subscribe(() => {
-        avatarCache = {};
+        SimpleAvatarComponentCache.clear();
         browserRef.current?.renderRows()
     });
 
@@ -419,14 +471,8 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     text: "Created by"
                 }, dateRangeFilters("Date created")]);
 
-                const currentAvatars = new Set<string>();
-                const fetchedAvatars = new Set<string>();
                 browser.on("endRenderPage", () => {
-                    if (currentAvatars.size > 0) {
-                        avatars.updateCache([...currentAvatars]);
-                        currentAvatars.forEach(it => fetchedAvatars.add(it));
-                        currentAvatars.clear();
-                    }
+                    avatars.updateCache(SimpleAvatarComponentCache.getAvatarsToFetch());
                 });
 
                 browser.on("renderRow", (share, row, dims) => {
@@ -520,30 +566,8 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     }));
 
                     // Row stat3
-                    const avatar = avatars.avatar(share.owner.createdBy);
-                    if (!fetchedAvatars.has(share.owner.createdBy)) {
-                        currentAvatars.add(share.owner.createdBy);
-                    }
-
-                    // Note(Jonas): To any future reader (as opposed to past reader?) the avatarWrapper is to ensure that
-                    // the re-render doesn't happen multiple times, when re-rendering. The avatarWrapper can be dead,
-                    // so attaching doesn't do anything, instead of risking the promise resolving after a second re-render,
-                    // causing multiple avatars to be shown.
-                    const avatarWrapper = document.createElement("div");
-                    row.stat3.append(avatarWrapper);
-                    HTMLTooltip(avatarWrapper, createHTMLElements({tagType: "div", className: TruncateClass, innerText: `Shared by ${share.owner.createdBy}`}), {tooltipContentWidth: 250});
-                    if (avatarCache[share.owner.createdBy]) {
-                        const avatar = avatarCache[share.owner.createdBy].clone()
-                        avatarWrapper.appendChild(avatar);
-                    } else {
-                        new ReactStaticRenderer(() =>
-                            <Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />
-                        ).promise.then(it => {
-                            avatarCache[share.owner.createdBy] = it;
-                            const avatar = it.clone();
-                            avatarWrapper.appendChild(avatar);
-                        });
-                    }
+                    const avatar = avatars.avatarFromCache(share.owner.createdBy);
+                    SimpleAvatarComponentCache.appendTo(row.stat3, share.owner.createdBy, avatar, `Shared by ${share.owner.createdBy}`);
                 });
 
                 browser.setEmptyIcon("heroShare");
