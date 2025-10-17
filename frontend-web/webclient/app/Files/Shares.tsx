@@ -98,9 +98,9 @@ export const SimpleAvatarComponentCache = new class {
         this.componentCache[username] = avatar;
     }
 
-    async appendTo(el: HTMLElement, username: string, avatar: AvatarType, tooltipText: string, wrapperStyle?: Partial<CSSStyleDeclaration>): Promise<void> {
+    async appendTo(el: HTMLElement, username: string, avatar: AvatarType, tooltipText: string, wrapperStyle?: Partial<CSSStyleDeclaration>): Promise<HTMLDivElement> {
         this.addToBeFetch(username);
-        const avatarWrapper = createHTMLElements({tagType: "div", style: wrapperStyle});
+        const avatarWrapper = createHTMLElements<HTMLDivElement>({tagType: "div", style: wrapperStyle});
         el.append(avatarWrapper);
         HTMLTooltip(avatarWrapper, createHTMLElements({tagType: "div", className: TruncateClass, innerText: tooltipText}), {tooltipContentWidth: 250});
         const a = this.getAvatar(username);
@@ -115,6 +115,7 @@ export const SimpleAvatarComponentCache = new class {
             const avatarElement = avatarComponent.clone();
             avatarWrapper.appendChild(avatarElement);
         }
+        return avatarWrapper;
     }
 }
 
