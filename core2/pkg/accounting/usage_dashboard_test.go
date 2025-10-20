@@ -3,7 +3,11 @@ package accounting
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
 	"testing"
+	"time"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -18,21 +22,28 @@ func TestName(t *testing.T) {
 
 	reported := int64(0)
 
+	allocateCalls := 0
+	reportCalls := 0
+	checkpointCalls := 0
+
 	api := UsageGenApi{
 		AllocateEx: func(now, start, end int, quota int64, recipientRef, parentRef string) {
+			allocateCalls++
 			if parentRef == "" {
 				roots = util.AppendUnique(roots, recipientRef)
 			}
-			log.Info("AllocateEx(now = %v, start = %v, end = %v, quota = %v, recipient = %v, parent = %v)",
-				now, start, end, quota, recipientRef, parentRef)
 			e.AllocateEx(now, start, end, quota, recipientRef, parentRef)
 		},
 		ReportDelta: func(now int, ownerRef string, usage int64) {
+			reportCalls++
 			reported += usage
 			e.ReportDelta(now, ownerRef, usage)
 		},
 		Checkpoint: func(now int) {
-			usageSample(e.Tm(now))
+			checkpointCalls++
+			e.Scan(now)
+			lUsageSample(e.Tm(now))
+
 			for _, root := range roots {
 				e.Snapshot(fmt.Sprintf("Root = %v, Time = %v", root, now), root, false)
 			}
@@ -40,10 +51,14 @@ func TestName(t *testing.T) {
 	}
 
 	config := UsageGenConfig{
-		Days:            7,
-		BreadthPerLevel: []int{1, 8, 10, 8},
-		Seed:            42,
+		Days:               30,
+		BreadthPerLevel:    []int{1, 8, 100, 8},
+		Seed:               42,
+		CheckpointInterval: 60 * 4,
+		MinuteStep:         60 * 2,
+		Expiration:         true,
 	}
+	dashboardGlobals.HistoricCache = make([]dashboardCacheEntry, 1024*1024*32) // set a very large cache for testing
 	rootProject := UsageGenGenerate(api, config)
 	timeAtEnd := e.Tm(1440 * config.Days)
 
@@ -57,19 +72,76 @@ func TestName(t *testing.T) {
 		for _, child := range next.Children {
 			stack = append(stack, child)
 		}
-
-		//owner := e.Owner(next.Title)
-		//wallet := e.Bucket.WalletsById[e.Wallet(owner, timeAtEnd)]
-		//apiWallet := lInternalWalletToApi(timeAtEnd, e.Bucket, wallet, owner.WalletOwner(), true)
-		//log.Info("%v: actual = %v, l1 = %v, l2 = %v (Total = %v, MaxUsable = %v)",
-		//	next.Title, wallet.LocalUsage, next.LocalUsage, next.LocalUsage2, apiWallet.TotalUsage, apiWallet.MaxUsable)
 	}
 
 	{
-		owner := e.Owner(rootProject.Title)
+		owner := e.Owner("UGTest_0_0")
 		w := e.Wallet(owner, timeAtEnd)
-		dashboard := dashboardGlobals.Dashboards[w]
-		pretty, _ := json.MarshalIndent(dashboard, "", "    ")
-		log.Info("%v", string(pretty))
+		dashboards := usageRetrieveHistoricDashboards(e.Tm(0), timeAtEnd, w)
+
+		tempDir, _ := os.MkdirTemp("", "")
+		for _, dashboard := range dashboards {
+			pretty, _ := json.MarshalIndent(dashboard, "", "    ")
+			_ = os.WriteFile(filepath.Join(tempDir, fmt.Sprintf("daily-%v.json", dashboard.ValidFrom.Format(time.DateOnly))), pretty, 0660)
+		}
+
+		log.Info("-----------------------")
+
+		collapsed := usageCollapseDashboards(dashboards)
+		{
+			pretty, _ := json.MarshalIndent(collapsed, "", "    ")
+			_ = os.WriteFile(filepath.Join(tempDir, "combined.json"), pretty, 0660)
+		}
+		log.Info("Reports in: %v", tempDir)
+
+		log.Info("-----------------------")
+
+		for _, point := range collapsed.UsageOverTime.Absolute {
+			fmt.Printf("%v,%v,%v\n", point.Timestamp.Format(time.DateTime), point.Usage, point.UtilizationPercent100)
+		}
+
+		fmt.Printf("\n\n")
+
+		{
+			data := make(map[string]map[string]int64) // timestamp -> child -> value
+			childSet := make(map[string]bool)
+			var timestamps []string
+
+			for _, point := range collapsed.UsageOverTime.Delta {
+				ts := point.Timestamp.Format(time.DateTime)
+				child := fmt.Sprintf("%v", point.Child.GetOrDefault(-2))
+				value := point.Change
+
+				if _, ok := data[ts]; !ok {
+					data[ts] = make(map[string]int64)
+					timestamps = append(timestamps, ts)
+				}
+				data[ts][child] = data[ts][child] + value
+				childSet[child] = true
+			}
+
+			sort.Strings(timestamps)
+			var children []string
+			for c := range childSet {
+				children = append(children, c)
+			}
+			sort.Strings(children)
+
+			fmt.Printf("timestamp")
+			for _, c := range children {
+				fmt.Printf(",%s", c)
+			}
+			fmt.Println()
+
+			for _, ts := range timestamps {
+				fmt.Printf("%s", ts)
+				for _, c := range children {
+					fmt.Printf(",%v", data[ts][c])
+				}
+				fmt.Println()
+			}
+		}
+
+		log.Info("Allocate = %v, Report = %v, Checkpoint = %v", allocateCalls, reportCalls, checkpointCalls)
 	}
 }

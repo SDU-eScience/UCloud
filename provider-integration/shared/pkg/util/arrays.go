@@ -1,6 +1,10 @@
 package util
 
-import "slices"
+import (
+	"golang.org/x/exp/constraints"
+	"slices"
+	"sort"
+)
 
 func ChunkBy[T any](items []T, chunkSize int) (chunks [][]T) {
 	for chunkSize < len(items) {
@@ -77,4 +81,44 @@ func PopHead[T any](slice []T) (T, []T) {
 	} else {
 		return slice[0], slice[1:]
 	}
+}
+
+func SampleElements[T any](slice []T, stepSize float64) []T {
+	var result []T
+	acc := 0.0
+
+	for i := 0; i < len(slice); i++ {
+		acc += 1
+		if acc >= stepSize {
+			result = append(result, slice[i])
+			acc -= stepSize
+		}
+	}
+
+	return result
+}
+
+func TopNKeys[K comparable, V constraints.Ordered](m map[K]V, n int) []K {
+	type kv struct {
+		k K
+		v V
+	}
+
+	pairs := make([]kv, 0, len(m))
+	for k, v := range m {
+		pairs = append(pairs, kv{k, v})
+	}
+
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].v > pairs[j].v
+	})
+
+	if n > len(pairs) {
+		n = len(pairs)
+	}
+	out := make([]K, 0, n)
+	for i := 0; i < n; i++ {
+		out = append(out, pairs[i].k)
+	}
+	return out
 }
