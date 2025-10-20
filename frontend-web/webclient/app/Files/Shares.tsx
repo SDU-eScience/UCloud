@@ -4,7 +4,7 @@ import SharesApi, {Share, ShareLink, shareLinksApi, ShareState} from "@/UCloud/S
 import {NavigateFunction, useNavigate} from "react-router";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as Heading from "@/ui-components/Heading";
-import {avatarState, useAvatars} from "@/AvataaarLib/hook";
+import {avatarState} from "@/AvataaarLib/hook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {LinkInfo, SidebarTabId} from "@/ui-components/SidebarComponents";
 import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, Tooltip} from "@/ui-components";
@@ -51,7 +51,7 @@ import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {useProjectId} from "@/Project/Api";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {TruncateClass} from "@/ui-components/Truncate";
-import {AvatarType} from "@/AvataaarLib";
+import {defaultAvatar} from "@/AvataaarLib";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share", tab: SidebarTabId.FILES, defaultHidden: true},
@@ -68,6 +68,13 @@ function inviteLinkFromToken(token: string): string {
 
 
 export const SimpleAvatarComponentCache = new class {
+    defaultAvatar: ReactStaticRenderer;
+    constructor() {
+        new ReactStaticRenderer(() =>
+            <Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...defaultAvatar} />
+        ).promise.then(it => this.defaultAvatar = it)
+    }
+
     private componentCache: Record<string, ReactStaticRenderer> = {};
     private avatarsToFetch = new Set<string>();
     private fetchedAvatars = new Set<string>();
@@ -77,17 +84,13 @@ export const SimpleAvatarComponentCache = new class {
         this.avatarsToFetch.add(username);
     }
 
-    getAvatarsToFetch(): string[] {
+    fetchMissingAvatars(): void {
         const toFetch = [...this.avatarsToFetch];
         for (const a of toFetch) {
             this.fetchedAvatars.add(a);
         }
         this.avatarsToFetch.clear();
-        return toFetch;
-    }
-
-    clear() {
-        this.componentCache = {};
+        avatarState.updateCache(toFetch);
     }
 
     getAvatar(username: string): ReactStaticRenderer | undefined {
@@ -98,8 +101,10 @@ export const SimpleAvatarComponentCache = new class {
         this.componentCache[username] = avatar;
     }
 
-    async appendTo(el: HTMLElement, username: string, avatar: AvatarType, tooltipText: string, wrapperStyle?: Partial<CSSStyleDeclaration>): Promise<HTMLDivElement> {
+    async appendTo(el: HTMLElement, username: string, tooltipText: string, wrapperStyle?: Partial<CSSStyleDeclaration>): Promise<HTMLDivElement> {
         this.addToBeFetch(username);
+        const avatar = avatarState.avatarFromCache(username);
+        const isDefaultAvatar = avatar === defaultAvatar;
         const avatarWrapper = createHTMLElements<HTMLDivElement>({tagType: "div", style: wrapperStyle});
         el.append(avatarWrapper);
         HTMLTooltip(avatarWrapper, createHTMLElements({tagType: "div", className: TruncateClass, innerText: tooltipText}), {tooltipContentWidth: 250});
@@ -108,10 +113,10 @@ export const SimpleAvatarComponentCache = new class {
             const avatar = a.clone();
             avatarWrapper.appendChild(avatar);
         } else {
-            const avatarComponent = await new ReactStaticRenderer(() =>
+            const avatarComponent = isDefaultAvatar ? this.defaultAvatar : await new ReactStaticRenderer(() =>
                 <Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />
             ).promise;
-            this.setAvatar(username, avatarComponent);
+            if (!isDefaultAvatar) this.setAvatar(username, avatarComponent);
             const avatarElement = avatarComponent.clone();
             avatarWrapper.appendChild(avatarElement);
         }
@@ -412,7 +417,6 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
         if (mount && !browserRef.current) {
             new ResourceBrowser<Share>(mount, TITLE, opts).init(browserRef, features, "", browser => {
                 avatarState.subscribe(() => {
-                    SimpleAvatarComponentCache.clear();
                     browserRef.current?.renderRows()
                 });
 
@@ -470,7 +474,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                 }, dateRangeFilters("Date created")]);
 
                 browser.on("endRenderPage", () => {
-                    avatarState.updateCache(SimpleAvatarComponentCache.getAvatarsToFetch());
+                    SimpleAvatarComponentCache.fetchMissingAvatars();
                 });
 
                 browser.on("renderRow", (share, row, dims) => {
@@ -564,8 +568,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     }));
 
                     // Row stat3
-                    const avatar = avatarState.avatarFromCache(share.owner.createdBy);
-                    SimpleAvatarComponentCache.appendTo(row.stat3, share.owner.createdBy, avatar, `Shared by ${share.owner.createdBy}`);
+                    SimpleAvatarComponentCache.appendTo(row.stat3, share.owner.createdBy, `Shared by ${share.owner.createdBy}`);
                 });
 
                 browser.setEmptyIcon("heroShare");

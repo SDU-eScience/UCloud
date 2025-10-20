@@ -335,19 +335,17 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                 }, dateRangeFilters("Date created")]);
 
                 browser.on("endRenderPage", () => {
-                    avatarState.updateCache(SimpleAvatarComponentCache.getAvatarsToFetch());
+                    SimpleAvatarComponentCache.fetchMissingAvatars();
                 });
 
                 avatarState.subscribe(() => {
-                    SimpleAvatarComponentCache.clear();
                     browser.rerender();
                 });
 
                 browser.on("renderRow", (share, row, dims) => {
 
                     if (isViewingShareGroupPreview(share)) {
-                        const sharedWithAvatar = avatarState.avatarFromCache(share.sharedWith);
-                        SimpleAvatarComponentCache.appendTo(row.title, share.sharedWith, sharedWithAvatar, "Shared with " + share);
+                        SimpleAvatarComponentCache.appendTo(row.title, share.sharedWith, "Shared with " + share);
                     } else {
                         const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
 
@@ -502,9 +500,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         row.stat3.append(flexWrapper);
 
                         sharedWithAvatars.forEach(s => {
-                            const avatar = avatarState.avatarFromCache(s.sharedWith);
-                            console.log(avatar);
-                            SimpleAvatarComponentCache.appendTo(flexWrapper, s.sharedWith, avatar, `Shared with ${s.sharedWith}`, {marginRight: "-26px"});
+                            SimpleAvatarComponentCache.appendTo(flexWrapper, s.sharedWith, `Shared with ${s.sharedWith}`, {marginRight: "-26px"});
                         });
                     }
                 });

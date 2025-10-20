@@ -17,7 +17,7 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {divText} from "@/Utilities/HTMLUtilities";
 import {SimpleAvatarComponentCache} from "@/Files/Shares";
-import {avatarState, useAvatars} from "@/AvataaarLib/hook";
+import {avatarState} from "@/AvataaarLib/hook";
 import {TruncateClass} from "@/ui-components/Truncate";
 
 const defaultRetrieveFlags = {
@@ -84,7 +84,6 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 });
 
                 avatarState.subscribe(() => {
-                    SimpleAvatarComponentCache.clear();
                     browser.rerender();
                 });
 
@@ -177,9 +176,8 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                         row.stat2.innerText = dateToDateStringOrTime(app.currentRevision.createdAt ?? timestampUnixMs());
                     }
 
-                    const avatar = avatarState.avatarFromCache(app.createdBy);
                     row.stat1.style.justifyContent = "left";
-                    SimpleAvatarComponentCache.appendTo(row.stat1, app.createdBy, avatar, `Created by ${app.createdBy}`).then(wrapper => {
+                    SimpleAvatarComponentCache.appendTo(row.stat1, app.createdBy, `Created by ${app.createdBy}`).then(wrapper => {
                         if (!simpleView) {
                             const div = divText(app.createdBy);
                             div.style.marginTop = div.style.marginBottom = "auto";
@@ -199,7 +197,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 });
 
                 browser.on("endRenderPage", () => {
-                    avatarState.updateCache(SimpleAvatarComponentCache.getAvatarsToFetch());
+                    SimpleAvatarComponentCache.fetchMissingAvatars();
                 });
 
                 browser.setEmptyIcon("heroDocument");

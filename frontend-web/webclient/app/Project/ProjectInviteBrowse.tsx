@@ -12,7 +12,7 @@ import {ShortcutKey} from "@/ui-components/Operation";
 import {MainContainer} from "@/ui-components";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {avatarState, useAvatars} from "@/AvataaarLib/hook";
+import {avatarState} from "@/AvataaarLib/hook";
 import {SimpleAvatarComponentCache} from "@/Files/Shares";
 
 const defaultRetrieveFlags: {itemsPerPage: number; filterType: "INGOING"} = {
@@ -61,7 +61,6 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
         if (mount && !browserRef.current) {
             new ResourceBrowser<ProjectInvite>(mount, "Project invites", opts).init(browserRef, features, "", browser => {
                 avatarState.subscribe(() => {
-                    SimpleAvatarComponentCache.clear();
                     browserRef.current?.renderRows()
                 });
 
@@ -99,16 +98,14 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                 });
 
                 browser.on("endRenderPage", () => {
-                    avatarState.updateCache(SimpleAvatarComponentCache.getAvatarsToFetch());
+                    SimpleAvatarComponentCache.fetchMissingAvatars();
                 });
 
                 browser.on("fetchFilters", () => []);
 
                 browser.on("renderRow", (invite, row, dims) => {
                     row.title.append(ResourceBrowser.defaultTitleRenderer(invite.projectTitle, row));
-
-                    const avatar = avatarState.avatarFromCache(invite.invitedBy);
-                    SimpleAvatarComponentCache.appendTo(row.stat3, invite.invitedBy, avatar, `Invited by ${invite.invitedBy}`);
+                    SimpleAvatarComponentCache.appendTo(row.stat3, invite.invitedBy, `Invited by ${invite.invitedBy}`);
 
                     row.stat2.innerText = format(invite.createdAt, "hh:mm dd/MM/yyyy");
                     row.stat2.style.marginTop = row.stat2.style.marginBottom = "auto";
