@@ -1,45 +1,45 @@
-import * as React from "react";
-import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} from "react";
-import {injectStyle} from "@/Unstyled";
-import MainContainer from "@/ui-components/MainContainer";
-import {Box, Button, Checkbox, ExternalLink, Icon, Input, Select, TextArea} from "@/ui-components";
-import {IconName} from "@/ui-components/Icon";
-import {ProjectLogo} from "@/Grants/ProjectLogo";
-import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {PageV2} from "@/UCloud";
-import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
-import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import * as Grants from ".";
 import * as Accounting from "@/Accounting";
+import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {useAvatars} from "@/AvataaarLib/hook";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {ProjectLogo} from "@/Grants/ProjectLogo";
+import HexSpin from "@/LoadingIcon/LoadingIcon";
+import {usePage} from "@/Navigation/Redux";
+import {isAdminOrPI, Project} from "@/Project";
 import * as Projects from "@/Project/Api";
 import {useProjectId} from "@/Project/Api";
-import {Client} from "@/Authentication/HttpClientInstance";
-import HexSpin from "@/LoadingIcon/LoadingIcon";
-import {fetchAll} from "@/Utilities/PageUtilities";
-import {getQueryParam} from "@/Utilities/URIUtilities";
-import {useLocation, useNavigate} from "react-router";
-import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {errorMessageOrDefault, timestampUnixMs} from "@/UtilityFunctions";
-import {UserAvatar} from "@/AvataaarLib/UserAvatar";
-import {addMonthsToDate, dateToString} from "@/Utilities/DateUtilities";
-import {useAvatars} from "@/AvataaarLib/hook";
-import {addStandardInputDialog} from "@/UtilityComponents";
-import {dialogStore} from "@/Dialog/DialogStore";
-import {createRecordFromArray, deepCopy} from "@/Utilities/CollectionUtilities";
-import {TooltipV2} from "@/ui-components/Tooltip";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
-import AppRoutes from "@/Routes";
-import {isAdminOrPI, Project} from "@/Project";
-import {BaseLinkClass} from "@/ui-components/BaseLink";
-import {usePage} from "@/Navigation/Redux";
-import {formatDistance} from "date-fns/formatDistance";
-import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {interval, isBefore, isWithinInterval, subDays} from "date-fns";
-import Warning from "@/ui-components/Warning";
-import {SimpleMarkdown} from "@/ui-components/Markdown";
 import {ProjectTitleForNewCore} from "@/Project/InfoCache";
+import {ProviderLogo} from "@/Providers/ProviderLogo";
+import {ProviderTitle} from "@/Providers/ProviderTitle";
+import AppRoutes from "@/Routes";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {PageV2} from "@/UCloud";
+import {injectStyle} from "@/Unstyled";
+import {createRecordFromArray, deepCopy} from "@/Utilities/CollectionUtilities";
+import {addMonthsToDate, dateToString} from "@/Utilities/DateUtilities";
+import {fetchAll} from "@/Utilities/PageUtilities";
+import {useDidUnmount} from "@/Utilities/ReactUtilities";
+import {getQueryParam} from "@/Utilities/URIUtilities";
+import {addStandardInputDialog} from "@/UtilityComponents";
+import {errorMessageOrDefault, timestampUnixMs} from "@/UtilityFunctions";
+import {Box, Button, Checkbox, ExternalLink, Icon, Input, Select, TextArea} from "@/ui-components";
+import {BaseLinkClass} from "@/ui-components/BaseLink";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {IconName} from "@/ui-components/Icon";
+import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
+import MainContainer from "@/ui-components/MainContainer";
+import {SimpleMarkdown} from "@/ui-components/Markdown";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {TooltipV2} from "@/ui-components/Tooltip";
+import Warning from "@/ui-components/Warning";
+import {interval, isBefore, isWithinInterval, subDays} from "date-fns";
+import {formatDistance} from "date-fns/formatDistance";
+import * as React from "react";
+import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} from "react";
+import {useLocation, useNavigate} from "react-router";
+import * as Grants from ".";
 
 // State model
 // =====================================================================================================================
@@ -687,6 +687,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         }
 
         case "Reset": {
+            console.log("Resetting");
             return defaultState;
         }
     }
@@ -893,8 +894,8 @@ function useStateReducerMiddleware(
                         const application = await pApp;
                         dispatch({type: "AllocatorsLoaded", allocators: affiliations.grantGivers, recipientType: application.currentRevision.document.recipient.type});
 
-
                         const projectPage = await projectPromise;
+
                         const allRelevantAllocators = new Set(application.status.revisions.flatMap(rev =>
                             rev.document.allocationRequests.map(it => it.grantGiver)));
 
@@ -1401,15 +1402,16 @@ export function Editor(): React.ReactNode {
     // These event handlers translate, primarily DOM, events to higher-level EditorEvents which are sent to
     // dispatchEvent(). There is nothing complicated in these, but they do take up a bit of space. When you are writing
     // these, try to avoid having dependencies on more than just dispatchEvent itself.
-    const switchToNewProject = useCallback(
-        () => dispatchEvent({type: "RecipientUpdated", isCreatingNewProject: true}),
-        [dispatchEvent]
-    );
+    const switchToNewProject = useCallback(() => {
+        dispatchEvent({type: "RecipientUpdated", isCreatingNewProject: true})
+        dispatchEvent({type: "Init", affiliationRequest: {type: "NewProject", title: ""}});
+    }, [dispatchEvent]);
 
-    const switchToExistingProject = useCallback(
-        () => dispatchEvent({type: "RecipientUpdated", isCreatingNewProject: false}),
-        [dispatchEvent]
-    );
+    const switchToExistingProject = useCallback((state: EditorState) => {
+        dispatchEvent({type: "RecipientUpdated", isCreatingNewProject: false});
+        const firstProject = state.loadedProjects.at(0);
+        dispatchEvent({type: "Init", affiliationRequest: {type: "ExistingProject", id: firstProject?.id ?? ""}})
+    }, [dispatchEvent]);
 
     const onAllocatorChecked = useCallback((projectId: string, checked: boolean) => {
         dispatchEvent({type: "AllocatorChecked", allocatorId: projectId, isChecked: checked});
@@ -1431,6 +1433,7 @@ export function Editor(): React.ReactNode {
         const select = ev.target as HTMLSelectElement;
         const selectedItem = select.value === "null" ? undefined : select.value;
         dispatchEvent({type: "RecipientUpdated", isCreatingNewProject: false, reference: selectedItem});
+        dispatchEvent({type: "Init", affiliationRequest: {type: "ExistingProject", id: selectedItem ?? ""}});
     }, [dispatchEvent]);
 
     const onNewProjectInput = useCallback<React.FormEventHandler>(ev => {
@@ -1724,28 +1727,21 @@ export function Editor(): React.ReactNode {
         }
     });
 
-    const recipientDependency = stateToCreationRecipient(state);
-    useEffect(() => {
-        // Listen to recipient change
-        const recipient = stateToCreationRecipient(state);
-        if (!recipient || !state.stateDuringCreate) return;
-
-        let req: Grants.RetrieveGrantGiversRequest | undefined = undefined;
-
-        switch (recipient?.type) {
+    const recipientChange = React.useCallback((state: EditorState, info: {type: "existingProject", id: string} | {type: "personalWorkspace"} | {type: "newProject", title: string}) => {
+        let req: Grants.RetrieveGrantGiversRequest;
+        switch (info.type) {
             case "existingProject":
-                req = {type: "ExistingProject", id: recipient.id};
-                break;
+                dispatchEvent({type: "Init", affiliationRequest: {type: "ExistingProject", id: info.id}});
+                return;
             case "personalWorkspace":
-                req = {type: "PersonalWorkspace"}
-                break;
+                dispatchEvent({type: "Init", affiliationRequest: {type: "PersonalWorkspace"}});
+                return;
             case "newProject":
-                req = {type: "NewProject", title: recipient.title}
-                break;
+                dispatchEvent({type: "Init", affiliationRequest: {type: "NewProject", title: info.title}});
+                return;
         }
 
-        dispatchEvent({type: "Init", affiliationRequest: req});
-    }, [recipientDependency?.type, recipientDependency?.["id"]]);
+    }, []);
 
     // Short-hands used in the user-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -1875,7 +1871,7 @@ export function Editor(): React.ReactNode {
                                 {state.stateDuringCreate && <>
                                     <label>
                                         {state.stateDuringCreate.creatingWorkspace && <>
-                                            New project (<a className={BaseLinkClass} href="#" onClick={switchToExistingProject}>
+                                            New project (<a className={BaseLinkClass} href="#" onClick={() => switchToExistingProject(state)}>
                                                 select an existing project instead
                                             </a>)
                                             <Input id={FormIds.title}
@@ -1918,8 +1914,7 @@ export function Editor(): React.ReactNode {
                                 id={FormIds.startDate}
                                 title={"Allocation duration"}
                                 showDescriptionInEditMode={true}
-                                description={<>
-                                </>}
+                                description={<></>}
                             >
                                 <label>
                                     When should the allocation start?
@@ -1949,7 +1944,7 @@ export function Editor(): React.ReactNode {
 
                                         {!Client.userIsAdmin ? null : (
                                             [3, 4, 5, 6, 7, 8, 9, 10].map(years =>
-                                                <option value={`${years * 12}`}>{years} years</option>
+                                                <option key={years} value={`${years * 12}`}>{years} years</option>
                                             )
                                         )}
                                     </Select>
@@ -2092,6 +2087,7 @@ export function Editor(): React.ReactNode {
                                             >
                                                 {checkedAllocators.map(allocator => {
                                                     const unit = Accounting.explainUnit(category.category);
+                                                    // Unused?
                                                     const freq = category.category.accountingFrequency;
                                                     const errorMessage = category.error?.allocator === allocator.grantGiverId ?
                                                         category.error?.message : undefined;
