@@ -1,4 +1,4 @@
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
+import {ColumnTitleList, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useLocation, useNavigate} from "react-router";
@@ -11,10 +11,14 @@ import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import * as Grants from ".";
 import {stateToIconAndColor} from ".";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {addTrailingSlash, createHTMLElements, timestampUnixMs} from "@/UtilityFunctions";
+import {addTrailingSlash, createHTMLElements, prettierString, timestampUnixMs} from "@/UtilityFunctions";
 import {ShortcutKey} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {divText} from "@/Utilities/HTMLUtilities";
+import {SimpleAvatarComponentCache} from "@/Files/Shares";
+import {avatarState} from "@/AvataaarLib/hook";
+import {TruncateClass} from "@/ui-components/Truncate";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -52,8 +56,15 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Grants.Application>(mount, "Grant Application", opts).init(browserRef, features, "", browser => {
-                browser.setColumns([{name: "Recipient"}, {name: "", columnWidth: 0}, {name: "Last updated", columnWidth: 160}, {name: "", columnWidth: 50}]);
+            new ResourceBrowser<Grants.Application>(mount, "Grants Application", opts).init(browserRef, features, "", browser => {
+                const simpleView = !!(opts?.embedded && !opts.isModal);
+                const columns: ColumnTitleList = [{name: "Application"}, {name: "Submitted by", columnWidth: 220}, {name: "Last updated", columnWidth: 200}, {name: "Comments", columnWidth: 150}]
+                if (simpleView) {
+                    columns[1].columnWidth = 50;
+                    columns[2].columnWidth = 120;
+                    columns[3].columnWidth = 0;
+                }
+                browser.setColumns(columns);
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
                         navigate(AppRoutes.grants.editor(resource.id));
@@ -70,6 +81,10 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
                     })
+                });
+
+                avatarState.subscribe(() => {
+                    browser.rerender();
                 });
 
                 browser.on("unhandledShortcut", () => {});
@@ -92,15 +107,23 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 });
 
                 browser.on("renderRow", (app, row, dims) => {
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-                    row.title.append(icon);
+                    const stateIconAndColor = stateToIconAndColor(app.status.overallState);
+                    const statusIconName = stateIconAndColor.icon;
+                    const statusIconColor = stateIconAndColor.color;
+
+                    const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
+                    status.title = prettierString(app.status.overallState);
                     ResourceBrowser.icons.renderIcon({
-                        name: "fileSignatureSolid",
-                        color: "textPrimary",
+                        name: statusIconName,
+                        color: statusIconColor,
                         color2: "iconColor2",
                         height: 32,
                         width: 32,
-                    }).then(setIcon);
+                    }).then(setStatus);
+
+                    status.style.width = "24px";
+                    status.style.height = "24px";
+                    row.title.append(status);
 
                     let subtitle: string = "";
                     let grantTitle = app.createdBy;
@@ -127,8 +150,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                         }
                     }
 
-                    let combinedTitle = grantTitle;
-                    if (subtitle) combinedTitle = `[${subtitle}] ${combinedTitle}`;
+                    let combinedTitle = `${app.id}: ${grantTitle}`;
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(combinedTitle, row));
 
@@ -146,31 +168,36 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                             }
                         }
                     }
-                    const stateIconAndColor = stateToIconAndColor(app.status.overallState);
-                    const statusIconName = stateIconAndColor.icon;
-                    const statusIconColor = stateIconAndColor.color;
-
-                    const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
-                    ResourceBrowser.icons.renderIcon({
-                        name: statusIconName,
-                        color: statusIconColor,
-                        color2: "iconColor2",
-                        height: 32,
-                        width: 32,
-                    }).then(setStatus);
                     row.stat2.innerText = dateToString(app.currentRevision.createdAt);
 
-                    const simpleView = !!(opts?.embedded && !opts.isModal);
                     if (!simpleView) {
                         row.stat2.innerText = dateToString(app.currentRevision.createdAt ?? timestampUnixMs());
                     } else {
                         row.stat2.innerText = dateToDateStringOrTime(app.currentRevision.createdAt ?? timestampUnixMs());
                     }
 
-                    status.style.margin = "0";
-                    status.style.width = "24px";
-                    status.style.height = "24px";
-                    row.stat3.append(status);
+                    row.stat1.style.justifyContent = "left";
+                    SimpleAvatarComponentCache.appendTo(row.stat1, app.createdBy, `Created by ${app.createdBy}`).then(wrapper => {
+                        if (!simpleView) {
+                            const div = divText(app.createdBy);
+                            div.style.marginTop = div.style.marginBottom = "auto";
+                            div.classList.add(TruncateClass);
+                            div.style.maxWidth = "150px";
+                            div.style.marginLeft = "12px";
+                            wrapper.append(div);
+                            wrapper.style.display = "flex";
+                        }
+                    });
+
+                    if (!simpleView) {
+                        const div = divText(app.status.comments.length.toString());
+                        div.style.marginTop = div.style.marginBottom = "auto";
+                        row.stat3.append(div);
+                    }
+                });
+
+                browser.on("endRenderPage", () => {
+                    SimpleAvatarComponentCache.fetchMissingAvatars();
                 });
 
                 browser.setEmptyIcon("heroDocument");
@@ -192,7 +219,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
 
                 browser.on("generateBreadcrumbs", () => {
                     if (opts?.embedded) return [];
-                    return [{title: `${isIngoing ? "Ingoing" : "Outgoing"} grants`, absolutePath: ""}];
+                    return [{title: `Grant applications ${isIngoing ? "received" : "sent"} `, absolutePath: ""}];
                 });
 
                 browser.on("renderEmptyPage", reason => {
@@ -236,13 +263,13 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                             return selected.length === 0 && isIngoing;
                         },
                         onClick() {navigate(AppRoutes.grants.outgoing())},
-                        text: "Show outgoing applications",
+                        text: "Show applications sent",
                         shortcut: ShortcutKey.U
                     }, {
                         icon: "fileSignatureSolid" as IconName,
                         enabled(selected: Grants.Application[]) {return selected.length === 0 && !isIngoing},
                         onClick() {navigate(AppRoutes.grants.ingoing())},
-                        text: "Show ingoing applications",
+                        text: "Show applications sent",
                         shortcut: ShortcutKey.I
                     }];
                     return ops.filter(it => it.enabled(selected));
