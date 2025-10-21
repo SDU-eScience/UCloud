@@ -687,7 +687,6 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         }
 
         case "Reset": {
-            console.log("Resetting");
             return defaultState;
         }
     }
@@ -1979,10 +1978,10 @@ export function Editor(): React.ReactNode {
                                 <div className={"select-grant-givers"}>
                                     {state.allocators.map(it =>
                                         <GrantGiver
+                                            key={it.id}
                                             projectId={it.id}
                                             title={it.title}
                                             description={it.description}
-                                            key={it.id}
                                             checked={it.checked}
                                             onChange={onAllocatorChecked}
                                             adminOfProjects={state.loadedProjects}
