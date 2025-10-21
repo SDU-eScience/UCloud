@@ -104,11 +104,13 @@ func WriteLine(formatString string, args ...any) {
 }
 
 func moveCursorUp(out *os.File, lines int) {
-	_, _ = out.WriteString(fmt.Sprintf("\033[%dA", lines))
+	if lines > 0 {
+		_, _ = out.WriteString(fmt.Sprintf("\033[%dA", lines))
+	}
 }
 
 func clearLine(out *os.File) {
-	_, _ = out.WriteString("\033[2K")
+	_, _ = out.WriteString("\r\033[2K")
 }
 
 func hideCursor(out *os.File) {

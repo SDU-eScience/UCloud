@@ -1,10 +1,5 @@
 import deepcopy from "deepcopy";
 import Fuse from "fuse.js";
-import {
-    computeStringSimilarity,
-    precomputeStringSimilarityProfile,
-    StringSimilarityProfile
-} from "@/Utilities/StringSimilarity";
 
 export function associateBy<T>(items: T[], keySelector: (t: T) => string): Record<string, T> {
     const result: Record<string, T> = {};
@@ -45,43 +40,8 @@ export function createRecordFromArray<T, V>(array: T[], keyValueMapper: (value: 
 
 export function fuzzySearch<T, K extends keyof T>(array: T[], keys: K[], query: string, opts?: {sort?: boolean}): T[] {
     if (query.length === 0) return array;
-
-    let k = 3;
-    if (query.length < 3) k = 1;
-
-    const profiles: StringSimilarityProfile[] = [];
-    for (const elem of array) {
-        let builder = "";
-        for (const key of keys) {
-            const value = elem[key] as any;
-            if (builder) builder += " ";
-            builder += value;
-        }
-        const profile = precomputeStringSimilarityProfile(builder.toLowerCase(), k);
-        profiles.push(profile);
-    }
-
-    let rankings: {idx: number, score: number}[] = [];
-    const queryProfile = precomputeStringSimilarityProfile(query.toLowerCase(), k);
-    for (let i = 0; i < profiles.length; i++) {
-        const profile = profiles[i];
-        let score = computeStringSimilarity(queryProfile, profile);
-        if (score <= 0.01) continue;
-        rankings.push({idx: i, score: score});
-    }
-    rankings.sort((a, b) => {
-        if (a.score < b.score) {
-            return 1;
-        } else if (a.score > b.score) {
-            return -1;
-        } else {
-            if (a.idx < b.idx) return -1;
-            if (a.idx > b.idx) return 1;
-            return 0;
-        }
-    });
-
-    return rankings.map(it => array[it.idx]);
+    const f = new Fuse(array, { keys: keys as any });
+    return f.search(query).map(it => it.item);
 }
 
 export function fuzzyMatch<T, K extends keyof T>(item: T, keys: K[], query: string): boolean {

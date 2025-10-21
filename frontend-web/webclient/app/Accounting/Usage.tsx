@@ -86,13 +86,13 @@ interface State {
     selectedPeriod: Period,
 }
 
-interface ExportHeader<T> {
+export interface ExportHeader<T> {
     key: keyof T;
     value: string;
     defaultChecked: boolean;
 };
 
-function exportUsage<T extends object>(chartData: T[] | undefined, headers: ExportHeader<T>[], projectTitle: string | undefined): void {
+export function exportUsage<T extends object>(chartData: T[] | undefined, headers: ExportHeader<T>[], projectTitle: string | undefined): void {
     if (!chartData?.length) {
         snackbarStore.addFailure("No data to export found", false);
         return;
@@ -167,7 +167,7 @@ function UsageExport<T extends object>({chartData, headers, projectTitle}: {char
 
         const a = document.createElement("a");
         a.href = "data:text/plain;charset=utf-8," + encodeURIComponent(text);
-        a.download = `${Config.PRODUCT_NAME} - ${projectTitle ? projectTitle : "personal workspace"} - ${formatDate(new Date(), DATE_FORMAT)}.${format}`;
+        a.download = `${Config.PRODUCT_NAME} - ${projectTitle ? projectTitle : "My workspace"} - ${formatDate(new Date(), DATE_FORMAT)}.${format}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -1033,7 +1033,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{
     </div>;
 };
 
-function header<T>(key: keyof T, value: string, defaultChecked?: boolean): ExportHeader<T> {
+export function header<T>(key: keyof T, value: string, defaultChecked?: boolean): ExportHeader<T> {
     return {key, value, defaultChecked: !!defaultChecked};
 }
 

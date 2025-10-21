@@ -73,6 +73,7 @@ import ReactVirtualizedAutoSizer from "react-virtualized-auto-sizer";
 import {MandatoryField} from "@/UtilityComponents";
 import {ProjectPiForNewCore, ProjectTitleForNewCore} from "@/Project/InfoCache";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
+import {exportUsage, header} from "@/Accounting/Usage";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -496,6 +497,14 @@ const giftClass = injectStyle("gift", k => `
 
 // User-interface
 // =====================================================================================================================
+interface Datapoint {
+    product: string;
+    provider: string;
+    usage: number;
+    quota: number;
+    unit: string;
+}
+
 const Allocations: React.FunctionComponent = () => {
     const didCancel = useDidUnmount();
     const projectId = useProjectId();
@@ -994,6 +1003,42 @@ const Allocations: React.FunctionComponent = () => {
     }, [projectId]);
     const listRef = useRef<VariableSizeList<State["subAllocations"]["recipients"]>>(null);
 
+    const project = useProject();
+
+    const onExportData = useCallback(() => {
+        const toExport: Datapoint[] = [];
+        for (const allocationTree of Object.values(state.yourAllocations)) {
+            for (let wallet of allocationTree.wallets) {
+                let usage = wallet.usageAndQuota.raw.usage;
+                if (!wallet.usageAndQuota.raw.retiredAmountStillCounts) {
+                    usage -= wallet.usageAndQuota.raw.retiredAmount;
+                }
+                toExport.push({
+                    product: wallet.category.name,
+                    provider: wallet.category.provider,
+                    usage,
+                    quota: wallet.usageAndQuota.raw.quota,
+                    unit: wallet.usageAndQuota.raw.unit
+                });
+            }
+        }
+
+        if (!project.error || projectId === undefined) {
+            const title = projectId === undefined ? undefined : project.fetch().specification.title;
+            exportUsage<Datapoint>(
+                toExport,
+                [
+                    header("product", "Product", true),
+                    header("provider", "Provider", true),
+                    header("usage", "Usage", true),
+                    header("quota", "Quota", true),
+                    header("unit", "Unit", true)
+                ],
+                title
+            );
+        }
+    }, [state.yourAllocations, project, projectId]);
+
     return <MainContainer
         headerSize={0}
         main={<div className={AllocationsStyle}>
@@ -1241,7 +1286,13 @@ const Allocations: React.FunctionComponent = () => {
                 </>}
             </>}
 
-            <h3>Your allocations</h3>
+            <Flex>
+                <h3 style={{flexGrow: "1", marginBottom: "14px"}}>Your allocations</h3>
+                <Button onClick={onExportData}>
+                    Export
+                </Button>
+            </Flex>
+
             {state.remoteData.wallets === undefined ? <>
                 <HexSpin size={64}/>
             </> : <>

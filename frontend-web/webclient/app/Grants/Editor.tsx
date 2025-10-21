@@ -611,6 +611,16 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             const app = state.stateDuringEdit.storedApplication;
             if (!app) return state;
 
+            const currentRevisionId = state.stateDuringEdit?.activeRevision ?? -1;
+            const newRevisionId = action.revision;
+
+            if (currentRevisionId === newRevisionId) {
+                snackbarStore.addFailure("This grant revision is already active.", false);
+                return state;
+            }
+
+            snackbarStore.addSuccess("Grant revision loaded.", false);
+
             return loadRevision({
                 ...state,
                 stateDuringEdit: {
@@ -2323,7 +2333,7 @@ const CommentSection: React.FunctionComponent<{
                 } else {
                     username = entry.updatedBy;
                     action = <>submitted a new version
-                        (<a href={"#"} onClick={onRevSelected} data-rev={entry.revisionNumber}>view</a>)</>
+                        (<a href={"#"} onClick={onRevSelected} data-rev={entry.revisionNumber}>Click to view</a>)</>
                     comment = <>
                         <p><i>{entry.changeLog ?? "Submitted the application"}</i></p>
                     </>;

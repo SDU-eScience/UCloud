@@ -29,6 +29,7 @@ export interface Project {
 export interface ProjectStatus {
     archived: boolean;
     isFavorite?: boolean | null;
+    isHidden?: boolean | null;
     members?: ProjectMember[] | null;
     groups?: ProjectGroup[] | null;
     settings?: ProjectSettings | null;
