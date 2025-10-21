@@ -1726,22 +1726,6 @@ export function Editor(): React.ReactNode {
         }
     });
 
-    const recipientChange = React.useCallback((state: EditorState, info: {type: "existingProject", id: string} | {type: "personalWorkspace"} | {type: "newProject", title: string}) => {
-        let req: Grants.RetrieveGrantGiversRequest;
-        switch (info.type) {
-            case "existingProject":
-                dispatchEvent({type: "Init", affiliationRequest: {type: "ExistingProject", id: info.id}});
-                return;
-            case "personalWorkspace":
-                dispatchEvent({type: "Init", affiliationRequest: {type: "PersonalWorkspace"}});
-                return;
-            case "newProject":
-                dispatchEvent({type: "Init", affiliationRequest: {type: "NewProject", title: info.title}});
-                return;
-        }
-
-    }, []);
-
     // Short-hands used in the user-interface
     // -----------------------------------------------------------------------------------------------------------------
     const isGrantGiverInitiated = state.stateDuringEdit?.id === GRANT_GIVER_INITIATED_ID;
