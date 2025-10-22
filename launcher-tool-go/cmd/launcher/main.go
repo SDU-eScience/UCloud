@@ -371,8 +371,8 @@ func main() {
 	case "help":
 		{
 			menu := termio.Menu{
-				"Select a topic",
-				[]termio.MenuItem{
+				Prompt: "Select a topic",
+				Items: []termio.MenuItem{
 					{
 						Value:   "start",
 						Message: "Getting started",
@@ -505,8 +505,8 @@ func main() {
 					)
 
 					moreTopics := termio.Menu{
-						"Select a topic",
-						[]termio.MenuItem{
+						Prompt: "Select a topic",
+						Items: []termio.MenuItem{
 							{
 								Value:   "login",
 								Message: "How do I login?",

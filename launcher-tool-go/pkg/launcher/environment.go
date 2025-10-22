@@ -69,8 +69,8 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 		HardCheck(err)
 		if selected.Message != "Create new environment" && selected.Value != "new" {
 			file, err := os.Open(selected.Value)
-			defer file.Close()
 			HardCheck(err)
+			defer file.Close()
 
 			env := NewFile(selected.Value)
 			currentEnvironment = env
@@ -195,8 +195,8 @@ func ListAddons() map[string]map[string]string {
 	result := map[string]map[string]string{}
 	path := filepath.Join(localEnvironment.GetAbsolutePath(), "provider-addons.txt")
 	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
-	defer file.Close()
 	HardCheck(err)
+	defer file.Close()
 	lines := readLines(path)
 	for _, line := range lines {
 		if strings.TrimSpace(line) == "" {
