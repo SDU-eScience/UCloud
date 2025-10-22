@@ -6,8 +6,8 @@ import (
 )
 
 type SupportAssistRetrieveUserInfoRequest struct {
-	Username string
-	Email    string
+	Username string `json:"username"`
+	Email    string `json:"email"`
 }
 
 type SupportAssistUserInfo struct {
@@ -29,7 +29,7 @@ const SupportAssistAccContext = "support-assist-acc"
 
 var SupportAssistRetrieveUserInfo = rpc.Call[SupportAssistRetrieveUserInfoRequest, SupportAssistRetrieveUserInfoResponse]{
 	BaseContext: SupportAssistAccContext,
-	Convention:  rpc.ConventionCustom,
+	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesAdmin,
-	Operation:   "retrieve_user_info",
+	Operation:   "user_info",
 }

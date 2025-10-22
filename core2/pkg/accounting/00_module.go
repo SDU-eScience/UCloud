@@ -5,4 +5,5 @@ func Init() {
 	initAccounting()
 	initGrants()
 	initProviderNotifications()
+	initSupportAssistAcc()
 }

@@ -165,7 +165,6 @@ function SearchButton() {
 
 type SupportAssistRetrieveUserInfoRequest = {
     username: string;
-} | {
     email: string;
 }
 
@@ -186,26 +185,26 @@ interface SupportAssistRetrieveUserInfoResponse {
 
 export function UserSupportContent() {
     const location = useLocation();
-    const user = getQueryParam(location.search, "id");
-    const isEmail = getQueryParam(location.search, "isEmail");
+    const query = getQueryParam(location.search, "id");
+    const isEmail = getQueryParam(location.search, "isEmail") === "true";
     usePage("User support", SidebarTabId.ADMIN);
 
     const {Error, setError} = useError();
     const [userInfo, setInfo] = React.useState<SupportAssistRetrieveUserInfoResponse | null>({info: []});
 
     React.useEffect(() => {
-        if (!user) return;
-        callAPI(Api.retrieveUserInfo(isEmail ? {email: user} : {username: user}))
+        if (!query) return;
+        callAPI(Api.retrieveUserInfo(isEmail ? {username: "", email: query} : {username: query, email: ""}))
             .then(result => setInfo(result))
             .catch(e => setError(errorMessageOrDefault(e, "Failed to fetch user")));
-    }, [user, isEmail]);
+    }, [query, isEmail]);
 
     if (!Client.userIsAdmin || userInfo == null) return null;
 
     return <MainContainer
         main={<div>
             {Error}
-            {user} {userInfo.info.length > 1 ? `${userInfo.info.length} entries found` : null}
+            {query} {userInfo.info.length > 1 ? `${userInfo.info.length} entries found` : null}
 
             {userInfo.info.map(it => <div>
                 E-mail
@@ -330,8 +329,6 @@ export function JobSupportContent() {
 
 type SupportAssistRetrieveWalletInfoRequest = ({
     allocationId: string;
-} | {
-    walletId: string;
 }) & {
     flags?: SupportAssistWalletInfoFlags;
 }
@@ -348,7 +345,6 @@ interface SupportAssistRetrieveWalletInfoResponse {
 export function AllocationSupportContent() {
     const location = useLocation();
     const id = getQueryParam(location.search, "id");
-    const isWalletId = getQueryParam(location.search, "isWalletId") === "true";
     const flags = {
         includeAccountingGraph: getQueryParam(location.search, "includeAccountingGraph") === "true"
     }
@@ -358,12 +354,11 @@ export function AllocationSupportContent() {
     React.useEffect(() => {
         if (!id) return;
         // or wallet id? handle graph thing flag
-        callAPI(Api.retrieveWalletInfo(isWalletId ?
-            {walletId: id, flags} :
+        callAPI(Api.retrieveWalletInfo(
             {allocationId: id, flags}))
             .then(setAllocation)
             .catch(e => setError(errorMessageOrDefault(e, "Failed to fetch")));
-    }, [id, isWalletId, flags]);
+    }, [id, flags]);
 
     if (!Client.userIsAdmin || allocation == null) return null;
 
@@ -385,18 +380,18 @@ function useError(): {setError: (e: string) => void; Error: React.ReactNode} {
 
 const Api = {
     retrieveProjectInfo(params: SupportAssistRetrieveProjectInfoRequest): APICallParameters<SupportAssistRetrieveProjectInfoRequest, SupportAssistRetrieveProjectInfoResponse> {
-        return apiRetrieve(params, "api/support-assist-orc/retrieve_project_info");
+        return apiRetrieve(params, "api/support-assist-orc", "project_info");
     },
 
     retrieveJobInfo(params: SupportAssistRetrieveJobInfoRequest): APICallParameters<SupportAssistRetrieveJobInfoRequest, SupportAssistRetrieveJobInfoResponse> {
-        return apiRetrieve(params, "/api/support-assist-orc/retrieve_job_info");
+        return apiRetrieve(params, "/api/support-assist-orc", "job_info");
     },
 
     retrieveWalletInfo(params: SupportAssistRetrieveWalletInfoRequest): APICallParameters<SupportAssistRetrieveWalletInfoRequest, SupportAssistRetrieveWalletInfoResponse> {
-        return apiRetrieve(params, "api/support-assist-orc/retrieve_wallets_info");
+        return apiRetrieve(params, "api/support-assist-orc", "wallets_info");
     },
 
     retrieveUserInfo(params: SupportAssistRetrieveUserInfoRequest): APICallParameters<SupportAssistRetrieveUserInfoRequest, SupportAssistRetrieveUserInfoResponse> {
-        return apiRetrieve(params, "api/support-assist-acc/retrieve_user_info");
+        return apiRetrieve(params, "api/support-assist-acc", "user_info");
     }
 }

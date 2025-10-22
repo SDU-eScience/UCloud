@@ -2,6 +2,7 @@ package accounting
 
 import (
 	"net/http"
+	"strconv"
 	fnd "ucloud.dk/core/pkg/foundation"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
@@ -18,18 +19,20 @@ func initSupportAssistAcc() {
 		if request.Username != "" && request.Email != "" {
 			return accapi.SupportAssistRetrieveUserInfoResponse{}, util.HttpErr(http.StatusBadRequest, "Only Username or Email can be specified")
 		}
+		println("RUNNINGN INFO GET")
 		return retrieveUserInfo(request.Username, request.Email)
 	})
 }
 
-func usernameToUserInfo(tx *db.Transaction, username string) accapi.SupportAssistUserInfo {
+func usernameToUserInfo(tx *db.Transaction, username string) (accapi.SupportAssistUserInfo, bool) {
+	println("USERINFO FUNC")
 	principal, found := fnd.LookupPrincipal(tx, username)
 	if !found {
-		return accapi.SupportAssistUserInfo{}
+		return accapi.SupportAssistUserInfo{}, false
 	}
 	actor, found := rpc.LookupActor(username)
 	if !found {
-		return accapi.SupportAssistUserInfo{}
+		return accapi.SupportAssistUserInfo{}, false
 	}
 
 	emailSettings := fnd.RetrieveEmailSettings(username)
@@ -83,28 +86,42 @@ func usernameToUserInfo(tx *db.Transaction, username string) accapi.SupportAssis
 		AssociatedProjects:       projects,
 		ActiveGrants:             activeGrants.Items,
 		PersonalProjectResources: personalWallet,
-	}
+	}, true
 }
 
 func retrieveUserInfo(username string, email string) (accapi.SupportAssistRetrieveUserInfoResponse, *util.HttpError) {
+	println("GIVEN USER: " + username + " email : " + email)
 	var userInfos []accapi.SupportAssistUserInfo
 	if username != "" {
+		println("GETTING BY USERNAME")
 		db.NewTx0(func(tx *db.Transaction) {
-			userInfo := usernameToUserInfo(tx, username)
-			userInfos = append(userInfos, userInfo)
+			userInfo, found := usernameToUserInfo(tx, username)
+			if found {
+				println("ADDING USER INFO")
+				userInfos = append(userInfos, userInfo)
+			}
 		})
 	}
 	if email != "" {
+		println("GETTING BY EMIAL")
+
 		db.NewTx0(func(tx *db.Transaction) {
 			users, found := fnd.LookupUsernamesByEmail(tx, email)
 			if !found {
 				return
 			}
 			for _, user := range users {
-				userInfo := usernameToUserInfo(tx, user)
-				userInfos = append(userInfos, userInfo)
+				userInfo, foundUserInfo := usernameToUserInfo(tx, user)
+				if foundUserInfo {
+					userInfos = append(userInfos, userInfo)
+				}
 			}
 		})
+	}
+	for i, userInfo := range userInfos {
+		println("USER #" + strconv.Itoa(i+1) + ": " + userInfo.Username)
+		println(userInfo.FirstNames)
+		println(userInfo.LastName)
 	}
 	return accapi.SupportAssistRetrieveUserInfoResponse{
 		Info: userInfos,

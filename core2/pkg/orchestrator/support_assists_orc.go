@@ -8,26 +8,29 @@ import (
 	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
-	"ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
 func initSupportAssistsOrc() {
 	orcapi.SupportAssistRetrieveProjectInfo.Handler(func(info rpc.RequestInfo, request orcapi.SupportAssistRetrieveProjectInfoRequest) (orcapi.SupportAssistRetrieveProjectInfoResponse, *util.HttpError) {
+		println("HITTING HANDLER Project")
 		return retrieveProjectInfo(request.ProjectId, request.Flags)
 	})
 
 	orcapi.SupportAssistRetrieveJobsInfo.Handler(func(info rpc.RequestInfo, request orcapi.SupportAssistRetrieveJobInfoRequest) (orcapi.SupportAssistRetrieveJobInfoResponse, *util.HttpError) {
+		println("HITTING HANDLER JOB")
 		return retrieveJobInfo(request.JobId)
 	})
 
 	orcapi.SupportAssistRetrieveWalletsInfo.Handler(func(info rpc.RequestInfo, request orcapi.SupportAssistRetrieveWalletInfoRequest) (orcapi.SupportAssistRetrieveWalletInfoResponse, *util.HttpError) {
-		return retrieveWalletInfo(request.AllocationId, request.WalletId, request.Flags)
+		println("HITTING HANDLER wallet")
+		return retrieveWalletInfo(request.AllocationId, request.Flags)
 	})
 }
 
 func retrieveProjectInfo(projectId string, flags orcapi.SupportAssistProjectInfoFlags) (orcapi.SupportAssistRetrieveProjectInfoResponse, *util.HttpError) {
+	println("FINDING PROJECT INFO with flags. Jobinfo:" + strconv.FormatBool(flags.IncludeJobsInfo) + " Accounitng:" + strconv.FormatBool(flags.IncludeAccountingInfo) + "members:" + strconv.FormatBool(flags.IncludeMembers))
 	project, err := foundation.ProjectRetrieve(
 		rpc.ActorSystem,
 		projectId,
@@ -103,11 +106,10 @@ func retrieveProjectInfo(projectId string, flags orcapi.SupportAssistProjectInfo
 }
 
 func retrieveJobInfo(jobId string) (orcapi.SupportAssistRetrieveJobInfoResponse, *util.HttpError) {
-	job, err := orchestrators.RetrieveJob(jobId, orchestrators.BrowseJobsFlags{
-		IncludeParameters:  true,
-		IncludeApplication: true,
-		IncludeProduct:     true,
-		IncludeUpdates:     true,
+	println("FINDING JOB INFO")
+	job, err := JobsRetrieve(rpc.ActorSystem, jobId, orcapi.JobFlags{
+		IncludeParameters:  false,
+		IncludeApplication: false,
 	})
 	if err != nil {
 		return orcapi.SupportAssistRetrieveJobInfoResponse{}, util.HttpErr(http.StatusNotFound, "Unknown Job")
@@ -115,41 +117,21 @@ func retrieveJobInfo(jobId string) (orcapi.SupportAssistRetrieveJobInfoResponse,
 	return orcapi.SupportAssistRetrieveJobInfoResponse{JobInfo: job}, nil
 }
 
-func retrieveWalletInfo(allocationId string, walletId string, flags orcapi.SupportAssistWalletInfoFlags) (orcapi.SupportAssistRetrieveWalletInfoResponse, *util.HttpError) {
-	if walletId != "" && allocationId != "" {
-		return orcapi.SupportAssistRetrieveWalletInfoResponse{}, util.HttpErr(http.StatusBadRequest, "Cannot specify both walletId and allocationId")
-	}
-	if walletId == "" && allocationId == "" {
+func retrieveWalletInfo(allocationId string, flags orcapi.SupportAssistWalletInfoFlags) (orcapi.SupportAssistRetrieveWalletInfoResponse, *util.HttpError) {
+	println("FINDING WALLET INFO")
+	if allocationId == "" {
 		return orcapi.SupportAssistRetrieveWalletInfoResponse{}, util.HttpErr(http.StatusBadRequest, "Need to specify either walletId or allocationId")
 	}
 
-	if walletId != "" {
-		id, err := strconv.Atoi(walletId)
-		if err != nil {
-			return orcapi.SupportAssistRetrieveWalletInfoResponse{}, util.HttpErr(http.StatusBadRequest, "Wallet ID in invalid format")
-		}
-		wallet, found := accounting.WalletV2ById(rpc.ActorSystem, id)
-		if !found {
-			return orcapi.SupportAssistRetrieveWalletInfoResponse{}, util.HttpErr(http.StatusNotFound, "Wallet not found")
-		}
-		return orcapi.SupportAssistRetrieveWalletInfoResponse{
-			Wallet: wallet,
-		}, nil
+	id, err := strconv.Atoi(allocationId)
+	if err != nil {
+		return orcapi.SupportAssistRetrieveWalletInfoResponse{}, util.HttpErr(http.StatusBadRequest, "AllocationId in invalid format")
 	}
-
-	if allocationId != "" {
-		id, err := strconv.Atoi(allocationId)
-		if err != nil {
-			return orcapi.SupportAssistRetrieveWalletInfoResponse{}, util.HttpErr(http.StatusBadRequest, "AllocationId in invalid format")
-		}
-		wallet, found := accounting.WalletV2ByAllocationID(rpc.ActorSystem, id)
-		if !found {
-			return orcapi.SupportAssistRetrieveWalletInfoResponse{}, util.HttpErr(http.StatusNotFound, "Wallet not found")
-		}
-		return orcapi.SupportAssistRetrieveWalletInfoResponse{
-			Wallet: wallet,
-		}, nil
+	wallet, found := accounting.WalletV2ByAllocationID(rpc.ActorSystem, id)
+	if !found {
+		return orcapi.SupportAssistRetrieveWalletInfoResponse{}, util.HttpErr(http.StatusNotFound, "Wallet not found")
 	}
-
-	return orcapi.SupportAssistRetrieveWalletInfoResponse{}, util.HttpErr(http.StatusNotFound, "Wallet not found")
+	return orcapi.SupportAssistRetrieveWalletInfoResponse{
+		Wallet: wallet,
+	}, nil
 }

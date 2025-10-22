@@ -3,7 +3,6 @@ package orchestrators
 import (
 	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/foundation"
-	"ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 )
 
@@ -36,14 +35,13 @@ type SupportAssistRetrieveJobInfoRequest struct {
 }
 
 type SupportAssistRetrieveJobInfoResponse struct {
-	JobInfo orchestrators.Job
+	JobInfo Job
 }
 type SupportAssistWalletInfoFlags struct {
 	IncludeAccountingGraph bool
 }
 type SupportAssistRetrieveWalletInfoRequest struct {
 	AllocationId string
-	WalletId     string
 	Flags        SupportAssistWalletInfoFlags
 }
 
@@ -56,21 +54,21 @@ const SupportAssistOrcContext = "support-assist-orc"
 
 var SupportAssistRetrieveProjectInfo = rpc.Call[SupportAssistRetrieveProjectInfoRequest, SupportAssistRetrieveProjectInfoResponse]{
 	BaseContext: SupportAssistOrcContext,
-	Convention:  rpc.ConventionCustom,
+	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesAdmin,
-	Operation:   "retrieve_project_info",
+	Operation:   "project_info",
 }
 
 var SupportAssistRetrieveJobsInfo = rpc.Call[SupportAssistRetrieveJobInfoRequest, SupportAssistRetrieveJobInfoResponse]{
 	BaseContext: SupportAssistOrcContext,
-	Convention:  rpc.ConventionCustom,
+	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesAdmin,
-	Operation:   "retrieve_job_info",
+	Operation:   "job_info",
 }
 
 var SupportAssistRetrieveWalletsInfo = rpc.Call[SupportAssistRetrieveWalletInfoRequest, SupportAssistRetrieveWalletInfoResponse]{
 	BaseContext: SupportAssistOrcContext,
-	Convention:  rpc.ConventionCustom,
+	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesAdmin,
-	Operation:   "retrieve_wallets_info",
+	Operation:   "wallets_info",
 }
