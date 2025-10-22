@@ -13,7 +13,7 @@ import {clamp, grantsLink, stopPropagation} from "@/UtilityFunctions";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
 import {classConcat, injectStyle} from "@/Unstyled";
-import {NoResultsCardBody} from "@/UtilityComponents";
+import {NoResultsBody} from "@/UtilityComponents";
 
 const NEED_CONNECT = "need-connection";
 
@@ -278,7 +278,7 @@ export const ProductSelector: React.FunctionComponent<{
                         </Flex>
                     </> : props.products.length === 0 ?
                         <>
-                            <NoResultsCardBody title={`No ${productName} available for use`}>
+                            <NoResultsBody title={`No ${productName} available for use`}>
                                 You do not currently have credits for any {productName} which you are able to use for this purpose.{" "}
                                 {type !== "COMPUTE" ? null : <>
                                     If you are trying to run a virtual machine, please make sure you have applied for the correct credits
@@ -288,7 +288,7 @@ export const ProductSelector: React.FunctionComponent<{
                                 <Link to={grantsLink()}>
                                     <Button fullWidth mt="20px" mb={"4px"}>Apply for resources</Button>
                                 </Link>
-                            </NoResultsCardBody>
+                            </NoResultsBody>
                         </> :
                         <>
                             <div className="input-wrapper">
