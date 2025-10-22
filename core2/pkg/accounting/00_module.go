@@ -5,4 +5,6 @@ func Init() {
 	initAccounting()
 	initGrants()
 	initProviderNotifications()
+	initUsageReports()
+	initUsageGenerator()
 }

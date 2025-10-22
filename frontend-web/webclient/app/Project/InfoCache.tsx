@@ -167,27 +167,73 @@ export function useProjectInfo(id: string | null | undefined) {
     );
 }
 
-export function useProjectInfos(ids: Array<string | null | undefined>) {
+interface ProjectInfos {
+    data: Record<string, ProjectInfo | null>;
+    loading: boolean;
+    error: unknown | null;
+}
+
+export function useProjectInfos(ids: Array<string | null | undefined>): ProjectInfos {
     const key = ids.join("|");
-    const records = ids.map((id) => useProjectRecord(id));
+    const idlePlaceholder: CacheRecord = { status: "idle", data: null, error: null };
+    const lastSnapshotRef = React.useRef<CacheRecord[] | null>(null);
+
+    const getSnapshot = () => {
+        const next = ids.map((id) => (id ? cache.get(id) ?? idlePlaceholder : idlePlaceholder));
+        const prev = lastSnapshotRef.current;
+
+        if (prev && prev.length === next.length) {
+            let same = true;
+            for (let i = 0; i < next.length; i++) {
+                const a = prev[i];
+                const b = next[i];
+                if (
+                    a === b ||
+                    (a.status === b.status && a.data === b.data && a.error === b.error)
+                ) {
+                    continue;
+                }
+                same = false;
+                break;
+            }
+            if (same) return prev;
+        }
+        lastSnapshotRef.current = next;
+        return next;
+    };
+
+    const records = useSyncExternalStore<CacheRecord[]>(
+        (cb) => {
+            const unsubs: Array<() => void> = [];
+            ids.forEach((id) => {
+                if (id) unsubs.push(subscribe(id, cb));
+            });
+            return () => {
+                unsubs.forEach((u) => u());
+            };
+        },
+        getSnapshot,
+        getSnapshot
+    );
 
     useEffect(() => {
         ids.forEach((id, i) => {
             if (!id) return;
             if (records[i].status === "idle") ensure(id);
         });
-    }, [key]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [key, records]);
 
     const loading = records.some((r) => r.status === "idle" || r.status === "loading");
     const error = records.find((r) => r.status === "error")?.error ?? null;
-    const data: Record<string, ProjectInfo | null> = {} as any;
 
+    const data: Record<string, ProjectInfo | null> = {};
     ids.forEach((id, i) => {
         if (!id) return;
         data[id] = records[i].data ?? null;
     });
 
-    return {data, loading, error} as const;
+    return { data, loading, error };
 }
 
 export function ProjectTitle(
