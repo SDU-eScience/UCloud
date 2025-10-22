@@ -27,7 +27,7 @@ import {select} from "d3-selection";
 import {stack} from "d3-shape";
 import {index, max, min, union} from "d3-array";
 import {useProjectInfos} from "@/Project/InfoCache";
-import {scaleBand, scaleLinear, scaleOrdinal, scalePoint} from "d3-scale";
+import {scaleBand, scaleLinear, scaleOrdinal, scalePoint, scaleTime} from "d3-scale";
 import {axisBottom, axisLeft} from "d3-axis";
 import {timeFormat} from "d3-time-format";
 
@@ -256,57 +256,10 @@ const UsagePage: React.FunctionComponent = () => {
             }
         }
 
-        const startOfDay = (t: number) => {
-            const d = new Date(t);
-            d.setHours(0, 0, 0, 0);
-            return +d;
-        };
-
-        // day -> sorted timestamps of that day
-        const dayMap = new Map<number, number[]>();
-        for (const d of data) {
-            const key = startOfDay(d.timestamp);
-            const arr = dayMap.get(key) ?? [];
-            arr.push(d.timestamp);
-            dayMap.set(key, arr);
-        }
-
-        for (const [, arr] of dayMap) {
-            arr.sort((a, b) => a - b);
-        }
-
-        const days = Array.from(dayMap.keys()).sort((a, b) => a - b);
-        const maxPerDay = Math.max(...Array.from(dayMap.values(), v => v.length), 0);
-
-        // For quick lookup: timestamp -> slot index within its day
-        const slotIndexByTs = new Map<number, number>();
-        for (const [, arr] of dayMap) {
-            arr.forEach((ts, i) => slotIndexByTs.set(ts, i));
-        }
-
-        const xDay = scaleBand<number>()
-            .domain(days)
-            .range([0, innerW])
-            .paddingOuter(0.01)
-            .paddingInner(0.10);
-
-        const xSlotDomain = Array.from({length: maxPerDay}, (_, i) => i);
         const xSlot = scaleBand<number>()
-            .domain(xSlotDomain)
-            .range([0, xDay.bandwidth()])
-            .paddingInner(0.15);  // spacing between the bars inside a single day
-
-        const xAxisScale = scalePoint<number>()
             .domain(timestamps)
-            .range([0, innerW]);
-
-        const xCenterByTs = new Map<number, number>();
-        timestamps.forEach(ts => {
-            const dayKey = startOfDay(ts);
-            const slot = slotIndexByTs.get(ts) ?? 0;
-            const center = (xDay(dayKey) ?? 0) + (xSlot(slot) ?? 0) + xSlot.bandwidth() / 2;
-            xCenterByTs.set(ts, center);
-        });
+            .range([0, innerW])
+            .paddingInner(0.15);
 
         // Series
         // -------------------------------------------------------------------------------------------------------------
@@ -364,28 +317,20 @@ const UsagePage: React.FunctionComponent = () => {
             .data(D => D.map(d => d))
             .join("rect")
             .attr("x", d => {
-                const t = d.data;
-                const dayKey = startOfDay(t);
-                const dayX = xDay(dayKey) ?? 0;
-                const slot = slotIndexByTs.get(t) ?? 0;
-                const slotX = xSlot(slot) ?? 0;
-                return (dayX + slotX) - xSlot.bandwidth() / 2;
+                return xSlot(d.data) ?? 0;
             })
             .attr("y", d => yScale(d[1]))
             .attr("height", d => yScale(d[0]) - yScale(d[1]))
-            .attr("width", xSlot.bandwidth() * 2);
+            .attr("width", xSlot.bandwidth());
 
         const tsFormatter = timeFormat("%b %d %H:%M");
 
         const gXAxis = svg.append("g")
             .attr("transform", `translate(${margin.left}, ${innerH + margin.top})`)
             .call(
-                axisBottom(xAxisScale)
+                axisBottom(xSlot)
                     .tickFormat(d => tsFormatter(new Date(d)))
             );
-
-        gXAxis.selectAll(".tick")
-            .attr("transform", (d: any) => `translate(${xCenterByTs.get(+d)},0)`);
 
         gXAxis.selectAll(".tick > text")
             .attr("style", "transform: translate(-20px, 20px) rotate(-45deg)")
