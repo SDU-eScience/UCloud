@@ -7,6 +7,7 @@ import {axisBottom, axisLeft} from "d3-axis";
 import {timeFormat} from "d3-time-format";
 import {line} from "d3-shape";
 import * as React from "react";
+import {useD3} from "@/Utilities/d3";
 
 const formatMillisecond = timeFormat(".%L"),
     formatSecond = timeFormat(":%S"),
@@ -25,15 +26,6 @@ function multiFormat(date: Date) {
                     : timeMonth(date)  < date ? (timeWeek(date) < date ? formatDay : formatWeek)
                         : timeYear(date)   < date ? formatMonth
                             : formatYear)(date);
-}
-
-function useD3(render: (elem: SVGSVGElement) => void, deps: DependencyList | undefined) {
-    const ref = useRef<SVGSVGElement>(null);
-    useEffect(() => {
-        if (!ref.current) return;
-        return render(ref.current);
-    }, deps);
-    return ref;
 }
 
 export interface LineSample {

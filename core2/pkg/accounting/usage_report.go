@@ -1,25 +1,29 @@
 package accounting
 
 import (
+	"encoding/json"
 	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
 	accapi "ucloud.dk/shared/pkg/accounting"
+	db "ucloud.dk/shared/pkg/database2"
+	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
-// Most of these will have a size of around 128 bytes. Some are likely to go up to around 16K in size.
+// Most reports will have a size of around 128 bytes. Some are likely to go up to around 16K in size.
 // For a single day, this means that we will use around 4MB storing these with hourly snapshots when we don't account
-// for space saved from collapsing dashboards. Once collapsed, we are likely to only store around 500K a day.
+// for space saved from collapsing reports. Once collapsed, we are likely to only store around 500K a day.
 
-type internalUsageDashboard struct {
+type internalUsageReport struct {
 	Wallet                accWalletId
 	ValidFrom             time.Time
-	ValidUntil            util.Option[time.Time] // Most recent dashboard will not set this (valid until "now")
-	Kpis                  internalUsageDashboardKpis
+	ValidUntil            util.Option[time.Time] // Most recent report will not set this (valid until "now")
+	Kpis                  internalUsageReportKpis
 	SubProjectHealth      internalSubProjectHealth
 	UsageOverTime         internalUsageOverTime
 	SubProjectUtilization internalSubProjectUtilization
@@ -27,7 +31,19 @@ type internalUsageDashboard struct {
 	Dirty bool
 }
 
-type internalUsageDashboardKpis struct {
+func (r *internalUsageReport) ToApi() accapi.UsageReport {
+	return accapi.UsageReport{
+		Title:            "",  // Not set by this API
+		ProductsCovered:  nil, // Not set by this API
+		ValidFrom:        fndapi.Timestamp(r.ValidFrom),
+		ValidUntil:       fndapi.Timestamp(r.ValidUntil.GetOrDefault(time.Now())),
+		Kpis:             r.Kpis.ToApi(),
+		SubProjectHealth: r.SubProjectHealth.ToApi(),
+		UsageOverTime:    r.UsageOverTime.ToApi(),
+	}
+}
+
+type internalUsageReportKpis struct {
 	QuotaAtStart       int64 // At creation: combined quota from all allocations which contribute quota
 	ActiveQuotaAtStart int64 // At creation: combined quota from all allocations that are active
 	QuotaAtEnd         int64 // Latest (in period): combined quota from all allocations which contribute quota
@@ -46,6 +62,23 @@ type internalUsageDashboardKpis struct {
 	// TODO We need to think about how retirement affects this
 }
 
+func (r *internalUsageReportKpis) ToApi() accapi.UsageReportKpis {
+	return accapi.UsageReportKpis{
+		QuotaAtStart:          r.QuotaAtStart,
+		ActiveQuotaAtStart:    r.ActiveQuotaAtStart,
+		QuotaAtEnd:            r.QuotaAtEnd,
+		ActiveQuotaAtEnd:      r.ActiveQuotaAtEnd,
+		MaxUsableAtStart:      r.MaxUsableAtStart,
+		MaxUsableAtEnd:        r.MaxUsableAtEnd,
+		LocalUsageAtStart:     r.LocalUsageAtStart,
+		LocalUsageAtEnd:       r.LocalUsageAtEnd,
+		TotalUsageAtStart:     r.TotalUsageAtStart,
+		TotalUsageAtEnd:       r.TotalUsageAtEnd,
+		TotalAllocatedAtStart: r.TotalAllocatedAtStart,
+		TotalAllocatedAtEnd:   r.TotalAllocatedAtEnd,
+	}
+}
+
 type internalSubProjectUtilizationHistogramBucket struct {
 	MinInclusive100 float64
 	MaxExclusive100 float64
@@ -62,10 +95,46 @@ type internalUsageOverTimeDeltaDataPoint struct {
 	Change    int64
 }
 
+func (r *internalUsageOverTimeDeltaDataPoint) ToApi() accapi.UsageReportDeltaDataPoint {
+	child := util.OptNone[string]()
+	if r.Child.Present {
+		if r.Child.Value < 0 {
+			child.Set("Other")
+		} else {
+			b, w, ok := internalWalletById(r.Child.Value)
+
+			if ok {
+				b.Mu.RLock()
+				ownerId := w.OwnedBy
+				b.Mu.RUnlock()
+
+				accGlobals.Mu.RLock()
+				owner := accGlobals.OwnersById[ownerId]
+				child.Set(owner.Reference)
+				accGlobals.Mu.RUnlock()
+			}
+		}
+	}
+
+	return accapi.UsageReportDeltaDataPoint{
+		Timestamp: fndapi.Timestamp(r.Timestamp),
+		Change:    r.Change,
+		Child:     child,
+	}
+}
+
 type internalUsageOverTimeAbsoluteDataPoint struct {
 	Timestamp             time.Time
 	Usage                 int64
 	UtilizationPercent100 float64
+}
+
+func (r *internalUsageOverTimeAbsoluteDataPoint) ToApi() accapi.UsageReportAbsoluteDataPoint {
+	return accapi.UsageReportAbsoluteDataPoint{
+		Timestamp:             fndapi.Timestamp(r.Timestamp),
+		Usage:                 r.Usage,
+		UtilizationPercent100: r.UtilizationPercent100,
+	}
 }
 
 type internalUsageOverTime struct {
@@ -77,6 +146,21 @@ type internalUsageOverTime struct {
 
 	// absolute usage from the wallet level
 	Absolute []internalUsageOverTimeAbsoluteDataPoint
+}
+
+func (r *internalUsageOverTime) ToApi() accapi.UsageReportOverTime {
+	res := accapi.UsageReportOverTime{}
+	res.Delta = make([]accapi.UsageReportDeltaDataPoint, len(r.Delta))
+	res.Absolute = make([]accapi.UsageReportAbsoluteDataPoint, len(r.Absolute))
+
+	for i := 0; i < len(res.Delta); i++ {
+		res.Delta[i] = r.Delta[i].ToApi()
+	}
+
+	for i := 0; i < len(res.Absolute); i++ {
+		res.Absolute[i] = r.Absolute[i].ToApi()
+	}
+	return res
 }
 
 type internalSubProjectHealth struct {
@@ -92,12 +176,22 @@ type internalSubProjectHealth struct {
 	Idle int
 }
 
+func (r *internalSubProjectHealth) ToApi() accapi.UsageReportSubProjectHealth {
+	return accapi.UsageReportSubProjectHealth{
+		SubProjectCount: r.SubProjectCount,
+		Ok:              r.Ok,
+		UnderUtilized:   r.UnderUtilized,
+		AtRisk:          r.AtRisk,
+		Idle:            r.Idle,
+	}
+}
+
 type internalGroupHealth int
 
 const (
-	internalGroupHealthOk            internalGroupHealth = iota
-	internalGroupHealthUnderUtilized internalGroupHealth = iota
-	internalGroupHealthAtRisk        internalGroupHealth = iota
+	internalGroupHealthOk internalGroupHealth = iota
+	internalGroupHealthUnderUtilized
+	internalGroupHealthAtRisk
 )
 
 type internalWalletSnapshot struct {
@@ -123,31 +217,69 @@ type internalSnapshotComparison struct {
 	Current  internalWalletSnapshot
 }
 
-var dashboardGlobals struct {
+var reportGlobals struct {
 	Mu                          sync.RWMutex
-	Dashboards                  map[accWalletId]*internalUsageDashboard
+	Reports                     map[accWalletId]*internalUsageReport
 	Snapshots                   map[accWalletId]internalWalletSnapshot
-	HistoricCache               []dashboardCacheEntry
+	HistoricCache               []reportCacheEntry
 	HistoricCacheSlotsAvailable int
 	HistoricCacheLastEmptySlot  int
 	HistoricCacheIndex          map[time.Time]map[accWalletId]int
 }
 
-type dashboardCacheEntry struct {
+type reportCacheEntry struct {
 	InUse      bool
 	LastUsedAt atomic.Pointer[time.Time]
-	Dashboard  internalUsageDashboard
+	Report     internalUsageReport
 }
 
-func initUsageDashboards() {
-	dashboardGlobals.Dashboards = map[accWalletId]*internalUsageDashboard{}
-	dashboardGlobals.Snapshots = map[accWalletId]internalWalletSnapshot{}
-	dashboardGlobals.HistoricCache = make([]dashboardCacheEntry, 1024*1024)
-	dashboardGlobals.HistoricCacheIndex = map[time.Time]map[accWalletId]int{}
-	dashboardGlobals.HistoricCacheSlotsAvailable = len(dashboardGlobals.HistoricCache)
+func initUsageReports() {
+	reportGlobals.Reports = map[accWalletId]*internalUsageReport{}
+	reportGlobals.Snapshots = map[accWalletId]internalWalletSnapshot{}
+	reportGlobals.HistoricCache = make([]reportCacheEntry, 1024*128)
+	reportGlobals.HistoricCacheIndex = map[time.Time]map[accWalletId]int{}
+	reportGlobals.HistoricCacheSlotsAvailable = len(reportGlobals.HistoricCache)
+
+	accapi.UsageRetrieve.Handler(func(info rpc.RequestInfo, request accapi.UsageRetrieveRequest) (accapi.UsageRetrieveResponse, *util.HttpError) {
+		now := time.Now()
+		reference := string(info.Actor.Project.Value)
+		if !info.Actor.Project.Present {
+			reference = info.Actor.Username
+		}
+
+		owner := internalOwnerByReference(reference)
+		wallets := internalRetrieveWallets(now, reference, walletFilter{
+			RequireActive: false,
+		})
+
+		var reports []accapi.UsageReport
+		for _, w := range wallets {
+			b := internalBucketOrInit(w.PaysFor)
+			walletId := internalWalletByOwner(b, now, owner.Id)
+
+			startTime := fndapi.TimeFromUnixMilli(request.Start).Time()
+			endTime := fndapi.TimeFromUnixMilli(request.End).Time()
+
+			report := usageCollapseReports(
+				usageRetrieveHistoricReports(startTime, endTime, walletId),
+			)
+
+			apiReport := report.ToApi()
+			apiReport.Title = w.PaysFor.Name
+			apiReport.ProductsCovered = []accapi.ProductCategoryIdV2{w.PaysFor.ToId()}
+			apiReport.UnitAndFrequency = accapi.AccountingUnitAndFrequency{
+				Unit:      w.PaysFor.AccountingUnit,
+				Frequency: w.PaysFor.AccountingFrequency,
+			}
+
+			reports = append(reports, apiReport)
+		}
+
+		return accapi.UsageRetrieveResponse{Reports: reports}, nil
+	})
 }
 
-func usageRetrieveHistoricDashboards(from time.Time, until time.Time, wallet accWalletId) []internalUsageDashboard {
+func usageRetrieveHistoricReports(from time.Time, until time.Time, wallet accWalletId) []internalUsageReport {
 	// NOTE(Dan, 15/10/2025): Current tests will break in the year 2100, but I will let that be a problem for the
 	// future.
 	now := time.Now()
@@ -163,74 +295,73 @@ func usageRetrieveHistoricDashboards(from time.Time, until time.Time, wallet acc
 		return nil
 	}
 
-	var result []internalUsageDashboard
+	var result []internalUsageReport
 	current := from
 	for current.Before(until) {
-		dashboard, ok := usageRetrieveHistoric(current, wallet)
+		report, ok := usageRetrieveHistoric(current, wallet)
 
 		if ok {
-			result = append(result, dashboard)
+			result = append(result, report)
 		}
 
 		current = current.AddDate(0, 0, 1)
 	}
 
 	if now == until || now.After(until) {
-		g := &dashboardGlobals
+		g := &reportGlobals
 		g.Mu.RLock()
-		currentDashboard, ok := g.Dashboards[wallet]
+		currentReport, ok := g.Reports[wallet]
 		if ok {
-			result = append(result, *currentDashboard)
+			result = append(result, *currentReport)
 		}
 		g.Mu.RUnlock()
 	}
 
-	// TODO These results can be evicted from the cache while we are working with them
 	return result
 }
 
-func usageCollapseDashboards(dashboards []internalUsageDashboard) internalUsageDashboard {
-	if len(dashboards) == 0 {
-		return internalUsageDashboard{}
+func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
+	if len(reports) == 0 {
+		return internalUsageReport{}
 	}
 
-	firstDashboard := dashboards[0]
-	lastDashboard := dashboards[len(dashboards)-1]
+	firstReport := reports[0]
+	lastReport := reports[len(reports)-1]
 
-	result := internalUsageDashboard{
-		Wallet:     firstDashboard.Wallet,
-		ValidFrom:  firstDashboard.ValidFrom,
-		ValidUntil: util.OptValue(lastDashboard.ValidUntil.GetOrDefault(lastDashboard.ValidFrom)),
+	result := internalUsageReport{
+		Wallet:     firstReport.Wallet,
+		ValidFrom:  firstReport.ValidFrom,
+		ValidUntil: util.OptValue(lastReport.ValidUntil.GetOrDefault(lastReport.ValidFrom)),
 	}
 
-	result.Kpis = internalUsageDashboardKpis{
-		QuotaAtStart:          firstDashboard.Kpis.QuotaAtStart,
-		ActiveQuotaAtStart:    firstDashboard.Kpis.ActiveQuotaAtStart,
-		MaxUsableAtStart:      firstDashboard.Kpis.MaxUsableAtStart,
-		LocalUsageAtStart:     firstDashboard.Kpis.LocalUsageAtStart,
-		TotalUsageAtStart:     firstDashboard.Kpis.TotalUsageAtStart,
-		TotalAllocatedAtStart: firstDashboard.Kpis.TotalAllocatedAtStart,
+	result.Kpis = internalUsageReportKpis{
+		QuotaAtStart:          firstReport.Kpis.QuotaAtStart,
+		ActiveQuotaAtStart:    firstReport.Kpis.ActiveQuotaAtStart,
+		MaxUsableAtStart:      firstReport.Kpis.MaxUsableAtStart,
+		LocalUsageAtStart:     firstReport.Kpis.LocalUsageAtStart,
+		TotalUsageAtStart:     firstReport.Kpis.TotalUsageAtStart,
+		TotalAllocatedAtStart: firstReport.Kpis.TotalAllocatedAtStart,
 
-		QuotaAtEnd:          lastDashboard.Kpis.QuotaAtEnd,
-		ActiveQuotaAtEnd:    lastDashboard.Kpis.ActiveQuotaAtEnd,
-		MaxUsableAtEnd:      lastDashboard.Kpis.MaxUsableAtEnd,
-		LocalUsageAtEnd:     lastDashboard.Kpis.LocalUsageAtEnd,
-		TotalUsageAtEnd:     lastDashboard.Kpis.TotalUsageAtEnd,
-		TotalAllocatedAtEnd: lastDashboard.Kpis.TotalAllocatedAtEnd,
+		QuotaAtEnd:          lastReport.Kpis.QuotaAtEnd,
+		ActiveQuotaAtEnd:    lastReport.Kpis.ActiveQuotaAtEnd,
+		MaxUsableAtEnd:      lastReport.Kpis.MaxUsableAtEnd,
+		LocalUsageAtEnd:     lastReport.Kpis.LocalUsageAtEnd,
+		TotalUsageAtEnd:     lastReport.Kpis.TotalUsageAtEnd,
+		TotalAllocatedAtEnd: lastReport.Kpis.TotalAllocatedAtEnd,
 	}
 
-	result.SubProjectHealth = lastDashboard.SubProjectHealth // NOTE(Dan): Idle is recomputed below
-	result.SubProjectUtilization = lastDashboard.SubProjectUtilization
+	result.SubProjectHealth = lastReport.SubProjectHealth // NOTE(Dan): Idle is recomputed below
+	result.SubProjectUtilization = lastReport.SubProjectUtilization
 
 	deltaUsageByChild := map[accWalletId]int64{}
-	for _, dashboard := range dashboards {
-		for _, item := range dashboard.UsageOverTime.Delta {
+	for _, report := range reports {
+		for _, item := range report.UsageOverTime.Delta {
 			if item.Child.Present {
 				deltaUsageByChild[item.Child.Value] = deltaUsageByChild[item.Child.Value] + item.Change
 			}
 		}
 
-		for _, item := range dashboard.UsageOverTime.Absolute {
+		for _, item := range report.UsageOverTime.Absolute {
 			result.UsageOverTime.Absolute = append(result.UsageOverTime.Absolute, item)
 		}
 	}
@@ -240,8 +371,8 @@ func usageCollapseDashboards(dashboards []internalUsageDashboard) internalUsageD
 	deltaDataPointsByChild := map[util.Option[accWalletId]]map[time.Time]internalUsageOverTimeDeltaDataPoint{}
 	allDeltaTimestamps := map[time.Time]util.Empty{}
 
-	for _, dashboard := range dashboards {
-		for _, item := range dashboard.UsageOverTime.Delta {
+	for _, report := range reports {
+		for _, item := range report.UsageOverTime.Delta {
 			itemCopy := item
 			if !item.Child.Present {
 				itemCopy.Child = util.OptNone[accWalletId]()
@@ -352,35 +483,124 @@ func usageCollapseDashboards(dashboards []internalUsageDashboard) internalUsageD
 	return result
 }
 
-func usageRetrieveHistoric(now time.Time, wallet accWalletId) (internalUsageDashboard, bool) {
-	var result internalUsageDashboard
+func usageRetrieveHistoric(now time.Time, wallet accWalletId) (internalUsageReport, bool) {
+	var result internalUsageReport
 
+	g := &reportGlobals
 	now = util.StartOfDayUTC(now)
+	ok := false
 
-	g := &dashboardGlobals
-	g.Mu.RLock()
-	dictOnDay, ok := g.HistoricCacheIndex[now]
-	slot := -1
-	if ok {
-		slot, ok = dictOnDay[wallet]
+	{
+		g.Mu.RLock()
+		var dictOnDay map[accWalletId]int
+		dictOnDay, ok = g.HistoricCacheIndex[now]
+		slot := -1
+		if ok {
+			slot, ok = dictOnDay[wallet]
+		}
+
+		if ok {
+			entry := &g.HistoricCache[slot]
+			entry.LastUsedAt.Store(util.Pointer(time.Now()))
+			result = entry.Report
+		}
+		g.Mu.RUnlock()
 	}
 
-	if ok {
-		entry := &g.HistoricCache[slot]
-		entry.LastUsedAt.Store(util.Pointer(time.Now()))
-		result = entry.Dashboard
-	} else {
-		// TODO This will require reading from the database. Ideally it should pre-fetch longer periods since this
-		//   function is invoked in a loop.
+	if !ok && !accGlobals.TestingEnabled {
+		reports := db.NewTx(func(tx *db.Transaction) []internalUsageReport {
+			rows := db.Select[struct {
+				ReportData string
+			}](
+				tx,
+				`
+					select report_data
+					from accounting.usage_report
+					where
+						wallet_id = :wallet
+						and (
+							valid_from >= (:valid_from::timestamptz - ('90 days'::interval))
+							and valid_from <= (:valid_from::timestamptz + ('90 days'::interval)) -- prefetch 90 days in both directions
+						)
+					order by valid_from
+			    `,
+				db.Params{
+					"wallet":     wallet,
+					"valid_from": now,
+				},
+			)
+
+			var reports []internalUsageReport
+			for _, row := range rows {
+				var report internalUsageReport
+				_ = json.Unmarshal([]byte(row.ReportData), &report)
+				reports = append(reports, report)
+			}
+
+			return reports
+		})
+
+		g.Mu.Lock()
+		for _, report := range reports {
+			lUsageCacheReport(&report)
+		}
+
+		{
+			var dictOnDay map[accWalletId]int
+			dictOnDay, ok = g.HistoricCacheIndex[now]
+			slot := -1
+			if ok {
+				slot, ok = dictOnDay[wallet]
+			}
+
+			if ok {
+				entry := &g.HistoricCache[slot]
+				entry.LastUsedAt.Store(util.Pointer(time.Now()))
+				result = entry.Report
+			}
+		}
+
+		g.Mu.Unlock()
 	}
-	g.Mu.RUnlock()
 
 	return result, ok
 }
 
-func lUsageRetireDashboard(dashboard *internalUsageDashboard) {
-	// TODO Persistence
-	g := &dashboardGlobals
+func lUsageRetireReport(report *internalUsageReport, b *db.Batch) {
+	lUsageCacheReport(report)
+	lUsagePersistReport(report, b)
+}
+
+func lUsagePersistReport(report *internalUsageReport, b *db.Batch) {
+	if accGlobals.TestingEnabled {
+		return
+	}
+
+	// TODO This should only insert wallets which have been persisted. This implies that the usage reporting needs to
+	//   run as part of the same loop to guarantee the ordering.
+
+	reportJson, _ := json.Marshal(report)
+	walletId := report.Wallet
+	validFrom := report.ValidFrom
+
+	db.BatchExec(
+		b,
+		`
+			insert into accounting.usage_report(wallet_id, valid_from, report_format, report_data)
+			values (:wallet, :valid_from, 1, :data)
+			on conflict (wallet_id, valid_from) do update set 
+				report_data = excluded.report_data
+		`,
+		db.Params{
+			"wallet":     walletId,
+			"valid_from": validFrom,
+			"data":       string(reportJson),
+		},
+	)
+}
+
+func lUsageCacheReport(report *internalUsageReport) {
+	g := &reportGlobals
 	lUsageEvictHistoricCache()
 
 	slot := -1
@@ -392,7 +612,7 @@ func lUsageRetireDashboard(dashboard *internalUsageDashboard) {
 			slot = i
 			entry.InUse = true
 			entry.LastUsedAt.Store(util.Pointer(time.Now()))
-			entry.Dashboard = *dashboard
+			entry.Report = *report
 			g.HistoricCacheSlotsAvailable--
 			g.HistoricCacheLastEmptySlot = i
 			break
@@ -403,17 +623,17 @@ func lUsageRetireDashboard(dashboard *internalUsageDashboard) {
 		log.Fatal("no space in cache? internal error")
 	}
 
-	dictOnDay, ok := g.HistoricCacheIndex[dashboard.ValidFrom]
+	dictOnDay, ok := g.HistoricCacheIndex[report.ValidFrom]
 	if !ok {
 		dictOnDay = map[accWalletId]int{}
-		g.HistoricCacheIndex[dashboard.ValidFrom] = dictOnDay
+		g.HistoricCacheIndex[report.ValidFrom] = dictOnDay
 	}
 
-	dictOnDay[dashboard.Wallet] = slot
+	dictOnDay[report.Wallet] = slot
 }
 
 func lUsageEvictHistoricCache() {
-	g := &dashboardGlobals
+	g := &reportGlobals
 
 	if g.HistoricCacheSlotsAvailable == 0 {
 		oldestEntry := time.Now()
@@ -433,7 +653,7 @@ func lUsageEvictHistoricCache() {
 			entry := &g.HistoricCache[i]
 			if entry.InUse && entry.LastUsedAt.Load().Before(evictBefore) {
 				entry.InUse = false
-				entry.Dashboard = internalUsageDashboard{}
+				entry.Report = internalUsageReport{}
 				entry.LastUsedAt.Store(util.Pointer(time.Now()))
 				g.HistoricCacheSlotsAvailable++
 			}
@@ -441,17 +661,22 @@ func lUsageEvictHistoricCache() {
 	}
 }
 
-func lUsageSample(now time.Time) {
+func usageSample(now time.Time) {
+	usageSampleEx(now, nil)
+}
+
+func usageSampleEx(now time.Time, bucketFilter func(cat accapi.ProductCategory) bool) {
+	batch := db.BatchNewDeferred()
 	startOfDay := util.StartOfDayUTC(now)
 
-	dashboardGlobals.Mu.Lock()
-
-	// assume that mostRecentDashboards are locked in this function
+	reportGlobals.Mu.Lock()
 
 	var buckets []*internalBucket
 	accGlobals.Mu.Lock()
 	for _, b := range accGlobals.BucketsByCategory {
-		buckets = append(buckets, b)
+		if bucketFilter == nil || bucketFilter(b.Category) {
+			buckets = append(buckets, b)
+		}
 	}
 
 	slices.SortFunc(buckets, func(a, b *internalBucket) int {
@@ -479,8 +704,8 @@ func lUsageSample(now time.Time) {
 		}
 	}
 
-	for _, dashboard := range dashboardGlobals.Dashboards {
-		dashboard.Dirty = false
+	for _, report := range reportGlobals.Reports {
+		report.Dirty = false
 	}
 
 	for _, b := range buckets {
@@ -491,7 +716,11 @@ func lUsageSample(now time.Time) {
 		sort.Ints(walletIds)
 
 		for _, wId := range walletIds {
-			lUsageSampleWallet(now, snapshotsById[accWalletId(wId)])
+			lUsageSampleEnsureReport(now, snapshotsById[accWalletId(wId)], batch)
+		}
+
+		for _, wId := range walletIds {
+			lUsageSampleWallet(now, snapshotsById[accWalletId(wId)], batch)
 		}
 	}
 
@@ -501,11 +730,17 @@ func lUsageSample(now time.Time) {
 
 	accGlobals.Mu.Unlock()
 
-	dashboardGlobals.Mu.Unlock()
+	reportGlobals.Mu.Unlock()
+
+	if !accGlobals.TestingEnabled {
+		db.NewTx0(func(tx *db.Transaction) {
+			db.BatchSendDeferred(tx, batch)
+		})
+	}
 }
 
 func lSnapshotWallet(now time.Time, b *internalBucket, w *internalWallet) internalSnapshotComparison {
-	prev, ok := dashboardGlobals.Snapshots[w.Id]
+	prev, ok := reportGlobals.Snapshots[w.Id]
 	if !ok {
 		prev = internalWalletSnapshot{
 			Id:                        w.Id,
@@ -589,7 +824,7 @@ func lSnapshotWallet(now time.Time, b *internalBucket, w *internalWallet) intern
 		current.HealthByParent[parent] = health
 	}
 
-	dashboardGlobals.Snapshots[w.Id] = current
+	reportGlobals.Snapshots[w.Id] = current
 
 	return internalSnapshotComparison{
 		Previous: prev,
@@ -597,26 +832,26 @@ func lSnapshotWallet(now time.Time, b *internalBucket, w *internalWallet) intern
 	}
 }
 
-func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison) {
+func lUsageSampleEnsureReport(now time.Time, cmp internalSnapshotComparison, b *db.Batch) *internalUsageReport {
 	startOfDay := util.StartOfDayUTC(now)
 
 	prevWallet := cmp.Previous
 	currWallet := cmp.Current
 
-	dashboard, ok := dashboardGlobals.Dashboards[currWallet.Id]
-	if !ok || dashboard.ValidFrom.Before(startOfDay) {
-		if ok && dashboard.ValidFrom.Before(startOfDay) {
-			// TODO Possibly extend old dashboard if no changes
+	report, ok := reportGlobals.Reports[currWallet.Id]
+	if !ok || report.ValidFrom.Before(startOfDay) {
+		if ok && report.ValidFrom.Before(startOfDay) {
+			// TODO Possibly extend old report if no changes
 
-			lUsageRetireDashboard(dashboard)
+			lUsageRetireReport(report, b)
 		}
 
-		dashboard = &internalUsageDashboard{
+		report = &internalUsageReport{
 			Wallet:     currWallet.Id,
 			ValidFrom:  startOfDay,
 			ValidUntil: util.Option[time.Time]{},
 
-			Kpis: internalUsageDashboardKpis{
+			Kpis: internalUsageReportKpis{
 				QuotaAtStart:          prevWallet.Quota,
 				ActiveQuotaAtStart:    prevWallet.ActiveQuota,
 				MaxUsableAtStart:      prevWallet.MaxUsable,
@@ -631,12 +866,21 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison) {
 			SubProjectUtilization: internalSubProjectUtilization{},
 		}
 
-		dashboardGlobals.Dashboards[currWallet.Id] = dashboard
+		reportGlobals.Reports[currWallet.Id] = report
 	}
-	dashboard.SubProjectHealth = internalSubProjectHealth{}
-	dashboard.SubProjectUtilization = internalSubProjectUtilization{}
 
-	kpis := &dashboard.Kpis
+	return report
+}
+
+func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Batch) {
+	prevWallet := cmp.Previous
+	currWallet := cmp.Current
+
+	report := lUsageSampleEnsureReport(now, cmp, b)
+	report.SubProjectHealth = internalSubProjectHealth{}
+	report.SubProjectUtilization = internalSubProjectUtilization{}
+
+	kpis := &report.Kpis
 	kpis.QuotaAtEnd = currWallet.Quota
 	kpis.ActiveQuotaAtEnd = currWallet.ActiveQuota
 	kpis.MaxUsableAtEnd = currWallet.MaxUsable
@@ -650,13 +894,13 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison) {
 		delta := currUsage - prevUsage
 
 		if delta != 0 {
-			dashboard.UsageOverTime.Delta = append(dashboard.UsageOverTime.Delta, internalUsageOverTimeDeltaDataPoint{
+			report.UsageOverTime.Delta = append(report.UsageOverTime.Delta, internalUsageOverTimeDeltaDataPoint{
 				Timestamp: now,
 				Child:     util.Option[accWalletId]{},
 				Change:    delta,
 			})
 
-			dashboard.Dirty = true
+			report.Dirty = true
 		}
 
 		if prevWallet.LocalUsage != currWallet.LocalUsage || prevWallet.TotalUsage != currWallet.TotalUsage || currWallet.Quota != prevWallet.Quota {
@@ -665,13 +909,13 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison) {
 				utilizationPercent100 = float64(currWallet.TotalUsage) / float64(currWallet.Quota)
 			}
 
-			dashboard.UsageOverTime.Absolute = append(dashboard.UsageOverTime.Absolute, internalUsageOverTimeAbsoluteDataPoint{
+			report.UsageOverTime.Absolute = append(report.UsageOverTime.Absolute, internalUsageOverTimeAbsoluteDataPoint{
 				Timestamp:             now,
 				Usage:                 currWallet.TotalUsage,
 				UtilizationPercent100: utilizationPercent100,
 			})
 
-			dashboard.Dirty = true
+			report.Dirty = true
 		}
 	}
 
@@ -680,12 +924,12 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison) {
 		delta := usage - prevUsage
 
 		if parent != 0 {
-			parentDashboard := dashboardGlobals.Dashboards[parent]
-			parentDashboard.SubProjectHealth.SubProjectCount++
+			parentReport := reportGlobals.Reports[parent]
+			parentReport.SubProjectHealth.SubProjectCount++
 
 			if delta != 0 {
-				parentDashboard.UsageOverTime.Delta = append(
-					parentDashboard.UsageOverTime.Delta,
+				parentReport.UsageOverTime.Delta = append(
+					parentReport.UsageOverTime.Delta,
 					internalUsageOverTimeDeltaDataPoint{
 						Timestamp: now,
 						Child:     util.OptValue(currWallet.Id),
@@ -693,21 +937,22 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison) {
 					},
 				)
 
-				parentDashboard.Dirty = true
+				parentReport.Dirty = true
 			} else {
-				parentDashboard.SubProjectHealth.Idle++
+				parentReport.SubProjectHealth.Idle++
 			}
 
 			switch currWallet.HealthByParent[parent] {
 			case internalGroupHealthOk:
-				parentDashboard.SubProjectHealth.Ok++
+				parentReport.SubProjectHealth.Ok++
 			case internalGroupHealthUnderUtilized:
-				parentDashboard.SubProjectHealth.UnderUtilized++
+				parentReport.SubProjectHealth.UnderUtilized++
 			case internalGroupHealthAtRisk:
-				parentDashboard.SubProjectHealth.AtRisk++
+				parentReport.SubProjectHealth.AtRisk++
 			}
 		}
 	}
 
+	lUsagePersistReport(report, b)
 	// TODO utilization
 }

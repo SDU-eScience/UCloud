@@ -25,9 +25,9 @@ export enum Feature {
     ALTERNATIVE_USAGE_SELECTOR,
     NEW_SYNCTHING_UI,
 
-    USAGE_PREDICTION,
-
     HIDE_PROJECTS,
+
+    CORE2,
 }
 
 enum Environment {
@@ -143,6 +143,12 @@ const featureMap: Record<string, FeatureConfig> = {
         feature: Feature.HIDE_PROJECTS,
         showWithFlag: allDevEnvironments,
         showWithoutFlag: noEnvironments
+    },
+
+    "core2": {
+        feature: Feature.CORE2,
+        showWithFlag: allLocalEnvironments,
+        showWithoutFlag: noEnvironments,
     }
 };
 

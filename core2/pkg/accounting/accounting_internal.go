@@ -13,6 +13,7 @@ import (
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/shared/pkg/util/mermaid"
@@ -77,6 +78,8 @@ type accAllocId int
 
 var accGlobals struct {
 	Mu sync.RWMutex
+
+	TestingEnabled bool
 
 	OwnersByReference map[string]*internalOwner
 	OwnersById        map[accOwnerId]*internalOwner
@@ -195,7 +198,7 @@ type scopedUsage struct {
 // The core APIs are (see the introduction for more info):
 //
 // - internalReportUsage
-// - internalAllocate
+// - internalAllocateNoCommit
 // - internalScanAllocations
 
 // internalReportUsage performs a report to a target wallet. The function always returns
@@ -279,8 +282,8 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 }
 
 // If grantedIn is specified, then the allocations will not be committed to the database before
-// internalCommitAllocations is invoked with the same ID.
-func internalAllocate(
+// internalCommitGrantAllocations is invoked with the same ID.
+func internalAllocateNoCommit(
 	now time.Time,
 	b *internalBucket,
 	start time.Time,
@@ -366,15 +369,24 @@ type internalOnPersistHandler struct {
 	OnPersist func(tx *db.Transaction)
 }
 
-// internalCommitAllocations ensures that all allocations granted in grantId are committed together. If onPersist is
+// internalCommitGrantAllocations ensures that all allocations granted in grantId are committed together. If onPersist is
 // specified, then it will be run when the data is persisted.
-func internalCommitAllocations(grantId accGrantId, onPersist func(tx *db.Transaction)) {
+func internalCommitGrantAllocations(grantId accGrantId, onPersist func(tx *db.Transaction)) {
 	accGlobals.Mu.Lock()
 	accGlobals.OnPersistHandlers = append(accGlobals.OnPersistHandlers, internalOnPersistHandler{
 		GrantId:   grantId,
 		OnPersist: onPersist,
 	})
 	accGlobals.Mu.Unlock()
+}
+
+func internalCommitAllocation(b *internalBucket, allocId accAllocId) {
+	b.Mu.Lock()
+	alloc, ok := b.AllocationsById[allocId]
+	if ok {
+		alloc.Committed = true
+	}
+	b.Mu.Unlock()
 }
 
 func internalCompleteScan(now time.Time, persistence func(buckets []*internalBucket, scopes []*scopedUsage, onPersistHandlers []internalOnPersistHandler)) {
@@ -498,6 +510,10 @@ func internalWalletById(id accWalletId) (*internalBucket, *internalWallet, bool)
 
 func internalOwnerByReference(reference string) *internalOwner {
 	// TODO Reference must be check by caller
+	if reference == "" {
+		log.Fatal("internalOwnerByReference called with an empty reference")
+	}
+
 	return util.ReadOrInsertBucket(&accGlobals.Mu, accGlobals.OwnersByReference, reference, func() *internalOwner {
 		ow := &internalOwner{
 			Id:        accOwnerId(accGlobals.OwnerIdAcc.Add(1)),
@@ -963,7 +979,9 @@ func lInternalMarkSignificantUpdate(b *internalBucket, now time.Time, wallet *in
 	b.SignificantUpdateAt = now
 	wallet.LastSignificantUpdate = now
 	wallet.Dirty = true
-	providerWalletNotifications <- wallet.Id
+	if b.Category.Provider != "usagegen" {
+		providerWalletNotifications <- wallet.Id
+	}
 }
 
 func internalMaxUsable(now time.Time, wallet accWalletId) (int64, bool) {
@@ -1245,6 +1263,9 @@ func lInternalWalletToApi(
 	allocGroupApi := func(g *internalGroup) accapi.AllocationGroup {
 		var apiAllocs []accapi.Allocation
 
+		contributingQuota := int64(0)
+		retiredContributes := !b.IsCapacityBased()
+
 		for allocId, _ := range g.Allocations {
 			alloc := b.AllocationsById[allocId]
 			apiAllocs = append(apiAllocs, accapi.Allocation{
@@ -1256,13 +1277,60 @@ func lInternalWalletToApi(
 					return util.OptValue(int64(val))
 				}),
 				RetiredUsage: alloc.RetiredUsage,
+				RetiredQuota: alloc.RetiredQuota,
+				Retired:      alloc.Retired,
+				Activated:    alloc.Active,
 			})
+
+			if alloc.Active && (!alloc.Retired || retiredContributes) {
+				contributingQuota += alloc.Quota
+			}
 		}
+
+		slices.SortFunc(apiAllocs, func(a, b accapi.Allocation) int {
+			// Retired last
+			if a.Retired && !b.Retired {
+				return 1
+			} else if !a.Retired && b.Retired {
+				return -1
+			}
+
+			// Not activated first
+			if a.Activated && !b.Activated {
+				return 1
+			} else if !a.Activated && b.Activated {
+				return -1
+			}
+
+			// Newest start date first
+			if a.StartDate.Time().After(b.StartDate.Time()) {
+				return -1
+			} else if a.StartDate.Time().Before(b.StartDate.Time()) {
+				return 1
+			}
+
+			// Latest end date first
+			if a.EndDate.Time().Before(b.EndDate.Time()) {
+				return -1
+			} else if a.EndDate.Time().After(b.EndDate.Time()) {
+				return 1
+			}
+
+			// Tiebreaker by ID
+			if a.Id > b.Id {
+				return 1
+			} else if a.Id < b.Id {
+				return -1
+			} else {
+				return 0
+			}
+		})
 
 		return accapi.AllocationGroup{
 			Id:          int(g.Id),
-			Allocations: apiAllocs,
+			Allocations: util.NonNilSlice(apiAllocs),
 			Usage:       g.TreeUsage,
+			Quota:       contributingQuota,
 		}
 	}
 
@@ -1340,7 +1408,7 @@ func internalRetrieveWallets(
 		w := lInternalWalletByOwner(b, now, owner.Id)
 
 		groups := w.AllocationsByParent
-		shouldInclude := !filter.RequireActive
+		shouldInclude := !filter.RequireActive && len(w.AllocationsByParent) > 0
 		if filter.RequireActive {
 		anyActive:
 			for _, group := range groups {

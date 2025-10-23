@@ -51,6 +51,7 @@ var timeCategory = accapi.ProductCategory{
 
 // New returns a fresh env for the given category.
 func newEnv(t *testing.T, cat accapi.ProductCategory) *env {
+	accGlobals.TestingEnabled = true
 	close(providerWalletNotifications)
 	providerWalletNotifications = make(chan accWalletId, 128)
 	go func() {
@@ -118,7 +119,7 @@ func (e *env) AllocateEx(now, start, end int, quota int64, recipientRef, parentR
 	if parentRef != "" {
 		parent = e.Wallet(e.Owner(parentRef), e.Tm(now))
 	}
-	id, err := internalAllocate(e.Tm(now), e.Bucket, e.Tm(start), e.Tm(end), quota, rcp, parent, util.OptNone[accGrantId]())
+	id, err := internalAllocateNoCommit(e.Tm(now), e.Bucket, e.Tm(start), e.Tm(end), quota, rcp, parent, util.OptNone[accGrantId]())
 	if err != nil {
 		e.t.Fatalf("allocate: %v", err)
 	}
