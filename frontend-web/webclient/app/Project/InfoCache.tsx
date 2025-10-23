@@ -227,13 +227,16 @@ export function useProjectInfos(ids: Array<string | null | undefined>): ProjectI
     const loading = records.some((r) => r.status === "idle" || r.status === "loading");
     const error = records.find((r) => r.status === "error")?.error ?? null;
 
-    const data: Record<string, ProjectInfo | null> = {};
-    ids.forEach((id, i) => {
-        if (!id) return;
-        data[id] = records[i].data ?? null;
-    });
+    const data = React.useMemo(() => {
+        const obj: Record<string, ProjectInfo | null> = {};
+        ids.forEach((id, i) => {
+            if (!id) return;
+            obj[id] = records[i].data ?? null;
+        });
+        return obj;
+    }, [key, records]);
 
-    return { data, loading, error };
+    return React.useMemo(() => ({ data, loading, error }), [data, loading, error]);
 }
 
 export function ProjectTitle(
