@@ -5,7 +5,7 @@ import * as React from "react";
 import {useLocation, useNavigate} from "react-router";
 import {Client} from "@/Authentication/HttpClientInstance";
 import AppRoutes from "@/Routes";
-import {Allocation, WalletV2} from "@/Accounting";
+import {AccountingFrequency, Allocation, WalletV2} from "@/Accounting";
 import {Project} from "@/Project";
 import {apiRetrieve, callAPI} from "@/Authentication/DataHook";
 import {capitalized, errorMessageOrDefault} from "@/UtilityFunctions";
@@ -15,6 +15,9 @@ import EmailSettings = mail.EmailSettings;
 import {Job} from "@/UCloud/JobsApi";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {user} from "@/ui-components/icons";
+import {width} from "styled-system";
+import {dateToString} from "@/Utilities/DateUtilities";
 const {supportAssist} = AppRoutes;
 
 // Note(Jonas): Maybe a bit overengineered?
@@ -176,11 +179,19 @@ interface SupportAssistUserInfo {
     emailSettings: EmailSettings;
     associatedProjects: Project[];
     activeGrants: Application[];
-    personalProjectResources: WalletV2;
+    personalProjectResources: WalletV2[];
 }
 
 interface SupportAssistRetrieveUserInfoResponse {
     info: SupportAssistUserInfo[]
+}
+
+export function normalizeFrequency(frequency: AccountingFrequency):string {
+    if (frequency === "PERIODIC_MINUTE") { return "minute(s)"}
+    if (frequency === "PERIODIC_HOUR") { return "hour(s)"}
+    if (frequency === "PERIODIC_DAY") { return "day(s)"}
+    if (frequency === "ONCE") { return ""}
+    return ""
 }
 
 export function UserSupportContent() {
@@ -190,48 +201,171 @@ export function UserSupportContent() {
     usePage("User support", SidebarTabId.ADMIN);
 
     const {Error, setError} = useError();
-    const [userInfo, setInfo] = React.useState<SupportAssistRetrieveUserInfoResponse | null>({info: []});
+    const [userInfo, setInfo] = React.useState<SupportAssistRetrieveUserInfoResponse>({info: []});
 
     React.useEffect(() => {
         if (!query) return;
         callAPI(Api.retrieveUserInfo(isEmail ? {username: "", email: query} : {username: query, email: ""}))
-            .then(result => setInfo(result))
+            .then(result => {
+                setInfo(result)
+            })
             .catch(e => setError(errorMessageOrDefault(e, "Failed to fetch user")));
     }, [query, isEmail]);
 
     if (!Client.userIsAdmin || userInfo == null) return null;
-
+    console.log(userInfo)
     return <MainContainer
-        main={<div>
+        main={<>
             {Error}
-            {query} {userInfo.info.length > 1 ? `${userInfo.info.length} entries found` : null}
+            <div>
+                {userInfo.info === null ? `0 entries found` : null}
+                {userInfo.info?.length > 1 ? `${userInfo.info?.length} entries found` : null}
 
-            {userInfo.info.map(it => <div>
-                E-mail
-                <div>{it.email}</div>
-                Name
-                <div>{it.firstNames} {it.lastName}</div>
-                E-mail settings
-                <div>{Object.keys(it.emailSettings).map(key => <>{capitalized(key)}: {it.emailSettings[key]} </>)}</div>
-                Associated projects
-                <div>{it.associatedProjects.map(it => it.specification.title)}</div>
-                Active grants
-                <div>{it.activeGrants.map(it => <>
-                    ID:
-                    {it.id}
-                    Created by:
-                    {it.createdBy}
-                    Created at:
-                    {it.createdAt}
-                    Current revision:
-                    {it.currentRevision.revisionNumber}
-                    Updated at:
-                    {it.updatedAt}
-                </>)}</div>
-                Personal project resources
-                <div>TODO</div>
-            </div>)}
-        </div>}
+                {userInfo.info?.map(it => <div>
+                    <h3>Personal Info:</h3>
+                    <hr/>
+                    <div>Name: {it.firstNames} {it.lastName}</div>
+                    <div>Email: {it.email}</div>
+                    <br/>
+
+                    <h3>E-mail settings:</h3>
+                    <hr/>
+                    <div>
+                        {
+                            <ul style={{ listStyle: "none" }}>
+                                {Object.keys(it.emailSettings).map(key =>
+                                    <li>
+                                        <input type={"checkbox"} checked={it.emailSettings[key]}/> {capitalized(key)}
+                                    </li>
+                                )}
+                            </ul>
+                        }
+                    </div>
+                    <br/>
+
+                    <h3>Associated projects:</h3>
+                    <hr/>
+                    <div>
+                        <table>
+                            <tr>
+                                <th align={"left"}>Project Title</th>
+                                <th style={{width: "20px"}}></th>
+                                <th align={"left"}>Project ID</th>
+                                <th style={{width: "20px"}}></th>
+                                <th>Role</th>
+                            </tr>
+                        {
+                            it.associatedProjects.sort((a,b) => {
+                                return a.specification.title.localeCompare(b.specification.title)
+                            }).map(project =>
+                                <tr>
+                                    <td>{project.specification.title}</td>
+                                    <td/>
+                                    <td>({project.id})</td>
+                                    <td/>
+                                    {project.status.members?.map(member =>
+                                        member.username === it.username ? <td>{member.role}</td> : null
+                                    )}
+                                </tr>
+                            )
+                        }
+                        </table>
+                    </div>
+                    <br/>
+
+                    <h3>Active grants:</h3>
+                    <hr/>
+                    <div>
+                        <table>
+                            <tr>
+                                <th align={"left"}>Application ID</th>
+                                <th style={{width: "20px"}}></th>
+                                <th align={"left"}>Created By</th>
+                                <th style={{width: "20px"}}></th>
+                                <th align={"left"}>Creation Time</th>
+                                <th style={{width: "20px"}}></th>
+                                <th align={"left"}>Last Update</th>
+                                <th style={{width: "20px"}}></th>
+                                <th align={"left"}>Resources requested</th>
+                            </tr>
+                            {
+                                (it.activeGrants !== null ) ? it.activeGrants.map(it =>
+                                    <tr>
+                                        <td>
+                                            {it.id}
+                                        </td>
+                                        <td/>
+                                        <td>
+                                            {it.createdBy}
+                                        </td>
+                                        <td/>
+                                        <td>
+                                            {dateToString(it.createdAt)}
+                                        </td>
+                                        <td/>
+                                        <td>
+                                            {dateToString(it.updatedAt)}
+                                        </td>
+                                        <td/>
+                                        <td>
+                                            {it.currentRevision.document.allocationRequests.map(request =>
+                                            <> {request.category} ({request.provider}) <br/></>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ) : null }
+                        </table>
+                    </div>
+                    <br/>
+
+                    <h3>Personal project resources</h3>
+                    <hr/>
+                    <div>
+                        <table>
+                            <tr>
+                                <th>
+                                    Resource
+                                </th>
+                                <th style={{width: "20px"}}></th>
+                                <th>
+                                    Quota
+                                </th>
+                                <th style={{width: "20px"}}></th>
+                                <th>
+                                    Local Usage
+                                </th>
+                                <th style={{width: "20px"}}></th>
+                                <th>
+                                    Total Usage
+                                </th>
+                                <th style={{width: "20px"}}></th>
+                                <th>
+                                    Max Usage
+                                </th>
+                                <th style={{width: "20px"}}></th>
+                                <th>
+                                    Allocated to subprojects
+                                </th>
+                            </tr>
+                            {
+                                it.personalProjectResources.map(resource =>
+                                    <tr>
+                                        <td align={"left"}> {resource.paysFor.name} ({resource.paysFor.provider}) {resource.paysFor.accountingUnit.name} {normalizeFrequency(resource.paysFor.accountingFrequency)} </td> <td/>
+                                        <td align={"right"}> {resource.quota} </td> <td/>
+                                        <td align={"right"}> {resource.localUsage} </td> <td/>
+                                        <td align={"right"}> {resource.totalUsage} </td> <td/>
+                                        <td align={"right"}> {resource.maxUsable} </td> <td/>
+                                        <td align={"right"}> {resource.totalAllocated}</td>
+                                    </tr>
+                                )
+                            }
+                        </table>
+                    </div>
+                    <hr/>
+
+                </div>)}
+            </div>
+        </>}
     />
 }
 
@@ -285,9 +419,45 @@ export function ProjectSupportContent() {
 
     if (!Client.userIsAdmin || project == null) return null;
     return <MainContainer
-        main={<div>
-            {Error}
-        </div>}
+        main={<>{Error}
+            <div>
+            Project Title:
+            <div>{project.project.specification.title}</div>
+            Created at:
+            <div>{project.project.createdAt} </div>
+            Is allowed to use resources:
+            <div>{project.project.specification.canConsumeResources}</div>
+            Parent project:
+            <div>{project.project.specification.parent}</div>
+            Jobs:
+            <div>
+                {project.jobs !== undefined ? project.jobs.map(it => <>
+                    ID:
+                    {it.id}
+                </>) : null }
+            </div>
+            Wallets:
+            <div>{project.projectWallets !== undefined ? project.projectWallets.map(it => <>
+                Resource:
+                {it.paysFor.provider} - {it.paysFor.name}
+                Quota:
+                {it.quota}
+                Local Usage:
+                {it.localUsage}
+                Total Usage:
+                {it.totalUsage}
+                Max Usable
+                {it.maxUsable}
+                Sub Allocated
+                {it.totalAllocated}
+            </>) : null }</div>
+            Accounting Issues:
+            <div>
+                {project.accountingIssues !== undefined ? project.accountingIssues.map(it => <>
+                    Allocation {it.AssociatedAllocation.id} {it.description}
+                </>) : null}
+            </div>
+        </div></>}
     />
 }
 

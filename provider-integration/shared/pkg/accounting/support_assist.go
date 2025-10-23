@@ -11,18 +11,18 @@ type SupportAssistRetrieveUserInfoRequest struct {
 }
 
 type SupportAssistUserInfo struct {
-	Username                 string
-	FirstNames               string
-	LastName                 string
-	Email                    string
-	EmailSettings            foundation.EmailSettings
-	AssociatedProjects       []foundation.Project
-	ActiveGrants             []GrantApplication
-	PersonalProjectResources WalletV2
+	Username                 string                   `json:"username"`
+	FirstNames               string                   `json:"firstNames"`
+	LastName                 string                   `json:"lastName"`
+	Email                    string                   `json:"email"`
+	EmailSettings            foundation.EmailSettings `json:"emailSettings"`
+	AssociatedProjects       []foundation.Project     `json:"associatedProjects"`
+	ActiveGrants             []GrantApplication       `json:"activeGrants"`
+	PersonalProjectResources []WalletV2               `json:"personalProjectResources"`
 }
 
 type SupportAssistRetrieveUserInfoResponse struct {
-	Info []SupportAssistUserInfo
+	Info []SupportAssistUserInfo `json:"info"`
 }
 
 const SupportAssistAccContext = "support-assist-acc"

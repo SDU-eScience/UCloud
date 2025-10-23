@@ -2,7 +2,6 @@ package accounting
 
 import (
 	"net/http"
-	"strconv"
 	fnd "ucloud.dk/core/pkg/foundation"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
@@ -19,13 +18,11 @@ func initSupportAssistAcc() {
 		if request.Username != "" && request.Email != "" {
 			return accapi.SupportAssistRetrieveUserInfoResponse{}, util.HttpErr(http.StatusBadRequest, "Only Username or Email can be specified")
 		}
-		println("RUNNINGN INFO GET")
 		return retrieveUserInfo(request.Username, request.Email)
 	})
 }
 
 func usernameToUserInfo(tx *db.Transaction, username string) (accapi.SupportAssistUserInfo, bool) {
-	println("USERINFO FUNC")
 	principal, found := fnd.LookupPrincipal(tx, username)
 	if !found {
 		return accapi.SupportAssistUserInfo{}, false
@@ -42,7 +39,7 @@ func usernameToUserInfo(tx *db.Transaction, username string) (accapi.SupportAssi
 			rpc.ActorSystem,
 			string(projectId),
 			foundation.ProjectFlags{
-				IncludeMembers:  false,
+				IncludeMembers:  true,
 				IncludeGroups:   false,
 				IncludeFavorite: false,
 				IncludeArchived: false,
@@ -71,10 +68,10 @@ func usernameToUserInfo(tx *db.Transaction, username string) (accapi.SupportAssi
 		accapi.WalletsBrowseRequest{
 			IncludeChildren: false,
 		})
-	var personalWallet accapi.WalletV2
+	var personalWallets []accapi.WalletV2
 	for _, elm := range wallets.Items {
 		if elm.Owner == personalWalletOwner {
-			personalWallet = elm
+			personalWallets = append(personalWallets, elm)
 		}
 	}
 	return accapi.SupportAssistUserInfo{
@@ -85,26 +82,23 @@ func usernameToUserInfo(tx *db.Transaction, username string) (accapi.SupportAssi
 		EmailSettings:            emailSettings,
 		AssociatedProjects:       projects,
 		ActiveGrants:             activeGrants.Items,
-		PersonalProjectResources: personalWallet,
+		PersonalProjectResources: personalWallets,
 	}, true
 }
 
+// TODO(Henrik) NewTx0 is resulting in 2 runs. Currently fixed issue of results by using map instead of list, but it seems wierd
 func retrieveUserInfo(username string, email string) (accapi.SupportAssistRetrieveUserInfoResponse, *util.HttpError) {
-	println("GIVEN USER: " + username + " email : " + email)
-	var userInfos []accapi.SupportAssistUserInfo
+
+	userInfos := make(map[string]accapi.SupportAssistUserInfo)
 	if username != "" {
-		println("GETTING BY USERNAME")
 		db.NewTx0(func(tx *db.Transaction) {
 			userInfo, found := usernameToUserInfo(tx, username)
 			if found {
-				println("ADDING USER INFO")
-				userInfos = append(userInfos, userInfo)
+				userInfos[userInfo.Username] = userInfo
 			}
 		})
 	}
 	if email != "" {
-		println("GETTING BY EMIAL")
-
 		db.NewTx0(func(tx *db.Transaction) {
 			users, found := fnd.LookupUsernamesByEmail(tx, email)
 			if !found {
@@ -113,17 +107,16 @@ func retrieveUserInfo(username string, email string) (accapi.SupportAssistRetrie
 			for _, user := range users {
 				userInfo, foundUserInfo := usernameToUserInfo(tx, user)
 				if foundUserInfo {
-					userInfos = append(userInfos, userInfo)
+					userInfos[userInfo.Username] = userInfo
 				}
 			}
 		})
 	}
-	for i, userInfo := range userInfos {
-		println("USER #" + strconv.Itoa(i+1) + ": " + userInfo.Username)
-		println(userInfo.FirstNames)
-		println(userInfo.LastName)
+	var results []accapi.SupportAssistUserInfo
+	for _, userInfo := range userInfos {
+		results = append(results, userInfo)
 	}
 	return accapi.SupportAssistRetrieveUserInfoResponse{
-		Info: userInfos,
+		Info: results,
 	}, nil
 }
