@@ -3,6 +3,7 @@ package accounting
 import (
 	"fmt"
 	"math/rand"
+	accapi "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -11,15 +12,6 @@ type UsageGenApi struct {
 	AllocateEx  func(now, start, end int, quota int64, recipientRef, parentRef string)
 	ReportDelta func(now int, ownerRef string, usage int64)
 	Checkpoint  func(now int)
-}
-
-type UsageGenConfig struct {
-	Days               int
-	BreadthPerLevel    []int
-	Seed               int64
-	CheckpointInterval int
-	Expiration         bool
-	MinuteStep         int
 }
 
 type UsageGenProject struct {
@@ -35,7 +27,7 @@ type UsageGenProject struct {
 type usageGenerator struct {
 	Api  UsageGenApi
 	Rng  *rand.Rand
-	Cfg  UsageGenConfig
+	Cfg  accapi.UsageGenConfig
 	Root *UsageGenProject
 }
 
@@ -45,7 +37,7 @@ type usageGenJob struct {
 	CoreCount   int
 }
 
-func UsageGenGenerate(api UsageGenApi, cfg UsageGenConfig) *UsageGenProject {
+func UsageGenGenerate(api UsageGenApi, cfg accapi.UsageGenConfig) *UsageGenProject {
 	g := &usageGenerator{
 		Api: api,
 		Rng: rand.New(rand.NewSource(cfg.Seed)),
@@ -200,7 +192,7 @@ func UsageGenGenerate(api UsageGenApi, cfg UsageGenConfig) *UsageGenProject {
 
 		startOfDay := day * 1440
 		endOfDay := (day + 1) * 1440
-		minuteStep := g.Cfg.MinuteStep
+		minuteStep := g.Cfg.ReportingInterval
 		if minuteStep == 0 {
 			minuteStep = 5
 		}

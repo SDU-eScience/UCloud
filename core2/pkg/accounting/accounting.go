@@ -6,6 +6,8 @@ import (
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	"net/http"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
@@ -196,7 +198,7 @@ func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, 
 	recipientOwner := internalOwnerByReference(string(actor.Project.Value))
 	recipient := internalWalletByOwner(bucket, now, recipientOwner.Id)
 
-	id, err := internalAllocate(
+	id, err := internalAllocateNoCommit(
 		now,
 		bucket,
 		request.Start.Time(),
@@ -472,6 +474,7 @@ func accountingLoad() {
 			AllocationEndTime   time.Time
 			Retired             bool
 			RetiredUsage        int64
+			RetiredQuota        int64
 		}](
 			tx,
 			`
@@ -485,7 +488,8 @@ func accountingLoad() {
 					alloc.allocation_start_time,
 					alloc.allocation_end_time,
 					alloc.retired,
-					alloc.retired_usage
+					alloc.retired_usage,
+					alloc.retired_quota
 				from
 					accounting.wallet_allocations_v2 alloc
 					join accounting.allocation_groups ag on alloc.associated_allocation_group = ag.id
@@ -514,7 +518,7 @@ func accountingLoad() {
 					End:          row.AllocationEndTime,
 					Retired:      row.Retired,
 					RetiredUsage: row.RetiredUsage,
-					RetiredQuota: 0,                                         // TODO We don't know this
+					RetiredQuota: row.RetiredQuota,
 					Active:       time.Now().After(row.AllocationStartTime), // TODO we don't know if it was activated
 					Dirty:        false,
 					Committed:    true,
@@ -534,134 +538,149 @@ func accountingLoad() {
 	})
 }
 
-func accountingProcessTasks() {
-	for {
-		now := time.Now()
-		internalCompleteScan(now, func(buckets []*internalBucket, scopes []*scopedUsage, onPersistHandlers []internalOnPersistHandler) {
-			persistHandlersByGrant := map[accGrantId]internalOnPersistHandler{}
-			for _, handler := range onPersistHandlers {
-				persistHandlersByGrant[handler.GrantId] = handler
+var accountingScansDisabled = atomic.Bool{}
+
+var accountingProcessMutex = sync.Mutex{}
+
+func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) bool) {
+	accountingProcessMutex.Lock()
+	defer accountingProcessMutex.Unlock()
+
+	internalCompleteScan(now, func(buckets []*internalBucket, scopes []*scopedUsage, onPersistHandlers []internalOnPersistHandler) {
+		var actualBuckets []*internalBucket
+		for _, b := range buckets {
+			if filter == nil || filter(b) {
+				actualBuckets = append(actualBuckets, b)
 			}
+		}
+		buckets = actualBuckets
 
-			ownerRequest := struct {
-				Id        []int64
-				Username  []string
-				ProjectId []string
-			}{}
+		persistHandlersByGrant := map[accGrantId]internalOnPersistHandler{}
+		for _, handler := range onPersistHandlers {
+			persistHandlersByGrant[handler.GrantId] = handler
+		}
 
-			walletRequest := struct {
-				Id                      []int64
-				WalletOwner             []int64
-				CategoryName            []string
-				CategoryProvider        []string
-				LocalUsage              []int64
-				WasLocked               []bool
-				LastSignificantUpdateAt []int64
-			}{}
+		ownerRequest := struct {
+			Id        []int64
+			Username  []string
+			ProjectId []string
+		}{}
 
-			usageRequests := struct {
-				Key   []string
-				Usage []int64
-			}{}
+		walletRequest := struct {
+			Id                      []int64
+			WalletOwner             []int64
+			CategoryName            []string
+			CategoryProvider        []string
+			LocalUsage              []int64
+			WasLocked               []bool
+			LastSignificantUpdateAt []int64
+		}{}
 
-			allocationRequests := struct {
-				Id              []int64
-				AllocationGroup []int64
-				GrantedIn       []int64 // 0 -> null
-				Quota           []int64
-				Start           []int64
-				End             []int64
-				Retired         []bool
-				RetiredUsage    []int64
-			}{}
+		usageRequests := struct {
+			Key   []string
+			Usage []int64
+		}{}
 
-			groupRequests := struct {
-				Id        []int64
-				Parent    []int64 // 0 -> null
-				Wallet    []int64
-				TreeUsage []int64
-			}{}
+		allocationRequests := struct {
+			Id              []int64
+			AllocationGroup []int64
+			GrantedIn       []int64 // 0 -> null
+			Quota           []int64
+			Start           []int64
+			End             []int64
+			Retired         []bool
+			RetiredUsage    []int64
+			RetiredQuota    []int64
+		}{}
 
-			handlersToTrigger := map[accGrantId]internalOnPersistHandler{}
+		groupRequests := struct {
+			Id        []int64
+			Parent    []int64 // 0 -> null
+			Wallet    []int64
+			TreeUsage []int64
+		}{}
 
-			for _, owner := range accGlobals.OwnersById {
-				if owner.Dirty {
-					ownerRequest.Id = append(ownerRequest.Id, int64(owner.Id))
-					wo := owner.WalletOwner()
-					if wo.Type == accapi.WalletOwnerTypeUser {
-						ownerRequest.Username = append(ownerRequest.Username, wo.Username)
-						ownerRequest.ProjectId = append(ownerRequest.ProjectId, "")
-					} else {
-						ownerRequest.ProjectId = append(ownerRequest.ProjectId, wo.ProjectId)
-						ownerRequest.Username = append(ownerRequest.Username, "")
-					}
-					owner.Dirty = false
+		handlersToTrigger := map[accGrantId]internalOnPersistHandler{}
+
+		for _, owner := range accGlobals.OwnersById {
+			if owner.Dirty {
+				ownerRequest.Id = append(ownerRequest.Id, int64(owner.Id))
+				wo := owner.WalletOwner()
+				if wo.Type == accapi.WalletOwnerTypeUser {
+					ownerRequest.Username = append(ownerRequest.Username, wo.Username)
+					ownerRequest.ProjectId = append(ownerRequest.ProjectId, "")
+				} else {
+					ownerRequest.ProjectId = append(ownerRequest.ProjectId, wo.ProjectId)
+					ownerRequest.Username = append(ownerRequest.Username, "")
 				}
+				owner.Dirty = false
 			}
+		}
 
-			for _, b := range buckets {
-				for _, wallet := range b.WalletsById {
-					if wallet.Dirty {
-						walletRequest.Id = append(walletRequest.Id, int64(wallet.Id))
-						walletRequest.WalletOwner = append(walletRequest.WalletOwner, int64(wallet.OwnedBy))
-						walletRequest.CategoryName = append(walletRequest.CategoryName, b.Category.Name)
-						walletRequest.CategoryProvider = append(walletRequest.CategoryProvider, b.Category.Provider)
-						walletRequest.LocalUsage = append(walletRequest.LocalUsage, wallet.LocalUsage)
-						walletRequest.WasLocked = append(walletRequest.WasLocked, wallet.WasLocked)
-						walletRequest.LastSignificantUpdateAt = append(walletRequest.LastSignificantUpdateAt, wallet.LastSignificantUpdate.UnixMilli())
+		for _, b := range buckets {
+			for _, wallet := range b.WalletsById {
+				if wallet.Dirty {
+					walletRequest.Id = append(walletRequest.Id, int64(wallet.Id))
+					walletRequest.WalletOwner = append(walletRequest.WalletOwner, int64(wallet.OwnedBy))
+					walletRequest.CategoryName = append(walletRequest.CategoryName, b.Category.Name)
+					walletRequest.CategoryProvider = append(walletRequest.CategoryProvider, b.Category.Provider)
+					walletRequest.LocalUsage = append(walletRequest.LocalUsage, wallet.LocalUsage)
+					walletRequest.WasLocked = append(walletRequest.WasLocked, wallet.WasLocked)
+					walletRequest.LastSignificantUpdateAt = append(walletRequest.LastSignificantUpdateAt, wallet.LastSignificantUpdate.UnixMilli())
 
-						wallet.Dirty = false
-					}
-
-					for _, ag := range wallet.AllocationsByParent {
-						if ag.Dirty {
-							groupRequests.Id = append(groupRequests.Id, int64(ag.Id))
-							groupRequests.Parent = append(groupRequests.Parent, int64(ag.ParentWallet))
-							groupRequests.Wallet = append(groupRequests.Wallet, int64(ag.AssociatedWallet))
-							groupRequests.TreeUsage = append(groupRequests.TreeUsage, ag.TreeUsage)
-
-							ag.Dirty = false
-						}
-					}
+					wallet.Dirty = false
 				}
 
-				for _, alloc := range b.AllocationsById {
-					if !alloc.Committed && alloc.GrantedIn.Present {
-						handler, ok := persistHandlersByGrant[alloc.GrantedIn.Value]
-						if ok {
-							handlersToTrigger[alloc.GrantedIn.Value] = handler
-							alloc.Committed = true
-						}
-					}
+				for _, ag := range wallet.AllocationsByParent {
+					if ag.Dirty {
+						groupRequests.Id = append(groupRequests.Id, int64(ag.Id))
+						groupRequests.Parent = append(groupRequests.Parent, int64(ag.ParentWallet))
+						groupRequests.Wallet = append(groupRequests.Wallet, int64(ag.AssociatedWallet))
+						groupRequests.TreeUsage = append(groupRequests.TreeUsage, ag.TreeUsage)
 
-					if alloc.Dirty && alloc.Committed {
-						allocationRequests.Id = append(allocationRequests.Id, int64(alloc.Id))
-						allocationRequests.AllocationGroup = append(allocationRequests.AllocationGroup, int64(alloc.Group))
-						allocationRequests.GrantedIn = append(allocationRequests.GrantedIn, int64(alloc.GrantedIn.GetOrDefault(0)))
-						allocationRequests.Quota = append(allocationRequests.Quota, alloc.Quota)
-						allocationRequests.Start = append(allocationRequests.Start, alloc.Start.UnixMilli())
-						allocationRequests.End = append(allocationRequests.End, alloc.End.UnixMilli())
-						allocationRequests.Retired = append(allocationRequests.Retired, alloc.Retired)
-						allocationRequests.RetiredUsage = append(allocationRequests.RetiredUsage, alloc.RetiredUsage)
-
-						alloc.Dirty = false
+						ag.Dirty = false
 					}
 				}
 			}
 
-			for _, scope := range scopes {
-				if scope.Dirty {
-					usageRequests.Key = append(usageRequests.Key, scope.Key)
-					usageRequests.Usage = append(usageRequests.Usage, scope.Usage)
-					scope.Dirty = false
+			for _, alloc := range b.AllocationsById {
+				if !alloc.Committed && alloc.GrantedIn.Present {
+					handler, ok := persistHandlersByGrant[alloc.GrantedIn.Value]
+					if ok {
+						handlersToTrigger[alloc.GrantedIn.Value] = handler
+						alloc.Committed = true
+					}
+				}
+
+				if alloc.Dirty && alloc.Committed {
+					allocationRequests.Id = append(allocationRequests.Id, int64(alloc.Id))
+					allocationRequests.AllocationGroup = append(allocationRequests.AllocationGroup, int64(alloc.Group))
+					allocationRequests.GrantedIn = append(allocationRequests.GrantedIn, int64(alloc.GrantedIn.GetOrDefault(0)))
+					allocationRequests.Quota = append(allocationRequests.Quota, alloc.Quota)
+					allocationRequests.Start = append(allocationRequests.Start, alloc.Start.UnixMilli())
+					allocationRequests.End = append(allocationRequests.End, alloc.End.UnixMilli())
+					allocationRequests.Retired = append(allocationRequests.Retired, alloc.Retired)
+					allocationRequests.RetiredUsage = append(allocationRequests.RetiredUsage, alloc.RetiredUsage)
+					allocationRequests.RetiredQuota = append(allocationRequests.RetiredQuota, alloc.RetiredQuota)
+
+					alloc.Dirty = false
 				}
 			}
+		}
 
-			db.NewTx0(func(tx *db.Transaction) {
-				if len(ownerRequest.Id) > 0 {
-					db.Exec(
-						tx,
-						`
+		for _, scope := range scopes {
+			if scope.Dirty {
+				usageRequests.Key = append(usageRequests.Key, scope.Key)
+				usageRequests.Usage = append(usageRequests.Usage, scope.Usage)
+				scope.Dirty = false
+			}
+		}
+
+		db.NewTx0(func(tx *db.Transaction) {
+			if len(ownerRequest.Id) > 0 {
+				db.Exec(
+					tx,
+					`
 							with data as (
 								select
 									unnest(cast(:id as int8[])) as id,
@@ -683,18 +702,18 @@ func accountingProcessTasks() {
 								data d
 							on conflict do nothing
 						`,
-						db.Params{
-							"id":       ownerRequest.Id,
-							"project":  ownerRequest.ProjectId,
-							"username": ownerRequest.Username,
-						},
-					)
-				}
+					db.Params{
+						"id":       ownerRequest.Id,
+						"project":  ownerRequest.ProjectId,
+						"username": ownerRequest.Username,
+					},
+				)
+			}
 
-				if len(walletRequest.Id) > 0 {
-					db.Exec(
-						tx,
-						`
+			if len(walletRequest.Id) > 0 {
+				db.Exec(
+					tx,
+					`
 							with data as (
 								select
 									unnest(cast(:id as int8[])) as id,
@@ -729,22 +748,22 @@ func accountingProcessTasks() {
 								was_locked = excluded.was_locked,
 								last_significant_update_at = excluded.last_significant_update_at
 						`,
-						db.Params{
-							"id":                         walletRequest.Id,
-							"wallet_owner":               walletRequest.WalletOwner,
-							"category_name":              walletRequest.CategoryName,
-							"category_provider":          walletRequest.CategoryProvider,
-							"local_usage":                walletRequest.LocalUsage,
-							"was_locked":                 walletRequest.WasLocked,
-							"last_significant_update_at": walletRequest.LastSignificantUpdateAt,
-						},
-					)
-				}
+					db.Params{
+						"id":                         walletRequest.Id,
+						"wallet_owner":               walletRequest.WalletOwner,
+						"category_name":              walletRequest.CategoryName,
+						"category_provider":          walletRequest.CategoryProvider,
+						"local_usage":                walletRequest.LocalUsage,
+						"was_locked":                 walletRequest.WasLocked,
+						"last_significant_update_at": walletRequest.LastSignificantUpdateAt,
+					},
+				)
+			}
 
-				if len(groupRequests.Id) > 0 {
-					db.Exec(
-						tx,
-						`
+			if len(groupRequests.Id) > 0 {
+				db.Exec(
+					tx,
+					`
 							with data as (
 								select
 									unnest(cast(:id as int8[])) as id,
@@ -768,20 +787,20 @@ func accountingProcessTasks() {
 							on conflict (id) do update set
 								tree_usage = excluded.tree_usage						                               
 						`,
-						db.Params{
-							"id":         groupRequests.Id,
-							"parent":     groupRequests.Parent,
-							"wallet":     groupRequests.Wallet,
-							"tree_usage": groupRequests.TreeUsage,
-						},
-					)
-				}
+					db.Params{
+						"id":         groupRequests.Id,
+						"parent":     groupRequests.Parent,
+						"wallet":     groupRequests.Wallet,
+						"tree_usage": groupRequests.TreeUsage,
+					},
+				)
+			}
 
-				if len(allocationRequests.Id) > 0 {
-					log.Info("Synchronizing %v allocations", len(allocationRequests.Id))
-					db.Exec(
-						tx,
-						`
+			if len(allocationRequests.Id) > 0 {
+				log.Info("Synchronizing %v allocations", len(allocationRequests.Id))
+				db.Exec(
+					tx,
+					`
 							with data as (
 								select
 									unnest(cast(:id as int8[])) as id,
@@ -791,11 +810,12 @@ func accountingProcessTasks() {
 									unnest(cast(:start as int8[])) as start_time,
 									unnest(cast(:end as int8[])) as end_time,
 									unnest(cast(:retired as bool[])) as retired,
-									unnest(cast(:retired_usage as int8[])) as retired_usage
+									unnest(cast(:retired_usage as int8[])) as retired_usage,
+									unnest(cast(:retired_quota as int8[])) as retired_quota
 							)
 							insert into accounting.wallet_allocations_v2
 								(id, associated_allocation_group, granted_in, quota, allocation_start_time, 
-									allocation_end_time, retired, retired_usage) 
+									allocation_end_time, retired, retired_usage, retired_quota) 
 							select
 								d.id,
 								d.allocation_group,
@@ -807,7 +827,8 @@ func accountingProcessTasks() {
 								to_timestamp(d.start_time / 1000.0),
 								to_timestamp(d.end_time / 1000.0),
 								d.retired,
-								d.retired_usage
+								d.retired_usage,
+								d.retired_quota
 							from
 								data d
 							on conflict (id) do update set
@@ -816,25 +837,27 @@ func accountingProcessTasks() {
 								allocation_start_time = excluded.allocation_start_time,
 								allocation_end_time = excluded.allocation_end_time,
 								retired = excluded.retired,
-								retired_usage = excluded.retired_usage
+								retired_usage = excluded.retired_usage,
+								retired_quota = excluded.retired_quota
 						`,
-						db.Params{
-							"id":               allocationRequests.Id,
-							"allocation_group": allocationRequests.AllocationGroup,
-							"granted_in":       allocationRequests.GrantedIn,
-							"quota":            allocationRequests.Quota,
-							"start":            allocationRequests.Start,
-							"end":              allocationRequests.End,
-							"retired":          allocationRequests.Retired,
-							"retired_usage":    allocationRequests.RetiredUsage,
-						},
-					)
-				}
+					db.Params{
+						"id":               allocationRequests.Id,
+						"allocation_group": allocationRequests.AllocationGroup,
+						"granted_in":       allocationRequests.GrantedIn,
+						"quota":            allocationRequests.Quota,
+						"start":            allocationRequests.Start,
+						"end":              allocationRequests.End,
+						"retired":          allocationRequests.Retired,
+						"retired_usage":    allocationRequests.RetiredUsage,
+						"retired_quota":    allocationRequests.RetiredQuota,
+					},
+				)
+			}
 
-				if len(usageRequests.Key) > 0 {
-					db.Exec(
-						tx,
-						`
+			if len(usageRequests.Key) > 0 {
+				db.Exec(
+					tx,
+					`
 							with data as (
 								select
 									unnest(cast(:key as text[])) as key,
@@ -849,26 +872,33 @@ func accountingProcessTasks() {
 							on conflict (key) do update set
 								usage = excluded.usage
 						`,
-						db.Params{
-							"key":   usageRequests.Key,
-							"usage": usageRequests.Usage,
-						},
-					)
-				}
-
-				for _, handler := range handlersToTrigger {
-					handler.OnPersist(tx)
-				}
-			})
-
-			var remainingHandlers []internalOnPersistHandler
-			for _, handler := range persistHandlersByGrant {
-				if _, wasHandled := handlersToTrigger[handler.GrantId]; !wasHandled {
-					remainingHandlers = append(remainingHandlers, handler)
-				}
+					db.Params{
+						"key":   usageRequests.Key,
+						"usage": usageRequests.Usage,
+					},
+				)
 			}
-			accGlobals.OnPersistHandlers = remainingHandlers
+
+			for _, handler := range handlersToTrigger {
+				handler.OnPersist(tx)
+			}
 		})
+
+		var remainingHandlers []internalOnPersistHandler
+		for _, handler := range persistHandlersByGrant {
+			if _, wasHandled := handlersToTrigger[handler.GrantId]; !wasHandled {
+				remainingHandlers = append(remainingHandlers, handler)
+			}
+		}
+		accGlobals.OnPersistHandlers = remainingHandlers
+	})
+}
+
+func accountingProcessTasks() {
+	for {
+		if !accountingScansDisabled.Load() {
+			accountingProcessTasksNow(time.Now(), nil)
+		}
 		time.Sleep(30 * time.Second)
 	}
 }

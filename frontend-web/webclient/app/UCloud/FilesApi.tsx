@@ -598,7 +598,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     let support = cb.collection?.status?.resolvedSupport?.support;
                     if (!support) return false;
                     if (selected.length > 0) return false;
-                    if (!hasFeature(Feature.INLINE_TERMINAL)) return false;
 
                     if (cb.isSearch) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {
@@ -1545,7 +1544,7 @@ export function FilePreview({initialFile}: {
         }
         toolbar={
             <>
-                {!supportsTerminal || !hasFeature(Feature.INLINE_TERMINAL) ? null :
+                {!supportsTerminal ? null :
                     <TooltipV2 tooltip={"Open terminal"} contentWidth={130}>
                         <Icon
                             name={"terminalSolid"}

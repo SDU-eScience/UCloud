@@ -8,6 +8,7 @@ import (
 	"sort"
 	"testing"
 	"time"
+	accapi "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -16,7 +17,7 @@ func TestName(t *testing.T) {
 	e := newEnv(t, timeCategory)
 	e.TimeInMinutes = true
 
-	initUsageDashboards()
+	initUsageReports()
 
 	var roots []string
 
@@ -42,7 +43,7 @@ func TestName(t *testing.T) {
 		Checkpoint: func(now int) {
 			checkpointCalls++
 			e.Scan(now)
-			lUsageSample(e.Tm(now))
+			usageSample(e.Tm(now))
 
 			for _, root := range roots {
 				e.Snapshot(fmt.Sprintf("Root = %v, Time = %v", root, now), root, false)
@@ -50,15 +51,15 @@ func TestName(t *testing.T) {
 		},
 	}
 
-	config := UsageGenConfig{
+	config := accapi.UsageGenConfig{
 		Days:               30,
 		BreadthPerLevel:    []int{1, 8, 100, 8},
 		Seed:               42,
 		CheckpointInterval: 60 * 4,
-		MinuteStep:         60 * 2,
+		ReportingInterval:  60 * 2,
 		Expiration:         true,
 	}
-	dashboardGlobals.HistoricCache = make([]dashboardCacheEntry, 1024*1024*32) // set a very large cache for testing
+	reportGlobals.HistoricCache = make([]reportCacheEntry, 1024*1024*32) // set a very large cache for testing
 	rootProject := UsageGenGenerate(api, config)
 	timeAtEnd := e.Tm(1440 * config.Days)
 
@@ -77,7 +78,7 @@ func TestName(t *testing.T) {
 	{
 		owner := e.Owner("UGTest_0_0")
 		w := e.Wallet(owner, timeAtEnd)
-		dashboards := usageRetrieveHistoricDashboards(e.Tm(0), timeAtEnd, w)
+		dashboards := usageRetrieveHistoricReports(e.Tm(0), timeAtEnd, w)
 
 		tempDir, _ := os.MkdirTemp("", "")
 		for _, dashboard := range dashboards {
@@ -87,7 +88,7 @@ func TestName(t *testing.T) {
 
 		log.Info("-----------------------")
 
-		collapsed := usageCollapseDashboards(dashboards)
+		collapsed := usageCollapseReports(dashboards)
 		{
 			pretty, _ := json.MarshalIndent(collapsed, "", "    ")
 			_ = os.WriteFile(filepath.Join(tempDir, "combined.json"), pretty, 0660)

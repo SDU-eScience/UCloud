@@ -24,5 +24,6 @@ func RetryOrPanic[R any](action string, fn func() (R, error)) R {
 		return res
 	}
 
+	log.Fatal("RetryOrPanic failure: %s", lastErr)
 	panic(lastErr)
 }
