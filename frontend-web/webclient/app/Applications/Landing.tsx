@@ -102,7 +102,7 @@ const LandingPage: React.FunctionComponent = () => {
             <MainContainer main={
                 <article className={landingStyle}>
                     <Flex alignItems={"center"}>
-                        {hasFeature(Feature.APP_CATALOG_FILTER) ? <CatalogDiscoveryModeSwitcher /> : null}
+                        <CatalogDiscoveryModeSwitcher />
                         <Box flexGrow={1} />
                         <UtilityBar onSearch={appSearch} />
                     </Flex>
