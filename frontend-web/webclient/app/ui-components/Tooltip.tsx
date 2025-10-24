@@ -3,6 +3,7 @@ import {SpaceProps} from "styled-system";
 import * as ReactDOM from "react-dom";
 import {useCallback, useRef} from "react";
 import {injectStyleSimple} from "@/Unstyled";
+import {doNothing} from "@/UtilityFunctions";
 
 interface Tooltip extends SpaceProps {
     children: React.ReactNode;
@@ -88,13 +89,25 @@ const Tooltip: React.FunctionComponent<Tooltip> = props => {
     </>;
 };
 
-const SMALL_OFFSET_IN_PIXELS = 8;
 export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {tooltipContentWidth: number}): HTMLElement {
+    const {moveListener, leaveListener} = HTMLTooltipEx(tooltip, opts);
+    trigger.onmousemove = moveListener;
+    trigger.onmouseleave = leaveListener;
+    return trigger;
+}
+
+export function HTMLTooltipEx(tooltip: HTMLElement, opts?: {tooltipContentWidth: number}): {
+    moveListener: (ev: MouseEvent) => void;
+    leaveListener: () => void;
+} {
     getPortal(); // Note(Jonas): Init portal.
 
     const width = opts?.tooltipContentWidth ?? 200;
     const contentWrapper = document.getElementById(tooltipElementID);
-    if (!contentWrapper) return trigger;
+    if (!contentWrapper) {
+        return { moveListener: doNothing, leaveListener: doNothing };
+    }
+
     contentWrapper.style.position = "absolute";
     contentWrapper.className = TooltipContent;
     contentWrapper.style.width = `${width}px`;
@@ -104,22 +117,16 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
         if (!contentWrapper) return;
         contentWrapper.replaceChildren(tooltip);
         contentWrapper.classList.add(TooltipVisible);
-        const triggerRect = trigger.getBoundingClientRect();
-        const expectedLeft = triggerRect.x + triggerRect.width / 2 - width / 2;
-        if (expectedLeft + width > window.innerWidth) {
-            contentWrapper.style.left = `${window.innerWidth - width - 24}px`;
-        } else {
-            contentWrapper.style.left = `${expectedLeft}px`;
-        }
+
         contentWrapper.style.position = "fixed"; // Hack(Jonas): Absolute height of absolute elements are 0, so we briefly modify it.
-        const contentWrapperRect = contentWrapper.getBoundingClientRect();
         contentWrapper.style.position = "absolute"; // Hack(Jonas): Set to absolute again as is intended state.
-        if (triggerRect.y + triggerRect.height + contentWrapperRect.height + SMALL_OFFSET_IN_PIXELS > window.innerHeight) {
-            contentWrapper.style.top = `${triggerRect.y - contentWrapperRect.height - SMALL_OFFSET_IN_PIXELS}px`;
-        } else {
-            contentWrapper.style.top = `${triggerRect.y + triggerRect.height + SMALL_OFFSET_IN_PIXELS}px`;
+
+        contentWrapper.style.left = ev.clientX + 20 + "px";
+        if (ev.clientX + width + 20 > window.innerWidth) {
+            contentWrapper.style.left = ev.clientX - width + "px";
         }
 
+        contentWrapper.style.top = ev.clientY - contentWrapper.getBoundingClientRect().height / 2 + "px";
     }
 
     function onLeave() {
@@ -127,10 +134,11 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
         contentWrapper.className = TooltipContent;
     }
 
-    trigger.onmouseover = onHover;
-    trigger.onmouseleave = tooltip.onmouseleave = onLeave;
-
-    return trigger;
+    tooltip.onmouseleave = onLeave;
+    return {
+        moveListener: onHover,
+        leaveListener: onLeave,
+    };
 }
 
 export function TooltipV2(props: React.PropsWithChildren<{

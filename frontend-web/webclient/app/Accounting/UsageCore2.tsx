@@ -32,6 +32,7 @@ import {axisBottom, axisLeft} from "d3-axis";
 import {timeFormat} from "d3-time-format";
 import {useDeltaOverTimeChart} from "@/Accounting/Diagrams/DeltaOverTime";
 import {useBreakdownChart} from "@/Accounting/Diagrams/UsageBreakdown";
+import {useUtilizationOverTimeChart} from "@/Accounting/Diagrams/UtilizationOverTime";
 
 interface UsageRetrieveRequest {
     start: number;
@@ -98,11 +99,11 @@ export interface UsageReport {
     };
 }
 
-type UsageReportKpis = UsageReport["kpis"];
-type UsageReportSubProjectHealth = UsageReport["subProjectHealth"];
-type UsageReportOverTime = UsageReport["usageOverTime"];
-type UsageReportDeltaDataPoint = UsageReport["usageOverTime"]["delta"][0];
-type UsageReportAbsoluteDataPoint = UsageReport["usageOverTime"]["absolute"][0];
+export type UsageReportKpis = UsageReport["kpis"];
+export type UsageReportSubProjectHealth = UsageReport["subProjectHealth"];
+export type UsageReportOverTime = UsageReport["usageOverTime"];
+export type UsageReportDeltaDataPoint = UsageReport["usageOverTime"]["delta"][0];
+export type UsageReportAbsoluteDataPoint = UsageReport["usageOverTime"]["absolute"][0];
 
 function usageReportRetrieve(request: UsageRetrieveRequest): APICallParameters<UsageRetrieveRequest, UsageRetrieveResponse> {
     return apiRetrieve(request, "/api/accounting/v2/usage");
@@ -127,6 +128,71 @@ const defaultState: UsagePageState = {
     error: null,
     loading: false,
 }
+
+const TableStyle = injectStyle("usage-table", k => `
+    ${k} {
+        flex-grow: 1;
+        overflow-y: scroll;
+        min-height: 200px;
+        max-height: 400px;
+    }
+    
+    ${k}::before {
+        display: block;
+        content: " ";
+        width: 100%;
+        height: 1px;
+        position: sticky;
+        top: 24px;
+    }
+    
+    ${k} table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        border-color: var(--borderColor);
+    }
+    
+    ${k} tr:nth-child(even) {
+        background-color: var(--rowActive);
+    }
+
+    ${k} tr:hover {
+        background-color: var(--rowHover);
+    }
+    
+    ${k} tr > td:first-child,
+    ${k} tr > th:first-child {
+        border-left: 1px solid var(--borderColor);
+    }
+
+    ${k} td, 
+    ${k} th {
+        padding: 0 8px;
+        border-right: 1px solid var(--borderColor);
+    }
+
+    ${k} tbody > tr:last-child > td {
+        border-bottom: 1px solid var(--borderColor);
+    }
+
+    ${k} tr > th:first-child {
+        border-radius: 6px 0 0 0;
+    }
+
+    ${k} tr > th:last-child {
+        border-radius: 0 6px 0 0;
+    }
+
+    ${k} th {
+        text-align: left;
+        border-top: 1px solid var(--borderColor);
+        border-bottom: 2px solid var(--borderColor);
+        position: sticky;
+        top: 0;
+        background: var(--backgroundCard); /* matches card background */
+    }
+`);
 
 const UsagePage: React.FunctionComponent = () => {
     const project = useProject();
@@ -191,9 +257,19 @@ const UsagePage: React.FunctionComponent = () => {
         });
     }, []);
 
-    const chartAspectRatio = 16 / 5;
-    const chartWidth = maxContentWidth - 40; // compensate for padding in <Card>
-    const chartHeight = chartWidth * (1 / chartAspectRatio);
+    const fullChartWidth = maxContentWidth - 40; // compensate for padding in <Card>
+    const chartHeight = (width: number, chartAspectRatio: number = 16 / 5): number => {
+        return width * (1 / chartAspectRatio);
+    };
+
+    const deltaChartWidth = fullChartWidth;
+    let breakdownOnSingleRow = fullChartWidth > 900;
+    let breakdownChartWidth = breakdownOnSingleRow ? Math.min(fullChartWidth - 550, 600) : fullChartWidth;
+    const breakdownChartHeight = Math.max(300, chartHeight(breakdownChartWidth, 1.8));
+
+    let utilizationOnSingleRow = fullChartWidth > 1100;
+    let utilizationChartWidth = utilizationOnSingleRow ? fullChartWidth - 400 : fullChartWidth;
+    const utilizationChartHeight = chartHeight(utilizationChartWidth, 16 / 6);
 
     const childProjectIds: string[] = useMemo(() => {
         const r = state.openReport;
@@ -227,8 +303,35 @@ const UsagePage: React.FunctionComponent = () => {
         return child;
     }, [childProjectInfo]);
 
-    const deltaOverTime = useDeltaOverTimeChart(state.openReport, chartWidth, chartHeight);
-    const breakdownChart = useBreakdownChart(state.openReport, chartWidth, chartHeight, childToLabel);
+    const unit = useMemo(() => {
+        const r = state.openReport;
+        if (r) {
+            return explainUnitEx(r.unitAndFrequency.unit, r.unitAndFrequency.frequency, null);
+        } else {
+            return null;
+        }
+    }, [state.openReport]);
+
+    const valueFormatter = useCallback((value: number) => {
+        const r = state.openReport;
+        if (r == null) return value.toString();
+
+        const unit = explainUnitEx(r.unitAndFrequency.unit, r.unitAndFrequency.frequency, null);
+        const balanceToString = (balance: number): string => {
+            const normalizedBalance = balance * unit.balanceFactor;
+            return balanceToStringFromUnit(null,
+                unit.name,
+                normalizedBalance,
+                {referenceBalance: 1000, removeUnitIfPossible: true});
+        };
+
+        return balanceToString(value);
+    }, [state.openReport]);
+
+    const utilizationOverTime = useUtilizationOverTimeChart(state.openReport, utilizationChartWidth, utilizationChartHeight, unit);
+    const deltaOverTime = useDeltaOverTimeChart(state.openReport, deltaChartWidth, chartHeight(deltaChartWidth), unit);
+    const breakdownChart = useBreakdownChart(state.openReport, breakdownChartWidth,
+        breakdownChartHeight, childToLabel, valueFormatter);
 
     // User-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -250,9 +353,9 @@ const UsagePage: React.FunctionComponent = () => {
     if (state.openReport !== undefined) {
         const r = state.openReport;
         const unit = explainUnitEx(r.unitAndFrequency.unit, r.unitAndFrequency.frequency, null);
-        const balanceToString = (balance: number): string => {
+        const balanceToString = (balance: number, remove?: boolean): string => {
             const normalizedBalance = balance * unit.balanceFactor;
-            return balanceToStringFromUnit(null, unit.name, normalizedBalance, {});
+            return balanceToStringFromUnit(null, unit.name, normalizedBalance, { referenceBalance: 1000, removeUnitIfPossible: remove });
         };
 
         reportNode = <>
@@ -374,11 +477,41 @@ const UsagePage: React.FunctionComponent = () => {
 
             <Card>
                 <h3>Usage breakdown</h3>
-                <svg ref={breakdownChart.chartRef} width={chartWidth} height={chartHeight}/>
+                <Flex flexWrap={"wrap"} gap={"16px"}>
+                    <svg ref={breakdownChart.chartRef} width={breakdownChartWidth} height={breakdownChartHeight}
+                         style={{flexShrink: 0, flexBasis: breakdownChartWidth}}/>
+
+                    <div className={TableStyle} style={{flexBasis: "500px"}}>
+                        <table>
+                            <thead>
+                            <tr>
+                                <th/>
+                                <th>Project</th>
+                                <th>Usage</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {breakdownChart.table.map(row => <tr key={row.child}>
+                                <td align={"center"}>
+                                    <Box width={14} height={14} flexShrink={0} style={{background: row.color}}/>
+                                </td>
+                                <td>{childToLabel(row.child)}</td>
+                                <td align={"right"}>{balanceToString(row.value)}</td>
+                            </tr>)}
+
+                            </tbody>
+                        </table>
+                    </div>
+                </Flex>
+            </Card>
+
+            <Card>
+                <h3>Change in usage over time</h3>
+                <svg ref={deltaOverTime.chartRef} width={deltaChartWidth} height={chartHeight(deltaChartWidth)}/>
                 <Flex flexWrap={"wrap"} gap={"16px"} ml={40} fontSize={"80%"}>
-                    {breakdownChart.table.map(label =>
+                    {deltaOverTime.labels.map(label =>
                         <Flex key={label.child} gap={"4px"} alignItems={"center"}>
-                            <Box width={14} height={14} flexShrink={0} style={{background: label.color}} />
+                            <Box width={14} height={14} flexShrink={0} style={{background: label.color}}/>
                             <div>{childToLabel(label.child)}</div>
                         </Flex>
                     )}
@@ -386,15 +519,45 @@ const UsagePage: React.FunctionComponent = () => {
             </Card>
 
             <Card>
-                <h3>Change in usage over time</h3>
-                <svg ref={deltaOverTime.chartRef} width={chartWidth} height={chartHeight}/>
-                <Flex flexWrap={"wrap"} gap={"16px"} ml={40} fontSize={"80%"}>
-                    {deltaOverTime.labels.map(label =>
-                        <Flex key={label.child} gap={"4px"} alignItems={"center"}>
-                            <Box width={14} height={14} flexShrink={0} style={{background: label.color}} />
-                            <div>{childToLabel(label.child)}</div>
-                        </Flex>
-                    )}
+                <h3>Utilization over time</h3>
+                <Flex flexWrap={"wrap"} gap={"16px"}>
+                    <svg ref={utilizationOverTime.chartRef} width={utilizationChartWidth} height={utilizationChartHeight}/>
+
+                    <div className={TableStyle} style={{flexBasis: "380px"}}>
+                        <table>
+                            <thead>
+                            <tr>
+                                <th style={{width: "60px"}}/>
+                                {utilizationOverTime.rows.map(row => <th key={row.title} style={{width: "150px"}}>
+                                    <Flex gap={"8px"} alignItems={"center"}>
+                                        <Box width={14} height={14} flexShrink={0} style={{background: row.color}}/>
+                                        {row.title}
+                                    </Flex>
+                                </th>)}
+                            </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><b>Min</b></td>
+                                    {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
+                                        {row.min}
+                                    </td>)}
+                                </tr>
+                                <tr>
+                                    <td><b>Max</b></td>
+                                    {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
+                                        {row.max}
+                                    </td>)}
+                                </tr>
+                                <tr>
+                                    <td><b>Mean</b></td>
+                                    {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
+                                        {row.mean}
+                                    </td>)}
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </Flex>
             </Card>
         </>

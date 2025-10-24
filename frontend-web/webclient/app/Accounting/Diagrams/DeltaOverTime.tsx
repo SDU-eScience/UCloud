@@ -1,13 +1,15 @@
 import {useD3} from "@/Utilities/d3";
 import {scaleBand, scaleLinear, scaleOrdinal} from "d3-scale";
 import {index, max, min, union} from "d3-array";
-import {stack} from "d3-shape";
+import {Series, stack} from "d3-shape";
 import {select} from "d3-selection";
 import {timeFormat} from "d3-time-format";
 import {axisBottom, axisLeft} from "d3-axis";
 import {UsageReport} from "@/Accounting/UsageCore2";
 import React, {useMemo, useState} from "react";
-import {ChartLabel} from "@/Accounting/Diagrams/index";
+import {ChartLabel, colorNames} from "@/Accounting/Diagrams/index";
+import {HTMLTooltipEx} from "@/ui-components/Tooltip";
+import {balanceToStringFromUnit, FrontendAccountingUnit} from "@/Accounting";
 
 export interface DeltaOverTimeChart {
     chartRef: React.RefObject<SVGSVGElement | null>
@@ -17,9 +19,13 @@ export interface DeltaOverTimeChart {
 export function useDeltaOverTimeChart(
     openReport: UsageReport | null | undefined,
     chartWidth: number,
-    chartHeight: number
+    chartHeight: number,
+    unit: FrontendAccountingUnit,
 ): DeltaOverTimeChart {
     const [childrenLabels, setChildrenLabels] = useState<ChartLabel[]>([]);
+
+    const unitNormalizationFactor = unit?.balanceFactor ?? 1;
+    const unitName = unit?.name ?? "";
 
     const chart = useD3(node => {
         // Data validation and initial setup
@@ -36,7 +42,7 @@ export function useDeltaOverTimeChart(
             top: 16,
             bottom: 70,
             left: 40,
-            right: 16,
+            right: 40,
         };
 
         const innerW = chartWidth - margin.left - margin.right;
@@ -60,6 +66,23 @@ export function useDeltaOverTimeChart(
 
         // Series
         // -------------------------------------------------------------------------------------------------------------
+        const tsFormatter = timeFormat("%b %d %H:%M");
+
+        const domainSet: Record<string, number> = {};
+        for (const point of data) {
+            domainSet[point.child ?? ""] = (domainSet[point.child ?? ""] ?? 0) + point.change;
+        }
+
+        const domain = Object.keys(domainSet).sort((a, b) => {
+            if (domainSet[a] > domainSet[b]) {
+                return -1;
+            } else if (domainSet[a] < domainSet[b]) {
+                return 1;
+            } else {
+                return 0;
+            }
+        });
+
         const byTimestampKey = index(data, d => d.timestamp, d => d.child);
 
         const seriesGenerator = stack<number>()
@@ -70,29 +93,73 @@ export function useDeltaOverTimeChart(
 
         const series = seriesGenerator(timestamps);
 
-        // Y-axis
-        // -------------------------------------------------------------------------------------------------------------
-        const yScaleMin = min(series, datum => {
-            return min(datum, d => d[0])
-        }) ?? 0;
-
-        const yScaleMax = max(series, datum => {
-            return max(datum, d => d[1])
-        }) ?? 100;
-
-        const yScale = scaleLinear().domain([yScaleMin, yScaleMax]).nice().range([innerH, margin.top]);
-
         // Color scheme
         // -------------------------------------------------------------------------------------------------------------
         const color = scaleOrdinal<string>()
-            .domain(series.map(d => d.key ?? ""))
-            .range(["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f",
-                "#bcbd22", "#17becf"])
+            .domain(domain)
+            .range(colorNames)
             .unknown("#ccc");
 
-        setChildrenLabels(series.map(d => {
-            return {child: d.key, color: color(d.key ?? "")};
+        setChildrenLabels(domain.map(d => {
+            return {child: d, color: color(d ?? "")};
         }));
+
+        // Tooltips
+        // -------------------------------------------------------------------------------------------------------------
+        const tooltips: Record<number, ReturnType<typeof HTMLTooltipEx>> = {};
+        for (const ts of timestamps) {
+            const usageBucket = byTimestampKey.get(ts);
+            if (!usageBucket) continue;
+
+            const tooltip = document.createElement("div");
+            {
+                const bold = document.createElement("b");
+                bold.append(tsFormatter(new Date(ts)));
+
+                tooltip.append(bold);
+                tooltip.append(document.createElement("br"));
+            }
+
+            for (const child of domain) {
+                const container = document.createElement("div");
+                container.style.display = "flex";
+                container.style.gap = "8px";
+                container.style.alignItems = "center";
+
+                {
+                    const colorSquare = document.createElement("div");
+                    colorSquare.style.width = "14px";
+                    colorSquare.style.height = "14px";
+                    colorSquare.style.background = color(child);
+
+                    container.append(colorSquare);
+                }
+
+                {
+                    const node = document.createElement("div");
+                    const change = usageBucket.get(child)?.change ?? 0;
+                    node.append(balanceToStringFromUnit(null, unitName, change * unitNormalizationFactor));
+
+                    container.append(node);
+                }
+
+                tooltip.append(container);
+            }
+
+            tooltips[ts] = HTMLTooltipEx(tooltip);
+        }
+
+        // Y-axis
+        // -------------------------------------------------------------------------------------------------------------
+        const yScaleMin = (min(series, datum => {
+            return min(datum, d => d[0])
+        }) ?? 0) * unitNormalizationFactor;
+
+        const yScaleMax = (max(series, datum => {
+            return max(datum, d => d[1])
+        }) ?? 100) * unitNormalizationFactor;
+
+        const yScale = scaleLinear().domain([yScaleMin, yScaleMax]).nice().range([innerH, margin.top]);
 
         // SVG
         // -------------------------------------------------------------------------------------------------------------
@@ -115,11 +182,18 @@ export function useDeltaOverTimeChart(
             .attr("x", d => {
                 return xSlot(d.data) ?? 0;
             })
-            .attr("y", d => yScale(d[1]))
-            .attr("height", d => yScale(d[0]) - yScale(d[1]))
-            .attr("width", xSlot.bandwidth());
+            .attr("y", d => yScale(d[1] * unitNormalizationFactor))
+            .attr("height", d => yScale(d[0] * unitNormalizationFactor) - yScale(d[1] * unitNormalizationFactor))
+            .attr("width", xSlot.bandwidth())
+            .each((datum, index, elements) => {
+                const rect = elements[index] as SVGRectElement;
+                const ts = datum.data;
+                const tooltip = tooltips[ts];
 
-        const tsFormatter = timeFormat("%b %d %H:%M");
+                rect.onmousemove = tooltip.moveListener;
+                rect.onmouseleave = tooltip.leaveListener;
+            })
+        ;
 
         const gXAxis = svg.append("g")
             .attr("transform", `translate(${margin.left}, ${innerH + margin.top})`)
@@ -134,6 +208,13 @@ export function useDeltaOverTimeChart(
         const gYAxis = svg.append("g")
             .attr("transform", `translate(${margin.left}, ${margin.top})`)
             .call(axisLeft(yScale).ticks(null, "s"));
+
+        gYAxis.select(".tick:last-of-type text")
+            .clone()
+            .attr("x", 3)
+            .attr("text-anchor", "start")
+            .attr("font-weight", "bold")
+            .text(`↑ Usage (${unitName})`);
 
         for (const gAxis of [gXAxis, gYAxis]) {
             gAxis.selectAll("path, line")

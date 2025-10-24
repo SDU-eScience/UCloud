@@ -1148,10 +1148,10 @@ export function truncateValues(
     normalizedBalances: number[],
     isStorage: boolean,
     unit: string,
-    opts?: { removeUnitIfPossible?: boolean }
+    opts?: { removeUnitIfPossible?: boolean, referenceBalance?: number }
 ): { truncated: number[]; attachedSuffix: string | null, unitToDisplay: string, canRemoveUnit: boolean } {
     let canRemoveUnit = opts?.removeUnitIfPossible ?? false;
-    let balanceToDisplay = Math.max(...normalizedBalances);
+    let balanceToDisplay = opts?.referenceBalance ?? Math.max(...normalizedBalances);
 
     let truncated = [...normalizedBalances];
     let unitToDisplay = unit;
@@ -1251,7 +1251,7 @@ export function balanceToStringFromUnit(
     productType: ProductType | null,
     unit: string,
     normalizedBalance: number,
-    opts?: { precision?: number, removeUnitIfPossible?: boolean }
+    opts?: { precision?: number, removeUnitIfPossible?: boolean, referenceBalance?: number }
 ): string {
     const isStorage = productType === "STORAGE" || StandardStorageUnitsSi.indexOf(unit) !== -1 ||
         StandardStorageUnits.indexOf(unit) !== -1;

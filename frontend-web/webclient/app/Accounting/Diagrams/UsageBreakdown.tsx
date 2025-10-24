@@ -1,12 +1,13 @@
 import * as React from "react";
 import {UsageReport} from "@/Accounting/UsageCore2";
-import {ChartLabel} from "@/Accounting/Diagrams/index";
+import {ChartLabel, colorNames} from "@/Accounting/Diagrams/index";
 import {useMemo, useState} from "react";
 import {useD3} from "@/Utilities/d3";
 import {scaleOrdinal} from "d3-scale";
 import {select} from "d3-selection";
 import {arc, pie, PieArcDatum} from "d3-shape";
 import {schemeSpectral} from "d3";
+import {HTMLTooltipEx} from "@/ui-components/Tooltip";
 
 export interface BreakdownChartRow {
     child: string;
@@ -23,7 +24,8 @@ export function useBreakdownChart(
     openReport: UsageReport | null | undefined,
     chartWidth: number,
     chartHeight: number,
-    labelGenerator: (child: string | null) => string,
+    labelFormatter: (child: string | null) => string,
+    valueFormatter: (value: number) => string,
 ): BreakdownChart {
     const [tableRows, setTableRows] = useState<BreakdownChartRow[]>([]);
 
@@ -56,20 +58,14 @@ export function useBreakdownChart(
 
         // Color scheme
         // -------------------------------------------------------------------------------------------------------------
-        const colorStrength = [40, 80, 60];
-        // const shades = ["pink", "purple", "blue", "green", "yellow", "orange", "red"];
-        const shades = ["blue", "orange", "green", "red", "purple", "yellow", "pink"];
-        const colorNames = colorStrength.flatMap(str => shades.map(shade => `var(--${shade}-${str})`));
+
         const color = scaleOrdinal<string>()
             .domain(domain)
-            // .range(["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f",
-            //     "#bcbd22", "#17becf"])
             .range(colorNames)
             .unknown("#ccc");
 
-
         setTableRows(domain.map(d => {
-            return {child: d, color: color(d), value: domainSet[d][1]};
+            return {child: d, color: color(d), value: domainSet[d]};
         }));
 
         // Pie series
@@ -88,10 +84,9 @@ export function useBreakdownChart(
         svg.selectAll("*").remove();
 
         svg
-            .attr("style", "max-width: 100%; height: auto;")
             .attr("viewBox", [-chartWidth / 2, -chartHeight / 2, chartWidth, chartHeight])
 
-        svg.append("g")
+        const pieSlice = svg.append("g")
             .attr("stroke", "white")
             .selectAll()
             .data(arcs)
@@ -99,22 +94,44 @@ export function useBreakdownChart(
             .attr("fill", d => color(d.data[0]))
             .attr("d", d => arcGenerator(d));
 
+        pieSlice.each((datum, index, elements) => {
+            const element = elements[index];
+            if (!element) return;
+
+            const [title, usage] = datum.data;
+
+            const tooltip = document.createElement("div");
+            {
+                const bold = document.createElement("b");
+                bold.append(labelFormatter(title));
+                tooltip.append(bold);
+            }
+
+            tooltip.append(document.createElement("br"));
+
+            {
+                const bold = document.createElement("b");
+                bold.append("Usage: ");
+                tooltip.append(bold);
+            }
+            tooltip.append(valueFormatter(usage));
+
+            const tooltipEvents = HTMLTooltipEx(tooltip, {tooltipContentWidth: 300});
+            element.onmousemove = tooltipEvents.moveListener;
+            element.onmouseleave = tooltipEvents.leaveListener;
+        })
+
         svg.append("g")
             .attr("text-anchor", "middle")
             .selectAll()
             .data(arcs)
             .join("text")
             .attr("transform", d => `translate(${arcLabelGenerator.centroid(d)})`)
-            .call(text => text.append("tspan")
-                .attr("y", "-0.4em")
-                .attr("font-weight", "bold")
-                .text(d => labelGenerator(d.data[0])))
-            .call(text => text.filter(d => (d.endAngle - d.startAngle) > 0.25).append("tspan")
+            .call(text => text.filter(d => (d.endAngle - d.startAngle) > 0.10).append("tspan")
                 .attr("x", 0)
                 .attr("y", "0.7em")
-                .attr("fill-opacity", 0.7)
-                .text(d => d.data[1]));
-    }, [openReport, chartWidth, chartHeight, labelGenerator]);
+                .text(d => valueFormatter(d.data[1])));
+    }, [openReport, chartWidth, chartHeight, labelFormatter]);
 
     // noinspection UnnecessaryLocalVariableJS
     const result: BreakdownChart = useMemo(() => {
