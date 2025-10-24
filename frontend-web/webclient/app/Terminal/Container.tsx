@@ -83,8 +83,6 @@ const Wrapper = injectStyle("wrapper", k => `
 `);
 
 export const TerminalContainer: React.FunctionComponent = () => {
-    if (!hasFeature(Feature.INLINE_TERMINAL)) return null;
-
     const state = useTerminalState();
     const dispatch = useTerminalDispatcher();
 

@@ -16,6 +16,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useDiscovery} from "@/Applications/Hooks";
 import {AppCard2} from "./Landing";
 import {AppGrid} from "@/Applications/Category";
+import {NoResultsBody} from "@/UtilityComponents";
 
 export function useAppSearch(): (query: string) => void {
     const navigate = useNavigate();
@@ -61,6 +62,10 @@ const SearchResults: React.FunctionComponent = () => {
                             <Box ml="auto" />
                             <UtilityBar onSearch={appSearch} initialSearchQuery={query} />
                         </Flex>
+
+                        {results.data.items.length !== 0 ? null : (
+                            <NoResultsBody title={`No applications found with query '${query}'`} children={undefined} />
+                        )}
 
                         <AppGrid>
                             {results.data.items.map(app => (

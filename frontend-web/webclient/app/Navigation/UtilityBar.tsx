@@ -14,9 +14,9 @@ export function UtilityBar(props: {
     initialSearchQuery?: string;
 }): React.ReactNode {
     return (<Flex zIndex={props.zIndex ?? 1} alignItems={"center"} gap={"16px"}>
-        {props.onSearch && <SearchIcon initialQuery={props.initialSearchQuery} onSearch={props.onSearch}/>}
-        <RefreshIcon/>
-        <ProjectSwitcher/>
+        {props.onSearch && <SearchIcon initialQuery={props.initialSearchQuery} onSearch={props.onSearch} />}
+        <RefreshIcon />
+        <ProjectSwitcher />
     </Flex>);
 }
 
@@ -51,7 +51,7 @@ function SearchIcon(props: {
     onSearch: (query: string) => void;
     initialQuery?: string;
 }): React.ReactNode {
-    const [visible, setVisible] = useState(false);
+    const [visible, setVisible] = useState(!!props.initialQuery);
     const inputRef = useRef<HTMLInputElement>(null);
     const ignoreNextToggle = useRef(false);
 
@@ -73,7 +73,6 @@ function SearchIcon(props: {
         e.preventDefault();
         const query = inputRef.current?.value ?? "";
         props.onSearch(query);
-        close();
     }, [props.onSearch]);
 
     const handleEscape = useCallback<KeyboardEventHandler>(e => {
@@ -85,9 +84,9 @@ function SearchIcon(props: {
 
     return <form className={SearchClass} data-active={visible} onSubmit={doSearch}>
         <Input inputRef={inputRef} onBlur={close} placeholder={"Search..."} onKeyDown={handleEscape}
-               defaultValue={props.initialQuery}/>
-        <Icon id={"search-icon"} size={24} color={visible ? "textPrimary" : "#fff" } name="heroMagnifyingGlass"
-              onClick={toggleVisible} cursor={"pointer"}/>
+            defaultValue={props.initialQuery} />
+        <Icon id={"search-icon"} size={24} color={visible ? "textPrimary" : "#fff"} name="heroMagnifyingGlass"
+            onClick={toggleVisible} cursor={"pointer"} />
     </form>;
 }
 
@@ -128,5 +127,5 @@ function RefreshIcon(): React.ReactNode {
     }, [refresh]);
     if (!refresh) return null;
     return <Icon cursor="pointer" size={24} onClick={delayedRefresh} spin={spin || loading}
-                 id={"refresh-icon"} className={refreshIconClass} color="textPrimary" name="heroArrowPath"/>
+        id={"refresh-icon"} className={refreshIconClass} color="textPrimary" name="heroArrowPath" />
 }

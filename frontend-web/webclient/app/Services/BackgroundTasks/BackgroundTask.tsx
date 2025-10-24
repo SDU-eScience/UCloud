@@ -417,7 +417,7 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
         }
     }
 
-    if (!websocket || !hasFeature(Feature.NEW_TASKS)) return null;
+    if (!websocket) return null;
 
     const noEntries = (inProgressCount + fileUploads.finished.length + fileUploads.finished.length + finishedTaskList.length) === 0;
 
