@@ -18,6 +18,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {user} from "@/ui-components/icons";
 import {width} from "styled-system";
 import {dateToString} from "@/Utilities/DateUtilities";
+import allocations from "@/Accounting/Allocations";
 const {supportAssist} = AppRoutes;
 
 // Note(Jonas): Maybe a bit overengineered?
@@ -247,6 +248,7 @@ export function UserSupportContent() {
                     <hr/>
                     <div>
                         <table>
+                            <thead>
                             <tr>
                                 <th align={"left"}>Project Title</th>
                                 <th style={{width: "20px"}}></th>
@@ -254,19 +256,22 @@ export function UserSupportContent() {
                                 <th style={{width: "20px"}}></th>
                                 <th>Role</th>
                             </tr>
+                            </thead>
                         {
                             it.associatedProjects.sort((a,b) => {
                                 return a.specification.title.localeCompare(b.specification.title)
                             }).map(project =>
-                                <tr>
-                                    <td>{project.specification.title}</td>
-                                    <td/>
-                                    <td>({project.id})</td>
-                                    <td/>
-                                    {project.status.members?.map(member =>
-                                        member.username === it.username ? <td>{member.role}</td> : null
-                                    )}
-                                </tr>
+                                <tbody>
+                                    <tr>
+                                        <td>{project.specification.title}</td>
+                                        <td/>
+                                        <td>({project.id})</td>
+                                        <td/>
+                                        {project.status.members?.map(member =>
+                                            member.username === it.username ? <td>{member.role}</td> : null
+                                        )}
+                                    </tr>
+                                </tbody>
                             )
                         }
                         </table>
@@ -419,45 +424,86 @@ export function ProjectSupportContent() {
 
     if (!Client.userIsAdmin || project == null) return null;
     return <MainContainer
-        main={<>{Error}
+        main={<>
+            {Error}
             <div>
-            Project Title:
-            <div>{project.project.specification.title}</div>
-            Created at:
-            <div>{project.project.createdAt} </div>
-            Is allowed to use resources:
-            <div>{project.project.specification.canConsumeResources}</div>
-            Parent project:
-            <div>{project.project.specification.parent}</div>
-            Jobs:
-            <div>
-                {project.jobs !== undefined ? project.jobs.map(it => <>
-                    ID:
-                    {it.id}
-                </>) : null }
+                <h3>Project Information</h3>
+                <hr/>
+                <div>Project Title: {project.project.specification.title}</div>
+                <div>Created at: {dateToString(project.project.createdAt)} </div>
+                <div>Is allowed to use resources: {project.project.specification.canConsumeResources ? "YES" : "NO"}</div>
+                <div>Parent project ID: {projecttitleproject.project.specification.parent}</div>
+                <br/>
+
+                Wallets:
+                <hr/>
+                <div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>
+                                    Resource
+                                </th>
+                                <th style={{width: "20px"}}></th>
+                                <th>
+                                    Quota
+                                </th>
+                                <th style={{width: "20px"}}></th>
+                                <th>
+                                    Local Usage
+                                </th>
+                                <th style={{width: "20px"}}></th>
+                                <th>
+                                    Total Usage
+                                </th>
+                                <th style={{width: "20px"}}></th>
+                                <th>
+                                    Max Usage
+                                </th>
+                                <th style={{width: "20px"}}></th>
+                                <th>
+                                    Allocated to subprojects
+                                </th>
+                            </tr>
+                        </thead>
+                        {
+                            project.projectWallets !== undefined && project.projectWallets !== null ? project.projectWallets.map(resource =>
+                                <tbody>
+                                    <tr>
+                                        <td align={"left"}> {resource.paysFor.name} ({resource.paysFor.provider}) {resource.paysFor.accountingUnit.name} {normalizeFrequency(resource.paysFor.accountingFrequency)} </td> <td/>
+                                        <td align={"right"}> {resource.quota} </td> <td/>
+                                        <td align={"right"}> {resource.localUsage} </td> <td/>
+                                        <td align={"right"}> {resource.totalUsage} </td> <td/>
+                                        <td align={"right"}> {resource.maxUsable} </td> <td/>
+                                        <td align={"right"}> {resource.totalAllocated}</td>
+                                    </tr>
+                                </tbody>
+                            ) : null
+                        }
+                    </table>
+                </div>
+                <br/>
+
+                Accounting Issues:
+                <hr/>
+                <div>
+                    {project.accountingIssues !== null && project.accountingIssues !== undefined ? project.accountingIssues.map(it => <>
+                        Allocation {it.AssociatedAllocation.id} {it.description}
+                    </>) : null}
+                </div>
+                <br/>
+
+                Jobs:
+                <hr/>
+                <div>
+                    {project.jobs !== null && project.jobs !== undefined ? project.jobs.map(it => <>
+                        ID:
+                        {it.id}
+                    </>) : null }
+                </div>
+
             </div>
-            Wallets:
-            <div>{project.projectWallets !== undefined ? project.projectWallets.map(it => <>
-                Resource:
-                {it.paysFor.provider} - {it.paysFor.name}
-                Quota:
-                {it.quota}
-                Local Usage:
-                {it.localUsage}
-                Total Usage:
-                {it.totalUsage}
-                Max Usable
-                {it.maxUsable}
-                Sub Allocated
-                {it.totalAllocated}
-            </>) : null }</div>
-            Accounting Issues:
-            <div>
-                {project.accountingIssues !== undefined ? project.accountingIssues.map(it => <>
-                    Allocation {it.AssociatedAllocation.id} {it.description}
-                </>) : null}
-            </div>
-        </div></>}
+        </>}
     />
 }
 
@@ -526,7 +572,9 @@ export function AllocationSupportContent() {
         // or wallet id? handle graph thing flag
         callAPI(Api.retrieveWalletInfo(
             {allocationId: id, flags}))
-            .then(setAllocation)
+            .then(result =>
+                setAllocation(result)
+            )
             .catch(e => setError(errorMessageOrDefault(e, "Failed to fetch")));
     }, [id, flags]);
 
@@ -535,8 +583,94 @@ export function AllocationSupportContent() {
     return <MainContainer
         main={<>
             {Error}
-            Allocation group count
-            {allocation.wallet.allocationGroups.length}
+            <div>Owner: {allocation.wallet.owner.type === "user" ? allocation.wallet.owner.username : allocation.wallet.owner.projectId}</div>
+            <hr/>
+            <br/>
+
+            <div>
+                <table>
+                    <thead>
+                    <tr>
+                        <th>
+                            Resource
+                        </th>
+                        <th style={{width: "20px"}}></th>
+                        <th>
+                            Quota
+                        </th>
+                        <th style={{width: "20px"}}></th>
+                        <th>
+                            Local Usage
+                        </th>
+                        <th style={{width: "20px"}}></th>
+                        <th>
+                            Total Usage
+                        </th>
+                        <th style={{width: "20px"}}></th>
+                        <th>
+                            Max Usage
+                        </th>
+                        <th style={{width: "20px"}}></th>
+                        <th>
+                            Allocated to subprojects
+                        </th>
+                    </tr>
+                    </thead>
+                        <tbody>
+                        <tr>
+                            <td align={"left"}> {allocation.wallet.paysFor.name} ({allocation.wallet.paysFor.provider}) {allocation.wallet.paysFor.accountingUnit.name} {normalizeFrequency(allocation.wallet.paysFor.accountingFrequency)} </td> <td/>
+                            <td align={"right"}> {allocation.wallet.quota} </td> <td/>
+                            <td align={"right"}> {allocation.wallet.localUsage} </td> <td/>
+                            <td align={"right"}> {allocation.wallet.totalUsage} </td> <td/>
+                            <td align={"right"}> {allocation.wallet.maxUsable} </td> <td/>
+                            <td align={"right"}> {allocation.wallet.totalAllocated}</td>
+                        </tr>
+                        </tbody>
+                </table>
+                <hr/>
+                <br/>
+                <table>
+                    <thead>
+                    <tr>
+                        <th>
+                            Id
+                        </th>
+                        <th style={{width: "20px"}}></th>
+                        <th>
+                            Resource
+                        </th>
+                        <th style={{width: "20px"}}></th>
+                        <th>
+                            Quota
+                        </th>
+                        <th style={{width: "20px"}}></th>
+                        <th>
+                            Start Date
+                        </th>
+                        <th style={{width: "20px"}}></th>
+                        <th>
+                            End Date
+                        </th>
+                    </tr>
+                    </thead>
+                {
+                    allocation.wallet.allocationGroups !== undefined && allocation.wallet.allocationGroups !== null ? allocation.wallet.allocationGroups.map(group =>
+                        group.group !== undefined && group.group !== null ? group.group.allocations.map(allocs =>
+                            <tbody>
+                            <tr>
+                                <td align={"left"}> {allocs.id} </td> <td/>
+                                <td align={"left"}> {allocation.wallet.paysFor.name} ({allocation.wallet.paysFor.provider}) {allocation.wallet.paysFor.accountingUnit.name} {normalizeFrequency(allocation.wallet.paysFor.accountingFrequency)} </td> <td/>
+                                <td align={"right"}> {allocs.quota} </td> <td/>
+                                <td align={"right"}> {allocs.startDate} </td> <td/>
+                                <td align={"right"}> {allocs.endDate} </td> <td/>
+                            </tr>
+                            </tbody>
+                        ) : null
+                    ) : null
+                }
+                </table>
+            </div>
+            <br/>
         </>}
     />
 }

@@ -7,47 +7,47 @@ import (
 )
 
 type SupportAssistProjectInfoFlags struct {
-	IncludeMembers        bool
-	IncludeAccountingInfo bool
-	IncludeJobsInfo       bool
+	IncludeMembers        bool `json:"includeMembers"`
+	IncludeAccountingInfo bool `json:"includeAccountingInfo"`
+	IncludeJobsInfo       bool `json:"includeJobsInfo"`
 }
 
 type SupportAssistRetrieveProjectInfoRequest struct {
-	ProjectId string
-	Flags     SupportAssistProjectInfoFlags
+	ProjectId string                        `json:"projectId"`
+	Flags     SupportAssistProjectInfoFlags `json:"flags"`
 }
 
 type WalletIssue struct {
-	AssociatedAllocation apm.Allocation
-	ProblematicWallet    apm.WalletV2
-	Description          string
+	AssociatedAllocation apm.Allocation `json:"associatedAllocation"`
+	ProblematicWallet    apm.WalletV2   `json:"problematicWallet"`
+	Description          string         `json:"description"`
 }
 
 type SupportAssistRetrieveProjectInfoResponse struct {
-	Project          foundation.Project
-	ProjectWallets   []apm.WalletV2
-	AccountingIssues []WalletIssue
-	Jobs             []Job
+	Project          foundation.Project `json:"project"`
+	ProjectWallets   []apm.WalletV2     `json:"projectWallets"`
+	AccountingIssues []WalletIssue      `json:"accountingIssues"`
+	Jobs             []Job              `json:"jobs"`
 }
 
 type SupportAssistRetrieveJobInfoRequest struct {
-	JobId string
+	JobId string `json:"jobId"`
 }
 
 type SupportAssistRetrieveJobInfoResponse struct {
-	JobInfo Job
+	JobInfo Job `json:"jobInfo"`
 }
 type SupportAssistWalletInfoFlags struct {
-	IncludeAccountingGraph bool
+	IncludeAccountingGraph bool `json:"includeAccountingGraph"`
 }
 type SupportAssistRetrieveWalletInfoRequest struct {
-	AllocationId string
-	Flags        SupportAssistWalletInfoFlags
+	AllocationId string                       `json:"allocationId"`
+	Flags        SupportAssistWalletInfoFlags `json:"flags"`
 }
 
 type SupportAssistRetrieveWalletInfoResponse struct {
-	Wallet          apm.WalletV2
-	AccountingGraph string
+	Wallet          apm.WalletV2 `json:"wallet"`
+	AccountingGraph string       `json:"accountingGraph"`
 }
 
 const SupportAssistOrcContext = "support-assist-orc"

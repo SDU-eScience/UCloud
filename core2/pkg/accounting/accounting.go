@@ -266,17 +266,6 @@ func validateOwner(owner accapi.WalletOwner) bool {
 	return result
 }
 
-func WalletV2ById(actor rpc.Actor, walletId int) (accapi.WalletV2, bool) {
-	if actor.Username == rpc.ActorSystem.Username {
-		wallet, found := internalRetrieveWallet(time.Now(), accWalletId(walletId), false)
-		if found {
-			return wallet, true
-		}
-		return accapi.WalletV2{}, false
-	}
-	return accapi.WalletV2{}, false
-}
-
 func WalletV2ByAllocationID(actor rpc.Actor, allocationId int) (accapi.WalletV2, bool) {
 	if actor.Username == rpc.ActorSystem.Username {
 		wallet, found := internalRetrieveWalletByAllocationId(time.Now(), allocationId)

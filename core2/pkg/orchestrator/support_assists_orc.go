@@ -14,8 +14,9 @@ import (
 
 func initSupportAssistsOrc() {
 	orcapi.SupportAssistRetrieveProjectInfo.Handler(func(info rpc.RequestInfo, request orcapi.SupportAssistRetrieveProjectInfoRequest) (orcapi.SupportAssistRetrieveProjectInfoResponse, *util.HttpError) {
-		println("HITTING HANDLER Project")
-		return retrieveProjectInfo(request.ProjectId, request.Flags)
+		println("HITTING HANDLER Project with flags member: " + strconv.FormatBool(request.Flags.IncludeMembers) + "jobs: " + strconv.FormatBool(request.Flags.IncludeJobsInfo) + " accounting: " + strconv.FormatBool(request.Flags.IncludeAccountingInfo))
+		//TODO (HENRIK) Flags are not processed correctly hard code true to get all info for dev
+		return retrieveProjectInfo(request.ProjectId, orcapi.SupportAssistProjectInfoFlags{IncludeMembers: true, IncludeAccountingInfo: true, IncludeJobsInfo: true})
 	})
 
 	orcapi.SupportAssistRetrieveJobsInfo.Handler(func(info rpc.RequestInfo, request orcapi.SupportAssistRetrieveJobInfoRequest) (orcapi.SupportAssistRetrieveJobInfoResponse, *util.HttpError) {
@@ -52,11 +53,24 @@ func retrieveProjectInfo(projectId string, flags orcapi.SupportAssistProjectInfo
 		if mem.Role.Satisfies(fnd.ProjectRolePI) {
 			pi, found := rpc.LookupActor(mem.Username)
 			if found {
-				piActor = pi
+				piActor = rpc.Actor{
+					Username:         pi.Username,
+					Role:             pi.Role,
+					Project:          util.OptValue(rpc.ProjectId(project.Id)),
+					TokenInfo:        pi.TokenInfo,
+					Membership:       pi.Membership,
+					Groups:           pi.Groups,
+					ProviderProjects: pi.ProviderProjects,
+					Domain:           pi.Domain,
+					OrgId:            pi.OrgId,
+				}
 				break
 			}
 		}
 	}
+
+	value := piActor.Project.Value
+	println("User: " + piActor.Username + " P is : " + string(value))
 
 	var wallets []apm.WalletV2
 	var issues []orcapi.WalletIssue
