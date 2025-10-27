@@ -42,7 +42,7 @@ export function useUtilizationOverTimeChart(
         const r = openReport;
         if (r == null) return;
 
-        const data = r.usageOverTime.absolute.filter(it => it.timestamp > 0); // TODO backend shouldn't return this
+        const data = r.usageOverTime.absolute;
         if (data.length === 0) return;
 
         // Dimensions and margin
@@ -95,7 +95,6 @@ export function useUtilizationOverTimeChart(
 
         const meanUsage = usageArray[Math.floor(usageArray.length / 2)] * unitNormalizationFactor;
         const meanUtilization = utilizationArray[Math.floor(utilizationArray.length / 2)];
-        console.log({l: usageArray.length, middle: usageArray.length/2, meanUsage});
 
         minUsage *= unitNormalizationFactor;
         maxUsage *= unitNormalizationFactor;
@@ -330,7 +329,7 @@ export function useUtilizationOverTimeChart(
                         if (key === "utilizationPercent100") {
                             node.append(value.toFixed(2) + "%");
                         } else {
-                            node.append(balanceToString(value));
+                            node.append(balanceToString(value * unitNormalizationFactor));
                         }
 
                         container.append(node);

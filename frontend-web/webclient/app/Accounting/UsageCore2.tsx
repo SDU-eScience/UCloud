@@ -7,7 +7,7 @@ import {
     ProductCategoryId
 } from "@/Accounting/index";
 import {apiRetrieve, callAPI} from "@/Authentication/DataHook";
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {useCallback, useEffect, useMemo} from "react";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {Box, Button, Card, Flex, Icon, Input, MainContainer} from "@/ui-components";
 import {doNothing, errorMessageOrDefault, looksLikeUUID, shortUUID, stopPropagation} from "@/UtilityFunctions";
@@ -22,17 +22,12 @@ import {useImmerState} from "@/Utilities/Immer";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {useMaxContentWidth} from "@/Utilities/StylingUtilities";
-import {useD3} from "@/Utilities/d3";
-import {select} from "d3-selection";
-import {stack} from "d3-shape";
-import {index, max, min, union} from "d3-array";
 import {useProjectInfos} from "@/Project/InfoCache";
-import {scaleBand, scaleLinear, scaleOrdinal, scalePoint, scaleTime} from "d3-scale";
-import {axisBottom, axisLeft} from "d3-axis";
-import {timeFormat} from "d3-time-format";
 import {useDeltaOverTimeChart} from "@/Accounting/Diagrams/DeltaOverTime";
 import {useBreakdownChart} from "@/Accounting/Diagrams/UsageBreakdown";
 import {useUtilizationOverTimeChart} from "@/Accounting/Diagrams/UtilizationOverTime";
+import {TooltipV2} from "@/ui-components/Tooltip";
+import {getStartOfDay} from "@/Utilities/DateUtilities";
 
 interface UsageRetrieveRequest {
     start: number;
@@ -72,6 +67,8 @@ export interface UsageReport {
 
         totalAllocatedAtStart: number;
         totalAllocatedAtEnd: number;
+
+        nextMeaningfulExpiration?: number | null;
     };
 
     subProjectHealth: {
@@ -198,6 +195,8 @@ const UsagePage: React.FunctionComponent = () => {
     const project = useProject();
     const projectId = useProjectId();
     const maxContentWidth = useMaxContentWidth();
+
+    // TODO Empty page behavior
 
     usePage("Usage", SidebarTabId.PROJECT);
 
@@ -333,6 +332,15 @@ const UsagePage: React.FunctionComponent = () => {
     const breakdownChart = useBreakdownChart(state.openReport, breakdownChartWidth,
         breakdownChartHeight, childToLabel, valueFormatter);
 
+    const childConsumption = useMemo(() => {
+        const r = state.openReport;
+        if (r == null) {
+            return 0;
+        } else {
+            return r.usageOverTime.delta.reduce((prev, next) => prev + (next.child != null ? next.change : 0), 0);
+        }
+    }, [state.openReport]);
+
     // User-interface
     // -----------------------------------------------------------------------------------------------------------------
     if (project.fetch().status.personalProviderProjectFor != null) {
@@ -353,10 +361,44 @@ const UsagePage: React.FunctionComponent = () => {
     if (state.openReport !== undefined) {
         const r = state.openReport;
         const unit = explainUnitEx(r.unitAndFrequency.unit, r.unitAndFrequency.frequency, null);
-        const balanceToString = (balance: number, remove?: boolean): string => {
+        const balanceToString = (balance: number, remove?: boolean, reference?: number): string => {
             const normalizedBalance = balance * unit.balanceFactor;
-            return balanceToStringFromUnit(null, unit.name, normalizedBalance, { referenceBalance: 1000, removeUnitIfPossible: remove });
+            return balanceToStringFromUnit(null, unit.name, normalizedBalance, {
+                referenceBalance: reference ?? 1000,
+                removeUnitIfPossible: remove
+            });
         };
+
+        const period = normalizePeriod(state.period);
+        const alignedStart = getStartOfDay(new Date(period.start)).getTime();
+        const alignedEnd = getStartOfDay(new Date(period.end)).getTime();
+        const periodLengthInDays = Math.max(1, Math.floor((alignedEnd - alignedStart) / (1000 * 60 * 60 * 24)));
+
+        const daysUntilExpiration = r.kpis.nextMeaningfulExpiration == null ?
+            0 :
+            Math.max(0, Math.floor((r.kpis.nextMeaningfulExpiration - period.end) / (1000 * 60 * 60 * 24)));
+
+        const combinedUsage = r.kpis.totalUsageAtEnd - r.kpis.totalUsageAtStart;
+        const burnRate = (combinedUsage) / periodLengthInDays;
+        const daysUntilDepletion = burnRate <= 0 ? null : Math.floor((r.kpis.quotaAtEnd - r.kpis.totalUsageAtEnd) / burnRate);
+
+        const overCommitRatio = r.kpis.quotaAtEnd != 0 ? r.kpis.totalAllocatedAtEnd / r.kpis.quotaAtEnd : 0;
+        const childBurnRate = childConsumption / periodLengthInDays;
+        const localBurnRate = (combinedUsage - childConsumption) / periodLengthInDays;
+        const baselineChildBurnRate = overCommitRatio != 0 ? childBurnRate / overCommitRatio : 0;
+
+        // NOTE(Dan): I am pretty sure I accidentally made this more complicated than it needs to be. This is intended
+        // to give the over-commit ratio required to hit 90% usage when the next meaningful expiration hits.
+        const recommendedOverCommit = baselineChildBurnRate == 0 || daysUntilExpiration == 0 ? 0 :
+            ((((r.kpis.quotaAtEnd * 0.9) - combinedUsage) / daysUntilExpiration) - localBurnRate) / baselineChildBurnRate;
+
+        const BalanceDisplay: (props: { value: number, children?: React.ReactNode }) => React.ReactNode = ({value, children}) => {
+            return <div style={{display: "inline-block"}}>
+                <TooltipV2 tooltip={balanceToString(value, false, 1)}>
+                    {balanceToString(value, true)}{children}
+                </TooltipV2>
+            </div>;
+        }
 
         reportNode = <>
             <Flex gap={"16px"} flexWrap={"wrap"}>
@@ -367,22 +409,43 @@ const UsagePage: React.FunctionComponent = () => {
                         <table width={"100%"}>
                             <tbody>
                             <tr>
-                                <th align={"left"}>Use:</th>
-                                <td align={"right"}>1.100,0K</td>
-                                <td align={"center"}>→</td>
-                                <td align={"right"}>1.112,0K</td>
+                                <th align={"left"}>
+                                    <TooltipV2 tooltip={<>
+                                        Your current usage in the project. This includes the use from your project
+                                        and all of your children. Note that the usage is since the beginning of
+                                        your project.
+                                    </>}>
+                                        Use:
+                                    </TooltipV2>
+                                </th>
+                                <td align={"right"}>
+                                    <BalanceDisplay value={r.kpis.totalUsageAtEnd}/>
+                                </td>
                             </tr>
                             <tr>
-                                <th align={"left"}>Quota:</th>
-                                <td align={"right"}>10.125,0K</td>
-                                <td align={"center"}>→</td>
-                                <td align={"right"}>10.125,0K</td>
+                                <th align={"left"}>
+                                    <TooltipV2 tooltip={<>
+                                        Your current quota in the project. If the usage ever exceeds the quota, then
+                                        you will not be able to continue consuming resources.
+                                    </>}>
+                                        Quota:
+                                    </TooltipV2>
+                                </th>
+                                <td align={"right"}>
+                                    <BalanceDisplay value={r.kpis.quotaAtEnd}/>
+                                </td>
                             </tr>
                             <tr>
-                                <th align={"left"}>Change:</th>
-                                <td align={"right"}>13,0K</td>
-                                <td align={"center"}>→</td>
-                                <td align={"right"}>12,7K</td>
+                                <th align={"left"}>
+                                    <TooltipV2 tooltip={<>
+                                        The change, during the period, in usage.
+                                    </>}>
+                                        Change:
+                                    </TooltipV2>
+                                </th>
+                                <td align={"right"}>
+                                    <BalanceDisplay value={r.kpis.totalUsageAtEnd - r.kpis.totalUsageAtStart}/>
+                                </td>
                             </tr>
                             </tbody>
                         </table>
@@ -396,21 +459,44 @@ const UsagePage: React.FunctionComponent = () => {
                         <table width={"100%"}>
                             <tbody>
                             <tr>
-                                <th align={"left"}>Burn-rate:</th>
-                                <td align={"right"}>1,7K/day</td>
-                                <td align={"center"}>
-                                    <Box color={"successDark"}>↑</Box>
+                                <th align={"left"}>
+                                    <TooltipV2 tooltip={"Average daily rate of use."}>
+                                        Burn-rate:
+                                    </TooltipV2>
+                                </th>
+                                <td align={"right"}>
+                                    <BalanceDisplay value={burnRate}>
+                                        /day
+                                    </BalanceDisplay>
                                 </td>
                             </tr>
                             <tr>
-                                <th align={"left"}>Est. depletion in:</th>
-                                <td align={"right"}>5.302 days</td>
-                                <td align={"center"}>→</td>
+                                <th align={"left"}>
+                                    <TooltipV2 tooltip={<>
+                                        Duration estimated to run out of resources on your <i>currently active</i>
+                                        {" "}allocations at your current burn-rate.
+                                        <br/><br/>
+                                        The duration is counted from the end of the selected period.
+                                    </>}>
+                                        Est. depletion in:
+                                    </TooltipV2>
+                                </th>
+                                <td align={"right"}>
+                                    {daysUntilDepletion === null ? "-" : <>{daysUntilDepletion} days</>}
+                                </td>
                             </tr>
                             <tr>
-                                <th align={"left"}>Alloc exp. in:</th>
-                                <td align={"right"}>365 days</td>
-                                <td align={"center"}>→</td>
+                                <th align={"left"}>
+                                    <TooltipV2 tooltip={<>
+                                        Duration until one of your allocations expires. Allocations which contribute
+                                        less than 10% of your total quota are not counted.
+                                        <br/><br/>
+                                        The duration is counted from the end of the selected period.
+                                    </>}>
+                                        Alloc exp. in:
+                                    </TooltipV2>
+                                </th>
+                                <td align={"right"}>{daysUntilExpiration} days</td>
                             </tr>
                             </tbody>
                         </table>
@@ -423,22 +509,47 @@ const UsagePage: React.FunctionComponent = () => {
                     <table width={"100%"}>
                         <tbody>
                         <tr>
-                            <th align={"left"}>Allocated:</th>
-                            <td align={"right"}>1.100,0K</td>
-                            <td align={"center"}>→</td>
-                            <td align={"right"}>1.112,0K</td>
+                            <th align={"left"}>
+                                <TooltipV2 tooltip={<>
+                                    The total amount of resources allocated to your sub-projects.
+
+                                    <br/><br/>
+
+                                    This number counts all allocations which contributes towards your usage. Because of
+                                    this, allocations which have expired may still contribute some amount towards this
+                                    number.
+                                </>}>
+                                    Allocated:
+                                </TooltipV2>
+                            </th>
+                            <td align={"right"}>
+                                <BalanceDisplay value={r.kpis.totalAllocatedAtEnd} />
+                            </td>
                         </tr>
                         <tr>
-                            <th align={"left"}>Over-commit:</th>
-                            <td/>
-                            <td/>
-                            <td align={"right"}>1,3x</td>
+                            <th align={"left"}>
+                                <TooltipV2 tooltip={<>
+                                    The ratio between your allocated resources versus your quota.
+                                    <br/><br/>
+                                    Calculated as:{" "}
+                                    <pre style={{display: "inline-block", margin: "0"}}>Allocated / Quota</pre>
+                                    .
+                                </>}>
+                                    Over-commit:
+                                </TooltipV2>
+                            </th>
+                            <td align={"right"}>{overCommitRatio.toFixed(1)}x</td>
                         </tr>
                         <tr>
-                            <th align={"left"}>Rec. over-commit:</th>
-                            <td/>
-                            <td/>
-                            <td align={"right"}>2,5x</td>
+                            <th align={"left"}>
+                                <TooltipV2 tooltip={<>
+                                    The recommended over-commit ratio to reach 90% utilization at the next expiry
+                                    date given your current burn-rate.
+                                </>}>
+                                    Rec. over-commit:
+                                </TooltipV2>
+                            </th>
+                            <td align={"right"}>{recommendedOverCommit === 0 ? "-" : <>{recommendedOverCommit.toFixed(1)}x</>}</td>
                         </tr>
                         </tbody>
                     </table>
@@ -450,24 +561,21 @@ const UsagePage: React.FunctionComponent = () => {
                         <tbody>
                         <tr>
                             <th align={"left"}>Healthy:</th>
-                            <td align={"right"} width={"42px"}>30%</td>
-                            <td align={"center"}>→</td>
-                            <td align={"right"} width={"42px"}>90%</td>
-                            <td align={"center"}><Box color={"successDark"}>↑</Box></td>
+                            <td align={"right"} width={"42px"}>
+                                {((r.subProjectHealth.ok / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
+                            </td>
                         </tr>
                         <tr>
                             <th align={"left"}>Underutilized:</th>
-                            <td align={"right"} width={"42px"}>70%</td>
-                            <td align={"center"}>→</td>
-                            <td align={"right"} width={"42px"}>5%</td>
-                            <td align={"center"}><Box color={"successDark"}>↓</Box></td>
+                            <td align={"right"} width={"42px"}>
+                                {((r.subProjectHealth.underUtilized / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
+                            </td>
                         </tr>
                         <tr>
                             <th align={"left"}>At risk:</th>
-                            <td align={"right"} width={"42px"}>0%</td>
-                            <td align={"center"}>→</td>
-                            <td align={"right"} width={"42px"}>5%</td>
-                            <td align={"center"}><Box color={"errorDark"}>↑</Box></td>
+                            <td align={"right"} width={"42px"}>
+                                {((r.subProjectHealth.atRisk / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
+                            </td>
                         </tr>
                         </tbody>
                     </table>
@@ -521,7 +629,8 @@ const UsagePage: React.FunctionComponent = () => {
             <Card>
                 <h3>Utilization over time</h3>
                 <Flex flexWrap={"wrap"} gap={"16px"}>
-                    <svg ref={utilizationOverTime.chartRef} width={utilizationChartWidth} height={utilizationChartHeight}/>
+                    <svg ref={utilizationOverTime.chartRef} width={utilizationChartWidth}
+                         height={utilizationChartHeight}/>
 
                     <div className={TableStyle} style={{flexBasis: "380px"}}>
                         <table>
@@ -537,24 +646,24 @@ const UsagePage: React.FunctionComponent = () => {
                             </tr>
                             </thead>
                             <tbody>
-                                <tr>
-                                    <td><b>Min</b></td>
-                                    {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
-                                        {row.min}
-                                    </td>)}
-                                </tr>
-                                <tr>
-                                    <td><b>Max</b></td>
-                                    {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
-                                        {row.max}
-                                    </td>)}
-                                </tr>
-                                <tr>
-                                    <td><b>Mean</b></td>
-                                    {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
-                                        {row.mean}
-                                    </td>)}
-                                </tr>
+                            <tr>
+                                <td><b>Min</b></td>
+                                {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
+                                    {row.min}
+                                </td>)}
+                            </tr>
+                            <tr>
+                                <td><b>Max</b></td>
+                                {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
+                                    {row.max}
+                                </td>)}
+                            </tr>
+                            <tr>
+                                <td><b>Mean</b></td>
+                                {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
+                                    {row.mean}
+                                </td>)}
+                            </tr>
                             </tbody>
                         </table>
                     </div>
@@ -566,7 +675,7 @@ const UsagePage: React.FunctionComponent = () => {
     return <MainContainer
         main={<Flex flexDirection={"column"} gap={"32px"}>
             <Flex>
-                <h3 className="title" style={{marginTop: "auto", marginBottom: "auto"}}>Usage</h3>
+                <h3 className="title" style={{marginTop: "auto", marginBottom: "auto"}}>Usage report</h3>
                 <Box flexGrow={1}/>
                 <ProjectSwitcher/>
             </Flex>
