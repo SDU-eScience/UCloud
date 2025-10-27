@@ -426,14 +426,10 @@ func CallService(
 		"Authorization: Bearer " + bearer,
 	}
 	if body != "" {
-		list = append(list, "-H")
-		list = append(list, "Content-Type: application/json")
-		list = append(list, "-d")
-		list = append(list, body)
-
+		list = append(list, []string{"-H", "Content-Type: application/json", "-d", body}...)
 	} else {
 		list = append(list, "-d")
-		list = append(list, "")
+		list = append(list, "") // ???
 	}
 
 	list = append(list, opts...)

@@ -809,11 +809,11 @@ func ServiceMenu(requireLogs bool, requireExec bool, requireAddress bool) termio
 		}
 		myPrefix := foundParts[0]
 		if myPrefix != lastPrefix {
-			items = append(items, termio.MenuItem{service.ContainerName(), myPrefix, true})
+			items = append(items, termio.MenuItem{Value: service.ContainerName(), Message: myPrefix, Separator: true})
 			lastPrefix = myPrefix
 		}
 		suffix := foundParts[1]
-		items = append(items, termio.MenuItem{service.ContainerName(), suffix, false})
+		items = append(items, termio.MenuItem{Value: service.ContainerName(), Message: suffix, Separator: false})
 	}
 	items = append(items, termio.MenuItem{
 		Value:     "other",

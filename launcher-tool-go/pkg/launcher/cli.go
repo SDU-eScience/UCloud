@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"slices"
@@ -57,7 +58,7 @@ func CliIntercept(args []string) {
 		}
 		service := ServiceByName(svcName)
 		if service.containerName == "" || service.title == "" {
-			fmt.Println("Unknown service:", svcName, "! Try on of the following:")
+			fmt.Println("Unknown service:", svcName, "! Try one of the following:")
 			for _, ser := range AllServices {
 				fmt.Println("  - ", ser.containerName, ": ", ser.title)
 			}
@@ -241,24 +242,76 @@ func CliIntercept(args []string) {
 			cmdToRun = append(cmdToRun, "test")
 		}
 
+		// Create one user
+		withResourceUsername := "user-resources"
+		withResourcePassword := "user-resources-password"
+		locationOrigin := "https://dev.cloud.sdu.dk"
+		createUser(withResourceUsername, withResourcePassword, "USER")
+
+		pathToTestInfo := repoRoot.GetAbsolutePath() + "/frontend-web/webclient/tests/test_data.json"
+		err := os.WriteFile(pathToTestInfo, []byte(`{
+		    "location_origin": "`+locationOrigin+`",
+		    "users": {
+		        "with_resources": {
+		            "username": "`+withResourceUsername+`",
+		            "password": "`+withResourcePassword+`"
+		        },
+		        "without_resources": {
+
+		        }
+		    }
+		}`), 0777)
+		if err != nil {
+			panic(err)
+		}
+
 		fmt.Println(strings.Join(cmdToRun, " "))
 
 		// TODO: Create users, one with resources, and one without.
-
-		// TODO: Write file with this content to `/frontend-web/webclient/tests/test_data.json`
-
-		// type SimpleUser struct {
-		// 	username String
-		// 	password String
-		// }
-		// type JSONContent struct {
-		// 	location_origin string
-		// 	users           struct {
-		// 		with_resources    SimpleUser
-		// 		without_resources SimpleUser
-		// 	}
-		// }
 	}
 
 	os.Exit(0)
 }
+func createUser(username string, password string, role string) {
+	accessToken := FetchAccessToken()
+	mail := username + "@fake-mail.com"
+	response := CallService(
+		"backend",
+		"POST",
+		"http://localhost:8080/auth/users/register",
+		accessToken,
+		//language=json
+		`[{firstnames: `+username+`, lastname: `+username+`, username: `+username+`, password: `+password+`,  role: `+role+`, email: `+mail+`}]`,
+		[]string{},
+	)
+	fmt.Println(response)
+	// TODO(Jonas): better error handling. See below how responses look
+
+	var errorMessage struct {
+		Why string `json:"why"`
+	}
+
+	_ = json.Unmarshal([]byte(response), &errorMessage)
+
+	if errorMessage.Why != "" {
+		if strings.Contains(errorMessage.Why, "Conflict") {
+			fmt.Println("User already exists. Proceeding.")
+		} else {
+			panic("Unhandled error: " + errorMessage.Why + ". Bailing")
+		}
+	}
+
+	fmt.Println("User " + username + " created")
+}
+
+/*
+	./launcher test-e2e # creating user successfully
+	[✅] Connecting to compose environment
+	npx playwright test
+	[{"accessToken":"FOOBAR","refreshToken":"BAZ","csrfToken":"QUX"}]
+
+	./launcher test-e2e # already exists
+	[✅] Connecting to compose environment
+	npx playwright test
+	{"why":"Conflict","errorCode":null}
+*/

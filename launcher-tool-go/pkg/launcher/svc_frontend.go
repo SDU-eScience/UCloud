@@ -10,7 +10,7 @@ func (uf *UCloudFrontend) Build(cb ComposeBuilder) {
 			//language=json
 			`
 				{
-					"image": "node",
+					"image": "node:22.21.0",
 					"command": ["sh", "-c", "npm install ; npm run start:compose"],
 					"restart": "always",
 					"hostname": "frontend",
