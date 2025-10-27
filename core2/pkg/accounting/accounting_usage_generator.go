@@ -46,7 +46,7 @@ func UsageGenGenerate(api UsageGenApi, cfg accapi.UsageGenConfig) *UsageGenProje
 			Parent: "",
 			Title:  "UGTest",
 			Level:  -1,
-			Quota:  100_000_000_000,
+			Quota:  600_000 * int64(cfg.Days),
 		},
 	}
 

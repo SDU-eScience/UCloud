@@ -80,6 +80,8 @@ type UsageReportKpis struct {
 
 	TotalAllocatedAtStart int64 `json:"totalAllocatedAtStart"`
 	TotalAllocatedAtEnd   int64 `json:"totalAllocatedAtEnd"`
+
+	NextMeaningfulExpiration util.Option[fnd.Timestamp] `json:"nextMeaningfulExpiration"`
 }
 
 type UsageReportSubProjectHealth struct {
