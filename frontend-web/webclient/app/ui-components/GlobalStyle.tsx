@@ -455,7 +455,12 @@ html {
 
     /* New color palette END */
 
-    --defaultShadow: rgba(0, 0, 0, 0.16) 0px 3px 6px, rgba(0, 0, 0, 0.10) 0px -3px 12px, rgba(0, 0, 0, 0.23) 0px 3px 6px;
+    --defaultShadow: 
+        rgba(0, 0, 0, 0.3) 0px 1px 3px 0px, 
+        rgba(0, 0, 0, 0.3) 0px 1px 2px -1px;
+      
+     --defaultCardBorder: 0.5px solid var(--borderColor);
+      
     --sidebarWidth: 64px;
     --secondarySidebarWidth: 220px;
     --popInWidth: 368px;
@@ -493,6 +498,11 @@ html.dark {
     --sidebarColor: var(--blue-90);
     --sidebarSecondaryColor: var(--blue-80);
     --appLogoBackground: #ffffff;
+    
+     --defaultCardBorder: 1px solid var(--borderColor);
+    --defaultShadow: 
+        rgba(0, 0, 0, 0.7) 0px 1px 3px 0px, 
+        rgba(255, 255, 255, 0.3) 0px 1px 2px -1px;
 }
 
     

@@ -66,13 +66,13 @@ func addGrantGiverEx(t *testing.T, id string, addResources bool) {
 		{
 			accBucket := internalBucketOrInit(cpuCategory)
 			w := internalWalletByOwner(accBucket, time.Now(), owner)
-			_, _ = internalAllocate(time.Now(), accBucket, time.Now(), time.Now().AddDate(1, 0, 0), 1000000, w, 0,
+			_, _ = internalAllocateNoCommit(time.Now(), accBucket, time.Now(), time.Now().AddDate(1, 0, 0), 1000000, w, 0,
 				util.OptNone[accGrantId]())
 		}
 		{
 			accBucket := internalBucketOrInit(storageCategory)
 			w := internalWalletByOwner(accBucket, time.Now(), owner)
-			_, _ = internalAllocate(time.Now(), accBucket, time.Now(), time.Now().AddDate(1, 0, 0), 1000000, w, 0,
+			_, _ = internalAllocateNoCommit(time.Now(), accBucket, time.Now(), time.Now().AddDate(1, 0, 0), 1000000, w, 0,
 				util.OptNone[accGrantId]())
 		}
 	}

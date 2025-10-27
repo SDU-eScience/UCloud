@@ -50,7 +50,7 @@ export function updateAllocation(request: BulkRequest<UpdateAllocationRequestIte
     return apiUpdate(request, "/api/accounting", "allocation");
 }
 
-export type WalletOwner = {type: "user"; username: string} | {type: "project"; projectId: string;};
+export type WalletOwner = { type: "user"; username: string } | { type: "project"; projectId: string; };
 
 export function productCategoryEquals(a: ProductCategoryId, b: ProductCategoryId): boolean {
     return a.provider === b.provider && a.name === b.name;
@@ -365,8 +365,8 @@ export function guesstimateProductCategoryDescription(
     return hardcodedProductCategoryDescriptions[provider]?.[normalizedCategory] ?? "";
 }
 
-type BalanceAndCategory = {balance: number; category: ProductCategoryV2;}
-type CombinedBalance = {productType: ProductType, normalizedBalance: number, unit: string};
+type BalanceAndCategory = { balance: number; category: ProductCategoryV2; }
+type CombinedBalance = { productType: ProductType, normalizedBalance: number, unit: string };
 
 export function combineBalances(
     balances: BalanceAndCategory[]
@@ -401,16 +401,46 @@ export interface FrontendAccountingUnit {
 }
 
 export function explainUnit(category: ProductCategoryV2): FrontendAccountingUnit {
-    const unit = category.accountingUnit;
+    return explainUnitEx(category.accountingUnit, category.accountingFrequency, category.productType);
+}
+
+export function explainUnitEx(
+    unit: AccountingUnit,
+    frequency: AccountingFrequency,
+    productType: ProductType | null,
+): FrontendAccountingUnit {
     let priceFactor = 1;
     let frequencyFactor = 1;
     let balanceFactor = 1;
     let unitName = unit.namePlural;
     let suffix = "";
-    let desiredFrequency: AccountingFrequency = "ONCE";
 
-    if (category.accountingFrequency !== "ONCE") {
-        switch (category.productType) {
+    let estimatedProductType: ProductType;
+    if (productType !== null) {
+        estimatedProductType = productType;
+    } else {
+        if (StandardStorageUnits.indexOf(unit.name) !== -1) {
+            estimatedProductType = "STORAGE";
+        } else if (StandardStorageUnitsSi.indexOf(unit.name) !== -1) {
+            estimatedProductType = "STORAGE";
+        } else if (unit.name == "Core") {
+            estimatedProductType = "COMPUTE";
+        } else if (unit.name == "GPU") {
+            estimatedProductType = "COMPUTE";
+        } else if (unit.name == "IP") {
+            estimatedProductType = "NETWORK_IP";
+        } else if (unit.name == "Link") {
+            estimatedProductType = "INGRESS";
+        } else if (unit.name == "License") {
+            estimatedProductType = "LICENSE";
+        } else {
+            estimatedProductType = "COMPUTE";
+        }
+    }
+
+    let desiredFrequency: AccountingFrequency = frequency;
+    if (frequency !== "ONCE") {
+        switch (estimatedProductType) {
             case "COMPUTE":
                 desiredFrequency = "PERIODIC_HOUR";
                 break;
@@ -420,8 +450,7 @@ export function explainUnit(category: ProductCategoryV2): FrontendAccountingUnit
                 break
         }
 
-        const actualFrequency = category.accountingFrequency;
-        frequencyFactor = frequencyToMillis(actualFrequency) / frequencyToMillis(desiredFrequency);
+        frequencyFactor = frequencyToMillis(frequency) / frequencyToMillis(desiredFrequency);
         priceFactor = frequencyFactor;
         balanceFactor = priceFactor;
 
@@ -443,9 +472,9 @@ export function explainUnit(category: ProductCategoryV2): FrontendAccountingUnit
         priceFactor,
         invBalanceFactor: 1 / balanceFactor,
         balanceFactor,
-        productType: category.productType,
+        productType: estimatedProductType,
         frequencyFactor,
-        desiredFrequency
+        desiredFrequency: desiredFrequency,
     };
 }
 
@@ -739,6 +768,16 @@ function allocationNote(
 export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDisplayTree {
     // NOTE(Dan): This function assumes that allWallets are owned by the same owner.
 
+    // NOTE(Dan): Detect Core2 server by looking for Core2 only fields.
+    const isCore2Response = allWallets.some(
+        w => w.allocationGroups.some(
+            ag => ag.group.allocations.some(
+                a => a.retiredQuota !== undefined
+            )
+        )
+    );
+
+
     const relevantWallets = allWallets.filter(it => !it.paysFor.freeToUse);
     const tree: AllocationDisplayTree = {
         yourAllocations: {},
@@ -798,14 +837,14 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
 
             const combineShouldUseRetired = wallets.map(wallet =>
                 wallet.paysFor.accountingFrequency === "ONCE"
-            )
+            );
 
             for (let i = 0; i < combinedQuotas.length; i++) {
                 const usage = combinedUsage[i];
                 const quota = combinedQuotas[i];
-                const maxUsable = combineMaxUsable[i]
-                const retired = combineRetire[i]
-                const shouldUseRetired = combineShouldUseRetired[i]
+                const maxUsable = combineMaxUsable[i];
+                const retired = combineRetire[i];
+                const shouldUseRetired = combineShouldUseRetired[i];
 
                 entry.usageAndQuota.push(new UsageAndQuota({
                     usage: usage.normalizedBalance,
@@ -941,6 +980,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                     combinedQuota += alloc.quota;
                 }
             });
+
             const maxUsable = combineBalances([{
                 balance: wallet.maxUsable,
                 category: wallet.paysFor
@@ -950,6 +990,11 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
             let combinedUsage = childGroup.group.usage;
             if (!shouldUseRetired) {
                 combinedUsage += combinedRetired;
+            }
+
+            if (isCore2Response) {
+                combinedQuota = childGroup.group.quota!;
+                combinedUsage = childGroup.group.usage;
             }
 
             const localUsage = combineBalances([{balance: childGroup.group.usage, category: wallet.paysFor}]);
@@ -1047,6 +1092,37 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
         return a.owner.title.localeCompare(b.owner.title);
     });
 
+    if (isCore2Response) {
+        // TODO(Dan): Clean up this code later when we are getting ready to make the switch. I am currently trying to
+        //   minimize the number of places these changes are visible.
+
+        const updateUsageAndQuota = (uq: UsageAndQuota) => {
+            uq.raw.retiredAmount = 0;
+            uq.raw.retiredAmountStillCounts = false;
+            uq.updateDisplay();
+        };
+
+        for (const subtree of Object.values(tree.yourAllocations)) {
+            for (const uq of subtree.usageAndQuota) {
+                updateUsageAndQuota(uq);
+            }
+
+            for (const w of subtree.wallets) {
+                updateUsageAndQuota(w.usageAndQuota);
+            }
+        }
+
+        for (const subtree of tree.subAllocations.recipients) {
+            for (const uq of subtree.usageAndQuota) {
+                updateUsageAndQuota(uq);
+            }
+
+            for (const g of subtree.groups) {
+                updateUsageAndQuota(g.usageAndQuota);
+            }
+        }
+    }
+
     return tree;
 }
 
@@ -1061,7 +1137,7 @@ export function explainWallet(wallet: WalletV2): AllocationDisplayWallet | null 
 export function balanceToString(
     category: ProductCategoryV2,
     balance: number,
-    opts?: {precision?: number, removeUnitIfPossible?: boolean}
+    opts?: { precision?: number, removeUnitIfPossible?: boolean }
 ): string {
     const unit = explainUnit(category);
     const normalizedBalance = balance * unit.balanceFactor;
@@ -1072,10 +1148,10 @@ export function truncateValues(
     normalizedBalances: number[],
     isStorage: boolean,
     unit: string,
-    opts?: {removeUnitIfPossible?: boolean}
-): {truncated: number[]; attachedSuffix: string | null, unitToDisplay: string, canRemoveUnit: boolean} {
+    opts?: { removeUnitIfPossible?: boolean, referenceBalance?: number }
+): { truncated: number[]; attachedSuffix: string | null, unitToDisplay: string, canRemoveUnit: boolean } {
     let canRemoveUnit = opts?.removeUnitIfPossible ?? false;
-    let balanceToDisplay = Math.max(...normalizedBalances);
+    let balanceToDisplay = opts?.referenceBalance ?? Math.max(...normalizedBalances);
 
     let truncated = [...normalizedBalances];
     let unitToDisplay = unit;
@@ -1119,8 +1195,36 @@ export function truncateValues(
     return {truncated, attachedSuffix, unitToDisplay, canRemoveUnit};
 }
 
-export function formatUsageAndQuota(usage: number, quota: number, isStorage: boolean, unit: string, opts?: {precision?: number, removeUnitIfPossible?: boolean}): string {
-    const {truncated, attachedSuffix, unitToDisplay, canRemoveUnit} = truncateValues([usage, quota], isStorage, unit, opts);
+export function formatUsage(usage: number, productType: ProductType | null, unit: string) {
+    const isStorage = productType === "STORAGE" || StandardStorageUnitsSi.indexOf(unit) !== -1 ||
+        StandardStorageUnits.indexOf(unit) !== -1;
+
+    const {
+        truncated,
+        attachedSuffix,
+        unitToDisplay,
+        canRemoveUnit
+    } = truncateValues([usage], isStorage, unit, {});
+
+    const [truncatedUsage] = truncated;
+
+    let result = fmt(truncatedUsage);
+    result += `${attachedSuffix} `;
+    result += `${unitToDisplay}`;
+
+    return result;
+}
+
+export function formatUsageAndQuota(usage: number, quota: number, isStorage: boolean, unit: string, opts?: {
+    precision?: number,
+    removeUnitIfPossible?: boolean
+}): string {
+    const {
+        truncated,
+        attachedSuffix,
+        unitToDisplay,
+        canRemoveUnit
+    } = truncateValues([usage, quota], isStorage, unit, opts);
     const [truncatedUsage, truncatedQuota] = truncated;
 
     let usageAndQuota = fmt(truncatedUsage, opts?.precision);
@@ -1144,17 +1248,20 @@ function fmt(val: number, precision: number = 2): string {
 }
 
 export function balanceToStringFromUnit(
-    productType: ProductType,
+    productType: ProductType | null,
     unit: string,
     normalizedBalance: number,
-    opts?: {precision?: number, removeUnitIfPossible?: boolean}
+    opts?: { precision?: number, removeUnitIfPossible?: boolean, referenceBalance?: number }
 ): string {
+    const isStorage = productType === "STORAGE" || StandardStorageUnitsSi.indexOf(unit) !== -1 ||
+        StandardStorageUnits.indexOf(unit) !== -1;
+
     const {
         attachedSuffix,
         truncated,
         unitToDisplay,
         canRemoveUnit
-    } = truncateValues([normalizedBalance], productType === "STORAGE", unit, opts);
+    } = truncateValues([normalizedBalance], isStorage, unit, opts);
 
     const [balanceToDisplay] = truncated;
 
@@ -1200,6 +1307,9 @@ export interface ParentOrChildWallet {
 export interface AllocationGroup {
     usage: number;
     allocations: Allocation[];
+
+    // Core2 only properties:
+    quota?: number;
 }
 
 export interface Allocation {
@@ -1209,6 +1319,11 @@ export interface Allocation {
     quota: number;
     grantedIn?: number | null;
     retiredUsage?: number | null;
+
+    // Core2 only properties:
+    activated?: boolean;
+    retired?: boolean;
+    retiredQuota?: number;
 }
 
 export function browseWalletsV2(
@@ -1317,6 +1432,6 @@ export function utcDate(ts: number): string {
     return `${d.getUTCDate().toString().padStart(2, '0')}/${(d.getUTCMonth() + 1).toString().padStart(2, '0')}/${d.getUTCFullYear()}`;
 }
 
-export function periodsOverlap(a: {start: number, end: number}, b: {start: number, end: number}): boolean {
+export function periodsOverlap(a: { start: number, end: number }, b: { start: number, end: number }): boolean {
     return a.start <= b.end && b.start <= a.end;
 }

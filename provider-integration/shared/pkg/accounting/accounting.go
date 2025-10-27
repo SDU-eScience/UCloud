@@ -26,6 +26,7 @@ type AllocationGroup struct {
 	Id          int          `json:"id"`
 	Allocations []Allocation `json:"allocations"`
 	Usage       int64        `json:"usage"`
+	Quota       int64        `json:"quota"`
 }
 
 type Allocation struct {
@@ -34,7 +35,12 @@ type Allocation struct {
 	EndDate      fnd.Timestamp      `json:"endDate"`
 	Quota        int64              `json:"quota"`
 	GrantedIn    util.Option[int64] `json:"grantedIn"`
-	RetiredUsage int64              `json:"retiredUsage"`
+	RetiredQuota int64              `json:"retiredQuota"`
+	Activated    bool               `json:"actived"`
+	Retired      bool               `json:"retired"`
+
+	// deprecated - do not use
+	RetiredUsage int64 `json:"retiredUsage"`
 }
 
 type AllocationGroupWithParent struct {

@@ -1373,7 +1373,7 @@ func lGrantsAwardResources(app *grantApplication) {
 		parentOwner := internalOwnerByReference(req.GrantGiver).Id
 		parentWallet := internalWalletByOwner(accBucket, now, parentOwner)
 
-		_, err = internalAllocate(now, accBucket, start, end, quota, wallet, parentWallet, util.OptValue(grantedIn))
+		_, err = internalAllocateNoCommit(now, accBucket, start, end, quota, wallet, parentWallet, util.OptValue(grantedIn))
 		if err != nil {
 			// This only happens in case of bad input. It should never happen. Not doing a panic here to avoid
 			// potential infinite allocations (from the retry loop)
@@ -1382,7 +1382,7 @@ func lGrantsAwardResources(app *grantApplication) {
 	}
 
 	app.Awarded = true
-	internalCommitAllocations(grantedIn, func(tx *db.Transaction) {
+	internalCommitGrantAllocations(grantedIn, func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`

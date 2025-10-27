@@ -33,8 +33,10 @@ export const CardClass = injectStyle("card", k => `
         border-radius: 10px;
         box-shadow: var(--defaultShadow);
         background-color: var(--backgroundCard);
+        border: var(--defaultCardBorder);
         color: var(--textPrimary);
         padding: 20px;
+        box-sizing: border-box;
     }
 `);
 
