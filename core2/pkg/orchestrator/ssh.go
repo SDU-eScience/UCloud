@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
@@ -23,14 +24,30 @@ func initSsh() {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: result}, nil
 		}
 	})
-	//TODO make handlers for the rest of the functions
+
+	orcapi.SshRetrieve.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (orcapi.SshKey, *util.HttpError) {
+		result, err := SshKeyRetrieve(info.Actor, request.Id)
+		return result, err
+	})
+
+	orcapi.SshBrowse.Handler(func(info rpc.RequestInfo, request orcapi.SshKeysBrowseRequest) (fndapi.PageV2[orcapi.SshKey], *util.HttpError) {
+		result := SshKeyBrowse(info.Actor, request)
+		return result, nil
+	})
+
+	orcapi.SshDelete.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (util.Empty, *util.HttpError) {
+		err := SshKeyDelete(info.Actor, request.Items)
+		return util.Empty{}, err
+	})
+
+	//orcapi.SshKeyRetrieveByJob.Handler(func()){}
 }
 
 func SshKeyCreate(actor rpc.Actor, keys []orcapi.SshKeySpecification) ([]fndapi.FindByStringId, *util.HttpError) {
 	for _, key := range keys {
 		anyOk := false
 		for _, validPrefix := range validPrefixes {
-			if strings.HasPrefix(validPrefix, key.Key) {
+			if strings.HasPrefix(key.Key, validPrefix) {
 				anyOk = true
 				break
 			}
@@ -131,8 +148,8 @@ func SshKeyBrowse(actor rpc.Actor, pagination orcapi.SshKeysBrowseRequest) fndap
 			Id        int
 			Owner     string
 			CreatedAt time.Time
-			title     string
-			key       string
+			Title     string
+			Key       string
 		}](
 			tx,
 			fmt.Sprintf(`
@@ -152,8 +169,7 @@ func SshKeyBrowse(actor rpc.Actor, pagination orcapi.SshKeysBrowseRequest) fndap
 				"owner": actor.Username,
 			},
 		)
-		b := db.BatchNew(tx)
-		db.BatchSend(b)
+
 		var item []orcapi.SshKey
 		for _, row := range items {
 			item = append(item, orcapi.SshKey{
@@ -161,8 +177,8 @@ func SshKeyBrowse(actor rpc.Actor, pagination orcapi.SshKeysBrowseRequest) fndap
 				Owner:     actor.Username,
 				CreatedAt: fndapi.Timestamp(row.CreatedAt),
 				Specification: orcapi.SshKeySpecification{
-					Title: row.title,
-					Key:   row.key,
+					Title: row.Title,
+					Key:   row.Key,
 				},
 			})
 		}
@@ -195,10 +211,92 @@ func SshKeyDelete(actor rpc.Actor, keys []fndapi.FindByStringId) *util.HttpError
 					owner = :owner
 			`,
 			db.Params{
-				"id":    ids,
+				"ids":   ids,
 				"owner": actor.Username,
 			},
 		)
 	})
 	return nil
+}
+
+func SshKeyRetrieveByJob(actor rpc.Actor, jobId string) ([]orcapi.SshKey, *util.HttpError) {
+	job, err := JobsRetrieve(actor, jobId, orcapi.JobFlags{})
+	if err != nil {
+		return nil, err
+	}
+	result := db.NewTx(func(tx *db.Transaction) []orcapi.SshKey {
+		relevantUsers := map[string]util.Empty{}
+		relevantUsers[job.Owner.CreatedBy] = util.Empty{}
+		projectId := job.Owner.Project
+		if projectId != "" {
+			project, ok := coreutil.ProjectRetrieveFromDatabase(tx, projectId)
+			if ok {
+				for _, member := range project.Status.Members {
+					if member.Role.Satisfies(fndapi.ProjectRoleAdmin) {
+						relevantUsers[member.Username] = util.Empty{}
+					}
+				}
+				otherAcl := job.Permissions.Others
+				relevantGroups := map[string]util.Empty{}
+				for _, entry := range otherAcl {
+					if !orcapi.PermissionsHas(entry.Permissions, orcapi.PermissionEdit) {
+						continue
+					}
+					relevantGroups[entry.Entity.Group] = util.Empty{}
+				}
+
+				if len(relevantGroups) > 0 {
+					for _, group := range project.Status.Groups {
+						_, ok := relevantGroups[group.Id]
+						if ok {
+							for _, member := range group.Status.Members {
+								relevantUsers[member] = util.Empty{}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		var relevantUsersArray []string
+		for username, _ := range relevantUsers {
+			relevantUsersArray = append(relevantUsersArray, username)
+		}
+
+		items := db.Select[struct {
+			Id        int
+			Owner     string
+			CreatedAt time.Time
+			Title     string
+			Key       string
+		}](
+			tx,
+			`
+				select id, owner, created_at, title, key
+				from app_orchestrator.ssh_keys
+				where
+					owner = some(:owners::text[])
+				order by id
+			`,
+			db.Params{
+				"owners": relevantUsersArray,
+			},
+		)
+
+		var result []orcapi.SshKey
+		for _, row := range items {
+			result = append(result, orcapi.SshKey{
+				Id:        strconv.Itoa(row.Id),
+				Owner:     actor.Username,
+				CreatedAt: fndapi.Timestamp(row.CreatedAt),
+				Specification: orcapi.SshKeySpecification{
+					Title: row.Title,
+					Key:   row.Key,
+				},
+			})
+		}
+		return result
+	})
+
+	return result, nil
 }

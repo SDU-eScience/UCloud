@@ -6,7 +6,7 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-const sshBaseContext = "/api/ssh"
+const sshBaseContext = "ssh"
 
 var SshCreate = rpc.Call[fnd.BulkRequest[SshKeySpecification], fnd.BulkResponse[fnd.FindByStringId]]{
 	BaseContext: sshBaseContext,
@@ -37,7 +37,7 @@ var SshDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], util.Empty]{
 	Roles:       rpc.RolesEndUser,
 }
 
-const sshControlBaseContext = "/api/ssh/control"
+const sshControlBaseContext = "ssh/control"
 
 type SshKeysControlBrowseRequest struct {
 	ItemsPerPage int                 `json:"itemsPerPage"`
