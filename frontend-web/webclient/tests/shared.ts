@@ -27,7 +27,8 @@ export const User = {
 }
 
 export function ucloudUrl(pathname: string): string {
-    return data.location_origin + "/app" + (pathname.startsWith("/") ? pathname : "/" + pathname);
+    const origin = data.location_origin;
+    return (origin.endsWith("/") ? origin : origin + "/") + "app" + (pathname.startsWith("/") ? pathname : "/" + pathname);
 };
 
 export const Rows = {

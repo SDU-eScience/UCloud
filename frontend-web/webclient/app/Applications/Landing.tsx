@@ -325,8 +325,6 @@ export const Hero: React.FunctionComponent<{
         };
     }, [isPreview]);
 
-    if (slides.length == 0) return null;
-
     const index = activeIndex % slides.length;
     const slide = slides[index];
     const nextSlideIndex = (index + 1) % slides.length;
@@ -345,6 +343,12 @@ export const Hero: React.FunctionComponent<{
         }
     }
 
+    const navigation = React.useCallback(() => {
+        if (slideLink) navigate(slideLink);
+    }, [slideLink]);
+
+    if (slides.length == 0) return null;
+
     const imageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({index, slideTitle: slide.title});
     const nextImageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({
         index: nextSlideIndex,
@@ -355,9 +359,6 @@ export const Hero: React.FunctionComponent<{
         slideTitle: prevSlide.title
     });
 
-    const navigation = React.useCallback(() => {
-        if (slideLink) navigate(slideLink);
-    }, [slideLink])
 
     return <Card style={{overflow: "hidden", border: 0, padding: 0}}>
         {/* Note(Jonas): Pre-fetch next image, so text and image change at the same time in the carousel */}

@@ -222,30 +222,12 @@ func CliIntercept(args []string) {
 		RestoreSnapshot(snapshotName)
 
 	case "test-e2e":
-		cmdToRun := []string{"npx", "playwright"}
-		if len(args) > 1 {
-			arg := args[1]
-
-			switch arg {
-			case "ui":
-				cmdToRun = append(cmdToRun, "test", "--ui")
-			case "headed":
-				cmdToRun = append(cmdToRun, "test", "--headed")
-			case "report":
-				cmdToRun = append(cmdToRun, "show-report")
-			default:
-				fmt.Println("Unknown argument for testing: '" + arg + "'")
-				os.Exit(0)
-			}
-		} else {
-			// Default that should run on CI
-			cmdToRun = append(cmdToRun, "test")
-		}
+		testCommand := testCommandFromArgs(args)
 
 		// Create one user
 		withResourceUsername := "user-resources"
 		withResourcePassword := "user-resources-password"
-		locationOrigin := "https://dev.cloud.sdu.dk"
+		locationOrigin := "https://ucloud.localhost.direct/"
 		createUser(withResourceUsername, withResourcePassword, "USER")
 
 		pathToTestInfo := repoRoot.GetAbsolutePath() + "/frontend-web/webclient/tests/test_data.json"
@@ -265,7 +247,11 @@ func CliIntercept(args []string) {
 			panic(err)
 		}
 
-		fmt.Println(strings.Join(cmdToRun, " "))
+		// CallService("backend") // trying to grant resources. No idea if this is the actual issue.
+
+		runCommand([]string{"npx", "playwright", "install"})
+		runCommand([]string{"npx", "playwright", "install-deps"})
+		runCommand(testCommand)
 
 		// TODO: Create users, one with resources, and one without.
 	}
@@ -299,9 +285,41 @@ func createUser(username string, password string, role string) {
 		} else {
 			panic("Unhandled error: " + errorMessage.Why + ". Bailing")
 		}
+	} else {
+		fmt.Println("User " + username + " created")
 	}
+}
 
-	fmt.Println("User " + username + " created")
+func runCommand(args []string) {
+	fmt.Println(strings.Join(args, " "))
+	cmd := NewLocalExecutableCommand(args, LocalFile{path: "../frontend-web/webclient/"}, PostProcessorFunc)
+	cmd.SetStreamOutput()
+	result := cmd.ExecuteToText()
+	if result.First != "" {
+		fmt.Println(result.First)
+	}
+}
+
+func testCommandFromArgs(args []string) []string {
+	cmdToRun := []string{"npx", "playwright"}
+	if len(args) > 1 {
+		arg := args[1]
+
+		switch arg {
+		case "ui":
+			cmdToRun = append(cmdToRun, "test", "--ui")
+		case "headed":
+			cmdToRun = append(cmdToRun, "test", "--headed")
+		case "report":
+			cmdToRun = append(cmdToRun, "show-report")
+		default:
+			panic("Unknown argument for testing: '" + arg + "'")
+		}
+	} else {
+		// Default that should run on CI
+		cmdToRun = append(cmdToRun, "test")
+	}
+	return cmdToRun
 }
 
 /*

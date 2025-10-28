@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	"ucloud.dk/launcher/pkg/termio"
 )
 
@@ -175,7 +176,7 @@ func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 			if len(str) == 0 && err != nil {
 				break
 			}
-			if l.streamOutput == true {
+			if l.streamOutput {
 				termio.Write("%s", str)
 			}
 			outputBuilder.Write([]byte(str))
@@ -190,7 +191,7 @@ func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 			if len(str) == 0 && err != nil {
 				break
 			}
-			if l.streamOutput == true {
+			if l.streamOutput {
 				termio.Write("%s", str)
 			}
 			errBuilder.Write([]byte(str))
