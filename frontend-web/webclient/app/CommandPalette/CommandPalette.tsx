@@ -47,9 +47,7 @@ export function isCommandPaletteTriggerEvent(ev: KeyboardEvent): boolean {
     return ((ev.metaKey || ev.ctrlKey) && ev.code === "KeyP");
 }
 
-export const CommandPalette: React.FunctionComponent = () => {
-    if (!hasFeature(Feature.COMMAND_PALETTE)) return false;
-
+export function CommandPalette(): React.ReactNode {
     const commandProviders = useCommandProviderList();
     const [visible, setVisible] = useState(false);
     const queryRef = useRef("");
