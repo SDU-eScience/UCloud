@@ -84,7 +84,7 @@ func (e *env) Owner(ref string) *internalOwner {
 	return internalOwnerByReference(ref)
 }
 
-func (e *env) Wallet(owner *internalOwner, at time.Time) accWalletId {
+func (e *env) Wallet(owner *internalOwner, at time.Time) AccWalletId {
 	return internalWalletByOwner(e.Bucket, at, owner.Id)
 }
 
@@ -103,7 +103,7 @@ func (e *env) Allocate(req a) accAllocId {
 
 func (e *env) AllocateEx(now, start, end int, quota int64, recipientRef, parentRef string) accAllocId {
 	rcp := e.Wallet(e.Owner(recipientRef), e.Tm(now))
-	var parent accWalletId
+	var parent AccWalletId
 	if parentRef != "" {
 		parent = e.Wallet(e.Owner(parentRef), e.Tm(now))
 	}

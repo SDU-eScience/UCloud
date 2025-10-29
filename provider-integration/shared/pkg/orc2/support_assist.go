@@ -13,8 +13,7 @@ type SupportAssistProjectInfoFlags struct {
 }
 
 type SupportAssistRetrieveProjectInfoRequest struct {
-	ProjectId string                        `json:"projectId"`
-	Flags     SupportAssistProjectInfoFlags `json:"flags"`
+	ProjectId string `json:"projectId"`
 }
 
 type WalletIssue struct {
@@ -24,10 +23,11 @@ type WalletIssue struct {
 }
 
 type SupportAssistRetrieveProjectInfoResponse struct {
-	Project          foundation.Project `json:"project"`
-	ProjectWallets   []apm.WalletV2     `json:"projectWallets"`
-	AccountingIssues []WalletIssue      `json:"accountingIssues"`
-	Jobs             []Job              `json:"jobs"`
+	Project          foundation.Project     `json:"project"`
+	ProjectWallets   []apm.WalletV2         `json:"projectWallets"`
+	ActiveGrants     []apm.GrantApplication `json:"activeGrants"`
+	AccountingIssues []WalletIssue          `json:"accountingIssues"`
+	Jobs             []Job                  `json:"jobs"`
 }
 
 type SupportAssistRetrieveJobInfoRequest struct {
@@ -41,8 +41,7 @@ type SupportAssistWalletInfoFlags struct {
 	IncludeAccountingGraph bool `json:"includeAccountingGraph"`
 }
 type SupportAssistRetrieveWalletInfoRequest struct {
-	AllocationId string                       `json:"allocationId"`
-	Flags        SupportAssistWalletInfoFlags `json:"flags"`
+	AllocationId string `json:"allocationId"`
 }
 
 type SupportAssistRetrieveWalletInfoResponse struct {

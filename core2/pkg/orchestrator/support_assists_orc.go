@@ -14,34 +14,29 @@ import (
 
 func initSupportAssistsOrc() {
 	orcapi.SupportAssistRetrieveProjectInfo.Handler(func(info rpc.RequestInfo, request orcapi.SupportAssistRetrieveProjectInfoRequest) (orcapi.SupportAssistRetrieveProjectInfoResponse, *util.HttpError) {
-		println("HITTING HANDLER Project with flags member: " + strconv.FormatBool(request.Flags.IncludeMembers) + "jobs: " + strconv.FormatBool(request.Flags.IncludeJobsInfo) + " accounting: " + strconv.FormatBool(request.Flags.IncludeAccountingInfo))
-		//TODO (HENRIK) Flags are not processed correctly hard code true to get all info for dev
-		return retrieveProjectInfo(request.ProjectId, orcapi.SupportAssistProjectInfoFlags{IncludeMembers: true, IncludeAccountingInfo: true, IncludeJobsInfo: true})
+		return retrieveProjectInfo(request.ProjectId)
 	})
 
 	orcapi.SupportAssistRetrieveJobsInfo.Handler(func(info rpc.RequestInfo, request orcapi.SupportAssistRetrieveJobInfoRequest) (orcapi.SupportAssistRetrieveJobInfoResponse, *util.HttpError) {
-		println("HITTING HANDLER JOB")
 		return retrieveJobInfo(request.JobId)
 	})
 
 	orcapi.SupportAssistRetrieveWalletsInfo.Handler(func(info rpc.RequestInfo, request orcapi.SupportAssistRetrieveWalletInfoRequest) (orcapi.SupportAssistRetrieveWalletInfoResponse, *util.HttpError) {
-		println("HITTING HANDLER wallet")
-		return retrieveWalletInfo(request.AllocationId, request.Flags)
+		return retrieveWalletInfo(request.AllocationId)
 	})
 }
 
-func retrieveProjectInfo(projectId string, flags orcapi.SupportAssistProjectInfoFlags) (orcapi.SupportAssistRetrieveProjectInfoResponse, *util.HttpError) {
-	println("FINDING PROJECT INFO with flags. Jobinfo:" + strconv.FormatBool(flags.IncludeJobsInfo) + " Accounitng:" + strconv.FormatBool(flags.IncludeAccountingInfo) + "members:" + strconv.FormatBool(flags.IncludeMembers))
+func retrieveProjectInfo(projectId string) (orcapi.SupportAssistRetrieveProjectInfoResponse, *util.HttpError) {
 	project, err := foundation.ProjectRetrieve(
 		rpc.ActorSystem,
 		projectId,
 		fnd.ProjectFlags{
-			IncludeMembers:  flags.IncludeMembers,
-			IncludeGroups:   false,
+			IncludeMembers:  true,
+			IncludeGroups:   true,
 			IncludeFavorite: false,
 			IncludeArchived: false,
-			IncludeSettings: false,
-			IncludePath:     false,
+			IncludeSettings: true,
+			IncludePath:     true,
 		},
 		fnd.ProjectRoleUser,
 	)
@@ -68,59 +63,70 @@ func retrieveProjectInfo(projectId string, flags orcapi.SupportAssistProjectInfo
 			}
 		}
 	}
-
-	value := piActor.Project.Value
-	println("User: " + piActor.Username + " P is : " + string(value))
-
+	
 	var wallets []apm.WalletV2
 	var issues []orcapi.WalletIssue
 	var jobs []orcapi.Job
 
-	if flags.IncludeAccountingInfo {
-		wallets = accounting.WalletsBrowse(
-			piActor,
-			apm.WalletsBrowseRequest{},
-		).Items
+	wallets = accounting.WalletsBrowse(
+		piActor,
+		apm.WalletsBrowseRequest{},
+	).Items
 
-		/*for _, wallet := range wallets {
+	foundGrants := accounting.GrantsBrowse(
+		piActor,
+		apm.GrantsBrowseRequest{
+			ItemsPerPage:                10,
+			Filter:                      util.OptValue(apm.GrantApplicationFilterShowAll),
+			IncludeIngoingApplications:  util.OptValue(false),
+			IncludeOutgoingApplications: util.OptValue(true),
+		},
+	)
+	var grantResults []apm.GrantApplication
 
-			//If not able to use all available resource we have an issue
-			if wallet.MaxUsable < wallet.Quota-wallet.TotalUsage {
-				for _, group := range wallet.AllocationGroups {
-					if group.Parent.Present {
-						parent := group.Parent.Value
-					}
+	for _, grant := range foundGrants.Items {
+		reference := grant.CurrentRevision.Document.Recipient.Reference().Value
+		if reference == projectId || reference == project.Specification.Title {
+			grantResults = append(grantResults, grant)
+		}
+	}
+
+	/*for _, wallet := range wallets {
+
+		//If not able to use all available resource we have an issue
+		if wallet.MaxUsable < wallet.Quota-wallet.TotalUsage {
+			for _, group := range wallet.AllocationGroups {
+				if group.Parent.Present {
+					parent := group.Parent.Value
 				}
 			}
-		}*/
-	}
-
-	if flags.IncludeJobsInfo {
-		foundJobs, err := JobsBrowse(
-			piActor,
-			util.OptString{},
-			50,
-			orcapi.JobFlags{
-				IncludeParameters:  false,
-				IncludeApplication: false,
-			},
-		)
-		if err != nil {
-			return orcapi.SupportAssistRetrieveProjectInfoResponse{}, err
 		}
-		jobs = foundJobs.Items
+	}*/
+
+	foundJobs, err := JobsBrowse(
+		piActor,
+		util.OptString{},
+		50,
+		orcapi.JobFlags{
+			IncludeParameters:  false,
+			IncludeApplication: false,
+		},
+	)
+	if err != nil {
+		return orcapi.SupportAssistRetrieveProjectInfoResponse{}, err
 	}
+	jobs = foundJobs.Items
 
 	return orcapi.SupportAssistRetrieveProjectInfoResponse{
 		Project:          project,
 		ProjectWallets:   wallets,
+		ActiveGrants:     grantResults,
 		AccountingIssues: issues,
 		Jobs:             jobs,
 	}, nil
 }
 
 func retrieveJobInfo(jobId string) (orcapi.SupportAssistRetrieveJobInfoResponse, *util.HttpError) {
-	println("FINDING JOB INFO")
 	job, err := JobsRetrieve(rpc.ActorSystem, jobId, orcapi.JobFlags{
 		IncludeParameters:  false,
 		IncludeApplication: false,
@@ -131,8 +137,7 @@ func retrieveJobInfo(jobId string) (orcapi.SupportAssistRetrieveJobInfoResponse,
 	return orcapi.SupportAssistRetrieveJobInfoResponse{JobInfo: job}, nil
 }
 
-func retrieveWalletInfo(allocationId string, flags orcapi.SupportAssistWalletInfoFlags) (orcapi.SupportAssistRetrieveWalletInfoResponse, *util.HttpError) {
-	println("FINDING WALLET INFO")
+func retrieveWalletInfo(allocationId string) (orcapi.SupportAssistRetrieveWalletInfoResponse, *util.HttpError) {
 	if allocationId == "" {
 		return orcapi.SupportAssistRetrieveWalletInfoResponse{}, util.HttpErr(http.StatusBadRequest, "Need to specify either walletId or allocationId")
 	}
@@ -141,11 +146,14 @@ func retrieveWalletInfo(allocationId string, flags orcapi.SupportAssistWalletInf
 	if err != nil {
 		return orcapi.SupportAssistRetrieveWalletInfoResponse{}, util.HttpErr(http.StatusBadRequest, "AllocationId in invalid format")
 	}
-	wallet, found := accounting.WalletV2ByAllocationID(rpc.ActorSystem, id)
+	walletId, wallet, found := accounting.WalletV2ByAllocationID(rpc.ActorSystem, id)
 	if !found {
 		return orcapi.SupportAssistRetrieveWalletInfoResponse{}, util.HttpErr(http.StatusNotFound, "Wallet not found")
 	}
+
+	graph, _ := accounting.AccountingGraphRetrieval(walletId)
 	return orcapi.SupportAssistRetrieveWalletInfoResponse{
-		Wallet: wallet,
+		Wallet:          wallet,
+		AccountingGraph: graph,
 	}, nil
 }

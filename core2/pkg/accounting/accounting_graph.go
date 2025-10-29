@@ -14,8 +14,8 @@ type Graph struct {
 	Adjacent       [][]int64           // residual capacities
 	Cost           [][]*big.Int        // per-edge costs (signed)
 	Original       [][]bool            // marks "original" edges
-	VertexToWallet []accWalletId       // vertex -> wallet
-	WalletToVertex map[accWalletId]int // wallet -> vertex
+	VertexToWallet []AccWalletId       // vertex -> wallet
+	WalletToVertex map[AccWalletId]int // wallet -> vertex
 }
 
 // Graph builder
@@ -44,7 +44,7 @@ func NewGraph(vertexCount int) *Graph {
 		Cost:           cost,
 		Original:       orig,
 		VertexToWallet: nil,
-		WalletToVertex: make(map[accWalletId]int),
+		WalletToVertex: make(map[AccWalletId]int),
 	}
 }
 

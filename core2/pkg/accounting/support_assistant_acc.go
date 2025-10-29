@@ -53,14 +53,23 @@ func usernameToUserInfo(tx *db.Transaction, username string) (accapi.SupportAssi
 		}
 
 	}
-	activeGrants := GrantsBrowse(
+	foundGrants := GrantsBrowse(
 		actor,
 		accapi.GrantsBrowseRequest{
-			Filter:                      util.OptValue(accapi.GrantApplicationFilterActive),
+			ItemsPerPage:                10,
+			Filter:                      util.OptValue(accapi.GrantApplicationFilterShowAll),
 			IncludeIngoingApplications:  util.OptValue(true),
 			IncludeOutgoingApplications: util.OptValue(true),
 		},
 	)
+
+	var grantResults []accapi.GrantApplication
+	for _, grant := range foundGrants.Items {
+		reference := grant.CurrentRevision.Document.Recipient.Reference().Value
+		if reference == username {
+			grantResults = append(grantResults, grant)
+		}
+	}
 
 	personalWalletOwner := accapi.WalletOwnerFromIds(username, "")
 	wallets := WalletsBrowse(
@@ -81,7 +90,7 @@ func usernameToUserInfo(tx *db.Transaction, username string) (accapi.SupportAssi
 		Email:                    principal.Email.Value,
 		EmailSettings:            emailSettings,
 		AssociatedProjects:       projects,
-		ActiveGrants:             activeGrants.Items,
+		ActiveGrants:             grantResults,
 		PersonalProjectResources: personalWallets,
 	}, true
 }

@@ -30,7 +30,6 @@ type Principal struct {
 }
 
 func LookupUsernamesByEmail(tx *db.Transaction, email string) ([]string, bool) {
-	println("LookupUsernamesByEmail")
 	ok := db.Select[struct {
 		Id string
 	}](
