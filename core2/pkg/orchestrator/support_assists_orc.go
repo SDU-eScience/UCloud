@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"net/http"
 	"strconv"
+	"time"
 	"ucloud.dk/core/pkg/accounting"
 	"ucloud.dk/core/pkg/foundation"
 	apm "ucloud.dk/shared/pkg/accounting"
@@ -63,14 +64,16 @@ func retrieveProjectInfo(projectId string) (orcapi.SupportAssistRetrieveProjectI
 			}
 		}
 	}
-	
+
 	var wallets []apm.WalletV2
-	var issues []orcapi.WalletIssue
+	var issues []apm.WalletV2
 	var jobs []orcapi.Job
 
 	wallets = accounting.WalletsBrowse(
 		piActor,
-		apm.WalletsBrowseRequest{},
+		apm.WalletsBrowseRequest{
+			IncludeChildren: true,
+		},
 	).Items
 
 	foundGrants := accounting.GrantsBrowse(
@@ -91,17 +94,24 @@ func retrieveProjectInfo(projectId string) (orcapi.SupportAssistRetrieveProjectI
 		}
 	}
 
-	/*for _, wallet := range wallets {
-
-		//If not able to use all available resource we have an issue
-		if wallet.MaxUsable < wallet.Quota-wallet.TotalUsage {
-			for _, group := range wallet.AllocationGroups {
-				if group.Parent.Present {
-					parent := group.Parent.Value
+	//TODO() Most likely there is a better way to determine which wallet is the cause of problems
+	for _, wallet := range wallets {
+		var problematicWallet apm.WalletV2
+		//If we cannot use all remaining quota we have a problem
+		if wallet.MaxUsable-(wallet.Quota-wallet.TotalUsage) != 0 {
+			ancestors := accounting.RetrieveAncestors(time.Now(), wallet.PaysFor.ToId(), wallet.Owner)
+			for i, ancestor := range ancestors {
+				if ancestor.MaxUsable-(ancestor.Quota-ancestor.TotalUsage) != 0 {
+					if i == len(ancestors)-1 {
+						problematicWallet = ancestor
+					} else {
+						problematicWallet = ancestors[i+1]
+					}
 				}
 			}
 		}
-	}*/
+		issues = append(issues, problematicWallet)
+	}
 
 	foundJobs, err := JobsBrowse(
 		piActor,

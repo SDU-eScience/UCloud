@@ -1290,6 +1290,7 @@ func internalRetrieveWalletByAllocationId(
 	var found = false
 	var wId AccWalletId
 	for _, bucket := range accGlobals.BucketsByCategory {
+		bucket.Mu.RLock()
 		locatedAllocation := bucket.AllocationsById[accAllocId(allocationId)]
 		if locatedAllocation != nil {
 			walletId := locatedAllocation.BelongsTo
@@ -1300,10 +1301,12 @@ func internalRetrieveWalletByAllocationId(
 					wallet = lInternalWalletToApi(now, bucket, iWallet, owner.WalletOwner(), false)
 					wId = walletId
 					found = true
+					bucket.Mu.RUnlock()
 					break
 				}
 			}
 		}
+		bucket.Mu.RUnlock()
 	}
 
 	accGlobals.Mu.RUnlock()
@@ -1385,6 +1388,45 @@ func internalRetrieveWallets(
 			return 0
 		}
 	})
+
+	return wallets
+}
+
+func internalRetrieveAncestors(now time.Time, category accapi.ProductCategoryIdV2, owner accapi.WalletOwner) []accapi.WalletV2 {
+	accGlobals.Mu.RLock()
+	accGlobals.BucketsByCategory[category].Mu.RLock()
+
+	bucket := accGlobals.BucketsByCategory[category]
+	iOwner := accGlobals.OwnersByReference[owner.Reference()]
+	iWallet := lInternalWalletByOwner(bucket, now, iOwner.Id)
+	ancestors := lRetrieveAncestorWallets(bucket, now, iWallet.Id)
+
+	accGlobals.BucketsByCategory[category].Mu.RUnlock()
+	accGlobals.Mu.RUnlock()
+	return ancestors
+}
+
+func lRetrieveAncestorWallets(bucket *internalBucket, now time.Time, root AccWalletId) []accapi.WalletV2 {
+	relevantWallets := map[AccWalletId]*internalWallet{}
+
+	queue := []*internalWallet{bucket.WalletsById[root]}
+	for len(queue) > 0 {
+		next := queue[0]
+		queue = queue[1:]
+
+		relevantWallets[next.Id] = next
+		for parentId, _ := range next.AllocationsByParent {
+			if _, hasVisited := relevantWallets[parentId]; !hasVisited && parentId != internalGraphRoot {
+				queue = append(queue, bucket.WalletsById[parentId])
+			}
+		}
+	}
+
+	var wallets []accapi.WalletV2
+	for _, w := range relevantWallets {
+		owner := accGlobals.OwnersById[w.OwnedBy].WalletOwner()
+		wallets = append(wallets, lInternalWalletToApi(now, bucket, w, owner, false))
+	}
 
 	return wallets
 }

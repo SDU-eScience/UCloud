@@ -314,6 +314,10 @@ func AccountingGraphRetrieval(walletId AccWalletId) (string, bool) {
 	return internalGetMermaidGraph(time.Now(), walletId)
 }
 
+func RetrieveAncestors(now time.Time, category accapi.ProductCategoryIdV2, owner accapi.WalletOwner) []accapi.WalletV2 {
+	return internalRetrieveAncestors(now, category, owner)
+}
+
 func accountingLoad() {
 	db.NewTx0(func(tx *db.Transaction) {
 		accGlobals.OwnersByReference = map[string]*internalOwner{}

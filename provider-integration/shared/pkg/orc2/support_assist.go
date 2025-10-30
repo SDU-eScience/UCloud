@@ -16,17 +16,11 @@ type SupportAssistRetrieveProjectInfoRequest struct {
 	ProjectId string `json:"projectId"`
 }
 
-type WalletIssue struct {
-	AssociatedAllocation apm.Allocation `json:"associatedAllocation"`
-	ProblematicWallet    apm.WalletV2   `json:"problematicWallet"`
-	Description          string         `json:"description"`
-}
-
 type SupportAssistRetrieveProjectInfoResponse struct {
 	Project          foundation.Project     `json:"project"`
 	ProjectWallets   []apm.WalletV2         `json:"projectWallets"`
 	ActiveGrants     []apm.GrantApplication `json:"activeGrants"`
-	AccountingIssues []WalletIssue          `json:"accountingIssues"`
+	AccountingIssues []apm.WalletV2         `json:"accountingIssues"`
 	Jobs             []Job                  `json:"jobs"`
 }
 

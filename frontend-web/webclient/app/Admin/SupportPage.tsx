@@ -213,7 +213,7 @@ export function UserSupportContent() {
                                 return a.specification.title.localeCompare(b.specification.title)
                             }).map(project =>
                                 <tbody>
-                                    <tr>
+                                    <tr key={project.id}>
                                         <td>{project.specification.title}</td>
                                         <td/>
                                         <td>{project.id}
@@ -236,12 +236,12 @@ export function UserSupportContent() {
 
                     <h3>Grants:</h3>
                     <hr/>
-                    {grantsTable(it.activeGrants)}
+                    <GrantsTable grants={it.activeGrants}/>
                     <br/>
 
                     <h3>Personal project resources</h3>
                     <hr/>
-                    {walletTable(it.personalProjectResources)}
+                    <WalletTable wallets={it.personalProjectResources}/>
                 </div>)}
             </div>
         </>}
@@ -257,14 +257,20 @@ interface SupportAssistRetrieveProjectInfoResponse {
     project: Project;
     projectWallets?: WalletV2[];
     activeGrants: Application[];
-    accountingIssues?: WalletIssue[];
+    accountingIssues?: WalletV2[];
     jobs?: Job[];
 }
 
-interface WalletIssue {
-    AssociatedAllocation: Allocation;
-    ProblematicWallet: WalletV2;
-    description: string;
+function getProjectChildren(wallets: WalletV2[]): Record<string, string> {
+    let children: Record<string, string> = {};
+    wallets.forEach((wallet) => {
+        wallet.children?.map((child) => {
+            if (child.child.projectId != null) {
+                children[child.child.projectId] = child.child.projectId;
+            }
+        })
+    })
+    return children;
 }
 
 export function ProjectSupportContent() {
@@ -301,6 +307,7 @@ export function ProjectSupportContent() {
                 </> : null}
                 </div>
                 <br/>
+
                 <div>
                     <h3>Project Members:</h3>
                     <table>
@@ -312,9 +319,9 @@ export function ProjectSupportContent() {
                             </tr>
                         </thead>
                         <tbody>
-                            {project.project.status.members !== undefined && project.project.status.members !== null ? <>
+                            {project.project.status.members != null ? <>
                                 {project.project.status.members.map(member => <>
-                                    <tr>
+                                    <tr key={member.username}>
                                         <td>{member.username}
                                             <Link target={"_blank"}
                                                   to={buildQueryString(supportAssist.user(), {id: member.username})}>
@@ -323,25 +330,65 @@ export function ProjectSupportContent() {
                                         <td>{member.role}</td>
                                     </tr>
                                 </>)}
-                                </> : null}
+                            </> : null}
                         </tbody>
                     </table>
                 </div>
                 <br/>
 
+                {project.projectWallets != null ? <>
+                    <div>
+                        <h3>Project Children:</h3>
+                        {Object.values(getProjectChildren(project.projectWallets)).length > 0 ? <>
+                            <table>
+                                <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th style={{width: "20px"}}></th>
+                                    <th>Title</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {Object.values(getProjectChildren(project.projectWallets)).map(id =>
+                                    <tr key={id}>
+                                        <td><ProjectTitleForNewCore id={id}/></td> <td/>
+                                        <td>{id}
+                                            <Link target={"_blank"}
+                                                  to={buildQueryString(supportAssist.project(), {id: id})}>
+                                                <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
+                                            </Link></td>
+                                    </tr>
+                                )}
+                                </tbody>
+                            </table>
+                        </> : <>No children found</>}
+                    </div>
+                    <br/>
+                </> : null }
+
                 <h3>Wallets</h3>
                 <hr/>
-                {walletTable(project.projectWallets)}
+                <WalletTable wallets={project.projectWallets} />
 
                 <h3>Grants</h3>
                 <hr/>
-                {grantsTable(project.activeGrants)}
+                <GrantsTable grants={project.activeGrants}/>
                 <br/>
                 <h3>Accounting Issues</h3>
                 <hr/>
                 <div>
-                    {project.accountingIssues !== null && project.accountingIssues !== undefined ? project.accountingIssues.map(it => <>
-                        Allocation {it.AssociatedAllocation.id} {it.description}
+                    {project.accountingIssues !== null && project.accountingIssues !== undefined ? project.accountingIssues.map(issue => <>
+                        {issue.allocationGroups !== null ? <>
+                            <div>Product Category: {issue.paysFor.name} ({issue.paysFor.provider})</div>
+                            <div>Problem in project: {issue.owner.type == "user" ? issue.owner.username : issue.owner.projectId} {issue.owner.type == "project" ? <>
+                                    <Link target={"_blank"}
+                                          to={buildQueryString(supportAssist.project(), {id: issue.owner.projectId})}>
+                                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
+                                    </Link>
+                                </> : null}
+                            </div>
+                            <br/>
+                        </> : null}
                     </>) : null}
                 </div>
                 <br/>
@@ -366,7 +413,7 @@ export function ProjectSupportContent() {
                             </tr>
                         </thead>
                         {project.jobs !== null && project.jobs !== undefined ? project.jobs.map(it => <tbody>
-                            <tr>
+                            <tr key={it.id}>
                                 <td align={"center"}>{it.id}
                                     <Link target={"_blank"}
                                        to={buildQueryString(supportAssist.job(), {id: it.id})}>
@@ -535,7 +582,7 @@ export function AllocationSupportContent() {
 
             <h3>Wallet Info</h3>
             <hr/>
-            {walletTable(new Array(allocation.wallet))}
+            <WalletTable wallets={new Array(allocation.wallet)} />
 
 
 
@@ -564,7 +611,8 @@ function useError(): {setError: (e: string) => void; Error: React.ReactNode} {
 }
 
 
-function walletTable(wallets?: WalletV2[]) {
+function WalletTable(props: {wallets?: WalletV2[]}): React.ReactNode {
+    const wallets = props.wallets;
     return <>
         <table>
             <thead>
@@ -595,9 +643,9 @@ function walletTable(wallets?: WalletV2[]) {
             </tr>
             </thead>
             {
-                wallets !== undefined && wallets !== null ? wallets.map(resource =>
+                wallets != null ? wallets.map(resource =>
                     <tbody>
-                    <tr>
+                    <tr key={resource.paysFor.name + "("+resource.paysFor.provider+")"}>
                         <td align={"left"}> {resource.paysFor.name} ({resource.paysFor.provider}) {resource.paysFor.accountingUnit.name} {normalizeFrequency(resource.paysFor.accountingFrequency)} </td> <td/>
                         <td align={"right"}> {resource.quota} </td> <td/>
                         <td align={"right"}> {resource.localUsage} </td> <td/>
@@ -613,8 +661,8 @@ function walletTable(wallets?: WalletV2[]) {
         <br/>
         <h3>Allocations</h3>
         <hr/>
-        {wallets !== undefined && wallets !== null ? wallets.map(resource => resource.allocationGroups.length !== 0 ? <>
-            {resource.paysFor.name} ({resource.paysFor.provider})
+        {wallets != null ? wallets.map(resource => resource.allocationGroups.length !== 0 ? <>
+            <u>{resource.paysFor.name} ({resource.paysFor.provider})</u>
                 <br/>
                     <table>
                     <thead>
@@ -645,10 +693,10 @@ function walletTable(wallets?: WalletV2[]) {
                     </tr>
                     </thead>
                     {
-                        resource.allocationGroups !== undefined && resource.allocationGroups !== null ? resource.allocationGroups.map(group =>
-                            group.group !== undefined && group.group !== null ? group.group.allocations.map(alloc =>
+                        resource.allocationGroups.map(group =>
+                            group.group != null ? group.group.allocations.map(alloc =>
                                 <tbody>
-                                <tr>
+                                <tr key={alloc.id}>
                                     <td align={"right"}> {alloc.id}
                                         <Link target={"_blank"}
                                               to={buildQueryString(supportAssist.allocation(), {id: alloc.id})}>
@@ -676,7 +724,7 @@ function walletTable(wallets?: WalletV2[]) {
                                 </tr>
                                 </tbody>
                             ) : null
-                        ) : null
+                        )
                     }
                 </table>
             <br/>
@@ -686,7 +734,8 @@ function walletTable(wallets?: WalletV2[]) {
     </>
 }
 
-function grantsTable(grants?: Application[]) {
+function GrantsTable(props: {grants?: Application[]}): React.ReactNode {
+    const grants = props.grants;
     return <>
         <table>
             <thead>
@@ -705,7 +754,7 @@ function grantsTable(grants?: Application[]) {
                 </tr>
             </thead>
             {
-                (grants !== undefined && grants !== null ) ? grants.map(it =>
+                (grants != null ) ? grants.map(it =>
                     <tbody>
                         <tr>
                             <td align={"right"}>
