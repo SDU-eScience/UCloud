@@ -10,8 +10,10 @@ type CreateTicketRequest struct {
 	Message string `json:"message"`
 }
 
+const SupportContext = "support"
+
 var SupportCreateTicket = rpc.Call[CreateTicketRequest, util.Empty]{
-	BaseContext: MailContext,
+	BaseContext: SupportContext,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "ticket",

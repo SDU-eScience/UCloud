@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -19,14 +20,24 @@ import (
 var slackHook string
 
 func initSupport() {
-
+	slackHook = os.Getenv("SLACK_HOOK")
+	if slackHook == "" {
+		log.Warn("SLACK_HOOK not set")
+	}
+	fndapi.SupportCreateTicket.Handler(func(info rpc.RequestInfo, request fndapi.CreateTicketRequest) (util.Empty, *util.HttpError) {
+		err := createTicketFromUser(info.Actor, request, info.HttpRequest)
+		return util.Empty{}, err
+	})
 }
 
 type SlackMessage struct {
 	Text string `json:"text"`
 }
 
-func SlackSendMessage(hook string, message string) *util.HttpError {
+func slackSendMessage(hook string, message string) *util.HttpError {
+	if slackHook == "" {
+		return nil
+	}
 	retries := 0
 	for {
 		retries++
@@ -64,7 +75,7 @@ type ProjectIdAndTitle struct {
 	Title string `json:"title"`
 }
 
-func CreateTicketFromUser(actor rpc.Actor, request fndapi.CreateTicketRequest, r *http.Request) *util.HttpError {
+func createTicketFromUser(actor rpc.Actor, request fndapi.CreateTicketRequest, r *http.Request) *util.HttpError {
 	principal, ok := db.NewTx2(
 		func(tx *db.Transaction) (Principal, bool) {
 			return LookupPrincipal(tx, actor.Username)
@@ -110,12 +121,12 @@ func CreateTicketFromUser(actor rpc.Actor, request fndapi.CreateTicketRequest, r
 			Subject:       request.Subject,
 			Message:       request.Message,
 		}
-		return CreateTicket(ticket)
+		return createTicket(ticket)
 	}
 	return util.HttpErr(http.StatusInternalServerError, "could not create ticket")
 }
 
-func CreateTicket(ticket Ticket) *util.HttpError {
+func createTicket(ticket Ticket) *util.HttpError {
 	message := fmt.Sprintf(
 		`
 		New ticket via UCloud:
@@ -143,5 +154,15 @@ func CreateTicket(ticket Ticket) *util.HttpError {
 		ticket.Message,
 	)
 
-	return SlackSendMessage(slackHook, message)
+	err := MailSendSupport(fndapi.MailSendSupportRequest{
+		FromEmail: ticket.Email,
+		Subject:   ticket.Subject,
+		Message:   ticket.Message,
+	})
+	if err != nil {
+		log.Warn("Failed to send ticket email: %s", err.Error())
+		return util.HttpErr(http.StatusInternalServerError, "Could not send ticket email")
+	}
+
+	return slackSendMessage(slackHook, message)
 }
