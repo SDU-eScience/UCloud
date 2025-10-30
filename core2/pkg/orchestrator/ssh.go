@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"ucloud.dk/core/pkg/coreutil"
+	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -39,8 +41,6 @@ func initSsh() {
 		err := SshKeyDelete(info.Actor, request.Items)
 		return util.Empty{}, err
 	})
-
-	//orcapi.SshKeyRetrieveByJob.Handler(func()){}
 }
 
 func SshKeyCreate(actor rpc.Actor, keys []orcapi.SshKeySpecification) ([]fndapi.FindByStringId, *util.HttpError) {
@@ -89,8 +89,38 @@ func SshKeyCreate(actor rpc.Actor, keys []orcapi.SshKeySpecification) ([]fndapi.
 		}
 		return results
 	})
-	//TODO add a notifyProviders function call here
+	sshKeyNotifyProviders(actor)
+
 	return result, nil
+}
+
+func sshKeyNotifyProviders(actor rpc.Actor) {
+	allProviders, err := accapi.FindRelevantProviders.Invoke(fndapi.BulkRequestOf(accapi.FindRelevantProvidersRequest{
+		Username:          actor.Username,
+		Project:           util.OptStringIfNotEmpty(string(actor.Project.Value)),
+		UseProject:        actor.Project.Present,
+		FilterProductType: util.OptValue(accapi.ProductTypeCompute),
+		IncludeFreeToUse:  util.OptValue(false),
+	}))
+	if err != nil || len(allProviders.Responses) != 1 {
+		return
+	}
+	allKeys := SshKeyBrowse(actor, orcapi.SshKeysBrowseRequest{
+		ItemsPerPage: 1000,
+	})
+
+	for _, provider := range allProviders.Responses[0].Providers {
+		_, err = InvokeProvider(provider, orcapi.SshProviderKeyUploaded, orcapi.SshProviderKeyUploadedRequest{
+			Username: actor.Username,
+			AllKeys:  allKeys.Items,
+		}, ProviderCallOpts{
+			Username: util.OptValue(actor.Username),
+			Reason:   util.OptValue("New SSH key"),
+		})
+		if err != nil {
+			log.Warn("Could not notify provider regarding SSH keys")
+		}
+	}
 }
 
 var validPrefixes = []string{
@@ -216,9 +246,12 @@ func SshKeyDelete(actor rpc.Actor, keys []fndapi.FindByStringId) *util.HttpError
 			},
 		)
 	})
+	sshKeyNotifyProviders(actor)
+
 	return nil
 }
 
+// TODO
 func SshKeyRetrieveByJob(actor rpc.Actor, jobId string) ([]orcapi.SshKey, *util.HttpError) {
 	job, err := JobsRetrieve(actor, jobId, orcapi.JobFlags{})
 	if err != nil {
@@ -297,6 +330,5 @@ func SshKeyRetrieveByJob(actor rpc.Actor, jobId string) ([]orcapi.SshKey, *util.
 		}
 		return result
 	})
-
 	return result, nil
 }

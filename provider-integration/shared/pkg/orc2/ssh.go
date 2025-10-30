@@ -51,7 +51,7 @@ var SshControlBrowse = rpc.Call[SshKeysControlBrowseRequest, fnd.PageV2[SshKey]]
 	Roles:       rpc.RolesProvider,
 }
 
-const sshProviderBaseContext = "/ucloud/" + rpc.ProviderPlaceholder + "/ssh"
+const sshProviderBaseContext = "ucloud/" + rpc.ProviderPlaceholder + "/ssh"
 
 type SshProviderKeyUploadedRequest struct {
 	Username string   `json:"username"`
