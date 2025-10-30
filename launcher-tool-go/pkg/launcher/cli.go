@@ -3,6 +3,7 @@ package launcher
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"slices"
 	"strings"
@@ -228,7 +229,25 @@ func CliIntercept(args []string) {
 		withResourceUsername := "user-resources"
 		withResourcePassword := "user-resources-password"
 		locationOrigin := "https://ucloud.localhost.direct/"
-		createUser(withResourceUsername, withResourcePassword, "USER")
+		newUser := createUser(withResourceUsername, withResourcePassword, "USER")
+		if newUser != nil {
+			createRootAllocation()
+			giftId := createGift()
+			claimGifts(newUser.AccessToken, giftId)
+			// User didn't exist
+			// Connect to provider!
+			// Won't work until we have resources at that provider
+			result := CallService("backend", "POST", "http://localhost:8080/api/providers/integration/connect", newUser.AccessToken, `{provider: "3"}`, []string{})
+			fmt.Println("Connecting to provider, result: " + result) //result.redirectTo
+			var redirectResult struct {
+				RedirectTo string `json:"redirectTo"`
+			}
+			_ = json.Unmarshal([]byte(result), &redirectResult)
+			http.Get(redirectResult.RedirectTo)
+
+			// Get resources automatically
+			//grantresources
+		}
 
 		pathToTestInfo := repoRoot.GetAbsolutePath() + "/frontend-web/webclient/tests/test_data.json"
 		err := os.WriteFile(pathToTestInfo, []byte(`{
@@ -247,18 +266,88 @@ func CliIntercept(args []string) {
 			panic(err)
 		}
 
-		// CallService("backend") // trying to grant resources. No idea if this is the actual issue.
-
 		runCommand([]string{"npx", "playwright", "install"})
 		runCommand([]string{"npx", "playwright", "install-deps"})
 		runCommand(testCommand)
-
-		// TODO: Create users, one with resources, and one without.
 	}
-
 	os.Exit(0)
 }
-func createUser(username string, password string, role string) {
+
+func createGift() int {
+	result := CallService("backend", "POST", "http://localhost:8080/api/gifts", FetchAccessToken(), `{
+		"id": 0,
+		"criteria": [{"type": "anyone"}],
+		"description": "Testing purposes",
+		"resources": [
+			{
+				"balanceRequested": 1000,
+				"category": "public-ip",
+				"grantGiver": "",
+				"period": {
+					"end": 0,
+					"start": 0
+				},
+				"provider": "gok8s"
+			},
+			{
+				"balanceRequested": 1000,
+				"category": "storage",
+				"grantGiver": "",
+				"period": {
+					"end": 0,
+					"start": 0
+				},
+				"provider": "gok8s"
+			},
+			{
+				"balanceRequested": 60000,
+				"category": "u1-standard",
+				"grantGiver": "",
+				"period": {
+					"end": 0,
+					"start": 0
+				},
+				"provider": "gok8s"
+			},
+			{
+				"balanceRequested": 60000,
+				"category": "u2-standard",
+				"grantGiver": "",
+				"period": {
+					"end": 0,
+					"start": 0
+				},
+				"provider": "gok8s"
+			}
+		],
+		"resourcesOwnedBy": "`+getRootProjectId()+`",
+		"title": "Gift for testing accounts",
+		"renewEvery": 0
+	}`, []string{"-H", "Project: " + getRootProjectId()})
+
+	var createGiftResult struct {
+		Id int `json:"id"`
+	}
+	_ = json.Unmarshal([]byte(result), &createGiftResult)
+	fmt.Println("createGiftResult:", createGiftResult.Id)
+	return createGiftResult.Id
+}
+
+func claimGifts(bearer string, id int) {
+	result := CallService("backend", "POST", "http://localhost:8080/api/gifts/claim", bearer, `{giftId: `+fmt.Sprint(id)+`}`, []string{})
+	fmt.Println("Claimed gifts result: ", result)
+
+	result = CallService("backend", "GET", "localhost:8080/api/gifts/available", bearer, "", []string{})
+	fmt.Println("available: ", result)
+}
+
+type UserTokens struct {
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken"`
+	CsrfToken    string `json:"csrfToken"`
+}
+
+func createUser(username string, password string, role string) *UserTokens {
 	accessToken := FetchAccessToken()
 	mail := username + "@fake-mail.com"
 	response := CallService(
@@ -266,12 +355,9 @@ func createUser(username string, password string, role string) {
 		"POST",
 		"http://localhost:8080/auth/users/register",
 		accessToken,
-		//language=json
 		`[{firstnames: `+username+`, lastname: `+username+`, username: `+username+`, password: `+password+`,  role: `+role+`, email: `+mail+`}]`,
 		[]string{},
 	)
-	fmt.Println(response)
-	// TODO(Jonas): better error handling. See below how responses look
 
 	var errorMessage struct {
 		Why string `json:"why"`
@@ -282,12 +368,17 @@ func createUser(username string, password string, role string) {
 	if errorMessage.Why != "" {
 		if strings.Contains(errorMessage.Why, "Conflict") {
 			fmt.Println("User already exists. Proceeding.")
+			return nil
 		} else {
 			panic("Unhandled error: " + errorMessage.Why + ". Bailing")
 		}
-	} else {
-		fmt.Println("User " + username + " created")
 	}
+
+	var userTokens []UserTokens
+
+	fmt.Println("User " + username + " created")
+	_ = json.Unmarshal([]byte(response), &userTokens)
+	return &userTokens[0]
 }
 
 func runCommand(args []string) {
@@ -320,6 +411,70 @@ func testCommandFromArgs(args []string) []string {
 		cmdToRun = append(cmdToRun, "test")
 	}
 	return cmdToRun
+}
+
+func createRootAllocation() {
+	result := CallService("backend", "POST", "localhost:8080/api/accounting/v2/rootAllocate", FetchAccessToken(), `{
+		"items": [
+			{
+				"category": {
+					"name": "public-ip",
+					"provider": "gok8s"
+				},
+				"end": 1767225599999,
+				"quota": 1000,
+				"start": 1735689600000
+			},
+			{
+				"category": {
+					"name": "storage",
+					"provider": "gok8s"
+				},
+				"end": 1767225599999,
+				"quota": 1000,
+				"start": 1735689600000
+			},
+			{
+				"category": {
+					"name": "u1-standard",
+					"provider": "gok8s"
+				},
+				"end": 1767225599999,
+				"quota": 60000,
+				"start": 1735689600000
+			},
+			{
+				"category": {
+					"name": "u2-standard",
+					"provider": "gok8s"
+				},
+				"end": 1767225599999,
+				"quota": 60000,
+				"start": 1735689600000
+			}
+		]
+	}`, []string{"-H", "Project: " + getRootProjectId()})
+	fmt.Println(getRootProjectId(), result)
+}
+
+var rootProjectId string = ""
+
+func getRootProjectId() string {
+	if rootProjectId != "" {
+		return rootProjectId
+	}
+	result := CallService("backend", "GET", "localhost:8080/api/projects/v2/browse?itemsPerPage=250&includeFavorite=true&includeMembers=true&sortBy=favorite&sortDirection=descending&includeArchived=true", FetchAccessToken(), "", []string{})
+	var projectBrowseResponse struct {
+		Items []ProjectIdWrapper `json:"items"`
+	}
+	_ = json.Unmarshal([]byte(result), &projectBrowseResponse)
+
+	rootProjectId = projectBrowseResponse.Items[0].Id
+	return rootProjectId
+}
+
+type ProjectIdWrapper struct {
+	Id string `json:"id"`
 }
 
 /*
