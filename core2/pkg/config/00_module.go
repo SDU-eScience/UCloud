@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"ucloud.dk/shared/pkg/cfgutil"
+	"ucloud.dk/shared/pkg/rpc"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var Configuration *ConfigurationFormat
@@ -36,6 +38,8 @@ type ConfigurationFormat struct {
 		Version int
 		Text    string
 	}
+
+	ElasticSearch util.Option[rpc.ElasticConfig]
 
 	RequireMfa bool
 }
@@ -119,6 +123,13 @@ func Parse(configDir string) bool {
 	cfgutil.Decode(filePath, addrNode, &cfg.SelfAddress, &success)
 
 	cfg.RequireMfa, _ = cfgutil.OptionalChildBool(filePath, document, "requireMfa")
+
+	elastic, ok := rpc.ElasticConfigRetrieve(filePath, document)
+	if !ok {
+		success = false
+	} else {
+		cfg.ElasticSearch = elastic
+	}
 
 	// Token validation
 	{

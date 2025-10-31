@@ -153,20 +153,28 @@ func ProductBrowse(actor rpc.Actor, request accapi.ProductsBrowseRequest) (fndap
 }
 
 func ProductCreate(actor rpc.Actor, products []accapi.ProductV2) *util.HttpError {
-	if actor.Role != rpc.RoleProvider {
-		return util.HttpErr(http.StatusForbidden, "forbidden")
-	}
-
-	providerId, ok := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
-	if !ok {
-		return util.HttpErr(http.StatusForbidden, "forbidden")
-	}
-
-	for _, p := range products {
-		if p.Category.Provider != providerId {
+	if actor.Username != rpc.ActorSystem.Username {
+		if actor.Role != rpc.RoleProvider {
 			return util.HttpErr(http.StatusForbidden, "forbidden")
 		}
+
+		providerId, ok := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
+		if !ok {
+			return util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+
+		for _, p := range products {
+			if p.Category.Provider != providerId {
+				return util.HttpErr(http.StatusForbidden, "forbidden")
+			}
+		}
 	}
+
+	if len(products) == 0 {
+		return util.HttpErr(http.StatusBadRequest, "no products supplied")
+	}
+
+	providerId := products[0].Category.Provider
 
 	bucket := util.ReadOrInsertBucket(&productsByProvider.Mu, productsByProvider.Buckets, providerId, nil)
 

@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"net/http"
+	"path/filepath"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
@@ -467,6 +468,10 @@ func filesCopyOrMove(
 
 		if err != nil {
 			return result, err
+		} else {
+			for _, reqItem := range requests {
+				MetadataMigrateToNewPath(reqItem.OldId, reqItem.NewId)
+			}
 		}
 	}
 
@@ -532,7 +537,7 @@ func FilesBrowse(actor rpc.Actor, request orcapi.FilesBrowseRequest) (fndapi.Pag
 		return fndapi.PageV2[orcapi.UFile]{}, err
 	}
 
-	files := fileTransform(drive, resp.Items)
+	files := fileTransform(actor, drive, resp.Items)
 
 	return fndapi.PageV2[orcapi.UFile]{
 		Items:        files,
@@ -570,14 +575,46 @@ func FilesRetrieve(actor rpc.Actor, request orcapi.FilesRetrieveRequest) (orcapi
 		return orcapi.UFile{}, err
 	}
 
-	file := fileTransform(drive, []orcapi.ProviderFile{resp})[0]
+	file := fileTransform(actor, drive, []orcapi.ProviderFile{resp})[0]
 	return file, nil
 }
 
-func fileTransform(driveInfo orcapi.Drive, files []orcapi.ProviderFile) []orcapi.UFile {
+func fileTransform(actor rpc.Actor, driveInfo orcapi.Drive, files []orcapi.ProviderFile) []orcapi.UFile {
 	var result []orcapi.UFile
+
+	metadataByParent := map[string]map[string]MetadataDocument{}
+	sensitivityByAncestor := map[string]util.Option[SensitivityLevel]{}
+
 	for _, item := range files {
-		result = append(result, orcapi.UFile{
+		cleanPath := filepath.Clean(item.Id)
+
+		inheritedSensitivity := util.OptNone[SensitivityLevel]()
+		ancestor := filepath.Dir(cleanPath)
+		for ancestor != "" && ancestor != "/" {
+			sensitivity, ok := sensitivityByAncestor[ancestor]
+			if !ok {
+				metadata, _ := MetadataRetrieveAtPath(actor, ancestor)
+				sensitivity = metadata.Sensitivity
+				sensitivityByAncestor[ancestor] = sensitivity
+			}
+
+			if sensitivity.Present && !inheritedSensitivity.Present {
+				inheritedSensitivity.Set(sensitivity.Value)
+			}
+
+			ancestor = filepath.Dir(ancestor)
+		}
+
+		parent := filepath.Dir(cleanPath)
+		metadataInFolder, ok := metadataByParent[parent]
+		if !ok {
+			metadataInFolder, ok = MetadataBrowseFolder(actor, parent)
+			metadataByParent[parent] = metadataInFolder
+		}
+
+		myMetadata, hasMetadata := metadataInFolder[cleanPath]
+
+		file := orcapi.UFile{
 			Resource: orcapi.Resource{
 				Id:          item.Id,
 				CreatedAt:   item.Status.ModifiedAt,
@@ -589,7 +626,28 @@ func fileTransform(driveInfo orcapi.Drive, files []orcapi.ProviderFile) []orcapi
 				Product:    driveInfo.Specification.Product,
 			},
 			Status: item.Status,
-		})
+		}
+
+		file.Status.Metadata = orcapi.FileMetadata{Metadata: map[string][]orcapi.FileMetadataDocument{}}
+
+		if !myMetadata.Sensitivity.Present && inheritedSensitivity.Present {
+			myMetadata.Sensitivity = inheritedSensitivity
+
+			if !hasMetadata {
+				myMetadata.Path = cleanPath
+				hasMetadata = true
+			}
+		}
+
+		if hasMetadata {
+			metaMap := file.Status.Metadata.Metadata
+			docItems := MetadataDocToApi(actor, myMetadata, MetadataIncludeSensitivity|MetadataIncludeFavorite)
+			for _, docItem := range docItems {
+				metaMap[docItem.Metadata.Specification.TemplateId] = []orcapi.FileMetadataDocument{docItem.Metadata}
+			}
+		}
+
+		result = append(result, file)
 	}
 	return result
 }

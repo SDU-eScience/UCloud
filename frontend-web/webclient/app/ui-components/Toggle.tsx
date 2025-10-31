@@ -44,7 +44,7 @@ export const Toggle: React.FC<ToggleProps> = ({
     return <div
         onClick={handler}
         style={style}
-        data-active={checked}
+        data-is-active={checked}
         className={classConcat(ToggleWrapperClass, colorAnimationDisabled ? "color-anim-disabled" : undefined)}
     >
         <div />
@@ -69,7 +69,7 @@ const ToggleWrapperClass = injectStyle("toggle-wrapper", k => `
         cursor: pointer;
     }
 
-    ${k}[data-active="true"] {
+    ${k}[data-is-active="true"] {
         background-color: var(--activeColor);
         padding-left: calc(21px * var(--scale));
     }

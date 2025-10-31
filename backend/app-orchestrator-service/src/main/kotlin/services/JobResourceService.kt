@@ -430,7 +430,7 @@ class JobResourceService(
         }.asFindByIdResponse()
     }
 
-    // Jobs have an ACL which allows multiple users to collaborate on the same job. This is mostly useful for shares
+    // Jobs have an ACL which allows multiple users to collaborate on the same job. This is mostly useful for shared
     // resources, such as virtual machines.
     suspend fun updateAcl(
         actorAndProject: ActorAndProject,
@@ -472,8 +472,8 @@ class JobResourceService(
 
         // Jobs which need to be restarted or are terminated by the update needs additional work. We track which jobs
         // receive these updates for further processing.
-        val jobsToRestart = HashSet<Long>()
         val terminatedJobs = HashSet<Long>()
+        val notificationsToAdd = ArrayList<NotificationToAdd>()
 
         for ((jobId, updates) in updatesByJob) {
             documents.addUpdate(
@@ -511,46 +511,15 @@ class JobResourceService(
 
                             if (newState == JobState.RUNNING) job.startedAt = Time.now()
 
-                            // Handle notifications for user
-                            backgroundScope.launch {
-                                notificationMutex.withLock {
-                                    addNotification(
-                                        idCards.lookupUid(uid),
-                                        newState,
-                                        jobId,
-                                        job.specification
-                                    )
-                                }
-
-                                var timer = 0
-                                val timeUntilSendNotifications = 10_000
-                                val timeUntilSendMails = 60_000 * 10
-
-                                while (timer < timeUntilSendNotifications && jobNotifications.values.any { it.isNotEmpty() }) {
-                                    delay(1_000)
-                                    timer += 1_000
-
-                                    notificationMutex.withLock {
-                                        if (timer >= timeUntilSendNotifications && jobNotifications.values.any { it.isNotEmpty() }) {
-                                            sendNotifications()
-                                            timer = timeUntilSendNotifications
-                                        }
-                                    }
-                                }
-
-
-                                while (timer < timeUntilSendMails && jobMailNotifications.values.any { it.isNotEmpty() }) {
-                                    delay(1_000)
-                                    timer += 1_000
-
-                                    notificationMutex.withLock {
-                                        if (timer >= timeUntilSendMails && jobMailNotifications.values.any { it.isNotEmpty() }) {
-                                            sendMails()
-                                            timer = timeUntilSendMails
-                                        }
-                                    }
-                                }
-                            }
+                            notificationsToAdd.add(
+                                NotificationToAdd(
+                                    uid,
+                                    newState,
+                                    jobId,
+                                    job.specification.application,
+                                    job.specification.name,
+                                )
+                            )
 
                             if (!newState.isFinal()) {
                                 allActiveJobs[jobId.toLongOrNull()] = Unit
@@ -558,43 +527,9 @@ class JobResourceService(
                                 allActiveJobs.remove(jobId.toLongOrNull())
                             }
 
-                            if (job.specification.restartOnExit == true && newState.isFinal() && allowRestart == true) {
-                                job.state = JobState.SUSPENDED
-                                jobsToRestart.add(id[arrIdx])
-                            }
-
                             if (job.state.isFinal()) {
                                 terminatedJobs.add(id[arrIdx])
                             }
-                        }
-
-                        newMounts?.also { newMounts ->
-                            // NOTE(Dan, 17/08/23): This is used primarily by Syncthing at the moment. This code needs
-                            // to find which mounts among the list are still valid for the user. When we restart the
-                            // job later, then the job will receive the new list of mounts by inspecting the resources.
-                            val allResources = job.specification.resources ?: emptyList()
-                            val nonMountResources = allResources.filter { it !is AppParameterValue.File }
-                            val validMountResources = runBlocking {
-                                // TODO(Dan): This is really not ideal, we should not be blocking here.
-                                val createdBy = idCards.lookupUid(uid)?.let {
-                                    Actor.SystemOnBehalfOfUser(it)
-                                } ?: Actor.guest
-
-                                val project = if (pid != 0) {
-                                    idCards.lookupPid(pid)
-                                } else {
-                                    null
-                                }
-
-                                verification.checkAndReturnValidFiles(
-                                    ActorAndProject(createdBy, project),
-                                    newMounts.map { AppParameterValue.File(it) }
-                                )
-                            }
-
-                            job.specification = job.specification.copy(
-                                resources = nonMountResources + validMountResources
-                            )
                         }
                     }
 
@@ -605,13 +540,6 @@ class JobResourceService(
 
         // Below we process the jobs we tracked earlier. These happen in a background thread and generally speaking
         // try to progress even when an exception is thrown.
-
-        if (jobsToRestart.isNotEmpty()) {
-            backgroundScope.launch {
-                val jobs = retrieveBulk(ActorAndProject.System, jobsToRestart.toLongArray(), Permission.READ)
-                performUnsuspension(jobs)
-            }
-        }
 
         if (terminatedJobs.isNotEmpty()) {
             val jobs = retrieveBulk(ActorAndProject.System, terminatedJobs.toLongArray(), Permission.READ)
@@ -627,163 +555,231 @@ class JobResourceService(
                 }
             }
         }
+
+        if (notificationsToAdd.isNotEmpty()) {
+            backgroundScope.launch {
+                for (notification in notificationsToAdd) {
+                    val appName = notification.application.name
+                    if (appName == "unknown" || appName == "syncthing") continue
+
+                    notificationMutex.withLock {
+                        addNotification(notification)
+                    }
+
+                    var timer = 0
+                    val timeUntilSendNotifications = 10_000
+                    val timeUntilSendMails = 60_000 * 10
+
+                    while (timer < timeUntilSendNotifications && jobNotifications.values.any { it.isNotEmpty() }) {
+                        delay(1_000)
+                        timer += 1_000
+
+                        val shouldSend = notificationMutex.withLock {
+                            if (timer >= timeUntilSendNotifications && jobNotifications.values.any { it.isNotEmpty() }) {
+                                timer = timeUntilSendNotifications
+                                true
+                            } else {
+                                false
+                            }
+                        }
+
+                        if (shouldSend) {
+                            sendNotifications()
+                        }
+                    }
+
+
+                    while (timer < timeUntilSendMails && jobMailNotifications.values.any { it.isNotEmpty() }) {
+                        delay(1_000)
+                        timer += 1_000
+
+                        val shouldSend = notificationMutex.withLock {
+                            if (timer >= timeUntilSendMails && jobMailNotifications.values.any { it.isNotEmpty() }) {
+                                timer = timeUntilSendMails
+                                true
+                            } else {
+                                false
+                            }
+                        }
+
+                        if (shouldSend) {
+                            sendMails()
+                        }
+                    }
+                }
+            }
+        }
     }
 
-    private suspend fun addNotification(
-        user: String?,
-        newState: JobState,
-        jobId: String,
-        jobSpecification: JobSpecification
-    ) {
-        if (user == null) return;
+    private data class NotificationToAdd(
+        val uid: Int,
+        val newState: JobState,
+        val jobId: String,
+        val application: NameAndVersion,
+        val jobName: String?,
+    )
 
-        val appTitle = appCache.resolveApplication(jobSpecification.application)!!.metadata.title
+    private suspend fun addNotification(notification: NotificationToAdd) {
+        with(notification) {
+            val user = idCards.lookupUid(uid)
+            if (user == null) return;
 
-        if (!jobNotifications.containsKey(user)) {
-            jobNotifications[user] = mutableListOf()
-        }
+            val appTitle = appCache.resolveApplication(application)!!.metadata.title
 
-        if (!jobMailNotifications.containsKey(user)) {
-            jobMailNotifications[user] = mutableListOf()
-        }
+            if (!jobNotifications.containsKey(user)) {
+                jobNotifications[user] = mutableListOf()
+            }
 
-        jobNotifications[user]!!.add(
-            JobNotificationInfo(
-                newState,
-                jobId,
-                appTitle,
-                jobSpecification.name,
+            if (!jobMailNotifications.containsKey(user)) {
+                jobMailNotifications[user] = mutableListOf()
+            }
+
+            jobNotifications[user]!!.add(
+                JobNotificationInfo(
+                    newState,
+                    jobId,
+                    appTitle,
+                    jobName,
+                )
             )
-        )
 
-        jobMailNotifications[user]!!.add(
-            JobNotificationInfo(
-                newState,
-                jobId,
-                appTitle,
-                jobSpecification.name,
+            jobMailNotifications[user]!!.add(
+                JobNotificationInfo(
+                    newState,
+                    jobId,
+                    appTitle,
+                    jobName,
+                )
             )
-        )
+        }
     }
 
     private suspend fun sendNotifications() {
-        for (user in jobNotifications.keys) {
-            val handledTypes = mutableListOf<JobState>()
-            val notifications = jobNotifications[user] ?: continue
+        val summarizedNotifications = ArrayList<CreateNotification>()
+        notificationMutex.withLock {
+            for (user in jobNotifications.keys) {
+                val handledTypes = mutableListOf<JobState>()
+                val notifications = jobNotifications[user] ?: continue
 
-            val summarizedNotifications: List<Notification> = notifications.mapNotNull { notification ->
-                if (handledTypes.contains(notification.type)) return@mapNotNull null
+                notifications.forEach { notification ->
+                    if (handledTypes.contains(notification.type)) return@forEach
 
-                val sameType = notifications.filter { notification.type == it.type }
-                handledTypes.add(notification.type)
+                    val sameType = notifications.filter { notification.type == it.type }
+                    handledTypes.add(notification.type)
 
-                val jobIds = sameType.map { JsonPrimitive(it.jobId) }
-                val appTitles = sameType.map { JsonPrimitive(it.appTitle) }
-                val jobNames = sameType.map { JsonPrimitive(it.jobName) }
+                    val jobIds = sameType.map { JsonPrimitive(it.jobId) }
+                    val appTitles = sameType.map { JsonPrimitive(it.appTitle) }
+                    val jobNames = sameType.map { JsonPrimitive(it.jobName) }
 
-                val type = when (notification.type) {
-                    JobState.SUCCESS -> "JOB_COMPLETED"
-                    JobState.RUNNING -> "JOB_STARTED"
-                    JobState.FAILURE -> "JOB_FAILED"
-                    JobState.EXPIRED -> "JOB_EXPIRED"
-                    else -> return@mapNotNull null
-                }
+                    val type = when (notification.type) {
+                        JobState.SUCCESS -> "JOB_COMPLETED"
+                        JobState.RUNNING -> "JOB_STARTED"
+                        JobState.FAILURE -> "JOB_FAILED"
+                        JobState.EXPIRED -> "JOB_EXPIRED"
+                        else -> return@forEach
+                    }
 
-                Notification(
-                    type,
-                    "",
-                    meta = JsonObject(
-                        mapOf(
-                            "jobIds" to JsonArray(jobIds),
-                            "jobNames" to JsonArray(jobNames),
-                            "appTitles" to JsonArray(appTitles)
-                        )
-                    )
-                )
-            }
-
-            summarizedNotifications.forEach { notification ->
-                try {
-                    NotificationDescriptions.create.call(
+                    summarizedNotifications.add(
                         CreateNotification(
                             user,
-                            notification
-                        ),
-                        serviceClient
-                    )
-                } catch (ex: Throwable) {
-                    log.info("FAILED TO CREATE NOTIFICATION ${ex.toReadableStacktrace()}")
-                }
-            }
-        }
-
-        log.info("clearing ${jobNotifications.size} jobNotifications")
-        jobNotifications.clear()
-    }
-
-    private suspend fun sendMails() {
-        for (user in jobMailNotifications.keys) {
-            val notifications = jobMailNotifications[user] ?: continue
-            if (notifications.isEmpty()) continue
-
-            val jobIds = notifications.map { it.jobId }
-            val jobNames = notifications.map { it.jobName }
-            val appTitles = notifications.map { it.appTitle }
-
-            val types = notifications.mapNotNull { notification ->
-                when (notification.type) {
-                    JobState.SUCCESS -> "JOB_COMPLETED"
-                    JobState.RUNNING -> "JOB_STARTED"
-                    JobState.FAILURE -> "JOB_FAILED"
-                    JobState.EXPIRED -> "JOB_EXPIRED"
-                    else -> null;
-                }
-            }
-
-            val subject = if (types.size > 1) {
-                if (notifications.all { it.type == JobState.RUNNING }) {
-                    "${notifications.size} of your jobs on UCloud have started"
-                } else if (notifications.all { it.type == JobState.SUCCESS }) {
-                    "${notifications.size} of your jobs on UCloud have completed"
-                } else if (notifications.all { it.type == JobState.FAILURE }) {
-                    "${notifications.size} of your jobs on UCloud have failed"
-                } else if (notifications.all { it.type == JobState.EXPIRED }) {
-                    "${notifications.size} of your jobs on UCloud have expired"
-                } else {
-                    "The state of ${notifications.map { it.jobId }.toSet().size} of your jobs on UCloud has changed"
-                }
-            } else {
-                when (notifications.first().type) {
-                    JobState.RUNNING -> "One of your jobs on UCloud has started"
-                    JobState.SUCCESS -> "One of your jobs on UCloud has completed"
-                    JobState.FAILURE -> "One of your jobs on UCloud has failed"
-                    JobState.EXPIRED -> "One of your jobs on UCloud has expired"
-                    else -> "The state of one of your jobs on UCloud has changed"
-                }
-            }
-
-            try {
-                MailDescriptions.sendToUser.call(
-                    bulkRequestOf(
-                        SendRequestItem(
-                            user,
-                            Mail.JobEvents(
-                                jobIds,
-                                jobNames,
-                                appTitles,
-                                types,
-                                subject = subject
+                            Notification(
+                                type,
+                                "",
+                                meta = JsonObject(
+                                    mapOf(
+                                        "jobIds" to JsonArray(jobIds),
+                                        "jobNames" to JsonArray(jobNames),
+                                        "appTitles" to JsonArray(appTitles)
+                                    )
+                                )
                             )
                         )
-                    ),
+                    )
+                }
+            }
+
+            log.info("clearing ${jobNotifications.size} jobNotifications")
+            jobNotifications.clear()
+        }
+
+        summarizedNotifications.forEach { notification ->
+            try {
+                NotificationDescriptions.create.call(
+                    notification,
                     serviceClient
                 )
             } catch (ex: Throwable) {
-                log.info("FAILED TO SEND MAIL TO USER ${ex.toReadableStacktrace()}")
+                log.info("FAILED TO CREATE NOTIFICATION ${ex.toReadableStacktrace()}")
             }
         }
+    }
 
-        jobMailNotifications.clear()
+    private suspend fun sendMails() {
+        val items = ArrayList<SendRequestItem>()
+        notificationMutex.withLock {
+            for (user in jobMailNotifications.keys) {
+                val notifications = jobMailNotifications[user] ?: continue
+                if (notifications.isEmpty()) continue
+
+                val jobIds = notifications.map { it.jobId }
+                val jobNames = notifications.map { it.jobName }
+                val appTitles = notifications.map { it.appTitle }
+
+                val types = notifications.mapNotNull { notification ->
+                    when (notification.type) {
+                        JobState.SUCCESS -> "JOB_COMPLETED"
+                        JobState.RUNNING -> "JOB_STARTED"
+                        JobState.FAILURE -> "JOB_FAILED"
+                        JobState.EXPIRED -> "JOB_EXPIRED"
+                        else -> null;
+                    }
+                }
+
+                val subject = if (types.size > 1) {
+                    if (notifications.all { it.type == JobState.RUNNING }) {
+                        "${notifications.size} of your jobs on UCloud have started"
+                    } else if (notifications.all { it.type == JobState.SUCCESS }) {
+                        "${notifications.size} of your jobs on UCloud have completed"
+                    } else if (notifications.all { it.type == JobState.FAILURE }) {
+                        "${notifications.size} of your jobs on UCloud have failed"
+                    } else if (notifications.all { it.type == JobState.EXPIRED }) {
+                        "${notifications.size} of your jobs on UCloud have expired"
+                    } else {
+                        "The state of ${notifications.map { it.jobId }.toSet().size} of your jobs on UCloud has changed"
+                    }
+                } else {
+                    when (notifications.first().type) {
+                        JobState.RUNNING -> "One of your jobs on UCloud has started"
+                        JobState.SUCCESS -> "One of your jobs on UCloud has completed"
+                        JobState.FAILURE -> "One of your jobs on UCloud has failed"
+                        JobState.EXPIRED -> "One of your jobs on UCloud has expired"
+                        else -> "The state of one of your jobs on UCloud has changed"
+                    }
+                }
+
+                items.add(SendRequestItem(
+                    user,
+                    Mail.JobEvents(
+                        jobIds,
+                        jobNames,
+                        appTitles,
+                        types,
+                        subject = subject
+                    )
+                ))
+            }
+
+            jobMailNotifications.clear()
+        }
+
+        try {
+            MailDescriptions.sendToUser.call(
+                BulkRequest(items),
+                serviceClient
+            )
+        } catch (ex: Throwable) {
+            log.info("FAILED TO SEND MAIL TO USER ${ex.toReadableStacktrace()}")
+        }
     }
 
     // Job specific read operations
@@ -1011,7 +1007,14 @@ class JobResourceService(
 
                                         sendWSMessage(
                                             JobsFollowResponse(
-                                                log = listOf(JobsLog(message.rank, message.stdout, message.stderr, message.channel))
+                                                log = listOf(
+                                                    JobsLog(
+                                                        message.rank,
+                                                        message.stdout,
+                                                        message.stderr,
+                                                        message.channel
+                                                    )
+                                                )
                                             )
                                         )
                                     }
@@ -1165,7 +1168,7 @@ class JobResourceService(
         checkOnly: Boolean
     ): ResourceChargeCreditsResponse {
         log.info("Charge or check: checkOnly: $checkOnly")
-        val result =  payment.chargeOrCheckCredits(idCards, productCache, documents, actorAndProject, request, checkOnly)
+        val result = payment.chargeOrCheckCredits(idCards, productCache, documents, actorAndProject, request, checkOnly)
         result.insufficientFunds.forEach {
             log.info("insufficient: $it")
         }
@@ -1390,36 +1393,6 @@ class JobResourceService(
         )
 
         if (!anySuccess && firstException != null) throw firstException!!
-    }
-
-    suspend fun performUnsuspension(jobs: List<Job>) {
-        for (job in jobs) {
-            try {
-                val actorAndProject = job.owner.toActorAndProject()
-
-                val output = Array<ResourceDocument<InternalJobState>>(1) { ResourceDocument() }
-                documents.modify(
-                    IdCard.System,
-                    output,
-                    longArrayOf(job.id.toLong()),
-                    Permission.READ,
-                    consumer = { arrIdx, doc ->
-                        val data = doc.data!!
-                        data.specification = job.specification
-                    }
-                )
-
-                // TODO(Dan): We do not have any signed intent from the user which cause an issue with #3367
-                providers.call(
-                    job.specification.product.provider,
-                    actorAndProject,
-                    { JobsProvider(it).unsuspend },
-                    BulkRequest(listOf(JobsProviderUnsuspendRequestItem(job))),
-                )
-            } catch (ex: Throwable) {
-                log.info("Failed to restart job: $job\n${ex.stackTraceToString()}")
-            }
-        }
     }
 
     suspend fun initializeProviders(actorAndProject: ActorAndProject) {

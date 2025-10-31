@@ -12,11 +12,8 @@ import {ShortcutKey} from "@/ui-components/Operation";
 import {MainContainer} from "@/ui-components";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {useAvatars} from "@/AvataaarLib/hook";
-import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
-import {HTMLTooltip} from "@/ui-components/Tooltip";
-import {TruncateClass} from "@/ui-components/Truncate";
-import Avatar from "@/AvataaarLib/avatar";
+import {avatarState} from "@/AvataaarLib/hook";
+import {SimpleAvatarComponentCache} from "@/Files/Shares";
 
 const defaultRetrieveFlags: {itemsPerPage: number; filterType: "INGOING"} = {
     itemsPerPage: 250,
@@ -38,7 +35,6 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
 };
 
-let avatarCache: Record<string, ReactStaticRenderer> = {}
 const rowTitles: ColumnTitleList = [{name: "Project title"}, {name: "", columnWidth: 150}, {name: "Invited", columnWidth: 150}, {name: "Invited by", columnWidth: 90}];
 function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & SetShowBrowserHack}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
@@ -50,7 +46,6 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
     }
 
     const hideFilters = opts?.embedded?.hideFilters;
-    const avatars = useAvatars();
 
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
@@ -61,18 +56,15 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
         search: !opts?.embedded == null,
     };
 
-    avatars.subscribe(() => {
-        avatarCache = {};
-        browserRef.current?.renderRows()
-    });
-
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<ProjectInvite>(mount, "Project invites", opts).init(browserRef, features, "", browser => {
+                avatarState.subscribe(() => {
+                    browserRef.current?.renderRows()
+                });
+
                 browser.setColumns(rowTitles);
-                let currentAvatars = new Set<string>();
-                let fetchedAvatars = new Set<string>();
 
                 browser.on("skipOpen", (oldPath, newPath, res) => res != null);
                 browser.on("open", (oldPath, newPath, resource) => {
@@ -106,39 +98,14 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                 });
 
                 browser.on("endRenderPage", () => {
-                    if (currentAvatars.size > 0) {
-                        avatars.updateCache([...currentAvatars]);
-                        currentAvatars.forEach(it => fetchedAvatars.add(it));
-                        currentAvatars.clear();
-                    }
+                    SimpleAvatarComponentCache.fetchMissingAvatars();
                 });
 
                 browser.on("fetchFilters", () => []);
 
                 browser.on("renderRow", (invite, row, dims) => {
                     row.title.append(ResourceBrowser.defaultTitleRenderer(invite.projectTitle, row));
-
-                    const avatarWrapper = document.createElement("div");
-                    row.stat3.append(avatarWrapper);
-                    HTMLTooltip(avatarWrapper, createHTMLElements({tagType: "div", className: TruncateClass, innerText: `Invited by ${invite.invitedBy}`}), {tooltipContentWidth: 250});
-                    if (avatarCache[invite.invitedBy]) {
-                        const avatar = avatarCache[invite.invitedBy].clone()
-                        avatarWrapper.appendChild(avatar);
-                    } else {
-                        // Row stat3
-                        const avatar = avatars.avatar(invite.invitedBy);
-                        if (!fetchedAvatars.has(invite.invitedBy)) {
-                            currentAvatars.add(invite.invitedBy);
-                        }
-
-                        new ReactStaticRenderer(() =>
-                            <Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />
-                        ).promise.then(it => {
-                            avatarCache[invite.invitedBy] = it;
-                            const avatar = it.clone();
-                            avatarWrapper.appendChild(avatar);
-                        });
-                    }
+                    SimpleAvatarComponentCache.appendTo(row.stat3, invite.invitedBy, `Invited by ${invite.invitedBy}`);
 
                     row.stat2.innerText = format(invite.createdAt, "hh:mm dd/MM/yyyy");
                     row.stat2.style.marginTop = row.stat2.style.marginBottom = "auto";

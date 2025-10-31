@@ -6,13 +6,13 @@ import (
 	"net/http"
 	"sync/atomic"
 	"time"
-	db "ucloud.dk/shared/pkg/database"
-	fnd "ucloud.dk/shared/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/ipc"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	db "ucloud.dk/shared/pkg/database"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -360,6 +360,15 @@ func InitTaskSystem() {
 						}
 
 						if foundTask != nil {
+							status := foundTask.Status.Load()
+							_ = PostTaskStatus(TaskStatusUpdate{
+								Id:            foundTask.Id,
+								NewBody:       status.Body,
+								NewProgress:   status.Progress,
+								NewPercentage: status.ProgressPercentage,
+								NewState:      util.OptValue(transition.State),
+							})
+
 							foundTask.UserRequestedState.Store(&transition.State)
 						} else {
 							// TODO Somehow send a terminate message. This is a bit more complicated since we do not have

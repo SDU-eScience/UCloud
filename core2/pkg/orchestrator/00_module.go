@@ -19,9 +19,14 @@ func Init() {
 	initProviders()
 	InitResources()
 	initFeatures()
+	initTasks()
 
 	initDrives()
 	initFiles()
+	initMetadata()
+	initShares()
+	initShareLinks()
+
 	initAppSearchIndex()
 	initAppLogos()
 	initAppCatalog()
@@ -29,6 +34,7 @@ func Init() {
 	initLicenses()
 	initPublicIps()
 	initIngresses()
+	initSsh()
 
 	// TODO Dummy implementation to make frontend happy
 	r := rpc.Call[util.Empty, fndapi.PageV2[integrationRespTemporary]]{

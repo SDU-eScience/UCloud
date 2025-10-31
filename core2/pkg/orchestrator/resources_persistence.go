@@ -264,10 +264,10 @@ func lResourcePersist(r *resource) {
 				var permissions []string
 
 				for _, entry := range r.Acl {
-					for _, perm := range permissions {
+					for _, perm := range entry.Permissions {
 						groupIds = append(groupIds, entry.Entity.Group)
 						usernames = append(usernames, entry.Entity.Username)
-						permissions = append(permissions, perm)
+						permissions = append(permissions, string(perm))
 					}
 				}
 
@@ -325,16 +325,18 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 		}](
 			tx,
 			`
-				select r.id
+				select distinct r.id
 				from
 					provider.resource r
 					left join accounting.products p on r.product = p.id
 					left join accounting.product_categories pc on p.category = pc.id
+					left join provider.resource_acl_entry acl_entry on r.id = acl_entry.resource_id
 				where
 				    (
 						(r.created_by = :reference and r.project is null and pc.provider is distinct from :reference)
 						or (r.project = :reference and r.created_by != :reference and pc.provider is distinct from :reference)
 						or (pc.provider is not distinct from :reference and r.created_by != :reference and r.project != :reference)
+						or (acl_entry.username = :reference)
 					)
 					and r.type = :type
 		    `,
@@ -357,4 +359,59 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 		b.ByOwner[reference] = ids
 	}
 	b.Mu.Unlock()
+}
+
+func resourceLoadProvider(providerId string) *resourceProvider {
+	if resourceGlobals.Testing.Enabled {
+		resourceGlobals.Mu.Lock()
+		result, exists := resourceGlobals.Providers[providerId]
+		if !exists {
+			result = &resourceProvider{
+				ProviderIds: map[string]ResourceId{},
+			}
+			resourceGlobals.Providers[providerId] = result
+		}
+		resourceGlobals.Mu.Unlock()
+		return result
+	} else {
+		ids := db.NewTx(func(tx *db.Transaction) map[string]ResourceId {
+			result := map[string]ResourceId{}
+			rows := db.Select[struct {
+				Id                  int
+				ProviderGeneratedId string
+			}](
+				tx,
+				`
+					select r.id, r.provider_generated_id
+					from
+						provider.resource r
+						join accounting.products p on r.product = p.id
+						join accounting.product_categories pc on p.category = pc.id
+					where
+						r.provider_generated_id is not null
+						and pc.provider = :provider_id
+			    `,
+				db.Params{
+					"provider_id": providerId,
+				},
+			)
+
+			for _, row := range rows {
+				result[row.ProviderGeneratedId] = ResourceId(row.Id)
+			}
+
+			return result
+		})
+
+		resourceGlobals.Mu.Lock()
+		result, exists := resourceGlobals.Providers[providerId]
+		if !exists {
+			result = &resourceProvider{
+				ProviderIds: ids,
+			}
+			resourceGlobals.Providers[providerId] = result
+		}
+		resourceGlobals.Mu.Unlock()
+		return result
+	}
 }

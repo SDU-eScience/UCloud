@@ -58,20 +58,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		return fmt.Errorf("failed to initialize job folder")
 	}
 
-	if rank == 0 {
-		ucloudFolder, ok := filesystem.InternalToUCloudWithDrive(drive, jobFolder)
-		if ok {
-			_ = ctrl.TrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
-				{
-					Id: job.Id,
-					Update: orc.JobUpdate{
-						OutputFolder: util.OptValue[string](ucloudFolder),
-					},
-				},
-			})
-		}
-	}
-
 	namespace := ServiceConfig.Compute.Namespace
 
 	application := &job.Status.ResolvedApplication.Invocation
@@ -280,6 +266,17 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	// Invocation
 	// -----------------------------------------------------------------------------------------------------------------
 	prepareInvocationOnJobCreate(job, rank, pod, userContainer, internalToPod, jobFolder)
+	hasPublicLink := false
+	for _, r := range job.Specification.Resources {
+		if r.Type == orc.AppParameterValueTypeIngress {
+			hasPublicLink = true
+			break
+		}
+	}
+	userContainer.Env = append(userContainer.Env, core.EnvVar{
+		Name:  "UCLOUD_URL_IS_PUBLIC",
+		Value: fmt.Sprint(hasPublicLink),
+	})
 
 	// Multi-node sidecar
 	// -----------------------------------------------------------------------------------------------------------------
@@ -379,9 +376,35 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		})
 
 		// From provider-integration folder:
-		// rsync -vhra . ../.compose/default/im2k8/im/storage/source-code --exclude ucloud-im --exclude integration-module
+		// rsync -vhra . ../.compose/default/im2k8/im/storage/source-code --exclude integration-module
 		ucvizContainer.Command = []string{
 			"bash", "-c", "cd /opt/source/im2 ; export PATH=$PATH:/usr/local/go/bin ; CGO_ENABLED=0 go build -o /opt/ucloud/ucviz -trimpath ucloud.dk/cmd/ucviz ; CGO_ENABLED=0 go build -o /opt/ucloud/ucmetrics -trimpath ucloud.dk/cmd/ucmetrics",
+		}
+
+		for i := range spec.InitContainers {
+			container := &spec.InitContainers[i]
+			if container.Name == "script-generation" {
+				container.VolumeMounts = append(container.VolumeMounts, core.VolumeMount{
+					Name:      "ucloud-filesystem",
+					ReadOnly:  false,
+					MountPath: "/opt/source",
+					SubPath:   ServiceConfig.Compute.ImSourceCode.Value,
+				})
+
+				container.Image = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.3.3"
+
+				oldCommand := container.Command
+				oldCommandString := strings.Join(oldCommand, " ")
+
+				container.Command = []string{
+					"bash", "-c", fmt.Sprintf(`
+						cd /opt/source/im2 ; 
+						export PATH=$PATH:/usr/local/go/bin ; 
+						CGO_ENABLED=0 go build -o /usr/bin/ucloud -trimpath ucloud.dk/cmd/ucloud-im ;
+						%s
+					`, oldCommandString),
+				}
+			}
 		}
 	}
 
@@ -486,6 +509,20 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	// NOTE(Dan): Cleanup in case of errors are centralized in the delete code. This is mostly to do with the fact that
 	//   we have multiple replicas.
+
+	if err == nil && rank == 0 {
+		ucloudFolder, ok := filesystem.InternalToUCloudWithDrive(drive, jobFolder)
+		if ok {
+			_ = ctrl.TrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
+				{
+					Id: job.Id,
+					Update: orc.JobUpdate{
+						OutputFolder: util.OptValue[string](ucloudFolder),
+					},
+				},
+			})
+		}
+	}
 
 	return err
 }

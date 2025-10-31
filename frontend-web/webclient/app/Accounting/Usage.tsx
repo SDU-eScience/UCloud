@@ -22,7 +22,7 @@ import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI, noopCall} from "@/Authentication/DataHook";
 import * as Config from "../../site.config.json";
 import {useProjectId} from "@/Project/Api";
-import {differenceInCalendarDays, formatDate, formatDistance} from "date-fns";
+import {formatDate, formatDistance} from "date-fns";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {deviceBreakpoint} from "@/ui-components/Hide";
@@ -42,6 +42,7 @@ import {DATE_FORMAT} from "@/Admin/NewsManagement";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import {Toggle} from "@/ui-components/Toggle";
+import UsageCore2 from "@/Accounting/UsageCore2";
 
 // Constants
 // =====================================================================================================================
@@ -439,6 +440,10 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
 // User-interface
 // =====================================================================================================================
 function Visualization(): React.ReactNode {
+    if (hasFeature(Feature.CORE2)) {
+        return <UsageCore2 />;
+    }
+
     const project = useProject();
     const projectId = useProjectId();
     const [state, rawDispatch] = useReducer(stateReducer, initialState);
@@ -1772,7 +1777,6 @@ function toggleSeriesEntry(chart: ApexCharts | undefined, seriesName: string, ch
 }
 
 const RenderUnitSelector: RichSelectChildComponent<{unit: string}> = ({element, onSelect, dataProps}) => {
-
     if (element === undefined) {
         return <Flex height={40} alignItems={"center"} pl={12}>No unit selected</Flex>
     }

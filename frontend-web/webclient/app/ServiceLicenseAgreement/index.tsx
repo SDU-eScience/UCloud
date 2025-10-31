@@ -6,7 +6,6 @@ import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Button, Markdown} from "@/ui-components";
 import {addStandardDialog} from "@/UtilityComponents";
-import {initializeResources} from "@/Services/ResourceInit";
 import {useNavigate} from "react-router";
 import {injectStyleSimple} from "@/Unstyled";
 
@@ -46,7 +45,6 @@ const ServiceLicenseAgreement: React.FunctionComponent = () => {
         try {
             await invokeCommand(acceptSla(sla.data.version));
             await Client.invalidateAccessToken();
-            initializeResources()
             navigate("/");
         } catch (res) {
             const response = res.response;

@@ -53,10 +53,11 @@ type ExportedParametersResources struct {
 }
 
 type DynamicTarget struct {
-	Rank   int                    `json:"rank"`
-	Type   InteractiveSessionType `json:"type"`
-	Target string                 `json:"target"`
-	Port   int                    `json:"port"`
+	Rank        int                    `json:"rank"`
+	Type        InteractiveSessionType `json:"type"`
+	Target      string                 `json:"target"`
+	Port        int                    `json:"port"`
+	DefaultName util.Option[string]    `json:"defaultName"`
 }
 
 type JobState string

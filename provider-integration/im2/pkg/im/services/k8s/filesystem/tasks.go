@@ -147,6 +147,15 @@ func InitTaskSystem() {
 					}
 
 					if foundTask != nil {
+						status := foundTask.Status.Load()
+						_ = PostTaskStatus(foundTask.UCloudUsername, TaskStatusUpdate{
+							Id:            foundTask.Id,
+							NewBody:       status.Body,
+							NewProgress:   status.Progress,
+							NewPercentage: status.ProgressPercentage,
+							NewState:      util.OptValue(transition.State),
+						})
+
 						foundTask.UserRequestedState.Store(&transition.State)
 					} else {
 						// TODO Somehow send a terminate message. This is a bit more complicated since we do not have

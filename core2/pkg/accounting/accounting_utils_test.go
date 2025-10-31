@@ -13,9 +13,10 @@ import (
 )
 
 type env struct {
-	t       *testing.T
-	Bucket  *internalBucket
-	diagram *os.File
+	t             *testing.T
+	Bucket        *internalBucket
+	diagram       *os.File
+	TimeInMinutes bool
 }
 
 var capacityCategory = accapi.ProductCategory{
@@ -50,6 +51,17 @@ var timeCategory = accapi.ProductCategory{
 
 // New returns a fresh env for the given category.
 func newEnv(t *testing.T, cat accapi.ProductCategory) *env {
+	accGlobals.TestingEnabled = true
+	close(providerWalletNotifications)
+	providerWalletNotifications = make(chan accWalletId, 128)
+	go func() {
+		for {
+			_, ok := <-providerWalletNotifications
+			if !ok {
+				break
+			}
+		}
+	}()
 	t.Helper()
 
 	accGlobals.OwnersByReference = map[string]*internalOwner{}
@@ -71,13 +83,13 @@ func newEnv(t *testing.T, cat accapi.ProductCategory) *env {
 	return &env{t: t, Bucket: b, diagram: f}
 }
 
-func (e *env) Tm(yearsFrom2000 int) time.Time {
-	return testTime(yearsFrom2000)
-}
-
-func testTime(year int) time.Time {
+func (e *env) Tm(t int) time.Time {
 	baseTime := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
-	return baseTime.AddDate(year, 0, 0)
+	if e.TimeInMinutes {
+		return baseTime.Add(time.Duration(t) * time.Minute)
+	} else {
+		return baseTime.AddDate(t, 0, 0)
+	}
 }
 
 func (e *env) Owner(ref string) *internalOwner {
@@ -107,7 +119,7 @@ func (e *env) AllocateEx(now, start, end int, quota int64, recipientRef, parentR
 	if parentRef != "" {
 		parent = e.Wallet(e.Owner(parentRef), e.Tm(now))
 	}
-	id, err := internalAllocate(e.Tm(now), e.Bucket, e.Tm(start), e.Tm(end), quota, rcp, parent, util.OptNone[accGrantId]())
+	id, err := internalAllocateNoCommit(e.Tm(now), e.Bucket, e.Tm(start), e.Tm(end), quota, rcp, parent, util.OptNone[accGrantId]())
 	if err != nil {
 		e.t.Fatalf("allocate: %v", err)
 	}

@@ -111,8 +111,13 @@ type resourceTypeGlobal struct {
 
 func resourceGetProvider(providerId string) *resourceProvider {
 	resourceGlobals.Mu.RLock()
-	g := resourceGlobals.Providers[providerId]
+	g, ok := resourceGlobals.Providers[providerId]
 	resourceGlobals.Mu.RUnlock()
+
+	if !ok {
+		g = resourceLoadProvider(providerId)
+	}
+
 	return g
 }
 
@@ -264,21 +269,21 @@ func resourcesReadEx(
 							permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionAdmin)
 							permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionRead)
 							permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionEdit)
-						}
-
-						if actor.Username == r.Owner.CreatedBy {
+						} else if actor.Username == r.Owner.CreatedBy {
 							permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionAdmin)
 							permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionRead)
 							permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionEdit)
+						} else {
+							checkAcl = true
 						}
-
 					}
 				} else {
-					checkAcl = true
 					if r.Owner.CreatedBy == actor.Username {
 						permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionAdmin)
 						permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionRead)
 						permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionEdit)
+					} else {
+						checkAcl = true
 					}
 				}
 
@@ -630,6 +635,7 @@ func ResourceUpdateAcl(
 ) *util.HttpError {
 	// TODO verify all entities in the added section
 
+	var addedUsers []string
 	pId := ResourceParseId(acl.Id)
 	ok := ResourceUpdate[any](actor, typeName, pId, orcapi.PermissionAdmin, func(r *resource, mapped any) {
 		var newAcl []orcapi.ResourceAclEntry
@@ -659,9 +665,26 @@ func ResourceUpdateAcl(
 
 			if !wasFound {
 				newAcl = append(newAcl, toAdd)
+
+				if toAdd.Entity.Type == orcapi.AclEntityTypeUser {
+					addedUsers = append(addedUsers, toAdd.Entity.Username)
+				}
 			}
 		}
+
+		r.Acl = newAcl
 	})
+
+	if len(addedUsers) > 0 {
+		for _, user := range addedUsers {
+			idx := resourceGetAndLoadIndex(typeName, user)
+
+			idx.Mu.Lock()
+			idx.ByOwner[user] = util.AppendUnique(idx.ByOwner[user], pId)
+			slices.Sort(idx.ByOwner[user])
+			idx.Mu.Unlock()
+		}
+	}
 
 	if !ok {
 		return util.HttpErr(http.StatusNotFound, "not found or permission denied")

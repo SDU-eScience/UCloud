@@ -23,7 +23,6 @@ import Tooltip from "./Tooltip";
 import {useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {AutomaticGiftClaim} from "@/Services/Gifts/AutomaticGiftClaim";
-import {ResourceInit} from "@/Services/ResourceInit";
 import Support from "./SupportBox";
 import {VersionManager} from "@/VersionManager/VersionManager";
 import Notification from "@/Notifications";
@@ -68,7 +67,7 @@ import {isAdminOrPI} from "@/Project";
 import {FileType} from "@/Files";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 import {onProjectUpdated, projectCache, projectTitle} from "@/Project/ProjectSwitcher";
-import {HookStore, useGlobal} from "@/Utilities/ReduxHooks";
+import {GenericMergeAction, GenericSetAction, HookStore, useGlobal} from "@/Utilities/ReduxHooks";
 import {useDiscovery} from "@/Applications/Hooks";
 import {Command, CommandPalette, CommandScope, staticProvider, useProvideCommands} from "@/CommandPalette";
 import {NavigateFunction, useNavigate} from "react-router";
@@ -314,6 +313,7 @@ function UserMenu({avatar, dialog, setOpenDialog}: {
                 close.current();
             }
         }
+
         window.addEventListener("keydown", closeOnEscape);
         return () => {
             window.removeEventListener("keydown", closeOnEscape);
@@ -372,7 +372,6 @@ function UserMenu({avatar, dialog, setOpenDialog}: {
 const CTRL_KEY = isLikelyMac ? "⌘" : "ctrl";
 
 function CommandPaletteEntry(): React.ReactNode {
-    if (!hasFeature(Feature.COMMAND_PALETTE)) return null;
     return <Flex className={HoverClass} onClick={e => {
         window.dispatchEvent(new KeyboardEvent("keydown", {code: "KeyP", ctrlKey: true, metaKey: true}));
     }}>
@@ -411,14 +410,20 @@ function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Comma
                 }
             }
         }
-    };
+    }
+    ;
 
     return result;
 }
 
 function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, projectId: string | undefined): Record<SidebarTabId, LinkInfo[]> {
     return {
-        [SidebarTabId.FILES]: [{to: AppRoutes.files.drives(), text: "Drives", icon: "ftFileSystem", tab: SidebarTabId.FILES}, ...(isPersonalWorkspace ? sharesLinksInfo : [])],
+        [SidebarTabId.FILES]: [{
+            to: AppRoutes.files.drives(),
+            text: "Drives",
+            icon: "ftFileSystem",
+            tab: SidebarTabId.FILES
+        }, ...(isPersonalWorkspace ? sharesLinksInfo : [])],
         [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId),
         [SidebarTabId.RESOURCES]: ResourceSubLinksEntries,
         [SidebarTabId.APPLICATIONS]: [],
@@ -480,7 +485,8 @@ export function Sidebar(): React.ReactNode {
     return (
         <Flex>
             <div className={classConcat(SidebarContainerClass, SIDEBAR_IDENTIFIER)}>
-                <Link data-component={"logo"} title={`Go to dashboard`} aria-label={`Go to dashboard`} to="/" onClick={onLogoClick}>
+                <Link data-component={"logo"} title={`Go to dashboard`} aria-label={`Go to dashboard`} to="/"
+                    onClick={onLogoClick}>
                     <Icon name="logoEsc" mt="10px" size="34px" />
                 </Link>
 
@@ -494,7 +500,8 @@ export function Sidebar(): React.ReactNode {
                 >
                     {sidebar.map(({label, icon, to}) =>
                         to ? (
-                            <Link hoverColor="fixedWhite" title={`Go to ${label}`} aria-label={`Go to ${label}`} key={label} to={typeof to === "function" ? to() : to}>
+                            <Link hoverColor="fixedWhite" title={`Go to ${label}`} aria-label={`Go to ${label}`}
+                                key={label} to={typeof to === "function" ? to() : to}>
                                 <div
                                     data-active={tab === label}
                                     onMouseEnter={() => setHoveredPage(label)}
@@ -526,7 +533,6 @@ export function Sidebar(): React.ReactNode {
                 <>
                     {/* (Typically) invisible elements here to run various background tasks */}
                     <AutomaticGiftClaim />
-                    <ResourceInit />
                     <VersionManager />
                 </>
 
@@ -557,12 +563,14 @@ export function Sidebar(): React.ReactNode {
 
 type DialogOptions = "BackgroundTask" | "Notifications" | "Support" | "UserMenu" | "";
 type SetOpenDialog = React.Dispatch<React.SetStateAction<DialogOptions>>;
+
 export interface SidebarDialog {
     dialog: DialogOptions;
     setOpenDialog: SetOpenDialog;
 }
 
 const fileTypeCache: Record<string, FileType | "DELETED"> = {}
+
 function useSidebarFilesPage(): [
     APICallState<PageV2<FileCollection>>,
     FileMetadataAttached[]
@@ -649,7 +657,14 @@ function useSidebarRunsPage(): Job[] {
 
     useProvideCommands(staticProvider(cache.items.map(j => ({
         title: j.specification.name ?? j.id,
-        icon: {type: "image", imageUrl: AppStore.retrieveAppLogo({name: j.specification.application.name, includeText: false, darkMode: !isLight})},
+        icon: {
+            type: "image",
+            imageUrl: AppStore.retrieveAppLogo({
+                name: j.specification.application.name,
+                includeText: false,
+                darkMode: !isLight
+            })
+        },
         action() {
             navigate(AppRoutes.jobs.view(j.id));
         },
@@ -701,14 +716,21 @@ function ResourceSubLinks(): React.ReactNode {
 const ResourceSubLinksEntries: LinkInfo[] = [{
     to: AppRoutes.resources.publicLinks(), text: "Links", icon: "heroLink", tab: SidebarTabId.RESOURCES
 }, {
-    to: AppRoutes.resources.publicIps(), text: "IP addresses", icon: "heroGlobeEuropeAfrica", tab: SidebarTabId.RESOURCES
+    to: AppRoutes.resources.publicIps(),
+    text: "IP addresses",
+    icon: "heroGlobeEuropeAfrica",
+    tab: SidebarTabId.RESOURCES
 }, {
     to: AppRoutes.resources.sshKeys(), text: "SSH keys", icon: "heroKey", tab: SidebarTabId.RESOURCES
 }, {
     to: AppRoutes.resources.licenses(), text: "Licenses", icon: "heroDocumentCheck", tab: SidebarTabId.RESOURCES
 }];
 
-function ProjectSubLinks({canApply, isPersonalWorkspace, projectId}: {canApply: boolean; isPersonalWorkspace: boolean; projectId?: string}) {
+function ProjectSubLinks({canApply, isPersonalWorkspace, projectId}: {
+    canApply: boolean;
+    isPersonalWorkspace: boolean;
+    projectId?: string
+}) {
     const sublinks = React.useMemo(() =>
         projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId).filter(it => !it.disabled),
         [canApply, isPersonalWorkspace, projectId]);
@@ -723,11 +745,21 @@ function projectSidebarSubLinks(canApply: boolean, isPersonalWorkspace: boolean,
     return [{
         to: members(), text: "Members", icon: "heroUsers", tab, disabled: isPersonalWorkspace,
     }, {
-        to: settings(""), text: "Project settings", icon: "heroWrenchScrewdriver", tab, disabled: isPersonalWorkspace, defaultHidden: true,
+        to: settings(""),
+        text: "Project settings",
+        icon: "heroWrenchScrewdriver",
+        tab,
+        disabled: isPersonalWorkspace,
+        defaultHidden: true,
     }, {
         to: allocations(), text: "Allocations", icon: "heroBanknotes", tab, defaultHidden: true,
     }, {
-        to: subprojects(), icon: "heroUserGroup", text: "Sub-projects", tab, disabled: isPersonalWorkspace, defaultHidden: true,
+        to: subprojects(),
+        icon: "heroUserGroup",
+        text: "Sub-projects",
+        tab,
+        disabled: isPersonalWorkspace,
+        defaultHidden: true,
     }, {
         to: usage(), text: "Usage", icon: "heroPresentationChartLine", tab
     }, {
@@ -862,7 +894,10 @@ function SecondarySidebar({
 
     useProvideCommands(staticProvider(appFavorites.map(fav => ({
         title: fav.metadata.title,
-        icon: {type: "image", imageUrl: AppStore.retrieveAppLogo({name: fav.metadata.name, includeText: false, darkMode: !isLight})},
+        icon: {
+            type: "image",
+            imageUrl: AppStore.retrieveAppLogo({name: fav.metadata.name, includeText: false, darkMode: !isLight})
+        },
         action() {
             navigate(AppRoutes.jobs.create(fav.metadata.name, fav.metadata.version));
         },
@@ -911,7 +946,6 @@ function SecondarySidebar({
     }))));
 
 
-
     const isOpen = clicked !== "" || hovered !== "";
     const active = !isOpen ? lastHover.current : hovered ? hovered : clicked;
     const asPopOver = hovered && !clicked;
@@ -932,6 +966,18 @@ function SecondarySidebar({
 
         document.body.style.setProperty(CSSVarCurrentSidebarWidth, `${sum}px`);
         document.body.style.setProperty(CSSVarCurrentSidebarStickyWidth, isOpen && !asPopOver ? `${sum}px` : `${firstLevel}px`);
+
+        dispatch<GenericSetAction>({
+            type: "GENERIC_SET",
+            payload: {property: "sidebarWidth", newValue: sum, defaultValue: sum}
+        });
+        dispatch<GenericSetAction>({
+            type: "GENERIC_SET", payload: {
+                property: "sidebarStickyWidth",
+                newValue: isOpen && !asPopOver ? sum : firstLevel,
+                defaultValue: isOpen && !asPopOver ? sum : firstLevel,
+            }
+        });
     }, [isOpen, asPopOver]);
 
     const onMenuClick = useCallback((ev: React.SyntheticEvent) => {
@@ -971,7 +1017,8 @@ function SecondarySidebar({
             <h1>{active}</h1>
 
             <Relative left="calc(var(--secondarySidebarWidth) - 46px)">
-                <Flex style={{position: "fixed", top: "calc(100vh - 68px)"}} alignItems="center" backgroundColor="white" height="38px" width={"30px"}
+                <Flex style={{position: "fixed", top: "calc(100vh - 68px)"}} alignItems="center" backgroundColor="white"
+                    height="38px" width={"30px"}
                     justifyContent={"center"} borderRadius="12px 0 0 12px"
                     onClick={clicked ? onClear : () => setSelectedPage(hovered)}>
                     <Icon name="heroChevronDown" size={18} rotation={clicked ? 90 : -90} color="primaryMain" />
@@ -991,7 +1038,8 @@ function SecondarySidebar({
                     <SidebarEntry
                         key={drive.id}
                         text={drive.specification.title}
-                        icon={isShare(drive) ? <Icon mt="2px" name="ftSharesFolder" color={"FtFolderColor"} color2={"FtFolderColor2"} /> :
+                        icon={isShare(drive) ?
+                            <Icon mt="2px" name="ftSharesFolder" color={"FtFolderColor"} color2={"FtFolderColor2"} /> :
                             <ProviderLogo providerId={drive.specification.product.provider} size={20} />}
                         to={AppRoutes.files.drive(drive.id)}
                         tab={SidebarTabId.FILES}

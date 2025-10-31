@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 	"ucloud.dk/pgxscan"
+	"unicode"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/prometheus/client_golang/prometheus"
@@ -325,7 +327,7 @@ func Connect(username, password, host string, port int, database string, ssl boo
 	pool, err := pgxpool.New(
 		context.Background(),
 		fmt.Sprintf(
-			"postgres://%v:%v@%v:%v/%v?sslmode=%v",
+			"postgres://%v:%v@%v:%v/%v?sslmode=%v&pool_max_conns=64&pool_max_conn_lifetime=1000000h",
 			username,
 			password,
 			host,
@@ -476,6 +478,8 @@ func transformQuery(query string, args Params) (string, []any, error) {
 
 type Batch struct {
 	Tx       *Transaction
+	Ok       bool
+	Error    error
 	delegate *pgx.Batch
 }
 
@@ -483,14 +487,22 @@ func BatchNew(ctx *Transaction) *Batch {
 	return &Batch{
 		Tx:       ctx,
 		delegate: &pgx.Batch{},
+		Ok:       true,
+	}
+}
+
+func BatchNewDeferred() *Batch {
+	return &Batch{
+		delegate: &pgx.Batch{},
+		Ok:       true,
 	}
 }
 
 func BatchExec(batch *Batch, query string, args Params) {
 	statement, params, err := transformQuery(query, args)
 	if err != nil {
-		batch.Tx.Ok = false
-		batch.Tx.error = err
+		batch.Ok = false
+		batch.Error = err
 		return
 	}
 	promise := batch.delegate.Queue(statement, params...)
@@ -504,8 +516,8 @@ func BatchGet[T any](batch *Batch, query string, args Params) *util.Option[T] {
 	var result util.Option[T]
 	statement, params, err := transformQuery(query, args)
 	if err != nil {
-		batch.Tx.Ok = false
-		batch.Tx.error = err
+		batch.Ok = false
+		batch.Error = err
 		return &util.Option[T]{}
 	}
 	promise := batch.delegate.Queue(statement, params...)
@@ -532,8 +544,8 @@ func BatchSelect[T any](batch *Batch, query string, args Params) *[]T {
 	var result []T
 	statement, params, err := transformQuery(query, args)
 	if err != nil {
-		batch.Tx.Ok = false
-		batch.Tx.error = err
+		batch.Ok = false
+		batch.Error = err
 		return &result
 	}
 	promise := batch.delegate.Queue(statement, params...)
@@ -551,7 +563,21 @@ func BatchSelect[T any](batch *Batch, query string, args Params) *[]T {
 	return &result
 }
 
+func BatchSendDeferred(tx *Transaction, batch *Batch) {
+	batch.Tx = tx
+	BatchSend(batch)
+}
+
 func BatchSend(batch *Batch) {
+	if !batch.Ok {
+		batch.Tx.Ok = batch.Ok
+		batch.Tx.error = batch.Error
+	}
+
+	if batch.Tx == nil {
+		log.Fatal("When using BatchNewDeferred you must also use BatchSendDeferred")
+	}
+
 	if !batch.Tx.Ok {
 		return
 	}
@@ -567,6 +593,126 @@ func BatchSend(batch *Batch) {
 
 	end := time.Now()
 	metricDatabaseQueryDuration.WithLabelValues(caller.File, fmt.Sprint(caller.Line)).Observe(end.Sub(start).Seconds())
+}
+
+const listenMaxRecentFailures = 10
+
+func Listen(ctx context.Context, channelName string) <-chan string {
+	listenQuery, err := safeListenSql(channelName)
+	if err != nil {
+		panic(err)
+	}
+
+	out := make(chan string, 32)
+
+	go func() {
+		defer close(out)
+
+		var (
+			conn           *pgxpool.Conn
+			recentFailures int
+			backoffBase    = 100 * time.Millisecond
+			maxBackoff     = 5 * time.Second
+		)
+
+		connect := func(isReconnect bool) bool {
+			for {
+				if isReconnect {
+					log.Info("db.Listen(%s): reconnecting attempt %v of %v",
+						channelName, recentFailures+1, listenMaxRecentFailures)
+				}
+
+				c, err := Database.Connection.Acquire(ctx)
+				if err == nil {
+					if _, err = c.Exec(ctx, listenQuery); err == nil {
+						conn = c
+						recentFailures = 0
+						if isReconnect {
+							log.Info("db.Listen(%s): connection re-established!", channelName)
+						}
+						return true
+					}
+					c.Release()
+				}
+
+				recentFailures++
+				if recentFailures >= listenMaxRecentFailures {
+					panic(fmt.Sprintf("db.Listen(%s): failed to (re)connect after %d recent attempts",
+						channelName, listenMaxRecentFailures))
+				}
+
+				backoff := time.Duration(recentFailures*recentFailures) * backoffBase
+				if backoff > maxBackoff {
+					backoff = maxBackoff
+				}
+
+				select {
+				case <-time.After(backoff):
+				case <-ctx.Done():
+					return false
+				}
+			}
+		}
+
+		if !connect(false) {
+			return
+		}
+
+		defer func() {
+			if conn != nil {
+				conn.Release()
+			}
+		}()
+
+		for {
+			ntf, err := conn.Conn().WaitForNotification(ctx)
+			if err != nil {
+				if ctx.Err() != nil {
+					return
+				}
+
+				conn.Release()
+				conn = nil
+
+				if !connect(true) {
+					return
+				}
+				continue
+			}
+
+			select {
+			case out <- ntf.Payload:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return out
+}
+
+func safeListenSql(channel string) (string, error) {
+	if channel == "" {
+		return "", errors.New("channel name is empty")
+	}
+	if len(channel) > 64 {
+		return "", fmt.Errorf("channel name too long (max %d)", 64)
+	}
+
+	for i, r := range channel {
+		switch {
+		case i == 0:
+			if !(unicode.IsLetter(r) || r == '_') {
+				return "", errors.New("channel must start with a letter or underscore")
+			}
+		default:
+			if !(unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_') {
+				return "", errors.New("channel may contain only letters, digits, or underscore")
+			}
+		}
+	}
+
+	return "listen " + channel, nil
 }
 
 // Import via copy functionality

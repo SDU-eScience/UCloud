@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.Prometheus
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductReferenceV2
 import dk.sdu.cloud.accounting.api.providers.SortDirection
@@ -24,21 +25,30 @@ import jdk.incubator.vector.IntVector
 import jdk.incubator.vector.VectorOperators
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonElement
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong
+import org.slf4j.Logger
 import java.lang.RuntimeException
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.Comparator
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
+import kotlin.coroutines.coroutineContext
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
+import kotlin.system.exitProcess
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 class ResourceStore<T>(
     val type: String,
@@ -229,11 +239,9 @@ class ResourceStore<T>(
         return scope.launch {
             while (coroutineContext.isActive) {
                 try {
-                    val start = Time.now()
                     synchronizeNow()
-                    val end = Time.now()
 
-                    delay(max(1000, 30_000 - (end - start)))
+                    delay(30_000)
                 } catch (ex: Throwable) {
                     log.warn(ex.toReadableStacktrace().toString())
                 }
@@ -1196,7 +1204,7 @@ class ResourceStore<T>(
     // NOTE(Dan): This index contains references to all resources that are owned by a provider. It becomes automatically
     // populated when a provider contacts us about any resource/when a user requests a resource from them.
     private val providerIndex = arrayOfNulls<ProviderIndex>(MAX_PROVIDERS)
-    private val providerIndexMutex = Mutex() // NOTE(Dan): Only needed to modify the list of indices
+    private val providerIndexMutex = DebuggingMutex() // NOTE(Dan): Only needed to modify the list of indices
 
     private class ProviderIndex(val provider: String) {
         private val uidReferences = ShardedSortedIntegerSet()
@@ -1225,7 +1233,7 @@ class ResourceStore<T>(
             return initialResult
         }
 
-        providerIndexMutex.withLock {
+        providerIndexMutex.withLock("findOrLoadProviderIndex(provider=$provider)") {
             val resultAfterLock = providerIndex.find { it?.provider == provider }
             if (resultAfterLock != null) {
                 return resultAfterLock
@@ -1284,16 +1292,23 @@ class ResourceStoreBucket<T>(
         return next!!.findTail()
     }
 
-    suspend fun expand(loadRequired: Boolean = false, hasLock: Boolean = false): ResourceStoreBucket<T> {
+    suspend fun expand(
+        loadRequired: Boolean = false,
+        hasLock: Boolean = false,
+        lockNextStore: Boolean = false
+    ): ResourceStoreBucket<T> {
         val currentNext = next
         if (currentNext != null) return currentNext
 
-        if (!hasLock) mutex.lock()
+        if (!hasLock) mutex.lock("expand1")
         try {
             val nextAfterMutex = next
             if (nextAfterMutex != null) return nextAfterMutex
 
             val newStore = ResourceStoreBucket<T>(type, uid, pid, queries, callbacks)
+            if (lockNextStore) {
+                newStore.mutex.lock("expand2")
+            }
             newStore.previous = this
             next = newStore
             if (!loadRequired) newStore.ready.set(true)
@@ -1307,7 +1322,7 @@ class ResourceStoreBucket<T>(
     // read/write operation for every workspace happening concurrently. This hugely simplifies the design without
     // severely impacting the scalability. Internal statistics have shown that resources are fairly evenly spread across
     // multiple workspaces. Even the biggest workspaces are not that much bigger than the rest.
-    private val mutex = Mutex()
+    private val mutex = DebuggingMutex()
 
     // The data itself is stored column-wise in arrays of a fixed size (`STORE_SIZE`). The "row-wise" version of this
     // data is stored in a ResourceDocument. We store this information in arrays to increase data locality when
@@ -1347,19 +1362,19 @@ class ResourceStoreBucket<T>(
 
     suspend fun awaitEvictionComplete() {
         check(evicted) { "we have not been evicted?" }
-        mutex.withLock {  }
+        mutex.withLock("awaitEvictionComplete") {  }
     }
 
     suspend fun evictAll() {
         check(previous == null) { "evictions can only take place on the root!" }
 
-        val allLocks = ArrayList<Mutex>()
+        val allLocks = ArrayList<DebuggingMutex>()
 
         run {
             var current: ResourceStoreBucket<T> = this
             while (true) {
                 allLocks.add(current.mutex)
-                current.mutex.lock()
+                current.mutex.lock("evictAll")
                 current.evicted = true
                 current = current.next ?: break
             }
@@ -1406,19 +1421,29 @@ class ResourceStoreBucket<T>(
     // 1. Declare a SQL cursor which will fetch the data
     // 2. Fetch data from the cursor and translate into our internal representation
     // 3. If we run out of space in the current bucket, `expand()` with a new bucket and begin a new `load()`
-    suspend fun load(minimumId: Long = 0) {
-        mutex.withLock {
+    suspend fun load(minimumId: Long = 0, alreadyLocked: Boolean = false) {
+        var nextStore: ResourceStoreBucket<T>? = null
+        var nextId: Long?
+
+        if (!alreadyLocked) mutex.lock("load")
+        try {
             if (evicted) throw EvictionException()
 
-            val nextId = queries.withSession("load(minimumId = $minimumId)") { session ->
+            nextId = queries.withSession("load(minimumId = $minimumId)") { session ->
                 queries.loadResources(session, this, minimumId)
             }
 
             if (nextId != null) {
-                expand(loadRequired = true, hasLock = true).load(nextId)
+                nextStore = expand(loadRequired = true, hasLock = true, lockNextStore = true)
             }
 
             ready.set(true)
+        } finally {
+            mutex.unlock() // always unlocked at end
+        }
+
+        if (nextStore != null && nextId != null) {
+            nextStore.load(nextId, alreadyLocked = true)
         }
     }
 
@@ -1445,7 +1470,7 @@ class ResourceStoreBucket<T>(
     ): Long {
         awaitReady()
 
-        mutex.withLock {
+        mutex.withLock("create") {
             if (size >= STORE_SIZE - 1) return -1
 
             val idx = size++
@@ -1510,7 +1535,7 @@ class ResourceStoreBucket<T>(
         awaitReady()
         val validatedConsumer = consumer.withValidation()
 
-        mutex.withLock {
+        mutex.withLock("searchAndConsume") {
             val startIndex =
                 when {
                     startId == -1L && reverseOrder -> {
@@ -1652,7 +1677,7 @@ class ResourceStoreBucket<T>(
      * The return value will be equal to the length (i.e. out of bounds) if the value cannot exist in the array.
      */
     private suspend fun binarySearchForId(minimumId: Long, hasLock: Boolean): Int {
-        if (!hasLock) mutex.lock()
+        if (!hasLock) mutex.lock("binarySearchForId")
         try {
             var min = 0
             var max = id.size - 1
@@ -2036,7 +2061,7 @@ class ResourceStoreBucket<T>(
     suspend fun synchronizeToDatabase(transaction: Any, hasLock: Boolean = false) {
         if (!anyDirty) return
 
-        if (!hasLock) mutex.lock()
+        if (!hasLock) mutex.lock("synchronizeToDatabase")
         try {
             var idx = 0
             val needle = ByteVector.broadcast(bvSpecies, 1.toByte())
@@ -2234,7 +2259,7 @@ class ResourceStoreBucket<T>(
 // TODO(Dan): This implementation means that we can only have one instance running this
 object ResourceIdAllocator {
     private val idAllocator = AtomicLong(-1_000_000_000L)
-    private val initMutex = Mutex()
+    private val initMutex = DebuggingMutex()
 
     suspend fun maximumValid(queries: ResourceStoreDatabaseQueries<*>): Long {
         val currentId = idAllocator.get()
@@ -2255,7 +2280,7 @@ object ResourceIdAllocator {
     }
 
     private suspend fun init(queries: ResourceStoreDatabaseQueries<*>) {
-        initMutex.withLock {
+        initMutex.withLock("ResourceIdAllocator.init") {
             if (idAllocator.get() >= 0L) return
             queries.withSession("init") { session ->
                 idAllocator.set(max(5_000_000L, queries.loadMaximumId(session)))
@@ -2383,6 +2408,7 @@ interface ResourceStoreDatabaseQueries<T> {
 }
 
 suspend inline fun <R> ResourceStoreDatabaseQueries<*>.withSession(reason: String = "unknown", block: (Any) -> R): R {
+    val sessionStart = Time.now()
     val session = startTransaction(reason)
     var success = true
     try {
@@ -2393,6 +2419,7 @@ suspend inline fun <R> ResourceStoreDatabaseQueries<*>.withSession(reason: Strin
         throw ex
     } finally {
         if (success) commitTransaction(session)
+        Prometheus.measureBackgroundDuration("resource_store_${reason.substringBefore("(")}", Time.now() - sessionStart)
     }
 }
 
@@ -3008,3 +3035,180 @@ class ResourceStoreDatabaseQueriesImpl<T>(
         override val log = logger()
     }
 }
+
+class DebuggingMutex(
+    private val timeout: Duration = 30.seconds,
+) {
+
+    private val delegate = Mutex()
+
+    private data class Holder(
+        val owner: Any,
+        val reason: String,
+        val acquiredAtMillis: Long,
+        val requestStacktrace: String, // where they asked to lock
+        val acquiredStacktrace: String // where it actually locked
+    )
+
+    private data class Waiter(
+        val owner: Any,
+        val reason: String,
+        val requestedAtMillis: Long,
+        val requestStacktrace: String
+    )
+
+    private val holder = AtomicReference<Holder?>(null)
+
+    private val waiters = ConcurrentHashMap<Any, Waiter>()
+
+    suspend fun lock(reason: String) {
+        val (owner, requestTrace) = currentOwnerAndTrace("Lock requested (reason=\"$reason\")")
+
+        holder.get()?.let { h ->
+            if (h.owner === owner) {
+                log.error(buildString {
+                    appendLine("Self-deadlock: the same coroutine is trying to re-enter DebuggingMutex.")
+                    appendDiagnostic(reason = reason, requesterTrace = requestTrace)
+                })
+                exitProcess(1)
+            }
+        }
+
+        val waiter = Waiter(
+            owner = owner,
+            reason = reason,
+            requestedAtMillis = System.currentTimeMillis(),
+            requestStacktrace = requestTrace
+        )
+        waiters[owner] = waiter
+
+        try {
+            withTimeout(timeout) {
+                delegate.lock()
+            }
+        } catch (t: Throwable) {
+            val msg = buildString {
+                appendLine("Deadlock or timeout after $timeout while acquiring DebuggingMutex.")
+                appendDiagnostic(reason = reason, requesterTrace = requestTrace)
+                appendLine(t.toReadableStacktrace())
+            }
+            log.error(msg)
+            exitProcess(1)
+        } finally {
+            if (!delegate.holdsLock(owner)) {
+                waiters.remove(owner)
+            }
+        }
+
+        val acquiredTrace = Throwable("Lock acquired (reason=\"$reason\")").stackTraceToString()
+        holder.set(
+            Holder(
+                owner = owner,
+                reason = reason,
+                acquiredAtMillis = System.currentTimeMillis(),
+                requestStacktrace = requestTrace,
+                acquiredStacktrace = acquiredTrace
+            )
+        )
+        waiters.remove(owner)
+    }
+
+    suspend fun unlock() {
+        val owner = currentOwner()
+        val h = holder.get()
+        if (h == null) {
+            throw IllegalStateException("Unlock called but DebuggingMutex is not held by anyone.")
+        }
+        if (h.owner !== owner) {
+            val msg = buildString {
+                appendLine("Illegal unlock by non-owner.")
+                appendLine("Expected owner: ${ownerIdentity(h.owner)}")
+                appendLine("Actual caller: ${ownerIdentity(owner)}")
+                appendLine()
+                appendLine(formatCurrentState())
+            }
+            log.error(msg)
+            exitProcess(1)
+        }
+        holder.set(null)
+        delegate.unlock()
+    }
+
+    @OptIn(ExperimentalContracts::class)
+    suspend inline fun <T> withLock(reason: String, block: () -> T): T {
+        contract {
+            callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+        }
+
+        lock(reason)
+        try {
+            return block()
+        } finally {
+            unlock()
+        }
+    }
+
+    private suspend fun currentOwner(): Any {
+        return coroutineContext.job
+    }
+
+    private suspend fun currentOwnerAndTrace(header: String): Pair<Any, String> {
+        val owner = currentOwner()
+        val trace = Throwable(header).stackTraceToString()
+        return owner to trace
+    }
+
+    private fun ownerIdentity(owner: Any?): String = when (owner) {
+        null -> "null"
+        is Job -> "Job(${owner.toString()})"
+        is Thread -> "Thread(name=${owner.name}, id=${owner.id})"
+        else -> owner.toString()
+    }
+
+    private fun formatCurrentState(): String = buildString {
+        val h = holder.get()
+        appendLine("=== DebuggingMutex State ===")
+        if (h == null) {
+            appendLine("Holder: <none>")
+        } else {
+            val heldFor = System.currentTimeMillis() - h.acquiredAtMillis
+            appendLine("Holder: ${ownerIdentity(h.owner)}")
+            appendLine("Reason: ${h.reason}")
+            appendLine("Held for: ${heldFor} ms")
+            appendLine("-- Request stacktrace:")
+            appendLine(h.requestStacktrace.trimEnd())
+            appendLine("-- Acquired stacktrace:")
+            appendLine(h.acquiredStacktrace.trimEnd())
+        }
+        appendLine()
+        if (waiters.isEmpty()) {
+            appendLine("Waiters: <none>")
+        } else {
+            appendLine("Waiters (${waiters.size}):")
+            waiters.values.forEach { w ->
+                val waitingFor = System.currentTimeMillis() - w.requestedAtMillis
+                appendLine("- ${ownerIdentity(w.owner)}")
+                appendLine("  Reason: ${w.reason}")
+                appendLine("  Waiting for: ${waitingFor} ms")
+                appendLine("  -- Request stacktrace:")
+                appendLine("  ${w.requestStacktrace.trimEnd().replace("\n", "\n  ")}")
+            }
+        }
+        appendLine("============================")
+    }
+
+    private fun StringBuilder.appendDiagnostic(reason: String, requesterTrace: String) {
+        appendLine("Requested reason: \"$reason\"")
+        appendLine()
+        appendLine("Current state at failure:")
+        appendLine(formatCurrentState())
+        appendLine()
+        appendLine("Requester stacktrace:")
+        appendLine(requesterTrace.trimEnd())
+    }
+
+    companion object : Loggable {
+        override val log: Logger = logger()
+    }
+}
+

@@ -428,9 +428,75 @@ var ProjectAcceptInviteLink = rpc.Call[FindByInviteLink, ProjectAcceptInviteLink
 
 const ProjectInviteResource = "invites"
 
-var ProjectBrowseInvites = rpc.Call[util.Empty, PageV2[util.Empty]]{
+type ProjectInvite struct {
+	CreatedAt    Timestamp `json:"createdAt"`
+	InvitedBy    string    `json:"invitedBy"`
+	InvitedTo    string    `json:"invitedTo"`
+	Recipient    string    `json:"recipient"`
+	ProjectTitle string    `json:"projectTitle"`
+}
+
+type ProjectBrowseInvitesRequest struct {
+	FilterType string `json:"filterType"`
+}
+
+var ProjectBrowseInvites = rpc.Call[ProjectBrowseInvitesRequest, PageV2[ProjectInvite]]{
 	BaseContext: ProjectContext,
 	Operation:   ProjectInviteResource,
 	Convention:  rpc.ConventionBrowse,
+	Roles:       rpc.RolesEndUser,
+}
+
+type ProjectCreateInviteRequest struct {
+	Recipient string `json:"recipient"`
+}
+
+var ProjectCreateInvite = rpc.Call[BulkRequest[ProjectCreateInviteRequest], util.Empty]{
+	BaseContext: ProjectContext,
+	Operation:   ProjectInviteResource,
+	Convention:  rpc.ConventionCreate,
+	Roles:       rpc.RolesEndUser,
+}
+
+type ProjectAcceptInviteRequest struct {
+	Project string `json:"project"`
+}
+
+var ProjectAcceptInvite = rpc.Call[BulkRequest[ProjectAcceptInviteRequest], util.Empty]{
+	BaseContext: ProjectContext,
+	Operation:   "acceptInvite",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+}
+
+type ProjectDeleteInviteRequest struct {
+	Project  string `json:"project"`
+	Username string `json:"username"`
+}
+
+var ProjectDeleteInvite = rpc.Call[BulkRequest[ProjectDeleteInviteRequest], util.Empty]{
+	BaseContext: ProjectContext,
+	Operation:   "deleteInvite",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+}
+
+type ProjectRetrieveInformationResponse struct {
+	Projects map[string]ProjectInformation `json:"projects"`
+}
+
+type ProjectInformation struct {
+	Id         string `json:"id"`
+	PiUsername string `json:"piUsername"`
+	Title      string `json:"title"`
+}
+
+// TODO This is a new call returning information about projects to all authenticated users. You do not need to be a
+//  member of the project to look up the information. You just need the ID.
+
+var ProjectRetrieveInformation = rpc.Call[BulkRequest[FindByStringId], ProjectRetrieveInformationResponse]{
+	BaseContext: ProjectContext,
+	Operation:   "retrieveInformation",
+	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 }

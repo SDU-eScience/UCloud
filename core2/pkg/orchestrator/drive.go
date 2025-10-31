@@ -158,6 +158,8 @@ func initDrives() {
 				flags,
 			)
 
+			ResourceConfirm(driveType, id)
+
 			if err != nil {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
 			} else {

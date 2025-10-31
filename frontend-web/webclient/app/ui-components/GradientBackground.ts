@@ -9,6 +9,8 @@ export const GradientWithPolygons = injectStyle("polygon-background", k => `
         background-size: 816px 1028px;
         color: var(--textPrimary);
         min-height: 100vh;
+        --defaultShadow: rgba(0, 0, 0, 0.16) 0px 3px 6px, rgba(0, 0, 0, 0.10) 0px -3px 12px, rgba(0, 0, 0, 0.23) 0px 3px 6px;
+        --defaultCardBorder: 0;
     }
     
     html.light ${k}:not(.dark) {
@@ -32,5 +34,7 @@ export const Gradient = injectStyle("just-the-gradient", k => `
         background-repeat: repeat;
         color: var(--textPrimary);
         min-height: 100vh;
+        --defaultShadow: rgba(0, 0, 0, 0.16) 0px 3px 6px, rgba(0, 0, 0, 0.10) 0px -3px 12px, rgba(0, 0, 0, 0.23) 0px 3px 6px;
+        --defaultCardBorder: 0;
     }
 `);

@@ -46,6 +46,11 @@ const (
 	ProductTypeNetworkIp ProductType = "NETWORK_IP"
 )
 
+type AccountingUnitAndFrequency struct {
+	Unit      AccountingUnit      `json:"unit"`
+	Frequency AccountingFrequency `json:"frequency"`
+}
+
 type AccountingUnit struct {
 	Name                   string `json:"name"`
 	NamePlural             string `json:"namePlural"`

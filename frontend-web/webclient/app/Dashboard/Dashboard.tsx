@@ -31,7 +31,7 @@ import * as Accounting from "@/Accounting";
 import {IconName} from "@/ui-components/Icon";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {NewsPost} from "@/NewsPost";
-import {NoResultsCardBody} from "@/UtilityComponents";
+import {NoResultsBody} from "@/UtilityComponents";
 import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -261,12 +261,12 @@ function DashboardResources({wallets}: {
             title="Resource allocations"
             icon={"heroBanknotes"}>
             {displayWallets.length === 0 ? (
-                <NoResultsCardBody title={"No available resources"}>
+                <NoResultsBody title={"No available resources"}>
                     {!canApply ? null : <Text>
                         Apply for resources to use storage and compute on UCloud.
                     </Text>}
                     <ApplyLinkButton />
-                </NoResultsCardBody>
+                </NoResultsBody>
             ) :
                 <Flex flexDirection="column" flexGrow={1} height={"calc(100% - 55px)"}>
                     <Box maxHeight={`${ROW_HEIGHT_IN_PX * 10}px`} overflowY={"auto"}>
@@ -335,11 +335,11 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): React.Reac
             <div className={classConcat(NewsClass, onSandbox() ? "halric" : undefined)}>
                 <div>
                     {news.data.items.length !== 0 ? null : (
-                        <NoResultsCardBody title={"No news"}>
+                        <NoResultsBody title={"No news"}>
                             <Text>
                                 As announcements are made, they will be shared here.
                             </Text>
-                        </NoResultsCardBody>
+                        </NoResultsBody>
                     )}
                     {!newsItem ? null :
                         <Box key={newsItem.id} mb={32}>
