@@ -2,12 +2,8 @@ import * as React from "react";
 import {
     AllocationDisplayTreeRecipient,
     AllocationDisplayTreeYourAllocation,
-    AllocationDisplayWallet,
-    balanceToStringFromUnit,
-    explainUnit,
     ProductType,
     UsageAndQuota,
-    WalletV2
 } from "@/Accounting";
 import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
 import {
@@ -18,7 +14,6 @@ import {
     Flex,
     Icon,
     Input,
-    Label,
     Link,
     Relative,
     Text,
@@ -27,7 +22,7 @@ import {
 import AppRoutes from "@/Routes";
 import * as Accounting from "@/Accounting";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {chunkedString, doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {chunkedString, timestampUnixMs} from "@/UtilityFunctions";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {OldProjectRole} from "@/Project";
@@ -36,29 +31,24 @@ import {VariableSizeList} from "react-window";
 import {AvatarState} from "@/AvataaarLib/hook";
 import AutoSizer from "react-virtualized-auto-sizer";
 import Avatar from "@/AvataaarLib/avatar";
-import {NewAndImprovedProgress} from "@/ui-components/Progress";
 import {classConcat, extractDataTags, injectStyle} from "@/Unstyled";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {ProgressBar} from "@/Accounting/Allocations/ProgressBar";
 import {default as ReactModal} from "react-modal";
-import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
-import * as Heading from "@/ui-components/Heading";
 import {ListRow} from "@/ui-components/List";
-import {RichSelect, SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
-import * as Pages from "@/Applications/Pages";
-import {NotificationType} from "@/UserSettings/ChangeNotificationSettings";
+import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
 import {produce} from "immer";
-import {heroStar, sortAscending} from "@/ui-components/icons";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
-import {SORT_BY} from "@/ui-components/ResourceBrowserFilters";
-import {projectTitle} from "@/Project/ProjectSwitcher";
 import {exportUsage, header} from "@/Accounting/Usage";
 import {useProject} from "@/Project/cache";
 import {useProjectId} from "@/Project/Api";
 import {AllocationBar} from "@/Accounting/Allocations/AllocationBar";
+import {useProjectInfo} from "@/Project/InfoCache";
+import {useForcedRender} from "@/Utilities/ReactUtilities";
 
 interface Datapoint {
     product: string;
@@ -674,37 +664,43 @@ const SubProjectListRow: React.FunctionComponent<{
     state: State;
     onEditKey: (ev: React.KeyboardEvent) => Promise<void>;
     onEditBlur: (ev: React.SyntheticEvent) => void;
-}> = ({style, recipient, listRef, rowIdx, avatars, onEdit, state, onEditKey, onEditBlur}) => {
+    setNodeState: (action: TreeAction, reference: string, group?: string | null) => void;
+}> = ({style, recipient, listRef, rowIdx, avatars, onEdit, state, onEditKey, onEditBlur, setNodeState}) => {
+    const projectInfo = useProjectInfo(recipient.owner.reference.type === "user" ? "" : recipient.owner.reference.projectId);
+    const workspaceId = recipient.owner.reference["username"] ?? recipient.owner.reference["projectId"] ?? "";
+    const pi = recipient.owner.reference.type === "user" ? recipient.owner.reference.username : projectInfo.data?.piUsername ?? "-";
+    const title = recipient.owner.reference.type === "user" ? recipient.owner.reference.username : projectInfo.data?.title ?? "-";
+
     return <div style={style}>
         <TreeNode
             className={"sub-project-list-row"}
-            key={recipient.owner.title}
-            data-recipient={recipient.owner.title}
-            data-open={openNodes[recipient.owner.title]}
+            key={title}
+            data-recipient={workspaceId}
+            data-open={openNodes[workspaceId]}
             onActivate={open => {
-                if (open) setNodeState(TreeAction.OPEN, recipient.owner.title);
-                else setNodeState(TreeAction.CLOSE, recipient.owner.title);
+                if (open) setNodeState(TreeAction.OPEN, workspaceId);
+                else setNodeState(TreeAction.CLOSE, workspaceId);
                 listRef.current?.resetAfterIndex(rowIdx);
             }}
             left={<Flex gap={"4px"} alignItems={"center"}>
-                <TooltipV2 tooltip={`Project PI: ${recipient.owner.primaryUsername}`}>
-                    <Avatar {...avatars.avatarFromCache(recipient.owner.primaryUsername)}
+                <TooltipV2 tooltip={`Project PI: ${pi}`}>
+                    <Avatar {...avatars.avatarFromCache(pi)}
                             style={{height: "32px", width: "auto", marginTop: "-4px"}}
                             avatarStyle={"Circle"}/>
                 </TooltipV2>
                 <Truncate
-                    title={recipient.owner.title}
+                    title={title}
                     width={400}
                 >
-                    {recipient.owner.title}
+                    {title}
                 </Truncate>
             </Flex>}
             right={<div className={"sub-alloc"}>
                 {recipient.owner.reference.type === "project" &&
                     <Link
                         to={AppRoutes.grants.grantGiverInitiatedEditor({
-                            title: recipient.owner.title,
-                            piUsernameHint: recipient.owner.primaryUsername,
+                            title: title,
+                            piUsernameHint: pi,
                             projectId: recipient.owner.reference.projectId,
                             start: timestampUnixMs(),
                             end: timestampUnixMs() + (1000 * 60 * 60 * 24 * 365),
@@ -725,9 +721,9 @@ const SubProjectListRow: React.FunctionComponent<{
             {recipient.groups.map((g, gidx) =>
                 <TreeNode
                     key={g.category.name}
-                    data-recipient={recipient.owner.title}
+                    data-recipient={workspaceId}
                     data-group={g.category.name}
-                    data-open={openNodes[makeCategoryKey(recipient.owner.title, g.category.name)]}
+                    data-open={openNodes[makeCategoryKeyFromWorkspaceId(workspaceId, g.category.name)]}
                     left={<Flex gap={"4px"}>
                         <Flex gap={"4px"} width={"200px"}>
                             <ProviderLogo providerId={g.category.provider} size={20}/>
@@ -742,8 +738,8 @@ const SubProjectListRow: React.FunctionComponent<{
                         <Box width={25} height={25}/>
                     </div>}
                     onActivate={open => {
-                        if (open) setNodeState(TreeAction.OPEN, recipient.owner.title, g.category.name);
-                        else setNodeState(TreeAction.CLOSE, recipient.owner.title, g.category.name);
+                        if (open) setNodeState(TreeAction.OPEN, workspaceId, g.category.name);
+                        else setNodeState(TreeAction.CLOSE, workspaceId, g.category.name);
                         listRef.current?.resetAfterIndex(rowIdx);
                     }}
                 >
@@ -1078,6 +1074,12 @@ export const SubProjectList: React.FunctionComponent<{
         setFiltersShown(true);
     }, []);
 
+    const rerender = useForcedRender();
+    const setNodeStateHack = useCallback((action: TreeAction, reference: string, group?: string | null) => {
+        setNodeState(action, reference, group);
+        rerender();
+    }, []);
+
     return <>
         <SubProjectFilters filtersShown={filtersShown} closeFilters={closeFilters}
                            dispatchEvent={dispatchEvent} state={state}/>
@@ -1169,6 +1171,7 @@ export const SubProjectList: React.FunctionComponent<{
                                                 state={state}
                                                 onEditKey={onEditKey}
                                                 onEditBlur={onEditBlur}
+                                                setNodeState={setNodeStateHack}
                                             />
                                         }}
                                     </VariableSizeList>
@@ -1182,124 +1185,8 @@ export const SubProjectList: React.FunctionComponent<{
     </>;
 }
 
-export const ResourcesGranted: React.FunctionComponent<{
-    state: State;
-    allocationTree: React.RefObject<TreeApi | null>;
-    sortedAllocations: [
-        string,
-        {
-            usageAndQuota: UsageAndQuota[];
-            wallets: AllocationDisplayWallet[]
-        }
-    ][];
-    indent: number;
-    avatars: AvatarState;
-}> = ({state, allocationTree, sortedAllocations, indent, avatars}) => {
-    return <>
-        <Flex mt={32} mb={10}>
-            <h3>Resources Granted</h3>
-        </Flex>
-        {state.subAllocations.recipients.length === 0 ? "You have not granted any resources to sub-projects at the moment." : <>
-            <Tree apiRef={allocationTree}>
-                {sortedAllocations.map(([rawType, tree]) => {
-                    const type = rawType as ProductType;
-
-                    return <TreeNode
-                        key={rawType}
-                        left={<Flex gap={"4px"}>
-                            <Icon name={Accounting.productTypeToIcon(type)} size={20}/>
-                            {Accounting.productAreaTitle(type)}
-                        </Flex>}
-                        indent={indent}
-                    >
-                        {tree.wallets.map((wallet, idx) => {
-                                if (wallet.totalAllocated === 0) return null;
-                                return <TreeNode
-                                    key={idx}
-                                    left={<Flex gap={"4px"}>
-                                        <ProviderLogo providerId={wallet.category.provider} size={20}/>
-                                        <code>{wallet.category.name}</code>
-                                    </Flex>}
-                                    right={<Flex flexDirection={"row"} gap={"8px"}>
-                                        <NewAndImprovedProgress
-                                            label={
-                                                balanceToStringFromUnit(
-                                                    wallet.usageAndQuota.raw.type,
-                                                    wallet.usageAndQuota.raw.unit,
-                                                    explainUnit(wallet.category).balanceFactor * wallet.totalAllocated,
-                                                    {
-                                                        precision: 2,
-                                                        removeUnitIfPossible: true
-                                                    })
-                                                + " / " +
-                                                balanceToStringFromUnit(
-                                                    wallet.usageAndQuota.raw.type,
-                                                    wallet.usageAndQuota.raw.unit,
-                                                    wallet.usageAndQuota.raw.quota,
-                                                    {precision: 2})
-                                            }
-                                            percentage={
-                                                100 * ((explainUnit(wallet.category).balanceFactor * wallet.totalAllocated) / wallet.usageAndQuota.raw.quota)
-                                            }
-                                            limitPercentage={(explainUnit(wallet.category).balanceFactor * wallet.totalAllocated) > wallet.usageAndQuota.raw.quota ? 0 : 100}
-                                            withWarning={false}
-                                        />
-                                    </Flex>}
-                                    indent={indent * 2}
-                                >
-                                    {/* TODO: Calculate this and store in useMemo instead of on every re-render */}
-                                    {/* List All granted resources in descending order for each product category */}
-                                    {state.subAllocations.recipients.sort((a, b) => {
-                                        const aval = a.groups.filter((g) => g.category === wallet.category).reduce((asum, element) => asum + element.totalGranted, 0)
-                                        const bval = b.groups.filter((g) => g.category === wallet.category).reduce((bsum, element) => bsum + element.totalGranted, 0)
-                                        return bval - aval;
-                                    }).map((recipient, idx) =>
-                                        <TreeNode
-                                            key={idx}
-                                            left={
-                                                <Flex gap={"4px"} alignItems={"center"}>
-                                                    <TooltipV2 tooltip={`Project PI: ${recipient.owner.primaryUsername}`}>
-                                                        <Avatar {...avatars.avatarFromCache(recipient.owner.primaryUsername)}
-                                                                style={{height: "32px", width: "auto", marginTop: "-4px"}}
-                                                                avatarStyle={"Circle"}/>
-                                                    </TooltipV2>
-                                                    <Truncate
-                                                        title={recipient.owner.title}>{recipient.owner.title}</Truncate>
-                                                </Flex>
-                                            }
-                                            right={
-                                                <Flex flexDirection={"row"} gap={"8px"}>
-                                                    {
-                                                        balanceToStringFromUnit(
-                                                            wallet.usageAndQuota.raw.type,
-                                                            wallet.usageAndQuota.raw.unit,
-                                                            explainUnit(wallet.category).balanceFactor *
-                                                            recipient.groups.filter(
-                                                                (elm) => elm.category == wallet.category
-                                                            ).reduce((sum, element) => sum + element.totalGranted, 0),
-                                                            {
-                                                                precision: 2
-                                                            }
-                                                        )
-                                                    }
-                                                </Flex>
-                                            }
-                                        >
-                                        </TreeNode>
-                                    )}
-                                </TreeNode>;
-                            }
-                        )}
-                    </TreeNode>;
-                })}
-            </Tree>
-        </>
-        }
-    </>;
-}
-
 function setNodeState(action: TreeAction, recipient: string, group?: string | null): void {
-    const key = group ? makeCategoryKey(recipient, group) : recipient;
+    const key = group ? makeCategoryKeyFromWorkspaceId(recipient, group) : recipient;
     switch (action) {
         case TreeAction.CLOSE:
             delete openNodes[key];
@@ -1323,12 +1210,15 @@ function calculateHeightInPx(idx: number, state: State): number {
 
     const recipientIdx = state.filteredSubProjectIndices[idx];
     const recipient = state.subAllocations.recipients[recipientIdx];
+
+
+    const workspaceId = recipient.owner.reference["username"] ?? recipient.owner.reference["projectId"] ?? "";
     let height = ROW_HEIGHT;
-    const isOpen = openNodes[recipient.owner.title]
+    const isOpen = openNodes[workspaceId];
     if (isOpen) {
         height += recipient.groups.length * ROW_HEIGHT;
         recipient.groups.forEach(g => {
-            const isGroupOpen = openNodes[makeCategoryKey(recipient.owner.title, g.category.name)];
+            const isGroupOpen = openNodes[makeCategoryKeyFromWorkspaceId(workspaceId, g.category.name)];
             if (isGroupOpen) {
                 height += g.allocations.length * ROW_HEIGHT;
             }
@@ -1338,8 +1228,8 @@ function calculateHeightInPx(idx: number, state: State): number {
     return height;
 }
 
-function makeCategoryKey(title: Accounting.AllocationDisplayTreeRecipientOwner["title"], name: Accounting.ProductCategoryV2["name"]): string {
-    return title + "$$" + name;
+function makeCategoryKeyFromWorkspaceId(workspace: string, name: Accounting.ProductCategoryV2["name"]): string {
+    return workspace + "$$" + name;
 }
 
 let openNodes: Record<string, boolean> = {};
@@ -1351,22 +1241,6 @@ export function resetOpenNodes() {
 // Utility components
 // =====================================================================================================================
 // Various helper components used by the main user-interface.
-
-export function currentTotalUsage(wallet: WalletV2): number {
-    let totalusage: number
-    let retired = 0
-    if (wallet.paysFor.accountingFrequency === "ONCE") {
-        totalusage = wallet.totalUsage
-    } else {
-        wallet.allocationGroups.forEach(group =>
-            group.group.allocations.forEach(alloc =>
-                retired += alloc.retiredUsage ?? 0
-            )
-        )
-        totalusage = wallet.totalUsage - retired
-    }
-    return totalusage;
-}
 
 const SmallIconButtonStyle = injectStyle("small-icon-button", k => `
     ${k},

@@ -44,7 +44,6 @@ import {ProviderOnlySections} from "./ProviderOnlySections";
 import {
     YourAllocations,
     SubProjectList,
-    ResourcesGranted,
     resetOpenNodes,
     SubProjectAllocations
 } from "./CommonSections";

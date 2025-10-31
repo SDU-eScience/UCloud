@@ -20,7 +20,7 @@
         "jsx": "react",
         "pretty": true,
         "allowJs": true,
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
         "resolveJsonModule": true,
         "sourceMap": true,
         "baseUrl": ".",
