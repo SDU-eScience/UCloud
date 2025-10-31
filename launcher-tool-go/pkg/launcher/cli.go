@@ -3,7 +3,6 @@ package launcher
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"slices"
 	"strings"
@@ -176,6 +175,9 @@ func CliIntercept(args []string) {
 			EnvironmentDelete(true)
 		case "restart":
 			EnvironmentRestart()
+		default:
+			fmt.Printf("Unrecognized command '%s'. Exiting.\n", envCommand)
+			os.Exit(0)
 		}
 
 	case "import-apps":
@@ -223,31 +225,24 @@ func CliIntercept(args []string) {
 		RestoreSnapshot(snapshotName)
 
 	case "test-e2e":
-		testCommand := testCommandFromArgs(args)
-
 		// Create one user
-		withResourceUsername := "user-resources"
+		withResourceUsername := "user-resources2"
 		withResourcePassword := "user-resources-password"
 		locationOrigin := "https://ucloud.localhost.direct/"
-		newUser := createUser(withResourceUsername, withResourcePassword, "USER")
-		if newUser != nil {
+
+		newUserWithResources := createUser(withResourceUsername, withResourcePassword, "USER")
+		if newUserWithResources != nil {
+			// User didn't exist, so create root allocation, gift and have user claim the gift.
 			createRootAllocation()
 			giftId := createGift()
-			claimGifts(newUser.AccessToken, giftId)
-			// User didn't exist
-			// Connect to provider!
-			// Won't work until we have resources at that provider
-			result := CallService("backend", "POST", "http://localhost:8080/api/providers/integration/connect", newUser.AccessToken, `{provider: "3"}`, []string{})
-			fmt.Println("Connecting to provider, result: " + result) //result.redirectTo
-			var redirectResult struct {
-				RedirectTo string `json:"redirectTo"`
-			}
-			_ = json.Unmarshal([]byte(result), &redirectResult)
-			http.Get(redirectResult.RedirectTo)
-
-			// Get resources automatically
-			//grantresources
+			claimGifts(newUserWithResources.AccessToken, giftId)
+			// Connect to provider
+			CallService("backend", "POST", "http://localhost:8080/api/providers/integration/connect", newUserWithResources.AccessToken, `{provider: "3"}`, []string{})
 		}
+
+		withNoResourcesUsername := "user-no-resources2"
+		withNoResourcesPassword := "user-no-resources-password"
+		createUser(withNoResourcesUsername, withNoResourcesPassword, "USER")
 
 		pathToTestInfo := repoRoot.GetAbsolutePath() + "/frontend-web/webclient/tests/test_data.json"
 		err := os.WriteFile(pathToTestInfo, []byte(`{
@@ -258,7 +253,8 @@ func CliIntercept(args []string) {
 		            "password": "`+withResourcePassword+`"
 		        },
 		        "without_resources": {
-
+					"username": "`+withNoResourcesUsername+`",
+					"password": "`+withNoResourcesPassword+`"
 		        }
 		    }
 		}`), 0777)
@@ -266,11 +262,30 @@ func CliIntercept(args []string) {
 			panic(err)
 		}
 
-		runCommand([]string{"npx", "playwright", "install"})
-		runCommand([]string{"npx", "playwright", "install-deps"})
-		runCommand(testCommand)
+		startPlaywright(args)
 	}
 	os.Exit(0)
+}
+
+func startPlaywright(args []string) {
+	runCommand([]string{"npx", "playwright", "install"})
+	runCommand([]string{"npx", "playwright", "install-deps"})
+	runCommand(testCommandFromArgs(args))
+}
+
+func createResourcesAndGifts() int {
+	createRootAllocation()
+	return createGift()
+}
+
+func (u *UserTokens) SetupUserWithResources() {
+	if u != nil {
+		// User didn't exist, so create root allocation, gift and have user claim the gift.
+		giftId := createResourcesAndGifts()
+		claimGifts(u.AccessToken, giftId)
+		// Connect to provider
+		CallService("backend", "POST", "http://localhost:8080/api/providers/integration/connect", u.AccessToken, `{provider: "3"}`, []string{})
+	}
 }
 
 func createGift() int {
@@ -329,7 +344,6 @@ func createGift() int {
 		Id int `json:"id"`
 	}
 	_ = json.Unmarshal([]byte(result), &createGiftResult)
-	fmt.Println("createGiftResult:", createGiftResult.Id)
 	return createGiftResult.Id
 }
 
@@ -347,6 +361,10 @@ type UserTokens struct {
 	CsrfToken    string `json:"csrfToken"`
 }
 
+type ErrorMessage struct {
+	Why string `json:"why"`
+}
+
 func createUser(username string, password string, role string) *UserTokens {
 	accessToken := FetchAccessToken()
 	mail := username + "@fake-mail.com"
@@ -359,15 +377,13 @@ func createUser(username string, password string, role string) *UserTokens {
 		[]string{},
 	)
 
-	var errorMessage struct {
-		Why string `json:"why"`
-	}
+	var errorMessage ErrorMessage
 
 	_ = json.Unmarshal([]byte(response), &errorMessage)
 
 	if errorMessage.Why != "" {
 		if strings.Contains(errorMessage.Why, "Conflict") {
-			fmt.Println("User already exists. Proceeding.")
+			fmt.Printf("User '%s' already exists. Proceeding.\n", username)
 			return nil
 		} else {
 			panic("Unhandled error: " + errorMessage.Why + ". Bailing")
@@ -376,7 +392,7 @@ func createUser(username string, password string, role string) *UserTokens {
 
 	var userTokens []UserTokens
 
-	fmt.Println("User " + username + " created")
+	fmt.Printf("User %s created\n", username)
 	_ = json.Unmarshal([]byte(response), &userTokens)
 	return &userTokens[0]
 }
@@ -414,7 +430,7 @@ func testCommandFromArgs(args []string) []string {
 }
 
 func createRootAllocation() {
-	result := CallService("backend", "POST", "localhost:8080/api/accounting/v2/rootAllocate", FetchAccessToken(), `{
+	CallService("backend", "POST", "localhost:8080/api/accounting/v2/rootAllocate", FetchAccessToken(), `{
 		"items": [
 			{
 				"category": {
@@ -454,27 +470,41 @@ func createRootAllocation() {
 			}
 		]
 	}`, []string{"-H", "Project: " + getRootProjectId()})
-	fmt.Println(getRootProjectId(), result)
 }
 
 var rootProjectId string = ""
 
 func getRootProjectId() string {
+	REQUIRED_PROJECT := "Provider gok8s"
+
 	if rootProjectId != "" {
 		return rootProjectId
 	}
 	result := CallService("backend", "GET", "localhost:8080/api/projects/v2/browse?itemsPerPage=250&includeFavorite=true&includeMembers=true&sortBy=favorite&sortDirection=descending&includeArchived=true", FetchAccessToken(), "", []string{})
 	var projectBrowseResponse struct {
-		Items []ProjectIdWrapper `json:"items"`
+		Items []Project `json:"items"`
 	}
 	_ = json.Unmarshal([]byte(result), &projectBrowseResponse)
 
-	rootProjectId = projectBrowseResponse.Items[0].Id
-	return rootProjectId
+	for _, project := range projectBrowseResponse.Items {
+		if project.Specification.Title == REQUIRED_PROJECT {
+			rootProjectId = project.Id
+			return rootProjectId
+		}
+	}
+
+	fmt.Printf("ERROR: Required provider '%s' not found. Exiting\n", REQUIRED_PROJECT)
+	os.Exit(0)
+	return ""
 }
 
-type ProjectIdWrapper struct {
-	Id string `json:"id"`
+type ProjectSpecification struct {
+	Title string `json:"title"`
+}
+
+type Project struct {
+	Id            string               `json:"id"`
+	Specification ProjectSpecification `json:"specification"`
 }
 
 /*
