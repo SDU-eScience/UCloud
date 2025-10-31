@@ -5,6 +5,7 @@ import (
 	"fmt"
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -541,10 +542,11 @@ func accountingLoad() {
 var accountingScansDisabled = atomic.Bool{}
 
 var accountingProcessMutex = sync.Mutex{}
+var accountingScanUsageReportCanResumeAt = time.Now().Add(10 * time.Minute)
+var usageReportSamplingHours = []int{0, 4, 8, 12, 16, 20}
 
 func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) bool) {
 	accountingProcessMutex.Lock()
-	defer accountingProcessMutex.Unlock()
 
 	internalCompleteScan(now, func(buckets []*internalBucket, scopes []*scopedUsage, onPersistHandlers []internalOnPersistHandler) {
 		var actualBuckets []*internalBucket
@@ -858,20 +860,20 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 				db.Exec(
 					tx,
 					`
-							with data as (
-								select
-									unnest(cast(:key as text[])) as key,
-									unnest(cast(:usage as int8[])) as usage
-							)
-							insert into accounting.scoped_usage(key, usage) 
+						with data as (
 							select
-								key,
-								usage
-							from
-								data d
-							on conflict (key) do update set
-								usage = excluded.usage
-						`,
+								unnest(cast(:key as text[])) as key,
+								unnest(cast(:usage as int8[])) as usage
+						)
+						insert into accounting.scoped_usage(key, usage) 
+						select
+							key,
+							usage
+						from
+							data d
+						on conflict (key) do update set
+							usage = excluded.usage
+					`,
 					db.Params{
 						"key":   usageRequests.Key,
 						"usage": usageRequests.Usage,
@@ -892,6 +894,22 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 		}
 		accGlobals.OnPersistHandlers = remainingHandlers
 	})
+
+	accountingProcessMutex.Unlock()
+
+	// NOTE(Dan): This is a very simple version of a reliable cron-job which runs in our code and does not require
+	// anything special at all. This only works because it is perfectly safe to sample too many times. This code does
+	// reasonable protection against sampling too many times, but if the Core ends up crashing at the right time, then
+	// multiple samples may occur. This is not a problem necessarily and may even be the correct thing to do, in the
+	// case that the crash occurred mid-sampling.
+	now = time.Now()
+	if now.After(accountingScanUsageReportCanResumeAt) {
+		if slices.Contains(usageReportSamplingHours, now.Hour()) && now.Minute() < 10 {
+			accountingScanUsageReportCanResumeAt = time.Now().Add(15 * time.Minute)
+
+			usageSample(now)
+		}
+	}
 }
 
 func accountingProcessTasks() {

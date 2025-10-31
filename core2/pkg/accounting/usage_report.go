@@ -622,9 +622,6 @@ func lUsagePersistReport(report *internalUsageReport, b *db.Batch) {
 		return
 	}
 
-	// TODO This should only insert wallets which have been persisted. This implies that the usage reporting needs to
-	//   run as part of the same loop to guarantee the ordering.
-
 	reportJson, _ := json.Marshal(report)
 	walletId := report.Wallet
 	validFrom := report.ValidFrom
@@ -924,8 +921,6 @@ func lUsageSampleEnsureReport(now time.Time, cmp internalSnapshotComparison, b *
 	report, ok := reportGlobals.Reports[currWallet.Id]
 	if !ok || report.ValidFrom.Before(startOfDay) {
 		if ok && report.ValidFrom.Before(startOfDay) {
-			// TODO Possibly extend old report if no changes
-
 			lUsageRetireReport(report, b)
 		}
 
@@ -1036,5 +1031,4 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 	}
 
 	lUsagePersistReport(report, b)
-	// TODO utilization
 }
