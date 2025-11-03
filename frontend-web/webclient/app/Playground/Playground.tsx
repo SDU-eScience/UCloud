@@ -171,14 +171,14 @@ const Playground: React.FunctionComponent = () => {
 
     const main = (
         <>
-            <CpuChartDemo />
+            {/*<CpuChartDemo />*/}
             {/*<JobViz.Renderer processor={stream.current} windows={[JobViz.WidgetWindow.WidgetWindowMain]} />*/}
             {/*<AreaPlot data={data} keyX="date" keyY="value" />*/}
             {/**/}
             {/*<Box mb="60px" />*/}
             {/**/}
-            {/*<PaletteColors />*/}
-            {/*<Colors />*/}
+            <PaletteColors />
+            <Colors />
             {/*<EveryIcon />*/}
             {/*
             <Button onClick={() => {

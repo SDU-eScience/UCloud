@@ -11,11 +11,14 @@ export interface HookStore {
     projectCache?: ProjectCache;
     catalogLandingPage?: AppStore.LandingPage;
     catalogDiscovery?: AppStore.CatalogDiscovery;
+
+    sidebarWidth?: number;
+    sidebarStickyWidth?: number;
 }
 
 type Action = GenericSetAction | GenericMergeAction;
 
-type GenericSetAction = PayloadAction<{
+export type GenericSetAction = PayloadAction<{
     property: string;
     newValue?: ValueOrSetter<any>;
     defaultValue: any;

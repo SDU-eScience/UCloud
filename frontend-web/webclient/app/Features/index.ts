@@ -2,7 +2,6 @@ import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 
 export enum Feature {
     PROVIDER_CONNECTION,
-    INLINE_TERMINAL,
     NEW_IDPS,
     COMPONENT_STORED_CUT_COPY,
     TRANSFER_TO,
@@ -11,21 +10,20 @@ export enum Feature {
     // current policies.
     ADDITIONAL_USER_INFO,
 
-    JOB_RENAME,
-
-    APP_CATALOG_FILTER,
-
-    NEW_TASKS,
-    COMMAND_PALETTE,
 
     PROVIDER_CONDITION,
 
-    REORDER_APP_GROUP,
 
     ALTERNATIVE_USAGE_SELECTOR,
     NEW_SYNCTHING_UI,
 
-    USAGE_PREDICTION,
+    HIDE_PROJECTS,
+
+    CORE2,
+
+    // MISSING BACKEND SUPPORT
+    JOB_RENAME,
+    REORDER_APP_GROUP,
 }
 
 enum Environment {
@@ -35,6 +33,8 @@ enum Environment {
     SANDBOX_DEV,
     PROD
 }
+
+const noEnvironments: Environment[] = [];
 
 const allLocalEnvironments: Environment[] =
     [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK];
@@ -73,36 +73,14 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithFlag: allEnvironments,
     },
 
-    "inline-terminal": {
-        feature: Feature.INLINE_TERMINAL,
-        showWithoutFlag: allEnvironments,
-    },
-
     "component-stored-cut-copy": {
         feature: Feature.COMPONENT_STORED_CUT_COPY,
         showWithoutFlag: allEnvironments,
     },
 
-    "app-catalog-filter": {
-        feature: Feature.APP_CATALOG_FILTER,
-        showWithoutFlag: allEnvironments,
-        showWithFlag: allEnvironments
-    },
-
     "transfer-to": {
         feature: Feature.TRANSFER_TO,
         showWithoutFlag: allEnvironments,
-    },
-
-    "new-tasks": {
-        feature: Feature.NEW_TASKS,
-        showWithoutFlag: allEnvironments,
-    },
-
-    "command-palette": {
-        feature: Feature.COMMAND_PALETTE,
-        showWithoutFlag: allEnvironments,
-        showWithFlag: allEnvironments,
     },
 
     "provider-condition": {
@@ -134,6 +112,18 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allDevEnvironments,
     },
+
+    "hide-projects": {
+        feature: Feature.HIDE_PROJECTS,
+        showWithFlag: allDevEnvironments,
+        showWithoutFlag: noEnvironments
+    },
+
+    "core2": {
+        feature: Feature.CORE2,
+        showWithFlag: allLocalEnvironments,
+        showWithoutFlag: noEnvironments,
+    }
 };
 
 function getCurrentEnvironment(): Environment {

@@ -13,6 +13,7 @@ import (
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/shared/pkg/util/mermaid"
@@ -77,6 +78,8 @@ type accAllocId int
 
 var accGlobals struct {
 	Mu sync.RWMutex
+
+	TestingEnabled bool
 
 	OwnersByReference map[string]*internalOwner
 	OwnersById        map[accOwnerId]*internalOwner
@@ -195,7 +198,7 @@ type scopedUsage struct {
 // The core APIs are (see the introduction for more info):
 //
 // - internalReportUsage
-// - internalAllocate
+// - internalAllocateNoCommit
 // - internalScanAllocations
 
 // internalReportUsage performs a report to a target wallet. The function always returns
@@ -279,8 +282,8 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 }
 
 // If grantedIn is specified, then the allocations will not be committed to the database before
-// internalCommitAllocations is invoked with the same ID.
-func internalAllocate(
+// internalCommitGrantAllocations is invoked with the same ID.
+func internalAllocateNoCommit(
 	now time.Time,
 	b *internalBucket,
 	start time.Time,
@@ -366,15 +369,24 @@ type internalOnPersistHandler struct {
 	OnPersist func(tx *db.Transaction)
 }
 
-// internalCommitAllocations ensures that all allocations granted in grantId are committed together. If onPersist is
+// internalCommitGrantAllocations ensures that all allocations granted in grantId are committed together. If onPersist is
 // specified, then it will be run when the data is persisted.
-func internalCommitAllocations(grantId accGrantId, onPersist func(tx *db.Transaction)) {
+func internalCommitGrantAllocations(grantId accGrantId, onPersist func(tx *db.Transaction)) {
 	accGlobals.Mu.Lock()
 	accGlobals.OnPersistHandlers = append(accGlobals.OnPersistHandlers, internalOnPersistHandler{
 		GrantId:   grantId,
 		OnPersist: onPersist,
 	})
 	accGlobals.Mu.Unlock()
+}
+
+func internalCommitAllocation(b *internalBucket, allocId accAllocId) {
+	b.Mu.Lock()
+	alloc, ok := b.AllocationsById[allocId]
+	if ok {
+		alloc.Committed = true
+	}
+	b.Mu.Unlock()
 }
 
 func internalCompleteScan(now time.Time, persistence func(buckets []*internalBucket, scopes []*scopedUsage, onPersistHandlers []internalOnPersistHandler)) {
@@ -498,6 +510,10 @@ func internalWalletById(id AccWalletId) (*internalBucket, *internalWallet, bool)
 
 func internalOwnerByReference(reference string) *internalOwner {
 	// TODO Reference must be check by caller
+	if reference == "" {
+		log.Fatal("internalOwnerByReference called with an empty reference")
+	}
+
 	return util.ReadOrInsertBucket(&accGlobals.Mu, accGlobals.OwnersByReference, reference, func() *internalOwner {
 		ow := &internalOwner{
 			Id:        accOwnerId(accGlobals.OwnerIdAcc.Add(1)),
@@ -679,7 +695,7 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 				sourceVertex := walletToVertex[parentId]
 				destinationVertex := vertexIndex
 
-				activeQuota := lInternalGroupTotalQuotaActive(b, allocationGroup)
+				activeQuota := lInternalGroupTotalQuotaContributing(b, allocationGroup)
 
 				{
 					// Capacity
@@ -721,8 +737,8 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 					// through. This edge is purposefully made very expensive such that this path will only be chosen
 					// for a flow if there are no other ways of using up the charge.
 
-					totalAllocated := lInternalWalletTotalAllocatedActive(b, wallet)
-					activeQuota := lInternalWalletTotalQuotaActive(b, wallet)
+					totalAllocated := lInternalWalletTotalAllocatedContributing(b, wallet)
+					activeQuota := lInternalWalletTotalQuotaContributing(b, wallet)
 
 					overAllocation := totalAllocated + wallet.LocalUsage - activeQuota
 					if overAllocation > 0 {
@@ -800,7 +816,7 @@ func lInternalRebalance(b *internalBucket, now time.Time, wallet *internalWallet
 		if !deficit.Present {
 			sum := int64(0)
 			for _, g := range wallet.AllocationsByParent {
-				activeQuota := lInternalGroupTotalQuotaActive(b, g)
+				activeQuota := lInternalGroupTotalQuotaContributing(b, g)
 				propagated := g.TreeUsage
 
 				if propagated > activeQuota {
@@ -963,7 +979,9 @@ func lInternalMarkSignificantUpdate(b *internalBucket, now time.Time, wallet *in
 	b.SignificantUpdateAt = now
 	wallet.LastSignificantUpdate = now
 	wallet.Dirty = true
-	providerWalletNotifications <- wallet.Id
+	if b.Category.Provider != "usagegen" {
+		providerWalletNotifications <- wallet.Id
+	}
 }
 
 func internalGetMermaidGraph(now time.Time, walletId AccWalletId) (string, bool) {
@@ -995,7 +1013,7 @@ func lInternalMaxUsable(b *internalBucket, now time.Time, wallet *internalWallet
 	return graph.MaxFlow(rootIndex, 0)
 }
 
-func lInternalWalletTotalAllocatedActive(b *internalBucket, w *internalWallet) int64 {
+func lInternalWalletTotalAllocatedContributing(b *internalBucket, w *internalWallet) int64 {
 	retiredAllocationsContribute := !b.IsCapacityBased()
 
 	sum := int64(0)
@@ -1013,21 +1031,54 @@ func lInternalWalletTotalAllocatedActive(b *internalBucket, w *internalWallet) i
 	return sum
 }
 
-func internalWalletTotalQuotaActive(b *internalBucket, wId AccWalletId) (int64, bool) {
+// NOTE(Dan): Do NOT use for internal accounting operations. Use this ONLY for understanding the data.
+func internalWalletTotalQuotaFromActiveAllocations(b *internalBucket, wId AccWalletId) (int64, bool) {
 	b.Mu.RLock()
 	owner, ok := b.WalletsById[wId]
 	var result int64
 	if ok {
-		result = lInternalWalletTotalQuotaActive(b, owner)
+		result = lInternalWalletTotalQuotaFromActiveAllocations(b, owner)
 	}
 	b.Mu.RUnlock()
 	return result, ok
 }
 
-func lInternalWalletTotalQuotaActive(b *internalBucket, w *internalWallet) int64 {
+// NOTE(Dan): Do NOT use for internal accounting operations. Use this ONLY for understanding the data.
+func lInternalWalletTotalQuotaFromActiveAllocations(b *internalBucket, w *internalWallet) int64 {
 	sum := int64(0)
 	for _, group := range w.AllocationsByParent {
-		sum += lInternalGroupTotalQuotaActive(b, group)
+		sum += lInternalGroupTotalQuotaFromActiveAllocations(b, group)
+	}
+	return sum
+}
+
+// NOTE(Dan): Do NOT use for internal accounting operations. Use this ONLY for understanding the data.
+func lInternalGroupTotalQuotaFromActiveAllocations(b *internalBucket, group *internalGroup) int64 {
+	sum := int64(0)
+	for allocId, _ := range group.Allocations {
+		alloc := b.AllocationsById[allocId]
+		if alloc.Active && !alloc.Retired {
+			sum += alloc.Quota
+		}
+	}
+	return sum
+}
+
+func internalWalletTotalQuotaContributing(b *internalBucket, wId AccWalletId) (int64, bool) {
+	b.Mu.RLock()
+	owner, ok := b.WalletsById[wId]
+	var result int64
+	if ok {
+		result = lInternalWalletTotalQuotaContributing(b, owner)
+	}
+	b.Mu.RUnlock()
+	return result, ok
+}
+
+func lInternalWalletTotalQuotaContributing(b *internalBucket, w *internalWallet) int64 {
+	sum := int64(0)
+	for _, group := range w.AllocationsByParent {
+		sum += lInternalGroupTotalQuotaContributing(b, group)
 	}
 	return sum
 }
@@ -1055,7 +1106,7 @@ func lInternalWalletTotalPropagatedUsage(b *internalBucket, w *internalWallet) i
 	return sum
 }
 
-func lInternalGroupTotalQuotaActive(b *internalBucket, group *internalGroup) int64 {
+func lInternalGroupTotalQuotaContributing(b *internalBucket, group *internalGroup) int64 {
 	retiredAllocationsContribute := !b.IsCapacityBased()
 
 	sum := int64(0)
@@ -1215,13 +1266,16 @@ func lInternalWalletToApi(
 		TotalUsage:              lInternalWalletTotalUsageInNode(b, w),
 		LocalUsage:              w.LocalUsage,
 		MaxUsable:               lInternalMaxUsable(b, now, w),
-		Quota:                   lInternalWalletTotalQuotaActive(b, w),
-		TotalAllocated:          lInternalWalletTotalAllocatedActive(b, w),
+		Quota:                   lInternalWalletTotalQuotaContributing(b, w),
+		TotalAllocated:          lInternalWalletTotalAllocatedContributing(b, w),
 		LastSignificantUpdateAt: fndapi.Timestamp(w.LastSignificantUpdate),
 	}
 
 	allocGroupApi := func(g *internalGroup) accapi.AllocationGroup {
 		var apiAllocs []accapi.Allocation
+
+		contributingQuota := int64(0)
+		retiredContributes := !b.IsCapacityBased()
 
 		for allocId, _ := range g.Allocations {
 			alloc := b.AllocationsById[allocId]
@@ -1234,13 +1288,60 @@ func lInternalWalletToApi(
 					return util.OptValue(int64(val))
 				}),
 				RetiredUsage: alloc.RetiredUsage,
+				RetiredQuota: alloc.RetiredQuota,
+				Retired:      alloc.Retired,
+				Activated:    alloc.Active,
 			})
+
+			if alloc.Active && (!alloc.Retired || retiredContributes) {
+				contributingQuota += alloc.Quota
+			}
 		}
+
+		slices.SortFunc(apiAllocs, func(a, b accapi.Allocation) int {
+			// Retired last
+			if a.Retired && !b.Retired {
+				return 1
+			} else if !a.Retired && b.Retired {
+				return -1
+			}
+
+			// Not activated first
+			if a.Activated && !b.Activated {
+				return 1
+			} else if !a.Activated && b.Activated {
+				return -1
+			}
+
+			// Newest start date first
+			if a.StartDate.Time().After(b.StartDate.Time()) {
+				return -1
+			} else if a.StartDate.Time().Before(b.StartDate.Time()) {
+				return 1
+			}
+
+			// Latest end date first
+			if a.EndDate.Time().Before(b.EndDate.Time()) {
+				return -1
+			} else if a.EndDate.Time().After(b.EndDate.Time()) {
+				return 1
+			}
+
+			// Tiebreaker by ID
+			if a.Id > b.Id {
+				return 1
+			} else if a.Id < b.Id {
+				return -1
+			} else {
+				return 0
+			}
+		})
 
 		return accapi.AllocationGroup{
 			Id:          int(g.Id),
-			Allocations: apiAllocs,
+			Allocations: util.NonNilSlice(apiAllocs),
 			Usage:       g.TreeUsage,
+			Quota:       contributingQuota,
 		}
 	}
 
@@ -1351,7 +1452,7 @@ func internalRetrieveWallets(
 		w := lInternalWalletByOwner(b, now, owner.Id)
 
 		groups := w.AllocationsByParent
-		shouldInclude := !filter.RequireActive
+		shouldInclude := !filter.RequireActive && len(w.AllocationsByParent) > 0
 		if filter.RequireActive {
 		anyActive:
 			for _, group := range groups {
@@ -1459,8 +1560,8 @@ func lInternalMermaidGraph(bucket *internalBucket, now time.Time, root AccWallet
 				body := strings.Builder{}
 				body.WriteString("<b>Info</b><br>")
 				body.WriteString(fmt.Sprintf("local: %d<br>", wallet.LocalUsage))
-				body.WriteString(fmt.Sprintf("allocated: %d<br>", lInternalWalletTotalAllocatedActive(bucket, wallet)))
-				body.WriteString(fmt.Sprintf("quota: %d<br>", lInternalWalletTotalQuotaActive(bucket, wallet)))
+				body.WriteString(fmt.Sprintf("allocated: %d<br>", lInternalWalletTotalAllocatedContributing(bucket, wallet)))
+				body.WriteString(fmt.Sprintf("quota: %d<br>", lInternalWalletTotalQuotaContributing(bucket, wallet)))
 				body.WriteString(fmt.Sprintf("usable: %d<br>", lInternalMaxUsable(bucket, now, wallet)))
 				body.WriteString(fmt.Sprintf("usage: %d<br>", lInternalWalletTotalUsageInNode(bucket, wallet)))
 				body.WriteString(fmt.Sprintf("..propagated: %d<br>", lInternalWalletTotalPropagatedUsage(bucket, wallet)))

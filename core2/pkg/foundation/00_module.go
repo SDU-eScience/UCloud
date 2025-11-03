@@ -9,4 +9,5 @@ func Init() {
 	initProjects()
 	initTasks()
 	initSupportAssistsFoundation()
+	initSupport()
 }

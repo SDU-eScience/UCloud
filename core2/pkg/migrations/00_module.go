@@ -9,4 +9,8 @@ func Init() {
 	db.AddMigration(projectsV1())
 	db.AddMigration(projectsV2())
 	db.AddMigration(sharesV1())
+	db.AddMigration(usageV1())
+	db.AddMigration(usageV2())
+	db.AddMigration(accountingV1())
+	db.AddMigration(accountingV2())
 }

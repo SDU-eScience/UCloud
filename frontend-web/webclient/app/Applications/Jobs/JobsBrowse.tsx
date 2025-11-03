@@ -32,7 +32,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {getStoredProject} from "@/Project/ReduxState";
 import {filterOption} from "@/ui-components/ResourceBrowserFilters";
 import {useProject} from "@/Project/cache";
-import {useAvatars} from "@/AvataaarLib/hook";
+import {avatarState, useAvatars} from "@/AvataaarLib/hook";
 import {Box, Flex, Input, Relative, Truncate} from "@/ui-components";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
@@ -42,6 +42,9 @@ import {FilterInputClass} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
 import {injectStyle} from "@/Unstyled";
 import {Feature, hasFeature} from "@/Features";
+import {SimpleAvatarComponentCache} from "@/Files/Shares";
+import {divText} from "@/Utilities/HTMLUtilities";
+import {TruncateClass} from "@/ui-components/Truncate";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -184,6 +187,14 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                         icon: "radioEmpty"
                     }]);
 
+                browser.on("endRenderPage", () => {
+                    SimpleAvatarComponentCache.fetchMissingAvatars();
+                });
+
+                avatarState.subscribe(() => {
+                    browser.rerender();
+                });
+
                 browser.on("renderRow", (job, row, dims) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     icon.style.minWidth = "20px"
@@ -198,9 +209,16 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                             elem.innerText = "Unknown";
                             row.stat1.append(elem);
                         } else {
-                            const createdByElement = ResourceBrowser.defaultTitleRenderer(job.owner.createdBy, row);
-                            createdByElement.style.maxWidth = `calc(var(--stat1Width) - 20px)`;
-                            row.stat1.append(createdByElement);
+                            row.stat1.style.justifyContent = "left";
+                            SimpleAvatarComponentCache.appendTo(row.stat1, job.owner.createdBy, `Started by ${job.owner.createdBy}`).then(wrapper => {
+                                const div = divText(job.owner.createdBy);
+                                div.style.marginTop = div.style.marginBottom = "auto";
+                                div.classList.add(TruncateClass);
+                                div.style.maxWidth = "150px";
+                                div.style.marginLeft = "12px";
+                                wrapper.append(div);
+                                wrapper.style.display = "flex";
+                            });
                         }
                         row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());
                     } else {

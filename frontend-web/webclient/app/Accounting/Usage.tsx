@@ -22,7 +22,7 @@ import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI, noopCall} from "@/Authentication/DataHook";
 import * as Config from "../../site.config.json";
 import {useProjectId} from "@/Project/Api";
-import {differenceInCalendarDays, formatDate, formatDistance} from "date-fns";
+import {formatDate, formatDistance} from "date-fns";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {deviceBreakpoint} from "@/ui-components/Hide";
@@ -42,6 +42,7 @@ import {DATE_FORMAT} from "@/Admin/NewsManagement";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import {Toggle} from "@/ui-components/Toggle";
+import UsageCore2 from "@/Accounting/UsageCore2";
 
 // Constants
 // =====================================================================================================================
@@ -86,13 +87,13 @@ interface State {
     selectedPeriod: Period,
 }
 
-interface ExportHeader<T> {
+export interface ExportHeader<T> {
     key: keyof T;
     value: string;
     defaultChecked: boolean;
 };
 
-function exportUsage<T extends object>(chartData: T[] | undefined, headers: ExportHeader<T>[], projectTitle: string | undefined): void {
+export function exportUsage<T extends object>(chartData: T[] | undefined, headers: ExportHeader<T>[], projectTitle: string | undefined): void {
     if (!chartData?.length) {
         snackbarStore.addFailure("No data to export found", false);
         return;
@@ -167,7 +168,7 @@ function UsageExport<T extends object>({chartData, headers, projectTitle}: {char
 
         const a = document.createElement("a");
         a.href = "data:text/plain;charset=utf-8," + encodeURIComponent(text);
-        a.download = `${Config.PRODUCT_NAME} - ${projectTitle ? projectTitle : "personal workspace"} - ${formatDate(new Date(), DATE_FORMAT)}.${format}`;
+        a.download = `${Config.PRODUCT_NAME} - ${projectTitle ? projectTitle : "My workspace"} - ${formatDate(new Date(), DATE_FORMAT)}.${format}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -437,6 +438,10 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
 // User-interface
 // =====================================================================================================================
 function Visualization(): React.ReactNode {
+    if (hasFeature(Feature.CORE2)) {
+        return <UsageCore2 />;
+    }
+
     const project = useProject();
     const projectId = useProjectId();
     const [state, rawDispatch] = useReducer(stateReducer, initialState);
@@ -1033,7 +1038,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{
     </div>;
 };
 
-function header<T>(key: keyof T, value: string, defaultChecked?: boolean): ExportHeader<T> {
+export function header<T>(key: keyof T, value: string, defaultChecked?: boolean): ExportHeader<T> {
     return {key, value, defaultChecked: !!defaultChecked};
 }
 
@@ -1769,7 +1774,6 @@ function toggleSeriesEntry(chart: ApexCharts | undefined, seriesName: string, ch
 }
 
 const RenderUnitSelector: RichSelectChildComponent<{unit: string}> = ({element, onSelect, dataProps}) => {
-
     if (element === undefined) {
         return <Flex height={40} alignItems={"center"} pl={12}>No unit selected</Flex>
     }

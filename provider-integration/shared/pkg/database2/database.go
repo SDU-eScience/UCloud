@@ -478,6 +478,8 @@ func transformQuery(query string, args Params) (string, []any, error) {
 
 type Batch struct {
 	Tx       *Transaction
+	Ok       bool
+	Error    error
 	delegate *pgx.Batch
 }
 
@@ -485,14 +487,22 @@ func BatchNew(ctx *Transaction) *Batch {
 	return &Batch{
 		Tx:       ctx,
 		delegate: &pgx.Batch{},
+		Ok:       true,
+	}
+}
+
+func BatchNewDeferred() *Batch {
+	return &Batch{
+		delegate: &pgx.Batch{},
+		Ok:       true,
 	}
 }
 
 func BatchExec(batch *Batch, query string, args Params) {
 	statement, params, err := transformQuery(query, args)
 	if err != nil {
-		batch.Tx.Ok = false
-		batch.Tx.error = err
+		batch.Ok = false
+		batch.Error = err
 		return
 	}
 	promise := batch.delegate.Queue(statement, params...)
@@ -506,8 +516,8 @@ func BatchGet[T any](batch *Batch, query string, args Params) *util.Option[T] {
 	var result util.Option[T]
 	statement, params, err := transformQuery(query, args)
 	if err != nil {
-		batch.Tx.Ok = false
-		batch.Tx.error = err
+		batch.Ok = false
+		batch.Error = err
 		return &util.Option[T]{}
 	}
 	promise := batch.delegate.Queue(statement, params...)
@@ -534,8 +544,8 @@ func BatchSelect[T any](batch *Batch, query string, args Params) *[]T {
 	var result []T
 	statement, params, err := transformQuery(query, args)
 	if err != nil {
-		batch.Tx.Ok = false
-		batch.Tx.error = err
+		batch.Ok = false
+		batch.Error = err
 		return &result
 	}
 	promise := batch.delegate.Queue(statement, params...)
@@ -553,7 +563,21 @@ func BatchSelect[T any](batch *Batch, query string, args Params) *[]T {
 	return &result
 }
 
+func BatchSendDeferred(tx *Transaction, batch *Batch) {
+	batch.Tx = tx
+	BatchSend(batch)
+}
+
 func BatchSend(batch *Batch) {
+	if !batch.Ok {
+		batch.Tx.Ok = batch.Ok
+		batch.Tx.error = batch.Error
+	}
+
+	if batch.Tx == nil {
+		log.Fatal("When using BatchNewDeferred you must also use BatchSendDeferred")
+	}
+
 	if !batch.Tx.Ok {
 		return
 	}

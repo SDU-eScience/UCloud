@@ -431,7 +431,7 @@ export function LogOutput({updates, maxHeight}: {updates: string[], maxHeight?: 
     return <pre className={LogOutputClass} style={{maxHeight}}>{updates}</pre>;
 }
 
-export const NoResultsCardBody: React.FunctionComponent<{title: string; children: React.ReactNode}> = props => (
+export const NoResultsBody: React.FunctionComponent<{title: string; children: React.ReactNode}> = props => (
     <Flex
         alignItems="center"
         justifyContent="center"
