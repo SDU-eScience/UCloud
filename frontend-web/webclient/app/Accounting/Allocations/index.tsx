@@ -47,6 +47,7 @@ import {
     resetOpenNodes,
     SubProjectAllocations
 } from "./CommonSections";
+import {useProjectInfos} from "@/Project/InfoCache";
 
 // Styling
 // =====================================================================================================================
@@ -102,6 +103,17 @@ const Allocations: React.FunctionComponent = () => {
         dispatchEvent({type: "Reset"});
         dispatchEvent({type: "Init"});
     }, [projectId]);
+
+    const subProjectIds = useMemo(() => {
+        return state.subAllocations.recipients
+            .filter(it => it.owner.reference.type === "project")
+            .map(it => it.owner.reference["projectId"] as string)
+    }, [state.subAllocations]);
+
+    const projectInfo = useProjectInfos(subProjectIds);
+    useEffect(() => {
+        dispatchEvent({type: "SubProjectData", projects: projectInfo.data});
+    }, [projectInfo]);
 
     useEffect(() => {
         const users = new Set<string>();

@@ -24,6 +24,8 @@ export enum Feature {
     // MISSING BACKEND SUPPORT
     JOB_RENAME,
     REORDER_APP_GROUP,
+
+    ALLOCATIONS_PAGE_IMPROVEMENTS
 }
 
 enum Environment {
@@ -121,6 +123,12 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "core2": {
         feature: Feature.CORE2,
+        showWithFlag: allLocalEnvironments,
+        showWithoutFlag: noEnvironments,
+    },
+
+    "allocations-improvements": {
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
         showWithFlag: allLocalEnvironments,
         showWithoutFlag: noEnvironments,
     }

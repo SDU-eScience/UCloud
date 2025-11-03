@@ -573,7 +573,9 @@ export class UsageAndQuota {
         }
         usage = Math.max(0, usage);
 
-        const maxUsablePercentage = uqRaw.quota === 0 ? 100 : ((uqRaw.maxUsable + usage) / uqRaw.quota) * 100;
+        const maxUsablePercentage = uqRaw.maxUsable === Number.MAX_SAFE_INTEGER ? 100 :
+            uqRaw.quota === 0 ? 100 :
+                ((uqRaw.maxUsable + usage) / uqRaw.quota) * 100;
         const percentageUsed = uqRaw.quota === 0 ? 0 : (usage / uqRaw.quota) * 100;
         const displayOverallocationWarning = showWarning(uqRaw.quota, uqRaw.maxUsable, usage);
         const maxUsableBalance = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.maxUsable, {precision: 2});
@@ -1013,7 +1015,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                 usageAndQuota: new UsageAndQuota({
                     usage: usage?.[0]?.normalizedBalance ?? 0,
                     quota: quota?.[0]?.normalizedBalance ?? 0,
-                    maxUsable: maxUsable[0]?.normalizedBalance ?? 0,
+                    maxUsable: Number.MAX_SAFE_INTEGER,
                     unit: usage?.[0]?.unit ?? "",
                     retiredAmount: retiredAmount?.[0]?.normalizedBalance ?? 0,
                     retiredAmountStillCounts: shouldUseRetired,
@@ -1025,7 +1027,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
             };
 
             const uq = newGroup.usageAndQuota;
-            uq.raw.maxUsable = uq.raw.quota - (localUsage[0]?.normalizedBalance ?? 0);
+            uq.raw.maxUsable = Number.MAX_SAFE_INTEGER;
 
             for (const alloc of childGroup.group.allocations.reverse()) {
                 if (allocationIsActive(alloc, new Date().getTime())) {
@@ -1062,7 +1064,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                         usage: group.usageAndQuota.raw.usage,
                         quota: group.usageAndQuota.raw.quota,
                         unit: group.usageAndQuota.raw.unit,
-                        maxUsable: group.usageAndQuota.raw.maxUsable,
+                        maxUsable: Number.MAX_SAFE_INTEGER,
                         retiredAmount: group.usageAndQuota.raw.retiredAmount,
                         retiredAmountStillCounts: group.usageAndQuota.raw.retiredAmountStillCounts,
                         ownedByPersonalProviderProject,
@@ -1080,25 +1082,9 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                 return 0;
             });
 
-            for (const b of uqBuilder) {
-                // NOTE(Dan): We do not know how much is usable locally since this depends on other allocations which
-                // might not be coming from us. The backend doesn't tell us this since it would leak information we do
-                // not have access to.
-                //
-                // As a result, we set the maxUsable to be equivalent to the remaining balance. That is, we tell the UI
-                // that we can use the entire quota (even if we cannot).
-                b.raw.maxUsable = b.raw.quota - b.raw.usage;
-
-                b.updateDisplay();
-            }
-
             recipient.usageAndQuota = uqBuilder;
         }
     }
-
-    subAllocations.recipients.sort((a, b) => {
-        return a.owner.title.localeCompare(b.owner.title);
-    });
 
     if (isCore2Response) {
         // TODO(Dan): Clean up this code later when we are getting ready to make the switch. I am currently trying to

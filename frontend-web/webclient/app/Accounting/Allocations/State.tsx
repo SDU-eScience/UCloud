@@ -1,4 +1,3 @@
-import WAYF from "@/Grants/wayf-idps.json";
 import * as Accounting from "@/Accounting";
 import * as Gifts from "@/Accounting/Gifts";
 import {deepCopy, newFuzzyMatchFuse} from "@/Utilities/CollectionUtilities";
@@ -7,9 +6,10 @@ import {useCallback} from "react";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import ProvidersApi from "@/UCloud/ProvidersApi";
-import {AllocationDisplayTree, AllocationDisplayTreeRecipient, ProductType} from "@/Accounting";
+import {AllocationDisplayTreeRecipient, ProductType} from "@/Accounting";
+import {ProjectInfo, projectInfoPi, projectInfoTitle} from "@/Project/InfoCache";
 
-const fuzzyMatcher = newFuzzyMatchFuse<Accounting.AllocationDisplayTreeRecipientOwner, "title" | "primaryUsername">(["title", "primaryUsername"]);
+const fuzzyMatcher = newFuzzyMatchFuse<{title: string}, "title">(["title"]);
 
 // State
 // =====================================================================================================================
@@ -25,6 +25,7 @@ export interface State extends Accounting.AllocationDisplayTree {
 
     subprojectSortBy?: string;
     subprojectSortByAscending: boolean;
+    subprojectInfo: Record<string, ProjectInfo | null>;
 
     gifts?: {
         title: string;
@@ -64,17 +65,41 @@ export type UIAction =
     | { type: "ResetRootAllocation" }
     | { type: "ToggleViewOnlyProjects" }
     | { type: "SortSubprojects", sortBy?: string, ascending: boolean }
+    | { type: "SubProjectData", projects: Record<string, ProjectInfo | null> }
     ;
+
+function recipientTitle(recipient: AllocationDisplayTreeRecipient, state: State): string {
+    return recipient.owner.reference.type === "user" ?
+        recipient.owner.primaryUsername :
+        projectInfoTitle(state.subprojectInfo[recipient.owner.reference.projectId], recipient.owner.title) ?? "-";
+}
+
+function recipientPrimaryUsername(recipient: AllocationDisplayTreeRecipient, state: State): string {
+    return recipient.owner.reference.type === "user" ?
+        recipient.owner.primaryUsername :
+        projectInfoPi(state.subprojectInfo[recipient.owner.reference.projectId], recipient.owner.primaryUsername) ?? "-";
+}
 
 function searchQueryMatches(recipient: AllocationDisplayTreeRecipient, state: State, query: string) {
     if (recipient.owner.reference.type === "user" && state.viewOnlyProjects) return false;
+    if (recipient.owner.reference.type === "project" && !state.viewOnlyProjects) return false;
     if (query === "") return true;
-    fuzzyMatcher.setCollection([recipient.owner]);
+    const title = recipientTitle(recipient, state);
+
+    fuzzyMatcher.setCollection([{title}]);
     return fuzzyMatcher.search(query).length > 0;
 }
 
 export function stateReducer(state: State, action: UIAction): State {
     switch (action.type) {
+        case "SubProjectData": {
+            const newState = {
+                ...state,
+                subprojectInfo: action.projects,
+            };
+            return rebuildTree(newState);
+        }
+
         case "SortSubprojects": {
             const newState = {
                 ...state,
@@ -385,12 +410,12 @@ export function stateReducer(state: State, action: UIAction): State {
                     }
 
                     case "PI": {
-                        return a.owner.primaryUsername.localeCompare(b.owner.primaryUsername);
+                        return recipientPrimaryUsername(a, state).localeCompare(recipientPrimaryUsername(b, state))
                     }
 
                     case "title":
                     default: {
-                        return a.owner.title.localeCompare(b.owner.title);
+                        return recipientTitle(a, state).localeCompare(recipientTitle(b, state))
                     }
                 }
             })();
@@ -510,5 +535,6 @@ export function initialState(): State {
         viewOnlyProjects: true,
         filteredSubProjectIndices: [],
         subprojectSortByAscending: true,
+        subprojectInfo: {},
     };
 }

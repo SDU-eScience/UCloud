@@ -24,7 +24,7 @@ import * as Accounting from "@/Accounting";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {chunkedString, timestampUnixMs} from "@/UtilityFunctions";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
-import {TooltipV2} from "@/ui-components/Tooltip";
+import tooltip, {TooltipV2} from "@/ui-components/Tooltip";
 import {OldProjectRole} from "@/Project";
 import {State, UIAction, UIEvent} from "@/Accounting/Allocations/State";
 import {VariableSizeList} from "react-window";
@@ -47,8 +47,9 @@ import {exportUsage, header} from "@/Accounting/Usage";
 import {useProject} from "@/Project/cache";
 import {useProjectId} from "@/Project/Api";
 import {AllocationBar} from "@/Accounting/Allocations/AllocationBar";
-import {useProjectInfo} from "@/Project/InfoCache";
+import {projectInfoPi, projectInfoTitle, useProjectInfo} from "@/Project/InfoCache";
 import {useForcedRender} from "@/Utilities/ReactUtilities";
+import {Feature, hasFeature} from "@/Features";
 
 interface Datapoint {
     product: string;
@@ -218,7 +219,7 @@ const yourAllocationsStyle = injectStyle("your-allocations", k => `
     ${k} .your-allocations-container {
         border: 1px solid var(--borderColor);
         border-radius: 5px;
-        padding: 5px 20px 10px 20px;
+        padding: 10px 20px;
     }
 `);
 
@@ -338,7 +339,7 @@ const subProjectsStyle = injectStyle("sub-projects", k => `
     
     ${k} .sub-projects-container {
         border: 1px solid var(--borderColor);
-        padding: 5px 0px 10px 0px;
+        padding: 10px 0px;
         border-radius: 5px;
     }
     
@@ -501,6 +502,8 @@ export const SubProjectAllocations: React.FunctionComponent<{
             });
         });
     }, []);
+
+    if (!hasFeature(Feature.ALLOCATIONS_PAGE_IMPROVEMENTS)) return null;
 
     return <>
         <ReactModal
@@ -668,8 +671,12 @@ const SubProjectListRow: React.FunctionComponent<{
 }> = ({style, recipient, listRef, rowIdx, avatars, onEdit, state, onEditKey, onEditBlur, setNodeState}) => {
     const projectInfo = useProjectInfo(recipient.owner.reference.type === "user" ? "" : recipient.owner.reference.projectId);
     const workspaceId = recipient.owner.reference["username"] ?? recipient.owner.reference["projectId"] ?? "";
-    const pi = recipient.owner.reference.type === "user" ? recipient.owner.reference.username : projectInfo.data?.piUsername ?? "-";
-    const title = recipient.owner.reference.type === "user" ? recipient.owner.reference.username : projectInfo.data?.title ?? "-";
+    const pi = recipient.owner.reference.type === "user" ?
+        recipient.owner.reference.username :
+        projectInfoPi(projectInfo.data, recipient.owner.primaryUsername) ?? "-";
+    const title = recipient.owner.reference.type === "user" ?
+        recipient.owner.reference.username :
+        projectInfoTitle(projectInfo.data, recipient.owner.title) ?? "-";
 
     return <div style={style}>
         <TreeNode
@@ -696,6 +703,7 @@ const SubProjectListRow: React.FunctionComponent<{
                 </Truncate>
             </Flex>}
             right={<div className={"sub-alloc"}>
+                <FilteredUsageAndQuota entries={recipient.usageAndQuota}/>
                 {recipient.owner.reference.type === "project" &&
                     <Link
                         to={AppRoutes.grants.grantGiverInitiatedEditor({
@@ -707,14 +715,13 @@ const SubProjectListRow: React.FunctionComponent<{
                             subAllocator: false,
                         })}
                     >
+                        <SmallIconButton tooltip="Allocate more resources"
+                                         icon={"heroBanknotes"}
+                                         subIcon={"heroPlusCircle"}
+                                         subColor1={"primaryContrast"}
+                                         subColor2={"primaryContrast"}/>
                     </Link>
                 }
-                <FilteredUsageAndQuota entries={recipient.usageAndQuota}/>
-                <SmallIconButton title="View grant application"
-                                 icon={"heroBanknotes"}
-                                 subIcon={"heroPlusCircle"}
-                                 subColor1={"primaryContrast"}
-                                 subColor2={"primaryContrast"}/>
             </div>}
         >
 
@@ -828,6 +835,7 @@ interface SubProjectFilter {
     options: string[];
     selected?: string;
     enabled: boolean;
+    feature?: Feature;
 }
 
 const SubProjectFiltersRow: React.FunctionComponent<{
@@ -838,7 +846,9 @@ const SubProjectFiltersRow: React.FunctionComponent<{
 }> = (props) => {
 
     const onChecked = useCallback(() => {
-        if (props.setting.title === "Single user sub-projects") {
+        console.log(props.setting);
+        if (props.setting.title === SingleUserProjects) {
+            console.log("toggle");
             props.dispatchEvent({
                 type: "ToggleViewOnlyProjects",
         });
@@ -874,7 +884,7 @@ const SubProjectFiltersRow: React.FunctionComponent<{
             <div className="key-metrics-checkbox">
                 <Checkbox
                     size={30}
-                    checked={props.setting.title === "Single user sub-projects" ?
+                    checked={props.setting.title === SingleUserProjects ?
                         !props.state.viewOnlyProjects : props.setting.enabled}
                     handleWrapperClick={onChecked}
                     onChange={onChecked}
@@ -886,48 +896,56 @@ const SubProjectFiltersRow: React.FunctionComponent<{
     </ListRow>
 }
 
+const SingleUserProjects = "Personal workspaces"
+
 const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
     "Idle sub-projects": {
         title: "Idle sub-projects",
         options: ["1 month", "2 months", "3 months", "6 months"],
         selected: "1 month",
-        enabled: false
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
     "Allocated resource by product type": {
         title: "Allocated resource by product type",
         options: ["Compute", "Storage", "Public IP", "Application licence"],
         selected: "Compute",
-        enabled: false
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
     "Allocated resource by product": {
         title: "Allocated resource by product",
         options: [/*TODO list products here*/],
         selected: "u1-standard-h",
-        enabled: false
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
     "Allocated resource by provider": {
         title: "Allocated resource by provider",
         options: ["SDU/K8s", "AAU/K8s", "AAU/VM"],
         selected: "SDU/K8s",
-        enabled: false
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
     "Expired allocations": {
         title: "Expired allocations",
         options: [],
         selected: "",
-        enabled: false
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
-    "Single user sub-projects": {
-        title: "Single user sub-projects",
+    [SingleUserProjects]: {
+        title: "Personal workspaces",
         options: [],
         selected: "",
-        enabled: false
+        enabled: false,
     },
     "Overallocations at risk": {
         title: "Overallocations at risk",
         options: [],
         selected: "",
-        enabled: false
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
 };
 
@@ -970,64 +988,71 @@ export const SubProjectFilters: React.FunctionComponent<{
         ariaHideApp={false}
         className={classConcat(CardClass, keyMetricsStyle, subProjectsStyle)}
     >
-        <Flex>
-            <div className="key-metrics-settings-container">
-                <h3>Sub-project filters</h3>
-                <h4 style={{color: "var(--textSecondary)"}}>Select filters to apply</h4>
-            </div>
-            <div className="key-metrics-input">
-                <div className="key-metrics-search-box">
-                    <Input placeholder="Search in your sub-project filters"></Input>
-                    <div style={{position: "relative"}}>
-                        <div style={{position: "absolute", top: "5px", right: "10px"}}>
-                            <Icon name={"heroMagnifyingGlass"}/>
-                        </div>
+        <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
+            <Flex>
+                <div className="key-metrics-settings-container">
+                    <h3>Sub-project filters</h3>
+                </div>
+                {/*<div className="key-metrics-input">*/}
+                {/*    <div className="key-metrics-search-box">*/}
+                {/*        <Input placeholder="Search in your sub-project filters"></Input>*/}
+                {/*        <div style={{position: "relative"}}>*/}
+                {/*            <div style={{position: "absolute", top: "5px", right: "10px"}}>*/}
+                {/*                <Icon name={"heroMagnifyingGlass"}/>*/}
+                {/*            </div>*/}
+                {/*        </div>*/}
+                {/*    </div>*/}
+                {/*</div>*/}
+            </Flex>
+            {Object.values(settings).map(setting => (
+                setting.feature === undefined || hasFeature(setting.feature) ?
+                    <SubProjectFiltersRow
+                        key={setting.title}
+                        setting={setting}
+                        onChange={onSettingsChanged}
+                        dispatchEvent={dispatchEvent}
+                        state={state}
+                    /> : null
+            ))}
+            <Divider/>
+            <div className="sub-projects-sorting-container">
+                <div className="sub-projects-sorting-headers">
+                    <h3>Sort by</h3>
+                    <h4 style={{color: "var(--textSecondary)"}}>Select sorting criteria to apply</h4>
+                </div>
+                <div className="sub-projects-sorting-selector">
+                    <SimpleRichSelect
+                        items={
+                            [
+                                {key: "title", value: "Title"},
+                                {key: "PI", value: "PI"},
+                                {key: "age", value: "Age"},
+                                {key: "usagePercentageCompute", value: "Usage percentage (Compute)"},
+                                {key: "usagePercentageStorage", value: "Usage percentage (Storage)"},
+                                {key: "usagePercentagePublicIP", value: "Usage percentage (Public IP)"},
+                                {key: "usagePercentageLicence", value: "Usage percentage (Application license)"},
+                            ]
+                        }
+                        onSelect={setSortBy}
+                        selected={sortBy}
+                        dropdownWidth={"300px"}>
+                    </SimpleRichSelect>
+                    <div className="sort-button">
+                        <TooltipV2 tooltip={ascending ? "Set to ascending" : "Set to descending"}>
+                            <SmallIconButton
+                                icon={ascending ? "heroBarsArrowUp" : "heroBarsArrowDown"}
+                                onClick={onSortingToggle}/>
+                        </TooltipV2>
                     </div>
                 </div>
-                <Button onClick={closeFilters}>Apply</Button>
             </div>
+
+            <Box flexGrow={1} />
+
+            <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"} gap={"8px"}>
+                <Button color={"successMain"} type="button" onClick={closeFilters}>Apply</Button>
+            </Flex>
         </Flex>
-        {Object.values(settings).map(setting => (
-            <SubProjectFiltersRow
-                key={setting.title}
-                setting={setting}
-                onChange={onSettingsChanged}
-                dispatchEvent={dispatchEvent}
-                state={state}
-            />
-        ))}
-        <Divider/>
-        <div className="sub-projects-sorting-container">
-            <div className="sub-projects-sorting-headers">
-                <h3>Sub-project sorting</h3>
-                <h4 style={{color: "var(--textSecondary)"}}>Select sorting criteria to apply</h4>
-            </div>
-            <div className="sub-projects-sorting-selector">
-                <SimpleRichSelect
-                    items={
-                        [
-                            {key: "title", value: "Title"},
-                            {key: "PI", value: "PI"},
-                            {key: "age", value: "Age"},
-                            {key: "usagePercentageCompute", value: "Usage percentage (Compute)"},
-                            {key: "usagePercentageStorage", value: "Usage percentage (Storage)"},
-                            {key: "usagePercentagePublicIP", value: "Usage percentage (Public IP)"},
-                            {key: "usagePercentageLicence", value: "Usage percentage (Application license)"},
-                        ]
-                    }
-                    onSelect={setSortBy}
-                    selected={sortBy}
-                    dropdownWidth={"300px"}>
-                </SimpleRichSelect>
-                <div className="sort-button">
-                    <TooltipV2 tooltip={ascending ? "Set to ascending" : "Set to descending"}>
-                        <SmallIconButton
-                            icon={ascending ? "heroBarsArrowUp" : "heroBarsArrowDown"}
-                            onClick={onSortingToggle}/>
-                    </TooltipV2>
-                </div>
-            </div>
-        </div>
     </ReactModal>;
 }
 
@@ -1287,7 +1312,7 @@ const SmallIconButton: React.FunctionComponent<{
     subColor1?: ThemeColor;
     subColor2?: ThemeColor;
     color?: ThemeColor;
-    title?: string;
+    tooltip?: string;
     onClick?: (ev: HTMLButtonElement) => void;
     disabled?: boolean;
 }> = props => {
@@ -1296,13 +1321,12 @@ const SmallIconButton: React.FunctionComponent<{
         props?.onClick?.(ref.current!);
     }, [props.onClick]);
 
-    return <Button
+    const body = <Button
         className={SmallIconButtonStyle}
         onClick={onClick}
         color={props.color}
         disabled={props.disabled}
         btnRef={ref}
-        title={props.title}
         data-has-sub={props.subIcon !== undefined}
         {...extractDataTags(props)}
     >
@@ -1316,4 +1340,10 @@ const SmallIconButton: React.FunctionComponent<{
             </Relative>
         }
     </Button>;
+
+    if (props.tooltip === undefined) {
+        return body;
+    } else {
+        return <TooltipV2 tooltip={props.tooltip} contentWidth={200}>{body}</TooltipV2>;
+    }
 };
