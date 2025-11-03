@@ -132,7 +132,7 @@ func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string
 	_ = os.Mkdir(baseDir, 0700)
 
 	currentText, _ := os.ReadFile(filepath.Join(baseDir, "current.txt"))
-	currentEnvironmentName := string(currentText)
+	currentEnvironmentName := strings.TrimSpace(string(currentText))
 
 	var env *os.File
 	if currentEnvironmentName == "" {

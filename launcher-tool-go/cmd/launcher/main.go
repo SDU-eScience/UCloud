@@ -94,7 +94,7 @@ func main() {
 			fmt.Println()
 			fmt.Println("The error message above we got from docker compose. If this isn't helpful, "+
 				"then try deleting this directory: ", launcher.GetCurrentEnvironment().Name())
-			os.Exit(1)
+			return fmt.Errorf("Failed to start")
 		}
 
 		for _, line := range strings.Split(psText, "\n") {
