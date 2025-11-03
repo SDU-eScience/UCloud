@@ -31,8 +31,8 @@ test("Run job with jobname, extend time, stop job, validate jobname in runs", as
     await expect(page.getByText("Run application again")).toHaveCount(1);
 });
 
+const AppNameThatIsExpectedToBePresent = "Visual Studio Code";
 test("Favorite app, unfavorite app", async ({page}) => {
-    const AppNameThatIsExpectedToBePresent = "Coder";
     await Applications.openApp(page, AppNameThatIsExpectedToBePresent);
     await Applications.toggleFavorite(page);
     await Applications.toggleFavorite(page);
@@ -83,7 +83,7 @@ test("Mount folder with file in job, and cat inside contents", async ({page}) =>
     const terminalPage = await Runs.openTerminal(page);
 
     await Terminal.enterCmd(terminalPage, `cat ${folderName}/${uploadedFileName}`)
-    
+
     await expect(terminalPage.getByText(contents)).toHaveCount(1);
 
     await terminalPage.close();
@@ -92,7 +92,7 @@ test("Mount folder with file in job, and cat inside contents", async ({page}) =>
 });
 
 test("Ensure 'New version available' button shows up and works.", async ({page}) => {
-    await Applications.openApp(page, "Coder");
+    await Applications.openApp(page, AppNameThatIsExpectedToBePresent);
     const versionSelect = page.locator("div[class^=rich-select-trigger]").last();
     const newestVersion = await versionSelect.innerText();
     await versionSelect.click();
@@ -105,7 +105,7 @@ test("Ensure 'New version available' button shows up and works.", async ({page})
 
 test("Test application search", async ({page}) => {
     await Applications.goToApplications(page);
-    await Applications.searchFor(page, "Coder");
-    await page.locator("a[class^=app-card]").getByText("Coder").first().click();
+    await Applications.searchFor(page, AppNameThatIsExpectedToBePresent);
+    await page.locator("a[class^=app-card]").getByText(AppNameThatIsExpectedToBePresent).first().click();
     expect(page.url()).toContain("/create?app=");
 });

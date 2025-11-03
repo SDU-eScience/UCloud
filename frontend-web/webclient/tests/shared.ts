@@ -247,7 +247,7 @@ export const Components = {
     async selectAvailableMachineType(page: Page): Promise<void> {
         await page.getByText('No machine type selected').click();
         // Find a way of getting the first non-disabled table-row with a product
-        await page.getByRole('cell', {name: "standard-cpu-1", disabled: false}).first().click();
+        await page.getByRole('cell', {name: "u1-standard-1", disabled: false}).first().click();
     },
 
     async selectAvailableProduct(page: Page): Promise<void> {
@@ -280,7 +280,7 @@ export const Applications = {
     async openApp(page: Page, appName: string, exact: boolean = true): Promise<void> {
         this.goToApplications(page);
         await Components.projectSwitcher(page, "hover");
-        const locatorString = exact ? `img[alt=${appName}]` : `img[alt^=${appName}]`;
+        const locatorString = exact ? `img[alt='${appName}']` : `img[alt^='${appName}']`;
         let iterations = 1000;
         await page.mouse.wheel(0, -Number.MAX_SAFE_INTEGER);
         while (!await page.locator(locatorString).first().isVisible()) {
@@ -334,6 +334,7 @@ export const Runs = {
 
     async stopRun(page: Page, jobName: string): Promise<void> {
         await this.goToRuns(page);
+        await Components.projectSwitcher(page, "hover");
         await page.locator(".row").getByText(jobName).click();
         await Components.clickConfirmationButton(page, "Stop");
         await page.waitForTimeout(500);

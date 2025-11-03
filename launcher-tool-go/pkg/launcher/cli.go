@@ -226,7 +226,7 @@ func CliIntercept(args []string) {
 
 	case "test-e2e":
 		// Create one user
-		withResourceUsername := "user-resources2"
+		withResourceUsername := "user-resources"
 		withResourcePassword := "user-resources-password"
 		locationOrigin := "https://ucloud.localhost.direct/"
 
@@ -237,7 +237,7 @@ func CliIntercept(args []string) {
 			giftId := createGift()
 			claimGifts(newUserWithResources.AccessToken, giftId)
 			// Connect to provider
-			CallService("backend", "POST", "http://localhost:8080/api/providers/integration/connect", newUserWithResources.AccessToken, `{provider: "3"}`, []string{})
+			CallService("backend", "POST", "http://localhost:8080/api/providers/integration/connect", newUserWithResources.AccessToken, fmt.Sprintf(`{provider: "%s"}`, getProviderId()), []string{})
 		}
 
 		withNoResourcesUsername := "user-no-resources2"
@@ -245,20 +245,19 @@ func CliIntercept(args []string) {
 		createUser(withNoResourcesUsername, withNoResourcesPassword, "USER")
 
 		pathToTestInfo := repoRoot.GetAbsolutePath() + "/frontend-web/webclient/tests/test_data.json"
-		err := os.WriteFile(pathToTestInfo, []byte(`{
-		    "location_origin": "`+locationOrigin+`",
+		if err := os.WriteFile(pathToTestInfo, fmt.Appendf(nil, `{
+		    "location_origin": "%s",
 		    "users": {
 		        "with_resources": {
-		            "username": "`+withResourceUsername+`",
-		            "password": "`+withResourcePassword+`"
+		            "username": "%s",
+		            "password": "%s"
 		        },
 		        "without_resources": {
-					"username": "`+withNoResourcesUsername+`",
-					"password": "`+withNoResourcesPassword+`"
+					"username": "%s",
+					"password": "%s"
 		        }
 		    }
-		}`), 0777)
-		if err != nil {
+		}`, locationOrigin, withResourceUsername, withResourcePassword, withNoResourcesUsername, withNoResourcesPassword), 0777); err != nil {
 			panic(err)
 		}
 
@@ -284,7 +283,7 @@ func (u *UserTokens) SetupUserWithResources() {
 		giftId := createResourcesAndGifts()
 		claimGifts(u.AccessToken, giftId)
 		// Connect to provider
-		CallService("backend", "POST", "http://localhost:8080/api/providers/integration/connect", u.AccessToken, `{provider: "3"}`, []string{})
+		CallService("backend", "POST", "http://localhost:8080/api/providers/integration/connect", u.AccessToken, fmt.Sprintf(`{provider: "%s"}`, getProviderId()), []string{})
 	}
 }
 
@@ -472,6 +471,40 @@ func createRootAllocation() {
 	}`, []string{"-H", "Project: " + getRootProjectId()})
 }
 
+var providerId string = ""
+
+func getProviderId() string {
+	type Provider struct {
+		Provider      string `json:"provider"`
+		ProviderTitle string `json:"providerTitle"`
+	}
+
+	type ProviderResult struct {
+		Items []Provider `json:"items"`
+	}
+
+	if providerId != "" {
+		fmt.Println(providerId)
+		return providerId
+	}
+
+	var providerResult ProviderResult
+
+	result := CallService("backend", "GET", "localhost:8080/api/providers/integration/browse?itemsPerPage=250", FetchAccessToken(), "", []string{})
+	_ = json.Unmarshal([]byte(result), &providerResult)
+
+	fmt.Println(result)
+	for _, provider := range providerResult.Items {
+		if provider.ProviderTitle == "gok8s" {
+			providerId = provider.Provider
+		}
+	}
+
+	fmt.Println(providerId)
+	return providerId
+}
+
+
 var rootProjectId string = ""
 
 func getRootProjectId() string {
@@ -506,15 +539,3 @@ type Project struct {
 	Id            string               `json:"id"`
 	Specification ProjectSpecification `json:"specification"`
 }
-
-/*
-	./launcher test-e2e # creating user successfully
-	[✅] Connecting to compose environment
-	npx playwright test
-	[{"accessToken":"FOOBAR","refreshToken":"BAZ","csrfToken":"QUX"}]
-
-	./launcher test-e2e # already exists
-	[✅] Connecting to compose environment
-	npx playwright test
-	{"why":"Conflict","errorCode":null}
-*/

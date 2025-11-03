@@ -332,14 +332,16 @@ export const Hero: React.FunctionComponent<{
     const prevSlideIndex = (index == 0) ? slides.length - 1 : index - 1;
     const prevSlide = slides[prevSlideIndex];
 
-    let slideLink = slide.linkedWebPage;
+    let slideLink = slide?.linkedWebPage;
     let slideLinkIsExternal = true;
-    if (!slideLink) {
-        slideLinkIsExternal = false;
-        if (slide.resolvedLinkedApp) {
-            slideLink = AppRoutes.jobs.create(slide.resolvedLinkedApp);
-        } else if (slide.linkedGroup) {
-            slideLink = AppRoutes.apps.group((slide.linkedGroup).toString());
+    if (slide) {
+        if (!slideLink) {
+            slideLinkIsExternal = false;
+            if (slide.resolvedLinkedApp) {
+                slideLink = AppRoutes.jobs.create(slide.resolvedLinkedApp);
+            } else if (slide.linkedGroup) {
+                slideLink = AppRoutes.apps.group((slide.linkedGroup).toString());
+            }
         }
     }
 
