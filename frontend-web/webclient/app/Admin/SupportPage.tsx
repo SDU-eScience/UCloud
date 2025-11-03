@@ -1,5 +1,5 @@
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Box, Button, Flex, Heading, Input, Label, MainContainer, Error, Icon, Link} from "@/ui-components";
+import {Box, Button, Flex, Heading, Input, Label, MainContainer, Error, Icon, Link, Divider} from "@/ui-components";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import * as React from "react";
 import {useLocation, useNavigate} from "react-router";
@@ -7,8 +7,8 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import AppRoutes from "@/Routes";
 import {AccountingFrequency, Allocation, WalletV2} from "@/Accounting";
 import {Project} from "@/Project";
-import {apiRetrieve, callAPI} from "@/Authentication/DataHook";
-import {capitalized, errorMessageOrDefault} from "@/UtilityFunctions";
+import {apiRetrieve, apiUpdate, callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
+import {capitalized, doNothing, errorMessageOrDefault} from "@/UtilityFunctions";
 import {mail} from "@/UCloud";
 import {Application} from "@/Grants";
 import EmailSettings = mail.EmailSettings;
@@ -17,6 +17,10 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {ProjectTitleForNewCore} from "@/Project/InfoCache";
+import {shareLinksApi} from "@/UCloud/SharesApi";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {dialogStore} from "@/Dialog/DialogStore";
+import Warning from "@/ui-components/Warning";
 const {supportAssist} = AppRoutes;
 
 export default function () {
@@ -139,11 +143,22 @@ interface SupportAssistUserInfo {
 interface SupportAssistRetrieveUserInfoResponse {
     info: SupportAssistUserInfo[]
 }
-
 export function normalizeFrequency(frequency: AccountingFrequency):string {
-    if (frequency === "PERIODIC_MINUTE" || frequency === "PERIODIC_HOUR" || frequency === "PERIODIC_DAY") { return "minute(s)"}
+    if (frequency === "PERIODIC_MINUTE") { return "minute(s)"}
+    if (frequency === "PERIODIC_HOUR") { return "hour(s)"}
+    if (frequency === "PERIODIC_DAY") { return "day(s)"}
     if (frequency === "ONCE") { return ""}
     return ""
+}
+
+interface Reset2FARequest {
+    username: string;
+}
+
+type Reset2FAResponse = void;
+
+function reset2fa(req: Reset2FARequest): APICallParameters<Reset2FARequest, Reset2FAResponse> {
+    return apiUpdate(req, "api/support-assist-fnd", "reset_mfa")
 }
 
 export function UserSupportContent() {
@@ -179,6 +194,56 @@ export function UserSupportContent() {
                     <div>Name: {it.firstNames} {it.lastName}</div>
                     <div>Email: {it.email}</div>
                     <br/>
+                    <h3>Reset 2FA</h3>
+                    <hr/>
+                    <div>
+                        <ConfirmationButton
+                            actionText={"Reset 2FA"}
+                            icon={"refresh"}
+                            color="errorMain"
+                            onAction={() => {
+                                const requiredText = it.username
+                                dialogStore.addDialog((
+                                    <div onKeyDown={e => e.stopPropagation()}>
+                                        <div>
+                                            <h3>Are you absolutely sure?</h3>
+                                            <Divider />
+                                            <Warning>This is a dangerous operation, please read this!</Warning>
+                                            <Box mb={"8px"} mt={"16px"}>
+                                                This will reset the two factor authentication for {it.username}! This action <i>CANNOT BE UNDONE</i>.
+                                            </Box>
+                                            <Box mb={"16px"}>
+                                                Please type '<b>{requiredText}</b>' to confirm.
+                                            </Box>
+                                            <Box mb={"16px"}>
+                                                <form onSubmit={ev => {
+                                                    ev.preventDefault();
+                                                    ev.stopPropagation();
+                                                    const written = (document.querySelector("#collectionName") as HTMLInputElement).value;
+                                                    if (written !== requiredText) {
+                                                        snackbarStore.addFailure(`Please type '${requiredText}' to confirm.`, false);
+                                                    } else {
+                                                        callAPI(reset2fa({username: written})).then(
+                                                            result => {
+                                                                snackbarStore.addSuccess("2FA reset.", false)
+                                                                dialogStore.success();
+                                                            }
+                                                        ).catch(e => snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to reset 2FA"), false))
+                                                    }
+                                                }}>
+                                                    <Input id={"collectionName"} mb={"8px"} />
+                                                    <Button color={"errorMain"} type={"submit"} fullWidth>
+                                                        I understand what I am doing, reset the 2FA
+                                                    </Button>
+                                                </form>
+                                            </Box>
+                                        </div>
+                                    </div>
+                                ), doNothing, true);
+                            }}
+                        />
+                    </div>
+                    <br/>
 
                     <h3>E-mail settings:</h3>
                     <hr/>
@@ -195,6 +260,7 @@ export function UserSupportContent() {
                     </div>
                     <br/>
 
+                    { it.associatedProjects != null ? <>
                     <h3>Associated projects:</h3>
                     <hr/>
                     <div>
@@ -233,6 +299,7 @@ export function UserSupportContent() {
                         </table>
                     </div>
                     <br/>
+                    </> : null}
 
                     <h3>Grants:</h3>
                     <hr/>

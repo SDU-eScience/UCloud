@@ -6,7 +6,7 @@ import (
 )
 
 type ResetMFARequest struct {
-	Username string
+	Username string `json:"username"`
 }
 
 const SupportAssistFndContext = "support-assist-fnd"

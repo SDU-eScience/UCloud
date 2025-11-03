@@ -2,6 +2,7 @@ package foundation
 
 import (
 	"net/http"
+
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
@@ -20,8 +21,9 @@ func resetMFA(username string) (util.Empty, *util.HttpError) {
 		return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Username wrong")
 	}
 	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
+		batch := db.BatchNew(tx)
+		db.BatchExec(
+			batch,
 			`
 			WITH credentials AS (
 				SELECT id
@@ -29,14 +31,21 @@ func resetMFA(username string) (util.Empty, *util.HttpError) {
 				WHERE principal_id  = :username
 			)
 			DELETE from auth.two_factor_challenges
-				   where credentials_id = credentials.id;
-			
-			DELETE FROM auth.two_factor_credentials
-			WHERE principal_id = :username;
+			where credentials_id = (select id from credentials);
 			`,
 			db.Params{
 				"username": username,
 			})
+		db.BatchExec(
+			batch,
+			`
+				DELETE FROM auth.two_factor_credentials
+				WHERE principal_id = :username;
+			`,
+			db.Params{
+				"username": username,
+			})
+		db.BatchSend(batch)
 
 	})
 
