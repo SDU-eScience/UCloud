@@ -1,9 +1,10 @@
 package foundation
 
 import (
-	"github.com/golang-jwt/jwt/v5"
 	"strings"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 	cfg "ucloud.dk/core/pkg/config"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"

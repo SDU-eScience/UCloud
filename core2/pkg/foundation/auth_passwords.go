@@ -4,10 +4,11 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 	"crypto/subtle"
-	"golang.org/x/crypto/pbkdf2"
 	"math"
 	"net/http"
 	"time"
+
+	"golang.org/x/crypto/pbkdf2"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"
