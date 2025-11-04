@@ -2,7 +2,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import {AvatarType, defaultAvatar, fetchBulkAvatars, FetchBulkAvatarsResponse} from "@/AvataaarLib/index";
 import {useUState, UState} from "@/Utilities/UState";
 
-class AvatarState extends UState<AvatarState> {
+export class AvatarState extends UState<AvatarState> {
     private inflight: Record<string, true> = {};
     private cache: Record<string, AvatarType> = {};
 

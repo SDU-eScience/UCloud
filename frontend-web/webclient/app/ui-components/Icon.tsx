@@ -67,7 +67,7 @@ export const IconClass = injectStyle("icon", k => `
 `);
 
 const Icon: React.FunctionComponent<IconBaseProps> = ({size = 18, squared = true, ...props}) => {
-    const style: CSSProperties = unbox(props);
+    const style: CSSProperties = {...props.style, ...unbox(props)};
     if (props.color) style["--color"] = `var(--${props.color})`;
     if (props.hoverColor) style["--hoverColor"] = `var(--${props.hoverColor})`;
     if (props.spinSpeed) style["--spinSpeed"] = props.spinSpeed;

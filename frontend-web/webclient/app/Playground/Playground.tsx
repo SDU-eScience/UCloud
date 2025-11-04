@@ -13,7 +13,6 @@ import * as plot from "@observablehq/plot";
 import * as Plot from "@observablehq/plot";
 import * as JobViz from "@/Applications/Jobs/JobViz"
 import {WidgetColorIntensity, WidgetWindow} from "@/Applications/Jobs/JobViz"
-import {CpuChartDemo} from "@/Playground/D3Test";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -177,8 +176,8 @@ const Playground: React.FunctionComponent = () => {
             {/**/}
             {/*<Box mb="60px" />*/}
             {/**/}
-            <PaletteColors />
-            <Colors />
+            {/*<PaletteColors />*/}
+            {/*<Colors />*/}
             {/*<EveryIcon />*/}
             {/*
             <Button onClick={() => {
