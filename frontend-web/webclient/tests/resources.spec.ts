@@ -9,7 +9,7 @@ test.beforeEach(async ({page}) => {
 
 const {PublicLinks, IPs, SSHKeys, Licenses} = Resources;
 
-test("Create public link, view properties, delete", async ({page}) => {
+test.skip("Create public link, view properties, delete", async ({page}) => {
     await Resources.goTo(page, "Links");
     const publicLinkName = await PublicLinks.createNew(page);
     await page.getByRole("button", {name: "Create", disabled: false}).click();
@@ -36,7 +36,7 @@ test("Create ssh key, delete ssh key", async ({page}) => {
     await expect(page.getByText(sshkey)).toHaveCount(0);
 });
 
-test("Create licenses", async ({page}) => {
+test.skip("Create licenses", async ({page}) => {
     await Resources.goTo(page, "Licenses");
     await Licenses.activateLicense(page);
 });

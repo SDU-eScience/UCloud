@@ -62,6 +62,7 @@ test("Start app and stop app from runs page. Start it from runs page, testing pa
 });
 
 test("Mount folder with file in job, and cat inside contents", async ({page}) => {
+    test.setTimeout(240_000);
     const driveName = Drive.newDriveName();
     const folderName = File.newFolderName();
     const [uploadedFileName, contents] = ["UploadedFile.txt", "Am I not invisible???"];

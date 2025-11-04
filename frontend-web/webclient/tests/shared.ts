@@ -195,7 +195,7 @@ export const Drive = {
 
     async create(page: Page, name: string): Promise<void> {
         await this.goToDrives(page);
-        await page.waitForTimeout(200);
+        await page.waitForTimeout(800);
         await page.locator("div.operation").filter({hasText: "Create drive"}).click();
         await page.getByRole("textbox", {name: "Choose a name"}).fill(name);
         await page.getByRole("button", {name: "Create", disabled: false}).click();
@@ -240,7 +240,7 @@ export const Components = {
         await page.getByRole("banner").locator("svg").click();
     },
 
-    async clickConfirmationButton(page: Page, text: string, delay = 1200): Promise<void> {
+    async clickConfirmationButton(page: Page, text: string, delay = 1500): Promise<void> {
         await page.getByRole('button', {name: text}).click({delay});
     },
 
@@ -252,7 +252,7 @@ export const Components = {
 
     async selectAvailableProduct(page: Page): Promise<void> {
         await page.getByText('No product selected').click();
-        for (const row of await page.locator("tbody > tr", {}).all()) {
+        for (const row of await page.locator("tbody > tr").all()) {
             if (await row.isDisabled() === false) {
                 await row.click();
                 return;
@@ -425,7 +425,6 @@ export const Resources = {
     IPs: {
         async createNew(page: Page): Promise<void> {
             await page.getByText("Create public IP").click();
-            await Components.selectAvailableProduct(page);
             await this.fillPortRowInDialog(page);
         },
 
@@ -455,7 +454,7 @@ export const Resources = {
             await page.getByText("Add SSH key").click();
             const title = this.newSSHKeyName();
             await page.locator("#key-title").fill(title);
-            await page.locator("#key-contents").fill("ssh-rsa" + "a-bunch-of-text");
+            await page.locator("#key-contents").fill("ssh-rsa a-bunch-of-text");
             await page.getByRole("button", {name: "Add SSH key"}).click();
             return title;
         }

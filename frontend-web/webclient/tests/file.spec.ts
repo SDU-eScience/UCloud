@@ -21,6 +21,7 @@ test.afterEach(async ({page, userAgent}) => {
 /// File operations
 
 // Depends on an update to `dev` (or run it with your own up to date backend)
+// Isn't supported by the test-provider
 test.skip('Change sensitivity (with available resources)', async ({page}) => {
     const folderName = File.newFolderName();
     await File.create(page, folderName);

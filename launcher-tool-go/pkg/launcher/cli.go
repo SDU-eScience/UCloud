@@ -232,15 +232,10 @@ func CliIntercept(args []string) {
 
 		newUserWithResources := createUser(withResourceUsername, withResourcePassword, "USER")
 		if newUserWithResources != nil {
-			// User didn't exist, so create root allocation, gift and have user claim the gift.
-			createRootAllocation()
-			giftId := createGift()
-			claimGifts(newUserWithResources.AccessToken, giftId)
-			// Connect to provider
-			CallService("backend", "POST", "http://localhost:8080/api/providers/integration/connect", newUserWithResources.AccessToken, fmt.Sprintf(`{provider: "%s"}`, getProviderId()), []string{})
+			newUserWithResources.SetupUserWithResources()
 		}
 
-		withNoResourcesUsername := "user-no-resources2"
+		withNoResourcesUsername := "user-no-resources"
 		withNoResourcesPassword := "user-no-resources-password"
 		createUser(withNoResourcesUsername, withNoResourcesPassword, "USER")
 
@@ -288,7 +283,7 @@ func (u *UserTokens) SetupUserWithResources() {
 }
 
 func createGift() int {
-	result := CallService("backend", "POST", "http://localhost:8080/api/gifts", FetchAccessToken(), `{
+	result := CallService("backend", "POST", "http://localhost:8080/api/gifts", FetchAccessToken(), fmt.Sprintf(`{
 		"id": 0,
 		"criteria": [{"type": "anyone"}],
 		"description": "Testing purposes",
@@ -334,10 +329,10 @@ func createGift() int {
 				"provider": "gok8s"
 			}
 		],
-		"resourcesOwnedBy": "`+getRootProjectId()+`",
+		"resourcesOwnedBy": "%s",
 		"title": "Gift for testing accounts",
 		"renewEvery": 0
-	}`, []string{"-H", "Project: " + getRootProjectId()})
+	}`, getRootProjectId()), []string{"-H", "Project: " + getRootProjectId()})
 
 	var createGiftResult struct {
 		Id int `json:"id"`
@@ -484,7 +479,6 @@ func getProviderId() string {
 	}
 
 	if providerId != "" {
-		fmt.Println(providerId)
 		return providerId
 	}
 
@@ -493,21 +487,27 @@ func getProviderId() string {
 	result := CallService("backend", "GET", "localhost:8080/api/providers/integration/browse?itemsPerPage=250", FetchAccessToken(), "", []string{})
 	_ = json.Unmarshal([]byte(result), &providerResult)
 
-	fmt.Println(result)
 	for _, provider := range providerResult.Items {
 		if provider.ProviderTitle == "gok8s" {
 			providerId = provider.Provider
 		}
 	}
 
-	fmt.Println(providerId)
 	return providerId
 }
-
 
 var rootProjectId string = ""
 
 func getRootProjectId() string {
+	type ProjectSpecification struct {
+		Title string `json:"title"`
+	}
+
+	type Project struct {
+		Id            string               `json:"id"`
+		Specification ProjectSpecification `json:"specification"`
+	}
+
 	REQUIRED_PROJECT := "Provider gok8s"
 
 	if rootProjectId != "" {
@@ -529,13 +529,4 @@ func getRootProjectId() string {
 	fmt.Printf("ERROR: Required provider '%s' not found. Exiting\n", REQUIRED_PROJECT)
 	os.Exit(0)
 	return ""
-}
-
-type ProjectSpecification struct {
-	Title string `json:"title"`
-}
-
-type Project struct {
-	Id            string               `json:"id"`
-	Specification ProjectSpecification `json:"specification"`
 }
