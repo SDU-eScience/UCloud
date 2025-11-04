@@ -8,4 +8,5 @@ func Init() {
 	initAuth()
 	initProjects()
 	initTasks()
+	initSupport()
 }

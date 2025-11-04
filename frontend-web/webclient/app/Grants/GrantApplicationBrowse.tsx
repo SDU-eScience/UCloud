@@ -258,7 +258,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 browser.on("fetchOperations", () => {
                     const selected = browser.findSelectedEntries();
                     const ops = [{
-                        icon: "fileSignatureSolid" as IconName,
+                        icon: "heroArrowRight" as IconName,
                         enabled(selected: Grants.Application[]) {
                             return selected.length === 0 && isIngoing;
                         },
@@ -266,10 +266,10 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                         text: "Show applications sent",
                         shortcut: ShortcutKey.U
                     }, {
-                        icon: "fileSignatureSolid" as IconName,
+                        icon: "heroInbox" as IconName,
                         enabled(selected: Grants.Application[]) {return selected.length === 0 && !isIngoing},
                         onClick() {navigate(AppRoutes.grants.ingoing())},
-                        text: "Show applications sent",
+                        text: "Show applications received",
                         shortcut: ShortcutKey.I
                     }];
                     return ops.filter(it => it.enabled(selected));

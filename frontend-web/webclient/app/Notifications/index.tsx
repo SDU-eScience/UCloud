@@ -304,7 +304,6 @@ export function sendNotification(notification: NormalizedNotification, forceShow
 // function is responsible for pulling information from these sources and pushing it into the `notificationStore`.
 // When UI updates are required, then this function will invoke `renderNotifications()` to trigger a UI update in all
 // relevant components.
-let wsConnection: WebSocketConnection | undefined = undefined;
 let snackbarSubscription: (snack?: Snack) => void = () => {};
 let snoozeLoop: any;
 function initializeStore() {
@@ -317,22 +316,6 @@ function initializeStore() {
             notificationStore.push(normalizeNotification(item));
         }
         renderNotifications();
-    });
-
-    // NOTE(Dan): New messages from the WebSocket subscription do trigger a notification, since we will only receive
-    // notifications which are created after the subscription.
-    wsConnection = WSFactory.open("/notifications", {
-        init: c => {
-            c.subscribe({
-                call: "notifications.subscription",
-                payload: {},
-                handler: message => {
-                    if (message.type === "message") {
-                        sendNotification(normalizeNotification(message.payload));
-                    }
-                }
-            });
-        }
     });
 
     // NOTE(Dan): Sets up the subscriber to the snackbarStore. This is here mostly for legacy reasons. Generally you
@@ -365,8 +348,6 @@ function initializeStore() {
 
 function deinitStore() {
     notificationStore.length = 0;
-    wsConnection?.close();
-    wsConnection = undefined;
 
     if (snoozeLoop) clearInterval(snoozeLoop);
     snackbarStore.unsubscribe(snackbarSubscription);
@@ -601,7 +582,7 @@ const ContentWrapper = injectStyle("content-wrapper", k => `
 
 const NoNotifications = (): React.ReactNode => <TextSpan>No notifications</TextSpan>;
 
-interface Notification {
+export interface Notification {
     type: string;
     id: number;
     message: string;
@@ -610,7 +591,7 @@ interface Notification {
     meta: any;
 }
 
-function normalizeNotification(
+export function normalizeNotification(
     notification: Notification | NormalizedNotification,
 ): NormalizedNotification & {onSnooze?: () => void} {
     const {location, refresh, navigate, dispatch} = normalizationDependencies!;

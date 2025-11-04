@@ -3,9 +3,7 @@ package foundation
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	ws "github.com/gorilla/websocket"
 	"net/http"
 	"runtime"
 	"slices"
@@ -14,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
@@ -620,83 +619,4 @@ func TaskSubscribe(actor rpc.Actor, ctx context.Context) <-chan fndapi.Task {
 	}()
 
 	return sub.Channel
-}
-
-func TaskListen(conn *ws.Conn) {
-	defer util.SilentClose(conn)
-
-	var herr *util.HttpError
-	var actor rpc.Actor
-	var streamId string
-
-	for {
-		mtype, rawMessage, err := conn.ReadMessage()
-		if err != nil || mtype != ws.TextMessage {
-			return
-		}
-
-		var message rpc.WSRequestMessage[util.Empty]
-
-		err = json.Unmarshal(rawMessage, &message)
-		if err != nil {
-			return
-		}
-
-		streamId = message.StreamId
-		actor, herr = rpc.BearerAuthenticator(message.Bearer, message.Project.GetOrDefault(""))
-		if herr != nil {
-			return
-		}
-
-		if message.Call == "tasks.browse" {
-			var browseMessage rpc.WSRequestMessage[fndapi.TasksBrowseRequest]
-			_ = json.Unmarshal(rawMessage, &browseMessage)
-
-			result := TaskBrowse(actor, browseMessage.Payload.ItemsPerPage, browseMessage.Payload.Next)
-			resp := rpc.WSResponseMessage[fndapi.PageV2[fndapi.Task]]{
-				Type:     "response",
-				StreamId: streamId,
-				Payload:  result,
-			}
-
-			respBytes, _ := json.Marshal(resp)
-			err := conn.WriteMessage(ws.TextMessage, respBytes)
-			if err != nil {
-				return
-			}
-		} else if message.Call == "tasks.listen" {
-			break
-		}
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	notifications := TaskSubscribe(actor, ctx)
-	go func() {
-		for {
-			_, _, err := conn.ReadMessage()
-			if err != nil {
-				cancel()
-				break
-			}
-		}
-	}()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case msg, ok := <-notifications:
-			if ok {
-				data := rpc.WSResponseMessageMarshal(streamId, msg)
-				err := conn.WriteMessage(ws.TextMessage, data)
-				if err != nil {
-					return
-				}
-			} else {
-				return
-			}
-		}
-	}
 }

@@ -18,6 +18,8 @@ function targetFromConfig(mode: Mode): string {
             return `https://${PRODUCTION_SITE}`;
         case "sandbox":
             return `https://${SANDBOX_SITE}`;
+        case "prod": // development mode against production backend
+            return `https://${PRODUCTION_SITE}`;
         case "compose":
             return "http://backend:8080";
         case "local-dev":

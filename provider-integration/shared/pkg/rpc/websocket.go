@@ -17,6 +17,7 @@ type WSResponseMessage[T any] struct {
 	Type     string `json:"type"`
 	StreamId string `json:"streamId"`
 	Payload  T      `json:"payload"`
+	Status   int    `json:"status,omitempty"`
 }
 
 func WSResponseMessageMarshal[T any](streamId string, data T) []byte {
