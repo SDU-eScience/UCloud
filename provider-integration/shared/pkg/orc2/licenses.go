@@ -64,11 +64,6 @@ var LicensesDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkRespo
 	Roles:       rpc.RolesEndUser,
 }
 
-type LicenseRenameRequest struct {
-	Id       string `json:"id"`
-	NewTitle string `json:"newTitle"`
-}
-
 type LicensesSearchRequest struct {
 	ItemsPerPage int                 `json:"itemsPerPage"`
 	Next         util.Option[string] `json:"next"`
