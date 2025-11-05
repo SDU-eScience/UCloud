@@ -9,8 +9,9 @@ import (
 	"strings"
 	"sync"
 	"time"
-	db "ucloud.dk/shared/pkg/database"
 	"unicode"
+
+	db "ucloud.dk/shared/pkg/database"
 
 	anyascii "github.com/anyascii/go"
 	"github.com/prometheus/client_golang/prometheus"
@@ -204,6 +205,11 @@ func controllerJobs(mux *http.ServeMux) {
 				var providerIds []*fnd.FindByStringId
 
 				for _, item := range request.Items {
+					if item.Specification.Application.Name == "unknown" {
+						errors = append(errors, util.HttpErr(http.StatusBadRequest, "Invalid application specified"))
+						continue
+					}
+
 					TrackNewJob(*item)
 
 					providerGeneratedId, err := Jobs.Submit(JobSubmitRequest{
