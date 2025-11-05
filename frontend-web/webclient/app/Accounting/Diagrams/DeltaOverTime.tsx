@@ -20,7 +20,7 @@ export function useDeltaOverTimeChart(
     openReport: UsageReport | null | undefined,
     chartWidth: number,
     chartHeight: number,
-    unit: FrontendAccountingUnit,
+    unit: FrontendAccountingUnit | null,
 ): DeltaOverTimeChart {
     const [childrenLabels, setChildrenLabels] = useState<ChartLabel[]>([]);
 
@@ -33,7 +33,7 @@ export function useDeltaOverTimeChart(
         const r = openReport;
         if (r == null) return;
 
-        const data = r.usageOverTime.delta.filter(it => it.timestamp > 0); // TODO backend shouldn't return this
+        const data = r.usageOverTime.delta;
         if (data.length === 0) return;
 
         // Dimensions and margin
@@ -83,7 +83,7 @@ export function useDeltaOverTimeChart(
             }
         });
 
-        const byTimestampKey = index(data, d => d.timestamp, d => d.child);
+        const byTimestampKey = index(data, d => d.timestamp, d => d.child ?? "");
 
         const seriesGenerator = stack<number>()
             .keys(union(data.map(it => it.child ?? "")))

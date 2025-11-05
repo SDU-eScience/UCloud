@@ -173,6 +173,24 @@ interface ProjectInfos {
     error: unknown | null;
 }
 
+export function projectInfosPi(info: ProjectInfos, projectId: string, fallback?: string | null): string | null {
+    return fallback ?? info.data[projectId]?.piUsername ?? null;
+}
+
+export function projectInfosTitle(info: ProjectInfos, projectId: string, fallback?: string | null): string | null {
+    return fallback ?? info.data[projectId]?.title ?? null;
+}
+
+export function projectInfoPi(info: ProjectInfo | null | undefined, fallback?: string | null): string | null {
+    const loaded = info?.piUsername ?? "";
+    return (fallback?.length ?? 0) > 0 ? fallback! : loaded.length > 0 ? loaded : null;
+}
+
+export function projectInfoTitle(info: ProjectInfo | null | undefined, fallback?: string | null): string | null {
+    const loaded = info?.title ?? "";
+    return (fallback?.length ?? 0) > 0 ? fallback! : loaded.length > 0 ? loaded : null;
+}
+
 export function useProjectInfos(ids: Array<string | null | undefined>): ProjectInfos {
     const key = ids.join("|");
     const idlePlaceholder: CacheRecord = { status: "idle", data: null, error: null };

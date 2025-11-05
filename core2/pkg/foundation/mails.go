@@ -6,7 +6,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"gopkg.in/gomail.v2"
 	"io"
 	"net/http"
 	"net/url"
@@ -15,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"gopkg.in/gomail.v2"
 	cfg "ucloud.dk/core/pkg/config"
 	gonjabuiltins "ucloud.dk/gonja/v2/builtins"
 	gonjactrl "ucloud.dk/gonja/v2/builtins/control_structures"
@@ -64,61 +65,17 @@ func initMails() {
 	})
 
 	fndapi.MailSendToUser.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.MailSendToUserRequest]) (util.Empty, *util.HttpError) {
-		var err error
 		for _, reqItem := range request.Items {
-			email, hasEmail := retrieveEmail(reqItem.Receiver)
-			hasEmail = hasEmail || reqItem.ReceivingEmail.Present
-
-			userWantsEmail := UserWantsEmail(reqItem.Receiver, reqItem.Mail.Type())
-			userWantsEmail = userWantsEmail || reqItem.Mandatory.Value
-
-			if hasEmail && userWantsEmail {
-				toSend := mailToSend{
-					FromName:     SupportName,
-					FromEmail:    SupportEmail,
-					ToName:       reqItem.Receiver,
-					ToEmail:      reqItem.ReceivingEmail.GetOrDefault(email),
-					Mail:         reqItem.Mail,
-					BaseTemplate: &baseTemplate,
-				}
-
-				err = util.MergeError(err, sendEmail(toSend))
+			err := MailSend(reqItem)
+			if err != nil {
+				return util.Empty{}, err
 			}
 		}
-
-		if err != nil {
-			log.Warn("Failed to send emails: %s", err.Error())
-			return util.Empty{}, util.HttpErr(http.StatusInternalServerError, "Internal error")
-		} else {
-			return util.Empty{}, nil
-		}
+		return util.Empty{}, nil
 	})
 
 	fndapi.MailSendSupport.Handler(func(info rpc.RequestInfo, request fndapi.MailSendSupportRequest) (util.Empty, *util.HttpError) {
-		rawMail := map[string]any{
-			"type":    fndapi.MailTypeSupport,
-			"message": request.Message,
-			"subject": request.Subject,
-		}
-
-		mailData, _ := json.Marshal(rawMail)
-
-		toSend := mailToSend{
-			FromName:     request.FromEmail,
-			FromEmail:    request.FromEmail,
-			ToName:       SupportName,
-			ToEmail:      SupportEmail,
-			Mail:         fndapi.Mail(mailData),
-			BaseTemplate: &baseSupportTemplate,
-		}
-
-		err := sendEmail(toSend)
-		if err != nil {
-			log.Warn("Failed to send emails: %s", err.Error())
-			return util.Empty{}, util.HttpErr(http.StatusInternalServerError, "Internal error")
-		} else {
-			return util.Empty{}, nil
-		}
+		return util.Empty{}, MailSendSupport(request)
 	})
 
 	fndapi.MailRetrieveSettings.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.MailRetrieveSettingsResponse, *util.HttpError) {
@@ -132,6 +89,63 @@ func initMails() {
 		}
 		return util.Empty{}, nil
 	})
+}
+
+func MailSendSupport(request fndapi.MailSendSupportRequest) *util.HttpError {
+	rawMail := map[string]any{
+		"type":    fndapi.MailTypeSupport,
+		"message": request.Message,
+		"subject": request.Subject,
+	}
+
+	mailData, _ := json.Marshal(rawMail)
+
+	toSend := mailToSend{
+		FromName:     request.FromEmail,
+		FromEmail:    request.FromEmail,
+		ToName:       SupportName,
+		ToEmail:      SupportEmail,
+		Mail:         fndapi.Mail(mailData),
+		BaseTemplate: &baseSupportTemplate,
+	}
+
+	err := sendEmail(toSend)
+	if err != nil {
+		log.Warn("Failed to send emails: %s", err.Error())
+		return util.HttpErr(http.StatusInternalServerError, "Internal error")
+	} else {
+		return nil
+	}
+}
+
+func MailSend(reqItem fndapi.MailSendToUserRequest) *util.HttpError {
+	var err error
+
+	email, hasEmail := retrieveEmail(reqItem.Receiver)
+	hasEmail = hasEmail || reqItem.ReceivingEmail.Present
+
+	userWantsEmail := UserWantsEmail(reqItem.Receiver, reqItem.Mail.Type())
+	userWantsEmail = userWantsEmail || reqItem.Mandatory.Value
+
+	if hasEmail && userWantsEmail {
+		toSend := mailToSend{
+			FromName:     SupportName,
+			FromEmail:    SupportEmail,
+			ToName:       reqItem.Receiver,
+			ToEmail:      reqItem.ReceivingEmail.GetOrDefault(email),
+			Mail:         reqItem.Mail,
+			BaseTemplate: &baseTemplate,
+		}
+
+		err = util.MergeError(err, sendEmail(toSend))
+	}
+
+	if err != nil {
+		log.Warn("Failed to send emails: %s", err.Error())
+		return util.HttpErr(http.StatusInternalServerError, "Internal error")
+	} else {
+		return nil
+	}
 }
 
 func UpdateEmailSettings(username string, settings fndapi.EmailSettings) {
@@ -405,7 +419,7 @@ func renderEmail(mail mailToSend) (string, string, error) {
 	body := strings.TrimSpace(resultSplit[1])
 
 	baseTpl := mail.BaseTemplate.Template()
-	bodyWrapped, err := baseTpl.ExecuteToString(gonjaexec.NewContext(map[string]any{"text": body}))
+	bodyWrapped, err := baseTpl.ExecuteToString(gonjaexec.NewContext(map[string]any{"body": body}))
 	if err != nil {
 		return "", "", err
 	}

@@ -400,7 +400,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                         (
                                             res.specification.product.provider !== selected[0].specification.product.provider ||
                                             res.specification.product.provider === "go-slurm" ||
-                                            res.specification.product.provider === "goslurm1"
+                                            res.specification.product.provider === "goslurm1" ||
+                                            res.specification.product.provider === "gok8s"
                                         );
                                 },
                                 onClick: async (res) => {
@@ -598,7 +599,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     let support = cb.collection?.status?.resolvedSupport?.support;
                     if (!support) return false;
                     if (selected.length > 0) return false;
-                    if (!hasFeature(Feature.INLINE_TERMINAL)) return false;
 
                     if (cb.isSearch) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {
@@ -1204,7 +1204,7 @@ export function FilePreview({initialFile}: {
                     type: typeFromFileType,
                     data: URL.createObjectURL(
                         new Blob(
-                            [contentBuffer],
+                            [contentBuffer] as unknown as BlobPart[],
                             {type: foundFileType[0].mime}
                         )
                     ),
@@ -1545,7 +1545,7 @@ export function FilePreview({initialFile}: {
         }
         toolbar={
             <>
-                {!supportsTerminal || !hasFeature(Feature.INLINE_TERMINAL) ? null :
+                {!supportsTerminal ? null :
                     <TooltipV2 tooltip={"Open terminal"} contentWidth={130}>
                         <Icon
                             name={"terminalSolid"}

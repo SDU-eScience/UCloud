@@ -36,7 +36,7 @@ import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {AllocationDisplayWallet} from "@/Accounting";
-import {ProgressBar} from "@/Accounting/Allocations";
+import {ProgressBar} from "@/Accounting/Allocations/ProgressBar";
 import remarkGfm from "remark-gfm";
 import ExternalLink from "../ui-components/ExternalLink";
 import {onSandbox} from "@/UtilityFunctions";

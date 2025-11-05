@@ -1,6 +1,6 @@
 import * as React from "react";
 import Icon from "@/ui-components/Icon";
-import {extractDataTags, injectStyle} from "@/Unstyled";
+import {classConcat, extractDataTags, injectStyle} from "@/Unstyled";
 import {CSSProperties, useCallback, useEffect, useRef} from "react";
 import Flex from "@/ui-components/Flex";
 import {Cursor} from "./Types";
@@ -288,7 +288,7 @@ export const TreeNode: React.FunctionComponent<{
     }, [props.onActivate]);
 
     return <div
-        className={TreeNodeClass}
+        className={classConcat(TreeNodeClass, props.className)}
         style={style}
         ref={ref}
         onClick={activate}

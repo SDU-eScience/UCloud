@@ -1,47 +1,76 @@
 package foundation
 
 import (
+	"context"
 	"encoding/json"
+	"runtime"
+	"sync"
 	"time"
+
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
+var notificationGlobals struct {
+	Buckets []*notificationBucket
+}
+
+type notificationBucket struct {
+	Mu                sync.RWMutex
+	UserSubscriptions map[string]map[string]*notificationSubscription // user -> session id -> subscription
+}
+
+type notificationSubscription struct {
+	SessionId string
+	Ctx       context.Context
+	Channel   chan fndapi.Notification
+}
+
+func notificationBucketByUser(username string) *notificationBucket {
+	return notificationGlobals.Buckets[util.NonCryptographicHash(username)%len(notificationGlobals.Buckets)]
+}
+
 func initNotifications() {
+	for i := 0; i < runtime.NumCPU(); i++ {
+		notificationGlobals.Buckets = append(notificationGlobals.Buckets, &notificationBucket{
+			UserSubscriptions: map[string]map[string]*notificationSubscription{},
+		})
+	}
+
 	fndapi.NotificationsCreate.Handler(func(info rpc.RequestInfo, request fndapi.NotificationsCreateRequest) (util.Empty, *util.HttpError) {
-		CreateNotifications([]fndapi.NotificationsCreateRequest{request})
+		NotificationsCreate([]fndapi.NotificationsCreateRequest{request})
 		return util.Empty{}, nil
 	})
 
 	fndapi.NotificationsCreateBulk.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.NotificationsCreateRequest]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-		CreateNotifications(request.Items)
+		NotificationsCreate(request.Items)
 		var resp fndapi.BulkResponse[util.Empty]
 		resp.Responses = make([]util.Empty, len(request.Items))
 		return resp, nil
 	})
 
 	fndapi.NotificationsList.Handler(func(info rpc.RequestInfo, request fndapi.NotificationsListRequest) (fndapi.Page[fndapi.Notification], *util.HttpError) {
-		return BrowseNotifications(info.Actor, request), nil
+		return NotificationsBrowse(info.Actor, request), nil
 	})
 
 	fndapi.NotificationsMarkAsRead.Handler(func(info rpc.RequestInfo, request fndapi.NotificationIds) (util.Empty, *util.HttpError) {
-		MarkNotificationAsRead(info.Actor, request.IdList())
+		NotificationsMarkAsRead(info.Actor, request.IdList())
 		return util.Empty{}, nil
 	})
 
 	fndapi.NotificationsMarkAllAsRead.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
-		MarkAllNotificationsAsRead(info.Actor)
+		NotificationsMarkAllAsRead(info.Actor)
 		return util.Empty{}, nil
 	})
 
 	fndapi.NotificationsRetrieveSettings.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.NotificationSettings, *util.HttpError) {
-		return RetrieveNotificationSettings(info.Actor), nil
+		return NotificationsRetrieveSettings(info.Actor), nil
 	})
 
 	fndapi.NotificationsUpdateSettings.Handler(func(info rpc.RequestInfo, request fndapi.NotificationSettings) (util.Empty, *util.HttpError) {
-		UpdateNotificationSettings(info.Actor, request)
+		NotificationsUpdateSettings(info.Actor, request)
 		return util.Empty{}, nil
 	})
 
@@ -64,7 +93,7 @@ func initNotifications() {
 	})
 }
 
-func CreateNotifications(notifications []fndapi.NotificationsCreateRequest) {
+func NotificationsCreate(notifications []fndapi.NotificationsCreateRequest) {
 	var messages []string
 	var users []string
 	var types []string
@@ -78,8 +107,8 @@ func CreateNotifications(notifications []fndapi.NotificationsCreateRequest) {
 		meta = append(meta, string(notification.Meta.Value))
 	}
 
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
+	ids := db.NewTx(func(tx *db.Transaction) []struct{ Id int64 } {
+		return db.Select[struct{ Id int64 }](
 			tx,
 			`
 				with requests as (
@@ -101,6 +130,7 @@ func CreateNotifications(notifications []fndapi.NotificationsCreateRequest) {
 					notification_type
 				from
 					requests
+				returning id
 		    `,
 			db.Params{
 				"messages": messages,
@@ -111,10 +141,13 @@ func CreateNotifications(notifications []fndapi.NotificationsCreateRequest) {
 		)
 	})
 
-	// TODO Notify users
+	for i, notification := range notifications {
+		notification.Notification.Id.Set(ids[i].Id)
+		notificationNotify(notification.User, notification.Notification)
+	}
 }
 
-func MarkNotificationAsRead(actor rpc.Actor, ids []int64) {
+func NotificationsMarkAsRead(actor rpc.Actor, ids []int64) {
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -134,7 +167,7 @@ func MarkNotificationAsRead(actor rpc.Actor, ids []int64) {
 	})
 }
 
-func MarkAllNotificationsAsRead(actor rpc.Actor) {
+func NotificationsMarkAllAsRead(actor rpc.Actor) {
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -150,7 +183,7 @@ func MarkAllNotificationsAsRead(actor rpc.Actor) {
 	})
 }
 
-func BrowseNotifications(actor rpc.Actor, request fndapi.NotificationsListRequest) fndapi.Page[fndapi.Notification] {
+func NotificationsBrowse(actor rpc.Actor, request fndapi.NotificationsListRequest) fndapi.Page[fndapi.Notification] {
 	return db.NewTx(func(tx *db.Transaction) fndapi.Page[fndapi.Notification] {
 		// NOTE(Dan): This is now mostly prepared for the new pagination API. It does not live up to the old one at all.
 
@@ -216,7 +249,7 @@ func BrowseNotifications(actor rpc.Actor, request fndapi.NotificationsListReques
 	})
 }
 
-func RetrieveNotificationSettings(actor rpc.Actor) fndapi.NotificationSettings {
+func NotificationsRetrieveSettings(actor rpc.Actor) fndapi.NotificationSettings {
 	return db.NewTx(func(tx *db.Transaction) fndapi.NotificationSettings {
 		row, ok := db.Get[struct{ Settings string }](
 			tx,
@@ -240,7 +273,7 @@ func RetrieveNotificationSettings(actor rpc.Actor) fndapi.NotificationSettings {
 	})
 }
 
-func UpdateNotificationSettings(actor rpc.Actor, settings fndapi.NotificationSettings) {
+func NotificationsUpdateSettings(actor rpc.Actor, settings fndapi.NotificationSettings) {
 	settingsJson, _ := json.Marshal(settings)
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
@@ -256,4 +289,61 @@ func UpdateNotificationSettings(actor rpc.Actor, settings fndapi.NotificationSet
 			},
 		)
 	})
+}
+
+func NotificationsSubscribe(actor rpc.Actor, ctx context.Context) <-chan fndapi.Notification {
+	sub := &notificationSubscription{
+		SessionId: util.RandomTokenNoTs(32),
+		Ctx:       ctx,
+		Channel:   make(chan fndapi.Notification, 128),
+	}
+
+	{
+		b := notificationBucketByUser(actor.Username)
+		b.Mu.Lock()
+		subs, ok := b.UserSubscriptions[actor.Username]
+		if !ok {
+			b.UserSubscriptions[actor.Username] = map[string]*notificationSubscription{}
+			subs, ok = b.UserSubscriptions[actor.Username]
+		}
+		subs[sub.SessionId] = sub
+		b.Mu.Unlock()
+	}
+
+	go func() {
+		<-ctx.Done()
+
+		b := notificationBucketByUser(actor.Username)
+		b.Mu.Lock()
+		subs, ok := b.UserSubscriptions[actor.Username]
+		if ok {
+			delete(subs, sub.SessionId)
+		}
+		b.Mu.Unlock()
+	}()
+
+	return sub.Channel
+}
+
+func notificationNotify(username string, notification fndapi.Notification) {
+	b := notificationBucketByUser(username)
+
+	var subscriptions []*notificationSubscription
+
+	b.Mu.RLock()
+	subs, ok := b.UserSubscriptions[username]
+	if ok {
+		for _, sub := range subs {
+			subscriptions = append(subscriptions, sub)
+		}
+	}
+	b.Mu.RUnlock()
+
+	for _, sub := range subscriptions {
+		select {
+		case <-sub.Ctx.Done():
+		case sub.Channel <- notification:
+		case <-time.After(30 * time.Millisecond):
+		}
+	}
 }

@@ -16,3 +16,22 @@ func accountingV1() db.MigrationScript {
 		},
 	}
 }
+
+func accountingV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "accountingV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table accounting.wallet_snapshots(
+						id int8 primary key references accounting.wallets_v2(id),
+						created_at timestamptz default now(),
+						snapshot jsonb not null
+					)
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}

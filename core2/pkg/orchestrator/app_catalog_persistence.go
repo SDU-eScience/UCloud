@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strconv"
 	"time"
+
 	db "ucloud.dk/shared/pkg/database2"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
@@ -186,7 +187,7 @@ func appCatalogLoad() {
 				tx,
 				`
 					select
-						id, title, description, coalesce(logo, E'\\x') as logo, logo_has_text,
+						id, title, coalesce(description, '') as description, coalesce(logo, E'\\x') as logo, logo_has_text,
 						default_name, color_remapping
 					from
 						app_store.application_groups

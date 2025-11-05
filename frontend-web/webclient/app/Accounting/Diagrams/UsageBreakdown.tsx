@@ -6,7 +6,6 @@ import {useD3} from "@/Utilities/d3";
 import {scaleOrdinal} from "d3-scale";
 import {select} from "d3-selection";
 import {arc, pie, PieArcDatum} from "d3-shape";
-import {schemeSpectral} from "d3";
 import {HTMLTooltipEx} from "@/ui-components/Tooltip";
 
 export interface BreakdownChartRow {
@@ -35,7 +34,7 @@ export function useBreakdownChart(
         const r = openReport;
         if (r == null) return;
 
-        const data = r.usageOverTime.delta.filter(it => it.timestamp > 0); // TODO backend shouldn't return this
+        const data = r.usageOverTime.delta;
         if (data.length === 0) return;
 
         // Data processing

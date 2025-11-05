@@ -12,4 +12,5 @@ func Init() {
 	db.AddMigration(usageV1())
 	db.AddMigration(usageV2())
 	db.AddMigration(accountingV1())
+	db.AddMigration(accountingV2())
 }

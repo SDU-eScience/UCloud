@@ -1,6 +1,7 @@
 package foundation
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -43,11 +45,18 @@ import (
 
 var projectBuckets []internalProjectBucket
 
+type projectSubscription struct {
+	SessionId string
+	Ctx       context.Context
+	Channel   chan string
+}
+
 type internalProjectBucket struct {
-	Mu          sync.RWMutex
-	Users       map[string]*internalProjectUserInfo
-	Projects    map[string]*internalProject
-	InviteLinks map[string]*internalInviteLink
+	Mu                sync.RWMutex
+	Users             map[string]*internalProjectUserInfo
+	Projects          map[string]*internalProject
+	InviteLinks       map[string]*internalInviteLink
+	UserSubscriptions map[string]map[string]*projectSubscription // user -> session id -> subscription
 }
 
 func projectBucket(key string) *internalProjectBucket {
@@ -82,12 +91,15 @@ func initProjects() {
 	projectBuckets = make([]internalProjectBucket, runtime.NumCPU())
 	for i := range projectBuckets {
 		projectBuckets[i] = internalProjectBucket{
-			Mu:          sync.RWMutex{},
-			Users:       make(map[string]*internalProjectUserInfo),
-			Projects:    make(map[string]*internalProject),
-			InviteLinks: make(map[string]*internalInviteLink),
+			Mu:                sync.RWMutex{},
+			Users:             make(map[string]*internalProjectUserInfo),
+			Projects:          make(map[string]*internalProject),
+			InviteLinks:       make(map[string]*internalInviteLink),
+			UserSubscriptions: make(map[string]map[string]*projectSubscription),
 		}
 	}
+
+	initProjectSubscriptions()
 
 	fndapi.ProjectRetrieve.Handler(func(info rpc.RequestInfo, request fndapi.ProjectRetrieveRequest) (fndapi.Project, *util.HttpError) {
 		return ProjectRetrieve(info.Actor, request.Id, request.ProjectFlags, fndapi.ProjectRoleUser)
@@ -2005,6 +2017,10 @@ func projectRemoveMember(actor rpc.Actor, projectId string, memberToRemove strin
 
 	uToRemove.Mu.Unlock()
 	iproject.Mu.Unlock()
+
+	if err == nil {
+		projectsNotify(memberToRemove, projectId)
+	}
 	return err
 }
 
@@ -2233,3 +2249,88 @@ func projectRetrieveInternal(id string) (*internalProject, bool) {
 }
 
 const ProjectGroupAllUsers = "All users"
+
+func projectsNotify(username string, projectId string) {
+	b := projectBucket(username)
+
+	var subscriptions []*projectSubscription
+
+	b.Mu.RLock()
+	subs, ok := b.UserSubscriptions[username]
+	if ok {
+		for _, sub := range subs {
+			subscriptions = append(subscriptions, sub)
+		}
+	}
+	b.Mu.RUnlock()
+
+	for _, sub := range subscriptions {
+		select {
+		case <-sub.Ctx.Done():
+		case sub.Channel <- projectId:
+		case <-time.After(30 * time.Millisecond):
+		}
+	}
+}
+
+func initProjectSubscriptions() {
+	// NOTE(Dan): currently only handles project membership (not groups)
+	go func() {
+		projectUpdates := db.Listen(context.Background(), "project_updates")
+
+		for {
+			projectId := <-projectUpdates
+			project, err := ProjectRetrieve(
+				rpc.ActorSystem,
+				projectId,
+				fndapi.ProjectFlags{
+					IncludeMembers:  true,
+					IncludeGroups:   true,
+					IncludePath:     true,
+					IncludeSettings: true,
+				},
+				fndapi.ProjectRoleUser,
+			)
+
+			if err == nil {
+				for _, member := range project.Status.Members {
+					projectsNotify(member.Username, projectId)
+				}
+			}
+		}
+	}()
+}
+
+func ProjectsSubscribe(actor rpc.Actor, ctx context.Context) <-chan string {
+	sub := &projectSubscription{
+		SessionId: util.RandomTokenNoTs(32),
+		Ctx:       ctx,
+		Channel:   make(chan string, 128),
+	}
+
+	{
+		b := projectBucket(actor.Username)
+		b.Mu.Lock()
+		subs, ok := b.UserSubscriptions[actor.Username]
+		if !ok {
+			b.UserSubscriptions[actor.Username] = map[string]*projectSubscription{}
+			subs, ok = b.UserSubscriptions[actor.Username]
+		}
+		subs[sub.SessionId] = sub
+		b.Mu.Unlock()
+	}
+
+	go func() {
+		<-ctx.Done()
+
+		b := projectBucket(actor.Username)
+		b.Mu.Lock()
+		subs, ok := b.UserSubscriptions[actor.Username]
+		if ok {
+			delete(subs, sub.SessionId)
+		}
+		b.Mu.Unlock()
+	}()
+
+	return sub.Channel
+}

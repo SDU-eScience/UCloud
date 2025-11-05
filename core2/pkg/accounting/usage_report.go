@@ -60,6 +60,8 @@ type internalUsageReportKpis struct {
 	TotalAllocatedAtStart int64
 	TotalAllocatedAtEnd   int64
 	// TODO We need to think about how retirement affects this
+
+	NextMeaningfulExpiration util.Option[time.Time]
 }
 
 func (r *internalUsageReportKpis) ToApi() accapi.UsageReportKpis {
@@ -76,6 +78,10 @@ func (r *internalUsageReportKpis) ToApi() accapi.UsageReportKpis {
 		TotalUsageAtEnd:       r.TotalUsageAtEnd,
 		TotalAllocatedAtStart: r.TotalAllocatedAtStart,
 		TotalAllocatedAtEnd:   r.TotalAllocatedAtEnd,
+		NextMeaningfulExpiration: util.Option[fndapi.Timestamp]{
+			Present: r.NextMeaningfulExpiration.Present,
+			Value:   fndapi.Timestamp(r.NextMeaningfulExpiration.Value),
+		},
 	}
 }
 
@@ -210,6 +216,8 @@ type internalWalletSnapshot struct {
 	QuotaByParentActive       map[accWalletId]int64
 	QuotaByParentContributing map[accWalletId]int64
 	HealthByParent            map[accWalletId]internalGroupHealth
+
+	NextMeaningfulExpiration util.Option[time.Time]
 }
 
 type internalSnapshotComparison struct {
@@ -234,13 +242,46 @@ type reportCacheEntry struct {
 }
 
 func initUsageReports() {
-	reportGlobals.Reports = map[accWalletId]*internalUsageReport{}
-	reportGlobals.Snapshots = map[accWalletId]internalWalletSnapshot{}
-	reportGlobals.HistoricCache = make([]reportCacheEntry, 1024*128)
-	reportGlobals.HistoricCacheIndex = map[time.Time]map[accWalletId]int{}
-	reportGlobals.HistoricCacheSlotsAvailable = len(reportGlobals.HistoricCache)
+	g := &reportGlobals
+	g.Reports = map[accWalletId]*internalUsageReport{}
+	g.Snapshots = map[accWalletId]internalWalletSnapshot{}
+	g.HistoricCache = make([]reportCacheEntry, 1024*128)
+	g.HistoricCacheIndex = map[time.Time]map[accWalletId]int{}
+	g.HistoricCacheSlotsAvailable = len(reportGlobals.HistoricCache)
+
+	if !accGlobals.TestingEnabled {
+		snapshots := db.NewTx(func(tx *db.Transaction) []internalWalletSnapshot {
+			rows := db.Select[struct {
+				Id       int64
+				Snapshot string
+			}](
+				tx,
+				`
+					select id, snapshot
+					from accounting.wallet_snapshots
+			    `,
+				db.Params{},
+			)
+
+			var result []internalWalletSnapshot
+			for _, row := range rows {
+				var item internalWalletSnapshot
+				err := json.Unmarshal([]byte(row.Snapshot), &item)
+				if err == nil {
+					result = append(result, item)
+				}
+			}
+			return result
+		})
+
+		for _, snapshot := range snapshots {
+			g.Snapshots[snapshot.Id] = snapshot
+		}
+	}
 
 	accapi.UsageRetrieve.Handler(func(info rpc.RequestInfo, request accapi.UsageRetrieveRequest) (accapi.UsageRetrieveResponse, *util.HttpError) {
+		// TODO Create reports by accounting unit aggregation
+
 		now := time.Now()
 		reference := string(info.Actor.Project.Value)
 		if !info.Actor.Project.Present {
@@ -307,7 +348,7 @@ func usageRetrieveHistoricReports(from time.Time, until time.Time, wallet accWal
 		current = current.AddDate(0, 0, 1)
 	}
 
-	if now == until || now.After(until) {
+	if now == until || until.After(now) {
 		g := &reportGlobals
 		g.Mu.RLock()
 		currentReport, ok := g.Reports[wallet]
@@ -348,6 +389,8 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 		LocalUsageAtEnd:     lastReport.Kpis.LocalUsageAtEnd,
 		TotalUsageAtEnd:     lastReport.Kpis.TotalUsageAtEnd,
 		TotalAllocatedAtEnd: lastReport.Kpis.TotalAllocatedAtEnd,
+
+		NextMeaningfulExpiration: lastReport.Kpis.NextMeaningfulExpiration,
 	}
 
 	result.SubProjectHealth = lastReport.SubProjectHealth // NOTE(Dan): Idle is recomputed below
@@ -430,6 +473,7 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 			stepSize := max(1.0, float64(len(data))/540.0)
 			acc := 0.0
 
+			first := true
 			currentEntry := internalUsageOverTimeDeltaDataPoint{}
 			needNewEntry := true
 
@@ -438,9 +482,11 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 				if acc >= stepSize {
 					acc -= stepSize
 
-					if currentEntry.Change != -1 {
+					if !first {
 						result.UsageOverTime.Delta = append(result.UsageOverTime.Delta, currentEntry)
 						needNewEntry = true
+					} else {
+						first = false
 					}
 				}
 
@@ -576,9 +622,6 @@ func lUsagePersistReport(report *internalUsageReport, b *db.Batch) {
 		return
 	}
 
-	// TODO This should only insert wallets which have been persisted. This implies that the usage reporting needs to
-	//   run as part of the same loop to guarantee the ordering.
-
 	reportJson, _ := json.Marshal(report)
 	walletId := report.Wallet
 	validFrom := report.ValidFrom
@@ -700,7 +743,27 @@ func usageSampleEx(now time.Time, bucketFilter func(cat accapi.ProductCategory) 
 	snapshotsById := map[accWalletId]internalSnapshotComparison{}
 	for _, b := range buckets {
 		for _, w := range b.WalletsById {
-			snapshotsById[w.Id] = lSnapshotWallet(startOfDay, b, w)
+			wallet := lSnapshotWallet(startOfDay, b, w)
+			snapshotsById[w.Id] = wallet
+
+			if !accGlobals.TestingEnabled {
+				jsonSnapshot, _ := json.Marshal(wallet.Current)
+
+				db.BatchExec(
+					batch,
+					`
+						insert into accounting.wallet_snapshots(id, snapshot) 
+						values (:id, :snapshot) 
+						on conflict (id) do update set 
+							snapshot = excluded.snapshot,
+							created_at = now()
+				    `,
+					db.Params{
+						"id":       wallet.Current.Id,
+						"snapshot": string(jsonSnapshot),
+					},
+				)
+			}
 		}
 	}
 
@@ -716,7 +779,9 @@ func usageSampleEx(now time.Time, bucketFilter func(cat accapi.ProductCategory) 
 		sort.Ints(walletIds)
 
 		for _, wId := range walletIds {
-			lUsageSampleEnsureReport(now, snapshotsById[accWalletId(wId)], batch)
+			r := lUsageSampleEnsureReport(now, snapshotsById[accWalletId(wId)], batch)
+			r.SubProjectHealth = internalSubProjectHealth{}
+			r.SubProjectUtilization = internalSubProjectUtilization{}
 		}
 
 		for _, wId := range walletIds {
@@ -756,6 +821,7 @@ func lSnapshotWallet(now time.Time, b *internalBucket, w *internalWallet) intern
 			QuotaByParentContributing: map[accWalletId]int64{},
 			HealthByParent:            map[accWalletId]internalGroupHealth{},
 			Category:                  b.Category,
+			NextMeaningfulExpiration:  util.OptNone[time.Time](),
 		}
 	}
 
@@ -775,12 +841,24 @@ func lSnapshotWallet(now time.Time, b *internalBucket, w *internalWallet) intern
 		Category:                  b.Category,
 	}
 
+	minimumMeaningfulQuota := int64(float64(current.ActiveQuota) * 0.1)
+	earliestExpiration := util.OptNone[time.Time]()
+
 	for parent, group := range w.AllocationsByParent {
 		current.UsageByParent[parent] = group.TreeUsage
 		contributingQuota := lInternalGroupTotalQuotaContributing(b, group)
 		activeQuota := lInternalGroupTotalQuotaFromActiveAllocations(b, group)
 		current.QuotaByParentContributing[parent] = contributingQuota
 		current.QuotaByParentActive[parent] = activeQuota
+
+		for allocId := range group.Allocations {
+			alloc := b.AllocationsById[allocId]
+			if alloc.Active && alloc.Quota > minimumMeaningfulQuota {
+				if !earliestExpiration.Present || alloc.End.Before(earliestExpiration.Value) {
+					earliestExpiration.Set(alloc.End)
+				}
+			}
+		}
 
 		// Determined expected usage (linear usage assumption)
 		quotaIn30Days := int64(0)
@@ -824,6 +902,8 @@ func lSnapshotWallet(now time.Time, b *internalBucket, w *internalWallet) intern
 		current.HealthByParent[parent] = health
 	}
 
+	current.NextMeaningfulExpiration = earliestExpiration
+
 	reportGlobals.Snapshots[w.Id] = current
 
 	return internalSnapshotComparison{
@@ -841,8 +921,6 @@ func lUsageSampleEnsureReport(now time.Time, cmp internalSnapshotComparison, b *
 	report, ok := reportGlobals.Reports[currWallet.Id]
 	if !ok || report.ValidFrom.Before(startOfDay) {
 		if ok && report.ValidFrom.Before(startOfDay) {
-			// TODO Possibly extend old report if no changes
-
 			lUsageRetireReport(report, b)
 		}
 
@@ -877,8 +955,6 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 	currWallet := cmp.Current
 
 	report := lUsageSampleEnsureReport(now, cmp, b)
-	report.SubProjectHealth = internalSubProjectHealth{}
-	report.SubProjectUtilization = internalSubProjectUtilization{}
 
 	kpis := &report.Kpis
 	kpis.QuotaAtEnd = currWallet.Quota
@@ -887,6 +963,7 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 	kpis.LocalUsageAtEnd = currWallet.LocalUsage
 	kpis.TotalUsageAtEnd = currWallet.TotalUsage
 	kpis.TotalAllocatedAtEnd = currWallet.TotalAllocated
+	kpis.NextMeaningfulExpiration = currWallet.NextMeaningfulExpiration
 
 	{
 		prevUsage := prevWallet.LocalUsage
@@ -954,5 +1031,4 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 	}
 
 	lUsagePersistReport(report, b)
-	// TODO utilization
 }

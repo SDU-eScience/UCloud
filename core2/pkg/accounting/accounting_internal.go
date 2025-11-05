@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -1339,9 +1340,10 @@ func lInternalWalletToApi(
 		if g.ParentWallet != internalGraphRoot {
 			pw := b.WalletsById[g.ParentWallet]
 			po := accGlobals.OwnersById[pw.OwnedBy]
+			wo := po.WalletOwner()
 			parentWalletRef.Set(accapi.ParentOrChildWallet{
-				ProjectId:    po.Reference,
-				ProjectTitle: "", // NOTE(Dan)/TODO: This API will not do this
+				ProjectId:    wo.ProjectId,
+				ProjectTitle: wo.Username, // NOTE(Dan): Stupid backwards compatible design
 			})
 		}
 
@@ -1355,13 +1357,16 @@ func lInternalWalletToApi(
 		for childId, _ := range w.ChildrenUsage {
 			childWallet := b.WalletsById[childId]
 			childOwner := accGlobals.OwnersById[childWallet.OwnedBy]
-
 			g := childWallet.AllocationsByParent[w.Id]
+
+			wo := childOwner.WalletOwner()
+			child := accapi.ParentOrChildWallet{
+				ProjectId:    wo.ProjectId,
+				ProjectTitle: wo.Username, // NOTE(Dan): Stupid backwards compatible design
+			}
+
 			apiWallet.Children = append(apiWallet.Children, accapi.AllocationGroupWithChild{
-				Child: util.OptValue(accapi.ParentOrChildWallet{
-					ProjectId:    childOwner.Reference,
-					ProjectTitle: "", // NOTE(Dan)/TODO: This API will not do this
-				}),
+				Child: util.OptValue(child),
 				Group: allocGroupApi(g),
 			})
 		}
