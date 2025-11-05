@@ -224,41 +224,45 @@ func CliIntercept(args []string) {
 		}
 		RestoreSnapshot(snapshotName)
 
-	case "test-e2e":
-		// Create one user
-		withResourceUsername := "user-resources"
-		withResourcePassword := "user-resources-password"
-		locationOrigin := "https://ucloud.localhost.direct/"
-
-		newUserWithResources := createUser(withResourceUsername, withResourcePassword, "USER")
-		if newUserWithResources != nil {
-			newUserWithResources.SetupUserWithResources()
-		}
-
-		withNoResourcesUsername := "user-no-resources"
-		withNoResourcesPassword := "user-no-resources-password"
-		createUser(withNoResourcesUsername, withNoResourcesPassword, "USER")
-
-		pathToTestInfo := repoRoot.GetAbsolutePath() + "/frontend-web/webclient/tests/test_data.json"
-		if err := os.WriteFile(pathToTestInfo, fmt.Appendf(nil, `{
-		    "location_origin": "%s",
-		    "users": {
-		        "with_resources": {
-		            "username": "%s",
-		            "password": "%s"
-		        },
-		        "without_resources": {
-					"username": "%s",
-					"password": "%s"
-		        }
-		    }
-		}`, locationOrigin, withResourceUsername, withResourcePassword, withNoResourcesUsername, withNoResourcesPassword), 0777); err != nil {
-			panic(err)
-		}
-
-		startPlaywright(args)
+	case "test":
+		RunTests(args)
 	}
 	os.Exit(0)
+}
+
+func RunTests(args []string) {
+	// Create one user
+	withResourceUsername := "user-resources"
+	withResourcePassword := "user-resources-password"
+	locationOrigin := "https://ucloud.localhost.direct/"
+
+	newUserWithResources := createUser(withResourceUsername, withResourcePassword, "USER")
+	if newUserWithResources != nil {
+		newUserWithResources.SetupUserWithResources()
+	}
+
+	withNoResourcesUsername := "user-no-resources"
+	withNoResourcesPassword := "user-no-resources-password"
+	createUser(withNoResourcesUsername, withNoResourcesPassword, "USER")
+
+	pathToTestInfo := repoRoot.GetAbsolutePath() + "/frontend-web/webclient/tests/test_data.json"
+	if err := os.WriteFile(pathToTestInfo, fmt.Appendf(nil, `{
+		"location_origin": "%s",
+		"users": {
+			"with_resources": {
+				"username": "%s",
+				"password": "%s"
+			},
+			"without_resources": {
+				"username": "%s",
+				"password": "%s"
+			}
+		}
+	}`, locationOrigin, withResourceUsername, withResourcePassword, withNoResourcesUsername, withNoResourcesPassword), 0777); err != nil {
+		panic(err)
+	}
+
+	startPlaywright(args)
 }
 
 func startPlaywright(args []string) {
@@ -411,7 +415,7 @@ func testCommandFromArgs(args []string) []string {
 			cmdToRun = append(cmdToRun, "test", "--ui")
 		case "headed":
 			cmdToRun = append(cmdToRun, "test", "--headed")
-		case "report":
+		case "show-report":
 			cmdToRun = append(cmdToRun, "show-report")
 		default:
 			panic("Unknown argument for testing: '" + arg + "'")

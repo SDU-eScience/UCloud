@@ -94,7 +94,7 @@ func main() {
 			fmt.Println()
 			fmt.Println("The error message above we got from docker compose. If this isn't helpful, "+
 				"then try deleting this directory: ", launcher.GetCurrentEnvironment().Name())
-			return fmt.Errorf("Failed to start")
+			return fmt.Errorf("failed to start")
 		}
 
 		for _, line := range strings.Split(psText, "\n") {
@@ -669,9 +669,31 @@ func main() {
 			}
 		}
 
+	case "test":
+		{
+			chosen, err := TestMenu().SelectSingle()
+			launcher.HardCheck(err)
+			switch chosen.Value {
+			case TEST_TERMINAL:
+				launcher.RunTests([]string{""})
+			case TEST_UI:
+			case TEST_HEADED:
+			case TEST_REPORT:
+				launcher.RunTests([]string{"", chosen.Value})
+			case "back":
+				// Is this really the best approach?
+				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
+				os.Exit(0)
+			}
+		}
+
 	case "exit":
 		{
 			os.Exit(0)
+		}
+	default:
+		{
+			fmt.Printf("Unhandled case: '%s'. Exiting. \n", selectedItem.Value)
 		}
 	}
 }
@@ -911,5 +933,42 @@ func TopLevelMenu() termio.Menu {
 	return termio.Menu{
 		Prompt: "Select an item from the menu",
 		Items:  items,
+	}
+}
+
+type TestMenuItem string
+
+const (
+	TEST_TERMINAL = "terminal"
+	TEST_UI       = "ui"
+	TEST_HEADED   = "headed"
+	TEST_REPORT   = "show-report"
+)
+
+func TestMenu() termio.Menu {
+	return termio.Menu{
+		Prompt: "Select a test type",
+		Items: []termio.MenuItem{
+			{
+				Value:   TEST_TERMINAL,
+				Message: "In terminal (default)",
+			},
+			{
+				Value:   TEST_UI,
+				Message: "Browser UI",
+			},
+			{
+				Value:   TEST_HEADED,
+				Message: "Headed (Visual browser)",
+			},
+			{
+				Value:   TEST_REPORT,
+				Message: "Report",
+			},
+			{
+				Value:   "back",
+				Message: "Back to main menu",
+			},
+		},
 	}
 }

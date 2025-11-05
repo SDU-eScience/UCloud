@@ -19,7 +19,7 @@
                 "test": "npx playwright test",
                 "test-ui": "npx playwright test --ui",
                 "test-headed": "npx playwright test --headed",
-                "test-results": "npx playwright show-report"
+                "test-report": "npx playwright show-report"
         },
         "dependencies": {
                 "@novnc/novnc": "1.5.0",
