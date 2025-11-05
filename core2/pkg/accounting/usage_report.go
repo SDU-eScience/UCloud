@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -20,7 +21,7 @@ import (
 // for space saved from collapsing reports. Once collapsed, we are likely to only store around 500K a day.
 
 type internalUsageReport struct {
-	Wallet                accWalletId
+	Wallet                AccWalletId
 	ValidFrom             time.Time
 	ValidUntil            util.Option[time.Time] // Most recent report will not set this (valid until "now")
 	Kpis                  internalUsageReportKpis
@@ -97,7 +98,7 @@ type internalSubProjectUtilization struct {
 
 type internalUsageOverTimeDeltaDataPoint struct {
 	Timestamp time.Time
-	Child     util.Option[accWalletId]
+	Child     util.Option[AccWalletId]
 	Change    int64
 }
 
@@ -201,7 +202,7 @@ const (
 )
 
 type internalWalletSnapshot struct {
-	Id        accWalletId
+	Id        AccWalletId
 	Timestamp time.Time
 	Category  accapi.ProductCategory
 
@@ -212,10 +213,10 @@ type internalWalletSnapshot struct {
 	TotalUsage     int64
 	TotalAllocated int64
 
-	UsageByParent             map[accWalletId]int64
-	QuotaByParentActive       map[accWalletId]int64
-	QuotaByParentContributing map[accWalletId]int64
-	HealthByParent            map[accWalletId]internalGroupHealth
+	UsageByParent             map[AccWalletId]int64
+	QuotaByParentActive       map[AccWalletId]int64
+	QuotaByParentContributing map[AccWalletId]int64
+	HealthByParent            map[AccWalletId]internalGroupHealth
 
 	NextMeaningfulExpiration util.Option[time.Time]
 }
@@ -227,12 +228,12 @@ type internalSnapshotComparison struct {
 
 var reportGlobals struct {
 	Mu                          sync.RWMutex
-	Reports                     map[accWalletId]*internalUsageReport
-	Snapshots                   map[accWalletId]internalWalletSnapshot
+	Reports                     map[AccWalletId]*internalUsageReport
+	Snapshots                   map[AccWalletId]internalWalletSnapshot
 	HistoricCache               []reportCacheEntry
 	HistoricCacheSlotsAvailable int
 	HistoricCacheLastEmptySlot  int
-	HistoricCacheIndex          map[time.Time]map[accWalletId]int
+	HistoricCacheIndex          map[time.Time]map[AccWalletId]int
 }
 
 type reportCacheEntry struct {
@@ -243,10 +244,10 @@ type reportCacheEntry struct {
 
 func initUsageReports() {
 	g := &reportGlobals
-	g.Reports = map[accWalletId]*internalUsageReport{}
-	g.Snapshots = map[accWalletId]internalWalletSnapshot{}
+	g.Reports = map[AccWalletId]*internalUsageReport{}
+	g.Snapshots = map[AccWalletId]internalWalletSnapshot{}
 	g.HistoricCache = make([]reportCacheEntry, 1024*128)
-	g.HistoricCacheIndex = map[time.Time]map[accWalletId]int{}
+	g.HistoricCacheIndex = map[time.Time]map[AccWalletId]int{}
 	g.HistoricCacheSlotsAvailable = len(reportGlobals.HistoricCache)
 
 	if !accGlobals.TestingEnabled {
@@ -320,7 +321,7 @@ func initUsageReports() {
 	})
 }
 
-func usageRetrieveHistoricReports(from time.Time, until time.Time, wallet accWalletId) []internalUsageReport {
+func usageRetrieveHistoricReports(from time.Time, until time.Time, wallet AccWalletId) []internalUsageReport {
 	// NOTE(Dan, 15/10/2025): Current tests will break in the year 2100, but I will let that be a problem for the
 	// future.
 	now := time.Now()
@@ -396,7 +397,7 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 	result.SubProjectHealth = lastReport.SubProjectHealth // NOTE(Dan): Idle is recomputed below
 	result.SubProjectUtilization = lastReport.SubProjectUtilization
 
-	deltaUsageByChild := map[accWalletId]int64{}
+	deltaUsageByChild := map[AccWalletId]int64{}
 	for _, report := range reports {
 		for _, item := range report.UsageOverTime.Delta {
 			if item.Child.Present {
@@ -411,17 +412,17 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 	result.SubProjectHealth.Idle = result.SubProjectHealth.SubProjectCount - len(deltaUsageByChild)
 
 	topUsersFromChildren := util.TopNKeys(deltaUsageByChild, 10)
-	deltaDataPointsByChild := map[util.Option[accWalletId]]map[time.Time]internalUsageOverTimeDeltaDataPoint{}
+	deltaDataPointsByChild := map[util.Option[AccWalletId]]map[time.Time]internalUsageOverTimeDeltaDataPoint{}
 	allDeltaTimestamps := map[time.Time]util.Empty{}
 
 	for _, report := range reports {
 		for _, item := range report.UsageOverTime.Delta {
 			itemCopy := item
 			if !item.Child.Present {
-				itemCopy.Child = util.OptNone[accWalletId]()
+				itemCopy.Child = util.OptNone[AccWalletId]()
 			} else {
 				if !slices.Contains(topUsersFromChildren, item.Child.Value) {
-					itemCopy.Child = util.OptValue(accWalletId(-1))
+					itemCopy.Child = util.OptValue(AccWalletId(-1))
 				}
 			}
 
@@ -529,7 +530,7 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 	return result
 }
 
-func usageRetrieveHistoric(now time.Time, wallet accWalletId) (internalUsageReport, bool) {
+func usageRetrieveHistoric(now time.Time, wallet AccWalletId) (internalUsageReport, bool) {
 	var result internalUsageReport
 
 	g := &reportGlobals
@@ -538,7 +539,7 @@ func usageRetrieveHistoric(now time.Time, wallet accWalletId) (internalUsageRepo
 
 	{
 		g.Mu.RLock()
-		var dictOnDay map[accWalletId]int
+		var dictOnDay map[AccWalletId]int
 		dictOnDay, ok = g.HistoricCacheIndex[now]
 		slot := -1
 		if ok {
@@ -592,7 +593,7 @@ func usageRetrieveHistoric(now time.Time, wallet accWalletId) (internalUsageRepo
 		}
 
 		{
-			var dictOnDay map[accWalletId]int
+			var dictOnDay map[AccWalletId]int
 			dictOnDay, ok = g.HistoricCacheIndex[now]
 			slot := -1
 			if ok {
@@ -668,7 +669,7 @@ func lUsageCacheReport(report *internalUsageReport) {
 
 	dictOnDay, ok := g.HistoricCacheIndex[report.ValidFrom]
 	if !ok {
-		dictOnDay = map[accWalletId]int{}
+		dictOnDay = map[AccWalletId]int{}
 		g.HistoricCacheIndex[report.ValidFrom] = dictOnDay
 	}
 
@@ -740,7 +741,7 @@ func usageSampleEx(now time.Time, bucketFilter func(cat accapi.ProductCategory) 
 		b.Mu.Lock()
 	}
 
-	snapshotsById := map[accWalletId]internalSnapshotComparison{}
+	snapshotsById := map[AccWalletId]internalSnapshotComparison{}
 	for _, b := range buckets {
 		for _, w := range b.WalletsById {
 			wallet := lSnapshotWallet(startOfDay, b, w)
@@ -779,13 +780,13 @@ func usageSampleEx(now time.Time, bucketFilter func(cat accapi.ProductCategory) 
 		sort.Ints(walletIds)
 
 		for _, wId := range walletIds {
-			r := lUsageSampleEnsureReport(now, snapshotsById[accWalletId(wId)], batch)
+			r := lUsageSampleEnsureReport(now, snapshotsById[AccWalletId(wId)], batch)
 			r.SubProjectHealth = internalSubProjectHealth{}
 			r.SubProjectUtilization = internalSubProjectUtilization{}
 		}
 
 		for _, wId := range walletIds {
-			lUsageSampleWallet(now, snapshotsById[accWalletId(wId)], batch)
+			lUsageSampleWallet(now, snapshotsById[AccWalletId(wId)], batch)
 		}
 	}
 
@@ -816,10 +817,10 @@ func lSnapshotWallet(now time.Time, b *internalBucket, w *internalWallet) intern
 			LocalUsage:                0,
 			TotalUsage:                0,
 			TotalAllocated:            0,
-			UsageByParent:             map[accWalletId]int64{},
-			QuotaByParentActive:       map[accWalletId]int64{},
-			QuotaByParentContributing: map[accWalletId]int64{},
-			HealthByParent:            map[accWalletId]internalGroupHealth{},
+			UsageByParent:             map[AccWalletId]int64{},
+			QuotaByParentActive:       map[AccWalletId]int64{},
+			QuotaByParentContributing: map[AccWalletId]int64{},
+			HealthByParent:            map[AccWalletId]internalGroupHealth{},
 			Category:                  b.Category,
 			NextMeaningfulExpiration:  util.OptNone[time.Time](),
 		}
@@ -834,10 +835,10 @@ func lSnapshotWallet(now time.Time, b *internalBucket, w *internalWallet) intern
 		LocalUsage:                w.LocalUsage,
 		TotalUsage:                lInternalWalletTotalUsageInNode(b, w),
 		TotalAllocated:            lInternalWalletTotalAllocatedContributing(b, w),
-		UsageByParent:             map[accWalletId]int64{},
-		QuotaByParentActive:       map[accWalletId]int64{},
-		QuotaByParentContributing: map[accWalletId]int64{},
-		HealthByParent:            map[accWalletId]internalGroupHealth{},
+		UsageByParent:             map[AccWalletId]int64{},
+		QuotaByParentActive:       map[AccWalletId]int64{},
+		QuotaByParentContributing: map[AccWalletId]int64{},
+		HealthByParent:            map[AccWalletId]internalGroupHealth{},
 		Category:                  b.Category,
 	}
 
@@ -973,7 +974,7 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 		if delta != 0 {
 			report.UsageOverTime.Delta = append(report.UsageOverTime.Delta, internalUsageOverTimeDeltaDataPoint{
 				Timestamp: now,
-				Child:     util.Option[accWalletId]{},
+				Child:     util.Option[AccWalletId]{},
 				Change:    delta,
 			})
 

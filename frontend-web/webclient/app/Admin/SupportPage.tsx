@@ -17,8 +17,8 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {ProjectTitleForNewCore} from "@/Project/InfoCache";
-import {shareLinksApi} from "@/UCloud/SharesApi";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import RenderMermaid from "react-x-mermaid";
 import {dialogStore} from "@/Dialog/DialogStore";
 import Warning from "@/ui-components/Warning";
 const {supportAssist} = AppRoutes;
@@ -441,7 +441,7 @@ export function ProjectSupportContent() {
                 <hr/>
                 <GrantsTable grants={project.activeGrants}/>
                 <br/>
-                <h3>Accounting Issues</h3>
+                <h3>Possible reasons to limited resources</h3>
                 <hr/>
                 <div>
                     {project.accountingIssues !== null && project.accountingIssues !== undefined ? project.accountingIssues.map(issue => <>
@@ -654,19 +654,12 @@ export function AllocationSupportContent() {
 
 
             <h3>Accounting Graph</h3>
-            (To render: Copy into
-                <Link target={"_blank"}
-                      to={"https://mermaid.live"}>
-                    {" "}Mermaid Live{" "}
-                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                </Link>
-            )
             <hr/>
             <br/>
 
-            <pre className="mermaid">
-                {allocation.accountingGraph}
-            </pre>
+            {allocation.accountingGraph != null ? <div className="mermaid">
+                <RenderMermaid mermaidCode={allocation.accountingGraph} mermaidConfig={{theme: "dark"}} />
+            </div> : null }
         </>}
     />
 }
