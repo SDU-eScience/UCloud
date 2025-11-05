@@ -677,7 +677,9 @@ func main() {
 			case TEST_TERMINAL:
 				launcher.RunTests([]string{""})
 			case TEST_UI:
+				fallthrough
 			case TEST_HEADED:
+				fallthrough
 			case TEST_REPORT:
 				launcher.RunTests([]string{"", chosen.Value})
 			case "back":
