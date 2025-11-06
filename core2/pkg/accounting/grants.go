@@ -11,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -103,6 +104,7 @@ type grantIndexBucket struct {
 type grantApplication struct {
 	Mu          sync.RWMutex
 	Application *accapi.GrantApplication
+	GiftId      util.Option[int]
 	Awarded     bool // true once the service has performed the award, does not mean that persist has happened
 }
 
@@ -194,7 +196,7 @@ func grantsReadEx(actor rpc.Actor, action grantAuthType, b *grantAppBucket, id a
 		}
 
 		for grantGiver, _ := range grantGivers {
-			if actor.Project.Present && string(actor.Project.Value) == grantGiver && actor.Membership[rpc.ProjectId(grantGiver)].Satisfies(rpc.ProjectRoleAdmin) {
+			if actor.Membership[rpc.ProjectId(grantGiver)].Satisfies(rpc.ProjectRoleAdmin) {
 				roles = append(roles, grantActorRoleApprover)
 			}
 		}
@@ -321,6 +323,12 @@ func grantsCanApply(actor rpc.Actor, recipient accapi.Recipient, grantGiver stri
 	return allowed
 }
 
+func grantUserCriteriaValid(criteria accapi.UserCriteria) *util.HttpError {
+	var err *util.HttpError
+	util.ValidateEnum(&criteria.Type, accapi.UserCriteriaTypeOptions, "criteria.type", &err)
+	return err
+}
+
 func grantUserCriteriaMatch(actor rpc.Actor, criteria accapi.UserCriteria) bool {
 	switch criteria.Type {
 	case accapi.UserCriteriaTypeAnyone:
@@ -344,6 +352,10 @@ func grantUserCriteriaMatch(actor rpc.Actor, criteria accapi.UserCriteria) bool 
 // read calls (retrieve & browse).
 
 func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequest) (int64, *util.HttpError) {
+	return GrantsSubmitRevisionEx(actor, req, util.OptNone[int]())
+}
+
+func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequest, giftId util.Option[int]) (int64, *util.HttpError) {
 	now := time.Now()
 
 	// "Syntactic" validation of the request
@@ -485,6 +497,10 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 		id = accGrantId(grantGlobals.GrantIdAcc.Add(1))
 	}
 
+	if wasExistingApplication && giftId.Present {
+		return 0, util.HttpErr(http.StatusBadRequest, "gift id should not be specified here")
+	}
+
 	b := grantGetAppBucket(id)
 
 	var app *grantApplication
@@ -546,6 +562,10 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 		}
 	}
 
+	if err == nil && giftId.Present && revision.Form.Type != accapi.FormTypeGrantGiverInitiated {
+		err = util.HttpErr(http.StatusInternalServerError, "gift id should not be present")
+	}
+
 	if err == nil && revision.Form.Type == accapi.FormTypeGrantGiverInitiated {
 		if len(grantGivers) != 1 {
 			err = util.HttpErr(http.StatusForbidden, "invalid allocation request")
@@ -555,7 +575,7 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 				break
 			}
 
-			if !actor.Membership[rpc.ProjectId(grantGiverInitiatedId)].Satisfies(rpc.ProjectRoleAdmin) {
+			if actor.Username != rpc.ActorSystem.Username && !actor.Membership[rpc.ProjectId(grantGiverInitiatedId)].Satisfies(rpc.ProjectRoleAdmin) {
 				err = util.HttpErr(http.StatusForbidden, "you are not an administrator of this project")
 			}
 		}
@@ -699,6 +719,10 @@ func GrantsSubmitRevision(actor rpc.Actor, req accapi.GrantsSubmitRevisionReques
 
 	app.Application.Status.Revisions = append(app.Application.Status.Revisions, revToInsert)
 	app.Application.CurrentRevision = revToInsert
+
+	if giftId.Present {
+		app.GiftId = giftId
+	}
 
 	lGrantsPersist(app)
 
@@ -965,7 +989,7 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 	}
 	idxB.Mu.RUnlock()
 
-	if actor.Project.Present && actor.Membership[rpc.ProjectId(actor.Project.Value)].Satisfies(rpc.ProjectRoleAdmin) {
+	if actor.Project.Present && actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
 		idxB = grantGetIdxBucket(string(actor.Project.Value), true)
 		idxB.Mu.RLock()
 		for _, id := range idxB.ApplicationsByEntity[string(actor.Project.Value)] {
@@ -1015,8 +1039,8 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 			if relevant {
 				allowIngoing := req.IncludeIngoingApplications.GetOrDefault(false)
 				allowOutgoing := req.IncludeOutgoingApplications.GetOrDefault(false)
-				isSubmitter := slices.Contains(roles, grantActorRoleSubmitter)
-				isApprover := slices.Contains(roles, grantActorRoleApprover)
+				isSubmitter := slices.Contains(roles, grantActorRoleSubmitter) && lGrantApplicationIsSubmitterInActiveProjectNoAuth(actor, a)
+				isApprover := slices.Contains(roles, grantActorRoleApprover) && lGrantApplicationIsApproverInActiveProjectNoAuth(actor, a)
 
 				relevant = false
 
@@ -1049,6 +1073,35 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 	}
 
 	return result
+}
+
+// NOTE(Dan): This function assumes auth has already taken place.
+func lGrantApplicationIsSubmitterInActiveProjectNoAuth(actor rpc.Actor, a *grantApplication) bool {
+	recipient := a.Application.CurrentRevision.Document.Recipient
+	if recipient.Type == accapi.RecipientTypePersonalWorkspace && !actor.Project.Present {
+		return true
+	} else if recipient.Type == accapi.RecipientTypeNewProject && !actor.Project.Present {
+		return true
+	} else if recipient.Type == accapi.RecipientTypeExistingProject && string(actor.Project.Value) == recipient.Id.Value {
+		return true
+	} else {
+		return false
+	}
+}
+
+// NOTE(Dan): This function assumes auth has already taken place.
+func lGrantApplicationIsApproverInActiveProjectNoAuth(actor rpc.Actor, a *grantApplication) bool {
+	if !actor.Project.Present {
+		return false
+	}
+
+	reqs := a.Application.CurrentRevision.Document.AllocationRequests
+	for _, req := range reqs {
+		if req.GrantGiver == string(actor.Project.Value) {
+			return true
+		}
+	}
+	return false
 }
 
 func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.HttpError) {
@@ -1183,6 +1236,18 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 		return util.HttpErr(http.StatusForbidden, "forbidden")
 	}
 	b := grantGetSettingsBucket(id)
+
+	for _, r := range s.AllowRequestsFrom {
+		if err := grantUserCriteriaValid(r); err != nil {
+			return err
+		}
+	}
+
+	for _, r := range s.ExcludeRequestsFrom {
+		if err := grantUserCriteriaValid(r); err != nil {
+			return err
+		}
+	}
 
 	b.Mu.Lock()
 	w, ok := b.Settings[id]
@@ -1396,6 +1461,20 @@ func lGrantsAwardResources(app *grantApplication) {
 				"id": app.lId(),
 			},
 		)
+
+		if app.GiftId.Present {
+			db.Exec(
+				tx,
+				`
+					insert into "grant".gifts_claimed(gift_id, user_id) 
+					values (:gift_id, :username)
+			    `,
+				db.Params{
+					"username": app.Application.CurrentRevision.Document.Recipient.Username.Value,
+					"gift_id":  app.GiftId.Value,
+				},
+			)
+		}
 	})
 }
 

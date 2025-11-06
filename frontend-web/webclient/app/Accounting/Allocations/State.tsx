@@ -8,6 +8,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import ProvidersApi from "@/UCloud/ProvidersApi";
 import {AllocationDisplayTreeRecipient, ProductType} from "@/Accounting";
 import {ProjectInfo, projectInfoPi, projectInfoTitle} from "@/Project/InfoCache";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 const fuzzyMatcher = newFuzzyMatchFuse<{title: string}, "title">(["title"]);
 
@@ -519,8 +520,20 @@ export function useEventReducer(didCancel: React.RefObject<boolean>, doDispatch:
 }
 
 async function fetchManagedProviders(): Promise<string[]> {
-    const items = await fetchAll(next => callAPI(ProvidersApi.browse({itemsPerPage: 250, next})));
-    return items.map(it => it.specification.id);
+    let list: string[] = [];
+
+    try {
+        const items = await fetchAll(next => callAPI(ProvidersApi.browse({itemsPerPage: 250, next})));
+        list = items.map(it => it.specification.id)
+    } catch (e) {}
+
+    const providerProjects = Client.userInfo?.providerProjects ?? {};
+    for (const [provider, project] of Object.entries(providerProjects)) {
+        if (project === Client.projectId) {
+            list.push(provider);
+        }
+    }
+    return list;
 }
 
 // Initial state

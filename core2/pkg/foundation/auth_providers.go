@@ -89,7 +89,7 @@ func ProviderRefreshAsOrchestrator(id string) (fndapi.AccessTokenAndCsrf, *util.
 					Role:          "SERVICE",
 					PrincipalType: "service",
 					RegisteredClaims: jwt.RegisteredClaims{
-						Subject:   "_UCloud",
+						Subject:   "_ucloud",
 						ExpiresAt: jwt.NewNumericDate(now.Add(10 * time.Minute)),
 						IssuedAt:  jwt.NewNumericDate(now),
 						Audience:  jwt.ClaimStrings{"all:write"},

@@ -28,7 +28,6 @@ export function initTaskAndNotificationStream() {
     if (Client.isLoggedIn) {
         reconnectionTimer = Math.min(50, prevConnectionTimer * 2);
         prevConnectionTimer = reconnectionTimer;
-        console.log(reconnectionTimer);
 
         WSFactory.open(
             "/tasks",
