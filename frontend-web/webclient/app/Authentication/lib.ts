@@ -377,6 +377,11 @@ export class HttpClient {
         return tokenPromise;
     }
 
+    public async invalidateCurrentAccessToken() {
+        this.forceRefresh = true;
+        await this.receiveAccessTokenOrRefreshIt();
+    }
+
     public createOneTimeTokenWithPermission(permission): Promise<any> {
         return this.receiveAccessTokenOrRefreshIt()
             .then(token => {
@@ -587,6 +592,7 @@ export interface JWT {
     publicSessionReference?: string;
     twoFactorAuthentication?: boolean;
     serviceLicenseAgreement?: boolean;
+    providerProjects?: Record<string, string>;
 }
 
 export class MissingAuthError {

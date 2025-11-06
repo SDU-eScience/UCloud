@@ -60,6 +60,7 @@ chmod 777 /var/log/ucloud/structured
 ! (test -d /gpfs/home) && ln -s /home /gpfs/home
 ! (test -d /gpfs/work) && ln -s /work /gpfs/work
 
+sed -i 's|server: https://127\.0\.0\.1:6443|server: https://im2k3:6443|' "/mnt/k3s/kubeconfig.yaml" 2> /dev/null || true
 
 isrunning() {
     test -f /tmp/service.pid && (ps -p $(cat /tmp/service.pid) > /dev/null)

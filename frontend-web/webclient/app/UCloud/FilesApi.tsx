@@ -400,7 +400,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                         (
                                             res.specification.product.provider !== selected[0].specification.product.provider ||
                                             res.specification.product.provider === "go-slurm" ||
-                                            res.specification.product.provider === "goslurm1"
+                                            res.specification.product.provider === "goslurm1" ||
+                                            res.specification.product.provider === "gok8s"
                                         );
                                 },
                                 onClick: async (res) => {
@@ -1203,7 +1204,7 @@ export function FilePreview({initialFile}: {
                     type: typeFromFileType,
                     data: URL.createObjectURL(
                         new Blob(
-                            [contentBuffer],
+                            [contentBuffer] as unknown as BlobPart[],
                             {type: foundFileType[0].mime}
                         )
                     ),

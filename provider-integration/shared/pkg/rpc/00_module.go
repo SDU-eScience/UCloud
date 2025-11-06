@@ -88,7 +88,7 @@ type ProjectMembership map[ProjectId]ProjectRole
 type ProviderProjects map[ProviderId]ProjectId
 
 var ActorSystem = Actor{
-	Username:         "_UCloud",
+	Username:         "_ucloud",
 	Role:             RoleService,
 	Membership:       make(ProjectMembership),
 	Groups:           make(GroupMembership),

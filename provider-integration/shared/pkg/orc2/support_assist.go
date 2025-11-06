@@ -43,25 +43,25 @@ type SupportAssistRetrieveWalletInfoResponse struct {
 	AccountingGraph string       `json:"accountingGraph"`
 }
 
-const SupportAssistOrcContext = "support-assist-orc"
+const SupportAssistOrcContext = "supportAssistOrc"
 
 var SupportAssistRetrieveProjectInfo = rpc.Call[SupportAssistRetrieveProjectInfoRequest, SupportAssistRetrieveProjectInfoResponse]{
 	BaseContext: SupportAssistOrcContext,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesAdmin,
-	Operation:   "project_info",
+	Operation:   "projectInfo",
 }
 
 var SupportAssistRetrieveJobsInfo = rpc.Call[SupportAssistRetrieveJobInfoRequest, SupportAssistRetrieveJobInfoResponse]{
 	BaseContext: SupportAssistOrcContext,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesAdmin,
-	Operation:   "job_info",
+	Operation:   "jobInfo",
 }
 
 var SupportAssistRetrieveWalletsInfo = rpc.Call[SupportAssistRetrieveWalletInfoRequest, SupportAssistRetrieveWalletInfoResponse]{
 	BaseContext: SupportAssistOrcContext,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesAdmin,
-	Operation:   "wallets_info",
+	Operation:   "walletsInfo",
 }

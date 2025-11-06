@@ -91,6 +91,8 @@ import SupportPage, {
     ProjectSupportContent,
     UserSupportContent
 } from "./Admin/SupportPage";
+import {useEffect} from "react";
+import {deinitNotifications, initTaskAndNotificationStream} from "@/Services/TaskAndNotificationStream";
 
 const NotFound = (): React.ReactNode => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -319,6 +321,13 @@ removeExpiredFileUploads();
 findCustomThemeColorOnLaunch();
 
 function MainApp({children}: React.PropsWithChildren): React.ReactNode {
+    useEffect(() => {
+        initTaskAndNotificationStream();
+        return () => {
+            deinitNotifications();
+        }
+    }, []);
+
     return (
         <BrowserRouter basename="app">
             <Flex>

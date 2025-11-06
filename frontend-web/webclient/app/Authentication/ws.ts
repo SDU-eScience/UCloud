@@ -66,11 +66,11 @@ interface CallParameters<T = any> {
 
 export class WebSocketConnection {
     private client: HttpClient;
-    private socket: WebSocket;
+    public socket: WebSocket;
     private settings: WebSocketOpenSettings;
     private handlers: Map<string, (message: WebsocketResponse) => void> = new Map();
     private nextStreamId = 0;
-    private internalClosed = false;
+    public closed = false;
 
     constructor(client: HttpClient, socketFactory: () => Promise<WebSocket>, settings: WebSocketOpenSettings) {
         this.client = client;
@@ -78,12 +78,8 @@ export class WebSocketConnection {
         this.resetSocket(socketFactory);
     }
 
-    get closed(): boolean {
-        return this.internalClosed;
-    }
-
     public close(): void {
-        this.internalClosed = true;
+        this.closed = true;
         this.socket?.close();
         const closeScript = this.settings.onClose ?? (() => {
             // Empty
@@ -131,17 +127,26 @@ export class WebSocketConnection {
         });
     }
 
+    public hijack() {
+        const s = this.socket;
+        if (s) {
+            s.onopen = null;
+            s.onclose = null;
+            s.onmessage = null;
+        }
+    }
+
     private async resetSocket(socketFactory: () => Promise<WebSocket>): Promise<void> {
         const socket = await socketFactory();
         const initScript = this.settings.init ?? (() => {
             // Do nothing
         });
 
-        socket.addEventListener("open", () => {
+        socket.onopen = () => {
             initScript(this);
-        });
+        };
 
-        socket.addEventListener("close", () => {
+        socket.onclose = () => {
             if (this.settings.reconnect !== false && !this.closed) {
                 // We will reconnect by default.
                 this.handlers.forEach(e => {
@@ -154,9 +159,9 @@ export class WebSocketConnection {
             } else {
                 this.close();
             }
-        });
+        };
 
-        socket.addEventListener("message", (ev) => {
+        socket.onmessage = ev => {
             const message: WebsocketResponse = JSON.parse(ev.data);
 
             if (!!message.type && !!message.streamId) {
@@ -165,7 +170,7 @@ export class WebSocketConnection {
                     handler(message);
                 }
             }
-        });
+        };
 
         this.socket = socket;
     }

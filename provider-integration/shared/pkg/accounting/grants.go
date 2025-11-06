@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -103,6 +104,12 @@ const (
 	UserCriteriaTypeEmail  UserCriteriaType = "email"
 	UserCriteriaTypeWayf   UserCriteriaType = "wayf"
 )
+
+var UserCriteriaTypeOptions = []UserCriteriaType{
+	UserCriteriaTypeAnyone,
+	UserCriteriaTypeEmail,
+	UserCriteriaTypeWayf,
+}
 
 type UserCriteria struct {
 	Type   UserCriteriaType    `json:"type"`

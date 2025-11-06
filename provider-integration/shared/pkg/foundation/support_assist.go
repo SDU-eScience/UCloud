@@ -9,11 +9,11 @@ type ResetMFARequest struct {
 	Username string `json:"username"`
 }
 
-const SupportAssistFndContext = "support-assist-fnd"
+const SupportAssistFndContext = "supportAssistFnd"
 
 var SupportAssistResetMFA = rpc.Call[ResetMFARequest, util.Empty]{
 	BaseContext: SupportAssistFndContext,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesAdmin,
-	Operation:   "reset_mfa",
+	Operation:   "resetMfa",
 }

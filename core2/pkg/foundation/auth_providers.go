@@ -7,10 +7,11 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"
@@ -88,7 +89,7 @@ func ProviderRefreshAsOrchestrator(id string) (fndapi.AccessTokenAndCsrf, *util.
 					Role:          "SERVICE",
 					PrincipalType: "service",
 					RegisteredClaims: jwt.RegisteredClaims{
-						Subject:   "_UCloud",
+						Subject:   "_ucloud",
 						ExpiresAt: jwt.NewNumericDate(now.Add(10 * time.Minute)),
 						IssuedAt:  jwt.NewNumericDate(now),
 						Audience:  jwt.ClaimStrings{"all:write"},

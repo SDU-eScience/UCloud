@@ -25,11 +25,11 @@ type SupportAssistRetrieveUserInfoResponse struct {
 	Info []SupportAssistUserInfo `json:"info"`
 }
 
-const SupportAssistAccContext = "support-assist-acc"
+const SupportAssistAccContext = "supportAssistAcc"
 
 var SupportAssistRetrieveUserInfo = rpc.Call[SupportAssistRetrieveUserInfoRequest, SupportAssistRetrieveUserInfoResponse]{
 	BaseContext: SupportAssistAccContext,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesAdmin,
-	Operation:   "user_info",
+	Operation:   "userInfo",
 }

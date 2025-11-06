@@ -8,17 +8,15 @@ import {Upload, UploadState, uploadStore, useUploads} from "@/Files/Upload";
 import {injectStyle, injectStyleSimple, makeKeyframe} from "@/Unstyled";
 import {stopPropagation} from "@/UtilityFunctions";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
-import {WebSocketConnection} from "@/Authentication/ws";
 import {IconName} from "@/ui-components/Icon";
 import {TaskRow, UploadCallback, UploaderRow, uploadIsTerminal} from "@/Files/Uploader";
 import {addStandardDialog} from "@/UtilityComponents";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {ThemeColor} from "@/ui-components/theme";
 import * as icons from "@/ui-components/icons";
-import {Feature, hasFeature} from "@/Features";
 import {SidebarDialog} from "@/ui-components/Sidebar";
 import {groupBy} from "@/Utilities/CollectionUtilities";
+import {apiUpdate, callAPI} from "@/Authentication/DataHook";
 
 const iconNames = Object.keys(icons) as IconName[];
 
@@ -61,7 +59,7 @@ interface Specification {
     canCancel: boolean;
 }
 
-interface BackgroundTask {
+export interface BackgroundTask {
     taskId: number; // number? Also, no need to show end-user.
     createdAt: number;
     modifiedAt: number;
@@ -109,7 +107,7 @@ export const taskStore = new class extends ExternalStoreBase {
 
 const DEFAULT_ICON: IconName = "heroRectangleStack";
 
-function TaskItem({task, ws}: {task: BackgroundTask; ws: WebSocketConnection}): React.JSX.Element {
+function TaskItem({task}: { task: BackgroundTask; }): React.JSX.Element {
     const isFinished = TaskOperations.isTaskTerminal(task);
     const isPaused = task.status.state === TaskState.SUSPENDED;
 
@@ -118,7 +116,7 @@ function TaskItem({task, ws}: {task: BackgroundTask; ws: WebSocketConnection}): 
         if (task.status.state === TaskState.SUSPENDED) {
             pauseOrResume = (
                 <Icon
-                    onClick={() => ws.call(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.RUNNING))}
+                    onClick={() => callAPI(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.RUNNING))}
                     cursor="pointer"
                     name="play"
                     color="primaryMain"
@@ -127,7 +125,7 @@ function TaskItem({task, ws}: {task: BackgroundTask; ws: WebSocketConnection}): 
         } else {
             pauseOrResume = (
                 <Icon
-                    onClick={() => ws.call(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.SUSPENDED))}
+                    onClick={() => callAPI(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.SUSPENDED))}
                     cursor="pointer"
                     name="pauseSolid"
                     color="primaryMain"
@@ -140,7 +138,7 @@ function TaskItem({task, ws}: {task: BackgroundTask; ws: WebSocketConnection}): 
     let resumeOrCancel: React.ReactNode;
     if (isFinished) {
         if (task.specification.canCancel) {
-            resumeOrCancel = (<Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task, ws)} />);
+            resumeOrCancel = (<Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task)} />);
         }
     } else {
         resumeOrCancel = (
@@ -291,12 +289,12 @@ export function ProgressCircle({
     </svg>)
 }
 
-function promptCancel(task: BackgroundTask, ws: WebSocketConnection) {
+function promptCancel(task: BackgroundTask) {
     addStandardDialog({
         title: "Cancel task?",
         message: "This will cancel the task, and will have to be restarted to finish.",
         onConfirm: () => {
-            ws.call(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.CANCELLED))
+            callAPI(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.CANCELLED))
         },
         cancelText: "Back",
         confirmText: "Cancel task",
@@ -310,57 +308,12 @@ function promptCancel(task: BackgroundTask, ws: WebSocketConnection) {
 export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNode {
     const [uploads] = useUploads();
 
-    const [websocket, setWebsocket] = React.useState<WebSocketConnection>();
-
     const fileUploads = React.useMemo(() => {
         const uploadGrouping = groupBy(uploads, t => uploadIsTerminal(t) ? "finished" : "uploading")
         if (uploadGrouping.finished == null) uploadGrouping.finished = [];
         if (uploadGrouping.uploading == null) uploadGrouping.uploading = [];
         return uploadGrouping as Record<"finished" | "uploading", Upload[]>;
     }, [uploads]);
-
-    React.useEffect(() => {
-        if (websocket) return;
-        const ws = WSFactory.open(
-            "/tasks",
-            {
-                init: async conn => {
-                    try {
-                        const page: PageV2<BackgroundTask> = (await ws.call(
-                            TaskOperations.calls.browse({
-                                itemsPerPage: 250,
-                            } as any)
-                        )).payload;
-
-                        for (const item of page.items) {
-                            taskStore.addTask(item);
-                        }
-                    } catch (e) {
-                        console.warn(e);
-                    }
-
-                    try {
-                        await conn.subscribe({
-                            call: "tasks.listen",
-                            payload: {},
-                            handler: message => {
-                                if (message.type === "message") {
-                                    if (message.payload) {
-                                        const task: BackgroundTask = message.payload;
-                                        taskStore.addTask(task);
-                                    }
-                                }
-                            }
-                        });
-                    } catch (e) {
-                        console.warn(e);
-                    }
-                }
-            }
-        );
-
-        setWebsocket(ws);
-    }, [Client.isLoggedIn, websocket]);
 
     const inProgressTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.inProgress);
     const inProgressTaskList = Object.values(inProgressTasks).sort((a, b) => a.createdAt - b.createdAt);
@@ -417,8 +370,6 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
         }
     }
 
-    if (!websocket) return null;
-
     const noEntries = (inProgressCount + fileUploads.finished.length + fileUploads.finished.length + finishedTaskList.length) === 0;
 
     const isOpen = dialog === "BackgroundTask";
@@ -442,7 +393,7 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
                     </Flex> : null}
                     {fileUploads.uploading.length + inProgressTaskList.length ? <h4>Tasks in progress</h4> : null}
                     {fileUploads.uploading.map((u, i) => <UploaderRow key={u.name + u.targetPath + i} upload={u} callbacks={uploadCallbacks} />)}
-                    {inProgressTaskList.map(t => <TaskItem key={t.taskId} task={t} ws={websocket} />)}
+                    {inProgressTaskList.map(t => <TaskItem key={t.taskId} task={t} />)}
                     {anyFinished ? <Flex>
                         <h4 style={{marginBottom: "8px"}}>Finished tasks</h4>
                         <Box ml="auto">
@@ -455,7 +406,7 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
                         </Box>
                     </Flex> : null}
                     {fileUploads.finished.map((u, i) => <UploaderRow key={u.name + u.targetPath + i} upload={u} callbacks={uploadCallbacks} />)}
-                    {finishedTaskList.map(t => <TaskItem key={t.taskId} task={t} ws={websocket} />)}
+                    {finishedTaskList.map(t => <TaskItem key={t.taskId} task={t} />)}
                 </Box>
             </Card>
         </ClickableDropdown>
@@ -498,7 +449,7 @@ const StaticCircle = injectStyle(`static-circle`, k => `
 `);
 
 const baseContext = "tasks";
-const TaskOperations = new class {
+export const TaskOperations = new class {
     public isIndeterminate(task: BackgroundTask): boolean {
         return task.status.progressPercentage < 0;
     }
@@ -523,8 +474,8 @@ const TaskOperations = new class {
         listen() {
             return baseContext + ".listen";
         },
-        pauseOrCancel(id: number, requestedState: TaskState) {
-            return {call: baseContext + ".pauseOrCancel", payload: {id, requestedState}};
+        pauseOrCancel(id: number, requestedState: TaskState): APICallParameters {
+            return apiUpdate({id, requestedState}, "/api/tasks", "pauseOrCancel");
         }
     }
 };
