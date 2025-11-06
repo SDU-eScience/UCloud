@@ -1275,6 +1275,14 @@ export function balanceToStringFromUnit(
     return builder;
 }
 
+export function normalizeFrequency(frequency: AccountingFrequency):string {
+    if (frequency === "PERIODIC_MINUTE") { return "minute(s)"}
+    if (frequency === "PERIODIC_HOUR") { return "hour(s)"}
+    if (frequency === "PERIODIC_DAY") { return "day(s)"}
+    if (frequency === "ONCE") { return ""}
+    return ""
+}
+
 export interface WalletV2 {
     owner: WalletOwner;
     paysFor: ProductCategoryV2;

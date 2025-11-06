@@ -1,17 +1,17 @@
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Box, Button, Flex, Heading, Input, Label, MainContainer, Error, Icon, Link, Divider} from "@/ui-components";
+import {Box, Button, Divider, Error, Flex, Heading, Icon, Input, Label, Link, MainContainer} from "@/ui-components";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import * as React from "react";
+import {useMemo} from "react";
 import {useLocation, useNavigate} from "react-router";
 import {Client} from "@/Authentication/HttpClientInstance";
 import AppRoutes from "@/Routes";
-import {AccountingFrequency, Allocation, WalletV2} from "@/Accounting";
+import {normalizeFrequency, WalletV2} from "@/Accounting";
 import {Project} from "@/Project";
-import {apiRetrieve, apiUpdate, callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
+import {apiRetrieve, apiUpdate, callAPI} from "@/Authentication/DataHook";
 import {capitalized, doNothing, errorMessageOrDefault} from "@/UtilityFunctions";
 import {mail} from "@/UCloud";
 import {Application} from "@/Grants";
-import EmailSettings = mail.EmailSettings;
 import {Job} from "@/UCloud/JobsApi";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -21,6 +21,8 @@ import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import RenderMermaid from "react-x-mermaid";
 import {dialogStore} from "@/Dialog/DialogStore";
 import Warning from "@/ui-components/Warning";
+import EmailSettings = mail.EmailSettings;
+
 const {supportAssist} = AppRoutes;
 
 export default function () {
@@ -124,7 +126,7 @@ function SearchButton() {
 
 // USER
 
-type SupportAssistRetrieveUserInfoRequest = {
+interface SupportAssistRetrieveUserInfoRequest {
     username: string;
     email: string;
 }
@@ -142,13 +144,6 @@ interface SupportAssistUserInfo {
 
 interface SupportAssistRetrieveUserInfoResponse {
     info: SupportAssistUserInfo[]
-}
-export function normalizeFrequency(frequency: AccountingFrequency):string {
-    if (frequency === "PERIODIC_MINUTE") { return "minute(s)"}
-    if (frequency === "PERIODIC_HOUR") { return "hour(s)"}
-    if (frequency === "PERIODIC_DAY") { return "day(s)"}
-    if (frequency === "ONCE") { return ""}
-    return ""
 }
 
 interface Reset2FARequest {
@@ -181,6 +176,16 @@ export function UserSupportContent() {
 
     if (!Client.userIsAdmin || userInfo == null) return null;
 
+    const sortedAssociatedProjects = useMemo(() => {
+        return userInfo.info.map(user => {
+            const sortedList = user.associatedProjects.sort((a, b) => {
+                return a.specification.title.localeCompare(b.specification.title)
+            })
+            return {username: user.username, associatedProject: sortedList}
+        });
+    }, [userInfo])
+
+
     return <MainContainer
         main={<>
             {Error}
@@ -188,7 +193,7 @@ export function UserSupportContent() {
                 {userInfo.info === null ? `0 entries found` : null}
                 {userInfo.info?.length > 1 ? `${userInfo.info?.length} entries found` : null}
 
-                {userInfo.info?.map(it => <div>
+                {userInfo.info?.map(it => <div key={it.username}>
                     <h3>Personal Info:</h3>
                     <hr/>
                     <div>Name: {it.firstNames} {it.lastName}</div>
@@ -219,7 +224,7 @@ export function UserSupportContent() {
                                                 <form onSubmit={ev => {
                                                     ev.preventDefault();
                                                     ev.stopPropagation();
-                                                    const written = (document.querySelector("#collectionName") as HTMLInputElement).value;
+                                                    const written = document.querySelector<HTMLInputElement>("#collectionName")?.value ?? "";
                                                     if (written !== requiredText) {
                                                         snackbarStore.addFailure(`Please type '${requiredText}' to confirm.`, false);
                                                     } else {
@@ -248,57 +253,52 @@ export function UserSupportContent() {
                     <h3>E-mail settings:</h3>
                     <hr/>
                     <div>
-                        {
-                            <ul style={{ listStyle: "none" }}>
-                                {Object.keys(it.emailSettings).map(key =>
-                                    <li>
-                                        <input type={"checkbox"} checked={it.emailSettings[key]}/> {capitalized(key)}
-                                    </li>
-                                )}
-                            </ul>
-                        }
+                        <ul style={{ listStyle: "none" }}>
+                            {Object.keys(it.emailSettings).map(key =>
+                                <li key={key}>
+                                    <input type={"checkbox"} checked={it.emailSettings[key]}/> {capitalized(key)}
+                                </li>
+                            )}
+                        </ul>
                     </div>
                     <br/>
 
                     { it.associatedProjects != null ? <>
-                    <h3>Associated projects:</h3>
-                    <hr/>
-                    <div>
-                        <table>
-                            <thead>
-                            <tr>
-                                <th align={"left"}>Project Title</th>
-                                <th style={{width: "20px"}}></th>
-                                <th align={"left"}>Project ID</th>
-                                <th style={{width: "20px"}}></th>
-                                <th>Role</th>
-                            </tr>
-                            </thead>
-                        {
-                            it.associatedProjects.sort((a,b) => {
-                                return a.specification.title.localeCompare(b.specification.title)
-                            }).map(project =>
+                        <h3>Associated projects:</h3>
+                        <hr/>
+                        <div>
+                            <table>
+                                <thead>
+                                <tr>
+                                    <th align={"left"}>Project Title</th>
+                                    <th style={{width: "20px"}}></th>
+                                    <th align={"left"}>Project ID</th>
+                                    <th style={{width: "20px"}}></th>
+                                    <th>Role</th>
+                                </tr>
+                                </thead>
                                 <tbody>
-                                    <tr key={project.id}>
-                                        <td>{project.specification.title}</td>
-                                        <td/>
-                                        <td>{project.id}
-                                            <Link target={"_blank"}
-                                                  to={buildQueryString(supportAssist.project(), {id: project.id})}>
-                                                <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                                            </Link>
-                                        </td>
-                                        <td/>
-                                        {project.status.members?.map(member =>
-                                            member.username === it.username ? <td>{member.role}</td> : null
-                                        )}
-                                    </tr>
+                                { sortedAssociatedProjects.map((info) => <>{
+                                    info.username === info.username ? info.associatedProject.map(project => <tr key={project.id}>
+                                            <td>{project.specification.title}</td>
+                                            <td/>
+                                            <td>{project.id}
+                                                <Link target={"_blank"}
+                                                      to={buildQueryString(supportAssist.project(), {id: project.id})}>
+                                                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
+                                                </Link>
+                                            </td>
+                                            <td/>
+                                            {project.status.members?.map(member =>
+                                                member.username === it.username ? <td>{member.role}</td> : null
+                                            )}
+                                        </tr>
+                                    ) : null
+                                }</>)}
                                 </tbody>
-                            )
-                        }
-                        </table>
-                    </div>
-                    <br/>
+                            </table>
+                        </div>
+                        <br/>
                     </> : null}
 
                     <h3>Grants:</h3>
@@ -329,7 +329,7 @@ interface SupportAssistRetrieveProjectInfoResponse {
 }
 
 function getProjectChildren(wallets: WalletV2[]): Record<string, string> {
-    let children: Record<string, string> = {};
+    const children: Record<string, string> = {};
     wallets.forEach((wallet) => {
         wallet.children?.map((child) => {
             if (child.child.projectId != null) {
@@ -387,16 +387,14 @@ export function ProjectSupportContent() {
                         </thead>
                         <tbody>
                             {project.project.status.members != null ? <>
-                                {project.project.status.members.map(member => <>
-                                    <tr key={member.username}>
-                                        <td>{member.username}
-                                            <Link target={"_blank"}
-                                                  to={buildQueryString(supportAssist.user(), {id: member.username})}>
-                                            <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                                        </Link></td> <td/>
-                                        <td>{member.role}</td>
-                                    </tr>
-                                </>)}
+                                {project.project.status.members.map(member => <tr key={member.username}>
+                                    <td>{member.username}
+                                        <Link target={"_blank"}
+                                              to={buildQueryString(supportAssist.user(), {id: member.username})}>
+                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
+                                    </Link></td> <td/>
+                                    <td>{member.role}</td>
+                                </tr>)}
                             </> : null}
                         </tbody>
                     </table>
@@ -479,29 +477,29 @@ export function ProjectSupportContent() {
                                 <th>Version</th>
                             </tr>
                         </thead>
-                        {project.jobs !== null && project.jobs !== undefined ? project.jobs.map(it => <tbody>
-                            <tr key={it.id}>
-                                <td align={"center"}>{it.id}
-                                    <Link target={"_blank"}
-                                       to={buildQueryString(supportAssist.job(), {id: it.id})}>
-                                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                                    </Link>
-                                </td><td/>
-                                <td align={"center"}>{dateToString(it.createdAt)}</td><td/>
-                                <td align={"center"}>{it.owner.createdBy}
-                                    <Link target={"_blank"}
-                                        to={buildQueryString(supportAssist.user(), {id: it.owner.createdBy})}>
-                                    {" "}
-                                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
-                                </Link></td><td/>
-                                <td align={"center"}>{it.status.state}</td><td/>
-                                <td align={"right"}>{it.specification.application.name}</td><td/>
-                                <td align={"right"}>{it.specification.application.version}</td>
-                            </tr>
-                        </tbody>) : null }
+                        <tbody>
+                            {project.jobs != null ? project.jobs.map(it => <tr key={it.id}>
+                                    <td align={"center"}>{it.id}
+                                        <Link target={"_blank"}
+                                           to={buildQueryString(supportAssist.job(), {id: it.id})}>
+                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
+                                        </Link>
+                                    </td><td/>
+                                    <td align={"center"}>{dateToString(it.createdAt)}</td><td/>
+                                    <td align={"center"}>{it.owner.createdBy}
+                                        <Link target={"_blank"}
+                                            to={buildQueryString(supportAssist.user(), {id: it.owner.createdBy})}>
+                                        {" "}
+                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
+                                    </Link></td><td/>
+                                    <td align={"center"}>{it.status.state}</td><td/>
+                                    <td align={"right"}>{it.specification.application.name}</td><td/>
+                                    <td align={"right"}>{it.specification.application.version}</td>
+                                </tr>
+                            ) : null }
+                        </tbody>
                     </table>
                 </div>
-
             </div>
         </>}
     />
@@ -518,6 +516,7 @@ interface SupportAssistRetrieveJobInfoResponse {
 }
 
 export function JobSupportContent() {
+    usePage("Job support", SidebarTabId.ADMIN);
     const location = useLocation();
     const jobId = getQueryParam(location.search, "id");
     const {Error, setError} = useError();
@@ -601,6 +600,7 @@ interface SupportAssistRetrieveWalletInfoResponse {
 }
 
 export function AllocationSupportContent() {
+    usePage("Allocation support", SidebarTabId.ADMIN);
     const location = useLocation();
     const id = getQueryParam(location.search, "id");
     const flags = {
@@ -703,7 +703,7 @@ function WalletTable(props: {wallets?: WalletV2[]}): React.ReactNode {
             </tr>
             </thead>
             {
-                wallets != null ? wallets.map(resource =>
+                wallets?.map(resource =>
                     <tbody>
                     <tr key={resource.paysFor.name + "("+resource.paysFor.provider+")"}>
                         <td align={"left"}> {resource.paysFor.name} ({resource.paysFor.provider}) {resource.paysFor.accountingUnit.name} {normalizeFrequency(resource.paysFor.accountingFrequency)} </td> <td/>
@@ -715,13 +715,13 @@ function WalletTable(props: {wallets?: WalletV2[]}): React.ReactNode {
                         <td align={"right"}> {(resource.maxUsable + resource.totalUsage - resource.quota) !== 0 ? <Icon name={"heroExclamationTriangle"} color={"warningMain"} /> : null } </td>
                     </tr>
                     </tbody>
-                ) : null
+                )
             }
         </table>
         <br/>
         <h3>Allocations</h3>
         <hr/>
-        {wallets != null ? wallets.map(resource => resource.allocationGroups.length !== 0 ? <>
+        {wallets?.map(resource => resource.allocationGroups.length !== 0 ? <>
             <u>{resource.paysFor.name} ({resource.paysFor.provider})</u>
                 <br/>
                     <table>
@@ -752,10 +752,10 @@ function WalletTable(props: {wallets?: WalletV2[]}): React.ReactNode {
                         </th>
                     </tr>
                     </thead>
-                    {
+                        <tbody>
+                        {
                         resource.allocationGroups.map(group =>
-                            group.group != null ? group.group.allocations.map(alloc =>
-                                <tbody>
+                            group.group?.allocations.map(alloc =>
                                 <tr key={alloc.id}>
                                     <td align={"right"}> {alloc.id}
                                         <Link target={"_blank"}
@@ -782,22 +782,21 @@ function WalletTable(props: {wallets?: WalletV2[]}): React.ReactNode {
                                         </>}
                                     </td>
                                 </tr>
-                                </tbody>
-                            ) : null
+                            )
                         )
                     }
+                    </tbody>
                 </table>
             <br/>
             </> : null
-        ) : null}
+        )}
         <br/>
     </>
 }
 
 function GrantsTable(props: {grants?: Application[]}): React.ReactNode {
     const grants = props.grants;
-    return <>
-        <table>
+    return <table>
             <thead>
                 <tr>
                     <th align={"left"}>Application ID</th>
@@ -857,7 +856,7 @@ function GrantsTable(props: {grants?: Application[]}): React.ReactNode {
                     </tbody>
                 ) : null }
         </table>
-    </>
+
 }
 
 const Api = {
