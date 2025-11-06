@@ -153,7 +153,7 @@ interface Reset2FARequest {
 type Reset2FAResponse = void;
 
 function reset2fa(req: Reset2FARequest): APICallParameters<Reset2FARequest, Reset2FAResponse> {
-    return apiUpdate(req, "api/support-assist-fnd", "reset_mfa")
+    return apiUpdate(req, "api/supportAssistFnd", "resetMfa")
 }
 
 export function UserSupportContent() {
@@ -861,18 +861,18 @@ function GrantsTable(props: {grants?: Application[]}): React.ReactNode {
 
 const Api = {
     retrieveProjectInfo(params: SupportAssistRetrieveProjectInfoRequest): APICallParameters<SupportAssistRetrieveProjectInfoRequest, SupportAssistRetrieveProjectInfoResponse> {
-        return apiRetrieve(params, "api/support-assist-orc", "project_info");
+        return apiRetrieve(params, "api/supportAssistOrc", "projectInfo");
     },
 
     retrieveJobInfo(params: SupportAssistRetrieveJobInfoRequest): APICallParameters<SupportAssistRetrieveJobInfoRequest, SupportAssistRetrieveJobInfoResponse> {
-        return apiRetrieve(params, "/api/support-assist-orc", "job_info");
+        return apiRetrieve(params, "/api/supportAssistOrc", "jobInfo");
     },
 
     retrieveWalletInfo(params: SupportAssistRetrieveWalletInfoRequest): APICallParameters<SupportAssistRetrieveWalletInfoRequest, SupportAssistRetrieveWalletInfoResponse> {
-        return apiRetrieve(params, "api/support-assist-orc", "wallets_info");
+        return apiRetrieve(params, "api/supportAssistOrc", "walletsInfo");
     },
 
     retrieveUserInfo(params: SupportAssistRetrieveUserInfoRequest): APICallParameters<SupportAssistRetrieveUserInfoRequest, SupportAssistRetrieveUserInfoResponse> {
-        return apiRetrieve(params, "api/support-assist-acc", "user_info");
+        return apiRetrieve(params, "api/supportAssistAcc", "userInfo");
     }
 }
