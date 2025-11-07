@@ -26,6 +26,9 @@ const (
 
 	// StringValidationNoTrim turns of automatic trimming of the field
 	StringValidationNoTrim
+
+	// StringValidationRequireEmail performs basic checks to ensure that the string is an email
+	StringValidationRequireEmail
 )
 
 func ValidateStringE(input *string, fieldName string, opts StringValidationFlag) *HttpError {
@@ -61,6 +64,19 @@ func ValidateString(input *string, fieldName string, opts StringValidationFlag, 
 
 	// Validation
 	// -----------------------------------------------------------------------------------------------------------------
+
+	if opts&StringValidationRequireEmail != 0 {
+		opts |= StringValidationRejectSpaces
+		if len(result) < 3 {
+			setErr(HttpErr(http.StatusBadRequest, "%v is too short", fieldName))
+			return
+		}
+
+		if !strings.Contains(result, "@") {
+			setErr(HttpErr(http.StatusBadRequest, "%v does not look like a valid email", fieldName))
+			return
+		}
+	}
 
 	if opts&StringValidationAllowLong == 0 {
 		if len(result) > 1024 {
@@ -108,8 +124,16 @@ func ValidateString(input *string, fieldName string, opts StringValidationFlag, 
 }
 
 func ValidateStringIfPresent(input *Option[string], fieldName string, opts StringValidationFlag, err **HttpError) {
-	if input.Present {
+	ValidateStringIfPresentEx(input, fieldName, opts, err, false)
+}
+
+func ValidateStringIfPresentEx(input *Option[string], fieldName string, opts StringValidationFlag, err **HttpError, clearOnInvalid bool) {
+	if *err == nil && input.Present {
 		ValidateString(&input.Value, fieldName, opts, err)
+		if *err != nil && clearOnInvalid {
+			*err = nil
+			input.Clear()
+		}
 	}
 }
 

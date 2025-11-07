@@ -21,7 +21,7 @@ func initAuth() {
 
 	fndapi.AuthLookupUser.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (rpc.CorePrincipalBaseClaims, *util.HttpError) {
 		principal, ok := db.NewTx2(func(tx *db.Transaction) (Principal, bool) {
-			return LookupPrincipal(tx, request.Id)
+			return PrincipalRetrieve(tx, request.Id)
 		})
 
 		if ok {

@@ -105,7 +105,7 @@ func SessionRefresh(request fndapi.AuthenticationTokens) (fndapi.AccessTokenAndC
 		)
 
 		if ok {
-			principal, ok := LookupPrincipal(tx, row.Username)
+			principal, ok := PrincipalRetrieve(tx, row.Username)
 			if ok {
 				sessionReference := util.OptNone[string]()
 				if row.PublicSessionReference.Valid {

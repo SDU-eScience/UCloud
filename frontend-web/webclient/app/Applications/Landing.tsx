@@ -361,13 +361,12 @@ export const Hero: React.FunctionComponent<{
         slideTitle: prevSlide.title
     });
 
-
     return <Card style={{overflow: "hidden", border: 0, padding: 0}}>
         {/* Note(Jonas): Pre-fetch next image, so text and image change at the same time in the carousel */}
         <link rel="prefetch" as="image" href={nextImageLink} />
         <div className={HeroStyle}>
             <div className={"carousel"}>
-                <div onClick={navigation} className={"carouselImages"}>
+                <div onClick={() => slideLink ? navigate(slideLink) : 0} className={"carouselImages"}>
                     <img key={2 * activeIndex + 1} alt={"cover image"} src={imageLink} />
                     <img key={activeIndex} alt={"cover image"} src={prevImageLink} />
                     <div className="indicators">
@@ -384,7 +383,7 @@ export const Hero: React.FunctionComponent<{
                     </div>
                 </div>
                 <div className={"carouselText"}>
-                    <h1 style={{cursor: "pointer"}} onClick={navigation}>{slide.title}</h1>
+                    <h1 style={{cursor: "pointer"}} onClick={() => slideLink ? navigate(slideLink) : 0}>{slide.title}</h1>
                     <div className={SpotlightDescription}>
                         <Markdown allowedElements={["p"]}>
                             {slide.body}

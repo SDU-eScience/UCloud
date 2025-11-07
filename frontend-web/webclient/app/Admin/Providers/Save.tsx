@@ -96,8 +96,8 @@ function Save(): React.ReactNode {
                         id="PORT"
                         label="Port"
                         step="1"
-                        min={0.0}
-                        max={2 ** 16}
+                        min={1}
+                        max={(2 ** 16)-1}
                         styling={{ml: "8px", width: "20%"}}
                         defaultValue={provider.data?.specification.port ?? ""}
                     />

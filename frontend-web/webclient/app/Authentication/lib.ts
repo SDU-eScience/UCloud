@@ -592,6 +592,7 @@ export interface JWT {
     publicSessionReference?: string;
     twoFactorAuthentication?: boolean;
     serviceLicenseAgreement?: boolean;
+    providerProjects?: Record<string, string>;
 }
 
 export class MissingAuthError {
