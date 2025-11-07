@@ -145,18 +145,19 @@ func ProviderRenew(id string) (fndapi.PublicKeyAndRefreshToken, *util.HttpError)
 			db.Exec(
 				tx,
 				`
-					update auth.providers
-					set
-						pub_key = :pub_key,
-						priv_key = :priv_key,
-						refresh_token = :refresh_token
-					where
-						id = :id
+					insert into auth.providers(id, pub_key, priv_key, refresh_token, claim_token)
+					values (:id, :pub_key, :priv_key, :refresh_token, :claim_token)
+					on conflict (id) do update set
+						pub_key = excluded.pub_key,
+						priv_key = excluded.priv_key,
+						refresh_token = excluded.refresh_token
 			    `,
 				db.Params{
+					"id":            id,
 					"pub_key":       newKeys.PublicKey,
 					"priv_key":      newKeys.PrivateKey,
 					"refresh_token": refreshToken,
+					"claim_token":   util.RandomTokenNoTs(32),
 				},
 			)
 		})

@@ -8,8 +8,10 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"ucloud.dk/shared/pkg/util"
 	"unicode"
+
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 // ParametersToStruct converts url.Values query parameters back into a struct.
@@ -102,6 +104,9 @@ func ParseRequestFromBody[Req any](w http.ResponseWriter, r *http.Request) (Req,
 		if _, isEmpty := any(&request).(util.EmptyMarker); isEmpty {
 			return request, nil
 		}
+		if util.DevelopmentModeEnabled() {
+			log.Info("No request body found")
+		}
 		return request, util.HttpErr(http.StatusBadRequest, "No request body found")
 	}
 
@@ -112,6 +117,9 @@ func ParseRequestFromBody[Req any](w http.ResponseWriter, r *http.Request) (Req,
 		if _, isEmpty := any(&request).(util.EmptyMarker); isEmpty {
 			return request, nil
 		}
+		if util.DevelopmentModeEnabled() {
+			log.Info("Could not read request body: %v", err)
+		}
 		return request, util.HttpErr(http.StatusBadRequest, "Could not read request body")
 	}
 
@@ -119,6 +127,9 @@ func ParseRequestFromBody[Req any](w http.ResponseWriter, r *http.Request) (Req,
 	if err != nil {
 		if _, isEmpty := any(&request).(util.EmptyMarker); isEmpty {
 			return request, nil
+		}
+		if util.DevelopmentModeEnabled() {
+			log.Info("Invalid request supplied: %v", err)
 		}
 		return request, util.HttpErr(http.StatusBadRequest, "Invalid request supplied")
 	}
@@ -131,6 +142,9 @@ func ParseRequestFromQuery[Req any](w http.ResponseWriter, r *http.Request) (Req
 
 	err := ParametersToStruct(r.URL.Query(), &request)
 	if err != nil {
+		if util.DevelopmentModeEnabled() {
+			log.Info("Invalid request supplied: %v", err)
+		}
 		return request, util.HttpErr(http.StatusBadRequest, "Invalid request supplied")
 	}
 
