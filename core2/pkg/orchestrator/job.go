@@ -5,12 +5,13 @@ import (
 	base64 "encoding/base64"
 	"encoding/json"
 	"fmt"
-	ws "github.com/gorilla/websocket"
 	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	ws "github.com/gorilla/websocket"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -535,6 +536,22 @@ func initJobs() {
 		}
 
 		return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{Responses: responses}, nil
+	})
+
+	orcapi.JobsRename.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobRenameRequest]) (util.Empty, *util.HttpError) {
+		for _, item := range request.Items {
+			ResourceUpdate(
+				info.Actor,
+				jobType,
+				ResourceParseId(item.Id),
+				orcapi.PermissionEdit,
+				func(r *resource, mapped orcapi.Job) {
+					job := r.Extra.(*internalJob)
+					job.Name = item.NewTitle
+				},
+			)
+		}
+		return util.Empty{}, nil
 	})
 
 	wsUpgrader := ws.Upgrader{
