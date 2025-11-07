@@ -957,7 +957,7 @@ func TestMenu() termio.Menu {
 			},
 			{
 				Value:   TEST_UI,
-				Message: "Browser UI",
+				Message: "Playwright browser UI",
 			},
 			{
 				Value:   TEST_HEADED,

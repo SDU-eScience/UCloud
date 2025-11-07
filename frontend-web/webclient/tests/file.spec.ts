@@ -69,6 +69,7 @@ test("View properties", async ({page}) => {
 
 test("Stress testing the row selector", async ({page}) => {
     for (let i = 0; i < 100; i++) {
+        if (afterEach.v) console.log("Finished! Shouldn't be here")
         await File.create(page, "Folder" + i);
     }
     await File.actionByRowTitle(page, "Folder99", "click");
@@ -88,11 +89,9 @@ test("Upload file, validate contents, ensure shown as task", async ({page}) => {
 
 // setInputFiles doesn't allow folders
 test.skip("Upload folder", async ({page}) => {
-    await page.waitForTimeout(200); // We need to wait for Redux to propagate the changes of the drive, for use with the upload.
     await page.getByText("Upload files").click();
     // Folders are not allowed, keeping this test for now.
     await page.locator("#fileUploadBrowse").setInputFiles(dirname + "/" + "upload_folder");
-    await page.waitForTimeout(1000); // I don't know what's a better selector.
     await page.keyboard.press("Escape");
     await Components.clickRefreshAndWait(page);
 });
@@ -194,7 +193,6 @@ test("Move to trash, empty trash", async ({page}) => {
     await File.open(page, "Trash");
     await expect(page.getByText(folderName)).toHaveCount(1);
     await File.emptyTrash(page);
-    await page.waitForTimeout(500);
     await File.open(page, "Trash");
     await expect(page.getByText(folderName)).toHaveCount(0);
 });
@@ -211,7 +209,6 @@ test("File search (use empty trash to trigger scan)", async ({page}) => {
     await Components.clickRefreshAndWait(page);
     await File.open(page, "Trash");
     await File.emptyTrash(page);
-    await page.waitForTimeout(200);
     await File.searchFor(page, theFolderToFind);
     await expect(page.getByText(theFolderToFind)).toHaveCount(1);
 });

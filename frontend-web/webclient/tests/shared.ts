@@ -28,24 +28,20 @@ export const User = {
 
 export function ucloudUrl(pathname: string): string {
     const origin = data.location_origin;
-    return (origin.endsWith("/") ? origin : origin + "/") + "app" + (pathname.startsWith("/") ? pathname : "/" + pathname);
+    return (origin + "/app/" + pathname).replaceAll("//", "/");
 };
 
 export const Rows = {
     async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover"): Promise<void> {
         let iterations = 1000;
-        await Components.projectSwitcher(page, "click");
-        await page.keyboard.press("Escape");
         for (let i = 0; i < 10; i++) {
             await page.locator(".scrolling").hover();
             await page.mouse.wheel(0, -5000);
-            await page.waitForTimeout(50);
         }
 
         while (!await page.locator(".row div > span", {hasText: name}).isVisible()) {
             await page.locator(".scrolling").hover();
             await page.mouse.wheel(0, 150);
-            await page.waitForTimeout(50);
             iterations -= 1;
             if (iterations <= 0) {
                 console.warn("Many such iterations, no result");
@@ -74,7 +70,7 @@ export const File = {
     },
 
     async create(page: Page, name: string): Promise<void> {
-        expect(page.url().includes("/files?path=")).toBeTruthy();
+        await page.getByText("Create folder").isVisible();
         await page.getByText("Create folder").click();
         await page.getByRole("textbox").nth(1).fill(name);
         await page.getByRole("textbox").nth(1).press("Enter");
@@ -109,7 +105,7 @@ export const File = {
         await page.getByText("Move to...").click();
         await page.locator("div.ReactModal__Content div.row", {hasText: targetFolder})
             .getByRole("button").filter({hasText: "Move to"}).click();
-        await page.waitForTimeout(200);
+        await page.getByRole("dialog").isHidden();
     },
 
     async copyFileTo(page: Page, fileToCopy: string, targetFolder: string): Promise<void> {
@@ -119,14 +115,14 @@ export const File = {
         await page.locator("div.ReactModal__Content div.row", {hasText: targetFolder})
             .getByRole("button").filter({hasText: "Copy to"}).click();
 
-        await page.waitForTimeout(200);
+        await page.getByRole("dialog").isHidden();
     },
 
     async copyFileInPlace(page: Page, folderName: string): Promise<void> {
         await this.openOperationsDropsdown(page, folderName);
         await page.getByText("Copy to...").click();
         await page.getByText("Use this folder").first().click();
-        await page.waitForTimeout(200);
+        await page.getByRole("dialog").isHidden();
     },
 
     async moveFileToTrash(page: Page, fileName: string): Promise<void> {
@@ -154,12 +150,7 @@ export const File = {
 
     async ensureDialogDriveActive(page: Page, driveName: string): Promise<void> {
         // Check locator input for content
-        while (!await page.locator("div.location").isVisible()) {
-            await page.waitForTimeout(500);
-        }
-
-        await page.waitForTimeout(500);
-
+        await page.getByRole("dialog").isVisible();
         const correctDrive = await page.getByRole("dialog")
             .getByRole('listitem', {name: driveName}).isVisible();
 
@@ -171,7 +162,7 @@ export const File = {
         // if not matches, click
         await page.getByRole("dialog").locator("div.drive-icon-dropdown").click();
         await page.getByText(driveName).click();
-        await page.waitForTimeout(200);
+        await page.getByRole("dialog").isHidden();
     }
 };
 
@@ -191,12 +182,12 @@ export const Drive = {
             await this.goToDrives(page);
         }
         await this.actionByRowTitle(page, name, "dblclick");
+        await Components.projectSwitcher(page, "hover")
     },
 
     async create(page: Page, name: string): Promise<void> {
         await this.goToDrives(page);
-        await page.waitForTimeout(800);
-        await page.locator("div.operation").filter({hasText: "Create drive"}).click();
+        await page.locator('div[data-disabled="false"]', {hasText: "Create drive"}).click();
         await page.getByRole("textbox", {name: "Choose a name"}).fill(name);
         await page.getByRole("button", {name: "Create", disabled: false}).click();
     },
@@ -226,9 +217,8 @@ export const Components = {
         await loc[action]();
     },
 
-    async clickRefreshAndWait(page: Page, waitForMs: number = 500): Promise<void> {
+    async clickRefreshAndWait(page: Page): Promise<void> {
         await page.locator(".refresh-icon").click();
-        if (waitForMs > 0) await page.waitForTimeout(waitForMs);
     },
 
     async toggleSearch(page: Page): Promise<void> {
@@ -283,9 +273,8 @@ export const Applications = {
         const locatorString = exact ? `img[alt='${appName}']` : `img[alt^='${appName}']`;
         let iterations = 1000;
         await page.mouse.wheel(0, -Number.MAX_SAFE_INTEGER);
-        while (!await page.locator(locatorString).first().isVisible()) {
+        while (await page.locator(locatorString).first().isHidden()) {
             await page.mouse.wheel(0, 150);
-            await page.waitForTimeout(50);
             iterations -= 1;
             if (iterations <= 0) {
                 console.warn("Many such iterations, no result");
@@ -294,11 +283,13 @@ export const Applications = {
         }
 
         await page.locator(locatorString).first().click();
+        await page.waitForURL("https://ucloud.localhost.direct/app/jobs/create?app=coder")
     },
+
 
     async toggleFavorite(page: Page): Promise<void> {
         // Ensure mount of svg before checking value
-        await page.waitForTimeout(500);
+        await page.locator("svg[data-component^='icon-star']").hover();
         const isFavorited = await page.locator("svg[data-component='icon-starFilled']").isVisible();
         const emptyIcon = "icon-starEmpty";
         const filledIcon = "icon-starFilled";
@@ -328,7 +319,6 @@ export const Runs = {
         await Components.projectSwitcher(page, "hover");
         await Applications.actionByRowTitle(page, jobName, "click");
         await page.getByText("Run application again").click();
-        await page.waitForTimeout(500);
         await Runs.submitAndWaitForRunning(page);
     },
 
@@ -337,7 +327,6 @@ export const Runs = {
         await Components.projectSwitcher(page, "hover");
         await page.locator(".row").getByText(jobName).click();
         await Components.clickConfirmationButton(page, "Stop");
-        await page.waitForTimeout(500);
     },
 
     async setJobTitle(page: Page, name: string): Promise<void> {
@@ -359,9 +348,7 @@ export const Runs = {
 
         await page.getByRole("button", {name: "Submit"}).click();
 
-        while (!await page.getByText("is now running").first().isVisible()) {
-            await page.waitForTimeout(500);
-        }
+        await page.getByText("is now running").first().hover();
     },
 
     async extendTimeBy(page: Page, extension: 1 | 8 | 24) {
@@ -372,7 +359,7 @@ export const Runs = {
         const terminalPagePromise = page.waitForEvent("popup");
         await page.getByRole("button", {name: "Open terminal"}).click();
         const terminalPage = await terminalPagePromise;
-        await terminalPage.waitForTimeout(1000);
+        await terminalPage.getByTitle("ucloud@").isVisible();
         await terminalPage.getByText("ucloud@").click();
         return terminalPage;
     }
