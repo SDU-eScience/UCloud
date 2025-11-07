@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
 	"ucloud.dk/shared/pkg/rpc"
 
 	apm "ucloud.dk/shared/pkg/accounting"
@@ -601,7 +602,6 @@ var JobsOpenTerminalInFolder = rpc.Call[fnd.BulkRequest[JobsOpenTerminalInFolder
 	Operation:   "openTerminalInFolder",
 }
 
-/*
 type JobRenameRequest struct {
 	Id       string `json:"id"`
 	NewTitle string `json:"newTitle"`
@@ -613,7 +613,6 @@ var JobsRename = rpc.Call[fnd.BulkRequest[JobRenameRequest], util.Empty]{
 	Roles:       rpc.RolesEndUser,
 	Operation:   "rename",
 }
-*/
 
 type JobsSearchRequest struct {
 	ItemsPerPage int                 `json:"itemsPerPage"`
