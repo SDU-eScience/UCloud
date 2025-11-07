@@ -249,6 +249,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                         status.style.margin = "0";
                         status.style.width = "24px";
                         status.style.height = "24px";
+                        status.style.marginTop = status.style.marginBottom = "auto";
                         row.stat3.append(status);
                     }
                 });
