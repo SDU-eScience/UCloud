@@ -189,7 +189,7 @@ func MfaAnswerChallenge(r *http.Request, w http.ResponseWriter, challengeId stri
 			return tokens, false, util.HttpErr(http.StatusNotFound, "You already have 2FA setup on this account.")
 		}
 
-		principal, ok := LookupPrincipal(tx, row.PrincipalId)
+		principal, ok := PrincipalRetrieve(tx, row.PrincipalId)
 		if !ok {
 			return tokens, false, util.HttpErr(http.StatusInternalServerError, "Internal error.")
 		}

@@ -17,6 +17,13 @@ const (
 	PrincipalProvider PrincipalRole = "PROVIDER"
 )
 
+var PrincipalRoleOptions = []PrincipalRole{
+	PrincipalUser,
+	PrincipalAdmin,
+	PrincipalService,
+	PrincipalProvider,
+}
+
 const AuthContext = "auth"
 
 type AuthenticationTokens struct {

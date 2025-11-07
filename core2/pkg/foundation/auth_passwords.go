@@ -67,7 +67,7 @@ func PasswordLogin(request *http.Request, username string, password string) (fnd
 			return fndapi.AuthenticationTokens{}, util.HttpErr(http.StatusTooManyRequests, "Please wait before trying again.")
 		}
 
-		principal, ok := LookupPrincipal(tx, username)
+		principal, ok := PrincipalRetrieve(tx, username)
 		if !ok || !principal.HashedPassword.Present || !principal.Salt.Present {
 			checkPassword(dummyPasswordForTiming.HashedPassword, dummyPasswordForTiming.Salt, password)
 			logPasswordAttempt(tx, request, username)

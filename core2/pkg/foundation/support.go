@@ -78,7 +78,7 @@ type ProjectIdAndTitle struct {
 func createTicketFromUser(actor rpc.Actor, request fndapi.CreateTicketRequest, r *http.Request) *util.HttpError {
 	principal, ok := db.NewTx2(
 		func(tx *db.Transaction) (Principal, bool) {
-			return LookupPrincipal(tx, actor.Username)
+			return PrincipalRetrieve(tx, actor.Username)
 		},
 	)
 	if ok {
