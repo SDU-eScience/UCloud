@@ -11,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -464,8 +465,6 @@ func ResourceBrowse[T any](
 	filter func(item T) bool,
 ) fndapi.PageV2[T] {
 	// TODO if providerId filter is present, use providerId index instead
-	// TODO browse via custom index
-	// TODO search (technically doable via just filter?)
 
 	g := resourceGetGlobals(typeName)
 	ref := actor.Username

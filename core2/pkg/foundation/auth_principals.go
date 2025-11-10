@@ -90,10 +90,12 @@ func PrincipalRetrieve(tx *db.Transaction, username string) (Principal, bool) {
 			MfaEnabled:              row.MfaEnabled,
 		}
 
-		projectInfo := ProjectRetrieveClaimsInfo(row.Id)
-		principal.Membership = projectInfo.Membership
-		principal.ProviderProjects = projectInfo.ProviderProjects
-		principal.Groups = projectInfo.Groups
+		if principal.Role != fndapi.PrincipalService {
+			projectInfo := ProjectRetrieveClaimsInfo(row.Id)
+			principal.Membership = projectInfo.Membership
+			principal.ProviderProjects = projectInfo.ProviderProjects
+			principal.Groups = projectInfo.Groups
+		}
 
 		if row.HashedPassword.Valid {
 			principal.HashedPassword = util.OptValue(row.HashedPassword.V)
