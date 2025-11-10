@@ -712,12 +712,15 @@ func ResourceCreateEx[T any](
 	id := ResourceId(resourceGlobals.IdAcc.Add(1))
 	b := resourceGetBucket(typeName, id)
 
-	if flags&resourceCreateAllRead != 0 {
-		// TODO modify ACL accordingly
-	}
-
-	if flags&resourceCreateAllWrite != 0 {
-		// TODO modify ACL accordingly
+	allUsersGroup := "" // valid only if resourceCreateAllRead/Write is set
+	if owner.Project != "" && (flags&resourceCreateAllRead != 0 || flags&resourceCreateAllWrite != 0) {
+		groupId, ok := resourceRetrieveAllUserGroup(owner.Project)
+		if !ok {
+			var t T
+			return 0, t, util.HttpErr(http.StatusInternalServerError, "could not create resource (ACL 0)")
+		} else {
+			allUsersGroup = groupId
+		}
 	}
 
 	if product.Present && providerId.Present {
@@ -768,6 +771,22 @@ func ResourceCreateEx[T any](
 		IncludeSupport: true,
 		IncludeProduct: true,
 	}
+
+	if owner.Project != "" && (flags&resourceCreateAllRead != 0 || flags&resourceCreateAllWrite != 0) {
+		var perms []orcapi.Permission
+		if flags&resourceCreateAllRead != 0 {
+			perms = append(perms, orcapi.PermissionRead)
+		}
+		if flags&resourceCreateAllWrite != 0 {
+			perms = append(perms, orcapi.PermissionEdit)
+		}
+
+		r.Acl = append(r.Acl, orcapi.ResourceAclEntry{
+			Entity:      orcapi.AclEntityProjectGroup(owner.Project, allUsersGroup),
+			Permissions: perms,
+		})
+	}
+
 	apiResc, _ := lResourceApplyFlags(r, nil, resourceFlags)
 	mapped := g.Transformer(apiResc, r.Product, r.Extra, resourceFlags).(T)
 
@@ -851,4 +870,19 @@ func ResourceAddIndexer(typeName string, indexer func(r *resource) ResourceIndex
 	g.IndexersMu.Lock()
 	g.Indexers = append(g.Indexers, indexer)
 	g.IndexersMu.Unlock()
+}
+
+var resourceAllUsersGroupCache = util.NewCache[string, string](8 * time.Hour)
+
+func resourceRetrieveAllUserGroup(projectId string) (string, bool) {
+	return resourceAllUsersGroupCache.Get(projectId, func() (string, error) {
+		result, err := fndapi.ProjectRetrieveAllUsersGroup.Invoke(
+			fndapi.BulkRequestOf(fndapi.FindByProjectId{Project: projectId}))
+
+		if err != nil || len(result.Responses) == 0 {
+			return "", err
+		} else {
+			return result.Responses[0].Id, nil
+		}
+	})
 }
