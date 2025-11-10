@@ -929,7 +929,6 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue) *util.HttpError {
 	switch value.Type {
 	case orcapi.AppParameterValueTypeFile:
-		// TODO Special handling for shares?
 		path := value.Path
 		driveId, ok := orcapi.DriveIdFromUCloudPath(path)
 		if !ok {
@@ -961,11 +960,31 @@ func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue) *util.Ht
 		if job.Status.State != orcapi.JobStateRunning {
 			return util.HttpErr(http.StatusBadRequest, "job with hostname '%s' is not running", value.Hostname)
 		}
-	}
 
-	// TODO check ips
-	// TODO check licenses
-	// TODO check ingresses
+	case orcapi.AppParameterValueTypeNetwork:
+		_, _, _, err := ResourceRetrieveEx[orcapi.PublicIp](actor, publicIpType, ResourceParseId(value.Id),
+			orcapi.PermissionEdit, orcapi.ResourceFlags{})
+
+		if err != nil {
+			return util.HttpErr(http.StatusForbidden, "you cannot use this IP address")
+		}
+
+	case orcapi.AppParameterValueTypeIngress:
+		_, _, _, err := ResourceRetrieveEx[orcapi.Ingress](actor, ingressType, ResourceParseId(value.Id),
+			orcapi.PermissionEdit, orcapi.ResourceFlags{})
+
+		if err != nil {
+			return util.HttpErr(http.StatusForbidden, "you cannot use this link")
+		}
+
+	case orcapi.AppParameterValueTypeLicense:
+		_, _, _, err := ResourceRetrieveEx[orcapi.License](actor, licenseType, ResourceParseId(value.Id),
+			orcapi.PermissionEdit, orcapi.ResourceFlags{})
+
+		if err != nil {
+			return util.HttpErr(http.StatusForbidden, "you cannot use this license")
+		}
+	}
 
 	return nil
 }
