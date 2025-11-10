@@ -725,6 +725,17 @@ var JobsControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[JobUpdat
 	Operation:   "update",
 }
 
+type JobsControlBrowseSshKeysRequest struct {
+	JobId string `json:"jobId"`
+}
+
+var JobsControlBrowseSshKeys = rpc.Call[JobsControlBrowseSshKeysRequest, fnd.PageV2[SshKey]]{
+	Convention:  rpc.ConventionUpdate,
+	BaseContext: jobControlNamespace,
+	Operation:   "browseSshKeys",
+	Roles:       rpc.RoleProvider,
+}
+
 // Job Provider API
 // =====================================================================================================================
 
