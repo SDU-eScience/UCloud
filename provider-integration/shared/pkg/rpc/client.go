@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
 	"io"
 	"net/http"
 	"net/url"
@@ -12,9 +11,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+
+	"github.com/golang-jwt/jwt/v5"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
-	"unicode"
 )
 
 type Response struct {
