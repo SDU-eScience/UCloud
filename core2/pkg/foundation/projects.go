@@ -261,23 +261,11 @@ func initProjects() {
 	fndapi.ProjectRetrieveAllUsersGroup.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByProjectId]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		var result fndapi.BulkResponse[fndapi.FindByStringId]
 		for _, reqItem := range request.Items {
-			project, err := ProjectRetrieve(info.Actor, reqItem.Project, projectFlagsAll, fndapi.ProjectRoleUser)
+			groupId, err := ProjectRetrieveAllUsersGroup(info.Actor, reqItem.Project)
 			if err != nil {
-				return result, err
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
 			} else {
-				found := false
-				for _, g := range project.Status.Groups {
-					if g.Specification.Title == ProjectGroupAllUsers {
-						result.Responses = append(result.Responses, fndapi.FindByStringId{Id: g.Id})
-						found = true
-						break
-					}
-				}
-
-				if !found {
-					// TODO Make sure that we do not have any remaining projects like this
-					return result, util.HttpErr(http.StatusInternalServerError, "Could not find 'all users' group")
-				}
+				result.Responses = append(result.Responses, fndapi.FindByStringId{Id: groupId})
 			}
 		}
 		return result, nil
@@ -366,6 +354,36 @@ func initProjects() {
 	})
 }
 
+func ProjectRetrieveAllUsersGroup(actor rpc.Actor, projectId string) (string, *util.HttpError) {
+	project, _, err := projectRetrieve(actor, projectId, projectFlagsAll, fndapi.ProjectRoleUser)
+	if err != nil {
+		return "", err
+	} else {
+		for _, g := range project.Status.Groups {
+			if g.Specification.Title == ProjectGroupAllUsers {
+				return g.Id, nil
+			}
+		}
+
+		systemWithProject := rpc.ActorSystem
+		systemWithProject.Project = util.OptValue(rpc.ProjectId(projectId))
+		groupId, err := ProjectCreateGroup(systemWithProject, fndapi.ProjectGroupSpecification{
+			Project: projectId,
+			Title:   ProjectGroupAllUsers,
+		})
+
+		if err != nil {
+			return "", util.HttpErr(http.StatusInternalServerError, "Could not find 'all users' group")
+		}
+
+		for _, member := range project.Status.Members {
+			_ = ProjectCreateGroupMember(systemWithProject, groupId, member.Username)
+		}
+
+		return groupId, nil
+	}
+}
+
 var projectFlagsAll = fndapi.ProjectFlags{
 	IncludeMembers:  true,
 	IncludeGroups:   true,
@@ -408,6 +426,12 @@ func ProjectRetrieve(
 	roleRequirement fndapi.ProjectRole,
 ) (fndapi.Project, *util.HttpError) {
 	res, _, err := projectRetrieve(actor, id, flags, roleRequirement)
+	if err == nil && flags.IncludeGroups && len(res.Status.Groups) == 0 {
+		_, err := ProjectRetrieveAllUsersGroup(actor, id)
+		if err == nil {
+			return ProjectRetrieve(actor, id, flags, roleRequirement)
+		}
+	}
 	return res, err
 }
 
@@ -755,6 +779,31 @@ func ProjectCreateInternal(actor rpc.Actor, req fndapi.ProjectInternalCreateRequ
 					},
 				)
 			}
+
+			groupId, _ := db.Get[struct{ Id string }](
+				tx,
+				`
+					insert into project.groups(title, project) 
+					values (:group_name, :project)
+					returning id
+			    `,
+				db.Params{
+					"group_name": ProjectGroupAllUsers,
+					"project":    resultId,
+				},
+			)
+
+			db.Exec(
+				tx,
+				`
+					insert into project.group_members(username, group_id) 
+					values (:pi, :group_id)
+			    `,
+				db.Params{
+					"pi":       req.PiUsername,
+					"group_id": groupId.Id,
+				},
+			)
 
 			return resultId, true
 		})

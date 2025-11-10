@@ -2,6 +2,7 @@ package foundation
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"runtime"
 	"sync"
@@ -94,55 +95,47 @@ func initNotifications() {
 }
 
 func NotificationsCreate(notifications []fndapi.NotificationsCreateRequest) {
-	var messages []string
-	var users []string
-	var types []string
-	var meta []string
+	ids := db.NewTx(func(tx *db.Transaction) []int64 {
+		var idPromises []*util.Option[struct{ Id int64 }]
+		b := db.BatchNew(tx)
+		for _, reqItem := range notifications {
+			meta := util.OptNone[string]()
+			if reqItem.Notification.Meta.Present {
+				meta.Set(string(reqItem.Notification.Meta.Value))
+			}
 
-	for _, reqItem := range notifications {
-		notification := reqItem.Notification
-		messages = append(messages, notification.Message)
-		users = append(users, reqItem.User)
-		types = append(types, notification.Type)
-		meta = append(meta, string(notification.Meta.Value))
-	}
+			promise := db.BatchGet[struct{ Id int64 }](
+				b,
+				`
+					insert into notification.notifications(id, created_at, message, meta, modified_at, owner, read, type) 
+					values (nextval('notification.hibernate_sequence'), now(), :message, :meta, now(), :username, false, :type)
+					returning id
+				`,
+				db.Params{
+					"username": reqItem.User,
+					"type":     reqItem.Notification.Type,
+					"meta":     meta.Sql(),
+					"message":  reqItem.Notification.Message,
+				},
+			)
 
-	ids := db.NewTx(func(tx *db.Transaction) []struct{ Id int64 } {
-		return db.Select[struct{ Id int64 }](
-			tx,
-			`
-				with requests as (
-					select
-						unnest(:messages) as message,
-						unnest(:users) as username,
-						unnest(:types) as notification_type,
-						unnest(:meta) as meta
-				)
-				insert into notification.notifications(id, created_at, message, meta, modified_at, owner, read, type) 
-				select 
-					nextval('notification.hibernate_sequence') as id,
-					now() as created_at,
-					message,
-					meta,
-					now(),
-					username,
-					false,
-					notification_type
-				from
-					requests
-				returning id
-		    `,
-			db.Params{
-				"messages": messages,
-				"users":    users,
-				"types":    types,
-				"meta":     meta,
-			},
-		)
+			idPromises = append(idPromises, promise)
+		}
+		db.BatchSend(b)
+
+		var ids []int64
+		for _, promise := range idPromises {
+			if promise != nil && promise.Present {
+				ids = append(ids, promise.Value.Id)
+			}
+		}
+
+		return ids
 	})
 
 	for i, notification := range notifications {
-		notification.Notification.Id.Set(ids[i].Id)
+		notification.Notification.Id.Set(ids[i])
+		notification.Notification.Ts = fndapi.Timestamp(time.Now())
 		notificationNotify(notification.User, notification.Notification)
 	}
 }
@@ -194,7 +187,7 @@ func NotificationsBrowse(actor rpc.Actor, request fndapi.NotificationsListReques
 			Id        int64
 			CreatedAt time.Time
 			Message   string
-			Meta      string
+			Meta      sql.Null[string]
 			Type      string
 			Read      bool
 		}](
@@ -235,11 +228,16 @@ func NotificationsBrowse(actor rpc.Actor, request fndapi.NotificationsListReques
 				break
 			}
 
+			meta := util.OptNone[json.RawMessage]()
+			if row.Meta.Valid {
+				meta.Set(json.RawMessage(row.Meta.V))
+			}
+
 			result.Items = append(result.Items, fndapi.Notification{
 				Type:    row.Type,
 				Message: row.Message,
 				Id:      util.OptValue(row.Id),
-				Meta:    util.OptValue(json.RawMessage(row.Meta)),
+				Meta:    meta,
 				Ts:      fndapi.Timestamp(row.CreatedAt),
 				Read:    row.Read,
 			})
