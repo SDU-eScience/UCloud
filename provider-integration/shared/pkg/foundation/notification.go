@@ -2,9 +2,9 @@ package foundation
 
 import (
 	"encoding/json"
-	"net/http"
 	"strconv"
 	"strings"
+
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -85,21 +85,8 @@ type NotificationsCreateRequest struct {
 
 var NotificationsCreate = rpc.Call[NotificationsCreateRequest, util.Empty]{
 	BaseContext: NotificationContext,
-	Operation:   "create",
-	Convention:  rpc.ConventionCustom,
+	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesService,
-
-	CustomPath: "/api/notifications",
-
-	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (NotificationsCreateRequest, *util.HttpError) {
-		return rpc.ParseRequestFromBody[NotificationsCreateRequest](w, r)
-	},
-
-	CustomClientHandler: func(self *rpc.Call[NotificationsCreateRequest, util.Empty], client *rpc.Client, request NotificationsCreateRequest) (util.Empty, *util.HttpError) {
-		resp := rpc.CallViaJsonBody(client, http.MethodPut, self.CustomPath, request)
-		_, err := rpc.ParseResponse[util.Empty](resp)
-		return util.Empty{}, err
-	},
 }
 
 var NotificationsCreateBulk = rpc.Call[BulkRequest[NotificationsCreateRequest], BulkResponse[util.Empty]]{
