@@ -371,6 +371,10 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
     }): APICallParameters {
         return apiUpdate(req, this.baseContext, "requestDynamicParameters")
     }
+
+    rename(request: BulkRequest<{ id: string; newTitle: string; }>) {
+        return apiUpdate(request, this.baseContext, "rename");
+    }
 }
 
 export function isSyncthingApp(app?: Job) {
