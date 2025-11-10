@@ -137,8 +137,30 @@ func initJobs() {
 
 							if job.State == orcapi.JobStateRunning {
 								job.StartedAt.Set(fndapi.Timestamp(time.Now()))
+								// Notification started
+								_, err := fndapi.NotificationsCreate.Invoke(fndapi.NotificationsCreateRequest{
+									User: r.Owner.CreatedBy,
+									Notification: fndapi.Notification{
+										Type:    "JOB_STARTED",
+										Message: fmt.Sprintf("Job has started"),
+									},
+								})
+								if err != nil {
+									log.Info("Could not start job: %s", err)
+								}
+							} else if job.State == orcapi.JobStateFailure || job.State == orcapi.JobStateSuccess {
+								// Notification ended
+								_, err := fndapi.NotificationsCreate.Invoke(fndapi.NotificationsCreateRequest{
+									User: r.Owner.CreatedBy,
+									Notification: fndapi.Notification{
+										Type:    "JOB_COMPLETED",
+										Message: fmt.Sprintf("Job has ended"),
+									},
+								})
+								if err != nil {
+									log.Info("Could not end job: %s", err)
+								}
 							}
-
 							// TODO job notifications
 							// TODO unbind resources
 						}
@@ -1478,4 +1500,36 @@ func jobTransform(
 	}
 
 	return result
+}
+
+type jobNotificationToSend struct {
+	User string
+	Jobs []orcapi.Job
+}
+
+func jobSendNotifications(notifications jobNotificationToSend) {
+	groupedByState := map[orcapi.JobState][]orcapi.Job{}
+	for _, job := range notifications.Jobs {
+		jobState := job.Status.State
+		groupedByState[jobState] = append(groupedByState[jobState], job)
+	}
+	/*
+		meta := map[string]any{
+
+		}
+		metaJson, _ := json.Marshal(notifications)
+
+		_, err := fndapi.NotificationsCreate.Invoke(fndapi.NotificationsCreateRequest{
+			User: notifications.User,
+			Notification: fndapi.Notification{
+				Type:    "JOB_STARTED",
+				Message: fmt.Sprintf("Job has started"),
+				Meta: util.OptValue(json.RawMessage(metaJson)),
+			},
+		})
+
+		if err != nil {
+			log.Info("Could not send notification to user %s: %s", notifications.User, err)
+		}
+	*/
 }
