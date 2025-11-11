@@ -59,6 +59,10 @@ func checkPassword(correctPassword, salt []byte, plainPassword string) bool {
 	return false
 }
 
+func UpdatePassword(username string, newPassword string, conditionalChange bool, currentPasswordForVerification string) {
+	
+}
+
 var dummyPasswordForTiming = hashPassword("forcomparison1234!", nil)
 
 func PasswordLogin(request *http.Request, username string, password string) (fndapi.AuthenticationTokens, *util.HttpError) {
