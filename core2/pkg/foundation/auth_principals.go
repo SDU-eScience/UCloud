@@ -28,6 +28,28 @@ type Principal struct {
 	ModifiedAt              fndapi.Timestamp
 }
 
+func LookupUsernamesByEmail(tx *db.Transaction, email string) ([]string, bool) {
+	ok := db.Select[struct {
+		Id string
+	}](
+		tx,
+		`
+			select id
+			from auth.principals
+			where email = :email
+		`,
+		db.Params{
+			"email": email,
+		},
+	)
+	var results []string
+	for _, elm := range ok {
+		results = append(results, elm.Id)
+	}
+	return results, len(results) > 0
+
+}
+
 type PrincipalSpecification struct {
 	Type           string
 	Id             string

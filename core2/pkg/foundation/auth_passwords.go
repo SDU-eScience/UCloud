@@ -59,8 +59,59 @@ func checkPassword(correctPassword, salt []byte, plainPassword string) bool {
 	return false
 }
 
-func UpdatePassword(username string, newPassword string, conditionalChange bool, currentPasswordForVerification string) {
-	
+func UpdatePassword(tx *db.Transaction, username string, newPassword string, conditionalChange bool, currentPasswordForVerification string) *util.HttpError {
+	if !conditionalChange || currentPasswordForVerification == "" {
+		rows := db.Select[struct {
+			hashedPassword []byte
+			salt           []byte
+		}](
+			tx,
+			`
+ 					select p.hashed_password, p.salt
+                    from auth.principals p
+                    where p.id = :username
+				`,
+			db.Params{
+				"username": username,
+			},
+		)
+		if len(rows) != 1 {
+			return util.HttpErr(http.StatusBadRequest, "Cannot change password for this user")
+		}
+		currentPasswordAndSalt := rows[0]
+		currentPassword := currentPasswordAndSalt.hashedPassword
+		currentSalt := currentPasswordAndSalt.salt
+
+		if conditionalChange {
+			if currentPasswordForVerification == "" {
+				return util.HttpErr(http.StatusBadRequest, "No password supplied")
+			}
+			isValidPassword := checkPassword(currentPassword, currentSalt, currentPasswordForVerification)
+			if !isValidPassword {
+				return util.HttpErr(http.StatusBadRequest, "Invalid username or password")
+			}
+		}
+
+		generatedSalt := genSalt()
+		newPasswordAndSalt := hashPassword(newPassword, generatedSalt)
+		db.Exec(
+			tx,
+			`
+				update auth.principals
+                    set
+                        hashed_password = :hashed,
+                        salt = :salt
+                    where
+                        id = :id
+			`,
+			db.Params{
+				"id":     username,
+				"salt":   newPasswordAndSalt.Salt,
+				"hashed": newPasswordAndSalt.HashedPassword,
+			},
+		)
+	}
+	return nil
 }
 
 var dummyPasswordForTiming = hashPassword("forcomparison1234!", nil)

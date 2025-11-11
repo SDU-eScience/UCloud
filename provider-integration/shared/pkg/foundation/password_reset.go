@@ -6,12 +6,12 @@ import (
 )
 
 type PasswordResetRequest struct {
-	email string
+	Email string
 }
 
 type NewPasswordRequest struct {
-	token       string
-	newPassword string
+	Token       string
+	NewPassword string
 }
 
 // Password Reset

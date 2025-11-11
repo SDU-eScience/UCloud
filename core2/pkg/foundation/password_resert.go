@@ -1,6 +1,7 @@
 package foundation
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -13,11 +14,11 @@ import (
 
 func initPasswordReset() {
 	fndapi.NewPassword.Handler(func(info rpc.RequestInfo, request fndapi.NewPasswordRequest) (util.Empty, *util.HttpError) {
-		return NewPassword()
+		return NewPassword(request.Token, request.NewPassword)
 	})
 
 	fndapi.PasswordReset.Handler(func(info rpc.RequestInfo, request fndapi.PasswordResetRequest) (util.Empty, *util.HttpError) {
-		return ResetPassword()
+		return CreateResetRequest(request.Email)
 	})
 }
 
@@ -41,8 +42,62 @@ func NewPassword(token string, newPassword string) (util.Empty, *util.HttpError)
 	return util.Empty{}, nil
 }
 
-func createResetRequest() {
+func CreateResetRequest(email string) (util.Empty, *util.HttpError) {
+	return db.NewTx2(func(tx *db.Transaction) (util.Empty, *util.HttpError) {
+		users, ok := LookupUsernamesByEmail(tx, email)
+		if !ok {
+			return util.Empty{}, util.HttpErr(http.StatusNotFound, "Cannot create reset request")
+		}
 
+		token := base64.URLEncoding.EncodeToString([]byte(util.RandomTokenNoTs(64)))
+		var bulkRequest fndapi.BulkRequest[fndapi.MailSendToUserRequest]
+		for _, userId := range users {
+			insertTokenToDB(tx, token, userId)
+
+			rawMail := map[string]any{
+				"type":    fndapi.MailTypeResetPassword,
+				"message": mailTemplates[fndapi.MailTypeResetPassword],
+				"subject": "[UCloud] Reset of Password",
+			}
+			mailData, _ := json.Marshal(rawMail)
+			bulkRequest.Items = append(
+				bulkRequest.Items,
+				fndapi.MailSendToUserRequest{
+					Receiver:       userId,
+					Mail:           fndapi.Mail(mailData),
+					Mandatory:      util.OptValue(true),
+					ReceivingEmail: util.OptValue(email),
+				},
+			)
+		}
+
+		_, err := fndapi.MailSendToUser.Invoke(bulkRequest)
+		if err != nil {
+			return util.Empty{}, err
+		}
+		return util.Empty{}, nil
+	})
+
+}
+
+func insertTokenToDB(tx *db.Transaction, token string, userId string) {
+	timeSource := time.Now()
+	expireTime := timeSource.Add(time.Minute * 30)
+
+	db.Exec(
+		tx,
+		`
+			INSERT INTO password_reset.password_reset_requests (token, user_id, expires_at) 
+			VALUES (:token, :userId, :expiresAt)
+		`,
+		db.Params{
+			"token":     token,
+			"userId":    userId,
+			"expiresAt": expireTime,
+		},
+	)
+
+	return util.Empty{}, nil
 }
 
 func getResetRequest(token string) (ResetRequest, bool) {
@@ -64,9 +119,5 @@ func getResetRequest(token string) (ResetRequest, bool) {
 			return row, true
 		}
 	})
-
-}
-
-func ResetPassword() (util.Empty, *util.HttpError) {
 
 }
