@@ -675,12 +675,14 @@ func main() {
 			launcher.HardCheck(err)
 			switch chosen.Value {
 			case TEST_TERMINAL:
+				CliHint("test")
 				launcher.RunTests([]string{""})
 			case TEST_UI:
 				fallthrough
 			case TEST_HEADED:
 				fallthrough
 			case TEST_REPORT:
+				CliHint("test " + chosen.Value)
 				launcher.RunTests([]string{"", chosen.Value})
 			case "back":
 				// Is this really the best approach?

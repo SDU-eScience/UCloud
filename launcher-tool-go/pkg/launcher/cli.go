@@ -226,6 +226,8 @@ func CliIntercept(args []string) {
 
 	case "test":
 		RunTests(args)
+	default:
+		fmt.Printf("Unknown command '%s'\n", cmd)
 	}
 	os.Exit(0)
 }
