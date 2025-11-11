@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -161,9 +162,11 @@ func SessionLoginResponse(r *http.Request, w http.ResponseWriter, session fndapi
 
 	respondViaCookieRedirect := func(response any) {
 		responseJson, _ := json.Marshal(response)
+		encoded := url.QueryEscape(string(responseJson))
+
 		http.SetCookie(w, &http.Cookie{
 			Name:     "authState",
-			Value:    string(responseJson),
+			Value:    encoded,
 			Secure:   secureScheme,
 			HttpOnly: false,
 			Expires:  time.Now().Add(5 * time.Minute),

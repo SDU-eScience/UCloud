@@ -2,9 +2,10 @@ package config
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"os"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -16,11 +17,14 @@ type ConfigurationFormat struct {
 	RefreshToken string
 	Database     Database
 	SelfAddress  HostInfo
+	SelfPublic   HostInfo
 
 	TokenValidation struct {
 		SharedSecret      string
 		PublicCertificate string
 	}
+
+	OpenIdConnect util.Option[OidcAuthentication]
 
 	Logs struct {
 		Directory string
@@ -50,6 +54,13 @@ type Database struct {
 	Password string
 	Database string
 	Ssl      bool
+}
+
+type OidcAuthentication struct {
+	Issuer       string
+	ClientId     string
+	ClientSecret string
+	Scopes       []string
 }
 
 type HostInfo struct {
@@ -121,6 +132,13 @@ func Parse(configDir string) bool {
 
 	addrNode := cfgutil.RequireChild(filePath, document, "selfAddress", &success)
 	cfgutil.Decode(filePath, addrNode, &cfg.SelfAddress, &success)
+
+	addrPublic, _ := cfgutil.GetChildOrNil(filePath, document, "selfPublic")
+	if addrPublic != nil {
+		cfgutil.Decode(filePath, addrPublic, &cfg.SelfPublic, &success)
+	} else {
+		cfg.SelfPublic = cfg.SelfAddress
+	}
 
 	cfg.RequireMfa, _ = cfgutil.OptionalChildBool(filePath, document, "requireMfa")
 
@@ -207,5 +225,30 @@ func Parse(configDir string) bool {
 		}
 	}
 
+	oidc, _ := cfgutil.GetChildOrNil(filePath, document, "openIdConnect")
+	if oidc != nil {
+		ok, oidcConfig := parseOidcAuthentication(filePath, oidc)
+		if !ok {
+			success = false
+		} else {
+			cfg.OpenIdConnect.Set(oidcConfig)
+		}
+	}
+
 	return success
+}
+
+func parseOidcAuthentication(filePath string, node *yaml.Node) (bool, OidcAuthentication) {
+	var result OidcAuthentication
+	success := true
+
+	result.Issuer = cfgutil.RequireChildText(filePath, node, "issuer", &success)
+	result.ClientId = cfgutil.RequireChildText(filePath, node, "clientId", &success)
+	result.ClientSecret = cfgutil.RequireChildText(filePath, node, "clientSecret", &success)
+
+	if child, err := cfgutil.GetChildOrNil(filePath, node, "scopes"); child != nil && err == nil {
+		cfgutil.Decode(filePath, child, &result.Scopes, &success)
+	}
+
+	return success, result
 }

@@ -180,7 +180,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
     }
 
     function handleAuthState(result: any): void {
-        if ("2fa" in result) {
+        if (Object.hasOwn(result, "2fa")) {
             setChallengeID(result["2fa"]);
         } else {
             handleCompleteLogin(result);
