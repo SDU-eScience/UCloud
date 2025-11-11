@@ -32,14 +32,16 @@ export function ucloudUrl(pathname: string): string {
 };
 
 export const Rows = {
-    async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover"): Promise<void> {
+    async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover", inModal: boolean = false): Promise<void> {
         let iterations = 1000;
         for (let i = 0; i < 10; i++) {
             await page.locator(".scrolling").hover();
             await page.mouse.wheel(0, -5000);
         }
 
-        while (!await page.locator(".row div > span", {hasText: name}).isVisible()) {
+        const locator = page.locator(".row div > span", {hasText: name});
+
+        while (!await locator.isVisible()) {
             await page.locator(".scrolling").hover();
             await page.mouse.wheel(0, 150);
             iterations -= 1;
@@ -48,7 +50,7 @@ export const Rows = {
                 break;
             }
         }
-        await page.locator(".row div > span", {hasText: name})[action]();
+        await locator[action]();
     },
 
     async open(page: Page, resourceTitle: string): Promise<void> {
@@ -70,16 +72,20 @@ export const File = {
     },
 
     async create(page: Page, name: string): Promise<void> {
-        await page.getByText("Create folder").isVisible();
-        await page.getByText("Create folder").click();
-        await page.getByRole("textbox").nth(1).fill(name);
-        await page.getByRole("textbox").nth(1).press("Enter");
+        await NetworkCalls.awaitResponse(page, "**/files/folder", async () => {
+            await page.getByText("Create folder").isVisible();
+            await page.getByText("Create folder").click();
+            await page.getByRole("textbox").nth(1).fill(name);
+            await page.getByRole("textbox").nth(1).press("Enter");
+        });
     },
 
-    async delete(page: Page, name: string): Promise<void> {
-        await this.actionByRowTitle(page, name, "click");
-        await page.locator(".operation.button6.in-header:nth-child(6)").click(); // Ellipses
-        await Components.clickConfirmationButton(page, "Move to trash");
+    async moveToTrash(page: Page, name: string): Promise<void> {
+        await NetworkCalls.awaitResponse(page, "**/files/trash", async () => {
+            await this.actionByRowTitle(page, name, "click");
+            await page.locator(".operation.button6.in-header:nth-child(6)").click(); // Ellipses
+            await Components.clickConfirmationButton(page, "Move to trash");
+        });
     },
 
     async uploadFiles(page: Page, files: {name: string, contents: string}[]): Promise<void> {
@@ -103,26 +109,26 @@ export const File = {
     async moveFileTo(page: Page, fileToMove: string, targetFolder: string): Promise<void> {
         await this.openOperationsDropsdown(page, fileToMove);
         await page.getByText("Move to...").click();
-        await page.locator("div.ReactModal__Content div.row", {hasText: targetFolder})
+        await page.getByRole("dialog").locator("div.row", {hasText: targetFolder})
             .getByRole("button").filter({hasText: "Move to"}).click();
-        await page.getByRole("dialog").isHidden();
+        while (await page.getByRole("dialog").isVisible());
     },
 
     async copyFileTo(page: Page, fileToCopy: string, targetFolder: string): Promise<void> {
         await this.openOperationsDropsdown(page, fileToCopy);
         await page.getByText("Copy to...").click();
 
-        await page.locator("div.ReactModal__Content div.row", {hasText: targetFolder})
+        await page.getByRole("dialog").locator("div.row", {hasText: targetFolder})
             .getByRole("button").filter({hasText: "Copy to"}).click();
 
-        await page.getByRole("dialog").isHidden();
+        while (await page.getByRole("dialog").isVisible());
     },
 
     async copyFileInPlace(page: Page, folderName: string): Promise<void> {
         await this.openOperationsDropsdown(page, folderName);
         await page.getByText("Copy to...").click();
         await page.getByText("Use this folder").first().click();
-        await page.getByRole("dialog").isHidden();
+        while (await page.getByRole("dialog").isVisible());
     },
 
     async moveFileToTrash(page: Page, fileName: string): Promise<void> {
@@ -301,7 +307,9 @@ export const Applications = {
     async searchFor(page: Page, query: string): Promise<void> {
         await Components.toggleSearch(page);
         await page.getByRole("textbox").fill(query);
-        await page.keyboard.press("Enter");
+        await NetworkCalls.awaitResponse(page, "**/hpc/apps/search", async () => {
+            await page.keyboard.press("Enter");
+        })
     },
 };
 
@@ -326,7 +334,9 @@ export const Runs = {
         await this.goToRuns(page);
         await Components.projectSwitcher(page, "hover");
         await page.locator(".row").getByText(jobName).click();
-        await Components.clickConfirmationButton(page, "Stop");
+        await NetworkCalls.awaitResponse(page, "**/jobs/terminate", async () => {
+            await Components.clickConfirmationButton(page, "Stop");
+        });
     },
 
     async setJobTitle(page: Page, name: string): Promise<void> {
@@ -346,7 +356,9 @@ export const Runs = {
             await this.extendTimeBy(page, extension);
         }
 
-        await page.getByRole("button", {name: "Submit"}).click();
+        await NetworkCalls.awaitResponse(page, "**/api/jobs", async () => {
+            await page.getByRole("button", {name: "Submit"}).click();
+        })
 
         await page.getByText("is now running").first().hover();
     },
@@ -411,7 +423,12 @@ export const Resources = {
 
     IPs: {
         async createNew(page: Page): Promise<void> {
-            await page.getByText("Create public IP").click();
+            await NetworkCalls.awaitProducts(page, async () => {
+                await Resources.goTo(page, "IP addresses");
+                await page.getByText("Create public IP").click();
+            });
+
+            await page.getByRole("dialog").getByText("public-ip").hover();
             await this.fillPortRowInDialog(page);
         },
 
@@ -473,3 +490,15 @@ const Help = {
         return namespace + Math.random().toString().slice(2, 7);
     }
 };
+
+export const NetworkCalls = {
+    async awaitResponse(page: Page, path: string, block: () => Promise<void>) {
+        const prom = page.waitForResponse(path);
+        await block();
+        await prom;
+    },
+
+    async awaitProducts(page: Page, block: () => Promise<void>) {
+        await NetworkCalls.awaitResponse(page, "**/retrieveProducts?*", block)
+    }
+}

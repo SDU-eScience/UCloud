@@ -1,5 +1,5 @@
 import {expect, test} from "@playwright/test";
-import {Applications, Components, User, Runs, File, Drive, Terminal} from "./shared";
+import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls} from "./shared";
 
 test.beforeEach(async ({page}) => {
     await User.login(page);
@@ -19,9 +19,11 @@ test("Run job with jobname, extend time, stop job, validate jobname in runs", as
 
     await page.getByText("Time remaining: 02").isVisible();
 
-    await Components.clickConfirmationButton(page, "Stop application");
+    await NetworkCalls.awaitResponse(page, "**/jobs/terminate", async () => {
+        await Components.clickConfirmationButton(page, "Stop application");
+    });
 
-    await page.getByText("Run application again").isVisible();
+    await page.getByText("Run application again").hover();
     await expect(page.getByText("Run application again")).toHaveCount(1);
 });
 
@@ -37,7 +39,9 @@ test("Start app and stop app from runs page. Start it from runs page, testing pa
     const jobName = Runs.newJobName();
 
     await Applications.goToApplications(page);
-    await page.getByRole("button", {name: "Open application"}).click();
+    await NetworkCalls.awaitProducts(page, async () => {
+        await page.getByRole("button", {name: "Open application"}).click();
+    });
     await Runs.setJobTitle(page, jobName);
     await Components.selectAvailableMachineType(page);
     await Runs.extendTimeBy(page, 1);

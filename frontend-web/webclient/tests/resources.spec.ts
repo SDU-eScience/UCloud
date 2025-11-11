@@ -24,7 +24,6 @@ test.skip("Create public link, view properties, delete", async ({page}) => {
 
 /* Resources.IPs */
 test("Create ip and view properties", async ({page}) => {
-    await Resources.goTo(page, "IP addresses");
     const publicIpName = await IPs.createNew(page);
 });
 

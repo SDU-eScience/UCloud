@@ -69,7 +69,6 @@ test("View properties", async ({page}) => {
 
 test("Stress testing the row selector", async ({page}) => {
     for (let i = 0; i < 100; i++) {
-        if (afterEach.v) console.log("Finished! Shouldn't be here")
         await File.create(page, "Folder" + i);
     }
     await File.actionByRowTitle(page, "Folder99", "click");
@@ -103,7 +102,7 @@ test("Create single folder, delete single folder", async ({page}) => {
     const folderName = File.newFolderName();
     await File.create(page, folderName);
     await expect(page.locator('div > span', {hasText: folderName})).toHaveCount(1);
-    await File.delete(page, folderName);
+    await File.moveToTrash(page, folderName);
     await expect(page.locator('div > span', {hasText: folderName})).toHaveCount(0);
 });
 
@@ -150,7 +149,9 @@ test("Move folder", async ({page}) => {
 test("Move folder to child (invalid op)", async ({page}) => {
     const rootFolder = "From";
     await File.create(page, rootFolder);
-    await File.moveFileTo(page, rootFolder, rootFolder);
+    await File.openOperationsDropsdown(page, rootFolder);
+    await page.getByText("Move to...").click();
+    await page.getByRole("dialog").getByText("Move to", {exact: true}).click();
     await expect(page.getByText("Unable to move file.")).toHaveCount(1);
     await page.keyboard.press("Escape");
 });
