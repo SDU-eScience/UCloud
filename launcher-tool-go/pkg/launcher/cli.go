@@ -289,7 +289,7 @@ func (u *UserTokens) SetupUserWithResources() {
 }
 
 func createGift() int {
-	result := CallService("backend", "POST", "http://localhost:8080/api/gifts", FetchAccessToken(), fmt.Sprintf(`{
+	result := CallService("backend", "POST", "http://localhost:8080/api/gifts", FetchAccessToken(true), fmt.Sprintf(`{
 		"id": 0,
 		"criteria": [{"type": "anyone"}],
 		"description": "Testing purposes",
@@ -366,7 +366,7 @@ type ErrorMessage struct {
 }
 
 func createUser(username string, password string, role string) *UserTokens {
-	accessToken := FetchAccessToken()
+	accessToken := FetchAccessToken(true)
 	mail := username + "@fake-mail.com"
 	response := CallService(
 		"backend",
@@ -430,7 +430,7 @@ func testCommandFromArgs(args []string) []string {
 }
 
 func createRootAllocation() {
-	CallService("backend", "POST", "localhost:8080/api/accounting/v2/rootAllocate", FetchAccessToken(), `{
+	CallService("backend", "POST", "localhost:8080/api/accounting/v2/rootAllocate", FetchAccessToken(true), `{
 		"items": [
 			{
 				"category": {
@@ -490,7 +490,7 @@ func getProviderId() string {
 
 	var providerResult ProviderResult
 
-	result := CallService("backend", "GET", "localhost:8080/api/providers/integration/browse?itemsPerPage=250", FetchAccessToken(), "", []string{})
+	result := CallService("backend", "GET", "localhost:8080/api/providers/integration/browse?itemsPerPage=250", FetchAccessToken(true), "", []string{})
 	_ = json.Unmarshal([]byte(result), &providerResult)
 
 	for _, provider := range providerResult.Items {
@@ -519,7 +519,7 @@ func getRootProjectId() string {
 	if rootProjectId != "" {
 		return rootProjectId
 	}
-	result := CallService("backend", "GET", "localhost:8080/api/projects/v2/browse?itemsPerPage=250&includeFavorite=true&includeMembers=true&sortBy=favorite&sortDirection=descending&includeArchived=true", FetchAccessToken(), "", []string{})
+	result := CallService("backend", "GET", "localhost:8080/api/projects/v2/browse?itemsPerPage=250&includeFavorite=true&includeMembers=true&sortBy=favorite&sortDirection=descending&includeArchived=true", FetchAccessToken(true), "", []string{})
 	var projectBrowseResponse struct {
 		Items []Project `json:"items"`
 	}

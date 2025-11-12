@@ -120,11 +120,7 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 	}
 }
 
-type InitEnvironmentResult struct {
-	ShouldStartEnvironment bool
-}
-
-func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string) InitEnvironmentResult {
+func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string) (initEnvironment bool) {
 	var err error
 	if shouldInitializeTestEnvironment {
 		_ = os.RemoveAll(baseDir)
@@ -143,6 +139,7 @@ func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string
 			env = nil
 		}
 	}
+
 	if env == nil {
 		fmt.Println(`
 No active environment detected!
@@ -158,8 +155,7 @@ meaning and you can simply choose the default by pressing enter.
 		fmt.Println()
 		SelectOrCreateEnvironment(baseDir, shouldInitializeTestEnvironment)
 	} else {
-		fmt.Println("Active environment: " + env.Name())
-		fmt.Println()
+		fmt.Printf("Active environment: %s\n\n", env.Name())
 		path, err := filepath.Abs(env.Name())
 		HardCheck(err)
 		currentEnvironment = NewFile(path)
@@ -172,7 +168,7 @@ meaning and you can simply choose the default by pressing enter.
 	err = os.WriteFile(filepath.Join(baseDir, "current.txt"), currentName, 0644)
 	HardCheck(err)
 
-	return InitEnvironmentResult{ShouldStartEnvironment: isNew}
+	return isNew
 }
 
 func InitIO() {
