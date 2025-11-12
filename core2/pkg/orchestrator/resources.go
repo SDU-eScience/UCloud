@@ -407,9 +407,7 @@ func lResourceApplyFlags(r *resource, myPerms []orcapi.Permission, flags orcapi.
 		copy(result.Permissions.Others, r.Acl)
 	}
 
-	if flags.IncludeProduct {
-		// TODO
-	}
+	// NOTE(Dan): includeProduct is handled by the individual transformers now
 
 	return result, true
 }

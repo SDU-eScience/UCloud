@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -363,9 +364,8 @@ func ingressPersist(b *db.Batch, r *resource) {
 }
 
 func ingressTransform(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any {
-	// TODO Resolved product and support
 	ing := extra.(*internalIngress)
-	return orcapi.Ingress{
+	result := orcapi.Ingress{
 		Resource: r,
 		Specification: orcapi.IngressSpecification{
 			Domain:  ing.Domain,
@@ -376,4 +376,13 @@ func ingressTransform(r orcapi.Resource, product util.Option[accapi.ProductRefer
 			State:   "READY",
 		},
 	}
+
+	if flags.IncludeProduct || flags.IncludeSupport {
+		support, _ := SupportByProduct[orcapi.IngressSupport](ingressType, product.Value)
+		result.Status.ResourceStatus = orcapi.ResourceStatus[orcapi.IngressSupport]{
+			ResolvedSupport: util.OptValue(support.ToApi()),
+			ResolvedProduct: util.OptValue(support.Product),
+		}
+	}
+	return result
 }

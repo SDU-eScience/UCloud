@@ -1462,7 +1462,7 @@ func jobTransform(
 
 	if flags.IncludeProduct || flags.IncludeSupport {
 		support, _ := SupportByProduct[orcapi.JobSupport](jobType, product.Value)
-		result.Status.ResolvedProduct = support.Product
+		result.Status.ResolvedProduct.Set(support.Product)
 		result.Status.ResolvedSupport = support.ToApi()
 	}
 

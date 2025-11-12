@@ -100,7 +100,7 @@ type JobStatus struct {
 	StartedAt           util.Option[fnd.Timestamp]  `json:"startedAt,omitempty"`
 	ExpiresAt           util.Option[fnd.Timestamp]  `json:"expiresAt,omitempty"`
 	ResolvedApplication Application                 `json:"resolvedApplication,omitempty"`
-	ResolvedProduct     apm.ProductV2               `json:"resolvedProduct,omitempty"`
+	ResolvedProduct     util.Option[apm.ProductV2]  `json:"resolvedProduct,omitempty"`
 	ResolvedSupport     ResolvedSupport[JobSupport] `json:"resolvedSupport"`
 	AllowRestart        bool                        `json:"allowRestart"`
 }

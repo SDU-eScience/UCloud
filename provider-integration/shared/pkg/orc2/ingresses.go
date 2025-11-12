@@ -29,6 +29,7 @@ type IngressSpecification struct {
 type IngressStatus struct {
 	BoundTo []string     `json:"boundTo"`
 	State   IngressState `json:"state"`
+	ResourceStatus[IngressSupport]
 }
 
 type IngressUpdate struct {
