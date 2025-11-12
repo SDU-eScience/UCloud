@@ -1022,6 +1022,7 @@ func JobsSearch(
 
 			return false
 		},
+		nil,
 	), nil
 }
 
@@ -1031,6 +1032,10 @@ func JobsBrowse(
 	itemsPerPage int,
 	flags orcapi.JobFlags,
 ) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
+	sortByFn := ResourceDefaultComparator(func(item orcapi.Job) orcapi.Resource {
+		return item.Resource
+	}, flags.ResourceFlags)
+
 	return ResourceBrowse(
 		actor,
 		jobType,
@@ -1046,6 +1051,7 @@ func JobsBrowse(
 
 			return true
 		},
+		sortByFn,
 	), nil
 }
 
@@ -1432,6 +1438,7 @@ func jobTransform(
 	product util.Option[accapi.ProductReference],
 	extra any,
 	flags orcapi.ResourceFlags,
+	actor rpc.Actor,
 ) any {
 	info := extra.(*internalJob)
 

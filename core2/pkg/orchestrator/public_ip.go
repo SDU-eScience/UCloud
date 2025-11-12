@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -28,6 +29,10 @@ func initPublicIps() {
 	)
 
 	orcapi.PublicIpsBrowse.Handler(func(info rpc.RequestInfo, request orcapi.PublicIpsBrowseRequest) (fndapi.PageV2[orcapi.PublicIp], *util.HttpError) {
+		sortByFn := ResourceDefaultComparator(func(item orcapi.PublicIp) orcapi.Resource {
+			return item.Resource
+		}, request.ResourceFlags)
+
 		return ResourceBrowse(
 			info.Actor,
 			publicIpType,
@@ -37,6 +42,7 @@ func initPublicIps() {
 			func(item orcapi.PublicIp) bool {
 				return true
 			},
+			sortByFn,
 		), nil
 	})
 
@@ -50,6 +56,7 @@ func initPublicIps() {
 			func(item orcapi.PublicIp) bool {
 				return true
 			},
+			nil,
 		), nil
 	})
 
@@ -123,6 +130,7 @@ func initPublicIps() {
 				// TODO Something else?
 				return false
 			},
+			nil,
 		), nil
 	})
 
@@ -340,7 +348,13 @@ func publicIpPersist(b *db.Batch, r *resource) {
 	}
 }
 
-func publicIpTransform(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any {
+func publicIpTransform(
+	r orcapi.Resource,
+	product util.Option[accapi.ProductReference],
+	extra any,
+	flags orcapi.ResourceFlags,
+	actor rpc.Actor,
+) any {
 	ip := extra.(*internalPublicIp)
 	result := orcapi.PublicIp{
 		Resource: r,

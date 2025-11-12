@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"fmt"
-	"math"
 	"net/http"
 	"runtime"
 	"slices"
@@ -104,7 +103,7 @@ type resourceTypeGlobal struct {
 	OnLoad             func(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource)
 	OnPersist          func(b *db.Batch, resources *resource)
 	OnPersistCommitted func(r *resource)
-	Transformer        func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any
+	Transformer        func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any
 
 	IndexersMu sync.RWMutex
 	Indexers   []func(r *resource) ResourceIndexer
@@ -177,7 +176,7 @@ func InitResourceType(
 	flags resourceTypeFlags,
 	doLoad func(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource),
 	doPersist func(b *db.Batch, r *resource),
-	transformer func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any,
+	transformer func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any,
 	persistCommitted func(r *resource),
 ) {
 	if !resourceGlobals.Testing.Enabled {
@@ -442,7 +441,7 @@ func ResourceRetrieveEx[T any](
 		b.Mu.RLock()
 		mapped, ok := lResourceApplyFlags(r, perms, flags)
 		if ok {
-			rawResult := g.Transformer(mapped, r.Product, r.Extra, flags)
+			rawResult := g.Transformer(mapped, r.Product, r.Extra, flags, actor)
 			result = rawResult.(T)
 		}
 		b.Mu.RUnlock()
@@ -454,6 +453,60 @@ func ResourceRetrieveEx[T any](
 	return result, orcapi.Resource{}, util.OptNone[accapi.ProductReference](), util.HttpErr(http.StatusNotFound, "not found")
 }
 
+type ResourceSortByFn[T any] func(a T, b T) int
+
+func ResourceDefaultComparator[T any](resourceGetter func(item T) orcapi.Resource, flags orcapi.ResourceFlags) ResourceSortByFn[T] {
+	if !flags.SortBy.Present {
+		return nil
+	}
+
+	switch flags.SortBy.Value {
+	case "createdAt":
+		return func(a T, b T) int {
+			aResc := resourceGetter(a)
+			bResc := resourceGetter(b)
+
+			cmp := aResc.CreatedAt.Time().Compare(bResc.CreatedAt.Time())
+			if cmp != 0 {
+				return cmp
+			} else {
+				aId := ResourceParseId(aResc.Id)
+				bId := ResourceParseId(bResc.Id)
+				if aId < bId {
+					return -1
+				} else if aId > bId {
+					return 1
+				} else {
+					return 0
+				}
+			}
+		}
+
+	case "createdBy":
+		return func(a T, b T) int {
+			aResc := resourceGetter(a)
+			bResc := resourceGetter(b)
+			cmp := strings.Compare(aResc.Owner.CreatedBy, bResc.Owner.CreatedBy)
+			if cmp != 0 {
+				return cmp
+			} else {
+				aId := ResourceParseId(aResc.Id)
+				bId := ResourceParseId(bResc.Id)
+				if aId < bId {
+					return -1
+				} else if aId > bId {
+					return 1
+				} else {
+					return 0
+				}
+			}
+		}
+
+	default:
+		return nil
+	}
+}
+
 func ResourceBrowse[T any](
 	actor rpc.Actor,
 	typeName string,
@@ -461,6 +514,7 @@ func ResourceBrowse[T any](
 	itemsPerPage int,
 	flags orcapi.ResourceFlags,
 	filter func(item T) bool,
+	sortComparator ResourceSortByFn[T],
 ) fndapi.PageV2[T] {
 	if flags.FilterProviderIds.Present {
 		providerId, ok := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
@@ -502,12 +556,20 @@ func ResourceBrowse[T any](
 		idxBucket.Mu.RLock()
 		idx := idxBucket.ByOwner[ref]
 
-		maxId := ResourceId(math.MaxInt64)
 		initialPrefetchIndex := max(0, len(idx)-500)
-		if next.Present {
-			rId := ResourceParseId(next.Value)
-			nextIdx, _ := slices.BinarySearch(idx, rId)
-			initialPrefetchIndex = max(0, nextIdx-500)
+
+		if len(idx) > 10_000 {
+			// NOTE(Dan): We refuse to run anything but the default sort if there are too many expected results.
+			// We will have to add a better solution if this ever becomes an issue.
+			sortComparator = nil
+		}
+
+		if sortComparator == nil {
+			if next.Present {
+				rId := ResourceParseId(next.Value)
+				nextIdx, _ := slices.BinarySearch(idx, rId)
+				initialPrefetchIndex = max(0, nextIdx-500)
+			}
 		}
 
 		lastPrefetchIndex := min(len(idx), initialPrefetchIndex+500)
@@ -522,9 +584,6 @@ func ResourceBrowse[T any](
 
 		for i := len(idx) - 1; i >= 0; i-- {
 			id := idx[i]
-			if id >= maxId {
-				continue
-			}
 
 			b := resourceGetBucket(typeName, id)
 			resc, ok, perms := resourcesReadEx(actor, typeName, orcapi.PermissionRead, b, id, prefetchList)
@@ -533,9 +592,9 @@ func ResourceBrowse[T any](
 				b.Mu.RLock()
 				mapped, ok := lResourceApplyFlags(resc, perms, flags)
 				if ok {
-					item := g.Transformer(mapped, resc.Product, resc.Extra, flags).(T)
+					item := g.Transformer(mapped, resc.Product, resc.Extra, flags, actor).(T)
 					if filter == nil || filter(item) {
-						if len(items) >= itemsPerPage {
+						if sortComparator == nil && len(items) >= itemsPerPage {
 							newNext.Set(fmt.Sprint(prevId))
 							break
 						} else {
@@ -545,6 +604,32 @@ func ResourceBrowse[T any](
 					}
 				}
 				b.Mu.RUnlock()
+			}
+		}
+
+		if sortComparator != nil {
+			actualSortComparator := sortComparator
+			if flags.SortDirection.Present && flags.SortDirection.Value == orcapi.SortDirectionDescending {
+				actualSortComparator = func(a T, b T) int {
+					res := sortComparator(a, b)
+					return res * -1
+				}
+			}
+
+			slices.SortFunc(items, actualSortComparator)
+			baseIdx := 0
+			if next.Present {
+				nextIdx, err := strconv.ParseInt(next.Value, 10, 32)
+				if err == nil {
+					baseIdx = int(nextIdx)
+				}
+			}
+
+			lastIdx := min(len(items), baseIdx+itemsPerPage)
+			hasMore := len(items) > lastIdx
+			items = items[baseIdx:lastIdx]
+			if hasMore {
+				next.Set(fmt.Sprint(lastIdx))
 			}
 		}
 
@@ -584,7 +669,7 @@ func ResourceUpdate[T any](
 		if !ok {
 			panic("resource was not supposed to be filtered here")
 		}
-		mapped := g.Transformer(apiResc, resc.Product, resc.Extra, orcapi.ResourceFlags{}).(T)
+		mapped := g.Transformer(apiResc, resc.Product, resc.Extra, orcapi.ResourceFlags{}, actor).(T)
 
 		// Indexing before modification
 		var indexers []ResourceIndexer
@@ -814,7 +899,7 @@ func ResourceCreateEx[T any](
 	}
 
 	apiResc, _ := lResourceApplyFlags(r, nil, resourceFlags)
-	mapped := g.Transformer(apiResc, r.Product, r.Extra, resourceFlags).(T)
+	mapped := g.Transformer(apiResc, r.Product, r.Extra, resourceFlags, rpc.ActorSystem).(T)
 
 	var indexers []ResourceIndexer
 	g.IndexersMu.RLock()
@@ -845,7 +930,7 @@ func ResourceCreate[T any](
 ) (ResourceId, T, *util.HttpError) {
 	g := resourceGetGlobals(typeName)
 	if g.Flags&resourceTypeCreateWithoutAdmin == 0 {
-		if actor.Project.Present && actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
+		if actor.Project.Present && !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
 			var t T
 			return 0, t, util.HttpErr(http.StatusForbidden, "you need administrator privileges to do this operation")
 		}

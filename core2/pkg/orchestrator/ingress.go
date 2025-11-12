@@ -37,6 +37,10 @@ func initIngresses() {
 	)
 
 	orcapi.IngressesBrowse.Handler(func(info rpc.RequestInfo, request orcapi.IngressesBrowseRequest) (fndapi.PageV2[orcapi.Ingress], *util.HttpError) {
+		sortByFn := ResourceDefaultComparator(func(item orcapi.Ingress) orcapi.Resource {
+			return item.Resource
+		}, request.ResourceFlags)
+
 		return ResourceBrowse[orcapi.Ingress](
 			info.Actor,
 			ingressType,
@@ -46,6 +50,7 @@ func initIngresses() {
 			func(item orcapi.Ingress) bool {
 				return true
 			},
+			sortByFn,
 		), nil
 	})
 
@@ -59,6 +64,7 @@ func initIngresses() {
 			func(item orcapi.Ingress) bool {
 				return true
 			},
+			nil,
 		), nil
 	})
 
@@ -189,6 +195,7 @@ func initIngresses() {
 					return false
 				}
 			},
+			nil,
 		), nil
 	})
 
@@ -363,7 +370,7 @@ func ingressPersist(b *db.Batch, r *resource) {
 	}
 }
 
-func ingressTransform(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any {
+func ingressTransform(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
 	ing := extra.(*internalIngress)
 	result := orcapi.Ingress{
 		Resource: r,

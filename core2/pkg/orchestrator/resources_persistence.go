@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"database/sql"
 	"time"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	orcapi "ucloud.dk/shared/pkg/orc2"
@@ -330,13 +331,11 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 					provider.resource r
 					left join accounting.products p on r.product = p.id
 					left join accounting.product_categories pc on p.category = pc.id
-					left join provider.resource_acl_entry acl_entry on r.id = acl_entry.resource_id
 				where
 				    (
 						(r.created_by = :reference and r.project is null and pc.provider is distinct from :reference)
 						or (r.project = :reference and r.created_by != :reference and pc.provider is distinct from :reference)
 						or (pc.provider is not distinct from :reference and r.created_by != :reference and r.project != :reference)
-						or (acl_entry.username = :reference)
 					)
 					and r.type = :type
 		    `,

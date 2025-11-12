@@ -26,6 +26,10 @@ func initLicenses() {
 	)
 
 	orcapi.LicensesBrowse.Handler(func(info rpc.RequestInfo, request orcapi.LicensesBrowseRequest) (fndapi.PageV2[orcapi.License], *util.HttpError) {
+		sortByFn := ResourceDefaultComparator(func(item orcapi.License) orcapi.Resource {
+			return item.Resource
+		}, request.ResourceFlags)
+
 		return ResourceBrowse[orcapi.License](
 			info.Actor,
 			licenseType,
@@ -35,6 +39,7 @@ func initLicenses() {
 			func(item orcapi.License) bool {
 				return true
 			},
+			sortByFn,
 		), nil
 	})
 
@@ -48,6 +53,7 @@ func initLicenses() {
 			func(item orcapi.License) bool {
 				return true
 			},
+			nil,
 		), nil
 	})
 
@@ -95,6 +101,7 @@ func initLicenses() {
 				// TODO Something
 				return true
 			},
+			nil,
 		), nil
 	})
 
@@ -214,6 +221,7 @@ func licenseTransform(
 	product util.Option[accapi.ProductReference],
 	extra any,
 	flags orcapi.ResourceFlags,
+	actor rpc.Actor,
 ) any {
 	license := extra.(*internalLicense)
 	result := orcapi.License{

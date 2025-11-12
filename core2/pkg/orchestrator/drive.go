@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -27,6 +28,23 @@ func initDrives() {
 	)
 
 	orcapi.DrivesBrowse.Handler(func(info rpc.RequestInfo, request orcapi.DrivesBrowseRequest) (fndapi.PageV2[orcapi.Drive], *util.HttpError) {
+		sortByFn := ResourceDefaultComparator(func(item orcapi.Drive) orcapi.Resource {
+			return item.Resource
+		}, request.ResourceFlags)
+
+		switch request.SortBy.GetOrDefault("") {
+		case "", "title":
+			sortByFn = func(a orcapi.Drive, b orcapi.Drive) int {
+				if a.Status.PreferredDrive && !b.Status.PreferredDrive {
+					return -1
+				} else if !a.Status.PreferredDrive && b.Status.PreferredDrive {
+					return 1
+				} else {
+					return strings.Compare(a.Specification.Title, b.Specification.Title)
+				}
+			}
+		}
+
 		return ResourceBrowse(
 			info.Actor,
 			driveType,
@@ -36,6 +54,7 @@ func initDrives() {
 			func(item orcapi.Drive) bool {
 				return true
 			},
+			sortByFn,
 		), nil
 	})
 
@@ -73,7 +92,7 @@ func initDrives() {
 
 		items := ResourceBrowse[orcapi.Drive](info.Actor, driveType, request.Next, request.ItemsPerPage, request.ResourceFlags, func(item orcapi.Drive) bool {
 			return strings.Contains(strings.ToLower(item.Specification.Title), strings.ToLower(request.Query))
-		})
+		}, nil)
 
 		return items, nil
 	})
@@ -116,6 +135,7 @@ func initDrives() {
 			func(item orcapi.Drive) bool {
 				return true
 			},
+			nil,
 		), nil
 	})
 
@@ -246,8 +266,11 @@ func driveLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resour
 	}
 }
 
-func driveTransform(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any {
+func driveTransform(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
 	info := extra.(*driveInfo)
+
+	isPreferred := r.Owner.CreatedBy == actor.Username &&
+		(strings.HasPrefix(r.ProviderGeneratedId, "h-") || strings.HasPrefix(r.ProviderGeneratedId, "pm-"))
 
 	result := orcapi.Drive{
 		Resource: r,
@@ -255,12 +278,15 @@ func driveTransform(r orcapi.Resource, product util.Option[accapi.ProductReferen
 			Title:   info.Title,
 			Product: product.Value,
 		},
+		Status: orcapi.DriveStatus{
+			PreferredDrive: isPreferred,
+		},
 		Updates: make([]orcapi.ResourceUpdate, 0),
 	}
 
 	if flags.IncludeProduct || flags.IncludeSupport {
 		support, _ := SupportByProduct[orcapi.FSSupport](driveType, product.Value)
-		result.Status = orcapi.ResourceStatus[orcapi.FSSupport]{
+		result.Status.ResourceStatus = orcapi.ResourceStatus[orcapi.FSSupport]{
 			ResolvedSupport: util.OptValue(support.ToApi()),
 			ResolvedProduct: util.OptValue(support.Product),
 		}
