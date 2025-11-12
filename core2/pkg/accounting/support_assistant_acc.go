@@ -2,6 +2,7 @@ package accounting
 
 import (
 	"net/http"
+
 	fnd "ucloud.dk/core/pkg/foundation"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
@@ -109,10 +110,7 @@ func retrieveUserInfo(username string, email string) (accapi.SupportAssistRetrie
 	}
 	if email != "" {
 		db.NewTx0(func(tx *db.Transaction) {
-			users, found := fnd.LookupUsernamesByEmail(tx, email)
-			if !found {
-				return
-			}
+			users := fnd.PrincipalLookupByEmail(tx, email)
 			for _, user := range users {
 				userInfo, foundUserInfo := usernameToUserInfo(tx, user)
 				if foundUserInfo {
