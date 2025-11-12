@@ -464,69 +464,97 @@ func ResourceBrowse[T any](
 	flags orcapi.ResourceFlags,
 	filter func(item T) bool,
 ) fndapi.PageV2[T] {
-	// TODO if providerId filter is present, use providerId index instead
-
-	g := resourceGetGlobals(typeName)
-	ref := actor.Username
-	if actor.Project.Present {
-		ref = string(actor.Project.Value)
-	}
-
-	idxBucket := resourceGetAndLoadIndex(typeName, ref)
-
-	idxBucket.Mu.RLock()
-	idx := idxBucket.ByOwner[ref]
-
-	maxId := ResourceId(math.MaxInt64)
-	initialPrefetchIndex := max(0, len(idx)-500)
-	if next.Present {
-		rId := ResourceParseId(next.Value)
-		nextIdx, _ := slices.BinarySearch(idx, rId)
-		initialPrefetchIndex = max(0, nextIdx-500)
-	}
-
-	lastPrefetchIndex := min(len(idx), initialPrefetchIndex+500)
-	prefetchList := make([]ResourceId, lastPrefetchIndex-initialPrefetchIndex)
-	copy(prefetchList, idx[initialPrefetchIndex:lastPrefetchIndex])
-	idxBucket.Mu.RUnlock()
-
-	var items []T
-	newNext := util.OptNone[string]()
-	itemsPerPage = fndapi.ItemsPerPage(itemsPerPage)
-	prevId := ResourceId(0)
-
-	for i := len(idx) - 1; i >= 0; i-- {
-		id := idx[i]
-		if id >= maxId {
-			continue
+	if flags.FilterProviderIds.Present {
+		providerId, ok := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
+		providerGenIds := strings.Split(flags.FilterIds.Value, ",")
+		if !ok || len(providerGenIds) > 1000 || len(providerGenIds) == 0 {
+			return fndapi.PageV2[T]{Items: util.NonNilSlice[T](nil), ItemsPerPage: 1000}
 		}
 
-		b := resourceGetBucket(typeName, id)
-		resc, ok, perms := resourcesReadEx(actor, typeName, orcapi.PermissionRead, b, id, prefetchList)
+		var resourceIds []ResourceId
 
-		if ok {
-			b.Mu.RLock()
-			mapped, ok := lResourceApplyFlags(resc, perms, flags)
+		providerBucket := resourceGetProvider(providerId)
+		providerBucket.Mu.Lock()
+		for _, id := range providerGenIds {
+			rescId, ok := providerBucket.ProviderIds[id]
 			if ok {
-				item := g.Transformer(mapped, resc.Product, resc.Extra, flags).(T)
-				if filter == nil || filter(item) {
-					if len(items) >= itemsPerPage {
-						newNext.Set(fmt.Sprint(prevId))
-						break
-					} else {
-						prevId = resc.Id
-						items = append(items, item)
+				resourceIds = append(resourceIds, rescId)
+			}
+		}
+		providerBucket.Mu.Unlock()
+
+		var items []T
+		for _, rescId := range resourceIds {
+			resc, err := ResourceRetrieve[T](actor, typeName, rescId, flags)
+			if err == nil && filter(resc) {
+				items = append(items, resc)
+			}
+		}
+
+		return fndapi.PageV2[T]{Items: items, ItemsPerPage: 1000}
+	} else {
+		g := resourceGetGlobals(typeName)
+		ref := actor.Username
+		if actor.Project.Present {
+			ref = string(actor.Project.Value)
+		}
+
+		idxBucket := resourceGetAndLoadIndex(typeName, ref)
+
+		idxBucket.Mu.RLock()
+		idx := idxBucket.ByOwner[ref]
+
+		maxId := ResourceId(math.MaxInt64)
+		initialPrefetchIndex := max(0, len(idx)-500)
+		if next.Present {
+			rId := ResourceParseId(next.Value)
+			nextIdx, _ := slices.BinarySearch(idx, rId)
+			initialPrefetchIndex = max(0, nextIdx-500)
+		}
+
+		lastPrefetchIndex := min(len(idx), initialPrefetchIndex+500)
+		prefetchList := make([]ResourceId, lastPrefetchIndex-initialPrefetchIndex)
+		copy(prefetchList, idx[initialPrefetchIndex:lastPrefetchIndex])
+		idxBucket.Mu.RUnlock()
+
+		var items []T
+		newNext := util.OptNone[string]()
+		itemsPerPage = fndapi.ItemsPerPage(itemsPerPage)
+		prevId := ResourceId(0)
+
+		for i := len(idx) - 1; i >= 0; i-- {
+			id := idx[i]
+			if id >= maxId {
+				continue
+			}
+
+			b := resourceGetBucket(typeName, id)
+			resc, ok, perms := resourcesReadEx(actor, typeName, orcapi.PermissionRead, b, id, prefetchList)
+
+			if ok {
+				b.Mu.RLock()
+				mapped, ok := lResourceApplyFlags(resc, perms, flags)
+				if ok {
+					item := g.Transformer(mapped, resc.Product, resc.Extra, flags).(T)
+					if filter == nil || filter(item) {
+						if len(items) >= itemsPerPage {
+							newNext.Set(fmt.Sprint(prevId))
+							break
+						} else {
+							prevId = resc.Id
+							items = append(items, item)
+						}
 					}
 				}
+				b.Mu.RUnlock()
 			}
-			b.Mu.RUnlock()
 		}
-	}
 
-	return fndapi.PageV2[T]{
-		Items:        items,
-		Next:         newNext,
-		ItemsPerPage: itemsPerPage,
+		return fndapi.PageV2[T]{
+			Items:        items,
+			Next:         newNext,
+			ItemsPerPage: itemsPerPage,
+		}
 	}
 }
 
