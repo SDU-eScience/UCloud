@@ -62,8 +62,8 @@ func checkPassword(correctPassword, salt []byte, plainPassword string) bool {
 func UpdatePassword(tx *db.Transaction, username string, newPassword string, conditionalChange bool, currentPasswordForVerification string) *util.HttpError {
 	if !conditionalChange || currentPasswordForVerification == "" {
 		rows := db.Select[struct {
-			hashedPassword []byte
-			salt           []byte
+			HashedPassword []byte `json:"hashedPassword"`
+			Salt           []byte `json:"salt"`
 		}](
 			tx,
 			`
@@ -79,8 +79,8 @@ func UpdatePassword(tx *db.Transaction, username string, newPassword string, con
 			return util.HttpErr(http.StatusBadRequest, "Cannot change password for this user")
 		}
 		currentPasswordAndSalt := rows[0]
-		currentPassword := currentPasswordAndSalt.hashedPassword
-		currentSalt := currentPasswordAndSalt.salt
+		currentPassword := currentPasswordAndSalt.HashedPassword
+		currentSalt := currentPasswordAndSalt.Salt
 
 		if conditionalChange {
 			if currentPasswordForVerification == "" {

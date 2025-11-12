@@ -22,9 +22,9 @@ func initPasswordReset() {
 }
 
 type ResetRequest struct {
-	token     string
-	userId    string
-	expiresAt time.Time
+	Token     string    `json:"token"`
+	UserId    string    `json:"userId"`
+	ExpiresAt time.Time `json:"expiresAt"`
 }
 
 func NewPassword(token string, newPassword string) (util.Empty, *util.HttpError) {
@@ -34,11 +34,11 @@ func NewPassword(token string, newPassword string) (util.Empty, *util.HttpError)
 			return util.Empty{}, util.HttpErr(http.StatusNotFound, "Unable to reset password")
 		}
 
-		if resetRequest.expiresAt.Before(time.Now()) {
+		if resetRequest.ExpiresAt.Before(time.Now()) {
 			return util.Empty{}, util.HttpErr(http.StatusForbidden, "Unable to reset password (token expired)")
 		}
 
-		err := UpdatePassword(tx, resetRequest.userId, newPassword, false, "")
+		err := UpdatePassword(tx, resetRequest.UserId, newPassword, false, "")
 		if err != nil {
 			return util.Empty{}, err
 		}
@@ -62,6 +62,7 @@ func CreateResetRequest(email string) (util.Empty, *util.HttpError) {
 				"type":    fndapi.MailTypeResetPassword,
 				"message": mailTemplates[fndapi.MailTypeResetPassword],
 				"subject": "[UCloud] Reset of Password",
+				"token":   token,
 			}
 			mailData, _ := json.Marshal(rawMail)
 			bulkRequest.Items = append(
@@ -107,7 +108,7 @@ func getResetRequest(tx *db.Transaction, token string) (ResetRequest, bool) {
 		tx,
 		`
 			SELECT token, user_id, expires_at
-            FROM password_reset_requests
+            FROM  password_reset.password_reset_requests
             WHERE token = :token
 		`,
 		db.Params{
