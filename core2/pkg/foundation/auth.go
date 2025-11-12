@@ -85,16 +85,6 @@ func initAuth() {
 		return util.Empty{}, nil
 	})
 
-	fndapi.AuthBrowseIdentityProviders.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.BulkResponse[fndapi.IdentityProvider], *util.HttpError) {
-		// TODO implement this
-		return fndapi.BulkResponse[fndapi.IdentityProvider]{}, nil
-	})
-
-	fndapi.AuthStartLogin.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
-		// TODO Implement this
-		return util.Empty{}, util.HttpErr(http.StatusNotFound, "No such identity provider")
-	})
-
 	fndapi.AuthProvidersRenew.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[fndapi.PublicKeyAndRefreshToken], *util.HttpError) {
 		var result fndapi.BulkResponse[fndapi.PublicKeyAndRefreshToken]
 		for _, item := range request.Items {

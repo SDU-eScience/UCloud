@@ -176,6 +176,7 @@ func SessionLoginResponse(r *http.Request, w http.ResponseWriter, session fndapi
 
 		// NOTE(Dan): Using a 301 redirect causes Apple browsers (at least Safari likely more) to ignore the cookie.
 		// Using a redirect via HTML works.
+		// NOTE(Dan): The WAYF name is mostly for legacy reasons. It doesn't really mean anything in this context.
 		endpoint := fmt.Sprintf("%s://%s/app/login/wayf", scheme, r.Host)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
@@ -213,7 +214,7 @@ func SessionLoginResponse(r *http.Request, w http.ResponseWriter, session fndapi
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			rpc.SendResponseOrError(w, session, nil)
 		} else {
-			// NOTE(Dan): This will happen if we get a redirect from SAML (WAYF)
+			// NOTE(Dan): This will happen if we get a redirect from OIDC
 			respondViaCookieRedirect(session)
 		}
 	}

@@ -1,6 +1,7 @@
 package foundation
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -14,11 +15,18 @@ var jwtSigningMethod jwt.SigningMethod
 var jwtSigningKey any
 
 func initAuthTokens() {
-	// TODO
-	// TODO
-	// TODO
-	jwtSigningMethod = jwt.SigningMethodHS512
-	jwtSigningKey = []byte("notverysecret")
+	if cfg.Configuration.TokenValidation.SharedSecret != "" {
+		jwtSigningMethod = jwt.SigningMethodHS512
+		jwtSigningKey = []byte(cfg.Configuration.TokenValidation.SharedSecret)
+	} else if cfg.Configuration.TokenValidation.PublicCertificate != "" {
+		key, err := readPrivateKey(cfg.Configuration.TokenValidation.PrivateKey)
+		if err != nil {
+			panic(fmt.Sprintf("Could not parse PrivateKey: %s", err))
+		}
+
+		jwtSigningMethod = jwt.SigningMethodRS256
+		jwtSigningKey = key
+	}
 }
 
 func SignPrincipalToken(principal Principal, sessionReference util.Option[string]) string {
@@ -50,7 +58,7 @@ func CreatePrincipalClaims(principal Principal, sessionReference util.Option[str
 	switch principal.Type {
 	case "PERSON":
 		if principal.OrgId.Present {
-			jwtType = "wayf"
+			jwtType = "wayf" // NOTE(Dan): Backwards compatibility, has nothing to do with wayf.
 		} else {
 			jwtType = "password"
 		}

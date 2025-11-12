@@ -22,6 +22,7 @@ type ConfigurationFormat struct {
 	TokenValidation struct {
 		SharedSecret      string
 		PublicCertificate string
+		PrivateKey        string
 	}
 
 	OpenIdConnect util.Option[OidcAuthentication]
@@ -154,6 +155,7 @@ func Parse(configDir string) bool {
 		tokenValidation := cfgutil.RequireChild(filePath, document, "tokenValidation", &success)
 		cfg.TokenValidation.SharedSecret = cfgutil.OptionalChildText(filePath, tokenValidation, "sharedSecret", &success)
 		cfg.TokenValidation.PublicCertificate = cfgutil.OptionalChildText(filePath, tokenValidation, "certificate", &success)
+		cfg.TokenValidation.PrivateKey = cfgutil.OptionalChildText(filePath, tokenValidation, "privateKey", &success)
 
 		tokenValidationMethodCount := 0
 		if cfg.TokenValidation.SharedSecret != "" {
