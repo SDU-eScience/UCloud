@@ -586,8 +586,7 @@ type AppCatalogRetrieveLandingPageResponse struct {
 	RecentlyUpdated    []Application          `json:"recentlyUpdated"`
 	AvailableProviders []string               `json:"availableProviders"`
 
-	// Currator is deprecated. Do not use.
-	Curator []AppCatalogCuratorStatus `json:"curator"`
+	Curator []AppCatalogCuratorStatus `json:"curator"` // deprecated
 }
 
 type AppCatalogCuratorStatus struct {

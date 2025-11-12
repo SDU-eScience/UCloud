@@ -338,9 +338,6 @@ func supportToApi(provider string, supportItems []providerSupport) []orcapi.Reso
 }
 
 func SupportRetrieveProducts[T any](typeName string) orcapi.SupportByProvider[T] {
-	// TODO It seems like this function needs to wait for at least one round of support retrieval before being okay
-	//   with returning
-
 	result := orcapi.SupportByProvider[T]{
 		ProductsByProvider: make(map[string][]orcapi.ResolvedSupport[T]),
 	}

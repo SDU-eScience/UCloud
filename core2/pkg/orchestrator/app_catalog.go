@@ -3,8 +3,6 @@ package orchestrator
 import (
 	"encoding/binary"
 	"fmt"
-	"golang.org/x/exp/slices"
-	"gopkg.in/yaml.v3"
 	"hash/fnv"
 	"net/http"
 	"strconv"
@@ -12,6 +10,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/exp/slices"
+	"gopkg.in/yaml.v3"
+	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
@@ -305,13 +307,65 @@ func AppIsRelevant(
 	case "", orcapi.CatalogDiscoveryModeAll:
 		return true
 
-	case orcapi.CatalogDiscoveryModeAvailable:
-		return true // TODO
+	case orcapi.CatalogDiscoveryModeAvailable, orcapi.CatalogDiscoveryModeSelected:
+		supportByProvider := SupportRetrieveProducts[orcapi.JobSupport](jobType).ProductsByProvider
+		var availableProviders []string
+		if discovery.Mode == orcapi.CatalogDiscoveryModeAvailable {
+			availableProviders = appRelevantProvidersForUser(actor.Username, actor.Project)
+		} else {
+			availableProviders = []string{discovery.Selected.Value}
+		}
 
-	case orcapi.CatalogDiscoveryModeSelected:
-		return true // TODO
+		anyMatch := false
+
+	outer:
+		for _, provider := range availableProviders {
+			products := supportByProvider[provider]
+			for _, product := range products {
+				support := product.Support
+				tool := app.Invocation.Tool.Tool.Value.Description
+				switch tool.Backend {
+				case orcapi.ToolBackendDocker:
+					anyMatch = support.Docker.Enabled
+				case orcapi.ToolBackendNative:
+					anyMatch = support.Native.Enabled
+				case orcapi.ToolBackendVirtualMachine:
+					anyMatch = support.VirtualMachine.Enabled
+				}
+
+				if anyMatch {
+					break outer
+				}
+			}
+		}
+
+		return anyMatch
 	}
 	return false
+}
+
+var appRelevantProvidersCache = util.NewCache[util.Tuple2[string, util.Option[rpc.ProjectId]], []string](15 * time.Minute)
+
+func appRelevantProvidersForUser(username string, project util.Option[rpc.ProjectId]) []string {
+	key := util.Tuple2[string, util.Option[rpc.ProjectId]]{First: username, Second: project}
+	result, _ := appRelevantProvidersCache.Get(key, func() ([]string, error) {
+		providers, err := accapi.FindRelevantProviders.Invoke(fndapi.BulkRequestOf(accapi.FindRelevantProvidersRequest{
+			Username: username,
+			Project: util.OptMap(project, func(value rpc.ProjectId) string {
+				return string(value)
+			}),
+			UseProject:        project.Present,
+			FilterProductType: util.OptValue(accapi.ProductTypeCompute),
+		}))
+
+		if err != nil || len(providers.Responses) == 0 {
+			return nil, err
+		}
+
+		return providers.Responses[0].Providers, nil
+	})
+
+	return result
 }
 
 func AppRetrieveNewest(
@@ -375,7 +429,7 @@ func AppRetrieve(
 	app.Mu.RLock()
 	hasPermissions := app.Public
 	if !hasPermissions {
-		if actor.Role == rpc.RoleAdmin {
+		if actor.Role == rpc.RoleAdmin || actor.Username == rpc.ActorSystem.Username {
 			hasPermissions = true
 		} else {
 			var permissions []orcapi.AclEntity
@@ -543,7 +597,7 @@ func AppRetrieveGroup(
 			groupFlags &= ^AppCatalogIncludeGroups
 
 			app, ok := AppRetrieveNewest(actor, name, discovery, groupFlags)
-			if ok {
+			if ok && AppIsRelevant(actor, app, discovery) {
 				apiGroup.Status.Applications = append(apiGroup.Status.Applications, app)
 			}
 		}
@@ -593,8 +647,38 @@ func AppCatalogListCategories(
 	}
 	c.Mu.RUnlock()
 
+	categoryFlags := flags
+	filter := false
+	if discovery.Mode != orcapi.CatalogDiscoveryModeAll {
+		filter = true
+		categoryFlags |= AppCatalogIncludeApps | AppCatalogIncludeGroups
+	}
+
+catLoop:
 	for _, cat := range categories {
-		apiCategory := appCategoryToApi(actor, cat, discovery, flags)
+		apiCategory := appCategoryToApi(actor, cat, discovery, categoryFlags)
+		if filter {
+			wantApps := flags&AppCatalogIncludeApps != 0
+			wantGroups := flags&AppCatalogIncludeGroups != 0
+
+			if len(apiCategory.Status.Groups) == 0 {
+				continue catLoop
+			}
+
+			for _, group := range apiCategory.Status.Groups {
+				if len(group.Status.Applications) == 0 {
+					continue catLoop
+				}
+			}
+
+			if !wantGroups {
+				apiCategory.Status.Groups = util.NonNilSlice[orcapi.ApplicationGroup](nil)
+			} else if !wantApps {
+				for _, group := range apiCategory.Status.Groups {
+					group.Status.Applications = util.NonNilSlice[orcapi.Application](nil)
+				}
+			}
+		}
 		result = append(result, apiCategory)
 	}
 
@@ -602,8 +686,6 @@ func AppCatalogListCategories(
 		return strings.Compare(a.Specification.Title, b.Specification.Title)
 	})
 
-	// TODO Filter categories with no results.
-	// TODO Load groups and apps for filtering purposes if discovery is not all
 	return util.NonNilSlice(result)
 }
 
@@ -633,8 +715,19 @@ func appCategoryToApi(
 
 	if len(groups) > 0 {
 		for _, g := range groups {
-			group, _, ok := AppRetrieveGroup(actor, g, discovery, flags)
-			if ok {
+			groupFlags := flags
+			filter := false
+			wantApps := flags&AppCatalogIncludeApps != 0
+			if discovery.Mode != orcapi.CatalogDiscoveryModeAll {
+				filter = true
+				groupFlags |= AppCatalogIncludeApps
+			}
+
+			group, _, ok := AppRetrieveGroup(actor, g, discovery, groupFlags)
+			if ok && (!filter || len(group.Status.Applications) > 0) {
+				if !wantApps {
+					group.Status.Applications = util.NonNilSlice[orcapi.Application](nil)
+				}
 				apiCategory.Status.Groups = append(apiCategory.Status.Groups, group)
 			}
 		}
@@ -661,10 +754,18 @@ func AppListTopPicks(actor rpc.Actor, discovery AppDiscovery) []orcapi.TopPick {
 
 func appLoadTopPicks(actor rpc.Actor, discovery AppDiscovery, groupIds []AppGroupId) []orcapi.TopPick {
 	var result []orcapi.TopPick
+
+	flags := AppCatalogFlags(0)
+	filter := false
+	if discovery.Mode != orcapi.CatalogDiscoveryModeAll {
+		flags |= AppCatalogIncludeApps
+		filter = true
+	}
+
 	for _, gId := range groupIds {
-		group, _, ok := AppRetrieveGroup(actor, gId, discovery, 0)
-		if ok {
-			// TODO This needs to go through the applications to find the one that works in this discovery mode
+		group, _, ok := AppRetrieveGroup(actor, gId, discovery, flags)
+		if ok && (!filter || len(group.Status.Applications) > 0) {
+			group.Status.Applications = util.NonNilSlice[orcapi.Application](nil)
 
 			result = append(result, orcapi.TopPick{
 				Title:                   group.Specification.Title,
@@ -674,7 +775,7 @@ func appLoadTopPicks(actor rpc.Actor, discovery AppDiscovery, groupIds []AppGrou
 			})
 		}
 	}
-	return result
+	return util.NonNilSlice(result)
 }
 
 func AppListCarrousel(actor rpc.Actor, discovery AppDiscovery) ([]orcapi.CarrouselItem, [][]byte) {
@@ -696,8 +797,12 @@ func AppListCarrousel(actor rpc.Actor, discovery AppDiscovery) ([]orcapi.Carrous
 
 		case appCarrouselGroup:
 			id, _ := strconv.ParseInt(item.LinkId, 10, 64)
-			apiItem.LinkedGroup.Set(int(id))
-			// TODO resolve app
+
+			group, _, ok := AppRetrieveGroup(actor, AppGroupId(id), discovery, AppCatalogIncludeApps)
+			if ok && len(group.Status.Applications) != 0 {
+				apiItem.LinkedGroup.Set(int(id))
+				apiItem.ResolvedLinkedApp.Set(group.Status.Applications[0].Metadata.Name)
+			}
 
 		case appCarrouselWebPage:
 			apiItem.LinkedWebPage.Set(item.LinkId)
@@ -738,6 +843,10 @@ func AppRetrieveSpotlight(actor rpc.Actor, id AppSpotlightId, discovery AppDisco
 		spotlight.Mu.RUnlock()
 
 		apiSpotlight.Applications = appLoadTopPicks(actor, discovery, groupIds)
+	}
+
+	if len(apiSpotlight.Applications) == 0 {
+		return orcapi.Spotlight{}, false
 	}
 
 	return apiSpotlight, ok
@@ -829,8 +938,7 @@ func AppCatalogRetrieveLandingPage(
 		},
 		NewApplications:    util.NonNilSlice(newApps),
 		RecentlyUpdated:    util.NonNilSlice(recentlyUpdated),
-		AvailableProviders: make([]string, 0),                         // TODO
-		Curator:            make([]orcapi.AppCatalogCuratorStatus, 0), // TODO deprecated?
+		AvailableProviders: appRelevantProvidersForUser(actor.Username, actor.Project),
 	}, nil
 }
 
@@ -1664,6 +1772,10 @@ func AppStudioCreateApplication(app *orcapi.Application) *util.HttpError {
 			b.Applications[app.Metadata.Name] = append(b.Applications[app.Metadata.Name], result)
 		}
 		b.Mu.Unlock()
+	}
+
+	if err == nil && result != nil {
+		return util.HttpErr(http.StatusInternalServerError, "internal error (result == nil)")
 	}
 
 	if err == nil {

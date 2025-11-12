@@ -2,10 +2,11 @@ package orchestrator
 
 import (
 	"fmt"
-	"github.com/blevesearch/bleve"
 	"io"
 	"net/http"
 	"strconv"
+
+	"github.com/blevesearch/bleve"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
@@ -77,8 +78,9 @@ func appCatalogInitRpc() {
 		var logo []byte
 		var app orcapi.Application
 
+		// NOTE(Dan): This request is not authenticated, so we will have to return the logo no matter what
 		discovery := AppDiscovery{Mode: orcapi.CatalogDiscoveryModeAll}
-		app, ok = AppRetrieveNewest(info.Actor, request.Name, discovery, 0)
+		app, ok = AppRetrieveNewest(rpc.ActorSystem, request.Name, discovery, 0)
 		mapping := map[int]int{}
 
 		if !ok {
@@ -90,7 +92,7 @@ func appCatalogInitRpc() {
 			groupId := AppGroupId(app.Metadata.Group.Metadata.Id)
 			if groupId != -1 {
 				var group orcapi.ApplicationGroup
-				group, logo, ok = AppRetrieveGroup(info.Actor, groupId, discovery, 0)
+				group, logo, ok = AppRetrieveGroup(rpc.ActorSystem, groupId, discovery, 0)
 				title = group.Specification.Title
 				logoHasText = group.Specification.LogoHasText
 

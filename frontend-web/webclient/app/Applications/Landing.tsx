@@ -384,8 +384,6 @@ export const Hero: React.FunctionComponent<{
                         </Markdown>
                     </div>
                     <Box flexGrow={1} />
-                    {(slide.imageCredit != "Unknown") &&
-                        <Box mb={8}><b>Image credit:</b> <i>{slide.imageCredit}</i></Box>}
                     {slideLink ?
                         <ReactRouterLink
                             to={slideLink}
