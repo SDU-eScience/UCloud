@@ -40,7 +40,6 @@ const PasswordResetContext = "password/reset"
 var PasswordReset = rpc.Call[PasswordResetRequest, util.Empty]{
 	BaseContext: PasswordResetContext,
 	Convention:  rpc.ConventionUpdate,
-	Operation:   "reset",
 	Roles:       rpc.RolesPublic,
 }
 

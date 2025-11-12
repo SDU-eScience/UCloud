@@ -1,7 +1,6 @@
 package foundation
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -29,17 +28,22 @@ type ResetRequest struct {
 }
 
 func NewPassword(token string, newPassword string) (util.Empty, *util.HttpError) {
-	resetRequest, ok := getResetRequest(token)
-	if !ok {
-		return util.Empty{}, util.HttpErr(http.StatusNotFound, "Unable to reset password")
-	}
+	return db.NewTx2(func(tx *db.Transaction) (util.Empty, *util.HttpError) {
+		resetRequest, ok := getResetRequest(tx, token)
+		if !ok {
+			return util.Empty{}, util.HttpErr(http.StatusNotFound, "Unable to reset password")
+		}
 
-	if resetRequest.expiresAt.Before(time.Now()) {
-		return util.Empty{}, util.HttpErr(http.StatusForbidden, "Unable to reset password (token expired)")
-	}
+		if resetRequest.expiresAt.Before(time.Now()) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "Unable to reset password (token expired)")
+		}
 
-	UpdatePassword(resetRequest.userId, newPassword, false, "")
-	return util.Empty{}, nil
+		err := UpdatePassword(tx, resetRequest.userId, newPassword, false, "")
+		if err != nil {
+			return util.Empty{}, err
+		}
+		return util.Empty{}, nil
+	})
 }
 
 func CreateResetRequest(email string) (util.Empty, *util.HttpError) {
@@ -49,7 +53,7 @@ func CreateResetRequest(email string) (util.Empty, *util.HttpError) {
 			return util.Empty{}, util.HttpErr(http.StatusNotFound, "Cannot create reset request")
 		}
 
-		token := base64.URLEncoding.EncodeToString([]byte(util.RandomTokenNoTs(64)))
+		token := util.SecureToken()
 		var bulkRequest fndapi.BulkRequest[fndapi.MailSendToUserRequest]
 		for _, userId := range users {
 			insertTokenToDB(tx, token, userId)
@@ -96,28 +100,23 @@ func insertTokenToDB(tx *db.Transaction, token string, userId string) {
 			"expiresAt": expireTime,
 		},
 	)
-
-	return util.Empty{}, nil
 }
 
-func getResetRequest(token string) (ResetRequest, bool) {
-	return db.NewTx2(func(tx *db.Transaction) (ResetRequest, bool) {
-		row, ok := db.Get[ResetRequest](
-			tx,
-			`
+func getResetRequest(tx *db.Transaction, token string) (ResetRequest, bool) {
+	row, ok := db.Get[ResetRequest](
+		tx,
+		`
 			SELECT token, user_id, expires_at
             FROM password_reset_requests
             WHERE token = :token
 		`,
-			db.Params{
-				"token": token,
-			},
-		)
-		if !ok {
-			return ResetRequest{}, false
-		} else {
-			return row, true
-		}
-	})
-
+		db.Params{
+			"token": token,
+		},
+	)
+	if !ok {
+		return ResetRequest{}, false
+	} else {
+		return row, true
+	}
 }
