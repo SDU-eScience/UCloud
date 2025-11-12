@@ -59,9 +59,9 @@ func checkPassword(correctPassword, salt []byte, plainPassword string) bool {
 	return false
 }
 
-func UpdatePassword(tx *db.Transaction, username string, newPassword string, conditionalChange bool, currentPasswordForVerification string) *util.HttpError {
+func PasswordUpdate(tx *db.Transaction, username string, newPassword string, conditionalChange bool, currentPasswordForVerification string) *util.HttpError {
 	if !conditionalChange || currentPasswordForVerification == "" {
-		rows := db.Select[struct {
+		currentPasswordAndSalt, ok := db.Get[struct {
 			HashedPassword []byte `json:"hashedPassword"`
 			Salt           []byte `json:"salt"`
 		}](
@@ -75,17 +75,14 @@ func UpdatePassword(tx *db.Transaction, username string, newPassword string, con
 				"username": username,
 			},
 		)
-		if len(rows) != 1 {
+		if !ok {
 			return util.HttpErr(http.StatusBadRequest, "Cannot change password for this user")
 		}
-		currentPasswordAndSalt := rows[0]
+
 		currentPassword := currentPasswordAndSalt.HashedPassword
 		currentSalt := currentPasswordAndSalt.Salt
 
 		if conditionalChange {
-			if currentPasswordForVerification == "" {
-				return util.HttpErr(http.StatusBadRequest, "No password supplied")
-			}
 			isValidPassword := checkPassword(currentPassword, currentSalt, currentPasswordForVerification)
 			if !isValidPassword {
 				return util.HttpErr(http.StatusBadRequest, "Invalid username or password")
@@ -100,7 +97,8 @@ func UpdatePassword(tx *db.Transaction, username string, newPassword string, con
 				update auth.principals
                     set
                         hashed_password = :hashed,
-                        salt = :salt
+                        salt = :salt,
+                    	modified_at = now()
                     where
                         id = :id
 			`,

@@ -28,7 +28,7 @@ type Principal struct {
 	ModifiedAt              fndapi.Timestamp
 }
 
-func LookupUsernamesByEmail(tx *db.Transaction, email string) ([]string, bool) {
+func PrincipalsLookupsByEmail(tx *db.Transaction, email string) []string {
 	ok := db.Select[struct {
 		Id string
 	}](
@@ -46,7 +46,7 @@ func LookupUsernamesByEmail(tx *db.Transaction, email string) ([]string, bool) {
 	for _, elm := range ok {
 		results = append(results, elm.Id)
 	}
-	return results, len(results) > 0
+	return results
 
 }
 
