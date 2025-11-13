@@ -461,7 +461,7 @@ func internalScanAllocations(b *internalBucket, now time.Time) {
 
 // Entity lookup and initialization
 // ---------------------------------------------------------------------------------------------------------------------
-// Must data-structures in the accounting system are lazily initialized the first time they are requested. In is the
+// Most data-structures in the accounting system are lazily initialized the first time they are requested. In is the
 // responsibility of the caller (i.e. the public API) to ensure requests are only made to resources that exist in the
 // rest of UCloud. Users, projects and product references are _NOT_ checked in the internal API.
 //

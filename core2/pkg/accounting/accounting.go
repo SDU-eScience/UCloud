@@ -3,13 +3,14 @@ package accounting
 import (
 	"database/sql"
 	"fmt"
-	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	"net/http"
 	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -235,8 +236,18 @@ func ReportUsage(actor rpc.Actor, request accapi.ReportUsageRequest) (bool, *uti
 		return false, util.HttpErr(http.StatusForbidden, "Absolute usage cannot be negative")
 	}
 
-	success, err := internalReportUsage(time.Now(), request)
-	return success, err
+	category, err := ProductCategoryRetrieve(actor, request.CategoryIdV2.Name, request.CategoryIdV2.Provider)
+	if err == nil {
+		if category.FreeToUse {
+			return true, nil
+		}
+
+		internalBucketOrInit(category)
+		success, err := internalReportUsage(time.Now(), request)
+		return success, err
+	} else {
+		return false, err
+	}
 }
 
 var validatedOwners = lru.NewLRU[string, util.Empty](1024*4, nil, 10*time.Minute)
