@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -390,6 +391,66 @@ func internalCommitAllocation(b *internalBucket, allocId accAllocId) {
 	b.Mu.Unlock()
 }
 
+func internalUpdateAllocation(b *internalBucket, allocationId accAllocId, newQuota util.Option[int64], newStart util.Option[fndapi.Timestamp], newEnd util.Option[fndapi.Timestamp]) *util.HttpError {
+	b.Mu.Lock()
+	now := time.Now()
+	iAlloc, ok := b.AllocationsById[allocationId]
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "Unknown allocation")
+	}
+	if iAlloc.Retired {
+		return util.HttpErr(http.StatusForbidden, "You cannot update a retired allocation, it has already expired!")
+	}
+	if iAlloc.Start.Before(now) && newStart.Present {
+		return util.HttpErr(http.StatusForbidden, "You cannot change the starting time of an allocation which has already started")
+	}
+	var proposedNewStart = iAlloc.Start
+	if newStart.Present {
+		proposedNewStart = newStart.Value.Time()
+	}
+	var proposedNewEnd = iAlloc.End
+	if newEnd.Present {
+		proposedNewEnd = newEnd.Value.Time()
+	}
+	if proposedNewStart.After(proposedNewEnd) {
+		return util.HttpErr(http.StatusForbidden, "This update would make the allocation invalid. An allocation cannot start after it has ended.")
+	}
+	if newQuota.Present && newQuota.Value < 0 {
+		errorMessage := "You cannot set a negative quota for an allocation (" + strconv.FormatInt(newQuota.Value, 10) + ")"
+		return util.HttpErr(http.StatusForbidden, errorMessage)
+	}
+	iWallet, ok := b.WalletsById[iAlloc.BelongsTo]
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "Unknown wallet (bad internal state?)")
+	}
+	iAllocGroup, ok := iWallet.AllocationsByParent[iAlloc.Parent]
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "Unknown allocation group (bad internal state?)")
+	}
+
+	var proposedNewQuota = iAlloc.Quota
+	if newQuota.Present {
+		proposedNewQuota = newQuota.Value
+		delta := newQuota.Value - iAlloc.Quota
+		activeQuota := lInternalGroupTotalQuotaFromActiveAllocations(b, iAllocGroup)
+		activeUsage := iAllocGroup.TreeUsage
+
+		if activeQuota+delta < activeUsage {
+			return util.HttpErr(http.StatusForbidden, "You cannot decrease the quota below the current usage!")
+		}
+	}
+
+	iAlloc.Dirty = true
+	iAlloc.Start = proposedNewStart
+	iAlloc.End = proposedNewEnd
+	iAlloc.Quota = proposedNewQuota
+
+	lInternalMarkSignificantUpdate(b, now, iWallet)
+	lInternalReevaluate(b, now, iWallet, true)
+	b.Mu.Unlock()
+	return nil
+}
+
 func internalCompleteScan(now time.Time, persistence func(buckets []*internalBucket, scopes []*scopedUsage, onPersistHandlers []internalOnPersistHandler)) {
 	var buckets []*internalBucket
 	var scopes []*scopedUsage
@@ -482,6 +543,31 @@ func internalBucketOrInit(category accapi.ProductCategory) *internalBucket {
 			AllocationsById: map[accAllocId]*internalAllocation{},
 		}
 	})
+}
+
+func internalWalletByAllocationId(id accAllocId) (*internalBucket, *internalWallet, bool) {
+	if id == 0 {
+		return nil, nil, false
+	}
+	var resultBucket *internalBucket
+	var resultAllocation *internalAllocation
+	var resultWallet *internalWallet
+	ok := false
+
+	accGlobals.Mu.RLock()
+	for _, b := range accGlobals.BucketsByCategory {
+		b.Mu.RLock()
+		resultAllocation, ok = b.AllocationsById[id]
+		resultWallet, ok = b.WalletsById[resultAllocation.BelongsTo]
+		b.Mu.RUnlock()
+
+		if ok {
+			resultBucket = b
+			break
+		}
+	}
+	accGlobals.Mu.RUnlock()
+	return resultBucket, resultWallet, ok
 }
 
 func internalWalletById(id accWalletId) (*internalBucket, *internalWallet, bool) {

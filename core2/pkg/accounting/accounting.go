@@ -3,13 +3,14 @@ package accounting
 import (
 	"database/sql"
 	"fmt"
-	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	"net/http"
 	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -33,6 +34,10 @@ func initAccounting() {
 			}
 		}
 		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: result}, nil
+	})
+
+	accapi.UpdateAllocation.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.UpdateAllocationRequest]) (util.Empty, *util.HttpError) {
+		return UpdateAllocation(request.Items)
 	})
 
 	accapi.ReportUsage.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.ReportUsageRequest]) (fndapi.BulkResponse[bool], *util.HttpError) {
@@ -209,6 +214,22 @@ func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, 
 	)
 
 	return fmt.Sprint(id), err
+}
+
+func UpdateAllocation(requests []accapi.UpdateAllocationRequest) (util.Empty, *util.HttpError) {
+	for _, request := range requests {
+		bucket, _, ok := internalWalletByAllocationId(accAllocId(request.AllocationId))
+		//If wallet cannot be found just skip
+		if !ok {
+			continue
+		}
+		err := internalUpdateAllocation(bucket, accAllocId(request.AllocationId), request.NewQuota, request.NewStart, request.NewEnd)
+		//If update failed will break the update
+		if err != nil {
+			return util.Empty{}, err
+		}
+	}
+	return util.Empty{}, nil
 }
 
 func ReportUsage(actor rpc.Actor, request accapi.ReportUsageRequest) (bool, *util.HttpError) {
