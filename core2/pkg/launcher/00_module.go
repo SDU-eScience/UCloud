@@ -5,13 +5,15 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/pkg/errors"
 	acc "ucloud.dk/core/pkg/accounting"
 	cfg "ucloud.dk/core/pkg/config"
 	fnd "ucloud.dk/core/pkg/foundation"
@@ -63,8 +65,15 @@ func Launch() {
 			return []byte(cfg.Configuration.TokenValidation.SharedSecret), nil
 		}
 	} else if cfg.Configuration.TokenValidation.PublicCertificate != "" {
-		log.Info("Not yet implemented") // TODO
-		os.Exit(1)
+		key, err := readPublicKeyFromCert(cfg.Configuration.TokenValidation.PublicCertificate)
+		if err != nil {
+			panic(fmt.Sprintf("Could not parse PublicCertificate: %s", err))
+		}
+
+		jwtMethods = []string{jwt.SigningMethodRS256.Name}
+		jwtKeyFunc = func(token *jwt.Token) (interface{}, error) {
+			return key, nil
+		}
 	} else {
 		log.Info("Bad token validation supplied")
 		os.Exit(1)
@@ -419,6 +428,29 @@ func readPublicKey(content string) (*rsa.PublicKey, error) {
 		}
 	}
 	return nil, err
+}
+
+func readPublicKeyFromCert(pemData string) (*rsa.PublicKey, error) {
+	for {
+		block, rest := pem.Decode([]byte(pemData))
+		if block == nil {
+			return nil, errors.New("no certificate PEM block found")
+		}
+		// Look specifically for an X.509 certificate block
+		if block.Type == "CERTIFICATE" {
+			cert, err := x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				return nil, fmt.Errorf("parse certificate: %w", err)
+			}
+			pub, ok := cert.PublicKey.(*rsa.PublicKey)
+			if !ok {
+				return nil, errors.New("certificate public key is not RSA")
+			}
+			return pub, nil
+		}
+		// Continue scanning in case there are multiple PEM blocks (e.g., chains)
+		pemData = string(rest)
+	}
 }
 
 func collapseServerSlashes(next http.Handler) http.Handler {

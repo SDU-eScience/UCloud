@@ -59,6 +59,59 @@ func checkPassword(correctPassword, salt []byte, plainPassword string) bool {
 	return false
 }
 
+func PasswordUpdate(tx *db.Transaction, username string, newPassword string, conditionalChange bool, currentPasswordForVerification string) *util.HttpError {
+	if !conditionalChange || currentPasswordForVerification == "" {
+		currentPasswordAndSalt, ok := db.Get[struct {
+			HashedPassword []byte `json:"hashedPassword"`
+			Salt           []byte `json:"salt"`
+		}](
+			tx,
+			`
+ 					select p.hashed_password, p.salt
+                    from auth.principals p
+                    where p.id = :username
+				`,
+			db.Params{
+				"username": username,
+			},
+		)
+		if !ok {
+			return util.HttpErr(http.StatusBadRequest, "Cannot change password for this user")
+		}
+
+		currentPassword := currentPasswordAndSalt.HashedPassword
+		currentSalt := currentPasswordAndSalt.Salt
+
+		if conditionalChange {
+			isValidPassword := checkPassword(currentPassword, currentSalt, currentPasswordForVerification)
+			if !isValidPassword {
+				return util.HttpErr(http.StatusBadRequest, "Invalid username or password")
+			}
+		}
+
+		generatedSalt := genSalt()
+		newPasswordAndSalt := hashPassword(newPassword, generatedSalt)
+		db.Exec(
+			tx,
+			`
+				update auth.principals
+                    set
+                        hashed_password = :hashed,
+                        salt = :salt,
+                    	modified_at = now()
+                    where
+                        id = :id
+			`,
+			db.Params{
+				"id":     username,
+				"salt":   newPasswordAndSalt.Salt,
+				"hashed": newPasswordAndSalt.HashedPassword,
+			},
+		)
+	}
+	return nil
+}
+
 var dummyPasswordForTiming = hashPassword("forcomparison1234!", nil)
 
 func PasswordLogin(request *http.Request, username string, password string) (fndapi.AuthenticationTokens, *util.HttpError) {

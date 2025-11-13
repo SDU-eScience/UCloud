@@ -35,7 +35,10 @@ func Init() {
 	initLicenses()
 	initPublicIps()
 	initIngresses()
+	initSupportAssistsOrc()
 	initSsh()
+
+	initSyncthing()
 
 	// TODO Dummy implementation to make frontend happy
 	r := rpc.Call[util.Empty, fndapi.PageV2[integrationRespTemporary]]{

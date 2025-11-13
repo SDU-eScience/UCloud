@@ -242,7 +242,7 @@ export interface ResourceBrowseFeatures {
     // In addition, you must also set `sortById` on the appropriate columns.
     sorting?: boolean;
 
-    contextSwitcher?: boolean;
+    projectSwitcher?: boolean;
     showColumnTitles?: boolean;
 }
 
@@ -389,7 +389,7 @@ export class ResourceBrowser<T> {
         renderSpinnerWhenLoading: true, // automatically inserts the spinner graphic before invoking "renderEmptyPage"
         filters: false,
         sorting: false,
-        contextSwitcher: false,
+        projectSwitcher: false,
         showColumnTitles: false,
         breadcrumbTitles: false,
     };
@@ -628,7 +628,7 @@ export class ResourceBrowser<T> {
             this.renderSessionFilters();
         }
 
-        if (this.features.contextSwitcher) {
+        if (this.features.projectSwitcher) {
             const div = document.createElement("div");
             div.className = "project-switcher";
             const headerThing = this.header.querySelector<HTMLDivElement>(".header-first-row")!;

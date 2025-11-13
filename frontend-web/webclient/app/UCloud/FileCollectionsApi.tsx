@@ -26,7 +26,9 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
 export type FileCollectionUpdate = ResourceUpdate;
-export type FileCollectionStatus = ResourceStatus;
+export interface FileCollectionStatus extends ResourceStatus {
+    preferredDrive?: boolean | null;
+}
 export interface FileCollectionSpecification extends ResourceSpecification {
     title: string;
 }

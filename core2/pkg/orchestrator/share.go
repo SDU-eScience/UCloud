@@ -2,13 +2,16 @@ package orchestrator
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"slices"
 	"strings"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -27,6 +30,10 @@ func initShares() {
 	)
 
 	orcapi.SharesBrowse.Handler(func(info rpc.RequestInfo, request orcapi.SharesBrowseRequest) (fndapi.PageV2[orcapi.Share], *util.HttpError) {
+		sortByFn := ResourceDefaultComparator(func(item orcapi.Share) orcapi.Resource {
+			return item.Resource
+		}, request.ResourceFlags)
+
 		return ResourceBrowse[orcapi.Share](
 			info.Actor,
 			shareType,
@@ -40,6 +47,7 @@ func initShares() {
 					return item.Owner.CreatedBy == info.Actor.Username
 				}
 			},
+			sortByFn,
 		), nil
 	})
 
@@ -53,6 +61,7 @@ func initShares() {
 			func(item orcapi.Share) bool {
 				return true
 			},
+			nil,
 		), nil
 	})
 
@@ -162,6 +171,7 @@ func initShares() {
 			func(item orcapi.Share) bool {
 				return item.Owner.CreatedBy == info.Actor.Username
 			},
+			nil,
 		)
 
 		groups := map[string]orcapi.ShareGroupOutgoing{}
@@ -343,6 +353,7 @@ func ShareCreate(actor rpc.Actor, item orcapi.ShareSpecification) (string, *util
 				return false
 			}
 		},
+		nil,
 	)
 
 	if len(duplicateShares.Items) == 1 {
@@ -379,7 +390,15 @@ func ShareCreate(actor rpc.Actor, item orcapi.ShareSpecification) (string, *util
 			panic(err)
 		}
 	}
-
+	_, err = fndapi.NotificationsCreate.Invoke(
+		fndapi.NotificationsCreateRequest{User: item.SharedWith, Notification: fndapi.Notification{
+			Type:    "SHARE_REQUEST",
+			Message: fmt.Sprintf("%s wants to share a folder with you", actor.Username),
+		}},
+	)
+	if err != nil {
+		log.Info("Could not send notification: %s", err)
+	}
 	return share.Id, nil
 }
 
@@ -532,6 +551,7 @@ func shareTransform(
 	product util.Option[accapi.ProductReference],
 	extra any,
 	flags orcapi.ResourceFlags,
+	actor rpc.Actor,
 ) any {
 	share := extra.(*internalShare)
 	result := orcapi.Share{

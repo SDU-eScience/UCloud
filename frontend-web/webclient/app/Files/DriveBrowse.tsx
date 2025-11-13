@@ -72,7 +72,7 @@ const FEATURES: ResourceBrowseFeatures = {
     search: true,
     filters: true,
     sorting: true,
-    contextSwitcher: true,
+    projectSwitcher: true,
     showColumnTitles: true,
 };
 
@@ -91,7 +91,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
 
     React.useEffect(() => {
         const p = project.fetch();
-        const oldPermission = isWorkspaceAdmin.current; 
+        const oldPermission = isWorkspaceAdmin.current;
         // Note(Jonas): project.fetch() always returns a project after having had one active before,
         // so use `projectId` instead.
         if (projectId) {

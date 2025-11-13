@@ -54,7 +54,7 @@ const FEATURES: ResourceBrowseFeatures = {
     filters: true,
     sorting: true,
     breadcrumbsSeparatedBySlashes: false,
-    contextSwitcher: true,
+    projectSwitcher: true,
     showColumnTitles: true,
     dragToSelect: true,
 };

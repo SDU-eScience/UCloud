@@ -111,10 +111,15 @@ func initProviderManagement() {
 				//TODO something
 				return true
 			},
+			nil,
 		), nil
 	})
 
 	orcapi.ProviderBrowse.Handler(func(info rpc.RequestInfo, request orcapi.ProviderBrowseRequest) (fndapi.PageV2[orcapi.Provider], *util.HttpError) {
+		sortByFn := ResourceDefaultComparator(func(item orcapi.Provider) orcapi.Resource {
+			return item.Resource
+		}, request.ResourceFlags)
+
 		return ResourceBrowse[orcapi.Provider](
 			info.Actor,
 			providerType,
@@ -122,6 +127,7 @@ func initProviderManagement() {
 			request.ItemsPerPage,
 			request.ResourceFlags,
 			func(item orcapi.Provider) bool { return true },
+			sortByFn,
 		), nil
 	})
 
@@ -292,6 +298,7 @@ func providerTransform(
 	product util.Option[accapi.ProductReference],
 	extra any,
 	flags orcapi.ResourceFlags,
+	actor rpc.Actor,
 ) any {
 	provider := extra.(*internalProvider)
 	result := orcapi.Provider{

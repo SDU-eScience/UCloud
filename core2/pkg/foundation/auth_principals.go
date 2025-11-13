@@ -28,6 +28,28 @@ type Principal struct {
 	ModifiedAt              fndapi.Timestamp
 }
 
+func PrincipalsLookupByEmail(tx *db.Transaction, email string) []string {
+	ok := db.Select[struct {
+		Id string
+	}](
+		tx,
+		`
+			select id
+			from auth.principals
+			where email = :email
+		`,
+		db.Params{
+			"email": email,
+		},
+	)
+	var results []string
+	for _, elm := range ok {
+		results = append(results, elm.Id)
+	}
+	return results
+
+}
+
 type PrincipalSpecification struct {
 	Type           string
 	Id             string
@@ -206,7 +228,7 @@ func PrincipalCreateOrUpdate(tx *db.Transaction, spec *PrincipalSpecification, i
 					role = :role,
 					first_names = coalesce(:first_names, first_names),
 					last_name = coalesce(:last_name, last_name),
-					hashed_password = coalesce(:password, hashed_password),
+					hashed_password = coalesce(:hashed_password, hashed_password),
 					salt = coalesce(:salt, salt),
 					org_id = coalesce(:org_id, org_id),
 					email = coalesce(:email, email)
@@ -220,19 +242,19 @@ func PrincipalCreateOrUpdate(tx *db.Transaction, spec *PrincipalSpecification, i
 		uid = row.Uid
 		ok = exists
 	} else {
-		row, exists := db.Get[struct{ Uid int }](
+		row, _ := db.Get[struct{ Uid int }](
 			tx,
 			`
 				insert into auth.principals(dtype, id, created_at, modified_at, role, first_names, last_name, 
 					hashed_password, salt, org_id, email) 
-				values (:type, :id, now(), now(), :role, :first_names, :last_name, :password, :salt, :org_id, :email)
+				values (:type, :id, now(), now(), :role, :first_names, :last_name, :hashed_password, :salt, :org_id, :email)
 				on conflict (id) do nothing 
 				returning uid
 			`,
 			params,
 		)
 		uid = row.Uid
-		ok = exists
+		ok = tx.ConsumeError() == nil
 	}
 
 	if !ok {
@@ -349,7 +371,7 @@ func PrincipalRetrieveOrCreateFromIdpResponse(resp IdpResponse) (Principal, *uti
 				db.Params{
 					"uid":         uid,
 					"idp":         resp.Idp,
-					"username":    spec.Id,
+					"username":    resp.Identity,
 					"first_names": spec.FirstNames.Sql(),
 					"last_name":   spec.LastName.Sql(),
 					"org_id":      spec.OrgId.Sql(),

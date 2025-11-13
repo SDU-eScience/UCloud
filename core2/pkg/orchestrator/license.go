@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -25,6 +27,10 @@ func initLicenses() {
 	)
 
 	orcapi.LicensesBrowse.Handler(func(info rpc.RequestInfo, request orcapi.LicensesBrowseRequest) (fndapi.PageV2[orcapi.License], *util.HttpError) {
+		sortByFn := ResourceDefaultComparator(func(item orcapi.License) orcapi.Resource {
+			return item.Resource
+		}, request.ResourceFlags)
+
 		return ResourceBrowse[orcapi.License](
 			info.Actor,
 			licenseType,
@@ -34,6 +40,7 @@ func initLicenses() {
 			func(item orcapi.License) bool {
 				return true
 			},
+			sortByFn,
 		), nil
 	})
 
@@ -47,6 +54,7 @@ func initLicenses() {
 			func(item orcapi.License) bool {
 				return true
 			},
+			nil,
 		), nil
 	})
 
@@ -94,6 +102,7 @@ func initLicenses() {
 				// TODO Something
 				return true
 			},
+			nil,
 		), nil
 	})
 
@@ -121,8 +130,48 @@ func initLicenses() {
 	})
 
 	orcapi.LicensesControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.LicenseSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		// TODO
-		return fndapi.BulkResponse[fndapi.FindByStringId]{}, nil
+		var responses []fndapi.FindByStringId
+
+		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
+		for _, reqItem := range request.Items {
+			if reqItem.Spec.Product.Provider != providerId {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+			}
+		}
+
+		for _, reqItem := range request.Items {
+			var flags resourceCreateFlags
+			if reqItem.ProjectAllRead {
+				flags |= resourceCreateAllRead
+			}
+
+			if reqItem.ProjectAllWrite {
+				flags |= resourceCreateAllWrite
+			}
+
+			id, _, err := ResourceCreateEx[orcapi.License](
+				licenseType,
+				orcapi.ResourceOwner{
+					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
+					Project:   reqItem.Project.Value,
+				},
+				nil,
+				util.OptValue(reqItem.Spec.Product),
+				reqItem.ProviderGeneratedId,
+				&internalLicense{},
+				flags,
+			)
+
+			ResourceConfirm(licenseType, id)
+
+			if err != nil {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+			} else {
+				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
+			}
+		}
+
+		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
 	})
 
 	orcapi.LicensesControlAddUpdate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.LicenseUpdate]]) (util.Empty, *util.HttpError) {
@@ -213,6 +262,7 @@ func licenseTransform(
 	product util.Option[accapi.ProductReference],
 	extra any,
 	flags orcapi.ResourceFlags,
+	actor rpc.Actor,
 ) any {
 	license := extra.(*internalLicense)
 	result := orcapi.License{

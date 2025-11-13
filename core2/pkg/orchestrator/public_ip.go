@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -28,6 +29,10 @@ func initPublicIps() {
 	)
 
 	orcapi.PublicIpsBrowse.Handler(func(info rpc.RequestInfo, request orcapi.PublicIpsBrowseRequest) (fndapi.PageV2[orcapi.PublicIp], *util.HttpError) {
+		sortByFn := ResourceDefaultComparator(func(item orcapi.PublicIp) orcapi.Resource {
+			return item.Resource
+		}, request.ResourceFlags)
+
 		return ResourceBrowse(
 			info.Actor,
 			publicIpType,
@@ -37,6 +42,7 @@ func initPublicIps() {
 			func(item orcapi.PublicIp) bool {
 				return true
 			},
+			sortByFn,
 		), nil
 	})
 
@@ -50,6 +56,7 @@ func initPublicIps() {
 			func(item orcapi.PublicIp) bool {
 				return true
 			},
+			nil,
 		), nil
 	})
 
@@ -123,6 +130,7 @@ func initPublicIps() {
 				// TODO Something else?
 				return false
 			},
+			nil,
 		), nil
 	})
 
@@ -150,8 +158,50 @@ func initPublicIps() {
 	})
 
 	orcapi.PublicIpsControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.PublicIPSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		// TODO
-		return fndapi.BulkResponse[fndapi.FindByStringId]{}, nil
+		var responses []fndapi.FindByStringId
+
+		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
+		for _, reqItem := range request.Items {
+			if reqItem.Spec.Product.Provider != providerId {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+			}
+		}
+
+		for _, reqItem := range request.Items {
+			var flags resourceCreateFlags
+			if reqItem.ProjectAllRead {
+				flags |= resourceCreateAllRead
+			}
+
+			if reqItem.ProjectAllWrite {
+				flags |= resourceCreateAllWrite
+			}
+
+			id, _, err := ResourceCreateEx[orcapi.PublicIp](
+				publicIpType,
+				orcapi.ResourceOwner{
+					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
+					Project:   reqItem.Project.Value,
+				},
+				nil,
+				util.OptValue(reqItem.Spec.Product),
+				reqItem.ProviderGeneratedId,
+				&internalPublicIp{
+					Firewall: reqItem.Spec.Firewall.GetOrDefault(orcapi.Firewall{}),
+				},
+				flags,
+			)
+
+			ResourceConfirm(publicIpType, id)
+
+			if err != nil {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+			} else {
+				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
+			}
+		}
+
+		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
 	})
 
 	orcapi.PublicIpsControlAddUpdate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.PublicIpUpdate]]) (util.Empty, *util.HttpError) {
@@ -340,7 +390,13 @@ func publicIpPersist(b *db.Batch, r *resource) {
 	}
 }
 
-func publicIpTransform(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any {
+func publicIpTransform(
+	r orcapi.Resource,
+	product util.Option[accapi.ProductReference],
+	extra any,
+	flags orcapi.ResourceFlags,
+	actor rpc.Actor,
+) any {
 	ip := extra.(*internalPublicIp)
 	result := orcapi.PublicIp{
 		Resource: r,

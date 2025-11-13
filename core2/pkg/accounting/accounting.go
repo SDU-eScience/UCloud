@@ -3,13 +3,14 @@ package accounting
 import (
 	"database/sql"
 	"fmt"
-	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	"net/http"
 	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -78,7 +79,7 @@ func initAccounting() {
 
 		for _, reqItem := range request.Items {
 			ok = reqItem.Category.Provider == providerId && validateOwner(reqItem.Owner)
-			wallet := accWalletId(0)
+			wallet := AccWalletId(0)
 			maxUsable := int64(0)
 
 			if ok {
@@ -235,8 +236,18 @@ func ReportUsage(actor rpc.Actor, request accapi.ReportUsageRequest) (bool, *uti
 		return false, util.HttpErr(http.StatusForbidden, "Absolute usage cannot be negative")
 	}
 
-	success, err := internalReportUsage(time.Now(), request)
-	return success, err
+	category, err := ProductCategoryRetrieve(actor, request.CategoryIdV2.Name, request.CategoryIdV2.Provider)
+	if err == nil {
+		if category.FreeToUse {
+			return true, nil
+		}
+
+		internalBucketOrInit(category)
+		success, err := internalReportUsage(time.Now(), request)
+		return success, err
+	} else {
+		return false, err
+	}
 }
 
 var validatedOwners = lru.NewLRU[string, util.Empty](1024*4, nil, 10*time.Minute)
@@ -265,6 +276,16 @@ func validateOwner(owner accapi.WalletOwner) bool {
 	}
 
 	return result
+}
+
+func WalletV2ByAllocationID(actor rpc.Actor, allocationId int) (AccWalletId, accapi.WalletV2, bool) {
+	if actor.Username == rpc.ActorSystem.Username {
+		walletId, wallet, found := internalRetrieveWalletByAllocationId(time.Now(), allocationId)
+		if found {
+			return walletId, wallet, true
+		}
+	}
+	return AccWalletId(-1), accapi.WalletV2{}, false
 }
 
 func WalletsBrowse(actor rpc.Actor, request accapi.WalletsBrowseRequest) fndapi.PageV2[accapi.WalletV2] {
@@ -299,6 +320,14 @@ func WalletsBrowse(actor rpc.Actor, request accapi.WalletsBrowseRequest) fndapi.
 
 	result.ItemsPerPage = len(result.Items)
 	return result
+}
+
+func AccountingGraphRetrieval(walletId AccWalletId) (string, bool) {
+	return internalGetMermaidGraph(time.Now(), walletId)
+}
+
+func RetrieveAncestors(now time.Time, category accapi.ProductCategoryIdV2, owner accapi.WalletOwner) []accapi.WalletV2 {
+	return internalRetrieveAncestors(now, category, owner)
 }
 
 func accountingLoad() {
@@ -398,11 +427,11 @@ func accountingLoad() {
 			b := internalBucketOrInit(category)
 
 			wallet := &internalWallet{
-				Id:                    accWalletId(row.Id),
+				Id:                    AccWalletId(row.Id),
 				OwnedBy:               accOwnerId(row.WalletOwner),
 				LocalUsage:            row.LocalUsage,
-				AllocationsByParent:   make(map[accWalletId]*internalGroup),
-				ChildrenUsage:         make(map[accWalletId]int64),
+				AllocationsByParent:   make(map[AccWalletId]*internalGroup),
+				ChildrenUsage:         make(map[AccWalletId]int64),
 				Dirty:                 false,
 				WasLocked:             row.WasLocked,
 				LastSignificantUpdate: row.LastSignificantUpdateAt,
@@ -439,8 +468,8 @@ func accountingLoad() {
 		for _, row := range allocationGroups {
 			group := &internalGroup{
 				Id:               accGroupId(row.Id),
-				AssociatedWallet: accWalletId(row.AssociatedWallet),
-				ParentWallet:     accWalletId(row.ParentWallet),
+				AssociatedWallet: AccWalletId(row.AssociatedWallet),
+				ParentWallet:     AccWalletId(row.ParentWallet),
 				TreeUsage:        row.TreeUsage,
 				Allocations:      make(map[accAllocId]util.Empty),
 				Dirty:            false,
@@ -497,10 +526,10 @@ func accountingLoad() {
 		)
 
 		for _, row := range allocations {
-			b, wallet, ok := internalWalletById(accWalletId(row.WalletId))
+			b, wallet, ok := internalWalletById(AccWalletId(row.WalletId))
 
 			if ok {
-				ag, ok := wallet.AllocationsByParent[accWalletId(row.ParentWallet)]
+				ag, ok := wallet.AllocationsByParent[AccWalletId(row.ParentWallet)]
 				if !ok {
 					panic(fmt.Sprintf("inconsistent DB or load alloc = %v", row.Id))
 				}
@@ -510,7 +539,7 @@ func accountingLoad() {
 				alloc := &internalAllocation{
 					Id:           accAllocId(row.Id),
 					BelongsTo:    wallet.Id,
-					Parent:       accWalletId(row.ParentWallet),
+					Parent:       AccWalletId(row.ParentWallet),
 					Group:        accGroupId(row.AllocGroup),
 					Quota:        row.Quota,
 					Start:        row.AllocationStartTime,

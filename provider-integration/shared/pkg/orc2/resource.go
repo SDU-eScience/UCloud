@@ -181,6 +181,8 @@ type ResourceFlags struct {
 	HideProvider          util.Option[string]        `json:"hideProvider"`
 	FilterProviderIds     util.Option[string]        `json:"filterProviderIds"`
 	FilterIds             util.Option[string]        `json:"filterIds"`
+	SortBy                util.Option[string]        `json:"sortBy"`
+	SortDirection         util.Option[SortDirection] `json:"sortDirection"`
 }
 
 func ResourceFlagsIncludeAll() ResourceFlags {

@@ -6,6 +6,7 @@ func Init() {
 	initGrants()
 	initGifts()
 	initProviderNotifications()
+	initSupportAssistAcc()
 	initUsageReports()
 	initUsageGenerator()
 }

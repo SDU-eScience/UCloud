@@ -433,19 +433,29 @@ function useHomeDrive(providerId: string, projectOverride?: string): string | nu
             const memberFilesTitle = "Member files: " + username;
             let result: string | null = null;
             for (const drive of page.items) {
-                if (drive.specification.title === "Home") {
-                    result = drive.id;
-                    break;
-                } else if (drive.specification.title === memberFilesTitle) {
+                if (drive.status.preferredDrive === true) {
                     result = drive.id;
                     break;
                 }
             }
+            if (result == null) {
+                for (const drive of page.items) {
+                    if (drive.specification.title === "Home") {
+                        result = drive.id;
+                        break;
+                    } else if (drive.specification.title === memberFilesTitle) {
+                        result = drive.id;
+                        break;
+                    }
+                }
+            }
 
-            for (const drive of page.items) {
-                if (drive.specification.title.toLowerCase().indexOf("home") !== -1) {
-                    result = drive.id;
-                    break;
+            if (result == null) {
+                for (const drive of page.items) {
+                    if (drive.specification.title.toLowerCase().indexOf("home") !== -1) {
+                        result = drive.id;
+                        break;
+                    }
                 }
             }
 

@@ -35,6 +35,8 @@ func initJobs() {
 		jobPersistCommitted,
 	)
 
+	go jobNotificationsLoopSendPending()
+
 	orcapi.JobsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		// TODO Check if we have an allocation?
 		var ids []fndapi.FindByStringId
@@ -139,7 +141,9 @@ func initJobs() {
 								job.StartedAt.Set(fndapi.Timestamp(time.Now()))
 							}
 
-							// TODO job notifications
+							mapped.Status.State = job.State
+							jobNotifyStateChange(mapped)
+
 							// TODO unbind resources
 						}
 
@@ -186,6 +190,96 @@ func initJobs() {
 
 	orcapi.JobsSearch.Handler(func(info rpc.RequestInfo, request orcapi.JobsSearchRequest) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
 		return JobsSearch(info.Actor, request.Query, request.Next, request.ItemsPerPage, request.JobFlags)
+	})
+
+	orcapi.JobsControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.JobSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		var responses []fndapi.FindByStringId
+
+		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
+		for _, reqItem := range request.Items {
+			if reqItem.Spec.Product.Provider != providerId {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+			}
+		}
+
+		for _, reqItem := range request.Items {
+			var flags resourceCreateFlags
+			if reqItem.ProjectAllRead {
+				flags |= resourceCreateAllRead
+			}
+
+			if reqItem.ProjectAllWrite {
+				flags |= resourceCreateAllWrite
+			}
+
+			spec := reqItem.Spec
+
+			support, _ := SupportByProduct[orcapi.JobSupport](jobType, spec.Product)
+
+			encodedParams, _ := json.Marshal(spec.Parameters)
+			encodedResources, _ := json.Marshal(spec.Resources)
+			encodedProduct, _ := json.Marshal(support.Product)
+			encodedSupport, _ := json.Marshal(support.ResolvedSupport)
+			encodedMachineType, _ := json.Marshal(map[string]any{
+				"cpu":          support.Product.Cpu,
+				"memoryInGigs": support.Product.MemoryInGigs,
+			})
+
+			id, _, err := ResourceCreateEx[orcapi.Job](
+				jobType,
+				orcapi.ResourceOwner{
+					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
+					Project:   reqItem.Project.Value,
+				},
+				nil,
+				util.OptValue(reqItem.Spec.Product),
+				reqItem.ProviderGeneratedId,
+				&internalJob{
+					Application:    spec.Application,
+					Name:           spec.Name,
+					Replicas:       spec.Replicas,
+					Parameters:     spec.Parameters,
+					Resources:      spec.Resources,
+					TimeAllocation: spec.TimeAllocation,
+					OpenedFile:     spec.OpenedFile,
+					SshEnabled:     spec.SshEnabled,
+					State:          orcapi.JobStateInQueue,
+					JobParametersJson: orcapi.ExportedParameters{
+						SiteVersion: 3,
+						Request: orcapi.ExportedParametersRequest{
+							Application:       spec.Application,
+							Product:           spec.Product,
+							Name:              spec.Name,
+							Replicas:          spec.Replicas,
+							Parameters:        encodedParams,
+							Resources:         encodedResources,
+							TimeAllocation:    spec.TimeAllocation.GetOrDefault(orcapi.SimpleDuration{}),
+							ResolvedProduct:   encodedProduct,
+							ResolvedSupport:   encodedSupport,
+							AllowDuplicateJob: false,
+							SshEnabled:        spec.SshEnabled,
+						},
+						ResolvedResources: orcapi.ExportedParametersResources{
+							// TODO
+						},
+						MachineType: encodedMachineType,
+					},
+					StartedAt: util.OptNone[fndapi.Timestamp](),
+					Updates:   nil,
+				},
+				flags,
+			)
+
+			ResourceConfirm(jobType, id)
+
+			if err != nil {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+			} else {
+				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
+			}
+		}
+
+		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
 	})
 
 	orcapi.JobsUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
@@ -1022,6 +1116,7 @@ func JobsSearch(
 
 			return false
 		},
+		nil,
 	), nil
 }
 
@@ -1031,6 +1126,10 @@ func JobsBrowse(
 	itemsPerPage int,
 	flags orcapi.JobFlags,
 ) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
+	sortByFn := ResourceDefaultComparator(func(item orcapi.Job) orcapi.Resource {
+		return item.Resource
+	}, flags.ResourceFlags)
+
 	return ResourceBrowse(
 		actor,
 		jobType,
@@ -1046,6 +1145,7 @@ func JobsBrowse(
 
 			return true
 		},
+		sortByFn,
 	), nil
 }
 
@@ -1432,6 +1532,7 @@ func jobTransform(
 	product util.Option[accapi.ProductReference],
 	extra any,
 	flags orcapi.ResourceFlags,
+	actor rpc.Actor,
 ) any {
 	info := extra.(*internalJob)
 
@@ -1462,7 +1563,7 @@ func jobTransform(
 
 	if flags.IncludeProduct || flags.IncludeSupport {
 		support, _ := SupportByProduct[orcapi.JobSupport](jobType, product.Value)
-		result.Status.ResolvedProduct = support.Product
+		result.Status.ResolvedProduct.Set(support.Product)
 		result.Status.ResolvedSupport = support.ToApi()
 	}
 
@@ -1478,4 +1579,146 @@ func jobTransform(
 	}
 
 	return result
+}
+
+var jobNotificationsPending struct {
+	Mu            sync.RWMutex
+	EntriesByUser map[string][]orcapi.Job
+}
+
+func jobNotifyStateChange(job orcapi.Job) {
+	if job.Status.State != orcapi.JobStateInQueue {
+		jobNotificationsPending.Mu.Lock()
+		username := job.Owner.CreatedBy
+		jobNotificationsPending.EntriesByUser[username] = append(jobNotificationsPending.EntriesByUser[username], job)
+		jobNotificationsPending.Mu.Unlock()
+	}
+}
+
+func jobNotificationsLoopSendPending() {
+	for {
+		jobNotificationsPending.Mu.Lock()
+		copiedEntriesByUser := map[string][]orcapi.Job{}
+		for username, jobs := range jobNotificationsPending.EntriesByUser {
+			copiedEntriesByUser[username] = jobs
+		}
+		jobNotificationsPending.EntriesByUser = map[string][]orcapi.Job{}
+		jobNotificationsPending.Mu.Unlock()
+		for username, jobs := range copiedEntriesByUser {
+			jobSendNotifications(username, jobs)
+		}
+		time.Sleep(30 * time.Second)
+	}
+}
+
+func mapStateToType(s orcapi.JobState) (string, bool) {
+	switch s {
+	case orcapi.JobStateSuccess:
+		return "JOB_COMPLETED", true
+	case orcapi.JobStateRunning:
+		return "JOB_STARTED", true
+	case orcapi.JobStateFailure:
+		return "JOB_FAILED", true
+	case orcapi.JobStateExpired:
+		return "JOB_EXPIRED", true
+	default:
+		return "", false
+	}
+}
+
+func jobSendNotifications(username string, jobs []orcapi.Job) {
+	groupedByState := map[orcapi.JobState][]orcapi.Job{}
+	for _, job := range jobs {
+		jobState := job.Status.State
+		groupedByState[jobState] = append(groupedByState[jobState], job)
+	}
+
+	for state, group := range groupedByState {
+		notificationType, ok := mapStateToType(state)
+		if !ok {
+			continue
+		}
+
+		jobIds := make([]string, len(group))
+		appTitles := make([]string, len(group))
+		jobNames := make([]string, len(group))
+
+		for _, job := range group {
+			jobIds = append(jobIds, job.Id)
+			appTitles = append(appTitles, job.Status.ResolvedApplication.Metadata.Title)
+			jobNames = append(jobNames, job.Specification.Name)
+		}
+
+		meta := map[string]any{
+			"jobIds":    jobIds,
+			"appTitles": appTitles,
+			"jobNames":  jobNames,
+		}
+
+		metaJson, _ := json.Marshal(meta)
+
+		_, err := fndapi.NotificationsCreate.Invoke(fndapi.NotificationsCreateRequest{
+			User: username,
+			Notification: fndapi.Notification{
+				Type: notificationType,
+				Meta: util.OptValue(json.RawMessage(metaJson)),
+			},
+		})
+
+		if err != nil {
+			log.Info("Could not send notification to user %s: %s", username, err)
+		}
+	}
+
+	type mailEvent struct {
+		JobName       string `json:"jobName"`
+		AppName       string `json:"appName"`
+		ChangeMessage string `json:"change"`
+		JobId         string `json:"jobId"`
+	}
+	var mailTemplate struct {
+		Events []mailEvent `json:"events"`
+	}
+
+	for _, job := range jobs {
+		event := mailEvent{
+			JobName:       "",
+			AppName:       job.Status.ResolvedApplication.Metadata.Title,
+			ChangeMessage: "",
+			JobId:         job.Id,
+		}
+
+		if job.Specification.Name != "" {
+			event.JobName = job.Specification.Name
+		} else {
+			event.JobName = job.Id
+		}
+
+		switch job.Status.State {
+		case orcapi.JobStateSuccess:
+			event.ChangeMessage = "has finished running"
+		case orcapi.JobStateExpired:
+			event.ChangeMessage = "has expired"
+		case orcapi.JobStateFailure:
+			event.ChangeMessage = "has failed"
+		case orcapi.JobStateRunning:
+			event.ChangeMessage = "has started running"
+		}
+
+		mailTemplate.Events = append(mailTemplate.Events, event)
+	}
+
+	mailBytes, _ := json.Marshal(mailTemplate)
+	mail := fndapi.Mail(mailBytes)
+
+	_, err := fndapi.MailSendToUser.Invoke(fndapi.BulkRequestOf(
+		fndapi.MailSendToUserRequest{
+			Receiver: username,
+			Mail:     mail,
+		}),
+	)
+
+	if err != nil {
+		log.Info("Could not send notification to user %s: %s", username, err)
+	}
 }

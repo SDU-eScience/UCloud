@@ -283,6 +283,34 @@ var AuthStartLogin = rpc.Call[FindByIntId, util.Empty]{
 	},
 }
 
+type AuthOidcCallbackRequest struct {
+	Code  string `json:"code"`
+	State string `json:"state"`
+}
+
+var AuthOidcCallback = rpc.Call[AuthOidcCallbackRequest, util.Empty]{
+	BaseContext: AuthContext,
+	Operation:   "oidcCallback",
+	Convention:  rpc.ConventionCustom,
+	Roles:       rpc.RolesPublic,
+
+	CustomMethod: http.MethodGet,
+	CustomPath:   "/auth/oidc",
+	CustomClientHandler: func(self *rpc.Call[AuthOidcCallbackRequest, util.Empty], client *rpc.Client, request AuthOidcCallbackRequest) (util.Empty, *util.HttpError) {
+		panic("Do not use in a client")
+	},
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (AuthOidcCallbackRequest, *util.HttpError) {
+		return rpc.ParseRequestFromQuery[AuthOidcCallbackRequest](w, r)
+	},
+	CustomServerProducer: func(response util.Empty, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
+		if err != nil {
+			rpc.SendResponseOrError(w, nil, err)
+		} else {
+			// Already handled
+		}
+	},
+}
+
 var AuthLookupUser = rpc.Call[FindByStringId, rpc.CorePrincipalBaseClaims]{
 	BaseContext: AuthContext,
 	Operation:   "lookupUser",
