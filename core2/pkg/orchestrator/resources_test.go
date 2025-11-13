@@ -4,6 +4,7 @@ import (
 	"slices"
 	"sync"
 	"testing"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/assert"
 	orcapi "ucloud.dk/shared/pkg/orc2"
@@ -56,7 +57,7 @@ func initResourceTest(t *testing.T) {
 			Resource: r,
 			Status:   d.A + d.B,
 		}
-	})
+	}, nil)
 
 	rpc.LookupActor = func(username string) (rpc.Actor, bool) {
 		actorsMutex.Lock()
