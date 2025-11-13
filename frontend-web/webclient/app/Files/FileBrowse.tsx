@@ -819,7 +819,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
 
-                    if (syncthingConfig?.folders.find(it => it.ucloudPath === file.id)) {
+                    if (syncthingConfig?.folders?.find(it => it.ucloudPath === file.id) != null) {
                         folderNote(icon, "Synchronized with Syncthing", "60px", "12px", 230, "check");
                     }
 
