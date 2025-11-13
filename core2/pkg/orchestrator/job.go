@@ -1491,11 +1491,11 @@ var jobNotificationsPending struct {
 
 func jobNotifyStateChange(job orcapi.Job) {
 	if job.Status.State != orcapi.JobStateInQueue {
+		jobNotificationsPending.Mu.Lock()
+		username := job.Owner.CreatedBy
+		jobNotificationsPending.EntriesByUser[username] = append(jobNotificationsPending.EntriesByUser[username], job)
+		jobNotificationsPending.Mu.Unlock()
 	}
-	jobNotificationsPending.Mu.Lock()
-	username := job.Owner.CreatedBy
-	jobNotificationsPending.EntriesByUser[username] = append(jobNotificationsPending.EntriesByUser[username], job)
-	jobNotificationsPending.Mu.Unlock()
 }
 
 func jobNotificationsLoopSendPending() {
