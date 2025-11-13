@@ -4,10 +4,11 @@ import {expect, type Page} from "@playwright/test";
 import {default as data} from "./test_data.json" with {type: "json"};
 
 const user = data.users.with_resources;
+const LoginPageUrl = ucloudUrl("login")
 
 export const User = {
     async toLoginPage(page: Page): Promise<void> {
-        await page.goto(ucloudUrl("login"));
+        await page.goto(LoginPageUrl);
     },
 
     async login(page: Page): Promise<void> {
@@ -23,6 +24,7 @@ export const User = {
     async logout(page: Page) {
         await Components.toggleUserMenu(page);
         await page.getByText("Logout").click();
+        await page.waitForURL(LoginPageUrl);
     },
 }
 

@@ -213,7 +213,7 @@ func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 
 	if exitCode != 0 {
 		if l.allowFailure {
-			return StringPair{First: "", Second: outputBuilder.String() + errBuilder.String()}
+			return StringPair{First: "", Second: outputBuilder.String() + errBuilder.String(), StatusCode: exitCode}
 		}
 
 		fmt.Println("Command failed!")
@@ -234,5 +234,6 @@ func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 			},
 		),
 		"",
+		exitCode,
 	}
 }

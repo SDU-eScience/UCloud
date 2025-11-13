@@ -3,9 +3,11 @@ package launcher
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"ucloud.dk/launcher/pkg/termio"
 )
@@ -264,13 +266,29 @@ func RunTests(args []string) {
 		panic(err)
 	}
 
+	var success = false
+	for range 240 {
+		resp, err := http.Get(locationOrigin)
+		if err != nil {
+			fmt.Println("Polling frontend failed. Retrying in 20 seconds, err:", err)
+			time.Sleep(20 * time.Second)
+			continue
+		} else if resp.StatusCode == 200 {
+			success = true
+			break
+		}
+	}
+	if !success {
+		fmt.Println("Failed to get a 200 from the frontend. Quitting.")
+		os.Exit(1)
+	}
 	startPlaywright(args)
 }
 
 func startPlaywright(args []string) {
-	runCommand([]string{"npx", "playwright", "install"})
-	runCommand([]string{"npx", "playwright", "install-deps"})
-	runCommand(testCommandFromArgs(args))
+	runFrontendCommand([]string{"npx", "playwright", "install", "--with-deps"}, false)
+	statusCode := runFrontendCommand(testCommandFromArgs(args), true)
+	os.Exit(statusCode)
 }
 
 func createResourcesAndGifts() int {
@@ -282,9 +300,9 @@ func (u *UserTokens) SetupUserWithResources() {
 	if u != nil {
 		// User didn't exist, so create root allocation, gift and have user claim the gift.
 		giftId := createResourcesAndGifts()
+		connectionResult := CallService("backend", "POST", "http://localhost:8080/api/providers/integration/connect", u.AccessToken, fmt.Sprintf(`{provider: "%s"}`, getProviderId()), []string{})
+		panicOnResponseError(connectionResult)
 		claimGifts(u.AccessToken, giftId)
-		// Connect to provider
-		CallService("backend", "POST", "http://localhost:8080/api/providers/integration/connect", u.AccessToken, fmt.Sprintf(`{provider: "%s"}`, getProviderId()), []string{})
 	}
 }
 
@@ -340,6 +358,8 @@ func createGift() int {
 		"renewEvery": 0
 	}`, getRootProjectId()), []string{"-H", "Project: " + getRootProjectId()})
 
+	panicOnResponseError(result)
+
 	var createGiftResult struct {
 		Id int `json:"id"`
 	}
@@ -347,12 +367,21 @@ func createGift() int {
 	return createGiftResult.Id
 }
 
-func claimGifts(bearer string, id int) {
-	result := CallService("backend", "POST", "http://localhost:8080/api/gifts/claim", bearer, `{giftId: `+fmt.Sprint(id)+`}`, []string{})
-	fmt.Println("Claimed gifts result: ", result)
+func panicOnResponseError(stringyJSON string) {
+	var errorResponse ErrorMessage
+	_ = json.Unmarshal([]byte(stringyJSON), &errorResponse)
+	if errorResponse.Why != "" {
+		panic(errorResponse.Why)
+	}
+}
 
-	result = CallService("backend", "GET", "localhost:8080/api/gifts/available", bearer, "", []string{})
-	fmt.Println("available: ", result)
+func claimGifts(bearer string, id int) {
+	claimResult := CallService("backend", "POST", "http://localhost:8080/api/gifts/claim", bearer, `{giftId: `+fmt.Sprint(id)+`}`, []string{})
+	panicOnResponseError(claimResult)
+	fmt.Println("Claimed gifts result: ", claimResult)
+
+	availableResult := CallService("backend", "GET", "localhost:8080/api/gifts/available", bearer, "", []string{})
+	fmt.Println("available: ", availableResult)
 }
 
 type UserTokens struct {
@@ -392,19 +421,23 @@ func createUser(username string, password string, role string) *UserTokens {
 
 	var userTokens []UserTokens
 
-	fmt.Printf("User %s created\n", username)
+	fmt.Printf("User '%s' created\n", username)
 	_ = json.Unmarshal([]byte(response), &userTokens)
 	return &userTokens[0]
 }
 
-func runCommand(args []string) {
+func runFrontendCommand(args []string, allowFailure bool) int {
 	fmt.Println(strings.Join(args, " "))
 	cmd := NewLocalExecutableCommand(args, LocalFile{path: "../frontend-web/webclient/"}, PostProcessorFunc)
+	if allowFailure {
+		cmd.SetAllowFailure()
+	}
 	cmd.SetStreamOutput()
 	result := cmd.ExecuteToText()
 	if result.First != "" {
 		fmt.Println(result.First)
 	}
+	return result.StatusCode
 }
 
 func testCommandFromArgs(args []string) []string {
@@ -430,7 +463,7 @@ func testCommandFromArgs(args []string) []string {
 }
 
 func createRootAllocation() {
-	CallService("backend", "POST", "localhost:8080/api/accounting/v2/rootAllocate", FetchAccessToken(true), `{
+	allocResponse := CallService("backend", "POST", "localhost:8080/api/accounting/v2/rootAllocate", FetchAccessToken(true), `{
 		"items": [
 			{
 				"category": {
@@ -470,6 +503,9 @@ func createRootAllocation() {
 			}
 		]
 	}`, []string{"-H", "Project: " + getRootProjectId()})
+
+	panicOnResponseError(allocResponse)
+	fmt.Printf("Root allocation: %s\n", allocResponse)
 }
 
 var providerId string = ""
@@ -488,14 +524,26 @@ func getProviderId() string {
 		return providerId
 	}
 
-	var providerResult ProviderResult
+	for range 240 {
 
-	result := CallService("backend", "GET", "localhost:8080/api/providers/integration/browse?itemsPerPage=250", FetchAccessToken(true), "", []string{})
-	_ = json.Unmarshal([]byte(result), &providerResult)
+		result := CallService("backend", "GET", "localhost:8080/api/providers/integration/browse?itemsPerPage=250", FetchAccessToken(true), "", []string{})
+		panicOnResponseError(result)
 
-	for _, provider := range providerResult.Items {
-		if provider.ProviderTitle == "gok8s" {
-			providerId = provider.Provider
+		var providerResult ProviderResult
+		fmt.Println("list of providers", result)
+		_ = json.Unmarshal([]byte(result), &providerResult)
+
+		if len(providerResult.Items) == 0 {
+			fmt.Println("Provider list is empty. Sleeping and retrying")
+			time.Sleep(20 * time.Second)
+			continue
+		}
+
+		for _, provider := range providerResult.Items {
+			if provider.ProviderTitle == "gok8s" {
+				providerId = provider.Provider
+				return providerId
+			}
 		}
 	}
 
@@ -519,7 +567,10 @@ func getRootProjectId() string {
 	if rootProjectId != "" {
 		return rootProjectId
 	}
+
+	// Note(Jonas): This has failed exactly once for me, I do not know why
 	result := CallService("backend", "GET", "localhost:8080/api/projects/v2/browse?itemsPerPage=250&includeFavorite=true&includeMembers=true&sortBy=favorite&sortDirection=descending&includeArchived=true", FetchAccessToken(true), "", []string{})
+
 	var projectBrowseResponse struct {
 		Items []Project `json:"items"`
 	}
