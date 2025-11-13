@@ -192,6 +192,96 @@ func initJobs() {
 		return JobsSearch(info.Actor, request.Query, request.Next, request.ItemsPerPage, request.JobFlags)
 	})
 
+	orcapi.JobsControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.JobSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		var responses []fndapi.FindByStringId
+
+		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
+		for _, reqItem := range request.Items {
+			if reqItem.Spec.Product.Provider != providerId {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+			}
+		}
+
+		for _, reqItem := range request.Items {
+			var flags resourceCreateFlags
+			if reqItem.ProjectAllRead {
+				flags |= resourceCreateAllRead
+			}
+
+			if reqItem.ProjectAllWrite {
+				flags |= resourceCreateAllWrite
+			}
+
+			spec := reqItem.Spec
+
+			support, _ := SupportByProduct[orcapi.JobSupport](jobType, spec.Product)
+
+			encodedParams, _ := json.Marshal(spec.Parameters)
+			encodedResources, _ := json.Marshal(spec.Resources)
+			encodedProduct, _ := json.Marshal(support.Product)
+			encodedSupport, _ := json.Marshal(support.ResolvedSupport)
+			encodedMachineType, _ := json.Marshal(map[string]any{
+				"cpu":          support.Product.Cpu,
+				"memoryInGigs": support.Product.MemoryInGigs,
+			})
+
+			id, _, err := ResourceCreateEx[orcapi.Job](
+				jobType,
+				orcapi.ResourceOwner{
+					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
+					Project:   reqItem.Project.Value,
+				},
+				nil,
+				util.OptValue(reqItem.Spec.Product),
+				reqItem.ProviderGeneratedId,
+				&internalJob{
+					Application:    spec.Application,
+					Name:           spec.Name,
+					Replicas:       spec.Replicas,
+					Parameters:     spec.Parameters,
+					Resources:      spec.Resources,
+					TimeAllocation: spec.TimeAllocation,
+					OpenedFile:     spec.OpenedFile,
+					SshEnabled:     spec.SshEnabled,
+					State:          orcapi.JobStateInQueue,
+					JobParametersJson: orcapi.ExportedParameters{
+						SiteVersion: 3,
+						Request: orcapi.ExportedParametersRequest{
+							Application:       spec.Application,
+							Product:           spec.Product,
+							Name:              spec.Name,
+							Replicas:          spec.Replicas,
+							Parameters:        encodedParams,
+							Resources:         encodedResources,
+							TimeAllocation:    spec.TimeAllocation.GetOrDefault(orcapi.SimpleDuration{}),
+							ResolvedProduct:   encodedProduct,
+							ResolvedSupport:   encodedSupport,
+							AllowDuplicateJob: false,
+							SshEnabled:        spec.SshEnabled,
+						},
+						ResolvedResources: orcapi.ExportedParametersResources{
+							// TODO
+						},
+						MachineType: encodedMachineType,
+					},
+					StartedAt: util.OptNone[fndapi.Timestamp](),
+					Updates:   nil,
+				},
+				flags,
+			)
+
+			ResourceConfirm(jobType, id)
+
+			if err != nil {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+			} else {
+				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
+			}
+		}
+
+		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
+	})
+
 	orcapi.JobsUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
 		var responses []util.Empty
 		for _, item := range request.Items {

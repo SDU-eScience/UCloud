@@ -222,9 +222,51 @@ func initIngresses() {
 		return SupportRetrieveProducts[orcapi.IngressSupport](ingressType), nil
 	})
 
-	orcapi.IngressesControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.PublicIPSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		// TODO
-		return fndapi.BulkResponse[fndapi.FindByStringId]{}, nil
+	orcapi.IngressesControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.IngressSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		var responses []fndapi.FindByStringId
+
+		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
+		for _, reqItem := range request.Items {
+			if reqItem.Spec.Product.Provider != providerId {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+			}
+		}
+
+		for _, reqItem := range request.Items {
+			var flags resourceCreateFlags
+			if reqItem.ProjectAllRead {
+				flags |= resourceCreateAllRead
+			}
+
+			if reqItem.ProjectAllWrite {
+				flags |= resourceCreateAllWrite
+			}
+
+			id, _, err := ResourceCreateEx[orcapi.Ingress](
+				ingressType,
+				orcapi.ResourceOwner{
+					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
+					Project:   reqItem.Project.Value,
+				},
+				nil,
+				util.OptValue(reqItem.Spec.Product),
+				reqItem.ProviderGeneratedId,
+				&internalIngress{
+					Domain: reqItem.Spec.Domain,
+				},
+				flags,
+			)
+
+			ResourceConfirm(ingressType, id)
+
+			if err != nil {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+			} else {
+				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
+			}
+		}
+
+		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
 	})
 
 	orcapi.IngressesControlAddUpdate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.IngressUpdate]]) (util.Empty, *util.HttpError) {
