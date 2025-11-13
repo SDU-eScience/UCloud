@@ -72,11 +72,11 @@ func (f AccountingFrequency) ToMinutes() int64 {
 	case AccountingFrequencyOnce:
 		return 1
 	case AccountingFrequencyPeriodicMinute:
-		return 60
+		return 1
 	case AccountingFrequencyPeriodicHour:
-		return 60 * 60
+		return 60
 	case AccountingFrequencyPeriodicDay:
-		return 60 * 60 * 24
+		return 60 * 24
 	default:
 		log.Printf("Invalid accounting frequency passed: '%v'\n", f)
 		return 1

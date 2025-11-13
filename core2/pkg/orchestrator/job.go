@@ -5,12 +5,13 @@ import (
 	base64 "encoding/base64"
 	"encoding/json"
 	"fmt"
-	ws "github.com/gorilla/websocket"
 	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	ws "github.com/gorilla/websocket"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -537,6 +538,22 @@ func initJobs() {
 		return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{Responses: responses}, nil
 	})
 
+	orcapi.JobsRename.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobRenameRequest]) (util.Empty, *util.HttpError) {
+		for _, item := range request.Items {
+			ResourceUpdate(
+				info.Actor,
+				jobType,
+				ResourceParseId(item.Id),
+				orcapi.PermissionEdit,
+				func(r *resource, mapped orcapi.Job) {
+					job := r.Extra.(*internalJob)
+					job.Name = item.NewTitle
+				},
+			)
+		}
+		return util.Empty{}, nil
+	})
+
 	wsUpgrader := ws.Upgrader{
 		ReadBufferSize:  1024 * 4,
 		WriteBufferSize: 1024 * 4,
@@ -912,7 +929,6 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue) *util.HttpError {
 	switch value.Type {
 	case orcapi.AppParameterValueTypeFile:
-		// TODO Special handling for shares?
 		path := value.Path
 		driveId, ok := orcapi.DriveIdFromUCloudPath(path)
 		if !ok {
@@ -944,11 +960,31 @@ func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue) *util.Ht
 		if job.Status.State != orcapi.JobStateRunning {
 			return util.HttpErr(http.StatusBadRequest, "job with hostname '%s' is not running", value.Hostname)
 		}
-	}
 
-	// TODO check ips
-	// TODO check licenses
-	// TODO check ingresses
+	case orcapi.AppParameterValueTypeNetwork:
+		_, _, _, err := ResourceRetrieveEx[orcapi.PublicIp](actor, publicIpType, ResourceParseId(value.Id),
+			orcapi.PermissionEdit, orcapi.ResourceFlags{})
+
+		if err != nil {
+			return util.HttpErr(http.StatusForbidden, "you cannot use this IP address")
+		}
+
+	case orcapi.AppParameterValueTypeIngress:
+		_, _, _, err := ResourceRetrieveEx[orcapi.Ingress](actor, ingressType, ResourceParseId(value.Id),
+			orcapi.PermissionEdit, orcapi.ResourceFlags{})
+
+		if err != nil {
+			return util.HttpErr(http.StatusForbidden, "you cannot use this link")
+		}
+
+	case orcapi.AppParameterValueTypeLicense:
+		_, _, _, err := ResourceRetrieveEx[orcapi.License](actor, licenseType, ResourceParseId(value.Id),
+			orcapi.PermissionEdit, orcapi.ResourceFlags{})
+
+		if err != nil {
+			return util.HttpErr(http.StatusForbidden, "you cannot use this license")
+		}
+	}
 
 	return nil
 }
@@ -986,6 +1022,7 @@ func JobsSearch(
 
 			return false
 		},
+		nil,
 	), nil
 }
 
@@ -995,6 +1032,10 @@ func JobsBrowse(
 	itemsPerPage int,
 	flags orcapi.JobFlags,
 ) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
+	sortByFn := ResourceDefaultComparator(func(item orcapi.Job) orcapi.Resource {
+		return item.Resource
+	}, flags.ResourceFlags)
+
 	return ResourceBrowse(
 		actor,
 		jobType,
@@ -1010,6 +1051,7 @@ func JobsBrowse(
 
 			return true
 		},
+		sortByFn,
 	), nil
 }
 
@@ -1396,6 +1438,7 @@ func jobTransform(
 	product util.Option[accapi.ProductReference],
 	extra any,
 	flags orcapi.ResourceFlags,
+	actor rpc.Actor,
 ) any {
 	info := extra.(*internalJob)
 
@@ -1426,7 +1469,7 @@ func jobTransform(
 
 	if flags.IncludeProduct || flags.IncludeSupport {
 		support, _ := SupportByProduct[orcapi.JobSupport](jobType, product.Value)
-		result.Status.ResolvedProduct = support.Product
+		result.Status.ResolvedProduct.Set(support.Product)
 		result.Status.ResolvedSupport = support.ToApi()
 	}
 

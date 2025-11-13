@@ -13,4 +13,5 @@ func Init() {
 	db.AddMigration(usageV2())
 	db.AddMigration(accountingV1())
 	db.AddMigration(accountingV2())
+	db.AddMigration(authV1())
 }

@@ -6,8 +6,10 @@ func Init() {
 	initMails()
 	initNotifications()
 	initAuth()
+	initPasswordReset()
 	initProjects()
 	initTasks()
 	initSupportAssistsFoundation()
 	initSupport()
+	initAuthOidc()
 }

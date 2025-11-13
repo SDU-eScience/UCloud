@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -36,6 +37,10 @@ func initIngresses() {
 	)
 
 	orcapi.IngressesBrowse.Handler(func(info rpc.RequestInfo, request orcapi.IngressesBrowseRequest) (fndapi.PageV2[orcapi.Ingress], *util.HttpError) {
+		sortByFn := ResourceDefaultComparator(func(item orcapi.Ingress) orcapi.Resource {
+			return item.Resource
+		}, request.ResourceFlags)
+
 		return ResourceBrowse[orcapi.Ingress](
 			info.Actor,
 			ingressType,
@@ -45,6 +50,7 @@ func initIngresses() {
 			func(item orcapi.Ingress) bool {
 				return true
 			},
+			sortByFn,
 		), nil
 	})
 
@@ -58,6 +64,7 @@ func initIngresses() {
 			func(item orcapi.Ingress) bool {
 				return true
 			},
+			nil,
 		), nil
 	})
 
@@ -188,6 +195,7 @@ func initIngresses() {
 					return false
 				}
 			},
+			nil,
 		), nil
 	})
 
@@ -362,10 +370,9 @@ func ingressPersist(b *db.Batch, r *resource) {
 	}
 }
 
-func ingressTransform(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any {
-	// TODO Resolved product and support
+func ingressTransform(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
 	ing := extra.(*internalIngress)
-	return orcapi.Ingress{
+	result := orcapi.Ingress{
 		Resource: r,
 		Specification: orcapi.IngressSpecification{
 			Domain:  ing.Domain,
@@ -376,4 +383,13 @@ func ingressTransform(r orcapi.Resource, product util.Option[accapi.ProductRefer
 			State:   "READY",
 		},
 	}
+
+	if flags.IncludeProduct || flags.IncludeSupport {
+		support, _ := SupportByProduct[orcapi.IngressSupport](ingressType, product.Value)
+		result.Status.ResourceStatus = orcapi.ResourceStatus[orcapi.IngressSupport]{
+			ResolvedSupport: util.OptValue(support.ToApi()),
+			ResolvedProduct: util.OptValue(support.Product),
+		}
+	}
+	return result
 }

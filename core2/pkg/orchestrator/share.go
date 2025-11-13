@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -27,6 +28,10 @@ func initShares() {
 	)
 
 	orcapi.SharesBrowse.Handler(func(info rpc.RequestInfo, request orcapi.SharesBrowseRequest) (fndapi.PageV2[orcapi.Share], *util.HttpError) {
+		sortByFn := ResourceDefaultComparator(func(item orcapi.Share) orcapi.Resource {
+			return item.Resource
+		}, request.ResourceFlags)
+
 		return ResourceBrowse[orcapi.Share](
 			info.Actor,
 			shareType,
@@ -40,6 +45,7 @@ func initShares() {
 					return item.Owner.CreatedBy == info.Actor.Username
 				}
 			},
+			sortByFn,
 		), nil
 	})
 
@@ -53,6 +59,7 @@ func initShares() {
 			func(item orcapi.Share) bool {
 				return true
 			},
+			nil,
 		), nil
 	})
 
@@ -162,6 +169,7 @@ func initShares() {
 			func(item orcapi.Share) bool {
 				return item.Owner.CreatedBy == info.Actor.Username
 			},
+			nil,
 		)
 
 		groups := map[string]orcapi.ShareGroupOutgoing{}
@@ -343,6 +351,7 @@ func ShareCreate(actor rpc.Actor, item orcapi.ShareSpecification) (string, *util
 				return false
 			}
 		},
+		nil,
 	)
 
 	if len(duplicateShares.Items) == 1 {
@@ -532,6 +541,7 @@ func shareTransform(
 	product util.Option[accapi.ProductReference],
 	extra any,
 	flags orcapi.ResourceFlags,
+	actor rpc.Actor,
 ) any {
 	share := extra.(*internalShare)
 	result := orcapi.Share{

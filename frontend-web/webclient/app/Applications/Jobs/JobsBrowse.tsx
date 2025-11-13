@@ -4,7 +4,13 @@ import Text from "@/ui-components/Text";
 import {usePage} from "@/Navigation/Redux";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
-import {doNothing, isLightThemeStored, stopPropagationAndPreventDefault, timestampUnixMs} from "@/UtilityFunctions";
+import {
+    bulkRequestOf,
+    doNothing, extractErrorMessage,
+    isLightThemeStored,
+    stopPropagationAndPreventDefault,
+    timestampUnixMs
+} from "@/UtilityFunctions";
 import {
     addContextSwitcherInPortal,
     checkIsWorkspaceAdmin,
@@ -45,6 +51,7 @@ import {Feature, hasFeature} from "@/Features";
 import {SimpleAvatarComponentCache} from "@/Files/Shares";
 import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -249,6 +256,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                         status.style.margin = "0";
                         status.style.width = "24px";
                         status.style.height = "24px";
+                        status.style.marginTop = status.style.marginBottom = "auto";
                         row.stat3.append(status);
                     }
                 });
@@ -266,20 +274,20 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                                 browser.renderRows();
                                 browser.selectAndShow(it => it.id === job.id);
 
-                                // callAPI(JobsApi.rename(bulkRequestOf({
-                                //     id: job.id,
-                                //     newTitle: job.specification.title,
-                                // }))).catch(err => {
-                                //     snackbarStore.addFailure(extractErrorMessage(err), false);
-                                //     browser.refresh();
-                                // });
+                                callAPI(JobsApi.rename(bulkRequestOf({
+                                    id: job.id,
+                                    newTitle: job.specification.name,
+                                }))).catch(err => {
+                                    snackbarStore.addFailure(extractErrorMessage(err), false);
+                                    browser.refresh();
+                                });
 
                                 if (hasFeature(Feature.COMPONENT_STORED_CUT_COPY)) {
                                     ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
-                                        // callAPI(JobsApi.rename(bulkRequestOf({
-                                        //     id: job.id,
-                                        //     newTitle: oldTitle
-                                        // })));
+                                        callAPI(JobsApi.rename(bulkRequestOf({
+                                            id: job.id,
+                                            newTitle: oldTitle ?? ""
+                                        })));
 
                                         job.specification.name = oldTitle;
                                         browser.dispatchMessage("sort", fn => fn(page));
@@ -288,10 +296,10 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                                     });
                                 } else {
                                     browser._undoStack.unshift(() => {
-                                        //callAPI(JobsApi.rename(bulkRequestOf({
-                                        //    id: job.id,
-                                        //    newTitle: oldTitle
-                                        //})));
+                                        callAPI(JobsApi.rename(bulkRequestOf({
+                                            id: job.id,
+                                            newTitle: oldTitle ?? ""
+                                        })));
 
                                         job.specification.name = oldTitle;
                                         browser.dispatchMessage("sort", fn => fn(page));

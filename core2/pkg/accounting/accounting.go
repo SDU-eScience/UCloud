@@ -163,8 +163,6 @@ func initAccounting() {
 	})
 
 	// TODO update allocation
-	// TODO provider gifts
-	// TODO debug endpoints
 }
 
 func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, *util.HttpError) {

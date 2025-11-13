@@ -1,7 +1,6 @@
 package util
 
 import (
-	"cmp"
 	"sync"
 	"time"
 	"ucloud.dk/shared/pkg/log"
@@ -19,7 +18,7 @@ func (e *cacheEntry[V]) Result() (V, bool) {
 	return e.Value.Get(), ok
 }
 
-type AsyncCache[K cmp.Ordered, V any] struct {
+type AsyncCache[K comparable, V any] struct {
 	TimeToLive     time.Duration
 	nextExpiration time.Time
 	entries        map[K]*cacheEntry[V]
@@ -27,7 +26,7 @@ type AsyncCache[K cmp.Ordered, V any] struct {
 	createdBy      FileAndLine
 }
 
-func NewCache[K cmp.Ordered, V any](ttl time.Duration) *AsyncCache[K, V] {
+func NewCache[K comparable, V any](ttl time.Duration) *AsyncCache[K, V] {
 	return &AsyncCache[K, V]{
 		TimeToLive:     ttl,
 		mutex:          sync.RWMutex{},

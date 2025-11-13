@@ -21,7 +21,7 @@ func initAuth() {
 
 	fndapi.AuthLookupUser.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (rpc.CorePrincipalBaseClaims, *util.HttpError) {
 		principal, ok := db.NewTx2(func(tx *db.Transaction) (Principal, bool) {
-			return LookupPrincipal(tx, request.Id)
+			return PrincipalRetrieve(tx, request.Id)
 		})
 
 		if ok {
@@ -83,16 +83,6 @@ func initAuth() {
 		})
 
 		return util.Empty{}, nil
-	})
-
-	fndapi.AuthBrowseIdentityProviders.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.BulkResponse[fndapi.IdentityProvider], *util.HttpError) {
-		// TODO implement this
-		return fndapi.BulkResponse[fndapi.IdentityProvider]{}, nil
-	})
-
-	fndapi.AuthStartLogin.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
-		// TODO Implement this
-		return util.Empty{}, util.HttpErr(http.StatusNotFound, "No such identity provider")
 	})
 
 	fndapi.AuthProvidersRenew.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[fndapi.PublicKeyAndRefreshToken], *util.HttpError) {

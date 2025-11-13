@@ -40,7 +40,7 @@ function resolveNotification(event: Notification): {
     modifiedTitle?: string;
     modifiedMessage?: React.ReactNode;
 } {
-    let appTitle = event.meta["appTitles"] ? event.meta.appTitles[0] : null;
+    let appTitle = event.meta?.["appTitles"] ? event.meta?.appTitles[0] : null;
     if (appTitle === "unknown" || appTitle == "Unknown") appTitle = null;
 
     switch (event.type) {
@@ -588,7 +588,7 @@ export interface Notification {
     message: string;
     ts: number;
     read: boolean;
-    meta: any;
+    meta?: any;
 }
 
 export function normalizeNotification(

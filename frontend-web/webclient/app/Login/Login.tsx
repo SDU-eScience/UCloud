@@ -23,6 +23,7 @@ import interregWhite from "@/Assets/Images/interreg_white.svg";
 import AppRoutes from "@/Routes";
 
 const IS_SANDBOX = onSandbox();
+const IS_GENERIC = !window.location.hostname.endsWith(".dk"); // NOTE(Dan): Overly simplified but works for now.
 
 const BackgroundImageClass = injectStyleSimple("background-image", `
     background: url(${deicBackground}) no-repeat center;
@@ -36,7 +37,7 @@ export const LOGIN_REDIRECT_KEY = "redirect_on_login";
 const inDevEnvironment = DEVELOPMENT_ENV;
 const enabledWayf = true;
 
-const TEXT_COLOR = IS_SANDBOX ? "#fff" : "#000";
+const TEXT_COLOR = IS_SANDBOX || IS_GENERIC ? "#fff" : "#000";
 export const LoginPage: React.FC<{initialState?: any}> = props => {
     const [challengeId, setChallengeID] = useState("");
     const verificationInput = useRef<HTMLInputElement>(null);
@@ -179,7 +180,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
     }
 
     function handleAuthState(result: any): void {
-        if ("2fa" in result) {
+        if (Object.hasOwn(result, "2fa")) {
             setChallengeID(result["2fa"]);
         } else {
             handleCompleteLogin(result);
@@ -246,16 +247,16 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
         );
     }
 
-    const [showingWayf, setShowingWayf] = useState(!IS_SANDBOX);
+    const [showingWayf, setShowingWayf] = useState(!IS_SANDBOX && !IS_GENERIC);
 
     return (
         <LoginWrapper>
-            {IS_SANDBOX ? <HalricLoginHeader /> : <DeicLoginHeader />}
+            {IS_GENERIC ? <GenericLoginHeader /> : IS_SANDBOX ? <HalricLoginHeader /> : <DeicLoginHeader />}
             <Box width="315px" mx="auto" my="auto">
                 {enabledWayf && !challengeId && !isPasswordReset && showingWayf ? (<>
                     <a href={`/auth/saml/login?service=${service}`}>
                         <Button mb="8px" className={BorderRadiusButton} height={"92px"} disableStandardSizes
-                            disabled={loading} fullWidth color={IS_SANDBOX ? "primaryLight" : "wayfGreen"}>
+                            disabled={loading} fullWidth color={IS_GENERIC || IS_SANDBOX ? "primaryLight" : "wayfGreen"}>
                             <Image alt="The Wayf logo" color="#fff" width="100px" src={wayfLogo} />
                             <TextSpan className={LoginTextSpanClass} fontSize={2} ml="2.5em">Login</TextSpan>
                         </Button>
@@ -372,7 +373,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                     </DropdownLike>
                 )}
             </Box>
-            {IS_SANDBOX ? <HalricLoginFooter /> : <DeicLoginFooter />}
+            {IS_GENERIC ? <GenericLoginFooter /> : IS_SANDBOX ? <HalricLoginFooter /> : <DeicLoginFooter />}
         </LoginWrapper>
     );
 };
@@ -439,7 +440,7 @@ function DropdownLike({children}): React.ReactNode {
 
 const DropdownLikeClass = injectStyleSimple("dropdown-like", `
     border-radius: 16px;
-    background-color: ${IS_SANDBOX ? "var(--primaryLight)" : "#c8dd51"};
+    background-color: ${IS_GENERIC || IS_SANDBOX ? "var(--primaryLight)" : "#c8dd51"};
     color: black;
     width: 315px;
     padding: 16px 16px;
@@ -522,7 +523,7 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): Re
 }
 
 function BackgroundImage({children}: React.PropsWithChildren) {
-    if (IS_SANDBOX) {
+    if (IS_GENERIC || IS_SANDBOX) {
         const overridenColors = {
             "--gradientStart": "var(--blue-90)",
             "--gradientEnd": "var(--blue-80)",
@@ -579,7 +580,7 @@ const IdpList: React.FunctionComponent = () => {
                 }
             }
 
-            const color = IS_SANDBOX ? "primaryLight" : "wayfGreen";
+            const color = IS_GENERIC || IS_SANDBOX ? "primaryLight" : "wayfGreen";
 
             return <a href={`/auth/startLogin?id=${idp.id}`} key={idp.id}>
                 <Button borderRadius="16px" fullWidth color={color}>
@@ -589,6 +590,32 @@ const IdpList: React.FunctionComponent = () => {
         })
     }</div>
 };
+
+const GenericLoginHeader: React.FunctionComponent = () => {
+    return <>
+        <Flex width="auto" mx="auto" paddingTop="80px" paddingBottom={"64px"}>
+        </Flex>
+        <Text mx="auto" py="15px" width="fit-content" color={TEXT_COLOR} fontSize={48}>
+            {window.location.hostname}
+        </Text>
+        <Text mx="auto" py="15px" width="fit-content" color={TEXT_COLOR} fontSize={32}>
+            UCloud
+        </Text>
+    </>;
+};
+
+const GenericLoginFooter: React.FunctionComponent = () => {
+    return <Flex gap={"64px"} alignItems={"center"} justifyContent={"center"} my={"128px"}>
+        <Flex justifyContent={"center"} gap={"8px"} alignItems={"center"}>
+            <Icon size={64} name={"logoEsc"} />
+            <Flex flexDirection={"column"}>
+                <Box fontSize={15} color={TEXT_COLOR}><i>Powered by</i></Box>
+                <Box fontSize={25} color={TEXT_COLOR}><b>{PRODUCT_NAME}</b></Box>
+            </Flex>
+        </Flex>
+    </Flex>;
+};
+
 
 const HalricLoginHeader: React.FunctionComponent = () => {
     return <>

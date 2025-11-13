@@ -101,12 +101,13 @@ func MailSendSupport(request fndapi.MailSendSupportRequest) *util.HttpError {
 	mailData, _ := json.Marshal(rawMail)
 
 	toSend := mailToSend{
-		FromName:     request.FromEmail,
-		FromEmail:    request.FromEmail,
+		FromName:     SupportName,
+		FromEmail:    SupportEmail,
 		ToName:       SupportName,
 		ToEmail:      SupportEmail,
 		Mail:         fndapi.Mail(mailData),
 		BaseTemplate: &baseSupportTemplate,
+		ReplyTo:      request.FromEmail,
 	}
 
 	err := sendEmail(toSend)
@@ -260,6 +261,10 @@ func sendEmail(mail mailToSend) error {
 	}
 
 	m := gomail.NewMessage()
+	if mail.ReplyTo != "" {
+		m.SetHeader("Reply-To", mail.ReplyTo)
+	}
+
 	m.SetHeader("From", m.FormatAddress(mail.FromEmail, mail.FromName))
 	m.SetHeader("To", m.FormatAddress(mail.ToEmail, mail.ToName))
 	m.SetHeader("Subject", subject)
@@ -382,6 +387,7 @@ type mailToSend struct {
 	ToEmail      string
 	Mail         fndapi.Mail
 	BaseTemplate *mailTemplate
+	ReplyTo      string
 }
 
 func renderEmail(mail mailToSend) (string, string, error) {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
 	"ucloud.dk/shared/pkg/rpc"
 
 	apm "ucloud.dk/shared/pkg/accounting"
@@ -99,7 +100,7 @@ type JobStatus struct {
 	StartedAt           util.Option[fnd.Timestamp]  `json:"startedAt,omitempty"`
 	ExpiresAt           util.Option[fnd.Timestamp]  `json:"expiresAt,omitempty"`
 	ResolvedApplication Application                 `json:"resolvedApplication,omitempty"`
-	ResolvedProduct     apm.ProductV2               `json:"resolvedProduct,omitempty"`
+	ResolvedProduct     util.Option[apm.ProductV2]  `json:"resolvedProduct,omitempty"`
 	ResolvedSupport     ResolvedSupport[JobSupport] `json:"resolvedSupport"`
 	AllowRestart        bool                        `json:"allowRestart"`
 }
@@ -601,7 +602,6 @@ var JobsOpenTerminalInFolder = rpc.Call[fnd.BulkRequest[JobsOpenTerminalInFolder
 	Operation:   "openTerminalInFolder",
 }
 
-/*
 type JobRenameRequest struct {
 	Id       string `json:"id"`
 	NewTitle string `json:"newTitle"`
@@ -613,7 +613,6 @@ var JobsRename = rpc.Call[fnd.BulkRequest[JobRenameRequest], util.Empty]{
 	Roles:       rpc.RolesEndUser,
 	Operation:   "rename",
 }
-*/
 
 type JobsSearchRequest struct {
 	ItemsPerPage int                 `json:"itemsPerPage"`
@@ -724,6 +723,17 @@ var JobsControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[JobUpdat
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesProvider,
 	Operation:   "update",
+}
+
+type JobsControlBrowseSshKeysRequest struct {
+	JobId string `json:"jobId"`
+}
+
+var JobsControlBrowseSshKeys = rpc.Call[JobsControlBrowseSshKeysRequest, fnd.PageV2[SshKey]]{
+	Convention:  rpc.ConventionUpdate,
+	BaseContext: jobControlNamespace,
+	Operation:   "browseSshKeys",
+	Roles:       rpc.RoleProvider,
 }
 
 // Job Provider API

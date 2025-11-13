@@ -65,7 +65,8 @@ class DatabaseConfigurationFeature : MicroFeature {
                     credentials.password,
                     safeSchemaName(ctx.serviceDescription),
                     recreateSchema = false,
-                    validateMigrations = configuration.validateMigrations
+                    validateMigrations = configuration.validateMigrations,
+                    poolSize = configuration.poolSize,
                 )
 
                 if (shouldLog) {
@@ -100,6 +101,7 @@ class DatabaseConfigurationFeature : MicroFeature {
             val port: Int? = null,
             val logSql: Boolean = false,
             val validateMigrations: Boolean = true,
+            val poolSize: Int? = null,
         )
 
         // Postgres profile

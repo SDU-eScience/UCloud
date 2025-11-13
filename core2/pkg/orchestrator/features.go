@@ -6,7 +6,9 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -27,6 +29,7 @@ type providerSupport struct {
 var providerSupportGlobals struct {
 	Mu     sync.RWMutex
 	ByType map[string]providerSupportByType
+	Ready  atomic.Bool
 }
 
 type providerSupportByType struct {
@@ -36,6 +39,7 @@ type providerSupportByType struct {
 
 func initFeatures() {
 	providerSupportGlobals.ByType = map[string]providerSupportByType{}
+	providerSupportGlobals.Ready.Store(false)
 
 	go func() {
 		providersBeingMonitored := map[string]util.Empty{}
@@ -130,6 +134,8 @@ func featureMonitorProvider(provider string) {
 		if len(supportMap) == 0 {
 			time.Sleep(100 * time.Millisecond)
 		} else {
+			providerSupportGlobals.Ready.Store(true)
+
 			providerSupportGlobals.Mu.Lock()
 			for typeName, support := range supportMap {
 				typeMap, ok := providerSupportGlobals.ByType[typeName]
@@ -177,9 +183,16 @@ func featureFetchProviderSupport[T any](
 	}
 }
 
+func featureAwaitReady() {
+	for !providerSupportGlobals.Ready.Load() {
+		time.Sleep(1 * time.Millisecond)
+	}
+}
+
 func featureSupported(typeName string, product accapi.ProductReference, feature SupportFeatureKey) bool {
 	var s []providerSupport
 
+	featureAwaitReady()
 	providerSupportGlobals.Mu.RLock()
 	typeMap, ok := providerSupportGlobals.ByType[typeName]
 	if ok {
@@ -325,13 +338,11 @@ func supportToApi(provider string, supportItems []providerSupport) []orcapi.Reso
 }
 
 func SupportRetrieveProducts[T any](typeName string) orcapi.SupportByProvider[T] {
-	// TODO It seems like this function needs to wait for at least one round of support retrieval before being okay
-	//   with returning
-
 	result := orcapi.SupportByProvider[T]{
 		ProductsByProvider: make(map[string][]orcapi.ResolvedSupport[T]),
 	}
 
+	featureAwaitReady()
 	providerSupportGlobals.Mu.RLock()
 	byType, ok := providerSupportGlobals.ByType[typeName]
 	if ok {

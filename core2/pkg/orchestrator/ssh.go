@@ -41,6 +41,15 @@ func initSsh() {
 		err := SshKeyDelete(info.Actor, request.Items)
 		return util.Empty{}, err
 	})
+
+	orcapi.JobsControlBrowseSshKeys.Handler(func(info rpc.RequestInfo, request orcapi.JobsControlBrowseSshKeysRequest) (fndapi.PageV2[orcapi.SshKey], *util.HttpError) {
+		keys, err := SshKeyRetrieveByJob(info.Actor, request.JobId)
+		if err != nil {
+			return fndapi.PageV2[orcapi.SshKey]{}, err
+		} else {
+			return fndapi.PageV2[orcapi.SshKey]{ItemsPerPage: len(keys), Items: keys}, nil
+		}
+	})
 }
 
 func SshKeyCreate(actor rpc.Actor, keys []orcapi.SshKeySpecification) ([]fndapi.FindByStringId, *util.HttpError) {
@@ -251,7 +260,6 @@ func SshKeyDelete(actor rpc.Actor, keys []fndapi.FindByStringId) *util.HttpError
 	return nil
 }
 
-// TODO
 func SshKeyRetrieveByJob(actor rpc.Actor, jobId string) ([]orcapi.SshKey, *util.HttpError) {
 	job, err := JobsRetrieve(actor, jobId, orcapi.JobFlags{})
 	if err != nil {

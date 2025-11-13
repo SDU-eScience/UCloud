@@ -1,9 +1,13 @@
 package orchestrator
 
 import (
+	"fmt"
 	"net/http"
 	"path/filepath"
+	"strings"
+
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -240,6 +244,20 @@ func FilesCreateFolder(actor rpc.Actor, request fndapi.BulkRequest[orcapi.FilesC
 			ConflictPolicy:     reqItem.ConflictPolicy,
 			ResolvedCollection: drive,
 		})
+
+		if util.DevelopmentModeEnabled() && strings.Contains(reqItem.Id, "$$notify-me$$") {
+			_, err := fndapi.NotificationsCreate.Invoke(fndapi.NotificationsCreateRequest{
+				User: actor.Username,
+				Notification: fndapi.Notification{
+					Type:    "TEST_NOTIFICATION",
+					Message: fmt.Sprintf("Here you go: %s", reqItem.Id),
+				},
+			})
+
+			if err != nil {
+				log.Info("Could not send test notification: %s", err)
+			}
+		}
 	}
 
 	for provider, requests := range requestsByProvider {

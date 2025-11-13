@@ -20,6 +20,7 @@ func Init() {
 	InitResources()
 	initFeatures()
 	initTasks()
+	initProviderManagement()
 
 	initDrives()
 	initFiles()
