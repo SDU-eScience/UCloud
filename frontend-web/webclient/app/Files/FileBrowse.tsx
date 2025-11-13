@@ -109,7 +109,7 @@ const FEATURES: ResourceBrowseFeatures = {
     search: true,
     sorting: true,
     filters: true,
-    contextSwitcher: true,
+    projectSwitcher: true,
     showHeaderInEmbedded: true,
     showColumnTitles: true,
     breadcrumbTitles: true,

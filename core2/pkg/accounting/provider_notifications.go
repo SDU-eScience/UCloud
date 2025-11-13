@@ -19,7 +19,7 @@ import (
 
 // NOTE(Dan): This channel is managed by accounting_internal during a significant update to a wallet. The wallet ID
 // is emitted to the wallet and additional information must be looked up.
-var providerWalletNotifications = make(chan accWalletId, 128)
+var providerWalletNotifications = make(chan AccWalletId, 128)
 
 var providerNotifications struct {
 	Mu                        sync.Mutex
@@ -41,7 +41,7 @@ func initProviderNotifications() {
 			var project fndapi.Project
 			var projectOk bool
 
-			var walletId accWalletId
+			var walletId AccWalletId
 			var walletOk bool
 
 			select {

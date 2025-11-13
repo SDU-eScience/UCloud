@@ -35,6 +35,7 @@ func Init() {
 	initLicenses()
 	initPublicIps()
 	initIngresses()
+	initSupportAssistsOrc()
 	initSsh()
 
 	// TODO Dummy implementation to make frontend happy

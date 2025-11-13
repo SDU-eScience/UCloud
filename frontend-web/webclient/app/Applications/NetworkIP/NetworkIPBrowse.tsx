@@ -49,7 +49,7 @@ const FEATURES: ResourceBrowseFeatures = {
     breadcrumbsSeparatedBySlashes: false,
     showColumnTitles: true,
     dragToSelect: true,
-    contextSwitcher: true,
+    projectSwitcher: true,
 };
 
 const DUMMY_ENTRY_ID = "dummy";

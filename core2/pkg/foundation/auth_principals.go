@@ -28,7 +28,7 @@ type Principal struct {
 	ModifiedAt              fndapi.Timestamp
 }
 
-func PrincipalsLookupsByEmail(tx *db.Transaction, email string) []string {
+func PrincipalLookupByEmail(tx *db.Transaction, email string) []string {
 	ok := db.Select[struct {
 		Id string
 	}](
@@ -50,19 +50,7 @@ func PrincipalsLookupsByEmail(tx *db.Transaction, email string) []string {
 
 }
 
-type PrincipalSpecification struct {
-	Type           string
-	Id             string
-	Role           fndapi.PrincipalRole
-	FirstNames     util.Option[string]
-	LastName       util.Option[string]
-	HashedPassword util.Option[[]byte]
-	Salt           util.Option[[]byte]
-	OrgId          util.Option[string]
-	Email          util.Option[string]
-}
-
-func PrincipalRetrieve(tx *db.Transaction, username string) (Principal, bool) {
+func LookupPrincipal(tx *db.Transaction, username string) (Principal, bool) {
 	row, ok := db.Get[struct {
 		Dtype                   string
 		Id                      string

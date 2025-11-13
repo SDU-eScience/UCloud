@@ -124,6 +124,15 @@ const files = {
     preview: (path: string) => "/files/properties/" + encodeURIComponent(path)
 }
 
+const supportAssist = {
+    base: () => "/support-assist",
+    user() {return this.base() + "/user"},
+    project() {return this.base() + "/project"},
+    allocation() {return this.base() + "/allocation"},
+    job() {return this.base() + "/job"},
+
+}
+
 const AppRoutes = {
     apps,
     appStudio,
@@ -142,6 +151,7 @@ const AppRoutes = {
     accounting,
     providers,
     files,
+    supportAssist,
     prefix: "/app",
 };
 

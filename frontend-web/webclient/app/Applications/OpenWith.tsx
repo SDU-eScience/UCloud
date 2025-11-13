@@ -59,7 +59,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
         if (mount && !browserRef.current) {
             new ResourceBrowser(mount, "Launch with", opts).init(browserRef, {
                 breadcrumbsSeparatedBySlashes: false,
-                contextSwitcher: true,
+                projectSwitcher: true,
             }, "", browser => {
                 fetchInfo();
 
