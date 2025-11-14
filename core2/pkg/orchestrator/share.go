@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"slices"
@@ -10,6 +11,7 @@ import (
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -388,7 +390,15 @@ func ShareCreate(actor rpc.Actor, item orcapi.ShareSpecification) (string, *util
 			panic(err)
 		}
 	}
-
+	_, err = fndapi.NotificationsCreate.Invoke(
+		fndapi.NotificationsCreateRequest{User: item.SharedWith, Notification: fndapi.Notification{
+			Type:    "SHARE_REQUEST",
+			Message: fmt.Sprintf("%s wants to share a folder with you", actor.Username),
+		}},
+	)
+	if err != nil {
+		log.Info("Could not send notification: %s", err)
+	}
 	return share.Id, nil
 }
 

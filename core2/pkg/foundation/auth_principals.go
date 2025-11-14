@@ -28,7 +28,7 @@ type Principal struct {
 	ModifiedAt              fndapi.Timestamp
 }
 
-func PrincipalsLookupsByEmail(tx *db.Transaction, email string) []string {
+func PrincipalsLookupByEmail(tx *db.Transaction, email string) []string {
 	ok := db.Select[struct {
 		Id string
 	}](

@@ -2,9 +2,10 @@ package config
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"math"
 	"net"
+
+	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
@@ -457,13 +458,13 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			}
 
 			portMin := cfgutil.RequireChildInt(filePath, syncthingNode, "portMin", &success)
-			if success && (portMin <= 0 || portMin >= math.MaxInt16) {
+			if success && (portMin <= 0 || portMin >= math.MaxUint16) {
 				cfgutil.ReportError(filePath, syncthingNode, "portMin is invalid")
 				success = false
 			}
 
 			portMax := cfgutil.RequireChildInt(filePath, syncthingNode, "portMax", &success)
-			if success && (portMax <= 0 || portMax >= math.MaxInt16) {
+			if success && (portMax <= 0 || portMax >= math.MaxUint16) {
 				cfgutil.ReportError(filePath, syncthingNode, "portMax is invalid")
 				success = false
 			}

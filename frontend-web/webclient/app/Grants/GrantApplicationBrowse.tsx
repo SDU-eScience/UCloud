@@ -30,7 +30,7 @@ const FEATURES: ResourceBrowseFeatures = {
     sorting: true,
     filters: true,
     breadcrumbsSeparatedBySlashes: false,
-    contextSwitcher: true,
+    projectSwitcher: true,
 }
 
 export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grants.Application> & {both?: boolean}}): React.ReactNode {

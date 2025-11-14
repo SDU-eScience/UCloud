@@ -9,6 +9,7 @@ func Init() {
 	initPasswordReset()
 	initProjects()
 	initTasks()
+	initSupportAssistsFoundation()
 	initSupport()
 	initAuthOidc()
 }

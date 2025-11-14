@@ -57,7 +57,7 @@ func PasswordClaimResetLink(token string, newPassword string) *util.HttpError {
 
 func PasswordHandleResetRequest(email string) *util.HttpError {
 	return db.NewTx(func(tx *db.Transaction) *util.HttpError {
-		users := PrincipalsLookupsByEmail(tx, email)
+		users := PrincipalsLookupByEmail(tx, email)
 		if len(users) == 0 {
 			return util.HttpErr(http.StatusNotFound, "Cannot create reset request")
 		}

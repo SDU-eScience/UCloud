@@ -148,7 +148,7 @@ var IngressesControlBrowse = rpc.Call[IngressesControlBrowseRequest, fnd.PageV2[
 	Roles:       rpc.RolesProvider,
 }
 
-var IngressesControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResource[PublicIPSpecification]], fnd.BulkResponse[fnd.FindByStringId]]{
+var IngressesControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResource[IngressSpecification]], fnd.BulkResponse[fnd.FindByStringId]]{
 	BaseContext: ingressControlNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesProvider,

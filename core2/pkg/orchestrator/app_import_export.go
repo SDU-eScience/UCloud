@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
@@ -182,19 +183,19 @@ func AppIxImportFromZip(b []byte) {
 
 	zr, zipErr := zip.NewReader(bytes.NewReader(b), int64(len(b)))
 	if zipErr != nil {
-		log.Info("corrupt ZIP file: %w", zipErr)
+		log.Info("corrupt ZIP file: %v", zipErr)
 		return
 	}
 	for _, f := range zr.File {
 		rc, err := f.Open()
 		if err != nil {
-			log.Info("corrupt ZIP file, could not open %s: %w", f.Name, err)
+			log.Info("corrupt ZIP file, could not open %s: %v", f.Name, err)
 			return
 		}
 		data, rerr := io.ReadAll(rc)
 		util.SilentClose(rc)
 		if rerr != nil {
-			log.Info("corrupt ZIP file, could not read %s: %w", f.Name, rerr)
+			log.Info("corrupt ZIP file, could not read %s: %v", f.Name, rerr)
 			return
 		}
 		importedData[f.Name] = data
