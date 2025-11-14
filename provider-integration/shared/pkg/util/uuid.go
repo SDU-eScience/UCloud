@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"regexp"
 )
 
 func UUid() string {
@@ -24,4 +25,10 @@ func UUid() string {
 		uuid[8:10],
 		uuid[10:16],
 	)
+}
+
+var uuidRe = regexp.MustCompile(`(?i)\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b`)
+
+func LooksLikeUuid(input string) bool {
+	return uuidRe.MatchString(input)
 }

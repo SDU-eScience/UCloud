@@ -83,6 +83,11 @@ type KubernetesSyncthingConfiguration struct {
 	RelaysEnabled         bool
 }
 
+type KubernetesInferenceConfiguration struct {
+	Enabled       bool
+	OllamaDevMode bool
+}
+
 type KubernetesCompute struct {
 	Machines                        map[string]K8sMachineCategory
 	MachineImpersonation            map[string]string
@@ -97,6 +102,7 @@ type KubernetesCompute struct {
 	VirtualMachineStorageClass      util.Option[string]
 	ImSourceCode                    util.Option[string]
 	Modules                         map[string]KubernetesModuleEntry
+	Inference                       KubernetesInferenceConfiguration
 }
 
 func (c *KubernetesCompute) ResolveMachine(name, category string) (K8sMachineCategory, K8sMachineCategoryGroup, K8sMachineConfiguration, bool) {
@@ -217,6 +223,15 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 	if cfg.Compute.Namespace == "" {
 		cfg.Compute.Namespace = "ucloud-apps"
+	}
+
+	inferenceNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "inference")
+	if inferenceNode != nil {
+		cfg.Compute.Inference.Enabled = cfgutil.RequireChildBool(filePath, inferenceNode, "enabled", &success)
+		if cfg.Compute.Inference.Enabled {
+			ollamaDevMode, _ := cfgutil.OptionalChildBool(filePath, inferenceNode, "ollamaDevMode")
+			cfg.Compute.Inference.OllamaDevMode = ollamaDevMode
+		}
 	}
 
 	cfg.Compute.Modules = map[string]KubernetesModuleEntry{}

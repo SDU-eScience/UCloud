@@ -163,3 +163,4 @@ frontend-web/webclient/bun.lockb
 
 .use-core2
 .use-core2-exp
+.use-ollama
