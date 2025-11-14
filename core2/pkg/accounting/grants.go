@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -1624,4 +1625,98 @@ func initGrants() {
 
 const defaultTemplate = "Please describe the reason for applying for resources"
 
-// TODO notifications
+// Notifications
+// =====================================================================================================================
+// Sends notifications when grant events occur.
+type grantEventType int
+
+const (
+	grantEvNewComment grantEventType = iota
+	grantEvGrantAwarded
+	grantEvApplicationRejected
+	grantEvApplicationSubmitted
+	grantEvRevisionSubmitted
+)
+
+type grantEvent struct {
+	Type                   grantEventType
+	EventSourceIsApplicant bool
+	Actor                  rpc.Actor
+	Application            accapi.GrantApplication
+}
+
+func grantSendNotification(event grantEvent) *util.HttpError {
+	var recipients []string
+
+	if event.EventSourceIsApplicant {
+		app := &event.Application
+		reqs := app.CurrentRevision.Document.AllocationRequests
+		reviewerSet := map[string]util.Empty{}
+		for _, req := range reqs {
+			reviewerSet[req.GrantGiver] = util.Empty{}
+		}
+
+		reviewerUsers := map[string]util.Empty{}
+		db.NewTx0(func(tx *db.Transaction) {
+			for reviewer := range reviewerSet {
+				project, ok := coreutil.ProjectRetrieveFromDatabase(tx, reviewer)
+				if ok {
+					for _, member := range project.Status.Members {
+						if member.Role.Satisfies(fndapi.ProjectRoleAdmin) {
+							reviewerUsers[member.Username] = util.Empty{}
+						}
+					}
+				}
+			}
+		})
+
+		for user := range reviewerUsers {
+			recipients = append(recipients, user)
+		}
+	} else {
+		applicant := event.Application.CreatedBy
+		recipients = append(recipients, applicant)
+	}
+
+	for _, recipient := range recipients {
+		notification := fndapi.Notification{}
+
+		meta := map[string]any{
+			"appId": event.Application.Id,
+		}
+
+		metaJson, _ := json.Marshal(meta)
+		notification.Meta.Set(metaJson)
+
+		switch event.Type {
+		case grantEvNewComment:
+			notification.Type = "NEW_GRANT_COMMENT"
+			notification.Message = "A new comment has been added"
+		case grantEvApplicationSubmitted:
+			notification.Type = "NEW_GRANT_APPLICATION"
+			notification.Message = "A new application has been submitted"
+		case grantEvGrantAwarded:
+			notification.Type = "GRANT_APPLICATION_RESPONSE"
+			notification.Message = "A grant has been approved"
+		case grantEvApplicationRejected:
+			notification.Type = "GRANT_APPLICATION_RESPONSE"
+			notification.Message = "A grant has been rejected"
+		case grantEvRevisionSubmitted:
+			notification.Type = "GRANT_APPLICATION_UPDATED"
+			notification.Message = "A revision has been submitted"
+		}
+
+		_, err := fndapi.NotificationsCreate.Invoke(fndapi.NotificationsCreateRequest{
+			User:         recipient,
+			Notification: notification,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// TODO call the grantSendNotification function
+// TODO add feature for sending emails when there is a new event
