@@ -2,7 +2,7 @@ package orchestrator
 
 import (
 	"database/sql"
-	base64 "encoding/base64"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -100,6 +100,14 @@ func initJobs() {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
 			}
 
+			for _, param := range spec.Parameters {
+				jobBindResource(job.Id, param)
+			}
+
+			for _, resc := range spec.Resources {
+				jobBindResource(job.Id, resc)
+			}
+
 			ids = append(ids, fndapi.FindByStringId{Id: job.Id})
 		}
 
@@ -144,7 +152,15 @@ func initJobs() {
 							mapped.Status.State = job.State
 							jobNotifyStateChange(mapped)
 
-							// TODO unbind resources
+							if job.State.IsFinal() {
+								for _, param := range job.Parameters {
+									jobUnbindResource(jobId, param)
+								}
+
+								for _, resc := range job.Resources {
+									jobUnbindResource(jobId, resc)
+								}
+							}
 						}
 
 						if f := update.OutputFolder; f.Present {
@@ -669,6 +685,28 @@ func initJobs() {
 	})
 }
 
+func jobBindResource(jobId string, resc orcapi.AppParameterValue) {
+	switch resc.Type {
+	case orcapi.AppParameterValueTypeNetwork:
+		PublicIpBind(resc.Id, jobId)
+	case orcapi.AppParameterValueTypeIngress:
+		IngressBind(resc.Id, jobId)
+	case orcapi.AppParameterValueTypeLicense:
+		LicenseBind(resc.Id, jobId)
+	}
+}
+
+func jobUnbindResource(jobId string, resc orcapi.AppParameterValue) {
+	switch resc.Type {
+	case orcapi.AppParameterValueTypeNetwork:
+		PublicIpUnbind(resc.Id, jobId)
+	case orcapi.AppParameterValueTypeIngress:
+		IngressUnbind(resc.Id, jobId)
+	case orcapi.AppParameterValueTypeLicense:
+		LicenseUnbind(resc.Id, jobId)
+	}
+}
+
 func jobsFollow(conn *ws.Conn) {
 	var initialJob orcapi.Job
 	var actor rpc.Actor
@@ -1056,19 +1094,27 @@ func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue) *util.Ht
 		}
 
 	case orcapi.AppParameterValueTypeNetwork:
-		_, _, _, err := ResourceRetrieveEx[orcapi.PublicIp](actor, publicIpType, ResourceParseId(value.Id),
+		resc, _, _, err := ResourceRetrieveEx[orcapi.PublicIp](actor, publicIpType, ResourceParseId(value.Id),
 			orcapi.PermissionEdit, orcapi.ResourceFlags{})
 
 		if err != nil {
 			return util.HttpErr(http.StatusForbidden, "you cannot use this IP address")
 		}
 
+		if len(resc.Status.BoundTo) > 0 {
+			return util.HttpErr(http.StatusForbidden, "this IP is already in use with %v", resc.Status.BoundTo[0])
+		}
+
 	case orcapi.AppParameterValueTypeIngress:
-		_, _, _, err := ResourceRetrieveEx[orcapi.Ingress](actor, ingressType, ResourceParseId(value.Id),
+		resc, _, _, err := ResourceRetrieveEx[orcapi.Ingress](actor, ingressType, ResourceParseId(value.Id),
 			orcapi.PermissionEdit, orcapi.ResourceFlags{})
 
 		if err != nil {
 			return util.HttpErr(http.StatusForbidden, "you cannot use this link")
+		}
+
+		if len(resc.Status.BoundTo) > 0 {
+			return util.HttpErr(http.StatusForbidden, "this link is already in use with %v", resc.Status.BoundTo[0])
 		}
 
 	case orcapi.AppParameterValueTypeLicense:
