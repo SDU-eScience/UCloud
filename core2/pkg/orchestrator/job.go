@@ -1583,14 +1583,19 @@ func jobTransform(
 
 var jobNotificationsPending struct {
 	Mu            sync.RWMutex
-	EntriesByUser map[string][]orcapi.Job
+	EntriesByUser map[string]map[string]orcapi.Job // user -> job id -> job
 }
 
 func jobNotifyStateChange(job orcapi.Job) {
 	if job.Status.State != orcapi.JobStateInQueue {
 		jobNotificationsPending.Mu.Lock()
 		username := job.Owner.CreatedBy
-		jobNotificationsPending.EntriesByUser[username] = append(jobNotificationsPending.EntriesByUser[username], job)
+		current, ok := jobNotificationsPending.EntriesByUser[username]
+		if !ok {
+			current = map[string]orcapi.Job{}
+			jobNotificationsPending.EntriesByUser[username] = current
+		}
+		current[job.Id] = job
 		jobNotificationsPending.Mu.Unlock()
 	}
 }
@@ -1598,11 +1603,11 @@ func jobNotifyStateChange(job orcapi.Job) {
 func jobNotificationsLoopSendPending() {
 	for {
 		jobNotificationsPending.Mu.Lock()
-		copiedEntriesByUser := map[string][]orcapi.Job{}
+		copiedEntriesByUser := map[string]map[string]orcapi.Job{}
 		for username, jobs := range jobNotificationsPending.EntriesByUser {
 			copiedEntriesByUser[username] = jobs
 		}
-		jobNotificationsPending.EntriesByUser = map[string][]orcapi.Job{}
+		jobNotificationsPending.EntriesByUser = map[string]map[string]orcapi.Job{}
 		jobNotificationsPending.Mu.Unlock()
 		for username, jobs := range copiedEntriesByUser {
 			jobSendNotifications(username, jobs)
@@ -1626,7 +1631,7 @@ func mapStateToType(s orcapi.JobState) (string, bool) {
 	}
 }
 
-func jobSendNotifications(username string, jobs []orcapi.Job) {
+func jobSendNotifications(username string, jobs map[string]orcapi.Job) {
 	groupedByState := map[orcapi.JobState][]orcapi.Job{}
 	for _, job := range jobs {
 		jobState := job.Status.State
@@ -1639,9 +1644,9 @@ func jobSendNotifications(username string, jobs []orcapi.Job) {
 			continue
 		}
 
-		jobIds := make([]string, len(group))
-		appTitles := make([]string, len(group))
-		jobNames := make([]string, len(group))
+		var jobIds []string
+		var appTitles []string
+		var jobNames []string
 
 		for _, job := range group {
 			jobIds = append(jobIds, job.Id)
