@@ -114,8 +114,7 @@ export function RichSelect<T, K extends keyof T>(props: {
                 <div className={TriggerClass} style={{minWidth: props.fullWidth ? "500px" : props.dropdownWidth ?? "500px"}} ref={triggerRef}>
                     <props.RenderSelected element={props.selected} onSelect={doNothing} />
                     <Icon name="heroChevronDown" style={props.chevronPlacement} />
-                </div>
-                : <></>
+                </div> : null
         }
         onOpeningTriggerClick={onTriggerClick}
         rightAligned

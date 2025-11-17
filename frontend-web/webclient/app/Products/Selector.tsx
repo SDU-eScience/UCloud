@@ -9,11 +9,12 @@ import {getProviderTitle} from "@/Providers/ProviderTitle";
 import {Box, Button, Flex, Icon, Input, Link, Tooltip} from "@/ui-components";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {useUState} from "@/Utilities/UState";
-import {clamp, grantsLink, stopPropagation} from "@/UtilityFunctions";
+import {clamp, stopPropagation} from "@/UtilityFunctions";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {NoResultsBody} from "@/UtilityComponents";
+import AppRoutes from "@/Routes";
 
 const NEED_CONNECT = "need-connection";
 
@@ -119,44 +120,7 @@ export const ProductSelector: React.FunctionComponent<{
     }, [filteredProducts, connectionState.lastRefresh]);
 
 
-    const boxRef = React.useRef<HTMLDivElement>(null);
-    const boxRect = boxRef?.current?.getBoundingClientRect() ?? {x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0};
-    let dialogX = boxRect.x;
-    let dialogY = boxRect.y + boxRect.height;
-    let dialogHeight = 500;
-    const minimumWidth = 500 + headers.length * 90;
-    let dialogWidth = Math.min(Math.max(minimumWidth, boxRect.width), window.innerWidth - boxRect.x - 16);
-    {
-        const dialogOutOfBounds = (): boolean => dialogX <= 0 || dialogY <= 0 ||
-            dialogY + dialogHeight >= window.innerHeight || dialogHeight < 200;
-
-        // Attempt to move the dialog box up a bit
-        if (dialogOutOfBounds()) dialogY = boxRect.y + 30;
-
-        // Try making it smaller
-        if (dialogOutOfBounds()) dialogHeight = window.innerHeight - dialogY - 50;
-
-        // What if we try putting it directly above?
-        if (dialogOutOfBounds()) {
-            dialogY = boxRect.y - 500;
-            dialogHeight = 500;
-        }
-
-        // What about a smaller version?
-        if (dialogOutOfBounds()) {
-            dialogY = boxRect.y - 300;
-            dialogHeight = 300;
-        }
-
-        // Display a modal, we cannot find any space for it.
-        if (dialogOutOfBounds()) {
-            dialogX = 50;
-            dialogY = 50;
-            dialogWidth = window.innerWidth - 50 * 2;
-            dialogHeight = window.innerHeight - 50 * 2;
-        }
-    }
-
+    const {boxRef, dims} = useBoundedPosition(headers.length);
 
     const arrowKeyIndex = React.useRef(-1);
     const itemWrapperRef = React.useRef<HTMLTableSectionElement>(null);
@@ -193,34 +157,7 @@ export const ProductSelector: React.FunctionComponent<{
         setFilteredProducts(props.products);
     }, [props.products]);
 
-    React.useLayoutEffect(() => {
-        const wrapper = boxRef.current!;
-        const scrollingParentFn = (elem: HTMLElement): HTMLElement => {
-            let parent = elem.parentElement;
-            while (parent) {
-                const {overflow} = window.getComputedStyle(parent);
-                if (overflow.split(" ").every(it => it === "auto" || it === "scroll")) {
-                    return parent;
-                } else {
-                    parent = parent.parentElement;
-                }
-            }
-            return document.documentElement;
-        };
-        const scrollingParent = scrollingParentFn(wrapper);
-
-        const noScroll = () => {
-            onClose();
-        };
-
-        document.body.addEventListener("click", onClose);
-        if (isOpen) scrollingParent.addEventListener("scroll", noScroll);
-
-        return () => {
-            document.body.removeEventListener("click", onClose);
-            if (isOpen) scrollingParent.removeEventListener("scroll", noScroll);
-        };
-    }, [isOpen]);
+    useCloseOnScroll(boxRef, {current: onClose})
 
     const showHeadings = isDetailed;
 
@@ -271,9 +208,9 @@ export const ProductSelector: React.FunctionComponent<{
 
         {!isOpen ? null :
             ReactDOM.createPortal(
-                <div className={SelectorDialog} style={{left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} onClick={stopPropagation}>
+                <div className={SelectorDialog} style={{left: dims.x, top: dims.y, width: dims.width, height: dims.height}} onClick={stopPropagation}>
                     {props.loading && props.products.length === 0 ? <>
-                        <Flex mt={(dialogHeight - 64 - 20) / 2 /* subract margin + height of HexSpin */}>
+                        <Flex mt={(dims.height - 64 - 20) / 2 /* subract margin + height of HexSpin */}>
                             <HexSpin size={64} />
                         </Flex>
                     </> : props.products.length === 0 ?
@@ -285,7 +222,7 @@ export const ProductSelector: React.FunctionComponent<{
                                     in your grant application.
                                 </>}
 
-                                <Link to={grantsLink()}>
+                                <Link to={AppRoutes.grants.editor()}>
                                     <Button fullWidth mt="20px" mb={"4px"}>Apply for resources</Button>
                                 </Link>
                             </NoResultsBody>
@@ -434,6 +371,101 @@ export const ProductSelector: React.FunctionComponent<{
         }
     </>;
 };
+
+// TODO(Jonas): I _think_ this is what it does?
+export function useCloseOnScroll(ref: React.RefObject<HTMLDivElement | null>, closeFn: React.RefObject<() => void>) {
+    React.useLayoutEffect(() => {
+        const wrapper = ref.current;
+        if (!wrapper) return;
+        const scrollingParentFn = (elem: HTMLElement): HTMLElement => {
+            let parent = elem.parentElement;
+            while (parent) {
+                const {overflow} = window.getComputedStyle(parent);
+                if (overflow.split(" ").every(it => it === "auto" || it === "scroll")) {
+                    return parent;
+                } else {
+                    parent = parent.parentElement;
+                }
+            }
+            return document.documentElement;
+        };
+        const scrollingParent = scrollingParentFn(wrapper);
+
+        const noScroll = () => {
+            closeFn.current();
+        };
+
+        document.body.addEventListener("click", closeFn.current);
+        scrollingParent.addEventListener("scroll", noScroll);
+
+        return () => {
+            document.body.removeEventListener("click", closeFn.current);
+            scrollingParent.removeEventListener("scroll", noScroll);
+        };
+    }, []);
+
+}
+
+// TOOD(Jonas): Find a better name, I don't think this means what it should
+export function useBoundedPosition(headerCount: number): {
+    boxRef: React.RefObject<HTMLDivElement | null>, dims: {
+        x: number;
+        y: number;
+        height: number;
+        width: number;
+    }
+} {
+    const boxRef = React.useRef<HTMLDivElement>(null);
+
+    const boxRect = boxRef?.current?.getBoundingClientRect() ?? {x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0};
+    if (!boxRef.current) {
+        console.log("no result, returning 0")
+        return {boxRef, dims: boxRect};
+    }
+    console.log(boxRef)
+    let dialogX = boxRect.x;
+    let dialogY = boxRect.y + boxRect.height;
+    let dialogHeight = 500;
+    const minimumWidth = 500 + headerCount * 90;
+    let dialogWidth = Math.min(Math.max(minimumWidth, boxRect.width), window.innerWidth - boxRect.x - 16);
+
+    const dialogOutOfBounds = (): boolean => dialogX <= 0 || dialogY <= 0 ||
+        dialogY + dialogHeight >= window.innerHeight || dialogHeight < 200;
+
+    // Attempt to move the dialog box up a bit
+    if (dialogOutOfBounds()) dialogY = boxRect.y + 30;
+
+    // Try making it smaller
+    if (dialogOutOfBounds()) dialogHeight = window.innerHeight - dialogY - 50;
+
+    // What if we try putting it directly above?
+    if (dialogOutOfBounds()) {
+        dialogY = boxRect.y - 500;
+        dialogHeight = 500;
+    }
+
+    // What about a smaller version?
+    if (dialogOutOfBounds()) {
+        dialogY = boxRect.y - 300;
+        dialogHeight = 300;
+    }
+
+    // Display a modal, we cannot find any space for it.
+    if (dialogOutOfBounds()) {
+        dialogX = 50;
+        dialogY = 50;
+        dialogWidth = window.innerWidth - 50 * 2;
+        dialogHeight = window.innerHeight - 50 * 2;
+    }
+
+    const dims = ({x: dialogX, y: dialogY, height: dialogHeight, width: dialogWidth})
+
+    console.log("returning ", dims.width)
+    return {
+        boxRef,
+        dims
+    }
+}
 
 const ProductName: React.FunctionComponent<{product: ProductV2}> = ({product}) => {
     return <>{product.name}</>;
