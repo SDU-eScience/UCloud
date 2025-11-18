@@ -294,6 +294,32 @@ func initPublicIps() {
 	})
 }
 
+func PublicIpBind(id string, jobId string) {
+	ResourceUpdate[orcapi.PublicIp](
+		rpc.ActorSystem,
+		publicIpType,
+		ResourceParseId(id),
+		orcapi.PermissionRead,
+		func(r *resource, mapped orcapi.PublicIp) {
+			ip := r.Extra.(*internalPublicIp)
+			ip.BoundTo = []string{jobId}
+		},
+	)
+}
+
+func PublicIpUnbind(id string, jobId string) {
+	ResourceUpdate[orcapi.PublicIp](
+		rpc.ActorSystem,
+		publicIpType,
+		ResourceParseId(id),
+		orcapi.PermissionRead,
+		func(r *resource, mapped orcapi.PublicIp) {
+			ip := r.Extra.(*internalPublicIp)
+			ip.BoundTo = util.RemoveFirst(ip.BoundTo, jobId)
+		},
+	)
+}
+
 func publicIpValidateFirewall(firewall orcapi.Firewall) *util.HttpError {
 	for i, port := range firewall.OpenPorts {
 		var err *util.HttpError

@@ -145,6 +145,11 @@ func (gw *GateWay) Build(cb ComposeBuilder) {
 					header_regexp gok8sapp Host ^gok8s-.*
 				}
 				reverse_proxy @gok8sapps gok8s:8889
+
+				@gok8schat {
+					header_regexp gok8sapp Host ^chat.*
+				}
+				reverse_proxy @gok8schat gok8s:8889
 			}
 		`, core2Config)),
 	)

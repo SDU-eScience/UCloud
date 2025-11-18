@@ -72,7 +72,11 @@ func RunsServerCode() bool {
 	return cfg.Mode == cfg.ServerModeServer
 }
 
+var Mux *http.ServeMux
+
 func Init(mux *http.ServeMux) {
+	Mux = mux
+
 	controllerFiles(mux)
 	controllerConnection(mux)
 	controllerJobs(mux)

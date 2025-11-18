@@ -2,19 +2,48 @@ package foundation
 
 import (
 	"net/http"
+	"net/url"
 
+	cfg "ucloud.dk/core/pkg/config"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
+func authVerifyOrigin(info rpc.RequestInfo) *util.HttpError {
+	origin := info.HttpRequest.Header.Get("Origin")
+	referer := info.HttpRequest.Header.Get("Referer")
+
+	hostName := ""
+
+	if origin != "" {
+		parsed, err := url.Parse(origin)
+		if err == nil {
+			hostName = parsed.Host
+		}
+	} else if referer != "" {
+		parsed, err := url.Parse(referer)
+		if err == nil {
+			hostName = parsed.Host
+		}
+	}
+
+	if hostName == "" {
+		return util.HttpErr(http.StatusForbidden, "untrusted origin")
+	}
+
+	if hostName == "localhost:9000" {
+		return nil
+	} else if hostName == cfg.Configuration.SelfPublic.Address {
+		return nil
+	} else {
+		return util.HttpErr(http.StatusForbidden, "untrusted origin")
+	}
+}
+
 func initAuth() {
 	initAuthTokens()
-
-	// TODO origin check for some of these calls
-	// TODO origin check for some of these calls
-	// TODO origin check for some of these calls
 
 	// TODO Assert that user ID never match a UUID. Breaks too many things which assume that user IDs never collide
 	//   with project IDs.
@@ -36,6 +65,9 @@ func initAuth() {
 	})
 
 	fndapi.AuthRefreshWeb.Handler(func(info rpc.RequestInfo, request fndapi.AuthenticationTokens) (fndapi.AccessTokenAndCsrf, *util.HttpError) {
+		if err := authVerifyOrigin(info); err != nil {
+			return fndapi.AccessTokenAndCsrf{}, err
+		}
 		return SessionRefresh(request)
 	})
 
@@ -45,6 +77,9 @@ func initAuth() {
 	})
 
 	fndapi.AuthLogoutWeb.Handler(func(info rpc.RequestInfo, request fndapi.AuthenticationTokens) (util.Empty, *util.HttpError) {
+		if err := authVerifyOrigin(info); err != nil {
+			return util.Empty{}, err
+		}
 		err := SessionLogout(request)
 
 		if err == nil {
@@ -60,6 +95,9 @@ func initAuth() {
 	})
 
 	fndapi.AuthPasswordLoginWeb.Handler(func(info rpc.RequestInfo, request fndapi.PasswordLoginRequest) (util.Empty, *util.HttpError) {
+		if err := authVerifyOrigin(info); err != nil {
+			return util.Empty{}, err
+		}
 		tokens, err := PasswordLogin(info.HttpRequest, request.Username, request.Password)
 		if err != nil {
 			return util.Empty{}, err

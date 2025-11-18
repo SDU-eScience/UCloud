@@ -75,6 +75,14 @@ func WalletOwnerFromIds(username, projectId string) WalletOwner {
 	return result
 }
 
+func WalletOwnerFromReference(ref string) WalletOwner {
+	if util.LooksLikeUuid(ref) {
+		return WalletOwnerProject(ref)
+	} else {
+		return WalletOwnerUser(ref)
+	}
+}
+
 type UsageReportItem struct {
 	IsDeltaCharge bool                `json:"isDeltaCharge"`
 	Owner         WalletOwner         `json:"owner"`

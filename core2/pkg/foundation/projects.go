@@ -571,8 +571,6 @@ func ProjectBrowse(actor rpc.Actor, request fndapi.ProjectBrowseRequest) (fndapi
 	var projectIds []string
 	favorites := map[string]bool{}
 
-	// TODO providers need to take a special path
-
 	userInfo := projectRetrieveUserInfo(actor.Username)
 	userInfo.Mu.RLock()
 	for p := range userInfo.Projects {

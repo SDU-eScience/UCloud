@@ -1194,6 +1194,10 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 	recipient := accapi.Recipient{}
 	parents := map[string]util.Empty{}
 
+	if req.Type == accapi.RetrieveGrantGiversTypeExistingProject && req.Id == "" {
+		req.Type = accapi.RetrieveGrantGiversTypePersonalWorkspace
+	}
+
 	switch req.Type {
 	case accapi.RetrieveGrantGiversTypeNewProject:
 		recipient.Title = util.OptValue(req.Title)

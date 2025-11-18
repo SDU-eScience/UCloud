@@ -9,9 +9,11 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
 	cfg "ucloud.dk/core/pkg/config"
 	db "ucloud.dk/shared/pkg/database2"
 	"ucloud.dk/shared/pkg/log"
+	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -175,9 +177,12 @@ func InvokeProvider[Req any, Resp any](
 		if err != nil {
 			entry.StatusCode = err.StatusCode
 
-			if err.StatusCode == 449 || err.StatusCode == http.StatusServiceUnavailable {
+			if opts.Username.Present && (err.StatusCode == 449 || err.StatusCode == http.StatusServiceUnavailable) {
 				if attempt <= 5 {
-					// TODO im.init call
+					_, _ = orcapi.ProviderIntegrationPInit.InvokeEx(client,
+						orcapi.ProviderIntegrationPFindByUser{Username: opts.Username.Value},
+						rpc.InvokeOpts{Headers: headers})
+
 					time.Sleep(500 * time.Millisecond)
 					continue
 				}

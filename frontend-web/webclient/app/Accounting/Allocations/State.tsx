@@ -71,13 +71,13 @@ export type UIAction =
 
 function recipientTitle(recipient: AllocationDisplayTreeRecipient, state: State): string {
     return recipient.owner.reference.type === "user" ?
-        recipient.owner.primaryUsername :
+        recipient.owner.primaryUsername ?? recipient.owner.reference.username :
         projectInfoTitle(state.subprojectInfo[recipient.owner.reference.projectId], recipient.owner.title) ?? "-";
 }
 
 function recipientPrimaryUsername(recipient: AllocationDisplayTreeRecipient, state: State): string {
     return recipient.owner.reference.type === "user" ?
-        recipient.owner.primaryUsername :
+        recipient.owner.primaryUsername ?? recipient.owner.reference.username :
         projectInfoPi(state.subprojectInfo[recipient.owner.reference.projectId], recipient.owner.primaryUsername) ?? "-";
 }
 
