@@ -277,4 +277,38 @@ func initAuth() {
 
 		return result, nil
 	})
+
+	fndapi.UsersChangePassword.Handler(func(info rpc.RequestInfo, request fndapi.UsersChangePasswordRequest) (util.Empty, *util.HttpError) {
+		if len(request.NewPassword) > 250 {
+			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "password too long")
+		}
+
+		if len(request.NewPassword) < 8 {
+			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "password must be at least 8 characters")
+		}
+
+		err := db.NewTx(func(tx *db.Transaction) *util.HttpError {
+			principal, ok := PrincipalRetrieve(tx, info.Actor.Username)
+			if !ok || !principal.HashedPassword.Present || !principal.Salt.Present {
+				checkPassword(dummyPasswordForTiming.HashedPassword, dummyPasswordForTiming.Salt, request.NewPassword)
+				return util.HttpErr(http.StatusUnauthorized, "Incorrect username or password.")
+			}
+
+			if !checkPassword(principal.HashedPassword.Value, principal.Salt.Value, request.CurrentPassword) {
+				return util.HttpErr(http.StatusUnauthorized, "Incorrect username or password.")
+			}
+			return nil
+		})
+
+		if err != nil {
+			return util.Empty{}, err
+		}
+
+		ok := PrincipalUpdatePassword(info.Actor.Username, request.NewPassword)
+		if !ok {
+			return util.Empty{}, util.HttpErr(http.StatusInternalServerError, "Failed to update password")
+		}
+
+		return util.Empty{}, nil
+	})
 }
