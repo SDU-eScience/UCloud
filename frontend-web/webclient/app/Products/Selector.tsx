@@ -460,7 +460,6 @@ export function useBoundedPosition(headerCount: number): {
 
     const dims = ({x: dialogX, y: dialogY, height: dialogHeight, width: dialogWidth})
 
-    console.log("returning ", dims.width)
     return {
         boxRef,
         dims

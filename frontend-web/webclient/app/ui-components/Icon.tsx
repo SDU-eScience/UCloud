@@ -39,7 +39,6 @@ export interface IconBaseProps extends SpaceProps, React.SVGAttributes<HTMLDivEl
     spin?: boolean;
     spinSpeed?: string;
     hoverColor?: ThemeColor | HexColor;
-    title?: string;
     className?: string;
     style?: CSSProperties;
 }
@@ -77,7 +76,7 @@ const Icon: React.FunctionComponent<IconBaseProps> = ({size = 18, squared = true
         style.fill = "none";
     }
 
-    return <IconBase {...props} size={size} squared={squared} className={classConcat(IconClass, props.className, props.hoverColor ? "with-hover" : undefined)} data-spin={props.spin === true} style={style} />
+    return <IconBase  {...props} size={size} squared={squared} className={classConcat(IconClass, props.className, props.hoverColor ? "with-hover" : undefined)} data-spin={props.spin === true} style={style} />
 };
 
 Icon.displayName = "Icon";

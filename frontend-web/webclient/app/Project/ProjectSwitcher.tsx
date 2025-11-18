@@ -22,6 +22,7 @@ import {Feature, hasFeature} from "@/Features";
 import {IconName} from "@/ui-components/Icon";
 import {Toggle} from "@/ui-components/Toggle";
 import {useCloseOnScroll} from "@/Products/Selector";
+import {RichSelect} from "@/ui-components/RichSelect";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
 
@@ -63,9 +64,10 @@ export function projectTitle(project?: Project): string {
     return project?.specification.title ?? ""
 }
 
-const triggerClass = injectStyle("context-switcher-trigger", k => `
+const TriggerClass = injectStyle("context-switcher-trigger", k => `
     ${k} {
         background: var(--primaryMain);
+        width: 222px;
         color: var(--primaryContrast);
         border-radius: 6px;
         padding: 6px 12px;
@@ -134,22 +136,8 @@ export function ProjectSwitcher({managed}: {
         });
     }, []);
 
-    const arrowKeyIndex = React.useRef(-1);
-
     const navigate = useNavigate();
 
-    const [filter, setTitleFilter] = React.useState("");
-
-    const filteredProjects: Project[] = React.useMemo(() => {
-        const viewableProjects = projectList.items.filter(it => showHidden || !it.status.isHidden);
-
-        if (filter === "") return viewableProjects;
-
-        const searchResults = fuzzySearch(viewableProjects.map(it => it.specification), ["title"], filter, {sort: true});
-        return searchResults
-            .map(it => viewableProjects.find(p => it.title === p.specification.title))
-            .filter(it => it !== undefined) as Project[];
-    }, [projectList, filter, showHidden]);
     const hiddenProjectCount = projectList.items.reduce((acc, project) => acc + (project.status.isHidden ? 1 : 0), 0)
 
     const setActiveProject = React.useCallback((id?: string) => {
@@ -194,111 +182,83 @@ export function ProjectSwitcher({managed}: {
         });
     }, []);
 
-    const showMyWorkspace =
-        activeProject !== undefined && "My Workspace".toLocaleLowerCase().includes(filter.toLocaleLowerCase());
+    const showMyWorkspace = activeProject !== undefined;
 
-    return (
-        <Flex key={activeContext} alignItems={"center"} data-component={"project-switcher"}>
-            <ClickableDropdown
-                trigger={
-                    <div className={triggerClass} ref={switcherRef}>
-                        <Truncate title={activeContext} fontSize={14} width="180px">{activeContext}</Truncate>
-                        <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
-                    </div>
-                }
-                rightAligned
-                closeFnRef={closeFn}
-                paddingControlledByContent
-                arrowkeyNavigationKey="data-active"
-                hoverColor={"rowHover"}
-                onSelect={el => {
-                    const id = el?.getAttribute("data-project") ?? undefined;
-                    setActiveProject(id)
-                }}
-                onClose={() => {
-                    arrowKeyIndex.current = -1;
-                    setTitleFilter("");
-                }}
-                colorOnHover={false}
-                onOpeningTriggerClick={reload}
-                width="500px"
+    let selectedProject: ProjectWithTitle;
+    if (activeProject != null) {
+        const p = projectList.items.find(it => it.id === activeProject);
+        if (!p) selectedProject = {title: ""} as ProjectWithTitle
+        else selectedProject = {title: p.specification.title, ...p};
+    } else {
+        selectedProject = MyWorkspace;
+    }
+
+    const projects: ProjectWithTitle[] = React.useMemo(() => {
+        const result: ProjectWithTitle[] = [];
+        const mappedProjects = projectList.items.map(p => ({...p, title: p.specification.title}));
+        if (hiddenProjectCount) result.push(ToggleHiddenProjects);
+        if (showMyWorkspace) result.push(MyWorkspace);
+        return result.concat(mappedProjects.filter(it => showHidden || !it.status.isHidden));
+    }, [projectList, showMyWorkspace, hiddenProjectCount, showHidden]);
+
+    return <RichSelect
+        items={projects}
+        placeholder="Search for a project..."
+        keys={["title"]}
+        elementHeight={32}
+        InfoOnSearch={<ProjectHiddenToggle hiddenCount={hiddenProjectCount} shown={showHidden} setShown={setShowHidden} />}
+        dropdownWidth="500px"
+        error={error}
+        RenderRow={props => {
+            if (!props.element) return;
+
+            if (props.element.id === TOGGLE_HIDDEN_KEY) {
+                return <ProjectHiddenToggle hiddenCount={hiddenProjectCount} shown={showHidden} setShown={setShowHidden} />
+            }
+
+            return <Flex
+                key={props.element.id + props.element.status.isFavorite}
+                my={"auto"}
+                style={{width: "100%", height: "32px"}}
+                data-active={props.element.id === activeProject}
+                data-project={props.element.id}
+                className={BottomBorderedRow}
+                {...props.dataProps}
+                onClick={props.onSelect}
             >
-                <div style={{maxHeight: "385px"}}>
-                    <Flex>
-                        <Input
-                            autoFocus
-                            className={FilterInputClass}
-                            placeholder="Search for a project..."
-                            defaultValue={filter}
-                            onClick={stopPropagationAndPreventDefault}
-                            enterKeyHint="enter"
-                            onKeyDown={e => e.stopPropagation()}
-                            onKeyDownCapture={e => {
-                                if (["Escape"].includes(e.code) && e.target["value"]) {
-                                    setTitleFilter("");
-                                    e.target["value"] = "";
-                                    e.stopPropagation();
-                                }
-                            }}
-                            onKeyUp={e => {
-                                e.stopPropagation();
-                                setTitleFilter("value" in e.target ? e.target.value as string : "");
-                            }}
-                            type="text"
-                        />
+                <Favorite project={props.element} onClickedFavorite={sortAndScroll} />
+                <Truncate my="auto" fontSize="var(--breadText)">{projectTitle(props.element)}</Truncate>
+                <ProjectHide rerender={rerender} project={props.element} />
+            </Flex>
+        }}
 
-                        <Relative right="24px" top="5px" width="0px" height="0px">
-                            <Icon name="search" />
-                        </Relative>
-                    </Flex>
-
-                    <ProjectHiddenToggle hiddenCount={hiddenProjectCount} shown={showHidden} setShown={setShowHidden} />
-                    <div style={{overflowY: "auto", maxHeight: "285px", lineHeight: "2em"}}>
-                        <Error error={error} />
-
-                        {showMyWorkspace ? (
-                            <div
-                                key={"My workspace"}
-                                style={{width: "100%"}}
-                                data-active={activeProject == null}
-                                title="My workspace"
-                                className={BottomBorderedRow}
-                                onClick={() => {setActiveProject();}}
-                            >
-                                <Icon onClick={stopPropagationAndPreventDefault} mx="6px" mt="6px" size="16px" color="favoriteColor" name={"starFilled"} />
-                                <Truncate fontSize="var(--breadText)">My workspace</Truncate>
-                            </div>
-                        ) : null}
-                        {filteredProjects.map(it =>
-                            <div
-                                key={it.id + it.status.isFavorite}
-                                style={{width: "100%"}}
-                                data-active={it.id === activeProject}
-                                data-project={it.id}
-                                title={it.specification.title}
-                                className={BottomBorderedRow}
-                                onClick={() => setActiveProject(it.id)}
-                            >
-                                <Favorite project={it} onClickedFavorite={sortAndScroll} />
-                                <Truncate fontSize="var(--breadText)">{projectTitle(it)}</Truncate>
-                                <ProjectHide rerender={rerender} project={it} />
-                            </div>
-                        )}
-
-                        {filteredProjects.length !== 0 || showMyWorkspace || error ? null : (
-                            <Box my="32px" textAlign="center">No projects found</Box>
-                        )}
-                    </div>
-                </div>
-            </ClickableDropdown>
-        </Flex>
-    );
+        FullRenderSelected={props => <div onClick={reload} className={TriggerClass} ref={switcherRef} {...props.dataProps}>
+            <Truncate title={props.element?.title} fontSize={14} width="180px">{props.element?.title}</Truncate>
+            <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
+        </div>}
+        selected={selectedProject ?? {title: ""} as ProjectWithTitle}
+        onSelect={element => {
+            if (element.id !== TOGGLE_HIDDEN_KEY) setActiveProject(element.id);
+        }}
+    />;
 }
+
+type ProjectWithTitle = Project & {title: string};
+
+const MyWorkspace = {
+    title: "My workspace", createdAt: +new Date(), id: undefined as unknown as string, specification: {title: "My workspace"}, status: {isFavorite: false}
+} as ProjectWithTitle;
+
+const TOGGLE_HIDDEN_KEY = "__Toggle hidden projects__";
+const ToggleHiddenProjects = {
+    title: "", createdAt: +new Date(), id: TOGGLE_HIDDEN_KEY as unknown as string, specification: {title: "Show hidden projects"}, status: {isFavorite: false}
+} as ProjectWithTitle;
+
 
 function ProjectHiddenToggle(props: {hiddenCount: number; setShown: (show: boolean) => void; shown: boolean;}): React.ReactNode {
     if (!hasFeature(Feature.HIDE_PROJECTS)) return null;
     if (!props.hiddenCount) return null;
-    return <Box height="28px" pt="2px" onClick={stopPropagationAndPreventDefault} style={{borderBottom: "0.5px solid var(--borderColor)"}} pl="8px">
+    return <Box height="32px" pt="4px" onClick={stopPropagationAndPreventDefault} style={{borderBottom: "0.5px solid var(--borderColor)"}} pl="8px">
         <Label style={{display: "flex"}}>You have {props.hiddenCount} hidden projects. Toggle to {props.shown ? "hide" : "show"}.
             <Box mt="2px" mr="4px" ml="auto">
                 <Toggle height={18} checked={props.shown} onChange={checked => props.setShown(!checked)} />
@@ -309,14 +269,15 @@ function ProjectHiddenToggle(props: {hiddenCount: number; setShown: (show: boole
 
 function ProjectHide(props: {project: Project, rerender: (projectId: string) => void;}) {
     if (!hasFeature(Feature.HIDE_PROJECTS)) return null;
+    if (!props.project.id) return null; // My workspace case
     const isHidden = props.project.status.isHidden;
     const icon: IconName = isHidden ? "heroEyeSlash" : "heroEye";
-    return <Box height="100%" mr="18px" title={isHidden ? "Click to unhide" : "Click to hide"}>
-        <Icon data-hide-icon={!isHidden} mt="-2px" name={icon} onClick={e => {
+    return <span style={{marginTop: "auto", marginBottom: "auto"}} title={isHidden ? "Click to unhide" : "Click to hide"}>
+        <Icon mr="18px" mt="-2px" data-hide-icon={!isHidden} name={icon} onClick={e => {
             e.stopPropagation();
             props.rerender(props.project.id);
-        }} />
-    </Box>
+        }} /></span>
+
 }
 
 function Favorite({project, onClickedFavorite}: {project: Project; onClickedFavorite(id: string): void;}): React.ReactNode {
@@ -338,7 +299,7 @@ function Favorite({project, onClickedFavorite}: {project: Project; onClickedFavo
         }
     }, [commandLoading]);
 
-    return <Icon onClick={e => onFavorite(e, project)} mx="6px" mt="6px" size="16px" color={isFavorite ? "favoriteColor" : "favoriteColorEmpty"} name={isFavorite ? "starFilled" : "starEmpty"} />
+    return <Icon onClick={e => onFavorite(e, project)} mx="6px" my="auto" size="16px" color={isFavorite ? "favoriteColor" : "favoriteColorEmpty"} name={isFavorite ? "starFilled" : "starEmpty"} />
 }
 
 export function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId?: string): void {

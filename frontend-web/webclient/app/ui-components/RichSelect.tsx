@@ -7,7 +7,7 @@ import {injectStyle} from "@/Unstyled";
 import {Flex, Icon, Input, Relative} from "@/ui-components/index";
 import {FilterInputClass} from "@/Project/ProjectSwitcher";
 import Box from "@/ui-components/Box";
-import {Simple} from "@/UCloud/Scratch";
+import Error from "@/ui-components/Error";
 
 export type RichSelectChildComponent<T> = React.FunctionComponent<RichSelectProps<T>>;
 
@@ -62,6 +62,7 @@ export function RichSelect<T, K extends keyof T>(props: {
 
     RenderRow: RichSelectChildComponent<T>;
     RenderSelected?: RichSelectChildComponent<T>;
+    InfoOnSearch?: React.ReactNode;
     FullRenderSelected?: RichSelectChildComponent<T>;
     fullWidth?: boolean;
     dropdownWidth?: string;
@@ -73,6 +74,7 @@ export function RichSelect<T, K extends keyof T>(props: {
     chevronPlacement?: CSSProperties; // hack
 
     placeholder?: string;
+    error?: string;
     noResultsItem?: T;
 }): React.ReactNode {
     const [query, setQuery] = useState("");
@@ -109,8 +111,7 @@ export function RichSelect<T, K extends keyof T>(props: {
     return <ClickableDropdown
         trigger={props.FullRenderSelected ?
             <props.FullRenderSelected element={props.selected} onSelect={doNothing} />
-            :
-            props.RenderSelected ?
+            : props.RenderSelected ?
                 <div className={TriggerClass} style={{minWidth: props.fullWidth ? "500px" : props.dropdownWidth ?? "500px"}} ref={triggerRef}>
                     <props.RenderSelected element={props.selected} onSelect={doNothing} />
                     <Icon name="heroChevronDown" style={props.chevronPlacement} />
@@ -138,6 +139,7 @@ export function RichSelect<T, K extends keyof T>(props: {
             closeFn.current();
         }}
     >
+        <Error error={props.error} />
         <div style={{height: height + "px", width: dropdownSize}}>
             <Flex>
                 <Input
@@ -167,6 +169,7 @@ export function RichSelect<T, K extends keyof T>(props: {
             </Flex>
 
             <div className={ResultWrapperClass} style={{maxHeight: (height - INPUT_FIELD_HEIGHT) + "px", height: height + "px"}}>
+                {query ? props.InfoOnSearch : null}
                 {limitedElements.map(it => <props.RenderRow
                     element={it}
                     key={it.idx}

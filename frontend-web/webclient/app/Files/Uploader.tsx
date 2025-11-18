@@ -918,10 +918,10 @@ const Uploader: React.FunctionComponent = () => {
                                             onSelectedFile(e, true);
                                         }}
                                     />
-                                    <Icon cursor="pointer" title="Resume upload" name="play"
+                                    <Icon cursor="pointer" name="play"
                                         color="primaryMain" mr="12px" />
                                 </label>}
-                                removeOrCancel={<Icon cursor="pointer" title="Remove" name="close" my="auto" height="24px" color="errorMain" onClick={() => {
+                                removeOrCancel={<Icon cursor="pointer" name="close" my="auto" height="24px" color="errorMain" onClick={() => {
                                     setPausedFilesInFolder(files => files.filter(file => file !== it));
                                     removeUploadFromStorage(it);
                                 }} />}
