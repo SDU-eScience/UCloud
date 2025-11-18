@@ -1903,3 +1903,53 @@ func appStudioTrackNewGroup(group AppGroupId) {
 	additions.NewApplications = append(additions.NewApplications, group)
 	additions.Mu.Unlock()
 }
+
+func AppCatalogOpenWithRecommendations(actor rpc.Actor, files []string) []orcapi.Application {
+	extensions := map[string]util.Empty{}
+	for _, file := range files {
+		if strings.Contains(file, ".") {
+			idx := strings.Index(file, ".")
+			extensions[file[idx:]] = util.Empty{}
+		} else {
+			entry := util.FileName(file)
+			extensions[entry] = util.Empty{}
+
+			if strings.HasSuffix(file, "/") {
+				extensions[fmt.Sprintf("%v/", entry)] = util.Empty{}
+				extensions["/"] = util.Empty{}
+			}
+		}
+	}
+
+	// NOTE(Dan): This is excessive, we should consider caching this or just indexing on the extensions.
+	appNames := map[string]util.Empty{}
+	for i := 0; i < len(appCatalogGlobals.Buckets); i++ {
+		b := &appCatalogGlobals.Buckets[i]
+		b.Mu.RLock()
+		for _, versions := range b.Applications {
+			for _, app := range versions {
+				appNames[app.Name] = util.Empty{}
+			}
+		}
+		b.Mu.RUnlock()
+	}
+
+	var result []orcapi.Application
+	for name := range appNames {
+		app, ok := AppRetrieveNewest(actor, name, AppDiscoveryAll, 0)
+		if ok {
+			for _, ext := range app.Invocation.FileExtensions {
+				_, matches := extensions[ext]
+				if matches {
+					result = append(result, app)
+				}
+			}
+		}
+	}
+
+	slices.SortFunc(result, func(a, b orcapi.Application) int {
+		return strings.Compare(a.Metadata.Title, b.Metadata.Title)
+	})
+
+	return result
+}

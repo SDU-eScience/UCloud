@@ -2,7 +2,7 @@ package orchestrator
 
 import (
 	"database/sql"
-	base64 "encoding/base64"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -100,6 +100,14 @@ func initJobs() {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
 			}
 
+			for _, param := range spec.Parameters {
+				jobBindResource(job.Id, param)
+			}
+
+			for _, resc := range spec.Resources {
+				jobBindResource(job.Id, resc)
+			}
+
 			ids = append(ids, fndapi.FindByStringId{Id: job.Id})
 		}
 
@@ -144,7 +152,15 @@ func initJobs() {
 							mapped.Status.State = job.State
 							jobNotifyStateChange(mapped)
 
-							// TODO unbind resources
+							if job.State.IsFinal() {
+								for _, param := range job.Parameters {
+									jobUnbindResource(jobId, param)
+								}
+
+								for _, resc := range job.Resources {
+									jobUnbindResource(jobId, resc)
+								}
+							}
 						}
 
 						if f := update.OutputFolder; f.Present {
@@ -669,6 +685,28 @@ func initJobs() {
 	})
 }
 
+func jobBindResource(jobId string, resc orcapi.AppParameterValue) {
+	switch resc.Type {
+	case orcapi.AppParameterValueTypeNetwork:
+		PublicIpBind(resc.Id, jobId)
+	case orcapi.AppParameterValueTypeIngress:
+		IngressBind(resc.Id, jobId)
+	case orcapi.AppParameterValueTypeLicense:
+		LicenseBind(resc.Id, jobId)
+	}
+}
+
+func jobUnbindResource(jobId string, resc orcapi.AppParameterValue) {
+	switch resc.Type {
+	case orcapi.AppParameterValueTypeNetwork:
+		PublicIpUnbind(resc.Id, jobId)
+	case orcapi.AppParameterValueTypeIngress:
+		IngressUnbind(resc.Id, jobId)
+	case orcapi.AppParameterValueTypeLicense:
+		LicenseUnbind(resc.Id, jobId)
+	}
+}
+
 func jobsFollow(conn *ws.Conn) {
 	var initialJob orcapi.Job
 	var actor rpc.Actor
@@ -1056,19 +1094,27 @@ func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue) *util.Ht
 		}
 
 	case orcapi.AppParameterValueTypeNetwork:
-		_, _, _, err := ResourceRetrieveEx[orcapi.PublicIp](actor, publicIpType, ResourceParseId(value.Id),
+		resc, _, _, err := ResourceRetrieveEx[orcapi.PublicIp](actor, publicIpType, ResourceParseId(value.Id),
 			orcapi.PermissionEdit, orcapi.ResourceFlags{})
 
 		if err != nil {
 			return util.HttpErr(http.StatusForbidden, "you cannot use this IP address")
 		}
 
+		if len(resc.Status.BoundTo) > 0 {
+			return util.HttpErr(http.StatusForbidden, "this IP is already in use with %v", resc.Status.BoundTo[0])
+		}
+
 	case orcapi.AppParameterValueTypeIngress:
-		_, _, _, err := ResourceRetrieveEx[orcapi.Ingress](actor, ingressType, ResourceParseId(value.Id),
+		resc, _, _, err := ResourceRetrieveEx[orcapi.Ingress](actor, ingressType, ResourceParseId(value.Id),
 			orcapi.PermissionEdit, orcapi.ResourceFlags{})
 
 		if err != nil {
 			return util.HttpErr(http.StatusForbidden, "you cannot use this link")
+		}
+
+		if len(resc.Status.BoundTo) > 0 {
+			return util.HttpErr(http.StatusForbidden, "this link is already in use with %v", resc.Status.BoundTo[0])
 		}
 
 	case orcapi.AppParameterValueTypeLicense:
@@ -1583,14 +1629,19 @@ func jobTransform(
 
 var jobNotificationsPending struct {
 	Mu            sync.RWMutex
-	EntriesByUser map[string][]orcapi.Job
+	EntriesByUser map[string]map[string]orcapi.Job // user -> job id -> job
 }
 
 func jobNotifyStateChange(job orcapi.Job) {
 	if job.Status.State != orcapi.JobStateInQueue {
 		jobNotificationsPending.Mu.Lock()
 		username := job.Owner.CreatedBy
-		jobNotificationsPending.EntriesByUser[username] = append(jobNotificationsPending.EntriesByUser[username], job)
+		current, ok := jobNotificationsPending.EntriesByUser[username]
+		if !ok {
+			current = map[string]orcapi.Job{}
+			jobNotificationsPending.EntriesByUser[username] = current
+		}
+		current[job.Id] = job
 		jobNotificationsPending.Mu.Unlock()
 	}
 }
@@ -1598,11 +1649,11 @@ func jobNotifyStateChange(job orcapi.Job) {
 func jobNotificationsLoopSendPending() {
 	for {
 		jobNotificationsPending.Mu.Lock()
-		copiedEntriesByUser := map[string][]orcapi.Job{}
+		copiedEntriesByUser := map[string]map[string]orcapi.Job{}
 		for username, jobs := range jobNotificationsPending.EntriesByUser {
 			copiedEntriesByUser[username] = jobs
 		}
-		jobNotificationsPending.EntriesByUser = map[string][]orcapi.Job{}
+		jobNotificationsPending.EntriesByUser = map[string]map[string]orcapi.Job{}
 		jobNotificationsPending.Mu.Unlock()
 		for username, jobs := range copiedEntriesByUser {
 			jobSendNotifications(username, jobs)
@@ -1626,7 +1677,7 @@ func mapStateToType(s orcapi.JobState) (string, bool) {
 	}
 }
 
-func jobSendNotifications(username string, jobs []orcapi.Job) {
+func jobSendNotifications(username string, jobs map[string]orcapi.Job) {
 	groupedByState := map[orcapi.JobState][]orcapi.Job{}
 	for _, job := range jobs {
 		jobState := job.Status.State
@@ -1639,9 +1690,9 @@ func jobSendNotifications(username string, jobs []orcapi.Job) {
 			continue
 		}
 
-		jobIds := make([]string, len(group))
-		appTitles := make([]string, len(group))
-		jobNames := make([]string, len(group))
+		var jobIds []string
+		var appTitles []string
+		var jobNames []string
 
 		for _, job := range group {
 			jobIds = append(jobIds, job.Id)
