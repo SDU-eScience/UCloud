@@ -739,7 +739,6 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		// We can send a notification
 
 		newState := appCopy.Status.OverallState
-		didChangeState := prevState != newState
 
 		switch {
 		case !wasExistingApplication && newState == accapi.GrantApplicationStateInProgress:
@@ -755,24 +754,6 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 			// Update to existing
 			grantHandleEvent(grantEvent{
 				Type:                   grantEvRevisionSubmitted,
-				EventSourceIsApplicant: actor.Username == appCopy.CreatedBy,
-				Actor:                  actor,
-				Application:            appCopy,
-			})
-
-		case didChangeState && newState == accapi.GrantApplicationStateRejected:
-			// Application was rejected
-			grantHandleEvent(grantEvent{
-				Type:                   grantEvApplicationRejected,
-				EventSourceIsApplicant: actor.Username == appCopy.CreatedBy,
-				Actor:                  actor,
-				Application:            appCopy,
-			})
-
-		case didChangeState && newState == accapi.GrantApplicationStateApproved:
-			// Application was approved
-			grantHandleEvent(grantEvent{
-				Type:                   grantEvGrantAwarded,
 				EventSourceIsApplicant: actor.Username == appCopy.CreatedBy,
 				Actor:                  actor,
 				Application:            appCopy,
@@ -870,12 +851,6 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 	}
 
 	// TODO call grantHandleEvent() for grant transfer here
-	grantHandleEvent(grantEvent{
-		Type:                   0,
-		EventSourceIsApplicant: false,
-		Actor:                  rpc.Actor{},
-		Application:            accapi.GrantApplication{},
-	})
 
 	return err
 }
@@ -978,6 +953,9 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 	}
 
 	app.Mu.Lock()
+
+	prevState := app.Application.Status.OverallState
+
 	if app.Application.Status.OverallState != accapi.GrantApplicationStateInProgress {
 		err = util.HttpErr(http.StatusBadRequest, "application is no longer active")
 	}
@@ -1030,7 +1008,32 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 			}
 		}
 	}
+
+	appCopy := *app.Application
+
 	app.Mu.Unlock()
+
+	newState := appCopy.Status.OverallState
+	didChangeState := prevState != newState
+	if didChangeState {
+		if newState == accapi.GrantApplicationStateRejected {
+			// Application was rejected
+			grantHandleEvent(grantEvent{
+				Type:                   grantEvApplicationRejected,
+				EventSourceIsApplicant: actor.Username == appCopy.CreatedBy,
+				Actor:                  actor,
+				Application:            appCopy,
+			})
+		} else if newState == accapi.GrantApplicationStateApproved {
+			// Application was approved
+			grantHandleEvent(grantEvent{
+				Type:                   grantEvGrantAwarded,
+				EventSourceIsApplicant: actor.Username == appCopy.CreatedBy,
+				Actor:                  actor,
+				Application:            appCopy,
+			})
+		}
+	}
 	return err
 }
 
@@ -1830,29 +1833,48 @@ func grantSendEmail(event grantEvent) *util.HttpError {
 		recipients = append(recipients, applicant)
 	}
 
+	applicantProjectTitle := ""
+	currDoc := event.Application.CurrentRevision.Document
+	switch currDoc.Recipient.Type {
+	case accapi.RecipientTypeNewProject:
+		applicantProjectTitle = currDoc.Recipient.Title.Value
+	case accapi.RecipientTypePersonalWorkspace:
+		applicantProjectTitle = fmt.Sprintf("personal workspace of: %v", event.Application.CreatedBy)
+	case accapi.RecipientTypeExistingProject:
+		projectId := currDoc.Recipient.Id.Value
+		applicantProjectTitle = db.NewTx(func(tx *db.Transaction) string {
+			project, ok := coreutil.ProjectRetrieveFromDatabase(tx, projectId)
+			if !ok {
+				return projectId
+			} else {
+				return project.Id
+			}
+		})
+	}
+
 	mailTemplate := map[string]any{
 		"sender":                event.Application.CreatedBy,
-		"applicantProjectTitle": event.Application.Status.ProjectTitle,
+		"applicantProjectTitle": applicantProjectTitle,
+	}
+
+	switch event.Type {
+	case grantEvNewComment:
+		mailTemplate["type"] = fndapi.MailTypeNewComment
+	case grantEvApplicationSubmitted:
+		mailTemplate["type"] = fndapi.MailTypeNewGrantApplication
+	case grantEvGrantAwarded:
+		mailTemplate["type"] = fndapi.MailTypeApplicationApproved
+	case grantEvApplicationRejected:
+		mailTemplate["type"] = fndapi.MailTypeApplicationRejected
+	case grantEvRevisionSubmitted:
+		mailTemplate["type"] = fndapi.MailTypeApplicationUpdated
+		// TODO make grantEv for grantTransfer and insert here
 	}
 
 	mailBytes, _ := json.Marshal(mailTemplate)
 	mail := fndapi.Mail(mailBytes)
 
 	for _, recipient := range recipients {
-		switch event.Type {
-		case grantEvNewComment:
-			mailTemplate["type"] = fndapi.MailTypeNewComment
-		case grantEvApplicationSubmitted:
-			mailTemplate["type"] = fndapi.MailTypeNewGrantApplication
-		case grantEvGrantAwarded:
-			mailTemplate["type"] = fndapi.MailTypeApplicationApproved
-		case grantEvApplicationRejected:
-			mailTemplate["type"] = fndapi.MailTypeApplicationRejected
-		case grantEvRevisionSubmitted:
-			mailTemplate["type"] = fndapi.MailTypeApplicationUpdated
-			// TODO make grantEv for grantTransfer and insert here
-		}
-
 		_, err := fndapi.MailSendToUser.Invoke(fndapi.BulkRequestOf(
 			fndapi.MailSendToUserRequest{
 				Receiver: recipient,

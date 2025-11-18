@@ -3,6 +3,7 @@ package foundation
 import (
 	"bytes"
 	"crypto/sha256"
+	"database/sql"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -294,7 +295,7 @@ func retrieveEmails(usernames []string) map[string]string {
 		result := map[string]string{}
 		rows := db.Select[struct {
 			Id    string
-			Email string
+			Email sql.Null[string]
 		}](
 			tx,
 			`
@@ -308,7 +309,9 @@ func retrieveEmails(usernames []string) map[string]string {
 		)
 
 		for _, row := range rows {
-			result[row.Id] = row.Email
+			if row.Email.Valid {
+				result[row.Id] = row.Email.V
+			}
 		}
 		return result
 	})
