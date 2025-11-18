@@ -188,4 +188,93 @@ func initAuth() {
 		connected := MfaIsConnected(info.Actor)
 		return fndapi.MfaStatus{Connected: connected}, nil
 	})
+
+	fndapi.UsersCreate.Handler(func(info rpc.RequestInfo, request []fndapi.UsersCreateRequest) ([]fndapi.AuthenticationTokens, *util.HttpError) {
+		result := []fndapi.AuthenticationTokens{}
+		for _, item := range request {
+			if len(item.Username) > 250 {
+				return nil, util.HttpErr(http.StatusBadRequest, "username too long")
+			}
+
+			if len(item.Username) == 0 {
+				return nil, util.HttpErr(http.StatusBadRequest, "username is required")
+			}
+
+			if len(item.Password) > 250 {
+				return nil, util.HttpErr(http.StatusBadRequest, "password too long")
+			}
+
+			if len(item.Password) < 8 {
+				return nil, util.HttpErr(http.StatusBadRequest, "password must be at least 8 characters")
+			}
+
+			if len(item.Email) > 250 {
+				return nil, util.HttpErr(http.StatusBadRequest, "email too long")
+			}
+
+			if len(item.Email) == 0 {
+				return nil, util.HttpErr(http.StatusBadRequest, "email is required")
+			}
+
+			if item.FirstNames.Present {
+				if len(item.FirstNames.Value) > 250 {
+					return nil, util.HttpErr(http.StatusBadRequest, "firstnames are too long")
+				}
+
+				if len(item.FirstNames.Value) == 0 {
+					return nil, util.HttpErr(http.StatusBadRequest, "firstnames must not be empty")
+				}
+			}
+
+			if item.LastName.Present {
+				if len(item.LastName.Value) > 250 {
+					return nil, util.HttpErr(http.StatusBadRequest, "lastnames are too long")
+				}
+
+				if len(item.LastName.Value) == 0 {
+					return nil, util.HttpErr(http.StatusBadRequest, "lastnames must not be empty")
+				}
+			}
+
+			role := item.Role.GetOrDefault(fndapi.PrincipalUser)
+			if role != fndapi.PrincipalUser && role != fndapi.PrincipalAdmin {
+				return nil, util.HttpErr(http.StatusBadRequest, "invalid role supplied")
+			}
+
+			if item.OrgId.Present {
+				if len(item.OrgId.Value) > 250 {
+					return nil, util.HttpErr(http.StatusBadRequest, "organization id is too long")
+				}
+
+				if len(item.OrgId.Value) == 0 {
+					return nil, util.HttpErr(http.StatusBadRequest, "organization id must not be empty")
+				}
+			}
+
+			passwordAndSalt := hashPassword(item.Password, genSalt())
+
+			_, err := PrincipalCreate(PrincipalSpecification{
+				Type:           "PERSON",
+				Id:             item.Username,
+				Role:           role,
+				FirstNames:     item.FirstNames,
+				LastName:       item.LastName,
+				HashedPassword: util.OptValue(passwordAndSalt.HashedPassword),
+				Salt:           util.OptValue(passwordAndSalt.Salt),
+				OrgId:          item.OrgId,
+				Email:          util.OptValue(item.Email),
+			})
+
+			if err != nil {
+				return nil, err
+			}
+
+			result = append(result, db.NewTx(func(tx *db.Transaction) fndapi.AuthenticationTokens {
+				principal, _ := PrincipalRetrieve(tx, item.Username)
+				return SessionCreate(info.HttpRequest, tx, principal)
+			}))
+		}
+
+		return result, nil
+	})
 }
