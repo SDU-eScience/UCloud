@@ -4,19 +4,21 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/elastic/go-elasticsearch/v9"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/elastic/go-elasticsearch/v9"
 	"ucloud.dk/core/pkg/config"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
+	"ucloud.dk/shared/pkg/util"
 )
 
 var elasticClient *elasticsearch.Client
-var elasticConfig *rpc.ElasticConfig
+var elasticConfig rpc.ElasticConfig
 var elasticHost *config.HostInfo
 
 type elasticIndexRequest struct {
@@ -24,12 +26,13 @@ type elasticIndexRequest struct {
 	document []byte
 }
 
-func InitAuditElasticSearch(elasticConfig rpc.ElasticConfig) func(event rpc.HttpCallLogEntry) {
+func InitAuditElasticSearch(conf rpc.ElasticConfig) func(event rpc.HttpCallLogEntry) {
 	var err error
+	elasticConfig = conf
 	elasticHost = &config.HostInfo{
-		Address: elasticConfig.Address,
-		Port:    elasticConfig.Port,
-		Scheme:  elasticConfig.Scheme,
+		Address: conf.Address,
+		Port:    conf.Port,
+		Scheme:  conf.Scheme,
 	}
 	if elasticHost.Address == "" {
 		panic("InitAuditElasticSearch was called without proper configuration")
@@ -37,8 +40,8 @@ func InitAuditElasticSearch(elasticConfig rpc.ElasticConfig) func(event rpc.Http
 	cfg := elasticsearch.Config{
 		Addresses: []string{elasticHost.ToURL()},
 		Transport: http.DefaultTransport,
-		Username:  elasticConfig.Credentials.Username,
-		Password:  elasticConfig.Credentials.Password,
+		Username:  conf.Credentials.Username,
+		Password:  conf.Credentials.Password,
 	}
 
 	elasticClient, err = elasticsearch.NewClient(cfg)
@@ -68,7 +71,7 @@ type elasticBulkIndexOp struct {
 	} `json:"index"`
 }
 
-var elasticAuditChannel = make(chan elasticIndexRequest)
+var elasticAuditChannel = make(chan elasticIndexRequest, 1024*4)
 
 func elasticAuditChannelProcessor() {
 	ticker := time.NewTicker(5 * time.Second)
@@ -79,11 +82,15 @@ func elasticAuditChannelProcessor() {
 		select {
 		case request := <-elasticAuditChannel:
 			err := indexer.IndexDoc(request.index, request.document)
-			log.Info("could not insert documents into elastic search: %s", err)
+			if err != nil {
+				log.Info("could not insert documents into elastic search: %s", err)
+			}
 
 		case _ = <-ticker.C:
 			err := indexer.Flush()
-			log.Info("could not insert documents into elastic search: %s", err)
+			if err != nil {
+				log.Info("could not insert documents into elastic search: %s", err)
+			}
 		}
 	}
 }
@@ -160,6 +167,7 @@ const (
 // - Remove logs that are too old (see expiry and elasticDaysToKeepData)
 // - Shrink indexes to optimize space
 // - Reindex old logs into an index for a full month
+
 func ElasticDailyCleanup() {
 	log.Debug("Cleaning up old logs")
 	httpLogsList := elasticGetIndexTitles([]string{"http_logs*"})
@@ -212,6 +220,7 @@ func ElasticDailyCreateAliasesForGrafana() {
 	)
 	if err != nil {
 		log.Info("Failed to delete old grafana aliases")
+		return
 	}
 
 	//Create new for each index within the time limit
@@ -225,6 +234,7 @@ func ElasticDailyCreateAliasesForGrafana() {
 		)
 		if err != nil {
 			log.Info("Failed to create grafana alias for logs: '%s' \n Error: %s", logs, err)
+			return
 		}
 	}
 	log.Debug("Done creating new grafana aliases")
@@ -310,12 +320,10 @@ func reindex(fromIndex string, toIndex string) {
 
 	requestBytes, _ := json.Marshal(request)
 
-	resp, err := elasticClient.Reindex(
-		bytes.NewReader(requestBytes),
-	)
+	_, err := elasticClient.Reindex(bytes.NewReader(requestBytes))
 
 	if err != nil {
-		log.Info("Error on reindex: %s \n Response: %s ", err, resp.String())
+		log.Info("Error on reindex: %s \n", err)
 		return
 	}
 
@@ -497,6 +505,7 @@ func elasticGetClusterHealth() ElasticHealthResponse {
 		log.Info("Failed to get cluster health: ", err)
 		return ElasticHealthResponse{}
 	} else {
+		defer util.SilentClose(resp.Body)
 		bytesRead, _ := io.ReadAll(resp.Body)
 		value := ElasticHealthResponse{}
 		_ = json.Unmarshal(bytesRead, &value)
@@ -512,15 +521,19 @@ func elasticGetIndexTitles(indicesToFind []string) []string {
 	)
 	if err != nil {
 		log.Info("Failed to get indices. Error: %s", err)
+		return nil
 	}
 
 	var result map[string]interface{}
 
+	defer util.SilentClose(resp.Body)
 	bytesRead, err := io.ReadAll(resp.Body)
 	if err == nil {
 		errs := json.Unmarshal(bytesRead, &result)
+
 		if errs != nil {
 			log.Info("Failed to unmarshal indices list. Error: %s", errs)
+			return nil // TODO(Dan): I don't understand this code
 		}
 	}
 	listOfIndices := make([]string, len(result))
@@ -554,9 +567,11 @@ func elasticGetShardCount(indexName string) int {
 		} `json:"settings"`
 	}
 
+	defer util.SilentClose(resp.Body)
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Error("Failed to read body of shard count request. Error: ", err)
+		return 0
 	}
 	_ = json.Unmarshal(respBytes, &result)
 	return result.Settings.Index.NumberOfShards
@@ -576,6 +591,7 @@ func elasticCountDocs(indexName string, query string) int {
 		return 0
 	}
 
+	defer util.SilentClose(response.Body)
 	readBytes, err := io.ReadAll(response.Body)
 	value := ElasticCountResponse{}
 	_ = json.Unmarshal(readBytes, &value)

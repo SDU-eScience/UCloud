@@ -123,10 +123,10 @@ func NotificationsCreate(notifications []fndapi.NotificationsCreateRequest) {
 		}
 		db.BatchSend(b)
 
-		var ids []int64
-		for _, promise := range idPromises {
+		ids := make([]int64, len(notifications))
+		for idx, promise := range idPromises {
 			if promise != nil && promise.Present {
-				ids = append(ids, promise.Value.Id)
+				ids[idx] = promise.Value.Id
 			}
 		}
 
@@ -181,7 +181,7 @@ func NotificationsBrowse(actor rpc.Actor, request fndapi.NotificationsListReques
 		// NOTE(Dan): This is now mostly prepared for the new pagination API. It does not live up to the old one at all.
 
 		limit := min(250, request.ItemsPerPage.GetOrDefault(250))
-		offset := request.Page.GetOrDefault(0) * request.ItemsPerPage.GetOrDefault(250)
+		offset := request.Page.GetOrDefault(0) * limit
 
 		rows := db.Select[struct {
 			Id        int64

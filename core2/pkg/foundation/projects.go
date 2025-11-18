@@ -1061,12 +1061,12 @@ func ProjectRenameGroup(actor rpc.Actor, id string, newTitle string) *util.HttpE
 			db.Exec(
 				tx,
 				`
-				update project.projects
-				set modified_at = now()
-				where id = :project
-		    `,
+					update project.projects p
+					set modified_at = now()
+					where p.id = :project
+				`,
 				db.Params{
-					"project": id,
+					"project": iproject.Id,
 				},
 			)
 
@@ -1095,14 +1095,14 @@ func ProjectDeleteGroup(actor rpc.Actor, id string) *util.HttpError {
 		return group.Id == id
 	})
 
+	var groupMembersRemoved []struct{ Username string }
+	var linksInvalidated []struct{ LinkToken string }
+
 	if idx == -1 {
 		err = util.HttpErr(http.StatusNotFound, "This group does not exist in this project")
 	} else if iproject.Project.Status.Groups[idx].Specification.Title == ProjectGroupAllUsers {
 		err = util.HttpErr(http.StatusForbidden, "You cannot delete this group")
 	} else {
-		var groupMembersRemoved []struct{ Username string }
-		var linksInvalidated []struct{ LinkToken string }
-
 		db.NewTx0(func(tx *db.Transaction) {
 			groupMembersRemoved = db.Select[struct{ Username string }](
 				tx,
@@ -1153,25 +1153,26 @@ func ProjectDeleteGroup(actor rpc.Actor, id string) *util.HttpError {
 		})
 
 		iproject.Project.Status.Groups = util.RemoveAtIndex(iproject.Project.Status.Groups, idx)
-		for _, member := range groupMembersRemoved {
-			uinfo := projectRetrieveUserInfo(member.Username)
-			uinfo.Mu.Lock()
-			delete(uinfo.Groups, id)
-			uinfo.Mu.Unlock()
-		}
-
-		for _, token := range linksInvalidated {
-			link, ok := projectRetrieveLink(token.LinkToken)
-			if ok {
-				link.Mu.Lock()
-				link.Link.GroupAssignment = util.RemoveElementFunc(link.Link.GroupAssignment, func(element string) bool {
-					return element == id
-				})
-				link.Mu.Unlock()
-			}
-		}
 	}
 	iproject.Mu.Unlock()
+
+	for _, member := range groupMembersRemoved {
+		uinfo := projectRetrieveUserInfo(member.Username)
+		uinfo.Mu.Lock()
+		delete(uinfo.Groups, id)
+		uinfo.Mu.Unlock()
+	}
+
+	for _, token := range linksInvalidated {
+		link, ok := projectRetrieveLink(token.LinkToken)
+		if ok {
+			link.Mu.Lock()
+			link.Link.GroupAssignment = util.RemoveElementFunc(link.Link.GroupAssignment, func(element string) bool {
+				return element == id
+			})
+			link.Mu.Unlock()
+		}
+	}
 	return err
 }
 
@@ -1870,6 +1871,10 @@ func projectAddUserToProjectAndGroups(
 		}
 	}
 
+	// Needed to ensure that there are no duplicates in clonedGroupIds
+	slices.Sort(clonedGroupIds)
+	slices.Compact(clonedGroupIds)
+
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -2153,7 +2158,7 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 				}](
 					tx,
 					`
-						select gm.group_id, g.id as project_id
+						select gm.group_id, g.project as project_id
 						from
 							project.group_members gm
 							join project.groups g on gm.group_id = g.id

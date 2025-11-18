@@ -146,7 +146,7 @@ func MfaAnswerChallenge(r *http.Request, w http.ResponseWriter, challengeId stri
 				tx,
 				`
 					delete from auth.two_factor_challenges
-					where expires_at > now()
+					where now() > expires_at
 			    `,
 				db.Params{},
 			)
@@ -167,7 +167,9 @@ func MfaAnswerChallenge(r *http.Request, w http.ResponseWriter, challengeId stri
 				from
 					auth.two_factor_challenges challenge
 					join auth.two_factor_credentials cred on challenge.credentials_id = cred.id
-					left join auth.two_factor_credentials enforced_creds on enforced_creds.enforced = true
+					left join auth.two_factor_credentials enforced_creds on 
+						cred.principal_id = enforced_creds.principal_id 
+						and enforced_creds.enforced = true
 				where
 					challenge.challenge_id = :challenge_id
 					and now() < challenge.expires_at
