@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+
 	"ucloud.dk/shared/pkg/util/mermaid"
 )
 
@@ -181,6 +182,10 @@ func (g *Graph) leastExpensivePath(source, destination int) (*big.Int, []int) {
 
 // MinCostFlow tries to push desiredFlow units and returns the amount actually sent.
 func (g *Graph) MinCostFlow(source, destination int, desiredFlow int64) int64 {
+	if source == destination {
+		return 0
+	}
+
 	var actualFlow int64
 
 	for actualFlow < desiredFlow {

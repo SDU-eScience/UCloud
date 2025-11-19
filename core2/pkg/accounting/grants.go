@@ -88,13 +88,13 @@ type grantAppBucket struct {
 }
 
 type grantSettingsBucket struct {
-	Mu                sync.RWMutex
+	Mu                sync.RWMutex          // Protects access to maps directly in the bucket
 	PublicGrantGivers map[string]util.Empty // grant givers where enabled = true
 	Settings          map[string]*grantSettings
 }
 
 type grantIndexBucket struct {
-	Mu sync.RWMutex
+	Mu sync.RWMutex // Protects access to maps directly in the bucket
 
 	// Guaranteed to be ordered by time of creation (for a single entity). Contains both applications sent by the entity
 	// but also being received. Note that the order is technically by order in which they are created and not
@@ -1327,16 +1327,18 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 			Mu:        sync.RWMutex{},
 			ProjectId: string(actor.Project.Value),
 		}
+		b.Settings[id] = w
 	}
+	b.Mu.Unlock()
 
 	_, isPublic := b.PublicGrantGivers[id]
 	s.Enabled = isPublic
 
+	w.Mu.Lock()
 	w.Settings = &s
-
 	lGrantsPersistSettings(w)
+	w.Mu.Unlock()
 
-	b.Mu.Unlock()
 	return nil
 }
 
@@ -1369,6 +1371,7 @@ func GrantsRetrieveSettings(actor rpc.Actor) (accapi.GrantRequestSettings, *util
 					},
 				},
 			}
+			b.Settings[string(actor.Project.Value)] = w
 			b.Mu.Unlock()
 		}
 		b.Mu.RLock()

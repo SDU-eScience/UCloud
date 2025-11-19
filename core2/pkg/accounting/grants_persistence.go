@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"slices"
 	"strconv"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	"ucloud.dk/shared/pkg/log"
@@ -39,8 +40,8 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 			startIdx = 0
 		}
 
-		if endIdx >= len(prefetchList) {
-			endIdx = len(prefetchList) - 1
+		if endIdx > len(prefetchList) {
+			endIdx = len(prefetchList)
 		}
 
 		prefetchList = prefetchList[startIdx:endIdx]
@@ -102,7 +103,8 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 		return result
 	})
 
-	for _, app := range apps {
+	for _, appLoop := range apps {
+		app := appLoop
 		numericId, _ := strconv.ParseInt(app.Id.Value, 10, 64)
 		grantId := accGrantId(numericId)
 		b := grantGetAppBucket(grantId)
@@ -334,7 +336,8 @@ func grantsLoadSettings() {
 		return result
 	})
 
-	for projectId, settings := range allSettings {
+	for projectId, settingsLoop := range allSettings {
+		settings := settingsLoop
 		b := grantGetSettingsBucket(projectId)
 		b.Settings[projectId] = &grantSettings{
 			ProjectId: projectId,

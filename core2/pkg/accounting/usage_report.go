@@ -418,7 +418,7 @@ func initUsageReports() {
 			}
 		}
 
-		allAggregatedReports := append([]*aggregatedReport{}, storageReportsCapacity, storageReportsCapacity)
+		allAggregatedReports := append([]*aggregatedReport{}, storageReportsCapacity, storageReportsTimeBased)
 		for _, report := range computeReportsByUnit {
 			allAggregatedReports = append(allAggregatedReports, report)
 		}
@@ -444,6 +444,7 @@ func usageRetrieveHistoricReports(from time.Time, until time.Time, wallet AccWal
 	// NOTE(Dan, 15/10/2025): Current tests will break in the year 2100, but I will let that be a problem for the
 	// future.
 	now := time.Now()
+	nowTrunc := util.StartOfDayUTC(now)
 	earliestFromTime := now.Add(-100 * 365 * 24 * time.Hour)
 	if from.Before(earliestFromTime) {
 		from = earliestFromTime
@@ -468,7 +469,7 @@ func usageRetrieveHistoricReports(from time.Time, until time.Time, wallet AccWal
 		current = current.AddDate(0, 0, 1)
 	}
 
-	if now == until || until.After(now) {
+	if nowTrunc == until || until.After(nowTrunc) {
 		g := &reportGlobals
 		g.Mu.RLock()
 		currentReport, ok := g.Reports[wallet]
@@ -666,8 +667,12 @@ func usageRetrieveHistoric(now time.Time, wallet AccWalletId) (internalUsageRepo
 
 		if ok {
 			entry := &g.HistoricCache[slot]
-			entry.LastUsedAt.Store(util.Pointer(time.Now()))
-			result = entry.Report
+			if entry.InUse {
+				entry.LastUsedAt.Store(util.Pointer(time.Now()))
+				result = entry.Report
+			} else {
+				ok = false
+			}
 		}
 		g.Mu.RUnlock()
 	}
@@ -814,6 +819,11 @@ func lUsageEvictHistoricCache() {
 		for i := range g.HistoricCache {
 			entry := &g.HistoricCache[i]
 			if entry.InUse && entry.LastUsedAt.Load().Before(evictBefore) {
+				idx, ok := g.HistoricCacheIndex[entry.Report.ValidFrom]
+				if ok {
+					delete(idx, entry.Report.Wallet)
+				}
+
 				entry.InUse = false
 				entry.Report = internalUsageReport{}
 				entry.LastUsedAt.Store(util.Pointer(time.Now()))
@@ -992,7 +1002,7 @@ func lSnapshotWallet(now time.Time, b *internalBucket, w *internalWallet) intern
 			alloc := b.AllocationsById[allocId]
 			if alloc.Active {
 				allocationDuration := alloc.End.Sub(alloc.Start)
-				timeRemaining := max(now.Sub(alloc.End), 0)
+				timeRemaining := max(alloc.End.Sub(now), 0)
 				timeUsed := allocationDuration - timeRemaining
 				timePercentageUsed := float64(timeUsed) / float64(allocationDuration)
 
@@ -1100,7 +1110,7 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 		if prevWallet.LocalUsage != currWallet.LocalUsage || prevWallet.TotalUsage != currWallet.TotalUsage || currWallet.Quota != prevWallet.Quota {
 			utilizationPercent100 := 0.0
 			if currWallet.Quota != 0 {
-				utilizationPercent100 = float64(currWallet.TotalUsage) / float64(currWallet.Quota)
+				utilizationPercent100 = (float64(currWallet.TotalUsage) / float64(currWallet.Quota)) * 100
 			}
 
 			report.UsageOverTime.Absolute = append(report.UsageOverTime.Absolute, internalUsageOverTimeAbsoluteDataPoint{
