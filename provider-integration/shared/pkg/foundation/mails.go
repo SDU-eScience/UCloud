@@ -2,6 +2,7 @@ package foundation
 
 import (
 	"encoding/json"
+
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -62,7 +63,6 @@ const (
 	MailTypeNewGrantApplication         MailType = "newGrantApplication"
 	MailTypeApplicationUpdated          MailType = "applicationUpdated"
 	MailTypeApplicationUpdatedToAdmins  MailType = "applicationUpdatedToAdmins"
-	MailTypeApplicationStatusChanged    MailType = "applicationStatusChangedToAdmins"
 	MailTypeApplicationApproved         MailType = "applicationApproved"
 	MailTypeApplicationApprovedToAdmins MailType = "applicationApprovedToAdmins"
 	MailTypeApplicationRejected         MailType = "applicationRejected"

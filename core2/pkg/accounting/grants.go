@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -644,8 +645,8 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 	didApprove := false
 	app.Application.UpdatedAt = fndapi.Timestamp(now)
 
-	overallState := app.Application.Status.OverallState
-	if overallState == accapi.GrantApplicationStateApproved || overallState == accapi.GrantApplicationStateRejected {
+	prevState := app.Application.Status.OverallState
+	if prevState == accapi.GrantApplicationStateApproved || prevState == accapi.GrantApplicationStateRejected {
 		// NOTE(Dan): If the application is already closed, then only a small fraction of properties will be used in
 		// the update. The values that are mutable are copied and the "revision" variable is replaced by the current
 		// revision.
@@ -730,7 +731,35 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		lGrantsAwardResources(app)
 	}
 
+	appCopy := *app.Application
+
 	app.Mu.Unlock()
+
+	if !giftId.Present {
+		// We can send a notification
+
+		newState := appCopy.Status.OverallState
+
+		switch {
+		case !wasExistingApplication && newState == accapi.GrantApplicationStateInProgress:
+			// New application
+			grantHandleEvent(grantEvent{
+				Type:                   grantEvApplicationSubmitted,
+				EventSourceIsApplicant: actor.Username == appCopy.CreatedBy,
+				Actor:                  actor,
+				Application:            appCopy,
+			})
+
+		case wasExistingApplication && newState == accapi.GrantApplicationStateInProgress:
+			// Update to existing
+			grantHandleEvent(grantEvent{
+				Type:                   grantEvRevisionSubmitted,
+				EventSourceIsApplicant: actor.Username == appCopy.CreatedBy,
+				Actor:                  actor,
+				Application:            appCopy,
+			})
+		}
+	}
 
 	return int64(id), nil
 }
@@ -821,6 +850,8 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 		_, err = GrantsSubmitRevision(actor, revisionRequest)
 	}
 
+	// TODO call grantHandleEvent() for grant transfer here
+
 	return err
 }
 
@@ -846,7 +877,15 @@ func GrantsPostComment(actor rpc.Actor, req accapi.GrantsPostCommentRequest) (st
 	})
 
 	lGrantsPersist(app)
+	appCopy := *app.Application
 	app.Mu.Unlock()
+
+	grantHandleEvent(grantEvent{
+		Type:                   grantEvNewComment,
+		EventSourceIsApplicant: actor.Username == appCopy.CreatedBy,
+		Actor:                  actor,
+		Application:            appCopy,
+	})
 
 	return fmt.Sprint(commentId), nil
 }
@@ -914,6 +953,9 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 	}
 
 	app.Mu.Lock()
+
+	prevState := app.Application.Status.OverallState
+
 	if app.Application.Status.OverallState != accapi.GrantApplicationStateInProgress {
 		err = util.HttpErr(http.StatusBadRequest, "application is no longer active")
 	}
@@ -966,7 +1008,32 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 			}
 		}
 	}
+
+	appCopy := *app.Application
+
 	app.Mu.Unlock()
+
+	newState := appCopy.Status.OverallState
+	didChangeState := prevState != newState
+	if didChangeState {
+		if newState == accapi.GrantApplicationStateRejected {
+			// Application was rejected
+			grantHandleEvent(grantEvent{
+				Type:                   grantEvApplicationRejected,
+				EventSourceIsApplicant: actor.Username == appCopy.CreatedBy,
+				Actor:                  actor,
+				Application:            appCopy,
+			})
+		} else if newState == accapi.GrantApplicationStateApproved {
+			// Application was approved
+			grantHandleEvent(grantEvent{
+				Type:                   grantEvGrantAwarded,
+				EventSourceIsApplicant: actor.Username == appCopy.CreatedBy,
+				Actor:                  actor,
+				Application:            appCopy,
+			})
+		}
+	}
 	return err
 }
 
@@ -1628,4 +1695,196 @@ func initGrants() {
 
 const defaultTemplate = "Please describe the reason for applying for resources"
 
-// TODO notifications
+// Notifications
+// =====================================================================================================================
+// Sends notifications when grant events occur.
+type grantEventType int
+
+const (
+	grantEvNewComment grantEventType = iota
+	grantEvGrantAwarded
+	grantEvApplicationRejected
+	grantEvApplicationSubmitted
+	grantEvRevisionSubmitted
+)
+
+type grantEvent struct {
+	Type                   grantEventType
+	EventSourceIsApplicant bool
+	Actor                  rpc.Actor
+	Application            accapi.GrantApplication
+}
+
+func grantHandleEvent(event grantEvent) {
+	err1 := grantSendNotification(event)
+	err2 := grantSendEmail(event)
+	if err1 != nil {
+		log.Info("Failed to send notification: %s", err1)
+	}
+	if err2 != nil {
+		log.Info("Failed to send email: %s", err2)
+	}
+}
+
+func grantSendNotification(event grantEvent) *util.HttpError {
+	var recipients []string
+
+	if event.EventSourceIsApplicant {
+		app := &event.Application
+		reqs := app.CurrentRevision.Document.AllocationRequests
+		reviewerSet := map[string]util.Empty{}
+		for _, req := range reqs {
+			reviewerSet[req.GrantGiver] = util.Empty{}
+		}
+
+		reviewerUsers := map[string]util.Empty{}
+		db.NewTx0(func(tx *db.Transaction) {
+			for reviewer := range reviewerSet {
+				project, ok := coreutil.ProjectRetrieveFromDatabase(tx, reviewer)
+				if ok {
+					for _, member := range project.Status.Members {
+						if member.Role.Satisfies(fndapi.ProjectRoleAdmin) {
+							reviewerUsers[member.Username] = util.Empty{}
+						}
+					}
+				}
+			}
+		})
+
+		for user := range reviewerUsers {
+			recipients = append(recipients, user)
+		}
+	} else {
+		applicant := event.Application.CreatedBy
+		recipients = append(recipients, applicant)
+	}
+
+	for _, recipient := range recipients {
+		notification := fndapi.Notification{}
+
+		meta := map[string]any{
+			"appId": event.Application.Id,
+		}
+
+		metaJson, _ := json.Marshal(meta)
+		notification.Meta.Set(metaJson)
+
+		switch event.Type {
+		case grantEvNewComment:
+			notification.Type = "NEW_GRANT_COMMENT"
+			notification.Message = "A new comment has been added"
+		case grantEvApplicationSubmitted:
+			notification.Type = "NEW_GRANT_APPLICATION"
+			notification.Message = "A new application has been submitted"
+		case grantEvGrantAwarded:
+			notification.Type = "GRANT_APPLICATION_RESPONSE"
+			notification.Message = "A grant has been approved"
+		case grantEvApplicationRejected:
+			notification.Type = "GRANT_APPLICATION_RESPONSE"
+			notification.Message = "A grant has been rejected"
+		case grantEvRevisionSubmitted:
+			notification.Type = "GRANT_APPLICATION_UPDATED"
+			notification.Message = "A revision has been submitted"
+			// TODO make grantEv for grantTransfer and insert here
+		}
+
+		_, err := fndapi.NotificationsCreate.Invoke(fndapi.NotificationsCreateRequest{
+			User:         recipient,
+			Notification: notification,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func grantSendEmail(event grantEvent) *util.HttpError {
+	var recipients []string
+
+	if event.EventSourceIsApplicant {
+		app := &event.Application
+		reqs := app.CurrentRevision.Document.AllocationRequests
+		reviewerSet := map[string]util.Empty{}
+		for _, req := range reqs {
+			reviewerSet[req.GrantGiver] = util.Empty{}
+		}
+
+		reviewerUsers := map[string]util.Empty{}
+		db.NewTx0(func(tx *db.Transaction) {
+			for reviewer := range reviewerSet {
+				project, ok := coreutil.ProjectRetrieveFromDatabase(tx, reviewer)
+				if ok {
+					for _, member := range project.Status.Members {
+						if member.Role.Satisfies(fndapi.ProjectRoleAdmin) {
+							reviewerUsers[member.Username] = util.Empty{}
+						}
+					}
+				}
+			}
+		})
+
+		for user := range reviewerUsers {
+			recipients = append(recipients, user)
+		}
+	} else {
+		applicant := event.Application.CreatedBy
+		recipients = append(recipients, applicant)
+	}
+
+	applicantProjectTitle := ""
+	currDoc := event.Application.CurrentRevision.Document
+	switch currDoc.Recipient.Type {
+	case accapi.RecipientTypeNewProject:
+		applicantProjectTitle = currDoc.Recipient.Title.Value
+	case accapi.RecipientTypePersonalWorkspace:
+		applicantProjectTitle = fmt.Sprintf("personal workspace of: %v", event.Application.CreatedBy)
+	case accapi.RecipientTypeExistingProject:
+		projectId := currDoc.Recipient.Id.Value
+		applicantProjectTitle = db.NewTx(func(tx *db.Transaction) string {
+			project, ok := coreutil.ProjectRetrieveFromDatabase(tx, projectId)
+			if !ok {
+				return projectId
+			} else {
+				return project.Id
+			}
+		})
+	}
+
+	mailTemplate := map[string]any{
+		"sender":                event.Application.CreatedBy,
+		"applicantProjectTitle": applicantProjectTitle,
+	}
+
+	switch event.Type {
+	case grantEvNewComment:
+		mailTemplate["type"] = fndapi.MailTypeNewComment
+	case grantEvApplicationSubmitted:
+		mailTemplate["type"] = fndapi.MailTypeNewGrantApplication
+	case grantEvGrantAwarded:
+		mailTemplate["type"] = fndapi.MailTypeApplicationApproved
+	case grantEvApplicationRejected:
+		mailTemplate["type"] = fndapi.MailTypeApplicationRejected
+	case grantEvRevisionSubmitted:
+		mailTemplate["type"] = fndapi.MailTypeApplicationUpdated
+		// TODO make grantEv for grantTransfer and insert here
+	}
+
+	mailBytes, _ := json.Marshal(mailTemplate)
+	mail := fndapi.Mail(mailBytes)
+
+	for _, recipient := range recipients {
+		_, err := fndapi.MailSendToUser.Invoke(fndapi.BulkRequestOf(
+			fndapi.MailSendToUserRequest{
+				Receiver: recipient,
+				Mail:     mail,
+			}),
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

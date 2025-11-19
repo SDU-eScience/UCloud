@@ -3,6 +3,7 @@ package foundation
 import (
 	"bytes"
 	"crypto/sha256"
+	"database/sql"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -228,8 +229,6 @@ func UserWantsEmail(username string, mailType fndapi.MailType) bool {
 		return settings.GrantApplicationUpdated
 	case fndapi.MailTypeApplicationUpdatedToAdmins:
 		return settings.GrantApplicationUpdated
-	case fndapi.MailTypeApplicationStatusChanged:
-		return settings.GrantApplicationUpdated
 	case fndapi.MailTypeApplicationApproved:
 		return settings.GrantApplicationApproved
 	case fndapi.MailTypeApplicationApprovedToAdmins:
@@ -296,7 +295,7 @@ func retrieveEmails(usernames []string) map[string]string {
 		result := map[string]string{}
 		rows := db.Select[struct {
 			Id    string
-			Email string
+			Email sql.Null[string]
 		}](
 			tx,
 			`
@@ -310,7 +309,9 @@ func retrieveEmails(usernames []string) map[string]string {
 		)
 
 		for _, row := range rows {
-			result[row.Id] = row.Email
+			if row.Email.Valid {
+				result[row.Id] = row.Email.V
+			}
 		}
 		return result
 	})
@@ -358,16 +359,12 @@ var mailTemplates = map[fndapi.MailType]mailTemplate{
 	fndapi.MailTypeResetPassword:      mailTpl(tplAuthReset),
 	fndapi.MailTypeVerifyEmailAddress: mailTpl(tplAuthVerify),
 
-	fndapi.MailTypeApplicationApproved:         mailTpl(tplGrantsApprovedToApplicant),
-	fndapi.MailTypeApplicationApprovedToAdmins: mailTpl(tplGrantsApprovedToApprover),
-	fndapi.MailTypeApplicationWithdrawn:        mailTpl(tplGrantsClosedToApprover),
-	fndapi.MailTypeNewComment:                  mailTpl(tplGrantsComment),
-	fndapi.MailTypeNewGrantApplication:         mailTpl(tplGrantsNewApplication),
-	fndapi.MailTypeApplicationRejected:         mailTpl(tplGrantsRejectedToApplicant),
-	fndapi.MailTypeApplicationStatusChanged:    mailTpl(tplGrantsStatusChange),
-	fndapi.MailTypeTransferApplication:         mailTpl(tplGrantsTransfer),
-	fndapi.MailTypeApplicationUpdated:          mailTpl(tplGrantsUpdatedToApplicant),
-	fndapi.MailTypeApplicationUpdatedToAdmins:  mailTpl(tplGrantsUpdatedToApprover),
+	fndapi.MailTypeApplicationApproved: mailTpl(tplGrantsApprovedToApplicant),
+	fndapi.MailTypeNewComment:          mailTpl(tplGrantsComment),
+	fndapi.MailTypeNewGrantApplication: mailTpl(tplGrantsNewApplication),
+	fndapi.MailTypeApplicationRejected: mailTpl(tplGrantsRejectedToApplicant),
+	fndapi.MailTypeTransferApplication: mailTpl(tplGrantsTransfer),
+	fndapi.MailTypeApplicationUpdated:  mailTpl(tplGrantsUpdatedToApplicant),
 
 	fndapi.MailTypeJobEvents: mailTpl(tplJobsEvents),
 
