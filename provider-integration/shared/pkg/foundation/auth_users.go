@@ -10,13 +10,13 @@ import (
 const authUsersBaseContext = "auth/users"
 
 type UsersCreateRequest struct {
-	Username   string              `json:"username"`
-	Password   string              `json:"password"`
-	Email      string              `json:"email"`
-	Role       util.Option[string] `json:"role"`
-	FirstNames util.Option[string] `json:"firstNames"`
-	LastName   util.Option[string] `json:"lastname"`
-	OrgId      util.Option[string] `json:"orgId"`
+	Username   string                     `json:"username"`
+	Password   string                     `json:"password"`
+	Email      string                     `json:"email"`
+	Role       util.Option[PrincipalRole] `json:"role"`
+	FirstNames util.Option[string]        `json:"firstNames"`
+	LastName   util.Option[string]        `json:"lastname"`
+	OrgId      util.Option[string]        `json:"orgId"`
 }
 
 var UsersCreate = rpc.Call[[]UsersCreateRequest, []AuthenticationTokens]{
