@@ -200,6 +200,8 @@ const colorsByTheme: {dark: ThemedColors; light: ThemedColors;} = {
   }
 };
 
+export const CollapsedSidebarWidthInPx = 64;
+
 // Note(Jonas): Do keep around.
 function generatePalette(): string {
   let builder = "";
@@ -461,7 +463,7 @@ html {
       
      --defaultCardBorder: 0.5px solid var(--borderColor);
       
-    --sidebarWidth: 64px;
+    --sidebarWidth: ${CollapsedSidebarWidthInPx}px;
     --secondarySidebarWidth: 220px;
     --popInWidth: 368px;
     --sidebarColor: var(--blue-60);

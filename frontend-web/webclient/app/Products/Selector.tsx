@@ -422,7 +422,7 @@ export function useBoundedPosition(headerCount: number): {
         console.log("no result, returning 0")
         return {boxRef, dims: boxRect};
     }
-    console.log(boxRef)
+
     let dialogX = boxRect.x;
     let dialogY = boxRect.y + boxRect.height;
     let dialogHeight = 500;

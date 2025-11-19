@@ -8,6 +8,7 @@ import {PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState} fr
 import {FlexClass} from "./Flex";
 import {clamp} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
+import {CollapsedSidebarWidthInPx} from "./GlobalStyle";
 
 export interface ClickableDropdownProps<T> {
     trigger: React.ReactNode;
@@ -190,7 +191,7 @@ function ClickableDropdown<T>({
         const f = dropdownRef.current;
         let boundingClientRect = f?.getBoundingClientRect();
         if (boundingClientRect) {
-            top = boundingClientRect.top + boundingClientRect.height;
+            top = Math.max(0, boundingClientRect.top + boundingClientRect.height);
         }
     }
 
@@ -228,22 +229,23 @@ function ClickableDropdown<T>({
         let y = parseInt((top ?? dropdownRef.current?.getBoundingClientRect().y ?? "0")?.toString().replace("px", ""));
         if (isNaN(y)) y = 0;
 
-        const widthAsNumber = parseInt((width ?? 300).toString().replace("px", ""));
+        let widthAsNumber = parseInt((width ?? 300).toString().replace("px", ""));
+        if (widthAsNumber > screenWidth - CollapsedSidebarWidthInPx) {
+            widthAsNumber = (screenWidth - CollapsedSidebarWidthInPx);
+            width = widthAsNumber + "px";
+            left = Math.max(CollapsedSidebarWidthInPx, x - widthAsNumber);
+        }
         let heightAsNumber = 38 * children.length;
         if (props.height) {
-            heightAsNumber = Math.max(props.height, heightAsNumber);
-        }
-
-        if (x + widthAsNumber >= screenWidth) {
-            left = x - widthAsNumber;
+            heightAsNumber = Math.min(Math.max(props.height, heightAsNumber));
         }
 
         if (props.height) {
-            if (y + props.height! >= screenHeight) {
-                top = y - props.height!;
+            if (y + props.height >= screenHeight) {
+                top = Math.max(y - props.height, 0);
             }
         } else if (y + heightAsNumber >= screenHeight) {
-            top = y - heightAsNumber;
+            top = Math.max(y - heightAsNumber, 0);
         }
     }
 
