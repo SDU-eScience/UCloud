@@ -242,7 +242,7 @@ func PrincipalCreateOrUpdate(tx *db.Transaction, spec *PrincipalSpecification, i
 		uid = row.Uid
 		ok = exists
 	} else {
-		row, _ := db.Get[struct{ Uid int }](
+		row, exists := db.Get[struct{ Uid int }](
 			tx,
 			`
 				insert into auth.principals(dtype, id, created_at, modified_at, role, first_names, last_name, 
@@ -254,7 +254,7 @@ func PrincipalCreateOrUpdate(tx *db.Transaction, spec *PrincipalSpecification, i
 			params,
 		)
 		uid = row.Uid
-		ok = tx.ConsumeError() == nil
+		ok = tx.ConsumeError() == nil && exists
 	}
 
 	if !ok {

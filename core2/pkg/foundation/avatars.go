@@ -27,7 +27,7 @@ var defaultAvatar = fndapi.Avatar{
 
 func initAvatars() {
 	fndapi.AvatarsFind.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.Avatar, *util.HttpError) {
-		avatars := RetrieveAvatars([]string{info.Actor.Username})
+		avatars := AvatarsRetrieve([]string{info.Actor.Username})
 		avatar, ok := avatars[info.Actor.Username]
 		if !ok {
 			avatar = defaultAvatar
@@ -38,7 +38,7 @@ func initAvatars() {
 
 	fndapi.AvatarsFindBulk.Handler(func(info rpc.RequestInfo, request fndapi.AvatarsFindBulkRequest) (fndapi.AvatarsFindBulkResponse, *util.HttpError) {
 		result := fndapi.AvatarsFindBulkResponse{
-			Avatars: RetrieveAvatars(request.Usernames),
+			Avatars: AvatarsRetrieve(request.Usernames),
 		}
 
 		for _, username := range request.Usernames {
@@ -107,7 +107,7 @@ func initAvatars() {
 	})
 }
 
-func RetrieveAvatars(users []string) map[string]fndapi.Avatar {
+func AvatarsRetrieve(users []string) map[string]fndapi.Avatar {
 	return db.NewTx(func(tx *db.Transaction) map[string]fndapi.Avatar {
 		result := map[string]fndapi.Avatar{}
 

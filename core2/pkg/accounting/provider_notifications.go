@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	ws "github.com/gorilla/websocket"
 	"strings"
 	"sync"
 	"time"
+
+	ws "github.com/gorilla/websocket"
 	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"

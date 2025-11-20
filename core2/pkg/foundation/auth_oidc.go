@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/oauth2"
 	cfg "ucloud.dk/core/pkg/config"
 	db "ucloud.dk/shared/pkg/database2"
@@ -16,15 +15,12 @@ import (
 	"ucloud.dk/shared/pkg/util"
 
 	"context"
-	"fmt"
 )
 
 var oidcGlobals struct {
-	Provider             *oidc.Provider
-	Config               oauth2.Config
-	Verifier             *oidc.IDTokenVerifier
-	ClientSecretVerifier *jwt.Parser
-	ClientSecretKeyFunc  jwt.Keyfunc
+	Provider *oidc.Provider
+	Config   oauth2.Config
+	Verifier *oidc.IDTokenVerifier
 
 	Mu       sync.Mutex
 	Sessions map[string]oidcAuthSession
@@ -55,32 +51,11 @@ func initAuthOidc() {
 			ClientID:     config.ClientId,
 			ClientSecret: config.ClientSecret,
 			Endpoint:     g.Provider.Endpoint(),
-			RedirectURL:  selfUrl + fmt.Sprintf("/auth/oidc"),
+			RedirectURL:  selfUrl + "/auth/oidc",
 			Scopes:       append([]string{oidc.ScopeOpenID, "profile", "email"}, config.Scopes...),
 		}
 
 		g.Verifier = g.Provider.Verifier(&oidc.Config{ClientID: config.ClientId})
-
-		{
-			// NOTE(Dan): Some OIDC providers will sign the ID token with the client secret. This is not supported by
-			// the library, so we work around this by falling back to our normal JWT parser in that case.
-
-			var jwtKeyFunc jwt.Keyfunc
-			var jwtMethods []string
-
-			jwtMethods = []string{jwt.SigningMethodHS256.Name, jwt.SigningMethodHS384.Name, jwt.SigningMethodHS512.Name}
-			jwtKeyFunc = func(token *jwt.Token) (interface{}, error) {
-				return []byte(config.ClientSecret), nil
-			}
-
-			g.ClientSecretVerifier = jwt.NewParser(
-				jwt.WithIssuer(config.Issuer),
-				jwt.WithValidMethods(jwtMethods),
-				jwt.WithIssuedAt(),
-				jwt.WithExpirationRequired(),
-			)
-			g.ClientSecretKeyFunc = jwtKeyFunc
-		}
 
 		// -------------------------------------------------------------------------------------------------------------
 
@@ -174,7 +149,7 @@ func initAuthOidc() {
 			})
 
 			if httpErr != nil {
-				log.Warn("Failed to create principal from idp response: %v", err)
+				log.Warn("Failed to create principal from idp response: %v", httpErr)
 				return util.Empty{}, util.HttpErr(http.StatusBadGateway, "Failed to authenticate you")
 			}
 
