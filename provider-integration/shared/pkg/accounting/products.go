@@ -147,9 +147,9 @@ type ProductV2 struct {
 	GpuModel     string `json:"gpuModel,omitempty"`
 
 	// Accounting information only given when requested
-	
-	Balance          int64 `json:"balance,omitempty"`
-	MaxUsableBalance int64 `json:"maxUsableBalance,omitempty"`
+
+	Balance          int64 `json:"balance"`
+	MaxUsableBalance int64 `json:"maxUsableBalance"`
 }
 
 func (p *ProductV2) ToReference() ProductReference {

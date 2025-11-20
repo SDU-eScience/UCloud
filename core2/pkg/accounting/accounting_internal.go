@@ -391,13 +391,41 @@ func internalCommitAllocation(b *internalBucket, allocId accAllocId) {
 	b.Mu.Unlock()
 }
 
-func internalUpdateAllocation(actor rpc.Actor, b *internalBucket, allocationId accAllocId, newQuota util.Option[int64], newStart util.Option[fndapi.Timestamp], newEnd util.Option[fndapi.Timestamp]) *util.HttpError {
+func internalUpdateAllocation(actor rpc.Actor, now time.Time, b *internalBucket, allocationId accAllocId, newQuota util.Option[int64], newStart util.Option[fndapi.Timestamp], newEnd util.Option[fndapi.Timestamp]) *util.HttpError {
 	b.Mu.Lock()
-	now := time.Now()
+	defer b.Mu.Unlock()
+
+	reference := actor.Username
+	if actor.Project.Present {
+		reference = string(actor.Project.Value)
+	}
+	iOwnerByActor := internalOwnerByReference(reference)
+
+	if iOwnerByActor == nil {
+		return util.HttpErr(http.StatusNotFound, "Unknown owner")
+	}
 	iAlloc, ok := b.AllocationsById[allocationId]
 	if !ok {
 		return util.HttpErr(http.StatusNotFound, "Unknown allocation")
 	}
+	iWallet, ok := b.WalletsById[iAlloc.BelongsTo]
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "Unknown wallet (bad internal state?)")
+	}
+	iAllocGroup, ok := iWallet.AllocationsByParent[iAlloc.Parent]
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "Unknown allocation group (bad internal state?)")
+	}
+
+	// Check if you have granted the allocation
+	iParent, ok := b.WalletsById[iAlloc.Parent]
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "Parent unknown")
+	}
+	if iParent.OwnedBy != iOwnerByActor.Id {
+		return util.HttpErr(http.StatusForbidden, "You are not allowed to modify this allocation")
+	}
+
 	if iAlloc.Retired {
 		return util.HttpErr(http.StatusForbidden, "You cannot update a retired allocation, it has already expired!")
 	}
@@ -419,14 +447,6 @@ func internalUpdateAllocation(actor rpc.Actor, b *internalBucket, allocationId a
 		errorMessage := "You cannot set a negative quota for an allocation (" + strconv.FormatInt(newQuota.Value, 10) + ")"
 		return util.HttpErr(http.StatusForbidden, errorMessage)
 	}
-	iWallet, ok := b.WalletsById[iAlloc.BelongsTo]
-	if !ok {
-		return util.HttpErr(http.StatusNotFound, "Unknown wallet (bad internal state?)")
-	}
-	iAllocGroup, ok := iWallet.AllocationsByParent[iAlloc.Parent]
-	if !ok {
-		return util.HttpErr(http.StatusNotFound, "Unknown allocation group (bad internal state?)")
-	}
 
 	var proposedNewQuota = iAlloc.Quota
 	if newQuota.Present {
@@ -447,42 +467,44 @@ func internalUpdateAllocation(actor rpc.Actor, b *internalBucket, allocationId a
 
 	lInternalMarkSignificantUpdate(b, now, iWallet)
 	lInternalReevaluate(b, now, iWallet, true)
-	var comment = ""
-	if newQuota.Present {
-		var amount int64 = 0
-		//Converting to core hours in case of minutes or day
-		switch b.Category.AccountingFrequency {
-		case accapi.AccountingFrequencyOnce:
-			amount = proposedNewQuota
-		case accapi.AccountingFrequencyPeriodicMinute:
-			amount = proposedNewQuota / 60
-		case accapi.AccountingFrequencyPeriodicHour:
-			amount = proposedNewQuota
-		case accapi.AccountingFrequencyPeriodicDay:
-			amount = proposedNewQuota * 24
-		default:
-			log.Warn("Invalid accounting frequency passed: '%v'\n", b.Category.AccountingFrequency)
-		}
-		comment += "The Quota for " + b.Category.Name + "(" + b.Category.Provider + ") has manually been updated to " + strconv.FormatInt(amount, 10) + ". \n"
-	}
-	if newStart.Present {
-		comment += "The start date for the granted " + b.Category.Name + "(" + b.Category.Provider + ") allocation has manually been updated to " + proposedNewStart.String()
-	}
-	if newEnd.Present {
-		comment += "The end date for the granted " + b.Category.Name + "(" + b.Category.Provider + ") allocation has manually been updated to " + proposedNewEnd.String()
-	}
-	b.Mu.Unlock()
 
-	_, err := GrantsPostComment(
-		actor,
-		accapi.GrantsPostCommentRequest{
-			ApplicationId: iAlloc.GrantedIn.String(),
-			Comment:       comment,
-		},
-	)
-	if err != nil {
-		//Should not fail the update that we cannot post a comment
-		log.Warn("Error posting comment: ", err)
+	if iAlloc.GrantedIn.Present {
+		comment := ""
+		if newQuota.Present {
+			var amount int64 = 0
+			// Converting to core hours in case of minutes or day
+			switch b.Category.AccountingFrequency {
+			case accapi.AccountingFrequencyOnce:
+				amount = proposedNewQuota
+			case accapi.AccountingFrequencyPeriodicMinute:
+				amount = proposedNewQuota / 60
+			case accapi.AccountingFrequencyPeriodicHour:
+				amount = proposedNewQuota
+			case accapi.AccountingFrequencyPeriodicDay:
+				amount = proposedNewQuota * 24
+			default:
+				log.Warn("Invalid accounting frequency passed: '%v'\n", b.Category.AccountingFrequency)
+			}
+			comment += fmt.Sprint("The Quota for %s (%s) has manually been updated to %s.\n", b.Category.Name, b.Category.Provider, strconv.FormatInt(amount, 10))
+		}
+		if newStart.Present {
+			comment += fmt.Sprint("The start date for the granted %s (%s) allocation has manually been updated to %s .\n", b.Category.Name, b.Category.Provider, proposedNewStart.String())
+		}
+		if newEnd.Present {
+			comment += fmt.Sprint("The end date for the granted %s (%s) allocation has manually been updated to %s .\n", b.Category.Name, b.Category.Provider, proposedNewEnd.String())
+		}
+
+		_, err := GrantsPostComment(
+			actor,
+			accapi.GrantsPostCommentRequest{
+				ApplicationId: fmt.Sprint(iAlloc.GrantedIn.Value),
+				Comment:       comment,
+			},
+		)
+		if err != nil {
+			// Should not fail the update that we cannot post a comment
+			log.Warn("Error posting comment: ", err)
+		}
 	}
 	return nil
 }
@@ -594,11 +616,9 @@ func internalWalletByAllocationId(id accAllocId) (*internalBucket, *internalWall
 	for _, b := range accGlobals.BucketsByCategory {
 		b.Mu.RLock()
 		resultAllocation, ok = b.AllocationsById[id]
-		if !ok {
-			b.Mu.RUnlock()
-			continue
+		if ok {
+			resultWallet, ok = b.WalletsById[resultAllocation.BelongsTo]
 		}
-		resultWallet, ok = b.WalletsById[resultAllocation.BelongsTo]
 		b.Mu.RUnlock()
 		if ok {
 			resultBucket = b

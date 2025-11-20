@@ -223,7 +223,7 @@ func UpdateAllocation(actor rpc.Actor, requests []accapi.UpdateAllocationRequest
 		if !ok {
 			continue
 		}
-		err := internalUpdateAllocation(actor, bucket, accAllocId(request.AllocationId), request.NewQuota, request.NewStart, request.NewEnd)
+		err := internalUpdateAllocation(actor, time.Now(), bucket, accAllocId(request.AllocationId), request.NewQuota, request.NewStart, request.NewEnd)
 		//If update failed will break the update
 		if err != nil {
 			return util.Empty{}, err
