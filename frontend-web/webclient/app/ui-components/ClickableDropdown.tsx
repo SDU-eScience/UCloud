@@ -200,6 +200,9 @@ function ClickableDropdown<T>({
         left = extractLeftAlignedPosition(dropdownRef.current, width) ?? left;
     }
 
+    const screenHeight = window.innerHeight;
+    const screenWidth = window.innerWidth;
+
     if (props.useMousePositioning) {
         if (width === undefined) width = 300;
         const widthAsNumber = parseInt(width.toString().replace("px", ""));
@@ -220,9 +223,6 @@ function ClickableDropdown<T>({
         // Fixed positioning, but not based on the mouse. We need to push the content around to make sure that we have
         // space for it.
 
-        const screenHeight = window.innerHeight;
-        const screenWidth = window.innerWidth;
-
         let x = parseInt((left ?? "0")?.toString().replace("px", ""));
         if (isNaN(x)) x = 0;
 
@@ -237,7 +237,7 @@ function ClickableDropdown<T>({
         }
         let heightAsNumber = 38 * children.length;
         if (props.height) {
-            heightAsNumber = Math.min(Math.max(props.height, heightAsNumber));
+            heightAsNumber = Math.min(Math.max(props.height, heightAsNumber), screenHeight);
         }
 
         if (props.height) {
@@ -249,6 +249,7 @@ function ClickableDropdown<T>({
         }
     }
 
+
     const dropdownContent = <DropdownContent
         dropdownRef={divRef}
         overflow={props.height ? "auto" : "visible"}
@@ -258,7 +259,7 @@ function ClickableDropdown<T>({
         top={top}
         left={left}
         fixed={props.rightAligned || props.useMousePositioning}
-        maxHeight={`${props.height}px`}
+        maxHeight={props.height ? `${Math.min(props.height, screenHeight)}px` : undefined}
         width={width}
         hover={false}
         visible={open}
