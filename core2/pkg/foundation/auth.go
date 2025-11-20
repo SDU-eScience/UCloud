@@ -330,7 +330,8 @@ func initAuth() {
 		return UsersInfoRetrieve(info.Actor), nil
 	})
 
-	fndapi.UsersUpdateInfo.Handler(func(info rpc.RequestInfo, request fndapi.UsersUpdateInfoRequest) (util.Empty, *util.HttpError) {
-		UsersInfoUpdate(request)
+	fndapi.UsersUpdateInfo.Handler(func(info rpc.RequestInfo, request fndapi.UsersUpdateInfoRequest) (string, *util.HttpError) {
+		err := UsersInfoUpdate(info.Actor, request, info.HttpRequest.RemoteAddr)
+		return cfg.Configuration.SelfPublic.ToURL(), err
 	})
 }
