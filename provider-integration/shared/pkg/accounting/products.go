@@ -2,6 +2,7 @@ package apm
 
 import (
 	"log"
+
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 
@@ -144,6 +145,11 @@ type ProductV2 struct {
 	MemoryModel  string `json:"memoryModel,omitempty"`
 	Gpu          int    `json:"gpu,omitempty"`
 	GpuModel     string `json:"gpuModel,omitempty"`
+
+	// Accounting information only given when requested
+	
+	Balance          int64 `json:"balance,omitempty"`
+	MaxUsableBalance int64 `json:"maxUsableBalance,omitempty"`
 }
 
 func (p *ProductV2) ToReference() ProductReference {
