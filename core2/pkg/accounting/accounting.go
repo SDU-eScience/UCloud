@@ -36,10 +36,6 @@ func initAccounting() {
 		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: result}, nil
 	})
 
-	accapi.UpdateAllocation.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.UpdateAllocationRequest]) (util.Empty, *util.HttpError) {
-		return UpdateAllocation(info.Actor, request.Items)
-	})
-
 	accapi.ReportUsage.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.ReportUsageRequest]) (fndapi.BulkResponse[bool], *util.HttpError) {
 		// TODO Currently (when bypassing the allocation check in the orchestrator) I can create a license with no
 		//   allocation. I don't think this correctly returns false in that case.
@@ -214,22 +210,6 @@ func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, 
 	)
 
 	return fmt.Sprint(id), err
-}
-
-func UpdateAllocation(actor rpc.Actor, requests []accapi.UpdateAllocationRequest) (util.Empty, *util.HttpError) {
-	for _, request := range requests {
-		bucket, _, ok := internalWalletByAllocationId(accAllocId(request.AllocationId))
-		//If wallet cannot be found just skip
-		if !ok {
-			continue
-		}
-		err := internalUpdateAllocation(actor, bucket, accAllocId(request.AllocationId), request.NewQuota, request.NewStart, request.NewEnd)
-		//If update failed will break the update
-		if err != nil {
-			return util.Empty{}, err
-		}
-	}
-	return util.Empty{}, nil
 }
 
 func ReportUsage(actor rpc.Actor, request accapi.ReportUsageRequest) (bool, *util.HttpError) {
