@@ -33,13 +33,20 @@ import (
 // Handlers and main API
 // ---------------------------------------------------------------------------------------------------------------------
 
-var mailChannel chan *gomail.Message
+type mailInTransit struct {
+	Message  *gomail.Message
+	DevEmail string
+	To       string
+	From     string
+}
+
+var mailChannel chan mailInTransit
 
 const SupportName = "eScience Support"
 const SupportEmail = "support@escience.sdu.dk"
 
 func initMails() {
-	mailChannel = make(chan *gomail.Message, 256)
+	mailChannel = make(chan mailInTransit, 256)
 	go mailDaemon()
 
 	fndapi.MailSendDirect.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.MailSendDirectMandatoryRequest]) (util.Empty, *util.HttpError) {
@@ -280,7 +287,12 @@ func sendEmail(mail mailToSend) error {
 
 	m.SetBody("text/html", html)
 
-	mailChannel <- m
+	mailChannel <- mailInTransit{
+		Message:  m,
+		DevEmail: fmt.Sprintf("<html><body><h1>%s</h1><br><br>%s</body></html>", subject, html),
+		To:       mail.ToEmail,
+		From:     mail.FromEmail,
+	}
 	return nil
 }
 
@@ -394,10 +406,10 @@ func renderEmail(mail mailToSend) (string, string, error) {
 	params := transformMailParameters(mtype, mail)
 	params = util.SanitizeMapForSerialization(params)
 	params["recipient"] = mail.ToName
-	params["emailOptOut"] = `<p>
+	params["emailOptOut"] = fmt.Sprintf(`<p>
 		If you do not want to receive these email notifications,you can unsubscribe from non-critical emails in your 
-		<a href="https://cloud.sdu.dk/app/users/settings">personal settings</a> on UCloud.
-	</p>`
+		<a href="%s/app/users/settings">personal settings</a> on UCloud.
+	</p>`, cfg.Configuration.SelfPublic.ToURL())
 	params["bodyStart"] = boundary
 
 	ctx := gonjaexec.NewContext(params)
@@ -465,7 +477,8 @@ func transformMailParameters(mtype fndapi.MailType, mail mailToSend) map[string]
 	case fndapi.MailTypeVerifyEmailAddress:
 		token, ok := params["token"].(string)
 		if ok {
-			params["link"] = fmt.Sprintf("https://cloud.sdu.dk/app/verifyEmail?type=%s&token=%s", params["verifyType"], url.QueryEscape(token))
+			params["link"] = fmt.Sprintf("%s/app/verifyEmail?type=%s&token=%s",
+				cfg.Configuration.SelfPublic.ToURL(), params["verifyType"], url.QueryEscape(token))
 		}
 	}
 	return params
@@ -558,8 +571,22 @@ func mailDaemon() {
 				})
 			}
 
-			if err := gomail.Send(sender, m); err != nil {
+			if err := gomail.Send(sender, m.Message); err != nil {
 				log.Warn("Failed to send email: %s", err.Error())
+			}
+
+			if util.DevelopmentModeEnabled() {
+				noSlashes := strings.ReplaceAll(m.To, "/", "-slash-")
+				root := fmt.Sprintf("/tmp/mail/html/%s", noSlashes)
+				_ = os.MkdirAll(root, 0700)
+
+				path := filepath.Join(root, time.Now().Format(time.Stamp))
+				fd, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0700)
+				if err == nil {
+					_, _ = fd.WriteString(m.DevEmail)
+					_ = fd.Close()
+					log.Info("Wrote fake email: %s %s %s", m.From, m.To, path)
+				}
 			}
 
 		// Close the connection to the SMTP server if no email was sent in
@@ -579,17 +606,20 @@ type mailFileSender struct{}
 
 func (m *mailFileSender) Send(from string, to []string, msg io.WriterTo) error {
 	for _, recipient := range to {
-		noSlashes := strings.ReplaceAll(recipient, "/", "-slash-")
-		root := fmt.Sprintf("/tmp/mail/%s", noSlashes)
-		_ = os.MkdirAll(root, 0700)
+		{
+			noSlashes := strings.ReplaceAll(recipient, "/", "-slash-")
+			root := fmt.Sprintf("/tmp/mail/raw/%s", noSlashes)
+			_ = os.MkdirAll(root, 0700)
 
-		path := filepath.Join(root, time.Now().Format(time.Stamp))
-		fd, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0700)
-		if err == nil {
-			_, _ = msg.WriteTo(fd)
-			_ = fd.Close()
-			log.Info("Wrote fake email: %s %s %s", from, to, path)
+			path := filepath.Join(root, time.Now().Format(time.Stamp))
+			fd, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0700)
+			if err == nil {
+				_, _ = msg.WriteTo(fd)
+				_ = fd.Close()
+				log.Info("Wrote fake email: %s %s %s", from, to, path)
+			}
 		}
+
 	}
 	return nil
 }

@@ -311,4 +311,27 @@ func initAuth() {
 
 		return util.Empty{}, nil
 	})
+
+	fndapi.UsersRetrieveOptionalInfo.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.OptionalUserInfo, *util.HttpError) {
+		return UserOptInfoRetrieve(info.Actor), nil
+	})
+
+	fndapi.UsersUpdateOptionalInfo.Handler(func(info rpc.RequestInfo, request fndapi.OptionalUserInfo) (util.Empty, *util.HttpError) {
+		UsersOptInfoUpdate(info.Actor, request)
+		return util.Empty{}, nil
+	})
+
+	fndapi.UsersVerifyUserInfo.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (util.Empty, *util.HttpError) {
+		UsersInfoVerify(request.Id)
+		return util.Empty{}, nil
+	})
+
+	fndapi.UsersRetrieveInfo.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.UsersRetrieveInfoResponse, *util.HttpError) {
+		return UsersInfoRetrieve(info.Actor), nil
+	})
+
+	fndapi.UsersUpdateInfo.Handler(func(info rpc.RequestInfo, request fndapi.UsersUpdateInfoRequest) (string, *util.HttpError) {
+		err := UsersInfoUpdate(info.Actor, request, info.HttpRequest.RemoteAddr)
+		return cfg.Configuration.SelfPublic.ToURL(), err
+	})
 }
