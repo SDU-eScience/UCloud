@@ -391,7 +391,7 @@ func internalCommitAllocation(b *internalBucket, allocId accAllocId) {
 	b.Mu.Unlock()
 }
 
-func internalUpdateAllocation(b *internalBucket, allocationId accAllocId, newQuota util.Option[int64], newStart util.Option[fndapi.Timestamp], newEnd util.Option[fndapi.Timestamp]) *util.HttpError {
+func internalUpdateAllocation(actor rpc.Actor, b *internalBucket, allocationId accAllocId, newQuota util.Option[int64], newStart util.Option[fndapi.Timestamp], newEnd util.Option[fndapi.Timestamp]) *util.HttpError {
 	b.Mu.Lock()
 	now := time.Now()
 	iAlloc, ok := b.AllocationsById[allocationId]
@@ -447,7 +447,43 @@ func internalUpdateAllocation(b *internalBucket, allocationId accAllocId, newQuo
 
 	lInternalMarkSignificantUpdate(b, now, iWallet)
 	lInternalReevaluate(b, now, iWallet, true)
+	var comment = ""
+	if newQuota.Present {
+		var amount int64 = 0
+		//Converting to core hours in case of minutes or day
+		switch b.Category.AccountingFrequency {
+		case accapi.AccountingFrequencyOnce:
+			amount = proposedNewQuota
+		case accapi.AccountingFrequencyPeriodicMinute:
+			amount = proposedNewQuota / 60
+		case accapi.AccountingFrequencyPeriodicHour:
+			amount = proposedNewQuota
+		case accapi.AccountingFrequencyPeriodicDay:
+			amount = proposedNewQuota * 24
+		default:
+			log.Warn("Invalid accounting frequency passed: '%v'\n", b.Category.AccountingFrequency)
+		}
+		comment += "The Quota for " + b.Category.Name + "(" + b.Category.Provider + ") has manually been updated to " + strconv.FormatInt(amount, 10) + ". \n"
+	}
+	if newStart.Present {
+		comment += "The start date for the granted " + b.Category.Name + "(" + b.Category.Provider + ") allocation has manually been updated to " + proposedNewStart.String()
+	}
+	if newEnd.Present {
+		comment += "The end date for the granted " + b.Category.Name + "(" + b.Category.Provider + ") allocation has manually been updated to " + proposedNewEnd.String()
+	}
 	b.Mu.Unlock()
+
+	_, err := GrantsPostComment(
+		actor,
+		accapi.GrantsPostCommentRequest{
+			ApplicationId: iAlloc.GrantedIn.String(),
+			Comment:       comment,
+		},
+	)
+	if err != nil {
+		//Should not fail the update that we cannot post a comment
+		log.Warn("Error posting comment: ", err)
+	}
 	return nil
 }
 
@@ -558,9 +594,12 @@ func internalWalletByAllocationId(id accAllocId) (*internalBucket, *internalWall
 	for _, b := range accGlobals.BucketsByCategory {
 		b.Mu.RLock()
 		resultAllocation, ok = b.AllocationsById[id]
+		if !ok {
+			b.Mu.RUnlock()
+			continue
+		}
 		resultWallet, ok = b.WalletsById[resultAllocation.BelongsTo]
 		b.Mu.RUnlock()
-
 		if ok {
 			resultBucket = b
 			break
