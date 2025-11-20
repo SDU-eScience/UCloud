@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -314,6 +315,21 @@ var AuthOidcCallback = rpc.Call[AuthOidcCallbackRequest, util.Empty]{
 var AuthLookupUser = rpc.Call[FindByStringId, rpc.CorePrincipalBaseClaims]{
 	BaseContext: AuthContext,
 	Operation:   "lookupUser",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesService,
+}
+
+type AuthLookupUsersByEmailRequest struct {
+	Email string `json:"email"`
+}
+
+type AuthLookupUsersByEmailResponse struct {
+	Users []string `json:"users"`
+}
+
+var AuthLookupUsersByEmail = rpc.Call[AuthLookupUsersByEmailRequest, AuthLookupUsersByEmailResponse]{
+	BaseContext: AuthContext,
+	Operation:   "lookupUsersByEmail",
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesService,
 }

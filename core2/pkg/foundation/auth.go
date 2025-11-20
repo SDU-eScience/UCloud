@@ -60,6 +60,14 @@ func initAuth() {
 		}
 	})
 
+	fndapi.AuthLookupUsersByEmail.Handler(func(info rpc.RequestInfo, request fndapi.AuthLookupUsersByEmailRequest) (fndapi.AuthLookupUsersByEmailResponse, *util.HttpError) {
+		users := db.NewTx(func(tx *db.Transaction) []string {
+			users := PrincipalsLookupByEmail(tx, request.Email)
+			return users
+		})
+		return fndapi.AuthLookupUsersByEmailResponse{Users: users}, nil
+	})
+
 	fndapi.AuthRefresh.Handler(func(info rpc.RequestInfo, request fndapi.AuthenticationTokens) (fndapi.AccessTokenAndCsrf, *util.HttpError) {
 		return SessionRefresh(request)
 	})
