@@ -12,26 +12,26 @@ import (
 
 func initNews() {
 	fndapi.NewsAddPost.Handler(func(info rpc.RequestInfo, request fndapi.NewPostRequest) (util.Empty, *util.HttpError) {
-		CreateNewsPost(request)
+		NewsCreate(request)
 		return util.Empty{}, nil
 	})
 
 	fndapi.NewsUpdatePost.Handler(func(info rpc.RequestInfo, request fndapi.UpdatePostRequest) (util.Empty, *util.HttpError) {
-		UpdateNewsPost(request)
+		NewsUpdate(request)
 		return util.Empty{}, nil
 	})
 
 	fndapi.NewsDeletePost.Handler(func(info rpc.RequestInfo, request fndapi.DeleteNewsPostRequest) (util.Empty, *util.HttpError) {
-		DeleteNewsPost(request)
+		NewsDelete(request)
 		return util.Empty{}, nil
 	})
 
 	fndapi.NewsListPosts.Handler(func(info rpc.RequestInfo, request fndapi.ListPostsRequest) (fndapi.Page[fndapi.NewsPost], *util.HttpError) {
-		return ListNewsPosts(request)
+		return NewsBrowsePosts(request)
 	})
 
 	fndapi.NewsListCategories.Handler(func(info rpc.RequestInfo, request util.Empty) ([]string, *util.HttpError) {
-		return ListNewsCategories()
+		return NewsBrowseCategories()
 	})
 
 	fndapi.NewsToggleHidden.Handler(func(info rpc.RequestInfo, request fndapi.TogglePostHiddenRequest) (util.Empty, *util.HttpError) {
@@ -40,11 +40,11 @@ func initNews() {
 	})
 
 	fndapi.NewsGetPostById.Handler(func(info rpc.RequestInfo, request fndapi.GetPostByIdRequest) (fndapi.NewsPost, *util.HttpError) {
-		return RetrieveNewsById(request.Id)
+		return NewsRetrieve(request.Id)
 	})
 }
 
-func CreateNewsPost(request fndapi.NewPostRequest) {
+func NewsCreate(request fndapi.NewPostRequest) {
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -74,7 +74,7 @@ func CreateNewsPost(request fndapi.NewPostRequest) {
 	})
 }
 
-func UpdateNewsPost(request fndapi.UpdatePostRequest) {
+func NewsUpdate(request fndapi.UpdatePostRequest) {
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -105,7 +105,7 @@ func UpdateNewsPost(request fndapi.UpdatePostRequest) {
 	})
 }
 
-func DeleteNewsPost(request fndapi.DeleteNewsPostRequest) {
+func NewsDelete(request fndapi.DeleteNewsPostRequest) {
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -149,7 +149,7 @@ func (row *newsRow) ToApi() fndapi.NewsPost {
 	return post
 }
 
-func ListNewsPosts(request fndapi.ListPostsRequest) (fndapi.Page[fndapi.NewsPost], *util.HttpError) {
+func NewsBrowsePosts(request fndapi.ListPostsRequest) (fndapi.Page[fndapi.NewsPost], *util.HttpError) {
 	request.ItemsPerPage = 50
 
 	return db.NewTx(func(tx *db.Transaction) fndapi.Page[fndapi.NewsPost] {
@@ -200,7 +200,7 @@ func ListNewsPosts(request fndapi.ListPostsRequest) (fndapi.Page[fndapi.NewsPost
 	}), nil
 }
 
-func ListNewsCategories() ([]string, *util.HttpError) {
+func NewsBrowseCategories() ([]string, *util.HttpError) {
 	return db.NewTx(func(tx *db.Transaction) []string {
 		rows := db.Select[struct {
 			Category string
@@ -239,7 +239,7 @@ func NewsToggleHidden(request fndapi.TogglePostHiddenRequest) {
 	})
 }
 
-func RetrieveNewsById(id int64) (fndapi.NewsPost, *util.HttpError) {
+func NewsRetrieve(id int64) (fndapi.NewsPost, *util.HttpError) {
 	post, ok := db.NewTx2(func(tx *db.Transaction) (fndapi.NewsPost, bool) {
 		row, ok := db.Get[newsRow](
 			tx,

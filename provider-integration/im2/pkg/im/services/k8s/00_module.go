@@ -3,9 +3,10 @@ package k8s
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"net/http"
 
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
@@ -70,9 +71,12 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 		if !update.Project.Present {
 			_, _, _ = filesystem.InitializeMemberFiles(update.Owner.Username, util.OptNone[string]())
 		}
+
+		inferenceHandleApmEvent(update)
 	}
 
 	initStorageScanCli()
+	initInference()
 
 	ctrl.RegisterProducts(shared.Machines)
 	ctrl.RegisterProducts(shared.StorageProducts)

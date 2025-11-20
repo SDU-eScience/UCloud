@@ -36,6 +36,12 @@ func NewCache[K comparable, V any](ttl time.Duration) *AsyncCache[K, V] {
 	}
 }
 
+func (c *AsyncCache[K, V]) Invalidate(key K) {
+	c.mutex.Lock()
+	delete(c.entries, key)
+	c.mutex.Unlock()
+}
+
 func (c *AsyncCache[K, V]) Get(key K, valueGetter func() (V, error)) (V, bool) {
 	// Attempt purge prior to retrieving from the cache
 	c.attemptPurge()

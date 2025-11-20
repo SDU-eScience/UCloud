@@ -53,7 +53,7 @@ var timeCategory = accapi.ProductCategory{
 func newEnv(t *testing.T, cat accapi.ProductCategory) *env {
 	accGlobals.TestingEnabled = true
 	close(providerWalletNotifications)
-	providerWalletNotifications = make(chan accWalletId, 128)
+	providerWalletNotifications = make(chan AccWalletId, 128)
 	go func() {
 		for {
 			_, ok := <-providerWalletNotifications

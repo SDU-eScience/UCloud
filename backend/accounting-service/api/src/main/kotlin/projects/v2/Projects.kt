@@ -96,7 +96,7 @@ data class Project(
         val canConsumeResources: Boolean = true,
     ) {
         init {
-            checkSingleLine(::title, title, maximumSize = 150)
+            checkSingleLine(::title, title, maximumSize = 200)
         }
     }
 

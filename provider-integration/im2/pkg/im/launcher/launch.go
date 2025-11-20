@@ -290,6 +290,12 @@ func (lrw *loggingResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) 
 	return hijacker.Hijack()
 }
 
+func (lrw *loggingResponseWriter) Flush() {
+	if flusher, ok := lrw.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
 var metricsServerHandler func(writer http.ResponseWriter, request *http.Request) = nil
 
 func launchMetricsServer() {

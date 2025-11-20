@@ -230,13 +230,13 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 		})
 	}
 
+	b.Mu.Lock()
+	defer b.Mu.Unlock()
+
 	if scope != nil {
 		scope.Mu.Lock()
 		defer scope.Mu.Unlock()
 	}
-
-	b.Mu.Lock()
-	defer b.Mu.Unlock()
 
 	w := lInternalWalletByOwner(b, now, owner.Id)
 
@@ -877,7 +877,7 @@ func lInternalReevaluate(b *internalBucket, now time.Time, wallet *internalWalle
 			lInternalMarkSignificantUpdate(b, now, next)
 		}
 
-		for childId, _ := range wallet.ChildrenUsage {
+		for childId, _ := range next.ChildrenUsage {
 			if _, hasVisited := visited[childId]; !hasVisited {
 				child := b.WalletsById[childId]
 				queue = append(queue, child)
@@ -954,11 +954,13 @@ func internalWalletsUpdatedAfter(timestamp time.Time, providerId string) []AccWa
 
 	accGlobals.Mu.RLock()
 	for cat, b := range accGlobals.BucketsByCategory {
+		b.Mu.RLock()
 		if cat.Provider == providerId {
 			if b.SignificantUpdateAt.Equal(timestamp) || b.SignificantUpdateAt.After(timestamp) {
 				buckets = append(buckets, b)
 			}
 		}
+		b.Mu.RUnlock()
 	}
 	accGlobals.Mu.RUnlock()
 
@@ -988,9 +990,11 @@ func lInternalMarkSignificantUpdate(b *internalBucket, now time.Time, wallet *in
 func internalGetMermaidGraph(now time.Time, walletId AccWalletId) (string, bool) {
 	b, _, ok := internalWalletById(walletId)
 	if ok {
+		accGlobals.Mu.RLock()
 		b.Mu.RLock()
 		graph := lInternalMermaidGraph(b, now, walletId)
 		b.Mu.RUnlock()
+		accGlobals.Mu.RUnlock()
 		return graph, true
 	}
 	return "", false
@@ -1182,50 +1186,6 @@ func lInternalGroupTotalRetired(b *internalBucket, group *internalGroup) int64 {
 // ---------------------------------------------------------------------------------------------------------------------
 // This API is needed for UIs and service providers. It mostly serves as a way to read information about the current
 // state. All APIs in this section will tend to copy data out into a different format which can be consumed freely.
-
-func internalFindRelevantProviders(
-	reference string,
-	filterProduct util.Option[accapi.ProductType],
-	includeFreeToUse bool,
-) []string {
-	owner := internalOwnerByReference(reference)
-
-	var potentialBuckets []*internalBucket
-	providerSet := map[string]util.Empty{}
-
-	accGlobals.Mu.RLock()
-
-	for _, b := range accGlobals.BucketsByCategory {
-		if b.Category.FreeToUse && !includeFreeToUse {
-			continue
-		} else if filterProduct.Present && filterProduct.Value != b.Category.ProductType {
-			continue
-		} else {
-			potentialBuckets = append(potentialBuckets, b)
-		}
-	}
-
-	accGlobals.Mu.RUnlock()
-
-	now := time.Now()
-	for _, b := range potentialBuckets {
-		if _, alreadyPresent := providerSet[b.Category.Provider]; !alreadyPresent {
-			b.Mu.RLock()
-			w := lInternalWalletByOwner(b, now, owner.Id)
-			if len(w.AllocationsByParent) > 0 {
-				providerSet[b.Category.Provider] = util.Empty{}
-			}
-			b.Mu.RUnlock()
-		}
-	}
-
-	var result []string
-	for provider, _ := range providerSet {
-		result = append(result, provider)
-	}
-
-	return result
-}
 
 func internalRetrieveWallet(
 	now time.Time,
@@ -1452,10 +1412,10 @@ func internalRetrieveWallets(
 	var wallets []accapi.WalletV2
 
 	for _, b := range potentialBuckets {
+		wId := internalWalletByOwner(b, now, owner.Id)
 		b.Mu.RLock()
 
-		w := lInternalWalletByOwner(b, now, owner.Id)
-
+		w := b.WalletsById[wId]
 		groups := w.AllocationsByParent
 		shouldInclude := !filter.RequireActive && len(w.AllocationsByParent) > 0
 		if filter.RequireActive {
@@ -1500,14 +1460,15 @@ func internalRetrieveWallets(
 
 func internalRetrieveAncestors(now time.Time, category accapi.ProductCategoryIdV2, owner accapi.WalletOwner) []accapi.WalletV2 {
 	accGlobals.Mu.RLock()
-	accGlobals.BucketsByCategory[category].Mu.RLock()
 
 	bucket := accGlobals.BucketsByCategory[category]
 	iOwner := accGlobals.OwnersByReference[owner.Reference()]
-	iWallet := lInternalWalletByOwner(bucket, now, iOwner.Id)
-	ancestors := lRetrieveAncestorWallets(bucket, now, iWallet.Id)
+	iWalletId := internalWalletByOwner(bucket, now, iOwner.Id)
 
-	accGlobals.BucketsByCategory[category].Mu.RUnlock()
+	bucket.Mu.RLock()
+	ancestors := lRetrieveAncestorWallets(bucket, now, iWalletId)
+	bucket.Mu.RUnlock()
+
 	accGlobals.Mu.RUnlock()
 	return ancestors
 }

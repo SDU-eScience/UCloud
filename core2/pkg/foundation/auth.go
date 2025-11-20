@@ -2,19 +2,48 @@ package foundation
 
 import (
 	"net/http"
+	"net/url"
 
+	cfg "ucloud.dk/core/pkg/config"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
+func authVerifyOrigin(info rpc.RequestInfo) *util.HttpError {
+	origin := info.HttpRequest.Header.Get("Origin")
+	referer := info.HttpRequest.Header.Get("Referer")
+
+	hostName := ""
+
+	if origin != "" {
+		parsed, err := url.Parse(origin)
+		if err == nil {
+			hostName = parsed.Host
+		}
+	} else if referer != "" {
+		parsed, err := url.Parse(referer)
+		if err == nil {
+			hostName = parsed.Host
+		}
+	}
+
+	if hostName == "" {
+		return util.HttpErr(http.StatusForbidden, "untrusted origin")
+	}
+
+	if hostName == "localhost:9000" {
+		return nil
+	} else if hostName == cfg.Configuration.SelfPublic.Address {
+		return nil
+	} else {
+		return util.HttpErr(http.StatusForbidden, "untrusted origin")
+	}
+}
+
 func initAuth() {
 	initAuthTokens()
-
-	// TODO origin check for some of these calls
-	// TODO origin check for some of these calls
-	// TODO origin check for some of these calls
 
 	// TODO Assert that user ID never match a UUID. Breaks too many things which assume that user IDs never collide
 	//   with project IDs.
@@ -36,6 +65,9 @@ func initAuth() {
 	})
 
 	fndapi.AuthRefreshWeb.Handler(func(info rpc.RequestInfo, request fndapi.AuthenticationTokens) (fndapi.AccessTokenAndCsrf, *util.HttpError) {
+		if err := authVerifyOrigin(info); err != nil {
+			return fndapi.AccessTokenAndCsrf{}, err
+		}
 		return SessionRefresh(request)
 	})
 
@@ -45,6 +77,9 @@ func initAuth() {
 	})
 
 	fndapi.AuthLogoutWeb.Handler(func(info rpc.RequestInfo, request fndapi.AuthenticationTokens) (util.Empty, *util.HttpError) {
+		if err := authVerifyOrigin(info); err != nil {
+			return util.Empty{}, err
+		}
 		err := SessionLogout(request)
 
 		if err == nil {
@@ -60,6 +95,9 @@ func initAuth() {
 	})
 
 	fndapi.AuthPasswordLoginWeb.Handler(func(info rpc.RequestInfo, request fndapi.PasswordLoginRequest) (util.Empty, *util.HttpError) {
+		if err := authVerifyOrigin(info); err != nil {
+			return util.Empty{}, err
+		}
 		tokens, err := PasswordLogin(info.HttpRequest, request.Username, request.Password)
 		if err != nil {
 			return util.Empty{}, err
@@ -149,5 +187,128 @@ func initAuth() {
 	fndapi.AuthMfaStatus.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.MfaStatus, *util.HttpError) {
 		connected := MfaIsConnected(info.Actor)
 		return fndapi.MfaStatus{Connected: connected}, nil
+	})
+
+	fndapi.UsersCreate.Handler(func(info rpc.RequestInfo, request []fndapi.UsersCreateRequest) ([]fndapi.AuthenticationTokens, *util.HttpError) {
+		result := []fndapi.AuthenticationTokens{}
+		for _, item := range request {
+			if len(item.Username) > 250 {
+				return nil, util.HttpErr(http.StatusBadRequest, "username too long")
+			}
+
+			if len(item.Username) == 0 {
+				return nil, util.HttpErr(http.StatusBadRequest, "username is required")
+			}
+
+			if len(item.Password) > 250 {
+				return nil, util.HttpErr(http.StatusBadRequest, "password too long")
+			}
+
+			if len(item.Password) < 8 {
+				return nil, util.HttpErr(http.StatusBadRequest, "password must be at least 8 characters")
+			}
+
+			if len(item.Email) > 250 {
+				return nil, util.HttpErr(http.StatusBadRequest, "email too long")
+			}
+
+			if len(item.Email) == 0 {
+				return nil, util.HttpErr(http.StatusBadRequest, "email is required")
+			}
+
+			if item.FirstNames.Present {
+				if len(item.FirstNames.Value) > 250 {
+					return nil, util.HttpErr(http.StatusBadRequest, "firstnames are too long")
+				}
+
+				if len(item.FirstNames.Value) == 0 {
+					return nil, util.HttpErr(http.StatusBadRequest, "firstnames must not be empty")
+				}
+			}
+
+			if item.LastName.Present {
+				if len(item.LastName.Value) > 250 {
+					return nil, util.HttpErr(http.StatusBadRequest, "lastnames are too long")
+				}
+
+				if len(item.LastName.Value) == 0 {
+					return nil, util.HttpErr(http.StatusBadRequest, "lastnames must not be empty")
+				}
+			}
+
+			role := item.Role.GetOrDefault(fndapi.PrincipalUser)
+			if role != fndapi.PrincipalUser && role != fndapi.PrincipalAdmin {
+				return nil, util.HttpErr(http.StatusBadRequest, "invalid role supplied")
+			}
+
+			if item.OrgId.Present {
+				if len(item.OrgId.Value) > 250 {
+					return nil, util.HttpErr(http.StatusBadRequest, "organization id is too long")
+				}
+
+				if len(item.OrgId.Value) == 0 {
+					return nil, util.HttpErr(http.StatusBadRequest, "organization id must not be empty")
+				}
+			}
+
+			passwordAndSalt := hashPassword(item.Password, genSalt())
+
+			_, err := PrincipalCreate(PrincipalSpecification{
+				Type:           "PERSON",
+				Id:             item.Username,
+				Role:           role,
+				FirstNames:     item.FirstNames,
+				LastName:       item.LastName,
+				HashedPassword: util.OptValue(passwordAndSalt.HashedPassword),
+				Salt:           util.OptValue(passwordAndSalt.Salt),
+				OrgId:          item.OrgId,
+				Email:          util.OptValue(item.Email),
+			})
+
+			if err != nil {
+				return nil, err
+			}
+
+			result = append(result, db.NewTx(func(tx *db.Transaction) fndapi.AuthenticationTokens {
+				principal, _ := PrincipalRetrieve(tx, item.Username)
+				return SessionCreate(info.HttpRequest, tx, principal)
+			}))
+		}
+
+		return result, nil
+	})
+
+	fndapi.UsersChangePassword.Handler(func(info rpc.RequestInfo, request fndapi.UsersChangePasswordRequest) (util.Empty, *util.HttpError) {
+		if len(request.NewPassword) > 250 {
+			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "password too long")
+		}
+
+		if len(request.NewPassword) < 8 {
+			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "password must be at least 8 characters")
+		}
+
+		err := db.NewTx(func(tx *db.Transaction) *util.HttpError {
+			principal, ok := PrincipalRetrieve(tx, info.Actor.Username)
+			if !ok || !principal.HashedPassword.Present || !principal.Salt.Present {
+				checkPassword(dummyPasswordForTiming.HashedPassword, dummyPasswordForTiming.Salt, request.NewPassword)
+				return util.HttpErr(http.StatusUnauthorized, "Incorrect username or password.")
+			}
+
+			if !checkPassword(principal.HashedPassword.Value, principal.Salt.Value, request.CurrentPassword) {
+				return util.HttpErr(http.StatusUnauthorized, "Incorrect username or password.")
+			}
+			return nil
+		})
+
+		if err != nil {
+			return util.Empty{}, err
+		}
+
+		ok := PrincipalUpdatePassword(info.Actor.Username, request.NewPassword)
+		if !ok {
+			return util.Empty{}, util.HttpErr(http.StatusInternalServerError, "Failed to update password")
+		}
+
+		return util.Empty{}, nil
 	})
 }

@@ -126,7 +126,7 @@ type AppCatalogFindByNameAndVersionRequest struct {
 
 var AppsFindByNameAndVersion = rpc.Call[AppCatalogFindByNameAndVersionRequest, Application]{
 	BaseContext: appCatalogNamespace,
-	Convention:  rpc.ConventionRetrieve,
+	Convention:  rpc.ConventionQueryParameters,
 	Roles:       rpc.RolesAuthenticated,
 	Operation:   "byNameAndVersion",
 }

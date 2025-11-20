@@ -373,7 +373,7 @@ func ingressLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*reso
 
 		resources[ResourceId(row.Resource)].Extra = &internalIngress{
 			Domain:  row.Domain,
-			BoundTo: boundTo, // TODO Update this when job starts
+			BoundTo: boundTo,
 		}
 	}
 }
@@ -434,4 +434,30 @@ func ingressTransform(r orcapi.Resource, product util.Option[accapi.ProductRefer
 		}
 	}
 	return result
+}
+
+func IngressBind(id string, jobId string) {
+	ResourceUpdate[orcapi.Ingress](
+		rpc.ActorSystem,
+		ingressType,
+		ResourceParseId(id),
+		orcapi.PermissionRead,
+		func(r *resource, mapped orcapi.Ingress) {
+			ip := r.Extra.(*internalIngress)
+			ip.BoundTo = []string{jobId}
+		},
+	)
+}
+
+func IngressUnbind(id string, jobId string) {
+	ResourceUpdate[orcapi.Ingress](
+		rpc.ActorSystem,
+		ingressType,
+		ResourceParseId(id),
+		orcapi.PermissionRead,
+		func(r *resource, mapped orcapi.Ingress) {
+			ip := r.Extra.(*internalIngress)
+			ip.BoundTo = util.RemoveFirst(ip.BoundTo, jobId)
+		},
+	)
 }
