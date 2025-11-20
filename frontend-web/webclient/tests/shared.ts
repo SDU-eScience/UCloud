@@ -14,7 +14,6 @@ export const User = {
     async login(page: Page): Promise<void> {
         if (!user) throw Error("No username or password provided");
         await this.toLoginPage(page);
-        await page.getByText("Other login options →").click();
         await page.getByRole("textbox", {name: "Username"}).fill(user.username);
         await page.getByRole("textbox", {name: "Password"}).fill(user.password);
         await page.getByRole("button", {name: "Login"}).click();
