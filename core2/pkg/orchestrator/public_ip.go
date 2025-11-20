@@ -192,11 +192,10 @@ func initPublicIps() {
 				flags,
 			)
 
-			ResourceConfirm(publicIpType, id)
-
 			if err != nil {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
 			} else {
+				ResourceConfirm(publicIpType, id)
 				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
 			}
 		}
@@ -245,7 +244,7 @@ func initPublicIps() {
 			}
 
 			supp, ok := SupportByProduct[orcapi.PublicIpSupport](publicIpType, resc.Specification.Product)
-			if !ok && !supp.Has(publicIpFeatureFirewall) {
+			if !ok || !supp.Has(publicIpFeatureFirewall) {
 				return util.Empty{}, featureNotSupportedError
 			}
 
@@ -272,20 +271,20 @@ func initPublicIps() {
 				},
 			)
 
-			for _, item := range items {
-				_ = ResourceUpdate(
-					info.Actor,
-					publicIpType,
-					ResourceParseId(item.PublicIp.Id),
-					orcapi.PermissionEdit,
-					func(r *resource, mapped orcapi.PublicIp) {
-						ip := r.Extra.(*internalPublicIp)
-						ip.Firewall = item.Firewall
-					},
-				)
-			}
-
-			if err != nil {
+			if err == nil {
+				for _, item := range items {
+					_ = ResourceUpdate(
+						info.Actor,
+						publicIpType,
+						ResourceParseId(item.PublicIp.Id),
+						orcapi.PermissionEdit,
+						func(r *resource, mapped orcapi.PublicIp) {
+							ip := r.Extra.(*internalPublicIp)
+							ip.Firewall = item.Firewall
+						},
+					)
+				}
+			} else {
 				return util.Empty{}, err
 			}
 		}
@@ -328,6 +327,10 @@ func publicIpValidateFirewall(firewall orcapi.Firewall) *util.HttpError {
 		util.ValidateEnum(&port.Protocol, orcapi.IpProtocolOptions, field+".protocol", &err)
 		util.ValidateInteger(port.Start, field+".start", util.OptValue(0), util.OptValue(1024*64-1), &err)
 		util.ValidateInteger(port.End, field+".end", util.OptValue(0), util.OptValue(1024*64-1), &err)
+
+		if err == nil && port.End < port.Start {
+			err = util.HttpErr(http.StatusBadRequest, "end must be larger than start")
+		}
 
 		if err != nil {
 			return err

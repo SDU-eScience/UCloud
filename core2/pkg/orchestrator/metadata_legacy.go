@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
@@ -207,7 +208,7 @@ func initMetadata() {
 
 // Internal state
 // =====================================================================================================================
-// Lock order is: ByOwner -> bucket -> ByFolder -> ByPath.
+// Lock order is: Bucket -> ByOwner -> ByFolder -> ByPath (doc).
 
 var metadataGlobals struct {
 	TestingEnabled bool
@@ -781,9 +782,8 @@ func metadataLoadIfNeededByOwner(ownerRef string) {
 		ownerBucket.Mu.Lock()
 		ownerIndex, loaded = ownerBucket.ByOwner[ownerRef]
 		if !loaded {
+			// NOTE(Dan): This will be filled now without inserting. We insert if we won the race to fill it.
 			ownerIndex = &metadataIndex{Elements: map[string]util.Empty{}}
-			ownerBucket.ByOwner[ownerRef] = ownerIndex
-			ownerIndex.Mu.Lock()
 		}
 		ownerBucket.Mu.Unlock()
 
@@ -889,7 +889,12 @@ func metadataLoadIfNeededByOwner(ownerRef string) {
 				ownerIndex.Elements[row.Path] = util.Empty{}
 			}
 
-			ownerIndex.Mu.Unlock()
+			ownerBucket.Mu.Lock()
+			_, loaded = ownerBucket.ByOwner[ownerRef]
+			if !loaded {
+				ownerBucket.ByOwner[ownerRef] = ownerIndex
+			}
+			ownerBucket.Mu.Unlock()
 		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
@@ -173,9 +174,10 @@ func ShareLinkRetrieve(token string) (orcapi.ShareLink, *util.HttpError) {
 			SharedBy:    ilink.CreatedBy,
 		}
 	}
+	isValid := ok && time.Now().Before(ilink.Expires.Time())
 	g.Mu.RUnlock()
 
-	if !ok || time.Now().After(ilink.Expires.Time()) {
+	if !isValid {
 		return orcapi.ShareLink{}, util.HttpErr(http.StatusNotFound, "not found")
 	} else {
 		return result, nil
@@ -244,7 +246,7 @@ func ShareLinkDelete(actor rpc.Actor, token string) *util.HttpError {
 	}
 
 	if ok {
-		g.ByPath[ilink.Path] = util.RemoveFirst(g.ByPath[ilink.Path], ilink.Path)
+		g.ByPath[ilink.Path] = util.RemoveFirst(g.ByPath[ilink.Path], token)
 		delete(g.ByToken, token)
 	}
 

@@ -162,11 +162,10 @@ func initLicenses() {
 				flags,
 			)
 
-			ResourceConfirm(licenseType, id)
-
 			if err != nil {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
 			} else {
+				ResourceConfirm(licenseType, id)
 				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
 			}
 		}

@@ -358,7 +358,7 @@ func appCatalogLoad() {
 					ci.LinkId = item.LinkedWebPage.String
 					ci.LinkType = appCarrouselWebPage
 				} else if item.LinkedApplication.Valid {
-					ci.LinkId = item.LinkedWebPage.String
+					ci.LinkId = item.LinkedApplication.String
 					ci.LinkType = appCarrouselApplication
 				} else if item.LinkedGroup.Valid {
 					ci.LinkId = fmt.Sprint(item.LinkedGroup.Int64)

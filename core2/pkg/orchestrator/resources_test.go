@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -51,7 +52,7 @@ const testResource = "test"
 func initResourceTest(t *testing.T) {
 	resourceGlobals.Testing.Enabled = true
 	InitResources()
-	InitResourceType(testResource, 0, nil, nil, func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags) any {
+	InitResourceType(testResource, 0, nil, nil, func(r orcapi.Resource, product util.Option[accapi.ProductReference], extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
 		d := extra.(*TestResourceData)
 		return TestResource{
 			Resource: r,
@@ -85,6 +86,7 @@ func TestReadAndWritePath(t *testing.T) {
 		func(item TestResource) bool {
 			return true
 		},
+		nil,
 	)
 
 	assert.Equal(t, 0, len(p.Items))
@@ -121,6 +123,7 @@ func TestReadAndWritePath(t *testing.T) {
 		func(item TestResource) bool {
 			return true
 		},
+		nil,
 	)
 
 	assert.Equal(t, 1, len(p.Items))
@@ -149,8 +152,245 @@ func TestReadAndWritePath(t *testing.T) {
 		func(item TestResource) bool {
 			return true
 		},
+		nil,
 	)
 
 	assert.Equal(t, 0, len(p.Items))
 	assert.False(t, p.Next.Present)
+}
+
+func TestPagination(t *testing.T) {
+	initResourceTest(t)
+
+	u := actor("user", "")
+
+	p := ResourceBrowse(
+		*u,
+		testResource,
+		util.OptNone[string](),
+		500,
+		orcapi.ResourceFlags{},
+		func(item TestResource) bool {
+			return true
+		},
+		nil,
+	)
+
+	assert.Equal(t, 0, len(p.Items))
+	assert.False(t, p.Next.Present)
+
+	ids := map[ResourceId]util.Empty{}
+	for i := 0; i < 10; i++ {
+		id, _, err := ResourceCreate[TestResource](
+			*u,
+			testResource,
+			util.OptNone[accapi.ProductReference](),
+			&TestResourceData{
+				A: 1,
+				B: 2,
+			},
+		)
+
+		assert.Nil(t, err)
+		ResourceConfirm(testResource, id)
+
+		ids[id] = util.Empty{}
+	}
+
+	for itemsPerPage := 1; itemsPerPage <= 30; itemsPerPage++ {
+		idsSeen := map[ResourceId]util.Empty{}
+		idsSeenCount := 0
+
+		var next util.Option[string]
+		for i := 0; i < 50; i++ {
+			p = ResourceBrowse(
+				*u,
+				testResource,
+				next,
+				itemsPerPage,
+				orcapi.ResourceFlags{},
+				func(item TestResource) bool {
+					return true
+				},
+				nil,
+			)
+
+			for _, item := range p.Items {
+				idsSeen[ResourceParseId(item.Id)] = util.Empty{}
+				idsSeenCount++
+			}
+
+			next = p.Next
+			if !next.Present {
+				break
+			}
+		}
+
+		assert.Equal(t, len(ids), len(idsSeen))
+		for id := range ids {
+			_, found := idsSeen[id]
+			assert.True(t, found, "expected to find %v", id)
+		}
+
+		assert.Equal(t, len(ids), idsSeenCount)
+	}
+
+	// Check that pagination with bad identifier works
+	p = ResourceBrowse(
+		*u,
+		testResource,
+		util.OptValue("ffdii"),
+		100,
+		orcapi.ResourceFlags{},
+		func(item TestResource) bool {
+			return true
+		},
+		nil,
+	)
+
+	// Check that pagination with bad identifier works
+	p = ResourceBrowse(
+		*u,
+		testResource,
+		util.OptValue("-100"),
+		100,
+		orcapi.ResourceFlags{},
+		func(item TestResource) bool {
+			return true
+		},
+		nil,
+	)
+
+	// Check that pagination with bad identifier works
+	p = ResourceBrowse(
+		*u,
+		testResource,
+		util.OptValue("133333392931034134235538821288300"),
+		100,
+		orcapi.ResourceFlags{},
+		func(item TestResource) bool {
+			return true
+		},
+		nil,
+	)
+}
+
+func TestPaginationWithSorter(t *testing.T) {
+	initResourceTest(t)
+
+	u := actor("user", "")
+
+	comparator := func(a TestResource, b TestResource) int {
+		return strings.Compare(a.Id, b.Id)
+	}
+
+	p := ResourceBrowse(
+		*u,
+		testResource,
+		util.OptNone[string](),
+		500,
+		orcapi.ResourceFlags{},
+		func(item TestResource) bool {
+			return true
+		},
+		comparator,
+	)
+
+	assert.Equal(t, 0, len(p.Items))
+	assert.False(t, p.Next.Present)
+
+	ids := map[ResourceId]util.Empty{}
+	for i := 0; i < 10; i++ {
+		id, _, err := ResourceCreate[TestResource](
+			*u,
+			testResource,
+			util.OptNone[accapi.ProductReference](),
+			&TestResourceData{
+				A: 1,
+				B: 2,
+			},
+		)
+
+		assert.Nil(t, err)
+		ResourceConfirm(testResource, id)
+
+		ids[id] = util.Empty{}
+	}
+
+	for itemsPerPage := 1; itemsPerPage <= 30; itemsPerPage++ {
+		idsSeen := map[ResourceId]util.Empty{}
+		idsSeenCount := 0
+
+		var next util.Option[string]
+		for i := 0; i < 50; i++ {
+			p = ResourceBrowse(
+				*u,
+				testResource,
+				next,
+				itemsPerPage,
+				orcapi.ResourceFlags{},
+				func(item TestResource) bool {
+					return true
+				},
+				comparator,
+			)
+
+			for _, item := range p.Items {
+				idsSeen[ResourceParseId(item.Id)] = util.Empty{}
+				idsSeenCount++
+			}
+
+			next = p.Next
+			if !next.Present {
+				break
+			}
+		}
+
+		assert.Equal(t, len(ids), len(idsSeen))
+		for id := range ids {
+			_, found := idsSeen[id]
+			assert.True(t, found, "expected to find %v", id)
+		}
+
+		assert.Equal(t, len(ids), idsSeenCount)
+	}
+
+	// Check that pagination with bad identifier works
+	p = ResourceBrowse(
+		*u,
+		testResource,
+		util.OptValue("ffdii"),
+		100,
+		orcapi.ResourceFlags{},
+		func(item TestResource) bool {
+			return true
+		},
+		comparator,
+	)
+
+	// Check that pagination with bad identifier works
+	p = ResourceBrowse(
+		*u,
+		testResource,
+		util.OptValue("-100"),
+		100,
+		orcapi.ResourceFlags{},
+		func(item TestResource) bool {
+			return true
+		},
+		comparator,
+	)
+
+	// Check that pagination with bad identifier works
+	p = ResourceBrowse(
+		*u,
+		testResource,
+		util.OptValue("133333392931034134235538821288300"),
+		100,
+		orcapi.ResourceFlags{},
+		func(item TestResource) bool {
+			return true
+		},
+		comparator,
+	)
 }

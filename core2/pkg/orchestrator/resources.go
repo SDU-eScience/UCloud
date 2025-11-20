@@ -351,11 +351,11 @@ func lResourceApplyFlags(r *resource, myPerms []orcapi.Permission, flags orcapi.
 		return result, false
 	}
 
-	if flags.FilterCreatedAfter.Present && flags.FilterCreatedAfter.Value.Time().Before(r.CreatedAt) {
+	if flags.FilterCreatedAfter.Present && r.CreatedAt.Before(flags.FilterCreatedAfter.Value.Time()) {
 		return result, false
 	}
 
-	if flags.FilterCreatedBefore.Present && flags.FilterCreatedBefore.Value.Time().After(r.CreatedAt) {
+	if flags.FilterCreatedBefore.Present && r.CreatedAt.After(flags.FilterCreatedBefore.Value.Time()) {
 		return result, false
 	}
 
@@ -375,7 +375,7 @@ func lResourceApplyFlags(r *resource, myPerms []orcapi.Permission, flags orcapi.
 	}
 
 	if flags.FilterProviderIds.Present {
-		ids := strings.Split(flags.FilterIds.Value, ",")
+		ids := strings.Split(flags.FilterProviderIds.Value, ",")
 		found := false
 		if r.ProviderId.Present {
 			for _, id := range ids {
@@ -518,7 +518,7 @@ func ResourceBrowse[T any](
 ) fndapi.PageV2[T] {
 	if flags.FilterProviderIds.Present {
 		providerId, ok := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
-		providerGenIds := strings.Split(flags.FilterIds.Value, ",")
+		providerGenIds := strings.Split(flags.FilterProviderIds.Value, ",")
 		if !ok || len(providerGenIds) > 1000 || len(providerGenIds) == 0 {
 			return fndapi.PageV2[T]{Items: util.NonNilSlice[T](nil), ItemsPerPage: 1000}
 		}
@@ -554,7 +554,7 @@ func ResourceBrowse[T any](
 		idxBucket := resourceGetAndLoadIndex(typeName, ref)
 
 		idxBucket.Mu.RLock()
-		idx := idxBucket.ByOwner[ref]
+		idx := append([]ResourceId(nil), idxBucket.ByOwner[ref]...) // deep copy under lock
 
 		initialPrefetchIndex := max(0, len(idx)-500)
 
@@ -564,10 +564,12 @@ func ResourceBrowse[T any](
 			sortComparator = nil
 		}
 
+		startIndex := len(idx) - 1
 		if sortComparator == nil {
 			if next.Present {
 				rId := ResourceParseId(next.Value)
 				nextIdx, _ := slices.BinarySearch(idx, rId)
+				startIndex = nextIdx - 1
 				initialPrefetchIndex = max(0, nextIdx-500)
 			}
 		}
@@ -582,7 +584,7 @@ func ResourceBrowse[T any](
 		itemsPerPage = fndapi.ItemsPerPage(itemsPerPage)
 		prevId := ResourceId(0)
 
-		for i := len(idx) - 1; i >= 0; i-- {
+		for i := startIndex; i >= 0; i-- {
 			id := idx[i]
 
 			b := resourceGetBucket(typeName, id)
@@ -625,11 +627,12 @@ func ResourceBrowse[T any](
 				}
 			}
 
-			lastIdx := min(len(items), baseIdx+itemsPerPage)
+			baseIdx = max(0, min(len(items), baseIdx))
+			lastIdx := max(0, min(len(items), baseIdx+itemsPerPage))
 			hasMore := len(items) > lastIdx
 			items = items[baseIdx:lastIdx]
 			if hasMore {
-				next.Set(fmt.Sprint(lastIdx))
+				newNext.Set(fmt.Sprint(lastIdx))
 			}
 		}
 

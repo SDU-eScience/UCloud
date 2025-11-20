@@ -31,6 +31,7 @@ func initProviderIntegration() {
 				if item.Provider == request.Provider {
 					found = true
 					connected = item.Connected
+					break
 				}
 			}
 
@@ -188,7 +189,7 @@ func providerIntegrationGetProvidersConnectedTo(username string) map[string]util
 					tx,
 					`
 						delete from provider.connected_with
-						where expires_at is not null and now() < expires_at
+						where expires_at is not null and now() > expires_at
 				    `,
 					db.Params{},
 				)

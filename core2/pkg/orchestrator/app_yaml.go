@@ -3,9 +3,10 @@ package orchestrator
 import (
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"net/http"
 	"time"
+
+	"gopkg.in/yaml.v3"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
@@ -626,7 +627,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 
 	for name, value := range y.Environment {
 		util.ValidateString(&name, fmt.Sprintf("environment.%s (key)", name), 0, &err)
-		util.ValidateString(&value, fmt.Sprintf("environment.%s (value)", value), 0, &err)
+		util.ValidateString(&value, fmt.Sprintf("environment.%s (value)", name), 0, &err)
 
 		mappedEnvironment[name] = orcapi.InvocationParameter{
 			Type:                    orcapi.InvocationParameterTypeWord,
@@ -636,7 +637,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 
 	for name, value := range y.Sbatch {
 		util.ValidateString(&name, fmt.Sprintf("sbatch.%s (key)", name), 0, &err)
-		util.ValidateString(&value, fmt.Sprintf("sbatch.%s (value)", value), 0, &err)
+		util.ValidateString(&value, fmt.Sprintf("sbatch.%s (value)", name), 0, &err)
 
 		mappedSbatch[name] = orcapi.InvocationParameter{
 			Type:                    orcapi.InvocationParameterTypeWord,
@@ -653,24 +654,23 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 	}
 
 	if y.Vnc.Present {
-		mappedAppType = orcapi.ApplicationTypeVnc
-
-		p := y.Vnc.Value.Port
-		if p.Present {
-			if p.Value <= 0 {
-				err = util.MergeHttpErr(err, util.HttpErr(
-					http.StatusBadRequest,
-					"vnc.port must not be <= 0",
-				))
-			} else if p.Value >= 1024*64 {
-				err = util.MergeHttpErr(err, util.HttpErr(
-					http.StatusBadRequest,
-					"vnc.port must not be < 65536",
-				))
+		if y.Vnc.Value.Enabled {
+			mappedAppType = orcapi.ApplicationTypeVnc
+			p := y.Vnc.Value.Port
+			if p.Present {
+				if p.Value <= 0 {
+					err = util.MergeHttpErr(err, util.HttpErr(
+						http.StatusBadRequest,
+						"vnc.port must not be <= 0",
+					))
+				} else if p.Value >= 1024*64 {
+					err = util.MergeHttpErr(err, util.HttpErr(
+						http.StatusBadRequest,
+						"vnc.port must be < 65536",
+					))
+				}
 			}
-		}
-
-		if !y.Vnc.Value.Enabled {
+		} else {
 			y.Vnc.Clear()
 		}
 	}
@@ -688,7 +688,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 			} else if p.Value >= 1024*64 {
 				err = util.MergeHttpErr(err, util.HttpErr(
 					http.StatusBadRequest,
-					"web.port must not be < 65536",
+					"web.port must be < 65536",
 				))
 			}
 		}
@@ -696,10 +696,10 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 		if !y.Web.Value.Enabled {
 			y.Web.Clear()
 		}
+	}
 
-		if y.Ssh.Present {
-			util.ValidateEnum(&y.Ssh.Value.Mode, A2SshModeOptions, "ssh.mode", &err)
-		}
+	if y.Ssh.Present {
+		util.ValidateEnum(&y.Ssh.Value.Mode, A2SshModeOptions, "ssh.mode", &err)
 	}
 
 	if err != nil {

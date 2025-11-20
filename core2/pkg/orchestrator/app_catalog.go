@@ -1257,7 +1257,7 @@ func AppStudioAssignToGroup(name string, groupId util.Option[AppGroupId]) *util.
 	if ok {
 		for _, app := range allVersions {
 			app.Mu.Lock()
-			previousGroupId = groupId
+			previousGroupId = app.Group
 			app.Group = groupId
 			app.Mu.Unlock()
 		}
@@ -1267,7 +1267,9 @@ func AppStudioAssignToGroup(name string, groupId util.Option[AppGroupId]) *util.
 	if previousGroupId.Present {
 		g, ok := appRetrieveGroup(previousGroupId.Value)
 		if ok {
+			g.Mu.Lock()
 			g.Items = util.RemoveFirst(g.Items, name)
+			g.Mu.Unlock()
 		}
 	}
 
@@ -1387,24 +1389,26 @@ func AppStudioDeleteCategory(id AppCategoryId) *util.HttpError {
 		return util.HttpErr(http.StatusNotFound, "unknown category")
 	}
 
+	var groupsToUnlink []AppGroupId
 	cats := &appCatalogGlobals.Categories
 	cats.Mu.Lock()
 	{
 		category.Mu.Lock()
-		for _, groupId := range category.Items {
-			group, ok := appRetrieveGroup(groupId)
-			if ok {
-				group.Mu.Lock()
-				group.Categories = util.RemoveFirst(group.Categories, id)
-				group.Mu.Unlock()
-			}
-		}
-
+		groupsToUnlink = category.Items
 		category.Items = nil
 		category.Mu.Unlock()
 	}
 	delete(cats.Categories, id)
 	cats.Mu.Unlock()
+
+	for _, groupId := range groupsToUnlink {
+		group, ok := appRetrieveGroup(groupId)
+		if ok {
+			group.Mu.Lock()
+			group.Categories = util.RemoveFirst(group.Categories, id)
+			group.Mu.Unlock()
+		}
+	}
 
 	appPersistDeleteCategory(id)
 	return nil
@@ -1774,7 +1778,7 @@ func AppStudioCreateApplication(app *orcapi.Application) *util.HttpError {
 		b.Mu.Unlock()
 	}
 
-	if err == nil && result != nil {
+	if err == nil && result == nil {
 		return util.HttpErr(http.StatusInternalServerError, "internal error (result == nil)")
 	}
 

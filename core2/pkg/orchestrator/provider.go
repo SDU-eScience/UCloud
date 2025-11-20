@@ -358,6 +358,8 @@ func (i *providerNameIndexer) Commit() {
 
 func providersFillNameIndex() {
 	if resourceGlobals.Testing.Enabled {
+		providersByName.ByName = map[string]ResourceId{}
+
 		return
 	}
 

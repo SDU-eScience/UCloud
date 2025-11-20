@@ -175,7 +175,7 @@ func FilesDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByString
 		driveId, _ := orcapi.DriveIdFromUCloudPath(reqItem.Id)
 		drive, ok := drives[driveId]
 		if !ok {
-			return result, util.HttpErr(http.StatusNotFound, "folder creation requested to unknown drive")
+			return result, util.HttpErr(http.StatusNotFound, "file deletion requested to unknown drive")
 		}
 
 		if featureSupported(driveType, drive.Specification.Product, driveOpsReadOnly) {
@@ -425,30 +425,52 @@ func FilesCreateDownload(
 }
 
 func FilesMove(actor rpc.Actor, request fndapi.BulkRequest[orcapi.FilesSourceAndDestination]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-	return filesCopyOrMove(actor, request, orcapi.FilesProviderMove)
+	return filesCopyOrMove(actor, request, orcapi.FilesProviderMove, true)
 }
 
 func FilesCopy(actor rpc.Actor, request fndapi.BulkRequest[orcapi.FilesSourceAndDestination]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-	return filesCopyOrMove(actor, request, orcapi.FilesProviderCopy)
+	return filesCopyOrMove(actor, request, orcapi.FilesProviderCopy, false)
 }
 
 func filesCopyOrMove(
 	actor rpc.Actor,
 	request fndapi.BulkRequest[orcapi.FilesSourceAndDestination],
 	call rpc.Call[fndapi.BulkRequest[orcapi.FilesProviderMoveOrCopyRequest], fndapi.BulkResponse[util.Empty]],
+	isMove bool,
 ) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
 	var result fndapi.BulkResponse[util.Empty]
-	var paths []string
+	var sourcePaths []string
+	var destPaths []string
 	for _, reqItem := range request.Items {
-		paths = append(paths, reqItem.SourcePath)
-		paths = append(paths, reqItem.DestinationPath)
+		sourcePaths = append(sourcePaths, reqItem.SourcePath)
+		destPaths = append(destPaths, reqItem.DestinationPath)
 
 		result.Responses = append(result.Responses, util.Empty{})
 	}
 
-	drives, err := filesFetchDrives(actor, paths, orcapi.PermissionEdit)
-	if err != nil {
-		return result, err
+	drives := map[string]orcapi.Drive{}
+	{
+		sourcePermRequired := orcapi.PermissionEdit
+		if !isMove {
+			sourcePermRequired = orcapi.PermissionRead
+		}
+		sourceDrives, err := filesFetchDrives(actor, sourcePaths, sourcePermRequired)
+		if err != nil {
+			return result, err
+		}
+
+		destDrives, err := filesFetchDrives(actor, sourcePaths, orcapi.PermissionEdit)
+		if err != nil {
+			return result, err
+		}
+
+		for _, drive := range sourceDrives {
+			drives[drive.Id] = drive
+		}
+
+		for _, drive := range destDrives {
+			drives[drive.Id] = drive
+		}
 	}
 
 	requestsByProvider := map[string][]orcapi.FilesProviderMoveOrCopyRequest{}
@@ -460,7 +482,7 @@ func filesCopyOrMove(
 		sourceDrive, ok1 := drives[sourceDriveId]
 		destinationDrive, ok2 := drives[destinationDriveId]
 
-		if !ok1 || !ok2 || sourceDrive.Specification.Product != destinationDrive.Specification.Product {
+		if !ok1 || !ok2 || sourceDrive.Specification.Product.Provider != destinationDrive.Specification.Product.Provider {
 			return result, util.HttpErr(http.StatusBadRequest, "files cannot be moved across providers")
 		}
 
@@ -479,7 +501,7 @@ func filesCopyOrMove(
 	}
 
 	for provider, requests := range requestsByProvider {
-		_, err = InvokeProvider(provider, call, fndapi.BulkRequestOf(requests...), ProviderCallOpts{
+		_, err := InvokeProvider(provider, call, fndapi.BulkRequestOf(requests...), ProviderCallOpts{
 			Username: util.OptValue(actor.Username),
 			Reason:   util.OptValue("user initiated move/copy"),
 		})
@@ -620,7 +642,11 @@ func fileTransform(actor rpc.Actor, driveInfo orcapi.Drive, files []orcapi.Provi
 				inheritedSensitivity.Set(sensitivity.Value)
 			}
 
+			prev := ancestor
 			ancestor = filepath.Dir(ancestor)
+			if ancestor == prev { // sanity check
+				break
+			}
 		}
 
 		parent := filepath.Dir(cleanPath)
