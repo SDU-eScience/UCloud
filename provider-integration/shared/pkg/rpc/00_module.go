@@ -32,11 +32,11 @@ type Actor struct {
 	Role             Role
 	Project          util.Option[ProjectId]
 	TokenInfo        util.Option[TokenInfo]
-	Membership       ProjectMembership // TODO implement this
-	Groups           GroupMembership   // TODO implement this
-	ProviderProjects ProviderProjects  // TODO implement this (should only show up if also in membership)
-	Domain           string            // email domain, TODO implement this
-	OrgId            string            // TODO implement this
+	Membership       ProjectMembership
+	Groups           GroupMembership
+	ProviderProjects ProviderProjects
+	Domain           string
+	OrgId            string
 }
 
 type ProjectId string

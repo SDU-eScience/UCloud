@@ -384,12 +384,14 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 	}
 
 	if recipient.Type == accapi.RecipientTypeNewProject && recipient.Title.Value == "" {
-		return 0, util.HttpErr(http.StatusBadRequest, "project title cannot be empty")
-	}
+		if err := util.ValidateStringE(&recipient.Title.Value, "recipient.title", 0); err != nil {
+			return 0, err
+		}
 
-	if recipient.Type == accapi.RecipientTypeNewProject && strings.HasPrefix(recipient.Title.Value, "%") {
-		// NOTE(Dan): Used as a hint to the frontend about special projects. Not used for anything backend related.
-		return 0, util.HttpErr(http.StatusBadRequest, "project title cannot start with '%%'")
+		if strings.HasPrefix(recipient.Title.Value, "%") {
+			// NOTE(Dan): Used as a hint to the frontend about special projects. Not used for anything backend related.
+			return 0, util.HttpErr(http.StatusBadRequest, "project title cannot start with '%%'")
+		}
 	}
 
 	if recipient.Type != accapi.RecipientTypePersonalWorkspace {

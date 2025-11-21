@@ -727,6 +727,10 @@ func ProjectCreateInternal(actor rpc.Actor, req fndapi.ProjectInternalCreateRequ
 		return "", util.HttpErr(http.StatusNotFound, "unknown user")
 	}
 
+	if err := util.ValidateStringE(&req.Title, "title", 0); err != nil {
+		return "", err
+	}
+
 	resultId := util.UUid()
 	suffix := ""
 
