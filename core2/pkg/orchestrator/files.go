@@ -64,6 +64,17 @@ func initFiles() {
 		FilesStreamingSearch(info.WebSocket)
 		return util.Empty{}, nil
 	})
+
+	orcapi.FilesTransfer.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.FilesTransferRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := FilesTransfer(info.Actor, reqItem)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		return util.Empty{}, nil
+	})
 }
 
 func FilesEmptyTrash(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
@@ -858,4 +869,104 @@ func FilesStreamingSearch(conn *ws.Conn) {
 	}()
 
 	wg.Wait()
+}
+
+func FilesTransfer(actor rpc.Actor, request orcapi.FilesTransferRequest) *util.HttpError {
+	sourcePath := filepath.Clean(request.SourcePath)
+	destPath := filepath.Clean(request.DestinationPath)
+	sourceDriveId, ok1 := orcapi.DriveIdFromUCloudPath(sourcePath)
+	destDriveId, ok2 := orcapi.DriveIdFromUCloudPath(destPath)
+
+	if !ok1 || !ok2 {
+		return util.HttpErr(http.StatusForbidden, "cannot transfer between these paths")
+	}
+
+	sourceDrive, _, _, err1 := ResourceRetrieveEx[orcapi.Drive](actor, driveType, ResourceParseId(sourceDriveId),
+		orcapi.PermissionRead, orcapi.ResourceFlags{})
+	destDrive, _, _, err2 := ResourceRetrieveEx[orcapi.Drive](actor, driveType, ResourceParseId(destDriveId),
+		orcapi.PermissionEdit, orcapi.ResourceFlags{})
+
+	if err1 != nil || err2 != nil {
+		return util.MergeHttpErr(err1, err2)
+	}
+
+	if featureSupported(driveType, destDrive.Specification.Product, driveOpsReadOnly) {
+		return util.HttpErr(http.StatusForbidden, "cannot transfer between these paths (destination is read-only)")
+	}
+
+	sourceProvider := sourceDrive.Specification.Product.Provider
+	destProvider := sourceDrive.Specification.Product.Provider
+
+	if !util.DevelopmentModeEnabled() && sourceProvider == destProvider {
+		return util.HttpErr(http.StatusForbidden, "cannot transfer between these paths (same provider)")
+	}
+
+	callOpts := ProviderCallOpts{
+		Username: util.OptValue(actor.Username),
+		Reason:   util.OptValue("user-initiated file-transfer"),
+	}
+
+	initiateSrcResp, err := InvokeProvider(sourceProvider, orcapi.FilesProviderTransfer, orcapi.FilesProviderTransferRequest{
+		Type: orcapi.FilesProviderTransferReqTypeInitiateSource,
+		FilesProviderTransferRequestInitiateSource: orcapi.FilesProviderTransferRequestInitiateSource{
+			SourcePath:          request.SourcePath,
+			SourceDrive:         sourceDrive,
+			DestinationProvider: destProvider,
+		},
+	}, callOpts)
+
+	if err != nil || initiateSrcResp.Type != orcapi.FilesProviderTransferReqTypeInitiateSource {
+		return util.HttpErr(http.StatusBadGateway, "source provider is unable to fulfill this request")
+	}
+
+	srcResp := initiateSrcResp.FilesProviderTransferResponseInitiateSource
+	if len(srcResp.SupportedProtocols) == 0 {
+		return util.HttpErr(http.StatusForbidden, "source provider is unwilling to fulfill this request")
+	}
+
+	if srcResp.Session == "" {
+		return util.HttpErr(http.StatusForbidden, "source provider is unwilling to fulfill this request")
+	}
+
+	initiateDestResp, err := InvokeProvider(sourceProvider, orcapi.FilesProviderTransfer, orcapi.FilesProviderTransferRequest{
+		Type: orcapi.FilesProviderTransferReqTypeInitiateDestination,
+		FilesProviderTransferRequestInitiateDestination: orcapi.FilesProviderTransferRequestInitiateDestination{
+			DestinationPath:    destPath,
+			DestinationDrive:   destDrive,
+			SourceProvider:     sourceProvider,
+			SupportedProtocols: srcResp.SupportedProtocols,
+		},
+	}, callOpts)
+
+	if err != nil || initiateDestResp.Type != orcapi.FilesProviderTransferReqTypeInitiateDestination {
+		return util.HttpErr(http.StatusBadGateway, "destination provider is unable to fulfill this request")
+	}
+
+	destResp := initiateDestResp.FilesProviderTransferResponseInitiateDestination
+	found := false
+	for _, supported := range srcResp.SupportedProtocols {
+		if supported == destResp.SelectedProtocol {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return util.HttpErr(http.StatusBadGateway, "destination provider is unwilling to fulfill this request")
+	}
+
+	_, err = InvokeProvider(sourceProvider, orcapi.FilesProviderTransfer, orcapi.FilesProviderTransferRequest{
+		Type: orcapi.FilesProviderTransferReqTypeStart,
+		FilesProviderTransferRequestStart: orcapi.FilesProviderTransferRequestStart{
+			Session:            srcResp.Session,
+			SelectedProtocol:   destResp.SelectedProtocol,
+			ProtocolParameters: destResp.ProtocolParameters,
+		},
+	}, callOpts)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

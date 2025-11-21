@@ -1,6 +1,7 @@
 package orchestrators
 
 import (
+	"encoding/json"
 	"fmt"
 
 	apm "ucloud.dk/shared/pkg/accounting"
@@ -257,6 +258,18 @@ var FilesStreamingSearch = rpc.Call[util.Empty, util.Empty]{
 	Convention:  rpc.ConventionWebSocket,
 }
 
+type FilesTransferRequest struct {
+	SourcePath      string `json:"sourcePath"`
+	DestinationPath string `json:"destinationPath"`
+}
+
+var FilesTransfer = rpc.Call[fnd.BulkRequest[FilesTransferRequest], util.Empty]{
+	BaseContext: filesNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "transfer",
+}
+
 // Files provider
 // =====================================================================================================================
 
@@ -421,4 +434,67 @@ type FilesProviderStreamingSearchResult struct {
 
 func FilesProviderStreamingSearchEndpoint(providerId string) string {
 	return fmt.Sprintf("/ucloud/%s/files", providerId)
+}
+
+type FilesProviderTransferRequestType string
+
+const (
+	FilesProviderTransferReqTypeInitiateSource      FilesProviderTransferRequestType = "InitiateSource"
+	FilesProviderTransferReqTypeInitiateDestination FilesProviderTransferRequestType = "InitiateDestination"
+	FilesProviderTransferReqTypeStart               FilesProviderTransferRequestType = "Start"
+)
+
+type FilesProviderTransferRequest struct {
+	Type FilesProviderTransferRequestType `json:"type"`
+
+	FilesProviderTransferRequestInitiateSource      `json:",omitempty"`
+	FilesProviderTransferRequestInitiateDestination `json:",omitempty"`
+	FilesProviderTransferRequestStart               `json:",omitempty"`
+}
+
+type FilesProviderTransferRequestInitiateSource struct {
+	SourcePath          string `json:"sourcePath,omitempty"`
+	SourceDrive         Drive  `json:"sourceCollection,omitempty"`
+	DestinationProvider string `json:"destinationProvider,omitempty"`
+}
+
+type FilesProviderTransferRequestInitiateDestination struct {
+	DestinationPath    string   `json:"destinationPath,omitempty"`
+	DestinationDrive   Drive    `json:"destinationCollection,omitempty"`
+	SourceProvider     string   `json:"sourceProvider,omitempty"`
+	SupportedProtocols []string `json:"supportedProtocols,omitempty"`
+}
+
+type FilesProviderTransferRequestStart struct {
+	Session            string          `json:"session,omitempty"`
+	SelectedProtocol   string          `json:"selectedProtocol,omitempty"`
+	ProtocolParameters json.RawMessage `json:"protocolParameters,omitempty"`
+}
+
+type FilesProviderTransferResponse struct {
+	Type FilesProviderTransferRequestType `json:"type"`
+
+	FilesProviderTransferResponseInitiateSource      `json:",omitempty"`
+	FilesProviderTransferResponseInitiateDestination `json:",omitempty"`
+	FilesProviderTransferResponseStart               `json:",omitempty"`
+}
+
+type FilesProviderTransferResponseInitiateSource struct {
+	Session            string   `json:"session,omitempty"`
+	SupportedProtocols []string `json:"supportedProtocols,omitempty"`
+}
+
+type FilesProviderTransferResponseInitiateDestination struct {
+	SelectedProtocol   string          `json:"selectedProtocol,omitempty"`
+	ProtocolParameters json.RawMessage `json:"protocolParameters,omitempty"`
+}
+
+type FilesProviderTransferResponseStart struct {
+}
+
+var FilesProviderTransfer = rpc.Call[FilesProviderTransferRequest, FilesProviderTransferResponse]{
+	BaseContext: fileProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesService,
+	Operation:   "transfer",
 }
