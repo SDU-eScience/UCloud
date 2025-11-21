@@ -583,10 +583,11 @@ func FilesBrowse(actor rpc.Actor, request orcapi.FilesBrowseRequest) (fndapi.Pag
 		orcapi.FilesProviderBrowseRequest{
 			ResolvedCollection: drive,
 			Browse: orcapi.ResourceBrowseRequest[orcapi.FileFlags]{
-				ItemsPerPage: request.ItemsPerPage,
-				Next:         request.Next,
-				Flags:        request.FileFlags,
-				// TODO sort
+				ItemsPerPage:  request.ItemsPerPage,
+				Next:          request.Next,
+				Flags:         request.FileFlags,
+				SortBy:        request.SortBy,
+				SortDirection: request.SortDirection,
 			},
 		},
 		ProviderCallOpts{
