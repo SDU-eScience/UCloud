@@ -80,7 +80,7 @@ func retrieveProjectInfo(projectId string) (orcapi.SupportAssistRetrieveProjectI
 		var problematicWallet apm.WalletV2
 		//If we cannot use all remaining quota we have a problem
 		if wallet.MaxUsable-(wallet.Quota-wallet.TotalUsage) != 0 {
-			key := fmt.Sprint(wallet.PaysFor.Name, "@", wallet.PaysFor.Provider)
+			key := fmt.Sprintf("%s@%s", wallet.PaysFor.Name, wallet.PaysFor.Provider)
 			ancestors := allAncestors[key]
 			for i, ancestor := range ancestors {
 				if ancestor.MaxUsable-(ancestor.Quota-ancestor.TotalUsage) != 0 {

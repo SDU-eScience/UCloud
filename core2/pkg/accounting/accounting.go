@@ -201,7 +201,7 @@ func initAccounting() {
 		ancestorMap := make(map[string][]accapi.WalletV2)
 		for _, wallet := range wallets.Items {
 			ancestors := RetrieveAncestors(time.Now(), wallet.PaysFor.ToId(), wallet.Owner)
-			ancestorMap[fmt.Sprint(wallet.PaysFor.Name, "@", wallet.PaysFor.Provider)] = ancestors
+			ancestorMap[fmt.Sprintf("%s@%s", wallet.PaysFor.Name, wallet.PaysFor.Provider)] = ancestors
 		}
 
 		return accapi.RetrieveAccountingInfoForProjectResponse{
