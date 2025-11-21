@@ -510,7 +510,7 @@ func internalWalletById(id AccWalletId) (*internalBucket, *internalWallet, bool)
 }
 
 func internalOwnerByReference(reference string) *internalOwner {
-	// TODO Reference must be check by caller
+	// TODO Reference must be checked by caller
 	if reference == "" {
 		log.Fatal("internalOwnerByReference called with an empty reference")
 	}
@@ -770,6 +770,10 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 }
 
 func lInternalReflowExcess(b *internalBucket, now time.Time, wallet *internalWallet) {
+	lInternalReflowExcessEx(b, now, wallet, map[AccWalletId]util.Empty{})
+}
+
+func lInternalReflowExcessEx(b *internalBucket, now time.Time, wallet *internalWallet, handled map[AccWalletId]util.Empty) {
 	// Similar to the re-balance operation, except this function will only attempt to increase usage by looking at the
 	// local excess which is not being propagated.
 	//
@@ -777,9 +781,13 @@ func lInternalReflowExcess(b *internalBucket, now time.Time, wallet *internalWal
 	// this "excess" usage will eventually be propagated back into the system once there is room for it.
 
 	for childId, _ := range wallet.ChildrenUsage {
-		// TODO loops
-		child := b.WalletsById[childId]
-		lInternalReflowExcess(b, now, child)
+		_, hasHandled := handled[childId]
+		if !hasHandled {
+			handled[childId] = util.Empty{}
+
+			child := b.WalletsById[childId]
+			lInternalReflowExcessEx(b, now, child, handled)
+		}
 	}
 
 	if wallet.LocalUsage > 0 {
@@ -798,6 +806,10 @@ func lInternalReflowExcess(b *internalBucket, now time.Time, wallet *internalWal
 }
 
 func lInternalRebalance(b *internalBucket, now time.Time, wallet *internalWallet, deficit util.Option[int64]) {
+	lInternalRebalanceEx(b, now, wallet, deficit, map[AccWalletId]util.Empty{})
+}
+
+func lInternalRebalanceEx(b *internalBucket, now time.Time, wallet *internalWallet, deficit util.Option[int64], handled map[AccWalletId]util.Empty) {
 	// The main purpose of this function is to ensure that retired flows are eventually moved to an active flow. This
 	// operation is _only_ done for capacity-based product categories. For time-based products, this is not done (and
 	// must not be done). Instead, time-based product utilizes a different retirement mechanism which locks usage in
@@ -833,10 +845,13 @@ func lInternalRebalance(b *internalBucket, now time.Time, wallet *internalWallet
 			// NOTE(Dan): We should attempt to rebalance because we are propagating more than we have. We start by
 			// attempting to rebalance each of our children.
 
-			// TODO loops
 			for childId, usage := range wallet.ChildrenUsage {
-				child := b.WalletsById[childId]
-				lInternalRebalance(b, now, child, util.OptValue(min(usage, deficit.Value)))
+				_, hasHandled := handled[childId]
+				if !hasHandled {
+					handled[childId] = util.Empty{}
+					child := b.WalletsById[childId]
+					lInternalRebalanceEx(b, now, child, util.OptValue(min(usage, deficit.Value)), handled)
+				}
 			}
 
 			maxUsable := lInternalMaxUsable(b, now, wallet)
@@ -918,7 +933,7 @@ func lInternalAttemptRetirement(b *internalBucket, now time.Time, alloc *interna
 		wallet := b.WalletsById[alloc.BelongsTo]
 		group := wallet.AllocationsByParent[alloc.Parent]
 
-		// TODO This value will be wrong if the retired amount was ever reflown
+		// NOTE(Dan): This value will be wrong if the retired amount was ever reflown. This should obviously be avoided.
 		groupRetired := lInternalGroupTotalRetired(b, group)
 		toRetire := min(alloc.Quota, group.TreeUsage-groupRetired)
 		toRetire = max(0, toRetire)
@@ -1440,7 +1455,7 @@ func internalRetrieveWallets(
 
 	accGlobals.Mu.RUnlock() // need to be held for during owner lookups
 
-	// TODO(Dan): Sorting is currently chosen for easy pagination, this is probably not the best one for display.
+	// NOTE(Dan): Sorting is currently chosen for easy pagination, this is probably not the best one for display.
 	slices.SortFunc(wallets, func(a, b accapi.WalletV2) int {
 		if a.PaysFor.Provider < b.PaysFor.Provider {
 			return -1

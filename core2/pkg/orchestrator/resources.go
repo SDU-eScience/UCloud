@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -746,7 +747,52 @@ func ResourceUpdateAcl(
 	typeName string,
 	acl orcapi.UpdatedAcl,
 ) *util.HttpError {
-	// TODO verify all entities in the added section
+	{
+		// NOTE(Dan): Verify all entities in the added section
+		projectInfoIfNeeded := util.Option[fndapi.Project]{}
+
+		for _, item := range acl.Added {
+			switch item.Entity.Type {
+			case orcapi.AclEntityTypeUser:
+				_, ok := rpc.LookupActor(item.Entity.Username)
+				if !ok {
+					return util.HttpErr(http.StatusForbidden, "bad ACL update supplied")
+				}
+
+			case orcapi.AclEntityTypeProjectGroup:
+				if actor.Username != rpc.ActorSystem.Username {
+					if item.Entity.ProjectId != string(actor.Project.Value) {
+						return util.HttpErr(http.StatusForbidden, "bad ACL update supplied")
+					}
+				}
+
+				if !projectInfoIfNeeded.Present {
+					db.NewTx0(func(tx *db.Transaction) {
+						p, ok := coreutil.ProjectRetrieveFromDatabase(tx, item.Entity.ProjectId)
+						if ok {
+							projectInfoIfNeeded.Set(p)
+						}
+					})
+
+					if !projectInfoIfNeeded.Present {
+						return util.HttpErr(http.StatusInternalServerError, "could not verify acl")
+					}
+				}
+
+				found := false
+				for _, existingGroup := range projectInfoIfNeeded.Value.Status.Groups {
+					if existingGroup.Id == item.Entity.Group {
+						found = true
+						break
+					}
+				}
+
+				if !found {
+					return util.HttpErr(http.StatusForbidden, "bad ACL update supplied")
+				}
+			}
+		}
+	}
 
 	var addedUsers []string
 	pId := ResourceParseId(acl.Id)

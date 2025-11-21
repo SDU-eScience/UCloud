@@ -236,8 +236,6 @@ func initShares() {
 
 		return result, nil
 	})
-
-	// TODO notifications and stuff
 }
 
 var shareValidPermissions = []orcapi.Permission{
