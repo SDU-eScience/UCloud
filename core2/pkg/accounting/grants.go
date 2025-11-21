@@ -1071,9 +1071,9 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 
 	slices.SortFunc(ids, func(a, b accGrantId) int {
 		if a < b {
-			return -1
-		} else if a > b {
 			return 1
+		} else if a > b {
+			return -1
 		} else {
 			return 0
 		}
