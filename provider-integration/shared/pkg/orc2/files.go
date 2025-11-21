@@ -116,7 +116,6 @@ type FileFlags struct {
 	FilterHiddenFiles     util.Option[bool]   `json:"filterHiddenFiles"`
 
 	// AllowUnsupportedInclude removed, just always true
-	// TODO sort?
 }
 
 var FilesDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
