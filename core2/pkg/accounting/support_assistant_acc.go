@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	"ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -21,112 +21,101 @@ func initSupportAssistAcc() {
 	})
 }
 
-func usernameToUserInfo(tx *db.Transaction, username string) (accapi.SupportAssistUserInfo, bool) {
-	/*
-		principal, found := fnd.LookupPrincipal(tx, username)
-		if !found {
-			return accapi.SupportAssistUserInfo{}, false
-		}
-		actor, found := rpc.LookupActor(username)
-		if !found {
-			return accapi.SupportAssistUserInfo{}, false
-		}
-
-		emailSettings := fnd.RetrieveEmailSettings(username)
-		var projects []foundation.Project
-		for projectId, _ := range principal.Membership {
-			project, err := fnd.ProjectRetrieve(
-				rpc.ActorSystem,
-				string(projectId),
-				foundation.ProjectFlags{
-					IncludeMembers:  true,
-					IncludeGroups:   false,
-					IncludeFavorite: false,
-					IncludeArchived: false,
-					IncludeSettings: false,
-					IncludePath:     false,
-				},
-				foundation.ProjectRoleAdmin,
-			)
-			if err == nil {
-				projects = append(projects, project)
-			}
-
-		}
-		foundGrants := GrantsBrowse(
-			actor,
-			accapi.GrantsBrowseRequest{
-				ItemsPerPage:                10,
-				Filter:                      util.OptValue(accapi.GrantApplicationFilterShowAll),
-				IncludeIngoingApplications:  util.OptValue(true),
-				IncludeOutgoingApplications: util.OptValue(true),
+func usernameToUserInfo(username string) (accapi.SupportAssistUserInfo, bool) {
+	principal, err := foundation.AuthLookupUser.Invoke(foundation.FindByStringId{Id: username})
+	if err != nil {
+		return accapi.SupportAssistUserInfo{}, false
+	}
+	actor, found := rpc.LookupActor(username)
+	if !found {
+		return accapi.SupportAssistUserInfo{}, false
+	}
+	emailSettings, _ := foundation.MailRetrieveSettings.Invoke(util.Empty{})
+	var projects []foundation.Project
+	for projectId, _ := range principal.Membership {
+		project, err := foundation.ProjectRetrieve.Invoke(foundation.ProjectRetrieveRequest{
+			Id: string(projectId),
+			ProjectFlags: foundation.ProjectFlags{
+				IncludeMembers:  true,
+				IncludeGroups:   false,
+				IncludeFavorite: false,
+				IncludeArchived: false,
+				IncludeSettings: false,
+				IncludePath:     false,
 			},
-		)
-
-		var grantResults []accapi.GrantApplication
-		for _, grant := range foundGrants.Items {
-			reference := grant.CurrentRevision.Document.Recipient.Reference().Value
-			if reference == username {
-				grantResults = append(grantResults, grant)
-			}
+		})
+		if err == nil {
+			projects = append(projects, project)
 		}
 
-		personalWalletOwner := accapi.WalletOwnerFromIds(username, "")
-		wallets := WalletsBrowse(
-			actor,
-			accapi.WalletsBrowseRequest{
-				IncludeChildren: false,
-			})
-		var personalWallets []accapi.WalletV2
-		for _, elm := range wallets.Items {
-			if elm.Owner == personalWalletOwner {
-				personalWallets = append(personalWallets, elm)
-			}
+	}
+	foundGrants := GrantsBrowse(
+		actor,
+		accapi.GrantsBrowseRequest{
+			ItemsPerPage:                10,
+			Filter:                      util.OptValue(accapi.GrantApplicationFilterShowAll),
+			IncludeIngoingApplications:  util.OptValue(true),
+			IncludeOutgoingApplications: util.OptValue(true),
+		},
+	)
+
+	var grantResults []accapi.GrantApplication
+	for _, grant := range foundGrants.Items {
+		reference := grant.CurrentRevision.Document.Recipient.Reference().Value
+		if reference == username {
+			grantResults = append(grantResults, grant)
 		}
-		return accapi.SupportAssistUserInfo{
-			Username:                 username,
-			FirstNames:               principal.FirstNames.Value,
-			LastName:                 principal.LastName.Value,
-			Email:                    principal.Email.Value,
-			EmailSettings:            emailSettings,
-			AssociatedProjects:       projects,
-			ActiveGrants:             grantResults,
-			PersonalProjectResources: personalWallets,
-		}, true
-	*/
-	return accapi.SupportAssistUserInfo{}, false
+	}
+
+	personalWalletOwner := accapi.WalletOwnerFromIds(username, "")
+	wallets := WalletsBrowse(
+		actor,
+		accapi.WalletsBrowseRequest{
+			IncludeChildren: false,
+		})
+	var personalWallets []accapi.WalletV2
+	for _, elm := range wallets.Items {
+		if elm.Owner == personalWalletOwner {
+			personalWallets = append(personalWallets, elm)
+		}
+	}
+	return accapi.SupportAssistUserInfo{
+		Username:                 username,
+		FirstNames:               principal.FirstNames.Value,
+		LastName:                 principal.LastName.Value,
+		Email:                    principal.Email.Value,
+		EmailSettings:            emailSettings.Settings,
+		AssociatedProjects:       projects,
+		ActiveGrants:             grantResults,
+		PersonalProjectResources: personalWallets,
+	}, true
 }
 
-// TODO(Henrik) NewTx0 is resulting in 2 runs. Currently fixed issue of results by using map instead of list, but it seems wierd
 func retrieveUserInfo(username string, email string) (accapi.SupportAssistRetrieveUserInfoResponse, *util.HttpError) {
-	/*
-		userInfos := make(map[string]accapi.SupportAssistUserInfo)
-		if username != "" {
-			db.NewTx0(func(tx *db.Transaction) {
-				userInfo, found := usernameToUserInfo(tx, username)
-				if found {
-					userInfos[userInfo.Username] = userInfo
-				}
-			})
+	userInfos := make(map[string]accapi.SupportAssistUserInfo)
+	if username != "" {
+		userInfo, found := usernameToUserInfo(username)
+		if found {
+			userInfos[userInfo.Username] = userInfo
 		}
-		if email != "" {
-			db.NewTx0(func(tx *db.Transaction) {
-				users := fnd.PrincipalLookupByEmail(tx, email)
-				for _, user := range users {
-					userInfo, foundUserInfo := usernameToUserInfo(tx, user)
-					if foundUserInfo {
-						userInfos[userInfo.Username] = userInfo
-					}
-				}
-			})
+	}
+	if email != "" {
+		users, err := foundation.AuthLookupUsersByEmail.Invoke(foundation.AuthLookupUsersByEmailRequest{Email: email})
+		if err != nil {
+			return accapi.SupportAssistRetrieveUserInfoResponse{}, err
 		}
-		var results []accapi.SupportAssistUserInfo
-		for _, userInfo := range userInfos {
-			results = append(results, userInfo)
+		for _, user := range users.Users {
+			userInfo, foundUserInfo := usernameToUserInfo(user)
+			if foundUserInfo {
+				userInfos[userInfo.Username] = userInfo
+			}
 		}
-		return accapi.SupportAssistRetrieveUserInfoResponse{
-			Info: results,
-		}, nil
-	*/
-	return accapi.SupportAssistRetrieveUserInfoResponse{}, nil
+	}
+	var results []accapi.SupportAssistUserInfo
+	for _, userInfo := range userInfos {
+		results = append(results, userInfo)
+	}
+	return accapi.SupportAssistRetrieveUserInfoResponse{
+		Info: results,
+	}, nil
 }
