@@ -1,11 +1,17 @@
 package orchestrator
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 
+	ws "github.com/gorilla/websocket"
+	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
@@ -52,6 +58,11 @@ func initFiles() {
 
 	orcapi.FilesEmptyTrash.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
 		return FilesEmptyTrash(info.Actor, request)
+	})
+
+	orcapi.FilesStreamingSearch.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
+		FilesStreamingSearch(info.WebSocket)
+		return util.Empty{}, nil
 	})
 }
 
@@ -694,4 +705,157 @@ func fileTransform(actor rpc.Actor, driveInfo orcapi.Drive, files []orcapi.Provi
 		result = append(result, file)
 	}
 	return result
+}
+
+func FilesStreamingSearch(conn *ws.Conn) {
+	defer util.SilentClose(conn)
+
+	var (
+		actor        rpc.Actor
+		streamId     string
+		initialDrive orcapi.Drive
+		folder       string
+		query        string
+		flags        orcapi.FileFlags
+	)
+
+	connMutex := sync.Mutex{}
+	sendToClient := func(data orcapi.FilesStreamingSearchResult) bool {
+		data.Batch = util.NonNilSlice(data.Batch)
+		dataBytes := rpc.WSResponseMessageMarshal(streamId, data)
+
+		connMutex.Lock()
+		err := conn.WriteMessage(ws.TextMessage, dataBytes)
+		connMutex.Unlock()
+
+		return err == nil
+	}
+
+	{
+		// Read and authenticate request
+		// -------------------------------------------------------------------------------------------------------------
+
+		var herr *util.HttpError
+
+		mtype, rawMessage, err := conn.ReadMessage()
+		if err != nil || mtype != ws.TextMessage {
+			return
+		}
+
+		var message rpc.WSRequestMessage[orcapi.FilesStreamingSearchRequest]
+
+		err = json.Unmarshal(rawMessage, &message)
+		if err != nil {
+			return
+		}
+
+		streamId = message.StreamId
+
+		actor, herr = rpc.BearerAuthenticator(message.Bearer, message.Project.GetOrDefault(""))
+		if herr != nil {
+			return
+		}
+
+		driveId, ok := orcapi.DriveIdFromUCloudPath(message.Payload.CurrentFolder)
+		if !ok {
+			return
+		}
+
+		initialDrive, herr = ResourceRetrieve[orcapi.Drive](actor, driveType, ResourceParseId(driveId),
+			orcapi.ResourceFlags{})
+		if herr != nil {
+			return
+		}
+
+		if !featureSupported(driveType, initialDrive.Specification.Product, driveOpsStreamingSearch) {
+			return
+		}
+
+		util.ValidateString(&message.Payload.Query, "query", 0, &herr)
+		if herr != nil {
+			return
+		}
+
+		query = message.Payload.Query
+
+		flags = message.Payload.Flags
+		folder = message.Payload.CurrentFolder
+	}
+
+	providerId := initialDrive.Specification.Product.Provider
+	client, ok := providerClient(providerId)
+	if !ok {
+		return
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	keepRunning := atomic.Bool{}
+	keepRunning.Store(true)
+
+	go func() {
+		defer func() {
+			wg.Done()
+			keepRunning.Store(false)
+		}()
+
+		url := strings.ReplaceAll(client.BasePath, "http://", "")
+		url = strings.ReplaceAll(url, "https://", "")
+		url = fmt.Sprintf(
+			"ws://%s%s?usernameHint=%s",
+			url,
+			orcapi.FilesProviderStreamingSearchEndpoint(providerId),
+			base64.URLEncoding.EncodeToString([]byte(actor.Username)),
+		)
+
+		providerConn, _, err := ws.DefaultDialer.Dial(url, http.Header{
+			"Authorization": []string{fmt.Sprintf("Bearer %s", client.RetrieveAccessTokenOrRefresh())},
+		})
+
+		if err == nil {
+			dataBytes, _ := json.Marshal(rpc.WSRequestMessage[orcapi.FilesProviderStreamingSearchRequest]{
+				Call:     fmt.Sprintf("files.provider.%s.streamingSearch", providerId),
+				StreamId: "ignored",
+				Payload: orcapi.FilesProviderStreamingSearchRequest{
+					Query: query,
+					Owner: initialDrive.Owner,
+					Flags: flags,
+					Category: accapi.ProductCategoryIdV2{
+						Name:     initialDrive.Specification.Product.Category,
+						Provider: initialDrive.Specification.Product.Provider,
+					},
+					CurrentFolder: util.OptValue(folder),
+				},
+			})
+
+			err = providerConn.WriteMessage(ws.TextMessage, dataBytes)
+		}
+
+		if err == nil {
+			for keepRunning.Load() {
+				mtype, rawMessage, err := providerConn.ReadMessage()
+				if err != nil || mtype != ws.TextMessage {
+					break
+				}
+
+				var message rpc.WSResponseMessage[orcapi.FilesProviderStreamingSearchResult]
+				_ = json.Unmarshal(rawMessage, &message)
+
+				transformedBatch := fileTransform(actor, initialDrive, message.Payload.Batch)
+
+				ok = sendToClient(orcapi.FilesStreamingSearchResult{
+					Type:  message.Payload.Type,
+					Batch: transformedBatch,
+				})
+
+				if !ok {
+					break
+				}
+			}
+		}
+
+		util.SilentClose(providerConn)
+	}()
+
+	wg.Wait()
 }

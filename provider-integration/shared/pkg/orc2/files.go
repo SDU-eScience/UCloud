@@ -1,6 +1,8 @@
 package orchestrators
 
 import (
+	"fmt"
+
 	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
@@ -238,7 +240,22 @@ var FilesEmptyTrash = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResp
 	Operation:   "emptyTrash",
 }
 
-var FilesStreamingSearch = rpc.Call[util.Empty, util.Empty]{} // TODO
+type FilesStreamingSearchRequest struct {
+	Flags         FileFlags `json:"flags"`
+	Query         string    `json:"query"`
+	CurrentFolder string    `json:"currentFolder"`
+}
+
+type FilesStreamingSearchResult struct {
+	Type  string  `json:"type"` // result or end_of_results
+	Batch []UFile `json:"batch"`
+}
+
+var FilesStreamingSearch = rpc.Call[util.Empty, util.Empty]{
+	BaseContext: filesNamespace,
+	Roles:       rpc.RolesPublic,
+	Convention:  rpc.ConventionWebSocket,
+}
 
 // Files provider
 // =====================================================================================================================
@@ -387,6 +404,21 @@ var FilesProviderEmptyTrash = rpc.Call[fnd.BulkRequest[FilesProviderTrashRequest
 	Operation:   "emptyTrash",
 }
 
-var FilesProviderStreamingSearch = rpc.Call[util.Empty, util.Empty]{} // TODO
-
 // TODO transfer
+
+type FilesProviderStreamingSearchRequest struct {
+	Query         string                  `json:"query"`
+	Owner         ResourceOwner           `json:"owner"`
+	Flags         FileFlags               `json:"flags"`
+	Category      apm.ProductCategoryIdV2 `json:"category"`
+	CurrentFolder util.Option[string]     `json:"currentFolder"`
+}
+
+type FilesProviderStreamingSearchResult struct {
+	Type  string         `json:"type"` // result or end_of_results
+	Batch []ProviderFile `json:"batch"`
+}
+
+func FilesProviderStreamingSearchEndpoint(providerId string) string {
+	return fmt.Sprintf("/ucloud/%s/files", providerId)
+}
