@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -161,6 +162,80 @@ func initAccounting() {
 		}
 
 		return fndapi.BulkResponse[accapi.FindAllProvidersResponse]{Responses: result}, nil
+	})
+
+	accapi.RetrieveAccountingInfoForProject.Handler(func(info rpc.RequestInfo, request accapi.RetrieveAccountingInfoForProjectRequest) (accapi.RetrieveAccountingInfoForProjectResponse, *util.HttpError) {
+		pi, found := rpc.LookupActor(request.PiUsername)
+		if !found {
+			return accapi.RetrieveAccountingInfoForProjectResponse{}, util.HttpErr(http.StatusNotFound, "PI not found")
+		}
+		piActor := rpc.Actor{
+			Username:         pi.Username,
+			Role:             pi.Role,
+			Project:          util.OptValue(rpc.ProjectId(request.ProjectId)),
+			TokenInfo:        pi.TokenInfo,
+			Membership:       pi.Membership,
+			Groups:           pi.Groups,
+			ProviderProjects: pi.ProviderProjects,
+			Domain:           pi.Domain,
+			OrgId:            pi.OrgId,
+		}
+
+		wallets := WalletsBrowse(
+			piActor,
+			accapi.WalletsBrowseRequest{
+				IncludeChildren: true,
+			},
+		)
+
+		grants := GrantsBrowse(
+			piActor,
+			accapi.GrantsBrowseRequest{
+				ItemsPerPage:                10,
+				Filter:                      util.OptValue(accapi.GrantApplicationFilterShowAll),
+				IncludeIngoingApplications:  util.OptValue(false),
+				IncludeOutgoingApplications: util.OptValue(true),
+			},
+		)
+
+		ancestorMap := make(map[string][]accapi.WalletV2)
+		for _, wallet := range wallets.Items {
+			ancestors := RetrieveAncestors(time.Now(), wallet.PaysFor.ToId(), wallet.Owner)
+			ancestorMap[fmt.Sprint(wallet.PaysFor.Name, "@", wallet.PaysFor.Provider)] = ancestors
+		}
+
+		return accapi.RetrieveAccountingInfoForProjectResponse{
+			Wallets:   wallets.Items,
+			Grants:    grants.Items,
+			Ancestors: ancestorMap,
+		}, nil
+	})
+
+	accapi.RetrieveWalletByAllocationId.Handler(func(info rpc.RequestInfo, request accapi.RetrieveWalletByAllocationRequest) (accapi.RetrieveWalletByAllocationResponse, *util.HttpError) {
+		id, err := strconv.Atoi(request.AllocationId)
+		if err != nil {
+			return accapi.RetrieveWalletByAllocationResponse{}, util.HttpErr(http.StatusBadRequest, "invalid allocation id")
+		}
+		walletId, wallet, found := WalletV2ByAllocationID(info.Actor, id)
+		if !found {
+			return accapi.RetrieveWalletByAllocationResponse{}, util.HttpErr(http.StatusBadRequest, "No wallet found")
+		}
+		return accapi.RetrieveWalletByAllocationResponse{
+			Id:     strconv.Itoa(int(walletId)),
+			Wallet: wallet,
+		}, nil
+	})
+
+	accapi.RetrieveAccountingGraph.Handler(func(info rpc.RequestInfo, request accapi.RetrieveAccountingGraphRequest) (accapi.RetrieveAccountingGraphResponse, *util.HttpError) {
+		walletId, err := strconv.Atoi(request.WalletId)
+		if err != nil {
+			return accapi.RetrieveAccountingGraphResponse{}, util.HttpErr(http.StatusBadRequest, "invalid wallet id")
+		}
+		graph, found := AccountingGraphRetrieval(AccWalletId(walletId))
+		if !found {
+			return accapi.RetrieveAccountingGraphResponse{}, util.HttpErr(http.StatusInternalServerError, "error retrieving accounting graph")
+		}
+		return accapi.RetrieveAccountingGraphResponse{Graph: graph}, nil
 	})
 
 	// TODO update allocation

@@ -2,6 +2,7 @@ package apm
 
 import (
 	"encoding/json"
+
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -152,6 +153,55 @@ var WalletsBrowse = rpc.Call[WalletsBrowseRequest, fnd.PageV2[WalletV2]]{
 	Convention:  rpc.ConventionBrowse,
 	Operation:   "wallets",
 	Roles:       rpc.RolesEndUser,
+}
+
+type RetrieveAccountingInfoForProjectRequest struct {
+	ProjectId  string `json:"projectId"`
+	PiUsername string `json:"piUsername"`
+}
+
+type RetrieveAccountingInfoForProjectResponse struct {
+	Wallets   []WalletV2            `json:"wallets"`
+	Grants    []GrantApplication    `json:"grants"`
+	Ancestors map[string][]WalletV2 `json:"ancestors"`
+}
+
+var RetrieveAccountingInfoForProject = rpc.Call[RetrieveAccountingInfoForProjectRequest, RetrieveAccountingInfoForProjectResponse]{
+	BaseContext: AccountingNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Operation:   "accountingInfoForProject",
+	Roles:       rpc.RoleService,
+}
+
+type RetrieveWalletByAllocationRequest struct {
+	AllocationId string `json:"allocationId"`
+}
+
+type RetrieveWalletByAllocationResponse struct {
+	Id     string   `json:"id"`
+	Wallet WalletV2 `json:"wallet"`
+}
+
+var RetrieveWalletByAllocationId = rpc.Call[RetrieveWalletByAllocationRequest, RetrieveWalletByAllocationResponse]{
+	BaseContext: AccountingNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Operation:   "walletByAllocationId",
+	Roles:       rpc.RoleService,
+}
+
+type RetrieveAccountingGraphRequest struct {
+	WalletId string `json:"walletId"`
+}
+
+type RetrieveAccountingGraphResponse struct {
+	Graph string `json:"graph"`
+}
+
+var RetrieveAccountingGraph = rpc.Call[RetrieveAccountingGraphRequest, RetrieveAccountingGraphResponse]{
+	BaseContext: AccountingNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Operation:   "accountingGraph",
+	Roles:       rpc.RoleService,
 }
 
 type WalletsBrowseInternalRequest struct {
