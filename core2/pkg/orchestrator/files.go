@@ -481,7 +481,7 @@ func filesCopyOrMove(
 			return result, err
 		}
 
-		destDrives, err := filesFetchDrives(actor, sourcePaths, orcapi.PermissionEdit)
+		destDrives, err := filesFetchDrives(actor, destPaths, orcapi.PermissionEdit)
 		if err != nil {
 			return result, err
 		}

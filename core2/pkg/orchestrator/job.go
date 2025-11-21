@@ -1090,7 +1090,7 @@ func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue) *util.Ht
 			return err
 		}
 
-		jobId := value.Id
+		jobId := value.JobId
 		job, _, _, err := ResourceRetrieveEx[orcapi.Job](actor, jobType, ResourceParseId(jobId),
 			orcapi.PermissionEdit, orcapi.ResourceFlags{})
 

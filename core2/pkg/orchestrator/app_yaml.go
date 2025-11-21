@@ -705,8 +705,6 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 	if err != nil {
 		return orcapi.Application{}, err
 	} else {
-		isInteractive := mappedAppType == orcapi.ApplicationTypeVnc || mappedAppType == orcapi.ApplicationTypeWeb
-
 		return orcapi.Application{
 			WithAppMetadata: orcapi.WithAppMetadata{
 				Metadata: orcapi.ApplicationMetadata{
@@ -780,10 +778,10 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 						RunAsRealUser:          false,
 					},
 
-					AllowAdditionalMounts: y.Features.Value.Folders.GetOrDefault(isInteractive),
-					AllowMultiNode:        y.Features.Value.MultiNode,
-					AllowPublicIp:         y.Features.Value.IPAddresses.GetOrDefault(false),
-					AllowPublicLink:       y.Features.Value.Links.GetOrDefault(isInteractive),
+					AllowAdditionalMounts: y.Features.Value.Folders,
+					AllowMultiNode:        util.OptValue(y.Features.Value.MultiNode),
+					AllowPublicIp:         y.Features.Value.IPAddresses,
+					AllowPublicLink:       y.Features.Value.Links,
 
 					Environment:    mappedEnvironment,
 					Modules:        mappedModules,

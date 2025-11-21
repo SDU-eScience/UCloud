@@ -775,8 +775,6 @@ func (y *A1Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 	if err != nil {
 		return orcapi.Application{}, err
 	} else {
-		isInteractive := appType == orcapi.ApplicationTypeVnc || appType == orcapi.ApplicationTypeWeb
-
 		app := orcapi.Application{
 			WithAppMetadata: orcapi.WithAppMetadata{
 				Metadata: orcapi.ApplicationMetadata{
@@ -812,11 +810,11 @@ func (y *A1Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 						RunAsRealUser:          false,
 					}),
 					Environment:           environment,
-					AllowAdditionalMounts: y.AllowAdditionalMounts.GetOrDefault(isInteractive),
-					AllowAdditionalPeers:  y.AllowAdditionalPeers.GetOrDefault(isInteractive),
-					AllowMultiNode:        y.AllowMultiNode.GetOrDefault(isInteractive),
-					AllowPublicIp:         y.AllowPublicIp.GetOrDefault(false),
-					AllowPublicLink:       y.AllowPublicLink.GetOrDefault(isInteractive),
+					AllowAdditionalMounts: y.AllowAdditionalMounts,
+					AllowAdditionalPeers:  y.AllowAdditionalPeers,
+					AllowMultiNode:        y.AllowMultiNode,
+					AllowPublicIp:         y.AllowPublicIp,
+					AllowPublicLink:       y.AllowPublicLink,
 					FileExtensions:        y.FileExtensions,
 					LicenseServers:        y.LicenseServers,
 					Modules: orcapi.ModulesSection{
