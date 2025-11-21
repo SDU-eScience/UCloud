@@ -417,8 +417,6 @@ var FilesProviderEmptyTrash = rpc.Call[fnd.BulkRequest[FilesProviderTrashRequest
 	Operation:   "emptyTrash",
 }
 
-// TODO transfer
-
 type FilesProviderStreamingSearchRequest struct {
 	Query         string                  `json:"query"`
 	Owner         ResourceOwner           `json:"owner"`
