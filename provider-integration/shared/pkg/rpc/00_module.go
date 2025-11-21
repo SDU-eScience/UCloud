@@ -27,16 +27,20 @@ var LookupActor func(username string) (Actor, bool) = func(username string) (Act
 		"`rpc.LookupActor = func() { ... }` before using this function.")
 }
 
+// An Actor represents an authenticated principal in the RPC system. It contains information about their authorization,
+// which is guaranteed to be reasonable up-to-date and can freely be consumed by any RPC handler as long as it is
+// consumed shortly after being received. An Actor must never be used as part of a request or response type. If a
+// dynamic Actor is required, use LookupActor.
 type Actor struct {
-	Username         string
-	Role             Role
-	Project          util.Option[ProjectId]
-	TokenInfo        util.Option[TokenInfo]
-	Membership       ProjectMembership
-	Groups           GroupMembership
-	ProviderProjects ProviderProjects
-	Domain           string
-	OrgId            string
+	Username         string                 `json:"-"`
+	Role             Role                   `json:"-"`
+	Project          util.Option[ProjectId] `json:"-"`
+	TokenInfo        util.Option[TokenInfo] `json:"-"`
+	Membership       ProjectMembership      `json:"-"`
+	Groups           GroupMembership        `json:"-"`
+	ProviderProjects ProviderProjects       `json:"-"`
+	Domain           string                 `json:"-"`
+	OrgId            string                 `json:"-"`
 }
 
 type ProjectId string
