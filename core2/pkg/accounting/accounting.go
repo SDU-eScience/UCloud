@@ -219,12 +219,12 @@ func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, 
 func UpdateAllocation(actor rpc.Actor, requests []accapi.UpdateAllocationRequest) (util.Empty, *util.HttpError) {
 	for _, request := range requests {
 		bucket, _, ok := internalWalletByAllocationId(accAllocId(request.AllocationId))
-		//If wallet cannot be found just skip
+		// If wallet cannot be found just skip
 		if !ok {
 			continue
 		}
 		err := internalUpdateAllocation(actor, time.Now(), bucket, accAllocId(request.AllocationId), request.NewQuota, request.NewStart, request.NewEnd)
-		//If update failed will break the update
+		// If update failed will break the update
 		if err != nil {
 			return util.Empty{}, err
 		}

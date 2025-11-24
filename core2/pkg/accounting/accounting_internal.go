@@ -395,6 +395,7 @@ func internalUpdateAllocation(actor rpc.Actor, now time.Time, b *internalBucket,
 	b.Mu.Lock()
 	defer b.Mu.Unlock()
 
+	actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin)
 	reference := actor.Username
 	if actor.Project.Present {
 		reference = string(actor.Project.Value)
@@ -432,11 +433,11 @@ func internalUpdateAllocation(actor rpc.Actor, now time.Time, b *internalBucket,
 	if iAlloc.Start.Before(now) && newStart.Present {
 		return util.HttpErr(http.StatusForbidden, "You cannot change the starting time of an allocation which has already started")
 	}
-	var proposedNewStart = iAlloc.Start
+	proposedNewStart := iAlloc.Start
 	if newStart.Present {
 		proposedNewStart = newStart.Value.Time()
 	}
-	var proposedNewEnd = iAlloc.End
+	proposedNewEnd := iAlloc.End
 	if newEnd.Present {
 		proposedNewEnd = newEnd.Value.Time()
 	}
@@ -444,11 +445,11 @@ func internalUpdateAllocation(actor rpc.Actor, now time.Time, b *internalBucket,
 		return util.HttpErr(http.StatusForbidden, "This update would make the allocation invalid. An allocation cannot start after it has ended.")
 	}
 	if newQuota.Present && newQuota.Value < 0 {
-		errorMessage := "You cannot set a negative quota for an allocation (" + strconv.FormatInt(newQuota.Value, 10) + ")"
+		errorMessage := fmt.Sprintf("You cannot set a negative quota for an allocation (%d)", newQuota.Value)
 		return util.HttpErr(http.StatusForbidden, errorMessage)
 	}
 
-	var proposedNewQuota = iAlloc.Quota
+	proposedNewQuota := iAlloc.Quota
 	if newQuota.Present {
 		proposedNewQuota = newQuota.Value
 		delta := newQuota.Value - iAlloc.Quota
@@ -471,7 +472,7 @@ func internalUpdateAllocation(actor rpc.Actor, now time.Time, b *internalBucket,
 	if iAlloc.GrantedIn.Present {
 		comment := ""
 		if newQuota.Present {
-			var amount int64 = 0
+			amount := int64(0)
 			// Converting to core hours in case of minutes or day
 			switch b.Category.AccountingFrequency {
 			case accapi.AccountingFrequencyOnce:
@@ -503,7 +504,7 @@ func internalUpdateAllocation(actor rpc.Actor, now time.Time, b *internalBucket,
 		)
 		if err != nil {
 			// Should not fail the update that we cannot post a comment
-			log.Warn("Error posting comment: ", err)
+			log.Warn("Error posting comment: %s", err)
 		}
 	}
 	return nil
