@@ -203,6 +203,14 @@ func initProjects() {
 		return util.Empty{}, nil
 	})
 
+	fndapi.ProjectCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.ProjectSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		response, err := ProjectCreate(info.Actor, request)
+		if err != nil {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+		}
+		return response, nil
+	})
+
 	fndapi.ProjectInternalCreate.Handler(func(info rpc.RequestInfo, request fndapi.ProjectInternalCreateRequest) (fndapi.FindByStringId, *util.HttpError) {
 		id, err := ProjectCreateInternal(info.Actor, request)
 		if err != nil {
@@ -1957,6 +1965,33 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 
 // Low-level functionality
 // =====================================================================================================================
+
+func ProjectCreate(actor rpc.Actor, request fndapi.BulkRequest[fndapi.ProjectSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+	var resp fndapi.BulkResponse[fndapi.FindByStringId]
+	for _, item := range request.Items {
+		if strings.HasPrefix(item.Title, "%") {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "Invalid project title")
+		}
+
+		if item.Parent.Present {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "Project cannot have a parent project")
+		}
+
+		id, err := ProjectCreateInternal(actor, fndapi.ProjectInternalCreateRequest{
+			Title:      item.Title,
+			BackendId:  util.SecureToken(),
+			PiUsername: actor.Username,
+		})
+
+		if err != nil {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+		}
+
+		resp.Responses = append(resp.Responses, fndapi.FindByStringId{Id: id})
+	}
+
+	return resp, nil
+}
 
 func ProjectCreateInternal(actor rpc.Actor, req fndapi.ProjectInternalCreateRequest) (string, *util.HttpError) {
 	_, ok := rpc.LookupActor(req.PiUsername)
