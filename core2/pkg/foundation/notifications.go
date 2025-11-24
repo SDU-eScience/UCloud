@@ -14,6 +14,23 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+// Introduction
+// =====================================================================================================================
+// This file implements the notification subsystem. It provides a unified, generic notification channel for other parts
+// of UCloud. This mechanism allows for both live push delivery of notifications and storing notifications persistently
+// for catching up to notifications that were received while a user is offline.
+//
+// The subsystem provides:
+// - Persistent user notifications stored in the database.
+// - Per-user notification settings persisted in the database.
+// - Push delivery to active subscribers via WebSockets
+
+// Core types and globals
+// =====================================================================================================================
+// - Notification: A message with a type, optional metadata, timestamp, and read/unread state.
+// - Notification settings: User-configurable preferences controlling how notifications behave.
+// - Subscription: A live connection (via WebSockets) that receives notifications in real-time.
+
 var notificationGlobals struct {
 	Buckets []*notificationBucket
 }
@@ -32,6 +49,9 @@ type notificationSubscription struct {
 func notificationBucketByUser(username string) *notificationBucket {
 	return notificationGlobals.Buckets[util.NonCryptographicHash(username)%len(notificationGlobals.Buckets)]
 }
+
+// Initialization and RPC
+// ======================================================================================================================
 
 func initNotifications() {
 	for i := 0; i < runtime.NumCPU(); i++ {
@@ -94,87 +114,8 @@ func initNotifications() {
 	})
 }
 
-func NotificationsCreate(notifications []fndapi.NotificationsCreateRequest) {
-	ids := db.NewTx(func(tx *db.Transaction) []int64 {
-		var idPromises []*util.Option[struct{ Id int64 }]
-		b := db.BatchNew(tx)
-		for _, reqItem := range notifications {
-			meta := util.OptNone[string]()
-			if reqItem.Notification.Meta.Present {
-				meta.Set(string(reqItem.Notification.Meta.Value))
-			}
-
-			promise := db.BatchGet[struct{ Id int64 }](
-				b,
-				`
-					insert into notification.notifications(id, created_at, message, meta, modified_at, owner, read, type) 
-					values (nextval('notification.hibernate_sequence'), now(), :message, :meta, now(), :username, false, :type)
-					returning id
-				`,
-				db.Params{
-					"username": reqItem.User,
-					"type":     reqItem.Notification.Type,
-					"meta":     meta.Sql(),
-					"message":  reqItem.Notification.Message,
-				},
-			)
-
-			idPromises = append(idPromises, promise)
-		}
-		db.BatchSend(b)
-
-		ids := make([]int64, len(notifications))
-		for idx, promise := range idPromises {
-			if promise != nil && promise.Present {
-				ids[idx] = promise.Value.Id
-			}
-		}
-
-		return ids
-	})
-
-	for i, notification := range notifications {
-		notification.Notification.Id.Set(ids[i])
-		notification.Notification.Ts = fndapi.Timestamp(time.Now())
-		notificationNotify(notification.User, notification.Notification)
-	}
-}
-
-func NotificationsMarkAsRead(actor rpc.Actor, ids []int64) {
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`
-				update notification.notifications
-				set
-					read = true
-				where
-					id = some(:ids)
-					and owner = :username
-		    `,
-			db.Params{
-				"ids":      ids,
-				"username": actor.Username,
-			},
-		)
-	})
-}
-
-func NotificationsMarkAllAsRead(actor rpc.Actor) {
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`
-				update notification.notifications
-				set read = true
-				where owner = :username
-		    `,
-			db.Params{
-				"username": actor.Username,
-			},
-		)
-	})
-}
+// Read API
+// =====================================================================================================================
 
 func NotificationsBrowse(actor rpc.Actor, request fndapi.NotificationsListRequest) fndapi.Page[fndapi.Notification] {
 	return db.NewTx(func(tx *db.Transaction) fndapi.Page[fndapi.Notification] {
@@ -247,47 +188,103 @@ func NotificationsBrowse(actor rpc.Actor, request fndapi.NotificationsListReques
 	})
 }
 
-func NotificationsRetrieveSettings(actor rpc.Actor) fndapi.NotificationSettings {
-	return db.NewTx(func(tx *db.Transaction) fndapi.NotificationSettings {
-		row, ok := db.Get[struct{ Settings string }](
-			tx,
-			`select settings from notification.notification_settings where username = :username`,
-			db.Params{
-				"username": actor.Username,
-			},
-		)
+// Notification creation
+// =====================================================================================================================
+// This sections implements the creation of a notification. After a notification has been persisted, an event is sent
+// out to all active subscriptions for the user.
 
-		if !ok {
-			return fndapi.DefaultNotificationSettings()
+func NotificationsCreate(notifications []fndapi.NotificationsCreateRequest) {
+	ids := db.NewTx(func(tx *db.Transaction) []int64 {
+		var idPromises []*util.Option[struct{ Id int64 }]
+		b := db.BatchNew(tx)
+		for _, reqItem := range notifications {
+			meta := util.OptNone[string]()
+			if reqItem.Notification.Meta.Present {
+				meta.Set(string(reqItem.Notification.Meta.Value))
+			}
+
+			promise := db.BatchGet[struct{ Id int64 }](
+				b,
+				`
+					insert into notification.notifications(id, created_at, message, meta, modified_at, owner, read, type) 
+					values (nextval('notification.hibernate_sequence'), now(), :message, :meta, now(), :username, false, :type)
+					returning id
+				`,
+				db.Params{
+					"username": reqItem.User,
+					"type":     reqItem.Notification.Type,
+					"meta":     meta.Sql(),
+					"message":  reqItem.Notification.Message,
+				},
+			)
+
+			idPromises = append(idPromises, promise)
+		}
+		db.BatchSend(b)
+
+		ids := make([]int64, len(notifications))
+		for idx, promise := range idPromises {
+			if promise != nil && promise.Present {
+				ids[idx] = promise.Value.Id
+			}
 		}
 
-		var result fndapi.NotificationSettings
-		err := json.Unmarshal([]byte(row.Settings), &result)
-		if err != nil {
-			return fndapi.DefaultNotificationSettings()
-		} else {
-			return result
-		}
+		return ids
 	})
+
+	for i, notification := range notifications {
+		notification.Notification.Id.Set(ids[i])
+		notification.Notification.Ts = fndapi.Timestamp(time.Now())
+		notificationNotify(notification.User, notification.Notification)
+	}
 }
 
-func NotificationsUpdateSettings(actor rpc.Actor, settings fndapi.NotificationSettings) {
-	settingsJson, _ := json.Marshal(settings)
+// Read state
+// =====================================================================================================================
+// The API keeps track of which notifications have been read. These functions run when a user clicks on a notification
+// or explicitly asks that all notifications be marked as read.
+
+func NotificationsMarkAsRead(actor rpc.Actor, ids []int64) {
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
-				insert into notification.notification_settings(username, settings) 
-				values (:username, :settings)
-				on conflict (username) do update set settings = excluded.settings
+				update notification.notifications
+				set
+					read = true
+				where
+					id = some(:ids)
+					and owner = :username
 		    `,
 			db.Params{
+				"ids":      ids,
 				"username": actor.Username,
-				"settings": string(settingsJson),
 			},
 		)
 	})
 }
+
+func NotificationsMarkAllAsRead(actor rpc.Actor) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update notification.notifications
+				set read = true
+				where owner = :username
+		    `,
+			db.Params{
+				"username": actor.Username,
+			},
+		)
+	})
+}
+
+// Subscription management
+// =====================================================================================================================
+// This section handles live notification delivery to connected clients. Subscriptions are managed entirely in memory.
+// Subscriptions are registered when an end-user subscribes and automatically removed when the associated context
+// (from WebSocket conn) is cancelled. Events are automatically delivered to all active subscriptions for a given user.
 
 func NotificationsSubscribe(actor rpc.Actor, ctx context.Context) <-chan fndapi.Notification {
 	sub := &notificationSubscription{
@@ -344,4 +341,49 @@ func notificationNotify(username string, notification fndapi.Notification) {
 		case <-time.After(30 * time.Millisecond):
 		}
 	}
+}
+
+// Notification settings
+// =====================================================================================================================
+
+func NotificationsRetrieveSettings(actor rpc.Actor) fndapi.NotificationSettings {
+	return db.NewTx(func(tx *db.Transaction) fndapi.NotificationSettings {
+		row, ok := db.Get[struct{ Settings string }](
+			tx,
+			`select settings from notification.notification_settings where username = :username`,
+			db.Params{
+				"username": actor.Username,
+			},
+		)
+
+		if !ok {
+			return fndapi.DefaultNotificationSettings()
+		}
+
+		var result fndapi.NotificationSettings
+		err := json.Unmarshal([]byte(row.Settings), &result)
+		if err != nil {
+			return fndapi.DefaultNotificationSettings()
+		} else {
+			return result
+		}
+	})
+}
+
+func NotificationsUpdateSettings(actor rpc.Actor, settings fndapi.NotificationSettings) {
+	settingsJson, _ := json.Marshal(settings)
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into notification.notification_settings(username, settings) 
+				values (:username, :settings)
+				on conflict (username) do update set settings = excluded.settings
+		    `,
+			db.Params{
+				"username": actor.Username,
+				"settings": string(settingsJson),
+			},
+		)
+	})
 }

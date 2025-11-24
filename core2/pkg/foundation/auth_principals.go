@@ -16,6 +16,18 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+// Introduction
+// =================================================================================================
+// This file defines the core principal domain model and the main operations around it, including:
+//
+// - Representation of principals and their specifications.
+// - CRUD-style operations for principals.
+// - Password update logic for principals.
+// - Integration with external identity providers (IdP) to retrieve or create principals.
+
+// Core types and globals
+// =================================================================================================
+
 type Principal struct {
 	PrincipalSpecification
 	ServiceLicenseAgreement bool
@@ -26,28 +38,6 @@ type Principal struct {
 	ProviderProjects        rpc.ProviderProjects
 	CreatedAt               fndapi.Timestamp
 	ModifiedAt              fndapi.Timestamp
-}
-
-func PrincipalsLookupByEmail(tx *db.Transaction, email string) []string {
-	ok := db.Select[struct {
-		Id string
-	}](
-		tx,
-		`
-			select id
-			from auth.principals
-			where email = :email
-		`,
-		db.Params{
-			"email": email,
-		},
-	)
-	var results []string
-	for _, elm := range ok {
-		results = append(results, elm.Id)
-	}
-	return results
-
 }
 
 type PrincipalSpecification struct {
@@ -61,6 +51,18 @@ type PrincipalSpecification struct {
 	OrgId          util.Option[string]
 	Email          util.Option[string]
 }
+
+type IdpResponse struct {
+	Idp        int
+	Identity   string
+	FirstNames util.Option[string]
+	LastName   util.Option[string]
+	OrgId      util.Option[string]
+	Email      util.Option[string]
+}
+
+// Principal read API
+// =====================================================================================================================
 
 func PrincipalRetrieve(tx *db.Transaction, username string) (Principal, bool) {
 	row, ok := db.Get[struct {
@@ -131,37 +133,38 @@ func PrincipalRetrieve(tx *db.Transaction, username string) (Principal, bool) {
 	}
 }
 
+func PrincipalsLookupByEmail(tx *db.Transaction, email string) []string {
+	ok := db.Select[struct {
+		Id string
+	}](
+		tx,
+		`
+			select id
+			from auth.principals
+			where email = :email
+		`,
+		db.Params{
+			"email": email,
+		},
+	)
+	var results []string
+	for _, elm := range ok {
+		results = append(results, elm.Id)
+	}
+	return results
+
+}
+
+// Principal lifecycle
+// =====================================================================================================================
+// Write-focused operations that create or update principals, including password changes.
+//
+// These functions encapsulate validation rules, conflict handling, and any write-side
+// invariants that must be maintained when modifying principal records.
+
 func PrincipalCreate(spec PrincipalSpecification) (int, *util.HttpError) {
 	return db.NewTx2(func(tx *db.Transaction) (int, *util.HttpError) {
 		return PrincipalCreateOrUpdate(tx, &spec, false, false)
-	})
-}
-
-func PrincipalUpdate(spec PrincipalSpecification) (int, *util.HttpError) {
-	return db.NewTx2(func(tx *db.Transaction) (int, *util.HttpError) {
-		return PrincipalCreateOrUpdate(tx, &spec, true, false)
-	})
-}
-
-func PrincipalUpdatePassword(username string, newPassword string) bool {
-	if len(newPassword) == 0 {
-		return false
-	}
-
-	salt := genSalt()
-	hash := hashPassword(newPassword, salt)
-
-	return db.NewTx(func(tx *db.Transaction) bool {
-		principal, ok := PrincipalRetrieve(tx, username)
-		if ok {
-			spec := principal.PrincipalSpecification
-			spec.HashedPassword.Set(hash.HashedPassword)
-			spec.Salt.Set(salt)
-			_, err := PrincipalCreateOrUpdate(tx, &spec, true, false)
-			return err == nil
-		} else {
-			return false
-		}
 	})
 }
 
@@ -262,15 +265,6 @@ func PrincipalCreateOrUpdate(tx *db.Transaction, spec *PrincipalSpecification, i
 	} else {
 		return uid, nil
 	}
-}
-
-type IdpResponse struct {
-	Idp        int
-	Identity   string
-	FirstNames util.Option[string]
-	LastName   util.Option[string]
-	OrgId      util.Option[string]
-	Email      util.Option[string]
 }
 
 func PrincipalRetrieveOrCreateFromIdpResponse(resp IdpResponse) (Principal, *util.HttpError) {
@@ -399,6 +393,34 @@ func PrincipalRetrieveOrCreateFromIdpResponse(resp IdpResponse) (Principal, *uti
 			}
 
 			return principal, nil
+		}
+	})
+}
+
+func PrincipalUpdate(spec PrincipalSpecification) (int, *util.HttpError) {
+	return db.NewTx2(func(tx *db.Transaction) (int, *util.HttpError) {
+		return PrincipalCreateOrUpdate(tx, &spec, true, false)
+	})
+}
+
+func PrincipalUpdatePassword(username string, newPassword string) bool {
+	if len(newPassword) == 0 {
+		return false
+	}
+
+	salt := genSalt()
+	hash := hashPassword(newPassword, salt)
+
+	return db.NewTx(func(tx *db.Transaction) bool {
+		principal, ok := PrincipalRetrieve(tx, username)
+		if ok {
+			spec := principal.PrincipalSpecification
+			spec.HashedPassword.Set(hash.HashedPassword)
+			spec.Salt.Set(salt)
+			_, err := PrincipalCreateOrUpdate(tx, &spec, true, false)
+			return err == nil
+		} else {
+			return false
 		}
 	})
 }

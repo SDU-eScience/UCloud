@@ -10,6 +10,22 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+// Introduction
+// =====================================================================================================================
+// This file implements the news subsystem for UCloud's foundation package. The news system is used as a lightweight
+// mechanism for communicating announcements, updates, maintenance notices and other informational posts to end-users.
+//
+// It handles the following:
+//
+// - Creating and updating news posts.
+// - Deleting and toggling visibility of news posts.
+// - Browsing and retrieving news posts and their categories.
+
+// Initialization and RPC
+// =====================================================================================================================
+// This section wires the news subsystem into the RPC layer by registering handlers for all
+// news-related endpoints.
+
 func initNews() {
 	fndapi.NewsAddPost.Handler(func(info rpc.RequestInfo, request fndapi.NewPostRequest) (util.Empty, *util.HttpError) {
 		NewsCreate(request)
@@ -44,78 +60,8 @@ func initNews() {
 	})
 }
 
-func NewsCreate(request fndapi.NewPostRequest) {
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`
-				insert into news.news
-					(id, title, subtitle, body, posted_by, 
-					show_from, hide_from, 
-					hidden, category) 
-				values
-					(nextval('news.id_sequence'), :title, :subtitle, :body, :posted_by, 
-					to_timestamp(:show_from / 1000.0), to_timestamp(:hide_from / 1000.0), 
-					:hidden, :category)
-			`,
-			db.Params{
-				"title":     request.Title,
-				"subtitle":  request.Subtitle,
-				"body":      request.Body,
-				"posted_by": "UCloud",
-				"show_from": request.ShowFrom.UnixMilli(),
-				"hide_from": util.OptDefaultOrMap[fndapi.Timestamp, *int64](request.HideFrom, nil, func(val fndapi.Timestamp) *int64 {
-					return util.Pointer(val.UnixMilli())
-				}),
-				"hidden":   false,
-				"category": request.Category,
-			},
-		)
-	})
-}
-
-func NewsUpdate(request fndapi.UpdatePostRequest) {
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`
-				update news.news
-				set
-					title = :title,
-					subtitle = :subtitle,
-					body = :body,
-					show_from = to_timestamp(:show_from / 1000.0),
-					hide_from = to_timestamp(:hide_from / 1000.0),
-					category = :category
-				where
-					id = :id
-			`,
-			db.Params{
-				"id":        request.Id,
-				"title":     request.Title,
-				"subtitle":  request.Subtitle,
-				"body":      request.Body,
-				"show_from": request.ShowFrom.UnixMilli(),
-				"hide_from": util.OptDefaultOrMap[fndapi.Timestamp, *int64](request.HideFrom, nil, func(val fndapi.Timestamp) *int64 {
-					return util.Pointer(val.UnixMilli())
-				}),
-				"category": request.Category,
-			},
-		)
-	})
-}
-
-func NewsDelete(request fndapi.DeleteNewsPostRequest) {
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`delete from news.news where id = :id`,
-			db.Params{
-				"id": request.Id,
-			},
-		)
-	})
-}
+// Core types and helpers
+// =====================================================================================================================
 
 type newsRow struct {
 	Id       int64
@@ -148,6 +94,9 @@ func (row *newsRow) ToApi() fndapi.NewsPost {
 
 	return post
 }
+
+// News retrieval and browsing
+// =====================================================================================================================
 
 func NewsBrowsePosts(request fndapi.ListPostsRequest) (fndapi.Page[fndapi.NewsPost], *util.HttpError) {
 	request.ItemsPerPage = 50
@@ -223,22 +172,6 @@ func NewsBrowseCategories() ([]string, *util.HttpError) {
 	}), nil
 }
 
-func NewsToggleHidden(request fndapi.TogglePostHiddenRequest) {
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`
-				update news.news
-				set hidden = not hidden
-				where id = :id
-		    `,
-			db.Params{
-				"id": request.Id,
-			},
-		)
-	})
-}
-
 func NewsRetrieve(id int64) (fndapi.NewsPost, *util.HttpError) {
 	post, ok := db.NewTx2(func(tx *db.Transaction) (fndapi.NewsPost, bool) {
 		row, ok := db.Get[newsRow](
@@ -261,4 +194,96 @@ func NewsRetrieve(id int64) (fndapi.NewsPost, *util.HttpError) {
 	} else {
 		return post, nil
 	}
+}
+
+// News post lifecycle (create, update, delete, visibility)
+// =====================================================================================================================
+
+func NewsCreate(request fndapi.NewPostRequest) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into news.news
+					(id, title, subtitle, body, posted_by, 
+					show_from, hide_from, 
+					hidden, category) 
+				values
+					(nextval('news.id_sequence'), :title, :subtitle, :body, :posted_by, 
+					to_timestamp(:show_from / 1000.0), to_timestamp(:hide_from / 1000.0), 
+					:hidden, :category)
+			`,
+			db.Params{
+				"title":     request.Title,
+				"subtitle":  request.Subtitle,
+				"body":      request.Body,
+				"posted_by": "UCloud",
+				"show_from": request.ShowFrom.UnixMilli(),
+				"hide_from": util.OptDefaultOrMap[fndapi.Timestamp, *int64](request.HideFrom, nil, func(val fndapi.Timestamp) *int64 {
+					return util.Pointer(val.UnixMilli())
+				}),
+				"hidden":   false,
+				"category": request.Category,
+			},
+		)
+	})
+}
+
+func NewsUpdate(request fndapi.UpdatePostRequest) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update news.news
+				set
+					title = :title,
+					subtitle = :subtitle,
+					body = :body,
+					show_from = to_timestamp(:show_from / 1000.0),
+					hide_from = to_timestamp(:hide_from / 1000.0),
+					category = :category
+				where
+					id = :id
+			`,
+			db.Params{
+				"id":        request.Id,
+				"title":     request.Title,
+				"subtitle":  request.Subtitle,
+				"body":      request.Body,
+				"show_from": request.ShowFrom.UnixMilli(),
+				"hide_from": util.OptDefaultOrMap[fndapi.Timestamp, *int64](request.HideFrom, nil, func(val fndapi.Timestamp) *int64 {
+					return util.Pointer(val.UnixMilli())
+				}),
+				"category": request.Category,
+			},
+		)
+	})
+}
+
+func NewsDelete(request fndapi.DeleteNewsPostRequest) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`delete from news.news where id = :id`,
+			db.Params{
+				"id": request.Id,
+			},
+		)
+	})
+}
+
+func NewsToggleHidden(request fndapi.TogglePostHiddenRequest) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update news.news
+				set hidden = not hidden
+				where id = :id
+		    `,
+			db.Params{
+				"id": request.Id,
+			},
+		)
+	})
 }
