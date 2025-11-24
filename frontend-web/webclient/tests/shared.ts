@@ -54,28 +54,33 @@ export const Rows = {
         await locator[action]();
     },
 
-    async open(page: Page, resourceTitle: string): Promise<void> {
-        await this.actionByRowTitle(page, resourceTitle, "dblclick");
-    },
-
     async rename(page: Page, oldName: string, newName: string): Promise<void> {
-        await Rows.actionByRowTitle(page, oldName, "click");
-        await page.getByText("Rename").click();
-        await page.getByRole("textbox").nth(1).fill(newName);
-        await page.getByRole("textbox").nth(1).press("Enter");
+        await NetworkCalls.awaitResponse(page, "**/api/files/move", async () => {
+            await Rows.actionByRowTitle(page, oldName, "click");
+            await page.getByText("Rename").click();
+            await page.getByRole("textbox").nth(1).fill(newName);
+            await page.getByRole("textbox").nth(1).press("Enter");
+        });
     }
 };
 
 export const File = {
     ...Rows,
+
+    async open(page: Page, filename: string) {
+        await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
+            await this.actionByRowTitle(page, filename, "dblclick");
+        });
+
+    },
+
     newFolderName(): string {
         return Help.newResourceName("FolderName");
     },
 
     async create(page: Page, name: string): Promise<void> {
         await NetworkCalls.awaitResponse(page, "**/files/folder", async () => {
-            await page.getByText("Create folder").isVisible();
-            await page.getByText("Create folder").click();
+            await page.locator('div[data-disabled="false"]', {hasText: "Create folder"}).click();
             await page.getByRole("textbox").nth(1).fill(name);
             await page.getByRole("textbox").nth(1).press("Enter");
         });
@@ -395,6 +400,11 @@ export const Project = {
 
 export const Resources = {
     ...Rows,
+
+    async open(page: Page, resourceName: string) {
+        await this.actionByRowTitle(page, resourceName, "dblclick");
+    },
+
     async goTo(page: Page, resource: "Links" | "IP addresses" | "SSH keys" | "Licenses") {
         await page.getByRole("link", {name: "Go to Resources"}).hover();
         await page.getByText(resource).click();
