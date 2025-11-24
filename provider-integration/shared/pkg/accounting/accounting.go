@@ -144,7 +144,6 @@ type WalletsBrowseRequest struct {
 	Next            util.Option[string]      `json:"next"`
 	FilterType      util.Option[ProductType] `json:"filterType"`
 	IncludeChildren bool                     `json:"includeChildren"`
-	ChildrenQuery   util.Option[string]      `json:"childrenQuery"`
 }
 
 var WalletsBrowse = rpc.Call[WalletsBrowseRequest, fnd.PageV2[WalletV2]]{

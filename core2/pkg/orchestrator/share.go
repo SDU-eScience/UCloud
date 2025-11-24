@@ -105,7 +105,30 @@ func initShares() {
 	})
 
 	orcapi.SharesControlAddUpdate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.ShareUpdate]]) (util.Empty, *util.HttpError) {
+		providerId, ok := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
+		if !ok {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+
 		for _, item := range request.Items {
+			if item.Update.ShareAvailableAt.Present {
+				driveId, ok := orcapi.DriveIdFromUCloudPath(item.Update.ShareAvailableAt.GetOrDefault(""))
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "invalid share available at path (bad path)")
+				}
+
+				drive, err := ResourceRetrieve[orcapi.Drive](rpc.ActorSystem, driveType,
+					ResourceParseId(driveId), orcapi.ResourceFlags{})
+
+				if err != nil {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "invalid share available at path (bad drive)")
+				}
+
+				if drive.Specification.Product.Provider != providerId {
+					return util.Empty{}, util.HttpErr(http.StatusForbidden, "invalid share available at path (bad drive - forbidden)")
+				}
+			}
+
 			ok := ResourceUpdate(
 				info.Actor,
 				shareType,
@@ -213,8 +236,6 @@ func initShares() {
 
 		return result, nil
 	})
-
-	// TODO notifications and stuff
 }
 
 var shareValidPermissions = []orcapi.Permission{
@@ -246,9 +267,14 @@ func ShareUpdatePermissions(actor rpc.Actor, id string, permissions []orcapi.Per
 			share := r.Extra.(*internalShare)
 			share.Permissions = permissions
 
+			ok := false
 			isActive = share.State == orcapi.ShareStateApproved && share.AvailableAt.Present
-			driveId, _ = orcapi.DriveIdFromUCloudPath(share.AvailableAt.GetOrDefault(""))
+			driveId, ok = orcapi.DriveIdFromUCloudPath(share.AvailableAt.GetOrDefault(""))
 			sharedWith = share.SharedWith
+
+			if !ok {
+				driveId = ""
+			}
 		},
 	)
 
@@ -256,21 +282,26 @@ func ShareUpdatePermissions(actor rpc.Actor, id string, permissions []orcapi.Per
 		return util.HttpErr(http.StatusForbidden, "you cannot update this share")
 	} else {
 		if isActive {
-			err := ResourceUpdateAcl(rpc.ActorSystem, driveType, orcapi.UpdatedAcl{
-				Id:      driveId,
-				Deleted: []orcapi.AclEntity{orcapi.AclEntityUser(sharedWith)},
-				Added: []orcapi.ResourceAclEntry{
-					{
-						Entity:      orcapi.AclEntityUser(sharedWith),
-						Permissions: permissions,
-					},
-				},
-			})
-
-			if err != nil {
-				return err
+			if driveId == "" {
+				log.Warn("Updating share permission on a seemingly invalid share: %s", id)
+				return util.HttpErr(http.StatusInternalServerError, "share is no longer valid")
 			} else {
-				return nil
+				err := ResourceUpdateAcl(rpc.ActorSystem, driveType, orcapi.UpdatedAcl{
+					Id:      driveId,
+					Deleted: []orcapi.AclEntity{orcapi.AclEntityUser(sharedWith)},
+					Added: []orcapi.ResourceAclEntry{
+						{
+							Entity:      orcapi.AclEntityUser(sharedWith),
+							Permissions: permissions,
+						},
+					},
+				})
+
+				if err != nil {
+					return err
+				} else {
+					return nil
+				}
 			}
 		} else {
 			return nil
@@ -387,7 +418,8 @@ func ShareCreate(actor rpc.Actor, item orcapi.ShareSpecification) (string, *util
 		})
 
 		if err != nil {
-			panic(err)
+			log.Warn("Failure while creating a share. ResourceUpdateAcl has failed: %s. Affected share (broken?): %v",
+				err, share.Id)
 		}
 	}
 	_, err = fndapi.NotificationsCreate.Invoke(
@@ -528,12 +560,13 @@ func sharePersist(b *db.Batch, r *resource) {
 		db.BatchExec(
 			b,
 			`
-				insert into file_orchestrator.shares(resource, shared_with, permissions, original_file_path, available_at)
-				values (:id, :shared_with, :permissions, :original_file_path, :available_at)
+				insert into file_orchestrator.shares(resource, shared_with, permissions, original_file_path, available_at, state)
+				values (:id, :shared_with, :permissions, :original_file_path, :available_at, :state)
 				on conflict (resource) do update set
 					permissions = excluded.permissions,
 					original_file_path = excluded.original_file_path,
-					available_at = excluded.available_at
+					available_at = excluded.available_at,
+					state = excluded.state
 			`,
 			db.Params{
 				"id":                 r.Id,
@@ -541,6 +574,7 @@ func sharePersist(b *db.Batch, r *resource) {
 				"permissions":        share.Permissions,
 				"original_file_path": share.OriginalFilePath,
 				"available_at":       share.AvailableAt.Sql(),
+				"state":              share.State,
 			},
 		)
 	}

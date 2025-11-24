@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/assert"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -873,8 +874,8 @@ func TestSyntacticValidation(t *testing.T) {
 func TestParentApply(t *testing.T) {
 	initGrantsTest(t)
 
-	const parent = "parent"
-	const child = "child"
+	const parent = "ceef5651-1e26-49f4-94a2-ffd14837b202"
+	const child = "466f866e-6a65-49e5-930f-898a2e483382"
 	admin := actor("admin", child)
 
 	result, err := GrantsRetrieveGrantGivers(*admin, accapi.RetrieveGrantGiversRequest{

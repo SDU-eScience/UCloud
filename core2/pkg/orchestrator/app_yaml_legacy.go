@@ -3,9 +3,10 @@ package orchestrator
 import (
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"net/http"
 	"time"
+
+	"gopkg.in/yaml.v3"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
@@ -362,6 +363,8 @@ func (p *A1InvocationParameter) UnmarshalYAML(n *yaml.Node) error {
 			err = n.Decode(&p.InvocationParameterBoolFlag)
 		case orcapi.InvocationParameterTypeJinja:
 			err = n.Decode(&p.InvocationParameterJinja)
+		default:
+			err = util.HttpErr(http.StatusBadRequest, "unknown invocation parameter type")
 		}
 
 		return err
@@ -393,7 +396,7 @@ func (p *A1InvocationParameter) ToParameter() orcapi.InvocationParameter {
 				PrefixGlobal:              p.PrefixGlobal,
 				SuffixGlobal:              p.SuffixGlobal,
 				PrefixVariable:            p.PrefixVariable,
-				SuffixVariable:            p.SuffixGlobal,
+				SuffixVariable:            p.SuffixVariable,
 				IsPrefixVariablePartOfArg: p.IsPrefixVariablePartOfArg,
 				IsSuffixVariablePartOfArg: p.IsSuffixVariablePartOfArg,
 			},
@@ -456,7 +459,7 @@ func a1ReadDefaultValue[T any](n *yaml.Node, fieldName string, outErr **util.Htt
 		var data []byte
 		err = n.Decode(&t)
 		if err != nil {
-			*outErr = util.HttpErr(http.StatusBadRequest, "%s invalid default value", fieldName)
+			*outErr = util.MergeHttpErr(*outErr, util.HttpErr(http.StatusBadRequest, "%s invalid default value", fieldName))
 		} else {
 			data, _ = json.Marshal(t)
 		}
@@ -648,7 +651,8 @@ func (y *A1Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 			b := param.Bool
 			base = &param.Bool.A1ParamBase
 			if base.DefaultValue.Present {
-				a1ReadDefaultValue[bool](&base.DefaultValue.Value, fieldName, &err)
+				_, jsDefault := a1ReadDefaultValue[bool](&base.DefaultValue.Value, fieldName, &err)
+				mapped.DefaultValue = jsDefault
 			}
 
 			mapped.TrueValue = b.TrueValue
@@ -771,8 +775,6 @@ func (y *A1Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 	if err != nil {
 		return orcapi.Application{}, err
 	} else {
-		isInteractive := appType == orcapi.ApplicationTypeVnc || appType == orcapi.ApplicationTypeWeb
-
 		app := orcapi.Application{
 			WithAppMetadata: orcapi.WithAppMetadata{
 				Metadata: orcapi.ApplicationMetadata{
@@ -808,11 +810,11 @@ func (y *A1Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 						RunAsRealUser:          false,
 					}),
 					Environment:           environment,
-					AllowAdditionalMounts: y.AllowAdditionalMounts.GetOrDefault(isInteractive),
-					AllowAdditionalPeers:  y.AllowAdditionalPeers.GetOrDefault(isInteractive),
-					AllowMultiNode:        y.AllowMultiNode.GetOrDefault(isInteractive),
-					AllowPublicIp:         y.AllowPublicIp.GetOrDefault(false),
-					AllowPublicLink:       y.AllowPublicLink.GetOrDefault(isInteractive),
+					AllowAdditionalMounts: y.AllowAdditionalMounts,
+					AllowAdditionalPeers:  y.AllowAdditionalPeers,
+					AllowMultiNode:        y.AllowMultiNode,
+					AllowPublicIp:         y.AllowPublicIp,
+					AllowPublicLink:       y.AllowPublicLink,
 					FileExtensions:        y.FileExtensions,
 					LicenseServers:        y.LicenseServers,
 					Modules: orcapi.ModulesSection{

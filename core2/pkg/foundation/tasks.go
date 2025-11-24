@@ -20,6 +20,39 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+// Introduction
+// =====================================================================================================================
+// THe task system provides a system for managing asynchronous work items, known as tasks, originating from providers
+// and belonging to end-users. It is designed for high read+write concurrency with low-latency lookups. This system
+// is largely used for background tasks that a provider might create in response to user actions. For example, this
+// might be used when copying large amounts of data.
+//
+// Conceptually, a task records:
+//
+// - A stable identifier
+// - Creation and modification timestamps
+// - Provider-specified payload describing status, progress and other metadata
+// - Provider-specified capabilities around pausing and cancellation
+// - Which user the task belongs to
+//
+// Buckets
+// ---------------------------------------------------------------------------------------------------------------------
+// Tasks are distributed across a set of independent buckets. Each bucket contains its own task map, per-user index,
+// and subscription registry. This reduces lock contention and allows read/write operations to scale across CPUs
+// without a central bottleneck.
+//
+// Persistence
+// ---------------------------------------------------------------------------------------------------------------------
+// A background loop periodically persists all dirty tasks to the database, while newly created tasks are written
+// immediately. This maintains correctness for external systems that rely on strongly consistent reads of
+// provider/task relationships. This is specifically required when implementing cancellation and pausing (see
+// orchestrator deployment).
+//
+// Subscriptions
+// ---------------------------------------------------------------------------------------------------------------------
+// Users subscribe to server-pushed task events through WebSocket-backed channels. Buckets maintain per-user
+// subscription sets and broadcast updates efficiently without global coordination.
+
 func initTasks() {
 	fndapi.TasksRetrieve.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (fndapi.Task, *util.HttpError) {
 		task, ok := TaskRetrieve(info.Actor, request.Id)

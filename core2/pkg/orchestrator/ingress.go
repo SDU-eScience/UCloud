@@ -139,7 +139,7 @@ func initIngresses() {
 			if exists {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(
 					http.StatusBadRequest,
-					"your domain name is not unique, try a different one",
+					"your domain name is not unique, try a different one", // TODO Time-of-check versus time-of-use
 				)
 			}
 
@@ -257,11 +257,10 @@ func initIngresses() {
 				flags,
 			)
 
-			ResourceConfirm(ingressType, id)
-
 			if err != nil {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
 			} else {
+				ResourceConfirm(ingressType, id)
 				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
 			}
 		}
@@ -319,6 +318,7 @@ func (i *ingressesDomainIndexer) Commit() {
 
 func ingressesFillIndex() {
 	if resourceGlobals.Testing.Enabled {
+		ingressesByDomain.Domains = map[string]ResourceId{}
 		return
 	}
 

@@ -176,11 +176,11 @@ type ApplicationInvocationDescription struct {
 	Ssh                   SshDescription                 `json:"ssh" yaml:"ssh"`
 	Container             ContainerDescription           `json:"container" yaml:"container"`
 	Environment           map[string]InvocationParameter `json:"environment" yaml:"environment"`
-	AllowAdditionalMounts bool                           `json:"allowAdditionalMounts" yaml:"allowAdditionalMounts"`
-	AllowAdditionalPeers  bool                           `json:"allowAdditionalPeers" yaml:"allowAdditionalPeers"`
-	AllowMultiNode        bool                           `json:"allowMultiNode" yaml:"allowMultiNode"`
-	AllowPublicIp         bool                           `json:"allowPublicIp" yaml:"allowPublicIp"`
-	AllowPublicLink       bool                           `json:"allowPublicLink" yaml:"allowPublicLink"`
+	AllowAdditionalMounts util.Option[bool]              `json:"allowAdditionalMounts" yaml:"allowAdditionalMounts"`
+	AllowAdditionalPeers  util.Option[bool]              `json:"allowAdditionalPeers" yaml:"allowAdditionalPeers"`
+	AllowMultiNode        util.Option[bool]              `json:"allowMultiNode" yaml:"allowMultiNode"`
+	AllowPublicIp         util.Option[bool]              `json:"allowPublicIp" yaml:"allowPublicIp"`
+	AllowPublicLink       util.Option[bool]              `json:"allowPublicLink" yaml:"allowPublicLink"`
 	FileExtensions        []string                       `json:"fileExtensions" yaml:"fileExtensions"`
 	LicenseServers        []string                       `json:"licenseServers" yaml:"licenseServers"`
 	Modules               ModulesSection                 `json:"modules" yaml:"modules"`

@@ -55,7 +55,7 @@ func InitAuditElasticSearch(conf rpc.ElasticConfig) func(event rpc.HttpCallLogEn
 	return func(event rpc.HttpCallLogEntry) {
 		data, err := json.Marshal(event)
 		if err != nil {
-			log.Info("Failed to create json for event: ", event)
+			log.Info("Failed to create json for event: %#v", event)
 			return
 		}
 		dateSuffix := time.Now().UTC().Format(elasticDateFormat)
@@ -502,7 +502,7 @@ func elasticShrinkIndex(indexName string, targetIndexName string) {
 func elasticGetClusterHealth() ElasticHealthResponse {
 	resp, err := elasticClient.Cluster.Health()
 	if err != nil {
-		log.Info("Failed to get cluster health: ", err)
+		log.Info("Failed to get cluster health: %s", err)
 		return ElasticHealthResponse{}
 	} else {
 		defer util.SilentClose(resp.Body)
@@ -556,7 +556,7 @@ func elasticGetShardCount(indexName string) int {
 		elasticClient.Indices.GetSettings.WithIndex(indexName),
 	)
 	if err != nil {
-		log.Info("Failed to get shard Count: ", err)
+		log.Info("Failed to get shard Count: %s", err)
 		return 0
 	}
 	var result struct {
@@ -570,7 +570,7 @@ func elasticGetShardCount(indexName string) int {
 	defer util.SilentClose(resp.Body)
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Error("Failed to read body of shard count request. Error: ", err)
+		log.Error("Failed to read body of shard count request. Error: %s", err)
 		return 0
 	}
 	_ = json.Unmarshal(respBytes, &result)
@@ -587,7 +587,7 @@ func elasticCountDocs(indexName string, query string) int {
 	)
 
 	if err != nil {
-		log.Info("Failed to count expired logs: ", err)
+		log.Info("Failed to count expired logs: %s", err)
 		return 0
 	}
 

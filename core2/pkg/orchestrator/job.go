@@ -35,6 +35,8 @@ func initJobs() {
 		jobPersistCommitted,
 	)
 
+	jobNotificationsPending.EntriesByUser = map[string]map[string]orcapi.Job{}
+
 	go jobNotificationsLoopSendPending()
 
 	orcapi.JobsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
@@ -125,7 +127,7 @@ func initJobs() {
 		for jobId, updates := range updatesById {
 			ok := ResourceUpdate(info.Actor, jobType, ResourceParseId(jobId), orcapi.PermissionProvider, func(r *resource, mapped orcapi.Job) {
 				job := r.Extra.(*internalJob)
-				job.ChangeFlags = internalJobPartialChange | internalJobChangeUpdates | internalJobChangeMetadata
+				job.ChangeFlags |= internalJobPartialChange | internalJobChangeUpdates | internalJobChangeMetadata
 
 				for _, update := range updates {
 					update.Timestamp = fndapi.Timestamp(now)
@@ -286,11 +288,10 @@ func initJobs() {
 				flags,
 			)
 
-			ResourceConfirm(jobType, id)
-
 			if err != nil {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
 			} else {
+				ResourceConfirm(jobType, id)
 				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
 			}
 		}
@@ -803,10 +804,14 @@ func jobsFollow(conn *ws.Conn) {
 				}
 
 				if len(newUpdates) != 0 || newStatus.Present {
-					sendToClient(orcapi.JobsFollowMessage{
+					ok := sendToClient(orcapi.JobsFollowMessage{
 						Updates:   newUpdates,
 						NewStatus: newStatus,
 					})
+
+					if !ok {
+						break
+					}
 				}
 
 				nextLoad = 10
@@ -890,9 +895,13 @@ func jobsFollow(conn *ws.Conn) {
 					var message rpc.WSResponseMessage[orcapi.JobLogMessage]
 					_ = json.Unmarshal(rawMessage, &message)
 
-					sendToClient(orcapi.JobsFollowMessage{
+					ok = sendToClient(orcapi.JobsFollowMessage{
 						Log: []orcapi.JobLogMessage{message.Payload},
 					})
+
+					if !ok {
+						break
+					}
 				}
 
 				util.SilentClose(providerConn)
@@ -1081,7 +1090,7 @@ func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue) *util.Ht
 			return err
 		}
 
-		jobId := value.Id
+		jobId := value.JobId
 		job, _, _, err := ResourceRetrieveEx[orcapi.Job](actor, jobType, ResourceParseId(jobId),
 			orcapi.PermissionEdit, orcapi.ResourceFlags{})
 
@@ -1571,6 +1580,7 @@ func jobPersist(b *db.Batch, r *resource) {
 func jobPersistCommitted(r *resource) {
 	info := r.Extra.(*internalJob)
 	info.LastFlushedUpdate.Store(uint64(len(info.Updates)))
+	info.ChangeFlags = 0
 }
 
 func jobTransform(

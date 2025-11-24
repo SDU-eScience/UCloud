@@ -35,7 +35,7 @@ func ResourceCreateThroughProvider[T any](
 	if err == nil {
 		providerId := resp.Responses[0].Id
 		if providerId != "" {
-			ResourceSystemUpdate(typeName, id, func(r *resource, mapped orcapi.Drive) {
+			ResourceSystemUpdate(typeName, id, func(r *resource, mapped T) {
 				r.ProviderId.Set(providerId)
 			})
 		}

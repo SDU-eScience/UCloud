@@ -116,7 +116,10 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 			)
 
 			for _, row := range aclRows {
-				r := foundResources[ResourceId(row.ResourceId)] // DB would have to be faulty for this not to work
+				r, ok := foundResources[ResourceId(row.ResourceId)]
+				if !ok {
+					continue
+				}
 
 				entry := orcapi.ResourceAclEntry{
 					Permissions: []orcapi.Permission{orcapi.Permission(row.Permission)},

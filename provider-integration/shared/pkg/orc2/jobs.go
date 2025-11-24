@@ -112,8 +112,8 @@ type JobUpdate struct {
 	ExpectedState          util.Option[JobState] `json:"expectedState"`
 	ExpectedDifferentState util.Option[bool]     `json:"expectedDifferentState"`
 	NewTimeAllocation      util.Option[int64]    `json:"newTimeAllocation"`
-	AllowRestart           util.Option[bool]     `json:"allowRestart"` // TODO deprecated
-	NewMounts              util.Option[[]string] `json:"newMounts"`    // TODO deprecated
+	AllowRestart           util.Option[bool]     `json:"allowRestart"` // deprecated
+	NewMounts              util.Option[[]string] `json:"newMounts"`    // deprecated
 	Timestamp              fnd.Timestamp         `json:"timestamp"`
 }
 
@@ -122,12 +122,12 @@ type JobSpecification struct {
 	Application       NameAndVersion               `json:"application"`
 	Name              string                       `json:"name,omitempty"`
 	Replicas          int                          `json:"replicas"`
-	AllowDuplicateJob bool                         `json:"allowDuplicateJob"` // TODO deprecated
+	AllowDuplicateJob bool                         `json:"allowDuplicateJob"` // deprecated
 	Parameters        map[string]AppParameterValue `json:"parameters"`
 	Resources         []AppParameterValue          `json:"resources"`
 	TimeAllocation    util.Option[SimpleDuration]  `json:"timeAllocation,omitempty"`
 	OpenedFile        string                       `json:"openedFile,omitempty"`
-	RestartOnExit     bool                         `json:"restartOnExit,omitempty"` // TODO deprecated
+	RestartOnExit     bool                         `json:"restartOnExit,omitempty"` // deprecated
 	SshEnabled        bool                         `json:"sshEnabled,omitempty"`
 }
 
