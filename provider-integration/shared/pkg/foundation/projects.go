@@ -207,7 +207,7 @@ var ProjectBrowse = rpc.Call[ProjectBrowseRequest, PageV2[Project]]{
 var ProjectCreate = rpc.Call[BulkRequest[ProjectSpecification], BulkResponse[FindByStringId]]{
 	BaseContext: ProjectContext,
 	Convention:  rpc.ConventionCreate,
-	Roles:       rpc.RolesEndUser | rpc.RoleProvider | rpc.RoleService,
+	Roles:       rpc.RolesPrivileged,
 }
 
 // TODO this is a new call
