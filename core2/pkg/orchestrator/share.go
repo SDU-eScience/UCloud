@@ -418,7 +418,7 @@ func ShareCreate(actor rpc.Actor, item orcapi.ShareSpecification) (string, *util
 		})
 
 		if err != nil {
-			log.Warn("Failure while creating a share. ResourceUpdateAcl has failed: %s. Affected share (broken?): ",
+			log.Warn("Failure while creating a share. ResourceUpdateAcl has failed: %s. Affected share (broken?): %v",
 				err, share.Id)
 		}
 	}

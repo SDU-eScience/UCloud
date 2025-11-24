@@ -3,6 +3,7 @@ package accounting
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"runtime"
 	"slices"
@@ -383,7 +384,7 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		return 0, util.HttpErr(http.StatusBadRequest, "invalid recipient")
 	}
 
-	if recipient.Type == accapi.RecipientTypeNewProject && recipient.Title.Value == "" {
+	if recipient.Type == accapi.RecipientTypeNewProject {
 		if err := util.ValidateStringE(&recipient.Title.Value, "recipient.title", 0); err != nil {
 			return 0, err
 		}
@@ -1046,13 +1047,16 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2[accapi.GrantApplication] {
 	var ids []accGrantId
 
-	nextIdRaw, _ := strconv.ParseInt(req.Next.Value, 10, 64)
+	nextIdRaw, err := strconv.ParseInt(req.Next.Value, 10, 64)
 	nextId := accGrantId(nextIdRaw)
+	if !req.Next.Present || err != nil {
+		nextId = accGrantId(math.MaxInt)
+	}
 
 	idxB := grantGetIdxBucket(actor.Username, true)
 	idxB.Mu.RLock()
 	for _, id := range idxB.ApplicationsByEntity[actor.Username] {
-		if id > nextId {
+		if id < nextId {
 			ids = append(ids, id)
 		}
 	}
@@ -1062,7 +1066,7 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 		idxB = grantGetIdxBucket(string(actor.Project.Value), true)
 		idxB.Mu.RLock()
 		for _, id := range idxB.ApplicationsByEntity[string(actor.Project.Value)] {
-			if id > nextId {
+			if id < nextId {
 				ids = append(ids, id)
 			}
 		}
@@ -1290,10 +1294,12 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 	}
 
 	for parent, _ := range parents {
-		b := grantGetSettingsBucket(parent)
-		b.Mu.RLock()
-		lAddPotentialGrantGiver(b, parent)
-		b.Mu.RUnlock()
+		if parent != "" {
+			b := grantGetSettingsBucket(parent)
+			b.Mu.RLock()
+			lAddPotentialGrantGiver(b, parent)
+			b.Mu.RUnlock()
+		}
 	}
 
 	slices.SortFunc(result, func(a, b accapi.GrantGiver) int {
@@ -1732,6 +1738,10 @@ func grantHandleEvent(event grantEvent) {
 }
 
 func grantSendNotification(event grantEvent) *util.HttpError {
+	if grantGlobals.Testing.Enabled {
+		return nil
+	}
+
 	var recipients []string
 
 	if event.EventSourceIsApplicant {
@@ -1806,6 +1816,10 @@ func grantSendNotification(event grantEvent) *util.HttpError {
 }
 
 func grantSendEmail(event grantEvent) *util.HttpError {
+	if grantGlobals.Testing.Enabled {
+		return nil
+	}
+
 	var recipients []string
 
 	if event.EventSourceIsApplicant {
