@@ -15,6 +15,7 @@ import (
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -644,6 +645,8 @@ func ResourceBrowse[T any](
 			resc, ok, perms := resourcesReadEx(actor, typeName, orcapi.PermissionRead, b, id, prefetchList)
 
 			if ok {
+				shouldBreak := false
+
 				b.Mu.RLock()
 				mapped, ok := lResourceApplyFlags(resc, perms, flags)
 				if ok {
@@ -651,7 +654,7 @@ func ResourceBrowse[T any](
 					if filter == nil || filter(item) {
 						if sortComparator == nil && len(items) >= itemsPerPage {
 							newNext.Set(fmt.Sprint(prevId))
-							break
+							shouldBreak = true
 						} else {
 							prevId = resc.Id
 							items = append(items, item)
@@ -659,6 +662,10 @@ func ResourceBrowse[T any](
 					}
 				}
 				b.Mu.RUnlock()
+
+				if shouldBreak {
+					break
+				}
 			}
 		}
 
@@ -723,7 +730,7 @@ func ResourceUpdate[T any](
 		b.Mu.Lock()
 		apiResc, ok := lResourceApplyFlags(resc, perms, orcapi.ResourceFlags{})
 		if !ok {
-			panic("resource was not supposed to be filtered here")
+			log.Fatal("resource was not supposed to be filtered here")
 		}
 		mapped := g.Transformer(apiResc, resc.Product, resc.Extra, orcapi.ResourceFlags{}, actor).(T)
 
