@@ -16,8 +16,8 @@ type Json struct {
 	encoded string
 }
 
-const imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.3.3"
-const slurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.35"
+const imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.4.125"
+const slurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2025.4.125"
 
 type PortAllocator interface {
 	Allocate(port int) int
