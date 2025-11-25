@@ -31,6 +31,8 @@ if [[ $running_slurm == 0 ]]; then
     fi
 
     ! (test -f /etc/ucloud/.slurmsysop) && initSlurmServiceAccount;
+else
+    uid=0
 fi
 
 chmod 755 /work || true
