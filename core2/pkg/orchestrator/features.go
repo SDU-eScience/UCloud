@@ -152,9 +152,8 @@ func featureMonitorProvider(provider string) {
 		if len(supportMap) == 0 {
 			time.Sleep(100 * time.Millisecond)
 		} else {
-			providerSupportGlobals.Ready.Store(true)
-
 			providerSupportGlobals.Mu.Lock()
+			providerSupportGlobals.Ready.Store(true)
 			for typeName, support := range supportMap {
 				typeMap, ok := providerSupportGlobals.ByType[typeName]
 				if !ok {

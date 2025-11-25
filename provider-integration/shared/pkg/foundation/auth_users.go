@@ -1,6 +1,8 @@
 package foundation
 
 import (
+	"net/http"
+
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -32,11 +34,18 @@ type UsersUpdateInfoRequest struct {
 	LastName   util.Option[string] `json:"lastName"`
 }
 
-var UsersUpdateInfo = rpc.Call[UsersUpdateInfoRequest, util.Empty]{
+var UsersUpdateInfo = rpc.Call[UsersUpdateInfoRequest, string]{
 	BaseContext: authUsersBaseContext,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "updateUserInfo",
 	Roles:       rpc.RolesEndUser,
+	CustomServerProducer: func(response string, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
+		if err == nil {
+			http.Redirect(w, r, response, http.StatusFound)
+		} else {
+			rpc.SendResponseOrError(w, nil, err)
+		}
+	},
 }
 
 type UsersRetrieveInfoResponse struct {

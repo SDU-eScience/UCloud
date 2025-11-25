@@ -257,10 +257,9 @@ func ProductCreate(actor rpc.Actor, products []accapi.ProductV2) *util.HttpError
 					"floating":    item.Category.AccountingUnit.FloatingPoint,
 					"display":     item.Category.AccountingUnit.DisplayFrequencySuffix,
 
-					"frequency":    string(item.Category.AccountingFrequency),
-					"product_type": string(item.ProductType),
-					"free_to_use":  item.Category.FreeToUse,
-					//TODO(HENRIK) There is no need for this in the future
+					"frequency":             string(item.Category.AccountingFrequency),
+					"product_type":          string(item.ProductType),
+					"free_to_use":           item.Category.FreeToUse,
 					"charge_type":           translateToChargeType(item.Category),
 					"allow_sub_allocations": item.Category.AllowSubAllocations,
 				},

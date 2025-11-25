@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"bytes"
-	"golang.org/x/image/font/gofont/goregular"
 	"image"
 	"image/color"
 	_ "image/jpeg"
@@ -13,6 +12,9 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+
+	"golang.org/x/image/font/gofont/goregular"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 
 	"golang.org/x/image/draw"
@@ -206,6 +208,12 @@ func AppLogoGenerate(
 
 	crop := rgba
 	if !isEmpty {
+		// Clamp to image size, just in case something is broken
+		firstX = min(max(0, firstX), w)
+		firstY = min(max(0, firstY), h)
+		lastX = min(max(0, lastX), w)
+		lastY = min(max(0, lastY), h)
+
 		crop = rgba.SubImage(image.Rect(firstX, firstY, lastX+1, lastY+1)).(*image.NRGBA)
 		w, h = crop.Bounds().Dx(), crop.Bounds().Dy()
 	} else {
@@ -474,6 +482,9 @@ func loadSystemFont() *opentype.Font {
 	}
 
 	// guaranteed fallback
-	f, _ := opentype.Parse(goregular.TTF)
+	f, err := opentype.Parse(goregular.TTF)
+	if err != nil {
+		log.Fatal("fallback font must not fail parsing: %s", err)
+	}
 	return f
 }

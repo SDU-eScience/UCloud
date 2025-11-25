@@ -3,6 +3,7 @@ package shared
 import (
 	"fmt"
 	"math"
+
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/shared/pkg/apm"
 
@@ -124,7 +125,7 @@ func initProducts() {
 			support.Docker.Vnc = ServiceConfig.Compute.Web.Enabled
 			support.Docker.Logs = true
 			support.Docker.Terminal = true
-			support.Docker.Peers = false
+			support.Docker.Peers = true
 			support.Docker.TimeExtension = true
 		}
 

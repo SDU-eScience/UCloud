@@ -1,11 +1,17 @@
 package orchestrator
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 
+	ws "github.com/gorilla/websocket"
+	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
@@ -52,6 +58,22 @@ func initFiles() {
 
 	orcapi.FilesEmptyTrash.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
 		return FilesEmptyTrash(info.Actor, request)
+	})
+
+	orcapi.FilesStreamingSearch.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
+		FilesStreamingSearch(info.WebSocket)
+		return util.Empty{}, nil
+	})
+
+	orcapi.FilesTransfer.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.FilesTransferRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := FilesTransfer(info.Actor, reqItem)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		return util.Empty{}, nil
 	})
 }
 
@@ -175,7 +197,7 @@ func FilesDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByString
 		driveId, _ := orcapi.DriveIdFromUCloudPath(reqItem.Id)
 		drive, ok := drives[driveId]
 		if !ok {
-			return result, util.HttpErr(http.StatusNotFound, "folder creation requested to unknown drive")
+			return result, util.HttpErr(http.StatusNotFound, "file deletion requested to unknown drive")
 		}
 
 		if featureSupported(driveType, drive.Specification.Product, driveOpsReadOnly) {
@@ -425,30 +447,52 @@ func FilesCreateDownload(
 }
 
 func FilesMove(actor rpc.Actor, request fndapi.BulkRequest[orcapi.FilesSourceAndDestination]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-	return filesCopyOrMove(actor, request, orcapi.FilesProviderMove)
+	return filesCopyOrMove(actor, request, orcapi.FilesProviderMove, true)
 }
 
 func FilesCopy(actor rpc.Actor, request fndapi.BulkRequest[orcapi.FilesSourceAndDestination]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-	return filesCopyOrMove(actor, request, orcapi.FilesProviderCopy)
+	return filesCopyOrMove(actor, request, orcapi.FilesProviderCopy, false)
 }
 
 func filesCopyOrMove(
 	actor rpc.Actor,
 	request fndapi.BulkRequest[orcapi.FilesSourceAndDestination],
 	call rpc.Call[fndapi.BulkRequest[orcapi.FilesProviderMoveOrCopyRequest], fndapi.BulkResponse[util.Empty]],
+	isMove bool,
 ) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
 	var result fndapi.BulkResponse[util.Empty]
-	var paths []string
+	var sourcePaths []string
+	var destPaths []string
 	for _, reqItem := range request.Items {
-		paths = append(paths, reqItem.SourcePath)
-		paths = append(paths, reqItem.DestinationPath)
+		sourcePaths = append(sourcePaths, reqItem.SourcePath)
+		destPaths = append(destPaths, reqItem.DestinationPath)
 
 		result.Responses = append(result.Responses, util.Empty{})
 	}
 
-	drives, err := filesFetchDrives(actor, paths, orcapi.PermissionEdit)
-	if err != nil {
-		return result, err
+	drives := map[string]orcapi.Drive{}
+	{
+		sourcePermRequired := orcapi.PermissionEdit
+		if !isMove {
+			sourcePermRequired = orcapi.PermissionRead
+		}
+		sourceDrives, err := filesFetchDrives(actor, sourcePaths, sourcePermRequired)
+		if err != nil {
+			return result, err
+		}
+
+		destDrives, err := filesFetchDrives(actor, destPaths, orcapi.PermissionEdit)
+		if err != nil {
+			return result, err
+		}
+
+		for _, drive := range sourceDrives {
+			drives[drive.Id] = drive
+		}
+
+		for _, drive := range destDrives {
+			drives[drive.Id] = drive
+		}
 	}
 
 	requestsByProvider := map[string][]orcapi.FilesProviderMoveOrCopyRequest{}
@@ -460,7 +504,7 @@ func filesCopyOrMove(
 		sourceDrive, ok1 := drives[sourceDriveId]
 		destinationDrive, ok2 := drives[destinationDriveId]
 
-		if !ok1 || !ok2 || sourceDrive.Specification.Product != destinationDrive.Specification.Product {
+		if !ok1 || !ok2 || sourceDrive.Specification.Product.Provider != destinationDrive.Specification.Product.Provider {
 			return result, util.HttpErr(http.StatusBadRequest, "files cannot be moved across providers")
 		}
 
@@ -479,7 +523,7 @@ func filesCopyOrMove(
 	}
 
 	for provider, requests := range requestsByProvider {
-		_, err = InvokeProvider(provider, call, fndapi.BulkRequestOf(requests...), ProviderCallOpts{
+		_, err := InvokeProvider(provider, call, fndapi.BulkRequestOf(requests...), ProviderCallOpts{
 			Username: util.OptValue(actor.Username),
 			Reason:   util.OptValue("user initiated move/copy"),
 		})
@@ -539,10 +583,11 @@ func FilesBrowse(actor rpc.Actor, request orcapi.FilesBrowseRequest) (fndapi.Pag
 		orcapi.FilesProviderBrowseRequest{
 			ResolvedCollection: drive,
 			Browse: orcapi.ResourceBrowseRequest[orcapi.FileFlags]{
-				ItemsPerPage: request.ItemsPerPage,
-				Next:         request.Next,
-				Flags:        request.FileFlags,
-				// TODO sort
+				ItemsPerPage:  request.ItemsPerPage,
+				Next:          request.Next,
+				Flags:         request.FileFlags,
+				SortBy:        request.SortBy,
+				SortDirection: request.SortDirection,
 			},
 		},
 		ProviderCallOpts{
@@ -620,7 +665,11 @@ func fileTransform(actor rpc.Actor, driveInfo orcapi.Drive, files []orcapi.Provi
 				inheritedSensitivity.Set(sensitivity.Value)
 			}
 
+			prev := ancestor
 			ancestor = filepath.Dir(ancestor)
+			if ancestor == prev { // sanity check
+				break
+			}
 		}
 
 		parent := filepath.Dir(cleanPath)
@@ -668,4 +717,257 @@ func fileTransform(actor rpc.Actor, driveInfo orcapi.Drive, files []orcapi.Provi
 		result = append(result, file)
 	}
 	return result
+}
+
+func FilesStreamingSearch(conn *ws.Conn) {
+	defer util.SilentClose(conn)
+
+	var (
+		actor        rpc.Actor
+		streamId     string
+		initialDrive orcapi.Drive
+		folder       string
+		query        string
+		flags        orcapi.FileFlags
+	)
+
+	connMutex := sync.Mutex{}
+	sendToClient := func(data orcapi.FilesStreamingSearchResult) bool {
+		data.Batch = util.NonNilSlice(data.Batch)
+		dataBytes := rpc.WSResponseMessageMarshal(streamId, data)
+
+		connMutex.Lock()
+		err := conn.WriteMessage(ws.TextMessage, dataBytes)
+		connMutex.Unlock()
+
+		return err == nil
+	}
+
+	{
+		// Read and authenticate request
+		// -------------------------------------------------------------------------------------------------------------
+
+		var herr *util.HttpError
+
+		mtype, rawMessage, err := conn.ReadMessage()
+		if err != nil || mtype != ws.TextMessage {
+			return
+		}
+
+		var message rpc.WSRequestMessage[orcapi.FilesStreamingSearchRequest]
+
+		err = json.Unmarshal(rawMessage, &message)
+		if err != nil {
+			return
+		}
+
+		streamId = message.StreamId
+
+		actor, herr = rpc.BearerAuthenticator(message.Bearer, message.Project.GetOrDefault(""))
+		if herr != nil {
+			return
+		}
+
+		driveId, ok := orcapi.DriveIdFromUCloudPath(message.Payload.CurrentFolder)
+		if !ok {
+			return
+		}
+
+		initialDrive, herr = ResourceRetrieve[orcapi.Drive](actor, driveType, ResourceParseId(driveId),
+			orcapi.ResourceFlags{})
+		if herr != nil {
+			return
+		}
+
+		if !featureSupported(driveType, initialDrive.Specification.Product, driveOpsStreamingSearch) {
+			return
+		}
+
+		util.ValidateString(&message.Payload.Query, "query", 0, &herr)
+		if herr != nil {
+			return
+		}
+
+		query = message.Payload.Query
+
+		flags = message.Payload.Flags
+		folder = message.Payload.CurrentFolder
+	}
+
+	providerId := initialDrive.Specification.Product.Provider
+	client, ok := providerClient(providerId)
+	if !ok {
+		return
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	keepRunning := atomic.Bool{}
+	keepRunning.Store(true)
+
+	go func() {
+		defer func() {
+			wg.Done()
+			keepRunning.Store(false)
+		}()
+
+		url := strings.ReplaceAll(client.BasePath, "http://", "")
+		url = strings.ReplaceAll(url, "https://", "")
+		url = fmt.Sprintf(
+			"ws://%s%s?usernameHint=%s",
+			url,
+			orcapi.FilesProviderStreamingSearchEndpoint(providerId),
+			base64.URLEncoding.EncodeToString([]byte(actor.Username)),
+		)
+
+		providerConn, _, err := ws.DefaultDialer.Dial(url, http.Header{
+			"Authorization": []string{fmt.Sprintf("Bearer %s", client.RetrieveAccessTokenOrRefresh())},
+		})
+
+		if err == nil {
+			dataBytes, _ := json.Marshal(rpc.WSRequestMessage[orcapi.FilesProviderStreamingSearchRequest]{
+				Call:     fmt.Sprintf("files.provider.%s.streamingSearch", providerId),
+				StreamId: "ignored",
+				Payload: orcapi.FilesProviderStreamingSearchRequest{
+					Query: query,
+					Owner: initialDrive.Owner,
+					Flags: flags,
+					Category: accapi.ProductCategoryIdV2{
+						Name:     initialDrive.Specification.Product.Category,
+						Provider: initialDrive.Specification.Product.Provider,
+					},
+					CurrentFolder: util.OptValue(folder),
+				},
+			})
+
+			err = providerConn.WriteMessage(ws.TextMessage, dataBytes)
+		}
+
+		if err == nil {
+			for keepRunning.Load() {
+				mtype, rawMessage, err := providerConn.ReadMessage()
+				if err != nil || mtype != ws.TextMessage {
+					break
+				}
+
+				var message rpc.WSResponseMessage[orcapi.FilesProviderStreamingSearchResult]
+				_ = json.Unmarshal(rawMessage, &message)
+
+				transformedBatch := fileTransform(actor, initialDrive, message.Payload.Batch)
+
+				ok = sendToClient(orcapi.FilesStreamingSearchResult{
+					Type:  message.Payload.Type,
+					Batch: transformedBatch,
+				})
+
+				if !ok {
+					break
+				}
+			}
+		}
+
+		util.SilentClose(providerConn)
+	}()
+
+	wg.Wait()
+}
+
+func FilesTransfer(actor rpc.Actor, request orcapi.FilesTransferRequest) *util.HttpError {
+	sourcePath := filepath.Clean(request.SourcePath)
+	destPath := filepath.Clean(request.DestinationPath)
+	sourceDriveId, ok1 := orcapi.DriveIdFromUCloudPath(sourcePath)
+	destDriveId, ok2 := orcapi.DriveIdFromUCloudPath(destPath)
+
+	if !ok1 || !ok2 {
+		return util.HttpErr(http.StatusForbidden, "cannot transfer between these paths")
+	}
+
+	sourceDrive, _, _, err1 := ResourceRetrieveEx[orcapi.Drive](actor, driveType, ResourceParseId(sourceDriveId),
+		orcapi.PermissionRead, orcapi.ResourceFlags{})
+	destDrive, _, _, err2 := ResourceRetrieveEx[orcapi.Drive](actor, driveType, ResourceParseId(destDriveId),
+		orcapi.PermissionEdit, orcapi.ResourceFlags{})
+
+	if err1 != nil || err2 != nil {
+		return util.MergeHttpErr(err1, err2)
+	}
+
+	if featureSupported(driveType, destDrive.Specification.Product, driveOpsReadOnly) {
+		return util.HttpErr(http.StatusForbidden, "cannot transfer between these paths (destination is read-only)")
+	}
+
+	sourceProvider := sourceDrive.Specification.Product.Provider
+	destProvider := sourceDrive.Specification.Product.Provider
+
+	if !util.DevelopmentModeEnabled() && sourceProvider == destProvider {
+		return util.HttpErr(http.StatusForbidden, "cannot transfer between these paths (same provider)")
+	}
+
+	callOpts := ProviderCallOpts{
+		Username: util.OptValue(actor.Username),
+		Reason:   util.OptValue("user-initiated file-transfer"),
+	}
+
+	initiateSrcResp, err := InvokeProvider(sourceProvider, orcapi.FilesProviderTransfer, orcapi.FilesProviderTransferRequest{
+		Type: orcapi.FilesProviderTransferReqTypeInitiateSource,
+		FilesProviderTransferRequestInitiateSource: orcapi.FilesProviderTransferRequestInitiateSource{
+			SourcePath:          request.SourcePath,
+			SourceDrive:         sourceDrive,
+			DestinationProvider: destProvider,
+		},
+	}, callOpts)
+
+	if err != nil || initiateSrcResp.Type != orcapi.FilesProviderTransferReqTypeInitiateSource {
+		return util.HttpErr(http.StatusBadGateway, "source provider is unable to fulfill this request")
+	}
+
+	srcResp := initiateSrcResp.FilesProviderTransferResponseInitiateSource
+	if len(srcResp.SupportedProtocols) == 0 {
+		return util.HttpErr(http.StatusForbidden, "source provider is unwilling to fulfill this request")
+	}
+
+	if srcResp.Session == "" {
+		return util.HttpErr(http.StatusForbidden, "source provider is unwilling to fulfill this request")
+	}
+
+	initiateDestResp, err := InvokeProvider(sourceProvider, orcapi.FilesProviderTransfer, orcapi.FilesProviderTransferRequest{
+		Type: orcapi.FilesProviderTransferReqTypeInitiateDestination,
+		FilesProviderTransferRequestInitiateDestination: orcapi.FilesProviderTransferRequestInitiateDestination{
+			DestinationPath:    destPath,
+			DestinationDrive:   destDrive,
+			SourceProvider:     sourceProvider,
+			SupportedProtocols: srcResp.SupportedProtocols,
+		},
+	}, callOpts)
+
+	if err != nil || initiateDestResp.Type != orcapi.FilesProviderTransferReqTypeInitiateDestination {
+		return util.HttpErr(http.StatusBadGateway, "destination provider is unable to fulfill this request")
+	}
+
+	destResp := initiateDestResp.FilesProviderTransferResponseInitiateDestination
+	found := false
+	for _, supported := range srcResp.SupportedProtocols {
+		if supported == destResp.SelectedProtocol {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return util.HttpErr(http.StatusBadGateway, "destination provider is unwilling to fulfill this request")
+	}
+
+	_, err = InvokeProvider(sourceProvider, orcapi.FilesProviderTransfer, orcapi.FilesProviderTransferRequest{
+		Type: orcapi.FilesProviderTransferReqTypeStart,
+		FilesProviderTransferRequestStart: orcapi.FilesProviderTransferRequestStart{
+			Session:            srcResp.Session,
+			SelectedProtocol:   destResp.SelectedProtocol,
+			ProtocolParameters: destResp.ProtocolParameters,
+		},
+	}, callOpts)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

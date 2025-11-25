@@ -11,15 +11,63 @@ import (
 	"sync/atomic"
 	"time"
 
+	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
-// mutex lock order: globals -> index -> resource
+// Introduction
+// =====================================================================================================================
+// This file implements the resource subsystem used by the orchestrator deployment. The resource system exists to
+// provide a single generic abstraction for "things" that are managed within a project. Resources are often backed by
+// a concrete physical or logical resource in a service-provider. But resources can also be managed entirely within
+// UCloud's Core if needed.
+//
+// The goals of the resource system is to:
+//
+// - Centralize the authorization and ACL evaluation features
+// - Provide a shared indexing and browsing mechanism across different resource types
+// - To make it easy to plug in new resource types via a simple flow
+//
+// Using the resource system
+// ---------------------------------------------------------------------------------------------------------------------
+// The resource API is designed to be used in a way that it can easily create new resource types. In order to create a
+// resource type, you can follow the steps below:
+//
+// 1. Registering a type:
+//    Call InitResourceType with the correct loader, persister and transformer. Once created, you can invoke all the
+//    Resource* functions on that type.
+//
+// 2. Creating resources:
+//    Use ResourceCreate or ResourceCreateThroughProvider for user-initiated creation. Use ResourceCreateEx for
+//    system/provider-initiated creation.
+//
+//    These will both allocate a new ID and run all relevant side effects. If you are not using creation through a
+//    provider, then you must also call ResourceConfirm after invoking the create function.
+//
+// 3. Retrieving and browsing:
+//    You can retrieve or browse resources through the ResourceRetrieve and ResourceBrowse functions. These will
+//    automatically apply permission checks as relevant. For system initiated operations you can pass in
+//    rpc.ActorSystem to bypass the authorization checks.
+//
+// 4. Updates and deletions:
+//    You can apply updates to a resource through the ResourceUpdate function. Similarly, deleted can be performed
+//    through the ResourceDelete function. These will automatically trigger persistence assuming that the function
+//    was successful.
+
+// Core types and globals
+// =====================================================================================================================
+// This section contains relevant core types and access to the global state.
+//
+// ---------------------------------------------------------------------------------------------------------------------
+// !! MUTEX LOCK ORDER !!
+// ---------------------------------------------------------------------------------------------------------------------
+// globals -> index -> resource
 
 type ResourceId int64
 
@@ -150,6 +198,12 @@ func resourceGetAndLoadIndex(typeName string, reference string) *resourceIndexBu
 
 	return b
 }
+
+// Initialization
+// =====================================================================================================================
+// This section contains initialization logic for the resource subsystem and per-type registration.
+// Types must be registered with persistence and transformation hooks before use. InitResources must be called exactly
+// once and InitResourceType must be called exactly once per type.
 
 func InitResources() {
 	resourceGlobals.IdAcc.Store(1)
@@ -351,11 +405,11 @@ func lResourceApplyFlags(r *resource, myPerms []orcapi.Permission, flags orcapi.
 		return result, false
 	}
 
-	if flags.FilterCreatedAfter.Present && flags.FilterCreatedAfter.Value.Time().Before(r.CreatedAt) {
+	if flags.FilterCreatedAfter.Present && r.CreatedAt.Before(flags.FilterCreatedAfter.Value.Time()) {
 		return result, false
 	}
 
-	if flags.FilterCreatedBefore.Present && flags.FilterCreatedBefore.Value.Time().After(r.CreatedAt) {
+	if flags.FilterCreatedBefore.Present && r.CreatedAt.After(flags.FilterCreatedBefore.Value.Time()) {
 		return result, false
 	}
 
@@ -375,7 +429,7 @@ func lResourceApplyFlags(r *resource, myPerms []orcapi.Permission, flags orcapi.
 	}
 
 	if flags.FilterProviderIds.Present {
-		ids := strings.Split(flags.FilterIds.Value, ",")
+		ids := strings.Split(flags.FilterProviderIds.Value, ",")
 		found := false
 		if r.ProviderId.Present {
 			for _, id := range ids {
@@ -518,7 +572,7 @@ func ResourceBrowse[T any](
 ) fndapi.PageV2[T] {
 	if flags.FilterProviderIds.Present {
 		providerId, ok := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
-		providerGenIds := strings.Split(flags.FilterIds.Value, ",")
+		providerGenIds := strings.Split(flags.FilterProviderIds.Value, ",")
 		if !ok || len(providerGenIds) > 1000 || len(providerGenIds) == 0 {
 			return fndapi.PageV2[T]{Items: util.NonNilSlice[T](nil), ItemsPerPage: 1000}
 		}
@@ -554,7 +608,7 @@ func ResourceBrowse[T any](
 		idxBucket := resourceGetAndLoadIndex(typeName, ref)
 
 		idxBucket.Mu.RLock()
-		idx := idxBucket.ByOwner[ref]
+		idx := append([]ResourceId(nil), idxBucket.ByOwner[ref]...) // deep copy under lock
 
 		initialPrefetchIndex := max(0, len(idx)-500)
 
@@ -564,10 +618,12 @@ func ResourceBrowse[T any](
 			sortComparator = nil
 		}
 
+		startIndex := len(idx) - 1
 		if sortComparator == nil {
 			if next.Present {
 				rId := ResourceParseId(next.Value)
 				nextIdx, _ := slices.BinarySearch(idx, rId)
+				startIndex = nextIdx - 1
 				initialPrefetchIndex = max(0, nextIdx-500)
 			}
 		}
@@ -582,13 +638,15 @@ func ResourceBrowse[T any](
 		itemsPerPage = fndapi.ItemsPerPage(itemsPerPage)
 		prevId := ResourceId(0)
 
-		for i := len(idx) - 1; i >= 0; i-- {
+		for i := startIndex; i >= 0; i-- {
 			id := idx[i]
 
 			b := resourceGetBucket(typeName, id)
 			resc, ok, perms := resourcesReadEx(actor, typeName, orcapi.PermissionRead, b, id, prefetchList)
 
 			if ok {
+				shouldBreak := false
+
 				b.Mu.RLock()
 				mapped, ok := lResourceApplyFlags(resc, perms, flags)
 				if ok {
@@ -596,7 +654,7 @@ func ResourceBrowse[T any](
 					if filter == nil || filter(item) {
 						if sortComparator == nil && len(items) >= itemsPerPage {
 							newNext.Set(fmt.Sprint(prevId))
-							break
+							shouldBreak = true
 						} else {
 							prevId = resc.Id
 							items = append(items, item)
@@ -604,6 +662,10 @@ func ResourceBrowse[T any](
 					}
 				}
 				b.Mu.RUnlock()
+
+				if shouldBreak {
+					break
+				}
 			}
 		}
 
@@ -625,11 +687,12 @@ func ResourceBrowse[T any](
 				}
 			}
 
-			lastIdx := min(len(items), baseIdx+itemsPerPage)
+			baseIdx = max(0, min(len(items), baseIdx))
+			lastIdx := max(0, min(len(items), baseIdx+itemsPerPage))
 			hasMore := len(items) > lastIdx
 			items = items[baseIdx:lastIdx]
 			if hasMore {
-				next.Set(fmt.Sprint(lastIdx))
+				newNext.Set(fmt.Sprint(lastIdx))
 			}
 		}
 
@@ -667,7 +730,7 @@ func ResourceUpdate[T any](
 		b.Mu.Lock()
 		apiResc, ok := lResourceApplyFlags(resc, perms, orcapi.ResourceFlags{})
 		if !ok {
-			panic("resource was not supposed to be filtered here")
+			log.Fatal("resource was not supposed to be filtered here")
 		}
 		mapped := g.Transformer(apiResc, resc.Product, resc.Extra, orcapi.ResourceFlags{}, actor).(T)
 
@@ -743,7 +806,52 @@ func ResourceUpdateAcl(
 	typeName string,
 	acl orcapi.UpdatedAcl,
 ) *util.HttpError {
-	// TODO verify all entities in the added section
+	{
+		// NOTE(Dan): Verify all entities in the added section
+		projectInfoIfNeeded := util.Option[fndapi.Project]{}
+
+		for _, item := range acl.Added {
+			switch item.Entity.Type {
+			case orcapi.AclEntityTypeUser:
+				_, ok := rpc.LookupActor(item.Entity.Username)
+				if !ok {
+					return util.HttpErr(http.StatusForbidden, "bad ACL update supplied")
+				}
+
+			case orcapi.AclEntityTypeProjectGroup:
+				if actor.Username != rpc.ActorSystem.Username {
+					if item.Entity.ProjectId != string(actor.Project.Value) {
+						return util.HttpErr(http.StatusForbidden, "bad ACL update supplied")
+					}
+				}
+
+				if !projectInfoIfNeeded.Present {
+					db.NewTx0(func(tx *db.Transaction) {
+						p, ok := coreutil.ProjectRetrieveFromDatabase(tx, item.Entity.ProjectId)
+						if ok {
+							projectInfoIfNeeded.Set(p)
+						}
+					})
+
+					if !projectInfoIfNeeded.Present {
+						return util.HttpErr(http.StatusInternalServerError, "could not verify acl")
+					}
+				}
+
+				found := false
+				for _, existingGroup := range projectInfoIfNeeded.Value.Status.Groups {
+					if existingGroup.Id == item.Entity.Group {
+						found = true
+						break
+					}
+				}
+
+				if !found {
+					return util.HttpErr(http.StatusForbidden, "bad ACL update supplied")
+				}
+			}
+		}
+	}
 
 	var addedUsers []string
 	pId := ResourceParseId(acl.Id)

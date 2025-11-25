@@ -178,11 +178,10 @@ func initDrives() {
 				flags,
 			)
 
-			ResourceConfirm(driveType, id)
-
 			if err != nil {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
 			} else {
+				ResourceConfirm(driveType, id)
 				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
 			}
 		}
@@ -193,7 +192,7 @@ func initDrives() {
 
 func DriveRename(actor rpc.Actor, id string, title string) *util.HttpError {
 	title = strings.TrimSpace(title)
-	if title == "" || strings.Contains("\n", title) {
+	if title == "" || strings.Contains(title, "\n") {
 		return util.HttpErr(http.StatusBadRequest, "invalid title specified")
 	}
 
@@ -231,12 +230,18 @@ func DriveRename(actor rpc.Actor, id string, title string) *util.HttpError {
 }
 
 func DriveCreate(actor rpc.Actor, item orcapi.DriveSpecification) (orcapi.Drive, *util.HttpError) {
+	title := item.Title
+	title = strings.TrimSpace(title)
+	if title == "" || strings.Contains(title, "\n") {
+		return orcapi.Drive{}, util.HttpErr(http.StatusBadRequest, "invalid title specified")
+	}
+
 	p := item.Product
 	if !featureSupported(driveType, p, driveManagement) {
 		return orcapi.Drive{}, featureNotSupportedError
 	}
 
-	info := &driveInfo{Title: item.Title}
+	info := &driveInfo{Title: title}
 	return ResourceCreateThroughProvider(actor, driveType, p, info, orcapi.DrivesProviderCreate)
 }
 
