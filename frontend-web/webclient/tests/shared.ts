@@ -1,4 +1,4 @@
-import {expect, type Page} from "@playwright/test";
+import {type Page} from "@playwright/test";
 
 // Note(Jonas): If it complains that it doesn"t exist, create it.
 import {default as data} from "./test_data.json" with {type: "json"};
@@ -53,15 +53,6 @@ export const Rows = {
         }
         await locator[action]();
     },
-
-    async rename(page: Page, oldName: string, newName: string): Promise<void> {
-        await NetworkCalls.awaitResponse(page, "**/api/files/move", async () => {
-            await Rows.actionByRowTitle(page, oldName, "click");
-            await page.getByText("Rename").click();
-            await page.getByRole("textbox").nth(1).fill(newName);
-            await page.getByRole("textbox").nth(1).press("Enter");
-        });
-    }
 };
 
 export const File = {
@@ -76,6 +67,12 @@ export const File = {
 
     newFolderName(): string {
         return Help.newResourceName("FolderName");
+    },
+
+    async rename(page: Page, oldName: string, newName: string): Promise<void> {
+        await NetworkCalls.awaitResponse(page, "**/api/files/move", async () => {
+            await _move(page, oldName, newName);
+        });
     },
 
     async create(page: Page, name: string): Promise<void> {
@@ -187,6 +184,12 @@ export const Drive = {
     async goToDrives(page: Page): Promise<void> {
         await page.getByRole("link", {name: "Go to Files"}).click();
         await Components.projectSwitcher(page, "hover");
+    },
+
+    async rename(page: Page, oldName: string, newName: string): Promise<void> {
+        await NetworkCalls.awaitResponse(page, "**/api/files/collections/rename", async () => {
+            await _move(page, oldName, newName);
+        });
     },
 
     async openDrive(page: Page, name: string): Promise<void> {
@@ -434,10 +437,15 @@ export const Resources = {
 
     IPs: {
         async createNew(page: Page): Promise<void> {
-            await NetworkCalls.awaitProducts(page, async () => {
-                await Resources.goTo(page, "IP addresses");
-                await page.getByText("Create public IP").click();
-            });
+            const promises = [
+                NetworkCalls.awaitProducts(page, async () => {}),
+                NetworkCalls.awaitResponse(page, "**/api/networkips/browse*", async () => {})
+            ];
+            await Resources.goTo(page, "IP addresses");
+            await Promise.all(promises);
+
+
+            await page.getByText("Create public IP").click();
 
             await page.getByRole("dialog").getByText("public-ip").hover();
             await this.fillPortRowInDialog(page);
@@ -512,4 +520,11 @@ export const NetworkCalls = {
     async awaitProducts(page: Page, block: () => Promise<void>) {
         await NetworkCalls.awaitResponse(page, "**/retrieveProducts?*", block)
     }
+}
+
+async function _move(page: Page, oldName: string, newName: string) {
+    await Rows.actionByRowTitle(page, oldName, "click");
+    await page.getByText("Rename").click();
+    await page.getByRole("textbox").nth(1).fill(newName);
+    await page.getByRole("textbox").nth(1).press("Enter");
 }

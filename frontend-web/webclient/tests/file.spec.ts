@@ -27,7 +27,7 @@ test.skip('Change sensitivity (with available resources)', async ({page}) => {
     await File.create(page, folderName);
     await Components.clickRefreshAndWait(page);
     await Rows.actionByRowTitle(page, folderName, "click");
-    await page.locator('div:nth-child(6)').first().click();
+    await page.locator("div.operation.in-header").last().click();
     await page.getByText('Change sensitivity').click();
     // TODO(Jonas): Ensure NO confidential is present (or ensure that specific one has? If they happen simultaniously, more than one could be)
     await page.locator('#sensitivityDialogValue').selectOption('CONFIDENTIAL');
@@ -54,7 +54,7 @@ test("View properties", async ({page}) => {
     const folderName = File.newFolderName();
     await File.create(page, folderName);
     await Rows.actionByRowTitle(page, folderName, "click");
-    await page.locator("div:nth-child(6)").first().click();
+    await page.locator("div.operation.in-header").last().click();
     await page.getByText("Properties").click();
 
     await expect(page.locator("b").filter({hasText: "Path"})).toHaveCount(1);
