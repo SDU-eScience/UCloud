@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	"ucloud.dk/launcher/pkg/termio"
 )
 
@@ -41,9 +42,7 @@ func (lf LocalFile) Child(subPath string, isDir bool) LFile {
 	if isDir {
 		err := os.MkdirAll(filepath.Join(lf.path, subPath), 0755)
 		HardCheck(err)
-		file, err := os.Open(filepath.Join(lf.path, subPath))
-		HardCheck(err)
-		return NewLocalFile(file.Name())
+		return NewLocalFile(filepath.Join(lf.path, subPath))
 	} else {
 		file, err := os.OpenFile(filepath.Join(lf.path, subPath), os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
 		HardCheck(err)

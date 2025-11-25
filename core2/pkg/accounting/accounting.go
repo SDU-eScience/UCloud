@@ -209,6 +209,8 @@ func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, 
 		util.OptNone[accGrantId](),
 	)
 
+	internalCommitAllocation(bucket, id)
+
 	return fmt.Sprint(id), err
 }
 
