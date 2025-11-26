@@ -218,15 +218,41 @@ func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, 
 
 func UpdateAllocation(actor rpc.Actor, requests []accapi.UpdateAllocationRequest) (util.Empty, *util.HttpError) {
 	for _, request := range requests {
+		if !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "You need admin privileges in your project to perform this action")
+		}
+
 		bucket, _, ok := internalWalletByAllocationId(accAllocId(request.AllocationId))
 		// If wallet cannot be found just skip
 		if !ok {
 			continue
 		}
-		err := internalUpdateAllocation(actor, time.Now(), bucket, accAllocId(request.AllocationId), request.NewQuota, request.NewStart, request.NewEnd)
+
+		reference := actor.Username
+		if actor.Project.Present {
+			reference = string(actor.Project.Value)
+		}
+		iOwner := internalOwnerByReference(reference)
+
+		grantedIn, comment, err := internalUpdateAllocation(iOwner, time.Now(), bucket, accAllocId(request.AllocationId), request.NewQuota, request.NewStart, request.NewEnd)
+
 		// If update failed will break the update
 		if err != nil {
 			return util.Empty{}, err
+		}
+
+		if grantedIn != accGrantId(0) {
+			_, commentErr := GrantsPostComment(
+				actor,
+				accapi.GrantsPostCommentRequest{
+					ApplicationId: fmt.Sprint(grantedIn),
+					Comment:       comment,
+				},
+			)
+			if commentErr != nil {
+				// Should not fail the update that we cannot post a comment
+				log.Warn("Error posting comment: %s", err)
+			}
 		}
 	}
 	return util.Empty{}, nil

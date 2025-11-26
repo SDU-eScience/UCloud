@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -391,48 +390,48 @@ func internalCommitAllocation(b *internalBucket, allocId accAllocId) {
 	b.Mu.Unlock()
 }
 
-func internalUpdateAllocation(actor rpc.Actor, now time.Time, b *internalBucket, allocationId accAllocId, newQuota util.Option[int64], newStart util.Option[fndapi.Timestamp], newEnd util.Option[fndapi.Timestamp]) *util.HttpError {
+func lValidateUpdate(now time.Time, alloc *internalAllocation, newQuota util.Option[int64], proposedNewStart time.Time, proposedNewEnd time.Time) (bool, *util.HttpError) {
+	if alloc.Retired {
+		return false, util.HttpErr(http.StatusForbidden, "You cannot update a retired allocation, it has already expired!")
+	}
+	if alloc.Start.Before(now) && !alloc.Start.Equal(proposedNewStart) {
+		return false, util.HttpErr(http.StatusForbidden, "You cannot change the starting time of an allocation which has already started")
+	}
+	if proposedNewStart.After(proposedNewEnd) {
+		return false, util.HttpErr(http.StatusForbidden, "This update would make the allocation invalid. An allocation cannot start after it has ended.")
+	}
+	if newQuota.Present && newQuota.Value < 0 {
+		return false, util.HttpErr(http.StatusForbidden, "You cannot set a negative quota for an allocation (%d)", newQuota.Value)
+	}
+	return true, nil
+}
+
+// internalUpdateAllocation Updates an allocation and returns the grantId and the changelog. This can be used
+// to notify the wallet owner about changes by commenting on the related grant if possible.
+func internalUpdateAllocation(parentOwner *internalOwner, now time.Time, b *internalBucket, allocationId accAllocId, newQuota util.Option[int64], newStart util.Option[fndapi.Timestamp], newEnd util.Option[fndapi.Timestamp]) (accGrantId, string, *util.HttpError) {
+
+	var iAlloc *internalAllocation
+	var iWallet *internalWallet
+	var iParent *internalWallet
+	grantedIn := accGrantId(0)
+	changelog := ""
+
 	b.Mu.Lock()
-	defer b.Mu.Unlock()
 
-	actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin)
-	reference := actor.Username
-	if actor.Project.Present {
-		reference = string(actor.Project.Value)
+	iAlloc = b.AllocationsById[allocationId]
+	if iAlloc == nil || iAlloc.Parent == internalGraphRoot {
+		b.Mu.Unlock()
+		return grantedIn, changelog, util.HttpErr(http.StatusNotFound, "Unknown allocation or bad Parent")
 	}
-	iOwnerByActor := internalOwnerByReference(reference)
-
-	if iOwnerByActor == nil {
-		return util.HttpErr(http.StatusNotFound, "Unknown owner")
-	}
-	iAlloc, ok := b.AllocationsById[allocationId]
-	if !ok {
-		return util.HttpErr(http.StatusNotFound, "Unknown allocation")
-	}
-	iWallet, ok := b.WalletsById[iAlloc.BelongsTo]
-	if !ok {
-		return util.HttpErr(http.StatusNotFound, "Unknown wallet (bad internal state?)")
-	}
-	iAllocGroup, ok := iWallet.AllocationsByParent[iAlloc.Parent]
-	if !ok {
-		return util.HttpErr(http.StatusNotFound, "Unknown allocation group (bad internal state?)")
-	}
+	iWallet = b.WalletsById[iAlloc.BelongsTo]
+	iParent = b.WalletsById[iAlloc.Parent]
 
 	// Check if you have granted the allocation
-	iParent, ok := b.WalletsById[iAlloc.Parent]
-	if !ok {
-		return util.HttpErr(http.StatusNotFound, "Parent unknown")
-	}
-	if iParent.OwnedBy != iOwnerByActor.Id {
-		return util.HttpErr(http.StatusForbidden, "You are not allowed to modify this allocation")
+	if iParent == nil || iParent.OwnedBy != parentOwner.Id {
+		b.Mu.Unlock()
+		return grantedIn, changelog, util.HttpErr(http.StatusForbidden, "You are not allowed to modify this allocation")
 	}
 
-	if iAlloc.Retired {
-		return util.HttpErr(http.StatusForbidden, "You cannot update a retired allocation, it has already expired!")
-	}
-	if iAlloc.Start.Before(now) && newStart.Present {
-		return util.HttpErr(http.StatusForbidden, "You cannot change the starting time of an allocation which has already started")
-	}
 	proposedNewStart := iAlloc.Start
 	if newStart.Present {
 		proposedNewStart = newStart.Value.Time()
@@ -441,24 +440,25 @@ func internalUpdateAllocation(actor rpc.Actor, now time.Time, b *internalBucket,
 	if newEnd.Present {
 		proposedNewEnd = newEnd.Value.Time()
 	}
-	if proposedNewStart.After(proposedNewEnd) {
-		return util.HttpErr(http.StatusForbidden, "This update would make the allocation invalid. An allocation cannot start after it has ended.")
-	}
-	if newQuota.Present && newQuota.Value < 0 {
-		errorMessage := fmt.Sprintf("You cannot set a negative quota for an allocation (%d)", newQuota.Value)
-		return util.HttpErr(http.StatusForbidden, errorMessage)
-	}
 
 	proposedNewQuota := iAlloc.Quota
 	if newQuota.Present {
+		iAllocGroup, _ := iWallet.AllocationsByParent[iAlloc.Parent]
 		proposedNewQuota = newQuota.Value
 		delta := newQuota.Value - iAlloc.Quota
 		activeQuota := lInternalGroupTotalQuotaFromActiveAllocations(b, iAllocGroup)
 		activeUsage := iAllocGroup.TreeUsage
 
 		if activeQuota+delta < activeUsage {
-			return util.HttpErr(http.StatusForbidden, "You cannot decrease the quota below the current usage!")
+			b.Mu.Unlock()
+			return grantedIn, changelog, util.HttpErr(http.StatusForbidden, "You cannot decrease the quota below the current usage!")
 		}
+	}
+
+	valid, errorResponse := lValidateUpdate(now, iAlloc, newQuota, proposedNewStart, proposedNewEnd)
+	if !valid {
+		b.Mu.Unlock()
+		return grantedIn, changelog, errorResponse
 	}
 
 	iAlloc.Dirty = true
@@ -466,15 +466,23 @@ func internalUpdateAllocation(actor rpc.Actor, now time.Time, b *internalBucket,
 	iAlloc.End = proposedNewEnd
 	iAlloc.Quota = proposedNewQuota
 
-	lInternalMarkSignificantUpdate(b, now, iWallet)
+	lInternalAttemptActivation(b, now, iAlloc)
+	lInternalAttemptRetirement(b, now, iAlloc)
 	lInternalReevaluate(b, now, iWallet, true)
 
+	category := b.Category
 	if iAlloc.GrantedIn.Present {
-		comment := ""
+		grantedIn = iAlloc.GrantedIn.Value
+	}
+	
+	b.Mu.Unlock()
+
+	if grantedIn != accGrantId(0) {
 		if newQuota.Present {
 			amount := int64(0)
-			// Converting to core hours in case of minutes or day
-			switch b.Category.AccountingFrequency {
+			// Converting to readable format instead of raw format
+
+			switch category.AccountingFrequency {
 			case accapi.AccountingFrequencyOnce:
 				amount = proposedNewQuota
 			case accapi.AccountingFrequencyPeriodicMinute:
@@ -484,30 +492,18 @@ func internalUpdateAllocation(actor rpc.Actor, now time.Time, b *internalBucket,
 			case accapi.AccountingFrequencyPeriodicDay:
 				amount = proposedNewQuota * 24
 			default:
-				log.Warn("Invalid accounting frequency passed: '%v'\n", b.Category.AccountingFrequency)
+				log.Warn("Invalid accounting frequency passed: '%v'\n", category.AccountingFrequency)
 			}
-			comment += fmt.Sprint("The Quota for %s (%s) has manually been updated to %s.\n", b.Category.Name, b.Category.Provider, strconv.FormatInt(amount, 10))
+			changelog += fmt.Sprintf("The Quota for %s (%s) has manually been updated to %d.\n", category.Name, category.Provider, amount)
 		}
 		if newStart.Present {
-			comment += fmt.Sprint("The start date for the granted %s (%s) allocation has manually been updated to %s .\n", b.Category.Name, b.Category.Provider, proposedNewStart.String())
+			changelog += fmt.Sprintf("The start date for the granted %s (%s) allocation has manually been updated to %s.\n", category.Name, category.Provider, proposedNewStart.String())
 		}
 		if newEnd.Present {
-			comment += fmt.Sprint("The end date for the granted %s (%s) allocation has manually been updated to %s .\n", b.Category.Name, b.Category.Provider, proposedNewEnd.String())
-		}
-
-		_, err := GrantsPostComment(
-			actor,
-			accapi.GrantsPostCommentRequest{
-				ApplicationId: fmt.Sprint(iAlloc.GrantedIn.Value),
-				Comment:       comment,
-			},
-		)
-		if err != nil {
-			// Should not fail the update that we cannot post a comment
-			log.Warn("Error posting comment: %s", err)
+			changelog += fmt.Sprintf("The end date for the granted %s (%s) allocation has manually been updated to %s.\n", category.Name, category.Provider, proposedNewEnd.String())
 		}
 	}
-	return nil
+	return grantedIn, changelog, nil
 }
 
 func internalCompleteScan(now time.Time, persistence func(buckets []*internalBucket, scopes []*scopedUsage, onPersistHandlers []internalOnPersistHandler)) {
