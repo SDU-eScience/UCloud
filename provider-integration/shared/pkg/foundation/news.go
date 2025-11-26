@@ -1,6 +1,9 @@
 package foundation
 
 import (
+	"fmt"
+	"net/http"
+
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -60,8 +63,17 @@ const NewsContext = "news"
 var NewsAddPost = rpc.Call[NewPostRequest, util.Empty]{
 	BaseContext: NewsContext,
 	Operation:   "post",
-	Convention:  rpc.ConventionUpdate,
+	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesAdmin,
+
+	CustomMethod: http.MethodPut,
+	CustomPath:   fmt.Sprintf("/api/%s/post", NewsContext),
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (NewPostRequest, *util.HttpError) {
+		return rpc.ParseRequestFromBody[NewPostRequest](w, r)
+	},
+	CustomClientHandler: func(self *rpc.Call[NewPostRequest, util.Empty], client *rpc.Client, request NewPostRequest) (util.Empty, *util.HttpError) {
+		panic("Cannot add news post via client")
+	},
 }
 
 var NewsUpdatePost = rpc.Call[UpdatePostRequest, util.Empty]{
