@@ -129,8 +129,12 @@ export const File = {
 
     async copyFileInPlace(page: Page, folderName: string): Promise<void> {
         await this.openOperationsDropsdown(page, folderName);
-        await page.getByText("Copy to...").click();
-        await page.getByText("Use this folder").first().click();
+        await NetworkCalls.awaitResponse(page, "**/api/files/browse?path=**", async () => {
+            await page.getByText("Copy to...").click();
+        })
+        await NetworkCalls.awaitResponse(page, "**/api/files/copy", async () => {
+            await page.getByText("Use this folder").first().click();
+        });
         while (await page.getByRole("dialog").isVisible());
     },
 
@@ -182,12 +186,16 @@ export const Drive = {
     },
 
     async goToDrives(page: Page): Promise<void> {
-        await page.getByRole("link", {name: "Go to Files"}).click();
-        await Components.projectSwitcher(page, "hover");
+        if (page.url().endsWith("/app/drives")) return;
+        await NetworkCalls.awaitResponse(page, "**/api/files/collections/browse**", async () => {
+            await page.getByRole("link", {name: "Go to Files"}).click();
+            await Components.projectSwitcher(page, "hover");
+        });
     },
 
     async rename(page: Page, oldName: string, newName: string): Promise<void> {
         await NetworkCalls.awaitResponse(page, "**/api/files/collections/rename", async () => {
+            await this.actionByRowTitle(page, oldName, "click");
             await _move(page, oldName, newName);
         });
     },
@@ -196,15 +204,20 @@ export const Drive = {
         if (!page.url().includes("/app/drives")) {
             await this.goToDrives(page);
         }
-        await this.actionByRowTitle(page, name, "dblclick");
-        await Components.projectSwitcher(page, "hover")
+
+        await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
+            await this.actionByRowTitle(page, name, "dblclick");
+            await Components.projectSwitcher(page, "hover")
+        })
     },
 
     async create(page: Page, name: string): Promise<void> {
         await this.goToDrives(page);
-        await page.locator('div[data-disabled="false"]', {hasText: "Create drive"}).click();
-        await page.getByRole("textbox", {name: "Choose a name"}).fill(name);
-        await page.getByRole("button", {name: "Create", disabled: false}).click();
+        await NetworkCalls.awaitResponse(page, "**/api/files/collections", async () => {
+            await page.locator('div[data-disabled="false"]', {hasText: "Create drive"}).click();
+            await page.getByRole("textbox", {name: "Choose a name"}).fill(name);
+            await page.getByRole("button", {name: "Create", disabled: false}).click();
+        })
     },
 
     async delete(page: Page, name: string): Promise<void> {
