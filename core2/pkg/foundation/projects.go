@@ -15,6 +15,7 @@ import (
 	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -1558,6 +1559,7 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 			Recipient: recipient,
 		}
 	}
+	projectTitle := info.Project.Specification.Title
 	info.Mu.Unlock()
 
 	if !alreadyInvited && !alreadyAMember {
@@ -1581,6 +1583,19 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 				},
 			)
 		})
+
+		_, err = fndapi.NotificationsCreate.Invoke(fndapi.NotificationsCreateRequest{
+			User: recipient,
+			Notification: fndapi.Notification{
+				Type:    "PROJECT_INVITE",
+				Message: fmt.Sprintf("You have been inviteted to join %q by %s", projectTitle, actor.Username),
+			},
+		})
+
+		if err != nil {
+			log.Info("Could not send notification to user %s: %s", recipient, err)
+		}
+
 		return nil
 	} else if alreadyInvited {
 		return util.HttpErr(http.StatusConflict, "this user has already been invited to the project")
