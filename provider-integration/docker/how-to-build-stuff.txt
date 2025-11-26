@@ -1,0 +1,16 @@
+Some notes, I haven't updated any of the scripts. We probably cannot do super reliable cross compilation and might
+need to do compilation per platform.
+
+In that case, something along the lines of this will do it:
+
+docker build \
+    --push \
+    --tag dreg.cloud.sdu.dk/ucloud-dev/integration-module-amd64:2025.4.127 \
+    .
+docker buildx imagetools create -t dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.4.127 \
+    dreg.cloud.sdu.dk/ucloud-dev/integration-module-amd64:2025.4.127 \
+    dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.4.125
+
+The idea is that we build a different image (with the arch being in the image name).
+
+Repeat for all platforms that need it.
