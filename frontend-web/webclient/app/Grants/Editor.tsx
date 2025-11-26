@@ -1789,7 +1789,7 @@ export function Editor(): React.ReactNode {
                                     </Button>
                                 }
 
-                                {state.stateDuringEdit && (overallState === Grants.State.IN_PROGRESS || isClosed) && <>
+                                {state.stateDuringEdit && (overallState === Grants.State.IN_PROGRESS || overallState === Grants.State.APPROVED) && <>
                                     {state.locked && <Button onClick={onUnlock}>Edit this request</Button>}
                                     {!state.locked && <>
                                         {!isGrantGiverInitiated &&
