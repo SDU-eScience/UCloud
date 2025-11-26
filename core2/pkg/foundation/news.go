@@ -58,6 +58,13 @@ func initNews() {
 	fndapi.NewsGetPostById.Handler(func(info rpc.RequestInfo, request fndapi.GetPostByIdRequest) (fndapi.NewsPost, *util.HttpError) {
 		return NewsRetrieve(request.Id)
 	})
+
+	fndapi.NewsListDowntimes.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.Page[fndapi.NewsPost], *util.HttpError) {
+		return NewsBrowsePosts(fndapi.ListPostsRequest{
+			Filter:       util.OptValue("downtime"),
+			ItemsPerPage: 10,
+		})
+	})
 }
 
 // Core types and helpers

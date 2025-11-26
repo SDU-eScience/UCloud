@@ -111,7 +111,7 @@ var NewsListPosts = rpc.Call[ListPostsRequest, Page[NewsPost]]{
 	Roles:       rpc.RolesPublic,
 }
 
-var NewsListDowntimes = rpc.Call[ListPostsRequest, Page[NewsPost]]{
+var NewsListDowntimes = rpc.Call[util.Empty, Page[NewsPost]]{
 	BaseContext: NewsContext,
 	Operation:   "listDowntimes",
 	Convention:  rpc.ConventionQueryParameters,
