@@ -86,8 +86,10 @@ func initNotifications() {
 		return util.Empty{}, nil
 	})
 
-	fndapi.NotificationsRetrieveSettings.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.NotificationSettings, *util.HttpError) {
-		return NotificationsRetrieveSettings(info.Actor), nil
+	fndapi.NotificationsRetrieveSettings.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.NotificationsRetrieveSettingsResponse, *util.HttpError) {
+		return fndapi.NotificationsRetrieveSettingsResponse{
+			Settings: NotificationsRetrieveSettings(info.Actor),
+		}, nil
 	})
 
 	fndapi.NotificationsUpdateSettings.Handler(func(info rpc.RequestInfo, request fndapi.NotificationSettings) (util.Empty, *util.HttpError) {
