@@ -198,6 +198,13 @@ func NotificationsCreate(notifications []fndapi.NotificationsCreateRequest) {
 		var idPromises []*util.Option[struct{ Id int64 }]
 		b := db.BatchNew(tx)
 		for _, reqItem := range notifications {
+			if reqItem.Notification.Type == "JOB_STARTED" || reqItem.Notification.Type == "JOB_COMPLETED" {
+				settings := notificationsRetrieveSettings(tx, reqItem.User)
+				if !settings.JobStarted || !settings.JobStopped {
+					continue
+				}
+			}
+
 			meta := util.OptNone[string]()
 			if reqItem.Notification.Meta.Present {
 				meta.Set(string(reqItem.Notification.Meta.Value))
@@ -346,27 +353,31 @@ func notificationNotify(username string, notification fndapi.Notification) {
 // Notification settings
 // =====================================================================================================================
 
+func notificationsRetrieveSettings(tx *db.Transaction, username string) fndapi.NotificationSettings {
+	row, ok := db.Get[struct{ Settings string }](
+		tx,
+		`select settings from notification.notification_settings where username = :username`,
+		db.Params{
+			"username": username,
+		},
+	)
+
+	if !ok {
+		return fndapi.DefaultNotificationSettings()
+	}
+
+	var result fndapi.NotificationSettings
+	err := json.Unmarshal([]byte(row.Settings), &result)
+	if err != nil {
+		return fndapi.DefaultNotificationSettings()
+	} else {
+		return result
+	}
+}
+
 func NotificationsRetrieveSettings(actor rpc.Actor) fndapi.NotificationSettings {
 	return db.NewTx(func(tx *db.Transaction) fndapi.NotificationSettings {
-		row, ok := db.Get[struct{ Settings string }](
-			tx,
-			`select settings from notification.notification_settings where username = :username`,
-			db.Params{
-				"username": actor.Username,
-			},
-		)
-
-		if !ok {
-			return fndapi.DefaultNotificationSettings()
-		}
-
-		var result fndapi.NotificationSettings
-		err := json.Unmarshal([]byte(row.Settings), &result)
-		if err != nil {
-			return fndapi.DefaultNotificationSettings()
-		} else {
-			return result
-		}
+		return notificationsRetrieveSettings(tx, actor.Username)
 	})
 }
 
