@@ -341,7 +341,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     recipient: action.grant.currentRevision.document.recipient,
                     recipientInfo: {
                         piUsername: action.grant.status.projectPI,
-                        workspaceTitle: action.grant.status.projectTitle ?? "Personal workspace",
+                        workspaceTitle: action.grant.status.projectTitle ?? "Personal workspace of " + action.grant.createdBy,
                     },
                     comments: action.grant.status.comments,
                     revisions: action.grant.status.revisions.map(rev => ({
@@ -807,7 +807,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         const normalizedStart = (startDate.getUTCFullYear() * 12) + (startDate.getUTCMonth() + 1);
         const normalizedEnd = (endDate.getUTCFullYear() * 12) + (endDate.getUTCMonth() + 1);
 
-        const projectPi = state.stateDuringEdit.recipientInfo.piUsername;
+        let projectPi = state.stateDuringEdit.recipientInfo.piUsername;
+        if (projectPi === "") {
+            projectPi = state.stateDuringEdit.storedApplication?.createdBy ?? "";
+        }
         let recipientName: string;
         switch (doc.recipient.type) {
             case "existingProject": {
@@ -1847,7 +1850,7 @@ export function Editor(): React.ReactNode {
                                 </>}
                             >
                                 <label>
-                                    Principal investigator (PI)
+                                    Application submitted by
                                     <Input id={FormIds.pi} height="42px" disabled value={state.principalInvestigator} />
                                 </label>
 
