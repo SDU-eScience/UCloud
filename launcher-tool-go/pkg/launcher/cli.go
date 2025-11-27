@@ -303,6 +303,9 @@ func (u *UserTokens) SetupUserWithResources() {
 		connectionResult := CallService("backend", "POST", "http://localhost:8080/api/providers/integration/connect", u.AccessToken, fmt.Sprintf(`{provider: "%s"}`, getProviderId()), []string{})
 		panicOnResponseError(connectionResult)
 		claimGifts(u.AccessToken, giftId)
+
+		disableNotificationsResult := CallService("backend", "POST", "http://localhost:8080/api/notifications/settings", u.AccessToken, `{"jobStarted":false,"jobStopped":false}`, []string{})
+		panicOnResponseError(disableNotificationsResult)
 	}
 }
 

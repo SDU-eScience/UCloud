@@ -33,17 +33,16 @@ export function ucloudUrl(pathname: string): string {
 };
 
 export const Rows = {
-    async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover", inModal: boolean = false): Promise<void> {
+    async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover"): Promise<void> {
         let iterations = 1000;
-        for (let i = 0; i < 10; i++) {
-            await page.locator(".scrolling").hover();
+        await page.locator(".scrolling").hover();
+        for (let i = 0; i < 50; i++) {
             await page.mouse.wheel(0, -5000);
         }
 
         const locator = page.locator(".row div > span", {hasText: name});
 
         while (!await locator.isVisible()) {
-            await page.locator(".scrolling").hover();
             await page.mouse.wheel(0, 150);
             iterations -= 1;
             if (iterations <= 0) {
@@ -139,14 +138,17 @@ export const File = {
     },
 
     async moveFileToTrash(page: Page, fileName: string): Promise<void> {
-        await this.openOperationsDropsdown(page, fileName);
-        await Components.clickConfirmationButton(page, "Move to trash");
-
+        await NetworkCalls.awaitResponse(page, "**/api/files/trash", async () => {
+            await this.openOperationsDropsdown(page, fileName);
+            await Components.clickConfirmationButton(page, "Move to trash");
+        });
     },
 
     async emptyTrash(page: Page): Promise<void> {
-        await page.getByText("Empty Trash").click();
-        await page.getByRole("button", {name: "Empty trash"}).click();
+        await NetworkCalls.awaitResponse(page, "**/api/files/emptyTrash", async () => {
+            await page.getByText("Empty Trash").click();
+            await page.getByRole("button", {name: "Empty trash"}).click();
+        });
     },
 
     async searchFor(page: Page, query: string): Promise<void> {
@@ -156,9 +158,11 @@ export const File = {
     },
 
     async toggleFavorite(page: Page, name: string): Promise<void> {
-        await this.actionByRowTitle(page, name, "hover");
-        // TODO(Jonas): This will click the first favorited rows icon, not necessarily the one we want.
-        await page.getByRole('img', {name: 'Star', includeHidden: false}).first().click();
+        await NetworkCalls.awaitResponse(page, "**/api/files/metadata", async () => {
+            await this.actionByRowTitle(page, name, "hover");
+            // TODO(Jonas): This will click the first favorited rows icon, not necessarily the one we want.
+            await page.getByRole('img', {name: 'Star', includeHidden: false}).first().click();
+        })
     },
 
     async ensureDialogDriveActive(page: Page, driveName: string): Promise<void> {
@@ -174,8 +178,9 @@ export const File = {
 
         // if not matches, click
         await page.getByRole("dialog").locator("div.drive-icon-dropdown").click();
-        await page.getByText(driveName).click();
-        await page.getByRole("dialog").isHidden();
+        await NetworkCalls.awaitResponse(page, "**/api/files/browse?**", async () => {
+            await page.getByText(driveName).last().click();
+        });
     }
 };
 
@@ -341,14 +346,18 @@ export const Runs = {
     },
 
     async goToRuns(page: Page): Promise<void> {
-        await page.getByRole("link", {name: "Go to Runs"}).click();
+        await NetworkCalls.awaitResponse(page, "**/api/jobs/browse**", async () => {
+            await page.getByRole("link", {name: "Go to Runs"}).click();
+        })
     },
 
     async runApplicationAgain(page: Page, jobName: string): Promise<void> {
         await Runs.goToRuns(page);
-        await Components.projectSwitcher(page, "hover");
-        await Applications.actionByRowTitle(page, jobName, "click");
-        await page.getByText("Run application again").click();
+        await NetworkCalls.awaitResponse(page, "**/api/jobs/retrieve?id=**", async () => {
+            await Components.projectSwitcher(page, "hover");
+            await Applications.actionByRowTitle(page, jobName, "click");
+            await page.getByText("Run application again").click();
+        })
         await Runs.submitAndWaitForRunning(page);
     },
 
@@ -367,8 +376,9 @@ export const Runs = {
 
     async addFolderResource(page: Page, driveName: string, folderName: string): Promise<void> {
         await page.getByRole("button", {name: "Add folder"}).click();
-        await page.getByRole("textbox", {name: "No directory selected"}).click();
-
+        await NetworkCalls.awaitResponse(page, "**/api/files/browse?**", async () => {
+            await page.getByRole("textbox", {name: "No directory selected"}).click();
+        })
         await File.ensureDialogDriveActive(page, driveName);
         await page.getByRole("dialog").locator(".row", {hasText: folderName}).getByRole("button", {name: "Use"}).click();
     },
@@ -390,6 +400,7 @@ export const Runs = {
     },
 
     async openTerminal(page: Page): Promise<Page> {
+        while (await page.locator("div[class^=notification]").isVisible());
         const terminalPagePromise = page.waitForEvent("popup");
         await page.getByRole("button", {name: "Open terminal"}).click();
         const terminalPage = await terminalPagePromise;
@@ -525,9 +536,7 @@ const Help = {
 
 export const NetworkCalls = {
     async awaitResponse(page: Page, path: string, block: () => Promise<void>) {
-        const prom = page.waitForResponse(path);
-        await block();
-        await prom;
+        await Promise.all([page.waitForResponse(path), block()]);
     },
 
     async awaitProducts(page: Page, block: () => Promise<void>) {
