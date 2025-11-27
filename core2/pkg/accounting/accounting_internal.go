@@ -446,7 +446,7 @@ func internalUpdateAllocation(parentOwner *internalOwner, now time.Time, b *inte
 		iAllocGroup, _ := iWallet.AllocationsByParent[iAlloc.Parent]
 		proposedNewQuota = newQuota.Value
 		delta := newQuota.Value - iAlloc.Quota
-		activeQuota := lInternalGroupTotalQuotaFromActiveAllocations(b, iAllocGroup)
+		activeQuota := lInternalGroupTotalQuotaContributing(b, iAllocGroup)
 		activeUsage := iAllocGroup.TreeUsage
 
 		if activeQuota+delta < activeUsage {
@@ -474,7 +474,7 @@ func internalUpdateAllocation(parentOwner *internalOwner, now time.Time, b *inte
 	if iAlloc.GrantedIn.Present {
 		grantedIn = iAlloc.GrantedIn.Value
 	}
-	
+
 	b.Mu.Unlock()
 
 	if grantedIn != accGrantId(0) {
