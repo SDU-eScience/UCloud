@@ -268,182 +268,183 @@ func initUsageReports() {
 		for _, snapshot := range snapshots {
 			g.Snapshots[snapshot.Id] = snapshot
 		}
-	}
 
-	accapi.UsageRetrieve.Handler(func(info rpc.RequestInfo, request accapi.UsageRetrieveRequest) (accapi.UsageRetrieveResponse, *util.HttpError) {
-		now := time.Now()
-		reference := string(info.Actor.Project.Value)
-		if !info.Actor.Project.Present {
-			reference = info.Actor.Username
-		}
-
-		owner := internalOwnerByReference(reference)
-		wallets := internalRetrieveWallets(now, reference, walletFilter{
-			RequireActive: false,
-		})
-
-		type aggregatedReport struct {
-			Reports          []internalUsageReport
-			Title            string
-			UnitAndFrequency accapi.AccountingUnitAndFrequency
-			Products         []accapi.ProductCategoryIdV2
-		}
-
-		computeReportsByUnit := map[string]*aggregatedReport{}
-		storageReportsTimeBased := &aggregatedReport{}
-		storageReportsCapacity := &aggregatedReport{}
-
-		var reports []accapi.UsageReport
-		for _, w := range wallets {
-			productType := w.PaysFor.ProductType
-			if productType != accapi.ProductTypeCompute && productType != accapi.ProductTypeStorage {
-				continue
+		accapi.UsageRetrieve.Handler(func(info rpc.RequestInfo, request accapi.UsageRetrieveRequest) (accapi.UsageRetrieveResponse, *util.HttpError) {
+			now := time.Now()
+			reference := string(info.Actor.Project.Value)
+			if !info.Actor.Project.Present {
+				reference = info.Actor.Username
 			}
 
-			b := internalBucketOrInit(w.PaysFor)
-			walletId := internalWalletByOwner(b, now, owner.Id)
+			owner := internalOwnerByReference(reference)
+			wallets := internalRetrieveWallets(now, reference, walletFilter{
+				RequireActive: false,
+			})
 
-			startTime := fndapi.TimeFromUnixMilli(request.Start).Time()
-			endTime := fndapi.TimeFromUnixMilli(request.End).Time()
+			type aggregatedReport struct {
+				Reports          []internalUsageReport
+				Title            string
+				UnitAndFrequency accapi.AccountingUnitAndFrequency
+				Products         []accapi.ProductCategoryIdV2
+			}
 
-			historicReports := usageRetrieveHistoricReports(startTime, endTime, walletId)
+			computeReportsByUnit := map[string]*aggregatedReport{}
+			storageReportsTimeBased := &aggregatedReport{}
+			storageReportsCapacity := &aggregatedReport{}
 
-			{
-				// Per-category report
-				// -----------------------------------------------------------------------------------------------------
-				report := usageCollapseReports(historicReports)
-				apiReport := report.ToApi()
-				apiReport.Title = w.PaysFor.Name
-				apiReport.ProductsCovered = []accapi.ProductCategoryIdV2{w.PaysFor.ToId()}
-				apiReport.UnitAndFrequency = accapi.AccountingUnitAndFrequency{
-					Unit:      w.PaysFor.AccountingUnit,
-					Frequency: w.PaysFor.AccountingFrequency,
+			var reports []accapi.UsageReport
+			for _, w := range wallets {
+				productType := w.PaysFor.ProductType
+				if productType != accapi.ProductTypeCompute && productType != accapi.ProductTypeStorage {
+					continue
 				}
+
+				b := internalBucketOrInit(w.PaysFor)
+				walletId := internalWalletByOwner(b, now, owner.Id)
+
+				startTime := fndapi.TimeFromUnixMilli(request.Start).Time()
+				endTime := fndapi.TimeFromUnixMilli(request.End).Time()
+
+				historicReports := usageRetrieveHistoricReports(startTime, endTime, walletId)
+
+				{
+					// Per-category report
+					// -----------------------------------------------------------------------------------------------------
+					report := usageCollapseReports(historicReports)
+					apiReport := report.ToApi()
+					apiReport.Title = w.PaysFor.Name
+					apiReport.ProductsCovered = []accapi.ProductCategoryIdV2{w.PaysFor.ToId()}
+					apiReport.UnitAndFrequency = accapi.AccountingUnitAndFrequency{
+						Unit:      w.PaysFor.AccountingUnit,
+						Frequency: w.PaysFor.AccountingFrequency,
+					}
+
+					reports = append(reports, apiReport)
+				}
+
+				{
+					// Unit-aggregated report
+					// -----------------------------------------------------------------------------------------------------
+					// NOTE(Dan): We must not modify the historicReports directly since they might store array data in a
+					// cache. That is, this is only a shallow copy, not a deep copy.
+
+					scalingFactor := 1.0
+					var report *aggregatedReport
+					freq := w.PaysFor.AccountingFrequency
+
+					if productType == accapi.ProductTypeCompute {
+						scalingFactor = float64(freq.ToMinutes()) / 60.0
+
+						if freq.IsPeriodic() {
+							current, ok := computeReportsByUnit[w.PaysFor.AccountingUnit.Name]
+							if !ok {
+								report = &aggregatedReport{
+									Title: fmt.Sprintf("%s-hours", w.PaysFor.AccountingUnit.Name),
+									UnitAndFrequency: accapi.AccountingUnitAndFrequency{
+										Unit:      w.PaysFor.AccountingUnit,
+										Frequency: accapi.AccountingFrequencyPeriodicHour,
+									},
+								}
+								computeReportsByUnit[w.PaysFor.AccountingUnit.Name] = report
+							} else {
+								report = current
+							}
+						} else {
+							report = nil // skip it
+						}
+
+					} else if productType == accapi.ProductTypeStorage {
+						if w.PaysFor.AccountingUnit.Name == "GB" {
+							if freq.IsPeriodic() {
+								scalingFactor = float64(freq.ToMinutes()) / (60.0 * 24.0)
+								report = storageReportsTimeBased
+								report.Title = "GB-days"
+								report.UnitAndFrequency = accapi.AccountingUnitAndFrequency{
+									Unit:      w.PaysFor.AccountingUnit,
+									Frequency: accapi.AccountingFrequencyPeriodicDay,
+								}
+							} else {
+								report = storageReportsCapacity
+								report.Title = "GB"
+								report.UnitAndFrequency = accapi.AccountingUnitAndFrequency{
+									Unit:      w.PaysFor.AccountingUnit,
+									Frequency: accapi.AccountingFrequencyPeriodicDay,
+								}
+							}
+						} else {
+							report = nil // TODO?
+						}
+					}
+
+					// TODO Money units
+
+					rescaleI64 := func(data *int64) {
+						*data = int64(float64(*data) * scalingFactor)
+					}
+
+					if report != nil {
+						report.Products = append(report.Products, w.PaysFor.ToId())
+
+						for _, readOnly := range historicReports {
+							var prev internalUsageReport
+							util.SlowDeepCopy(readOnly, &prev)
+
+							rescaleI64(&prev.Kpis.QuotaAtStart)
+							rescaleI64(&prev.Kpis.ActiveQuotaAtStart)
+							rescaleI64(&prev.Kpis.QuotaAtEnd)
+							rescaleI64(&prev.Kpis.ActiveQuotaAtEnd)
+							rescaleI64(&prev.Kpis.MaxUsableAtStart)
+							rescaleI64(&prev.Kpis.MaxUsableAtEnd)
+							rescaleI64(&prev.Kpis.LocalUsageAtStart)
+							rescaleI64(&prev.Kpis.LocalUsageAtEnd)
+							rescaleI64(&prev.Kpis.TotalUsageAtStart)
+							rescaleI64(&prev.Kpis.TotalUsageAtEnd)
+							rescaleI64(&prev.Kpis.TotalAllocatedAtStart)
+							rescaleI64(&prev.Kpis.TotalAllocatedAtEnd)
+
+							for i := range prev.UsageOverTime.Delta {
+								rescaleI64(&prev.UsageOverTime.Delta[i].Change)
+							}
+
+							for i := range prev.UsageOverTime.Absolute {
+								rescaleI64(&prev.UsageOverTime.Absolute[i].Usage)
+								// TODO Percentage is going to be messed up when we collapse the reports?
+							}
+
+							report.Reports = append(report.Reports, prev)
+						}
+					}
+				}
+			}
+
+			allAggregatedReports := append([]*aggregatedReport{}, storageReportsCapacity, storageReportsTimeBased)
+			for _, report := range computeReportsByUnit {
+				allAggregatedReports = append(allAggregatedReports, report)
+			}
+			for _, report := range allAggregatedReports {
+				if report.Title == "" || len(report.Products) == 0 {
+					continue
+				}
+
+				collapsed := usageCollapseReports(report.Reports)
+				apiReport := collapsed.ToApi()
+				apiReport.Title = report.Title
+				apiReport.ProductsCovered = report.Products
+				apiReport.UnitAndFrequency = report.UnitAndFrequency
 
 				reports = append(reports, apiReport)
 			}
 
-			{
-				// Unit-aggregated report
-				// -----------------------------------------------------------------------------------------------------
-				// NOTE(Dan): We must not modify the historicReports directly since they might store array data in a
-				// cache. That is, this is only a shallow copy, not a deep copy.
-
-				scalingFactor := 1.0
-				var report *aggregatedReport
-				freq := w.PaysFor.AccountingFrequency
-
-				if productType == accapi.ProductTypeCompute {
-					scalingFactor = float64(freq.ToMinutes()) / 60.0
-
-					if freq.IsPeriodic() {
-						current, ok := computeReportsByUnit[w.PaysFor.AccountingUnit.Name]
-						if !ok {
-							report = &aggregatedReport{
-								Title: fmt.Sprintf("%s-hours", w.PaysFor.AccountingUnit.Name),
-								UnitAndFrequency: accapi.AccountingUnitAndFrequency{
-									Unit:      w.PaysFor.AccountingUnit,
-									Frequency: accapi.AccountingFrequencyPeriodicHour,
-								},
-							}
-							computeReportsByUnit[w.PaysFor.AccountingUnit.Name] = report
-						} else {
-							report = current
-						}
-					} else {
-						report = nil // skip it
-					}
-
-				} else if productType == accapi.ProductTypeStorage {
-					if w.PaysFor.AccountingUnit.Name == "GB" {
-						if freq.IsPeriodic() {
-							scalingFactor = float64(freq.ToMinutes()) / (60.0 * 24.0)
-							report = storageReportsTimeBased
-							report.Title = "GB-days"
-							report.UnitAndFrequency = accapi.AccountingUnitAndFrequency{
-								Unit:      w.PaysFor.AccountingUnit,
-								Frequency: accapi.AccountingFrequencyPeriodicDay,
-							}
-						} else {
-							report = storageReportsCapacity
-							report.Title = "GB"
-							report.UnitAndFrequency = accapi.AccountingUnitAndFrequency{
-								Unit:      w.PaysFor.AccountingUnit,
-								Frequency: accapi.AccountingFrequencyPeriodicDay,
-							}
-						}
-					} else {
-						report = nil // TODO?
-					}
-				}
-
-				// TODO Money units
-
-				rescaleI64 := func(data *int64) {
-					*data = int64(float64(*data) * scalingFactor)
-				}
-
-				if report != nil {
-					report.Products = append(report.Products, w.PaysFor.ToId())
-
-					for _, readOnly := range historicReports {
-						var prev internalUsageReport
-						util.SlowDeepCopy(readOnly, &prev)
-
-						rescaleI64(&prev.Kpis.QuotaAtStart)
-						rescaleI64(&prev.Kpis.ActiveQuotaAtStart)
-						rescaleI64(&prev.Kpis.QuotaAtEnd)
-						rescaleI64(&prev.Kpis.ActiveQuotaAtEnd)
-						rescaleI64(&prev.Kpis.MaxUsableAtStart)
-						rescaleI64(&prev.Kpis.MaxUsableAtEnd)
-						rescaleI64(&prev.Kpis.LocalUsageAtStart)
-						rescaleI64(&prev.Kpis.LocalUsageAtEnd)
-						rescaleI64(&prev.Kpis.TotalUsageAtStart)
-						rescaleI64(&prev.Kpis.TotalUsageAtEnd)
-						rescaleI64(&prev.Kpis.TotalAllocatedAtStart)
-						rescaleI64(&prev.Kpis.TotalAllocatedAtEnd)
-
-						for i := range prev.UsageOverTime.Delta {
-							rescaleI64(&prev.UsageOverTime.Delta[i].Change)
-						}
-
-						for i := range prev.UsageOverTime.Absolute {
-							rescaleI64(&prev.UsageOverTime.Absolute[i].Usage)
-							// TODO Percentage is going to be messed up when we collapse the reports?
-						}
-
-						report.Reports = append(report.Reports, prev)
-					}
-				}
-			}
-		}
-
-		allAggregatedReports := append([]*aggregatedReport{}, storageReportsCapacity, storageReportsCapacity)
-		for _, report := range computeReportsByUnit {
-			allAggregatedReports = append(allAggregatedReports, report)
-		}
-		for _, report := range allAggregatedReports {
-			if report.Title == "" || len(report.Products) == 0 {
-				continue
-			}
-
-			collapsed := usageCollapseReports(report.Reports)
-			apiReport := collapsed.ToApi()
-			apiReport.Title = report.Title
-			apiReport.ProductsCovered = report.Products
-			apiReport.UnitAndFrequency = report.UnitAndFrequency
-
-			reports = append(reports, apiReport)
-		}
-
-		return accapi.UsageRetrieveResponse{Reports: reports}, nil
-	})
+			return accapi.UsageRetrieveResponse{Reports: reports}, nil
+		})
+	}
 }
 
 func usageRetrieveHistoricReports(from time.Time, until time.Time, wallet AccWalletId) []internalUsageReport {
 	// NOTE(Dan, 15/10/2025): Current tests will break in the year 2100, but I will let that be a problem for the
 	// future.
 	now := time.Now()
+	nowTrunc := util.StartOfDayUTC(now)
 	earliestFromTime := now.Add(-100 * 365 * 24 * time.Hour)
 	if from.Before(earliestFromTime) {
 		from = earliestFromTime
@@ -468,7 +469,7 @@ func usageRetrieveHistoricReports(from time.Time, until time.Time, wallet AccWal
 		current = current.AddDate(0, 0, 1)
 	}
 
-	if now == until || until.After(now) {
+	if nowTrunc == until || until.After(nowTrunc) {
 		g := &reportGlobals
 		g.Mu.RLock()
 		currentReport, ok := g.Reports[wallet]
@@ -666,8 +667,12 @@ func usageRetrieveHistoric(now time.Time, wallet AccWalletId) (internalUsageRepo
 
 		if ok {
 			entry := &g.HistoricCache[slot]
-			entry.LastUsedAt.Store(util.Pointer(time.Now()))
-			result = entry.Report
+			if entry.InUse {
+				entry.LastUsedAt.Store(util.Pointer(time.Now()))
+				result = entry.Report
+			} else {
+				ok = false
+			}
 		}
 		g.Mu.RUnlock()
 	}
@@ -814,6 +819,11 @@ func lUsageEvictHistoricCache() {
 		for i := range g.HistoricCache {
 			entry := &g.HistoricCache[i]
 			if entry.InUse && entry.LastUsedAt.Load().Before(evictBefore) {
+				idx, ok := g.HistoricCacheIndex[entry.Report.ValidFrom]
+				if ok {
+					delete(idx, entry.Report.Wallet)
+				}
+
 				entry.InUse = false
 				entry.Report = internalUsageReport{}
 				entry.LastUsedAt.Store(util.Pointer(time.Now()))
@@ -992,7 +1002,7 @@ func lSnapshotWallet(now time.Time, b *internalBucket, w *internalWallet) intern
 			alloc := b.AllocationsById[allocId]
 			if alloc.Active {
 				allocationDuration := alloc.End.Sub(alloc.Start)
-				timeRemaining := max(now.Sub(alloc.End), 0)
+				timeRemaining := max(alloc.End.Sub(now), 0)
 				timeUsed := allocationDuration - timeRemaining
 				timePercentageUsed := float64(timeUsed) / float64(allocationDuration)
 
@@ -1100,7 +1110,7 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 		if prevWallet.LocalUsage != currWallet.LocalUsage || prevWallet.TotalUsage != currWallet.TotalUsage || currWallet.Quota != prevWallet.Quota {
 			utilizationPercent100 := 0.0
 			if currWallet.Quota != 0 {
-				utilizationPercent100 = float64(currWallet.TotalUsage) / float64(currWallet.Quota)
+				utilizationPercent100 = (float64(currWallet.TotalUsage) / float64(currWallet.Quota)) * 100
 			}
 
 			report.UsageOverTime.Absolute = append(report.UsageOverTime.Absolute, internalUsageOverTimeAbsoluteDataPoint{

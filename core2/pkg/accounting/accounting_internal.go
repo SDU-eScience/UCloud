@@ -230,13 +230,13 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 		})
 	}
 
+	b.Mu.Lock()
+	defer b.Mu.Unlock()
+
 	if scope != nil {
 		scope.Mu.Lock()
 		defer scope.Mu.Unlock()
 	}
-
-	b.Mu.Lock()
-	defer b.Mu.Unlock()
 
 	w := lInternalWalletByOwner(b, now, owner.Id)
 
@@ -652,7 +652,7 @@ func internalWalletById(id AccWalletId) (*internalBucket, *internalWallet, bool)
 }
 
 func internalOwnerByReference(reference string) *internalOwner {
-	// TODO Reference must be check by caller
+	// TODO Reference must be checked by caller
 	if reference == "" {
 		log.Fatal("internalOwnerByReference called with an empty reference")
 	}
@@ -912,6 +912,10 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 }
 
 func lInternalReflowExcess(b *internalBucket, now time.Time, wallet *internalWallet) {
+	lInternalReflowExcessEx(b, now, wallet, map[AccWalletId]util.Empty{})
+}
+
+func lInternalReflowExcessEx(b *internalBucket, now time.Time, wallet *internalWallet, handled map[AccWalletId]util.Empty) {
 	// Similar to the re-balance operation, except this function will only attempt to increase usage by looking at the
 	// local excess which is not being propagated.
 	//
@@ -919,9 +923,13 @@ func lInternalReflowExcess(b *internalBucket, now time.Time, wallet *internalWal
 	// this "excess" usage will eventually be propagated back into the system once there is room for it.
 
 	for childId, _ := range wallet.ChildrenUsage {
-		// TODO loops
-		child := b.WalletsById[childId]
-		lInternalReflowExcess(b, now, child)
+		_, hasHandled := handled[childId]
+		if !hasHandled {
+			handled[childId] = util.Empty{}
+
+			child := b.WalletsById[childId]
+			lInternalReflowExcessEx(b, now, child, handled)
+		}
 	}
 
 	if wallet.LocalUsage > 0 {
@@ -940,6 +948,10 @@ func lInternalReflowExcess(b *internalBucket, now time.Time, wallet *internalWal
 }
 
 func lInternalRebalance(b *internalBucket, now time.Time, wallet *internalWallet, deficit util.Option[int64]) {
+	lInternalRebalanceEx(b, now, wallet, deficit, map[AccWalletId]util.Empty{})
+}
+
+func lInternalRebalanceEx(b *internalBucket, now time.Time, wallet *internalWallet, deficit util.Option[int64], handled map[AccWalletId]util.Empty) {
 	// The main purpose of this function is to ensure that retired flows are eventually moved to an active flow. This
 	// operation is _only_ done for capacity-based product categories. For time-based products, this is not done (and
 	// must not be done). Instead, time-based product utilizes a different retirement mechanism which locks usage in
@@ -975,10 +987,13 @@ func lInternalRebalance(b *internalBucket, now time.Time, wallet *internalWallet
 			// NOTE(Dan): We should attempt to rebalance because we are propagating more than we have. We start by
 			// attempting to rebalance each of our children.
 
-			// TODO loops
 			for childId, usage := range wallet.ChildrenUsage {
-				child := b.WalletsById[childId]
-				lInternalRebalance(b, now, child, util.OptValue(min(usage, deficit.Value)))
+				_, hasHandled := handled[childId]
+				if !hasHandled {
+					handled[childId] = util.Empty{}
+					child := b.WalletsById[childId]
+					lInternalRebalanceEx(b, now, child, util.OptValue(min(usage, deficit.Value)), handled)
+				}
 			}
 
 			maxUsable := lInternalMaxUsable(b, now, wallet)
@@ -1019,7 +1034,7 @@ func lInternalReevaluate(b *internalBucket, now time.Time, wallet *internalWalle
 			lInternalMarkSignificantUpdate(b, now, next)
 		}
 
-		for childId, _ := range wallet.ChildrenUsage {
+		for childId, _ := range next.ChildrenUsage {
 			if _, hasVisited := visited[childId]; !hasVisited {
 				child := b.WalletsById[childId]
 				queue = append(queue, child)
@@ -1060,7 +1075,7 @@ func lInternalAttemptRetirement(b *internalBucket, now time.Time, alloc *interna
 		wallet := b.WalletsById[alloc.BelongsTo]
 		group := wallet.AllocationsByParent[alloc.Parent]
 
-		// TODO This value will be wrong if the retired amount was ever reflown
+		// NOTE(Dan): This value will be wrong if the retired amount was ever reflown. This should obviously be avoided.
 		groupRetired := lInternalGroupTotalRetired(b, group)
 		toRetire := min(alloc.Quota, group.TreeUsage-groupRetired)
 		toRetire = max(0, toRetire)
@@ -1096,11 +1111,13 @@ func internalWalletsUpdatedAfter(timestamp time.Time, providerId string) []AccWa
 
 	accGlobals.Mu.RLock()
 	for cat, b := range accGlobals.BucketsByCategory {
+		b.Mu.RLock()
 		if cat.Provider == providerId {
 			if b.SignificantUpdateAt.Equal(timestamp) || b.SignificantUpdateAt.After(timestamp) {
 				buckets = append(buckets, b)
 			}
 		}
+		b.Mu.RUnlock()
 	}
 	accGlobals.Mu.RUnlock()
 
@@ -1130,9 +1147,11 @@ func lInternalMarkSignificantUpdate(b *internalBucket, now time.Time, wallet *in
 func internalGetMermaidGraph(now time.Time, walletId AccWalletId) (string, bool) {
 	b, _, ok := internalWalletById(walletId)
 	if ok {
+		accGlobals.Mu.RLock()
 		b.Mu.RLock()
 		graph := lInternalMermaidGraph(b, now, walletId)
 		b.Mu.RUnlock()
+		accGlobals.Mu.RUnlock()
 		return graph, true
 	}
 	return "", false
@@ -1324,50 +1343,6 @@ func lInternalGroupTotalRetired(b *internalBucket, group *internalGroup) int64 {
 // ---------------------------------------------------------------------------------------------------------------------
 // This API is needed for UIs and service providers. It mostly serves as a way to read information about the current
 // state. All APIs in this section will tend to copy data out into a different format which can be consumed freely.
-
-func internalFindRelevantProviders(
-	reference string,
-	filterProduct util.Option[accapi.ProductType],
-	includeFreeToUse bool,
-) []string {
-	owner := internalOwnerByReference(reference)
-
-	var potentialBuckets []*internalBucket
-	providerSet := map[string]util.Empty{}
-
-	accGlobals.Mu.RLock()
-
-	for _, b := range accGlobals.BucketsByCategory {
-		if b.Category.FreeToUse && !includeFreeToUse {
-			continue
-		} else if filterProduct.Present && filterProduct.Value != b.Category.ProductType {
-			continue
-		} else {
-			potentialBuckets = append(potentialBuckets, b)
-		}
-	}
-
-	accGlobals.Mu.RUnlock()
-
-	now := time.Now()
-	for _, b := range potentialBuckets {
-		if _, alreadyPresent := providerSet[b.Category.Provider]; !alreadyPresent {
-			b.Mu.RLock()
-			w := lInternalWalletByOwner(b, now, owner.Id)
-			if len(w.AllocationsByParent) > 0 {
-				providerSet[b.Category.Provider] = util.Empty{}
-			}
-			b.Mu.RUnlock()
-		}
-	}
-
-	var result []string
-	for provider, _ := range providerSet {
-		result = append(result, provider)
-	}
-
-	return result
-}
 
 func internalRetrieveWallet(
 	now time.Time,
@@ -1594,10 +1569,10 @@ func internalRetrieveWallets(
 	var wallets []accapi.WalletV2
 
 	for _, b := range potentialBuckets {
+		wId := internalWalletByOwner(b, now, owner.Id)
 		b.Mu.RLock()
 
-		w := lInternalWalletByOwner(b, now, owner.Id)
-
+		w := b.WalletsById[wId]
 		groups := w.AllocationsByParent
 		shouldInclude := !filter.RequireActive && len(w.AllocationsByParent) > 0
 		if filter.RequireActive {
@@ -1622,7 +1597,7 @@ func internalRetrieveWallets(
 
 	accGlobals.Mu.RUnlock() // need to be held for during owner lookups
 
-	// TODO(Dan): Sorting is currently chosen for easy pagination, this is probably not the best one for display.
+	// NOTE(Dan): Sorting is currently chosen for easy pagination, this is probably not the best one for display.
 	slices.SortFunc(wallets, func(a, b accapi.WalletV2) int {
 		if a.PaysFor.Provider < b.PaysFor.Provider {
 			return -1
@@ -1642,14 +1617,15 @@ func internalRetrieveWallets(
 
 func internalRetrieveAncestors(now time.Time, category accapi.ProductCategoryIdV2, owner accapi.WalletOwner) []accapi.WalletV2 {
 	accGlobals.Mu.RLock()
-	accGlobals.BucketsByCategory[category].Mu.RLock()
 
 	bucket := accGlobals.BucketsByCategory[category]
 	iOwner := accGlobals.OwnersByReference[owner.Reference()]
-	iWallet := lInternalWalletByOwner(bucket, now, iOwner.Id)
-	ancestors := lRetrieveAncestorWallets(bucket, now, iWallet.Id)
+	iWalletId := internalWalletByOwner(bucket, now, iOwner.Id)
 
-	accGlobals.BucketsByCategory[category].Mu.RUnlock()
+	bucket.Mu.RLock()
+	ancestors := lRetrieveAncestorWallets(bucket, now, iWalletId)
+	bucket.Mu.RUnlock()
+
 	accGlobals.Mu.RUnlock()
 	return ancestors
 }

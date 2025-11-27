@@ -1,14 +1,15 @@
 package k8s
 
 import (
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/tools/cache"
 	"os"
 	"regexp"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/tools/cache"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/shared/pkg/apm"
 	db "ucloud.dk/shared/pkg/database"

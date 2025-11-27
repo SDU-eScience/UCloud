@@ -213,6 +213,8 @@ func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, 
 		util.OptNone[accGrantId](),
 	)
 
+	internalCommitAllocation(bucket, id)
+
 	return fmt.Sprint(id), err
 }
 
@@ -347,10 +349,6 @@ func WalletsBrowse(actor rpc.Actor, request accapi.WalletsBrowseRequest) fndapi.
 	result := fndapi.PageV2[accapi.WalletV2]{}
 
 	for _, item := range allWallets {
-		if request.ChildrenQuery.Present {
-			// TODO
-		}
-
 		if request.FilterType.Present {
 			if item.PaysFor.ProductType != request.FilterType.Value {
 				continue

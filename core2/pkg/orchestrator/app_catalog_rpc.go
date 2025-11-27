@@ -181,11 +181,20 @@ func appCatalogInitRpc() {
 			Mode:     request.Discovery.GetOrDefault(orcapi.CatalogDiscoveryModeAll),
 			Selected: request.Selected,
 		}
-		app, ok := AppRetrieve(info.Actor, request.AppName, request.AppName, discovery, 0)
-		if ok {
-			return app, nil
+		if request.AppVersion.Present {
+			app, ok := AppRetrieve(info.Actor, request.AppName, request.AppVersion.Value, discovery, 0)
+			if ok {
+				return app, nil
+			} else {
+				return orcapi.Application{}, util.HttpErr(http.StatusNotFound, "not found")
+			}
 		} else {
-			return orcapi.Application{}, util.HttpErr(http.StatusNotFound, "not found")
+			app, ok := AppRetrieveNewest(info.Actor, request.AppName, discovery, 0)
+			if ok {
+				return app, nil
+			} else {
+				return orcapi.Application{}, util.HttpErr(http.StatusNotFound, "not found")
+			}
 		}
 	})
 
@@ -270,7 +279,8 @@ func appCatalogInitRpc() {
 	})
 
 	orcapi.AppsBrowseOpenWithRecommendations.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogBrowseOpenWithRecommendationsRequest) (fndapi.PageV2[orcapi.Application], *util.HttpError) {
-		panic("TODO")
+		items := AppCatalogOpenWithRecommendations(info.Actor, request.Files)
+		return fndapi.PageV2[orcapi.Application]{Items: items, ItemsPerPage: len(items)}, nil
 	})
 
 	orcapi.AppsUpdatePublicFlag.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdatePublicFlagRequest) (util.Empty, *util.HttpError) {
@@ -286,13 +296,11 @@ func appCatalogInitRpc() {
 				Project: util.OptMap(util.OptStringIfNotEmpty(item.ProjectId), func(value string) fndapi.Project {
 					return fndapi.Project{
 						Id: value,
-						// TODO
 					}
 				}),
 				Group: util.OptMap(util.OptStringIfNotEmpty(item.Group), func(value string) fndapi.ProjectGroup {
 					return fndapi.ProjectGroup{
 						Id: value,
-						// TODO
 					}
 				}),
 			})

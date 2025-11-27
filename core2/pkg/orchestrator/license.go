@@ -162,11 +162,10 @@ func initLicenses() {
 				flags,
 			)
 
-			ResourceConfirm(licenseType, id)
-
 			if err != nil {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
 			} else {
+				ResourceConfirm(licenseType, id)
 				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
 			}
 		}
@@ -288,4 +287,30 @@ func licenseTransform(
 	}
 
 	return result
+}
+
+func LicenseBind(id string, jobId string) {
+	ResourceUpdate[orcapi.License](
+		rpc.ActorSystem,
+		licenseType,
+		ResourceParseId(id),
+		orcapi.PermissionRead,
+		func(r *resource, mapped orcapi.License) {
+			ip := r.Extra.(*internalLicense)
+			ip.BoundTo = []string{jobId}
+		},
+	)
+}
+
+func LicenseUnbind(id string, jobId string) {
+	ResourceUpdate[orcapi.License](
+		rpc.ActorSystem,
+		licenseType,
+		ResourceParseId(id),
+		orcapi.PermissionRead,
+		func(r *resource, mapped orcapi.License) {
+			ip := r.Extra.(*internalLicense)
+			ip.BoundTo = util.RemoveFirst(ip.BoundTo, jobId)
+		},
+	)
 }

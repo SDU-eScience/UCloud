@@ -1,6 +1,8 @@
 package foundation
 
 import (
+	"net/http"
+
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -10,13 +12,13 @@ import (
 const authUsersBaseContext = "auth/users"
 
 type UsersCreateRequest struct {
-	Username   string              `json:"username"`
-	Password   string              `json:"password"`
-	Email      string              `json:"email"`
-	Role       util.Option[string] `json:"role"`
-	FirstNames util.Option[string] `json:"firstNames"`
-	LastName   util.Option[string] `json:"lastname"`
-	OrgId      util.Option[string] `json:"orgId"`
+	Username   string                     `json:"username"`
+	Password   string                     `json:"password"`
+	Email      string                     `json:"email"`
+	Role       util.Option[PrincipalRole] `json:"role"`
+	FirstNames util.Option[string]        `json:"firstNames"`
+	LastName   util.Option[string]        `json:"lastname"`
+	OrgId      util.Option[string]        `json:"orgId"`
 }
 
 var UsersCreate = rpc.Call[[]UsersCreateRequest, []AuthenticationTokens]{
@@ -32,11 +34,18 @@ type UsersUpdateInfoRequest struct {
 	LastName   util.Option[string] `json:"lastName"`
 }
 
-var UsersUpdateInfo = rpc.Call[UsersUpdateInfoRequest, util.Empty]{
+var UsersUpdateInfo = rpc.Call[UsersUpdateInfoRequest, string]{
 	BaseContext: authUsersBaseContext,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "updateUserInfo",
 	Roles:       rpc.RolesEndUser,
+	CustomServerProducer: func(response string, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
+		if err == nil {
+			http.Redirect(w, r, response, http.StatusFound)
+		} else {
+			rpc.SendResponseOrError(w, nil, err)
+		}
+	},
 }
 
 type UsersRetrieveInfoResponse struct {

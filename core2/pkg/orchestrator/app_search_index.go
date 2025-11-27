@@ -2,8 +2,9 @@ package orchestrator
 
 import (
 	"fmt"
-	"github.com/blevesearch/bleve"
 	"strings"
+
+	"github.com/blevesearch/bleve"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 )
 

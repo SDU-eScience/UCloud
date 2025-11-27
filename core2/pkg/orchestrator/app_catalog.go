@@ -20,7 +20,67 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-// Lock order: bucket -> category -> group -> app
+// Introduction
+// =====================================================================================================================
+// This file implements the Application Catalog of UCloud. The main responsibilities of this system is:
+//
+// - Serving the public application catalog used by end-users
+// - Enforcing access control for applications and tools before they are exposed through the API
+// - Providing a "Studio" API for operators to create, update and curate catalog content
+//
+// Data model
+// ---------------------------------------------------------------------------------------------------------------------
+// The catalog stores several related concepts:
+//
+// - Applications: concrete runnable units, versioned and backed by a Tool
+// - Tools: reusable execution backends referenced by applications
+// - Groups: logical collections of related applications (different flavors and backends)
+// - Categories: high-level groupings used for navigation and discovery on the landing page
+// - Spotlights: curated collections of groups highlighted on the front page
+// - Top picks and carrousel items: small, curated views over the same underlying data
+// - Stars: per-user favorites, used to build personalized views
+//
+// Concurrency and sharding
+// ---------------------------------------------------------------------------------------------------------------------
+// To avoid a single global lock and to keep lookups cheap under concurrent load, the catalog is sharded into a
+// fixed number of buckets. Buckets are selected via hashing. Higher-level helpers such as appBucket, appGroupBucket
+// and appSpotlightBucket encapsulate the hashing logic.
+//
+// Each bucket contains the concrete instances (applications, tools, groups, spotlights, stars) and a mutex for
+// protecting that bucket only.
+//
+// Immutability and evolution
+// ---------------------------------------------------------------------------------------------------------------------
+// Applications are modeled as mostly immutable objects: name, version, created time and invocation/tool bindings do
+// not change after creation. A small set of fields are mutable to support gradual evolution of catalog metadata
+// without forcing a new application version. Groups and categories are more mutable by design and are heavily used
+// by the Studio API for curation.
+//
+// Discovery, relevance and permissions
+// ---------------------------------------------------------------------------------------------------------------------
+// All user-facing read operations are expressed in terms of AppDiscovery and AppIsRelevant. Discovery determines
+// which providers and products are considered "available" for a given user, while relevance filters out applications
+// that cannot actually be executed for the current actor. This separation allows the same catalog to serve multiple
+// views: a full operator view, a project-scoped user view and a provider-filtered view. Permissions are layered on
+// top through ApplicationPermissions and per-user stars.
+//
+// Studio vs end-user API
+// ---------------------------------------------------------------------------------------------------------------------
+// The file intentionally mixes higher-level read endpoints with lower-level Studio endpoints that bypass discovery
+// and authorization. Studio is a privileged interface used by operators to:
+//
+// - Upload applications and tools from a YAML definitions
+// - Create and modify groups, categories, spotlights, carrousel slides and top picks
+// - Manage ACLs, public flags and group assignments
+//
+// Only the Studio endpoints are allowed to mutate catalog state; all other functions are read-only views over the
+// same in-memory structures. Persistence helpers (appPersist*) bridge the catalog to durable storage and are kept
+// out of this file to keep the core catalog logic focused and testable.
+//
+// --------------------------------------------------------------------------------------------------------------------
+// !! MUTEX LOCK ORDER !!
+// bucket -> category -> group -> app
+// --------------------------------------------------------------------------------------------------------------------
 
 func initAppCatalog() {
 	appCatalogLoad()
@@ -1257,7 +1317,7 @@ func AppStudioAssignToGroup(name string, groupId util.Option[AppGroupId]) *util.
 	if ok {
 		for _, app := range allVersions {
 			app.Mu.Lock()
-			previousGroupId = groupId
+			previousGroupId = app.Group
 			app.Group = groupId
 			app.Mu.Unlock()
 		}
@@ -1267,7 +1327,9 @@ func AppStudioAssignToGroup(name string, groupId util.Option[AppGroupId]) *util.
 	if previousGroupId.Present {
 		g, ok := appRetrieveGroup(previousGroupId.Value)
 		if ok {
+			g.Mu.Lock()
 			g.Items = util.RemoveFirst(g.Items, name)
+			g.Mu.Unlock()
 		}
 	}
 
@@ -1387,24 +1449,26 @@ func AppStudioDeleteCategory(id AppCategoryId) *util.HttpError {
 		return util.HttpErr(http.StatusNotFound, "unknown category")
 	}
 
+	var groupsToUnlink []AppGroupId
 	cats := &appCatalogGlobals.Categories
 	cats.Mu.Lock()
 	{
 		category.Mu.Lock()
-		for _, groupId := range category.Items {
-			group, ok := appRetrieveGroup(groupId)
-			if ok {
-				group.Mu.Lock()
-				group.Categories = util.RemoveFirst(group.Categories, id)
-				group.Mu.Unlock()
-			}
-		}
-
+		groupsToUnlink = category.Items
 		category.Items = nil
 		category.Mu.Unlock()
 	}
 	delete(cats.Categories, id)
 	cats.Mu.Unlock()
+
+	for _, groupId := range groupsToUnlink {
+		group, ok := appRetrieveGroup(groupId)
+		if ok {
+			group.Mu.Lock()
+			group.Categories = util.RemoveFirst(group.Categories, id)
+			group.Mu.Unlock()
+		}
+	}
 
 	appPersistDeleteCategory(id)
 	return nil
@@ -1774,7 +1838,7 @@ func AppStudioCreateApplication(app *orcapi.Application) *util.HttpError {
 		b.Mu.Unlock()
 	}
 
-	if err == nil && result != nil {
+	if err == nil && result == nil {
 		return util.HttpErr(http.StatusInternalServerError, "internal error (result == nil)")
 	}
 
@@ -1902,4 +1966,54 @@ func appStudioTrackNewGroup(group AppGroupId) {
 	additions.Mu.Lock()
 	additions.NewApplications = append(additions.NewApplications, group)
 	additions.Mu.Unlock()
+}
+
+func AppCatalogOpenWithRecommendations(actor rpc.Actor, files []string) []orcapi.Application {
+	extensions := map[string]util.Empty{}
+	for _, file := range files {
+		if strings.Contains(file, ".") {
+			idx := strings.Index(file, ".")
+			extensions[file[idx:]] = util.Empty{}
+		} else {
+			entry := util.FileName(file)
+			extensions[entry] = util.Empty{}
+
+			if strings.HasSuffix(file, "/") {
+				extensions[fmt.Sprintf("%v/", entry)] = util.Empty{}
+				extensions["/"] = util.Empty{}
+			}
+		}
+	}
+
+	// NOTE(Dan): This is excessive, we should consider caching this or just indexing on the extensions.
+	appNames := map[string]util.Empty{}
+	for i := 0; i < len(appCatalogGlobals.Buckets); i++ {
+		b := &appCatalogGlobals.Buckets[i]
+		b.Mu.RLock()
+		for _, versions := range b.Applications {
+			for _, app := range versions {
+				appNames[app.Name] = util.Empty{}
+			}
+		}
+		b.Mu.RUnlock()
+	}
+
+	var result []orcapi.Application
+	for name := range appNames {
+		app, ok := AppRetrieveNewest(actor, name, AppDiscoveryAll, 0)
+		if ok {
+			for _, ext := range app.Invocation.FileExtensions {
+				_, matches := extensions[ext]
+				if matches {
+					result = append(result, app)
+				}
+			}
+		}
+	}
+
+	slices.SortFunc(result, func(a, b orcapi.Application) int {
+		return strings.Compare(a.Metadata.Title, b.Metadata.Title)
+	})
+
+	return result
 }

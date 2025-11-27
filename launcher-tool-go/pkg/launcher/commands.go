@@ -481,7 +481,7 @@ func GetCredentialsFromJSON(response string) (publicKey string, refreshToken str
 func FetchAccessToken() string {
 	tokenJson := CallService("backend", "POST", "http://localhost:8080/auth/refresh", "theverysecretadmintoken", "", []string{})
 	if tokenJson == "" {
-		panic("Failed to contact UCloud/Core backend. Check to see if the backend service is running.")
+		return ""
 	}
 	var accessToken AccessTokenWrapper
 	err := json.Unmarshal([]byte(tokenJson), &accessToken)

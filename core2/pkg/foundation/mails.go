@@ -3,6 +3,7 @@ package foundation
 import (
 	"bytes"
 	"crypto/sha256"
+	"database/sql"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -32,13 +33,20 @@ import (
 // Handlers and main API
 // ---------------------------------------------------------------------------------------------------------------------
 
-var mailChannel chan *gomail.Message
+type mailInTransit struct {
+	Message  *gomail.Message
+	DevEmail string
+	To       string
+	From     string
+}
+
+var mailChannel chan mailInTransit
 
 const SupportName = "eScience Support"
 const SupportEmail = "support@escience.sdu.dk"
 
 func initMails() {
-	mailChannel = make(chan *gomail.Message)
+	mailChannel = make(chan mailInTransit, 256)
 	go mailDaemon()
 
 	fndapi.MailSendDirect.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.MailSendDirectMandatoryRequest]) (util.Empty, *util.HttpError) {
@@ -79,13 +87,13 @@ func initMails() {
 	})
 
 	fndapi.MailRetrieveSettings.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.MailRetrieveSettingsResponse, *util.HttpError) {
-		settings := RetrieveEmailSettings(info.Actor.Username)
+		settings := MailRetrieveSettings(info.Actor.Username)
 		return fndapi.MailRetrieveSettingsResponse{Settings: settings}, nil
 	})
 
 	fndapi.MailUpdateSettings.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.MailUpdateSettingsRequest]) (util.Empty, *util.HttpError) {
 		if len(request.Items) > 0 {
-			UpdateEmailSettings(info.Actor.Username, request.Items[0].Settings)
+			MailUpdateSettings(info.Actor.Username, request.Items[0].Settings)
 		}
 		return util.Empty{}, nil
 	})
@@ -149,7 +157,7 @@ func MailSend(reqItem fndapi.MailSendToUserRequest) *util.HttpError {
 	}
 }
 
-func UpdateEmailSettings(username string, settings fndapi.EmailSettings) {
+func MailUpdateSettings(username string, settings fndapi.EmailSettings) {
 	jsonSettings, _ := json.Marshal(settings)
 
 	db.NewTx0(func(tx *db.Transaction) {
@@ -169,7 +177,7 @@ func UpdateEmailSettings(username string, settings fndapi.EmailSettings) {
 	})
 }
 
-func RetrieveEmailSettings(username string) fndapi.EmailSettings {
+func MailRetrieveSettings(username string) fndapi.EmailSettings {
 	settings, ok := db.NewTx2(func(tx *db.Transaction) (fndapi.EmailSettings, bool) {
 		row, ok := db.Get[struct{ Settings string }](
 			tx,
@@ -204,7 +212,7 @@ func RetrieveEmailSettings(username string) fndapi.EmailSettings {
 }
 
 func UserWantsEmail(username string, mailType fndapi.MailType) bool {
-	settings := RetrieveEmailSettings(username)
+	settings := MailRetrieveSettings(username)
 	switch mailType {
 	case fndapi.MailTypeTransferApplication:
 		return settings.ApplicationTransfer
@@ -228,8 +236,6 @@ func UserWantsEmail(username string, mailType fndapi.MailType) bool {
 		return settings.GrantApplicationUpdated
 	case fndapi.MailTypeApplicationUpdatedToAdmins:
 		return settings.GrantApplicationUpdated
-	case fndapi.MailTypeApplicationStatusChanged:
-		return settings.GrantApplicationUpdated
 	case fndapi.MailTypeApplicationApproved:
 		return settings.GrantApplicationApproved
 	case fndapi.MailTypeApplicationApprovedToAdmins:
@@ -247,7 +253,7 @@ func UserWantsEmail(username string, mailType fndapi.MailType) bool {
 	case fndapi.MailTypeVerifyEmailAddress:
 		return true
 	case fndapi.MailTypeJobEvents:
-		// TODO
+		// TODO consolidate the two states
 		return settings.JobStarted || settings.JobStopped
 	default:
 		return false
@@ -281,7 +287,12 @@ func sendEmail(mail mailToSend) error {
 
 	m.SetBody("text/html", html)
 
-	mailChannel <- m
+	mailChannel <- mailInTransit{
+		Message:  m,
+		DevEmail: fmt.Sprintf("<html><body><h1>%s</h1><br><br>%s</body></html>", subject, html),
+		To:       mail.ToEmail,
+		From:     mail.FromEmail,
+	}
 	return nil
 }
 
@@ -296,7 +307,7 @@ func retrieveEmails(usernames []string) map[string]string {
 		result := map[string]string{}
 		rows := db.Select[struct {
 			Id    string
-			Email string
+			Email sql.Null[string]
 		}](
 			tx,
 			`
@@ -310,7 +321,9 @@ func retrieveEmails(usernames []string) map[string]string {
 		)
 
 		for _, row := range rows {
-			result[row.Id] = row.Email
+			if row.Email.Valid {
+				result[row.Id] = row.Email.V
+			}
 		}
 		return result
 	})
@@ -358,16 +371,12 @@ var mailTemplates = map[fndapi.MailType]mailTemplate{
 	fndapi.MailTypeResetPassword:      mailTpl(tplAuthReset),
 	fndapi.MailTypeVerifyEmailAddress: mailTpl(tplAuthVerify),
 
-	fndapi.MailTypeApplicationApproved:         mailTpl(tplGrantsApprovedToApplicant),
-	fndapi.MailTypeApplicationApprovedToAdmins: mailTpl(tplGrantsApprovedToApprover),
-	fndapi.MailTypeApplicationWithdrawn:        mailTpl(tplGrantsClosedToApprover),
-	fndapi.MailTypeNewComment:                  mailTpl(tplGrantsComment),
-	fndapi.MailTypeNewGrantApplication:         mailTpl(tplGrantsNewApplication),
-	fndapi.MailTypeApplicationRejected:         mailTpl(tplGrantsRejectedToApplicant),
-	fndapi.MailTypeApplicationStatusChanged:    mailTpl(tplGrantsStatusChange),
-	fndapi.MailTypeTransferApplication:         mailTpl(tplGrantsTransfer),
-	fndapi.MailTypeApplicationUpdated:          mailTpl(tplGrantsUpdatedToApplicant),
-	fndapi.MailTypeApplicationUpdatedToAdmins:  mailTpl(tplGrantsUpdatedToApprover),
+	fndapi.MailTypeApplicationApproved: mailTpl(tplGrantsApprovedToApplicant),
+	fndapi.MailTypeNewComment:          mailTpl(tplGrantsComment),
+	fndapi.MailTypeNewGrantApplication: mailTpl(tplGrantsNewApplication),
+	fndapi.MailTypeApplicationRejected: mailTpl(tplGrantsRejectedToApplicant),
+	fndapi.MailTypeTransferApplication: mailTpl(tplGrantsTransfer),
+	fndapi.MailTypeApplicationUpdated:  mailTpl(tplGrantsUpdatedToApplicant),
 
 	fndapi.MailTypeJobEvents: mailTpl(tplJobsEvents),
 
@@ -397,10 +406,10 @@ func renderEmail(mail mailToSend) (string, string, error) {
 	params := transformMailParameters(mtype, mail)
 	params = util.SanitizeMapForSerialization(params)
 	params["recipient"] = mail.ToName
-	params["emailOptOut"] = `<p>
+	params["emailOptOut"] = fmt.Sprintf(`<p>
 		If you do not want to receive these email notifications,you can unsubscribe from non-critical emails in your 
-		<a href="https://cloud.sdu.dk/app/users/settings">personal settings</a> on UCloud.
-	</p>`
+		<a href="%s/app/users/settings">personal settings</a> on UCloud.
+	</p>`, cfg.Configuration.SelfPublic.ToURL())
 	params["bodyStart"] = boundary
 
 	ctx := gonjaexec.NewContext(params)
@@ -468,53 +477,9 @@ func transformMailParameters(mtype fndapi.MailType, mail mailToSend) map[string]
 	case fndapi.MailTypeVerifyEmailAddress:
 		token, ok := params["token"].(string)
 		if ok {
-			params["link"] = fmt.Sprintf("https://cloud.sdu.dk/app/verifyEmail?type=%s&token=%s", params["verifyType"], url.QueryEscape(token))
+			params["link"] = fmt.Sprintf("%s/app/verifyEmail?type=%s&token=%s",
+				cfg.Configuration.SelfPublic.ToURL(), params["verifyType"], url.QueryEscape(token))
 		}
-
-	case fndapi.MailTypeJobEvents:
-		var events []map[string]any
-
-		var info struct {
-			JobIds    []string  `json:"jobIds"`
-			JobNames  []*string `json:"jobNames"`
-			AppTitles []string  `json:"appTitles"`
-			Events    []string  `json:"events"`
-		}
-
-		_ = json.Unmarshal(mail.Mail, &info)
-
-		if len(info.JobIds) == len(info.JobNames) && len(info.JobNames) == len(info.AppTitles) && len(info.AppTitles) == len(info.Events) {
-			for i := 0; i < len(info.JobIds); i++ {
-				ev := map[string]any{}
-
-				nameOrId := info.JobIds[i]
-				if info.JobNames[i] != nil {
-					nameOrId = *info.JobNames[i]
-				}
-
-				ev["jobName"] = nameOrId
-				ev["jobId"] = info.JobIds[i]
-				ev["appName"] = info.AppTitles[i]
-
-				var change string
-				switch info.Events[i] {
-				case "JOB_STARTED":
-					change = "has started successfully, and is now running."
-				case "JOB_COMPLETED":
-					change = "has completed successfully."
-				case "JOB_FAILED":
-					change = "failed unexpectedly, and has been terminated."
-				case "JOB_EXPIRED":
-					change = "has reached its time limit, and has been terminated."
-				default:
-					log.Info("Unknown job event: '%v'", info.Events[i])
-					change = "has been updated."
-				}
-				ev["change"] = change
-			}
-		}
-
-		params["events"] = events
 	}
 	return params
 }
@@ -606,8 +571,22 @@ func mailDaemon() {
 				})
 			}
 
-			if err := gomail.Send(sender, m); err != nil {
+			if err := gomail.Send(sender, m.Message); err != nil {
 				log.Warn("Failed to send email: %s", err.Error())
+			}
+
+			if util.DevelopmentModeEnabled() {
+				noSlashes := strings.ReplaceAll(m.To, "/", "-slash-")
+				root := fmt.Sprintf("/tmp/mail/html/%s", noSlashes)
+				_ = os.MkdirAll(root, 0700)
+
+				path := filepath.Join(root, time.Now().Format(time.Stamp))
+				fd, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0700)
+				if err == nil {
+					_, _ = fd.WriteString(m.DevEmail)
+					_ = fd.Close()
+					log.Info("Wrote fake email: %s %s %s", m.From, m.To, path)
+				}
 			}
 
 		// Close the connection to the SMTP server if no email was sent in
@@ -627,17 +606,20 @@ type mailFileSender struct{}
 
 func (m *mailFileSender) Send(from string, to []string, msg io.WriterTo) error {
 	for _, recipient := range to {
-		noSlashes := strings.ReplaceAll(recipient, "/", "-slash-")
-		root := fmt.Sprintf("/tmp/mail/%s", noSlashes)
-		_ = os.MkdirAll(root, 0700)
+		{
+			noSlashes := strings.ReplaceAll(recipient, "/", "-slash-")
+			root := fmt.Sprintf("/tmp/mail/raw/%s", noSlashes)
+			_ = os.MkdirAll(root, 0700)
 
-		path := filepath.Join(root, time.Now().Format(time.Stamp))
-		fd, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0700)
-		if err == nil {
-			_, _ = msg.WriteTo(fd)
-			_ = fd.Close()
-			log.Info("Wrote fake email: %s %s %s", from, to, path)
+			path := filepath.Join(root, time.Now().Format(time.Stamp))
+			fd, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0700)
+			if err == nil {
+				_, _ = msg.WriteTo(fd)
+				_ = fd.Close()
+				log.Info("Wrote fake email: %s %s %s", from, to, path)
+			}
 		}
+
 	}
 	return nil
 }

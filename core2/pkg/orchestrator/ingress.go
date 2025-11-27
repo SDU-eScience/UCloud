@@ -139,7 +139,7 @@ func initIngresses() {
 			if exists {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(
 					http.StatusBadRequest,
-					"your domain name is not unique, try a different one",
+					"your domain name is not unique, try a different one", // TODO Time-of-check versus time-of-use
 				)
 			}
 
@@ -257,11 +257,10 @@ func initIngresses() {
 				flags,
 			)
 
-			ResourceConfirm(ingressType, id)
-
 			if err != nil {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
 			} else {
+				ResourceConfirm(ingressType, id)
 				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
 			}
 		}
@@ -319,6 +318,7 @@ func (i *ingressesDomainIndexer) Commit() {
 
 func ingressesFillIndex() {
 	if resourceGlobals.Testing.Enabled {
+		ingressesByDomain.Domains = map[string]ResourceId{}
 		return
 	}
 
@@ -373,7 +373,7 @@ func ingressLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*reso
 
 		resources[ResourceId(row.Resource)].Extra = &internalIngress{
 			Domain:  row.Domain,
-			BoundTo: boundTo, // TODO Update this when job starts
+			BoundTo: boundTo,
 		}
 	}
 }
@@ -434,4 +434,30 @@ func ingressTransform(r orcapi.Resource, product util.Option[accapi.ProductRefer
 		}
 	}
 	return result
+}
+
+func IngressBind(id string, jobId string) {
+	ResourceUpdate[orcapi.Ingress](
+		rpc.ActorSystem,
+		ingressType,
+		ResourceParseId(id),
+		orcapi.PermissionRead,
+		func(r *resource, mapped orcapi.Ingress) {
+			ip := r.Extra.(*internalIngress)
+			ip.BoundTo = []string{jobId}
+		},
+	)
+}
+
+func IngressUnbind(id string, jobId string) {
+	ResourceUpdate[orcapi.Ingress](
+		rpc.ActorSystem,
+		ingressType,
+		ResourceParseId(id),
+		orcapi.PermissionRead,
+		func(r *resource, mapped orcapi.Ingress) {
+			ip := r.Extra.(*internalIngress)
+			ip.BoundTo = util.RemoveFirst(ip.BoundTo, jobId)
+		},
+	)
 }

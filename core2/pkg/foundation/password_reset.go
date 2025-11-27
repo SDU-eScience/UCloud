@@ -30,21 +30,17 @@ func PasswordClaimResetLink(token string, newPassword string) *util.HttpError {
 		}](
 			tx,
 			`
-			select token, user_id, expires_at
-            from  password_reset.password_reset_requests
-            where token = :token
-		`,
+				delete from password_reset.password_reset_requests
+				where token = :token
+				returning token, user_id, expires_at
+			`,
 			db.Params{
 				"token": token,
 			},
 		)
 
-		if !ok {
+		if !ok || resetRequest.ExpiresAt.Before(time.Now()) {
 			return util.HttpErr(http.StatusNotFound, "Unable to reset password")
-		}
-
-		if resetRequest.ExpiresAt.Before(time.Now()) {
-			return util.HttpErr(http.StatusForbidden, "Unable to reset password (token expired)")
 		}
 
 		err := PasswordUpdate(tx, resetRequest.UserId, newPassword, false, "")
@@ -56,15 +52,15 @@ func PasswordClaimResetLink(token string, newPassword string) *util.HttpError {
 }
 
 func PasswordHandleResetRequest(email string) *util.HttpError {
-	return db.NewTx(func(tx *db.Transaction) *util.HttpError {
+	bulkRequest, err := db.NewTx2(func(tx *db.Transaction) (fndapi.BulkRequest[fndapi.MailSendToUserRequest], *util.HttpError) {
+		var bulkRequest fndapi.BulkRequest[fndapi.MailSendToUserRequest]
 		users := PrincipalsLookupByEmail(tx, email)
 		if len(users) == 0 {
-			return util.HttpErr(http.StatusNotFound, "Cannot create reset request")
+			return bulkRequest, util.HttpErr(http.StatusNotFound, "Cannot create reset request")
 		}
 
-		token := util.SecureToken()
-		var bulkRequest fndapi.BulkRequest[fndapi.MailSendToUserRequest]
 		for _, userId := range users {
+			token := util.SecureToken()
 			timeSource := time.Now()
 			expireTime := timeSource.Add(time.Minute * 30)
 
@@ -90,17 +86,16 @@ func PasswordHandleResetRequest(email string) *util.HttpError {
 				bulkRequest.Items,
 				fndapi.MailSendToUserRequest{
 					Receiver:       userId,
-					Mail:           fndapi.Mail(mailData),
+					Mail:           mailData,
 					Mandatory:      util.OptValue(true),
 					ReceivingEmail: util.OptValue(email),
 				},
 			)
 		}
 
-		_, err := fndapi.MailSendToUser.Invoke(bulkRequest)
-		if err != nil {
-			return err
-		}
-		return nil
+		return bulkRequest, nil
 	})
+
+	_, err = fndapi.MailSendToUser.Invoke(bulkRequest)
+	return err
 }

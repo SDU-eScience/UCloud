@@ -96,7 +96,11 @@ var NotificationsCreateBulk = rpc.Call[BulkRequest[NotificationsCreateRequest], 
 	Roles:       rpc.RolesService,
 }
 
-var NotificationsRetrieveSettings = rpc.Call[util.Empty, NotificationSettings]{
+type NotificationsRetrieveSettingsResponse struct {
+	Settings NotificationSettings `json:"settings"`
+}
+
+var NotificationsRetrieveSettings = rpc.Call[util.Empty, NotificationsRetrieveSettingsResponse]{
 	BaseContext: NotificationContext,
 	Operation:   "settings",
 	Convention:  rpc.ConventionRetrieve,

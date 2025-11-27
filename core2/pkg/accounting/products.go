@@ -68,6 +68,7 @@ func ProductRetrieve(actor rpc.Actor, filter accapi.ProductsFilter) (accapi.Prod
 		if productFilterApplies(p, filter) {
 			result = p
 			ok = true
+			break
 		}
 	}
 	bucket.Mu.RUnlock()
@@ -87,12 +88,14 @@ func ProductBrowse(actor rpc.Actor, request accapi.ProductsBrowseRequest) (fndap
 	var items []accapi.ProductV2
 	itemsPerPage := fndapi.ItemsPerPage(request.ItemsPerPage)
 
+	hasCursor := false
 	if request.Next.Present {
 		split := strings.SplitN(request.Next.Value, "@", 3)
 		if len(split) == 3 {
 			nextProvider = split[0]
 			nextCategory = split[1]
 			nextName = split[2]
+			hasCursor = true
 		}
 	}
 
@@ -106,26 +109,35 @@ func ProductBrowse(actor rpc.Actor, request accapi.ProductsBrowseRequest) (fndap
 			continue
 		}
 
-		if strings.Compare(providerId, nextProvider) >= 0 {
-			bucket, ok := productsByProvider.Buckets[providerId]
-			if !ok {
-				continue
-			}
-
-			bucket.Mu.RLock()
-			for _, p := range bucket.Products {
-				if len(items) >= itemsPerPage {
-					break
-				}
-
-				if strings.Compare(p.Category.Name, nextCategory) >= 0 && strings.Compare(p.Name, nextName) > 0 {
-					if productFilterApplies(p, request.ProductsFilter) {
-						items = append(items, p)
-					}
-				}
-			}
-			bucket.Mu.RUnlock()
+		// If we have a cursor, skip all providers strictly before nextProvider.
+		if hasCursor && strings.Compare(providerId, nextProvider) < 0 {
+			continue
 		}
+
+		bucket, ok := productsByProvider.Buckets[providerId]
+		if !ok {
+			continue
+		}
+
+		bucket.Mu.RLock()
+		for _, p := range bucket.Products {
+			if len(items) >= itemsPerPage {
+				break
+			}
+
+			if hasCursor && providerId == nextProvider {
+				// Same provider as the cursor; advance strictly past (nextCategory, nextName)
+				catCmp := strings.Compare(p.Category.Name, nextCategory)
+				if catCmp < 0 || (catCmp == 0 && strings.Compare(p.Name, nextName) <= 0) {
+					continue
+				}
+			}
+
+			if productFilterApplies(p, request.ProductsFilter) {
+				items = append(items, p)
+			}
+		}
+		bucket.Mu.RUnlock()
 	}
 	productsByProvider.Mu.RUnlock()
 
@@ -167,6 +179,15 @@ func ProductCreate(actor rpc.Actor, products []accapi.ProductV2) *util.HttpError
 		for _, p := range products {
 			if p.Category.Provider != providerId {
 				return util.HttpErr(http.StatusForbidden, "forbidden")
+			}
+		}
+	} else {
+		if len(products) > 0 {
+			providerId := products[0].Category.Provider
+			for _, p := range products {
+				if p.Category.Provider != providerId {
+					return util.HttpErr(http.StatusForbidden, "forbidden")
+				}
 			}
 		}
 	}
@@ -236,10 +257,9 @@ func ProductCreate(actor rpc.Actor, products []accapi.ProductV2) *util.HttpError
 					"floating":    item.Category.AccountingUnit.FloatingPoint,
 					"display":     item.Category.AccountingUnit.DisplayFrequencySuffix,
 
-					"frequency":    string(item.Category.AccountingFrequency),
-					"product_type": string(item.ProductType),
-					"free_to_use":  item.Category.FreeToUse,
-					//TODO(HENRIK) There is no need for this in the future
+					"frequency":             string(item.Category.AccountingFrequency),
+					"product_type":          string(item.ProductType),
+					"free_to_use":           item.Category.FreeToUse,
 					"charge_type":           translateToChargeType(item.Category),
 					"allow_sub_allocations": item.Category.AllowSubAllocations,
 				},

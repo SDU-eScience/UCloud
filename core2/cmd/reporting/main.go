@@ -6,9 +6,9 @@ import (
 	"os"
 	"strconv"
 	"time"
+
 	acc "ucloud.dk/core/pkg/accounting/reporting"
 	db "ucloud.dk/shared/pkg/database2"
-	"ucloud.dk/shared/pkg/util"
 )
 
 func main() {
@@ -68,7 +68,6 @@ func main() {
 		dbDatabase,
 		dbSsl == "true",
 	)
-	db.Database.Connection.MapperFunc(util.ToSnakeCase)
 
 	acc.RunReporting(*provider, startTime, endTime, *dumpFlag, *noDump, *dataDir)
 }

@@ -2,6 +2,8 @@ package launcher
 
 import (
 	_ "embed"
+	"os"
+	"path/filepath"
 	"strconv"
 )
 
@@ -29,6 +31,9 @@ func (g *GoKubernetes) Addons() map[string]string {
 }
 
 func (k *GoKubernetes) Build(cb ComposeBuilder) {
+	_, ollamaFileErr := os.Stat(filepath.Join(currentEnvironment.GetAbsolutePath(), "../../.use-ollama"))
+	useOllama := ollamaFileErr == nil
+
 	dataDir := GetDataDirectory()
 	k8Provider := NewFile(dataDir).Child("im2k8", true)
 	k3sDir := k8Provider.Child("k3s", true)
@@ -42,6 +47,10 @@ func (k *GoKubernetes) Build(cb ComposeBuilder) {
 	cb.volumes[k3sKubelet] = k3sKubelet
 	k3sEtc := "im2k3setc"
 	cb.volumes[k3sEtc] = k3sEtc
+	ollamaVol := "ollama"
+	if useOllama {
+		cb.volumes[ollamaVol] = ollamaVol
+	}
 
 	imDir := k8Provider.Child("im", true)
 	imData := imDir.Child("data", true)
@@ -152,6 +161,31 @@ func (k *GoKubernetes) Build(cb ComposeBuilder) {
 		"",
 		"",
 	)
+
+	if useOllama {
+		cb.Service(
+			"ollama",
+			"K8s Provider: Ollama API",
+			Json{
+				//language=json
+				`
+					{
+						"image": "ollama/ollama:0.12.11-rc1",
+						"hostname": "ollama",
+						"restart": "always",
+						"volumes": [
+							"` + ollamaVol + `:/root/.ollama"
+						]
+					}
+				`,
+			},
+			true,
+			true,
+			false,
+			"",
+			"",
+		)
+	}
 }
 
 //go:embed config/im2k8s/config.yaml

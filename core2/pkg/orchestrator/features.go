@@ -27,9 +27,12 @@ type providerSupport struct {
 }
 
 var providerSupportGlobals struct {
-	Mu     sync.RWMutex
-	ByType map[string]providerSupportByType
-	Ready  atomic.Bool
+	Mu                  sync.RWMutex
+	ByType              map[string]providerSupportByType
+	ManifestsByProvider map[string]orcapi.ProviderIntegrationManifest
+	ProviderById        map[int]string
+	ProviderByName      map[string]int
+	Ready               atomic.Bool
 }
 
 type providerSupportByType struct {
@@ -39,33 +42,45 @@ type providerSupportByType struct {
 
 func initFeatures() {
 	providerSupportGlobals.ByType = map[string]providerSupportByType{}
+	providerSupportGlobals.ManifestsByProvider = map[string]orcapi.ProviderIntegrationManifest{}
+	providerSupportGlobals.ProviderById = map[int]string{}
+	providerSupportGlobals.ProviderByName = map[string]int{}
 	providerSupportGlobals.Ready.Store(false)
 
 	go func() {
 		providersBeingMonitored := map[string]util.Empty{}
 
 		for {
-			providers := db.NewTx(func(tx *db.Transaction) []string {
-				rows := db.Select[struct{ ProviderId string }](
+			providers, providerIds := db.NewTx2(func(tx *db.Transaction) ([]string, []int) {
+				rows := db.Select[struct {
+					Resource     int
+					ProviderName string
+				}](
 					tx,
 					`
-						select unique_name as provider_id
+						select resource, unique_name as provider_name
 						from provider.providers
 				    `,
 					db.Params{},
 				)
 
-				result := make([]string, len(rows))
+				ids := make([]int, len(rows))
+				names := make([]string, len(rows))
 				for i, row := range rows {
-					result[i] = row.ProviderId
+					names[i] = row.ProviderName
+					ids[i] = row.Resource
 				}
-				return result
+				return names, ids
 			})
 
-			for _, provider := range providers {
+			for idx, provider := range providers {
 				_, isBeingMonitored := providersBeingMonitored[provider]
 				if !isBeingMonitored {
 					providersBeingMonitored[provider] = util.Empty{}
+					providerSupportGlobals.Mu.Lock()
+					providerSupportGlobals.ProviderById[providerIds[idx]] = provider
+					providerSupportGlobals.ProviderByName[provider] = providerIds[idx]
+					providerSupportGlobals.Mu.Unlock()
 					go featureMonitorProvider(provider)
 				}
 			}
@@ -78,6 +93,9 @@ func initFeatures() {
 func featureMonitorProvider(provider string) {
 	log.Info("Starting provider feature monitoring: %s", provider)
 	for {
+		manifest, manifestErr := InvokeProvider(provider, orcapi.ProviderIntegrationPRetrieveManifest,
+			util.Empty{}, ProviderCallOpts{})
+
 		// type -> support
 		supportMap := map[string][]providerSupport{}
 
@@ -134,9 +152,8 @@ func featureMonitorProvider(provider string) {
 		if len(supportMap) == 0 {
 			time.Sleep(100 * time.Millisecond)
 		} else {
-			providerSupportGlobals.Ready.Store(true)
-
 			providerSupportGlobals.Mu.Lock()
+			providerSupportGlobals.Ready.Store(true)
 			for typeName, support := range supportMap {
 				typeMap, ok := providerSupportGlobals.ByType[typeName]
 				if !ok {
@@ -148,6 +165,10 @@ func featureMonitorProvider(provider string) {
 				}
 
 				typeMap.ByProvider[provider] = support
+			}
+
+			if manifestErr == nil {
+				providerSupportGlobals.ManifestsByProvider[provider] = manifest
 			}
 			providerSupportGlobals.Mu.Unlock()
 
@@ -335,6 +356,16 @@ func supportToApi(provider string, supportItems []providerSupport) []orcapi.Reso
 	}
 
 	return result
+}
+
+func ManifestByProvider(provider string) (orcapi.ProviderIntegrationManifest, int, bool) {
+	featureAwaitReady()
+	providerSupportGlobals.Mu.RLock()
+	manifest, ok := providerSupportGlobals.ManifestsByProvider[provider]
+	providerId := providerSupportGlobals.ProviderByName[provider]
+	providerSupportGlobals.Mu.RUnlock()
+
+	return manifest, providerId, ok
 }
 
 func SupportRetrieveProducts[T any](typeName string) orcapi.SupportByProvider[T] {

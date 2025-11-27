@@ -1,6 +1,9 @@
 package orchestrators
 
 import (
+	"encoding/json"
+	"fmt"
+
 	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
@@ -113,7 +116,6 @@ type FileFlags struct {
 	FilterHiddenFiles     util.Option[bool]   `json:"filterHiddenFiles"`
 
 	// AllowUnsupportedInclude removed, just always true
-	// TODO sort?
 }
 
 var FilesDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
@@ -238,7 +240,34 @@ var FilesEmptyTrash = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResp
 	Operation:   "emptyTrash",
 }
 
-var FilesStreamingSearch = rpc.Call[util.Empty, util.Empty]{} // TODO
+type FilesStreamingSearchRequest struct {
+	Flags         FileFlags `json:"flags"`
+	Query         string    `json:"query"`
+	CurrentFolder string    `json:"currentFolder"`
+}
+
+type FilesStreamingSearchResult struct {
+	Type  string  `json:"type"` // result or end_of_results
+	Batch []UFile `json:"batch"`
+}
+
+var FilesStreamingSearch = rpc.Call[util.Empty, util.Empty]{
+	BaseContext: filesNamespace,
+	Roles:       rpc.RolesPublic,
+	Convention:  rpc.ConventionWebSocket,
+}
+
+type FilesTransferRequest struct {
+	SourcePath      string `json:"sourcePath"`
+	DestinationPath string `json:"destinationPath"`
+}
+
+var FilesTransfer = rpc.Call[fnd.BulkRequest[FilesTransferRequest], util.Empty]{
+	BaseContext: filesNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "transfer",
+}
 
 // Files provider
 // =====================================================================================================================
@@ -387,6 +416,82 @@ var FilesProviderEmptyTrash = rpc.Call[fnd.BulkRequest[FilesProviderTrashRequest
 	Operation:   "emptyTrash",
 }
 
-var FilesProviderStreamingSearch = rpc.Call[util.Empty, util.Empty]{} // TODO
+type FilesProviderStreamingSearchRequest struct {
+	Query         string                  `json:"query"`
+	Owner         ResourceOwner           `json:"owner"`
+	Flags         FileFlags               `json:"flags"`
+	Category      apm.ProductCategoryIdV2 `json:"category"`
+	CurrentFolder util.Option[string]     `json:"currentFolder"`
+}
 
-// TODO transfer
+type FilesProviderStreamingSearchResult struct {
+	Type  string         `json:"type"` // result or end_of_results
+	Batch []ProviderFile `json:"batch"`
+}
+
+func FilesProviderStreamingSearchEndpoint(providerId string) string {
+	return fmt.Sprintf("/ucloud/%s/files", providerId)
+}
+
+type FilesProviderTransferRequestType string
+
+const (
+	FilesProviderTransferReqTypeInitiateSource      FilesProviderTransferRequestType = "InitiateSource"
+	FilesProviderTransferReqTypeInitiateDestination FilesProviderTransferRequestType = "InitiateDestination"
+	FilesProviderTransferReqTypeStart               FilesProviderTransferRequestType = "Start"
+)
+
+type FilesProviderTransferRequest struct {
+	Type FilesProviderTransferRequestType `json:"type"`
+
+	FilesProviderTransferRequestInitiateSource      `json:",omitempty"`
+	FilesProviderTransferRequestInitiateDestination `json:",omitempty"`
+	FilesProviderTransferRequestStart               `json:",omitempty"`
+}
+
+type FilesProviderTransferRequestInitiateSource struct {
+	SourcePath          string `json:"sourcePath,omitempty"`
+	SourceDrive         Drive  `json:"sourceCollection,omitempty"`
+	DestinationProvider string `json:"destinationProvider,omitempty"`
+}
+
+type FilesProviderTransferRequestInitiateDestination struct {
+	DestinationPath    string   `json:"destinationPath,omitempty"`
+	DestinationDrive   Drive    `json:"destinationCollection,omitempty"`
+	SourceProvider     string   `json:"sourceProvider,omitempty"`
+	SupportedProtocols []string `json:"supportedProtocols,omitempty"`
+}
+
+type FilesProviderTransferRequestStart struct {
+	Session            string          `json:"session,omitempty"`
+	SelectedProtocol   string          `json:"selectedProtocol,omitempty"`
+	ProtocolParameters json.RawMessage `json:"protocolParameters,omitempty"`
+}
+
+type FilesProviderTransferResponse struct {
+	Type FilesProviderTransferRequestType `json:"type"`
+
+	FilesProviderTransferResponseInitiateSource      `json:",omitempty"`
+	FilesProviderTransferResponseInitiateDestination `json:",omitempty"`
+	FilesProviderTransferResponseStart               `json:",omitempty"`
+}
+
+type FilesProviderTransferResponseInitiateSource struct {
+	Session            string   `json:"session,omitempty"`
+	SupportedProtocols []string `json:"supportedProtocols,omitempty"`
+}
+
+type FilesProviderTransferResponseInitiateDestination struct {
+	SelectedProtocol   string          `json:"selectedProtocol,omitempty"`
+	ProtocolParameters json.RawMessage `json:"protocolParameters,omitempty"`
+}
+
+type FilesProviderTransferResponseStart struct {
+}
+
+var FilesProviderTransfer = rpc.Call[FilesProviderTransferRequest, FilesProviderTransferResponse]{
+	BaseContext: fileProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesService,
+	Operation:   "transfer",
+}

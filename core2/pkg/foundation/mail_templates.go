@@ -10,9 +10,6 @@ var tplAccountingLowResources []byte
 //go:embed mailtpl/accounting/low_resources_reminder.j2
 var tplAccountingLowResourcesReminder []byte
 
-//go:embed mailtpl/grants/status_change.j2
-var tplGrantsStatusChange []byte
-
 //go:embed mailtpl/grants/transfer.j2
 var tplGrantsTransfer []byte
 
@@ -21,15 +18,6 @@ var tplGrantsUpdatedToApplicant []byte
 
 //go:embed mailtpl/grants/new_application.j2
 var tplGrantsNewApplication []byte
-
-//go:embed mailtpl/grants/approved_to_approver.j2
-var tplGrantsApprovedToApprover []byte
-
-//go:embed mailtpl/grants/closed_to_approver.j2
-var tplGrantsClosedToApprover []byte
-
-//go:embed mailtpl/grants/updated_to_approver.j2
-var tplGrantsUpdatedToApprover []byte
 
 //go:embed mailtpl/grants/approved_to_applicant.j2
 var tplGrantsApprovedToApplicant []byte
@@ -72,4 +60,3 @@ var tplSupportSupport []byte
 
 //go:embed mailtpl/jobs/events.j2
 var tplJobsEvents []byte
-

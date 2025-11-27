@@ -54,6 +54,7 @@ func initSsh() {
 
 func SshKeyCreate(actor rpc.Actor, keys []orcapi.SshKeySpecification) ([]fndapi.FindByStringId, *util.HttpError) {
 	for _, key := range keys {
+		key.Key = strings.TrimSpace(key.Key)
 		anyOk := false
 		for _, validPrefix := range validPrefixes {
 			if strings.HasPrefix(key.Key, validPrefix) {
@@ -67,12 +68,15 @@ func SshKeyCreate(actor rpc.Actor, keys []orcapi.SshKeySpecification) ([]fndapi.
 		}
 	}
 
+	now := time.Now()
 	result := db.NewTx(func(tx *db.Transaction) []fndapi.FindByStringId {
 		b := db.BatchNew(tx)
 
 		var ids []*util.Option[struct{ Id int }]
 
 		for _, key := range keys {
+			key.Key = strings.TrimSpace(key.Key)
+
 			row := db.BatchGet[struct{ Id int }](
 				b,
 				`
@@ -82,7 +86,7 @@ func SshKeyCreate(actor rpc.Actor, keys []orcapi.SshKeySpecification) ([]fndapi.
 				`,
 				db.Params{
 					"owner":      actor.Username,
-					"created_at": time.Now(),
+					"created_at": now,
 					"title":      key.Title,
 					"key":        key.Key,
 				},
@@ -145,6 +149,11 @@ var validPrefixes = []string{
 }
 
 func SshKeyRetrieve(actor rpc.Actor, id string) (orcapi.SshKey, *util.HttpError) {
+	parsedId, err := strconv.Atoi(id)
+	if err != nil {
+		return orcapi.SshKey{}, util.HttpErr(http.StatusBadRequest, "Invalid SSH key id")
+	}
+
 	result, ok := db.NewTx2(func(tx *db.Transaction) (orcapi.SshKey, bool) {
 		row, ok := db.Get[struct {
 			Id        int
@@ -160,7 +169,7 @@ func SshKeyRetrieve(actor rpc.Actor, id string) (orcapi.SshKey, *util.HttpError)
 				where id = :id and owner = :owner
 			`,
 			db.Params{
-				"id":    id,
+				"id":    parsedId,
 				"owner": actor.Username,
 			},
 		)
@@ -213,7 +222,7 @@ func SshKeyBrowse(actor rpc.Actor, pagination orcapi.SshKeysBrowseRequest) fndap
 		for _, row := range items {
 			item = append(item, orcapi.SshKey{
 				Id:        strconv.Itoa(row.Id),
-				Owner:     actor.Username,
+				Owner:     row.Owner,
 				CreatedAt: fndapi.Timestamp(row.CreatedAt),
 				Specification: orcapi.SshKeySpecification{
 					Title: row.Title,
