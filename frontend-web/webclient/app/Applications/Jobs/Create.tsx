@@ -621,8 +621,6 @@ export const Create: React.FunctionComponent = () => {
                                         E-mail notification settings
                                         <Select width={"300px"} onChange={onChangeJobEmailNotification} name={"job-email-notifications"}>
                                             <option value="never" selected={jobEmailNotifications === "never"}>Do not notify me</option>
-                                            <option value="start" selected={jobEmailNotifications === "start"}>Notify me when a job starts</option>
-                                            <option value="ends" selected={jobEmailNotifications === "ends"}>Notify me when a job stops</option>
                                             <option value="start_or_ends" selected={jobEmailNotifications === "start_or_ends"}>Notify me when a job starts or stops</option>
                                         </Select>
                                     </Label>

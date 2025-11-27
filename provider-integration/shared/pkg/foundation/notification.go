@@ -19,14 +19,12 @@ type Notification struct {
 }
 
 type NotificationSettings struct {
-	JobStarted bool `json:"jobStarted"`
-	JobStopped bool `json:"jobStopped"`
+	JobStartedOrStopped bool `json:"jobStopped"`
 }
 
 func DefaultNotificationSettings() NotificationSettings {
 	return NotificationSettings{
-		JobStarted: true,
-		JobStopped: true,
+		JobStartedOrStopped: true,
 	}
 }
 
