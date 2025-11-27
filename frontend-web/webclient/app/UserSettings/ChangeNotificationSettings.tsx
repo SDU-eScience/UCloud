@@ -97,20 +97,11 @@ export const ChangeNotificationSettings: React.FunctionComponent<{setLoading: (l
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
                         size={27}
-                        onClick={() => toggleSubscription(NotificationType.JOB_STARTED)}
-                        onChange={() => undefined}
-                        checked={state.settings.jobStarted}
-                    />
-                    <span>Job started</span>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
-                    <Checkbox
-                        size={27}
                         onClick={() => toggleSubscription(NotificationType.JOB_STOPPED)}
                         onChange={() => undefined}
                         checked={state.settings.jobStopped}
                     />
-                    <span>Job stopped</span>
+                    <span>Job started or stopped</span>
                 </Label>
 
                 <Heading.h5> </Heading.h5>

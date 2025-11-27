@@ -1,4 +1,4 @@
-FROM dreg.cloud.sdu.dk/ucloud-dev/slurm-docker-cluster:2025.4.125
+FROM dreg.cloud.sdu.dk/ucloud-dev/slurm-docker-cluster:2025.4.127
 
 # Install SSH server
 RUN yum -y install openssh-server

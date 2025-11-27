@@ -9,6 +9,7 @@ import (
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/assert"
+	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -207,4 +208,16 @@ func assertEqualMaxUsable(t *testing.T, e *env, owner string, want int64) {
 	if got := e.MaxUsable(owner); got != want {
 		t.Fatalf("MaxUsable(%s) = %d, want %d", owner, got, want)
 	}
+}
+
+func (e *env) UpdateAllocation(t *testing.T, owner *internalOwner, now int, allocationId accAllocId, newQuota util.Option[int64], newStart util.Option[fndapi.Timestamp], newEnd util.Option[fndapi.Timestamp]) *util.HttpError {
+	_, _, err := internalUpdateAllocation(owner, e.Tm(now), e.Bucket, allocationId, newQuota, newStart, newEnd)
+	return err
+}
+
+func (e *env) ExpectAllocationValues(t *testing.T, allocation *internalAllocation, expectedQuota int64, expectedStartTime int, expectedEndTime int) {
+	t.Helper()
+	assert.Equal(t, expectedQuota, allocation.Quota)
+	assert.Equal(t, e.Tm(expectedStartTime), allocation.Start)
+	assert.Equal(t, e.Tm(expectedEndTime), allocation.End)
 }

@@ -36,6 +36,10 @@ func initAccounting() {
 		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: result}, nil
 	})
 
+	accapi.UpdateAllocation.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.UpdateAllocationRequest]) (util.Empty, *util.HttpError) {
+		return UpdateAllocation(info.Actor, request.Items)
+	})
+
 	accapi.ReportUsage.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.ReportUsageRequest]) (fndapi.BulkResponse[bool], *util.HttpError) {
 		// TODO Currently (when bypassing the allocation check in the orchestrator) I can create a license with no
 		//   allocation. I don't think this correctly returns false in that case.
@@ -212,6 +216,48 @@ func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, 
 	internalCommitAllocation(bucket, id)
 
 	return fmt.Sprint(id), err
+}
+
+func UpdateAllocation(actor rpc.Actor, requests []accapi.UpdateAllocationRequest) (util.Empty, *util.HttpError) {
+	for _, request := range requests {
+		if !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "You need admin privileges in your project to perform this action")
+		}
+
+		bucket, _, ok := internalWalletByAllocationId(accAllocId(request.AllocationId))
+		// If wallet cannot be found just skip
+		if !ok {
+			continue
+		}
+
+		reference := actor.Username
+		if actor.Project.Present {
+			reference = string(actor.Project.Value)
+		}
+		iOwner := internalOwnerByReference(reference)
+
+		grantedIn, comment, err := internalUpdateAllocation(iOwner, time.Now(), bucket, accAllocId(request.AllocationId), request.NewQuota, request.NewStart, request.NewEnd)
+
+		// If update failed will break the update
+		if err != nil {
+			return util.Empty{}, err
+		}
+
+		if grantedIn != accGrantId(0) {
+			_, commentErr := GrantsPostComment(
+				actor,
+				accapi.GrantsPostCommentRequest{
+					ApplicationId: fmt.Sprint(grantedIn),
+					Comment:       comment,
+				},
+			)
+			if commentErr != nil {
+				// Should not fail the update that we cannot post a comment
+				log.Warn("Error posting comment: %s", err)
+			}
+		}
+	}
+	return util.Empty{}, nil
 }
 
 func ReportUsage(actor rpc.Actor, request accapi.ReportUsageRequest) (bool, *util.HttpError) {

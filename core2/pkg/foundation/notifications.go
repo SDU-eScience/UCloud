@@ -202,7 +202,7 @@ func NotificationsCreate(notifications []fndapi.NotificationsCreateRequest) {
 		for _, reqItem := range notifications {
 			if reqItem.Notification.Type == "JOB_STARTED" || reqItem.Notification.Type == "JOB_COMPLETED" {
 				settings := notificationsRetrieveSettings(tx, reqItem.User)
-				if !settings.JobStarted || !settings.JobStopped {
+				if !settings.JobStartedOrStopped {
 					continue
 				}
 			}
@@ -242,9 +242,11 @@ func NotificationsCreate(notifications []fndapi.NotificationsCreateRequest) {
 	})
 
 	for i, notification := range notifications {
-		notification.Notification.Id.Set(ids[i])
-		notification.Notification.Ts = fndapi.Timestamp(time.Now())
-		notificationNotify(notification.User, notification.Notification)
+		if ids[i] != 0 {
+			notification.Notification.Id.Set(ids[i])
+			notification.Notification.Ts = fndapi.Timestamp(time.Now())
+			notificationNotify(notification.User, notification.Notification)
+		}
 	}
 }
 
