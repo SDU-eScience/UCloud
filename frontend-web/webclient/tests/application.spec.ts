@@ -19,9 +19,7 @@ test("Run job with jobname, extend time, stop job, validate jobname in runs", as
 
     await page.getByText("Time remaining: 02").isVisible();
 
-    await NetworkCalls.awaitResponse(page, "**/jobs/terminate", async () => {
-        await Components.clickConfirmationButton(page, "Stop application");
-    });
+    await Runs.terminateViewedRun(page);
 
     await page.getByText("Run application again").hover();
     await expect(page.getByText("Run application again")).toHaveCount(1);
@@ -50,9 +48,9 @@ test("Start app and stop app from runs page. Start it from runs page, testing pa
     await Applications.actionByRowTitle(page, jobName, "dblclick");
     await expect(page.getByText("Your job has completed")).toHaveCount(1);
     await Runs.runApplicationAgain(page, jobName);
-    await Components.clickConfirmationButton(page, "Stop application");
+    await Runs.terminateViewedRun(page);
     // Note(Jonas): I would have thought that the `expect` below would be enough, but alas!
-    while (!await page.getByText("Run application again").isVisible()) {}
+    while (!await page.getByText("Run application again").isVisible());
     await expect(page.getByText("Run application again")).toHaveCount(1);
 
 });
@@ -95,7 +93,7 @@ test("Ensure 'New version available' button shows up and works.", async ({page})
     await versionSelect.click();
     await page.locator("div[class^=rich-select-result-wrapper] > div").last().click();
     await page.locator("div[class^='trigger-div']", {hasText: "New version available."}).isVisible();
-    await page.locator("div[class^='trigger-div']", {hasText: "New version available."}).click();;
+    await page.locator("div[class^='trigger-div']", {hasText: "New version available."}).click();
     await page.locator("div[class^=rich-select-trigger]", {hasText: newestVersion}).isVisible();
 });
 

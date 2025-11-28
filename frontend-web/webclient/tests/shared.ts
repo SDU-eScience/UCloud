@@ -111,8 +111,10 @@ export const File = {
     async moveFileTo(page: Page, fileToMove: string, targetFolder: string): Promise<void> {
         await this.openOperationsDropsdown(page, fileToMove);
         await page.getByText("Move to...").click();
-        await page.getByRole("dialog").locator("div.row", {hasText: targetFolder})
-            .getByRole("button").filter({hasText: "Move to"}).click();
+        await NetworkCalls.awaitResponse(page, "**/api/files/move", async () => {
+            await page.getByRole("dialog").locator("div.row", {hasText: targetFolder})
+                .getByRole("button").filter({hasText: "Move to"}).click();
+        })
         while (await page.getByRole("dialog").isVisible());
     },
 
@@ -120,8 +122,10 @@ export const File = {
         await this.openOperationsDropsdown(page, fileToCopy);
         await page.getByText("Copy to...").click();
 
-        await page.getByRole("dialog").locator("div.row", {hasText: targetFolder})
-            .getByRole("button").filter({hasText: "Copy to"}).click();
+        await NetworkCalls.awaitResponse(page, "**/api/files/copy", async () => {
+            await page.getByRole("dialog").locator("div.row", {hasText: targetFolder})
+                .getByRole("button").filter({hasText: "Copy to"}).click();
+        })
 
         while (await page.getByRole("dialog").isVisible());
     },
@@ -162,7 +166,7 @@ export const File = {
             await this.actionByRowTitle(page, name, "hover");
             // TODO(Jonas): This will click the first favorited rows icon, not necessarily the one we want.
             await page.getByRole('img', {name: 'Star', includeHidden: false}).first().click();
-        })
+        });
     },
 
     async ensureDialogDriveActive(page: Page, driveName: string): Promise<void> {
@@ -316,7 +320,7 @@ export const Applications = {
         }
 
         await page.locator(locatorString).first().click();
-        await page.waitForURL("https://ucloud.localhost.direct/app/jobs/create?app=coder")
+        await page.waitForURL("**/app/jobs/create?app=**")
     },
 
 
@@ -367,6 +371,13 @@ export const Runs = {
         await page.locator(".row").getByText(jobName).click();
         await NetworkCalls.awaitResponse(page, "**/jobs/terminate", async () => {
             await Components.clickConfirmationButton(page, "Stop");
+        });
+    },
+
+
+    async terminateViewedRun(page: Page): Promise<void> {
+        await NetworkCalls.awaitResponse(page, "**/jobs/terminate", async () => {
+            await Components.clickConfirmationButton(page, "Stop application");
         });
     },
 
