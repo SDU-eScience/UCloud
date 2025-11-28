@@ -1226,7 +1226,7 @@ func AppStudioRetrieveAccessList(appName string) []orcapi.AclEntity {
 		result = append(result, perm)
 	}
 	b.Mu.RUnlock()
-	return result
+	return util.NonNilSlice(result)
 }
 
 // Studio endpoints (write)

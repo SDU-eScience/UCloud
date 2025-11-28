@@ -662,13 +662,14 @@ const SubProjectListRow: React.FunctionComponent<{
     recipient: AllocationDisplayTreeRecipient;
     listRef: React.RefObject<VariableSizeList<number[]> | null>;
     rowIdx: number;
+    recipientIdx: number;
     avatars: AvatarState;
     onEdit: (elem: HTMLElement) => void;
     state: State;
     onEditKey: (ev: React.KeyboardEvent) => Promise<void>;
     onEditBlur: (ev: React.SyntheticEvent) => void;
     setNodeState: (action: TreeAction, reference: string, group?: string | null) => void;
-}> = ({style, recipient, listRef, rowIdx, avatars, onEdit, state, onEditKey, onEditBlur, setNodeState}) => {
+}> = ({style, recipient, listRef, rowIdx, recipientIdx, avatars, onEdit, state, onEditKey, onEditBlur, setNodeState}) => {
     const projectInfo = useProjectInfo(recipient.owner.reference.type === "user" ? "" : recipient.owner.reference.projectId);
     const workspaceId = recipient.owner.reference["username"] ?? recipient.owner.reference["projectId"] ?? "";
     const pi = recipient.owner.reference.type === "user" ?
@@ -755,7 +756,7 @@ const SubProjectListRow: React.FunctionComponent<{
                             <TreeNode
                                 key={alloc.allocationId}
                                 className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
-                                data-ridx={rowIdx} data-idx={idx} data-gidx={gidx}
+                                data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx}
                                 data-grant-id={alloc.grantedIn}
                                 left={<Flex>
                                     <Flex width={"200px"}>
@@ -785,7 +786,6 @@ const SubProjectListRow: React.FunctionComponent<{
                                     </>}
                                 </Flex>}
                                 right={<Flex flexDirection={"row"} gap={"8px"}>
-
                                     {alloc.isEditing ?
                                         <Flex gap={"4px"} width={"250px"}>
                                             <Input
@@ -794,7 +794,7 @@ const SubProjectListRow: React.FunctionComponent<{
                                                 autoFocus
                                                 onKeyDown={onEditKey}
                                                 onBlur={onEditBlur}
-                                                data-ridx={rowIdx} data-idx={idx}
+                                                data-ridx={recipientIdx} data-idx={idx}
                                                 data-gidx={gidx}
                                             />
                                             <Text
@@ -807,10 +807,9 @@ const SubProjectListRow: React.FunctionComponent<{
 
                                     {alloc.note?.rowShouldBeGreyedOut !== true && !alloc.isEditing &&
                                         <SmallIconButton
-
                                             icon={"heroPencil"} onClick={onEdit}
                                             disabled={state.editControlsDisabled}
-                                            data-ridx={rowIdx} data-idx={idx}
+                                            data-ridx={recipientIdx} data-idx={idx}
                                             data-gidx={gidx}/>
                                     }
 
@@ -846,9 +845,7 @@ const SubProjectFiltersRow: React.FunctionComponent<{
 }> = (props) => {
 
     const onChecked = useCallback(() => {
-        console.log(props.setting);
         if (props.setting.title === SingleUserProjects) {
-            console.log("toggle");
             props.dispatchEvent({
                 type: "ToggleViewOnlyProjects",
         });
@@ -1191,6 +1188,7 @@ export const SubProjectList: React.FunctionComponent<{
                                                 recipient={recipient}
                                                 listRef={listRef}
                                                 rowIdx={rowIdx}
+                                                recipientIdx={recipientIdx}
                                                 avatars={avatars}
                                                 onEdit={onEdit}
                                                 state={state}
