@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/golang-jwt/jwt/v5"
 	ws "github.com/gorilla/websocket"
@@ -184,7 +185,7 @@ func (c *Call[Req, Resp]) FullName() string {
 	if hasConventionName {
 		name := []rune(c.Operation)
 		if len(name) > 0 {
-			result.WriteRune(name[0])
+			result.WriteRune(unicode.ToUpper(name[0]))
 			result.WriteString(string(name[1:]))
 		}
 	} else {
