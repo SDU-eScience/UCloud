@@ -244,14 +244,6 @@ func Launch() {
 		return rpc.BearerAuthenticator(bearer, projectHeader)
 	}
 
-	rpc.AuditConsumer = func(event rpc.HttpCallLogEntry) {
-		log.Info("%v/%v %v", event.RequestName, event.ResponseCode, time.Duration(event.ResponseTimeNanos)*time.Nanosecond)
-	}
-
-	if elastic := cfg.Configuration.ElasticSearch; elastic.Present {
-		rpc.AuditConsumer = fnd.InitAuditElasticSearch(elastic.Value)
-	}
-
 	rpc.LookupActor = func(username string) (rpc.Actor, bool) {
 		atuple := util.RetryOrPanic("rpc.LookupActor", func() (util.Tuple2[rpc.Actor, bool], error) {
 			resp, err := fndapi.AuthLookupUser.Invoke(fndapi.FindByStringId{Id: username})
@@ -298,6 +290,8 @@ func Launch() {
 
 	// Services
 	// -----------------------------------------------------------------------------------------------------------------
+
+	initAuditPg()
 
 	fnd.Init()
 	acc.Init()

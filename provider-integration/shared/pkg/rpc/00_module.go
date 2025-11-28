@@ -501,6 +501,7 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 				ResponseTime:      uint64(end.Sub(start).Milliseconds()),
 				ResponseTimeNanos: uint64(end.Sub(start).Nanoseconds()),
 				Project:           stringProject,
+				ReceivedAt:        start,
 			}
 
 			token := SecurityPrincipalToken{
