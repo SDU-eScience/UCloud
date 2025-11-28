@@ -3,8 +3,6 @@ package rpc
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
-	ws "github.com/gorilla/websocket"
 	"math"
 	"net/http"
 	"os"
@@ -13,6 +11,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	ws "github.com/gorilla/websocket"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -405,6 +408,9 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 		}
 
 		start := time.Now()
+		metricServerRequestCounter.WithLabelValues(util.DeploymentName, c.FullName()).Inc()
+		metricServerInFlight.WithLabelValues(util.DeploymentName, c.FullName()).Inc()
+
 		var request Req
 		var response Resp
 
@@ -435,6 +441,17 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 		} else {
 			SendResponseOrError(w, response, err)
 		}
+
+		if err != nil {
+			if err.StatusCode >= 400 && err.StatusCode <= 499 {
+				metricServerResp4xx.WithLabelValues(util.DeploymentName, c.FullName()).Inc()
+			} else if err.StatusCode >= 500 && err.StatusCode <= 599 {
+				metricServerResp5xx.WithLabelValues(util.DeploymentName, c.FullName()).Inc()
+			}
+		}
+
+		metricServerInFlight.WithLabelValues(util.DeploymentName, c.FullName()).Dec()
+		metricServerRequestDuration.WithLabelValues(util.DeploymentName, c.FullName()).Observe(end.Sub(start).Seconds())
 
 		if AuditConsumer != nil {
 			stringProject := util.OptNone[string]()
@@ -630,3 +647,49 @@ type CorePrincipalClaims struct {
 	CorePrincipalBaseClaims
 	jwt.RegisteredClaims
 }
+
+// Metrics
+// =====================================================================================================================
+
+var (
+	metricServerRequestCounter = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "rpc_server",
+		Name:      "requests_started",
+		Help:      "Number of requests received",
+	}, []string{"deployment", "name"})
+
+	metricServerResp4xx = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "rpc_server",
+		Name:      "request_client_errors",
+		Help:      "Number of requests that ended in client error (4xx).",
+	}, []string{"deployment", "name"})
+
+	metricServerResp5xx = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "rpc_server",
+		Name:      "request_server_errors",
+		Help:      "Number of requests that ended in server error (5xx).",
+	}, []string{"deployment", "name"})
+
+	metricServerInFlight = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: "ucloud",
+		Subsystem: "rpc_server",
+		Name:      "requests_in_flight",
+		Help:      "Number of requests currently in-flight",
+	}, []string{"deployment", "name"})
+
+	metricServerRequestDuration = promauto.NewSummaryVec(prometheus.SummaryOpts{
+		Namespace: "ucloud",
+		Subsystem: "rpc_server",
+		Name:      "requests_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to complete requests",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	}, []string{"deployment", "name"})
+)
