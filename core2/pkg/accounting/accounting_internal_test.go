@@ -2,8 +2,13 @@ package accounting
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
+	"ucloud.dk/shared/pkg/assert"
+	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func TestAllocations(t *testing.T) {
@@ -460,4 +465,111 @@ func TestChildUsesAllCheckParent(t *testing.T) {
 
 	// parent should have zero head-room
 	assertEqualMaxUsable(t, e, "project", 0)
+}
+
+func TestUpdateAllocation(t *testing.T) {
+	e := newEnv(t, timeCategory)
+	e.AllocateEx(0, 0, 1_000, 10, "project", "provider")
+	allocId := e.AllocateEx(0, 0, 10_000, 10, "child", "project")
+
+	parent := e.Owner("project")
+
+	iAlloc := e.Bucket.AllocationsById[allocId]
+
+	// Pre changes assert
+
+	e.ExpectAllocationValues(t, iAlloc, 10, 0, 10_000)
+
+	// All good tests
+
+	err := e.UpdateAllocation(
+		t,
+		parent,
+		0,
+		allocId,
+		util.OptValue(int64(5000)),
+		util.Option[fndapi.Timestamp]{},
+		util.Option[fndapi.Timestamp]{},
+	)
+
+	if err != nil {
+		t.Fatalf("Allocation update failed %v", err)
+	}
+
+	iAlloc = e.Bucket.AllocationsById[allocId]
+
+	e.ExpectAllocationValues(t, iAlloc, 5000, 0, 10_000)
+
+	newStart := e.Tm(30)
+	err = e.UpdateAllocation(
+		t,
+		parent,
+		0,
+		allocId,
+		util.Option[int64]{},
+		util.OptValue(fndapi.Timestamp(newStart)),
+		util.Option[fndapi.Timestamp]{},
+	)
+
+	if err != nil {
+		t.Fatalf("Allocation update failed %v", err)
+	}
+
+	e.ExpectAllocationValues(t, iAlloc, 5000, 30, 10_000)
+
+	newEnd := e.Tm(200)
+	err = e.UpdateAllocation(
+		t,
+		parent,
+		0,
+		allocId,
+		util.Option[int64]{},
+		util.Option[fndapi.Timestamp]{},
+		util.OptValue(fndapi.Timestamp(newEnd)),
+	)
+
+	if err != nil {
+		t.Fatalf("Allocation update failed %v", err)
+	}
+
+	e.ExpectAllocationValues(t, iAlloc, 5000, 30, 200)
+
+	//Expected fails
+	failingNewTime := e.Tm(-10)
+	err = e.UpdateAllocation(
+		t,
+		parent,
+		50,
+		allocId,
+		util.Option[int64]{},
+		util.OptValue(fndapi.Timestamp(failingNewTime)),
+		util.Option[fndapi.Timestamp]{},
+	)
+
+	assert.Equal(t, util.HttpErr(http.StatusForbidden, "You cannot change the starting time of an allocation which has already started"), err)
+
+	err = e.UpdateAllocation(
+		t,
+		e.Owner("provider"),
+		0,
+		allocId,
+		util.OptValue(int64(20)),
+		util.Option[fndapi.Timestamp]{},
+		util.Option[fndapi.Timestamp]{},
+	)
+
+	assert.Equal(t, util.HttpErr(http.StatusForbidden, "You are not allowed to modify this allocation"), err)
+
+	err = e.UpdateAllocation(
+		t,
+		e.Owner("child"),
+		0,
+		allocId,
+		util.OptValue(int64(20)),
+		util.Option[fndapi.Timestamp]{},
+		util.Option[fndapi.Timestamp]{},
+	)
+
+	assert.Equal(t, util.HttpErr(http.StatusForbidden, "You are not allowed to modify this allocation"), err)
+
 }

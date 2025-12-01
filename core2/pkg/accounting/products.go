@@ -494,7 +494,23 @@ func productsPostProcess(actor rpc.Actor, products []accapi.ProductV2, filter ac
 		return products
 	}
 
-	// TODO
+	wallets := WalletsBrowse(
+		actor,
+		accapi.WalletsBrowseRequest{},
+	)
+
+	for _, wallet := range wallets.Items {
+		for i, product := range products {
+			if wallet.PaysFor == product.Category {
+				if filter.IncludeBalance.Present && filter.IncludeBalance.Value {
+					products[i].Balance = wallet.Quota - wallet.TotalUsage
+				}
+				if filter.IncludeMaxBalance.Present && filter.IncludeMaxBalance.Value {
+					products[i].MaxUsableBalance = wallet.MaxUsable
+				}
+			}
+		}
+	}
 	return products
 }
 

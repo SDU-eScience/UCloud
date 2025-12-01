@@ -14,6 +14,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	acc "ucloud.dk/core/pkg/accounting"
 	cfg "ucloud.dk/core/pkg/config"
 	fnd "ucloud.dk/core/pkg/foundation"
@@ -243,14 +244,6 @@ func Launch() {
 		return rpc.BearerAuthenticator(bearer, projectHeader)
 	}
 
-	rpc.AuditConsumer = func(event rpc.HttpCallLogEntry) {
-		log.Info("%v/%v %v", event.RequestName, event.ResponseCode, time.Duration(event.ResponseTimeNanos)*time.Nanosecond)
-	}
-
-	if elastic := cfg.Configuration.ElasticSearch; elastic.Present {
-		rpc.AuditConsumer = fnd.InitAuditElasticSearch(elastic.Value)
-	}
-
 	rpc.LookupActor = func(username string) (rpc.Actor, bool) {
 		atuple := util.RetryOrPanic("rpc.LookupActor", func() (util.Tuple2[rpc.Actor, bool], error) {
 			resp, err := fndapi.AuthLookupUser.Invoke(fndapi.FindByStringId{Id: username})
@@ -298,6 +291,8 @@ func Launch() {
 	// Services
 	// -----------------------------------------------------------------------------------------------------------------
 
+	initAuditPg()
+
 	fnd.Init()
 	acc.Init()
 	orc.Init()
@@ -317,16 +312,15 @@ func Launch() {
 	os.Exit(1)
 }
 
-var metricsServerHandler func(writer http.ResponseWriter, request *http.Request) = nil
-
 func launchMetricsServer() {
 	go func() {
+		handler := promhttp.Handler()
+		metricsServerHandler := func(writer http.ResponseWriter, request *http.Request) {
+			handler.ServeHTTP(writer, request)
+		}
+
 		http.HandleFunc("/metrics", func(writer http.ResponseWriter, request *http.Request) {
-			if metricsServerHandler != nil {
-				metricsServerHandler(writer, request)
-			} else {
-				writer.WriteHeader(http.StatusNotFound)
-			}
+			metricsServerHandler(writer, request)
 		})
 		err := http.ListenAndServe(":7867", nil)
 		if err != nil {

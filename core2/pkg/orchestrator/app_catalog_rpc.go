@@ -305,7 +305,7 @@ func appCatalogInitRpc() {
 				}),
 			})
 		}
-		return orcapi.AppCatalogRetrieveAclResponse{Entries: result}, nil
+		return orcapi.AppCatalogRetrieveAclResponse{Entries: util.NonNilSlice(result)}, nil
 	})
 
 	orcapi.AppsUpdateAcl.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateAclRequest) (util.Empty, *util.HttpError) {

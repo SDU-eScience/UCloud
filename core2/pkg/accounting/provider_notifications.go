@@ -361,6 +361,7 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 
 			projects.Counter++
 		} else if forced {
+			projects.ProjectIdToRef[project.Id] = ref
 			projectsToSend[ref] = util.Empty{}
 		}
 

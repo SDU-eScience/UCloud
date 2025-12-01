@@ -11,7 +11,7 @@ UCloud job updates
 <ul>
     {% for event in events %}
         <li>
-            <a href="https://cloud.sdu.dk/app/jobs/properties/{{event.jobId}}">
+            <a href="{{ domain }}/app/jobs/properties/{{event.jobId}}">
                 {{event.jobName}}
             </a>: {{ event.appName }} {{ event.change }}
         </li>

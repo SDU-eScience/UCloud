@@ -19,14 +19,12 @@ type Notification struct {
 }
 
 type NotificationSettings struct {
-	JobStarted bool `json:"jobStarted"`
-	JobStopped bool `json:"jobStopped"`
+	JobStartedOrStopped bool `json:"jobStopped"`
 }
 
 func DefaultNotificationSettings() NotificationSettings {
 	return NotificationSettings{
-		JobStarted: true,
-		JobStopped: true,
+		JobStartedOrStopped: true,
 	}
 }
 
@@ -96,7 +94,11 @@ var NotificationsCreateBulk = rpc.Call[BulkRequest[NotificationsCreateRequest], 
 	Roles:       rpc.RolesService,
 }
 
-var NotificationsRetrieveSettings = rpc.Call[util.Empty, NotificationSettings]{
+type NotificationsRetrieveSettingsResponse struct {
+	Settings NotificationSettings `json:"settings"`
+}
+
+var NotificationsRetrieveSettings = rpc.Call[util.Empty, NotificationsRetrieveSettingsResponse]{
 	BaseContext: NotificationContext,
 	Operation:   "settings",
 	Convention:  rpc.ConventionRetrieve,

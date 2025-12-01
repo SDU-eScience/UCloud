@@ -253,7 +253,7 @@ func UserWantsEmail(username string, mailType fndapi.MailType) bool {
 	case fndapi.MailTypeVerifyEmailAddress:
 		return true
 	case fndapi.MailTypeJobEvents:
-		// TODO
+		// TODO consolidate the two states
 		return settings.JobStarted || settings.JobStopped
 	default:
 		return false
@@ -411,6 +411,7 @@ func renderEmail(mail mailToSend) (string, string, error) {
 		<a href="%s/app/users/settings">personal settings</a> on UCloud.
 	</p>`, cfg.Configuration.SelfPublic.ToURL())
 	params["bodyStart"] = boundary
+	params["domain"] = cfg.Configuration.SelfPublic.ToURL()
 
 	ctx := gonjaexec.NewContext(params)
 
