@@ -289,7 +289,6 @@ export const Components = {
     },
 
     async toggleTasksDialog(page: Page) {
-        // Note(Jonas): Selector for class that starts with 'static-circle'.
         await page.locator("[class*='static-circle']").click();
     },
 
