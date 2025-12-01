@@ -444,9 +444,9 @@ func ProjectBrowse(actor rpc.Actor, request fndapi.ProjectBrowseRequest) (fndapi
 
 		if sortBy == fndapi.ProjectSortByFavorite {
 			if a.Status.IsFavorite && !b.Status.IsFavorite {
-				cmpResult = -1
-			} else if !a.Status.IsFavorite && b.Status.IsFavorite {
 				cmpResult = 1
+			} else if !a.Status.IsFavorite && b.Status.IsFavorite {
+				cmpResult = -1
 			}
 		}
 
