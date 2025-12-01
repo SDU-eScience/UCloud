@@ -481,19 +481,7 @@ func internalUpdateAllocation(parentOwner *internalOwner, now time.Time, b *inte
 		if newQuota.Present {
 			amount := int64(0)
 			// Converting to readable format instead of raw format
-
-			switch category.AccountingFrequency {
-			case accapi.AccountingFrequencyOnce:
-				amount = proposedNewQuota
-			case accapi.AccountingFrequencyPeriodicMinute:
-				amount = proposedNewQuota / 60
-			case accapi.AccountingFrequencyPeriodicHour:
-				amount = proposedNewQuota
-			case accapi.AccountingFrequencyPeriodicDay:
-				amount = proposedNewQuota * 24
-			default:
-				log.Warn("Invalid accounting frequency passed: '%v'\n", category.AccountingFrequency)
-			}
+			AccountingDbValuesToReadableFormat(category.AccountingFrequency, proposedNewQuota)
 			changelog += fmt.Sprintf("The Quota for %s (%s) has manually been updated to %d.\n", category.Name, category.Provider, amount)
 		}
 		if newStart.Present {

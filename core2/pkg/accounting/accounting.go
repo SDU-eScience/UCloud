@@ -374,6 +374,23 @@ func RetrieveAncestors(now time.Time, category accapi.ProductCategoryIdV2, owner
 	return internalRetrieveAncestors(now, category, owner)
 }
 
+func AccountingDbValuesToReadableFormat(frequency accapi.AccountingFrequency, rawAmount int64) int64 {
+	amount := int64(0)
+	switch frequency {
+	case accapi.AccountingFrequencyOnce:
+		amount = rawAmount
+	case accapi.AccountingFrequencyPeriodicMinute:
+		amount = rawAmount / 60
+	case accapi.AccountingFrequencyPeriodicHour:
+		amount = rawAmount
+	case accapi.AccountingFrequencyPeriodicDay:
+		amount = rawAmount * 24
+	default:
+		log.Warn("Invalid accounting frequency passed: '%v'\n", frequency)
+	}
+	return amount
+}
+
 func accountingLoad() {
 	db.NewTx0(func(tx *db.Transaction) {
 		accGlobals.OwnersByReference = map[string]*internalOwner{}
