@@ -215,7 +215,12 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 		return false, util.HttpErr(http.StatusNotFound, "unknown category")
 	}
 
-	owner := internalOwnerByReference(request.Owner.Reference())
+	reference := request.Owner.Reference()
+	if reference == "" {
+		return false, util.HttpErr(http.StatusNotFound, "invalid owner specified")
+	}
+
+	owner := internalOwnerByReference(reference)
 
 	var scope *scopedUsage
 	if request.Description.Scope.Present {
@@ -676,6 +681,10 @@ func internalWalletByOwner(b *internalBucket, now time.Time, owner accOwnerId) A
 }
 
 func internalWalletByReferenceAndCategory(now time.Time, reference string, category accapi.ProductCategoryIdV2) (AccWalletId, bool) {
+	if reference == "" {
+		return 0, false
+	}
+
 	owner := internalOwnerByReference(reference)
 	cat, err := ProductCategoryRetrieve(rpc.ActorSystem, category.Name, category.Provider)
 	if err != nil {
@@ -1558,6 +1567,10 @@ func internalRetrieveWallets(
 	reference string,
 	filter walletFilter,
 ) []accapi.WalletV2 {
+	if reference == "" {
+		return nil
+	}
+
 	owner := internalOwnerByReference(reference)
 	var potentialBuckets []*internalBucket
 

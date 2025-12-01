@@ -251,7 +251,11 @@ func GiftsCreate(actor rpc.Actor, spec accapi.GiftWithCriteria) (int, *util.Http
 	}
 
 	if err == nil {
-		for _, resc := range spec.Resources {
+		for i := 0; i < len(spec.Resources); i++ {
+			resc := spec.Resources[i]
+			resc.GrantGiver = spec.ResourcesOwnedBy
+			spec.Resources[i] = resc
+
 			if resc.Provider != string(providerId) {
 				err = util.HttpErr(http.StatusForbidden, "you cannot grant this resource")
 			}

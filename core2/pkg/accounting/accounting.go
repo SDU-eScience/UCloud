@@ -175,7 +175,7 @@ func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, 
 		return "", util.HttpErr(http.StatusForbidden, "You are not allowed to create a root allocation!")
 	}
 
-	if !actor.Project.Present {
+	if !actor.Project.Present || actor.Project.Value == "" {
 		return "", util.HttpErr(http.StatusForbidden, "Cannot perform a root allocation in a personal workspace!")
 	}
 
@@ -231,7 +231,7 @@ func UpdateAllocation(actor rpc.Actor, requests []accapi.UpdateAllocationRequest
 		}
 
 		reference := actor.Username
-		if actor.Project.Present {
+		if actor.Project.Present && actor.Project.Value != "" {
 			reference = string(actor.Project.Value)
 		}
 		iOwner := internalOwnerByReference(reference)
