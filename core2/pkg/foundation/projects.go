@@ -2043,12 +2043,13 @@ func ProjectCreateInternal(actor rpc.Actor, req fndapi.ProjectInternalCreateRequ
 				`
 					insert into project.projects(id, created_at, modified_at, title, archived, parent, dmp, 
 						subprojects_renameable, can_consume_resources, provider_project_for, backend_id) 
-					values (:id, now(), now(), :title, false, null, null, false, true, null, :backend_id)
+					values (:id, now(), now(), :title, false, null, null, false, :can_consume_resources, null, :backend_id)
 				`,
 				db.Params{
-					"id":         resultId,
-					"title":      req.Title + suffix,
-					"backend_id": req.BackendId,
+					"id":                    resultId,
+					"title":                 req.Title + suffix,
+					"backend_id":            req.BackendId,
+					"can_consume_resources": !req.SubAllocator.GetOrDefault(false),
 				},
 			)
 
