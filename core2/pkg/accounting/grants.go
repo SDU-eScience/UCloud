@@ -1569,9 +1569,10 @@ func lGrantsCreateProject(app *grantApplication, title string, pi string) (strin
 		}
 	} else {
 		result, err := fndapi.ProjectInternalCreate.Invoke(fndapi.ProjectInternalCreateRequest{
-			Title:      title,
-			BackendId:  fmt.Sprintf("grants/%s", app.Application.Id.Value),
-			PiUsername: pi,
+			Title:        title,
+			BackendId:    fmt.Sprintf("grants/%s", app.Application.Id.Value),
+			PiUsername:   pi,
+			SubAllocator: app.Application.CurrentRevision.Document.Form.SubAllocator,
 		})
 
 		if err != nil {
