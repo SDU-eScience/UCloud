@@ -205,25 +205,25 @@ func auditPgLogPartitioner(readyWg *sync.WaitGroup, partitionSizeDays int) {
 
 						db.BatchExec(
 							b,
-							fmt.Sprintf(`create index if not exists on audit_logs.%s (received_at)`, table.Name),
+							fmt.Sprintf(`create index on audit_logs.%s (received_at)`, table.Name),
 							db.Params{},
 						)
 
 						db.BatchExec(
 							b,
-							fmt.Sprintf(`create index if not exists on audit_logs.%s (request_name, received_at desc)`, table.Name),
+							fmt.Sprintf(`create index on audit_logs.%s (request_name, received_at desc)`, table.Name),
 							db.Params{},
 						)
 
 						db.BatchExec(
 							b,
-							fmt.Sprintf(`create index if not exists on audit_logs.%s (username, received_at desc)`, table.Name),
+							fmt.Sprintf(`create index on audit_logs.%s (username, received_at desc)`, table.Name),
 							db.Params{},
 						)
 
 						db.BatchExec(
 							b,
-							fmt.Sprintf(`create index if not exists on audit_logs.%s (response_code, received_at desc)`, table.Name),
+							fmt.Sprintf(`create index on audit_logs.%s (response_code, received_at desc)`, table.Name),
 							db.Params{},
 						)
 
