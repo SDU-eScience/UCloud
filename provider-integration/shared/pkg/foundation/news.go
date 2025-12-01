@@ -55,7 +55,7 @@ type UpdatePostRequest struct {
 }
 
 type DeleteNewsPostRequest struct {
-	Id int64 `json:"id"`
+	Id string `json:"id"`
 }
 
 const NewsContext = "news"
