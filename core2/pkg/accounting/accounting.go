@@ -11,6 +11,8 @@ import (
 	"time"
 
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -41,8 +43,6 @@ func initAccounting() {
 	})
 
 	accapi.ReportUsage.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.ReportUsageRequest]) (fndapi.BulkResponse[bool], *util.HttpError) {
-		// TODO Currently (when bypassing the allocation check in the orchestrator) I can create a license with no
-		//   allocation. I don't think this correctly returns false in that case.
 		var result []bool
 		for _, reqItem := range request.Items {
 			resp, err := ReportUsage(info.Actor, reqItem)
@@ -375,7 +375,16 @@ func RetrieveAncestors(now time.Time, category accapi.ProductCategoryIdV2, owner
 }
 
 func accountingLoad() {
+	var loadTimes struct {
+		WalletOwners     time.Duration
+		ScopedUsage      time.Duration
+		Wallets          time.Duration
+		AllocationGroups time.Duration
+		Allocations      time.Duration
+	}
+
 	db.NewTx0(func(tx *db.Transaction) {
+		timer := util.NewTimer()
 		accGlobals.OwnersByReference = map[string]*internalOwner{}
 		accGlobals.OwnersById = map[accOwnerId]*internalOwner{}
 		accGlobals.Usage = map[string]*scopedUsage{}
@@ -383,6 +392,7 @@ func accountingLoad() {
 
 		// Wallet owners
 		// -------------------------------------------------------------------------------------------------------------
+		timer.Mark()
 		walletOwners := db.Select[struct {
 			Id        int
 			Username  sql.NullString
@@ -416,6 +426,8 @@ func accountingLoad() {
 			}
 		}
 
+		loadTimes.WalletOwners = timer.Mark()
+
 		// Scoped usage
 		// -------------------------------------------------------------------------------------------------------------
 		usageRows := db.Select[struct {
@@ -436,6 +448,8 @@ func accountingLoad() {
 				Usage: row.Usage,
 			}
 		}
+
+		loadTimes.ScopedUsage = timer.Mark()
 
 		// Wallets
 		// -------------------------------------------------------------------------------------------------------------
@@ -493,6 +507,8 @@ func accountingLoad() {
 			}
 		}
 
+		loadTimes.Wallets = timer.Mark()
+
 		// Allocation groups
 		// -------------------------------------------------------------------------------------------------------------
 		allocationGroups := db.Select[struct {
@@ -532,6 +548,8 @@ func accountingLoad() {
 				accGlobals.GroupIdAcc.Store(int64(row.Id))
 			}
 		}
+
+		loadTimes.AllocationGroups = timer.Mark()
 
 		// Allocations
 		// -------------------------------------------------------------------------------------------------------------
@@ -607,7 +625,21 @@ func accountingLoad() {
 				accGlobals.AllocIdAcc.Store(int64(row.Id))
 			}
 		}
+
+		loadTimes.Allocations = timer.Mark()
 	})
+
+	log.Info(
+		"Accounting system is ready."+
+			"\n\tLoad times:"+
+			"\n\t\tWallet owners: %v"+
+			"\n\t\tScoped usage: %v"+
+			"\n\t\tWallets: %v"+
+			"\n\t\tAllocation groups: %v"+
+			"\n\t\tAllocations: %v",
+		loadTimes.WalletOwners, loadTimes.ScopedUsage, loadTimes.Wallets, loadTimes.AllocationGroups,
+		loadTimes.Allocations,
+	)
 }
 
 var accountingScansDisabled = atomic.Bool{}
@@ -620,6 +652,7 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 	accountingProcessMutex.Lock()
 
 	// TODO Metrics on this
+	timer := util.NewTimer()
 	internalCompleteScan(now, func(buckets []*internalBucket, scopes []*scopedUsage, onPersistHandlers []internalOnPersistHandler) {
 		var actualBuckets []*internalBucket
 		for _, b := range buckets {
@@ -749,6 +782,9 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 				scope.Dirty = false
 			}
 		}
+
+		accountingWalletsUpdated.Add(float64(len(walletRequest.Id)))
+		accountingAllocationsUpdated.Add(float64(len(allocationRequests.Id)))
 
 		db.NewTx0(func(tx *db.Transaction) {
 			if len(ownerRequest.Id) > 0 {
@@ -968,6 +1004,7 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 	})
 
 	accountingProcessMutex.Unlock()
+	accountingScansDuration.Observe(timer.Mark().Seconds())
 
 	// NOTE(Dan): This is a very simple version of a reliable cron-job which runs in our code and does not require
 	// anything special at all. This only works because it is perfectly safe to sample too many times. This code does
@@ -979,7 +1016,9 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 		if slices.Contains(usageReportSamplingHours, now.Hour()) && now.Minute() < 10 {
 			accountingScanUsageReportCanResumeAt = time.Now().Add(15 * time.Minute)
 
+			timer.Mark()
 			usageSample(now)
+			accountingSampleDuration.Observe(timer.Mark().Seconds())
 		}
 	}
 }
@@ -992,3 +1031,45 @@ func accountingProcessTasks() {
 		time.Sleep(30 * time.Second)
 	}
 }
+
+var (
+	accountingAllocationsUpdated = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "accounting",
+		Name:      "allocations_updated_total",
+		Help:      "Number of total allocations updated in the persistence layer",
+	})
+
+	accountingWalletsUpdated = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "accounting",
+		Name:      "wallets_updated_total",
+		Help:      "Number of total wallets updated in the persistence layer",
+	})
+
+	accountingScansDuration = promauto.NewSummary(prometheus.SummaryOpts{
+		Namespace: "ucloud",
+		Subsystem: "accounting",
+		Name:      "scan_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to complete a scan",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	})
+
+	accountingSampleDuration = promauto.NewSummary(prometheus.SummaryOpts{
+		Namespace: "ucloud",
+		Subsystem: "accounting",
+		Name:      "sample_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to complete a usage sampling cycle",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	})
+)

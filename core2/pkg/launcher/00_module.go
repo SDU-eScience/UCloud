@@ -40,6 +40,8 @@ func Launch() {
 		}
 	}
 
+	rpc.ClientAllowSilentAuthTokenRenewalErrors.Store(true)
+
 	ok := cfg.Parse("/etc/ucloud")
 	if !ok {
 		return
@@ -295,6 +297,8 @@ func Launch() {
 	fnd.Init()
 	acc.Init()
 	orc.Init()
+
+	rpc.ClientAllowSilentAuthTokenRenewalErrors.Store(false)
 
 	launchMetricsServer()
 

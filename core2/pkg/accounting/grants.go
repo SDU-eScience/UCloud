@@ -1583,7 +1583,6 @@ func lGrantsCreateProject(app *grantApplication, title string, pi string) (strin
 }
 
 func grantsAwardLoop() {
-	// TODO Metrics
 	if grantGlobals.Testing.Enabled {
 		return
 	}

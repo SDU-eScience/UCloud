@@ -360,7 +360,7 @@ func internalAllocateNoCommit(
 			parentWallet.ChildrenUsage[recipient] = currentUsage
 		}
 
-		lInternalAttemptActivation(b, now, allocation)
+		lInternalAttemptActivation(b, now, allocation, false)
 		return allocationId, nil
 	}
 }
@@ -466,8 +466,8 @@ func internalUpdateAllocation(parentOwner *internalOwner, now time.Time, b *inte
 	iAlloc.End = proposedNewEnd
 	iAlloc.Quota = proposedNewQuota
 
-	lInternalAttemptActivation(b, now, iAlloc)
-	lInternalAttemptRetirement(b, now, iAlloc)
+	lInternalAttemptActivation(b, now, iAlloc, true)
+	lInternalAttemptRetirement(b, now, iAlloc, true)
 	lInternalReevaluate(b, now, iWallet, true)
 
 	category := b.Category
@@ -1051,12 +1051,12 @@ func lInternalReevaluate(b *internalBucket, now time.Time, wallet *internalWalle
 
 func lInternalScanAllocations(b *internalBucket, now time.Time) {
 	for _, alloc := range b.AllocationsById {
-		lInternalAttemptActivation(b, now, alloc)
-		lInternalAttemptRetirement(b, now, alloc)
+		lInternalAttemptActivation(b, now, alloc, true)
+		lInternalAttemptRetirement(b, now, alloc, true)
 	}
 }
 
-func lInternalAttemptActivation(b *internalBucket, now time.Time, alloc *internalAllocation) {
+func lInternalAttemptActivation(b *internalBucket, now time.Time, alloc *internalAllocation, logActivation bool) {
 	if !alloc.Active && now.Add(1*time.Second).After(alloc.Start) && now.Before(alloc.End) {
 		wallet := b.WalletsById[alloc.BelongsTo]
 
@@ -1067,10 +1067,14 @@ func lInternalAttemptActivation(b *internalBucket, now time.Time, alloc *interna
 
 		// NOTE(Dan): Always mark since reevaluate only marks if a wallet changes lock state
 		lInternalMarkSignificantUpdate(b, now, wallet)
+
+		if logActivation {
+			log.Info("Activating allocation: %v", alloc.Id)
+		}
 	}
 }
 
-func lInternalAttemptRetirement(b *internalBucket, now time.Time, alloc *internalAllocation) {
+func lInternalAttemptRetirement(b *internalBucket, now time.Time, alloc *internalAllocation, logRetirement bool) {
 	if !alloc.Retired && now.Add(1*time.Second).After(alloc.End) {
 		wallet := b.WalletsById[alloc.BelongsTo]
 		group := wallet.AllocationsByParent[alloc.Parent]
@@ -1097,6 +1101,10 @@ func lInternalAttemptRetirement(b *internalBucket, now time.Time, alloc *interna
 
 		lInternalReevaluate(b, now, wallet, true)
 		lInternalMarkSignificantUpdate(b, now, wallet)
+
+		if logRetirement {
+			log.Info("Retiring allocation: %v", alloc.Id)
+		}
 	}
 }
 
