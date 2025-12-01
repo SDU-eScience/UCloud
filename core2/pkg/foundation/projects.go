@@ -1593,7 +1593,7 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 		})
 
 		if err != nil {
-			log.Info("Could not send notification to user %s: %s", recipient, err)
+			log.Warn("Could not send notification to user %s: %s", recipient, err)
 		}
 
 		return nil

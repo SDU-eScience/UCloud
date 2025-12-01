@@ -619,6 +619,7 @@ var usageReportSamplingHours = []int{0, 4, 8, 12, 16, 20}
 func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) bool) {
 	accountingProcessMutex.Lock()
 
+	// TODO Metrics on this
 	internalCompleteScan(now, func(buckets []*internalBucket, scopes []*scopedUsage, onPersistHandlers []internalOnPersistHandler) {
 		var actualBuckets []*internalBucket
 		for _, b := range buckets {

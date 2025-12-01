@@ -1557,7 +1557,6 @@ func jobPersist(b *db.Batch, r *resource) {
 			for i := lastUpdate; i < len(info.Updates); i++ {
 				update := info.Updates[i]
 				extra, _ := json.Marshal(update)
-				log.Info("update %#v", update)
 
 				db.BatchExec(
 					b,
@@ -1727,7 +1726,7 @@ func jobSendNotifications(username string, jobs map[string]orcapi.Job) {
 		})
 
 		if err != nil {
-			log.Info("Could not send notification to user %s: %s", username, err)
+			log.Warn("Could not send notification to user %s: %s", username, err)
 		}
 	}
 
@@ -1782,6 +1781,6 @@ func jobSendNotifications(username string, jobs map[string]orcapi.Job) {
 	)
 
 	if err != nil {
-		log.Info("Could not send notification to user %s: %s", username, err)
+		log.Warn("Could not send notification to user %s: %s", username, err)
 	}
 }

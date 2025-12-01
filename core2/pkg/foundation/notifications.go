@@ -331,6 +331,8 @@ func NotificationsSubscribe(actor rpc.Actor, ctx context.Context) <-chan fndapi.
 	return sub.Channel
 }
 
+// TODO Metrics on number of notifications sent
+
 func notificationNotify(username string, notification fndapi.Notification) {
 	b := notificationBucketByUser(username)
 

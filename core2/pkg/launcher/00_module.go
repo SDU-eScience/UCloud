@@ -76,8 +76,7 @@ func Launch() {
 			return key, nil
 		}
 	} else {
-		log.Info("Bad token validation supplied")
-		os.Exit(1)
+		log.Fatal("Bad token validation supplied")
 	}
 
 	jwtParser := jwt.NewParser(
@@ -308,8 +307,7 @@ func Launch() {
 		}),
 	))
 
-	log.Warn("Failed to start listener: %s", err)
-	os.Exit(1)
+	log.Fatal("Failed to start listener: %s", err)
 }
 
 func launchMetricsServer() {
@@ -324,7 +322,7 @@ func launchMetricsServer() {
 		})
 		err := http.ListenAndServe(":7867", nil)
 		if err != nil {
-			log.Warn("Prometheus metrics server has failed unexpectedly! %v", err)
+			log.Error("Prometheus metrics server has failed unexpectedly! %v", err)
 		}
 	}()
 }

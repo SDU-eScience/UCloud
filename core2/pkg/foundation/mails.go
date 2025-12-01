@@ -536,6 +536,7 @@ func executePreparedMailTemplate(tpl *gonjaexec.Template, ctx *gonjaexec.Context
 // ---------------------------------------------------------------------------------------------------------------------
 
 func mailDaemon() {
+	// TODO Metrics/log
 	var dialFn func() (gomail.SendCloser, error)
 	var sender gomail.SendCloser
 

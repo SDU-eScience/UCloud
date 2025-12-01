@@ -1471,7 +1471,7 @@ func lGrantsAwardResources(app *grantApplication) {
 	case accapi.RecipientTypeNewProject:
 		projectId, err := lGrantsCreateProject(app, recipient.Title.Value, app.Application.CreatedBy)
 		if err != nil {
-			log.Info("Failed at project creation: %s", err)
+			log.Warn("Failed at project creation: %s", err)
 			return
 		} else {
 			owner = accapi.WalletOwnerProject(projectId)
@@ -1583,6 +1583,7 @@ func lGrantsCreateProject(app *grantApplication, title string, pi string) (strin
 }
 
 func grantsAwardLoop() {
+	// TODO Metrics
 	if grantGlobals.Testing.Enabled {
 		return
 	}
@@ -1730,10 +1731,10 @@ func grantHandleEvent(event grantEvent) {
 	err1 := grantSendNotification(event)
 	err2 := grantSendEmail(event)
 	if err1 != nil {
-		log.Info("Failed to send notification: %s", err1)
+		log.Warn("Failed to send notification: %s", err1)
 	}
 	if err2 != nil {
-		log.Info("Failed to send email: %s", err2)
+		log.Warn("Failed to send email: %s", err2)
 	}
 }
 
