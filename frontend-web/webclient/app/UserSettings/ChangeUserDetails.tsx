@@ -3,9 +3,12 @@ import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {Box, Button, Input, Label} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {Feature, hasFeature} from "@/Features";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PayloadAction} from "@reduxjs/toolkit";
+import ResearchFields from "@/UserSettings/ResearchField.json";
+import Positions from "@/UserSettings/Position.json";
+import OrgMapping from "@/UserSettings/OrganizationMapping.json";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 interface UserDetailsState {
     placeHolderFirstNames: string;
@@ -49,9 +52,9 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
         dispatch({
             type: "UpdatePlaceholders",
             payload: {
-                placeHolderFirstNames: user.firstNames ?? "Enter First Name(s)",
-                placeHolderLastName: user.lastName ?? "Enter Last Name",
-                placeHolderEmail: user.email ?? "Enter Email"
+                placeHolderFirstNames: user?.firstNames ?? "Enter First Name(s)",
+                placeHolderLastName: user?.lastName ?? "Enter Last Name",
+                placeHolderEmail: user?.email ?? "Enter Email"
             }
         });
     }, []);
@@ -143,9 +146,9 @@ interface OptionalInfo {
     position?: string | null;
 }
 
-export const ChangeOptionalUserDetails: React.FunctionComponent = () => {
-    if (!hasFeature(Feature.ADDITIONAL_USER_INFO)) return null;
+type InfoAndValidation = OptionalInfo & {isValid: boolean};
 
+export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<() => InfoAndValidation>}) {
     const orgFullNameRef = useRef<HTMLInputElement>(null);
     const departmentRef = useRef<HTMLInputElement>(null);
     const researchFieldRef = useRef<HTMLInputElement>(null);
@@ -162,45 +165,74 @@ export const ChangeOptionalUserDetails: React.FunctionComponent = () => {
         })();
     }, []);
 
+    const extractValues = React.useCallback((): InfoAndValidation => {
+        const organizationFullName = orgFullNameRef.current?.value;
+        const department = departmentRef.current?.value
+        const researchField = researchFieldRef.current?.value;
+        const position = positionRef.current?.value;
+        const isValid = !!organizationFullName && !!department && !!researchField && !!position;
+        return {
+            organizationFullName,
+            department,
+            researchField,
+            position,
+            isValid
+        }
+    }, [orgFullNameRef.current, departmentRef.current, researchFieldRef.current, positionRef.current]);
+
+    React.useEffect(() => {
+        if (props.getValues) props.getValues.current = extractValues;
+    }, [extractValues])
+
     const onSubmit = useCallback(async (e: React.SyntheticEvent) => {
         e.preventDefault();
 
         await callAPIWithErrorHandler(
-            apiUpdate({
-                organizationFullName: orgFullNameRef.current!.value,
-                department: departmentRef.current!.value,
-                researchField: researchFieldRef.current!.value,
-                position: positionRef.current!.value,
-            }, "/auth/users", "optionalInfo")
+            apiUpdate(extractValues(), "/auth/users", "optionalInfo")
         );
 
         snackbarStore.addSuccess("Your information has been updated.", false);
     }, []);
 
-    const field = (
-        title: string,
-        placeholder: string,
-        ref: React.RefObject<HTMLInputElement | null>
-    ) => {
-        return <Box mt="0.5em" pt="0.5em">
-            <Label>
-                {title}
-                <Input inputRef={ref} type="text" placeholder={"Example: " + placeholder} />
-            </Label>
-        </Box>
-    };
+    React.useEffect(() => {
+        const selectedOrganization = OrgMapping[Client.orgId];
+        if (selectedOrganization && orgFullNameRef.current)
+            orgFullNameRef.current.value = selectedOrganization;
+    }, [orgFullNameRef.current]);
 
     return (
         <Box mb={16}>
             <Heading.h2>Additional User Information</Heading.h2>
             <form onSubmit={onSubmit}>
-                {field("Full name of organization", "University of Example", orgFullNameRef)}
-                {field("Department", "Department of Examples", departmentRef)}
-                {field("Position", "Professor", positionRef)}
-                {field("Research field(s)", "Experimental examples", researchFieldRef)}
-
-                <Button mt="1em" type="submit" color="successMain">Update Information</Button>
+                <Organization ref={orgFullNameRef} />
+                <Department disabled={false} ref={departmentRef} />
+                <OrgField title="Position" placeholder="" ref={positionRef} />
+                <OrgField title="Research field(s)" placeholder="Experimental examples" ref={researchFieldRef} />
+                {props.getValues ? null : <Button mt="1em" type="submit" color="successMain">Update Information</Button>}
             </form>
         </Box>
     );
+}
+
+function OrgField(props: {
+    title: string;
+    placeholder: string;
+    ref: React.RefObject<HTMLInputElement | null>;
+    disabled?: boolean;
+}): React.ReactElement {
+    return <Box mt="0.5em" pt="0.5em">
+        <Label>
+            {props.title}
+            <Input disabled={props.disabled} inputRef={props.ref} type="text" placeholder={"Example: " + props.placeholder} />
+        </Label>
+    </Box>
 };
+
+function Organization(props: {ref: React.RefObject<HTMLInputElement | null>}) {
+    return <OrgField disabled ref={props.ref} title="Full name of organization" placeholder="University of Example" />
+}
+
+function Department(props: {disabled: boolean; ref: React.RefObject<HTMLInputElement | null>}) {
+    // TODO(Jonas): Disable on no value passed from 
+    return <OrgField disabled={props.disabled} title="Department" placeholder="Department of Examples" ref={props.ref} />
+}
