@@ -190,9 +190,86 @@
     ],
     "dtu.dk": [],
     "itu.dk": [],
-    "kb.dk": [],
+    "kb.dk": [
+        {
+            "faculty": "Royal Danish Library",
+            "departments": [
+                "Royal Danish Library"
+            ]
+        }
+    ],
     "kp.dk": [],
-    "ku.dk": [],
+    "ku.dk": [
+        {
+            "faculty": "Faculty of Health and Medical Sciences",
+            "departments": [
+                "Department of Biomedical Sciences",
+                "Department of Cellular and Molecular Medicine",
+                "Department of Immunology and Microbiology",
+                "Department of Neuroscience",
+                "Department of Forensic Medicine",
+                "Department of Public Health",
+                "Department of Odontology",
+                "Department of Clinical Medicine",
+                "Department of Pharmacy",
+                "Department of Drug Design and Pharmacology",
+                "Department of Veterinary Clinical Sciences",
+                "Department of Veterinary and Animal Sciences",
+                "Globe Institute"
+            ]
+        },
+        {
+            "faculty": "Faculty of Humanities",
+            "departments": [
+                "Department of Arts and Cultural Studies",
+                "Department of Communication",
+                "Department of Cross-Cultural and Regional Studies",
+                "Department of English, Germanic and Romance Studies",
+                "Department of Nordic Studies and Linguistics",
+                "Saxo Institute",
+                "Research Centres at HUM and Interdisciplinary Research Centres and Networks"
+            ]
+        },
+        {
+            "faculty": "Faculty of Law",
+            "departments": [
+                "Centres and service units at the Faculty of Law"
+            ]
+        },
+        {
+            "faculty": "Faculty of Science",
+            "departments": [
+                "Department of Biology",
+                "Department of Chemistry",
+                "Department of Computer Science",
+                "Department of Food and Resource Economics",
+                "Department of Food Science",
+                "Department of Geosciences and Natural Resource Management",
+                "Department of Mathematical Sciences",
+                "Department of Nutrition, Exercise and Sports",
+                "Department of Plant and Environmental Sciences",
+                "Department of Science Education",
+                "Natural History Museum of Denmark",
+                "Niels Bohr Institute"
+            ]
+        },
+        {
+            "faculty": "Faculty of Social Sciences",
+            "departments": [
+                "Department of Anthropology",
+                "Department of Economics",
+                "Department of Political Science",
+                "Department of Psychology",
+                "Department of Sociology"
+            ]
+        },
+        {
+            "faculty": "Faculty of Theology",
+            "departments": [
+                "Sections and centres at the Faculty of Theology"
+            ]
+        }
+    ],
     "regionh.dk": [],
     "ruc.dk": [],
     "sdu.dk": [],
