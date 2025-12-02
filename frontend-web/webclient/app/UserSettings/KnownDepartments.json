@@ -270,7 +270,14 @@
             ]
         }
     ],
-    "regionh.dk": [],
+    "regionh.dk": [
+        {
+            "faculty": "The Capital Region of Denmark",
+            "departments": [
+                "The Capital Region of Denmark"
+            ]
+        }
+    ],
     "ruc.dk": [],
     "sdu.dk": [],
     "setur.fo": [],
