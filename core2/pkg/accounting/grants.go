@@ -1559,8 +1559,10 @@ func lGrantsAwardResources(app *grantApplication) {
 			db.Exec(
 				tx,
 				`
-					insert into "grant".gifts_claimed(gift_id, user_id) 
-					values (:gift_id, :username)
+					insert into "grant".gifts_claimed(gift_id, user_id, claimed_at) 
+					values (:gift_id, :username, now())
+					on conflict (gift_id, user_id)
+					do update set claimed_at = excluded.claimed_at;
 			    `,
 				db.Params{
 					"username": app.Application.CurrentRevision.Document.Recipient.Username.Value,
