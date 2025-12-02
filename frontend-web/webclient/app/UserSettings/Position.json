@@ -1,5 +1,16 @@
 [
-    "VIP",
-    "TAP",
-    "STUDENT"
+    {
+        "key": "VIP",
+        "value": "VIP",
+        "tags": "videnskabelige academic"
+    },
+    {
+        "key": "TAP",
+        "value": "TAP",
+        "tags": "tekniske administrative technical"
+    },
+    {
+        "key": "STUDENT",
+        "value": "STUDENT"
+    }
 ]

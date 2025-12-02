@@ -1,0 +1,77 @@
+[
+    {
+        "key": "Aalborg University",
+        "value": "Aalborg University",
+        "tags": "aau.dk"
+    },
+    {
+        "key": "Aarhus University",
+        "value": "Aarhus University",
+        "tags": "au.dk"
+    },
+    {
+        "key": "Copenhagen Business School",
+        "value": "Copenhagen Business School",
+        "tags": "cbs.dk"
+    },
+    {
+        "key": "Technical University of Denmark",
+        "value": "Technical University of Denmark",
+        "tags": "dtu.dk"
+    },
+    {
+        "key": "IT University of Copenhagen",
+        "value": "IT University of Copenhagen",
+        "tags": "itu.dk"
+    },
+    {
+        "key": "Royal Danish Library",
+        "value": "Royal Danish Library",
+        "tags": "kb.dk"
+    },
+    {
+        "key": "University College Copenhagen",
+        "value": "University College Copenhagen",
+        "tags": "kp.dk"
+    },
+    {
+        "key": "University of Copenhagen",
+        "value": "University of Copenhagen",
+        "tags": "ku.dk"
+    },
+    {
+        "key": "The Capital Region of Denmark",
+        "value": "The Capital Region of Denmark",
+        "tags": "regionh.dk"
+    },
+    {
+        "key": "Roskilde University",
+        "value": "Roskilde University",
+        "tags": "ruc.dk"
+    },
+    {
+        "key": "University of Southern Denmark",
+        "value": "University of Southern Denmark",
+        "tags": "sdu.dk"
+    },
+    {
+        "key": "University of the Faroe Islands",
+        "value": "University of the Faroe Islands",
+        "tags": "setuf setur.fo"
+    },
+    {
+        "key": "University College South Denmark",
+        "value": "University College South Denmark",
+        "tags": "ucsyd.dk"
+    },
+    {
+        "key": "University College",
+        "value": "University College",
+        "tags": "ucl.dk"
+    },
+    {
+        "key": "Via University College",
+        "value": "Via University College",
+        "tags": "viauc.dk via.dk"
+    }
+]

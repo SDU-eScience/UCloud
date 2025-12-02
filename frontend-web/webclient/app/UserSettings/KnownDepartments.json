@@ -1,0 +1,56 @@
+{
+    "aau.dk": [
+        {
+            "Cross-faculty": [
+                "Institute for Advanced Study in PBL"
+            ]
+        },
+        {
+            "Faculty of Social Sciences and Humanities": [
+                "Department of Communication and Psychology",
+                "Department of Culture and Learning",
+                "Department of Law",
+                "Department of Politics and Society",
+                "Department of Sociology and Social Work",
+                "AAU Business School"
+            ]
+        },
+        {
+            "Faculty of Engineering and Science": [
+                "Department of the Built Environment",
+                "Department of Chemistry and Bioscience",
+                "Department of Energy",
+                "Department of Materials and Production",
+                "Department of Mathematical Sciences"
+            ]
+        },
+        {
+            "Faculty of Medicine": [
+                "Department of Clinical Medicine",
+                "Department of Health Science and Technology"
+            ]
+        },
+        {
+            "Technical Faculty of IT and Design": [
+                "Department of Architecture, Design, and Media Technology",
+                "Department of Computer Science",
+                "Department of Electronic Systems",
+                "Department of Sustainability and Planning"
+            ]
+        }
+    ],
+    "au.dk": [],
+    "cbs.dk": [],
+    "dtu.dk": [],
+    "itu.dk": [],
+    "kb.dk": [],
+    "kp.dk": [],
+    "ku.dk": [],
+    "regionh.dk": [],
+    "ruc.dk": [],
+    "sdu.dk": [],
+    "setur.fo": [],
+    "ucsyd.dk": [],
+    "ucl.dk": [],
+    "viauc.dk": []
+}
