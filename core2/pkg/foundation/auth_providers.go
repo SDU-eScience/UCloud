@@ -114,23 +114,26 @@ type providerClaims struct {
 }
 
 func ProviderGenerateKeys() (fndapi.PublicAndPrivateKey, *util.HttpError) {
-	keyPair, err := rsa.GenerateKey(rand.Reader, 2048)
+	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return fndapi.PublicAndPrivateKey{}, util.HttpErr(http.StatusInternalServerError, "Internal error")
 	}
 
-	pubASN1, err := x509.MarshalPKIXPublicKey(&keyPair.PublicKey)
+	pubDER, err := x509.MarshalPKIXPublicKey(&privKey.PublicKey)
 	if err != nil {
 		return fndapi.PublicAndPrivateKey{}, util.HttpErr(http.StatusInternalServerError, "Internal error")
 	}
-	publicKey := base64.StdEncoding.EncodeToString(pubASN1)
+	pubKeyBase64 := base64.StdEncoding.EncodeToString(pubDER)
 
-	privASN1 := x509.MarshalPKCS1PrivateKey(keyPair)
-	privateKey := base64.StdEncoding.EncodeToString(privASN1)
+	privDER, err := x509.MarshalPKCS8PrivateKey(privKey)
+	if err != nil {
+		return fndapi.PublicAndPrivateKey{}, util.HttpErr(http.StatusInternalServerError, "Internal error")
+	}
+	privKeyBase64 := base64.StdEncoding.EncodeToString(privDER)
 
 	return fndapi.PublicAndPrivateKey{
-		PublicKey:  publicKey,
-		PrivateKey: privateKey,
+		PublicKey:  pubKeyBase64,
+		PrivateKey: privKeyBase64,
 	}, nil
 }
 
