@@ -100,9 +100,10 @@ type internalInviteLink struct {
 }
 
 type ProjectClaimsInfo struct {
-	Membership       rpc.ProjectMembership
-	Groups           rpc.GroupMembership
-	ProviderProjects rpc.ProviderProjects
+	Membership        rpc.ProjectMembership
+	Groups            rpc.GroupMembership
+	ProviderProjects  rpc.ProviderProjects
+	AllocatorProjects map[rpc.ProjectId]util.Empty
 }
 
 type projectProcessResult int
@@ -2304,8 +2305,9 @@ func ProjectRetrieveClaimsInfo(username string) ProjectClaimsInfo {
 	// this could cause an infinite loop. This function is used as part of building the actor/principal.
 
 	result := ProjectClaimsInfo{
-		Membership: make(rpc.ProjectMembership),
-		Groups:     make(rpc.GroupMembership),
+		Membership:        make(rpc.ProjectMembership),
+		Groups:            make(rpc.GroupMembership),
+		AllocatorProjects: make(map[rpc.ProjectId]util.Empty),
 	}
 
 	userInfo := projectRetrieveUserInfo(username)
@@ -2327,6 +2329,9 @@ func ProjectRetrieveClaimsInfo(username string) ProjectClaimsInfo {
 				if member.Username == username {
 					role.Set(rpc.ProjectRole(member.Role))
 				}
+			}
+			if !project.Project.Specification.CanConsumeResources {
+				result.AllocatorProjects[rpc.ProjectId(project.Project.Id)] = util.Empty{}
 			}
 			project.Mu.RUnlock()
 

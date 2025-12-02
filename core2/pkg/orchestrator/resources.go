@@ -1036,6 +1036,14 @@ func ResourceCreate[T any](
 	product util.Option[accapi.ProductReference],
 	extra any,
 ) (ResourceId, T, *util.HttpError) {
+	if actor.Project.Present {
+		_, isAllocator := actor.AllocatorProjects[actor.Project.Value]
+		if isAllocator {
+			var t T
+			return 0, t, util.HttpErr(http.StatusForbidden, "this project is not allowed to consume resources")
+		}
+	}
+
 	g := resourceGetGlobals(typeName)
 	if g.Flags&resourceTypeCreateWithoutAdmin == 0 {
 		if actor.Project.Present && !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {

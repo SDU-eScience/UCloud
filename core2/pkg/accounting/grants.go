@@ -373,6 +373,17 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		revision.RevisionComment.Set(req.Comment)
 	}
 
+	if revision.Form.SubAllocator.GetOrDefault(false) && actor.Username != rpc.ActorSystem.Username {
+		if !actor.Project.Present {
+			return 0, util.HttpErr(http.StatusBadRequest, "invalid active project with suballocator field set")
+		}
+
+		_, isAllocator := actor.AllocatorProjects[actor.Project.Value]
+		if !isAllocator {
+			return 0, util.HttpErr(http.StatusBadRequest, "invalid active project with suballocator field set")
+		}
+	}
+
 	recipient := revision.Recipient
 	if req.AlternativeRecipient.Present {
 		recipient = req.AlternativeRecipient.Value

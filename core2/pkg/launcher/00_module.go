@@ -121,14 +121,15 @@ func Launch() {
 		}
 
 		return rpc.Actor{
-			Username:         subject,
-			Role:             role,
-			Project:          project,
-			Membership:       claims.Membership,
-			Groups:           claims.Groups,
-			ProviderProjects: claims.ProviderProjects,
-			Domain:           claims.Domain,
-			OrgId:            claims.OrgId.Value,
+			Username:          subject,
+			Role:              role,
+			Project:           project,
+			Membership:        claims.Membership,
+			Groups:            claims.Groups,
+			ProviderProjects:  claims.ProviderProjects,
+			Domain:            claims.Domain,
+			OrgId:             claims.OrgId.Value,
+			AllocatorProjects: claims.AllocatorProjects,
 			TokenInfo: util.OptValue(rpc.TokenInfo{
 				PublicSessionReference: sessionReference.Value,
 			}),
