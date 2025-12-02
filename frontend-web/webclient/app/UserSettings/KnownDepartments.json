@@ -1,12 +1,14 @@
 {
     "aau.dk": [
         {
-            "Cross-faculty": [
+            "faculty": "Cross-faculty",
+            "departments": [
                 "Institute for Advanced Study in PBL"
             ]
         },
         {
-            "Faculty of Social Sciences and Humanities": [
+            "faculty": "Faculty of Social Sciences and Humanities",
+            "departments": [
                 "Department of Communication and Psychology",
                 "Department of Culture and Learning",
                 "Department of Law",
@@ -16,7 +18,8 @@
             ]
         },
         {
-            "Faculty of Engineering and Science": [
+            "faculty": "Faculty of Engineering and Science",
+            "departments": [
                 "Department of the Built Environment",
                 "Department of Chemistry and Bioscience",
                 "Department of Energy",
@@ -25,13 +28,15 @@
             ]
         },
         {
-            "Faculty of Medicine": [
+            "faculty": "Faculty of Medicine",
+            "departments": [
                 "Department of Clinical Medicine",
                 "Department of Health Science and Technology"
             ]
         },
         {
-            "Technical Faculty of IT and Design": [
+            "faculty": "Technical Faculty of IT and Design",
+            "departments": [
                 "Department of Architecture, Design, and Media Technology",
                 "Department of Computer Science",
                 "Department of Electronic Systems",
@@ -39,7 +44,67 @@
             ]
         }
     ],
-    "au.dk": [],
+    "au.dk": [
+        {
+            "faculty": "The Faculty of Arts",
+            "departments": [
+                "Danish school of Education",
+                "School of Communication and Culture",
+                "School of Culture and Society"
+            ]
+        },
+        {
+            "faculty": "Aarhus BSS",
+            "departments": [
+                "Department of Business Development and Technology",
+                "Department of Economics and Business Economics",
+                "Department of Management",
+                "Department of Political Science",
+                "Department of Law",
+                "Department of Psychology and Behavioural Sciences"
+            ]
+        },
+        {
+            "faculty": "The Faculty of Health",
+            "departments": [
+                "Department of Clinical Medicine",
+                "Department of Biomedicine",
+                "Department of Dentistry and Oral Health",
+                "Department of Public Health",
+                "Department of Forensic Medicine"
+            ]
+        },
+        {
+            "faculty": "The Faculty of Natural Sciences",
+            "departments": [
+                "Department of Biology",
+                "Department of Computer Science",
+                "Department of Physics and Astronomy",
+                "Department of Geoscience",
+                "Department of Chemistry",
+                "Department of Mathematics",
+                "Department of Molecular Biology and Genetics",
+                "Department of Interdisciplinary Nanoscience Center"
+            ]
+        },
+        {
+            "faculty": "The Faculty of Technical Sciences",
+            "departments": [
+                "Department of Agroecology",
+                "Department of Biological and Chemical Engineering",
+                "Department of Civil and Architectural Engineering",
+                "Department of Ecoscience",
+                "Department of Electrical and Computer Engineering",
+                "Department of Food Science",
+                "Department of Animal and Veterinary Sciences",
+                "Department of Mechanical and Production Engineering",
+                "Department of Environmental Science",
+                "DCE - Danish Centre For Environment And Energy",
+                "DCA - Danish Centre For Food And Agriculture",
+                "Center for Quantitative Genetics and Genomics"
+            ]
+        }
+    ],
     "cbs.dk": [],
     "dtu.dk": [],
     "itu.dk": [],
