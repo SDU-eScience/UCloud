@@ -448,33 +448,6 @@ func transformMailParameters(mtype fndapi.MailType, mail mailToSend) map[string]
 	_ = json.Unmarshal(mail.Mail, &params)
 
 	switch mtype {
-	case fndapi.MailTypeLowFunds:
-		var resources []map[string]any
-
-		var info struct {
-			Categories    []string  `json:"categories"`
-			Providers     []string  `json:"providers"`
-			ProjectTitles []*string `json:"projectTitles"`
-		}
-
-		_ = json.Unmarshal(mail.Mail, &info)
-
-		if len(info.Categories) == len(info.Providers) && len(info.Providers) == len(info.ProjectTitles) {
-			for i := 0; i < len(info.Categories); i++ {
-				r := map[string]any{}
-				if info.ProjectTitles[i] == nil {
-					r["workspaceTitle"] = "Personal workspace"
-				} else {
-					r["workspaceTitle"] = *info.ProjectTitles[i]
-				}
-				r["category"] = info.Categories[i]
-				r["provider"] = info.Providers[i]
-				resources = append(resources, r)
-			}
-		}
-
-		params["resources"] = resources
-
 	case fndapi.MailTypeVerifyEmailAddress:
 		token, ok := params["token"].(string)
 		if ok {
