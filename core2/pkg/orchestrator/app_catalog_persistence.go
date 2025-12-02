@@ -34,6 +34,10 @@ func appCatalogLoad() {
 		appCatalogGlobals.Categories.Categories = make(map[AppCategoryId]*internalCategory)
 	}
 
+	maxGroupId := int64(0)
+	maxCategoryId := int64(0)
+	maxSpotlightId := int64(0)
+
 	if appCatalogGlobals.Testing.Enabled {
 		reset()
 	} else {
@@ -198,6 +202,7 @@ func appCatalogLoad() {
 
 			for _, group := range groups {
 				id := AppGroupId(group.Id)
+				maxGroupId = int64(group.Id)
 				b := appGroupBucket(id)
 				appGroup := internalAppGroup{
 					Title:       group.Title,
@@ -249,6 +254,7 @@ func appCatalogLoad() {
 
 			for _, cat := range categories {
 				id := AppCategoryId(cat.Id)
+				maxCategoryId = int64(cat.Id)
 				c := &appCatalogGlobals.Categories
 				c.Categories[id] = &internalCategory{
 					Id:       id,
@@ -296,6 +302,7 @@ func appCatalogLoad() {
 
 			for _, spotlight := range spotlights {
 				id := AppSpotlightId(spotlight.Id)
+				maxSpotlightId = int64(spotlight.Id)
 				b := appSpotlightBucket(id)
 				b.Spotlights[id] = &internalSpotlight{
 					Title:       spotlight.Title,
@@ -406,6 +413,11 @@ func appCatalogLoad() {
 				s.Applications[star.ApplicationName] = util.Empty{}
 			}
 		})
+
+		// Updating global ID counters so we do not override on new creations after restart
+		appCatalogGlobals.GroupIdAcc.Add(maxGroupId)
+		appCatalogGlobals.CategoryIdAcc.Add(maxCategoryId)
+		appCatalogGlobals.SpotlightIdAcc.Add(maxSpotlightId)
 
 		// Indexing
 		// ---------------------------------------------------------------------------------------------------------
