@@ -272,7 +272,7 @@ func initUsageReports() {
 		accapi.UsageRetrieve.Handler(func(info rpc.RequestInfo, request accapi.UsageRetrieveRequest) (accapi.UsageRetrieveResponse, *util.HttpError) {
 			now := time.Now()
 			reference := string(info.Actor.Project.Value)
-			if !info.Actor.Project.Present {
+			if !info.Actor.Project.Present || reference == "" {
 				reference = info.Actor.Username
 			}
 

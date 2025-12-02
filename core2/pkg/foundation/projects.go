@@ -444,9 +444,9 @@ func ProjectBrowse(actor rpc.Actor, request fndapi.ProjectBrowseRequest) (fndapi
 
 		if sortBy == fndapi.ProjectSortByFavorite {
 			if a.Status.IsFavorite && !b.Status.IsFavorite {
-				cmpResult = -1
-			} else if !a.Status.IsFavorite && b.Status.IsFavorite {
 				cmpResult = 1
+			} else if !a.Status.IsFavorite && b.Status.IsFavorite {
+				cmpResult = -1
 			}
 		}
 
@@ -1593,7 +1593,7 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 		})
 
 		if err != nil {
-			log.Info("Could not send notification to user %s: %s", recipient, err)
+			log.Warn("Could not send notification to user %s: %s", recipient, err)
 		}
 
 		return nil
@@ -2043,12 +2043,13 @@ func ProjectCreateInternal(actor rpc.Actor, req fndapi.ProjectInternalCreateRequ
 				`
 					insert into project.projects(id, created_at, modified_at, title, archived, parent, dmp, 
 						subprojects_renameable, can_consume_resources, provider_project_for, backend_id) 
-					values (:id, now(), now(), :title, false, null, null, false, true, null, :backend_id)
+					values (:id, now(), now(), :title, false, null, null, false, :can_consume_resources, null, :backend_id)
 				`,
 				db.Params{
-					"id":         resultId,
-					"title":      req.Title + suffix,
-					"backend_id": req.BackendId,
+					"id":                    resultId,
+					"title":                 req.Title + suffix,
+					"backend_id":            req.BackendId,
+					"can_consume_resources": !req.SubAllocator.GetOrDefault(false),
 				},
 			)
 

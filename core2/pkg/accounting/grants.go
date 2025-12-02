@@ -1471,7 +1471,7 @@ func lGrantsAwardResources(app *grantApplication) {
 	case accapi.RecipientTypeNewProject:
 		projectId, err := lGrantsCreateProject(app, recipient.Title.Value, app.Application.CreatedBy)
 		if err != nil {
-			log.Info("Failed at project creation: %s", err)
+			log.Warn("Failed at project creation: %s", err)
 			return
 		} else {
 			owner = accapi.WalletOwnerProject(projectId)
@@ -1569,9 +1569,10 @@ func lGrantsCreateProject(app *grantApplication, title string, pi string) (strin
 		}
 	} else {
 		result, err := fndapi.ProjectInternalCreate.Invoke(fndapi.ProjectInternalCreateRequest{
-			Title:      title,
-			BackendId:  fmt.Sprintf("grants/%s", app.Application.Id.Value),
-			PiUsername: pi,
+			Title:        title,
+			BackendId:    fmt.Sprintf("grants/%s", app.Application.Id.Value),
+			PiUsername:   pi,
+			SubAllocator: app.Application.CurrentRevision.Document.Form.SubAllocator,
 		})
 
 		if err != nil {
@@ -1730,10 +1731,10 @@ func grantHandleEvent(event grantEvent) {
 	err1 := grantSendNotification(event)
 	err2 := grantSendEmail(event)
 	if err1 != nil {
-		log.Info("Failed to send notification: %s", err1)
+		log.Warn("Failed to send notification: %s", err1)
 	}
 	if err2 != nil {
-		log.Info("Failed to send email: %s", err2)
+		log.Warn("Failed to send email: %s", err2)
 	}
 }
 

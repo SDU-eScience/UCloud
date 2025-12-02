@@ -429,7 +429,7 @@ func ShareCreate(actor rpc.Actor, item orcapi.ShareSpecification) (string, *util
 		}},
 	)
 	if err != nil {
-		log.Info("Could not send notification: %s", err)
+		log.Warn("Could not send notification: %s", err)
 	}
 	return share.Id, nil
 }
