@@ -486,7 +486,6 @@ func internalUpdateAllocation(parentOwner *internalOwner, now time.Time, b *inte
 		if newQuota.Present {
 			amount := int64(0)
 			// Converting to readable format instead of raw format
-
 			switch category.AccountingFrequency {
 			case accapi.AccountingFrequencyOnce:
 				amount = proposedNewQuota
