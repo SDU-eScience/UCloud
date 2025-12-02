@@ -1294,7 +1294,10 @@ func AppStudioUpdateGroup(request orcapi.AppCatalogUpdateGroupRequest) *util.Htt
 	}
 	group.Mu.Unlock()
 
-	appPersistGroupMetadata(id, group)
+	err := appPersistGroupMetadata(id, group)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1534,7 +1537,10 @@ func AppStudioCreateGroup(spec orcapi.ApplicationGroupSpecification) (AppGroupId
 	b.Groups[id] = group
 	b.Mu.Unlock()
 
-	appPersistGroupMetadata(id, group)
+	err := appPersistGroupMetadata(id, group)
+	if err != nil {
+		return 0, err
+	}
 	appStudioTrackNewGroup(id)
 	return id, nil
 }
