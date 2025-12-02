@@ -1,0 +1,105 @@
+import {expect, test} from "@playwright/test";
+import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls} from "./shared";
+
+test.beforeEach(async ({page}) => {
+    await User.login(page);
+});
+
+test("Run job with jobname, extend time, stop job, validate jobname in runs", async ({page}) => {
+    test.setTimeout(240_000);
+    await Applications.goToApplications(page);
+    await page.getByRole("button", {name: "Open application"}).click();
+    const jobName = Runs.newJobName();
+
+    await Runs.setJobTitle(page, jobName);
+    await Components.selectAvailableMachineType(page);
+    await Runs.extendTimeBy(page, 1);
+    await Runs.submitAndWaitForRunning(page);
+    await Runs.extendTimeBy(page, 1);
+
+    await page.getByText("Time remaining: 02").isVisible();
+
+    await Runs.terminateViewedRun(page);
+
+    await page.getByText("Run application again").hover();
+    await expect(page.getByText("Run application again")).toHaveCount(1);
+});
+
+const AppNameThatIsExpectedToBePresent = "Visual Studio Code";
+test("Favorite app, unfavorite app", async ({page}) => {
+    await Applications.openApp(page, AppNameThatIsExpectedToBePresent);
+    await Applications.toggleFavorite(page);
+    await Applications.toggleFavorite(page);
+});
+
+test("Start app and stop app from runs page. Start it from runs page, testing parameter import", async ({page}) => {
+    test.setTimeout(240_000);
+    const jobName = Runs.newJobName();
+
+    await Applications.goToApplications(page);
+    await NetworkCalls.awaitProducts(page, async () => {
+        await page.getByRole("button", {name: "Open application"}).click();
+    });
+    await Runs.setJobTitle(page, jobName);
+    await Components.selectAvailableMachineType(page);
+    await Runs.extendTimeBy(page, 1);
+    await Runs.submitAndWaitForRunning(page);
+    await Runs.stopRun(page, jobName);
+    await Applications.actionByRowTitle(page, jobName, "dblclick");
+    await expect(page.getByText("Your job has completed")).toHaveCount(1);
+    await Runs.runApplicationAgain(page, jobName);
+    await Runs.terminateViewedRun(page);
+    // Note(Jonas): I would have thought that the `expect` below would be enough, but alas!
+    while (!await page.getByText("Run application again").isVisible());
+    await expect(page.getByText("Run application again")).toHaveCount(1);
+
+});
+
+test("Mount folder with file in job, and cat inside contents", async ({page}) => {
+    test.setTimeout(240_000);
+    const driveName = Drive.newDriveName();
+    const folderName = File.newFolderName();
+    const {uploadedFileName, contents} = {uploadedFileName: "UploadedFile.txt", contents: "Am I not invisible???"};
+    const jobName = Runs.newJobName();
+
+    await Drive.create(page, driveName);
+    await Drive.openDrive(page, driveName);
+    await File.create(page, folderName);
+    await File.open(page, folderName);
+    await File.uploadFiles(page, [{name: uploadedFileName, contents: contents}]);
+    await Applications.goToApplications(page);
+    await page.getByRole("button", {name: "Open application"}).click();
+
+    await Runs.setJobTitle(page, jobName)
+    await Components.selectAvailableMachineType(page);
+    await Runs.addFolderResource(page, driveName, folderName);
+    await Runs.submitAndWaitForRunning(page);
+
+    const terminalPage = await Runs.openTerminal(page);
+
+    await Terminal.enterCmd(terminalPage, `cat ${folderName}/${uploadedFileName}`)
+
+    await expect(terminalPage.getByText(contents)).toHaveCount(1);
+
+    await terminalPage.close();
+    await Runs.stopRun(page, jobName);
+    await Drive.delete(page, driveName);
+});
+
+test("Ensure 'New version available' button shows up and works.", async ({page}) => {
+    await Applications.openApp(page, AppNameThatIsExpectedToBePresent);
+    const versionSelect = page.locator("div[class^=rich-select-trigger]").last();
+    const newestVersion = await versionSelect.innerText();
+    await versionSelect.click();
+    await page.locator("div[class^=rich-select-result-wrapper] > div").last().click();
+    await page.locator("div[class^='trigger-div']", {hasText: "New version available."}).isVisible();
+    await page.locator("div[class^='trigger-div']", {hasText: "New version available."}).click();
+    await page.locator("div[class^=rich-select-trigger]", {hasText: newestVersion}).isVisible();
+});
+
+test("Test application search", async ({page}) => {
+    await Applications.goToApplications(page);
+    await Applications.searchFor(page, AppNameThatIsExpectedToBePresent);
+    await page.locator("a[class^=app-card]").getByText(AppNameThatIsExpectedToBePresent).first().click();
+    expect(page.url()).toContain("/create?app=");
+});

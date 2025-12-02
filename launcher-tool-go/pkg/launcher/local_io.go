@@ -174,7 +174,7 @@ func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 			if len(str) == 0 && err != nil {
 				break
 			}
-			if l.streamOutput == true {
+			if l.streamOutput {
 				termio.Write("%s", str)
 			}
 			outputBuilder.Write([]byte(str))
@@ -189,7 +189,7 @@ func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 			if len(str) == 0 && err != nil {
 				break
 			}
-			if l.streamOutput == true {
+			if l.streamOutput {
 				termio.Write("%s", str)
 			}
 			errBuilder.Write([]byte(str))
@@ -211,7 +211,7 @@ func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 
 	if exitCode != 0 {
 		if l.allowFailure {
-			return StringPair{First: "", Second: outputBuilder.String() + errBuilder.String()}
+			return StringPair{First: "", Second: outputBuilder.String() + errBuilder.String(), StatusCode: exitCode}
 		}
 
 		fmt.Println("Command failed!")
@@ -232,5 +232,6 @@ func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 			},
 		),
 		"",
+		exitCode,
 	}
 }

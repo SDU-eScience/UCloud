@@ -113,9 +113,7 @@ func (c Classic) Exec(directory LFile, container string, command []string, tty b
 		list = append(list, "-T")
 	}
 	list = append(list, container)
-	for _, s := range command {
-		list = append(list, s)
-	}
+	list = append(list, command...)
 
 	return &LocalExecutableCommand{
 		list,
@@ -251,9 +249,8 @@ func (p Plugin) Exec(directory LFile, container string, command []string, tty bo
 		list = append(list, "-T")
 	}
 	list = append(list, container)
-	for _, s := range command {
-		list = append(list, s)
-	}
+	list = append(list, command...)
+
 	return &LocalExecutableCommand{
 		list,
 		directory,

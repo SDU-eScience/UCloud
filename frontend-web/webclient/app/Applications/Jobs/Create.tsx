@@ -523,7 +523,7 @@ export const Create: React.FunctionComponent = () => {
                 }
             }
         }
-    }, [application, folders, peers, ingress, networks]);
+    }, [application, folders, peers, ingress, networks, navigate]);
 
     if (applicationResp.loading || isInitialMount) return <MainContainer main={<LoadingIcon size={36} />} />;
 

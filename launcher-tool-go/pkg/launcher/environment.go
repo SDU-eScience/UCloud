@@ -69,8 +69,8 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 		HardCheck(err)
 		if selected.Message != "Create new environment" && selected.Value != "new" {
 			file, err := os.Open(selected.Value)
-			defer file.Close()
 			HardCheck(err)
+			defer file.Close()
 
 			env := NewFile(selected.Value)
 			currentEnvironment = env
@@ -120,11 +120,7 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 	}
 }
 
-type InitEnvironmentResult struct {
-	ShouldStartEnvironment bool
-}
-
-func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string) InitEnvironmentResult {
+func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string) (initEnvironment bool) {
 	var err error
 	if shouldInitializeTestEnvironment {
 		_ = os.RemoveAll(baseDir)
@@ -132,7 +128,7 @@ func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string
 	_ = os.Mkdir(baseDir, 0700)
 
 	currentText, _ := os.ReadFile(filepath.Join(baseDir, "current.txt"))
-	currentEnvironmentName := string(currentText)
+	currentEnvironmentName := strings.TrimSpace(string(currentText))
 
 	var env *os.File
 	if currentEnvironmentName == "" {
@@ -143,6 +139,7 @@ func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string
 			env = nil
 		}
 	}
+
 	if env == nil {
 		fmt.Println(`
 No active environment detected!
@@ -158,8 +155,7 @@ meaning and you can simply choose the default by pressing enter.
 		fmt.Println()
 		SelectOrCreateEnvironment(baseDir, shouldInitializeTestEnvironment)
 	} else {
-		fmt.Println("Active environment: " + env.Name())
-		fmt.Println()
+		fmt.Printf("Active environment: %s\n\n", env.Name())
 		path, err := filepath.Abs(env.Name())
 		HardCheck(err)
 		currentEnvironment = NewFile(path)
@@ -172,7 +168,7 @@ meaning and you can simply choose the default by pressing enter.
 	err = os.WriteFile(filepath.Join(baseDir, "current.txt"), currentName, 0644)
 	HardCheck(err)
 
-	return InitEnvironmentResult{ShouldStartEnvironment: isNew}
+	return isNew
 }
 
 func InitIO() {
@@ -195,8 +191,8 @@ func ListAddons() map[string]map[string]string {
 	result := map[string]map[string]string{}
 	path := filepath.Join(localEnvironment.GetAbsolutePath(), "provider-addons.txt")
 	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
-	defer file.Close()
 	HardCheck(err)
+	defer file.Close()
 	lines := readLines(path)
 	for _, line := range lines {
 		if strings.TrimSpace(line) == "" {

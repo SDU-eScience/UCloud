@@ -74,12 +74,12 @@ func main() {
 		(slices.Contains(args, "snapshot") && (slices.IndexFunc(args, regexpCheck) != -1))
 
 	composeDir := filepath.Join(repoRootPath, ".compose")
-	shouldStart := launcher.InitCurrentEnvironment(shouldInitializeTestEnvironment, composeDir).ShouldStartEnvironment
+	shouldStart := launcher.InitCurrentEnvironment(shouldInitializeTestEnvironment, composeDir)
 
 	var psLines []string
 	var compose launcher.DockerCompose
 
-	_ = termio.LoadingIndicator("Connecting to compose environment", func() error {
+	termErr := termio.LoadingIndicator("Connecting to compose environment", func() error {
 		compose = launcher.FindCompose()
 		launcher.SetCompose(compose)
 
@@ -94,10 +94,10 @@ func main() {
 			fmt.Println()
 			fmt.Println("The error message above we got from docker compose. If this isn't helpful, "+
 				"then try deleting this directory: ", launcher.GetCurrentEnvironment().Name())
-			os.Exit(1)
+			return fmt.Errorf("failed to start")
 		}
 
-		for _, line := range strings.Split(psText, "\n") {
+		for line := range strings.SplitSeq(psText, "\n") {
 			if strings.TrimSpace(line) == "" {
 				continue
 			}
@@ -112,14 +112,21 @@ func main() {
 		return nil
 	})
 
+	launcher.HardCheck(termErr)
+
 	if shouldStart || len(psLines) <= 1 {
 		launcher.GenerateComposeFile(true)
-		answer, err := termio.ConfirmPrompt(
-			"The environment "+launcher.GetCurrentEnvironment().Name()+" is not running. Do you want to start it?",
-			termio.ConfirmValueTrue,
-			0,
-		)
-		launcher.HardCheck(err)
+		var answer bool = shouldInitializeTestEnvironment
+		if !answer {
+			var err error
+			envName := launcher.GetCurrentEnvironment().Name()
+			answer, err = termio.ConfirmPrompt(
+				fmt.Sprintf("The environment '%s' is not running. Do you want to start it?", envName),
+				termio.ConfirmValueTrue,
+				0,
+			)
+			launcher.HardCheck(err)
+		}
 		startConfirmed := shouldStart || answer
 
 		if !startConfirmed {
@@ -133,7 +140,7 @@ func main() {
 				"Retrieving initial access token",
 				func() error {
 					for range 240 {
-						success := launcher.FetchAccessToken() != ""
+						success := launcher.FetchAccessToken(false) != ""
 						if success {
 							break
 						}
@@ -148,7 +155,7 @@ func main() {
 
 			fmt.Println()
 			fmt.Println()
-			fmt.Println("UCloud is now running. Yous should create a provider to get started. Select the " +
+			fmt.Println("UCloud is now running. You should create a provider to get started. Select the " +
 				"'Create provider...' entry below to do so.",
 			)
 		}
@@ -194,7 +201,7 @@ func main() {
 			selectedService, err := ServiceMenu(false, false, true).SelectSingle()
 			launcher.HardCheck(err)
 			if selectedService.Value == "mainMenu" {
-				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
+				launcher.RestartOnExit()
 				os.Exit(0)
 			}
 			launcher.OpenUserInterface(selectedService.Value)
@@ -205,7 +212,7 @@ func main() {
 			item, err := ServiceMenu(false, true, false).SelectSingle()
 			launcher.HardCheck(err)
 			if item.Value == "mainMenu" {
-				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
+				launcher.RestartOnExit()
 				os.Exit(0)
 			}
 			service := launcher.ServiceByName(item.Value)
@@ -218,7 +225,7 @@ func main() {
 			item, err := ServiceMenu(false, true, false).SelectSingle()
 			launcher.HardCheck(err)
 			if item.Value == "mainMenu" {
-				launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
+				launcher.RestartOnExit()
 				os.Exit(0)
 			}
 			service := launcher.ServiceByName(item.Value)
@@ -271,7 +278,7 @@ func main() {
 				selectedService, err := ServiceMenu(false, false, false).SelectSingle()
 				launcher.HardCheck(err)
 				if selectedService.Value == "mainMenu" {
-					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
+					launcher.RestartOnExit()
 					os.Exit(0)
 				}
 				service := launcher.ServiceByName(selectedService.Value)
@@ -300,7 +307,7 @@ func main() {
 					}
 				case "mainMenu":
 					{
-						launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
+						launcher.RestartOnExit()
 						os.Exit(0)
 					}
 
@@ -362,7 +369,7 @@ func main() {
 				}
 			case "mainMenu":
 				{
-					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
+					launcher.RestartOnExit()
 					os.Exit(0)
 				}
 
@@ -371,8 +378,8 @@ func main() {
 	case "help":
 		{
 			menu := termio.Menu{
-				"Select a topic",
-				[]termio.MenuItem{
+				Prompt: "Select a topic",
+				Items: []termio.MenuItem{
 					{
 						Value:   "start",
 						Message: "Getting started",
@@ -505,8 +512,8 @@ func main() {
 					)
 
 					moreTopics := termio.Menu{
-						"Select a topic",
-						[]termio.MenuItem{
+						Prompt: "Select a topic",
+						Items: []termio.MenuItem{
 							{
 								Value:   "login",
 								Message: "How do I login?",
@@ -654,7 +661,7 @@ func main() {
 				}
 
 				if nextTopic == "mainMenu" {
-					launcher.PostExecFile.WriteString("\n " + launcher.GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
+					launcher.RestartOnExit()
 					os.Exit(0)
 				}
 
@@ -669,9 +676,35 @@ func main() {
 			}
 		}
 
+	case "test":
+		{
+			chosen, err := TestMenu().SelectSingle()
+			launcher.HardCheck(err)
+			switch chosen.Value {
+			case TEST_TERMINAL:
+				CliHint("test")
+				launcher.RunTests([]string{""})
+			case TEST_UI:
+				fallthrough
+			case TEST_HEADED:
+				fallthrough
+			case TEST_REPORT:
+				CliHint("test " + chosen.Value)
+				launcher.RunTests([]string{"", chosen.Value})
+			case "back":
+				// Is this really the best approach?
+				launcher.RestartOnExit()
+				os.Exit(0)
+			}
+		}
+
 	case "exit":
 		{
 			os.Exit(0)
+		}
+	default:
+		{
+			fmt.Printf("Unhandled case: '%s'. Exiting. \n", selectedItem.Value)
 		}
 	}
 }
@@ -809,11 +842,11 @@ func ServiceMenu(requireLogs bool, requireExec bool, requireAddress bool) termio
 		}
 		myPrefix := foundParts[0]
 		if myPrefix != lastPrefix {
-			items = append(items, termio.MenuItem{service.ContainerName(), myPrefix, true})
+			items = append(items, termio.MenuItem{Value: service.ContainerName(), Message: myPrefix, Separator: true})
 			lastPrefix = myPrefix
 		}
 		suffix := foundParts[1]
-		items = append(items, termio.MenuItem{service.ContainerName(), suffix, false})
+		items = append(items, termio.MenuItem{Value: service.ContainerName(), Message: suffix, Separator: false})
 	}
 	items = append(items, termio.MenuItem{
 		Value:     "other",
@@ -911,5 +944,42 @@ func TopLevelMenu() termio.Menu {
 	return termio.Menu{
 		Prompt: "Select an item from the menu",
 		Items:  items,
+	}
+}
+
+type TestMenuItem string
+
+const (
+	TEST_TERMINAL = "terminal"
+	TEST_UI       = "ui"
+	TEST_HEADED   = "headed"
+	TEST_REPORT   = "show-report"
+)
+
+func TestMenu() termio.Menu {
+	return termio.Menu{
+		Prompt: "Select a test type",
+		Items: []termio.MenuItem{
+			{
+				Value:   TEST_TERMINAL,
+				Message: "In terminal (default)",
+			},
+			{
+				Value:   TEST_UI,
+				Message: "Playwright browser UI",
+			},
+			{
+				Value:   TEST_HEADED,
+				Message: "Headed (Visual browser)",
+			},
+			{
+				Value:   TEST_REPORT,
+				Message: "Report",
+			},
+			{
+				Value:   "back",
+				Message: "Back to main menu",
+			},
+		},
 	}
 }

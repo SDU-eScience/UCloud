@@ -1822,6 +1822,7 @@ export class ResourceBrowser<T> {
             const enabled = isOperation(op) ? op.enabled(selected, callbacks, page) : true;
             const handleDisabled = !useContextMenu && typeof enabled === "string";
 
+            element.setAttribute("data-disabled", typeof enabled === "string" ? true.toString() : (!enabled).toString());
             if (handleDisabled) {
                 const d = document.createElement("div");
                 d.innerText = enabled;

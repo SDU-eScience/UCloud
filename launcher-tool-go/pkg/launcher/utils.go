@@ -13,6 +13,7 @@ import (
 
 type StringPair struct {
 	First, Second string
+	StatusCode    int
 }
 
 func SoftCheck(e error) {
