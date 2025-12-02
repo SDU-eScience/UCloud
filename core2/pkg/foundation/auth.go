@@ -251,7 +251,7 @@ func initAuth() {
 				}
 			}
 
-			passwordAndSalt := hashPassword(item.Password, genSalt())
+			passwordAndSalt := util.HashPassword(item.Password, util.GenSalt())
 
 			_, err := PrincipalCreate(PrincipalSpecification{
 				Type:           "PERSON",
@@ -290,11 +290,11 @@ func initAuth() {
 		err := db.NewTx(func(tx *db.Transaction) *util.HttpError {
 			principal, ok := PrincipalRetrieve(tx, info.Actor.Username)
 			if !ok || !principal.HashedPassword.Present || !principal.Salt.Present {
-				checkPassword(dummyPasswordForTiming.HashedPassword, dummyPasswordForTiming.Salt, request.NewPassword)
+				util.CheckPassword(dummyPasswordForTiming.HashedPassword, dummyPasswordForTiming.Salt, request.NewPassword)
 				return util.HttpErr(http.StatusUnauthorized, "Incorrect username or password.")
 			}
 
-			if !checkPassword(principal.HashedPassword.Value, principal.Salt.Value, request.CurrentPassword) {
+			if !util.CheckPassword(principal.HashedPassword.Value, principal.Salt.Value, request.CurrentPassword) {
 				return util.HttpErr(http.StatusUnauthorized, "Incorrect username or password.")
 			}
 			return nil

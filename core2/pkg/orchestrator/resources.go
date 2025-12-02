@@ -1064,8 +1064,8 @@ func ResourceConfirm(typeName string, id ResourceId) {
 	)
 }
 
-func ResourceDelete(actor rpc.Actor, typeName string, id ResourceId) {
-	ResourceUpdate[any](
+func ResourceDelete(actor rpc.Actor, typeName string, id ResourceId) bool {
+	return ResourceUpdate[any](
 		actor,
 		typeName,
 		id,

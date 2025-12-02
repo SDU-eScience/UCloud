@@ -3,11 +3,13 @@ package launcher
 import (
 	"crypto/rsa"
 	"crypto/x509"
+	"database/sql"
 	"encoding/pem"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -136,6 +138,10 @@ func Launch() {
 	rpc.BearerAuthenticator = func(bearer string, projectHeader string) (rpc.Actor, *util.HttpError) {
 		if bearer == "" {
 			return rpc.Actor{Role: rpc.RoleGuest}, nil
+		}
+
+		if strings.HasPrefix(bearer, "uc") {
+			return authenticateViaApiToken(bearer)
 		}
 
 		unverifiedSubject := ""
@@ -485,4 +491,78 @@ func collapseServerSlashes(next http.Handler) http.Handler {
 		r2.URL = &u
 		next.ServeHTTP(w, r2)
 	})
+}
+
+var apiTokenCache = util.NewCache[string, rpc.Actor](1 * time.Minute)
+
+func authenticateViaApiToken(bearer string) (rpc.Actor, *util.HttpError) {
+	cut, hasPrefix := strings.CutPrefix(bearer, "uc")
+	split := strings.Split(cut, "-")
+	if !hasPrefix || len(split) != 2 {
+		return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "invalid token supplied")
+	}
+
+	id, err := strconv.ParseInt(split[0], 16, 64)
+	if err != nil {
+		return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "invalid token supplied")
+	}
+
+	actor, ok := apiTokenCache.Get(cut, func() (rpc.Actor, error) {
+		username, project, ok := db.NewTx3(func(tx *db.Transaction) (string, util.Option[string], bool) {
+			row, ok := db.Get[struct {
+				CreatedBy string
+				Project   sql.Null[string]
+				TokenHash []byte
+				TokenSalt []byte
+			}](
+				tx,
+				`
+					select r.created_by, r.project, tok.token_hash, tok.token_salt
+					from
+						provider.resource r
+						join provider.api_tokens tok on r.id = tok.resource
+					where
+						r.id = :id
+						and tok.token_hash is not null
+						and tok.token_salt is not null
+			    `,
+				db.Params{
+					"id": id,
+				},
+			)
+
+			if !ok {
+				return "", util.OptNone[string](), false
+			}
+
+			ok = util.CheckPassword(row.TokenHash, row.TokenSalt, split[1])
+			if ok {
+				return row.CreatedBy, util.SqlNullToOpt(row.Project), true
+			} else {
+				return "", util.OptNone[string](), false
+			}
+		})
+
+		user, ok := rpc.LookupActor(username)
+		if !ok {
+			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		} else {
+			if project.Present {
+				_, isMember := user.Membership[rpc.ProjectId(project.Value)]
+				if !isMember {
+					return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "forbidden")
+				} else {
+					user.Project = util.OptValue(rpc.ProjectId(project.Value))
+				}
+			}
+
+			return user, nil
+		}
+	})
+
+	if !ok {
+		return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "forbidden")
+	} else {
+		return actor, nil
+	}
 }

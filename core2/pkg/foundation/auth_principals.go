@@ -408,8 +408,8 @@ func PrincipalUpdatePassword(username string, newPassword string) bool {
 		return false
 	}
 
-	salt := genSalt()
-	hash := hashPassword(newPassword, salt)
+	salt := util.GenSalt()
+	hash := util.HashPassword(newPassword, salt)
 
 	return db.NewTx(func(tx *db.Transaction) bool {
 		principal, ok := PrincipalRetrieve(tx, username)
