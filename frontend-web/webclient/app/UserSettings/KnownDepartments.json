@@ -105,7 +105,89 @@
             ]
         }
     ],
-    "cbs.dk": [],
+    "cbs.dk": [
+        {
+            "faculty": "Department of Accounting",
+            "departments": [
+                "Center for Corporate Governance (CCG)",
+                "Centre for Owner-Managed Businesses (COMB)"
+            ]
+        },
+        {
+            "faculty": "Department of Business Humanities and Law (BHL)",
+            "departments": [
+                "Center for Business History (CVH)",
+                "Entrepreneurship, Ethics & Leadership Unit (EEL)",
+                "Governance, Culture & Learning (GCL)",
+                "CBS Law"
+            ]
+        },
+        {
+            "faculty": "Department of Digitalization (DIGI)",
+            "departments": [
+                "Center for Business Data Analytics"
+            ]
+        },
+        {
+            "faculty": "Department of Economics",
+            "departments": [
+                "Centre for Innovation (CFI)",
+                "Pension Research Centre (PeRCent)",
+                "Copenhagen School of Energy Infrastructure (CSEI)"
+            ]
+        },
+        {
+            "faculty": "Department of Finance (FI)",
+            "departments": [
+                "Center for Financial Frictions (FRIC)",
+                "Center for Statistics (CST)",
+                "Pension Research Centre (PeRCent)",
+                "Center for Big Data in Finance (BIGFI)"
+            ]
+        },
+        {
+            "faculty": "Department of International Economics, Government and Business (EGB)",
+            "departments": "Department of International Economics, Government and Business (EGB)"
+        },
+        {
+            "faculty": "Department of Management, Society and Communication (MSC)",
+            "departments": [
+                "CBS Sustainability",
+                "Centre for Business and Development Studies (CBDS)"
+            ]
+        },
+        {
+            "faculty": "Department of Marketing (MARKTG)",
+            "departments": [
+                "Center for Tourism and Culture Management (TCM)"
+            ]
+        },
+        {
+            "faculty": "Department of Operations Management (OM)",
+            "departments": [
+                "Department of Operations Management (OM)"
+            ]
+        },
+        {
+            "faculty": "Department of Organization (IOA)",
+            "departments": [
+                "Centre for Organization and Time (COT)",
+                "imagine .. Creative Industries Research (IMAGINE)",
+                "Center for Organizational Research on Impact (CORI)",
+                "Organizations, Markets and Governance (OMG)",
+                "OT@IOA",
+                "People and Organizing (PnO)",
+                "Research, Innovation and Organization (RIO)",
+                "WETO - Work, Expertise, Technology and Organization"
+            ]
+        },
+        {
+            "faculty": "Department of Strategy and Innovation (SI)",
+            "departments": [
+                "Department of Strategy and Innovation (SI)"
+            ]
+        }
+    ],
     "dtu.dk": [],
     "itu.dk": [],
     "kb.dk": [],
