@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -759,7 +760,8 @@ func appCategoryToApi(
 	cat.Mu.RLock()
 	apiCategory := orcapi.ApplicationCategory{
 		Metadata: orcapi.AppCategoryMetadata{
-			Id: int(cat.Id),
+			Id:       int(cat.Id),
+			Priority: cat.Priority,
 		},
 		Specification: orcapi.AppCategorySpecification{
 			Title:       cat.Title,
@@ -1179,6 +1181,13 @@ func AppStudioListCategories() []orcapi.ApplicationCategory {
 			result = append(result, category)
 		}
 	}
+	sort.Slice(result, func(i, j int) bool {
+		// Sort by priority. If same priority sort by title
+		if result[i].Metadata.Priority == result[j].Metadata.Priority {
+			return result[i].Specification.Title < result[j].Specification.Title
+		}
+		return result[i].Metadata.Priority < result[j].Metadata.Priority
+	})
 	return util.NonNilSlice(result)
 }
 
