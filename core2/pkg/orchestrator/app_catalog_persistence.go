@@ -203,7 +203,7 @@ func appCatalogLoad() {
 
 			for _, group := range groups {
 				id := AppGroupId(group.Id)
-				maxGroupId = int64(group.Id)
+				maxGroupId = max(maxGroupId, int64(group.Id))
 				b := appGroupBucket(id)
 				appGroup := internalAppGroup{
 					Title:       group.Title,
@@ -255,7 +255,7 @@ func appCatalogLoad() {
 
 			for _, cat := range categories {
 				id := AppCategoryId(cat.Id)
-				maxCategoryId = int64(cat.Id)
+				maxCategoryId = max(maxCategoryId, int64(cat.Id))
 				c := &appCatalogGlobals.Categories
 				c.Categories[id] = &internalCategory{
 					Id:       id,
@@ -303,7 +303,7 @@ func appCatalogLoad() {
 
 			for _, spotlight := range spotlights {
 				id := AppSpotlightId(spotlight.Id)
-				maxSpotlightId = int64(spotlight.Id)
+				maxSpotlightId = max(maxSpotlightId, int64(spotlight.Id))
 				b := appSpotlightBucket(id)
 				b.Spotlights[id] = &internalSpotlight{
 					Title:       spotlight.Title,
@@ -416,9 +416,9 @@ func appCatalogLoad() {
 		})
 
 		// Updating global ID counters so we do not override on new creations after restart
-		appCatalogGlobals.GroupIdAcc.Add(maxGroupId)
-		appCatalogGlobals.CategoryIdAcc.Add(maxCategoryId)
-		appCatalogGlobals.SpotlightIdAcc.Add(maxSpotlightId)
+		appCatalogGlobals.GroupIdAcc.Store(maxGroupId)
+		appCatalogGlobals.CategoryIdAcc.Store(maxCategoryId)
+		appCatalogGlobals.SpotlightIdAcc.Store(maxSpotlightId)
 
 		// Indexing
 		// ---------------------------------------------------------------------------------------------------------
@@ -549,14 +549,11 @@ func appPersistGroupMetadata(id AppGroupId, group *internalAppGroup) *util.HttpE
 
 	group.Mu.RLock()
 	err := db.NewTx(func(tx *db.Transaction) *util.HttpError {
-
-		type Exists struct {
-			Exists bool
-		}
-
 		// Henrik: Updates are no longer allowed if Figlet -> figlet, but I would say this is better
 		// than allowing two groups called figlet and Figlet
-		queryResponse, _ := db.Get[Exists](
+		queryResponse, _ := db.Get[struct {
+			Exists bool
+		}](
 			tx,
 			`
 				select exists(
