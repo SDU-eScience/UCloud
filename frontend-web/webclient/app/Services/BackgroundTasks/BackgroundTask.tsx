@@ -137,15 +137,16 @@ function TaskItem({task}: { task: BackgroundTask; }): React.JSX.Element {
 
     let resumeOrCancel: React.ReactNode;
     if (isFinished) {
-        if (task.specification.canCancel) {
-            resumeOrCancel = (<Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task)} />);
-        }
-    } else {
         resumeOrCancel = (
             <TooltipV2 tooltip="Clear task" contentWidth={100}>
-                <Icon name="close" cursor="pointer" onClick={() => taskStore.removeFinishedTask(task)} />
+                <Icon name="close" cursor="pointer" onClick={() => taskStore.removeFinishedTask(task)}/>
             </TooltipV2>
         );
+    } else {
+        if (task.specification.canCancel) {
+            resumeOrCancel = (
+                <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task)}/>);
+        }
     }
 
     const icon = task.icon && iconNames.indexOf(task.icon) !== -1 ? task.icon : DEFAULT_ICON;
@@ -294,7 +295,10 @@ function promptCancel(task: BackgroundTask) {
         title: "Cancel task?",
         message: "This will cancel the task, and will have to be restarted to finish.",
         onConfirm: () => {
-            callAPI(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.CANCELLED))
+            callAPI(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.CANCELLED));
+            task.status.state = TaskState.CANCELLED;
+            taskStore.addTask(task);
+            taskStore.removeFinishedTask(task);
         },
         cancelText: "Back",
         confirmText: "Cancel task",

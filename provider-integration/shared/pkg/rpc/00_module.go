@@ -36,15 +36,16 @@ var LookupActor func(username string) (Actor, bool) = func(username string) (Act
 // consumed shortly after being received. An Actor must never be used as part of a request or response type. If a
 // dynamic Actor is required, use LookupActor.
 type Actor struct {
-	Username         string                 `json:"-"`
-	Role             Role                   `json:"-"`
-	Project          util.Option[ProjectId] `json:"-"`
-	TokenInfo        util.Option[TokenInfo] `json:"-"`
-	Membership       ProjectMembership      `json:"-"`
-	Groups           GroupMembership        `json:"-"`
-	ProviderProjects ProviderProjects       `json:"-"`
-	Domain           string                 `json:"-"`
-	OrgId            string                 `json:"-"`
+	Username          string                   `json:"-"`
+	Role              Role                     `json:"-"`
+	Project           util.Option[ProjectId]   `json:"-"`
+	TokenInfo         util.Option[TokenInfo]   `json:"-"`
+	Membership        ProjectMembership        `json:"-"`
+	Groups            GroupMembership          `json:"-"`
+	ProviderProjects  ProviderProjects         `json:"-"`
+	AllocatorProjects map[ProjectId]util.Empty `json:"-"`
+	Domain            string                   `json:"-"`
+	OrgId             string                   `json:"-"`
 }
 
 type ProjectId string
@@ -651,21 +652,22 @@ func (r Role) String() string {
 }
 
 type CorePrincipalBaseClaims struct {
-	Role                    string              `json:"role"`
-	Uid                     int                 `json:"uid"`
-	FirstNames              util.Option[string] `json:"firstNames"`
-	LastName                util.Option[string] `json:"lastName"`
-	Email                   util.Option[string] `json:"email"`
-	OrgId                   util.Option[string] `json:"orgId"`
-	TwoFactorAuthentication bool                `json:"twoFactorAuthentication"`
-	ServiceLicenseAgreement bool                `json:"serviceLicenseAgreement"`
-	PrincipalType           string              `json:"principalType"`
-	SessionReference        util.Option[string] `json:"publicSessionReference"`
-	ExtendedByChain         []string            `json:"extendedByChain"`
-	Membership              ProjectMembership   `json:"membership"`
-	Groups                  GroupMembership     `json:"groups"`
-	ProviderProjects        ProviderProjects    `json:"providerProjects"`
-	Domain                  string              `json:"domain"`
+	Role                    string                   `json:"role"`
+	Uid                     int                      `json:"uid"`
+	FirstNames              util.Option[string]      `json:"firstNames"`
+	LastName                util.Option[string]      `json:"lastName"`
+	Email                   util.Option[string]      `json:"email"`
+	OrgId                   util.Option[string]      `json:"orgId"`
+	TwoFactorAuthentication bool                     `json:"twoFactorAuthentication"`
+	ServiceLicenseAgreement bool                     `json:"serviceLicenseAgreement"`
+	PrincipalType           string                   `json:"principalType"`
+	SessionReference        util.Option[string]      `json:"publicSessionReference"`
+	ExtendedByChain         []string                 `json:"extendedByChain"`
+	Membership              ProjectMembership        `json:"membership"`
+	Groups                  GroupMembership          `json:"groups"`
+	ProviderProjects        ProviderProjects         `json:"providerProjects"`
+	AllocatorProjects       map[ProjectId]util.Empty `json:"allocatorProjects"`
+	Domain                  string                   `json:"domain"`
 }
 
 type CorePrincipalClaims struct {

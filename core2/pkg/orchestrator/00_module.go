@@ -25,4 +25,6 @@ func Init() {
 	initSsh()
 
 	initSyncthing()
+
+	initApiTokens()
 }

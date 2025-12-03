@@ -95,5 +95,6 @@ func CreatePrincipalClaims(principal Principal, sessionReference util.Option[str
 		Membership:              principal.Membership,
 		Groups:                  principal.Groups,
 		ProviderProjects:        principal.ProviderProjects,
+		AllocatorProjects:       principal.AllocatorProjects,
 	}
 }

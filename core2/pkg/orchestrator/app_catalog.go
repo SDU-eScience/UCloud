@@ -357,6 +357,7 @@ const (
 	AppCatalogIncludeApps
 	AppCatalogIncludeVersionNumbers
 	AppCatalogIncludeCategories
+	AppCatalogRequireNonemptyGroups
 )
 
 func AppIsRelevant(
@@ -715,6 +716,11 @@ func AppCatalogListCategories(
 		categoryFlags |= AppCatalogIncludeApps | AppCatalogIncludeGroups
 	}
 
+	if flags&AppCatalogRequireNonemptyGroups != 0 {
+		filter = true
+		categoryFlags |= AppCatalogRequireNonemptyGroups | AppCatalogIncludeApps | AppCatalogIncludeGroups
+	}
+
 catLoop:
 	for _, cat := range categories {
 		apiCategory := appCategoryToApi(actor, cat, discovery, categoryFlags)
@@ -781,6 +787,11 @@ func appCategoryToApi(
 			filter := false
 			wantApps := flags&AppCatalogIncludeApps != 0
 			if discovery.Mode != orcapi.CatalogDiscoveryModeAll {
+				filter = true
+				groupFlags |= AppCatalogIncludeApps
+			}
+
+			if flags&AppCatalogRequireNonemptyGroups != 0 {
 				filter = true
 				groupFlags |= AppCatalogIncludeApps
 			}
@@ -930,7 +941,7 @@ func AppCatalogRetrieveLandingPage(
 		Selected: request.Selected,
 	}
 
-	categories := AppCatalogListCategories(actor, discovery, 0)
+	categories := AppCatalogListCategories(actor, discovery, AppCatalogRequireNonemptyGroups)
 	carrousel, _ := AppListCarrousel(actor, discovery)
 	topPicks := AppListTopPicks(actor, discovery)
 	spotlight, hasSpotlight := AppRetrieveSpotlight(
@@ -1407,6 +1418,12 @@ func AppStudioCreateCategory(title string) (AppCategoryId, *util.HttpError) {
 	var resultCategory *internalCategory
 	var result AppCategoryId
 	var err *util.HttpError = nil
+
+	if title == "" {
+		return 0, util.HttpErr(http.StatusBadRequest, "missing category title")
+	} else if len(title) > 256 {
+		return 0, util.HttpErr(http.StatusBadRequest, "category title is too long")
+	}
 
 	cats := &appCatalogGlobals.Categories
 	cats.Mu.Lock()

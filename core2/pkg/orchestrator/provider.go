@@ -250,9 +250,11 @@ func providerLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*res
 		Resource     int
 	}](
 		tx,
-		`select unique_name, domain, https, port, refresh_token, public_key, resource 
-		 from provider.providers
-		 where resource = some(:ids::int8[])`,
+		`
+			select unique_name, domain, https, port, refresh_token, public_key, resource 
+			 from provider.providers
+			 where resource = some(:ids::int8[])
+		`,
 		db.Params{
 			"ids": ids,
 		},

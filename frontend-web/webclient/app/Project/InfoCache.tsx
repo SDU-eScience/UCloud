@@ -174,10 +174,12 @@ interface ProjectInfos {
 }
 
 export function projectInfosPi(info: ProjectInfos, projectId: string, fallback?: string | null): string | null {
+    if (fallback === "") fallback = null;
     return fallback ?? info.data[projectId]?.piUsername ?? null;
 }
 
 export function projectInfosTitle(info: ProjectInfos, projectId: string, fallback?: string | null): string | null {
+    if (fallback === "" || fallback == projectId) fallback = null;
     return fallback ?? info.data[projectId]?.title ?? null;
 }
 
