@@ -1396,6 +1396,12 @@ func AppStudioCreateCategory(title string) (AppCategoryId, *util.HttpError) {
 	var result AppCategoryId
 	var err *util.HttpError = nil
 
+	if title == "" {
+		return 0, util.HttpErr(http.StatusBadRequest, "missing category title")
+	} else if len(title) > 256 {
+		return 0, util.HttpErr(http.StatusBadRequest, "category title is too long")
+	}
+
 	cats := &appCatalogGlobals.Categories
 	cats.Mu.Lock()
 	for _, cat := range cats.Categories {
