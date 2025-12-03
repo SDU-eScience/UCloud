@@ -356,6 +356,7 @@ const (
 	AppCatalogIncludeApps
 	AppCatalogIncludeVersionNumbers
 	AppCatalogIncludeCategories
+	AppCatalogRequireNonemptyGroups
 )
 
 func AppIsRelevant(
@@ -714,6 +715,11 @@ func AppCatalogListCategories(
 		categoryFlags |= AppCatalogIncludeApps | AppCatalogIncludeGroups
 	}
 
+	if flags&AppCatalogRequireNonemptyGroups != 0 {
+		filter = true
+		categoryFlags |= AppCatalogRequireNonemptyGroups | AppCatalogIncludeApps | AppCatalogIncludeGroups
+	}
+
 catLoop:
 	for _, cat := range categories {
 		apiCategory := appCategoryToApi(actor, cat, discovery, categoryFlags)
@@ -779,6 +785,11 @@ func appCategoryToApi(
 			filter := false
 			wantApps := flags&AppCatalogIncludeApps != 0
 			if discovery.Mode != orcapi.CatalogDiscoveryModeAll {
+				filter = true
+				groupFlags |= AppCatalogIncludeApps
+			}
+
+			if flags&AppCatalogRequireNonemptyGroups != 0 {
 				filter = true
 				groupFlags |= AppCatalogIncludeApps
 			}
@@ -928,7 +939,7 @@ func AppCatalogRetrieveLandingPage(
 		Selected: request.Selected,
 	}
 
-	categories := AppCatalogListCategories(actor, discovery, 0)
+	categories := AppCatalogListCategories(actor, discovery, AppCatalogRequireNonemptyGroups)
 	carrousel, _ := AppListCarrousel(actor, discovery)
 	topPicks := AppListTopPicks(actor, discovery)
 	spotlight, hasSpotlight := AppRetrieveSpotlight(

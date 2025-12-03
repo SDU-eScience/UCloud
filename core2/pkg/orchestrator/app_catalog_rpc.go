@@ -27,7 +27,7 @@ func appCatalogInitRpc() {
 			Selected: request.Selected,
 		}
 
-		cat, ok := AppCatalogRetrieveCategory(info.Actor, AppCategoryId(request.Id), discovery, AppCatalogIncludeGroups)
+		cat, ok := AppCatalogRetrieveCategory(info.Actor, AppCategoryId(request.Id), discovery, AppCatalogIncludeGroups|AppCatalogRequireNonemptyGroups)
 		if ok {
 			return cat, nil
 		} else {
