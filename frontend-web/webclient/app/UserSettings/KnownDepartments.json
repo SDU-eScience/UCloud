@@ -188,7 +188,171 @@
             ]
         }
     ],
-    "dtu.dk": [],
+    "dtu.dk": [
+        {
+            "faculty": "DTU Aqua"
+        },
+        {
+            "faculty": "DTU Bioengineering",
+            "departments": [
+                "Biologics Engineering",
+                "Microbial and Chemical Ecology",
+                "Medical Biotechnology",
+                "Protein Chemistry and Enzyme Technology",
+                "Synthetic Biology",
+                "Center for Microbial Secondary Metabolites (CeMiSt)",
+                "Initiative for Biofertilizer Innovation and Science (IBIS)",
+                "Data Science Hub"
+            ]
+        },
+        {
+            "faculty": "DTU Biosustain"
+        },
+        {
+            "faculty": "DTU Chemical Engineering",
+            "departments": [
+                "AT CERE, Applied Thermodynamics - Center for Energy Resources Engineering",
+                "BioCon, Biological Conversions group",
+                "PROSYS, Process and System Engineering Center",
+                "CHEC, Catalysis and High-temperature Engineering Centre",
+                "CoaST, The Hempel Foundation Coatings Science and Technology Centre",
+                "Danish Polymer Centre - DPC",
+                "KT Consortium",
+                "PILOT PLANT, Centre for Experimental Process and Equipment Design"
+            ]
+        },
+        {
+            "faculty": "DTU Chemistry"
+        },
+        {
+            "faculty": "DTU Compute",
+            "departments": [
+                "QIM",
+                "DDSA",
+                "CUQI",
+                "Pioneer Centre for AI",
+                "DABAI",
+                "CITIES",
+                "DIGISEC",
+                "LearnT DTU",
+                "MLLS",
+                "Big Data DTU",
+                "Nordic University Hub",
+                "InnoTech Task Force",
+                "HALRIC"
+            ]
+        },
+        {
+            "faculty": "DTU Construct"
+        },
+        {
+            "faculty": "DTU Electro"
+        },
+        {
+            "faculty": "DTU Energy",
+            "departments": [
+                "Applied Ceramics and Processing",
+                "Atomic Scale Materials Modelling",
+                "Autonomous Materials Discovery",
+                "Electrochemical Materials",
+                "Functional Oxides",
+                "Solid State Electrochemistry",
+                "Structural Analysis and Modelling"
+            ]
+        },
+        {
+            "faculty": "DTU Engineering Technology",
+            "departments": [
+                "Building Technology and Processes",
+                "Business Development",
+                "Energy Technology and Computer Science",
+                "Engineering Education Research",
+                "Innovation Processes and Entrepreneurship",
+                "Mechanical Technology",
+                "Production, Transportation and Planning",
+                "Strategy and Leadership Development"
+            ]
+        },
+        {
+            "faculty": "DTU Entrepreneurship"
+        },
+        {
+            "faculty": "DTU Food"
+        },
+        {
+            "faculty": "DTU Health Tech"
+        },
+        {
+            "faculty": "DTU Learn for Life"
+        },
+        {
+            "faculty": "DTU Management",
+            "departments": [
+                "Transportation Systems Modelling",
+                "Human Mobility",
+                "Intelligent Transportation Systems",
+                "Transport Policy",
+                "Organisation Science and Technology",
+                "Science and Technology Studies",
+                "Energy Economics and Modelling",
+                "Climate Economics and Risk Management",
+                "Operations and Supply Chain Management",
+                "Operations Research"
+            ]
+        },
+        {
+            "faculty": "DTU Nanolab"
+        },
+        {
+            "faculty": "DTU Offshore"
+        },
+        {
+            "faculty": "DTU Physics",
+            "departments": [
+                "Surface Physics & Catalysis",
+                "Computational Atomic-scale Materials Design",
+                "2D Materials Engineering and Physics",
+                "Magnetic Materials and Neturon Scattering",
+                "Materials Physics in Time and Space",
+                "Plasma Physics and Fusion Energy",
+                "Biophysiscs and Fluids",
+                "Luminescence Physics and Technologies",
+                "Quantum Physics and Information Technology",
+                "Catalysis Theory Center",
+                "Centre for Nuclear Energy Technology",
+                "Center for Visualizing Catalytic Processes"
+            ]
+        },
+        {
+            "faculty": "DTU Skylab"
+        },
+        {
+            "faculty": "DTU Space",
+            "departments": [
+                "Astrophysics and Atmospheric Physics",
+                "Geodesy and Earth Observation",
+                "Geomagnetism and Geospace",
+                "Microwaves and Remote Sensing",
+                "Measurement and Instrumentation Systems",
+                "Electromagnetic systems",
+                "Security DTU",
+                "ESA BIC Denmark",
+                "DTU Space Drone Center"
+            ]
+        },
+        {
+            "faculty": "DTU Sustain"
+        },
+        {
+            "faculty": "DTU Wind",
+            "departments": [
+                "Materials and Components",
+                "Wind Turbine Design",
+                "Wind Energy Systems",
+                "Power and Energy Systems"
+            ]
+        }
+    ],
     "itu.dk": [],
     "kb.dk": "freetext",
     "kp.dk": "freetext",
@@ -264,7 +428,20 @@
         }
     ],
     "regionh.dk": "freetext",
-    "ruc.dk": [],
+    "ruc.dk": [
+        {
+            "faculty": "Communication and Arts"
+        },
+        {
+            "faculty": "People and Technology"
+        },
+        {
+            "faculty": "Science and Environment"
+        },
+        {
+            "faculty": "Social Sciences and Business "
+        }
+    ],
     "sdu.dk": [
         {
             "faculty": "Faculty of Humanities",
