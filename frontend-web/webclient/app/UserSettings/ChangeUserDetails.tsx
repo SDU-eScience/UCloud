@@ -14,6 +14,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
 import {injectStyle} from "@/Unstyled";
+import {clamp, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 
 interface UserDetailsState {
     placeHolderFirstNames: string;
@@ -262,18 +263,45 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
 }) {
     const [query, setQuery] = useState("");
 
+    const [searchIndex, setSearchIndex] = useState(-1);
+
     const result = React.useMemo(() => {
-        return fuzzySearch(items, ["tags", "value"], query);
+        const result = fuzzySearch(items, ["tags", "value"], query);
+        setSearchIndex(index => {
+            return clamp(index, -1, result.length - 1);
+        });
+        return result;
     }, [query]);
 
     return <Box mt="0.5em" pt="0.5em">
         <Box>{title}</Box>
-        <ClickableDropdown fullWidth arrowkeyNavigationKey="data-look" trigger={
+        <ClickableDropdown fullWidth onClose={() => {
+            setSearchIndex(-1);
+        }} trigger={
             <Input placeholder={`Example: ${placeholder}`}
                 disabled={disabled}
                 data-allow-freetext={allowFreetext}
                 width="100%"
                 inputRef={ref}
+                onKeyDown={e => {
+                    if (e.key === "ArrowDown") {
+                        stopPropagationAndPreventDefault(e);
+                        setSearchIndex(idx => clamp(idx + 1, 0, result.length - 1));
+                        return;
+                    } else if (e.key === "ArrowUp") {
+                        stopPropagationAndPreventDefault(e);
+                        setSearchIndex(idx => clamp(idx - 1, 0, result.length - 1));
+                        return
+                    } else if (e.key === "Enter") {
+                        const item = result[searchIndex];
+                        if (!item || !ref.current) return;
+                        ref.current.value = item.value;
+                        didUpdate?.(item.value);
+                        onSelect(item);
+                        stopPropagationAndPreventDefault(e);
+                        return;
+                    }
+                }}
                 onKeyUp={e => {
                     const value = e.target["value"];
                     setQuery(value)
@@ -281,7 +309,7 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
                     // TODO(Jonas): Probably some preventDefault thingy here
                 }} />}
         >
-            {result.map(it => <Box key={it.key} className={Unselectables} data-unselectable={it.unselectable} onClick={e => {
+            {result.map((it, idx) => <Box key={it.key} data-active={searchIndex === idx} className={Unselectables} data-unselectable={it.unselectable} onClick={e => {
                 if (it.unselectable) {
                     e.stopPropagation();
                     return;
@@ -295,11 +323,15 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
 }
 
 const Unselectables = injectStyle("unselectable", cl => `
-    div[data-unselectable=true] {
+    ${cl}[data-unselectable=true] {
         cursor: not-allowed;
     }
 
-    div[data-unselectable=true]:hover {
+    ${cl}[data-unselectable=true]:hover {
         background-color: unset;
+    }
+
+    ${cl}[data-active="true"] {
+        background-color: var(--rowHover);
     }
 `);
