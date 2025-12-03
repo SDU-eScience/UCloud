@@ -321,17 +321,17 @@ func initAuth() {
 		return util.Empty{}, nil
 	})
 
-	fndapi.UsersVerifyUserInfo.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (util.Empty, *util.HttpError) {
+	fndapi.UsersVerifyUserInfo.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (string, *util.HttpError) {
 		UsersInfoVerify(request.Id)
-		return util.Empty{}, nil
+		return cfg.Configuration.SelfPublic.ToURL(), nil
 	})
 
 	fndapi.UsersRetrieveInfo.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.UsersRetrieveInfoResponse, *util.HttpError) {
 		return UsersInfoRetrieve(info.Actor), nil
 	})
 
-	fndapi.UsersUpdateInfo.Handler(func(info rpc.RequestInfo, request fndapi.UsersUpdateInfoRequest) (string, *util.HttpError) {
+	fndapi.UsersUpdateInfo.Handler(func(info rpc.RequestInfo, request fndapi.UsersUpdateInfoRequest) (util.Empty, *util.HttpError) {
 		err := UsersInfoUpdate(info.Actor, request, info.HttpRequest.RemoteAddr)
-		return cfg.Configuration.SelfPublic.ToURL(), err
+		return util.Empty{}, err
 	})
 }
