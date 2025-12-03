@@ -712,6 +712,16 @@ func appPersistDeleteCategory(id AppCategoryId) {
 		db.Exec(
 			tx,
 			`
+				delete from app_store.category_items where tag_id = :id
+		    `,
+			db.Params{
+				"id": id,
+			},
+		)
+
+		db.Exec(
+			tx,
+			`
 				delete from app_store.categories where id = :id
 		    `,
 			db.Params{
