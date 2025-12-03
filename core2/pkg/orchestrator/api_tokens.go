@@ -45,6 +45,19 @@ func initApiTokens() {
 	orcapi.ApiTokenRevoke.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
 		return util.Empty{}, ApiTokenRevoke(info.Actor, request.Id)
 	})
+
+	go func() {
+		for {
+			db.NewTx0(func(tx *db.Transaction) {
+				db.Exec(
+					tx,
+					`delete from provider.api_tokens where now() > expires_at`,
+					db.Params{},
+				)
+			})
+			time.Sleep(10 * time.Minute)
+		}
+	}()
 }
 
 // =====================================================================================================================

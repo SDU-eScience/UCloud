@@ -526,6 +526,7 @@ func authenticateViaApiToken(bearer string) (rpc.Actor, *util.HttpError) {
 						r.id = :id
 						and tok.token_hash is not null
 						and tok.token_salt is not null
+						and now() <= tok.expires_at
 			    `,
 				db.Params{
 					"id": id,
@@ -557,6 +558,9 @@ func authenticateViaApiToken(bearer string) (rpc.Actor, *util.HttpError) {
 				}
 			}
 
+			user.TokenInfo.Set(rpc.TokenInfo{
+				PublicSessionReference: fmt.Sprintf("uc%s", split[0]),
+			})
 			return user, nil
 		}
 	})
