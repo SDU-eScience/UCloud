@@ -785,6 +785,16 @@ func appPersistGroupDeletion(id AppGroupId) {
 		db.Exec(
 			tx,
 			`
+				delete from app_store.category_items 
+		   		where group_id = :id
+			`,
+			db.Params{
+				"id": id,
+			})
+
+		db.Exec(
+			tx,
+			`
 				delete from app_store.application_groups
 				where id = :id
 		    `,
