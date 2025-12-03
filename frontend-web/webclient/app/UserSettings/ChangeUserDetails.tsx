@@ -7,8 +7,13 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PayloadAction} from "@reduxjs/toolkit";
 import ResearchFields from "@/UserSettings/ResearchField.json";
 import Positions from "@/UserSettings/Position.json";
+import KnownDepartments from "@/UserSettings/KnownDepartments.json"
+import KnownOrgs from "@/UserSettings/KnownOrgs.json";
 import OrgMapping from "@/UserSettings/OrganizationMapping.json";
 import {Client} from "@/Authentication/HttpClientInstance";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {fuzzySearch} from "@/Utilities/CollectionUtilities";
+import {injectStyle} from "@/Unstyled";
 
 interface UserDetailsState {
     placeHolderFirstNames: string;
@@ -30,6 +35,8 @@ const reducer = (state: UserDetailsState, action: UpdatePlaceholderFirstNames): 
             return {...state, ...action.payload};
     }
 };
+
+const RFIndex = (Math.random() * ResearchFields.filter(it => it.key[1] === ".").length) | 0
 
 export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: boolean) => void}> = () => {
     const userFirstNames = useRef<HTMLInputElement>(null);
@@ -166,10 +173,10 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
     }, []);
 
     const extractValues = React.useCallback((): InfoAndValidation => {
-        const organizationFullName = orgFullNameRef.current?.value;
-        const department = departmentRef.current?.value
-        const researchField = researchFieldRef.current?.value;
-        const position = positionRef.current?.value;
+        const organizationFullName = orgFullNameRef.current?.value; // Non-empty string is enough
+        const department = departmentRef.current?.value // validate department relative to org (if known org)
+        const researchField = researchFieldRef.current?.value; // Validate that this research-field exists
+        const position = positionRef.current?.value; // Validate that it is one of the correct 3 options
         const isValid = !!organizationFullName && !!department && !!researchField && !!position;
         return {
             organizationFullName,
@@ -200,14 +207,18 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
             orgFullNameRef.current.value = selectedOrganization;
     }, [orgFullNameRef.current]);
 
+    const [org, setOrg] = useState("");
+
     return (
-        <Box mb={16}>
+        <Box mb={16} width="100%">
             <Heading.h2>Additional User Information</Heading.h2>
             <form onSubmit={onSubmit}>
-                <Organization ref={orgFullNameRef} />
+                <NewDataList ref={orgFullNameRef} allowFreetext disabled={!!Client.orgId} items={KnownOrgs} didUpdate={() => console.log("Did update")} onSelect={() => void 0} title={"Organization"} placeholder={"University of Knowledge"} />
                 <Department disabled={false} ref={departmentRef} />
                 <OrgField title="Position" placeholder="" ref={positionRef} />
-                <OrgField title="Research field(s)" placeholder="Experimental examples" ref={researchFieldRef} />
+                <NewDataList ref={researchFieldRef} items={ResearchFields} onSelect={it => {
+                    console.log("Do stuff?", it);
+                }} allowFreetext={false} title={"Research field"} disabled={false} placeholder={ResearchFields[RFIndex].value} />
                 {props.getValues ? null : <Button mt="1em" type="submit" color="successMain">Update Information</Button>}
             </form>
         </Box>
@@ -228,11 +239,67 @@ function OrgField(props: {
     </Box>
 };
 
-function Organization(props: {ref: React.RefObject<HTMLInputElement | null>}) {
-    return <OrgField disabled ref={props.ref} title="Full name of organization" placeholder="University of Example" />
-}
-
 function Department(props: {disabled: boolean; ref: React.RefObject<HTMLInputElement | null>}) {
-    // TODO(Jonas): Disable on no value passed from 
     return <OrgField disabled={props.disabled} title="Department" placeholder="Department of Examples" ref={props.ref} />
 }
+
+interface DataListItem {
+    key: string;
+    value: string;
+    tags: string;
+    unselectable?: boolean;
+}
+
+function NewDataList({items, onSelect, allowFreetext, title, disabled, placeholder, ref, didUpdate}: {
+    items: DataListItem[];
+    onSelect: (arg: DataListItem) => void;
+    allowFreetext: boolean;
+    title: string;
+    disabled?: boolean;
+    placeholder: string;
+    ref: React.RefObject<HTMLInputElement | null>
+    didUpdate?: (val: string) => void;
+}) {
+    const [query, setQuery] = useState("");
+
+    const result = React.useMemo(() => {
+        return fuzzySearch(items, ["tags", "value"], query);
+    }, [query]);
+
+    return <Box mt="0.5em" pt="0.5em">
+        <Box>{title}</Box>
+        <ClickableDropdown fullWidth arrowkeyNavigationKey="data-look" trigger={
+            <Input placeholder={`Example: ${placeholder}`}
+                disabled={disabled}
+                data-allow-freetext={allowFreetext}
+                width="100%"
+                inputRef={ref}
+                onKeyUp={e => {
+                    const value = e.target["value"];
+                    setQuery(value)
+                    didUpdate?.(value);
+                    // TODO(Jonas): Probably some preventDefault thingy here
+                }} />}
+        >
+            {result.map(it => <Box key={it.key} className={Unselectables} data-unselectable={it.unselectable} onClick={e => {
+                if (it.unselectable) {
+                    e.stopPropagation();
+                    return;
+                }
+                if (!ref.current) return;
+                ref.current.value = it.value;
+                onSelect(it);
+            }} height="32px">{it.value}</Box>)}
+        </ClickableDropdown>
+    </Box >
+}
+
+const Unselectables = injectStyle("unselectable", cl => `
+    div[data-unselectable=true] {
+        cursor: not-allowed;
+    }
+
+    div[data-unselectable=true]:hover {
+        background-color: unset;
+    }
+`);
