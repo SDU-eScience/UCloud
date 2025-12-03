@@ -1383,7 +1383,7 @@ export function Editor(): React.ReactNode {
                 case "applicantInitiated": {
                     const projectId = getQueryParam(location.search, "projectId");
 
-                    await dispatchEvent({type: "Init"});
+                    await dispatchEvent({type: "Init", affiliationRequest: {type: "ExistingProject", id: projectId ?? ""}});
                     dispatchEvent({type: "RecipientUpdated", isCreatingNewProject: false, reference: projectId ?? undefined})
                     dispatchEvent({type: "UpdateFullScreenLoading", isLoading: false});
                     break;
