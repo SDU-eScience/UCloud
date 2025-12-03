@@ -353,7 +353,35 @@
             ]
         }
     ],
-    "itu.dk": [],
+    "itu.dk": [
+        {
+            "faculty": "Data Science"
+        },
+        {
+            "faculty": "Data, Systems, and Robotics"
+        },
+        {
+            "faculty": "Digital Business Innovation"
+        },
+        {
+            "faculty": "Digitalization, Democracy, and Governance"
+        },
+        {
+            "faculty": "Human-Computer Interaction and Design"
+        },
+        {
+            "faculty": "Play, Culture, and AI"
+        },
+        {
+            "faculty": "Software Engineering"
+        },
+        {
+            "faculty": "Technologies in Practice"
+        },
+        {
+            "faculty": "Theoretical Computer Science"
+        }
+    ],
     "kb.dk": "freetext",
     "kp.dk": "freetext",
     "ku.dk": [
