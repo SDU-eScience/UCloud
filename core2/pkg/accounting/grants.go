@@ -406,25 +406,6 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		}
 	}
 
-	if recipient.Type != accapi.RecipientTypePersonalWorkspace {
-		primaryAffiliation := revision.ParentProjectId.Value
-		if !revision.ParentProjectId.Present {
-			return 0, util.HttpErr(http.StatusBadRequest, "a primary affiliation must be selected")
-		}
-
-		hasAllocFromAffiliation := false
-		for _, allocReq := range revision.AllocationRequests {
-			if allocReq.GrantGiver == primaryAffiliation && allocReq.BalanceRequested.Present && allocReq.BalanceRequested.Value > 0 {
-				hasAllocFromAffiliation = true
-				break
-			}
-		}
-
-		if !hasAllocFromAffiliation {
-			return 0, util.HttpErr(http.StatusBadRequest, "no requests made to primary affiliation")
-		}
-	}
-
 	if !revision.Form.Type.Valid() {
 		return 0, util.HttpErr(http.StatusBadRequest, "form type is invalid")
 	}
@@ -1214,6 +1195,8 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 	recipient := accapi.Recipient{}
 	parents := map[string]util.Empty{}
 
+	applicantActor := actor
+
 	if req.Type == accapi.RetrieveGrantGiversTypeExistingProject && req.Id == "" {
 		req.Type = accapi.RetrieveGrantGiversTypePersonalWorkspace
 	}
@@ -1241,7 +1224,15 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 
 		app.Mu.RLock()
 		recipient = app.Application.CurrentRevision.Document.Recipient
+		createdBy := app.Application.CreatedBy
 		app.Mu.RUnlock()
+
+		createdByActor, ok := rpc.LookupActor(createdBy)
+		if !ok {
+			return nil, util.HttpErr(http.StatusInternalServerError, "corrupt application, unknown applicant")
+		}
+
+		applicantActor = createdByActor
 	}
 
 	if recipient.Type == accapi.RecipientTypeExistingProject {
@@ -1264,7 +1255,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 	var result []accapi.GrantGiver
 
 	lAddPotentialGrantGiver := func(b *grantSettingsBucket, grantGiver string) {
-		if grantsCanApply(actor, recipient, grantGiver) {
+		if grantsCanApply(applicantActor, recipient, grantGiver) {
 			wallets := internalRetrieveWallets(now, grantGiver, walletFilter{RequireActive: true})
 			var categories []accapi.ProductCategory
 			for _, wallet := range wallets {
