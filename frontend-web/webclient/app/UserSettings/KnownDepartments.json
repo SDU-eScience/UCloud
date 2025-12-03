@@ -190,15 +190,8 @@
     ],
     "dtu.dk": [],
     "itu.dk": [],
-    "kb.dk": [
-        {
-            "faculty": "Royal Danish Library",
-            "departments": [
-                "Royal Danish Library"
-            ]
-        }
-    ],
-    "kp.dk": [],
+    "kb.dk": "freetext",
+    "kp.dk": "freetext",
     "ku.dk": [
         {
             "faculty": "Faculty of Health and Medical Sciences",
@@ -270,18 +263,158 @@
             ]
         }
     ],
-    "regionh.dk": [
+    "regionh.dk": "freetext",
+    "ruc.dk": [],
+    "sdu.dk": [
         {
-            "faculty": "The Capital Region of Denmark",
+            "faculty": "Faculty of Humanities",
             "departments": [
-                "The Capital Region of Denmark"
+                "Center for Basic Research Education",
+                "Center for Learning Computational Thinking",
+                "Center for Modern Middle East and Muslim Studies",
+                "Centre for American Studies",
+                "Centre for Cold War Studies",
+                "Centre for Culture and Technology",
+                "Centre for Design and Product History",
+                "Centre for Digital Humanities",
+                "Centre for Health Philosophy and Ethics",
+                "Centre for Human Interactivity",
+                "Centre for Language and Learning",
+                "Centre for Medieval Literature",
+                "Centre for Multimodal Communication",
+                "Centre for Organizing Social Sustainability",
+                "Centre for Tourism, Innovation and Culture (TIC)",
+                "Centre for Upper Secondary and Vocational Education Research",
+                "Centre for Uses of Literature - UOL",
+                "CUHRE",
+                "Department of Culture and Language",
+                "Department of Design, Media and Educational Science",
+                "SDU Climate Cluster",
+                "The Centre for Gender and Diversity",
+                "The Hans Christian Andersen Centre"
+            ]
+        },
+        {
+            "faculty": "Faculty of Science",
+            "departments": [
+                "Biomolecular Nanoscale Engineering Center (BioNEC)",
+                "Center for Adipocyte Signaling (ADIPOSIGN)",
+                "Center for Functional Genomics and Tissue Plasticity (ATLAS)",
+                "Centre for AI Science and Applications",
+                "Centre for Algorithmic Cheminformatics",
+                "Centre for Digital Humanities",
+                "Centre for Interactive Machine Learning",
+                "Centre for Quantum Mathematics",
+                "Centre for Research in Science Education and Communication (FNUG)",
+                "Danish Centre for Endocrine Disrupting Substances (CeHoS)",
+                "Department of Biochemistry and Molecular Biology",
+                "Department of Biology",
+                "Department of Mathematics and Computer Science",
+                "Department of Physics, Chemistry and Pharmacy",
+                "SDU Climate Cluster"
+            ]
+        },
+        {
+            "faculty": "Faculty of Business and Social Sciences",
+            "departments": [
+                "Center for Sustainable Business Development and Policy",
+                "Centre for Border Region Studies",
+                "Centre for Integrative Innovation Management",
+                "Danish Centre for Rural Research (clf)",
+                "Department of Business & Management",
+                "Department of Business and Sustainability",
+                "Department of Economics",
+                "Department of Law",
+                "Department of Political Science and Public Management",
+                "SDU Climate Cluster"
+            ]
+        },
+        {
+            "faculty": "Faculty of Health Sciences",
+            "departments": [
+                "Biomedical Laboratory",
+                "Centre for Intervention Research in Health Promotion and Disease Prevention",
+                "Department of Clinical Research",
+                "Department of Forensic Medicine",
+                "Department of Molecular Medicine",
+                "Department of Psychology",
+                "Department of Public Health",
+                "Department of Sports Science and Clinical Biomechanics",
+                "FIIBL - Research & Innovation Center for Human Movement & Learning",
+                "IRS - Department of Regional Health Research",
+                "National Institute of Public Health",
+                "RICH - Forskning i børns og unges sundhed",
+                "SDU Climate Cluster",
+                "Sustainable Research Environments"
+            ]
+        },
+        {
+            "faculty": "Faculty of Engineering",
+            "departments": [
+                "C:MAC - Centre for Materials Analysis and Characterization",
+                "Center for Organizational Datafication and its Ethics in Society (SDU CODES)",
+                "Centre for Advanced Photovoltaics and Thin-film Energy Devices (SDU CAPE)",
+                "Centre for Computational Research in Emergent Architectural Technology and Engineering (SDU CREATE)",
+                "Centre for Industrial Electronics (CIE)",
+                "Centre for Industrial Mechanics (CIM)",
+                "Centre for Industrial Software",
+                "Centre for Integrative Innovation Management",
+                "Department of Green Technology",
+                "Department of Technology and Innovation",
+                "Institute of Mechanical and Electrical Engineering",
+                "IRCA - Innovation Research Cluster Alsion",
+                "Mads Clausen Institute",
+                "POLIMA - Centre for Polariton-driven light-matter Interactions",
+                "SDU Biomedical Engineering Centre",
+                "SDU Center for Energy Informatics",
+                "SDU Center for Large Structure Production",
+                "SDU Centre for Sustainable Supply Chain Engineering",
+                "SDU Civil and Architectural Engineering",
+                "SDU Climate Cluster",
+                "SDU Health Informatics and Technology",
+                "SDU Life Cycle Engineering",
+                "SDU Nano Optics",
+                "SDU NanoSYD",
+                "SDU Robotics",
+                "SDU UAS Center",
+                "SOLEN - SCC Elite Centre on Solar Energy Conversion and Storage",
+                "The Maersk Mc-Kinney Moller Institute"
             ]
         }
     ],
-    "ruc.dk": [],
-    "sdu.dk": [],
-    "setur.fo": [],
-    "ucsyd.dk": [],
-    "ucl.dk": [],
-    "viauc.dk": []
+    "setur.fo": [
+        {
+            "faculty": "Faculty of Faroese Language and Literature",
+            "departments": [
+                ""
+            ]
+        },
+        {
+            "faculty": "Faculty of Education",
+            "departments": [
+                ""
+            ]
+        },
+        {
+            "faculty": "Faculty of History and Social Sciences",
+            "departments": [
+                ""
+            ]
+        },
+        {
+            "faculty": "Faculty of Science and Technology",
+            "departments": [
+                ""
+            ]
+        },
+        {
+            "faculty": "Faculty of Health Sciences",
+            "departments": [
+                ""
+            ]
+        }
+    ],
+    "ucsyd.dk": "freetext",
+    "ucl.dk": "freetext",
+    "viauc.dk": "freetext"
 }
