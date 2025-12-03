@@ -385,6 +385,7 @@ export interface ApplicationCategory {
 
 export interface ApplicationCategoryMetadata {
     id: number;
+    priority: number;
 }
 
 export interface ApplicationCategorySpecification {

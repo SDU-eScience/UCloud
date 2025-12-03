@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -58,7 +59,8 @@ type ApplicationCategory struct {
 }
 
 type AppCategoryMetadata struct {
-	Id int `json:"id"`
+	Id       int `json:"id"`
+	Priority int `json:"priority"`
 }
 
 type AppCategorySpecification struct {

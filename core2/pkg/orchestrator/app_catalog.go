@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -765,7 +766,8 @@ func appCategoryToApi(
 	cat.Mu.RLock()
 	apiCategory := orcapi.ApplicationCategory{
 		Metadata: orcapi.AppCategoryMetadata{
-			Id: int(cat.Id),
+			Id:       int(cat.Id),
+			Priority: cat.Priority,
 		},
 		Specification: orcapi.AppCategorySpecification{
 			Title:       cat.Title,
@@ -1190,6 +1192,13 @@ func AppStudioListCategories() []orcapi.ApplicationCategory {
 			result = append(result, category)
 		}
 	}
+	sort.Slice(result, func(i, j int) bool {
+		// Sort by priority. If same priority sort by title
+		if result[i].Metadata.Priority == result[j].Metadata.Priority {
+			return result[i].Specification.Title < result[j].Specification.Title
+		}
+		return result[i].Metadata.Priority < result[j].Metadata.Priority
+	})
 	return util.NonNilSlice(result)
 }
 
@@ -1305,7 +1314,10 @@ func AppStudioUpdateGroup(request orcapi.AppCatalogUpdateGroupRequest) *util.Htt
 	}
 	group.Mu.Unlock()
 
-	appPersistGroupMetadata(id, group)
+	err := appPersistGroupMetadata(id, group)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1551,7 +1563,10 @@ func AppStudioCreateGroup(spec orcapi.ApplicationGroupSpecification) (AppGroupId
 	b.Groups[id] = group
 	b.Mu.Unlock()
 
-	appPersistGroupMetadata(id, group)
+	err := appPersistGroupMetadata(id, group)
+	if err != nil {
+		return 0, err
+	}
 	appStudioTrackNewGroup(id)
 	return id, nil
 }
