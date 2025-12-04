@@ -1,6 +1,6 @@
 import Text, {TextProps} from "./Text";
 import * as React from "react";
-import {classConcat, injectStyle} from "@/Unstyled";
+import {classConcat, extractDataTags, injectStyle} from "@/Unstyled";
 
 export const TruncateClass = injectStyle("truncate", k => `
     ${k} {
@@ -11,7 +11,7 @@ export const TruncateClass = injectStyle("truncate", k => `
 `);
 
 const Truncate: React.FunctionComponent<TextProps & {children?: React.ReactNode;}> = props => {
-    return <Text {...props} className={classConcat(TruncateClass, props.className)} />;
+    return <Text {...props} {...extractDataTags(props)} className={classConcat(TruncateClass, props.className)} />;
 }
 
 Truncate.displayName = "Truncate";

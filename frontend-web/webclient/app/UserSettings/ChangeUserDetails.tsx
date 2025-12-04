@@ -186,13 +186,14 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
             if (!o) return true;
             const [faculty, dept] = area.split("/");
             if (faculty == null) return false;
-            // const orgDepartments = KnownDepartments[o];
-            // [faculty][dept];
-            return false;
+            const orgDepartments = KnownDepartments[o];
+            const group = orgDepartments.find((it: {faculty: string}) => it.faculty === faculty);
+            if (!group) return false;
+            if (group.freetext) return true;
+            return group?.departments.find((it: string) => it === dept) != null;
         };
         const department = departmentRef.current?.value.trim();
-        let departmentValid = validateDepartment(org, department);
-
+        const departmentValid = validateDepartment(org, department);
 
         const validatePosition = (pos: string | undefined): boolean => Positions.map(it => it.key).includes(pos ?? "");
         const position = positionRef.current?.value.trim();
@@ -372,6 +373,7 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
             <Box divRef={dropdownRef} maxHeight={400} overflowY="scroll">
                 {result.map((it, idx) =>
                     <Truncate key={it.key}
+                        cursor={it.unselectable ? "not-allowed" : undefined}
                         className={DataListRowItem}
                         data-active={searchIndex === idx}
                         data-unselectable={it.unselectable}
@@ -394,10 +396,6 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
 }
 
 const DataListRowItem = injectStyle("data-list-row-item", cl => `
-    ${cl}[data-unselectable=true] {
-        cursor: not-allowed;
-    }
-
     ${cl}[data-active="true"]:not([data-unselectable=true]), ${cl}:hover:not([data-unselectable=true]) {
         background-color: var(--rowHover);
     }

@@ -1,5 +1,5 @@
 import * as React from "react";
-import {classConcat, classConcatMult, extractEventHandlers, injectStyle, injectStyleSimple, unbox} from "@/Unstyled";
+import {classConcat, classConcatMult, extractDataTags, extractEventHandlers, injectStyle, injectStyleSimple, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
 import {FontWeightProps} from "styled-system";
 import {BoxProps} from "./Types";
@@ -33,46 +33,46 @@ function extractCss(props: TextProps): CSSProperties {
 
 const Text: React.FunctionComponent<React.PropsWithChildren<TextProps>> = props => {
     return <div className={classConcat(TextClass, props.className)} style={extractCss({cursor: props.cursor ?? "inherit", ...props})} {...extractEventHandlers(props)}
-        title={props.title} children={props.children} />;
+        {...extractDataTags(props)} title={props.title} children={props.children} />;
 };
 
 export const TextSpan: React.FunctionComponent<React.PropsWithChildren<TextProps>> = props => {
     return <span className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
-        title={props.title} children={props.children} />;
+        {...extractDataTags(props)} title={props.title} children={props.children} />;
 }
 export const TextP: React.FunctionComponent<React.PropsWithChildren<TextProps>> = props => {
     return <p className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
-        title={props.title} children={props.children} />;
+        {...extractDataTags(props)} title={props.title} children={props.children} />;
 }
 
 export const TextH1: React.FunctionComponent<React.PropsWithChildren<TextProps>> = props => {
     return <h1 className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
-        title={props.title} children={props.children} />;
+        {...extractDataTags(props)} title={props.title} children={props.children} />;
 }
 
 export const TextH2: React.FunctionComponent<React.PropsWithChildren<TextProps>> = props => {
     return <h2 className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
-        title={props.title} children={props.children} />;
+        {...extractDataTags(props)} title={props.title} children={props.children} />;
 }
 
 export const TextH3: React.FunctionComponent<React.PropsWithChildren<TextProps>> = props => {
     return <h3 className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
-        title={props.title} children={props.children} />;
+        {...extractDataTags(props)} title={props.title} children={props.children} />;
 }
 
 export const TextH4: React.FunctionComponent<React.PropsWithChildren<TextProps>> = props => {
     return <h4 className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
-        title={props.title} children={props.children} />;
+        {...extractDataTags(props)} title={props.title} children={props.children} />;
 }
 
 export const TextH5: React.FunctionComponent<React.PropsWithChildren<TextProps>> = props => {
     return <h5 className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
-        title={props.title} children={props.children} />;
+        {...extractDataTags(props)} title={props.title} children={props.children} />;
 }
 
 export const TextH6: React.FunctionComponent<React.PropsWithChildren<TextProps>> = props => {
     return <h6 className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
-        title={props.title} children={props.children} />;
+        {...extractDataTags(props)} title={props.title} children={props.children} />;
 }
 
 const EllipsedTextClass = injectStyleSimple("ellipsed-text", `
