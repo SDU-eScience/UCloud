@@ -398,7 +398,7 @@ export interface ApplicationCategoryStatus {
 
 // Tool API
 // =====================================================================================================================
-const toolContext = baseContext + "/tools";
+const toolContext = "/api/hpc/tools";
 
 export function findToolByName(request: {
     appName: string;

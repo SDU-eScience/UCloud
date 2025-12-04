@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -289,7 +290,7 @@ var AppsUploadTool = rpc.Call[[]byte, util.Empty]{
 	Roles:       rpc.RolesAdmin,
 	Operation:   "upload",
 
-	CustomPath:   "/api/" + appCatalogNamespace + "/tools/upload",
+	CustomPath:   "/api/hpc/tools/upload",
 	CustomMethod: http.MethodPost,
 
 	CustomClientHandler: func(self *rpc.Call[[]byte, util.Empty], client *rpc.Client, request []byte) (util.Empty, *util.HttpError) {

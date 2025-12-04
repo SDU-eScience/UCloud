@@ -101,9 +101,7 @@ func AppLogoValidateAndResize(data []byte) []byte {
 
 func AppLogoInvalidate(id string) {
 	appLogo.cache.Range(func(k, _ interface{}) bool {
-		println(k.(string), id)
 		if strings.Contains(k.(string), id) {
-			println("DELETING : " + k.(string))
 			appLogo.cache.Delete(k)
 		}
 		return true
