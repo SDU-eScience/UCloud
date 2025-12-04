@@ -14,7 +14,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
 import {injectStyle} from "@/Unstyled";
-import {clamp, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {clamp} from "@/UtilityFunctions";
 
 interface UserDetailsState {
     placeHolderFirstNames: string;
@@ -181,10 +181,13 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
         const organizationFullName = org ?? organizationName;
         const organizationValid = validateOrganisation(org);
 
-        const validateDepartment = (o: string | undefined, dept: string | undefined): boolean => {
-            if (!dept) return false;
+        const validateDepartment = (o: string | undefined, area: string | undefined): boolean => {
+            if (!area) return false;
             if (!o) return true;
-            // TODO
+            const [faculty, dept] = area.split("/");
+            if (faculty == null) return false;
+            // const orgDepartments = KnownDepartments[o];
+            // [faculty][dept];
             return false;
         };
         const department = departmentRef.current?.value.trim();
@@ -256,14 +259,14 @@ type Departments = "freetext" | {faculty: string; departments?: string[]}[]
 function Department(props: {org: string; ref: React.RefObject<HTMLInputElement | null>}) {
     // TODO(Jonas): This is just a reversemapping
     const orgInfo = findOrganisationIdFromName(props.org);
-    const possibleDepartments: Departments = orgInfo ? KnownDepartments[orgInfo] : [];
     const items = React.useMemo((): DataListItem[] => {
+        const possibleDepartments: Departments = orgInfo ? KnownDepartments[orgInfo] : [];
         if (possibleDepartments === "freetext") return [];
         return possibleDepartments.flatMap(f => {
             if (!f.departments || f.departments.length === 0) return dataListItem(f.faculty, f.faculty, "");
-            else return f.departments.map(d => dataListItem(`${f.faculty}/${d}`, `${d} - ${f.faculty}`, ""));
+            else return f.departments.map(d => dataListItem(`${f.faculty}/${d}`, `${f.faculty}/${d}`, ""));
         });
-    }, [possibleDepartments]);
+    }, [orgInfo]);
     return <NewDataList disabled={!props.org} items={items} onSelect={() => void 0} ref={props.ref} allowFreetext={items.length === 0} title={"Department/Faculty/Center"} placeholder={"Department of Dreams"} />
 }
 
@@ -282,7 +285,7 @@ interface DataListItem {
 
 function NewDataList({items, onSelect, allowFreetext, title, disabled, placeholder, ref, didUpdateQuery}: {
     items: DataListItem[];
-    onSelect: (arg: DataListItem) => void;
+    onSelect?: (arg: DataListItem) => void;
     allowFreetext: boolean;
     title: string;
     disabled?: boolean;
@@ -294,6 +297,7 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
     const [open, setOpen] = useState(false);
 
     const [searchIndex, setSearchIndex] = useState(-1);
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
         function closeOnEscape(e: KeyboardEvent) {
@@ -306,7 +310,8 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
             if (e.target &&
                 dropdownRef.current &&
                 !dropdownRef.current.contains(e.target as any) &&
-                !ref.current?.contains(e.target as any)) {
+                !ref.current?.contains(e.target as any)
+            ) {
                 setOpen(false);
             }
         }
@@ -326,13 +331,11 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
             return clamp(index, -1, result.length - 1);
         });
         return result;
-    }, [query]);
-
-    const dropdownRef = useRef<HTMLDivElement>(null);
+    }, [query, items]);
 
     return <Box mt="0.5em" pt="0.5em">
         <Box>{title}</Box>
-        <ClickableDropdown height={400} paddingControlledByContent colorOnHover={false} open={open} fullWidth onClose={() => {
+        <ClickableDropdown height={400} paddingControlledByContent colorOnHover={false} open={items.length > 0 && open} fullWidth onClose={() => {
             setSearchIndex(-1);
         }} trigger={
             <Input placeholder={`Example: ${placeholder}`}
@@ -343,30 +346,21 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
                 // Note(Jonas): If already focused, but closed and user clicks again
                 onClick={() => setOpen(true)}
                 onKeyDown={e => {
-                    let doPrevent = false;
                     if (e.key === "ArrowDown") {
-                        doPrevent = true;
                         setSearchIndex(idx => clamp(idx + 1, 0, result.length - 1));
                     } else if (e.key === "ArrowUp") {
-                        doPrevent = true;
                         setSearchIndex(idx => clamp(idx - 1, 0, result.length - 1));
                     } else if (e.key === "Enter") {
-                        doPrevent = true;
                         const item = result[searchIndex];
                         if (!item || !ref.current) return;
                         ref.current.value = item.value;
                         didUpdateQuery?.(item.value);
-                        onSelect(item);
+                        onSelect?.(item);
                         setOpen(false);
                     } else {
                         if (!open) {
                             setOpen(true);
                         }
-                    }
-
-                    if (doPrevent) {
-                        stopPropagationAndPreventDefault(e);
-                        return;
                     }
                 }}
                 onKeyUp={e => {
@@ -391,7 +385,7 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
                             if (!ref.current) return;
                             setOpen(false);
                             ref.current.value = it.value;
-                            onSelect(it);
+                            onSelect?.(it);
                         }} height="32px">{it.value}</Truncate>)
                 }
             </Box>
