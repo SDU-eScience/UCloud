@@ -1,7 +1,7 @@
 import {apiRetrieve, apiUpdate, callAPI, callAPIWithErrorHandler, useCloudCommand} from "@/Authentication/DataHook";
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
-import {Box, Button, Input, Label} from "@/ui-components";
+import {Box, Button, Input, Label, Truncate} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PayloadAction} from "@reduxjs/toolkit";
@@ -174,11 +174,32 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
     }, []);
 
     const extractValues = React.useCallback((): InfoAndValidation => {
-        const organizationFullName = orgFullNameRef.current?.value; // Non-empty string is enough
-        const department = departmentRef.current?.value // validate department relative to org (if known org)
-        const researchField = researchFieldRef.current?.value; // Validate that this research-field exists
-        const position = positionRef.current?.value; // Validate that it is one of the correct 3 options
-        const isValid = !!organizationFullName && !!department && !!researchField && !!position;
+        const validateOrganisation = (o: string | undefined): boolean => !!o;
+        const organizationName = orgFullNameRef.current?.value.trim() ?? "";
+
+        const org = findOrganisationIdFromName(organizationName);
+        const organizationFullName = org ?? organizationName;
+        const organizationValid = validateOrganisation(org);
+
+        const validateDepartment = (o: string | undefined, dept: string | undefined): boolean => {
+            if (!dept) return false;
+            if (!o) return true;
+            // TODO
+            return false;
+        };
+        const department = departmentRef.current?.value.trim();
+        let departmentValid = validateDepartment(org, department);
+
+
+        const validatePosition = (pos: string | undefined): boolean => Positions.map(it => it.key).includes(pos ?? "");
+        const position = positionRef.current?.value.trim();
+        const positionValid = validatePosition(position?.trim());
+
+        const validateResearch = (r: string | undefined): boolean => ResearchFields.find(it => it.key === r) != null;
+        const researchField = researchFieldRef.current?.value.trim();
+        const researchValid = validateResearch(researchField);
+
+        const isValid = organizationValid && departmentValid && positionValid && researchValid;
         return {
             organizationFullName,
             department,
@@ -208,19 +229,19 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
             orgFullNameRef.current.value = selectedOrganization;
     }, [orgFullNameRef.current]);
 
-    const [org, setOrg] = useState(Client.orgId ?? "");
+    const [org, setOrg] = useState(OrgMapping[Client.orgId ?? ""] ?? "");
+
+    React.useEffect(() => {
+        if (departmentRef.current) {
+            departmentRef.current.value = "";
+        }
+    }, [org]);
 
     return (
         <Box mb={16} width="100%">
             <Heading.h2>Additional User Information</Heading.h2>
             <form onSubmit={onSubmit}>
-                <NewDataList ref={orgFullNameRef} allowFreetext disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={org => {
-                    console.log("didUpdate", org);
-                    setOrg(org);
-                }} onSelect={org => {
-                    console.log("onSelect", org.value);
-                    setOrg(org.value)
-                }} title={"Organization"} placeholder={"University of Knowledge"} />
+                <NewDataList ref={orgFullNameRef} allowFreetext disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={"University of Knowledge"} />
                 <Department org={org} ref={departmentRef} />
                 <NewDataList title="Position" placeholder="VIP/TAP/Student" items={Positions} onSelect={() => void 0} allowFreetext={false} ref={positionRef} />
                 <NewDataList ref={researchFieldRef} items={ResearchFields} onSelect={() => void 0} allowFreetext={false} title={"Research field"} disabled={false} placeholder={ResearchFields[RFIndex].value} />
@@ -230,19 +251,20 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
     );
 }
 
+type Departments = "freetext" | {faculty: string; departments?: string[]}[]
+
 function Department(props: {org: string; ref: React.RefObject<HTMLInputElement | null>}) {
     // TODO(Jonas): This is just a reversemapping
-    const orgInfo = Object.entries(OrgMapping).find(it => it[1] === props.org);
-    const possibleDepartments: "freetext" | {faculty: string; departments: string[]}[] = orgInfo ? KnownDepartments[orgInfo?.[0]] : [];
+    const orgInfo = findOrganisationIdFromName(props.org);
+    const possibleDepartments: Departments = orgInfo ? KnownDepartments[orgInfo] : [];
     const items = React.useMemo((): DataListItem[] => {
         if (possibleDepartments === "freetext") return [];
-        console.log(possibleDepartments);
         return possibleDepartments.flatMap(f => {
-            if (f.departments.length === 0) return dataListItem(f.faculty, f.faculty, "");
+            if (!f.departments || f.departments.length === 0) return dataListItem(f.faculty, f.faculty, "");
             else return f.departments.map(d => dataListItem(`${f.faculty}/${d}`, `${d} - ${f.faculty}`, ""));
         });
     }, [possibleDepartments]);
-    return <NewDataList disabled={!props.org} items={items} onSelect={() => void 0} ref={props.ref} allowFreetext title={"Department/Faculty/Center"} placeholder={"Department of Dreams"} />
+    return <NewDataList disabled={!props.org} items={items} onSelect={() => void 0} ref={props.ref} allowFreetext={items.length === 0} title={"Department/Faculty/Center"} placeholder={"Department of Dreams"} />
 }
 
 function dataListItem(key: string, value: string, tags: string, unselectable?: boolean): DataListItem {
@@ -273,6 +295,31 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
 
     const [searchIndex, setSearchIndex] = useState(-1);
 
+    React.useEffect(() => {
+        function closeOnEscape(e: KeyboardEvent) {
+            if (e.key === "Escape") {
+                setOpen(false);
+            }
+        }
+
+        function closeOnOutsideClick(e: PointerEvent) {
+            if (e.target &&
+                dropdownRef.current &&
+                !dropdownRef.current.contains(e.target as any) &&
+                !ref.current?.contains(e.target as any)) {
+                setOpen(false);
+            }
+        }
+
+        window.addEventListener("keydown", closeOnEscape);
+        window.addEventListener("click", closeOnOutsideClick);
+
+        return () => {
+            window.removeEventListener("keydown", closeOnEscape);
+            window.removeEventListener("click", closeOnOutsideClick);
+        }
+    }, []);
+
     const result = React.useMemo(() => {
         const result = fuzzySearch(items, ["tags", "value"], query);
         setSearchIndex(index => {
@@ -281,9 +328,11 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
         return result;
     }, [query]);
 
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
     return <Box mt="0.5em" pt="0.5em">
         <Box>{title}</Box>
-        <ClickableDropdown open={open} fullWidth onClose={() => {
+        <ClickableDropdown height={400} paddingControlledByContent colorOnHover={false} open={open} fullWidth onClose={() => {
             setSearchIndex(-1);
         }} trigger={
             <Input placeholder={`Example: ${placeholder}`}
@@ -291,6 +340,8 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
                 disabled={disabled}
                 data-allow-freetext={allowFreetext}
                 onFocus={() => setOpen(true)}
+                // Note(Jonas): If already focused, but closed and user clicks again
+                onClick={() => setOpen(true)}
                 onKeyDown={e => {
                     let doPrevent = false;
                     if (e.key === "ArrowDown") {
@@ -306,9 +357,11 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
                         ref.current.value = item.value;
                         didUpdateQuery?.(item.value);
                         onSelect(item);
-                    } else if (e.key === "Escape") {
-                        doPrevent = true;
                         setOpen(false);
+                    } else {
+                        if (!open) {
+                            setOpen(true);
+                        }
                     }
 
                     if (doPrevent) {
@@ -322,32 +375,49 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
                     didUpdateQuery?.(value);
                 }} />}
         >
-            {result.map((it, idx) => <Box key={it.key} data-active={searchIndex === idx} className={Unselectables} data-unselectable={it.unselectable} onClick={e => {
-                if (it.unselectable) {
-                    e.stopPropagation();
-                    return;
+            <Box divRef={dropdownRef} maxHeight={400} overflowY="scroll">
+                {result.map((it, idx) =>
+                    <Truncate key={it.key}
+                        className={DataListRowItem}
+                        data-active={searchIndex === idx}
+                        data-unselectable={it.unselectable}
+                        paddingLeft="12px"
+                        paddingTop="4px"
+                        onClick={e => {
+                            if (it.unselectable) {
+                                e.stopPropagation();
+                                return;
+                            }
+                            if (!ref.current) return;
+                            setOpen(false);
+                            ref.current.value = it.value;
+                            onSelect(it);
+                        }} height="32px">{it.value}</Truncate>)
                 }
-                if (!ref.current) return;
-                setOpen(false);
-                ref.current.value = it.value;
-                onSelect(it);
-            }} height="32px">{it.value}</Box>)}
+            </Box>
         </ClickableDropdown>
     </Box >
 }
 
-// TODO(Jonas): Close on outside click
-
-const Unselectables = injectStyle("unselectable", cl => `
+const DataListRowItem = injectStyle("data-list-row-item", cl => `
     ${cl}[data-unselectable=true] {
         cursor: not-allowed;
     }
 
-    ${cl}[data-unselectable=true]:hover {
-        background-color: unset;
-    }
-
-    ${cl}[data-active="true"] {
+    ${cl}[data-active="true"]:not([data-unselectable=true]), ${cl}:hover:not([data-unselectable=true]) {
         background-color: var(--rowHover);
     }
 `);
+
+function findOrganisationIdFromName(name: string): string | undefined {
+    return Object.entries(OrgMapping).find(it => it[1] === name)?.[0];
+}
+
+function findOrganisationNameFromId(id: string): string | undefined {
+    return OrgMapping[id];
+}
+
+const TODO = {
+    ValidateContents: "",
+    StoreFreeTextValueWithFaculty: "",
+};
