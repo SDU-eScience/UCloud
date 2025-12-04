@@ -13,7 +13,7 @@ type Script struct {
 	Owner         ScriptOwner         `json:"owner"`
 	Specification ScriptSpecification `json:"specification"`
 	Status        ScriptStatus        `json:"status"`
-	Permissions   Permissions         `json:"permissions"`
+	Permissions   ScriptPermissions   `json:"permissions"`
 }
 
 type ScriptOwner struct {
@@ -37,22 +37,22 @@ const (
 )
 
 type ScriptAclEntry struct {
-	Group       string           `json:"group"`
-	Permissions ScriptPermission `json:"permissions"`
+	Group      string           `json:"group"`
+	Permission ScriptPermission `json:"permission"`
 }
 
 type ScriptPermission string
 
 const (
-	ScriptPermissionRead  Permission = "READ"
-	ScriptPermissionWrite Permission = "WRITE"
-	ScriptPermissionAdmin Permission = "ADMIN"
+	ScriptPermissionRead  ScriptPermission = "READ"
+	ScriptPermissionWrite ScriptPermission = "WRITE"
+	ScriptPermissionAdmin ScriptPermission = "ADMIN"
 )
 
-type Permissions struct {
-	OpenToWorkspace bool             `json:"openToWorkspace"`
-	Myself          []Permission     `json:"myself"`
-	Others          []ScriptAclEntry `json:"others"`
+type ScriptPermissions struct {
+	OpenToWorkspace bool               `json:"openToWorkspace"`
+	Myself          []ScriptPermission `json:"myself"`
+	Others          []ScriptAclEntry   `json:"others"`
 }
 
 type ScriptStatus struct {

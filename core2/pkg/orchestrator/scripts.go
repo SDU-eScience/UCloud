@@ -1,12 +1,16 @@
 package orchestrator
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
+	"time"
 
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -104,7 +108,9 @@ func ScriptCreate(
 }
 
 func ScriptBrowse(actor rpc.Actor, request orcapi.ScriptBrowseRequest) (fndapi.PageV2[orcapi.Script], *util.HttpError) {
-	return ScriptBrowseBy(actor, request.ItemsPerPage, request.Next, util.OptNone[int](), util.OptValue(request.FilterApplicationName))
+	return db.NewTx2(func(tx *db.Transaction) (fndapi.PageV2[orcapi.Script], *util.HttpError) {
+		return ScriptBrowseBy(actor, request.ItemsPerPage, request.Next, util.OptNone[int](), util.OptValue(request.FilterApplicationName), tx)
+	})
 }
 
 func ScriptBrowseBy(
@@ -113,22 +119,36 @@ func ScriptBrowseBy(
 	next util.Option[string],
 	filterById util.Option[int],
 	filterApplicationName util.Option[string],
+	tx *db.Transaction,
 ) (fndapi.PageV2[orcapi.Script], *util.HttpError) {
 	itemsPerPage = fndapi.ItemsPerPage(itemsPerPage)
 
-	db.NewTx(func(tx *db.Transaction) T {
-		workspace := string(actor.Project.Value)
-		if !actor.Project.Present {
-			workspace = actor.Username
-		}
-		db.Select[struct{}](
-			tx,
-			fmt.Sprintf(`
+	workspace := string(actor.Project.Value)
+	if !actor.Project.Present {
+		workspace = actor.Username
+	}
+	rows := db.Select[struct {
+		Id              int
+		CreatedAt       time.Time
+		CreatedBy       string
+		ProjectId       sql.Null[string]
+		ApplicationName string
+		Language        string
+		Init            sql.Null[string]
+		Job             sql.Null[string]
+		Inputs          sql.Null[string]
+		Path            string
+		IsOpen          bool
+		Readme          sql.Null[string]
+		Permissions     string
+	}](
+		tx,
+		fmt.Sprintf(`
 				with
 					workspace_flows as (
 						select
 							w.id,
-							provider.timestamp_to_unix(w.created_at)::int8 as created_at,
+							w.created_at,
 							w.created_by,
 							w.project_id,
 							w.application_name,
@@ -186,18 +206,159 @@ func ScriptBrowseBy(
 					left join workflow_permissions p on wf.id = p.id
 				order by wf.id desc
 		    `, itemsPerPage),
-			db.Params{
-				"workspace": workspace,
-				"next":      next.Sql(),
-				"app_name":  filterApplicationName.Sql(),
-				"id":        filterById.Sql(),
+		db.Params{
+			"workspace": workspace,
+			"next":      next.Sql(),
+			"app_name":  filterApplicationName.Sql(),
+			"id":        filterById.Sql(),
+		},
+	)
+
+	var items []orcapi.Script
+	for _, row := range rows {
+		var inputs []orcapi.ApplicationParameter
+		if row.Inputs.Valid {
+			err := json.Unmarshal([]byte(row.Inputs.V), &inputs)
+			if err != nil {
+				log.Error("Inputs from the script, %d, could not be unmarshalled. Error: %s", row.Id, err)
+				continue
+			}
+		}
+
+		var otherPermissions []orcapi.ScriptAclEntry
+		err := json.Unmarshal([]byte(row.Permissions), &otherPermissions)
+		if err != nil {
+			log.Error("Permissions from the script, %d, could not be unmarshalled. Error: %s", row.Id, err)
+		}
+
+		items = append(items, orcapi.Script{
+			Id:        fmt.Sprint(row.Id),
+			CreatedAt: fndapi.Timestamp(row.CreatedAt),
+			Owner: orcapi.ScriptOwner{
+				CreatedBy: row.CreatedBy,
+				ProjectId: util.SqlNullToOpt(row.ProjectId),
 			},
-		)
-	})
+			Specification: orcapi.ScriptSpecification{
+				ApplicationName: row.ApplicationName,
+				Language:        orcapi.ScriptLanguage(row.Language),
+				Init:            util.SqlNullToOpt(row.Init),
+				Job:             util.SqlNullToOpt(row.Job),
+				Inputs:          util.OptValue(inputs),
+				Readme:          util.SqlNullToOpt(row.Readme),
+			},
+			Status: orcapi.ScriptStatus{Path: row.Path},
+			Permissions: orcapi.ScriptPermissions{
+				OpenToWorkspace: row.IsOpen,
+				Myself:          nil,
+				Others:          otherPermissions,
+			},
+		})
+	}
+
+	for i := 0; i < len(items); i++ {
+		wf := &items[i]
+		perms := map[orcapi.ScriptPermission]util.Empty{}
+
+		if wf.Permissions.OpenToWorkspace {
+			perms[orcapi.ScriptPermissionRead] = util.Empty{}
+		}
+
+		if actor.Username == wf.Owner.CreatedBy {
+			perms[orcapi.ScriptPermissionRead] = util.Empty{}
+			perms[orcapi.ScriptPermissionWrite] = util.Empty{}
+			perms[orcapi.ScriptPermissionAdmin] = util.Empty{}
+		}
+
+		if actor.Project.Present && actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
+			perms[orcapi.ScriptPermissionRead] = util.Empty{}
+			perms[orcapi.ScriptPermissionWrite] = util.Empty{}
+			perms[orcapi.ScriptPermissionAdmin] = util.Empty{}
+		}
+
+		for _, entry := range wf.Permissions.Others {
+			_, isMember := actor.Groups[rpc.GroupId(entry.Group)]
+			if isMember {
+				perms[entry.Permission] = util.Empty{}
+			}
+		}
+
+		for perm := range perms {
+			wf.Permissions.Myself = append(wf.Permissions.Myself, perm)
+		}
+	}
+
+	newNext := util.OptNone[string]()
+	if len(items) >= itemsPerPage {
+		newNext.Set(items[len(items)-1].Id)
+	}
+
+	return fndapi.PageV2[orcapi.Script]{
+		Items:        items,
+		Next:         newNext,
+		ItemsPerPage: itemsPerPage,
+	}, nil
 }
 
 func ScriptRename(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ScriptRenameRequest]) *util.HttpError {
+	return db.NewTx(func(tx *db.Transaction) *util.HttpError {
+		for _, item := range request.Items {
+			script, err := ScriptRetrieve(actor, item.Id)
+			if err != nil {
+				return err
+			}
 
+			hasPermission := false
+			for _, perm := range script.Permissions.Myself {
+				if perm == orcapi.ScriptPermissionWrite {
+					hasPermission = true
+					break
+				}
+			}
+
+			if !hasPermission {
+				return util.HttpErr(http.StatusForbidden, "you do not have permission to rename this script")
+			}
+
+			workspace := string(actor.Project.Value)
+			if !actor.Project.Present {
+				workspace = actor.Username
+			}
+
+			if item.AllowOverwrite {
+				db.Exec(
+					tx,
+					`
+						delete from app_store.workflows
+						where
+							coalesce(project_id, created_by) = :workspace
+							and path = :path
+					`,
+					db.Params{
+						"workspace": workspace,
+						"path":      item.NewPath,
+					},
+				)
+			}
+
+			db.Exec(
+				tx,
+				`
+					update app_store.workflows
+					set
+					   path = :new_path,
+					   modified_at = now()
+					where
+					    id = :id
+				`,
+				db.Params{
+					"id":       script.Id,
+					"new_path": item.Id,
+				},
+			)
+		}
+
+		return nil
+	})
 }
 
 func ScriptDelete(actor rpc.Actor, items []fndapi.FindByStringId) *util.HttpError {
@@ -224,9 +385,24 @@ func ScriptDelete(actor rpc.Actor, items []fndapi.FindByStringId) *util.HttpErro
 }
 
 func ScriptUpdateAcl(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ScriptUpdateAclRequest]) *util.HttpError {
-
+	// TODO
+	return nil
 }
 
 func ScriptRetrieve(actor rpc.Actor, id string) (orcapi.Script, *util.HttpError) {
-	return ScriptBrowseBy(actor)
+	return db.NewTx2(func(tx *db.Transaction) (orcapi.Script, *util.HttpError) {
+		return ScriptRetrieveEx(actor, id, tx)
+	})
+}
+
+func ScriptRetrieveEx(actor rpc.Actor, id string, tx *db.Transaction) (orcapi.Script, *util.HttpError) {
+	actualId, _ := strconv.ParseInt(id, 10, 64)
+	page, err := ScriptBrowseBy(actor, 1, util.OptNone[string](), util.OptValue[int](int(actualId)), util.OptNone[string](), tx)
+	if err != nil {
+		return orcapi.Script{}, err
+	}
+	if len(page.Items) != 1 {
+		return orcapi.Script{}, err
+	}
+	return page.Items[0], nil
 }
