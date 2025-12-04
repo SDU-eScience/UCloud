@@ -147,7 +147,9 @@
         },
         {
             "faculty": "Department of International Economics, Government and Business (EGB)",
-            "departments": "Department of International Economics, Government and Business (EGB)"
+            "departments": [
+                "Department of International Economics, Government and Business (EGB)"
+            ]
         },
         {
             "faculty": "Department of Management, Society and Communication (MSC)",
