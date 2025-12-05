@@ -271,8 +271,13 @@ func initAuth() {
 
 			result = append(result, db.NewTx(func(tx *db.Transaction) fndapi.AuthenticationTokens {
 				principal, _ := PrincipalRetrieve(tx, item.Username)
-				return SessionCreate(info.HttpRequest, tx, principal)
+				token := SessionCreate(info.HttpRequest, tx, principal)
+				return token
 			}))
+			// Henrik: Removing Sessions so that it does not appear in the users list of sessions
+			for _, token := range result {
+				SessionLogout(token)
+			}
 		}
 
 		return result, nil
