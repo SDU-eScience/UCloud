@@ -269,7 +269,7 @@ var AppsUpload = rpc.Call[[]byte, util.Empty]{
 	Operation:   "upload",
 
 	CustomPath:   "/api/" + appCatalogNamespace + "/upload",
-	CustomMethod: http.MethodPost,
+	CustomMethod: http.MethodPut,
 
 	CustomClientHandler: func(self *rpc.Call[[]byte, util.Empty], client *rpc.Client, request []byte) (util.Empty, *util.HttpError) {
 		panic("Client not implemented")
@@ -292,7 +292,7 @@ var AppsUploadTool = rpc.Call[[]byte, util.Empty]{
 	Operation:   "upload",
 
 	CustomPath:   "/api/hpc/tools/upload",
-	CustomMethod: http.MethodPost,
+	CustomMethod: http.MethodPut,
 
 	CustomClientHandler: func(self *rpc.Call[[]byte, util.Empty], client *rpc.Client, request []byte) (util.Empty, *util.HttpError) {
 		panic("Client not implemented")
