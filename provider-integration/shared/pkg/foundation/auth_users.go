@@ -21,7 +21,13 @@ type UsersCreateRequest struct {
 	OrgId      util.Option[string]        `json:"orgId"`
 }
 
-var UsersCreate = rpc.Call[[]UsersCreateRequest, []AuthenticationTokens]{
+type UsersCreateResponse struct {
+	Username string `json:"username"`
+	Created  bool   `json:"created"`
+	Error    string `json:"error"`
+}
+
+var UsersCreate = rpc.Call[[]UsersCreateRequest, []UsersCreateResponse]{
 	BaseContext: authUsersBaseContext,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "register",
