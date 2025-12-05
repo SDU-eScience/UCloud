@@ -427,7 +427,7 @@ export function findToolByNameAndVersion(request: {
 }
 
 export function createTool(file: File): Promise<{ error?: string }> {
-    return uploadFile("PUT", toolContext, file);
+    return uploadFile("POST", `${toolContext}/upload`, file);
 }
 
 // Core API
@@ -470,7 +470,7 @@ export function findGroupByApplication(request: {
 }
 
 export function create(file: File): Promise<{ error?: string }> {
-    return uploadFile("PUT", baseContext, file);
+    return uploadFile("POST", `${baseContext}/upload`, file);
 }
 
 async function uploadFile(method: string, path: string, file: File, headers?: Record<string, string>): Promise<{

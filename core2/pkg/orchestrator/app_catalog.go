@@ -1516,10 +1516,9 @@ func AppStudioUpdateLogo(groupId AppGroupId, logo []byte) *util.HttpError {
 
 	group.Mu.Lock()
 	group.Logo = resizedImage
-	title := group.Title
 	group.Mu.Unlock()
 
-	AppLogoInvalidate(title)
+	AppLogoInvalidate(strconv.FormatInt(int64(groupId), 10))
 	appPersistGroupLogo(groupId, group)
 	return nil
 }
