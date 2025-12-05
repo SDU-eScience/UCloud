@@ -302,7 +302,7 @@ func ScriptBrowseBy(
 func ScriptRename(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ScriptRenameRequest]) *util.HttpError {
 	return db.NewTx(func(tx *db.Transaction) *util.HttpError {
 		for _, item := range request.Items {
-			script, err := ScriptRetrieve(actor, item.Id)
+			script, err := ScriptRetrieveEx(actor, item.Id, tx)
 			if err != nil {
 				return err
 			}
@@ -315,8 +315,9 @@ func ScriptRename(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ScriptRenam
 				}
 			}
 
+			// TODO this triggers in the personal workspace, even when the settings are set to allow editing
 			if !hasPermission {
-				return util.HttpErr(http.StatusForbidden, "you do not have permission to rename this script")
+				return util.HttpErr(http.StatusForbidden, "You do not have permission to rename this script")
 			}
 
 			workspace := string(actor.Project.Value)
@@ -385,8 +386,84 @@ func ScriptDelete(actor rpc.Actor, items []fndapi.FindByStringId) *util.HttpErro
 }
 
 func ScriptUpdateAcl(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ScriptUpdateAclRequest]) *util.HttpError {
-	// TODO
-	return nil
+	return db.NewTx(func(tx *db.Transaction) *util.HttpError {
+		for _, item := range request.Items {
+			script, err := ScriptRetrieveEx(actor, item.Id, tx)
+			if err != nil {
+				return err
+			}
+
+			hasPermission := false
+			for _, perm := range script.Permissions.Myself {
+				if perm == orcapi.ScriptPermissionAdmin { // TODO maybe this should be write permission instead?
+					hasPermission = true
+					break
+				}
+			}
+
+			// TODO this triggers for the personal workspace, even when the settings are set to allow editing
+			if !hasPermission {
+				return util.HttpErr(http.StatusForbidden, "You do not have permission to change permissions for this script")
+			}
+
+			db.Exec(
+				tx,
+				`
+				delete from app_store.workflow_permissions
+                where workflow_id = :id
+		    	`,
+				db.Params{"id": item.Id},
+			)
+
+			db.Exec(
+				tx,
+				`
+				update app_store.workflows
+            	    set
+            	        is_open = :is_open,
+            	        modified_at = now()
+            	    where id = :id
+				`,
+				db.Params{
+					"id":      item.Id,
+					"is_open": item.IsOpenForWorkspace,
+				},
+			)
+
+			var groupIds []string
+			var permissions []orcapi.ScriptPermission
+
+			for _, perm := range item.Entries {
+				if perm.Permission != orcapi.ScriptPermissionAdmin {
+					continue
+				}
+
+				groupIds = append(groupIds, perm.Group)
+				permissions = append(permissions, perm.Permission)
+			}
+
+			db.Exec(
+				tx,
+				`
+				with
+                    entries as (
+                        select
+                            unnest(:group_ids::text[]) as group_id,
+                            unnest(:permissions::text[]) as permission
+                    )
+                insert into app_store.workflow_permissions (workflow_id, group_id, permission) 
+                select :id, group_id, permission
+                from entries
+		    	`,
+				db.Params{
+					"id":          item.Id,
+					"group_ids":   groupIds,
+					"permissions": permissions,
+				},
+			)
+		}
+		return nil
+	})
 }
 
 func ScriptRetrieve(actor rpc.Actor, id string) (orcapi.Script, *util.HttpError) {

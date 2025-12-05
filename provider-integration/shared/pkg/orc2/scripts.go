@@ -59,7 +59,7 @@ type ScriptStatus struct {
 	Path string `json:"path"`
 }
 
-const scriptBaseContext = "script"
+const scriptBaseContext = "hpc/workflows"
 
 type ScriptCreateRequest struct {
 	Path           string              `json:"path"`
@@ -82,7 +82,6 @@ type ScriptBrowseRequest struct {
 var ScriptBrowse = rpc.Call[ScriptBrowseRequest, fnd.PageV2[Script]]{
 	BaseContext: scriptBaseContext,
 	Convention:  rpc.ConventionBrowse,
-	Operation:   "browse",
 	Roles:       rpc.RolesEndUser,
 }
 
@@ -95,6 +94,7 @@ type ScriptRenameRequest struct {
 var ScriptRename = rpc.Call[fnd.BulkRequest[ScriptRenameRequest], util.Empty]{
 	BaseContext: scriptBaseContext,
 	Convention:  rpc.ConventionUpdate,
+	Operation:   "rename",
 	Roles:       rpc.RolesEndUser,
 }
 
@@ -113,6 +113,7 @@ type ScriptUpdateAclRequest struct {
 var ScriptUpdateAcl = rpc.Call[fnd.BulkRequest[ScriptUpdateAclRequest], util.Empty]{
 	BaseContext: scriptBaseContext,
 	Convention:  rpc.ConventionUpdate,
+	Operation:   "updateAcl",
 	Roles:       rpc.RolesEndUser,
 }
 
