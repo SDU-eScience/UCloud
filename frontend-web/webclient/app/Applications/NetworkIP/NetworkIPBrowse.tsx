@@ -1,6 +1,6 @@
 import {productTypeToIcon, ProductV2, ProductV2NetworkIP} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
-import {bulkRequestOf, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
+import {bulkRequestOf, displayErrorMessageOrDefault, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
 import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
@@ -67,7 +67,6 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
     const navigate = useNavigate();
     usePage("Public IPs", SidebarTabId.RESOURCES);
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
-    const [productSelectorPortal, setProductSelectorPortal] = React.useState<React.ReactNode>(<></>);
 
     const dateRanges = dateRangeFilters("Date created");
 
@@ -216,85 +215,92 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                     const create = operations.find(it => it.tag === CREATE_TAG);
                     if (create) {
                         create.enabled = () => true;
-                        create.onClick = () => dialogStore.addDialog(
-                            <NetworkIpCreate
-                                onCancel={() => {
-                                    dialogStore.failure();
-                                }}
-                                products={supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "")?.newProducts ?? []}
-                                onCreate={async (product, ports, permissions) => {
-                                    const productReference = {
-                                        id: product.name,
-                                        category: product.category.name,
-                                        provider: product.category.provider
-                                    };
-
-                                    const networkIP = {
-                                        ...dummyEntry,
-                                        id: "",
-                                        specification: {
-                                            product: productReference
-                                        },
-                                        owner: {createdBy: ""},
-                                    } as NetworkIP;
-
-                                    browser.insertEntryIntoCurrentPage(networkIP);
-                                    browser.renderRows();
-                                    browser.selectAndShow(it => it === networkIP);
-
-                                    try {
-                                        const response = (await callAPI(
-                                            NetworkIPApi.create(
-                                                bulkRequestOf({
-                                                    product: productReference,
-                                                    domain: "",
-                                                })
-                                            )
-                                        )).responses[0] as unknown as FindByStringId;
-
-                                        networkIP.id = response.id;
-
-                                        await callAPI(NetworkIPApi.updateFirewall({
-                                            type: "bulk",
-                                            items: [{
-                                                id: networkIP.id,
-                                                firewall: {
-                                                    openPorts: ports,
-                                                }
-                                            }]
-                                        }));
-
-                                        for (const permission of permissions) {
-                                            const fixedPermissions: Permission[] = permission.permissions.find(it => it === "EDIT") ? ["READ", "EDIT"] : ["READ"];
-                                            const newEntry: ResourceAclEntry = {
-                                                entity: {type: "project_group", projectId: permission.entity["projectId"], group: permission.entity["group"]},
-                                                permissions: fixedPermissions
+                        create.onClick = async () => {
+                            try {
+                                const products = (await supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(NetworkIPApi))).newProducts;
+                                dialogStore.addDialog(
+                                    <NetworkIpCreate
+                                        onCancel={() => {
+                                            dialogStore.failure();
+                                        }}
+                                        products={products}
+                                        onCreate={async (product, ports, permissions) => {
+                                            const productReference = {
+                                                id: product.name,
+                                                category: product.category.name,
+                                                provider: product.category.provider
                                             };
 
-                                            await callAPI(
-                                                NetworkIPApi.updateAcl(bulkRequestOf(
-                                                    {
-                                                        id: response.id,
-                                                        added: [newEntry],
-                                                        deleted: [permission.entity]
-                                                    }
-                                                ))
-                                            );
-                                        }
+                                            const networkIP = {
+                                                ...dummyEntry,
+                                                id: "",
+                                                specification: {
+                                                    product: productReference
+                                                },
+                                                owner: {createdBy: ""},
+                                            } as NetworkIP;
 
-                                        dialogStore.success();
-                                        browser.refresh();
-                                    } catch (e) {
-                                        snackbarStore.addFailure("Failed to activate public IP. " + extractErrorMessage(e), false);
-                                        browser.refresh();
-                                        return;
-                                    }
-                                }}
-                            />,
-                            () => {},
-                            true,
-                            slimModalStyle,
-                        );
+                                            browser.insertEntryIntoCurrentPage(networkIP);
+                                            browser.renderRows();
+                                            browser.selectAndShow(it => it === networkIP);
+
+                                            try {
+                                                const response = (await callAPI(
+                                                    NetworkIPApi.create(
+                                                        bulkRequestOf({
+                                                            product: productReference,
+                                                            domain: "",
+                                                        })
+                                                    )
+                                                )).responses[0] as unknown as FindByStringId;
+
+                                                networkIP.id = response.id;
+
+                                                await callAPI(NetworkIPApi.updateFirewall({
+                                                    type: "bulk",
+                                                    items: [{
+                                                        id: networkIP.id,
+                                                        firewall: {
+                                                            openPorts: ports,
+                                                        }
+                                                    }]
+                                                }));
+
+                                                for (const permission of permissions) {
+                                                    const fixedPermissions: Permission[] = permission.permissions.find(it => it === "EDIT") ? ["READ", "EDIT"] : ["READ"];
+                                                    const newEntry: ResourceAclEntry = {
+                                                        entity: {type: "project_group", projectId: permission.entity["projectId"], group: permission.entity["group"]},
+                                                        permissions: fixedPermissions
+                                                    };
+
+                                                    await callAPI(
+                                                        NetworkIPApi.updateAcl(bulkRequestOf(
+                                                            {
+                                                                id: response.id,
+                                                                added: [newEntry],
+                                                                deleted: [permission.entity]
+                                                            }
+                                                        ))
+                                                    );
+                                                }
+
+                                                dialogStore.success();
+                                                browser.refresh();
+                                            } catch (e) {
+                                                snackbarStore.addFailure("Failed to activate public IP. " + extractErrorMessage(e), false);
+                                                browser.refresh();
+                                                return;
+                                            }
+                                        }}
+                                    />,
+                                    () => {},
+                                    true,
+                                    slimModalStyle,
+                                );
+                            } catch (e) {
+                                displayErrorMessageOrDefault(e, "Failed to fetch products for creating public IP")
+                            }
+                        }
                     }
                     return operations.filter(it => it.enabled(entries, callbacks, entries));
                 });
@@ -313,7 +319,6 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
         main={<>
             <div ref={mountRef} />
             {switcher}
-            {productSelectorPortal}
         </>}
     />
 }
