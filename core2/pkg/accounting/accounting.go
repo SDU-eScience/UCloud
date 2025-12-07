@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -1011,14 +1012,28 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 	// reasonable protection against sampling too many times, but if the Core ends up crashing at the right time, then
 	// multiple samples may occur. This is not a problem necessarily and may even be the correct thing to do, in the
 	// case that the crash occurred mid-sampling.
-	now = time.Now()
-	if now.After(accountingScanUsageReportCanResumeAt) {
-		if slices.Contains(usageReportSamplingHours, now.Hour()) && now.Minute() < 10 {
-			accountingScanUsageReportCanResumeAt = time.Now().Add(15 * time.Minute)
+	forceUsageReport := false
+	if util.DevelopmentModeEnabled() {
+		_, err := os.Stat("/tmp/usage_report_now")
+		if err == nil {
+			err = os.Remove("/tmp/usage_report_now")
+			if err != nil {
+				log.Info("Unlink err: %s", err)
+			}
+			forceUsageReport = true
+		}
+	}
 
-			timer.Mark()
-			usageSample(now)
-			accountingSampleDuration.Observe(timer.Mark().Seconds())
+	now = time.Now()
+	if reportGlobals.Ready.Load() {
+		if now.After(accountingScanUsageReportCanResumeAt) || forceUsageReport {
+			if slices.Contains(usageReportSamplingHours, now.Hour()) && now.Minute() < 10 || forceUsageReport {
+				accountingScanUsageReportCanResumeAt = time.Now().Add(15 * time.Minute)
+
+				timer.Mark()
+				usageSample(now)
+				accountingSampleDuration.Observe(timer.Mark().Seconds())
+			}
 		}
 	}
 }

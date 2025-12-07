@@ -251,7 +251,7 @@ func initAuth() {
 				}
 			}
 
-			passwordAndSalt := hashPassword(item.Password, genSalt())
+			passwordAndSalt := util.HashPassword(item.Password, util.GenSalt())
 
 			_, err := PrincipalCreate(PrincipalSpecification{
 				Type:           "PERSON",
@@ -290,11 +290,11 @@ func initAuth() {
 		err := db.NewTx(func(tx *db.Transaction) *util.HttpError {
 			principal, ok := PrincipalRetrieve(tx, info.Actor.Username)
 			if !ok || !principal.HashedPassword.Present || !principal.Salt.Present {
-				checkPassword(dummyPasswordForTiming.HashedPassword, dummyPasswordForTiming.Salt, request.NewPassword)
+				util.CheckPassword(dummyPasswordForTiming.HashedPassword, dummyPasswordForTiming.Salt, request.NewPassword)
 				return util.HttpErr(http.StatusUnauthorized, "Incorrect username or password.")
 			}
 
-			if !checkPassword(principal.HashedPassword.Value, principal.Salt.Value, request.CurrentPassword) {
+			if !util.CheckPassword(principal.HashedPassword.Value, principal.Salt.Value, request.CurrentPassword) {
 				return util.HttpErr(http.StatusUnauthorized, "Incorrect username or password.")
 			}
 			return nil
@@ -321,17 +321,17 @@ func initAuth() {
 		return util.Empty{}, nil
 	})
 
-	fndapi.UsersVerifyUserInfo.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (util.Empty, *util.HttpError) {
+	fndapi.UsersVerifyUserInfo.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (string, *util.HttpError) {
 		UsersInfoVerify(request.Id)
-		return util.Empty{}, nil
+		return cfg.Configuration.SelfPublic.ToURL(), nil
 	})
 
 	fndapi.UsersRetrieveInfo.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.UsersRetrieveInfoResponse, *util.HttpError) {
 		return UsersInfoRetrieve(info.Actor), nil
 	})
 
-	fndapi.UsersUpdateInfo.Handler(func(info rpc.RequestInfo, request fndapi.UsersUpdateInfoRequest) (string, *util.HttpError) {
+	fndapi.UsersUpdateInfo.Handler(func(info rpc.RequestInfo, request fndapi.UsersUpdateInfoRequest) (util.Empty, *util.HttpError) {
 		err := UsersInfoUpdate(info.Actor, request, info.HttpRequest.RemoteAddr)
-		return cfg.Configuration.SelfPublic.ToURL(), err
+		return util.Empty{}, err
 	})
 }

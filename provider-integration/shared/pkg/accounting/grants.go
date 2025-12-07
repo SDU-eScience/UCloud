@@ -152,7 +152,6 @@ type GrantDocument struct {
 	Form               Form                  `json:"form"`
 	ReferenceIds       util.Option[[]string] `json:"referenceIds"`
 	RevisionComment    util.Option[string]   `json:"revisionComment"`
-	ParentProjectId    util.Option[string]   `json:"parentProjectId"`
 	AllocationPeriod   util.Option[Period]   `json:"allocationPeriod"`
 }
 

@@ -1,63 +1,14 @@
 package foundation
 
 import (
-	"crypto/rand"
-	"crypto/sha512"
-	"crypto/subtle"
 	"math"
 	"net/http"
 	"time"
 
-	"golang.org/x/crypto/pbkdf2"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"
 )
-
-const (
-	saltLength = 16
-	iterations = 10000
-	keyLength  = 256 // bits
-)
-
-type HashedPasswordAndSalt struct {
-	HashedPassword []byte
-	Salt           []byte
-}
-
-func genSalt() []byte {
-	salt := make([]byte, saltLength)
-	_, err := rand.Read(salt)
-	if err != nil {
-		panic(err)
-	}
-	return salt
-}
-
-// hashPassword hashes a password with the given salt, or generates a new salt if not provided
-func hashPassword(password string, salt []byte) HashedPasswordAndSalt {
-	if salt == nil {
-		salt = genSalt()
-	}
-
-	passwordBytes := []byte(password)
-	hashed := pbkdf2.Key(passwordBytes, salt, iterations, keyLength/8, sha512.New)
-
-	return HashedPasswordAndSalt{
-		HashedPassword: hashed,
-		Salt:           salt,
-	}
-}
-
-// checkPassword compares the stored correctPassword with the hash of the plainPassword
-func checkPassword(correctPassword, salt []byte, plainPassword string) bool {
-	incoming := hashPassword(plainPassword, salt)
-	// Use constant time comparison
-	if subtle.ConstantTimeCompare(incoming.HashedPassword, correctPassword) == 1 {
-		return true
-	}
-	return false
-}
 
 func PasswordUpdate(tx *db.Transaction, username string, newPassword string, conditionalChange bool, currentPasswordForVerification string) *util.HttpError {
 	currentPasswordAndSalt, ok := db.Get[struct {
@@ -82,14 +33,14 @@ func PasswordUpdate(tx *db.Transaction, username string, newPassword string, con
 	currentSalt := currentPasswordAndSalt.Salt
 
 	if conditionalChange {
-		isValidPassword := checkPassword(currentPassword, currentSalt, currentPasswordForVerification)
+		isValidPassword := util.CheckPassword(currentPassword, currentSalt, currentPasswordForVerification)
 		if !isValidPassword {
 			return util.HttpErr(http.StatusBadRequest, "Invalid username or password")
 		}
 	}
 
-	generatedSalt := genSalt()
-	newPasswordAndSalt := hashPassword(newPassword, generatedSalt)
+	generatedSalt := util.GenSalt()
+	newPasswordAndSalt := util.HashPassword(newPassword, generatedSalt)
 	db.Exec(
 		tx,
 		`
@@ -110,7 +61,7 @@ func PasswordUpdate(tx *db.Transaction, username string, newPassword string, con
 	return nil
 }
 
-var dummyPasswordForTiming = hashPassword("forcomparison1234!", nil)
+var dummyPasswordForTiming = util.HashPassword("forcomparison1234!", nil)
 
 func PasswordLogin(request *http.Request, username string, password string) (fndapi.AuthenticationTokens, *util.HttpError) {
 	return db.NewTx2(func(tx *db.Transaction) (fndapi.AuthenticationTokens, *util.HttpError) {
@@ -120,12 +71,12 @@ func PasswordLogin(request *http.Request, username string, password string) (fnd
 
 		principal, ok := PrincipalRetrieve(tx, username)
 		if !ok || !principal.HashedPassword.Present || !principal.Salt.Present {
-			checkPassword(dummyPasswordForTiming.HashedPassword, dummyPasswordForTiming.Salt, password)
+			util.CheckPassword(dummyPasswordForTiming.HashedPassword, dummyPasswordForTiming.Salt, password)
 			logPasswordAttempt(tx, request, username)
 			return fndapi.AuthenticationTokens{}, util.HttpErr(http.StatusUnauthorized, "Incorrect username or password.")
 		}
 
-		if !checkPassword(principal.HashedPassword.Value, principal.Salt.Value, password) {
+		if !util.CheckPassword(principal.HashedPassword.Value, principal.Salt.Value, password) {
 			logPasswordAttempt(tx, request, username)
 			return fndapi.AuthenticationTokens{}, util.HttpErr(http.StatusUnauthorized, "Incorrect username or password.")
 		}

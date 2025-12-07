@@ -39,6 +39,11 @@ type ConfigurationFormat struct {
 		Enabled bool
 	}
 
+	Accounting struct {
+		ComputeUnitsLowFundsNotificationLimitInCH int64 `yaml:"computeUnitsLowFundsNotificationLimitInCH"`
+		StorageUnitsLowFundsNotificationLimitInGB int64 `yaml:"StorageUnitsLowFundsNotificationLimitInGB"`
+	}
+
 	ServiceLicenseAgreement struct {
 		Version int
 		Text    string

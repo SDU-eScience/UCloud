@@ -36,6 +36,7 @@ type Principal struct {
 	Membership              rpc.ProjectMembership
 	Groups                  rpc.GroupMembership
 	ProviderProjects        rpc.ProviderProjects
+	AllocatorProjects       map[rpc.ProjectId]util.Empty
 	CreatedAt               fndapi.Timestamp
 	ModifiedAt              fndapi.Timestamp
 }
@@ -119,6 +120,7 @@ func PrincipalRetrieve(tx *db.Transaction, username string) (Principal, bool) {
 			principal.Membership = projectInfo.Membership
 			principal.ProviderProjects = projectInfo.ProviderProjects
 			principal.Groups = projectInfo.Groups
+			principal.AllocatorProjects = projectInfo.AllocatorProjects
 		}
 
 		if row.HashedPassword.Valid {
@@ -408,8 +410,8 @@ func PrincipalUpdatePassword(username string, newPassword string) bool {
 		return false
 	}
 
-	salt := genSalt()
-	hash := hashPassword(newPassword, salt)
+	salt := util.GenSalt()
+	hash := util.HashPassword(newPassword, salt)
 
 	return db.NewTx(func(tx *db.Transaction) bool {
 		principal, ok := PrincipalRetrieve(tx, username)

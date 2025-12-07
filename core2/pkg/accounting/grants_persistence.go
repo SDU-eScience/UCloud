@@ -712,7 +712,6 @@ func lGrantsPersist(app *grantApplication) {
 			}
 
 			var formsRev []int
-			var formsAffiliation []string // empty to null
 			var formsRecipient []string
 			var formsRecipientType []string
 			var form []string
@@ -720,7 +719,6 @@ func lGrantsPersist(app *grantApplication) {
 
 			for _, rev := range appl.Status.Revisions {
 				formsRev = append(formsRev, rev.RevisionNumber)
-				formsAffiliation = append(formsAffiliation, rev.Document.ParentProjectId.GetOrDefault(""))
 				formsRecipient = append(formsRecipient, rev.Document.Recipient.Reference().Value)
 				sqlRecipientType := ""
 				switch rev.Document.Recipient.Type {
@@ -745,7 +743,6 @@ func lGrantsPersist(app *grantApplication) {
 						data as (
 							select
 								unnest(cast(:revs as int8[])) as rev,
-								unnest(cast(:affiliation as text[])) as affiliation,
 								unnest(cast(:recipients as text[])) as recipient,
 								unnest(cast(:recipient_types as text[])) as recipient_type,
 								unnest(cast(:form as text[])) as form,
@@ -765,10 +762,7 @@ func lGrantsPersist(app *grantApplication) {
 					select
 						:app_id,
 						d.rev,
-						case
-							when d.affiliation = '' then null
-							else d.affiliation
-						end,
+						null,
 						d.recipient,
 						d.recipient_type,
 						d.form,
@@ -784,7 +778,6 @@ func lGrantsPersist(app *grantApplication) {
 				db.Params{
 					"app_id":          app.lId(),
 					"revs":            formsRev,
-					"affiliation":     formsAffiliation,
 					"recipients":      formsRecipient,
 					"recipient_types": formsRecipientType,
 					"form":            form,

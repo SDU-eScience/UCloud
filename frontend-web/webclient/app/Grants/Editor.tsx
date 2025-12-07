@@ -10,7 +10,13 @@ import {usePage} from "@/Navigation/Redux";
 import {isAdminOrPI, Project} from "@/Project";
 import * as Projects from "@/Project/Api";
 import {useProjectId} from "@/Project/Api";
-import {ProjectTitleForNewCore} from "@/Project/InfoCache";
+import {
+    projectInfosTitle,
+    projectInfoTitle,
+    ProjectTitle,
+    ProjectTitleForNewCore,
+    useProjectInfos
+} from "@/Project/InfoCache";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import AppRoutes from "@/Routes";
@@ -1377,7 +1383,7 @@ export function Editor(): React.ReactNode {
                 case "applicantInitiated": {
                     const projectId = getQueryParam(location.search, "projectId");
 
-                    await dispatchEvent({type: "Init"});
+                    await dispatchEvent({type: "Init", affiliationRequest: {type: "ExistingProject", id: projectId ?? ""}});
                     dispatchEvent({type: "RecipientUpdated", isCreatingNewProject: false, reference: projectId ?? undefined})
                     dispatchEvent({type: "UpdateFullScreenLoading", isLoading: false});
                     break;
@@ -2085,7 +2091,9 @@ export function Editor(): React.ReactNode {
                                                             <div className={"allocation-row"}>
                                                                 <label>
                                                                     {unit.name} requested
-                                                                    {checkedAllocators.length > 1 && <> from {allocator.grantGiverTitle}</>}
+                                                                    {checkedAllocators.length > 1 &&
+                                                                        <> from <ProjectTitleForNewCore id={allocator.grantGiverId} title={allocator.grantGiverTitle} /></>
+                                                                    }
 
                                                                     <Input
                                                                         id={`${providerId}/${category.category.name}/${allocator.grantGiverId}`}
@@ -2107,7 +2115,7 @@ export function Editor(): React.ReactNode {
                                                             <div className={"allocation-row"}>
                                                                 <label>
                                                                     {unit.name} requested
-                                                                    {checkedAllocators.length > 1 && <> from {allocatorName}</>}
+                                                                    {checkedAllocators.length > 1 && <> from <ProjectTitleForNewCore id={allocator!.grantGiverId} title={allocatorName} /></>}
 
                                                                     <Input
                                                                         id={`${providerId}/${category.category.name}/${allocator.grantGiverId}`}
@@ -2172,13 +2180,15 @@ const TransferPrompt: React.FunctionComponent<{
         onTransfer(select.value, comment.value);
     }, [onTransfer]);
 
+    const projectInfo = useProjectInfos(allocators.map(it => it.id));
+
     return <form onSubmit={onSubmit} style={{display: "flex", flexDirection: "column", gap: "8px"}}>
         <label htmlFor={"project-transfer-target"}>
             Transfer target
         </label>
         <Select selectRef={selectRef} id={"project-transfer-target"}>
             {!allocators.length && <option value={"null"}>No suitable targets found</option>}
-            {allocators.map(it => <option key={it.id} value={it.id}>{it.title}</option>)}
+            {allocators.map(it => <option key={it.id} value={it.id}>{projectInfosTitle(projectInfo, it.id, it.title)}</option>)}
         </Select>
 
         <label htmlFor={"project-transfer-comment"}>Reason for transferring</label>

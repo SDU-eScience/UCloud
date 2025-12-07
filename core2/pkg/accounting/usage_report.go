@@ -34,8 +34,8 @@ type internalUsageReport struct {
 
 func (r *internalUsageReport) ToApi() accapi.UsageReport {
 	return accapi.UsageReport{
-		Title:            "",  // Not set by this API
-		ProductsCovered:  nil, // Not set by this API
+		Title:            "",  // Not set by this function
+		ProductsCovered:  nil, // Not set by this function
 		ValidFrom:        fndapi.Timestamp(r.ValidFrom),
 		ValidUntil:       fndapi.Timestamp(r.ValidUntil.GetOrDefault(time.Now())),
 		Kpis:             r.Kpis.ToApi(),
@@ -217,6 +217,7 @@ type internalSnapshotComparison struct {
 }
 
 var reportGlobals struct {
+	Ready                       atomic.Bool
 	Mu                          sync.RWMutex
 	Reports                     map[AccWalletId]*internalUsageReport
 	Snapshots                   map[AccWalletId]internalWalletSnapshot
@@ -438,6 +439,8 @@ func initUsageReports() {
 			return accapi.UsageRetrieveResponse{Reports: reports}, nil
 		})
 	}
+
+	reportGlobals.Ready.Store(true)
 }
 
 func usageRetrieveHistoricReports(from time.Time, until time.Time, wallet AccWalletId) []internalUsageReport {

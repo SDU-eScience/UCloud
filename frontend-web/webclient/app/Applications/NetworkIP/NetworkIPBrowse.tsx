@@ -40,6 +40,7 @@ import Routes from "@/Routes";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
+    includeOthers: true,
 }
 
 const FEATURES: ResourceBrowseFeatures = {

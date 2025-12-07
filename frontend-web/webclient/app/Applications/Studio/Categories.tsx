@@ -50,7 +50,7 @@ const Categories: React.FunctionComponent = () => {
         const index = parseInt(findDomAttributeFromAncestors(e.target, "data-idx") ?? "");
         const newIndex = Math.max(0, up ? index - 1 : index + 1);
 
-        await callAPIWithErrorHandler(AppStore.assignPriorityToCategory({ id, priority: newIndex }));
+        await callAPIWithErrorHandler(AppStore.assignPriorityToCategory({ id: id, priority: newIndex }));
         fetchCategories();
     }, []);
 
@@ -82,10 +82,13 @@ const Categories: React.FunctionComponent = () => {
                     return <ListRow
                         key={c.metadata.id}
                         left={c.specification.title}
+                        // Henrik: Found it useful to have the priority listed as well since it is not guaranteed that its only 1 priority lower/higher
+                        // but that it might take multiple clicks to have a change appear
+                        leftSub={"Priority: " + c.metadata.priority}
                         right={<>
                             <Flex gap={"8px"}>
-                                <Button onClick={moveUp} data-id={c.metadata.id} data-idx={idx}><Icon name={"heroArrowUp"} /></Button>
-                                <Button onClick={moveDown} data-id={c.metadata.id} data-idx={idx}><Icon name={"heroArrowDown"} /></Button>
+                                <Button onClick={moveUp} data-id={c.metadata.id} data-idx={c.metadata.priority}><Icon name={"heroArrowUp"} /></Button>
+                                <Button onClick={moveDown} data-id={c.metadata.id} data-idx={c.metadata.priority}><Icon name={"heroArrowDown"} /></Button>
                                 <ConfirmationButton actionKey={c.metadata.id.toString()} color={"errorMain"} icon={"heroTrash"} onAction={deleteCategory} />
                             </Flex>
                         </>}

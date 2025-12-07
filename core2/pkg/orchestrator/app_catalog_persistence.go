@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"runtime"
 	"strconv"
 	"time"
@@ -33,6 +34,10 @@ func appCatalogLoad() {
 		}
 		appCatalogGlobals.Categories.Categories = make(map[AppCategoryId]*internalCategory)
 	}
+
+	maxGroupId := int64(0)
+	maxCategoryId := int64(0)
+	maxSpotlightId := int64(0)
 
 	if appCatalogGlobals.Testing.Enabled {
 		reset()
@@ -198,6 +203,7 @@ func appCatalogLoad() {
 
 			for _, group := range groups {
 				id := AppGroupId(group.Id)
+				maxGroupId = max(maxGroupId, int64(group.Id))
 				b := appGroupBucket(id)
 				appGroup := internalAppGroup{
 					Title:       group.Title,
@@ -249,6 +255,7 @@ func appCatalogLoad() {
 
 			for _, cat := range categories {
 				id := AppCategoryId(cat.Id)
+				maxCategoryId = max(maxCategoryId, int64(cat.Id))
 				c := &appCatalogGlobals.Categories
 				c.Categories[id] = &internalCategory{
 					Id:       id,
@@ -296,6 +303,7 @@ func appCatalogLoad() {
 
 			for _, spotlight := range spotlights {
 				id := AppSpotlightId(spotlight.Id)
+				maxSpotlightId = max(maxSpotlightId, int64(spotlight.Id))
 				b := appSpotlightBucket(id)
 				b.Spotlights[id] = &internalSpotlight{
 					Title:       spotlight.Title,
@@ -406,6 +414,11 @@ func appCatalogLoad() {
 				s.Applications[star.ApplicationName] = util.Empty{}
 			}
 		})
+
+		// Updating global ID counters so we do not override on new creations after restart
+		appCatalogGlobals.GroupIdAcc.Store(maxGroupId)
+		appCatalogGlobals.CategoryIdAcc.Store(maxCategoryId)
+		appCatalogGlobals.SpotlightIdAcc.Store(maxSpotlightId)
 
 		// Indexing
 		// ---------------------------------------------------------------------------------------------------------
@@ -529,13 +542,35 @@ func appPersistFlavor(name string, flavor util.Option[string]) {
 	})
 }
 
-func appPersistGroupMetadata(id AppGroupId, group *internalAppGroup) {
+func appPersistGroupMetadata(id AppGroupId, group *internalAppGroup) *util.HttpError {
 	if appCatalogGlobals.Testing.Enabled {
-		return
+		return nil
 	}
 
 	group.Mu.RLock()
-	db.NewTx0(func(tx *db.Transaction) {
+	err := db.NewTx(func(tx *db.Transaction) *util.HttpError {
+		// Henrik: Updates are no longer allowed if Figlet -> figlet, but I would say this is better
+		// than allowing two groups called figlet and Figlet
+		queryResponse, _ := db.Get[struct {
+			Exists bool
+		}](
+			tx,
+			`
+				select exists(
+					select 1 
+					from app_store.application_groups
+					where lower(title) = lower(:title) 
+				)
+			`,
+			db.Params{
+				"title": group.Title,
+			},
+		)
+
+		if queryResponse.Exists {
+			// Henrik: Accepts that the accGroupId has been increased instead of attempting to lower it.
+			return util.HttpErr(http.StatusBadRequest, "Group with title %s already exists", group.Title)
+		}
 		db.Exec(
 			tx,
 			`
@@ -555,8 +590,10 @@ func appPersistGroupMetadata(id AppGroupId, group *internalAppGroup) {
 				"logo_has_text": group.LogoHasText,
 			},
 		)
+		return nil
 	})
 	group.Mu.RUnlock()
+	return err
 }
 
 func appPersistGroupLogo(id AppGroupId, group *internalAppGroup) {
@@ -672,6 +709,16 @@ func appPersistDeleteCategory(id AppCategoryId) {
 		db.Exec(
 			tx,
 			`
+				delete from app_store.category_items where tag_id = :id
+		    `,
+			db.Params{
+				"id": id,
+			},
+		)
+
+		db.Exec(
+			tx,
+			`
 				delete from app_store.categories where id = :id
 		    `,
 			db.Params{
@@ -741,6 +788,16 @@ func appPersistGroupDeletion(id AppGroupId) {
 				"id": id,
 			},
 		)
+
+		db.Exec(
+			tx,
+			`
+				delete from app_store.category_items 
+		   		where group_id = :id
+			`,
+			db.Params{
+				"id": id,
+			})
 
 		db.Exec(
 			tx,
