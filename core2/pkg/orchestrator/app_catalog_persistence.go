@@ -542,35 +542,38 @@ func appPersistFlavor(name string, flavor util.Option[string]) {
 	})
 }
 
-func appPersistGroupMetadata(id AppGroupId, group *internalAppGroup) *util.HttpError {
+func appPersistGroupMetadata(id AppGroupId, group *internalAppGroup, isNew bool) *util.HttpError {
 	if appCatalogGlobals.Testing.Enabled {
 		return nil
 	}
 
 	group.Mu.RLock()
 	err := db.NewTx(func(tx *db.Transaction) *util.HttpError {
-		// Henrik: Updates are no longer allowed if Figlet -> figlet, but I would say this is better
-		// than allowing two groups called figlet and Figlet
-		queryResponse, _ := db.Get[struct {
-			Exists bool
-		}](
-			tx,
-			`
-				select exists(
-					select 1 
-					from app_store.application_groups
-					where lower(title) = lower(:title) 
-				)
-			`,
-			db.Params{
-				"title": group.Title,
-			},
-		)
+		if isNew {
+			// Henrik: Updates are no longer allowed if Figlet -> figlet, but I would say this is better
+			// than allowing two groups called figlet and Figlet
+			queryResponse, _ := db.Get[struct {
+				Exists bool
+			}](
+				tx,
+				`
+					select exists(
+						select 1 
+						from app_store.application_groups
+						where lower(title) = lower(:title) 
+					)
+				`,
+				db.Params{
+					"title": group.Title,
+				},
+			)
 
-		if queryResponse.Exists {
-			// Henrik: Accepts that the accGroupId has been increased instead of attempting to lower it.
-			return util.HttpErr(http.StatusBadRequest, "Group with title %s already exists", group.Title)
+			if queryResponse.Exists {
+				// Henrik: Accepts that the accGroupId has been increased instead of attempting to lower it.
+				return util.HttpErr(http.StatusBadRequest, "Group with title %s already exists", group.Title)
+			}
 		}
+
 		db.Exec(
 			tx,
 			`

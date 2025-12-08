@@ -449,13 +449,22 @@ func AppRetrieveNewest(
 	}
 	b.Mu.RUnlock()
 
-	for i := len(versions) - 1; i >= 0; i-- {
-		app, ok := AppRetrieve(actor, name, versions[i], discovery, flags)
+	slices.Reverse(versions)
+	newestApp := util.OptNone[orcapi.Application]()
+	var versionWithPermissions []string
+	for _, v := range versions {
+		app, ok := AppRetrieve(actor, name, v, discovery, flags)
 		if ok {
-			slices.Reverse(versions)
-			app.Versions = versions
-			return app, true
+			versionWithPermissions = append(versionWithPermissions, v)
+			if !newestApp.Present {
+				newestApp.Set(app)
+			}
 		}
+	}
+
+	if newestApp.Present {
+		newestApp.Value.Versions = versionWithPermissions
+		return newestApp.Value, true
 	}
 
 	return orcapi.Application{}, false
@@ -480,12 +489,19 @@ func AppRetrieve(
 	if flags&AppCatalogIncludeVersionNumbers != 0 {
 		b := appBucket(name)
 		b.Mu.RLock()
-		allVersions := b.Applications[name]
-		for _, v := range allVersions {
-			versions = append(versions, v.Version)
+		var allVersions []string
+		for _, v := range b.Applications[name] {
+			allVersions = append(allVersions, v.Version)
 		}
 		b.Mu.RUnlock()
-		slices.Reverse(versions)
+		slices.Reverse(allVersions)
+
+		for _, v := range allVersions {
+			_, hasPermissions := AppRetrieve(actor, name, v, discovery, 0)
+			if hasPermissions {
+				versions = append(versions, v)
+			}
+		}
 	}
 
 	app.Mu.RLock()
@@ -1011,7 +1027,7 @@ func AppCatalogRetrieveLandingPage(
 		},
 		NewApplications:    util.NonNilSlice(newApps),
 		RecentlyUpdated:    util.NonNilSlice(recentlyUpdated),
-		AvailableProviders: appRelevantProvidersForUser(actor.Username, actor.Project),
+		AvailableProviders: util.NonNilSlice(appRelevantProvidersForUser(actor.Username, actor.Project)),
 	}, nil
 }
 
@@ -1314,7 +1330,7 @@ func AppStudioUpdateGroup(request orcapi.AppCatalogUpdateGroupRequest) *util.Htt
 	}
 	group.Mu.Unlock()
 
-	err := appPersistGroupMetadata(id, group)
+	err := appPersistGroupMetadata(id, group, false)
 	if err != nil {
 		return err
 	}
@@ -1562,7 +1578,7 @@ func AppStudioCreateGroup(spec orcapi.ApplicationGroupSpecification) (AppGroupId
 	b.Groups[id] = group
 	b.Mu.Unlock()
 
-	err := appPersistGroupMetadata(id, group)
+	err := appPersistGroupMetadata(id, group, true)
 	if err != nil {
 		return 0, err
 	}
