@@ -13,7 +13,7 @@ import * as plot from "@observablehq/plot";
 import * as Plot from "@observablehq/plot";
 import * as JobViz from "@/Applications/Jobs/JobViz"
 import {WidgetColorIntensity, WidgetWindow} from "@/Applications/Jobs/JobViz"
-import {ChangeOrganizationDetails} from "@/UserSettings/ChangeUserDetails";
+import {addOrgInfoModalIfNotFilled, ChangeOrganizationDetails} from "@/UserSettings/ChangeUserDetails";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -179,12 +179,14 @@ const Playground: React.FunctionComponent = () => {
         }
     });
 
-
+    const foo = React.useCallback(() => {
+        addOrgInfoModalIfNotFilled();
+    }, []);
 
     const main = (
         <>
             <ChangeOrganizationDetails getValues={getValuesRef} />
-            <Button onClick={() => console.log(getValuesRef.current())}>View extracted contents</Button>
+            <Button onClick={foo}>View extracted contents</Button>
 
             {/*<CpuChartDemo />*/}
             {/*<JobViz.Renderer processor={stream.current} windows={[JobViz.WidgetWindow.WidgetWindowMain]} />*/}
