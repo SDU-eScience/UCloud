@@ -16,6 +16,7 @@ import {fuzzySearch} from "@/Utilities/CollectionUtilities";
 import {injectStyle} from "@/Unstyled";
 import {clamp, threadDeferLike} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {SelectorDialog} from "@/Products/Selector";
 
 interface UserDetailsState {
     placeHolderFirstNames: string;
@@ -352,6 +353,7 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
         function closeOnEscape(e: KeyboardEvent) {
             if (e.key === "Escape") {
                 setOpen("");
+                setSearchIndex(-1);
             }
         }
 
@@ -382,11 +384,54 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
         return result;
     }, [query, items]);
 
-    return <Box mt="0.5em" pt="0.5em">
+    const boxRef = React.useRef<HTMLDivElement>(null);
+    const boxRect = boxRef?.current?.getBoundingClientRect() ?? {x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0};
+    let dialogX = boxRect.x;
+    let dialogY = boxRect.y + boxRect.height;
+    let dialogHeight = Math.max(result.length * 32, 100);
+    const isPosition = result.length === 3;
+    if (isPosition) console.log(result);
+    const minimumWidth = 500;
+    let dialogWidth = Math.min(Math.max(minimumWidth, boxRect.width), window.innerWidth - boxRect.x - 16);
+    {
+        const dialogOutOfBounds = (): boolean =>
+            dialogX <= 0 || dialogY <= 0 ||
+            dialogY + dialogHeight >= window.innerHeight || dialogHeight < 96;
+
+
+        // Attempt to move the dialog box up a bit
+        if (dialogOutOfBounds()) dialogY = boxRect.y + 30;
+
+        // Try making it smaller
+        if (dialogOutOfBounds()) {
+            dialogHeight = window.innerHeight - dialogY - 50;
+        }
+
+        // What if we try putting it directly above?
+        if (dialogOutOfBounds()) {
+            dialogY = boxRect.y - 500;
+            dialogHeight = 500;
+        }
+
+        // What about a smaller version?
+        if (dialogOutOfBounds()) {
+            dialogY = boxRect.y - 300;
+            dialogHeight = 300;
+        }
+
+        // Display a modal, we cannot find any space for it.
+        if (dialogOutOfBounds()) {
+            dialogX = 50;
+            dialogY = 50;
+            dialogWidth = window.innerWidth - 50 * 2;
+            dialogHeight = window.innerHeight - 50 * 2;
+        }
+    }
+
+
+    return <Box mt="0.5em" pt="0.5em" >
         <Box>{title}</Box>
-        <ClickableDropdown fullWidth paddingControlledByContent colorOnHover={false} open={items.length > 0 && open} onClose={() => {
-            setSearchIndex(-1);
-        }} trigger={
+        <div ref={boxRef}>
             <Input placeholder={`Example: ${placeholder}`}
                 inputRef={ref}
                 disabled={disabled}
@@ -416,17 +461,14 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
                     const value = e.target["value"];
                     setQuery(value)
                     didUpdateQuery?.(value);
-                }} />}
-        >
-            <Box divRef={dropdownRef} width="100%" maxHeight={400} overflowY="scroll">
+                }} />
+            {items.length > 0 && open ? <Box className={SelectorDialog} style={{position: "fixed", paddingBottom: 0, left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} divRef={dropdownRef} width="100%" maxHeight={400} overflowY="scroll">
                 {result.map((it, idx) =>
                     <Truncate key={it.key}
                         cursor={it.unselectable ? "not-allowed" : undefined}
                         className={DataListRowItem}
                         data-active={searchIndex === idx}
                         data-unselectable={it.unselectable}
-                        paddingLeft="12px"
-                        paddingTop="4px"
                         onClick={e => {
                             if (it.unselectable) {
                                 e.stopPropagation();
@@ -438,14 +480,21 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
                             onSelect?.(it);
                         }} height="32px">{it.value}</Truncate>)
                 }
-            </Box>
-        </ClickableDropdown>
+            </Box> : null}
+        </div>
     </Box >
 }
 
 const DataListRowItem = injectStyle("data-list-row-item", cl => `
     ${cl}[data-active="true"]:not([data-unselectable=true]), ${cl}:hover:not([data-unselectable=true]) {
         background-color: var(--rowHover);
+    }
+
+    ${cl} {
+        margin-left: -16px;
+        margin-right: -16px;
+        padding-top: 4px;
+        padding-left: 10px;
     }
 `);
 
