@@ -193,8 +193,10 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
         (async () => {
             const info = await callAPI<OptionalInfo>(optionalInfoRequest());
 
-            if (orgFullNameRef.current)
-                orgFullNameRef.current.value = info.organizationFullName ?? "";
+            if (orgFullNameRef.current) {
+                const orgMapping = Client.orgId ? (OrgMapping[Client.orgId] ?? Client.orgId) : undefined;
+                orgFullNameRef.current.value = orgMapping ?? info.organizationFullName ?? "";
+            }
             if (departmentRef.current)
                 departmentRef.current.value = info.department ?? "";
             if (researchFieldRef.current)
@@ -211,11 +213,13 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
         const validateOrganisation = (o: string | undefined): boolean => !!o;
         const organizationName = orgFullNameRef.current?.value.trim() ?? "";
 
-        const org = findOrganisationIdFromName(organizationName);
+        const org = findOrganisationIdFromName(organizationName) ?? organizationName;
         const organizationFullName = org ?? organizationName;
         const organizationValid = validateOrganisation(org);
+        const errors: string[] = [];
         if (!organizationValid) {
-            // This is always considered valid, do nothing
+            orgFullNameRef.current?.setAttribute("data-error", "true");
+            errors.push("Organization cannot be empty");
         }
 
         const validateDepartment = (o: string | undefined, area: string | undefined): boolean => {
@@ -224,40 +228,47 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
             const [faculty, dept] = area.split("/");
             if (faculty == null) return false;
             const orgDepartments = KnownDepartments[o];
+            if (!orgDepartments) return true;
             const group = orgDepartments.find((it: {faculty: string}) => it.faculty === faculty);
             if (!group) return false;
             if (group.freetext) return true;
             return group?.departments.find((it: string) => it === dept) != null;
         };
         const department = departmentRef.current?.value.trim();
-        const departmentAllowsFreeText = departmentRef.current?.getAttribute("data-allow-freetext") === "true";
         const departmentValid = validateDepartment(org, department);
         if (!departmentValid) {
-            snackbarStore.addFailure("Department/Faculty/Center isn't valid", false);
+            departmentRef.current?.setAttribute("data-error", "true");
+            errors.push("Department/Faculty/Center isn't valid")
         }
 
         const validatePosition = (pos: string | undefined): boolean => Positions.map(it => it.key).includes(pos ?? "");
         const position = positionRef.current?.value.trim();
         const positionValid = validatePosition(position);
         if (!positionValid) {
-            snackbarStore.addFailure("Please select a position from the available options", false);
+            positionRef.current?.setAttribute("data-error", "true");
+            errors.push("Please select a position from the available options")
         }
 
         const validateResearch = (r: string | undefined): boolean => ResearchFields.find(it => it.key === r) != null;
         const researchField = researchFieldRef.current?.value.trim();
         const researchValid = validateResearch(researchField);
         if (!researchValid) {
-            snackbarStore.addFailure("Please select a research field from the available options", false);
+            researchFieldRef.current?.setAttribute("data-error", "true");
+            errors.push("Please select a research field from the available options");
         }
 
         const validateGender = (g: string | undefined): boolean => Genders.find(it => it.key === g) != null;
         const gender = genderFieldRef.current?.value.trim();
         const genderValid = validateGender(gender);
         if (!genderValid) {
-            snackbarStore.addFailure("Please select a gender option from list", false);
+            genderFieldRef.current?.setAttribute("data-error", "true");
+            errors.push("Please select a gender option from list");
         }
 
-        const isValid = organizationValid && departmentValid && positionValid && researchValid && genderValid;
+        const isValid = errors.length === 0;
+        if (!isValid) {
+            snackbarStore.addFailure(errors[0], false);
+        }
         return {
             organizationFullName,
             department,
@@ -276,6 +287,7 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
         e.preventDefault();
         const {isValid, ...values} = extractValues();
         if (!isValid) return;
+        if (Math.random()) return;
         await callAPIWithErrorHandler(
             apiUpdate(values, "/auth/users", "optionalInfo")
         );
@@ -284,13 +296,7 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
         snackbarStore.addSuccess("Your information has been updated.", false);
     }, []);
 
-    React.useEffect(() => {
-        const selectedOrganization = OrgMapping[Client.orgId];
-        if (selectedOrganization && orgFullNameRef.current)
-            orgFullNameRef.current.value = selectedOrganization;
-    }, [orgFullNameRef.current]);
-
-    const [org, setOrg] = useState(OrgMapping[Client.orgId ?? ""] ?? "");
+    const [org, setOrg] = useState(OrgMapping[Client.orgId ?? ""] ?? Client.orgId ?? "");
 
     React.useEffect(() => {
         if (departmentRef.current) {
@@ -407,8 +413,7 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
     {
         const dialogOutOfBounds = (): boolean =>
             dialogX <= 0 || dialogY <= 0 ||
-            dialogY + dialogHeight >= window.innerHeight || dialogHeight < result.length * 32;
-
+            dialogY + dialogHeight >= window.innerHeight || dialogHeight < 200;
 
         // Attempt to move the dialog box up a bit
         if (dialogOutOfBounds()) dialogY = boxRect.y + 30;
@@ -443,7 +448,8 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
     return <Box mt="0.5em" pt="0.5em" >
         <Box>{title}</Box>
         <div ref={boxRef}>
-            <Input placeholder={`Example: ${placeholder}`}
+            <Input
+                placeholder={`Example: ${placeholder}`}
                 inputRef={ref}
                 disabled={disabled}
                 data-allow-freetext={allowFreetext}
@@ -451,6 +457,7 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
                 // Note(Jonas): If already focused, but closed and user clicks again
                 onClick={() => setOpen(title)}
                 onKeyDown={e => {
+                    ref.current?.removeAttribute("data-error");
                     if (e.key === "ArrowDown") {
                         setSearchIndex(idx => clamp(idx + 1, 0, result.length - 1));
                     } else if (e.key === "ArrowUp") {
@@ -486,6 +493,7 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
                                     e.stopPropagation();
                                     return;
                                 }
+                                ref.current?.removeAttribute("data-error");
                                 if (!ref.current) return;
                                 setOpen("");
                                 ref.current.value = it.value;
