@@ -405,11 +405,11 @@ func lResourceApplyFlags(r *resource, myPerms []orcapi.Permission, flags orcapi.
 		return result, false
 	}
 
-	if flags.FilterCreatedAfter.Present && r.CreatedAt.Before(flags.FilterCreatedAfter.Value.Time()) {
+	if flags.FilterCreatedAfter.Present && r.CreatedAt.Before(fndapi.TimeFromUnixMilli(flags.FilterCreatedAfter.Value).Time()) {
 		return result, false
 	}
 
-	if flags.FilterCreatedBefore.Present && r.CreatedAt.After(flags.FilterCreatedBefore.Value.Time()) {
+	if flags.FilterCreatedBefore.Present && r.CreatedAt.After(fndapi.TimeFromUnixMilli(flags.FilterCreatedBefore.Value).Time()) {
 		return result, false
 	}
 
