@@ -1,6 +1,8 @@
 package foundation
 
 import (
+	"net/http"
+
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -42,6 +44,18 @@ type ProjectSettings struct {
 	SubProjects struct {
 		AllowRenaming bool `json:"allowRenaming"`
 	} `json:"subProjects"`
+}
+
+type ProjectToggleSubProjectRenamingSettingRequest struct {
+	ProjectId string `json:"projectId"`
+}
+
+type ProjectRetrieveSubProjectRenamingRequest struct {
+	ProjectId string `json:"project_id"`
+}
+
+type ProjectRetrieveSubProjectRenamingResponse struct {
+	Allowed bool `json:"allowed"`
 }
 
 type ProjectRole string
@@ -233,11 +247,25 @@ var ProjectToggleFavorite = rpc.Call[BulkRequest[FindByStringId], util.Empty]{
 	Roles:       rpc.RolesEndUser,
 }
 
-var ProjectUpdateSettings = rpc.Call[ProjectSettings, util.Empty]{
-	BaseContext: ProjectContext,
-	Operation:   "updateSettings",
+var ProjectToggleSubProjectRenamingSetting = rpc.Call[ProjectToggleSubProjectRenamingSettingRequest, util.Empty]{
+	BaseContext: ProjectContextV1,
+	Operation:   "toggleRenaming",
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
+}
+
+var ProjectRetrieveSubProjectRenamingSetting = rpc.Call[ProjectRetrieveSubProjectRenamingRequest, ProjectRetrieveSubProjectRenamingResponse]{
+	BaseContext: ProjectContextV1,
+	Convention:  rpc.ConventionCustom,
+	Roles:       rpc.RolesEndUser,
+
+	CustomMethod: "GET",
+	CustomPath:   "/api/" + ProjectContextV1 + "/renameable-sub",
+
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (ProjectRetrieveSubProjectRenamingRequest, *util.HttpError) {
+		projectID := r.Header.Get("Project")
+		return ProjectRetrieveSubProjectRenamingRequest{ProjectId: projectID}, nil
+	},
 }
 
 type FindByProjectId struct {
