@@ -14,6 +14,7 @@ import * as Plot from "@observablehq/plot";
 import * as JobViz from "@/Applications/Jobs/JobViz"
 import {WidgetColorIntensity, WidgetWindow} from "@/Applications/Jobs/JobViz"
 import {addOrgInfoModalIfNotFilled, ChangeOrganizationDetails} from "@/UserSettings/ChangeUserDetails";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -180,7 +181,7 @@ const Playground: React.FunctionComponent = () => {
     });
 
     const foo = React.useCallback(() => {
-        addOrgInfoModalIfNotFilled();
+        dialogStore.addDialog(<ChangeOrganizationDetails inModal onDidSubmit={() => dialogStore.success()} />, () => void 0);
     }, []);
 
     const main = (

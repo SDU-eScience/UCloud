@@ -592,33 +592,23 @@
     "setur.fo": [
         {
             "faculty": "Faculty of Faroese Language and Literature",
-            "departments": [
-                ""
-            ]
+            "departments": []
         },
         {
             "faculty": "Faculty of Education",
-            "departments": [
-                ""
-            ]
+            "departments": []
         },
         {
             "faculty": "Faculty of History and Social Sciences",
-            "departments": [
-                ""
-            ]
+            "departments": []
         },
         {
             "faculty": "Faculty of Science and Technology",
-            "departments": [
-                ""
-            ]
+            "departments": []
         },
         {
             "faculty": "Faculty of Health Sciences",
-            "departments": [
-                ""
-            ]
+            "departments": []
         }
     ],
     "ucsyd.dk": "freetext",

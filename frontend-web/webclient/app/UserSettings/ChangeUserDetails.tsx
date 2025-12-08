@@ -9,12 +9,12 @@ import ResearchFields from "@/UserSettings/ResearchField.json";
 import Positions from "@/UserSettings/Position.json";
 import KnownDepartments from "@/UserSettings/KnownDepartments.json"
 import KnownOrgs from "@/UserSettings/KnownOrgs.json";
+import Genders from "@/UserSettings/Genders.json";
 import OrgMapping from "@/UserSettings/OrganizationMapping.json";
 import {Client} from "@/Authentication/HttpClientInstance";
-import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
 import {injectStyle} from "@/Unstyled";
-import {clamp, threadDeferLike} from "@/UtilityFunctions";
+import {clamp} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {SelectorDialog} from "@/Products/Selector";
 
@@ -154,6 +154,7 @@ interface OptionalInfo {
     department?: string | null;
     researchField?: string | null;
     position?: string | null;
+    gender?: string | null;
 }
 
 type InfoAndValidation = OptionalInfo & {isValid: boolean};
@@ -185,6 +186,7 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
     const orgFullNameRef = useRef<HTMLInputElement>(null);
     const departmentRef = useRef<HTMLInputElement>(null);
     const researchFieldRef = useRef<HTMLInputElement>(null);
+    const genderFieldRef = useRef<HTMLInputElement>(null);
     const positionRef = useRef<HTMLInputElement>(null);
 
     useLayoutEffect(() => {
@@ -199,6 +201,9 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
                 researchFieldRef.current.value = info.researchField ?? "";
             if (positionRef.current)
                 positionRef.current.value = info.position ?? "";
+            if (genderFieldRef.current)
+                genderFieldRef.current.value = info.gender ?? "";
+
         })();
     }, []);
 
@@ -231,30 +236,37 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
             snackbarStore.addFailure("Department/Faculty/Center isn't valid", false);
         }
 
-
         const validatePosition = (pos: string | undefined): boolean => Positions.map(it => it.key).includes(pos ?? "");
         const position = positionRef.current?.value.trim();
         const positionValid = validatePosition(position);
         if (!positionValid) {
-            snackbarStore.addFailure("Position isn't valid", false);
+            snackbarStore.addFailure("Please select a position from the available options", false);
         }
 
         const validateResearch = (r: string | undefined): boolean => ResearchFields.find(it => it.key === r) != null;
         const researchField = researchFieldRef.current?.value.trim();
         const researchValid = validateResearch(researchField);
         if (!researchValid) {
-            snackbarStore.addFailure("Unknown research field", false);
+            snackbarStore.addFailure("Please select a research field from the available options", false);
         }
 
-        const isValid = organizationValid && departmentValid && positionValid && researchValid;
+        const validateGender = (g: string | undefined): boolean => Genders.find(it => it.key === g) != null;
+        const gender = genderFieldRef.current?.value.trim();
+        const genderValid = validateGender(gender);
+        if (!genderValid) {
+            snackbarStore.addFailure("Please select a gender option from list", false);
+        }
+
+        const isValid = organizationValid && departmentValid && positionValid && researchValid && genderValid;
         return {
             organizationFullName,
             department,
             researchField,
             position,
+            gender,
             isValid
         };
-    }, [orgFullNameRef.current, departmentRef.current, researchFieldRef.current, positionRef.current]);
+    }, [orgFullNameRef.current, departmentRef.current, researchFieldRef.current, positionRef.current, genderFieldRef.current]);
 
     React.useEffect(() => {
         if (props.getValues) props.getValues.current = extractValues;
@@ -297,6 +309,7 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
                 <Department setOpen={setOpen} openedList={openedList} org={org} ref={departmentRef} />
                 <NewDataList setOpen={setOpen} open={openedList === "Position"} title="Position" placeholder="VIP/TAP/Student" items={Positions} onSelect={() => void 0} allowFreetext={false} ref={positionRef} />
                 <NewDataList setOpen={setOpen} open={openedList === "Research field"} title={"Research field"} ref={researchFieldRef} items={ResearchFields} onSelect={() => void 0} allowFreetext={false} disabled={false} placeholder={ResearchFields[RFIndex].value} />
+                <NewDataList setOpen={setOpen} open={openedList === "Gender"} title={"Gender"} ref={genderFieldRef} items={Genders} onSelect={() => void 0} allowFreetext={false} disabled={false} placeholder="Prefer not to say" />
                 {props.getValues ? null : <Button mt="1em" type="submit" color="successMain">Update Information</Button>}
             </form>
         </Box>
@@ -388,15 +401,13 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
     const boxRect = boxRef?.current?.getBoundingClientRect() ?? {x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0};
     let dialogX = boxRect.x;
     let dialogY = boxRect.y + boxRect.height;
-    let dialogHeight = Math.max(result.length * 32, 100);
-    const isPosition = result.length === 3;
-    if (isPosition) console.log(result);
+    let dialogHeight = Math.min(400, result.length * 32);
     const minimumWidth = 500;
     let dialogWidth = Math.min(Math.max(minimumWidth, boxRect.width), window.innerWidth - boxRect.x - 16);
     {
         const dialogOutOfBounds = (): boolean =>
             dialogX <= 0 || dialogY <= 0 ||
-            dialogY + dialogHeight >= window.innerHeight || dialogHeight < 96;
+            dialogY + dialogHeight >= window.innerHeight || dialogHeight < result.length * 32;
 
 
         // Attempt to move the dialog box up a bit
@@ -462,25 +473,27 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
                     setQuery(value)
                     didUpdateQuery?.(value);
                 }} />
-            {items.length > 0 && open ? <Box className={SelectorDialog} style={{position: "fixed", paddingBottom: 0, left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} divRef={dropdownRef} width="100%" maxHeight={400} overflowY="scroll">
-                {result.map((it, idx) =>
-                    <Truncate key={it.key}
-                        cursor={it.unselectable ? "not-allowed" : undefined}
-                        className={DataListRowItem}
-                        data-active={searchIndex === idx}
-                        data-unselectable={it.unselectable}
-                        onClick={e => {
-                            if (it.unselectable) {
-                                e.stopPropagation();
-                                return;
-                            }
-                            if (!ref.current) return;
-                            setOpen("");
-                            ref.current.value = it.value;
-                            onSelect?.(it);
-                        }} height="32px">{it.value}</Truncate>)
-                }
-            </Box> : null}
+            {items.length > 0 && open ?
+                <Box className={SelectorDialog} style={{position: "fixed", paddingBottom: 0, left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} divRef={dropdownRef} width="100%" maxHeight={400} overflowY="scroll">
+                    {result.map((it, idx) =>
+                        <Truncate key={it.key}
+                            cursor={it.unselectable ? "not-allowed" : undefined}
+                            className={DataListRowItem}
+                            data-active={searchIndex === idx}
+                            data-unselectable={it.unselectable}
+                            onClick={e => {
+                                if (it.unselectable) {
+                                    e.stopPropagation();
+                                    return;
+                                }
+                                if (!ref.current) return;
+                                setOpen("");
+                                ref.current.value = it.value;
+                                onSelect?.(it);
+                            }} height="32px">{it.value}</Truncate>)
+                    }
+                </Box>
+                : null}
         </div>
     </Box >
 }
