@@ -325,8 +325,6 @@ export const Hero: React.FunctionComponent<{
         };
     }, [isPreview]);
 
-    if (slides.length == 0) return null;
-
     const index = activeIndex % slides.length;
     const slide = slides[index];
     const nextSlideIndex = (index + 1) % slides.length;
@@ -334,16 +332,24 @@ export const Hero: React.FunctionComponent<{
     const prevSlideIndex = (index == 0) ? slides.length - 1 : index - 1;
     const prevSlide = slides[prevSlideIndex];
 
-    let slideLink = slide.linkedWebPage;
+    let slideLink = slide?.linkedWebPage;
     let slideLinkIsExternal = true;
-    if (!slideLink) {
-        slideLinkIsExternal = false;
-        if (slide.resolvedLinkedApp) {
-            slideLink = AppRoutes.jobs.create(slide.resolvedLinkedApp);
-        } else if (slide.linkedGroup) {
-            slideLink = AppRoutes.apps.group((slide.linkedGroup).toString());
+    if (slide) {
+        if (!slideLink) {
+            slideLinkIsExternal = false;
+            if (slide.resolvedLinkedApp) {
+                slideLink = AppRoutes.jobs.create(slide.resolvedLinkedApp);
+            } else if (slide.linkedGroup) {
+                slideLink = AppRoutes.apps.group((slide.linkedGroup).toString());
+            }
         }
     }
+
+    const navigation = React.useCallback(() => {
+        if (slideLink) navigate(slideLink);
+    }, [slideLink]);
+
+    if (slides.length == 0) return null;
 
     const imageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({index, slideTitle: slide.title});
     const nextImageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({

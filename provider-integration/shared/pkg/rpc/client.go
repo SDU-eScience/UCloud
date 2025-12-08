@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -17,6 +18,11 @@ import (
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
+
+// ClientAllowSilentAuthTokenRenewalErrors when true will turn off all warnings related to authentication tokens not
+// being renewed. This should be set to true while the system is initializing _if_ the system itself is capable of
+// renewing auth tokens. This value is false by default.
+var ClientAllowSilentAuthTokenRenewalErrors = atomic.Bool{}
 
 type Response struct {
 	StatusCode int
@@ -221,18 +227,24 @@ func (c *Client) RetrieveAccessTokenOrRefresh() string {
 	}
 
 	if err != nil {
-		log.Warn("Failed to create refresh request: %v. We are returning an invalid access token!", err)
+		if !ClientAllowSilentAuthTokenRenewalErrors.Load() {
+			log.Warn("Failed to create refresh request: %v. We are returning an invalid access token!", err)
+		}
 		return ""
 	}
 
 	resp, err := client.Do(refreshReq)
 	if err != nil {
-		log.Warn("Failed to refresh authentication token: %v. We are returning an invalid access token!", err)
+		if !ClientAllowSilentAuthTokenRenewalErrors.Load() {
+			log.Warn("Failed to refresh authentication token: %v. We are returning an invalid access token!", err)
+		}
 		return ""
 	}
 
 	if !isOkay(resp.StatusCode) {
-		log.Warn("Failed to refresh authentication token: status=%v. We are returning an invalid access token!", resp.StatusCode)
+		if !ClientAllowSilentAuthTokenRenewalErrors.Load() {
+			log.Warn("Failed to refresh authentication token: status=%v. We are returning an invalid access token!", resp.StatusCode)
+		}
 		return ""
 	}
 
@@ -240,7 +252,9 @@ func (c *Client) RetrieveAccessTokenOrRefresh() string {
 	data, err := io.ReadAll(resp.Body)
 
 	if err != nil {
-		log.Warn("Failed to read refreshed auth token: %v", err)
+		if !ClientAllowSilentAuthTokenRenewalErrors.Load() {
+			log.Warn("Failed to read refreshed auth token: %v", err)
+		}
 		return ""
 	}
 

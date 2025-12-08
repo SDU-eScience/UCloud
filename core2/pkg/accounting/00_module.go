@@ -9,4 +9,5 @@ func Init() {
 	initSupportAssistAcc()
 	initUsageReports()
 	initUsageGenerator()
+	initLowFundsScan()
 }

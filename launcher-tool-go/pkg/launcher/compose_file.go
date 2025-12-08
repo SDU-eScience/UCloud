@@ -40,7 +40,7 @@ func GetDataDirectory() string {
 	path := currentEnvironment.GetAbsolutePath()
 	exists, _ := os.Stat(path)
 	if exists == nil {
-		HardCheck(os.MkdirAll(path, 644))
+		HardCheck(os.MkdirAll(path, 0644))
 	}
 	return path
 }

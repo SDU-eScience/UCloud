@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -356,6 +357,7 @@ const (
 	AppCatalogIncludeApps
 	AppCatalogIncludeVersionNumbers
 	AppCatalogIncludeCategories
+	AppCatalogRequireNonemptyGroups
 )
 
 func AppIsRelevant(
@@ -447,13 +449,22 @@ func AppRetrieveNewest(
 	}
 	b.Mu.RUnlock()
 
-	for i := len(versions) - 1; i >= 0; i-- {
-		app, ok := AppRetrieve(actor, name, versions[i], discovery, flags)
+	slices.Reverse(versions)
+	newestApp := util.OptNone[orcapi.Application]()
+	var versionWithPermissions []string
+	for _, v := range versions {
+		app, ok := AppRetrieve(actor, name, v, discovery, flags)
 		if ok {
-			slices.Reverse(versions)
-			app.Versions = versions
-			return app, true
+			versionWithPermissions = append(versionWithPermissions, v)
+			if !newestApp.Present {
+				newestApp.Set(app)
+			}
 		}
+	}
+
+	if newestApp.Present {
+		newestApp.Value.Versions = versionWithPermissions
+		return newestApp.Value, true
 	}
 
 	return orcapi.Application{}, false
@@ -478,12 +489,19 @@ func AppRetrieve(
 	if flags&AppCatalogIncludeVersionNumbers != 0 {
 		b := appBucket(name)
 		b.Mu.RLock()
-		allVersions := b.Applications[name]
-		for _, v := range allVersions {
-			versions = append(versions, v.Version)
+		var allVersions []string
+		for _, v := range b.Applications[name] {
+			allVersions = append(allVersions, v.Version)
 		}
 		b.Mu.RUnlock()
-		slices.Reverse(versions)
+		slices.Reverse(allVersions)
+
+		for _, v := range allVersions {
+			_, hasPermissions := AppRetrieve(actor, name, v, discovery, 0)
+			if hasPermissions {
+				versions = append(versions, v)
+			}
+		}
 	}
 
 	app.Mu.RLock()
@@ -714,6 +732,11 @@ func AppCatalogListCategories(
 		categoryFlags |= AppCatalogIncludeApps | AppCatalogIncludeGroups
 	}
 
+	if flags&AppCatalogRequireNonemptyGroups != 0 {
+		filter = true
+		categoryFlags |= AppCatalogRequireNonemptyGroups | AppCatalogIncludeApps | AppCatalogIncludeGroups
+	}
+
 catLoop:
 	for _, cat := range categories {
 		apiCategory := appCategoryToApi(actor, cat, discovery, categoryFlags)
@@ -759,7 +782,8 @@ func appCategoryToApi(
 	cat.Mu.RLock()
 	apiCategory := orcapi.ApplicationCategory{
 		Metadata: orcapi.AppCategoryMetadata{
-			Id: int(cat.Id),
+			Id:       int(cat.Id),
+			Priority: cat.Priority,
 		},
 		Specification: orcapi.AppCategorySpecification{
 			Title:       cat.Title,
@@ -779,6 +803,11 @@ func appCategoryToApi(
 			filter := false
 			wantApps := flags&AppCatalogIncludeApps != 0
 			if discovery.Mode != orcapi.CatalogDiscoveryModeAll {
+				filter = true
+				groupFlags |= AppCatalogIncludeApps
+			}
+
+			if flags&AppCatalogRequireNonemptyGroups != 0 {
 				filter = true
 				groupFlags |= AppCatalogIncludeApps
 			}
@@ -928,7 +957,7 @@ func AppCatalogRetrieveLandingPage(
 		Selected: request.Selected,
 	}
 
-	categories := AppCatalogListCategories(actor, discovery, 0)
+	categories := AppCatalogListCategories(actor, discovery, AppCatalogRequireNonemptyGroups)
 	carrousel, _ := AppListCarrousel(actor, discovery)
 	topPicks := AppListTopPicks(actor, discovery)
 	spotlight, hasSpotlight := AppRetrieveSpotlight(
@@ -998,7 +1027,7 @@ func AppCatalogRetrieveLandingPage(
 		},
 		NewApplications:    util.NonNilSlice(newApps),
 		RecentlyUpdated:    util.NonNilSlice(recentlyUpdated),
-		AvailableProviders: appRelevantProvidersForUser(actor.Username, actor.Project),
+		AvailableProviders: util.NonNilSlice(appRelevantProvidersForUser(actor.Username, actor.Project)),
 	}, nil
 }
 
@@ -1179,6 +1208,13 @@ func AppStudioListCategories() []orcapi.ApplicationCategory {
 			result = append(result, category)
 		}
 	}
+	sort.Slice(result, func(i, j int) bool {
+		// Sort by priority. If same priority sort by title
+		if result[i].Metadata.Priority == result[j].Metadata.Priority {
+			return result[i].Specification.Title < result[j].Specification.Title
+		}
+		return result[i].Metadata.Priority < result[j].Metadata.Priority
+	})
 	return util.NonNilSlice(result)
 }
 
@@ -1294,7 +1330,10 @@ func AppStudioUpdateGroup(request orcapi.AppCatalogUpdateGroupRequest) *util.Htt
 	}
 	group.Mu.Unlock()
 
-	appPersistGroupMetadata(id, group)
+	err := appPersistGroupMetadata(id, group, false)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1396,6 +1435,12 @@ func AppStudioCreateCategory(title string) (AppCategoryId, *util.HttpError) {
 	var result AppCategoryId
 	var err *util.HttpError = nil
 
+	if title == "" {
+		return 0, util.HttpErr(http.StatusBadRequest, "missing category title")
+	} else if len(title) > 256 {
+		return 0, util.HttpErr(http.StatusBadRequest, "category title is too long")
+	}
+
 	cats := &appCatalogGlobals.Categories
 	cats.Mu.Lock()
 	for _, cat := range cats.Categories {
@@ -1487,10 +1532,9 @@ func AppStudioUpdateLogo(groupId AppGroupId, logo []byte) *util.HttpError {
 
 	group.Mu.Lock()
 	group.Logo = resizedImage
-	title := group.Title
 	group.Mu.Unlock()
 
-	AppLogoInvalidate(title)
+	AppLogoInvalidate(strconv.FormatInt(int64(groupId), 10))
 	appPersistGroupLogo(groupId, group)
 	return nil
 }
@@ -1534,7 +1578,10 @@ func AppStudioCreateGroup(spec orcapi.ApplicationGroupSpecification) (AppGroupId
 	b.Groups[id] = group
 	b.Mu.Unlock()
 
-	appPersistGroupMetadata(id, group)
+	err := appPersistGroupMetadata(id, group, true)
+	if err != nil {
+		return 0, err
+	}
 	appStudioTrackNewGroup(id)
 	return id, nil
 }

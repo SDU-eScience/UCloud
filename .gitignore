@@ -162,4 +162,5 @@ syncfiles/
 
 .use-core2
 .use-core2-exp
+frontend-web/webclient/tests/test_data.json
 .use-ollama

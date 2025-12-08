@@ -189,69 +189,82 @@ func initAuth() {
 		return fndapi.MfaStatus{Connected: connected}, nil
 	})
 
-	fndapi.UsersCreate.Handler(func(info rpc.RequestInfo, request []fndapi.UsersCreateRequest) ([]fndapi.AuthenticationTokens, *util.HttpError) {
-		result := []fndapi.AuthenticationTokens{}
+	fndapi.UsersCreate.Handler(func(info rpc.RequestInfo, request []fndapi.UsersCreateRequest) ([]fndapi.UsersCreateResponse, *util.HttpError) {
+		var result []fndapi.UsersCreateResponse
 		for _, item := range request {
 			if len(item.Username) > 250 {
-				return nil, util.HttpErr(http.StatusBadRequest, "username too long")
+				result = append(result, fndapi.UsersCreateResponse{Username: item.Username, Created: false, Error: "Username too long"})
+				continue
 			}
 
 			if len(item.Username) == 0 {
-				return nil, util.HttpErr(http.StatusBadRequest, "username is required")
+				result = append(result, fndapi.UsersCreateResponse{Username: item.Username, Created: false, Error: "Username is required"})
+				continue
 			}
 
 			if len(item.Password) > 250 {
-				return nil, util.HttpErr(http.StatusBadRequest, "password too long")
+				result = append(result, fndapi.UsersCreateResponse{Username: item.Username, Created: false, Error: "Password too long"})
+				continue
 			}
 
 			if len(item.Password) < 8 {
-				return nil, util.HttpErr(http.StatusBadRequest, "password must be at least 8 characters")
+				result = append(result, fndapi.UsersCreateResponse{Username: item.Username, Created: false, Error: "Password must be at least 8 characters"})
+				continue
 			}
 
 			if len(item.Email) > 250 {
-				return nil, util.HttpErr(http.StatusBadRequest, "email too long")
+				result = append(result, fndapi.UsersCreateResponse{Username: item.Username, Created: false, Error: "Email too long"})
+				continue
 			}
 
 			if len(item.Email) == 0 {
-				return nil, util.HttpErr(http.StatusBadRequest, "email is required")
+				result = append(result, fndapi.UsersCreateResponse{Username: item.Username, Created: false, Error: "Email is required"})
+				continue
 			}
 
 			if item.FirstNames.Present {
 				if len(item.FirstNames.Value) > 250 {
-					return nil, util.HttpErr(http.StatusBadRequest, "firstnames are too long")
+					result = append(result, fndapi.UsersCreateResponse{Username: item.Username, Created: false, Error: "Firstnames are too long"})
+					continue
 				}
 
 				if len(item.FirstNames.Value) == 0 {
-					return nil, util.HttpErr(http.StatusBadRequest, "firstnames must not be empty")
+					result = append(result, fndapi.UsersCreateResponse{Username: item.Username, Created: false, Error: "Firstnames must not be empty"})
+					continue
 				}
 			}
 
 			if item.LastName.Present {
 				if len(item.LastName.Value) > 250 {
-					return nil, util.HttpErr(http.StatusBadRequest, "lastnames are too long")
+					result = append(result, fndapi.UsersCreateResponse{Username: item.Username, Created: false, Error: "Lastnames are too long"})
+					continue
 				}
 
 				if len(item.LastName.Value) == 0 {
-					return nil, util.HttpErr(http.StatusBadRequest, "lastnames must not be empty")
+					result = append(result, fndapi.UsersCreateResponse{Username: item.Username, Created: false, Error: "Lastnames must not be empty"})
+					continue
 				}
 			}
 
 			role := item.Role.GetOrDefault(fndapi.PrincipalUser)
 			if role != fndapi.PrincipalUser && role != fndapi.PrincipalAdmin {
-				return nil, util.HttpErr(http.StatusBadRequest, "invalid role supplied")
+				result = append(result, fndapi.UsersCreateResponse{Username: item.Username, Created: false, Error: "Invalid role supplied"})
+				continue
 			}
 
 			if item.OrgId.Present {
 				if len(item.OrgId.Value) > 250 {
-					return nil, util.HttpErr(http.StatusBadRequest, "organization id is too long")
+					result = append(result, fndapi.UsersCreateResponse{Username: item.Username, Created: false, Error: "Organization id is too long"})
+					continue
 				}
 
 				if len(item.OrgId.Value) == 0 {
-					return nil, util.HttpErr(http.StatusBadRequest, "organization id must not be empty")
+					result = append(result, fndapi.UsersCreateResponse{Username: item.Username, Created: false, Error: "Organization id must not be empty\""})
+					continue
 				}
 			}
 
-			passwordAndSalt := hashPassword(item.Password, genSalt())
+			passwordAndSalt := util.HashPassword(item.Password, util.GenSalt())
 
 			_, err := PrincipalCreate(PrincipalSpecification{
 				Type:           "PERSON",
@@ -266,15 +279,19 @@ func initAuth() {
 			})
 
 			if err != nil {
-				return nil, err
+				result = append(result, fndapi.UsersCreateResponse{Username: item.Username, Created: false, Error: "Creation Failed"})
+				continue
 			}
 
-			result = append(result, db.NewTx(func(tx *db.Transaction) fndapi.AuthenticationTokens {
-				principal, _ := PrincipalRetrieve(tx, item.Username)
-				return SessionCreate(info.HttpRequest, tx, principal)
-			}))
+			result = append(result, fndapi.UsersCreateResponse{Username: item.Username, Created: true})
 		}
 
+		// Henrik: Still gives the frontend the needed info to determine if success or failed
+		for _, response := range result {
+			if response.Created == false {
+				return result, util.HttpErr(http.StatusBadRequest, response.Error)
+			}
+		}
 		return result, nil
 	})
 
@@ -290,11 +307,11 @@ func initAuth() {
 		err := db.NewTx(func(tx *db.Transaction) *util.HttpError {
 			principal, ok := PrincipalRetrieve(tx, info.Actor.Username)
 			if !ok || !principal.HashedPassword.Present || !principal.Salt.Present {
-				checkPassword(dummyPasswordForTiming.HashedPassword, dummyPasswordForTiming.Salt, request.NewPassword)
+				util.CheckPassword(dummyPasswordForTiming.HashedPassword, dummyPasswordForTiming.Salt, request.NewPassword)
 				return util.HttpErr(http.StatusUnauthorized, "Incorrect username or password.")
 			}
 
-			if !checkPassword(principal.HashedPassword.Value, principal.Salt.Value, request.CurrentPassword) {
+			if !util.CheckPassword(principal.HashedPassword.Value, principal.Salt.Value, request.CurrentPassword) {
 				return util.HttpErr(http.StatusUnauthorized, "Incorrect username or password.")
 			}
 			return nil
@@ -321,17 +338,17 @@ func initAuth() {
 		return util.Empty{}, nil
 	})
 
-	fndapi.UsersVerifyUserInfo.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (util.Empty, *util.HttpError) {
+	fndapi.UsersVerifyUserInfo.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (string, *util.HttpError) {
 		UsersInfoVerify(request.Id)
-		return util.Empty{}, nil
+		return cfg.Configuration.SelfPublic.ToURL(), nil
 	})
 
 	fndapi.UsersRetrieveInfo.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.UsersRetrieveInfoResponse, *util.HttpError) {
 		return UsersInfoRetrieve(info.Actor), nil
 	})
 
-	fndapi.UsersUpdateInfo.Handler(func(info rpc.RequestInfo, request fndapi.UsersUpdateInfoRequest) (string, *util.HttpError) {
+	fndapi.UsersUpdateInfo.Handler(func(info rpc.RequestInfo, request fndapi.UsersUpdateInfoRequest) (util.Empty, *util.HttpError) {
 		err := UsersInfoUpdate(info.Actor, request, info.HttpRequest.RemoteAddr)
-		return cfg.Configuration.SelfPublic.ToURL(), err
+		return util.Empty{}, err
 	})
 }

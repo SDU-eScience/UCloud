@@ -20,7 +20,7 @@ import (
 var slackHook string
 
 func initSupport() {
-	slackHook = os.Getenv("SLACK_HOOK")
+	slackHook = os.Getenv("SLACK_HOOK") // TODO move to config
 	if slackHook == "" {
 		log.Warn("SLACK_HOOK not set")
 	}

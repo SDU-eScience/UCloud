@@ -3,11 +3,13 @@ package launcher
 import (
 	"crypto/rsa"
 	"crypto/x509"
+	"database/sql"
 	"encoding/pem"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -39,6 +41,8 @@ func Launch() {
 			time.Sleep(10 * time.Millisecond)
 		}
 	}
+
+	rpc.ClientAllowSilentAuthTokenRenewalErrors.Store(true)
 
 	ok := cfg.Parse("/etc/ucloud")
 	if !ok {
@@ -76,8 +80,7 @@ func Launch() {
 			return key, nil
 		}
 	} else {
-		log.Info("Bad token validation supplied")
-		os.Exit(1)
+		log.Fatal("Bad token validation supplied")
 	}
 
 	jwtParser := jwt.NewParser(
@@ -118,14 +121,15 @@ func Launch() {
 		}
 
 		return rpc.Actor{
-			Username:         subject,
-			Role:             role,
-			Project:          project,
-			Membership:       claims.Membership,
-			Groups:           claims.Groups,
-			ProviderProjects: claims.ProviderProjects,
-			Domain:           claims.Domain,
-			OrgId:            claims.OrgId.Value,
+			Username:          subject,
+			Role:              role,
+			Project:           project,
+			Membership:        claims.Membership,
+			Groups:            claims.Groups,
+			ProviderProjects:  claims.ProviderProjects,
+			Domain:            claims.Domain,
+			OrgId:             claims.OrgId.Value,
+			AllocatorProjects: claims.AllocatorProjects,
 			TokenInfo: util.OptValue(rpc.TokenInfo{
 				PublicSessionReference: sessionReference.Value,
 			}),
@@ -135,6 +139,10 @@ func Launch() {
 	rpc.BearerAuthenticator = func(bearer string, projectHeader string) (rpc.Actor, *util.HttpError) {
 		if bearer == "" {
 			return rpc.Actor{Role: rpc.RoleGuest}, nil
+		}
+
+		if strings.HasPrefix(bearer, "uc") {
+			return authenticateViaApiToken(bearer)
 		}
 
 		unverifiedSubject := ""
@@ -297,6 +305,8 @@ func Launch() {
 	acc.Init()
 	orc.Init()
 
+	rpc.ClientAllowSilentAuthTokenRenewalErrors.Store(false)
+
 	launchMetricsServer()
 
 	log.Info("UCloud is ready!")
@@ -308,8 +318,7 @@ func Launch() {
 		}),
 	))
 
-	log.Warn("Failed to start listener: %s", err)
-	os.Exit(1)
+	log.Fatal("Failed to start listener: %s", err)
 }
 
 func launchMetricsServer() {
@@ -324,7 +333,7 @@ func launchMetricsServer() {
 		})
 		err := http.ListenAndServe(":7867", nil)
 		if err != nil {
-			log.Warn("Prometheus metrics server has failed unexpectedly! %v", err)
+			log.Error("Prometheus metrics server has failed unexpectedly! %v", err)
 		}
 	}()
 }
@@ -483,4 +492,82 @@ func collapseServerSlashes(next http.Handler) http.Handler {
 		r2.URL = &u
 		next.ServeHTTP(w, r2)
 	})
+}
+
+var apiTokenCache = util.NewCache[string, rpc.Actor](1 * time.Minute)
+
+func authenticateViaApiToken(bearer string) (rpc.Actor, *util.HttpError) {
+	cut, hasPrefix := strings.CutPrefix(bearer, "uc")
+	split := strings.Split(cut, "-")
+	if !hasPrefix || len(split) != 2 {
+		return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "invalid token supplied")
+	}
+
+	id, err := strconv.ParseInt(split[0], 16, 64)
+	if err != nil {
+		return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "invalid token supplied")
+	}
+
+	actor, ok := apiTokenCache.Get(cut, func() (rpc.Actor, error) {
+		username, project, ok := db.NewTx3(func(tx *db.Transaction) (string, util.Option[string], bool) {
+			row, ok := db.Get[struct {
+				CreatedBy string
+				Project   sql.Null[string]
+				TokenHash []byte
+				TokenSalt []byte
+			}](
+				tx,
+				`
+					select r.created_by, r.project, tok.token_hash, tok.token_salt
+					from
+						provider.resource r
+						join provider.api_tokens tok on r.id = tok.resource
+					where
+						r.id = :id
+						and tok.token_hash is not null
+						and tok.token_salt is not null
+						and now() <= tok.expires_at
+			    `,
+				db.Params{
+					"id": id,
+				},
+			)
+
+			if !ok {
+				return "", util.OptNone[string](), false
+			}
+
+			ok = util.CheckPassword(row.TokenHash, row.TokenSalt, split[1])
+			if ok {
+				return row.CreatedBy, util.SqlNullToOpt(row.Project), true
+			} else {
+				return "", util.OptNone[string](), false
+			}
+		})
+
+		user, ok := rpc.LookupActor(username)
+		if !ok {
+			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		} else {
+			if project.Present {
+				_, isMember := user.Membership[rpc.ProjectId(project.Value)]
+				if !isMember {
+					return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "forbidden")
+				} else {
+					user.Project = util.OptValue(rpc.ProjectId(project.Value))
+				}
+			}
+
+			user.TokenInfo.Set(rpc.TokenInfo{
+				PublicSessionReference: fmt.Sprintf("uc%s", split[0]),
+			})
+			return user, nil
+		}
+	})
+
+	if !ok {
+		return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "forbidden")
+	} else {
+		return actor, nil
+	}
 }

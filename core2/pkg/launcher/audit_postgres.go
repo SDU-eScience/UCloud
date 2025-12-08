@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	db "ucloud.dk/shared/pkg/database2"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
@@ -23,7 +25,7 @@ func initAuditPg() {
 	{
 		wg := sync.WaitGroup{}
 		wg.Add(1)
-		go auditPgLogPartitioner(&wg)
+		go auditPgLogPartitioner(&wg, 7)
 		wg.Wait()
 	}
 
@@ -77,6 +79,8 @@ func initAuditPg() {
 				},
 			)
 
+			auditPgEventsIngested.WithLabelValues(util.DeploymentName).Inc()
+			auditPgEventsBuffered.WithLabelValues(util.DeploymentName).Inc()
 			bucket.Count++
 		}
 		bucket.Mu.Unlock()
@@ -85,12 +89,16 @@ func initAuditPg() {
 
 func auditPgSyncer(batches []*auditPgBucket) {
 	for {
+		start := time.Now()
+
+		totalCount := 0
 		var toSync []*db.Batch
 		for _, batch := range batches {
 			batch.Mu.Lock()
 			if batch.Count > 0 {
 				toSync = append(toSync, batch.Batch)
 
+				totalCount += batch.Count
 				batch.Count = 0
 				batch.Batch = db.BatchNewDeferred()
 			}
@@ -105,20 +113,31 @@ func auditPgSyncer(batches []*auditPgBucket) {
 			})
 		}
 
+		end := time.Now()
+		auditPgFlushes.WithLabelValues(util.DeploymentName).Inc()
+		auditPgFlushDuration.WithLabelValues(util.DeploymentName).Observe(end.Sub(start).Seconds())
+		auditPgFlushedInTotal.WithLabelValues(util.DeploymentName).Add(float64(totalCount))
+		auditPgEventsBuffered.WithLabelValues(util.DeploymentName).Sub(float64(totalCount))
+
 		time.Sleep(5 * time.Second)
 	}
 }
 
-func auditPgLogPartitioner(readyWg *sync.WaitGroup) {
-	prevMonth := time.Month(-1)
-	prevYear := -1
+func auditPgLogPartitioner(readyWg *sync.WaitGroup, partitionSizeDays int) {
+	// Fixed epoch so partition boundaries are stable over time.
+	epoch := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	prevPartitionIndex := int64(-1)
 
 	for {
 		now := time.Now().UTC()
-		month := now.Month()
-		year := now.Year()
+		daysSinceEpoch := int64(now.Sub(epoch) / (24 * time.Hour))
+		if daysSinceEpoch < 0 {
+			daysSinceEpoch = 0
+		}
 
-		if month != prevMonth || year != prevYear {
+		partitionIndex := daysSinceEpoch / int64(partitionSizeDays)
+
+		if partitionIndex != prevPartitionIndex {
 			db.NewTx0(func(tx *db.Transaction) {
 				type tableToCreate struct {
 					Name  string
@@ -127,21 +146,26 @@ func auditPgLogPartitioner(readyWg *sync.WaitGroup) {
 				}
 
 				var tablesToCreate []tableToCreate
-				for i := 0; i <= 1; i++ {
-					start := now.AddDate(0, i, 0)
-					end := now.AddDate(0, i+1, 0)
+				for i := int64(0); i <= 1; i++ {
+					idx := partitionIndex + i
+					start := epoch.Add(time.Duration(idx*int64(partitionSizeDays)) * 24 * time.Hour)
+					end := start.Add(time.Duration(partitionSizeDays) * 24 * time.Hour)
 
 					tablesToCreate = append(tablesToCreate, tableToCreate{
-						Name:  fmt.Sprintf("logs_%d_%d", start.Year(), start.Month()),
+						Name:  fmt.Sprintf("logs_%d_%02d_%02d", start.Year(), start.Month(), start.Day()),
 						Start: start,
 						End:   end,
 					})
 				}
 
 				var tablesToDrop []string
-				for i := 6; i <= 12; i++ {
-					prevTime := now.AddDate(0, -i, 0)
-					tablesToDrop = append(tablesToDrop, fmt.Sprintf("logs_%d_%d", prevTime.Year(), prevTime.Month()))
+				for i := 180 / partitionSizeDays; i <= 365/partitionSizeDays; i++ {
+					idx := partitionIndex - int64(i)
+					if idx < 0 {
+						continue
+					}
+					start := epoch.Add(time.Duration(idx*int64(partitionSizeDays)) * 24 * time.Hour)
+					tablesToDrop = append(tablesToDrop, fmt.Sprintf("logs_%d_%02d_%02d", start.Year(), start.Month(), start.Day()))
 				}
 
 				for _, table := range tablesToCreate {
@@ -164,13 +188,17 @@ func auditPgLogPartitioner(readyWg *sync.WaitGroup) {
 
 					if !exists {
 						b := db.BatchNew(tx)
+
+						startStr := table.Start.Format("2006-01-02")
+						endStr := table.End.Format("2006-01-02")
+
 						db.BatchExec(
 							b,
 							fmt.Sprintf(
-								"create table audit_logs.%s partition of audit_logs.logs for values from ('%s') to ('%s')",
+								"create table if not exists audit_logs.%s partition of audit_logs.logs for values from ('%s') to ('%s')",
 								table.Name,
-								fmt.Sprintf("%d-%d-01", table.Start.Year(), table.Start.Month()),
-								fmt.Sprintf("%d-%d-01", table.End.Year(), table.End.Month()),
+								startStr,
+								endStr,
 							),
 							db.Params{},
 						)
@@ -200,6 +228,8 @@ func auditPgLogPartitioner(readyWg *sync.WaitGroup) {
 						)
 
 						db.BatchSend(b)
+
+						log.Info("auditPgLogPartitioner: created partition %s for [%s, %s)", table.Name, startStr, endStr)
 					}
 				}
 
@@ -215,14 +245,64 @@ func auditPgLogPartitioner(readyWg *sync.WaitGroup) {
 					db.BatchSend(b)
 				}
 			})
+
+			if prevPartitionIndex == -1 {
+				// NOTE(Dan): This is required to ensure that the audit system does not start consuming events prior to
+				// the log parishioner having had a chance to initialize the current partition. Given that the
+				// partitioner will always create one partition ahead, we only consider this a risk at startup.
+
+				log.Info("auditPg is ready!")
+				readyWg.Done()
+			}
+			prevPartitionIndex = partitionIndex
 		}
 
-		if prevYear == -1 {
-			readyWg.Done()
-		}
-
-		prevMonth = month
-		prevYear = year
 		time.Sleep(60 * time.Minute)
 	}
 }
+
+// Metrics
+// =====================================================================================================================
+
+var (
+	auditPgEventsIngested = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "audit",
+		Name:      "events_ingested_total",
+		Help:      "Number of audit events accepted from the RPC layer",
+	}, []string{"deployment"})
+
+	auditPgEventsBuffered = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: "ucloud",
+		Subsystem: "audit",
+		Name:      "events_buffered",
+		Help:      "Number of audit events currently in the buffer pending a DB flush",
+	}, []string{"deployment"})
+
+	auditPgFlushes = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "audit",
+		Name:      "flushes_total",
+		Help:      "Number of times an audit flush has occurred",
+	}, []string{"deployment"})
+
+	auditPgFlushedInTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "audit",
+		Name:      "flushed_events_total",
+		Help:      "Number of events that have been flushed successfully",
+	}, []string{"deployment"})
+
+	auditPgFlushDuration = promauto.NewSummaryVec(prometheus.SummaryOpts{
+		Namespace: "ucloud",
+		Subsystem: "audit",
+		Name:      "flush_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to complete a flush",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	}, []string{"deployment"})
+)

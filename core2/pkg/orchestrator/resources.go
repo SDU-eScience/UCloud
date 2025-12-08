@@ -405,11 +405,11 @@ func lResourceApplyFlags(r *resource, myPerms []orcapi.Permission, flags orcapi.
 		return result, false
 	}
 
-	if flags.FilterCreatedAfter.Present && r.CreatedAt.Before(flags.FilterCreatedAfter.Value.Time()) {
+	if flags.FilterCreatedAfter.Present && r.CreatedAt.Before(fndapi.TimeFromUnixMilli(flags.FilterCreatedAfter.Value).Time()) {
 		return result, false
 	}
 
-	if flags.FilterCreatedBefore.Present && r.CreatedAt.After(flags.FilterCreatedBefore.Value.Time()) {
+	if flags.FilterCreatedBefore.Present && r.CreatedAt.After(fndapi.TimeFromUnixMilli(flags.FilterCreatedBefore.Value).Time()) {
 		return result, false
 	}
 
@@ -1036,6 +1036,14 @@ func ResourceCreate[T any](
 	product util.Option[accapi.ProductReference],
 	extra any,
 ) (ResourceId, T, *util.HttpError) {
+	if actor.Project.Present {
+		_, isAllocator := actor.AllocatorProjects[actor.Project.Value]
+		if isAllocator {
+			var t T
+			return 0, t, util.HttpErr(http.StatusForbidden, "this project is not allowed to consume resources")
+		}
+	}
+
 	g := resourceGetGlobals(typeName)
 	if g.Flags&resourceTypeCreateWithoutAdmin == 0 {
 		if actor.Project.Present && !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
@@ -1064,8 +1072,8 @@ func ResourceConfirm(typeName string, id ResourceId) {
 	)
 }
 
-func ResourceDelete(actor rpc.Actor, typeName string, id ResourceId) {
-	ResourceUpdate[any](
+func ResourceDelete(actor rpc.Actor, typeName string, id ResourceId) bool {
+	return ResourceUpdate[any](
 		actor,
 		typeName,
 		id,

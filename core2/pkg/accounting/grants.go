@@ -373,6 +373,17 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		revision.RevisionComment.Set(req.Comment)
 	}
 
+	if revision.Form.SubAllocator.GetOrDefault(false) && actor.Username != rpc.ActorSystem.Username {
+		if !actor.Project.Present {
+			return 0, util.HttpErr(http.StatusBadRequest, "invalid active project with suballocator field set")
+		}
+
+		_, isAllocator := actor.AllocatorProjects[actor.Project.Value]
+		if !isAllocator {
+			return 0, util.HttpErr(http.StatusBadRequest, "invalid active project with suballocator field set")
+		}
+	}
+
 	recipient := revision.Recipient
 	if req.AlternativeRecipient.Present {
 		recipient = req.AlternativeRecipient.Value
@@ -392,25 +403,6 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		if strings.HasPrefix(recipient.Title.Value, "%") {
 			// NOTE(Dan): Used as a hint to the frontend about special projects. Not used for anything backend related.
 			return 0, util.HttpErr(http.StatusBadRequest, "project title cannot start with '%%'")
-		}
-	}
-
-	if recipient.Type != accapi.RecipientTypePersonalWorkspace {
-		primaryAffiliation := revision.ParentProjectId.Value
-		if !revision.ParentProjectId.Present {
-			return 0, util.HttpErr(http.StatusBadRequest, "a primary affiliation must be selected")
-		}
-
-		hasAllocFromAffiliation := false
-		for _, allocReq := range revision.AllocationRequests {
-			if allocReq.GrantGiver == primaryAffiliation && allocReq.BalanceRequested.Present && allocReq.BalanceRequested.Value > 0 {
-				hasAllocFromAffiliation = true
-				break
-			}
-		}
-
-		if !hasAllocFromAffiliation {
-			return 0, util.HttpErr(http.StatusBadRequest, "no requests made to primary affiliation")
 		}
 	}
 
@@ -1203,6 +1195,8 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 	recipient := accapi.Recipient{}
 	parents := map[string]util.Empty{}
 
+	applicantActor := actor
+
 	if req.Type == accapi.RetrieveGrantGiversTypeExistingProject && req.Id == "" {
 		req.Type = accapi.RetrieveGrantGiversTypePersonalWorkspace
 	}
@@ -1230,7 +1224,15 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 
 		app.Mu.RLock()
 		recipient = app.Application.CurrentRevision.Document.Recipient
+		createdBy := app.Application.CreatedBy
 		app.Mu.RUnlock()
+
+		createdByActor, ok := rpc.LookupActor(createdBy)
+		if !ok {
+			return nil, util.HttpErr(http.StatusInternalServerError, "corrupt application, unknown applicant")
+		}
+
+		applicantActor = createdByActor
 	}
 
 	if recipient.Type == accapi.RecipientTypeExistingProject {
@@ -1253,7 +1255,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 	var result []accapi.GrantGiver
 
 	lAddPotentialGrantGiver := func(b *grantSettingsBucket, grantGiver string) {
-		if grantsCanApply(actor, recipient, grantGiver) {
+		if grantsCanApply(applicantActor, recipient, grantGiver) {
 			wallets := internalRetrieveWallets(now, grantGiver, walletFilter{RequireActive: true})
 			var categories []accapi.ProductCategory
 			for _, wallet := range wallets {
@@ -1471,7 +1473,7 @@ func lGrantsAwardResources(app *grantApplication) {
 	case accapi.RecipientTypeNewProject:
 		projectId, err := lGrantsCreateProject(app, recipient.Title.Value, app.Application.CreatedBy)
 		if err != nil {
-			log.Info("Failed at project creation: %s", err)
+			log.Warn("Failed at project creation: %s", err)
 			return
 		} else {
 			owner = accapi.WalletOwnerProject(projectId)
@@ -1548,8 +1550,10 @@ func lGrantsAwardResources(app *grantApplication) {
 			db.Exec(
 				tx,
 				`
-					insert into "grant".gifts_claimed(gift_id, user_id) 
-					values (:gift_id, :username)
+					insert into "grant".gifts_claimed(gift_id, user_id, claimed_at) 
+					values (:gift_id, :username, now())
+					on conflict (gift_id, user_id)
+					do update set claimed_at = excluded.claimed_at;
 			    `,
 				db.Params{
 					"username": app.Application.CurrentRevision.Document.Recipient.Username.Value,
@@ -1569,9 +1573,10 @@ func lGrantsCreateProject(app *grantApplication, title string, pi string) (strin
 		}
 	} else {
 		result, err := fndapi.ProjectInternalCreate.Invoke(fndapi.ProjectInternalCreateRequest{
-			Title:      title,
-			BackendId:  fmt.Sprintf("grants/%s", app.Application.Id.Value),
-			PiUsername: pi,
+			Title:        title,
+			BackendId:    fmt.Sprintf("grants/%s", app.Application.Id.Value),
+			PiUsername:   pi,
+			SubAllocator: app.Application.CurrentRevision.Document.Form.SubAllocator,
 		})
 
 		if err != nil {
@@ -1730,10 +1735,10 @@ func grantHandleEvent(event grantEvent) {
 	err1 := grantSendNotification(event)
 	err2 := grantSendEmail(event)
 	if err1 != nil {
-		log.Info("Failed to send notification: %s", err1)
+		log.Warn("Failed to send notification: %s", err1)
 	}
 	if err2 != nil {
-		log.Info("Failed to send email: %s", err2)
+		log.Warn("Failed to send email: %s", err2)
 	}
 }
 

@@ -272,7 +272,7 @@ func NewsDelete(request fndapi.DeleteNewsPostRequest) {
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
-			`delete from news.news where id = :id`,
+			`delete from news.news where id = :id::bigint`,
 			db.Params{
 				"id": request.Id,
 			},

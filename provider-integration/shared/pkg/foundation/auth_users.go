@@ -21,7 +21,13 @@ type UsersCreateRequest struct {
 	OrgId      util.Option[string]        `json:"orgId"`
 }
 
-var UsersCreate = rpc.Call[[]UsersCreateRequest, []AuthenticationTokens]{
+type UsersCreateResponse struct {
+	Username string `json:"username"`
+	Created  bool   `json:"created"`
+	Error    string `json:"error"`
+}
+
+var UsersCreate = rpc.Call[[]UsersCreateRequest, []UsersCreateResponse]{
 	BaseContext: authUsersBaseContext,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "register",
@@ -34,18 +40,11 @@ type UsersUpdateInfoRequest struct {
 	LastName   util.Option[string] `json:"lastName"`
 }
 
-var UsersUpdateInfo = rpc.Call[UsersUpdateInfoRequest, string]{
+var UsersUpdateInfo = rpc.Call[UsersUpdateInfoRequest, util.Empty]{
 	BaseContext: authUsersBaseContext,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "updateUserInfo",
 	Roles:       rpc.RolesEndUser,
-	CustomServerProducer: func(response string, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
-		if err == nil {
-			http.Redirect(w, r, response, http.StatusFound)
-		} else {
-			rpc.SendResponseOrError(w, nil, err)
-		}
-	},
 }
 
 type UsersRetrieveInfoResponse struct {
@@ -62,11 +61,18 @@ var UsersRetrieveInfo = rpc.Call[util.Empty, UsersRetrieveInfoResponse]{
 	Roles:       rpc.RolesEndUser,
 }
 
-var UsersVerifyUserInfo = rpc.Call[FindByStringId, util.Empty]{
+var UsersVerifyUserInfo = rpc.Call[FindByStringId, string]{
 	BaseContext: authUsersBaseContext,
 	Operation:   "verifyUserInfo",
 	Convention:  rpc.ConventionQueryParameters, // intentional
 	Roles:       rpc.RolesPublic,               // intentional
+	CustomServerProducer: func(response string, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
+		if err == nil {
+			http.Redirect(w, r, response, http.StatusFound)
+		} else {
+			rpc.SendResponseOrError(w, nil, err)
+		}
+	},
 }
 
 type UsersChangePasswordRequest struct {

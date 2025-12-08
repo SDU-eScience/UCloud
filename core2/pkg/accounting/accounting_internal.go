@@ -215,7 +215,12 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 		return false, util.HttpErr(http.StatusNotFound, "unknown category")
 	}
 
-	owner := internalOwnerByReference(request.Owner.Reference())
+	reference := request.Owner.Reference()
+	if reference == "" {
+		return false, util.HttpErr(http.StatusNotFound, "invalid owner specified")
+	}
+
+	owner := internalOwnerByReference(reference)
 
 	var scope *scopedUsage
 	if request.Description.Scope.Present {
@@ -360,7 +365,7 @@ func internalAllocateNoCommit(
 			parentWallet.ChildrenUsage[recipient] = currentUsage
 		}
 
-		lInternalAttemptActivation(b, now, allocation)
+		lInternalAttemptActivation(b, now, allocation, false)
 		return allocationId, nil
 	}
 }
@@ -466,8 +471,8 @@ func internalUpdateAllocation(parentOwner *internalOwner, now time.Time, b *inte
 	iAlloc.End = proposedNewEnd
 	iAlloc.Quota = proposedNewQuota
 
-	lInternalAttemptActivation(b, now, iAlloc)
-	lInternalAttemptRetirement(b, now, iAlloc)
+	lInternalAttemptActivation(b, now, iAlloc, true)
+	lInternalAttemptRetirement(b, now, iAlloc, true)
 	lInternalReevaluate(b, now, iWallet, true)
 
 	category := b.Category
@@ -481,7 +486,6 @@ func internalUpdateAllocation(parentOwner *internalOwner, now time.Time, b *inte
 		if newQuota.Present {
 			amount := int64(0)
 			// Converting to readable format instead of raw format
-
 			switch category.AccountingFrequency {
 			case accapi.AccountingFrequencyOnce:
 				amount = proposedNewQuota
@@ -676,6 +680,10 @@ func internalWalletByOwner(b *internalBucket, now time.Time, owner accOwnerId) A
 }
 
 func internalWalletByReferenceAndCategory(now time.Time, reference string, category accapi.ProductCategoryIdV2) (AccWalletId, bool) {
+	if reference == "" {
+		return 0, false
+	}
+
 	owner := internalOwnerByReference(reference)
 	cat, err := ProductCategoryRetrieve(rpc.ActorSystem, category.Name, category.Provider)
 	if err != nil {
@@ -1051,12 +1059,12 @@ func lInternalReevaluate(b *internalBucket, now time.Time, wallet *internalWalle
 
 func lInternalScanAllocations(b *internalBucket, now time.Time) {
 	for _, alloc := range b.AllocationsById {
-		lInternalAttemptActivation(b, now, alloc)
-		lInternalAttemptRetirement(b, now, alloc)
+		lInternalAttemptActivation(b, now, alloc, true)
+		lInternalAttemptRetirement(b, now, alloc, true)
 	}
 }
 
-func lInternalAttemptActivation(b *internalBucket, now time.Time, alloc *internalAllocation) {
+func lInternalAttemptActivation(b *internalBucket, now time.Time, alloc *internalAllocation, logActivation bool) {
 	if !alloc.Active && now.Add(1*time.Second).After(alloc.Start) && now.Before(alloc.End) {
 		wallet := b.WalletsById[alloc.BelongsTo]
 
@@ -1067,10 +1075,14 @@ func lInternalAttemptActivation(b *internalBucket, now time.Time, alloc *interna
 
 		// NOTE(Dan): Always mark since reevaluate only marks if a wallet changes lock state
 		lInternalMarkSignificantUpdate(b, now, wallet)
+
+		if logActivation {
+			log.Info("Activating allocation: %v", alloc.Id)
+		}
 	}
 }
 
-func lInternalAttemptRetirement(b *internalBucket, now time.Time, alloc *internalAllocation) {
+func lInternalAttemptRetirement(b *internalBucket, now time.Time, alloc *internalAllocation, logRetirement bool) {
 	if !alloc.Retired && now.Add(1*time.Second).After(alloc.End) {
 		wallet := b.WalletsById[alloc.BelongsTo]
 		group := wallet.AllocationsByParent[alloc.Parent]
@@ -1097,6 +1109,10 @@ func lInternalAttemptRetirement(b *internalBucket, now time.Time, alloc *interna
 
 		lInternalReevaluate(b, now, wallet, true)
 		lInternalMarkSignificantUpdate(b, now, wallet)
+
+		if logRetirement {
+			log.Info("Retiring allocation: %v", alloc.Id)
+		}
 	}
 }
 
@@ -1550,6 +1566,10 @@ func internalRetrieveWallets(
 	reference string,
 	filter walletFilter,
 ) []accapi.WalletV2 {
+	if reference == "" {
+		return nil
+	}
+
 	owner := internalOwnerByReference(reference)
 	var potentialBuckets []*internalBucket
 

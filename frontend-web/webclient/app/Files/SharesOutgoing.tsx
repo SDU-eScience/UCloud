@@ -586,7 +586,11 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                             if (isViewingShareGroupPreview(selected[0])) {
                                 const previews = selected as OutgoingShareGroupPreview[];
                                 await extra.invokeCommand(extra.api.remove(bulkRequestOf(...previews.map(it => ({id: it.shareId})))));
-                                extra.reload();
+                                if (browser.cachedData[browser.currentPath].length <= 1) {
+                                    navigate(`/shares/outgoing`);
+                                } else {
+                                    extra.reload();
+                                }
                             }
                         },
                         shortcut: ShortcutKey.R

@@ -34,6 +34,7 @@ import {slimModalStyle} from "@/Utilities/ModalUtilities";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
+    includeOthers: true,
 };
 
 const DUMMY_ENTRY_ID = "dummy";
