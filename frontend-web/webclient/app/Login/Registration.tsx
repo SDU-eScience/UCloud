@@ -53,11 +53,11 @@ const Registration: React.FunctionComponent = () => {
         lastName.current!.value = registration.data.lastName ?? "";
         email.current!.value = registration.data.email ?? "";
 
-        // TODO(Should this be required now?)
         organizationFullName.current!.value = registration.data.organizationFullName ?? "";
         department.current!.value = registration.data.department ?? "";
         researchField.current!.value = registration.data.researchField ?? "";
         position.current!.value = registration.data.position ?? "";
+        // Gender not added as this seems to be going away
 
         if (registration.data.email) setShowResendButton(true);
     }, [registration]);
