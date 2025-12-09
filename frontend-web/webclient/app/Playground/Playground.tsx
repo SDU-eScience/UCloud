@@ -195,8 +195,8 @@ const Playground: React.FunctionComponent = () => {
             {/**/}
             {/*<Box mb="60px" />*/}
             {/**/}
-            {/*<PaletteColors />*/}
-            {/*<Colors />*/}
+            <PaletteColors />
+            <Colors />
             {/*<EveryIcon />*/}
             {/*
             <Button onClick={() => {

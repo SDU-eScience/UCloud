@@ -13,7 +13,7 @@ import Genders from "@/UserSettings/Genders.json";
 import OrgMapping from "@/UserSettings/OrganizationMapping.json";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
-import {injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle} from "@/Unstyled";
 import {clamp} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {SelectorDialog} from "@/Products/Selector";
@@ -370,6 +370,12 @@ function NewDataList({items, onSelect, title, disabled, placeholder, ref, didUpd
             setSearchIndex(-1);
         }
     }, [open]);
+
+    React.useEffect(() => {
+        if (searchIndex === -1) return;
+        const row = dropdownRef.current?.children.item(searchIndex);
+        row?.scrollIntoView({behavior: "smooth", block: "end", inline: "nearest"});
+    }, [searchIndex]);
 
     React.useEffect(() => {
         function closeOnEscape(e: KeyboardEvent) {
