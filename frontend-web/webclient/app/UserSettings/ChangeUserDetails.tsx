@@ -515,6 +515,7 @@ const DataListRowItem = injectStyle("data-list-row-item", cl => `
     }
 
     ${cl} {
+        user-select: none;
         margin-left: -16px;
         margin-right: -16px;
         padding-top: 4px;
