@@ -413,8 +413,15 @@ func lValidateUpdate(now time.Time, alloc *internalAllocation, newQuota util.Opt
 
 // internalUpdateAllocation Updates an allocation and returns the grantId and the changelog. This can be used
 // to notify the wallet owner about changes by commenting on the related grant if possible.
-func internalUpdateAllocation(parentOwner *internalOwner, now time.Time, b *internalBucket, allocationId accAllocId, newQuota util.Option[int64], newStart util.Option[fndapi.Timestamp], newEnd util.Option[fndapi.Timestamp]) (accGrantId, string, *util.HttpError) {
-
+func internalUpdateAllocation(
+	parentOwner *internalOwner,
+	now time.Time,
+	b *internalBucket,
+	allocationId accAllocId,
+	newQuota util.Option[int64],
+	newStart util.Option[fndapi.Timestamp],
+	newEnd util.Option[fndapi.Timestamp],
+) (accGrantId, string, *util.HttpError) {
 	var iAlloc *internalAllocation
 	var iWallet *internalWallet
 	var iParent *internalWallet
@@ -474,6 +481,7 @@ func internalUpdateAllocation(parentOwner *internalOwner, now time.Time, b *inte
 	lInternalAttemptActivation(b, now, iAlloc, true)
 	lInternalAttemptRetirement(b, now, iAlloc, true)
 	lInternalReevaluate(b, now, iWallet, true)
+	lInternalMarkSignificantUpdate(b, now, iWallet)
 
 	category := b.Category
 	if iAlloc.GrantedIn.Present {

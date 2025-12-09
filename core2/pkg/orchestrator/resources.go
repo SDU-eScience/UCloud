@@ -1077,7 +1077,7 @@ func ResourceDelete(actor rpc.Actor, typeName string, id ResourceId) bool {
 		actor,
 		typeName,
 		id,
-		orcapi.PermissionAdmin,
+		orcapi.PermissionEdit,
 		func(r *resource, mapped any) {
 			r.Confirmed = true
 			r.MarkedForDeletion = true

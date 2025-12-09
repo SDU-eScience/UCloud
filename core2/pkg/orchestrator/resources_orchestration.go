@@ -80,6 +80,8 @@ func ResourceDeleteThroughProvider[T any](
 		Reason:   util.OptValue("Deleting resource: " + typeName),
 	})
 
-	ResourceDelete(actor, typeName, ResourceParseId(id))
+	if err == nil {
+		ResourceDelete(actor, typeName, ResourceParseId(id))
+	}
 	return err
 }
