@@ -1,8 +1,6 @@
 package foundation
 
 import (
-	"net/http"
-
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -48,10 +46,6 @@ type ProjectSettings struct {
 
 type ProjectToggleSubProjectRenamingSettingRequest struct {
 	ProjectId string `json:"projectId"`
-}
-
-type ProjectRetrieveSubProjectRenamingRequest struct {
-	ProjectId string `json:"project_id"`
 }
 
 type ProjectRetrieveSubProjectRenamingResponse struct {
@@ -254,18 +248,11 @@ var ProjectToggleSubProjectRenamingSetting = rpc.Call[ProjectToggleSubProjectRen
 	Roles:       rpc.RolesEndUser,
 }
 
-var ProjectRetrieveSubProjectRenamingSetting = rpc.Call[ProjectRetrieveSubProjectRenamingRequest, ProjectRetrieveSubProjectRenamingResponse]{
+var ProjectRetrieveSubProjectRenamingSetting = rpc.Call[util.Empty, ProjectRetrieveSubProjectRenamingResponse]{
 	BaseContext: ProjectContextV1,
-	Convention:  rpc.ConventionCustom,
+	Convention:  rpc.ConventionQueryParameters,
 	Roles:       rpc.RolesEndUser,
-
-	CustomMethod: "GET",
-	CustomPath:   "/api/" + ProjectContextV1 + "/renameable-sub",
-
-	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (ProjectRetrieveSubProjectRenamingRequest, *util.HttpError) {
-		projectID := r.Header.Get("Project")
-		return ProjectRetrieveSubProjectRenamingRequest{ProjectId: projectID}, nil
-	},
+	Operation:   "renameable-sub",
 }
 
 type FindByProjectId struct {

@@ -198,8 +198,8 @@ func initProjects() {
 		return util.Empty{}, ProjectUpdateSubProjectRenamingSettings(info.Actor, request)
 	})
 
-	fndapi.ProjectRetrieveSubProjectRenamingSetting.Handler(func(info rpc.RequestInfo, request fndapi.ProjectRetrieveSubProjectRenamingRequest) (fndapi.ProjectRetrieveSubProjectRenamingResponse, *util.HttpError) {
-		return ProjectRetrieveSubProjectRenaming(info.Actor, request.ProjectId)
+	fndapi.ProjectRetrieveSubProjectRenamingSetting.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.ProjectRetrieveSubProjectRenamingResponse, *util.HttpError) {
+		return ProjectRetrieveSubProjectRenaming(info.Actor)
 	})
 
 	fndapi.ProjectMemberChangeRole.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.ProjectMemberChangeRoleRequest]) (util.Empty, *util.HttpError) {
@@ -1832,12 +1832,12 @@ func ProjectUpdateSubProjectRenamingSettings(actor rpc.Actor, request fndapi.Pro
 	return nil
 }
 
-func ProjectRetrieveSubProjectRenaming(actor rpc.Actor, projectId string) (fndapi.ProjectRetrieveSubProjectRenamingResponse, *util.HttpError) {
-	if projectId == "" {
+func ProjectRetrieveSubProjectRenaming(actor rpc.Actor) (fndapi.ProjectRetrieveSubProjectRenamingResponse, *util.HttpError) {
+	if !actor.Project.Present {
 		return fndapi.ProjectRetrieveSubProjectRenamingResponse{}, util.HttpErr(http.StatusBadRequest, "Only projects can have subprojects")
 	}
 
-	_, iProject, err := projectRetrieve(actor, projectId, projectFlagsAll, fndapi.ProjectRoleAdmin)
+	_, iProject, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll, fndapi.ProjectRoleAdmin)
 	if err != nil {
 		return fndapi.ProjectRetrieveSubProjectRenamingResponse{}, err
 	}
@@ -1846,7 +1846,7 @@ func ProjectRetrieveSubProjectRenaming(actor rpc.Actor, projectId string) (fndap
 	iProject.Mu.Lock()
 	canRename = iProject.Project.Status.Settings.SubProjects.AllowRenaming
 	iProject.Mu.Unlock()
-	
+
 	return fndapi.ProjectRetrieveSubProjectRenamingResponse{Allowed: canRename}, nil
 }
 
