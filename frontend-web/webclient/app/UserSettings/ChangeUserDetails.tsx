@@ -304,18 +304,16 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
         }
     }, [org]);
 
-    const [openedList, setOpen] = useState("");
-
     return (
         <Box mb={16} width="100%">
             <Heading.h2>Additional User Information</Heading.h2>
             {props.inModal ? <span>This can be filled out at a later time, but is required when applying for resources.</span> : null}
             <form onSubmit={onSubmit}>
-                <NewDataList setOpen={setOpen} open={openedList === "Organization"} ref={orgFullNameRef} allowFreetext disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={"University of Knowledge"} />
-                <Department setOpen={setOpen} openedList={openedList} org={org} ref={departmentRef} />
-                <NewDataList setOpen={setOpen} open={openedList === "Position"} title="Position" placeholder="VIP/TAP/Student" items={Positions} onSelect={() => void 0} allowFreetext={false} ref={positionRef} />
-                <NewDataList setOpen={setOpen} open={openedList === "Research field"} title={"Research field"} ref={researchFieldRef} items={ResearchFields} onSelect={() => void 0} allowFreetext={false} disabled={false} placeholder={ResearchFields[RFIndex].value} />
-                <NewDataList setOpen={setOpen} open={openedList === "Gender"} title={"Gender"} ref={genderFieldRef} items={Genders} onSelect={() => void 0} allowFreetext={false} disabled={false} placeholder="Prefer not to say" />
+                <NewDataList ref={orgFullNameRef} allowFreetext disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={"University of Knowledge"} />
+                <Department org={org} ref={departmentRef} />
+                <NewDataList title="Position" placeholder="VIP/TAP/Student" items={Positions} onSelect={() => void 0} allowFreetext={false} ref={positionRef} />
+                <NewDataList title={"Research field"} ref={researchFieldRef} items={ResearchFields} onSelect={() => void 0} allowFreetext={false} disabled={false} placeholder={ResearchFields[RFIndex].value} />
+                <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} onSelect={() => void 0} allowFreetext={false} disabled={false} placeholder="Prefer not to say" />
                 {props.getValues ? null : <Button mt="1em" type="submit" color="successMain">Update Information</Button>}
             </form>
         </Box>
@@ -324,7 +322,7 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
 
 type Departments = "freetext" | {faculty: string; departments?: string[]}[]
 
-function Department(props: {org: string; openedList: string; ref: React.RefObject<HTMLInputElement | null>; setOpen: (name: string) => void;}) {
+function Department(props: {org: string; ref: React.RefObject<HTMLInputElement | null>}) {
     const orgInfo = findOrganisationIdFromName(props.org);
     const title = "Department/Faculty/Center";
     const items = React.useMemo((): DataListItem[] => {
@@ -335,7 +333,7 @@ function Department(props: {org: string; openedList: string; ref: React.RefObjec
             else return f.departments.map(d => dataListItem(`${f.faculty}/${d}`, `${f.faculty}/${d}`, ""));
         });
     }, [orgInfo]);
-    return <NewDataList setOpen={props.setOpen} open={props.openedList === title} items={items} onSelect={() => void 0} ref={props.ref} allowFreetext={items.length === 0} title={title} placeholder={"Department of Dreams"} />
+    return <NewDataList items={items} ref={props.ref} allowFreetext={items.length === 0} title={title} placeholder={"Department of Dreams"} />
 }
 
 function dataListItem(key: string, value: string, tags: string, unselectable?: boolean): DataListItem {
@@ -351,19 +349,18 @@ interface DataListItem {
     unselectable?: boolean;
 }
 
-function NewDataList({items, onSelect, allowFreetext, title, disabled, placeholder, ref, open, setOpen, didUpdateQuery}: {
+function NewDataList({items, onSelect, allowFreetext, title, disabled, placeholder, ref, didUpdateQuery}: {
     items: DataListItem[];
     onSelect?: (arg: DataListItem) => void;
     allowFreetext: boolean;
     title: string;
     disabled?: boolean;
     placeholder: string;
-    open: boolean;
-    setOpen: (name: string) => void;
     ref: React.RefObject<HTMLInputElement | null>
     didUpdateQuery?: (val: string) => void;
 }) {
     const [query, setQuery] = useState("");
+    const [open, setOpen] = useState(false);
 
     const [searchIndex, setSearchIndex] = useState(-1);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -371,7 +368,7 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
     React.useEffect(() => {
         function closeOnEscape(e: KeyboardEvent) {
             if (e.key === "Escape") {
-                setOpen("");
+                setOpen(false);
                 setSearchIndex(-1);
             }
         }
@@ -382,7 +379,7 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
                 !dropdownRef.current.contains(e.target as any) &&
                 !ref.current?.contains(e.target as any)
             ) {
-                setOpen("");
+                setOpen(false);
             }
         }
 
@@ -453,9 +450,9 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
                 inputRef={ref}
                 disabled={disabled}
                 data-allow-freetext={allowFreetext}
-                onFocus={() => setOpen(title)}
+                onFocus={() => setOpen(true)}
                 // Note(Jonas): If already focused, but closed and user clicks again
-                onClick={() => setOpen(title)}
+                onClick={() => setOpen(true)}
                 onKeyDown={e => {
                     ref.current?.removeAttribute("data-error");
                     if (e.key === "ArrowDown") {
@@ -468,10 +465,10 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
                         ref.current.value = item.value;
                         didUpdateQuery?.(item.value);
                         onSelect?.(item);
-                        setOpen("");
+                        setOpen(false);
                     } else {
                         if (!open) {
-                            setOpen("");
+                            setOpen(false);
                         }
                     }
                 }}
@@ -495,7 +492,7 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
                                 }
                                 ref.current?.removeAttribute("data-error");
                                 if (!ref.current) return;
-                                setOpen("");
+                                setOpen(false);
                                 ref.current.value = it.value;
                                 onSelect?.(it);
                             }} height="32px">{it.value}</Truncate>)
