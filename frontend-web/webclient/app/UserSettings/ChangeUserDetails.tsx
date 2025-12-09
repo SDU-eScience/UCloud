@@ -309,7 +309,7 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
 
     return (
         <Box mb={16} width="100%">
-            <Heading.h2>Additional User Information</Heading.h2>
+            <Heading.h2>Additional user information</Heading.h2>
             {props.inModal ? <span>This can be filled out at a later time, but is required when applying for resources.</span> : null}
             <form onSubmit={onSubmit}>
                 <NewDataList ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={"University of Knowledge"} />

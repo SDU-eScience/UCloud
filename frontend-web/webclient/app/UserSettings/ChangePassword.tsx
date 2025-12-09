@@ -63,11 +63,11 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
 
     return (
         <Box mb={16}>
-            <Heading.h2>Change Password</Heading.h2>
+            <Heading.h2>Change password</Heading.h2>
             <form onSubmit={onSubmit}>
                 <Box mt="0.5em" pt="0.5em">
                     <Label>
-                        Current Password
+                        Current password
                         <Input
                             inputRef={currentPassword}
                             type="password"
@@ -79,7 +79,7 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
 
                 <Box mt="0.5em" pt="0.5em">
                     <Label>
-                        New Password
+                        New password
                         <Input
                             inputRef={newPassword}
                             type="password"

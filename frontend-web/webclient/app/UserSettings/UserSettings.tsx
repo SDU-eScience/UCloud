@@ -34,7 +34,7 @@ function UserSettings(): React.ReactNode {
         <Flex alignItems="center" flexDirection="column">
             <Box width={0.7}>
                 <MainContainer
-                    header={<Heading.h1>User Settings</Heading.h1>}
+                    header={<Heading.h1>User settings</Heading.h1>}
                     main={(
                         <>
                             <TwoFactorSetup
