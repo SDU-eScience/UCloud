@@ -311,14 +311,12 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
         <Box mb={16} width="100%">
             <Heading.h2>Additional user information</Heading.h2>
             {props.inModal ? <span>This can be filled out at a later time, but is required when applying for resources.</span> : null}
-            <form onSubmit={onSubmit}>
-                <NewDataList ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={"University of Knowledge"} />
-                <Department org={org} ref={departmentRef} />
-                <NewDataList title="Position" placeholder="VIP/TAP/Student" items={Positions} ref={positionRef} />
-                <NewDataList title={"Research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={ResearchFields[RFIndex].value} />
-                <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} disabled={false} placeholder="Prefer not to say" />
-                {props.getValues ? null : <Button mt="1em" type="submit" color="successMain">Update Information</Button>}
-            </form>
+            <NewDataList ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={"University of Knowledge"} />
+            <Department org={org} ref={departmentRef} />
+            <NewDataList title="Position" placeholder="VIP/TAP/Student" items={Positions} ref={positionRef} />
+            <NewDataList title={"Research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={ResearchFields[RFIndex].value} />
+            <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} disabled={false} placeholder="Prefer not to say" />
+            {props.getValues ? null : <Button onClick={onSubmit} mt="1em" type="button" color="successMain">Update Information</Button>}
         </Box>
     );
 }
