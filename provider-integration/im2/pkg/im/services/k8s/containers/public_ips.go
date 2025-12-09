@@ -2,11 +2,12 @@ package containers
 
 import (
 	"fmt"
+	"strings"
+
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"strings"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/shared"
 	orc "ucloud.dk/shared/pkg/orchestrators"
@@ -16,8 +17,7 @@ func preparePublicIp(job *orc.Job, firewall *networking.NetworkPolicy, container
 	ips, privateIps, err := ctrl.BindIpsToJob(job)
 	if err != nil {
 		_ = ctrl.TrackJobMessages([]ctrl.JobMessage{
-			{
-				JobId:   job.Id,
+			{JobId: job.Id,
 				Message: fmt.Sprintf("Failed to bind IP address. %s", err),
 			},
 		})

@@ -58,12 +58,11 @@ func initIpDatabase() {
 	}
 
 	publicIps.Mu.Lock()
-	defer publicIps.Mu.Unlock()
-
 	publicIps.Ips = make(map[string]*orc.PublicIp)
 	publicIps.ExternalAddressesInUse = make(map[string]string)
-
 	fetchAllPublicIps()
+	publicIps.Mu.Unlock()
+
 	loadPool()
 
 	ipcAddToPool.Handler(func(r *ipc.Request[ipcAddToPoolRequest]) ipc.Response[util.Empty] {
@@ -191,6 +190,59 @@ func loadPool() {
 		})
 
 		log.Info("Loaded %v", row.Subnet)
+	}
+
+	ipsInUse := db.NewTx(func(tx *db.Transaction) []struct {
+		ResourceId string
+		IpAddress  string
+	} {
+		return db.Select[struct {
+			ResourceId string
+			IpAddress  string
+		}](
+			tx,
+			`
+				with ips as (select resource_id, resource->'status'->>'ipAddress' as ip_address from tracked_ips)
+				select resource_id, ip_address from ips where ip_address is not null
+		    `,
+			db.Params{},
+		)
+	})
+
+	var toDelete []string
+	publicIps.Mu.Lock()
+	for _, ipInUse := range ipsInUse {
+		if ipInUse.IpAddress == "invalid" {
+			log.Info("Want to delete: %s", ipInUse.ResourceId)
+			toDelete = append(toDelete, ipInUse.ResourceId)
+		} else {
+			log.Info("OK: %s", ipInUse.IpAddress)
+			publicIps.ExternalAddressesInUse[ipInUse.IpAddress] = ipInUse.ResourceId
+		}
+	}
+	publicIps.Mu.Unlock()
+
+	if len(toDelete) > 0 {
+		go func() {
+			time.Sleep(2 * time.Second)
+			for _, id := range toDelete {
+				ip, ok := RetrieveIp(id)
+				if ok {
+					deleteFn := Jobs.PublicIPs.Delete
+					if deleteFn != nil {
+						err := deleteFn(ip)
+						if err != nil {
+							log.Info("Could not delete IP %s: %s", id, err)
+						}
+					} else {
+						err := DeleteIpAddress(ip)
+						log.Info("Could not delete IP %s: %s", id, err)
+					}
+				} else {
+					log.Info("Could not delete IP %s", id)
+				}
+			}
+		}()
 	}
 }
 
