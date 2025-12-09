@@ -46,13 +46,26 @@ const Categories: React.FunctionComponent = () => {
     }, []);
 
     const move = useCallback(async (e: React.SyntheticEvent, up: boolean) => {
-        const id = parseInt(findDomAttributeFromAncestors(e.target, "data-id") ?? "");
         const index = parseInt(findDomAttributeFromAncestors(e.target, "data-idx") ?? "");
-        const newIndex = Math.max(0, up ? index - 1 : index + 1);
 
-        await callAPIWithErrorHandler(AppStore.assignPriorityToCategory({ id: id, priority: newIndex }));
+        const categoriesCopy = [...categories];
+        const newIndex = Math.min(Math.max(0, up ? index - 1 : index + 1), categoriesCopy.length - 1);
+        const temp = categoriesCopy[newIndex];
+        categoriesCopy[newIndex] = categoriesCopy[index];
+        categoriesCopy[index] = temp;
+
+        const promises: Promise<unknown>[] = [];
+        for (let i = 0; i < categoriesCopy.length; i++) {
+            if (categoriesCopy[i].metadata.priority !== i) {
+                promises.push(callAPIWithErrorHandler(AppStore.assignPriorityToCategory({
+                    id: categoriesCopy[i].metadata.id,
+                    priority: i
+                })));
+            }
+        }
+        await Promise.all(promises);
         fetchCategories();
-    }, []);
+    }, [categories]);
 
     const moveUp = useCallback((e: React.SyntheticEvent) => {
         move(e, true).then(doNothing);
@@ -82,9 +95,6 @@ const Categories: React.FunctionComponent = () => {
                     return <ListRow
                         key={c.metadata.id}
                         left={c.specification.title}
-                        // Henrik: Found it useful to have the priority listed as well since it is not guaranteed that its only 1 priority lower/higher
-                        // but that it might take multiple clicks to have a change appear
-                        leftSub={"Priority: " + c.metadata.priority}
                         right={<>
                             <Flex gap={"8px"}>
                                 <Button onClick={moveUp} data-id={c.metadata.id} data-idx={c.metadata.priority}><Icon name={"heroArrowUp"} /></Button>

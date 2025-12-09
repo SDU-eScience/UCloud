@@ -785,7 +785,7 @@ func ResourceUpdate[T any](
 		if isDeleting {
 			// NOTE(Dan): There is technically a race-condition here where the resource may remain in the index, but
 			// it has already been deleted from the store. This is not super important since the only thing this does
-			// is to cause a brief load from the database to realise that it is in fact not in the store.
+			// is to cause a brief load from the database to realize that it is in fact not in the store.
 
 			idxBucket := resourceGetAndLoadIndex(typeName, rescOwnerRef)
 
