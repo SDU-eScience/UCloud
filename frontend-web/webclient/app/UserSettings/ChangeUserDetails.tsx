@@ -484,13 +484,13 @@ function NewDataList({items, onSelect, title, disabled, placeholder, ref, didUpd
                     didUpdateQuery?.(value);
                 }} />
             {items.length > 0 && open ?
-                <Box className={SelectorDialog} style={{position: "fixed", paddingBottom: 0, left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} divRef={dropdownRef} width="100%" maxHeight={400} overflowY="scroll">
-                    {result.map((it, idx) =>
-                        <Truncate key={it.key}
-                            cursor={it.unselectable ? "not-allowed" : undefined}
-                            className={DataListRowItem}
-                            data-active={searchIndex === idx}
-                            data-unselectable={it.unselectable}
+            <Box className={SelectorDialog} style={{position: "fixed", paddingBottom: 0, left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} divRef={dropdownRef} width="100%" maxHeight={400} overflowY="scroll">
+                {result.map((it, idx) =>
+                    <Truncate key={it.key}
+                        cursor={it.unselectable ? "not-allowed" : "pointer"}
+                        className={DataListRowItem}
+                        data-active={searchIndex === idx}
+                        data-unselectable={it.unselectable}
                             onClick={e => {
                                 if (it.unselectable) {
                                     e.stopPropagation();
