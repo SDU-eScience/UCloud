@@ -191,8 +191,15 @@ func initProjects() {
 		return util.Empty{}, nil
 	})
 
-	fndapi.ProjectUpdateSettings.Handler(func(info rpc.RequestInfo, request fndapi.ProjectSettings) (util.Empty, *util.HttpError) {
-		return util.Empty{}, ProjectUpdateSettings(info.Actor, request)
+	fndapi.ProjectToggleSubProjectRenamingSetting.Handler(func(info rpc.RequestInfo, request fndapi.ProjectToggleSubProjectRenamingSettingRequest) (util.Empty, *util.HttpError) {
+		if request.ProjectId == "" {
+			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Project ID required")
+		}
+		return util.Empty{}, ProjectUpdateSubProjectRenamingSettings(info.Actor, request)
+	})
+
+	fndapi.ProjectRetrieveSubProjectRenamingSetting.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.ProjectRetrieveSubProjectRenamingResponse, *util.HttpError) {
+		return ProjectRetrieveSubProjectRenaming(info.Actor)
 	})
 
 	fndapi.ProjectMemberChangeRole.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.ProjectMemberChangeRoleRequest]) (util.Empty, *util.HttpError) {
@@ -1797,33 +1804,50 @@ func ProjectRenamingAllowed(actor rpc.Actor, projectId string) bool {
 	}
 }
 
-func ProjectUpdateSettings(actor rpc.Actor, settings fndapi.ProjectSettings) *util.HttpError {
-	_, iproject, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll, fndapi.ProjectRoleAdmin)
+func ProjectUpdateSubProjectRenamingSettings(actor rpc.Actor, request fndapi.ProjectToggleSubProjectRenamingSettingRequest) *util.HttpError {
+	_, iProject, err := projectRetrieve(actor, request.ProjectId, projectFlagsAll, fndapi.ProjectRoleAdmin)
 	if err != nil {
 		return err
 	}
 
-	iproject.Mu.Lock()
+	iProject.Mu.Lock()
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
 				update project.projects
 				set
-					subprojects_renameable = :renamable,
+					subprojects_renameable = not subprojects_renameable,
 					modified_at = now()
 				where
 					id = :project
 		    `,
 			db.Params{
-				"renamable": settings.SubProjects.AllowRenaming,
-				"project":   actor.Project.Value,
+				"project": request.ProjectId,
 			},
 		)
 	})
-	iproject.Project.Status.Settings.SubProjects.AllowRenaming = settings.SubProjects.AllowRenaming
-	iproject.Mu.Unlock()
+	iProject.Project.Status.Settings.SubProjects.AllowRenaming = !iProject.Project.Status.Settings.SubProjects.AllowRenaming
+	iProject.Mu.Unlock()
 	return nil
+}
+
+func ProjectRetrieveSubProjectRenaming(actor rpc.Actor) (fndapi.ProjectRetrieveSubProjectRenamingResponse, *util.HttpError) {
+	if !actor.Project.Present {
+		return fndapi.ProjectRetrieveSubProjectRenamingResponse{}, util.HttpErr(http.StatusBadRequest, "Only projects can have subprojects")
+	}
+
+	_, iProject, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll, fndapi.ProjectRoleAdmin)
+	if err != nil {
+		return fndapi.ProjectRetrieveSubProjectRenamingResponse{}, err
+	}
+
+	canRename := false
+	iProject.Mu.Lock()
+	canRename = iProject.Project.Status.Settings.SubProjects.AllowRenaming
+	iProject.Mu.Unlock()
+
+	return fndapi.ProjectRetrieveSubProjectRenamingResponse{Allowed: canRename}, nil
 }
 
 // Project star system and user-level info
