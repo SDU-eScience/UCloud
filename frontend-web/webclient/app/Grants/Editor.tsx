@@ -1,5 +1,5 @@
 import * as Accounting from "@/Accounting";
-import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
+import {callAPI, callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {useAvatars} from "@/AvataaarLib/hook";
@@ -46,6 +46,7 @@ import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} from "react";
 import {useLocation, useNavigate} from "react-router";
 import * as Grants from ".";
+import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest} from "@/UserSettings/ChangeUserDetails";
 
 // State model
 // =====================================================================================================================
@@ -1338,6 +1339,7 @@ const style = injectStyle("grant-editor", k => `
 // =====================================================================================================================
 export function Editor(): React.ReactNode {
     const scrollToTopRef = useRef(false);
+    const extractValues = useRef(() => ({department: "", gender: "", organizationFullname: "", position: "", resesarchField: "", isValid: false}));
     const [state, doDispatch] = useReducer(stateReducer, defaultState);
     const {dispatchEvent} = useStateReducerMiddleware(doDispatch, scrollToTopRef);
     usePage("Grant application", SidebarTabId.PROJECT);
@@ -1345,6 +1347,20 @@ export function Editor(): React.ReactNode {
     const navigate = useNavigate();
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
     useProjectId(); // FIXME(Jonas): Is this some refresh-thing that breaks stuff if you remove it?
+
+    const [missingUserInfo, setMissingUserInfo] = React.useState(false);
+    React.useEffect(() => {
+        (async () => {
+            const info = await callAPI<OptionalInfo>(optionalInfoRequest());
+            setMissingUserInfo(
+                info.department == null ||
+                info.gender == null ||
+                info.organizationFullName == null ||
+                info.position == null ||
+                info.researchField == null
+            );
+        })();
+    }, []);
 
     useEffect(() => {
         (async () => {
@@ -1833,6 +1849,10 @@ export function Editor(): React.ReactNode {
                             </>
                         }
                     </header>
+
+                    {!missingUserInfo ? null : (<Box my="48px">
+                        <ChangeOrganizationDetails getValues={extractValues} />
+                    </Box>)}
 
                     <form onSubmit={onSubmit} ref={formRef}>
                         <h3>Information about your project</h3>

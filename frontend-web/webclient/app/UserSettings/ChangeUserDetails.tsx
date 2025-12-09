@@ -149,7 +149,7 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
     );
 };
 
-interface OptionalInfo {
+export interface OptionalInfo {
     organizationFullName?: string | null;
     department?: string | null;
     researchField?: string | null;
@@ -159,8 +159,12 @@ interface OptionalInfo {
 
 type InfoAndValidation = OptionalInfo & {isValid: boolean};
 
-function optionalInfoRequest() {
+export function optionalInfoRequest() {
     return apiRetrieve({}, "/auth/users", "optionalInfo");
+}
+
+export function optionalInfoUpdate(values: OptionalInfo) {
+    return apiUpdate(values, "/auth/users", "optionalInfo")
 }
 
 export async function addOrgInfoModalIfNotFilled(): Promise<void> {
@@ -287,11 +291,7 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
         e.preventDefault();
         const {isValid, ...values} = extractValues();
         if (!isValid) return;
-        if (Math.random()) return;
-        await callAPIWithErrorHandler(
-            apiUpdate(values, "/auth/users", "optionalInfo")
-        );
-
+        await callAPIWithErrorHandler(optionalInfoUpdate(values));
         props.onDidSubmit?.()
         snackbarStore.addSuccess("Your information has been updated.", false);
     }, []);
