@@ -100,7 +100,7 @@ const Registration: React.FunctionComponent = () => {
                     </Label>
 
                     <br />
-                    <h3>Optional fields</h3> {/* TODO(JONAS): Is it optional? */}
+                    <h3>Optional fields</h3>
 
                     <Label>
                         Full name of organization
