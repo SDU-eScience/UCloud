@@ -44,6 +44,14 @@ type ProjectSettings struct {
 	} `json:"subProjects"`
 }
 
+type ProjectToggleSubProjectRenamingSettingRequest struct {
+	ProjectId string `json:"projectId"`
+}
+
+type ProjectRetrieveSubProjectRenamingResponse struct {
+	Allowed bool `json:"allowed"`
+}
+
 type ProjectRole string
 
 const (
@@ -233,11 +241,18 @@ var ProjectToggleFavorite = rpc.Call[BulkRequest[FindByStringId], util.Empty]{
 	Roles:       rpc.RolesEndUser,
 }
 
-var ProjectUpdateSettings = rpc.Call[ProjectSettings, util.Empty]{
-	BaseContext: ProjectContext,
-	Operation:   "updateSettings",
+var ProjectToggleSubProjectRenamingSetting = rpc.Call[ProjectToggleSubProjectRenamingSettingRequest, util.Empty]{
+	BaseContext: ProjectContextV1,
+	Operation:   "toggleRenaming",
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
+}
+
+var ProjectRetrieveSubProjectRenamingSetting = rpc.Call[util.Empty, ProjectRetrieveSubProjectRenamingResponse]{
+	BaseContext: ProjectContextV1,
+	Convention:  rpc.ConventionQueryParameters,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "renameable-sub",
 }
 
 type FindByProjectId struct {
