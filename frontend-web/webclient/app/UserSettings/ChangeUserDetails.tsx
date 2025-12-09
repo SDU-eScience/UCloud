@@ -233,6 +233,7 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
             if (faculty == null) return false;
             const orgDepartments = KnownDepartments[o];
             if (!orgDepartments) return true;
+            if (orgDepartments === "freetext") return true;
             const group = orgDepartments.find((it: {faculty: string}) => it.faculty === faculty);
             if (!group) return false;
             if (group.freetext) return true;
@@ -333,7 +334,7 @@ function Department(props: {org: string; ref: React.RefObject<HTMLInputElement |
             else return f.departments.map(d => dataListItem(`${f.faculty}/${d}`, `${f.faculty}/${d}`, ""));
         });
     }, [orgInfo]);
-    return <NewDataList items={items} ref={props.ref} allowFreetext={items.length === 0} title={title} placeholder={"Department of Dreams"} />
+    return <NewDataList key={props.org} items={items} ref={props.ref} allowFreetext={items.length === 0} title={title} placeholder={"Department of Dreams"} />
 }
 
 function dataListItem(key: string, value: string, tags: string, unselectable?: boolean): DataListItem {
