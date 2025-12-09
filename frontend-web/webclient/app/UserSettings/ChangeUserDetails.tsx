@@ -405,8 +405,7 @@ function NewDataList({items, onSelect, title, disabled, placeholder, ref, didUpd
         return result;
     }, [query, items]);
 
-    const boxRef = React.useRef<HTMLDivElement>(null);
-    const boxRect = boxRef?.current?.getBoundingClientRect() ?? {x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0};
+    const boxRect = ref?.current?.getBoundingClientRect() ?? {x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0};
     let dialogX = boxRect.x;
     let dialogY = boxRect.y + boxRect.height;
     let dialogHeight = Math.min(400, result.length * 32);
@@ -448,8 +447,8 @@ function NewDataList({items, onSelect, title, disabled, placeholder, ref, didUpd
 
 
     return <Box mt="0.5em" pt="0.5em" >
-        <Box>{title}</Box>
-        <div ref={boxRef}>
+        <Label>
+            {title}
             <Input
                 placeholder={`Example: ${placeholder}`}
                 inputRef={ref}
@@ -483,7 +482,8 @@ function NewDataList({items, onSelect, title, disabled, placeholder, ref, didUpd
                     setQuery(value);
                     didUpdateQuery?.(value);
                 }} />
-            {items.length > 0 && open ?
+        </Label>
+        {items.length > 0 && open ?
             <Box className={SelectorDialog} style={{position: "fixed", paddingBottom: 0, left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} divRef={dropdownRef} width="100%" maxHeight={400} overflowY="scroll">
                 {result.map((it, idx) =>
                     <Truncate key={it.key}
