@@ -368,10 +368,15 @@ function NewDataList({items, onSelect, title, disabled, placeholder, ref, didUpd
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
+        if (!open) {
+            setSearchIndex(-1);
+        }
+    }, [open]);
+
+    React.useEffect(() => {
         function closeOnEscape(e: KeyboardEvent) {
-            if (e.key === "Escape") {
+            if (["Escape", "Tab"].includes(e.key)) {
                 setOpen(false);
-                setSearchIndex(-1);
             }
         }
 
@@ -461,6 +466,8 @@ function NewDataList({items, onSelect, title, disabled, placeholder, ref, didUpd
                     } else if (e.key === "ArrowUp") {
                         setSearchIndex(idx => clamp(idx - 1, 0, result.length - 1));
                     } else if (e.key === "Enter") {
+                        e.stopPropagation();
+                        e.preventDefault();
                         const item = result[searchIndex];
                         if (!item || !ref.current) return;
                         ref.current.value = item.value;
@@ -469,13 +476,13 @@ function NewDataList({items, onSelect, title, disabled, placeholder, ref, didUpd
                         setOpen(false);
                     } else {
                         if (!open) {
-                            setOpen(false);
+                            setOpen(true);
                         }
                     }
                 }}
                 onKeyUp={e => {
                     const value = e.target["value"];
-                    setQuery(value)
+                    setQuery(value);
                     didUpdateQuery?.(value);
                 }} />
             {items.length > 0 && open ?
