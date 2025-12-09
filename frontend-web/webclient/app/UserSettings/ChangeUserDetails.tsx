@@ -238,7 +238,7 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
             const group = orgDepartments.find((it: {faculty: string}) => it.faculty === faculty);
             if (!group) return false;
             if (group.freetext) return true;
-            if (group.departments?.length === 0) return true;
+            if (!group.departments || group.departments.length === 0) return true;
             return group.departments.find((it: string) => it === dept) != null;
         };
         const department = departmentRef.current?.value.trim();
