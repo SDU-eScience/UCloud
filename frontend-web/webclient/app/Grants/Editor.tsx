@@ -1,5 +1,5 @@
 import * as Accounting from "@/Accounting";
-import {callAPI, callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
+import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {useAvatars} from "@/AvataaarLib/hook";
@@ -12,8 +12,6 @@ import * as Projects from "@/Project/Api";
 import {useProjectId} from "@/Project/Api";
 import {
     projectInfosTitle,
-    projectInfoTitle,
-    ProjectTitle,
     ProjectTitleForNewCore,
     useProjectInfos
 } from "@/Project/InfoCache";
@@ -46,7 +44,7 @@ import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} from "react";
 import {useLocation, useNavigate} from "react-router";
 import * as Grants from ".";
-import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest} from "@/UserSettings/ChangeUserDetails";
+import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalInfoUpdate} from "@/UserSettings/ChangeUserDetails";
 
 // State model
 // =====================================================================================================================
@@ -1352,13 +1350,15 @@ export function Editor(): React.ReactNode {
     React.useEffect(() => {
         (async () => {
             const info = await callAPI<OptionalInfo>(optionalInfoRequest());
+            const grantId = getQueryParam(location.search, "id") ?? null;
             setMissingUserInfo(
-                info.department == null ||
-                info.gender == null ||
-                info.organizationFullName == null ||
-                info.position == null ||
-                info.researchField == null
-            );
+                grantId == null && (
+                    info.department == null ||
+                    info.gender == null ||
+                    info.organizationFullName == null ||
+                    info.position == null ||
+                    info.researchField == null
+                ));
         })();
     }, []);
 
@@ -1546,6 +1546,17 @@ export function Editor(): React.ReactNode {
 
         dispatchEvent({type: "LoadingStateChange", isLoading: true});
         try {
+            if (missingUserInfo) {
+                const {isValid, ...values} = extractValues.current();
+                if (!isValid) return;
+                const result = await callAPIWithErrorHandler(optionalInfoUpdate(values));
+                if (result === null) {
+                    snackbarStore.addFailure("An error occurred, please try and submit again.", false);
+                    return;
+                }
+                setMissingUserInfo(false);
+            }
+
             const response = await callAPIWithErrorHandler(
                 Grants.submitRevision({
                     revision: doc,
@@ -1561,7 +1572,7 @@ export function Editor(): React.ReactNode {
         } finally {
             dispatchEvent({type: "LoadingStateChange", isLoading: false});
         }
-    }, [state, dispatchEvent]);
+    }, [state, dispatchEvent, missingUserInfo]);
 
     const onDiscard = useCallback(() => {
         const id = state.stateDuringEdit?.id;

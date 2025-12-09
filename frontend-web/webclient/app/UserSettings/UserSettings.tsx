@@ -49,9 +49,7 @@ function UserSettings(): React.ReactNode {
                                         setLoading={setHeaderLoading}
                                     />
 
-                                    <ChangeUserDetails
-                                        setLoading={setHeaderLoading}
-                                    />
+                                    <ChangeUserDetails />
                                     <ChangeOrganizationDetails />
                                     <ChangeEmailSettings
                                         setLoading={setHeaderLoading}

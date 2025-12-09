@@ -41,7 +41,7 @@ const reducer = (state: UserDetailsState, action: UpdatePlaceholderFirstNames): 
 
 const RFIndex = (Math.random() * ResearchFields.filter(it => it.key[1] === ".").length) | 0
 
-export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: boolean) => void}> = () => {
+export function ChangeUserDetails(): React.ReactNode {
     const userFirstNames = useRef<HTMLInputElement>(null);
     const userLastName = useRef<HTMLInputElement>(null);
     const userEmail = useRef<HTMLInputElement>(null);
@@ -103,7 +103,7 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
 
     return (
         <Box mb={16}>
-            <Heading.h2>Change User Details</Heading.h2>
+            <Heading.h2>Change user details</Heading.h2>
             <form onSubmit={onSubmit}>
                 <Box mt="0.5em" pt="0.5em">
                     <Label>
@@ -169,7 +169,7 @@ export function optionalInfoUpdate(values: OptionalInfo) {
 
 export async function addOrgInfoModalIfNotFilled(): Promise<void> {
     const result = await callAPI<OptionalInfo>(optionalInfoRequest());
-    if (!result.department || !result.organizationFullName || !result.position || !result.researchField) {
+    if (!result.department || !result.organizationFullName || !result.position || !result.researchField || !result.gender) {
         let tries = 10;
         function addDialog() {
             if (tries < 0) return;
@@ -198,7 +198,8 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
             const info = await callAPI<OptionalInfo>(optionalInfoRequest());
 
             if (orgFullNameRef.current) {
-                const orgMapping = Client.orgId ? (OrgMapping[Client.orgId] ?? Client.orgId) : undefined;
+                const orgId = Client.orgId ? Client.orgId : info.organizationFullName;
+                const orgMapping = orgId ? (OrgMapping[orgId] ?? orgId) : undefined;
                 orgFullNameRef.current.value = orgMapping ?? info.organizationFullName ?? "";
             }
             if (departmentRef.current)
@@ -237,7 +238,8 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
             const group = orgDepartments.find((it: {faculty: string}) => it.faculty === faculty);
             if (!group) return false;
             if (group.freetext) return true;
-            return group?.departments.find((it: string) => it === dept) != null;
+            if (group.departments?.length === 0) return true;
+            return group.departments.find((it: string) => it === dept) != null;
         };
         const department = departmentRef.current?.value.trim();
         const departmentValid = validateDepartment(org, department);
@@ -297,7 +299,7 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
         snackbarStore.addSuccess("Your information has been updated.", false);
     }, []);
 
-    const [org, setOrg] = useState(OrgMapping[Client.orgId ?? ""] ?? Client.orgId ?? "");
+    const [org, setOrg] = useState(OrgMapping[Client.orgId ?? ""] ?? Client.orgId);
 
     React.useEffect(() => {
         if (departmentRef.current) {
@@ -310,11 +312,11 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
             <Heading.h2>Additional User Information</Heading.h2>
             {props.inModal ? <span>This can be filled out at a later time, but is required when applying for resources.</span> : null}
             <form onSubmit={onSubmit}>
-                <NewDataList ref={orgFullNameRef} allowFreetext disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={"University of Knowledge"} />
+                <NewDataList ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={"University of Knowledge"} />
                 <Department org={org} ref={departmentRef} />
-                <NewDataList title="Position" placeholder="VIP/TAP/Student" items={Positions} onSelect={() => void 0} allowFreetext={false} ref={positionRef} />
-                <NewDataList title={"Research field"} ref={researchFieldRef} items={ResearchFields} onSelect={() => void 0} allowFreetext={false} disabled={false} placeholder={ResearchFields[RFIndex].value} />
-                <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} onSelect={() => void 0} allowFreetext={false} disabled={false} placeholder="Prefer not to say" />
+                <NewDataList title="Position" placeholder="VIP/TAP/Student" items={Positions} ref={positionRef} />
+                <NewDataList title={"Research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={ResearchFields[RFIndex].value} />
+                <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} disabled={false} placeholder="Prefer not to say" />
                 {props.getValues ? null : <Button mt="1em" type="submit" color="successMain">Update Information</Button>}
             </form>
         </Box>
@@ -334,7 +336,7 @@ function Department(props: {org: string; ref: React.RefObject<HTMLInputElement |
             else return f.departments.map(d => dataListItem(`${f.faculty}/${d}`, `${f.faculty}/${d}`, ""));
         });
     }, [orgInfo]);
-    return <NewDataList key={props.org} items={items} ref={props.ref} allowFreetext={items.length === 0} title={title} placeholder={"Department of Dreams"} />
+    return <NewDataList key={props.org} items={items} ref={props.ref} title={title} placeholder={"Department of Dreams"} />
 }
 
 function dataListItem(key: string, value: string, tags: string, unselectable?: boolean): DataListItem {
@@ -350,10 +352,9 @@ interface DataListItem {
     unselectable?: boolean;
 }
 
-function NewDataList({items, onSelect, allowFreetext, title, disabled, placeholder, ref, didUpdateQuery}: {
+function NewDataList({items, onSelect, title, disabled, placeholder, ref, didUpdateQuery}: {
     items: DataListItem[];
     onSelect?: (arg: DataListItem) => void;
-    allowFreetext: boolean;
     title: string;
     disabled?: boolean;
     placeholder: string;
@@ -450,7 +451,6 @@ function NewDataList({items, onSelect, allowFreetext, title, disabled, placehold
                 placeholder={`Example: ${placeholder}`}
                 inputRef={ref}
                 disabled={disabled}
-                data-allow-freetext={allowFreetext}
                 onFocus={() => setOpen(true)}
                 // Note(Jonas): If already focused, but closed and user clicks again
                 onClick={() => setOpen(true)}
@@ -520,12 +520,3 @@ const DataListRowItem = injectStyle("data-list-row-item", cl => `
 function findOrganisationIdFromName(name: string): string | undefined {
     return Object.entries(OrgMapping).find(it => it[1] === name)?.[0];
 }
-
-function findOrganisationNameFromId(id: string): string | undefined {
-    return OrgMapping[id];
-}
-
-const TODO = {
-    ValidateContents: "",
-    StoreFreeTextValueWithFaculty: "",
-};
