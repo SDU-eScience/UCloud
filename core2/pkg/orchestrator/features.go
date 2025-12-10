@@ -204,16 +204,21 @@ func featureFetchProviderSupport[T any](
 	}
 }
 
-func featureAwaitReady() {
+func featureAwaitReady(timeout time.Duration) {
+	deadline := time.Now().Add(timeout)
 	for !providerSupportGlobals.Ready.Load() {
 		time.Sleep(1 * time.Millisecond)
+
+		if time.Now().After(deadline) {
+			break
+		}
 	}
 }
 
 func featureSupported(typeName string, product accapi.ProductReference, feature SupportFeatureKey) bool {
 	var s []providerSupport
 
-	featureAwaitReady()
+	featureAwaitReady(2 * time.Second)
 	providerSupportGlobals.Mu.RLock()
 	typeMap, ok := providerSupportGlobals.ByType[typeName]
 	if ok {
@@ -359,7 +364,7 @@ func supportToApi(provider string, supportItems []providerSupport) []orcapi.Reso
 }
 
 func ManifestByProvider(provider string) (orcapi.ProviderIntegrationManifest, int, bool) {
-	featureAwaitReady()
+	featureAwaitReady(2 * time.Second)
 	providerSupportGlobals.Mu.RLock()
 	manifest, ok := providerSupportGlobals.ManifestsByProvider[provider]
 	providerId := providerSupportGlobals.ProviderByName[provider]
@@ -373,7 +378,7 @@ func SupportRetrieveProducts[T any](typeName string) orcapi.SupportByProvider[T]
 		ProductsByProvider: make(map[string][]orcapi.ResolvedSupport[T]),
 	}
 
-	featureAwaitReady()
+	featureAwaitReady(2 * time.Second)
 	providerSupportGlobals.Mu.RLock()
 	byType, ok := providerSupportGlobals.ByType[typeName]
 	if ok {
