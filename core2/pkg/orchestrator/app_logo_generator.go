@@ -287,7 +287,7 @@ func composeHorizontal(img *image.NRGBA, imgW int, imgH int, title string, clr R
 			draw.Draw(canvas, dst, img, img.Bounds().Min, draw.Over)
 		}
 
-		y := (canvas.Bounds().Dy()-h)/2 + int(size)
+		y := (canvas.Bounds().Dy()-h)/2 + int(size/1.15)
 		for _, line := range lines {
 			drawString(canvas, line, imgW+paddingX, y, size, clr)
 			y += int(size * 1.1)
@@ -356,8 +356,7 @@ func wrap(txt string, sz float64) (lines []string, width, height int) {
 			}
 		}
 	}
-	ascent := int(sz)
-	height = (len(lines)-1)*int(sz) + ascent
+	height = (len(lines)-1)*int(sz*1.1) + int(sz)
 	return
 }
 
