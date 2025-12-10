@@ -20,7 +20,7 @@ import {ProviderTitle} from "@/Providers/ProviderTitle";
 import AppRoutes from "@/Routes";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PageV2} from "@/UCloud";
-import {injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
 import {createRecordFromArray, deepCopy} from "@/Utilities/CollectionUtilities";
 import {addMonthsToDate, dateToString} from "@/Utilities/DateUtilities";
 import {fetchAll} from "@/Utilities/PageUtilities";
@@ -1046,6 +1046,9 @@ function useStateReducerMiddleware(
 
 // Styling
 // =====================================================================================================================
+
+const OrganizationInfoClass = makeClassName("org-info");
+
 const style = injectStyle("grant-editor", k => `
     ${k} {
         width: 1000px;
@@ -1157,10 +1160,14 @@ const style = injectStyle("grant-editor", k => `
     /* section and form styling */
     /* -------------------------------------------------------------------------------------------------------------- */
     
-    ${k} .project-info, ${k} .select-resources, ${k} .application {
+    ${k} .project-info, ${k} .select-resources, ${k} .application, ${k} ${OrganizationInfoClass.dot} {
         display: grid;
         grid-template-columns: 450px 550px;
         row-gap: 30px;
+    }
+
+    ${k} ${OrganizationInfoClass.dot} {
+        margin-top: 50px;
     }
     
 @media screen and (max-width: 1120px) {
@@ -1861,10 +1868,6 @@ export function Editor(): React.ReactNode {
                         }
                     </header>
 
-                    {!missingUserInfo ? null : (<Box my="48px">
-                        <ChangeOrganizationDetails getValues={extractValues} />
-                    </Box>)}
-
                     <form onSubmit={onSubmit} ref={formRef}>
                         <h3>Information about your project</h3>
                         <div className={"project-info"}>
@@ -1992,12 +1995,29 @@ export function Editor(): React.ReactNode {
                             </>}
                         </div>
 
+                        {!missingUserInfo ? null : (<>
+                            <div className={classConcat("section", OrganizationInfoClass.class)}>
+                                <Box>
+                                    <label className="section" htmlFor="organization">Organization information</label>
+                                    <div className="description">
+                                        <p>
+                                            This information is required when applying for resources.
+                                        </p>
+                                        <p>
+                                            This can be changed later in "User settings".
+                                        </p>
+                                    </div>
+                                </Box>
+                                <ChangeOrganizationDetails embedded getValues={extractValues} />
+                            </div>
+                        </>)}
+
                         {state.stateDuringEdit && state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID ?
                             null :
                             <>
                                 <h3>
-                                    {!state.stateDuringEdit && <>Select grant giver(s)</>}
-                                    {state.stateDuringEdit && <>Grant givers</>}
+                                    {!state.stateDuringEdit && "Select grant giver(s)"}
+                                    {state.stateDuringEdit && "Grant givers"}
                                 </h3>
                                 <div className={"select-grant-givers"}>
                                     {state.allocators.map(it =>

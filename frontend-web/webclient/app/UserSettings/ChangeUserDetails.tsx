@@ -187,7 +187,7 @@ export async function addOrgInfoModalIfNotFilled(): Promise<void> {
     }
 }
 
-export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<() => InfoAndValidation>; inModal?: boolean; onDidSubmit?: () => void;}) {
+export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<() => InfoAndValidation>; inModal?: boolean; embedded?: boolean; onDidSubmit?: () => void;}) {
     const orgFullNameRef = useRef<HTMLInputElement>(null);
     const departmentRef = useRef<HTMLInputElement>(null);
     const researchFieldRef = useRef<HTMLInputElement>(null);
@@ -304,9 +304,9 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
 
     return (
         <Box mb={16} width="100%">
-            <Heading.h2>Additional user information</Heading.h2>
+            {props.embedded ? null : <Heading.h2>Additional user information</Heading.h2>}
             {props.inModal ? <span>This can be filled out at a later time, but is required when applying for resources.</span> : null}
-            <NewDataList ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={"University of Knowledge"} />
+            <NewDataList id="organization" ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={"University of Knowledge"} />
             <Department org={org} ref={departmentRef} />
             <NewDataList title="Position" placeholder="VIP/TAP/Student" items={SortedPositions} ref={positionRef} />
             <NewDataList title={"Research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={ResearchFields[RFIndex].value} />
@@ -328,7 +328,7 @@ function Department(props: {org: string; ref: React.RefObject<HTMLInputElement |
             isFreetext: false, items: possibleDepartments.flatMap(f => {
                 if (!f.departments || f.departments.length === 0) return dataListItem(f.faculty, f.faculty, "");
                 else return f.departments.map(d => dataListItem(`${f.faculty}/${d}`, `${f.faculty}/${d}`, ""));
-            }).sort((a, b) => a.key.localeCompare(b.key))
+            })
         });
     }, [orgInfo]);
     return <NewDataList key={props.org} isFreetext={result.isFreetext} items={result.items} ref={props.ref} title={title} placeholder={"Department of Dreams"} />
@@ -347,7 +347,8 @@ interface DataListItem {
     unselectable?: boolean;
 }
 
-function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext, ref, didUpdateQuery}: {
+function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext, ref, didUpdateQuery, id}: {
+    id?: string;
     items: DataListItem[];
     onSelect?: (arg: DataListItem) => void;
     title: string;
@@ -368,12 +369,6 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
             setSearchIndex(-1);
         }
     }, [open]);
-
-    React.useEffect(() => {
-        if (searchIndex === -1) return;
-        const row = dropdownRef.current?.children.item(searchIndex);
-        row?.scrollIntoView({behavior: "smooth", block: "end", inline: "nearest"});
-    }, [searchIndex]);
 
     React.useEffect(() => {
         function closeOnEscape(e: KeyboardEvent) {
@@ -402,10 +397,8 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
     }, []);
 
     const result = React.useMemo(() => {
-        const result = fuzzySearch(items, ["tags", "value"], query);
-        setSearchIndex(index => {
-            return clamp(index, -1, result.length - 1);
-        });
+        const result = fuzzySearch(items, ["tags", "value"], query).sort((a, b) => a.key.localeCompare(b.key));
+        setSearchIndex(() => -1);
         return result;
     }, [query, items]);
 
@@ -449,6 +442,12 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
         }
     }
 
+    React.useEffect(() => {
+        if (searchIndex === -1) return;
+        const row = dropdownRef.current?.children.item(searchIndex);
+        row?.scrollIntoView({behavior: "smooth", block: "end", inline: "nearest"});
+    }, [searchIndex, result]);
+
     const hasUnselectable = React.useMemo(() => items.find(it => it.unselectable) != null, [items]);
 
     return <Box mt="0.5em" pt="0.5em" >
@@ -456,7 +455,7 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
             {title}
             <Flex>
                 <Input
-                    chevron
+                    id={id}
                     placeholder={`Example: ${placeholder}`}
                     inputRef={ref}
                     data-is-freetext={isFreetext}
@@ -468,9 +467,9 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
                     onKeyDown={e => {
                         ref.current?.removeAttribute("data-error");
                         if (e.key === "ArrowDown") {
-                            setSearchIndex(idx => clamp(idx + 1, 0, result.length - 1));
+                            nextValidIndex(1);
                         } else if (e.key === "ArrowUp") {
-                            setSearchIndex(idx => clamp(idx - 1, 0, result.length - 1));
+                            nextValidIndex(-1);
                         } else if (e.key === "Enter") {
                             e.stopPropagation();
                             e.preventDefault();
@@ -525,14 +524,26 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
                         }} height="32px">{it.value}</Truncate>)
                 }
             </Box> : null}
-    </Box >
+    </Box>
+
+    function nextValidIndex(dir: 1 | -1) {
+        setSearchIndex(idx => {
+            const anySelectable = result.length > 0 && result.find(it => !it.unselectable) != null;
+            if (!anySelectable) return -1;
+            let currentIndex = clamp(idx + dir, 0, result.length - 1);
+            while (currentIndex >= 0 && result[currentIndex].unselectable) {
+                currentIndex = (currentIndex + dir) % result.length;
+            }
+            return currentIndex;
+        });
+    }
 }
 
 const ChevronPlacement = injectStyleSimple("chevron-placement", `    
     cursor: pointer;
     position: relative;
     width: 0px;
-    right: 26px;
+    right: 28px;
     top: 6px;
 `)
 
