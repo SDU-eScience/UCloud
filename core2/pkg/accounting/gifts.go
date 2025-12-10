@@ -262,6 +262,23 @@ func GiftsCreate(actor rpc.Actor, spec accapi.GiftWithCriteria) (int, *util.Http
 		}
 	}
 
+	wallets := WalletsBrowse(actor, accapi.WalletsBrowseRequest{
+		ItemsPerPage: 100,
+	}).Items
+
+	for _, resource := range spec.Resources {
+		found := false
+		for _, wallet := range wallets {
+			if resource.Category == wallet.PaysFor.Name && resource.Provider == wallet.PaysFor.Provider {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return -1, util.HttpErr(http.StatusPaymentRequired, "Cannot create a gift to this resource %s (%s) without matching wallet", resource.Category, resource.Provider)
+		}
+	}
+
 	if err == nil {
 		for _, c := range spec.Criteria {
 			if err = grantUserCriteriaValid(c); err != nil {
