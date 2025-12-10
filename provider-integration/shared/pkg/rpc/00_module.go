@@ -1,6 +1,8 @@
 package rpc
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -464,7 +466,7 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 		if producer != nil {
 			producer(response, err, w, r)
 		} else {
-			SendResponseOrError(w, response, err)
+			SendResponseOrError(r, w, response, err)
 		}
 
 		if err != nil {
@@ -568,19 +570,36 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 	}
 }
 
-func SendResponseOrError(w http.ResponseWriter, response any, err *util.HttpError) {
+func SendResponseOrError(r *http.Request, w http.ResponseWriter, response any, err *util.HttpError) {
+	var payload []byte
+	statusCode := http.StatusOK
+
 	if err != nil {
 		data, _ := json.Marshal(err)
-
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(err.StatusCode)
-		_, _ = w.Write(data)
+		payload = data
+		statusCode = err.StatusCode
 	} else {
 		data, _ := json.Marshal(response)
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(data)
+		payload = data
+		statusCode = http.StatusOK
 	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+	if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+		buf := &bytes.Buffer{}
+		gzipWriter := gzip.NewWriter(buf)
+		_, _ = gzipWriter.Write(payload)
+		util.SilentClose(gzipWriter)
+
+		payload = buf.Bytes()
+
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Add("Vary", "Accept-Encoding")
+	}
+
+	w.WriteHeader(statusCode)
+	_, _ = w.Write(payload)
 }
 
 type AuditRules struct {

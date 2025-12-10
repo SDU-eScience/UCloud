@@ -13,8 +13,8 @@ type Provider struct {
 	RefreshToken  string                `json:"refreshToken"`
 	PublicKey     string                `json:"publicKey"`
 	Status        struct {
-		ResolvedSupport ResolvedSupport[util.Empty] `json:"resolvedSupport"`
-		ResolvedProduct acc.ProductV2               `json:"resolvedProduct"`
+		ResolvedSupport util.Option[ResolvedSupport[util.Empty]] `json:"resolvedSupport"`
+		ResolvedProduct acc.ProductV2                            `json:"resolvedProduct"`
 	} `json:"status"` // Deprecated
 }
 

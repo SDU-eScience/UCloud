@@ -95,14 +95,14 @@ type Job struct {
 }
 
 type JobStatus struct {
-	State               JobState                        `json:"state"`
-	JobParametersJson   util.Option[ExportedParameters] `json:"jobParametersJson,omitempty"`
-	StartedAt           util.Option[fnd.Timestamp]      `json:"startedAt,omitempty"`
-	ExpiresAt           util.Option[fnd.Timestamp]      `json:"expiresAt,omitempty"`
-	ResolvedApplication util.Option[Application]        `json:"resolvedApplication,omitempty"`
-	ResolvedProduct     util.Option[apm.ProductV2]      `json:"resolvedProduct,omitempty"`
-	ResolvedSupport     ResolvedSupport[JobSupport]     `json:"resolvedSupport"`
-	AllowRestart        bool                            `json:"allowRestart"`
+	State               JobState                                 `json:"state"`
+	JobParametersJson   util.Option[ExportedParameters]          `json:"jobParametersJson,omitempty"`
+	StartedAt           util.Option[fnd.Timestamp]               `json:"startedAt,omitempty"`
+	ExpiresAt           util.Option[fnd.Timestamp]               `json:"expiresAt,omitempty"`
+	ResolvedApplication util.Option[Application]                 `json:"resolvedApplication,omitempty"`
+	ResolvedProduct     util.Option[apm.ProductV2]               `json:"resolvedProduct,omitempty"`
+	ResolvedSupport     util.Option[ResolvedSupport[JobSupport]] `json:"resolvedSupport"`
+	AllowRestart        bool                                     `json:"allowRestart"`
 }
 
 type JobUpdate struct {

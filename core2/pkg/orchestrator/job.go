@@ -1180,7 +1180,7 @@ func jobsProcessFlags(
 	page fndapi.PageV2[orcapi.Job],
 	flags orcapi.JobFlags,
 ) fndapi.PageV2[orcapi.Job] {
-	if flags.IncludeApplication && flags.IncludeParameters {
+	if flags.IncludeApplication && flags.IncludeParameters && flags.IncludeUpdates {
 		return page
 	}
 
@@ -1193,6 +1193,11 @@ func jobsProcessFlags(
 		if !flags.IncludeParameters {
 			job.Status.JobParametersJson.Clear()
 		}
+
+		if !flags.IncludeUpdates {
+			job.Updates = util.NonNilSlice[orcapi.JobUpdate](nil)
+		}
+
 		page.Items[i] = job
 	}
 
@@ -1646,7 +1651,7 @@ func jobTransform(
 	if flags.IncludeProduct || flags.IncludeSupport {
 		support, _ := SupportByProduct[orcapi.JobSupport](jobType, product.Value)
 		result.Status.ResolvedProduct.Set(support.Product)
-		result.Status.ResolvedSupport = support.ToApi()
+		result.Status.ResolvedSupport.Set(support.ToApi())
 	}
 
 	if info.StartedAt.Present && info.TimeAllocation.Present {
