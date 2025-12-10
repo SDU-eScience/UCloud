@@ -201,6 +201,7 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
             if (orgFullNameRef.current) {
                 const orgId = Client.orgId ? Client.orgId : info.organizationFullName;
                 const orgMapping = orgId ? (OrgMapping[orgId] ?? orgId) : undefined;
+                setOrg(orgMapping);
                 orgFullNameRef.current.value = orgMapping ?? info.organizationFullName ?? "";
             }
             if (departmentRef.current)
@@ -300,7 +301,7 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
         snackbarStore.addSuccess("Your information has been updated.", false);
     }, []);
 
-    const [org, setOrg] = useState(OrgMapping[Client.orgId ?? ""] ?? Client.orgId);
+    const [org, setOrg] = useState(OrgMapping[Client.orgId] ?? Client.orgId);
 
     return (
         <Box mb={16} width="100%">
@@ -320,7 +321,7 @@ type Departments = "freetext" | {faculty: string; departments?: string[]}[]
 
 function Department(props: {org: string; ref: React.RefObject<HTMLInputElement | null>}) {
     const orgInfo = findOrganisationIdFromName(props.org);
-    const title = "Department/Faculty/Center";
+    const title = "Department";
     const result = React.useMemo((): {items: DataListItem[]; isFreetext: boolean} => {
         const possibleDepartments: Departments = orgInfo ? KnownDepartments[orgInfo] : [];
         if (possibleDepartments === "freetext" || possibleDepartments.length === 0) return {isFreetext: true, items: []};
@@ -331,7 +332,7 @@ function Department(props: {org: string; ref: React.RefObject<HTMLInputElement |
             })
         });
     }, [orgInfo]);
-    return <NewDataList key={props.org} isFreetext={result.isFreetext} items={result.items} ref={props.ref} title={title} placeholder={"Department of Dreams"} />
+    return <NewDataList isFreetext={result.isFreetext} items={result.items} ref={props.ref} title={title} placeholder={"Department of Dreams"} />
 }
 
 function dataListItem(key: string, value: string, tags: string, unselectable?: boolean): DataListItem {
@@ -458,12 +459,17 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
                     id={id}
                     placeholder={`Example: ${placeholder}`}
                     inputRef={ref}
+                    cursor={isFreetext ? "text" : "pointer"}
                     data-is-freetext={isFreetext}
                     className={DataListInput}
                     disabled={disabled}
                     onFocus={() => setOpen(true)}
                     // Note(Jonas): If already focused, but closed and user clicks again
                     onClick={() => setOpen(true)}
+                    onChange={e => {
+                        didUpdateQuery?.(e.target.value);
+                        setQuery(e.target.value)
+                    }}
                     onKeyDown={e => {
                         ref.current?.removeAttribute("data-error");
                         if (e.key === "ArrowDown") {
@@ -485,11 +491,7 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
                             }
                         }
                     }}
-                    onKeyUp={e => {
-                        const value = e.target["value"];
-                        setQuery(value);
-                        didUpdateQuery?.(value);
-                    }} />
+                />
                 {isFreetext ? null : <Box className={ChevronPlacement}>
                     <Icon name="heroChevronDown" />
                 </Box>}
