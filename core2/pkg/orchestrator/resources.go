@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
@@ -193,7 +195,12 @@ func resourceGetAndLoadIndex(typeName string, reference string) *resourceIndexBu
 	b.Mu.RUnlock()
 
 	if !ok && !resourceGlobals.Testing.Enabled {
+		t := util.NewTimer()
 		resourceLoadIndex(b, typeName, reference)
+		resourceLoadIndexDuration.WithLabelValues(typeName).Observe(t.Mark().Seconds())
+		resourceIndexCacheMiss.WithLabelValues(typeName).Inc()
+	} else {
+		resourceIndexCacheHit.WithLabelValues(typeName).Inc()
 	}
 
 	return b
@@ -284,6 +291,8 @@ func resourcesReadEx(
 	id ResourceId,
 	prefetchHint []ResourceId,
 ) (*resource, bool, []orcapi.Permission) {
+	t := util.NewTimer()
+
 	var permissions []orcapi.Permission
 	b.Mu.RLock()
 
@@ -294,7 +303,11 @@ func resourcesReadEx(
 		b.Mu.RLock()
 
 		r, ok = b.Resources[id]
+	} else {
+		resourceLoadCacheHit.WithLabelValues(typeName).Inc()
 	}
+
+	resourceReadDuration.WithLabelValues(typeName, "retrieve").Observe(t.Mark().Seconds())
 
 	if ok {
 		if actor.Username == rpc.ActorSystem.Username {
@@ -366,6 +379,8 @@ func resourcesReadEx(
 	if ok && !slices.Contains(permissions, requiredPermission) {
 		r, ok, permissions = nil, false, nil
 	}
+
+	resourceReadDuration.WithLabelValues(typeName, "acl_check").Observe(t.Mark().Seconds())
 
 	b.Mu.RUnlock()
 
@@ -599,6 +614,8 @@ func ResourceBrowse[T any](
 
 		return fndapi.PageV2[T]{Items: items, ItemsPerPage: 1000}
 	} else {
+		t := util.NewTimer()
+
 		g := resourceGetGlobals(typeName)
 		ref := actor.Username
 		if actor.Project.Present {
@@ -606,11 +623,10 @@ func ResourceBrowse[T any](
 		}
 
 		idxBucket := resourceGetAndLoadIndex(typeName, ref)
+		resourceBrowseDuration.WithLabelValues(typeName, "index").Observe(t.Mark().Seconds())
 
 		idxBucket.Mu.RLock()
 		idx := append([]ResourceId(nil), idxBucket.ByOwner[ref]...) // deep copy under lock
-
-		initialPrefetchIndex := max(0, len(idx)-500)
 
 		if len(idx) > 10_000 {
 			// NOTE(Dan): We refuse to run anything but the default sort if there are too many expected results.
@@ -624,25 +640,27 @@ func ResourceBrowse[T any](
 				rId := ResourceParseId(next.Value)
 				nextIdx, _ := slices.BinarySearch(idx, rId)
 				startIndex = nextIdx - 1
-				initialPrefetchIndex = max(0, nextIdx-500)
 			}
 		}
 
-		lastPrefetchIndex := min(len(idx), initialPrefetchIndex+500)
-		prefetchList := make([]ResourceId, lastPrefetchIndex-initialPrefetchIndex)
-		copy(prefetchList, idx[initialPrefetchIndex:lastPrefetchIndex])
 		idxBucket.Mu.RUnlock()
+		resourceBrowseDuration.WithLabelValues(typeName, "prepare_prefetch").Observe(t.Mark().Seconds())
 
 		var items []T
 		newNext := util.OptNone[string]()
 		itemsPerPage = fndapi.ItemsPerPage(itemsPerPage)
 		prevId := ResourceId(0)
 
+		readAccSeconds := float64(0)
+		transformAccSeconds := float64(0)
+
 		for i := startIndex; i >= 0; i-- {
 			id := idx[i]
 
+			t.Mark()
 			b := resourceGetBucket(typeName, id)
-			resc, ok, perms := resourcesReadEx(actor, typeName, orcapi.PermissionRead, b, id, prefetchList)
+			resc, ok, perms := resourcesReadEx(actor, typeName, orcapi.PermissionRead, b, id, idx)
+			readAccSeconds += t.Mark().Seconds()
 
 			if ok {
 				shouldBreak := false
@@ -663,11 +681,18 @@ func ResourceBrowse[T any](
 				}
 				b.Mu.RUnlock()
 
+				transformAccSeconds += t.Mark().Seconds()
+
 				if shouldBreak {
 					break
 				}
 			}
 		}
+
+		resourceBrowseDuration.WithLabelValues(typeName, "read").Observe(readAccSeconds)
+		resourceBrowseDuration.WithLabelValues(typeName, "transform").Observe(transformAccSeconds)
+
+		t.Mark()
 
 		if sortComparator != nil {
 			actualSortComparator := sortComparator
@@ -695,6 +720,8 @@ func ResourceBrowse[T any](
 				newNext.Set(fmt.Sprint(lastIdx))
 			}
 		}
+
+		resourceBrowseDuration.WithLabelValues(typeName, "sort").Observe(t.Mark().Seconds())
 
 		return fndapi.PageV2[T]{
 			Items:        items,
@@ -1113,3 +1140,75 @@ func resourceRetrieveAllUserGroup(projectId string) (string, bool) {
 		}
 	})
 }
+
+// Metrics
+// =====================================================================================================================
+
+var (
+	resourceLoadIndexDuration = promauto.NewSummaryVec(prometheus.SummaryOpts{
+		Namespace: "ucloud",
+		Subsystem: "orchestrator",
+		Name:      "resource_index_load_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to load an index",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	}, []string{"type"})
+
+	resourceIndexCacheHit = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "orchestrator",
+		Name:      "resource_index_cache_hit",
+		Help:      "The number of times the cache has been hit when retrieving the index",
+	}, []string{"type"})
+
+	resourceIndexCacheMiss = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "orchestrator",
+		Name:      "resource_index_cache_miss",
+		Help:      "The number of times the cache has been missed when retrieving the index",
+	}, []string{"type"})
+
+	resourceBrowseDuration = promauto.NewSummaryVec(prometheus.SummaryOpts{
+		Namespace: "ucloud",
+		Subsystem: "orchestrator",
+		Name:      "resource_browse_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to execute a browse, broken down by section",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	}, []string{"type", "section"})
+
+	resourceReadDuration = promauto.NewSummaryVec(prometheus.SummaryOpts{
+		Namespace: "ucloud",
+		Subsystem: "orchestrator",
+		Name:      "resource_read_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to execute a single resource read, broken down by section",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	}, []string{"type", "section"})
+
+	resourceLoadCacheHit = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "orchestrator",
+		Name:      "resource_load_cache_hit",
+		Help:      "The number of times the cache has been hit when retrieving a resource",
+	}, []string{"type"})
+
+	resourceLoadCacheMiss = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "orchestrator",
+		Name:      "resource_load_cache_miss",
+		Help:      "The number of times the cache has been missed when retrieving a resource",
+	}, []string{"type"})
+)

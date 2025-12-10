@@ -93,6 +93,8 @@ sealed class AccountingRequest<Resp> {
         val filterProductType: ProductType? = null,
     ) : AccountingRequest<List<WalletV2>>()
 
+    data class Dump(override val idCard: IdCard) : AccountingRequest<Unit>()
+
     data class UpdateAllocation(
         override val idCard: IdCard,
         val allocationId: Int,

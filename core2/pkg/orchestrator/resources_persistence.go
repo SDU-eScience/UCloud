@@ -6,6 +6,7 @@ import (
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -14,6 +15,9 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 	if resourceGlobals.Testing.Enabled {
 		return
 	}
+
+	log.Info("Missing %v", id)
+	resourceLoadCacheMiss.WithLabelValues(typeName).Inc()
 	var toFetch []int64 // annoying transformation needed to help sql layers below transmit the data
 	{
 		found := false
@@ -31,6 +35,7 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 
 	resources := db.NewTx(func(tx *db.Transaction) map[ResourceId]*resource {
 		foundResources := map[ResourceId]*resource{}
+		var foundResourceIds []int64
 
 		rows := db.Select[struct {
 			Id                  int64
@@ -91,6 +96,7 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 			}
 
 			foundResources[r.Id] = r
+			foundResourceIds = append(foundResourceIds, int64(r.Id))
 		}
 
 		if len(foundResources) > 0 {
@@ -111,7 +117,7 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 						e.resource_id = some(cast(:ids as int8[]))
 				`,
 				db.Params{
-					"ids": toFetch,
+					"ids": foundResourceIds,
 				},
 			)
 
@@ -150,9 +156,14 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 		}
 
 		g := resourceGetGlobals(typeName)
-		g.OnLoad(tx, toFetch, foundResources)
+		g.OnLoad(tx, foundResourceIds, foundResources)
 		return foundResources
 	})
+
+	_, ok := resources[id]
+	if !ok {
+		log.Warn("Did not find: %v when missing cache!", id)
+	}
 
 	for _, r := range resources {
 		b := resourceGetBucket(typeName, r.Id)
@@ -343,6 +354,8 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 						or (acl.username = :reference)
 					)
 					and r.type = :type
+					and r.confirmed_by_provider
+				order by r.id
 		    `,
 			db.Params{
 				"reference": reference,
