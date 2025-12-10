@@ -7,6 +7,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PayloadAction} from "@reduxjs/toolkit";
 import ResearchFields from "@/UserSettings/ResearchField.json";
 import Positions from "@/UserSettings/Position.json";
+const SortedPositions = Positions.sort((a, b) => a.key.localeCompare(b.key));
 import KnownDepartments from "@/UserSettings/KnownDepartments.json"
 import KnownOrgs from "@/UserSettings/KnownOrgs.json";
 import Genders from "@/UserSettings/Genders.json";
@@ -301,19 +302,13 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
 
     const [org, setOrg] = useState(OrgMapping[Client.orgId ?? ""] ?? Client.orgId);
 
-    React.useEffect(() => {
-        if (departmentRef.current) {
-            departmentRef.current.value = "";
-        }
-    }, [org]);
-
     return (
         <Box mb={16} width="100%">
             <Heading.h2>Additional user information</Heading.h2>
             {props.inModal ? <span>This can be filled out at a later time, but is required when applying for resources.</span> : null}
             <NewDataList ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={"University of Knowledge"} />
             <Department org={org} ref={departmentRef} />
-            <NewDataList title="Position" placeholder="VIP/TAP/Student" items={Positions} ref={positionRef} />
+            <NewDataList title="Position" placeholder="VIP/TAP/Student" items={SortedPositions} ref={positionRef} />
             <NewDataList title={"Research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={ResearchFields[RFIndex].value} />
             <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} disabled={false} placeholder="Prefer not to say" />
             {props.getValues ? null : <Button onClick={onSubmit} mt="1em" type="button" color="successMain">Update Information</Button>}
@@ -326,15 +321,17 @@ type Departments = "freetext" | {faculty: string; departments?: string[]}[]
 function Department(props: {org: string; ref: React.RefObject<HTMLInputElement | null>}) {
     const orgInfo = findOrganisationIdFromName(props.org);
     const title = "Department/Faculty/Center";
-    const items = React.useMemo((): DataListItem[] => {
+    const result = React.useMemo((): {items: DataListItem[]; isFreetext: boolean} => {
         const possibleDepartments: Departments = orgInfo ? KnownDepartments[orgInfo] : [];
-        if (possibleDepartments === "freetext") return [];
-        return possibleDepartments.flatMap(f => {
-            if (!f.departments || f.departments.length === 0) return dataListItem(f.faculty, f.faculty, "");
-            else return f.departments.map(d => dataListItem(`${f.faculty}/${d}`, `${f.faculty}/${d}`, ""));
+        if (possibleDepartments === "freetext" || possibleDepartments.length === 0) return {isFreetext: true, items: []};
+        return ({
+            isFreetext: false, items: possibleDepartments.flatMap(f => {
+                if (!f.departments || f.departments.length === 0) return dataListItem(f.faculty, f.faculty, "");
+                else return f.departments.map(d => dataListItem(`${f.faculty}/${d}`, `${f.faculty}/${d}`, ""));
+            }).sort((a, b) => a.key.localeCompare(b.key))
         });
     }, [orgInfo]);
-    return <NewDataList key={props.org} items={items} ref={props.ref} title={title} placeholder={"Department of Dreams"} />
+    return <NewDataList key={props.org} isFreetext={result.isFreetext} items={result.items} ref={props.ref} title={title} placeholder={"Department of Dreams"} />
 }
 
 function dataListItem(key: string, value: string, tags: string, unselectable?: boolean): DataListItem {
@@ -350,12 +347,13 @@ interface DataListItem {
     unselectable?: boolean;
 }
 
-function NewDataList({items, onSelect, title, disabled, placeholder, ref, didUpdateQuery}: {
+function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext, ref, didUpdateQuery}: {
     items: DataListItem[];
     onSelect?: (arg: DataListItem) => void;
     title: string;
     disabled?: boolean;
     placeholder: string;
+    isFreetext?: boolean;
     ref: React.RefObject<HTMLInputElement | null>
     didUpdateQuery?: (val: string) => void;
 }) {
@@ -451,6 +449,7 @@ function NewDataList({items, onSelect, title, disabled, placeholder, ref, didUpd
         }
     }
 
+    const hasUnselectable = React.useMemo(() => items.find(it => it.unselectable) != null, [items]);
 
     return <Box mt="0.5em" pt="0.5em" >
         <Label>
@@ -458,6 +457,7 @@ function NewDataList({items, onSelect, title, disabled, placeholder, ref, didUpd
             <Input
                 placeholder={`Example: ${placeholder}`}
                 inputRef={ref}
+                cursor={isFreetext ? undefined : "pointer"}
                 disabled={disabled}
                 onFocus={() => setOpen(true)}
                 // Note(Jonas): If already focused, but closed and user clicks again
@@ -505,23 +505,27 @@ function NewDataList({items, onSelect, title, disabled, placeholder, ref, didUpd
                         className={DataListRowItem}
                         data-active={searchIndex === idx}
                         data-unselectable={it.unselectable}
-                            onClick={e => {
-                                if (it.unselectable) {
-                                    e.stopPropagation();
-                                    return;
-                                }
-                                ref.current?.removeAttribute("data-error");
-                                if (!ref.current) return;
-                                setOpen(false);
-                                ref.current.value = it.value;
-                                onSelect?.(it);
-                            }} height="32px">{it.value}</Truncate>)
-                    }
-                </Box>
-                : null}
-        </div>
+                        onClick={e => {
+                            if (it.unselectable) {
+                                e.stopPropagation();
+                                return;
+                            }
+                            ref.current?.removeAttribute("data-error");
+                            if (!ref.current) return;
+                            setOpen(false);
+                            ref.current.value = it.value;
+                            onSelect?.(it);
+                        }} height="32px">{it.value}</Truncate>)
+                }
+            </Box> : null}
     </Box >
 }
+
+const DataListWrapper = injectStyle("data-list-wrapper", cl => `
+    ${cl}[data-has-unselectable="true"] > div:not([data-unselectable=true]) {
+        padding-left: 24px;
+    }
+`);
 
 const DataListRowItem = injectStyle("data-list-row-item", cl => `
     ${cl}[data-active="true"]:not([data-unselectable=true]), ${cl}:hover:not([data-unselectable=true]) {
