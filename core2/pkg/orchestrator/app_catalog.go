@@ -1367,6 +1367,8 @@ func AppStudioAssignToGroup(name string, groupId util.Option[AppGroupId]) *util.
 	}
 	b.Mu.RUnlock()
 
+	AppLogoInvalidate(name)
+
 	if previousGroupId.Present {
 		g, ok := appRetrieveGroup(previousGroupId.Value)
 		if ok {
