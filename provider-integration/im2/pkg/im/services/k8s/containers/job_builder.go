@@ -118,7 +118,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	spec := &pod.Spec
 	spec.RestartPolicy = core.RestartPolicyNever
-	spec.AutomountServiceAccountToken = util.BoolPointer(false)
+	spec.AutomountServiceAccountToken = util.Pointer(false)
+	spec.EnableServiceLinks = util.Pointer(false)
 
 	spec.Containers = append(spec.Containers, core.Container{
 		Name: ContainerUserJob,

@@ -572,7 +572,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
                             <div className={fakeLogo.class} />
                             <div className={headerText.class}>
-                                <RunningText job={job} interfaceLinks={interfaceTargets} defaultInterfaceName={targetRequests.defaultName}/>
+                                <RunningText job={job} interfaceLinks={interfaceTargets} defaultInterfaceName={targetRequests.defaultName} />
                             </div>
                         </Flex>
 
@@ -813,7 +813,7 @@ const RunningText: React.FunctionComponent<{
                 <Box flexGrow={1} />
                 <div><CancelButton job={job} state={"RUNNING"} /></div>
             </Flex>
-            <RunningButtonGroup job={job} interfaceLinks={interfaceLinks} defaultInterfaceName={defaultInterfaceName}/>
+            <RunningButtonGroup job={job} interfaceLinks={interfaceLinks} defaultInterfaceName={defaultInterfaceName} />
         </Flex>
     </>;
 };
@@ -1663,7 +1663,6 @@ const RunningButtonGroup: React.FunctionComponent<{
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
     const supportTerminal = isSupported(backendType, support, "terminal");
-    const appType = getAppType(job);
 
     let defaultInterfaceId = interfaceLinks.findIndex(link => !link.target && link.rank === 0);
 
@@ -1693,12 +1692,6 @@ const RunningButtonGroup: React.FunctionComponent<{
         .map(it => ({
             searchString: (it.rank + 1).toString(), ...it
         }));
-
-    const isVirtualMachine =
-        job.status?.resolvedApplication?.invocation.tool?.tool?.description.backend === "VIRTUAL_MACHINE";
-
-    const canShowVnc = (appType === "VNC" || isVirtualMachine) && isSupported(backendType, support, "vnc");
-    const canShowWeb = (appType === "WEB") && isSupported(backendType, support, "web");
 
     const onInterfaceSelect = useCallback((target: SearchableInterfaceTarget) => {
         window.open(target.link, "_blank");

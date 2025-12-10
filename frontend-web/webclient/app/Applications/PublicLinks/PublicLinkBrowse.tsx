@@ -138,29 +138,9 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                     browser.registerPage(result, path, false);
                 });
 
-                browser.on("fetchFilters", () => [dateRanges, {
-                    key: "filterState",
-                    type: "options",
-                    clearable: true,
-                    icon: "radioEmpty",
-                    options: [{
-                        color: "textPrimary",
-                        icon: "hashtag",
-                        text: "Preparing",
-                        value: "PREPARING",
-                    }, {
-                        color: "textPrimary",
-                        icon: "hashtag",
-                        text: "Ready",
-                        value: "READY"
-                    }, {
-                        color: "textPrimary",
-                        icon: "hashtag",
-                        text: "Unavailable",
-                        value: "UNAVAILABLE"
-                    }],
-                    text: "Status"
-                }, {
+                browser.on("fetchFilters", () => [
+                    dateRanges,
+                    {
                         type: "input",
                         icon: "user",
                         key: "filterCreatedBy",

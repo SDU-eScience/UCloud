@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+
 	"ucloud.dk/pkg/im/controller/fsearch"
 	"ucloud.dk/pkg/im/external/gpfs"
 	"ucloud.dk/shared/pkg/util"
@@ -31,6 +32,7 @@ func main() {
 		return
 	}
 
+	util.DeploymentName = "IM"
 	launcher.Launch()
 }
 

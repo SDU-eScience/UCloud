@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -559,22 +560,38 @@ func elasticGetShardCount(indexName string) int {
 		log.Info("Failed to get shard Count: %s", err)
 		return 0
 	}
-	var result struct {
-		Settings struct {
-			Index struct {
-				NumberOfShards int `json:"number_of_shards"`
-			} `json:"index"`
-		} `json:"settings"`
-	}
-
 	defer util.SilentClose(resp.Body)
+
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Error("Failed to read body of shard count request. Error: %s", err)
 		return 0
 	}
-	_ = json.Unmarshal(respBytes, &result)
-	return result.Settings.Index.NumberOfShards
+
+	// Map keyed by index name
+	var result map[string]struct {
+		Settings struct {
+			Index struct {
+				NumberOfShards string `json:"number_of_shards"`
+			} `json:"index"`
+		} `json:"settings"`
+	}
+
+	if err := json.Unmarshal(respBytes, &result); err != nil {
+		log.Error("Failed to unmarshal shard count response. Error: %s", err)
+		return 0
+	}
+
+	for _, v := range result {
+		n, err := strconv.Atoi(v.Settings.Index.NumberOfShards)
+		if err != nil {
+			log.Error("Invalid number_of_shards value: %v", err)
+			return 0
+		}
+		return n
+	}
+
+	return 0
 }
 
 // elasticCountDocs : returns number of documents in index (indexName).

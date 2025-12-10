@@ -171,8 +171,8 @@ type ResourceFlags struct {
 	IncludeSupport        bool                       `json:"includeSupport"`
 	IncludeProduct        bool                       `json:"includeProduct"`
 	FilterCreatedBy       util.Option[string]        `json:"filterCreatedBy"`
-	FilterCreatedAfter    util.Option[fnd.Timestamp] `json:"filterCreatedAfter"`
-	FilterCreatedBefore   util.Option[fnd.Timestamp] `json:"filterCreatedBefore"`
+	FilterCreatedAfter    util.Option[uint64]        `json:"filterCreatedAfter"`  // NOTE(Dan): Timestamp, working around rpc bug
+	FilterCreatedBefore   util.Option[uint64]        `json:"filterCreatedBefore"` // NOTE(Dan): Timestamp, working around rpc bug
 	FilterProvider        util.Option[string]        `json:"filterProvider"`
 	FilterProductId       util.Option[string]        `json:"filterProductId"`
 	FilterProductCategory util.Option[string]        `json:"filterProductCategory"`

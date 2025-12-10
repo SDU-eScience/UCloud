@@ -99,9 +99,9 @@ func AppLogoValidateAndResize(data []byte) []byte {
 	return ImageResize(data, logoTargetWidth)
 }
 
-func AppLogoInvalidate(title string) {
+func AppLogoInvalidate(id string) {
 	appLogo.cache.Range(func(k, _ interface{}) bool {
-		if strings.Contains(k.(string), title) {
+		if strings.Contains(k.(string), id) {
 			appLogo.cache.Delete(k)
 		}
 		return true

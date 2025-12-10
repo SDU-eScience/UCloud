@@ -23,6 +23,9 @@ func Init() {
 	initIngresses()
 	initSupportAssistsOrc()
 	initSsh()
+	initScripts()
 
 	initSyncthing()
+
+	initApiTokens()
 }

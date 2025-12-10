@@ -1557,7 +1557,6 @@ func jobPersist(b *db.Batch, r *resource) {
 			for i := lastUpdate; i < len(info.Updates); i++ {
 				update := info.Updates[i]
 				extra, _ := json.Marshal(update)
-				log.Info("update %#v", update)
 
 				db.BatchExec(
 					b,
@@ -1727,7 +1726,7 @@ func jobSendNotifications(username string, jobs map[string]orcapi.Job) {
 		})
 
 		if err != nil {
-			log.Info("Could not send notification to user %s: %s", username, err)
+			log.Warn("Could not send notification to user %s: %s", username, err)
 		}
 	}
 
@@ -1738,7 +1737,8 @@ func jobSendNotifications(username string, jobs map[string]orcapi.Job) {
 		JobId         string `json:"jobId"`
 	}
 	var mailTemplate struct {
-		Events []mailEvent `json:"events"`
+		Type   fndapi.MailType `json:"type"`
+		Events []mailEvent     `json:"events"`
 	}
 
 	for _, job := range jobs {
@@ -1769,6 +1769,7 @@ func jobSendNotifications(username string, jobs map[string]orcapi.Job) {
 		mailTemplate.Events = append(mailTemplate.Events, event)
 	}
 
+	mailTemplate.Type = fndapi.MailTypeJobEvents
 	mailBytes, _ := json.Marshal(mailTemplate)
 	mail := fndapi.Mail(mailBytes)
 
@@ -1780,6 +1781,6 @@ func jobSendNotifications(username string, jobs map[string]orcapi.Job) {
 	)
 
 	if err != nil {
-		log.Info("Could not send notification to user %s: %s", username, err)
+		log.Warn("Could not send notification to user %s: %s", username, err)
 	}
 }

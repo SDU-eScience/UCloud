@@ -1,6 +1,9 @@
 package foundation
 
 import (
+	"fmt"
+	"net/http"
+
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -52,7 +55,7 @@ type UpdatePostRequest struct {
 }
 
 type DeleteNewsPostRequest struct {
-	Id int64 `json:"id"`
+	Id string `json:"id"`
 }
 
 const NewsContext = "news"
@@ -60,8 +63,17 @@ const NewsContext = "news"
 var NewsAddPost = rpc.Call[NewPostRequest, util.Empty]{
 	BaseContext: NewsContext,
 	Operation:   "post",
-	Convention:  rpc.ConventionUpdate,
+	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesAdmin,
+
+	CustomMethod: http.MethodPut,
+	CustomPath:   fmt.Sprintf("/api/%s/post", NewsContext),
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (NewPostRequest, *util.HttpError) {
+		return rpc.ParseRequestFromBody[NewPostRequest](w, r)
+	},
+	CustomClientHandler: func(self *rpc.Call[NewPostRequest, util.Empty], client *rpc.Client, request NewPostRequest) (util.Empty, *util.HttpError) {
+		panic("Cannot add news post via client")
+	},
 }
 
 var NewsUpdatePost = rpc.Call[UpdatePostRequest, util.Empty]{
@@ -99,7 +111,7 @@ var NewsListPosts = rpc.Call[ListPostsRequest, Page[NewsPost]]{
 	Roles:       rpc.RolesPublic,
 }
 
-var NewsListDowntimes = rpc.Call[ListPostsRequest, Page[NewsPost]]{
+var NewsListDowntimes = rpc.Call[util.Empty, Page[NewsPost]]{
 	BaseContext: NewsContext,
 	Operation:   "listDowntimes",
 	Convention:  rpc.ConventionQueryParameters,

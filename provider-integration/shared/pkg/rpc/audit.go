@@ -2,6 +2,8 @@ package rpc
 
 import (
 	"encoding/json"
+	time "time"
+
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
 	"ucloud.dk/shared/pkg/util"
@@ -70,6 +72,7 @@ type HttpCallLogEntry struct {
 	ResponseTimeNanos uint64                              `json:"responseTimeNanos"`
 	Expiry            uint64                              `json:"expiry"`
 	Project           util.Option[string]                 `json:"project"`
+	ReceivedAt        time.Time                           `json:"receivedAt"`
 }
 
 type SecurityPrincipalToken struct {

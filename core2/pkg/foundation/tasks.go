@@ -13,6 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
@@ -227,6 +229,8 @@ func taskPersistAll() {
 		return
 	}
 
+	persistedInTotal := 0
+	start := time.Now()
 	for i := 0; i < len(taskGlobals.Buckets); i++ {
 		var dirtyTasks []*internalTask
 		{
@@ -243,6 +247,8 @@ func taskPersistAll() {
 		}
 
 		if len(dirtyTasks) > 0 {
+			persistedInTotal += len(dirtyTasks)
+
 			db.NewTx0(func(tx *db.Transaction) {
 				batch := db.BatchNew(tx)
 
@@ -258,6 +264,9 @@ func taskPersistAll() {
 			})
 		}
 	}
+	end := time.Now()
+	taskPersistCycleDuration.Observe(end.Sub(start).Seconds())
+	taskPersistDirtyTasks.Add(float64(persistedInTotal))
 }
 
 func taskLoad(id util.Option[taskId], username util.Option[string]) {
@@ -476,6 +485,9 @@ func TaskCreate(actor rpc.Actor, task fndapi.TasksCreateRequest) (fndapi.Task, *
 	idxBucket.UserIndex[task.User] = append(idxBucket.UserIndex[task.User], newId)
 	idxBucket.Mu.Unlock()
 
+	taskStatusUpdates.WithLabelValues(providerId, string(fndapi.TaskStateInQueue)).Inc()
+	taskActiveByState.WithLabelValues(providerId, string(fndapi.TaskStateInQueue)).Inc()
+
 	// NOTE(Dan): Commit new tasks directly to the DB and do not wait for the periodic update. This is required such
 	// that the orchestration layer can always read the origin provider from the database (see coreutil). The
 	// requirement is that the task is written to the database before this function returns.
@@ -501,6 +513,9 @@ func TaskPostStatus(actor rpc.Actor, update fndapi.TasksPostStatusRequestUpdate)
 		return util.HttpErr(http.StatusNotFound, "unknown task requested")
 	}
 
+	oldState := fndapi.TaskStateInQueue
+	newState := update.NewStatus.State
+
 	itask.Mu.RLock()
 	ok := itask.Task.Provider == providerId
 	itask.Mu.RUnlock()
@@ -510,12 +525,21 @@ func TaskPostStatus(actor rpc.Actor, update fndapi.TasksPostStatusRequestUpdate)
 	}
 
 	itask.Mu.Lock()
+	oldState = itask.Task.Status.State
 	itask.Task.ModifiedAt = fndapi.Timestamp(time.Now())
 	itask.Task.Status = update.NewStatus
 	itask.Dirty = true
 
 	resultTask := *itask.Task
 	itask.Mu.Unlock()
+
+	taskStatusUpdates.WithLabelValues(providerId, string(newState)).Inc()
+	if oldState != newState {
+		taskActiveByState.WithLabelValues(providerId, string(oldState)).Dec()
+		if newState != fndapi.TaskStateSuccess && newState != fndapi.TaskStateFailure {
+			taskActiveByState.WithLabelValues(providerId, string(newState)).Inc()
+		}
+	}
 
 	taskNotify(resultTask)
 
@@ -529,6 +553,9 @@ func TaskMarkAsComplete(actor rpc.Actor, id int) *util.HttpError {
 		return util.HttpErr(http.StatusNotFound, "unknown task requested")
 	}
 
+	oldState := fndapi.TaskStateInQueue
+	newState := fndapi.TaskStateSuccess
+
 	itask.Mu.RLock()
 	ok := itask.Task.Provider == providerId
 	itask.Mu.RUnlock()
@@ -538,11 +565,17 @@ func TaskMarkAsComplete(actor rpc.Actor, id int) *util.HttpError {
 	}
 
 	itask.Mu.Lock()
+	oldState = itask.Task.Status.State
 	itask.Task.ModifiedAt = fndapi.Timestamp(time.Now())
 	itask.Task.Status.State = fndapi.TaskStateSuccess
 	itask.Dirty = true
 	resultTask := *itask.Task
 	itask.Mu.Unlock()
+
+	taskStatusUpdates.WithLabelValues(providerId, string(newState)).Inc()
+	if oldState != newState {
+		taskActiveByState.WithLabelValues(providerId, string(oldState)).Dec()
+	}
 
 	taskNotify(resultTask)
 
@@ -653,3 +686,42 @@ func TaskSubscribe(actor rpc.Actor, ctx context.Context) <-chan fndapi.Task {
 
 	return sub.Channel
 }
+
+// Metrics
+// =====================================================================================================================
+
+var (
+	taskStatusUpdates = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "tasks",
+		Name:      "status_updates_total",
+		Help:      "Counts total task status updates by provider and new state.",
+	}, []string{"provider", "state"})
+
+	taskActiveByState = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: "ucloud",
+		Subsystem: "tasks",
+		Name:      "state_count",
+		Help:      "Tracks the number of tasks by provider and state.",
+	}, []string{"provider", "state"})
+
+	taskPersistCycleDuration = promauto.NewSummary(prometheus.SummaryOpts{
+		Namespace: "ucloud",
+		Subsystem: "tasks",
+		Name:      "persist_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to complete a persistence cycle",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	})
+
+	taskPersistDirtyTasks = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "tasks",
+		Name:      "persist_dirty_tasks_total",
+		Help:      "Tracks the number of tasks persisted in total.",
+	})
+)

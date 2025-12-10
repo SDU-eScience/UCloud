@@ -163,7 +163,7 @@ func GiftsClaim(now time.Time, actor rpc.Actor, id int) *util.HttpError {
 
 func GiftsBrowse(actor rpc.Actor) ([]accapi.GiftWithCriteria, *util.HttpError) {
 	if !actor.Project.Present {
-		return nil, util.HttpErr(http.StatusForbidden, "this project cannot create gifts")
+		return nil, nil
 	}
 
 	providerId := rpc.ProviderId("")
@@ -175,7 +175,7 @@ func GiftsBrowse(actor rpc.Actor) ([]accapi.GiftWithCriteria, *util.HttpError) {
 	}
 
 	if providerId == "" {
-		return nil, util.HttpErr(http.StatusForbidden, "this project cannot create gifts")
+		return nil, nil
 	}
 
 	s := giftGlobals.Store
@@ -251,7 +251,11 @@ func GiftsCreate(actor rpc.Actor, spec accapi.GiftWithCriteria) (int, *util.Http
 	}
 
 	if err == nil {
-		for _, resc := range spec.Resources {
+		for i := 0; i < len(spec.Resources); i++ {
+			resc := spec.Resources[i]
+			resc.GrantGiver = spec.ResourcesOwnedBy
+			spec.Resources[i] = resc
+
 			if resc.Provider != string(providerId) {
 				err = util.HttpErr(http.StatusForbidden, "you cannot grant this resource")
 			}

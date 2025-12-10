@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -11,6 +12,8 @@ import (
 	"time"
 
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -37,8 +40,6 @@ func initAccounting() {
 	})
 
 	accapi.ReportUsage.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[accapi.ReportUsageRequest]) (fndapi.BulkResponse[bool], *util.HttpError) {
-		// TODO Currently (when bypassing the allocation check in the orchestrator) I can create a license with no
-		//   allocation. I don't think this correctly returns false in that case.
 		var result []bool
 		for _, reqItem := range request.Items {
 			resp, err := ReportUsage(info.Actor, reqItem)
@@ -171,7 +172,7 @@ func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, 
 		return "", util.HttpErr(http.StatusForbidden, "You are not allowed to create a root allocation!")
 	}
 
-	if !actor.Project.Present {
+	if !actor.Project.Present || actor.Project.Value == "" {
 		return "", util.HttpErr(http.StatusForbidden, "Cannot perform a root allocation in a personal workspace!")
 	}
 
@@ -209,7 +210,51 @@ func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, 
 		util.OptNone[accGrantId](),
 	)
 
+	internalCommitAllocation(bucket, id)
+
 	return fmt.Sprint(id), err
+}
+
+func UpdateAllocation(actor rpc.Actor, requests []accapi.UpdateAllocationRequest) (util.Empty, *util.HttpError) {
+	for _, request := range requests {
+		if !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "You need admin privileges in your project to perform this action")
+		}
+
+		bucket, _, ok := internalWalletByAllocationId(accAllocId(request.AllocationId))
+		// If wallet cannot be found just skip
+		if !ok {
+			continue
+		}
+
+		reference := actor.Username
+		if actor.Project.Present && actor.Project.Value != "" {
+			reference = string(actor.Project.Value)
+		}
+		iOwner := internalOwnerByReference(reference)
+
+		grantedIn, comment, err := internalUpdateAllocation(iOwner, time.Now(), bucket, accAllocId(request.AllocationId), request.NewQuota, request.NewStart, request.NewEnd)
+
+		// If update failed will break the update
+		if err != nil {
+			return util.Empty{}, err
+		}
+
+		if grantedIn != accGrantId(0) {
+			_, commentErr := GrantsPostComment(
+				actor,
+				accapi.GrantsPostCommentRequest{
+					ApplicationId: fmt.Sprint(grantedIn),
+					Comment:       comment,
+				},
+			)
+			if commentErr != nil {
+				// Should not fail the update that we cannot post a comment
+				log.Warn("Error posting comment: %s", err)
+			}
+		}
+	}
+	return util.Empty{}, nil
 }
 
 func ReportUsage(actor rpc.Actor, request accapi.ReportUsageRequest) (bool, *util.HttpError) {
@@ -327,7 +372,16 @@ func RetrieveAncestors(now time.Time, category accapi.ProductCategoryIdV2, owner
 }
 
 func accountingLoad() {
+	var loadTimes struct {
+		WalletOwners     time.Duration
+		ScopedUsage      time.Duration
+		Wallets          time.Duration
+		AllocationGroups time.Duration
+		Allocations      time.Duration
+	}
+
 	db.NewTx0(func(tx *db.Transaction) {
+		timer := util.NewTimer()
 		accGlobals.OwnersByReference = map[string]*internalOwner{}
 		accGlobals.OwnersById = map[accOwnerId]*internalOwner{}
 		accGlobals.Usage = map[string]*scopedUsage{}
@@ -335,6 +389,7 @@ func accountingLoad() {
 
 		// Wallet owners
 		// -------------------------------------------------------------------------------------------------------------
+		timer.Mark()
 		walletOwners := db.Select[struct {
 			Id        int
 			Username  sql.NullString
@@ -368,6 +423,8 @@ func accountingLoad() {
 			}
 		}
 
+		loadTimes.WalletOwners = timer.Mark()
+
 		// Scoped usage
 		// -------------------------------------------------------------------------------------------------------------
 		usageRows := db.Select[struct {
@@ -388,6 +445,8 @@ func accountingLoad() {
 				Usage: row.Usage,
 			}
 		}
+
+		loadTimes.ScopedUsage = timer.Mark()
 
 		// Wallets
 		// -------------------------------------------------------------------------------------------------------------
@@ -445,6 +504,8 @@ func accountingLoad() {
 			}
 		}
 
+		loadTimes.Wallets = timer.Mark()
+
 		// Allocation groups
 		// -------------------------------------------------------------------------------------------------------------
 		allocationGroups := db.Select[struct {
@@ -484,6 +545,8 @@ func accountingLoad() {
 				accGlobals.GroupIdAcc.Store(int64(row.Id))
 			}
 		}
+
+		loadTimes.AllocationGroups = timer.Mark()
 
 		// Allocations
 		// -------------------------------------------------------------------------------------------------------------
@@ -559,7 +622,21 @@ func accountingLoad() {
 				accGlobals.AllocIdAcc.Store(int64(row.Id))
 			}
 		}
+
+		loadTimes.Allocations = timer.Mark()
 	})
+
+	log.Info(
+		"Accounting system is ready."+
+			"\n\tLoad times:"+
+			"\n\t\tWallet owners: %v"+
+			"\n\t\tScoped usage: %v"+
+			"\n\t\tWallets: %v"+
+			"\n\t\tAllocation groups: %v"+
+			"\n\t\tAllocations: %v",
+		loadTimes.WalletOwners, loadTimes.ScopedUsage, loadTimes.Wallets, loadTimes.AllocationGroups,
+		loadTimes.Allocations,
+	)
 }
 
 var accountingScansDisabled = atomic.Bool{}
@@ -571,6 +648,8 @@ var usageReportSamplingHours = []int{0, 4, 8, 12, 16, 20}
 func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) bool) {
 	accountingProcessMutex.Lock()
 
+	// TODO Metrics on this
+	timer := util.NewTimer()
 	internalCompleteScan(now, func(buckets []*internalBucket, scopes []*scopedUsage, onPersistHandlers []internalOnPersistHandler) {
 		var actualBuckets []*internalBucket
 		for _, b := range buckets {
@@ -700,6 +779,9 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 				scope.Dirty = false
 			}
 		}
+
+		accountingWalletsUpdated.Add(float64(len(walletRequest.Id)))
+		accountingAllocationsUpdated.Add(float64(len(allocationRequests.Id)))
 
 		db.NewTx0(func(tx *db.Transaction) {
 			if len(ownerRequest.Id) > 0 {
@@ -919,18 +1001,35 @@ func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) boo
 	})
 
 	accountingProcessMutex.Unlock()
+	accountingScansDuration.Observe(timer.Mark().Seconds())
 
 	// NOTE(Dan): This is a very simple version of a reliable cron-job which runs in our code and does not require
 	// anything special at all. This only works because it is perfectly safe to sample too many times. This code does
 	// reasonable protection against sampling too many times, but if the Core ends up crashing at the right time, then
 	// multiple samples may occur. This is not a problem necessarily and may even be the correct thing to do, in the
 	// case that the crash occurred mid-sampling.
-	now = time.Now()
-	if now.After(accountingScanUsageReportCanResumeAt) {
-		if slices.Contains(usageReportSamplingHours, now.Hour()) && now.Minute() < 10 {
-			accountingScanUsageReportCanResumeAt = time.Now().Add(15 * time.Minute)
+	forceUsageReport := false
+	if util.DevelopmentModeEnabled() {
+		_, err := os.Stat("/tmp/usage_report_now")
+		if err == nil {
+			err = os.Remove("/tmp/usage_report_now")
+			if err != nil {
+				log.Info("Unlink err: %s", err)
+			}
+			forceUsageReport = true
+		}
+	}
 
-			usageSample(now)
+	now = time.Now()
+	if reportGlobals.Ready.Load() {
+		if now.After(accountingScanUsageReportCanResumeAt) || forceUsageReport {
+			if slices.Contains(usageReportSamplingHours, now.Hour()) && now.Minute() < 10 || forceUsageReport {
+				accountingScanUsageReportCanResumeAt = time.Now().Add(15 * time.Minute)
+
+				timer.Mark()
+				usageSample(now)
+				accountingSampleDuration.Observe(timer.Mark().Seconds())
+			}
 		}
 	}
 }
@@ -943,3 +1042,45 @@ func accountingProcessTasks() {
 		time.Sleep(30 * time.Second)
 	}
 }
+
+var (
+	accountingAllocationsUpdated = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "accounting",
+		Name:      "allocations_updated_total",
+		Help:      "Number of total allocations updated in the persistence layer",
+	})
+
+	accountingWalletsUpdated = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "accounting",
+		Name:      "wallets_updated_total",
+		Help:      "Number of total wallets updated in the persistence layer",
+	})
+
+	accountingScansDuration = promauto.NewSummary(prometheus.SummaryOpts{
+		Namespace: "ucloud",
+		Subsystem: "accounting",
+		Name:      "scan_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to complete a scan",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	})
+
+	accountingSampleDuration = promauto.NewSummary(prometheus.SummaryOpts{
+		Namespace: "ucloud",
+		Subsystem: "accounting",
+		Name:      "sample_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to complete a usage sampling cycle",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	})
+)

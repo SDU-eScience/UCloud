@@ -215,7 +215,12 @@ func internalReportUsage(now time.Time, request accapi.ReportUsageRequest) (bool
 		return false, util.HttpErr(http.StatusNotFound, "unknown category")
 	}
 
-	owner := internalOwnerByReference(request.Owner.Reference())
+	reference := request.Owner.Reference()
+	if reference == "" {
+		return false, util.HttpErr(http.StatusNotFound, "invalid owner specified")
+	}
+
+	owner := internalOwnerByReference(reference)
 
 	var scope *scopedUsage
 	if request.Description.Scope.Present {
@@ -360,7 +365,7 @@ func internalAllocateNoCommit(
 			parentWallet.ChildrenUsage[recipient] = currentUsage
 		}
 
-		lInternalAttemptActivation(b, now, allocation)
+		lInternalAttemptActivation(b, now, allocation, false)
 		return allocationId, nil
 	}
 }
@@ -388,6 +393,129 @@ func internalCommitAllocation(b *internalBucket, allocId accAllocId) {
 		alloc.Committed = true
 	}
 	b.Mu.Unlock()
+}
+
+func lValidateUpdate(now time.Time, alloc *internalAllocation, newQuota util.Option[int64], proposedNewStart time.Time, proposedNewEnd time.Time) (bool, *util.HttpError) {
+	if alloc.Retired {
+		return false, util.HttpErr(http.StatusForbidden, "You cannot update a retired allocation, it has already expired!")
+	}
+	if alloc.Start.Before(now) && !alloc.Start.Equal(proposedNewStart) {
+		return false, util.HttpErr(http.StatusForbidden, "You cannot change the starting time of an allocation which has already started")
+	}
+	if proposedNewStart.After(proposedNewEnd) {
+		return false, util.HttpErr(http.StatusForbidden, "This update would make the allocation invalid. An allocation cannot start after it has ended.")
+	}
+	if newQuota.Present && newQuota.Value < 0 {
+		return false, util.HttpErr(http.StatusForbidden, "You cannot set a negative quota for an allocation (%d)", newQuota.Value)
+	}
+	return true, nil
+}
+
+// internalUpdateAllocation Updates an allocation and returns the grantId and the changelog. This can be used
+// to notify the wallet owner about changes by commenting on the related grant if possible.
+func internalUpdateAllocation(
+	parentOwner *internalOwner,
+	now time.Time,
+	b *internalBucket,
+	allocationId accAllocId,
+	newQuota util.Option[int64],
+	newStart util.Option[fndapi.Timestamp],
+	newEnd util.Option[fndapi.Timestamp],
+) (accGrantId, string, *util.HttpError) {
+	var iAlloc *internalAllocation
+	var iWallet *internalWallet
+	var iParent *internalWallet
+	grantedIn := accGrantId(0)
+	changelog := ""
+
+	b.Mu.Lock()
+
+	iAlloc = b.AllocationsById[allocationId]
+	if iAlloc == nil || iAlloc.Parent == internalGraphRoot {
+		b.Mu.Unlock()
+		return grantedIn, changelog, util.HttpErr(http.StatusNotFound, "Unknown allocation or bad Parent")
+	}
+	iWallet = b.WalletsById[iAlloc.BelongsTo]
+	iParent = b.WalletsById[iAlloc.Parent]
+
+	// Check if you have granted the allocation
+	if iParent == nil || iParent.OwnedBy != parentOwner.Id {
+		b.Mu.Unlock()
+		return grantedIn, changelog, util.HttpErr(http.StatusForbidden, "You are not allowed to modify this allocation")
+	}
+
+	proposedNewStart := iAlloc.Start
+	if newStart.Present {
+		proposedNewStart = newStart.Value.Time()
+	}
+	proposedNewEnd := iAlloc.End
+	if newEnd.Present {
+		proposedNewEnd = newEnd.Value.Time()
+	}
+
+	proposedNewQuota := iAlloc.Quota
+	if newQuota.Present {
+		iAllocGroup, _ := iWallet.AllocationsByParent[iAlloc.Parent]
+		proposedNewQuota = newQuota.Value
+		delta := newQuota.Value - iAlloc.Quota
+		activeQuota := lInternalGroupTotalQuotaContributing(b, iAllocGroup)
+		activeUsage := iAllocGroup.TreeUsage
+
+		if activeQuota+delta < activeUsage {
+			b.Mu.Unlock()
+			return grantedIn, changelog, util.HttpErr(http.StatusForbidden, "You cannot decrease the quota below the current usage!")
+		}
+	}
+
+	valid, errorResponse := lValidateUpdate(now, iAlloc, newQuota, proposedNewStart, proposedNewEnd)
+	if !valid {
+		b.Mu.Unlock()
+		return grantedIn, changelog, errorResponse
+	}
+
+	iAlloc.Dirty = true
+	iAlloc.Start = proposedNewStart
+	iAlloc.End = proposedNewEnd
+	iAlloc.Quota = proposedNewQuota
+
+	lInternalAttemptActivation(b, now, iAlloc, true)
+	lInternalAttemptRetirement(b, now, iAlloc, true)
+	lInternalReevaluate(b, now, iWallet, true)
+	lInternalMarkSignificantUpdate(b, now, iWallet)
+
+	category := b.Category
+	if iAlloc.GrantedIn.Present {
+		grantedIn = iAlloc.GrantedIn.Value
+	}
+
+	b.Mu.Unlock()
+
+	if grantedIn != accGrantId(0) {
+		if newQuota.Present {
+			amount := int64(0)
+			// Converting to readable format instead of raw format
+			switch category.AccountingFrequency {
+			case accapi.AccountingFrequencyOnce:
+				amount = proposedNewQuota
+			case accapi.AccountingFrequencyPeriodicMinute:
+				amount = proposedNewQuota / 60
+			case accapi.AccountingFrequencyPeriodicHour:
+				amount = proposedNewQuota
+			case accapi.AccountingFrequencyPeriodicDay:
+				amount = proposedNewQuota * 24
+			default:
+				log.Warn("Invalid accounting frequency passed: '%v'\n", category.AccountingFrequency)
+			}
+			changelog += fmt.Sprintf("The Quota for %s (%s) has manually been updated to %d.\n", category.Name, category.Provider, amount)
+		}
+		if newStart.Present {
+			changelog += fmt.Sprintf("The start date for the granted %s (%s) allocation has manually been updated to %s.\n", category.Name, category.Provider, proposedNewStart.String())
+		}
+		if newEnd.Present {
+			changelog += fmt.Sprintf("The end date for the granted %s (%s) allocation has manually been updated to %s.\n", category.Name, category.Provider, proposedNewEnd.String())
+		}
+	}
+	return grantedIn, changelog, nil
 }
 
 func internalCompleteScan(now time.Time, persistence func(buckets []*internalBucket, scopes []*scopedUsage, onPersistHandlers []internalOnPersistHandler)) {
@@ -484,6 +612,32 @@ func internalBucketOrInit(category accapi.ProductCategory) *internalBucket {
 	})
 }
 
+func internalWalletByAllocationId(id accAllocId) (*internalBucket, *internalWallet, bool) {
+	if id == 0 {
+		return nil, nil, false
+	}
+	var resultBucket *internalBucket
+	var resultAllocation *internalAllocation
+	var resultWallet *internalWallet
+	ok := false
+
+	accGlobals.Mu.RLock()
+	for _, b := range accGlobals.BucketsByCategory {
+		b.Mu.RLock()
+		resultAllocation, ok = b.AllocationsById[id]
+		if ok {
+			resultWallet, ok = b.WalletsById[resultAllocation.BelongsTo]
+		}
+		b.Mu.RUnlock()
+		if ok {
+			resultBucket = b
+			break
+		}
+	}
+	accGlobals.Mu.RUnlock()
+	return resultBucket, resultWallet, ok
+}
+
 func internalWalletById(id AccWalletId) (*internalBucket, *internalWallet, bool) {
 	if id == 0 {
 		return nil, nil, false
@@ -534,6 +688,10 @@ func internalWalletByOwner(b *internalBucket, now time.Time, owner accOwnerId) A
 }
 
 func internalWalletByReferenceAndCategory(now time.Time, reference string, category accapi.ProductCategoryIdV2) (AccWalletId, bool) {
+	if reference == "" {
+		return 0, false
+	}
+
 	owner := internalOwnerByReference(reference)
 	cat, err := ProductCategoryRetrieve(rpc.ActorSystem, category.Name, category.Provider)
 	if err != nil {
@@ -909,12 +1067,12 @@ func lInternalReevaluate(b *internalBucket, now time.Time, wallet *internalWalle
 
 func lInternalScanAllocations(b *internalBucket, now time.Time) {
 	for _, alloc := range b.AllocationsById {
-		lInternalAttemptActivation(b, now, alloc)
-		lInternalAttemptRetirement(b, now, alloc)
+		lInternalAttemptActivation(b, now, alloc, true)
+		lInternalAttemptRetirement(b, now, alloc, true)
 	}
 }
 
-func lInternalAttemptActivation(b *internalBucket, now time.Time, alloc *internalAllocation) {
+func lInternalAttemptActivation(b *internalBucket, now time.Time, alloc *internalAllocation, logActivation bool) {
 	if !alloc.Active && now.Add(1*time.Second).After(alloc.Start) && now.Before(alloc.End) {
 		wallet := b.WalletsById[alloc.BelongsTo]
 
@@ -925,10 +1083,14 @@ func lInternalAttemptActivation(b *internalBucket, now time.Time, alloc *interna
 
 		// NOTE(Dan): Always mark since reevaluate only marks if a wallet changes lock state
 		lInternalMarkSignificantUpdate(b, now, wallet)
+
+		if logActivation {
+			log.Info("Activating allocation: %v", alloc.Id)
+		}
 	}
 }
 
-func lInternalAttemptRetirement(b *internalBucket, now time.Time, alloc *internalAllocation) {
+func lInternalAttemptRetirement(b *internalBucket, now time.Time, alloc *internalAllocation, logRetirement bool) {
 	if !alloc.Retired && now.Add(1*time.Second).After(alloc.End) {
 		wallet := b.WalletsById[alloc.BelongsTo]
 		group := wallet.AllocationsByParent[alloc.Parent]
@@ -955,6 +1117,10 @@ func lInternalAttemptRetirement(b *internalBucket, now time.Time, alloc *interna
 
 		lInternalReevaluate(b, now, wallet, true)
 		lInternalMarkSignificantUpdate(b, now, wallet)
+
+		if logRetirement {
+			log.Info("Retiring allocation: %v", alloc.Id)
+		}
 	}
 }
 
@@ -1408,6 +1574,10 @@ func internalRetrieveWallets(
 	reference string,
 	filter walletFilter,
 ) []accapi.WalletV2 {
+	if reference == "" {
+		return nil
+	}
+
 	owner := internalOwnerByReference(reference)
 	var potentialBuckets []*internalBucket
 

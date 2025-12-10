@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	"ucloud.dk/launcher/pkg/termio"
 )
 
@@ -41,9 +42,7 @@ func (lf LocalFile) Child(subPath string, isDir bool) LFile {
 	if isDir {
 		err := os.MkdirAll(filepath.Join(lf.path, subPath), 0755)
 		HardCheck(err)
-		file, err := os.Open(filepath.Join(lf.path, subPath))
-		HardCheck(err)
-		return NewLocalFile(file.Name())
+		return NewLocalFile(filepath.Join(lf.path, subPath))
 	} else {
 		file, err := os.OpenFile(filepath.Join(lf.path, subPath), os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
 		HardCheck(err)
@@ -175,7 +174,7 @@ func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 			if len(str) == 0 && err != nil {
 				break
 			}
-			if l.streamOutput == true {
+			if l.streamOutput {
 				termio.Write("%s", str)
 			}
 			outputBuilder.Write([]byte(str))
@@ -190,7 +189,7 @@ func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 			if len(str) == 0 && err != nil {
 				break
 			}
-			if l.streamOutput == true {
+			if l.streamOutput {
 				termio.Write("%s", str)
 			}
 			errBuilder.Write([]byte(str))
@@ -212,7 +211,7 @@ func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 
 	if exitCode != 0 {
 		if l.allowFailure {
-			return StringPair{First: "", Second: outputBuilder.String() + errBuilder.String()}
+			return StringPair{First: "", Second: outputBuilder.String() + errBuilder.String(), StatusCode: exitCode}
 		}
 
 		fmt.Println("Command failed!")
@@ -233,5 +232,6 @@ func (l *LocalExecutableCommand) ExecuteToText() StringPair {
 			},
 		),
 		"",
+		exitCode,
 	}
 }

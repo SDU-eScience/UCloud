@@ -3,8 +3,6 @@ package rpc
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
-	ws "github.com/gorilla/websocket"
 	"math"
 	"net/http"
 	"os"
@@ -13,6 +11,12 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+
+	"github.com/golang-jwt/jwt/v5"
+	ws "github.com/gorilla/websocket"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -32,15 +36,16 @@ var LookupActor func(username string) (Actor, bool) = func(username string) (Act
 // consumed shortly after being received. An Actor must never be used as part of a request or response type. If a
 // dynamic Actor is required, use LookupActor.
 type Actor struct {
-	Username         string                 `json:"-"`
-	Role             Role                   `json:"-"`
-	Project          util.Option[ProjectId] `json:"-"`
-	TokenInfo        util.Option[TokenInfo] `json:"-"`
-	Membership       ProjectMembership      `json:"-"`
-	Groups           GroupMembership        `json:"-"`
-	ProviderProjects ProviderProjects       `json:"-"`
-	Domain           string                 `json:"-"`
-	OrgId            string                 `json:"-"`
+	Username          string                   `json:"-"`
+	Role              Role                     `json:"-"`
+	Project           util.Option[ProjectId]   `json:"-"`
+	TokenInfo         util.Option[TokenInfo]   `json:"-"`
+	Membership        ProjectMembership        `json:"-"`
+	Groups            GroupMembership          `json:"-"`
+	ProviderProjects  ProviderProjects         `json:"-"`
+	AllocatorProjects map[ProjectId]util.Empty `json:"-"`
+	Domain            string                   `json:"-"`
+	OrgId             string                   `json:"-"`
 }
 
 type ProjectId string
@@ -181,7 +186,7 @@ func (c *Call[Req, Resp]) FullName() string {
 	if hasConventionName {
 		name := []rune(c.Operation)
 		if len(name) > 0 {
-			result.WriteRune(name[0])
+			result.WriteRune(unicode.ToUpper(name[0]))
 			result.WriteString(string(name[1:]))
 		}
 	} else {
@@ -206,6 +211,16 @@ func (c *Call[Req, Resp]) InvokeEx(client *Client, request Req, opts InvokeOpts)
 	if client == nil {
 		return result, util.HttpErr(http.StatusBadGateway, "client (DefaultClient?) has not been initialized")
 	}
+
+	callName := c.FullName()
+	if client.CoreForProvider.Present {
+		callName = strings.ReplaceAll(callName, ProviderPlaceholder, client.CoreForProvider.Value)
+		callName = strings.ReplaceAll(callName, "ucloud.", "provider.")
+	}
+
+	start := time.Now()
+	metricClientRequestCounter.WithLabelValues(util.DeploymentName, callName).Inc()
+	metricClientInFlight.WithLabelValues(util.DeploymentName, callName).Inc()
 
 	switch c.Convention {
 	case ConventionCustom:
@@ -250,6 +265,18 @@ func (c *Call[Req, Resp]) InvokeEx(client *Client, request Req, opts InvokeOpts)
 
 	case ConventionWebSocket:
 		log.Fatal("Client is not supported for this endpoint")
+	}
+
+	end := time.Now()
+
+	metricClientInFlight.WithLabelValues(util.DeploymentName, callName).Dec()
+	metricClientRequestDuration.WithLabelValues(util.DeploymentName, callName).Observe(end.Sub(start).Seconds())
+	if err != nil {
+		if err.StatusCode >= 400 && err.StatusCode <= 499 {
+			metricClientResp4xx.WithLabelValues(util.DeploymentName, callName).Inc()
+		} else if err.StatusCode >= 500 && err.StatusCode <= 599 {
+			metricClientResp5xx.WithLabelValues(util.DeploymentName, callName).Inc()
+		}
 	}
 
 	return result, err
@@ -404,7 +431,11 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 			}
 		}
 
+		callName := c.FullName()
 		start := time.Now()
+		metricServerRequestCounter.WithLabelValues(util.DeploymentName, callName).Inc()
+		metricServerInFlight.WithLabelValues(util.DeploymentName, callName).Inc()
+
 		var request Req
 		var response Resp
 
@@ -436,6 +467,17 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 			SendResponseOrError(w, response, err)
 		}
 
+		if err != nil {
+			if err.StatusCode >= 400 && err.StatusCode <= 499 {
+				metricServerResp4xx.WithLabelValues(util.DeploymentName, callName).Inc()
+			} else if err.StatusCode >= 500 && err.StatusCode <= 599 {
+				metricServerResp5xx.WithLabelValues(util.DeploymentName, callName).Inc()
+			}
+		}
+
+		metricServerInFlight.WithLabelValues(util.DeploymentName, callName).Dec()
+		metricServerRequestDuration.WithLabelValues(util.DeploymentName, callName).Observe(end.Sub(start).Seconds())
+
 		if AuditConsumer != nil {
 			stringProject := util.OptNone[string]()
 			if actor.Project.Present {
@@ -453,13 +495,14 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 					Port:     8080,
 				},
 				CausedBy:          util.OptNone[string](),
-				RequestName:       c.FullName(),
+				RequestName:       callName,
 				UserAgent:         util.OptStringIfNotEmpty(r.Header.Get("User-Agent")),
 				RemoteOrigin:      r.RemoteAddr,
 				Token:             util.Option[SecurityPrincipalToken]{},
 				ResponseTime:      uint64(end.Sub(start).Milliseconds()),
 				ResponseTimeNanos: uint64(end.Sub(start).Nanoseconds()),
 				Project:           stringProject,
+				ReceivedAt:        start,
 			}
 
 			token := SecurityPrincipalToken{
@@ -609,24 +652,114 @@ func (r Role) String() string {
 }
 
 type CorePrincipalBaseClaims struct {
-	Role                    string              `json:"role"`
-	Uid                     int                 `json:"uid"`
-	FirstNames              util.Option[string] `json:"firstNames"`
-	LastName                util.Option[string] `json:"lastName"`
-	Email                   util.Option[string] `json:"email"`
-	OrgId                   util.Option[string] `json:"orgId"`
-	TwoFactorAuthentication bool                `json:"twoFactorAuthentication"`
-	ServiceLicenseAgreement bool                `json:"serviceLicenseAgreement"`
-	PrincipalType           string              `json:"principalType"`
-	SessionReference        util.Option[string] `json:"publicSessionReference"`
-	ExtendedByChain         []string            `json:"extendedByChain"`
-	Membership              ProjectMembership   `json:"membership"`
-	Groups                  GroupMembership     `json:"groups"`
-	ProviderProjects        ProviderProjects    `json:"providerProjects"`
-	Domain                  string              `json:"domain"`
+	Role                    string                   `json:"role"`
+	Uid                     int                      `json:"uid"`
+	FirstNames              util.Option[string]      `json:"firstNames"`
+	LastName                util.Option[string]      `json:"lastName"`
+	Email                   util.Option[string]      `json:"email"`
+	OrgId                   util.Option[string]      `json:"orgId"`
+	TwoFactorAuthentication bool                     `json:"twoFactorAuthentication"`
+	ServiceLicenseAgreement bool                     `json:"serviceLicenseAgreement"`
+	PrincipalType           string                   `json:"principalType"`
+	SessionReference        util.Option[string]      `json:"publicSessionReference"`
+	ExtendedByChain         []string                 `json:"extendedByChain"`
+	Membership              ProjectMembership        `json:"membership"`
+	Groups                  GroupMembership          `json:"groups"`
+	ProviderProjects        ProviderProjects         `json:"providerProjects"`
+	AllocatorProjects       map[ProjectId]util.Empty `json:"allocatorProjects"`
+	Domain                  string                   `json:"domain"`
 }
 
 type CorePrincipalClaims struct {
 	CorePrincipalBaseClaims
 	jwt.RegisteredClaims
 }
+
+// Metrics
+// =====================================================================================================================
+
+var (
+	metricServerRequestCounter = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "rpc_server",
+		Name:      "requests_started",
+		Help:      "Number of requests received",
+	}, []string{"deployment", "name"})
+
+	metricServerResp4xx = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "rpc_server",
+		Name:      "request_client_errors",
+		Help:      "Number of requests that ended in client error (4xx).",
+	}, []string{"deployment", "name"})
+
+	metricServerResp5xx = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "rpc_server",
+		Name:      "request_server_errors",
+		Help:      "Number of requests that ended in server error (5xx).",
+	}, []string{"deployment", "name"})
+
+	metricServerInFlight = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: "ucloud",
+		Subsystem: "rpc_server",
+		Name:      "requests_in_flight",
+		Help:      "Number of requests currently in-flight",
+	}, []string{"deployment", "name"})
+
+	metricServerRequestDuration = promauto.NewSummaryVec(prometheus.SummaryOpts{
+		Namespace: "ucloud",
+		Subsystem: "rpc_server",
+		Name:      "requests_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to complete requests",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	}, []string{"deployment", "name"})
+)
+
+var (
+	metricClientRequestCounter = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "rpc_client",
+		Name:      "requests_started",
+		Help:      "Number of requests received",
+	}, []string{"deployment", "name"})
+
+	metricClientResp4xx = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "rpc_client",
+		Name:      "request_client_errors",
+		Help:      "Number of requests that ended in client error (4xx).",
+	}, []string{"deployment", "name"})
+
+	metricClientResp5xx = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "rpc_client",
+		Name:      "request_server_errors",
+		Help:      "Number of requests that ended in server error (5xx).",
+	}, []string{"deployment", "name"})
+
+	metricClientInFlight = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: "ucloud",
+		Subsystem: "rpc_client",
+		Name:      "requests_in_flight",
+		Help:      "Number of requests currently in-flight",
+	}, []string{"deployment", "name"})
+
+	metricClientRequestDuration = promauto.NewSummaryVec(prometheus.SummaryOpts{
+		Namespace: "ucloud",
+		Subsystem: "rpc_client",
+		Name:      "requests_duration_seconds",
+		Help:      "Summary of the duration (in seconds) it takes to complete requests",
+		Objectives: map[float64]float64{
+			0.5:  0.01,
+			0.75: 0.01,
+			0.95: 0.01,
+			0.99: 0.01,
+		},
+	}, []string{"deployment", "name"})
+)

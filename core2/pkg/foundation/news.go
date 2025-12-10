@@ -58,6 +58,13 @@ func initNews() {
 	fndapi.NewsGetPostById.Handler(func(info rpc.RequestInfo, request fndapi.GetPostByIdRequest) (fndapi.NewsPost, *util.HttpError) {
 		return NewsRetrieve(request.Id)
 	})
+
+	fndapi.NewsListDowntimes.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.Page[fndapi.NewsPost], *util.HttpError) {
+		return NewsBrowsePosts(fndapi.ListPostsRequest{
+			Filter:       util.OptValue("downtime"),
+			ItemsPerPage: 10,
+		})
+	})
 }
 
 // Core types and helpers
@@ -150,7 +157,7 @@ func NewsBrowsePosts(request fndapi.ListPostsRequest) (fndapi.Page[fndapi.NewsPo
 }
 
 func NewsBrowseCategories() ([]string, *util.HttpError) {
-	return db.NewTx(func(tx *db.Transaction) []string {
+	result := db.NewTx(func(tx *db.Transaction) []string {
 		rows := db.Select[struct {
 			Category string
 		}](
@@ -169,7 +176,8 @@ func NewsBrowseCategories() ([]string, *util.HttpError) {
 		}
 
 		return result
-	}), nil
+	})
+	return util.NonNilSlice(result), nil
 }
 
 func NewsRetrieve(id int64) (fndapi.NewsPost, *util.HttpError) {
@@ -264,7 +272,7 @@ func NewsDelete(request fndapi.DeleteNewsPostRequest) {
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
-			`delete from news.news where id = :id`,
+			`delete from news.news where id = :id::bigint`,
 			db.Params{
 				"id": request.Id,
 			},

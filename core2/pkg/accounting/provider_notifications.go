@@ -61,8 +61,6 @@ func initProviderNotifications() {
 			}
 
 			if projectOk {
-				log.Info("Project %v has been updated", project.Specification.Title)
-
 				projectWallets := internalRetrieveWallets(time.Now(), project.Id, walletFilter{RequireActive: true})
 				relevantProviders := map[string]util.Empty{}
 
@@ -91,8 +89,6 @@ func initProviderNotifications() {
 
 				}
 			} else if walletOk {
-				log.Info("Wallet has been updated: %v", walletId)
-
 				wallet, ok := internalRetrieveWallet(time.Now(), walletId, false)
 				if ok {
 					var allChannels []chan *accapi.WalletV2
@@ -361,6 +357,8 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 
 			projects.Counter++
 		} else if forced {
+			projects.ProjectIdToRef[project.Id] = ref
+			projects.RefToProject[ref] = project
 			projectsToSend[ref] = util.Empty{}
 		}
 

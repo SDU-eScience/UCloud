@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -58,7 +59,8 @@ type ApplicationCategory struct {
 }
 
 type AppCategoryMetadata struct {
-	Id int `json:"id"`
+	Id       int `json:"id"`
+	Priority int `json:"priority"`
 }
 
 type AppCategorySpecification struct {
@@ -267,7 +269,7 @@ var AppsUpload = rpc.Call[[]byte, util.Empty]{
 	Operation:   "upload",
 
 	CustomPath:   "/api/" + appCatalogNamespace + "/upload",
-	CustomMethod: http.MethodPost,
+	CustomMethod: http.MethodPut,
 
 	CustomClientHandler: func(self *rpc.Call[[]byte, util.Empty], client *rpc.Client, request []byte) (util.Empty, *util.HttpError) {
 		panic("Client not implemented")
@@ -289,8 +291,8 @@ var AppsUploadTool = rpc.Call[[]byte, util.Empty]{
 	Roles:       rpc.RolesAdmin,
 	Operation:   "upload",
 
-	CustomPath:   "/api/" + appCatalogNamespace + "/tools/upload",
-	CustomMethod: http.MethodPost,
+	CustomPath:   "/api/hpc/tools/upload",
+	CustomMethod: http.MethodPut,
 
 	CustomClientHandler: func(self *rpc.Call[[]byte, util.Empty], client *rpc.Client, request []byte) (util.Empty, *util.HttpError) {
 		panic("Client not implemented")

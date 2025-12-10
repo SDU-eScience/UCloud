@@ -6,6 +6,8 @@ import (
 	"net/http"
 
 	ws "github.com/gorilla/websocket"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -16,7 +18,13 @@ import (
 // projects. The last one is crucial, as the frontend will need to renew their JWT for updated permissions.
 
 func TaskListen(conn *ws.Conn) {
-	defer util.SilentClose(conn)
+	taskStreamActiveConnections.Inc()
+	taskStreamConnectionsTotal.Inc()
+
+	defer func() {
+		taskStreamActiveConnections.Dec()
+		util.SilentClose(conn)
+	}()
 
 	var herr *util.HttpError
 	var actor rpc.Actor
@@ -172,3 +180,22 @@ func TaskListen(conn *ws.Conn) {
 		}
 	}
 }
+
+// Metrics
+// =====================================================================================================================
+
+var (
+	taskStreamActiveConnections = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud",
+		Subsystem: "tasks",
+		Name:      "active_connections",
+		Help:      "Number of active connections.",
+	})
+
+	taskStreamConnectionsTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "ucloud",
+		Subsystem: "tasks",
+		Name:      "connections_total",
+		Help:      "Number of connections in total.",
+	})
+)

@@ -15,6 +15,7 @@ import (
 	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -99,9 +100,10 @@ type internalInviteLink struct {
 }
 
 type ProjectClaimsInfo struct {
-	Membership       rpc.ProjectMembership
-	Groups           rpc.GroupMembership
-	ProviderProjects rpc.ProviderProjects
+	Membership        rpc.ProjectMembership
+	Groups            rpc.GroupMembership
+	ProviderProjects  rpc.ProviderProjects
+	AllocatorProjects map[rpc.ProjectId]util.Empty
 }
 
 type projectProcessResult int
@@ -189,8 +191,15 @@ func initProjects() {
 		return util.Empty{}, nil
 	})
 
-	fndapi.ProjectUpdateSettings.Handler(func(info rpc.RequestInfo, request fndapi.ProjectSettings) (util.Empty, *util.HttpError) {
-		return util.Empty{}, ProjectUpdateSettings(info.Actor, request)
+	fndapi.ProjectToggleSubProjectRenamingSetting.Handler(func(info rpc.RequestInfo, request fndapi.ProjectToggleSubProjectRenamingSettingRequest) (util.Empty, *util.HttpError) {
+		if request.ProjectId == "" {
+			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Project ID required")
+		}
+		return util.Empty{}, ProjectUpdateSubProjectRenamingSettings(info.Actor, request)
+	})
+
+	fndapi.ProjectRetrieveSubProjectRenamingSetting.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.ProjectRetrieveSubProjectRenamingResponse, *util.HttpError) {
+		return ProjectRetrieveSubProjectRenaming(info.Actor)
 	})
 
 	fndapi.ProjectMemberChangeRole.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.ProjectMemberChangeRoleRequest]) (util.Empty, *util.HttpError) {
@@ -201,6 +210,14 @@ func initProjects() {
 			}
 		}
 		return util.Empty{}, nil
+	})
+
+	fndapi.ProjectCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.ProjectSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		response, err := ProjectCreate(info.Actor, request)
+		if err != nil {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+		}
+		return response, nil
 	})
 
 	fndapi.ProjectInternalCreate.Handler(func(info rpc.RequestInfo, request fndapi.ProjectInternalCreateRequest) (fndapi.FindByStringId, *util.HttpError) {
@@ -435,9 +452,9 @@ func ProjectBrowse(actor rpc.Actor, request fndapi.ProjectBrowseRequest) (fndapi
 
 		if sortBy == fndapi.ProjectSortByFavorite {
 			if a.Status.IsFavorite && !b.Status.IsFavorite {
-				cmpResult = -1
-			} else if !a.Status.IsFavorite && b.Status.IsFavorite {
 				cmpResult = 1
+			} else if !a.Status.IsFavorite && b.Status.IsFavorite {
+				cmpResult = -1
 			}
 		}
 
@@ -1550,6 +1567,7 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 			Recipient: recipient,
 		}
 	}
+	projectTitle := info.Project.Specification.Title
 	info.Mu.Unlock()
 
 	if !alreadyInvited && !alreadyAMember {
@@ -1573,6 +1591,19 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 				},
 			)
 		})
+
+		_, err = fndapi.NotificationsCreate.Invoke(fndapi.NotificationsCreateRequest{
+			User: recipient,
+			Notification: fndapi.Notification{
+				Type:    "PROJECT_INVITE",
+				Message: fmt.Sprintf("You have been inviteted to join %q by %s", projectTitle, actor.Username),
+			},
+		})
+
+		if err != nil {
+			log.Warn("Could not send notification to user %s: %s", recipient, err)
+		}
+
 		return nil
 	} else if alreadyInvited {
 		return util.HttpErr(http.StatusConflict, "this user has already been invited to the project")
@@ -1773,33 +1804,50 @@ func ProjectRenamingAllowed(actor rpc.Actor, projectId string) bool {
 	}
 }
 
-func ProjectUpdateSettings(actor rpc.Actor, settings fndapi.ProjectSettings) *util.HttpError {
-	_, iproject, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll, fndapi.ProjectRoleAdmin)
+func ProjectUpdateSubProjectRenamingSettings(actor rpc.Actor, request fndapi.ProjectToggleSubProjectRenamingSettingRequest) *util.HttpError {
+	_, iProject, err := projectRetrieve(actor, request.ProjectId, projectFlagsAll, fndapi.ProjectRoleAdmin)
 	if err != nil {
 		return err
 	}
 
-	iproject.Mu.Lock()
+	iProject.Mu.Lock()
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
 				update project.projects
 				set
-					subprojects_renameable = :renamable,
+					subprojects_renameable = not subprojects_renameable,
 					modified_at = now()
 				where
 					id = :project
 		    `,
 			db.Params{
-				"renamable": settings.SubProjects.AllowRenaming,
-				"project":   actor.Project.Value,
+				"project": request.ProjectId,
 			},
 		)
 	})
-	iproject.Project.Status.Settings.SubProjects.AllowRenaming = settings.SubProjects.AllowRenaming
-	iproject.Mu.Unlock()
+	iProject.Project.Status.Settings.SubProjects.AllowRenaming = !iProject.Project.Status.Settings.SubProjects.AllowRenaming
+	iProject.Mu.Unlock()
 	return nil
+}
+
+func ProjectRetrieveSubProjectRenaming(actor rpc.Actor) (fndapi.ProjectRetrieveSubProjectRenamingResponse, *util.HttpError) {
+	if !actor.Project.Present {
+		return fndapi.ProjectRetrieveSubProjectRenamingResponse{}, util.HttpErr(http.StatusBadRequest, "Only projects can have subprojects")
+	}
+
+	_, iProject, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll, fndapi.ProjectRoleAdmin)
+	if err != nil {
+		return fndapi.ProjectRetrieveSubProjectRenamingResponse{}, err
+	}
+
+	canRename := false
+	iProject.Mu.Lock()
+	canRename = iProject.Project.Status.Settings.SubProjects.AllowRenaming
+	iProject.Mu.Unlock()
+
+	return fndapi.ProjectRetrieveSubProjectRenamingResponse{Allowed: canRename}, nil
 }
 
 // Project star system and user-level info
@@ -1958,6 +2006,33 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 // Low-level functionality
 // =====================================================================================================================
 
+func ProjectCreate(actor rpc.Actor, request fndapi.BulkRequest[fndapi.ProjectSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+	var resp fndapi.BulkResponse[fndapi.FindByStringId]
+	for _, item := range request.Items {
+		if strings.HasPrefix(item.Title, "%") {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "Invalid project title")
+		}
+
+		if item.Parent.Present {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "Project cannot have a parent project")
+		}
+
+		id, err := ProjectCreateInternal(actor, fndapi.ProjectInternalCreateRequest{
+			Title:      item.Title,
+			BackendId:  util.SecureToken(),
+			PiUsername: actor.Username,
+		})
+
+		if err != nil {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+		}
+
+		resp.Responses = append(resp.Responses, fndapi.FindByStringId{Id: id})
+	}
+
+	return resp, nil
+}
+
 func ProjectCreateInternal(actor rpc.Actor, req fndapi.ProjectInternalCreateRequest) (string, *util.HttpError) {
 	_, ok := rpc.LookupActor(req.PiUsername)
 	if !ok {
@@ -1993,12 +2068,13 @@ func ProjectCreateInternal(actor rpc.Actor, req fndapi.ProjectInternalCreateRequ
 				`
 					insert into project.projects(id, created_at, modified_at, title, archived, parent, dmp, 
 						subprojects_renameable, can_consume_resources, provider_project_for, backend_id) 
-					values (:id, now(), now(), :title, false, null, null, false, true, null, :backend_id)
+					values (:id, now(), now(), :title, false, null, null, false, :can_consume_resources, null, :backend_id)
 				`,
 				db.Params{
-					"id":         resultId,
-					"title":      req.Title + suffix,
-					"backend_id": req.BackendId,
+					"id":                    resultId,
+					"title":                 req.Title + suffix,
+					"backend_id":            req.BackendId,
+					"can_consume_resources": !req.SubAllocator.GetOrDefault(false),
 				},
 			)
 
@@ -2253,8 +2329,9 @@ func ProjectRetrieveClaimsInfo(username string) ProjectClaimsInfo {
 	// this could cause an infinite loop. This function is used as part of building the actor/principal.
 
 	result := ProjectClaimsInfo{
-		Membership: make(rpc.ProjectMembership),
-		Groups:     make(rpc.GroupMembership),
+		Membership:        make(rpc.ProjectMembership),
+		Groups:            make(rpc.GroupMembership),
+		AllocatorProjects: make(map[rpc.ProjectId]util.Empty),
 	}
 
 	userInfo := projectRetrieveUserInfo(username)
@@ -2276,6 +2353,9 @@ func ProjectRetrieveClaimsInfo(username string) ProjectClaimsInfo {
 				if member.Username == username {
 					role.Set(rpc.ProjectRole(member.Role))
 				}
+			}
+			if !project.Project.Specification.CanConsumeResources {
+				result.AllocatorProjects[rpc.ProjectId(project.Project.Id)] = util.Empty{}
 			}
 			project.Mu.RUnlock()
 

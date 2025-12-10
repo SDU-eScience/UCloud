@@ -15,6 +15,7 @@ import (
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -404,11 +405,11 @@ func lResourceApplyFlags(r *resource, myPerms []orcapi.Permission, flags orcapi.
 		return result, false
 	}
 
-	if flags.FilterCreatedAfter.Present && r.CreatedAt.Before(flags.FilterCreatedAfter.Value.Time()) {
+	if flags.FilterCreatedAfter.Present && r.CreatedAt.Before(fndapi.TimeFromUnixMilli(flags.FilterCreatedAfter.Value).Time()) {
 		return result, false
 	}
 
-	if flags.FilterCreatedBefore.Present && r.CreatedAt.After(flags.FilterCreatedBefore.Value.Time()) {
+	if flags.FilterCreatedBefore.Present && r.CreatedAt.After(fndapi.TimeFromUnixMilli(flags.FilterCreatedBefore.Value).Time()) {
 		return result, false
 	}
 
@@ -644,6 +645,8 @@ func ResourceBrowse[T any](
 			resc, ok, perms := resourcesReadEx(actor, typeName, orcapi.PermissionRead, b, id, prefetchList)
 
 			if ok {
+				shouldBreak := false
+
 				b.Mu.RLock()
 				mapped, ok := lResourceApplyFlags(resc, perms, flags)
 				if ok {
@@ -651,7 +654,7 @@ func ResourceBrowse[T any](
 					if filter == nil || filter(item) {
 						if sortComparator == nil && len(items) >= itemsPerPage {
 							newNext.Set(fmt.Sprint(prevId))
-							break
+							shouldBreak = true
 						} else {
 							prevId = resc.Id
 							items = append(items, item)
@@ -659,6 +662,10 @@ func ResourceBrowse[T any](
 					}
 				}
 				b.Mu.RUnlock()
+
+				if shouldBreak {
+					break
+				}
 			}
 		}
 
@@ -723,7 +730,7 @@ func ResourceUpdate[T any](
 		b.Mu.Lock()
 		apiResc, ok := lResourceApplyFlags(resc, perms, orcapi.ResourceFlags{})
 		if !ok {
-			panic("resource was not supposed to be filtered here")
+			log.Fatal("resource was not supposed to be filtered here")
 		}
 		mapped := g.Transformer(apiResc, resc.Product, resc.Extra, orcapi.ResourceFlags{}, actor).(T)
 
@@ -778,7 +785,7 @@ func ResourceUpdate[T any](
 		if isDeleting {
 			// NOTE(Dan): There is technically a race-condition here where the resource may remain in the index, but
 			// it has already been deleted from the store. This is not super important since the only thing this does
-			// is to cause a brief load from the database to realise that it is in fact not in the store.
+			// is to cause a brief load from the database to realize that it is in fact not in the store.
 
 			idxBucket := resourceGetAndLoadIndex(typeName, rescOwnerRef)
 
@@ -1029,6 +1036,14 @@ func ResourceCreate[T any](
 	product util.Option[accapi.ProductReference],
 	extra any,
 ) (ResourceId, T, *util.HttpError) {
+	if actor.Project.Present {
+		_, isAllocator := actor.AllocatorProjects[actor.Project.Value]
+		if isAllocator {
+			var t T
+			return 0, t, util.HttpErr(http.StatusForbidden, "this project is not allowed to consume resources")
+		}
+	}
+
 	g := resourceGetGlobals(typeName)
 	if g.Flags&resourceTypeCreateWithoutAdmin == 0 {
 		if actor.Project.Present && !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
@@ -1057,12 +1072,12 @@ func ResourceConfirm(typeName string, id ResourceId) {
 	)
 }
 
-func ResourceDelete(actor rpc.Actor, typeName string, id ResourceId) {
-	ResourceUpdate[any](
+func ResourceDelete(actor rpc.Actor, typeName string, id ResourceId) bool {
+	return ResourceUpdate[any](
 		actor,
 		typeName,
 		id,
-		orcapi.PermissionAdmin,
+		orcapi.PermissionEdit,
 		func(r *resource, mapped any) {
 			r.Confirmed = true
 			r.MarkedForDeletion = true

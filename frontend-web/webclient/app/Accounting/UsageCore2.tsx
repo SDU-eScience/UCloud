@@ -392,7 +392,10 @@ const UsagePage: React.FunctionComponent = () => {
         const recommendedOverCommit = baselineChildBurnRate == 0 || daysUntilExpiration == 0 ? 0 :
             ((((r.kpis.quotaAtEnd * 0.9) - combinedUsage) / daysUntilExpiration) - localBurnRate) / baselineChildBurnRate;
 
-        const BalanceDisplay: (props: { value: number, children?: React.ReactNode }) => React.ReactNode = ({value, children}) => {
+        const BalanceDisplay: (props: {
+            value: number,
+            children?: React.ReactNode
+        }) => React.ReactNode = ({value, children}) => {
             return <div style={{display: "inline-block"}}>
                 <TooltipV2 tooltip={balanceToString(value, false, 1)}>
                     {balanceToString(value, true)}{children}
@@ -503,172 +506,182 @@ const UsagePage: React.FunctionComponent = () => {
                     </Flex>
                 </Card>
 
-                <Card flexBasis={300} borderRadius={8} padding={16} flexGrow={1} flexShrink={0}>
-                    <Box mb={"8px"}><b>Sub-project allocation summary</b></Box>
+                {r.subProjectHealth.subProjectCount == 0 ? null :
+                    <>
+                        <Card flexBasis={300} borderRadius={8} padding={16} flexGrow={1} flexShrink={0}>
+                            <Box mb={"8px"}><b>Sub-project allocation summary</b></Box>
 
-                    <table width={"100%"}>
-                        <tbody>
-                        <tr>
-                            <th align={"left"}>
-                                <TooltipV2 tooltip={<>
-                                    The total amount of resources allocated to your sub-projects.
+                            <table width={"100%"}>
+                                <tbody>
+                                <tr>
+                                    <th align={"left"}>
+                                        <TooltipV2 tooltip={<>
+                                            The total amount of resources allocated to your sub-projects.
 
-                                    <br/><br/>
+                                            <br/><br/>
 
-                                    This number counts all allocations which contributes towards your usage. Because of
-                                    this, allocations which have expired may still contribute some amount towards this
-                                    number.
-                                </>}>
-                                    Allocated:
-                                </TooltipV2>
-                            </th>
-                            <td align={"right"}>
-                                <BalanceDisplay value={r.kpis.totalAllocatedAtEnd} />
-                            </td>
-                        </tr>
-                        <tr>
-                            <th align={"left"}>
-                                <TooltipV2 tooltip={<>
-                                    The ratio between your allocated resources versus your quota.
-                                    <br/><br/>
-                                    Calculated as:{" "}
-                                    <pre style={{display: "inline-block", margin: "0"}}>Allocated / Quota</pre>
-                                    .
-                                </>}>
-                                    Over-commit:
-                                </TooltipV2>
-                            </th>
-                            <td align={"right"}>{overCommitRatio.toFixed(1)}x</td>
-                        </tr>
-                        <tr>
-                            <th align={"left"}>
-                                <TooltipV2 tooltip={<>
-                                    The recommended over-commit ratio to reach 90% utilization at the next expiry
-                                    date given your current burn-rate.
-                                </>}>
-                                    Rec. over-commit:
-                                </TooltipV2>
-                            </th>
-                            <td align={"right"}>{recommendedOverCommit === 0 ? "-" : <>{recommendedOverCommit.toFixed(1)}x</>}</td>
-                        </tr>
-                        </tbody>
-                    </table>
-                </Card>
+                                            This number counts all allocations which contributes towards your usage.
+                                            Because of this, allocations which have expired may still contribute some
+                                            amount towards this number.
+                                        </>}>
+                                            Allocated:
+                                        </TooltipV2>
+                                    </th>
+                                    <td align={"right"}>
+                                        <BalanceDisplay value={r.kpis.totalAllocatedAtEnd}/>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th align={"left"}>
+                                        <TooltipV2 tooltip={<>
+                                            The ratio between your allocated resources versus your quota.
+                                            <br/><br/>
+                                            Calculated as:{" "}
+                                            <pre style={{display: "inline-block", margin: "0"}}>Allocated / Quota</pre>
+                                            .
+                                        </>}>
+                                            Over-commit:
+                                        </TooltipV2>
+                                    </th>
+                                    <td align={"right"}>{overCommitRatio.toFixed(1)}x</td>
+                                </tr>
+                                <tr>
+                                    <th align={"left"}>
+                                        <TooltipV2 tooltip={<>
+                                            The recommended over-commit ratio to reach 90% utilization at the next
+                                            expiry date given your current burn-rate.
+                                        </>}>
+                                            Rec. over-commit:
+                                        </TooltipV2>
+                                    </th>
+                                    <td align={"right"}>{recommendedOverCommit === 0 ? "-" : <>{recommendedOverCommit.toFixed(1)}x</>}</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </Card>
 
-                <Card flexBasis={300} borderRadius={8} padding={16} flexGrow={1} flexShrink={0}>
-                    <Box mb={"8px"}><b>Sub-project health</b></Box>
-                    <table width={"100%"}>
-                        <tbody>
-                        <tr>
-                            <th align={"left"}>Healthy:</th>
-                            <td align={"right"} width={"42px"}>
-                                {((r.subProjectHealth.ok / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
-                            </td>
-                        </tr>
-                        <tr>
-                            <th align={"left"}>Underutilized:</th>
-                            <td align={"right"} width={"42px"}>
-                                {((r.subProjectHealth.underUtilized / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
-                            </td>
-                        </tr>
-                        <tr>
-                            <th align={"left"}>At risk:</th>
-                            <td align={"right"} width={"42px"}>
-                                {((r.subProjectHealth.atRisk / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
-                            </td>
-                        </tr>
-                        </tbody>
-                    </table>
-                </Card>
+                        <Card flexBasis={300} borderRadius={8} padding={16} flexGrow={1} flexShrink={0}>
+                            <Box mb={"8px"}><b>Sub-project health</b></Box>
+                            <table width={"100%"}>
+                                <tbody>
+                                <tr>
+                                    <th align={"left"}>Healthy:</th>
+                                    <td align={"right"} width={"42px"}>
+                                        {((r.subProjectHealth.ok / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th align={"left"}>Underutilized:</th>
+                                    <td align={"right"} width={"42px"}>
+                                        {((r.subProjectHealth.underUtilized / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th align={"left"}>At risk:</th>
+                                    <td align={"right"} width={"42px"}>
+                                        {((r.subProjectHealth.atRisk / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </Card>
+                    </>
+                }
             </Flex>
 
 
-            <Card>
-                <h3>Usage breakdown</h3>
-                <Flex flexWrap={"wrap"} gap={"16px"}>
-                    <svg ref={breakdownChart.chartRef} width={breakdownChartWidth} height={breakdownChartHeight}
-                         style={{flexShrink: 0, flexBasis: breakdownChartWidth}}/>
+            {r.subProjectHealth.subProjectCount === 0 ? null :
+                <Card>
+                    <h3>Usage breakdown</h3>
+                    <Flex flexWrap={"wrap"} gap={"16px"}>
+                        <svg ref={breakdownChart.chartRef} width={breakdownChartWidth} height={breakdownChartHeight}
+                             style={{flexShrink: 0, flexBasis: breakdownChartWidth}}/>
 
-                    <div className={TableStyle} style={{flexBasis: "500px"}}>
-                        <table>
-                            <thead>
-                            <tr>
-                                <th/>
-                                <th>Project</th>
-                                <th>Usage</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {breakdownChart.table.map(row => <tr key={row.child}>
-                                <td align={"center"}>
-                                    <Box width={14} height={14} flexShrink={0} style={{background: row.color}}/>
-                                </td>
-                                <td>{childToLabel(row.child)}</td>
-                                <td align={"right"}>{balanceToString(row.value)}</td>
-                            </tr>)}
-
-                            </tbody>
-                        </table>
-                    </div>
-                </Flex>
-            </Card>
-
-            <Card>
-                <h3>Change in usage over time</h3>
-                <svg ref={deltaOverTime.chartRef} width={deltaChartWidth} height={chartHeight(deltaChartWidth)}/>
-                <Flex flexWrap={"wrap"} gap={"16px"} ml={40} fontSize={"80%"}>
-                    {deltaOverTime.labels.map(label =>
-                        <Flex key={label.child} gap={"4px"} alignItems={"center"}>
-                            <Box width={14} height={14} flexShrink={0} style={{background: label.color}}/>
-                            <div>{childToLabel(label.child)}</div>
-                        </Flex>
-                    )}
-                </Flex>
-            </Card>
-
-            <Card>
-                <h3>Utilization over time</h3>
-                <Flex flexWrap={"wrap"} gap={"16px"}>
-                    <svg ref={utilizationOverTime.chartRef} width={utilizationChartWidth}
-                         height={utilizationChartHeight}/>
-
-                    <div className={TableStyle} style={{flexBasis: "380px"}}>
-                        <table>
-                            <thead>
-                            <tr>
-                                <th style={{width: "60px"}}/>
-                                {utilizationOverTime.rows.map(row => <th key={row.title} style={{width: "150px"}}>
-                                    <Flex gap={"8px"} alignItems={"center"}>
+                        <div className={TableStyle} style={{flexBasis: "500px"}}>
+                            <table>
+                                <thead>
+                                <tr>
+                                    <th/>
+                                    <th>Project</th>
+                                    <th>Usage</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {breakdownChart.table.map(row => <tr key={row.child}>
+                                    <td align={"center"}>
                                         <Box width={14} height={14} flexShrink={0} style={{background: row.color}}/>
-                                        {row.title}
-                                    </Flex>
-                                </th>)}
-                            </tr>
-                            </thead>
-                            <tbody>
-                            <tr>
-                                <td><b>Min</b></td>
-                                {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
-                                    {row.min}
-                                </td>)}
-                            </tr>
-                            <tr>
-                                <td><b>Max</b></td>
-                                {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
-                                    {row.max}
-                                </td>)}
-                            </tr>
-                            <tr>
-                                <td><b>Mean</b></td>
-                                {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
-                                    {row.mean}
-                                </td>)}
-                            </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </Flex>
-            </Card>
+                                    </td>
+                                    <td>{childToLabel(row.child)}</td>
+                                    <td align={"right"}>{balanceToString(row.value)}</td>
+                                </tr>)}
+
+                                </tbody>
+                            </table>
+                        </div>
+                    </Flex>
+                </Card>
+            }
+
+            {r.usageOverTime.delta.length <= 1 ? null :
+                <Card>
+                    <h3>Change in usage over time</h3>
+                    <svg ref={deltaOverTime.chartRef} width={deltaChartWidth} height={chartHeight(deltaChartWidth)}/>
+                    <Flex flexWrap={"wrap"} gap={"16px"} ml={40} fontSize={"80%"}>
+                        {deltaOverTime.labels.map(label =>
+                            <Flex key={label.child} gap={"4px"} alignItems={"center"}>
+                                <Box width={14} height={14} flexShrink={0} style={{background: label.color}}/>
+                                <div>{childToLabel(label.child)}</div>
+                            </Flex>
+                        )}
+                    </Flex>
+                </Card>
+            }
+
+            {r.usageOverTime.absolute.length <= 1 ? null :
+                <Card>
+                    <h3>Utilization over time</h3>
+                    <Flex flexWrap={"wrap"} gap={"16px"}>
+                        <svg ref={utilizationOverTime.chartRef} width={utilizationChartWidth}
+                             height={utilizationChartHeight}/>
+
+                        <div className={TableStyle} style={{flexBasis: "380px"}}>
+                            <table>
+                                <thead>
+                                <tr>
+                                    <th style={{width: "60px"}}/>
+                                    {utilizationOverTime.rows.map(row => <th key={row.title} style={{width: "150px"}}>
+                                        <Flex gap={"8px"} alignItems={"center"}>
+                                            <Box width={14} height={14} flexShrink={0} style={{background: row.color}}/>
+                                            {row.title}
+                                        </Flex>
+                                    </th>)}
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td><b>Min</b></td>
+                                    {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
+                                        {row.min}
+                                    </td>)}
+                                </tr>
+                                <tr>
+                                    <td><b>Max</b></td>
+                                    {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
+                                        {row.max}
+                                    </td>)}
+                                </tr>
+                                <tr>
+                                    <td><b>Mean</b></td>
+                                    {utilizationOverTime.rows.map(row => <td key={row.title} align={"right"}>
+                                        {row.mean}
+                                    </td>)}
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </Flex>
+                </Card>
+            }
         </>
     }
 

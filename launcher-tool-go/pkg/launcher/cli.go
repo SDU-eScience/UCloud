@@ -1,10 +1,14 @@
 package launcher
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"slices"
 	"strings"
+	"time"
+
 	"ucloud.dk/launcher/pkg/termio"
 )
 
@@ -56,7 +60,7 @@ func CliIntercept(args []string) {
 		}
 		service := ServiceByName(svcName)
 		if service.containerName == "" || service.title == "" {
-			fmt.Println("Unknown service:", svcName, "! Try on of the following:")
+			fmt.Println("Unknown service:", svcName, "! Try one of the following:")
 			for _, ser := range AllServices {
 				fmt.Println("  - ", ser.containerName, ": ", ser.title)
 			}
@@ -173,6 +177,9 @@ func CliIntercept(args []string) {
 			EnvironmentDelete(true)
 		case "restart":
 			EnvironmentRestart()
+		default:
+			fmt.Printf("Unrecognized command '%s'. Exiting.\n", envCommand)
+			os.Exit(0)
 		}
 
 	case "import-apps":
@@ -218,6 +225,368 @@ func CliIntercept(args []string) {
 			PrintHelp()
 		}
 		RestoreSnapshot(snapshotName)
+
+	case "test":
+		RunTests(args)
+	default:
+		fmt.Printf("Unknown command '%s'\n", cmd)
 	}
 	os.Exit(0)
+}
+
+func RunTests(args []string) {
+	// Create one user
+	withResourceUsername := "user-resources"
+	withResourcePassword := "user-resources-password"
+	locationOrigin := "https://ucloud.localhost.direct/"
+
+	newUserWithResources := createUser(withResourceUsername, withResourcePassword, "USER")
+	if newUserWithResources != nil {
+		newUserWithResources.SetupUserWithResources()
+	}
+
+	withNoResourcesUsername := "user-no-resources"
+	withNoResourcesPassword := "user-no-resources-password"
+	createUser(withNoResourcesUsername, withNoResourcesPassword, "USER")
+
+	pathToTestInfo := repoRoot.GetAbsolutePath() + "/frontend-web/webclient/tests/test_data.json"
+	if err := os.WriteFile(pathToTestInfo, fmt.Appendf(nil, `{
+		"location_origin": "%s",
+		"users": {
+			"with_resources": {
+				"username": "%s",
+				"password": "%s"
+			},
+			"without_resources": {
+				"username": "%s",
+				"password": "%s"
+			}
+		}
+	}`, locationOrigin, withResourceUsername, withResourcePassword, withNoResourcesUsername, withNoResourcesPassword), 0777); err != nil {
+		panic(err)
+	}
+
+	var success = false
+	for range 240 {
+		resp, err := http.Get(locationOrigin)
+		if err != nil {
+			fmt.Println("Polling frontend failed. Retrying in 20 seconds, err:", err)
+			time.Sleep(20 * time.Second)
+			continue
+		} else if resp.StatusCode == 200 {
+			success = true
+			break
+		}
+	}
+	if !success {
+		fmt.Println("Failed to get a 200 from the frontend. Quitting.")
+		os.Exit(1)
+	}
+	startPlaywright(args)
+}
+
+func startPlaywright(args []string) {
+	runFrontendCommand([]string{"npx", "playwright", "install", "--with-deps"}, false)
+	statusCode := runFrontendCommand(testCommandFromArgs(args), true)
+	os.Exit(statusCode)
+}
+
+func createResourcesAndGifts() int {
+	createRootAllocation()
+	return createGift()
+}
+
+func (u *UserTokens) SetupUserWithResources() {
+	if u != nil {
+		// User didn't exist, so create root allocation, gift and have user claim the gift.
+		giftId := createResourcesAndGifts()
+		connectionResult := CallService("backend", "POST", "http://localhost:8080/api/providers/integration/connect", u.AccessToken, fmt.Sprintf(`{provider: "%s"}`, getProviderId()), []string{})
+		panicOnResponseError(connectionResult)
+		claimGifts(u.AccessToken, giftId)
+
+		disableNotificationsResult := CallService("backend", "POST", "http://localhost:8080/api/notifications/settings", u.AccessToken, `{"jobStarted":false,"jobStopped":false}`, []string{})
+		panicOnResponseError(disableNotificationsResult)
+	}
+}
+
+func createGift() int {
+	result := CallService("backend", "POST", "http://localhost:8080/api/gifts", FetchAccessToken(true), fmt.Sprintf(`{
+		"id": 0,
+		"criteria": [{"type": "anyone"}],
+		"description": "Testing purposes",
+		"resources": [
+			{
+				"balanceRequested": 1000,
+				"category": "public-ip",
+				"grantGiver": "",
+				"period": {
+					"end": 0,
+					"start": 0
+				},
+				"provider": "gok8s"
+			},
+			{
+				"balanceRequested": 1000,
+				"category": "storage",
+				"grantGiver": "",
+				"period": {
+					"end": 0,
+					"start": 0
+				},
+				"provider": "gok8s"
+			},
+			{
+				"balanceRequested": 60000,
+				"category": "u1-standard",
+				"grantGiver": "",
+				"period": {
+					"end": 0,
+					"start": 0
+				},
+				"provider": "gok8s"
+			},
+			{
+				"balanceRequested": 60000,
+				"category": "u2-standard",
+				"grantGiver": "",
+				"period": {
+					"end": 0,
+					"start": 0
+				},
+				"provider": "gok8s"
+			}
+		],
+		"resourcesOwnedBy": "%s",
+		"title": "Gift for testing accounts",
+		"renewEvery": 0
+	}`, getRootProjectId()), []string{"-H", "Project: " + getRootProjectId()})
+
+	panicOnResponseError(result)
+
+	var createGiftResult struct {
+		Id int `json:"id"`
+	}
+	_ = json.Unmarshal([]byte(result), &createGiftResult)
+	return createGiftResult.Id
+}
+
+func panicOnResponseError(stringyJSON string) {
+	var errorResponse ErrorMessage
+	_ = json.Unmarshal([]byte(stringyJSON), &errorResponse)
+	if errorResponse.Why != "" {
+		panic(errorResponse.Why)
+	}
+}
+
+func claimGifts(bearer string, id int) {
+	claimResult := CallService("backend", "POST", "http://localhost:8080/api/gifts/claim", bearer, `{giftId: `+fmt.Sprint(id)+`}`, []string{})
+	panicOnResponseError(claimResult)
+	fmt.Println("Claimed gifts result: ", claimResult)
+
+	availableResult := CallService("backend", "GET", "localhost:8080/api/gifts/available", bearer, "", []string{})
+	fmt.Println("available: ", availableResult)
+}
+
+type UserTokens struct {
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken"`
+	CsrfToken    string `json:"csrfToken"`
+}
+
+type ErrorMessage struct {
+	Why string `json:"why"`
+}
+
+func createUser(username string, password string, role string) *UserTokens {
+	accessToken := FetchAccessToken(true)
+	mail := username + "@fake-mail.com"
+	response := CallService(
+		"backend",
+		"POST",
+		"http://localhost:8080/auth/users/register",
+		accessToken,
+		`[{firstnames: `+username+`, lastname: `+username+`, username: `+username+`, password: `+password+`,  role: `+role+`, email: `+mail+`}]`,
+		[]string{},
+	)
+
+	var errorMessage ErrorMessage
+
+	_ = json.Unmarshal([]byte(response), &errorMessage)
+
+	if errorMessage.Why != "" {
+		if strings.Contains(errorMessage.Why, "Conflict") {
+			fmt.Printf("User '%s' already exists. Proceeding.\n", username)
+			return nil
+		} else {
+			panic("Unhandled error: " + errorMessage.Why + ". Bailing")
+		}
+	}
+
+	var userTokens []UserTokens
+
+	fmt.Printf("User '%s' created\n", username)
+	_ = json.Unmarshal([]byte(response), &userTokens)
+	return &userTokens[0]
+}
+
+func runFrontendCommand(args []string, allowFailure bool) int {
+	fmt.Println(strings.Join(args, " "))
+	cmd := NewLocalExecutableCommand(args, LocalFile{path: "../frontend-web/webclient/"}, PostProcessorFunc)
+	if allowFailure {
+		cmd.SetAllowFailure()
+	}
+	cmd.SetStreamOutput()
+	result := cmd.ExecuteToText()
+	if result.First != "" {
+		fmt.Println(result.First)
+	}
+	return result.StatusCode
+}
+
+func testCommandFromArgs(args []string) []string {
+	cmdToRun := []string{"npx", "playwright"}
+	if len(args) > 1 {
+		arg := args[1]
+
+		switch arg {
+		case "ui":
+			cmdToRun = append(cmdToRun, "test", "--ui")
+		case "headed":
+			cmdToRun = append(cmdToRun, "test", "--headed")
+		case "show-report":
+			cmdToRun = append(cmdToRun, "show-report")
+		default:
+			panic("Unknown argument for testing: '" + arg + "'")
+		}
+	} else {
+		// Default that should run on CI
+		cmdToRun = append(cmdToRun, "test")
+	}
+	return cmdToRun
+}
+
+func createRootAllocation() {
+	allocResponse := CallService("backend", "POST", "localhost:8080/api/accounting/v2/rootAllocate", FetchAccessToken(true), `{
+		"items": [
+			{
+				"category": {
+					"name": "public-ip",
+					"provider": "gok8s"
+				},
+				"end": 1767225599999,
+				"quota": 1000,
+				"start": 1735689600000
+			},
+			{
+				"category": {
+					"name": "storage",
+					"provider": "gok8s"
+				},
+				"end": 1767225599999,
+				"quota": 1000,
+				"start": 1735689600000
+			},
+			{
+				"category": {
+					"name": "u1-standard",
+					"provider": "gok8s"
+				},
+				"end": 1767225599999,
+				"quota": 60000,
+				"start": 1735689600000
+			},
+			{
+				"category": {
+					"name": "u2-standard",
+					"provider": "gok8s"
+				},
+				"end": 1767225599999,
+				"quota": 60000,
+				"start": 1735689600000
+			}
+		]
+	}`, []string{"-H", "Project: " + getRootProjectId()})
+
+	panicOnResponseError(allocResponse)
+	fmt.Printf("Root allocation: %s\n", allocResponse)
+}
+
+var providerId string = ""
+
+func getProviderId() string {
+	type Provider struct {
+		Provider      string `json:"provider"`
+		ProviderTitle string `json:"providerTitle"`
+	}
+
+	type ProviderResult struct {
+		Items []Provider `json:"items"`
+	}
+
+	if providerId != "" {
+		return providerId
+	}
+
+	for range 240 {
+
+		result := CallService("backend", "GET", "localhost:8080/api/providers/integration/browse?itemsPerPage=250", FetchAccessToken(true), "", []string{})
+		panicOnResponseError(result)
+
+		var providerResult ProviderResult
+		fmt.Println("list of providers", result)
+		_ = json.Unmarshal([]byte(result), &providerResult)
+
+		if len(providerResult.Items) == 0 {
+			fmt.Println("Provider list is empty. Sleeping and retrying")
+			time.Sleep(20 * time.Second)
+			continue
+		}
+
+		for _, provider := range providerResult.Items {
+			if provider.ProviderTitle == "gok8s" {
+				providerId = provider.Provider
+				return providerId
+			}
+		}
+	}
+
+	return providerId
+}
+
+var rootProjectId string = ""
+
+func getRootProjectId() string {
+	type ProjectSpecification struct {
+		Title string `json:"title"`
+	}
+
+	type Project struct {
+		Id            string               `json:"id"`
+		Specification ProjectSpecification `json:"specification"`
+	}
+
+	REQUIRED_PROJECT := "Provider gok8s"
+
+	if rootProjectId != "" {
+		return rootProjectId
+	}
+
+	// Note(Jonas): This has failed exactly once for me, I do not know why
+	result := CallService("backend", "GET", "localhost:8080/api/projects/v2/browse?itemsPerPage=250&includeFavorite=true&includeMembers=true&sortBy=favorite&sortDirection=descending&includeArchived=true", FetchAccessToken(true), "", []string{})
+
+	var projectBrowseResponse struct {
+		Items []Project `json:"items"`
+	}
+	_ = json.Unmarshal([]byte(result), &projectBrowseResponse)
+
+	for _, project := range projectBrowseResponse.Items {
+		if project.Specification.Title == REQUIRED_PROJECT {
+			rootProjectId = project.Id
+			return rootProjectId
+		}
+	}
+
+	fmt.Printf("ERROR: Required provider '%s' not found. Exiting\n", REQUIRED_PROJECT)
+	os.Exit(0)
+	return ""
 }

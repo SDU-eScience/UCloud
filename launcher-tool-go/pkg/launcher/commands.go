@@ -15,6 +15,10 @@ import (
 
 var PostExecFile *os.File
 
+func RestartOnExit() {
+	PostExecFile.WriteString("\n " + GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
+}
+
 func WriteCerts(localPath string) {
 	curr := currentEnvironment
 	curr.MkDirs()
@@ -170,7 +174,7 @@ func CreateProvider(providerName string) {
 		HardCheck(err)
 
 		err = termio.LoadingIndicator("Granting credits to provider project", func() error {
-			accessToken := FetchAccessToken()
+			accessToken := FetchAccessToken(true)
 			response := CallService(
 				"backend",
 				"GET",
@@ -333,7 +337,7 @@ func ImportApps() {
 			"backend",
 			"POST",
 			"http://localhost:8080/api/hpc/apps/devImport",
-			FetchAccessToken(),
+			FetchAccessToken(true),
 			`
 				{
 					"endpoint": "https://launcher-assets.cloud.sdu.dk/`+checksum+`.zip",
@@ -426,14 +430,10 @@ func CallService(
 		"Authorization: Bearer " + bearer,
 	}
 	if body != "" {
-		list = append(list, "-H")
-		list = append(list, "Content-Type: application/json")
-		list = append(list, "-d")
-		list = append(list, body)
-
+		list = append(list, []string{"-H", "Content-Type: application/json", "-d", body}...)
 	} else {
 		list = append(list, "-d")
-		list = append(list, "")
+		list = append(list, "") // ???
 	}
 
 	list = append(list, opts...)
@@ -478,9 +478,9 @@ func GetCredentialsFromJSON(response string) (publicKey string, refreshToken str
 	return bresp.Items[0].PublicKey, bresp.Items[0].RefreshToken
 }
 
-func FetchAccessToken() string {
+func FetchAccessToken(emptyResponseIsFatal bool) string {
 	tokenJson := CallService("backend", "POST", "http://localhost:8080/auth/refresh", "theverysecretadmintoken", "", []string{})
-	if tokenJson == "" {
+	if emptyResponseIsFatal && tokenJson == "" {
 		panic("Failed to contact UCloud/Core backend. Check to see if the backend service is running.")
 	}
 	var accessToken AccessTokenWrapper
@@ -490,7 +490,7 @@ func FetchAccessToken() string {
 }
 
 func RegisterProvider(providerId string, domain string, port int) ProviderCredentials {
-	accessToken := FetchAccessToken()
+	accessToken := FetchAccessToken(true)
 	resp := CallService(
 		"backend",
 		"POST",

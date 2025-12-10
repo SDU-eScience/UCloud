@@ -133,15 +133,15 @@ db.NewTx0(func(tx *db.Transaction) {
 */
 
 var (
-	metricDatabaseTransactionsInFlight = promauto.NewGauge(prometheus.GaugeOpts{
-		Namespace: "ucloud_im",
+	metricDatabaseTransactionsInFlight = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: "ucloud",
 		Subsystem: "database",
 		Name:      "transactions_in_flight",
 		Help:      "Number of database transactions in flight",
-	})
+	}, []string{"deployment"})
 
-	metricDatabaseTransactionsDuration = promauto.NewSummary(prometheus.SummaryOpts{
-		Namespace: "ucloud_im",
+	metricDatabaseTransactionsDuration = promauto.NewSummaryVec(prometheus.SummaryOpts{
+		Namespace: "ucloud",
 		Subsystem: "database",
 		Name:      "transactions_duration_seconds",
 		Help:      "Summary of the duration (in seconds) it takes to make database transactions",
@@ -151,10 +151,10 @@ var (
 			0.95: 0.01,
 			0.99: 0.01,
 		},
-	})
+	}, []string{"deployment"})
 
 	metricDatabaseQueryDuration = promauto.NewSummaryVec(prometheus.SummaryOpts{
-		Namespace: "ucloud_im",
+		Namespace: "ucloud",
 		Subsystem: "database",
 		Name:      "query_duration",
 		Help:      "Summary of a single query by its source-code origin",
@@ -164,7 +164,7 @@ var (
 			0.95: 0.01,
 			0.99: 0.01,
 		},
-	}, []string{"file", "line"})
+	}, []string{"deployment", "file", "line"})
 )
 
 type Params map[string]any
@@ -226,11 +226,12 @@ func NewTx3[A, B, C any](fn func(tx *Transaction) (A, B, C)) (A, B, C) {
 }
 
 func NewTx[T any](fn func(tx *Transaction) T) T {
-	metricDatabaseTransactionsInFlight.Inc()
+	inFlight := metricDatabaseTransactionsInFlight.WithLabelValues(util.DeploymentName)
+	inFlight.Inc()
 	start := time.Now()
 	result := continueTx(Database, fn)
-	metricDatabaseTransactionsInFlight.Dec()
-	metricDatabaseTransactionsDuration.Observe(float64(time.Now().Sub(start).Seconds()))
+	inFlight.Dec()
+	metricDatabaseTransactionsDuration.WithLabelValues(util.DeploymentName).Observe(float64(time.Now().Sub(start).Seconds()))
 	return result
 }
 
@@ -372,7 +373,7 @@ func Exec(ctx *Transaction, query string, args Params) {
 		ctx.error = fmt.Errorf("Database exec failed: %v\nquery: %v\nreal query: %v\nArgs: %#v\nTransformed: %#v\n", err.Error(), query, statement, args, parameters)
 	}
 	end := time.Now()
-	metricDatabaseQueryDuration.WithLabelValues(caller.File, fmt.Sprint(caller.Line)).Observe(end.Sub(start).Seconds())
+	metricDatabaseQueryDuration.WithLabelValues(util.DeploymentName, caller.File, fmt.Sprint(caller.Line)).Observe(end.Sub(start).Seconds())
 }
 
 func Get[T any](ctx *Transaction, query string, args Params) (T, bool) {
@@ -414,7 +415,7 @@ func SelectEx[T any](caller util.FileAndLine, ctx *Transaction, query string, ar
 	}
 
 	end := time.Now()
-	metricDatabaseQueryDuration.WithLabelValues(caller.File, fmt.Sprint(caller.Line)).Observe(end.Sub(start).Seconds())
+	metricDatabaseQueryDuration.WithLabelValues(util.DeploymentName, caller.File, fmt.Sprint(caller.Line)).Observe(end.Sub(start).Seconds())
 	return result
 }
 
@@ -592,7 +593,7 @@ func BatchSend(batch *Batch) {
 	}
 
 	end := time.Now()
-	metricDatabaseQueryDuration.WithLabelValues(caller.File, fmt.Sprint(caller.Line)).Observe(end.Sub(start).Seconds())
+	metricDatabaseQueryDuration.WithLabelValues(util.DeploymentName, caller.File, fmt.Sprint(caller.Line)).Observe(end.Sub(start).Seconds())
 }
 
 const listenMaxRecentFailures = 10

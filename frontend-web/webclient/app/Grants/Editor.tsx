@@ -10,7 +10,13 @@ import {usePage} from "@/Navigation/Redux";
 import {isAdminOrPI, Project} from "@/Project";
 import * as Projects from "@/Project/Api";
 import {useProjectId} from "@/Project/Api";
-import {ProjectTitleForNewCore} from "@/Project/InfoCache";
+import {
+    projectInfosTitle,
+    projectInfoTitle,
+    ProjectTitle,
+    ProjectTitleForNewCore,
+    useProjectInfos
+} from "@/Project/InfoCache";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import AppRoutes from "@/Routes";
@@ -341,7 +347,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     recipient: action.grant.currentRevision.document.recipient,
                     recipientInfo: {
                         piUsername: action.grant.status.projectPI,
-                        workspaceTitle: action.grant.status.projectTitle ?? "Personal workspace",
+                        workspaceTitle: action.grant.status.projectTitle ?? "Personal workspace of " + action.grant.createdBy,
                     },
                     comments: action.grant.status.comments,
                     revisions: action.grant.status.revisions.map(rev => ({
@@ -807,7 +813,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         const normalizedStart = (startDate.getUTCFullYear() * 12) + (startDate.getUTCMonth() + 1);
         const normalizedEnd = (endDate.getUTCFullYear() * 12) + (endDate.getUTCMonth() + 1);
 
-        const projectPi = state.stateDuringEdit.recipientInfo.piUsername;
+        let projectPi = state.stateDuringEdit.recipientInfo.piUsername;
+        if (projectPi === "") {
+            projectPi = state.stateDuringEdit.storedApplication?.createdBy ?? "";
+        }
         let recipientName: string;
         switch (doc.recipient.type) {
             case "existingProject": {
@@ -1374,7 +1383,7 @@ export function Editor(): React.ReactNode {
                 case "applicantInitiated": {
                     const projectId = getQueryParam(location.search, "projectId");
 
-                    await dispatchEvent({type: "Init"});
+                    await dispatchEvent({type: "Init", affiliationRequest: {type: "ExistingProject", id: projectId ?? ""}});
                     dispatchEvent({type: "RecipientUpdated", isCreatingNewProject: false, reference: projectId ?? undefined})
                     dispatchEvent({type: "UpdateFullScreenLoading", isLoading: false});
                     break;
@@ -1786,7 +1795,7 @@ export function Editor(): React.ReactNode {
                                     </Button>
                                 }
 
-                                {state.stateDuringEdit && (overallState === Grants.State.IN_PROGRESS || isClosed) && <>
+                                {state.stateDuringEdit && (overallState === Grants.State.IN_PROGRESS || overallState === Grants.State.APPROVED) && <>
                                     {state.locked && <Button onClick={onUnlock}>Edit this request</Button>}
                                     {!state.locked && <>
                                         {!isGrantGiverInitiated &&
@@ -1847,7 +1856,7 @@ export function Editor(): React.ReactNode {
                                 </>}
                             >
                                 <label>
-                                    Principal investigator (PI)
+                                    Application submitted by
                                     <Input id={FormIds.pi} height="42px" disabled value={state.principalInvestigator} />
                                 </label>
 
@@ -2082,7 +2091,9 @@ export function Editor(): React.ReactNode {
                                                             <div className={"allocation-row"}>
                                                                 <label>
                                                                     {unit.name} requested
-                                                                    {checkedAllocators.length > 1 && <> from {allocator.grantGiverTitle}</>}
+                                                                    {checkedAllocators.length > 1 &&
+                                                                        <> from <ProjectTitleForNewCore id={allocator.grantGiverId} title={allocator.grantGiverTitle} /></>
+                                                                    }
 
                                                                     <Input
                                                                         id={`${providerId}/${category.category.name}/${allocator.grantGiverId}`}
@@ -2104,7 +2115,7 @@ export function Editor(): React.ReactNode {
                                                             <div className={"allocation-row"}>
                                                                 <label>
                                                                     {unit.name} requested
-                                                                    {checkedAllocators.length > 1 && <> from {allocatorName}</>}
+                                                                    {checkedAllocators.length > 1 && <> from <ProjectTitleForNewCore id={allocator!.grantGiverId} title={allocatorName} /></>}
 
                                                                     <Input
                                                                         id={`${providerId}/${category.category.name}/${allocator.grantGiverId}`}
@@ -2169,13 +2180,15 @@ const TransferPrompt: React.FunctionComponent<{
         onTransfer(select.value, comment.value);
     }, [onTransfer]);
 
+    const projectInfo = useProjectInfos(allocators.map(it => it.id));
+
     return <form onSubmit={onSubmit} style={{display: "flex", flexDirection: "column", gap: "8px"}}>
         <label htmlFor={"project-transfer-target"}>
             Transfer target
         </label>
         <Select selectRef={selectRef} id={"project-transfer-target"}>
             {!allocators.length && <option value={"null"}>No suitable targets found</option>}
-            {allocators.map(it => <option key={it.id} value={it.id}>{it.title}</option>)}
+            {allocators.map(it => <option key={it.id} value={it.id}>{projectInfosTitle(projectInfo, it.id, it.title)}</option>)}
         </Select>
 
         <label htmlFor={"project-transfer-comment"}>Reason for transferring</label>
