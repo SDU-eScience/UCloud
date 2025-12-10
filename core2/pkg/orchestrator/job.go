@@ -1145,7 +1145,7 @@ func JobsSearch(
 	itemsPerPage int,
 	flags orcapi.JobFlags,
 ) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
-	return ResourceBrowse(
+	return jobsProcessFlags(ResourceBrowse(
 		actor,
 		jobType,
 		next,
@@ -1172,7 +1172,30 @@ func JobsSearch(
 			return false
 		},
 		nil,
-	), nil
+	), flags), nil
+}
+
+func jobsProcessFlags(
+	page fndapi.PageV2[orcapi.Job],
+	flags orcapi.JobFlags,
+) fndapi.PageV2[orcapi.Job] {
+	if flags.IncludeApplication && flags.IncludeParameters {
+		return page
+	}
+
+	for i := 0; i < len(page.Items); i++ {
+		job := page.Items[i]
+		if !flags.IncludeApplication {
+			job.Status.ResolvedApplication.Clear()
+		}
+
+		if !flags.IncludeParameters {
+			job.Status.JobParametersJson.Clear()
+		}
+		page.Items[i] = job
+	}
+
+	return page
 }
 
 func JobsBrowse(
@@ -1185,7 +1208,7 @@ func JobsBrowse(
 		return item.Resource
 	}, flags.ResourceFlags)
 
-	return ResourceBrowse(
+	return jobsProcessFlags(ResourceBrowse(
 		actor,
 		jobType,
 		next,
@@ -1201,7 +1224,7 @@ func JobsBrowse(
 			return true
 		},
 		sortByFn,
-	), nil
+	), flags), nil
 }
 
 func JobsRetrieve(actor rpc.Actor, id string, flags orcapi.JobFlags) (orcapi.Job, *util.HttpError) {
@@ -1606,10 +1629,9 @@ func jobTransform(
 			SshEnabled:     info.SshEnabled,
 		},
 		Status: orcapi.JobStatus{
-			State:               info.State,
-			JobParametersJson:   info.JobParametersJson,
-			StartedAt:           info.StartedAt,
-			ResolvedApplication: orcapi.Application{},
+			State:             info.State,
+			JobParametersJson: util.OptValue(info.JobParametersJson),
+			StartedAt:         info.StartedAt,
 		},
 		Output: orcapi.JobOutput{
 			OutputFolder: info.OutputFolder,
@@ -1627,10 +1649,9 @@ func jobTransform(
 		result.Status.ExpiresAt.Set(fndapi.Timestamp(info.StartedAt.Value.Time().Add(millis)))
 	}
 
-	// TODO When to send this, we don't have the source flags?
 	{
 		app, _ := AppRetrieve(rpc.ActorSystem, info.Application.Name, info.Application.Version, AppDiscoveryAll, 0)
-		result.Status.ResolvedApplication = app
+		result.Status.ResolvedApplication.Set(app)
 	}
 
 	return result
@@ -1705,7 +1726,7 @@ func jobSendNotifications(username string, jobs map[string]orcapi.Job) {
 
 		for _, job := range group {
 			jobIds = append(jobIds, job.Id)
-			appTitles = append(appTitles, job.Status.ResolvedApplication.Metadata.Title)
+			appTitles = append(appTitles, job.Status.ResolvedApplication.Value.Metadata.Title)
 			jobNames = append(jobNames, job.Specification.Name)
 		}
 
@@ -1744,7 +1765,7 @@ func jobSendNotifications(username string, jobs map[string]orcapi.Job) {
 	for _, job := range jobs {
 		event := mailEvent{
 			JobName:       "",
-			AppName:       job.Status.ResolvedApplication.Metadata.Title,
+			AppName:       job.Status.ResolvedApplication.Value.Metadata.Title,
 			ChangeMessage: "",
 			JobId:         job.Id,
 		}

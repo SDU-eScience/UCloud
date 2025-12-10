@@ -16,7 +16,6 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 		return
 	}
 
-	log.Info("Missing %v", id)
 	resourceLoadCacheMiss.WithLabelValues(typeName).Inc()
 	var toFetch []int64 // annoying transformation needed to help sql layers below transmit the data
 	{
