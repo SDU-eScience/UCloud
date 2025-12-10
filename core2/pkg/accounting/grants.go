@@ -1264,7 +1264,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 
 			gg := accapi.GrantGiver{
 				Id:         grantGiver,
-				Categories: categories,
+				Categories: util.NonNilSlice(categories),
 			}
 
 			if sWrapper, ok := b.Settings[grantGiver]; ok {
@@ -1308,7 +1308,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 		return strings.Compare(a.Id, b.Id)
 	})
 
-	return result, nil
+	return util.NonNilSlice(result), nil
 }
 
 func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSettings) *util.HttpError {

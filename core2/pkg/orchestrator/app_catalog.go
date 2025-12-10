@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"cmp"
 	"encoding/binary"
 	"fmt"
 	"hash/fnv"
@@ -766,7 +767,7 @@ catLoop:
 	}
 
 	slices.SortFunc(result, func(a, b orcapi.ApplicationCategory) int {
-		return strings.Compare(a.Specification.Title, b.Specification.Title)
+		return cmp.Compare(a.Metadata.Priority, b.Metadata.Priority)
 	})
 
 	return util.NonNilSlice(result)
