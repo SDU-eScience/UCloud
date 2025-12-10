@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1316,10 +1317,10 @@ func jobLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource
 						j.resource,
 						coalesce(
 							jsonb_agg(
-								jsonb_build_object(
+								u.extra || jsonb_build_object(
 									'timestamp', (floor(extract(epoch from u.created_at) * 1000)),
 									'status', u.status
-								) || u.extra
+								)
 							) filter (where u.created_at is not null), 
 							cast('[]' as jsonb)) as updates
 				    from
@@ -1398,6 +1399,10 @@ func jobLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource
 
 		_ = json.Unmarshal([]byte(row.MountedResources), &info.Resources)
 		_ = json.Unmarshal([]byte(row.Updates), &info.Updates)
+
+		slices.SortFunc(info.Updates, func(a, b orcapi.JobUpdate) int {
+			return a.Timestamp.Time().Compare(b.Timestamp.Time())
+		})
 
 		if row.ExportedParameters.Valid {
 			_ = json.Unmarshal([]byte(row.ExportedParameters.String), &info.JobParametersJson)
