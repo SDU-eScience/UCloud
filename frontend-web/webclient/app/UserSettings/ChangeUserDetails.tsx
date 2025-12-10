@@ -1,7 +1,7 @@
 import {apiRetrieve, apiUpdate, callAPI, callAPIWithErrorHandler, useCloudCommand} from "@/Authentication/DataHook";
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
-import {Box, Button, Input, Label, Truncate} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input, Label, Truncate} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PayloadAction} from "@reduxjs/toolkit";
@@ -14,7 +14,7 @@ import Genders from "@/UserSettings/Genders.json";
 import OrgMapping from "@/UserSettings/OrganizationMapping.json";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
-import {classConcat, injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import {clamp} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {SelectorDialog} from "@/Products/Selector";
@@ -454,40 +454,47 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
     return <Box mt="0.5em" pt="0.5em" >
         <Label>
             {title}
-            <Input
-                placeholder={`Example: ${placeholder}`}
-                inputRef={ref}
-                cursor={isFreetext ? undefined : "pointer"}
-                disabled={disabled}
-                onFocus={() => setOpen(true)}
-                // Note(Jonas): If already focused, but closed and user clicks again
-                onClick={() => setOpen(true)}
-                onKeyDown={e => {
-                    ref.current?.removeAttribute("data-error");
-                    if (e.key === "ArrowDown") {
-                        setSearchIndex(idx => clamp(idx + 1, 0, result.length - 1));
-                    } else if (e.key === "ArrowUp") {
-                        setSearchIndex(idx => clamp(idx - 1, 0, result.length - 1));
-                    } else if (e.key === "Enter") {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        const item = result[searchIndex];
-                        if (!item || !ref.current) return;
-                        ref.current.value = item.value;
-                        didUpdateQuery?.(item.value);
-                        onSelect?.(item);
-                        setOpen(false);
-                    } else {
-                        if (!open) {
-                            setOpen(true);
+            <Flex>
+                <Input
+                    chevron
+                    placeholder={`Example: ${placeholder}`}
+                    inputRef={ref}
+                    data-is-freetext={isFreetext}
+                    className={DataListInput}
+                    disabled={disabled}
+                    onFocus={() => setOpen(true)}
+                    // Note(Jonas): If already focused, but closed and user clicks again
+                    onClick={() => setOpen(true)}
+                    onKeyDown={e => {
+                        ref.current?.removeAttribute("data-error");
+                        if (e.key === "ArrowDown") {
+                            setSearchIndex(idx => clamp(idx + 1, 0, result.length - 1));
+                        } else if (e.key === "ArrowUp") {
+                            setSearchIndex(idx => clamp(idx - 1, 0, result.length - 1));
+                        } else if (e.key === "Enter") {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            const item = result[searchIndex];
+                            if (!item || !ref.current) return;
+                            ref.current.value = item.value;
+                            didUpdateQuery?.(item.value);
+                            onSelect?.(item);
+                            setOpen(false);
+                        } else {
+                            if (!open) {
+                                setOpen(true);
+                            }
                         }
-                    }
-                }}
-                onKeyUp={e => {
-                    const value = e.target["value"];
-                    setQuery(value);
-                    didUpdateQuery?.(value);
-                }} />
+                    }}
+                    onKeyUp={e => {
+                        const value = e.target["value"];
+                        setQuery(value);
+                        didUpdateQuery?.(value);
+                    }} />
+                {isFreetext ? null : <Box className={ChevronPlacement}>
+                    <Icon name="heroChevronDown" />
+                </Box>}
+            </Flex>
         </Label>
         {items.length > 0 && open ?
             <Box
@@ -520,6 +527,20 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
             </Box> : null}
     </Box >
 }
+
+const ChevronPlacement = injectStyleSimple("chevron-placement", `    
+    cursor: pointer;
+    position: relative;
+    width: 0px;
+    right: 26px;
+    top: 6px;
+`)
+
+const DataListInput = injectStyle("data-list-wrapper", cl => `
+    ${cl}:not([data-is-freetext]) {
+        cursor: pointer;
+    }
+`);
 
 const DataListWrapper = injectStyle("data-list-wrapper", cl => `
     ${cl}[data-has-unselectable="true"] > div:not([data-unselectable=true]) {
