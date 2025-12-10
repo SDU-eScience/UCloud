@@ -801,9 +801,9 @@ func (y *A1Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 					Parameters:      mappedParameters,
 					OutputFileGlobs: []string{"*"},
 					ApplicationType: y.ApplicationType.GetOrDefault(""),
-					Vnc:             y.Vnc.GetOrDefault(orcapi.VncDescription{}),
-					Web:             y.Web.GetOrDefault(orcapi.WebDescription{}),
-					Ssh:             y.Ssh.GetOrDefault(orcapi.SshDescription{}),
+					Vnc:             y.Vnc,
+					Web:             y.Web,
+					Ssh:             y.Ssh,
 					Container: y.Container.GetOrDefault(orcapi.ContainerDescription{
 						ChangeWorkingDirectory: true,
 						RunAsRoot:              true,

@@ -951,7 +951,7 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 		}
 	}
 
-	sshMode := util.EnumOrDefault(app.Invocation.Ssh.Mode, orcapi.SshModeOptions, orcapi.SshModeDisabled)
+	sshMode := util.EnumOrDefault(app.Invocation.Ssh.Value.Mode, orcapi.SshModeOptions, orcapi.SshModeDisabled)
 	if spec.SshEnabled && sshMode == orcapi.SshModeDisabled {
 		return util.HttpErr(http.StatusBadRequest, "this application does not support SSH but it is required")
 	}
