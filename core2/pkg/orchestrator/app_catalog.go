@@ -1173,7 +1173,10 @@ func AppStudioListGroups() []orcapi.ApplicationGroup {
 	}
 
 	slices.SortFunc(result, func(a, b orcapi.ApplicationGroup) int {
-		return strings.Compare(a.Specification.Title, b.Specification.Title)
+		return strings.Compare(
+			strings.ToLower(a.Specification.Title),
+			strings.ToLower(b.Specification.Title),
+		)
 	})
 
 	return util.NonNilSlice(result)
