@@ -279,7 +279,7 @@ func initAuth() {
 			})
 
 			if err != nil {
-				result = append(result, fndapi.UsersCreateResponse{Username: item.Username, Created: false, Error: "Creation Failed"})
+				result = append(result, fndapi.UsersCreateResponse{Username: item.Username, Created: false, Error: err.Why})
 				continue
 			}
 
