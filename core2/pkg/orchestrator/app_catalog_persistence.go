@@ -905,7 +905,7 @@ func appPersistDeleteSpotlight(id AppSpotlightId) {
 	})
 }
 
-func appPersistSetActiveSpotlight(id AppSpotlightId) {
+func appPersistSetActiveSpotlight(id AppSpotlightId, activate bool) {
 	if appCatalogGlobals.Testing.Enabled {
 		return
 	}
@@ -921,17 +921,19 @@ func appPersistSetActiveSpotlight(id AppSpotlightId) {
 			db.Params{},
 		)
 
-		db.Exec(
-			tx,
-			`
-				update app_store.spotlights
-				set active = true
-				where id = :id
-		    `,
-			db.Params{
-				"id": id,
-			},
-		)
+		if activate {
+			db.Exec(
+				tx,
+				`
+					update app_store.spotlights
+					set active = true
+					where id = :id
+		    	`,
+				db.Params{
+					"id": id,
+				},
+			)
+		}
 	})
 }
 

@@ -384,7 +384,7 @@ func AppIxImportFromZip(b []byte) {
 			log.Info("Could not create spotlight '%s': %s", s.Title, err)
 		} else {
 			if s.Active {
-				_ = AppStudioActivateSpotlight(newId)
+				_ = AppStudioToggleSpotlight(newId, s.Active)
 			}
 		}
 	}

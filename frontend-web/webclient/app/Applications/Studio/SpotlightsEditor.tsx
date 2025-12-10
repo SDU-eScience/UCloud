@@ -1,7 +1,11 @@
 import * as React from "react";
 import {Box, Button, Flex, Icon, MainContainer} from "@/ui-components";
 import * as AppStore from "@/Applications/AppStoreApi";
-import {ApplicationGroup, Spotlight, TopPick} from "@/Applications/AppStoreApi";
+import {
+    ApplicationGroup,
+    Spotlight,
+    TopPick
+} from "@/Applications/AppStoreApi";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {doNothing} from "@/UtilityFunctions";
 import {useCallback, useEffect, useRef, useState} from "react";
@@ -18,6 +22,7 @@ import AppRoutes from "@/Routes";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {ScaffoldedForm, ScaffoldedFormObject} from "@/ui-components/ScaffoldedForm";
 import {GroupSelector} from "@/Applications/Studio/GroupSelector";
+import {useDiscovery} from "@/Applications/Hooks";
 
 const SpotlightForm: ScaffoldedFormObject = {
     type: "Form",
@@ -50,7 +55,7 @@ const SpotlightForm: ScaffoldedFormObject = {
             id: "active",
             type: "Toggle",
             label: "Active",
-            help: `A flag indicating if this spotlight is the active spotlight. Only one spotlight can be active at any point.`
+            help: `A flag indicating if this spotlight is the active spotlight. Only one spotlight can be active at any point. Remember to click save after change.`
         },
         {
             id: "applications",
@@ -262,6 +267,8 @@ const SpotlightsEditor: React.FunctionComponent = () => {
             didCreate = true;
             actualId = (await callAPI(AppStore.createSpotlight(spotlight))).id;
         }
+
+
 
         snackbarStore.addSuccess("Spotlight has been saved", false);
 
