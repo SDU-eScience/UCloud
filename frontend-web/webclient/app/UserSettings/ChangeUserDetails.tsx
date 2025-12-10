@@ -490,7 +490,15 @@ function NewDataList({items, onSelect, title, disabled, placeholder, ref, didUpd
                 }} />
         </Label>
         {items.length > 0 && open ?
-            <Box className={SelectorDialog} style={{position: "fixed", paddingBottom: 0, left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} divRef={dropdownRef} width="100%" maxHeight={400} overflowY="scroll">
+            <Box
+                data-has-unselectable={hasUnselectable}
+                className={classConcat(SelectorDialog, DataListWrapper)}
+                style={{position: "fixed", paddingBottom: 0, left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}}
+                divRef={dropdownRef}
+                width="100%"
+                maxHeight={400}
+                overflowY="scroll"
+            >
                 {result.map((it, idx) =>
                     <Truncate key={it.key}
                         cursor={it.unselectable ? "not-allowed" : "pointer"}
@@ -518,6 +526,11 @@ function NewDataList({items, onSelect, title, disabled, placeholder, ref, didUpd
 const DataListRowItem = injectStyle("data-list-row-item", cl => `
     ${cl}[data-active="true"]:not([data-unselectable=true]), ${cl}:hover:not([data-unselectable=true]) {
         background-color: var(--rowHover);
+    }
+
+    ${cl}[data-unselectable=true] {
+        font-weight: bold;
+        color: var(--infoLight);
     }
 
     ${cl} {
