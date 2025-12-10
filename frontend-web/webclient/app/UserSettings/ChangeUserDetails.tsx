@@ -446,7 +446,7 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
     React.useEffect(() => {
         if (searchIndex === -1) return;
         const row = dropdownRef.current?.children.item(searchIndex);
-        row?.scrollIntoView({behavior: "smooth", block: "end", inline: "nearest"});
+        row?.scrollIntoView({behavior: "instant", block: "end", inline: "nearest"});
     }, [searchIndex, result]);
 
     const hasUnselectable = React.useMemo(() => items.find(it => it.unselectable) != null, [items]);
