@@ -92,6 +92,7 @@ type OptionalUserInfo struct {
 	Department           util.Option[string] `json:"department"`
 	ResearchField        util.Option[string] `json:"researchField"`
 	Position             util.Option[string] `json:"position"`
+	Gender               util.Option[string] `json:"gender"`
 }
 
 var UsersRetrieveOptionalInfo = rpc.Call[util.Empty, OptionalUserInfo]{

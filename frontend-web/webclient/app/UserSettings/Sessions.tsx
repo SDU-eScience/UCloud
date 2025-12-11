@@ -67,16 +67,16 @@ export const Sessions: React.FunctionComponent<SessionsProps> = props => {
                 deviceText = "Unknown device";
             }
 
-            return(
+            return (
                 <Box key={idx}>
-                <p>
-                    <b>{deviceText}</b> from <b>{session.ipAddress}</b>
-                    <br />
-                    <b>Session created at:</b> {dateToString(session.createdAt)}
-                </p>
+                    <p>
+                        <b>{deviceText}</b> from <b>{session.ipAddress}</b>
+                        <br />
+                        <b>Session created at:</b> {dateToString(session.createdAt)}
+                    </p>
 
-                <Divider />
-            </Box>
+                    <Divider />
+                </Box>
             );
         });
     }, []);
@@ -108,7 +108,7 @@ export const Sessions: React.FunctionComponent<SessionsProps> = props => {
 
     return (
         <Box>
-            <Heading.h2>Active Sessions</Heading.h2>
+            <Heading.h2>Active sessions</Heading.h2>
 
             <Pagination.List
                 loading={sessions.loading}

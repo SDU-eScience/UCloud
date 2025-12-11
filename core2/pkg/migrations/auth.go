@@ -18,3 +18,16 @@ func authV1() db.MigrationScript {
 		},
 	}
 }
+
+func authV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "authV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table auth.additional_user_info add column if not exists gender text;`,
+				db.Params{},
+			)
+		},
+	}
+}

@@ -340,6 +340,10 @@ export class HttpClient {
         return this.projectId !== undefined;
     }
 
+    public get orgId(): string {
+        return this.userInfo?.orgId ?? "";
+    }
+
     /**
      * @returns {string} the userrole. Empty string if none available in the JWT
      */
@@ -419,13 +423,13 @@ export class HttpClient {
         else return this.decodedToken.payload;
     }
 
-    get principalType(): undefined | string {
+    public get principalType(): undefined | string {
         const userInfo = this.userInfo;
         if (!userInfo) return undefined;
         else return userInfo.principalType;
     }
 
-    retrieveTokenNow(): string {
+    private retrieveTokenNow(): string {
         return HttpClient.storedAccessToken;
     }
 
@@ -588,6 +592,7 @@ export interface JWT {
     exp: number;
     extendedByChain: any[];
     iat: number;
+    orgId?: string;
     principalType: string;
     publicSessionReference?: string;
     twoFactorAuthentication?: boolean;

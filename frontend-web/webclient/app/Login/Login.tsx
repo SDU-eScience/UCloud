@@ -21,6 +21,7 @@ import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground
 import halricWhite from "@/Assets/Images/halric_white.png";
 import interregWhite from "@/Assets/Images/interreg_white.svg";
 import AppRoutes from "@/Routes";
+import {addOrgInfoModalIfNotFilled} from "@/UserSettings/ChangeUserDetails";
 
 const IS_SANDBOX = onSandbox();
 const IS_GENERIC = !window.location.hostname.endsWith(".dk"); // NOTE(Dan): Overly simplified but works for now.
@@ -163,7 +164,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                 15_000
             );
 
-            navigate("/login");
+            navigate(AppRoutes.login.login());
         } catch (err) {
             setLoading(false);
 
@@ -176,7 +177,8 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
 
     function handleCompleteLogin(result: any): void {
         Client.setTokens(result.accessToken, result.csrfToken);
-        navigate("/loginSuccess");
+        navigate(AppRoutes.login.loginSuccess());
+        addOrgInfoModalIfNotFilled();
     }
 
     function handleAuthState(result: any): void {

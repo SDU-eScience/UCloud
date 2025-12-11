@@ -46,7 +46,7 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
     return defineConfig({
         clearScreen: false,
         build: {
-            assetsInlineLimit: 0 
+            assetsInlineLimit: 0
         },
         define: {
             /*

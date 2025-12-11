@@ -26,7 +26,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
     public render() {
         return (
             <>
-                <Heading.h2>Two Factor Authentication</Heading.h2>
+                <Heading.h2>Two factor authentication</Heading.h2>
                 {this.props.mustActivate2fa ? (
                     <Heading.h3 color={getCssPropertyValue("errorMain")}>
                         You must activate 2FA for your account before you can continue

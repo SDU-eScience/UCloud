@@ -1,0 +1,62 @@
+[
+    {
+        "key": "Student",
+        "value": "Student",
+        "tags": "studerende student"
+    },
+    {
+        "key": "Professor",
+        "value": "Professor",
+        "tags": ""
+    },
+    {
+        "key": "Associate Professor",
+        "value": "Associate Professor",
+        "tags": ""
+    },
+    {
+        "key": "Assistant Professor",
+        "value": "Assistant Professor",
+        "tags": ""
+    },
+    {
+        "key": "Researcher",
+        "value": "Researcher",
+        "tags": ""
+    },
+    {
+        "key": "Postdoc",
+        "value": "Postdoc",
+        "tags": ""
+    },
+    {
+        "key": "PhD Student",
+        "value": "PhD Student",
+        "tags": ""
+    },
+    {
+        "key": "Other Academic Staff",
+        "value": "Other Academic Staff",
+        "tags": ""
+    },
+    {
+        "key": "Technical Staff",
+        "value": "Technical Staff",
+        "tags": ""
+    },
+    {
+        "key": "Administrative Staff",
+        "value": "Administrative Staff",
+        "tags": ""
+    },
+    {
+        "key": "Management/Leadership",
+        "value": "Management/Leadership",
+        "tags": ""
+    },
+    {
+        "key": "External/Other",
+        "value": "External/Other",
+        "tags": ""
+    }
+]

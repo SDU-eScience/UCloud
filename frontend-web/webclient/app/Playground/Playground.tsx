@@ -2,7 +2,7 @@ import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useEffect, useRef} from "react";
 import {EveryIcon, IconName} from "@/ui-components/Icon";
-import {Box, Flex} from "@/ui-components";
+import {Box, Button, Flex} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {api as ProjectApi, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
@@ -13,6 +13,8 @@ import * as plot from "@observablehq/plot";
 import * as Plot from "@observablehq/plot";
 import * as JobViz from "@/Applications/Jobs/JobViz"
 import {WidgetColorIntensity, WidgetWindow} from "@/Applications/Jobs/JobViz"
+import {addOrgInfoModalIfNotFilled, ChangeOrganizationDetails} from "@/UserSettings/ChangeUserDetails";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -168,16 +170,33 @@ const Playground: React.FunctionComponent = () => {
         update(0);
     }, []);
 
+    const getValuesRef = React.useRef(() => {
+        return {
+            organizationFullName: "",
+            department: "",
+            researchField: "",
+            position: "",
+            isValid: false,
+        }
+    });
+
+    const foo = React.useCallback(() => {
+        dialogStore.addDialog(<ChangeOrganizationDetails inModal onDidSubmit={() => dialogStore.success()} />, () => void 0);
+    }, []);
+
     const main = (
         <>
+            <ChangeOrganizationDetails getValues={getValuesRef} />
+            <Button onClick={foo}>View extracted contents</Button>
+
             {/*<CpuChartDemo />*/}
             {/*<JobViz.Renderer processor={stream.current} windows={[JobViz.WidgetWindow.WidgetWindowMain]} />*/}
             {/*<AreaPlot data={data} keyX="date" keyY="value" />*/}
             {/**/}
             {/*<Box mb="60px" />*/}
             {/**/}
-            {/*<PaletteColors />*/}
-            {/*<Colors />*/}
+            <PaletteColors />
+            <Colors />
             {/*<EveryIcon />*/}
             {/*
             <Button onClick={() => {

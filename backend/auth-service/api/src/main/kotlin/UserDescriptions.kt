@@ -87,6 +87,7 @@ data class OptionalUserInformation(
     val department: String? = null,
     val researchField: String? = null,
     val position: String? = null,
+    val gender: String? = null,
 )
 
 object UserDescriptions : CallDescriptionContainer("auth.users") {

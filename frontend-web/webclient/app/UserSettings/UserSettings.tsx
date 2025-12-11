@@ -8,13 +8,12 @@ import * as Heading from "@/ui-components/Heading";
 import {ChangePassword} from "@/UserSettings/ChangePassword";
 import {Sessions} from "@/UserSettings/Sessions";
 import {TwoFactorSetup} from "./TwoFactorSetup";
-import {ChangeOptionalUserDetails, ChangeUserDetails} from "@/UserSettings/ChangeUserDetails";
+import {ChangeOrganizationDetails, ChangeUserDetails} from "@/UserSettings/ChangeUserDetails";
 import {ChangeEmailSettings} from "@/UserSettings/ChangeEmailSettings";
 import {CustomTheming} from "./CustomTheme";
 import {refreshFunctionCache} from "@/Utilities/ReduxUtilities";
 import {ChangeNotificationSettings} from "./ChangeNotificationSettings";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {Action} from "redux";
 
 function UserSettings(): React.ReactNode {
 
@@ -35,7 +34,7 @@ function UserSettings(): React.ReactNode {
         <Flex alignItems="center" flexDirection="column">
             <Box width={0.7}>
                 <MainContainer
-                    header={<Heading.h1>User Settings</Heading.h1>}
+                    header={<Heading.h1>User settings</Heading.h1>}
                     main={(
                         <>
                             <TwoFactorSetup
@@ -50,10 +49,8 @@ function UserSettings(): React.ReactNode {
                                         setLoading={setHeaderLoading}
                                     />
 
-                                    <ChangeUserDetails
-                                        setLoading={setHeaderLoading}
-                                    />
-                                    <ChangeOptionalUserDetails />
+                                    <ChangeUserDetails />
+                                    <ChangeOrganizationDetails />
                                     <ChangeEmailSettings
                                         setLoading={setHeaderLoading}
                                     />

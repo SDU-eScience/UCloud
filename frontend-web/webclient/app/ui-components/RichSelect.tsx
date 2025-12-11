@@ -7,7 +7,6 @@ import {injectStyle} from "@/Unstyled";
 import {Flex, Icon, Input, Relative} from "@/ui-components/index";
 import {FilterInputClass} from "@/Project/ProjectSwitcher";
 import Box from "@/ui-components/Box";
-import {Simple} from "@/UCloud/Scratch";
 
 export type RichSelectChildComponent<T> = React.FunctionComponent<RichSelectProps<T>>;
 
@@ -81,7 +80,7 @@ export function RichSelect<T, K extends keyof T>(props: {
     const filteredElements = useMemo(() => {
         const withKeys = props.items.map((it, itIdx) => ({idx: itIdx, ...it}));
         if (query === "") return withKeys;
-        return fuzzySearch(withKeys, props.keys, query, {sort: true});
+        return fuzzySearch(withKeys, props.keys, query);
     }, [query, props.items, props.keys]);
 
     const limitedElements = useMemo(() => {
