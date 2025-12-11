@@ -6,9 +6,11 @@ import (
 	"database/sql"
 	"encoding/pem"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,6 +30,16 @@ import (
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
+)
+
+type Module uint64
+
+const (
+	ModuleFoundation Module = 1 << iota
+	ModuleAccounting
+	ModuleOrchestrator
+
+	ModuleAll Module = math.MaxUint64
 )
 
 func Launch() {
@@ -301,22 +313,38 @@ func Launch() {
 
 	initAuditPg()
 
-	t := util.NewTimer()
-	fnd.Init()
-	fndTime := t.Mark()
-	acc.Init()
-	accTime := t.Mark()
-	orc.Init()
-	orcTime := t.Mark()
+	modules := Module(0)
+
+	if slices.Contains(os.Args, "foundation") {
+		modules |= ModuleFoundation
+	}
+	if slices.Contains(os.Args, "apm") || slices.Contains(os.Args, "accounting") {
+		modules |= ModuleAccounting
+	}
+	if slices.Contains(os.Args, "orchestrators") {
+		modules |= ModuleOrchestrator
+	}
+	if modules == 0 {
+		modules = ModuleAll
+	}
+
+	if modules&ModuleFoundation != 0 {
+		fnd.Init()
+	}
+
+	if modules&ModuleAccounting != 0 {
+		acc.Init()
+	}
+
+	if modules&ModuleOrchestrator != 0 {
+		orc.Init()
+	}
 
 	rpc.ClientAllowSilentAuthTokenRenewalErrors.Store(false)
 
 	launchMetricsServer()
 
 	log.Info("UCloud is ready!")
-	if util.DevelopmentModeEnabled() || os.Getenv("UCLOUD_STARTUP_TIMES") != "" {
-		log.Info("Fnd startup: %v | Acc startup: %v | Orc startup: %v", fndTime, accTime, orcTime)
-	}
 
 	err = http.ListenAndServe("0.0.0.0:8080", collapseServerSlashes(
 		http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {

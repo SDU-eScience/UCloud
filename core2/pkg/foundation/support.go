@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/pkg/errors"
+	cfg "ucloud.dk/core/pkg/config"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
@@ -17,13 +17,7 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-var slackHook string
-
 func initSupport() {
-	slackHook = os.Getenv("SLACK_HOOK") // TODO move to config
-	if slackHook == "" {
-		log.Warn("SLACK_HOOK not set")
-	}
 	fndapi.SupportCreateTicket.Handler(func(info rpc.RequestInfo, request fndapi.CreateTicketRequest) (util.Empty, *util.HttpError) {
 		err := createTicketFromUser(info.Actor, request, info.HttpRequest)
 		return util.Empty{}, err
@@ -34,10 +28,12 @@ type SlackMessage struct {
 	Text string `json:"text"`
 }
 
-func slackSendMessage(hook string, message string) *util.HttpError {
-	if slackHook == "" {
+func slackSendMessage(message string) *util.HttpError {
+	if !cfg.Configuration.SlackHook.Present {
 		return nil
 	}
+
+	hook := cfg.Configuration.SlackHook.Value
 	retries := 0
 	for {
 		retries++
@@ -164,5 +160,5 @@ func createTicket(ticket Ticket) *util.HttpError {
 		return util.HttpErr(http.StatusInternalServerError, "Could not send ticket email")
 	}
 
-	return slackSendMessage(slackHook, message)
+	return slackSendMessage(message)
 }
