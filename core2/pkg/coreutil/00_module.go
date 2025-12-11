@@ -1,11 +1,18 @@
 package coreutil
 
 import (
+	"cmp"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"os"
+	"slices"
+	"strings"
 	"time"
+
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -207,4 +214,26 @@ func TaskRetrieveOwner(taskId int) (TaskOwner, bool) {
 			return TaskOwner{}, false
 		}
 	})
+}
+
+func PrintStartupTimes(name string, times map[string]time.Duration) {
+	if util.DevelopmentModeEnabled() || os.Getenv("UCLOUD_STARTUP_TIMES") != "" {
+		b := strings.Builder{}
+
+		b.WriteString(fmt.Sprintf("%s startup compete!\n", name))
+		var entries []util.Tuple2[string, time.Duration]
+		for stage, t := range times {
+			entries = append(entries, util.Tuple2[string, time.Duration]{stage, t})
+		}
+
+		slices.SortFunc(entries, func(a, b util.Tuple2[string, time.Duration]) int {
+			return cmp.Compare(a.Second, b.Second) * -1
+		})
+
+		for _, entry := range entries {
+			b.WriteString(fmt.Sprintf("----- %v: %v\n", entry.First, entry.Second))
+		}
+
+		log.Info("%s", b.String())
+	}
 }

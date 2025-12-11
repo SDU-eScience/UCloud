@@ -301,15 +301,22 @@ func Launch() {
 
 	initAuditPg()
 
+	t := util.NewTimer()
 	fnd.Init()
+	fndTime := t.Mark()
 	acc.Init()
+	accTime := t.Mark()
 	orc.Init()
+	orcTime := t.Mark()
 
 	rpc.ClientAllowSilentAuthTokenRenewalErrors.Store(false)
 
 	launchMetricsServer()
 
 	log.Info("UCloud is ready!")
+	if util.DevelopmentModeEnabled() || os.Getenv("UCLOUD_STARTUP_TIMES") != "" {
+		log.Info("Fnd startup: %v | Acc startup: %v | Orc startup: %v", fndTime, accTime, orcTime)
+	}
 
 	err = http.ListenAndServe("0.0.0.0:8080", collapseServerSlashes(
 		http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {

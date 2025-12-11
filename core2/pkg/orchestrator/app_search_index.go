@@ -21,7 +21,7 @@ func initAppSearchIndex() {
 	appIndex = index
 }
 
-func appAddToIndex(id AppGroupId, group orcapi.ApplicationGroup) {
+func appAddToSearchIndex(id AppGroupId, group orcapi.ApplicationGroup) {
 	var toIndex struct {
 		Title       string
 		Description string

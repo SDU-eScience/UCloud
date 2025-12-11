@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
 
+	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database2"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
@@ -43,9 +45,15 @@ func appCatalogLoad() {
 		reset()
 	} else {
 		db.NewTx0(func(tx *db.Transaction) {
+			// NOTE(Dan): This function is a bit slow, no reason to slow everything down in dev mode. This works just
+			// fine even if it does a retry.
+			tx.NoDevResetThisIsNotAHackIPromise = true
+
 			reset()
 
-			apps := db.Select[struct {
+			b := db.BatchNew(tx)
+
+			appsPromise := db.BatchSelect[struct {
 				Name        string
 				Version     string
 				Application string
@@ -63,7 +71,7 @@ func appCatalogLoad() {
 				GroupId     sql.NullInt64
 				ModifiedAt  time.Time
 			}](
-				tx,
+				b,
 				`
 					select 
 						name, version, application, created_at, 
@@ -76,38 +84,11 @@ func appCatalogLoad() {
 				db.Params{},
 			)
 
-			for _, app := range apps {
-				b := appBucket(app.Name)
-				i := &internalApplication{
-					Name:      app.Name,
-					Version:   app.Version,
-					CreatedAt: app.CreatedAt,
-					Tool: orcapi.NameAndVersion{
-						Name:    app.ToolName,
-						Version: app.ToolVersion,
-					},
-					Title:             app.Title,
-					Description:       app.Description,
-					DocumentationSite: util.SqlNullStringToOpt(app.Website),
-					FlavorName:        util.SqlNullStringToOpt(app.FlavorName),
-					Public:            app.IsPublic,
-					ModifiedAt:        app.ModifiedAt,
-				}
-				if app.GroupId.Valid {
-					i.Group.Set(AppGroupId(app.GroupId.Int64))
-				}
-
-				if err := json.Unmarshal([]byte(app.Invocation), &i.Invocation); err != nil {
-					panic(fmt.Sprintf("Could not load application: %s %s", app.Name, app.Version))
-				}
-				b.Applications[app.Name] = append(b.Applications[app.Name], i)
-			}
-
-			appsByCreatedAt := db.Select[struct {
+			appsByCreatedAtPromise := db.BatchSelect[struct {
 				Name    string
 				Version string
 			}](
-				tx,
+				b,
 				`
 					select name, version
 					from app_store.applications
@@ -116,16 +97,12 @@ func appCatalogLoad() {
 				db.Params{},
 			)
 
-			for _, nv := range appsByCreatedAt {
-				appStudioTrackUpdate(orcapi.NameAndVersion{Name: nv.Name, Version: nv.Version})
-			}
-
-			tools := db.Select[struct {
+			toolsPromise := db.BatchSelect[struct {
 				Name    string
 				Version string
 				Tool    string
 			}](
-				tx,
+				b,
 				`
 					select name, version, tool
 					from app_store.tools
@@ -133,6 +110,221 @@ func appCatalogLoad() {
 				db.Params{},
 			)
 
+			appPermissionsPromise := db.BatchSelect[struct {
+				ApplicationName string
+				Username        string
+				Project         string
+				ProjectGroup    string
+			}](
+				b,
+				`
+					select application_name, username, project, project_group
+					from app_store.permissions
+					order by application_name
+				`,
+				db.Params{},
+			)
+
+			groupsPromise := db.BatchSelect[struct {
+				Id             int
+				Title          string
+				Description    string
+				Logo           []byte
+				LogoHasText    bool
+				DefaultName    sql.NullString
+				ColorRemapping sql.NullString
+			}](
+				b,
+				`
+					select
+						id, title, coalesce(description, '') as description, coalesce(logo, E'\\x') as logo, logo_has_text,
+						default_name, color_remapping
+					from
+						app_store.application_groups
+					order by id asc
+				`,
+				db.Params{},
+			)
+
+			categoriesPromise := db.BatchSelect[struct {
+				Id       int
+				Title    string
+				Priority int
+			}](
+				b,
+				`
+					select
+						id, tag as title, priority
+					from
+						app_store.categories
+					order by
+						priority
+				`,
+				db.Params{},
+			)
+
+			categoryItemsPromise := db.BatchSelect[struct {
+				GroupId    int
+				CategoryId int
+			}](
+				b,
+				`
+					select group_id, tag_id as category_id
+					from app_store.category_items
+					order by tag_id
+				`,
+				db.Params{},
+			)
+
+			spotlightsPromise := db.BatchSelect[struct {
+				Id          int
+				Title       string
+				Description string
+				Active      bool
+			}](
+				b,
+				`
+					select id, title, description, active
+					from app_store.spotlights
+				`,
+				db.Params{},
+			)
+
+			spotlightItemsPromise := db.BatchSelect[struct {
+				SpotlightId int
+				GroupId     int
+			}](
+				b,
+				`
+					select spotlight_id, group_id
+					from app_store.spotlight_items
+					where group_id is not null
+					order by spotlight_id, priority
+				`,
+				db.Params{},
+			)
+
+			carrouselItemsPromise := db.BatchSelect[struct {
+				Title             string
+				Body              string
+				LinkedApplication sql.NullString
+				LinkedGroup       sql.NullInt64
+				LinkedWebPage     sql.NullString
+				Image             []byte
+			}](
+				b,
+				`
+					select title, body, linked_application, linked_group, linked_web_page, image
+					from app_store.carrousel_items
+					order by priority
+				`,
+				db.Params{},
+			)
+
+			topPicksPromise := db.BatchSelect[struct{ GroupId int }](
+				b,
+				`
+					select group_id
+					from app_store.top_picks
+					where group_id is not null
+					order by priority
+				`,
+				db.Params{},
+			)
+
+			starsPromise := db.BatchSelect[struct {
+				TheUser         string
+				ApplicationName string
+			}](
+				b,
+				`
+					select the_user, application_name
+					from app_store.favorited_by
+					order by the_user
+			    `,
+				db.Params{},
+			)
+
+			// ---------------------------------------------------------------------------------------------------------
+			// !! NO MORE QUERIES BEYOND THIS POINT !!
+			// ---------------------------------------------------------------------------------------------------------
+
+			times := map[string]time.Duration{}
+			t := util.NewTimer()
+
+			db.BatchSend(b)
+			times["DB"] = t.Mark()
+
+			// ---------------------------------------------------------------------------------------------------------
+			// !! NO MORE QUERIES BEYOND THIS POINT !!
+			// ---------------------------------------------------------------------------------------------------------
+
+			{
+				// NOTE(Dan): Parallel because json unmarshalling takes a significant amount of time for these apps.
+				apps := *appsPromise
+				appWorkerCount := runtime.NumCPU() / 2
+				semaphore := make(chan util.Empty, appWorkerCount)
+				wg := sync.WaitGroup{}
+
+				results := make(chan *internalApplication, len(apps))
+				for _, app := range apps {
+					app := app
+					wg.Add(1)
+
+					go func() {
+						semaphore <- util.Empty{}
+						defer func() {
+							wg.Done()
+							<-semaphore
+						}()
+
+						i := &internalApplication{
+							Name:      app.Name,
+							Version:   app.Version,
+							CreatedAt: app.CreatedAt,
+							Tool: orcapi.NameAndVersion{
+								Name:    app.ToolName,
+								Version: app.ToolVersion,
+							},
+							Title:             app.Title,
+							Description:       app.Description,
+							DocumentationSite: util.SqlNullStringToOpt(app.Website),
+							FlavorName:        util.SqlNullStringToOpt(app.FlavorName),
+							Public:            app.IsPublic,
+							ModifiedAt:        app.ModifiedAt,
+						}
+						if app.GroupId.Valid {
+							i.Group.Set(AppGroupId(app.GroupId.Int64))
+						}
+
+						if err := json.Unmarshal([]byte(app.Invocation), &i.Invocation); err != nil {
+							panic(fmt.Sprintf("Could not load application: %s %s", app.Name, app.Version))
+						}
+
+						results <- i
+					}()
+				}
+
+				go func() {
+					wg.Wait()
+					close(results)
+				}()
+
+				for app := range results {
+					b := appBucket(app.Name)
+					b.Applications[app.Name] = append(b.Applications[app.Name], app)
+				}
+			}
+
+			times["Apps"] = t.Mark()
+
+			appsByCreatedAt := *appsByCreatedAtPromise
+			for _, nv := range appsByCreatedAt {
+				appStudioTrackUpdate(orcapi.NameAndVersion{Name: nv.Name, Version: nv.Version})
+			}
+			times["CreatedAt"] = t.Mark()
+
+			tools := *toolsPromise
 			for _, tool := range tools {
 				b := appBucket(tool.Name)
 
@@ -147,22 +339,9 @@ func appCatalogLoad() {
 
 				b.Tools[tool.Name] = append(b.Tools[tool.Name], t)
 			}
+			times["Tools"] = t.Mark()
 
-			appPermissions := db.Select[struct {
-				ApplicationName string
-				Username        string
-				Project         string
-				ProjectGroup    string
-			}](
-				tx,
-				`
-					select application_name, username, project, project_group
-					from app_store.permissions
-					order by application_name
-				`,
-				db.Params{},
-			)
-
+			appPermissions := *appPermissionsPromise
 			for _, perm := range appPermissions {
 				b := appBucket(perm.ApplicationName)
 				p := orcapi.AclEntity{}
@@ -179,28 +358,9 @@ func appCatalogLoad() {
 
 				b.ApplicationPermissions[perm.ApplicationName] = append(b.ApplicationPermissions[perm.ApplicationName], p)
 			}
+			times["Permissions"] = t.Mark()
 
-			groups := db.Select[struct {
-				Id             int
-				Title          string
-				Description    string
-				Logo           []byte
-				LogoHasText    bool
-				DefaultName    sql.NullString
-				ColorRemapping sql.NullString
-			}](
-				tx,
-				`
-					select
-						id, title, coalesce(description, '') as description, coalesce(logo, E'\\x') as logo, logo_has_text,
-						default_name, color_remapping
-					from
-						app_store.application_groups
-					order by id asc
-				`,
-				db.Params{},
-			)
-
+			groups := *groupsPromise
 			for _, group := range groups {
 				id := AppGroupId(group.Id)
 				maxGroupId = max(maxGroupId, int64(group.Id))
@@ -235,24 +395,9 @@ func appCatalogLoad() {
 				b.Groups[id] = &appGroup
 				appStudioTrackNewGroup(id)
 			}
+			times["Groups"] = t.Mark()
 
-			categories := db.Select[struct {
-				Id       int
-				Title    string
-				Priority int
-			}](
-				tx,
-				`
-					select
-						id, tag as title, priority
-					from
-						app_store.categories
-					order by
-						priority
-				`,
-				db.Params{},
-			)
-
+			categories := *categoriesPromise
 			for _, cat := range categories {
 				id := AppCategoryId(cat.Id)
 				maxCategoryId = max(maxCategoryId, int64(cat.Id))
@@ -263,20 +408,9 @@ func appCatalogLoad() {
 					Priority: cat.Priority,
 				}
 			}
+			times["Categories"] = t.Mark()
 
-			categoryItems := db.Select[struct {
-				GroupId    int
-				CategoryId int
-			}](
-				tx,
-				`
-					select group_id, tag_id as category_id
-					from app_store.category_items
-					order by tag_id
-				`,
-				db.Params{},
-			)
-
+			categoryItems := *categoryItemsPromise
 			for _, item := range categoryItems {
 				catId := AppCategoryId(item.CategoryId)
 				groupId := AppGroupId(item.GroupId)
@@ -284,23 +418,10 @@ func appCatalogLoad() {
 				c := &appCatalogGlobals.Categories
 				c.Categories[catId].Items = append(c.Categories[catId].Items, groupId)
 			}
+			times["CategoryItems"] = t.Mark()
 
-			spotlights := db.Select[struct {
-				Id          int
-				Title       string
-				Description string
-				Active      bool
-			}](
-				tx,
-				`
-					select id, title, description, active
-					from app_store.spotlights
-				`,
-				db.Params{},
-			)
-
+			spotlights := *spotlightsPromise
 			appCatalogGlobals.ActiveSpotlight.Store(-1)
-
 			for _, spotlight := range spotlights {
 				id := AppSpotlightId(spotlight.Id)
 				maxSpotlightId = max(maxSpotlightId, int64(spotlight.Id))
@@ -314,21 +435,9 @@ func appCatalogLoad() {
 					appCatalogGlobals.ActiveSpotlight.Store(int64(spotlight.Id))
 				}
 			}
+			times["Spotlights"] = t.Mark()
 
-			spotlightItems := db.Select[struct {
-				SpotlightId int
-				GroupId     int
-			}](
-				tx,
-				`
-					select spotlight_id, group_id
-					from app_store.spotlight_items
-					where group_id is not null
-					order by spotlight_id, priority
-				`,
-				db.Params{},
-			)
-
+			spotlightItems := *spotlightItemsPromise
 			for _, item := range spotlightItems {
 				spotlightId := AppSpotlightId(item.SpotlightId)
 				groupId := AppGroupId(item.GroupId)
@@ -336,24 +445,9 @@ func appCatalogLoad() {
 				b := appSpotlightBucket(spotlightId)
 				b.Spotlights[spotlightId].Items = append(b.Spotlights[spotlightId].Items, groupId)
 			}
+			times["SpotlightItems"] = t.Mark()
 
-			carrouselItems := db.Select[struct {
-				Title             string
-				Body              string
-				LinkedApplication sql.NullString
-				LinkedGroup       sql.NullInt64
-				LinkedWebPage     sql.NullString
-				Image             []byte
-			}](
-				tx,
-				`
-					select title, body, linked_application, linked_group, linked_web_page, image
-					from app_store.carrousel_items
-					order by priority
-				`,
-				db.Params{},
-			)
-
+			carrouselItems := *carrouselItemsPromise
 			for _, item := range carrouselItems {
 				c := &appCatalogGlobals.Carrousel
 				ci := appCarrouselItem{
@@ -375,35 +469,15 @@ func appCatalogLoad() {
 
 				c.Items = append(c.Items, ci)
 			}
+			times["CarrouselItems"] = t.Mark()
 
-			topPicks := db.Select[struct{ GroupId int }](
-				tx,
-				`
-					select group_id
-					from app_store.top_picks
-					where group_id is not null
-					order by priority
-				`,
-				db.Params{},
-			)
-
+			topPicks := *topPicksPromise
 			for _, pick := range topPicks {
 				appCatalogGlobals.TopPicks.Items = append(appCatalogGlobals.TopPicks.Items, AppGroupId(pick.GroupId))
 			}
+			times["TopPicks"] = t.Mark()
 
-			stars := db.Select[struct {
-				TheUser         string
-				ApplicationName string
-			}](
-				tx,
-				`
-					select the_user, application_name
-					from app_store.favorited_by
-					order by the_user
-			    `,
-				db.Params{},
-			)
-
+			stars := *starsPromise
 			for _, star := range stars {
 				b := appBucket(star.TheUser)
 				s, ok := b.Stars[star.TheUser]
@@ -413,6 +487,9 @@ func appCatalogLoad() {
 				}
 				s.Applications[star.ApplicationName] = util.Empty{}
 			}
+			times["Stars"] = t.Mark()
+
+			coreutil.PrintStartupTimes("AppCatalog", times)
 		})
 
 		// Updating global ID counters so we do not override on new creations after restart
@@ -422,6 +499,9 @@ func appCatalogLoad() {
 
 		// Indexing
 		// ---------------------------------------------------------------------------------------------------------
+
+		var groupsToIndex []orcapi.ApplicationGroup
+
 		for i := 0; i < len(appCatalogGlobals.Buckets); i++ {
 			b := &appCatalogGlobals.Buckets[i]
 			for name, allVersions := range b.Applications {
@@ -437,7 +517,7 @@ func appCatalogLoad() {
 					AppCatalogIncludeApps)
 
 				if ok {
-					appAddToIndex(id, g)
+					groupsToIndex = append(groupsToIndex, g)
 				}
 			}
 		}
@@ -451,6 +531,12 @@ func appCatalogLoad() {
 				}
 			}
 		}
+
+		go func() {
+			for _, g := range groupsToIndex {
+				appAddToSearchIndex(AppGroupId(g.Metadata.Id), g)
+			}
+		}()
 	}
 }
 
