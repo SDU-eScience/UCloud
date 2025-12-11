@@ -108,7 +108,7 @@ func initAuthOidc() {
 				return util.Empty{}, util.HttpErr(http.StatusBadGateway, "Failed to authenticate you")
 			}
 
-			_ = userInfo // TODO?
+			_ = userInfo // NOTE(Dan): Unused at the moment.
 
 			rawIdToken, ok := oauthToken.Extra("id_token").(string)
 			if !ok {

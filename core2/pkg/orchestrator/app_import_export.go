@@ -280,7 +280,6 @@ func AppIxImportFromZip(b []byte) {
 
 	for _, g := range groupsToImport {
 		mappedId := groupIdRemapper[g.Metadata.Id]
-		// TODO color remapping
 		err := AppStudioUpdateGroup(orcapi.AppCatalogUpdateGroupRequest{
 			Id:             mappedId,
 			NewDescription: util.OptValue(g.Specification.Description),

@@ -253,7 +253,6 @@ func UserWantsEmail(username string, mailType fndapi.MailType) bool {
 	case fndapi.MailTypeVerifyEmailAddress:
 		return true
 	case fndapi.MailTypeJobEvents:
-		// TODO consolidate the two states
 		return settings.JobStarted || settings.JobStopped
 	default:
 		return false

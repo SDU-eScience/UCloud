@@ -666,7 +666,6 @@ func internalWalletById(id AccWalletId) (*internalBucket, *internalWallet, bool)
 }
 
 func internalOwnerByReference(reference string) *internalOwner {
-	// TODO Reference must be checked by caller
 	if reference == "" {
 		log.Fatal("internalOwnerByReference called with an empty reference")
 	}

@@ -39,10 +39,6 @@ import (
 // - Provide low-latency operations for any and all project related functionality.
 // - Propagating project changes via a notification system for other parts of UCloud which might do local caching.
 //
-// TODO(Dan): This service is not completed yet, this is a rough list of things missing:
-//   - Unmanaged provider projects
-//   - Project creation (we might want to do this purely through grants moving forward and make this a purely internal
-//     call)
 
 // Core types and globals
 // =====================================================================================================================
@@ -2370,9 +2366,9 @@ func ProjectRetrieveClaimsInfo(username string) ProjectClaimsInfo {
 	}
 
 	result.ProviderProjects = db.NewTx(func(tx *db.Transaction) rpc.ProviderProjects {
-		// TODO(Dan): Quite annoying that we have to go into another deployment's implementation details on top of
-		//  doing a DB transaction here when it is otherwise not needed. On the bright side, this function only runs
-		//  every 5-10 minutes for a given user.
+		// NOTE(Dan): Quite annoying that we have to go into another deployment's implementation details on top of
+		// doing a DB transaction here when it is otherwise not needed. On the bright side, this function only runs
+		// every 5-10 minutes for a given user.
 		projects := rpc.ProviderProjects{}
 
 		rows := db.Select[struct {

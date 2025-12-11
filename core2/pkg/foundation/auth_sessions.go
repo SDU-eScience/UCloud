@@ -24,7 +24,6 @@ func SessionCreate(r *http.Request, tx *db.Transaction, principal Principal) fnd
 	csrfToken := util.RandomTokenNoTs(32)
 	sessionReference := util.RandomTokenNoTs(32)
 
-	// TODO (just to find it later) This is down significantly from the old core
 	expiresAfter := 14 * 24 * time.Hour
 
 	db.Exec(

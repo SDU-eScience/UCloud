@@ -139,7 +139,7 @@ func GiftsClaim(now time.Time, actor rpc.Actor, id int) *util.HttpError {
 		}
 
 		_, err := GrantsSubmitRevisionEx(
-			rpc.ActorSystem, // TODO This is different from prod
+			rpc.ActorSystem,
 			request,
 			util.OptValue(id),
 		)

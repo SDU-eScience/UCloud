@@ -60,7 +60,6 @@ type internalUsageReportKpis struct {
 
 	TotalAllocatedAtStart int64
 	TotalAllocatedAtEnd   int64
-	// TODO We need to think about how retirement affects this
 
 	NextMeaningfulExpiration util.Option[time.Time]
 }

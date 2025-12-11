@@ -315,7 +315,6 @@ func ScriptRename(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ScriptRenam
 				}
 			}
 
-			// TODO this triggers in the personal workspace, even when the settings are set to allow editing
 			if !hasPermission {
 				return util.HttpErr(http.StatusForbidden, "You do not have permission to rename this script")
 			}
@@ -395,13 +394,12 @@ func ScriptUpdateAcl(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ScriptUp
 
 			hasPermission := false
 			for _, perm := range script.Permissions.Myself {
-				if perm == orcapi.ScriptPermissionAdmin { // TODO maybe this should be write permission instead?
+				if perm == orcapi.ScriptPermissionAdmin {
 					hasPermission = true
 					break
 				}
 			}
 
-			// TODO this triggers for the personal workspace, even when the settings are set to allow editing
 			if !hasPermission {
 				return util.HttpErr(http.StatusForbidden, "You do not have permission to change permissions for this script")
 			}

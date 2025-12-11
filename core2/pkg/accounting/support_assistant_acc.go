@@ -97,7 +97,6 @@ func usernameToUserInfo(tx *db.Transaction, username string) (accapi.SupportAssi
 	return accapi.SupportAssistUserInfo{}, false
 }
 
-// TODO(Henrik) NewTx0 is resulting in 2 runs. Currently fixed issue of results by using map instead of list, but it seems wierd
 func retrieveUserInfo(username string, email string) (accapi.SupportAssistRetrieveUserInfoResponse, *util.HttpError) {
 	/*
 		userInfos := make(map[string]accapi.SupportAssistUserInfo)
