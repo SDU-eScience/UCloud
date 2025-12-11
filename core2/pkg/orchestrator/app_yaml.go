@@ -753,11 +753,11 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 							Password: value.Password.GetOrDefault(""),
 							Port:     uint16(value.Port.Value),
 						}
-					}).GetOrDefault(orcapi.VncDescription{}),
+					}),
 
 					Web: util.OptMap(y.Web, func(value A2Web) orcapi.WebDescription {
 						return orcapi.WebDescription{Port: uint16(value.Port.GetOrDefault(80))}
-					}).GetOrDefault(orcapi.WebDescription{}),
+					}),
 
 					Ssh: util.OptMap(y.Ssh, func(value A2Ssh) orcapi.SshDescription {
 						res := orcapi.SshDescription{}
@@ -770,7 +770,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 							res.Mode = orcapi.SshModeMandatory
 						}
 						return res
-					}).GetOrDefault(orcapi.SshDescription{}),
+					}),
 
 					Container: orcapi.ContainerDescription{
 						ChangeWorkingDirectory: true,

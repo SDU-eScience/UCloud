@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -951,7 +952,7 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 		}
 	}
 
-	sshMode := util.EnumOrDefault(app.Invocation.Ssh.Mode, orcapi.SshModeOptions, orcapi.SshModeDisabled)
+	sshMode := util.EnumOrDefault(app.Invocation.Ssh.Value.Mode, orcapi.SshModeOptions, orcapi.SshModeDisabled)
 	if spec.SshEnabled && sshMode == orcapi.SshModeDisabled {
 		return util.HttpErr(http.StatusBadRequest, "this application does not support SSH but it is required")
 	}
@@ -1145,7 +1146,7 @@ func JobsSearch(
 	itemsPerPage int,
 	flags orcapi.JobFlags,
 ) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
-	return ResourceBrowse(
+	return jobsProcessFlags(ResourceBrowse(
 		actor,
 		jobType,
 		next,
@@ -1172,7 +1173,35 @@ func JobsSearch(
 			return false
 		},
 		nil,
-	), nil
+	), flags), nil
+}
+
+func jobsProcessFlags(
+	page fndapi.PageV2[orcapi.Job],
+	flags orcapi.JobFlags,
+) fndapi.PageV2[orcapi.Job] {
+	if flags.IncludeApplication && flags.IncludeParameters && flags.IncludeUpdates {
+		return page
+	}
+
+	for i := 0; i < len(page.Items); i++ {
+		job := page.Items[i]
+		if !flags.IncludeApplication {
+			job.Status.ResolvedApplication.Clear()
+		}
+
+		if !flags.IncludeParameters {
+			job.Status.JobParametersJson.Clear()
+		}
+
+		if !flags.IncludeUpdates {
+			job.Updates = util.NonNilSlice[orcapi.JobUpdate](nil)
+		}
+
+		page.Items[i] = job
+	}
+
+	return page
 }
 
 func JobsBrowse(
@@ -1185,7 +1214,7 @@ func JobsBrowse(
 		return item.Resource
 	}, flags.ResourceFlags)
 
-	return ResourceBrowse(
+	return jobsProcessFlags(ResourceBrowse(
 		actor,
 		jobType,
 		next,
@@ -1201,7 +1230,7 @@ func JobsBrowse(
 			return true
 		},
 		sortByFn,
-	), nil
+	), flags), nil
 }
 
 func JobsRetrieve(actor rpc.Actor, id string, flags orcapi.JobFlags) (orcapi.Job, *util.HttpError) {
@@ -1293,10 +1322,10 @@ func jobLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource
 						j.resource,
 						coalesce(
 							jsonb_agg(
-								jsonb_build_object(
+								u.extra || jsonb_build_object(
 									'timestamp', (floor(extract(epoch from u.created_at) * 1000)),
 									'status', u.status
-								) || u.extra
+								)
 							) filter (where u.created_at is not null), 
 							cast('[]' as jsonb)) as updates
 				    from
@@ -1375,6 +1404,10 @@ func jobLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource
 
 		_ = json.Unmarshal([]byte(row.MountedResources), &info.Resources)
 		_ = json.Unmarshal([]byte(row.Updates), &info.Updates)
+
+		slices.SortFunc(info.Updates, func(a, b orcapi.JobUpdate) int {
+			return a.Timestamp.Time().Compare(b.Timestamp.Time())
+		})
 
 		if row.ExportedParameters.Valid {
 			_ = json.Unmarshal([]byte(row.ExportedParameters.String), &info.JobParametersJson)
@@ -1606,10 +1639,9 @@ func jobTransform(
 			SshEnabled:     info.SshEnabled,
 		},
 		Status: orcapi.JobStatus{
-			State:               info.State,
-			JobParametersJson:   info.JobParametersJson,
-			StartedAt:           info.StartedAt,
-			ResolvedApplication: orcapi.Application{},
+			State:             info.State,
+			JobParametersJson: util.OptValue(info.JobParametersJson),
+			StartedAt:         info.StartedAt,
 		},
 		Output: orcapi.JobOutput{
 			OutputFolder: info.OutputFolder,
@@ -1619,7 +1651,7 @@ func jobTransform(
 	if flags.IncludeProduct || flags.IncludeSupport {
 		support, _ := SupportByProduct[orcapi.JobSupport](jobType, product.Value)
 		result.Status.ResolvedProduct.Set(support.Product)
-		result.Status.ResolvedSupport = support.ToApi()
+		result.Status.ResolvedSupport.Set(support.ToApi())
 	}
 
 	if info.StartedAt.Present && info.TimeAllocation.Present {
@@ -1627,10 +1659,9 @@ func jobTransform(
 		result.Status.ExpiresAt.Set(fndapi.Timestamp(info.StartedAt.Value.Time().Add(millis)))
 	}
 
-	// TODO When to send this, we don't have the source flags?
 	{
 		app, _ := AppRetrieve(rpc.ActorSystem, info.Application.Name, info.Application.Version, AppDiscoveryAll, 0)
-		result.Status.ResolvedApplication = app
+		result.Status.ResolvedApplication.Set(app)
 	}
 
 	return result
@@ -1705,7 +1736,7 @@ func jobSendNotifications(username string, jobs map[string]orcapi.Job) {
 
 		for _, job := range group {
 			jobIds = append(jobIds, job.Id)
-			appTitles = append(appTitles, job.Status.ResolvedApplication.Metadata.Title)
+			appTitles = append(appTitles, job.Status.ResolvedApplication.Value.Metadata.Title)
 			jobNames = append(jobNames, job.Specification.Name)
 		}
 
@@ -1744,7 +1775,7 @@ func jobSendNotifications(username string, jobs map[string]orcapi.Job) {
 	for _, job := range jobs {
 		event := mailEvent{
 			JobName:       "",
-			AppName:       job.Status.ResolvedApplication.Metadata.Title,
+			AppName:       job.Status.ResolvedApplication.Value.Metadata.Title,
 			ChangeMessage: "",
 			JobId:         job.Id,
 		}

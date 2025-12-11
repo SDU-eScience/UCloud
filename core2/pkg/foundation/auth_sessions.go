@@ -193,7 +193,7 @@ func SessionLoginResponse(r *http.Request, w http.ResponseWriter, session fndapi
 		response := map[string]string{"2fa": mfaChallenge}
 
 		if respondWithJson {
-			rpc.SendResponseOrError(w, response, nil)
+			rpc.SendResponseOrError(r, w, response, nil)
 		} else {
 			respondViaCookieRedirect(response)
 		}
@@ -212,7 +212,7 @@ func SessionLoginResponse(r *http.Request, w http.ResponseWriter, session fndapi
 
 		if respondWithJson {
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
-			rpc.SendResponseOrError(w, session, nil)
+			rpc.SendResponseOrError(r, w, session, nil)
 		} else {
 			// NOTE(Dan): This will happen if we get a redirect from OIDC
 			respondViaCookieRedirect(session)

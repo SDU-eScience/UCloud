@@ -252,6 +252,10 @@ func composeVertical(img *image.NRGBA, w int, h int, title string, clr Rgb, scal
 	canvas := image.NewNRGBA(image.Rect(0, 0, w, h))
 	if img != nil {
 		dst := image.Rect(0, 0, img.Bounds().Dx(), img.Bounds().Dy())
+		if img.Bounds().Dx() < w {
+			diff := float64(w-img.Bounds().Dx()) / 2.0
+			dst = dst.Add(image.Point{X: int(diff), Y: 0})
+		}
 		draw.Draw(canvas, dst, img, img.Bounds().Min, draw.Over)
 	}
 	drawString(canvas, title, (w-textW)/2, img.Bounds().Dy()+int(size*1.1), size, clr)
@@ -283,7 +287,7 @@ func composeHorizontal(img *image.NRGBA, imgW int, imgH int, title string, clr R
 			draw.Draw(canvas, dst, img, img.Bounds().Min, draw.Over)
 		}
 
-		y := (canvas.Bounds().Dy()-h)/2 + int(size)
+		y := (canvas.Bounds().Dy()-h)/2 + int(size/1.15)
 		for _, line := range lines {
 			drawString(canvas, line, imgW+paddingX, y, size, clr)
 			y += int(size * 1.1)
@@ -352,8 +356,7 @@ func wrap(txt string, sz float64) (lines []string, width, height int) {
 			}
 		}
 	}
-	ascent := int(sz)
-	height = (len(lines)-1)*int(sz) + ascent
+	height = (len(lines)-1)*int(sz*1.1) + int(sz)
 	return
 }
 

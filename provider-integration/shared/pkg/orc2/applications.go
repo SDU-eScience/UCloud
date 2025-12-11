@@ -171,9 +171,9 @@ type ApplicationInvocationDescription struct {
 	Parameters            []ApplicationParameter         `json:"parameters" yaml:"parameters"`
 	OutputFileGlobs       []string                       `json:"outputFileGlobs" yaml:"outputFileGlobs"`
 	ApplicationType       ApplicationType                `json:"applicationType" yaml:"applicationType"`
-	Vnc                   VncDescription                 `json:"vnc" yaml:"vnc"`
-	Web                   WebDescription                 `json:"web" yaml:"web"`
-	Ssh                   SshDescription                 `json:"ssh" yaml:"ssh"`
+	Vnc                   util.Option[VncDescription]    `json:"vnc" yaml:"vnc"`
+	Web                   util.Option[WebDescription]    `json:"web" yaml:"web"`
+	Ssh                   util.Option[SshDescription]    `json:"ssh" yaml:"ssh"`
 	Container             ContainerDescription           `json:"container" yaml:"container"`
 	Environment           map[string]InvocationParameter `json:"environment" yaml:"environment"`
 	AllowAdditionalMounts util.Option[bool]              `json:"allowAdditionalMounts" yaml:"allowAdditionalMounts"`

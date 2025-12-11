@@ -222,6 +222,8 @@ class AccountingSystem(
                                         is AccountingRequest.RegisterProviderGift ->
                                             registerProviderGift(msg)
 
+                                        is AccountingRequest.Dump -> dump()
+
                                         is AccountingRequest.FindRelevantProviders -> findRelevantProviders(msg)
                                         is AccountingRequest.FindAllProviders -> findAllProviders(msg)
                                         is AccountingRequest.SystemCharge -> systemCharge(msg)
@@ -1388,6 +1390,26 @@ class AccountingSystem(
             walletsById[id]?.let {
                 it.lowBalanceNotified = true
                 it.isDirty = true
+            }
+        }
+
+        return Response.ok(Unit)
+    }
+
+    private fun dump(): Response<Unit> {
+        val w = PrintWriter(FileWriter("/tmp/dump.csv"))
+        w.use {
+            w.println("id,maxUsable,totalTreeUsage,activeUsage,activeQuota")
+
+            val sortedIds = walletsById.keys.toList().sorted()
+            for (id in sortedIds) {
+                val wallet = walletsById.getValue(id)
+                val maxUsable = maxUsableForWallet(wallet)
+                val totalTreeUsage = wallet.totalTreeUsage()
+                val activeUsage = wallet.totalActiveUsage()
+                val activeQuota = wallet.totalActiveQuota()
+
+                w.println("$id,$maxUsable,$totalTreeUsage,$activeUsage,$activeQuota")
             }
         }
 

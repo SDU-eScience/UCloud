@@ -2,6 +2,7 @@ package foundation
 
 import (
 	"net/http"
+
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -40,7 +41,7 @@ var AuthMfaAnswerChallenge = rpc.Call[MfaChallengeAnswer, util.Empty]{
 	},
 	CustomServerProducer: func(response util.Empty, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
 		if err != nil {
-			rpc.SendResponseOrError(w, nil, err)
+			rpc.SendResponseOrError(r, w, nil, err)
 		} else {
 			// Do nothing
 		}

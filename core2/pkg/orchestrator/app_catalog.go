@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"cmp"
 	"encoding/binary"
 	"fmt"
 	"hash/fnv"
@@ -766,7 +767,7 @@ catLoop:
 	}
 
 	slices.SortFunc(result, func(a, b orcapi.ApplicationCategory) int {
-		return strings.Compare(a.Specification.Title, b.Specification.Title)
+		return cmp.Compare(a.Metadata.Priority, b.Metadata.Priority)
 	})
 
 	return util.NonNilSlice(result)
@@ -1173,7 +1174,10 @@ func AppStudioListGroups() []orcapi.ApplicationGroup {
 	}
 
 	slices.SortFunc(result, func(a, b orcapi.ApplicationGroup) int {
-		return strings.Compare(a.Specification.Title, b.Specification.Title)
+		return strings.Compare(
+			strings.ToLower(a.Specification.Title),
+			strings.ToLower(b.Specification.Title),
+		)
 	})
 
 	return util.NonNilSlice(result)
@@ -1362,6 +1366,8 @@ func AppStudioAssignToGroup(name string, groupId util.Option[AppGroupId]) *util.
 		}
 	}
 	b.Mu.RUnlock()
+
+	AppLogoInvalidate(name)
 
 	if previousGroupId.Present {
 		g, ok := appRetrieveGroup(previousGroupId.Value)

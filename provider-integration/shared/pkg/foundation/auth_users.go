@@ -70,7 +70,7 @@ var UsersVerifyUserInfo = rpc.Call[FindByStringId, string]{
 		if err == nil {
 			http.Redirect(w, r, response, http.StatusFound)
 		} else {
-			rpc.SendResponseOrError(w, nil, err)
+			rpc.SendResponseOrError(r, w, nil, err)
 		}
 	},
 }

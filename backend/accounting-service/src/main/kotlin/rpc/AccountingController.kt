@@ -25,6 +25,10 @@ import dk.sdu.cloud.service.*
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.io.File
 
 class AccountingController(
     private val micro: Micro,
@@ -365,6 +369,19 @@ class AccountingController(
         ktor.routing {
             webSocket(ApmNotifications.PATH) {
                 apmNotifications.handleClient(this)
+            }
+        }
+
+        GlobalScope.launch {
+            while (true) {
+                val file = File("/tmp/dump.please")
+                if (file.exists()) {
+                    file.delete()
+
+                    accounting.sendRequest(AccountingRequest.Dump(IdCard.System))
+                }
+
+                delay(1000)
             }
         }
     }
