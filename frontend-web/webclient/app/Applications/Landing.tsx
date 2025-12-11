@@ -2,7 +2,7 @@ import * as React from "react";
 import {usePage} from "@/Navigation/Redux";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {classConcat, injectStyle} from "@/Unstyled";
-import {Box, Button, Card, Flex, Grid, Icon, MainContainer, Markdown, Relative} from "@/ui-components";
+import {Box, Button, Card, ExternalLink, Flex, Grid, Icon, MainContainer, Markdown, Relative} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {AppLogoRaw, SafeLogo} from "@/Applications/AppToolLogo";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
@@ -121,7 +121,7 @@ const LandingPage: React.FunctionComponent = () => {
                             <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(250px, 1fr)"}>
                                 {landingPage.categories.map((c, idx) =>
                                     <CategoryCard key={c.metadata.id} id={c.metadata.id} idx={idx}
-                                        categoryTitle={c.specification.title} />
+                                                  categoryTitle={c.specification.title} />
                                 )}
                             </Grid>
                         </div>
@@ -135,9 +135,9 @@ const LandingPage: React.FunctionComponent = () => {
                                     <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
                                         {landingPage.newApplications.map((app, idx) => (
                                             <AppCard1 name={app.metadata.name} title={app.metadata.title}
-                                                description={app.metadata.description} fullWidth
-                                                key={app.metadata.name + app.metadata.version}
-                                                isApplication />
+                                                      description={app.metadata.description} fullWidth
+                                                      key={app.metadata.name + app.metadata.version}
+                                                      isApplication />
                                         ))}
                                     </Flex>
                                 </TabbedCardTab>
@@ -146,9 +146,9 @@ const LandingPage: React.FunctionComponent = () => {
                                     <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
                                         {landingPage.recentlyUpdated.map(app => (
                                             <AppCard1 name={app.metadata.name} title={app.metadata.title}
-                                                description={app.metadata.description} fullWidth
-                                                key={app.metadata.name + app.metadata.version}
-                                                isApplication />
+                                                      description={app.metadata.description} fullWidth
+                                                      key={app.metadata.name + app.metadata.version}
+                                                      isApplication />
                                         ))}
                                     </Flex>
                                 </TabbedCardTab>
@@ -169,9 +169,9 @@ export const SpotlightCard: React.FunctionComponent<{
                 {spotlight.applications.map((pick, idx) => {
                     if (pick.groupId) {
                         return <AppCard1 key={idx} name={pick.groupId.toString()}
-                            title={pick.title} description={pick.description}
-                            applicationName={pick.defaultApplicationToRun}
-                            fullWidth target={target} />;
+                                         title={pick.title} description={pick.description}
+                                         applicationName={pick.defaultApplicationToRun}
+                                         fullWidth target={target} />;
                     } else {
                         return null;
                     }
@@ -199,9 +199,9 @@ export const SpotlightCard2: React.FunctionComponent<{
                 {spotlight.applications.map((pick, idx) => {
                     if (pick.groupId) {
                         return <AppCard2 key={idx} name={pick.groupId.toString()}
-                            title={pick.title} description={pick.description}
-                            applicationName={pick.defaultApplicationToRun}
-                            fullWidth target={target} />;
+                                         title={pick.title} description={pick.description}
+                                         applicationName={pick.defaultApplicationToRun}
+                                         fullWidth target={target} />;
                     } else {
                         return null;
                     }
@@ -366,7 +366,7 @@ export const Hero: React.FunctionComponent<{
         <link rel="prefetch" as="image" href={nextImageLink} />
         <div className={HeroStyle}>
             <div className={"carousel"}>
-                <div onClick={() => slideLink ? navigate(slideLink) : 0} className={"carouselImages"}>
+                <div onClick={() => slideLink && !slideLinkIsExternal ? navigate(slideLink) : 0} className={"carouselImages"}>
                     <img key={2 * activeIndex + 1} alt={"cover image"} src={imageLink} />
                     <img key={activeIndex} alt={"cover image"} src={prevImageLink} />
                     <div className="indicators">
@@ -383,7 +383,7 @@ export const Hero: React.FunctionComponent<{
                     </div>
                 </div>
                 <div className={"carouselText"}>
-                    <h1 style={{cursor: "pointer"}} onClick={() => slideLink ? navigate(slideLink) : 0}>{slide.title}</h1>
+                    <h1 style={{cursor: "pointer"}} onClick={() => slideLink && !slideLinkIsExternal ? navigate(slideLink) : 0}>{slide.title}</h1>
                     <div className={SpotlightDescription}>
                         <Markdown allowedElements={["p"]}>
                             {slide.body}
@@ -391,23 +391,30 @@ export const Hero: React.FunctionComponent<{
                     </div>
                     <Box flexGrow={1} />
                     {slideLink ?
-                        <ReactRouterLink
-                            to={slideLink}
-                            style={{width: "100%"}}
-                            target={slideLinkIsExternal || isPreview ? "_blank" : undefined}
-                            rel="noopener"
-                        >
-                            <Button fullWidth>
-                                <Icon name={"heroPlay"} />
-                                <div>
-                                    {slide.linkedWebPage ? "Open web-page" : "Open application"}
-                                </div>
-                            </Button>
-                        </ReactRouterLink>
+                        slideLinkIsExternal ?
+                            <ExternalLink
+                                href={slideLink}
+                                style={{width: "100%"}}
+                                target={"_blank"}
+                            >
+                                <Button fullWidth>
+                                    <Icon name={"heroPlay"} />
+                                    <div>Open web-page</div>
+                                </Button>
+                            </ExternalLink> :
+                            <ReactRouterLink
+                                to={slideLink}
+                                style={{width: "100%"}}
+                            >
+                                <Button fullWidth>
+                                    <Icon name={"heroPlay"} />
+                                    <div>Open application</div>
+                                </Button>
+                            </ReactRouterLink>
                         : <>
                             <TooltipV2 tooltip={<>This application is not available<br />with your current filter!</>}>
                                 <Button fullWidth
-                                    disabled={!slide.linkedApplication && !slide.linkedGroup && !slide.linkedWebPage}>
+                                        disabled={!slide.linkedApplication && !slide.linkedGroup && !slide.linkedWebPage}>
                                     <Icon name={"heroPlay"} />
                                     <div>Open application</div>
                                 </Button>
@@ -566,7 +573,7 @@ export const AppCard2: React.FunctionComponent<{
     }
 
     return <ReactRouterLink to={link} target={props.target}
-        className={classConcat(AppCard2Style, props.fullWidth ? "full-width" : undefined)}>
+                            className={classConcat(AppCard2Style, props.fullWidth ? "full-width" : undefined)}>
         <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"56px"} />
         <div className={"content"}>
             <h2>{props.title}</h2>
@@ -687,8 +694,8 @@ export const TopPicksCard: React.FunctionComponent<{topPicks: TopPick[]}> = ({to
             {topPicks.map(pick => {
                 if (pick.groupId) {
                     return <AppCard1 key={pick.groupId} name={pick.groupId.toString()}
-                        title={pick.title} description={pick.description}
-                        applicationName={pick.defaultApplicationToRun} />;
+                                     title={pick.title} description={pick.description}
+                                     applicationName={pick.defaultApplicationToRun} />;
                 } else {
                     return null;
                 }
@@ -774,7 +781,7 @@ export const TopPicksCard2: React.FunctionComponent<{topPicks: TopPick[]}> = ({t
                         }
 
                         return <LogoCard key={pick.groupId} large={idx === 0 && topPicks.length > 5} id={pick.groupId}
-                            title={pick.title} link={link} />;
+                                         title={pick.title} link={link} />;
                     } else {
                         return null;
                     }

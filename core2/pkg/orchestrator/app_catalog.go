@@ -1753,7 +1753,7 @@ func AppStudioUpdateCarrousel(slides []orcapi.CarrouselItem) *util.HttpError {
 
 		linkCount := 0
 
-		if slide.LinkedWebPage.Present {
+		if slide.LinkedWebPage.Present && slide.LinkedWebPage.Value != "" {
 			linkCount++
 			util.ValidateString(&slide.LinkedWebPage.Value, "linkedWebPage", 0, &err)
 		}
