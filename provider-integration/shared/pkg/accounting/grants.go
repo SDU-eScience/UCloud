@@ -486,3 +486,23 @@ var GrantsRetrieveLogo = rpc.Call[GrantsRetrieveLogoRequest, []byte]{
 		panic("client not implemented")
 	},
 }
+
+type GrantsExportResponse struct {
+	Id              string                `json:"id"`
+	Title           string                `json:"title"`
+	SubmittedBy     string                `json:"submittedBy"`
+	SubmittedAt     fnd.Timestamp         `json:"submittedAt"`
+	StartDate       fnd.Timestamp         `json:"startDate"`
+	DurationMonths  int                   `json:"durationMonths"`
+	State           GrantApplicationState `json:"state"`
+	GrantGiver      string                `json:"grantGiver"`
+	LatestUpdatedAt fnd.Timestamp         `json:"latestUpdatedAtAt"`
+	Resources       map[string]int        `json:"resources"`
+}
+
+var GrantsExport = rpc.Call[util.Empty, []GrantsExportResponse]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "export",
+	Roles:       rpc.RolesEndUser,
+}

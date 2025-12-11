@@ -1,4 +1,11 @@
-import {ColumnTitleList, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
+import {
+    addContextSwitcherInPortal,
+    ColumnTitleList,
+    EmptyReasonTag,
+    ResourceBrowseFeatures,
+    ResourceBrowser,
+    ResourceBrowserOpts
+} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useLocation, useNavigate} from "react-router";
@@ -9,7 +16,7 @@ import AppRoutes from "@/Routes";
 import {IconName} from "@/ui-components/Icon";
 import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import * as Grants from ".";
-import {stateToIconAndColor} from ".";
+import {exportGrants, stateToIconAndColor} from ".";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {addTrailingSlash, createHTMLElements, prettierString, timestampUnixMs} from "@/UtilityFunctions";
 import {ShortcutKey} from "@/ui-components/Operation";
@@ -257,21 +264,36 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
 
                 browser.on("fetchOperations", () => {
                     const selected = browser.findSelectedEntries();
-                    const ops = [{
-                        icon: "heroArrowRight" as IconName,
-                        enabled(selected: Grants.Application[]) {
-                            return selected.length === 0 && isIngoing;
+                    const ops = [
+                        {
+                            icon: "heroArrowRight" as IconName,
+                            enabled(selected: Grants.Application[]) {
+                                return selected.length === 0 && isIngoing;
+                            },
+                            onClick() {navigate(AppRoutes.grants.outgoing())},
+                            text: "Show applications sent",
+                            shortcut: ShortcutKey.U
                         },
-                        onClick() {navigate(AppRoutes.grants.outgoing())},
-                        text: "Show applications sent",
-                        shortcut: ShortcutKey.U
-                    }, {
-                        icon: "heroInbox" as IconName,
-                        enabled(selected: Grants.Application[]) {return selected.length === 0 && !isIngoing},
-                        onClick() {navigate(AppRoutes.grants.ingoing())},
-                        text: "Show applications received",
-                        shortcut: ShortcutKey.I
-                    }];
+                        {
+                            icon: "heroInbox" as IconName,
+                            enabled(selected: Grants.Application[]) {return selected.length === 0 && !isIngoing},
+                            onClick() {navigate(AppRoutes.grants.ingoing())},
+                            text: "Show applications received",
+                            shortcut: ShortcutKey.I
+                        },
+                        {
+                            icon: "heroBellSlash" as IconName,
+                            text: "Export",
+                            enabled(selected: Grants.Application[]) {
+                                return selected.length === 0 && isIngoing;
+                            },
+                            shortcut: ShortcutKey.X,
+                            async onClick() {
+                                const result = await callAPI(exportGrants());
+                                console.log(result)
+                            }
+                        }
+                    ];
                     return ops.filter(it => it.enabled(selected));
                 });
 

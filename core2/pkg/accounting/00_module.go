@@ -38,5 +38,8 @@ func Init() {
 	initLowFundsScan()
 	times["LowFundsScan"] = t.Mark()
 
+	initGrantsExport()
+	times["GrantsExport"] = t.Mark()
+
 	coreutil.PrintStartupTimes("Accounting", times)
 }
