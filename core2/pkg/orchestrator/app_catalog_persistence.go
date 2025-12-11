@@ -1228,8 +1228,8 @@ func appToolPersist(tool *internalTool) {
 		db.Exec(
 			tx,
 			`
-insert into app_store.tools(name, version, created_at, modified_at, original_document, owner, tool) 
-values (:name, :version, now(), now(), '{}', '_ucloud', :tool)
+				insert into app_store.tools(name, version, created_at, modified_at, original_document, owner, tool) 
+				values (:name, :version, now(), now(), '{}', '_ucloud', :tool)
 		    `,
 			db.Params{
 				"name":    tool.Name,

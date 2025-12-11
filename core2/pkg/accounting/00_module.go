@@ -1,6 +1,7 @@
 package accounting
 
 import (
+	"os"
 	"time"
 
 	"ucloud.dk/core/pkg/coreutil"
@@ -39,4 +40,18 @@ func Init() {
 	times["LowFundsScan"] = t.Mark()
 
 	coreutil.PrintStartupTimes("Accounting", times)
+
+	if util.DevelopmentModeEnabled() {
+		go func() {
+			for {
+				_, err := os.Stat("/tmp/dump.please")
+				if err == nil {
+					_ = os.Remove("/tmp/dump.please")
+					internalAccountingDump()
+				}
+
+				time.Sleep(1 * time.Second)
+			}
+		}()
+	}
 }
