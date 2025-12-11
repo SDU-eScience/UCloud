@@ -33,7 +33,11 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
                     show(res) {
                         const errorMessage = checkProviderMismatch(res, "Public IPs");
                         if (errorMessage) return errorMessage;
-                        return res.status.boundTo.length === 0;
+                        if (res.status.boundTo.length === 0) {
+                            return true;
+                        } else {
+                            return "This IP is already in use"
+                        }
                     },
                 }
             }}
