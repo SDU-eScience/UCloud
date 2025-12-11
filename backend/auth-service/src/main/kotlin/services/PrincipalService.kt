@@ -659,7 +659,8 @@ class PrincipalService(
                         info.organization_full_name,
                         info.department,
                         info.research_field,
-                        info.position
+                        info.position,
+                        info.gender
                     from
                         auth.principals p join
                         auth.additional_user_info info on p.uid = info.associated_user
@@ -677,6 +678,7 @@ class PrincipalService(
                     row.getString(1),
                     row.getString(2),
                     row.getString(3),
+                    row.getString(4)
                 )
             }
         }
@@ -695,18 +697,20 @@ class PrincipalService(
                     setParameter("department", info.department)
                     setParameter("research_field", info.researchField)
                     setParameter("position", info.position)
+                    setParameter("gender", info.gender)
                 },
                 """
                     insert into auth.additional_user_info (associated_user, organization_full_name, department,
-                        research_field, position) 
-                    select p.uid, :organization_full_name, :department, :research_field, :position
+                        research_field, position, gender) 
+                    select p.uid, :organization_full_name, :department, :research_field, :position, :gender
                     from auth.principals p
                     where p.id = :username
                     on conflict (associated_user) do update set
                         organization_full_name = excluded.organization_full_name,
                         department = excluded.department,
                         research_field = excluded.research_field,
-                        position = excluded.position
+                        position = excluded.position,
+                        gender = excluded.gender
                 """
             )
         }

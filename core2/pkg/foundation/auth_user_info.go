@@ -18,6 +18,7 @@ func UserOptInfoRetrieve(actor rpc.Actor) fndapi.OptionalUserInfo {
 			Department           sql.Null[string]
 			ResearchField        sql.Null[string]
 			Position             sql.Null[string]
+			Gender               sql.Null[string]
 		}](
 			tx,
 			`
@@ -25,7 +26,8 @@ func UserOptInfoRetrieve(actor rpc.Actor) fndapi.OptionalUserInfo {
 				info.organization_full_name,
 				info.department,
 				info.research_field,
-				info.position
+				info.position,
+				info.gender
 			from
 				auth.principals p join
 				auth.additional_user_info info on p.uid = info.associated_user
@@ -40,6 +42,7 @@ func UserOptInfoRetrieve(actor rpc.Actor) fndapi.OptionalUserInfo {
 			Department:           util.SqlNullToOpt(row.Department),
 			ResearchField:        util.SqlNullToOpt(row.ResearchField),
 			Position:             util.SqlNullToOpt(row.Position),
+			Gender:               util.SqlNullToOpt(row.Gender),
 		}
 	})
 	return result
@@ -51,15 +54,16 @@ func UsersOptInfoUpdate(actor rpc.Actor, info fndapi.OptionalUserInfo) {
 			tx,
 			`
 			insert into auth.additional_user_info (associated_user, organization_full_name, department,
-                research_field, position) 
-            select p.uid, :organization_full_name, :department, :research_field, :position
+                research_field, position, gender) 
+            select p.uid, :organization_full_name, :department, :research_field, :position, :gender
             from auth.principals p
             where p.id = :username
             on conflict (associated_user) do update set
                 organization_full_name = excluded.organization_full_name,
                 department = excluded.department,
                 research_field = excluded.research_field,
-                position = excluded.position
+                position = excluded.position,
+				gender = excluded.gender
 			`,
 			db.Params{
 				"username":               actor.Username,
@@ -67,6 +71,7 @@ func UsersOptInfoUpdate(actor rpc.Actor, info fndapi.OptionalUserInfo) {
 				"department":             info.Department.Sql(),
 				"research_field":         info.ResearchField.Sql(),
 				"position":               info.Position.Sql(),
+				"gender":                 info.Gender.Sql(),
 			})
 	})
 }
