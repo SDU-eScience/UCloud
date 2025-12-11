@@ -178,7 +178,7 @@ const Playground: React.FunctionComponent = () => {
             {/**/}
             {/*<PaletteColors />*/}
             {/*<Colors />*/}
-            {/*<EveryIcon />*/}
+            <EveryIcon />
             {/*
             <Button onClick={() => {
                 messageTest();

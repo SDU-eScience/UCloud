@@ -64,7 +64,7 @@ const GenericTextArea: React.FunctionComponent<GenericInputFieldProps> = props =
     </GenericInputField>
 }
 
-export const SshKeysCreate: React.FunctionComponent = () => {
+export function SshKeysCreate(): React.ReactNode {
     usePage(SshKeyApi.titlePlural, SidebarTabId.RESOURCES);
 
     const navigate = useNavigate();

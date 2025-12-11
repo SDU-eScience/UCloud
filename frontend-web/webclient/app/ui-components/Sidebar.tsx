@@ -724,6 +724,8 @@ const ResourceSubLinksEntries: LinkInfo[] = [{
     to: AppRoutes.resources.sshKeys(), text: "SSH keys", icon: "heroKey", tab: SidebarTabId.RESOURCES
 }, {
     to: AppRoutes.resources.licenses(), text: "Licenses", icon: "heroDocumentCheck", tab: SidebarTabId.RESOURCES
+}, {
+    to: AppRoutes.resources.apiTokens(), text: "API tokens", icon: "heroCircleStack", tab: SidebarTabId.RESOURCES,
 }];
 
 function ProjectSubLinks({canApply, isPersonalWorkspace, projectId}: {
