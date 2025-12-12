@@ -140,6 +140,8 @@ const (
 	// resourceTypeCreateWithoutAdmin allows for the creation of new resources even if the actor is not an admin of
 	// the specified workspace.
 	resourceTypeCreateWithoutAdmin resourceTypeFlags = 1 << iota
+
+	resourceTypeCreateAsAllocator
 )
 
 type resourceTypeGlobal struct {
@@ -221,7 +223,7 @@ func InitResources() {
 		db.NewTx0(func(tx *db.Transaction) {
 			id, ok := db.Get[struct{ Id int64 }](
 				tx,
-				`select max(id) as id from provider.resource`,
+				`select coalesce(max(id), 0) as id from provider.resource`,
 				db.Params{},
 			)
 
@@ -1063,15 +1065,16 @@ func ResourceCreate[T any](
 	product util.Option[accapi.ProductReference],
 	extra any,
 ) (ResourceId, T, *util.HttpError) {
+	g := resourceGetGlobals(typeName)
+
 	if actor.Project.Present {
 		_, isAllocator := actor.AllocatorProjects[actor.Project.Value]
-		if isAllocator {
+		if isAllocator && g.Flags&resourceTypeCreateAsAllocator == 0 {
 			var t T
 			return 0, t, util.HttpErr(http.StatusForbidden, "this project is not allowed to consume resources")
 		}
 	}
 
-	g := resourceGetGlobals(typeName)
 	if g.Flags&resourceTypeCreateWithoutAdmin == 0 {
 		if actor.Project.Present && !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
 			var t T

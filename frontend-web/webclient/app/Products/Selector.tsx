@@ -439,7 +439,7 @@ const ProductName: React.FunctionComponent<{product: ProductV2}> = ({product}) =
     return <>{product.name}</>;
 }
 
-const SelectorDialog = injectStyle("selector-dialog", k => `
+export const SelectorDialog = injectStyle("selector-dialog", k => `
     ${k} {
         position: fixed;
         cursor: default;

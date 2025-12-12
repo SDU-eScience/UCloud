@@ -90,7 +90,6 @@ func retrieveProjectInfo(projectId string) (orcapi.SupportAssistRetrieveProjectI
 			}
 		}
 
-		//TODO() Most likely there is a better way to determine which wallet is the cause of problems
 		for _, wallet := range wallets {
 			var problematicWallet apm.WalletV2
 			//If we cannot use all remaining quota we have a problem

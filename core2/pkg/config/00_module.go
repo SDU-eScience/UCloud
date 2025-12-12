@@ -49,6 +49,8 @@ type ConfigurationFormat struct {
 		Text    string
 	}
 
+	SlackHook util.Option[string]
+
 	ElasticSearch util.Option[rpc.ElasticConfig]
 
 	RequireMfa bool
@@ -213,6 +215,11 @@ func Parse(configDir string) bool {
 				}
 			}
 		}
+	}
+
+	slackHook := cfgutil.OptionalChildText(filePath, document, "slackHook", &success)
+	if slackHook != "" {
+		cfg.SlackHook.Set(slackHook)
 	}
 
 	// SLA section

@@ -280,7 +280,6 @@ func AppIxImportFromZip(b []byte) {
 
 	for _, g := range groupsToImport {
 		mappedId := groupIdRemapper[g.Metadata.Id]
-		// TODO color remapping
 		err := AppStudioUpdateGroup(orcapi.AppCatalogUpdateGroupRequest{
 			Id:             mappedId,
 			NewDescription: util.OptValue(g.Specification.Description),
@@ -384,7 +383,7 @@ func AppIxImportFromZip(b []byte) {
 			log.Info("Could not create spotlight '%s': %s", s.Title, err)
 		} else {
 			if s.Active {
-				_ = AppStudioActivateSpotlight(newId)
+				_ = AppStudioToggleSpotlight(newId, s.Active)
 			}
 		}
 	}

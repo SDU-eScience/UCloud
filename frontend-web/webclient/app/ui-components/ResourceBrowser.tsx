@@ -35,7 +35,7 @@ import {ProductType, ProductV2} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {divHtml, image} from "@/Utilities/HTMLUtilities";
+import {divHtml, divText, image} from "@/Utilities/HTMLUtilities";
 import {ConfirmationButtonPlainHTML} from "./ConfirmationAction";
 import {HTMLTooltip} from "./Tooltip";
 import {ButtonClass} from "./Button";
@@ -1189,12 +1189,17 @@ export class ResourceBrowser<T> {
         }
     }) {
         if (!selection) return;
-        if (!selection.show || selection.show(item) === true) {
+        let show = selection.show(item);
+        if (!selection.show || show === true || typeof show === "string") {
+            const disabled = typeof show === "string";
             const button = document.createElement("button");
             button.innerText = selection.text;
             button.className = ButtonClass;
             button.style.height = opts?.height ?? "32px";
             button.style.width = opts?.width ?? "96px";
+            button.disabled = disabled;
+
+            HTMLTooltip(button, divText(show.toString()))
 
             const color = opts?.color ?? "secondaryMain";
             button.style.setProperty("--bgColor", `var(--${color})`);

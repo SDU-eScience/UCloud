@@ -50,7 +50,7 @@ export type CommandProvider = (query: string, emit: (cmd: Command) => void) => {
 export function staticProvider(commands: Command[]): CommandProvider {
     return (query, emit) => {
         const filteredCommands = query.length > 2 ? commands : commands.filter(it => !it.defaultHidden);
-        const results = fuzzySearch(filteredCommands, ["title", "description"], query, {sort: true});
+        const results = fuzzySearch(filteredCommands, ["title", "description"], query);
         for (const result of results) {
             emit(result);
         }

@@ -45,6 +45,7 @@ const Spotlights: React.FunctionComponent = () => {
                 {spotlights.map(s => (
                     <ListRow
                         left={<>{s.title}</>}
+                        leftSub={<>Currently Active: {s.active.toString()}</>}
                         right={
                             <Flex gap={"8px"}>
                                 <Link to={AppRoutes.appStudio.spotlightsEditor(s.id ?? 0)}><Button>Edit</Button></Link>

@@ -436,7 +436,7 @@ func appCatalogInitRpc() {
 	})
 
 	orcapi.AppsActivateSpotlight.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
-		return util.Empty{}, AppStudioActivateSpotlight(AppSpotlightId(request.Id))
+		return util.Empty{}, AppStudioToggleSpotlight(AppSpotlightId(request.Id), true)
 	})
 
 	orcapi.AppsUpdateCarrousel.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateCarrouselRequest) (util.Empty, *util.HttpError) {

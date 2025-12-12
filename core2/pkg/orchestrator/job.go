@@ -41,7 +41,6 @@ func initJobs() {
 	go jobNotificationsLoopSendPending()
 
 	orcapi.JobsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		// TODO Check if we have an allocation?
 		var ids []fndapi.FindByStringId
 		for _, item := range request.Items {
 			spec := item

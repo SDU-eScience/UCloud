@@ -251,7 +251,7 @@ func continueTx[T any](ctx Ctx, fn func(tx *Transaction) T) T {
 		tx := ctx.open()
 		result := fn(tx)
 
-		devModeRetry := devMode && i == 0 && tx.Ok
+		devModeRetry := devMode && i == 0 && tx.Ok && !tx.NoDevResetThisIsNotAHackIPromise
 		if devModeRetry {
 			tx.Ok = false
 			tx.didConsumeError = false
@@ -295,6 +295,8 @@ type Transaction struct {
 	didConsumeError bool
 
 	Ok bool
+
+	NoDevResetThisIsNotAHackIPromise bool
 }
 
 func (ctx *Transaction) PeekError() error {
@@ -424,6 +426,10 @@ var (
 )
 
 func transformQuery(query string, args Params) (string, []any, error) {
+	if len(args) == 0 {
+		return query, nil, nil
+	}
+
 	matches := statementInputRegex.FindAllStringSubmatchIndex(query, -1)
 
 	var prepared []byte

@@ -2,7 +2,6 @@ import * as React from "react";
 import {Command, CommandIconProvider, CommandScope, useCommandProviderList} from "@/CommandPalette/index";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {injectStyle} from "@/Unstyled";
-import {Feature, hasFeature} from "@/Features";
 import Icon from "@/ui-components/Icon";
 import Flex from "@/ui-components/Flex";
 import Image from "@/ui-components/Image";

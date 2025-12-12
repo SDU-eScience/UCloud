@@ -6,10 +6,6 @@ export enum Feature {
     COMPONENT_STORED_CUT_COPY,
     TRANSFER_TO,
 
-    // NOTE(Dan, 27/06/23): Waiting for clarification if we are allowed to ask for this optional info under our
-    // current policies.
-    ADDITIONAL_USER_INFO,
-
 
     PROVIDER_CONDITION,
 
@@ -65,12 +61,6 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "new-idps": {
         feature: Feature.NEW_IDPS,
-        showWithoutFlag: allDevEnvironments,
-        showWithFlag: allEnvironments,
-    },
-
-    "additional-user-info": {
-        feature: Feature.ADDITIONAL_USER_INFO,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     },

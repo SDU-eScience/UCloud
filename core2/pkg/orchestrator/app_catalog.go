@@ -1254,6 +1254,11 @@ func AppStudioListSpotlights() []orcapi.Spotlight {
 		}
 	}
 
+	// Henrik: Sort by titles
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Title < result[j].Title
+	})
+
 	return result
 }
 
@@ -1677,6 +1682,12 @@ func AppStudioCreateOrUpdateSpotlight(spec orcapi.Spotlight) (AppSpotlightId, *u
 	}
 
 	appPersistSpotlight(id, spotlight)
+
+	err := AppStudioToggleSpotlight(id, spec.Active)
+	if err != nil {
+		return 0, err
+	}
+
 	return id, nil
 }
 
@@ -1698,14 +1709,18 @@ func AppStudioDeleteSpotlight(id AppSpotlightId) *util.HttpError {
 	return nil
 }
 
-func AppStudioActivateSpotlight(id AppSpotlightId) *util.HttpError {
+func AppStudioToggleSpotlight(id AppSpotlightId, activate bool) *util.HttpError {
 	_, ok := appRetrieveSpotlight(id)
 	if !ok {
 		return util.HttpErr(http.StatusNotFound, "unknown spotlight")
 	}
 
-	appCatalogGlobals.ActiveSpotlight.Store(int64(id))
-	appPersistSetActiveSpotlight(id)
+	if activate {
+		appCatalogGlobals.ActiveSpotlight.Store(int64(id))
+	} else {
+		appCatalogGlobals.ActiveSpotlight.Store(-1)
+	}
+	appPersistSetActiveSpotlight(id, activate)
 	return nil
 }
 
@@ -1738,7 +1753,7 @@ func AppStudioUpdateCarrousel(slides []orcapi.CarrouselItem) *util.HttpError {
 
 		linkCount := 0
 
-		if slide.LinkedWebPage.Present {
+		if slide.LinkedWebPage.Present && slide.LinkedWebPage.Value != "" {
 			linkCount++
 			util.ValidateString(&slide.LinkedWebPage.Value, "linkedWebPage", 0, &err)
 		}

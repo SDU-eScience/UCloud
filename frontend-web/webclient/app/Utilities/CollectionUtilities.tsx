@@ -38,9 +38,9 @@ export function createRecordFromArray<T, V>(array: T[], keyValueMapper: (value: 
     return result;
 }
 
-export function fuzzySearch<T, K extends keyof T>(array: T[], keys: K[], query: string, opts?: {sort?: boolean}): T[] {
+export function fuzzySearch<T, K extends keyof T>(array: T[], keys: K[], query: string): T[] {
     if (query.length === 0) return array;
-    const f = new Fuse(array, { keys: keys as any });
+    const f = new Fuse(array, {keys: keys as any});
     return f.search(query).map(it => it.item);
 }
 

@@ -170,10 +170,10 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
     }
     return (
         <Box mb={16}>
-            <Heading.h2>Email Settings</Heading.h2>
+            <Heading.h2>Email settings</Heading.h2>
             <form onSubmit={onSubmit}>
 
-                <Heading.h5>Grant Applications</Heading.h5>
+                <Heading.h5>Grant applications</Heading.h5>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
                         size={27}

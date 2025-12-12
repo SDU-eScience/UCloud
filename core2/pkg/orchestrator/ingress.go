@@ -71,7 +71,6 @@ func initIngresses() {
 	hostnamePartRegex := regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)
 
 	orcapi.IngressesCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.IngressSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		// TODO Check if we have an allocation?
 		var result []fndapi.FindByStringId
 		for _, item := range request.Items {
 			supp, ok := SupportByProduct[orcapi.IngressSupport](ingressType, item.Product)

@@ -1,9 +1,11 @@
 package accounting
 
 import (
+	"cmp"
 	"fmt"
 	"math/big"
 	"net/http"
+	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -664,7 +666,6 @@ func internalWalletById(id AccWalletId) (*internalBucket, *internalWallet, bool)
 }
 
 func internalOwnerByReference(reference string) *internalOwner {
-	// TODO Reference must be checked by caller
 	if reference == "" {
 		log.Fatal("internalOwnerByReference called with an empty reference")
 	}
@@ -1773,6 +1774,53 @@ func lInternalMermaidGraph(bucket *internalBucket, now time.Time, root AccWallet
 			})
 		}
 	})
+}
+
+func internalAccountingDump() {
+	var buckets []*internalBucket
+	now := time.Now()
+
+	type line struct {
+		Id   AccWalletId
+		Data string
+	}
+
+	var lines []line
+
+	g := &accGlobals
+	g.Mu.RLock()
+	for _, bucket := range accGlobals.BucketsByCategory {
+		buckets = append(buckets, bucket)
+	}
+	g.Mu.RUnlock()
+
+	for _, b := range buckets {
+		b.Mu.RLock()
+		for _, wallet := range b.WalletsById {
+			maxUsable := lInternalMaxUsable(b, now, wallet)
+			treeUsage := lInternalWalletTotalPropagatedUsage(b, wallet)
+			quota := lInternalWalletTotalQuotaContributing(b, wallet)
+
+			lines = append(lines, line{
+				Id:   wallet.Id,
+				Data: fmt.Sprintf("%d,%d,%d,%d", wallet.Id, maxUsable, treeUsage, quota),
+			})
+		}
+		b.Mu.RUnlock()
+	}
+
+	slices.SortFunc(lines, func(a, b line) int {
+		return cmp.Compare(a.Id, b.Id)
+	})
+
+	w := &strings.Builder{}
+	w.WriteString("id,maxUsable,treeUsage,quota\n")
+	for _, l := range lines {
+		w.WriteString(l.Data)
+		w.WriteString("\n")
+	}
+
+	_ = os.WriteFile("/tmp/dump.csv", []byte(w.String()), 0660)
 }
 
 // Constants

@@ -12,8 +12,6 @@ import * as Projects from "@/Project/Api";
 import {useProjectId} from "@/Project/Api";
 import {
     projectInfosTitle,
-    projectInfoTitle,
-    ProjectTitle,
     ProjectTitleForNewCore,
     useProjectInfos
 } from "@/Project/InfoCache";
@@ -22,7 +20,7 @@ import {ProviderTitle} from "@/Providers/ProviderTitle";
 import AppRoutes from "@/Routes";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PageV2} from "@/UCloud";
-import {injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
 import {createRecordFromArray, deepCopy} from "@/Utilities/CollectionUtilities";
 import {addMonthsToDate, dateToString} from "@/Utilities/DateUtilities";
 import {fetchAll} from "@/Utilities/PageUtilities";
@@ -46,6 +44,7 @@ import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} from "react";
 import {useLocation, useNavigate} from "react-router";
 import * as Grants from ".";
+import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalInfoUpdate} from "@/UserSettings/ChangeUserDetails";
 
 // State model
 // =====================================================================================================================
@@ -1047,6 +1046,9 @@ function useStateReducerMiddleware(
 
 // Styling
 // =====================================================================================================================
+
+const OrganizationInfoClass = makeClassName("org-info");
+
 const style = injectStyle("grant-editor", k => `
     ${k} {
         width: 1000px;
@@ -1158,10 +1160,14 @@ const style = injectStyle("grant-editor", k => `
     /* section and form styling */
     /* -------------------------------------------------------------------------------------------------------------- */
     
-    ${k} .project-info, ${k} .select-resources, ${k} .application {
+    ${k} .project-info, ${k} .select-resources, ${k} .application, ${k} ${OrganizationInfoClass.dot} {
         display: grid;
         grid-template-columns: 450px 550px;
         row-gap: 30px;
+    }
+
+    ${k} ${OrganizationInfoClass.dot} {
+        margin-top: 50px;
     }
     
 @media screen and (max-width: 1120px) {
@@ -1338,6 +1344,7 @@ const style = injectStyle("grant-editor", k => `
 // =====================================================================================================================
 export function Editor(): React.ReactNode {
     const scrollToTopRef = useRef(false);
+    const extractValues = useRef(() => ({department: "", gender: "", organizationFullname: "", position: "", resesarchField: "", isValid: false}));
     const [state, doDispatch] = useReducer(stateReducer, defaultState);
     const {dispatchEvent} = useStateReducerMiddleware(doDispatch, scrollToTopRef);
     usePage("Grant application", SidebarTabId.PROJECT);
@@ -1345,6 +1352,22 @@ export function Editor(): React.ReactNode {
     const navigate = useNavigate();
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
     useProjectId(); // FIXME(Jonas): Is this some refresh-thing that breaks stuff if you remove it?
+
+    const [missingUserInfo, setMissingUserInfo] = React.useState(false);
+    React.useEffect(() => {
+        (async () => {
+            const info = await callAPI<OptionalInfo>(optionalInfoRequest());
+            const grantId = getQueryParam(location.search, "id") ?? null;
+            setMissingUserInfo(
+                grantId == null && (
+                    info.department == null ||
+                    info.gender == null ||
+                    info.organizationFullName == null ||
+                    info.position == null ||
+                    info.researchField == null
+                ));
+        })();
+    }, []);
 
     useEffect(() => {
         (async () => {
@@ -1530,6 +1553,17 @@ export function Editor(): React.ReactNode {
 
         dispatchEvent({type: "LoadingStateChange", isLoading: true});
         try {
+            if (missingUserInfo) {
+                const {isValid, ...values} = extractValues.current();
+                if (!isValid) return;
+                const result = await callAPIWithErrorHandler(optionalInfoUpdate(values));
+                if (result === null) {
+                    snackbarStore.addFailure("An error occurred, please try and submit again.", false);
+                    return;
+                }
+                setMissingUserInfo(false);
+            }
+
             const response = await callAPIWithErrorHandler(
                 Grants.submitRevision({
                     revision: doc,
@@ -1545,7 +1579,7 @@ export function Editor(): React.ReactNode {
         } finally {
             dispatchEvent({type: "LoadingStateChange", isLoading: false});
         }
-    }, [state, dispatchEvent]);
+    }, [state, dispatchEvent, missingUserInfo]);
 
     const onDiscard = useCallback(() => {
         const id = state.stateDuringEdit?.id;
@@ -1961,12 +1995,29 @@ export function Editor(): React.ReactNode {
                             </>}
                         </div>
 
+                        {!missingUserInfo ? null : (<>
+                            <div className={classConcat("section", OrganizationInfoClass.class)}>
+                                <Box>
+                                    <label className="section" htmlFor="organization">Organization information</label>
+                                    <div className="description">
+                                        <p>
+                                            This information is required when applying for resources.
+                                        </p>
+                                        <p>
+                                            This can be changed later in "User settings".
+                                        </p>
+                                    </div>
+                                </Box>
+                                <ChangeOrganizationDetails embedded getValues={extractValues} />
+                            </div>
+                        </>)}
+
                         {state.stateDuringEdit && state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID ?
                             null :
                             <>
                                 <h3>
-                                    {!state.stateDuringEdit && <>Select grant giver(s)</>}
-                                    {state.stateDuringEdit && <>Grant givers</>}
+                                    {!state.stateDuringEdit && "Select grant giver(s)"}
+                                    {state.stateDuringEdit && "Grant givers"}
                                 </h3>
                                 <div className={"select-grant-givers"}>
                                     {state.allocators.map(it =>

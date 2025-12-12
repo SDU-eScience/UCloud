@@ -42,7 +42,7 @@ export const Dialog: React.FunctionComponent = (): React.ReactNode => {
             onAfterOpen={() => undefined}
             style={current?.style ?? defaultModalStyle}
             className={CardClass}
-            children={current?.element as ReactModal.Props["children"]} /* Hack(Jonas): React Children is now different from ReactModal Children */
+            children={current?.element}
         />
     );
 };

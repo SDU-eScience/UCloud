@@ -12,9 +12,6 @@ import (
 )
 
 func initLowFundsScan() {
-	// Make sure that the scan does not start before the system is up and running
-	time.Sleep(5 * time.Second)
-
 	computeLowFundsLimit := config.Configuration.Accounting.ComputeUnitsLowFundsNotificationLimitInCH
 	if computeLowFundsLimit == 0 {
 		computeLowFundsLimit = 20
@@ -26,6 +23,9 @@ func initLowFundsScan() {
 	}
 
 	go func() {
+		// Make sure that the scan does not start before the system is up and running
+		time.Sleep(5 * time.Second)
+
 		ticker := time.NewTicker(12 * time.Hour)
 		defer ticker.Stop()
 

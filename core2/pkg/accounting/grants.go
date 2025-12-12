@@ -298,9 +298,6 @@ func grantsCanApply(actor rpc.Actor, recipient accapi.Recipient, grantGiver stri
 
 	// A user is _always_ allowed to apply to a parent, regardless of settings
 	if !allowed && walletOwner != "" {
-		// TODO parent project was replaced with a check on an existing recipient to see if they have had resources
-		//   from the grant giver before.
-
 		wallets := internalRetrieveWallets(time.Now(), walletOwner, walletFilter{})
 
 	outer:

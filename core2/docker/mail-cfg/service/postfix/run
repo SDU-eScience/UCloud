@@ -1,0 +1,100 @@
+#!/bin/bash
+set -e
+
+# Avoid  warning: smtputf8_enable is true, but EAI support is not compiled in
+echo "smtputf8_enable = no" >> /etc/postfix/main.cf
+
+cat >> /etc/postfix/main.cf << EOF
+# limit smtp to loopback interface & compute engine doesn't support ipv6
+inet_interfaces = loopback-only
+inet_protocols = ipv4
+EOF
+
+# Do we want to modify the config first with the script?
+# shellcheck disable=SC1091
+[ -f /etc/service/postfix/run.config ] && source /etc/service/postfix/run.config
+
+if [[ -n "$MAILNAME" ]]; then
+	echo "$MAILNAME" > /etc/mailname
+	postconf -e myorigin="/etc/mailname"
+
+	cat >> /etc/postfix/main.cf <<- EOF
+	# Force ehlo behavior
+	smtp_always_send_ehlo = yes
+	smtp_helo_name = $MAILNAME
+	EOF
+fi
+
+if [[ -n "$MY_NETWORKS" ]]; then
+	postconf -e mynetworks="$MY_NETWORKS"
+fi
+
+if [[ -n "$MY_DESTINATION" ]]; then
+	postconf -e mydestination="$MY_DESTINATION"
+fi
+
+if [[ -n "$ROOT_ALIAS" ]]; then
+	if [[ -f /etc/aliases ]]; then
+		sed -i '/^root:/d' /etc/aliases
+	fi
+	echo "root: $ROOT_ALIAS" >> /etc/aliases
+	newaliases
+fi
+
+if [[ -n "$RELAY" ]]; then
+	# setup the relay
+	cat >> /etc/postfix/main.cf <<- EOF
+	relayhost = $RELAY
+
+	# These lines can be used, if the result is not as expected
+	debug_peer_list = smtp-relay.gmail.com
+	debug_peer_level = 2
+	EOF
+fi
+
+if [[ -n "$TLS" ]]; then
+	# setup tls
+	cat >> /etc/postfix/main.cf <<- EOF
+	smtp_use_tls = yes
+	smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt
+	EOF
+fi
+
+if [[ -n "$SASL_AUTH" ]]; then
+	cat >> /etc/postfix/main.cf <<- EOF
+	smtp_sasl_auth_enable = yes
+	smtp_sasl_password_maps = hash:/etc/postfix/sasl_passwd
+	smtp_sasl_security_options = noanonymous
+	EOF
+
+	# generate the SASL password map
+	echo "$RELAY $SASL_AUTH" > /etc/postfix/sasl_passwd
+
+	# generate a .db file
+	postmap /etc/postfix/sasl_passwd
+
+	# cleanup
+	rm /etc/postfix/sasl_passwd
+
+	# set permissions
+	chmod 600 /etc/postfix/sasl_passwd.db
+fi
+
+if [[ -f "/usr/libexec/postfix/master" ]]; then
+	cmd="/usr/libexec/postfix/master"
+fi
+
+if [[ -f "/usr/lib/postfix/master" ]]; then
+	cmd="/usr/lib/postfix/master"
+fi
+
+if [[ -f "/usr/lib/postfix/sbin/master" ]]; then
+	cmd="/usr/lib/postfix/sbin/master"
+fi
+
+if [[ -z "$cmd" ]]; then
+	echo "Could not find postfix master in /usr/lib or /usr/libexec or /usr/lib/postfix/sbin"
+	exit 1
+fi
+
+"$cmd" -c /etc/postfix -d 2>&1

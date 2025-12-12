@@ -144,7 +144,7 @@ export function ProjectSwitcher({managed}: {
 
         if (filter === "") return viewableProjects;
 
-        const searchResults = fuzzySearch(viewableProjects.map(it => it.specification), ["title"], filter, {sort: true});
+        const searchResults = fuzzySearch(viewableProjects.map(it => it.specification), ["title"], filter);
         return searchResults
             .map(it => viewableProjects.find(p => it.title === p.specification.title))
             .filter(it => it !== undefined) as Project[];

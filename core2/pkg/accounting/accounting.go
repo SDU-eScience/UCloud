@@ -167,8 +167,6 @@ func initAccounting() {
 
 		return fndapi.BulkResponse[accapi.FindAllProvidersResponse]{Responses: result}, nil
 	})
-
-	// TODO update allocation
 }
 
 func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, *util.HttpError) {
@@ -652,7 +650,6 @@ var usageReportSamplingHours = []int{0, 4, 8, 12, 16, 20}
 func accountingProcessTasksNow(now time.Time, filter func(b *internalBucket) bool) {
 	accountingProcessMutex.Lock()
 
-	// TODO Metrics on this
 	timer := util.NewTimer()
 	internalCompleteScan(now, func(buckets []*internalBucket, scopes []*scopedUsage, onPersistHandlers []internalOnPersistHandler) {
 		var actualBuckets []*internalBucket

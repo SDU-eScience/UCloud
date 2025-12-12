@@ -1,3 +1,4 @@
+
 import {useCloudAPI} from "@/Authentication/DataHook";
 import React, {useEffect} from "react";
 import {useDispatch} from "react-redux";
@@ -10,6 +11,7 @@ import MainContainer from "@/ui-components/MainContainer";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {injectStyleSimple} from "@/Unstyled";
 import AppRoutes from "@/Routes";
+import {addOrgInfoModalIfNotFilled} from "@/UserSettings/ChangeUserDetails";
 
 export const AcceptInviteLink: React.FunctionComponent = () => {
     const navigate = useNavigate();
@@ -40,6 +42,7 @@ export const AcceptInviteLink: React.FunctionComponent = () => {
         if (acceptedInvite.data) {
             dispatchSetProjectAction(dispatch, acceptedInvite.data?.project);
             navigate(AppRoutes.project.members());
+            addOrgInfoModalIfNotFilled();
         }
     }, [acceptedInvite]);
 

@@ -59,7 +59,6 @@ func initLicenses() {
 	})
 
 	orcapi.LicensesCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.LicenseSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		// TODO Check if we have an allocation?
 		var result []fndapi.FindByStringId
 		for _, item := range request.Items {
 			license, err := ResourceCreateThroughProvider(

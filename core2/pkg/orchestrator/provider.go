@@ -19,7 +19,7 @@ const providerType = "provider"
 func initProviderManagement() {
 	InitResourceType(
 		providerType,
-		resourceTypeCreateWithoutAdmin,
+		resourceTypeCreateAsAllocator,
 		providerLoad,
 		providerPersist,
 		providerTransform,
