@@ -1199,7 +1199,9 @@ export class ResourceBrowser<T> {
             button.style.width = opts?.width ?? "96px";
             button.disabled = disabled;
 
-            HTMLTooltip(button, divText(show.toString()))
+            if (disabled) {
+                HTMLTooltip(button, divText(show.toString()));
+            }
 
             const color = opts?.color ?? "secondaryMain";
             button.style.setProperty("--bgColor", `var(--${color})`);
