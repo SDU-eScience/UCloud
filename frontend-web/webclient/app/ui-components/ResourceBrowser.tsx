@@ -3533,7 +3533,7 @@ export function clearFilterStorageValue(namespace: string, key: string) {
     localStorage.removeItem(`${namespace}:${key}`);
 }
 
-export function addContextSwitcherInPortal<T>(
+export function addProjectSwitcherInPortal<T>(
     browserRef: React.RefObject<ResourceBrowser<T> | null>, setPortal: (el: React.ReactNode) => void,
     managed?: {
         setLocalProject: (project: string | undefined) => void;

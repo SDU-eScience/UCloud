@@ -3,7 +3,7 @@ import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
 import {
     EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts,
-    addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, getFilterStorageValue,
+    addProjectSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, getFilterStorageValue,
     providerIcon, setFilterStorageValue
 } from "@/ui-components/ResourceBrowser";
 import * as React from "react";
@@ -302,7 +302,7 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
 
 
         }
-        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
+        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
 
     }, []);
 

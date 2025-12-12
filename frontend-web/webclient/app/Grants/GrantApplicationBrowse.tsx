@@ -1,4 +1,4 @@
-import {ColumnTitleList, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
+import {ColumnTitleList, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useLocation, useNavigate} from "react-router";
@@ -283,7 +283,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 browserRef.current?.refresh();
             }
         }
-        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
+        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {

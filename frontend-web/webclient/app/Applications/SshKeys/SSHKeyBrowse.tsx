@@ -1,7 +1,7 @@
 import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -127,7 +127,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React
                 browser.on("pathToEntry", sshKey => sshKey.id);
             });
         }
-        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
+        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
     useSetRefreshFunction(() => {

@@ -78,14 +78,14 @@ import AppRoutes from "./Routes";
 import {RightPopIn} from "./ui-components/PopIn";
 import {injectStyleSimple} from "./Unstyled";
 import {SSHKeyBrowse} from "./Applications/SshKeys/SSHKeyBrowse";
-import ApiTokenBrowse from "./Applications/ApiTokens/APITokensBrowse";
+import {ApiTokenBrowse} from "./Applications/ApiTokens/ApiTokensBrowse";
 import {GrantApplicationBrowse} from "./Grants/GrantApplicationBrowse";
 import {IngoingSharesBrowse} from "@/Files/Shares";
-import {JobsRouter} from "./Applications/Jobs/Router";
-import {DrivesRouter, FilesRouter} from "./Files/Router";
+import {JobsRouter} from "@/Applications/Jobs/Router";
+import {DrivesRouter, FilesRouter} from "@/Files/Router";
 import LicenseRouter from "./Applications/Licenses";
-import PublicLinksRouter from "./Applications/PublicLinks/Router";
-import SharesApi from "./UCloud/SharesApi";
+import PublicLinksRouter from "@/Applications/PublicLinks/Router";
+import SharesApi from "@/UCloud/SharesApi";
 import {findCustomThemeColorOnLaunch} from "./UserSettings/CustomTheme";
 import SupportPage, {
     AllocationSupportContent,
