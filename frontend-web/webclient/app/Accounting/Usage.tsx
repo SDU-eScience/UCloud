@@ -1963,7 +1963,7 @@ export const PeriodStyle = injectStyle("period-selector", k => `
     }
 `);
 
-const PeriodSelectorBodyStyle = injectStyle("period-selector-body", k => `
+export const PeriodSelectorBodyStyle = injectStyle("period-selector-body", k => `
     ${k} {
         cursor: auto;
         display: flex;

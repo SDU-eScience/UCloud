@@ -167,7 +167,7 @@ function retrieveOperations(): Operation<Api.ApiToken, StandardCallbacks<Api.Api
         confirm: true,
         onClick: async ([element], cb) => {
             await cb.invokeCommand(
-                Api.revoke({id: parseInt(element.id, 10)})
+                Api.revoke({id: element.id})
             );
 
             cb.reload();

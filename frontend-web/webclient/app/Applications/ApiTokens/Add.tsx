@@ -1,11 +1,12 @@
 import * as React from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {Button, Icon, Input, Label, MainContainer, Select, TextArea} from "@/ui-components";
+import {Button, Divider, Icon, Input, Label, MainContainer, Select, TextArea} from "@/ui-components";
 import * as Api from "./api";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {stopPropagation} from "@/UtilityFunctions";
-import {PeriodStyle} from "@/Accounting/Usage";
+import {stopPropagation, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {PeriodSelectorBodyStyle, PeriodStyle} from "@/Accounting/Usage";
 import {addDays, addMonths} from "date-fns";
+import {injectStyle} from "@/Unstyled";
 
 function Add() {
 
@@ -16,38 +17,42 @@ function Add() {
     const permissionKeys = Object.keys(permissions);
     const serviceProviders = permissionKeys;
 
-    return <MainContainer main={<div>
+    return <MainContainer main={
         <div>
-            <Label>
-                Title
-                <Input placeholder="Title..." />
-            </Label>
-            <Label>
-                Description
-                <TextArea placeholder="Description..." />
-            </Label>
-        </div>
-        <div>
-            <Label>
-                Service provider (widget thingy)
-                <Select>
+            <div>
+                <Label>
+                    Title
+                    <Input placeholder="Title..." />
+                </Label>
+                <Label>
+                    Description
+                    <TextArea placeholder="Description..." />
+                </Label>
+            </div>
+            <div>
+                <Label>
+                    Service provider (widget thingy)
+                    <Select>
 
-                </Select>
-            </Label>
+                    </Select>
+                </Label>
+            </div>
+            <div>
+                Expiration
+                <div>
+                    <PeriodSelector date={date} onChange={setDate} />
+                </div>
+            </div>
+            <div>
+                Token permissions
+                {permissionKeys.flatMap(key =>
+                    permissions[key].availablePermissions.map(it => <div>
+                        {it.name}
+                    </div>)
+                )}
+            </div>
         </div>
-        <div>
-            Expiration
-            <PeriodSelector date={date} onChange={setDate} />
-        </div>
-        <div>
-            Token permissions
-            {permissionKeys.flatMap(key =>
-                permissions[key].availablePermissions.map(it => <div>
-                    {it.name}
-                </div>)
-            )}
-        </div>
-    </div>} />
+    } />
 
 }
 
@@ -90,31 +95,24 @@ function PeriodSelector(props: {date: Date; onChange(d: Date): void}): React.Rea
 
     return <ClickableDropdown
         colorOnHover={false}
-        paddingControlledByContent={true}
+        paddingControlledByContent
         noYPadding={true}
         onOpeningTriggerClick={() => void 0}
         trigger={
             <div className={PeriodStyle}>
-                <div style={{width: "182px"}}>{formatTs(new Date().getTime())}</div>
+                <div style={{width: "182px"}}>{formatTs(props.date.getTime())}</div>
                 <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
             </div>
         }
     >
-        <div>
-            <div onClick={stopPropagation}>
-                <form onSubmit={e => {
-                    e.preventDefault();
-                }}>
-                    <label>
-                        <Input className={"start"} onChange={onChange} type={"date"} value={formatTs(props.date.getTime())} />
-                    </label>
-
-                    <Button mt="8px" type="submit">Apply</Button>
-                </form>
-            </div>
-
+        <div className={DateSelector}>
             <div>
-                <b>Time range</b>
+                <b>Specific date</b>
+                <Input pl="8px" pr="8px" className={"start"} onChange={onChange} type={"date"} value={formatTs(props.date.getTime())} />
+            </div>
+            <Divider />
+            <div>
+                <b>Relative date</b>
 
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
                     data-unit={"7"}>7 days from today
@@ -131,9 +129,48 @@ function PeriodSelector(props: {date: Date; onChange(d: Date): void}): React.Rea
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
                     data-unit={"12"}>12 months from today
                 </div>
+                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
+                    data-unit={"36"}>3 years from today
+                </div>
             </div>
         </div>
     </ClickableDropdown>;
 };
+
+const DateSelector = injectStyle("date-selector", cl => `
+    ${cl} {
+        margin-top: 8px;
+        width: 350px;
+    }
+
+    ${cl} input {
+        margin-left: 8px;
+        margin-right: 8px;
+        width: calc(100% - 16px);
+    }
+
+    ${cl} b {
+        padding-left: 8px;
+    }
+
+    ${cl} > div:nth-child(3) {
+        padding-top: 0px;
+        gap: 8px;
+        display: grid;
+    }
+
+    ${cl} > div:nth-child(3) > div {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 8px;
+        padding-left: 16px;
+    }
+
+    ${cl} > div:nth-child(3) > div:hover {
+        cursor: pointer;
+        background-color: var(--rowHover);
+    }
+`);
 
 export default Add;
