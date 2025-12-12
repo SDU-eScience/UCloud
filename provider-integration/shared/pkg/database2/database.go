@@ -426,6 +426,10 @@ var (
 )
 
 func transformQuery(query string, args Params) (string, []any, error) {
+	if len(args) == 0 {
+		return query, nil, nil
+	}
+
 	matches := statementInputRegex.FindAllStringSubmatchIndex(query, -1)
 
 	var prepared []byte

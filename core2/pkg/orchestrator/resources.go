@@ -223,7 +223,7 @@ func InitResources() {
 		db.NewTx0(func(tx *db.Transaction) {
 			id, ok := db.Get[struct{ Id int64 }](
 				tx,
-				`select max(id) as id from provider.resource`,
+				`select coalesce(max(id), 0) as id from provider.resource`,
 				db.Params{},
 			)
 

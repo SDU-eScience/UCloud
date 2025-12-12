@@ -99,7 +99,7 @@ func initTasks() {
 			row, ok := db.Get[struct{ MaxId sql.Null[int] }](
 				tx,
 				`
-					select max(id) as max_id
+					select coalesce(max(id), 0) as max_id
 					from task.tasks_v2
 			    `,
 				db.Params{},
