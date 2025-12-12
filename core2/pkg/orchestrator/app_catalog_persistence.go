@@ -817,31 +817,47 @@ func appPersistDeleteCategory(id AppCategoryId) {
 	})
 }
 
-func appPersistAcl(name string, list []orcapi.AclEntity) {
+func appPersistAcl(name string, toAdd []orcapi.AclEntity, toRemove []orcapi.AclEntity) {
 	if appCatalogGlobals.Testing.Enabled {
 		return
 	}
 
-	var users []string
-	var projects []string
-	var groups []string
+	var addUsers []string
+	var addProjects []string
+	var addGroups []string
 
-	for _, item := range list {
-		users = append(users, item.Username)
-		projects = append(projects, item.ProjectId)
-		groups = append(groups, item.Group)
+	for _, item := range toAdd {
+		addUsers = append(addUsers, item.Username)
+		addProjects = append(addProjects, item.ProjectId)
+		addGroups = append(addGroups, item.Group)
 	}
 
 	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`delete from app_store.permissions where application_name = :app`,
-			db.Params{
-				"app": name,
-			},
-		)
+		if len(toRemove) != 0 {
+			batch := db.BatchNew(tx)
+			for _, entity := range toRemove {
+				db.BatchExec(
+					batch,
+					`
+						delete from app_store.permissions 
+						where 
+							application_name = :app and
+							username = :user and
+							project = :project and
+							project_group = :group
+					`,
+					db.Params{
+						"app":     name,
+						"user":    entity.Username,
+						"project": entity.ProjectId,
+						"group":   entity.Group,
+					},
+				)
+			}
+			db.BatchSend(batch)
+		}
 
-		if len(users) > 0 {
+		if len(toAdd) > 0 {
 			db.Exec(
 				tx,
 				`
@@ -851,9 +867,9 @@ func appPersistAcl(name string, list []orcapi.AclEntity) {
 				`,
 				db.Params{
 					"app":      name,
-					"users":    users,
-					"projects": projects,
-					"groups":   groups,
+					"users":    addUsers,
+					"projects": addProjects,
+					"groups":   addGroups,
 				},
 			)
 		}

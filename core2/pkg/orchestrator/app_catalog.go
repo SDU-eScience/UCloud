@@ -1550,17 +1550,38 @@ func AppStudioUpdateLogo(groupId AppGroupId, logo []byte) *util.HttpError {
 	return nil
 }
 
-func AppStudioUpdateAcl(appName string, newList []orcapi.AclEntity) *util.HttpError {
+func AppStudioUpdateAcl(appName string, toAdd []orcapi.AclEntity, toRemove []orcapi.AclEntity) *util.HttpError {
 	b := appBucket(appName)
 	b.Mu.Lock()
 	_, ok := b.Applications[appName]
 	if ok {
-		b.ApplicationPermissions[appName] = newList
+		acls := b.ApplicationPermissions[appName]
+
+		if len(toRemove) != 0 {
+			var keepACL []orcapi.AclEntity
+
+			for _, acl := range acls {
+				needToRemove := false
+				for _, aclToRemove := range toRemove {
+					if acl == aclToRemove {
+						needToRemove = true
+						break
+					}
+				}
+				if !needToRemove {
+					keepACL = append(keepACL, acl)
+				}
+			}
+			acls = keepACL
+		}
+
+		acls = append(acls, toAdd...)
+		b.ApplicationPermissions[appName] = acls
 	}
 	b.Mu.Unlock()
 
 	if ok {
-		appPersistAcl(appName, newList)
+		appPersistAcl(appName, toAdd, toRemove)
 		return nil
 	} else {
 		return util.HttpErr(http.StatusNotFound, "unknown application")

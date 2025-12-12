@@ -108,6 +108,10 @@ type AppAccessEntity struct {
 	Group   util.Option[string] `json:"group"`
 }
 
+type AppDetailedEntityWithPermission struct {
+	Entity AppDetailedPermissionEntry `json:"entity"`
+}
+
 type AppDetailedPermissionEntry struct {
 	User    util.Option[string]           `json:"user"`
 	Project util.Option[fnd.Project]      `json:"project"`
@@ -213,7 +217,7 @@ type AppCatalogRetrieveAclRequest struct {
 }
 
 type AppCatalogRetrieveAclResponse struct {
-	Entries []AppDetailedPermissionEntry `json:"entries"`
+	Entries []AppDetailedEntityWithPermission `json:"entries"`
 }
 
 var AppsRetrieveAcl = rpc.Call[AppCatalogRetrieveAclRequest, AppCatalogRetrieveAclResponse]{
