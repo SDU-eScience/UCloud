@@ -42,8 +42,8 @@ func initApiTokens() {
 		return ApiTokenRetrieveOptions(info.Actor), nil
 	})
 
-	orcapi.ApiTokenRevoke.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
-		return util.Empty{}, ApiTokenRevoke(info.Actor, request.Id)
+	orcapi.ApiTokenRevoke.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (util.Empty, *util.HttpError) {
+		return util.Empty{}, ApiTokenRevoke(info.Actor, ResourceParseId(request.Id))
 	})
 
 	go func() {
@@ -184,8 +184,8 @@ func ApiTokenRetrieveOptions(actor rpc.Actor) orcapi.ApiTokenRetrieveOptionsResp
 	}
 }
 
-func ApiTokenRevoke(actor rpc.Actor, id int) *util.HttpError {
-	ok := ResourceDelete(actor, apiTokenType, ResourceId(id))
+func ApiTokenRevoke(actor rpc.Actor, id ResourceId) *util.HttpError {
+	ok := ResourceDelete(actor, apiTokenType, id)
 	if !ok {
 		return util.HttpErr(http.StatusNotFound, "permission denied or unknown token specified")
 	}

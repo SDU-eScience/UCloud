@@ -70,7 +70,7 @@ var ApiTokenBrowse = rpc.Call[ApiTokenBrowseRequest, fnd.PageV2[ApiToken]]{
 	Roles:       rpc.RolesEndUser,
 }
 
-var ApiTokenRevoke = rpc.Call[fnd.FindByIntId, util.Empty]{
+var ApiTokenRevoke = rpc.Call[fnd.FindByStringId, util.Empty]{
 	BaseContext: apiTokenContext,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "revoke",
