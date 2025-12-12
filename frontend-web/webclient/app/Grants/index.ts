@@ -84,6 +84,10 @@ export function exportGrants(): APICallParameters<{}, GrantsExportLine[]> {
     return apiUpdate({}, baseContext, "export");
 }
 
+export function exportGrantsCsv(): APICallParameters<{}, GrantsExportLine[]> {
+    return apiUpdate({}, baseContext, "exportCsv");
+}
+
 // Comments
 // ====================================================================================================================
 export function postComment(

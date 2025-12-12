@@ -1,6 +1,7 @@
 package accounting
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -12,6 +13,14 @@ import (
 func initGrantsExport() {
 	accapi.GrantsExport.Handler(func(info rpc.RequestInfo, request util.Empty) ([]accapi.GrantsExportResponse, *util.HttpError) {
 		return GrantsExportBrowse(info.Actor), nil
+	})
+
+	accapi.GrantsExportCsv.Handler(func(info rpc.RequestInfo, request util.Empty) (accapi.GrantsExportCsvResponse, *util.HttpError) {
+		csv := GrantsExportBrowseToCsv(GrantsExportBrowse(info.Actor))
+		return accapi.GrantsExportCsvResponse{
+			FileName: "grants.csv",
+			CsvData:  csv,
+		}, nil
 	})
 }
 
@@ -37,16 +46,16 @@ func GrantsExportBrowse(actor rpc.Actor) []accapi.GrantsExportResponse {
 			allocationDuration := endTime.Time().Sub(startTime.Time())
 
 			result = append(result, accapi.GrantsExportResponse{
-				Id:              item.Id.Value,
-				Title:           doc.Recipient.Reference().Value,
-				SubmittedBy:     item.CreatedBy,
-				SubmittedAt:     item.CreatedAt,
-				StartDate:       startTime,
-				DurationMonths:  int(allocationDuration.Hours() / 24.0 / 30.0),
-				State:           item.Status.OverallState,
-				GrantGiver:      string(actor.Project.Value),
-				LatestUpdatedAt: item.UpdatedAt,
-				Resources:       nil, // TODO add resources
+				Id:             item.Id.Value,
+				Title:          doc.Recipient.Reference().Value,
+				SubmittedBy:    item.CreatedBy,
+				SubmittedAt:    item.CreatedAt,
+				StartDate:      startTime,
+				DurationMonths: int(allocationDuration.Hours() / 24.0 / 30.0),
+				State:          item.Status.OverallState,
+				GrantGiver:     string(actor.Project.Value),
+				LastUpdatedAt:  item.UpdatedAt,
+				Resources:      nil, // TODO add resources
 			})
 		}
 
@@ -64,7 +73,7 @@ func GrantsExportBrowse(actor rpc.Actor) []accapi.GrantsExportResponse {
 func GrantsExportBrowseToCsv(lines []accapi.GrantsExportResponse) string {
 	s := &strings.Builder{}
 
-	s.WriteString("id,title,submitted_by,submitted_at,start,duration_months,state,grant_giver,approved_or_rejected_by,approved_or_rejected_at\n")
+	s.WriteString("id,title,submitted_by,submitted_at,start,duration_months,state,grant_giver, resources, approved_or_rejected_by,approved_or_rejected_at\n")
 
 	for _, item := range lines {
 		t := item.SubmittedAt
@@ -76,6 +85,20 @@ func GrantsExportBrowseToCsv(lines []accapi.GrantsExportResponse) string {
 		s.WriteString(item.SubmittedBy)
 		s.WriteRune(',')
 		s.WriteString(t.Time().Format(time.RFC3339))
+		s.WriteRune(',')
+		s.WriteString(item.StartDate.Time().Format(time.RFC3339))
+		s.WriteRune(',')
+		s.WriteString(fmt.Sprint(item.DurationMonths))
+		s.WriteRune(',')
+		s.WriteString(fmt.Sprint(item.State))
+		s.WriteRune(',')
+		s.WriteString(item.GrantGiver)
+		s.WriteRune(',')
+		s.WriteString(fmt.Sprint(item.LastUpdatedAt))
+		s.WriteRune(',')
+		s.WriteString(fmt.Sprint(item.Resources))
+		// TODO add approved_or_rejected_by and approved_or_rejected_at
+		s.WriteRune('\n')
 	}
 
 	return s.String()
