@@ -864,6 +864,7 @@ func appPersistAcl(name string, toAdd []orcapi.AclEntity, toRemove []orcapi.AclE
 					insert into app_store.permissions(application_name, permission, username, project, project_group) 
 					select :app, 'LAUNCH', unnest(cast(:users as text[])), unnest(cast(:projects as text[])),
 						unnest(cast(:groups as text[]))
+					on conflict do nothing
 				`,
 				db.Params{
 					"app":      name,

@@ -294,15 +294,13 @@ func appCatalogInitRpc() {
 			result = append(result, orcapi.AppDetailedEntityWithPermission{
 				Entity: orcapi.AppDetailedPermissionEntry{
 					User: util.OptStringIfNotEmpty(item.Username),
-					Project: util.OptMap(util.OptStringIfNotEmpty(item.ProjectId), func(value string) fndapi.Project {
-						return fndapi.Project{
-							Id: value,
-						}
+					Project: util.OptValue(orcapi.AppAccessProjectOrGroupInfo{
+						Id:    item.ProjectId,
+						Title: "",
 					}),
-					Group: util.OptMap(util.OptStringIfNotEmpty(item.Group), func(value string) fndapi.ProjectGroup {
-						return fndapi.ProjectGroup{
-							Id: value,
-						}
+					Group: util.OptValue(orcapi.AppAccessProjectOrGroupInfo{
+						Id:    item.Group,
+						Title: "",
 					}),
 				},
 			})

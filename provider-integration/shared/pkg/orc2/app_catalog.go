@@ -102,6 +102,12 @@ const (
 	AppAccessRightLaunch AppAccessRight = "LAUNCH"
 )
 
+// Henrik: To match current FE
+type AppAccessProjectOrGroupInfo struct {
+	Id    string `json:"id"`
+	Title string `json:"title"`
+}
+
 type AppAccessEntity struct {
 	User    util.Option[string] `json:"user"`
 	Project util.Option[string] `json:"project"`
@@ -113,9 +119,9 @@ type AppDetailedEntityWithPermission struct {
 }
 
 type AppDetailedPermissionEntry struct {
-	User    util.Option[string]           `json:"user"`
-	Project util.Option[fnd.Project]      `json:"project"`
-	Group   util.Option[fnd.ProjectGroup] `json:"group"`
+	User    util.Option[string]                      `json:"user"`
+	Project util.Option[AppAccessProjectOrGroupInfo] `json:"project"`
+	Group   util.Option[AppAccessProjectOrGroupInfo] `json:"group"`
 }
 
 // Core CRUD
