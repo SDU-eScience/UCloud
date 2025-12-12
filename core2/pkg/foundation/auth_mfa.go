@@ -116,6 +116,10 @@ func MfaCreateChallenge(username string) (string, bool) {
 }
 
 func MfaIsConnected(actor rpc.Actor) bool {
+	return MfaIsConnectedEx(actor.Username)
+}
+
+func MfaIsConnectedEx(username string) bool {
 	return db.NewTx(func(tx *db.Transaction) bool {
 		_, ok := db.Get[struct{ Number int }](
 			tx,
@@ -127,7 +131,7 @@ func MfaIsConnected(actor rpc.Actor) bool {
 					and enforced = true
 		    `,
 			db.Params{
-				"username": actor.Username,
+				"username": username,
 			},
 		)
 

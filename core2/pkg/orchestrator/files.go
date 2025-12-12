@@ -811,10 +811,10 @@ func FilesStreamingSearch(conn *ws.Conn) {
 			keepRunning.Store(false)
 		}()
 
-		url := strings.ReplaceAll(client.BasePath, "http://", "")
-		url = strings.ReplaceAll(url, "https://", "")
+		url := strings.ReplaceAll(client.BasePath, "http://", "ws://")
+		url = strings.ReplaceAll(url, "https://", "wss://")
 		url = fmt.Sprintf(
-			"ws://%s%s?usernameHint=%s",
+			"%s%s?usernameHint=%s",
 			url,
 			orcapi.FilesProviderStreamingSearchEndpoint(providerId),
 			base64.URLEncoding.EncodeToString([]byte(actor.Username)),

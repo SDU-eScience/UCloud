@@ -38,6 +38,10 @@ type providerLogFile struct {
 }
 
 func providerAppendLog(provider string, entry ProviderCallLog) {
+	if cfg.Configuration.Logs.LogToConsole {
+		return // TODO
+	}
+
 	providerLogFiles.Mu.RLock()
 	logFile, ok := providerLogFiles.Logs[provider]
 	providerLogFiles.Mu.RUnlock()
@@ -77,9 +81,9 @@ func providerAppendLog(provider string, entry ProviderCallLog) {
 			}()
 		}
 		providerLogFiles.Mu.Unlock()
+	} else {
+		logFile.Chan <- entry
 	}
-
-	logFile.Chan <- entry
 }
 
 func initProviders() {

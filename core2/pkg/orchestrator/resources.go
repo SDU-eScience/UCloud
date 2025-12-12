@@ -94,12 +94,13 @@ type resource struct {
 	// NOTE(Dan): Updates and status are now managed by the caller
 }
 
-func (r *resource) ToApi() orcapi.Resource {
+func (r *resource) ToApi(myPermissions []orcapi.Permission) orcapi.Resource {
 	return orcapi.Resource{
 		Id:        fmt.Sprint(r.Id),
 		CreatedAt: fndapi.Timestamp(r.CreatedAt),
 		Owner:     r.Owner,
 		Permissions: orcapi.ResourcePermissions{
+			Myself: myPermissions,
 			Others: r.Acl,
 		},
 		ProviderGeneratedId: r.ProviderId.GetOrDefault(""),
@@ -517,7 +518,7 @@ func ResourceRetrieveEx[T any](
 		}
 		b.Mu.RUnlock()
 		if ok {
-			return result, r.ToApi(), r.Product, nil
+			return result, r.ToApi(perms), r.Product, nil
 		}
 	}
 

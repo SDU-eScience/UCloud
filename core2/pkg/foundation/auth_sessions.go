@@ -186,6 +186,7 @@ func SessionLoginResponse(r *http.Request, w http.ResponseWriter, session fndapi
 	mfaRequired := false
 	if flags&SessionLoginMfaComplete == 0 {
 		mfaChallenge, mfaRequired = MfaCreateChallenge(session.Username)
+		mfaRequired = mfaRequired && MfaIsConnectedEx(session.Username)
 	}
 
 	if mfaRequired {

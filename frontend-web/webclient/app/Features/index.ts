@@ -1,4 +1,5 @@
 import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
+import {local} from "d3-selection";
 
 export enum Feature {
     PROVIDER_CONNECTION,
@@ -36,6 +37,9 @@ const noEnvironments: Environment[] = [];
 
 const allLocalEnvironments: Environment[] =
     [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK];
+
+const localAndDevEnvironment: Environment[] =
+    [...allLocalEnvironments, Environment.PUBLIC_DEV];
 
 const allDevEnvironments: Environment[] =
     [...allLocalEnvironments, Environment.SANDBOX_DEV, Environment.PUBLIC_DEV];
@@ -84,7 +88,7 @@ const featureMap: Record<string, FeatureConfig> = {
     "job-rename": {
         feature: Feature.JOB_RENAME,
         showWithFlag: allDevEnvironments,
-        showWithoutFlag: allLocalEnvironments
+        showWithoutFlag: localAndDevEnvironment
     },
 
     "alternative-usage-selector": {
@@ -114,7 +118,7 @@ const featureMap: Record<string, FeatureConfig> = {
     "core2": {
         feature: Feature.CORE2,
         showWithFlag: allLocalEnvironments,
-        showWithoutFlag: noEnvironments,
+        showWithoutFlag: localAndDevEnvironment,
     },
 
     "allocations-improvements": {
