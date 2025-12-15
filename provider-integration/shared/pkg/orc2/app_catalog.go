@@ -118,6 +118,7 @@ type AppDetailedPermissionEntry struct {
 // =====================================================================================================================
 
 const appCatalogNamespace = "hpc/apps"
+const toolCatalogNamespace = "hpc/tools"
 
 type AppCatalogFindByNameAndVersionRequest struct {
 	AppName    string                            `json:"appName"`
@@ -286,12 +287,12 @@ var AppsUpload = rpc.Call[[]byte, util.Empty]{
 }
 
 var AppsUploadTool = rpc.Call[[]byte, util.Empty]{
-	BaseContext: appCatalogNamespace + "/tools",
+	BaseContext: toolCatalogNamespace,
 	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesAdmin,
 	Operation:   "upload",
 
-	CustomPath:   "/api/hpc/tools/upload",
+	CustomPath:   "/api/hpc/tools",
 	CustomMethod: http.MethodPut,
 
 	CustomClientHandler: func(self *rpc.Call[[]byte, util.Empty], client *rpc.Client, request []byte) (util.Empty, *util.HttpError) {
