@@ -13,7 +13,7 @@ func StartOfDayUTC(t time.Time) time.Time {
 }
 
 func ExponentialBackoffForNetwork(attempt int) time.Duration {
-	return ExponentialBackoffEx(attempt, 50*time.Millisecond, 1.6, 10*time.Second)
+	return ExponentialBackoffEx(attempt, 50*time.Millisecond, 1.6, 20*time.Second)
 }
 
 // ExponentialBackoffEx returns a delay for a given retry attempt.
@@ -24,8 +24,19 @@ func ExponentialBackoffEx(
 	mult float64,
 	max time.Duration,
 ) time.Duration {
+	if mult > 2 {
+		panic("mult must be <= 2")
+	}
+	if mult < 1 {
+		panic("mult must be >= 1")
+	}
+
 	if attempt < 0 {
 		attempt = 0
+	}
+
+	if attempt > 30 {
+		attempt = 30 // Should be enough to ensure that we do not overflow.
 	}
 
 	delay := time.Duration(float64(base) * math.Pow(mult, float64(attempt)))
@@ -36,5 +47,6 @@ func ExponentialBackoffEx(
 		return 0
 	}
 
-	return time.Duration(rand.Int63n(int64(delay) + 1))
+	halfDuration := int64(delay / 2)
+	return time.Duration(halfDuration + rand.Int63n(halfDuration+1))
 }
