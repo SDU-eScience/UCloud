@@ -1676,6 +1676,11 @@ var jobNotificationsPending struct {
 }
 
 func jobNotifyStateChange(job orcapi.Job) {
+	appName := job.Specification.Application.Name
+	if appName == "unknown" || appName == "syncthing" {
+		return
+	}
+
 	if job.Status.State != orcapi.JobStateInQueue {
 		jobNotificationsPending.Mu.Lock()
 		username := job.Owner.CreatedBy
