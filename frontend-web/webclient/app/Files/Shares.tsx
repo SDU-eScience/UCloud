@@ -52,6 +52,7 @@ import {useProjectId} from "@/Project/Api";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {defaultAvatar} from "@/AvataaarLib";
+import {SvgCache} from "@/Utilities/SvgCache";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share", tab: SidebarTabId.FILES, defaultHidden: true},
@@ -69,7 +70,10 @@ function inviteLinkFromToken(token: string): string {
 
 export const SimpleAvatarComponentCache = new class {
     defaultAvatar: ReactStaticRenderer;
+    private svgCache: SvgCache;
+
     constructor() {
+        this.svgCache = new SvgCache();
         new ReactStaticRenderer(() =>
             <Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...defaultAvatar} />
         ).promise.then(it => this.defaultAvatar = it)
@@ -113,9 +117,20 @@ export const SimpleAvatarComponentCache = new class {
             const avatar = a.clone();
             avatarWrapper.appendChild(avatar);
         } else {
-            const avatarComponent = isDefaultAvatar ? this.defaultAvatar : await new ReactStaticRenderer(() =>
-                <Avatar style={{height: "40px", width: "40px"}} avatarStyle="Circle" {...avatar} />
-            ).promise;
+            // NOTE(Dan): Rasterize at double resolution. This has a clear impact on image quality and little
+            // impact on performance.
+            const avatarCompUrl = await this.svgCache.renderSvg(username, () => {
+                return <Avatar style={{height: "80px", width: "80px"}} avatarStyle="Circle" {...avatar} />;
+            }, 80, 80);
+
+            const avatarComponent = isDefaultAvatar ? this.defaultAvatar : await new ReactStaticRenderer(() => {
+                return <div style={{
+                    width: "40px",
+                    height: "40px",
+                    backgroundImage: `url(${avatarCompUrl})`,
+                    backgroundSize: "contain",
+                }}/>;
+            }).promise;
             if (!isDefaultAvatar) this.setAvatar(username, avatarComponent);
             const avatarElement = avatarComponent.clone();
             avatarWrapper.appendChild(avatarElement);
