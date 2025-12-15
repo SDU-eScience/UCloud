@@ -348,7 +348,7 @@ func initAuth() {
 	})
 
 	fndapi.UsersUpdateInfo.Handler(func(info rpc.RequestInfo, request fndapi.UsersUpdateInfoRequest) (util.Empty, *util.HttpError) {
-		err := UsersInfoUpdate(info.Actor, request, info.HttpRequest.RemoteAddr)
+		err := UsersInfoUpdate(info.Actor, request, util.ClientIP(info.HttpRequest).String())
 		return util.Empty{}, err
 	})
 }

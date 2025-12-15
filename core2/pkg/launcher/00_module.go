@@ -325,7 +325,7 @@ func Launch() {
 	if slices.Contains(os.Args, "apm") || slices.Contains(os.Args, "accounting") {
 		modules |= ModuleAccounting
 	}
-	if slices.Contains(os.Args, "orchestrators") {
+	if slices.Contains(os.Args, "orchestrator") {
 		modules |= ModuleOrchestrator
 	}
 	if modules == 0 {
