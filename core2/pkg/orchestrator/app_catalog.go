@@ -2084,12 +2084,16 @@ func AppStudioUploadTool(data []byte) *util.HttpError {
 	var tool A1Tool
 	yamlErr := yaml.Unmarshal(data, &tool)
 	if yamlErr != nil {
-		return util.HttpErr(http.StatusBadRequest, "invalid yaml supplied: %s", yamlErr.Error())
+		// NOTE(Dan): I suspect someone is using the tool endpoint for V2 apps, and I cannot figure out if this worked
+		// in the old backend.
+		return AppStudioUploadApp(data)
 	}
 
 	ntool, err := tool.Normalize()
 	if err != nil {
-		return err
+		// NOTE(Dan): I suspect someone is using the tool endpoint for V2 apps, and I cannot figure out if this worked
+		// in the old backend.
+		return AppStudioUploadApp(data)
 	} else {
 		return AppStudioCreateTool(&ntool)
 	}

@@ -502,4 +502,8 @@ func appCatalogInitRpc() {
 	orcapi.AppsUploadTool.Handler(func(info rpc.RequestInfo, request []byte) (util.Empty, *util.HttpError) {
 		return util.Empty{}, AppStudioUploadTool(request)
 	})
+
+	orcapi.AppsUploadToolAlias.Handler(func(info rpc.RequestInfo, request []byte) (util.Empty, *util.HttpError) {
+		return util.Empty{}, AppStudioUploadTool(request)
+	})
 }

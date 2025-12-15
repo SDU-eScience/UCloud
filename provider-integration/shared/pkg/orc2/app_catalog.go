@@ -302,6 +302,29 @@ var AppsUploadTool = rpc.Call[[]byte, util.Empty]{
 	Roles:       rpc.RolesAdmin,
 	Operation:   "upload",
 
+	CustomPath:   "/api/hpc/tools/upload",
+	CustomMethod: http.MethodPut,
+
+	CustomClientHandler: func(self *rpc.Call[[]byte, util.Empty], client *rpc.Client, request []byte) (util.Empty, *util.HttpError) {
+		panic("Client not implemented")
+	},
+
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) ([]byte, *util.HttpError) {
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			return nil, util.HttpErr(http.StatusBadRequest, "Bad request")
+		} else {
+			return data, nil
+		}
+	},
+}
+
+var AppsUploadToolAlias = rpc.Call[[]byte, util.Empty]{
+	BaseContext: toolCatalogNamespace + "alias",
+	Convention:  rpc.ConventionCustom,
+	Roles:       rpc.RolesAdmin,
+	Operation:   "upload",
+
 	CustomPath:   "/api/hpc/tools",
 	CustomMethod: http.MethodPut,
 
