@@ -14,55 +14,8 @@ import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-com
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {MandatoryField} from "@/UtilityComponents";
+import {GenericTextArea, GenericTextField} from "@/UtilityComponents";
 
-interface GenericInputFieldProps {
-    name: string;
-    title: string;
-    optional?: boolean;
-    description?: string;
-    onRemove?: () => void;
-    error?: string;
-    children?: React.ReactNode;
-}
-
-const GenericInputField: React.FunctionComponent<GenericInputFieldProps> = props => {
-    return <Box mt={"1em"}>
-        <Label htmlFor={props.name}>
-            <Flex>
-                <Flex data-component={"param-title"}>
-                    {props.title}
-                    {props.optional ? null : <MandatoryField />}
-                </Flex>
-                {!props.onRemove ? null : (
-                    <>
-                        <Box ml="auto" />
-                        <Text color="errorMain" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
-                            data-component={"param-remove"}>
-                            Remove
-                            <Icon ml="6px" size={16} name="close" />
-                        </Text>
-                    </>
-                )}
-            </Flex>
-        </Label>
-        {props.children}
-        {props.error ? <TextP color={"errorMain"}>{props.error}</TextP> : null}
-        {props.description ? <Markdown>{props.description}</Markdown> : null}
-    </Box>;
-}
-
-const GenericTextField: React.FunctionComponent<GenericInputFieldProps> = props => {
-    return <GenericInputField {...props}>
-        <Input id={props.name} />
-    </GenericInputField>
-}
-
-const GenericTextArea: React.FunctionComponent<GenericInputFieldProps> = props => {
-    return <GenericInputField {...props}>
-        <TextArea width={"100%"} rows={5} id={props.name} />
-    </GenericInputField>
-}
 
 export function SshKeysCreate(): React.ReactNode {
     usePage(SshKeyApi.titlePlural, SidebarTabId.RESOURCES);

@@ -37,7 +37,7 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Api.ApiToken>(mount, "SSH keys", props.opts).init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<Api.ApiToken>(mount, "API tokens", props.opts).init(browserRef, FEATURES, "", browser => {
                 // TODO(Jonas): More can be added here
                 browser.setColumns([{name: "Title"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]);
 
@@ -124,7 +124,7 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                     reload: () => browser.refresh()
                 }));
 
-                browser.on("pathToEntry", sshKey => sshKey.id);
+                browser.on("pathToEntry", apiTok => apiTok.id);
 
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
