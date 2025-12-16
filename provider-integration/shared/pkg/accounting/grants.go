@@ -496,7 +496,7 @@ type GrantsExportResponse struct {
 	DurationMonths int                   `json:"durationMonths"`
 	State          GrantApplicationState `json:"state"`
 	GrantGiver     string                `json:"grantGiver"`
-	LastUpdatedAt  fnd.Timestamp         `json:"lastUpdatedAtAt"`
+	LastUpdatedAt  fnd.Timestamp         `json:"lastUpdatedAt"`
 	Resources      map[string]int        `json:"resources"`
 }
 

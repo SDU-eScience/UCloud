@@ -40,6 +40,16 @@ const FEATURES: ResourceBrowseFeatures = {
     projectSwitcher: true,
 }
 
+function download (filename: string, text: string) {
+    var elem = document.createElement('a');
+    elem.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(text));
+    elem.setAttribute("download", filename);
+    elem.style.display = "none";
+    document.body.appendChild(elem);
+    elem.click()
+    document.body.removeChild(elem);
+}
+
 export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grants.Application> & {both?: boolean}}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Grants.Application>>(null);
@@ -282,19 +292,20 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                             shortcut: ShortcutKey.I
                         },
                         {
-                            icon: "heroBellSlash" as IconName,
-                            text: "Export",
+                            icon: "download" as IconName,
+                            text: "Export JSON",
                             enabled(selected: Grants.Application[]) {
                                 return selected.length === 0 && isIngoing;
                             },
                             shortcut: ShortcutKey.X,
                             async onClick() {
                                 const result = await callAPI(exportGrants());
-                                console.log(result)
+                                const text= JSON.stringify(result)
+                                download("export.json", text)
                             }
                         },
                         {
-                            icon: "heroBellSlash" as IconName,
+                            icon: "download" as IconName,
                             text: "Export CSV",
                             enabled(selected: Grants.Application[]) {
                                 return selected.length === 0 && isIngoing;
@@ -302,7 +313,8 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                             shortcut: ShortcutKey.Y,
                             async onClick() {
                                 const result = await callAPI(exportGrantsCsv());
-                                console.log(result["csvData"]);
+                                const text = result["csvData"] as string;
+                                download("export.csv", text)
                             }
                         }
                     ];
