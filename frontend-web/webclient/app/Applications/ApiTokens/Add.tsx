@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import {Box, Button, Card, Divider, Flex, Icon, Input, MainContainer, Select} from "@/ui-components";
 import * as Api from "./api";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
@@ -13,9 +13,18 @@ import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {RichSelect, RichSelectProps} from "@/ui-components/RichSelect";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
+import {useNavigate} from "react-router";
+import AppRoutes from "@/Routes";
+import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
+const API_TOKEN_TITLE_KEY = "api-title";
+const API_TOKEN_DESCRIPTION_KEY = "api-description";
 
 function Add() {
     usePage("Add API token", SidebarTabId.RESOURCES);
+
+    const navigate = useNavigate();
 
     const [options] = useCloudAPI(Api.retrieveOptions(), {byProvider: {}});
     const [date, setDate] = React.useState(new Date());
@@ -28,18 +37,68 @@ function Add() {
     const [projectId, setProjectId] = React.useState<string | undefined>();
     const [activePermissions, setActivePermissions] = React.useState(new Set<string>());
 
-    const API_TOKEN_TITLE_KEY = "api-title";
-    const API_TOKEN_DESCRIPTION_KEY = "api-title";
-
     const mappedServiceProviders = serviceProviders.map(it => ({key: it}));
 
     const availablePermissions = permissions[serviceProvider]?.availablePermissions ?? [];
+
+
+    const submit = React.useCallback(async () => {
+        const titleElement = document.getElementById(API_TOKEN_TITLE_KEY) as HTMLInputElement;
+        const title = titleElement.value;
+        const descriptionElement = document.getElementById(API_TOKEN_DESCRIPTION_KEY) as HTMLInputElement;
+        const description = descriptionElement.value;
+
+        const requestedPermissions: Api.ApiTokenPermission[] = [];
+
+        for (const permission of activePermissions) {
+            requestedPermissions.push({
+                name: permission,
+                action: (document.querySelector(`[data-permission=${permission}]`) as HTMLSelectElement).value
+            });
+        }
+
+        if (!title) {
+            titleElement.setAttribute("data-error", "true");
+            snackbarStore.addFailure("Title is required", false);
+            return;
+        }
+
+        if (requestedPermissions.length === 0) {
+            snackbarStore.addFailure("At least one permission is required", false);
+            return;
+        }
+
+        if (date.getTime() < new Date().getTime()) {
+            snackbarStore.addFailure("Expiration date cannot be in the past", false);
+            return;
+        }
+
+        const provider = serviceProvider === "" ? UCLOUD_CORE : serviceProvider;
+
+        try {
+            await callAPI(Api.create({
+                title,
+                description,
+                requestedPermissions,
+                expiresAt: date.getTime(),
+                provider,
+                product: {
+                    category: "",
+                    id: "",
+                    provider: ""
+                },
+            }));
+            navigate(AppRoutes.resources.apiTokens());
+        } catch (err) {
+            displayErrorMessageOrDefault(err, "Failed to generate token.")
+        }
+    }, [serviceProvider, activePermissions, date]);
 
     return <MainContainer main={
         <div style={{display: "grid", gap: "18px"}}>
             <div>
                 <GenericTextField name={API_TOKEN_TITLE_KEY} title={"Title"} optional={false} />
-                <GenericTextArea name={API_TOKEN_DESCRIPTION_KEY} optional title={"Description"} />
+                <GenericTextArea name={API_TOKEN_DESCRIPTION_KEY} optional={true} title={"Description"} />
             </div>
             <Flex>
                 <div className={ServiceProviderSelector} data-has-service-provider={!!serviceProvider}>
@@ -108,7 +167,7 @@ function Add() {
                     </div>
                 </div>
             </div>}
-            <Button width="150px">Generate token</Button>
+            <Button onClick={submit} width="150px">Generate token</Button>
         </div >
     } />
 }
@@ -155,7 +214,7 @@ function ActivePermissions(props: {clearPermission(): void; permission: string; 
 
     const actionKeys = Object.keys(permissionSpecification.actions);
 
-    return <Flex data-permission={props.permission} className={ActivePermissionClass.class}>
+    return <Flex className={ActivePermissionClass.class}>
         <div>
             <div className={ActivePermissionTitle.class}>
                 {permissionSpecification.title}
