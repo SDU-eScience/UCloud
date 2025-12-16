@@ -98,7 +98,7 @@ func createTicketFromUser(actor rpc.Actor, request fndapi.CreateTicketRequest, r
 			build.WriteByte('\n')
 			for _, p := range projects {
 				isCurrent := string(actor.Project.Value) == p.Id
-				_, _ = fmt.Fprintf(&build, "    - %s (`%s)", p.Title, p.Id)
+				_, _ = fmt.Fprintf(&build, "    * %s (`%s`)", p.Title, p.Id)
 				if isCurrent {
 					build.WriteString(" [Current]")
 				}
@@ -125,20 +125,21 @@ func createTicketFromUser(actor rpc.Actor, request fndapi.CreateTicketRequest, r
 func createTicket(ticket Ticket) *util.HttpError {
 	message := fmt.Sprintf(
 		`
-		New ticket via UCloud:
-		
-		*User information:*
-		- *Username:* %s
-		- *Real name:* %s %s
-		- *Email:* %s
-		- *Projects:* %s
-		
-		*Technical info:*
-		- *User agent:* %s
-		
-		Subject: %s
-		
-		The following message was attached: %s
+New ticket via UCloud:
+
+*User information:*
+- *Username:* %s
+- *Real name:* %s %s
+- *Email:* %s
+- *Projects:* %s
+
+*Technical info:*
+- *User agent:* %s
+
+Subject: %s
+
+The following message was attached:
+> %s
 		`,
 		ticket.Username,
 		ticket.FirstName,
@@ -147,7 +148,7 @@ func createTicket(ticket Ticket) *util.HttpError {
 		ticket.ProjectString,
 		ticket.UserAgent,
 		ticket.Subject,
-		ticket.Message,
+		strings.ReplaceAll(ticket.Message, "\n", "\n>\n> "),
 	)
 
 	err := MailSendSupport(fndapi.MailSendSupportRequest{
