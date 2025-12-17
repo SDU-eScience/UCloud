@@ -307,6 +307,9 @@ function ExpirationSelector(props: {date: Date; onChange(d: Date): void}): React
         if (!target) return;
         const date = target.valueAsDate;
         if (!date) return;
+        date.setHours(0);
+        date.setMinutes(0);
+        date.setSeconds(0);
         props.onChange(date);
     }, []);
 
