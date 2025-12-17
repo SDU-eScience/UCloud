@@ -1,6 +1,6 @@
 import * as React from "react";
 import {MainContainer} from "@/ui-components";
-import {addProjectSwitcherInPortal, EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts} from "@/ui-components/ResourceBrowser";
+import {addProjectSwitcherInPortal, EmptyReasonTag, providerIcon, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts} from "@/ui-components/ResourceBrowser";
 import {useNavigate} from "react-router";
 import {useDispatch} from "react-redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -11,6 +11,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {StandardCallbacks} from "@/ui-components/Browse";
 import AppRoutes from "@/Routes";
+import {formatTs} from "./Add";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -38,8 +39,7 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Api.ApiToken>(mount, "API tokens", props.opts).init(browserRef, FEATURES, "", browser => {
-                // TODO(Jonas): More can be added here
-                browser.setColumns([{name: "Title"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]);
+                browser.setColumns([{name: "Title"}, {name: "Permissions", columnWidth: 150}, {name: "Expires at", columnWidth: 200}, {name: "Server", columnWidth: 200}]);
 
                 browser.on("skipOpen", (oldPath, path, resource) => resource != null);
 
@@ -72,14 +72,18 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                     browser.registerPage(result, path, false);
                 });
 
-                browser.on("renderRow", (key, row, dims) => {
-                    // TODO(Jonas): Plenty to do
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-                    row.title.append(icon);
+                browser.on("renderRow", (token, row, dims) => {
+                    const isUCloudCore = !token.specification.provider;
+                    const pIcon = providerIcon(token.specification.provider ?? "", undefined, isUCloudCore ? "ucloud.png" : undefined);
+                    pIcon.style.marginRight = "8px";
+                    row.title.append(pIcon);
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(key.specification.title, row));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(token.specification.title, row));
 
-                    ResourceBrowser.icons.renderIcon({name: "heroCircleStack", color: "textPrimary", color2: "textPrimary", height: 64, width: 64}).then(setIcon);
+                    row.stat1.append(`${token.specification.requestedPermissions.length} permissions`);
+                    row.stat2.append(formatTs(token.specification.expiresAt));
+                    /* Show server or provider? What even is the server? */
+                    row.stat3.append(token.status.server);
                 });
 
                 browser.on("generateBreadcrumbs", () => [{title: browser.resourceName, absolutePath: ""}]);

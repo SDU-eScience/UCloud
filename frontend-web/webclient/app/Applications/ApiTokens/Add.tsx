@@ -87,6 +87,7 @@ function Add() {
                     id: "",
                     provider: ""
                 },
+                /* Note(Jonas): Not part of create call, but I'm not sure where it's supposed to go */
                 projectId: provider === UCLOUD_CORE ? projectId : undefined
             }));
             navigate(AppRoutes.resources.apiTokens());
@@ -99,7 +100,7 @@ function Add() {
         <div style={{display: "grid", gap: "18px"}}>
             <div>
                 <GenericTextField name={API_TOKEN_TITLE_KEY} title={"Title"} optional={false} />
-                <GenericTextArea name={API_TOKEN_DESCRIPTION_KEY} optional={true} title={"Description"} />
+                <GenericTextArea name={API_TOKEN_DESCRIPTION_KEY} title={"Description"} optional={true} />
             </div>
             <Flex>
                 <div className={ServiceProviderSelector} data-has-service-provider={!!serviceProvider}>
@@ -254,10 +255,16 @@ function ServiceProviderItem(props: RichSelectProps<{key: string}>): React.React
     if (key == null) return null;
     const serviceProvider = !key ? UCLOUD_CORE : key;
     return <Flex height={height} pl="8px" key={key}  {...props.dataProps} onClick={props.onSelect} alignItems={"center"} gap={"8px"}>
-        {!key ? <ProviderLogoWrapper size={24} className="provider-logo" tooltip={UCLOUD_CORE}>
-            <Image src={"/Images/ucloud.png"} alt={`Logo for ${UCLOUD_CORE}`} />
-        </ProviderLogoWrapper> : <ProviderLogo className={"provider-logo"} providerId={serviceProvider} size={24} />}
-        {!key ? UCLOUD_CORE : <ProviderTitle providerId={key} />}
+        {!key ?
+            <>
+                <ProviderLogoWrapper size={24} className="provider-logo" tooltip={UCLOUD_CORE}>
+                    <Image src={"/Images/ucloud.png"} alt={`Logo for ${UCLOUD_CORE}`} />
+                </ProviderLogoWrapper>
+                {UCLOUD_CORE}
+            </> : <>
+                <ProviderLogo className={"provider-logo"} providerId={serviceProvider} size={24} />
+                <ProviderTitle providerId={key} />
+            </>}
     </Flex>
 }
 
@@ -276,12 +283,13 @@ const ServiceProviderSelector = injectStyle("service-selector", cl => `
     }
 `)
 
+export function formatTs(ts: number): string {
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+}
+
 function ExpirationSelector(props: {date: Date; onChange(d: Date): void}): React.ReactNode {
 
-    function formatTs(ts: number): string {
-        const d = new Date(ts);
-        return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
-    }
 
     const onRelativeUpdated = React.useCallback((ev: React.SyntheticEvent) => {
         let today = new Date();

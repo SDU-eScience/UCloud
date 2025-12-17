@@ -3661,8 +3661,8 @@ export function resourceCreationWithProductSelector<T>(
     return {startCreation, cancelCreation, portal};
 }
 
-export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclaration>): HTMLElement {
-    const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
+export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclaration>, logo?: string): HTMLElement {
+    const myInfo: {logo: string} | undefined = logo ? {logo} : ProviderInfo.providers.find(p => p.id === providerId);
     const outer = divHtml("");
     outer.className = "provider-icon"
     outer.style.background = "var(--secondaryMain)";

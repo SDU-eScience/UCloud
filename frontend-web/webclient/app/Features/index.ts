@@ -18,6 +18,8 @@ export enum Feature {
 
     CORE2,
 
+    API_TOKENS_PAGES,
+
     // MISSING BACKEND SUPPORT
     JOB_RENAME,
     REORDER_APP_GROUP,
@@ -125,6 +127,12 @@ const featureMap: Record<string, FeatureConfig> = {
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
         showWithFlag: allLocalEnvironments,
         showWithoutFlag: noEnvironments,
+    },
+
+    "api-tokens-pages": {
+        feature: Feature.API_TOKENS_PAGES,
+        showWithFlag: allDevEnvironments,
+        showWithoutFlag: allLocalEnvironments
     }
 };
 

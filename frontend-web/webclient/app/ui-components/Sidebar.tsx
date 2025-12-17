@@ -67,7 +67,7 @@ import {isAdminOrPI} from "@/Project";
 import {FileType} from "@/Files";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 import {onProjectUpdated, projectCache, projectTitle} from "@/Project/ProjectSwitcher";
-import {GenericMergeAction, GenericSetAction, HookStore, useGlobal} from "@/Utilities/ReduxHooks";
+import {GenericSetAction, HookStore, useGlobal} from "@/Utilities/ReduxHooks";
 import {useDiscovery} from "@/Applications/Hooks";
 import {Command, CommandPalette, CommandScope, staticProvider, useProvideCommands} from "@/CommandPalette";
 import {NavigateFunction, useNavigate} from "react-router";
@@ -724,9 +724,13 @@ const ResourceSubLinksEntries: LinkInfo[] = [{
     to: AppRoutes.resources.sshKeys(), text: "SSH keys", icon: "heroKey", tab: SidebarTabId.RESOURCES
 }, {
     to: AppRoutes.resources.licenses(), text: "Licenses", icon: "heroDocumentCheck", tab: SidebarTabId.RESOURCES
-}, {
-    to: AppRoutes.resources.apiTokens(), text: "API tokens", icon: "heroCircleStack", tab: SidebarTabId.RESOURCES,
 }];
+
+if (hasFeature(Feature.API_TOKENS_PAGES)) {
+    ResourceSubLinksEntries.push({
+        to: AppRoutes.resources.apiTokens(), text: "API tokens", icon: "heroCircleStack", tab: SidebarTabId.RESOURCES,
+    });
+}
 
 function ProjectSubLinks({canApply, isPersonalWorkspace, projectId}: {
     canApply: boolean;
