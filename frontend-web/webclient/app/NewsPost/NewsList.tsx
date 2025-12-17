@@ -96,7 +96,9 @@ export const NewsList: React.FC = () => {
                         <Flex>
                             <Text>Posted {format(item.showFrom, "HH:mm dd/MM/yy")}</Text>
                             <Box mt="-3px" ml="4px">
-                                <Tag label={item.category} />
+                                <Link to={`/news/list/${item.category}`}>
+                                    <Tag label={item.category} />
+                                </Link>
                             </Box>
                         </Flex>
                         <IsExpired now={now} expiration={item.hideFrom} />
