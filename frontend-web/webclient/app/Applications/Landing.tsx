@@ -113,7 +113,7 @@ const LandingPage: React.FunctionComponent = () => {
 
                     <TopPicksCard2 topPicks={landingPage.topPicks} />
 
-                    {landingPage.spotlight ? <SpotlightCard2 spotlight={landingPage.spotlight} /> : null}
+                    {landingPage.spotlight ? <SpotlightCard spotlight={landingPage.spotlight} /> : null}
 
                     {landingPage.categories.length < 1 ? null :
                         <div>
@@ -160,35 +160,6 @@ const LandingPage: React.FunctionComponent = () => {
 };
 
 export const SpotlightCard: React.FunctionComponent<{
-    spotlight: Spotlight;
-    target?: HTMLAttributeAnchorTarget;
-}> = ({spotlight, target}) => {
-    return <TitledCard title={`Spotlight: ${spotlight.title}`} icon={"heroBeaker"}>
-        <Flex flexDirection={"row"} gap={"32px"}>
-            <Flex flexGrow={1} flexDirection={"column"} gap={"16px"}>
-                {spotlight.applications.map((pick, idx) => {
-                    if (pick.groupId) {
-                        return <AppCard1 key={idx} name={pick.groupId.toString()}
-                            title={pick.title} description={pick.description}
-                            applicationName={pick.defaultApplicationToRun}
-                            fullWidth target={target} />;
-                    } else {
-                        return null;
-                    }
-                })}
-            </Flex>
-            <Box width={"400px"} flexShrink={1} flexGrow={0}>
-                <div className={SpotlightDescription} style={{fontStyle: "italic"}}>
-                    <Markdown allowedElements={["p"]}>
-                        {spotlight.body}
-                    </Markdown>
-                </div>
-            </Box>
-        </Flex>
-    </TitledCard>
-};
-
-export const SpotlightCard2: React.FunctionComponent<{
     spotlight: Spotlight;
     target?: HTMLAttributeAnchorTarget;
 }> = ({spotlight, target}) => {

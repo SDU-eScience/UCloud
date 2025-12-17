@@ -12,7 +12,7 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
-import {SpotlightCard2} from "@/Applications/Landing";
+import {SpotlightCard} from "@/Applications/Landing";
 import * as Heading from "@/ui-components/Heading";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
@@ -239,7 +239,7 @@ const SpotlightsEditor: React.FunctionComponent = () => {
     const onShowPreview = useCallback(() => {
         dialogStore.addDialog(
             <div style={{width: "1100px"}}>
-                <SpotlightCard2 spotlight={spotlightPreview} target={"_blank"} />
+                <SpotlightCard spotlight={spotlightPreview} target={"_blank"} />
             </div>,
             doNothing,
             true,
@@ -301,7 +301,7 @@ const SpotlightsEditor: React.FunctionComponent = () => {
                     </Flex>
                     <div style={{transform: "translate(-25%, -25%) scale(0.5)"}}>
                         <div style={{width: "1100px"}}>
-                            <SpotlightCard2 spotlight={spotlightPreview} target={"_blank"} />
+                            <SpotlightCard spotlight={spotlightPreview} target={"_blank"} />
                         </div>
                     </div>
                 </div>
