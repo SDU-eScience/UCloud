@@ -135,7 +135,7 @@ func UsersInfoRetrieve(actor rpc.Actor) fndapi.UsersRetrieveInfoResponse {
 
 func UsersInfoUpdate(actor rpc.Actor, request fndapi.UsersUpdateInfoRequest, remoteHost string) *util.HttpError {
 	token := util.SecureToken()
-	recipientEmail, ok := db.NewTx2(func(tx *db.Transaction) (string, bool) {
+	newEmail, oldMail, ok := db.NewTx3(func(tx *db.Transaction) (string, string, bool) {
 		db.Exec(
 			tx,
 			`
@@ -161,10 +161,13 @@ func UsersInfoUpdate(actor rpc.Actor, request fndapi.UsersUpdateInfoRequest, rem
 		)
 
 		if !ok {
-			return "", false
+			return "", "", false
 		}
 
-		recipientEmail, ok := db.Get[struct{ Email string }](
+		recipientEmail, ok := db.Get[struct {
+			NewEmail string
+			OldEmail string
+		}](
 			tx,
 			`
 				with
@@ -178,7 +181,9 @@ func UsersInfoUpdate(actor rpc.Actor, request fndapi.UsersUpdateInfoRequest, rem
                         select uid, :first_names::text, :last_name::text, :email::text, :token::text
                         from user_info i
                     )
-                select coalesce(:email::text, i.email) as email
+                select 
+					coalesce(:email::text, i.email) as new_email,
+					i.email old_email
                 from user_info i;
 			`,
 			db.Params{
@@ -190,7 +195,7 @@ func UsersInfoUpdate(actor rpc.Actor, request fndapi.UsersUpdateInfoRequest, rem
 			},
 		)
 
-		return recipientEmail.Email, ok
+		return recipientEmail.NewEmail, recipientEmail.OldEmail, ok
 	})
 
 	if !ok {
@@ -207,9 +212,16 @@ func UsersInfoUpdate(actor rpc.Actor, request fndapi.UsersUpdateInfoRequest, rem
 	mail := fndapi.Mail(mailBytes)
 
 	_, err := fndapi.MailSendDirect.Invoke(fndapi.BulkRequestOf(fndapi.MailSendDirectMandatoryRequest{
-		RecipientEmail: recipientEmail,
+		RecipientEmail: oldMail,
 		Mail:           mail,
 	}))
+
+	if oldMail != newEmail {
+		_, err = fndapi.MailSendDirect.Invoke(fndapi.BulkRequestOf(fndapi.MailSendDirectMandatoryRequest{
+			RecipientEmail: newEmail,
+			Mail:           mail,
+		}))
+	}
 
 	return err
 }
