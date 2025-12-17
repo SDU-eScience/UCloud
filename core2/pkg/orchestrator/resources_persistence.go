@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"database/sql"
+	"slices"
 	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
@@ -10,6 +11,110 @@ import (
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
+
+type resourceLoadRow struct {
+	Id                  int64
+	CreatedAt           time.Time
+	CreatedBy           sql.NullString
+	Project             sql.NullString
+	ProductName         sql.NullString
+	ProductCategory     sql.NullString
+	Provider            sql.NullString
+	ProviderGeneratedId sql.NullString
+}
+
+func resourceLoadInternal(tx *db.Transaction, typeName string, rows []resourceLoadRow) map[ResourceId]*resource {
+	foundResources := map[ResourceId]*resource{}
+	var foundResourceIds []int64
+	for _, row := range rows {
+		r := &resource{
+			Id:         ResourceId(row.Id),
+			ProviderId: util.SqlNullStringToOpt(row.ProviderGeneratedId),
+			Owner: orcapi.ResourceOwner{
+				CreatedBy: util.SqlNullStringToOpt(row.CreatedBy).GetOrDefault("_ucloud"),
+				Project:   util.SqlNullStringToOpt(row.Project).GetOrDefault(""),
+			},
+			CreatedAt:  row.CreatedAt,
+			ModifiedAt: row.CreatedAt, // TODO We don't store this?
+			Type:       typeName,
+			Confirmed:  true,
+		}
+
+		if row.ProductName.Valid && row.ProductCategory.Valid && row.Provider.Valid {
+			r.Product = util.OptValue(accapi.ProductReference{
+				Id:       row.ProductName.String,
+				Category: row.ProductCategory.String,
+				Provider: row.Provider.String,
+			})
+		}
+
+		_, exists := foundResources[r.Id]
+		foundResources[r.Id] = r
+		if !exists {
+			foundResourceIds = append(foundResourceIds, int64(r.Id))
+		}
+	}
+
+	if len(foundResources) > 0 {
+		aclRows := db.Select[struct {
+			ResourceId   int64
+			Username     sql.NullString
+			GroupId      sql.NullString
+			GroupProject sql.NullString
+			Permission   string
+		}](
+			tx,
+			`
+				select e.resource_id, e.username, g.id as group_id, g.project as group_project, e.permission
+				from
+					provider.resource_acl_entry e
+					left join project.groups g on e.group_id = g.id
+				where
+					e.resource_id = some(cast(:ids as int8[]))
+			`,
+			db.Params{
+				"ids": foundResourceIds,
+			},
+		)
+
+		for _, row := range aclRows {
+			r, ok := foundResources[ResourceId(row.ResourceId)]
+			if !ok {
+				continue
+			}
+
+			entry := orcapi.ResourceAclEntry{
+				Permissions: []orcapi.Permission{orcapi.Permission(row.Permission)},
+				Entity: orcapi.AclEntity{
+					Group:     row.GroupId.String,
+					ProjectId: row.GroupProject.String,
+					Username:  row.Username.String,
+				},
+			}
+			if entry.Entity.Username != "" {
+				entry.Entity.Type = orcapi.AclEntityTypeUser
+			} else {
+				entry.Entity.Type = orcapi.AclEntityTypeProjectGroup
+			}
+
+			found := false
+			for i := 0; i < len(r.Acl); i++ {
+				if r.Acl[i].Entity == entry.Entity {
+					r.Acl[i].Permissions = append(r.Acl[i].Permissions, orcapi.Permission(row.Permission))
+					found = true
+					break
+				}
+			}
+			if !found {
+				r.Acl = append(r.Acl, entry)
+			}
+		}
+	}
+
+	g := resourceGetGlobals(typeName)
+	g.OnLoad(tx, foundResourceIds, foundResources)
+	return foundResources
+}
 
 func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 	if resourceGlobals.Testing.Enabled {
@@ -33,19 +138,7 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 	}
 
 	resources := db.NewTx(func(tx *db.Transaction) map[ResourceId]*resource {
-		foundResources := map[ResourceId]*resource{}
-		var foundResourceIds []int64
-
-		rows := db.Select[struct {
-			Id                  int64
-			CreatedAt           time.Time
-			CreatedBy           sql.NullString
-			Project             sql.NullString
-			ProductName         sql.NullString
-			ProductCategory     sql.NullString
-			Provider            sql.NullString
-			ProviderGeneratedId sql.NullString
-		}](
+		rows := db.Select[resourceLoadRow](
 			tx,
 			`
 				select 
@@ -72,91 +165,7 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 			},
 		)
 
-		for _, row := range rows {
-			r := &resource{
-				Id:         ResourceId(row.Id),
-				ProviderId: util.SqlNullStringToOpt(row.ProviderGeneratedId),
-				Owner: orcapi.ResourceOwner{
-					CreatedBy: util.SqlNullStringToOpt(row.CreatedBy).GetOrDefault("_ucloud"),
-					Project:   util.SqlNullStringToOpt(row.Project).GetOrDefault(""),
-				},
-				CreatedAt:  row.CreatedAt,
-				ModifiedAt: row.CreatedAt, // TODO We don't store this?
-				Type:       typeName,
-				Confirmed:  true,
-			}
-
-			if row.ProductName.Valid && row.ProductCategory.Valid && row.Provider.Valid {
-				r.Product = util.OptValue(accapi.ProductReference{
-					Id:       row.ProductName.String,
-					Category: row.ProductCategory.String,
-					Provider: row.Provider.String,
-				})
-			}
-
-			foundResources[r.Id] = r
-			foundResourceIds = append(foundResourceIds, int64(r.Id))
-		}
-
-		if len(foundResources) > 0 {
-			aclRows := db.Select[struct {
-				ResourceId   int64
-				Username     sql.NullString
-				GroupId      sql.NullString
-				GroupProject sql.NullString
-				Permission   string
-			}](
-				tx,
-				`
-					select e.resource_id, e.username, g.id as group_id, g.project as group_project, e.permission
-					from
-						provider.resource_acl_entry e
-						left join project.groups g on e.group_id = g.id
-					where
-						e.resource_id = some(cast(:ids as int8[]))
-				`,
-				db.Params{
-					"ids": foundResourceIds,
-				},
-			)
-
-			for _, row := range aclRows {
-				r, ok := foundResources[ResourceId(row.ResourceId)]
-				if !ok {
-					continue
-				}
-
-				entry := orcapi.ResourceAclEntry{
-					Permissions: []orcapi.Permission{orcapi.Permission(row.Permission)},
-					Entity: orcapi.AclEntity{
-						Group:     row.GroupId.String,
-						ProjectId: row.GroupProject.String,
-						Username:  row.Username.String,
-					},
-				}
-				if entry.Entity.Username != "" {
-					entry.Entity.Type = orcapi.AclEntityTypeUser
-				} else {
-					entry.Entity.Type = orcapi.AclEntityTypeProjectGroup
-				}
-
-				found := false
-				for i := 0; i < len(r.Acl); i++ {
-					if r.Acl[i].Entity == entry.Entity {
-						r.Acl[i].Permissions = append(r.Acl[i].Permissions, orcapi.Permission(row.Permission))
-						found = true
-						break
-					}
-				}
-				if !found {
-					r.Acl = append(r.Acl, entry)
-				}
-			}
-		}
-
-		g := resourceGetGlobals(typeName)
-		g.OnLoad(tx, foundResourceIds, foundResources)
-		return foundResources
+		return resourceLoadInternal(tx, typeName, rows)
 	})
 
 	_, ok := resources[id]
@@ -333,20 +342,30 @@ func lResourcePersist(r *resource) {
 }
 
 func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string) {
-	ids := db.NewTx(func(tx *db.Transaction) []ResourceId {
-		rows := db.Select[struct {
-			Id int64
-		}](
+	resources := db.NewTx(func(tx *db.Transaction) map[ResourceId]*resource {
+		tx.NoDevResetThisIsNotAHackIPromise = true
+		rows := db.Select[resourceLoadRow](
 			tx,
 			`
-				select distinct r.id
+				select
+					r.id,
+					created_at,
+					created_by,
+					project,
+					p.name as product_name,
+					pc.category as product_category,
+					coalesce(r.provider, pc.provider) as provider,
+					provider_generated_id
 				from
 					provider.resource r
 					left join accounting.products p on r.product = p.id
 					left join accounting.product_categories pc on p.category = pc.id
-					left join provider.resource_acl_entry acl on acl.username = :reference and r.project is null
+					left join provider.resource_acl_entry acl on 
+						r.id = acl.resource_id 
+						and acl.username = :reference 
+						and r.project is null
 				where
-				    (
+					(
 						(r.created_by = :reference and r.project is null and pc.provider is distinct from :reference)
 						or (r.project = :reference and r.created_by != :reference and pc.provider is distinct from :reference)
 						or (pc.provider is not distinct from :reference and r.created_by != :reference and r.project != :reference)
@@ -362,19 +381,31 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 			},
 		)
 
-		ids := make([]ResourceId, len(rows))
-		for i, row := range rows {
-			ids[i] = ResourceId(row.Id)
-		}
-
-		return ids
+		return resourceLoadInternal(tx, typeName, rows)
 	})
 
-	b.Mu.Lock()
-	if _, exists := b.ByOwner[reference]; !exists {
-		b.ByOwner[reference] = ids
+	var ids []ResourceId
+	for id := range resources {
+		ids = append(ids, id)
 	}
-	b.Mu.Unlock()
+	slices.Sort(ids)
+
+	{
+		b.Mu.Lock()
+		if _, exists := b.ByOwner[reference]; !exists {
+			b.ByOwner[reference] = ids
+		}
+		b.Mu.Unlock()
+	}
+
+	for _, r := range resources {
+		b := resourceGetBucket(typeName, r.Id)
+		b.Mu.Lock()
+		if _, exists := b.Resources[r.Id]; !exists {
+			b.Resources[r.Id] = r
+		}
+		b.Mu.Unlock()
+	}
 }
 
 func resourceLoadProvider(providerId string) *resourceProvider {

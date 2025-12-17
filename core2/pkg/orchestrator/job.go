@@ -860,10 +860,10 @@ func jobsFollow(conn *ws.Conn) {
 		// -------------------------------------------------------------------------------------------------------------
 		client, ok := providerClient(providerId)
 		if ok {
-			url := strings.ReplaceAll(client.BasePath, "http://", "")
-			url = strings.ReplaceAll(url, "https://", "")
+			url := strings.ReplaceAll(client.BasePath, "http://", "ws://")
+			url = strings.ReplaceAll(url, "https://", "wss://")
 			url = fmt.Sprintf(
-				"ws://%s%s?usernameHint=%s",
+				"%s%s?usernameHint=%s",
 				url,
 				orcapi.JobsProviderFollowEndpoint(providerId),
 				base64.URLEncoding.EncodeToString([]byte(actor.Username)),
@@ -905,6 +905,10 @@ func jobsFollow(conn *ws.Conn) {
 				}
 
 				util.SilentClose(providerConn)
+			}
+
+			if err != nil {
+				log.Warn("Failed to dial provider (%s): %s", providerId, err)
 			}
 		}
 
@@ -1077,7 +1081,7 @@ func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue) *util.Ht
 		}
 
 		_, resc, _, err := ResourceRetrieveEx[orcapi.Drive](actor, driveType, ResourceParseId(driveId),
-			orcapi.PermissionRead, orcapi.ResourceFlags{})
+			orcapi.PermissionRead, orcapi.ResourceFlags{IncludeOthers: true})
 		if err != nil {
 			return util.HttpErr(http.StatusBadRequest, "unknown file or permission denied at '%s'", path)
 		}
@@ -1672,6 +1676,11 @@ var jobNotificationsPending struct {
 }
 
 func jobNotifyStateChange(job orcapi.Job) {
+	appName := job.Specification.Application.Name
+	if appName == "unknown" || appName == "syncthing" {
+		return
+	}
+
 	if job.Status.State != orcapi.JobStateInQueue {
 		jobNotificationsPending.Mu.Lock()
 		username := job.Owner.CreatedBy

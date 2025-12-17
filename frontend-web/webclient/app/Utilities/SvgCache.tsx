@@ -120,7 +120,7 @@ export class SvgCache {
             };
 
             image.onload = () => {
-                ctx.drawImage(image, 0, 0);
+                ctx.drawImage(image, 0, 0, width, height);
                 URL.revokeObjectURL(svgUrl);
 
                 canvas.toBlob((canvasBlob) => {

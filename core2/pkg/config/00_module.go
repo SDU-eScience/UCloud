@@ -28,8 +28,9 @@ type ConfigurationFormat struct {
 	OpenIdConnect util.Option[OidcAuthentication]
 
 	Logs struct {
-		Directory string
-		Rotation  struct {
+		LogToConsole bool
+		Directory    string
+		Rotation     struct {
 			Enabled               bool `yaml:"enabled"`
 			RetentionPeriodInDays int  `yaml:"retentionPeriodInDays"`
 		}
@@ -194,24 +195,30 @@ func Parse(configDir string) bool {
 	{
 		// Logs section
 		logs := cfgutil.RequireChild(filePath, document, "logs", &success)
-		directory := cfgutil.RequireChildFolder(filePath, logs, "directory", cfgutil.FileCheckReadWrite, &success)
-		cfg.Logs.Directory = directory
-		if !success {
-			return false
-		}
 
-		rotationNode, _ := cfgutil.GetChildOrNil(filePath, logs, "rotation")
-		if rotationNode != nil {
-			cfgutil.Decode(filePath, rotationNode, &cfg.Logs.Rotation, &success)
+		logToConsole, _ := cfgutil.OptionalChildBool(filePath, logs, "logToConsole")
+		cfg.Logs.LogToConsole = logToConsole
+
+		if !logToConsole {
+			directory := cfgutil.RequireChildFolder(filePath, logs, "directory", cfgutil.FileCheckReadWrite, &success)
+			cfg.Logs.Directory = directory
 			if !success {
 				return false
 			}
 
-			rotation := &cfg.Logs.Rotation
-			if rotation.Enabled {
-				if rotation.RetentionPeriodInDays <= 0 {
-					cfgutil.ReportError(filePath, rotationNode, "retentionPeriodInDays must be specified and must be greater than zero")
+			rotationNode, _ := cfgutil.GetChildOrNil(filePath, logs, "rotation")
+			if rotationNode != nil {
+				cfgutil.Decode(filePath, rotationNode, &cfg.Logs.Rotation, &success)
+				if !success {
 					return false
+				}
+
+				rotation := &cfg.Logs.Rotation
+				if rotation.Enabled {
+					if rotation.RetentionPeriodInDays <= 0 {
+						cfgutil.ReportError(filePath, rotationNode, "retentionPeriodInDays must be specified and must be greater than zero")
+						return false
+					}
 				}
 			}
 		}

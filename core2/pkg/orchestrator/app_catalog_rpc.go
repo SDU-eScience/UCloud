@@ -289,36 +289,41 @@ func appCatalogInitRpc() {
 
 	orcapi.AppsRetrieveAcl.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogRetrieveAclRequest) (orcapi.AppCatalogRetrieveAclResponse, *util.HttpError) {
 		list := AppStudioRetrieveAccessList(request.Name)
-		var result []orcapi.AppDetailedPermissionEntry
+		var result []orcapi.AppDetailedEntityWithPermission
 		for _, item := range list {
-			result = append(result, orcapi.AppDetailedPermissionEntry{
-				User: util.OptStringIfNotEmpty(item.Username),
-				Project: util.OptMap(util.OptStringIfNotEmpty(item.ProjectId), func(value string) fndapi.Project {
-					return fndapi.Project{
-						Id: value,
-					}
-				}),
-				Group: util.OptMap(util.OptStringIfNotEmpty(item.Group), func(value string) fndapi.ProjectGroup {
-					return fndapi.ProjectGroup{
-						Id: value,
-					}
-				}),
+			result = append(result, orcapi.AppDetailedEntityWithPermission{
+				Entity: orcapi.AppDetailedPermissionEntry{
+					User: util.OptStringIfNotEmpty(item.Username),
+					Project: util.OptValue(orcapi.AppAccessProjectOrGroupInfo{
+						Id:    item.ProjectId,
+						Title: "",
+					}),
+					Group: util.OptValue(orcapi.AppAccessProjectOrGroupInfo{
+						Id:    item.Group,
+						Title: "",
+					}),
+				},
 			})
 		}
 		return orcapi.AppCatalogRetrieveAclResponse{Entries: util.NonNilSlice(result)}, nil
 	})
 
 	orcapi.AppsUpdateAcl.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateAclRequest) (util.Empty, *util.HttpError) {
-		var entities []orcapi.AclEntity
+		var entitiesToAdd []orcapi.AclEntity
+		var entitiesToRemove []orcapi.AclEntity
 		for _, item := range request.Changes {
 			e := orcapi.AclEntity{
 				Username:  item.Entity.User.GetOrDefault(""),
 				ProjectId: item.Entity.Project.GetOrDefault(""),
 				Group:     item.Entity.Group.GetOrDefault(""),
 			}
-			entities = append(entities, e)
+			if item.Revoke {
+				entitiesToRemove = append(entitiesToRemove, e)
+			} else {
+				entitiesToAdd = append(entitiesToAdd, e)
+			}
 		}
-		return util.Empty{}, AppStudioUpdateAcl(request.Name, entities)
+		return util.Empty{}, AppStudioUpdateAcl(request.Name, entitiesToAdd, entitiesToRemove)
 	})
 
 	orcapi.AppsUpdateApplicationFlavor.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateApplicationFlavorRequest) (util.Empty, *util.HttpError) {
@@ -495,6 +500,10 @@ func appCatalogInitRpc() {
 	})
 
 	orcapi.AppsUploadTool.Handler(func(info rpc.RequestInfo, request []byte) (util.Empty, *util.HttpError) {
+		return util.Empty{}, AppStudioUploadTool(request)
+	})
+
+	orcapi.AppsUploadToolAlias.Handler(func(info rpc.RequestInfo, request []byte) (util.Empty, *util.HttpError) {
 		return util.Empty{}, AppStudioUploadTool(request)
 	})
 }

@@ -1550,17 +1550,93 @@ func AppStudioUpdateLogo(groupId AppGroupId, logo []byte) *util.HttpError {
 	return nil
 }
 
-func AppStudioUpdateAcl(appName string, newList []orcapi.AclEntity) *util.HttpError {
+func AppStudioUpdateAcl(appName string, toAdd []orcapi.AclEntity, toRemove []orcapi.AclEntity) *util.HttpError {
+	for _, entity := range toAdd {
+		if entity.Username != "" {
+			_, found := rpc.LookupActor(entity.Username)
+			if !found {
+				return util.HttpErr(http.StatusNotFound, "Unknown user")
+			}
+		}
+		if entity.ProjectId != "" && entity.Group != "" {
+
+			//Henrik: Can no longer handle full project path only ID
+			project, err := fndapi.ProjectRetrieve.Invoke(fndapi.ProjectRetrieveRequest{
+				Id: entity.ProjectId,
+				ProjectFlags: fndapi.ProjectFlags{
+					IncludeMembers:  false,
+					IncludeGroups:   true,
+					IncludeFavorite: false,
+					IncludeArchived: false,
+					IncludeSettings: false,
+					IncludePath:     false,
+				},
+			})
+			if err != nil {
+				return util.HttpErr(http.StatusNotFound, "Unknown project")
+			}
+			groupFound := false
+			for _, group := range project.Status.Groups {
+				// Henrik: Only allows group title
+				if group.Specification.Title == entity.Group {
+					groupFound = true
+					break
+				}
+			}
+			if !groupFound {
+				return util.HttpErr(http.StatusNotFound, "Unknown group")
+			}
+		}
+	}
+
 	b := appBucket(appName)
 	b.Mu.Lock()
 	_, ok := b.Applications[appName]
 	if ok {
+		acls := b.ApplicationPermissions[appName]
+
+		if len(toRemove) != 0 {
+			var keepACL []orcapi.AclEntity
+
+			for _, acl := range acls {
+				needToRemove := false
+				for _, aclToRemove := range toRemove {
+					if acl.Username == aclToRemove.Username || (acl.ProjectId == aclToRemove.ProjectId && aclToRemove.Group == aclToRemove.Group) {
+						needToRemove = true
+						break
+					}
+				}
+				if !needToRemove {
+					keepACL = append(keepACL, acl)
+				}
+			}
+			acls = keepACL
+		}
+
+		acls = append(acls, toAdd...)
+
+		// Henrik Removing duplicates
+		aclSet := make(map[string]orcapi.AclEntity)
+		for _, acl := range acls {
+			if acl.Username != "" {
+				aclSet[acl.Username] = acl
+			}
+			if acl.ProjectId != "" && acl.Group != "" {
+				key := fmt.Sprintf("%s/%s", acl.ProjectId, acl.Group)
+				aclSet[key] = acl
+			}
+		}
+		var newList []orcapi.AclEntity
+		for _, acl := range aclSet {
+			newList = append(newList, acl)
+		}
+
 		b.ApplicationPermissions[appName] = newList
 	}
 	b.Mu.Unlock()
 
 	if ok {
-		appPersistAcl(appName, newList)
+		appPersistAcl(appName, toAdd, toRemove)
 		return nil
 	} else {
 		return util.HttpErr(http.StatusNotFound, "unknown application")
@@ -2008,12 +2084,16 @@ func AppStudioUploadTool(data []byte) *util.HttpError {
 	var tool A1Tool
 	yamlErr := yaml.Unmarshal(data, &tool)
 	if yamlErr != nil {
-		return util.HttpErr(http.StatusBadRequest, "invalid yaml supplied: %s", yamlErr.Error())
+		// NOTE(Dan): I suspect someone is using the tool endpoint for V2 apps, and I cannot figure out if this worked
+		// in the old backend.
+		return AppStudioUploadApp(data)
 	}
 
 	ntool, err := tool.Normalize()
 	if err != nil {
-		return err
+		// NOTE(Dan): I suspect someone is using the tool endpoint for V2 apps, and I cannot figure out if this worked
+		// in the old backend.
+		return AppStudioUploadApp(data)
 	} else {
 		return AppStudioCreateTool(&ntool)
 	}

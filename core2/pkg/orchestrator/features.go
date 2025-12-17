@@ -92,6 +92,7 @@ func initFeatures() {
 
 func featureMonitorProvider(provider string) {
 	log.Info("Starting provider feature monitoring: %s", provider)
+	failedAttemptCount := 0
 	for {
 		manifest, manifestErr := InvokeProvider(provider, orcapi.ProviderIntegrationPRetrieveManifest,
 			util.Empty{}, ProviderCallOpts{})
@@ -150,8 +151,10 @@ func featureMonitorProvider(provider string) {
 		)
 
 		if len(supportMap) == 0 {
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(util.ExponentialBackoffForNetwork(failedAttemptCount))
+			failedAttemptCount++
 		} else {
+			failedAttemptCount = 0
 			providerSupportGlobals.Mu.Lock()
 			providerSupportGlobals.Ready.Store(true)
 			for typeName, support := range supportMap {

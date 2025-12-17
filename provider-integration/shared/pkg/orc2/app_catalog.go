@@ -102,22 +102,33 @@ const (
 	AppAccessRightLaunch AppAccessRight = "LAUNCH"
 )
 
+// Henrik: To match current FE
+type AppAccessProjectOrGroupInfo struct {
+	Id    string `json:"id"`
+	Title string `json:"title"`
+}
+
 type AppAccessEntity struct {
 	User    util.Option[string] `json:"user"`
 	Project util.Option[string] `json:"project"`
 	Group   util.Option[string] `json:"group"`
 }
 
+type AppDetailedEntityWithPermission struct {
+	Entity AppDetailedPermissionEntry `json:"entity"`
+}
+
 type AppDetailedPermissionEntry struct {
-	User    util.Option[string]           `json:"user"`
-	Project util.Option[fnd.Project]      `json:"project"`
-	Group   util.Option[fnd.ProjectGroup] `json:"group"`
+	User    util.Option[string]                      `json:"user"`
+	Project util.Option[AppAccessProjectOrGroupInfo] `json:"project"`
+	Group   util.Option[AppAccessProjectOrGroupInfo] `json:"group"`
 }
 
 // Core CRUD
 // =====================================================================================================================
 
 const appCatalogNamespace = "hpc/apps"
+const toolCatalogNamespace = "hpc/tools"
 
 type AppCatalogFindByNameAndVersionRequest struct {
 	AppName    string                            `json:"appName"`
@@ -213,7 +224,7 @@ type AppCatalogRetrieveAclRequest struct {
 }
 
 type AppCatalogRetrieveAclResponse struct {
-	Entries []AppDetailedPermissionEntry `json:"entries"`
+	Entries []AppDetailedEntityWithPermission `json:"entries"`
 }
 
 var AppsRetrieveAcl = rpc.Call[AppCatalogRetrieveAclRequest, AppCatalogRetrieveAclResponse]{
@@ -286,12 +297,35 @@ var AppsUpload = rpc.Call[[]byte, util.Empty]{
 }
 
 var AppsUploadTool = rpc.Call[[]byte, util.Empty]{
-	BaseContext: appCatalogNamespace + "/tools",
+	BaseContext: toolCatalogNamespace,
 	Convention:  rpc.ConventionCustom,
 	Roles:       rpc.RolesAdmin,
 	Operation:   "upload",
 
 	CustomPath:   "/api/hpc/tools/upload",
+	CustomMethod: http.MethodPut,
+
+	CustomClientHandler: func(self *rpc.Call[[]byte, util.Empty], client *rpc.Client, request []byte) (util.Empty, *util.HttpError) {
+		panic("Client not implemented")
+	},
+
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) ([]byte, *util.HttpError) {
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			return nil, util.HttpErr(http.StatusBadRequest, "Bad request")
+		} else {
+			return data, nil
+		}
+	},
+}
+
+var AppsUploadToolAlias = rpc.Call[[]byte, util.Empty]{
+	BaseContext: toolCatalogNamespace + "alias",
+	Convention:  rpc.ConventionCustom,
+	Roles:       rpc.RolesAdmin,
+	Operation:   "upload",
+
+	CustomPath:   "/api/hpc/tools",
 	CustomMethod: http.MethodPut,
 
 	CustomClientHandler: func(self *rpc.Call[[]byte, util.Empty], client *rpc.Client, request []byte) (util.Empty, *util.HttpError) {

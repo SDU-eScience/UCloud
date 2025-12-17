@@ -25,6 +25,7 @@ import {
 import * as AppStore from "@/Applications/AppStoreApi";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {ProjectTitleForNewCore} from "@/Project/InfoCache";
 
 interface AppVersion {
     version: string;
@@ -321,7 +322,7 @@ export const App: React.FunctionComponent = () => {
                                                 width={180}
                                                 type="text"
                                                 inputRef={projectEntityField}
-                                                placeholder="Project path or ID"
+                                                placeholder="Project ID"
                                             />
                                             <Input
                                                 leftLabel
@@ -330,7 +331,7 @@ export const App: React.FunctionComponent = () => {
                                                 width={180}
                                                 type="text"
                                                 inputRef={groupEntityField}
-                                                placeholder="Group name or ID"
+                                                placeholder="Group name"
                                             />
                                         </>
                                     )}
@@ -367,7 +368,10 @@ export const App: React.FunctionComponent = () => {
                                                     {(permissionEntry.entity.user) ? (
                                                         permissionEntry.entity.user
                                                     ) : (
-                                                        `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
+                                                        //Group can risk being represented by UUID on old group permissions
+                                                       <>
+                                                       <ProjectTitleForNewCore id={permissionEntry.entity.project?.id ?? ""}/>/{permissionEntry.entity.group?.id}
+                                                       </>
                                                     )}</TableCell>
                                                 <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
                                                 <TableCell>

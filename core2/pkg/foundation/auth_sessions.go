@@ -18,7 +18,7 @@ import (
 )
 
 func SessionCreate(r *http.Request, tx *db.Transaction, principal Principal) fndapi.AuthenticationTokens {
-	ip := r.RemoteAddr
+	ip := util.ClientIP(r).String()
 	userAgent := r.UserAgent()
 	refreshToken := util.RandomTokenNoTs(32)
 	csrfToken := util.RandomTokenNoTs(32)
@@ -186,6 +186,7 @@ func SessionLoginResponse(r *http.Request, w http.ResponseWriter, session fndapi
 	mfaRequired := false
 	if flags&SessionLoginMfaComplete == 0 {
 		mfaChallenge, mfaRequired = MfaCreateChallenge(session.Username)
+		mfaRequired = mfaRequired && MfaIsConnectedEx(session.Username)
 	}
 
 	if mfaRequired {

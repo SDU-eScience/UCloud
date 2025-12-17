@@ -499,7 +499,7 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 				CausedBy:          util.OptNone[string](),
 				RequestName:       callName,
 				UserAgent:         util.OptStringIfNotEmpty(r.Header.Get("User-Agent")),
-				RemoteOrigin:      r.RemoteAddr,
+				RemoteOrigin:      util.ClientIP(r).String(),
 				Token:             util.Option[SecurityPrincipalToken]{},
 				ResponseTime:      uint64(end.Sub(start).Milliseconds()),
 				ResponseTimeNanos: uint64(end.Sub(start).Nanoseconds()),

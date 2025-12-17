@@ -282,15 +282,19 @@ func Launch() {
 		return atuple.First, atuple.Second
 	}
 
-	logCfg := cfg.Configuration.Logs
-	log.SetLogConsole(false)
-	err := log.SetLogFile(filepath.Join(logCfg.Directory, "server.log"))
-	if err != nil {
-		panic("Unable to open log file: " + err.Error())
-	}
+	var err error
 
-	if logCfg.Rotation.Enabled {
-		log.SetRotation(log.RotateDaily, logCfg.Rotation.RetentionPeriodInDays, true)
+	logCfg := cfg.Configuration.Logs
+	if !logCfg.LogToConsole {
+		log.SetLogConsole(false)
+		err = log.SetLogFile(filepath.Join(logCfg.Directory, "server.log"))
+		if err != nil {
+			panic("Unable to open log file: " + err.Error())
+		}
+
+		if logCfg.Rotation.Enabled {
+			log.SetRotation(log.RotateDaily, logCfg.Rotation.RetentionPeriodInDays, true)
+		}
 	}
 
 	rpc.DefaultClient = &rpc.Client{
@@ -321,7 +325,7 @@ func Launch() {
 	if slices.Contains(os.Args, "apm") || slices.Contains(os.Args, "accounting") {
 		modules |= ModuleAccounting
 	}
-	if slices.Contains(os.Args, "orchestrators") {
+	if slices.Contains(os.Args, "orchestrator") {
 		modules |= ModuleOrchestrator
 	}
 	if modules == 0 {
