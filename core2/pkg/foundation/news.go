@@ -107,7 +107,6 @@ func (row *newsRow) ToApi() fndapi.NewsPost {
 // =====================================================================================================================
 
 func NewsBrowsePosts(request fndapi.ListPostsRequest) (fndapi.Page[fndapi.NewsPost], *util.HttpError) {
-	request.ItemsPerPage = 50
 
 	return db.NewTx(func(tx *db.Transaction) fndapi.Page[fndapi.NewsPost] {
 		rows := db.Select[newsRow](
