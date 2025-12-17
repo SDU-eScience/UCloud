@@ -87,12 +87,13 @@ function Add() {
                     id: "",
                     provider: ""
                 },
+                projectId: provider === UCLOUD_CORE ? projectId : undefined
             }));
             navigate(AppRoutes.resources.apiTokens());
         } catch (err) {
             displayErrorMessageOrDefault(err, "Failed to generate token.")
         }
-    }, [serviceProvider, activePermissions, date]);
+    }, [serviceProvider, activePermissions, date, projectId]);
 
     return <MainContainer main={
         <div style={{display: "grid", gap: "18px"}}>
