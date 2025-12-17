@@ -1,6 +1,6 @@
 import * as React from "react";
 import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
-import {Box, Button, Card, Divider, Flex, Icon, Input, MainContainer, Select} from "@/ui-components";
+import {Box, Button, Image, Divider, Flex, Icon, Input, MainContainer, Select} from "@/ui-components";
 import * as Api from "./api";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {PeriodStyle} from "@/Accounting/Usage";
@@ -9,7 +9,7 @@ import {injectStyle, makeClassName} from "@/Unstyled";
 import {GenericTextArea, GenericTextField, MandatoryField} from "@/UtilityComponents";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {ProviderLogo} from "@/Providers/ProviderLogo";
+import {ProviderLogo, ProviderLogoWrapper} from "@/Providers/ProviderLogo";
 import {RichSelect, RichSelectProps} from "@/ui-components/RichSelect";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
@@ -253,7 +253,9 @@ function ServiceProviderItem(props: RichSelectProps<{key: string}>): React.React
     if (key == null) return null;
     const serviceProvider = !key ? UCLOUD_CORE : key;
     return <Flex height={height} pl="8px" key={key}  {...props.dataProps} onClick={props.onSelect} alignItems={"center"} gap={"8px"}>
-        <ProviderLogo className={"provider-logo"} providerId={serviceProvider} size={24} />
+        {!key ? <ProviderLogoWrapper size={24} className="provider-logo" tooltip={UCLOUD_CORE}>
+            <Image src={"/Images/ucloud.png"} alt={`Logo for ${UCLOUD_CORE}`} />
+        </ProviderLogoWrapper> : <ProviderLogo className={"provider-logo"} providerId={serviceProvider} size={24} />}
         {!key ? UCLOUD_CORE : <ProviderTitle providerId={key} />}
     </Flex>
 }
