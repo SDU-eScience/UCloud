@@ -2,6 +2,7 @@ package foundation
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	db "ucloud.dk/shared/pkg/database2"
@@ -130,7 +131,7 @@ func NewsBrowsePosts(request fndapi.ListPostsRequest) (fndapi.Page[fndapi.NewsPo
 					and	(:with_hidden = true or (n.hide_from is null or n.hide_from > now())) 
 					and	(:with_hidden = true or n.hidden = false)
 				order by
-					n.show_from desc
+					n.show_from desc, n.id desc 
 				offset :offset
 				limit :limit
 			`,
@@ -163,9 +164,9 @@ func NewsBrowseCategories() ([]string, *util.HttpError) {
 		}](
 			tx,
 			`
-				select distinct n.category
+				select distinct upper(n.category) category
 				from news.news n
-				order by n.category
+				order by category;
 		    `,
 			db.Params{},
 		)
@@ -231,7 +232,7 @@ func NewsCreate(request fndapi.NewPostRequest) {
 					return util.Pointer(val.UnixMilli())
 				}),
 				"hidden":   false,
-				"category": request.Category,
+				"category": strings.ToUpper(request.Category),
 			},
 		)
 	})
@@ -262,7 +263,7 @@ func NewsUpdate(request fndapi.UpdatePostRequest) {
 				"hide_from": util.OptDefaultOrMap[fndapi.Timestamp, *int64](request.HideFrom, nil, func(val fndapi.Timestamp) *int64 {
 					return util.Pointer(val.UnixMilli())
 				}),
-				"category": request.Category,
+				"category": strings.ToUpper(request.Category),
 			},
 		)
 	})

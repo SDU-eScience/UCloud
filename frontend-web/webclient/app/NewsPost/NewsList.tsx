@@ -61,7 +61,7 @@ export const NewsList: React.FC = () => {
                     <Heading.h2>News</Heading.h2>
                     {!filter ? null :
                         <Text>
-                            {filter.toUpperCase()} <Icon cursor="pointer" color="textPrimary" onClick={() => navigate("/news/list")} name="close" ml="4px" size={12} />
+                            {filter} <Icon cursor="pointer" color="textPrimary" onClick={() => navigate("/news/list")} name="close" ml="4px" size={12} />
                         </Text>
                     }
                 </Box>
