@@ -12,7 +12,7 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
-import {SpotlightCard} from "@/Applications/Landing";
+import {SpotlightCard2} from "@/Applications/Landing";
 import * as Heading from "@/ui-components/Heading";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
@@ -22,7 +22,6 @@ import AppRoutes from "@/Routes";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {ScaffoldedForm, ScaffoldedFormObject} from "@/ui-components/ScaffoldedForm";
 import {GroupSelector} from "@/Applications/Studio/GroupSelector";
-import {useDiscovery} from "@/Applications/Hooks";
 
 const SpotlightForm: ScaffoldedFormObject = {
     type: "Form",
@@ -80,7 +79,7 @@ const SpotlightForm: ScaffoldedFormObject = {
                                 <GroupSelector onSelect={g => {
                                     resolve(g);
                                     dialogStore.success();
-                                }}/>,
+                                }} />,
                                 doNothing,
                                 true
                             );
@@ -240,7 +239,7 @@ const SpotlightsEditor: React.FunctionComponent = () => {
     const onShowPreview = useCallback(() => {
         dialogStore.addDialog(
             <div style={{width: "1100px"}}>
-                <SpotlightCard spotlight={spotlightPreview} target={"_blank"} />
+                <SpotlightCard2 spotlight={spotlightPreview} target={"_blank"} />
             </div>,
             doNothing,
             true,
@@ -262,7 +261,7 @@ const SpotlightsEditor: React.FunctionComponent = () => {
 
         if (id) {
             actualId = parseInt(id);
-            await callAPI(AppStore.updateSpotlight({ ...spotlight, id: actualId }));
+            await callAPI(AppStore.updateSpotlight({...spotlight, id: actualId}));
         } else {
             didCreate = true;
             actualId = (await callAPI(AppStore.createSpotlight(spotlight))).id;
@@ -281,28 +280,28 @@ const SpotlightsEditor: React.FunctionComponent = () => {
                 <Flex flexDirection={"column"} gap={"8px"} flexGrow={1} maxHeight={"calc(100vh - 32px)"} overflowY={"auto"}>
                     <Flex>
                         <Heading.h3>Editing spotlight</Heading.h3>
-                        <Box flexGrow={1}/>
+                        <Box flexGrow={1} />
                         <TooltipV2 tooltip={!firstError ? undefined : <>Unable to save because of an error in the form: {firstError}</>}>
                             <Button disabled={firstError !== null} color={"successMain"} onClick={onSave}>
-                                <Icon name={"heroDocumentCheck"}/>
+                                <Icon name={"heroDocumentCheck"} />
                                 <div>Save</div>
                             </Button>
                         </TooltipV2>
                     </Flex>
-                    <ScaffoldedForm element={SpotlightForm} data={rawData} onUpdate={setData} errors={errors}/>
+                    <ScaffoldedForm element={SpotlightForm} data={rawData} onUpdate={setData} errors={errors} />
                 </Flex>
                 <div style={{width: "550px"}}>
                     <Flex gap={"8px"} alignItems={"center"} mb={"16px"}>
                         <Heading.h3>Preview</Heading.h3>
-                        <Box flexGrow={1}/>
+                        <Box flexGrow={1} />
                         <Button onClick={onShowPreview}>
-                            <Icon name={"heroMagnifyingGlass"}/>
+                            <Icon name={"heroMagnifyingGlass"} />
                             <div>View real size</div>
                         </Button>
                     </Flex>
                     <div style={{transform: "translate(-25%, -25%) scale(0.5)"}}>
                         <div style={{width: "1100px"}}>
-                            <SpotlightCard spotlight={spotlightPreview} target={"_blank"}/>
+                            <SpotlightCard2 spotlight={spotlightPreview} target={"_blank"} />
                         </div>
                     </div>
                 </div>
