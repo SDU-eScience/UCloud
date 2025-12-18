@@ -186,7 +186,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
 
                             const sharedWith = browser.renameValue;
                             if (!sharedWith) return;
-                            const filePath = new URLSearchParams(location.search).get("path") as string;
+                            const filePath = new URLSearchParams(window.location.search).get("path") as string;
                             if (!filePath) return;
                             const page = browser.cachedData["/"] as OutgoingShareGroup[];
                             const shareGroup = page.find(it => it.sourceFilePath === filePath);
@@ -343,7 +343,6 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                 });
 
                 browser.on("renderRow", (share, row, dims) => {
-
                     if (isViewingShareGroupPreview(share)) {
                         SimpleAvatarComponentCache.appendTo(row.title, share.sharedWith, "Shared with " + share);
                     } else {
