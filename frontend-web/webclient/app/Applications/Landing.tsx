@@ -111,7 +111,7 @@ const LandingPage: React.FunctionComponent = () => {
                         <StarredApplications2 apps={starred.data.items} /> : null}
 
 
-                    <TopPicksCard2 topPicks={landingPage.topPicks} />
+                    <TopPicksCard topPicks={landingPage.topPicks} />
 
                     {landingPage.spotlight ? <SpotlightCard spotlight={landingPage.spotlight} /> : null}
 
@@ -661,22 +661,6 @@ const SpotlightDescription = injectStyle("spotlight-description", k => `
     }
 `)
 
-export const TopPicksCard: React.FunctionComponent<{topPicks: TopPick[]}> = ({topPicks}) => {
-    return <TitledCard title={"Top picks"} icon={"heroChartBar"}>
-        <AppCardGrid>
-            {topPicks.map(pick => {
-                if (pick.groupId) {
-                    return <AppCard1 key={pick.groupId} name={pick.groupId.toString()}
-                        title={pick.title} description={pick.description}
-                        applicationName={pick.defaultApplicationToRun} />;
-                } else {
-                    return null;
-                }
-            })}
-        </AppCardGrid>
-    </TitledCard>
-};
-
 const TopPickCardGridStyle = injectStyle("top-pick-grid", k => `
     ${k} {
         display: grid;
@@ -741,7 +725,7 @@ const LogoCard: React.FunctionComponent<{
     </ReactRouterLink>;
 }
 
-export const TopPicksCard2: React.FunctionComponent<{topPicks: TopPick[]}> = ({topPicks}) => {
+export const TopPicksCard: React.FunctionComponent<{topPicks: TopPick[]}> = ({topPicks}) => {
     return topPicks.length < 1 ? null :
         <div>
             <h3>Top picks</h3>
@@ -764,7 +748,7 @@ export const TopPicksCard2: React.FunctionComponent<{topPicks: TopPick[]}> = ({t
 };
 
 export const StarredApplications2: React.FunctionComponent<{
-    apps: AppStore.ApplicationSummaryWithFavorite[]
+    apps: AppStore.ApplicationSummaryWithFavorite[];
 }> = ({apps}) => {
     return <div>
         <h3>Starred applications</h3>
