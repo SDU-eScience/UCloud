@@ -70,20 +70,20 @@ const DetailedView = injectStyle("detailed-view", k => `
     }
 `);
 
-export const MachineView: React.FunctionComponent<{productType: ProductType, provider: string;}> = ({productType, provider}) => {
-    const [machines, refetch] = useCloudAPI<UCloud.PageV2<ProductV2>>(
-        {...UCloud.accounting.products.browse({filterProductType: productType, filterProvider: provider, filterUsable: true, itemsPerPage: 10}), unauthenticated: !Client.isLoggedIn},
+export const MachineView: React.FunctionComponent<{productType: ProductType, provider: string; itemsPerPage: number; adminView?: boolean;}> = ({productType, provider, itemsPerPage = 10, adminView}) => {
+    const [products, refetch] = useCloudAPI<UCloud.PageV2<ProductV2>>(
+        {...UCloud.accounting.products.browse({filterProductType: productType, filterProvider: provider, filterUsable: true, itemsPerPage}), unauthenticated: !Client.isLoggedIn},
         emptyPage
     );
 
     const [activeMachine, setActiveMachine] = React.useState<ProductV2 | undefined>(undefined);
     const isCompute = "COMPUTE" === productType;
 
-    const machineCount = machines.data.items.length;
+    const machineCount = products.data.items.length;
     const [hasPrice, setHasPrice] = React.useState(false);
     React.useEffect(() => {
-        setHasPrice(machines.data.items.some(it => it.price));
-    }, [machines.data]);
+        setHasPrice(products.data.items.some(it => it.price));
+    }, [products.data]);
     if (machineCount === 0) return null;
 
     return (<>
@@ -92,11 +92,11 @@ export const MachineView: React.FunctionComponent<{productType: ProductType, pro
 
             <Flex alignItems="center">
                 <ListV2
-                    page={machines.data}
-                    loading={machines.loading}
+                    page={products.data}
+                    loading={products.loading}
                     onLoadMore={() => refetch({
                         ...UCloud.accounting.products.browse({
-                            filterProductType: productType, filterProvider: provider, filterUsable: true, next: machines.data.next
+                            filterProductType: productType, filterProvider: provider, filterUsable: true, next: products.data.next
                         }), unauthenticated: !Client.isLoggedIn
                     })}
                     pageRenderer={items => (
@@ -188,6 +188,16 @@ export const MachineView: React.FunctionComponent<{productType: ProductType, pro
                                 <TableHeaderCell textAlign="left" width="130px">Description</TableHeaderCell>
                                 <TableCell><Text>{activeMachine.description}</Text></TableCell>
                             </TableRow>
+                            {!adminView ? null : (<>
+                                <TableHeaderCell textAlign="left" width="130px">Hidden in grant applications</TableHeaderCell>
+                                <TableCell>
+                                    <Icon
+                                        mx="auto"
+                                        name={activeMachine.hiddenInGrantApplications ? "heroCheck" : "close"}
+                                        color={activeMachine.hiddenInGrantApplications ? "successMain" : "errorMain"}
+                                    />
+                                </TableCell>
+                            </>)}
                         </tbody>
                     </table>
                 }
