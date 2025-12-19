@@ -5,7 +5,7 @@ import {
     ResourceSpecification,
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
-import {FindByLongId, PageV2, PaginationRequestV2, provider} from "@/UCloud";
+import {FindByStringId, PageV2, PaginationRequestV2, provider} from "@/UCloud";
 import ResourceStatus = provider.ResourceStatus;
 import {apiBrowse, apiCreate, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 
@@ -72,7 +72,7 @@ export function browse(request: PaginationRequestV2): APICallParameters<Paginati
     return apiBrowse(request, baseContext);
 }
 
-export function revoke(request: FindByLongId): APICallParameters<FindByLongId> {
+export function revoke(request: FindByStringId): APICallParameters<FindByStringId> {
     return apiUpdate(request, baseContext, "revoke");
 }
 

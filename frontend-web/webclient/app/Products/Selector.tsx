@@ -535,7 +535,7 @@ const HardwareModel: React.FunctionComponent<{model?: string | null}> = props =>
     return <span style={{color: "#a9b0b9"}}>{" "}({props.model})</span>
 }
 
-const SelectorBoxClass = injectStyle("selector-box", k => `
+export const SelectorBoxClass = injectStyle("selector-box", k => `
     ${k} {
         position: relative;
         cursor: pointer;

@@ -14,15 +14,21 @@ export function providerLogoPath(providerId: string): string {
 
 export const ProviderLogo: React.FunctionComponent<{providerId: string; size: number; className?: string;}> = ({providerId, size, className}) => {
     const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
+    return <ProviderLogoWrapper size={size} className={className} tooltip={getProviderTitle(providerId)}>
+        {!myInfo ? (providerId[0] ?? "?").toUpperCase() : <Image src={`/Images/${myInfo.logo}`} alt={`Logo for ${myInfo.title}`} />}
+    </ProviderLogoWrapper>
+};
+
+export function ProviderLogoWrapper({size, tooltip, children, className}: React.PropsWithChildren<{size: number; tooltip: React.ReactNode; className?: string;}>): React.ReactNode {
     const style: React.CSSProperties = {};
     style["--border-radius"] = size > 20 ? "8px" : "5px";
     style["--wrapper-size"] = size + "px";
-    return <TooltipV2 tooltip={getProviderTitle(providerId)}>
+    return <TooltipV2 tooltip={tooltip}>
         <div className={classConcat(LogoWrapper, className)} style={style}>
-            {!myInfo ? (providerId[0] ?? "?").toUpperCase() : <Image src={`/Images/${myInfo.logo}`} alt={`Logo for ${myInfo.title}`} />}
+            {children}
         </div>
-    </TooltipV2>
-};
+    </TooltipV2>;
+}
 
 
 

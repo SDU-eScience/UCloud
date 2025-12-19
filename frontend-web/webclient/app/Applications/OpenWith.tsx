@@ -18,7 +18,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {
     ResourceBrowser,
     ResourceBrowserOpts,
-    addContextSwitcherInPortal,
+    addProjectSwitcherInPortal,
     checkCanConsumeResources,
     EmptyReasonTag
 } from "@/ui-components/ResourceBrowser";
@@ -157,7 +157,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                 });
             });
         }
-        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, {setLocalProject});
+        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround, {setLocalProject});
     }, []);
 
     const setLocalProject = (projectId?: string) => {

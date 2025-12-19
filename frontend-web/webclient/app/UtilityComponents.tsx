@@ -3,7 +3,11 @@ import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {
     Box, Button, Divider, Flex, ButtonGroup, Link, Text,
-    ExternalLink
+    ExternalLink,
+    Label,
+    Icon,
+    Markdown,
+    TextArea
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import Input from "@/ui-components/Input";
@@ -16,7 +20,7 @@ import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {injectStyle, injectStyleSimple, makeKeyframe} from "./Unstyled";
 import AppRoutes from "./Routes";
 import {SITE_DOCUMENTATION_URL} from "../site.config.json";
-import {TextSpan} from "@/ui-components/Text";
+import {TextP, TextSpan} from "@/ui-components/Text";
 
 enum KeyCode {
     ENTER = 13,
@@ -458,4 +462,53 @@ export function OverallocationLink(props: React.PropsWithChildren): React.ReactN
     </ExternalLink>
 }
 
-export const MandatoryField: React.FunctionComponent = () => <TextSpan ml="4px" bold color="errorMain">*</TextSpan>;
+export const MandatoryField: React.FunctionComponent = () => <TextSpan title="Required" ml="4px" bold color="errorMain">*</TextSpan>;
+
+
+interface GenericInputFieldProps {
+    name: string;
+    title: string;
+    optional?: boolean;
+    description?: string;
+    onRemove?: () => void;
+    error?: string;
+    children?: React.ReactNode;
+}
+
+function GenericInputField(props: GenericInputFieldProps): React.ReactElement {
+    return <Box mt={"1em"}>
+        <Label htmlFor={props.name}>
+            <Flex>
+                <Flex data-component={"param-title"}>
+                    {props.title}
+                    {props.optional ? null : <MandatoryField />}
+                </Flex>
+                {!props.onRemove ? null : (
+                    <>
+                        <Box ml="auto" />
+                        <Text color="errorMain" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
+                            data-component={"param-remove"}>
+                            Remove
+                            <Icon ml="6px" size={16} name="close" />
+                        </Text>
+                    </>
+                )}
+            </Flex>
+        </Label>
+        {props.children}
+        {props.error ? <TextP color={"errorMain"}>{props.error}</TextP> : null}
+        {props.description ? <Markdown>{props.description}</Markdown> : null}
+    </Box>;
+}
+
+export function GenericTextField(props: GenericInputFieldProps): React.ReactElement {
+    return <GenericInputField {...props}>
+        <Input id={props.name} />
+    </GenericInputField>
+}
+
+export function GenericTextArea(props: GenericInputFieldProps): React.ReactElement {
+    return <GenericInputField {...props}>
+        <TextArea width={"100%"} rows={5} id={props.name} />
+    </GenericInputField>
+}
