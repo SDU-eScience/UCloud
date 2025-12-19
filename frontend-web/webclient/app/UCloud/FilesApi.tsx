@@ -1006,6 +1006,7 @@ function SensitivityDialog({file, invokeCommand, onUpdated}: {
                     ),
                     {defaultErrorHandler: false}
                 );
+                onUpdated(value as SensitivityLevelMap);
             } else {
                 if (!sensitivityTemplateId) {
                     sensitivityTemplateId = await queryTemplateName(sensitivityTemplateId, invokeCommand);
