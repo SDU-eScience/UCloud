@@ -27,7 +27,7 @@ function Add() {
     const navigate = useNavigate();
 
     const [options] = useCloudAPI(Api.retrieveOptions(), {byProvider: {}});
-    const [date, setDate] = React.useState(new Date());
+    const [date, setDate] = React.useState<Date | null>(null);
 
     const [serviceProvider, setServiceProvider] = React.useState("");
 
@@ -60,6 +60,11 @@ function Add() {
         if (!title) {
             titleElement.setAttribute("data-error", "true");
             snackbarStore.addFailure("Title is required", false);
+            return;
+        }
+
+        if (date == null) {
+            snackbarStore.addFailure("Expiration date cannot be empty", false);
             return;
         }
 
@@ -284,8 +289,7 @@ export function formatTs(ts: number): string {
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
 }
 
-function ExpirationSelector(props: {date: Date; onChange(d: Date): void}): React.ReactNode {
-
+function ExpirationSelector(props: {date: Date | null; onChange(d: Date): void}): React.ReactNode {
 
     const onRelativeUpdated = React.useCallback((ev: React.SyntheticEvent) => {
         let today = new Date();
@@ -326,7 +330,7 @@ function ExpirationSelector(props: {date: Date; onChange(d: Date): void}): React
         noYPadding={true}
         trigger={
             <div className={PeriodStyle}>
-                <div style={{width: "182px"}}>{formatTs(props.date.getTime())}</div>
+                <div style={{width: "182px"}}>{props.date == null ? null : formatTs(props.date.getTime())}</div>
                 <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
             </div>
         }
@@ -334,7 +338,7 @@ function ExpirationSelector(props: {date: Date; onChange(d: Date): void}): React
         <div className={DateSelector}>
             <div onClick={e => e.stopPropagation()}>
                 <b>Specific date</b>
-                <Input pl="8px" pr="8px" className={"start"} onChange={onChange} type={"date"} value={formatTs(props.date.getTime())} />
+                <Input pl="8px" pr="8px" className={"start"} onChange={onChange} type={"date"} value={props.date == null ? undefined : formatTs(props.date.getTime())} />
             </div>
             <Divider />
             <div>

@@ -12,6 +12,9 @@ import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {StandardCallbacks} from "@/ui-components/Browse";
 import AppRoutes from "@/Routes";
 import {formatTs} from "./Add";
+import {SimpleAvatarComponentCache} from "@/Files/Shares";
+import {divText} from "@/Utilities/HTMLUtilities";
+import {TruncateClass} from "@/ui-components/Truncate";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -39,7 +42,7 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Api.ApiToken>(mount, "API tokens", props.opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumns([{name: "Title"}, {name: "Permissions", columnWidth: 150}, {name: "Expires at", columnWidth: 200}, {name: "Server", columnWidth: 200}]);
+                browser.setColumns([{name: "Title"}, {name: "Created by", columnWidth: 200}, {name: "Expires at", columnWidth: 200}, {name: "Permissions", columnWidth: 150}]);
 
                 browser.on("skipOpen", (oldPath, path, resource) => resource != null);
 
@@ -80,10 +83,21 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(token.specification.title, row));
 
-                    row.stat1.append(`${token.specification.requestedPermissions.length} permissions`);
+                    row.stat1.style.justifyContent = "left";
+                    SimpleAvatarComponentCache.appendTo(row.stat1, token.owner.createdBy, `Created by ${token.owner.createdBy}`).then(wrapper => {
+                        const div = divText(token.owner.createdBy);
+                        div.style.marginTop = div.style.marginBottom = "auto";
+                        div.classList.add(TruncateClass);
+                        div.style.maxWidth = "150px";
+                        div.style.marginLeft = "12px";
+                        wrapper.append(div);
+                        wrapper.style.display = "flex";
+                    });
+
                     row.stat2.append(formatTs(token.specification.expiresAt));
-                    /* Show server or provider? What even is the server? */
-                    row.stat3.append(token.status.server);
+
+                    row.stat3.append(`${token.specification.requestedPermissions.length} permissions`);
+                    row.stat3.style.marginTop = row.stat3.style.marginBottom = "auto"
                 });
 
                 browser.on("generateBreadcrumbs", () => [{title: browser.resourceName, absolutePath: ""}]);
