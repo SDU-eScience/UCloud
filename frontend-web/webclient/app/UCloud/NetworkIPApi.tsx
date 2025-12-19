@@ -73,6 +73,7 @@ class NetworkIPApi extends ResourceApi<NetworkIP, ProductNetworkIP, NetworkIPSpe
         return <ResourceProperties
             api={this}
             {...props}
+            showPermissions={false}
             ContentChildren={(p) => {
                 const support = (p.resource as NetworkIP).status.resolvedSupport
                     ?.support as NetworkIPSupport | undefined;
@@ -112,11 +113,13 @@ class NetworkIPApi extends ResourceApi<NetworkIP, ProductNetworkIP, NetworkIPSpe
 
     public retrieveOperations(): Operation<NetworkIP, ResourceBrowseCallbacks<NetworkIP>>[] {
         const ops = super.retrieveOperations();
+
         const create = ops.find(it => it.tag === "create");
         if (create) {
             create.text = "Create public IP"
         }
-        return ops;
+
+        return ops.filter(it => it.tag !== "permissions");
     }
 
     /* Untested */

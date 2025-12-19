@@ -356,33 +356,6 @@ export function ResourceProperties<Res extends Resource>(
     </> : null;
 }
 
-const Messages: React.FunctionComponent<{resource: Resource}> = ({resource}) => {
-    const [updates, setUpdates] = React.useState<string[]>([])
-
-    const appendUpdate = useCallback((update: ResourceUpdate) => {
-        if (update.status) {
-            setUpdates(u => [
-                ...u,
-                `[${dateToTimeOfDayString(update.timestamp)}] ${update.status}\n`
-            ]);
-        }
-    }, []);
-
-    useLayoutEffect(() => {
-        if (resource.updates.length === 0) {
-            setUpdates(u => [...u, "No messages about this resource\n"]);
-        } else {
-            for (const update of resource.updates) {
-                appendUpdate(update)
-            }
-        }
-    }, [resource]);
-
-    return <Box height={"200px"} overflowY={"scroll"}>
-        <LogOutput updates={updates} maxHeight="" />
-    </Box>
-};
-
 function canEditPermission(support: ProductSupport | undefined, namespace: string): boolean {
     switch (namespace) {
         case "files.collections":
