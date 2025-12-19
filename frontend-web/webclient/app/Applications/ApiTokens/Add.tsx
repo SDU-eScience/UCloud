@@ -63,33 +63,29 @@ function Add() {
             return;
         }
 
-        if (requestedPermissions.length === 0) {
-            snackbarStore.addFailure("At least one permission is required", false);
-            return;
-        }
-
         if (date.getTime() < new Date().getTime()) {
             snackbarStore.addFailure("Expiration date cannot be in the past", false);
             return;
         }
 
-        const provider = serviceProvider === "" ? UCLOUD_CORE : serviceProvider;
+        const provider = serviceProvider === "" ? null : serviceProvider;
 
         try {
-            await callAPI(Api.create({
-                title,
-                description,
-                requestedPermissions,
-                expiresAt: date.getTime(),
-                provider,
-                product: {
-                    category: "",
-                    id: "",
-                    provider: ""
-                },
-                /* Note(Jonas): Not part of create call, but I'm not sure where it's supposed to go */
-                projectId: provider === UCLOUD_CORE ? projectId : undefined
-            }));
+            await callAPI({
+                ...Api.create({
+                    title,
+                    description,
+                    requestedPermissions,
+                    expiresAt: date.getTime(),
+                    provider: provider,
+                    product: {
+                        category: "",
+                        id: "",
+                        provider: ""
+                    },
+                }), projectOverride: provider == null ? projectId : undefined
+            });
+            snackbarStore.addSuccess("Created API token", false);
             navigate(AppRoutes.resources.apiTokens());
         } catch (err) {
             displayErrorMessageOrDefault(err, "Failed to generate token.")
@@ -136,7 +132,7 @@ function Add() {
                 </div>
             </div>
             {permissionKeys.length == 0 ? null : <div>
-                Token permissions <MandatoryField />
+                Token permissions
                 <div className={PermissionWindow} data-has-active={activePermissions.size > 0}>
                     <div className="header">
                         <div>{activePermissions.size} permission(s)</div>
