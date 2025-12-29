@@ -145,7 +145,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): React.R
                         reload: () => browser.refresh(),
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         viewProperties: provider => {
-                            navigate(AppRoutes.resource.properties("provider", provider.id));
+                            navigate(AppRoutes.resource.properties("providers", provider.id));
                         }
                     };
                     return callbacks;
