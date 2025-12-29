@@ -1,25 +1,26 @@
 import * as React from "react";
 import {device, deviceBreakpoint} from "@/ui-components/Hide";
 import {
+    AclEntity,
     ProductSupport,
     Resource,
+    ResourceAclEntry,
     ResourceApi,
     ResourceBrowseCallbacks,
-    ResourceUpdate,
     SupportByProvider,
     UCLOUD_CORE
 } from "@/UCloud/ResourceApi";
-import {PropsWithChildren, ReactElement, useCallback, useEffect, useLayoutEffect, useMemo} from "react";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {PropsWithChildren, ReactElement, useCallback, useEffect, useMemo} from "react";
+import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLoading, usePage} from "@/Navigation/Redux";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
 import Flex from "@/ui-components/Flex";
-import {shortUUID} from "@/UtilityFunctions";
-import {dateToString, dateToTimeOfDayString} from "@/Utilities/DateUtilities";
+import {displayErrorMessageOrDefault, shortUUID} from "@/UtilityFunctions";
+import {dateToString} from "@/Utilities/DateUtilities";
 import MainContainer from "@/ui-components/MainContainer";
 import {Operations} from "@/ui-components/Operation";
-import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
+import {PermissionsTable, ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {useNavigate, useParams} from "react-router";
 import {useDispatch} from "react-redux";
 import {BrowseType} from "./BrowseType";
@@ -28,11 +29,11 @@ import {useProject} from "@/Project/cache";
 import {classConcat, injectStyle, injectStyleSimple, makeKeyframe} from "@/Unstyled";
 import {Truncate} from "@/ui-components";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
-import {LogOutput} from "@/UtilityComponents";
 import {isAdminOrPI} from "@/Project";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {EmbeddedSettings} from "@/ui-components/ResourceBrowser";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -177,6 +178,7 @@ interface PropertiesProps<Res extends Resource> {
 
     showMessages?: boolean;
     showPermissions?: boolean;
+    showPermissionsTable?: boolean;
     showProperties?: boolean;
     noPermissionsWarning?: string;
     extraCallbacks?: any;
@@ -351,37 +353,16 @@ export function ResourceProperties<Res extends Resource>(
                 <div className={ContentWrapper}>
                     {childrenResolved}
                 </div>
+
+                <PredicatedPermissionsTable
+                    show={props.showPermissionsTable}
+                    api={api}
+                    res={ownResource.data}
+                />
             </div>
         </div>
     </> : null;
 }
-
-const Messages: React.FunctionComponent<{resource: Resource}> = ({resource}) => {
-    const [updates, setUpdates] = React.useState<string[]>([])
-
-    const appendUpdate = useCallback((update: ResourceUpdate) => {
-        if (update.status) {
-            setUpdates(u => [
-                ...u,
-                `[${dateToTimeOfDayString(update.timestamp)}] ${update.status}\n`
-            ]);
-        }
-    }, []);
-
-    useLayoutEffect(() => {
-        if (resource.updates.length === 0) {
-            setUpdates(u => [...u, "No messages about this resource\n"]);
-        } else {
-            for (const update of resource.updates) {
-                appendUpdate(update)
-            }
-        }
-    }, [resource]);
-
-    return <Box height={"200px"} overflowY={"scroll"}>
-        <LogOutput updates={updates} maxHeight="" />
-    </Box>
-};
 
 function canEditPermission(support: ProductSupport | undefined, namespace: string): boolean {
     switch (namespace) {
@@ -392,4 +373,69 @@ function canEditPermission(support: ProductSupport | undefined, namespace: strin
         default:
             return true;
     }
+}
+
+// TODO(Jonas): Find a less dramatic name
+function PredicatedPermissionsTable<T extends Resource>(props: {show?: boolean; api: ResourceApi<T, never>; res: Resource | null}): React.ReactNode {
+    const [acl, setAcl] = React.useState(props.res?.permissions.others ?? []);
+
+    React.useEffect(() => {
+        if (props.res) {
+            setAcl(props.res.permissions.others ?? []);
+        }
+    }, [props.res]);
+
+
+    const anyGroupHasPermission = React.useMemo(() => {
+        return acl.findIndex(it => it.permissions.length > 0) != -1;
+    }, [acl])
+
+    if (!props.show) return null;
+    if (!props.res) return null;
+
+    const res = props.res;
+
+    return <TabbedCard>
+        <TabbedCardTab icon={"heroShare"} name={"Permissions"}>
+            <PermissionsTable
+                acl={acl}
+                anyGroupHasPermission={anyGroupHasPermission}
+                showMissingPermissionHelp={false}
+                replaceWriteWithUse
+                warning="Warning"
+                title={"Public IP"}
+                updateAcl={async (group, permission) => {
+                    const old = acl;
+                    const added: ResourceAclEntry[] = []
+                    const deleted: AclEntity[] = []
+                    const aclEntry = acl.find(it => it.entity["group"] === group);
+                    if (aclEntry) {
+                        if (aclEntry.entity.type === "project_group") {
+                            if (permission) { // READ, EDIT, ADMIN
+                                aclEntry.permissions = [permission]
+                                added.push(aclEntry);
+                            } else { // None
+                                aclEntry.permissions = [];
+                                deleted.push({type: "project_group", projectId: Client.projectId!, group});
+                            }
+                        }
+                    } else if (permission) {
+                        if (Client.projectId) {
+                            const newPerm: ResourceAclEntry = {entity: {type: "project_group", group, projectId: Client.projectId}, permissions: [permission]};
+                            acl.push(newPerm)
+                            added.push(newPerm);
+                        }
+                    }
+
+                    setAcl([...acl]);
+                    try {
+                        await callAPI(props.api.updateAcl({type: "bulk", items: [{id: res.id, added, deleted}]}));
+                    } catch (e) {
+                        displayErrorMessageOrDefault(e, "Failed to update permissions")
+                        setAcl(old);
+                    }
+                }}
+            />
+        </TabbedCardTab>
+    </TabbedCard>;
 }

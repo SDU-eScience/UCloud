@@ -66,12 +66,18 @@ class NetworkIPApi extends ResourceApi<NetworkIP, ProductNetworkIP, NetworkIPSpe
             return !resource ? <>Public IP</> :
                 <>{resource.status.ipAddress ?? resource.id.toString()}</>
         },
-        Icon({size}) {return <Icon name={productTypeToIcon("NETWORK_IP")} size={size} />}
+        Icon({size}) {return <Icon name={productTypeToIcon("NETWORK_IP")} size={size} />},
+
     };
 
+
+
     Properties = (props) => {
+
         return <ResourceProperties
             api={this}
+            showPermissions={false}
+            showPermissionsTable
             {...props}
             ContentChildren={(p) => {
                 const support = (p.resource as NetworkIP).status.resolvedSupport
