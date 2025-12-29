@@ -387,8 +387,8 @@ function PredicatedPermissionsTable<T extends Resource>(props: {show?: boolean; 
 
 
     const anyGroupHasPermission = React.useMemo(() => {
-        return acl.findIndex(it => it.permissions.length > 0) != -1;
-    }, [acl])
+        return acl.find(it => it.entity.type === "project_group") != null;
+    }, [acl]);
 
     if (!props.show) return null;
     if (!props.res) return null;
@@ -400,7 +400,7 @@ function PredicatedPermissionsTable<T extends Resource>(props: {show?: boolean; 
             <PermissionsTable
                 acl={acl}
                 anyGroupHasPermission={anyGroupHasPermission}
-                showMissingPermissionHelp={false}
+                showMissingPermissionHelp
                 replaceWriteWithUse
                 warning="Warning"
                 title={"Public IP"}
