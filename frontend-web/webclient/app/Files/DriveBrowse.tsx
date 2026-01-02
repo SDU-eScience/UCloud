@@ -5,7 +5,7 @@ import {
     EmptyReasonTag,
     ResourceBrowser,
     ResourceBrowseFeatures,
-    addContextSwitcherInPortal,
+    addProjectSwitcherInPortal,
     providerIcon,
     ResourceBrowserOpts,
 } from "@/ui-components/ResourceBrowser";
@@ -531,7 +531,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                 browser.on("nameOfEntry", f => f.specification.title);
                 browser.on("sort", page => page.sort((a, b) => a.specification.title.localeCompare(b.specification.title)));
             });
-            addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
+            addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
         }
 
         const b = browserRef.current;

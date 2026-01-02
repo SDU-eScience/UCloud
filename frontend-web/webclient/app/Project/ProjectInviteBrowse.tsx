@@ -1,4 +1,4 @@
-import {ColumnTitleList, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal} from "@/ui-components/ResourceBrowser";
+import {ColumnTitleList, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import api, {ProjectInvite} from "./Api";
 import {callAPI} from "@/Authentication/DataHook";
@@ -181,7 +181,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                 });
             });
         }
-        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
+        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
         if (opts?.reloadRef) {
             opts.reloadRef.current = () => {
                 browserRef.current?.refresh();

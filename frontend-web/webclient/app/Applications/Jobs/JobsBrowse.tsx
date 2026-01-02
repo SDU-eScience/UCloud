@@ -12,7 +12,7 @@ import {
     timestampUnixMs
 } from "@/UtilityFunctions";
 import {
-    addContextSwitcherInPortal,
+    addProjectSwitcherInPortal,
     checkIsWorkspaceAdmin,
     clearFilterStorageValue,
     dateRangeFilters,
@@ -399,7 +399,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
             }
         }
 
-        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject} : undefined);
+        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject} : undefined);
 
         const b = browserRef.current;
         if (b) {
