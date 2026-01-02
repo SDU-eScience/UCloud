@@ -94,6 +94,8 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
             show: providerRestriction
         };
 
+        const op = isDirectoryInput ? folderFavoriteSelection : fileFavoriteSelection;
+
         const navigateToFolder = (path: string, projectId?: string) => {
             dialogStore.failure();
             dialogStore.addDialog(
@@ -104,7 +106,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                         managesLocalProject: true,
                         initialPath: path,
                         initialProject: projectId,
-                        additionalOperations: [isDirectoryInput ? folderFavoriteSelection(onClick, providerRestriction, navigateToFolder) : fileFavoriteSelection(onClick, providerRestriction, navigateToFolder)],
+                        additionalOperations: [op(onClick, providerRestriction, navigateToFolder)],
                         selection,
                     }} />,
                 doNothing,
@@ -120,7 +122,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                     isModal: true,
                     managesLocalProject: true,
                     initialPath: getLastActivePath(),
-                    additionalOperations: [isDirectoryInput ? folderFavoriteSelection(onClick, providerRestriction, navigateToFolder) : fileFavoriteSelection(onClick, providerRestriction, navigateToFolder)],
+                    additionalOperations: [op(onClick, providerRestriction, navigateToFolder)],
                     selection,
                 }} />,
             doNothing,
@@ -190,7 +192,7 @@ export function anyFolderDuplicates(): boolean {
     return new Set(dirs).size !== dirs.length;
 }
 
-function getLastActivePath(): string {
+export function getLastActivePath(): string {
     return document.querySelector<HTMLDivElement>("[data-last-used-file-path]")?.innerText ?? "";
 }
 
