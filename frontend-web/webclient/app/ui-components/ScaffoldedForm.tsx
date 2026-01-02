@@ -85,7 +85,6 @@ export const ScaffoldedForm: React.FunctionComponent<{
     errors: React.RefObject<Record<string, string>>;
 }> = ({ancestorId, element, data, onUpdate, errors}) => {
     const childId = (ancestorId ?? "") + element.id;
-    console.log(childId, data)
     const myError = errors?.current?.[childId];
 
     const didMount = useDidMount();
@@ -108,11 +107,13 @@ export const ScaffoldedForm: React.FunctionComponent<{
     }
 
     useEffect(() => {
+        // Note(Jonas): unused return
         validate(data);
     }, [data]);
 
     function updateAndValidate(newValue: unknown) {
         if (!errors.current) return;
+        // Note(Jonas): unused return
         validate(newValue);
         onUpdate(newValue);
     }
@@ -301,8 +302,6 @@ export const ScaffoldedForm: React.FunctionComponent<{
                     updateAndValidate(data ?? null);
                 }
             }, [data])
-
-            console.log(data, element.displayValue(data ?? null));
 
             return <BaseComponent element={element} error={myError} isEmpty={data == null || data == ""}>
                 <Flex gap={"8px"}>
