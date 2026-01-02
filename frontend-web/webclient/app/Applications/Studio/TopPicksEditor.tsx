@@ -136,7 +136,7 @@ const TopPicksEditor: React.FunctionComponent = () => {
                     d.description = d.group.specification.description;
                     // Note(Jonas): d.group.specification.description can be an empty string,  
                     // so d.description will continue to be empty string, despite being a mandatory field.
-                    didUpdate = !!d.group.specification.description;
+                    didUpdate = didUpdate || !!d.group.specification.description;
                 }
             }
         }
