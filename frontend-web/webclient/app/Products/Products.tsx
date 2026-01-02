@@ -70,7 +70,7 @@ const DetailedView = injectStyle("detailed-view", k => `
     }
 `);
 
-export const MachineView: React.FunctionComponent<{productType: ProductType, provider: string; itemsPerPage: number; adminView?: boolean;}> = ({productType, provider, itemsPerPage = 10, adminView}) => {
+export function MachineView({productType, provider, itemsPerPage = 10, adminView}: {productType: ProductType, provider: string; itemsPerPage?: number; adminView?: boolean;}): React.ReactNode {
     const [products, refetch] = useCloudAPI<UCloud.PageV2<ProductV2>>(
         {...UCloud.accounting.products.browse({filterProductType: productType, filterProvider: provider, filterUsable: true, itemsPerPage}), unauthenticated: !Client.isLoggedIn},
         emptyPage
