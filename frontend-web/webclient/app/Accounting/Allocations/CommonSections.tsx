@@ -114,10 +114,10 @@ export const YourAllocations: React.FunctionComponent<{
                     <HexSpin size={64}/>
                 </> : <>
                     <div>
-                        {allocations.length !== 0 ? null : <>
+                        {allocations.length !== 0 ? null : <div style={{marginLeft: "20px", marginTop: "10px"}}>
                             You do not have any allocations at the moment. You can apply for resources{" "}
                             <Link to={AppRoutes.grants.editor()}>here</Link>.
-                        </>}
+                        </div>}
                         <Tree apiRef={allocationTree}>
                             {allocations.map(([rawType, tree]) => {
                                 const type = rawType as ProductType;
@@ -195,7 +195,7 @@ export const YourAllocations: React.FunctionComponent<{
                                             }
                                         </TreeNode>
                                     )}
-                                </TreeNode>;
+                                </TreeNode>
                             })}
                         </Tree>
                     </div>
@@ -1143,14 +1143,13 @@ export const SubProjectList: React.FunctionComponent<{
                     {state.remoteData.wallets === undefined ? <>
                         <HexSpin size={64}/>
                     </> : <>
-                        {state.filteredSubProjectIndices.length !== 0 ? null : <>
+                        {state.filteredSubProjectIndices.length !== 0 ? null : <div style={{marginLeft: "20px", marginTop: "10px"}}>
                             You do not have any sub-allocations {state.searchQuery ? "with the active search" : ""} at
-                            the
-                            moment.
+                            the moment. {" "}
                             {projectRole === OldProjectRole.USER ? null : <>
                                 You can create a sub-project by clicking <a href="#" onClick={onNewSubProject}>here</a>.
                             </>}
-                        </>}
+                        </div>}
                         <AutoSizer>
                             {({height, width}) => (
                                 <Tree

@@ -158,7 +158,7 @@ export function NewAndImprovedProgress({
             <div style={{position: "absolute", left: "-20px"}}>
                 <OverallocationLink>
                     <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
-                        <Icon size="20px" mr="8px" name="heroExclamationTriangle" color="warningMain"/>
+                        <Icon size="20px" name="heroExclamationTriangle" color="warningMain"/>
                     </TooltipV2>
                 </OverallocationLink>
             </div>

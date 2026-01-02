@@ -284,6 +284,6 @@ const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, hidden: boo
 
     const sessionWithProvider = sessionResp.data.responses.length > 0 ? sessionResp.data.responses[0] : null;
     return <div style={{display: props.hidden ? "none" : "block"}}>
-        <ShellWithSession sessionWithProvider={sessionWithProvider} xtermRef={terminal} autofit={false} reconnect={doReconnect} />;
+        <ShellWithSession sessionWithProvider={sessionWithProvider} xtermRef={terminal} autofit={false} reconnect={doReconnect} />
     </div>;
 }

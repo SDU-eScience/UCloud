@@ -487,6 +487,7 @@ const AppCard2Style = injectStyle("app-card-2", k => `
         background: var(--backgroundCard);
         border-radius: 8px;
         box-shadow: var(--defaultShadow);
+        min-height: 70px;
     }
     
     ${k}:hover {
