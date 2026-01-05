@@ -310,7 +310,7 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
             <NewDataList id="organization" ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={"University of Knowledge"} />
             <Department org={org} ref={departmentRef} />
             <NewDataList title="Position" placeholder="VIP/TAP/Student" items={SortedPositions} ref={positionRef} />
-            <NewDataList title={"Research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={ResearchFields[RFIndex].value} />
+            <NewDataList title={"Primary research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={ResearchFields[RFIndex].value} />
             <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} disabled={false} placeholder="Prefer not to say" />
             {props.getValues ? null : <Button onClick={onSubmit} mt="1em" type="button" color="successMain">Update Information</Button>}
         </Box>
@@ -378,7 +378,7 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
             }
         }
 
-        function closeOnOutsideClick(e: PointerEvent) {
+        function closeOnOutsideClick(e: Event) {
             if (e.target &&
                 dropdownRef.current &&
                 !dropdownRef.current.contains(e.target as any) &&
@@ -391,9 +391,13 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
         window.addEventListener("keydown", closeOnEscape);
         window.addEventListener("click", closeOnOutsideClick);
 
+        const wrapper = document.querySelector('[data-component="router-wrapper"]');
+        wrapper?.addEventListener("scroll", closeOnOutsideClick)
+
         return () => {
             window.removeEventListener("keydown", closeOnEscape);
             window.removeEventListener("click", closeOnOutsideClick);
+            wrapper?.removeEventListener("scroll", closeOnOutsideClick)
         }
     }, []);
 
@@ -420,12 +424,6 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
         // Try making it smaller
         if (dialogOutOfBounds()) {
             dialogHeight = window.innerHeight - dialogY - 50;
-        }
-
-        // What if we try putting it directly above?
-        if (dialogOutOfBounds()) {
-            dialogY = boxRect.y - 500;
-            dialogHeight = 500;
         }
 
         // What about a smaller version?
