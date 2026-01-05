@@ -3,13 +3,14 @@ package k8s
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"maps"
 	"os"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -215,25 +216,25 @@ func loopMonitoring() {
 			nodeList = []*core.Node{}
 
 			for category, _ := range shared.ServiceConfig.Compute.Machines {
-				normalMachine := baseNode
+				normalMachine := *baseNode
 				normalMachine.Labels = maps.Clone(normalMachine.Labels)
 				normalMachine.Labels["ucloud.dk/machine"] = category
-				nodeList = append(nodeList, normalMachine)
+				nodeList = append(nodeList, &normalMachine)
 				break
 			}
 
 			if shared.ServiceConfig.Compute.Syncthing.Enabled {
-				syncthingNode := nodeList[0]
+				syncthingNode := *nodeList[0]
 				syncthingNode.Labels = maps.Clone(syncthingNode.Labels)
 				syncthingNode.Labels["ucloud.dk/machine"] = "syncthing"
-				nodeList = append(nodeList, syncthingNode)
+				nodeList = append(nodeList, &syncthingNode)
 			}
 
 			if shared.ServiceConfig.Compute.IntegratedTerminal.Enabled {
-				syncthingNode := nodeList[0]
+				syncthingNode := *nodeList[0]
 				syncthingNode.Labels = maps.Clone(syncthingNode.Labels)
 				syncthingNode.Labels["ucloud.dk/machine"] = "terminal"
-				nodeList = append(nodeList, syncthingNode)
+				nodeList = append(nodeList, &syncthingNode)
 			}
 		}
 

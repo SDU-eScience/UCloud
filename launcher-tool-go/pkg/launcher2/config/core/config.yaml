@@ -1,0 +1,26 @@
+refreshToken: "%s"
+tokenValidation:
+  sharedSecret: "%s"
+selfAddress:
+  address: localhost
+  port: 8080
+  scheme: http
+selfPublic:
+  address: ucloud.localhost.direct
+  port: 443
+  scheme: https
+database:
+  username: postgres
+  password: postgrespassword
+  database: postgres
+  ssl: false
+  host:
+    address: postgres
+    port: 5432
+logs:
+  directory: /var/log/ucloud
+  rotation:
+    enabled: true
+    retentionPeriodInDays: 7
+emails:
+  enabled: false

@@ -73,6 +73,39 @@ func Launch() {
 	migrations.Init()
 	db.Migrate()
 
+	if util.DevelopmentModeEnabled() {
+		db.NewTx0(func(tx *db.Transaction) {
+			_, ok := db.Get[struct {
+				AssociatedUserId string
+			}](
+				tx,
+				`
+					select associated_user_id
+					from auth.refresh_tokens
+					where associated_user_id = '_ucloud'
+				`,
+				db.Params{},
+			)
+
+			if !ok {
+				db.Exec(
+					tx,
+					`
+						insert into auth.refresh_tokens(token, associated_user_id, csrf, public_session_reference, 
+								extended_by, scopes, expires_after, refresh_token_expiry, extended_by_chain, created_at, 
+								ip, user_agent) 
+						values (:token, '_ucloud', 'csrf', 'initial', null, :scope, 31536000000, null, '[]', 
+								now(), '127.0.0.1', 'UCloud')
+					`,
+					db.Params{
+						"token": cfg.Configuration.RefreshToken,
+						"scope": "[\"all:write\"]",
+					},
+				)
+			}
+		})
+	}
+
 	var jwtKeyFunc jwt.Keyfunc
 	var jwtMethods []string
 
@@ -126,6 +159,11 @@ func Launch() {
 
 		default:
 			return rpc.Actor{}, false
+		}
+
+		if project.Present && subject == rpc.ActorSystem.Username {
+			claims.Membership = make(rpc.ProjectMembership)
+			claims.Membership[project.Value] = rpc.ProjectRoleAdmin
 		}
 
 		if _, ok := claims.Membership[project.Value]; project.Present && !ok {
@@ -350,12 +388,20 @@ func Launch() {
 
 	log.Info("UCloud is ready!")
 
-	err = http.ListenAndServe("0.0.0.0:8080", collapseServerSlashes(
-		http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			handler, _ := rpc.DefaultServer.Mux.Handler(request)
-			handler.ServeHTTP(writer, request)
-		}),
-	))
+	srv := &http.Server{
+		Addr: "0.0.0.0:8080",
+		Handler: collapseServerSlashes(
+			http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				handler, _ := rpc.DefaultServer.Mux.Handler(request)
+				handler.ServeHTTP(writer, request)
+			}),
+		),
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	err = srv.ListenAndServe()
 
 	log.Fatal("Failed to start listener: %s", err)
 }

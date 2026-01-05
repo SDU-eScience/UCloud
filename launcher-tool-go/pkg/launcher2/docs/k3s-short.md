@@ -1,0 +1,1 @@
+Kubernetes cluster used by the K8s integration. Kubectl is installed in the IM container (KUBECONFIG=/mnt/k3s/kubeconfig.yaml).
