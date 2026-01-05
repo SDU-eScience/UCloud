@@ -1783,27 +1783,39 @@ func grantSendNotification(event grantEvent) *util.HttpError {
 			"appId": event.Application.Id,
 		}
 
-		metaJson, _ := json.Marshal(meta)
-		notification.Meta.Set(metaJson)
+		/*
+			TODO make notifications messages more descriptive
+			Add application name/id, project name, name of applicant/reviewer performing an action
+			Maybe add a notification for when an application was withdrawn?
+
+		*/
 
 		switch event.Type {
 		case grantEvNewComment:
 			notification.Type = "NEW_GRANT_COMMENT"
-			notification.Message = "A new comment has been added"
+			notification.Message = fmt.Sprintf("A new comment was added by %s", event.Actor.Username)
+			meta["title"] = fmt.Sprintf("New comment in %s", event.Application.CurrentRevision.Document.Recipient.Title.Value) // TODO Is this the correct project title?
 		case grantEvApplicationSubmitted:
 			notification.Type = "NEW_GRANT_APPLICATION"
-			notification.Message = "A new application has been submitted"
+			notification.Message = fmt.Sprintf("An application for %s was submitted by %s", event.Actor.Project.Value, event.Actor.Username)
+			meta["title"] = fmt.Sprintf("A new grant application has been submitted")
 		case grantEvGrantAwarded:
 			notification.Type = "GRANT_APPLICATION_RESPONSE"
-			notification.Message = "A grant has been approved"
+			notification.Message = fmt.Sprintf("A grant for %s, has been approved by %s", event.Actor.Project.Value, event.Actor.Username)
+			meta["title"] = "Grant awarded"
 		case grantEvApplicationRejected:
 			notification.Type = "GRANT_APPLICATION_RESPONSE"
-			notification.Message = "A grant has been rejected"
+			notification.Message = fmt.Sprintf("A grant for %s, has been rejected by %s", event.Actor.Project.Value, event.Actor.Username)
+			meta["title"] = "Grant rejected"
 		case grantEvRevisionSubmitted:
 			notification.Type = "GRANT_APPLICATION_UPDATED"
-			notification.Message = "A revision has been submitted"
+			notification.Message = fmt.Sprintf("A new revision has been submitted by %s", event.Actor.Username)
+			meta["title"] = fmt.Sprintf("Grant application, %s, has a new revision", event.Actor.Project.Value)
 			// TODO make grantEv for grantTransfer and insert here
 		}
+
+		metaJson, _ := json.Marshal(meta)
+		notification.Meta.Set(metaJson)
 
 		_, err := fndapi.NotificationsCreate.Invoke(fndapi.NotificationsCreateRequest{
 			User:         recipient,

@@ -439,20 +439,20 @@ func ShareApprove(actor rpc.Actor, id string) *util.HttpError {
 		orcapi.ResourceFlags{})
 
 	if err != nil {
-		return util.HttpErr(http.StatusForbidden, "unable to accept share (%s)", err.Why)
+		return util.HttpErr(http.StatusForbidden, "Unable to accept share (%s)", err.Why)
 	}
 
 	if share.Specification.SharedWith != actor.Username {
-		return util.HttpErr(http.StatusForbidden, "you cannot accept a share on someone else's behalf")
+		return util.HttpErr(http.StatusForbidden, "You cannot accept a share on someone else's behalf")
 	}
 
 	if !share.Status.ShareAvailableAt.Present {
-		return util.HttpErr(http.StatusBadRequest, "unable to accept this share, try again later")
+		return util.HttpErr(http.StatusBadRequest, "Unable to accept this share, try again later")
 	}
 
 	driveId, ok := orcapi.DriveIdFromUCloudPath(share.Status.ShareAvailableAt.Value)
 	if !ok {
-		return util.HttpErr(http.StatusBadRequest, "unable to accept this share, try again later")
+		return util.HttpErr(http.StatusBadRequest, "Unable to accept this share, try again later")
 	}
 
 	err = ResourceUpdateAcl(rpc.ActorSystem, driveType, orcapi.UpdatedAcl{

@@ -1592,7 +1592,7 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 			User: recipient,
 			Notification: fndapi.Notification{
 				Type:    "PROJECT_INVITE",
-				Message: fmt.Sprintf("You have been inviteted to join %q by %s", projectTitle, actor.Username),
+				Message: fmt.Sprintf("You have been invited to join %q by %s", projectTitle, actor.Username),
 			},
 		})
 
@@ -1602,9 +1602,9 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 
 		return nil
 	} else if alreadyInvited {
-		return util.HttpErr(http.StatusConflict, "this user has already been invited to the project")
+		return util.HttpErr(http.StatusConflict, "This user has already been invited to the project")
 	} else {
-		return util.HttpErr(http.StatusConflict, "this user is already a member of the project")
+		return util.HttpErr(http.StatusConflict, "This user is already a member of the project")
 	}
 }
 
@@ -1626,9 +1626,9 @@ func ProjectDeleteInvite(actor rpc.Actor, projectId string, recipient string) *u
 	}
 
 	if !allowed {
-		return util.HttpErr(http.StatusForbidden, "you are not allowed to delete this invite")
+		return util.HttpErr(http.StatusForbidden, "You are not allowed to delete this invite")
 	} else if project == nil {
-		return util.HttpErr(http.StatusNotFound, "unknown project")
+		return util.HttpErr(http.StatusNotFound, "Unknown project")
 	} else {
 		project.Mu.Lock()
 		delete(project.InvitesSent, recipient)

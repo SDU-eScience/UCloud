@@ -56,6 +56,7 @@ function resolveNotification(event: Notification): {
             return {icon: "projects", color: "textPrimary", color2: "textSecondary"};
         case "PROJECT_USER_REMOVED":
             return {icon: "projects", color: "textPrimary", color2: "textSecondary"};
+
         case "NEW_GRANT_APPLICATION":
             const icon = "heroPaperAirplane";
             const oldPrefix = "New grant application to ";
@@ -65,9 +66,23 @@ function resolveNotification(event: Notification): {
                 return {icon, modifiedMessage, modifiedTitle};
             }
             return {icon};
+
         case "NEW_GRANT_COMMENT": {
-            return {icon: "heroPaperAirplane"};
+            const icon = "heroPaperAirplane";
+            const modifiedTitle = event.meta["title"] as string | undefined;
+            return {icon, modifiedTitle};
         }
+
+        case "GRANT_APPLICATION_RESPONSE": {
+            const icon = "heroPaperAirplane";
+            return {icon, modifiedTitle: event.meta["title"] as string | undefined};
+        }
+
+        case "GRANT_APPLICATION_UPDATED": {
+            const icon = "heroPaperAirplane";
+            return {icon, modifiedTitle: event.meta["title"] as string | undefined};
+        }
+
         case "JOB_COMPLETED":
             var jobsCompletedTitle: string;
 
