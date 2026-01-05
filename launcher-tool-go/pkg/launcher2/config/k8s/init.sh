@@ -5,6 +5,8 @@ while ! test -e "/mnt/k3s/kubeconfig.yaml"; do
   echo "Waiting for Kubernetes to be ready..."
 done
 
+sleep 2
+
 mkdir -p /mnt/storage/{home,projects,trash,collections}
 
 sed -i s/127.0.0.1/im2k3/g /mnt/k3s/kubeconfig.yaml

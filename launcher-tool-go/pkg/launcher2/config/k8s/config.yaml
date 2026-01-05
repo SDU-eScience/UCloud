@@ -48,7 +48,7 @@ services:
       enabled: true
 
     syncthing:
-      enabled: true
+      enabled: false
 
     ssh:
       enabled: true
