@@ -181,12 +181,17 @@ function retrieveOperations(): Operation<Api.ApiToken, StandardCallbacks<Api.Api
         icon: "trash",
         text: "Revoke",
         color: "errorMain",
-        enabled: (selected) => selected.length === 1,
+        enabled: (selected) => selected.length > 0,
         confirm: true,
-        onClick: async ([element], cb) => {
-            await cb.invokeCommand(
-                Api.revoke({id: element.id})
-            );
+        onClick: async (selected, cb) => {
+            const promises: Promise<unknown>[] = [];
+            for (const element of selected) {
+                promises.push(cb.invokeCommand(
+                    Api.revoke({id: element.id})
+                ));
+            }
+
+            await Promise.all(promises);
 
             cb.reload();
         },

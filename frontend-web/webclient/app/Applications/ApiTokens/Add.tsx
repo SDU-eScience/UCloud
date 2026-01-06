@@ -1,6 +1,6 @@
 import * as React from "react";
 import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
-import {Box, Button, Image, Divider, Flex, Icon, Input, MainContainer, Select} from "@/ui-components";
+import {Box, Button, Image, Divider, Flex, Icon, Input, MainContainer, Select, Link} from "@/ui-components";
 import * as Api from "./api";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {PeriodStyle} from "@/Accounting/Usage";
@@ -14,9 +14,11 @@ import {RichSelect, RichSelectProps} from "@/ui-components/RichSelect";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {useNavigate} from "react-router";
-import AppRoutes from "@/Routes";
 import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {ApiToken, ApiTokenStatus} from "./api";
+import * as Heading from "@/ui-components/Heading";
+import AppRoutes from "@/Routes";
 
 const API_TOKEN_TITLE_KEY = "api-title";
 const API_TOKEN_DESCRIPTION_KEY = "api-description";
@@ -36,6 +38,7 @@ function Add() {
     const serviceProviders = permissionKeys;
     const [projectId, setProjectId] = React.useState<string | undefined>();
     const [activePermissions, setActivePermissions] = React.useState(new Set<string>());
+    const [tokenStatus, setTokenStatus] = React.useState<ApiTokenStatus | null>(null);
 
     const mappedServiceProviders = serviceProviders.map(it => ({key: it}));
 
@@ -76,7 +79,7 @@ function Add() {
         const provider = serviceProvider === "" ? null : serviceProvider;
 
         try {
-            await callAPI({
+            const result = await callAPI<ApiToken>({
                 ...Api.create({
                     title,
                     description,
@@ -90,22 +93,36 @@ function Add() {
                     },
                 }), projectOverride: provider == null ? projectId : undefined
             });
-            snackbarStore.addSuccess("Created API token", false);
-            navigate(AppRoutes.resources.apiTokens());
+
+            setTokenStatus(result.status);
         } catch (err) {
             displayErrorMessageOrDefault(err, "Failed to generate token.")
         }
     }, [serviceProvider, activePermissions, date, projectId]);
 
-    return <MainContainer main={
-        <div style={{display: "grid", gap: "18px"}}>
+    let main: React.ReactNode = null;
+
+    if (tokenStatus != null) {
+        main = <Flex alignItems={"center"} justifyContent={"center"}>
+            <Box flexBasis={500}>
+                <Heading.h3>API token created</Heading.h3>
+                <Box><b>Server: </b> <code>{tokenStatus.server}</code></Box>
+                <Box><b>Token: </b> <code>{tokenStatus.token}</code></Box>
+                <br/>
+                <Box>You must save the token now, as it will not be available after existing this screen.</Box>
+                <br/>
+                <Link to={AppRoutes.resources.apiTokens()}><Button>Back to overview</Button></Link>
+            </Box>
+        </Flex>;
+    } else {
+        main = <div style={{display: "grid", gap: "18px"}}>
             <div>
-                <GenericTextField name={API_TOKEN_TITLE_KEY} title={"Title"} optional={false} />
-                <GenericTextArea name={API_TOKEN_DESCRIPTION_KEY} title={"Description"} optional={true} />
+                <GenericTextField name={API_TOKEN_TITLE_KEY} title={"Title"} optional={false}/>
+                <GenericTextArea name={API_TOKEN_DESCRIPTION_KEY} title={"Description"} optional={true}/>
             </div>
             <Flex>
                 <div className={ServiceProviderSelector} data-has-service-provider={!!serviceProvider}>
-                    Service provider <MandatoryField />
+                    Service provider <MandatoryField/>
                     <RichSelect
                         fullWidth
                         elementHeight={38}
@@ -122,18 +139,18 @@ function Add() {
                 </div>
                 {serviceProvider !== "" ? null :
                     <div style={{gap: 0}}>
-                        Available for <MandatoryField />
+                        Available for <MandatoryField/>
                         <ProjectSwitcher managed={{
                             initialProject: projectId,
                             setLocalProject: setProjectId
-                        }} />
+                        }}/>
                     </div>
                 }
             </Flex>
             <div>
-                Expiration <MandatoryField />
+                Expiration <MandatoryField/>
                 <div>
-                    <ExpirationSelector date={date} onChange={setDate} />
+                    <ExpirationSelector date={date} onChange={setDate}/>
                 </div>
             </div>
             {permissionKeys.length == 0 ? null : <div>
@@ -157,7 +174,7 @@ function Add() {
                             </ClickableDropdown>
                         </Box>
                     </div>
-                    {activePermissions.size > 0 ? <Divider m={"0px"} /> : null}
+                    {activePermissions.size > 0 ? <Divider m={"0px"}/> : null}
                     <div style={{maxHeight: "400px", overflowY: "auto"}}>
                         {[...activePermissions].map(p =>
                             <ActivePermissions clearPermission={() => {
@@ -165,14 +182,16 @@ function Add() {
                                     permissions.delete(p);
                                     return new Set([...permissions]);
                                 })
-                            }} permission={p} availablePermissions={availablePermissions} />
+                            }} permission={p} availablePermissions={availablePermissions}/>
                         )}
                     </div>
                 </div>
             </div>}
             <Button onClick={submit} width="150px">Generate token</Button>
-        </div >
-    } />
+        </div>;
+    }
+
+    return <MainContainer main={main} />;
 }
 
 const ActivePermissionClass = makeClassName("active-permission");
