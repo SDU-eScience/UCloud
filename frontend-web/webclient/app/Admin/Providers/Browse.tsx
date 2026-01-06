@@ -2,7 +2,7 @@ import * as React from "react";
 import ProvidersApi, {Provider} from "@/UCloud/ProvidersApi";
 import {useNavigate} from "react-router";
 import MainContainer from "@/ui-components/MainContainer";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, ColumnTitleList} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal, checkIsWorkspaceAdmin, ColumnTitleList} from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
 import {usePage} from "@/Navigation/Redux";
 import {callAPI} from "@/Authentication/DataHook";
@@ -168,7 +168,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): React.R
                 });
             });
         }
-        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
+        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {

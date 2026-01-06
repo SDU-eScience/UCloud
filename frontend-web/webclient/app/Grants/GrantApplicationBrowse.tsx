@@ -1,5 +1,5 @@
 import {
-    addContextSwitcherInPortal,
+    addProjectSwitcherInPortal,
     ColumnTitleList,
     EmptyReasonTag,
     ResourceBrowseFeatures,
@@ -40,7 +40,7 @@ const FEATURES: ResourceBrowseFeatures = {
     projectSwitcher: true,
 }
 
-function download (filename: string, text: string) {
+function download(filename: string, text: string) {
     var elem = document.createElement('a');
     elem.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(text));
     elem.setAttribute("download", filename);
@@ -300,7 +300,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                             shortcut: ShortcutKey.X,
                             async onClick() {
                                 const result = await callAPI(exportGrants());
-                                const text= JSON.stringify(result)
+                                const text = JSON.stringify(result)
                                 download("export.json", text)
                             }
                         },
@@ -329,7 +329,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 browserRef.current?.refresh();
             }
         }
-        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
+        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
