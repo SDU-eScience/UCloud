@@ -5,7 +5,7 @@ import {useDispatch} from "react-redux";
 import {getQueryParam, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import MainContainer from "@/ui-components/MainContainer";
 import {
-    addContextSwitcherInPortal,
+    addProjectSwitcherInPortal,
     checkIsWorkspaceAdmin,
     EmptyReasonTag,
     OperationOrGroup,
@@ -1490,7 +1490,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
             b.renameField.style.left = "74px";
         }
 
-        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject, initialProject: activeProject.current} : undefined);
+        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject, initialProject: activeProject.current} : undefined);
     }, []);
 
     const setLocalProject = opts?.managesLocalProject ? (projectId?: string) => {

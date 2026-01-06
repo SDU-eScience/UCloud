@@ -338,7 +338,7 @@ function ProjectHide(props: {project: Project, rerender: (projectId: string) => 
     if (!hasFeature(Feature.HIDE_PROJECTS)) return null;
     const isHidden = props.project.status.isHidden;
     const icon: IconName = isHidden ? "heroEyeSlash" : "heroEye";
-    return <Box height="100%" mr="18px" title={isHidden ? "Click to unhide" : "Click to hide"}>
+    return <Box height="100%" ml="auto" mr="18px" title={isHidden ? "Click to unhide" : "Click to hide"}>
         <Icon data-hide-icon={!isHidden} mt="-2px" name={icon} onClick={e => {
             e.stopPropagation();
             props.rerender(props.project.id);

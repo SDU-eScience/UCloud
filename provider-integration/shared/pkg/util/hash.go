@@ -2,7 +2,7 @@ package util
 
 import (
 	"crypto/sha256"
-	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"hash/fnv"
 )
@@ -23,5 +23,6 @@ func Sha256(input []byte) string {
 		panic("hash fail: " + err.Error())
 	}
 
-	return base64.URLEncoding.EncodeToString(h.Sum(nil))
+	sum := h.Sum(nil)
+	return hex.EncodeToString(sum)
 }

@@ -52,6 +52,7 @@ const ProviderDetailed = React.lazy(() => import("@/Providers/Detailed"));
 const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Router"));
 const SyncthingOverview = React.lazy(() => import("@/Syncthing/Overview"));
 const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Add"));
+const ApiTokenCreate = React.lazy(() => import("@/Applications/ApiTokens/Add"));
 const GrantEditor = React.lazy(() => import("@/Grants/Editor"));
 const ResourceUsage = React.lazy(() => import("@/Accounting/Usage"));
 const ResourceAllocations = React.lazy(() => import("@/Accounting/Allocations"));
@@ -77,13 +78,14 @@ import AppRoutes from "./Routes";
 import {RightPopIn} from "./ui-components/PopIn";
 import {injectStyleSimple} from "./Unstyled";
 import {SSHKeyBrowse} from "./Applications/SshKeys/SSHKeyBrowse";
+import {ApiTokenBrowse} from "./Applications/ApiTokens/ApiTokensBrowse";
 import {GrantApplicationBrowse} from "./Grants/GrantApplicationBrowse";
 import {IngoingSharesBrowse} from "@/Files/Shares";
-import {JobsRouter} from "./Applications/Jobs/Router";
-import {DrivesRouter, FilesRouter} from "./Files/Router";
+import {JobsRouter} from "@/Applications/Jobs/Router";
+import {DrivesRouter, FilesRouter} from "@/Files/Router";
 import LicenseRouter from "./Applications/Licenses";
-import PublicLinksRouter from "./Applications/PublicLinks/Router";
-import SharesApi from "./UCloud/SharesApi";
+import PublicLinksRouter from "@/Applications/PublicLinks/Router";
+import SharesApi from "@/UCloud/SharesApi";
 import {findCustomThemeColorOnLaunch} from "./UserSettings/CustomTheme";
 import SupportPage, {
     AllocationSupportContent,
@@ -136,7 +138,6 @@ const Core = (): React.ReactNode => (
 
                     <Route path="/jobs/*" element={React.createElement(requireAuth(JobsRouter))} />
 
-
                     <Route path={AppRoutes.apps.shell(":jobId", ":rank")}
                         element={React.createElement(requireAuth(JobShell))} />
                     <Route path={AppRoutes.apps.vnc(":jobId", ":rank")}
@@ -146,8 +147,11 @@ const Core = (): React.ReactNode => (
                     <Route path="/licenses/*" element={React.createElement(requireAuth(LicenseRouter))} />
                     <Route path="/public-ips/*" element={React.createElement(requireAuth(NetworkIPsRouter))} />
 
-                    <Route path={"/ssh-keys"} element={React.createElement(requireAuth(SSHKeyBrowse))} />
-                    <Route path={"/ssh-keys/create"} element={React.createElement(requireAuth(SshKeyCreate))} />
+                    <Route path={AppRoutes.resources.sshKeys()} element={React.createElement(requireAuth(SSHKeyBrowse))} />
+                    <Route path={AppRoutes.resources.sshKeysCreate()} element={React.createElement(requireAuth(SshKeyCreate))} />
+
+                    <Route path={AppRoutes.resources.apiTokens()} element={React.createElement(requireAuth(ApiTokenBrowse))} />
+                    <Route path={AppRoutes.resources.apiTokensCreate()} element={React.createElement(requireAuth(ApiTokenCreate))} />
 
                     <Route path={AppRoutes.appStudio.topPicks()} element={React.createElement(requireAuth(StudioTopPicks))} />
                     <Route path={AppRoutes.appStudio.hero()} element={React.createElement(requireAuth(StudioHero))} />

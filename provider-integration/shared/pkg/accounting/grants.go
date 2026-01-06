@@ -264,8 +264,8 @@ type GrantStatus struct {
 	StateBreakdown []GrantGiverApprovalState `json:"stateBreakdown"`
 	Comments       []GrantComment            `json:"comments"`
 	Revisions      []GrantRevision           `json:"revisions"`
-	ProjectTitle   util.Option[string]       `json:"projectTitle"` // deprecated
-	ProjectPI      string                    `json:"projectPI"`    // deprecated
+	ProjectTitle   util.Option[string]       `json:"projectTitle"`
+	ProjectPI      string                    `json:"projectPI"`
 }
 
 type GrantGiverApprovalState struct {
@@ -485,4 +485,36 @@ var GrantsRetrieveLogo = rpc.Call[GrantsRetrieveLogoRequest, []byte]{
 	CustomClientHandler: func(self *rpc.Call[GrantsRetrieveLogoRequest, []byte], client *rpc.Client, request GrantsRetrieveLogoRequest) ([]byte, *util.HttpError) {
 		panic("client not implemented")
 	},
+}
+
+type GrantsExportResponse struct {
+	Id             string                `json:"id"`
+	Title          string                `json:"title"`
+	SubmittedBy    string                `json:"submittedBy"`
+	SubmittedAt    fnd.Timestamp         `json:"submittedAt"`
+	StartDate      fnd.Timestamp         `json:"startDate"`
+	DurationMonths int                   `json:"durationMonths"`
+	State          GrantApplicationState `json:"state"`
+	GrantGiver     string                `json:"grantGiver"`
+	LastUpdatedAt  fnd.Timestamp         `json:"lastUpdatedAt"`
+	Resources      map[string]int        `json:"resources"`
+}
+
+var GrantsExport = rpc.Call[util.Empty, []GrantsExportResponse]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "export",
+	Roles:       rpc.RolesEndUser,
+}
+
+type GrantsExportCsvResponse struct {
+	FileName string `json:"fileName"`
+	CsvData  string `json:"csvData"`
+}
+
+var GrantsExportCsv = rpc.Call[util.Empty, GrantsExportCsvResponse]{
+	BaseContext: GrantsNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "exportCsv",
+	Roles:       rpc.RolesEndUser,
 }

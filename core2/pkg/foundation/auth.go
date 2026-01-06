@@ -94,6 +94,22 @@ func initAuth() {
 		return util.Empty{}, err
 	})
 
+	fndapi.AuthPasswordLoginServer.Handler(func(info rpc.RequestInfo, request fndapi.PasswordLoginRequest) (fndapi.AuthenticationTokens, *util.HttpError) {
+		tokens, err := PasswordLogin(info.HttpRequest, request.Username, request.Password)
+		if err != nil {
+			return fndapi.AuthenticationTokens{}, err
+		} else {
+			mfaRequired := false
+			_, mfaRequired = MfaCreateChallenge(request.Username)
+			mfaRequired = mfaRequired && MfaIsConnectedEx(request.Username)
+
+			if mfaRequired {
+				return fndapi.AuthenticationTokens{}, util.HttpErr(http.StatusBadRequest, "not supported")
+			}
+			return tokens, nil
+		}
+	})
+
 	fndapi.AuthPasswordLoginWeb.Handler(func(info rpc.RequestInfo, request fndapi.PasswordLoginRequest) (util.Empty, *util.HttpError) {
 		if err := authVerifyOrigin(info); err != nil {
 			return util.Empty{}, err

@@ -1382,12 +1382,12 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: UsagePerUs
     const startExport = useCallback(() => {
         exportUsage(
             dataPoints,
-            [header("username", "Username", true), header("category", "Product Category", ), header("usage", "Estimated usage", true)],
+            [header("username", "Username", true), header("category", "Product Category",), header("usage", "Estimated usage", true)],
             projectTitle(project)
         );
     }, [dataPoints, project]);
 
-    const pied = dataPoints.map(s => ({key: s.username + " - " + s.category.name + "(" +getShortProviderTitle(s.category.provider) + ")", value: s.usage}));
+    const pied = dataPoints.map(s => ({key: s.username + " - " + s.category.name + "(" + getShortProviderTitle(s.category.provider) + ")", value: s.usage}));
 
     return <div className={classConcat(CardClass, PanelClass, LargeJobsStyle)}>
         <Flex>
@@ -1410,12 +1410,12 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: UsagePerUs
                             <th style={thStyling(false, "25%")} align={"right"}>Product category (Provider)</th>
                             <th style={thStyling(false, "25%")}>
                                 <Flex>
-                                Estimated usage
-                                <Box width={"8px"}/>
-                                <TooltipV2
-                                    tooltip={"This is an estimate based on the values stored in UCloud. Actual usage reported by the provider may differ from the numbers shown here."}>
-                                    <Icon name={"heroQuestionMarkCircle"} />
-                                </TooltipV2>
+                                    Estimated usage
+                                    <Box width={"8px"} />
+                                    <TooltipV2
+                                        tooltip={"This is an estimate based on the values stored in UCloud. Actual usage reported by the provider may differ from the numbers shown here."}>
+                                        <Icon name={"heroQuestionMarkCircle"} />
+                                    </TooltipV2>
                                 </Flex>
                             </th>
                         </tr>
@@ -1424,7 +1424,7 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: UsagePerUs
                         {data.dataPoints.map(it =>
                             <tr key={it.username + " - " + it.category.name + " (" + getShortProviderTitle(it.category.provider) + ")"}>
                                 <td>{it.username}</td>
-                                <td>{it.category.name + " (" + getShortProviderTitle(it.category.provider) + ")" }</td>
+                                <td>{it.category.name + " (" + getShortProviderTitle(it.category.provider) + ")"}</td>
                                 <td>{Accounting.addThousandSeparators(it.usage.toFixed(0))} {explainUnit(it.category).name}</td>
                             </tr>)
                         }
@@ -1942,7 +1942,7 @@ function usageToString(category: Accounting.ProductCategoryV2, usage: number, qu
     }
 }
 
-const PeriodStyle = injectStyle("period-selector", k => `
+export const PeriodStyle = injectStyle("period-selector", k => `
     ${k} {
         border: 1px solid var(--borderColor);
         border-radius: 6px;
@@ -1963,7 +1963,7 @@ const PeriodStyle = injectStyle("period-selector", k => `
     }
 `);
 
-const PeriodSelectorBodyStyle = injectStyle("period-selector-body", k => `
+export const PeriodSelectorBodyStyle = injectStyle("period-selector-body", k => `
     ${k} {
         cursor: auto;
         display: flex;

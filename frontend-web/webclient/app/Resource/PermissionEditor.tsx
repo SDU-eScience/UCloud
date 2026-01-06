@@ -156,7 +156,7 @@ export function PermissionsTable({warning, anyGroupHasPermission, showMissingPer
                 return (
                     <Flex key={g} alignItems={"center"} mb={16} data-component={"permission-row"}
                         data-group={title} data-group-id={summary.id}>
-                        <Truncate width={"300px"} mr={16} title={title}>
+                        <Truncate width={"100%"} mr={16} title={title}>
                             {title}
                         </Truncate>
 

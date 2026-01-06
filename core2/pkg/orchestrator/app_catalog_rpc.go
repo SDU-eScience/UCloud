@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"sync/atomic"
 
 	"github.com/blevesearch/bleve"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -462,6 +463,7 @@ func appCatalogInitRpc() {
 		return util.Empty{}, AppStudioUpdateTopPicks(groupIds)
 	})
 
+	appImportIsDone := atomic.Bool{}
 	orcapi.AppsDevImport.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogDevImportRequest) (util.Empty, *util.HttpError) {
 		resp, err := http.Get(request.Endpoint)
 		if err != nil {
@@ -482,8 +484,16 @@ func appCatalogInitRpc() {
 				calculated, request.Checksum)
 		}
 
-		AppIxImportFromZip(data)
+		go func() {
+			appImportIsDone.Store(false)
+			AppIxImportFromZip(data)
+			appImportIsDone.Store(true)
+		}()
 		return util.Empty{}, nil
+	})
+
+	orcapi.AppsImportIsDone.Handler(func(info rpc.RequestInfo, request util.Empty) (bool, *util.HttpError) {
+		return appImportIsDone.Load(), nil
 	})
 
 	orcapi.AppsImportFromFile.Handler(func(info rpc.RequestInfo, request []byte) (util.Empty, *util.HttpError) {
