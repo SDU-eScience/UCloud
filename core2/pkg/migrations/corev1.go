@@ -66,6 +66,22 @@ func coreV2() db.MigrationScript {
 			db.Exec(
 				tx,
 				`
+					INSERT INTO provider.resource (type, provider, created_at, created_by, project, id, product, provider_generated_id, confirmed_by_provider, public_read) VALUES ('metadata_template_namespace', null, '2022-11-01 11:47:14.698642 +00:00', '_ucloud', null, 1, null, null, true, true)
+					ON CONFLICT DO NOTHING 
+			    `,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					INSERT INTO provider.resource (type, provider, created_at, created_by, project, id, product, provider_generated_id, confirmed_by_provider, public_read) VALUES ('metadata_template_namespace', null, '2022-11-01 11:47:14.698642 +00:00', '_ucloud', null, 2, null, null, true, true)
+					ON CONFLICT DO NOTHING 
+			    `,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
 					INSERT INTO file_orchestrator.metadata_template_namespaces (resource, uname, namespace_type, 
 						deprecated, latest_version) VALUES (1, 'favorite', 'PER_USER', false, '1.0.0')
 					ON CONFLICT DO NOTHING 
