@@ -35,11 +35,12 @@ import {inSuccessRange} from "@/UtilityFunctions";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import {projectTitleFromCache} from "./ProjectSwitcher";
+import {ProjectSwitcher, projectTitleFromCache} from "./ProjectSwitcher";
 import WAYF from "@/Grants/wayf-idps.json";
 import {FlexClass} from "@/ui-components/Flex";
 import {OldProjectRole, isAdminOrPI} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import AppRoutes from "@/Routes";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -121,6 +122,10 @@ export const ProjectSettings: React.FunctionComponent = () => {
     const description = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
+        if (!projectId) {
+            navigate(AppRoutes.dashboard.dashboardA());
+            return;
+        }
         (async () => {
             const res = await callAPIWithErrorHandler<Grants.RequestSettings>(
                 {
@@ -131,7 +136,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
 
             if (!res) return;
             if (!didUnmount.current) setSettings(res);
-        })()
+        })();
     }, [projectId]);
 
     useEffect(() => {
@@ -236,7 +241,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
         header={
             <Spacer
                 left={<h3 className="title">Project settings</h3>}
-                right={null}
+                right={<ProjectSwitcher />}
             />
         }
         headerSize={64}
@@ -259,7 +264,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         onSuccess={() => projectOps.reload()}
                     />
 
-                    { Client.userIsAdmin ? <>
+                    {Client.userIsAdmin ? <>
                         <Label>Project ID (only visible to UCloud Admins)</Label>
                         <Flex>
                             <Text color={"textSecondary"}>{projectId}</Text>
@@ -271,7 +276,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                                 }
                             />
                         </Flex>
-                    </> : <></> }
+                    </> : null}
 
                     <SubprojectSettings
                         projectId={projectId}
@@ -375,7 +380,7 @@ export function ChangeProjectTitle(props: ChangeProjectTitleProps): React.ReactN
     const project = useProject();
 
     useEffect(() => {
-        setCanRename(getRenamingStatus( {projectId: props.projectId}))
+        setCanRename(getRenamingStatus({projectId: props.projectId}))
         if (newProjectTitle.current) newProjectTitle.current.value = props.projectTitle;
         if (props.projectId === project.fetch().id) project.reload();
     }, [props.projectId, props.projectTitle]);
@@ -602,7 +607,7 @@ export function UpdateProjectLogo(): React.ReactNode {
 
     if (!projectId) return null;
     return <div>
-        <label>
+        <label style={{width: "fit-content"}}>
             Project logo (click{" "}
             <span style={{color: "var(--primaryLight)", cursor: "pointer"}}>here</span>
             {" "}to upload a new logo)

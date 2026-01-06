@@ -210,6 +210,21 @@
             ]
         },
         {
+            "id": "k8s",
+            "title": "IM2/K8s",
+            "logo": "im2k8s.png",
+            "shortTitle": "IM2/K8s",
+            "shortDescription": "Development version of IM2.",
+            "description": "Development version of IM2.",
+            "url": "https://github.com/sdu-escience/ucloud",
+            "texts": [
+                {
+                    "description": "Nothing to show here. This is just a development version if IM2.",
+                    "image": "/Images/ucloud-1.png"
+                }
+            ]
+        },
+        {
             "id": "sdu-hsc-slurm",
             "title": "SDU HSC",
             "logo": "hippo.png",

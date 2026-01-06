@@ -28,6 +28,8 @@ import {callAPI} from "@/Authentication/DataHook";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {UFile} from "@/UCloud/UFile";
 import {FileIconHint} from ".";
+import {ShortcutKey} from "@/ui-components/Operation";
+import {getLastActivePath} from "@/Applications/Jobs/Widgets/GenericFiles";
 
 const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
@@ -41,7 +43,10 @@ const FEATURES: ResourceBrowseFeatures = {
 type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
 const rowTitles: ColumnTitleList<SortById> = [{name: "Name"}, {name: "", columnWidth: 32}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}];
 
-function FavoriteBrowse({selection, navigateToFolder}: {navigateToFolder: (path: string, projectId?: string) => void; selection: Selection<FileMetadataAttached | UFile>}): React.ReactNode {
+function FavoriteBrowse({selection, navigateToFolder}: {
+    navigateToFolder: (path: string, projectId?: string) => void;
+    selection: Selection<FileMetadataAttached | UFile>;
+}): React.ReactNode {
     const navigate = useNavigate();
     const mountRef = useRef<HTMLDivElement | null>(null);
     const browserRef = useRef<ResourceBrowser<FileMetadataAttached> | null>(null);
@@ -67,7 +72,15 @@ function FavoriteBrowse({selection, navigateToFolder}: {navigateToFolder: (path:
 
                 browser.on("fetchFilters", () => []);
 
-                browser.on("fetchOperations", () => []);
+                browser.on("fetchOperations", () => [{
+                    text: "Back to other files",
+                    icon: "heroArrowLeft",
+                    onClick() {
+                        navigateToFolder(getLastActivePath());
+                    },
+                    enabled: () => true,
+                    shortcut: ShortcutKey.B
+                }]);
 
                 browser.on("fetchOperationsCallback", () => ({isModal: true, embedded: true}));
 

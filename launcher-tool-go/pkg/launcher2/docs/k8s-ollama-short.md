@@ -1,0 +1,1 @@
+Inference feature for the K8s integration powered by Ollama.
