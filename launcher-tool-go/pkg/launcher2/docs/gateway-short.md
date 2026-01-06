@@ -1,0 +1,1 @@
+Gateway component responsible for routing HTTP and WebSocket traffic to the correct components.

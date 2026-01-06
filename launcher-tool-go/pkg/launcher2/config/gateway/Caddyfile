@@ -1,0 +1,84 @@
+{
+    order grpc_web before reverse_proxy
+}
+
+https://ucloud.localhost.direct {
+    grpc_web
+
+    reverse_proxy /api/* core2:8080
+    reverse_proxy /auth/* core2:8080
+
+    reverse_proxy /api/auth-callback-csrf frontend:9000
+    reverse_proxy /api/auth-callback frontend:9000
+    reverse_proxy /api/sync-callback frontend:9000
+    reverse_proxy /assets frontend:9000
+    reverse_proxy /favicon.ico frontend:9000
+    reverse_proxy /favicon.svg frontend:9000
+    reverse_proxy /AppVersion.txt frontend:9000
+    reverse_proxy /Images/* frontend:9000
+    reverse_proxy /app frontend:9000
+    reverse_proxy /app/* frontend:9000
+    reverse_proxy /@* frontend:9000
+    reverse_proxy /node_modules/* frontend:9000
+    reverse_proxy /site.config.json frontend:9000
+    reverse_proxy / frontend:9000
+
+    header {
+        Cross-Origin-Opener-Policy "same-origin"
+        Cross-Origin-Embedder-Policy "require-corp"
+    }
+}
+
+https://slurm.localhost.direct {
+    reverse_proxy slurm:8889
+}
+
+https://k8s.localhost.direct {
+    reverse_proxy k8s:8889
+}
+
+https://k8s-metrics.localhost.direct {
+    reverse_proxy k8s:7867
+}
+
+https://ipa.localhost.direct {
+    handle / {
+        redir https://ipa.localhost.direct/ipa/ui/
+    }
+
+    handle {
+        reverse_proxy https://free-ipa {
+            header_up Host ipa.ucloud
+            header_up Referer "https://ipa.ucloud{uri}"
+
+            transport http {
+                tls
+                tls_insecure_skip_verify
+            }
+        }
+    }
+}
+
+*.localhost.direct {
+    tls /certs/tls.crt /certs/tls.key
+
+    @k8apps {
+        header_regexp k8app Host ^k8-.*
+    }
+    reverse_proxy @k8apps k8:8889
+
+    @slurmapps {
+        header_regexp slurmapp Host ^slurm-.*
+    }
+    reverse_proxy @slurmapps slurm:8889
+
+    @k8sapps {
+        header_regexp k8sapp Host ^k8s-.*
+    }
+    reverse_proxy @k8sapps k8s:8889
+
+    @k8schat {
+        header_regexp k8sapp Host ^chat.*
+    }
+    reverse_proxy @k8schat k8s:8889
+}

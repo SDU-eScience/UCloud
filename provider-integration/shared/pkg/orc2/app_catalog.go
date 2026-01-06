@@ -581,7 +581,7 @@ type AppCatalogBrowseStudioCategoriesRequest struct {
 var AppsBrowseStudioCategories = rpc.Call[AppCatalogBrowseStudioCategoriesRequest, fnd.PageV2[ApplicationCategory]]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionBrowse,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesEndUser | rpc.RolesService,
 	Operation:   "categories",
 }
 
@@ -781,6 +781,13 @@ var AppsDevImport = rpc.Call[AppCatalogDevImportRequest, util.Empty]{
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "devImport",
+}
+
+var AppsImportIsDone = rpc.Call[util.Empty, bool]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesService,
+	Operation:   "importIsDone",
 }
 
 var AppsImportFromFile = rpc.Call[[]byte, util.Empty]{

@@ -306,7 +306,7 @@ func providerTransform(
 	result := orcapi.Provider{
 		Resource: r,
 		Specification: orcapi.ProviderSpecification{
-			Id:     r.Id,
+			Id:     provider.UniqueName,
 			Domain: provider.Domain,
 			Https:  provider.Https,
 			Port:   provider.Port,

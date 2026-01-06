@@ -16,6 +16,14 @@ func (e *HttpError) Error() string {
 	return fmt.Sprintf("%v %v", e.StatusCode, e.Why)
 }
 
+func (e *HttpError) AsError() error {
+	if e == nil {
+		return nil
+	} else {
+		return e
+	}
+}
+
 func UserHttpError(whyFormat string, args ...any) *HttpError {
 	message := ""
 	if len(args) == 0 {

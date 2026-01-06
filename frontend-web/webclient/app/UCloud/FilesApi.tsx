@@ -113,6 +113,7 @@ export function isSensitivitySupported(resource: UFile): boolean {
             case "k8":
             case "K8":
             case "gok8s":
+            case "k8s":
             case "ucloud":
                 return true;
 
@@ -401,7 +402,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                             res.specification.product.provider !== selected[0].specification.product.provider ||
                                             res.specification.product.provider === "go-slurm" ||
                                             res.specification.product.provider === "goslurm1" ||
-                                            res.specification.product.provider === "gok8s"
+                                            res.specification.product.provider === "gok8s"  ||
+                                            res.specification.product.provider === "k8s"
                                         );
                                 },
                                 onClick: async (res) => {
@@ -1006,6 +1008,7 @@ function SensitivityDialog({file, invokeCommand, onUpdated}: {
                     ),
                     {defaultErrorHandler: false}
                 );
+                onUpdated(value as SensitivityLevelMap);
             } else {
                 if (!sensitivityTemplateId) {
                     sensitivityTemplateId = await queryTemplateName(sensitivityTemplateId, invokeCommand);

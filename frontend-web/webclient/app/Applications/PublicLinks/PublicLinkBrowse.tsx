@@ -14,7 +14,7 @@ import {
     SupportByProviderV2,
 } from "@/UCloud/ResourceApi";
 import {bulkRequestOf, createHTMLElements, doNothing, extractErrorMessage, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
@@ -342,7 +342,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                 browser.on("pathToEntry", entry => entry.id);
             });
         }
-        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
+        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, [])
 
     if (!opts?.embedded && !opts?.isModal) {

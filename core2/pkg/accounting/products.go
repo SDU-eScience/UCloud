@@ -198,6 +198,23 @@ func ProductCreate(actor rpc.Actor, products []accapi.ProductV2) *util.HttpError
 
 	providerId := products[0].Category.Provider
 
+	{
+		productsByProvider.Mu.Lock()
+		bucket, ok := productsByProvider.Buckets[providerId]
+		if !ok {
+			bucket = &providerBucket{}
+			productsByProvider.Buckets[providerId] = bucket
+
+			i, found := slices.BinarySearch(productsByProvider.Providers, providerId)
+			if !found {
+				productsByProvider.Providers = append(productsByProvider.Providers, "")
+				copy(productsByProvider.Providers[i+1:], productsByProvider.Providers[i:])
+				productsByProvider.Providers[i] = providerId
+			}
+		}
+		productsByProvider.Mu.Unlock()
+	}
+
 	bucket := util.ReadOrInsertBucket(&productsByProvider.Mu, productsByProvider.Buckets, providerId, nil)
 
 	bucket.Mu.Lock()

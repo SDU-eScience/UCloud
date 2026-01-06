@@ -47,7 +47,7 @@ import {
     resetOpenNodes,
     SubProjectAllocations
 } from "./CommonSections";
-import {useProjectInfos} from "@/Project/InfoCache";
+import {projectInfoPi, useProjectInfos} from "@/Project/InfoCache";
 
 // Styling
 // =====================================================================================================================
@@ -115,11 +115,15 @@ const Allocations: React.FunctionComponent = () => {
         dispatchEvent({type: "SubProjectData", projects: projectInfo.data});
     }, [projectInfo]);
 
-    useEffect(() => {
-        const users = new Set<string>();
-        state.subAllocations.recipients.forEach(it => users.add(it.owner.primaryUsername));
-        avatars.updateCache(Array.from(users));
-    }, [state.subAllocations.recipients]);
+    React.useEffect(() => {
+        const usernames = new Set<string>();
+        for (const recipient of state.subAllocations.recipients) {
+            usernames.add(recipient.owner.reference.type === "user" ?
+                recipient.owner.reference.username :
+                projectInfoPi(projectInfo.data[recipient.owner.reference.projectId], recipient.owner.primaryUsername) ?? "-");
+        }
+        avatars.updateCache([...usernames]);
+    }, [projectInfo, state.subAllocations.recipients])
 
     // Event handlers
     // -----------------------------------------------------------------------------------------------------------------
@@ -202,25 +206,25 @@ const Allocations: React.FunctionComponent = () => {
             }}>
                 <div>
                     <Heading.h3>New sub-project</Heading.h3>
-                    <Divider/>
+                    <Divider />
                     <Label>
                         Project title
                         <Input onKeyDown={e => {
                             if (e.code !== "Escape") {
                                 e.stopPropagation();
                             }
-                        }} id={"subproject-name"} autoFocus/>
+                        }} id={"subproject-name"} autoFocus />
                     </Label>
                     {(state.remoteData.managedProviders ?? []).length > 0 || !checkCanConsumeResources(Client.projectId ?? null, {api: {isCoreResource: false}}) ?
                         <Label>
-                            <Checkbox id={"subproject-suballocator"}/>
+                            <Checkbox id={"subproject-suballocator"} />
                             This sub-project is a sub-allocator
                         </Label> : null
                     }
                 </div>
                 <Flex mt="20px">
                     <Button type={"button"} onClick={dialogStore.failure.bind(dialogStore)} color={"errorMain"}
-                            mr="5px">Cancel</Button>
+                        mr="5px">Cancel</Button>
                     <Button type={"submit"} color={"successMain"}>Create sub-project</Button>
                 </Flex>
             </form>,
@@ -361,25 +365,26 @@ const Allocations: React.FunctionComponent = () => {
         main={<div className={AllocationsStyle}>
             <header>
                 <h3 className="title">Resource allocations</h3>
-                <Box flexGrow={1}/>
-                <ProjectSwitcher/>
+                <Box flexGrow={1} />
+                <ProjectSwitcher />
             </header>
 
-            <ProviderOnlySections state={state} dispatchEvent={dispatchEvent}/>
+            <ProviderOnlySections state={state} dispatchEvent={dispatchEvent} />
 
-            <YourAllocations state={state} allocations={sortedAllocations} allocationTree={allocationTree} indent={indent}/>
+            <YourAllocations state={state} allocations={sortedAllocations} allocationTree={allocationTree} indent={indent} />
 
             {/*<ResourcesGranted state={state} allocationTree={allocationTree} sortedAllocations={sortedAllocations}*/}
             {/*                  indent={indent} avatars={avatars}/>*/}
 
             <SubProjectAllocations allocations={sortedAllocations} indent={indent} />
 
-            <SubProjectList projectId={projectId} onNewSubProject={onNewSubProject} projectRole={projectRole}
-                                   state={state} onSearchInput={onSearchInput} onSearchKey={onSearchKey}
-                                   searchBox={searchBox} dispatchEvent={dispatchEvent}
-                                   suballocationTree={suballocationTree} listRef={listRef}
-                                   onSubAllocationShortcut={onSubAllocationShortcut} avatars={avatars} onEdit={onEdit}
-                                   onEditKey={onEditKey} onEditBlur={onEditBlur} />
+            <SubProjectList
+                projectId={projectId} onNewSubProject={onNewSubProject} projectRole={projectRole}
+                state={state} onSearchInput={onSearchInput} onSearchKey={onSearchKey}
+                searchBox={searchBox} dispatchEvent={dispatchEvent}
+                suballocationTree={suballocationTree} listRef={listRef}
+                onSubAllocationShortcut={onSubAllocationShortcut} avatars={avatars} onEdit={onEdit}
+                onEditKey={onEditKey} onEditBlur={onEditBlur} />
         </div>}
     />;
 };

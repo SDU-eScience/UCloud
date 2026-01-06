@@ -3,6 +3,7 @@ import * as Accounting from "@/Accounting";
 import {FindByStringId, PageV2, PaginationRequestV2} from "@/UCloud";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
+import {ProductCategoryId} from "@/Accounting";
 
 const baseContext = "/api/grants/v2";
 
@@ -64,6 +65,27 @@ export function retrieveGrantGivers(
     request: RetrieveGrantGiversRequest
 ): APICallParameters<unknown, {grantGivers: GrantGiver[]}> {
     return apiUpdate(request, baseContext, "retrieveGrantGivers");
+}
+
+interface GrantsExportLine {
+    id: string;
+    title: string;
+    submittedBy: string;
+    submittedAt: number;
+    startDate: number;
+    durationMonths: number;
+    state: GrantGiverApprovalState;
+    grantGiver: string;
+    latestUpdatedAt: number;
+    resources: Record<string, number>;
+}
+
+export function exportGrants(): APICallParameters<{}, GrantsExportLine[]> {
+    return apiUpdate({}, baseContext, "export");
+}
+
+export function exportGrantsCsv(): APICallParameters<{}, GrantsExportLine[]> {
+    return apiUpdate({}, baseContext, "exportCsv");
 }
 
 // Comments

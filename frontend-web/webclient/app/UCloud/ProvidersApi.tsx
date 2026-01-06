@@ -13,7 +13,7 @@ import {
     ResourceStatus,
     ResourceUpdate,
 } from "@/UCloud/ResourceApi";
-import {Box, Icon, TextArea} from "@/ui-components";
+import {Box, Grid, Icon, TextArea} from "@/ui-components";
 import {ItemRenderer} from "@/ui-components/Browse";
 import * as Types from "@/Accounting";
 import {
@@ -32,6 +32,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
+import {MachineView} from "@/Products/Products";
 
 export interface ProviderSpecification extends ResourceSpecification {
     id: string;
@@ -134,7 +135,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
                     }
                 },
                 tag: PERMISSIONS_TAG,
-                shortcut: ShortcutKey.W 
+                shortcut: ShortcutKey.W
             },
             {
                 text: "Properties",
@@ -157,62 +158,36 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
             InfoChildren={props => {
                 if (props.resource == null) return null;
                 const provider = props.resource as Provider;
-                return <>
-                    <TitledCard title={"Metadata"} icon={"mapMarkedAltSolid"}>
-                        <Box mb={"8px"}>
-                            <b>Host: </b>
-                            {provider.specification.https ? "https://" : "http://"}
-                            {provider.specification.domain}
-                            {provider.specification.port == null ? null : `:${provider.specification.port}`}
-                        </Box>
-                        <Box mb={"8px"}>
-                            <label htmlFor={"refresh"}><b>Refresh Token:</b></label>
-                            <TextArea id={"refresh"} width="100%" value={provider.refreshToken} rows={1}
-                                onChange={doNothing} />
-                        </Box>
-                        <Box mb={"8px"}>
-                            <label htmlFor={"cert"}><b>Certificate: </b></label>
-                            <TextArea id={"cert"} width="100%" value={provider.publicKey} rows={3}
-                                onChange={doNothing} />
-                        </Box>
-                    </TitledCard>
-                </>
+                return <TitledCard title={"Metadata"} icon={"mapMarkedAltSolid"}>
+                    <Box mb={"8px"}>
+                        <b>Host: </b>
+                        {provider.specification.https ? "https://" : "http://"}
+                        {provider.specification.domain}
+                        {provider.specification.port == null ? null : `:${provider.specification.port}`}
+                    </Box>
+                    <Box mb={"8px"}>
+                        <label htmlFor={"refresh"}><b>Refresh Token:</b></label>
+                        <TextArea id={"refresh"} width="100%" value={provider.refreshToken} rows={1}
+                            onChange={doNothing} />
+                    </Box>
+                    <Box mb={"8px"}>
+                        <label htmlFor={"cert"}><b>Certificate: </b></label>
+                        <TextArea id={"cert"} width="100%" value={provider.publicKey} rows={3}
+                            onChange={doNothing} />
+                    </Box>
+                </TitledCard>
             }}
             ContentChildren={props => {
                 const provider = props.resource as Provider;
-                const [products, fetchProducts] = useCloudAPI<PageV2<Types.Product>>({noop: true}, emptyPageV2);
-                const toggleSet = useToggleSet(products.data.items);
-
-                const loadMore = useCallback(() => {
-                    fetchProducts(UCloud.accounting.products.browse({
-                        filterProvider: provider?.specification?.id,
-                        next: products.data.next
-                    }));
-                }, [products.data.next, provider?.specification?.id]);
-
-                useEffect(() => {
-                    fetchProducts(UCloud.accounting.products.browse({filterProvider: provider?.specification?.id}));
-                }, [provider?.specification?.id]);
-
-                const [commandLoading, invokeCommand] = useCloudCommand();
-
-                const callbacks: ProductCallbacks = useMemo(() => ({
-                    invokeCommand
-                }), []);
-
                 if (provider == null) return null;
-                return <>
-                    <TitledCard>
-                        <Operations
-                            topbarIcon={"cubeSolid"}
-                            location={"TOPBAR"}
-                            operations={[]}
-                            selected={toggleSet.checked.items}
-                            extra={callbacks}
-                            entityNameSingular={"Product"}
-                        />
-                    </TitledCard>
-                </>;
+                return <TitledCard>
+                    Products
+                    <Grid gap="18px">
+                        {Types.ProductTypesByPriority.map(productType =>
+                            <MachineView adminView productType={productType} provider={provider?.specification?.id} itemsPerPage={100} />
+                        )}
+                    </Grid>
+                </TitledCard>;
             }}
         />;
     };
