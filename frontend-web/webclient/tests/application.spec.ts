@@ -25,7 +25,7 @@ test("Run job with jobname, extend time, stop job, validate jobname in runs", as
     await expect(page.getByText("Run application again")).toHaveCount(1);
 });
 
-const AppNameThatIsExpectedToBePresent = "Visual Studio Code";
+const AppNameThatIsExpectedToBePresent = "Terminal";
 test("Favorite app, unfavorite app", async ({page}) => {
     await Applications.openApp(page, AppNameThatIsExpectedToBePresent);
     await Applications.toggleFavorite(page);

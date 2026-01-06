@@ -361,6 +361,7 @@ export const Runs = {
             await Applications.actionByRowTitle(page, jobName, "click");
             await page.getByText("Run application again").click();
         })
+        await page.getByText("No machine type selected").waitFor({state: "hidden"});
         await Runs.submitAndWaitForRunning(page);
     },
 
