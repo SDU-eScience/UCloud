@@ -122,6 +122,25 @@ func (a *grantApplication) lDeepCopy() accapi.GrantApplication {
 	return result
 }
 
+func GrantApplicationProcess(app accapi.GrantApplication) accapi.GrantApplication {
+	recipient := app.CurrentRevision.Document.Recipient
+	if recipient.Type == accapi.RecipientTypeExistingProject {
+		project := db.NewTx(func(tx *db.Transaction) fndapi.Project {
+			project, _ := coreutil.ProjectRetrieveFromDatabase(tx, recipient.Id.Value)
+			return project
+		})
+
+		for _, member := range project.Status.Members {
+			if member.Role == fndapi.ProjectRolePI {
+				app.Status.ProjectPI = member.Username
+				break
+			}
+		}
+		app.Status.ProjectTitle.Set(project.Specification.Title)
+	}
+	return app
+}
+
 type grantSettings struct {
 	Mu        sync.RWMutex
 	ProjectId string
@@ -1116,12 +1135,15 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 			if relevant {
 				if len(items) >= itemsPerPage {
 					hasMore = true
+					a.Mu.RUnlock()
 				} else {
-					items = append(items, a.lDeepCopy())
+					deepCopy := a.lDeepCopy()
+					a.Mu.RUnlock()
+					items = append(items, GrantApplicationProcess(deepCopy))
 				}
+			} else {
+				a.Mu.RUnlock()
 			}
-
-			a.Mu.RUnlock()
 		}
 	}
 
@@ -1177,7 +1199,7 @@ func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.
 		app.Mu.RLock()
 		result := app.lDeepCopy()
 		app.Mu.RUnlock()
-		return result, nil
+		return GrantApplicationProcess(result), nil
 	}
 }
 

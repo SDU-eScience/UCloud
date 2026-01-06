@@ -149,12 +149,12 @@ export function addThousandSeparators(numberOrString: string | number): string {
         result += char;
         i += 1;
         if ((i - len) % 3 === 0 && i !== len) {
-            result += " ";
+            result += ",";
         }
     }
 
     if (dotIndex !== -1) {
-        result += ",";
+        result += ".";
         result += numberAsString.substring(dotIndex + 1);
     }
 

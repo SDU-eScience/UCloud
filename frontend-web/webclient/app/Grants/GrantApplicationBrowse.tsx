@@ -26,6 +26,7 @@ import {divText} from "@/Utilities/HTMLUtilities";
 import {SimpleAvatarComponentCache} from "@/Files/Shares";
 import {avatarState} from "@/AvataaarLib/hook";
 import {TruncateClass} from "@/ui-components/Truncate";
+import {ProjectTitleForNewCore} from "@/Project/InfoCache";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,

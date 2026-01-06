@@ -264,8 +264,8 @@ type GrantStatus struct {
 	StateBreakdown []GrantGiverApprovalState `json:"stateBreakdown"`
 	Comments       []GrantComment            `json:"comments"`
 	Revisions      []GrantRevision           `json:"revisions"`
-	ProjectTitle   util.Option[string]       `json:"projectTitle"` // deprecated
-	ProjectPI      string                    `json:"projectPI"`    // deprecated
+	ProjectTitle   util.Option[string]       `json:"projectTitle"`
+	ProjectPI      string                    `json:"projectPI"`
 }
 
 type GrantGiverApprovalState struct {
