@@ -217,9 +217,16 @@ func UsersInfoUpdate(actor rpc.Actor, request fndapi.UsersUpdateInfoRequest, rem
 	}))
 
 	if oldMail != newEmail {
+		notifyMailVariables := map[string]any{
+			"type": fndapi.MailTypeNotifyMailChange,
+		}
+
+		notifyMailBytes, _ := json.Marshal(notifyMailVariables)
+		notifyMail := fndapi.Mail(notifyMailBytes)
+
 		_, err = fndapi.MailSendDirect.Invoke(fndapi.BulkRequestOf(fndapi.MailSendDirectMandatoryRequest{
 			RecipientEmail: newEmail,
-			Mail:           mail,
+			Mail:           notifyMail,
 		}))
 	}
 
