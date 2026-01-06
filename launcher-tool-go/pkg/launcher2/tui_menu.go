@@ -256,6 +256,10 @@ func (m *tuiMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.ViewPort.ScrollUp(1)
 			case "down", "j":
 				m.ViewPort.ScrollDown(1)
+			case "left", "h":
+				m.ViewPort.ScrollLeft(1)
+			case "right", "l":
+				m.ViewPort.ScrollRight(1)
 			case "pgdown":
 				m.ViewPort.PageDown()
 			case "pgup":
