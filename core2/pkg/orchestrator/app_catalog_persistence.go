@@ -1,11 +1,13 @@
 package orchestrator
 
 import (
+	"cmp"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"runtime"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -313,6 +315,15 @@ func appCatalogLoad() {
 				for app := range results {
 					b := appBucket(app.Name)
 					b.Applications[app.Name] = append(b.Applications[app.Name], app)
+				}
+
+				for i := range appCatalogGlobals.Buckets {
+					b := &appCatalogGlobals.Buckets[i]
+					for name := range b.Applications {
+						slices.SortFunc(b.Applications[name], func(a, b *internalApplication) int {
+							return cmp.Compare(a.CreatedAt.UnixMilli(), b.CreatedAt.UnixMilli())
+						})
+					}
 				}
 			}
 
