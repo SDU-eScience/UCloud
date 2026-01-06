@@ -174,6 +174,19 @@ var AuthLogoutWeb = rpc.Call[AuthenticationTokens, util.Empty]{
 	},
 }
 
+// Used primarily for testing purposes. Does not support 2FA.
+var AuthPasswordLoginServer = rpc.Call[PasswordLoginRequest, AuthenticationTokens]{
+	BaseContext: AuthContext,
+	Operation:   "loginServer",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPublic,
+	Audit: rpc.AuditRules{
+		Transformer: func(request any) json.RawMessage {
+			return json.RawMessage("{}")
+		},
+	},
+}
+
 var AuthPasswordLoginWeb = rpc.Call[PasswordLoginRequest, util.Empty]{
 	BaseContext: AuthContext,
 	Operation:   "loginWeb",

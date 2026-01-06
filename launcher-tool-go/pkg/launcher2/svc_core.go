@@ -62,7 +62,7 @@ func ServiceCore() {
 		StartServiceEx(service, true)
 		deadline := time.Now().Add(30 * time.Second)
 
-		LogOutputRunWork("Waiting for UCloud/Core", "OK", func(ch chan string) error {
+		LogOutputRunWork("Waiting for UCloud/Core", func(ch chan string) error {
 			rpc.ClientAllowSilentAuthTokenRenewalErrors.Store(true)
 			defer rpc.ClientAllowSilentAuthTokenRenewalErrors.Store(false)
 
@@ -77,7 +77,7 @@ func ServiceCore() {
 			return fmt.Errorf("Gave up waiting for UCloud/Core")
 		})
 
-		LogOutputRunWork("Importing applications", "OK", func(ch chan string) error {
+		LogOutputRunWork("Importing applications", func(ch chan string) error {
 			checksum := "ea9ab32f52379756df5f5cbbcefb33928c49ef8e2c6b135a5048a459e40bc6b2"
 			_, herr := orcapi.AppsDevImport.Invoke(orcapi.AppCatalogDevImportRequest{
 				Endpoint: fmt.Sprintf("https://launcher-assets.cloud.sdu.dk/%s.zip", checksum),
@@ -107,7 +107,7 @@ func ServiceCore() {
 			return nil
 		})
 
-		LogOutputRunWork("Creating admin user", "OK", func(ch chan string) error {
+		LogOutputRunWork("Creating admin user", func(ch chan string) error {
 			_, herr := fndapi.UsersCreate.Invoke([]fndapi.UsersCreateRequest{
 				{
 					Username:   "user",

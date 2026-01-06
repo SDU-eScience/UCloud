@@ -634,6 +634,12 @@ var tuiManagementDiv = strings.Repeat("-", 40)
 
 var tuiManagementActions = []tuiManagementAction{
 	{
+		Text: "Run E2E tests",
+		Runner: func() {
+			TestsRun("user", "mypassword")
+		},
+	},
+	{
 		Text: "Restart environment",
 		Runner: func() {
 			ClusterStart(true)
@@ -648,7 +654,6 @@ var tuiManagementActions = []tuiManagementAction{
 	{
 		Text: tuiManagementDiv,
 	},
-
 	{
 		Text: "Delete environment",
 		Runner: func() {

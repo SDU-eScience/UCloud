@@ -139,6 +139,10 @@ func (m logTuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.vp.ScrollUp(1)
 		case "down", "j":
 			m.vp.ScrollDown(1)
+		case "left", "h":
+			m.vp.ScrollLeft(1)
+		case "right", "l":
+			m.vp.ScrollRight(1)
 		case "pgup":
 			m.vp.HalfPageUp()
 		case "pgdown":
@@ -245,7 +249,7 @@ func LogOutputTui(titleRunning *string, out chan string) {
 	}
 }
 
-func LogOutputRunWork(title string, completed string, work func(ch chan string) error) {
+func LogOutputRunWork(title string, work func(ch chan string) error) {
 	mutableTitle := &title
 	ch := make(chan string)
 	go func() {

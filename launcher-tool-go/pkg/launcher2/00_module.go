@@ -14,6 +14,9 @@ import (
 	"github.com/charmbracelet/huh"
 	"golang.org/x/term"
 	"gopkg.in/yaml.v3"
+	fndapi "ucloud.dk/shared/pkg/foundation"
+	accapi "ucloud.dk/shared/pkg/accounting"
+	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -42,21 +45,6 @@ func RpcClientConfigure(refreshToken string) {
 func Launch() {
 	HasPty = term.IsTerminal(int(os.Stdin.Fd()))
 	DocumentationStartRenderer()
-
-	if false {
-		StreamingExecute(
-			"Testing",
-			[]string{"/bin/bash", "-c", "echo 1; sleep 1; echo 2; sleep 1; echo 3; sleep 1;"},
-			ExecuteOptions{},
-		)
-		StreamingExecute(
-			"Testing",
-			[]string{"/bin/bash", "-c", "echo A; sleep 1; echo B; sleep 1; echo C; sleep 1;"},
-			ExecuteOptions{},
-		)
-
-		return
-	}
 
 	repoRootPath := ""
 	if _, err := os.Stat(".git"); err == nil {
@@ -329,4 +317,311 @@ func StartServiceEx(service Service, streaming bool) ExecuteResponse {
 
 func SetTerminalTitle(title string) {
 	fmt.Printf("\x1b]0;%s\x07", title)
+}
+
+func TestsRun(adminUser, adminPass string) {
+	serviceToken := rpc.DefaultClient.RefreshToken
+	defer func() {
+		RpcClientConfigure(serviceToken)
+	}()
+
+	var adminActor rpc.CorePrincipalBaseClaims
+	LogOutputRunWork("Looking up admin user", func(ch chan string) error {
+		actor, err := fndapi.AuthLookupUser.Invoke(fndapi.FindByStringId{Id: adminUser})
+		if err != nil {
+			return err
+		}
+
+		adminActor = actor
+		return nil
+	})
+
+	providersToTest := map[string]rpc.ProjectId{}
+	if ClusterFeatures[FeatureProviderK8s] {
+		projectId, ok := adminActor.ProviderProjects["k8s"]
+		if ok {
+			providersToTest["k8s"] = projectId
+		}
+	}
+	if ClusterFeatures[FeatureProviderSlurm] {
+		projectId, ok := adminActor.ProviderProjects["slurm"]
+		if ok {
+			providersToTest["slurm"] = projectId
+		}
+	}
+
+	LogOutputRunWork("Determining test environment", func(ch chan string) error {
+		if len(providersToTest) == 0 {
+			return fmt.Errorf("this cluster has no available providers")
+		}
+		return nil
+	})
+
+	adminToken := ""
+
+	LogOutputRunWork("Authenticating", func(ch chan string) error {
+		result, err := fndapi.AuthPasswordLoginServer.Invoke(fndapi.PasswordLoginRequest{
+			Username: adminUser,
+			Password: adminPass,
+		})
+
+		if err != nil {
+			return err
+		}
+
+		adminToken = result.RefreshToken
+		return nil
+	})
+
+	RpcClientConfigure(adminToken)
+
+	users := []fndapi.UsersCreateRequest{
+		{
+			Username:   util.SecureToken(),
+			Password:   util.SecureToken(),
+			Email:      fmt.Sprintf("%s@localhost.direct", util.SecureToken()),
+			Role:       util.OptValue(fndapi.PrincipalUser),
+			FirstNames: util.OptValue("Test"),
+			LastName:   util.OptValue("User"),
+		},
+		{
+			Username:   util.SecureToken(),
+			Password:   util.SecureToken(),
+			Email:      fmt.Sprintf("%s@localhost.direct", util.SecureToken()),
+			Role:       util.OptValue(fndapi.PrincipalUser),
+			FirstNames: util.OptValue("Test"),
+			LastName:   util.OptValue("User"),
+		},
+	}
+
+	var userTokens []string
+
+	LogOutputRunWork("Creating users", func(ch chan string) error {
+		_, err := fndapi.UsersCreate.Invoke(users)
+		if err != nil {
+			return fmt.Errorf("failed to create users: %s", err)
+		}
+
+		for _, user := range users {
+			toks, err := fndapi.AuthPasswordLoginServer.Invoke(fndapi.PasswordLoginRequest{
+				Username: user.Username,
+				Password: user.Password,
+			})
+
+			if err != nil {
+				return err
+			}
+
+			userTokens = append(userTokens, toks.RefreshToken)
+		}
+		return nil
+	})
+
+	productsByProviderAndType := map[string]map[accapi.ProductType]accapi.ProductV2{}
+
+	LogOutputRunWork("Granting test resources", func(ch chan string) error {
+		for provider, projectId := range providersToTest {
+			projectHeader := http.Header{}
+			projectHeader.Add("Project", string(projectId))
+			rpcOpts := rpc.InvokeOpts{Headers: projectHeader}
+
+			ch <- "Determining product selection\n"
+
+			wallets, err := accapi.WalletsBrowse.Invoke(accapi.WalletsBrowseRequest{
+				ItemsPerPage: 250,
+			})
+
+			if err != nil {
+				return err
+			}
+
+			products, _ := accapi.ProductsBrowse.Invoke(accapi.ProductsBrowseRequest{
+				ItemsPerPage:   250,
+				ProductsFilter: accapi.ProductsFilter{FilterProvider: util.OptValue(provider)},
+			})
+
+			productsByType := map[accapi.ProductType]accapi.ProductV2{}
+			for _, product := range products.Items {
+				existing, hasExisting := productsByType[product.ProductType]
+				if !hasExisting {
+					if product.ProductType != accapi.ProductTypeCompute || !product.Category.FreeToUse {
+						productsByType[product.ProductType] = product
+					}
+				} else {
+					if product.ProductType == accapi.ProductTypeCompute && !product.HiddenInGrantApplications && !product.Category.FreeToUse {
+						if product.MemoryInGigs < existing.MemoryInGigs {
+							productsByType[product.ProductType] = product
+						}
+					} else if product.ProductType != accapi.ProductTypeCompute && product.Name == product.Category.Name {
+						productsByType[product.ProductType] = product
+					}
+				}
+			}
+			productsByProviderAndType[provider] = productsByType
+
+			ch <- "Preparing root allocations\n"
+
+			var missingRootAllocations []accapi.RootAllocateRequest
+			for _, product := range productsByType {
+				found := false
+				for _, wallet := range wallets.Items {
+					if wallet.MaxUsable > 0 && wallet.PaysFor.ToId() == product.Category.ToId() {
+						found = true
+						break
+					}
+				}
+
+				if !found && !product.Category.FreeToUse {
+					quota := int64(1000)
+					if product.Category.AccountingUnit.FloatingPoint {
+						quota *= 1_000_000
+					} else if product.Category.AccountingFrequency == accapi.AccountingFrequencyPeriodicMinute {
+						quota *= 60
+					}
+
+					missingRootAllocations = append(missingRootAllocations, accapi.RootAllocateRequest{
+						Category: product.Category.ToId(),
+						Quota:    quota,
+						Start:    fndapi.Timestamp(time.Now()),
+						End:      fndapi.Timestamp(time.Now().AddDate(0, 0, 7)),
+					})
+				}
+			}
+
+			if len(missingRootAllocations) > 0 {
+				_, err = accapi.RootAllocate.InvokeEx(rpc.DefaultClient, fndapi.BulkRequestOf(missingRootAllocations...), rpcOpts)
+				if err != nil {
+					return err
+				}
+			}
+
+			ch <- fmt.Sprintf("Granting resources: %#v\n", productsByProviderAndType)
+
+			var allocationRequests []accapi.AllocationRequest
+			for _, product := range productsByType {
+				quota := int64(1000)
+				if product.Category.AccountingUnit.FloatingPoint {
+					quota *= 1_000_000
+				} else if product.Category.AccountingFrequency == accapi.AccountingFrequencyPeriodicMinute {
+					quota *= 60
+				}
+
+				allocationRequests = append(allocationRequests, accapi.AllocationRequest{
+					Category:         product.Category.Name,
+					Provider:         product.Category.Provider,
+					GrantGiver:       string(projectId),
+					BalanceRequested: util.OptValue(quota),
+				})
+			}
+
+			_, err = accapi.GrantsSubmitRevision.InvokeEx(rpc.DefaultClient, accapi.GrantsSubmitRevisionRequest{
+				Revision: accapi.GrantDocument{
+					Recipient: accapi.Recipient{
+						Type:     accapi.RecipientTypePersonalWorkspace,
+						Username: util.OptValue[string](users[0].Username),
+					},
+					AllocationRequests: allocationRequests,
+					AllocationPeriod: util.OptValue(accapi.Period{
+						Start: util.OptValue[fndapi.Timestamp](fndapi.Timestamp(time.Now())),
+						End:   util.OptValue[fndapi.Timestamp](fndapi.Timestamp(time.Now().AddDate(0, 0, 7))),
+					}),
+					Form: accapi.Form{
+						Type: accapi.FormTypeGrantGiverInitiated,
+						Text: "Grant test resources",
+					},
+				},
+				Comment: "Grant test resources",
+			}, rpcOpts)
+
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	RpcClientConfigure(userTokens[0])
+
+	LogOutputRunWork("Connecting to providers", func(ch chan string) error {
+		page, err := orcapi.ProviderIntegrationBrowse.Invoke(orcapi.ProviderIntegrationBrowseRequest{
+			ItemsPerPage: 250,
+		})
+
+		if err != nil {
+			return err
+		}
+
+		for _, item := range page.Items {
+			if !item.Connected {
+				_, err = orcapi.ProviderIntegrationConnect.Invoke(orcapi.ProviderIntegrationConnectRequest{
+					Provider: item.Provider,
+				})
+
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+
+	LogOutputRunWork("Setting default user options", func(ch chan string) error {
+		_, err := fndapi.UsersUpdateOptionalInfo.Invoke(fndapi.OptionalUserInfo{
+			OrganizationFullName: util.OptValue[string]("Test org"),
+			Department:           util.OptValue[string]("Test department"),
+			ResearchField:        util.OptValue[string]("Other"),
+			Position:             util.OptValue[string]("Robot"),
+			Gender:               util.OptValue[string]("Other"),
+		})
+
+		if err != nil {
+			return err
+		}
+
+		_, err = fndapi.NotificationsUpdateSettings.Invoke(fndapi.NotificationSettings{JobStartedOrStopped: false})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	LogOutputRunWork("Preparing test data", func(ch chan string) error {
+		testInfoPath := filepath.Join(RepoRoot, "frontend-web/webclient/tests/test_data.json")
+		err := os.MkdirAll(filepath.Dir(testInfoPath), 0750)
+		if err != nil {
+			return err
+		}
+
+		testInfo := map[string]any{
+			"location_origin":               "https://ucloud.localhost.direct",
+			"providers":                     providersToTest,
+			"products_by_provider_and_type": productsByProviderAndType,
+			"users": map[string]any{
+				"with_resources": map[string]any{
+					"username": users[0].Username,
+					"password": users[0].Password,
+				},
+				"without_resources": map[string]any{
+					"username": users[1].Username,
+					"password": users[1].Password,
+				},
+			},
+		}
+		testInfoData, _ := json.Marshal(testInfo)
+		err = os.WriteFile(testInfoPath, testInfoData, 0640)
+		if err != nil {
+			return fmt.Errorf("unable to write test_data.json: %s", err)
+		}
+		return nil
+	})
+
+	StreamingExecute("Preparing tests", []string{"npx", "playwright", "install", "--with-deps"}, ExecuteOptions{
+		WorkingDir: util.OptValue(filepath.Join(RepoRoot, "frontend-web/webclient")),
+	})
+
+	StreamingExecute("Running tests", []string{"npx", "playwright", "test", "--ui"}, ExecuteOptions{
+		WorkingDir: util.OptValue(filepath.Join(RepoRoot, "frontend-web/webclient")),
+	})
 }

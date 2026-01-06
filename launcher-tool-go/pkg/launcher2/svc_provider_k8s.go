@@ -73,7 +73,7 @@ func ProviderK8s() {
 		publicKey := ""
 		refreshToken := ""
 
-		LogOutputRunWork("Registering provider", "OK", func(ch chan string) error {
+		LogOutputRunWork("Registering provider", func(ch chan string) error {
 			projectResp, herr := fndapi.ProjectInternalCreate.Invoke(fndapi.ProjectInternalCreateRequest{
 				Title:        "Provider K8s",
 				BackendId:    "provider-k8s",
@@ -120,7 +120,7 @@ func ProviderK8s() {
 			return nil
 		})
 
-		LogOutputRunWork("Creating configuration files", "OK", func(ch chan string) error {
+		LogOutputRunWork("Creating configuration files", func(ch chan string) error {
 			err := os.WriteFile(filepath.Join(imConfig, "ucloud_crt.pem"), []byte(publicKey), 0600)
 			if err != nil {
 				return err
