@@ -1591,11 +1591,17 @@ func lGrantsCreateProject(app *grantApplication, title string, pi string) (strin
 			return fmt.Sprintf("%s-%s", app.Application.Id, title), nil
 		}
 	} else {
+		breakdown := app.Application.Status.StateBreakdown
+		parent := util.OptNone[string]()
+		if len(breakdown) > 0 {
+			parent.Set(breakdown[0].ProjectId)
+		}
 		result, err := fndapi.ProjectInternalCreate.Invoke(fndapi.ProjectInternalCreateRequest{
 			Title:        title,
 			BackendId:    fmt.Sprintf("grants/%s", app.Application.Id.Value),
 			PiUsername:   pi,
 			SubAllocator: app.Application.CurrentRevision.Document.Form.SubAllocator,
+			Parent:       parent,
 		})
 
 		if err != nil {

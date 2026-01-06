@@ -220,10 +220,11 @@ var ProjectCreate = rpc.Call[BulkRequest[ProjectSpecification], BulkResponse[Fin
 
 // TODO this is a new call
 type ProjectInternalCreateRequest struct {
-	Title        string            `json:"title"`
-	BackendId    string            `json:"backendId"`
-	PiUsername   string            `json:"piUsername"`
-	SubAllocator util.Option[bool] `json:"subAllocator"`
+	Title        string              `json:"title"`
+	BackendId    string              `json:"backendId"`
+	PiUsername   string              `json:"piUsername"`
+	SubAllocator util.Option[bool]   `json:"subAllocator"`
+	Parent       util.Option[string] `json:"parent"`
 }
 
 // TODO this is a new call
