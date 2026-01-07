@@ -54,7 +54,9 @@ jobs:
         with:
           name: test-artifacts-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            frontend-web/webclient/playwright-report
-            .compose/*-logs/*
+            frontend-web/webclient/playwright-report/
+            .compose/k8s-logs/
+            .compose/core-logs/
+            .compose/slurm-logs/
           if-no-files-found: warn
           retention-days: 14
