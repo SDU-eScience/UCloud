@@ -1,4 +1,5 @@
 import {type Page} from "@playwright/test";
+import fs from "fs";
 
 // Note(Jonas): If it complains that it doesn"t exist, create it.
 import {default as data} from "./test_data.json" with {type: "json"};
@@ -185,6 +186,14 @@ export const File = {
         await NetworkCalls.awaitResponse(page, "**/api/files/browse?**", async () => {
             await page.getByText(driveName).last().click();
         });
+    },
+
+    async download(page: Page, filename: string): Promise<string> {
+        const downloadPromise = page.waitForEvent("download");
+        await File.actionByRowTitle(page, filename, "click");
+        await page.getByText("Download").click();
+        const dl = await downloadPromise;
+        return fs.readFileSync(await dl.path(), {encoding: 'utf8', flag: 'r'});
     }
 };
 
