@@ -453,10 +453,20 @@ func TestsRun(adminUser, adminPass string) {
 				return err
 			}
 
-			products, _ := accapi.ProductsBrowse.Invoke(accapi.ProductsBrowseRequest{
-				ItemsPerPage:   250,
-				ProductsFilter: accapi.ProductsFilter{FilterProvider: util.OptValue(provider)},
-			})
+			var products fndapi.PageV2[accapi.ProductV2]
+			for range 30 {
+				products, _ = accapi.ProductsBrowse.Invoke(accapi.ProductsBrowseRequest{
+					ItemsPerPage:   250,
+					ProductsFilter: accapi.ProductsFilter{FilterProvider: util.OptValue(provider)},
+				})
+
+				if len(products.Items) > 0 {
+					break
+				} else {
+					ch <- "Waiting for products to be available..."
+					time.Sleep(1 * time.Second)
+				}
+			}
 
 			productsByType := map[accapi.ProductType]accapi.ProductV2{}
 			for _, product := range products.Items {
