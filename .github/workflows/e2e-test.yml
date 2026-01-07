@@ -50,17 +50,29 @@ jobs:
 
       - name: Fix log permissions
         if: always()
-        run: sudo chown -R $USER:$USER .compose/*-logs
+        run: |
+          sudo chown -R $USER:$USER .compose/*-logs
+          id
+          ls -la .compose/*-logs
+          cat *.compose/*-logs/*
 
       - name: Upload test artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-artifacts-${{ github.run_id }}-${{ github.run_attempt }}
+          path: frontend-web/webclient/playwright-report/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload log files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            frontend-web/webclient/playwright-report/
-            .compose/k8s-logs/
-            .compose/core-logs/
-            .compose/slurm-logs/
+            .compose/k8s-logs/*
+            .compose/core-logs/*
+            .compose/slurm-logs/*
           if-no-files-found: warn
           retention-days: 14
