@@ -52,9 +52,6 @@ jobs:
         if: always()
         run: |
           sudo chown -R $USER:$USER .compose/*-logs
-          id
-          ls -la .compose/*-logs
-          cat *.compose/*-logs/*
 
       - name: Upload test artifacts
         if: always()
@@ -74,5 +71,6 @@ jobs:
             .compose/k8s-logs/*
             .compose/core-logs/*
             .compose/slurm-logs/*
+            .compose/k8s-storage/home/*
           if-no-files-found: warn
           retention-days: 14
