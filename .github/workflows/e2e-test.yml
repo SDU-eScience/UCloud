@@ -52,6 +52,7 @@ jobs:
         if: always()
         run: |
           sudo chown -R $USER:$USER .compose/*-logs
+          sudo chown -R $USER:$USER .compose/k8s-storage/home/*
 
       - name: Upload test artifacts
         if: always()
