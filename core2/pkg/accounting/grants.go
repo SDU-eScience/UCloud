@@ -1739,6 +1739,37 @@ func grantHandleEvent(event grantEvent) {
 	}
 }
 
+func grantGetRecipientTitle(event grantEvent) string {
+	app := &event.Application
+	recipient := app.CurrentRevision.Document.Recipient
+
+	switch recipient.Type {
+	case accapi.RecipientTypeExistingProject:
+		projectId := recipient.Id.Value
+		return db.NewTx(func(tx *db.Transaction) string {
+			project, ok := coreutil.ProjectRetrieveFromDatabase(tx, projectId)
+			if ok {
+				return project.Specification.Title
+			}
+			return ""
+		})
+	case accapi.RecipientTypeNewProject:
+		return recipient.Title.Value
+	case accapi.RecipientTypePersonalWorkspace:
+		return fmt.Sprintf("Personal workspace of %s", recipient.Username.Value)
+	default:
+		return ""
+	}
+}
+
+func truncateRecipientTitle(event grantEvent) string {
+	title := grantGetRecipientTitle(event)
+	if len(title) >= 30 {
+		return title[:30] + "..."
+	}
+	return title
+}
+
 func grantSendNotification(event grantEvent) *util.HttpError {
 	if grantGlobals.Testing.Enabled {
 		return nil
@@ -1783,34 +1814,29 @@ func grantSendNotification(event grantEvent) *util.HttpError {
 			"appId": event.Application.Id,
 		}
 
-		/*
-			TODO make notifications messages more descriptive
-			Add application name/id, project name, name of applicant/reviewer performing an action
-			Maybe add a notification for when an application was withdrawn?
-
-		*/
-
 		switch event.Type {
 		case grantEvNewComment:
 			notification.Type = "NEW_GRANT_COMMENT"
-			notification.Message = fmt.Sprintf("A new comment was added by %s", event.Actor.Username)
-			meta["title"] = fmt.Sprintf("New comment in %s", event.Application.CurrentRevision.Document.Recipient.Title.Value) // TODO Is this the correct project title?
+			notification.Message = fmt.Sprintf("Comment added in \"%s\"", truncateRecipientTitle(event))
+			meta["title"] = fmt.Sprintf("New comment by %s", event.Actor.Username)
+			meta["avatar"] = event.Actor.Username
 		case grantEvApplicationSubmitted:
 			notification.Type = "NEW_GRANT_APPLICATION"
-			notification.Message = fmt.Sprintf("An application for %s was submitted by %s", event.Actor.Project.Value, event.Actor.Username)
-			meta["title"] = fmt.Sprintf("A new grant application has been submitted")
+			notification.Message = fmt.Sprintf("\"%s\" was submitted by %s", truncateRecipientTitle(event), event.Actor.Username)
+			meta["title"] = fmt.Sprintf("A new application was submitted")
 		case grantEvGrantAwarded:
 			notification.Type = "GRANT_APPLICATION_RESPONSE"
-			notification.Message = fmt.Sprintf("A grant for %s, has been approved by %s", event.Actor.Project.Value, event.Actor.Username)
+			notification.Message = fmt.Sprintf("\"%s\", has been approved by %s", truncateRecipientTitle(event), event.Actor.Username)
 			meta["title"] = "Grant awarded"
 		case grantEvApplicationRejected:
 			notification.Type = "GRANT_APPLICATION_RESPONSE"
-			notification.Message = fmt.Sprintf("A grant for %s, has been rejected by %s", event.Actor.Project.Value, event.Actor.Username)
+			notification.Message = fmt.Sprintf("\"%s\", has been rejected by %s", truncateRecipientTitle(event), event.Actor.Username)
 			meta["title"] = "Grant rejected"
 		case grantEvRevisionSubmitted:
 			notification.Type = "GRANT_APPLICATION_UPDATED"
-			notification.Message = fmt.Sprintf("A new revision has been submitted by %s", event.Actor.Username)
-			meta["title"] = fmt.Sprintf("Grant application, %s, has a new revision", event.Actor.Project.Value)
+			notification.Message = fmt.Sprintf("Grant revision submitted by %s", event.Actor.Username)
+			meta["title"] = fmt.Sprintf("Application updated: \"%s\"", truncateRecipientTitle(event))
+			meta["avatar"] = event.Actor.Username
 			// TODO make grantEv for grantTransfer and insert here
 		}
 

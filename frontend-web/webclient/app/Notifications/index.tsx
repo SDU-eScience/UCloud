@@ -3,7 +3,7 @@ import {formatDistance} from "date-fns";
 import * as React from "react";
 import {Snack} from "@/Snackbar/Snackbars";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Absolute, Flex, Icon, Relative} from "@/ui-components";
+import {Absolute, Box, Flex, Icon, Relative} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {TextSpan} from "@/ui-components/Text";
 import {ThemeColor} from "@/ui-components/theme";
@@ -25,6 +25,7 @@ import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {SidebarDialog} from "@/ui-components/Sidebar";
 import {addStandardDialog} from "@/UtilityComponents";
 import {dispatchSetProjectAction} from "@/Project/ReduxState";
+import {AvatarForUser} from "@/AvataaarLib/UserAvatar";
 
 // NOTE(Dan): If you are in here, then chances are you want to attach logic to one of the notifications coming from
 // the backend. You can do this by editing the following two functions: `resolveNotification()` and
@@ -39,6 +40,7 @@ function resolveNotification(event: Notification): {
     color2?: ThemeColor;
     modifiedTitle?: string;
     modifiedMessage?: React.ReactNode;
+    avatar?: string;
 } {
     let appTitle = event.meta?.["appTitles"] ? event.meta?.appTitles[0] : null;
     if (appTitle === "unknown" || appTitle == "Unknown") appTitle = null;
@@ -65,12 +67,14 @@ function resolveNotification(event: Notification): {
                 const modifiedMessage = "You have received a new grant application to review.";
                 return {icon, modifiedMessage, modifiedTitle};
             }
-            return {icon};
+            const modifiedTitle = event.meta["title"] as string | undefined;
+            return {icon, modifiedTitle};
 
         case "NEW_GRANT_COMMENT": {
             const icon = "heroPaperAirplane";
             const modifiedTitle = event.meta["title"] as string | undefined;
-            return {icon, modifiedTitle};
+            const avatar = event.meta["avatar"] as string | undefined;
+            return {icon, modifiedTitle, avatar};
         }
 
         case "GRANT_APPLICATION_RESPONSE": {
@@ -80,7 +84,8 @@ function resolveNotification(event: Notification): {
 
         case "GRANT_APPLICATION_UPDATED": {
             const icon = "heroPaperAirplane";
-            return {icon, modifiedTitle: event.meta["title"] as string | undefined};
+            const avatar = event.meta["avatar"] as string | undefined;
+            return {icon, modifiedTitle: event.meta["title"] as string | undefined, avatar};
         }
 
         case "JOB_COMPLETED":
@@ -639,6 +644,7 @@ export function normalizeNotification(
         ts: notification.ts,
         read: notification.read,
         uniqueId: `${notification.id}`,
+        avatar: resolved.avatar,
         onSnooze: () => Snooze.snooze(`${notification.id}`),
     };
 
@@ -677,8 +683,13 @@ function NotificationEntry(props: NotificationEntryProps): React.ReactNode {
 
     return (
         <div className={classConcatArray(NotificationWrapper, classes)} onClick={onAction}>
-            <Icon name={notification.icon} size="24px" color={notification.iconColor ?? "iconColor"}
-                color2={notification.iconColor2 ?? "iconColor2"} />
+            {props.notification.avatar === undefined ?
+                <Icon name={notification.icon} size="24px" color={notification.iconColor ?? "iconColor"}
+                      color2={notification.iconColor2 ?? "iconColor2"} /> :
+                <Box flexShrink={0}>
+                    <AvatarForUser username={props.notification.avatar} height="24px" width="24px" mx={"0px"}></AvatarForUser>
+                </Box>
+            }
             <div className="notification-content">
                 <Flex>
                     <b>{notification.title}</b>
@@ -744,6 +755,7 @@ const NotificationWrapper = injectStyle("notification-wrapper", k => `
     ${k} .time {
         font-size: 12px;
         margin-left: auto;
+        flex-shrink: 0;
     }
 `);
 
