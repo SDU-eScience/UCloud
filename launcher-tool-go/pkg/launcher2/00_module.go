@@ -454,7 +454,7 @@ func TestsRun(adminUser, adminPass string) {
 			}
 
 			var products fndapi.PageV2[accapi.ProductV2]
-			for range 30 {
+			for range 120 {
 				products, _ = accapi.ProductsBrowse.Invoke(accapi.ProductsBrowseRequest{
 					ItemsPerPage:   250,
 					ProductsFilter: accapi.ProductsFilter{FilterProvider: util.OptValue(provider)},
@@ -463,7 +463,7 @@ func TestsRun(adminUser, adminPass string) {
 				if len(products.Items) > 0 {
 					break
 				} else {
-					ch <- "Waiting for products to be available..."
+					ch <- "Waiting for products to be available...\n"
 					time.Sleep(1 * time.Second)
 				}
 			}
