@@ -73,7 +73,11 @@ func ServiceCore() {
 				time.Sleep(100 * time.Millisecond)
 			}
 
+			result := ComposeExec("Fetching logs", "core", []string{"cat", "/tmp/service.log", "/var/log/ucloud/server.log"}, ExecuteOptions{Silent: true})
+			ch <- result.Stdout
+			ch <- result.Stderr
 			ch <- "Gave up waiting for UCloud/Core. Check logs in core container."
+
 			return fmt.Errorf("Gave up waiting for UCloud/Core")
 		})
 

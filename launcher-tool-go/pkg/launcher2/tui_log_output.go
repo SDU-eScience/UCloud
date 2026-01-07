@@ -273,6 +273,9 @@ func LogOutputRunWork(title string, work func(ch chan string) error) {
 			*mutableTitle = logTuiFailure + " " + title
 			ch <- "\n\n"
 			ch <- err.Error()
+			if !HasPty {
+				close(ch)
+			}
 		} else {
 			close(ch)
 		}
