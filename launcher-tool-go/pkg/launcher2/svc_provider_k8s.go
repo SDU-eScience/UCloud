@@ -35,6 +35,7 @@ func ProviderK8s() {
 	k3sOutput := AddDirectory(provider, "k3s-output")
 	storage := AddDirectory(provider, "storage")
 	imConfig := AddDirectory(provider, "config")
+	logDir := AddDirectory(provider, "logs")
 
 	AddService(provider, DockerComposeService{
 		Image:    ImDevImage,
@@ -43,6 +44,7 @@ func ProviderK8s() {
 		Command:  []string{"sleep", "inf"},
 		Volumes: []string{
 			Mount(imConfig, "/etc/ucloud"),
+			Mount(logDir, "/var/log/ucloud"),
 			Mount(k3sOutput, "/mnt/k3s"),
 			Mount(storage, "/mnt/storage"),
 			Mount(filepath.Join(RepoRoot, "/provider-integration/im2"), "/opt/ucloud"),

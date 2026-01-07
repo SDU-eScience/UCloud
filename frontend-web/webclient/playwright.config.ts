@@ -11,7 +11,7 @@ const firefox: Project = {
     use: {...devices['Desktop Firefox']},
 };
 
-const webkit : Project = {
+const webkit: Project = {
     name: 'webkit',
     use: {...devices['Desktop Safari']},
 };
@@ -24,9 +24,8 @@ export default defineConfig({
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
     retries: 0,
-    workers: process.env.CI ? 1 : undefined,
     reporter: [
-        ['dot'],
+        ['line', {printSteps: true}],
         ["html", {
             open: "never",
             outputDir: "playwright-report"

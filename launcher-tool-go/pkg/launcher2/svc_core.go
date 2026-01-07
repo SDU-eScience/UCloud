@@ -25,6 +25,7 @@ func ServiceCore() {
 	}
 
 	configDir := AddDirectory(service, "config")
+	logDir := AddDirectory(service, "logs")
 
 	AddService(service, DockerComposeService{
 		Image:    ImDevImage,
@@ -36,6 +37,7 @@ func ServiceCore() {
 			Mount(filepath.Join(RepoRoot, "core2"), "/opt/ucloud"),
 			Mount(filepath.Join(RepoRoot, "provider-integration"), "/opt/provider-integration"),
 			Mount(configDir, "/etc/ucloud"),
+			Mount(logDir, "/var/log/ucloud"),
 		},
 	})
 
