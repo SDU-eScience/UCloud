@@ -13,7 +13,7 @@ if ! (test -f /tmp/sync.pid && (ps -p $(cat /tmp/sync.pid) > /dev/null)); then
     sleep 0.5 # silly workaround to make sure docker exec doesn't kill us
 fi
 
-uid=11042
+uid=0
 
 initSlurmServiceAccount() {
   # Ensure that the UCloud service account has the operator permissions
@@ -31,8 +31,6 @@ if [[ $running_slurm == 0 ]]; then
     fi
 
     ! (test -f /etc/ucloud/.slurmsysop) && initSlurmServiceAccount;
-else
-    uid=0
 fi
 
 chmod 755 /work 2> /dev/null || true
