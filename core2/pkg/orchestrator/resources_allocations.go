@@ -53,7 +53,7 @@ func ResourceValidateAllocation(actor rpc.Actor, productRef accapi.ProductRefere
 	if !ok {
 		return util.HttpErr(
 			http.StatusPaymentRequired,
-			"you do not have any valid allocations for '%v'",
+			"You do not have any valid allocations for '%v'",
 			util.OptStringIfNotEmpty(productRef.Category).GetOrDefault(productRef.Provider),
 		)
 	} else {

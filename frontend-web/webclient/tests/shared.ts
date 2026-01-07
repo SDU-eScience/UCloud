@@ -194,6 +194,12 @@ export const File = {
         await page.getByText("Download").click();
         const dl = await downloadPromise;
         return fs.readFileSync(await dl.path(), {encoding: 'utf8', flag: 'r'});
+    },
+
+    async openIntegratedTerminal(page: Page): Promise<void> {
+        await page.getByText("Open terminal").click();
+        await page.getByText("/work").click();
+
     }
 };
 

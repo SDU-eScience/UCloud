@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {Components, Drive, File, User, Rows} from "./shared";
+import {Components, Drive, File, User, Rows, Terminal} from "./shared";
 
 const {dirname} = import.meta;
 
@@ -233,7 +233,20 @@ test.describe("Files - transfer works", () => {
     test("Transfer file between providers", () => {
         throw new Error("not yet");
     })
-})
+});
+
+test.describe("Terminal - check integrated terminal works", () => {
+    test("Create folder, upload file, cat contents in integrated terminal", async ({page, userAgent}) => {
+        test.setTimeout(120_000);
+        const drive = Drives[userAgent!];
+        const testFileName = "test_single_file.txt";
+        const testFileContents = "Single test file content.";
+        await File.uploadFiles(page, [{name: testFileName, contents: testFileContents}]);
+        await File.openIntegratedTerminal(page);
+        await Terminal.enterCmd(page, `cat ${drive}/${testFileName}`);
+        await expect(page.getByText(testFileContents)).toHaveCount(1);
+    });
+});
 
 test.skip("Start a large amount of heavy tasks and observe completion", async ({page}) => {
 
