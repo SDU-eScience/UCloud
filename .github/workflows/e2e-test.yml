@@ -1,0 +1,64 @@
+name: E2E test
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches:
+    - master
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run launcher tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.x"
+          check-latest: true
+          cache: true
+
+      - name: Set up Node.js (LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: "npm"
+
+      - name: Verify toolchain
+        run: |
+          go version
+          node --version
+          npm --version
+          docker --version
+
+      - name: Run init-test
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./launcher-dev init-test
+
+      - name: Run test
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./launcher-dev test
+
+      - name: Upload test artifacts from /tmp/test-artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts-${{ github.run_id }}-${{ github.run_attempt }}
+          path: frontend-web/webclient/playwright-report
+          if-no-files-found: warn
+          retention-days: 14

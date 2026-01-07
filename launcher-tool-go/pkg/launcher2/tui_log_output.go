@@ -228,24 +228,39 @@ func (m logTuiModel) View() string {
 }
 
 func LogOutputTui(titleRunning *string, out chan string) {
-	fmt.Printf("\x1bc")
-	m := logTuiInitModel()
-	m.streamChannel = logTuiStartStream(out)
-	m.title = titleRunning
-	p := tea.NewProgram(m, tea.WithAltScreen())
-	go func() {
-		p.Send(logTuiAttachStreamMsg{msgCh: m.streamChannel})
-	}()
+	if HasPty {
+		fmt.Printf("\x1bc")
+		m := logTuiInitModel()
+		m.streamChannel = logTuiStartStream(out)
+		m.title = titleRunning
+		p := tea.NewProgram(m, tea.WithAltScreen())
+		go func() {
+			p.Send(logTuiAttachStreamMsg{msgCh: m.streamChannel})
+		}()
 
-	_, _ = p.Run()
+		_, _ = p.Run()
 
-	left := "Running command..."
-	if titleRunning != nil {
-		left = *titleRunning
-	}
+		left := "Running command..."
+		if titleRunning != nil {
+			left = *titleRunning
+		}
 
-	if strings.HasPrefix(left, logTuiFailure) {
-		os.Exit(1)
+		if strings.HasPrefix(left, logTuiFailure) {
+			os.Exit(1)
+		}
+	} else {
+		for message := range out {
+			fmt.Print(message)
+		}
+
+		left := "Running command..."
+		if titleRunning != nil {
+			left = *titleRunning
+		}
+
+		if strings.HasPrefix(left, logTuiFailure) {
+			os.Exit(1)
+		}
 	}
 }
 

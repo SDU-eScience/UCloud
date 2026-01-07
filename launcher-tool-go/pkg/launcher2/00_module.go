@@ -14,8 +14,8 @@ import (
 	"github.com/charmbracelet/huh"
 	"golang.org/x/term"
 	"gopkg.in/yaml.v3"
-	fndapi "ucloud.dk/shared/pkg/foundation"
 	accapi "ucloud.dk/shared/pkg/accounting"
+	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -44,6 +44,15 @@ func RpcClientConfigure(refreshToken string) {
 
 func Launch() {
 	HasPty = term.IsTerminal(int(os.Stdin.Fd()))
+	if os.Getenv("NO_TERM") != "" {
+		HasPty = false
+	}
+
+	cliCommand := ""
+	if len(os.Args) > 1 {
+		cliCommand = os.Args[1]
+	}
+
 	DocumentationStartRenderer()
 
 	repoRootPath := ""
@@ -84,6 +93,12 @@ func Launch() {
 		_ = json.Unmarshal(featureBytes, &ClusterFeatures)
 	}
 
+	if cliCommand == "init-test" {
+		ClusterFeatures = map[Feature]bool{
+			FeatureProviderK8s: true,
+		}
+	}
+
 	RegisterServices()
 
 	if !ready {
@@ -120,17 +135,24 @@ func Launch() {
 		}
 	}
 
-	for {
-		SetTerminalTitle("UCloud")
-		p := tea.NewProgram(&tuiMenu{}, tea.WithAltScreen())
-		_, _ = p.Run()
+	switch cliCommand {
+	case "":
+		for {
+			SetTerminalTitle("UCloud")
+			p := tea.NewProgram(&tuiMenu{}, tea.WithAltScreen())
+			_, _ = p.Run()
 
-		if MenuActionRequested != nil {
-			MenuActionRequested()
-			MenuActionRequested = nil
-		} else {
-			break
+			if MenuActionRequested != nil {
+				MenuActionRequested()
+				MenuActionRequested = nil
+			} else {
+				break
+			}
 		}
+	case "init-test":
+		// Do nothing (service was already initialized)
+	case "test":
+		TestsRun("user", "mypassword")
 	}
 }
 
@@ -293,10 +315,6 @@ func ClusterDelete() {
 		[]string{"docker", "run", "--rm", "-v", RepoRoot + "/.compose/:/data", "alpine:3", "/bin/sh", "-c", "rm -rf /data/*"},
 		ExecuteOptions{},
 	)
-}
-
-func StartService(service Service) {
-	StartServiceEx(service, false)
 }
 
 func StartServiceEx(service Service, streaming bool) ExecuteResponse {
@@ -621,7 +639,12 @@ func TestsRun(adminUser, adminPass string) {
 		WorkingDir: util.OptValue(filepath.Join(RepoRoot, "frontend-web/webclient")),
 	})
 
-	StreamingExecute("Running tests", []string{"npx", "playwright", "test", "--ui"}, ExecuteOptions{
+	testCommand := []string{"npx", "playwright", "test", "--ui"}
+	if !HasPty {
+		testCommand = []string{"npx", "playwright", "test"}
+	}
+
+	StreamingExecute("Running tests", testCommand, ExecuteOptions{
 		WorkingDir: util.OptValue(filepath.Join(RepoRoot, "frontend-web/webclient")),
 	})
 }
