@@ -1,0 +1,37 @@
+name: guard-test
+
+on:
+  push:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  members: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      allowed: ${{ steps.check.outputs.allowed }}
+    steps:
+      - name: Verify actor is in required GitHub team
+        id: check
+        env:
+          ORG: sdu-escience
+          TEAM_SLUG: backend
+          ACTOR: ${{ github.actor }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if gh api -H "Accept: application/vnd.github+json" \
+              "/orgs/$ORG/teams/$TEAM_SLUG/memberships/$ACTOR" \
+              --jq '.state' | grep -qx "active"; then
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Actor $ACTOR is not an active member of team $ORG/$TEAM_SLUG (or token lacks permission)." >&2
+          echo "allowed=false" >> "$GITHUB_OUTPUT"
+          exit 1
