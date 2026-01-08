@@ -79,3 +79,4 @@ jobs:
         run: |
           set -euo pipefail
           ./launcher-dev env delete
+          sudo chown -R $USER: .
