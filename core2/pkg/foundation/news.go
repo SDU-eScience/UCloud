@@ -109,9 +109,9 @@ func (row *newsRow) ToApi() fndapi.NewsPost {
 func NewsBrowsePosts(request fndapi.ListPostsRequest) (fndapi.Page[fndapi.NewsPost], *util.HttpError) {
 
 	return db.NewTx(func(tx *db.Transaction) fndapi.Page[fndapi.NewsPost] {
-		categoryFilter := request.Filter.GetPtrOrNil()
-		if categoryFilter != nil {
-			filterString := strings.ToUpper(*categoryFilter)
+		var categoryFilter *string
+		if request.Filter.Present {
+			filterString := strings.ToUpper(request.Filter.Value)
 			categoryFilter = &filterString
 		}
 		rows := db.Select[newsRow](
