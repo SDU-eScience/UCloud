@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -153,6 +154,10 @@ func Launch() {
 		// Do nothing (service was already initialized)
 	case "test":
 		TestsRun("user", "mypassword")
+	case "env":
+		if slices.Contains(os.Args, "delete") {
+			ClusterDelete()
+		}
 	}
 }
 
@@ -587,6 +592,8 @@ func TestsRun(adminUser, adminPass string) {
 					})
 
 					if err == nil {
+						break
+					} else if err != nil && strings.Contains(err.Why, "already connected") {
 						break
 					} else if err != nil && i == 29 {
 						return err

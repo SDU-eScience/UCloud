@@ -72,3 +72,10 @@ jobs:
             .compose/k8s-storage/home/*
           if-no-files-found: warn
           retention-days: 14
+          
+      - name: Delete environment
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./launcher-dev env delete
