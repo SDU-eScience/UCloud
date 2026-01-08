@@ -579,14 +579,20 @@ func TestsRun(adminUser, adminPass string) {
 			return err
 		}
 
-		for _, item := range page.Items {
-			if !item.Connected {
-				_, err = orcapi.ProviderIntegrationConnect.Invoke(orcapi.ProviderIntegrationConnectRequest{
-					Provider: item.Provider,
-				})
+		for i := range 30 {
+			for _, item := range page.Items {
+				if !item.Connected {
+					_, err = orcapi.ProviderIntegrationConnect.Invoke(orcapi.ProviderIntegrationConnectRequest{
+						Provider: item.Provider,
+					})
 
-				if err != nil {
-					return err
+					if err == nil {
+						break
+					} else if err != nil && i == 29 {
+						return err
+					} else {
+						time.Sleep(1)
+					}
 				}
 			}
 		}
