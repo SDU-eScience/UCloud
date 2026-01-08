@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
@@ -158,7 +159,28 @@ func ProviderK8s() {
 			return nil
 		})
 
-		ComposeExec("Provisioning K8s resources", "k8s", []string{"bash", "/etc/ucloud/init.sh"}, ExecuteOptions{})
+		ComposeExec("Provisioning K8s resources", provider.Name, []string{"bash", "/etc/ucloud/init.sh"}, ExecuteOptions{})
+		StartServiceEx(provider, true)
+		for i := range 30 {
+			res := ComposeExec(
+				"Provisioning test IPs",
+				provider.Name,
+				[]string{"ucloud", "ips", "add", "10.99.0.0/24"},
+				ExecuteOptions{ContinueOnFailure: i < 29},
+			)
+
+			if res.ExitCode == 0 {
+				break
+			} else {
+				time.Sleep(1 * time.Second)
+			}
+		}
+		ComposeExec(
+			"Provisioning test license",
+			provider.Name,
+			[]string{"ucloud", "license", "add", "test-license", "--license=test"},
+			ExecuteOptions{},
+		)
 	})
 
 	{

@@ -48,7 +48,11 @@ services:
       enabled: true
 
     syncthing:
-      enabled: false
+      enabled: true
+      ipAddress: 10.56.32.4
+      portMin: 8000
+      portMax: 16000
+      relaysEnabled: false
 
     ssh:
       enabled: true
@@ -56,6 +60,26 @@ services:
       hostname: ucloud.invalid
       portMin: 8000
       portMax: 16000
+
+    modules:
+      "ubuntu-22.04":
+        subPath: "modules"
+        claimName: cephfs
+      "almalinux-8":
+        subPath: "modules"
+        claimName: cephfs
+      "colabfold":
+        subPath: "modules"
+        claimName: cephfs
+      "alphafold3":
+        subPath: "modules"
+        claimName: cephfs
+      "ubuntu-24.04":
+        subPath: "modules"
+        claimName: cephfs
+      "almalinux-9":
+        subPath: "modules"
+        claimName: cephfs
 
     machines:
       u1-standard:
@@ -77,4 +101,3 @@ services:
     mountPoint: /mnt/storage
     trashStagingArea: /mnt/storage/trash
     claimName: cephfs
-

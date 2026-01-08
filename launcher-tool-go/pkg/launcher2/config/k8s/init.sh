@@ -7,7 +7,8 @@ done
 
 sleep 2
 
-mkdir -p /mnt/storage/{home,projects,trash,collections}
+mkdir -p /mnt/storage/{home,projects,trash,collections,modules}
+echo "flag" > /mnt/storage/modules/flag.txt
 
 sed -i s/127.0.0.1/im2k3/g /mnt/k3s/kubeconfig.yaml
 
