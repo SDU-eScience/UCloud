@@ -601,7 +601,7 @@ func TestsRun(adminUser, adminPass string) {
 						} else if i == 29 {
 							return err
 						} else {
-							time.Sleep(1)
+							time.Sleep(1 * time.Second)
 						}
 					}
 				}
