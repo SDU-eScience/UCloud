@@ -587,18 +587,22 @@ func TestsRun(adminUser, adminPass string) {
 		for i := range 30 {
 			for _, item := range page.Items {
 				if !item.Connected {
+					ch <- "Attempting to contact provider...\n"
 					_, err = orcapi.ProviderIntegrationConnect.Invoke(orcapi.ProviderIntegrationConnectRequest{
 						Provider: item.Provider,
 					})
 
 					if err == nil {
 						break
-					} else if err != nil && strings.Contains(err.Why, "already connected") {
-						break
-					} else if err != nil && i == 29 {
-						return err
 					} else {
-						time.Sleep(1)
+						ch <- fmt.Sprintf("Could not contact provider: %d %s\n", err.StatusCode, err.Why)
+						if strings.Contains(err.Why, "already connected") {
+							break
+						} else if i == 29 {
+							return err
+						} else {
+							time.Sleep(1)
+						}
 					}
 				}
 			}
