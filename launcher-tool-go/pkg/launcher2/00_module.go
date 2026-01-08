@@ -584,8 +584,8 @@ func TestsRun(adminUser, adminPass string) {
 			return err
 		}
 
-		for i := range 30 {
-			for _, item := range page.Items {
+		for _, item := range page.Items {
+			for i := range 30 {
 				if !item.Connected {
 					ch <- "Attempting to contact provider...\n"
 					_, err = orcapi.ProviderIntegrationConnect.Invoke(orcapi.ProviderIntegrationConnectRequest{
