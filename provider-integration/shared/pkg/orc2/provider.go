@@ -31,7 +31,7 @@ const providerBaseContext = "providers"
 var ProviderCreate = rpc.Call[fnd.BulkRequest[ProviderSpecification], fnd.BulkResponse[fnd.FindByStringId]]{
 	BaseContext: providerBaseContext,
 	Convention:  rpc.ConventionCreate,
-	Roles:       rpc.RolesAdmin,
+	Roles:       rpc.RolesAdmin | rpc.RolesService,
 }
 
 type ProviderSearchRequest struct {
@@ -58,7 +58,7 @@ type ProviderBrowseRequest struct {
 var ProviderBrowse = rpc.Call[ProviderBrowseRequest, fnd.PageV2[Provider]]{
 	BaseContext: providerBaseContext,
 	Convention:  rpc.ConventionBrowse,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesEndUser | rpc.RolesService,
 }
 
 type ProviderRetrieveRequest struct {
@@ -69,7 +69,7 @@ type ProviderRetrieveRequest struct {
 var ProviderRetrieve = rpc.Call[ProviderRetrieveRequest, Provider]{
 	BaseContext: providerBaseContext,
 	Convention:  rpc.ConventionRetrieve,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesEndUser | rpc.RolesService,
 }
 
 var ProviderUpdate = rpc.Call[fnd.BulkRequest[ProviderSpecification], util.Empty]{

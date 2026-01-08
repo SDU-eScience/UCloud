@@ -5,13 +5,13 @@ import {
     EmptyReasonTag,
     ResourceBrowser,
     ResourceBrowseFeatures,
-    addContextSwitcherInPortal,
+    addProjectSwitcherInPortal,
     providerIcon,
     ResourceBrowserOpts,
 } from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
 import MainContainer from "@/ui-components/MainContainer";
-import {callAPI} from "@/Authentication/DataHook";
+import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {api as FileCollectionsApi, FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {FindByStringId, PageV2} from "@/UCloud";
@@ -318,7 +318,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                                         }
                                     }}
                                 />,
-                                () => {},
+                                noopCall,
                                 true,
                                 slimModalStyle,
                             );
@@ -531,7 +531,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                 browser.on("nameOfEntry", f => f.specification.title);
                 browser.on("sort", page => page.sort((a, b) => a.specification.title.localeCompare(b.specification.title)));
             });
-            addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
+            addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
         }
 
         const b = browserRef.current;
@@ -586,7 +586,7 @@ export function DriveCreate({onCreate, onCancel, products}: CreationWithInputFie
 
     const [acl, setAcl] = React.useState<ResourceAclEntry[]>([]);
     const project = useProject().fetch();
-    const projectId = project.id;
+    const projectId = useProjectId();
 
     const onSubmit = useCallback((e: React.FormEvent) => {
         e.preventDefault();
@@ -607,7 +607,10 @@ export function DriveCreate({onCreate, onCancel, products}: CreationWithInputFie
             Choose a name<MandatoryField />
             <Input
                 placeholder="Enter drive name..."
-                onKeyDown={e => e.stopPropagation()}
+                onKeyDown={e => {
+                    if (e.key === "Escape") return;
+                    e.stopPropagation()
+                }}
                 onChange={e => setEntryId(e.target.value)}
                 autoFocus
             />
@@ -647,7 +650,7 @@ export function DriveCreate({onCreate, onCancel, products}: CreationWithInputFie
                                 }
                             }
                         } else if (permission) {
-                            acl.push({entity: {type: "project_group", group, projectId: projectId!}, permissions: [permission]})
+                            acl.push({entity: {type: "project_group", group, projectId}, permissions: [permission]})
                         }
                         setAcl([...acl]);
                     }}

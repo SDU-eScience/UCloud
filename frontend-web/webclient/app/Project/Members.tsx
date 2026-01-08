@@ -10,7 +10,6 @@ import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {useLoading, usePage} from "@/Navigation/Redux";
 import {BulkResponse, FindByStringId, PageV2} from "@/UCloud";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {emptyPageV2, fetchAll} from "@/Utilities/PageUtilities";
 import {OldProjectRole, Project, ProjectRole} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -18,7 +17,7 @@ import {MembersContainer} from "@/Project/MembersUI";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import AppRoutes from "@/Routes";
 import {useDispatch} from "react-redux";
-import {dispatchSetProjectAction} from "./ReduxState";
+import {dispatchSetProjectAction, getStoredProject} from "./ReduxState";
 import {addStandardDialog} from "@/UtilityComponents";
 import {MainContainer} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
@@ -387,10 +386,9 @@ interface ActionCallbacks {
 
 // Primary user interface
 // ================================================================================
-export const ProjectMembers2: React.FunctionComponent = () => {
+export const ProjectMembers: React.FunctionComponent = () => {
     // Input "parameters"
     const navigate = useNavigate();
-    const projectId = useProjectId() ?? "";
     const location = useLocation();
     const groupIdParam = getQueryParam(location.search, "groupId");
 
@@ -409,8 +407,10 @@ export const ProjectMembers2: React.FunctionComponent = () => {
 
     // UI callbacks and state manipulation
     const reload = useCallback(() => {
+        const id = getStoredProject();
+        if (!id) return;
         fetchProject(Api.retrieve({
-            id: projectId,
+            id,
             includePath: true,
             includeMembers: true,
             includeArchived: true,
@@ -422,9 +422,9 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                 itemsPerPage: 50,
                 filterType: "OUTGOING",
             }),
-            projectOverride: projectId
+            projectOverride: id
         });
-    }, [projectId]);
+    }, []);
 
     const actionCb: ActionCallbacks = useMemo(() => ({
         navigate,
@@ -440,8 +440,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         pureDispatch(action);
     }, [uiState, pureDispatch, actionCb]);
 
-
-    const roleToOrder: Record<ProjectRole, number> = {
+    const RoleToOrder: Readonly<Record<ProjectRole, number>> = {
         PI: 0,
         ADMIN: 1,
         USER: 2
@@ -464,8 +463,8 @@ export const ProjectMembers2: React.FunctionComponent = () => {
             if (sortUpdate === "name") {
                 return a.username.localeCompare(b.username);
             } else if (sortUpdate === "role") {
-                const aOrder = roleToOrder[a.role];
-                const bOrder = roleToOrder[b.role];
+                const aOrder = RoleToOrder[a.role];
+                const bOrder = RoleToOrder[b.role];
                 if (aOrder > bOrder) {
                     return 1;
                 } else if (aOrder < bOrder) {
@@ -487,7 +486,9 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     }, [project, memberQuery, sortUpdate]);
 
     // Effects
-    useEffect(() => reload(), [reload]);
+    useEffect(() => {
+        reload();
+    }, []);
 
     useEffect(() => {
         if (!projectFromApi.data) return;
@@ -502,7 +503,6 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     }, [invitesFromApi.data]);
 
     usePage("Member and Group Management", SidebarTabId.PROJECT);
-    useSetRefreshFunction(reload);
     useLoading(projectFromApi.loading || invitesFromApi.loading);
 
     const [inviteLinks, setInviteLinks] = useState<ProjectInviteLink[]>([]);
@@ -510,6 +510,8 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     useEffect(() => {
         let didCancel = false;
         (async () => {
+            const projectId = getStoredProject();
+            if (!projectId) return;
             const links = await fetchAll(next => {
                 return callAPI<PageV2<ProjectInviteLink>>({
                     ...Api.browseInviteLinks({itemsPerPage: 250, next}),
@@ -678,4 +680,4 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     />;
 };
 
-export default ProjectMembers2;
+export default ProjectMembers;

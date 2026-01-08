@@ -1,0 +1,106 @@
+provider:
+  id: slurm
+
+  hosts:
+    ucloud:
+      address: core2
+      port: 8080
+      scheme: http
+    self:
+      address: slurm-im
+      port: 8889
+      scheme: http
+    selfPublic:
+      address: slurm.localhost.direct
+      port: 443
+      scheme: https
+    ucloudPublic:
+      address: ucloud.localhost.direct
+      port: 443
+      scheme: https
+
+  ipc:
+    directory: /var/run/ucloud
+
+  logs:
+    directory: /var/log/ucloud
+    rotation:
+      enabled: true
+      retentionPeriodInDays: 180
+
+  envoy:
+    directory: /var/run/ucloud/envoy
+    executable: /usr/bin/envoy
+    funceWrapper: false
+
+services:
+  type: Slurm
+
+  identityManagement:
+    type: FreeIPA
+
+  fileSystems:
+    storage:
+      management:
+        type: GPFS
+
+      payment:
+        type: Resource
+        unit: GB
+
+      driveLocators:
+        home:
+          entity: User
+          pattern: "/gpfs/home/#{localUsername}"
+          title: "Home"
+          freeQuota: 10
+
+        projects:
+          entity: Project
+          pattern: "/gpfs/work/#{localGroupName}-#{gid}"
+          title: "Work"
+
+  ssh:
+    enabled: true
+    installKeys: true
+    host:
+      address: frontend.localhost.direct
+      port: 22
+
+  licenses:
+    enabled: false
+
+  slurm:
+    fakeResourceAllocation: true
+
+    accountManagement:
+      accounting: # Usage and quota management
+        type: Automatic
+
+      accountMapper:
+        type: Pattern
+        users: "#{localUsername}_#{productCategory}"
+        projects: "#{localGroupName}_#{productCategory}"
+
+    web:
+      enabled: true
+      prefix: "slurm-"
+      suffix: ".localhost.direct"
+
+    machines:
+      u1-standard:
+        partition: normal
+        qos: standard
+
+        nameSuffix: Cpu
+
+        cpu: [ 1, 2, 4 ]
+        memory: [ 1, 2, 4 ]
+
+        cpuModel: Model
+        memoryModel: Model
+
+        payment:
+          type: Resource
+          unit: Cpu
+          interval: Minutely

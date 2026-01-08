@@ -143,6 +143,7 @@ func ProviderIntegrationBrowse(actor rpc.Actor) (fndapi.PageV2[orcapi.ProviderIn
 	providers, err := accapi.FindRelevantProviders.Invoke(fndapi.BulkRequestOf(accapi.FindRelevantProvidersRequest{
 		Username:         actor.Username,
 		IncludeFreeToUse: util.OptValue(false),
+		UseProject:       false,
 	}))
 
 	if err != nil {

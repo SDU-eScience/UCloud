@@ -279,9 +279,10 @@ func (c *Call[Req, Resp]) InvokeEx(client *Client, request Req, opts InvokeOpts)
 		} else if err.StatusCode >= 500 && err.StatusCode <= 599 {
 			metricClientResp5xx.WithLabelValues(util.DeploymentName, callName).Inc()
 		}
+		return result, err
+	} else {
+		return result, nil
 	}
-
-	return result, err
 }
 
 func (c *Call[Req, Resp]) Handler(handler ServerHandler[Req, Resp]) {

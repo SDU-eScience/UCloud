@@ -1,0 +1,87 @@
+name: E2E test
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches:
+    - master
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run launcher tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      # This step takes a considerable amount of time, but is required to ensure we don't run out of space (due to the
+      # big container images we need)
+      - name: Disk cleanup
+        run: |
+          sudo rm -rf /usr/lib/jvm
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /usr/local/.ghcup
+          sudo rm -rf /usr/local/julia*
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/az
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /opt/hostedtoolcache
+          docker system prune -af || true
+          docker builder prune -af || true
+          df -h
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify toolchain
+        run: |
+          go version
+          node --version
+          npm --version
+          docker --version
+
+      - name: Run init-test
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./launcher-dev init-test
+
+      - name: Run test
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./launcher-dev test
+
+      - name: Fix log permissions
+        if: always()
+        run: |
+          sudo chown -R $USER:$USER .compose/*-logs
+          sudo chown -R $USER:$USER .compose/k8s-storage/home/*
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts-${{ github.run_id }}-${{ github.run_attempt }}
+          path: frontend-web/webclient/playwright-report/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload log files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .compose/k8s-logs/*
+            .compose/core-logs/*
+            .compose/slurm-logs/*
+            .compose/k8s-storage/home/*
+          if-no-files-found: warn
+          retention-days: 14

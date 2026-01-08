@@ -4204,7 +4204,21 @@ create aggregate provider.last(anyelement) (
     stype = anyelement
     );
 
+create table mail.email_settings
+(
+    username text  not null
+        primary key,
+    settings jsonb not null
+);
 
+create table mail.mail_counting
+(
+    mail_count   bigint                not null,
+    username     text                  not null
+        primary key,
+    period_start timestamp             not null,
+    alerted_for  boolean default false not null
+);
 
 -- DATA INIT
 

@@ -45,7 +45,7 @@ const form: ScaffoldedFormObject = {
                                 <GroupSelector onSelect={g => {
                                     resolve(g);
                                     dialogStore.success();
-                                }}/>,
+                                }} />,
                                 doNothing,
                                 true
                             );
@@ -134,7 +134,9 @@ const TopPicksEditor: React.FunctionComponent = () => {
             for (const d of dcopy.applications) {
                 if (d.group && !d.description) {
                     d.description = d.group.specification.description;
-                    didUpdate = true;
+                    // Note(Jonas): d.group.specification.description can be an empty string,  
+                    // so d.description will continue to be empty string, despite being a mandatory field.
+                    didUpdate = didUpdate || !!d.group.specification.description;
                 }
             }
         }
@@ -143,7 +145,7 @@ const TopPicksEditor: React.FunctionComponent = () => {
     }, [data]);
 
     const onSave = useCallback(() => {
-        callAPI(AppStore.updateTopPicks({ newTopPicks: topPicksPreview })).then(fetchTopPicks);
+        callAPI(AppStore.updateTopPicks({newTopPicks: topPicksPreview})).then(fetchTopPicks);
     }, [topPicksPreview]);
 
     const onShowPreview = useCallback(() => {
@@ -166,29 +168,29 @@ const TopPicksEditor: React.FunctionComponent = () => {
 
     return <MainContainer
         header={
-                <Heading.h2>Top picks</Heading.h2>
+            <Heading.h2>Top picks</Heading.h2>
         }
         main={<>
             <Flex gap={"32px"}>
                 <Flex flexDirection={"column"} gap={"8px"} flexGrow={1} maxHeight={"calc(100vh - 32px)"} overflowY={"auto"}>
                     <Flex>
                         <Heading.h3>Editing top picks</Heading.h3>
-                        <Box flexGrow={1}/>
+                        <Box flexGrow={1} />
                         <TooltipV2 tooltip={!firstError ? undefined : <>Unable to save because of an error in the form: {firstError}</>}>
                             <Button disabled={firstError !== null} color={"successMain"} onClick={onSave}>
-                                <Icon name={"heroCheck"}/>
+                                <Icon name={"heroCheck"} />
                                 <div>Save</div>
                             </Button>
                         </TooltipV2>
                     </Flex>
-                    <ScaffoldedForm element={form} data={rawData} onUpdate={setData} errors={errors}/>
+                    <ScaffoldedForm element={form} data={rawData} onUpdate={setData} errors={errors} />
                 </Flex>
                 <div style={{width: "550px"}}>
                     <Flex gap={"8px"} alignItems={"center"} mb={"16px"}>
                         <Heading.h3>Preview</Heading.h3>
-                        <Box flexGrow={1}/>
+                        <Box flexGrow={1} />
                         <Button onClick={onShowPreview}>
-                            <Icon name={"heroMagnifyingGlass"}/>
+                            <Icon name={"heroMagnifyingGlass"} />
                             <div>View real size</div>
                         </Button>
                     </Flex>

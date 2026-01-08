@@ -61,6 +61,34 @@ func MfaCreateCredentials(actor rpc.Actor) (fndapi.MfaCredentials, *util.HttpErr
 		} else if row.HasCredentials {
 			return "", util.HttpErr(http.StatusForbidden, "2FA is already activated on this account")
 		} else {
+			db.Exec(
+				tx,
+				`
+					delete from auth.two_factor_challenges chal
+					using auth.two_factor_credentials cred
+					where
+						chal.credentials_id = cred.id
+						and cred.principal_id = :username
+						and not cred.enforced
+			    `,
+				db.Params{
+					"username": actor.Username,
+				},
+			)
+
+			db.Exec(
+				tx,
+				`
+					delete from auth.two_factor_credentials cred
+					where
+						cred.principal_id = :username
+						and not cred.enforced
+			    `,
+				db.Params{
+					"username": actor.Username,
+				},
+			)
+
 			row, _ := db.Get[struct{ Id int }](
 				tx,
 				`
@@ -75,7 +103,8 @@ func MfaCreateCredentials(actor rpc.Actor) (fndapi.MfaCredentials, *util.HttpErr
 			)
 
 			result, ok := mfaCreateInternalChallenge(tx, actor.Username, util.OptValue(row.Id))
-			if !ok {
+			if !ok || !tx.Ok {
+				_ = tx.ConsumeError()
 				db.RequestRollback(tx)
 				return "", util.HttpErr(http.StatusInternalServerError, "Internal error")
 			} else {

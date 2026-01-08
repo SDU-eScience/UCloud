@@ -3,7 +3,7 @@ set -e
 
 PATH=$PATH:/usr/local/sdkman/candidates/gradle/current/bin:/usr/local/bin
 running_k8=$(grep "providerId: k8" /etc/ucloud/core.yaml &> /dev/null ; echo $?)
-running_slurm=$(grep "go-slurm" /etc/ucloud/config.yml &> /dev/null ; echo $?)
+running_slurm=$(grep "slurm" /etc/ucloud/config.yaml &> /dev/null ; echo $?)
 running_munged=$(ps aux | grep "/usr/sbin/munged" | grep -v grep &> /dev/null ; echo $?)
 GO=/usr/local/go/bin/go
 
@@ -13,7 +13,7 @@ if ! (test -f /tmp/sync.pid && (ps -p $(cat /tmp/sync.pid) > /dev/null)); then
     sleep 0.5 # silly workaround to make sure docker exec doesn't kill us
 fi
 
-uid=11042
+uid=0
 
 initSlurmServiceAccount() {
   # Ensure that the UCloud service account has the operator permissions
@@ -31,15 +31,12 @@ if [[ $running_slurm == 0 ]]; then
     fi
 
     ! (test -f /etc/ucloud/.slurmsysop) && initSlurmServiceAccount;
-else
-    uid=0
 fi
 
-chmod 755 /work || true
-chmod 755 /home || true
-! (test -d /mnt/storage) || chmod 755 /mnt/storage
-! (test -d /mnt/k3s) || chmod 755 /mnt/k3s
-! (test -d /etc/ucloud/extensions) || chmod 755 /etc/ucloud/extensions /etc/ucloud/extensions/*
+chmod 755 /work 2> /dev/null || true
+chmod 755 /home 2> /dev/null || true
+! (test -d /mnt/storage) || chmod 755 /mnt/storage 2> /dev/null
+! (test -d /mnt/k3s) || chmod 755 /mnt/k3s 2> /dev/null
 chmod o+x /opt/ucloud
 mkdir -p /home/ucloud
 chown -R $uid:$uid /home/ucloud

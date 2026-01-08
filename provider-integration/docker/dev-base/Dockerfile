@@ -1,4 +1,4 @@
-FROM dreg.cloud.sdu.dk/ucloud-dev/slurm-docker-cluster:2025.4.127 AS base
+FROM dreg.cloud.sdu.dk/ucloud-dev/slurm-docker-cluster:23.02.7-2025.4.161 AS base
 
 # Dependencies
 RUN dnf -y makecache

@@ -369,6 +369,7 @@ var mailTemplates = map[fndapi.MailType]mailTemplate{
 
 	fndapi.MailTypeResetPassword:      mailTpl(tplAuthReset),
 	fndapi.MailTypeVerifyEmailAddress: mailTpl(tplAuthVerify),
+	fndapi.MailTypeNotifyMailChange:   mailTpl(tplNotifyEmailChange),
 
 	fndapi.MailTypeApplicationApproved: mailTpl(tplGrantsApprovedToApplicant),
 	fndapi.MailTypeNewComment:          mailTpl(tplGrantsComment),

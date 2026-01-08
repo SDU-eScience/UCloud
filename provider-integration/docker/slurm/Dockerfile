@@ -1,4 +1,4 @@
-FROM dreg.cloud.sdu.dk/ucloud-dev/slurm-docker-cluster:2025.4.127
+FROM dreg.cloud.sdu.dk/ucloud-dev/slurm-docker-cluster:23.02.7-2025.4.161
 
 # Install SSH server
 RUN yum -y install openssh-server
@@ -22,3 +22,4 @@ RUN cp /etc/shadow /etc/shadow.orig
 RUN mkdir /gpfs
 RUN ln -s /home /gpfs/home
 RUN ln -s /work /gpfs/work
+

@@ -111,34 +111,51 @@ func initAccounting() {
 		var result []accapi.FindRelevantProvidersResponse
 
 		for _, reqItem := range request.Items {
-			owner := accapi.WalletOwnerUser(reqItem.Username)
-			if reqItem.Project.Present && reqItem.UseProject {
-				owner = accapi.WalletOwnerProject(reqItem.Project.Value)
+			var owners []accapi.WalletOwner
+
+			if reqItem.UseProject {
+				owner := accapi.WalletOwnerUser(reqItem.Username)
+				if reqItem.Project.Present {
+					owner = accapi.WalletOwnerProject(reqItem.Project.Value)
+				}
+
+				owners = append(owners, owner)
+			} else {
+				owners = append(owners, accapi.WalletOwnerUser(reqItem.Username))
+				actor, ok := rpc.LookupActor(reqItem.Username)
+				if ok {
+					for project := range actor.Membership {
+						owners = append(owners, accapi.WalletOwnerProject(string(project)))
+					}
+				}
 			}
 
 			providers := map[string]util.Empty{}
 
-			if validateOwner(owner) {
-				wallets := internalRetrieveWallets(now, owner.Reference(), walletFilter{
-					ProductType:   reqItem.FilterProductType,
-					RequireActive: true,
-				})
+			for _, owner := range owners {
+				if validateOwner(owner) {
+					wallets := internalRetrieveWallets(now, owner.Reference(), walletFilter{
+						ProductType:   reqItem.FilterProductType,
+						RequireActive: true,
+					})
 
-				// TODO free to use
+					// TODO free to use
 
-				for _, w := range wallets {
-					providers[w.PaysFor.Provider] = util.Empty{}
+					for _, w := range wallets {
+						providers[w.PaysFor.Provider] = util.Empty{}
+					}
+
+				} else {
+					return fndapi.BulkResponse[accapi.FindRelevantProvidersResponse]{}, util.HttpErr(http.StatusBadRequest, "bad owner supplied")
 				}
-
-				var providerArr []string
-				for providerId := range providers {
-					providerArr = append(providerArr, providerId)
-				}
-
-				result = append(result, accapi.FindRelevantProvidersResponse{Providers: providerArr})
-			} else {
-				return fndapi.BulkResponse[accapi.FindRelevantProvidersResponse]{}, util.HttpErr(http.StatusBadRequest, "bad owner supplied")
 			}
+
+			var providerArr []string
+			for providerId := range providers {
+				providerArr = append(providerArr, providerId)
+			}
+
+			result = append(result, accapi.FindRelevantProvidersResponse{Providers: providerArr})
 		}
 
 		return fndapi.BulkResponse[accapi.FindRelevantProvidersResponse]{Responses: result}, nil

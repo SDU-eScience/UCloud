@@ -435,7 +435,7 @@ func initUsageReports() {
 				reports = append(reports, apiReport)
 			}
 
-			return accapi.UsageRetrieveResponse{Reports: reports}, nil
+			return accapi.UsageRetrieveResponse{Reports: util.NonNilSlice(reports)}, nil
 		})
 	}
 

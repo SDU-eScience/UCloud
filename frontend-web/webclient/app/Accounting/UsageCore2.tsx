@@ -590,7 +590,7 @@ const UsagePage: React.FunctionComponent = () => {
             </Flex>
 
 
-            {r.subProjectHealth.subProjectCount === 0 ? null :
+            {r.subProjectHealth.subProjectCount === 0 || breakdownChart.table.length === 0 ? null :
                 <Card>
                     <h3>Usage breakdown</h3>
                     <Flex flexWrap={"wrap"} gap={"16px"}>

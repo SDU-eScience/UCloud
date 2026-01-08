@@ -13,6 +13,9 @@ var devModeEnabled = func() bool {
 	if hostname == "gok8s" {
 		return true
 	}
+	if hostname == "k8s" {
+		return true
+	}
 	if hostname == "core2" {
 		return true
 	}

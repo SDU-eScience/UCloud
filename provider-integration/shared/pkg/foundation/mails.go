@@ -71,6 +71,7 @@ const (
 	MailTypeResetPassword               MailType = "resetPassword"
 	MailTypeVerificationReminder        MailType = "verificationReminder"
 	MailTypeVerifyEmailAddress          MailType = "verifyEmailAddress"
+	MailTypeNotifyMailChange            MailType = "notifyEmailChange"
 	MailTypeJobEvents                   MailType = "jobEvents"
 	MailTypeSupport                     MailType = "support"
 	MailTypeUnknown                     MailType = "unknown"
