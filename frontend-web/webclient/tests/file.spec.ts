@@ -1,5 +1,6 @@
 import {test, expect} from '@playwright/test';
 import {Components, Drive, File, User, Rows, Terminal} from "./shared";
+import {default as data} from "./test_data.json" with {type: "json"};
 
 const {dirname} = import.meta;
 
@@ -7,7 +8,7 @@ const Drives: Record<string, string> = {};
 
 test.beforeEach(async ({page, userAgent}) => {
     const driveName = Drive.newDriveName();
-    await User.login(page);
+    await User.login(page, data.users.with_resources);
     await Drive.create(page, driveName);
     Drives[userAgent!] = driveName;
     await Drive.openDrive(page, driveName);

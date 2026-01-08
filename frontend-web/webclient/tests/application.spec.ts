@@ -1,8 +1,9 @@
 import {expect, test} from "@playwright/test";
 import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls} from "./shared";
+import {default as data} from "./test_data.json" with {type: "json"};
 
 test.beforeEach(async ({page}) => {
-    await User.login(page);
+    await User.login(page, data.users.with_resources);
 });
 
 test("Run job with jobname, extend time, stop job, validate jobname in runs", async ({page}) => {

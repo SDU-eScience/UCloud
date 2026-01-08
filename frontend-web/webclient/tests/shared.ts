@@ -1,18 +1,17 @@
-import {type Page} from "@playwright/test";
+import {expect, type Page} from "@playwright/test";
 import fs from "fs";
 
 // Note(Jonas): If it complains that it doesn"t exist, create it.
 import {default as data} from "./test_data.json" with {type: "json"};
 
-const user = data.users.with_resources;
-const LoginPageUrl = ucloudUrl("login")
+const LoginPageUrl = ucloudUrl("login");
 
 export const User = {
     async toLoginPage(page: Page): Promise<void> {
         await page.goto(LoginPageUrl);
     },
 
-    async login(page: Page): Promise<void> {
+    async login(page: Page, user: {username: string; password: string;}): Promise<void> {
         if (!user) throw Error("No username or password provided");
         await this.toLoginPage(page);
         await page.getByRole("textbox", {name: "Username"}).fill(user.username);
@@ -369,6 +368,11 @@ export const Runs = {
         })
     },
 
+    async toggleEnableSSHServer(page: Page): Promise<void> {
+        expect(page.url()).toContain("/jobs/create");
+        await page.getByText("Enable SSH server").click();
+    },
+
     async runApplicationAgain(page: Page, jobName: string): Promise<void> {
         await Runs.goToRuns(page);
         await NetworkCalls.awaitResponse(page, "**/api/jobs/retrieve?id=**", async () => {
@@ -514,6 +518,8 @@ export const Resources = {
     },
 
     SSHKeys: {
+        DefaultSSHKey: "ssh-rsa a-bunch-of-text",
+
         newSSHKeyName(): string {
             return Help.newResourceName("SSHKey")
         },
@@ -527,7 +533,7 @@ export const Resources = {
             await page.getByText("Add SSH key").click();
             const title = this.newSSHKeyName();
             await page.locator("#key-title").fill(title);
-            await page.locator("#key-contents").fill("ssh-rsa a-bunch-of-text");
+            await page.locator("#key-contents").fill(this.DefaultSSHKey);
             await page.getByRole("button", {name: "Add SSH key"}).click();
             return title;
         }

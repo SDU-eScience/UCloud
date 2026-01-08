@@ -1,14 +1,16 @@
 import test, {expect} from "@playwright/test";
 import {Components, User} from "./shared";
+import {default as data} from "./test_data.json" with {type: "json"};
+const user = data.users.with_resources;
 
 test("Login using password, logout", async ({page}) => {
-    await User.login(page);
+    await User.login(page, user);
     await User.logout(page);
     await expect(page.getByText("Other login")).toHaveCount(1);
 });
 
 test("While logged in, ensure docs link works", async ({page}) => {
-    await User.login(page);
+    await User.login(page, user);
     await Components.toggleUserMenu(page);
     const ucloudDocsPagePromise = page.waitForEvent("popup");
     await page.getByText("UCloud docs").click();
@@ -19,7 +21,7 @@ test("While logged in, ensure docs link works", async ({page}) => {
 });
 
 test("Ensure data protection link works", async ({page}) => {
-    await User.login(page);
+    await User.login(page, user);
     await Components.toggleUserMenu(page);
     const dataProtectionPagePromise = page.waitForEvent("popup");
     await page.getByText("SDU Data Protection").click();
@@ -47,7 +49,7 @@ test("Help button on login page", async ({page}) => {
 
 // Maybe useless. Do we have a default news story on local backends? // haha, no
 test.skip("News entry links to working entry", async ({page}) => {
-    await User.login(page);
+    await User.login(page, user);
     await page.locator("a[href^='/app/news/detailed/']").click();
     // If we have no default, then change to `toHaveCount(1)` instead.
     await expect(page.getByText("News post not found")).toHaveCount(0);

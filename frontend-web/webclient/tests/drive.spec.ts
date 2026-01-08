@@ -1,8 +1,9 @@
 import {test, expect} from "@playwright/test";
 import {User, Drive, Project} from "./shared";
+import {default as data} from "./test_data.json" with {type: "json"};
 
 test.beforeEach(async ({page}) => {
-    await User.login(page);
+    await User.login(page, data.users.with_resources);
 });
 
 /// Drive operations
