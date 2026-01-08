@@ -35,9 +35,13 @@ func ServiceCore() {
 	}
 
 	if goCacheDir := os.Getenv("UCLOUD_GO_CACHE_DIR"); goCacheDir != "" {
-		dir := filepath.Join(goCacheDir, service.Name)
-		_ = os.MkdirAll(dir, 0777)
-		volumes = append(volumes, Mount(dir, "/root/go"))
+		pkgDir := filepath.Join(goCacheDir, service.Name)
+		_ = os.MkdirAll(pkgDir, 0777)
+		volumes = append(volumes, Mount(pkgDir, "/root/go"))
+
+		buildDir := filepath.Join(goCacheDir, service.Name+"-build")
+		_ = os.MkdirAll(buildDir, 0777)
+		volumes = append(volumes, Mount(buildDir, "/root/.cache/go-build"))
 	}
 
 	AddService(service, DockerComposeService{

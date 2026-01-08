@@ -65,6 +65,10 @@ func ProviderSlurm() {
 		dir := filepath.Join(goCacheDir, provider.Name)
 		_ = os.MkdirAll(dir, 0777)
 		volumes = append(volumes, Mount(dir, "/root/go"))
+
+		buildDir := filepath.Join(goCacheDir, provider.Name+"-build")
+		_ = os.MkdirAll(buildDir, 0777)
+		volumes = append(volumes, Mount(buildDir, "/root/.cache/go-build"))
 	}
 
 	AddService(provider, DockerComposeService{
