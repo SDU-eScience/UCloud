@@ -1794,6 +1794,7 @@ func jobSendNotifications(username string, jobs map[string]orcapi.Job) {
 			event.JobName = job.Id
 		}
 
+		// TODO update wording of notifications to be more precise
 		switch job.Status.State {
 		case orcapi.JobStateSuccess:
 			event.ChangeMessage = "has finished running"

@@ -673,7 +673,7 @@ function useSidebarRunsPage(): Job[] {
     }))));
 
     React.useEffect(() => {
-        callAPI(JobsApi.browse({itemsPerPage: 100, filterState: "RUNNING"})).then(result => {
+        callAPI(JobsApi.browse({itemsPerPage: 100, filterState: "RUNNING", includeApplication: true})).then(result => {
             jobCache.updateCache(result, true);
         }).catch(e => displayErrorMessageOrDefault(e, "Failed to fetch running jobs."));
     }, [projectId]);

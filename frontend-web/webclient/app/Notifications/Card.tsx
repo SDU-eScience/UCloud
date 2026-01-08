@@ -1,10 +1,12 @@
 import * as React from "react";
 import {useCallback} from "react";
 import Icon, {IconName} from "@/ui-components/Icon";
-import {Flex} from "@/ui-components";
+import {Box, Flex} from "@/ui-components";
 import {classConcat, injectStyle} from "@/Unstyled";
 import Card, {CardClass} from "@/ui-components/Card";
 import {ThemeColor} from "@/ui-components/theme";
+import {avatar} from "@/UCloud";
+import {AvatarForUser} from "@/AvataaarLib/UserAvatar";
 
 export interface NotificationProps {
     icon: IconName;
@@ -17,6 +19,7 @@ export interface NotificationProps {
     iconColor?: ThemeColor;
     iconColor2?: ThemeColor;
     onAction?: () => void;
+    avatar?: string;
 }
 
 export const NotificationCard: React.FunctionComponent<NotificationProps & {
@@ -50,8 +53,14 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
     >
         <Card backgroundColor={`${props.isPinned ? "var(--warningMain)" : "var(--backgroundDefault)" }`}>
             <div className="notification-inner">
-                <Icon name={props.icon} size="32px" color={props.iconColor ?? "iconColor"}
-                    color2={props.iconColor2 ?? "iconColor2"} />
+                {props.avatar === undefined ?
+                    <Icon name={props.icon} size="32px" color={props.iconColor ?? "iconColor"}
+                          color2={props.iconColor2 ?? "iconColor2"} /> :
+                    <Box flexShrink={0}>
+                        <AvatarForUser username={props.avatar} height="32px" width="32px" mx="0px"></AvatarForUser>
+                    </Box>
+                }
+
                 <div className="notification-content">
                     <Flex pr="20px">
                         <h3>{props.title}</h3>
