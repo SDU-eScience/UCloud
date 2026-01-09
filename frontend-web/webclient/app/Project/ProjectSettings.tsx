@@ -15,7 +15,7 @@ import {
 import * as Heading from "@/ui-components/Heading";
 import {addStandardDialog, ConfirmCancelButtons} from "@/UtilityComponents";
 import {callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {useNavigate} from "react-router";
+import {useNavigate} from "react-router-dom";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";

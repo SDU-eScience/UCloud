@@ -16,7 +16,7 @@ import {doNothing} from "@/UtilityFunctions";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
-import {useNavigate} from "react-router";
+import {useNavigate} from "react-router-dom";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {addProjectListener} from "@/Project/ReduxState";

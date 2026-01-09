@@ -1,7 +1,7 @@
 import * as React from "react";
 import {MainContainer} from "@/ui-components";
 import {addProjectSwitcherInPortal, EmptyReasonTag, providerIcon, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts} from "@/ui-components/ResourceBrowser";
-import {useNavigate} from "react-router";
+import {useNavigate} from "react-router-dom";
 import {useDispatch} from "react-redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";

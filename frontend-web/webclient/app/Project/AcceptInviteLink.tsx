@@ -2,7 +2,7 @@
 import {useCloudAPI} from "@/Authentication/DataHook";
 import React, {useEffect} from "react";
 import {useDispatch} from "react-redux";
-import {useNavigate, useParams} from "react-router";
+import {useNavigate, useParams} from "react-router-dom";
 import api, {AcceptInviteLinkResponse, RetrieveInviteLinkInfoResponse} from "./Api";
 import * as Heading from "@/ui-components/Heading";
 import {dispatchSetProjectAction} from "./ReduxState";

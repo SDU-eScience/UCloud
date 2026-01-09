@@ -8,7 +8,7 @@ import {
 } from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
-import {useLocation, useNavigate} from "react-router";
+import {useLocation, useNavigate} from "react-router-dom";
 import {usePage} from "@/Navigation/Redux";
 import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";

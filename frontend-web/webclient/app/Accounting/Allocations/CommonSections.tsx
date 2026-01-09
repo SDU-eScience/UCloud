@@ -114,10 +114,10 @@ export const YourAllocations: React.FunctionComponent<{
                     <HexSpin size={64} />
                 </> : <>
                     <div>
-                        {allocations.length !== 0 ? null : <>
+                        {allocations.length !== 0 ? null : <div style={{marginLeft: "20px", marginTop: "10px"}}>
                             You do not have any allocations at the moment. You can apply for resources{" "}
                             <Link to={AppRoutes.grants.editor()}>here</Link>.
-                        </>}
+                        </div>}
                         <Tree apiRef={allocationTree}>
                             {allocations.map(([rawType, tree]) => {
                                 const type = rawType as ProductType;
@@ -195,7 +195,7 @@ export const YourAllocations: React.FunctionComponent<{
                                             }
                                         </TreeNode>
                                     )}
-                                </TreeNode>;
+                                </TreeNode>
                             })}
                         </Tree>
                     </div>
@@ -1139,49 +1139,48 @@ export const SubProjectList: React.FunctionComponent<{
                         </div>
                     </Flex>
 
-                    <div className="sub-projects-container" style={{height: "500px", width: "100%"}}>
-                        {state.remoteData.wallets === undefined ? <>
-                            <HexSpin size={64} />
-                        </> : <>
-                            {state.filteredSubProjectIndices.length !== 0 ? null : <>
-                                You do not have any sub-allocations {state.searchQuery ? "with the active search" : ""} at
-                                the
-                                moment.
-                                {projectRole === OldProjectRole.USER ? null : <>
-                                    You can create a sub-project by clicking <a href="#" onClick={onNewSubProject}>here</a>.
-                                </>}
+                <div className="sub-projects-container" style={{height: "500px", width: "100%"}}>
+                    {state.remoteData.wallets === undefined ? <>
+                        <HexSpin size={64}/>
+                    </> : <>
+                        {state.filteredSubProjectIndices.length !== 0 ? null : <div style={{marginLeft: "20px", marginTop: "10px"}}>
+                            You do not have any sub-allocations {state.searchQuery ? "with the active search" : ""} at
+                            the moment. {" "}
+                            {projectRole === OldProjectRole.USER ? null : <>
+                                You can create a sub-project by clicking <a href="#" onClick={onNewSubProject}>here</a>.
                             </>}
-                            <AutoSizer>
-                                {({height, width}) => (
-                                    <Tree
-                                        apiRef={suballocationTree}
-                                        onAction={(row, action) => {
-                                            if (![TreeAction.TOGGLE, TreeAction.OPEN, TreeAction.CLOSE].includes(action)) return;
-                                            const grantId = row.getAttribute("data-grant-id");
-                                            if (grantId && TreeAction.TOGGLE === action) {
-                                                // Note(Jonas): Just `window.open(AppRoutes...)` will omit the `/app` part, so we add it this way.
-                                                window.open(window.origin + "/app" + AppRoutes.grants.editor(grantId), "_blank");
-                                            } else {
-                                                const recipient = row.getAttribute("data-recipient");
-                                                if (!recipient) return;
-                                                const group = row.getAttribute("data-group");
-                                                setNodeState(action, recipient, group);
-                                                listRef.current?.resetAfterIndex(0);
-                                            }
-                                        }}
-                                        unhandledShortcut={onSubAllocationShortcut}
+                        </div>}
+                        <AutoSizer>
+                            {({height, width}) => (
+                                <Tree
+                                    apiRef={suballocationTree}
+                                    onAction={(row, action) => {
+                                        if (![TreeAction.TOGGLE, TreeAction.OPEN, TreeAction.CLOSE].includes(action)) return;
+                                        const grantId = row.getAttribute("data-grant-id");
+                                        if (grantId && TreeAction.TOGGLE === action) {
+                                            // Note(Jonas): Just `window.open(AppRoutes...)` will omit the `/app` part, so we add it this way.
+                                            window.open(window.origin + "/app" + AppRoutes.grants.editor(grantId), "_blank");
+                                        } else {
+                                            const recipient = row.getAttribute("data-recipient");
+                                            if (!recipient) return;
+                                            const group = row.getAttribute("data-group");
+                                            setNodeState(action, recipient, group);
+                                            listRef.current?.resetAfterIndex(0);
+                                        }
+                                    }}
+                                    unhandledShortcut={onSubAllocationShortcut}
+                                >
+                                    <VariableSizeList
+                                        itemSize={(idx) => calculateHeightInPx(idx, state)}
+                                        height={height}
+                                        width={width}
+                                        ref={listRef}
+                                        itemCount={state.filteredSubProjectIndices.length}
+                                        itemData={state.filteredSubProjectIndices}
                                     >
-                                        <VariableSizeList
-                                            itemSize={(idx) => calculateHeightInPx(idx, state)}
-                                            height={height}
-                                            width={width}
-                                            ref={listRef}
-                                            itemCount={state.filteredSubProjectIndices.length}
-                                            itemData={state.filteredSubProjectIndices}
-                                        >
-                                            {({index: rowIdx, style, data}) => {
-                                                const recipientIdx = data[rowIdx];
-                                                const recipient = state.subAllocations.recipients[recipientIdx];
+                                        {({index: rowIdx, style, data}) => {
+                                            const recipientIdx = data[rowIdx];
+                                            const recipient = state.subAllocations.recipients[recipientIdx];
 
                                                 return <SubProjectListRow
                                                     style={style}

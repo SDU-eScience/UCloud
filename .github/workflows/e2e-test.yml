@@ -1,7 +1,6 @@
 name: E2E test
 
 on:
-  pull_request:
   workflow_dispatch:
   push:
     branches:
@@ -13,27 +12,15 @@ permissions:
 jobs:
   test:
     name: Run launcher tests
-    runs-on: ubuntu-24.04
+    runs-on: self-hosted
     timeout-minutes: 60
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.24.x"
-          check-latest: true
-          cache: true
-
-#      - name: Set up Node.js (LTS)
-#        uses: actions/setup-node@v4
-#        with:
-#          node-version: "lts/*"
-#          cache: "npm"
+          clean: 'true'
 
       - name: Verify toolchain
         run: |
@@ -46,19 +33,53 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          export UCLOUD_GO_CACHE_DIR=$HOME/go-cache
           ./launcher-dev init-test
+
+      - name: Remove unused docker resources
+        shell: bash
+        run: |
+          docker system prune --all --volumes --force
 
       - name: Run test
         shell: bash
         run: |
           set -euo pipefail
+          export UCLOUD_GO_CACHE_DIR=$HOME/go-cache 
           ./launcher-dev test
 
-      - name: Upload test artifacts from /tmp/test-artifacts
+      - name: Fix log permissions
+        if: always()
+        run: |
+          sudo chown -R $USER:$USER .compose/*-logs
+          sudo chown -R $USER:$USER .compose/k8s-storage/home/*
+
+      - name: Upload test artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-artifacts-${{ github.run_id }}-${{ github.run_attempt }}
-          path: frontend-web/webclient/playwright-report
+          path: frontend-web/webclient/playwright-report/
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Upload log files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .compose/k8s-logs/*
+            .compose/core-logs/*
+            .compose/slurm-logs/*
+            .compose/k8s-storage/home/*
+          if-no-files-found: warn
+          retention-days: 14
+          
+      - name: Delete environment
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./launcher-dev env delete
+          sudo chown -R $USER: .

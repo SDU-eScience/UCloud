@@ -25,7 +25,7 @@ import {
 import * as React from "react";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import {useNavigate} from "react-router";
+import {useNavigate} from "react-router-dom";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useDispatch} from "react-redux";
 import AppRoutes from "@/Routes";

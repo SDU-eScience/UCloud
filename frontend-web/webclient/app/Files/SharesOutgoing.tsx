@@ -7,7 +7,7 @@ import {RadioTile, RadioTilesContainer} from "@/ui-components";
 import {capitalized, createHTMLElements, displayErrorMessageOrDefault, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
 import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
-import {useLocation, useNavigate} from "react-router";
+import {useLocation, useNavigate} from "react-router-dom";
 import {useDispatch} from "react-redux";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {avatarState} from "@/AvataaarLib/hook";

@@ -3,7 +3,7 @@ set -e
 
 GO=/usr/local/go/bin/go
 
-uid=11042
+uid=0
 
 chmod o+x /opt/ucloud
 

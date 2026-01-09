@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -153,6 +154,10 @@ func Launch() {
 		// Do nothing (service was already initialized)
 	case "test":
 		TestsRun("user", "mypassword")
+	case "env":
+		if slices.Contains(os.Args, "delete") {
+			ClusterDelete()
+		}
 	}
 }
 
@@ -453,10 +458,20 @@ func TestsRun(adminUser, adminPass string) {
 				return err
 			}
 
-			products, _ := accapi.ProductsBrowse.Invoke(accapi.ProductsBrowseRequest{
-				ItemsPerPage:   250,
-				ProductsFilter: accapi.ProductsFilter{FilterProvider: util.OptValue(provider)},
-			})
+			var products fndapi.PageV2[accapi.ProductV2]
+			for range 120 {
+				products, _ = accapi.ProductsBrowse.Invoke(accapi.ProductsBrowseRequest{
+					ItemsPerPage:   250,
+					ProductsFilter: accapi.ProductsFilter{FilterProvider: util.OptValue(provider)},
+				})
+
+				if len(products.Items) > 0 {
+					break
+				} else {
+					ch <- "Waiting for products to be available...\n"
+					time.Sleep(1 * time.Second)
+				}
+			}
 
 			productsByType := map[accapi.ProductType]accapi.ProductV2{}
 			for _, product := range products.Items {
@@ -570,13 +585,25 @@ func TestsRun(adminUser, adminPass string) {
 		}
 
 		for _, item := range page.Items {
-			if !item.Connected {
-				_, err = orcapi.ProviderIntegrationConnect.Invoke(orcapi.ProviderIntegrationConnectRequest{
-					Provider: item.Provider,
-				})
+			for i := range 30 {
+				if !item.Connected {
+					ch <- "Attempting to contact provider...\n"
+					_, err = orcapi.ProviderIntegrationConnect.Invoke(orcapi.ProviderIntegrationConnectRequest{
+						Provider: item.Provider,
+					})
 
-				if err != nil {
-					return err
+					if err == nil {
+						break
+					} else {
+						ch <- fmt.Sprintf("Could not contact provider: %d %s\n", err.StatusCode, err.Why)
+						if strings.Contains(err.Why, "already connected") {
+							break
+						} else if i == 29 {
+							return err
+						} else {
+							time.Sleep(1 * time.Second)
+						}
+					}
 				}
 			}
 		}

@@ -34,6 +34,9 @@ var tplBase []byte
 //go:embed mailtpl/auth/verify.j2
 var tplAuthVerify []byte
 
+//go:embed mailtpl/auth/notifyEmailChange.j2
+var tplNotifyEmailChange []byte
+
 //go:embed mailtpl/auth/reset.j2
 var tplAuthReset []byte
 

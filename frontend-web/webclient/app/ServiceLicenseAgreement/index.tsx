@@ -6,7 +6,7 @@ import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Button, Markdown} from "@/ui-components";
 import {addStandardDialog} from "@/UtilityComponents";
-import {useNavigate} from "react-router";
+import {useNavigate} from "react-router-dom";
 import {injectStyleSimple} from "@/Unstyled";
 
 function fetchSla(): APICallParameters {

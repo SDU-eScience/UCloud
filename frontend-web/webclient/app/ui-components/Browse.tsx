@@ -1,6 +1,6 @@
 import * as React from "react";
 import {InvokeCommand} from "@/Authentication/DataHook";
-import {NavigateFunction} from "react-router";
+import {NavigateFunction} from "react-router-dom";
 import {BrowseType} from "@/Resource/BrowseType";
 import {Dispatch} from "redux";
 

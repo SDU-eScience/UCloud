@@ -1,7 +1,7 @@
 import * as React from "react";
 import {Feature, hasFeature} from "@/Features";
 import {default as OldOverview} from "./Legacy/Overview";
-import {NavigateFunction, useNavigate} from "react-router";
+import {NavigateFunction, useNavigate} from "react-router-dom";
 import {useRef, useReducer, useCallback, useEffect, useMemo, useState, useLayoutEffect} from "react";
 import {usePage} from "@/Navigation/Redux";
 import {default as ReactModal} from "react-modal";

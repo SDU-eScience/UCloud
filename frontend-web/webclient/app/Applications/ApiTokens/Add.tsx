@@ -13,7 +13,7 @@ import {ProviderLogo, ProviderLogoWrapper} from "@/Providers/ProviderLogo";
 import {RichSelect, RichSelectProps} from "@/ui-components/RichSelect";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
-import {useNavigate} from "react-router";
+import {useNavigate} from "react-router-dom";
 import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {ApiToken, ApiTokenStatus} from "./api";

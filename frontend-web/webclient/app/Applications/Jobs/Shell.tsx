@@ -3,7 +3,7 @@ import {useXTerm} from "@/Applications/Jobs/XTermLib";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {useCallback, useEffect, useState} from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {useParams} from "react-router";
+import {useParams} from "react-router-dom";
 import {Box, Button} from "@/ui-components";
 import {shortUUID} from "@/UtilityFunctions";
 import {usePage} from "@/Navigation/Redux";

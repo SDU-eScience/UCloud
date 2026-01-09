@@ -30,7 +30,7 @@ export function useProject(): {fetch(): Project; reload(): void; loading: boolea
 
     const reload = useCallback(async () => {
         if (cacheIsLoading) return;
-        const projectId = getStoredProject()
+        const projectId = getStoredProject();
         if (!projectId) return;
         try {
             cacheIsLoading = true;

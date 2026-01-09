@@ -1,6 +1,6 @@
 import * as React from "react";
 import {doNothing} from "@/UtilityFunctions";
-import {useLocation, useNavigate} from "react-router";
+import {useLocation, useNavigate} from "react-router-dom";
 import {useCallback, useEffect} from "react";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useCloudAPI} from "@/Authentication/DataHook";

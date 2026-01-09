@@ -2,7 +2,7 @@ import {usePage} from "@/Navigation/Redux";
 import {Feature, hasFeature} from "@/Features";
 import * as React from "react";
 import Providers from "@/Assets/provider_info.json";
-import {useParams} from "react-router";
+import {useParams} from "react-router-dom";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
 import {Box, Button, ExternalLink, Flex, Markdown, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";

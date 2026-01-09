@@ -1,6 +1,6 @@
 import * as Heading from "@/ui-components/Heading";
 import React, {useCallback} from "react";
-import {useParams} from "react-router";
+import {useParams} from "react-router-dom";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {SafeLogo} from "./AppToolLogo";
 import {Box, Flex, MainContainer} from "@/ui-components";

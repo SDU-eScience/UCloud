@@ -3,7 +3,7 @@ import {Box, Button, Divider, Error, Flex, Heading, Icon, Input, Label, Link, Ma
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import * as React from "react";
 import {useMemo} from "react";
-import {useLocation, useNavigate} from "react-router";
+import {useLocation, useNavigate} from "react-router-dom";
 import {Client} from "@/Authentication/HttpClientInstance";
 import AppRoutes from "@/Routes";
 import {normalizeFrequency, WalletV2} from "@/Accounting";

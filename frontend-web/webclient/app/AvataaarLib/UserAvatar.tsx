@@ -26,7 +26,8 @@ export const AvatarForUser: React.FunctionComponent<{
     height?: string;
     avatarStyle?: "Circle" | "Transparent";
     username: string;
+    mx?: string;
 }> = props => {
     const avatars = useAvatars();
-    return <UserAvatar avatar={avatars.avatar(props.username)} width={props.width} height={props.height} avatarStyle={props.avatarStyle}/>
+    return <UserAvatar avatar={avatars.avatar(props.username)} width={props.width} height={props.height} avatarStyle={props.avatarStyle} mx={props.mx}/>
 }

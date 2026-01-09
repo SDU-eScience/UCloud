@@ -22,7 +22,7 @@ import {Dispatch} from "redux";
 import {ResourceProperties} from "@/Resource/Properties";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {Product, ProductType, ProductV2} from "@/Accounting";
-import {NavigateFunction} from "react-router";
+import {NavigateFunction} from "react-router-dom";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import * as Accounting from "@/Accounting";
 import {EmbeddedSettings} from "@/ui-components/ResourceBrowser";

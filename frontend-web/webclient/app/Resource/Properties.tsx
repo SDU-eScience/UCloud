@@ -21,7 +21,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import MainContainer from "@/ui-components/MainContainer";
 import {Operations} from "@/ui-components/Operation";
 import {PermissionsTable, ResourcePermissionEditor} from "@/Resource/PermissionEditor";
-import {useNavigate, useParams} from "react-router";
+import {useNavigate, useParams} from "react-router-dom";
 import {useDispatch} from "react-redux";
 import {BrowseType} from "./BrowseType";
 import {useProjectId} from "@/Project/Api";

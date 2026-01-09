@@ -5,14 +5,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/sys/unix"
-	"gopkg.in/yaml.v3"
-	core "k8s.io/api/core/v1"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"path/filepath"
 	"slices"
 	"strings"
 	"time"
+
+	"golang.org/x/sys/unix"
+	"gopkg.in/yaml.v3"
+	core "k8s.io/api/core/v1"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
@@ -287,6 +288,10 @@ func podToStateAndStatus(pod *core.Pod) (orc.JobState, string) {
 	case core.PodFailed:
 		state = orc.JobStateSuccess
 		status = "Job has terminated with a non-zero exit code"
+		if util.DevelopmentModeEnabled() {
+			podYaml, _ := yaml.Marshal(pod)
+			status += "\n" + string(podYaml)
+		}
 
 	case core.PodUnknown:
 		state = orc.JobStateFailure

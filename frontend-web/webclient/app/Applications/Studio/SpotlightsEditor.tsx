@@ -16,7 +16,7 @@ import {SpotlightCard} from "@/Applications/Landing";
 import * as Heading from "@/ui-components/Heading";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {useLocation, useNavigate} from "react-router";
+import {useLocation, useNavigate} from "react-router-dom";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import AppRoutes from "@/Routes";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
