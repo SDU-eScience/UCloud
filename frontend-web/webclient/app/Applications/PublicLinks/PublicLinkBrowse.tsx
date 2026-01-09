@@ -1,4 +1,4 @@
-import {Product, productTypeToIcon, ProductV2, ProductV2Ingress} from "@/Accounting";
+import {productTypeToIcon, ProductV2, ProductV2Ingress} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
@@ -42,6 +42,7 @@ import {useProject} from "@/Project/cache";
 import {isAdminOrPI} from "@/Project";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import {useEffect} from "react";
+import {useProjectId} from "@/Project/Api";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -398,7 +399,7 @@ export function ProductSelectorWithPermissions<T extends Resource>({onCreate, du
     const [entryId, setEntryId] = React.useState("");
     const [acls, setAcls] = React.useState<ResourceAclEntry[]>([]);
     const project = useProject().fetch();
-    const projectId = project.id;
+    const projectId = useProjectId();
 
     const setProductAndSupport = React.useCallback((p: ProductV2) => {
         setSelectedProduct(p);

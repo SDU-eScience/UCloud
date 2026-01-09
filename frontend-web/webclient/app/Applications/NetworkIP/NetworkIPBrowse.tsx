@@ -37,6 +37,7 @@ import {isAdminOrPI} from "@/Project";
 import {PermissionsTable} from "@/Resource/PermissionEditor";
 import {useProject} from "@/Project/cache";
 import Routes from "@/Routes";
+import {useProjectId} from "@/Project/Api";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -363,7 +364,7 @@ export function NetworkIpCreate({onCreate, onCancel, products}: CreationWithFire
 
     const [acl, setAcl] = React.useState<ResourceAclEntry[]>([]);
     const project = useProject().fetch();
-    const projectId = project.id;
+    const projectId = useProjectId();
 
     let shortProviderId = "the selected provider";
     if (product) {
