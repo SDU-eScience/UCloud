@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useReducer, useState} from "react";
 import {default as Api, ProjectInvite, ProjectInviteLink, UpdateInviteLinkRequest, useProjectId} from "./Api";
-import {NavigateFunction, useLocation, useNavigate} from "react-router";
+import {NavigateFunction, useLocation, useNavigate} from "react-router-dom";
 import {callAPI, callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {useAvatars} from "@/AvataaarLib/hook";

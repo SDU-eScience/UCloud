@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useLocation, useNavigate} from "react-router";
+import {useLocation, useNavigate} from "react-router-dom";
 import {useEffect, useLayoutEffect, useRef} from "react";
 import {useDispatch} from "react-redux";
 import {getQueryParam, getQueryParamOrElse} from "@/Utilities/URIUtilities";

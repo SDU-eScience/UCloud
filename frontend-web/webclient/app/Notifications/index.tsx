@@ -16,7 +16,7 @@ import {triggerNotificationPopup, NotificationPopups} from "./Popups";
 import {useForcedRender} from "@/Utilities/ReactUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {Dispatch} from "redux";
-import {Location, NavigateFunction, useLocation, useNavigate} from "react-router";
+import {Location, NavigateFunction, useLocation, useNavigate} from "react-router-dom";
 import {useDispatch} from "react-redux";
 import {WebSocketConnection} from "@/Authentication/ws";
 import AppRoutes from "@/Routes";

@@ -4,7 +4,7 @@ import {RetrieveLinkResponse, Share, shareLinksApi} from "@/UCloud/SharesApi";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as Heading from "@/ui-components/Heading";
 import React, {PropsWithChildren, useEffect} from "react";
-import {useNavigate, useParams} from "react-router";
+import {useNavigate, useParams} from "react-router-dom";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {Box, Button, Flex} from "@/ui-components";
 import {Client} from "@/Authentication/HttpClientInstance";

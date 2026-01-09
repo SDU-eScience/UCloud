@@ -4,7 +4,7 @@ import {usePage} from "@/Navigation/Redux";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
-import {useNavigate} from "react-router";
+import {useNavigate} from "react-router-dom";
 import SshKeyApi, {SSHKey} from "@/UCloud/SshKeyApi";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";

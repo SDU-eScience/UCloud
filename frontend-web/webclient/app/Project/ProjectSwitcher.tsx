@@ -6,7 +6,7 @@ import {dispatchSetProjectAction, emitProjects, getStoredProject} from "@/Projec
 import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error, Tooltip, Label} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {NavigateFunction, useNavigate} from "react-router";
+import {NavigateFunction, useNavigate} from "react-router-dom";
 import {useProject} from "./cache";
 import ProjectAPI, {ProjectBrowseParams, useProjectId} from "@/Project/Api";
 import {injectStyle} from "@/Unstyled";

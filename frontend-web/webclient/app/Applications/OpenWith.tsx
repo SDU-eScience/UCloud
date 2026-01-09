@@ -6,7 +6,7 @@ import {Button} from "@/ui-components";
 import {bulkRequestOf, isLightThemeStored} from "@/UtilityFunctions";
 import {getParentPath} from "@/Utilities/FileUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {useNavigate} from "react-router";
+import {useNavigate} from "react-router-dom";
 import {browseWalletsV2, ProductV2, ProductV2Compute, WalletV2} from "@/Accounting";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as UCloud from "@/UCloud";

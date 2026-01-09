@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useNavigate, useParams} from "react-router";
+import {useNavigate, useParams} from "react-router-dom";
 import {Box, Markdown, Flex, Text, Link, Button, Input, TextArea, ButtonGroup, Label} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import Loading from "@/LoadingIcon/LoadingIcon";
