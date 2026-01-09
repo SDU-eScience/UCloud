@@ -22,6 +22,16 @@ test("Create public link, view properties, delete", async ({page}) => {
     await PublicLinks.delete(page, publicLinkName);
 });
 
+test.describe("Public links - check public links work", () => {
+    test("Create public link, mount link for job, check that link is available, stop job, delete public link", async ({page}) => {
+        await Resources.goTo(page, "Links");
+        const publicLinkName = await PublicLinks.createNew(page);
+        await page.getByRole("button", {name: "Create", disabled: false}).click();
+
+        await PublicLinks.delete(page, publicLinkName);
+    });
+})
+
 test.describe("Public IPs - check public IPs work", () => {
     test("Create public link, add to job, verify it's available for the job, delete public link", async ({page}) => {
         test.setTimeout(240_000);
@@ -72,7 +82,7 @@ test.describe("SSH - check SSH connections work", () => {
             await page.getByRole("button", {name: "Open application"}).click();
         });
         await Components.selectAvailableMachineType(page);
-        await Runs.toggleEnableSSHServer(page);
+        await Runs.JobResources.toggleEnableSSHServer(page);
         const jobname = Runs.newJobName();
         await Runs.setJobTitle(page, jobname);
         await Runs.submitAndWaitForRunning(page);

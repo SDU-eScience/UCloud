@@ -368,11 +368,6 @@ export const Runs = {
         })
     },
 
-    async toggleEnableSSHServer(page: Page): Promise<void> {
-        expect(page.url()).toContain("/jobs/create");
-        await page.getByText("Enable SSH server").click();
-    },
-
     async runApplicationAgain(page: Page, jobName: string): Promise<void> {
         await Runs.goToRuns(page);
         await NetworkCalls.awaitResponse(page, "**/api/jobs/retrieve?id=**", async () => {
@@ -393,7 +388,6 @@ export const Runs = {
         });
     },
 
-
     async terminateViewedRun(page: Page): Promise<void> {
         await NetworkCalls.awaitResponse(page, "**/jobs/terminate", async () => {
             await Components.clickConfirmationButton(page, "Stop application");
@@ -404,14 +398,6 @@ export const Runs = {
         await page.getByRole("textbox", {name: "Job name"}).fill(name);
     },
 
-    async addFolderResource(page: Page, driveName: string, folderName: string): Promise<void> {
-        await page.getByRole("button", {name: "Add folder"}).click();
-        await NetworkCalls.awaitResponse(page, "**/api/files/browse?**", async () => {
-            await page.getByRole("textbox", {name: "No directory selected"}).click();
-        })
-        await File.ensureDialogDriveActive(page, driveName);
-        await page.getByRole("dialog").locator(".row", {hasText: folderName}).getByRole("button", {name: "Use"}).click();
-    },
 
     async submitAndWaitForRunning(page: Page, extension?: 1 | 8 | 24): Promise<void> {
         if (extension != null) {
@@ -437,6 +423,22 @@ export const Runs = {
         await terminalPage.getByTitle("ucloud@").isVisible();
         await terminalPage.getByText("ucloud@").click();
         return terminalPage;
+    },
+
+    JobResources: {
+        async addFolder(page: Page, driveName: string, folderName: string): Promise<void> {
+            await page.getByRole("button", {name: "Add folder"}).click();
+            await NetworkCalls.awaitResponse(page, "**/api/files/browse?**", async () => {
+                await page.getByRole("textbox", {name: "No directory selected"}).click();
+            })
+            await File.ensureDialogDriveActive(page, driveName);
+            await page.getByRole("dialog").locator(".row", {hasText: folderName}).getByRole("button", {name: "Use"}).click();
+        },
+
+        async toggleEnableSSHServer(page: Page): Promise<void> {
+            expect(page.url()).toContain("/jobs/create");
+            await page.getByText("Enable SSH server").click();
+        },
     }
 };
 

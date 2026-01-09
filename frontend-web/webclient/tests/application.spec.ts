@@ -72,7 +72,7 @@ test("Mount folder with file in job, and cat inside contents", async ({page}) =>
 
     await Runs.setJobTitle(page, jobName)
     await Components.selectAvailableMachineType(page);
-    await Runs.addFolderResource(page, driveName, folderName);
+    await Runs.JobResources.addFolder(page, driveName, folderName);
     await Runs.submitAndWaitForRunning(page);
 
     const terminalPage = await Runs.openTerminal(page);
