@@ -304,6 +304,7 @@ func appCatalogInitRpc() {
 						Title: "",
 					}),
 				},
+				Permission: orcapi.AppAccessRightLaunch,
 			})
 		}
 		return orcapi.AppCatalogRetrieveAclResponse{Entries: util.NonNilSlice(result)}, nil
