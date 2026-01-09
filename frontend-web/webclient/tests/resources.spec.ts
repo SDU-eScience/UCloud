@@ -78,9 +78,7 @@ test.describe("SSH - check SSH connections work", () => {
         await Resources.goTo(page, "SSH keys");
         const sshkey = await SSHKeys.createNew(page);
         await Applications.goToApplications(page);
-        await NetworkCalls.awaitProducts(page, async () => {
-            await page.getByRole("button", {name: "Open application"}).click();
-        });
+        await page.getByRole("button", {name: "Open application"}).click();
         await Components.selectAvailableMachineType(page);
         await Runs.JobResources.toggleEnableSSHServer(page);
         const jobname = Runs.newJobName();

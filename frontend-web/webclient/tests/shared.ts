@@ -536,7 +536,10 @@ export const Resources = {
             const title = this.newSSHKeyName();
             await page.locator("#key-title").fill(title);
             await page.locator("#key-contents").fill(this.DefaultSSHKey);
-            await page.getByRole("button", {name: "Add SSH key"}).click();
+            await NetworkCalls.awaitResponse(page, "**/api/ssh", async () => {
+                await page.getByRole("button", {name: "Add SSH key"}).click();
+            });
+            await page.waitForURL(url => url.pathname.endsWith("/ssh-keys"));
             return title;
         }
     },
