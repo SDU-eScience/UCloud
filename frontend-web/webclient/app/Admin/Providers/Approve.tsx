@@ -9,7 +9,7 @@ import {Box, Button, Input, Label} from "@/ui-components";
 import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 import {useLayoutEffect, useRef, useState} from "react";
 import {Toggle} from "@/ui-components/Toggle";
-import {useLocation, useNavigate} from "react-router";
+import {useLocation, useNavigate} from "react-router-dom";
 import {FindByStringId} from "@/UCloud";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";

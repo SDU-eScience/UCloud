@@ -249,6 +249,10 @@ func LogOutputTui(titleRunning *string, out chan string) {
 			os.Exit(1)
 		}
 	} else {
+		if titleRunning != nil {
+			fmt.Println(*titleRunning)
+		}
+
 		for message := range out {
 			fmt.Print(message)
 		}

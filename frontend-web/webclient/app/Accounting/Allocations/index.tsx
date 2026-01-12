@@ -26,7 +26,7 @@ import {
     doNothing,
     timestampUnixMs
 } from "@/UtilityFunctions";
-import {useNavigate} from "react-router";
+import {useNavigate} from "react-router-dom";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {TreeApi} from "@/ui-components/Tree";

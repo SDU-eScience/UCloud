@@ -3,7 +3,7 @@ import {useCallback, useEffect} from "react";
 import {Box, Flex, Grid, MainContainer} from "@/ui-components";
 import {usePage} from "@/Navigation/Redux";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {useLocation} from "react-router";
+import {useLocation} from "react-router-dom";
 import {useAppSearch} from "./Search";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";

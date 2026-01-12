@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useNavigate} from "react-router";
+import {useNavigate} from "react-router-dom";
 import {useLayoutEffect, useRef} from "react";
 import MainContainer from "@/ui-components/MainContainer";
 import {

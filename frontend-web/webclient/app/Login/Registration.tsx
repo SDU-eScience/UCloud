@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useLocation} from "react-router";
+import {useLocation} from "react-router-dom";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
 import {Box, Button, Input, Label} from "@/ui-components";

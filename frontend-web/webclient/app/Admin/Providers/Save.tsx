@@ -5,7 +5,7 @@ import * as UCloud from "@/UCloud";
 import {Flex} from "@/ui-components";
 import Loading from "@/LoadingIcon/LoadingIcon";
 import {bulkRequestOf} from "@/UtilityFunctions";
-import {useNavigate, useParams} from "react-router";
+import {useNavigate, useParams} from "react-router-dom";
 import RS from "@/Products/CreateProduct";
 import {usePage} from "@/Navigation/Redux";
 import {buildQueryString} from "@/Utilities/URIUtilities";

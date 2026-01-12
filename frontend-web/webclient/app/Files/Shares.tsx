@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import SharesApi, {Share, ShareLink, shareLinksApi, ShareState} from "@/UCloud/SharesApi";
-import {NavigateFunction, useNavigate} from "react-router";
+import {NavigateFunction, useNavigate} from "react-router-dom";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as Heading from "@/ui-components/Heading";
 import {avatarState} from "@/AvataaarLib/hook";

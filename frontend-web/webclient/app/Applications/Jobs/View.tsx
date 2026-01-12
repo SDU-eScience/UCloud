@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import {useLocation, useParams} from "react-router";
+import {useLocation, useParams} from "react-router-dom";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";

@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useNavigate} from "react-router";
+import {useNavigate} from "react-router-dom";
 import {useCallback, useEffect, useLayoutEffect, useRef} from "react";
 import {
     EmptyReasonTag,

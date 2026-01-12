@@ -3,7 +3,7 @@ import * as React from "react";
 import {Box, Flex, Tooltip} from "@/ui-components";
 import Text from "@/ui-components/Text";
 import * as Pages from "./Pages";
-import {useNavigate} from "react-router";
+import {useNavigate} from "react-router-dom";
 import {FavoriteToggle} from "@/Applications/FavoriteToggle";
 import {injectStyleSimple} from "@/Unstyled";
 import {Application} from "@/Applications/AppStoreApi";

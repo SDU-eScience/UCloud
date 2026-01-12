@@ -5,7 +5,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {errorMessageOrDefault, isAbsoluteUrl, shortUUID} from "@/UtilityFunctions";
 import {usePage} from "@/Navigation/Redux";
-import {useParams} from "react-router";
+import {useParams} from "react-router-dom";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {compute} from "@/UCloud";
 import JobsOpenInteractiveSessionResponse = compute.JobsOpenInteractiveSessionResponse;

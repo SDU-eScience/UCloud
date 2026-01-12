@@ -1,5 +1,5 @@
 import * as React from "react";
-import {NavigateFunction, useNavigate} from "react-router";
+import {NavigateFunction, useNavigate} from "react-router-dom";
 import {useRef, useReducer, useCallback, useEffect, useMemo, useState} from "react";
 import {usePage} from "@/Navigation/Redux";
 import {default as ReactModal} from "react-modal";

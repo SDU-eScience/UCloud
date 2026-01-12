@@ -1,6 +1,6 @@
 import * as React from "react";
 import ProvidersApi, {Provider} from "@/UCloud/ProvidersApi";
-import {useNavigate} from "react-router";
+import {useNavigate} from "react-router-dom";
 import MainContainer from "@/ui-components/MainContainer";
 import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal, checkIsWorkspaceAdmin, ColumnTitleList} from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";

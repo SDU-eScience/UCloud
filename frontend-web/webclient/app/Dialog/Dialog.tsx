@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useEffect, useState} from "react";
 import {default as ReactModal} from "react-modal";
-import {useLocation} from "react-router";
+import {useLocation} from "react-router-dom";
 
 import {dialogStore, Dialog as IDialog} from "@/Dialog/DialogStore";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";

@@ -48,6 +48,29 @@ func ProviderSlurm() {
 
 	etcSlurm := AddDirectory(provider, "slurm-config")
 
+	volumes := []string{
+		Mount(imConfig, "/etc/ucloud"),
+		Mount(imLogs, "/var/log/ucloud"),
+		Mount(imHome, "/home"),
+		Mount(imWork, "/work"),
+		Mount(passwdDir, "/mnt/passwd"),
+		Mount(etcSlurm, "/etc/slurm-llnl"),
+		Mount(filepath.Join(RepoRoot, "/provider-integration/im2"), "/opt/ucloud"),
+		Mount(filepath.Join(RepoRoot, "/provider-integration/gonja"), "/opt/gonja"),
+		Mount(filepath.Join(RepoRoot, "/provider-integration/pgxscan"), "/opt/pgxscan"),
+		Mount(filepath.Join(RepoRoot, "/provider-integration/shared"), "/opt/shared"),
+		Mount(filepath.Join(RepoRoot, "/provider-integration/walk"), "/opt/walk"),
+	}
+	if goCacheDir := os.Getenv("UCLOUD_GO_CACHE_DIR"); goCacheDir != "" {
+		dir := filepath.Join(goCacheDir, provider.Name)
+		_ = os.MkdirAll(dir, 0777)
+		volumes = append(volumes, Mount(dir, "/root/go"))
+
+		buildDir := filepath.Join(goCacheDir, provider.Name+"-build")
+		_ = os.MkdirAll(buildDir, 0777)
+		volumes = append(volumes, Mount(buildDir, "/root/.cache/go-build"))
+	}
+
 	AddService(provider, DockerComposeService{
 		Image:       ImDevImage,
 		Hostname:    "go-slurm.ucloud",
@@ -63,19 +86,7 @@ func ProviderSlurm() {
 			"51238:51238",
 			"41493:41493",
 		},
-		Volumes: []string{
-			Mount(imConfig, "/etc/ucloud"),
-			Mount(imLogs, "/var/log/ucloud"),
-			Mount(imHome, "/home"),
-			Mount(imWork, "/work"),
-			Mount(passwdDir, "/mnt/passwd"),
-			Mount(etcSlurm, "/etc/slurm-llnl"),
-			Mount(filepath.Join(RepoRoot, "/provider-integration/im2"), "/opt/ucloud"),
-			Mount(filepath.Join(RepoRoot, "/provider-integration/gonja"), "/opt/gonja"),
-			Mount(filepath.Join(RepoRoot, "/provider-integration/pgxscan"), "/opt/pgxscan"),
-			Mount(filepath.Join(RepoRoot, "/provider-integration/shared"), "/opt/shared"),
-			Mount(filepath.Join(RepoRoot, "/provider-integration/walk"), "/opt/walk"),
-		},
+		Volumes: volumes,
 	})
 
 	AddInstaller(provider, func() {

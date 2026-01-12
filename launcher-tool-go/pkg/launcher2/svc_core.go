@@ -27,18 +27,30 @@ func ServiceCore() {
 	configDir := AddDirectory(service, "config")
 	logDir := AddDirectory(service, "logs")
 
+	volumes := []string{
+		Mount(filepath.Join(RepoRoot, "core2"), "/opt/ucloud"),
+		Mount(filepath.Join(RepoRoot, "provider-integration"), "/opt/provider-integration"),
+		Mount(configDir, "/etc/ucloud"),
+		Mount(logDir, "/var/log/ucloud"),
+	}
+
+	if goCacheDir := os.Getenv("UCLOUD_GO_CACHE_DIR"); goCacheDir != "" {
+		pkgDir := filepath.Join(goCacheDir, service.Name)
+		_ = os.MkdirAll(pkgDir, 0777)
+		volumes = append(volumes, Mount(pkgDir, "/root/go"))
+
+		buildDir := filepath.Join(goCacheDir, service.Name+"-build")
+		_ = os.MkdirAll(buildDir, 0777)
+		volumes = append(volumes, Mount(buildDir, "/root/.cache/go-build"))
+	}
+
 	AddService(service, DockerComposeService{
 		Image:    ImDevImage,
 		Hostname: "core2",
 		Restart:  "always",
 		Ports:    []string{"51245:51233"},
 		Command:  []string{"sleep", "inf"},
-		Volumes: []string{
-			Mount(filepath.Join(RepoRoot, "core2"), "/opt/ucloud"),
-			Mount(filepath.Join(RepoRoot, "provider-integration"), "/opt/provider-integration"),
-			Mount(configDir, "/etc/ucloud"),
-			Mount(logDir, "/var/log/ucloud"),
-		},
+		Volumes:  volumes,
 	})
 
 	AddInstaller(service, func() {

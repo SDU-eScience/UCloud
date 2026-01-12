@@ -70,7 +70,7 @@ import {onProjectUpdated, projectCache, projectTitle} from "@/Project/ProjectSwi
 import {GenericSetAction, HookStore, useGlobal} from "@/Utilities/ReduxHooks";
 import {useDiscovery} from "@/Applications/Hooks";
 import {Command, CommandPalette, CommandScope, staticProvider, useProvideCommands} from "@/CommandPalette";
-import {NavigateFunction, useNavigate} from "react-router";
+import {NavigateFunction, useNavigate} from "react-router-dom";
 import {dispatchSetProjectAction} from "@/Project/ReduxState";
 import {Dispatch} from "redux";
 import {Feature, hasFeature} from "@/Features";
