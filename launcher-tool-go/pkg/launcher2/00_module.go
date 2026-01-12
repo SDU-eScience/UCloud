@@ -611,26 +611,31 @@ func TestsRun(adminUser, adminPass string) {
 		return nil
 	})
 
-	LogOutputRunWork("Setting default user options", func(ch chan string) error {
-		_, err := fndapi.UsersUpdateOptionalInfo.Invoke(fndapi.OptionalUserInfo{
-			OrganizationFullName: util.OptValue[string]("Test org"),
-			Department:           util.OptValue[string]("Test department"),
-			ResearchField:        util.OptValue[string]("Other"),
-			Position:             util.OptValue[string]("Robot"),
-			Gender:               util.OptValue[string]("Other"),
+	for _, tok := range userTokens {
+		RpcClientConfigure(tok)
+		LogOutputRunWork("Setting default user options", func(ch chan string) error {
+			_, err := fndapi.UsersUpdateOptionalInfo.Invoke(fndapi.OptionalUserInfo{
+				OrganizationFullName: util.OptValue[string]("Test org"),
+				Department:           util.OptValue[string]("Test department"),
+				ResearchField:        util.OptValue[string]("Other"),
+				Position:             util.OptValue[string]("Robot"),
+				Gender:               util.OptValue[string]("Other"),
+			})
+
+			if err != nil {
+				return err
+			}
+
+			_, err = fndapi.NotificationsUpdateSettings.Invoke(fndapi.NotificationSettings{JobStartedOrStopped: false})
+			if err != nil {
+				return err
+			}
+
+			return nil
 		})
+	}
 
-		if err != nil {
-			return err
-		}
-
-		_, err = fndapi.NotificationsUpdateSettings.Invoke(fndapi.NotificationSettings{JobStartedOrStopped: false})
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
+	RpcClientConfigure(userTokens[0])
 
 	LogOutputRunWork("Preparing test data", func(ch chan string) error {
 		testInfoPath := filepath.Join(RepoRoot, "frontend-web/webclient/tests/test_data.json")
