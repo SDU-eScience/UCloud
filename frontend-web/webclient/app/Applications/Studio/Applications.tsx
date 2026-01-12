@@ -368,7 +368,6 @@ export const App: React.FunctionComponent = () => {
                                                     {(permissionEntry.entity.user) ? (
                                                         permissionEntry.entity.user
                                                     ) : (
-                                                        //Group can risk being represented by UUID on old group permissions
                                                        <>
                                                        <ProjectTitleForNewCore id={permissionEntry.entity.project?.id ?? ""}/>/{permissionEntry.entity.group?.id}
                                                        </>
