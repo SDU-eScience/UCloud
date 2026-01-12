@@ -22,8 +22,8 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-const ImDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.4.161"
-const SlurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2025.4.161"
+const ImDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.4.165"
+const SlurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2025.4.165"
 
 var Version string
 var RepoRoot string
