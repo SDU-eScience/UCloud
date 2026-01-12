@@ -16,7 +16,7 @@ import (
 var PostExecFile *os.File
 
 func RestartOnExit() {
-	PostExecFile.WriteString("\n " + GetRepoRoot().GetAbsolutePath() + "/launcher \n\n")
+	PostExecFile.WriteString("\n " + GetRepoRoot().GetAbsolutePath() + "/launcher-old \n\n")
 }
 
 func WriteCerts(localPath string) {
@@ -61,7 +61,7 @@ mv *key.pem tls.key
 mv *.pem tls.crt
 
 cd $HERE
-` + repoRoot.GetAbsolutePath() + `/launcher write-certs $TEMP_DIR`,
+` + repoRoot.GetAbsolutePath() + `/launcher-old write-certs $TEMP_DIR`,
 	)
 }
 

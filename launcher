@@ -1,26 +1,13 @@
 #!/usr/bin/env bash
 # -*- coding: utf-8 -*-
-realpath() (
-  OURPWD=$PWD
-  cd "$(dirname "$1")"
-  LINK=$(readlink "$(basename "$1")")
-  while [ "$LINK" ]; do
-    cd "$(dirname "$LINK")"
-    LINK=$(readlink "$(basename "$1")")
-  done
-  REALPATH="$PWD/$(basename "$1")"
-  cd "$OURPWD"
-  echo "$REALPATH"
-)
 
+cd launcher-tool-go
+CGO_ENABLED=0 go build -gcflags "all=-N -l" -o ./.launcher-tool -trimpath cmd/launcher-tui/main.go
+cd ..
 
-mkdir -p /tmp/ucloud-launcher
-repo_root=$(dirname $(realpath $0))
-cd $repo_root/launcher-tool-go
-
-post_exec=/tmp/ucloud-launcher/$(uuidgen)
-go run cmd/launcher/main.go $post_exec $@
-if test -f $post_exec; then
-    bash $post_exec
+if [[ "${DEBUG:-0}" == "1" ]]; then
+    dlv exec launcher-tool-go/.launcher-tool --headless --listen=0.0.0.0:40381 --api-version=2 -- "$@"
+else 
+    ./launcher-tool-go/.launcher-tool "$@"
 fi
-rm -f $post_exec
+
