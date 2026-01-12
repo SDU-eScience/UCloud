@@ -502,7 +502,7 @@ export const Resources = {
 
     async goTo(page: Page, resource: "Links" | "IP addresses" | "SSH keys" | "Licenses") {
         await page.getByRole("link", {name: "Go to Resources"}).hover();
-        await page.getByText(resource).click();
+        await page.getByText(resource).first().click();
         await Components.projectSwitcher(page, "hover");
     },
 
@@ -581,11 +581,16 @@ export const Resources = {
     },
 
     Licenses: {
-        async activateLicense(page: Page): Promise<void> {
-            await page.getByText("Activate license").click();
-            await Components.selectAvailableProduct(page);
-            await page.getByRole("dialog").getByText("Activate").click();
-            // TODO(Jonas): Find out how to get the name of the newly activated license.
+        async activateLicense(page: Page): Promise<number> {
+            let productId = "";
+            const result = (await NetworkCalls.awaitResponse(page, "**/api/licenses", async () => {
+                // TODO(Jonas): get product name
+                await page.getByText("Activate license").click();
+                await page.getByRole("dialog").getByRole("button", {name: "Activate"}).click();
+            }));
+
+            const obj: {responses: {id: number}[]} = JSON.parse(await result.text());
+            return obj.responses[0].id;
         }
     },
 }
@@ -608,12 +613,14 @@ const Help = {
 };
 
 export const NetworkCalls = {
-    async awaitResponse(page: Page, path: string, block: () => Promise<void>) {
-        await Promise.all([page.waitForResponse(path), block()]);
+    async awaitResponse(page: Page, path: string, block: () => Promise<void>): Promise<ReturnType<typeof page.waitForResponse>> {
+        const waiter = page.waitForResponse(path);
+        await block();
+        return await waiter;
     },
 
     async awaitProducts(page: Page, block: () => Promise<void>) {
-        await NetworkCalls.awaitResponse(page, "**/retrieveProducts?*", block)
+        return await NetworkCalls.awaitResponse(page, "**/retrieveProducts?*", block);
     }
 }
 

@@ -98,7 +98,11 @@ test.describe("SSH - check SSH connections work", () => {
     });
 });
 
-test.skip("Create licenses", async ({page}) => {
-    await Resources.goTo(page, "Licenses");
-    await Licenses.activateLicense(page);
+test("Create licenses", async ({page}) => {
+    await NetworkCalls.awaitProducts(page, async () => {
+        await Resources.goTo(page, "Licenses");
+    });
+
+    const licenseId = await Licenses.activateLicense(page);
+    console.log(licenseId)
 });
