@@ -249,6 +249,44 @@ test.describe("Terminal - check integrated terminal works", () => {
     });
 });
 
+test.describe("Files - folder sharing works", () => {
+    test("Create folder and share with other user, ensure invitation can be viewed", async ({page, browser}) => {
+        // Create folder
+        const folderToShare = File.newFolderName();
+        await File.create(page, folderToShare);
+
+        // Share with user
+        await File.shareFolderWith(page, folderToShare, data.users.without_resources.username);
+
+        // Ensure share exists
+        await File.goToSharedByMe(page);
+        await page.getByText(folderToShare, {exact: false}).waitFor({state: "visible"})
+        await page.getByText("1 pending", {exact: false}).waitFor({state: "visible"});
+
+        // Open new page and login for user folder is shared with
+        const sharedWithUserPage = await browser.newPage();
+        await User.login(sharedWithUserPage, data.users.without_resources);
+
+        // Accept share
+        await File.goToSharedWithMe(sharedWithUserPage);
+        await sharedWithUserPage.locator(".row", {hasText: folderToShare}).getByRole("button", {name: "Accept"}).click();
+
+        // Check folder is available
+        await File.actionByRowTitle(sharedWithUserPage, folderToShare, "dblclick");
+        await sharedWithUserPage.getByText("This folder is empty").waitFor({state: "visible"});
+
+        // Delete share
+        await Components.clickRefreshAndWait(page);
+        await page.locator(".row", {hasText: folderToShare}).click();
+        await Components.clickConfirmationButton(page, "Delete share");
+
+        // See that access has been revoked for receiver
+        // Should be `await Components.clickRefreshAndWait(sharedWithUserPage);`, but blocked by #5268
+        await sharedWithUserPage.reload();
+        await sharedWithUserPage.getByText("We could not find any data related to this folder.").waitFor({state: "visible"});
+    });
+});
+
 test.skip("Start a large amount of heavy tasks and observe completion", async ({page}) => {
 
 });

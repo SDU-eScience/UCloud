@@ -33,7 +33,7 @@ export function ucloudUrl(pathname: string): string {
 }
 
 export const Rows = {
-    async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover"): Promise<void> {
+    async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover" | "rightclick"): Promise<void> {
         let iterations = 1000;
         await page.locator(".scrolling").hover();
         for (let i = 0; i < 50; i++) {
@@ -50,7 +50,16 @@ export const Rows = {
                 break;
             }
         }
-        await locator[action]();
+        switch (action) {
+            case "rightclick": {
+                await locator.click({button: "right"})
+                break;
+            }
+            default: {
+                await locator[action]();
+                break;
+            }
+        }
     },
 };
 
@@ -61,7 +70,16 @@ export const File = {
         await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
             await this.actionByRowTitle(page, filename, "dblclick");
         });
+    },
 
+    async goToSharedByMe(page: Page): Promise<void> {
+        await page.getByRole("link", {name: "Go to Files"}).hover();
+        await page.getByRole("link", {name: "Shared by me"}).click();
+    },
+
+    async goToSharedWithMe(page: Page): Promise<void> {
+        await page.getByRole("link", {name: "Go to Files"}).hover();
+        await page.getByRole("link", {name: "Shared with me"}).click();
     },
 
     newFolderName(): string {
@@ -197,9 +215,27 @@ export const File = {
 
     async openIntegratedTerminal(page: Page): Promise<void> {
         await page.getByText("Open terminal").click();
+        await page.getByText("/work").waitFor({state: "visible"});
         await page.getByText("/work").click();
+    },
 
-    }
+    async createShareLinkForFolder(page: Page, foldername: string): Promise<string> {
+        await this._openShareModal(page, foldername);
+        await page.getByText("Create link").click();
+        return await page.getByRole("dialog").getByRole("textbox").nth(1)?.innerText() ?? "";
+    },
+
+    async shareFolderWith(page: Page, foldername: string, username: string): Promise<void> {
+        await this._openShareModal(page, foldername);
+        await page.getByRole("dialog").getByRole("textbox").fill(username);
+        await page.getByRole("button").getByText("Share").click();
+    },
+
+    async _openShareModal(page: Page, foldername: string): Promise<void> {
+        await this.openOperationsDropsdown(page, foldername);
+        await this.actionByRowTitle(page, foldername, "rightclick");
+        await page.getByText("Share6").click();
+    },
 };
 
 export const Drive = {
