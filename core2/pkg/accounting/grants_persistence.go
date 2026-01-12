@@ -20,6 +20,8 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 		return
 	}
 
+	log.Info("grantsLoad(%v, %v)", id, prefetchHint)
+
 	prefetchList := prefetchHint
 	requiredPrefetchIdx := slices.Index(prefetchList, id)
 	if requiredPrefetchIdx == -1 {
@@ -31,25 +33,11 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 		requiredPrefetchIdx = len(prefetchList) - 1
 	}
 
-	if len(prefetchList) > 100 {
-		startIdx := requiredPrefetchIdx - 50
-		endIdx := requiredPrefetchIdx + 50
-
-		if startIdx < 0 {
-			endIdx += startIdx * -1
-			startIdx = 0
-		}
-
-		if endIdx > len(prefetchList) {
-			endIdx = len(prefetchList)
-		}
-
-		prefetchList = prefetchList[startIdx:endIdx]
-	}
-
 	var awarded map[accGrantId]util.Empty
 
 	apps := db.NewTx(func(tx *db.Transaction) []accapi.GrantApplication {
+		tx.NoDevResetThisIsNotAHackIPromise = true
+
 		awarded = map[accGrantId]util.Empty{}
 
 		rows := db.Select[struct{ App string }](
@@ -505,7 +493,7 @@ func grantsLoadIndex(b *grantIndexBucket, recipient string) {
 		rows := db.Select[struct{ Id int64 }](
 			tx,
 			`
-				select app.id
+				select distinct app.id
 				from
 					"grant".applications app
 					join "grant".requested_resources rr on app.id = rr.application_id

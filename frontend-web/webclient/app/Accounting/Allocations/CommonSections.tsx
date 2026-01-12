@@ -801,7 +801,11 @@ const SubProjectListRow: React.FunctionComponent<{
                                                 width="120px">{Accounting.explainUnit(g.category).name}</Text>
                                         </Flex>
                                         : <Text>
-                                            {Accounting.balanceToString(g.category, alloc.quota)}
+                                            {alloc.retiredQuota !== undefined && alloc.note !== undefined && g.category.accountingFrequency !== "ONCE" ? <>
+                                                {Accounting.balanceToString(g.category, alloc.quota)}
+                                                {" / "}
+                                                {Accounting.balanceToString(g.category, alloc.retiredQuota)}
+                                            </> : Accounting.balanceToString(g.category, alloc.quota)}
                                         </Text>
                                     }
 

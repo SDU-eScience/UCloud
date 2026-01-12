@@ -283,22 +283,22 @@ func mfaCreateInternalChallenge(tx *db.Transaction, username string, credentials
 		tx,
 		`
 			with
-				requested_credentials as (
-					select cast(:credentials_id as bigint) as id
-				)
-			insert into auth.two_factor_challenges(dtype, challenge_id, expires_at, credentials_id, service) 
-			select 
-				'LOGIN', 
-				:challenge_id, 
-				now() + cast('10 minutes' as interval),
-				coalesce(cred.id, req.id),
-				null
+			  requested_credentials as (
+				  select cast(:credentials_id as bigint) as id
+			  )
+			insert into auth.two_factor_challenges(dtype, challenge_id, expires_at, credentials_id, service)
+			select
+			  'LOGIN',
+			  :challenge_id,
+			  now() + cast('10 minutes' as interval),
+			  cred.id,
+			  null
 			from
-				requested_credentials req
-				left join auth.two_factor_credentials cred on cred.principal_id = :username
+			  requested_credentials req
+			  join auth.two_factor_credentials cred on cred.principal_id = :username
 			where
-				req.id >= 0
-				or cred.id is not null
+			  (req.id >= 0 and req.id = cred.id)
+			  or (cred.enforced = true)
 			returning challenge_id
 	    `,
 		db.Params{

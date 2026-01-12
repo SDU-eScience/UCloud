@@ -122,21 +122,37 @@ func (a *grantApplication) lDeepCopy() accapi.GrantApplication {
 	return result
 }
 
+type grantsProjectInfo struct {
+	Pi    string
+	Title string
+}
+
+var grantsProjectCache = util.NewCache[string, grantsProjectInfo](4 * time.Hour)
+
 func GrantApplicationProcess(app accapi.GrantApplication) accapi.GrantApplication {
 	recipient := app.CurrentRevision.Document.Recipient
 	if recipient.Type == accapi.RecipientTypeExistingProject {
-		project := db.NewTx(func(tx *db.Transaction) fndapi.Project {
-			project, _ := coreutil.ProjectRetrieveFromDatabase(tx, recipient.Id.Value)
-			return project
+		projectInfo, ok := grantsProjectCache.Get(recipient.Id.Value, func() (grantsProjectInfo, error) {
+			project := db.NewTx(func(tx *db.Transaction) fndapi.Project {
+				project, _ := coreutil.ProjectRetrieveFromDatabase(tx, recipient.Id.Value)
+				return project
+			})
+
+			result := grantsProjectInfo{}
+			for _, member := range project.Status.Members {
+				if member.Role == fndapi.ProjectRolePI {
+					result.Pi = member.Username
+					break
+				}
+			}
+			result.Title = project.Specification.Title
+			return result, nil
 		})
 
-		for _, member := range project.Status.Members {
-			if member.Role == fndapi.ProjectRolePI {
-				app.Status.ProjectPI = member.Username
-				break
-			}
+		if ok {
+			app.Status.ProjectPI = projectInfo.Pi
+			app.Status.ProjectTitle.Set(projectInfo.Title)
 		}
-		app.Status.ProjectTitle.Set(project.Specification.Title)
 	}
 	return app
 }

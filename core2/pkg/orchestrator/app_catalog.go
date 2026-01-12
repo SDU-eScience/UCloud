@@ -800,21 +800,15 @@ func appCategoryToApi(
 
 	if len(groups) > 0 {
 		for _, g := range groups {
-			groupFlags := flags
-			filter := false
+			groupFlags := flags | AppCatalogIncludeApps
 			wantApps := flags&AppCatalogIncludeApps != 0
-			if discovery.Mode != orcapi.CatalogDiscoveryModeAll {
-				filter = true
-				groupFlags |= AppCatalogIncludeApps
-			}
-
-			if flags&AppCatalogRequireNonemptyGroups != 0 {
-				filter = true
-				groupFlags |= AppCatalogIncludeApps
-			}
 
 			group, _, ok := AppRetrieveGroup(actor, g, discovery, groupFlags)
-			if ok && (!filter || len(group.Status.Applications) > 0) {
+			if ok && len(group.Status.Applications) > 0 {
+				if len(group.Status.Applications) == 1 && group.Specification.DefaultFlavor == "" {
+					group.Specification.DefaultFlavor = group.Status.Applications[0].Metadata.Name
+				}
+
 				if !wantApps {
 					group.Status.Applications = util.NonNilSlice[orcapi.Application](nil)
 				}
@@ -823,7 +817,7 @@ func appCategoryToApi(
 		}
 
 		slices.SortFunc(apiCategory.Status.Groups, func(a, b orcapi.ApplicationGroup) int {
-			return strings.Compare(a.Specification.Title, b.Specification.Title)
+			return strings.Compare(strings.ToLower(a.Specification.Title), strings.ToLower(b.Specification.Title))
 		})
 	}
 	return apiCategory
