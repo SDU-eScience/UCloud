@@ -331,7 +331,7 @@ export const App: React.FunctionComponent = () => {
                                                 width={180}
                                                 type="text"
                                                 inputRef={groupEntityField}
-                                                placeholder="Group name"
+                                                placeholder="Group ID"
                                             />
                                         </>
                                     )}

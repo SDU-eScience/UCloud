@@ -1577,8 +1577,8 @@ func AppStudioUpdateAcl(appName string, toAdd []orcapi.AclEntity, toRemove []orc
 			}
 			groupFound := false
 			for _, group := range project.Status.Groups {
-				// Henrik: Only allows group title
-				if group.Specification.Title == entity.Group {
+				// Henrik: Only allows group ID NOT title
+				if group.Id == entity.Group {
 					groupFound = true
 					break
 				}
@@ -1601,7 +1601,7 @@ func AppStudioUpdateAcl(appName string, toAdd []orcapi.AclEntity, toRemove []orc
 			for _, acl := range acls {
 				needToRemove := false
 				for _, aclToRemove := range toRemove {
-					if acl.Username == aclToRemove.Username || (acl.ProjectId == aclToRemove.ProjectId && aclToRemove.Group == aclToRemove.Group) {
+					if (acl.Type == orcapi.AclEntityTypeUser && acl.Username == aclToRemove.Username) || (acl.Type == orcapi.AclEntityTypeProjectGroup && acl.ProjectId == aclToRemove.ProjectId && aclToRemove.Group == aclToRemove.Group) {
 						needToRemove = true
 						break
 					}

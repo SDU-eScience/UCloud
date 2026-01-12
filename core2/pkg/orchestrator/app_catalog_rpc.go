@@ -314,7 +314,12 @@ func appCatalogInitRpc() {
 		var entitiesToAdd []orcapi.AclEntity
 		var entitiesToRemove []orcapi.AclEntity
 		for _, item := range request.Changes {
+			aclType := orcapi.AclEntityTypeUser
+			if item.Entity.Project.Present {
+				aclType = orcapi.AclEntityTypeProjectGroup
+			}
 			e := orcapi.AclEntity{
+				Type:      aclType,
 				Username:  item.Entity.User.GetOrDefault(""),
 				ProjectId: item.Entity.Project.GetOrDefault(""),
 				Group:     item.Entity.Group.GetOrDefault(""),
