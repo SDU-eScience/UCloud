@@ -80,15 +80,6 @@ func accountingV3() db.MigrationScript {
 				db.Exec(
 					tx,
 					`
-						update accounting.wallets_v2
-						set local_usage = local_usage + local_retired_usage;
-				    `,
-					db.Params{},
-				)
-
-				db.Exec(
-					tx,
-					`
 						update accounting.allocation_groups
 						set tree_usage = tree_usage + retired_tree_usage;
 				    `,

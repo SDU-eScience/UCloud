@@ -689,6 +689,7 @@ export interface AllocationDisplayTreeRecipient {
         allocations: {
             allocationId: number;
             quota: number;
+            retiredQuota?: number;
             note?: AllocationNote;
             isEditing: boolean;
             grantedIn?: number;
@@ -815,10 +816,10 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
             const entry = yourAllocations[type as ProductType]!;
 
             const quotaBalances = wallets.flatMap(wallet =>
-                ({balance: wallet.quota, category: wallet.paysFor})
+                ({balance: wallet.activeQuota ?? wallet.quota, category: wallet.paysFor})
             );
             const usageBalances = wallets.flatMap(wallet =>
-                ({balance: wallet.totalUsage, category: wallet.paysFor})
+                ({balance: wallet.activeUsage ?? wallet.totalUsage, category: wallet.paysFor})
             );
 
             const maxUsableBalances = wallets.map(wallet =>
@@ -865,8 +866,8 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
             }
 
             for (const wallet of wallets) {
-                const usage = combineBalances([{balance: wallet.totalUsage, category: wallet.paysFor}]);
-                const quota = combineBalances([{balance: wallet.quota, category: wallet.paysFor}]);
+                const usage = combineBalances([{balance: wallet.activeUsage ?? wallet.totalUsage, category: wallet.paysFor}]);
+                const quota = combineBalances([{balance: wallet.activeQuota ?? wallet.quota, category: wallet.paysFor}]);
                 const maxUsable = combineBalances([{
                     balance: wallet.maxUsable,
                     category: wallet.paysFor
@@ -905,13 +906,32 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
 
                                 let quotaString = "";
                                 if (shouldShowRetiredAmount && note !== undefined) {
-                                    quotaString += balanceToString(
-                                        wallet.paysFor,
-                                        alloc.retiredUsage ?? 0,
-                                        {precision: 2}
-                                    );
-                                    quotaString += " / ";
-                                    quotaString += balanceToString(wallet.paysFor, alloc.quota, {precision: 2});
+                                    if (isCore2Response) {
+                                        const isCapacityBased = wallet.paysFor.accountingFrequency === "ONCE";
+                                        if (isCapacityBased) {
+                                            quotaString = balanceToString(
+                                                wallet.paysFor,
+                                                alloc.retiredQuota!,
+                                                {precision: 2}
+                                            );
+                                        } else {
+                                            quotaString += balanceToString(
+                                                wallet.paysFor,
+                                                alloc.quota,
+                                                {precision: 2}
+                                            );
+                                            quotaString += " / ";
+                                            quotaString += balanceToString(wallet.paysFor, alloc.retiredQuota!, {precision: 2});
+                                        }
+                                    } else {
+                                        quotaString += balanceToString(
+                                            wallet.paysFor,
+                                            alloc.retiredUsage ?? 0,
+                                            {precision: 2}
+                                        );
+                                        quotaString += " / ";
+                                        quotaString += balanceToString(wallet.paysFor, alloc.quota, {precision: 2});
+                                    }
                                 } else {
                                     quotaString += balanceToString(wallet.paysFor, alloc.quota, {precision: 2});
                                 }
@@ -1001,8 +1021,8 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
             }
 
             if (isCore2Response) {
-                combinedQuota = childGroup.group.quota!;
-                combinedUsage = childGroup.group.usage;
+                combinedQuota = childGroup.group.activeQuota!;
+                combinedUsage = childGroup.group.activeUsage!;
             }
 
             const localUsage = combineBalances([{balance: childGroup.group.usage, category: wallet.paysFor}]);
@@ -1041,6 +1061,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                     start: alloc.startDate,
                     end: alloc.endDate,
                     grantedIn: alloc.grantedIn ?? undefined,
+                    retiredQuota: alloc.retiredQuota,
                 });
             }
             newGroup.totalGranted = totalAllocated;
@@ -1290,6 +1311,9 @@ export interface WalletV2 {
     maxUsable: number;
     quota: number;
     totalAllocated: number;
+
+    activeUsage?: number;
+    activeQuota?: number;
 }
 
 export interface AllocationGroupWithParent {
@@ -1314,6 +1338,8 @@ export interface AllocationGroup {
 
     // Core2 only properties:
     quota?: number;
+    activeQuota?: number;
+    activeUsage?: number;
 }
 
 export interface Allocation {

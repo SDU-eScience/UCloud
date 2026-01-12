@@ -89,7 +89,7 @@ func TaskListen(conn *ws.Conn) {
 		}
 
 		if len(batch.Messages) > 0 {
-			respBytes, _ := json.Marshal(result)
+			respBytes, _ := json.Marshal(batch)
 			err := conn.WriteMessage(ws.TextMessage, respBytes)
 			if err != nil {
 				return

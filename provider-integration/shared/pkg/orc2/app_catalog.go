@@ -115,7 +115,8 @@ type AppAccessEntity struct {
 }
 
 type AppDetailedEntityWithPermission struct {
-	Entity AppDetailedPermissionEntry `json:"entity"`
+	Entity     AppDetailedPermissionEntry `json:"entity"`
+	Permission AppAccessRight             `json:"permission"`
 }
 
 type AppDetailedPermissionEntry struct {

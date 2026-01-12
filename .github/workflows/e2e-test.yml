@@ -34,7 +34,7 @@ jobs:
         run: |
           set -euo pipefail
           export UCLOUD_GO_CACHE_DIR=$HOME/go-cache
-          ./launcher-dev init-test
+          ./launcher init-test
 
       - name: Remove unused docker resources
         shell: bash
@@ -46,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           export UCLOUD_GO_CACHE_DIR=$HOME/go-cache 
-          ./launcher-dev test
+          ./launcher test
 
       - name: Fix log permissions
         if: always()
@@ -81,5 +81,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./launcher-dev env delete
+          ./launcher env delete
           sudo chown -R $USER: .

@@ -97,36 +97,47 @@ func coreV2() db.MigrationScript {
 			    `,
 				db.Params{},
 			)
-			db.Exec(
+
+			_, ok := db.Get[struct{ Title string }](
 				tx,
 				`
-					INSERT INTO file_orchestrator.metadata_templates (title, namespace, uversion, schema, 
-						inheritable, require_approval, description, change_log, ui_schema, deprecated, created_at) 
-					VALUES ('UCloud File Sensitivity', 2, '1.0.0', '{"type": "object", 
-						"title": "UCloud: File Sensitivity", "required": ["sensitivity"], "properties": 
-						{"sensitivity": {"enum": ["SENSITIVE", "CONFIDENTIAL", "PRIVATE"], "type": "string", 
-						"title": "File Sensitivity", "enumNames": ["Sensitive", "Confidential", "Private"]}}, 
-						"dependencies": {}}', true, false, 'Describes the sensitivity of a file.', 'Initial', 
-						'{"ui:order": ["sensitivity"]}', false, '2022-11-01 11:47:14.698642 +00:00')
-					ON CONFLICT DO NOTHING
+					select title from file_orchestrator.metadata_templates where title = 'Favorite'
 			    `,
 				db.Params{},
 			)
 
-			db.Exec(
-				tx,
-				`
-					INSERT INTO file_orchestrator.metadata_templates (title, namespace, uversion, schema, 
-						inheritable, require_approval, description, change_log, ui_schema, deprecated, created_at) 
-					VALUES ('Favorite', 1, '1.0.0', '{"type": "object", "title": "UCloud: Favorite Files", "required": 
-						["favorite"], "properties": {"favorite": {"type": "boolean", "title": 
-						"Is this file one of your favorites?"}}, "description": "A document describing your favorite files", 
-						"dependencies": {}}', false, false, 'favorite', 'Initial', '{"ui:order": ["favorite"]}', false, 
-						'2022-11-01 11:47:14.698642 +00:00')
-					ON CONFLICT DO NOTHING 
-			    `,
-				db.Params{},
-			)
+			if !ok {
+				db.Exec(
+					tx,
+					`
+						INSERT INTO file_orchestrator.metadata_templates (title, namespace, uversion, schema, 
+							inheritable, require_approval, description, change_log, ui_schema, deprecated, created_at) 
+						VALUES ('UCloud File Sensitivity', 2, '1.0.0', '{"type": "object", 
+							"title": "UCloud: File Sensitivity", "required": ["sensitivity"], "properties": 
+							{"sensitivity": {"enum": ["SENSITIVE", "CONFIDENTIAL", "PRIVATE"], "type": "string", 
+							"title": "File Sensitivity", "enumNames": ["Sensitive", "Confidential", "Private"]}}, 
+							"dependencies": {}}', true, false, 'Describes the sensitivity of a file.', 'Initial', 
+							'{"ui:order": ["sensitivity"]}', false, '2022-11-01 11:47:14.698642 +00:00')
+						ON CONFLICT DO NOTHING
+					`,
+					db.Params{},
+				)
+
+				db.Exec(
+					tx,
+					`
+						INSERT INTO file_orchestrator.metadata_templates (title, namespace, uversion, schema, 
+							inheritable, require_approval, description, change_log, ui_schema, deprecated, created_at) 
+						VALUES ('Favorite', 1, '1.0.0', '{"type": "object", "title": "UCloud: Favorite Files", "required": 
+							["favorite"], "properties": {"favorite": {"type": "boolean", "title": 
+							"Is this file one of your favorites?"}}, "description": "A document describing your favorite files", 
+							"dependencies": {}}', false, false, 'favorite', 'Initial', '{"ui:order": ["favorite"]}', false, 
+							'2022-11-01 11:47:14.698642 +00:00')
+						ON CONFLICT DO NOTHING 
+					`,
+					db.Params{},
+				)
+			}
 		},
 	}
 }
