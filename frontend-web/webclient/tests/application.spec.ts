@@ -33,7 +33,9 @@ test("Favorite app, unfavorite app", async ({page}) => {
     await Applications.toggleFavorite(page);
 });
 
-test("Optional parameter", async ({page}) => {
+
+
+test("Upload bash-script, run job and add script as optional parameter, check for keyword in log while running and after job terminated", async ({page}) => {
     test.setTimeout(120_000)
     const BashScriptName = "init.sh";
     const BashScriptStringContent = "Visible from the terminal " + ((Math.random() * 100) | 0);
@@ -61,6 +63,17 @@ echo "${BashScriptStringContent}"
     await page.getByText("Node 1").scrollIntoViewIfNeeded();
     await page.mouse.wheel(0, 1000);
     await page.getByText(BashScriptStringContent).waitFor({state: "visible"});
+    await NetworkCalls.awaitResponse(page, "**api/files/browse?path=**", async () => {
+        await Runs.terminateViewedRun(page);
+    });
+    await File.actionByRowTitle(page, "stdout-0.log", "dblclick");
+    await page.getByText(BashScriptStringContent).hover();
+});
+
+test.skip("Create license, omit mandatory argument, then use license as argument for mandatory parameter, ", async ({page}) => {
+    // TODO
+    test.setTimeout(120_000);
+    "A value is missing for this mandatory field"
 });
 
 test("Start app and stop app from runs page. Start it from runs page, testing parameter import", async ({page}) => {
