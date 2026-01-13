@@ -126,7 +126,7 @@ const featureMap: Record<string, FeatureConfig> = {
     "allocations-improvements": {
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
         showWithFlag: allLocalEnvironments,
-        showWithoutFlag: noEnvironments,
+        showWithoutFlag: allLocalEnvironments,
     },
 
     "api-tokens-pages": {

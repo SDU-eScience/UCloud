@@ -9,6 +9,10 @@ import ProvidersApi from "@/UCloud/ProvidersApi";
 import {AllocationDisplayTreeRecipient, ProductType} from "@/Accounting";
 import {ProjectInfo, projectInfoPi, projectInfoTitle} from "@/Project/InfoCache";
 import {Client} from "@/Authentication/HttpClientInstance";
+import UsageCore2, {UsageReport, usageReportRetrieve} from "@/Accounting/UsageCore2";
+import {timestampUnixMs} from "@/UtilityFunctions";
+import {useImmerState} from "@/Utilities/Immer";
+import {produce} from "immer";
 
 const fuzzyMatcher = newFuzzyMatchFuse<{title: string}, "title">(["title"]);
 
@@ -20,6 +24,7 @@ export interface State extends Accounting.AllocationDisplayTree {
         managedProviders?: string[];
         managedProducts?: Record<string, Accounting.ProductCategoryV2[]>;
         gifts?: Gifts.GiftWithCriteria[];
+        reports?: UsageReport[];
     };
 
     searchQuery: string;
@@ -67,6 +72,7 @@ export type UIAction =
     | { type: "ToggleViewOnlyProjects" }
     | { type: "SortSubprojects", sortBy?: string, ascending: boolean }
     | { type: "SubProjectData", projects: Record<string, ProjectInfo | null> }
+    | { type: "UsageReportLoaded", reports: UsageReport[] }
     ;
 
 function recipientTitle(recipient: AllocationDisplayTreeRecipient, state: State): string {
@@ -322,6 +328,14 @@ export function stateReducer(state: State, action: UIAction): State {
             return rebuildTree(newState);
         }
 
+        case "UsageReportLoaded": {
+            const newState= produce(state, draft => {
+                draft.remoteData.reports = action.reports;
+            });
+
+            return rebuildTree(newState);
+        }
+
         case "Reset": {
             return initialState();
         }
@@ -506,6 +520,13 @@ export function useEventReducer(didCancel: React.RefObject<boolean>, doDispatch:
                     fetchAll(next => callAPI(Gifts.browse({itemsPerPage: 250, next}))).then(gifts => {
                         dispatch({type: "GiftsLoaded", gifts});
                     });
+                });
+
+                callAPI(usageReportRetrieve({
+                    start: timestampUnixMs() - (1000 * 60 * 60 * 24 * 7),
+                    end: timestampUnixMs()
+                })).then(result => {
+                    dispatch({type: "UsageReportLoaded", reports: result.reports});
                 });
 
                 break;

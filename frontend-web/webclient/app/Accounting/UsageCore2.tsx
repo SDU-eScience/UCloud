@@ -29,12 +29,12 @@ import {useUtilizationOverTimeChart} from "@/Accounting/Diagrams/UtilizationOver
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 
-interface UsageRetrieveRequest {
+export interface UsageRetrieveRequest {
     start: number;
     end: number;
 }
 
-interface UsageRetrieveResponse {
+export interface UsageRetrieveResponse {
     reports: UsageReport[];
 }
 
@@ -102,7 +102,7 @@ export type UsageReportOverTime = UsageReport["usageOverTime"];
 export type UsageReportDeltaDataPoint = UsageReport["usageOverTime"]["delta"][0];
 export type UsageReportAbsoluteDataPoint = UsageReport["usageOverTime"]["absolute"][0];
 
-function usageReportRetrieve(request: UsageRetrieveRequest): APICallParameters<UsageRetrieveRequest, UsageRetrieveResponse> {
+export function usageReportRetrieve(request: UsageRetrieveRequest): APICallParameters<UsageRetrieveRequest, UsageRetrieveResponse> {
     return apiRetrieve(request, "/api/accounting/v2/usage");
 }
 

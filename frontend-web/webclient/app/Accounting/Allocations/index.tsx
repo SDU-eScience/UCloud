@@ -45,7 +45,7 @@ import {
     YourAllocations,
     SubProjectList,
     resetOpenNodes,
-    SubProjectAllocations
+    KeyMetrics
 } from "./CommonSections";
 import {projectInfoPi, useProjectInfos} from "@/Project/InfoCache";
 
@@ -96,6 +96,7 @@ const Allocations: React.FunctionComponent = () => {
     const searchBox = useRef<HTMLInputElement>(null);
     const projectState = useProject();
     const projectRole = projectState.fetch().status.myRole ?? OldProjectRole.USER;
+    const reports = state.remoteData.reports ?? [];
 
     usePage("Allocations", SidebarTabId.PROJECT);
 
@@ -376,7 +377,7 @@ const Allocations: React.FunctionComponent = () => {
             {/*<ResourcesGranted state={state} allocationTree={allocationTree} sortedAllocations={sortedAllocations}*/}
             {/*                  indent={indent} avatars={avatars}/>*/}
 
-            <SubProjectAllocations allocations={sortedAllocations} indent={indent} />
+            <KeyMetrics allocations={sortedAllocations} indent={indent} reports={reports} />
 
             <SubProjectList
                 projectId={projectId} onNewSubProject={onNewSubProject} projectRole={projectRole}

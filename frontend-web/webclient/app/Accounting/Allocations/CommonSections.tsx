@@ -26,7 +26,7 @@ import {chunkedString, timestampUnixMs} from "@/UtilityFunctions";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {OldProjectRole} from "@/Project";
-import {State, UIAction, UIEvent} from "@/Accounting/Allocations/State";
+import {State, stateReducer, UIAction, UIEvent} from "@/Accounting/Allocations/State";
 import {VariableSizeList} from "react-window";
 import {AvatarState} from "@/AvataaarLib/hook";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -34,7 +34,7 @@ import Avatar from "@/AvataaarLib/avatar";
 import {classConcat, extractDataTags, injectStyle} from "@/Unstyled";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useReducer, useRef, useState} from "react";
 import {ProgressBar} from "@/Accounting/Allocations/ProgressBar";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
@@ -50,6 +50,7 @@ import {AllocationBar} from "@/Accounting/Allocations/AllocationBar";
 import {projectInfoPi, projectInfoTitle, useProjectInfo} from "@/Project/InfoCache";
 import {useForcedRender} from "@/Utilities/ReactUtilities";
 import {Feature, hasFeature} from "@/Features";
+import {UsageReport} from "@/Accounting/UsageCore2";
 
 interface Datapoint {
     product: string;
@@ -480,10 +481,11 @@ const keyMetricDefaultSettings: Record<string, KeyMetricSetting> = {
     },
 };
 
-export const SubProjectAllocations: React.FunctionComponent<{
+export const KeyMetrics: React.FunctionComponent<{
     allocations: [string, AllocationDisplayTreeYourAllocation][];
     indent: number;
-}> = ({allocations, indent}) => {
+    reports: UsageReport[];
+}> = ({allocations, indent, reports}) => {
     const treeApi = useRef<TreeApi>(null);
     const [filtersShown, setFiltersShown] = useState(false);
     const closeFilters = useCallback(() => {
@@ -502,6 +504,15 @@ export const SubProjectAllocations: React.FunctionComponent<{
             });
         });
     }, []);
+
+    console.log(reports);
+
+    const computeReport = reports.find(it => it.title === "Core-hours");
+
+    // TODO make new state variable that has a usageReport (see UsageCore2.tsx)
+    // this should be implemented in State.tsx
+    // TODO make a useEffect for fetching key metrics info, that reloads the page, when the projects is changed etc.
+    // TODO implement the reload function used for this
 
     if (!hasFeature(Feature.ALLOCATIONS_PAGE_IMPROVEMENTS)) return null;
 
@@ -572,8 +583,19 @@ export const SubProjectAllocations: React.FunctionComponent<{
                                     </Flex>
                                 }
                                 right={<Flex flexDirection={"row"} gap={"8px"}>
+                                    {/*
+                                    TODO extract the data about UsageReportSubProjectHealth (ok, at risk, underused) from the usage reports
+                                    TODO transform the data into percentages
+                                    TODO find a way to insert the variables into the label
+                                    */}
                                     {tree.usageAndQuota.map((uq, idx) =>
                                         <React.Fragment key={idx}>
+                                            <AllocationBar
+                                                label={"65% Ok | 5% At risk | 30% Underused"}
+                                                okPercentage={computeReport?.subProjectHealth.ok ?? 0}
+                                                atRiskPercentage={computeReport?.subProjectHealth.atRisk ?? 0}
+                                                underusedPercentage={computeReport?.subProjectHealth.underUtilized ?? 0}
+                                            />
                                             <AllocationBar label={"65% Ok | 5% At risk | 30% Underused"} okPercentage={65} atRiskPercentage={5} underusedPercentage={30} />
                                         </React.Fragment>
                                     )}
@@ -606,9 +628,11 @@ export const SubProjectAllocations: React.FunctionComponent<{
                         <h3>Storage <br /> utilization</h3>
                     </div>
                     <div className="key-metrics-card">
-                        <h3>73</h3>
+                        <h3>{computeReport?.subProjectHealth.idle}</h3>
                         <br />
-                        <h3>Idle <br /> projects</h3>
+                        <h3>Idle <br />
+                            {computeReport?.subProjectHealth.idle === 1 ? "project" : "projects"}
+                        </h3>
                     </div>
                     <div className="key-metrics-list">
                         <div className="key-metrics-line">
@@ -994,16 +1018,16 @@ export const SubProjectFilters: React.FunctionComponent<{
                 <div className="key-metrics-settings-container">
                     <h3>Sub-project filters</h3>
                 </div>
-                {/*<div className="key-metrics-input">*/}
-                {/*    <div className="key-metrics-search-box">*/}
-                {/*        <Input placeholder="Search in your sub-project filters"></Input>*/}
-                {/*        <div style={{position: "relative"}}>*/}
-                {/*            <div style={{position: "absolute", top: "5px", right: "10px"}}>*/}
-                {/*                <Icon name={"heroMagnifyingGlass"}/>*/}
-                {/*            </div>*/}
-                {/*        </div>*/}
-                {/*    </div>*/}
-                {/*</div>*/}
+                <div className="key-metrics-input">
+                    <div className="key-metrics-search-box">
+                        <Input placeholder="Search in your sub-project filters"></Input>
+                        <div style={{position: "relative"}}>
+                            <div style={{position: "absolute", top: "5px", right: "10px"}}>
+                                <Icon name={"heroMagnifyingGlass"}/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </Flex>
             {Object.values(settings).map(setting => (
                 setting.feature === undefined || hasFeature(setting.feature) ?

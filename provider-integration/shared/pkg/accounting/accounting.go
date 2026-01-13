@@ -2,6 +2,7 @@ package apm
 
 import (
 	"encoding/json"
+
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -150,6 +151,9 @@ type WalletsBrowseRequest struct {
 	Next            util.Option[string]      `json:"next"`
 	FilterType      util.Option[ProductType] `json:"filterType"`
 	IncludeChildren bool                     `json:"includeChildren"`
+	/* TODO add a request for info on idle projects:
+	idleTime util.Option[int]
+	*/
 }
 
 var WalletsBrowse = rpc.Call[WalletsBrowseRequest, fnd.PageV2[WalletV2]]{
