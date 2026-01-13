@@ -4,32 +4,32 @@ UCloud orchestrates provider functionality by treating almost everything the use
 resource is a platform level record that represents some provider backed capability, such as _a job, a storage drive, a
 public link, a public IP, or a software license_. UCloud uses this abstraction to coordinate work between UCloud/Core
 and a service provider, so users can interact with different providers through the same concepts and the same kind of
-lifecycle. ￼
+lifecycle.
 
 The key ideas are:
 
 - **A stable identity is attached to all resources.** Even when the provider also has its own internal identifier for
-  the same thing. This makes it possible to browse, audit, and reference resources consistently across providers. ￼
+  the same thing. This makes it possible to browse, audit, and reference resources consistently across providers.
 - **Resources are tied to a provider specified product.** That product choice determines what the provider is expected
   to supply and what accounting rules apply. This is how UCloud connects orchestration to allocations and quotas without
-  baking provider details into the user experience. ￼
+  baking provider details into the user experience.
 - **UCloud keeps a catalog of resources.** This catalog allows many read and listing operations to be served by
   UCloud/Core without contacting the provider every time, while still keeping the provider in the loop for changes and
-  execution. ￼
+  execution.
 - **Resources have ownership and permissions.** Ownership is always a single workspace context, either personal or a
   project. Permissions are role based and are typically managed through project groups, which supports collaboration
-  without requiring provider specific access control models. ￼
+  without requiring provider specific access control models.
 - **Resources evolve over time through updates.** Providers can report changes, and those changes are reflected
-  back to users through a consistent status model rather than provider specific state machines. ￼
+  back to users through a consistent status model rather than provider specific state machines.
 
 The job submission flow in the user interface is a concrete example of this orchestration model in action. Users start
 from an application entry and configure a run, but the orchestration hinges on selecting a machine type that maps to
-products available in the active workspace and on the chosen provider. ￼
+products available in the active workspace and on the chosen provider.
 
 UCloud extends orchestration beyond the core job itself by letting users attach additional provider backed
 resources to a run when the app and provider support it. Examples include custom public links for interactive web
 interfaces and public IP addresses for externally reachable services. These are separate resources with their own
-lifecycle and permissions, but they can be associated with a job to compose a complete runnable environment. ￼
+lifecycle and permissions, but they can be associated with a job to compose a complete runnable environment.
 
 The diagram below summarizes the significant steps involved in the submission of a job.
 

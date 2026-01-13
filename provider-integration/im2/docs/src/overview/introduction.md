@@ -46,19 +46,19 @@ The UCloud application catalog showing a selection of applications available at 
 
 Applications on UCloud span traditional batch HPC workloads as well as interactive tools for development, data
 engineering, analytics, and AI. Apps are offered in multiple execution modes: batch processing, interactive web apps,
-virtual desktop apps, and virtual machines depending on the software and provider capabilities. ￼
+virtual desktop apps, and virtual machines depending on the software and provider capabilities.
 
 All apps follow the same basic workflow. You select an application (and, when relevant, a specific flavor and version),
 configure its parameters, choose a machine type available on the selected provider, and submit a job. Input data is
 typically attached by mounting one or more folders into the job's working directory. Output produced in the working tree
 is preserved after the job completes and becomes available in the UCloud file system. For interactive apps, once the job
-is running you can open the application's web interface directly from UCloud. ￼
+is running you can open the application's web interface directly from UCloud.
 
 To give a sense of what to expect from the catalog as a whole, the app index includes popular options such as:
 
-- **Interactive analysis and development:** JupyterLab, RStudio, Coder  ￼
-- **Engineering and simulation:** COMSOL, ANSYS, OpenFOAM  ￼
-- **Life science and bioinformatics:** AlphaFold 3, ColabFold, Cell Ranger, FastQC, Nextflow, nf-core  ￼
-- **Data labeling and visualization:** CVAT, Label Studio, Gephi  ￼
-- **Workflows and big data services:** Airflow, Spark Cluster, Kafka Cluster  ￼
-- **Writing and collaboration:** Overleaf, ONLYOFFICE  ￼
+- **Interactive analysis and development:** JupyterLab, RStudio, Coder 
+- **Engineering and simulation:** COMSOL, ANSYS, OpenFOAM 
+- **Life science and bioinformatics:** AlphaFold 3, ColabFold, Cell Ranger, FastQC, Nextflow, nf-core 
+- **Data labeling and visualization:** CVAT, Label Studio, Gephi 
+- **Workflows and big data services:** Airflow, Spark Cluster, Kafka Cluster 
+- **Writing and collaboration:** Overleaf, ONLYOFFICE 

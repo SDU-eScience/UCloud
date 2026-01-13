@@ -1,31 +1,31 @@
 # Accounting and Resource Management
 
 UCloud's accounting and allocation model is designed to do three things: control access to provider services, track
-consumption at the workspace level, and support reporting and historical usage views. ￼
+consumption at the workspace level, and support reporting and historical usage views.
 
 Access to compute and storage is granted through allocations. A workspace (personal workspace or project)
 must generally hold a valid allocation before UCloud will allow requests for a given product category to be forwarded to
-a provider. ￼
+a provider.
 
 An allocation implies:
 
-- **Scope:** It applies to a specific product category (e.g., one class of compute vs another). ￼
-- **Validity window:** It has a start and end date; outside that window it is invalid. ￼
-- **Quota:** It carries a quota that bounds consumption. ￼
+- **Scope:** It applies to a specific product category (e.g., one class of compute vs another).
+- **Validity window:** It has a start and end date; outside that window it is invalid.
+- **Quota:** It carries a quota that bounds consumption.
 
 UCloud's role is to check that an appropriate allocation exists and to help providers stay informed about quota status.
 Enforcement is ultimately the provider's responsibility, since the provider has the most accurate view of the underlying
-resources and runtime conditions. ￼
+resources and runtime conditions.
 
 Allocations are also hierarchical: a root allocation can be subdivided into child allocations, enabling projects (and
 sub-projects) to delegate budgets to smaller efforts. UCloud allows over-allocation in sub-allocations, but ensures the
-combined usage within an allocation tree cannot exceed the quota defined at the root. ￼
+combined usage within an allocation tree cannot exceed the quota defined at the root.
 
 ## Requesting and granting allocations
 
 In practice, users obtain allocations via grant applications, which act as the primary workflow for allocating resources
 to a workspace or project. The user-facing form captures the same fundamentals developers need to understand: which
-workspace/project should receive resources, the allocation period, and which providers/products are being requested. ￼
+workspace/project should receive resources, the allocation period, and which providers/products are being requested.
 
 <figure class="diagram">
 

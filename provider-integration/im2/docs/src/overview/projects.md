@@ -9,16 +9,16 @@ specified, operations run in the user's personal scope, known as the personal wo
 A project consists of a collection of members with defined roles. Every project includes exactly one Principal
 Investigator (PI) who is responsible for managing the project, adding and removing members, and approving grant
 applications for resources. Projects can also include administrators and regular members, each with progressively
-limited management privileges. ￼
+limited management privileges.
 
 Within a project, users can organize collaborators into groups, which serve as finer-grained permission units.
 UCloud automatically maintains special groups (such as “All Users”) that providers use when registering and resolving
-resource access. ￼
+resource access.
 
 Projects are also the core target for accounting and resource allocation. When a project is approved, it is allocated
 products such as compute, storage, software licenses, or public IPs. The PI and project administrators can view and
 manage these allocations through UCloud's management interface, and statistics about usage over time are available for
-monitoring and reporting. ￼
+monitoring and reporting.
 
 Projects are, in some cases, also synchronized with service providers. For example, using the UCloud/IM for Slurm-based
 HPC integration, users and projects are mapped directly to their Unix equivalent. This is illustrated below and
