@@ -43,11 +43,15 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
     const onUse = useCallback((license: License) => {
         LicenseSetter(props.parameter, {type: "license_server", id: license.id});
         WidgetSetProvider(props.parameter, license.specification.product.provider);
-        if (props.errors[props.parameter.name]) {
-            delete props.errors[props.parameter.name];
-            props.setErrors({...props.errors});
-        }
-    }, [props.parameter, props.errors]);
+        props.setErrors(errors => {
+            if (errors[props.parameter.name]) {
+                delete errors[props.parameter.name];
+                return {...errors};
+            } else {
+                return errors;
+            }
+        });
+    }, [props.parameter]);
 
     const filters = React.useMemo(() => ({filterState: "READY"}), []);
 
