@@ -1,21 +1,13 @@
 # Summary
 
-<!--
-
-[Welcome](./introduction.md)
-
----
-
---->
-
-<!--
-# UCloud Overview
+# UCloud/Core
 
 - [Introduction](./overview/introduction.md)
-- [Project and Resource Management](./overview/apm.md)
+- [Projects](./overview/projects.md)
+- [Accounting](./overview/accounting.md)
 - [Orchestration](./overview/orchestration.md)
-- [Glossary](./overview/glossary.md)
 
+<!--
 # Becoming a Provider
 
 - [Getting Started](./provider/getting-started.md)
@@ -33,15 +25,11 @@
 - [Slurm Integration](./slurm/slurm.md)
   - [Application Management](./slurm/app-management.md)
   - [Built-in Applications](./slurm/built-in-apps.md)
-  - [Interactive Jobs](./slurm/interactive-jobs.md)
-  - [SSH Key Upload](./slurm/ssh-keys.md)
 - [Reference](./slurm/reference.md)
     - [Configuration](./slurm/config-reference.md)
     - [CLI](./slurm/cli-reference.md)
 - [Appendix](./slurm/appendix.md)
   - [Built-in Application Index](./slurm/built-in-app-index.md)
-
-<!--
 
 # UCloud/IM for Kubernetes
 
@@ -51,13 +39,14 @@
 - [Compute Jobs](k8s/compute.md)
   - [Public Links](./k8s/public-links.md)
   - [Public IPs](./k8s/public-ips.md)
-  - [License Servers](./k8s/public-ips.md)
+  - [License Servers](./k8s/licenses.md)
   - [SSH Servers](./k8s/ssh-servers.md)
-- [Application Management](./k8s/app-managment.md)
+- [Integrated applications](./k8s/integrated-applications.md)
     - [Syncthing](./k8s/syncthing.md)
-- [Reference](./slurm/reference.md)
-    - [Configuration](./slurm/config-reference.md)
-    - [CLI](./slurm/cli-reference.md)
+- [Reference](./k8s/reference.md)
+    - [Configuration](./k8s/config-reference.md)
+
+<!--
 
 # Operation Guide
 

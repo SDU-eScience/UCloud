@@ -1,0 +1,67 @@
+# yaml-language-server: $schema=https://launcher-assets.cloud.sdu.dk/schemas/app
+application: v2
+
+name: "example-application"
+version: "2026.1.0"
+
+title: "My example"
+documentation: "https://docs.cloud.sdu.dk/"
+description: "My example applications"
+
+software:
+  type: "Container"
+  image: "dreg.cloud.sdu.dk/ucloud-apps/example:2026.1.0" # This does not exist
+
+features:
+  multiNode: true
+  links: false
+  folders: true
+  jobLinking: true
+  ipAddresses: true
+
+web:
+  enabled: true
+  port: 7681
+
+ssh:
+  mode: "Optional"
+
+extensions: [".txt", ".md"]
+
+parameters:
+  shell:
+    type: "Enumeration"
+    title: "My preferred shell"
+    description: "Select your preferred shell."
+    defaultValue: "bash"
+    options:
+      - title: "Bash"
+        value: "bash"
+      - title: "Zsh"
+        value: "zsh"
+      - title: "Fish"
+        value: "fish"
+    optional: true
+
+  feature:
+    type: "Boolean"
+    title: "Enable feature"
+    description: "Do you want the feature? (default: false)."
+    defaultValue: false
+    optional: true
+
+  modules:
+    type: "Directory"
+    title: "Modules path"
+    description: "Import environment modules folder."
+    optional: true
+
+  initScript:
+    type: "File"
+    title: "Initialization"
+    description: "Shell script to run during startup. File format: Bash script (.sh)."
+    optional: true
+
+invocation: |
+  echo "Did you want the feature?" {{ feature }}
+  echo "Your preferred shell is: " {{ shell }}

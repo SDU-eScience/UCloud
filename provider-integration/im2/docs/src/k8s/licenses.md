@@ -1,3 +1,3 @@
-# SSH Servers
+# Licenses
 
 TODO Not yet described.

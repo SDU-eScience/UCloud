@@ -12,8 +12,7 @@ We will start by explaining the overall architecture, followed with a discussion
 
 <figcaption>
 
-Overall architecture of UCloud/IM for Slurm-based HPC. This diagram depicts a production-like setup using direct
-networking.
+Overall architecture of UCloud/IM for Slurm-based HPC. This diagram depicts a production-like setup.
 
 </figcaption>
 </figure>
@@ -35,7 +34,7 @@ In the architecture above, we have several actors. We have summarised the role o
 <td>
 
 The end-user is a user of the UCloud platform and of the service provider. As we have discussed in the introduction
-chapter (TODO where?), the end-user primarily communicates with UCloud/Core, and in rare cases 
+chapter, the end-user primarily communicates with UCloud/Core, and in rare cases 
 directly with a service provider.
 
 In this diagram, we assume that the user has already gone through the connection procedure (TODO link) and has
@@ -88,8 +87,7 @@ not related to an end-user request. For example, this server instance will tell 
 exposes.
 
 The server instance consumes some of the HPC services. This includes keeping track of Slurm jobs and reporting the state
-back to UCloud/Core. For managed providers, this also includes the creation of filesets, user identities, projects and
-Slurm accounts.
+back to UCloud/Core. This also includes the creation of filesets, user identities, projects and Slurm accounts.
 
 It is the job of the server instance to start new user instances. The server instance is capable of doing this through
 `sudo`. The configuration of `sudo` was covered in the [previous](./installation.md) section.
@@ -178,10 +176,9 @@ Followed by periodic monitoring by `UCloud/IM (Server)`:
 2. `UCloud/IM (Server)` → `UCloud/Core`: Send job updates
 3. `UCloud/Core` → `End-user(s)`: Notify about relevant job updates
 
-## Direct Mode Networking Requirements
+## Networking Requirements
 
-In this section, we will recap the requirements listed from the section above. Direct mode is required for production
-use.
+In this section, we will recap the requirements listed from the section above. 
 
 ### DNS and Certificates
 
@@ -206,12 +203,3 @@ address.
 | TCP      | 443  | All        | Gateway IP  | Accepting IM traffic and interactive application traffic |
 | TCP      | 443  | Gateway IP | UCloud      | Sending messages to UCloud/Core                          |
 
-The concrete subnet to use for UCloud depends on the environment you are integrating with, please see the table below
-for concrete values:
-
-| Environment | Subnet       |
-|-------------|--------------|
-| Sandbox     | `1.2.3.4/99` |
-| Production  | `1.2.3.4/99` |
-
-TODO Subnets.

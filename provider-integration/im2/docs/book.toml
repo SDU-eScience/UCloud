@@ -1,9 +1,9 @@
 [book]
-authors = ["Dan Sebastian Thrane"]
+authors = ["UCloud authors"]
 language = "en"
 multilingual = false
 src = "src"
-title = "UCloud/IM"
+title = "UCloud"
 
 [preprocessor.external-links]
 

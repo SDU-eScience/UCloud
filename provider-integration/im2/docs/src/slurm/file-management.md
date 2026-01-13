@@ -1,7 +1,7 @@
 # Filesystem Integration
 
 In this chapter we are going to cover how UCloud/IM for Slurm integrates with your local distributed filesystem. We will
-start by covering the concept of UCloud drives and how these are mapped to your local environment. This will be follwed by a discussion on how to manage various integrations which are needed for fully managed providers.
+start by covering the concept of UCloud drives and how these are mapped to your local environment. 
 
 ## Software and Hardware Requirements
 
@@ -46,8 +46,7 @@ files using a `umask` value of `0007`. This ensures that the group (i.e. the res
 will be able to access any newly created files.
 
 UCloud/IM does not make any attempts to modify file ACLs, but any ACLs set manually will be
-enforced. For managed providers, UCloud/IM will recommend an owner, group and permissions for all
-drives, these are as follows:
+enforced. UCloud/IM will recommend an owner, group and permissions for all drives, these are as follows:
 
 <figure>
 
@@ -69,12 +68,6 @@ It is a requirement that filesystems are mounted consistently across all relevan
 to how it is a requirement that identities (UIDs and GIDs) are consistent across all relevant nodes. Thus, if you are
 able to view your home directory at `/home/donna01` on the frontend, then it must be available at `/home/donna01` on all
 relevant compute nodes.
-
-## Products and Payment
-
-TODO we need to explain how the products work and what the associated payment model means for you. For GB-hours I think
-we should introduce a "tolerable burst-rate" which describes what the maximum current usage should be set to. Somewhere
-around 200-300% seems like a reasonable default.
 
 ## Virtual Drives
 
@@ -98,7 +91,7 @@ personal project (a special type of project containing exactly one member).
 <figcaption>
 
 Donna is a member of three different projects. Each project has its own set of drives. Each drive is mapped to a
-specific folder on the HPC system's filesystem. Keep in mind that only _managed_ providers have a concept of projects.
+specific folder on the HPC system's filesystem. 
 
 The colored square next to each project indicate the color of the corresponding arrows.
 
@@ -113,26 +106,7 @@ In this case, the HPC system has three different root-directories for entrypoint
 
 Donna has for each of her ordinary projects, gotten space in both `/work` and `/archive`. For her personal project, she
 has a some space in `/home`. Donna can switch between different views by selecting a different project. This makes it
-very easy to differentiate between different sets of folders as they relate to a given project. In order to take
-advantage of UCloud's project feature, you must first become a managed provider. You can learn more about this process
-[here](./id-management.md).
-
-For unmanaged providers, the virtual drive mapping is very similar. The only real difference is that all UCloud drives
-now point to the root directories (e.g. `/work`) instead of a concrete project directory
-(e.g. `/work/my_sandbox_project01`).
-
-<figure class="diagram">
-
-<img class="light" src="./drive_mapping_unmanaged_light.svg">
-<img class="dark" src="./drive_mapping_unmanaged_dark.svg">
-
-<figcaption>
-
-Unmanaged providers are not able to take advantage of UCloud's project feature. As a result, drive mapping is less
-precise and harder to navigate for the end-users.
-
-</figcaption>
-</figure>
+very easy to differentiate between different sets of folders as they relate to a given project. 
 
 ### Configuring Drive Locators
 
@@ -141,13 +115,13 @@ from the [installation guide](./installation.md) has already configured some for
 Drive locators are configured in the main service configuration file (typically `/etc/ucloud/config.yml`) as part of
 the `fileSystems` service.
 
-#### Managed Drive Locators
+#### Drive Locators
 
-Managed drive locators can be configured for different types of entity. Depending on the entity various variables are
-made available to you for use in the location of a drive. For managed drive locators, you have a choice between using
-the `pattern` property or the `script` property. Using the pattern property will allow you to easily do string
-interpolation and return a path. The [script](#TODO) property instead allows you to fully customize the returned path.
-In either case, the same variables are available to you.
+Drive locators can be configured for different types of entity. Depending on the entity various variables are
+made available to you for use in the location of a drive. You have a choice between using the `pattern` property or the
+`script` property. Using the pattern property will allow you to easily do string interpolation and return a path.
+The [script](#TODO) property instead allows you to fully customize the returned path. In either case, the same variables
+are available to you.
 
 <figure>
 
@@ -180,7 +154,7 @@ services:
 
 <figcaption>
 
-Configuration of three managed drive locators. Two of them use the `hpc-storage` product, these point to `/home` and
+Configuration of three drive locators. Two of them use the `hpc-storage` product, these point to `/home` and
 `/work`. The last one uses a different product called `archive` which points to `/archive`. Different products require
 separate resource allocations.
 
@@ -200,49 +174,7 @@ separate resource allocations.
 | `Project`          | `localGroupName`  | The local group name of the project (e.g. `my_sandbox_project01`)          |
 | `Project`          | `gid`             | The corresponding local GID of the project (e.g. `5234281`)                |
 
-#### Unmanaged Drive Locators
-
-<figure>
-
-```yaml
-services:
-  type: Slurm
-
-  fileSystems:
-    hpc-storage:
-      driveLocators:
-        home:
-          pattern: "/home"
-          title: "Home"
-
-        projects:
-          pattern: "/work"
-          title: "Work"
-
-        archive:
-          pattern: "/archive"
-          title: "Long-term archival"
-```
-
-<figcaption>
-
-Configuration of three unmanaged drive locators. They point to the folders `/home`, `/work` and `/archive`. All three
-drives use the product called `hpc-storage`.
-
-</figcaption>
-</figure>
-
 ## Integrations
-
-<div class="info-box info">
-<i class="fa fa-info-circle"></i>
-<div>
-
-The integrations listed in this section require you to first become a managed provider by turning on automatic user
-management. You can read more about the process [here](./id-management.md).
-
-</div>
-</div>
 
 ### GPFS
 
@@ -441,7 +373,7 @@ Content-Type: application/json
 {
     "filesetName": "${fileset}",
     "inodeSpace": "${mappingParent}",
-    "comment": "UCloud managed drive",
+    "comment": "UCloud drive",
     "path": "${mountPath}",
     "owner": "${owner}:${group}",
     "permissions": "${permissions}"
