@@ -322,9 +322,11 @@ export const Components = {
     },
 
     async selectAvailableMachineType(page: Page): Promise<void> {
-        await page.getByText('No machine type selected').click();
-        // Find a way of getting the first non-disabled table-row with a product
-        await page.getByRole('cell', {name: "u1-standard-1", disabled: false}).first().click();
+        await page.getByText('No machine type selected').first().click();
+        await page.getByRole('cell', {
+            name: data.products_by_provider_and_type.k8s.COMPUTE.name,
+            disabled: false
+        }).first().click();
     },
 
     async selectAvailableProduct(page: Page): Promise<void> {
@@ -582,9 +584,7 @@ export const Resources = {
 
     Licenses: {
         async activateLicense(page: Page): Promise<number> {
-            let productId = "";
             const result = (await NetworkCalls.awaitResponse(page, "**/api/licenses", async () => {
-                // TODO(Jonas): get product name
                 await page.getByText("Activate license").click();
                 await page.getByRole("dialog").getByRole("button", {name: "Activate"}).click();
             }));

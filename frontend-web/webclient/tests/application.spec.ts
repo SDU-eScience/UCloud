@@ -1,5 +1,5 @@
 import {expect, test} from "@playwright/test";
-import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls} from "./shared";
+import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls, Resources} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 
 test.beforeEach(async ({page}) => {
@@ -59,9 +59,8 @@ echo "${BashScriptStringContent}"
     await File.ensureDialogDriveActive(page, driveName);
     await page.getByRole("dialog").locator(".row", {hasText: BashScriptName}).getByRole("button", {name: "Use"}).click();
     await Components.selectAvailableMachineType(page);
-    await Runs.submitAndWaitForRunning(page);
-    await page.getByText("Node 1").scrollIntoViewIfNeeded();
     await page.mouse.wheel(0, 1000);
+    await Runs.submitAndWaitForRunning(page);
     await page.getByText(BashScriptStringContent).waitFor({state: "visible"});
     await NetworkCalls.awaitResponse(page, "**api/files/browse?path=**", async () => {
         await Runs.terminateViewedRun(page);
@@ -70,10 +69,26 @@ echo "${BashScriptStringContent}"
     await page.getByText(BashScriptStringContent).hover();
 });
 
-test.skip("Create license, omit mandatory argument, then use license as argument for mandatory parameter, ", async ({page}) => {
-    // TODO
+test("Create license, omit mandatory argument, then use license as argument for mandatory parameter, ", async ({page}) => {
     test.setTimeout(120_000);
-    "A value is missing for this mandatory field"
+    await NetworkCalls.awaitProducts(page, async () => {
+        await Resources.goTo(page, "Licenses");
+    })
+    const licenseId = await Resources.Licenses.activateLicense(page);
+    await Applications.openApp(page, "COMSOL");
+    await page.getByRole("button", {name: "Submit"}).waitFor();
+    await page.mouse.wheel(0, 1000);
+    await page.getByPlaceholder("Select license server...").waitFor();
+
+    // Click submit, don't expect a backend response
+    await page.getByRole("button", {name: "Submit"}).click();
+    // See that license is required
+    await page.getByText("A value is missing for this mandatory field").hover();
+    await page.getByPlaceholder("Select license server...").click();
+    await page.getByRole("dialog").locator(".row", {hasText: licenseId.toString()}).getByRole("button", {name: "Use"}).click();
+    await Components.selectAvailableMachineType(page);
+    await page.getByRole("button", {name: "Submit"}).click();
+    await page.waitForURL("**/jobs/properties/**");
 });
 
 test("Start app and stop app from runs page. Start it from runs page, testing parameter import", async ({page}) => {
