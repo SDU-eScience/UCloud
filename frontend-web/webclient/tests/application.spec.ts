@@ -33,6 +33,36 @@ test("Favorite app, unfavorite app", async ({page}) => {
     await Applications.toggleFavorite(page);
 });
 
+test("Optional parameter", async ({page}) => {
+    test.setTimeout(120_000)
+    const BashScriptName = "init.sh";
+    const BashScriptStringContent = "Visible from the terminal " + ((Math.random() * 100) | 0);
+    const FancyBashScript = `
+#!/usr/bin/env bash
+echo "${BashScriptStringContent}"
+`;
+    const driveName = Drive.newDriveName();
+    await Drive.create(page, driveName);
+    await Drive.openDrive(page, driveName);
+    await File.uploadFiles(page, [{name: BashScriptName, contents: FancyBashScript}]);
+
+    await Applications.goToApplications(page);
+    await Applications.searchFor(page, "coder");
+    await page.getByRole('link', {name: "Coder", exact: false}).click();
+    // Optional paramter to be used
+    await page.getByRole("button", {name: "Use"}).first().click();
+    await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
+        await page.getByRole("textbox", {name: "No file selected"}).click();
+    });
+    await File.ensureDialogDriveActive(page, driveName);
+    await page.getByRole("dialog").locator(".row", {hasText: BashScriptName}).getByRole("button", {name: "Use"}).click();
+    await Components.selectAvailableMachineType(page);
+    await Runs.submitAndWaitForRunning(page);
+    await page.getByText("Node 1").scrollIntoViewIfNeeded();
+    await page.mouse.wheel(0, 1000);
+    await page.getByText(BashScriptStringContent).waitFor({state: "visible"});
+});
+
 test("Start app and stop app from runs page. Start it from runs page, testing parameter import", async ({page}) => {
     test.setTimeout(240_000);
     const jobName = Runs.newJobName();
@@ -52,7 +82,6 @@ test("Start app and stop app from runs page. Start it from runs page, testing pa
     await Runs.terminateViewedRun(page);
     await page.getByText("Run application again").waitFor({state: "visible"});
     await expect(page.getByText("Run application again")).toHaveCount(1);
-
 });
 
 test("Mount folder with file in job, and cat inside contents", async ({page}) => {
