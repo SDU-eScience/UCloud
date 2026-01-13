@@ -14,6 +14,17 @@ UCloud functions as an orchestrator for storage and computing resources across a
 enables users to consume resources from multiple providers through a unified and consistent interface, delivering a
 seamless and homogeneous user experience.
 
+## Developer quick-start
+
+You can create a local development environment in just a few seconds using the following command:
+
+```console
+# The launcher requires Go and Docker to be installed on your machine
+./launcher 
+```
+
+![](wiki/launcher.png)
+
 ## Storage
 
 UCloud provides storage resources to users through a file system that supports familiar data operations. Users can read,
