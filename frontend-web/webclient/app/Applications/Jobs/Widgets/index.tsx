@@ -92,7 +92,7 @@ export interface WidgetProps {
     parameter: ApplicationParameter;
     errors: Record<string, string>;
     setWarning?: (warning: string) => void;
-    setErrors: (errors: Record<string, string>) => void;
+    setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 
     // NOTE(Dan): This can only be done by the workflow parameter (of which there should only be at most one)
     injectWorkflowParameters: (parameters: ApplicationParameter[]) => void;
