@@ -514,6 +514,16 @@ export const KeyMetrics: React.FunctionComponent<{
     // TODO make a useEffect for fetching key metrics info, that reloads the page, when the projects is changed etc.
     // TODO implement the reload function used for this
 
+    const ok = computeReport?.subProjectHealth.ok ?? 0;
+    const atRisk = computeReport?.subProjectHealth.atRisk ?? 0;
+    const underused = computeReport?.subProjectHealth.underUtilized ?? 0;
+
+    const total = ok + atRisk + underused;
+
+    const okPercentage = total > 0 ? (ok / total) * 100 : 0;
+    const atRiskPercentage = total > 0 ? (atRisk / total) * 100 : 0;
+    const underusedPercentage = underused > 0 ? (underused / total) * 100 : 0;
+
     if (!hasFeature(Feature.ALLOCATIONS_PAGE_IMPROVEMENTS)) return null;
 
     return <>
@@ -583,20 +593,14 @@ export const KeyMetrics: React.FunctionComponent<{
                                     </Flex>
                                 }
                                 right={<Flex flexDirection={"row"} gap={"8px"}>
-                                    {/*
-                                    TODO extract the data about UsageReportSubProjectHealth (ok, at risk, underused) from the usage reports
-                                    TODO transform the data into percentages
-                                    TODO find a way to insert the variables into the label
-                                    */}
                                     {tree.usageAndQuota.map((uq, idx) =>
                                         <React.Fragment key={idx}>
                                             <AllocationBar
-                                                label={"65% Ok | 5% At risk | 30% Underused"}
-                                                okPercentage={computeReport?.subProjectHealth.ok ?? 0}
-                                                atRiskPercentage={computeReport?.subProjectHealth.atRisk ?? 0}
-                                                underusedPercentage={computeReport?.subProjectHealth.underUtilized ?? 0}
+                                                label={` ${okPercentage}% Ok | ${atRiskPercentage}% At risk | ${underusedPercentage}% Underused`}
+                                                okPercentage={okPercentage}
+                                                atRiskPercentage={atRiskPercentage}
+                                                underusedPercentage={underusedPercentage}
                                             />
-                                            <AllocationBar label={"65% Ok | 5% At risk | 30% Underused"} okPercentage={65} atRiskPercentage={5} underusedPercentage={30} />
                                         </React.Fragment>
                                     )}
                                 </Flex>}
@@ -605,6 +609,7 @@ export const KeyMetrics: React.FunctionComponent<{
                                 <TreeNode
                                     left={
                                         <Flex gap={"4px"}>
+                                            {/*TODO insert code for providers and products*/}
                                             <ProviderLogo providerId={"ucloud"} size={20} />
                                             <h3>u1-cephfs</h3>
                                         </Flex>
