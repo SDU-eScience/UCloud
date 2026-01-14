@@ -321,6 +321,16 @@
         }));
     </script>
 
+    <script>
+        const listItems = document.querySelectorAll("ol.chapter li");
+        for (const item of listItems) {
+            console.log(item.innerText);
+            if (item.innerText.indexOf("H: ") !== -1) {
+                item.style.display = "none";
+            }
+        }
+    </script>
+
     <script src="{{ path_to_root }}book.js"></script>
 
     <!-- Custom JS scripts -->

@@ -47,6 +47,16 @@
 - [Reference](./k8s/reference.md)
     - [Configuration](./k8s/config-reference.md)
 
+# H: Procedures
+
+- [H: Procedures](./procedures.md)
+- [H: Introduction](./procedures/procedures_intro.md)
+- [H: Auditing](./procedures/auditing.md)
+- [H: Auditing scenario](./procedures/auditing-scenario.md)
+- [H: GitHub actions](./procedures/ci.md)
+- [H: Deployment](./procedures/deployment.md)
+- [H: 3rd party dependencies (risk assesment)](./procedures/third_party_dependencies.md)
+
 <!--
 
 # Operation Guide
