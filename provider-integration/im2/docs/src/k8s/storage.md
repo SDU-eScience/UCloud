@@ -78,4 +78,39 @@ UCloud/IM for Kubernetes utilize the following structure for root-directories:
 
 ## Configuring the file system
 
-TODO
+The filesystem must be configured in both the Helm chart as well as the configuration. The configuration between these
+must also be consistent.
+
+In the Helm chart, the file system is referenced through two separate PVCs:
+
+- `ucloud-user-data` (namespaced with the integration module)
+- `ucloud-apps-user-data` (namespaced with user apps)
+
+Both PVCs must map to the same distributed file-system as described above. The `ucloud-user-data` PVC is automatically
+mounted by the Helm chart into the deployment at `/mnt/storage`. The mount location must be reflected in the
+configuration file as well. By default, we recommend that you use the following configuration snippet to configure
+the file-system, you can read the [reference](./config-reference.md) for more information on how to tweak it.
+
+<figure>
+
+```yaml
+services:
+  type: Kubernetes
+  
+  fileSystem:
+    name: "storage"
+    mountPoint: "/mnt/storage"
+    trashStagingArea: "/mnt/storage/trash"
+    claimName: "ucloud-user-data"
+    scanMethod:
+      type: Walk
+
+```
+
+<figcaption>
+
+Default configuration of the file-system matching the Helm chart.
+
+</figcaption>
+
+</figure>

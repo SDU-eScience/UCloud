@@ -42,7 +42,8 @@
   - [License Servers](./k8s/licenses.md)
   - [SSH Servers](./k8s/ssh-servers.md)
 - [Integrated applications](./k8s/integrated-applications.md)
-    - [Syncthing](./k8s/syncthing.md)
+  - [Syncthing](./k8s/syncthing.md)
+  - [Integrated terminal](./k8s/integrated-terminal.md)
 - [Reference](./k8s/reference.md)
     - [Configuration](./k8s/config-reference.md)
 

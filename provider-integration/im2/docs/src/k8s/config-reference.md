@@ -184,13 +184,12 @@ services:
   type: Kubernetes
 
   fileSystem:
-    name: "home"
-    mountPoint: "/mnt/ucloud"
-    trashStagingArea: "/mnt/ucloud-trash"
-    claimName: "ucloud-pvc"
+    name: "storage"
+    mountPoint: "/mnt/storage"
+    trashStagingArea: "/mnt/storage/trash"
+    claimName: "ucloud-user-data"
     scanMethod:
       type: Walk
-      # xattr: "user.ucloud.owner"   # only used if type is Xattr
 
   compute:
     namespace: "ucloud-apps"

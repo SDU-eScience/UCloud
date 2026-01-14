@@ -37,10 +37,9 @@ $ helm show values sdu-escience/ucloud-im > values.yaml
 # NOTE: At this point you MUST modify the values (see below)
 
 $ helm install ucloud-im \
-  sdu-escience/ucloud-im \
-  --namespace ucloud-im \
-  --create-namespace \
-  -f values.yaml
+    sdu-escience/ucloud-im \
+    --namespace ucloud-im \
+    -f values.yaml
 ```
 
 There are some prerequisites that must be manually configured before using the Helm chart to install UCloud/IM.
