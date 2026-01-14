@@ -82,7 +82,7 @@ should aim to re-use this file.
 
 Before you can start UCloud/IM, you must register as a service provider. This only needs to be done
 once. You may receive a test provider in UCloud's sandbox environment by contacting the [support
-team](https://servicedesk.cloud.sdu.dk).
+team](https://support.cloud.sdu.dk).
 
 <!--
 

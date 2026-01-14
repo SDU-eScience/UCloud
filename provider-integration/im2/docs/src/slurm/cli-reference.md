@@ -134,12 +134,6 @@ Query by product category (Product). Supports regex.
 </table>
 </div>
 
-
-### `connect`
-
-TODO
-
-
 ### `drives`
 
 <div class="table-wrapper">
@@ -378,9 +372,6 @@ $ ucloud projects ls
 ```
 
 ### `scripts`
-
-**TODO:** The interface for scripts differ slightly from the other subcommands. We should probably 
-change something.
 
 <div class="table-wrapper">
 <table>
@@ -627,9 +618,9 @@ Description
 
 </td>
 <td>
-Kills all long running tasks on the system, such as a file copy, empty trash or file transfer.
 
-**TODO:** Needs documentation.
+Kills all long-running tasks on the system, such as a file copy, empty trash or file transfer.
+
 </td>
 </tr>
 </tbody>

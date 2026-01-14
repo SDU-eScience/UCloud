@@ -329,6 +329,13 @@
                 item.style.display = "none";
             }
         }
+
+        const navButtons = document.querySelectorAll(`[rel=next],[rel="next prefetch"],[rel=prev],[rel="prev prefetch"]`);
+        for (const btn of navButtons) {
+            if (btn && btn.innerText.indexOf("H:") !== -1) {
+                btn.style.display = "none";
+            }
+        }
     </script>
 
     <script src="{{ path_to_root }}book.js"></script>
