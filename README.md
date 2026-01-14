@@ -19,8 +19,7 @@ seamless and homogeneous user experience.
 You can create a local development environment in just a few seconds using the following command:
 
 ```console
-# The launcher requires Go and Docker to be installed on your machine
-./launcher 
+./launcher # requires Go and Docker
 ```
 
 ![](wiki/launcher.png)
