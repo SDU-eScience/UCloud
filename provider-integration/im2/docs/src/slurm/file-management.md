@@ -120,7 +120,7 @@ the `fileSystems` service.
 Drive locators can be configured for different types of entity. Depending on the entity various variables are
 made available to you for use in the location of a drive. You have a choice between using the `pattern` property or the
 `script` property. Using the pattern property will allow you to easily do string interpolation and return a path.
-The [script](#TODO) property instead allows you to fully customize the returned path. In either case, the same variables
+The script property instead allows you to fully customize the returned path. In either case, the same variables
 are available to you.
 
 <figure>
@@ -452,7 +452,7 @@ will trigger the "Resource allocation updated" process.
 
 ### Scripted (any filesystem)
 
-This integration is another [script](#TODO) integration. Script integrations allow you to fully customize all aspects of
+This integration is another script integration. Script integrations allow you to fully customize all aspects of
 drive management. It is entirely up to you to create these scripts. All scripts will be invoked with a single
 argument, which is a path to a JSON file. The contents of the JSON file will depend on the script, see below for
 details. All scripts are expected to return the response as a JSON object on `stdout`. Detailed error messages and

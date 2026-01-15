@@ -825,7 +825,7 @@ TODO If a product is marked as `freeToUse` then we should not send usage numbers
 
 ### Scripted
 
-This integration is another [script](#TODO) integration. Script integrations allow you to fully customize all aspects of
+This integration is another script integration. Script integrations allow you to fully customize all aspects of
 Slurm account and quota management. It is entirely up to you to create these scripts. All scripts will be invoked with
 a single argument, which is a path to a JSON file. The contents of the JSON file will depend on the script, see below
 for details. All scripts are expected to return the response as a JSON object on `stdout`. Detailed error messages and

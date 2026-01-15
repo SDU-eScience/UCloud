@@ -10,6 +10,8 @@ import React, {useMemo, useState} from "react";
 import {ChartLabel, colorNames} from "@/Accounting/Diagrams/index";
 import {HTMLTooltipEx} from "@/ui-components/Tooltip";
 import {balanceToStringFromUnit, FrontendAccountingUnit} from "@/Accounting";
+import truncate, {truncateText} from "@/ui-components/Truncate";
+import {groupBy} from "@/Utilities/CollectionUtilities";
 
 export interface DeltaOverTimeChart {
     chartRef: React.RefObject<SVGSVGElement | null>
@@ -21,6 +23,7 @@ export function useDeltaOverTimeChart(
     chartWidth: number,
     chartHeight: number,
     unit: FrontendAccountingUnit | null,
+    childToLabel: (child: string | null) => string,
 ): DeltaOverTimeChart {
     const [childrenLabels, setChildrenLabels] = useState<ChartLabel[]>([]);
 
@@ -33,7 +36,7 @@ export function useDeltaOverTimeChart(
         const r = openReport;
         if (r == null) return;
 
-        const data = r.usageOverTime.delta;
+        let data = r.usageOverTime.delta;
         if (data.length === 0) return;
 
         // Dimensions and margin
@@ -82,6 +85,21 @@ export function useDeltaOverTimeChart(
                 return 0;
             }
         });
+
+        const groupedData = groupBy(data, it => it.child ?? "");
+        data = [];
+        for (const [, entries] of Object.entries(groupedData)) {
+            let change = 0;
+            for (const entry of entries) {
+                change += entry.change;
+            }
+
+            data.push({
+                timestamp: entries[0].timestamp,
+                child: entries[0].child,
+                change,
+            });
+        }
 
         const byTimestampKey = index(data, d => d.timestamp, d => d.child ?? "");
 
@@ -136,6 +154,13 @@ export function useDeltaOverTimeChart(
                 }
 
                 {
+                    const name = document.createElement("div");
+                    name.append(truncateText(childToLabel(child), 30));
+                    name.style.flexGrow = "1";
+                    container.append(name);
+                }
+
+                {
                     const node = document.createElement("div");
                     const change = usageBucket.get(child)?.change ?? 0;
                     node.append(balanceToStringFromUnit(null, unitName, change * unitNormalizationFactor));
@@ -146,7 +171,7 @@ export function useDeltaOverTimeChart(
                 tooltip.append(container);
             }
 
-            tooltips[ts] = HTMLTooltipEx(tooltip);
+            tooltips[ts] = HTMLTooltipEx(tooltip, { tooltipContentWidth: 400 });
         }
 
         // Y-axis
@@ -222,7 +247,7 @@ export function useDeltaOverTimeChart(
                 .style("stroke-linejoin", "round")
                 .style("stroke", "var(--borderColor)");
         }
-    }, [openReport, chartWidth, chartHeight])
+    }, [openReport, chartWidth, chartHeight, childToLabel])
 
     // noinspection UnnecessaryLocalVariableJS
     const result: DeltaOverTimeChart = useMemo(() => {

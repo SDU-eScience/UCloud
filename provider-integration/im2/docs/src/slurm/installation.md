@@ -1,8 +1,7 @@
 # Installation
 
 This document will guide you through the process of obtaining and installing UCloud/IM for Slurm. By the end of this
-document you will be connected to UCloud's sandbox environment. Please see [this](#TODO) document for more information
-about becoming a provider in the production environment.
+document you will be connected to UCloud's sandbox environment. 
 
 ## Prerequisites
 

@@ -328,7 +328,7 @@ const UsagePage: React.FunctionComponent = () => {
     }, [state.openReport]);
 
     const utilizationOverTime = useUtilizationOverTimeChart(state.openReport, utilizationChartWidth, utilizationChartHeight, unit);
-    const deltaOverTime = useDeltaOverTimeChart(state.openReport, deltaChartWidth, chartHeight(deltaChartWidth), unit);
+    const deltaOverTime = useDeltaOverTimeChart(state.openReport, deltaChartWidth, chartHeight(deltaChartWidth), unit, childToLabel);
     const breakdownChart = useBreakdownChart(state.openReport, breakdownChartWidth,
         breakdownChartHeight, childToLabel, valueFormatter);
 
@@ -485,7 +485,7 @@ const UsagePage: React.FunctionComponent = () => {
                                     </TooltipV2>
                                 </th>
                                 <td align={"right"}>
-                                    {daysUntilDepletion === null ? "-" : <>{daysUntilDepletion} days</>}
+                                    {daysUntilDepletion === null || daysUntilDepletion <= 0 ? "-" : <>{daysUntilDepletion} days</>}
                                 </td>
                             </tr>
                             <tr>
@@ -693,25 +693,40 @@ const UsagePage: React.FunctionComponent = () => {
                 <ProjectSwitcher/>
             </Flex>
 
-            <Flex gap={"16px"} flexWrap={"wrap"}>
-                <Box flexBasis={300} flexGrow={1} flexShrink={0}>
-                    <div><b>Period</b></div>
-                    <PeriodSelector value={state.period} onChange={setPeriod}/>
-                </Box>
+            <Box>
+                <Flex gap={"16px"} flexWrap={"wrap"}>
+                    <Box flexBasis={300} flexGrow={1} flexShrink={0}>
+                        <div><b>Period</b></div>
+                        <PeriodSelector value={state.period} onChange={setPeriod}/>
+                    </Box>
 
-                <Box flexBasis={930} flexShrink={1} flexGrow={3}>
-                    <div><b>Page</b></div>
-                    <RichSelect
-                        items={state.reports}
-                        keys={["title"]}
-                        RenderRow={RenderReportSelector}
-                        RenderSelected={RenderReportSelector}
-                        onSelect={setSelectedReport}
-                        fullWidth
-                        selected={state.openReport}
-                    />
-                </Box>
-            </Flex>
+                    <Box flexBasis={930} flexShrink={1} flexGrow={3}>
+                        <div><b>Page</b></div>
+                        <RichSelect
+                            items={state.reports}
+                            keys={["title"]}
+                            RenderRow={RenderReportSelector}
+                            RenderSelected={RenderReportSelector}
+                            onSelect={setSelectedReport}
+                            fullWidth
+                            selected={state.openReport}
+                        />
+                    </Box>
+                </Flex>
+
+                {normalizePeriod(state.period).start < new Date("2026-01-28").getTime() ||
+                normalizePeriod(state.period).end < new Date("2026-01-28").getTime() ? <>
+                    <Card
+                        borderRadius="6px"
+                        height="auto"
+                        mt={"32px"}
+                        color="textPrimary"
+                        style={{background: `var(--warningMain)`}}
+                    >
+                        Data prior to 28/01/2026 is not currently available.
+                    </Card>
+                </> : null}
+            </Box>
 
             {state.loading ? <HexSpin/> :
                 state.error ? <>{state.error}</> :
