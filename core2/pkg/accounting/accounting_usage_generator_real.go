@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
@@ -89,8 +90,8 @@ func initUsageGenerator() {
 }
 
 func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpError {
-	timeStart := util.StartOfDayUTC(time.Now()).AddDate(0, 0, -request.Days)
-	timeEnd := util.StartOfDayUTC(time.Now()).AddDate(0, 0, request.Days+1)
+	timeStart := util.StartOfDayUTC(time.Now()).AddDate(0, -6, 0)
+	timeEnd := util.StartOfDayUTC(time.Now()).AddDate(0, 1, 0)
 
 	titleBase := fmt.Sprintf("usegen_%v", time.Now().Format(time.DateTime))
 
@@ -155,6 +156,9 @@ func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpErro
 			nowTime := tm(now)
 			startTime := tm(start)
 			endTime := tm(end)
+			if !request.Expiration {
+				endTime = timeEnd
+			}
 
 			// Create sub-project
 			// ---------------------------------------------------------------------------------------------------------

@@ -1,9 +1,9 @@
 import * as React from "react";
 import {
     AllocationDisplayTreeRecipient,
-    AllocationDisplayTreeYourAllocation,
+    AllocationDisplayTreeYourAllocation, combineBalances, ProductCategoryV2,
     ProductType,
-    UsageAndQuota,
+    UsageAndQuota, WalletV2,
 } from "@/Accounting";
 import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
 import {
@@ -390,18 +390,21 @@ const KeyMetricSettingsRow: React.FunctionComponent<{
     onChange: (setting: KeyMetricSetting) => void;
 }> = (props) => {
 
+    /* TODO implement checking/unchecking a key metric functionality for this callback function */
     const onChecked = useCallback(() => {
         props.onChange(produce(props.setting, draft => {
             draft.enabled = !draft.enabled;
         }))
     }, [props.setting, props.onChange])
 
+    /* TODO implement selecting options functionality for this callback function. See selectedOpt   */
     const onSelectOption = useCallback((item: SimpleRichItem) => {
         props.onChange(produce(props.setting, draft => {
             draft.selected = item.key
         }))
     }, [props.setting, props.onChange])
 
+    /* TODO implement starring/unstarring functionality for this callback function */
     const onStarring = useCallback(() => {
         props.onChange(produce(props.setting, draft => {
             draft.starred = !draft.starred;
@@ -443,6 +446,7 @@ const KeyMetricSettingsRow: React.FunctionComponent<{
     </ListRow>
 }
 
+{/* TODO add make the selectors functional (hook options up to something) */}
 const keyMetricDefaultSettings: Record<string, KeyMetricSetting> = {
     "Idle sub-projects": {
         title: "Idle sub-projects",
@@ -485,7 +489,8 @@ export const KeyMetrics: React.FunctionComponent<{
     allocations: [string, AllocationDisplayTreeYourAllocation][];
     indent: number;
     reports: UsageReport[];
-}> = ({allocations, indent, reports}) => {
+    state: State;
+}> = ({allocations, indent, reports, state}) => {
     const treeApi = useRef<TreeApi>(null);
     const [filtersShown, setFiltersShown] = useState(false);
     const closeFilters = useCallback(() => {
@@ -505,6 +510,55 @@ export const KeyMetrics: React.FunctionComponent<{
         });
     }, []);
 
+    const productCategoryKey = (category: ProductCategoryV2): string =>
+        `${category.name}/${category.provider}`;
+
+    let usageByProduct: Record<string, number> = {};
+    for (const wallet of state.remoteData.wallets ?? []) {
+        let totalQuota = 0;
+        for (const child of wallet.children ?? []) {
+            totalQuota += child.group.usage ?? 0
+        }
+        usageByProduct[productCategoryKey(wallet.paysFor)] = totalQuota;
+    }
+
+    let quotaByProduct: Record<string, number> = {};
+    for (const wallet of state.remoteData.wallets ?? []) {
+        let totalQuota = 0;
+        for (const child of wallet.children ?? []) {
+            totalQuota += child.group.activeQuota ?? 0
+        }
+        quotaByProduct[productCategoryKey(wallet.paysFor)] = totalQuota;
+    }
+
+    let usageAndQuotaByProduct: Record<string, UsageAndQuota> = {};
+    for (const wallet of state.remoteData.wallets ?? []) {
+        const key = productCategoryKey(wallet.paysFor);
+        const quotaBalanceThing = combineBalances([{
+            category: wallet.paysFor,
+            balance: quotaByProduct[key]
+        }])[0];
+
+        const usageBalanceThing = combineBalances([{
+            category: wallet.paysFor,
+            balance: usageByProduct[key]
+        }])[0];
+
+        const uq = new UsageAndQuota({
+            usage: usageBalanceThing.normalizedBalance,
+            quota: quotaBalanceThing.normalizedBalance,
+            unit: usageBalanceThing.unit,
+            maxUsable: quotaBalanceThing.normalizedBalance,
+            retiredAmount: 0,
+            retiredAmountStillCounts: false,
+            type: usageBalanceThing.productType,
+            ownedByPersonalProviderProject: false,
+        });
+
+        usageAndQuotaByProduct[key] = uq;
+    }
+
+    console.log(usageByProduct);
     console.log(reports);
 
     const computeReport = reports.find(it => it.title === "Core-hours");
@@ -580,52 +634,63 @@ export const KeyMetrics: React.FunctionComponent<{
             <div className="key-metrics-container">
                 <div className="sub-project-allocations-container">
                     <h3>Sub-project allocations</h3>
-                    <Tree apiRef={treeApi}>
-                        {allocations.map(([rawType, tree]) => {
-                            const type = rawType as ProductType;
+                    {state.remoteData.wallets === undefined ? <>
+                        <HexSpin size={64} />
+                        </> : <>
+                    <div>
+                        {allocations.length !== 0 ? null :
+                            <div style={{marginLeft: "20px", marginTop: "10px"}}>
+                                You do not have given out allocated any resources at this time.
+                                When you approve grant applications, the allocated resources will be shown here.
+                            </div>}
+                            <Tree apiRef={treeApi}>
+                            {allocations.map(([rawType, tree]) => {
+                                const type = rawType as ProductType;
 
-                            return <TreeNode
-                                key={rawType}
-                                left={
-                                    <Flex gap={"4px"}>
-                                        <Icon name={Accounting.productTypeToIcon(type)} size={20} />
-                                        {Accounting.productAreaTitle(type)}
-                                    </Flex>
-                                }
-                                right={<Flex flexDirection={"row"} gap={"8px"}>
-                                    {tree.usageAndQuota.map((uq, idx) =>
-                                        <React.Fragment key={idx}>
-                                            <AllocationBar
-                                                label={` ${okPercentage}% Ok | ${atRiskPercentage}% At risk | ${underusedPercentage}% Underused`}
-                                                okPercentage={okPercentage}
-                                                atRiskPercentage={atRiskPercentage}
-                                                underusedPercentage={underusedPercentage}
-                                            />
-                                        </React.Fragment>
-                                    )}
-                                </Flex>}
-                                indent={indent}
-                            >
-                                <TreeNode
+                                return <TreeNode
+                                    key={rawType}
                                     left={
                                         <Flex gap={"4px"}>
-                                            {/*TODO insert code for providers and products*/}
-                                            <ProviderLogo providerId={"ucloud"} size={20} />
-                                            <h3>u1-cephfs</h3>
+                                            <Icon name={Accounting.productTypeToIcon(type)} size={20} />
+                                            {Accounting.productAreaTitle(type)}
                                         </Flex>
                                     }
                                     right={<Flex flexDirection={"row"} gap={"8px"}>
-                                        {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                            <ProgressBar uq={uq} />
-                                        </React.Fragment>
+                                        {tree.usageAndQuota.map((uq, idx) =>
+                                            <React.Fragment key={idx}>
+                                                <AllocationBar
+                                                    label={` ${okPercentage}% Ok | ${atRiskPercentage}% At risk | ${underusedPercentage}% Underused`}
+                                                    okPercentage={okPercentage}
+                                                    atRiskPercentage={atRiskPercentage}
+                                                    underusedPercentage={underusedPercentage}
+                                                />
+                                            </React.Fragment>
                                         )}
                                     </Flex>}
+                                    indent={indent}
                                 >
-                                </TreeNode>
-                            </TreeNode>;
-                        })}
-                    </Tree>
+                                    {tree.wallets.map((wallet, idx) =>
+                                    <TreeNode
+                                        key={idx}
+                                        left={
+                                            <Flex gap={"4px"}>
+                                                <ProviderLogo providerId={wallet.category.provider} size={20} />
+                                                <code>{wallet.category.name}</code>
+                                            </Flex>
+                                        }
+                                        right={<Flex flexDirection={"row"} gap={"8px"}>
+                                            <ProgressBar uq={usageAndQuotaByProduct[productCategoryKey(wallet.category)]} />
+                                        </Flex>}
+                                    >
+                                    </TreeNode>
+                                    )}
+                                </TreeNode>;
+                                })}
+                            </Tree>
+                        </div>
+                    </>}
                 </div>
+
                 <div className="key-metrics-card-container">
                     <div className="key-metrics-card">
                         <h3>41%</h3>
@@ -928,6 +993,7 @@ const SubProjectFiltersRow: React.FunctionComponent<{
 
 const SingleUserProjects = "Personal workspaces"
 
+{/* TODO add make the selectors functional (hook options up to something) */}
 const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
     "Idle sub-projects": {
         title: "Idle sub-projects",
