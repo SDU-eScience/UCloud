@@ -1,5 +1,5 @@
 import {expect, type Page} from "@playwright/test";
-import fs from "fs";
+import fs, {link} from "fs";
 
 // Note(Jonas): If it complains that it doesn"t exist, create it.
 import {default as data} from "./test_data.json" with {type: "json"};
@@ -530,26 +530,34 @@ export const Resources = {
     },
 
     IPs: {
-        async createNew(page: Page): Promise<void> {
-            const promises = [
-                NetworkCalls.awaitProducts(page, async () => {}),
-                NetworkCalls.awaitResponse(page, "**/api/networkips/browse*", async () => {})
-            ];
-            await Resources.goTo(page, "IP addresses");
-            await Promise.all(promises);
-
+        async createNew(page: Page): Promise<string> {
+            await NetworkCalls.awaitProducts(page, async () => {
+                await Resources.goTo(page, "IP addresses");
+            });
 
             await page.getByText("Create public IP").click();
 
             await page.getByRole("dialog").getByText("public-ip").hover();
             await this.fillPortRowInDialog(page);
+            const firewall = page.waitForResponse("**/api/networkips/firewall");
+            const ip = await NetworkCalls.awaitResponse(page, "**/api/networkips", async () => {
+                await page.getByRole("button", {name: "create", disabled: false}).click();
+            });
+            const ipAdress: {
+                responses: [
+                    {
+                        id: string
+                    }
+                ]
+            } = JSON.parse(await ip.text());
+            await firewall;
+            return ipAdress.responses[0].id;
         },
 
         async fillPortRowInDialog(page: Page): Promise<void> {
             await page.getByRole("dialog").locator("input").first().fill("123");
             await page.getByRole("dialog").locator("input").nth(1).fill("321");
             await page.locator("td > button").click();
-            await page.getByRole("button", {name: "create", disabled: false}).click();
         },
 
         async delete(page: Page, name: string): Promise<void> {
@@ -609,6 +617,10 @@ export const Terminal = {
 const Help = {
     newResourceName(namespace: string): string {
         return namespace + Math.random().toString().slice(2, 7);
+    },
+
+    ensureActiveProject(): void | never {
+
     }
 };
 
@@ -623,6 +635,48 @@ export const NetworkCalls = {
         return await NetworkCalls.awaitResponse(page, "**/retrieveProducts?*", block);
     }
 }
+
+
+type AccountingPage = "Allocations" | "Usage" | "Grant Applications" | "Apply for resources" | "Members" | "Project settings" | "Sub-projects";
+export const Accounting = {
+    async goTo(page: Page, linkName: AccountingPage): Promise<void> {
+        await page.getByRole("link", {name: "Go to Project"}).hover();
+        if (["Members", "Project settings", "Sub-projects"].includes(linkName)) {
+            Help.ensureActiveProject();
+        }
+
+        switch (linkName) {
+            case "Usage":
+                await NetworkCalls.awaitResponse(page, "**/api/accounting/v2/usage/retrieve?**", async () => {
+                    await page.getByRole("link", {name: "Usage"}).click();
+                });
+                await page.waitForTimeout(800)
+                return;
+        }
+
+        await page.getByRole("link", {name: linkName}).first().click();
+    },
+
+    Project: {
+        newProjectName(): string {
+            return Help.newResourceName("ProjectTitle");
+        },
+
+        Application: {
+            async fillProjectName(page: Page, projectName: string) {
+                await page.getByPlaceholder("Please enter the title of your project").fill(projectName);
+            },
+        }
+    },
+
+    Usage: {
+        ProductCategoryNames: Object.keys(
+            data.products_by_provider_and_type
+        ).flatMap(provider => Object.keys(data.products_by_provider_and_type[provider]).map(productType =>
+            data.products_by_provider_and_type[provider][productType].category.name
+        ))
+    }
+};
 
 async function _move(page: Page, oldName: string, newName: string) {
     await Rows.actionByRowTitle(page, oldName, "click");

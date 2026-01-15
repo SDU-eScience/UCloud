@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {Components, Drive, File, User, Rows, Terminal} from "./shared";
+import {Components, Drive, File, User, Rows, Terminal, NetworkCalls} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 
 const {dirname} = import.meta;
@@ -286,6 +286,39 @@ test.describe("Files - folder sharing works", () => {
         await sharedWithUserPage.getByText("We could not find any data related to this folder.").waitFor({state: "visible"});
     });
 });
+
+test.describe("Files - Syncthing works", () => {
+    test("Set up Syncthing", async ({page, userAgent}) => {
+        const folderName = File.newFolderName();
+        const deviceName = "Device name fill";
+        await File.create(page, folderName);
+
+        await page.getByText("Sync").click();
+        await page.getByText("Next step").click();
+        await page.getByRole("textbox", {name: "Device name"}).fill(deviceName);
+        await page.getByRole("textbox", {name: "My device ID"}).fill("1111111-1111111-1111111-1111111-1111111-1111111-1111111-1111111");
+        await page.getByText("Next step").filter({visible: true}).first().click();
+
+        await page.getByRole("button", {name: "Add folder"}).filter({visible: true}).first().click();
+        await File.ensureDialogDriveActive(page, Drives[userAgent!]);
+        await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
+            await page.getByRole("dialog").locator(".row", {hasText: folderName}).getByRole("button", {name: "Sync"}).click();
+        });
+
+        // Remove folder
+        await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
+            await page.getByText(folderName, {exact: false}).hover();
+            await page.getByRole("button", {name: "", exact: true}).nth(1).click();
+            await page.getByRole("button", {name: "Remove"}).click();
+        });
+
+        await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
+            await page.getByText(deviceName).hover();
+            await page.getByRole("button", {name: "", exact: true}).first().click();
+            await page.getByRole("button", {name: "Remove"}).click();
+        });
+    });
+})
 
 test.skip("Start a large amount of heavy tasks and observe completion", async ({page}) => {
 

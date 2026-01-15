@@ -1006,7 +1006,7 @@ const AddDeviceWizard: React.FunctionComponent<{
 
                     <form onSubmit={tutorialNext}>
                         <Label>
-                            Device Name
+                            Device name
                             <Input inputRef={deviceNameRef} placeholder={"My phone"} error={deviceNameError !== null} />
                             {!deviceNameError ?
                                 <Text color="textSecondary">
@@ -1017,7 +1017,7 @@ const AddDeviceWizard: React.FunctionComponent<{
                         </Label>
 
                         <Label mt="8px">
-                            My Device ID
+                            My device ID
                             <Input
                                 inputRef={deviceIdRef}
                                 placeholder="XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX"

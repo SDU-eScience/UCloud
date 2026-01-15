@@ -8,21 +8,20 @@ test.beforeEach(async ({page}) => {
 
 const {PublicLinks, IPs, SSHKeys, Licenses} = Resources;
 
-
-test("Create public link, view properties, delete", async ({page}) => {
-    await Resources.goTo(page, "Links");
-    const publicLinkName = await PublicLinks.createNew(page);
-    await page.getByRole("button", {name: "Create", disabled: false}).click();
-    await Resources.open(page, publicLinkName);
-    await expect(page.getByText("ID:")).toHaveCount(1);
-    await expect(page.getByText("Product:")).toHaveCount(1);
-    await expect(page.getByText("Created by:")).toHaveCount(1);
-    await expect(page.getByText("Created at:")).toHaveCount(1);
-    await page.goBack();
-    await PublicLinks.delete(page, publicLinkName);
-});
-
 test.describe("Public links - check public links work", () => {
+    test("Create public link, view properties, delete", async ({page}) => {
+        await Resources.goTo(page, "Links");
+        const publicLinkName = await PublicLinks.createNew(page);
+        await page.getByRole("button", {name: "Create", disabled: false}).click();
+        await Resources.open(page, publicLinkName);
+        await expect(page.getByText("ID:")).toHaveCount(1);
+        await expect(page.getByText("Product:")).toHaveCount(1);
+        await expect(page.getByText("Created by:")).toHaveCount(1);
+        await expect(page.getByText("Created at:")).toHaveCount(1);
+        await page.goBack();
+        await PublicLinks.delete(page, publicLinkName);
+    });
+
     test("Create public link, mount link for job, check that link is available, stop job, delete public link", async ({page}) => {
         await Resources.goTo(page, "Links");
         const publicLinkName = await PublicLinks.createNew(page);
@@ -30,9 +29,6 @@ test.describe("Public links - check public links work", () => {
 
         await PublicLinks.delete(page, publicLinkName);
     });
-})
-
-test.describe("Public IPs - check public IPs work", () => {
     test("Create public link, add to job, verify it's available for the job, delete public link", async ({page}) => {
         test.setTimeout(240_000);
 
@@ -57,12 +53,15 @@ test.describe("Public IPs - check public IPs work", () => {
         await Resources.goTo(page, "Links");
         await PublicLinks.delete(page, publicLinkName);
     });
-
-})
+});
 
 /* Resources.IPs */
-test("Create ip and view properties", async ({page}) => {
-    const publicIpName = await IPs.createNew(page);
+test.describe("Public IPs - check public IPs work", () => {
+    test("Create ip and view properties", async ({page}) => {
+        const publicIpName = await IPs.createNew(page);
+        /* TODO(Jonas): Get actual name of IP, only through retrieve? */
+        console.log(publicIpName);
+    });
 });
 
 test("Create ssh key, delete ssh key", async ({page}) => {
