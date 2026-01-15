@@ -220,15 +220,28 @@ export function useDeltaOverTimeChart(
             })
         ;
 
+        // X-axis tick throttling
+        // -------------------------------------------------------------------------------------------------------------
+        const maxTickLabels = Math.max(2, Math.floor(innerW / 90)); // ~1 label per 45px
+        const step = Math.max(1, Math.ceil(timestamps.length / maxTickLabels));
+
+        const tickTimestamps: number[] = timestamps.filter((_, i) => i % step === 0);
+
+        // Always include last tick so the axis shows the most recent timestamp
+        if (tickTimestamps[tickTimestamps.length - 1] !== timestamps[timestamps.length - 1]) {
+            tickTimestamps.push(timestamps[timestamps.length - 1]);
+        }
+
         const gXAxis = svg.append("g")
             .attr("transform", `translate(${margin.left}, ${innerH + margin.top})`)
             .call(
                 axisBottom(xSlot)
+                    .tickValues(tickTimestamps)
                     .tickFormat(d => tsFormatter(new Date(d)))
             );
 
         gXAxis.selectAll(".tick > text")
-            .attr("style", "transform: translate(-20px, 20px) rotate(-45deg)")
+            .attr("style", "transform: translate(-20px, 20px) rotate(-45deg)");
 
         const gYAxis = svg.append("g")
             .attr("transform", `translate(${margin.left}, ${margin.top})`)

@@ -723,7 +723,7 @@ const UsagePage: React.FunctionComponent = () => {
                         color="textPrimary"
                         style={{background: `var(--warningMain)`}}
                     >
-                        Data prior to 28/01/2026 is not currently available.
+                        Data prior to 28/01/2026 is incomplete due to the historic data being produced by an older version of UCloud.
                     </Card>
                 </> : null}
             </Box>
