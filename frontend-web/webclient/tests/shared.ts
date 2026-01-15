@@ -346,6 +346,10 @@ export const Components = {
 
     async toggleUserMenu(page: Page): Promise<void> {
         await page.locator(".SIDEBAR_IDENTIFIER > div[class^=flex] > div[class^=dropdown]").last().click();
+    },
+
+    async useDialogBrowserItem(page: Page, rowTitle: string, buttonName: string = "Use") {
+        await page.getByRole("dialog").locator(".row", {hasText: rowTitle}).getByRole("button", {name: buttonName}).click();
     }
 };
 
@@ -434,6 +438,10 @@ export const Runs = {
 
     async setJobTitle(page: Page, name: string): Promise<void> {
         await page.getByRole("textbox", {name: "Job name"}).fill(name);
+    },
+
+    async setNodeCount(page: Page, count: number): Promise<void> {
+        await page.getByRole("textbox", {name: "Number of nodes"}).fill(count.toString());
     },
 
 

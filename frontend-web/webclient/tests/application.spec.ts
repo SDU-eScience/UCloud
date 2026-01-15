@@ -1,4 +1,4 @@
-import {expect, test} from "@playwright/test";
+import {expect, test, Page} from "@playwright/test";
 import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls, Resources} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 
@@ -159,4 +159,53 @@ test("Test application search", async ({page}) => {
     await Applications.searchFor(page, AppNameThatIsExpectedToBePresent);
     await page.locator("a[class^=app-card]").getByText(AppNameThatIsExpectedToBePresent).first().click();
     expect(page.url()).toContain("/create?app=");
+});
+
+test("Start application with multiple nodes, connect to job from other job and validate connection", async ({page}) => {
+    test.setTimeout(120_000)
+    async function openSparkApp(page: Page) {
+        await Applications.goToApplications(page);
+        await Applications.searchFor(page, multinodeAppSearchString);
+        await page.locator("a[class^=app-card]").getByText(multinodeApp).first().click();
+
+        await Components.selectAvailableMachineType(page);
+        await page.getByPlaceholder("No directory selected").click();
+        await File.ensureDialogDriveActive(page, driveName);
+        await Components.useDialogBrowserItem(page, folderName)
+    }
+
+    const multinodeApp = "Spark Cluster";
+    const multinodeAppSearchString = "Spark"; // Add 'Cluster' and it disappears. Weird! #5272
+    const driveName = Drive.newDriveName();
+    const folderName = File.newFolderName();
+
+    await Drive.create(page, driveName);
+    await Drive.openDrive(page, driveName);
+    await File.create(page, folderName);
+    await openSparkApp(page)
+    await Runs.setNodeCount(page, 2);
+
+    const jobName = Runs.newJobName();
+    await Runs.setJobTitle(page, jobName);
+    await Runs.submitAndWaitForRunning(page);
+    // This isn't ideal, but this is the easiest way to get the job id
+    const jobId = page.url().split("?").at(0)!.split("/").at(-1)!;
+
+    const otherPage = await page.context().newPage();
+    // Should redirect to dashboard, as this is already logged in.
+    await User.toLoginPage(otherPage);
+    await openSparkApp(otherPage);
+    await otherPage.getByText("Connect to job").first().click();
+    await otherPage.getByRole("textbox", {name: "Hostname"}).fill("foobar");
+    await otherPage.getByPlaceholder("No selected run").click();
+    await Components.useDialogBrowserItem(otherPage, jobName);
+    await Runs.submitAndWaitForRunning(otherPage);
+    await otherPage.getByText("Connected jobs (1)").click();
+    await otherPage.getByText(jobId).hover();
+    await Runs.terminateViewedRun(otherPage);
+
+    await Runs.terminateViewedRun(page);
+    await page.getByText("stdout-0.log").hover();
+    await page.getByText("stdout-1.log").hover();
+
 });
