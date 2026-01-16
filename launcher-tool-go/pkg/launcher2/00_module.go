@@ -532,6 +532,10 @@ func TestsRun(adminUser, adminPass string) {
 
 			var allocationRequests []accapi.AllocationRequest
 			for _, product := range productsByType {
+				if product.Category.FreeToUse {
+					continue
+				}
+
 				quota := int64(1000)
 				if product.Category.AccountingUnit.FloatingPoint {
 					quota *= 1_000_000
