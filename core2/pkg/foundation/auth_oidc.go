@@ -67,7 +67,7 @@ func initAuthOidc() {
 			}, nil
 		})
 
-		fndapi.AuthStartLogin.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
+		startLogin := func(info rpc.RequestInfo) (util.Empty, *util.HttpError) {
 			stateToken := util.RandomTokenNoTs(16)
 			nonce := util.RandomTokenNoTs(16)
 
@@ -81,6 +81,14 @@ func initAuthOidc() {
 			redirectTo := g.Config.AuthCodeURL(stateToken, oidc.Nonce(nonce))
 			http.Redirect(info.HttpWriter, info.HttpRequest, redirectTo, http.StatusFound)
 			return util.Empty{}, nil
+		}
+
+		fndapi.AuthStartLoginSamlLegacy.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
+			return startLogin(info)
+		})
+
+		fndapi.AuthStartLogin.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
+			return startLogin(info)
 		})
 
 		fndapi.AuthOidcCallback.Handler(func(info rpc.RequestInfo, request fndapi.AuthOidcCallbackRequest) (util.Empty, *util.HttpError) {
@@ -163,6 +171,10 @@ func initAuthOidc() {
 	} else {
 		fndapi.AuthBrowseIdentityProviders.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.BulkResponse[fndapi.IdentityProvider], *util.HttpError) {
 			return fndapi.BulkResponse[fndapi.IdentityProvider]{}, nil
+		})
+
+		fndapi.AuthStartLoginSamlLegacy.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
+			return util.Empty{}, util.HttpErr(http.StatusNotFound, "not configured")
 		})
 	}
 }

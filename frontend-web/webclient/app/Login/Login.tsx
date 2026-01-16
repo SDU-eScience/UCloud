@@ -575,6 +575,7 @@ const IdpList: React.FunctionComponent = () => {
             let title = idp.title;
             switch (title) {
                 case "wayf":
+                case "WAYF":
                     return null;
                 case "orcid": {
                     title = "ORCID";
