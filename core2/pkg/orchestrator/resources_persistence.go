@@ -113,6 +113,13 @@ func resourceLoadInternal(tx *db.Transaction, typeName string, rows []resourceLo
 
 	g := resourceGetGlobals(typeName)
 	g.OnLoad(tx, foundResourceIds, foundResources)
+
+	for key, resc := range foundResources {
+		if resc.Extra == nil {
+			delete(foundResources, key)
+		}
+	}
+
 	return foundResources
 }
 
