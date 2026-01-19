@@ -13,23 +13,24 @@ import (
 )
 
 type A2Yaml struct {
-	Name          string                  `yaml:"name"`
-	Version       string                  `yaml:"version"`
-	Software      A2Software              `yaml:"software"`
-	Title         util.Option[string]     `yaml:"title"`
-	Description   util.Option[string]     `yaml:"description"`
-	License       util.Option[string]     `yaml:"license"`
-	Documentation util.Option[string]     `yaml:"documentation"`
-	Features      util.Option[A2Features] `yaml:"features"`
-	Modules       util.Option[A2Module]   `yaml:"modules"`
-	Parameters    map[string]A2Parameter  `yaml:"parameters"`
-	Sbatch        map[string]string       `yaml:"sbatch"`
-	Invocation    string                  `yaml:"invocation"`
-	Environment   map[string]string       `yaml:"environment"`
-	Web           util.Option[A2Web]      `yaml:"web"`
-	Vnc           util.Option[A2Vnc]      `yaml:"vnc"`
-	Ssh           util.Option[A2Ssh]      `yaml:"ssh"`
-	Extensions    []string                `yaml:"extensions"`
+	Name            string                  `yaml:"name"`
+	Version         string                  `yaml:"version"`
+	Software        A2Software              `yaml:"software"`
+	Title           util.Option[string]     `yaml:"title"`
+	Description     util.Option[string]     `yaml:"description"`
+	License         util.Option[string]     `yaml:"license"`
+	Documentation   util.Option[string]     `yaml:"documentation"`
+	Features        util.Option[A2Features] `yaml:"features"`
+	Modules         util.Option[A2Module]   `yaml:"modules"`
+	Parameters      map[string]A2Parameter  `yaml:"parameters"`
+	ParametersOrder []string                `yaml:"-"` // needed to preserve YAML declaration order
+	Sbatch          map[string]string       `yaml:"sbatch"`
+	Invocation      string                  `yaml:"invocation"`
+	Environment     map[string]string       `yaml:"environment"`
+	Web             util.Option[A2Web]      `yaml:"web"`
+	Vnc             util.Option[A2Vnc]      `yaml:"vnc"`
+	Ssh             util.Option[A2Ssh]      `yaml:"ssh"`
+	Extensions      []string                `yaml:"extensions"`
 }
 
 type A2SoftwareKind string
@@ -358,6 +359,45 @@ type A2Module struct {
 	Optional  []string `yaml:"optional"`
 }
 
+func (y *A2Yaml) UnmarshalYAML(n *yaml.Node) error {
+	type alias A2Yaml
+	var a alias
+
+	// Decode normally first
+	if err := n.Decode(&a); err != nil {
+		return err
+	}
+
+	// Extract parameters order from the raw node
+	if a.Parameters == nil {
+		a.Parameters = map[string]A2Parameter{}
+	}
+
+	a.ParametersOrder = nil
+	if n.Kind == yaml.MappingNode {
+		for i := 0; i < len(n.Content); i += 2 {
+			k := n.Content[i]
+			v := n.Content[i+1]
+			if k.Value != "parameters" {
+				continue
+			}
+			if v.Kind != yaml.MappingNode {
+				// parameters present but not a mapping
+				break
+			}
+
+			for j := 0; j < len(v.Content); j += 2 {
+				keyNode := v.Content[j]
+				a.ParametersOrder = append(a.ParametersOrder, keyNode.Value)
+			}
+			break
+		}
+	}
+
+	*y = A2Yaml(a)
+	return nil
+}
+
 func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 	var err *util.HttpError
 	var mappedParameters []orcapi.ApplicationParameter
@@ -455,7 +495,8 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 		}
 	}
 
-	for paramName, param := range y.Parameters {
+	for _, paramName := range y.ParametersOrder {
+		param := y.Parameters[paramName]
 		mapped := orcapi.ApplicationParameter{
 			Name: paramName,
 		}

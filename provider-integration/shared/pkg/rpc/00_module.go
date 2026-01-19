@@ -580,7 +580,10 @@ func SendResponseOrError(r *http.Request, w http.ResponseWriter, response any, e
 		payload = data
 		statusCode = err.StatusCode
 	} else {
-		data, _ := json.Marshal(response)
+		data, err := json.Marshal(response)
+		if err != nil {
+			log.Warn("Could not marshal response: %#v with error: %s", response, err)
+		}
 		payload = data
 		statusCode = http.StatusOK
 	}

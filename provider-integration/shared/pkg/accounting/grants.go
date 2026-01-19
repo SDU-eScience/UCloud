@@ -207,6 +207,31 @@ type Recipient struct {
 	Username util.Option[string] `json:"username"` // personalWorkspace
 }
 
+func RecipientFromReference(typ RecipientType, reference string) Recipient {
+	switch typ {
+	case "existing_project", RecipientTypeExistingProject:
+		return Recipient{
+			Type: RecipientTypeExistingProject,
+			Id:   util.OptValue(reference),
+		}
+	case "new_project", RecipientTypeNewProject:
+		return Recipient{
+			Type:  RecipientTypeNewProject,
+			Title: util.OptValue(reference),
+		}
+	case "personal", RecipientTypePersonalWorkspace:
+		return Recipient{
+			Type:     RecipientTypePersonalWorkspace,
+			Username: util.OptValue(reference),
+		}
+	default:
+		return Recipient{
+			Type:     typ,
+			Username: util.OptValue(reference),
+		}
+	}
+}
+
 func (r *Recipient) Reference() util.Option[string] {
 	switch r.Type {
 	case RecipientTypeExistingProject:
