@@ -637,12 +637,16 @@ export const Resources = {
 }
 
 export const Terminal = {
-    async enterCmd(page: Page, command: string) {
+    async enterCmd(page: Page, command: string): Promise<void> {
         for (const key of command) {
             await page.keyboard.press(key);
         }
 
         await page.keyboard.press("Enter");
+    },
+
+    async createLargeFile(page: Page): Promise<void> {
+        await this.enterCmd(page, "fallocate -l 5G example");
     }
 }
 
