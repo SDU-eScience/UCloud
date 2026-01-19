@@ -1138,6 +1138,14 @@ export function balanceToString(
     return balanceToStringFromUnit(unit.productType, unit.name, normalizedBalance, opts)
 }
 
+export function normalizedBalanceToRaw(
+    category: ProductCategoryV2,
+    normalizedBalance: number,
+): number {
+    const unit = explainUnit(category);
+    return normalizedBalance * unit.invBalanceFactor;
+}
+
 export function truncateValues(
     normalizedBalances: number[],
     isStorage: boolean,

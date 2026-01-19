@@ -1,7 +1,7 @@
 import * as React from "react";
 import {
     AllocationDisplayTreeRecipient,
-    AllocationDisplayTreeYourAllocation,
+    AllocationDisplayTreeYourAllocation, normalizedBalanceToRaw, ProductCategoryV2,
     ProductType,
     UsageAndQuota,
 } from "@/Accounting";
@@ -22,7 +22,7 @@ import {
 import AppRoutes from "@/Routes";
 import * as Accounting from "@/Accounting";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {chunkedString, timestampUnixMs} from "@/UtilityFunctions";
+import {bulkRequestOf, chunkedString, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {OldProjectRole} from "@/Project";
@@ -50,6 +50,11 @@ import {AllocationBar} from "@/Accounting/Allocations/AllocationBar";
 import {projectInfoPi, projectInfoTitle, useProjectInfo} from "@/Project/InfoCache";
 import {useForcedRender} from "@/Utilities/ReactUtilities";
 import {Feature, hasFeature} from "@/Features";
+import {dialogStore} from "@/Dialog/DialogStore";
+import * as Heading from "@/ui-components/Heading";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import DatePicker from "react-datepicker";
+import {callAPIWithErrorHandler} from "@/Authentication/DataHook";
 
 interface Datapoint {
     product: string;
@@ -657,6 +662,103 @@ const FilteredUsageAndQuota: React.FunctionComponent<{
     </>
 }
 
+function DurationSelector(props: {periodRef: {start: Date | null; end: Date | null} }) {
+    const originalStart = props.periodRef.start;
+    const originalEnd = props.periodRef.end;
+    const [startDate, setStartDate] = useState<Date | null>(props.periodRef.start);
+    const [endDate, setEndDate] = useState<Date | null>(props.periodRef.end);
+    props.periodRef.start = startDate;
+    props.periodRef.end = endDate;
+
+    const onChange = (dates: [Date | null, Date | null]) => {
+        const [start, end] = dates
+        setStartDate(start)
+        setEndDate(end)
+    }
+
+    return <>
+        <Box mb={"8px"} mt={"16px"}>
+            Allocation period (Original period: {dateToStringNoTime(originalStart?.getTime() ?? new Date().getTime())} - {dateToStringNoTime(originalEnd?.getTime() ?? new Date().getTime())})
+            <br/>
+            <DatePicker
+                selected={startDate}
+                onChange={onChange}
+                startDate={startDate}
+                endDate={endDate}
+                selectsRange
+                dateFormat="MM/yyyy"
+                minDate={new Date()}
+                showMonthYearPicker
+                required
+            />
+        </Box>
+    </>
+}
+
+function openUpdater(
+    category: ProductCategoryV2,
+    allocationId: number,
+    originalStart: Date | null,
+    originalEnd: Date | null,
+    originalQuota: number,
+    dispatchEvent:(ev: UIEvent) => void,
+    idx: number,
+    gidx: number,
+    ridx: number
+): void {
+    const periodRef = {
+        start: originalStart,
+        end: originalEnd,
+    }
+    let quota = originalQuota;
+    dialogStore.addDialog((
+    <div onKeyDown={e => e.stopPropagation()}>
+        <div>
+            <Heading.h3>Update Allocation {allocationId}</Heading.h3>
+            <Divider />
+            <DurationSelector periodRef={periodRef} />
+            <Box mb={"16px"}>
+                Allocation quota (Original quota: {Accounting.balanceToString(category, quota)})
+                <Input width={1} my="3px" type="number" min={0} onChange={e => quota = normalizedBalanceToRaw(category, e.target.valueAsNumber)} />
+            </Box>
+            <Box mb={"16px"}>
+                <form onSubmit={async ev => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    const success = (await callAPIWithErrorHandler(
+                        Accounting.updateAllocationV2(bulkRequestOf({
+                            allocationId: allocationId,
+                            newQuota: quota,
+                            newStart: periodRef.start?.getTime() ?? new Date().getTime(),
+                            newEnd: periodRef.end?.getTime() ?? new Date().getTime(),
+                            reason: "Allocation updated",
+                        }))
+                    )) !== null;
+
+                    if (success) {
+                        dispatchEvent({
+                            type: "UpdateAllocation",
+                            allocationIdx: idx,
+                            recipientIdx: ridx,
+                            groupIdx: gidx,
+                            newQuota: quota,
+                            newStart: periodRef.start ?? new Date(),
+                            newEnd: periodRef.end ?? new Date(),
+                        });
+                        snackbarStore.addSuccess("Update Success", false)
+                        dialogStore.success()
+                    }
+                }}>
+                    <Button type={"submit"} fullWidth>
+                        Update Allocation
+                    </Button>
+                </form>
+            </Box>
+        </div>
+    </div>
+    ), doNothing, true);
+}
+
 const SubProjectListRow: React.FunctionComponent<{
     style: React.CSSProperties;
     recipient: AllocationDisplayTreeRecipient;
@@ -664,12 +766,10 @@ const SubProjectListRow: React.FunctionComponent<{
     rowIdx: number;
     recipientIdx: number;
     avatars: AvatarState;
-    onEdit: (elem: HTMLElement) => void;
     state: State;
-    onEditKey: (ev: React.KeyboardEvent) => Promise<void>;
-    onEditBlur: (ev: React.SyntheticEvent) => void;
     setNodeState: (action: TreeAction, reference: string, group?: string | null) => void;
-}> = ({style, recipient, listRef, rowIdx, recipientIdx, avatars, onEdit, state, onEditKey, onEditBlur, setNodeState}) => {
+    dispatchEvent: (ev: UIEvent) => void;
+}> = ({style, recipient, listRef, rowIdx, recipientIdx, avatars, state, setNodeState, dispatchEvent}) => {
     const projectInfo = useProjectInfo(recipient.owner.reference.type === "user" ? "" : recipient.owner.reference.projectId);
     const workspaceId = recipient.owner.reference["username"] ?? recipient.owner.reference["projectId"] ?? "";
     const pi = recipient.owner.reference.type === "user" ?
@@ -786,40 +886,31 @@ const SubProjectListRow: React.FunctionComponent<{
                                     </>}
                                 </Flex>}
                                 right={<Flex flexDirection={"row"} gap={"8px"}>
-                                    {alloc.isEditing ?
-                                        <Flex gap={"4px"} width={"250px"}>
-                                            <Input
-                                                height={"24px"}
-                                                defaultValue={Math.ceil(Accounting.explainUnit(g.category).priceFactor * alloc.quota)}
-                                                autoFocus
-                                                onKeyDown={onEditKey}
-                                                onBlur={onEditBlur}
-                                                data-ridx={recipientIdx} data-idx={idx}
-                                                data-gidx={gidx}
-                                            />
-                                            <Text
-                                                width="120px">{Accounting.explainUnit(g.category).name}</Text>
-                                        </Flex>
-                                        : <Text>
-                                            {Accounting.balanceToString(g.category, alloc.quota)}
-                                        </Text>
-                                    }
-
-                                    {alloc.note?.rowShouldBeGreyedOut !== true && !alloc.isEditing &&
-                                        <SmallIconButton
-                                            icon={"heroPencil"} onClick={onEdit}
-                                            disabled={state.editControlsDisabled}
-                                            data-ridx={recipientIdx} data-idx={idx}
-                                            data-gidx={gidx} />
-                                    }
-
                                     {alloc.note && <>
                                         <TooltipV2 tooltip={alloc.note.text}>
                                             <Icon name={alloc.note.icon}
-                                                color={alloc.note.iconColor} />
+                                                  color={alloc.note.iconColor} />
                                         </TooltipV2>
                                     </>}
-
+                                    <Text>
+                                        {Accounting.balanceToString(g.category, alloc.quota)}
+                                    </Text>
+                                    <SmallIconButton
+                                        icon={"heroPencil"}
+                                        onClick={(e) => openUpdater(
+                                            g.category,
+                                            alloc.allocationId,
+                                            new Date(alloc.start),
+                                            new Date(alloc.end),
+                                            alloc.quota,
+                                            dispatchEvent,
+                                            idx,
+                                            gidx,
+                                            recipientIdx,
+                                        )}
+                                        disabled={alloc.end < new Date().getTime()}
+                                        data-ridx={recipientIdx} data-idx={idx}
+                                        data-gidx={gidx} />
                                 </Flex>}
                             />
                         )
@@ -1065,10 +1156,7 @@ export const SubProjectList: React.FunctionComponent<{
     suballocationTree: React.RefObject<TreeApi | null>,
     listRef: React.RefObject<VariableSizeList<number[]> | null>,
     onSubAllocationShortcut: (target: HTMLElement, ev: KeyboardEvent) => void,
-    avatars: AvatarState,
-    onEdit: (elem: HTMLElement) => void,
-    onEditKey: (ev: React.KeyboardEvent) => Promise<void>,
-    onEditBlur: (ev: React.SyntheticEvent) => void
+    avatars: AvatarState
 }> = (
     {
         projectId,
@@ -1082,10 +1170,7 @@ export const SubProjectList: React.FunctionComponent<{
         suballocationTree,
         listRef,
         onSubAllocationShortcut,
-        avatars,
-        onEdit,
-        onEditKey,
-        onEditBlur
+        avatars
     }
 ) => {
         const [filtersShown, setFiltersShown] = useState(false);
@@ -1185,14 +1270,12 @@ export const SubProjectList: React.FunctionComponent<{
                                                 return <SubProjectListRow
                                                     style={style}
                                                     recipient={recipient}
+                                                    dispatchEvent={dispatchEvent}
                                                     listRef={listRef}
                                                     rowIdx={rowIdx}
                                                     recipientIdx={recipientIdx}
                                                     avatars={avatars}
-                                                    onEdit={onEdit}
                                                     state={state}
-                                                    onEditKey={onEditKey}
-                                                    onEditBlur={onEditBlur}
                                                     setNodeState={setNodeStateHack}
                                                 />
                                             }}
