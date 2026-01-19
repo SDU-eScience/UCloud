@@ -11,8 +11,6 @@ and RStudio, but also a selection of batch software such as Quantum ESPRESSO and
 
 ## Setup and Configuration
 
-TODO Hastily written documentation, rewrite this section.
-
 The UCloud team maintains a list of software and libraries which are loadable via the `{- applicationLoad -}` and
 `{{ loadApplication("name", "version") }}` calls. You can find this list
 [here](./built-in-app-index.md). In this section, we will explain how to enable software from this list at your service
@@ -67,8 +65,6 @@ configurations:
 ```
 
 ## Version Resolution
-
-TODO Hastily written documentation, rewrite this section.
 
 UCloud/IM will automatically find the best matching version based on the requested version. Thus, the version written in
 `/etc/ucloud/applications` should use the actual versions being loaded while the versions specified in the application
@@ -186,11 +182,3 @@ Below is a list of example of which versions will be selected in different envir
 </tbody>
 </table>
 </div>
-
-
-## Summary
-
-TODO
-
--	Recap of key points discussed in the chapter
--	Final tips and best practices for managing applications with the UCloud repository

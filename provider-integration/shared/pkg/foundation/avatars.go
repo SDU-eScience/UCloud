@@ -4,6 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
+	"strings"
+
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -168,7 +171,7 @@ func (t AvatarTop) String() string {
 }
 
 func AvatarTopFromString(s string) (AvatarTop, error) {
-	switch s {
+	switch s = avatarUpperSnakeToUpperCamel(s); s {
 	case "NoHair", "Eyepatch", "Hat", "Hijab", "Turban", "WinterHat1", "WinterHat2", "WinterHat3", "WinterHat4",
 		"LongHairBigHair", "LongHairBob", "LongHairBun", "LongHairCurly", "LongHairCurvy", "LongHairDreads",
 		"LongHairFrida", "LongHairFro", "LongHairFroBand", "LongHairNotTooLong", "LongHairShavedSides",
@@ -199,7 +202,7 @@ func (ta AvatarTopAccessory) String() string {
 }
 
 func AvatarTopAccessoryFromString(s string) (AvatarTopAccessory, error) {
-	switch s {
+	switch s = avatarUpperSnakeToUpperCamel(s); s {
 	case "Blank", "Kurt", "Prescription01", "Prescription02", "Round", "Sunglasses", "Wayfarers":
 		return AvatarTopAccessory(s), nil
 	default:
@@ -227,7 +230,7 @@ func (hc AvatarHairColor) String() string {
 }
 
 func AvatarHairColorFromString(s string) (AvatarHairColor, error) {
-	switch s {
+	switch s = avatarUpperSnakeToUpperCamel(s); s {
 	case "Auburn", "Black", "Blonde", "BlondeGolden", "Brown", "BrownDark", "PastelPink", "Platinum", "Red", "SilverGray":
 		return AvatarHairColor(s), nil
 	default:
@@ -260,7 +263,7 @@ func (hc AvatarHatColor) String() string {
 }
 
 func AvatarHatColorFromString(s string) (AvatarHatColor, error) {
-	switch s {
+	switch s = avatarUpperSnakeToUpperCamel(s); s {
 	case "Black", "Blue01", "Blue02", "Blue03", "Gray01", "Gray02", "Heather", "PastelBlue", "PastelGreen",
 		"PastelOrange", "PastelRed", "PastelYellow", "Pink", "Red", "White":
 		return AvatarHatColor(s), nil
@@ -285,7 +288,7 @@ func (fh AvatarFacialHair) String() string {
 }
 
 func AvatarFacialHairFromString(s string) (AvatarFacialHair, error) {
-	switch s {
+	switch s = avatarUpperSnakeToUpperCamel(s); s {
 	case "Blank", "BeardMedium", "BeardLight", "BeardMajestic", "MoustacheFancy", "MoustacheMagnum":
 		return AvatarFacialHair(s), nil
 	default:
@@ -311,7 +314,7 @@ func (fhc AvatarFacialHairColor) String() string {
 }
 
 func AvatarFacialHairColorFromString(s string) (AvatarFacialHairColor, error) {
-	switch s {
+	switch s = avatarUpperSnakeToUpperCamel(s); s {
 	case "Auburn", "Black", "Blonde", "BlondeGolden", "Brown", "BrownDark", "Platinum", "Red":
 		return AvatarFacialHairColor(s), nil
 	default:
@@ -338,7 +341,7 @@ func (c AvatarClothes) String() string {
 }
 
 func AvatarClothesFromString(s string) (AvatarClothes, error) {
-	switch s {
+	switch s = avatarUpperSnakeToUpperCamel(s); s {
 	case "BlazerShirt", "BlazerSweater", "CollarSweater", "GraphicShirt", "Hoodie", "Overall", "ShirtCrewNeck",
 		"ShirtScoopNeck", "ShirtVNeck":
 		return AvatarClothes(s), nil
@@ -372,7 +375,7 @@ func (cf AvatarColorFabric) String() string {
 }
 
 func AvatarColorFabricFromString(s string) (AvatarColorFabric, error) {
-	switch s {
+	switch s = avatarUpperSnakeToUpperCamel(s); s {
 	case "Black", "Blue01", "Blue02", "Blue03", "Gray01", "Gray02", "Heather", "PastelBlue", "PastelGreen",
 		"PastelOrange", "PastelRed", "PastelYellow", "Pink", "Red", "White":
 		return AvatarColorFabric(s), nil
@@ -403,7 +406,7 @@ func (e AvatarEyes) String() string {
 }
 
 func AvatarEyesFromString(s string) (AvatarEyes, error) {
-	switch s {
+	switch s = avatarUpperSnakeToUpperCamel(s); s {
 	case "Close", "Cry", "Default", "Dizzy", "EyeRoll", "Happy", "Hearts", "Side", "Squint", "Surprised", "Wink", "WinkWacky":
 		return AvatarEyes(s), nil
 	default:
@@ -434,7 +437,7 @@ func (eb AvatarEyebrows) String() string {
 }
 
 func AvatarEyebrowsFromString(s string) (AvatarEyebrows, error) {
-	switch s {
+	switch s = avatarUpperSnakeToUpperCamel(s); s {
 	case "Angry", "AngryNatural", "Default", "DefaultNatural", "FlatNatural", "FrownNatural", "RaisedExcited",
 		"RaisedExcitedNatural", "SadConcerned", "SadConcernedNatural", "UnibrowNatural", "UpDown", "UpDownNatural":
 		return AvatarEyebrows(s), nil
@@ -465,7 +468,7 @@ func (mt AvatarMouthTypes) String() string {
 }
 
 func AvatarMouthTypesFromString(s string) (AvatarMouthTypes, error) {
-	switch s {
+	switch s = avatarUpperSnakeToUpperCamel(s); s {
 	case "Concerned", "Default", "Disbelief", "Eating", "Grimace", "Sad", "ScreamOpen", "Serious", "Smile", "Tongue", "Twinkle", "Vomit":
 		return AvatarMouthTypes(s), nil
 	default:
@@ -490,7 +493,7 @@ func (sc AvatarSkinColors) String() string {
 }
 
 func AvatarSkinColorsFromString(s string) (AvatarSkinColors, error) {
-	switch s {
+	switch s = avatarUpperSnakeToUpperCamel(s); s {
 	case "Tanned", "Yellow", "Pale", "Light", "Brown", "DarkBrown", "Black":
 		return AvatarSkinColors(s), nil
 	default:
@@ -522,10 +525,32 @@ func (cg AvatarClothesGraphic) String() string {
 }
 
 func AvatarClothesGraphicFromString(s string) (AvatarClothesGraphic, error) {
-	switch s {
+	switch s = avatarUpperSnakeToUpperCamel(s); s {
 	case "Bat", "Cumbia", "Deer", "Diamond", "Hola", "Pizza", "Resist", "Selena", "Bear", "SkullOutline", "Skull", "Espie", "EScienceLogo", "Teeth":
 		return AvatarClothesGraphic(s), nil
 	default:
 		return "", errors.New("invalid clothes graphic type")
 	}
+}
+
+var avatarUpperSnakePattern = regexp.MustCompile(`^[A-Z0-9]+(_[A-Z0-9]+)*$`)
+
+func avatarUpperSnakeToUpperCamel(s string) string {
+	// Validate UPPER_SNAKE_CASE
+	if !avatarUpperSnakePattern.MatchString(s) {
+		return s
+	}
+
+	parts := strings.Split(s, "_")
+	var b strings.Builder
+
+	for _, part := range parts {
+		if len(part) == 0 {
+			return s
+		}
+		b.WriteByte(part[0])
+		b.WriteString(strings.ToLower(part[1:]))
+	}
+
+	return b.String()
 }

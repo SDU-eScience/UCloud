@@ -1,13 +1,17 @@
 package accounting
 
 import (
+	"cmp"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strconv"
+	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
+	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -20,6 +24,8 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 		return
 	}
 
+	log.Info("grantsLoad(%v, %v)", id, prefetchHint)
+
 	prefetchList := prefetchHint
 	requiredPrefetchIdx := slices.Index(prefetchList, id)
 	if requiredPrefetchIdx == -1 {
@@ -31,73 +37,280 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 		requiredPrefetchIdx = len(prefetchList) - 1
 	}
 
-	if len(prefetchList) > 100 {
-		startIdx := requiredPrefetchIdx - 50
-		endIdx := requiredPrefetchIdx + 50
-
-		if startIdx < 0 {
-			endIdx += startIdx * -1
-			startIdx = 0
-		}
-
-		if endIdx > len(prefetchList) {
-			endIdx = len(prefetchList)
-		}
-
-		prefetchList = prefetchList[startIdx:endIdx]
-	}
-
 	var awarded map[accGrantId]util.Empty
 
 	apps := db.NewTx(func(tx *db.Transaction) []accapi.GrantApplication {
+		tx.NoDevResetThisIsNotAHackIPromise = true
+
 		awarded = map[accGrantId]util.Empty{}
 
-		rows := db.Select[struct{ App string }](
-			tx,
+		b := db.BatchNew(tx)
+		appsPromise := db.BatchSelect[struct {
+			Id           int
+			OverallState string
+			RequestedBy  string
+			CreatedAt    time.Time
+			UpdatedAt    time.Time
+			Synchronized bool
+		}](
+			b,
 			`
-				with data as (
-					select unnest(cast(:ids as int8[])) as id
-				)
-				select "grant".application_to_json(id) as app
-				from data d
+				select id, overall_state, requested_by, created_at, updated_at, synchronized
+				from "grant".applications app
+				where id = some(:ids)
 		    `,
 			db.Params{
 				"ids": prefetchList,
 			},
 		)
 
-		var result []accapi.GrantApplication
-		for _, row := range rows {
-			var app accapi.GrantApplication
-			err := json.Unmarshal([]byte(row.App), &app)
-			if err != nil {
-				log.Warn("Could not deserialize grant application: %s\n\t%s", row.App, err)
-				continue
-			}
-
-			result = append(result, app)
-		}
-
-		synchronizedApps := db.Select[struct{ Id int64 }](
-			tx,
+		commentsPromise := db.BatchSelect[struct {
+			ApplicationId int
+			Comment       string
+			PostedBy      string
+			CreatedAt     time.Time
+			CommentId     int
+		}](
+			b,
 			`
-				with data as (
-					select unnest(cast(:ids as int8[])) as id
-				)
-				select app.id
-				from
-					data d
-					join "grant".applications app on app.id = d.id
-				where
-					app.synchronized = true
-			`,
+				select application_id, comment, posted_by, created_at, id as comment_id
+				from "grant".comments
+				where application_id = some(:ids)
+		    `,
 			db.Params{
 				"ids": prefetchList,
 			},
 		)
 
-		for _, row := range synchronizedApps {
-			awarded[accGrantId(row.Id)] = util.Empty{}
+		revisionsPromise := db.BatchSelect[struct {
+			ApplicationId   int
+			Form            string
+			ParentProjectId sql.Null[string]
+			Recipient       string
+			RecipientType   string
+			ReferenceIds    []string
+			RevisionNumber  int
+			CreatedAt       time.Time
+			UpdatedBy       string
+			RevisionComment sql.Null[string]
+			GrantStart      time.Time
+			GrantEnd        time.Time
+			ProjectTitle    sql.Null[string]
+			PiUsername      sql.Null[string]
+		}](
+			b,
+			`
+				select
+					f.application_id,
+					f.form,
+					f.parent_project_id,
+					f.recipient,
+					f.recipient_type,
+					f.reference_ids,
+					f.revision_number,
+					r.created_at,
+					r.updated_by,
+					r.revision_comment,
+					r.grant_start,
+					r.grant_end,
+					p.title as project_title,
+					pi.username as pi_username
+				from 
+					"grant".forms f
+					join "grant".revisions r on 
+						f.application_id = r.application_id 
+						and f.revision_number = r.revision_number
+					left join project.projects p on p.id = f.recipient
+					left join project.project_members pi on p.id = pi.project_id and pi.role = 'PI'
+				where
+					f.application_id = some(:ids)
+		    `,
+			db.Params{
+				"ids": prefetchList,
+			},
+		)
+
+		approvalsPromise := db.BatchSelect[struct {
+			ApplicationId int
+			ProjectId     string
+			ProjectTitle  sql.Null[string]
+			State         string
+			UpdatedBy     sql.Null[string]
+			LastUpdate    time.Time
+		}](
+			b,
+			`
+				select application_id, project_id, project_title, state, updated_by, last_update
+				from "grant".grant_giver_approvals 
+				where application_id = some(:ids)
+		    `,
+			db.Params{
+				"ids": prefetchList,
+			},
+		)
+
+		resourcesPromise := db.BatchSelect[struct {
+			ApplicationId    int
+			CreditsRequested int
+			Category         string
+			Provider         string
+			StartDate        sql.Null[time.Time]
+			EndDate          sql.Null[time.Time]
+			GrantGiver       string
+			RevisionNumber   int
+		}](
+			b,
+			`
+				select 
+					application_id, coalesce(credits_requested, quota_requested_bytes) as credits_requested,
+					pc.category, pc.provider, start_date, end_date, grant_giver, revision_number
+				from
+					"grant".requested_resources rr
+					join accounting.product_categories pc on rr.product_category = pc.id
+				where
+					application_id = some(:ids)
+		    `,
+			db.Params{
+				"ids": prefetchList,
+			},
+		)
+
+		db.BatchSend(b)
+
+		apps := *appsPromise
+		comments := *commentsPromise
+		revisions := *revisionsPromise
+		approvals := *approvalsPromise
+		resources := *resourcesPromise
+
+		appsById := map[int]*accapi.GrantApplication{}
+		for _, app := range apps {
+			appsById[app.Id] = &accapi.GrantApplication{
+				Id:              util.IntOrString{Value: fmt.Sprint(app.Id)},
+				CreatedBy:       app.RequestedBy,
+				CreatedAt:       fndapi.Timestamp(app.CreatedAt),
+				UpdatedAt:       fndapi.Timestamp(app.UpdatedAt),
+				CurrentRevision: accapi.GrantRevision{},
+				Status: accapi.GrantStatus{
+					OverallState: accapi.GrantApplicationState(app.OverallState),
+				},
+			}
+		}
+
+		for _, comment := range comments {
+			app, ok := appsById[comment.ApplicationId]
+			if !ok {
+				continue
+			}
+
+			app.Status.Comments = append(app.Status.Comments, accapi.GrantComment{
+				Id:        util.IntOrString{Value: fmt.Sprint(comment.CommentId)},
+				Username:  comment.PostedBy,
+				CreatedAt: fndapi.Timestamp(comment.CreatedAt),
+				Comment:   comment.Comment,
+			})
+		}
+
+		for _, revision := range revisions {
+			app, ok := appsById[revision.ApplicationId]
+			if !ok {
+				continue
+			}
+
+			app.Status.Revisions = append(app.Status.Revisions, accapi.GrantRevision{
+				CreatedAt:      fndapi.Timestamp(revision.CreatedAt),
+				UpdatedBy:      revision.UpdatedBy,
+				RevisionNumber: revision.RevisionNumber,
+				Document: accapi.GrantDocument{
+					Recipient:          accapi.RecipientFromReference(accapi.RecipientType(revision.RecipientType), revision.Recipient),
+					AllocationRequests: nil,
+					Form: accapi.Form{
+						Type: accapi.FormTypePlainText,
+						Text: revision.Form,
+					},
+					ReferenceIds:    util.OptValue(revision.ReferenceIds),
+					RevisionComment: util.SqlNullToOpt(revision.RevisionComment),
+					AllocationPeriod: util.OptValue[accapi.Period](accapi.Period{
+						Start: util.OptValue[fndapi.Timestamp](fndapi.Timestamp(revision.GrantStart)),
+						End:   util.OptValue[fndapi.Timestamp](fndapi.Timestamp(revision.GrantEnd)),
+					}),
+				},
+			})
+
+			if revision.ProjectTitle.Valid {
+				app.Status.ProjectTitle.Set(revision.ProjectTitle.V)
+				app.Status.ProjectPI = revision.PiUsername.V
+			}
+		}
+
+		for _, approval := range approvals {
+			app, ok := appsById[approval.ApplicationId]
+			if !ok {
+				continue
+			}
+
+			app.Status.StateBreakdown = append(app.Status.StateBreakdown, accapi.GrantGiverApprovalState{
+				ProjectId: approval.ProjectId,
+				State:     accapi.GrantApplicationState(approval.State),
+			})
+		}
+
+		for _, resource := range resources {
+			app, ok := appsById[resource.ApplicationId]
+			if !ok {
+				continue
+			}
+
+			for i := range app.Status.Revisions {
+				revision := &app.Status.Revisions[i]
+				if revision.RevisionNumber == resource.RevisionNumber {
+					period := revision.Document.AllocationPeriod
+					if !period.Present {
+						start := util.SqlNullToOpt(resource.StartDate)
+						if start.Present {
+							period.Value.Start.Set(fndapi.Timestamp(start.Value))
+						}
+
+						end := util.SqlNullToOpt(resource.EndDate)
+						if end.Present {
+							period.Value.End.Set(fndapi.Timestamp(end.Value))
+						}
+
+						period.Present = true
+					}
+
+					revision.Document.AllocationRequests = append(revision.Document.AllocationRequests, accapi.AllocationRequest{
+						Category:         resource.Category,
+						Provider:         resource.Provider,
+						GrantGiver:       resource.GrantGiver,
+						BalanceRequested: util.OptValue(int64(resource.CreditsRequested)),
+						Period:           period.Value,
+					})
+					break
+				}
+			}
+		}
+
+		var result []accapi.GrantApplication
+		for _, app := range appsById {
+			slices.SortFunc(app.Status.Revisions, func(a, b accapi.GrantRevision) int {
+				return cmp.Compare(a.RevisionNumber, b.RevisionNumber)
+			})
+
+			if len(app.Status.Revisions) > 0 {
+				app.CurrentRevision = app.Status.Revisions[len(app.Status.Revisions)-1]
+			}
+
+			app.Status.Comments = util.NonNilSlice(app.Status.Comments)
+			app.Status.Revisions = util.NonNilSlice(app.Status.Revisions)
+
+			result = append(result, *app)
+		}
+
+		for _, row := range apps {
+			if row.Synchronized {
+				awarded[accGrantId(row.Id)] = util.Empty{}
+			}
 		}
 
 		return result
@@ -505,7 +718,7 @@ func grantsLoadIndex(b *grantIndexBucket, recipient string) {
 		rows := db.Select[struct{ Id int64 }](
 			tx,
 			`
-				select app.id
+				select distinct app.id
 				from
 					"grant".applications app
 					join "grant".requested_resources rr on app.id = rr.application_id

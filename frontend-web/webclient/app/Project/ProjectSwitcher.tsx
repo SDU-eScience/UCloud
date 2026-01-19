@@ -30,7 +30,6 @@ const CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS: ProjectBrowseParams = {
 
     includeMembers: true,
     sortBy: "favorite",
-    sortDirection: "descending",
     includeArchived: true
 };
 

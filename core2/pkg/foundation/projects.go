@@ -1,6 +1,7 @@
 package foundation
 
 import (
+	cmp "cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -448,9 +449,9 @@ func ProjectBrowse(actor rpc.Actor, request fndapi.ProjectBrowseRequest) (fndapi
 
 		if sortBy == fndapi.ProjectSortByFavorite {
 			if a.Status.IsFavorite && !b.Status.IsFavorite {
-				cmpResult = 1
-			} else if !a.Status.IsFavorite && b.Status.IsFavorite {
 				cmpResult = -1
+			} else if !a.Status.IsFavorite && b.Status.IsFavorite {
+				cmpResult = 1
 			}
 		}
 
@@ -460,7 +461,7 @@ func ProjectBrowse(actor rpc.Actor, request fndapi.ProjectBrowseRequest) (fndapi
 			}
 
 			if cmpResult == 0 {
-				cmpResult = strings.Compare(a.Specification.Title, b.Specification.Title)
+				cmpResult = strings.Compare(strings.ToLower(a.Specification.Title), strings.ToLower(b.Specification.Title))
 			}
 
 			if cmpResult == 0 {
@@ -869,6 +870,10 @@ func ProjectCreateGroup(actor rpc.Actor, spec fndapi.ProjectGroupSpecification) 
 				Members: make([]string, 0),
 			},
 		})
+
+		slices.SortFunc(pStatus.Groups, func(a, b fndapi.ProjectGroup) int {
+			return cmp.Compare(strings.ToLower(a.Specification.Title), strings.ToLower(b.Specification.Title))
+		})
 	}
 	iproject.Mu.Unlock()
 
@@ -1093,6 +1098,10 @@ func ProjectCreateGroupMember(actor rpc.Actor, groupId string, memberToAdd strin
 			})
 
 			group.Status.Members = append(group.Status.Members, memberToAdd)
+
+			slices.SortFunc(group.Status.Members, func(a, b string) int {
+				return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
+			})
 		}
 	}
 	iproject.Mu.Unlock()
