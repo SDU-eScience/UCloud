@@ -463,7 +463,7 @@ func internalUpdateAllocation(
 		activeQuota := lInternalGroupTotalQuotaContributing(b, iAllocGroup)
 		activeUsage := iAllocGroup.TreeUsage
 
-		if activeQuota+delta < activeUsage {
+		if iAlloc.Start.Before(now) && activeQuota+delta < activeUsage {
 			b.Mu.Unlock()
 			return grantedIn, changelog, util.HttpErr(http.StatusForbidden, "You cannot decrease the quota below the current usage!")
 		}
