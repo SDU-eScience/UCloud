@@ -58,7 +58,7 @@ function UserCreation(): React.ReactNode {
     const [submitted, setSubmitted] = React.useState(false);
     const promiseKeeper = usePromiseKeeper();
 
-    usePage("User Creation", SidebarTabId.ADMIN);
+    usePage("User creation", SidebarTabId.ADMIN);
 
     if (!Client.userIsAdmin) return null;
 
@@ -79,7 +79,7 @@ function UserCreation(): React.ReactNode {
     return (
         <MainContainer
             main={<>
-                <h3 className="title">User Creation</h3>
+                <h3 className="title">User creation</h3>
                 <p>Admins can create new users on this page.</p>
                 <form autoComplete="off" onSubmit={e => submit(e)}>
                     <Label mb="1em">
@@ -123,7 +123,7 @@ function UserCreation(): React.ReactNode {
                         />
                     </Label>
                     <Label mb="1em">
-                        First Names
+                        First names
                         <Input
                             value={firstnames}
                             type="firstnames"
@@ -133,7 +133,7 @@ function UserCreation(): React.ReactNode {
                         />
                     </Label>
                     <Label mb="1em">
-                        Last Name
+                        Last name
                         <Input
                             value={lastname}
                             type="lastname"

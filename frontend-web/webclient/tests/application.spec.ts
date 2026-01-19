@@ -33,8 +33,6 @@ test("Favorite app, unfavorite app", async ({page}) => {
     await Applications.toggleFavorite(page);
 });
 
-
-
 test("Upload bash-script, run job and add script as optional parameter, check for keyword in log while running and after job terminated", async ({page}) => {
     test.setTimeout(120_000)
     const BashScriptName = "init.sh";
@@ -189,7 +187,7 @@ test("Start application with multiple nodes, connect to job from other job and v
     await Runs.setJobTitle(page, jobName);
     await Runs.submitAndWaitForRunning(page);
     // This isn't ideal, but this is the easiest way to get the job id
-    const jobId = page.url().split("?").at(0)!.split("/").at(-1)!;
+    const jobId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
 
     const otherPage = await page.context().newPage();
     // Should redirect to dashboard, as this is already logged in.
@@ -207,5 +205,18 @@ test("Start application with multiple nodes, connect to job from other job and v
     await Runs.terminateViewedRun(page);
     await page.getByText("stdout-0.log").hover();
     await page.getByText("stdout-1.log").hover();
+});
 
+test("Start terminal job, find mounted 'easybuild' modules mounted, use networking, terminate job", async ({page}) => {
+    test.setTimeout(120_000);
+    await Applications.openApp(page, "Terminal");
+    await Components.selectAvailableMachineType(page);
+    await Runs.submitAndWaitForRunning(page);
+    const term = await Runs.openTerminal(page);
+    await Terminal.enterCmd(term, "ls ~/.local");
+    await term.getByText("easybuild").hover();
+    await Terminal.enterCmd(term, "curl -I https://example.org");
+    await term.getByText("HTTP/2 200").hover();
+    await term.close();
+    await Runs.terminateViewedRun(page);
 });

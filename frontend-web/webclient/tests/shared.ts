@@ -1,4 +1,4 @@
-import {expect, type Page} from "@playwright/test";
+import test, {expect, type Page} from "@playwright/test";
 import fs, {link} from "fs";
 
 // Note(Jonas): If it complains that it doesn"t exist, create it.
@@ -7,12 +7,15 @@ import {default as data} from "./test_data.json" with {type: "json"};
 const LoginPageUrl = ucloudUrl("login");
 
 export const User = {
+    newUsername(): string {
+        return Help.newResourceName("user");
+    },
+
     async toLoginPage(page: Page): Promise<void> {
         await page.goto(LoginPageUrl);
     },
 
     async login(page: Page, user: {username: string; password: string;}): Promise<void> {
-        if (!user) throw Error("No username or password provided");
         await this.toLoginPage(page);
         await page.getByRole("textbox", {name: "Username"}).fill(user.username);
         await page.getByRole("textbox", {name: "Password"}).fill(user.password);
@@ -20,11 +23,30 @@ export const User = {
     },
 
 
-    async logout(page: Page) {
+    async logout(page: Page): Promise<void> {
         await Components.toggleUserMenu(page);
         await page.getByText("Logout").click();
         await page.waitForURL(LoginPageUrl);
     },
+
+    async create(page: Page, user: {username: string; password: string}): Promise<void> {
+        await page.getByRole("link", {name: "Go to Admin"}).hover();
+        await page.getByRole("link", {name: "User creation"}).click();
+
+        await page.getByRole("textbox", {name: "Username"}).fill(user.username);
+        await page.getByRole("textbox", {name: "Password"}).fill(user.password);
+        await page.getByRole("textbox", {name: "Repeat password"}).fill(user.password);
+
+        const generatedUsername = this.newUsername();
+        await page.getByRole("textbox", {name: "Email"}).fill(generatedUsername + "@mail.dk");
+
+        await page.getByRole("textbox", {name: "First names"}).fill(generatedUsername)
+        await page.getByRole("textbox", {name: "Last name"}).fill(Math.random() > .5 ? "the Second" : "the Third");
+
+        await NetworkCalls.awaitResponse(page, "**/auth/users/register", async () => {
+            await page.getByRole("button", {name: "Create user"}).click();
+        });
+    }
 }
 
 export function ucloudUrl(pathname: string): string {
@@ -356,7 +378,10 @@ export const Components = {
 export const Applications = {
     ...Rows,
     async goToApplications(page: Page): Promise<void> {
-        await page.getByRole("link", {name: "Go to Applications"}).click();
+        if (page.url().endsWith("/app/applications")) return;
+        await NetworkCalls.awaitResponse(page, "**/api/hpc/apps/retrieveGroupLogo**", async () => {
+            await page.getByRole("link", {name: "Go to Applications"}).click();
+        })
     },
 
     async openApp(page: Page, appName: string, exact: boolean = true): Promise<void> {
@@ -645,7 +670,7 @@ export const NetworkCalls = {
 }
 
 
-type AccountingPage = "Allocations" | "Usage" | "Grant Applications" | "Apply for resources" | "Members" | "Project settings" | "Sub-projects";
+type AccountingPage = "Allocations" | "Usage" | "Grant applications" | "Apply for resources" | "Members" | "Project settings" | "Sub-projects";
 export const Accounting = {
     async goTo(page: Page, linkName: AccountingPage): Promise<void> {
         await page.getByRole("link", {name: "Go to Project"}).hover();
@@ -671,10 +696,32 @@ export const Accounting = {
         },
 
         Application: {
-            async fillProjectName(page: Page, projectName: string) {
+            async fillProjectName(page: Page, projectName: string): Promise<void> {
                 await page.getByPlaceholder("Please enter the title of your project").fill(projectName);
             },
-        }
+
+            async toggleGrantGiver(page: Page, grantGiver: string): Promise<void> {
+                await page.getByText(grantGiver, {exact: false}).click();
+            },
+
+            async fillQuotaFields(page: Page, quotas: {field: string; quota: number}[]): Promise<void> {
+                for (const quota of quotas) {
+                    await page.getByRole("textbox", {name: quota.field}).fill(quota.quota.toString());
+                }
+            },
+
+            async fillApplicationTextFields(page: Page, textFields: {name: string; content: string}[]): Promise<void> {
+                for (const applicationField of textFields) {
+                    await page.getByRole("textbox", {name: applicationField.name}).fill(applicationField.content);
+                }
+            },
+
+            async submit(page: Page): Promise<void> {
+                await NetworkCalls.awaitResponse(page, "", async () => {
+                    await page.getByRole("button", {name: "Submit application"}).click();
+                });
+            }
+        },
     },
 
     Usage: {
@@ -683,6 +730,22 @@ export const Accounting = {
         ).flatMap(provider => Object.keys(data.products_by_provider_and_type[provider]).map(productType =>
             data.products_by_provider_and_type[provider][productType].category.name
         ))
+    }
+};
+
+export const Admin = {
+    AdminUser: {
+        username: "user",
+        password: "mypassword"
+    },
+
+    async acceptGrantApplicationId(page: Page, grantId: string) {
+        // Create new page without cookies from existing page
+        const adminPage = await page.context().browser()?.newPage();
+        if (!adminPage) throw Error("Failed to initialize admin page.");
+        await User.login(adminPage, this.AdminUser);
+        await Accounting.goTo(adminPage, "Grant applications");
+        await Rows.actionByRowTitle(adminPage, grantId, "dblclick")
     }
 };
 
