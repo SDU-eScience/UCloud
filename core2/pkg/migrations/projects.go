@@ -112,3 +112,30 @@ func projectsV2() db.MigrationScript {
 		},
 	}
 }
+
+func projectsV3() db.MigrationScript {
+
+	return db.MigrationScript{
+		Id: "projectsV3",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(tx,
+				`
+					create table project.project_user_preferences
+					(
+						project_id text not null
+							references project.projects
+								on delete cascade,
+						username   text not null
+							references auth.principals,
+						favorite   boolean not null default false,
+						hidden     boolean not null default false,
+						primary key (project_id, username),
+						constraint project_user_preferences_project_members_id_fkey
+							foreign key (project_id, username) references project.project_members (project_id, username)
+								on delete cascade
+					);
+				`, db.Params{},
+			)
+		},
+	}
+}
