@@ -118,7 +118,7 @@ func projectsV3() db.MigrationScript {
 	return db.MigrationScript{
 		Id: "projectsV3",
 		Execute: func(tx *db.Transaction) {
-			db.Exec(tx,
+			statements := []string{
 				`
 					create table project.project_user_preferences
 					(
@@ -134,8 +134,21 @@ func projectsV3() db.MigrationScript {
 							foreign key (project_id, username) references project.project_members (project_id, username)
 								on delete cascade
 					);
-				`, db.Params{},
-			)
+				`,
+				`
+					insert into project.project_user_preferences (project_id, username, favorite, hidden)
+					select project_id, username, true, false
+					from project.project_favorite
+					on conflict (project_id, username) do nothing;
+				`,
+				`
+					drop table project.project_favorite;
+				`,
+			}
+
+			for _, statement := range statements {
+				db.Exec(tx, statement, db.Params{})
+			}
 		},
 	}
 }
