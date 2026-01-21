@@ -1207,6 +1207,32 @@ func jobsProcessFlags(
 	return page
 }
 
+func TimeLeftComparator(a orcapi.Job, b orcapi.Job) int {
+	if !a.Status.ExpiresAt.Present && !b.Status.ExpiresAt.Present {
+		return 0
+	}
+	if !a.Status.ExpiresAt.Present {
+		return 1
+	}
+	if !b.Status.ExpiresAt.Present {
+		return -1
+	}
+
+	cmp := a.Status.ExpiresAt.Value.Time().Compare(b.Status.ExpiresAt.Value.Time())
+	if cmp != 0 {
+		return cmp
+	}
+	// If they are the same timeleft, the id determines
+	aId := ResourceParseId(a.Id)
+	bId := ResourceParseId(b.Id)
+	if aId < bId {
+		return -1
+	} else if aId > bId {
+		return 1
+	}
+	return 0
+}
+
 func JobsBrowse(
 	actor rpc.Actor,
 	next util.Option[string],
@@ -1216,6 +1242,11 @@ func JobsBrowse(
 	sortByFn := ResourceDefaultComparator(func(item orcapi.Job) orcapi.Resource {
 		return item.Resource
 	}, flags.ResourceFlags)
+
+	switch flags.SortBy.GetOrDefault("") {
+	case "timeLeft":
+		sortByFn = TimeLeftComparator
+	}
 
 	return jobsProcessFlags(ResourceBrowse(
 		actor,
