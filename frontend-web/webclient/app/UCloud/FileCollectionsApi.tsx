@@ -229,7 +229,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                                         dialogStore.success();
                                     }
                                 }}>
-                                    <Input id={"collectionName"} mb={"8px"} />
+                                    <Input id={"collectionName"} autoFocus={true} mb={"8px"} />
                                     <Button color={"errorMain"} type={"submit"} fullWidth>
                                         I understand what I am doing, delete my data permanently
                                     </Button>

@@ -1,7 +1,7 @@
 import * as React from "react";
 import {
     AllocationDisplayTreeRecipient,
-    AllocationDisplayTreeYourAllocation, normalizedBalanceToRaw, ProductCategoryV2,
+    AllocationDisplayTreeYourAllocation, explainUnit, normalizedBalanceToRaw, ProductCategoryV2,
     ProductType,
     UsageAndQuota,
 } from "@/Accounting";
@@ -34,7 +34,7 @@ import Avatar from "@/AvataaarLib/avatar";
 import {classConcat, extractDataTags, injectStyle} from "@/Unstyled";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ProgressBar} from "@/Accounting/Allocations/ProgressBar";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
@@ -55,6 +55,7 @@ import * as Heading from "@/ui-components/Heading";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import DatePicker from "react-datepicker";
 import {callAPIWithErrorHandler} from "@/Authentication/DataHook";
+import {DatePickerClass} from "@/ui-components/DatePicker";
 
 interface Datapoint {
     product: string;
@@ -663,36 +664,37 @@ const FilteredUsageAndQuota: React.FunctionComponent<{
 }
 
 function DurationSelector(props: {periodRef: {start: Date | null; end: Date | null} }) {
-    const originalStart = props.periodRef.start;
-    const originalEnd = props.periodRef.end;
+    const originalStart = useMemo(() => props.periodRef.start, []);
+    const originalEnd = useMemo(() => props.periodRef.end, []);
     const [startDate, setStartDate] = useState<Date | null>(props.periodRef.start);
     const [endDate, setEndDate] = useState<Date | null>(props.periodRef.end);
     props.periodRef.start = startDate;
     props.periodRef.end = endDate;
 
-    const onChange = (dates: [Date | null, Date | null]) => {
+    const onChange = React.useCallback((dates: [Date | null, Date | null]) => {
         const [start, end] = dates
+        props.periodRef.start = start;
+        props.periodRef.end = end;
         setStartDate(start)
         setEndDate(end)
-    }
+    }, []);
 
-    return <>
-        <Box mb={"8px"} mt={"16px"}>
-            Allocation period (Original period: {dateToStringNoTime(originalStart?.getTime() ?? new Date().getTime())} - {dateToStringNoTime(originalEnd?.getTime() ?? new Date().getTime())})
-            <br/>
-            <DatePicker
-                selected={startDate}
-                onChange={onChange}
-                startDate={startDate}
-                endDate={endDate}
-                selectsRange
-                dateFormat="MM/yyyy"
-                minDate={new Date()}
-                showMonthYearPicker
-                required
-            />
-        </Box>
-    </>
+    return <Box mb={"8px"} mt={"16px"}>
+        Allocation period (Original period: {dateToStringNoTime(originalStart?.getTime() ?? new Date().getTime())} - {dateToStringNoTime(originalEnd?.getTime() ?? new Date().getTime())})
+        <br/>
+        <DatePicker
+            selected={startDate}
+            onChange={onChange}
+            startDate={startDate}
+            endDate={endDate}
+            selectsRange
+            dateFormat="MM/yyyy"
+            minDate={new Date()}
+            showMonthYearPicker
+            required
+            className={DatePickerClass}
+        />
+    </Box>
 }
 
 function openUpdater(
@@ -701,6 +703,7 @@ function openUpdater(
     originalStart: Date | null,
     originalEnd: Date | null,
     originalQuota: number,
+    workspaceTitle: any,
     dispatchEvent:(ev: UIEvent) => void,
     idx: number,
     gidx: number,
@@ -711,51 +714,63 @@ function openUpdater(
         end: originalEnd,
     }
     let quota = originalQuota;
+    let reason = "";
     dialogStore.addDialog((
-    <div onKeyDown={e => e.stopPropagation()}>
-        <div>
-            <Heading.h3>Update Allocation {allocationId}</Heading.h3>
-            <Divider />
-            <DurationSelector periodRef={periodRef} />
-            <Box mb={"16px"}>
-                Allocation quota (Original quota: {Accounting.balanceToString(category, quota)})
-                <Input width={1} my="3px" type="number" min={0} onChange={e => quota = normalizedBalanceToRaw(category, e.target.valueAsNumber)} />
-            </Box>
-            <Box mb={"16px"}>
-                <form onSubmit={async ev => {
-                    ev.preventDefault();
-                    ev.stopPropagation();
-                    const success = (await callAPIWithErrorHandler(
-                        Accounting.updateAllocationV2(bulkRequestOf({
-                            allocationId: allocationId,
-                            newQuota: quota,
-                            newStart: periodRef.start?.getTime() ?? new Date().getTime(),
-                            newEnd: periodRef.end?.getTime() ?? new Date().getTime(),
-                            reason: "Allocation updated",
-                        }))
-                    )) !== null;
+        <div onKeyDown={e => e.stopPropagation()}>
+            <div>
+                <Heading.h3>Update {category.name}/{category.provider} allocation (ID: {allocationId}) belonging to "{workspaceTitle}"</Heading.h3>
+                <Divider />
+                <DurationSelector periodRef={periodRef} />
+                <Box mb={"16px"}>
+                    Allocation quota (Original quota: {Accounting.balanceToString(category, quota)})
+                    <Input width={1} my="3px" type="number" defaultValue={explainUnit(category).balanceFactor * quota} min={0} onChange={e => quota = normalizedBalanceToRaw(category, e.target.valueAsNumber)} />
+                </Box>
+                <Box mb={"16px"}>
+                    Reason
+                    <Input width={1} height={1} type={"text"} placeholder={"Reason for update"} onChange={e => reason = e.target.value}/>
+                </Box>
+                <Box mb={"16px"}>
+                    <form onSubmit={async ev => {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        if (quota == originalQuota && originalStart == periodRef.start && originalEnd == periodRef.end) {
+                            //Do nothing since no change is required to be updated
+                            dialogStore.success()
+                        } else if (reason === "") {
+                            snackbarStore.addFailure("Missing reason", false);
+                        } else {
+                            const success = (await callAPIWithErrorHandler(
+                                Accounting.updateAllocationV2(bulkRequestOf({
+                                    allocationId: allocationId,
+                                    newQuota: quota,
+                                    newStart: periodRef.start?.getTime() ?? new Date().getTime(),
+                                    newEnd: periodRef.end?.getTime() ?? new Date().getTime(),
+                                    reason: reason,
+                                }))
+                            )) !== null;
 
-                    if (success) {
-                        dispatchEvent({
-                            type: "UpdateAllocation",
-                            allocationIdx: idx,
-                            recipientIdx: ridx,
-                            groupIdx: gidx,
-                            newQuota: quota,
-                            newStart: periodRef.start ?? new Date(),
-                            newEnd: periodRef.end ?? new Date(),
-                        });
-                        snackbarStore.addSuccess("Update Success", false)
-                        dialogStore.success()
-                    }
-                }}>
-                    <Button type={"submit"} fullWidth>
-                        Update Allocation
-                    </Button>
-                </form>
-            </Box>
+                            if (success) {
+                                dispatchEvent({
+                                    type: "UpdateAllocation",
+                                    allocationIdx: idx,
+                                    recipientIdx: ridx,
+                                    groupIdx: gidx,
+                                    newQuota: quota,
+                                    newStart: periodRef.start ?? new Date(),
+                                    newEnd: periodRef.end ?? new Date(),
+                                });
+                                snackbarStore.addSuccess("Update Success", false);
+                                dialogStore.success();
+                            }
+                        }
+                    }}>
+                        <Button type={"submit"} fullWidth>
+                            Update allocation
+                        </Button>
+                    </form>
+                </Box>
+            </div>
         </div>
-    </div>
     ), doNothing, true);
 }
 
@@ -903,6 +918,7 @@ const SubProjectListRow: React.FunctionComponent<{
                                             new Date(alloc.start),
                                             new Date(alloc.end),
                                             alloc.quota,
+                                            title,
                                             dispatchEvent,
                                             idx,
                                             gidx,
