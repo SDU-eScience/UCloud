@@ -7,19 +7,25 @@ import {default as data} from "./test_data.json" with {type: "json"};
 const LoginPageUrl = ucloudUrl("login");
 
 export const User = {
-    newUsername(): string {
-        return Help.newResourceName("user");
+    newUserCredentials(): {username: string; password: string;} {
+        const username = Help.newResourceName("user");
+        return {username, password: username + "_" + username};
     },
 
     async toLoginPage(page: Page): Promise<void> {
         await page.goto(LoginPageUrl);
     },
 
-    async login(page: Page, user: {username: string; password: string;}): Promise<void> {
+    async login(page: Page, user: {username: string; password: string;}, fillUserInfo: boolean = false): Promise<void> {
         await this.toLoginPage(page);
         await page.getByRole("textbox", {name: "Username"}).fill(user.username);
         await page.getByRole("textbox", {name: "Password"}).fill(user.password);
         await page.getByRole("button", {name: "Login"}).click();
+
+        if (fillUserInfo) {
+            await this.dismissAdditionalInfoPrompt(page);
+            await this.setAdditionalUserInfo(page);
+        }
     },
 
 
@@ -34,18 +40,42 @@ export const User = {
         await page.getByRole("link", {name: "User creation"}).click();
 
         await page.getByRole("textbox", {name: "Username"}).fill(user.username);
-        await page.getByRole("textbox", {name: "Password"}).fill(user.password);
-        await page.getByRole("textbox", {name: "Repeat password"}).fill(user.password);
+        await page.getByRole("textbox", {name: "Password", exact: true}).fill(user.password);
+        await page.getByRole("textbox", {name: "Repeat password", exact: true}).fill(user.password);
 
-        const generatedUsername = this.newUsername();
-        await page.getByRole("textbox", {name: "Email"}).fill(generatedUsername + "@mail.dk");
+        await page.getByRole("textbox", {name: "Email"}).fill(user.username + "@mail.dk");
 
-        await page.getByRole("textbox", {name: "First names"}).fill(generatedUsername)
+        await page.getByRole("textbox", {name: "First names"}).fill(user.username)
         await page.getByRole("textbox", {name: "Last name"}).fill(Math.random() > .5 ? "the Second" : "the Third");
 
         await NetworkCalls.awaitResponse(page, "**/auth/users/register", async () => {
             await page.getByRole("button", {name: "Create user"}).click();
         });
+    },
+
+    async setAdditionalUserInfo(page: Page): Promise<void> {
+        await Components.toggleUserMenu(page);
+        await page.getByText("Settings").click();
+        await this.fillOutUserInfoIfMissing(page);
+    },
+
+    async fillOutUserInfoIfMissing(page: Page) {
+        await page.getByRole("textbox", {name: "Organization"}).fill("Test");
+        await page.keyboard.press("Escape");
+        await page.getByRole("textbox", {name: "Department"}).fill("Not available");
+        await page.keyboard.press("Escape");
+        await page.getByRole("textbox", {name: "Position"}).fill("Administrative Staff");
+        await page.keyboard.press("Escape");
+
+        await page.getByRole("textbox", {name: "Primary research field"}).fill("0.1 Other");
+
+        await page.getByRole("textbox", {name: "Gender"}).fill("Another gender identity");
+        await page.getByRole("button", {name: "Update information"}).nth(1).click();
+    },
+
+    async dismissAdditionalInfoPrompt(page: Page): Promise<void> {
+        await page.getByText("Additional user information").waitFor();
+        await page.keyboard.press("Escape");
     }
 }
 
@@ -326,6 +356,11 @@ export const Components = {
         await loc[action]();
     },
 
+    async dismissProviderConnect(page: Page): Promise<void> {
+        await page.getByText("Snooze").click();
+        await page.getByText("Snooze").waitFor({state: "hidden"});
+    },
+
     async clickRefreshAndWait(page: Page): Promise<void> {
         await page.locator(".refresh-icon").click();
     },
@@ -491,8 +526,7 @@ export const Runs = {
         const terminalPagePromise = page.waitForEvent("popup");
         await page.getByRole("button", {name: "Open terminal"}).click();
         const terminalPage = await terminalPagePromise;
-        await terminalPage.getByTitle("ucloud@").isVisible();
-        await terminalPage.getByText("ucloud@").click();
+        await terminalPage.getByText("➜").first().click();
         return terminalPage;
     },
 
@@ -547,11 +581,13 @@ export const Resources = {
         },
 
         async createNew(page: Page, publicLinkName?: string): Promise<string> {
+            await NetworkCalls.awaitProducts(page, async () => {
+                await Resources.goTo(page, "Links");
+            });
             const name = publicLinkName ?? this.newPublicLinkName();
             await page.getByText("Create public link").click();
             // Note(Jonas): nth(1) because we are skipping the hidden search field
             await page.getByRole("textbox").nth(1).fill(name);
-            await Components.selectAvailableProduct(page);
             return name;
             //return `app-${name}.dev.cloud.sdu.dk`;
         },
@@ -687,7 +723,6 @@ export const Accounting = {
                 await NetworkCalls.awaitResponse(page, "**/api/accounting/v2/usage/retrieve?**", async () => {
                     await page.getByRole("link", {name: "Usage"}).click();
                 });
-                await page.waitForTimeout(800)
                 return;
         }
 
@@ -698,34 +733,41 @@ export const Accounting = {
         newProjectName(): string {
             return Help.newResourceName("ProjectTitle");
         },
+    },
 
-        Application: {
-            async fillProjectName(page: Page, projectName: string): Promise<void> {
-                await page.getByPlaceholder("Please enter the title of your project").fill(projectName);
-            },
+    GrantApplication: {
+        async fillProjectName(page: Page, projectName: string): Promise<void> {
+            await page.getByPlaceholder("Please enter the title of your project").fill(projectName);
+        },
 
-            async toggleGrantGiver(page: Page, grantGiver: string): Promise<void> {
-                await page.getByText(grantGiver, {exact: false}).click();
-            },
+        async toggleGrantGiver(page: Page, grantGiver: string): Promise<void> {
+            await page.getByText(grantGiver, {exact: false}).click();
+        },
 
-            async fillQuotaFields(page: Page, quotas: {field: string; quota: number}[]): Promise<void> {
-                for (const quota of quotas) {
-                    await page.getByRole("textbox", {name: quota.field}).fill(quota.quota.toString());
-                }
-            },
-
-            async fillApplicationTextFields(page: Page, textFields: {name: string; content: string}[]): Promise<void> {
-                for (const applicationField of textFields) {
-                    await page.getByRole("textbox", {name: applicationField.name}).fill(applicationField.content);
-                }
-            },
-
-            async submit(page: Page): Promise<void> {
-                await NetworkCalls.awaitResponse(page, "", async () => {
-                    await page.getByRole("button", {name: "Submit application"}).click();
-                });
+        async fillQuotaFields(page: Page, quotas: {field: string; quota: number}[]): Promise<void> {
+            for (const quota of quotas) {
+                await page.getByRole("spinbutton", {name: quota.field}).fill(quota.quota.toString());
             }
         },
+
+        async fillApplicationTextFields(page: Page, textFields: {name: string; content: string}[]): Promise<void> {
+            for (const applicationField of textFields) {
+                await page.getByRole("textbox", {name: applicationField.name}).fill(applicationField.content);
+            }
+        },
+
+        async submit(page: Page): Promise<string> {
+            const response = (await NetworkCalls.awaitResponse(page, "**/submitRevision", async () => {
+                await page.getByRole("button", {name: "Submit application"}).click();
+            }));
+
+            const result = JSON.parse(await response.text()).id;
+            return result;
+        },
+
+        async approve(page: Page): Promise<void> {
+            await page.locator(".grant-giver button").nth(1).click({delay: 2000});
+        }
     },
 
     Usage: {

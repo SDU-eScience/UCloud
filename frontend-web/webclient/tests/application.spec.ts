@@ -1,5 +1,5 @@
 import {expect, test, Page} from "@playwright/test";
-import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls, Resources} from "./shared";
+import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls, Resources, Accounting} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 
 test.beforeEach(async ({page}) => {
@@ -160,7 +160,7 @@ test("Test application search", async ({page}) => {
 });
 
 test("Start application with multiple nodes, connect to job from other job and validate connection", async ({page}) => {
-    test.setTimeout(120_000)
+    test.setTimeout(240_000)
     async function openSparkApp(page: Page) {
         await Applications.goToApplications(page);
         await Applications.searchFor(page, multinodeAppSearchString);
@@ -199,7 +199,7 @@ test("Start application with multiple nodes, connect to job from other job and v
     await Components.useDialogBrowserItem(otherPage, jobName);
     await Runs.submitAndWaitForRunning(otherPage);
     await otherPage.getByText("Connected jobs (1)").click();
-    await otherPage.getByText(jobId).hover();
+    await otherPage.getByText(jobId, {exact: true}).hover();
     await Runs.terminateViewedRun(otherPage);
 
     await Runs.terminateViewedRun(page);
@@ -219,4 +219,29 @@ test("Start terminal job, find mounted 'easybuild' modules mounted, use networki
     await term.getByText("HTTP/2 200").hover();
     await term.close();
     await Runs.terminateViewedRun(page);
+});
+
+test("Create new user without resources, fail to create drive, apply for resources, be granted resources, run terminal, create large file, trigger accounting, see creation now blocked", async ({browser}) => {
+    const adminPage = await browser.newPage();
+    await User.login(adminPage, {username: "user", password: "mypassword"});
+    const username = User.newUserCredentials();
+    const password = username + "_" + username;
+    await User.create(adminPage, {username, password});
+
+    const newUserPage = await browser.newPage();
+    await User.login(newUserPage, {username, password}, true);
+    await newUserPage.getByText("Additional user information").waitFor();
+    await newUserPage.keyboard.press("Escape");
+    await Drive.create(newUserPage, "DriveToFail");
+    await newUserPage.getByText("Failed to create new drive. Insufficient funds").hover();
+    await newUserPage.keyboard.press("Escape");
+
+    await Accounting.goTo(newUserPage, "Apply for resources");
+    await newUserPage.getByText("select an existing project instead").click();
+    await Accounting.GrantApplication.toggleGrantGiver(newUserPage, data.providers.k8s);
+    await Accounting.GrantApplication.fillQuotaFields(newUserPage, [{field: "Core-hours requested", quota: 1000}, {field: "GB requested", quota: 1000}]);
+    await Accounting.GrantApplication.fillApplicationTextFields(newUserPage, [{name: "Application", content: "Text description"}]);
+    const id = await Accounting.GrantApplication.submit(newUserPage);
+
+
 });

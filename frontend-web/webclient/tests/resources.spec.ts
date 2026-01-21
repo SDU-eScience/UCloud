@@ -10,7 +10,6 @@ const {PublicLinks, IPs, SSHKeys, Licenses} = Resources;
 
 test.describe("Public links - check public links work", () => {
     test("Create public link, view properties, delete", async ({page}) => {
-        await Resources.goTo(page, "Links");
         const publicLinkName = await PublicLinks.createNew(page);
         await page.getByRole("button", {name: "Create", disabled: false}).click();
         await Resources.open(page, publicLinkName);
@@ -23,7 +22,6 @@ test.describe("Public links - check public links work", () => {
     });
 
     test("Create public link, mount link for job, check that link is available, stop job, delete public link", async ({page}) => {
-        await Resources.goTo(page, "Links");
         const publicLinkName = await PublicLinks.createNew(page);
         await page.getByRole("button", {name: "Create", disabled: false}).click();
 
@@ -33,7 +31,6 @@ test.describe("Public links - check public links work", () => {
         test.setTimeout(240_000);
 
         // Create public link
-        await Resources.goTo(page, "Links");
         const publicLinkName = await PublicLinks.createNew(page);
         await page.getByRole("button", {name: "Create", disabled: false}).click();
 

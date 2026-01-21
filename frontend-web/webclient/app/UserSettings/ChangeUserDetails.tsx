@@ -143,7 +143,7 @@ export function ChangeUserDetails(): React.ReactNode {
                     color="successMain"
                     disabled={commandLoading || !!message}
                 >
-                    {message ?? "Update Information"}
+                    {message ?? "Update information"}
                 </Button>
             </form>
         </Box>
@@ -312,7 +312,7 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
             <NewDataList title="Position" placeholder="VIP/TAP/Student" items={SortedPositions} ref={positionRef} />
             <NewDataList title={"Primary research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={ResearchFields[RFIndex].value} />
             <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} disabled={false} placeholder="Prefer not to say" />
-            {props.getValues ? null : <Button onClick={onSubmit} mt="1em" type="button" color="successMain">Update Information</Button>}
+            {props.getValues ? null : <Button onClick={onSubmit} mt="1em" type="button" color="successMain">Update information</Button>}
         </Box>
     );
 }
