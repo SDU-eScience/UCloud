@@ -716,61 +716,63 @@ function openUpdater(
     let quota = originalQuota;
     let reason = "";
     dialogStore.addDialog((
-        <div onKeyDown={e => e.stopPropagation()}>
-            <div>
-                <Heading.h3>Update {category.name}/{category.provider} allocation (ID: {allocationId}) belonging to "{workspaceTitle}"</Heading.h3>
-                <Divider />
-                <DurationSelector periodRef={periodRef} />
-                <Box mb={"16px"}>
-                    Allocation quota (Original quota: {Accounting.balanceToString(category, quota)})
-                    <Input width={1} my="3px" type="number" defaultValue={explainUnit(category).balanceFactor * quota} min={0} onChange={e => quota = normalizedBalanceToRaw(category, e.target.valueAsNumber)} />
-                </Box>
-                <Box mb={"16px"}>
-                    Reason
-                    <Input width={1} height={1} type={"text"} placeholder={"Reason for update"} onChange={e => reason = e.target.value}/>
-                </Box>
-                <Box mb={"16px"}>
-                    <form onSubmit={async ev => {
-                        ev.preventDefault();
-                        ev.stopPropagation();
-                        if (quota == originalQuota && originalStart == periodRef.start && originalEnd == periodRef.end) {
-                            //Do nothing since no change is required to be updated
-                            dialogStore.success()
-                        } else if (reason === "") {
-                            snackbarStore.addFailure("Missing reason", false);
-                        } else {
-                            const success = (await callAPIWithErrorHandler(
-                                Accounting.updateAllocationV2(bulkRequestOf({
-                                    allocationId: allocationId,
-                                    newQuota: quota,
-                                    newStart: periodRef.start?.getTime() ?? new Date().getTime(),
-                                    newEnd: periodRef.end?.getTime() ?? new Date().getTime(),
-                                    reason: reason,
-                                }))
-                            )) !== null;
+        <form onSubmit={async ev => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (quota == originalQuota && originalStart == periodRef.start && originalEnd == periodRef.end) {
+                //Do nothing since no change is required to be updated
+                dialogStore.success()
+            } else if (reason === "") {
+                snackbarStore.addFailure("Missing reason", false);
+            } else {
+                const success = (await callAPIWithErrorHandler(
+                    Accounting.updateAllocationV2(bulkRequestOf({
+                        allocationId: allocationId,
+                        newQuota: quota,
+                        newStart: periodRef.start?.getTime() ?? new Date().getTime(),
+                        newEnd: periodRef.end?.getTime() ?? new Date().getTime(),
+                        reason: reason,
+                    }))
+                )) !== null;
 
-                            if (success) {
-                                dispatchEvent({
-                                    type: "UpdateAllocation",
-                                    allocationIdx: idx,
-                                    recipientIdx: ridx,
-                                    groupIdx: gidx,
-                                    newQuota: quota,
-                                    newStart: periodRef.start ?? new Date(),
-                                    newEnd: periodRef.end ?? new Date(),
-                                });
-                                snackbarStore.addSuccess("Update Success", false);
-                                dialogStore.success();
-                            }
-                        }
-                    }}>
-                        <Button type={"submit"} fullWidth>
-                            Update allocation
-                        </Button>
-                    </form>
-                </Box>
+                if (success) {
+                    dispatchEvent({
+                        type: "UpdateAllocation",
+                        allocationIdx: idx,
+                        recipientIdx: ridx,
+                        groupIdx: gidx,
+                        newQuota: quota,
+                        newStart: periodRef.start ?? new Date(),
+                        newEnd: periodRef.end ?? new Date(),
+                    });
+                    snackbarStore.addSuccess("Update Success", false);
+                    dialogStore.success();
+                }
+            }
+        }}>
+            <div onKeyDown={e => e.stopPropagation()}>
+                <div>
+                    <Heading.h3>Update {category.name}/{category.provider} allocation (ID: {allocationId}) belonging to "{workspaceTitle}"</Heading.h3>
+                    <Divider />
+                    <DurationSelector periodRef={periodRef} />
+                    <Box mb={"16px"}>
+                        Allocation quota (Original quota: {Accounting.balanceToString(category, quota)})
+                        <Input width={1} my="3px" type="number" defaultValue={explainUnit(category).balanceFactor * quota} min={0} onChange={e => quota = normalizedBalanceToRaw(category, e.target.valueAsNumber)} />
+                    </Box>
+                    <Box mb={"16px"}>
+                        Reason
+                        <Input width={1} height={1} type={"text"} placeholder={"Reason for update"} onChange={e => reason = e.target.value}/>
+                    </Box>
+                    <Box mb={"16px"}>
+
+                            <Button type={"submit"} fullWidth>
+                                Update allocation
+                            </Button>
+                    </Box>
+                </div>
             </div>
-        </div>
+        </form>
+
     ), doNothing, true);
 }
 
