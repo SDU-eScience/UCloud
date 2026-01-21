@@ -44,7 +44,7 @@ func initProviderIntegration() {
 					orcapi.ProviderIntegrationPFindByUser{Username: info.Actor.Username}, ProviderCallOpts{})
 
 				if err != nil {
-					return orcapi.ProviderIntegrationConnectResponse{}, util.HttpErr(http.StatusBadGateway, "could not contact provider")
+					return orcapi.ProviderIntegrationConnectResponse{}, util.HttpErr(http.StatusBadGateway, "could not contact provider: %s", err)
 				} else {
 					return orcapi.ProviderIntegrationConnectResponse{RedirectTo: resp.RedirectTo}, nil
 				}
