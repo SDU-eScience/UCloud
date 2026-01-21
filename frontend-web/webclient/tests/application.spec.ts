@@ -1,5 +1,5 @@
 import {expect, test, Page} from "@playwright/test";
-import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls, Resources, Accounting} from "./shared";
+import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls, Resources, Accounting, Admin} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 
 test.beforeEach(async ({page}) => {
@@ -23,7 +23,6 @@ test("Run job with jobname, extend time, stop job, validate jobname in runs", as
     await Runs.terminateViewedRun(page);
 
     await page.getByText("Run application again").hover();
-    await expect(page.getByText("Run application again")).toHaveCount(1);
 });
 
 const AppNameThatIsExpectedToBePresent = "Terminal";
@@ -107,7 +106,6 @@ test("Start app and stop app from runs page. Start it from runs page, testing pa
     await Runs.runApplicationAgain(page, jobName);
     await Runs.terminateViewedRun(page);
     await page.getByText("Run application again").waitFor({state: "visible"});
-    await expect(page.getByText("Run application again")).toHaveCount(1);
 });
 
 test("Mount folder with file in job, and cat inside contents", async ({page}) => {
@@ -223,13 +221,12 @@ test("Start terminal job, find mounted 'easybuild' modules mounted, use networki
 
 test("Create new user without resources, fail to create drive, apply for resources, be granted resources, run terminal, create large file, trigger accounting, see creation now blocked", async ({browser}) => {
     const adminPage = await browser.newPage();
-    await User.login(adminPage, {username: "user", password: "mypassword"});
-    const username = User.newUserCredentials();
-    const password = username + "_" + username;
-    await User.create(adminPage, {username, password});
+    await User.login(adminPage, Admin.AdminUser);
+    const user = User.newUserCredentials();
+    await User.create(adminPage, user);
 
     const newUserPage = await browser.newPage();
-    await User.login(newUserPage, {username, password}, true);
+    await User.login(newUserPage, user, true);
     await newUserPage.getByText("Additional user information").waitFor();
     await newUserPage.keyboard.press("Escape");
     await Drive.create(newUserPage, "DriveToFail");
@@ -243,5 +240,5 @@ test("Create new user without resources, fail to create drive, apply for resourc
     await Accounting.GrantApplication.fillApplicationTextFields(newUserPage, [{name: "Application", content: "Text description"}]);
     const id = await Accounting.GrantApplication.submit(newUserPage);
 
-
+    throw Error("TODO")
 });

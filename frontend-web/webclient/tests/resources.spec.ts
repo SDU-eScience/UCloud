@@ -25,8 +25,11 @@ test.describe("Public links - check public links work", () => {
         const publicLinkName = await PublicLinks.createNew(page);
         await page.getByRole("button", {name: "Create", disabled: false}).click();
 
+
         await PublicLinks.delete(page, publicLinkName);
+        throw Error("TODO");
     });
+
     test("Create public link, add to job, verify it's available for the job, delete public link", async ({page}) => {
         test.setTimeout(240_000);
 
@@ -49,6 +52,7 @@ test.describe("Public links - check public links work", () => {
         // Delete public link
         await Resources.goTo(page, "Links");
         await PublicLinks.delete(page, publicLinkName);
+        throw Error("TODO");
     });
 });
 
@@ -58,6 +62,7 @@ test.describe("Public IPs - check public IPs work", () => {
         const publicIpName = await IPs.createNew(page);
         /* TODO(Jonas): Get actual name of IP, only through retrieve? */
         console.log(publicIpName);
+        throw Error("TODO");
     });
 });
 
@@ -100,5 +105,5 @@ test("Create licenses", async ({page}) => {
     });
 
     const licenseId = await Licenses.activateLicense(page);
-    console.log(licenseId)
+    throw Error("TODO");
 });

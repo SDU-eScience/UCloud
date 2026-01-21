@@ -232,7 +232,7 @@ test.describe("Files - search works", () => {
 
 test.describe("Files - transfer works", () => {
     test("Transfer file between providers", () => {
-        throw new Error("not yet");
+        throw new Error("Manual test");
     })
 });
 
