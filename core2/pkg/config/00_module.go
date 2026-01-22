@@ -66,6 +66,8 @@ type Database struct {
 }
 
 type OidcAuthentication struct {
+	IdpTitle     string
+	Profile      string
 	Issuer       string
 	ClientId     string
 	ClientSecret string
@@ -266,6 +268,14 @@ func parseOidcAuthentication(filePath string, node *yaml.Node) (bool, OidcAuthen
 	result.Issuer = cfgutil.RequireChildText(filePath, node, "issuer", &success)
 	result.ClientId = cfgutil.RequireChildText(filePath, node, "clientId", &success)
 	result.ClientSecret = cfgutil.RequireChildText(filePath, node, "clientSecret", &success)
+	result.Profile = cfgutil.OptionalChildText(filePath, node, "profile", &success)
+	if result.Profile == "" {
+		result.Profile = "WAYF"
+	}
+	result.IdpTitle = cfgutil.OptionalChildText(filePath, node, "title", &success)
+	if result.IdpTitle == "" {
+		result.IdpTitle = "WAYF"
+	}
 
 	if child, err := cfgutil.GetChildOrNil(filePath, node, "scopes"); child != nil && err == nil {
 		cfgutil.Decode(filePath, child, &result.Scopes, &success)

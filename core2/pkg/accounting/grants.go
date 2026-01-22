@@ -501,9 +501,11 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		return 0, util.HttpErr(http.StatusBadRequest, "grant giver initiated applications must be new applications")
 	}
 
-	if !req.ApplicationId.Present && recipient.Type == accapi.RecipientTypeExistingProject {
-		if !actor.Membership[rpc.ProjectId(recipient.Id.Value)].Satisfies(rpc.ProjectRoleAdmin) {
-			return 0, util.HttpErr(http.StatusBadRequest, "you are not allowed to apply to this project")
+	if revision.Form.Type != accapi.FormTypeGrantGiverInitiated {
+		if !req.ApplicationId.Present && recipient.Type == accapi.RecipientTypeExistingProject {
+			if !actor.Membership[rpc.ProjectId(recipient.Id.Value)].Satisfies(rpc.ProjectRoleAdmin) {
+				return 0, util.HttpErr(http.StatusBadRequest, "you are not allowed to apply to this project")
+			}
 		}
 	}
 

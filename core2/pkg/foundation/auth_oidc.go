@@ -1,6 +1,7 @@
 package foundation
 
 import (
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -62,7 +63,7 @@ func initAuthOidc() {
 		fndapi.AuthBrowseIdentityProviders.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.BulkResponse[fndapi.IdentityProvider], *util.HttpError) {
 			return fndapi.BulkResponse[fndapi.IdentityProvider]{
 				Responses: []fndapi.IdentityProvider{
-					{Id: 1, Title: "WAYF"}, // TODO Configurable name?
+					{Id: 1, Title: config.IdpTitle},
 				},
 			}, nil
 		})
@@ -140,6 +141,10 @@ func initAuthOidc() {
 				FirstNames        string `json:"gn"`
 				LastName          string `json:"sn"`
 				HomeOrganization  string `json:"homeOrganization"`
+				GivenName         string `json:"given_name"`
+				FamilyName        string `json:"family_name"`
+				Oid               string `json:"oid"`
+				Tid               string `json:"tid"`
 			}
 			err = idToken.Claims(&claimJson)
 			if err != nil {
@@ -147,14 +152,28 @@ func initAuthOidc() {
 				return util.Empty{}, util.HttpErr(http.StatusBadGateway, "Failed to authenticate you")
 			}
 
-			principal, httpErr := PrincipalRetrieveOrCreateFromIdpResponse(IdpResponse{
+			response := IdpResponse{
 				Idp:        1,
 				Identity:   claimJson.PreferredUsername,
 				FirstNames: util.OptValue(claimJson.FirstNames),
 				LastName:   util.OptValue(claimJson.LastName),
 				OrgId:      util.OptStringIfNotEmpty(claimJson.HomeOrganization),
 				Email:      util.OptStringIfNotEmpty(claimJson.Email),
-			})
+			}
+
+			// TODO Clean this up
+			switch config.Profile {
+			case "Entra":
+				// NOTE(Dan): For this to work, the client needs to be configured with optional claims (in Entra's UI)
+				// which allow these to be returned on the ID token (given_name, family_name and email).
+				response.Identity = fmt.Sprintf("%v-%v", claimJson.Tid, claimJson.Oid)
+				response.FirstNames = util.OptValue(claimJson.GivenName)
+				response.LastName = util.OptValue(claimJson.FamilyName)
+
+			case "WAYF": // Nothing to do
+			}
+
+			principal, httpErr := PrincipalRetrieveOrCreateFromIdpResponse(response)
 
 			if httpErr != nil {
 				log.Warn("Failed to create principal from idp response: %v", httpErr)

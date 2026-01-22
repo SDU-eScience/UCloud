@@ -116,8 +116,8 @@ The relevant code can be found in the Core and in the shared project. We recomme
 
 - **API and models:**
     - **Products:** `shared/accounting/products.go`
-    - **Accounting:** `core2/accounting/accounting.go`
-    - **Grants:** `core2/accounting/grants.go`
+    - **Accounting:** `shared/accounting/accounting.go`
+    - **Grants:** `shared/accounting/grants.go`
 - **Implementation:**
     - **Products:** `core2/accounting/products.go`
     - **Accounting:** `core2/accounting/accounting_internal.go`
