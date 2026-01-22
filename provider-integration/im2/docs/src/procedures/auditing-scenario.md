@@ -3,34 +3,51 @@
 The following UCloud usage scenarios are used to manually verify that the complete auditing stack works. This is
 currently not machine tested.
 
-## Internal Auditing: #1 File Activity
+### Setup
 
-There has been created a users on the production system to help with this test:
+To complete these scenarios 3 different users are required. 
+These have been created on the production system with following usernames
 
 - `audit1`
+- `audit2`
+- `audit3`
 
-The person responsible for our logging architecture has the 2FA and other credentials to these users.
+The person responsible for performing the scenarios has the 2FA and other credentials to these users.
+
+Before starting any of the scenarios it is advised to create the following alias in your terminal:
+
+- `ELASTIC_USER`: Username for a privileged elastic user
+- `ELASTIC_PASSWORD`: Password for a privileged elastic user
+- `
+
+These makes it possible to simply copy-paste the code snippets in the scenarios when pulling audit data from elasticsearch.
+## Internal Auditing: #1 File Activity
+
+To complete this scenarios use the following user is needed: 
+
+- `audit1`
 
 **Steps:**
 
 1. Create a directory called `Audit-$DATE`
 2. Upload a file called `file.txt` to the new directory
 3. Check if other user can see the file (copy URL to of file location to other users browser)
-4. Copy this file to the same directory using the rename strategy (default)
+4. Copy this file to the same directory (default)
 5. Move the new copy to the trash
 6. Rename `file` to `renamed`
 7. Mark `renamed` as a favorite file
 8. Unmark `renamed` as a favorite file
 
+### Validation of audit trail
+
+
 ## Internal Auditing: #2 Project Activity
 
-This Audit requires 3 different users. There has been created additional 2 users on the production system to help with
-this test:
+This Audit requires 3 different users. To complete this following three users is recommended:
 
+- `audit1`
 - `audit2`
 - `audit3`
-
-The person responsible for our logging architecture has the 2FA and other credentials to these users.
 
 **Steps:**
 
