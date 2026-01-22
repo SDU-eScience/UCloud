@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"cmp"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -1207,9 +1208,10 @@ func jobsProcessFlags(
 	return page
 }
 
-func TimeLeftComparator(a orcapi.Job, b orcapi.Job) int {
+func jobTimeLeftComparator(a orcapi.Job, b orcapi.Job) int {
 	if !a.Status.ExpiresAt.Present && !b.Status.ExpiresAt.Present {
-		return 0
+		// Id as tie-breaker
+		return cmp.Compare(ResourceParseId(a.Id), ResourceParseId(b.Id))
 	}
 	if !a.Status.ExpiresAt.Present {
 		return 1
@@ -1218,19 +1220,13 @@ func TimeLeftComparator(a orcapi.Job, b orcapi.Job) int {
 		return -1
 	}
 
-	cmp := a.Status.ExpiresAt.Value.Time().Compare(b.Status.ExpiresAt.Value.Time())
-	if cmp != 0 {
-		return cmp
+	result := a.Status.ExpiresAt.Value.Time().Compare(b.Status.ExpiresAt.Value.Time())
+	if result != 0 {
+		return result
 	}
-	// If they are the same timeleft, the id determines
-	aId := ResourceParseId(a.Id)
-	bId := ResourceParseId(b.Id)
-	if aId < bId {
-		return -1
-	} else if aId > bId {
-		return 1
-	}
-	return 0
+
+	// Id as tie-breaker
+	return cmp.Compare(ResourceParseId(a.Id), ResourceParseId(b.Id))
 }
 
 func JobsBrowse(
@@ -1245,7 +1241,7 @@ func JobsBrowse(
 
 	switch flags.SortBy.GetOrDefault("") {
 	case "timeLeft":
-		sortByFn = TimeLeftComparator
+		sortByFn = jobTimeLeftComparator
 	}
 
 	return jobsProcessFlags(ResourceBrowse(

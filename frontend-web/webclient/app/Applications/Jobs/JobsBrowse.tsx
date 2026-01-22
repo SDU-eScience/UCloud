@@ -217,7 +217,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                             elem.innerText = "Unknown";
                             row.stat1.append(elem);
                         } else {
-                            row.stat1.style.justifyContent = "center";
+                            row.stat1.style.justifyContent = "left";
                             SimpleAvatarComponentCache.appendTo(row.stat1, job.owner.createdBy, `Started by ${job.owner.createdBy}`).then(wrapper => {
                                 const div = divText(job.owner.createdBy);
                                 div.style.marginTop = div.style.marginBottom = "auto";
