@@ -668,8 +668,6 @@ function DurationSelector(props: {periodRef: {start: Date | null; end: Date | nu
     const originalEnd = useMemo(() => props.periodRef.end, []);
     const [startDate, setStartDate] = useState<Date | null>(props.periodRef.start);
     const [endDate, setEndDate] = useState<Date | null>(props.periodRef.end);
-    props.periodRef.start = startDate;
-    props.periodRef.end = endDate;
 
     const onChange = React.useCallback((dates: [Date | null, Date | null]) => {
         const [start, end] = dates
@@ -720,7 +718,7 @@ function openUpdater(
             ev.preventDefault();
             ev.stopPropagation();
             if (quota == originalQuota && originalStart == periodRef.start && originalEnd == periodRef.end) {
-                //Do nothing since no change is required to be updated
+                snackbarStore.addInformation("No changes made", false);
                 dialogStore.success()
             } else if (reason === "") {
                 snackbarStore.addFailure("Missing reason", false);
@@ -761,7 +759,7 @@ function openUpdater(
                     </Box>
                     <Box mb={"16px"}>
                         Reason
-                        <Input width={1} height={1} type={"text"} placeholder={"Reason for update"} onChange={e => reason = e.target.value}/>
+                        <Input width={1} height={1} type={"text"} autoFocus placeholder={"Reason for update"} onChange={e => reason = e.target.value}/>
                     </Box>
                     <Box mb={"16px"}>
 
