@@ -555,6 +555,14 @@ export const Runs = {
             await page.getByRole("dialog").locator(".row", {hasText: folderName}).getByRole("button", {name: "Use"}).click();
         },
 
+        async addPublicLink(page: Page, publicLinkName: string): Promise<void> {
+            await page.getByText("Add public link").first().click();
+            await NetworkCalls.awaitResponse(page, "**/api/ingresses/browse?**", async () => {
+                await page.getByPlaceholder("No public link selected").click();
+            });
+            await page.getByRole("dialog").locator(".row", {hasText: publicLinkName}).getByRole("button", {name: "Use"}).click();
+        },
+
         async toggleEnableSSHServer(page: Page): Promise<void> {
             expect(page.url()).toContain("/jobs/create");
             await page.getByText("Enable SSH server").click();
@@ -592,7 +600,7 @@ export const Resources = {
 
     PublicLinks: {
         newPublicLinkName(): string {
-            return Help.newResourceName("PublicLink");
+            return Help.newResourceName("PublicLink").toLocaleLowerCase();
         },
 
         async createNew(page: Page, publicLinkName?: string): Promise<string> {
@@ -603,8 +611,8 @@ export const Resources = {
             await page.getByText("Create public link").click();
             // Note(Jonas): nth(1) because we are skipping the hidden search field
             await page.getByRole("textbox").nth(1).fill(name);
+            await page.getByRole("button", {name: "Create", disabled: false}).click();
             return name;
-            //return `app-${name}.dev.cloud.sdu.dk`;
         },
 
         async delete(page: Page, name: string): Promise<void> {
@@ -623,7 +631,6 @@ export const Resources = {
 
             await page.getByRole("dialog").getByText("public-ip").hover();
             await this.fillPortRowInDialog(page);
-            const firewall = page.waitForResponse("**/api/networkips/firewall");
             const ip = await NetworkCalls.awaitResponse(page, "**/api/networkips", async () => {
                 await page.getByRole("button", {name: "create", disabled: false}).click();
             });
@@ -634,7 +641,6 @@ export const Resources = {
                     }
                 ]
             } = JSON.parse(await ip.text());
-            await firewall;
             return ipAdress.responses[0].id;
         },
 

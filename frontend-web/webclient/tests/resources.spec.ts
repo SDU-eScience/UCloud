@@ -23,36 +23,21 @@ test.describe("Public links - check public links work", () => {
 
     test("Create public link, mount link for job, check that link is available, stop job, delete public link", async ({page}) => {
         const publicLinkName = await PublicLinks.createNew(page);
-        await page.getByRole("button", {name: "Create", disabled: false}).click();
-
-
-        await PublicLinks.delete(page, publicLinkName);
-        throw Error("TODO");
-    });
-
-    test("Create public link, add to job, verify it's available for the job, delete public link", async ({page}) => {
-        test.setTimeout(240_000);
-
-        // Create public link
-        const publicLinkName = await PublicLinks.createNew(page);
-        await page.getByRole("button", {name: "Create", disabled: false}).click();
-
-        await Applications.goToApplications(page);
-        await page.getByRole("button", {name: "Open application"}).click();
-        const jobName = Runs.newJobName();
-
-        await Runs.setJobTitle(page, jobName);
+        await Applications.openApp(page, "Visual Studio Code");
         await Components.selectAvailableMachineType(page);
-        await Runs.extendTimeBy(page, 1);
+        await Runs.JobResources.addPublicLink(page, publicLinkName);
         await Runs.submitAndWaitForRunning(page);
-        await Runs.extendTimeBy(page, 1);
+        await page.getByText("Links (1)").click();
+        const publicLinkPagePromise = page.waitForEvent("popup");
+        await page.getByRole("link", {name: publicLinkName, exact: false}).click();
+        const followedPublicLink = await publicLinkPagePromise;
+        await followedPublicLink.getByText("No, I don't trust the authors").hover();
+        await followedPublicLink.close();
 
+        await Runs.terminateViewedRun(page);
 
-
-        // Delete public link
         await Resources.goTo(page, "Links");
         await PublicLinks.delete(page, publicLinkName);
-        throw Error("TODO");
     });
 });
 
