@@ -207,6 +207,7 @@ const ResultWrapperClass = injectStyle("rich-select-result-wrapper", k => `
     ${k} > *:hover {
         background-color: var(--rowHover);
         cursor: pointer;
+        width: 100%;
     }
     
     ${k} .no-hover-effect:hover {
