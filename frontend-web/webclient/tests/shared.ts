@@ -1,5 +1,5 @@
-import test, {expect, type Page} from "@playwright/test";
-import fs, {link} from "fs";
+import {expect, type Page} from "@playwright/test";
+import fs from "fs";
 
 // Note(Jonas): If it complains that it doesn"t exist, create it.
 import {default as data} from "./test_data.json" with {type: "json"};
@@ -55,11 +55,13 @@ export const User = {
 
     async setAdditionalUserInfo(page: Page): Promise<void> {
         await Components.toggleUserMenu(page);
-        await page.getByText("Settings").click();
-        await this.fillOutUserInfoIfMissing(page);
+        await NetworkCalls.awaitResponse(page, "**/retrieveOptionalInfo**", async () => {
+            await page.getByText("Settings").click();
+        });
+        await this.fillOutUserInfo(page);
     },
 
-    async fillOutUserInfoIfMissing(page: Page) {
+    async fillOutUserInfo(page: Page) {
         await page.getByRole("textbox", {name: "Organization"}).fill("Test");
         await page.keyboard.press("Escape");
         await page.getByRole("textbox", {name: "Department"}).fill("Not available");
@@ -288,6 +290,17 @@ export const File = {
         await this.actionByRowTitle(page, foldername, "rightclick");
         await page.getByText("Share6").click();
     },
+
+    async triggerStorageScan(page: Page, driveName: string): Promise<void> {
+        await Drive.openDrive(page, driveName);
+        const folder = "trigger" + this.newFolderName();
+        await File.create(page, folder);
+        await File.moveFileToTrash(page, folder);
+        // Note(Jonas): Trash folder doesn't show up until refresh if not already present.
+        await Components.clickRefreshAndWait(page);
+        await File.open(page, "Trash");
+        await File.emptyTrash(page);
+    }
 };
 
 export const Drive = {
@@ -352,6 +365,7 @@ export const Drive = {
 
 export const Components = {
     async projectSwitcher(page: Page, action: "click" | "hover"): Promise<void> {
+        await page.locator(`div[data-component="project-switcher"]`).first().waitFor();
         const loc = page.locator(`div[data-component="project-switcher"]`).first();
         await loc[action]();
     },
@@ -494,6 +508,7 @@ export const Runs = {
         await NetworkCalls.awaitResponse(page, "**/jobs/terminate", async () => {
             await Components.clickConfirmationButton(page, "Stop application");
         });
+        await page.getByText("Run application again").waitFor();
     },
 
     async setJobTitle(page: Page, name: string): Promise<void> {

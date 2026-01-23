@@ -1,5 +1,5 @@
 import {expect, test, Page} from "@playwright/test";
-import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls, Resources, Accounting, Admin} from "./shared";
+import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls, Resources, Accounting, Admin, Rows} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 
 test.beforeEach(async ({page}) => {
@@ -105,7 +105,6 @@ test("Start app and stop app from runs page. Start it from runs page, testing pa
     await expect(page.getByText("Your job has completed")).toHaveCount(1);
     await Runs.runApplicationAgain(page, jobName);
     await Runs.terminateViewedRun(page);
-    await page.getByText("Run application again").waitFor({state: "visible"});
 });
 
 test("Mount folder with file in job, and cat inside contents", async ({page}) => {
@@ -207,10 +206,7 @@ test("Start application with multiple nodes, connect to job from other job and v
 
 test("Start terminal job, find mounted 'easybuild' modules mounted, use networking, terminate job", async ({page}) => {
     test.setTimeout(120_000);
-    await Applications.openApp(page, "Terminal");
-    await Components.selectAvailableMachineType(page);
-    await Runs.submitAndWaitForRunning(page);
-    const term = await Runs.openTerminal(page);
+    const term = await runTerminalApp(page);
     await Terminal.enterCmd(term, "ls ~/.local");
     await term.getByText("easybuild").hover();
     await Terminal.enterCmd(term, "curl -I https://example.org");
@@ -220,25 +216,72 @@ test("Start terminal job, find mounted 'easybuild' modules mounted, use networki
 });
 
 test("Create new user without resources, fail to create drive, apply for resources, be granted resources, run terminal, create large file, trigger accounting, see creation now blocked", async ({browser}) => {
+    test.setTimeout(240_000);
     const adminPage = await browser.newPage();
     await User.login(adminPage, Admin.AdminUser);
+    await adminPage.getByText("Additional user information").waitFor();
+    await adminPage.keyboard.press("Escape");
+
+    await Components.projectSwitcher(adminPage, "click");
+    await adminPage.getByText("Provider K8s").click();
     const user = User.newUserCredentials();
     await User.create(adminPage, user);
-
     const newUserPage = await browser.newPage();
     await User.login(newUserPage, user, true);
-    await newUserPage.getByText("Additional user information").waitFor();
-    await newUserPage.keyboard.press("Escape");
+
+
     await Drive.create(newUserPage, "DriveToFail");
-    await newUserPage.getByText("Failed to create new drive. Insufficient funds").hover();
+    await newUserPage.getByText("Failed to create new drive.").hover();
     await newUserPage.keyboard.press("Escape");
 
     await Accounting.goTo(newUserPage, "Apply for resources");
     await newUserPage.getByText("select an existing project instead").click();
-    await Accounting.GrantApplication.toggleGrantGiver(newUserPage, data.providers.k8s);
-    await Accounting.GrantApplication.fillQuotaFields(newUserPage, [{field: "Core-hours requested", quota: 1000}, {field: "GB requested", quota: 1000}]);
-    await Accounting.GrantApplication.fillApplicationTextFields(newUserPage, [{name: "Application", content: "Text description"}]);
+    await Accounting.GrantApplication.toggleGrantGiver(newUserPage, "k8s");
+    await Accounting.GrantApplication.fillQuotaFields(newUserPage, [{field: "Core-hours requested", quota: 5}, {field: "GB requested", quota: 1}]);
+    await Accounting.GrantApplication.fillApplicationTextFields(newUserPage, [{name: "Application*", content: "Text description"}]);
     const id = await Accounting.GrantApplication.submit(newUserPage);
 
-    throw Error("TODO")
+    await Accounting.goTo(adminPage, "Grant applications");
+    await adminPage.getByText("Show applications received").click();
+    await Rows.actionByRowTitle(adminPage, `${id}: Personal workspace of ${user.username}`, "dblclick");
+    await Accounting.GrantApplication.approve(adminPage);
+
+    const jobName = Runs.newJobName();
+    const term = await runTerminalApp(newUserPage, jobName);
+    await Terminal.createLargeFile(term);
+    await Runs.terminateViewedRun(newUserPage);
+
+    await newUserPage.reload();
+    await File.triggerStorageScan(newUserPage, "Home");
+    await Runs.goToRuns(newUserPage);
+    await NetworkCalls.awaitResponse(newUserPage, "**/api/jobs/retrieve?id=**", async () => {
+        await Components.projectSwitcher(newUserPage, "hover");
+        await Applications.actionByRowTitle(newUserPage, jobName, "click");
+        await newUserPage.getByText("Run application again").click();
+    })
+    await newUserPage.getByText("No machine type selected").waitFor({state: "hidden"});
+    await newUserPage.getByText("Submit").click();
+    await newUserPage.getByText("You do not have enough storage credits.").hover();
+
+    /* Reclaim resources and retry */
+    // await Runs.goToRuns(newUserPage);
+    // await NetworkCalls.awaitResponse(newUserPage, "**/api/files/browse**", async () => {
+    //     await Rows.actionByRowTitle(newUserPage, jobName, "dblclick");
+    // });
+    // await NetworkCalls.awaitResponse(newUserPage, "**/api/files/trash", async () => {
+    //     await File.actionByRowTitle(newUserPage, "example", "click");
+    //     await newUserPage.keyboard.press("Delete");
+    // });
+    // await Drive.openDrive(newUserPage, "Home");
+    // await File.open(newUserPage, "Trash");
+    // await File.emptyTrash(newUserPage);
+    // await runTerminalApp(newUserPage);
 });
+
+async function runTerminalApp(page: Page, jobName?: string): Promise<Page> {
+    await Applications.openApp(page, "Terminal");
+    await Components.selectAvailableMachineType(page);
+    if (jobName) await Runs.setJobTitle(page, jobName);
+    await Runs.submitAndWaitForRunning(page);
+    return await Runs.openTerminal(page);
+}

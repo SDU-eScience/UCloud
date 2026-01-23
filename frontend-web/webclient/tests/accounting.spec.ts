@@ -1,11 +1,10 @@
 import test from "@playwright/test";
-import {Accounting, Admin, Components, Rows, User} from "./shared";
+import {Accounting, Admin, Components, NetworkCalls, Rows, User} from "./shared";
 
-test("Apply for resources, approve (from admin user),", async ({page: adminUserPage, context}) => {
+test("Apply for resources, approve (from admin user), veryfy resources are in allocations", async ({page: adminUserPage, context}) => {
     await User.login(adminUserPage, Admin.AdminUser);
     await adminUserPage.getByText("Additional user information").waitFor();
     await adminUserPage.keyboard.press("Escape");
-    await Components.dismissProviderConnect(adminUserPage);
     await Components.projectSwitcher(adminUserPage, "click");
     await adminUserPage.getByText("Provider K8s").click();
 

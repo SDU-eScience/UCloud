@@ -195,7 +195,8 @@ test.describe("Files - Basic file browsing and operations works", () => {
         const folderToCopy = File.newFolderName();
         await File.create(page, folderToCopy);
         await File.copyFileInPlace(page, folderToCopy);
-        await expect(page.getByText(folderToCopy + "(1)")).toHaveCount(1);
+        await page.waitForTimeout(200);
+        await page.getByText(folderToCopy + "(1)").hover();
     });
 
     test("Move to trash, empty trash", async ({page}) => {
