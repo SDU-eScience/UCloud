@@ -98,7 +98,6 @@ func initLicenses() {
 			request.ItemsPerPage,
 			request.ResourceFlags,
 			func(item orcapi.License) bool {
-				// TODO Something
 				return true
 			},
 			nil,
