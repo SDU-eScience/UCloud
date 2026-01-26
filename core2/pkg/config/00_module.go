@@ -37,7 +37,12 @@ type ConfigurationFormat struct {
 	}
 
 	Emails struct {
-		Enabled bool
+		Enabled     bool
+		SenderName  string
+		SenderEmail string
+		Server      HostInfo
+		Username    string
+		Password    string
 	}
 
 	Accounting struct {
@@ -255,6 +260,20 @@ func Parse(configDir string) bool {
 			success = false
 		} else {
 			cfg.OpenIdConnect.Set(oidcConfig)
+		}
+	}
+
+	emails, _ := cfgutil.GetChildOrNil(filePath, document, "emails")
+	if emails != nil {
+		cfg.Emails.Enabled = cfgutil.RequireChildBool(filePath, emails, "enabled", &success)
+		if cfg.Emails.Enabled {
+			cfg.Emails.SenderName = cfgutil.RequireChildText(filePath, emails, "senderName", &success)
+			cfg.Emails.SenderEmail = cfgutil.RequireChildText(filePath, emails, "senderEmail", &success)
+			serverNode := cfgutil.RequireChild(filePath, document, "server", &success)
+			cfgutil.Decode(filePath, serverNode, &cfg.Emails.Server, &success)
+			if success {
+				success = cfg.Emails.Server.validate(filePath, serverNode)
+			}
 		}
 	}
 
