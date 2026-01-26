@@ -24,25 +24,22 @@ const API_TOKEN_TITLE_KEY = "api-title";
 const API_TOKEN_DESCRIPTION_KEY = "api-description";
 
 function Add() {
-    usePage("Add API token", SidebarTabId.RESOURCES);
-
-    const navigate = useNavigate();
+    usePage("Create API token", SidebarTabId.RESOURCES);
 
     const [options] = useCloudAPI(Api.retrieveOptions(), {byProvider: {}});
     const [date, setDate] = React.useState<Date | null>(null);
 
     const [serviceProvider, setServiceProvider] = React.useState("");
 
-    const permissions = options.data.byProvider;
-    const permissionKeys = Object.keys(permissions);
-    const serviceProviders = permissionKeys;
+    const optionsData = options.data.byProvider;
+    const serviceProviders = Object.keys(optionsData);
     const [projectId, setProjectId] = React.useState<string | undefined>();
     const [activePermissions, setActivePermissions] = React.useState(new Set<string>());
     const [tokenStatus, setTokenStatus] = React.useState<ApiTokenStatus | null>(null);
 
     const mappedServiceProviders = serviceProviders.map(it => ({key: it}));
 
-    const availablePermissions = permissions[serviceProvider]?.availablePermissions ?? [];
+    const availablePermissions = optionsData[serviceProvider]?.availablePermissions ?? [];
 
 
     const submit = React.useCallback(async () => {
@@ -153,7 +150,7 @@ function Add() {
                     <ExpirationSelector date={date} onChange={setDate}/>
                 </div>
             </div>
-            {permissionKeys.length == 0 ? null : <div>
+            {serviceProviders.length == 0 || availablePermissions.length === 0 ? null : <div>
                 Token permissions
                 <div className={PermissionWindow} data-has-active={activePermissions.size > 0}>
                     <div className="header">
@@ -267,7 +264,7 @@ function Permission(props: Api.ApiTokenPermissionSpecification & {
     </Flex>
 }
 
-const UCLOUD_CORE = "UCloud/Core";
+const UCLOUD_CORE = "UCloud";
 
 function ServiceProviderItem(props: RichSelectProps<{key: string}>): React.ReactNode {
     const height = props.dataProps == null ? "31.5px" : "38px";

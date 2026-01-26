@@ -65,7 +65,7 @@ func initApiTokens() {
 func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orcapi.ApiToken, *util.HttpError) {
 	var err *util.HttpError
 	util.ValidateString(&request.Title, "title", 0, &err)
-	util.ValidateString(&request.Description, "description", 0, &err)
+	util.ValidateString(&request.Description, "description", util.StringValidationAllowEmpty, &err)
 	util.ValidateStringIfPresent(&request.Provider, "provider", 0, &err)
 
 	if err == nil && request.Provider.Present {
@@ -152,35 +152,45 @@ func ApiTokenBrowse(actor rpc.Actor, request orcapi.ApiTokenBrowseRequest) (fnda
 }
 
 func ApiTokenRetrieveOptions(actor rpc.Actor) orcapi.ApiTokenRetrieveOptionsResponse {
-	return orcapi.ApiTokenRetrieveOptionsResponse{
-		ByProvider: map[string]orcapi.ApiTokenOptions{
-			"": {
-				AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{
-					{
-						Name:        "drives",
-						Title:       "Drives",
-						Description: "Permission required to read and manage drives and files",
-						Actions: map[string]string{
-							"read":  "Read only",
-							"write": "Read-write access",
+	if !util.DevelopmentModeEnabled() {
+		return orcapi.ApiTokenRetrieveOptionsResponse{
+			ByProvider: map[string]orcapi.ApiTokenOptions{
+				"": {
+					AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{
+						{
+							Name:        "drives",
+							Title:       "Drives",
+							Description: "Permission required to read and manage drives and files",
+							Actions: map[string]string{
+								"read":  "Read only",
+								"write": "Read-write access",
+							},
 						},
 					},
 				},
-			},
 
-			"ucloud": {
-				AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{
-					{
-						Name:        "inference",
-						Title:       "Inference",
-						Description: "API token required for inference services",
-						Actions: map[string]string{
-							"use": "Use",
+				"ucloud": {
+					AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{
+						{
+							Name:        "inference",
+							Title:       "Inference",
+							Description: "API token required for inference services",
+							Actions: map[string]string{
+								"use": "Use",
+							},
 						},
 					},
 				},
 			},
-		},
+		}
+	} else {
+		return orcapi.ApiTokenRetrieveOptionsResponse{
+			ByProvider: map[string]orcapi.ApiTokenOptions{
+				"": {
+					AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{},
+				},
+			},
+		}
 	}
 }
 
