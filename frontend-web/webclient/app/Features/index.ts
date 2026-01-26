@@ -67,7 +67,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "new-idps": {
         feature: Feature.NEW_IDPS,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments,
     },
 

@@ -91,6 +91,7 @@ func initIngresses() {
 			prefix, _ := supp.Get(ingressFeaturePrefix)
 			suffix, _ := supp.Get(ingressFeatureSuffix)
 
+			item.Domain = strings.ToLower(item.Domain)
 			withoutPrefix, okPrefix := strings.CutPrefix(item.Domain, prefix)
 			userToken, okSuffix := strings.CutSuffix(withoutPrefix, suffix)
 			userToken = strings.ToLower(userToken)

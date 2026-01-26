@@ -19,6 +19,7 @@ func UserOptInfoRetrieve(actor rpc.Actor) fndapi.OptionalUserInfo {
 			ResearchField        sql.Null[string]
 			Position             sql.Null[string]
 			Gender               sql.Null[string]
+			Unit                 sql.Null[string]
 		}](
 			tx,
 			`
@@ -27,7 +28,8 @@ func UserOptInfoRetrieve(actor rpc.Actor) fndapi.OptionalUserInfo {
 				info.department,
 				info.research_field,
 				info.position,
-				info.gender
+				info.gender,
+				info.unit
 			from
 				auth.principals p join
 				auth.additional_user_info info on p.uid = info.associated_user
@@ -43,6 +45,7 @@ func UserOptInfoRetrieve(actor rpc.Actor) fndapi.OptionalUserInfo {
 			ResearchField:        util.SqlNullToOpt(row.ResearchField),
 			Position:             util.SqlNullToOpt(row.Position),
 			Gender:               util.SqlNullToOpt(row.Gender),
+			Unit:                 util.SqlNullToOpt(row.Unit),
 		}
 	})
 	return result
@@ -54,8 +57,8 @@ func UsersOptInfoUpdate(actor rpc.Actor, info fndapi.OptionalUserInfo) {
 			tx,
 			`
 			insert into auth.additional_user_info (associated_user, organization_full_name, department,
-                research_field, position, gender) 
-            select p.uid, :organization_full_name, :department, :research_field, :position, :gender
+                research_field, position, gender, unit)
+            select p.uid, :organization_full_name, :department, :research_field, :position, :gender, :unit
             from auth.principals p
             where p.id = :username
             on conflict (associated_user) do update set
@@ -63,7 +66,8 @@ func UsersOptInfoUpdate(actor rpc.Actor, info fndapi.OptionalUserInfo) {
                 department = excluded.department,
                 research_field = excluded.research_field,
                 position = excluded.position,
-				gender = excluded.gender
+				gender = excluded.gender,
+				unit = excluded.unit
 			`,
 			db.Params{
 				"username":               actor.Username,
@@ -72,6 +76,7 @@ func UsersOptInfoUpdate(actor rpc.Actor, info fndapi.OptionalUserInfo) {
 				"research_field":         info.ResearchField.Sql(),
 				"position":               info.Position.Sql(),
 				"gender":                 info.Gender.Sql(),
+				"unit":                   info.Unit.Sql(),
 			})
 	})
 }

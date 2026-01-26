@@ -409,7 +409,6 @@ func initUsageReports() {
 
 							for i := range prev.UsageOverTime.Absolute {
 								rescaleI64(&prev.UsageOverTime.Absolute[i].Usage)
-								// TODO Percentage is going to be messed up when we collapse the reports?
 							}
 
 							report.Reports = append(report.Reports, prev)

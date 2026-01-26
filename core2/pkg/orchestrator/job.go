@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"cmp"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -1207,6 +1208,27 @@ func jobsProcessFlags(
 	return page
 }
 
+func jobTimeLeftComparator(a orcapi.Job, b orcapi.Job) int {
+	if !a.Status.ExpiresAt.Present && !b.Status.ExpiresAt.Present {
+		// Id as tie-breaker
+		return cmp.Compare(ResourceParseId(a.Id), ResourceParseId(b.Id))
+	}
+	if !a.Status.ExpiresAt.Present {
+		return 1
+	}
+	if !b.Status.ExpiresAt.Present {
+		return -1
+	}
+
+	result := a.Status.ExpiresAt.Value.Time().Compare(b.Status.ExpiresAt.Value.Time())
+	if result != 0 {
+		return result
+	}
+
+	// Id as tie-breaker
+	return cmp.Compare(ResourceParseId(a.Id), ResourceParseId(b.Id))
+}
+
 func JobsBrowse(
 	actor rpc.Actor,
 	next util.Option[string],
@@ -1216,6 +1238,11 @@ func JobsBrowse(
 	sortByFn := ResourceDefaultComparator(func(item orcapi.Job) orcapi.Resource {
 		return item.Resource
 	}, flags.ResourceFlags)
+
+	switch flags.SortBy.GetOrDefault("") {
+	case "timeLeft":
+		sortByFn = jobTimeLeftComparator
+	}
 
 	return jobsProcessFlags(ResourceBrowse(
 		actor,

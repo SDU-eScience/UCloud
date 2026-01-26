@@ -473,6 +473,7 @@ interface GenericInputFieldProps {
     onRemove?: () => void;
     error?: string;
     children?: React.ReactNode;
+    placeholder?: string;
 }
 
 function GenericInputField(props: GenericInputFieldProps): React.ReactElement {
@@ -503,12 +504,12 @@ function GenericInputField(props: GenericInputFieldProps): React.ReactElement {
 
 export function GenericTextField(props: GenericInputFieldProps): React.ReactElement {
     return <GenericInputField {...props}>
-        <Input id={props.name} />
+        <Input id={props.name} placeholder={props.placeholder} />
     </GenericInputField>
 }
 
 export function GenericTextArea(props: GenericInputFieldProps): React.ReactElement {
     return <GenericInputField {...props}>
-        <TextArea width={"100%"} rows={5} id={props.name} />
+        <TextArea width={"100%"} rows={5} id={props.name} placeholder={props.placeholder} />
     </GenericInputField>
 }
