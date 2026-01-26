@@ -58,7 +58,7 @@ export type UIAction =
     | { type: "GiftsLoaded", gifts: Gifts.GiftWithCriteria[] }
     | { type: "UpdateSearchQuery", newQuery: string }
     | { type: "SetEditing", recipientIdx: number, groupIdx: number, allocationIdx: number, isEditing: boolean }
-    | { type: "UpdateAllocation", allocationIdx: number, groupIdx: number, recipientIdx: number, newQuota: number }
+    | { type: "UpdateAllocation", allocationIdx: number, groupIdx: number, recipientIdx: number, newQuota: number, newStart: Date, newEnd: Date }
     | { type: "UpdateGift", data: Partial<State["gifts"]> }
     | { type: "GiftCreated", gift: Gifts.GiftWithCriteria }
     | { type: "GiftDeleted", id: number }
@@ -313,6 +313,8 @@ export function stateReducer(state: State, action: UIAction): State {
                     for (const alloc of childGroup.group.allocations) {
                         if (alloc.id === allocationId) {
                             alloc.quota = action.newQuota;
+                            alloc.startDate = action.newStart.getTime();
+                            alloc.endDate = action.newEnd.getTime();
                             break outer;
                         }
                     }
