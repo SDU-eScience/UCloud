@@ -1,5 +1,5 @@
 import * as React from "react";
-import {EventHandler, MouseEvent, useState} from "react";
+import {EventHandler, MouseEvent, useEffect, useState} from "react";
 import {ProjectInvite, ProjectInviteLink, projectRoleToStringIcon} from "@/Project/Api";
 import {OldProjectRole, Project, ProjectGroup, ProjectMember, ProjectRole, isAdminOrPI} from "@/Project";
 import {Spacer} from "@/ui-components/Spacer";
@@ -183,26 +183,15 @@ export const MembersContainer: React.FunctionComponent<{
             </ReactModal>
 
             <div className={"left"}>
-                <Heading.h3 paddingBottom={"5px"} marginBottom={"8px"}>Members</Heading.h3>
-                <Flex gap={"8px"} marginBottom={"8px"}>
-                    <form action="#" onSubmit={handleInvite} style={{display: "flex", gap: "8px", width: "100%"}}>
-                        <Input
-                            value={username}
-                            type="text"
-                            placeholder="Add by username..."
-                            style={{flexGrow: 1}}
-                            onChange={(event) => {
-                                setUsername((event.target as HTMLInputElement).value);
-                            }}
-                        />
-                        <Button type={"submit"}
-                            disabled={username === ""}><Icon name={"heroUserPlus"} /></Button>
-                    </form>
+                <Flex marginBottom={"8px"} justifyContent={"space-between"}>
+                    <Heading.h3 paddingBottom={"5px"} marginBottom={"8px"}>Members</Heading.h3>
                     <Button color={"successMain"} onClick={() => {
                         setIsShowingInviteLinks(true);
                     }}
+                        width={"111px"}
                     >
-                        <Icon name={"heroLink"} />
+                        <Icon name={"heroLink"} mr={"5px"}/>
+                        Invite
                     </Button>
                 </Flex>
                 <Flex height={"35px"} gap={"8px"} marginBottom={"8px"}>
@@ -356,6 +345,12 @@ const LinkInviteCard: React.FunctionComponent<{
         return window.location.origin + "/app/projects/invite/" + token;
     }
 
+    useEffect(() => {
+        if (props.links === undefined || props.links.length === 0) {
+            props.onCreateInviteLink();
+        }
+    }, []);
+
     return <>
         {activeLink ? <>
             <Flex gap={"8px"} marginBottom={"8px"} height={"35px"} alignItems={"center"}>
@@ -430,10 +425,38 @@ const LinkInviteCard: React.FunctionComponent<{
             {props.links.map(link =>
                 <Box key={link.token}>
                     <Flex padding={"8px 0px"} gap={"8px"}>
-                        <Input value={inviteLinkFromToken(link.token)} onChange={doNothing} readOnly={true}></Input>
-                        <Button onClick={() => {
-                            setActiveLinkId(link.token);
-                        }} width={"48px"}><Icon name={"heroCog6Tooth"} /></Button>
+                        <Input
+                            value={inviteLinkFromToken(link.token)}
+                            onChange={doNothing}
+                            readOnly={true}
+                            style={{cursor:"pointer"}}
+                            onClick={() => {
+                                copyToClipboard({
+                                    value: link.token,
+                                    message: "Invite link copied to clipboard"
+                                })
+                            }}
+                        >
+                        </Input>
+                        <Button
+                            onClick={() =>
+                                copyToClipboard({
+                                    value: link.token,
+                                    message: "Invite link copied to clipboard"
+                                })
+                            }
+                            width={"48px"}
+                        >
+                            <Icon name={"heroDocumentDuplicate"}/>
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                setActiveLinkId(link.token);
+                            }}
+                            width={"48px"}
+                        >
+                            <Icon name={"heroCog6Tooth"} />
+                        </Button>
                         <Button
                             onClick={() => props.onDeleteLink(link.token)}
                             width={"48px"}
