@@ -207,21 +207,22 @@ export function ChangeOrganizationDetails(props: ChangeOrganizationDetailsProps)
         (async () => {
             const info = await callAPI<OptionalInfo>(optionalInfoRequest());
 
-            if (orgFullNameRef.current) {
+            if (info.organizationFullName && orgFullNameRef.current) {
                 const orgId = Client.orgId ? Client.orgId : info.organizationFullName;
                 const orgMapping = orgId ? (OrgMapping[orgId] ?? orgId) : undefined;
                 setOrg(orgMapping);
                 orgFullNameRef.current.value = orgMapping ?? info.organizationFullName ?? "";
             }
-            if (departmentRef.current)
+
+            if (info.department && departmentRef.current)
                 departmentRef.current.value = info.department ?? "";
-            if (unitRef.current)
+            if (info.unit && unitRef.current)
                 unitRef.current.value = info.unit ?? "";
-            if (researchFieldRef.current)
+            if (info.researchField && researchFieldRef.current)
                 researchFieldRef.current.value = info.researchField ?? "";
-            if (positionRef.current)
+            if (info.position && positionRef.current)
                 positionRef.current.value = info.position ?? "";
-            if (genderFieldRef.current)
+            if (info.gender && genderFieldRef.current)
                 genderFieldRef.current.value = info.gender ?? "";
 
         })();

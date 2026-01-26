@@ -191,12 +191,16 @@ test.describe("Files - Basic file browsing and operations works", () => {
         await expect(page.getByText("File(1).txt")).toHaveCount(1);
     });
 
+    // Note(Jonas): Flaky. Will complete as expected if only test, 
+    // but copy operation will be moved to background tasks if a lot is going on
+    // (e.g. full test suite is being run!)
     test("Copy folder", async ({page}) => {
         const folderToCopy = File.newFolderName();
         await File.create(page, folderToCopy);
         await File.copyFileInPlace(page, folderToCopy);
-        await page.waitForTimeout(200);
-        await page.getByText(folderToCopy + "(1)").hover();
+        await page.waitForTimeout(2_000);
+        await Components.clickRefreshAndWait(page);
+        await page.getByText(folderToCopy + "(1)").waitFor();
     });
 
     test("Move to trash, empty trash", async ({page}) => {

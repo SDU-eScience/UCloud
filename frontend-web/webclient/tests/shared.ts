@@ -25,6 +25,7 @@ export const User = {
         if (fillUserInfo) {
             await this.dismissAdditionalInfoPrompt(page);
             await this.setAdditionalUserInfo(page);
+            await this.disableNotifications(page);
         }
     },
 
@@ -68,11 +69,32 @@ export const User = {
         await page.keyboard.press("Escape");
         await page.getByRole("textbox", {name: "Position"}).fill("Administrative Staff");
         await page.keyboard.press("Escape");
-
+        await page.getByRole("textbox", {name: "Unit"}).fill("Unit division");
         await page.getByRole("textbox", {name: "Primary research field"}).fill("0.1 Other");
-
         await page.getByRole("textbox", {name: "Gender"}).fill("Another gender identity");
         await page.getByRole("button", {name: "Update information"}).nth(1).click();
+    },
+
+    async disableNotifications(page: Page): Promise<void> {
+        const emailSettings = [
+            "Application approved",
+            "Application rejected",
+            "Application withdrawn",
+            "New application received",
+            "Status change by other admins",
+            "Transfers from other projects",
+            "New comment in application",
+            "Application has been edited",
+        ];
+
+        for (const setting of emailSettings) {
+            await page.getByText(setting).first().click();
+        }
+
+        await page.getByRole("button", {name: "Update email settings"}).click();
+
+        await page.getByText("Job started or stopped").nth(1).click();
+        await page.getByRole("button", {name: "Update notification settings"}).click();
     },
 
     async dismissAdditionalInfoPrompt(page: Page): Promise<void> {
@@ -197,7 +219,7 @@ export const File = {
         await NetworkCalls.awaitResponse(page, "**/api/files/copy", async () => {
             await page.getByRole("dialog").locator("div.row", {hasText: targetFolder})
                 .getByRole("button").filter({hasText: "Copy to"}).click();
-        })
+        });
 
         await page.getByRole("dialog").waitFor({state: "hidden"});
     },
@@ -210,7 +232,7 @@ export const File = {
         await NetworkCalls.awaitResponse(page, "**/api/files/copy", async () => {
             await page.getByText("Use this folder").first().click();
         });
-        await page.getByRole("dialog").waitFor({state: "hidden"});
+        await page.getByRole("dialog", {name: "Files copied"}).waitFor({state: "hidden"});
     },
 
     async moveFileToTrash(page: Page, fileName: string): Promise<void> {
