@@ -16,4 +16,7 @@ func Init() {
 	db.AddMigration(apiTokensV1())
 	db.AddMigration(accountingV3())
 	db.AddMigration(authV2())
+	db.AddMigration(newsV1())
+	db.AddMigration(coreV2())
+	db.AddMigration(accountingV4())
 }

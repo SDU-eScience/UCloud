@@ -14,7 +14,7 @@ import Input, {InputLabel} from "@/ui-components/Input";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {PropType, stopPropagation, useEffectSkipMount} from "@/UtilityFunctions";
 import {useLoading, usePage} from "@/Navigation/Redux";
-import {useParams} from "react-router";
+import {useParams} from "react-router-dom";
 import {injectStyleSimple} from "@/Unstyled";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
@@ -331,7 +331,7 @@ export const App: React.FunctionComponent = () => {
                                                 width={180}
                                                 type="text"
                                                 inputRef={groupEntityField}
-                                                placeholder="Group name"
+                                                placeholder="Group ID"
                                             />
                                         </>
                                     )}
@@ -368,7 +368,6 @@ export const App: React.FunctionComponent = () => {
                                                     {(permissionEntry.entity.user) ? (
                                                         permissionEntry.entity.user
                                                     ) : (
-                                                        //Group can risk being represented by UUID on old group permissions
                                                        <>
                                                        <ProjectTitleForNewCore id={permissionEntry.entity.project?.id ?? ""}/>/{permissionEntry.entity.group?.id}
                                                        </>

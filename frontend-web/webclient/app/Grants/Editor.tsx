@@ -42,7 +42,7 @@ import {interval, isBefore, isWithinInterval, subDays} from "date-fns";
 import {formatDistance} from "date-fns/formatDistance";
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} from "react";
-import {useLocation, useNavigate} from "react-router";
+import {useLocation, useNavigate} from "react-router-dom";
 import * as Grants from ".";
 import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalInfoUpdate} from "@/UserSettings/ChangeUserDetails";
 
@@ -175,7 +175,7 @@ type EditorAction =
         allocator: string,
         balance: number | null,
     }
-    | {type: "SetIsCreating"}
+    | {type: "SetIsCreating", stateDuringCreate?: EditorState["stateDuringCreate"]}
     | {type: "RecipientUpdated", isCreatingNewProject: boolean, reference?: string}
     | {type: "ProjectsReloaded", projects: {id: string | null, title: string}[]}
     | {type: "ApplicationUpdated", section: string, contents: string}
@@ -240,6 +240,15 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             const newResources: EditorState["resources"] = {...state.resources};
 
             let templateKey: keyof Grants.Templates = "newProject";
+
+            function templateKeyFromRecipientType(type: Grants.Recipient["type"]): keyof Grants.Templates {
+                switch (type) {
+                    case "personalWorkspace":
+                        return "personalProject";
+                    default: return type;
+                }
+            }
+
             if (state.stateDuringCreate) {
                 if (state.stateDuringCreate.creatingWorkspace) {
                     templateKey = "newProject";
@@ -251,19 +260,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             } else {
                 const recipient = action.recipientType ?? state.stateDuringEdit?.recipient.type;
                 if (recipient) {
-                    switch (recipient) {
-                        case "personalWorkspace":
-                            templateKey = "personalProject";
-                            break;
-                        case "newProject":
-                            templateKey = "newProject";
-                            break;
-                        case "existingProject":
-                            templateKey = "existingProject";
-                            break;
-                        default:
-                            console.warn("Unhandled recipient!");
-                    }
+                    templateKey = templateKeyFromRecipientType(recipient);
+                } else {
+                    console.warn("Unhandled recipient!");
                 }
             }
 
@@ -326,7 +325,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             return {
                 ...state,
                 stateDuringEdit: undefined,
-                stateDuringCreate: state.stateDuringCreate ?? {
+                stateDuringCreate: action.stateDuringCreate ?? state.stateDuringCreate ?? {
                     creatingWorkspace: true,
                 }
             };
@@ -928,9 +927,25 @@ function useStateReducerMiddleware(
                         });
                     }
                 } else {
-                    dispatch({type: "SetIsCreating"});
+
+                    const recipientType = ((type: Grants.RetrieveGrantGiversRequest["type"]): Grants.Recipient["type"] | undefined => {
+                        switch (type) {
+                            case "NewProject": return "newProject";
+                            case "ExistingProject": return "existingProject";
+                            case "PersonalWorkspace": return "personalWorkspace";
+                            default: return undefined;
+                        }
+                    })(affiliationRequest.type);
+
+                    dispatch({
+                        type: "SetIsCreating", stateDuringCreate: {
+                            creatingWorkspace: ["newProject", "personalWorkspace"].includes(recipientType ?? ""),
+                            reference: affiliationRequest.type === "ExistingProject" ? affiliationRequest.id : undefined
+                        }
+                    });
                     const affiliations = await pAffiliations;
-                    dispatch({type: "AllocatorsLoaded", allocators: affiliations.grantGivers});
+
+                    dispatch({type: "AllocatorsLoaded", allocators: affiliations.grantGivers, recipientType});
                 }
 
                 const projectPage = await projectPromise;

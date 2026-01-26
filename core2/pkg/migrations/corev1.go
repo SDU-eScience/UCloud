@@ -58,3 +58,86 @@ func coreV1() db.MigrationScript {
 		},
 	}
 }
+
+func coreV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "coreV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					INSERT INTO provider.resource (type, provider, created_at, created_by, project, id, product, provider_generated_id, confirmed_by_provider, public_read) VALUES ('metadata_template_namespace', null, '2022-11-01 11:47:14.698642 +00:00', '_ucloud', null, 1, null, null, true, true)
+					ON CONFLICT DO NOTHING 
+			    `,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					INSERT INTO provider.resource (type, provider, created_at, created_by, project, id, product, provider_generated_id, confirmed_by_provider, public_read) VALUES ('metadata_template_namespace', null, '2022-11-01 11:47:14.698642 +00:00', '_ucloud', null, 2, null, null, true, true)
+					ON CONFLICT DO NOTHING 
+			    `,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					INSERT INTO file_orchestrator.metadata_template_namespaces (resource, uname, namespace_type, 
+						deprecated, latest_version) VALUES (1, 'favorite', 'PER_USER', false, '1.0.0')
+					ON CONFLICT DO NOTHING 
+			    `,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					INSERT INTO file_orchestrator.metadata_template_namespaces (resource, uname, namespace_type, 
+						deprecated, latest_version) VALUES (2, 'sensitivity', 'COLLABORATORS', false, '1.0.0')
+					ON CONFLICT DO NOTHING
+			    `,
+				db.Params{},
+			)
+
+			_, ok := db.Get[struct{ Title string }](
+				tx,
+				`
+					select title from file_orchestrator.metadata_templates where title = 'Favorite'
+			    `,
+				db.Params{},
+			)
+
+			if !ok {
+				db.Exec(
+					tx,
+					`
+						INSERT INTO file_orchestrator.metadata_templates (title, namespace, uversion, schema, 
+							inheritable, require_approval, description, change_log, ui_schema, deprecated, created_at) 
+						VALUES ('UCloud File Sensitivity', 2, '1.0.0', '{"type": "object", 
+							"title": "UCloud: File Sensitivity", "required": ["sensitivity"], "properties": 
+							{"sensitivity": {"enum": ["SENSITIVE", "CONFIDENTIAL", "PRIVATE"], "type": "string", 
+							"title": "File Sensitivity", "enumNames": ["Sensitive", "Confidential", "Private"]}}, 
+							"dependencies": {}}', true, false, 'Describes the sensitivity of a file.', 'Initial', 
+							'{"ui:order": ["sensitivity"]}', false, '2022-11-01 11:47:14.698642 +00:00')
+						ON CONFLICT DO NOTHING
+					`,
+					db.Params{},
+				)
+
+				db.Exec(
+					tx,
+					`
+						INSERT INTO file_orchestrator.metadata_templates (title, namespace, uversion, schema, 
+							inheritable, require_approval, description, change_log, ui_schema, deprecated, created_at) 
+						VALUES ('Favorite', 1, '1.0.0', '{"type": "object", "title": "UCloud: Favorite Files", "required": 
+							["favorite"], "properties": {"favorite": {"type": "boolean", "title": 
+							"Is this file one of your favorites?"}}, "description": "A document describing your favorite files", 
+							"dependencies": {}}', false, false, 'favorite', 'Initial', '{"ui:order": ["favorite"]}', false, 
+							'2022-11-01 11:47:14.698642 +00:00')
+						ON CONFLICT DO NOTHING 
+					`,
+					db.Params{},
+				)
+			}
+		},
+	}
+}

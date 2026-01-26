@@ -5,9 +5,12 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync/atomic"
+	"unicode"
 
-	"github.com/blevesearch/bleve"
+	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/search/query"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
@@ -233,26 +236,48 @@ func appCatalogInitRpc() {
 			Selected: request.Selected,
 		}
 
+		terms := splitTerms(request.Query)
 		fuzz := 2
-		titlePrefixQ := bleve.NewPrefixQuery(request.Query)
-		titlePrefixQ.SetBoost(5)
 
-		titleQ := bleve.NewFuzzyQuery(request.Query)
-		titleQ.SetField("Title")
-		titleQ.SetFuzziness(fuzz)
-		titleQ.SetBoost(3)
+		var searchRequest *bleve.SearchRequest
 
-		flavorQ := bleve.NewFuzzyQuery(request.Query)
-		flavorQ.SetField("Flavor")
-		flavorQ.SetFuzziness(fuzz)
-		flavorQ.SetBoost(2)
+		if len(terms) == 0 {
+			searchRequest = bleve.NewSearchRequest(bleve.NewMatchAllQuery())
+		} else {
+			mustAllTerms := make([]query.Query, 0, len(terms))
 
-		descQ := bleve.NewFuzzyQuery(request.Query)
-		descQ.SetField("Description")
-		descQ.SetFuzziness(fuzz)
+			for _, term := range terms {
+				titlePrefixQ := bleve.NewPrefixQuery(term)
+				titlePrefixQ.SetBoost(5)
 
-		dq := bleve.NewDisjunctionQuery(titleQ, titlePrefixQ, flavorQ, descQ)
-		searchRequest := bleve.NewSearchRequest(dq)
+				titleQ := bleve.NewFuzzyQuery(term)
+				titleQ.SetField("Title")
+				titleQ.SetFuzziness(fuzz)
+				titleQ.SetBoost(3)
+
+				flavorQ := bleve.NewFuzzyQuery(term)
+				flavorQ.SetField("Flavor")
+				flavorQ.SetFuzziness(fuzz)
+				flavorQ.SetBoost(2)
+
+				descQ := bleve.NewFuzzyQuery(term)
+				descQ.SetField("Description")
+				descQ.SetFuzziness(fuzz)
+
+				anyFieldForThisTerm := bleve.NewDisjunctionQuery(
+					titlePrefixQ,
+					titleQ,
+					flavorQ,
+					descQ,
+				)
+
+				mustAllTerms = append(mustAllTerms, anyFieldForThisTerm)
+			}
+
+			searchRequest = bleve.NewSearchRequest(
+				bleve.NewConjunctionQuery(mustAllTerms...),
+			)
+		}
 
 		res, err := appIndex.Search(searchRequest)
 		if err == nil {
@@ -304,6 +329,7 @@ func appCatalogInitRpc() {
 						Title: "",
 					}),
 				},
+				Permission: orcapi.AppAccessRightLaunch,
 			})
 		}
 		return orcapi.AppCatalogRetrieveAclResponse{Entries: util.NonNilSlice(result)}, nil
@@ -313,7 +339,12 @@ func appCatalogInitRpc() {
 		var entitiesToAdd []orcapi.AclEntity
 		var entitiesToRemove []orcapi.AclEntity
 		for _, item := range request.Changes {
+			aclType := orcapi.AclEntityTypeUser
+			if item.Entity.Project.Present {
+				aclType = orcapi.AclEntityTypeProjectGroup
+			}
 			e := orcapi.AclEntity{
+				Type:      aclType,
 				Username:  item.Entity.User.GetOrDefault(""),
 				ProjectId: item.Entity.Project.GetOrDefault(""),
 				Group:     item.Entity.Group.GetOrDefault(""),
@@ -516,4 +547,17 @@ func appCatalogInitRpc() {
 	orcapi.AppsUploadToolAlias.Handler(func(info rpc.RequestInfo, request []byte) (util.Empty, *util.HttpError) {
 		return util.Empty{}, AppStudioUploadTool(request)
 	})
+}
+
+func splitTerms(q string) []string {
+	fields := strings.FieldsFunc(q, func(r rune) bool {
+		return unicode.IsSpace(r)
+	})
+	out := make([]string, 0, len(fields))
+	for _, t := range fields {
+		if t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
 }

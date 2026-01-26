@@ -1,7 +1,7 @@
 import * as React from "react";
 import {MainContainer} from "@/ui-components";
 import {addProjectSwitcherInPortal, EmptyReasonTag, providerIcon, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts} from "@/ui-components/ResourceBrowser";
-import {useNavigate} from "react-router";
+import {useNavigate} from "react-router-dom";
 import {useDispatch} from "react-redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
@@ -169,7 +169,7 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
 function retrieveOperations(): Operation<Api.ApiToken, StandardCallbacks<Api.ApiToken>>[] {
     return [{
         icon: "heroCircleStack",
-        text: "Add API token",
+        text: "Create API token",
         primary: true,
         enabled: (selected) => selected.length === 0,
         onClick: (selected, cb) => {

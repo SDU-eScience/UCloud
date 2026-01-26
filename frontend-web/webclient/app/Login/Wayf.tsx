@@ -1,7 +1,7 @@
 import * as React from "react";
 import {inDevEnvironment} from "@/UtilityFunctions";
 import {LoginPage} from "./Login";
-import {Navigate} from "react-router";
+import {Navigate} from "react-router-dom";
 
 // https://stackoverflow.com/a/2138471
 export function setCookie(name: string, value: string, days: number): void {

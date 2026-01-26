@@ -1521,7 +1521,9 @@ export function Tab({onContextMenu, isActive, onRowClick, icon, title, iconEnter
 }): React.ReactNode {
     return <Flex onContextMenu={onContextMenu} className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={onRowClick}>
         {icon}
-        {title}
+        <Box flexGrow={1}>
+            {title}
+        </Box>
         <Icon
             className={IconHoverBlockClass}
             onMouseEnter={iconEnter}

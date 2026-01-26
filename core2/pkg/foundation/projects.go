@@ -1,6 +1,7 @@
 package foundation
 
 import (
+	cmp "cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -448,9 +449,9 @@ func ProjectBrowse(actor rpc.Actor, request fndapi.ProjectBrowseRequest) (fndapi
 
 		if sortBy == fndapi.ProjectSortByFavorite {
 			if a.Status.IsFavorite && !b.Status.IsFavorite {
-				cmpResult = 1
-			} else if !a.Status.IsFavorite && b.Status.IsFavorite {
 				cmpResult = -1
+			} else if !a.Status.IsFavorite && b.Status.IsFavorite {
+				cmpResult = 1
 			}
 		}
 
@@ -460,7 +461,7 @@ func ProjectBrowse(actor rpc.Actor, request fndapi.ProjectBrowseRequest) (fndapi
 			}
 
 			if cmpResult == 0 {
-				cmpResult = strings.Compare(a.Specification.Title, b.Specification.Title)
+				cmpResult = strings.Compare(strings.ToLower(a.Specification.Title), strings.ToLower(b.Specification.Title))
 			}
 
 			if cmpResult == 0 {
@@ -869,6 +870,10 @@ func ProjectCreateGroup(actor rpc.Actor, spec fndapi.ProjectGroupSpecification) 
 				Members: make([]string, 0),
 			},
 		})
+
+		slices.SortFunc(pStatus.Groups, func(a, b fndapi.ProjectGroup) int {
+			return cmp.Compare(strings.ToLower(a.Specification.Title), strings.ToLower(b.Specification.Title))
+		})
 	}
 	iproject.Mu.Unlock()
 
@@ -1093,6 +1098,10 @@ func ProjectCreateGroupMember(actor rpc.Actor, groupId string, memberToAdd strin
 			})
 
 			group.Status.Members = append(group.Status.Members, memberToAdd)
+
+			slices.SortFunc(group.Status.Members, func(a, b string) int {
+				return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
+			})
 		}
 	}
 	iproject.Mu.Unlock()
@@ -1592,7 +1601,7 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 			User: recipient,
 			Notification: fndapi.Notification{
 				Type:    "PROJECT_INVITE",
-				Message: fmt.Sprintf("You have been inviteted to join %q by %s", projectTitle, actor.Username),
+				Message: fmt.Sprintf("You have been invited to join %q by %s", projectTitle, actor.Username),
 			},
 		})
 
@@ -1602,9 +1611,9 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 
 		return nil
 	} else if alreadyInvited {
-		return util.HttpErr(http.StatusConflict, "this user has already been invited to the project")
+		return util.HttpErr(http.StatusConflict, "This user has already been invited to the project")
 	} else {
-		return util.HttpErr(http.StatusConflict, "this user is already a member of the project")
+		return util.HttpErr(http.StatusConflict, "This user is already a member of the project")
 	}
 }
 
@@ -1626,9 +1635,9 @@ func ProjectDeleteInvite(actor rpc.Actor, projectId string, recipient string) *u
 	}
 
 	if !allowed {
-		return util.HttpErr(http.StatusForbidden, "you are not allowed to delete this invite")
+		return util.HttpErr(http.StatusForbidden, "You are not allowed to delete this invite")
 	} else if project == nil {
-		return util.HttpErr(http.StatusNotFound, "unknown project")
+		return util.HttpErr(http.StatusNotFound, "Unknown project")
 	} else {
 		project.Mu.Lock()
 		delete(project.InvitesSent, recipient)

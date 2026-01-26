@@ -16,7 +16,7 @@ import {
 import React, {useCallback, useEffect, useRef, useState} from "react";
 import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as Heading from "@/ui-components/Heading";
-import {useNavigate, useParams} from "react-router";
+import {useNavigate, useParams} from "react-router-dom";
 import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";

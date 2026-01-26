@@ -25,7 +25,7 @@ test("Run job with jobname, extend time, stop job, validate jobname in runs", as
     await expect(page.getByText("Run application again")).toHaveCount(1);
 });
 
-const AppNameThatIsExpectedToBePresent = "Visual Studio Code";
+const AppNameThatIsExpectedToBePresent = "Terminal";
 test("Favorite app, unfavorite app", async ({page}) => {
     await Applications.openApp(page, AppNameThatIsExpectedToBePresent);
     await Applications.toggleFavorite(page);
@@ -49,8 +49,7 @@ test("Start app and stop app from runs page. Start it from runs page, testing pa
     await expect(page.getByText("Your job has completed")).toHaveCount(1);
     await Runs.runApplicationAgain(page, jobName);
     await Runs.terminateViewedRun(page);
-    // Note(Jonas): I would have thought that the `expect` below would be enough, but alas!
-    while (!await page.getByText("Run application again").isVisible());
+    await page.getByText("Run application again").waitFor({state: "visible"});
     await expect(page.getByText("Run application again")).toHaveCount(1);
 
 });

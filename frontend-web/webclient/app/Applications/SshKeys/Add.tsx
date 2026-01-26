@@ -8,7 +8,7 @@ import {useCallback, useMemo, useState} from "react";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {callAPI} from "@/Authentication/DataHook";
 import {extractErrorMessage} from "@/UtilityFunctions";
-import {useNavigate} from "react-router";
+import {useNavigate} from "react-router-dom";
 import * as Heading from "@/ui-components/Heading";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {ProviderLogo} from "@/Providers/ProviderLogo";

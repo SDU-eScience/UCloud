@@ -139,7 +139,7 @@ UCloud/IM uses the following procedure to submit a job to Slurm:
 
 1. Determine the primary drive belonging to the project. Currently this is the first drive for the
    project, found by using the defined `driveLocator` as described in [Filesystem
-   Integration](/slurm/file-management.html#managed-drive-locators).
+   Integration](/slurm/file-management.html#drive-locators).
 2. In the primary drive, create the job folder at `ucloud-jobs/${UCloudJobId}`.
 3. In the job folder, create the submission script `job.sh`.
 4. Generate the `sbatch` preamble and add it to the submission script.
@@ -189,11 +189,7 @@ Advanced users should still be encouraged to use Slurm directly through the HPC 
 
 Selects the account used for the job submission.
 
-**Unmanaged providers:** This value is taken from the job specification's input parameters. The user must manually
-supply the account for each job. UCloud/IM is not able to verify if the machine type + account combination is valid
-prior to submission.
-
-**Managed providers:** An account is automatically chosen based on the requested:
+An account is automatically chosen based on the requested:
 
 - UCloud project
 - Machine slice and corresponding machine type
@@ -338,16 +334,6 @@ these parameters are configured by the [application](./app-management.md).
 </figure>
 
 ## Choosing a Slurm Account
-
-<div class="info-box info">
-<i class="fa fa-info-circle"></i>
-<div>
-
-This section is only relevant for **managed providers**. An account is always based on direct user-input in the case
-of unmanaged providers.
-
-</div>
-</div>
 
 Slurm accounts are selected according to the project and the machine type specified for a given job. Irrespective of the
 account management integration method employed, UCloud/IM must be configured to identify the appropriate account. The
@@ -510,16 +496,6 @@ directly to Slurm.
 </figure>
 
 ## Integrations
-
-<div class="info-box info">
-<i class="fa fa-info-circle"></i>
-<div>
-
-The integrations listed in this section require you to first become a managed provider by turning on automatic user
-management. You can read more about the process [here](./id-management.md).
-
-</div>
-</div>
 
 ### Automatic
 
@@ -849,7 +825,7 @@ TODO If a product is marked as `freeToUse` then we should not send usage numbers
 
 ### Scripted
 
-This integration is another [script](#TODO) integration. Script integrations allow you to fully customize all aspects of
+This integration is another script integration. Script integrations allow you to fully customize all aspects of
 Slurm account and quota management. It is entirely up to you to create these scripts. All scripts will be invoked with
 a single argument, which is a path to a JSON file. The contents of the JSON file will depend on the script, see below
 for details. All scripts are expected to return the response as a JSON object on `stdout`. Detailed error messages and

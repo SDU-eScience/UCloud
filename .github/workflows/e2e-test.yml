@@ -1,0 +1,85 @@
+name: E2E test
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+    - master
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run launcher tests
+    runs-on: self-hosted
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          clean: 'true'
+
+      - name: Verify toolchain
+        run: |
+          go version
+          node --version
+          npm --version
+          docker --version
+
+      - name: Run init-test
+        shell: bash
+        run: |
+          set -euo pipefail
+          export UCLOUD_GO_CACHE_DIR=$HOME/go-cache
+          ./launcher init-test
+
+      - name: Remove unused docker resources
+        shell: bash
+        run: |
+          docker system prune --all --volumes --force
+
+      - name: Run test
+        shell: bash
+        run: |
+          set -euo pipefail
+          export UCLOUD_GO_CACHE_DIR=$HOME/go-cache 
+          ./launcher test
+
+      - name: Fix log permissions
+        if: always()
+        run: |
+          sudo chown -R $USER:$USER .compose/*-logs
+          sudo chown -R $USER:$USER .compose/k8s-storage/home/*
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts-${{ github.run_id }}-${{ github.run_attempt }}
+          path: frontend-web/webclient/playwright-report/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload log files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .compose/k8s-logs/*
+            .compose/core-logs/*
+            .compose/slurm-logs/*
+            .compose/k8s-storage/home/*
+          if-no-files-found: warn
+          retention-days: 14
+          
+      - name: Delete environment
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./launcher env delete
+          sudo chown -R $USER: .

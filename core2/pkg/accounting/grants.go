@@ -122,21 +122,37 @@ func (a *grantApplication) lDeepCopy() accapi.GrantApplication {
 	return result
 }
 
+type grantsProjectInfo struct {
+	Pi    string
+	Title string
+}
+
+var grantsProjectCache = util.NewCache[string, grantsProjectInfo](4 * time.Hour)
+
 func GrantApplicationProcess(app accapi.GrantApplication) accapi.GrantApplication {
 	recipient := app.CurrentRevision.Document.Recipient
 	if recipient.Type == accapi.RecipientTypeExistingProject {
-		project := db.NewTx(func(tx *db.Transaction) fndapi.Project {
-			project, _ := coreutil.ProjectRetrieveFromDatabase(tx, recipient.Id.Value)
-			return project
+		projectInfo, ok := grantsProjectCache.Get(recipient.Id.Value, func() (grantsProjectInfo, error) {
+			project := db.NewTx(func(tx *db.Transaction) fndapi.Project {
+				project, _ := coreutil.ProjectRetrieveFromDatabase(tx, recipient.Id.Value)
+				return project
+			})
+
+			result := grantsProjectInfo{}
+			for _, member := range project.Status.Members {
+				if member.Role == fndapi.ProjectRolePI {
+					result.Pi = member.Username
+					break
+				}
+			}
+			result.Title = project.Specification.Title
+			return result, nil
 		})
 
-		for _, member := range project.Status.Members {
-			if member.Role == fndapi.ProjectRolePI {
-				app.Status.ProjectPI = member.Username
-				break
-			}
+		if ok {
+			app.Status.ProjectPI = projectInfo.Pi
+			app.Status.ProjectTitle.Set(projectInfo.Title)
 		}
-		app.Status.ProjectTitle.Set(project.Specification.Title)
 	}
 	return app
 }
@@ -485,9 +501,11 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		return 0, util.HttpErr(http.StatusBadRequest, "grant giver initiated applications must be new applications")
 	}
 
-	if !req.ApplicationId.Present && recipient.Type == accapi.RecipientTypeExistingProject {
-		if !actor.Membership[rpc.ProjectId(recipient.Id.Value)].Satisfies(rpc.ProjectRoleAdmin) {
-			return 0, util.HttpErr(http.StatusBadRequest, "you are not allowed to apply to this project")
+	if revision.Form.Type != accapi.FormTypeGrantGiverInitiated {
+		if !req.ApplicationId.Present && recipient.Type == accapi.RecipientTypeExistingProject {
+			if !actor.Membership[rpc.ProjectId(recipient.Id.Value)].Satisfies(rpc.ProjectRoleAdmin) {
+				return 0, util.HttpErr(http.StatusBadRequest, "you are not allowed to apply to this project")
+			}
 		}
 	}
 
@@ -943,8 +961,6 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 		return util.HttpErr(http.StatusBadRequest, "grant givers cannot withdraw an application")
 	}
 
-	// TODO we probably need to check a lot more enums in the code base. Remove this comment when certain that all
-	//   parts of the code is OK.
 	if _, ok := util.VerifyEnum(req.NewState, accapi.GrantApplicationStates); !ok {
 		return util.HttpErr(http.StatusBadRequest, "invalid state")
 	}
@@ -1767,6 +1783,37 @@ func grantHandleEvent(event grantEvent) {
 	}
 }
 
+func grantGetRecipientTitle(event grantEvent) string {
+	app := &event.Application
+	recipient := app.CurrentRevision.Document.Recipient
+
+	switch recipient.Type {
+	case accapi.RecipientTypeExistingProject:
+		projectId := recipient.Id.Value
+		return db.NewTx(func(tx *db.Transaction) string {
+			project, ok := coreutil.ProjectRetrieveFromDatabase(tx, projectId)
+			if ok {
+				return project.Specification.Title
+			}
+			return ""
+		})
+	case accapi.RecipientTypeNewProject:
+		return recipient.Title.Value
+	case accapi.RecipientTypePersonalWorkspace:
+		return fmt.Sprintf("Personal workspace of %s", recipient.Username.Value)
+	default:
+		return ""
+	}
+}
+
+func truncateRecipientTitle(event grantEvent) string {
+	title := grantGetRecipientTitle(event)
+	if len(title) >= 30 {
+		return title[:30] + "..."
+	}
+	return title
+}
+
 func grantSendNotification(event grantEvent) *util.HttpError {
 	if grantGlobals.Testing.Enabled {
 		return nil
@@ -1811,27 +1858,34 @@ func grantSendNotification(event grantEvent) *util.HttpError {
 			"appId": event.Application.Id,
 		}
 
-		metaJson, _ := json.Marshal(meta)
-		notification.Meta.Set(metaJson)
-
 		switch event.Type {
 		case grantEvNewComment:
 			notification.Type = "NEW_GRANT_COMMENT"
-			notification.Message = "A new comment has been added"
+			notification.Message = fmt.Sprintf("Comment added in \"%s\"", truncateRecipientTitle(event))
+			meta["title"] = fmt.Sprintf("New comment by %s", event.Actor.Username)
+			meta["avatar"] = event.Actor.Username
 		case grantEvApplicationSubmitted:
 			notification.Type = "NEW_GRANT_APPLICATION"
-			notification.Message = "A new application has been submitted"
+			notification.Message = fmt.Sprintf("\"%s\" was submitted by %s", truncateRecipientTitle(event), event.Actor.Username)
+			meta["title"] = fmt.Sprintf("A new application was submitted")
 		case grantEvGrantAwarded:
 			notification.Type = "GRANT_APPLICATION_RESPONSE"
-			notification.Message = "A grant has been approved"
+			notification.Message = fmt.Sprintf("\"%s\", has been approved by %s", truncateRecipientTitle(event), event.Actor.Username)
+			meta["title"] = "Grant awarded"
 		case grantEvApplicationRejected:
 			notification.Type = "GRANT_APPLICATION_RESPONSE"
-			notification.Message = "A grant has been rejected"
+			notification.Message = fmt.Sprintf("\"%s\", has been rejected by %s", truncateRecipientTitle(event), event.Actor.Username)
+			meta["title"] = "Grant rejected"
 		case grantEvRevisionSubmitted:
 			notification.Type = "GRANT_APPLICATION_UPDATED"
-			notification.Message = "A revision has been submitted"
+			notification.Message = fmt.Sprintf("Grant revision submitted by %s", event.Actor.Username)
+			meta["title"] = fmt.Sprintf("Application updated: \"%s\"", truncateRecipientTitle(event))
+			meta["avatar"] = event.Actor.Username
 			// TODO make grantEv for grantTransfer and insert here
 		}
+
+		metaJson, _ := json.Marshal(meta)
+		notification.Meta.Set(metaJson)
 
 		_, err := fndapi.NotificationsCreate.Invoke(fndapi.NotificationsCreateRequest{
 			User:         recipient,

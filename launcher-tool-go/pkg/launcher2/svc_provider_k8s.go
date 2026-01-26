@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
@@ -35,22 +36,36 @@ func ProviderK8s() {
 	k3sOutput := AddDirectory(provider, "k3s-output")
 	storage := AddDirectory(provider, "storage")
 	imConfig := AddDirectory(provider, "config")
+	logDir := AddDirectory(provider, "logs")
+
+	volumes := []string{
+		Mount(imConfig, "/etc/ucloud"),
+		Mount(logDir, "/var/log/ucloud"),
+		Mount(k3sOutput, "/mnt/k3s"),
+		Mount(storage, "/mnt/storage"),
+		Mount(filepath.Join(RepoRoot, "/provider-integration/im2"), "/opt/ucloud"),
+		Mount(filepath.Join(RepoRoot, "/provider-integration/gonja"), "/opt/gonja"),
+		Mount(filepath.Join(RepoRoot, "/provider-integration/pgxscan"), "/opt/pgxscan"),
+		Mount(filepath.Join(RepoRoot, "/provider-integration/shared"), "/opt/shared"),
+		Mount(filepath.Join(RepoRoot, "/provider-integration/walk"), "/opt/walk"),
+	}
+
+	if goCacheDir := os.Getenv("UCLOUD_GO_CACHE_DIR"); goCacheDir != "" {
+		dir := filepath.Join(goCacheDir, provider.Name)
+		_ = os.MkdirAll(dir, 0777)
+		volumes = append(volumes, Mount(dir, "/root/go"))
+
+		buildDir := filepath.Join(goCacheDir, provider.Name+"-build")
+		_ = os.MkdirAll(buildDir, 0777)
+		volumes = append(volumes, Mount(buildDir, "/root/.cache/go-build"))
+	}
 
 	AddService(provider, DockerComposeService{
 		Image:    ImDevImage,
 		Hostname: "k8s",
 		Ports:    []string{"51240:51233"},
 		Command:  []string{"sleep", "inf"},
-		Volumes: []string{
-			Mount(imConfig, "/etc/ucloud"),
-			Mount(k3sOutput, "/mnt/k3s"),
-			Mount(storage, "/mnt/storage"),
-			Mount(filepath.Join(RepoRoot, "/provider-integration/im2"), "/opt/ucloud"),
-			Mount(filepath.Join(RepoRoot, "/provider-integration/gonja"), "/opt/gonja"),
-			Mount(filepath.Join(RepoRoot, "/provider-integration/pgxscan"), "/opt/pgxscan"),
-			Mount(filepath.Join(RepoRoot, "/provider-integration/shared"), "/opt/shared"),
-			Mount(filepath.Join(RepoRoot, "/provider-integration/walk"), "/opt/walk"),
-		},
+		Volumes:  volumes,
 	})
 
 	writeYaml := func(path string, data map[string]any, perm os.FileMode) error {
@@ -73,7 +88,7 @@ func ProviderK8s() {
 		publicKey := ""
 		refreshToken := ""
 
-		LogOutputRunWork("Registering provider", "OK", func(ch chan string) error {
+		LogOutputRunWork("Registering provider", func(ch chan string) error {
 			projectResp, herr := fndapi.ProjectInternalCreate.Invoke(fndapi.ProjectInternalCreateRequest{
 				Title:        "Provider K8s",
 				BackendId:    "provider-k8s",
@@ -120,7 +135,7 @@ func ProviderK8s() {
 			return nil
 		})
 
-		LogOutputRunWork("Creating configuration files", "OK", func(ch chan string) error {
+		LogOutputRunWork("Creating configuration files", func(ch chan string) error {
 			err := os.WriteFile(filepath.Join(imConfig, "ucloud_crt.pem"), []byte(publicKey), 0600)
 			if err != nil {
 				return err
@@ -156,7 +171,28 @@ func ProviderK8s() {
 			return nil
 		})
 
-		ComposeExec("Provisioning K8s resources", "k8s", []string{"bash", "/etc/ucloud/init.sh"}, ExecuteOptions{})
+		ComposeExec("Provisioning K8s resources", provider.Name, []string{"bash", "/etc/ucloud/init.sh"}, ExecuteOptions{})
+		StartServiceEx(provider, true)
+		for i := range 30 {
+			res := ComposeExec(
+				"Provisioning test IPs",
+				provider.Name,
+				[]string{"ucloud", "ips", "add", "10.99.0.0/24"},
+				ExecuteOptions{ContinueOnFailure: i < 29},
+			)
+
+			if res.ExitCode == 0 {
+				break
+			} else {
+				time.Sleep(1 * time.Second)
+			}
+		}
+		ComposeExec(
+			"Provisioning test license",
+			provider.Name,
+			[]string{"ucloud", "license", "add", "test-license", "--license=test"},
+			ExecuteOptions{},
+		)
 	})
 
 	{

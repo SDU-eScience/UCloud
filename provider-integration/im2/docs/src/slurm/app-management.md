@@ -98,8 +98,7 @@ examples for details on how to write these.
 ### Interactive Properties
 
 Applications can also declare support for various interactive application backends. This includes web-based applications
-and remote desktop applications. These are shown in some of the examples below, but are not covered in this chapter.
-Instead please refer to the [dedicated chapter](./interactive-jobs.md).
+and remote desktop applications.
 
 ## Examples
 
@@ -881,8 +880,8 @@ The web-based interactive applications can be configured in the `web` top-level 
 <td><code>boolean</code></td>
 <td>
 
-If `true`, then this application exposes a web-application. See [interactive applications](./interactive-jobs.md) for
-more information. If `false`, then all other properties in this section are ignored.
+If `true`, then this application exposes a web-application. If `false`, then all other properties in this section are
+ignored.
 
 </td>
 </tr>
@@ -926,8 +925,8 @@ properties available to it:
 <td><code>boolean</code></td>
 <td>
 
-If `true`, then this application exposes a web-application. See [interactive applications](./interactive-jobs.md) for
-more information. If `false`, then all other properties in this section are ignored.
+If `true`, then this application exposes a web-application. If `false`, then all other properties in this section are
+ignored.
 
 </td>
 </tr>

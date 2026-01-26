@@ -2,7 +2,7 @@ import {BulkRequest, FindByStringId, PageV2, PaginationRequestV2} from "@/UCloud
 import {apiBrowse, apiCreate, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import {useSelector} from "react-redux";
 import {IconName} from "@/ui-components/Icon";
-import {useParams} from "react-router";
+import {useParams} from "react-router-dom";
 import {useEffect, useState} from "react";
 import {OldProjectRole, Project, ProjectGroupSpecification, ProjectRole, ProjectSettings, ProjectSpecification} from ".";
 

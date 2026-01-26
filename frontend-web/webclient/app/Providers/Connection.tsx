@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useEffect, useState} from "react";
 import {apiUpdate, callAPI} from "@/Authentication/DataHook";
-import {useLocation, useNavigate} from "react-router";
+import {useLocation, useNavigate} from "react-router-dom";
 import {extractErrorMessage} from "@/UtilityFunctions";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {MainContainer} from "@/ui-components";

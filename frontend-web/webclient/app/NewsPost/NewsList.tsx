@@ -4,7 +4,7 @@ import * as Heading from "@/ui-components/Heading";
 import {Link, Text, Flex, Box, Icon, Grid} from "@/ui-components";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import TitledCard from "@/ui-components/HighlightedCard";
-import {useNavigate, useParams} from "react-router";
+import {useNavigate, useParams} from "react-router-dom";
 import {MainContainer} from "@/ui-components/MainContainer";
 import * as Pagination from "@/Pagination";
 import {format} from "date-fns";
@@ -61,7 +61,7 @@ export const NewsList: React.FC = () => {
                     <Heading.h2>News</Heading.h2>
                     {!filter ? null :
                         <Text>
-                            {capitalized(filter)} <Icon cursor="pointer" color="textPrimary" onClick={() => navigate("/news/list")} name="close" ml="4px" size={12} />
+                            {filter} <Icon cursor="pointer" color="textPrimary" onClick={() => navigate("/news/list")} name="close" ml="4px" size={12} />
                         </Text>
                     }
                 </Box>
@@ -96,7 +96,9 @@ export const NewsList: React.FC = () => {
                         <Flex>
                             <Text>Posted {format(item.showFrom, "HH:mm dd/MM/yy")}</Text>
                             <Box mt="-3px" ml="4px">
-                                <Tag label={item.category} />
+                                <Link to={`/news/list/${item.category}`}>
+                                    <Tag label={item.category} />
+                                </Link>
                             </Box>
                         </Flex>
                         <IsExpired now={now} expiration={item.hideFrom} />

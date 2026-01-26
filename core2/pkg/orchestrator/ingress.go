@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"cmp"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -40,6 +41,13 @@ func initIngresses() {
 		sortByFn := ResourceDefaultComparator(func(item orcapi.Ingress) orcapi.Resource {
 			return item.Resource
 		}, request.ResourceFlags)
+
+		switch request.SortBy.GetOrDefault("") {
+		case "":
+			sortByFn = func(a orcapi.Ingress, b orcapi.Ingress) int {
+				return cmp.Compare(strings.ToLower(a.Specification.Domain), strings.ToLower(b.Specification.Domain))
+			}
+		}
 
 		return ResourceBrowse[orcapi.Ingress](
 			info.Actor,
@@ -83,6 +91,7 @@ func initIngresses() {
 			prefix, _ := supp.Get(ingressFeaturePrefix)
 			suffix, _ := supp.Get(ingressFeatureSuffix)
 
+			item.Domain = strings.ToLower(item.Domain)
 			withoutPrefix, okPrefix := strings.CutPrefix(item.Domain, prefix)
 			userToken, okSuffix := strings.CutSuffix(withoutPrefix, suffix)
 			userToken = strings.ToLower(userToken)

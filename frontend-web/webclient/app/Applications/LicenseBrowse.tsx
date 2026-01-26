@@ -8,7 +8,7 @@ import {
 } from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
-import {useNavigate} from "react-router";
+import {useNavigate} from "react-router-dom";
 import LicenseApi, {License, LicenseSupport} from "@/UCloud/LicenseApi";
 import {
     CREATE_TAG,

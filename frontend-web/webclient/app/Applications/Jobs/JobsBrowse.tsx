@@ -25,7 +25,7 @@ import {
 import * as React from "react";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import {useNavigate} from "react-router";
+import {useNavigate} from "react-router-dom";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 import {useDispatch} from "react-redux";
 import AppRoutes from "@/Routes";
@@ -68,8 +68,9 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
 };
 
-const columnTitles: ColumnTitleList = [{name: "Job name"}, {name: "Created by", sortById: "createdBy", columnWidth: 250}, {name: "Created at", sortById: "createdAt", columnWidth: 160}, {name: "State", columnWidth: 75}];
-const simpleViewColumnTitles: ColumnTitleList = [{name: ""}, {name: "", sortById: "", columnWidth: 0}, {name: "", sortById: "", columnWidth: 160}, {name: "State", columnWidth: 28}];
+const columnTitles: ColumnTitleList = [{name: "Job name"}, {name: "Created by", sortById: "createdBy", columnWidth: 250}, {name: "Created at", sortById: "createdAt", columnWidth: 160}, {name: "Time left", sortById: "timeLeft", columnWidth: 160}, {name: "State", columnWidth: 75}];
+const simpleViewColumnTitles: ColumnTitleList = [{name: ""}, {name: "", sortById: "", columnWidth: 0}, {name: "", sortById: "", columnWidth: 160}, {name: "", sortById: "", columnWidth: 0}, {name: "State", columnWidth: 28}];
+
 
 const RESOURCE_NAME = "JOBS";
 function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job>>[]}}): React.ReactNode {
@@ -231,6 +232,29 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     } else {
                         row.stat2.innerText = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());
                     }
+                    
+                    // Time left in stat3
+                    if (!simpleView && job.status.expiresAt) {
+                        const now = timestampUnixMs();
+                        const timeLeft = job.status.expiresAt - now;
+                        if (timeLeft > 0) {
+                            const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+                            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                            if (hours > 24) {
+                                const days = Math.floor(hours / 24);
+                                row.stat3.innerText = `${days}d ${hours % 24}h`;
+                            } else if (hours > 0) {
+                                row.stat3.innerText = `${hours}h ${minutes}m`;
+                            } else {
+                                row.stat3.innerText = `${minutes}m`;
+                            }
+                        } else {
+                            row.stat3.innerText = "Expired";
+                        }
+                    } else if (!simpleView) {
+                        row.stat3.innerText = "N/A";
+                    }
+                    
                     setIcon(AppStore.retrieveAppLogo({
                         name: job.specification.application.name,
                         darkMode: !isLightThemeStored(),
@@ -241,7 +265,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     if (opts?.selection) {
                         const button = browser.defaultButtonRenderer(opts.selection, job);
                         if (button) {
-                            row.stat3.replaceChildren(button);
+                            row.stat4.replaceChildren(button);
                         }
                     } else {
                         const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
@@ -257,7 +281,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                         status.style.width = "24px";
                         status.style.height = "24px";
                         status.style.marginTop = status.style.marginBottom = "auto";
-                        row.stat3.append(status);
+                        row.stat4.append(status);
                     }
                 });
 

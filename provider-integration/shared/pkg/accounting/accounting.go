@@ -19,6 +19,9 @@ type WalletV2 struct {
 	Quota          int64 `json:"quota"`
 	TotalAllocated int64 `json:"totalAllocated"`
 
+	UiOnlyActiveUsage int64 `json:"activeUsage"`
+	UiOnlyActiveQuota int64 `json:"activeQuota"`
+
 	LastSignificantUpdateAt fnd.Timestamp `json:"lastSignificantUpdateAt"`
 }
 
@@ -27,6 +30,9 @@ type AllocationGroup struct {
 	Allocations []Allocation `json:"allocations"`
 	Usage       int64        `json:"usage"`
 	Quota       int64        `json:"quota"`
+
+	UiOnlyActiveUsage int64 `json:"activeUsage"`
+	UiOnlyActiveQuota int64 `json:"activeQuota"`
 }
 
 type Allocation struct {

@@ -230,21 +230,17 @@ func AppIxImportFromZip(b []byte) {
 
 	// Application and tool import
 	// -----------------------------------------------------------------------------------------------------------------
-	// NOTE(Dan): We skip tool and app creation in production mode (needed specifically for 2024.1.0, you may
-	// turn it off if you need it now).
-	if util.DevelopmentModeEnabled() {
-		for _, t := range toolsToImport {
-			err := AppStudioCreateToolDirect(&t)
-			if err != nil && err.StatusCode != http.StatusConflict {
-				log.Info("Could not create tool: %#v: %s", t.Description.Info, err)
-			}
+	for _, t := range toolsToImport {
+		err := AppStudioCreateToolDirect(&t)
+		if err != nil && err.StatusCode != http.StatusConflict {
+			log.Info("Could not create tool: %#v: %s", t.Description.Info, err)
 		}
+	}
 
-		for _, app := range appsToImport {
-			err := AppStudioCreateApplication(&app)
-			if err != nil && err.StatusCode != http.StatusConflict {
-				log.Info("Could not create app: %#v: %s", app.Metadata.NameAndVersion, err)
-			}
+	for _, app := range appsToImport {
+		err := AppStudioCreateApplication(&app)
+		if err != nil && err.StatusCode != http.StatusConflict {
+			log.Info("Could not create app: %#v: %s", app.Metadata.NameAndVersion, err)
 		}
 	}
 

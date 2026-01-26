@@ -139,6 +139,10 @@ func (m logTuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.vp.ScrollUp(1)
 		case "down", "j":
 			m.vp.ScrollDown(1)
+		case "left", "h":
+			m.vp.ScrollLeft(1)
+		case "right", "l":
+			m.vp.ScrollRight(1)
 		case "pgup":
 			m.vp.HalfPageUp()
 		case "pgdown":
@@ -224,28 +228,47 @@ func (m logTuiModel) View() string {
 }
 
 func LogOutputTui(titleRunning *string, out chan string) {
-	fmt.Printf("\x1bc")
-	m := logTuiInitModel()
-	m.streamChannel = logTuiStartStream(out)
-	m.title = titleRunning
-	p := tea.NewProgram(m, tea.WithAltScreen())
-	go func() {
-		p.Send(logTuiAttachStreamMsg{msgCh: m.streamChannel})
-	}()
+	if HasPty {
+		fmt.Printf("\x1bc")
+		m := logTuiInitModel()
+		m.streamChannel = logTuiStartStream(out)
+		m.title = titleRunning
+		p := tea.NewProgram(m, tea.WithAltScreen())
+		go func() {
+			p.Send(logTuiAttachStreamMsg{msgCh: m.streamChannel})
+		}()
 
-	_, _ = p.Run()
+		_, _ = p.Run()
 
-	left := "Running command..."
-	if titleRunning != nil {
-		left = *titleRunning
-	}
+		left := "Running command..."
+		if titleRunning != nil {
+			left = *titleRunning
+		}
 
-	if strings.HasPrefix(left, logTuiFailure) {
-		os.Exit(1)
+		if strings.HasPrefix(left, logTuiFailure) {
+			os.Exit(1)
+		}
+	} else {
+		if titleRunning != nil {
+			fmt.Println(*titleRunning)
+		}
+
+		for message := range out {
+			fmt.Print(message)
+		}
+
+		left := "Running command..."
+		if titleRunning != nil {
+			left = *titleRunning
+		}
+
+		if strings.HasPrefix(left, logTuiFailure) {
+			os.Exit(1)
+		}
 	}
 }
 
-func LogOutputRunWork(title string, completed string, work func(ch chan string) error) {
+func LogOutputRunWork(title string, work func(ch chan string) error) {
 	mutableTitle := &title
 	ch := make(chan string)
 	go func() {
@@ -254,6 +277,9 @@ func LogOutputRunWork(title string, completed string, work func(ch chan string) 
 			*mutableTitle = logTuiFailure + " " + title
 			ch <- "\n\n"
 			ch <- err.Error()
+			if !HasPty {
+				close(ch)
+			}
 		} else {
 			close(ch)
 		}

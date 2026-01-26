@@ -119,6 +119,7 @@ func ProjectRetrieveFromDatabase(tx *db.Transaction, id string) (fndapi.Project,
 				g.project = :id
 			group by
 				g.id, g.gid, g.title
+			order by lower(g.title)
 		`,
 		db.Params{
 			"id": id,
@@ -142,6 +143,11 @@ func ProjectRetrieveFromDatabase(tx *db.Transaction, id string) (fndapi.Project,
 			Status: fndapi.ProjectGroupStatus{
 				Members: memberNames,
 			},
+		})
+
+		newGroup := &p.Status.Groups[len(p.Status.Groups)-1]
+		slices.SortFunc(newGroup.Status.Members, func(a, b string) int {
+			return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
 		})
 	}
 

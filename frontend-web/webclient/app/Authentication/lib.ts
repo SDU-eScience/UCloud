@@ -565,6 +565,10 @@ export class HttpClient {
     }
 
     private isTokenExpired(): boolean {
+        if (localStorage.getItem("EXPIRE")) {
+            localStorage.removeItem("EXPIRE");
+            return true;
+        }
         const token = this.decodedToken;
         if (!token || !token.payload) return true;
         const nowInSeconds = Math.floor(Date.now() / 1000);

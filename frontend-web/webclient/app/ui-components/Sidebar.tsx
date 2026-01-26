@@ -70,7 +70,7 @@ import {onProjectUpdated, projectCache, projectTitle} from "@/Project/ProjectSwi
 import {GenericSetAction, HookStore, useGlobal} from "@/Utilities/ReduxHooks";
 import {useDiscovery} from "@/Applications/Hooks";
 import {Command, CommandPalette, CommandScope, staticProvider, useProvideCommands} from "@/CommandPalette";
-import {NavigateFunction, useNavigate} from "react-router";
+import {NavigateFunction, useNavigate} from "react-router-dom";
 import {dispatchSetProjectAction} from "@/Project/ReduxState";
 import {Dispatch} from "redux";
 import {Feature, hasFeature} from "@/Features";
@@ -673,7 +673,7 @@ function useSidebarRunsPage(): Job[] {
     }))));
 
     React.useEffect(() => {
-        callAPI(JobsApi.browse({itemsPerPage: 100, filterState: "RUNNING"})).then(result => {
+        callAPI(JobsApi.browse({itemsPerPage: 100, filterState: "RUNNING", includeApplication: true})).then(result => {
             jobCache.updateCache(result, true);
         }).catch(e => displayErrorMessageOrDefault(e, "Failed to fetch running jobs."));
     }, [projectId]);
@@ -1146,10 +1146,6 @@ function SecondarySidebar({
                 <SidebarEntry to={AppRoutes.admin.news()} text={"News"} icon={"heroNewspaper"}
                     tab={SidebarTabId.ADMIN} />
                 <SidebarEntry to={AppRoutes.admin.providers()} text={"Providers"} icon={"heroCloud"}
-                    tab={SidebarTabId.ADMIN} />
-                <SidebarEntry to={AppRoutes.admin.scripts()} text={"Scripts"} icon={"heroPlayPause"}
-                    tab={SidebarTabId.ADMIN} />
-                <SidebarEntry to={AppRoutes.supportAssist.base()} text="User support" icon="heroUser"
                     tab={SidebarTabId.ADMIN} />
                 <SidebarEntry to={AppRoutes.admin.playground()} text={"Playground"} icon={"heroCake"}
                     tab={SidebarTabId.ADMIN} />

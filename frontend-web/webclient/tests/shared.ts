@@ -30,7 +30,7 @@ export const User = {
 export function ucloudUrl(pathname: string): string {
     const origin = data.location_origin;
     return (origin + "/app/" + pathname).replaceAll("//", "/");
-};
+}
 
 export const Rows = {
     async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover"): Promise<void> {
@@ -115,7 +115,7 @@ export const File = {
             await page.getByRole("dialog").locator("div.row", {hasText: targetFolder})
                 .getByRole("button").filter({hasText: "Move to"}).click();
         })
-        while (await page.getByRole("dialog").isVisible());
+        await page.getByRole("dialog").waitFor({state: "hidden"});
     },
 
     async copyFileTo(page: Page, fileToCopy: string, targetFolder: string): Promise<void> {
@@ -127,7 +127,7 @@ export const File = {
                 .getByRole("button").filter({hasText: "Copy to"}).click();
         })
 
-        while (await page.getByRole("dialog").isVisible());
+        await page.getByRole("dialog").waitFor({state: "hidden"});
     },
 
     async copyFileInPlace(page: Page, folderName: string): Promise<void> {
@@ -138,7 +138,7 @@ export const File = {
         await NetworkCalls.awaitResponse(page, "**/api/files/copy", async () => {
             await page.getByText("Use this folder").first().click();
         });
-        while (await page.getByRole("dialog").isVisible());
+        await page.getByRole("dialog").waitFor({state: "hidden"});
     },
 
     async moveFileToTrash(page: Page, fileName: string): Promise<void> {
@@ -280,7 +280,7 @@ export const Components = {
     async selectAvailableProduct(page: Page): Promise<void> {
         await page.getByText('No product selected').click();
         for (const row of await page.locator("tbody > tr").all()) {
-            if (await row.isDisabled() === false) {
+            if (!await row.isDisabled()) {
                 await row.click();
                 return;
             }
@@ -304,7 +304,7 @@ export const Applications = {
     },
 
     async openApp(page: Page, appName: string, exact: boolean = true): Promise<void> {
-        this.goToApplications(page);
+        await this.goToApplications(page);
         await Components.projectSwitcher(page, "hover");
         const locatorString = exact ? `img[alt='${appName}']` : `img[alt^='${appName}']`;
         let iterations = 1000;
@@ -361,6 +361,7 @@ export const Runs = {
             await Applications.actionByRowTitle(page, jobName, "click");
             await page.getByText("Run application again").click();
         })
+        await page.getByText("No machine type selected").waitFor({state: "hidden"});
         await Runs.submitAndWaitForRunning(page);
     },
 
@@ -410,7 +411,7 @@ export const Runs = {
     },
 
     async openTerminal(page: Page): Promise<Page> {
-        while (await page.locator("div[class^=notification]").isVisible());
+        await page.locator("div[class^=notification]").waitFor({state: "hidden"});
         const terminalPagePromise = page.waitForEvent("popup");
         await page.getByRole("button", {name: "Open terminal"}).click();
         const terminalPage = await terminalPagePromise;

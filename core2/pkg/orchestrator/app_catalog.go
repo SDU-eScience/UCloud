@@ -646,7 +646,6 @@ func AppRetrieveGroup(
 			Title:         group.Title,
 			Description:   group.Description,
 			DefaultFlavor: group.DefaultName,
-			Categories:    nil, // TODO
 			ColorReplacement: orcapi.ColorReplacements{
 				Dark:  group.ColorRemappingDark,
 				Light: group.ColorRemappingLight,
@@ -800,21 +799,15 @@ func appCategoryToApi(
 
 	if len(groups) > 0 {
 		for _, g := range groups {
-			groupFlags := flags
-			filter := false
+			groupFlags := flags | AppCatalogIncludeApps
 			wantApps := flags&AppCatalogIncludeApps != 0
-			if discovery.Mode != orcapi.CatalogDiscoveryModeAll {
-				filter = true
-				groupFlags |= AppCatalogIncludeApps
-			}
-
-			if flags&AppCatalogRequireNonemptyGroups != 0 {
-				filter = true
-				groupFlags |= AppCatalogIncludeApps
-			}
 
 			group, _, ok := AppRetrieveGroup(actor, g, discovery, groupFlags)
-			if ok && (!filter || len(group.Status.Applications) > 0) {
+			if ok && len(group.Status.Applications) > 0 {
+				if len(group.Status.Applications) == 1 && group.Specification.DefaultFlavor == "" {
+					group.Specification.DefaultFlavor = group.Status.Applications[0].Metadata.Name
+				}
+
 				if !wantApps {
 					group.Status.Applications = util.NonNilSlice[orcapi.Application](nil)
 				}
@@ -823,7 +816,7 @@ func appCategoryToApi(
 		}
 
 		slices.SortFunc(apiCategory.Status.Groups, func(a, b orcapi.ApplicationGroup) int {
-			return strings.Compare(a.Specification.Title, b.Specification.Title)
+			return strings.Compare(strings.ToLower(a.Specification.Title), strings.ToLower(b.Specification.Title))
 		})
 	}
 	return apiCategory
@@ -1577,8 +1570,8 @@ func AppStudioUpdateAcl(appName string, toAdd []orcapi.AclEntity, toRemove []orc
 			}
 			groupFound := false
 			for _, group := range project.Status.Groups {
-				// Henrik: Only allows group title
-				if group.Specification.Title == entity.Group {
+				// Henrik: Only allows group ID NOT title
+				if group.Id == entity.Group {
 					groupFound = true
 					break
 				}
@@ -1601,7 +1594,7 @@ func AppStudioUpdateAcl(appName string, toAdd []orcapi.AclEntity, toRemove []orc
 			for _, acl := range acls {
 				needToRemove := false
 				for _, aclToRemove := range toRemove {
-					if acl.Username == aclToRemove.Username || (acl.ProjectId == aclToRemove.ProjectId && aclToRemove.Group == aclToRemove.Group) {
+					if (acl.Type == orcapi.AclEntityTypeUser && acl.Username == aclToRemove.Username) || (acl.Type == orcapi.AclEntityTypeProjectGroup && acl.ProjectId == aclToRemove.ProjectId && aclToRemove.Group == aclToRemove.Group) {
 						needToRemove = true
 						break
 					}

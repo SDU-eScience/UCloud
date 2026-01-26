@@ -20,7 +20,7 @@ func (gw *GateWay) Build(cb ComposeBuilder) {
 
 	if len(readLines(cert.GetAbsolutePath())) == 0 || len(readLines(key.GetAbsolutePath())) == 0 && !gw.didAppendInstall {
 		gw.didAppendInstall = true
-		PostExecFile.WriteString("\n " + repoRoot.GetAbsolutePath() + "/launcher install-certs\n\n")
+		PostExecFile.WriteString("\n " + repoRoot.GetAbsolutePath() + "/launcher-old install-certs\n\n")
 	}
 
 	core2Config := ""

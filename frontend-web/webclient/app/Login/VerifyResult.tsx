@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useLocation} from "react-router";
+import {useLocation} from "react-router-dom";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import { Box, Button, Flex, Link } from "@/ui-components";
 import {Client} from "@/Authentication/HttpClientInstance";

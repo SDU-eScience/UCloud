@@ -174,6 +174,19 @@ var AuthLogoutWeb = rpc.Call[AuthenticationTokens, util.Empty]{
 	},
 }
 
+// Used primarily for testing purposes. Does not support 2FA.
+var AuthPasswordLoginServer = rpc.Call[PasswordLoginRequest, AuthenticationTokens]{
+	BaseContext: AuthContext,
+	Operation:   "loginServer",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPublic,
+	Audit: rpc.AuditRules{
+		Transformer: func(request any) json.RawMessage {
+			return json.RawMessage("{}")
+		},
+	},
+}
+
 var AuthPasswordLoginWeb = rpc.Call[PasswordLoginRequest, util.Empty]{
 	BaseContext: AuthContext,
 	Operation:   "loginWeb",
@@ -259,6 +272,19 @@ var AuthBrowseIdentityProviders = rpc.Call[util.Empty, BulkResponse[IdentityProv
 	Operation:   "identityProviders",
 	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesPublic,
+}
+
+var AuthStartLoginSamlLegacy = rpc.Call[util.Empty, util.Empty]{
+	BaseContext: AuthContext + "/saml",
+	Operation:   "login",
+	Convention:  rpc.ConventionQueryParameters,
+	CustomServerProducer: func(response util.Empty, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
+		if err != nil {
+			rpc.SendResponseOrError(r, w, nil, err)
+		} else {
+			// Already handled
+		}
+	},
 }
 
 var AuthStartLogin = rpc.Call[FindByIntId, util.Empty]{

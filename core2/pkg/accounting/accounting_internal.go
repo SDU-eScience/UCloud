@@ -301,8 +301,6 @@ func internalAllocateNoCommit(
 	parent AccWalletId,
 	grantedIn util.Option[accGrantId],
 ) (accAllocId, *util.HttpError) {
-	// TODO check that we can do this. Might need to happen in public API instead.
-
 	if start.After(end) {
 		return 0, util.HttpErr(http.StatusBadRequest, "start must occur before the end of an allocation!")
 	} else if quota < 0 {
@@ -1239,6 +1237,27 @@ func lInternalWalletTotalQuotaFromActiveAllocations(b *internalBucket, w *intern
 	return sum
 }
 
+func lInternalGroupTotalUsageFromActiveAllocationsUiOnly(b *internalBucket, group *internalGroup) int64 {
+	retiredUsage := int64(0)
+	for allocId, _ := range group.Allocations {
+		alloc := b.AllocationsById[allocId]
+		if !b.IsCapacityBased() && alloc.Active && alloc.Retired {
+			retiredUsage += alloc.RetiredUsage
+		}
+	}
+
+	return group.TreeUsage - retiredUsage
+}
+
+func lInternalWalletTotalUsageFromActiveAllocationsUiOnly(b *internalBucket, w *internalWallet) int64 {
+	usage := int64(0)
+	for _, group := range w.AllocationsByParent {
+		usage += lInternalGroupTotalUsageFromActiveAllocationsUiOnly(b, group)
+	}
+
+	return usage
+}
+
 // NOTE(Dan): Do NOT use for internal accounting operations. Use this ONLY for understanding the data.
 func lInternalGroupTotalQuotaFromActiveAllocations(b *internalBucket, group *internalGroup) int64 {
 	sum := int64(0)
@@ -1411,6 +1430,8 @@ func lInternalWalletToApi(
 		MaxUsable:               lInternalMaxUsable(b, now, w),
 		Quota:                   lInternalWalletTotalQuotaContributing(b, w),
 		TotalAllocated:          lInternalWalletTotalAllocatedContributing(b, w),
+		UiOnlyActiveUsage:       lInternalWalletTotalUsageFromActiveAllocationsUiOnly(b, w),
+		UiOnlyActiveQuota:       lInternalWalletTotalQuotaFromActiveAllocations(b, w),
 		LastSignificantUpdateAt: fndapi.Timestamp(w.LastSignificantUpdate),
 	}
 
@@ -1481,10 +1502,12 @@ func lInternalWalletToApi(
 		})
 
 		return accapi.AllocationGroup{
-			Id:          int(g.Id),
-			Allocations: util.NonNilSlice(apiAllocs),
-			Usage:       g.TreeUsage,
-			Quota:       contributingQuota,
+			Id:                int(g.Id),
+			Allocations:       util.NonNilSlice(apiAllocs),
+			Usage:             g.TreeUsage,
+			Quota:             contributingQuota,
+			UiOnlyActiveQuota: lInternalGroupTotalQuotaFromActiveAllocations(b, g),
+			UiOnlyActiveUsage: lInternalGroupTotalUsageFromActiveAllocationsUiOnly(b, g),
 		}
 	}
 

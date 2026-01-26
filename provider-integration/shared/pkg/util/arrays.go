@@ -1,9 +1,10 @@
 package util
 
 import (
-	"golang.org/x/exp/constraints"
 	"slices"
 	"sort"
+
+	"golang.org/x/exp/constraints"
 )
 
 func ChunkBy[T any](items []T, chunkSize int) (chunks [][]T) {
@@ -121,4 +122,13 @@ func TopNKeys[K comparable, V constraints.Ordered](m map[K]V, n int) []K {
 		out = append(out, pairs[i].k)
 	}
 	return out
+}
+
+func GroupBy[T any, K comparable](slice []T, groupKeyFn func(element T) K) map[K][]T {
+	result := map[K][]T{}
+	for _, element := range slice {
+		key := groupKeyFn(element)
+		result[key] = append(result[key], element)
+	}
+	return result
 }

@@ -25,6 +25,24 @@ func ServiceCore() {
 	}
 
 	configDir := AddDirectory(service, "config")
+	logDir := AddDirectory(service, "logs")
+
+	volumes := []string{
+		Mount(filepath.Join(RepoRoot, "core2"), "/opt/ucloud"),
+		Mount(filepath.Join(RepoRoot, "provider-integration"), "/opt/provider-integration"),
+		Mount(configDir, "/etc/ucloud"),
+		Mount(logDir, "/var/log/ucloud"),
+	}
+
+	if goCacheDir := os.Getenv("UCLOUD_GO_CACHE_DIR"); goCacheDir != "" {
+		pkgDir := filepath.Join(goCacheDir, service.Name)
+		_ = os.MkdirAll(pkgDir, 0777)
+		volumes = append(volumes, Mount(pkgDir, "/root/go"))
+
+		buildDir := filepath.Join(goCacheDir, service.Name+"-build")
+		_ = os.MkdirAll(buildDir, 0777)
+		volumes = append(volumes, Mount(buildDir, "/root/.cache/go-build"))
+	}
 
 	AddService(service, DockerComposeService{
 		Image:    ImDevImage,
@@ -32,11 +50,7 @@ func ServiceCore() {
 		Restart:  "always",
 		Ports:    []string{"51245:51233"},
 		Command:  []string{"sleep", "inf"},
-		Volumes: []string{
-			Mount(filepath.Join(RepoRoot, "core2"), "/opt/ucloud"),
-			Mount(filepath.Join(RepoRoot, "provider-integration"), "/opt/provider-integration"),
-			Mount(configDir, "/etc/ucloud"),
-		},
+		Volumes:  volumes,
 	})
 
 	AddInstaller(service, func() {
@@ -62,7 +76,7 @@ func ServiceCore() {
 		StartServiceEx(service, true)
 		deadline := time.Now().Add(30 * time.Second)
 
-		LogOutputRunWork("Waiting for UCloud/Core", "OK", func(ch chan string) error {
+		LogOutputRunWork("Waiting for UCloud/Core", func(ch chan string) error {
 			rpc.ClientAllowSilentAuthTokenRenewalErrors.Store(true)
 			defer rpc.ClientAllowSilentAuthTokenRenewalErrors.Store(false)
 
@@ -73,11 +87,15 @@ func ServiceCore() {
 				time.Sleep(100 * time.Millisecond)
 			}
 
+			result := ComposeExec("Fetching logs", "core", []string{"cat", "/tmp/service.log", "/var/log/ucloud/server.log"}, ExecuteOptions{Silent: true, ContinueOnFailure: true})
+			ch <- result.Stdout
+			ch <- result.Stderr
 			ch <- "Gave up waiting for UCloud/Core. Check logs in core container."
+
 			return fmt.Errorf("Gave up waiting for UCloud/Core")
 		})
 
-		LogOutputRunWork("Importing applications", "OK", func(ch chan string) error {
+		LogOutputRunWork("Importing applications", func(ch chan string) error {
 			checksum := "ea9ab32f52379756df5f5cbbcefb33928c49ef8e2c6b135a5048a459e40bc6b2"
 			_, herr := orcapi.AppsDevImport.Invoke(orcapi.AppCatalogDevImportRequest{
 				Endpoint: fmt.Sprintf("https://launcher-assets.cloud.sdu.dk/%s.zip", checksum),
@@ -107,7 +125,7 @@ func ServiceCore() {
 			return nil
 		})
 
-		LogOutputRunWork("Creating admin user", "OK", func(ch chan string) error {
+		LogOutputRunWork("Creating admin user", func(ch chan string) error {
 			_, herr := fndapi.UsersCreate.Invoke([]fndapi.UsersCreateRequest{
 				{
 					Username:   "user",

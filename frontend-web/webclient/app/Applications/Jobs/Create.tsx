@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {useLocation, useNavigate} from "react-router";
+import {useLocation, useNavigate} from "react-router-dom";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {AppHeader} from "@/Applications/View";
 import {
