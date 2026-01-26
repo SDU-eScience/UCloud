@@ -312,8 +312,6 @@ func initJobs() {
 		return fndapi.BulkResponse[util.Empty]{Responses: responses}, nil
 	})
 
-	// TODO Feature checks
-
 	orcapi.JobsExtend.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsExtendRequestItem]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
 		updatesByProvider := map[string][]orcapi.JobsProviderExtendRequestItem{}
 
@@ -328,6 +326,15 @@ func initJobs() {
 
 			if err != nil {
 				return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", item.JobId)
+			}
+
+			app, _ := AppRetrieve(info.Actor, resc.Specification.Application.Name,
+				resc.Specification.Application.Version, AppDiscoveryAll, 0)
+			appBackend := app.Invocation.Tool.Tool.Value.Description.Backend
+
+			support, ok := SupportByProduct[orcapi.JobSupport](jobType, resc.Specification.Product)
+			if !ok || !support.Has(jobFeatureExtensionByBackend[appBackend]) {
+				return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusBadRequest, "time extension is not supported by this provider")
 			}
 
 			provider := resc.Specification.Product.Provider
@@ -488,6 +495,28 @@ func initJobs() {
 
 			if err != nil {
 				return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", item.Id)
+			}
+
+			app, _ := AppRetrieve(info.Actor, resc.Specification.Application.Name,
+				resc.Specification.Application.Version, AppDiscoveryAll, 0)
+			appBackend := app.Invocation.Tool.Tool.Value.Description.Backend
+
+			support, ok := SupportByProduct[orcapi.JobSupport](jobType, resc.Specification.Product)
+			if item.SessionType == orcapi.InteractiveSessionTypeShell {
+				if !ok || !support.Has(jobFeatureTerminalByBackend[appBackend]) {
+					return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{},
+						util.HttpErr(http.StatusBadRequest, "terminal access is not supported by this provider")
+				}
+			} else if item.SessionType == orcapi.InteractiveSessionTypeVnc {
+				if !ok || !support.Has(jobFeatureVncByBackend[appBackend]) {
+					return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{},
+						util.HttpErr(http.StatusBadRequest, "vnc access is not supported by this provider")
+				}
+			} else if item.SessionType == orcapi.InteractiveSessionTypeWeb {
+				if !ok || !support.Has(jobFeatureWebByBackend[appBackend]) {
+					return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{},
+						util.HttpErr(http.StatusBadRequest, "web access is not supported by this provider")
+				}
 			}
 
 			provider := resc.Specification.Product.Provider
@@ -836,18 +865,8 @@ func jobsFollow(conn *ws.Conn) {
 			appNv := initialJob.Specification.Application
 			app, ok := AppRetrieve(actor, appNv.Name, appNv.Version, AppDiscoveryAll, 0)
 			if ok {
-				key := jobDockerLogs
 				backend := app.Invocation.Tool.Tool.Value.Description.Backend
-				switch backend {
-				case orcapi.ToolBackendNative:
-					key = jobNativeLogs
-				case orcapi.ToolBackendDocker:
-					key = jobDockerLogs
-				case orcapi.ToolBackendVirtualMachine:
-					key = jobVmLogs
-				}
-
-				hasSupport = support.Has(key)
+				hasSupport = support.Has(jobFeatureLogsByBackend[backend])
 			}
 		}
 
@@ -977,7 +996,7 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 
 	for i, value := range spec.Resources {
 		newValue := value
-		err := jobValidateValue(actor, &newValue)
+		err := jobValidateValue(actor, &newValue, tool.Backend, support)
 		if err != nil {
 			return err
 		} else {
@@ -987,7 +1006,7 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 
 	for name, value := range spec.Parameters {
 		newValue := value
-		err := jobValidateValue(actor, &newValue)
+		err := jobValidateValue(actor, &newValue, tool.Backend, support)
 		if err != nil {
 			return err
 		} else {
@@ -1072,7 +1091,7 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 	return nil
 }
 
-func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue) *util.HttpError {
+func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue, backend orcapi.ToolBackend, support ProductSupport[orcapi.JobSupport]) *util.HttpError {
 	switch value.Type {
 	case orcapi.AppParameterValueTypeFile:
 		path := value.Path
@@ -1091,6 +1110,10 @@ func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue) *util.Ht
 		return nil
 
 	case orcapi.AppParameterValueTypePeer:
+		if !support.Has(jobFeaturePeersByBackend[backend]) {
+			return util.HttpErr(http.StatusBadRequest, "connection to other jobs is not supported by this provider")
+		}
+
 		if err := util.ValidateStringE(&value.Hostname, "hostname", 0); err != nil {
 			return err
 		}
@@ -1821,7 +1844,6 @@ func jobSendNotifications(username string, jobs map[string]orcapi.Job) {
 			event.JobName = job.Id
 		}
 
-		// TODO update wording of notifications to be more precise
 		switch job.Status.State {
 		case orcapi.JobStateSuccess:
 			event.ChangeMessage = "has finished running"

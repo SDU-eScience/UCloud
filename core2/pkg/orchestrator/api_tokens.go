@@ -151,7 +151,7 @@ func ApiTokenBrowse(actor rpc.Actor, request orcapi.ApiTokenBrowseRequest) (fnda
 }
 
 func ApiTokenRetrieveOptions(actor rpc.Actor) orcapi.ApiTokenRetrieveOptionsResponse {
-	if !util.DevelopmentModeEnabled() {
+	if util.DevelopmentModeEnabled() {
 		return orcapi.ApiTokenRetrieveOptionsResponse{
 			ByProvider: map[string]orcapi.ApiTokenOptions{
 				"": {

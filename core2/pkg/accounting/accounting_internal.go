@@ -87,7 +87,7 @@ var accGlobals struct {
 	OwnersByReference map[string]*internalOwner
 	OwnersById        map[accOwnerId]*internalOwner
 
-	Usage             map[string]*scopedUsage // TODO(Dan): quite annoying that this has to be global
+	Usage             map[string]*scopedUsage // NOTE(Dan): quite annoying that this has to be global
 	BucketsByCategory map[accapi.ProductCategoryIdV2]*internalBucket
 
 	OnPersistHandlers []internalOnPersistHandler
