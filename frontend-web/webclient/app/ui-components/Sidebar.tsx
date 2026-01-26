@@ -1147,10 +1147,6 @@ function SecondarySidebar({
                     tab={SidebarTabId.ADMIN} />
                 <SidebarEntry to={AppRoutes.admin.providers()} text={"Providers"} icon={"heroCloud"}
                     tab={SidebarTabId.ADMIN} />
-                <SidebarEntry to={AppRoutes.admin.scripts()} text={"Scripts"} icon={"heroPlayPause"}
-                    tab={SidebarTabId.ADMIN} />
-                <SidebarEntry to={AppRoutes.supportAssist.base()} text="User support" icon="heroUser"
-                    tab={SidebarTabId.ADMIN} />
                 <SidebarEntry to={AppRoutes.admin.playground()} text={"Playground"} icon={"heroCake"}
                     tab={SidebarTabId.ADMIN} />
             </>}
