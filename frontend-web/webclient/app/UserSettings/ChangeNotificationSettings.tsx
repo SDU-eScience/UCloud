@@ -111,7 +111,7 @@ export const ChangeNotificationSettings: React.FunctionComponent<{setLoading: (l
                     color="successMain"
                     disabled={commandLoading}
                 >
-                    Update Notification Settings
+                    Update notification settings
                 </Button>
             </form>
         </Box>

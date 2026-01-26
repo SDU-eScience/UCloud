@@ -322,7 +322,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     color="successMain"
                     disabled={commandLoading}
                 >
-                    Update Email Settings
+                    Update email settings
                 </Button>
             </form>
         </Box>

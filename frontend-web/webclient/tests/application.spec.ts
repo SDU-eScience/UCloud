@@ -56,8 +56,9 @@ echo "${BashScriptStringContent}"
     await File.ensureDialogDriveActive(page, driveName);
     await page.getByRole("dialog").locator(".row", {hasText: BashScriptName}).getByRole("button", {name: "Use"}).click();
     await Components.selectAvailableMachineType(page);
-    await page.mouse.wheel(0, 1000);
     await Runs.submitAndWaitForRunning(page);
+
+    await page.mouse.wheel(0, 1000);
     await page.getByText(BashScriptStringContent).waitFor({state: "visible"});
     await NetworkCalls.awaitResponse(page, "**api/files/browse?path=**", async () => {
         await Runs.terminateViewedRun(page);
