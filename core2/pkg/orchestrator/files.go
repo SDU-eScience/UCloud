@@ -412,7 +412,7 @@ func FilesCreateDownload(
 		resp, err := InvokeProvider(provider, orcapi.FilesProviderCreateDownload, fndapi.BulkRequestOf(requests...),
 			ProviderCallOpts{
 				Username: util.OptValue(actor.Username),
-				Reason:   util.OptValue("file upload"),
+				Reason:   util.OptValue("file download"),
 			})
 
 		if err != nil {

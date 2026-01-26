@@ -35,7 +35,7 @@ func resourceLoadInternal(tx *db.Transaction, typeName string, rows []resourceLo
 				Project:   util.SqlNullStringToOpt(row.Project).GetOrDefault(""),
 			},
 			CreatedAt:  row.CreatedAt,
-			ModifiedAt: row.CreatedAt, // TODO We don't store this?
+			ModifiedAt: row.CreatedAt, // NOTE(Dan): We don't store this! That seems silly.
 			Type:       typeName,
 			Confirmed:  true,
 		}

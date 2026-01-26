@@ -570,7 +570,7 @@ func LicenseCli(args []string) {
 			table.Cell("%s", row.Name)
 			table.Cell("%s", row.Address.Value)
 			if row.Port.Present {
-				table.Cell("%d", row.Port.Present)
+				table.Cell("%d", row.Port.Value)
 			} else {
 				table.Cell("")
 			}

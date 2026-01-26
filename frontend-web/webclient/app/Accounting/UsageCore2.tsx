@@ -28,6 +28,10 @@ import {useBreakdownChart} from "@/Accounting/Diagrams/UsageBreakdown";
 import {useUtilizationOverTimeChart} from "@/Accounting/Diagrams/UtilizationOverTime";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
+import * as Config from "../../site.config.json";
+import {formatDate} from "date-fns";
+import {DATE_FORMAT} from "@/Admin/NewsManagement";
+import {ExportHeader, exportUsage} from "@/Accounting/Usage";
 
 interface UsageRetrieveRequest {
     start: number;
@@ -341,6 +345,58 @@ const UsagePage: React.FunctionComponent = () => {
         }
     }, [state.openReport]);
 
+    const exportAbsoluteUsageOverTime = useCallback(() => {
+        if (!state.openReport) return;
+        const abs = state.openReport.usageOverTime.absolute;
+        exportUsage(
+            abs,
+            [
+                {
+                    key: "timestamp",
+                    value: "Timestamp",
+                    defaultChecked: true,
+                },
+                {
+                    key: "usage",
+                    value: "Usage",
+                    defaultChecked: true,
+                },
+                {
+                    key: "utilizationPercent100",
+                    value: "Utilization (0-100%)",
+                    defaultChecked: true,
+                },
+            ],
+            project.fetch().specification.title,
+        )
+    }, [state.openReport]);
+
+    const exportDeltaOverTime = useCallback(() => {
+        if (!state.openReport) return;
+        const delta = state.openReport.usageOverTime.delta;
+        exportUsage(
+            delta,
+            [
+                {
+                    key: "timestamp",
+                    value: "Timestamp",
+                    defaultChecked: true,
+                },
+                {
+                    key: "change",
+                    value: "Change (since last sample)",
+                    defaultChecked: true,
+                },
+                {
+                    key: "child",
+                    value: "Child workspace",
+                    defaultChecked: true,
+                },
+            ],
+            project.fetch().specification.title,
+        )
+    }, [state.openReport]);
+
     // User-interface
     // -----------------------------------------------------------------------------------------------------------------
     if (project.fetch().status.personalProviderProjectFor != null) {
@@ -624,7 +680,13 @@ const UsagePage: React.FunctionComponent = () => {
 
             {r.usageOverTime.delta.length <= 1 ? null :
                 <Card>
-                    <h3>Change in usage over time</h3>
+                    <Flex mb={8}>
+                        <h3 style={{flexGrow: 1}}>Change in usage over time</h3>
+                        <Button onClick={exportDeltaOverTime}>
+                            <Icon name={"heroArrowDownTray"} mr={8} />
+                            Export
+                        </Button>
+                    </Flex>
                     <svg ref={deltaOverTime.chartRef} width={deltaChartWidth} height={chartHeight(deltaChartWidth)}/>
                     <Flex flexWrap={"wrap"} gap={"16px"} ml={40} fontSize={"80%"}>
                         {deltaOverTime.labels.map(label =>
@@ -639,7 +701,13 @@ const UsagePage: React.FunctionComponent = () => {
 
             {r.usageOverTime.absolute.length <= 1 ? null :
                 <Card>
-                    <h3>Utilization over time</h3>
+                    <Flex mb={8}>
+                        <h3 style={{flexGrow: 1}}>Utilization over time</h3>
+                        <Button onClick={exportAbsoluteUsageOverTime}>
+                            <Icon name={"heroArrowDownTray"} mr={8} />
+                            Export
+                        </Button>
+                    </Flex>
                     <Flex flexWrap={"wrap"} gap={"16px"}>
                         <svg ref={utilizationOverTime.chartRef} width={utilizationChartWidth}
                              height={utilizationChartHeight}/>
@@ -723,7 +791,8 @@ const UsagePage: React.FunctionComponent = () => {
                         color="textPrimary"
                         style={{background: `var(--warningMain)`}}
                     >
-                        Data prior to 28/01/2026 is incomplete due to the historic data being produced by an older version of UCloud.
+                        Data prior to 28/01/2026 is incomplete due to the historic data being produced by an older
+                        version of UCloud.
                     </Card>
                 </> : null}
             </Box>

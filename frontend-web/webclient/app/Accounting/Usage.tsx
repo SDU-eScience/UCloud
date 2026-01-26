@@ -92,7 +92,7 @@ export interface ExportHeader<T> {
     key: keyof T;
     value: string;
     defaultChecked: boolean;
-};
+}
 
 // TODO(Louise): move this somewhere else
 export function exportUsage<T extends object>(chartData: T[] | undefined, headers: ExportHeader<T>[], projectTitle: string | undefined): void {

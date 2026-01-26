@@ -4,7 +4,7 @@ import {Box, Button, Image, Divider, Flex, Icon, Input, MainContainer, Select, L
 import * as Api from "./api";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {PeriodStyle} from "@/Accounting/Usage";
-import {addDays, addMonths} from "date-fns";
+import {addDays, addMonths, formatDistanceToNow, startOfToday} from "date-fns";
 import {injectStyle, makeClassName} from "@/Unstyled";
 import {GenericTextArea, GenericTextField, MandatoryField} from "@/UtilityComponents";
 import {usePage} from "@/Navigation/Redux";
@@ -13,36 +13,34 @@ import {ProviderLogo, ProviderLogoWrapper} from "@/Providers/ProviderLogo";
 import {RichSelect, RichSelectProps} from "@/ui-components/RichSelect";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
-import {useNavigate} from "react-router-dom";
-import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {ApiToken, ApiTokenStatus} from "./api";
 import * as Heading from "@/ui-components/Heading";
 import AppRoutes from "@/Routes";
+import Routes from "@/Routes";
+import {getStoredProject} from "@/Project/ReduxState";
 
 const API_TOKEN_TITLE_KEY = "api-title";
 const API_TOKEN_DESCRIPTION_KEY = "api-description";
 
 function Add() {
-    usePage("Add API token", SidebarTabId.RESOURCES);
-
-    const navigate = useNavigate();
+    usePage("Create API token", SidebarTabId.RESOURCES);
 
     const [options] = useCloudAPI(Api.retrieveOptions(), {byProvider: {}});
-    const [date, setDate] = React.useState<Date | null>(null);
+    const [date, setDate] = React.useState<Date | null>(addDays(startOfToday(), 30));
 
     const [serviceProvider, setServiceProvider] = React.useState("");
 
-    const permissions = options.data.byProvider;
-    const permissionKeys = Object.keys(permissions);
-    const serviceProviders = permissionKeys;
-    const [projectId, setProjectId] = React.useState<string | undefined>();
+    const optionsData = options.data.byProvider;
+    const serviceProviders = Object.keys(optionsData);
+    const [projectId, setProjectId] = React.useState<string | undefined>(getStoredProject() ?? undefined);
     const [activePermissions, setActivePermissions] = React.useState(new Set<string>());
     const [tokenStatus, setTokenStatus] = React.useState<ApiTokenStatus | null>(null);
 
     const mappedServiceProviders = serviceProviders.map(it => ({key: it}));
 
-    const availablePermissions = permissions[serviceProvider]?.availablePermissions ?? [];
+    const availablePermissions = optionsData[serviceProvider]?.availablePermissions ?? [];
 
 
     const submit = React.useCallback(async () => {
@@ -91,7 +89,8 @@ function Add() {
                         id: "",
                         provider: ""
                     },
-                }), projectOverride: provider == null ? projectId : undefined
+                }),
+                projectOverride: provider == null ? projectId ?? "" : undefined
             });
 
             setTokenStatus(result.status);
@@ -116,9 +115,18 @@ function Add() {
         </Flex>;
     } else {
         main = <div style={{display: "grid", gap: "18px"}}>
+            <Heading.h2>New API token</Heading.h2>
             <div>
-                <GenericTextField name={API_TOKEN_TITLE_KEY} title={"Title"} optional={false}/>
-                <GenericTextArea name={API_TOKEN_DESCRIPTION_KEY} title={"Description"} optional={true}/>
+                Here you can create API tokens which will can be used for direct API access to the UCloud platform and
+                specific services at supported service providers. The token will be scoped and owned by a specific
+                workspace/project when a token is created for the UCloud platform.
+            </div>
+
+            <div>
+                <GenericTextField name={API_TOKEN_TITLE_KEY} title={"Title"} optional={false}
+                                  placeholder={"My API token"}/>
+                <GenericTextArea name={API_TOKEN_DESCRIPTION_KEY} title={"Description"} optional={true}
+                                 placeholder={"This token is used in one of my scripts."}/>
             </div>
             <Flex>
                 <div className={ServiceProviderSelector} data-has-service-provider={!!serviceProvider}>
@@ -153,7 +161,7 @@ function Add() {
                     <ExpirationSelector date={date} onChange={setDate}/>
                 </div>
             </div>
-            {permissionKeys.length == 0 ? null : <div>
+            {serviceProviders.length == 0 || availablePermissions.length === 0 ? null : <div>
                 Token permissions
                 <div className={PermissionWindow} data-has-active={activePermissions.size > 0}>
                     <div className="header">
@@ -187,11 +195,16 @@ function Add() {
                     </div>
                 </div>
             </div>}
-            <Button onClick={submit} width="150px">Generate token</Button>
+            <Flex gap={"8px"}>
+                <Button onClick={submit} color={"successMain"}>Generate token</Button>
+                <Link to={Routes.resources.apiTokens()}>
+                    <Button onClick={doNothing} color={"secondaryMain"}>Cancel</Button>
+                </Link>
+            </Flex>
         </div>;
     }
 
-    return <MainContainer main={main} />;
+    return <MainContainer main={main}/>;
 }
 
 const ActivePermissionClass = makeClassName("active-permission");
@@ -230,7 +243,11 @@ const PermissionWindow = injectStyle("permission-window", cl => `
     }
 `);
 
-function ActivePermissions(props: {clearPermission(): void; permission: string; availablePermissions: Api.ApiTokenPermissionSpecification[]}): React.ReactNode {
+function ActivePermissions(props: {
+    clearPermission(): void;
+    permission: string;
+    availablePermissions: Api.ApiTokenPermissionSpecification[]
+}): React.ReactNode {
     const permissionSpecification = props.availablePermissions.find(it => it.name === props.permission);
     if (!permissionSpecification) return null;
 
@@ -252,11 +269,10 @@ function ActivePermissions(props: {clearPermission(): void; permission: string; 
                     return <option value={value}>{value}</option>
                 })}
             </Select>
-            <Icon onClick={props.clearPermission} cursor="pointer" name="close" mt="auto" ml="12px" mb="10px" />
+            <Icon onClick={props.clearPermission} cursor="pointer" name="close" mt="auto" ml="12px" mb="10px"/>
         </Flex>
     </Flex>
 }
-
 
 
 function Permission(props: Api.ApiTokenPermissionSpecification & {
@@ -267,23 +283,24 @@ function Permission(props: Api.ApiTokenPermissionSpecification & {
     </Flex>
 }
 
-const UCLOUD_CORE = "UCloud/Core";
+const UCLOUD_CORE = "UCloud";
 
-function ServiceProviderItem(props: RichSelectProps<{key: string}>): React.ReactNode {
+function ServiceProviderItem(props: RichSelectProps<{ key: string }>): React.ReactNode {
     const height = props.dataProps == null ? "31.5px" : "38px";
     const key = props.element?.key;
     if (key == null) return null;
     const serviceProvider = !key ? UCLOUD_CORE : key;
-    return <Flex height={height} pl="8px" key={key}  {...props.dataProps} onClick={props.onSelect} alignItems={"center"} gap={"8px"}>
+    return <Flex height={height} pl="8px" key={key}  {...props.dataProps} onClick={props.onSelect} alignItems={"center"}
+                 gap={"8px"}>
         {!key ?
             <>
                 <ProviderLogoWrapper size={24} className="provider-logo" tooltip={UCLOUD_CORE}>
-                    <Image src={"/Images/ucloud.png"} alt={`Logo for ${UCLOUD_CORE}`} />
+                    <Image src={"/Images/ucloud.png"} alt={`Logo for ${UCLOUD_CORE}`}/>
                 </ProviderLogoWrapper>
                 {UCLOUD_CORE}
             </> : <>
-                <ProviderLogo className={"provider-logo"} providerId={serviceProvider} size={24} />
-                <ProviderTitle providerId={key} />
+                <ProviderLogo className={"provider-logo"} providerId={serviceProvider} size={24}/>
+                <ProviderTitle providerId={key}/>
             </>}
     </Flex>
 }
@@ -305,10 +322,15 @@ const ServiceProviderSelector = injectStyle("service-selector", cl => `
 
 export function formatTs(ts: number): string {
     const d = new Date(ts);
-    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+    const baseFormat = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+    if (ts - Date.now() > 1000 * 60 * 60 * 24 * 365) {
+        return baseFormat;
+    } else {
+        return `${formatDistanceToNow(d)} (${baseFormat})`;
+    }
 }
 
-function ExpirationSelector(props: {date: Date | null; onChange(d: Date): void}): React.ReactNode {
+function ExpirationSelector(props: { date: Date | null; onChange(d: Date): void }): React.ReactNode {
 
     const onRelativeUpdated = React.useCallback((ev: React.SyntheticEvent) => {
         let today = new Date();
@@ -350,36 +372,34 @@ function ExpirationSelector(props: {date: Date | null; onChange(d: Date): void})
         trigger={
             <div className={PeriodStyle}>
                 <div style={{width: "182px"}}>{props.date == null ? null : formatTs(props.date.getTime())}</div>
-                <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
+                <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px"/>
             </div>
         }
     >
         <div className={DateSelector}>
             <div onClick={e => e.stopPropagation()}>
                 <b>Specific date</b>
-                <Input pl="8px" pr="8px" className={"start"} onChange={onChange} type={"date"} value={props.date == null ? undefined : formatTs(props.date.getTime())} />
+                <Input pl="8px" pr="8px" className={"start"} onChange={onChange} type={"date"}
+                       value={props.date == null ? undefined : formatTs(props.date.getTime())}/>
             </div>
-            <Divider />
+            <Divider/>
             <div>
                 <b>Relative date</b>
 
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                    data-unit={"7"}>7 days from today
+                     data-unit={"7"}>7 days from today
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                    data-unit={"30"}>30 days from today
+                     data-unit={"30"}>30 days from today
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                    data-unit={"90"}>90 days from today
+                     data-unit={"90"}>90 days from today
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
-                    data-unit={"6"}>6 months from today
+                     data-unit={"6"}>6 months from today
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
-                    data-unit={"12"}>12 months from today
-                </div>
-                <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
-                    data-unit={"36"}>3 years from today
+                     data-unit={"12"}>12 months from today
                 </div>
             </div>
         </div>
