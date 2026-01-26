@@ -324,7 +324,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
 
             white-space: pre;
                                                                                                                     /* v favoriteIcon-width */
-            width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 32px);
+            width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--stat4Width) - var(--favoriteWidth) - 32px);
             padding-right: 8px; /* So the title doesn't rub up against the second column */
         }
         
@@ -337,7 +337,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
 
         
         ${browserClass.dot} .stat-wrapper {
-            width: calc(var(--stat1Width) + var(--stat2Width) + var(--stat3Width));
+            width: calc(var(--stat1Width) + var(--stat2Width) + var(--stat3Width) + var(--stat4Width));
             justify-content: end;
             display: flex;
             gap: 8px;
@@ -350,14 +350,16 @@ export function injectResourceBrowserStyle(rowSize: number) {
         }
 
         ${browserClass.dot} .row .stat2,
-        ${browserClass.dot} .row .stat3  {
+        ${browserClass.dot} .row .stat3,
+        ${browserClass.dot} .row .stat4  {
             display: none;
             width: 0;
         }
 
         @media screen and (min-width: 860px) {
             ${browserClass.dot} .row .stat1,
-            ${browserClass.dot} .row .stat2 {
+            ${browserClass.dot} .row .stat2,
+            ${browserClass.dot} .row .stat3 {
                 display: flex;
                 justify-content: center;
                 margin-top: auto;
@@ -374,10 +376,14 @@ export function injectResourceBrowserStyle(rowSize: number) {
             }
 
             ${browserClass.dot} .row .stat3 {
+                width: var(--stat3Width);
+            }
+
+            ${browserClass.dot} .row .stat4 {
                 display: flex;
                 justify-content: end;
                 text-align: end;
-                width: var(--stat3Width);
+                width: var(--stat4Width);
             }
         }
 
@@ -489,7 +495,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
         ${browserClass.dot} .rename-field {
             display: none;
             position: absolute;
-            width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 92px);
+            width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--stat4Width) - var(--favoriteWidth) - 92px);
             background-color: var(--backgroundDefault);
             border-radius: 5px;
             border: 1px solid var(--borderColor);
