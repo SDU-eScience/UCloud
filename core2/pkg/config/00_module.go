@@ -7,7 +7,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
-	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -56,8 +55,6 @@ type ConfigurationFormat struct {
 	}
 
 	SlackHook util.Option[string]
-
-	ElasticSearch util.Option[rpc.ElasticConfig]
 
 	RequireMfa bool
 }
@@ -157,13 +154,6 @@ func Parse(configDir string) bool {
 	}
 
 	cfg.RequireMfa, _ = cfgutil.OptionalChildBool(filePath, document, "requireMfa")
-
-	elastic, ok := rpc.ElasticConfigRetrieve(filePath, document)
-	if !ok {
-		success = false
-	} else {
-		cfg.ElasticSearch = elastic
-	}
 
 	// Token validation
 	{

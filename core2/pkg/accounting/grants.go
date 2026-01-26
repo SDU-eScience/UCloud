@@ -961,8 +961,6 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 		return util.HttpErr(http.StatusBadRequest, "grant givers cannot withdraw an application")
 	}
 
-	// TODO we probably need to check a lot more enums in the code base. Remove this comment when certain that all
-	//   parts of the code is OK.
 	if _, ok := util.VerifyEnum(req.NewState, accapi.GrantApplicationStates); !ok {
 		return util.HttpErr(http.StatusBadRequest, "invalid state")
 	}

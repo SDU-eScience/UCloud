@@ -12,7 +12,6 @@ import (
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
-	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -267,7 +266,7 @@ func apiTokensTransform(
 	if !tok.Provider.Present {
 		server = cfg.Configuration.SelfPublic.ToURL()
 	} else {
-		log.Fatal("TODO") // TODO
+		// TODO
 	}
 
 	return orcapi.ApiToken{

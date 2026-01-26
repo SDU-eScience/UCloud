@@ -301,8 +301,6 @@ func internalAllocateNoCommit(
 	parent AccWalletId,
 	grantedIn util.Option[accGrantId],
 ) (accAllocId, *util.HttpError) {
-	// TODO check that we can do this. Might need to happen in public API instead.
-
 	if start.After(end) {
 		return 0, util.HttpErr(http.StatusBadRequest, "start must occur before the end of an allocation!")
 	} else if quota < 0 {
