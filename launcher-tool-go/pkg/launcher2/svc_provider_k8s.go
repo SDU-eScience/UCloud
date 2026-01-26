@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	apm "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -130,6 +131,29 @@ func ProviderK8s() {
 
 			if herr != nil {
 				return errors.Join(fmt.Errorf("failed to retrieve provider"), herr.AsError())
+			}
+
+			_, herr = apm.GrantsUpdateRequestSettings.InvokeEx(
+				rpc.DefaultClient,
+				apm.GrantRequestSettings{
+					Enabled:     true,
+					Description: "An example grant allocator",
+					AllowRequestsFrom: []apm.UserCriteria{{
+						Type: apm.UserCriteriaTypeAnyone,
+					}},
+					ExcludeRequestsFrom: []apm.UserCriteria{},
+					Templates: apm.Templates{
+						Type:            apm.TemplatesTypePlainText,
+						PersonalProject: "Please describe why you are applying for resources",
+						NewProject:      "Please describe why you are applying for resources",
+						ExistingProject: "Please describe why you are applying for resources",
+					},
+				},
+				rpc.InvokeOpts{Headers: projectHeaders},
+			)
+
+			if herr != nil {
+				return errors.Join(fmt.Errorf("failed to update settings"), herr.AsError())
 			}
 
 			return nil

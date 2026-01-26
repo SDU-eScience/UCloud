@@ -1376,8 +1376,18 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	}
 	b.Mu.Unlock()
 
-	_, isPublic := b.PublicGrantGivers[id]
-	s.Enabled = isPublic
+	if s.Enabled {
+		b.PublicGrantGivers[string(actor.Project.Value)] = util.Empty{}
+	} else {
+		newPublic := make(map[string]util.Empty)
+		for s2, _ := range b.PublicGrantGivers {
+			if s2 == string(actor.Project.Value) {
+				continue
+			}
+			newPublic[s2] = util.Empty{}
+		}
+		b.PublicGrantGivers = newPublic
+	}
 
 	w.Mu.Lock()
 	w.Settings = &s
