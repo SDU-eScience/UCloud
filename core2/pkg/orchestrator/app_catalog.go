@@ -646,7 +646,6 @@ func AppRetrieveGroup(
 			Title:         group.Title,
 			Description:   group.Description,
 			DefaultFlavor: group.DefaultName,
-			Categories:    nil, // TODO
 			ColorReplacement: orcapi.ColorReplacements{
 				Dark:  group.ColorRemappingDark,
 				Light: group.ColorRemappingLight,

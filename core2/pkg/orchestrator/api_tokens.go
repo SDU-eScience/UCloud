@@ -12,7 +12,6 @@ import (
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
 	fndapi "ucloud.dk/shared/pkg/foundation"
-	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -23,7 +22,7 @@ const apiTokenType = "api_token"
 func initApiTokens() {
 	InitResourceType(
 		apiTokenType,
-		resourceTypeCreateWithoutAdmin, // NOTE(Dan): Tokens are tied to a user in a project, thus this makes sense.
+		resourceTypeCreateWithoutAdmin|resourceTypeCreateAsAllocator, // NOTE(Dan): Tokens are tied to a user in a project, thus this makes sense.
 		apiTokensLoad,
 		apiTokensPersist,
 		apiTokensTransform,
@@ -65,7 +64,7 @@ func initApiTokens() {
 func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orcapi.ApiToken, *util.HttpError) {
 	var err *util.HttpError
 	util.ValidateString(&request.Title, "title", 0, &err)
-	util.ValidateString(&request.Description, "description", 0, &err)
+	util.ValidateString(&request.Description, "description", util.StringValidationAllowEmpty, &err)
 	util.ValidateStringIfPresent(&request.Provider, "provider", 0, &err)
 
 	if err == nil && request.Provider.Present {
@@ -152,35 +151,45 @@ func ApiTokenBrowse(actor rpc.Actor, request orcapi.ApiTokenBrowseRequest) (fnda
 }
 
 func ApiTokenRetrieveOptions(actor rpc.Actor) orcapi.ApiTokenRetrieveOptionsResponse {
-	return orcapi.ApiTokenRetrieveOptionsResponse{
-		ByProvider: map[string]orcapi.ApiTokenOptions{
-			"": {
-				AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{
-					{
-						Name:        "drives",
-						Title:       "Drives",
-						Description: "Permission required to read and manage drives and files",
-						Actions: map[string]string{
-							"read":  "Read only",
-							"write": "Read-write access",
+	if util.DevelopmentModeEnabled() {
+		return orcapi.ApiTokenRetrieveOptionsResponse{
+			ByProvider: map[string]orcapi.ApiTokenOptions{
+				"": {
+					AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{
+						{
+							Name:        "drives",
+							Title:       "Drives",
+							Description: "Permission required to read and manage drives and files",
+							Actions: map[string]string{
+								"read":  "Read only",
+								"write": "Read-write access",
+							},
 						},
 					},
 				},
-			},
 
-			"ucloud": {
-				AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{
-					{
-						Name:        "inference",
-						Title:       "Inference",
-						Description: "API token required for inference services",
-						Actions: map[string]string{
-							"use": "Use",
+				"ucloud": {
+					AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{
+						{
+							Name:        "inference",
+							Title:       "Inference",
+							Description: "API token required for inference services",
+							Actions: map[string]string{
+								"use": "Use",
+							},
 						},
 					},
 				},
 			},
-		},
+		}
+	} else {
+		return orcapi.ApiTokenRetrieveOptionsResponse{
+			ByProvider: map[string]orcapi.ApiTokenOptions{
+				"": {
+					AvailablePermissions: []orcapi.ApiTokenPermissionSpecification{},
+				},
+			},
+		}
 	}
 }
 
@@ -257,7 +266,7 @@ func apiTokensTransform(
 	if !tok.Provider.Present {
 		server = cfg.Configuration.SelfPublic.ToURL()
 	} else {
-		log.Fatal("TODO") // TODO
+		// TODO
 	}
 
 	return orcapi.ApiToken{

@@ -87,7 +87,7 @@ var accGlobals struct {
 	OwnersByReference map[string]*internalOwner
 	OwnersById        map[accOwnerId]*internalOwner
 
-	Usage             map[string]*scopedUsage // TODO(Dan): quite annoying that this has to be global
+	Usage             map[string]*scopedUsage // NOTE(Dan): quite annoying that this has to be global
 	BucketsByCategory map[accapi.ProductCategoryIdV2]*internalBucket
 
 	OnPersistHandlers []internalOnPersistHandler
@@ -301,8 +301,6 @@ func internalAllocateNoCommit(
 	parent AccWalletId,
 	grantedIn util.Option[accGrantId],
 ) (accAllocId, *util.HttpError) {
-	// TODO check that we can do this. Might need to happen in public API instead.
-
 	if start.After(end) {
 		return 0, util.HttpErr(http.StatusBadRequest, "start must occur before the end of an allocation!")
 	} else if quota < 0 {

@@ -20,7 +20,6 @@ export enum Feature {
 
     API_TOKENS_PAGES,
 
-    // MISSING BACKEND SUPPORT
     JOB_RENAME,
     REORDER_APP_GROUP,
 
@@ -67,7 +66,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "new-idps": {
         feature: Feature.NEW_IDPS,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments,
     },
 
@@ -89,8 +88,8 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "job-rename": {
         feature: Feature.JOB_RENAME,
-        showWithFlag: allDevEnvironments,
-        showWithoutFlag: localAndDevEnvironment
+        showWithFlag: allEnvironments,
+        showWithoutFlag: allEnvironments
     },
 
     "alternative-usage-selector": {
@@ -119,8 +118,8 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "core2": {
         feature: Feature.CORE2,
-        showWithFlag: allLocalEnvironments,
-        showWithoutFlag: localAndDevEnvironment,
+        showWithFlag: allEnvironments,
+        showWithoutFlag: allEnvironments,
     },
 
     "allocations-improvements": {
@@ -131,8 +130,8 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "api-tokens-pages": {
         feature: Feature.API_TOKENS_PAGES,
-        showWithFlag: allDevEnvironments,
-        showWithoutFlag: allLocalEnvironments
+        showWithFlag: allEnvironments,
+        showWithoutFlag: allEnvironments
     }
 };
 

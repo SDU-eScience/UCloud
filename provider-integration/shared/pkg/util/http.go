@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 	"net/http"
+	"unicode"
 )
 
 type HttpError struct {
@@ -58,6 +59,14 @@ func HttpErr(statusCode int, whyFormat string, args ...any) *HttpError {
 		message = whyFormat
 	} else {
 		message = fmt.Sprintf(whyFormat, args...)
+	}
+
+	if len(message) > 0 {
+		runes := []rune(message)
+		if unicode.IsLower(runes[0]) {
+			runes[0] = unicode.ToUpper(runes[0])
+			message = string(runes)
+		}
 	}
 
 	return &HttpError{

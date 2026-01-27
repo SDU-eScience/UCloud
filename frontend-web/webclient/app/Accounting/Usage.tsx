@@ -17,7 +17,13 @@ import {
     UsageOverTimeAPI, UsagePerUserPointAPI
 } from ".";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {threadDeferLike, stopPropagation, timestampUnixMs, displayErrorMessageOrDefault} from "@/UtilityFunctions";
+import {
+    threadDeferLike,
+    stopPropagation,
+    timestampUnixMs,
+    displayErrorMessageOrDefault,
+    doNothing
+} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI, noopCall} from "@/Authentication/DataHook";
 import * as Config from "../../site.config.json";
@@ -92,65 +98,103 @@ export interface ExportHeader<T> {
     key: keyof T;
     value: string;
     defaultChecked: boolean;
-};
+    hidden?: boolean;
+}
 
 // TODO(Louise): move this somewhere else
-export function exportUsage<T extends object>(chartData: T[] | undefined, headers: ExportHeader<T>[], projectTitle: string | undefined): void {
+export function exportUsage<T extends object>(
+    chartData: T[] | undefined,
+    headers: ExportHeader<T>[],
+    projectTitle: string | undefined,
+    opts?: {
+        formats?: ("json" | "csv")[];
+        fileName?: string;
+        csvData?: any[];
+    }
+): void {
     if (!chartData?.length) {
         snackbarStore.addFailure("No data to export found", false);
         return;
     }
 
-    dialogStore.addDialog(<UsageExport chartData={chartData} headers={headers} projectTitle={projectTitle} />, () => {}, true, slimModalStyle);
+    dialogStore.addDialog(
+        <UsageExport chartData={chartData} headers={headers} projectTitle={projectTitle}
+                     formats={opts?.formats} fileName={opts?.fileName} csvData={opts?.csvData} />,
+        doNothing,
+        true,
+        slimModalStyle
+    );
 }
 
-function UsageExport<T extends object>({chartData, headers, projectTitle}: {chartData: T[]; headers: ExportHeader<T>[]; projectTitle?: string}): React.ReactNode {
+function UsageExport<T extends object>(
+    opts: {
+        chartData: T[];
+        headers: ExportHeader<T>[];
+        projectTitle?: string;
+        formats?: ("json" | "csv")[];
+        fileName?: string;
+        csvData?: any[],
+    }
+): React.ReactNode {
+    const {chartData, headers, projectTitle, fileName, csvData} = opts;
+    const formats = opts.formats ?? ["csv", "json"];
     const [checked, setChecked] = useState(headers.map(it => it.defaultChecked));
 
     const startExport = useCallback((format: "json" | "csv") => {
-        doExport(chartData, headers.filter((_, idx) => checked[idx]), ';', format, projectTitle);
+        doExport(format === "csv" ? csvData ?? chartData : chartData,
+            headers.filter((_, idx) => checked[idx]), ';', format, projectTitle, fileName);
         dialogStore.success();
     }, [checked]);
 
     return <Box>
-        <h2>Export which usage data rows?</h2>
+        <h2>Configure your export</h2>
         <Box mt="12px" mb="36px">
-            {headers.map((h, i) =>
+            {headers.map((h, i) => h.hidden ? null :
                 <Label key={h.value} my="4px" style={{display: "flex"}}>
                     <Toggle height={20} checked={checked[i]} onChange={prevValue => {
                         setChecked(ch => {
                             ch[i] = !prevValue
                             return [...ch];
                         })
-                    }} />
+                    }}/>
                     <Text ml="8px">{h.value}</Text>
                 </Label>
             )}
         </Box>
-        <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"} gap={"8px"}>
+        <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
+              gap={"8px"}>
             <Button onClick={() => dialogStore.failure()} color="errorMain">Cancel</Button>
-            <Button onClick={() => startExport("json")} color="successMain">Export JSON</Button>
-            <Button onClick={() => startExport("csv")} color="successMain">Export CSV</Button>
+            {formats?.indexOf("json") !== -1 ? <Button onClick={() => startExport("json")} color="successMain">Export JSON</Button> : null}
+            {formats?.indexOf("csv") !== -1 ? <Button onClick={() => startExport("csv")} color="successMain">Export CSV</Button> : null}
         </Flex>
     </Box>
 
-    function doExport<T extends object>(chartData: T[], headers: ExportHeader<T>[], delimiter: string, format: "json" | "csv", projectTitle?: string) {
+    function doExport(
+        chartData: any[],
+        headers: ExportHeader<T>[],
+        delimiter: string,
+        format: "json" | "csv",
+        projectTitle?: string,
+        fileName?: string,
+    ) {
         let text = "";
         switch (format) {
             case "csv": {
-
                 text = headers.map(it => it.value).join(delimiter) + "\n";
 
                 for (const el of chartData) {
                     for (const [idx, header] of headers.entries()) {
-                        text += `"${el[header.key]}"`;
+                        let val = `${el[header.key]}`;
+                        if (val === "undefined" || val === "null") val = "";
+                        text += `"${val}"`;
                         if (idx !== headers.length - 1) text += delimiter;
                     }
                     text += "\n";
                 }
 
                 break;
-            };
+            }
+
             case "json": {
                 const h = headers.map(it => it.key);
                 const data: T[] = JSON.parse(JSON.stringify(chartData));
@@ -170,7 +214,9 @@ function UsageExport<T extends object>({chartData, headers, projectTitle}: {char
 
         const a = document.createElement("a");
         a.href = "data:text/plain;charset=utf-8," + encodeURIComponent(text);
-        a.download = `${Config.PRODUCT_NAME} - ${projectTitle ? projectTitle : "My workspace"} - ${formatDate(new Date(), DATE_FORMAT)}.${format}`;
+        a.download = fileName ?
+            `${fileName}.${format}` :
+            `${Config.PRODUCT_NAME} - ${projectTitle ? projectTitle : "My workspace"} - ${formatDate(new Date(), DATE_FORMAT)}.${format}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -179,18 +225,18 @@ function UsageExport<T extends object>({chartData, headers, projectTitle}: {char
 
 
 type Period =
-    | {type: "relative", distance: number, unit: "day" | "month"}
-    | {type: "absolute", start: number, end: number}
+    | { type: "relative", distance: number, unit: "day" | "month" }
+    | { type: "absolute", start: number, end: number }
     ;
 
 // State reducer
 // =====================================================================================================================
 type UIAction =
-    | {type: "LoadCharts", charts: ChartsAPI}
-    | {type: "UpdateSelectedPeriod", period: Period}
-    | {type: "UpdateRequestsInFlight", delta: number}
-    | {type: "UpdateActiveUnit", unit: string}
-    | {type: "SetActiveBreakdown", projectId: string}
+    | { type: "LoadCharts", charts: ChartsAPI }
+    | { type: "UpdateSelectedPeriod", period: Period }
+    | { type: "UpdateRequestsInFlight", delta: number }
+    | { type: "UpdateActiveUnit", unit: string }
+    | { type: "SetActiveBreakdown", projectId: string }
     ;
 
 function stateReducer(state: State, action: UIAction): State {
@@ -388,7 +434,7 @@ function stateReducer(state: State, action: UIAction): State {
 // =====================================================================================================================
 type UIEvent =
     UIAction
-    | {type: "Init", period?: Period}
+    | { type: "Init", period?: Period }
     ;
 
 function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (event: UIEvent) => unknown {
@@ -441,7 +487,7 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
 // =====================================================================================================================
 function Visualization(): React.ReactNode {
     if (hasFeature(Feature.CORE2)) {
-        return <UsageCore2 />;
+        return <UsageCore2/>;
     }
 
     const project = useProject();
@@ -548,38 +594,40 @@ function Visualization(): React.ReactNode {
             <header>
                 <h3 className="title" style={{marginTop: "auto", marginBottom: "auto"}}>Resource usage</h3>
                 <div className="duration-select">
-                    <PeriodSelector value={state.selectedPeriod} onChange={setPeriod} />
+                    <PeriodSelector value={state.selectedPeriod} onChange={setPeriod}/>
                 </div>
-                <div style={{flexGrow: "1"}} />
-                <ProjectSwitcher />
+                <div style={{flexGrow: "1"}}/>
+                <ProjectSwitcher/>
             </header>
 
             <div style={{padding: "13px 16px 16px 16px", zIndex: -1}}>
                 {!state.remoteData.chartData && state.remoteData.requestsInFlight || isAnyLoading ? <>
-                    <HexSpin size={64} />
+                    <HexSpin size={64}/>
                 </> : null}
 
-                {hasNoMeaningfulData ? <NoData loading={isAnyLoading} productType={activeCategory?.productType} /> : null}
+                {hasNoMeaningfulData ?
+                    <NoData loading={isAnyLoading} productType={activeCategory?.productType}/> : null}
 
                 {!hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <Box pb={32}>
                     {isAnyLoading ? null :
-                        state.activeDashboard == null ? null : unitsForRichSelect.length === 0 ? <div>No data available</div> : <>
-                            <RichSelect
-                                items={unitsForRichSelect}
-                                keys={["unit"]}
-                                RenderRow={RenderUnitSelector}
-                                RenderSelected={RenderUnitSelector}
-                                onSelect={el => setActiveUnit(el.unit)}
-                                fullWidth
-                                selected={({unit: state.activeDashboard.activeUnit})}
-                            />
-                        </>}
+                        state.activeDashboard == null ? null : unitsForRichSelect.length === 0 ?
+                            <div>No data available</div> : <>
+                                <RichSelect
+                                    items={unitsForRichSelect}
+                                    keys={["unit"]}
+                                    RenderRow={RenderUnitSelector}
+                                    RenderSelected={RenderUnitSelector}
+                                    onSelect={el => setActiveUnit(el.unit)}
+                                    fullWidth
+                                    selected={({unit: state.activeDashboard.activeUnit})}
+                                />
+                            </>}
                 </Box>}
 
                 {state.activeDashboard ?
                     <div className={PanelGrid.class}>
                         {state.activeDashboard.activeUnit === JOBS_UNIT_NAME ? <>
-                            <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.usagePerUser} />
+                            <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.usagePerUser}/>
                         </> : <>
                             {hasFeature(Feature.ALTERNATIVE_USAGE_SELECTOR) ? null : <>
                                 <CategoryDescriptorPanel
@@ -595,7 +643,7 @@ function Visualization(): React.ReactNode {
                                 isLoading={isAnyLoading}
                                 unit={state.activeDashboard.activeUnit}
                                 period={state.selectedPeriod}
-                                charts={state.activeDashboard.breakdownByProject} />
+                                charts={state.activeDashboard.breakdownByProject}/>
                             <UsageOverTimePanel
                                 unit={state.activeDashboard.activeUnit}
                                 period={state.selectedPeriod}
@@ -621,11 +669,13 @@ const NoDataClass = injectStyle("no-data", k => `
     }
 `);
 
-function NoData({productType, loading}: {loading: boolean; productType?: Accounting.ProductArea;}): React.ReactNode {
+function NoData({productType, loading}: { loading: boolean; productType?: Accounting.ProductArea; }): React.ReactNode {
     if (loading) return null;
-    return <Flex mx="auto" my="auto" flexDirection="column" alignItems="center" justifyContent="center" width="400px" height="400px">
+    return <Flex mx="auto" my="auto" flexDirection="column" alignItems="center" justifyContent="center" width="400px"
+                 height="400px">
         <div className={NoDataClass}>
-            <Icon name={Accounting.productTypeToIcon(productType ?? "STORAGE")} color2="primaryContrast" color="primaryContrast" size={60} />
+            <Icon name={Accounting.productTypeToIcon(productType ?? "STORAGE")} color2="primaryContrast"
+                  color="primaryContrast" size={60}/>
         </div>
         <Text mt="16px" fontSize={16}>No usage data found!</Text>
     </Flex>;
@@ -822,12 +872,13 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
     const now = timestampUnixMs();
     const isCompute = props.category.productType === "COMPUTE";
     const description = Accounting.guesstimateProductCategoryDescription(props.category.name, props.category.provider);
-    return <div className={classConcat(CardClass, CategoryDescriptorPanelStyle, isCompute ? HasAlotOfInfoClass.class : undefined)}>
+    return <div
+        className={classConcat(CardClass, CategoryDescriptorPanelStyle, isCompute ? HasAlotOfInfoClass.class : undefined)}>
         <div className={"figure-and-title"}>
             <figure>
-                <Icon name={Accounting.productTypeToIcon(props.category.productType)} size={128} />
+                <Icon name={Accounting.productTypeToIcon(props.category.productType)} size={128}/>
                 <div style={{position: "relative"}}>
-                    <ProviderLogo providerId={props.category.provider} size={32} />
+                    <ProviderLogo providerId={props.category.provider} size={32}/>
                 </div>
             </figure>
             <h1><code>{props.category.name}</code></h1>
@@ -916,7 +967,11 @@ const UsageBreakdownPanel: React.FunctionComponent<{
 
     const dataPoints = useMemo(() => {
         chartIdRef.current += 1;
-        const unsorted = fullyMergedChart.dataPoints.map(it => ({key: it.title, value: it.usage, nameAndProvider: it.nameAndProvider})) ?? [];
+        const unsorted = fullyMergedChart.dataPoints.map(it => ({
+            key: it.title,
+            value: it.usage,
+            nameAndProvider: it.nameAndProvider
+        })) ?? [];
         return unsorted.sort((a, b) => a.value - b.value);
     }, [props.charts]);
 
@@ -950,7 +1005,7 @@ const UsageBreakdownPanel: React.FunctionComponent<{
 
     const sorted = useSorting(filteredDataPoints, "value", "asc", true);
 
-    const updateSelectedBreakdown = React.useCallback((dataPoint: {key: string}) => {
+    const updateSelectedBreakdown = React.useCallback((dataPoint: { key: string }) => {
         props.setBreakdown(dataPoint.key);
     }, []);
 
@@ -987,9 +1042,9 @@ const UsageBreakdownPanel: React.FunctionComponent<{
 
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
         <div className={PanelTitle.class}>
-            <div>Usage breakdown by sub-projects </div>
+            <div>Usage breakdown by sub-projects</div>
             <TooltipV2 tooltip={"Click on a project name to view more detailed usage"}>
-                <Icon name={"heroQuestionMarkCircle"} />
+                <Icon name={"heroQuestionMarkCircle"}/>
             </TooltipV2>
             <Button onClick={startExport}>
                 Export
@@ -1001,37 +1056,41 @@ const UsageBreakdownPanel: React.FunctionComponent<{
         </> : null}
 
         <div className={ChartAndTable}>
-            {datapointSum === 0 ? null : <div key={UsageBreakdownChartId + chartIdRef.current} className={PieWrapper.class}>
-                <PieChart chartId={UsageBreakdownChartId + chartIdRef.current} dataPoints={dataPoints} valueFormatter={formatter} onDataPointSelection={updateSelectedBreakdown} />
-            </div>}
+            {datapointSum === 0 ? null :
+                <div key={UsageBreakdownChartId + chartIdRef.current} className={PieWrapper.class}>
+                    <PieChart chartId={UsageBreakdownChartId + chartIdRef.current} dataPoints={dataPoints}
+                              valueFormatter={formatter} onDataPointSelection={updateSelectedBreakdown}/>
+                </div>}
             {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected */}
             {dataPoints.length === 0 ? "No usage data found" :
                 <div className={TableWrapper.class}>
                     <table>
                         <thead>
-                            <tr>
-                                <SortTableHeader width="30%" sortKey={"key"} sorted={sorted}>Project</SortTableHeader>
-                                {selectedBreakdown ? <SortTableHeader width="40%" sortKey={"nameAndProvider"} sorted={sorted}>Name - Provider</SortTableHeader> : null}
-                                <SortTableHeader width="30%" sortKey={"value"} sorted={sorted}>Usage</SortTableHeader>
-                            </tr>
+                        <tr>
+                            <SortTableHeader width="30%" sortKey={"key"} sorted={sorted}>Project</SortTableHeader>
+                            {selectedBreakdown ?
+                                <SortTableHeader width="40%" sortKey={"nameAndProvider"} sorted={sorted}>Name -
+                                    Provider</SortTableHeader> : null}
+                            <SortTableHeader width="30%" sortKey={"value"} sorted={sorted}>Usage</SortTableHeader>
+                        </tr>
                         </thead>
                         <tbody>
-                            {sorted.data.map((point, idx) => {
-                                const usage = point.value;
-                                const [name, provider] = point.nameAndProvider ? point.nameAndProvider.split("/") : ["", ""];
-                                return <tr key={idx} style={{cursor: "pointer"}}>
-                                    <td title={point.key} onClick={() => {
-                                        const chart = ApexCharts.getChartByID(UsageBreakdownChartId + chartIdRef.current);
-                                        const labels: string[] = chart?.["opts"]["labels"] ?? [];
-                                        const idx = labels.findIndex(it => it === point.key);
-                                        if (idx !== -1 && chart) {
-                                            chart.toggleDataPointSelection(idx);
-                                        }
-                                    }}><Truncate maxWidth={"250px"}>{point.key}</Truncate></td>
-                                    {name && provider ? <td>{name} - {getShortProviderTitle(provider)}</td> : null}
-                                    <td>{Accounting.addThousandSeparators(Math.round(usage))} {props.unit}</td>
-                                </tr>
-                            })}
+                        {sorted.data.map((point, idx) => {
+                            const usage = point.value;
+                            const [name, provider] = point.nameAndProvider ? point.nameAndProvider.split("/") : ["", ""];
+                            return <tr key={idx} style={{cursor: "pointer"}}>
+                                <td title={point.key} onClick={() => {
+                                    const chart = ApexCharts.getChartByID(UsageBreakdownChartId + chartIdRef.current);
+                                    const labels: string[] = chart?.["opts"]["labels"] ?? [];
+                                    const idx = labels.findIndex(it => it === point.key);
+                                    if (idx !== -1 && chart) {
+                                        chart.toggleDataPointSelection(idx);
+                                    }
+                                }}><Truncate maxWidth={"250px"}>{point.key}</Truncate></td>
+                                {name && provider ? <td>{name} - {getShortProviderTitle(provider)}</td> : null}
+                                <td>{Accounting.addThousandSeparators(Math.round(usage))} {props.unit}</td>
+                            </tr>
+                        })}
                         </tbody>
                     </table>
                 </div>
@@ -1055,16 +1114,19 @@ function thStyling(isBold: boolean, width: string): CSSProperties | undefined {
 }
 
 type PercentageWidth = `${number}%` | `${number}px`;
+
 function SortTableHeader<DataType>({sortKey, sorted, children, width}: React.PropsWithChildren<{
     sortKey: keyof DataType; sorted: ReturnType<typeof useSorting<DataType>>; width: PercentageWidth;
 }>) {
     const isActive = sortKey === sorted.sortByKey;
     return <th style={thStyling(isActive, width)} onClick={() => sorted.doSortBy(sortKey)}>
-        <Flex>{children} {isActive ? <Icon ml="auto" my="auto" name="heroChevronDown" rotation={sorted.sortOrder === "asc" ? 180 : 0} /> : null}</Flex>
+        <Flex>{children} {isActive ? <Icon ml="auto" my="auto" name="heroChevronDown"
+                                           rotation={sorted.sortOrder === "asc" ? 180 : 0}/> : null}</Flex>
     </th>
 }
 
 type SortOrder = "asc" | "desc";
+
 function useSorting<DataType>(originalData: DataType[], sortByKey: keyof DataType, initialSortOrder?: SortOrder, sortOnDataChange?: boolean): {
     data: DataType[];
     sortOrder: SortOrder;
@@ -1115,7 +1177,7 @@ function useSorting<DataType>(originalData: DataType[], sortByKey: keyof DataTyp
 
 }
 
-const DurationOfSeconds: React.FunctionComponent<{duration: number}> = ({duration}) => {
+const DurationOfSeconds: React.FunctionComponent<{ duration: number }> = ({duration}) => {
     if (duration > 3600) {
         const hours = Math.floor(duration / 3600);
         const minutes = Math.floor((duration % 3600) / 60);
@@ -1189,7 +1251,7 @@ const UsageOverTimePanel: React.FunctionComponent<{
 }> = ({charts, isLoading, ...props}) => {
 
     const chartCounter = useRef(0); // looks like apex charts has a rendering bug if the component isn't completely thrown out
-    const [chartEntries, updateChartEntries] = useState<{name: string; shown: boolean;}[]>([]);
+    const [chartEntries, updateChartEntries] = useState<{ name: string; shown: boolean; }[]>([]);
     const ChartID = "UsageOverTime";
 
     const exportRef = React.useRef(noopCall);
@@ -1260,7 +1322,8 @@ const UsageOverTimePanel: React.FunctionComponent<{
                 <Box>
                     <div>Usage over time</div>
                     <Label style={{display: "flex", marginTop: "6px", fontSize: "14px", gap: "8px"}} width="250px">
-                        <Toggle checked={showingQuota} height={20} onChange={(prevValue: boolean) => toggleQuotaShown(!prevValue)} />
+                        <Toggle checked={showingQuota} height={20}
+                                onChange={(prevValue: boolean) => toggleQuotaShown(!prevValue)}/>
                         With quotas
                     </Label>
                 </Box>
@@ -1270,17 +1333,19 @@ const UsageOverTimePanel: React.FunctionComponent<{
 
         {!anyData ? <Text>No usage data found</Text> : (
             <div className={ChartAndTable}>
-                <DynamicallySizedChart key={ChartID + chartCounter.current} chart={chartProps} />
-                <DifferenceTable chartId={ChartID + chartCounter.current} unit={props.unit} charts={charts} updateShownEntries={toggleShownEntries} chartEntries={chartEntries} exportRef={exportRef} />
+                <DynamicallySizedChart key={ChartID + chartCounter.current} chart={chartProps}/>
+                <DifferenceTable chartId={ChartID + chartCounter.current} unit={props.unit} charts={charts}
+                                 updateShownEntries={toggleShownEntries} chartEntries={chartEntries}
+                                 exportRef={exportRef}/>
             </div>
         )}
-    </div >;
+    </div>;
 };
 
 function DifferenceTable({charts, chartEntries, exportRef, chartId, updateShownEntries, ...props}: {
     updateShownEntries: (args: boolean | string[]) => void;
     charts: UsageChart[];
-    chartEntries: {name: string; shown: boolean;}[];
+    chartEntries: { name: string; shown: boolean; }[];
     exportRef: React.RefObject<() => void>;
     chartId: string;
     unit: string;
@@ -1293,7 +1358,7 @@ function DifferenceTable({charts, chartEntries, exportRef, chartId, updateShownE
     }, [charts, chartEntries]);
 
     const tableContent = React.useMemo(() => {
-        const result: {name: string; timestamp: number; usage: number; quota: number}[] = [];
+        const result: { name: string; timestamp: number; usage: number; quota: number }[] = [];
         for (const chart of shownProducts) {
             for (let idx = 0; idx < chart.dataPoints.length; idx++) {
                 const point = chart.dataPoints[idx];
@@ -1329,24 +1394,24 @@ function DifferenceTable({charts, chartEntries, exportRef, chartId, updateShownE
     return <div className={TableWrapper.class}>
         <table>
             <thead>
-                <tr>
-                    <SortTableHeader width="30%" sortKey="name" sorted={sorted}>Name</SortTableHeader>
-                    <SortTableHeader width="160px" sortKey="timestamp" sorted={sorted}>Timestamp</SortTableHeader>
-                    <SortTableHeader width="40%" sortKey="usage" sorted={sorted}>Usage / Quota</SortTableHeader>
-                </tr>
+            <tr>
+                <SortTableHeader width="30%" sortKey="name" sorted={sorted}>Name</SortTableHeader>
+                <SortTableHeader width="160px" sortKey="timestamp" sorted={sorted}>Timestamp</SortTableHeader>
+                <SortTableHeader width="40%" sortKey="usage" sorted={sorted}>Usage / Quota</SortTableHeader>
+            </tr>
             </thead>
             <tbody>
-                {sorted.data.map((point, idx, items) => {
-                    if (!shownProductNames.includes(point.name)) return null;
-                    const matchesNextEntry = items[idx + 1]?.name === point.name;
-                    const change = matchesNextEntry ? point.usage - (items[idx + 1]?.usage ?? 0) : 0;
-                    if (change === 0 && matchesNextEntry) return null;
-                    return <tr key={idx} style={{cursor: "pointer"}}>
-                        <td onClick={() => toggleChart(point.name)}>{point.name}</td>
-                        <td>{dateToString(point.timestamp)}</td>
-                        <td style={{whiteSpace: "pre"}}>{Accounting.formatUsageAndQuota(point.usage, point.quota, props.unit === "GB", props.unit, {precision: 2})}</td>
-                    </tr>;
-                })}
+            {sorted.data.map((point, idx, items) => {
+                if (!shownProductNames.includes(point.name)) return null;
+                const matchesNextEntry = items[idx + 1]?.name === point.name;
+                const change = matchesNextEntry ? point.usage - (items[idx + 1]?.usage ?? 0) : 0;
+                if (change === 0 && matchesNextEntry) return null;
+                return <tr key={idx} style={{cursor: "pointer"}}>
+                    <td onClick={() => toggleChart(point.name)}>{point.name}</td>
+                    <td>{dateToString(point.timestamp)}</td>
+                    <td style={{whiteSpace: "pre"}}>{Accounting.formatUsageAndQuota(point.usage, point.quota, props.unit === "GB", props.unit, {precision: 2})}</td>
+                </tr>;
+            })}
             </tbody>
         </table>
     </div>
@@ -1369,7 +1434,7 @@ const LargeJobsStyle = injectStyle("large-jobs", k => `
     }
 `);
 
-const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: UsagePerUser}> = ({loading, data}) => {
+const UsageByUsers: React.FunctionComponent<{ loading: boolean, data?: UsagePerUser }> = ({loading, data}) => {
     const dataPoints = useMemo(() => {
         return data?.dataPoints ?? [];
     }, [data?.dataPoints]);
@@ -1387,7 +1452,10 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: UsagePerUs
         );
     }, [dataPoints, project]);
 
-    const pied = dataPoints.map(s => ({key: s.username + " - " + s.category.name + "(" + getShortProviderTitle(s.category.provider) + ")", value: s.usage}));
+    const pied = dataPoints.map(s => ({
+        key: s.username + " - " + s.category.name + "(" + getShortProviderTitle(s.category.provider) + ")",
+        value: s.usage
+    }));
 
     return <div className={classConcat(CardClass, PanelClass, LargeJobsStyle)}>
         <Flex>
@@ -1400,38 +1468,39 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: UsagePerUs
         </Flex>
 
         {data !== undefined && dataPoints.length !== 0 ? <>
-            <PieChart chartId="UsageByUsers" dataPoints={pied} valueFormatter={formatter} onDataPointSelection={() => {}} />
+            <PieChart chartId="UsageByUsers" dataPoints={pied} valueFormatter={formatter} onDataPointSelection={() => {
+            }}/>
 
             <div className={TableWrapper.class}>
                 <table>
                     <thead>
-                        <tr>
-                            <th style={thStyling(false, "50%")}>Username</th>
-                            <th style={thStyling(false, "25%")} align={"right"}>Product category (Provider)</th>
-                            <th style={thStyling(false, "25%")}>
-                                <Flex>
-                                    Estimated usage
-                                    <Box width={"8px"} />
-                                    <TooltipV2
-                                        tooltip={"This is an estimate based on the values stored in UCloud. Actual usage reported by the provider may differ from the numbers shown here."}>
-                                        <Icon name={"heroQuestionMarkCircle"} />
-                                    </TooltipV2>
-                                </Flex>
-                            </th>
-                        </tr>
+                    <tr>
+                        <th style={thStyling(false, "50%")}>Username</th>
+                        <th style={thStyling(false, "25%")} align={"right"}>Product category (Provider)</th>
+                        <th style={thStyling(false, "25%")}>
+                            <Flex>
+                                Estimated usage
+                                <Box width={"8px"}/>
+                                <TooltipV2
+                                    tooltip={"This is an estimate based on the values stored in UCloud. Actual usage reported by the provider may differ from the numbers shown here."}>
+                                    <Icon name={"heroQuestionMarkCircle"}/>
+                                </TooltipV2>
+                            </Flex>
+                        </th>
+                    </tr>
                     </thead>
                     <tbody>
-                        {data.dataPoints.map(it =>
-                            <tr key={it.username + " - " + it.category.name + " (" + getShortProviderTitle(it.category.provider) + ")"}>
-                                <td>{it.username}</td>
-                                <td>{it.category.name + " (" + getShortProviderTitle(it.category.provider) + ")"}</td>
-                                <td>{Accounting.addThousandSeparators(it.usage.toFixed(0))} {explainUnit(it.category).name}</td>
-                            </tr>)
-                        }
+                    {data.dataPoints.map(it =>
+                        <tr key={it.username + " - " + it.category.name + " (" + getShortProviderTitle(it.category.provider) + ")"}>
+                            <td>{it.username}</td>
+                            <td>{it.category.name + " (" + getShortProviderTitle(it.category.provider) + ")"}</td>
+                            <td>{Accounting.addThousandSeparators(it.usage.toFixed(0))} {explainUnit(it.category).name}</td>
+                        </tr>)
+                    }
                     </tbody>
                 </table>
             </div>
-        </> : loading ? <HexSpin size={32} /> : "No usage data found"}
+        </> : loading ? <HexSpin size={32}/> : "No usage data found"}
     </div>;
 };
 
@@ -1439,9 +1508,9 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: UsagePerUs
 // =====================================================================================================================
 
 const PieChart: React.FunctionComponent<{
-    dataPoints: {key: string, value: number}[],
+    dataPoints: { key: string, value: number }[],
     valueFormatter: (value: number) => string,
-    onDataPointSelection: (dataPointIndex: {key: string; value: number;}) => void;
+    onDataPointSelection: (dataPointIndex: { key: string; value: number; }) => void;
     chartId: string;
 }> = props => {
     const otherKeys = React.useRef<string[]>([]);
@@ -1538,11 +1607,11 @@ const PieChart: React.FunctionComponent<{
         return chartProps;
     }, [series, props.chartId]);
 
-    return <DynamicallySizedChart chart={chartProps} />;
+    return <DynamicallySizedChart chart={chartProps}/>;
 };
 
 interface BreakdownChart {
-    dataPoints: {projectId?: string | null, title: string, usage: number}[];
+    dataPoints: { projectId?: string | null, title: string, usage: number }[];
     nameAndProvider: string;
 }
 
@@ -1562,7 +1631,7 @@ const emptyUsagePerUserList: UsagePerUser = {
 interface UsageChart {
     name: string;
     provider: string;
-    dataPoints: {timestamp: number, usage: number, quota: number}[];
+    dataPoints: { timestamp: number, usage: number, quota: number }[];
 }
 
 const emptyChart: UsageChart = {
@@ -1599,7 +1668,7 @@ function quotaSeriesFromDataPoints(chart: UsageChart): ApexAxisChartSeries[0] {
 
 function usageChartsToChart(
     charts: UsageChart[],
-    chartRef: React.RefObject<{name: string; shown: boolean;}[]>,
+    chartRef: React.RefObject<{ name: string; shown: boolean; }[]>,
     chartOptions: {
         valueFormatter?: (value: number) => string;
         removeDetails?: boolean;
@@ -1729,7 +1798,10 @@ function usageChartsToChart(
     return result;
 }
 
-function toggleSeriesEntry(chart: ApexCharts | undefined, seriesName: string, chartsRef: React.RefObject<{name: string; shown: boolean;}[]>, toggleShown?: (val: boolean | string[]) => void) {
+function toggleSeriesEntry(chart: ApexCharts | undefined, seriesName: string, chartsRef: React.RefObject<{
+    name: string;
+    shown: boolean;
+}[]>, toggleShown?: (val: boolean | string[]) => void) {
     /* TODO(Jonas): Handle when quota is shown. */
     if (chart != null) {
         const allShown = chartsRef.current.every(it => it.shown);
@@ -1776,23 +1848,27 @@ function toggleSeriesEntry(chart: ApexCharts | undefined, seriesName: string, ch
     }
 }
 
-const RenderUnitSelector: RichSelectChildComponent<{unit: string}> = ({element, onSelect, dataProps}) => {
+const RenderUnitSelector: RichSelectChildComponent<{ unit: string }> = ({element, onSelect, dataProps}) => {
     if (element === undefined) {
         return <Flex height={40} alignItems={"center"} pl={12}>No unit selected</Flex>
     }
 
     const unit = element.unit;
-    return <Flex gap={"16px"} height="40px" {...dataProps} alignItems={"center"} py={4} px={8} mr={48} onClick={onSelect}>
-        <Icon name={toIcon(unit)} />
+    return <Flex gap={"16px"} height="40px" {...dataProps} alignItems={"center"} py={4} px={8} mr={48}
+                 onClick={onSelect}>
+        <Icon name={toIcon(unit)}/>
         <div><b>{unitTitle(unit)}</b></div>
     </Flex>;
 }
 
 function unitTitle(unit: string) {
     switch (unit) {
-        case JOBS_UNIT_NAME: return JOBS_UNIT_NAME;
-        case "DKK": return "Usage in " + unit;
-        default: return unit + " usage";
+        case JOBS_UNIT_NAME:
+            return JOBS_UNIT_NAME;
+        case "DKK":
+            return "Usage in " + unit;
+        default:
+            return unit + " usage";
     }
 }
 
@@ -2074,7 +2150,7 @@ const PeriodSelector: React.FunctionComponent<{
         trigger={
             <div className={PeriodStyle}>
                 <div style={{width: "182px"}}>{periodToString(props.value)}</div>
-                <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
+                <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px"/>
             </div>
         }
     >
@@ -2088,11 +2164,11 @@ const PeriodSelector: React.FunctionComponent<{
 
                     <label>
                         From
-                        <Input className={"start"} onChange={onChange} type={"date"} value={formatTs(start)} />
+                        <Input className={"start"} onChange={onChange} type={"date"} value={formatTs(start)}/>
                     </label>
                     <label>
                         To
-                        <Input className={"end"} onChange={onChange} type={"date"} value={formatTs(end)} />
+                        <Input className={"end"} onChange={onChange} type={"date"} value={formatTs(end)}/>
                     </label>
 
                     <Button mt="8px" type="submit">Apply</Button>
@@ -2103,26 +2179,26 @@ const PeriodSelector: React.FunctionComponent<{
                 <b>Relative time range</b>
 
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                    data-relative={"7"}>Last 7 days
+                     data-relative={"7"}>Last 7 days
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                    data-relative={"30"}>Last 30 days
+                     data-relative={"30"}>Last 30 days
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"day"}
-                    data-relative={"90"}>Last 90 days
+                     data-relative={"90"}>Last 90 days
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
-                    data-relative={"6"}>Last 6 months
+                     data-relative={"6"}>Last 6 months
                 </div>
                 <div onClick={onRelativeUpdated} className={"relative"} data-relative-unit={"month"}
-                    data-relative={"12"}>Last 12 months
+                     data-relative={"12"}>Last 12 months
                 </div>
             </div>
         </div>
     </ClickableDropdown>;
 };
 
-function normalizePeriod(period: Period): {start: number, end: number} {
+function normalizePeriod(period: Period): { start: number, end: number } {
     switch (period.type) {
         case "relative": {
             let start = new Date();

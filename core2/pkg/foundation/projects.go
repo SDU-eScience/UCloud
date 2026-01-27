@@ -1197,6 +1197,7 @@ func ProjectCreateInviteLink(actor rpc.Actor) (fndapi.ProjectInviteLink, *util.H
 		Token:          token,
 		Expires:        fndapi.Timestamp(time.Now().Add(30 * 24 * time.Hour)), /* TODO insert code here for variable expiry times for invite links*/
 		RoleAssignment: fndapi.ProjectRoleUser,
+		GroupAssignment: []string{},
 	}
 
 	bucket.InviteLinks[token] = &internalInviteLink{
@@ -1461,6 +1462,8 @@ func projectRetrieveLink(id string) (*internalInviteLink, bool) {
 				if len(link.Link.GroupAssignment) == 1 && link.Link.GroupAssignment[0] == "" {
 					link.Link.GroupAssignment = make([]string, 0)
 				}
+
+				link.Link.GroupAssignment = util.NonNilSlice(link.Link.GroupAssignment)
 			}
 
 			return link, ok

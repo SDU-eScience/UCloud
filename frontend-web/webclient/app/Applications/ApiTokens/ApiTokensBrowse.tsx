@@ -169,7 +169,7 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
 function retrieveOperations(): Operation<Api.ApiToken, StandardCallbacks<Api.ApiToken>>[] {
     return [{
         icon: "heroCircleStack",
-        text: "Add API token",
+        text: "Create API token",
         primary: true,
         enabled: (selected) => selected.length === 0,
         onClick: (selected, cb) => {
