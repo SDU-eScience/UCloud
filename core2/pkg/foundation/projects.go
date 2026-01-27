@@ -1184,7 +1184,7 @@ func ProjectCreateInviteLink(actor rpc.Actor) (fndapi.ProjectInviteLink, *util.H
 			tx,
 			`
 				insert into project.invite_links(token, project_id, expires) 
-				values (:token, :project_id, now() + cast('30 days' as interval)) /* TODO insert code here for variable expiry times for invite links*/
+				values (:token, :project_id, now() + cast('30 days' as interval)) 
 		    `,
 			db.Params{
 				"token":      token,
@@ -1194,9 +1194,9 @@ func ProjectCreateInviteLink(actor rpc.Actor) (fndapi.ProjectInviteLink, *util.H
 	})
 
 	result := fndapi.ProjectInviteLink{
-		Token:          token,
-		Expires:        fndapi.Timestamp(time.Now().Add(30 * 24 * time.Hour)), /* TODO insert code here for variable expiry times for invite links*/
-		RoleAssignment: fndapi.ProjectRoleUser,
+		Token:           token,
+		Expires:         fndapi.Timestamp(time.Now().Add(30 * 24 * time.Hour)),
+		RoleAssignment:  fndapi.ProjectRoleUser,
 		GroupAssignment: []string{},
 	}
 
@@ -1230,7 +1230,7 @@ func ProjectUpdateInviteLink(actor rpc.Actor, request fndapi.ProjectUpdateInvite
 		db.Exec(
 			tx,
 			`
-				delete from project.invite_link_group_assignments
+				delete from project.invite_link_group_assignments 
 				where link_token = :token
 		    `,
 			db.Params{
@@ -1258,12 +1258,13 @@ func ProjectUpdateInviteLink(actor rpc.Actor, request fndapi.ProjectUpdateInvite
 			tx,
 			`
 				update project.invite_links
-				set role_assignment = :assignment
+				set role_assignment = :assignment, expires = coalesce(cast(:expires as timestamptz), expires)
 				where token = :token
 		    `,
 			db.Params{
 				"token":      token,
 				"assignment": request.Role.Normalize(),
+				"expires":    request.Expires.Sql(),
 			},
 		)
 	})
