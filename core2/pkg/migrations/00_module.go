@@ -19,4 +19,5 @@ func Init() {
 	db.AddMigration(newsV1())
 	db.AddMigration(coreV2())
 	db.AddMigration(accountingV4())
+	db.AddMigration(auditPostgresV2())
 }
