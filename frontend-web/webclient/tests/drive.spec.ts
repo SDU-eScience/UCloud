@@ -1,6 +1,7 @@
 import {test, expect} from "@playwright/test";
-import {User, Drive, Project} from "./shared";
+import {User, Drive, Project, Admin, Applications, Accounting, Rows, Components} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
+import {admin} from "@/ui-components/icons";
 
 test.beforeEach(async ({page}) => {
     await User.login(page, data.users.with_resources);
@@ -38,23 +39,52 @@ test("View properties", async ({page}) => {
 });
 
 // Note(Jonas): Won't work without activating a project that you have admin rights to.
-test.skip("Change permissions", async ({page}) => {
-    const driveName = Drive.newDriveName();
-    await Drive.create(page, driveName);
-    await Drive.actionByRowTitle(page, driveName, "click");
-    await Drive.properties(page, driveName);
+test.describe("Drives - check change permissions works", () => {
+    test("check change permissions works", async ({page, context}) => {
+        test.setTimeout(60_000);
+        const resourceUserPage = page; // Already logged in.
+        const noResourceUserPage = await context.browser()?.newPage();
+        if (!noResourceUserPage) throw new Error("Failed to create no resources user page");
 
-    const projectName = Project.newProjectName();
-    await Project.create(page, projectName);
-    await Project.changeTo(page, projectName);
+        const newProjectName = Project.newProjectName();
+        const driveName = Drive.newDriveName();
 
-    await expect(page.locator("input#Write").first()).toBeChecked({checked: false});
-    await page.locator("input#Write").first().click();
-    await expect(page.locator("input#Write").first()).toBeChecked();
-    await page.keyboard.press("Escape");
+        const {GrantApplication} = Accounting;
+        await Accounting.goTo(resourceUserPage, "Apply for resources");
+        await GrantApplication.fillProjectName(resourceUserPage, newProjectName);
+        await GrantApplication.toggleGrantGiver(resourceUserPage, "k8s");
+        await GrantApplication.fillQuotaFields(resourceUserPage, [{field: "GB requested", quota: 1}]);
+        await GrantApplication.fillApplicationTextFields(resourceUserPage, [{name: "Application*", content: "Text description"}]);
+        const id = await GrantApplication.submit(resourceUserPage);
 
-    await Drive.actionByRowTitle(page, driveName, "click");
-    await Drive.properties(page, driveName);
-    await expect(page.locator("input#Write").first()).toBeChecked();
-    await page.keyboard.press("Escape");
+        const adminPage = await Admin.newLoggedInAdminPage(context);
+        await Components.activateProject(adminPage, "Provider K8s");
+        await Accounting.goTo(adminPage, "Grant applications");
+        await adminPage.getByText("Show applications received").click();
+        await Rows.actionByRowTitle(adminPage, `${id}: ${newProjectName}`, "dblclick");
+        await GrantApplication.approve(adminPage);
+
+        await resourceUserPage.getByRole("link", {name: "Go to dashboard"}).click();
+        await Components.activateProject(resourceUserPage, newProjectName);
+        await Accounting.goTo(resourceUserPage, "Members");
+
+        await Accounting.Project.inviteUser(resourceUserPage, data.users.without_resources.username);
+        const groupName = await Accounting.Project.newGroup(resourceUserPage);
+
+        await User.login(noResourceUserPage, data.users.without_resources);
+        await Accounting.Project.acceptProjectInvite(noResourceUserPage, newProjectName);
+
+        await Accounting.Project.addUsersToGroup(resourceUserPage, groupName, [data.users.with_resources.username, data.users.without_resources.username]);
+
+        await Drive.create(resourceUserPage, driveName);
+
+        await Drive.goToDrives(noResourceUserPage);
+        expect(noResourceUserPage.getByText(driveName)).toHaveCount(0);
+
+        await Drive.openPermissions(resourceUserPage, driveName);
+        await resourceUserPage.reload();
+        await resourceUserPage.locator(`div[data-group='${groupName}']`).locator("#Read").click();
+        await Components.activateProject(noResourceUserPage, newProjectName);
+        await noResourceUserPage.getByText(driveName).hover();
+    });
 });

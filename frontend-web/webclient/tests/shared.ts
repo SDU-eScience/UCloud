@@ -1,4 +1,4 @@
-import {expect, type Page} from "@playwright/test";
+import {BrowserContext, expect, type Page} from "@playwright/test";
 import fs from "fs";
 
 // Note(Jonas): If it complains that it doesn"t exist, create it.
@@ -374,9 +374,8 @@ export const Drive = {
         await page.getByRole("button", {name: "I understand what I am doing", disabled: false}).click();
     },
 
-    async permissions(page: Page, name: string): Promise<void> {
-        await Rows.actionByRowTitle(page, name, "click");
-        await page.getByText("Permissions").click();
+    async openPermissions(page: Page, name: string): Promise<void> {
+        await this.properties(page, name);
     },
 
     async properties(page: Page, name: string): Promise<void> {
@@ -392,13 +391,18 @@ export const Components = {
         await loc[action]();
     },
 
+    async activateProject(page: Page, projectTitle: string): Promise<void> {
+        await Components.projectSwitcher(page, "click");
+        await page.getByText(projectTitle, {exact: true}).click();
+    },
+
     async dismissProviderConnect(page: Page): Promise<void> {
         await page.getByText("Snooze").click();
         await page.getByText("Snooze").waitFor({state: "hidden"});
     },
 
     async clickRefreshAndWait(page: Page): Promise<void> {
-        await page.locator(".refresh-icon").click();
+        await page.locator(".refresh-icon, #refresh-icon").click();
     },
 
     async toggleSearch(page: Page): Promise<void> {
@@ -776,6 +780,37 @@ export const Accounting = {
         newProjectName(): string {
             return Help.newResourceName("ProjectTitle");
         },
+
+        newGroupName(): string {
+            return Help.newResourceName("GroupName")
+        },
+
+        async newGroup(page: Page, groupName?: string): Promise<string> {
+            const _groupName = groupName ?? this.newGroupName();
+            await page.getByRole("button", {name: "New group"}).click();
+            await page.getByPlaceholder("New group name...").fill(_groupName);
+            await page.getByRole("button", {name: "Create"}).click();
+            return _groupName;
+        },
+
+        async inviteUser(page: Page, username: string): Promise<void> {
+            await page.getByPlaceholder("Add by username...").fill(username);
+            await page.keyboard.press("Enter");
+        },
+
+        async addUsersToGroup(page: Page, groupName: string, usernames: string[]): Promise<void> {
+            await Components.clickRefreshAndWait(page);
+            // activate group
+            await page.getByRole("link", {name: groupName}).click();
+
+            for (const user of usernames) {
+                await page.locator("div[class^='list-item']", {hasText: user}).locator("div[class^=row-right] button").click()
+            }
+        },
+
+        async acceptProjectInvite(page: Page, projectName: string): Promise<void> {
+            await page.locator(".row", {hasText: projectName}).getByRole('button', {name: "Accept"}).first().click();
+        }
     },
 
     GrantApplication: {
@@ -828,11 +863,17 @@ export const Admin = {
         password: "mypassword"
     },
 
+    async newLoggedInAdminPage(context: BrowserContext): Promise<Page> {
+        const page = await context.browser()?.newPage();
+        if (!page) throw new Error("Failed to create page for admin login");
+        await User.login(page, Admin.AdminUser);
+        await User.dismissAdditionalInfoPrompt(page);
+        return page;
+    },
+
     async acceptGrantApplicationId(page: Page, grantId: string) {
         // Create new page without cookies from existing page
-        const adminPage = await page.context().browser()?.newPage();
-        if (!adminPage) throw Error("Failed to initialize admin page.");
-        await User.login(adminPage, this.AdminUser);
+        const adminPage = await this.newLoggedInAdminPage(page.context());
         await Accounting.goTo(adminPage, "Grant applications");
         await Rows.actionByRowTitle(adminPage, grantId, "dblclick")
     }
