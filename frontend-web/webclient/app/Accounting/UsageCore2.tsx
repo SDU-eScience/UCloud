@@ -28,10 +28,7 @@ import {useBreakdownChart} from "@/Accounting/Diagrams/UsageBreakdown";
 import {useUtilizationOverTimeChart} from "@/Accounting/Diagrams/UtilizationOverTime";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
-import * as Config from "../../site.config.json";
-import {formatDate} from "date-fns";
-import {DATE_FORMAT} from "@/Admin/NewsManagement";
-import {ExportHeader, exportUsage} from "@/Accounting/Usage";
+import {exportUsage} from "@/Accounting/Usage";
 
 interface UsageRetrieveRequest {
     start: number;
@@ -347,6 +344,11 @@ const UsagePage: React.FunctionComponent = () => {
 
     const exportAbsoluteUsageOverTime = useCallback(() => {
         if (!state.openReport) return;
+
+        let workspaceName = project.fetch().specification.title;
+        if (workspaceName === "") workspaceName = "My workspace";
+        workspaceName = workspaceName.toLowerCase().replace(" ", "-");
+
         const abs = state.openReport.usageOverTime.absolute;
         exportUsage(
             abs,
@@ -368,11 +370,19 @@ const UsagePage: React.FunctionComponent = () => {
                 },
             ],
             project.fetch().specification.title,
+            {
+                fileName: `usage-absolute-over-time-${state.openReport.title.toLowerCase()}-${workspaceName}`,
+            }
         )
     }, [state.openReport]);
 
     const exportDeltaOverTime = useCallback(() => {
         if (!state.openReport) return;
+
+        let workspaceName = project.fetch().specification.title;
+        if (workspaceName === "") workspaceName = "My workspace";
+        workspaceName = workspaceName.toLowerCase().replace(" ", "-");
+
         const delta = state.openReport.usageOverTime.delta;
         exportUsage(
             delta,
@@ -394,8 +404,30 @@ const UsagePage: React.FunctionComponent = () => {
                 },
             ],
             project.fetch().specification.title,
+            {
+                fileName: `usage-delta-over-time-${state.openReport.title.toLowerCase()}-${workspaceName}`,
+            }
         )
     }, [state.openReport]);
+
+    const exportAll = useCallback(() => {
+        let workspaceName = project.fetch().specification.title;
+        if (workspaceName === "") workspaceName = "My workspace";
+        workspaceName = workspaceName.toLowerCase().replace(" ", "-");
+
+        exportUsage(
+            [{reports: state.reports, period: state.period}],
+            [
+                { key: "period", value: "Period", defaultChecked: true },
+                { key: "reports", value: "Reports", defaultChecked: true },
+            ],
+            project.fetch().specification.title,
+            {
+                formats: ["json"],
+                fileName: `usage-report-all-${workspaceName}`,
+            }
+        );
+    }, [state.period, state.reports]);
 
     // User-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -762,13 +794,13 @@ const UsagePage: React.FunctionComponent = () => {
             </Flex>
 
             <Box>
-                <Flex gap={"16px"} flexWrap={"wrap"}>
-                    <Box flexBasis={300} flexGrow={1} flexShrink={0}>
+                <Flex gap={"16px"} flexWrap={"wrap"} alignItems={"end"}>
+                    <Box flexBasis={200} flexGrow={1} flexShrink={0}>
                         <div><b>Period</b></div>
                         <PeriodSelector value={state.period} onChange={setPeriod}/>
                     </Box>
 
-                    <Box flexBasis={930} flexShrink={1} flexGrow={3}>
+                    <Box flexBasis={730} flexShrink={1} flexGrow={3}>
                         <div><b>Page</b></div>
                         <RichSelect
                             items={state.reports}
@@ -780,6 +812,12 @@ const UsagePage: React.FunctionComponent = () => {
                             selected={state.openReport}
                         />
                     </Box>
+                    <Flex flexBasis={125} flexShrink={0} flexGrow={0} alignItems={"center"} height={40}>
+                        <Button onClick={exportAll}>
+                            <Icon name={"heroArrowDownTray"} mr={8} />
+                            Export all
+                        </Button>
+                    </Flex>
                 </Flex>
 
                 {normalizePeriod(state.period).start < new Date("2026-01-28").getTime() ||
