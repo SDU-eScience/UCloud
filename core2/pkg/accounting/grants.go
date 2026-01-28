@@ -1069,7 +1069,7 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 
 // Grant Application has unread comments
 // =====================================================================================================================
-// This section handles unread comments are on an application.
+// This section handles unread comments inside applications.
 // Firstly, we record user visits on GrantRetrieve function
 // When GrantApplicationProcess is triggered, we will then compare the last time the user
 // has visited the application with the latest comment of the given application, if the latest comment is greater,
@@ -1077,7 +1077,12 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 func grantUserHasUnreadComments(app *accapi.GrantApplication, username string) {
 	if len(app.Status.Comments) == 0 {
 		app.Status.HasUnreadComments = false
-		return // won't continue checking if there are no comments
+		return
+	}
+
+	appLastVisitedByUserTime := grantRetrieveUserApplicationVisits(app.Id.Value, username)
+	if appLastVisitedByUserTime.IsZero() {
+		return
 	}
 
 	// Getting the latest comment sorted by created at time
@@ -1088,11 +1093,7 @@ func grantUserHasUnreadComments(app *accapi.GrantApplication, username string) {
 		}
 	}
 
-	appLastVisitedByUserTime := grantRetrieveUserApplicationVisits(app.Id.Value, username)
-
-	if !appLastVisitedByUserTime.IsZero() {
-		app.Status.HasUnreadComments = latestCommentTime.After(appLastVisitedByUserTime)
-	}
+	app.Status.HasUnreadComments = latestCommentTime.After(appLastVisitedByUserTime)
 }
 
 func grantRecordUserApplicationVisit(applicationId string, username string) {
