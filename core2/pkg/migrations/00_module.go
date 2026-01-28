@@ -21,4 +21,5 @@ func Init() {
 	db.AddMigration(accountingV4())
 	db.AddMigration(auditPostgresV2())
 	db.AddMigration(authV3())
+	db.AddMigration(grantV1())
 }
