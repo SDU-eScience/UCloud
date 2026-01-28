@@ -1379,14 +1379,7 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	if s.Enabled {
 		b.PublicGrantGivers[string(actor.Project.Value)] = util.Empty{}
 	} else {
-		newPublic := make(map[string]util.Empty)
-		for s2, _ := range b.PublicGrantGivers {
-			if s2 == string(actor.Project.Value) {
-				continue
-			}
-			newPublic[s2] = util.Empty{}
-		}
-		b.PublicGrantGivers = newPublic
+		delete(b.Settings, string(actor.Project.Value))
 	}
 
 	w.Mu.Lock()
