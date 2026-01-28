@@ -1099,11 +1099,6 @@ func ProjectCreateGroupMember(actor rpc.Actor, groupId string, memberToAdd strin
 
 			group.Status.Members = append(group.Status.Members, memberToAdd)
 
-			uinfo := projectRetrieveUserInfo(memberToAdd)
-			uinfo.Mu.Lock()
-			uinfo.Groups[groupId] = iproject.Id
-			uinfo.Mu.Unlock()
-
 			slices.SortFunc(group.Status.Members, func(a, b string) int {
 				return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
 			})
@@ -1162,11 +1157,6 @@ func ProjectDeleteGroupMember(actor rpc.Actor, groupId string, memberToRemove st
 
 			group.Status.Members = util.RemoveAtIndex(group.Status.Members, memberIdx)
 		}
-
-		uinfo := projectRetrieveUserInfo(memberToRemove)
-		uinfo.Mu.Lock()
-		delete(uinfo.Groups, group.Id)
-		uinfo.Mu.Unlock()
 	}
 	iproject.Mu.Unlock()
 	return err
@@ -1204,9 +1194,9 @@ func ProjectCreateInviteLink(actor rpc.Actor) (fndapi.ProjectInviteLink, *util.H
 	})
 
 	result := fndapi.ProjectInviteLink{
-		Token:          token,
-		Expires:        fndapi.Timestamp(time.Now().Add(30 * 24 * time.Hour)), /* TODO insert code here for variable expiry times for invite links*/
-		RoleAssignment: fndapi.ProjectRoleUser,
+		Token:           token,
+		Expires:         fndapi.Timestamp(time.Now().Add(30 * 24 * time.Hour)), /* TODO insert code here for variable expiry times for invite links*/
+		RoleAssignment:  fndapi.ProjectRoleUser,
 		GroupAssignment: []string{},
 	}
 
@@ -1264,6 +1254,11 @@ func ProjectUpdateInviteLink(actor rpc.Actor, request fndapi.ProjectUpdateInvite
 			err = util.HttpErr(http.StatusForbidden, "One or more of the referenced groups do not exist. Try reloading the page.")
 		}
 
+		var normalizedTimestamp util.Option[time.Time]
+		if request.Expires.Present {
+			normalizedTimestamp.Set(request.Expires.Value.Time())
+		}
+
 		db.Exec(
 			tx,
 			`
@@ -1274,13 +1269,16 @@ func ProjectUpdateInviteLink(actor rpc.Actor, request fndapi.ProjectUpdateInvite
 			db.Params{
 				"token":      token,
 				"assignment": request.Role.Normalize(),
-				"expires":    request.Expires.Sql(),
+				"expires":    normalizedTimestamp.Sql(),
 			},
 		)
 	})
 	if err == nil {
 		link.Link.GroupAssignment = request.Groups
 		link.Link.RoleAssignment = request.Role.Normalize()
+		if request.Expires.Present {
+			link.Link.Expires = request.Expires.Value
+		}
 	}
 	link.Mu.Unlock()
 	return err
