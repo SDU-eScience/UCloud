@@ -1,7 +1,8 @@
 import test from "@playwright/test";
-import {Accounting, Admin, Components, NetworkCalls, Rows, User} from "./shared";
+import {Accounting, Admin, Components, Project, Rows, User} from "./shared";
 
-test("Apply for resources, approve (from admin user), veryfy resources are in allocations", async ({page, context}) => {
+
+test("Apply for resources, approve (from admin user), verify resources are in allocations", async ({page, context}) => {
     const adminUserPage = await Admin.newLoggedInAdminPage(context);
     await Components.projectSwitcher(adminUserPage, "click");
     await adminUserPage.getByText("Provider K8s").click();
@@ -37,7 +38,7 @@ test("Apply for resources, approve (from admin user), veryfy resources are in al
 
     await Accounting.goTo(newUserPage, "Allocations");
     await newUserPage.getByText("You do not have any allocations at the moment.").waitFor();
-    await Components.activateProject(newUserPage, projectName);
+    await Project.changeTo(newUserPage, projectName);
 
     await newUserPage.getByText("0K / 1K Core-hours (0%)").first().hover();
     await newUserPage.getByText("0 GB / 1,000 GB (0%)").first().hover();

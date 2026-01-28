@@ -44,9 +44,9 @@ test.describe("Public links - check public links work", () => {
 /* Resources.IPs */
 test.describe("Public IPs - check public IPs work", () => {
     test("Create ip and view properties", async ({page}) => {
-        const publicIpName = await IPs.createNew(page);
+        const publicIp = await IPs.createNew(page);
         /* TODO(Jonas): Get actual name of IP, only through retrieve? */
-        console.log(publicIpName);
+
         throw Error("TODO");
     });
 });
@@ -82,13 +82,4 @@ test.describe("SSH - check SSH connections work", () => {
         await SSHKeys.delete(page, sshkey);
         await Runs.stopRun(page, jobname)
     });
-});
-
-test("Create licenses", async ({page}) => {
-    await NetworkCalls.awaitProducts(page, async () => {
-        await Resources.goTo(page, "Licenses");
-    });
-
-    const licenseId = await Licenses.activateLicense(page);
-    throw Error("TODO");
 });

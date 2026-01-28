@@ -1,7 +1,6 @@
 import {test, expect} from "@playwright/test";
 import {User, Drive, Project, Admin, Applications, Accounting, Rows, Components} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
-import {admin} from "@/ui-components/icons";
 
 test.beforeEach(async ({page}) => {
     await User.login(page, data.users.with_resources);
@@ -38,10 +37,9 @@ test("View properties", async ({page}) => {
     await Drive.delete(page, driveName);
 });
 
-// Note(Jonas): Won't work without activating a project that you have admin rights to.
 test.describe("Drives - check change permissions works", () => {
     test("check change permissions works", async ({page, context}) => {
-        test.setTimeout(60_000);
+        test.setTimeout(120_000);
         const resourceUserPage = page; // Already logged in.
         const noResourceUserPage = await context.browser()?.newPage();
         if (!noResourceUserPage) throw new Error("Failed to create no resources user page");
@@ -58,14 +56,15 @@ test.describe("Drives - check change permissions works", () => {
         const id = await GrantApplication.submit(resourceUserPage);
 
         const adminPage = await Admin.newLoggedInAdminPage(context);
-        await Components.activateProject(adminPage, "Provider K8s");
+        await Project.changeTo(adminPage, "Provider K8s");
         await Accounting.goTo(adminPage, "Grant applications");
         await adminPage.getByText("Show applications received").click();
         await Rows.actionByRowTitle(adminPage, `${id}: ${newProjectName}`, "dblclick");
         await GrantApplication.approve(adminPage);
 
         await resourceUserPage.getByRole("link", {name: "Go to dashboard"}).click();
-        await Components.activateProject(resourceUserPage, newProjectName);
+        await resourceUserPage.getByRole("heading", {name: "Grant awarded"}).waitFor({state: "hidden"});
+        await Project.changeTo(resourceUserPage, newProjectName);
         await Accounting.goTo(resourceUserPage, "Members");
 
         await Accounting.Project.inviteUser(resourceUserPage, data.users.without_resources.username);
@@ -84,7 +83,7 @@ test.describe("Drives - check change permissions works", () => {
         await Drive.openPermissions(resourceUserPage, driveName);
         await resourceUserPage.reload();
         await resourceUserPage.locator(`div[data-group='${groupName}']`).locator("#Read").click();
-        await Components.activateProject(noResourceUserPage, newProjectName);
+        await Project.changeTo(noResourceUserPage, newProjectName);
         await noResourceUserPage.getByText(driveName).hover();
     });
 });

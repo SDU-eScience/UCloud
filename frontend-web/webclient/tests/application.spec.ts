@@ -1,5 +1,5 @@
 import {expect, test, Page} from "@playwright/test";
-import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls, Resources, Accounting, Admin, Rows} from "./shared";
+import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls, Resources, Accounting, Admin, Rows, Project} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 
 test.beforeEach(async ({page}) => {
@@ -128,9 +128,9 @@ test.describe("Compute - check starting jobs works", () => {
             const BashScriptName = "init.sh";
             const BashScriptStringContent = "Visible from the terminal " + ((Math.random() * 100) | 0);
             const FancyBashScript = `
-        #!/usr/bin/env bash
-        echo "${BashScriptStringContent}"
-        `;
+#!/usr/bin/env bash
+echo "${BashScriptStringContent}"
+`;
             const driveName = Drive.newDriveName();
             await Drive.create(page, driveName);
             await Drive.openDrive(page, driveName);
@@ -232,12 +232,11 @@ test.describe("Compute - check starting jobs works", () => {
     });
 
     test.describe("disallow start from locked allocation", () => {
-
         test("Create new user without resources, fail to create drive, apply for resources, be granted resources, run terminal, create large file, trigger accounting, see creation now blocked", async ({context, browser}) => {
             test.setTimeout(240_000);
             const adminPage = await Admin.newLoggedInAdminPage(context);
 
-            await Components.activateProject(adminPage, "Provider K8s");
+            await Project.changeTo(adminPage, "Provider K8s");
             const user = User.newUserCredentials();
             await User.create(adminPage, user);
             const newUserPage = await browser.newPage();
@@ -291,6 +290,5 @@ test.describe("Compute - check starting jobs works", () => {
             // await File.emptyTrash(newUserPage);
             // await runTerminalApp(newUserPage);
         });
-
-    })
+    });
 });

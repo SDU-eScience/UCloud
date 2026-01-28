@@ -76,23 +76,6 @@ export const User = {
     },
 
     async disableNotifications(page: Page): Promise<void> {
-        const emailSettings = [
-            "Application approved",
-            "Application rejected",
-            "Application withdrawn",
-            "New application received",
-            "Status change by other admins",
-            "Transfers from other projects",
-            "New comment in application",
-            "Application has been edited",
-        ];
-
-        for (const setting of emailSettings) {
-            await page.getByText(setting).first().click();
-        }
-
-        await page.getByRole("button", {name: "Update email settings"}).click();
-
         await page.getByText("Job started or stopped").nth(1).click();
         await page.getByRole("button", {name: "Update notification settings"}).click();
     },
@@ -391,11 +374,6 @@ export const Components = {
         await loc[action]();
     },
 
-    async activateProject(page: Page, projectTitle: string): Promise<void> {
-        await Components.projectSwitcher(page, "click");
-        await page.getByText(projectTitle, {exact: true}).click();
-    },
-
     async dismissProviderConnect(page: Page): Promise<void> {
         await page.getByText("Snooze").click();
         await page.getByText("Snooze").waitFor({state: "hidden"});
@@ -586,7 +564,13 @@ export const Runs = {
             await NetworkCalls.awaitResponse(page, "**/api/ingresses/browse?**", async () => {
                 await page.getByPlaceholder("No public link selected").click();
             });
-            await page.getByRole("dialog").locator(".row", {hasText: publicLinkName}).getByRole("button", {name: "Use"}).click();
+            await Components.useDialogBrowserItem(page, publicLinkName);
+        },
+
+        async addPublicIP(page: Page, publicIP: string): Promise<void> {
+            await page.getByRole("button", {name: "Add public IP"}).click();
+            await page.getByPlaceholder("No public IP selected").click();
+            await Components.useDialogBrowserItem(page, publicIP);
         },
 
         async toggleEnableSSHServer(page: Page): Promise<void> {
@@ -601,13 +585,9 @@ export const Project = {
         return Help.newResourceName("ProjectName");
     },
 
-    async changeTo(page: Page, projectName: string): Promise<void> {
+    async changeTo(page: Page, projectTitle: string): Promise<void> {
         await Components.projectSwitcher(page, "click");
-        await page.getByText(projectName).click();
-    },
-
-    async create(page: Page, projectName: string): Promise<void> {
-        throw Error("Not implemented")
+        await page.getByText(projectTitle, {exact: true}).click();
     },
 };
 
@@ -657,17 +637,11 @@ export const Resources = {
 
             await page.getByRole("dialog").getByText("public-ip").hover();
             await this.fillPortRowInDialog(page);
-            const ip = await NetworkCalls.awaitResponse(page, "**/api/networkips", async () => {
+            await NetworkCalls.awaitResponse(page, "**/api/networkips", async () => {
                 await page.getByRole("button", {name: "create", disabled: false}).click();
             });
-            const ipAdress: {
-                responses: [
-                    {
-                        id: string
-                    }
-                ]
-            } = JSON.parse(await ip.text());
-            return ipAdress.responses[0].id;
+            await page.getByRole("dialog").waitFor({state: "hidden"});
+            return await page.locator(".row").nth(1).innerText();
         },
 
         async fillPortRowInDialog(page: Page): Promise<void> {
@@ -677,7 +651,10 @@ export const Resources = {
         },
 
         async delete(page: Page, name: string): Promise<void> {
-            throw Error("Not implemented");
+            await Rows.actionByRowTitle(page, name, "click");
+            await NetworkCalls.awaitResponse(page, "**/api/networkips", async () => {
+                await Components.clickConfirmationButton(page, "Delete");
+            });
         }
     },
 
@@ -844,17 +821,11 @@ export const Accounting = {
         },
 
         async approve(page: Page): Promise<void> {
-            await page.locator(".grant-giver button").nth(1).click({delay: 2000});
+            await NetworkCalls.awaitResponse(page, "**/grants/v2/updateState", async () => {
+                await page.locator(".grant-giver button").nth(1).click({delay: 2000});
+            });
         }
     },
-
-    Usage: {
-        ProductCategoryNames: Object.keys(
-            data.products_by_provider_and_type
-        ).flatMap(provider => Object.keys(data.products_by_provider_and_type[provider]).map(productType =>
-            data.products_by_provider_and_type[provider][productType].category.name
-        ))
-    }
 };
 
 export const Admin = {

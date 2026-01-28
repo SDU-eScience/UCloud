@@ -287,7 +287,7 @@ export const MembersContainer: React.FunctionComponent<{
                                     onSubmit={handleCreateGroup}
                                 >
                                     <Input
-                                        placeholder={"New group name ..."}
+                                        placeholder={"New group name..."}
                                         autoFocus={true}
                                         value={newGroupName}
                                         onChange={(event) => {
@@ -490,8 +490,8 @@ const MemberCard: React.FunctionComponent<{
                             checked height={35}
                             icon={projectRoleToStringIcon(props.member.role)}
                             label={props.member.role} name={props.member.role + props.member.username}
-                            onChange={() => {}}/>
-                         : null}
+                            onChange={() => {}} />
+                            : null}
 
 
                         {amIPI || role === OldProjectRole.PI && !amIUser ?
@@ -620,7 +620,7 @@ const GroupCard: React.FunctionComponent<{
                         text: "Copy ID",
                         icon: "id",
                         enabled: () => Client.userIsAdmin,
-                        onClick: () => copyToClipboard({ value: props.group.id, message: "Copied group ID to clipboard" }),
+                        onClick: () => copyToClipboard({value: props.group.id, message: "Copied group ID to clipboard"}),
                         shortcut: ShortcutKey.C
                     },
                     {

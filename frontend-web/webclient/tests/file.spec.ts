@@ -266,7 +266,7 @@ test.describe("Files - folder sharing works", () => {
         // Ensure share exists
         await File.goToSharedByMe(page);
         await page.getByText(folderToShare, {exact: false}).waitFor({state: "visible"})
-        await page.getByText("1 pending", {exact: false}).waitFor({state: "visible"});
+        await page.getByText("1 pending", {exact: false}).first().waitFor({state: "visible"});
 
         // Open new page and login for user folder is shared with
         const sharedWithUserPage = await browser.newPage();
