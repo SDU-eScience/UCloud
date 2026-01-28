@@ -19,6 +19,7 @@ import {ApiToken, ApiTokenStatus} from "./api";
 import * as Heading from "@/ui-components/Heading";
 import AppRoutes from "@/Routes";
 import Routes from "@/Routes";
+import {getStoredProject} from "@/Project/ReduxState";
 
 const API_TOKEN_TITLE_KEY = "api-title";
 const API_TOKEN_DESCRIPTION_KEY = "api-description";
@@ -33,7 +34,7 @@ function Add() {
 
     const optionsData = options.data.byProvider;
     const serviceProviders = Object.keys(optionsData);
-    const [projectId, setProjectId] = React.useState<string | undefined>();
+    const [projectId, setProjectId] = React.useState<string | undefined>(getStoredProject() ?? undefined);
     const [activePermissions, setActivePermissions] = React.useState(new Set<string>());
     const [tokenStatus, setTokenStatus] = React.useState<ApiTokenStatus | null>(null);
 
@@ -88,7 +89,8 @@ function Add() {
                         id: "",
                         provider: ""
                     },
-                }), projectOverride: provider == null ? projectId : undefined
+                }),
+                projectOverride: provider == null ? projectId ?? "" : undefined
             });
 
             setTokenStatus(result.status);

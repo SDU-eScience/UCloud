@@ -199,7 +199,6 @@ func initIngresses() {
 				if strings.Contains(item.Specification.Domain, request.Query) {
 					return true
 				} else {
-					// TODO More?
 					return false
 				}
 			},

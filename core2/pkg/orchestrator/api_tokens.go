@@ -22,7 +22,7 @@ const apiTokenType = "api_token"
 func initApiTokens() {
 	InitResourceType(
 		apiTokenType,
-		resourceTypeCreateWithoutAdmin, // NOTE(Dan): Tokens are tied to a user in a project, thus this makes sense.
+		resourceTypeCreateWithoutAdmin|resourceTypeCreateAsAllocator, // NOTE(Dan): Tokens are tied to a user in a project, thus this makes sense.
 		apiTokensLoad,
 		apiTokensPersist,
 		apiTokensTransform,
@@ -151,7 +151,7 @@ func ApiTokenBrowse(actor rpc.Actor, request orcapi.ApiTokenBrowseRequest) (fnda
 }
 
 func ApiTokenRetrieveOptions(actor rpc.Actor) orcapi.ApiTokenRetrieveOptionsResponse {
-	if !util.DevelopmentModeEnabled() {
+	if util.DevelopmentModeEnabled() {
 		return orcapi.ApiTokenRetrieveOptionsResponse{
 			ByProvider: map[string]orcapi.ApiTokenOptions{
 				"": {

@@ -86,20 +86,19 @@ export function useDeltaOverTimeChart(
             }
         });
 
-        const groupedData = groupBy(data, it => it.child ?? "");
-        data = [];
-        for (const [, entries] of Object.entries(groupedData)) {
-            let change = 0;
-            for (const entry of entries) {
-                change += entry.change;
-            }
+        const summed: Array<{ timestamp: number; child: string | null; change: number }> = [];
 
-            data.push({
-                timestamp: entries[0].timestamp,
-                child: entries[0].child,
-                change,
-            });
+        const byTs = groupBy(openReport!.usageOverTime.delta, d => d.timestamp.toString());
+        for (const [tsStr, entriesAtTs] of Object.entries(byTs)) {
+            const ts = Number(tsStr);
+            const byChild = groupBy(entriesAtTs, e => e.child ?? "");
+            for (const [childKey, childEntries] of Object.entries(byChild)) {
+                const change = childEntries.reduce((acc, e) => acc + e.change, 0);
+                summed.push({ timestamp: ts, child: childKey === "" ? null : childKey, change });
+            }
         }
+
+        data = summed;
 
         const byTimestampKey = index(data, d => d.timestamp, d => d.child ?? "");
 
@@ -215,8 +214,10 @@ export function useDeltaOverTimeChart(
                 const ts = datum.data;
                 const tooltip = tooltips[ts];
 
-                rect.onmousemove = tooltip.moveListener;
-                rect.onmouseleave = tooltip.leaveListener;
+                if (tooltip) {
+                    rect.onmousemove = tooltip.moveListener;
+                    rect.onmouseleave = tooltip.leaveListener;
+                }
             })
         ;
 

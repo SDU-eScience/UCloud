@@ -87,7 +87,7 @@ var accGlobals struct {
 	OwnersByReference map[string]*internalOwner
 	OwnersById        map[accOwnerId]*internalOwner
 
-	Usage             map[string]*scopedUsage // TODO(Dan): quite annoying that this has to be global
+	Usage             map[string]*scopedUsage // NOTE(Dan): quite annoying that this has to be global
 	BucketsByCategory map[accapi.ProductCategoryIdV2]*internalBucket
 
 	OnPersistHandlers []internalOnPersistHandler
@@ -1705,6 +1705,29 @@ func lRetrieveAncestorWallets(bucket *internalBucket, now time.Time, root AccWal
 	}
 
 	return wallets
+}
+
+// Admin endpoints
+// ---------------------------------------------------------------------------------------------------------------------
+
+func internalHierarchyReset(bucket *internalBucket) {
+	bucket.Mu.Lock()
+	for _, alloc := range bucket.AllocationsById {
+		alloc.RetiredUsage = 0
+		alloc.Dirty = true
+	}
+	for _, wallet := range bucket.WalletsById {
+		wallet.LocalUsage = 0
+		for child := range wallet.ChildrenUsage {
+			wallet.ChildrenUsage[child] = 0
+		}
+		for _, group := range wallet.AllocationsByParent {
+			group.TreeUsage = 0
+			group.Dirty = true
+		}
+		wallet.Dirty = true
+	}
+	bucket.Mu.Unlock()
 }
 
 // Mermaid diagrams (for debugging)

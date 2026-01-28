@@ -108,7 +108,6 @@ func initProviderManagement() {
 			request.ItemsPerPage,
 			request.ResourceFlags,
 			func(item orcapi.Provider) bool {
-				//TODO something
 				return true
 			},
 			nil,
