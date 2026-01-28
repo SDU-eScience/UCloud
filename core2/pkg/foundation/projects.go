@@ -1204,9 +1204,10 @@ func ProjectCreateInviteLink(actor rpc.Actor) (fndapi.ProjectInviteLink, *util.H
 	})
 
 	result := fndapi.ProjectInviteLink{
-		Token:          token,
-		Expires:        fndapi.Timestamp(time.Now().Add(30 * 24 * time.Hour)),
-		RoleAssignment: fndapi.ProjectRoleUser,
+		Token:           token,
+		Expires:         fndapi.Timestamp(time.Now().Add(30 * 24 * time.Hour)),
+		RoleAssignment:  fndapi.ProjectRoleUser,
+		GroupAssignment: []string{},
 	}
 
 	bucket.InviteLinks[token] = &internalInviteLink{
@@ -1471,6 +1472,8 @@ func projectRetrieveLink(id string) (*internalInviteLink, bool) {
 				if len(link.Link.GroupAssignment) == 1 && link.Link.GroupAssignment[0] == "" {
 					link.Link.GroupAssignment = make([]string, 0)
 				}
+
+				link.Link.GroupAssignment = util.NonNilSlice(link.Link.GroupAssignment)
 			}
 
 			return link, ok
