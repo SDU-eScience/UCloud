@@ -1,5 +1,5 @@
 import * as React from "react";
-import {EventHandler, MouseEvent, useEffect, useState} from "react";
+import {EventHandler, MouseEvent, useCallback, useEffect, useState} from "react";
 import {ProjectInvite, ProjectInviteLink, projectRoleToStringIcon} from "@/Project/Api";
 import {OldProjectRole, Project, ProjectGroup, ProjectMember, ProjectRole, isAdminOrPI} from "@/Project";
 import {Spacer} from "@/ui-components/Spacer";
@@ -30,6 +30,8 @@ import {CardClass} from "@/ui-components/Card";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {addStandardDialog} from "@/UtilityComponents";
+import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
+import {key} from "@/ui-components/icons";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
@@ -98,6 +100,7 @@ export const MembersContainer: React.FunctionComponent<{
     onDuplicate: (groupId: string) => void;
     onSortUpdated: (name: string) => void;
     currentSortOption: string;
+    onSelectedExpiry: (linkId: string, expiry: number) => void;
 }> = props => {
     const members: ProjectMember[] = props.project.status.members ?? [];
     const groups: ProjectGroup[] = props.project.status.groups ?? [];
@@ -179,6 +182,7 @@ export const MembersContainer: React.FunctionComponent<{
                     onDeleteLink={props.onDeleteLink}
                     onLinkGroupsUpdated={props.onLinkGroupsUpdated}
                     onUpdateLinkRole={props.onUpdateLinkRole}
+                    onSelectedExpiry={props.onSelectedExpiry}
                 />
             </ReactModal>
 
@@ -333,6 +337,7 @@ const LinkInviteCard: React.FunctionComponent<{
     onUpdateLinkRole: (linkId: string, role: ProjectRole) => void;
     onDeleteLink: (linkId: string) => void;
     onLinkGroupsUpdated: (linkId: string, groupIds: string[]) => void;
+    onSelectedExpiry: (linkId: string, expiry: number) => void;
 }> = props => {
     const [activeLinkId, setActiveLinkId] = useState<string | null>(null);
     const activeLink = props.links.find(it => it.token === activeLinkId);
@@ -350,6 +355,10 @@ const LinkInviteCard: React.FunctionComponent<{
             props.onCreateInviteLink();
         }
     }, []);
+
+    const onSelectExpiry = useCallback((item: SimpleRichItem) => {
+
+    }, [])
 
     return <>
         {activeLink ? <>
@@ -408,6 +417,29 @@ const LinkInviteCard: React.FunctionComponent<{
                     }
                     )}
                 </List>
+            </Flex>
+            <Flex gap={"8px"} marginBottom={"8px"} alignItems={"center"}>
+                <div>Set invite link expiration</div>
+            </Flex>
+            <Flex flexDirection={"column"} maxHeight={"264px"} overflowY={"auto"} marginBottom={"5px"}>
+                <SimpleRichSelect
+                    items={
+                        [
+                            {key: "7", value: "7 days"},
+                            {key: "14", value: "14 days"},
+                            {key: "30", value: "1 month"},
+                            {key: "60", value: "2 months"},
+                            {key: "90", value: "3 months"},
+                            {key: "180", value: "6 months"},
+                        ]
+                    }
+                    onSelect={onSelectExpiry}
+                    selected={{
+                        key: daysLeftToTimestamp(activeLink.expires).toString(),
+                        value: `${daysLeftToTimestamp(activeLink.expires)} days`
+                }}
+                    dropdownWidth={"300px"}
+                />
             </Flex>
         </> : <>
             <Flex alignItems={"center"} paddingBottom={"8px"}>

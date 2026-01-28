@@ -532,6 +532,7 @@ export const ProjectMembers: React.FunctionComponent = () => {
             token: linkId,
             role: newRole ?? oldLink?.roleAssignment ?? OldProjectRole.USER,
             groups: newGroups ?? oldLink?.groupAssignment ?? [],
+            expires: newExpiry ?? oldLink?.expires ?? OldLinkExpiry
         };
 
         callAPI(Api.updateInviteLink(newLink)).then(doNothing);

@@ -414,9 +414,10 @@ var ProjectDeleteInviteLink = rpc.Call[FindByInviteLink, util.Empty]{
 }
 
 type ProjectUpdateInviteLinkRequest struct {
-	Token  string      `json:"token"`
-	Role   ProjectRole `json:"role"`
-	Groups []string    `json:"groups"`
+	Token   string                 `json:"token"`
+	Role    ProjectRole            `json:"role"`
+	Groups  []string               `json:"groups"`
+	Expires util.Option[Timestamp] `json:"expires"`
 }
 
 var ProjectUpdateInviteLink = rpc.Call[ProjectUpdateInviteLinkRequest, util.Empty]{
