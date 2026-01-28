@@ -251,7 +251,7 @@ echo "${BashScriptStringContent}"
             await newUserPage.getByText("select an existing project instead").click();
             await Accounting.GrantApplication.toggleGrantGiver(newUserPage, "k8s");
             await Accounting.GrantApplication.fillQuotaFields(newUserPage, [{field: "Core-hours requested", quota: 5}, {field: "GB requested", quota: 1}]);
-            await Accounting.GrantApplication.fillApplicationTextFields(newUserPage, [{name: "Application*", content: "Text description"}]);
+            await Accounting.GrantApplication.fillDefaultApplicationTextFields(newUserPage);
             const id = await Accounting.GrantApplication.submit(newUserPage);
 
             await Accounting.goTo(adminPage, "Grant applications");

@@ -295,10 +295,19 @@ test.describe("Files - folder sharing works", () => {
 test.describe("Files - Syncthing works", () => {
     test("Set up Syncthing", async ({page, userAgent}) => {
         const folderName = File.newFolderName();
-        const deviceName = "Device name fill";
+        const deviceName = File.newFolderName().replace("FolderName", "DeviceName");
         await File.create(page, folderName);
 
-        await page.getByText("Sync").click();
+        const result = await NetworkCalls.awaitResponse(page, "**/iapps/syncthing/retrieve**", async () => {
+            await page.getByText("Sync").click();
+        });
+
+        const syncthingDevicesText = await result.text();
+        const parsedDevices: {config: {devices: any[]}} = JSON.parse(syncthingDevicesText);
+        if (parsedDevices.config.devices.length > 0) {
+            await page.getByText("Add device").click();
+        }
+
         await page.getByText("Next step").click();
         await page.getByRole("textbox", {name: "Device name"}).fill(deviceName);
         await page.getByRole("textbox", {name: "My device ID"}).fill("1111111-1111111-1111111-1111111-1111111-1111111-1111111-1111111");
@@ -317,6 +326,7 @@ test.describe("Files - Syncthing works", () => {
             await page.getByRole("button", {name: "Remove"}).click();
         });
 
+        // Remove syncthing device
         await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
             await page.getByText(deviceName).hover();
             await page.getByRole("button", {name: "", exact: true}).first().click();

@@ -52,7 +52,7 @@ test.describe("Drives - check change permissions works", () => {
         await GrantApplication.fillProjectName(resourceUserPage, newProjectName);
         await GrantApplication.toggleGrantGiver(resourceUserPage, "k8s");
         await GrantApplication.fillQuotaFields(resourceUserPage, [{field: "GB requested", quota: 1}]);
-        await GrantApplication.fillApplicationTextFields(resourceUserPage, [{name: "Application*", content: "Text description"}]);
+        await GrantApplication.fillDefaultApplicationTextFields(resourceUserPage);
         const id = await GrantApplication.submit(resourceUserPage);
 
         const adminPage = await Admin.newLoggedInAdminPage(context);
@@ -84,6 +84,6 @@ test.describe("Drives - check change permissions works", () => {
         await resourceUserPage.reload();
         await resourceUserPage.locator(`div[data-group='${groupName}']`).locator("#Read").click();
         await Project.changeTo(noResourceUserPage, newProjectName);
-        await noResourceUserPage.getByText(driveName).hover();
+        await noResourceUserPage.locator("span", {hasText: driveName}).hover();
     });
 });

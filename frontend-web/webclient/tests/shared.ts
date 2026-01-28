@@ -781,7 +781,7 @@ export const Accounting = {
             await page.getByRole("link", {name: groupName}).click();
 
             for (const user of usernames) {
-                await page.locator("div[class^='list-item']", {hasText: user}).locator("div[class^=row-right] button").click()
+                await page.locator("div[class^='list-item']", {hasText: user}).locator("div[class^=row-right]").getByRole("button", {disabled: false}).click()
             }
         },
 
@@ -805,9 +805,10 @@ export const Accounting = {
             }
         },
 
-        async fillApplicationTextFields(page: Page, textFields: {name: string; content: string}[]): Promise<void> {
+        async fillDefaultApplicationTextFields(page: Page): Promise<void> {
+            const textFields = [{name: "Application", content: "Text description"}];
             for (const applicationField of textFields) {
-                await page.getByRole("textbox", {name: applicationField.name}).fill(applicationField.content);
+                await page.getByRole("textbox", {name: applicationField.name, exact: true}).fill(applicationField.content);
             }
         },
 
