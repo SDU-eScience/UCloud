@@ -416,7 +416,7 @@ export const Components = {
     },
 
     async toggleTasksDialog(page: Page) {
-        await page.locator("[class*='static-circle']").click();
+        await page.locator("[class*='static-circle'], [class*='ripple']").click();
     },
 
     async toggleUserMenu(page: Page): Promise<void> {
