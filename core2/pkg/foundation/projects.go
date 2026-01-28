@@ -1099,6 +1099,11 @@ func ProjectCreateGroupMember(actor rpc.Actor, groupId string, memberToAdd strin
 
 			group.Status.Members = append(group.Status.Members, memberToAdd)
 
+			uinfo := projectRetrieveUserInfo(memberToAdd)
+			uinfo.Mu.Lock()
+			uinfo.Groups[groupId] = iproject.Id
+			uinfo.Mu.Unlock()
+
 			slices.SortFunc(group.Status.Members, func(a, b string) int {
 				return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
 			})
@@ -1157,6 +1162,11 @@ func ProjectDeleteGroupMember(actor rpc.Actor, groupId string, memberToRemove st
 
 			group.Status.Members = util.RemoveAtIndex(group.Status.Members, memberIdx)
 		}
+
+		uinfo := projectRetrieveUserInfo(memberToRemove)
+		uinfo.Mu.Lock()
+		delete(uinfo.Groups, group.Id)
+		uinfo.Mu.Unlock()
 	}
 	iproject.Mu.Unlock()
 	return err
