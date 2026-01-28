@@ -20,4 +20,5 @@ func Init() {
 	db.AddMigration(coreV2())
 	db.AddMigration(accountingV4())
 	db.AddMigration(authV3())
+	db.AddMigration(grantV1())
 }

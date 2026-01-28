@@ -129,7 +129,7 @@ type grantsProjectInfo struct {
 
 var grantsProjectCache = util.NewCache[string, grantsProjectInfo](4 * time.Hour)
 
-func GrantApplicationProcess(app accapi.GrantApplication) accapi.GrantApplication {
+func GrantApplicationProcess(actor rpc.Actor, app accapi.GrantApplication) accapi.GrantApplication {
 	recipient := app.CurrentRevision.Document.Recipient
 	if recipient.Type == accapi.RecipientTypeExistingProject {
 		projectInfo, ok := grantsProjectCache.Get(recipient.Id.Value, func() (grantsProjectInfo, error) {
@@ -154,6 +154,9 @@ func GrantApplicationProcess(app accapi.GrantApplication) accapi.GrantApplicatio
 			app.Status.ProjectTitle.Set(projectInfo.Title)
 		}
 	}
+
+	grantUserHasUnreadComments(&app, actor.Username)
+
 	return app
 }
 
@@ -1064,6 +1067,80 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 	return err
 }
 
+// Grant Application has unread comments
+// =====================================================================================================================
+// This section handles unread comments are on an application.
+// Firstly, we record user visits on GrantRetrieve function
+// When GrantApplicationProcess is triggered, we will then compare the last time the user
+// has visited the application with the latest comment of the given application, if the latest comment is greater,
+// then we will set app.Status.HasUnreadComments = true
+func grantUserHasUnreadComments(app *accapi.GrantApplication, username string) {
+	if len(app.Status.Comments) == 0 {
+		app.Status.HasUnreadComments = false
+		return // won't continue checking if there are no comments
+	}
+
+	// Getting the latest comment sorted by created at time
+	latestCommentTime := app.Status.Comments[0].CreatedAt.Time()
+	for _, c := range app.Status.Comments[1:] {
+		if c.CreatedAt.Time().After(latestCommentTime) {
+			latestCommentTime = c.CreatedAt.Time()
+		}
+	}
+
+	appLastVisitedByUserTime := grantRetrieveUserApplicationVisits(app.Id.Value, username)
+
+	if !appLastVisitedByUserTime.IsZero() {
+		app.Status.HasUnreadComments = latestCommentTime.After(appLastVisitedByUserTime)
+	}
+}
+
+func grantRecordUserApplicationVisit(applicationId string, username string) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(tx,
+			`insert into "grant".user_application_visits (
+				application_id,
+				username,
+				last_visited_at
+			)
+			values (
+				:application,
+				:user,
+				now()
+			)
+			on conflict (application_id, username)
+			do update set last_visited_at = excluded.last_visited_at;`,
+			db.Params{
+				"application": applicationId,
+				"user":        username,
+			},
+		)
+	})
+}
+
+func grantRetrieveUserApplicationVisits(applicationId string, username string) time.Time {
+	result := db.NewTx(func(tx *db.Transaction) time.Time {
+		lastVisitedAt := db.Select[struct{ LastVisitedAt time.Time }](
+			tx,
+			`
+				select last_visited_at
+				from "grant".user_application_visits
+				where application_id = :application 
+				and username = :user;`,
+			db.Params{
+				"application": applicationId,
+				"user":        username,
+			},
+		)
+		if len(lastVisitedAt) == 0 {
+			return time.Time{}
+		}
+		return lastVisitedAt[0].LastVisitedAt
+
+	})
+	return result
+}
+
 // Grant application retrieval
 // =====================================================================================================================
 // Public functions for retrieving grant applications.
@@ -1155,7 +1232,7 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 				} else {
 					deepCopy := a.lDeepCopy()
 					a.Mu.RUnlock()
-					items = append(items, GrantApplicationProcess(deepCopy))
+					items = append(items, GrantApplicationProcess(actor, deepCopy))
 				}
 			} else {
 				a.Mu.RUnlock()
@@ -1213,9 +1290,11 @@ func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.
 		return accapi.GrantApplication{}, util.HttpErr(http.StatusNotFound, "not found")
 	} else {
 		app.Mu.RLock()
+		// Record that the user has visited the application
+		grantRecordUserApplicationVisit(app.Application.Id.Value, actor.Username)
 		result := app.lDeepCopy()
 		app.Mu.RUnlock()
-		return GrantApplicationProcess(result), nil
+		return GrantApplicationProcess(actor, result), nil
 	}
 }
 
