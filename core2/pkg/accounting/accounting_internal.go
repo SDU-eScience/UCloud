@@ -905,7 +905,7 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 
 						overAllocationUsed := usageInNode - propagatedUsage
 						if overAllocationUsed < 0 {
-							panic("assertion error")
+							panic(fmt.Sprintf("overAllocationUsed < 0: %v %v in lInternalBuildGraph(%v, %v, %v)", usageInNode, propagatedUsage, b.Category.Name, leaf.Id, flags))
 						}
 
 						overAllocationNode := vertexToOverAllocationRoot(vertexIndex)

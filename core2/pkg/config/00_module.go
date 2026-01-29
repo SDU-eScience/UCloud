@@ -259,7 +259,7 @@ func Parse(configDir string) bool {
 		if cfg.Emails.Enabled {
 			cfg.Emails.SenderName = cfgutil.RequireChildText(filePath, emails, "senderName", &success)
 			cfg.Emails.SenderEmail = cfgutil.RequireChildText(filePath, emails, "senderEmail", &success)
-			serverNode := cfgutil.RequireChild(filePath, document, "server", &success)
+			serverNode := cfgutil.RequireChild(filePath, emails, "server", &success)
 			cfgutil.Decode(filePath, serverNode, &cfg.Emails.Server, &success)
 			if success {
 				success = cfg.Emails.Server.validate(filePath, serverNode)

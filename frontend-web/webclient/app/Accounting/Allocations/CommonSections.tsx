@@ -1191,7 +1191,7 @@ export const SubProjectList: React.FunctionComponent<{
                                 category: g.category,
                                 balance: alloc.quota
                             }])[0].normalizedBalance;
-                            
+
                             return ({
                                 id: alloc.allocationId,
                                 grantApplication: alloc.grantedIn,
