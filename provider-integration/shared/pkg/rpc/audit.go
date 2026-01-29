@@ -4,46 +4,10 @@ import (
 	"encoding/json"
 	time "time"
 
-	"gopkg.in/yaml.v3"
-	"ucloud.dk/shared/pkg/cfgutil"
 	"ucloud.dk/shared/pkg/util"
 )
 
 var AuditConsumer func(event HttpCallLogEntry)
-
-type ElasticConfig struct {
-	Address     string `yaml:"address"`
-	Port        int    `yaml:"port"`
-	Scheme      string `yaml:"scheme"`
-	Credentials struct {
-		Username string `yaml:"username"`
-		Password string `yaml:"password"`
-	}
-	GatherNode bool `yaml:"gatherNode"`
-}
-
-func ElasticConfigRetrieve(filePath string, document *yaml.Node) (util.Option[ElasticConfig], bool) {
-	success := true
-	elasticNode, _ := cfgutil.GetChildOrNil(filePath, document, "elasticsearch")
-	var elasticConfig ElasticConfig
-	if elasticNode != nil {
-		elasticCredNode := cfgutil.RequireChild(filePath, elasticNode, "credentials", &success)
-		cfgutil.Decode(filePath, elasticNode, &elasticConfig, &success)
-
-		if elasticConfig.Port <= 0 || elasticConfig.Port >= 1024*64 {
-			success = false
-		}
-		elasticConfig.Credentials.Username = cfgutil.RequireChildText(filePath, elasticCredNode, "username", &success)
-		elasticConfig.Credentials.Password = cfgutil.RequireChildText(filePath, elasticCredNode, "password", &success)
-
-		if success {
-			return util.OptValue(elasticConfig), true
-		} else {
-			return util.OptNone[ElasticConfig](), false
-		}
-	}
-	return util.OptNone[ElasticConfig](), true
-}
 
 type ServiceInstance struct {
 	Definition ServiceDefinition   `json:"definition"`

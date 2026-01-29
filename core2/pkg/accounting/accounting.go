@@ -2,6 +2,7 @@ package accounting
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -183,6 +184,14 @@ func initAccounting() {
 		}
 
 		return fndapi.BulkResponse[accapi.FindAllProvidersResponse]{Responses: result}, nil
+	})
+
+	accapi.WalletsAdminDebug.Handler(func(info rpc.RequestInfo, request accapi.WalletDebugRequest) (accapi.WalletDebugResponse, *util.HttpError) {
+		graph, _ := internalGetMermaidGraph(time.Now(), AccWalletId(request.WalletId))
+		return accapi.WalletDebugResponse{
+			MermaidGraph: graph,
+			StateDump:    json.RawMessage("{}"),
+		}, nil
 	})
 }
 

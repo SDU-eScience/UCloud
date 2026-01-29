@@ -297,6 +297,9 @@ func (m *tuiMenu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						h := &m.Home
 						h.ServiceLoading = svc.Name
 						h.ServiceStartError = ""
+						divider := strings.Repeat("=", 80)
+						m.Service.LogCh <- fmt.Sprintf("\n\n\n%s\n%s: %s is now restarting\n%s\n\n\n",
+							divider, svc.UiParent, svc.Title, divider)
 						return m, func() tea.Msg {
 							result := StartServiceEx(svc, false)
 							h.ServiceLoading = ""

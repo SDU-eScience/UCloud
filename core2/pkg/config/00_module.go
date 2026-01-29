@@ -7,7 +7,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
-	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -37,7 +36,12 @@ type ConfigurationFormat struct {
 	}
 
 	Emails struct {
-		Enabled bool
+		Enabled     bool
+		SenderName  string
+		SenderEmail string
+		Server      HostInfo
+		Username    string
+		Password    string
 	}
 
 	Accounting struct {
@@ -52,8 +56,6 @@ type ConfigurationFormat struct {
 
 	SlackHook util.Option[string]
 
-	ElasticSearch util.Option[rpc.ElasticConfig]
-
 	RequireMfa bool
 }
 
@@ -66,6 +68,8 @@ type Database struct {
 }
 
 type OidcAuthentication struct {
+	IdpTitle     string
+	Profile      string
 	Issuer       string
 	ClientId     string
 	ClientSecret string
@@ -150,13 +154,6 @@ func Parse(configDir string) bool {
 	}
 
 	cfg.RequireMfa, _ = cfgutil.OptionalChildBool(filePath, document, "requireMfa")
-
-	elastic, ok := rpc.ElasticConfigRetrieve(filePath, document)
-	if !ok {
-		success = false
-	} else {
-		cfg.ElasticSearch = elastic
-	}
 
 	// Token validation
 	{
@@ -256,6 +253,20 @@ func Parse(configDir string) bool {
 		}
 	}
 
+	emails, _ := cfgutil.GetChildOrNil(filePath, document, "emails")
+	if emails != nil {
+		cfg.Emails.Enabled = cfgutil.RequireChildBool(filePath, emails, "enabled", &success)
+		if cfg.Emails.Enabled {
+			cfg.Emails.SenderName = cfgutil.RequireChildText(filePath, emails, "senderName", &success)
+			cfg.Emails.SenderEmail = cfgutil.RequireChildText(filePath, emails, "senderEmail", &success)
+			serverNode := cfgutil.RequireChild(filePath, emails, "server", &success)
+			cfgutil.Decode(filePath, serverNode, &cfg.Emails.Server, &success)
+			if success {
+				success = cfg.Emails.Server.validate(filePath, serverNode)
+			}
+		}
+	}
+
 	return success
 }
 
@@ -266,6 +277,14 @@ func parseOidcAuthentication(filePath string, node *yaml.Node) (bool, OidcAuthen
 	result.Issuer = cfgutil.RequireChildText(filePath, node, "issuer", &success)
 	result.ClientId = cfgutil.RequireChildText(filePath, node, "clientId", &success)
 	result.ClientSecret = cfgutil.RequireChildText(filePath, node, "clientSecret", &success)
+	result.Profile = cfgutil.OptionalChildText(filePath, node, "profile", &success)
+	if result.Profile == "" {
+		result.Profile = "WAYF"
+	}
+	result.IdpTitle = cfgutil.OptionalChildText(filePath, node, "title", &success)
+	if result.IdpTitle == "" {
+		result.IdpTitle = "WAYF"
+	}
 
 	if child, err := cfgutil.GetChildOrNil(filePath, node, "scopes"); child != nil && err == nil {
 		cfgutil.Decode(filePath, child, &result.Scopes, &success)

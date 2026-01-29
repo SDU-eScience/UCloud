@@ -87,7 +87,7 @@ var accGlobals struct {
 	OwnersByReference map[string]*internalOwner
 	OwnersById        map[accOwnerId]*internalOwner
 
-	Usage             map[string]*scopedUsage // TODO(Dan): quite annoying that this has to be global
+	Usage             map[string]*scopedUsage // NOTE(Dan): quite annoying that this has to be global
 	BucketsByCategory map[accapi.ProductCategoryIdV2]*internalBucket
 
 	OnPersistHandlers []internalOnPersistHandler
@@ -301,8 +301,6 @@ func internalAllocateNoCommit(
 	parent AccWalletId,
 	grantedIn util.Option[accGrantId],
 ) (accAllocId, *util.HttpError) {
-	// TODO check that we can do this. Might need to happen in public API instead.
-
 	if start.After(end) {
 		return 0, util.HttpErr(http.StatusBadRequest, "start must occur before the end of an allocation!")
 	} else if quota < 0 {
@@ -909,7 +907,7 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 
 						overAllocationUsed := usageInNode - propagatedUsage
 						if overAllocationUsed < 0 {
-							panic("assertion error")
+							panic(fmt.Sprintf("overAllocationUsed < 0: %v %v in lInternalBuildGraph(%v, %v, %v)", usageInNode, propagatedUsage, b.Category.Name, leaf.Id, flags))
 						}
 
 						overAllocationNode := vertexToOverAllocationRoot(vertexIndex)
@@ -1709,6 +1707,29 @@ func lRetrieveAncestorWallets(bucket *internalBucket, now time.Time, root AccWal
 	}
 
 	return wallets
+}
+
+// Admin endpoints
+// ---------------------------------------------------------------------------------------------------------------------
+
+func internalHierarchyReset(bucket *internalBucket) {
+	bucket.Mu.Lock()
+	for _, alloc := range bucket.AllocationsById {
+		alloc.RetiredUsage = 0
+		alloc.Dirty = true
+	}
+	for _, wallet := range bucket.WalletsById {
+		wallet.LocalUsage = 0
+		for child := range wallet.ChildrenUsage {
+			wallet.ChildrenUsage[child] = 0
+		}
+		for _, group := range wallet.AllocationsByParent {
+			group.TreeUsage = 0
+			group.Dirty = true
+		}
+		wallet.Dirty = true
+	}
+	bucket.Mu.Unlock()
 }
 
 // Mermaid diagrams (for debugging)

@@ -80,8 +80,14 @@ func accountingV3() db.MigrationScript {
 				db.Exec(
 					tx,
 					`
-						update accounting.allocation_groups
-						set tree_usage = tree_usage + retired_tree_usage;
+						update accounting.allocation_groups ag
+						set tree_usage = tree_usage + retired_tree_usage
+						from
+							accounting.wallets_v2 w
+							join accounting.product_categories pc on w.product_category = pc.id
+						where 
+							ag.associated_wallet = w.id
+							and pc.accounting_frequency != 'ONCE'
 				    `,
 					db.Params{},
 				)

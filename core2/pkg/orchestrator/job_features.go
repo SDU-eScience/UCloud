@@ -1,5 +1,7 @@
 package orchestrator
 
+import orcapi "ucloud.dk/shared/pkg/orc2"
+
 const (
 	jobDockerEnabled   SupportFeatureKey = "jobs.docker.enabled"
 	jobDockerWeb       SupportFeatureKey = "jobs.docker.web"
@@ -26,6 +28,42 @@ const (
 	jobVmExtension  SupportFeatureKey = "jobs.vm.extension"
 	jobVmSuspension SupportFeatureKey = "jobs.vm.suspension"
 )
+
+var jobFeatureTerminalByBackend = map[orcapi.ToolBackend]SupportFeatureKey{
+	orcapi.ToolBackendDocker:         jobDockerTerminal,
+	orcapi.ToolBackendNative:         jobNativeTerminal,
+	orcapi.ToolBackendVirtualMachine: jobVmTerminal,
+}
+
+var jobFeatureLogsByBackend = map[orcapi.ToolBackend]SupportFeatureKey{
+	orcapi.ToolBackendDocker:         jobDockerLogs,
+	orcapi.ToolBackendNative:         jobNativeLogs,
+	orcapi.ToolBackendVirtualMachine: jobVmLogs,
+}
+
+var jobFeaturePeersByBackend = map[orcapi.ToolBackend]SupportFeatureKey{
+	orcapi.ToolBackendDocker:         jobDockerPeers,
+	orcapi.ToolBackendNative:         jobNativePeers,
+	orcapi.ToolBackendVirtualMachine: jobVmPeers,
+}
+
+var jobFeatureExtensionByBackend = map[orcapi.ToolBackend]SupportFeatureKey{
+	orcapi.ToolBackendDocker:         jobDockerExtension,
+	orcapi.ToolBackendNative:         jobNativeExtension,
+	orcapi.ToolBackendVirtualMachine: jobVmExtension,
+}
+
+var jobFeatureWebByBackend = map[orcapi.ToolBackend]SupportFeatureKey{
+	orcapi.ToolBackendDocker:         jobDockerWeb,
+	orcapi.ToolBackendNative:         jobNativeWeb,
+	orcapi.ToolBackendVirtualMachine: jobVmWeb,
+}
+
+var jobFeatureVncByBackend = map[orcapi.ToolBackend]SupportFeatureKey{
+	orcapi.ToolBackendDocker:         jobDockerVnc,
+	orcapi.ToolBackendNative:         jobNativeVnc,
+	orcapi.ToolBackendVirtualMachine: jobVmVnc,
+}
 
 var jobFeatureMapper = []featureMapper{
 	{

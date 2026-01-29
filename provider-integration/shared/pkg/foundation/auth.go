@@ -278,6 +278,7 @@ var AuthStartLoginSamlLegacy = rpc.Call[util.Empty, util.Empty]{
 	BaseContext: AuthContext + "/saml",
 	Operation:   "login",
 	Convention:  rpc.ConventionQueryParameters,
+	Roles:       rpc.RolesPublic,
 	CustomServerProducer: func(response util.Empty, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			rpc.SendResponseOrError(r, w, nil, err)
