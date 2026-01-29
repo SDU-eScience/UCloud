@@ -1,19 +1,27 @@
 import {defineConfig, devices, Project} from '@playwright/test';
 
 
+const userSetup: Project = {
+    name: "setup",
+    testMatch: /users.setup\.ts/,
+}
+
 const chrome: Project = {
     name: 'chromium',
     use: {...devices['Desktop Chrome']},
+    dependencies: ["setup"],
 };
 
 const firefox: Project = {
     name: 'firefox',
     use: {...devices['Desktop Firefox']},
+    dependencies: ["setup"],
 };
 
 const webkit: Project = {
     name: 'webkit',
     use: {...devices['Desktop Safari']},
+    dependencies: ["setup"],
 };
 
 /**
@@ -39,6 +47,7 @@ export default defineConfig({
         ignoreHTTPSErrors: true,
     },
 
+
     /* Configure projects for major browsers */
-    projects: process.env.CI ? [chrome] : [chrome, firefox, webkit]
+    projects: process.env.CI ? [userSetup, chrome] : [userSetup, chrome, firefox, webkit]
 });

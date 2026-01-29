@@ -1,10 +1,24 @@
-import {BrowserContext, expect, type Page} from "@playwright/test";
+import test, {BrowserContext, expect, type Page} from "@playwright/test";
 import fs from "fs";
 
 // Note(Jonas): If it complains that it doesn"t exist, create it.
 import {default as data} from "./test_data.json" with {type: "json"};
+import {default as testUsers} from "./OTHER_test_data.json" with {type: "json"};
+
 
 const LoginPageUrl = ucloudUrl("login");
+
+type Contexts =
+    | "Project PI" | "Project Admin" | "Project User" | "Personal Workspace";
+
+export const TestContexts: Contexts[] = ["Project PI", "Project Admin", "Project User", "Personal Workspace"];
+
+export const TestUsers: Record<Contexts, {username: string; password: string;}> = {
+    "Project PI": testUsers["Project PI"],
+    "Project Admin": testUsers["Project Admin"],
+    "Project User": testUsers["Project User"],
+    "Personal Workspace": data.users.with_resources
+};
 
 export const User = {
     newUserCredentials(): {username: string; password: string;} {
@@ -24,6 +38,7 @@ export const User = {
 
         if (fillUserInfo) {
             await this.dismissAdditionalInfoPrompt(page);
+            await page.waitForLoadState("networkidle");
             await this.setAdditionalUserInfo(page);
             await this.disableNotifications(page);
         }
@@ -840,6 +855,7 @@ export const Admin = {
         if (!page) throw new Error("Failed to create page for admin login");
         await User.login(page, Admin.AdminUser);
         await User.dismissAdditionalInfoPrompt(page);
+        await page.waitForLoadState("networkidle");
         return page;
     },
 
@@ -856,4 +872,12 @@ async function _move(page: Page, oldName: string, newName: string) {
     await page.getByText("Rename").click();
     await page.getByRole("textbox").nth(1).fill(newName);
     await page.getByRole("textbox").nth(1).press("Enter");
+}
+
+export function testCtx(args: string[]): {user: {username: string; password: string;}; projectName?: string;} {
+    const context = args[1] as Contexts;
+    return {
+        user: TestUsers[context],
+        projectName: context === "Personal Workspace" ? undefined : testUsers.projectName
+    }
 }
