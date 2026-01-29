@@ -10,16 +10,17 @@ export const DatePickerClass = injectStyle("date-picker", k => `
         appearance: none;
         display: block;
         font-family: inherit;
+        font-size: inherit;
         color: inherit;
         background-color: transparent;
-        border-radius: 8px;
-        border-width: 0;
+        border-radius: 5px;
+        border-width: 1px;
         border-style: solid;
         border-color: var(--borderColor, #f00);
-        padding: 8px 12px;
+        padding: 7px 12px;
         margin: 0;
+        height: 35px;
         width: 100%;
-        font-size: 18px;
     }
     
     ${k}::placeholder {
