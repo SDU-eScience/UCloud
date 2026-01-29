@@ -220,6 +220,7 @@ interface ResourceBrowserRow {
     stat1: HTMLElement;
     stat2: HTMLElement;
     stat3: HTMLElement;
+    stat4: HTMLElement;
 }
 
 export interface ResourceBrowseFeatures {
@@ -252,7 +253,9 @@ export interface ColumnTitle<SortById = string> {
     sortById?: SortById;
 }
 
-export type ColumnTitleList<SortById = string> = [Omit<ColumnTitle<SortById>, "columnWidth">, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>];
+export type ColumnTitleList<SortById = string> = 
+    | [Omit<ColumnTitle<SortById>, "columnWidth">, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>] // 4 Columns
+    | [Omit<ColumnTitle<SortById>, "columnWidth">, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>]; // 5 Columns
 
 export class ResourceBrowser<T> {
     // DOM component references
@@ -424,7 +427,7 @@ export class ResourceBrowser<T> {
         this.opts = {
             embedded: opts?.embedded,
             selector: !!opts?.selection,
-            columnTitles: [{name: ""}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {
+            columnTitles: [{name: ""}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {
                 name: "",
                 columnWidth: 20
             }]
@@ -486,6 +489,7 @@ export class ResourceBrowser<T> {
                     <div class="stat1"></div>
                     <div class="stat2"></div>
                     <div class="stat3"></div>
+                    <div class="stat4"></div>
                 </div>
             </div>
             <div style="overflow-y: auto; position: relative;">
@@ -793,6 +797,7 @@ export class ResourceBrowser<T> {
                     <div class="stat1"></div>
                     <div class="stat2"></div>
                     <div class="stat3"></div>
+                    <div class="stat4"></div>
                 </div>
             `);
             row.classList.add("row");
@@ -833,6 +838,7 @@ export class ResourceBrowser<T> {
                 stat1: row.querySelector<HTMLElement>(".stat1")!,
                 stat2: row.querySelector<HTMLElement>(".stat2")!,
                 stat3: row.querySelector<HTMLElement>(".stat3")!,
+                stat4: row.querySelector<HTMLElement>(".stat4")!,
             };
 
             r.star.addEventListener("pointerdown", e => {
@@ -1042,6 +1048,7 @@ export class ResourceBrowser<T> {
             row.stat1.innerHTML = "";
             row.stat2.innerHTML = "";
             row.stat3.innerHTML = "";
+            row.stat4.innerHTML = "";
         }
 
         this.renameField.style.display = "none";
@@ -3423,6 +3430,9 @@ export class ResourceBrowser<T> {
         this.root.style.setProperty("--stat2Width", titles[2].columnWidth + "px");
         this.root.style.setProperty("--stat3Width", titles[3].columnWidth + "px");
 
+        // For 5-column layouts (e.g., Jobs browse with Time left column)
+        this.root.style.setProperty("--stat4Width", titles.length === 5 ? titles[4].columnWidth + "px" : "0px");
+
         this.renderColumnTitles();
     }
 
@@ -3444,8 +3454,9 @@ export class ResourceBrowser<T> {
         this.setTitleAndHandlers(titleRow.querySelector(".title")!, titles[0], "right");
         this.setTitleAndHandlers(titleRow.querySelector(".stat1")!, titles[1], "left");
         this.setTitleAndHandlers(titleRow.querySelector(".stat2")!, titles[2], "left");
-        // If this is a selector, the third row will show the use button.
-        if (!this.opts.selector) this.setTitleAndHandlers(titleRow.querySelector(".stat3")!, titles[3], "left");
+        if (titles[3]) this.setTitleAndHandlers(titleRow.querySelector(".stat3")!, titles[3], "left");
+        // If this is a selector, the fourth row will show the use button.
+        if (!this.opts.selector && titles[4]) this.setTitleAndHandlers(titleRow.querySelector(".stat4")!, titles[4], "right");
     }
 
     public defaultEmptyPage(resourceName: string, reason: EmptyReason, additionalFilters: Record<string, string> | undefined) {

@@ -1104,6 +1104,11 @@ func ProjectCreateGroupMember(actor rpc.Actor, groupId string, memberToAdd strin
 
 			group.Status.Members = append(group.Status.Members, memberToAdd)
 
+			uinfo := projectRetrieveUserInfo(memberToAdd)
+			uinfo.Mu.Lock()
+			uinfo.Groups[groupId] = iproject.Id
+			uinfo.Mu.Unlock()
+
 			slices.SortFunc(group.Status.Members, func(a, b string) int {
 				return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
 			})
@@ -1162,6 +1167,11 @@ func ProjectDeleteGroupMember(actor rpc.Actor, groupId string, memberToRemove st
 
 			group.Status.Members = util.RemoveAtIndex(group.Status.Members, memberIdx)
 		}
+
+		uinfo := projectRetrieveUserInfo(memberToRemove)
+		uinfo.Mu.Lock()
+		delete(uinfo.Groups, group.Id)
+		uinfo.Mu.Unlock()
 	}
 	iproject.Mu.Unlock()
 	return err
@@ -1199,9 +1209,10 @@ func ProjectCreateInviteLink(actor rpc.Actor) (fndapi.ProjectInviteLink, *util.H
 	})
 
 	result := fndapi.ProjectInviteLink{
-		Token:          token,
-		Expires:        fndapi.Timestamp(time.Now().Add(30 * 24 * time.Hour)),
-		RoleAssignment: fndapi.ProjectRoleUser,
+		Token:           token,
+		Expires:         fndapi.Timestamp(time.Now().Add(30 * 24 * time.Hour)),
+		RoleAssignment:  fndapi.ProjectRoleUser,
+		GroupAssignment: []string{},
 	}
 
 	bucket.InviteLinks[token] = &internalInviteLink{
@@ -1466,6 +1477,8 @@ func projectRetrieveLink(id string) (*internalInviteLink, bool) {
 				if len(link.Link.GroupAssignment) == 1 && link.Link.GroupAssignment[0] == "" {
 					link.Link.GroupAssignment = make([]string, 0)
 				}
+
+				link.Link.GroupAssignment = util.NonNilSlice(link.Link.GroupAssignment)
 			}
 
 			return link, ok

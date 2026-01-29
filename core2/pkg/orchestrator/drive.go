@@ -52,6 +52,17 @@ func initDrives() {
 			request.ItemsPerPage,
 			request.ResourceFlags,
 			func(item orcapi.Drive) bool {
+				if request.FilterMemberFiles.Present {
+					isMemberFile := strings.HasPrefix(item.Specification.Title, "Member Files: ") || item.Status.PreferredDrive
+					switch request.FilterMemberFiles.Value {
+					case orcapi.MemberFilesNoFilter:
+						return true
+					case orcapi.MemberFilesShowMine:
+						return !isMemberFile || (isMemberFile && item.Owner.CreatedBy == info.Actor.Username)
+					case orcapi.MemberFilesShowMembers:
+						return isMemberFile
+					}
+				}
 				return true
 			},
 			sortByFn,

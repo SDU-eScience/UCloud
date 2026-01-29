@@ -42,26 +42,30 @@ type mailInTransit struct {
 
 var mailChannel chan mailInTransit
 
-const SupportName = "eScience Support"
-const SupportEmail = "support@escience.sdu.dk"
+var emailSenderName string
+var emailSenderAddress string
 
 func initMails() {
 	mailChannel = make(chan mailInTransit, 256)
-	go mailDaemon()
+	go emailDaemon()
+
+	mailConfig := cfg.Configuration.Emails
+	emailSenderName = mailConfig.SenderName
+	emailSenderAddress = mailConfig.SenderEmail
 
 	fndapi.MailSendDirect.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.MailSendDirectMandatoryRequest]) (util.Empty, *util.HttpError) {
 		var err error
 		for _, reqItem := range request.Items {
 			toSend := mailToSend{
-				FromName:     SupportName,
-				FromEmail:    SupportEmail,
+				FromName:     emailSenderName,
+				FromEmail:    emailSenderAddress,
 				ToName:       reqItem.RecipientEmail,
 				ToEmail:      reqItem.RecipientEmail,
 				Mail:         reqItem.Mail,
-				BaseTemplate: &baseTemplate,
+				BaseTemplate: &emailBaseTemplate,
 			}
 
-			err = util.MergeError(err, sendEmail(toSend))
+			err = util.MergeError(err, emailSend(toSend))
 		}
 
 		if err != nil {
@@ -109,16 +113,16 @@ func MailSendSupport(request fndapi.MailSendSupportRequest) *util.HttpError {
 	mailData, _ := json.Marshal(rawMail)
 
 	toSend := mailToSend{
-		FromName:     SupportName,
-		FromEmail:    SupportEmail,
-		ToName:       SupportName,
-		ToEmail:      SupportEmail,
+		FromName:     emailSenderName,
+		FromEmail:    emailSenderAddress,
+		ToName:       emailSenderName,
+		ToEmail:      emailSenderAddress,
 		Mail:         fndapi.Mail(mailData),
-		BaseTemplate: &baseSupportTemplate,
+		BaseTemplate: &emailBaseSupportTemplate,
 		ReplyTo:      request.FromEmail,
 	}
 
-	err := sendEmail(toSend)
+	err := emailSend(toSend)
 	if err != nil {
 		log.Warn("Failed to send emails: %s", err.Error())
 		return util.HttpErr(http.StatusInternalServerError, "Internal error")
@@ -130,23 +134,23 @@ func MailSendSupport(request fndapi.MailSendSupportRequest) *util.HttpError {
 func MailSend(reqItem fndapi.MailSendToUserRequest) *util.HttpError {
 	var err error
 
-	email, hasEmail := retrieveEmail(reqItem.Receiver)
+	email, hasEmail := emailRetrieveAddress(reqItem.Receiver)
 	hasEmail = hasEmail || reqItem.ReceivingEmail.Present
 
-	userWantsEmail := UserWantsEmail(reqItem.Receiver, reqItem.Mail.Type())
+	userWantsEmail := MailUserWantsToReceive(reqItem.Receiver, reqItem.Mail.Type())
 	userWantsEmail = userWantsEmail || reqItem.Mandatory.Value
 
 	if hasEmail && userWantsEmail {
 		toSend := mailToSend{
-			FromName:     SupportName,
-			FromEmail:    SupportEmail,
+			FromName:     emailSenderName,
+			FromEmail:    emailSenderAddress,
 			ToName:       reqItem.Receiver,
 			ToEmail:      reqItem.ReceivingEmail.GetOrDefault(email),
 			Mail:         reqItem.Mail,
-			BaseTemplate: &baseTemplate,
+			BaseTemplate: &emailBaseTemplate,
 		}
 
-		err = util.MergeError(err, sendEmail(toSend))
+		err = util.MergeError(err, emailSend(toSend))
 	}
 
 	if err != nil {
@@ -211,7 +215,7 @@ func MailRetrieveSettings(username string) fndapi.EmailSettings {
 	}
 }
 
-func UserWantsEmail(username string, mailType fndapi.MailType) bool {
+func MailUserWantsToReceive(username string, mailType fndapi.MailType) bool {
 	settings := MailRetrieveSettings(username)
 	switch mailType {
 	case fndapi.MailTypeTransferApplication:
@@ -259,8 +263,8 @@ func UserWantsEmail(username string, mailType fndapi.MailType) bool {
 	}
 }
 
-func sendEmail(mail mailToSend) error {
-	html, subject, err := renderEmail(mail)
+func emailSend(mail mailToSend) error {
+	html, subject, err := emailRender(mail)
 	if err != nil {
 		return err
 	}
@@ -275,12 +279,12 @@ func sendEmail(mail mailToSend) error {
 	m.SetHeader("Subject", subject)
 
 	m.Embed("escience.png", gomail.SetCopyFunc(func(writer io.Writer) error {
-		_, err := writer.Write(escienceLogo)
+		_, err := writer.Write(emailEscienceLogo)
 		return err
 	}))
 
 	m.Embed("ucloud.png", gomail.SetCopyFunc(func(writer io.Writer) error {
-		_, err := writer.Write(ucloudLogo)
+		_, err := writer.Write(emailUCloudLogo)
 		return err
 	}))
 
@@ -295,13 +299,13 @@ func sendEmail(mail mailToSend) error {
 	return nil
 }
 
-func retrieveEmail(username string) (string, bool) {
-	mails := retrieveEmails([]string{username})
+func emailRetrieveAddress(username string) (string, bool) {
+	mails := emailRetrieveAddresses([]string{username})
 	email, ok := mails[username]
 	return email, ok
 }
 
-func retrieveEmails(usernames []string) map[string]string {
+func emailRetrieveAddresses(usernames []string) map[string]string {
 	return db.NewTx(func(tx *db.Transaction) map[string]string {
 		result := map[string]string{}
 		rows := db.Select[struct {
@@ -332,13 +336,13 @@ func retrieveEmails(usernames []string) map[string]string {
 // ---------------------------------------------------------------------------------------------------------------------
 
 //go:embed mailtpl/ucloud_logo.png
-var ucloudLogo []byte
+var emailUCloudLogo []byte
 
 //go:embed mailtpl/sdu_escience_logo.png
-var escienceLogo []byte
+var emailEscienceLogo []byte
 
-var baseTemplate = mailTpl(tplBase)
-var baseSupportTemplate = mailTpl(tplBaseSupport)
+var emailBaseTemplate = mailTpl(tplBase)
+var emailBaseSupportTemplate = mailTpl(tplBaseSupport)
 
 type mailTemplate struct {
 	tpl   *gonjaexec.Template
@@ -356,7 +360,7 @@ func (tpl *mailTemplate) Template() *gonjaexec.Template {
 	if tpl.tpl == nil {
 		tpl.mutex.Lock()
 		if tpl.tpl == nil {
-			tpl.tpl = prepareMailTemplateOrPanic(tpl.data)
+			tpl.tpl = emailPrepareTemplateOrPanic(tpl.data)
 		}
 		tpl.mutex.Unlock()
 	}
@@ -399,11 +403,11 @@ type mailToSend struct {
 	ReplyTo      string
 }
 
-func renderEmail(mail mailToSend) (string, string, error) {
+func emailRender(mail mailToSend) (string, string, error) {
 	boundary := util.RandomTokenNoTs(8)
 
 	mtype := mail.Mail.Type()
-	params := transformMailParameters(mtype, mail)
+	params := emailTransformParameters(mtype, mail)
 	params = util.SanitizeMapForSerialization(params)
 	params["recipient"] = mail.ToName
 	params["emailOptOut"] = fmt.Sprintf(`<p>
@@ -421,7 +425,7 @@ func renderEmail(mail mailToSend) (string, string, error) {
 	}
 
 	tpl := template.Template()
-	result, err := executePreparedMailTemplate(tpl, ctx)
+	result, err := emailExecutePreparedTemplate(tpl, ctx)
 	if err != nil {
 		return "", "", err
 	}
@@ -443,7 +447,7 @@ func renderEmail(mail mailToSend) (string, string, error) {
 	return bodyWrapped, subject, nil
 }
 
-func transformMailParameters(mtype fndapi.MailType, mail mailToSend) map[string]any {
+func emailTransformParameters(mtype fndapi.MailType, mail mailToSend) map[string]any {
 	var params map[string]any
 	_ = json.Unmarshal(mail.Mail, &params)
 
@@ -458,15 +462,15 @@ func transformMailParameters(mtype fndapi.MailType, mail mailToSend) map[string]
 	return params
 }
 
-func prepareMailTemplateOrPanic(byteSource []byte) *gonjaexec.Template {
-	res, err := prepareMailTemplate(byteSource)
+func emailPrepareTemplateOrPanic(byteSource []byte) *gonjaexec.Template {
+	res, err := emailPrepareTemplate(byteSource)
 	if err != nil {
 		panic(err)
 	}
 	return res
 }
 
-func prepareMailTemplate(byteSource []byte) (*gonjaexec.Template, error) {
+func emailPrepareTemplate(byteSource []byte) (*gonjaexec.Template, error) {
 	filters := gonjaexec.NewFilterSet(map[string]gonjaexec.FilterFunction{}).Update(gonjabuiltins.Filters)
 
 	env := &gonjaexec.Environment{
@@ -495,7 +499,7 @@ func prepareMailTemplate(byteSource []byte) (*gonjaexec.Template, error) {
 	return template, err
 }
 
-func executePreparedMailTemplate(tpl *gonjaexec.Template, ctx *gonjaexec.Context) (string, error) {
+func emailExecutePreparedTemplate(tpl *gonjaexec.Template, ctx *gonjaexec.Context) (string, error) {
 	output, err := tpl.ExecuteToString(ctx)
 	if err != nil {
 		log.Warn("Failure during jinja exec generated from %v: %v", util.GetCaller(), err)
@@ -508,13 +512,14 @@ func executePreparedMailTemplate(tpl *gonjaexec.Template, ctx *gonjaexec.Context
 // Mail daemon
 // ---------------------------------------------------------------------------------------------------------------------
 
-func mailDaemon() {
+func emailDaemon() {
 	// TODO Metrics/log
 	var dialFn func() (gomail.SendCloser, error)
 	var sender gomail.SendCloser
 
-	if cfg.Configuration.Emails.Enabled {
-		d := gomail.NewDialer("localhost", 25, "", "")
+	mailConfig := cfg.Configuration.Emails
+	if mailConfig.Enabled {
+		d := gomail.NewDialer(mailConfig.Server.Address, mailConfig.Server.Port, mailConfig.Username, mailConfig.Password)
 		dialFn = func() (gomail.SendCloser, error) {
 			return d.Dial()
 		}

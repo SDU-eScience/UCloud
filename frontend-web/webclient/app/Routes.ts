@@ -17,7 +17,6 @@ const admin = {
     userCreation: () => "/admin/userCreation",
     news: () => "/admin/news",
     providers: () => "/admin/providers",
-    scripts: () => "/admin/scripts",
     playground: () => "/playground",
 };
 

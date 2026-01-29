@@ -83,7 +83,7 @@ func ScriptCreate(
 					"created_by":       actor.Username,
 					"project_id":       actor.Project.Sql(),
 					"application_name": reqItem.Specification.ApplicationName,
-					"language":         reqItem.Specification.Language, // TODO
+					"language":         reqItem.Specification.Language,
 					"is_open":          true,
 					"path":             reqItem.Path,
 					"init":             reqItem.Specification.Init.Sql(),

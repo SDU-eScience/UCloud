@@ -70,7 +70,7 @@ func PtyExecCommand(args []string, info *StatusInfo) error {
 
 	// Bottom status line.
 	drawStatus := func() {
-		if isFullScreen {
+		if isFullScreen || info.StatusLine == "" {
 			return
 		}
 

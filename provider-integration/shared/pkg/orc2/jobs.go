@@ -155,14 +155,12 @@ func (job *Job) getParameterValues(ofType AppParameterValueType) []AppParameterV
 }
 
 type OpenSessionWithProvider struct {
-	// TODO Make sure we do not put this in the audit log
 	ProviderDomain string      `json:"providerDomain"`
 	ProviderId     string      `json:"providerId"`
 	Session        OpenSession `json:"session"`
 }
 
 type OpenSession struct {
-	// TODO Make sure we do not put this in the audit log
 	Type           OpenSessionType `json:"type"`
 	JobId          string          `json:"jobId"`
 	Rank           int             `json:"rank"`

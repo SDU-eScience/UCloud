@@ -1,6 +1,6 @@
 import * as React from "react";
 import {UsageReport} from "@/Accounting/UsageCore2";
-import {ChartLabel, colorNames} from "@/Accounting/Diagrams/index";
+import {colorNames} from "@/Accounting/Diagrams/index";
 import {useMemo, useState} from "react";
 import {useD3} from "@/Utilities/d3";
 import {scaleOrdinal} from "d3-scale";
