@@ -388,6 +388,7 @@ func WalletsBrowse(actor rpc.Actor, request accapi.WalletsBrowseRequest) fndapi.
 	}
 
 	result.ItemsPerPage = len(result.Items)
+	result.Items = util.NonNilSlice(result.Items)
 	return result
 }
 
