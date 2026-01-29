@@ -3,10 +3,12 @@ package orchestrator
 import (
 	"database/sql"
 	"slices"
+	"strings"
 	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
+	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
@@ -349,6 +351,12 @@ func lResourcePersist(r *resource) {
 }
 
 func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string) {
+	ref := reference
+	providerId, isProvider := strings.CutPrefix(reference, fndapi.ProviderSubjectPrefix)
+	if isProvider {
+		ref = providerId
+	}
+
 	resources := db.NewTx(func(tx *db.Transaction) map[ResourceId]*resource {
 		tx.NoDevResetThisIsNotAHackIPromise = true
 		rows := db.Select[resourceLoadRow](
@@ -375,7 +383,7 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 					(
 						(r.created_by = :reference and r.project is null and pc.provider is distinct from :reference)
 						or (r.project = :reference and r.created_by != :reference and pc.provider is distinct from :reference)
-						or (pc.provider is not distinct from :reference and r.created_by != :reference and r.project != :reference)
+						or (pc.provider is not distinct from :reference and r.created_by is distinct from :reference and r.project is distinct from :reference)
 						or (acl.username = :reference)
 					)
 					and r.type = :type
@@ -383,7 +391,7 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 				order by r.id
 		    `,
 			db.Params{
-				"reference": reference,
+				"reference": ref,
 				"type":      typeName,
 			},
 		)
