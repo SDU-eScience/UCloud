@@ -261,7 +261,7 @@ func UpdateAllocation(actor rpc.Actor, requests []accapi.UpdateAllocationRequest
 		}
 		iOwner := internalOwnerByReference(reference)
 
-		grantedIn, comment, err := internalUpdateAllocation(iOwner, time.Now(), bucket, accAllocId(request.AllocationId), request.NewQuota, request.NewStart, request.NewEnd)
+		grantedIn, comment, err := internalUpdateAllocation(iOwner, time.Now(), bucket, accAllocId(request.AllocationId), request.NewQuota, request.NewStart, request.NewEnd, request.Reason)
 
 		// If update failed will break the update
 		if err != nil {
