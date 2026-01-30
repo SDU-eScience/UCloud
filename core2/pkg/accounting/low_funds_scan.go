@@ -12,14 +12,9 @@ import (
 )
 
 func initLowFundsScan() {
-	computeLowFundsLimit := config.Configuration.Accounting.ComputeUnitsLowFundsNotificationLimitInCH
-	if computeLowFundsLimit == 0 {
-		computeLowFundsLimit = 20
-	}
-
-	storageLowFundsLimit := config.Configuration.Accounting.StorageUnitsLowFundsNotificationLimitInGB
-	if storageLowFundsLimit == 0 {
-		storageLowFundsLimit = 100
+	lowFundsLimitInPercent := config.Configuration.Accounting.LowFundsLimitInPercent
+	if lowFundsLimitInPercent == 0.0 {
+		lowFundsLimitInPercent = 10.0
 	}
 
 	go func() {
@@ -31,12 +26,12 @@ func initLowFundsScan() {
 
 		for {
 			<-ticker.C
-			lowFundsScan(computeLowFundsLimit, storageLowFundsLimit)
+			lowFundsScan(lowFundsLimitInPercent)
 		}
 	}()
 }
 
-func lowFundsScan(coreHourLowFundsLimit int64, storageLowFundsLimit int64) {
+func lowFundsScan(lowFundsLimitInPercent float32) {
 	log.Debug("Starting low funds scan")
 
 	type Resource struct {
@@ -105,31 +100,16 @@ func lowFundsScan(coreHourLowFundsLimit int64, storageLowFundsLimit int64) {
 		usersToNotifications := make(map[string][]Resource)
 
 		for _, row := range relevantWallets {
-			limit := int64(0)
-			if row.ProductType == accapi.ProductTypeStorage {
-				limit = storageLowFundsLimit
-			}
-			if row.ProductType == accapi.ProductTypeCompute {
-				limit = coreHourLowFundsLimit
-			}
-
 			// Converting to more readable format for the mail
-			rawAmount := row.CurrentQuota - row.CurrentUsage
-			remaining := int64(0)
-			switch row.AccountingFrequency {
-			case accapi.AccountingFrequencyOnce:
-				remaining = rawAmount
-			case accapi.AccountingFrequencyPeriodicMinute:
-				remaining = rawAmount / 60
-			case accapi.AccountingFrequencyPeriodicHour:
-				remaining = rawAmount
-			case accapi.AccountingFrequencyPeriodicDay:
-				remaining = rawAmount * 24
-			default:
-				log.Warn("Invalid accounting frequency passed: '%v'\n", row.AccountingFrequency)
+			currentQuota := float32(row.CurrentQuota)
+			currentUsage := float32(row.CurrentUsage)
+			lowBalanceNotified := row.LowBalanceNotified
+			if row.CurrentQuota == 0 {
+				continue
 			}
+			percentageRemaining := (currentQuota - currentUsage) / currentQuota * 100.0
 
-			if remaining < limit && !row.LowBalanceNotified {
+			if percentageRemaining < lowFundsLimitInPercent && !lowBalanceNotified {
 				notifications := usersToNotifications[row.Username]
 				notifications = append(notifications, Resource{
 					row.ProjectTitle,
@@ -139,7 +119,7 @@ func lowFundsScan(coreHourLowFundsLimit int64, storageLowFundsLimit int64) {
 				usersToNotifications[row.Username] = notifications
 				walletsToNotify = append(walletsToNotify, row.WalletId)
 			}
-			if remaining > limit && row.LowBalanceNotified {
+			if percentageRemaining > lowFundsLimitInPercent && lowBalanceNotified {
 				walletsToResetNotification = append(walletsToResetNotification, row.WalletId)
 			}
 		}
@@ -171,7 +151,7 @@ func lowFundsScan(coreHourLowFundsLimit int64, storageLowFundsLimit int64) {
 		return
 	}
 
-	if len(bulkRequest.Items) > 0 {
+	if len(WalletsToNotify) > 0 || len(WalletsToResetNotification) > 0 {
 		db.NewTx0(func(tx *db.Transaction) {
 			// Updating notification tracker for wallets below limit
 			updateLowBalanceNotified(tx, WalletsToNotify, true)
