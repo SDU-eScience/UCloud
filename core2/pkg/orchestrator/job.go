@@ -180,6 +180,7 @@ func initJobs() {
 			})
 
 			if !ok {
+				log.Info("unknown job or permission denied (%v, %v)", jobId, info.Actor.Username)
 				return util.Empty{}, util.HttpErr(http.StatusNotFound, "unknown job or permission denied (%v)", jobId)
 			}
 		}

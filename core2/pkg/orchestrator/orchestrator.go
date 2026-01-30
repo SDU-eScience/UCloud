@@ -138,10 +138,15 @@ func providerClient(providerId string) (*rpc.Client, bool) {
 		if !ok {
 			return nil, fmt.Errorf("unknown provider")
 		} else {
+			timeout := 5 * time.Second
+			if providerId == "aau" {
+				timeout = 30 * time.Second
+			}
+
 			return &rpc.Client{
 				BasePath: basePath,
 				Client: &http.Client{
-					Timeout: 5 * time.Second,
+					Timeout: timeout,
 				},
 				CoreForProvider: util.OptValue(providerId),
 			}, nil
