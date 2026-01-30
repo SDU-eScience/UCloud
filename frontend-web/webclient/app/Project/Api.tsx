@@ -39,6 +39,7 @@ export interface UpdateInviteLinkRequest {
     token: string;
     role: string;
     groups: string[];
+    expires: number;
 }
 
 interface AcceptInviteLinkRequest {

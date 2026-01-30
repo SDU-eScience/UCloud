@@ -1195,7 +1195,7 @@ func ProjectCreateInviteLink(actor rpc.Actor) (fndapi.ProjectInviteLink, *util.H
 
 	result := fndapi.ProjectInviteLink{
 		Token:           token,
-		Expires:         fndapi.Timestamp(time.Now().Add(30 * 24 * time.Hour)), /* TODO insert code here for variable expiry times for invite links*/
+		Expires:         fndapi.Timestamp(time.Now().Add(30 * 24 * time.Hour)),
 		RoleAssignment:  fndapi.ProjectRoleUser,
 		GroupAssignment: []string{},
 	}

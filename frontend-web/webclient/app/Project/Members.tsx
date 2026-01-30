@@ -526,13 +526,13 @@ export const ProjectMembers: React.FunctionComponent = () => {
         };
     }, []);
 
-    function updateLink(linkId: string, newGroups: string[] | null, newRole: ProjectRole | null) {
+    function updateLink(linkId: string, newGroups: string[] | null, newRole: ProjectRole | null, expires: number | null) {
         const oldLink = inviteLinks.find(it => it.token === linkId);
         const newLink: UpdateInviteLinkRequest = {
             token: linkId,
             role: newRole ?? oldLink?.roleAssignment ?? OldProjectRole.USER,
             groups: newGroups ?? oldLink?.groupAssignment ?? [],
-            expires: newExpiry ?? oldLink?.expires ?? OldLinkExpiry
+            expires: expires ?? oldLink?.expires ?? timestampUnixMs(),
         };
 
         callAPI(Api.updateInviteLink(newLink)).then(doNothing);
@@ -543,7 +543,7 @@ export const ProjectMembers: React.FunctionComponent = () => {
                         token: newLink.token,
                         groupAssignment: newLink.groups,
                         roleAssignment: newLink.role as ProjectRole,
-                        expires: oldLink?.expires ?? 0,
+                        expires: newLink?.expires ?? oldLink?.expires ?? 0,
                     };
                 } else {
                     return it;
@@ -622,10 +622,13 @@ export const ProjectMembers: React.FunctionComponent = () => {
             });
         }}
         onLinkGroupsUpdated={(linkId, groupIds) => {
-            updateLink(linkId, groupIds, null);
+            updateLink(linkId, groupIds, null, null);
         }}
         onUpdateLinkRole={(linkId, role) => {
-            updateLink(linkId, null, role);
+            updateLink(linkId, null, role, null);
+        }}
+        onSelectedExpiry={(linkId, expires) => {
+            updateLink(linkId, null, null, expires)
         }}
         onRenameGroup={(groupId, newTitle) => {
             dispatch({type: "RenameGroup", group: groupId, newTitle});
