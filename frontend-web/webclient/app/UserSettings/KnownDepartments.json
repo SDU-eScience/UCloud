@@ -7,14 +7,12 @@
             ]
         },
         {
-            "faculty": "Faculty of Social Sciences and Humanities",
+            "faculty": "The Faculty of Social Sciences and Humanities",
             "departments": [
-                "Department of Communication and Psychology",
-                "Department of Culture and Learning",
+                "Department of Culture and Communication",
+                "Department of Society and Politics",
                 "Department of Law",
-                "Department of Politics and Society",
-                "Department of Sociology and Social Work",
-                "AAU Business School"
+                "AAU Business School "
             ]
         },
         {
@@ -28,19 +26,30 @@
             ]
         },
         {
-            "faculty": "Faculty of Medicine",
+            "faculty": "The Faculty of Medicine",
             "departments": [
                 "Department of Clinical Medicine",
                 "Department of Health Science and Technology"
             ]
         },
         {
-            "faculty": "Technical Faculty of IT and Design",
+            "faculty": "The Technical Faculty of IT and Design",
             "departments": [
-                "Department of Architecture, Design, and Media Technology",
+                "Department of Architecture, Design and Media Technology",
                 "Department of Computer Science",
                 "Department of Electronic Systems",
                 "Department of Sustainability and Planning"
+            ]
+        },
+        {
+            "faculty": "Shared services",
+            "departments": [
+                "The Technical Faculty of IT and Design",
+                "Faculty of Engineering and Science",
+                "The Faculty of Social Sciences and Humanities",
+                "The Faculty of Medicine",
+                "Other",
+                "IT Services"
             ]
         }
     ],
