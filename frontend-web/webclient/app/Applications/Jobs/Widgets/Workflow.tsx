@@ -6,10 +6,10 @@ import {fullScreenModalStyle} from "@/Utilities/ModalUtilities";
 import {findElement, widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
 import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import {CardClass} from "@/ui-components/Card";
-import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
+import {ApplicationParameter, ApplicationParameterNS} from "@/Applications/AppStoreApi";
 import WorkflowEditor from "@/Applications/Workflows/Editor";
 import * as WorkflowApi from "@/Applications/Workflows";
-import {Workflow, WorkflowSpecification} from "@/Applications/Workflows";
+import {Workflow, WorkflowLanguage, WorkflowSpecification} from "@/Applications/Workflows";
 import {AppLogo, hashF} from "@/Applications/AppToolLogo";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {bulkRequestOf, deepEquals, threadDeferLike, doNothing, timestampUnixMs} from "@/UtilityFunctions";
@@ -101,7 +101,11 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
 
     const workflows: SearchableWorkflow[] = useMemo(() => {
         let result: SearchableWorkflow[] = [];
-        const defaultSpec = props.parameter.defaultValue as WorkflowSpecification;
+        const defaultSpec: WorkflowSpecification = (props.parameter.defaultValue as WorkflowSpecification) ?? {
+            applicationName: props.application.metadata.name,
+            language: "JINJA2",
+            inputs: [],
+        };
         result.push({
             id: "default",
             createdAt: timestampUnixMs(),
@@ -290,6 +294,8 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
             }
         }
     }, [activeWorkflow]);
+
+    console.log({activeWorkflow});
 
     return (<Flex flexDirection={"column"}>
         <input type="hidden" id={widgetId(props.parameter)} />

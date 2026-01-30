@@ -74,6 +74,7 @@ func AppIxExportToZip() []byte {
 			apiTools = append(apiTools, orcapi.Tool{
 				Owner:       "UCloud",
 				CreatedAt:   fndapi.Timestamp(time.Now()),
+				ModifiedAt:  fndapi.Timestamp(time.Now()),
 				Description: itool.Tool,
 			})
 			itool.Mu.RUnlock()

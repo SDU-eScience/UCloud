@@ -248,7 +248,7 @@ func initJobs() {
 				jobType,
 				orcapi.ResourceOwner{
 					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
-					Project:   reqItem.Project.Value,
+					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
 				},
 				nil,
 				util.OptValue(reqItem.Spec.Product),
@@ -597,7 +597,7 @@ func initJobs() {
 				orcapi.JobsProviderRequestDynamicParametersRequest{
 					Owner: orcapi.ResourceOwner{
 						CreatedBy: info.Actor.Username,
-						Project:   string(info.Actor.Project.Value),
+						Project:   util.OptStringIfNotEmpty(string(info.Actor.Project.GetOrDefault(rpc.ProjectId("")))),
 					},
 					Application: app,
 				},
@@ -990,6 +990,13 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 	}
 
 	appParamsByName := map[string]orcapi.ApplicationParameter{}
+	for _, value := range spec.Parameters {
+		if value.Type == orcapi.AppParameterValueTypeWorkflow {
+			for _, input := range value.Specification.Inputs {
+				appParamsByName[input.Name] = input
+			}
+		}
+	}
 	for _, param := range app.Invocation.Parameters {
 		appParamsByName[param.Name] = param
 	}
@@ -1106,7 +1113,7 @@ func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue, backend 
 			return util.HttpErr(http.StatusBadRequest, "unknown file or permission denied at '%s'", path)
 		}
 
-		value.ReadOnly = !orcapi.PermissionsHas(resc.Permissions.Myself, orcapi.PermissionEdit)
+		value.ReadOnly = !orcapi.PermissionsHas(resc.Permissions.GetOrDefault(orcapi.ResourcePermissions{}).Myself, orcapi.PermissionEdit)
 		return nil
 
 	case orcapi.AppParameterValueTypePeer:

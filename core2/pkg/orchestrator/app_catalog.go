@@ -582,6 +582,7 @@ func AppRetrieve(
 			apiApplication.Invocation.Tool.Tool = util.OptValue(orcapi.Tool{
 				Owner:       "_ucloud",
 				CreatedAt:   apiApplication.Metadata.CreatedAt,
+				ModifiedAt:  apiApplication.Metadata.CreatedAt,
 				Description: t.Tool,
 			})
 			t.Mu.RUnlock()

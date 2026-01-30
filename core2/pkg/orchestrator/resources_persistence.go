@@ -34,7 +34,7 @@ func resourceLoadInternal(tx *db.Transaction, typeName string, rows []resourceLo
 			ProviderId: util.SqlNullStringToOpt(row.ProviderGeneratedId),
 			Owner: orcapi.ResourceOwner{
 				CreatedBy: util.SqlNullStringToOpt(row.CreatedBy).GetOrDefault("_ucloud"),
-				Project:   util.SqlNullStringToOpt(row.Project).GetOrDefault(""),
+				Project:   util.SqlNullStringToOpt(row.Project),
 			},
 			CreatedAt:  row.CreatedAt,
 			ModifiedAt: row.CreatedAt, // NOTE(Dan): We don't store this! That seems silly.
@@ -273,7 +273,7 @@ func lResourcePersist(r *resource) {
 					"name":             product.Id,
 					"product_category": product.Category,
 					"created_by":       r.Owner.CreatedBy,
-					"project":          util.OptSqlStringIfNotEmpty(r.Owner.Project),
+					"project":          r.Owner.Project.Sql(),
 					"id":               r.Id,
 					"provider_id":      r.ProviderId.Sql(),
 				},
