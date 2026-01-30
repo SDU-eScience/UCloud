@@ -523,8 +523,8 @@ func ResourceRetrieveEx[T any](
 	}
 
 	errorMessage := util.HttpErr(http.StatusNotFound, "not found")
-	if len(perms) == 0 && !ok {
-		errorMessage = util.HttpErr(http.StatusForbidden, "missing write permission")
+	if perms == nil && !ok {
+		errorMessage = util.HttpErr(http.StatusForbidden, "write permission is required")
 	}
 	return result, orcapi.Resource{}, util.OptNone[accapi.ProductReference](), errorMessage
 }
