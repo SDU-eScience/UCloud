@@ -57,7 +57,12 @@ async function makeGrantApplication(page: Page, projectName: string): Promise<st
     await Accounting.goTo(page, "Apply for resources");
     await Accounting.GrantApplication.fillProjectName(page, projectName);
     await Accounting.GrantApplication.toggleGrantGiver(page, "k8s");
-    await Accounting.GrantApplication.fillQuotaFields(page, [{field: "Core-hours requested", quota: 1000}, {field: "GB requested", quota: 1000}]);
+    await Accounting.GrantApplication.fillQuotaFields(page, [
+        {field: "Core-hours requested", quota: 1000},
+        {field: "GB requested", quota: 1000},
+        {field: "IPs requested", quota: 1000},
+        {field: "Licenses requested", quota: 1000},
+    ]);
     await Accounting.GrantApplication.fillDefaultApplicationTextFields(page);
 
     return await Accounting.GrantApplication.submit(page);

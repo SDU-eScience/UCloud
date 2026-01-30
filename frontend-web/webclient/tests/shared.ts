@@ -329,6 +329,10 @@ export const Drive = {
         return Help.newResourceName("DriveName");
     },
 
+    memberFiles(username: string): string {
+        return `Member Files: ${username}`;
+    },
+
     async goToDrives(page: Page): Promise<void> {
         if (page.url().endsWith("/app/drives")) return;
         await NetworkCalls.awaitResponse(page, "**/api/files/collections/browse**", async () => {

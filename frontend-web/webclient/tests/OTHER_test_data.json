@@ -1,1 +1,19 @@
-{"Project PI":{"username":"piuser15896","password":"user15896_user15896"},"Project Admin":{"username":"adminuser97682","password":"user97682_user97682"},"Project User":{"username":"useruser58314","password":"user58314_user58314"},"Personal Workspace":{"password":"204f2a61fd880a2c5182059723313b15d1c211e410398c216b096f7248a299e4","username":"8463d30f48d58bcc8e23a7dde42040c02b6e2a24f8a6c54aa75674ea6e4e67c4"},"projectName":"ProjectTitle30986"}
+{
+    "Project PI": {
+        "username": "",
+        "password": ""
+    },
+    "Project Admin": {
+        "username": "",
+        "password": ""
+    },
+    "Project User": {
+        "username": "",
+        "password": ""
+    },
+    "Personal Workspace": {
+        "password": "",
+        "username": ""
+    },
+    "projectName": ""
+}
