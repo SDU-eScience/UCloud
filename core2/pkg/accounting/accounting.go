@@ -363,7 +363,6 @@ func WalletV2ByAllocationID(actor rpc.Actor, allocationId int) (AccWalletId, acc
 }
 
 func WalletsBrowse(actor rpc.Actor, request accapi.WalletsBrowseRequest) fndapi.PageV2[accapi.WalletV2] {
-	log.Info("WalletsBrowse 1")
 	reference := actor.Username
 	if actor.Project.Present {
 		reference = string(actor.Project.Value)
@@ -372,7 +371,6 @@ func WalletsBrowse(actor rpc.Actor, request accapi.WalletsBrowseRequest) fndapi.
 		RequireActive:   false,
 		IncludeChildren: request.IncludeChildren,
 	})
-	log.Info("WalletsBrowse 2")
 
 	result := fndapi.PageV2[accapi.WalletV2]{}
 
@@ -392,7 +390,6 @@ func WalletsBrowse(actor rpc.Actor, request accapi.WalletsBrowseRequest) fndapi.
 
 	result.ItemsPerPage = len(result.Items)
 	result.Items = util.NonNilSlice(result.Items)
-	log.Info("WalletsBrowse 3")
 	return result
 }
 

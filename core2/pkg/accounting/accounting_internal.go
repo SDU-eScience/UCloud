@@ -905,7 +905,8 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 
 						overAllocationUsed := usageInNode - propagatedUsage
 						if overAllocationUsed < 0 {
-							panic(fmt.Sprintf("overAllocationUsed < 0: %v %v in lInternalBuildGraph(%v, %v, %v)", usageInNode, propagatedUsage, b.Category.Name, leaf.Id, flags))
+							log.Warn("overAllocationUsed < 0: %v %v in lInternalBuildGraph(%v, %v, %v)", usageInNode, propagatedUsage, b.Category.Name, leaf.Id, flags)
+							overAllocationUsed = 0
 						}
 
 						overAllocationNode := vertexToOverAllocationRoot(vertexIndex)
@@ -1598,18 +1599,14 @@ func internalRetrieveWallets(
 	reference string,
 	filter walletFilter,
 ) []accapi.WalletV2 {
-	log.Info("internalRetrieveWallets 1")
 	if reference == "" {
 		return nil
 	}
 
-	log.Info("internalRetrieveWallets 2")
 	owner := internalOwnerByReference(reference)
 	var potentialBuckets []*internalBucket
 
-	log.Info("internalRetrieveWallets 3")
 	accGlobals.Mu.RLock()
-	log.Info("internalRetrieveWallets 4")
 	for _, b := range accGlobals.BucketsByCategory {
 		if filter.ProductType.Present && filter.ProductType.Value != b.Category.ProductType {
 			continue
@@ -1621,7 +1618,6 @@ func internalRetrieveWallets(
 			potentialBuckets = append(potentialBuckets, b)
 		}
 	}
-	log.Info("internalRetrieveWallets 5")
 
 	var wallets []accapi.WalletV2
 
@@ -1651,7 +1647,6 @@ func internalRetrieveWallets(
 
 		b.Mu.RUnlock()
 	}
-	log.Info("internalRetrieveWallets 6")
 
 	accGlobals.Mu.RUnlock() // need to be held for during owner lookups
 
@@ -1670,7 +1665,6 @@ func internalRetrieveWallets(
 		}
 	})
 
-	log.Info("internalRetrieveWallets 7")
 	return wallets
 }
 
