@@ -1067,7 +1067,7 @@ func lInternalReevaluate(b *internalBucket, now time.Time, wallet *internalWalle
 func lInternalScanAllocations(b *internalBucket, now time.Time) {
 	for _, alloc := range b.AllocationsById {
 		lInternalAttemptActivation(b, now, alloc, true)
-		lInternalAttemptRetirement(b, now, alloc, true)
+		//lInternalAttemptRetirement(b, now, alloc, true)
 	}
 }
 
@@ -1598,14 +1598,18 @@ func internalRetrieveWallets(
 	reference string,
 	filter walletFilter,
 ) []accapi.WalletV2 {
+	log.Info("internalRetrieveWallets 1")
 	if reference == "" {
 		return nil
 	}
 
+	log.Info("internalRetrieveWallets 2")
 	owner := internalOwnerByReference(reference)
 	var potentialBuckets []*internalBucket
 
+	log.Info("internalRetrieveWallets 3")
 	accGlobals.Mu.RLock()
+	log.Info("internalRetrieveWallets 4")
 	for _, b := range accGlobals.BucketsByCategory {
 		if filter.ProductType.Present && filter.ProductType.Value != b.Category.ProductType {
 			continue
@@ -1617,6 +1621,7 @@ func internalRetrieveWallets(
 			potentialBuckets = append(potentialBuckets, b)
 		}
 	}
+	log.Info("internalRetrieveWallets 5")
 
 	var wallets []accapi.WalletV2
 
@@ -1646,6 +1651,7 @@ func internalRetrieveWallets(
 
 		b.Mu.RUnlock()
 	}
+	log.Info("internalRetrieveWallets 6")
 
 	accGlobals.Mu.RUnlock() // need to be held for during owner lookups
 
@@ -1664,6 +1670,7 @@ func internalRetrieveWallets(
 		}
 	})
 
+	log.Info("internalRetrieveWallets 7")
 	return wallets
 }
 
