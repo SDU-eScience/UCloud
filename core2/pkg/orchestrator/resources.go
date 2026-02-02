@@ -525,7 +525,11 @@ func ResourceRetrieveEx[T any](
 		}
 	}
 
-	return result, orcapi.Resource{}, util.OptNone[accapi.ProductReference](), util.HttpErr(http.StatusNotFound, "not found")
+	errorMessage := util.HttpErr(http.StatusNotFound, "not found")
+	if perms == nil && !ok {
+		errorMessage = util.HttpErr(http.StatusForbidden, "write permission is required")
+	}
+	return result, orcapi.Resource{}, util.OptNone[accapi.ProductReference](), errorMessage
 }
 
 type ResourceSortByFn[T any] func(a T, b T) int
