@@ -2,27 +2,28 @@ package orchestrators
 
 import (
 	"slices"
+
 	acc "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"
 )
 
 type Resource struct {
-	Id                  string              `json:"id,omitempty"`
-	CreatedAt           fnd.Timestamp       `json:"createdAt"`
-	Owner               ResourceOwner       `json:"owner"`
-	Permissions         ResourcePermissions `json:"permissions"`
-	ProviderGeneratedId string              `json:"providerGeneratedId,omitempty"`
+	Id                  string                           `json:"id,omitempty"`
+	CreatedAt           fnd.Timestamp                    `json:"createdAt"`
+	Owner               ResourceOwner                    `json:"owner"`
+	Permissions         util.Option[ResourcePermissions] `json:"permissions"`
+	ProviderGeneratedId string                           `json:"providerGeneratedId,omitempty"`
 }
 
 type ResourceOwner struct {
-	CreatedBy string `json:"createdBy,omitempty"`
-	Project   string `json:"project,omitempty"`
+	CreatedBy string              `json:"createdBy,omitempty"`
+	Project   util.Option[string] `json:"project"`
 }
 
 type ResourcePermissions struct {
-	Myself []Permission       `json:"myself,omitempty"`
-	Others []ResourceAclEntry `json:"others,omitempty"`
+	Myself []Permission       `json:"myself"`
+	Others []ResourceAclEntry `json:"others"`
 }
 
 type Permission string
@@ -153,8 +154,8 @@ type ProviderRegisteredResource[Spec any] struct {
 }
 
 func ResourceOwnerToWalletOwner(resource Resource) acc.WalletOwner {
-	if resource.Owner.Project != "" {
-		return acc.WalletOwnerProject(resource.Owner.Project)
+	if resource.Owner.Project.Present {
+		return acc.WalletOwnerProject(resource.Owner.Project.Value)
 	} else {
 		return acc.WalletOwnerUser(resource.Owner.CreatedBy)
 	}

@@ -1,0 +1,28 @@
+application: v2
+
+name: generic-container
+
+version: 1
+
+software:
+  type: Container
+  image: ubuntu:24.04
+
+features:
+  multiNode: true # NOTE: Without this, you will not be able to select multiple nodes
+
+parameters:
+  wf:
+    type: Workflow
+    optional: false
+    title: "Workflow"
+    description: |
+      Change this workflow to customize what the batch script should do.
+
+    job: |
+      sleep inf
+    readme: |
+      Change me!
+
+# Keep this empty for now. Will become optional later.
+invocation: ""

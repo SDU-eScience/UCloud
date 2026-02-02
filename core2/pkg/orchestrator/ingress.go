@@ -253,7 +253,7 @@ func initIngresses() {
 				ingressType,
 				orcapi.ResourceOwner{
 					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
-					Project:   reqItem.Project.Value,
+					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
 				},
 				nil,
 				util.OptValue(reqItem.Spec.Product),

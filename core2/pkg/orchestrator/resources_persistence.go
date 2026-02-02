@@ -3,10 +3,12 @@ package orchestrator
 import (
 	"database/sql"
 	"slices"
+	"strings"
 	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
+	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
@@ -32,7 +34,7 @@ func resourceLoadInternal(tx *db.Transaction, typeName string, rows []resourceLo
 			ProviderId: util.SqlNullStringToOpt(row.ProviderGeneratedId),
 			Owner: orcapi.ResourceOwner{
 				CreatedBy: util.SqlNullStringToOpt(row.CreatedBy).GetOrDefault("_ucloud"),
-				Project:   util.SqlNullStringToOpt(row.Project).GetOrDefault(""),
+				Project:   util.SqlNullStringToOpt(row.Project),
 			},
 			CreatedAt:  row.CreatedAt,
 			ModifiedAt: row.CreatedAt, // NOTE(Dan): We don't store this! That seems silly.
@@ -271,7 +273,7 @@ func lResourcePersist(r *resource) {
 					"name":             product.Id,
 					"product_category": product.Category,
 					"created_by":       r.Owner.CreatedBy,
-					"project":          util.OptSqlStringIfNotEmpty(r.Owner.Project),
+					"project":          r.Owner.Project.Sql(),
 					"id":               r.Id,
 					"provider_id":      r.ProviderId.Sql(),
 				},
@@ -349,6 +351,12 @@ func lResourcePersist(r *resource) {
 }
 
 func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string) {
+	ref := reference
+	providerId, isProvider := strings.CutPrefix(reference, fndapi.ProviderSubjectPrefix)
+	if isProvider {
+		ref = providerId
+	}
+
 	resources := db.NewTx(func(tx *db.Transaction) map[ResourceId]*resource {
 		tx.NoDevResetThisIsNotAHackIPromise = true
 		rows := db.Select[resourceLoadRow](
@@ -375,7 +383,7 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 					(
 						(r.created_by = :reference and r.project is null and pc.provider is distinct from :reference)
 						or (r.project = :reference and r.created_by != :reference and pc.provider is distinct from :reference)
-						or (pc.provider is not distinct from :reference and r.created_by != :reference and r.project != :reference)
+						or (pc.provider is not distinct from :reference and r.created_by is distinct from :reference and r.project is distinct from :reference)
 						or (acl.username = :reference)
 					)
 					and r.type = :type
@@ -383,7 +391,7 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 				order by r.id
 		    `,
 			db.Params{
-				"reference": reference,
+				"reference": ref,
 				"type":      typeName,
 			},
 		)

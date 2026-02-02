@@ -508,7 +508,7 @@ func productsPostProcess(actor rpc.Actor, products []accapi.ProductV2, filter ac
 	}
 
 	if !accountingInfoNeeded {
-		return products
+		return util.NonNilSlice(products)
 	}
 
 	wallets := WalletsBrowse(
@@ -528,7 +528,7 @@ func productsPostProcess(actor rpc.Actor, products []accapi.ProductV2, filter ac
 			}
 		}
 	}
-	return products
+	return util.NonNilSlice(products)
 }
 
 func productFilterApplies(product accapi.ProductV2, filter accapi.ProductsFilter) bool {

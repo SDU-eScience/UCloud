@@ -34,7 +34,7 @@ func initSyncthing() {
 			CreatedBy: actor.Username,
 			Project: util.OptMap(actor.Project, func(value rpc.ProjectId) string {
 				return string(value)
-			}).GetOrDefault(""),
+			}),
 		}
 	}
 

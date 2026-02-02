@@ -2,6 +2,7 @@ package orchestrators
 
 import (
 	"encoding/json"
+
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -87,6 +88,7 @@ type NativeApplication struct {
 type Tool struct {
 	Owner       string          `json:"owner" yaml:"owner"`
 	CreatedAt   fnd.Timestamp   `json:"createdAt" yaml:"createdAt"`
+	ModifiedAt  fnd.Timestamp   `json:"modifiedAt"`
 	Description ToolDescription `json:"description" yaml:"description"`
 }
 
@@ -183,7 +185,7 @@ type ApplicationInvocationDescription struct {
 	AllowPublicLink       util.Option[bool]              `json:"allowPublicLink" yaml:"allowPublicLink"`
 	FileExtensions        []string                       `json:"fileExtensions" yaml:"fileExtensions"`
 	LicenseServers        []string                       `json:"licenseServers" yaml:"licenseServers"`
-	Modules               ModulesSection                 `json:"modules" yaml:"modules"`
+	Modules               util.Option[ModulesSection]    `json:"modules" yaml:"modules"`
 	Sbatch                map[string]InvocationParameter `json:"sbatch" yaml:"sbatch"`
 }
 

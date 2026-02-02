@@ -817,10 +817,12 @@ func (y *A1Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 					AllowPublicLink:       y.AllowPublicLink,
 					FileExtensions:        y.FileExtensions,
 					LicenseServers:        y.LicenseServers,
-					Modules: orcapi.ModulesSection{
-						MountPath: y.Modules.Value.MountPath,
-						Optional:  y.Modules.Value.Optional,
-					},
+					Modules: util.OptMap(y.Modules, func(mod A1Module) orcapi.ModulesSection {
+						return orcapi.ModulesSection{
+							MountPath: mod.MountPath,
+							Optional:  mod.Optional,
+						}
+					}),
 					Sbatch: map[string]orcapi.InvocationParameter{},
 				},
 			},
@@ -904,8 +906,9 @@ func (y *A1Tool) Normalize() (orcapi.ToolReference, *util.HttpError) {
 				Version: y.Version,
 			},
 			Tool: util.OptValue(orcapi.Tool{
-				Owner:     "UCloud",
-				CreatedAt: fndapi.Timestamp(time.Now()),
+				Owner:      "UCloud",
+				CreatedAt:  fndapi.Timestamp(time.Now()),
+				ModifiedAt: fndapi.Timestamp(time.Now()),
 				Description: orcapi.ToolDescription{
 					Info: orcapi.NameAndVersion{
 						Name:    y.Name,

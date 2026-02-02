@@ -283,6 +283,8 @@ func PrincipalRetrieveOrCreateFromIdpResponse(resp IdpResponse) (Principal, *uti
 				where
 					resp.idp_identity = :identity
 					and resp.idp = :idp
+				order by resp.associated_user
+				limit 1
 		    `,
 			db.Params{
 				"idp":      resp.Idp,

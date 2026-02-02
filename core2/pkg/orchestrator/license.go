@@ -151,7 +151,7 @@ func initLicenses() {
 				licenseType,
 				orcapi.ResourceOwner{
 					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
-					Project:   reqItem.Project.Value,
+					Project:   reqItem.Project,
 				},
 				nil,
 				util.OptValue(reqItem.Spec.Product),
