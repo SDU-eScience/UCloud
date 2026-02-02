@@ -94,7 +94,7 @@ func ShareLinkCreate(actor rpc.Actor, path string) (orcapi.ShareLink, *util.Http
 		return orcapi.ShareLink{}, util.HttpErr(http.StatusForbidden, "unable to share this file")
 	}
 
-	if drive.Owner.Project != "" {
+	if drive.Owner.Project.Present {
 		return orcapi.ShareLink{}, util.HttpErr(http.StatusForbidden, "unable to share files from a project")
 	}
 

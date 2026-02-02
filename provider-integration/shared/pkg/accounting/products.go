@@ -150,6 +150,8 @@ type ProductV2 struct {
 
 	Balance          int64 `json:"balance"`
 	MaxUsableBalance int64 `json:"maxUsableBalance"`
+
+	PricePerUnit int64 `json:"pricePerUnit"` // deprecated - only here for backwards compatibility with openstack gw
 }
 
 func (p *ProductV2) ToReference() ProductReference {

@@ -907,7 +907,8 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 
 						overAllocationUsed := usageInNode - propagatedUsage
 						if overAllocationUsed < 0 {
-							panic(fmt.Sprintf("overAllocationUsed < 0: %v %v in lInternalBuildGraph(%v, %v, %v)", usageInNode, propagatedUsage, b.Category.Name, leaf.Id, flags))
+							log.Warn("overAllocationUsed < 0: %v %v in lInternalBuildGraph(%v, %v, %v)", usageInNode, propagatedUsage, b.Category.Name, leaf.Id, flags)
+							overAllocationUsed = 0
 						}
 
 						overAllocationNode := vertexToOverAllocationRoot(vertexIndex)
@@ -1165,6 +1166,8 @@ func lInternalMarkSignificantUpdate(b *internalBucket, now time.Time, wallet *in
 	wallet.LastSignificantUpdate = now
 	wallet.Dirty = true
 	if b.Category.Provider != "usagegen" {
+		// TODO(Dan): If more than one million updates is ever made in a single lock-cycle, then this function will
+		//   indefinitely stall the system. Please refactor the code, before the system reaches such a size.
 		providerWalletNotifications <- wallet.Id
 	}
 }

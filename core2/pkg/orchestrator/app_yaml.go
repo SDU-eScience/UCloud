@@ -404,7 +404,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 	mappedEnvironment := map[string]orcapi.InvocationParameter{}
 	mappedSbatch := map[string]orcapi.InvocationParameter{}
 	mappedAppType := orcapi.ApplicationTypeBatch
-	mappedModules := orcapi.ModulesSection{}
+	mappedModules := util.OptNone[orcapi.ModulesSection]()
 
 	util.ValidateString(&y.Name, "name", 0, &err)
 	util.ValidateString(&y.Version, "version", 0, &err)
@@ -688,10 +688,10 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 
 	if y.Modules.Present {
 		mods := y.Modules.Value
-		mappedModules = orcapi.ModulesSection{
+		mappedModules.Set(orcapi.ModulesSection{
 			MountPath: mods.MountPath,
 			Optional:  mods.Optional,
-		}
+		})
 	}
 
 	if y.Vnc.Present {
@@ -774,6 +774,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 						Tool: util.OptValue[orcapi.Tool](orcapi.Tool{
 							Owner:       "UCloud",
 							CreatedAt:   fndapi.Timestamp(time.Now()),
+							ModifiedAt:  fndapi.Timestamp(time.Now()),
 							Description: mappedTool,
 						}),
 					},

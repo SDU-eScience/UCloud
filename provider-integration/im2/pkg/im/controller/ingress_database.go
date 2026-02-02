@@ -122,7 +122,11 @@ func DeleteTrackedLink(target *orc.Ingress, dbFn func(tx *db.Transaction)) error
 
 func RetrieveIngress(id string) orc.Ingress {
 	ingressesMutex.Lock()
-	result := *ingresses[id]
+	res := ingresses[id]
+	var result orc.Ingress
+	if res != nil {
+		result = *res
+	}
 	ingressesMutex.Unlock()
 	return result
 }

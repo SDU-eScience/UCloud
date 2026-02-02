@@ -73,13 +73,18 @@ func projectBucket(key string) *internalProjectBucket {
 	return &projectBuckets[hash%len(projectBuckets)]
 }
 
+type internalProjectUserPreferences struct {
+	Hidden   bool
+	Favorite bool
+}
+
 type internalProjectUserInfo struct {
-	Mu        sync.RWMutex
-	Username  string
-	Projects  map[string]util.Empty
-	Groups    map[string]string // group to project
-	Favorites map[string]util.Empty
-	InvitedTo map[string]util.Empty
+	Mu              sync.RWMutex
+	Username        string
+	Projects        map[string]util.Empty
+	Groups          map[string]string // group to project
+	UserPreferences map[string]internalProjectUserPreferences
+	InvitedTo       map[string]util.Empty
 }
 
 type internalProject struct {
@@ -416,8 +421,8 @@ func ProjectBrowse(actor rpc.Actor, request fndapi.ProjectBrowseRequest) (fndapi
 	for p := range userInfo.Projects {
 		projectIds = append(projectIds, p)
 	}
-	for f := range userInfo.Favorites {
-		favorites[f] = true
+	for projectId, prefs := range userInfo.UserPreferences {
+		favorites[projectId] = prefs.Favorite
 	}
 	userInfo.Mu.RUnlock()
 
@@ -1868,56 +1873,124 @@ func ProjectRetrieveSubProjectRenaming(actor rpc.Actor) (fndapi.ProjectRetrieveS
 	return fndapi.ProjectRetrieveSubProjectRenamingResponse{Allowed: canRename}, nil
 }
 
-// Project star system and user-level info
+// Project user preference system and user-level info
 // =====================================================================================================================
-// Users can mark preferred projects with a star (marking it as a "favorite"). This will cause projects to automatically
-// be pushed to the top when browsing them. This action is kept at a local user level, meaning that each user has
-// different stars. This information is stored in the user-info structure.
+// Users can customize their project preferences (e.g., favorite, hidden) at a per-project level. These preferences
+// are stored in a project_user_preferences table. The rows only exist when at least one preference is set to a non-default value. When
+// all preferences return to their default state (all false), the row is deleted. This
+// information is also cached in the user-info structure.
 
-func ProjectToggleFavorite(actor rpc.Actor, projectId string) *util.HttpError {
-	var err *util.HttpError
+// Preferences behavior are as follows
+// with a star (marking it as a "favorite"). This will cause projects to automatically be pushed to the top when browsing them. This action is kept at a local user level, meaning that each user has
+// different stars.
+// with a "hide" flag, causing the project to be hidden from normal browsing views. This action is also kept at a local user level.
+
+func projectTogglePreference(actor rpc.Actor, projectId string, field string) (bool, *util.HttpError) {
 	uinfo := projectRetrieveUserInfo(actor.Username)
 	uinfo.Mu.Lock()
+	defer uinfo.Mu.Unlock()
+
 	if _, ok := uinfo.Projects[projectId]; !ok {
-		err = util.HttpErr(http.StatusForbidden, "You are not a member of this project!")
-	} else {
-		wasFavorite := false
-		db.NewTx0(func(tx *db.Transaction) {
-			_, wasFavorite = db.Get[struct{ ProjectId string }](
+		return false, util.HttpErr(http.StatusForbidden, "You are not a member of this project!")
+	}
+
+	wasEnabled := false
+	db.NewTx0(func(tx *db.Transaction) {
+		prefs, exists := db.Get[struct {
+			Favorite bool
+			Hidden   bool
+		}](
+			tx,
+			`
+				select favorite, hidden
+				from project.project_user_preferences
+				where username = :username and project_id = :project
+			`,
+			db.Params{
+				"username": actor.Username,
+				"project":  projectId,
+			},
+		)
+
+		// Determine current and new state
+		switch field {
+		case "favorite":
+			wasEnabled = exists && prefs.Favorite
+			prefs.Favorite = !wasEnabled
+		case "hidden":
+			wasEnabled = exists && prefs.Hidden
+			prefs.Hidden = !wasEnabled
+		}
+
+		// Check if all preferences are now false (default state)
+		allFalse := !prefs.Favorite && !prefs.Hidden
+
+		if allFalse {
+			// Delete row if no state are set meaning default state
+			db.Exec(
 				tx,
 				`
-					delete from project.project_favorite
+					delete from project.project_user_preferences
 					where username = :username and project_id = :project
-					returning project_id
-			    `,
+				`,
 				db.Params{
 					"username": actor.Username,
 					"project":  projectId,
 				},
 			)
-
-			if !wasFavorite {
-				db.Exec(
-					tx,
-					`
-						insert into project.project_favorite(project_id, username) 
-						values (:project, :username)
-					`,
-					db.Params{
-						"username": actor.Username,
-						"project":  projectId,
-					},
-				)
-			}
-		})
-
-		if wasFavorite {
-			delete(uinfo.Favorites, projectId)
 		} else {
-			uinfo.Favorites[projectId] = util.Empty{}
+			// At least one preference is true, insert the row
+			db.Exec(
+				tx,
+				`
+					insert into project.project_user_preferences(project_id, username, favorite, hidden) 
+					values (:project, :username, :favorite, :hidden)
+					on conflict (project_id, username) 
+					do update set favorite = :favorite, hidden = :hidden
+				`,
+				db.Params{
+					"username": actor.Username,
+					"project":  projectId,
+					"favorite": prefs.Favorite,
+					"hidden":   prefs.Hidden,
+				},
+			)
 		}
+	})
+
+	return wasEnabled, nil
+}
+
+func ProjectToggleFavorite(actor rpc.Actor, projectId string) *util.HttpError {
+	wasFavorite, err := projectTogglePreference(actor, projectId, "favorite")
+	if err != nil {
+		return err
 	}
-	uinfo.Mu.Unlock()
+
+	uinfo := projectRetrieveUserInfo(actor.Username)
+	uinfo.Mu.Lock()
+	defer uinfo.Mu.Unlock()
+
+	if wasFavorite {
+		// Remove from cache or update to false
+		prefs := uinfo.UserPreferences[projectId]
+		prefs.Favorite = false
+		if !prefs.Hidden {
+			delete(uinfo.UserPreferences, projectId)
+		} else {
+			uinfo.UserPreferences[projectId] = prefs
+		}
+	} else {
+		prefs := uinfo.UserPreferences[projectId]
+		prefs.Favorite = true
+		uinfo.UserPreferences[projectId] = prefs
+	}
+
+	return nil
+}
+
+func ProjectToggleHidden(actor rpc.Actor, projectId string) *util.HttpError {
+	_, err := projectTogglePreference(actor, projectId, "hidden")
 	return err
 }
 
@@ -1933,11 +2006,11 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 		if !ok {
 			userInfo = db.NewTx(func(tx *db.Transaction) *internalProjectUserInfo {
 				result := &internalProjectUserInfo{
-					Username:  username,
-					Projects:  map[string]util.Empty{},
-					Groups:    map[string]string{},
-					Favorites: map[string]util.Empty{},
-					InvitedTo: map[string]util.Empty{},
+					Username:        username,
+					Projects:        map[string]util.Empty{},
+					Groups:          map[string]string{},
+					UserPreferences: map[string]internalProjectUserPreferences{},
+					InvitedTo:       map[string]util.Empty{},
 				}
 
 				projectRows := db.Select[struct{ ProjectId string }](
@@ -1969,11 +2042,15 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 					},
 				)
 
-				favoriteRows := db.Select[struct{ ProjectId string }](
+				favoriteRows := db.Select[struct {
+					ProjectId string
+					Favorite  bool
+					Hidden    bool
+				}](
 					tx,
 					`
-						select project_id
-						from project.project_favorite
+						select project_id, favorite, hidden
+						from project.project_user_preferences
 						where username = :username
 				    `,
 					db.Params{
@@ -2002,7 +2079,12 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 				}
 
 				for _, favorite := range favoriteRows {
-					result.Favorites[favorite.ProjectId] = util.Empty{}
+					if favorite.Favorite {
+						result.UserPreferences[favorite.ProjectId] = internalProjectUserPreferences{
+							Favorite: favorite.Favorite,
+							Hidden:   favorite.Hidden,
+						}
+					}
 				}
 
 				for _, invite := range invitedTo {
@@ -2171,7 +2253,7 @@ func projectRetrieve(
 		userInfo := projectRetrieveUserInfo(actor.Username)
 		userInfo.Mu.RLock()
 		_, isMember = userInfo.Projects[id]
-		_, isFavorite = userInfo.Favorites[id]
+		isFavorite = userInfo.UserPreferences[id].Favorite
 		userInfo.Mu.RUnlock()
 
 		if !isMember {
