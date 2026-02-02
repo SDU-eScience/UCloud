@@ -1,4 +1,4 @@
-import test, {BrowserContext, expect, type Page} from "@playwright/test";
+import {BrowserContext, expect, type Page} from "@playwright/test";
 import fs from "fs";
 
 // Note(Jonas): If it complains that it doesn"t exist, create it.
@@ -11,6 +11,8 @@ const LoginPageUrl = ucloudUrl("login");
 type Contexts =
     | "Project PI" | "Project Admin" | "Project User" | "Personal Workspace";
 
+// The usage of this should be legal
+// https://playwright.dev/docs/test-parameterize
 export const TestContexts: Contexts[] = ["Project PI", "Project Admin", "Project User", "Personal Workspace"];
 
 export const TestUsers: Record<Contexts, {username: string; password: string;}> = {

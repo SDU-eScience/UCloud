@@ -23,11 +23,11 @@ test.afterEach(async ({page, userAgent}, testInfo) => {
     if (driveName) await Drive.delete(page, driveName);
 });
 
+// TODO(Jonas): Project user should use Member Files
+
 /// File operations
 TestContexts.map(ctx => {
     test.describe(ctx, () => {
-        // Depends on an update to `dev` (or run it with your own up to date backend)
-        // Isn't supported by the test-provider
 
         test.skip('Change sensitivity (with available resources)', async ({page}) => {
             const folderName = File.newFolderName();
