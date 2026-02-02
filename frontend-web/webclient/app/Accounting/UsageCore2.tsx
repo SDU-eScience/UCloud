@@ -28,6 +28,7 @@ import {useBreakdownChart} from "@/Accounting/Diagrams/UsageBreakdown";
 import {useUtilizationOverTimeChart} from "@/Accounting/Diagrams/UtilizationOverTime";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
+import {exportUsage} from "@/Accounting/Usage";
 
 export interface UsageRetrieveRequest {
     start: number;
@@ -328,7 +329,7 @@ const UsagePage: React.FunctionComponent = () => {
     }, [state.openReport]);
 
     const utilizationOverTime = useUtilizationOverTimeChart(state.openReport, utilizationChartWidth, utilizationChartHeight, unit);
-    const deltaOverTime = useDeltaOverTimeChart(state.openReport, deltaChartWidth, chartHeight(deltaChartWidth), unit);
+    const deltaOverTime = useDeltaOverTimeChart(state.openReport, deltaChartWidth, chartHeight(deltaChartWidth), unit, childToLabel);
     const breakdownChart = useBreakdownChart(state.openReport, breakdownChartWidth,
         breakdownChartHeight, childToLabel, valueFormatter);
 
@@ -340,6 +341,93 @@ const UsagePage: React.FunctionComponent = () => {
             return r.usageOverTime.delta.reduce((prev, next) => prev + (next.child != null ? next.change : 0), 0);
         }
     }, [state.openReport]);
+
+    const exportAbsoluteUsageOverTime = useCallback(() => {
+        if (!state.openReport) return;
+
+        let workspaceName = project.fetch().specification.title;
+        if (workspaceName === "") workspaceName = "My workspace";
+        workspaceName = workspaceName.toLowerCase().replace(" ", "-");
+
+        const abs = state.openReport.usageOverTime.absolute;
+        exportUsage(
+            abs,
+            [
+                {
+                    key: "timestamp",
+                    value: "Timestamp",
+                    defaultChecked: true,
+                },
+                {
+                    key: "usage",
+                    value: "Usage",
+                    defaultChecked: true,
+                },
+                {
+                    key: "utilizationPercent100",
+                    value: "Utilization (0-100%)",
+                    defaultChecked: true,
+                },
+            ],
+            project.fetch().specification.title,
+            {
+                fileName: `usage-absolute-over-time-${state.openReport.title.toLowerCase()}-${workspaceName}`,
+            }
+        )
+    }, [state.openReport]);
+
+    const exportDeltaOverTime = useCallback(() => {
+        if (!state.openReport) return;
+
+        let workspaceName = project.fetch().specification.title;
+        if (workspaceName === "") workspaceName = "My workspace";
+        workspaceName = workspaceName.toLowerCase().replace(" ", "-");
+
+        const delta = state.openReport.usageOverTime.delta;
+        exportUsage(
+            delta,
+            [
+                {
+                    key: "timestamp",
+                    value: "Timestamp",
+                    defaultChecked: true,
+                },
+                {
+                    key: "change",
+                    value: "Change (since last sample)",
+                    defaultChecked: true,
+                },
+                {
+                    key: "child",
+                    value: "Child workspace",
+                    defaultChecked: true,
+                },
+            ],
+            project.fetch().specification.title,
+            {
+                fileName: `usage-delta-over-time-${state.openReport.title.toLowerCase()}-${workspaceName}`,
+            }
+        )
+    }, [state.openReport]);
+
+    const exportAll = useCallback(() => {
+        let workspaceName = project.fetch().specification.title;
+        if (workspaceName === "") workspaceName = "My workspace";
+        workspaceName = workspaceName.toLowerCase().replace(" ", "-");
+
+        exportUsage(
+            [{reports: state.reports, period: state.period}],
+            [
+                { key: "period", value: "Period", defaultChecked: true },
+                { key: "reports", value: "Reports", defaultChecked: true },
+            ],
+            project.fetch().specification.title,
+            {
+                formats: ["json"],
+                fileName: `usage-report-all-${workspaceName}`,
+            }
+        );
+    }, [state.period, state.reports]);
 
     // User-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -485,7 +573,7 @@ const UsagePage: React.FunctionComponent = () => {
                                     </TooltipV2>
                                 </th>
                                 <td align={"right"}>
-                                    {daysUntilDepletion === null ? "-" : <>{daysUntilDepletion} days</>}
+                                    {daysUntilDepletion === null || daysUntilDepletion <= 0 ? "-" : <>{daysUntilDepletion} days</>}
                                 </td>
                             </tr>
                             <tr>
@@ -624,7 +712,13 @@ const UsagePage: React.FunctionComponent = () => {
 
             {r.usageOverTime.delta.length <= 1 ? null :
                 <Card>
-                    <h3>Change in usage over time</h3>
+                    <Flex mb={8}>
+                        <h3 style={{flexGrow: 1}}>Change in usage over time</h3>
+                        <Button onClick={exportDeltaOverTime}>
+                            <Icon name={"heroArrowDownTray"} mr={8} />
+                            Export
+                        </Button>
+                    </Flex>
                     <svg ref={deltaOverTime.chartRef} width={deltaChartWidth} height={chartHeight(deltaChartWidth)}/>
                     <Flex flexWrap={"wrap"} gap={"16px"} ml={40} fontSize={"80%"}>
                         {deltaOverTime.labels.map(label =>
@@ -639,7 +733,13 @@ const UsagePage: React.FunctionComponent = () => {
 
             {r.usageOverTime.absolute.length <= 1 ? null :
                 <Card>
-                    <h3>Utilization over time</h3>
+                    <Flex mb={8}>
+                        <h3 style={{flexGrow: 1}}>Utilization over time</h3>
+                        <Button onClick={exportAbsoluteUsageOverTime}>
+                            <Icon name={"heroArrowDownTray"} mr={8} />
+                            Export
+                        </Button>
+                    </Flex>
                     <Flex flexWrap={"wrap"} gap={"16px"}>
                         <svg ref={utilizationOverTime.chartRef} width={utilizationChartWidth}
                              height={utilizationChartHeight}/>
@@ -693,25 +793,47 @@ const UsagePage: React.FunctionComponent = () => {
                 <ProjectSwitcher/>
             </Flex>
 
-            <Flex gap={"16px"} flexWrap={"wrap"}>
-                <Box flexBasis={300} flexGrow={1} flexShrink={0}>
-                    <div><b>Period</b></div>
-                    <PeriodSelector value={state.period} onChange={setPeriod}/>
-                </Box>
+            <Box>
+                <Flex gap={"16px"} flexWrap={"wrap"} alignItems={"end"}>
+                    <Box flexBasis={200} flexGrow={1} flexShrink={0}>
+                        <div><b>Period</b></div>
+                        <PeriodSelector value={state.period} onChange={setPeriod}/>
+                    </Box>
 
-                <Box flexBasis={930} flexShrink={1} flexGrow={3}>
-                    <div><b>Page</b></div>
-                    <RichSelect
-                        items={state.reports}
-                        keys={["title"]}
-                        RenderRow={RenderReportSelector}
-                        RenderSelected={RenderReportSelector}
-                        onSelect={setSelectedReport}
-                        fullWidth
-                        selected={state.openReport}
-                    />
-                </Box>
-            </Flex>
+                    <Box flexBasis={730} flexShrink={1} flexGrow={3}>
+                        <div><b>Page</b></div>
+                        <RichSelect
+                            items={state.reports}
+                            keys={["title"]}
+                            RenderRow={RenderReportSelector}
+                            RenderSelected={RenderReportSelector}
+                            onSelect={setSelectedReport}
+                            fullWidth
+                            selected={state.openReport}
+                        />
+                    </Box>
+                    <Flex flexBasis={125} flexShrink={0} flexGrow={0} alignItems={"center"} height={40}>
+                        <Button onClick={exportAll}>
+                            <Icon name={"heroArrowDownTray"} mr={8} />
+                            Export all
+                        </Button>
+                    </Flex>
+                </Flex>
+
+                {normalizePeriod(state.period).start < new Date("2026-01-28").getTime() ||
+                normalizePeriod(state.period).end < new Date("2026-01-28").getTime() ? <>
+                    <Card
+                        borderRadius="6px"
+                        height="auto"
+                        mt={"32px"}
+                        color="textPrimary"
+                        style={{background: `var(--warningMain)`}}
+                    >
+                        Data prior to 28/01/2026 is incomplete due to the historic data being produced by an older
+                        version of UCloud.
+                    </Card>
+                </> : null}
+            </Box>
 
             {state.loading ? <HexSpin/> :
                 state.error ? <>{state.error}</> :

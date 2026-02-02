@@ -87,7 +87,7 @@ var accGlobals struct {
 	OwnersByReference map[string]*internalOwner
 	OwnersById        map[accOwnerId]*internalOwner
 
-	Usage             map[string]*scopedUsage // TODO(Dan): quite annoying that this has to be global
+	Usage             map[string]*scopedUsage // NOTE(Dan): quite annoying that this has to be global
 	BucketsByCategory map[accapi.ProductCategoryIdV2]*internalBucket
 
 	OnPersistHandlers []internalOnPersistHandler
@@ -301,8 +301,6 @@ func internalAllocateNoCommit(
 	parent AccWalletId,
 	grantedIn util.Option[accGrantId],
 ) (accAllocId, *util.HttpError) {
-	// TODO check that we can do this. Might need to happen in public API instead.
-
 	if start.After(end) {
 		return 0, util.HttpErr(http.StatusBadRequest, "start must occur before the end of an allocation!")
 	} else if quota < 0 {
@@ -423,6 +421,7 @@ func internalUpdateAllocation(
 	newQuota util.Option[int64],
 	newStart util.Option[fndapi.Timestamp],
 	newEnd util.Option[fndapi.Timestamp],
+	reason string,
 ) (accGrantId, string, *util.HttpError) {
 	var iAlloc *internalAllocation
 	var iWallet *internalWallet
@@ -463,7 +462,7 @@ func internalUpdateAllocation(
 		activeQuota := lInternalGroupTotalQuotaContributing(b, iAllocGroup)
 		activeUsage := iAllocGroup.TreeUsage
 
-		if activeQuota+delta < activeUsage {
+		if iAlloc.Start.Before(now) && activeQuota+delta < activeUsage {
 			b.Mu.Unlock()
 			return grantedIn, changelog, util.HttpErr(http.StatusForbidden, "You cannot decrease the quota below the current usage!")
 		}
@@ -508,7 +507,7 @@ func internalUpdateAllocation(
 			default:
 				log.Warn("Invalid accounting frequency passed: '%v'\n", category.AccountingFrequency)
 			}
-			changelog += fmt.Sprintf("The Quota for %s (%s) has manually been updated to %d.\n", category.Name, category.Provider, amount)
+			changelog += fmt.Sprintf("The quota for %s (%s) has manually been updated to %d.\n", category.Name, category.Provider, amount)
 		}
 		if newStart.Present {
 			changelog += fmt.Sprintf("The start date for the granted %s (%s) allocation has manually been updated to %s.\n", category.Name, category.Provider, proposedNewStart.String())
@@ -516,6 +515,7 @@ func internalUpdateAllocation(
 		if newEnd.Present {
 			changelog += fmt.Sprintf("The end date for the granted %s (%s) allocation has manually been updated to %s.\n", category.Name, category.Provider, proposedNewEnd.String())
 		}
+		changelog += fmt.Sprintf("Reason: %s", reason)
 	}
 	return grantedIn, changelog, nil
 }
@@ -907,7 +907,8 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 
 						overAllocationUsed := usageInNode - propagatedUsage
 						if overAllocationUsed < 0 {
-							panic("assertion error")
+							log.Warn("overAllocationUsed < 0: %v %v in lInternalBuildGraph(%v, %v, %v)", usageInNode, propagatedUsage, b.Category.Name, leaf.Id, flags)
+							overAllocationUsed = 0
 						}
 
 						overAllocationNode := vertexToOverAllocationRoot(vertexIndex)
@@ -1165,6 +1166,8 @@ func lInternalMarkSignificantUpdate(b *internalBucket, now time.Time, wallet *in
 	wallet.LastSignificantUpdate = now
 	wallet.Dirty = true
 	if b.Category.Provider != "usagegen" {
+		// TODO(Dan): If more than one million updates is ever made in a single lock-cycle, then this function will
+		//   indefinitely stall the system. Please refactor the code, before the system reaches such a size.
 		providerWalletNotifications <- wallet.Id
 	}
 }
@@ -1707,6 +1710,29 @@ func lRetrieveAncestorWallets(bucket *internalBucket, now time.Time, root AccWal
 	}
 
 	return wallets
+}
+
+// Admin endpoints
+// ---------------------------------------------------------------------------------------------------------------------
+
+func internalHierarchyReset(bucket *internalBucket) {
+	bucket.Mu.Lock()
+	for _, alloc := range bucket.AllocationsById {
+		alloc.RetiredUsage = 0
+		alloc.Dirty = true
+	}
+	for _, wallet := range bucket.WalletsById {
+		wallet.LocalUsage = 0
+		for child := range wallet.ChildrenUsage {
+			wallet.ChildrenUsage[child] = 0
+		}
+		for _, group := range wallet.AllocationsByParent {
+			group.TreeUsage = 0
+			group.Dirty = true
+		}
+		wallet.Dirty = true
+	}
+	bucket.Mu.Unlock()
 }
 
 // Mermaid diagrams (for debugging)

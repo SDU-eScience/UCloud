@@ -41,6 +41,11 @@ services:
       prefix: "k8s-"
       suffix: ".localhost.direct"
 
+    publicLinks:
+      enabled: true
+      prefix: "k8s-"
+      suffix: ".localhost.direct"
+
     publicIps:
       enabled: true
 

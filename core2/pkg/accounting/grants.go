@@ -501,9 +501,11 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		return 0, util.HttpErr(http.StatusBadRequest, "grant giver initiated applications must be new applications")
 	}
 
-	if !req.ApplicationId.Present && recipient.Type == accapi.RecipientTypeExistingProject {
-		if !actor.Membership[rpc.ProjectId(recipient.Id.Value)].Satisfies(rpc.ProjectRoleAdmin) {
-			return 0, util.HttpErr(http.StatusBadRequest, "you are not allowed to apply to this project")
+	if revision.Form.Type != accapi.FormTypeGrantGiverInitiated {
+		if !req.ApplicationId.Present && recipient.Type == accapi.RecipientTypeExistingProject {
+			if !actor.Membership[rpc.ProjectId(recipient.Id.Value)].Satisfies(rpc.ProjectRoleAdmin) {
+				return 0, util.HttpErr(http.StatusBadRequest, "you are not allowed to apply to this project")
+			}
 		}
 	}
 
@@ -959,8 +961,6 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 		return util.HttpErr(http.StatusBadRequest, "grant givers cannot withdraw an application")
 	}
 
-	// TODO we probably need to check a lot more enums in the code base. Remove this comment when certain that all
-	//   parts of the code is OK.
 	if _, ok := util.VerifyEnum(req.NewState, accapi.GrantApplicationStates); !ok {
 		return util.HttpErr(http.StatusBadRequest, "invalid state")
 	}
@@ -1376,8 +1376,11 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 	}
 	b.Mu.Unlock()
 
-	_, isPublic := b.PublicGrantGivers[id]
-	s.Enabled = isPublic
+	if s.Enabled {
+		b.PublicGrantGivers[string(actor.Project.Value)] = util.Empty{}
+	} else {
+		delete(b.PublicGrantGivers, string(actor.Project.Value))
+	}
 
 	w.Mu.Lock()
 	w.Settings = &s

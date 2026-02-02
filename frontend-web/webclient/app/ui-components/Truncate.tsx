@@ -16,4 +16,12 @@ const Truncate: React.FunctionComponent<TextProps & {children?: React.ReactNode;
 
 Truncate.displayName = "Truncate";
 
+export function truncateText(text: string, maxLength: number): string {
+    if (text.length > maxLength - 3) {
+        return text.substring(0, maxLength - 3) + "...";
+    } else {
+        return text;
+    }
+}
+
 export default Truncate;

@@ -2,6 +2,7 @@ package accounting
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -184,6 +185,14 @@ func initAccounting() {
 
 		return fndapi.BulkResponse[accapi.FindAllProvidersResponse]{Responses: result}, nil
 	})
+
+	accapi.WalletsAdminDebug.Handler(func(info rpc.RequestInfo, request accapi.WalletDebugRequest) (accapi.WalletDebugResponse, *util.HttpError) {
+		graph, _ := internalGetMermaidGraph(time.Now(), AccWalletId(request.WalletId))
+		return accapi.WalletDebugResponse{
+			MermaidGraph: graph,
+			StateDump:    json.RawMessage("{}"),
+		}, nil
+	})
 }
 
 func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, *util.HttpError) {
@@ -252,7 +261,7 @@ func UpdateAllocation(actor rpc.Actor, requests []accapi.UpdateAllocationRequest
 		}
 		iOwner := internalOwnerByReference(reference)
 
-		grantedIn, comment, err := internalUpdateAllocation(iOwner, time.Now(), bucket, accAllocId(request.AllocationId), request.NewQuota, request.NewStart, request.NewEnd)
+		grantedIn, comment, err := internalUpdateAllocation(iOwner, time.Now(), bucket, accAllocId(request.AllocationId), request.NewQuota, request.NewStart, request.NewEnd, request.Reason)
 
 		// If update failed will break the update
 		if err != nil {
@@ -379,6 +388,7 @@ func WalletsBrowse(actor rpc.Actor, request accapi.WalletsBrowseRequest) fndapi.
 	}
 
 	result.ItemsPerPage = len(result.Items)
+	result.Items = util.NonNilSlice(result.Items)
 	return result
 }
 

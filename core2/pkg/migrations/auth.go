@@ -31,3 +31,16 @@ func authV2() db.MigrationScript {
 		},
 	}
 }
+
+func authV3() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "authV3",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table auth.additional_user_info add column if not exists unit text;`,
+				db.Params{},
+			)
+		},
+	}
+}

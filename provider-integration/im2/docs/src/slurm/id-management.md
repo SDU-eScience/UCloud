@@ -11,8 +11,7 @@ User mapping is the process of linking a UCloud identity to a local identity. Re
 enforcing authentication and authorization. From the point of view of your system, users coming from UCloud are simply
 ordinary users of your system. They can do exactly the same actions as if they had used SSH to access your system.
 Nothing less, nothing more. This has the benefit of simplifying your infrastructure while allowing your users to access
-the system through more traditional means, such as SSH. The mapping between identities always takes place, both for
-managed and unmanaged providers, but the way that the mapping is established differs between the two.
+the system through more traditional means, such as SSH. 
 
 <figure class="diagram">
 
@@ -28,47 +27,11 @@ actions as they could by accessing through SSH.
 </figcaption>
 </figure>
 
-### Establishing a Mapping: Unmanaged Providers
+### Establishing a Mapping
 
-In unmanaged mode, UCloud/IM _will not_ create or manage any users, projects or any resource allocations. All of this
-must be done by you through whichever means you have. As a result, in unmanaged mode, it is assumed that local
-identities have already been configured correctly by a system administrator (or via sysadmin controlled script).
-
-The connection procedure is started by the end-user while logged into your system's frontend. From your frontend, they
-will be able to run the following command:
-
-```terminal
-$ whoami
-localusr01
-
-$ ucloud connect
-You can finish the connection procedure by going to: https://sandbox.dev.cloud.sdu.dk/app/connection?token=XXXXXXXXXXX
-
-Waiting for connection to complete... (Please keep this window open)
-
-Connection complete! Welcome 'localusr01'/'UCloudUser#1234'!
-```
-
-In the UCloud user-interface, the user will be able to find a new project should appear with the name of your
-service-provider:
-
-<figure>
-
-![](./project_switcher_personal.png)
-
-<figcaption>
-
-A new project has appeared, allowing your user to consume resources from your service-provider!
-
-</figcaption>
-</figure>
-
-### Establishing a Mapping: Managed Providers
-
-When a provider is managed, UCloud/IM will be responsible for automatically synchronizing users, projects and resource
-allocations from UCloud/Core into the service provider. It achieves this using the supporting systems in UCloud/Core,
-these are described in detail in [this](../overview/apm.md) article. In short, UCloud has an advanced system for
-managing resource allocations.
+UCloud/IM is be responsible for automatically synchronizing users, projects and resource allocations from UCloud/Core
+into the service provider. It achieves this using the supporting systems in UCloud/Core, these are described in detail
+in [this](../overview/accounting.md) article. In short, UCloud has an advanced system for managing resource allocations.
 
 <figure class="diagram">
 
@@ -112,16 +75,6 @@ The process is as follows:
 
 ## Project Mapping
 
-<div class="info-box info">
-<i class="fa fa-info-circle"></i>
-<div>
-
-Mapped projects are only available to managed providers. All unmanaged providers will not be able to use any of the
-project management features available in UCloud or UCloud/IM.
-
-</div>
-</div>
-
 Project mapping, like user mapping, is the process of mapping a UCloud project into something corresponding at the
 service provider. In UCloud/IM for Slurm that something is a Unix group. The name of the resulting Unix group depends on
 the integration used for managing projects and users. The figure below illustrates how projects are mapped:
@@ -147,16 +100,6 @@ using UCloud/IM for Slurm.
     - Once a UCloud user connects to the provider, they will automatically be added to the corresponding Unix groups.
 
 ## Integrations
-
-<div class="info-box warning">
-<i class="fa fa-warning"></i>
-<div>
-
-Configuring any of these integration will transition your provider from an unmanaged to a managed provider. Please make
-sure you read the migration section before implementing this on production data.
-
-</div>
-</div>
 
 ### FreeIPA
 
@@ -555,7 +498,7 @@ TODO Remove user from all projects
 
 ### Scripted
 
-This integration is another [script](#TODO) integration. Script integrations allow you to fully customize all aspects of
+This integration is another script integration. Script integrations allow you to fully customize all aspects of
 user and project creation. It is entirely up to you to create these scripts. All scripts will be invoked with a single
 argument, which is a path to a JSON file. The contents of the JSON file will depend on the script, see below for
 details. All scripts are expected to return the response as a JSON object on `stdout`. Detailed error messages and
@@ -841,15 +784,3 @@ _No response_
 
 </table>
 </div>
-
-## Migrating from an Unmanaged to Managed Provider
-
-TODO This section has not yet been written. It will need to cover the following topics:
-
-- Explain what will happen when you turn on one of these integrations
-- Explain that you cannot go back to being an unmanaged provider
-- Outline the procedure for converting unmanaged workspaces into managed workspaces
-  - Explain how to convert the allocations. This will need to be done by hand but the IM can provide CLI tools for this.
-
-It is not obvious that this section belongs here, since we have not yet explained the full extent of accounting and
-quota management. But this is the thing which actually makes you a managed provider.

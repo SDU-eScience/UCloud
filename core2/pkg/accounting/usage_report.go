@@ -1,6 +1,7 @@
 package accounting
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -408,7 +409,6 @@ func initUsageReports() {
 
 							for i := range prev.UsageOverTime.Absolute {
 								rescaleI64(&prev.UsageOverTime.Absolute[i].Usage)
-								// TODO Percentage is going to be messed up when we collapse the reports?
 							}
 
 							report.Reports = append(report.Reports, prev)
@@ -519,6 +519,10 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 	result.SubProjectHealth = lastReport.SubProjectHealth // NOTE(Dan): Idle is recomputed below
 
 	deltaUsageByChild := map[AccWalletId]int64{}
+
+	absoluteUseByTimestamp := map[time.Time]int64{}
+	absoluteQuotaByTimestamp := map[time.Time]int64{}
+
 	for _, report := range reports {
 		for _, item := range report.UsageOverTime.Delta {
 			if item.Child.Present {
@@ -527,9 +531,33 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 		}
 
 		for _, item := range report.UsageOverTime.Absolute {
-			result.UsageOverTime.Absolute = append(result.UsageOverTime.Absolute, item)
+			absoluteUseByTimestamp[item.Timestamp] = absoluteUseByTimestamp[item.Timestamp] + item.Usage
+			if item.UtilizationPercent100 != 0 {
+				absoluteQuotaByTimestamp[item.Timestamp] = absoluteQuotaByTimestamp[item.Timestamp] +
+					int64((float64(item.Usage)/item.UtilizationPercent100)*100.0)
+			}
 		}
 	}
+
+	for ts := range absoluteUseByTimestamp {
+		use := absoluteUseByTimestamp[ts]
+		quota := absoluteQuotaByTimestamp[ts]
+		utilization100 := 0.0
+		if quota != 0 {
+			utilization100 = (float64(use) / float64(quota)) * 100
+		}
+
+		result.UsageOverTime.Absolute = append(result.UsageOverTime.Absolute, internalUsageOverTimeAbsoluteDataPoint{
+			Timestamp:             ts,
+			Usage:                 use,
+			UtilizationPercent100: utilization100,
+		})
+	}
+
+	slices.SortFunc(result.UsageOverTime.Absolute, func(a, b internalUsageOverTimeAbsoluteDataPoint) int {
+		return cmp.Compare(a.Timestamp.UnixMilli(), b.Timestamp.UnixMilli())
+	})
+
 	result.SubProjectHealth.Idle = result.SubProjectHealth.SubProjectCount - len(deltaUsageByChild)
 
 	topUsersFromChildren := util.TopNKeys(deltaUsageByChild, 10)

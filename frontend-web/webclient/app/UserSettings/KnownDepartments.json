@@ -1,7 +1,7 @@
 {
     "aau.dk": [
         {
-            "faculty": "Cross-faculty",
+            "faculty": "Cross-Faculty",
             "departments": [
                 "Institute for Advanced Study in PBL"
             ]
@@ -9,12 +9,10 @@
         {
             "faculty": "Faculty of Social Sciences and Humanities",
             "departments": [
-                "Department of Communication and Psychology",
-                "Department of Culture and Learning",
-                "Department of Law",
-                "Department of Politics and Society",
-                "Department of Sociology and Social Work",
-                "AAU Business School"
+                "AAU Business School",
+                "Department of Culture and Communication",
+                "Department of Society and Politics",
+                "Department of Law"
             ]
         },
         {
@@ -30,17 +28,28 @@
         {
             "faculty": "Faculty of Medicine",
             "departments": [
-                "Department of Clinical Medicine",
-                "Department of Health Science and Technology"
+                "Department of Health Science and Technology",
+                "Department of Clinical Medicine"
             ]
         },
         {
             "faculty": "Technical Faculty of IT and Design",
             "departments": [
-                "Department of Architecture, Design, and Media Technology",
                 "Department of Computer Science",
                 "Department of Electronic Systems",
+                "Department of Architecture, Design and Media Technology",
                 "Department of Sustainability and Planning"
+            ]
+        },
+        {
+            "faculty": "Shared Services",
+            "departments": [
+                "The Technical Faculty of IT and Design",
+                "Faculty of Engineering and Science",
+                "Faculty of Social Sciences and Humanities",
+                "Faculty of Medicine",
+                "Other",
+                "IT Services"
             ]
         }
     ],
@@ -107,87 +116,37 @@
     ],
     "cbs.dk": [
         {
-            "faculty": "Department of Accounting",
-            "departments": [
-                "Center for Corporate Governance (CCG)",
-                "Centre for Owner-Managed Businesses (COMB)"
-            ]
+            "faculty": "Department of Accounting"
         },
         {
-            "faculty": "Department of Business Humanities and Law (BHL)",
-            "departments": [
-                "Center for Business History (CVH)",
-                "Entrepreneurship, Ethics & Leadership Unit (EEL)",
-                "Governance, Culture & Learning (GCL)",
-                "CBS Law"
-            ]
+            "faculty": "Department of Business Humanities and Law (BHL)"
         },
         {
-            "faculty": "Department of Digitalization (DIGI)",
-            "departments": [
-                "Center for Business Data Analytics"
-            ]
+            "faculty": "Department of Digitalization (DIGI)"
         },
         {
-            "faculty": "Department of Economics",
-            "departments": [
-                "Centre for Innovation (CFI)",
-                "Pension Research Centre (PeRCent)",
-                "Copenhagen School of Energy Infrastructure (CSEI)"
-            ]
+            "faculty": "Department of Economics"
         },
         {
-            "faculty": "Department of Finance (FI)",
-            "departments": [
-                "Center for Financial Frictions (FRIC)",
-                "Center for Statistics (CST)",
-                "Pension Research Centre (PeRCent)",
-                "Center for Big Data in Finance (BIGFI)"
-            ]
+            "faculty": "Department of Finance (FI)"
         },
         {
-            "faculty": "Department of International Economics, Government and Business (EGB)",
-            "departments": [
-                "Department of International Economics, Government and Business (EGB)"
-            ]
+            "faculty": "Department of International Economics, Government and Business (EGB)"
         },
         {
-            "faculty": "Department of Management, Society and Communication (MSC)",
-            "departments": [
-                "CBS Sustainability",
-                "Centre for Business and Development Studies (CBDS)"
-            ]
+            "faculty": "Department of Management, Society and Communication (MSC)"
         },
         {
-            "faculty": "Department of Marketing (MARKTG)",
-            "departments": [
-                "Center for Tourism and Culture Management (TCM)"
-            ]
+            "faculty": "Department of Marketing (MARKTG)"
         },
         {
-            "faculty": "Department of Operations Management (OM)",
-            "departments": [
-                "Department of Operations Management (OM)"
-            ]
+            "faculty": "Department of Operations Management (OM)"
         },
         {
-            "faculty": "Department of Organization (IOA)",
-            "departments": [
-                "Centre for Organization and Time (COT)",
-                "imagine .. Creative Industries Research (IMAGINE)",
-                "Center for Organizational Research on Impact (CORI)",
-                "Organizations, Markets and Governance (OMG)",
-                "OT@IOA",
-                "People and Organizing (PnO)",
-                "Research, Innovation and Organization (RIO)",
-                "WETO - Work, Expertise, Technology and Organization"
-            ]
+            "faculty": "Department of Organization (IOA)"
         },
         {
-            "faculty": "Department of Strategy and Innovation (SI)",
-            "departments": [
-                "Department of Strategy and Innovation (SI)"
-            ]
+            "faculty": "Department of Strategy and Innovation (SI)"
         }
     ],
     "dtu.dk": [

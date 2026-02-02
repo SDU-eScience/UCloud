@@ -10,6 +10,8 @@ import React, {useMemo, useState} from "react";
 import {ChartLabel, colorNames} from "@/Accounting/Diagrams/index";
 import {HTMLTooltipEx} from "@/ui-components/Tooltip";
 import {balanceToStringFromUnit, FrontendAccountingUnit} from "@/Accounting";
+import truncate, {truncateText} from "@/ui-components/Truncate";
+import {groupBy} from "@/Utilities/CollectionUtilities";
 
 export interface DeltaOverTimeChart {
     chartRef: React.RefObject<SVGSVGElement | null>
@@ -21,6 +23,7 @@ export function useDeltaOverTimeChart(
     chartWidth: number,
     chartHeight: number,
     unit: FrontendAccountingUnit | null,
+    childToLabel: (child: string | null) => string,
 ): DeltaOverTimeChart {
     const [childrenLabels, setChildrenLabels] = useState<ChartLabel[]>([]);
 
@@ -33,7 +36,7 @@ export function useDeltaOverTimeChart(
         const r = openReport;
         if (r == null) return;
 
-        const data = r.usageOverTime.delta;
+        let data = r.usageOverTime.delta;
         if (data.length === 0) return;
 
         // Dimensions and margin
@@ -82,6 +85,20 @@ export function useDeltaOverTimeChart(
                 return 0;
             }
         });
+
+        const summed: Array<{ timestamp: number; child: string | null; change: number }> = [];
+
+        const byTs = groupBy(openReport!.usageOverTime.delta, d => d.timestamp.toString());
+        for (const [tsStr, entriesAtTs] of Object.entries(byTs)) {
+            const ts = Number(tsStr);
+            const byChild = groupBy(entriesAtTs, e => e.child ?? "");
+            for (const [childKey, childEntries] of Object.entries(byChild)) {
+                const change = childEntries.reduce((acc, e) => acc + e.change, 0);
+                summed.push({ timestamp: ts, child: childKey === "" ? null : childKey, change });
+            }
+        }
+
+        data = summed;
 
         const byTimestampKey = index(data, d => d.timestamp, d => d.child ?? "");
 
@@ -136,6 +153,13 @@ export function useDeltaOverTimeChart(
                 }
 
                 {
+                    const name = document.createElement("div");
+                    name.append(truncateText(childToLabel(child), 30));
+                    name.style.flexGrow = "1";
+                    container.append(name);
+                }
+
+                {
                     const node = document.createElement("div");
                     const change = usageBucket.get(child)?.change ?? 0;
                     node.append(balanceToStringFromUnit(null, unitName, change * unitNormalizationFactor));
@@ -146,7 +170,7 @@ export function useDeltaOverTimeChart(
                 tooltip.append(container);
             }
 
-            tooltips[ts] = HTMLTooltipEx(tooltip);
+            tooltips[ts] = HTMLTooltipEx(tooltip, { tooltipContentWidth: 400 });
         }
 
         // Y-axis
@@ -190,20 +214,35 @@ export function useDeltaOverTimeChart(
                 const ts = datum.data;
                 const tooltip = tooltips[ts];
 
-                rect.onmousemove = tooltip.moveListener;
-                rect.onmouseleave = tooltip.leaveListener;
+                if (tooltip) {
+                    rect.onmousemove = tooltip.moveListener;
+                    rect.onmouseleave = tooltip.leaveListener;
+                }
             })
         ;
+
+        // X-axis tick throttling
+        // -------------------------------------------------------------------------------------------------------------
+        const maxTickLabels = Math.max(2, Math.floor(innerW / 90)); // ~1 label per 45px
+        const step = Math.max(1, Math.ceil(timestamps.length / maxTickLabels));
+
+        const tickTimestamps: number[] = timestamps.filter((_, i) => i % step === 0);
+
+        // Always include last tick so the axis shows the most recent timestamp
+        if (tickTimestamps[tickTimestamps.length - 1] !== timestamps[timestamps.length - 1]) {
+            tickTimestamps.push(timestamps[timestamps.length - 1]);
+        }
 
         const gXAxis = svg.append("g")
             .attr("transform", `translate(${margin.left}, ${innerH + margin.top})`)
             .call(
                 axisBottom(xSlot)
+                    .tickValues(tickTimestamps)
                     .tickFormat(d => tsFormatter(new Date(d)))
             );
 
         gXAxis.selectAll(".tick > text")
-            .attr("style", "transform: translate(-20px, 20px) rotate(-45deg)")
+            .attr("style", "transform: translate(-20px, 20px) rotate(-45deg)");
 
         const gYAxis = svg.append("g")
             .attr("transform", `translate(${margin.left}, ${margin.top})`)
@@ -222,7 +261,7 @@ export function useDeltaOverTimeChart(
                 .style("stroke-linejoin", "round")
                 .style("stroke", "var(--borderColor)");
         }
-    }, [openReport, chartWidth, chartHeight])
+    }, [openReport, chartWidth, chartHeight, childToLabel])
 
     // noinspection UnnecessaryLocalVariableJS
     const result: DeltaOverTimeChart = useMemo(() => {

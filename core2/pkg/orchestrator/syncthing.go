@@ -29,12 +29,9 @@ func initSyncthing() {
 	// Almost all functions in this service are simply proxying the relevant information to the provider. The extra
 	// information added by this service is mostly related to authorization.
 
-	actorToOwner := func(actor rpc.Actor) orcapi.ResourceOwner {
+	actorToOwnerWithNoProjectInfo := func(actor rpc.Actor) orcapi.ResourceOwner {
 		return orcapi.ResourceOwner{
 			CreatedBy: actor.Username,
-			Project: util.OptMap(actor.Project, func(value rpc.ProjectId) string {
-				return string(value)
-			}).GetOrDefault(""),
 		}
 	}
 
@@ -44,7 +41,7 @@ func initSyncthing() {
 			orcapi.SyncthingProviderRetrieveConfiguration,
 			orcapi.IAppProviderRetrieveConfigRequest{
 				ProductId: request.ProductId,
-				Principal: actorToOwner(info.Actor),
+				Principal: actorToOwnerWithNoProjectInfo(info.Actor),
 			},
 			ProviderCallOpts{
 				Username: util.OptValue(info.Actor.Username),
@@ -63,7 +60,7 @@ func initSyncthing() {
 			orcapi.SyncthingProviderUpdateConfiguration,
 			orcapi.IAppProviderUpdateConfigurationRequest[orcapi.SyncthingConfig]{
 				ProductId:    request.ProductId,
-				Principal:    actorToOwner(info.Actor),
+				Principal:    actorToOwnerWithNoProjectInfo(info.Actor),
 				Config:       request.Config,
 				ExpectedETag: request.ExpectedETag,
 			},
@@ -81,7 +78,7 @@ func initSyncthing() {
 			orcapi.SyncthingProviderRestart,
 			orcapi.IAppProviderRestartRequest{
 				ProductId: request.ProductId,
-				Principal: actorToOwner(info.Actor),
+				Principal: actorToOwnerWithNoProjectInfo(info.Actor),
 			},
 			ProviderCallOpts{
 				Username: util.OptValue(info.Actor.Username),
@@ -97,7 +94,7 @@ func initSyncthing() {
 			orcapi.SyncthingProviderReset,
 			orcapi.IAppProviderResetRequest{
 				ProductId: request.ProductId,
-				Principal: actorToOwner(info.Actor),
+				Principal: actorToOwnerWithNoProjectInfo(info.Actor),
 			},
 			ProviderCallOpts{
 				Username: util.OptValue(info.Actor.Username),

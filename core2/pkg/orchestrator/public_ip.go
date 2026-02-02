@@ -126,7 +126,6 @@ func initPublicIps() {
 				if addr := item.Status.IpAddress; addr.Present && strings.Contains(addr.Value, request.Query) {
 					return true
 				}
-				// TODO Something else?
 				return false
 			},
 			nil,
@@ -180,7 +179,7 @@ func initPublicIps() {
 				publicIpType,
 				orcapi.ResourceOwner{
 					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
-					Project:   reqItem.Project.Value,
+					Project:   reqItem.Project,
 				},
 				nil,
 				util.OptValue(reqItem.Spec.Product),

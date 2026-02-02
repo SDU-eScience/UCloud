@@ -1,8 +1,7 @@
 # Installation
 
 This document will guide you through the process of obtaining and installing UCloud/IM for Slurm. By the end of this
-document you will be connected to UCloud's sandbox environment. Please see [this](#TODO) document for more information
-about becoming a provider in the production environment.
+document you will be connected to UCloud's sandbox environment. 
 
 ## Prerequisites
 
@@ -65,56 +64,6 @@ UCloud/IM 2024.1.0
 
 </div>
 
-<div data-title="Ubuntu" data-icon="fa-brands fa-ubuntu">
-
-**TODO** Not available yet.
-
-</div>
-
-<div data-title="Pre-compiled binaries" data-icon="fa-brands fa-golang">
-
-**TODO** Not available yet.
-
-An executable binary of the UCloud Integration Module is available for download
-[here](https://github.com/sdu-escience/ucloud/releases/latest).
-
- 1. Download the archive containing the binary for your platform.
- 2. Extract the binary and place it somwhere in your `PATH` (e.g. `/usr/bin`).
-</div>
-
-
-<div data-title="Building from source" data-icon="fa-brands fa-golang">
-
-The UCloud Integration Module is written in the [Go](https://go.dev) programming language, and can
-be build from source with a compatible version of the Go compiler.
-
-Installation instructions can be found [here](https://go.dev/doc/install).
-
-The latest source for the UCloud Integration Module can be downloaded from
-[here](https://github.com/sdu-escience/ucloud/releases/latest).
-
-To build:
-
- 1. Extract the source directory and change to the `provider-integration/im2` directory, i.e:
-
-    ```terminal
-    $ cd $UCLOUD_DIRECTORY/provider-integration/im2
-    ```
-
-    where `$UCLOUD_DIRECTORY` is the name of the extracted directory.
-
- 2. To build the executable, run
-
-    ```terminal
-    $ ./build.sh
-    ```
-
- 3. The UCloud Integration Module binary will be located in `bin/im` when compilation has finished.
-    Rename this to `ucloud` and place somewhere in you `PATH` (e.g. `/usr/bin`).
-
-
-</div>
-
 </div>
 
 ## Registering as a Provider
@@ -132,7 +81,7 @@ should aim to re-use this file.
 
 Before you can start UCloud/IM, you must register as a service provider. This only needs to be done
 once. You may receive a test provider in UCloud's sandbox environment by contacting the [support
-team](https://servicedesk.cloud.sdu.dk).
+team](https://support.cloud.sdu.dk).
 
 <!--
 
@@ -165,19 +114,6 @@ provider project which you are automatically added to.
 
 </figcaption>
 </figure>
-
-## Bootstrapping the Configuration
-
-<div class="info-box info">
-<i class="fa fa-info-circle"></i>
-<div>
-
-TODO Provide default configurations that are good enough that you can start the service. It will not be functional
-yet, due to lack of proper networking.
-
-</div>
-</div>
-
 
 ## Testing the Configuration
 
@@ -218,73 +154,7 @@ You can find more guidance for troubleshooting in our [troubleshooting guide](..
 
 </div>
 
-<div data-title="Ubuntu" data-icon="fa-brands fa-ubuntu">
-
-Ubuntu instructions **go here**.
-
 </div>
 
-<div data-title="Manual" data-icon="fa-brands fa-golang">
-
-Manual instructions **go here**.
-
-TODO Cover sudo and the groups required. Explain that the `ucloud_users` group must exist and the ucloud service user
-be able to use it.
-
-</div>
-
-</div>
-
-Now that UCloud/IM is running you must connect your UCloud identity to your local identity. At this stage, your provider
-will be in an unmanaged state. As a result, we will be following the unmanaged connection procedure. This requires you
-to have an already existing user on the HPC system. The user should have access to both the distributed filesystem and
-on Slurm. In other words, this user should be configured as a normal user of the HPC system.
-
-As your test user, run the following command to initiate the connection procedure:
-
-```terminal
-$ whoami
-local-test-user
-
-$ ucloud connect
-You can finish the connection procedure by going to: https://sandbox.dev.cloud.sdu.dk/app/connection?token=XXXXXXXXXXX
-
-Waiting for connection to complete... (Please keep this window open)
-
-Connection complete! Welcome 'local-test-user'/'UCloudUser#1234'!
-```
-
-In the UCloud user-interface, a new project should appear with the name of your service-provider:
-
-<figure>
-
-![](./project_switcher_personal.png)
-
-<figcaption>
-
-A new project has appeared, allowing your user to consume resources from your service-provider!
-
-</figcaption>
-</figure>
-
-Similarly, the other parts of the UCloud user-interface also now show your resource on your service-provider. For
-example, the file management interface will show you the relevant top-level folder that you specified during the
-configuration bootstrap procedure.
-
-<figure>
-
-![](./drives.png)
-
-<figcaption>
-
-The `/work` folder has appeared inside UCloud. This is the same folder which was configured during the bootstrapping
-process (TODO where??). Depending on the folder(s) you chose, you might see something different.
-
-</figcaption>
-</figure>
-
-## Next Steps
-
-You have now successfully connected your service provider to UCloud's sandbox environment! Your service provider is
-currently _unmanaged_. During the next chapters, we will discuss how to configure networking for UCloud/IM. In the next
-section we will explain what is going on behind the scenes with your new UCloud provider.
+The following chapters will help you configure UCloud/IM, which is required before you can start the service. Once
+everything is configured, you should be able to access the filesystem and Slurm.

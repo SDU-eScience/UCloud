@@ -153,6 +153,7 @@ export function ChangeUserDetails(): React.ReactNode {
 export interface OptionalInfo {
     organizationFullName?: string | null;
     department?: string | null;
+    unit?: string | null;
     researchField?: string | null;
     position?: string | null;
     gender?: string | null;
@@ -187,9 +188,17 @@ export async function addOrgInfoModalIfNotFilled(): Promise<void> {
     }
 }
 
-export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<() => InfoAndValidation>; inModal?: boolean; embedded?: boolean; onDidSubmit?: () => void;}) {
+interface ChangeOrganizationDetailsProps {
+    getValues?: React.RefObject<() => InfoAndValidation>;
+    inModal?: boolean;
+    embedded?: boolean;
+    onDidSubmit?: () => void;
+}
+
+export function ChangeOrganizationDetails(props: ChangeOrganizationDetailsProps) {
     const orgFullNameRef = useRef<HTMLInputElement>(null);
     const departmentRef = useRef<HTMLInputElement>(null);
+    const unitRef = useRef<HTMLInputElement>(null);
     const researchFieldRef = useRef<HTMLInputElement>(null);
     const genderFieldRef = useRef<HTMLInputElement>(null);
     const positionRef = useRef<HTMLInputElement>(null);
@@ -206,6 +215,8 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
             }
             if (departmentRef.current)
                 departmentRef.current.value = info.department ?? "";
+            if (unitRef.current)
+                unitRef.current.value = info.unit ?? "";
             if (researchFieldRef.current)
                 researchFieldRef.current.value = info.researchField ?? "";
             if (positionRef.current)
@@ -250,6 +261,14 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
             errors.push("Department/Faculty/Center isn't valid")
         }
 
+        const unit = unitRef.current?.value.trim();
+        const validateUnit = (unit: string | undefined) => !!unit;
+        const unitValid = validateUnit(unit);
+        if (!unitValid) {
+            unitRef.current?.setAttribute("data-error", "true");
+            errors.push("Please fill out the unit field")
+        }
+
         const validatePosition = (pos: string | undefined): boolean => Positions.map(it => it.key).includes(pos ?? "");
         const position = positionRef.current?.value.trim();
         const positionValid = validatePosition(position);
@@ -281,6 +300,7 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
         return {
             organizationFullName,
             department,
+            unit,
             researchField,
             position,
             gender,
@@ -307,8 +327,9 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
         <Box mb={16} width="100%">
             {props.embedded ? null : <Heading.h2>Additional user information</Heading.h2>}
             {props.inModal ? <span>This can be filled out at a later time, but is required when applying for resources.</span> : null}
-            <NewDataList id="organization" ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={"University of Knowledge"} />
+            <NewDataList id="organization" ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={`University of Southern Denmark”, “Aarhus University”`} />
             <Department org={org} ref={departmentRef} />
+            <NewDataList ref={unitRef} title={"Unit"} isFreetext items={[]} placeholder={`“Section for Data Science and Statistics”, “Center for Humanities Computing”, “Design Lab”`} />
             <NewDataList title="Position" placeholder="VIP/TAP/Student" items={SortedPositions} ref={positionRef} />
             <NewDataList title={"Primary research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={ResearchFields[RFIndex].value} />
             <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} disabled={false} placeholder="Prefer not to say" />
@@ -317,11 +338,11 @@ export function ChangeOrganizationDetails(props: {getValues?: React.RefObject<()
     );
 }
 
-type Departments = "freetext" | {faculty: string; departments?: string[]}[]
+type Departments = "freetext" | {faculty: string; departments?: string[]}[];
 
 function Department(props: {org: string; ref: React.RefObject<HTMLInputElement | null>}) {
     const orgInfo = findOrganisationIdFromName(props.org);
-    const title = "Department";
+    const title = "Faculty/Department";
     const result = React.useMemo((): {items: DataListItem[]; isFreetext: boolean} => {
         const possibleDepartments: Departments = orgInfo ? KnownDepartments[orgInfo] : [];
         if (possibleDepartments === "freetext" || possibleDepartments.length === 0) return {isFreetext: true, items: []};
@@ -332,7 +353,7 @@ function Department(props: {org: string; ref: React.RefObject<HTMLInputElement |
             })
         });
     }, [orgInfo]);
-    return <NewDataList isFreetext={result.isFreetext} items={result.items} ref={props.ref} title={title} placeholder={"Department of Dreams"} />
+    return <NewDataList isFreetext={result.isFreetext} items={result.items} ref={props.ref} title={title} placeholder={`“Faculty of Engineering/Department of Software Engineering“`} />
 }
 
 function dataListItem(key: string, value: string, tags: string, unselectable?: boolean): DataListItem {

@@ -35,3 +35,19 @@ func auditPostgresV1() db.MigrationScript {
 		},
 	}
 }
+
+func auditPostgresV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "auditPostgresV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table audit_logs.logs 
+						add column project_id text references project.projects(id) default null;
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

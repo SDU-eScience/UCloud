@@ -20,7 +20,7 @@ import (
 
 // NOTE(Dan): This channel is managed by accounting_internal during a significant update to a wallet. The wallet ID
 // is emitted to the wallet and additional information must be looked up.
-var providerWalletNotifications = make(chan AccWalletId, 128)
+var providerWalletNotifications = make(chan AccWalletId, 1024*1024)
 
 var providerNotifications struct {
 	Mu                        sync.Mutex

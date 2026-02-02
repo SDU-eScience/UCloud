@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -413,7 +414,7 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 			} else {
 				var req Req
 
-				_, _ = handler(RequestInfo{
+				_, _ = rpcServerSafeInvokeHandler(c, handler, RequestInfo{
 					HttpWriter:  w,
 					HttpRequest: r,
 					WebSocket:   conn,
@@ -456,7 +457,7 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 						Actor:       actor,
 					}
 
-					response, err = handler(info, request)
+					response, err = rpcServerSafeInvokeHandler(c, handler, info, request)
 				}
 			}
 		}
@@ -571,6 +572,25 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 	}
 }
 
+func rpcServerSafeInvokeHandler[Req any, Resp any](
+	call *Call[Req, Resp],
+	handler ServerHandler[Req, Resp],
+	info RequestInfo,
+	req Req,
+) (result Resp, err *util.HttpError) {
+	defer func() {
+		panicRecovery := recover()
+		if panicRecovery != nil {
+			stack := debug.Stack()
+			log.Warn("Panic in %s: %v\n%s", call.FullName(), panicRecovery, stack)
+			err = util.HttpErr(http.StatusInternalServerError, "internal server error")
+		}
+	}()
+
+	result, err = handler(info, req)
+	return result, err
+}
+
 func SendResponseOrError(r *http.Request, w http.ResponseWriter, response any, err *util.HttpError) {
 	var payload []byte
 	statusCode := http.StatusOK
@@ -580,7 +600,10 @@ func SendResponseOrError(r *http.Request, w http.ResponseWriter, response any, e
 		payload = data
 		statusCode = err.StatusCode
 	} else {
-		data, _ := json.Marshal(response)
+		data, err := json.Marshal(response)
+		if err != nil {
+			log.Warn("Could not marshal response: %#v with error: %s", response, err)
+		}
 		payload = data
 		statusCode = http.StatusOK
 	}

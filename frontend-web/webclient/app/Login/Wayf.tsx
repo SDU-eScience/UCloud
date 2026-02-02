@@ -15,6 +15,12 @@ export function setCookie(name: string, value: string, days: number): void {
 }
 
 export function getCookie(name: string): string | null {
+    const lsAuthState = localStorage.getItem("authState");
+    if (lsAuthState !== null) {
+        localStorage.removeItem("authState");
+        return lsAuthState;
+    }
+
     const nameEQ = name + "=";
     const ca = document.cookie.split(";");
     for (let c of ca) {

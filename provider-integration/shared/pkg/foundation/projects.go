@@ -210,15 +210,12 @@ var ProjectBrowse = rpc.Call[ProjectBrowseRequest, PageV2[Project]]{
 	Roles:       rpc.RolesEndUser | rpc.RoleProvider,
 }
 
-// TODO archive and unarchive purposefully not on the list
-
 var ProjectCreate = rpc.Call[BulkRequest[ProjectSpecification], BulkResponse[FindByStringId]]{
 	BaseContext: ProjectContext,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesPrivileged,
 }
 
-// TODO this is a new call
 type ProjectInternalCreateRequest struct {
 	Title        string              `json:"title"`
 	BackendId    string              `json:"backendId"`
@@ -227,7 +224,6 @@ type ProjectInternalCreateRequest struct {
 	Parent       util.Option[string] `json:"parent"`
 }
 
-// TODO this is a new call
 var ProjectInternalCreate = rpc.Call[ProjectInternalCreateRequest, FindByStringId]{
 	BaseContext: ProjectContext,
 	Convention:  rpc.ConventionUpdate,
@@ -278,8 +274,6 @@ var ProjectRename = rpc.Call[BulkRequest[ProjectRenameRequest], util.Empty]{
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 }
-
-// TODO project verification purposefully not on the list
 
 type ProjectRemoveMemberRequest struct {
 	Username string `json:"username"`
@@ -420,9 +414,10 @@ var ProjectDeleteInviteLink = rpc.Call[FindByInviteLink, util.Empty]{
 }
 
 type ProjectUpdateInviteLinkRequest struct {
-	Token  string      `json:"token"`
-	Role   ProjectRole `json:"role"`
-	Groups []string    `json:"groups"`
+	Token   string                 `json:"token"`
+	Role    ProjectRole            `json:"role"`
+	Groups  []string               `json:"groups"`
+	Expires util.Option[Timestamp] `json:"expires"`
 }
 
 var ProjectUpdateInviteLink = rpc.Call[ProjectUpdateInviteLinkRequest, util.Empty]{
@@ -507,9 +502,6 @@ type ProjectInformation struct {
 	PiUsername string `json:"piUsername"`
 	Title      string `json:"title"`
 }
-
-// TODO This is a new call returning information about projects to all authenticated users. You do not need to be a
-//  member of the project to look up the information. You just need the ID.
 
 var ProjectRetrieveInformation = rpc.Call[BulkRequest[FindByStringId], ProjectRetrieveInformationResponse]{
 	BaseContext: ProjectContext,

@@ -321,6 +321,23 @@
         }));
     </script>
 
+    <script>
+        const listItems = document.querySelectorAll("ol.chapter li");
+        for (const item of listItems) {
+            console.log(item.innerText);
+            if (item.innerText.indexOf("H: ") !== -1) {
+                item.style.display = "none";
+            }
+        }
+
+        const navButtons = document.querySelectorAll(`[rel=next],[rel="next prefetch"],[rel=prev],[rel="prev prefetch"]`);
+        for (const btn of navButtons) {
+            if (btn && btn.innerText.indexOf("H:") !== -1) {
+                btn.style.display = "none";
+            }
+        }
+    </script>
+
     <script src="{{ path_to_root }}book.js"></script>
 
     <!-- Custom JS scripts -->

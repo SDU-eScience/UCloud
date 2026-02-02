@@ -29,13 +29,13 @@ type SshKeySpecification struct {
 type ExportedParametersRequest struct {
 	Application       NameAndVersion       `json:"application"`
 	Product           apm.ProductReference `json:"product"`
-	Name              string               `json:"name,omitempty"`
+	Name              string               `json:"name"`
 	Replicas          int                  `json:"replicas"`
 	Parameters        json.RawMessage      `json:"parameters"`
 	Resources         json.RawMessage      `json:"resources"`
-	TimeAllocation    SimpleDuration       `json:"timeAllocation,omitempty"`
-	ResolvedProduct   json.RawMessage      `json:"resolvedProduct,omitempty"`
-	ResolvedSupport   json.RawMessage      `json:"resolvedSupport,omitempty"`
+	TimeAllocation    SimpleDuration       `json:"timeAllocation"`
+	ResolvedProduct   json.RawMessage      `json:"resolvedProduct"`
+	ResolvedSupport   json.RawMessage      `json:"resolvedSupport"`
 	AllowDuplicateJob bool                 `json:"allowDuplicateJob"`
 	SshEnabled        bool                 `json:"sshEnabled"`
 }
@@ -155,14 +155,12 @@ func (job *Job) getParameterValues(ofType AppParameterValueType) []AppParameterV
 }
 
 type OpenSessionWithProvider struct {
-	// TODO Make sure we do not put this in the audit log
 	ProviderDomain string      `json:"providerDomain"`
 	ProviderId     string      `json:"providerId"`
 	Session        OpenSession `json:"session"`
 }
 
 type OpenSession struct {
-	// TODO Make sure we do not put this in the audit log
 	Type           OpenSessionType `json:"type"`
 	JobId          string          `json:"jobId"`
 	Rank           int             `json:"rank"`

@@ -507,9 +507,12 @@ func TaskCreate(actor rpc.Actor, task fndapi.TasksCreateRequest) (fndapi.Task, *
 }
 
 func TaskPostStatus(actor rpc.Actor, update fndapi.TasksPostStatusRequestUpdate) *util.HttpError {
+	// NOTE(Dan): Failures are logged in this function in an attempt to troubleshoot why the providers would want to
+	// do this.
 	providerId, ok1 := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
 	itask, ok2 := taskRetrieve(taskId(update.Id), true)
 	if !ok1 || !ok2 {
+		log.Info("%s wants to update an unknown task: %v", providerId, update.Id)
 		return util.HttpErr(http.StatusNotFound, "unknown task requested")
 	}
 
@@ -521,6 +524,8 @@ func TaskPostStatus(actor rpc.Actor, update fndapi.TasksPostStatusRequestUpdate)
 	itask.Mu.RUnlock()
 
 	if !ok {
+		log.Info("%s wants to update a task that does not belongs to it. %v belongs to %v", providerId,
+			update.Id, itask.Task.Provider)
 		return util.HttpErr(http.StatusNotFound, "unknown task requested")
 	}
 

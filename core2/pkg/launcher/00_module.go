@@ -61,6 +61,21 @@ func Launch() {
 		return
 	}
 
+	var err error
+
+	logCfg := cfg.Configuration.Logs
+	if !logCfg.LogToConsole {
+		log.SetLogConsole(false)
+		err = log.SetLogFile(filepath.Join(logCfg.Directory, "server.log"))
+		if err != nil {
+			panic("Unable to open log file: " + err.Error())
+		}
+
+		if logCfg.Rotation.Enabled {
+			log.SetRotation(log.RotateDaily, logCfg.Rotation.RetentionPeriodInDays, true)
+		}
+	}
+
 	dbConfig := cfg.Configuration.Database
 	db.Database = db.Connect(
 		dbConfig.Username,
@@ -318,21 +333,6 @@ func Launch() {
 		})
 
 		return atuple.First, atuple.Second
-	}
-
-	var err error
-
-	logCfg := cfg.Configuration.Logs
-	if !logCfg.LogToConsole {
-		log.SetLogConsole(false)
-		err = log.SetLogFile(filepath.Join(logCfg.Directory, "server.log"))
-		if err != nil {
-			panic("Unable to open log file: " + err.Error())
-		}
-
-		if logCfg.Rotation.Enabled {
-			log.SetRotation(log.RotateDaily, logCfg.Rotation.RetentionPeriodInDays, true)
-		}
 	}
 
 	rpc.DefaultClient = &rpc.Client{

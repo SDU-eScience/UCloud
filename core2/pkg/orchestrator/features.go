@@ -398,7 +398,7 @@ func SupportRetrieveProducts[T any](typeName string) orcapi.SupportByProvider[T]
 				})
 			}
 
-			result.ProductsByProvider[provider] = mapped
+			result.ProductsByProvider[provider] = util.NonNilSlice(mapped)
 		}
 	}
 	providerSupportGlobals.Mu.RUnlock()

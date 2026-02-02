@@ -35,9 +35,7 @@ const StudioSpotlightsEditor = React.lazy(() => import("@/Applications/Studio/Sp
 const StudioSpotlights = React.lazy(() => import("@/Applications/Studio/Spotlights"));
 const StudioHero = React.lazy(() => import("@/Applications/Studio/HeroEditor"));
 const StudioTopPicks = React.lazy(() => import("@/Applications/Studio/TopPicksEditor"));
-const Scripts = React.lazy(() => import("@/Admin/Scripts"));
 const UserCreation = React.lazy(() => import("@/Admin/UserCreation"));
-const DevTestData = React.lazy(() => import("@/Admin/DevTestData"));
 const UserSettings = React.lazy(() => import("@/UserSettings/UserSettings"));
 const Wayf = React.lazy(() => import("@/Login/Wayf"));
 const Demo = React.lazy(() => import("@/Playground/Demo"));
@@ -45,7 +43,6 @@ const LagTest = React.lazy(() => import("@/Playground/LagTest"));
 const Providers = React.lazy(() => import("@/Admin/Providers/Browse"));
 const CreateProvider = React.lazy(() => import("@/Admin/Providers/Save"));
 const EditProvider = React.lazy(() => import("@/Admin/Providers/Save"));
-const RegisterProvider = React.lazy(() => import("@/Admin/Providers/Approve"));
 const ProviderConnection = React.lazy(() => import("@/Providers/Connect"));
 const ProviderOverview = React.lazy(() => import("@/Providers/Overview"));
 const ProviderDetailed = React.lazy(() => import("@/Providers/Detailed"));
@@ -172,7 +169,6 @@ const Core = (): React.ReactNode => (
                         element={React.createElement(requireAuth(UserCreation))} />
                     <Route path={AppRoutes.admin.news()}
                         element={React.createElement(requireAuth(NewsManagement))} />
-                    <Route path={AppRoutes.admin.scripts()} element={React.createElement(requireAuth(Scripts))} />
 
                     <Route path={AppRoutes.supportAssist.base()} element={React.createElement(requireAuth(SupportPage))} />
                     <Route path={AppRoutes.supportAssist.user()} element={React.createElement(requireAuth(UserSupportContent))} />
@@ -186,15 +182,12 @@ const Core = (): React.ReactNode => (
                         element={React.createElement(requireAuth(CreateProvider))} />
                     <Route path="/admin/providers/edit/:id"
                         element={React.createElement(requireAuth(EditProvider))} />
-                    <Route path="/admin/providers/register"
-                        element={React.createElement(requireAuth(RegisterProvider))} />
 
                     <Route path={"/connection"} element={React.createElement(requireAuth(Connection))} />
                     <Route path="/providers/connect"
                         element={React.createElement(requireAuth(ProviderConnection))} />
                     <Route path="/providers/create" element={React.createElement(requireAuth(CreateProvider))} />
                     <Route path="/providers/edit/:id" element={React.createElement(requireAuth(EditProvider))} />
-                    <Route path="/providers/register" element={React.createElement(requireAuth(RegisterProvider))} />
                     <Route path="/providers/overview" element={<ProviderOverview />} />
                     <Route path="/providers/detailed/:id" element={<ProviderDetailed />} />
                     <Route path="/providers/*" element={React.createElement(requireAuth(ProviderRouter))} />

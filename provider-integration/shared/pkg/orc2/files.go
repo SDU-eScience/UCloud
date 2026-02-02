@@ -46,7 +46,6 @@ type UFileStatus struct {
 }
 
 type FileMetadata struct {
-	// TODO(Dan): Templates removed on purpose here. Hopefully this doesn't break the frontend.
 	Metadata map[string][]FileMetadataDocument `json:"metadata"`
 }
 
@@ -190,7 +189,7 @@ type FilesCreateUploadRequest struct {
 	ConflictPolicy     WriteConflictPolicy `json:"conflictPolicy"`
 }
 
-type FilesCreateUploadResponse struct { // TODO(Dan): Used to be nullable
+type FilesCreateUploadResponse struct {
 	Endpoint string         `json:"endpoint"`
 	Protocol UploadProtocol `json:"protocol"`
 	Token    string         `json:"token"`
@@ -355,7 +354,7 @@ type FilesProviderCreateUploadRequest struct {
 	ResolvedCollection Drive               `json:"resolvedCollection"`
 }
 
-type FilesProviderCreateUploadResponse struct { // TODO(Dan): Used to be nullable
+type FilesProviderCreateUploadResponse struct {
 	Endpoint string         `json:"endpoint"`
 	Protocol UploadProtocol `json:"protocol"`
 	Token    string         `json:"token"`

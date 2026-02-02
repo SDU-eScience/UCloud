@@ -1,0 +1,10 @@
+application: v2
+
+name: minimal
+version: v1.32
+
+software:
+  type: Native
+
+invocation: |
+  echo "Hello World!"

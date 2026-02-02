@@ -242,66 +242,6 @@ const Allocations: React.FunctionComponent = () => {
         dispatchEvent({type: "SetEditing", allocationIdx: idx, groupIdx: gidx, recipientIdx: ridx, isEditing: true});
     }, []);
 
-    const onEditKey = useCallback(async (ev: React.KeyboardEvent) => {
-        ev.stopPropagation();
-        const elem = ev.target as HTMLInputElement;
-        const idx = parseInt(elem.getAttribute("data-idx") ?? "");
-        const gidx = parseInt(elem.getAttribute("data-gidx") ?? "");
-        const ridx = parseInt(elem.getAttribute("data-ridx") ?? "");
-        switch (ev.code) {
-            case "Enter": {
-                const value = parseInt(elem.value);
-                if (!isNaN(value)) {
-                    const group = state.subAllocations.recipients[ridx].groups[gidx];
-                    const alloc = group.allocations[idx]!;
-                    const unit = Accounting.explainUnit(group.category);
-                    const success = (await callAPIWithErrorHandler(
-                        Accounting.updateAllocationV2(bulkRequestOf({
-                            allocationId: alloc.allocationId,
-                            newQuota: value * unit.invBalanceFactor,
-                            reason: "Allocation updated with new quota",
-                        }))
-                    )) !== null;
-
-                    if (success) {
-                        dispatchEvent({
-                            type: "UpdateAllocation",
-                            allocationIdx: idx,
-                            recipientIdx: ridx,
-                            groupIdx: gidx,
-                            newQuota: value * unit.invBalanceFactor,
-                        });
-                    }
-
-                    dispatchEvent({
-                        type: "SetEditing", allocationIdx: idx, groupIdx: gidx, recipientIdx: ridx,
-                        isEditing: false
-                    });
-                }
-                break;
-            }
-
-            case "Escape": {
-                dispatchEvent({
-                    type: "SetEditing", allocationIdx: idx, recipientIdx: ridx, groupIdx: gidx,
-                    isEditing: false
-                });
-                break;
-            }
-        }
-    }, [state.subAllocations.recipients]);
-
-    const onEditBlur = useCallback((ev: React.SyntheticEvent) => {
-        const elem = ev.target as HTMLInputElement;
-        const idx = parseInt(elem.getAttribute("data-idx") ?? "");
-        const ridx = parseInt(elem.getAttribute("data-ridx") ?? "");
-        const gidx = parseInt(elem.getAttribute("data-gidx") ?? "");
-        dispatchEvent({
-            type: "SetEditing", allocationIdx: idx, recipientIdx: ridx, groupIdx: gidx,
-            isEditing: false
-        });
-    }, [dispatchEvent]);
-
     const onSearchInput = useCallback((ev: React.SyntheticEvent) => {
         const input = ev.target as HTMLInputElement;
         const newQuery = input.value;
@@ -384,8 +324,7 @@ const Allocations: React.FunctionComponent = () => {
                 state={state} onSearchInput={onSearchInput} onSearchKey={onSearchKey}
                 searchBox={searchBox} dispatchEvent={dispatchEvent}
                 suballocationTree={suballocationTree} listRef={listRef}
-                onSubAllocationShortcut={onSubAllocationShortcut} avatars={avatars} onEdit={onEdit}
-                onEditKey={onEditKey} onEditBlur={onEditBlur} />
+                onSubAllocationShortcut={onSubAllocationShortcut} avatars={avatars} />
         </div>}
     />;
 };

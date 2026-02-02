@@ -53,6 +53,10 @@ func initAuditPg() {
 
 		bucket := buckets[int(counter.Add(1))%len(buckets)]
 		bucket.Mu.Lock()
+		var projectId *string
+		if event.Project.Present {
+			projectId = &event.Project.Value
+		}
 		{
 			b := bucket.Batch
 			db.BatchExec(
@@ -60,10 +64,10 @@ func initAuditPg() {
 				`
 					insert into audit_logs.logs
 						(request_name, received_at, request_size, response_code, response_time_nanos, request_body, 
-						username, user_agent, token_reference, remote_origin)
+						username, user_agent, token_reference, remote_origin, project_id)
 					values 
 						(:request_name, :received_at, :request_size, :response_code, :response_time_nanos, :request_body, 
-						:username, :user_agent, :token_reference, :remote_origin)
+						:username, :user_agent, :token_reference, :remote_origin, :project_id)
 			    `,
 				db.Params{
 					"request_name":        event.RequestName,
@@ -76,6 +80,7 @@ func initAuditPg() {
 					"user_agent":          event.UserAgent.Sql(),
 					"token_reference":     tokenRef.Sql(),
 					"remote_origin":       event.RemoteOrigin,
+					"project_id":          projectId,
 				},
 			)
 
