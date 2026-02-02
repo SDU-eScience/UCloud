@@ -219,8 +219,15 @@ export const MembersContainer: React.FunctionComponent<{
                                     <Flex alignItems={"center"} padding={"4px 0"}>
                                         <AvatarForUser username={invite.recipient} height={"35px"}
                                             width={"35px"} />
-                                        <div>{invite.recipient} has been invited
-                                            to {invite.projectTitle} by {invite.invitedBy}</div>
+                                        <Flex>
+                                            <Truncate
+                                                title={invite.recipient}
+                                                maxWidth={200}
+                                            >
+                                                {invite.recipient}
+                                            </Truncate>
+                                            &nbsp;has been invited by {invite.invitedBy}
+                                        </Flex>
                                     </Flex>
                                 }
                                 right={
@@ -365,6 +372,12 @@ const LinkInviteCard: React.FunctionComponent<{
     function inviteLinkFromToken(token: string): string {
         return window.location.origin + "/app/projects/invite/" + token;
     }
+
+    useEffect(() => {
+        if (props.links === undefined || props.links.length === 0) {
+            props.onCreateInviteLink();
+        }
+    }, []);
 
     function handleInvite(event: React.SyntheticEvent) {
         event.preventDefault();
@@ -807,5 +820,3 @@ const ActiveGroupCard: React.FunctionComponent<{
         </Flex>}
     />
 }
-
-/* TODO responsiveness for truncated usernames/group names */
