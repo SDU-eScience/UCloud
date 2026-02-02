@@ -107,12 +107,13 @@ func TestReadAndWritePath(t *testing.T) {
 	}
 	assert.NotEqual(t, "", doc.Id)
 	assert.Equal(t, u.Username, doc.Owner.CreatedBy)
-	assert.Equal(t, "", doc.Owner.Project)
+	assert.Equal(t, "", doc.Owner.Project.GetOrDefault(""))
 	assert.Equal(t, "", doc.ProviderGeneratedId)
 	assert.Equal(t, 3, doc.Status)
 	// Myself is undefined through this API, since it could be a registration. We do not expect to find
 	// any permissions here.
-	assert.Equal(t, 0, len(doc.Permissions.Myself))
+	permissions := doc.Permissions.GetOrDefault(orcapi.ResourcePermissions{})
+	assert.Equal(t, 0, len(permissions.Myself))
 
 	p = ResourceBrowse(
 		*u,
@@ -133,13 +134,13 @@ func TestReadAndWritePath(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotEqual(t, "", doc.Id)
 	assert.Equal(t, u.Username, doc.Owner.CreatedBy)
-	assert.Equal(t, "", doc.Owner.Project)
+	assert.Equal(t, "", doc.Owner.Project.GetOrDefault(""))
 	assert.Equal(t, "", doc.ProviderGeneratedId)
 	assert.Equal(t, 3, doc.Status)
-	assert.Equal(t, 3, len(doc.Permissions.Myself))
-	assert.True(t, slices.Contains(doc.Permissions.Myself, orcapi.PermissionRead))
-	assert.True(t, slices.Contains(doc.Permissions.Myself, orcapi.PermissionEdit))
-	assert.True(t, slices.Contains(doc.Permissions.Myself, orcapi.PermissionAdmin))
+	assert.Equal(t, 3, len(permissions.Myself))
+	assert.True(t, slices.Contains(permissions.Myself, orcapi.PermissionRead))
+	assert.True(t, slices.Contains(permissions.Myself, orcapi.PermissionEdit))
+	assert.True(t, slices.Contains(permissions.Myself, orcapi.PermissionAdmin))
 
 	ResourceDelete(*u, testResource, id)
 

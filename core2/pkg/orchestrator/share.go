@@ -363,7 +363,7 @@ func ShareCreate(actor rpc.Actor, item orcapi.ShareSpecification) (string, *util
 		)
 	}
 
-	if drive.Owner.Project != "" {
+	if drive.Owner.Project.Present {
 		return "", util.HttpErr(
 			http.StatusForbidden,
 			"cannot share this file belonging to a project",

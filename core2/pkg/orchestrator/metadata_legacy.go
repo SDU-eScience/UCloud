@@ -434,7 +434,7 @@ func MetadataMigrateToNewPath(sourcePath string, destinationPath string) {
 	if driveId, ok := orcapi.DriveIdFromUCloudPath(sourcePath); ok {
 		drive, err := ResourceRetrieve[orcapi.Drive](rpc.ActorSystem, driveType, ResourceParseId(driveId), orcapi.ResourceFlags{})
 		if err == nil {
-			ownerRef = util.OptStringIfNotEmpty(drive.Owner.Project).GetOrDefault(drive.Owner.CreatedBy)
+			ownerRef = drive.Owner.Project.GetOrDefault(drive.Owner.CreatedBy)
 		}
 	}
 
@@ -442,7 +442,7 @@ func MetadataMigrateToNewPath(sourcePath string, destinationPath string) {
 		if driveId, ok := orcapi.DriveIdFromUCloudPath(destinationPath); ok {
 			drive, err := ResourceRetrieve[orcapi.Drive](rpc.ActorSystem, driveType, ResourceParseId(driveId), orcapi.ResourceFlags{})
 			if err == nil {
-				ownerRef = util.OptStringIfNotEmpty(drive.Owner.Project).GetOrDefault(drive.Owner.CreatedBy)
+				ownerRef = drive.Owner.Project.GetOrDefault(drive.Owner.CreatedBy)
 			}
 		}
 	}
@@ -585,7 +585,7 @@ func metadataUpdate(
 		}
 
 		{
-			ownerRef := util.OptStringIfNotEmpty(drive.Owner.Project).GetOrDefault(drive.Owner.CreatedBy)
+			ownerRef := drive.Owner.Project.GetOrDefault(drive.Owner.CreatedBy)
 			ownerBucket := metadataBucketByKey(ownerRef)
 			idx := util.ReadOrInsertBucket(&ownerBucket.Mu, ownerBucket.ByOwner, ownerRef, func() *metadataIndex {
 				return &metadataIndex{Elements: map[string]util.Empty{}}
@@ -768,7 +768,7 @@ func metadataLoadIfNeeded(path string) {
 		return
 	}
 
-	ownerRef := util.OptStringIfNotEmpty(drive.Owner.Project).GetOrDefault(drive.Owner.CreatedBy)
+	ownerRef := drive.Owner.Project.GetOrDefault(drive.Owner.CreatedBy)
 	metadataLoadIfNeededByOwner(ownerRef)
 }
 
