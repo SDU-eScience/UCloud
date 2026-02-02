@@ -421,6 +421,7 @@ func internalUpdateAllocation(
 	newQuota util.Option[int64],
 	newStart util.Option[fndapi.Timestamp],
 	newEnd util.Option[fndapi.Timestamp],
+	reason string,
 ) (accGrantId, string, *util.HttpError) {
 	var iAlloc *internalAllocation
 	var iWallet *internalWallet
@@ -461,7 +462,7 @@ func internalUpdateAllocation(
 		activeQuota := lInternalGroupTotalQuotaContributing(b, iAllocGroup)
 		activeUsage := iAllocGroup.TreeUsage
 
-		if activeQuota+delta < activeUsage {
+		if iAlloc.Start.Before(now) && activeQuota+delta < activeUsage {
 			b.Mu.Unlock()
 			return grantedIn, changelog, util.HttpErr(http.StatusForbidden, "You cannot decrease the quota below the current usage!")
 		}
@@ -506,7 +507,7 @@ func internalUpdateAllocation(
 			default:
 				log.Warn("Invalid accounting frequency passed: '%v'\n", category.AccountingFrequency)
 			}
-			changelog += fmt.Sprintf("The Quota for %s (%s) has manually been updated to %d.\n", category.Name, category.Provider, amount)
+			changelog += fmt.Sprintf("The quota for %s (%s) has manually been updated to %d.\n", category.Name, category.Provider, amount)
 		}
 		if newStart.Present {
 			changelog += fmt.Sprintf("The start date for the granted %s (%s) allocation has manually been updated to %s.\n", category.Name, category.Provider, proposedNewStart.String())
@@ -514,6 +515,7 @@ func internalUpdateAllocation(
 		if newEnd.Present {
 			changelog += fmt.Sprintf("The end date for the granted %s (%s) allocation has manually been updated to %s.\n", category.Name, category.Provider, proposedNewEnd.String())
 		}
+		changelog += fmt.Sprintf("Reason: %s", reason)
 	}
 	return grantedIn, changelog, nil
 }
