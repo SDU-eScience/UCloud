@@ -361,7 +361,7 @@ export const Drive = {
 
     async create(page: Page, name: string): Promise<void> {
         await this.goToDrives(page);
-        await NetworkCalls.awaitResponse(page, "**/api/files/collections", async () => {
+        await NetworkCalls.awaitResponse(page, "**/api/files/collections**", async () => {
             await page.locator('div[data-disabled="false"]', {hasText: "Create drive"}).click();
             await page.getByRole("textbox", {name: "Choose a name"}).fill(name);
             await page.getByRole("button", {name: "Create", disabled: false}).click();
@@ -400,6 +400,7 @@ export const Components = {
 
     async clickRefreshAndWait(page: Page): Promise<void> {
         await page.locator(".refresh-icon, #refresh-icon").click();
+        await page.waitForLoadState("networkidle");
     },
 
     async toggleSearch(page: Page): Promise<void> {
@@ -881,7 +882,14 @@ async function _move(page: Page, oldName: string, newName: string) {
 export function testCtx(args: string[]): {user: {username: string; password: string;}; projectName?: string;} {
     const context = args[1] as Contexts;
     return {
-        user: TestUsers[context],
-        projectName: context === "Personal Workspace" ? undefined : testUsers.projectName
+        user: ctxUser(context),
+        projectName: context === "Personal Workspace" ? undefined : sharedTestProjectName()
     }
 }
+
+export function ctxUser(ctx: Contexts) {
+    return TestUsers[ctx];
+}
+export function sharedTestProjectName(): string {
+    return testUsers.projectName;
+} 
