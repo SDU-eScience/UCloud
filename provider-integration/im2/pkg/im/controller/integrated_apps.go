@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/shared/pkg/apm"
 	db "ucloud.dk/shared/pkg/database"
@@ -292,7 +293,7 @@ func ConfigureIApp(appName string, owner orc.ResourceOwner, etag util.Option[str
 				TimeAllocation:    util.Option[orc.SimpleDuration]{},
 				Resources:         []orc.AppParameterValue{},
 			},
-			Project:   util.OptStringIfNotEmpty(owner.Project),
+			Project:   util.OptStringIfNotEmpty(""),
 			CreatedBy: util.OptStringIfNotEmpty(owner.CreatedBy),
 		}
 

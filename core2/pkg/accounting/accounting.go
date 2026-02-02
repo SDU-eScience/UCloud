@@ -58,7 +58,6 @@ func initAccounting() {
 	})
 
 	accapi.WalletsBrowse.Handler(func(info rpc.RequestInfo, request accapi.WalletsBrowseRequest) (fndapi.PageV2[accapi.WalletV2], *util.HttpError) {
-		log.Info("browse handler")
 		return WalletsBrowse(info.Actor, request), nil
 	})
 

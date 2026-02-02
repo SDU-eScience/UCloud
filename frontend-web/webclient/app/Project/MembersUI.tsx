@@ -1,7 +1,7 @@
 import * as React from "react";
-import {EventHandler, MouseEvent, useState} from "react";
+import {EventHandler, MouseEvent, useCallback, useEffect, useState} from "react";
 import {ProjectInvite, ProjectInviteLink, projectRoleToStringIcon} from "@/Project/Api";
-import {OldProjectRole, Project, ProjectGroup, ProjectMember, ProjectRole, isAdminOrPI} from "@/Project";
+import {isAdminOrPI, OldProjectRole, Project, ProjectGroup, ProjectMember, ProjectRole} from "@/Project";
 import {Spacer} from "@/ui-components/Spacer";
 import {
     Box,
@@ -14,7 +14,9 @@ import {
     List,
     MainContainer,
     RadioTile,
-    RadioTilesContainer, Select
+    RadioTilesContainer,
+    Select,
+    Truncate
 } from "@/ui-components";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {injectStyle} from "@/Unstyled";
@@ -30,6 +32,8 @@ import {CardClass} from "@/ui-components/Card";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {addStandardDialog} from "@/UtilityComponents";
+import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
+import {alignItems} from "styled-system";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
@@ -98,11 +102,11 @@ export const MembersContainer: React.FunctionComponent<{
     onDuplicate: (groupId: string) => void;
     onSortUpdated: (name: string) => void;
     currentSortOption: string;
+    onSelectedExpiry: (linkId: string, expiry: number) => void;
 }> = props => {
     const members: ProjectMember[] = props.project.status.members ?? [];
     const groups: ProjectGroup[] = props.project.status.groups ?? [];
 
-    const [username, setUsername] = useState("");
     const [newGroup, setNewGroup] = useState(false);
     const [newGroupName, setNewGroupName] = useState("");
     const [renameGroupId, setRenameGroupId] = useState("");
@@ -110,12 +114,6 @@ export const MembersContainer: React.FunctionComponent<{
     const [isShowingInviteLinks, setIsShowingInviteLinks] = useState(false);
 
     // event handlers
-    function handleInvite(event: React.SyntheticEvent) {
-        event.preventDefault();
-        props.onInvite(username);
-        setUsername("");
-    }
-
     function handleSearch(event: React.SyntheticEvent) {
         const value = (event.target as HTMLInputElement).value;
         props.onSearch(value);
@@ -179,30 +177,22 @@ export const MembersContainer: React.FunctionComponent<{
                     onDeleteLink={props.onDeleteLink}
                     onLinkGroupsUpdated={props.onLinkGroupsUpdated}
                     onUpdateLinkRole={props.onUpdateLinkRole}
+                    onSelectedExpiry={props.onSelectedExpiry}
+                    onInvite={props.onInvite}
                 />
             </ReactModal>
 
             <div className={"left"}>
-                <Heading.h3 paddingBottom={"5px"} marginBottom={"8px"}>Members</Heading.h3>
-                <Flex gap={"8px"} marginBottom={"8px"}>
-                    <form action="#" onSubmit={handleInvite} style={{display: "flex", gap: "8px", width: "100%"}}>
-                        <Input
-                            value={username}
-                            type="text"
-                            placeholder="Add by username..."
-                            style={{flexGrow: 1}}
-                            onChange={(event) => {
-                                setUsername((event.target as HTMLInputElement).value);
-                            }}
-                        />
-                        <Button type={"submit"}
-                            disabled={username === ""}><Icon name={"heroUserPlus"} /></Button>
-                    </form>
+                <Flex marginBottom={"8px"} justifyContent={"space-between"}>
+                    <Heading.h3 paddingBottom={"5px"} marginBottom={"8px"}>Members</Heading.h3>
                     <Button color={"successMain"} onClick={() => {
                         setIsShowingInviteLinks(true);
                     }}
+                        width={"111px"}
+                        disabled={props.project.status.myRole === OldProjectRole.USER}
                     >
-                        <Icon name={"heroLink"} />
+                        <Icon name={"heroLink"} mr={"5px"}/>
+                        Invite
                     </Button>
                 </Flex>
                 <Flex height={"35px"} gap={"8px"} marginBottom={"8px"}>
@@ -229,8 +219,15 @@ export const MembersContainer: React.FunctionComponent<{
                                     <Flex alignItems={"center"} padding={"4px 0"}>
                                         <AvatarForUser username={invite.recipient} height={"35px"}
                                             width={"35px"} />
-                                        <div>{invite.recipient} has been invited
-                                            to {invite.projectTitle} by {invite.invitedBy}</div>
+                                        <Flex>
+                                            <Truncate
+                                                title={invite.recipient}
+                                                maxWidth={200}
+                                            >
+                                                {invite.recipient}
+                                            </Truncate>
+                                            &nbsp;has been invited by {invite.invitedBy}
+                                        </Flex>
                                     </Flex>
                                 }
                                 right={
@@ -262,8 +259,20 @@ export const MembersContainer: React.FunctionComponent<{
                 {props.activeGroup ?
                     <>
                         <Flex gap={"8px"} marginBottom={"8px"}>
-                            <Link to={"?"} color={"textPrimary"}><Heading.h3>Groups</Heading.h3></Link>
-                            <Heading.h3>/ {props.activeGroup.specification.title}</Heading.h3>
+                            <Link to={"?"} color={"textPrimary"}>
+                                <Heading.h3>Groups</Heading.h3>
+                            </Link>
+                            <Heading.h3>
+                                <Flex gap={"8px"}>
+                                    /
+                                    <Truncate
+                                        title={props.activeGroup.specification.title}
+                                        width={400}
+                                    >
+                                        {props.activeGroup.specification.title}
+                                    </Truncate>
+                                </Flex>
+                            </Heading.h3>
                         </Flex>
                         <Box height={"calc(100vh - 135px)"} overflowY={"auto"}>
                             <List>
@@ -344,17 +353,65 @@ const LinkInviteCard: React.FunctionComponent<{
     onUpdateLinkRole: (linkId: string, role: ProjectRole) => void;
     onDeleteLink: (linkId: string) => void;
     onLinkGroupsUpdated: (linkId: string, groupIds: string[]) => void;
+    onSelectedExpiry: (linkId: string, expiry: number) => void;
+    onInvite: (username: string) => void;
 }> = props => {
     const [activeLinkId, setActiveLinkId] = useState<string | null>(null);
     const activeLink = props.links.find(it => it.token === activeLinkId);
+    const [expiry, setExpiry] = useState<SimpleRichItem>({
+        key: "30",
+        value: "1 month"
+    });
+    const [isShowingInviteByUsername, setIsShowingInviteByUsername] = useState(false);
+    const [username, setUsername] = useState("");
 
     function daysLeftToTimestamp(timestamp: number): number {
-        return Math.floor((timestamp - timestampUnixMs()) / 1000 / 3600 / 24);
+        return Math.ceil((timestamp - timestampUnixMs()) / 1000 / 3600 / 24);
     }
 
     function inviteLinkFromToken(token: string): string {
         return window.location.origin + "/app/projects/invite/" + token;
     }
+
+    useEffect(() => {
+        if (props.links === undefined || props.links.length === 0) {
+            props.onCreateInviteLink();
+        }
+    }, []);
+
+    function handleInvite(event: React.SyntheticEvent) {
+        event.preventDefault();
+        props.onInvite(username);
+        setUsername("");
+    }
+
+    useEffect(() => {
+        if (activeLink) {
+            let daysLeft = daysLeftToTimestamp(activeLink.expires);
+            let value = `${daysLeft} days`;
+            switch (daysLeft) {
+                case 1: value = "1 day"; break;
+                case 30: value = "1 month"; break;
+                case 60: value = "2 months"; break;
+                case 90: value = "3 months"; break;
+                case 180: value = "6 months"; break;
+            }
+            setExpiry({
+                key: daysLeft.toString(),
+                value
+            });
+        }
+    }, [activeLink]);
+
+    const onSelectExpiry = useCallback((item: SimpleRichItem) => {
+        setExpiry(item);
+
+        if (activeLinkId) {
+            const days = parseInt(item.key);
+            const expiry = timestampUnixMs() + (1000 * 3600 * 24 * days);
+            props.onSelectedExpiry(activeLinkId, expiry);
+        }
+    }, [activeLinkId, props.onSelectedExpiry]);
 
     return <>
         {activeLink ? <>
@@ -402,7 +459,16 @@ const LinkInviteCard: React.FunctionComponent<{
                         return <ListRow
                             key={group.id}
                             select={handleWrapperClick}
-                            left={<div style={{marginLeft: "8px"}}>{group.specification.title}</div>}
+                            left={
+                            <div style={{marginLeft: "8px"}}>
+                                <Truncate
+                                    title={group.specification.title}
+                                    width={500}
+                                >
+                                    {group.specification.title}
+                                </Truncate>
+
+                            </div>}
                             right={<>
                                 <Checkbox
                                     checked={activeLink.groupAssignment.some(element => element === group.id)}
@@ -414,11 +480,58 @@ const LinkInviteCard: React.FunctionComponent<{
                     )}
                 </List>
             </Flex>
+            <Flex gap={"8px"} marginBottom={"8px"} alignItems={"center"} justifyContent={"space-between"}>
+                <div>Set invite link expiration</div>
+                <SimpleRichSelect
+                    items={
+                        [
+                            {key: "7", value: "7 days"},
+                            {key: "14", value: "14 days"},
+                            {key: "30", value: "1 month"},
+                            {key: "60", value: "2 months"},
+                            {key: "90", value: "3 months"},
+                            {key: "180", value: "6 months"},
+                        ]
+                    }
+                    onSelect={onSelectExpiry}
+                    selected={expiry}
+                    dropdownWidth={"156px"}
+                />
+            </Flex>
+        </> : isShowingInviteByUsername ? <>
+            <Flex gap={"8px"} marginBottom={"8px"} height={"35px"} alignItems={"center"}>
+                <Link to={"?"}
+                      onClick={() => {
+                          setIsShowingInviteByUsername(false);
+                      }}
+                      color={"textPrimary"}
+                >
+                    <Heading.h3>Invite </Heading.h3>
+                </Link>
+                <Heading.h3>/ Invite by username</Heading.h3>
+            </Flex>
+            <form action="#" onSubmit={handleInvite}>
+                <Flex maxHeight={"264px"} overflowY={"auto"} marginBottom={"5px"}>
+                    <Input
+                        placeholder={"Add by username"}
+                        value={username}
+                        onChange={(event) => {
+                            setUsername((event.target as HTMLInputElement).value);
+                        }}>
+                    </Input>
+                    <Button ml={"8px"} disabled={username === ""}>Send</Button>
+                </Flex>
+            </form>
         </> : <>
-            <Flex alignItems={"center"} paddingBottom={"8px"}>
+            <Flex alignItems={"center"} paddingBottom={"8px"} gap={"8px"}>
                 <Heading.h3>Invite with link</Heading.h3>
                 <Box flexGrow={1}></Box>
                 <Button onClick={() => props.onCreateInviteLink()}>Create link</Button>
+                <TooltipV2 tooltip={"Invite by username"}>
+                    <Button onClick={() => {setIsShowingInviteByUsername(true)}} width={"48px"}>
+                        <Icon name={"heroUserPlus"} />
+                    </Button>
+                </TooltipV2>
             </Flex>
 
             {props.links.length === 0 ? <>
@@ -430,10 +543,38 @@ const LinkInviteCard: React.FunctionComponent<{
             {props.links.map(link =>
                 <Box key={link.token}>
                     <Flex padding={"8px 0px"} gap={"8px"}>
-                        <Input value={inviteLinkFromToken(link.token)} onChange={doNothing} readOnly={true}></Input>
-                        <Button onClick={() => {
-                            setActiveLinkId(link.token);
-                        }} width={"48px"}><Icon name={"heroCog6Tooth"} /></Button>
+                        <Input
+                            value={inviteLinkFromToken(link.token)}
+                            onChange={doNothing}
+                            readOnly={true}
+                            style={{cursor:"pointer"}}
+                            onClick={() => {
+                                copyToClipboard({
+                                    value: inviteLinkFromToken(link.token),
+                                    message: "Invite link copied to clipboard"
+                                })
+                            }}
+                        >
+                        </Input>
+                        <Button
+                            onClick={() =>
+                                copyToClipboard({
+                                    value: inviteLinkFromToken(link.token),
+                                    message: "Invite link copied to clipboard"
+                                })
+                            }
+                            width={"48px"}
+                        >
+                            <Icon name={"heroDocumentDuplicate"}/>
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                setActiveLinkId(link.token);
+                            }}
+                            width={"48px"}
+                        >
+                            <Icon name={"heroCog6Tooth"} />
+                        </Button>
                         <Button
                             onClick={() => props.onDeleteLink(link.token)}
                             width={"48px"}
@@ -473,7 +614,12 @@ const MemberCard: React.FunctionComponent<{
         disableSelection
         left={<Flex alignItems={"center"} padding={"4px 0"}>
             <AvatarForUser username={props.member.username} height={"35px"} width={"35px"} />
-            {props.member.username}
+            <Truncate
+                title={props.member.username}
+                width={350}
+            >
+                {props.member.username}
+            </Truncate>
         </Flex>}
         right={<Flex alignItems={"center"} gap={"8px"}>
             {props.activeGroup && isAdminOrPI(props.myRole) ? <>
@@ -579,8 +725,15 @@ const GroupCard: React.FunctionComponent<{
                         }}>Cancel</Button>
                 </form>
             </> : <>
-                <Link to={"?groupId=" + props.group.id} color={"textPrimary"} marginLeft={"8px"}>
-                    {props.group.specification.title}
+                <Link to={"?groupId=" + props.group.id} color={"textPrimary"}>
+                    <Truncate
+                        title={props.group.specification.title}
+                        width={400}
+                        alignItems={"center"}
+                        marginLeft={"8px"}
+                    >
+                        {props.group.specification.title}
+                    </Truncate>
                 </Link>
             </>
         }
@@ -653,7 +806,12 @@ const ActiveGroupCard: React.FunctionComponent<{
     return <ListRow
         left={<Flex alignItems={"center"}>
             <AvatarForUser username={props.member} height={"35px"} width={"35px"} />
-            {props.member}
+            <Truncate
+                title={props.member}
+                width={400}
+            >
+                {props.member}
+            </Truncate>
         </Flex>}
         right={<Flex>
             {isAdminOrPI(props.myRole) ? <Button color={"errorMain"}

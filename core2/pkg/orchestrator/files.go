@@ -896,7 +896,7 @@ func FilesTransfer(actor rpc.Actor, request orcapi.FilesTransferRequest) *util.H
 	}
 
 	sourceProvider := sourceDrive.Specification.Product.Provider
-	destProvider := sourceDrive.Specification.Product.Provider
+	destProvider := destDrive.Specification.Product.Provider
 
 	if !util.DevelopmentModeEnabled() && sourceProvider == destProvider {
 		return util.HttpErr(http.StatusForbidden, "cannot transfer between these paths (same provider)")
