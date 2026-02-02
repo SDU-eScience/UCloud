@@ -107,7 +107,6 @@ export const MembersContainer: React.FunctionComponent<{
     const members: ProjectMember[] = props.project.status.members ?? [];
     const groups: ProjectGroup[] = props.project.status.groups ?? [];
 
-    const [username, setUsername] = useState("");
     const [newGroup, setNewGroup] = useState(false);
     const [newGroupName, setNewGroupName] = useState("");
     const [renameGroupId, setRenameGroupId] = useState("");
@@ -115,12 +114,6 @@ export const MembersContainer: React.FunctionComponent<{
     const [isShowingInviteLinks, setIsShowingInviteLinks] = useState(false);
 
     // event handlers
-    function handleInvite(event: React.SyntheticEvent) {
-        event.preventDefault();
-        props.onInvite(username);
-        setUsername("");
-    }
-
     function handleSearch(event: React.SyntheticEvent) {
         const value = (event.target as HTMLInputElement).value;
         props.onSearch(value);
@@ -185,6 +178,7 @@ export const MembersContainer: React.FunctionComponent<{
                     onLinkGroupsUpdated={props.onLinkGroupsUpdated}
                     onUpdateLinkRole={props.onUpdateLinkRole}
                     onSelectedExpiry={props.onSelectedExpiry}
+                    onInvite={props.onInvite}
                 />
             </ReactModal>
 
@@ -353,6 +347,7 @@ const LinkInviteCard: React.FunctionComponent<{
     onDeleteLink: (linkId: string) => void;
     onLinkGroupsUpdated: (linkId: string, groupIds: string[]) => void;
     onSelectedExpiry: (linkId: string, expiry: number) => void;
+    onInvite: (username: string) => void;
 }> = props => {
     const [activeLinkId, setActiveLinkId] = useState<string | null>(null);
     const activeLink = props.links.find(it => it.token === activeLinkId);
@@ -360,6 +355,8 @@ const LinkInviteCard: React.FunctionComponent<{
         key: "30",
         value: "1 month"
     });
+    const [isShowingInviteByUsername, setIsShowingInviteByUsername] = useState(false);
+    const [username, setUsername] = useState("");
 
     function daysLeftToTimestamp(timestamp: number): number {
         return Math.ceil((timestamp - timestampUnixMs()) / 1000 / 3600 / 24);
@@ -367,6 +364,12 @@ const LinkInviteCard: React.FunctionComponent<{
 
     function inviteLinkFromToken(token: string): string {
         return window.location.origin + "/app/projects/invite/" + token;
+    }
+
+    function handleInvite(event: React.SyntheticEvent) {
+        event.preventDefault();
+        props.onInvite(username);
+        setUsername("");
     }
 
     useEffect(() => {
@@ -482,11 +485,40 @@ const LinkInviteCard: React.FunctionComponent<{
                     dropdownWidth={"156px"}
                 />
             </Flex>
+        </> : isShowingInviteByUsername ? <>
+            <Flex gap={"8px"} marginBottom={"8px"} height={"35px"} alignItems={"center"}>
+                <Link to={"?"}
+                      onClick={() => {
+                          setIsShowingInviteByUsername(false);
+                      }}
+                      color={"textPrimary"}
+                >
+                    <Heading.h3>Invite </Heading.h3>
+                </Link>
+                <Heading.h3>/ Invite by username</Heading.h3>
+            </Flex>
+            <form action="#" onSubmit={handleInvite}>
+                <Flex maxHeight={"264px"} overflowY={"auto"} marginBottom={"5px"}>
+                    <Input
+                        placeholder={"Add by username"}
+                        value={username}
+                        onChange={(event) => {
+                            setUsername((event.target as HTMLInputElement).value);
+                        }}>
+                    </Input>
+                    <Button ml={"8px"} disabled={username === ""}>Send</Button>
+                </Flex>
+            </form>
         </> : <>
-            <Flex alignItems={"center"} paddingBottom={"8px"}>
+            <Flex alignItems={"center"} paddingBottom={"8px"} gap={"8px"}>
                 <Heading.h3>Invite with link</Heading.h3>
                 <Box flexGrow={1}></Box>
                 <Button onClick={() => props.onCreateInviteLink()}>Create link</Button>
+                <TooltipV2 tooltip={"Invite by username"}>
+                    <Button onClick={() => {setIsShowingInviteByUsername(true)}} width={"48px"}>
+                        <Icon name={"heroUserPlus"} />
+                    </Button>
+                </TooltipV2>
             </Flex>
 
             {props.links.length === 0 ? <>
