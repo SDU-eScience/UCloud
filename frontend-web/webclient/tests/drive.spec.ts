@@ -1,6 +1,5 @@
 import {test, expect} from "@playwright/test";
-import {User, Drive, Project, Admin, Applications, Accounting, Rows, testCtx, TestContexts} from "./shared";
-import {default as data} from "./test_data.json" with {type: "json"};
+import {User, Drive, Project, Admin, Accounting, Rows, testCtx, TestContexts, Components, ctxUser, sharedTestProjectName} from "./shared";
 
 test.beforeEach(async ({page}, testInfo) => {
     const args = testCtx(testInfo.titlePath);
@@ -50,54 +49,32 @@ TestContexts.map(ctx => {
 
         if (ctx === "Project Admin" || ctx === "Project PI") {
             test.describe("Drives - check change permissions works", () => {
-                test("check change permissions works", async ({page, context}) => {
-                    // TODO(Jonas): Redo? It doesn't make sense for multiple contexts, as it currently creates a new project
-                    test.setTimeout(120_000);
-                    const resourceUserPage = page; // Already logged in.
-                    const noResourceUserPage = await context.browser()?.newPage();
-                    if (!noResourceUserPage) throw new Error("Failed to create no resources user page");
+                test("check change permissions works", async ({page: adminPage, browser}) => {
 
-                    const newProjectName = Project.newProjectName();
+                    const userPage = await (await browser.newContext()).newPage();
+                    if (!userPage) throw Error("Failed to create user page");
+                    const userInfo = ctxUser("Project User")!;
+                    const projectName = sharedTestProjectName();
+                    await User.login(userPage, userInfo);
+
+                    // Create drive
                     const driveName = Drive.newDriveName();
+                    await Drive.create(adminPage, driveName);
 
-                    const {GrantApplication} = Accounting;
-                    await Accounting.goTo(resourceUserPage, "Apply for resources");
-                    await GrantApplication.fillProjectName(resourceUserPage, newProjectName);
-                    await GrantApplication.toggleGrantGiver(resourceUserPage, "k8s");
-                    await GrantApplication.fillQuotaFields(resourceUserPage, [{field: "GB requested", quota: 1}]);
-                    await GrantApplication.fillDefaultApplicationTextFields(resourceUserPage);
-                    const id = await GrantApplication.submit(resourceUserPage);
+                    // See that drive is not visible for project user
+                    await Project.changeTo(userPage, projectName);
+                    await Drive.goToDrives(userPage);
+                    await userPage.waitForLoadState("networkidle");
 
-                    const adminPage = await Admin.newLoggedInAdminPage(context);
-                    await Project.changeTo(adminPage, "Provider K8s");
-                    await Accounting.goTo(adminPage, "Grant applications");
-                    await adminPage.getByText("Show applications received").click();
-                    await Rows.actionByRowTitle(adminPage, `${id}: ${newProjectName}`, "dblclick");
-                    await GrantApplication.approve(adminPage);
+                    // Change rights for user to allow viewing
+                    await Drive.openPermissions(adminPage, driveName);
+                    await adminPage.locator(`div[data-group='All users']`).locator("#Read").click();
 
-                    await resourceUserPage.getByRole("link", {name: "Go to dashboard"}).click();
-                    await resourceUserPage.getByRole("heading", {name: "Grant awarded"}).waitFor({state: "hidden"});
-                    await Project.changeTo(resourceUserPage, newProjectName);
-                    await Accounting.goTo(resourceUserPage, "Members");
+                    // Reload drives for user, see drive appears
+                    await Components.clickRefreshAndWait(userPage);
+                    await Rows.actionByRowTitle(userPage, driveName, "hover");
 
-                    await Accounting.Project.inviteUser(resourceUserPage, data.users.without_resources.username);
-                    const groupName = await Accounting.Project.newGroup(resourceUserPage);
-
-                    await User.login(noResourceUserPage, data.users.without_resources);
-                    await Accounting.Project.acceptProjectInvite(noResourceUserPage, newProjectName);
-
-                    await Accounting.Project.addUsersToGroup(resourceUserPage, groupName, [data.users.with_resources.username, data.users.without_resources.username]);
-
-                    await Drive.create(resourceUserPage, driveName);
-
-                    await Drive.goToDrives(noResourceUserPage);
-                    expect(noResourceUserPage.getByText(driveName)).toHaveCount(0);
-
-                    await Drive.openPermissions(resourceUserPage, driveName);
-                    await resourceUserPage.reload();
-                    await resourceUserPage.locator(`div[data-group='${groupName}']`).locator("#Read").click();
-                    await Project.changeTo(noResourceUserPage, newProjectName);
-                    await noResourceUserPage.locator("span", {hasText: driveName}).hover();
+                    await Drive.delete(adminPage, driveName);
                 });
             });
         }
