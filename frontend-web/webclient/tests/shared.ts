@@ -793,7 +793,10 @@ export const Accounting = {
         },
 
         async inviteUser(page: Page, username: string): Promise<void> {
-            await page.getByPlaceholder("Add by username...").fill(username);
+            await page.getByRole("button", {name: "Invite"}).fill(username);
+            await page.getByRole("dialog").getByRole("button").nth(1).click();
+            await page.getByPlaceholder("Add by username").fill(username);
+            await page.getByRole("button", {name: "Send"}).click();
             await page.keyboard.press("Enter");
         },
 
