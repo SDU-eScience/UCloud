@@ -105,7 +105,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                 browserRef.current.renderOperations();
             }
         }
-    }, [projectId]);
+    }, [projectId, project.fetch()]);
 
     useLayoutEffect(() => {
         const mount = mountRef.current;
