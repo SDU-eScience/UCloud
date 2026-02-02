@@ -1,18 +1,18 @@
 {
     "aau.dk": [
         {
-            "faculty": "Cross-faculty",
+            "faculty": "Cross-Faculty",
             "departments": [
                 "Institute for Advanced Study in PBL"
             ]
         },
         {
-            "faculty": "The Faculty of Social Sciences and Humanities",
+            "faculty": "Faculty of Social Sciences and Humanities",
             "departments": [
+                "AAU Business School",
                 "Department of Culture and Communication",
                 "Department of Society and Politics",
-                "Department of Law",
-                "AAU Business School "
+                "Department of Law"
             ]
         },
         {
@@ -26,28 +26,28 @@
             ]
         },
         {
-            "faculty": "The Faculty of Medicine",
+            "faculty": "Faculty of Medicine",
             "departments": [
-                "Department of Clinical Medicine",
-                "Department of Health Science and Technology"
+                "Department of Health Science and Technology",
+                "Department of Clinical Medicine"
             ]
         },
         {
-            "faculty": "The Technical Faculty of IT and Design",
+            "faculty": "Technical Faculty of IT and Design",
             "departments": [
-                "Department of Architecture, Design and Media Technology",
                 "Department of Computer Science",
                 "Department of Electronic Systems",
+                "Department of Architecture, Design and Media Technology",
                 "Department of Sustainability and Planning"
             ]
         },
         {
-            "faculty": "Shared services",
+            "faculty": "Shared Services",
             "departments": [
                 "The Technical Faculty of IT and Design",
                 "Faculty of Engineering and Science",
-                "The Faculty of Social Sciences and Humanities",
-                "The Faculty of Medicine",
+                "Faculty of Social Sciences and Humanities",
+                "Faculty of Medicine",
                 "Other",
                 "IT Services"
             ]
