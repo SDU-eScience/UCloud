@@ -1068,7 +1068,7 @@ func lInternalReevaluate(b *internalBucket, now time.Time, wallet *internalWalle
 func lInternalScanAllocations(b *internalBucket, now time.Time) {
 	for _, alloc := range b.AllocationsById {
 		lInternalAttemptActivation(b, now, alloc, true)
-		//lInternalAttemptRetirement(b, now, alloc, true)
+		lInternalAttemptRetirement(b, now, alloc, true)
 	}
 }
 
@@ -1164,6 +1164,8 @@ func lInternalMarkSignificantUpdate(b *internalBucket, now time.Time, wallet *in
 	wallet.LastSignificantUpdate = now
 	wallet.Dirty = true
 	if b.Category.Provider != "usagegen" {
+		// TODO(Dan): If more than one million updates is ever made in a single lock-cycle, then this function will
+		//   indefinitely stall the system. Please refactor the code, before the system reaches such a size.
 		providerWalletNotifications <- wallet.Id
 	}
 }
