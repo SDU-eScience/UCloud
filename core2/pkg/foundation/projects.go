@@ -1104,11 +1104,6 @@ func ProjectCreateGroupMember(actor rpc.Actor, groupId string, memberToAdd strin
 
 			group.Status.Members = append(group.Status.Members, memberToAdd)
 
-			uinfo := projectRetrieveUserInfo(memberToAdd)
-			uinfo.Mu.Lock()
-			uinfo.Groups[groupId] = iproject.Id
-			uinfo.Mu.Unlock()
-
 			slices.SortFunc(group.Status.Members, func(a, b string) int {
 				return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
 			})
@@ -1167,11 +1162,6 @@ func ProjectDeleteGroupMember(actor rpc.Actor, groupId string, memberToRemove st
 
 			group.Status.Members = util.RemoveAtIndex(group.Status.Members, memberIdx)
 		}
-
-		uinfo := projectRetrieveUserInfo(memberToRemove)
-		uinfo.Mu.Lock()
-		delete(uinfo.Groups, group.Id)
-		uinfo.Mu.Unlock()
 	}
 	iproject.Mu.Unlock()
 	return err
@@ -1269,22 +1259,31 @@ func ProjectUpdateInviteLink(actor rpc.Actor, request fndapi.ProjectUpdateInvite
 			err = util.HttpErr(http.StatusForbidden, "One or more of the referenced groups do not exist. Try reloading the page.")
 		}
 
+		var normalizedTimestamp util.Option[time.Time]
+		if request.Expires.Present {
+			normalizedTimestamp.Set(request.Expires.Value.Time())
+		}
+
 		db.Exec(
 			tx,
 			`
 				update project.invite_links
-				set role_assignment = :assignment
+				set role_assignment = :assignment, expires = coalesce(cast(:expires as timestamptz), expires)
 				where token = :token
 		    `,
 			db.Params{
 				"token":      token,
 				"assignment": request.Role.Normalize(),
+				"expires":    normalizedTimestamp.Sql(),
 			},
 		)
 	})
 	if err == nil {
 		link.Link.GroupAssignment = request.Groups
 		link.Link.RoleAssignment = request.Role.Normalize()
+		if request.Expires.Present {
+			link.Link.Expires = request.Expires.Value
+		}
 	}
 	link.Mu.Unlock()
 	return err
