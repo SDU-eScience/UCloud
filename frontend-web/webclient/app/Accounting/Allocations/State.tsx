@@ -13,6 +13,7 @@ import UsageCore2, {UsageReport, usageReportRetrieve} from "@/Accounting/UsageCo
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {useImmerState} from "@/Utilities/Immer";
 import {produce} from "immer";
+import {Feature} from "@/Features";
 
 const fuzzyMatcher = newFuzzyMatchFuse<{title: string}, "title">(["title"]);
 
@@ -51,6 +52,17 @@ export interface State extends Accounting.AllocationDisplayTree {
     viewOnlyProjects: boolean;
 
     filteredSubProjectIndices: number[]; // Indices into the subAllocations.recipients array
+
+    subprojectFilters: Record<string, SubProjectFilter>;
+}
+
+export interface SubProjectFilter {
+    setting: SubProjectFilterSetting;
+    title: string;
+    options: string[];
+    selected?: string;
+    enabled: boolean;
+    feature?: Feature;
 }
 
 // State reducer
@@ -73,7 +85,19 @@ export type UIAction =
     | { type: "SortSubprojects", sortBy?: string, ascending: boolean }
     | { type: "SubProjectData", projects: Record<string, ProjectInfo | null> }
     | { type: "UsageReportLoaded", reports: UsageReport[] }
+    | { type: "SubProjectFilterSettingUpdated", setting: SubProjectFilterSetting, newValue: string | undefined, enabled: boolean}
+    | { type: "SubProjectFilterSettingsLoad", settings: Record<SubProjectFilterSetting, SubProjectFilter> }
     ;
+
+export enum SubProjectFilterSetting {
+    IDLE_SUB_PROJECTS = "Idle sub-projects",
+    ALLOCATED_BY_PRODUCT_TYPE = "Allocated resource by product type",
+    ALLOCATED_BY_PRODUCT = "Allocated resource by product",
+    ALLOCATED_BY_PROVIDER = "Allocated resource by provider",
+    EXPIRED_ALLOCATIONS = "Expired allocations",
+    OVERALLOCATION_AT_RISK = "Overallocations at risk",
+    PERSONAL_WORKSPACES = "Personal workspaces"
+}
 
 function recipientTitle(recipient: AllocationDisplayTreeRecipient, state: State): string {
     return recipient.owner.reference.type === "user" ?
@@ -88,6 +112,7 @@ function recipientPrimaryUsername(recipient: AllocationDisplayTreeRecipient, sta
 }
 
 function searchQueryMatches(recipient: AllocationDisplayTreeRecipient, state: State, query: string) {
+    /* TODO add query match if statement for products */
     if (recipient.owner.reference.type === "user" && state.viewOnlyProjects) return false;
     if (recipient.owner.reference.type === "project" && !state.viewOnlyProjects) return false;
     if (query === "") return true;
@@ -293,6 +318,20 @@ export function stateReducer(state: State, action: UIAction): State {
 
         case "ToggleViewOnlyProjects": {
             return rebuildTree({...state, viewOnlyProjects: !state.viewOnlyProjects});
+        }
+
+        case "SubProjectFilterSettingsLoad": {
+            return produce(state, draft => {
+                draft.subprojectFilters = action.settings;
+            });
+        }
+
+        case "SubProjectFilterSettingUpdated": {
+            return rebuildTree(produce(state, draft => {
+                draft.subprojectFilters[action.setting].selected = action.newValue;
+                draft.subprojectFilters[action.setting].enabled = action.enabled;
+                draft.subprojectFilters[action.setting].setting = action.setting;
+            }));
         }
 
         case "UpdateAllocation": {
@@ -572,5 +611,6 @@ export function initialState(): State {
         filteredSubProjectIndices: [],
         subprojectSortByAscending: true,
         subprojectInfo: {},
+        subprojectFilters: {},
     };
 }

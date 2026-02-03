@@ -123,7 +123,7 @@ export type Product = ProductStorage | ProductCompute | ProductIngress | Product
 export function productTypeToIcon(type: ProductType): IconName {
     switch (type) {
         case "INGRESS":
-            return "heroLink"
+            return "heroLink";
         case "COMPUTE":
             return "heroCpuChip";
         case "STORAGE":
@@ -134,6 +134,41 @@ export function productTypeToIcon(type: ProductType): IconName {
             return "heroDocumentCheck";
     }
 }
+
+export function productTypeToName(type: ProductType): string {
+    switch (type) {
+        case "COMPUTE":
+            return "Compute";
+        case "STORAGE":
+            return "Storage";
+        case "NETWORK_IP":
+            return "Public IP";
+        case "LICENSE":
+            return "License";
+        case "INGRESS":
+            return "Public link";
+    }
+}
+
+export function productTypeFromName(name: string): ProductType {
+    switch (name) {
+        case "Compute":
+            return "COMPUTE";
+        case "Storage":
+            return "STORAGE";
+        case "Public IP":
+            return "NETWORK_IP";
+        case "License":
+            return "LICENSE";
+        case "Public link":
+            return "INGRESS";
+        default:
+            console.warn("invalid name supplied to productTypeFromName", name);
+            return "COMPUTE";
+    }
+}
+
+export const productTypes: ProductType[] = ["COMPUTE", "STORAGE", "NETWORK_IP", "INGRESS", "LICENSE"];
 
 export function addThousandSeparators(numberOrString: string | number): string {
     const numberAsString = typeof numberOrString === "string" ? numberOrString : numberOrString.toString(10);
@@ -1049,7 +1084,8 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
             const uq = newGroup.usageAndQuota;
             uq.raw.maxUsable = Number.MAX_SAFE_INTEGER;
 
-            for (const alloc of childGroup.group.allocations.reverse()) {
+            const allocs = [...childGroup.group.allocations.slice()];
+            for (const alloc of allocs) {
                 if (allocationIsActive(alloc, new Date().getTime())) {
                     totalAllocated += alloc.quota;
                 }

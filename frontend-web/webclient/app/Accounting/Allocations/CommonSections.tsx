@@ -1,4 +1,6 @@
 import * as React from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import * as Accounting from "@/Accounting";
 import {
     AllocationDisplayTreeRecipient,
     AllocationDisplayTreeYourAllocation,
@@ -7,7 +9,9 @@ import {
     normalizedBalanceToRaw,
     ProductCategoryV2,
     ProductType,
-    UsageAndQuota, WalletV2,
+    productTypes,
+    productTypeToName,
+    UsageAndQuota
 } from "@/Accounting";
 import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
 import {
@@ -17,20 +21,21 @@ import {
     Divider,
     Flex,
     Icon,
-    Input, Label,
+    Input,
+    Label,
     Link,
     Relative,
-    Text, TextArea,
+    Text,
+    TextArea,
     Truncate
 } from "@/ui-components";
 import AppRoutes from "@/Routes";
-import * as Accounting from "@/Accounting";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {bulkRequestOf, chunkedString, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {OldProjectRole} from "@/Project";
-import {State, stateReducer, UIAction, UIEvent} from "@/Accounting/Allocations/State";
+import {State, SubProjectFilter, SubProjectFilterSetting, UIAction, UIEvent} from "@/Accounting/Allocations/State";
 import {VariableSizeList} from "react-window";
 import {AvatarState} from "@/AvataaarLib/hook";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -38,7 +43,6 @@ import Avatar from "@/AvataaarLib/avatar";
 import {classConcat, extractDataTags, injectStyle} from "@/Unstyled";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ProgressBar} from "@/Accounting/Allocations/ProgressBar";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
@@ -570,9 +574,6 @@ export const KeyMetrics: React.FunctionComponent<{
         usageAndQuotaByProduct[key] = uq;
     }
 
-    console.log(usageByProduct);
-    console.log(reports);
-
     const computeReport = reports.find(it => it.title === "Core-hours");
 
     // TODO make new state variable that has a usageReport (see UsageCore2.tsx)
@@ -1039,13 +1040,6 @@ const SubProjectListRow: React.FunctionComponent<{
     </div>;
 }
 
-interface SubProjectFilter {
-    title: string;
-    options: string[];
-    selected?: string;
-    enabled: boolean;
-    feature?: Feature;
-}
 
 const SubProjectFiltersRow: React.FunctionComponent<{
     setting: SubProjectFilter;
@@ -1105,50 +1099,56 @@ const SubProjectFiltersRow: React.FunctionComponent<{
 
 const SingleUserProjects = "Personal workspaces"
 
-{/* TODO add make the selectors functional (hook options up to something) */}
 const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
-    "Idle sub-projects": {
+    [SubProjectFilterSetting.IDLE_SUB_PROJECTS]: {
         title: "Idle sub-projects",
+        setting: SubProjectFilterSetting.IDLE_SUB_PROJECTS,
         options: ["1 month", "2 months", "3 months", "6 months"],
         selected: "1 month",
         enabled: false,
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
-    "Allocated resource by product type": {
+    [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE]: {
+        setting: SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE,
         title: "Allocated resource by product type",
-        options: ["Compute", "Storage", "Public IP", "Application licence"],
-        selected: "Compute",
+        options: productTypes.map(it => productTypeToName(it)),
+        selected: productTypeToName("COMPUTE"),
         enabled: false,
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
-    "Allocated resource by product": {
+    [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT]: {
+        setting: SubProjectFilterSetting.ALLOCATED_BY_PRODUCT,
         title: "Allocated resource by product",
         options: [/*TODO list products here*/],
         selected: "u1-standard-h",
         enabled: false,
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
-    "Allocated resource by provider": {
+    [SubProjectFilterSetting.ALLOCATED_BY_PROVIDER]: {
+        setting: SubProjectFilterSetting.ALLOCATED_BY_PROVIDER,
         title: "Allocated resource by provider",
         options: ["SDU/K8s", "AAU/K8s", "AAU/VM"],
         selected: "SDU/K8s",
         enabled: false,
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
-    "Expired allocations": {
+    [SubProjectFilterSetting.EXPIRED_ALLOCATIONS]: {
+        setting: SubProjectFilterSetting.EXPIRED_ALLOCATIONS,
         title: "Expired allocations",
         options: [],
         selected: "",
         enabled: false,
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
-    [SingleUserProjects]: {
+    [SubProjectFilterSetting.PERSONAL_WORKSPACES]: {
+        setting: SubProjectFilterSetting.PERSONAL_WORKSPACES,
         title: "Personal workspaces",
         options: [],
         selected: "",
         enabled: false,
     },
-    "Overallocations at risk": {
+    [SubProjectFilterSetting.OVERALLOCATION_AT_RISK]: {
+        setting: SubProjectFilterSetting.OVERALLOCATION_AT_RISK,
         title: "Overallocations at risk",
         options: [],
         selected: "",
@@ -1163,15 +1163,19 @@ export const SubProjectFilters: React.FunctionComponent<{
     state: State;
     dispatchEvent: (event: UIEvent) => unknown;
 }> = ({filtersShown, closeFilters, dispatchEvent, state}) => {
-    const [settings, setSettings] = useState<Record<string, SubProjectFilter>>(subProjectsDefaultSettings);
-
-    const onSettingsChanged = useCallback((setting: SubProjectFilter) => {
-        setSettings(prev => {
-            return produce(prev, draft => {
-                draft[setting.title] = setting;
-            });
+    const settings = state.subprojectFilters;
+    const onSettingsChanged = useCallback((updated: SubProjectFilter) => {
+        dispatchEvent({
+            type: "SubProjectFilterSettingUpdated",
+            setting: updated.setting,
+            newValue: updated.selected,
+            enabled: updated.enabled
         });
-    }, [setSettings]);
+    }, []);
+
+    useEffect(() => {
+        dispatchEvent({ type: "SubProjectFilterSettingsLoad", settings: subProjectsDefaultSettings });
+    }, []);
 
     const [ascending, setAscending] = useState<boolean>(true);
     const [sortBy, setSortBy] = useState<SimpleRichItem>({key: "title", value: "Title"});
