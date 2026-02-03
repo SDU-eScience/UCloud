@@ -53,8 +53,8 @@ export class ErrorBoundary extends React.Component<{children: React.ReactNode}, 
                             <Button onClick={ErrorBoundary.redirectToDashboard}>Go to dashboard</Button>
 
                             <Box pt="10px">We support Chrome, Edge, Firefox and Safari.
-                            Outdated browsers can in some cases cause issues.
-                Please keep your browser updated.</Box>
+                                Outdated browsers can in some cases cause issues.
+                                Please keep your browser updated.</Box>
                         </Box>
                     )}
                 />
@@ -69,7 +69,7 @@ export class ErrorBoundary extends React.Component<{children: React.ReactNode}, 
         const textAreaContent = this.ref.current ? this.ref.current.value : "None";
         try {
             await Client.post("/support/ticket", {
-                message: `ERROR: ${error},\nSTACK: ${errorInfo!.componentStack},\nPathname: ${window.location.pathname},\nAdditional info: ${textAreaContent}`
+                message: `ERROR: ${error},\nSTACK: ${errorInfo!.componentStack},\nPathname: ${window.location},\nAdditional info: ${textAreaContent}`
             });
         } catch (e) {
             snackbarStore.addFailure(errorMessageOrDefault(e, `Failed to submit.${navigator.onLine ? "" : " You are offline."}`), false);
