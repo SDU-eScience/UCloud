@@ -70,9 +70,14 @@ async function makeGrantApplication(page: Page, projectName: string): Promise<st
 
 async function inviteUsers(page: Page, usernames: string[]): Promise<void> {
     await Accounting.goTo(page, "Members");
+    await page.getByRole("button", {name: "Invite"}).click();
+    await page.getByRole("dialog").getByRole("button").nth(1).click();
     for (const username of usernames) {
         await Accounting.Project.inviteUser(page, username);
     }
+
+    await page.getByPlaceholder("Add by username").click(); // https://github.com/SDU-eScience/UCloud/issues/5307
+    await page.keyboard.press("Escape");
 }
 
 async function acceptInvites(pages: Page[], projectName: string) {
