@@ -161,7 +161,7 @@ func GrantApplicationProcess(actor rpc.Actor, app accapi.GrantApplication) accap
 		}
 	}
 
-	grantUserHasUnreadComments(&app, actor.Username)
+	grantAttachUnreadCommentStatus(&app, actor.Username)
 
 	return app
 }
@@ -1118,7 +1118,8 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 // When GrantApplicationProcess is triggered, we will then compare the last time the user
 // has visited the application with the latest comment of the given application, if the latest comment is greater,
 // then we will set app.Status.HasUnreadComments = true
-func grantUserHasUnreadComments(app *accapi.GrantApplication, username string) {
+
+func grantAttachUnreadCommentStatus(app *accapi.GrantApplication, username string) {
 	if len(app.Status.Comments) == 0 {
 		app.Status.HasUnreadComments = false
 		return
@@ -1131,13 +1132,8 @@ func grantUserHasUnreadComments(app *accapi.GrantApplication, username string) {
 		return
 	}
 
-	// Getting the latest comment sorted by created at time
-	latestCommentTime := app.Status.Comments[0].CreatedAt.Time()
-	for _, c := range app.Status.Comments[1:] {
-		if c.CreatedAt.Time().After(latestCommentTime) {
-			latestCommentTime = c.CreatedAt.Time()
-		}
-	}
+	// Since comments are ordered by created at time, the last comment is the latest
+	latestCommentTime := app.Status.Comments[len(app.Status.Comments)-1].CreatedAt.Time()
 
 	app.Status.HasUnreadComments = latestCommentTime.After(appLastVisitedByUserTime)
 }
