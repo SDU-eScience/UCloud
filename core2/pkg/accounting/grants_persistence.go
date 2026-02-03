@@ -24,8 +24,6 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 		return
 	}
 
-	log.Info("grantsLoad(%v, %v)", id, prefetchHint)
-
 	prefetchList := prefetchHint
 	requiredPrefetchIdx := slices.Index(prefetchList, id)
 	if requiredPrefetchIdx == -1 {
@@ -76,6 +74,7 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 				select application_id, comment, posted_by, created_at, id as comment_id
 				from "grant".comments
 				where application_id = some(:ids)
+				order by created_at
 		    `,
 			db.Params{
 				"ids": prefetchList,
