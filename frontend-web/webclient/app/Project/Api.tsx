@@ -83,6 +83,10 @@ class ProjectApi {
         return apiUpdate(request, this.baseContext, "toggleFavorite");
     }
 
+    public toggleHidden(request: BulkRequest<FindByStringId>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "toggleHidden");
+    }
+
     public renameProject(request: BulkRequest<RenameProjectRequest>): APICallParameters {
         return apiUpdate(request, this.baseContext, "renameProject");
     }
