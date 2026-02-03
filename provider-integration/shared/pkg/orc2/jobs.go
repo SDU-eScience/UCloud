@@ -734,6 +734,32 @@ var JobsControlBrowseSshKeys = rpc.Call[JobsControlBrowseSshKeysRequest, fnd.Pag
 	Roles:       rpc.RoleProvider,
 }
 
+type JobsLegacyCheckCreditsRequest struct {
+	Id       string `json:"id"`
+	ChargeId string `json:"chargeId"`
+	Units    int    `json:"units"`
+	Periods  int    `json:"periods"`
+}
+
+type JobsLegacyCheckCreditsResponse struct {
+	InsufficientFunds []fnd.FindByStringId `json:"insufficientFunds"`
+	DuplicateCharges  []fnd.FindByStringId `json:"duplicateCharges"`
+}
+
+var JobsControlChargeCredits = rpc.Call[fnd.BulkRequest[JobsLegacyCheckCreditsRequest], JobsLegacyCheckCreditsResponse]{
+	BaseContext: jobControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "chargeCredits",
+	Roles:       rpc.RoleProvider,
+}
+
+var JobsControlCheckCredits = rpc.Call[fnd.BulkRequest[JobsLegacyCheckCreditsRequest], JobsLegacyCheckCreditsResponse]{
+	BaseContext: jobControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "checkCredits",
+	Roles:       rpc.RoleProvider,
+}
+
 // Job Provider API
 // =====================================================================================================================
 

@@ -396,6 +396,7 @@ func initJobs() {
 			)
 
 			if err != nil {
+				log.Info("Failed to terminate job: %s", err)
 				return fndapi.BulkResponse[util.Empty]{}, err
 			}
 		}
@@ -694,6 +695,104 @@ func initJobs() {
 			)
 		}
 		return util.Empty{}, nil
+	})
+
+	orcapi.JobsControlCheckCredits.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsLegacyCheckCreditsRequest]) (orcapi.JobsLegacyCheckCreditsResponse, *util.HttpError) {
+		resp := orcapi.JobsLegacyCheckCreditsResponse{}
+		for _, item := range request.Items {
+			isOk := false
+			job, err := JobsRetrieve(info.Actor, item.Id, orcapi.JobFlags{})
+
+			if err == nil {
+				walletOwner := orcapi.ResourceOwnerToWalletOwner(job.Resource)
+				wallets, err := accapi.WalletsBrowseInternal.Invoke(accapi.WalletsBrowseInternalRequest{
+					Owner: walletOwner,
+				})
+
+				if err == nil {
+					for _, wallet := range wallets.Wallets {
+						paysFor := wallet.PaysFor
+						productRef := job.Specification.Product
+						if paysFor.Name == productRef.Category && paysFor.Provider == productRef.Provider {
+							if wallet.MaxUsable > 0 {
+								isOk = true
+							}
+						}
+					}
+				} else {
+					return orcapi.JobsLegacyCheckCreditsResponse{}, util.HttpErr(
+						http.StatusInternalServerError,
+						"could not fetch wallets: %s",
+						err,
+					)
+				}
+			} else {
+				return orcapi.JobsLegacyCheckCreditsResponse{}, util.HttpErr(
+					http.StatusBadRequest,
+					"could not fetch jobs: %s",
+					err,
+				)
+			}
+
+			if !isOk {
+				resp.InsufficientFunds = append(resp.InsufficientFunds, fndapi.FindByStringId{Id: item.Id})
+			}
+		}
+
+		resp.InsufficientFunds = util.NonNilSlice(resp.InsufficientFunds)
+		resp.DuplicateCharges = util.NonNilSlice(resp.DuplicateCharges)
+		return resp, nil
+	})
+
+	orcapi.JobsControlChargeCredits.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsLegacyCheckCreditsRequest]) (orcapi.JobsLegacyCheckCreditsResponse, *util.HttpError) {
+		resp := orcapi.JobsLegacyCheckCreditsResponse{}
+		for _, item := range request.Items {
+			isOk := false
+			job, err := JobsRetrieve(info.Actor, item.Id, orcapi.JobFlags{ResourceFlags: orcapi.ResourceFlagsIncludeAll()})
+
+			if err == nil {
+				walletOwner := orcapi.ResourceOwnerToWalletOwner(job.Resource)
+				units := job.Specification.Replicas
+				balanceUsed := item.Periods * int(job.Status.ResolvedProduct.Value.PricePerUnit) * units
+
+				reportResp, err := accapi.ReportUsage.Invoke(fndapi.BulkRequestOf(accapi.ReportUsageRequest{
+					IsDeltaCharge: false,
+					Owner:         walletOwner,
+					CategoryIdV2: accapi.ProductCategoryIdV2{
+						Name:     job.Specification.Product.Category,
+						Provider: job.Specification.Product.Provider,
+					},
+					Usage: int64(balanceUsed),
+					Description: accapi.ChargeDescription{
+						Scope: util.OptValue(item.ChargeId),
+					},
+				}))
+
+				if err == nil {
+					isOk = reportResp.Responses[0]
+				} else {
+					return orcapi.JobsLegacyCheckCreditsResponse{}, util.HttpErr(
+						http.StatusInternalServerError,
+						"could not report usage: %s",
+						err,
+					)
+				}
+			} else {
+				return orcapi.JobsLegacyCheckCreditsResponse{}, util.HttpErr(
+					http.StatusBadRequest,
+					"could not fetch jobs: %s",
+					err,
+				)
+			}
+
+			if !isOk {
+				resp.InsufficientFunds = append(resp.InsufficientFunds, fndapi.FindByStringId{Id: item.Id})
+			}
+		}
+
+		resp.InsufficientFunds = util.NonNilSlice(resp.InsufficientFunds)
+		resp.DuplicateCharges = util.NonNilSlice(resp.DuplicateCharges)
+		return resp, nil
 	})
 
 	wsUpgrader := ws.Upgrader{

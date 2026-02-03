@@ -51,6 +51,10 @@ type Actor struct {
 	OrgId             string                   `json:"-"`
 }
 
+func (a *Actor) IsSystem() bool {
+	return a.Username == ActorSystem.Username
+}
+
 type ProjectId string
 type GroupId string
 type ProjectRole string
