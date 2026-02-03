@@ -192,7 +192,7 @@ export const File = {
             mimeType: "text/plain",
             buffer: Buffer.from(f.contents),
         })));
-        await page.waitForTimeout(1000);
+        await page.waitForLoadState("networkidle")
         await page.keyboard.press("Escape");
         await Components.clickRefreshAndWait(page);
     },
@@ -310,7 +310,7 @@ export const File = {
     async _openShareModal(page: Page, foldername: string): Promise<void> {
         await this.openOperationsDropsdown(page, foldername);
         await this.actionByRowTitle(page, foldername, "rightclick");
-        await page.getByText("Share6").click();
+        await page.getByText("Share").click();
     },
 
     async triggerStorageScan(page: Page, driveName: string): Promise<void> {
@@ -793,21 +793,8 @@ export const Accounting = {
         },
 
         async inviteUser(page: Page, username: string): Promise<void> {
-            await page.getByRole("button", {name: "Invite"}).fill(username);
-            await page.getByRole("dialog").getByRole("button").nth(1).click();
             await page.getByPlaceholder("Add by username").fill(username);
-            await page.getByRole("button", {name: "Send"}).click();
-            await page.keyboard.press("Enter");
-        },
-
-        async addUsersToGroup(page: Page, groupName: string, usernames: string[]): Promise<void> {
-            await Components.clickRefreshAndWait(page);
-            // activate group
-            await page.getByRole("link", {name: groupName}).click();
-
-            for (const user of usernames) {
-                await page.locator("div[class^='list-item']", {hasText: user}).locator("div[class^=row-right]").getByRole("button", {disabled: false}).click()
-            }
+            await page.getByRole("dialog").getByRole("button", {name: "Send"}).click();
         },
 
         async acceptProjectInvite(page: Page, projectName: string): Promise<void> {
