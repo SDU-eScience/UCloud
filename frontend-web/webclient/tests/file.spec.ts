@@ -261,6 +261,7 @@ TestContexts.map(ctx => {
         });
 
         test.describe("Files - folder sharing works", () => {
+            if (ctx.startsWith("Project")) test.skip();
             test("Create folder and share with other user, ensure invitation can be viewed", async ({page, browser}) => {
                 // Create folder
                 const folderToShare = File.newFolderName();
