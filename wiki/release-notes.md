@@ -7,7 +7,9 @@ use.
 ## 03-02-26
 
 ```
-UCloud/Core @ 2026.1.31
+UCloud/Core @ 2026.1.33
+UCloud/Frontend @ 2026.1.33
+SDU/K8s @ 2026.1.33
 ```
 
 ## 02-02-26
