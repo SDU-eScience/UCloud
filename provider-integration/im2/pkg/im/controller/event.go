@@ -5,12 +5,13 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	ws "github.com/gorilla/websocket"
-	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	ws "github.com/gorilla/websocket"
+	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/shared/pkg/apm"
@@ -740,6 +741,10 @@ var isLockedCache = map[lockedCacheKey]bool{}
 var isLockedCacheMutex = sync.Mutex{}
 
 func IsLocked(owner apm.WalletOwner, category string) bool {
+	if category == "terminal" || category == "syncthing" {
+		return false // TODO(Dan): Fix this correctly.
+	}
+
 	if RunsServerCode() {
 		cacheKey := lockedCacheKey{Owner: owner, Category: category}
 		isLockedCacheMutex.Lock()

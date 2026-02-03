@@ -114,7 +114,6 @@ func projectsV2() db.MigrationScript {
 }
 
 func projectsV3() db.MigrationScript {
-
 	return db.MigrationScript{
 		Id: "projectsV3",
 		Execute: func(tx *db.Transaction) {
@@ -149,6 +148,52 @@ func projectsV3() db.MigrationScript {
 			for _, statement := range statements {
 				db.Exec(tx, statement, db.Params{})
 			}
+		},
+	}
+}
+
+func projectsV4() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "projectsV4",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table project.invite_link_group_assignments
+					drop constraint invite_link_group_assignments_link_token_fkey;
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					alter table project.invite_link_group_assignments
+					alter column link_token type text
+					using link_token::text;
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					alter table project.invite_links
+					alter column token type text
+					using token::text;
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					alter table project.invite_link_group_assignments 
+					add constraint invite_link_group_assignments_link_token_fkey 
+						foreign key (link_token) references project.invite_links (token)
+			    `,
+				db.Params{},
+			)
 		},
 	}
 }
