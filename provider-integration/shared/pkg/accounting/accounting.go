@@ -2,6 +2,7 @@ package apm
 
 import (
 	"encoding/json"
+
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -191,7 +192,7 @@ var ReportUsage = rpc.Call[fnd.BulkRequest[ReportUsageRequest], fnd.BulkResponse
 	BaseContext: AccountingNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "reportUsage",
-	Roles:       rpc.RolesProvider,
+	Roles:       rpc.RolesService | rpc.RolesProvider,
 }
 
 type CheckProviderUsableRequest struct {
