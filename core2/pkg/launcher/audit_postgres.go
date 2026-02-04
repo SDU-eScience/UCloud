@@ -9,7 +9,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"

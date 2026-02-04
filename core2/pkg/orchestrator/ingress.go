@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"

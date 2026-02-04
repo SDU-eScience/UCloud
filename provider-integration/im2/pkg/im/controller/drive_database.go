@@ -261,7 +261,7 @@ func TrackSearchIndex(id string, index *fsearch.SearchIndex, recommendedBucketCo
 			    `,
 				db.Params{
 					"id":    id,
-					"index": db.Bytea(indexBytes),
+					"index": indexBytes,
 					"count": recommendedBucketCount,
 				},
 			)

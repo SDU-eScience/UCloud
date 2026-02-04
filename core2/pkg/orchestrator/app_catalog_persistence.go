@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"ucloud.dk/core/pkg/coreutil"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"

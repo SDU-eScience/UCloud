@@ -25,7 +25,7 @@ import (
 	"ucloud.dk/core/pkg/migrations"
 	orc "ucloud.dk/core/pkg/orchestrator"
 	gonjautil "ucloud.dk/gonja/v2/utils"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"

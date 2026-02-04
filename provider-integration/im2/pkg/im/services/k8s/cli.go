@@ -10,8 +10,6 @@ func HandleCliWithoutConfig(command string) bool {
 	switch command {
 	case "script-gen":
 		HandleScriptGen()
-	case "im2-k8s-import":
-		HandleDataImport(os.Args[2:])
 	default:
 		return false
 	}

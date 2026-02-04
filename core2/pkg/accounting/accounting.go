@@ -16,7 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"

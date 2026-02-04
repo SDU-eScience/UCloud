@@ -11,7 +11,7 @@ import (
 	ws "github.com/gorilla/websocket"
 	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
