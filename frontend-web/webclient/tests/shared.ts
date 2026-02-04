@@ -8,7 +8,7 @@ import {default as testUsers} from "./OTHER_test_data.json" with {type: "json"};
 
 const LoginPageUrl = ucloudUrl("login");
 
-type Contexts =
+export type Contexts =
     | "Project PI" | "Project Admin" | "Project User" | "Personal Workspace";
 
 // The usage of this should be legal
@@ -40,6 +40,7 @@ export const User = {
 
         if (fillUserInfo) {
             await this.dismissAdditionalInfoPrompt(page);
+            /* TODO(Jonas): Find a different approach */
             await page.waitForLoadState("networkidle");
             await this.setAdditionalUserInfo(page);
             await this.disableNotifications(page);
@@ -187,11 +188,14 @@ export const File = {
     async uploadFiles(page: Page, files: {name: string, contents: string}[]): Promise<void> {
         await page.waitForTimeout(1000); // We need to wait for Redux to propagate the changes of the drive, for use with the upload.
         await page.getByText("Upload files").click();
-        await page.locator("#fileUploadBrowse").setInputFiles(files.map(f => ({
-            name: f.name,
-            mimeType: "text/plain",
-            buffer: Buffer.from(f.contents),
-        })));
+        await NetworkCalls.awaitResponse(page, "**/files/browse**", async () => {
+            await page.locator("#fileUploadBrowse").setInputFiles(files.map(f => ({
+                name: f.name,
+                mimeType: "text/plain",
+                buffer: Buffer.from(f.contents),
+            })));
+        });
+        /* TODO(Jonas): Find a different approach */
         await page.waitForLoadState("networkidle")
         await page.keyboard.press("Escape");
         await Components.clickRefreshAndWait(page);
@@ -327,7 +331,8 @@ export const File = {
 
 export const Drive = {
     ...Rows,
-    newDriveName(): string {
+    newDriveNameOrMemberFiles(ctx: Contexts): string {
+        if (ctx === "Project User") return this.memberFiles(ctxUser("Project User").username);
         return Help.newResourceName("DriveName");
     },
 
@@ -402,6 +407,7 @@ export const Components = {
 
     async clickRefreshAndWait(page: Page): Promise<void> {
         await page.locator(".refresh-icon, #refresh-icon").click();
+        /* TODO(Jonas): Find a different approach */
         await page.waitForLoadState("networkidle");
     },
 
@@ -419,6 +425,7 @@ export const Components = {
     },
 
     async selectAvailableMachineType(page: Page): Promise<void> {
+        await page.waitForLoadState("networkidle");
         await page.getByText('No machine type selected').first().click();
         await page.getByRole('cell', {
             name: data.products_by_provider_and_type.k8s.COMPUTE.name,
@@ -611,6 +618,35 @@ export const Project = {
         await Components.projectSwitcher(page, "click");
         await page.getByText(projectTitle, {exact: true}).click();
     },
+
+    async inviteUsers(page: Page, usernames: string[]): Promise<void> {
+        await Accounting.goTo(page, "Members");
+        await page.getByRole("button", {name: "Invite"}).click();
+        await page.getByRole("dialog").getByRole("button").nth(1).click();
+        for (const username of usernames) {
+            await Accounting.Project.inviteUser(page, username);
+        }
+
+        await page.getByPlaceholder("Add by username").click(); // https://github.com/SDU-eScience/UCloud/issues/5307
+        await page.keyboard.press("Escape");
+    },
+
+    async acceptInvites(pages: Page[], projectName: string) {
+        for (const page of pages) {
+            await page.reload();
+            await Accounting.Project.acceptProjectInvite(page, projectName)
+        }
+    },
+
+    async changeRoles(page: Page, username: string, role: "Admin" | "User" | "PI"): Promise<void> {
+        await Components.clickRefreshAndWait(page);
+        await page.locator("div[class^=list-item]", {hasText: username}).getByRole("radio", {name: role}).click();
+        if (role === "PI") {
+            await page.getByRole("dialog").getByRole("button", {name: "Transfer"}).click();
+        }
+    }
+
+
 };
 
 export const Resources = {
@@ -851,7 +887,13 @@ export const Admin = {
         const page = await context.browser()?.newPage();
         if (!page) throw new Error("Failed to create page for admin login");
         await User.login(page, Admin.AdminUser);
-        await User.dismissAdditionalInfoPrompt(page);
+        /* TODO(Jonas): Find a different approach */
+        await page.waitForLoadState("networkidle");
+        if (await page.getByText("Additional user information").isVisible()) {
+            await User.dismissAdditionalInfoPrompt(page);
+            await User.setAdditionalUserInfo(page);
+        }
+        /* TODO(Jonas): Find a different approach */
         await page.waitForLoadState("networkidle");
         return page;
     },

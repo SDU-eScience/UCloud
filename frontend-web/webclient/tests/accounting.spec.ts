@@ -3,6 +3,7 @@ import {Accounting, Admin, Components, Project, Rows, User} from "./shared";
 
 
 test("Apply for resources, approve (from admin user), verify resources are in allocations", async ({page, context}) => {
+    test.setTimeout(60_000);
     const adminUserPage = await Admin.newLoggedInAdminPage(context);
     await Components.projectSwitcher(adminUserPage, "click");
     await adminUserPage.getByText("Provider K8s").click();

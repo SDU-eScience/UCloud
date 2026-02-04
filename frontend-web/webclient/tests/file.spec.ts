@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {Components, Drive, File, User, Rows, Terminal, NetworkCalls, Project, testCtx, TestContexts} from "./shared";
+import {Components, Drive, File, User, Rows, Terminal, NetworkCalls, Project, testCtx, TestContexts, Contexts} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 
 const {dirname} = import.meta;
@@ -8,27 +8,30 @@ const Drives: Record<string, string> = {};
 
 
 test.beforeEach(async ({page, userAgent}, testInfo) => {
+    const ctx = testInfo.titlePath[1] as Contexts;
     const args = testCtx(testInfo.titlePath);
-    const driveName = Drive.newDriveName();
+    const driveName = Drive.newDriveNameOrMemberFiles(ctx);
     await User.login(page, args.user);
     if (args.projectName) await Project.changeTo(page, args.projectName);
-    await Drive.create(page, driveName);
-    Drives[userAgent! + args.user.username] = driveName;
+    if (ctx !== "Project User") {
+        await Drive.create(page, driveName);
+        Drives[userAgent! + args.user.username] = driveName;
+    }
     await Drive.openDrive(page, driveName);
 });
 
 test.afterEach(async ({page, userAgent}, testInfo) => {
     const args = testCtx(testInfo.titlePath);
-    const driveName = Drives[userAgent! + args.user.username];
-    if (driveName) await Drive.delete(page, driveName);
+    const ctx = testInfo.titlePath[1] as Contexts;
+    if (ctx !== "Project User") {
+        const driveName = Drives[userAgent! + args.user.username];
+        if (driveName) await Drive.delete(page, driveName);
+    }
 });
-
-// TODO(Jonas): Project user should use Member Files
 
 /// File operations
 TestContexts.map(ctx => {
     test.describe(ctx, () => {
-
         test.skip('Change sensitivity (with available resources)', async ({page}) => {
             const folderName = File.newFolderName();
             await File.create(page, folderName);
@@ -242,9 +245,7 @@ TestContexts.map(ctx => {
         });
 
         test.describe("Files - transfer works", () => {
-            test("Transfer file between providers", () => {
-                throw new Error("Manual test");
-            })
+            test.skip("Transfer file between providers", () => {});
         });
 
         test.describe("Terminal - check integrated terminal works", () => {
@@ -312,7 +313,7 @@ TestContexts.map(ctx => {
                 const syncthingDevicesText = await result.text();
                 const parsedDevices: {config: {devices: any[]}} = JSON.parse(syncthingDevicesText);
                 if (parsedDevices.config.devices.length > 0) {
-                    await page.getByText("Add device").click();
+                    await page.getByText("Add device").first().click();
                 }
 
                 await page.getByText("Next step").click();

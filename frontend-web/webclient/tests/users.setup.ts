@@ -3,8 +3,9 @@ import {Accounting, Admin, Components, Project, Rows, TestUsers, User} from "./s
 import fs from "fs";
 
 setup("Setup 'pi', 'admin', and 'user'", async ({context, browser}) => {
-    setup.setTimeout(120_000)
+    setup.setTimeout(120_000);
     const ucloudAdminPage = await Admin.newLoggedInAdminPage(context);
+
     const pi = await createNewUserAndLogin(ucloudAdminPage, browser, "pi");
     const admin = await createNewUserAndLogin(ucloudAdminPage, browser, "admin");
     const user = await createNewUserAndLogin(ucloudAdminPage, browser, "user");
@@ -27,14 +28,14 @@ setup("Setup 'pi', 'admin', and 'user'", async ({context, browser}) => {
         await pi.page.getByText("Grant awarded").waitFor({state: "hidden"});
     }
     await Project.changeTo(pi.page, projectName);
-    await inviteUsers(pi.page, [admin.credentials.username, user.credentials.username]);
+    await Project.inviteUsers(pi.page, [admin.credentials.username, user.credentials.username]);
 
     // admin and user should accept. 
-    await acceptInvites([admin.page, user.page], projectName);
+    await Project.acceptInvites([admin.page, user.page], projectName);
 
     // Set up roles for users
     await Components.clickRefreshAndWait(pi.page);
-    await changeRoles(pi.page, admin.credentials.username, "Admin");
+    await Project.changeRoles(pi.page, admin.credentials.username, "Admin");
 
     TestUsers["Project PI"] = pi.credentials;
     TestUsers["Project Admin"] = admin.credentials;
@@ -66,27 +67,4 @@ async function makeGrantApplication(page: Page, projectName: string): Promise<st
     await Accounting.GrantApplication.fillDefaultApplicationTextFields(page);
 
     return await Accounting.GrantApplication.submit(page);
-}
-
-async function inviteUsers(page: Page, usernames: string[]): Promise<void> {
-    await Accounting.goTo(page, "Members");
-    await page.getByRole("button", {name: "Invite"}).click();
-    await page.getByRole("dialog").getByRole("button").nth(1).click();
-    for (const username of usernames) {
-        await Accounting.Project.inviteUser(page, username);
-    }
-
-    await page.getByPlaceholder("Add by username").click(); // https://github.com/SDU-eScience/UCloud/issues/5307
-    await page.keyboard.press("Escape");
-}
-
-async function acceptInvites(pages: Page[], projectName: string) {
-    for (const page of pages) {
-        await page.reload();
-        await Accounting.Project.acceptProjectInvite(page, projectName)
-    }
-}
-
-async function changeRoles(page: Page, adminUsername: string, role: "Admin" | "User" | "PI"): Promise<void> {
-    await page.locator("div[class^=list-item]", {hasText: adminUsername}).getByLabel(role).click();
 }

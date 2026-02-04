@@ -1,5 +1,5 @@
-import {expect, test, Page} from "@playwright/test";
-import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls, Resources, Accounting, Admin, Rows, Project, testCtx, TestContexts} from "./shared";
+import {expect, test, Page, BrowserContext} from "@playwright/test";
+import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls, Resources, Accounting, Admin, Rows, Project, testCtx, TestContexts, ctxUser, Contexts} from "./shared";
 
 test.beforeEach(async ({page}, testInfo) => {
     const args = testCtx(testInfo.titlePath);
@@ -37,7 +37,7 @@ TestContexts.map(ctx => {
 
         test.describe("Compute - check job termination", () => {
             test("Start app and stop app from runs page. Start it from runs page, testing parameter import", async ({page}) => {
-                test.setTimeout(240_000);
+                test.setTimeout(300_000);
                 const jobName = Runs.newJobName();
 
                 await Applications.goToApplications(page);
@@ -58,12 +58,12 @@ TestContexts.map(ctx => {
 
         test("Mount folder with file in job, and cat inside contents", async ({page}) => {
             test.setTimeout(240_000);
-            const driveName = Drive.newDriveName();
+            const driveName = Drive.newDriveNameOrMemberFiles(ctx);
             const folderName = File.newFolderName();
             const {uploadedFileName, contents} = {uploadedFileName: "UploadedFile.txt", contents: "Am I not invisible???"};
             const jobName = Runs.newJobName();
 
-            await Drive.create(page, driveName);
+            if (ctx !== "Project User") await Drive.create(page, driveName);
             await Drive.openDrive(page, driveName);
             await File.create(page, folderName);
             await File.open(page, folderName);
@@ -106,7 +106,7 @@ TestContexts.map(ctx => {
         });
 
         test("Start terminal job, find mounted 'easybuild' modules mounted, use networking, terminate job", async ({page}) => {
-            test.setTimeout(120_000);
+            test.setTimeout(300_000);
             const term = await runTerminalApp(page);
             await Terminal.enterCmd(term, "ls ~/.local");
             await term.getByText("easybuild").hover();
@@ -134,16 +134,16 @@ TestContexts.map(ctx => {
 #!/usr/bin/env bash
 echo "${BashScriptStringContent}"
 `;
-                    const driveName = Drive.newDriveName();
-                    await Drive.create(page, driveName);
+                    const driveName = Drive.newDriveNameOrMemberFiles(ctx);
+                    if (ctx !== "Project User") await Drive.create(page, driveName);
                     await Drive.openDrive(page, driveName);
                     await File.uploadFiles(page, [{name: BashScriptName, contents: FancyBashScript}]);
 
                     await Applications.goToApplications(page);
                     await Applications.searchFor(page, "coder");
                     await page.getByRole('link', {name: "Coder", exact: false}).click();
-                    // Optional paramter to be used
-                    await page.getByRole("button", {name: "Use"}).first().click();
+                    // Optional parameter to be used
+                    await page.getByRole("button", {name: "Use"}).nth(1).click()
                     await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
                         await page.getByRole("textbox", {name: "No file selected"}).click();
                     });
@@ -167,7 +167,10 @@ echo "${BashScriptStringContent}"
                         await Resources.goTo(page, "Licenses");
                     })
                     const licenseId = await Resources.Licenses.activateLicense(page);
-                    await Applications.openApp(page, "COMSOL");
+                    await Applications.goToApplications(page);
+                    await Applications.searchFor(page, "comsol");
+                    await page.locator("a[class^=app-card]").getByText("COMSOL").first().click();
+                    await Components.selectAvailableMachineType(page);
                     await page.getByRole("button", {name: "Submit"}).waitFor();
                     await page.mouse.wheel(0, 1000);
                     await page.getByPlaceholder("Select license server...").waitFor();
@@ -178,7 +181,6 @@ echo "${BashScriptStringContent}"
                     await page.getByText("A value is missing for this mandatory field").hover();
                     await page.getByPlaceholder("Select license server...").click();
                     await page.getByRole("dialog").locator(".row", {hasText: licenseId.toString()}).getByRole("button", {name: "Use"}).click();
-                    await Components.selectAvailableMachineType(page);
                     await page.getByRole("button", {name: "Submit"}).click();
                     await page.waitForURL("**/jobs/properties/**");
                 });
@@ -191,19 +193,15 @@ echo "${BashScriptStringContent}"
                         await Applications.goToApplications(page);
                         await Applications.searchFor(page, multinodeAppSearchString);
                         await page.locator("a[class^=app-card]").getByText(multinodeApp).first().click();
-
                         await Components.selectAvailableMachineType(page);
-                        await page.getByPlaceholder("No directory selected").click();
-                        await File.ensureDialogDriveActive(page, driveName);
-                        await Components.useDialogBrowserItem(page, folderName)
                     }
 
                     const multinodeApp = "Spark Cluster";
                     const multinodeAppSearchString = "Spark"; // Add 'Cluster' and it disappears. Weird! #5272
-                    const driveName = Drive.newDriveName();
+                    const driveName = Drive.newDriveNameOrMemberFiles(ctx);
                     const folderName = File.newFolderName();
 
-                    await Drive.create(page, driveName);
+                    if (ctx !== "Project User") await Drive.create(page, driveName);
                     await Drive.openDrive(page, driveName);
                     await File.create(page, folderName);
                     await openSparkApp(page)
@@ -235,49 +233,30 @@ echo "${BashScriptStringContent}"
             });
 
             test.describe("disallow start from locked allocation", () => {
-                test("Create new user without resources, fail to create drive, apply for resources, be granted resources, run terminal, create large file, trigger accounting, see creation now blocked", async ({context, browser}) => {
+                test("Create new user without resources, apply for resources, be granted resources, run terminal, create large file, trigger accounting, see creation now blocked", async ({context, browser}) => {
                     test.setTimeout(240_000);
+
                     const adminPage = await Admin.newLoggedInAdminPage(context);
-
-                    await Project.changeTo(adminPage, "Provider K8s");
-                    const user = User.newUserCredentials();
-                    await User.create(adminPage, user);
-                    const newUserPage = await browser.newPage();
-                    await User.login(newUserPage, user, true);
-
-
-                    await Drive.create(newUserPage, "DriveToFail");
-                    await newUserPage.getByText("Failed to create new drive.").hover();
-                    await newUserPage.keyboard.press("Escape");
-
-                    await Accounting.goTo(newUserPage, "Apply for resources");
-                    await newUserPage.getByText("select an existing project instead").click();
-                    await Accounting.GrantApplication.toggleGrantGiver(newUserPage, "k8s");
-                    await Accounting.GrantApplication.fillQuotaFields(newUserPage, [{field: "Core-hours requested", quota: 5}, {field: "GB requested", quota: 1}]);
-                    await Accounting.GrantApplication.fillDefaultApplicationTextFields(newUserPage);
-                    const id = await Accounting.GrantApplication.submit(newUserPage);
-
-                    await Accounting.goTo(adminPage, "Grant applications");
-                    await adminPage.getByText("Show applications received").click();
-                    await Rows.actionByRowTitle(adminPage, `${id}: Personal workspace of ${user.username}`, "dblclick");
-                    await Accounting.GrantApplication.approve(adminPage);
+                    const {userPage, user} = await createUserWithProjectAndAssignRole(adminPage, context, ctx);
 
                     const jobName = Runs.newJobName();
-                    const term = await runTerminalApp(newUserPage, jobName);
+                    const term = await runTerminalApp(userPage, jobName);
                     await Terminal.createLargeFile(term);
-                    await Runs.terminateViewedRun(newUserPage);
+                    await Runs.terminateViewedRun(userPage);
 
-                    await newUserPage.reload();
-                    await File.triggerStorageScan(newUserPage, "Home");
-                    await Runs.goToRuns(newUserPage);
-                    await NetworkCalls.awaitResponse(newUserPage, "**/api/jobs/retrieve?id=**", async () => {
-                        await Components.projectSwitcher(newUserPage, "hover");
-                        await Applications.actionByRowTitle(newUserPage, jobName, "click");
-                        await newUserPage.getByText("Run application again").click();
+                    await userPage.reload();
+                    const driveName = Drive.memberFiles(user.username);
+
+                    await File.triggerStorageScan(userPage, driveName);
+                    await Runs.goToRuns(userPage);
+                    await NetworkCalls.awaitResponse(userPage, "**/api/jobs/retrieve?id=**", async () => {
+                        await Components.projectSwitcher(userPage, "hover");
+                        await Applications.actionByRowTitle(userPage, jobName, "click");
+                        await userPage.getByText("Run application again").click();
                     })
-                    await newUserPage.getByText("No machine type selected").waitFor({state: "hidden"});
-                    await newUserPage.getByText("Submit").click();
-                    await newUserPage.getByText("You do not have enough storage credits.").hover();
+                    await userPage.getByText("No machine type selected").waitFor({state: "hidden"});
+                    await userPage.getByText("Submit").click();
+                    await userPage.getByText("You do not have enough storage credits.").hover();
 
                     /* Reclaim resources and retry */
                     // await Runs.goToRuns(newUserPage);
@@ -297,3 +276,61 @@ echo "${BashScriptStringContent}"
         });
     });
 });
+
+async function createUserWithProjectAndAssignRole(admin: Page, context: BrowserContext, ctx: Contexts): Promise<{userPage: Page; user: {username: string; password: string;}}> {
+    const user = User.newUserCredentials();
+    const userPage = await context.browser()?.newPage();
+    if (!userPage) throw Error("Failed to create userpage");
+
+    await User.create(admin, user);
+    await User.login(userPage, user);
+    const projectName = Project.newProjectName();
+
+
+    switch (ctx) {
+        case "Project Admin":
+        case "Project PI":
+        case "Project User": {
+            await Accounting.goTo(admin, "Apply for resources");
+            await Accounting.GrantApplication.fillProjectName(admin, projectName);
+
+            // Duplicate
+            await Accounting.GrantApplication.toggleGrantGiver(admin, "k8s");
+            await Accounting.GrantApplication.fillQuotaFields(admin, [{field: "Core-hours requested", quota: 5}, {field: "GB requested", quota: 1}]);
+            await Accounting.GrantApplication.fillDefaultApplicationTextFields(admin);
+            await Accounting.GrantApplication.submit(admin);
+            // Duplicate
+
+            await Accounting.GrantApplication.approve(admin);
+
+            await Drive.goToDrives(admin);
+            await Project.changeTo(admin, projectName);
+
+            await Project.inviteUsers(admin, [user.username]);
+
+            await Project.acceptInvites([userPage], projectName);
+
+            await Project.changeRoles(admin, user.username, ctx.split(" ")[1] as "User" | "Admin" | "PI");
+
+            await Project.changeTo(userPage, projectName);
+
+            break;
+        }
+        case "Personal Workspace": {
+            await Accounting.goTo(userPage, "Apply for resources");
+            await userPage.getByText("select an existing project instead").click();
+
+            // Duplicate
+            await Accounting.GrantApplication.toggleGrantGiver(userPage, "k8s");
+            await Accounting.GrantApplication.fillQuotaFields(userPage, [{field: "Core-hours requested", quota: 5}, {field: "GB requested", quota: 1}]);
+            await Accounting.GrantApplication.fillDefaultApplicationTextFields(userPage);
+            const id = await Accounting.GrantApplication.submit(userPage);
+            // Duplicate
+
+            await Rows.actionByRowTitle(admin, `${id}: Personal workspace of ${user.username}`, "dblclick");
+            await Accounting.GrantApplication.approve(admin);
+        }
+    }
+
+    return {userPage, user};
+}

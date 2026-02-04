@@ -70,7 +70,7 @@
         "yaml": "2.8.2"
     },
     "devDependencies": {
-        "@playwright/test": "1.58.1",
+        "@playwright/test": "1.57.0",
         "@types/d3": "7.4.3",
         "@types/history": "5.0.0",
         "@types/json-schema": "7.0.15",
