@@ -149,6 +149,8 @@ echo "${BashScriptStringContent}"
                     });
                     await File.ensureDialogDriveActive(page, driveName);
                     await page.getByRole("dialog").locator(".row", {hasText: BashScriptName}).getByRole("button", {name: "Use"}).click();
+
+                    await page.mouse.wheel(0, -5000);
                     await Components.selectAvailableMachineType(page);
                     await Runs.submitAndWaitForRunning(page);
 

@@ -1,9 +1,10 @@
 import {expect, test} from "@playwright/test";
-import {User, Resources, Applications, Runs, Components, Terminal, TestContexts} from "./shared";
-import {default as data} from "./test_data.json" with {type: "json"};
+import {User, Resources, Applications, Runs, Components, Terminal, TestContexts, testCtx, Project} from "./shared";
 
-test.beforeEach(async ({page}) => {
-    await User.login(page, data.users.with_resources);
+test.beforeEach(async ({page}, testInfo) => {
+    const args = testCtx(testInfo.titlePath);
+    await User.login(page, args.user);
+    if (args.projectName) await Project.changeTo(page, args.projectName);
 });
 
 const {PublicLinks, IPs, SSHKeys, Licenses} = Resources;
@@ -25,7 +26,7 @@ TestContexts.map(ctx => {
 
             test("Create public link, mount link for job, check that link is available, stop job, delete public link", async ({page}) => {
                 const publicLinkName = await PublicLinks.createNew(page);
-                await Applications.openApp(page, "Visual Studio Code");
+                await Applications.openApp(page, "Coder");
                 await Components.selectAvailableMachineType(page);
                 await Runs.JobResources.addPublicLink(page, publicLinkName);
                 await Runs.submitAndWaitForRunning(page);

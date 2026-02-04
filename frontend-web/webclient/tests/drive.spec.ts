@@ -72,6 +72,7 @@ TestContexts.map(ctx => {
                     await adminPage.locator(`div[data-group='All users']`).locator("#Read").click();
 
                     // Reload drives for user, see drive appears
+                    await userPage.waitForTimeout(1_000)
                     await Components.clickRefreshAndWait(userPage);
                     await Rows.actionByRowTitle(userPage, driveName, "hover");
 

@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {Components, Drive, File, User, Rows, Terminal, NetworkCalls, Project, testCtx, TestContexts, Contexts} from "./shared";
+import {Components, Drive, File, User, Rows, Terminal, NetworkCalls, Project, testCtx, TestContexts, Contexts, ctxUser} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 
 const {dirname} = import.meta;
@@ -251,7 +251,8 @@ TestContexts.map(ctx => {
         test.describe("Terminal - check integrated terminal works", () => {
             test("Create folder, upload file, cat contents in integrated terminal", async ({page, userAgent}) => {
                 test.setTimeout(120_000);
-                const drive = Drives[userAgent!];
+                const user = ctxUser(ctx);
+                const drive = Drives[userAgent! + user.username];
                 const testFileName = "test_single_file.txt";
                 const testFileContents = "Single test file content.";
                 await File.uploadFiles(page, [{name: testFileName, contents: testFileContents}]);
@@ -322,7 +323,8 @@ TestContexts.map(ctx => {
                 await page.getByText("Next step").filter({visible: true}).first().click();
 
                 await page.getByRole("button", {name: "Add folder"}).filter({visible: true}).first().click();
-                await File.ensureDialogDriveActive(page, Drives[userAgent!]);
+                const user = ctxUser(ctx);
+                await File.ensureDialogDriveActive(page, Drives[userAgent! + user.username]);
                 await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
                     await page.getByRole("dialog").locator(".row", {hasText: folderName}).getByRole("button", {name: "Sync"}).click();
                 });
