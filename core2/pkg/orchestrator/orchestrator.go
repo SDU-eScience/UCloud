@@ -11,7 +11,7 @@ import (
 	"time"
 
 	cfg "ucloud.dk/core/pkg/config"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"

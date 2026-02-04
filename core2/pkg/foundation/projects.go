@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"ucloud.dk/core/pkg/coreutil"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
@@ -981,6 +981,17 @@ func ProjectDeleteGroup(actor rpc.Actor, id string) *util.HttpError {
 					delete from project.invite_link_group_assignments
 					where group_id = :group_id
 					returning link_token
+			    `,
+				db.Params{
+					"group_id": id,
+				},
+			)
+
+			db.Exec(
+				tx,
+				`
+					delete from provider.resource_acl_entry
+					where group_id = :group_id
 			    `,
 				db.Params{
 					"group_id": id,

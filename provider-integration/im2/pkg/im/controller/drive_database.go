@@ -9,6 +9,7 @@ import (
 	"time"
 
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
+	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/controller/fsearch"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/shared/pkg/apm"
@@ -202,6 +203,9 @@ func EnumerateKnownDrives() []orc.Drive {
 
 	activeDrivesMutex.Lock()
 	for _, d := range activeDrives {
+		if d.Specification.Product.Provider != cfg.Provider.Id {
+			continue
+		}
 		result = append(result, *d)
 	}
 	activeDrivesMutex.Unlock()
@@ -257,7 +261,7 @@ func TrackSearchIndex(id string, index *fsearch.SearchIndex, recommendedBucketCo
 			    `,
 				db.Params{
 					"id":    id,
-					"index": db.Bytea(indexBytes),
+					"index": indexBytes,
 					"count": recommendedBucketCount,
 				},
 			)

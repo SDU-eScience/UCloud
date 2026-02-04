@@ -929,7 +929,7 @@ func FilesTransfer(actor rpc.Actor, request orcapi.FilesTransferRequest) *util.H
 		return util.HttpErr(http.StatusForbidden, "source provider is unwilling to fulfill this request")
 	}
 
-	initiateDestResp, err := InvokeProvider(sourceProvider, orcapi.FilesProviderTransfer, orcapi.FilesProviderTransferRequest{
+	initiateDestResp, err := InvokeProvider(destProvider, orcapi.FilesProviderTransfer, orcapi.FilesProviderTransferRequest{
 		Type: orcapi.FilesProviderTransferReqTypeInitiateDestination,
 		FilesProviderTransferRequestInitiateDestination: orcapi.FilesProviderTransferRequestInitiateDestination{
 			DestinationPath:    destPath,

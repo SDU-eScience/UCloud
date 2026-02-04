@@ -3,7 +3,6 @@ package filesystem
 import (
 	"context"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"io"
 	"path/filepath"
 	"runtime"
@@ -11,6 +10,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/sync/semaphore"
@@ -70,6 +71,10 @@ func loopMonitoring() time.Duration {
 
 		drivesToScan := ctrl.RetrieveDrivesNeedingScan()
 		for _, drive := range drivesToScan {
+			if drive.Specification.Product.Provider != cfg.Provider.Id {
+				continue
+			}
+
 			driveScanQueue <- drive
 		}
 	}
