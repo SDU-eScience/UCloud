@@ -990,6 +990,17 @@ func ProjectDeleteGroup(actor rpc.Actor, id string) *util.HttpError {
 			db.Exec(
 				tx,
 				`
+					delete from provider.resource_acl_entry
+					where group_id = :group_id
+			    `,
+				db.Params{
+					"group_id": id,
+				},
+			)
+
+			db.Exec(
+				tx,
+				`
 					delete from project.groups
 					where id = :group_id
 			    `,
