@@ -56,25 +56,36 @@ func lowFundsScan(lowFundsLimitInPercent float32) {
 		}](
 			tx,
 			`
-				with summarized_wallets as (
-					select
-						w.id wallet_id,
-						sum(ag.tree_usage) current_usage,
-						sum(alloc.quota) current_quota
-					from accounting.wallet_allocations_v2 alloc join
-					accounting.allocation_groups ag on alloc.associated_allocation_group = ag.id join
-					accounting.wallets_v2 w on ag.associated_wallet = w.id
-					where
-						alloc.allocation_start_time <= now() and
-						alloc.allocation_end_time >= now()
-					group by w.id
-					order by w.id
-				)
+				with
+					active_quota as (
+						select
+							w.id,
+							sum(alloc.quota) current_quota
+						from accounting.wallet_allocations_v2 alloc join
+							 accounting.allocation_groups ag on alloc.associated_allocation_group = ag.id join
+							 accounting.wallets_v2 w on ag.associated_wallet = w.id
+						where
+							alloc.allocation_start_time <= now() and alloc.allocation_end_time >= now()
+						group by w.id
+						order by w.id
+					),
+					active_usage as (
+						select
+							w.id,
+							sum(ag.tree_usage) current_usage
+						from accounting.wallet_allocations_v2 alloc join
+							 accounting.allocation_groups ag on alloc.associated_allocation_group = ag.id join
+							 accounting.wallets_v2 w on ag.associated_wallet = w.id
+						where
+							alloc.allocation_start_time <= now() and alloc.allocation_end_time >= now()
+						group by w.id
+						order by w.id
+					)
 				select
 					w.id wallet_id,
 					w.low_balance_notified,
-					sw.current_usage,
-					sw.current_quota,
+					au.current_usage active_usage,
+					aq.current_quota active_quota,
 					pc.product_type,
 					pc.accounting_frequency,
 					pc.category category_name,
@@ -83,12 +94,13 @@ func lowFundsScan(lowFundsLimitInPercent float32) {
 					wo.project_id is not null is_project,
 					coalesce(p.title, concat('Personal workspace - ', wo.username)) project_title
 				from
-					summarized_wallets sw join
-						accounting.wallets_v2 w on w.id = sw.wallet_id join
-						accounting.product_categories pc on w.product_category = pc.id join
-						accounting.wallet_owner wo on w.wallet_owner = wo.id left join
-						project.projects p on wo.project_id = p.id left join
-						project.project_members pm on p.id = pm.project_id and pm.role = 'PI'
+					accounting.wallets_v2 w join
+					active_usage au on w.id = au.id join
+					active_quota aq on w.id = aq.id join
+					accounting.product_categories pc on w.product_category = pc.id join
+					accounting.wallet_owner wo on w.wallet_owner = wo.id left join
+					project.projects p on wo.project_id = p.id left join
+					project.project_members pm on p.id = pm.project_id and pm.role = 'PI'
 				where (pc.product_type = 'COMPUTE' or pc.product_type = 'STORAGE')
 				order by w.id
 			`,
