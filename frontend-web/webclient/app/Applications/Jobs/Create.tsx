@@ -32,7 +32,13 @@ import {
     setReservation,
     validateReservation
 } from "@/Applications/Jobs/Widgets/Reservation";
-import {displayErrorMessageOrDefault, extractErrorCode, prettierString, useDidMount} from "@/UtilityFunctions";
+import {
+    displayErrorMessageOrDefault,
+    doNothing,
+    extractErrorCode,
+    prettierString,
+    useDidMount
+} from "@/UtilityFunctions";
 import {addStandardDialog, OverallocationLink, WalletWarning} from "@/UtilityComponents";
 import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
@@ -622,6 +628,12 @@ export const Create: React.FunctionComponent = () => {
                                         <Select width={"300px"} onChange={onChangeJobEmailNotification} name={"job-email-notifications"}>
                                             <option value="never" selected={jobEmailNotifications === "never"}>Do not notify me</option>
                                             <option value="start_or_ends" selected={jobEmailNotifications === "start_or_ends"}>Notify me when a job starts or stops</option>
+                                        </Select>
+                                    </Label>
+                                    <Label mt={"16px"}>
+                                        Job resource utilization export settings
+                                        <Select width={"300px"} onChange={doNothing} name={"job-resource-utilization-export"}>
+                                            <option value="fie" selected={}>Fie dog</option>
                                         </Select>
                                     </Label>
                                 </Flex>}

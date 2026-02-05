@@ -303,7 +303,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     <span>Verification reminders</span>
                 </Label>
 
-
+                {/* TODO remove code when ChangeJobSettings is implemented */}
                 <Heading.h5>Jobs</Heading.h5>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox

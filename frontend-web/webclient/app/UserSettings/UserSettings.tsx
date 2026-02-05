@@ -14,6 +14,7 @@ import {CustomTheming} from "./CustomTheme";
 import {refreshFunctionCache} from "@/Utilities/ReduxUtilities";
 import {ChangeNotificationSettings} from "./ChangeNotificationSettings";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {ChangeJobSettings} from "@/UserSettings/ChangeJobSettings";
 
 function UserSettings(): React.ReactNode {
 
@@ -57,6 +58,9 @@ function UserSettings(): React.ReactNode {
                                     <ChangeNotificationSettings
                                         setLoading={setHeaderLoading}
                                     />
+                                    <ChangeJobSettings>
+                                        setLoading={setHeaderLoading}
+                                    </ChangeJobSettings>
                                     <Sessions
                                         setLoading={setHeaderLoading}
                                         setRefresh={fn => refreshFunctionCache.setRefreshFunction(fn ?? (() => undefined))}
