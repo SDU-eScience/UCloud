@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/exp/maps"
 	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -429,7 +430,7 @@ func ProjectBrowse(actor rpc.Actor, request fndapi.ProjectBrowseRequest) (fndapi
 	for p := range userInfo.Projects {
 		projectIds = append(projectIds, p)
 	}
-
+	preferencesCopy := maps.Clone(userInfo.UserPreferences)
 	userInfo.Mu.RUnlock()
 
 	var projects []fndapi.Project
@@ -441,7 +442,7 @@ func ProjectBrowse(actor rpc.Actor, request fndapi.ProjectBrowseRequest) (fndapi
 			result := p.Project
 			p.Mu.RUnlock()
 
-			result, resultFlags := projectProcessFlags(result, actor.Username, userInfo.UserPreferences[projectId], request.ProjectFlags)
+			result, resultFlags := projectProcessFlags(result, actor.Username, preferencesCopy[projectId], request.ProjectFlags)
 
 			isMember := resultFlags&projectResultIsMember != 0
 			isWantedByFilter := resultFlags&projectResultNotWantedByFilter == 0
