@@ -30,6 +30,7 @@ type ProjectSpecification struct {
 type ProjectStatus struct {
 	Archived                   bool                `json:"archived"`
 	IsFavorite                 bool                `json:"isFavorite"`
+	IsHidden                   bool                `json:"isHidden"`
 	Members                    []ProjectMember     `json:"members"`
 	Groups                     []ProjectGroup      `json:"groups"`
 	Settings                   ProjectSettings     `json:"settings"`
@@ -234,6 +235,13 @@ var ProjectInternalCreate = rpc.Call[ProjectInternalCreateRequest, FindByStringI
 var ProjectToggleFavorite = rpc.Call[BulkRequest[FindByStringId], util.Empty]{
 	BaseContext: ProjectContext,
 	Operation:   "toggleFavorite",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+}
+
+var ProjectToggleHidden = rpc.Call[BulkRequest[FindByStringId], util.Empty]{
+	BaseContext: ProjectContext,
+	Operation:   "toggleHidden",
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 }

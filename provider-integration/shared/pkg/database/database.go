@@ -199,7 +199,8 @@ func (ctx *Pool) open() *Transaction {
 		}
 	}
 
-	panic("Failed to open transaction after 10 retries. Fatal error!")
+	log.Fatal("Failed to open transaction after 10 retries. Fatal error!")
+	panic("Fatal error")
 }
 
 func NewTx0(fn func(tx *Transaction)) {
@@ -280,12 +281,13 @@ func continueTx[T any](ctx Ctx, fn func(tx *Transaction) T) T {
 		}
 	}
 
-	panic(
+	log.Fatal(
 		fmt.Sprintf(
 			"Unable to complete database transaction after 10 retries. Fatal failure!\n%v",
 			strings.Join(errorLog, "\n"),
 		),
 	)
+	panic("Fatal error")
 }
 
 type Transaction struct {

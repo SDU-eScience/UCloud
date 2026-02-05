@@ -335,12 +335,28 @@ function ProjectHiddenToggle(props: {hiddenCount: number; setShown: (show: boole
 
 function ProjectHide(props: {project: Project, rerender: (projectId: string) => void;}) {
     if (!hasFeature(Feature.HIDE_PROJECTS)) return null;
-    const isHidden = props.project.status.isHidden;
+    const [commandLoading, invokeCommand] = useCloudCommand();
+    const [isHidden, setIsHidden] = React.useState(props.project.status.isHidden);
     const icon: IconName = isHidden ? "heroEyeSlash" : "heroEye";
+    console.log('Is hidden: ',isHidden);
+    const onHide = React.useCallback((e: React.SyntheticEvent, p: Project) => {
+        e.stopPropagation();
+        setIsHidden(f => !f);
+        try {
+            invokeCommand(Api.toggleHidden(
+                bulkRequestOf({id: p.id})
+            ), {defaultErrorHandler: false});
+        } catch (e) {
+            setIsHidden(f => !f);
+            displayErrorMessageOrDefault(e, "Failed to toggle hidden");
+        } finally {
+            props.rerender(props.project.id);
+        }
+    }, [commandLoading]);
+
     return <Box height="100%" ml="auto" mr="18px" title={isHidden ? "Click to unhide" : "Click to hide"}>
         <Icon data-hide-icon={!isHidden} mt="-2px" name={icon} onClick={e => {
-            e.stopPropagation();
-            props.rerender(props.project.id);
+            onHide(e, props.project);
         }} />
     </Box>
 }

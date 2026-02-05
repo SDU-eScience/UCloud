@@ -77,10 +77,16 @@ var grantGlobals struct {
 	IndexBuckets   []*grantIndexBucket
 	CommentIdAcc   atomic.Int64
 	GrantIdAcc     atomic.Int64
+	GrantUsers     []*grantUserBucket
 	Testing        struct {
 		Enabled              bool
 		ProjectCreateFailure bool
 	}
+}
+
+type grantUserBucket struct {
+	Mu              sync.RWMutex
+	LastTimeVisited map[string]map[accGrantId]time.Time
 }
 
 type grantAppBucket struct {
@@ -129,7 +135,7 @@ type grantsProjectInfo struct {
 
 var grantsProjectCache = util.NewCache[string, grantsProjectInfo](4 * time.Hour)
 
-func GrantApplicationProcess(app accapi.GrantApplication) accapi.GrantApplication {
+func GrantApplicationProcess(actor rpc.Actor, app accapi.GrantApplication) accapi.GrantApplication {
 	recipient := app.CurrentRevision.Document.Recipient
 	if recipient.Type == accapi.RecipientTypeExistingProject {
 		projectInfo, ok := grantsProjectCache.Get(recipient.Id.Value, func() (grantsProjectInfo, error) {
@@ -154,6 +160,9 @@ func GrantApplicationProcess(app accapi.GrantApplication) accapi.GrantApplicatio
 			app.Status.ProjectTitle.Set(projectInfo.Title)
 		}
 	}
+
+	grantAttachUnreadCommentStatus(&app, actor.Username)
+
 	return app
 }
 
@@ -183,6 +192,44 @@ const (
 	grantActorRoleSubmitter grantActorRole = iota
 	grantActorRoleApprover
 )
+
+func grantGetUserBucket(username string) *grantUserBucket {
+	h := util.NonCryptographicHash(username)
+	b := grantGlobals.GrantUsers[h%len(grantGlobals.AppBuckets)]
+
+	b.Mu.RLock()
+	_, ok := b.LastTimeVisited[username]
+	b.Mu.RUnlock()
+	if ok {
+		return b
+	}
+
+	b.Mu.Lock()
+	dbResult := db.NewTx(func(tx *db.Transaction) map[accGrantId]time.Time {
+		result := map[accGrantId]time.Time{}
+		rows := db.Select[struct {
+			ApplicationId accGrantId
+			LastVisitedAt time.Time
+		}](
+			tx,
+			`
+				select application_id, last_visited_at
+				from "grant".user_application_visits
+				where username = :user;`,
+			db.Params{
+				"user": username,
+			},
+		)
+		for _, row := range rows {
+			result[row.ApplicationId] = row.LastVisitedAt
+		}
+
+		return result
+	})
+	b.LastTimeVisited[username] = dbResult
+	b.Mu.Unlock()
+	return b
+}
 
 func grantGetAppBucket(key accGrantId) *grantAppBucket {
 	h := util.NonCryptographicHash(key)
@@ -1064,6 +1111,78 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 	return err
 }
 
+// Grant Application has unread comments
+// =====================================================================================================================
+// This section handles unread comments inside applications.
+// Firstly, we record user visits on GrantRetrieve function
+// When GrantApplicationProcess is triggered, we will then compare the last time the user
+// has visited the application with the latest comment of the given application, if the latest comment is greater,
+// then we will set app.Status.HasUnreadComments = true
+
+func grantAttachUnreadCommentStatus(app *accapi.GrantApplication, username string) {
+	if len(app.Status.Comments) == 0 {
+		app.Status.HasUnreadComments = false
+		return
+	}
+
+	idRaw, _ := strconv.ParseInt(app.Id.Value, 10, 64)
+	idActual := accGrantId(idRaw)
+	appLastVisitedByUserTime := grantRetrieveUserApplicationVisits(idActual, username)
+	if appLastVisitedByUserTime.IsZero() {
+		return
+	}
+
+	// Since comments are ordered by created at time, the last comment is the latest
+	latestCommentTime := app.Status.Comments[len(app.Status.Comments)-1].CreatedAt.Time()
+
+	app.Status.HasUnreadComments = latestCommentTime.After(appLastVisitedByUserTime)
+}
+
+func grantRecordUserApplicationVisit(grantId string, username string) {
+	idRaw, _ := strconv.ParseInt(grantId, 10, 64)
+	idActual := accGrantId(idRaw)
+
+	now := time.Now()
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(tx,
+			`insert into "grant".user_application_visits (
+				application_id,
+				username,
+				last_visited_at
+			)
+			values (
+				:application,
+				:user,
+				:last_visited_at
+			)
+			on conflict (application_id, username)
+			do update set last_visited_at = excluded.last_visited_at;`,
+			db.Params{
+				"application":     grantId,
+				"user":            username,
+				"last_visited_at": now,
+			},
+		)
+	})
+
+	grantUpdateUserCache(username, idActual, now)
+}
+
+func grantUpdateUserCache(username string, grantId accGrantId, now time.Time) {
+	b := grantGetUserBucket(username)
+	b.Mu.Lock()
+	b.LastTimeVisited[username][grantId] = now
+	b.Mu.Unlock()
+}
+
+func grantRetrieveUserApplicationVisits(grantId accGrantId, username string) time.Time {
+	b := grantGetUserBucket(username)
+	b.Mu.RLock()
+	result := b.LastTimeVisited[username][grantId]
+	b.Mu.RUnlock()
+	return result
+}
+
 // Grant application retrieval
 // =====================================================================================================================
 // Public functions for retrieving grant applications.
@@ -1155,7 +1274,7 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 				} else {
 					deepCopy := a.lDeepCopy()
 					a.Mu.RUnlock()
-					items = append(items, GrantApplicationProcess(deepCopy))
+					items = append(items, GrantApplicationProcess(actor, deepCopy))
 				}
 			} else {
 				a.Mu.RUnlock()
@@ -1213,9 +1332,11 @@ func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.
 		return accapi.GrantApplication{}, util.HttpErr(http.StatusNotFound, "not found")
 	} else {
 		app.Mu.RLock()
+		// Record that the user has visited the application
+		grantRecordUserApplicationVisit(app.Application.Id.Value, actor.Username)
 		result := app.lDeepCopy()
 		app.Mu.RUnlock()
-		return GrantApplicationProcess(result), nil
+		return GrantApplicationProcess(actor, result), nil
 	}
 }
 
@@ -1664,6 +1785,7 @@ func initGrants() {
 	grantGlobals.AppBuckets = nil
 	grantGlobals.SettingBuckets = nil
 	grantGlobals.IndexBuckets = nil
+	grantGlobals.GrantUsers = nil
 
 	for i := 0; i < runtime.NumCPU(); i++ {
 		grantGlobals.AppBuckets = append(grantGlobals.AppBuckets, &grantAppBucket{
@@ -1677,6 +1799,10 @@ func initGrants() {
 
 		grantGlobals.IndexBuckets = append(grantGlobals.IndexBuckets, &grantIndexBucket{
 			ApplicationsByEntity: make(map[string][]accGrantId),
+		})
+
+		grantGlobals.GrantUsers = append(grantGlobals.GrantUsers, &grantUserBucket{
+			LastTimeVisited: make(map[string]map[accGrantId]time.Time),
 		})
 	}
 
