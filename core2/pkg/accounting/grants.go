@@ -13,6 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/search/query"
 	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database2"
@@ -1162,9 +1164,25 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 			}
 		}
 	}
+	// Adding filter for fuzzy searching
+	searchTerms := strings.Split(req.Query, " ")
+	var filteredItems []accapi.GrantApplication
+	if searchTerms == nil || len(searchTerms) == 0 {
+		filteredItems = items
+	} else {
+		foundGrants := grantSearchFuzzily(searchTerms)
+
+		for _, grant := range items {
+			for _, grantFound := range foundGrants {
+				if grantFound == grant.Id.Value {
+					filteredItems = append(filteredItems, grant)
+				}
+			}
+		}
+	}
 
 	result := fndapi.PageV2[accapi.GrantApplication]{
-		Items:        items,
+		Items:        filteredItems,
 		ItemsPerPage: itemsPerPage,
 	}
 
@@ -1173,6 +1191,38 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 	}
 
 	return result
+}
+
+func grantSearchFuzzily(searchTerm []string) []string {
+
+	searchQueries := make([]query.Query, 0, len(searchTerm))
+	for _, term := range searchTerm {
+		createdByPrefixQ := bleve.NewPrefixQuery(term)
+		createdByPrefixQ.SetBoost(5)
+
+		createdBy := bleve.NewFuzzyQuery(term)
+		createdBy.SetField("CreatedBy")
+		createdBy.SetFuzziness(2)
+		createdBy.SetBoost(3)
+		searchQueries = append(searchQueries, bleve.NewDisjunctionQuery(createdByPrefixQ, createdBy))
+	}
+	req := bleve.NewSearchRequest(bleve.NewDisjunctionQuery(searchQueries...))
+
+	res, err := grantIndex.Search(req)
+	if err != nil {
+		panic(err)
+	}
+
+	var results []string
+	for _, hit := range res.Hits {
+		log.Debug("Found grant application with ID: %s", hit.ID)
+		results = append(results, hit.ID)
+	}
+	if results == nil {
+		log.Info("No grant applications found through fuzzy search")
+	}
+
+	return results
 }
 
 // NOTE(Dan): This function assumes auth has already taken place.

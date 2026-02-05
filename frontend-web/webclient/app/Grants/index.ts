@@ -11,6 +11,7 @@ const baseContext = "/api/grants/v2";
 // =====================================================================================================================
 export function browse(
     request: PaginationRequestV2 & {
+        query?: string
         filter?: ApplicationFilter,
         includeIngoingApplications?: boolean,
         includeOutgoingApplications?: boolean,

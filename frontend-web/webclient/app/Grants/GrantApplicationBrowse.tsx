@@ -72,6 +72,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
     };
 
     React.useLayoutEffect(() => {
+        const searchQuery = "ucloud user"
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Grants.Application>(mount, "Grants Application", opts).init(browserRef, features, "", browser => {
@@ -90,6 +91,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     }
 
                     callAPI(Grants.browse({
+                        query: searchQuery,
                         includeIngoingApplications: isIngoing || opts?.both,
                         includeOutgoingApplications: !isIngoing || opts?.both,
                         ...defaultRetrieveFlags,
@@ -110,6 +112,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 browser.on("wantToFetchNextPage", async path => {
                     const result = await callAPI(
                         Grants.browse({
+                            query: searchQuery,
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
                             ...opts?.additionalFilters,
