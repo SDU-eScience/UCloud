@@ -3,17 +3,18 @@ package k8s
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"math"
 	"os"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"ucloud.dk/pkg/im/services/k8s/shared"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 

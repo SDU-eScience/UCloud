@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"ucloud.dk/gonja/v2/exec"
+	"ucloud.dk/pkg/im/controller"
 	"ucloud.dk/shared/pkg/apm"
 	c "ucloud.dk/shared/pkg/client"
 	fnd "ucloud.dk/shared/pkg/foundation"
@@ -304,140 +305,6 @@ func DefaultArgBuilder(fileMapper func(ucloudPath string) string) ArgBuilder {
 			log.Warn("Unhandled value type: %v", param.Type)
 			return ""
 		}
-	}
-}
-
-func BuildParameter(
-	param InvocationParameter,
-	values map[string]ParamAndValue,
-	environmentVariable bool,
-	builder ArgBuilder,
-	jinjaCtx *exec.Context,
-) []string {
-	switch param.Type {
-	case InvocationParameterTypeJinja:
-		if jinjaCtx == nil {
-			return nil
-		} else {
-			flags := JinjaFlags(0)
-			if environmentVariable {
-				flags |= JinjaFlagsNoEscape
-			}
-
-			output, err := ExecuteJinjaTemplate(
-				param.InvocationParameterJinja.Template,
-				0,
-				func(session any, fn string, args []string) string {
-					return ""
-				},
-				jinjaCtx,
-				flags,
-			)
-			if err != nil {
-				return nil
-			} else {
-				return []string{output}
-			}
-		}
-
-	case InvocationParameterTypeWord:
-		return []string{param.InvocationParameterWord.Word}
-
-	case InvocationParameterTypeEnv:
-		if environmentVariable {
-			return []string{fmt.Sprintf("$(%v)", param.InvocationParameterEnv.Variable)}
-		} else {
-			return []string{fmt.Sprintf("$%v", param.InvocationParameterEnv.Variable)}
-		}
-
-	case InvocationParameterTypeVar:
-		v := &param.InvocationParameterVar
-		prefixGlobal := strings.Trim(v.PrefixGlobal, " ")
-		suffixGlobal := strings.Trim(v.SuffixGlobal, " ")
-		prefixVariable := strings.Trim(v.PrefixVariable, " ")
-		suffixVariable := strings.Trim(v.SuffixVariable, " ")
-
-		relevantValues := make(map[string]ParamAndValue)
-		for key, value := range values {
-			if slices.Contains(v.VariableNames, key) {
-				relevantValues[key] = value
-			}
-		}
-
-		// We assume that verification has already taken place. If we have no values it should mean that they are all
-		// optional. We don't include anything (including prefixGlobal) if no values were given.
-		if len(relevantValues) == 0 {
-			return nil
-		}
-
-		var middlePart []string
-
-		for _, variableName := range v.VariableNames {
-			value, ok := relevantValues[variableName]
-			if !ok {
-				continue
-			}
-
-			mainArg := strings.Builder{}
-			if len(prefixVariable) > 0 {
-				if v.IsPrefixVariablePartOfArg {
-					mainArg.WriteString(prefixVariable)
-				} else {
-					middlePart = append(middlePart, prefixVariable)
-				}
-			}
-
-			mainArg.WriteString(builder(value))
-
-			if v.IsSuffixVariablePartOfArg {
-				mainArg.WriteString(suffixVariable)
-				middlePart = append(middlePart, mainArg.String())
-			} else {
-				middlePart = append(middlePart, mainArg.String())
-				if len(suffixVariable) > 0 {
-					middlePart = append(middlePart, suffixVariable)
-				}
-			}
-		}
-
-		if prefixGlobal == "" && suffixGlobal == "" {
-			return middlePart
-		}
-
-		var result []string
-		if len(prefixGlobal) > 0 {
-			result = append(result, prefixGlobal)
-		}
-
-		result = append(result, middlePart...)
-
-		if len(suffixGlobal) > 0 {
-			result = append(result, suffixGlobal)
-		}
-
-		for i := 0; i < len(result); i++ {
-			result[i] = strings.TrimSpace(result[i])
-		}
-
-		return result
-
-	case InvocationParameterTypeBoolFlag:
-		f := &param.InvocationParameterBoolFlag
-		value, ok := values[f.VariableName]
-		if !ok {
-			return nil
-		}
-
-		asBool, ok := value.Value.Value.(bool)
-		if !ok || !asBool {
-			return nil
-		}
-
-		return []string{strings.TrimSpace(f.Flag)}
-
-	default:
-		log.Warn("Unhandled value type: %v", param.Type)
-		return nil
 	}
 }
 

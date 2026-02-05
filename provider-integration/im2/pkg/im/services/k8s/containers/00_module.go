@@ -24,7 +24,7 @@ import (
 	"ucloud.dk/pkg/im/services/k8s/shared"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -76,7 +76,7 @@ func findPodByJobIdAndRank(jobId string, rank int) util.Option[*core.Pod] {
 	}
 }
 
-func FindJobFolder(job *orc.Job) (string, *orc.Drive, error) {
+func FindJobFolder(job *orc.Job) (string, *orc.Drive, *util.HttpError) {
 	return FindJobFolderEx(job, 0)
 }
 
@@ -85,14 +85,14 @@ const (
 )
 
 // FindJobFolderEx finds the most relevant job folder for a given job. The returned path will be internal.
-func FindJobFolderEx(job *orc.Job, flags int) (string, *orc.Drive, error) {
-	path, drive, err := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, util.OptStringIfNotEmpty(job.Owner.Project))
+func FindJobFolderEx(job *orc.Job, flags int) (string, *orc.Drive, *util.HttpError) {
+	path, drive, err := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, job.Owner.Project)
 	if err != nil {
 		return "", nil, err
 	}
 
-	title := job.Status.ResolvedApplication.Metadata.Title
-	if job.Status.ResolvedApplication.Metadata.Name == "unknown" && job.Specification.Name != "" {
+	title := job.Status.ResolvedApplication.Value.Metadata.Title
+	if job.Status.ResolvedApplication.Value.Metadata.Name == "unknown" && job.Specification.Name != "" {
 		title = job.Specification.Name
 	}
 
@@ -311,7 +311,7 @@ func follow(session *ctrl.FollowJobSession) {
 	}
 }
 
-func terminate(request ctrl.JobTerminateRequest) error {
+func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 	// Delete pods
 	// -----------------------------------------------------------------------------------------------------------------
 	// NOTE(Dan): Helper resources (e.g. Service) have a owner reference on the pod. For this reason, we do not need to
@@ -403,7 +403,7 @@ func terminate(request ctrl.JobTerminateRequest) error {
 		ctrl.TrackNewJob(copied)
 
 		// NOTE(Dan): Failure in this function will be automatically retried by the JobUpdateBatch/monitoring logic.
-		_ = orc.UpdateJobs(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
+		_, _ = orc.JobsControlAddUpdate.Invoke(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
 			Items: []orc.ResourceUpdateAndId[orc.JobUpdate]{
 				{
 					Id: job.Id,
@@ -422,16 +422,16 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 	return nil
 }
 
-func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, error) {
+func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, *util.HttpError) {
 	podName := idAndRankToPodName(job.Id, rank)
 
-	app := &job.Status.ResolvedApplication.Invocation
+	app := &job.Status.ResolvedApplication.Value.Invocation
 
 	flags := ctrl.RegisteredIngressFlags(0)
 
-	port := app.Web.Port
+	port := app.Web.Value.Port
 	if app.ApplicationType == orc.ApplicationTypeVnc {
-		port = app.Vnc.Port
+		port = app.Vnc.Value.Port
 		flags = ctrl.RegisteredIngressFlagsVnc
 	} else {
 		flags = ctrl.RegisteredIngressFlagsWeb
@@ -497,7 +497,7 @@ func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) ctrl.
 	}
 }
 
-func extend(request ctrl.JobExtendRequest) error {
+func extend(request orc.JobsProviderExtendRequestItem) *util.HttpError {
 	// NOTE(Dan): Scheduler is automatically notified by the shared monitoring loop since it will forward the time
 	// allocation from the job.
 	alloc := request.Job.Specification.TimeAllocation

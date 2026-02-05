@@ -13,7 +13,6 @@ type ModuleArgs struct {
 	Database             *db.Pool
 	ConfigDir            string
 	UserModeSecret       string
-	ServerMultiplexer    *http.ServeMux
 	IpcMultiplexer       *http.ServeMux
 	MetricsHandler       *func(writer http.ResponseWriter, request *http.Request)
 }

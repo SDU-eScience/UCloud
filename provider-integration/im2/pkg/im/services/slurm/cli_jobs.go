@@ -10,13 +10,14 @@ import (
 	"slices"
 	"strings"
 	"time"
+
 	"ucloud.dk/pkg/cli"
 	slurmcli "ucloud.dk/pkg/im/external/slurm"
 	"ucloud.dk/pkg/im/external/user"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/termio"
 	db "ucloud.dk/shared/pkg/database"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 )
 
 func HandleJobsCommand() {
@@ -102,8 +103,8 @@ func HandleJobsCommand() {
 			f.AppendSeparator()
 
 			f.AppendField("Submitted by", job.Job.Owner.CreatedBy)
-			if job.Job.Owner.Project != "" {
-				f.AppendField("Project", fmt.Sprintf("%v (ID: %v)", job.WorkspaceTitle, job.Job.Owner.Project))
+			if job.Job.Owner.Project.Value != "" {
+				f.AppendField("Project", fmt.Sprintf("%v (ID: %v)", job.WorkspaceTitle, job.Job.Owner.Project.Value))
 			}
 			f.AppendSeparator()
 
@@ -183,7 +184,7 @@ func HandleJobsCommand() {
 
 			f.AppendTitle("Application parameters")
 
-			app := &job.Job.Status.ResolvedApplication
+			app := &job.Job.Status.ResolvedApplication.Value
 
 			for k, v := range job.Job.Specification.Parameters {
 				ok := false

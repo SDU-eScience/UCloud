@@ -3,11 +3,12 @@ package slurm
 import (
 	"net/http"
 	"os"
+
 	"ucloud.dk/pkg/cli"
-	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/pkg/im/ipc"
-	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/pkg/termio"
+	db "ucloud.dk/shared/pkg/database"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -39,8 +40,8 @@ func HandleTasksCommandServer() {
 			}
 		}
 
-		tasks := db.NewTx(func(tx *db.Transaction) []uint64 {
-			rows := db.Select[struct{ Id uint64 }](
+		tasks := db.NewTx(func(tx *db.Transaction) []int {
+			rows := db.Select[struct{ Id int }](
 				tx,
 				`
 					select id
@@ -49,7 +50,7 @@ func HandleTasksCommandServer() {
 				db.Params{},
 			)
 
-			var res []uint64
+			var res []int
 			for _, row := range rows {
 				res = append(res, row.Id)
 			}
@@ -63,7 +64,7 @@ func HandleTasksCommandServer() {
 				NewBody:       util.OptValue(""),
 				NewProgress:   util.OptValue("Task has been cancelled"),
 				NewPercentage: util.OptValue(100.0),
-				NewState:      util.OptValue(orc.TaskStateCancelled),
+				NewState:      util.OptValue(fnd.TaskStateCancelled),
 			}))
 		}
 

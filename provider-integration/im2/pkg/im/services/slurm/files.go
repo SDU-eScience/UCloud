@@ -16,18 +16,19 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
 	"ucloud.dk/pkg/im/external/user"
 
 	"golang.org/x/sys/unix"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/controller/upload"
-	"ucloud.dk/shared/pkg/apm"
+	apm "ucloud.dk/shared/pkg/accounting"
 
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	ctrl "ucloud.dk/pkg/im/controller"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -56,7 +57,7 @@ func InitializeFiles() ctrl.FileService {
 	}
 }
 
-func search(ctx context.Context, query, folder string, flags ctrl.FileFlags, output chan orc.ProviderFile) {
+func search(ctx context.Context, query, folder string, flags orc.FileFlags, output chan orc.ProviderFile) {
 	initialFolder, ok := UCloudToInternal(folder)
 	driveId, ok2 := DriveIdFromUCloudPath(folder)
 	defer close(output)
@@ -98,13 +99,13 @@ func search(ctx context.Context, query, folder string, flags ctrl.FileFlags, out
 	})
 }
 
-func transferSourceInitiate(request ctrl.FilesTransferRequestInitiateSource) ([]string, error) {
+func transferSourceInitiate(request orc.FilesProviderTransferRequestInitiateSource) ([]string, *util.HttpError) {
 	return []string{"built-in"}, nil
 }
 
-func transferDestinationInitiate(request ctrl.FilesTransferRequestInitiateDestination) (ctrl.FilesTransferResponse, error) {
+func transferDestinationInitiate(request orc.FilesProviderTransferRequestInitiateDestination) (orc.FilesProviderTransferResponse, *util.HttpError) {
 	if !slices.Contains(request.SupportedProtocols, "built-in") {
-		return ctrl.FilesTransferResponse{}, &util.HttpError{
+		return orc.FilesProviderTransferResponse{}, &util.HttpError{
 			StatusCode: http.StatusBadRequest,
 			Why:        "Unable to fulfill this request, no overlap in protocols.",
 		}
@@ -112,7 +113,7 @@ func transferDestinationInitiate(request ctrl.FilesTransferRequestInitiateDestin
 
 	localDestinationPath, ok := UCloudToInternal(request.DestinationPath)
 	if !ok {
-		return ctrl.FilesTransferResponse{}, &util.HttpError{
+		return orc.FilesProviderTransferResponse{}, &util.HttpError{
 			StatusCode: http.StatusBadRequest,
 			Why:        "Unable to fulfill this request, unknown destination supplied.",
 		}
@@ -120,14 +121,14 @@ func transferDestinationInitiate(request ctrl.FilesTransferRequestInitiateDestin
 
 	finfo, err := os.Stat(filepath.Dir(localDestinationPath))
 	if err != nil {
-		return ctrl.FilesTransferResponse{}, &util.HttpError{
+		return orc.FilesProviderTransferResponse{}, &util.HttpError{
 			StatusCode: http.StatusBadRequest,
 			Why:        "Unable to fulfill this request, unknown destination supplied.",
 		}
 	}
 
 	if !probablyHasPermissionToWrite(finfo) {
-		return ctrl.FilesTransferResponse{}, &util.HttpError{
+		return orc.FilesProviderTransferResponse{}, &util.HttpError{
 			StatusCode: http.StatusBadRequest,
 			Why:        "Unable to fulfill this request, you are not allowed to write to the destination folder.",
 		}
@@ -147,16 +148,16 @@ func transferDestinationInitiate(request ctrl.FilesTransferRequestInitiateDestin
 		HasUCloudTask: false,
 	})
 
-	return ctrl.FilesTransferResponseInitiateDestination(
+	resp := ctrl.FilesTransferResponseInitiateDestination(
 		"built-in",
 		ctrl.TransferBuiltInParameters{
 			Endpoint: target,
 		},
-	), nil
-
+	)
+	return resp, nil
 }
 
-func transferSourceBegin(request ctrl.FilesTransferRequestStart, session ctrl.TransferSession) error {
+func transferSourceBegin(request orc.FilesProviderTransferRequestStart, session ctrl.TransferSession) *util.HttpError {
 	err := RegisterTask(TaskInfoSpecification{
 		Type:          FileTaskTransfer,
 		UCloudSource:  util.OptValue[string](session.SourcePath),
@@ -342,9 +343,9 @@ func compareFileByModifiedAt(a, b cachedDirEntry) int {
 }
 
 var (
-	cachedUser, err = user.Current()
-	cachedGroups    = (func() []string {
-		if err != nil {
+	cachedUser, cachedUserErr = user.Current()
+	cachedGroups              = (func() []string {
+		if cachedUserErr != nil {
 			return nil
 		} else {
 			groupIds, _ := cachedUser.GroupIds()
@@ -399,12 +400,12 @@ func probablyHasPermissionToWrite(stat os.FileInfo) bool {
 	return false
 }
 
-func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], error) {
-	internalPath := UCloudToInternalWithDrive(request.Drive, request.Path)
-	sortBy := request.SortBy
+func browse(request orc.FilesProviderBrowseRequest) (fnd.PageV2[orc.ProviderFile], *util.HttpError) {
+	internalPath := UCloudToInternalWithDrive(request.ResolvedCollection, request.Browse.Flags.Path.Value)
+	sortBy := request.Browse.SortBy.Value
 
 	fileList, ok := browseCache.Get(internalPath)
-	if !ok || request.Next == "" {
+	if !ok || request.Browse.Next.Value == "" {
 		// NOTE(Dan): Never perform caching on the initial page. This way, if a user refreshes a page they will always
 		// get up-to-date results. The caching is mostly meant to deal with extremely large folders (e.g. more than
 		// 1 million files). When dealing with large folders, the readdir syscall ends up taking a very significant
@@ -414,7 +415,7 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 		defer util.SilentClose(file)
 
 		if err != nil {
-			if len(util.Components(request.Path)) == 1 {
+			if len(util.Components(request.Browse.Flags.Path.Value)) == 1 {
 				go func() {
 					time.Sleep(1 * time.Second)
 					os.Exit(0)
@@ -474,7 +475,7 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 		}
 
 		slices.SortFunc(entries, cmpFunction)
-		if request.SortDirection == orc.SortDirectionDescending {
+		if request.Browse.SortDirection.Value == orc.SortDirectionDescending {
 			slices.Reverse(entries)
 		}
 
@@ -483,8 +484,8 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 	}
 
 	offset := 0
-	if request.Next != "" {
-		converted, err := strconv.ParseInt(request.Next, 10, 64)
+	if request.Browse.Next.Value != "" {
+		converted, err := strconv.ParseInt(request.Browse.Next.Value, 10, 64)
 		if err != nil {
 			offset = int(converted)
 		}
@@ -494,18 +495,18 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 		return fnd.EmptyPage[orc.ProviderFile](), nil
 	}
 
-	items := make([]orc.ProviderFile, min(request.ItemsPerPage, len(fileList)-offset))
-	shouldFilterByPermissions := request.Flags.FilterHiddenFiles && cfg.Services.Unmanaged && len(util.Components(request.Path)) == 1
+	items := make([]orc.ProviderFile, min(request.Browse.ItemsPerPage, len(fileList)-offset))
+	shouldFilterByPermissions := request.Browse.Flags.FilterHiddenFiles.Value && cfg.Services.Unmanaged && len(util.Components(request.Browse.Flags.Path.Value)) == 1
 
 	itemIdx := 0
 	i := offset
-	for i < len(fileList) && itemIdx < request.ItemsPerPage {
+	for i < len(fileList) && itemIdx < request.Browse.ItemsPerPage {
 		item := &items[itemIdx]
 		entry := &fileList[i]
 		i++
 
 		base := filepath.Base(entry.absPath)
-		if request.Flags.FilterHiddenFiles && strings.HasPrefix(base, ".") {
+		if request.Browse.Flags.FilterHiddenFiles.Value && strings.HasPrefix(base, ".") {
 			continue
 		}
 
@@ -527,7 +528,7 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 			itemIdx += 1
 		}
 
-		readMetadata(entry.absPath, entry.info, item, request.Drive)
+		readMetadata(entry.absPath, entry.info, item, request.ResolvedCollection)
 	}
 
 	nextToken := util.OptNone[string]()
@@ -542,9 +543,9 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 	}, nil
 }
 
-func retrieve(request ctrl.RetrieveFileRequest) (orc.ProviderFile, error) {
+func retrieve(request orc.FilesProviderRetrieveRequest) (orc.ProviderFile, *util.HttpError) {
 	var result orc.ProviderFile
-	internalPath := UCloudToInternalWithDrive(request.Drive, request.Path)
+	internalPath := UCloudToInternalWithDrive(request.ResolvedCollection, request.Retrieve.Id)
 	stat, err := os.Stat(internalPath)
 	if err != nil {
 		return result, &util.HttpError{
@@ -553,12 +554,12 @@ func retrieve(request ctrl.RetrieveFileRequest) (orc.ProviderFile, error) {
 		}
 	}
 
-	readMetadata(internalPath, stat, &result, request.Drive)
+	readMetadata(internalPath, stat, &result, request.ResolvedCollection)
 	return result, nil
 }
 
-func createFolder(request ctrl.CreateFolderRequest) error {
-	internalPath := UCloudToInternalWithDrive(request.Drive, request.Path)
+func createFolder(request orc.FilesProviderCreateFolderRequest) *util.HttpError {
+	internalPath := UCloudToInternalWithDrive(request.ResolvedCollection, request.Id)
 	err := os.MkdirAll(internalPath, 0770)
 	if err != nil {
 		return &util.HttpError{
@@ -570,11 +571,11 @@ func createFolder(request ctrl.CreateFolderRequest) error {
 	return nil
 }
 
-func doMoveFiles(ucloudSource, ucloudDest string, conflictPolicy orc.WriteConflictPolicy) error {
+func doMoveFiles(ucloudSource, ucloudDest string, conflictPolicy orc.WriteConflictPolicy) *util.HttpError {
 	sourcePath, ok1 := UCloudToInternal(ucloudSource)
 	destPath, ok2 := UCloudToInternal(ucloudDest)
 	if !ok1 || !ok2 {
-		return fmt.Errorf("Unable to resolve files needed for rename")
+		return util.ServerHttpError("Unable to resolve files needed for rename")
 	}
 
 	if conflictPolicy == orc.WriteConflictPolicyRename {
@@ -592,30 +593,30 @@ func doMoveFiles(ucloudSource, ucloudDest string, conflictPolicy orc.WriteConfli
 		parentStat, err := os.Stat(parentPath)
 		log.Info("path = %v stat=%v err=%v", parentPath, parentStat, err)
 		if err != nil {
-			return fmt.Errorf("Unable to move file. Could not find destination!")
+			return util.ServerHttpError("Unable to move file. Could not find destination!")
 		} else if !parentStat.IsDir() {
-			return fmt.Errorf("Unable to move file. Destination is not a directory!")
+			return util.ServerHttpError("Unable to move file. Destination is not a directory!")
 		}
 
 		_, err = os.Stat(destPath)
 		if err == nil {
-			return fmt.Errorf("Unable to move file. Destination already exists!")
+			return util.ServerHttpError("Unable to move file. Destination already exists!")
 		}
-		return fmt.Errorf("Unable to move file.")
+		return util.ServerHttpError("Unable to move file.")
 	}
 
 	return nil
 }
 
-func moveFiles(request ctrl.MoveFileRequest) error {
-	return doMoveFiles(request.OldPath, request.NewPath, request.Policy)
+func moveFiles(request orc.FilesProviderMoveOrCopyRequest) *util.HttpError {
+	return doMoveFiles(request.OldId, request.NewId, request.ConflictPolicy)
 }
 
-func emptyTrash(request ctrl.EmptyTrashRequest) error {
+func emptyTrash(request orc.FilesProviderTrashRequest) *util.HttpError {
 	task := TaskInfoSpecification{
 		Type:          FileTaskTypeEmptyTrash,
 		CreatedAt:     fnd.Timestamp(time.Now()),
-		UCloudSource:  util.OptValue(request.Path),
+		UCloudSource:  util.OptValue(request.Id),
 		HasUCloudTask: true,
 		Icon:          "trash",
 	}
@@ -643,9 +644,9 @@ func processEmptyTrash(task *TaskInfo) TaskProcessingResult {
 	return TaskProcessingResult{}
 }
 
-func moveToTrash(request ctrl.MoveToTrashRequest) error {
+func moveToTrash(request orc.FilesProviderTrashRequest) *util.HttpError {
 	if cfg.Services.Unmanaged {
-		parents := util.Parents(request.Path)
+		parents := util.Parents(request.Id)
 		root := ""
 		for i := 0; i < len(parents); i++ {
 			internalPath, ok := UCloudToInternal(parents[i])
@@ -663,43 +664,43 @@ func moveToTrash(request ctrl.MoveToTrashRequest) error {
 		}
 
 		if root == "" {
-			return fmt.Errorf("Could not resolve trash location")
+			return util.ServerHttpError("Could not resolve trash location")
 		}
 
 		expectedTrashLocation := filepath.Join(root, "Trash")
 		if stat, _ := os.Stat(expectedTrashLocation); stat == nil {
 			err := os.Mkdir(expectedTrashLocation, 0770)
 			if err != nil {
-				return fmt.Errorf("Could not create trash folder")
+				return util.ServerHttpError("Could not create trash folder")
 			}
 		}
 
-		newPath, ok := InternalToUCloud(fmt.Sprintf("%s/%s", expectedTrashLocation, util.FileName(request.Path)))
+		newPath, ok := InternalToUCloud(fmt.Sprintf("%s/%s", expectedTrashLocation, util.FileName(request.Id)))
 		if !ok {
-			return fmt.Errorf("Could not resolve source file")
+			return util.ServerHttpError("Could not resolve source file")
 		}
 
-		return doMoveFiles(request.Path, newPath, orc.WriteConflictPolicyRename)
+		return doMoveFiles(request.Id, newPath, orc.WriteConflictPolicyRename)
 	} else {
-		driveId, _ := DriveIdFromUCloudPath(request.Path)
+		driveId, _ := DriveIdFromUCloudPath(request.Id)
 		expectedTrashLocation, ok := UCloudToInternal(fmt.Sprintf("/%s/Trash", driveId))
 		if !ok {
-			return fmt.Errorf("Could not resolve drive location")
+			return util.ServerHttpError("Could not resolve drive location")
 		}
 
 		if stat, _ := os.Stat(expectedTrashLocation); stat == nil {
 			err := os.Mkdir(expectedTrashLocation, 0770)
 			if err != nil {
-				return fmt.Errorf("Could not create trash folder")
+				return util.ServerHttpError("Could not create trash folder")
 			}
 		}
 
-		newPath, ok := InternalToUCloud(fmt.Sprintf("%s/%s", expectedTrashLocation, util.FileName(request.Path)))
+		newPath, ok := InternalToUCloud(fmt.Sprintf("%s/%s", expectedTrashLocation, util.FileName(request.Id)))
 		if !ok {
-			return fmt.Errorf("Could not resolve source file")
+			return util.ServerHttpError("Could not resolve source file")
 		}
 
-		return doMoveFiles(request.Path, newPath, orc.WriteConflictPolicyRename)
+		return doMoveFiles(request.Id, newPath, orc.WriteConflictPolicyRename)
 	}
 }
 
@@ -839,7 +840,7 @@ func readMetadata(internalPath string, stat os.FileInfo, file *orc.ProviderFile,
 	file.Status.UnixMode = int(stat.Mode()) & 0777 // only keep permissions bits
 }
 
-func validateDownloadAndOpenFile(session ctrl.DownloadSession) (*os.File, os.FileInfo, error) {
+func validateDownloadAndOpenFile(session ctrl.DownloadSession) (*os.File, os.FileInfo, *util.HttpError) {
 	internalPath := UCloudToInternalWithDrive(session.Drive, session.Path)
 	file, err := os.Open(internalPath)
 	if err != nil {
@@ -868,7 +869,7 @@ func validateDownloadAndOpenFile(session ctrl.DownloadSession) (*os.File, os.Fil
 	return file, stat, nil
 }
 
-func createDownload(session ctrl.DownloadSession) error {
+func createDownload(session ctrl.DownloadSession) *util.HttpError {
 	file, _, err := validateDownloadAndOpenFile(session)
 	if err != nil {
 		return err
@@ -878,17 +879,17 @@ func createDownload(session ctrl.DownloadSession) error {
 	}
 }
 
-func createUpload(request ctrl.CreateUploadRequest) (string, error) {
+func createUpload(request orc.FilesProviderCreateUploadRequest) (string, *util.HttpError) {
 	// TODO(Dan): This can fail if we do not have permissions to write at this path
-	path := UCloudToInternalWithDrive(request.Drive, request.Path)
+	path := UCloudToInternalWithDrive(request.ResolvedCollection, request.Id)
 
-	if request.ConflictPolicy == orc.WriteConflictPolicyRename && request.Type != ctrl.UploadTypeFolder {
+	if request.ConflictPolicy == orc.WriteConflictPolicyRename && request.Type != orc.UploadTypeFolder {
 		path, _ = findAvailableNameOnRename(path)
 	}
 	return path, nil
 }
 
-func findAvailableNameOnRename(path string) (string, error) {
+func findAvailableNameOnRename(path string) (string, *util.HttpError) {
 	if found, _ := os.Stat(path); found == nil {
 		return path, nil
 	}
@@ -921,7 +922,7 @@ func findAvailableNameOnRename(path string) (string, error) {
 	}
 }
 
-func download(session ctrl.DownloadSession) (io.ReadSeekCloser, int64, error) {
+func download(session ctrl.DownloadSession) (io.ReadSeekCloser, int64, *util.HttpError) {
 	file, stat, err := validateDownloadAndOpenFile(session)
 	if err != nil {
 		return nil, 0, err
@@ -1095,7 +1096,7 @@ func (u *uploaderFileSystem) OnSessionClose(session upload.ServerSession, succes
 				if strings.Contains(task.MoreInfo.Value, session.Id) {
 					_ = PostTaskStatus(TaskStatusUpdate{
 						Id:       task.Id,
-						NewState: util.OptValue(orc.TaskStateSuccess),
+						NewState: util.OptValue(fnd.TaskStateSuccess),
 					})
 				}
 			}

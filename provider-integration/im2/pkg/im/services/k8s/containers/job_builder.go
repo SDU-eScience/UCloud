@@ -18,11 +18,11 @@ import (
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
-func StartScheduledJob(job *orc.Job, rank int, node string) error {
+func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	podName := idAndRankToPodName(job.Id, rank)
 
 	{
@@ -42,7 +42,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 		handler, ok := IApps[iappConfig.Value.AppName]
 		if !ok {
-			return fmt.Errorf("invalid iapp %s", iappConfig.Value.AppName)
+			return util.UserHttpError("invalid iapp %s", iappConfig.Value.AppName)
 		}
 
 		iappHandler.Set(handler)
@@ -53,19 +53,20 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		}
 	}
 
-	jobFolder, drive, err := FindJobFolder(job)
-	if err != nil {
-		return fmt.Errorf("failed to initialize job folder")
+	jobFolder, drive, herr := FindJobFolder(job)
+	if herr != nil {
+		return util.UserHttpError("failed to initialize job folder")
 	}
 
 	namespace := ServiceConfig.Compute.Namespace
 
-	application := &job.Status.ResolvedApplication.Invocation
-	tool := &job.Status.ResolvedApplication.Invocation.Tool.Tool
+	resolvedApplication := job.Status.ResolvedApplication.Value
+	application := &resolvedApplication.Invocation
+	tool := &resolvedApplication.Invocation.Tool.Tool.Value
 
 	// Sensitive project validation
 	// -----------------------------------------------------------------------------------------------------------------
-	if shared.IsSensitiveProject(job.Owner.Project) {
+	if shared.IsSensitiveProject(job.Owner.Project.Value) {
 		rejectionMessage := util.OptNone[string]()
 		for _, resc := range job.Specification.Resources {
 			if resc.Type == orc.AppParameterValueTypeIngress {
@@ -190,7 +191,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	// JobParameters.json
 	// -----------------------------------------------------------------------------------------------------------------
-	if rank == 0 && job.Status.JobParametersJson.SiteVersion != 0 {
+	if rank == 0 && job.Status.JobParametersJson.Value.SiteVersion != 0 {
 		jsonData, _ := json.Marshal(job.Status.JobParametersJson)
 		fd, ok := filesystem.OpenFile(filepath.Join(jobFolder, "JobParameters.json"), os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0660)
 		if ok {
@@ -209,7 +210,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		userContainer.Resources.Requests[name] = *quantity
 	}
 
-	product := job.Status.ResolvedProduct
+	product := job.Status.ResolvedProduct.Value
 	cpuMillis := shared.NodeCpuMillisReserved(&product)
 	memoryMegabytes := int64(product.MemoryInGigs * 1000)
 	gpus := int64(product.Gpu)
@@ -442,15 +443,15 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	pod.Annotations[rankLabel.First] = rankLabel.Second
 	pod.Labels[idLabel.First] = idLabel.Second
 	pod.Labels[rankLabel.First] = rankLabel.Second
-	if job.Owner.Project != "" {
-		pod.Labels["ucloud.dk/workspaceId"] = job.Owner.Project
+	if job.Owner.Project.Value != "" {
+		pod.Labels["ucloud.dk/workspaceId"] = job.Owner.Project.Value
 	}
 
 	if iappHandler.Present && iappHandler.Value.MutatePod != nil {
-		err = iappHandler.Value.MutatePod(job, iappConfig.Value.Configuration, pod)
-		if err != nil {
+		herr = iappHandler.Value.MutatePod(job, iappConfig.Value.Configuration, pod)
+		if herr != nil {
 			// Block errors on pod, but we do not immediately block on the rest.
-			return err
+			return herr
 		}
 	}
 
@@ -463,9 +464,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 	defer cancel()
 
-	pod, err = K8sClient.CoreV1().Pods(namespace).Create(ctx, pod, meta.CreateOptions{})
+	var k8sErr error
+	pod, k8sErr = K8sClient.CoreV1().Pods(namespace).Create(ctx, pod, meta.CreateOptions{})
+	herr = util.HttpErrorFromErr(k8sErr)
 	var ownerReference meta.OwnerReference
-	if err == nil {
+	if herr == nil {
 		ownerReference = meta.OwnerReference{
 			APIVersion: "v1",
 			Kind:       "Pod",
@@ -473,45 +476,45 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 			UID:        pod.UID,
 		}
 	}
-	if firewall != nil && err == nil {
+	if firewall != nil && herr == nil {
 		firewall.OwnerReferences = append(firewall.OwnerReferences, ownerReference)
 
 		if iappHandler.Present && iappHandler.Value.MutateNetworkPolicy != nil {
 			myError := iappHandler.Value.MutateNetworkPolicy(job, iappConfig.Value.Configuration, firewall, pod)
-			err = util.MergeError(err, myError)
+			herr = util.MergeHttpErr(herr, myError)
 		}
 
 		_, myError := K8sClient.NetworkingV1().NetworkPolicies(namespace).Create(ctx, firewall, meta.CreateOptions{})
-		err = util.MergeError(err, myError)
+		herr = util.MergeHttpErr(herr, util.HttpErrorFromErr(myError))
 	}
-	if service != nil && err == nil {
+	if service != nil && herr == nil {
 		service.OwnerReferences = append(service.OwnerReferences, ownerReference)
 
 		if iappHandler.Present && iappHandler.Value.MutateService != nil {
 			myError := iappHandler.Value.MutateService(job, iappConfig.Value.Configuration, service, pod)
-			err = util.MergeError(err, myError)
+			herr = util.MergeHttpErr(herr, util.HttpErrorFromErr(myError))
 		}
 
 		_, myError := K8sClient.CoreV1().Services(namespace).Create(ctx, service, meta.CreateOptions{})
-		err = util.MergeError(err, myError)
+		herr = util.MergeHttpErr(herr, util.HttpErrorFromErr(myError))
 	}
-	if sshService != nil && err == nil {
+	if sshService != nil && herr == nil {
 		sshService.OwnerReferences = append(sshService.OwnerReferences, ownerReference)
 
 		_, myError := K8sClient.CoreV1().Services(namespace).Create(ctx, sshService, meta.CreateOptions{})
-		err = util.MergeError(err, myError)
+		herr = util.MergeHttpErr(herr, util.HttpErrorFromErr(myError))
 	}
-	if ipService != nil && err == nil {
+	if ipService != nil && herr == nil {
 		ipService.OwnerReferences = append(ipService.OwnerReferences, ownerReference)
 
 		_, myError := K8sClient.CoreV1().Services(namespace).Create(ctx, ipService, meta.CreateOptions{})
-		err = util.MergeError(err, myError)
+		herr = util.MergeHttpErr(herr, util.HttpErrorFromErr(myError))
 	}
 
 	// NOTE(Dan): Cleanup in case of errors are centralized in the delete code. This is mostly to do with the fact that
 	//   we have multiple replicas.
 
-	if err == nil && rank == 0 {
+	if herr == nil && rank == 0 {
 		ucloudFolder, ok := filesystem.InternalToUCloudWithDrive(drive, jobFolder)
 		if ok {
 			_ = ctrl.TrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
@@ -525,7 +528,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		}
 	}
 
-	return err
+	return herr
 }
 
 func allowNetworkFrom(policy *networking.NetworkPolicy, jobId string) {

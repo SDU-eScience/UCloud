@@ -2,13 +2,14 @@ package containers
 
 import (
 	"fmt"
+	"strings"
+
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"strings"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 )
 
 func injectSshKeys(jobId string, pod *core.Pod, userContainer *core.Container) {
@@ -19,8 +20,10 @@ func injectSshKeys(jobId string, pod *core.Pod, userContainer *core.Container) {
 
 	port := shared.GetAssignedSshPort(job)
 	if port.Present {
-		keys, err := orc.BrowseSshKeys(job.Id) // TODO This is called once for every rank which is not needed
-		if err == nil && len(keys) > 0 {
+		// TODO This is called once for every rank which is not needed
+		keyPage, err := orc.JobsControlBrowseSshKeys.Invoke(orc.JobsControlBrowseSshKeysRequest{JobId: job.Id})
+		if err == nil && len(keyPage.Items) > 0 {
+			keys := keyPage.Items
 			pod.Spec.InitContainers = append(pod.Spec.InitContainers, core.Container{})
 			sshContainer := &pod.Spec.InitContainers[len(pod.Spec.InitContainers)-1]
 

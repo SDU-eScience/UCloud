@@ -15,7 +15,7 @@ import (
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/gateway"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	"ucloud.dk/shared/pkg/apm"
+	apm "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
@@ -231,8 +231,8 @@ func initInference() {
 func inferenceReportUsage(owner apm.WalletOwner, promptTokens int, completionTokens int) {
 	log.Info("Prompt: %v | Completion: %v", promptTokens, completionTokens)
 
-	_, _ = apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{
-		Items: []apm.UsageReportItem{
+	_, _ = apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{
+		Items: []apm.ReportUsageRequest{
 			{
 				Owner:         owner,
 				IsDeltaCharge: true,

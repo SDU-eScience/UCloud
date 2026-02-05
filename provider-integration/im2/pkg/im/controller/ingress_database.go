@@ -8,7 +8,7 @@ import (
 
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -83,7 +83,7 @@ func TrackLink(ingress orc.Ingress) {
 			db.Params{
 				"resource_id":      ingress.Id,
 				"created_by":       ingress.Owner.CreatedBy,
-				"project_id":       ingress.Owner.Project,
+				"project_id":       ingress.Owner.Project.Value,
 				"product_id":       ingress.Specification.Product.Id,
 				"product_category": ingress.Specification.Product.Category,
 				"resource":         string(jsonified),
@@ -92,7 +92,7 @@ func TrackLink(ingress orc.Ingress) {
 	})
 }
 
-func DeleteTrackedLink(target *orc.Ingress, dbFn func(tx *db.Transaction)) error {
+func DeleteTrackedLink(target *orc.Ingress, dbFn func(tx *db.Transaction)) *util.HttpError {
 	if len(target.Status.BoundTo) > 0 {
 		return util.UserHttpError("This link is currently in use by job: %v", strings.Join(target.Status.BoundTo, ", "))
 	}
@@ -144,7 +144,7 @@ func RetrieveUsedLinkCount(owner orc.ResourceOwner) int {
 		    `,
 			db.Params{
 				"created_by": owner.CreatedBy,
-				"project":    owner.Project,
+				"project":    owner.Project.Value,
 			},
 		)
 		return row.Count

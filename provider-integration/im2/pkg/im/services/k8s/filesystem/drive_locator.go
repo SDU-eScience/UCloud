@@ -5,9 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -175,7 +176,7 @@ func DriveToLocalPath(drive *orc.Drive) (string, bool, *orc.Drive) {
 	case DriveDescriptorTypeShare:
 		shareId := descriptor.PrimaryReference
 		share, ok := shareCache.Get(shareId, func() (orc.Share, error) {
-			return orc.RetrieveShare(shareId)
+			return orc.SharesControlRetrieve.Invoke(orc.SharesControlRetrieveRequest{Id: shareId})
 		})
 		if !ok {
 			return "/dev/null", false, drive
@@ -279,7 +280,7 @@ func AllowUCloudPathsTogetherWithProjects(paths []string, projects []string) boo
 		if ok {
 			drive, ok := ResolveDrive(driveId)
 			if ok {
-				projectIds[drive.Owner.Project] = util.Empty{}
+				projectIds[drive.Owner.Project.Value] = util.Empty{}
 				if DriveIsSensitive(drive) {
 					anySensitive = true
 				}
@@ -317,5 +318,5 @@ func DriveIsSensitive(drive *orc.Drive) bool {
 		return true
 	}
 
-	return shared.IsSensitiveProject(drive.Owner.Project)
+	return shared.IsSensitiveProject(drive.Owner.Project.Value)
 }

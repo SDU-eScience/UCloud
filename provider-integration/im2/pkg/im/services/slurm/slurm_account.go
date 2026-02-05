@@ -1,11 +1,11 @@
 package slurm
 
 import (
-	"ucloud.dk/shared/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	slurmcli "ucloud.dk/pkg/im/external/slurm"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	apm "ucloud.dk/shared/pkg/accounting"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 

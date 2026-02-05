@@ -2,8 +2,9 @@ package shared
 
 import (
 	"math"
+
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/shared/pkg/apm"
+	apm "ucloud.dk/shared/pkg/accounting"
 )
 
 var ServiceConfig *cfg.ServicesConfigurationKubernetes

@@ -1,19 +1,19 @@
 package slurm
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"path/filepath"
+
 	"ucloud.dk/pkg/im/external/user"
 
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/shared/pkg/apm"
+	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -22,7 +22,9 @@ var retrieveDriveByIdIpc = ipc.NewCall[fnd.FindByStringId, orc.Drive]("slurm.dri
 
 func driveIpcServer() {
 	retrieveDriveByIdIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[orc.Drive] {
-		drive, err := orc.RetrieveDrive(r.Payload.Id)
+		request := orc.DrivesControlRetrieveRequest{Id: r.Payload.Id}
+		request.IncludeOthers = true
+		drive, err := orc.DrivesControlRetrieve.Invoke(request)
 		if err != nil {
 			return ipc.Response[orc.Drive]{
 				StatusCode: http.StatusNotFound,
@@ -63,7 +65,7 @@ func driveIpcServer() {
 	})
 }
 
-func RegisterDriveInfo(info LocatedDrive) error {
+func RegisterDriveInfo(info LocatedDrive) *util.HttpError {
 	info.FilePath = filepath.Clean(info.FilePath)
 
 	ownerReference := ""
@@ -102,13 +104,9 @@ func RegisterDriveInfo(info LocatedDrive) error {
 		resource.Project = util.OptValue(info.Owner.ProjectId)
 	}
 
-	_, err := orc.RegisterDrive(resource)
-	if err != nil {
-		var httpErr *util.HttpError
-		hOk := errors.As(err, &httpErr)
-		if !hOk || httpErr.StatusCode != http.StatusConflict {
-			return err
-		}
+	_, err := orc.DrivesControlRegister.Invoke(fnd.BulkRequestOf(resource))
+	if err != nil && err.StatusCode != http.StatusConflict {
+		return err
 	}
 
 	return nil

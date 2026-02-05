@@ -6,7 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
 	ctrl "ucloud.dk/pkg/im/controller"
+	orc "ucloud.dk/shared/pkg/orc2"
+	"ucloud.dk/shared/pkg/util"
 )
 
 func InitializeSshKeys() ctrl.SshKeyService {
@@ -17,25 +20,25 @@ func InitializeSshKeys() ctrl.SshKeyService {
 
 const ucloudIntegrationMarker = "ucloud-integration"
 
-func onKeyUploaded(username string, keys []ctrl.SshKey) error {
+func onKeyUploaded(username string, keys []orc.SshKey) *util.HttpError {
 	if !ServiceConfig.Ssh.InstallKeys {
 		return nil
 	}
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("getting home directory: %v", err)
+		return util.UserHttpError("getting home directory: %v", err)
 	}
 
 	sshDir := filepath.Join(homeDir, ".ssh")
 	if err := os.MkdirAll(sshDir, 0700); err != nil {
-		return fmt.Errorf("creating SSH directory: %v", err)
+		return util.UserHttpError("creating SSH directory: %v", err)
 	}
 
 	authorizedKeysFile := filepath.Join(sshDir, "authorized_keys")
 	info, err := os.Stat(authorizedKeysFile)
 	if err == nil && info.IsDir() {
-		return fmt.Errorf("~/.ssh/authorized_keys is a directory, not a file")
+		return util.UserHttpError("~/.ssh/authorized_keys is a directory, not a file")
 	}
 
 	// Read existing authorized keys
@@ -49,7 +52,7 @@ func onKeyUploaded(username string, keys []ctrl.SshKey) error {
 			}
 		}
 	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("reading authorized_keys: %v", err)
+		return util.UserHttpError("reading authorized_keys: %v", err)
 	}
 
 	// Start building the new file. First skipping all UCloud marked keys and then adding in the new keys.
@@ -71,12 +74,12 @@ func onKeyUploaded(username string, keys []ctrl.SshKey) error {
 	tempFile := filepath.Join(sshDir, fmt.Sprintf("authorized_keys-%d.in-progress", time.Now().Unix()))
 
 	if err := os.WriteFile(tempFile, []byte(newFile), 0600); err != nil {
-		return fmt.Errorf("writing to temporary file: %v", err)
+		return util.UserHttpError("writing to temporary file: %v", err)
 	}
 
 	if err := os.Rename(tempFile, authorizedKeysFile); err != nil {
 		_ = os.Remove(tempFile) // Cleanup temporary file
-		return fmt.Errorf("replacing authorized_keys file: %v", err)
+		return util.UserHttpError("replacing authorized_keys file: %v", err)
 	}
 
 	return nil

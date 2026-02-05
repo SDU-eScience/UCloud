@@ -25,6 +25,13 @@ func (e *HttpError) AsError() error {
 	}
 }
 
+func HttpErrorFromErr(err error) *HttpError {
+	if err == nil {
+		return nil
+	}
+	return UserHttpError("%s", err.Error())
+}
+
 func UserHttpError(whyFormat string, args ...any) *HttpError {
 	message := ""
 	if len(args) == 0 {

@@ -1,25 +1,26 @@
 package filesystem
 
 import (
-	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"path/filepath"
 	"strings"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	"ucloud.dk/shared/pkg/apm"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	apm "ucloud.dk/shared/pkg/accounting"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
 // InitializeMemberFiles ensures that a drive exists which corresponds to the member files of the given workspace.
 // The returned path will be internal.
-func InitializeMemberFiles(username string, project util.Option[string]) (string, *orc.Drive, error) {
+func InitializeMemberFiles(username string, project util.Option[string]) (string, *orc.Drive, *util.HttpError) {
 	timer := util.NewTimer()
 	if strings.Contains(username, "..") || strings.Contains(username, "/") {
-		return "", nil, fmt.Errorf("unexpected username: %s", username)
+		return "", nil, util.ServerHttpError("unexpected username: %s", username)
 	}
 
 	descriptor := DriveDescriptor{}
@@ -27,7 +28,7 @@ func InitializeMemberFiles(username string, project util.Option[string]) (string
 	timer.Mark()
 	if project.Present {
 		if strings.Contains(project.Value, "..") || strings.Contains(project.Value, "/") {
-			return "", nil, fmt.Errorf("unexpected project: %s", project.Value)
+			return "", nil, util.ServerHttpError("unexpected project: %s", project.Value)
 		}
 
 		descriptor.Type = DriveDescriptorTypeMemberFiles
@@ -40,7 +41,7 @@ func InitializeMemberFiles(username string, project util.Option[string]) (string
 
 	providerId := descriptor.ToProviderId()
 	if !providerId.Present {
-		return "", nil, fmt.Errorf("unexpected error in ToProviderId()")
+		return "", nil, util.ServerHttpError("unexpected error in ToProviderId()")
 	}
 	metricInitMemberFiles.WithLabelValues("FindReference").Observe(timer.Mark().Seconds())
 
@@ -67,16 +68,19 @@ func InitializeMemberFiles(username string, project util.Option[string]) (string
 			ProviderGeneratedId: providerId,
 		}
 
-		driveId, err := orc.RegisterDrive(resource)
+		driveId, err := orc.DrivesControlRegister.Invoke(fnd.BulkRequestOf(resource))
 		if err != nil {
-			return "", nil, fmt.Errorf("failed to register drive: %s", err.Error())
+			return "", nil, util.ServerHttpError("failed to register drive: %s", err.Error())
 		}
 		metricInitMemberFiles.WithLabelValues("DriveRegistration").Observe(timer.Mark().Seconds())
 
 		timer.Mark()
-		drive, err := orc.RetrieveDrive(driveId)
+
+		retrieveRequest := orc.DrivesControlRetrieveRequest{Id: driveId.Responses[0].Id}
+		retrieveRequest.IncludeOthers = true
+		drive, err := orc.DrivesControlRetrieve.Invoke(retrieveRequest)
 		if err != nil {
-			return "", nil, fmt.Errorf("failed to register drive (retrieve): %s", err.Error())
+			return "", nil, util.ServerHttpError("failed to register drive (retrieve): %s", err.Error())
 		}
 		retrievedDrive = &drive
 		ctrl.TrackDrive(&drive)
@@ -85,13 +89,13 @@ func InitializeMemberFiles(username string, project util.Option[string]) (string
 	}
 
 	if retrievedDrive == nil {
-		return "", nil, fmt.Errorf("retrievedDrive should not be nil now")
+		return "", nil, util.ServerHttpError("retrievedDrive should not be nil now")
 	}
 
 	result, ok, _ := DriveToLocalPath(retrievedDrive)
 
 	if !ok {
-		return "", nil, fmt.Errorf("DriveToLocalPath should not fail here")
+		return "", nil, util.ServerHttpError("DriveToLocalPath should not fail here")
 	}
 
 	if needsInit {

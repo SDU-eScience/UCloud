@@ -12,6 +12,8 @@ import (
 	"unicode"
 
 	db "ucloud.dk/shared/pkg/database"
+	orcapi "ucloud.dk/shared/pkg/orc2"
+	"ucloud.dk/shared/pkg/rpc"
 
 	anyascii "github.com/anyascii/go"
 	"github.com/prometheus/client_golang/prometheus"
@@ -23,25 +25,24 @@ import (
 	"ucloud.dk/pkg/im/ipc"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 
 var Jobs JobsService
 
 type JobsService struct {
-	Submit                   func(request JobSubmitRequest) (util.Option[string], error)
-	Terminate                func(request JobTerminateRequest) error
-	Suspend                  func(request JobSuspendRequest) error
-	Unsuspend                func(request JobUnsuspendRequest) error
-	Extend                   func(request JobExtendRequest) error
-	RetrieveProducts         func() []orc.JobSupport
+	Submit                   func(request orcapi.Job) (util.Option[string], *util.HttpError)
+	Terminate                func(request JobTerminateRequest) *util.HttpError
+	Suspend                  func(request orcapi.Job) *util.HttpError
+	Unsuspend                func(request orcapi.Job) *util.HttpError
+	Extend                   func(request orcapi.JobsProviderExtendRequestItem) *util.HttpError
+	RetrieveProducts         func() []orcapi.JobSupport
 	Follow                   func(session *FollowJobSession)
 	HandleShell              func(session *ShellSession, cols, rows int)
-	ServerFindIngress        func(job *orc.Job, rank int, suffix util.Option[string]) ConfiguredWebIngress
-	OpenWebSession           func(job *orc.Job, rank int, target util.Option[string]) (ConfiguredWebSession, error)
-	RequestDynamicParameters func(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter
-	HandleBuiltInVnc         func(job *orc.Job, rank int, conn *ws.Conn)
+	ServerFindIngress        func(job *orcapi.Job, rank int, suffix util.Option[string]) ConfiguredWebIngress
+	OpenWebSession           func(job *orcapi.Job, rank int, target util.Option[string]) (ConfiguredWebSession, *util.HttpError)
+	RequestDynamicParameters func(owner orcapi.ResourceOwner, app *orcapi.Application) []orcapi.ApplicationParameter
+	HandleBuiltInVnc         func(job *orcapi.Job, rank int, conn *ws.Conn)
 
 	PublicIPs PublicIPService
 	Ingresses IngressService
@@ -49,21 +50,21 @@ type JobsService struct {
 }
 
 type PublicIPService struct {
-	Create           func(ip *orc.PublicIp) error
-	Delete           func(ip *orc.PublicIp) error
-	RetrieveProducts func() []orc.PublicIpSupport
+	Create           func(ip *orcapi.PublicIp) *util.HttpError
+	Delete           func(ip *orcapi.PublicIp) *util.HttpError
+	RetrieveProducts func() []orcapi.PublicIpSupport
 }
 
 type LicenseService struct {
-	Create           func(license *orc.License) error
-	Delete           func(license *orc.License) error
-	RetrieveProducts func() []orc.LicenseSupport
+	Create           func(license *orcapi.License) *util.HttpError
+	Delete           func(license *orcapi.License) *util.HttpError
+	RetrieveProducts func() []orcapi.LicenseSupport
 }
 
 type IngressService struct {
-	Create           func(ingress *orc.Ingress) error
-	Delete           func(ingress *orc.Ingress) error
-	RetrieveProducts func() []orc.IngressSupport
+	Create           func(ingress *orcapi.Ingress) *util.HttpError
+	Delete           func(ingress *orcapi.Ingress) *util.HttpError
+	RetrieveProducts func() []orcapi.IngressSupport
 }
 
 type ConfiguredWebSession struct {
@@ -79,14 +80,14 @@ type ConfiguredWebIngress struct {
 type FollowJobSession struct {
 	Id       string
 	Alive    *bool
-	Job      *orc.Job
+	Job      *orcapi.Job
 	EmitLogs func(rank int, stdout, stderr, channel util.Option[string])
 }
 
 type ShellSession struct {
 	Alive          bool
 	Folder         string
-	Job            *orc.Job
+	Job            *orcapi.Job
 	Rank           int
 	InputEvents    chan ShellEvent
 	EmitData       func(data []byte)
@@ -121,31 +122,31 @@ const (
 )
 
 type JobTerminateRequest struct {
-	Job       *orc.Job
+	Job       *orcapi.Job
 	IsCleanup bool
 }
 
 type JobSuspendRequest struct {
-	Job *orc.Job
+	Job *orcapi.Job
 }
 
 type JobUnsuspendRequest struct {
-	Job *orc.Job
+	Job *orcapi.Job
 }
 
 type JobSubmitRequest struct {
-	JobToSubmit *orc.Job
+	JobToSubmit *orcapi.Job
 }
 
 type JobExtendRequest struct {
-	Job           *orc.Job
-	RequestedTime orc.SimpleDuration
+	Job           *orcapi.Job
+	RequestedTime orcapi.SimpleDuration
 }
 
 type JobOpenInteractiveSessionRequest struct {
 	Rank int
-	Job  *orc.Job
-	Type orc.InteractiveSessionType
+	Job  *orcapi.Job
+	Type orcapi.InteractiveSessionType
 }
 
 var (
@@ -191,353 +192,283 @@ func controllerJobs(mux *http.ServeMux) {
 		Subprotocols: []string{"binary"},
 	}
 	wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
-	jobContext := fmt.Sprintf("/ucloud/%v/jobs/", cfg.Provider.Id)
-	publicIpContext := fmt.Sprintf("/ucloud/%v/networkips/", cfg.Provider.Id)
-	licenseContext := fmt.Sprintf("/ucloud/%v/licenses/", cfg.Provider.Id)
-	ingressContext := fmt.Sprintf("/ucloud/%v/ingresses/", cfg.Provider.Id)
 
 	if RunsUserCode() {
-		creationUrl, _ := strings.CutSuffix(jobContext, "/")
-		mux.HandleFunc(creationUrl, HttpUpdateHandler[fnd.BulkRequest[*orc.Job]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.Job]) {
-				var errors []error
-				var providerIds []*fnd.FindByStringId
+		orcapi.JobsProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Job]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
+			var errors []*util.HttpError
+			var providerIds []fnd.FindByStringId
 
-				for _, item := range request.Items {
-					if item.Specification.Application.Name == "unknown" {
-						errors = append(errors, util.HttpErr(http.StatusBadRequest, "Invalid application specified"))
-						continue
-					}
-
-					TrackNewJob(*item)
-
-					providerGeneratedId, err := Jobs.Submit(JobSubmitRequest{
-						JobToSubmit: item,
-					})
-
-					if providerGeneratedId.IsSet() && err == nil {
-						providerIds = append(providerIds, &fnd.FindByStringId{Id: providerGeneratedId.Get()})
-					} else {
-						providerIds = append(providerIds, nil)
-					}
-
-					if err != nil {
-						copied := *item
-						copied.Status.State = orc.JobStateFailure
-						TrackNewJob(copied)
-						errors = append(errors, err)
-					}
+			for _, item := range request.Items {
+				if item.Specification.Application.Name == "unknown" {
+					errors = append(errors, util.HttpErr(http.StatusBadRequest, "Invalid application specified"))
+					continue
 				}
 
-				if len(errors) == 1 && len(request.Items) == 1 {
-					sendError(w, errors[0])
+				TrackNewJob(item)
+
+				providerGeneratedId, err := Jobs.Submit(item)
+
+				if providerGeneratedId.IsSet() && err == nil {
+					providerIds = append(providerIds, fnd.FindByStringId{Id: providerGeneratedId.Get()})
 				} else {
-					metricJobsSubmitted.Inc()
-					var response fnd.BulkResponse[*fnd.FindByStringId]
-					response.Responses = providerIds
-					sendResponseOrError(w, response, nil)
+					providerIds = append(providerIds, fnd.FindByStringId{})
 				}
-			}),
-		)
 
-		type jobUpdateAclRequest struct {
-			Resource orc.Job                `json:"resource"`
-			Added    []orc.ResourceAclEntry `json:"added"`
-			Deleted  []orc.AclEntity        `json:"deleted"`
-		}
+				if err != nil {
+					copied := item
+					copied.Status.State = orcapi.JobStateFailure
+					TrackNewJob(copied)
+					errors = append(errors, err)
+				}
+			}
 
-		mux.HandleFunc(jobContext+"updateAcl", HttpUpdateHandler[fnd.BulkRequest[jobUpdateAclRequest]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[jobUpdateAclRequest]) {
-				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+			if len(errors) == 1 && len(request.Items) == 1 {
+				return fnd.BulkResponse[fnd.FindByStringId]{}, errors[0]
+			} else {
+				metricJobsSubmitted.Inc()
+				var response fnd.BulkResponse[fnd.FindByStringId]
+				response.Responses = providerIds
+				return response, nil
+			}
+		})
 
-				for _, item := range request.Items {
-					job := item.Resource
+		orcapi.JobsProviderUpdateAcl.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.UpdatedAclWithResource[orcapi.Job]]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			resp := fnd.BulkResponse[util.Empty]{}
 
-					for _, toDelete := range item.Deleted {
-						for i, entry := range job.Permissions.Others {
-							if entry.Entity == toDelete {
-								slices.Delete(job.Permissions.Others, i, i+1)
+			for _, item := range request.Items {
+				job := item.Resource
+
+				permissions := job.Permissions.Value
+				for _, toDelete := range item.Deleted {
+					for i, entry := range permissions.Others {
+						if entry.Entity == toDelete {
+							slices.Delete(permissions.Others, i, i+1)
+						}
+					}
+				}
+
+				for _, toAdd := range item.Added {
+					found := false
+
+					for i := 0; i < len(permissions.Others); i++ {
+						entry := &permissions.Others[i]
+						if entry.Entity == toAdd.Entity {
+							for _, perm := range toAdd.Permissions {
+								entry.Permissions = orcapi.PermissionsAdd(entry.Permissions, perm)
 							}
+							found = true
+							break
 						}
 					}
 
-					for _, toAdd := range item.Added {
-						found := false
-
-						for i := 0; i < len(job.Permissions.Others); i++ {
-							entry := &job.Permissions.Others[i]
-							if entry.Entity == toAdd.Entity {
-								for _, perm := range toAdd.Permissions {
-									entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
-								}
-								found = true
-								break
-							}
-						}
-
-						if !found {
-							job.Permissions.Others = append(job.Permissions.Others, orc.ResourceAclEntry{
-								Entity:      toAdd.Entity,
-								Permissions: toAdd.Permissions,
-							})
-						}
-					}
-
-					TrackNewJob(job)
-
-					resp.Responses = append(
-						resp.Responses,
-						util.Option[util.Empty]{
-							Present: true,
-						},
-					)
-				}
-
-				sendResponseOrError(w, resp, nil)
-			},
-		))
-
-		mux.HandleFunc(jobContext+"terminate", HttpUpdateHandler[fnd.BulkRequest[*orc.Job]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.Job]) {
-				var errors []error
-
-				for _, item := range request.Items {
-					err := Jobs.Terminate(JobTerminateRequest{
-						Job: item,
-					})
-
-					if err != nil {
-						errors = append(errors, err)
-					}
-				}
-
-				if len(errors) > 0 {
-					sendError(w, errors[0])
-				} else {
-					var response fnd.BulkResponse[util.Empty]
-					for i := 0; i < len(request.Items); i++ {
-						response.Responses = append(response.Responses, util.Empty{})
-					}
-
-					sendResponseOrError(w, response, nil)
-				}
-			}),
-		)
-
-		type terminateRequest = struct {
-			Job *orc.Job `json:"job"`
-		}
-		mux.HandleFunc(jobContext+"suspend", HttpUpdateHandler[fnd.BulkRequest[terminateRequest]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[terminateRequest]) {
-				var errors []error
-
-				for _, item := range request.Items {
-					err := Jobs.Suspend(JobSuspendRequest{
-						Job: item.Job,
-					})
-
-					if err != nil {
-						errors = append(errors, err)
-					}
-				}
-
-				if len(errors) > 0 {
-					sendError(w, errors[0])
-				} else {
-					var response fnd.BulkResponse[util.Empty]
-					for i := 0; i < len(request.Items); i++ {
-						response.Responses = append(response.Responses, util.Empty{})
-					}
-
-					sendResponseOrError(w, response, nil)
-				}
-			}),
-		)
-
-		mux.HandleFunc(jobContext+"unsuspend", HttpUpdateHandler[fnd.BulkRequest[terminateRequest]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[terminateRequest]) {
-				var errors []error
-
-				for _, item := range request.Items {
-					err := Jobs.Unsuspend(JobUnsuspendRequest{
-						Job: item.Job,
-					})
-
-					if err != nil {
-						errors = append(errors, err)
-					}
-				}
-
-				if len(errors) > 0 {
-					sendError(w, errors[0])
-				} else {
-					var response fnd.BulkResponse[util.Empty]
-					for i := 0; i < len(request.Items); i++ {
-						response.Responses = append(response.Responses, util.Empty{})
-					}
-
-					sendResponseOrError(w, response, nil)
-				}
-			}),
-		)
-
-		type extendRequest struct {
-			Job           *orc.Job           `json:"job"`
-			RequestedTime orc.SimpleDuration `json:"requestedTime"`
-		}
-
-		mux.HandleFunc(jobContext+"extend", HttpUpdateHandler[fnd.BulkRequest[extendRequest]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[extendRequest]) {
-				var errors []error
-
-				for _, item := range request.Items {
-					err := Jobs.Extend(JobExtendRequest{
-						Job:           item.Job,
-						RequestedTime: item.RequestedTime,
-					})
-
-					if err != nil {
-						errors = append(errors, err)
-					}
-				}
-
-				if len(errors) > 0 {
-					sendError(w, errors[0])
-				} else {
-					var response fnd.BulkResponse[util.Empty]
-					for i := 0; i < len(request.Items); i++ {
-						response.Responses = append(response.Responses, util.Empty{})
-					}
-
-					sendResponseOrError(w, response, nil)
-				}
-			}),
-		)
-
-		type openInteractiveSessionRequest struct {
-			Job         *orc.Job                   `json:"job"`
-			Rank        int                        `json:"rank"`
-			SessionType orc.InteractiveSessionType `json:"sessionType"`
-			Target      util.Option[string]        `json:"target"`
-		}
-
-		mux.HandleFunc(jobContext+"interactiveSession", HttpUpdateHandler[fnd.BulkRequest[openInteractiveSessionRequest]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[openInteractiveSessionRequest]) {
-				var errors []error
-				var responses []orc.OpenSession
-
-				for _, item := range request.Items {
-					switch item.SessionType {
-					case orc.InteractiveSessionTypeShell:
-						cleanupShellSessions()
-
-						shellSessionsMutex.Lock()
-						tok := util.RandomToken(32)
-						shellSessions[tok] = &ShellSession{Alive: true, Job: item.Job, Rank: item.Rank, UCloudUsername: GetUCloudUsername(r)}
-						shellSessionsMutex.Unlock()
-						responses = append(
-							responses,
-							orc.OpenSessionShell(item.Job.Id, item.Rank, tok, cfg.Provider.Hosts.SelfPublic.ToWebSocketUrl()),
-						)
-
-					case orc.InteractiveSessionTypeVnc:
-						fallthrough
-					case orc.InteractiveSessionTypeWeb:
-						isVnc := item.SessionType == orc.InteractiveSessionTypeVnc
-						var flags RegisteredIngressFlags
-
-						target, err := Jobs.OpenWebSession(item.Job, item.Rank, item.Target)
-						if err != nil {
-							errors = append(errors, err)
-						} else {
-							flags = target.Flags
-							if flags == 0 {
-								if isVnc {
-									flags |= RegisteredIngressFlagsVnc
-								} else {
-									flags |= RegisteredIngressFlagsWeb
-								}
-							}
-
-							redirect, err := RegisterIngress(item.Job, item.Rank, target.Host, item.Target, flags)
-							if err != nil {
-								errors = append(errors, err)
-							} else {
-								if isVnc {
-									password := item.Job.Status.ResolvedApplication.Invocation.Vnc.Password
-
-									responses = append(
-										responses,
-										orc.OpenSessionVnc(item.Job.Id, item.Rank, redirect, password, ""),
-									)
-								} else {
-									responses = append(
-										responses,
-										orc.OpenSessionWeb(item.Job.Id, item.Rank, redirect, ""),
-									)
-								}
-							}
-						}
-
-					default:
-						errors = append(errors, &util.HttpError{
-							StatusCode: http.StatusBadRequest,
-							Why:        "Not implemented",
+					if !found {
+						permissions.Others = append(permissions.Others, orcapi.ResourceAclEntry{
+							Entity:      toAdd.Entity,
+							Permissions: toAdd.Permissions,
 						})
 					}
 				}
 
-				if len(errors) > 0 {
-					sendError(w, errors[0])
-				} else {
-					var response fnd.BulkResponse[orc.OpenSession]
-					response.Responses = responses
+				TrackNewJob(job)
 
-					sendResponseOrError(w, response, nil)
+				resp.Responses = append(resp.Responses, util.Empty{})
+			}
+
+			return resp, nil
+		})
+
+		orcapi.JobsProviderTerminate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Job]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			var errors []*util.HttpError
+
+			for _, item := range request.Items {
+				err := Jobs.Terminate(JobTerminateRequest{Job: &item})
+
+				if err != nil {
+					errors = append(errors, err)
 				}
-			}),
-		)
+			}
 
-		type openTerminalInFolder struct {
-			Folder string `json:"folder"`
-		}
+			if len(errors) > 0 {
+				return fnd.BulkResponse[util.Empty]{}, errors[0]
+			} else {
+				var response fnd.BulkResponse[util.Empty]
+				for i := 0; i < len(request.Items); i++ {
+					response.Responses = append(response.Responses, util.Empty{})
+				}
 
-		mux.HandleFunc(jobContext+"openTerminalInFolder", HttpUpdateHandler[fnd.BulkRequest[openTerminalInFolder]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[openTerminalInFolder]) {
-				var errors []error
-				var responses []orc.OpenSession
+				return response, nil
+			}
+		})
 
-				for _, item := range request.Items {
+		orcapi.JobsProviderSuspend.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.JobsProviderSuspendRequestItem]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			var errors []*util.HttpError
+
+			for _, item := range request.Items {
+				err := Jobs.Suspend(item.Job)
+
+				if err != nil {
+					errors = append(errors, err)
+				}
+			}
+
+			if len(errors) > 0 {
+				return fnd.BulkResponse[util.Empty]{}, errors[0]
+			} else {
+				var response fnd.BulkResponse[util.Empty]
+				for i := 0; i < len(request.Items); i++ {
+					response.Responses = append(response.Responses, util.Empty{})
+				}
+
+				return response, nil
+			}
+		})
+
+		orcapi.JobsProviderUnsuspend.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.JobsProviderUnsuspendRequestItem]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			var errors []*util.HttpError
+
+			for _, item := range request.Items {
+				err := Jobs.Unsuspend(item.Job)
+
+				if err != nil {
+					errors = append(errors, err)
+				}
+			}
+
+			if len(errors) > 0 {
+				return fnd.BulkResponse[util.Empty]{}, errors[0]
+			} else {
+				var response fnd.BulkResponse[util.Empty]
+				for i := 0; i < len(request.Items); i++ {
+					response.Responses = append(response.Responses, util.Empty{})
+				}
+
+				return response, nil
+			}
+		})
+
+		orcapi.JobsProviderExtend.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.JobsProviderExtendRequestItem]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			var errors []*util.HttpError
+
+			for _, item := range request.Items {
+				err := Jobs.Extend(item)
+
+				if err != nil {
+					errors = append(errors, err)
+				}
+			}
+
+			if len(errors) > 0 {
+				return fnd.BulkResponse[util.Empty]{}, errors[0]
+			} else {
+				var response fnd.BulkResponse[util.Empty]
+				for i := 0; i < len(request.Items); i++ {
+					response.Responses = append(response.Responses, util.Empty{})
+				}
+
+				return response, nil
+			}
+		})
+
+		orcapi.JobsProviderOpenInteractiveSession.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.JobsProviderOpenInteractiveSessionRequestItem]) (fnd.BulkResponse[orcapi.OpenSession], *util.HttpError) {
+			var errors []*util.HttpError
+			var responses []orcapi.OpenSession
+
+			for _, item := range request.Items {
+				switch item.SessionType {
+				case orcapi.InteractiveSessionTypeShell:
 					cleanupShellSessions()
 
 					shellSessionsMutex.Lock()
 					tok := util.RandomToken(32)
-					shellSessions[tok] = &ShellSession{Alive: true, Folder: item.Folder, UCloudUsername: GetUCloudUsername(r)}
+					shellSessions[tok] = &ShellSession{Alive: true, Job: &item.Job, Rank: item.Rank, UCloudUsername: info.Actor.Username}
 					shellSessionsMutex.Unlock()
 					responses = append(
 						responses,
-						orc.OpenSessionShell(item.Folder, 0, tok, cfg.Provider.Hosts.SelfPublic.ToWebSocketUrl()),
+						orcapi.OpenSessionShell(item.Job.Id, item.Rank, tok, cfg.Provider.Hosts.SelfPublic.ToWebSocketUrl()),
 					)
-				}
 
-				if len(errors) > 0 {
-					sendError(w, errors[0])
-				} else {
-					var response fnd.BulkResponse[orc.OpenSession]
-					response.Responses = responses
+				case orcapi.InteractiveSessionTypeVnc:
+					fallthrough
+				case orcapi.InteractiveSessionTypeWeb:
+					isVnc := item.SessionType == orcapi.InteractiveSessionTypeVnc
+					var flags RegisteredIngressFlags
 
-					sendResponseOrError(w, response, nil)
+					target, err := Jobs.OpenWebSession(&item.Job, item.Rank, item.Target)
+					if err != nil {
+						errors = append(errors, err)
+					} else {
+						flags = target.Flags
+						if flags == 0 {
+							if isVnc {
+								flags |= RegisteredIngressFlagsVnc
+							} else {
+								flags |= RegisteredIngressFlagsWeb
+							}
+						}
+
+						redirect, err := RegisterIngress(&item.Job, item.Rank, target.Host, item.Target, flags)
+						if err != nil {
+							errors = append(errors, err)
+						} else {
+							if isVnc {
+								password := item.Job.Status.ResolvedApplication.Value.Invocation.Vnc.Value.Password
+
+								responses = append(
+									responses,
+									orcapi.OpenSessionVnc(item.Job.Id, item.Rank, redirect, password, ""),
+								)
+							} else {
+								responses = append(
+									responses,
+									orcapi.OpenSessionWeb(item.Job.Id, item.Rank, redirect, ""),
+								)
+							}
+						}
+					}
+
+				default:
+					errors = append(errors, &util.HttpError{
+						StatusCode: http.StatusBadRequest,
+						Why:        "Not implemented",
+					})
 				}
-			}),
-		)
+			}
+
+			if len(errors) > 0 {
+				return fnd.BulkResponse[orcapi.OpenSession]{}, errors[0]
+			} else {
+				var response fnd.BulkResponse[orcapi.OpenSession]
+				response.Responses = responses
+
+				return response, nil
+			}
+		})
+
+		orcapi.JobsProviderOpenTerminalInFolder.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.JobsOpenTerminalInFolderRequestItem]) (fnd.BulkResponse[orcapi.OpenSession], *util.HttpError) {
+			var errors []*util.HttpError
+			var responses []orcapi.OpenSession
+
+			for _, item := range request.Items {
+				cleanupShellSessions()
+
+				shellSessionsMutex.Lock()
+				tok := util.RandomToken(32)
+				shellSessions[tok] = &ShellSession{Alive: true, Folder: item.Folder, UCloudUsername: info.Actor.Username}
+				shellSessionsMutex.Unlock()
+				responses = append(
+					responses,
+					orcapi.OpenSessionShell(item.Folder, 0, tok, cfg.Provider.Hosts.SelfPublic.ToWebSocketUrl()),
+				)
+			}
+
+			if len(errors) > 0 {
+				return fnd.BulkResponse[orcapi.OpenSession]{}, errors[0]
+			} else {
+				var response fnd.BulkResponse[orcapi.OpenSession]
+				response.Responses = responses
+				return response, nil
+			}
+		})
 
 		type shellRequest struct {
 			Type              string `json:"type"`
@@ -546,7 +477,7 @@ func controllerJobs(mux *http.ServeMux) {
 			Rows              int    `json:"rows,omitempty"`
 			Data              string `json:"data,omitempty"`
 		}
-		mux.HandleFunc(
+		rpc.DefaultServer.Mux.HandleFunc(
 			fmt.Sprintf("/ucloud/%v/websocket", cfg.Provider.Id),
 			func(writer http.ResponseWriter, request *http.Request) {
 				if ok := checkEnvoySecret(writer, request); !ok {
@@ -694,7 +625,7 @@ func controllerJobs(mux *http.ServeMux) {
 		)
 
 		followCall := fmt.Sprintf("jobs.provider.%v.follow", cfg.Provider.Id)
-		mux.HandleFunc(
+		rpc.DefaultServer.Mux.HandleFunc(
 			fmt.Sprintf("/ucloud/jobs.provider.%v/websocket", cfg.Provider.Id),
 			func(writer http.ResponseWriter, request *http.Request) {
 				conn, err := HttpUpgradeToWebSocketAuthenticated(writer, request)
@@ -802,453 +733,346 @@ func controllerJobs(mux *http.ServeMux) {
 			},
 		)
 
-		type dynamicParametersRequest struct {
-			Owner       orc.ResourceOwner `json:"owner"`
-			Application *orc.Application  `json:"application"`
-		}
-		type dynamicParametersResponse struct {
-			Parameters []orc.ApplicationParameter `json:"parameters"`
-		}
-		mux.HandleFunc(
-			jobContext+"requestDynamicParameters",
-			HttpUpdateHandler[dynamicParametersRequest](0, func(w http.ResponseWriter, r *http.Request, request dynamicParametersRequest) {
-				fn := Jobs.RequestDynamicParameters
+		orcapi.JobsProviderRequestDynamicParameters.Handler(func(info rpc.RequestInfo, request orcapi.JobsProviderRequestDynamicParametersRequest) (orcapi.JobsProviderRequestDynamicParametersResponse, *util.HttpError) {
+			fn := Jobs.RequestDynamicParameters
 
-				var resp []orc.ApplicationParameter
-				if fn != nil {
-					resp = fn(request.Owner, request.Application)
-				}
+			var resp []orcapi.ApplicationParameter
+			if fn != nil {
+				resp = fn(request.Owner, &request.Application)
+			}
 
-				if resp == nil {
-					resp = []orc.ApplicationParameter{}
-				}
+			if resp == nil {
+				resp = []orcapi.ApplicationParameter{}
+			}
 
-				sendResponseOrError(w, dynamicParametersResponse{Parameters: resp}, nil)
-			}),
-		)
+			return orcapi.JobsProviderRequestDynamicParametersResponse{Parameters: resp}, nil
+		})
 
-		publicIpCreation, _ := strings.CutSuffix(publicIpContext, "/")
-		publicIpCreateHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.PublicIp]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.PublicIp]) {
-				var errors []error
-				var providerIds []*fnd.FindByStringId
+		orcapi.PublicIpsProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.PublicIp]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
+			var errors []*util.HttpError
+			var providerIds []fnd.FindByStringId
 
-				for _, item := range request.Items {
-					TrackNewPublicIp(*item)
-					providerIds = append(providerIds, nil)
+			for _, item := range request.Items {
+				TrackNewPublicIp(item)
+				providerIds = append(providerIds, fnd.FindByStringId{})
 
-					fn := Jobs.PublicIPs.Create
-					if fn == nil {
-						errors = append(errors, util.HttpErr(http.StatusBadRequest, "IP creation not supported"))
-					} else {
-						err := fn(item)
-						if err != nil {
-							errors = append(errors, err)
-						}
+				fn := Jobs.PublicIPs.Create
+				if fn == nil {
+					errors = append(errors, util.HttpErr(http.StatusBadRequest, "IP creation not supported"))
+				} else {
+					err := fn(&item)
+					if err != nil {
+						errors = append(errors, err)
 					}
 				}
+			}
 
-				if len(errors) == 1 && len(request.Items) == 1 {
-					sendError(w, errors[0])
-				} else {
-					var response fnd.BulkResponse[*fnd.FindByStringId]
-					response.Responses = providerIds
-					sendResponseOrError(w, response, nil)
-				}
-			},
-		)
-
-		publicIpDeleteHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.PublicIp]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.PublicIp]) {
-				var errors []error
-				var resp []util.Option[util.Empty]
-
-				for _, item := range request.Items {
-					fn := Jobs.PublicIPs.Delete
-					if fn == nil {
-						errors = append(errors, util.HttpErr(http.StatusBadRequest, "IP deletion not supported"))
-						resp = append(resp, util.Option[util.Empty]{Present: false})
-					} else {
-						err := fn(item)
-						if err != nil {
-							errors = append(errors, err)
-							resp = append(resp, util.Option[util.Empty]{Present: false})
-						} else {
-							resp = append(resp, util.Option[util.Empty]{Present: true})
-						}
-					}
-				}
-
-				if len(errors) == 1 && len(request.Items) == 1 {
-					sendError(w, errors[0])
-				} else {
-					var response fnd.BulkResponse[util.Option[util.Empty]]
-					response.Responses = resp
-					sendResponseOrError(w, response, nil)
-				}
-			},
-		)
-		mux.HandleFunc(publicIpCreation, func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == http.MethodPost {
-				publicIpCreateHandler(w, r)
-			} else if r.Method == http.MethodDelete {
-				publicIpDeleteHandler(w, r)
+			if len(errors) == 1 && len(request.Items) == 1 {
+				return fnd.BulkResponse[fnd.FindByStringId]{}, errors[0]
 			} else {
-				sendResponseOrError(w, nil, util.HttpErr(http.StatusNotFound, "Not found"))
+				var response fnd.BulkResponse[fnd.FindByStringId]
+				response.Responses = providerIds
+				return response, nil
 			}
 		})
 
-		mux.HandleFunc(publicIpContext+"firewall", HttpUpdateHandler[fnd.BulkRequest[orc.FirewallAndIp]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[orc.FirewallAndIp]) {
-				var errors []error
-				var resp []util.Option[util.Empty]
+		orcapi.PublicIpsProviderDelete.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.PublicIp]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			var errors []*util.HttpError
+			var resp []util.Empty
 
-				for _, item := range request.Items {
-					copied := item.Ip
-					copied.Specification.Firewall = util.OptValue(item.Firewall)
-					TrackNewPublicIp(copied)
-					resp = append(resp, util.OptValue(util.EmptyValue))
-				}
-
-				if len(errors) == 1 && len(request.Items) == 1 {
-					sendError(w, errors[0])
+			for _, item := range request.Items {
+				fn := Jobs.PublicIPs.Delete
+				if fn == nil {
+					errors = append(errors, util.HttpErr(http.StatusBadRequest, "IP deletion not supported"))
+					resp = append(resp, util.Empty{})
 				} else {
-					var response fnd.BulkResponse[util.Option[util.Empty]]
-					response.Responses = resp
-					sendResponseOrError(w, response, nil)
-				}
-			},
-		))
-
-		type publicIpUpdateAclRequest struct {
-			Resource orc.PublicIp           `json:"resource"`
-			Added    []orc.ResourceAclEntry `json:"added"`
-			Deleted  []orc.AclEntity        `json:"deleted"`
-		}
-
-		mux.HandleFunc(publicIpContext+"updateAcl", HttpUpdateHandler[fnd.BulkRequest[publicIpUpdateAclRequest]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[publicIpUpdateAclRequest]) {
-				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
-
-				for _, item := range request.Items {
-					publicIp := item.Resource
-
-					for _, toDelete := range item.Deleted {
-						for i, entry := range publicIp.Permissions.Others {
-							if entry.Entity == toDelete {
-								slices.Delete(publicIp.Permissions.Others, i, i+1)
-							}
-						}
-					}
-
-					for _, toAdd := range item.Added {
-						found := false
-
-						for i := 0; i < len(publicIp.Permissions.Others); i++ {
-							entry := &publicIp.Permissions.Others[i]
-							if entry.Entity == toAdd.Entity {
-								for _, perm := range toAdd.Permissions {
-									entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
-								}
-								found = true
-								break
-							}
-						}
-
-						if !found {
-							publicIp.Permissions.Others = append(publicIp.Permissions.Others, orc.ResourceAclEntry{
-								Entity:      toAdd.Entity,
-								Permissions: toAdd.Permissions,
-							})
-						}
-					}
-
-					TrackNewPublicIp(publicIp)
-
-					resp.Responses = append(
-						resp.Responses,
-						util.Option[util.Empty]{
-							Present: true,
-						},
-					)
-				}
-
-				sendResponseOrError(w, resp, nil)
-			},
-		))
-
-		ingressCreation, _ := strings.CutSuffix(ingressContext, "/")
-		ingressCreateHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.Ingress]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.Ingress]) {
-				var errors []error
-				var providerIds []*fnd.FindByStringId
-
-				for _, item := range request.Items {
-					TrackLink(*item)
-					providerIds = append(providerIds, nil)
-
-					fn := Jobs.Ingresses.Create
-					if fn == nil {
-						errors = append(errors, util.HttpErr(http.StatusBadRequest, "Public link creation not supported"))
+					err := fn(&item)
+					if err != nil {
+						errors = append(errors, err)
+						resp = append(resp, util.Empty{})
 					} else {
-						err := fn(item)
-						if err != nil {
-							errors = append(errors, err)
-						}
+						resp = append(resp, util.Empty{})
 					}
 				}
+			}
 
-				if len(errors) == 1 && len(request.Items) == 1 {
-					sendError(w, errors[0])
-				} else {
-					var response fnd.BulkResponse[*fnd.FindByStringId]
-					response.Responses = providerIds
-					sendResponseOrError(w, response, nil)
-				}
-			},
-		)
-
-		ingressDeleteHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.Ingress]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.Ingress]) {
-				var errors []error
-				var resp []util.Option[util.Empty]
-
-				for _, item := range request.Items {
-					fn := Jobs.Ingresses.Delete
-					if fn == nil {
-						errors = append(errors, util.HttpErr(http.StatusBadRequest, "Public link deletion not supported"))
-						resp = append(resp, util.Option[util.Empty]{Present: false})
-					} else {
-						err := fn(item)
-						if err != nil {
-							errors = append(errors, err)
-							resp = append(resp, util.Option[util.Empty]{Present: false})
-						} else {
-							resp = append(resp, util.Option[util.Empty]{Present: true})
-						}
-					}
-				}
-
-				if len(errors) == 1 && len(request.Items) == 1 {
-					sendError(w, errors[0])
-				} else {
-					var response fnd.BulkResponse[util.Option[util.Empty]]
-					response.Responses = resp
-					sendResponseOrError(w, response, nil)
-				}
-			},
-		)
-
-		mux.HandleFunc(ingressCreation, func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == http.MethodPost {
-				ingressCreateHandler(w, r)
-			} else if r.Method == http.MethodDelete {
-				ingressDeleteHandler(w, r)
+			if len(errors) == 1 && len(request.Items) == 1 {
+				return fnd.BulkResponse[util.Empty]{}, errors[0]
 			} else {
-				sendResponseOrError(w, nil, util.HttpErr(http.StatusNotFound, "Not found"))
+				var response fnd.BulkResponse[util.Empty]
+				response.Responses = resp
+				return response, nil
 			}
 		})
 
-		type ingressUpdateAclRequest struct {
-			Resource orc.Ingress            `json:"resource"`
-			Added    []orc.ResourceAclEntry `json:"added"`
-			Deleted  []orc.AclEntity        `json:"deleted"`
-		}
+		orcapi.PublicIpsProviderUpdateFirewall.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.PublicIpProviderUpdateFirewallRequest]) (util.Empty, *util.HttpError) {
+			var errors []*util.HttpError
 
-		mux.HandleFunc(ingressContext+"updateAcl", HttpUpdateHandler[fnd.BulkRequest[ingressUpdateAclRequest]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[ingressUpdateAclRequest]) {
-				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+			for _, item := range request.Items {
+				copied := item.PublicIp
+				copied.Specification.Firewall = util.OptValue(item.Firewall)
+				TrackNewPublicIp(copied)
+			}
 
-				for _, item := range request.Items {
-					ingress := item.Resource
-
-					for _, toDelete := range item.Deleted {
-						for i, entry := range ingress.Permissions.Others {
-							if entry.Entity == toDelete {
-								slices.Delete(ingress.Permissions.Others, i, i+1)
-							}
-						}
-					}
-
-					for _, toAdd := range item.Added {
-						found := false
-
-						for i := 0; i < len(ingress.Permissions.Others); i++ {
-							entry := &ingress.Permissions.Others[i]
-							if entry.Entity == toAdd.Entity {
-								for _, perm := range toAdd.Permissions {
-									entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
-								}
-								found = true
-								break
-							}
-						}
-
-						if !found {
-							ingress.Permissions.Others = append(ingress.Permissions.Others, orc.ResourceAclEntry{
-								Entity:      toAdd.Entity,
-								Permissions: toAdd.Permissions,
-							})
-						}
-					}
-
-					TrackLink(ingress)
-
-					resp.Responses = append(
-						resp.Responses,
-						util.Option[util.Empty]{
-							Present: true,
-						},
-					)
-				}
-
-				sendResponseOrError(w, resp, nil)
-			},
-		))
-
-		licenseActivation, _ := strings.CutSuffix(licenseContext, "/")
-		licenseActivateHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.License]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.License]) {
-				var errors []error
-				var providerIds []*fnd.FindByStringId
-
-				for _, item := range request.Items {
-					TrackLicense(*item)
-					providerIds = append(providerIds, nil)
-
-					fn := Jobs.Licenses.Create
-					if fn == nil {
-						errors = append(errors, util.HttpErr(http.StatusBadRequest, "License activation not supported"))
-					} else {
-						err := fn(item)
-						if err != nil {
-							errors = append(errors, err)
-						}
-					}
-				}
-
-				if len(errors) == 1 && len(request.Items) == 1 {
-					sendError(w, errors[0])
-				} else {
-					var response fnd.BulkResponse[*fnd.FindByStringId]
-					response.Responses = providerIds
-					sendResponseOrError(w, response, nil)
-				}
-			},
-		)
-
-		licenseDeleteHandler := HttpUpdateHandler[fnd.BulkRequest[*orc.License]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.License]) {
-				var errors []error
-				var resp []util.Option[util.Empty]
-
-				for _, item := range request.Items {
-					fn := Jobs.Licenses.Delete
-					if fn == nil {
-						errors = append(errors, util.HttpErr(http.StatusBadRequest, "License deletion not supported"))
-						resp = append(resp, util.Option[util.Empty]{Present: false})
-					} else {
-						err := fn(item)
-						if err != nil {
-							errors = append(errors, err)
-							resp = append(resp, util.Option[util.Empty]{Present: false})
-						} else {
-							resp = append(resp, util.Option[util.Empty]{Present: true})
-						}
-					}
-				}
-
-				if len(errors) == 1 && len(request.Items) == 1 {
-					sendError(w, errors[0])
-				} else {
-					var response fnd.BulkResponse[util.Option[util.Empty]]
-					response.Responses = resp
-					sendResponseOrError(w, response, nil)
-				}
-			},
-		)
-
-		mux.HandleFunc(licenseActivation, func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == http.MethodPost {
-				licenseActivateHandler(w, r)
-			} else if r.Method == http.MethodDelete {
-				licenseDeleteHandler(w, r)
+			if len(errors) == 1 && len(request.Items) == 1 {
+				return util.Empty{}, errors[0]
 			} else {
-				sendResponseOrError(w, nil, util.HttpErr(http.StatusNotFound, "Not found"))
+				return util.Empty{}, nil
 			}
 		})
 
-		type licenseUpdateAclRequest struct {
-			Resource orc.License            `json:"resource"`
-			Added    []orc.ResourceAclEntry `json:"added"`
-			Deleted  []orc.AclEntity        `json:"deleted"`
-		}
+		orcapi.PublicIpsProviderUpdateAcl.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.UpdatedAclWithResource[orcapi.PublicIp]]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			resp := fnd.BulkResponse[util.Empty]{}
 
-		mux.HandleFunc(licenseContext+"updateAcl", HttpUpdateHandler[fnd.BulkRequest[licenseUpdateAclRequest]](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[licenseUpdateAclRequest]) {
-				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+			for _, item := range request.Items {
+				publicIp := item.Resource
 
-				for _, item := range request.Items {
-					license := item.Resource
-
-					for _, toDelete := range item.Deleted {
-						for i, entry := range license.Permissions.Others {
-							if entry.Entity == toDelete {
-								slices.Delete(license.Permissions.Others, i, i+1)
-							}
+				permissions := publicIp.Permissions.Value
+				for _, toDelete := range item.Deleted {
+					for i, entry := range permissions.Others {
+						if entry.Entity == toDelete {
+							slices.Delete(permissions.Others, i, i+1)
 						}
 					}
-
-					for _, toAdd := range item.Added {
-						found := false
-
-						for i := 0; i < len(license.Permissions.Others); i++ {
-							entry := &license.Permissions.Others[i]
-							if entry.Entity == toAdd.Entity {
-								for _, perm := range toAdd.Permissions {
-									entry.Permissions = orc.PermissionsAdd(entry.Permissions, perm)
-								}
-								found = true
-								break
-							}
-						}
-
-						if !found {
-							license.Permissions.Others = append(license.Permissions.Others, orc.ResourceAclEntry{
-								Entity:      toAdd.Entity,
-								Permissions: toAdd.Permissions,
-							})
-						}
-					}
-
-					TrackLicense(license)
-
-					resp.Responses = append(
-						resp.Responses,
-						util.Option[util.Empty]{
-							Present: true,
-						},
-					)
 				}
 
-				sendResponseOrError(w, resp, nil)
-			},
-		))
+				for _, toAdd := range item.Added {
+					found := false
 
+					for i := 0; i < len(permissions.Others); i++ {
+						entry := &permissions.Others[i]
+						if entry.Entity == toAdd.Entity {
+							for _, perm := range toAdd.Permissions {
+								entry.Permissions = orcapi.PermissionsAdd(entry.Permissions, perm)
+							}
+							found = true
+							break
+						}
+					}
+
+					if !found {
+						permissions.Others = append(permissions.Others, orcapi.ResourceAclEntry{
+							Entity:      toAdd.Entity,
+							Permissions: toAdd.Permissions,
+						})
+					}
+				}
+
+				TrackNewPublicIp(publicIp)
+
+				resp.Responses = append(resp.Responses, util.Empty{})
+			}
+
+			return resp, nil
+		})
+
+		orcapi.IngressesProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Ingress]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
+			var errors []*util.HttpError
+			var providerIds []fnd.FindByStringId
+
+			for _, item := range request.Items {
+				TrackLink(item)
+				providerIds = append(providerIds, fnd.FindByStringId{})
+
+				fn := Jobs.Ingresses.Create
+				if fn == nil {
+					errors = append(errors, util.HttpErr(http.StatusBadRequest, "Public link creation not supported"))
+				} else {
+					err := fn(&item)
+					if err != nil {
+						errors = append(errors, err)
+					}
+				}
+			}
+
+			if len(errors) == 1 && len(request.Items) == 1 {
+				return fnd.BulkResponse[fnd.FindByStringId]{}, errors[0]
+			} else {
+				var response fnd.BulkResponse[fnd.FindByStringId]
+				response.Responses = providerIds
+				return response, nil
+			}
+		})
+
+		orcapi.IngressesProviderDelete.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Ingress]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			var errors []*util.HttpError
+			var resp []util.Empty
+
+			for _, item := range request.Items {
+				fn := Jobs.Ingresses.Delete
+				if fn == nil {
+					errors = append(errors, util.HttpErr(http.StatusBadRequest, "Public link deletion not supported"))
+					resp = append(resp, util.Empty{})
+				} else {
+					err := fn(&item)
+					if err != nil {
+						errors = append(errors, err)
+						resp = append(resp, util.Empty{})
+					} else {
+						resp = append(resp, util.Empty{})
+					}
+				}
+			}
+
+			if len(errors) == 1 && len(request.Items) == 1 {
+				return fnd.BulkResponse[util.Empty]{}, errors[0]
+			} else {
+				var response fnd.BulkResponse[util.Empty]
+				response.Responses = resp
+				return response, nil
+			}
+		})
+
+		orcapi.IngressesProviderUpdateAcl.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.UpdatedAclWithResource[orcapi.Ingress]]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			resp := fnd.BulkResponse[util.Empty]{}
+
+			for _, item := range request.Items {
+				ingress := item.Resource
+
+				permissions := ingress.Permissions.Value
+				for _, toDelete := range item.Deleted {
+					for i, entry := range permissions.Others {
+						if entry.Entity == toDelete {
+							slices.Delete(permissions.Others, i, i+1)
+						}
+					}
+				}
+
+				for _, toAdd := range item.Added {
+					found := false
+
+					for i := 0; i < len(permissions.Others); i++ {
+						entry := &permissions.Others[i]
+						if entry.Entity == toAdd.Entity {
+							for _, perm := range toAdd.Permissions {
+								entry.Permissions = orcapi.PermissionsAdd(entry.Permissions, perm)
+							}
+							found = true
+							break
+						}
+					}
+
+					if !found {
+						permissions.Others = append(permissions.Others, orcapi.ResourceAclEntry{
+							Entity:      toAdd.Entity,
+							Permissions: toAdd.Permissions,
+						})
+					}
+				}
+
+				TrackLink(ingress)
+
+				resp.Responses = append(resp.Responses, util.Empty{})
+			}
+
+			return resp, nil
+		})
+
+		orcapi.LicensesProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.License]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
+			var errors []*util.HttpError
+			var providerIds []fnd.FindByStringId
+
+			for _, item := range request.Items {
+				TrackLicense(item)
+				providerIds = append(providerIds, fnd.FindByStringId{})
+
+				fn := Jobs.Licenses.Create
+				if fn == nil {
+					errors = append(errors, util.HttpErr(http.StatusBadRequest, "License activation not supported"))
+				} else {
+					err := fn(&item)
+					if err != nil {
+						errors = append(errors, err)
+					}
+				}
+			}
+
+			if len(errors) == 1 && len(request.Items) == 1 {
+				return fnd.BulkResponse[fnd.FindByStringId]{}, errors[0]
+			} else {
+				var response fnd.BulkResponse[fnd.FindByStringId]
+				response.Responses = providerIds
+				return response, nil
+			}
+		})
+
+		orcapi.LicensesProviderDelete.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.License]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			var errors []*util.HttpError
+			var resp []util.Empty
+
+			for _, item := range request.Items {
+				fn := Jobs.Licenses.Delete
+				if fn == nil {
+					errors = append(errors, util.HttpErr(http.StatusBadRequest, "License deletion not supported"))
+					resp = append(resp, util.Empty{})
+				} else {
+					err := fn(&item)
+					if err != nil {
+						errors = append(errors, err)
+						resp = append(resp, util.Empty{})
+					} else {
+						resp = append(resp, util.Empty{})
+					}
+				}
+			}
+
+			if len(errors) == 1 && len(request.Items) == 1 {
+				return fnd.BulkResponse[util.Empty]{}, errors[0]
+			} else {
+				var response fnd.BulkResponse[util.Empty]
+				response.Responses = resp
+				return response, nil
+			}
+		})
+
+		orcapi.LicensesProviderUpdateAcl.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.UpdatedAclWithResource[orcapi.License]]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			resp := fnd.BulkResponse[util.Empty]{}
+
+			for _, item := range request.Items {
+				license := item.Resource
+
+				permissions := license.Permissions.Value
+				for _, toDelete := range item.Deleted {
+					for i, entry := range permissions.Others {
+						if entry.Entity == toDelete {
+							slices.Delete(permissions.Others, i, i+1)
+						}
+					}
+				}
+
+				for _, toAdd := range item.Added {
+					found := false
+
+					for i := 0; i < len(permissions.Others); i++ {
+						entry := &permissions.Others[i]
+						if entry.Entity == toAdd.Entity {
+							for _, perm := range toAdd.Permissions {
+								entry.Permissions = orcapi.PermissionsAdd(entry.Permissions, perm)
+							}
+							found = true
+							break
+						}
+					}
+
+					if !found {
+						permissions.Others = append(permissions.Others, orcapi.ResourceAclEntry{
+							Entity:      toAdd.Entity,
+							Permissions: toAdd.Permissions,
+						})
+					}
+				}
+
+				TrackLicense(license)
+
+				resp.Responses = append(resp.Responses, util.Empty{})
+			}
+
+			return resp, nil
+		})
 	}
 
 	if RunsServerCode() {
-		mux.HandleFunc(
+		rpc.DefaultServer.Mux.HandleFunc(
 			fmt.Sprintf("/ucloud/%v/authorize-app", cfg.Provider.Id),
 			func(writer http.ResponseWriter, request *http.Request) {
 				token := request.URL.Query().Get("token")
@@ -1283,80 +1107,42 @@ func controllerJobs(mux *http.ServeMux) {
 			},
 		)
 
-		mux.HandleFunc(jobContext+"retrieveProducts", HttpRetrieveHandler[util.Empty](
-			0,
-			func(w http.ResponseWriter, r *http.Request, _ util.Empty) {
-				products := Jobs.RetrieveProducts()
-				sendResponseOrError(
-					w,
-					fnd.BulkResponse[orc.JobSupport]{
-						Responses: products,
-					},
-					nil,
-				)
-			}),
-		)
+		orcapi.JobsProviderRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (fnd.BulkResponse[orcapi.JobSupport], *util.HttpError) {
+			products := Jobs.RetrieveProducts()
+			return fnd.BulkResponse[orcapi.JobSupport]{Responses: products}, nil
+		})
 
-		mux.HandleFunc(publicIpContext+"retrieveProducts", HttpRetrieveHandler[util.Empty](
-			0,
-			func(w http.ResponseWriter, r *http.Request, _ util.Empty) {
-				var result []orc.PublicIpSupport
-				fn := Jobs.PublicIPs.RetrieveProducts
-				if fn != nil {
-					result = fn()
-				}
+		orcapi.PublicIpsProviderRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (fnd.BulkResponse[orcapi.PublicIpSupport], *util.HttpError) {
+			var result []orcapi.PublicIpSupport
+			fn := Jobs.PublicIPs.RetrieveProducts
+			if fn != nil {
+				result = fn()
+			}
 
-				sendResponseOrError(
-					w,
-					fnd.BulkResponse[orc.PublicIpSupport]{
-						Responses: result,
-					},
-					nil,
-				)
-			}),
-		)
+			return fnd.BulkResponse[orcapi.PublicIpSupport]{Responses: result}, nil
+		})
 
-		mux.HandleFunc(ingressContext+"retrieveProducts", HttpRetrieveHandler[util.Empty](
-			0,
-			func(w http.ResponseWriter, r *http.Request, _ util.Empty) {
-				var result []orc.IngressSupport
-				fn := Jobs.Ingresses.RetrieveProducts
-				if fn != nil {
-					result = fn()
-				}
+		orcapi.IngressesProviderRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (fnd.BulkResponse[orcapi.IngressSupport], *util.HttpError) {
+			var result []orcapi.IngressSupport
+			fn := Jobs.Ingresses.RetrieveProducts
+			if fn != nil {
+				result = fn()
+			}
 
-				log.Info("retrieve ingress products called. Returning %s", result)
+			return fnd.BulkResponse[orcapi.IngressSupport]{Responses: result}, nil
+		})
 
-				sendResponseOrError(
-					w,
-					fnd.BulkResponse[orc.IngressSupport]{
-						Responses: result,
-					},
-					nil,
-				)
-			}),
-		)
+		orcapi.LicensesProviderRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (fnd.BulkResponse[orcapi.LicenseSupport], *util.HttpError) {
+			var result []orcapi.LicenseSupport
+			fn := Jobs.Licenses.RetrieveProducts
+			if fn != nil {
+				result = fn()
+			}
 
-		mux.HandleFunc(licenseContext+"retrieveProducts", HttpRetrieveHandler[util.Empty](
-			0,
-			func(w http.ResponseWriter, r *http.Request, _ util.Empty) {
-				var result []orc.LicenseSupport
-				fn := Jobs.Licenses.RetrieveProducts
-				if fn != nil {
-					result = fn()
-				}
+			return fnd.BulkResponse[orcapi.LicenseSupport]{Responses: result}, nil
+		})
 
-				sendResponseOrError(
-					w,
-					fnd.BulkResponse[orc.LicenseSupport]{
-						Responses: result,
-					},
-					nil,
-				)
-			}),
-		)
-
-		mux.HandleFunc(
+		rpc.DefaultServer.Mux.HandleFunc(
 			fmt.Sprintf("/ucloud/%v/vnc", cfg.Provider.Id),
 			func(writer http.ResponseWriter, request *http.Request) {
 				if ok := checkEnvoySecret(writer, request); !ok {
@@ -1448,7 +1234,7 @@ const (
 type jobsProviderFollowRequest struct {
 	Type     jobsProviderFollowRequestType `json:"type"`
 	StreamId string                        `json:"streamId,omitempty"` // cancel only
-	Job      *orc.Job                      `json:"job,omitempty"`      // init only
+	Job      *orcapi.Job                   `json:"job,omitempty"`      // init only
 }
 
 type jobsProviderFollowResponse struct {
@@ -1463,7 +1249,7 @@ func createFollowSession(
 	wsStreamId string,
 	writeMessage func(message any) error,
 	alive *bool,
-	job *orc.Job,
+	job *orcapi.Job,
 ) *FollowJobSession {
 	cleanupFollowSessions()
 
@@ -1580,7 +1366,7 @@ func jobsIpcServer() {
 			}
 		}
 
-		if !BelongsToWorkspace(orc.ResourceOwnerToWalletOwner(job.Resource), r.Uid) {
+		if !BelongsToWorkspace(orcapi.ResourceOwnerToWalletOwner(job.Resource), r.Uid) {
 			return ipc.Response[string]{
 				StatusCode: http.StatusNotFound,
 				Payload:    "",
@@ -1649,21 +1435,23 @@ func ToHostnameSafe(input string) string {
 	return result
 }
 
-func RegisterIngress(job *orc.Job, rank int, target cfg.HostInfo, requestedSuffix util.Option[string], flags RegisteredIngressFlags) (string, error) {
+func RegisterIngress(job *orcapi.Job, rank int, target cfg.HostInfo, requestedSuffix util.Option[string], flags RegisteredIngressFlags) (string, *util.HttpError) {
 	isWeb := (flags & RegisteredIngressFlagsWeb) != 0
 	isVnc := (flags & RegisteredIngressFlagsVnc) != 0
 
 	if !isWeb && !isVnc {
-		return "", fmt.Errorf("must specify either RegisteredIngressFlagsWeb or RegisteredIngressFlagsVnc")
+		return "", util.ServerHttpError("must specify either RegisteredIngressFlagsWeb or RegisteredIngressFlagsVnc")
 	}
 
 	if !RunsServerCode() {
-		return jobsRegisterIngressCall.Invoke(jobRegisteredIngress{
+		result, ierr := jobsRegisterIngressCall.Invoke(jobRegisteredIngress{
 			JobId:           job.Id,
 			Target:          target,
 			RequestedSuffix: requestedSuffix,
 			Flags:           flags,
 		})
+
+		return result, util.HttpErrorFromErr(ierr)
 	} else {
 		suffix := ""
 		if requestedSuffix.Present {
@@ -1781,7 +1569,7 @@ func RegisterIngress(job *orc.Job, rank int, target cfg.HostInfo, requestedSuffi
 			return fmt.Sprintf("https://%v/ucloud/%v/vnc?token=%v", ingress.Address,
 				cfg.Provider.Id, ingress.AuthToken.Value), nil
 		} else {
-			return "", fmt.Errorf("unhandled case %v", flags)
+			return "", util.ServerHttpError("unhandled case %v", flags)
 		}
 	}
 }
@@ -1851,7 +1639,7 @@ func jobsLoadSessions() {
 
 func refreshJobRoutes() {
 	allJobs := JobsListServer()
-	allJobsById := map[string]*orc.Job{}
+	allJobsById := map[string]*orcapi.Job{}
 	for _, job := range allJobs {
 		allJobsById[job.Id] = job
 	}

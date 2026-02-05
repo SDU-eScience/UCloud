@@ -1,19 +1,19 @@
 package launcher
 
 import (
-	"bufio"
+	"encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
-	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
-	"runtime/debug"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
-	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/external/user"
@@ -22,8 +22,8 @@ import (
 	"ucloud.dk/pkg/im/services/k8s"
 	"ucloud.dk/pkg/im/services/slurm"
 	"ucloud.dk/pkg/termio"
-	"ucloud.dk/shared/pkg/client"
 	db "ucloud.dk/shared/pkg/database"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 
 	ctrl "ucloud.dk/pkg/im/controller"
@@ -79,6 +79,7 @@ func Launch() {
 		fmt.Printf("Failed to parse configuration!\n")
 		return
 	}
+	rpc.ServerProviderId = cfg.Provider.Id
 
 	if pluginName != "" {
 		cfg.Mode = mode
@@ -138,23 +139,6 @@ func Launch() {
 		}, gatewayConfigChannel)
 
 		dbConfig := &cfg.Server.Database
-		if dbConfig.Embedded {
-			embeddedDb := embeddedpostgres.NewDatabase(
-				embeddedpostgres.
-					DefaultConfig().
-					StartTimeout(30 * time.Second).
-					Username(dbConfig.Username).
-					Password(dbConfig.Password).
-					Database(dbConfig.Database).
-					DataPath(dbConfig.EmbeddedDataDirectory),
-			)
-
-			err := embeddedDb.Start()
-			if err != nil {
-				fmt.Printf("Failed to start embedded database! %v\n", err)
-				os.Exit(1)
-			}
-		}
 
 		dbPool = db.Connect(
 			dbConfig.Username,
@@ -174,7 +158,6 @@ func Launch() {
 		ConfigDir:            *configDir,
 		UserModeSecret:       envoySecret,
 		MetricsHandler:       &metricsServerHandler,
-		ServerMultiplexer:    http.NewServeMux(),
 		IpcMultiplexer:       http.NewServeMux(),
 	}
 
@@ -186,11 +169,86 @@ func Launch() {
 
 	fmt.Printf("UCloud/IM starting up... [3/4] Still working on it\n")
 
+	rpc.ServerAuthenticator = func(r *http.Request) (rpc.Actor, *util.HttpError) {
+		type jwtPayload struct {
+			Sub  string `json:"sub"`
+			Role string `json:"role"`
+		}
+
+		checkEnvoySecret := func(r *http.Request) bool {
+			if r.Header.Get("ucloud-secret") != cfg.OwnEnvoySecret {
+				return false
+			}
+			return true
+		}
+
+		if ok := checkEnvoySecret(r); !ok {
+			return rpc.Actor{}, util.HttpErr(http.StatusUnauthorized, "unauthorized")
+		}
+
+		payloadHeader := r.Header.Get("x-jwt-payload")
+		payloadDecoded, err := base64.RawURLEncoding.DecodeString(payloadHeader)
+		if err != nil {
+			return rpc.Actor{}, util.HttpErr(http.StatusUnauthorized, "unauthorized")
+		}
+		var payload jwtPayload
+		err = json.Unmarshal(payloadDecoded, &payload)
+		if err != nil {
+			return rpc.Actor{}, util.HttpErr(http.StatusUnauthorized, "unauthorized")
+		}
+		if payload.Sub != "_UCloud" {
+			return rpc.Actor{}, util.HttpErr(http.StatusUnauthorized, "unauthorized")
+		}
+		if payload.Role != "SERVICE" {
+			return rpc.Actor{}, util.HttpErr(http.StatusUnauthorized, "unauthorized")
+		}
+
+		GetUCloudUsername := func(r *http.Request) string {
+			base64Encoded := r.Header.Get("ucloud-username")
+			if len(base64Encoded) == 0 {
+				if cfg.Mode == cfg.ServerModeServer {
+					return rpc.ActorSystem.Username
+				} else {
+					return "_guest"
+				}
+			}
+
+			bytes, err := base64.StdEncoding.DecodeString(base64Encoded)
+			if err != nil {
+				return "_guest"
+			}
+
+			return string(bytes)
+		}
+		username := GetUCloudUsername(r)
+
+		if cfg.Provider.Maintenance.Enabled {
+			if username != "_guest" && username != "" && !slices.Contains(cfg.Provider.Maintenance.UserAllowList, username) {
+				// NOTE(Dan): The Core currently refuse to show any of the 5XX results, so we use a 4XX return code instead.
+				return rpc.Actor{}, util.HttpErr(http.StatusNotFound, "Service is currently undergoing maintenance.")
+			}
+		}
+
+		if username == rpc.ActorSystem.Username {
+			return rpc.ActorSystem, nil
+		} else {
+			return rpc.Actor{
+				Username: username,
+				Role:     rpc.RoleService, // needed to make rpc layer happy
+			}, nil
+		}
+	}
+
+	rpc.DefaultServer.Mux = http.NewServeMux()
+
 	if mode == cfg.ServerModeServer {
-		client.DefaultClient = client.MakeClient(
-			cfg.Server.RefreshToken,
-			cfg.Provider.Hosts.UCloud.ToURL(),
-		)
+		rpc.DefaultClient = &rpc.Client{
+			RefreshToken: cfg.Server.RefreshToken,
+			BasePath:     cfg.Provider.Hosts.UCloud.ToURL(),
+			Client: &http.Client{
+				Timeout: 10 * time.Second,
+			},
+		}
 
 		go func() {
 			ipc.InitIpc()
@@ -240,14 +298,18 @@ func Launch() {
 		db.Migrate()
 	}
 
-	ctrl.Init(args.ServerMultiplexer)
+	ctrl.Init(rpc.DefaultServer.Mux)
 	svc.Init(args)
-	ctrl.InitLate(args.ServerMultiplexer)
+	ctrl.InitLate(rpc.DefaultServer.Mux)
 	svc.InitLater(args)
 
 	if mode == cfg.ServerModeServer {
 		launchMetricsServer()
 		gateway.InitIpc()
+	}
+
+	rpc.AuditConsumer = func(event rpc.HttpCallLogEntry) {
+		log.Info("%v/%v %v", event.RequestName, event.ResponseCode, time.Duration(event.ResponseTimeNanos)*time.Nanosecond)
 	}
 
 	fmt.Printf("UCloud/IM starting up... [4/4] Ready!\n")
@@ -281,59 +343,21 @@ func Launch() {
 			ctrl.UCloudUsername = flag.Arg(2)
 		}
 
-		sMux := http.NewServeMux()
-		sMux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
-			start := time.Now()
-			defer func() {
-				err := recover()
-				if err != nil {
-					log.Error("%v %v panic! %s %s", request.Method, request.RequestURI, err, string(debug.Stack()))
-				}
-			}()
-
-			handler, _ := im.Args.ServerMultiplexer.Handler(request)
-			newWriter := NewLoggingResponseWriter(writer)
-			handler.ServeHTTP(newWriter, request)
-			end := time.Now()
-			duration := end.Sub(start)
-			log.Info("%v %v %v %v", request.Method, request.URL.Path, newWriter.statusCode, duration)
-		})
-		s := &http.Server{Addr: fmt.Sprintf(":%v", serverPort), Handler: sMux}
+		s := &http.Server{
+			Addr: fmt.Sprintf(":%v", serverPort),
+			Handler: collapseServerSlashes(
+				http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+					handler, _ := rpc.DefaultServer.Mux.Handler(request)
+					handler.ServeHTTP(writer, request)
+				}),
+			),
+		}
 		err := s.ListenAndServe()
 
 		if err != nil {
 			fmt.Printf("Failed to start listener on port %v\n", gateway.ServerClusterPort)
 			os.Exit(1)
 		}
-	}
-}
-
-type loggingResponseWriter struct {
-	http.ResponseWriter
-	statusCode int
-}
-
-func NewLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter {
-	return &loggingResponseWriter{w, http.StatusOK}
-}
-
-func (lrw *loggingResponseWriter) WriteHeader(code int) {
-	lrw.statusCode = code
-	lrw.ResponseWriter.WriteHeader(code)
-}
-
-func (lrw *loggingResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	hijacker, ok := lrw.ResponseWriter.(http.Hijacker)
-	if !ok {
-		return nil, nil, fmt.Errorf("hijack not supported")
-	}
-
-	return hijacker.Hijack()
-}
-
-func (lrw *loggingResponseWriter) Flush() {
-	if flusher, ok := lrw.ResponseWriter.(http.Flusher); ok {
-		flusher.Flush()
 	}
 }
 
@@ -356,4 +380,42 @@ func launchMetricsServer() {
 			log.Warn("Prometheus metrics server has failed unexpectedly! %v", err)
 		}
 	}()
+}
+
+func collapseServerSlashes(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := r.URL.Path
+		if p == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Preserve a trailing slash (except for root)
+		trailing := strings.HasSuffix(p, "/") && p != "/"
+
+		// Replace until stable
+		clean := p
+		for {
+			newp := strings.ReplaceAll(clean, "//", "/")
+			if newp == clean {
+				break
+			}
+			clean = newp
+		}
+		if trailing && clean != "/" && !strings.HasSuffix(clean, "/") {
+			clean += "/"
+		}
+
+		if clean == p {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Clone request and update path (leave query untouched)
+		r2 := r.Clone(r.Context())
+		u := *r.URL
+		u.Path = clean
+		r2.URL = &u
+		next.ServeHTTP(w, r2)
+	})
 }

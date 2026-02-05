@@ -5,11 +5,11 @@ import (
 	"math"
 
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/shared/pkg/apm"
+	apm "ucloud.dk/shared/pkg/accounting"
 
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 )
 
 var (

@@ -3,10 +3,10 @@ package idscripted
 import (
 	"errors"
 	"slices"
-	"ucloud.dk/shared/pkg/apm"
-	fnd "ucloud.dk/shared/pkg/foundation"
+
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -115,7 +115,7 @@ var onUserConnected = ctrl.NewScript[createUserRequest, createUserResponse]()
 type scriptMember struct {
 	UCloudUsername string                       `json:"UCloudUsername"`
 	Uid            uint32                       `json:"uid"`
-	Role           util.Option[apm.ProjectRole] `json:"role"`
+	Role           util.Option[fnd.ProjectRole] `json:"role"`
 }
 
 type syncProjectRequest struct {

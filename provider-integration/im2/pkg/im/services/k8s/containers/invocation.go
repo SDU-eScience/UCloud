@@ -10,7 +10,7 @@ import (
 	core "k8s.io/api/core/v1"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -22,10 +22,10 @@ func prepareInvocationOnJobCreate(
 	pathMapperInternalToPod map[string]string,
 	jobFolder string,
 ) {
-	app := &job.Status.ResolvedApplication
+	app := &job.Status.ResolvedApplication.Value
 
 	invocationParameters := app.Invocation.Invocation
-	parametersAndValues := orc.ReadParameterValuesFromJob(job, &app.Invocation)
+	parametersAndValues := ctrl.ReadParameterValuesFromJob(job, &app.Invocation)
 	environment := app.Invocation.Environment
 
 	ucloudToPod := func(ucloudPath string) string {
@@ -48,7 +48,7 @@ func prepareInvocationOnJobCreate(
 		return "/dev/null"
 	}
 
-	argBuilder := orc.DefaultArgBuilder(ucloudToPod)
+	argBuilder := ctrl.DefaultArgBuilder(ucloudToPod)
 
 	// Convert license parameters
 	for parameterId, parameterAndValue := range parametersAndValues {
@@ -61,7 +61,7 @@ func prepareInvocationOnJobCreate(
 
 	var actualCommand []string
 	for _, param := range invocationParameters {
-		commandList := orc.BuildParameter(param, parametersAndValues, false, argBuilder, nil)
+		commandList := ctrl.BuildParameter(param, parametersAndValues, false, argBuilder, nil)
 		for _, cmd := range commandList {
 			actualCommand = append(actualCommand, orc.EscapeBash(cmd))
 		}
@@ -99,7 +99,7 @@ func prepareInvocationOnJobCreate(
 	container.Command = []string{fmt.Sprintf("/work/job-%d.sh", rank)}
 
 	for k, param := range environment {
-		commandList := orc.BuildParameter(param, parametersAndValues, false, argBuilder, nil)
+		commandList := ctrl.BuildParameter(param, parametersAndValues, false, argBuilder, nil)
 		envValue := strings.Join(commandList, " ")
 		container.Env = append(container.Env, core.EnvVar{
 			Name:  k,
@@ -161,8 +161,8 @@ func handleJinjaInvocation(
 	rank int,
 	pod *core.Pod,
 	container *core.Container,
-	builder orc.ArgBuilder,
-	parametersAndValues map[string]orc.ParamAndValue,
+	builder ctrl.ArgBuilder,
+	parametersAndValues map[string]ctrl.ParamAndValue,
 	jobFolder string,
 	pathMapperInternalToPod map[string]string,
 ) []string {
@@ -211,7 +211,7 @@ func handleJinjaInvocation(
 
 	// Prepare template
 	// -----------------------------------------------------------------------------------------------------------------
-	app := &job.Status.ResolvedApplication
+	app := &job.Status.ResolvedApplication.Value
 	invocationParameters := app.Invocation.Invocation
 
 	tpl := invocationParameters[0].InvocationParameterJinja.Template
@@ -263,7 +263,7 @@ func handleJinjaInvocation(
 		ucloudCtx["jobId"] = job.Id
 
 		{
-			product := &job.Status.ResolvedProduct
+			product := &job.Status.ResolvedProduct.Value
 			machine := map[string]any{}
 
 			machine["name"] = product.Name
@@ -285,7 +285,7 @@ func handleJinjaInvocation(
 		ucloudCtx["rank"] = 0 // replaced by script-gen
 
 		{
-			app := &job.Status.ResolvedApplication
+			app := &job.Status.ResolvedApplication.Value
 			appCtx := map[string]any{}
 
 			appCtx["name"] = app.Metadata.Name

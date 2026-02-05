@@ -3,9 +3,10 @@ package slurm
 import (
 	"slices"
 
-	"ucloud.dk/shared/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
+	apm "ucloud.dk/shared/pkg/accounting"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -39,7 +40,7 @@ type scriptedSlurmAccount struct {
 type scriptedSlurmAccountProjectMember struct {
 	Uid            uint32                       `json:"uid"`
 	UCloudUsername string                       `json:"ucloudUsername"`
-	Role           util.Option[apm.ProjectRole] `json:"role"`
+	Role           util.Option[fnd.ProjectRole] `json:"role"`
 }
 
 type scriptedSlurmAccProjectUpdated struct {
@@ -131,7 +132,7 @@ func (u *scriptedAccountManagementService) FetchUsageInMinutes() map[SlurmAccoun
 	return result
 }
 
-func (u *scriptedAccountManagementService) synchronizeProjectToSlurmAccount(project *apm.Project, comparison *ctrl.ProjectComparison) {
+func (u *scriptedAccountManagementService) synchronizeProjectToSlurmAccount(project *fnd.Project, comparison *ctrl.ProjectComparison) {
 	categoriesToAccountName := AccountMapper.ServerListAccountsForWorkspace(apm.WalletOwnerProject(project.Id))
 
 	for categoryName, accountName := range categoriesToAccountName {

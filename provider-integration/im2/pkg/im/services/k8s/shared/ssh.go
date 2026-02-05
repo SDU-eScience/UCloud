@@ -2,16 +2,17 @@ package shared
 
 import (
 	"fmt"
-	core "k8s.io/api/core/v1"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
+
+	core "k8s.io/api/core/v1"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -36,11 +37,11 @@ func initSsh() {
 }
 
 func assignSshPort(job *orc.Job) (util.Option[int], error) {
-	if IsSensitiveProject(job.Owner.Project) {
+	if IsSensitiveProject(job.Owner.Project.Value) {
 		return util.OptNone[int](), util.UserHttpError("This project does not allow for SSH")
 	}
 
-	sshMode := job.Status.ResolvedApplication.Invocation.Ssh.Mode
+	sshMode := job.Status.ResolvedApplication.Value.Invocation.Ssh.Value.Mode
 	sshEnabled := false
 	switch sshMode {
 	case orc.SshModeDisabled:
@@ -126,7 +127,7 @@ func GetAssignedSshPort(job *orc.Job) util.Option[int] {
 }
 
 func AssignAndPrepareSshService(job *orc.Job) util.Option[*core.Service] {
-	if IsSensitiveProject(job.Owner.Project) {
+	if IsSensitiveProject(job.Owner.Project.Value) {
 		return util.OptNone[*core.Service]()
 	}
 

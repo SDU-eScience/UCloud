@@ -3,8 +3,10 @@ package controller
 import (
 	"encoding/json"
 	"os"
-	"ucloud.dk/shared/pkg/apm"
+
 	cfg "ucloud.dk/pkg/im/config"
+	apm "ucloud.dk/shared/pkg/accounting"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -14,7 +16,12 @@ func RegisterProducts(products []apm.ProductV2) {
 	existingProducts := map[string]map[string]apm.ProductV2{}
 	next := ""
 	for {
-		page, err := apm.BrowseProducts(next, apm.ProductsFilter{FilterProvider: util.OptValue(cfg.Provider.Id)})
+		page, err := apm.ProductsBrowse.Invoke(apm.ProductsBrowseRequest{
+			Next: util.OptStringIfNotEmpty(next),
+			ProductsFilter: apm.ProductsFilter{
+				FilterProvider: util.OptValue(cfg.Provider.Id),
+			},
+		})
 		if err != nil {
 			log.Error("Unable to fetch products from UCloud: %v", err)
 			os.Exit(1)
@@ -93,7 +100,7 @@ func RegisterProducts(products []apm.ProductV2) {
 		for _, item := range catItems {
 			items = append(items, item)
 		}
-		err := apm.CreateProducts(items)
+		_, err := apm.ProductsCreate.Invoke(fnd.BulkRequest[apm.ProductV2]{Items: items})
 
 		if err != nil {
 			log.Error("Failed to register products in UCloud/Core: %s", err)

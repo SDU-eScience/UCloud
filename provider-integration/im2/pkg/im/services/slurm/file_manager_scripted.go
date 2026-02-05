@@ -2,10 +2,11 @@ package slurm
 
 import (
 	"fmt"
-	"ucloud.dk/shared/pkg/apm"
-	fnd "ucloud.dk/shared/pkg/foundation"
+
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
+	apm "ucloud.dk/shared/pkg/accounting"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -78,7 +79,7 @@ func (s *scriptedFileManagementService) HandleQuotaUpdate(drives []LocatedDrive,
 }
 
 func (s *scriptedFileManagementService) RunAccountingLoop() {
-	var batch []apm.UsageReportItem
+	var batch []apm.ReportUsageRequest
 
 	allocations := ctrl.FindAllAllocations(s.name)
 	for _, allocation := range allocations {
@@ -95,7 +96,7 @@ func (s *scriptedFileManagementService) RunAccountingLoop() {
 			}
 
 			unitsUsed := int64(resp.UsageInBytes) / int64(s.unitInBytes)
-			batch = append(batch, apm.UsageReportItem{
+			batch = append(batch, apm.ReportUsageRequest{
 				IsDeltaCharge: false,
 				Owner:         allocation.Owner,
 				CategoryIdV2: apm.ProductCategoryIdV2{
@@ -114,7 +115,7 @@ func (s *scriptedFileManagementService) RunAccountingLoop() {
 	s.flushBatch(&batch, true)
 }
 
-func (s *scriptedFileManagementService) flushBatch(batch *[]apm.UsageReportItem, force bool) {
+func (s *scriptedFileManagementService) flushBatch(batch *[]apm.ReportUsageRequest, force bool) {
 	current := *batch
 	if len(current) == 0 {
 		return
@@ -124,7 +125,7 @@ func (s *scriptedFileManagementService) flushBatch(batch *[]apm.UsageReportItem,
 		return
 	}
 
-	_, err := apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{Items: current})
+	_, err := apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{Items: current})
 	if err != nil {
 		log.Warn("Failed to send storage accounting batch: %v %v", s.name, err)
 	}

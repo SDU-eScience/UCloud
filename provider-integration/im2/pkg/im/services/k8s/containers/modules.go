@@ -2,24 +2,25 @@ package containers
 
 import (
 	"fmt"
-	core "k8s.io/api/core/v1"
 	"path/filepath"
+
+	core "k8s.io/api/core/v1"
 	cfg "ucloud.dk/pkg/im/config"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
 func prepareModules(job *orc.Job, pod *core.Pod, userContainer *core.Container) {
-	app := &job.Status.ResolvedApplication.Invocation
-	if len(app.Modules.Optional) > 0 {
+	app := &job.Status.ResolvedApplication.Value.Invocation
+	if len(app.Modules.Value.Optional) > 0 {
 		userContainer.Env = append(userContainer.Env, core.EnvVar{
 			Name:  "UCLOUD_MODULES_ROOT",
-			Value: app.Modules.MountPath,
+			Value: app.Modules.Value.MountPath,
 		})
 
 		modulesToMount := map[string]cfg.KubernetesModuleEntry{}
 
-		for _, requestedModule := range app.Modules.Optional {
+		for _, requestedModule := range app.Modules.Value.Optional {
 			for _, availableModule := range ServiceConfig.Compute.Modules {
 				if availableModule.Name == requestedModule {
 					modulesToMount[availableModule.Name] = availableModule
@@ -80,7 +81,7 @@ func prepareModules(job *orc.Job, pod *core.Pod, userContainer *core.Container) 
 			userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
 				Name:      volumeToUse.Value,
 				ReadOnly:  true,
-				MountPath: filepath.Join(app.Modules.MountPath, mod.Name),
+				MountPath: filepath.Join(app.Modules.Value.MountPath, mod.Name),
 				SubPath:   mod.VolSubPath,
 			})
 		}

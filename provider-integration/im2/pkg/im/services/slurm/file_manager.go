@@ -2,10 +2,11 @@ package slurm
 
 import (
 	"time"
-	"ucloud.dk/shared/pkg/apm"
-	fnd "ucloud.dk/shared/pkg/foundation"
+
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
+	apm "ucloud.dk/shared/pkg/accounting"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -49,9 +50,9 @@ func InitFileManagers() {
 			}
 		}
 
-		var gifts []apm.RegisteredProviderGift
+		var gifts []apm.RegisterProviderGiftRequest
 		for category, quota := range quotaByCategory {
-			gifts = append(gifts, apm.RegisteredProviderGift{
+			gifts = append(gifts, apm.RegisterProviderGiftRequest{
 				OwnerUsername: username,
 				Category:      apm.ProductCategoryIdV2{Name: category, Provider: cfg.Provider.Id},
 				Quota:         quota,
@@ -59,7 +60,7 @@ func InitFileManagers() {
 		}
 
 		if len(gifts) > 0 {
-			err := apm.RegisterProviderGift(fnd.BulkRequest[apm.RegisteredProviderGift]{Items: gifts})
+			_, err := apm.RegisterProviderGift.Invoke(fnd.BulkRequest[apm.RegisterProviderGiftRequest]{Items: gifts})
 			if err != nil {
 				log.Info("Failed to register home-drive gift for user: %v (UID: %v): %v", username, uid, err)
 			}

@@ -7,8 +7,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/gonja/v2/exec"
+	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/termio"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -117,10 +118,10 @@ func HandleScriptGen() {
 	// Execute and output
 	// -----------------------------------------------------------------------------------------------------------------
 	tplSession := &k8sTemplateSession{}
-	tpl = orc.PreprocessJinjaTemplate(tpl, tplSession, k8sTemplate)
+	tpl = ctrl.PreprocessJinjaTemplate(tpl, tplSession, k8sTemplate)
 
 	jinjaContext := exec.NewContext(jinjaContextParameters)
-	output, err := orc.ExecuteJinjaTemplate(tpl, 0, nil, jinjaContext, orc.JinjaFlagsNoPreProcess)
+	output, err := ctrl.ExecuteJinjaTemplate(tpl, 0, nil, jinjaContext, ctrl.JinjaFlagsNoPreProcess)
 	if err != nil {
 		output = fmt.Sprintf(
 			"echo %v",

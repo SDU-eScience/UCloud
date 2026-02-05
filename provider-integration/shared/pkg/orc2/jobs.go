@@ -52,10 +52,11 @@ type ExportedParametersResources struct {
 }
 
 type DynamicTarget struct {
-	Rank   int                    `json:"rank"`
-	Type   InteractiveSessionType `json:"type"`
-	Target string                 `json:"target"`
-	Port   int                    `json:"port"`
+	Rank        int                    `json:"rank"`
+	Type        InteractiveSessionType `json:"type"`
+	Target      string                 `json:"target"`
+	Port        int                    `json:"port"`
+	DefaultName util.Option[string]    `json:"defaultName"`
 }
 
 type JobState string
@@ -371,121 +372,6 @@ func VerifyParameterType(param *ApplicationParameter, value *AppParameterValue) 
 		}
 	}
 	return true
-}
-
-func genericDefaultParse[T any](input json.RawMessage) (T, bool) {
-	var asDirect T
-	err := json.Unmarshal(input, &asDirect)
-	if err == nil {
-		return asDirect, true
-	}
-
-	var asWrapped struct{ Value T }
-	err = json.Unmarshal(input, &asWrapped)
-	if err == nil {
-		return asWrapped.Value, true
-	} else {
-		return asDirect, false
-	}
-}
-
-func readDefaultValue(t ApplicationParameterType, input json.RawMessage) (AppParameterValue, bool) {
-	if string(input) == "null" {
-		return AppParameterValue{}, false
-	}
-
-	switch t {
-	case ApplicationParameterTypeBoolean:
-		v, ok := genericDefaultParse[bool](input)
-		if ok {
-			return AppParameterValueBoolean(v), true
-		}
-
-	case ApplicationParameterTypeInteger:
-		v, ok := genericDefaultParse[int64](input)
-		if ok {
-			return AppParameterValueInteger(v), true
-		}
-
-	case ApplicationParameterTypeFloatingPoint:
-		v, ok := genericDefaultParse[float64](input)
-		if ok {
-			return AppParameterValueFloatingPoint(v), true
-		}
-
-	case ApplicationParameterTypeText, ApplicationParameterTypeTextArea, ApplicationParameterTypeEnumeration:
-		v, ok := genericDefaultParse[string](input)
-		if ok {
-			return AppParameterValueText(v), true
-		}
-	}
-
-	return AppParameterValue{}, false
-}
-
-func ReadParameterValuesFromJob(job *Job, application *ApplicationInvocationDescription) map[string]ParamAndValue {
-	parameters := make(map[string]ParamAndValue)
-
-	allParameters := application.Parameters
-	for _, value := range job.Specification.Parameters {
-		if value.Type == AppParameterValueTypeWorkflow {
-			inputs := value.Specification.Inputs
-			for _, input := range inputs {
-				allParameters = append(allParameters, input)
-			}
-		}
-	}
-
-	for _, param := range allParameters {
-		if param.DefaultValue == nil {
-			continue
-		}
-
-		value, ok := readDefaultValue(param.Type, param.DefaultValue)
-		if !ok {
-			continue
-		}
-
-		if !VerifyParameterType(&param, &value) {
-			continue
-		}
-
-		parameters[param.Name] = ParamAndValue{
-			Parameter: param,
-			Value:     value,
-		}
-	}
-
-	for paramName, value := range job.Specification.Parameters {
-		if strings.HasPrefix(paramName, "_injected_") {
-			parameters[paramName] = ParamAndValue{
-				Value: value,
-			}
-		} else {
-			var parameter util.Option[ApplicationParameter]
-			for _, jobParam := range allParameters {
-				if jobParam.Name == paramName {
-					parameter.Set(jobParam)
-					break
-				}
-			}
-
-			if !parameter.IsSet() {
-				continue
-			}
-
-			param := parameter.Get()
-			if !VerifyParameterType(&param, &value) {
-				continue
-			}
-
-			parameters[paramName] = ParamAndValue{
-				Parameter: param,
-				Value:     value,
-			}
-		}
-	}
-	return parameters
 }
 
 type JobSupport struct {

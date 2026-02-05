@@ -7,8 +7,8 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+
 	"ucloud.dk/pkg/cli"
-	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/external/user"
 	"ucloud.dk/pkg/im/ipc"
@@ -257,7 +257,7 @@ func HandleUsersCommandServer() {
 		}
 
 		nuid, _ := strconv.Atoi(uinfo.Uid)
-		err = ctrl.RegisterConnectionComplete(r.Payload.UCloudName, uint32(nuid), true)
+		err = ctrl.RegisterConnectionComplete(r.Payload.UCloudName, uint32(nuid), true).AsError()
 		if err != nil {
 			return ipc.Response[util.Empty]{
 				StatusCode:   http.StatusBadRequest,
@@ -265,15 +265,17 @@ func HandleUsersCommandServer() {
 			}
 		}
 
-		if cfg.Services.Unmanaged {
-			_, err = ctrl.CreatePersonalProviderProject(r.Payload.UCloudName)
-			if err != nil {
-				return ipc.Response[util.Empty]{
-					StatusCode:   http.StatusBadRequest,
-					ErrorMessage: fmt.Sprintf("%s", err),
+		/*
+			if cfg.Services.Unmanaged {
+				_, err = ctrl.CreatePersonalProviderProject(r.Payload.UCloudName)
+				if err != nil {
+					return ipc.Response[util.Empty]{
+						StatusCode:   http.StatusBadRequest,
+						ErrorMessage: fmt.Sprintf("%s", err),
+					}
 				}
 			}
-		}
+		*/
 
 		return ipc.Response[util.Empty]{
 			StatusCode: http.StatusOK,

@@ -8,7 +8,6 @@ require (
 	github.com/coreos/go-oidc/v3 v3.13.0
 	github.com/envoyproxy/go-control-plane v0.13.4
 	github.com/envoyproxy/go-control-plane/envoy v1.32.3
-	github.com/fergusstrange/embedded-postgres v1.30.0
 	github.com/golang/protobuf v1.5.4
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/golang-lru/v2 v2.0.7

@@ -19,7 +19,7 @@ import (
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -127,10 +127,10 @@ func fetchAllPublicIps() {
 	next := ""
 
 	for {
-		page, err := orc.BrowsePublicIps(next, orc.BrowseIpsFlags{
-			IncludeProduct: false,
-			IncludeUpdates: true,
-		})
+		request := orc.PublicIpsControlBrowseRequest{Next: util.OptStringIfNotEmpty(next)}
+		request.IncludeProduct = false
+		request.IncludeUpdates = true
+		page, err := orc.PublicIpsControlBrowse.Invoke(request)
 
 		if err != nil {
 			log.Warn("Failed to fetch public ips: %v", err)
@@ -295,7 +295,7 @@ func TrackNewPublicIp(ip orc.PublicIp) {
 			db.Params{
 				"resource_id":      ip.Id,
 				"created_by":       ip.Owner.CreatedBy,
-				"project_id":       ip.Owner.Project,
+				"project_id":       ip.Owner.Project.Value,
 				"product_id":       ip.Specification.Product.Id,
 				"product_category": ip.Specification.Product.Category,
 				"resource":         string(jsonified),
@@ -312,7 +312,10 @@ func RetrievePublicIp(id string) (*orc.PublicIp, bool) {
 	if ok {
 		return publicIp, ok
 	} else {
-		publicIp, err := orc.RetrievePublicIp(id, orc.BrowseIpsFlags{IncludeProduct: true, IncludeUpdates: true})
+		request := orc.PublicIpsControlRetrieveRequest{Id: id}
+		request.IncludeProduct = true
+		request.IncludeUpdates = true
+		publicIp, err := orc.PublicIpsControlRetrieve.Invoke(request)
 		if err == nil {
 			TrackNewPublicIp(publicIp)
 			return &publicIp, true
@@ -358,9 +361,9 @@ func RetrieveIpPool() []IpPoolEntry {
 	return result
 }
 
-func AllocateIpAddress(target *orc.PublicIp) error {
+func AllocateIpAddress(target *orc.PublicIp) *util.HttpError {
 	if target == nil {
-		return fmt.Errorf("target is nil")
+		return util.ServerHttpError("target is nil")
 	}
 
 	publicIps.Mu.Lock()
@@ -412,7 +415,7 @@ outer:
 			Timestamp:       fnd.Timestamp(time.Now()),
 		}
 
-		err := orc.UpdatePublicIps(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.PublicIpUpdate]]{
+		_, err := orc.PublicIpsControlAddUpdate.Invoke(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.PublicIpUpdate]]{
 			Items: []orc.ResourceUpdateAndId[orc.PublicIpUpdate]{
 				{
 					Id:     target.Id,
@@ -434,7 +437,7 @@ outer:
 	}
 }
 
-func DeleteIpAddress(address *orc.PublicIp) error {
+func DeleteIpAddress(address *orc.PublicIp) *util.HttpError {
 	if len(address.Status.BoundTo) > 0 {
 		return util.UserHttpError("This IP is currently in use by job: %v", strings.Join(address.Status.BoundTo, ", "))
 	}
@@ -484,7 +487,7 @@ func RetrieveUsedIpAddressCount(owner orc.ResourceOwner) int {
 		    `,
 			db.Params{
 				"created_by": owner.CreatedBy,
-				"project":    owner.Project,
+				"project":    owner.Project.Value,
 			},
 		)
 		return row.Count
@@ -665,7 +668,7 @@ func BindIpsToJob(job *orc.Job) ([]orc.PublicIp, []net.IP, error) {
 			err = util.ServerHttpError(
 				"IP %v is not ready yet - Try recreating it",
 				ip.Id,
-			)
+			).AsError()
 			break
 		}
 
@@ -678,7 +681,7 @@ func BindIpsToJob(job *orc.Job) ([]orc.PublicIp, []net.IP, error) {
 						ip.Status.IpAddress.Value,
 						ip.Id,
 						strings.Join(ip.Status.BoundTo, ", "),
-					)
+					).AsError()
 					break
 				}
 			}
@@ -869,10 +872,10 @@ func RetrieveIp(publicIpId string) (*orc.PublicIp, bool) {
 	if ok {
 		return job, ok
 	} else {
-		ip, err := orc.RetrievePublicIp(publicIpId, orc.BrowseIpsFlags{
-			IncludeProduct: false,
-			IncludeUpdates: true,
-		})
+		request := orc.PublicIpsControlRetrieveRequest{Id: publicIpId}
+		request.IncludeProduct = false
+		request.IncludeUpdates = true
+		ip, err := orc.PublicIpsControlRetrieve.Invoke(request)
 
 		if err == nil {
 			TrackNewPublicIp(ip)

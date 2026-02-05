@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"testing"
 	"time"
-	fnd "ucloud.dk/shared/pkg/foundation"
+
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 

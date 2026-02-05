@@ -6,8 +6,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	ws "github.com/gorilla/websocket"
-	"golang.org/x/sync/semaphore"
 	"io"
 	"os"
 	"runtime"
@@ -16,8 +14,12 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	ws "github.com/gorilla/websocket"
+	"golang.org/x/sync/semaphore"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -430,10 +432,10 @@ func ProcessClient(
 	session ClientSession,
 	rootFile ClientFile,
 	rootMetadata FileMetadata,
-	status *atomic.Pointer[orc.TaskStatus],
+	status *atomic.Pointer[fnd.TaskStatus],
 	requestCancel chan util.Empty,
 ) StatusReport {
-	initialStatus := orc.TaskStatus{}
+	initialStatus := fnd.TaskStatus{}
 	if status != nil {
 		ptr := status.Load()
 		if ptr != nil {
@@ -503,8 +505,8 @@ func ProcessClient(
 	// Immediately set a state in case of connection failure below
 	// -----------------------------------------------------------------------------------------------------------------
 	if status != nil {
-		newStatus := &orc.TaskStatus{
-			State:              orc.TaskStateRunning,
+		newStatus := &fnd.TaskStatus{
+			State:              fnd.TaskStateRunning,
 			Body:               util.OptValue(""),
 			Progress:           util.OptValue("Attempting to establish connection..."),
 			ProgressPercentage: util.OptValue(-1.0),
@@ -611,8 +613,8 @@ func ProcessClient(
 			readableDataTransferred := util.SizeToHumanReadableWithUnit(float64(bytesTransferred))
 			readableDiscoveredDataSize := util.SizeToHumanReadableWithUnit(float64(bytesDiscovered))
 
-			newStatus := &orc.TaskStatus{
-				State: orc.TaskStateRunning,
+			newStatus := &fnd.TaskStatus{
+				State: fnd.TaskStateRunning,
 				Title: initialStatus.Title,
 				Body: util.OptValue(fmt.Sprintf(
 					"%.2f %v/%.2f %v | %v / %v files",

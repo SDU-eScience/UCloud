@@ -3,7 +3,8 @@ package shared
 import (
 	"fmt"
 	"sync"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -106,7 +107,7 @@ func RegisterJobDimensionMapper(categoryName string, mapper JobDimensionMapper) 
 }
 
 func JobDimensions(job *orc.Job) SchedulerDimensions {
-	prod := &job.Status.ResolvedProduct
+	prod := &job.Status.ResolvedProduct.Value
 	mapper, hasMapper := jobDimensionMappers[prod.Category.Name]
 	if hasMapper {
 		return mapper(job)

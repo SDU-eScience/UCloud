@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"syscall"
 	"time"
-	"ucloud.dk/shared/pkg/apm"
-	fnd "ucloud.dk/shared/pkg/foundation"
+
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	gpfs2 "ucloud.dk/pkg/im/external/gpfs"
+	apm "ucloud.dk/shared/pkg/accounting"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -139,7 +140,7 @@ func getDiskUsage(path string) (uint64, error) {
 }
 
 func (g *GpfsManager) RunAccountingLoop() {
-	var batch []apm.UsageReportItem
+	var batch []apm.ReportUsageRequest
 
 	if g.config.UseStatFsForAccounting {
 		drives := ctrl.EnumerateKnownDrives()
@@ -154,9 +155,9 @@ func (g *GpfsManager) RunAccountingLoop() {
 
 			unitsUsed := int64(usageBytes) / int64(g.unitInBytes)
 
-			batch = append(batch, apm.UsageReportItem{
+			batch = append(batch, apm.ReportUsageRequest{
 				IsDeltaCharge: false,
-				Owner:         apm.WalletOwnerFromIds(d.Owner.CreatedBy, d.Owner.Project),
+				Owner:         apm.WalletOwnerFromIds(d.Owner.CreatedBy, d.Owner.Project.Value),
 				CategoryIdV2: apm.ProductCategoryIdV2{
 					Name:     d.Specification.Product.Category,
 					Provider: cfg.Provider.Id,
@@ -187,7 +188,7 @@ func (g *GpfsManager) RunAccountingLoop() {
 
 				unitsUsed := int64(fileset.UsageBytes) / int64(g.unitInBytes)
 
-				batch = append(batch, apm.UsageReportItem{
+				batch = append(batch, apm.ReportUsageRequest{
 					IsDeltaCharge: false,
 					Owner:         allocation.Owner,
 					CategoryIdV2: apm.ProductCategoryIdV2{
@@ -208,7 +209,7 @@ func (g *GpfsManager) RunAccountingLoop() {
 	g.flushBatch(&batch, true)
 }
 
-func (g *GpfsManager) flushBatch(batch *[]apm.UsageReportItem, force bool) {
+func (g *GpfsManager) flushBatch(batch *[]apm.ReportUsageRequest, force bool) {
 	current := *batch
 	if len(current) == 0 {
 		return
@@ -218,7 +219,7 @@ func (g *GpfsManager) flushBatch(batch *[]apm.UsageReportItem, force bool) {
 		return
 	}
 
-	_, err := apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{Items: current})
+	_, err := apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{Items: current})
 	if err != nil {
 		log.Warn("Failed to send GPFS accounting batch: %v %v", g.name, err)
 	}

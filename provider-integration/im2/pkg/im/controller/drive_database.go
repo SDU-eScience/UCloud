@@ -12,11 +12,10 @@ import (
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/controller/fsearch"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/shared/pkg/apm"
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -78,7 +77,9 @@ func InitDriveDatabase() {
 	trackDriveIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[util.Empty] {
 		// NOTE(Dan): Since we are not returning any information about the drive, we simply track it regardless if this
 		// was a drive that belongs to the user or not.
-		drive, err := orc.RetrieveDrive(r.Payload.Id)
+		request := orc.DrivesControlRetrieveRequest{Id: r.Payload.Id}
+		request.IncludeOthers = true
+		drive, err := orc.DrivesControlRetrieve.Invoke(request)
 		if err == nil {
 			TrackDrive(&drive)
 		}
@@ -119,7 +120,9 @@ func InitDriveDatabase() {
 	})
 
 	removeTrackedDriveIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[util.Empty] {
-		drive, err := orc.RetrieveDrive(r.Payload.Id)
+		request := orc.DrivesControlRetrieveRequest{Id: r.Payload.Id}
+		request.IncludeOthers = true
+		drive, err := orc.DrivesControlRetrieve.Invoke(request)
 		if err != nil || !BelongsToWorkspace(orc.ResourceOwnerToWalletOwner(drive.Resource), r.Uid) {
 			return ipc.Response[util.Empty]{
 				StatusCode: http.StatusForbidden,
@@ -184,7 +187,7 @@ func trackDrive(drive *orc.Drive, allowRegistration bool) {
 							"product_id":            copiedDrive.Specification.Product.Id,
 							"product_category":      copiedDrive.Specification.Product.Category,
 							"created_by":            copiedDrive.Owner.CreatedBy,
-							"project_id":            copiedDrive.Owner.Project,
+							"project_id":            copiedDrive.Owner.Project.Value,
 							"provider_generated_id": copiedDrive.ProviderGeneratedId,
 							"resource":              string(jsonified),
 						},
@@ -219,7 +222,9 @@ func RetrieveDrive(id string) (*orc.Drive, bool) {
 
 	if !ok {
 		if RunsServerCode() {
-			res, err := orc.RetrieveDrive(id)
+			request := orc.DrivesControlRetrieveRequest{Id: id}
+			request.IncludeOthers = true
+			res, err := orc.DrivesControlRetrieve.Invoke(request)
 			if err == nil {
 				trackDrive(&res, true)
 			}
@@ -343,8 +348,8 @@ func CanUseDrive(actor orc.ResourceOwner, driveId string, readOnly bool) bool {
 		return false
 	}
 
-	if drive.Owner.Project != "" {
-		project, ok := RetrieveProject(drive.Owner.Project)
+	if drive.Owner.Project.Present {
+		project, ok := RetrieveProject(drive.Owner.Project.Value)
 		if !ok {
 			return false
 		}
@@ -355,7 +360,7 @@ func CanUseDrive(actor orc.ResourceOwner, driveId string, readOnly bool) bool {
 			for _, member := range project.Status.Members {
 				if member.Username == username {
 					isMember = true
-					if member.Role == apm.ProjectRolePI || member.Role == apm.ProjectRoleAdmin {
+					if member.Role == fnd.ProjectRolePI || member.Role == fnd.ProjectRoleAdmin {
 						return true
 					}
 				}
@@ -369,7 +374,8 @@ func CanUseDrive(actor orc.ResourceOwner, driveId string, readOnly bool) bool {
 				return true
 			}
 
-			for _, entry := range drive.Permissions.Others {
+			permissions := drive.Permissions.Value
+			for _, entry := range permissions.Others {
 				entryIsRelevant := false
 				if readOnly {
 					entryIsRelevant = orc.PermissionsHas(entry.Permissions, orc.PermissionRead)
@@ -383,7 +389,7 @@ func CanUseDrive(actor orc.ResourceOwner, driveId string, readOnly bool) bool {
 							return true
 						}
 					} else if entry.Entity.Type == orc.AclEntityTypeProjectGroup {
-						if apm.IsMemberOfGroup(project, entry.Entity.Group, username) {
+						if fnd.IsMemberOfGroup(project, entry.Entity.Group, username) {
 							return true
 						}
 					}
@@ -392,10 +398,10 @@ func CanUseDrive(actor orc.ResourceOwner, driveId string, readOnly bool) bool {
 
 			return false
 		} else {
-			return project.Id == actor.Project
+			return project.Id == actor.Project.Value
 		}
 	} else {
-		for _, entry := range drive.Permissions.Others {
+		for _, entry := range drive.Permissions.Value.Others {
 			entryIsRelevant := false
 			if readOnly {
 				entryIsRelevant = orc.PermissionsHas(entry.Permissions, orc.PermissionRead)

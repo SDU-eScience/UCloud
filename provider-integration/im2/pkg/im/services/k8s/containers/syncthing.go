@@ -4,12 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/sys/unix"
-	core "k8s.io/api/core/v1"
-	networking "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -17,12 +11,19 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/sys/unix"
+	core "k8s.io/api/core/v1"
+	networking "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -79,11 +80,11 @@ func initSyncthing() {
 	}
 }
 
-func initSyncthingFolder(owner orc.ResourceOwner) (string, string, error) {
+func initSyncthingFolder(owner orc.ResourceOwner) (string, string, *util.HttpError) {
 	return initSyncthingFolderEx(owner, true)
 }
 
-func initSyncthingFolderEx(owner orc.ResourceOwner, init bool) (string, string, error) {
+func initSyncthingFolderEx(owner orc.ResourceOwner, init bool) (string, string, *util.HttpError) {
 	internalFolder, drive, err := filesystem.InitializeMemberFiles(owner.CreatedBy, util.OptNone[string]())
 	if err != nil {
 		return "", "", err
@@ -144,7 +145,7 @@ func syncthingGetAssignedPort(pod *core.Pod) util.Option[int] {
 	return util.OptNone[int]()
 }
 
-func syncthingMutateJobSpec(owner orc.ResourceOwner, spec *orc.JobSpecification) error {
+func syncthingMutateJobSpec(owner orc.ResourceOwner, spec *orc.JobSpecification) *util.HttpError {
 	spec.Application.Version = "1"
 	_, ucloudSyncthing, err := initSyncthingFolder(owner)
 	if err != nil {
@@ -154,22 +155,22 @@ func syncthingMutateJobSpec(owner orc.ResourceOwner, spec *orc.JobSpecification)
 	return nil
 }
 
-func syncthingBeforeRestart(job *orc.Job) error {
+func syncthingBeforeRestart(job *orc.Job) *util.HttpError {
 	return nil
 }
 
-func syncthingValidateConfiguration(job *orc.Job, configuration json.RawMessage) error {
+func syncthingValidateConfiguration(job *orc.Job, configuration json.RawMessage) *util.HttpError {
 	var config orc.SyncthingConfig
-	return json.Unmarshal(configuration, &config)
+	return util.HttpErrorFromErr(json.Unmarshal(configuration, &config))
 }
 
-func syncthingResetConfiguration(job *orc.Job, configuration json.RawMessage) (json.RawMessage, error) {
+func syncthingResetConfiguration(job *orc.Job, configuration json.RawMessage) (json.RawMessage, *util.HttpError) {
 	internal, _, err := initSyncthingFolder(job.Owner)
 	if err == nil {
 		_ = filesystem.DoDeleteFile(internal)
 		_, _, _ = initSyncthingFolder(job.Owner)
 	} else {
-		return json.RawMessage{}, fmt.Errorf("failed to reset configuration")
+		return json.RawMessage{}, util.ServerHttpError("failed to reset configuration")
 	}
 	return syncthingRetrieveDefaultConfiguration(job.Owner), nil
 }
@@ -222,7 +223,7 @@ func syncthingMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage
 	var config orc.SyncthingConfig
 	_ = json.Unmarshal(configuration, &config)
 
-	appInvocation := &job.Status.ResolvedApplication.Invocation
+	appInvocation := &job.Status.ResolvedApplication.Value.Invocation
 	appInvocation.Environment = map[string]orc.InvocationParameter{}
 
 	spec := &job.Specification
@@ -264,10 +265,10 @@ func syncthingMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage
 	}
 }
 
-func syncthingMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.Pod) error {
+func syncthingMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.Pod) *util.HttpError {
 	port := syncthingAllocatePort(pod)
 	if !port.Present {
-		return fmt.Errorf("could not allocate a port for Syncthing")
+		return util.ServerHttpError("could not allocate a port for Syncthing")
 	}
 
 	podSpec := &pod.Spec
@@ -283,7 +284,7 @@ func syncthingMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.P
 
 			internalSyncthingSubPath, ok := strings.CutPrefix(internalSyncthing, shared.ServiceConfig.FileSystem.MountPoint+"/")
 			if !ok {
-				return fmt.Errorf("internal error")
+				return util.ServerHttpError("internal error")
 			}
 
 			container.Env = append(container.Env, core.EnvVar{
@@ -369,14 +370,14 @@ func syncthingAllocatePort(pod *core.Pod) util.Option[int] {
 	return util.OptNone[int]()
 }
 
-func syncthingMutateService(job *orc.Job, configuration json.RawMessage, unrelatedService *core.Service, pod *core.Pod) error {
+func syncthingMutateService(job *orc.Job, configuration json.RawMessage, unrelatedService *core.Service, pod *core.Pod) *util.HttpError {
 	// NOTE(Dan): This code doesn't actually modify the already created service, but instead creates a new one.
 	// We need this function mostly to be able to grab the owner reference from the other service. We can't do it in the
 	// pod mutation function because the pod hasn't been created yet.
 
 	port := syncthingGetAssignedPort(pod)
 	if !port.Present {
-		return fmt.Errorf("no syncthing port")
+		return util.ServerHttpError("no syncthing port")
 	}
 
 	serviceLabel := shared.JobIdLabel(job.Id)
@@ -412,13 +413,13 @@ func syncthingMutateService(job *orc.Job, configuration json.RawMessage, unrelat
 	defer cancel()
 
 	_, err := K8sClient.CoreV1().Services(Namespace).Create(timeout, service, meta.CreateOptions{})
-	return err
+	return util.HttpErrorFromErr(err)
 }
 
-func syncthingMutateFirewall(job *orc.Job, configuration json.RawMessage, firewall *networking.NetworkPolicy, pod *core.Pod) error {
+func syncthingMutateFirewall(job *orc.Job, configuration json.RawMessage, firewall *networking.NetworkPolicy, pod *core.Pod) *util.HttpError {
 	port := syncthingGetAssignedPort(pod)
 	if !port.Present {
-		return fmt.Errorf("no syncthing port")
+		return util.ServerHttpError("no syncthing port")
 	}
 
 	allowNetworkFromWorld(firewall, []orc.PortRangeAndProto{

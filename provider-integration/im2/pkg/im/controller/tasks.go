@@ -1,49 +1,37 @@
 package controller
 
 import (
-	"fmt"
-	"net/http"
-	cfg "ucloud.dk/pkg/im/config"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
 var Tasks TaskService
 
 type TaskService struct {
-	OnResume func(id uint64) error
-	OnCancel func(id uint64) error
-	OnPause  func(id uint64) error
+	OnResume func(id int) *util.HttpError
+	OnCancel func(id int) *util.HttpError
+	OnPause  func(id int) *util.HttpError
 }
 
-func controllerTasks(mux *http.ServeMux) {
+func controllerTasks() {
 	if RunsUserCode() {
-		baseContext := fmt.Sprintf("/ucloud/%v/tasks/", cfg.Provider.Id)
+		fnd.TasksProviderPauseOrCancel.Handler(func(info rpc.RequestInfo, request fnd.TasksPauseOrCancelRequest) (util.Empty, *util.HttpError) {
+			var fn func(id int) *util.HttpError = nil
+			if request.RequestedState == fnd.TaskStateCancelled {
+				fn = Tasks.OnCancel
+			} else if request.RequestedState == fnd.TaskStateSuspended {
+				fn = Tasks.OnPause
+			} else if request.RequestedState == fnd.TaskStateRunning {
+				fn = Tasks.OnResume
+			}
 
-		type pauseReq struct {
-			Id             uint64        `json:"id"`
-			RequestedState orc.TaskState `json:"requestedState"`
-		}
+			var err *util.HttpError
+			if fn != nil {
+				err = fn(request.Id)
+			}
 
-		mux.HandleFunc(baseContext+"pauseOrCancel", HttpUpdateHandler[pauseReq](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request pauseReq) {
-				var fn func(id uint64) error = nil
-				if request.RequestedState == orc.TaskStateCancelled {
-					fn = Tasks.OnCancel
-				} else if request.RequestedState == orc.TaskStateSuspended {
-					fn = Tasks.OnPause
-				} else if request.RequestedState == orc.TaskStateRunning {
-					fn = Tasks.OnResume
-				}
-
-				var err error
-				if fn != nil {
-					err = fn(request.Id)
-				}
-
-				sendResponseOrError(w, util.Empty{}, err)
-			},
-		))
+			return util.Empty{}, err
+		})
 	}
 }

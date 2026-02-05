@@ -77,11 +77,11 @@ var Mux *http.ServeMux
 func Init(mux *http.ServeMux) {
 	Mux = mux
 
-	controllerFiles(mux)
-	controllerConnection(mux)
+	controllerFiles()
+	controllerConnection()
 	controllerJobs(mux)
-	controllerTasks(mux)
-	controllerSshKeys(mux)
+	controllerTasks()
+	controllerSshKeys()
 
 	initLiveness()
 	if RunsServerCode() {
@@ -90,7 +90,7 @@ func Init(mux *http.ServeMux) {
 }
 
 func InitLate(mux *http.ServeMux) {
-	controllerIntegratedApps(mux)
+	controllerIntegratedApps()
 }
 
 type ApiHandler[T any] func(w http.ResponseWriter, r *http.Request, request T)

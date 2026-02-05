@@ -14,12 +14,12 @@ import (
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/shared/pkg/apm"
-	"ucloud.dk/shared/pkg/client"
+	apm "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -32,18 +32,18 @@ type ApmService struct {
 var userReplayChannel chan string
 
 func initEvents() {
-	getLastKnownProjectIpc.Handler(func(r *ipc.Request[string]) ipc.Response[apm.Project] {
+	getLastKnownProjectIpc.Handler(func(r *ipc.Request[string]) ipc.Response[fnd.Project] {
 		projectId := r.Payload
 		if BelongsToWorkspace(apm.WalletOwnerProject(projectId), r.Uid) {
 			project, ok := RetrieveProject(projectId)
 			if ok {
-				return ipc.Response[apm.Project]{
+				return ipc.Response[fnd.Project]{
 					StatusCode: http.StatusOK,
 					Payload:    project,
 				}
 			}
 		}
-		return ipc.Response[apm.Project]{
+		return ipc.Response[fnd.Project]{
 			StatusCode: http.StatusNotFound,
 		}
 	})
@@ -155,7 +155,7 @@ func handleNotification(nType NotificationMessageType, notification any) {
 					usernames = append(usernames, member.Username)
 				}
 
-				var knownMembers []apm.ProjectMember
+				var knownMembers []fnd.ProjectMember
 				mappedUsers := MapUCloudUsersToLocalUsers(usernames)
 				for _, member := range realMembers {
 					_, ok := mappedUsers[member.Username]
@@ -222,7 +222,7 @@ const (
 func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom int64) {
 	defer util.SilentClose(session)
 
-	projects := make(map[uint32]apm.Project)
+	projects := make(map[uint32]fnd.Project)
 	products := make(map[uint32]apm.ProductCategory)
 	users := make(map[uint32]string)
 
@@ -230,7 +230,7 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom i
 	writeBuf.PutU8(OpAuth)
 	writeBuf.PutU64(uint64(replayFrom))
 	writeBuf.PutU64(apmIncludeRetired) // flags
-	writeBuf.PutString(client.DefaultClient.RetrieveAccessTokenOrRefresh())
+	writeBuf.PutString(rpc.DefaultClient.RetrieveAccessTokenOrRefresh())
 
 	_ = session.WriteMessage(ws.TextMessage, writeBuf.Bytes())
 	writeBuf.Reset()
@@ -328,7 +328,7 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom i
 					ref := readBuf.GetU32()
 					lastUpdated := fnd.TimeFromUnixMilli(readBuf.GetU64())
 					projectJson := readBuf.GetString()
-					var project apm.Project
+					var project fnd.Project
 					err := json.Unmarshal([]byte(projectJson), &project)
 					if err != nil {
 						log.Warn("Failed to read project: %v\n%v", err, projectJson)
@@ -370,13 +370,13 @@ type NotificationWalletUpdated struct {
 	CombinedQuota     uint64
 	Locked            bool
 	LastUpdate        fnd.Timestamp
-	Project           util.Option[apm.Project]
+	Project           util.Option[fnd.Project]
 	LocalRetiredUsage uint64
 }
 
 type NotificationProjectUpdated struct {
 	LastUpdate fnd.Timestamp
-	Project    apm.Project
+	Project    fnd.Project
 	ProjectComparison
 }
 
@@ -512,7 +512,7 @@ func (b *buf) GetString() string {
 	return string(result)
 }
 
-func saveLastKnownProject(project apm.Project) {
+func saveLastKnownProject(project fnd.Project) {
 	projectCacheServerOnly.Add(project.Id, project)
 
 	data, _ := json.Marshal(project)
@@ -535,10 +535,10 @@ func saveLastKnownProject(project apm.Project) {
 	})
 }
 
-var getLastKnownProjectIpc = ipc.NewCall[string, apm.Project]("event.getlastknownproject")
-var projectCacheServerOnly = lru.NewLRU[string, apm.Project](1024, nil, 10*time.Minute)
+var getLastKnownProjectIpc = ipc.NewCall[string, fnd.Project]("event.getlastknownproject")
+var projectCacheServerOnly = lru.NewLRU[string, fnd.Project](1024, nil, 10*time.Minute)
 
-func RetrieveProject(projectId string) (apm.Project, bool) {
+func RetrieveProject(projectId string) (fnd.Project, bool) {
 	if RunsServerCode() {
 		result, ok := projectCacheServerOnly.Get(projectId)
 		if !ok {
@@ -558,14 +558,14 @@ func RetrieveProject(projectId string) (apm.Project, bool) {
 			})
 
 			if !ok {
-				return apm.Project{}, false
+				return fnd.Project{}, false
 			}
 
-			var result apm.Project
+			var result fnd.Project
 			err := json.Unmarshal([]byte(jsonData), &result)
 			if err != nil {
 				log.Warn("Could not unmarshal last known project %v -> %v", projectId, jsonData)
-				return apm.Project{}, false
+				return fnd.Project{}, false
 			}
 			projectCacheServerOnly.Add(projectId, result)
 			return result, true
@@ -575,7 +575,7 @@ func RetrieveProject(projectId string) (apm.Project, bool) {
 	} else {
 		project, err := getLastKnownProjectIpc.Invoke(projectId)
 		if err != nil {
-			return apm.Project{}, false
+			return fnd.Project{}, false
 		}
 		return project, true
 	}
@@ -612,7 +612,7 @@ type ProjectComparison struct {
 	MembersRemovedFromProject []string
 }
 
-func compareProjects(before apm.Project, after apm.Project) ProjectComparison {
+func compareProjects(before fnd.Project, after fnd.Project) ProjectComparison {
 	oldMembers := before.Status.Members
 
 	var newMembers []string
@@ -790,5 +790,5 @@ func IsLocked(owner apm.WalletOwner, category string) bool {
 }
 
 func IsResourceLocked(resource orc.Resource, ref apm.ProductReference) bool {
-	return IsLocked(apm.WalletOwnerFromIds(resource.Owner.CreatedBy, resource.Owner.Project), ref.Category)
+	return IsLocked(apm.WalletOwnerFromIds(resource.Owner.CreatedBy, resource.Owner.Project.Value), ref.Category)
 }

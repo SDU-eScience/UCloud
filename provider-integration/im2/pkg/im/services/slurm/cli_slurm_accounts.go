@@ -3,6 +3,7 @@ package slurm
 import (
 	"flag"
 	"os"
+
 	"ucloud.dk/pkg/termio"
 )
 

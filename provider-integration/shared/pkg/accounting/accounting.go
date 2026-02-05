@@ -71,6 +71,14 @@ type WalletOwner struct {
 	ProjectId string          `json:"projectId"`
 }
 
+func WalletOwnerFromReference(ref string) WalletOwner {
+	if util.LooksLikeUuid(ref) {
+		return WalletOwnerProject(ref)
+	} else {
+		return WalletOwnerUser(ref)
+	}
+}
+
 func (o *WalletOwner) Reference() string {
 	if o.ProjectId != "" {
 		return o.ProjectId

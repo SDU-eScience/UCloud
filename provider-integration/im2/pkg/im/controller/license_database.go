@@ -15,13 +15,13 @@ import (
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/termio"
-	"ucloud.dk/shared/pkg/apm"
+	apm "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 )
 
 type LicenseEntry struct {
@@ -256,10 +256,10 @@ func fetchAllLicenses() {
 	next := ""
 
 	for {
-		page, err := orc.BrowseLicenses(next, orc.LicenseIncludeFlags{
-			IncludeProduct: false,
-			IncludeUpdates: true,
-		})
+		request := orc.LicensesControlBrowseRequest{Next: util.OptStringIfNotEmpty(next)}
+		request.IncludeProduct = false
+		request.IncludeUpdates = true
+		page, err := orc.LicensesControlBrowse.Invoke(request)
 
 		if err != nil {
 			log.Warn("Failed to fetch licenses: %v", err)
@@ -365,7 +365,7 @@ func TrackLicense(license orc.License) {
 			db.Params{
 				"resource_id":      license.Id,
 				"created_by":       license.Owner.CreatedBy,
-				"project_id":       license.Owner.Project,
+				"project_id":       license.Owner.Project.Value,
 				"product_id":       license.Specification.Product.Id,
 				"product_category": license.Specification.Product.Category,
 				"resource":         string(jsonified),
@@ -374,9 +374,9 @@ func TrackLicense(license orc.License) {
 	})
 }
 
-func ActivateLicense(target *orc.License) error {
+func ActivateLicense(target *orc.License) *util.HttpError {
 	if target == nil {
-		return fmt.Errorf("target is nil")
+		return util.ServerHttpError("target is nil")
 	}
 
 	status := util.Option[string]{}
@@ -388,7 +388,7 @@ func ActivateLicense(target *orc.License) error {
 		Status:    status,
 	}
 
-	err := orc.UpdateLicenses(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.LicenseUpdate]]{
+	_, err := orc.LicensesControlAddUpdate.Invoke(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.LicenseUpdate]]{
 		Items: []orc.ResourceUpdateAndId[orc.LicenseUpdate]{
 			{
 				Id:     target.Id,
@@ -408,7 +408,7 @@ func ActivateLicense(target *orc.License) error {
 	}
 }
 
-func DeleteLicense(target *orc.License) error {
+func DeleteLicense(target *orc.License) *util.HttpError {
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -448,7 +448,7 @@ func RetrieveUsedLicenseCount(licenseName string, owner orc.ResourceOwner) int {
 			`,
 			db.Params{
 				"created_by":   owner.CreatedBy,
-				"project":      owner.Project,
+				"project":      owner.Project.Value,
 				"license_name": licenseName,
 			},
 		)

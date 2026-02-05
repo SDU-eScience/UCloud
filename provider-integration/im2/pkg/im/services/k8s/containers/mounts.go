@@ -3,13 +3,14 @@ package containers
 import (
 	"encoding/json"
 	"fmt"
-	core "k8s.io/api/core/v1"
 	"path/filepath"
 	"slices"
 	"strings"
+
+	core "k8s.io/api/core/v1"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -156,7 +157,7 @@ func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool)
 		}
 	}
 
-	if !filesystem.AllowUCloudPathsTogetherWithProjects(allUCloudPaths, []string{job.Owner.Project}) {
+	if !filesystem.AllowUCloudPathsTogetherWithProjects(allUCloudPaths, []string{job.Owner.Project.Value}) {
 		return mountResult{}, false
 	}
 

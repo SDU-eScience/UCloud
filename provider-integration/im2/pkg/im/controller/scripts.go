@@ -9,9 +9,9 @@ import (
 	"os/exec"
 	"strings"
 
+	"ucloud.dk/pkg/im/ipc"
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
-	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )

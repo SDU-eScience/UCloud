@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/coreos/go-oidc/v3/oidc"
-	"golang.org/x/oauth2"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/coreos/go-oidc/v3/oidc"
+	"golang.org/x/oauth2"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/shared/pkg/log"
@@ -65,9 +66,8 @@ func Init(config *cfg.IdentityManagementOidc, mux *http.ServeMux) {
 
 	oidcVerifier = idp.Verifier(&oidc.Config{ClientID: config.ClientId})
 
-	ctrl.IdentityManagement.UnmanagedConnections = true
 	ctrl.IdentityManagement.ExpiresAfter.Set(config.ExpiresAfterMs)
-	ctrl.IdentityManagement.InitiateConnection = func(username string) (string, error) {
+	ctrl.IdentityManagement.InitiateConnection = func(username string) (string, *util.HttpError) {
 		stateToken := util.RandomToken(16)
 		nonce := util.RandomToken(16)
 
@@ -167,19 +167,22 @@ func Init(config *cfg.IdentityManagementOidc, mux *http.ServeMux) {
 			return
 		}
 
-		err = ctrl.RegisterConnectionComplete(session.UCloudUsername, response.Uid, true)
+		err = ctrl.RegisterConnectionComplete(session.UCloudUsername, response.Uid, true).AsError()
 		if err != nil {
 			log.Warn("Failed to register connection complete: %v", err)
 			http.Error(w, "Failed to authenticate you", http.StatusBadGateway)
 			return
 		}
 
-		_, err = ctrl.CreatePersonalProviderProject(session.UCloudUsername)
-		if err != nil {
-			log.Warn("Failed to register connection complete: %v", err)
-			http.Error(w, "Failed to authenticate you", http.StatusBadGateway)
-			return
-		}
+		/*
+			// TODO Unmanaged projects are not currently supported
+			_, err = ctrl.CreatePersonalProviderProject(session.UCloudUsername)
+			if err != nil {
+				log.Warn("Failed to register connection complete: %v", err)
+				http.Error(w, "Failed to authenticate you", http.StatusBadGateway)
+				return
+			}
+		*/
 
 		http.Redirect(w, r, cfg.Provider.Hosts.UCloudPublic.ToURL(), http.StatusFound)
 	})

@@ -19,10 +19,10 @@ import (
 	"ucloud.dk/pkg/im/services/k8s/containers"
 	"ucloud.dk/pkg/im/services/k8s/kubevirt"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	"ucloud.dk/shared/pkg/apm"
+	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -436,14 +436,14 @@ func loopMonitoring() {
 	// -----------------------------------------------------------------------------------------------------------------
 	if now.After(nextAccounting) {
 		timer.Mark()
-		var reports []apm.UsageReportItem
+		var reports []apm.ReportUsageRequest
 
 		for _, job := range activeJobs {
 			timeReport := shared.ComputeRunningTime(job)
 			accUnits := convertJobTimeToAccountingUnits(job, timeReport.TimeConsumed)
-			reports = append(reports, apm.UsageReportItem{
+			reports = append(reports, apm.ReportUsageRequest{
 				IsDeltaCharge: false,
-				Owner:         apm.WalletOwnerFromIds(job.Owner.CreatedBy, job.Owner.Project),
+				Owner:         apm.WalletOwnerFromIds(job.Owner.CreatedBy, job.Owner.Project.Value),
 				CategoryIdV2: apm.ProductCategoryIdV2{
 					Name:     job.Specification.Product.Category,
 					Provider: job.Specification.Product.Provider,
@@ -464,7 +464,7 @@ func loopMonitoring() {
 
 				reportChunk := reportsChunked[chunkIdx]
 
-				_, err := apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{Items: reportChunk})
+				_, err := apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{Items: reportChunk})
 				if err != nil {
 					log.Info("Failed to report usage: %s", err)
 				}
@@ -616,7 +616,7 @@ func loopMonitoring() {
 			}
 			metricMonitoring.WithLabelValues("Sync").Observe(timer.Mark().Seconds())
 
-			toolBackend := job.Status.ResolvedApplication.Invocation.Tool.Tool.Description.Backend
+			toolBackend := job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
 			if toolBackend == orc.ToolBackendVirtualMachine {
 				timer.Mark()
 				kubevirt.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
@@ -742,11 +742,11 @@ func convertJobTimeToAccountingUnits(job *orc.Job, timeConsumed time.Duration) i
 	productUnits := float64(job.Specification.Replicas)
 	switch k8sCategory.Payment.Unit {
 	case cfg.MachineResourceTypeCpu:
-		productUnits *= float64(job.Status.ResolvedProduct.Cpu)
+		productUnits *= float64(job.Status.ResolvedProduct.Value.Cpu)
 	case cfg.MachineResourceTypeGpu:
-		productUnits *= float64(job.Status.ResolvedProduct.Gpu)
+		productUnits *= float64(job.Status.ResolvedProduct.Value.Gpu)
 	case cfg.MachineResourceTypeMemory:
-		productUnits *= float64(job.Status.ResolvedProduct.MemoryInGigs)
+		productUnits *= float64(job.Status.ResolvedProduct.Value.MemoryInGigs)
 	case "":
 		// Use just the nodes. This is used when type is currency.
 	}
@@ -766,7 +766,7 @@ func convertJobTimeToAccountingUnits(job *orc.Job, timeConsumed time.Duration) i
 	hasPrice := k8sCategory.Payment.Type == cfg.PaymentTypeMoney
 	price := float64(1)
 	if hasPrice {
-		price = float64(job.Status.ResolvedProduct.Price) / 1000000
+		price = float64(job.Status.ResolvedProduct.Value.Price) / 1000000
 	}
 
 	accountingUnitsUsed := productUnits * timeUnits * price

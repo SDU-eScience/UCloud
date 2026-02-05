@@ -8,9 +8,6 @@ import (
 func HandleCli(command string) {
 	ServiceConfig = cfg.Services.Slurm()
 	switch command {
-	case "connect":
-		HandleConnectCommand()
-
 	case "slurm-accounts":
 		HandleSlurmAccountsCommand()
 
@@ -25,9 +22,6 @@ func HandleCli(command string) {
 
 	case "drives":
 		HandleDrivesCommand()
-
-	case "allocations":
-		HandleAllocationsCommand()
 
 	case "scripts":
 		HandleScriptsCommand()
@@ -47,6 +41,5 @@ func InitCliServer() {
 	HandleUsersCommandServer()
 	HandleJobsCommandServer()
 	HandleDrivesCommandServer()
-	HandleAllocationsCommandServer()
 	HandleTasksCommandServer()
 }

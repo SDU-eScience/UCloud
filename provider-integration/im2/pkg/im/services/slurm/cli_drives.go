@@ -8,13 +8,14 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
 	"ucloud.dk/pkg/cli"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/external/user"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/termio"
 	db "ucloud.dk/shared/pkg/database"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 )
 
 func HandleDrivesCommand() {
@@ -84,8 +85,8 @@ func HandleDrivesCommand() {
 			}
 			f.AppendField("Created by", createdBy)
 
-			if drive.Drive.Owner.Project != "" {
-				f.AppendField("Project", fmt.Sprintf("%v (ID: %v)", drive.WorkspaceTitle, drive.Drive.Owner.Project))
+			if drive.Drive.Owner.Project.Value != "" {
+				f.AppendField("Project", fmt.Sprintf("%v (ID: %v)", drive.WorkspaceTitle, drive.Drive.Owner.Project.Value))
 			}
 
 			f.AppendField("Product", fmt.Sprintf("%s/%s", driveSpec.Product.Id, driveSpec.Product.Category))
@@ -122,8 +123,8 @@ func singleDriveToCliDrive(drive *orc.Drive, ok bool) ipc.Response[[]cliDrive] {
 	result := cliDrive{}
 	result.Drive = drive
 
-	if drive.Owner.Project != "" {
-		gid, ok := ctrl.MapUCloudProjectToLocal(drive.Owner.Project)
+	if drive.Owner.Project.Value != "" {
+		gid, ok := ctrl.MapUCloudProjectToLocal(drive.Owner.Project.Value)
 		if !ok {
 			return ipc.Response[[]cliDrive]{
 				StatusCode:   http.StatusNotFound,

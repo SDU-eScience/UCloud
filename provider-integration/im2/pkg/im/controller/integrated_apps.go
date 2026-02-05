@@ -3,16 +3,16 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"sync"
 	"time"
 
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/shared/pkg/apm"
+	apm "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -32,17 +32,17 @@ const (
 
 type IntegratedApplicationHandler struct {
 	Flags                        IntegratedApplicationFlag
-	UpdateConfiguration          func(job *orc.Job, etag string, configuration json.RawMessage) error
-	ResetConfiguration           func(job *orc.Job, configuration json.RawMessage) (json.RawMessage, error)
-	RestartApplication           func(job *orc.Job) error
+	UpdateConfiguration          func(job *orc.Job, etag string, configuration json.RawMessage) *util.HttpError
+	ResetConfiguration           func(job *orc.Job, configuration json.RawMessage) (json.RawMessage, *util.HttpError)
+	RestartApplication           func(job *orc.Job) *util.HttpError
 	RetrieveDefaultConfiguration func(owner orc.ResourceOwner) json.RawMessage
 	RetrieveLegacyConfiguration  func(owner orc.ResourceOwner) util.Option[json.RawMessage]
-	MutateSpecBeforeRegistration func(owner orc.ResourceOwner, spec *orc.JobSpecification) error
+	MutateSpecBeforeRegistration func(owner orc.ResourceOwner, spec *orc.JobSpecification) *util.HttpError
 }
 
 var IntegratedApplications = map[string]IntegratedApplicationHandler{}
 
-func controllerIntegratedApps(mux *http.ServeMux) {
+func controllerIntegratedApps() {
 	if !RunsServerCode() {
 		return
 	}
@@ -50,11 +50,11 @@ func controllerIntegratedApps(mux *http.ServeMux) {
 	initIApps()
 
 	for k, v := range IntegratedApplications {
-		controllerIntegratedApp(mux, k, v)
+		controllerIntegratedApp(k, v)
 	}
 }
 
-func IAppConfigureFromLegacy(appName string, owner orc.ResourceOwner) (util.Option[IAppRunningConfiguration], error) {
+func IAppConfigureFromLegacy(appName string, owner orc.ResourceOwner) (util.Option[IAppRunningConfiguration], *util.HttpError) {
 	handler, ok := IntegratedApplications[appName]
 	if ok && handler.RetrieveLegacyConfiguration != nil {
 		rawConfig := handler.RetrieveLegacyConfiguration(owner)
@@ -65,7 +65,7 @@ func IAppConfigureFromLegacy(appName string, owner orc.ResourceOwner) (util.Opti
 			} else {
 				config := RetrieveIAppConfiguration(appName, owner)
 				if !config.Present {
-					return util.OptNone[IAppRunningConfiguration](), fmt.Errorf("error configuring iapp")
+					return util.OptNone[IAppRunningConfiguration](), util.ServerHttpError("error configuring iapp")
 				} else {
 					return util.OptValue(config.Value), nil
 				}
@@ -76,95 +76,56 @@ func IAppConfigureFromLegacy(appName string, owner orc.ResourceOwner) (util.Opti
 	return util.OptNone[IAppRunningConfiguration](), nil
 }
 
-func controllerIntegratedApp(mux *http.ServeMux, appName string, handler IntegratedApplicationHandler) {
+func controllerIntegratedApp(appName string, handler IntegratedApplicationHandler) {
 	if handler.Flags&IntegratedAppInternal == 0 {
-		cleanContext := fmt.Sprintf("/ucloud/%v/iapps/%v", cfg.Provider.Id, appName)
-		context := cleanContext + "/"
+		retrieveRpc := orc.IAppProviderRetrieveConfiguration[json.RawMessage](appName)
+		retrieveRpc.Handler(func(info rpc.RequestInfo, request orc.IAppProviderRetrieveConfigRequest) (orc.IAppProviderRetrieveConfigResponse[json.RawMessage], *util.HttpError) {
+			config := RetrieveIAppConfiguration(appName, request.Principal)
+			resp := orc.IAppRetrieveConfigResponse[json.RawMessage]{
+				ETag:   config.Value.ETag,
+				Config: config.Value.Configuration,
+			}
 
-		type retrieveRequest struct {
-			ProductId string            `json:"productId"`
-			Principal orc.ResourceOwner `json:"principal"`
-		}
-		type retrieveResponse struct {
-			ETag          string          `json:"etag"`
-			Configuration json.RawMessage `json:"config"`
-		}
-		mux.HandleFunc(context+"retrieve", HttpUpdateHandler[retrieveRequest](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request retrieveRequest) {
-				config := RetrieveIAppConfiguration(appName, request.Principal)
-				resp := retrieveResponse{
-					ETag:          config.Value.ETag,
-					Configuration: config.Value.Configuration,
+			if !config.Present {
+				legacyConfig, err := IAppConfigureFromLegacy(appName, request.Principal)
+				if err != nil {
+					return orc.IAppProviderRetrieveConfigResponse[json.RawMessage]{}, err
+				} else if legacyConfig.Present {
+					config = legacyConfig
+					resp = orc.IAppRetrieveConfigResponse[json.RawMessage]{
+						ETag:   config.Value.ETag,
+						Config: config.Value.Configuration,
+					}
 				}
 
 				if !config.Present {
-					legacyConfig, err := IAppConfigureFromLegacy(appName, request.Principal)
-					if err != nil {
-						sendResponseOrError(w, nil, err)
-						return
-					} else if legacyConfig.Present {
-						config = legacyConfig
-						resp = retrieveResponse{
-							ETag:          config.Value.ETag,
-							Configuration: config.Value.Configuration,
-						}
-					}
-
-					if !config.Present {
-						// NOTE(Dan): When returning the default configuration we _do not_ save it in the database.
-						// This is meant only for the frontend to receive a starting point.
-						resp.Configuration = handler.RetrieveDefaultConfiguration(request.Principal)
-						resp.ETag = "initial"
-					}
+					// NOTE(Dan): When returning the default configuration we _do not_ save it in the database.
+					// This is meant only for the frontend to receive a starting point.
+					resp.Config = handler.RetrieveDefaultConfiguration(request.Principal)
+					resp.ETag = "initial"
 				}
+			}
 
-				sendResponseOrError(w, resp, nil)
-			},
-		))
+			return resp, nil
+		})
 
-		type updateRequest struct {
-			ProductId    string              `json:"productId"`
-			Principal    orc.ResourceOwner   `json:"principal"`
-			Config       json.RawMessage     `json:"config"`
-			ExpectedETag util.Option[string] `json:"expectedETag"`
-		}
+		updateRpc := orc.IAppProviderUpdateConfiguration[json.RawMessage](appName)
+		updateRpc.Handler(func(info rpc.RequestInfo, request orc.IAppProviderUpdateConfigurationRequest[json.RawMessage]) (util.Empty, *util.HttpError) {
+			err := ConfigureIApp(appName, request.Principal, request.ExpectedETag, request.Config)
+			return util.Empty{}, err
+		})
 
-		type updateResponse struct{}
-		mux.HandleFunc(context+"update", HttpUpdateHandler[updateRequest](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request updateRequest) {
-				err := ConfigureIApp(appName, request.Principal, request.ExpectedETag, request.Config)
-				sendResponseOrError(w, updateResponse{}, err)
-			},
-		))
+		resetRpc := orc.IAppProviderReset[json.RawMessage](appName)
+		resetRpc.Handler(func(info rpc.RequestInfo, request orc.IAppProviderResetRequest) (util.Empty, *util.HttpError) {
+			err := ResetIApp(appName, request.Principal, request.ExpectedETag)
+			return util.Empty{}, err
+		})
 
-		type resetRequest struct {
-			ProductId    string              `json:"productId"`
-			Principal    orc.ResourceOwner   `json:"principal"`
-			ExpectedETag util.Option[string] `json:"expectedETag"`
-		}
-		type resetResponse struct{}
-		mux.HandleFunc(context+"reset", HttpUpdateHandler[resetRequest](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request resetRequest) {
-				err := ResetIApp(appName, request.Principal, request.ExpectedETag)
-				sendResponseOrError(w, resetResponse{}, err)
-			},
-		))
-
-		type restartRequest struct {
-			ProductId string            `json:"productId"`
-			Principal orc.ResourceOwner `json:"principal"`
-		}
-		type restartResponse struct{}
-		mux.HandleFunc(context+"restart", HttpUpdateHandler[restartRequest](
-			0,
-			func(w http.ResponseWriter, r *http.Request, request restartRequest) {
-				err := RestartIApp(appName, request.Principal)
-				sendResponseOrError(w, restartResponse{}, err)
-			},
-		))
+		restartRpc := orc.IAppProviderRestart[json.RawMessage](appName)
+		restartRpc.Handler(func(info rpc.RequestInfo, request orc.IAppProviderRestartRequest) (util.Empty, *util.HttpError) {
+			err := RestartIApp(appName, request.Principal)
+			return util.Empty{}, err
+		})
 	}
 }
 
@@ -192,7 +153,7 @@ func initIApps() {
 		for _, row := range rows {
 			owner := orc.ResourceOwner{
 				CreatedBy: row.Username,
-				Project:   row.Project,
+				Project:   util.OptStringIfNotEmpty(row.Project),
 			}
 
 			key := iappConfigKey{
@@ -244,7 +205,7 @@ func ReconfigureAllIApps() {
 
 const iappConfigWaitingForJob = "0"
 
-func ConfigureIApp(appName string, owner orc.ResourceOwner, etag util.Option[string], configuration json.RawMessage) error {
+func ConfigureIApp(appName string, owner orc.ResourceOwner, etag util.Option[string], configuration json.RawMessage) *util.HttpError {
 	newEtag := util.RandomToken(16)
 	etagsMatched := false
 
@@ -275,12 +236,10 @@ func ConfigureIApp(appName string, owner orc.ResourceOwner, etag util.Option[str
 	if !ok {
 		res := orc.ProviderRegisteredResource[orc.JobSpecification]{
 			Spec: orc.JobSpecification{
-				ResourceSpecification: orc.ResourceSpecification{
-					Product: apm.ProductReference{
-						Id:       appName,
-						Category: appName,
-						Provider: cfg.Provider.Id,
-					},
+				Product: apm.ProductReference{
+					Id:       appName,
+					Category: appName,
+					Provider: cfg.Provider.Id,
 				},
 				Application: orc.NameAndVersion{
 					Name:    appName,
@@ -305,7 +264,7 @@ func ConfigureIApp(appName string, owner orc.ResourceOwner, etag util.Option[str
 		}
 
 		jobId := util.RetryOrPanic[string](fmt.Sprintf("registering iapp: %s", appName), func() (string, error) {
-			resp, err := orc.RegisterJobs(fnd.BulkRequest[orc.ProviderRegisteredResource[orc.JobSpecification]]{
+			resp, err := orc.JobsControlRegister.Invoke(fnd.BulkRequest[orc.ProviderRegisteredResource[orc.JobSpecification]]{
 				Items: []orc.ProviderRegisteredResource[orc.JobSpecification]{res},
 			})
 
@@ -386,7 +345,7 @@ func ConfigureIApp(appName string, owner orc.ResourceOwner, etag util.Option[str
 			    `,
 				db.Params{
 					"username":         owner.CreatedBy,
-					"project":          owner.Project,
+					"project":          owner.Project.Value,
 					"application_name": appName,
 					"configuration":    string(configuration),
 					"job_id":           job.Id,
@@ -428,7 +387,7 @@ func RetrieveIAppConfiguration(appName string, owner orc.ResourceOwner) util.Opt
 	}
 }
 
-func ResetIApp(appName string, owner orc.ResourceOwner, etag util.Option[string]) error {
+func ResetIApp(appName string, owner orc.ResourceOwner, etag util.Option[string]) *util.HttpError {
 	handler, ok := IntegratedApplications[appName]
 	if !ok {
 		log.Warn("Failed to reset integrated application, there is no associated handler for %s.", appName)
@@ -450,7 +409,7 @@ func ResetIApp(appName string, owner orc.ResourceOwner, etag util.Option[string]
 
 	job, ok := RetrieveJob(result.JobId)
 	var newConfig json.RawMessage
-	var err error
+	var err *util.HttpError
 
 	if !ok {
 		// Nothing further to reset, but something was probably wrong so we log it
@@ -473,7 +432,7 @@ func ResetIApp(appName string, owner orc.ResourceOwner, etag util.Option[string]
 	}
 }
 
-func RestartIApp(appName string, owner orc.ResourceOwner) error {
+func RestartIApp(appName string, owner orc.ResourceOwner) *util.HttpError {
 	handler, ok := IntegratedApplications[appName]
 	if !ok {
 		return util.ServerHttpError("Could not find the application. Reload the page and try again later.")
@@ -539,7 +498,7 @@ func iappDelete(key iappConfigKey) {
 			db.Params{
 				"app_name": key.AppName,
 				"username": key.Owner.CreatedBy,
-				"project":  key.Owner.Project,
+				"project":  key.Owner.Project.Value,
 			},
 		)
 	})

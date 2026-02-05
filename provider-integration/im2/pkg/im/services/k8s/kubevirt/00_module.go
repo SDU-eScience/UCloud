@@ -5,8 +5,15 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	ws "github.com/gorilla/websocket"
 	"io"
+	"net/http"
+	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
+	ws "github.com/gorilla/websocket"
 	admission "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -15,18 +22,12 @@ import (
 	kvclient "kubevirt.io/client-go/kubecli"
 	kvapi "kubevirt.io/client-go/kubevirt/typed/core/v1"
 	kvcdi "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
-	"net/http"
-	"path/filepath"
-	"slices"
-	"strconv"
-	"strings"
-	"time"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -342,7 +343,7 @@ func handleShell(session *ctrl.ShellSession, cols int, rows int) {
 	}
 }
 
-func terminate(request ctrl.JobTerminateRequest) error {
+func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 	name := vmName(request.Job.Id, 0)
 	err := KubevirtClient.VirtualMachine(Namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
@@ -352,13 +353,13 @@ func terminate(request ctrl.JobTerminateRequest) error {
 	return nil
 }
 
-func unsuspend(request ctrl.JobUnsuspendRequest) error {
-	shared.RequestSchedule(request.Job)
+func unsuspend(job orc.Job) *util.HttpError {
+	shared.RequestSchedule(&job)
 	return nil
 }
 
-func suspend(request ctrl.JobSuspendRequest) error {
-	name := vmName(request.Job.Id, 0)
+func suspend(job orc.Job) *util.HttpError {
+	name := vmName(job.Id, 0)
 	err := KubevirtClient.VirtualMachine(Namespace).Stop(context.TODO(), name, &kvcore.StopOptions{})
 	if err != nil {
 		log.Info("Failed to shutdown VM: %v", err)
@@ -371,7 +372,7 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 	return nil
 }
 
-func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, error) {
+func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, *util.HttpError) {
 	return ctrl.ConfiguredWebSession{
 		Flags: ctrl.RegisteredIngressFlagsVnc | ctrl.RegisteredIngressFlagsNoGatewayConfig,
 	}, nil
@@ -474,7 +475,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 		fmt.Sprintf("groupmod -g %d ucloud", filesystem.DefaultUid),
 	}
 
-	machine := &job.Status.ResolvedProduct
+	machine := &job.Status.ResolvedProduct.Value
 
 	nameOfVm := vmName(job.Id, rank)
 	existingVm, err := KubevirtClient.VirtualMachine(Namespace).Get(context.TODO(), nameOfVm, metav1.GetOptions{})
@@ -492,7 +493,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	strategy := kvcore.RunStrategyAlways
 	vm.Spec.RunStrategy = &strategy
 
-	image := job.Status.ResolvedApplication.Invocation.Tool.Tool.Description.Image
+	image := job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Image
 	baseImageSource := &kvcdi.DataVolumeSource{}
 	if strings.HasPrefix(image, "http://") || strings.HasPrefix(image, "https://") {
 		baseImageSource.HTTP = &kvcdi.DataVolumeSourceHTTP{

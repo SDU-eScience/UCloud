@@ -2,17 +2,18 @@ package containers
 
 import (
 	"encoding/json"
-	core "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	core "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -52,11 +53,13 @@ func initIntegratedTerminal() {
 		return integratedTerminalDimensions
 	})
 
-	group, err := orc.FindGroupByApplication("terminal-ubuntu")
+	group, err := orc.AppsFindGroupByApplication.Invoke(orc.AppCatalogFindGroupByApplicationRequest{
+		AppName: "terminal-ubuntu",
+	})
 	if err == nil {
 		apps := group.Status.Applications
 		if len(apps) > 0 {
-			integratedTerminalImage = apps[len(apps)-1].Invocation.Tool.Tool.Description.Image
+			integratedTerminalImage = apps[len(apps)-1].Invocation.Tool.Tool.Value.Description.Image
 		}
 	}
 
@@ -78,12 +81,12 @@ func initIntegratedTerminal() {
 	}
 }
 
-func itermValidateConfiguration(job *orc.Job, configuration json.RawMessage) error {
+func itermValidateConfiguration(job *orc.Job, configuration json.RawMessage) *util.HttpError {
 	var config iappTermConfig
-	return json.Unmarshal(configuration, &config)
+	return util.HttpErrorFromErr(json.Unmarshal(configuration, &config))
 }
 
-func itermMutateJobBeforeRegistration(owner orc.ResourceOwner, spec *orc.JobSpecification) error {
+func itermMutateJobBeforeRegistration(owner orc.ResourceOwner, spec *orc.JobSpecification) *util.HttpError {
 	spec.Name = "Integrated terminal"
 	spec.Application = orc.NameAndVersion{
 		Name:    "unknown",
@@ -92,7 +95,7 @@ func itermMutateJobBeforeRegistration(owner orc.ResourceOwner, spec *orc.JobSpec
 	return nil
 }
 
-func itermMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.Pod) error {
+func itermMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.Pod) *util.HttpError {
 	podSpec := &pod.Spec
 	for i := 0; i < len(podSpec.Containers); i++ {
 		container := &podSpec.Containers[i]
@@ -125,7 +128,7 @@ func itermMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage) {
 		return
 	}
 
-	appInvocation := &job.Status.ResolvedApplication.Invocation
+	appInvocation := &job.Status.ResolvedApplication.Value.Invocation
 	appInvocation.Environment = map[string]orc.InvocationParameter{}
 
 	spec := &job.Specification

@@ -1,11 +1,11 @@
-package orchestrators
+package controller
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
 	"regexp"
 	"strings"
+
 	"ucloud.dk/gonja/v2/builtins"
 	controlStructures "ucloud.dk/gonja/v2/builtins/control_structures"
 	gonjacfg "ucloud.dk/gonja/v2/config"
@@ -206,7 +206,7 @@ func PrepareJinjaTemplate(source string, templateSession any, templates Template
 
 	byteSource := []byte(source)
 
-	rootID := fmt.Sprintf("root-%s", string(sha256.New().Sum(byteSource)))
+	rootID := fmt.Sprintf("root-%s", util.Sha256(byteSource))
 
 	loader, err := loaders.NewFileSystemLoader("")
 	if err != nil {

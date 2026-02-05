@@ -20,10 +20,10 @@ import (
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/controller/fsearch"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	"ucloud.dk/shared/pkg/apm"
+	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -194,11 +194,11 @@ func scanDrive(drive orc.Drive) {
 }
 
 func reportUsedStorage(drive orc.Drive, sizeInGb int64) {
-	request := fnd.BulkRequest[apm.UsageReportItem]{
-		Items: []apm.UsageReportItem{
+	request := fnd.BulkRequest[apm.ReportUsageRequest]{
+		Items: []apm.ReportUsageRequest{
 			{
 				IsDeltaCharge: false,
-				Owner:         apm.WalletOwnerFromIds(drive.Owner.CreatedBy, drive.Owner.Project),
+				Owner:         apm.WalletOwnerFromIds(drive.Owner.CreatedBy, drive.Owner.Project.Value),
 				CategoryIdV2: apm.ProductCategoryIdV2{
 					Name:     drive.Specification.Product.Category,
 					Provider: cfg.Provider.Id,
@@ -212,8 +212,8 @@ func reportUsedStorage(drive orc.Drive, sizeInGb int64) {
 	}
 
 	util.RetryOrPanic("report storage", func() (util.Empty, error) {
-		_, err := apm.ReportUsage(request)
-		return util.EmptyValue, err
+		_, err := apm.ReportUsage.Invoke(request)
+		return util.EmptyValue, err.AsError()
 	})
 }
 

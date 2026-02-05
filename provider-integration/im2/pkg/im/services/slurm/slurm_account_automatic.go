@@ -3,11 +3,13 @@ package slurm
 import (
 	"fmt"
 	"slices"
+
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	slurmcli "ucloud.dk/pkg/im/external/slurm"
 	"ucloud.dk/pkg/im/external/user"
-	"ucloud.dk/shared/pkg/apm"
+	apm "ucloud.dk/shared/pkg/accounting"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 )
 
@@ -67,7 +69,7 @@ func (a *automaticAccountManagementService) createPersonalSlurmAccount(username 
 	}
 }
 
-func (a *automaticAccountManagementService) synchronizeProjectToSlurmAccount(project *apm.Project, comparison *ctrl.ProjectComparison) {
+func (a *automaticAccountManagementService) synchronizeProjectToSlurmAccount(project *fnd.Project, comparison *ctrl.ProjectComparison) {
 	log.Info("synchronizing project to slurm account %v", project.Id)
 	categoriesToAccountName := AccountMapper.ServerListAccountsForWorkspace(apm.WalletOwnerProject(project.Id))
 	for categoryName, accountName := range categoriesToAccountName {

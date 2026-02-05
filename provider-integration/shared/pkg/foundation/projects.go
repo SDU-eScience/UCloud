@@ -196,6 +196,20 @@ func (p ProjectSortDirection) Normalize() ProjectSortDirection {
 	return util.EnumOrDefault(p, ProjectSortDirectionOptions, ProjectSortAscending)
 }
 
+func IsMemberOfGroup(project Project, groupId string, username string) bool {
+	for _, group := range project.Status.Groups {
+		if group.Id == groupId {
+			for _, member := range group.Status.Members {
+				if member == username {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}
+
 type ProjectBrowseRequest struct {
 	ItemsPerPage  int
 	Next          util.Option[string]

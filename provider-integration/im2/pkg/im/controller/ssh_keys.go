@@ -1,53 +1,28 @@
 package controller
 
 import (
-	"fmt"
-	"net/http"
-	fnd "ucloud.dk/shared/pkg/foundation"
-	cfg "ucloud.dk/pkg/im/config"
+	orcapi "ucloud.dk/shared/pkg/orc2"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
 var SshKeys SshKeyService
 
-type SshKey struct {
-	Id            string              `json:"id"`
-	Owner         string              `json:"owner"`
-	CreatedAt     fnd.Timestamp       `json:"createdAt"`
-	Fingerprint   string              `json:"fingerprint"`
-	Specification SshKeySpecification `json:"specification"`
-}
-
-type SshKeySpecification struct {
-	Title string `json:"title"`
-	Key   string `json:"key"`
-}
-
 type SshKeyService struct {
-	OnKeyUploaded func(username string, keys []SshKey) error
+	OnKeyUploaded func(username string, keys []orcapi.SshKey) *util.HttpError
 }
 
-func controllerSshKeys(mux *http.ServeMux) {
-	baseContext := fmt.Sprintf("/ucloud/%v/ssh/", cfg.Provider.Id)
-
+func controllerSshKeys() {
 	if RunsUserCode() {
-		type uploadRequest struct {
-			Username string   `json:"username"`
-			AllKeys  []SshKey `json:"allKeys"`
-		}
+		orcapi.SshProviderKeyUploaded.Handler(func(info rpc.RequestInfo, request orcapi.SshProviderKeyUploadedRequest) (util.Empty, *util.HttpError) {
+			var err *util.HttpError
 
-		mux.HandleFunc(baseContext+"keyUploaded", HttpUpdateHandler(
-			0,
-			func(w http.ResponseWriter, r *http.Request, request uploadRequest) {
-				var err error
+			handler := SshKeys.OnKeyUploaded
+			if handler != nil {
+				err = handler(request.Username, request.AllKeys)
+			}
 
-				handler := SshKeys.OnKeyUploaded
-				if handler != nil {
-					err = handler(request.Username, request.AllKeys)
-				}
-
-				sendResponseOrError(w, util.Empty{}, err)
-			}),
-		)
+			return util.Empty{}, err
+		})
 	}
 }

@@ -16,7 +16,7 @@ import (
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -33,7 +33,7 @@ type sbatchTemplateSession struct {
 	Error                error
 	PreviouslyLoaded     map[orc.NativeApplication]appCfgAndVersion
 	SrunOverride         util.Option[cfg.SrunConfiguration]
-	ParametersAndValues  map[string]orc.ParamAndValue
+	ParametersAndValues  map[string]ctrl.ParamAndValue
 	Parameters           map[string]orc.AppParameterValue
 }
 
@@ -350,8 +350,8 @@ func prepareDefaultEnvironment(
 	job *orc.Job,
 	jobFolder string,
 	accountName string,
-	parametersAndValues map[string]orc.ParamAndValue,
-	argBuilder orc.ArgBuilder,
+	parametersAndValues map[string]ctrl.ParamAndValue,
+	argBuilder ctrl.ArgBuilder,
 	allocatedPort util.Option[int],
 ) (directives map[string]string, jinjaContextParameters map[string]any, targets *[]orc.DynamicTarget) {
 	directives = make(map[string]string)
@@ -361,8 +361,8 @@ func prepareDefaultEnvironment(
 
 	// SBatch directives
 	// =================================================================================================================
-	application := &job.Status.ResolvedApplication.Invocation
-	tool := &job.Status.ResolvedApplication.Invocation.Tool.Tool
+	application := &job.Status.ResolvedApplication.Value.Invocation
+	tool := &job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value
 	machineConfig, _ := ServiceConfig.Compute.Machines[job.Specification.Product.Category]
 
 	formattedTimeAllocation := ""
@@ -382,8 +382,9 @@ func prepareDefaultEnvironment(
 	}
 
 	memoryAllocation := ""
+	resolvedProduct := job.Status.ResolvedProduct.Value
 	{
-		allocInGigs := job.Status.ResolvedProduct.MemoryInGigs
+		allocInGigs := resolvedProduct.MemoryInGigs
 		if allocInGigs <= 0 {
 			allocInGigs = 1
 		}
@@ -391,7 +392,7 @@ func prepareDefaultEnvironment(
 		memoryAllocation = fmt.Sprintf("%d", allocInGigs*1000)
 	}
 
-	cpuAllocation := job.Status.ResolvedProduct.Cpu
+	cpuAllocation := resolvedProduct.Cpu
 	{
 		if cpuAllocation <= 0 {
 			cpuAllocation = 1
@@ -409,8 +410,8 @@ func prepareDefaultEnvironment(
 		directives["chdir"] = orc.EscapeBash(jobFolder)
 		directives["cpus-per-task"] = fmt.Sprint(cpuAllocation)
 		directives["mem"] = memoryAllocation
-		if job.Status.ResolvedProduct.Gpu != 0 {
-			directives["gpus-per-task"] = fmt.Sprint(job.Status.ResolvedProduct.Gpu)
+		if resolvedProduct.Gpu != 0 {
+			directives["gpus-per-task"] = fmt.Sprint(resolvedProduct.Gpu)
 		}
 		directives["time"] = formattedTimeAllocation
 		directives["nodes"] = fmt.Sprint(job.Specification.Replicas)
@@ -487,7 +488,7 @@ func prepareDefaultEnvironment(
 		ucloudCtx["jobId"] = job.Id
 
 		{
-			product := &job.Status.ResolvedProduct
+			product := &resolvedProduct
 			machine := map[string]any{}
 
 			machine["name"] = product.Name
@@ -516,7 +517,7 @@ func prepareDefaultEnvironment(
 			ucloudCtx["qos"] = machineConfig.Qos.Get()
 		}
 		{
-			app := &job.Status.ResolvedApplication
+			app := &job.Status.ResolvedApplication.Value
 			appCtx := map[string]any{}
 
 			appCtx["name"] = app.Metadata.Name
@@ -603,7 +604,7 @@ func prepareDefaultEnvironment(
 	jinjaContext := exec.NewContext(jinjaContextParameters)
 	for k, v := range application.Sbatch {
 		if !slices.Contains(directivesWhichCannotBeChanged, k) {
-			directive := strings.Join(orc.BuildParameter(v, parametersAndValues, false, argBuilder, jinjaContext), " ")
+			directive := strings.Join(ctrl.BuildParameter(v, parametersAndValues, false, argBuilder, jinjaContext), " ")
 			directive = strings.TrimSpace(directive)
 			if directive != "" {
 				directive = orc.EscapeBash(directive)
@@ -625,8 +626,8 @@ type SBatchResult struct {
 }
 
 func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatchResult {
-	application := &job.Status.ResolvedApplication.Invocation
-	tool := &job.Status.ResolvedApplication.Invocation.Tool.Tool
+	application := &job.Status.ResolvedApplication.Value.Invocation
+	tool := &job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value
 	jinjaTemplateFile := ""
 	jinjaParametersFile := ""
 
@@ -640,11 +641,11 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 		}
 	}
 
-	parametersAndValues := orc.ReadParameterValuesFromJob(job, application)
+	parametersAndValues := ctrl.ReadParameterValuesFromJob(job, application)
 	cli := ""
 	invocation := application.Invocation
 
-	argBuilder := orc.DefaultArgBuilder(func(ucloudPath string) string {
+	argBuilder := ctrl.DefaultArgBuilder(func(ucloudPath string) string {
 		internalPath, _ := UCloudToInternal(ucloudPath)
 		return internalPath
 	})
@@ -704,7 +705,7 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 			sbatchTplSession.RequiredApplications = load.Applications
 		}
 
-		tpl = orc.PreprocessJinjaTemplate(tpl, sbatchTplSession, sbatchTemplate)
+		tpl = ctrl.PreprocessJinjaTemplate(tpl, sbatchTplSession, sbatchTemplate)
 
 		srunConfig := sbatchTplSession.SrunOverride.GetOrDefault(
 			ServiceConfig.Compute.Srun.GetOrDefault(cfg.SrunConfiguration{
@@ -736,7 +737,7 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 			jinjaParametersFile = string(buf.Bytes())
 		}
 
-		output, err := orc.ExecuteJinjaTemplate(tpl, 0, nil, jinjaContext, orc.JinjaFlagsNoPreProcess)
+		output, err := ctrl.ExecuteJinjaTemplate(tpl, 0, nil, jinjaContext, ctrl.JinjaFlagsNoPreProcess)
 		if err != nil {
 			log.Warn("Jinja generation failure for %s %s",
 				job.Specification.Application.Name, job.Specification.Application.Version)
@@ -749,7 +750,7 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 		var cliInvocation []string
 
 		for _, invParam := range invocation {
-			newCliArgs := orc.BuildParameter(invParam, parametersAndValues, false, argBuilder, jinjaContext)
+			newCliArgs := ctrl.BuildParameter(invParam, parametersAndValues, false, argBuilder, jinjaContext)
 			for _, cliArg := range newCliArgs {
 				cliInvocation = append(cliInvocation, orc.EscapeBash(cliArg))
 			}
@@ -761,7 +762,7 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 	boundEnvironment := map[string]string{}
 	{
 		for key, param := range application.Environment {
-			args := orc.BuildParameter(param, parametersAndValues, true, argBuilder, jinjaContext)
+			args := ctrl.BuildParameter(param, parametersAndValues, true, argBuilder, jinjaContext)
 			value := orc.EscapeBash(strings.Join(args, " "))
 			boundEnvironment[key] = value
 		}

@@ -13,17 +13,18 @@ import (
 	"time"
 	ctrl "ucloud.dk/pkg/im/controller"
 	fnd "ucloud.dk/shared/pkg/foundation"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
-func copyFiles(request ctrl.CopyFileRequest) error {
-	if !AllowUCloudPathsTogether([]string{request.OldPath, request.NewPath}) {
+func copyFiles(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *util.HttpError {
+	if !AllowUCloudPathsTogether([]string{request.OldId, request.NewId}) {
 		return util.ServerHttpError("Some of these files cannot be used together. One or more are sensitive.")
 	}
 
-	_, ok1, _ := UCloudToInternal(request.OldPath)
-	destPath, ok2, destDrive := UCloudToInternal(request.NewPath)
+	_, ok1, _ := UCloudToInternal(request.OldId)
+	destPath, ok2, destDrive := UCloudToInternal(request.NewId)
 	if !ok1 || !ok2 {
 		return &util.HttpError{
 			StatusCode: http.StatusNotFound,
@@ -31,17 +32,17 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 		}
 	}
 
-	if ctrl.IsResourceLocked(destDrive.Resource, request.NewDrive.Specification.Product) {
+	if ctrl.IsResourceLocked(destDrive.Resource, request.ResolvedNewCollection.Specification.Product) {
 		return util.PaymentError()
 	}
 
 	task := TaskInfoSpecification{
 		Type:              FileTaskTypeCopy,
 		CreatedAt:         fnd.Timestamp(time.Now()),
-		UCloudUsername:    request.UCloudUsername,
-		UCloudSource:      util.OptValue(request.OldPath),
-		UCloudDestination: util.OptValue(request.NewPath),
-		ConflictPolicy:    request.Policy,
+		UCloudUsername:    actor.Username,
+		UCloudSource:      util.OptValue(request.OldId),
+		UCloudDestination: util.OptValue(request.NewId),
+		ConflictPolicy:    request.ConflictPolicy,
 		HasUCloudTask:     true,
 		Icon:              "copy",
 	}
@@ -57,7 +58,7 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 			}
 		}
 
-		newInternalDest, ok := InternalToUCloudWithDrive(&request.NewDrive, destPath)
+		newInternalDest, ok := InternalToUCloudWithDrive(&request.ResolvedNewCollection, destPath)
 		if !ok {
 			return util.UserHttpError("Unable to copy files. Unknown drive")
 		}
@@ -137,8 +138,8 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 		util.FileName(filepath.Dir(destPath)),
 	))
 
-	task.Status.Store(&orc.TaskStatus{
-		State:              orc.TaskStateRunning,
+	task.Status.Store(&fnd.TaskStatus{
+		State:              fnd.TaskStateRunning,
 		Title:              title,
 		Body:               util.OptValue(""),
 		Progress:           util.OptValue(""),
@@ -232,8 +233,8 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 		readableDataTransferred := util.SizeToHumanReadableWithUnit(float64(bytesTransferred))
 		readableDiscoveredDataSize := util.SizeToHumanReadableWithUnit(float64(bytesDiscovered))
 
-		newStatus := &orc.TaskStatus{
-			State: orc.TaskStateRunning,
+		newStatus := &fnd.TaskStatus{
+			State: fnd.TaskStateRunning,
 			Title: title,
 			Body: util.OptValue(fmt.Sprintf(
 				"%.2f %v/%.2f %v | %v / %v files",

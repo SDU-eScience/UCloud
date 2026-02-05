@@ -2,7 +2,6 @@ package slurm
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	"ucloud.dk/pkg/im/external/user"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -20,10 +20,10 @@ import (
 	ctrl "ucloud.dk/pkg/im/controller"
 	slurmcli "ucloud.dk/pkg/im/external/slurm"
 	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/shared/pkg/apm"
+	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -71,7 +71,7 @@ func InitCompute() ctrl.JobsService {
 				}
 			}
 
-			err := orc.UpdateJobs(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{Items: r.Payload})
+			_, err := orc.JobsControlAddUpdate.Invoke(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{Items: r.Payload})
 			code := http.StatusOK
 			errorMessage := ""
 			if err != nil {
@@ -114,8 +114,8 @@ func InitCompute() ctrl.JobsService {
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
 	var result []orc.ApplicationParameter
 
-	if owner.Project != "" {
-		project, ok := ctrl.RetrieveProject(owner.Project)
+	if owner.Project.Value != "" {
+		project, ok := ctrl.RetrieveProject(owner.Project.Value)
 		if ok && project.Status.PersonalProviderProjectFor.Present {
 			accounts := []string{"unknown"}
 			myUser, err := user.Current()
@@ -144,7 +144,7 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 		}
 	}
 
-	appsToLoad := app.Invocation.Tool.Tool.Description.LoadInstructions.Value.Applications
+	appsToLoad := app.Invocation.Tool.Tool.Value.Description.LoadInstructions.Value.Applications
 	allowMoreModules := len(appsToLoad) == 0
 
 	if len(appsToLoad) > 0 {
@@ -215,7 +215,7 @@ func loopAccounting() {
 	if now.After(nextComputeAccountingTime) {
 		billing := Accounting.FetchUsageInMinutes()
 
-		var reportItems []apm.UsageReportItem
+		var reportItems []apm.ReportUsageRequest
 		for owner, seconds := range billing {
 			machineCategory := cfg.Services.Slurm().Compute.Machines[owner.AssociatedWithCategory]
 
@@ -238,7 +238,7 @@ func loopAccounting() {
 			}
 
 			reportItems = append(reportItems,
-				apm.UsageReportItem{
+				apm.ReportUsageRequest{
 					IsDeltaCharge: false,
 					Owner:         owner.Owner,
 					CategoryIdV2: apm.ProductCategoryIdV2{
@@ -250,7 +250,7 @@ func loopAccounting() {
 			)
 
 			if len(reportItems) > 500 {
-				_, err := apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{Items: reportItems})
+				_, err := apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{Items: reportItems})
 				if err != nil {
 					log.Warn("Failed to report usage: %v", err)
 				}
@@ -258,7 +258,7 @@ func loopAccounting() {
 		}
 
 		if len(reportItems) > 0 {
-			_, err := apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{Items: reportItems})
+			_, err := apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{Items: reportItems})
 			if err != nil {
 				log.Warn("Failed to report usage: %v", err)
 			}
@@ -346,13 +346,13 @@ func loopComputeMonitoring() {
 
 		newJobResource := orc.ProviderRegisteredResource[orc.JobSpecification]{
 			Spec: orc.JobSpecification{
-				Name:                  safeName,
-				Application:           unknownApplication,
-				ResourceSpecification: orc.ResourceSpecification{Product: slurmCfg.Value.EstimatedProduct},
-				Replicas:              slurmCfg.Value.EstimatedNodeCount,
-				Parameters:            make(map[string]orc.AppParameterValue),
-				Resources:             []orc.AppParameterValue{},
-				TimeAllocation:        timeAllocation,
+				Name:           safeName,
+				Application:    unknownApplication,
+				Product:        slurmCfg.Value.EstimatedProduct,
+				Replicas:       slurmCfg.Value.EstimatedNodeCount,
+				Parameters:     make(map[string]orc.AppParameterValue),
+				Resources:      []orc.AppParameterValue{},
+				TimeAllocation: timeAllocation,
 			},
 			ProviderGeneratedId: providerJobId,
 			CreatedBy:           createdBy,
@@ -368,7 +368,7 @@ func loopComputeMonitoring() {
 
 	for _, chunk := range util.ChunkBy(toRegister, 100) {
 		if len(chunk) > 0 {
-			response, err := orc.RegisterJobs(
+			response, err := orc.JobsControlRegister.Invoke(
 				fnd.BulkRequest[orc.ProviderRegisteredResource[orc.JobSpecification]]{
 					Items: chunk,
 				},
@@ -376,17 +376,19 @@ func loopComputeMonitoring() {
 
 			if err != nil {
 				log.Warn("Error while registering jobs: %s", err.Error())
-			}
+			} else {
+				for _, registeredJob := range response.Responses {
+					job, err := orc.JobsControlRetrieve.Invoke(orc.JobsControlRetrieveRequest{
+						Id: registeredJob.Id,
+					})
 
-			for _, registeredJob := range response.Responses {
-				job, err := orc.RetrieveJob(registeredJob.Id, orc.BrowseJobsFlags{})
+					if err != nil {
+						log.Warn("Error while retrieving job: %s", err.Error())
+					}
 
-				if err != nil {
-					log.Warn("Error while retrieving job: %s", err.Error())
+					metricSlurmUnknownJobsRegistered.Inc()
+					ctrl.TrackNewJob(job)
 				}
-
-				metricSlurmUnknownJobsRegistered.Inc()
-				ctrl.TrackNewJob(job)
 			}
 		}
 	}
@@ -436,14 +438,14 @@ func retrieveMachineSupport() []orc.JobSupport {
 	return machineSupport
 }
 
-func extendJob(_ ctrl.JobExtendRequest) error {
+func extendJob(_ orc.JobsProviderExtendRequestItem) *util.HttpError {
 	return &util.HttpError{
 		StatusCode: http.StatusBadRequest,
 		Why:        "Extension of jobs are not supported by this provider",
 	}
 }
 
-func terminateJob(request ctrl.JobTerminateRequest) error {
+func terminateJob(request ctrl.JobTerminateRequest) *util.HttpError {
 	providerId, ok := parseJobProviderId(request.Job.ProviderGeneratedId)
 	if !ok {
 		// Nothing to do
@@ -509,8 +511,8 @@ func parseJobProviderId(providerId string) (parsedProviderJobId, bool) {
 	return result, true
 }
 
-func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
-	baseJobFolder, ok := FindJobFolder(orc.ResourceOwnerToWalletOwner(request.JobToSubmit.Resource))
+func submitJob(job orc.Job) (util.Option[string], *util.HttpError) {
+	baseJobFolder, ok := FindJobFolder(orc.ResourceOwnerToWalletOwner(job.Resource))
 
 	if !ok {
 		return util.OptNone[string](), &util.HttpError{
@@ -518,7 +520,7 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 			Why:        "Unable to create job folder. File permission error?",
 		}
 	}
-	jobFolder := filepath.Join(baseJobFolder, request.JobToSubmit.Id)
+	jobFolder := filepath.Join(baseJobFolder, job.Id)
 	err := os.Mkdir(jobFolder, 0770)
 	if err != nil {
 		return util.OptNone[string](), &util.HttpError{
@@ -530,10 +532,10 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 	accountName := ""
 	{
 		jobCfg := SlurmJobConfiguration{
-			Owner:              orc.ResourceOwnerToWalletOwner(request.JobToSubmit.Resource),
-			EstimatedProduct:   request.JobToSubmit.Specification.Product,
-			EstimatedNodeCount: request.JobToSubmit.Specification.Replicas,
-			Job:                util.OptValue(request.JobToSubmit),
+			Owner:              orc.ResourceOwnerToWalletOwner(job.Resource),
+			EstimatedProduct:   job.Specification.Product,
+			EstimatedNodeCount: job.Specification.Replicas,
+			Job:                util.OptValue(&job),
 		}
 
 		accounts := AccountMapper.UCloudConfigurationFindSlurmAccount(jobCfg)
@@ -548,11 +550,11 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 		accountName = accounts[0]
 	}
 
-	sbatchResult := CreateSBatchFile(request.JobToSubmit, jobFolder, accountName)
+	sbatchResult := CreateSBatchFile(&job, jobFolder, accountName)
 	err = sbatchResult.Error
 	sbatchFileContent := sbatchResult.Content
 	if err != nil {
-		return util.OptNone[string](), err
+		return util.OptNone[string](), util.HttpErrorFromErr(err)
 	}
 
 	if sbatchResult.JinjaTemplateFile != "" {
@@ -574,7 +576,7 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 
 	slurmId, err := SlurmClient.JobSubmit(sbatchFilePath)
 	if err != nil {
-		return util.OptNone[string](), err
+		return util.OptNone[string](), util.HttpErrorFromErr(err)
 	}
 
 	providerId := parsedProviderJobId{
@@ -582,9 +584,8 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 		SlurmId:          slurmId,
 	}.String()
 
-	job := request.JobToSubmit
 	job.ProviderGeneratedId = providerId
-	ctrl.TrackNewJob(*job)
+	ctrl.TrackNewJob(job)
 
 	var updates []orc.ResourceUpdateAndId[orc.JobUpdate]
 	outputFolder, ok := InternalToUCloud(jobFolder)
@@ -642,7 +643,7 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 			jobUpdates = append(jobUpdates, updates[i].Update)
 		}
 		job.Updates = jobUpdates
-		ctrl.TrackNewJob(*job)
+		ctrl.TrackNewJob(job)
 	}
 
 	return util.OptValue(providerId), nil
@@ -879,15 +880,15 @@ func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) ctrl.
 	}
 }
 
-func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, error) {
+func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, *util.HttpError) {
 	parsedId, ok := parseJobProviderId(job.ProviderGeneratedId)
 	if !ok {
-		return ctrl.ConfiguredWebSession{}, errors.New("could not parse provider id")
+		return ctrl.ConfiguredWebSession{}, util.ServerHttpError("could not parse provider id")
 	}
 
 	nodes := SlurmClient.JobGetNodeList(parsedId.SlurmId)
 	if len(nodes) <= rank {
-		return ctrl.ConfiguredWebSession{}, errors.New("could not find slurm node")
+		return ctrl.ConfiguredWebSession{}, util.ServerHttpError("could not find slurm node")
 	}
 
 	if target.Present {
@@ -915,23 +916,23 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.Co
 			}
 		}
 
-		return ctrl.ConfiguredWebSession{}, fmt.Errorf("unknown target supplied: %v", target.Value)
+		return ctrl.ConfiguredWebSession{}, util.ServerHttpError("unknown target supplied: %v", target.Value)
 	}
 
 	jobFolder, ok := FindJobFolder(orc.ResourceOwnerToWalletOwner(job.Resource))
 	if !ok {
-		return ctrl.ConfiguredWebSession{}, fmt.Errorf("could not resolve internal folder needed for logs: %v", jobFolder)
+		return ctrl.ConfiguredWebSession{}, util.ServerHttpError("could not resolve internal folder needed for logs: %v", jobFolder)
 	}
 
 	outputFolder := filepath.Join(jobFolder, job.Id)
 	portFilePath := filepath.Join(outputFolder, AllocatedPortFile)
 	portFileData, err := os.ReadFile(portFilePath)
 	if err != nil {
-		return ctrl.ConfiguredWebSession{}, fmt.Errorf("could not read port file: %v", err)
+		return ctrl.ConfiguredWebSession{}, util.ServerHttpError("could not read port file: %v", err)
 	}
 	allocatedPort, err := strconv.Atoi(strings.TrimSpace(string(portFileData)))
 	if err != nil {
-		return ctrl.ConfiguredWebSession{}, fmt.Errorf("corrupt port file: %v", err)
+		return ctrl.ConfiguredWebSession{}, util.ServerHttpError("corrupt port file: %v", err)
 	}
 
 	return ctrl.ConfiguredWebSession{

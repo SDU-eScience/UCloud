@@ -4,23 +4,24 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/sys/unix"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/sys/unix"
 	fnd "ucloud.dk/shared/pkg/foundation"
-	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
-func copyFiles(request ctrl.CopyFileRequest) error {
-	_, ok1 := UCloudToInternal(request.OldPath)
-	destPath, ok2 := UCloudToInternal(request.NewPath)
+func copyFiles(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *util.HttpError {
+	_, ok1 := UCloudToInternal(request.OldId)
+	destPath, ok2 := UCloudToInternal(request.NewId)
 	if !ok1 || !ok2 {
 		return &util.HttpError{
 			StatusCode: http.StatusNotFound,
@@ -31,9 +32,9 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 	task := TaskInfoSpecification{
 		Type:              FileTaskTypeCopy,
 		CreatedAt:         fnd.Timestamp(time.Now()),
-		UCloudSource:      util.OptValue(request.OldPath),
-		UCloudDestination: util.OptValue(request.NewPath),
-		ConflictPolicy:    request.Policy,
+		UCloudSource:      util.OptValue(request.OldId),
+		UCloudDestination: util.OptValue(request.NewId),
+		ConflictPolicy:    request.ConflictPolicy,
 		HasUCloudTask:     true,
 		Icon:              "copy",
 	}
@@ -49,7 +50,7 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 			}
 		}
 
-		newInternalDest := InternalToUCloudWithDrive(request.NewDrive, destPath)
+		newInternalDest := InternalToUCloudWithDrive(request.ResolvedNewCollection, destPath)
 		task.UCloudDestination.Set(newInternalDest)
 	}
 
@@ -126,8 +127,8 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 		util.FileName(filepath.Dir(destPath)),
 	))
 
-	task.Status.Store(&orc.TaskStatus{
-		State:              orc.TaskStateRunning,
+	task.Status.Store(&fnd.TaskStatus{
+		State:              fnd.TaskStateRunning,
 		Title:              title,
 		Body:               util.OptValue(""),
 		Progress:           util.OptValue(""),
@@ -221,8 +222,8 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 		readableDataTransferred := util.SizeToHumanReadableWithUnit(float64(bytesTransferred))
 		readableDiscoveredDataSize := util.SizeToHumanReadableWithUnit(float64(bytesDiscovered))
 
-		newStatus := &orc.TaskStatus{
-			State: orc.TaskStateRunning,
+		newStatus := &fnd.TaskStatus{
+			State: fnd.TaskStateRunning,
 			Title: title,
 			Body: util.OptValue(fmt.Sprintf(
 				"%.2f %v/%.2f %v | %v / %v files",

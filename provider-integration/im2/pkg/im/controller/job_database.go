@@ -3,19 +3,20 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"net/http"
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"ucloud.dk/pkg/im/gateway"
 
 	"ucloud.dk/pkg/im/ipc"
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -48,13 +49,11 @@ func InitJobDatabase() {
 	}
 
 	trackRequest.Handler(func(r *ipc.Request[trackRequestType]) ipc.Response[util.Empty] {
-		job, err := orc.RetrieveJob(r.Payload.JobId,
-			orc.BrowseJobsFlags{
-				IncludeParameters:  true,
-				IncludeApplication: true,
-				IncludeProduct:     true,
-			},
-		)
+		request := orc.JobsControlRetrieveRequest{Id: r.Payload.JobId}
+		request.IncludeParameters = true
+		request.IncludeApplication = true
+		request.IncludeProduct = true
+		job, err := orc.JobsControlRetrieve.Invoke(request)
 
 		if !BelongsToWorkspace(orc.ResourceOwnerToWalletOwner(job.Resource), r.Uid) {
 			return ipc.Response[util.Empty]{
@@ -205,7 +204,7 @@ func trackJobUpdateServer(job *orc.Job) {
 			db.Params{
 				"job_id":           job.Id,
 				"created_by":       job.Owner.CreatedBy,
-				"project_id":       job.Owner.Project,
+				"project_id":       job.Owner.Project.Value,
 				"product_id":       job.Specification.Product.Id,
 				"product_category": job.Specification.Product.Category,
 				"resource":         string(jsonified),
@@ -248,11 +247,11 @@ func RetrieveJob(jobId string) (*orc.Job, bool) {
 		if ok {
 			return job, ok
 		} else {
-			job, err := orc.RetrieveJob(jobId, orc.BrowseJobsFlags{
-				IncludeParameters:  true,
-				IncludeApplication: true,
-				IncludeProduct:     true,
-			})
+			request := orc.JobsControlRetrieveRequest{Id: jobId}
+			request.IncludeParameters = true
+			request.IncludeApplication = true
+			request.IncludeProduct = true
+			job, err := orc.JobsControlRetrieve.Invoke(request)
 
 			if err == nil {
 				TrackNewJob(job)
@@ -377,7 +376,7 @@ func (b *JobUpdateBatch) flush() {
 		return
 	}
 
-	err := orc.UpdateJobs(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
+	_, err := orc.JobsControlAddUpdate.Invoke(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
 		Items: b.entries,
 	})
 
@@ -586,7 +585,7 @@ type JobMessage struct {
 	Message string
 }
 
-func TrackJobMessages(messages []JobMessage) error {
+func TrackJobMessages(messages []JobMessage) *util.HttpError {
 	if len(messages) == 0 {
 		return nil
 	}
@@ -606,7 +605,7 @@ func TrackJobMessages(messages []JobMessage) error {
 	return TrackRawUpdates(updates)
 }
 
-func TrackRawUpdates(updates []orc.ResourceUpdateAndId[orc.JobUpdate]) error {
+func TrackRawUpdates(updates []orc.ResourceUpdateAndId[orc.JobUpdate]) *util.HttpError {
 	if len(updates) == 0 {
 		return nil
 	}
@@ -633,7 +632,7 @@ func TrackRawUpdates(updates []orc.ResourceUpdateAndId[orc.JobUpdate]) error {
 	}
 
 	timer.Mark()
-	err := orc.UpdateJobs(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
+	_, err := orc.JobsControlAddUpdate.Invoke(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
 		Items: updates,
 	})
 	metricUpdateApi.Observe(timer.Mark().Seconds())

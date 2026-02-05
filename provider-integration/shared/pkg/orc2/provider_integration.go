@@ -84,8 +84,8 @@ type ProviderIntegrationPFindByUser struct {
 }
 
 type ProviderIntegrationManifest struct {
-	Enabled       bool `json:"enabled"`
-	ExpireAfterMs int  `json:"expireAfterMs"`
+	Enabled       bool             `json:"enabled"`
+	ExpireAfterMs util.Option[int] `json:"expireAfterMs"`
 	// requiresMessageSigning and unmanagedConnects are deprecated
 }
 

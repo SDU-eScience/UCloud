@@ -11,7 +11,7 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/shared/pkg/apm"
+	apm "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
@@ -21,7 +21,7 @@ import (
 	"ucloud.dk/pkg/im/services/k8s/containers"
 	"ucloud.dk/pkg/im/services/k8s/kubevirt"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -112,7 +112,7 @@ func retrievePublicIpProducts() []orc.PublicIpSupport {
 	return shared.IpSupport
 }
 
-func createPublicIp(ip *orc.PublicIp) error {
+func createPublicIp(ip *orc.PublicIp) *util.HttpError {
 	result := ctrl.AllocateIpAddress(ip)
 	accountPublicIps(ip.Owner)
 	return result
@@ -121,10 +121,10 @@ func createPublicIp(ip *orc.PublicIp) error {
 func accountPublicIps(owner orc.ResourceOwner) {
 	productName := shared.ServiceConfig.Compute.PublicIps.Name
 	count := ctrl.RetrieveUsedIpAddressCount(owner)
-	_, _ = apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{
-		Items: []apm.UsageReportItem{
+	_, _ = apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{
+		Items: []apm.ReportUsageRequest{
 			{
-				Owner:         apm.WalletOwnerFromIds(owner.CreatedBy, owner.Project),
+				Owner:         apm.WalletOwnerFromIds(owner.CreatedBy, owner.Project.Value),
 				IsDeltaCharge: false,
 				CategoryIdV2: apm.ProductCategoryIdV2{
 					Name:     productName,
@@ -137,7 +137,7 @@ func accountPublicIps(owner orc.ResourceOwner) {
 	})
 }
 
-func deletePublicIp(ip *orc.PublicIp) error {
+func deletePublicIp(ip *orc.PublicIp) *util.HttpError {
 	result := ctrl.DeleteIpAddress(ip)
 	accountPublicIps(ip.Owner)
 	return result
@@ -149,15 +149,15 @@ func retrieveIngressProducts() []orc.IngressSupport {
 
 var linkRegex = regexp.MustCompile("[a-z]([-_a-z0-9]){4,255}")
 
-func createIngress(ingress *orc.Ingress) error {
+func createIngress(ingress *orc.Ingress) *util.HttpError {
 	if ingress == nil {
 		return util.ServerHttpError("Failed to create public link: ingress is nil")
 	}
 
 	owner := ingress.Owner.CreatedBy
 
-	if len(ingress.Owner.Project) > 0 {
-		owner = ingress.Owner.Project
+	if len(ingress.Owner.Project.Value) > 0 {
+		owner = ingress.Owner.Project.Value
 	}
 
 	domain := ingress.Specification.Domain
@@ -208,14 +208,10 @@ func createIngress(ingress *orc.Ingress) error {
 		Status:    status,
 	}
 
-	err := orc.UpdateIngresses(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.IngressUpdate]]{
-		Items: []orc.ResourceUpdateAndId[orc.IngressUpdate]{
-			{
-				Id:     ingress.Id,
-				Update: newUpdate,
-			},
-		},
-	})
+	_, err := orc.IngressesControlAddUpdate.Invoke(fnd.BulkRequestOf(orc.ResourceUpdateAndId[orc.IngressUpdate]{
+		Id:     ingress.Id,
+		Update: newUpdate,
+	}))
 
 	if err == nil {
 		ingress.Updates = append(ingress.Updates, newUpdate)
@@ -229,7 +225,7 @@ func createIngress(ingress *orc.Ingress) error {
 	}
 }
 
-func deleteIngress(ingress *orc.Ingress) error {
+func deleteIngress(ingress *orc.Ingress) *util.HttpError {
 	result := ctrl.DeleteTrackedLink(ingress, func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -250,10 +246,10 @@ func deleteIngress(ingress *orc.Ingress) error {
 func accountPublicLinks(owner orc.ResourceOwner) {
 	productName := shared.ServiceConfig.Compute.PublicLinks.Name
 	count := ctrl.RetrieveUsedLinkCount(owner)
-	_, _ = apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{
-		Items: []apm.UsageReportItem{
+	_, _ = apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{
+		Items: []apm.ReportUsageRequest{
 			{
-				Owner:         apm.WalletOwnerFromIds(owner.CreatedBy, owner.Project),
+				Owner:         apm.WalletOwnerFromIds(owner.CreatedBy, owner.Project.Value),
 				IsDeltaCharge: false,
 				CategoryIdV2: apm.ProductCategoryIdV2{
 					Name:     productName,
@@ -270,13 +266,13 @@ func retrieveLicenseProducts() []orc.LicenseSupport {
 	return ctrl.FetchLicenseSupport()
 }
 
-func activateLicense(license *orc.License) error {
+func activateLicense(license *orc.License) *util.HttpError {
 	result := ctrl.ActivateLicense(license)
 	accountLicenses(license.Specification.Product.Category, license.Owner)
 	return result
 }
 
-func deleteLicense(license *orc.License) error {
+func deleteLicense(license *orc.License) *util.HttpError {
 	result := ctrl.DeleteLicense(license)
 	accountLicenses(license.Specification.Product.Category, license.Owner)
 	return result
@@ -284,10 +280,10 @@ func deleteLicense(license *orc.License) error {
 
 func accountLicenses(licenseName string, owner orc.ResourceOwner) {
 	count := ctrl.RetrieveUsedLicenseCount(licenseName, owner)
-	_, _ = apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{
-		Items: []apm.UsageReportItem{
+	_, _ = apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{
+		Items: []apm.ReportUsageRequest{
 			{
-				Owner:         apm.WalletOwnerFromIds(owner.CreatedBy, owner.Project),
+				Owner:         apm.WalletOwnerFromIds(owner.CreatedBy, owner.Project.Value),
 				IsDeltaCharge: false,
 				CategoryIdV2: apm.ProductCategoryIdV2{
 					Name:     licenseName,
@@ -313,7 +309,7 @@ func backendByAppIsContainers(app *orc.Application) bool {
 }
 
 func backendByApp(app *orc.Application) *ctrl.JobsService {
-	tool := &app.Invocation.Tool.Tool.Description
+	tool := &app.Invocation.Tool.Tool.Value.Description
 	switch tool.Backend {
 	case orc.ToolBackendDocker:
 		fallthrough
@@ -337,36 +333,36 @@ func backendIsContainers(job *orc.Job) bool {
 }
 
 func backend(job *orc.Job) *ctrl.JobsService {
-	app := &job.Status.ResolvedApplication
+	app := &job.Status.ResolvedApplication.Value
 	return backendByApp(app)
 }
 
-func submit(request ctrl.JobSubmitRequest) (util.Option[string], error) {
-	_, isIApp := ctrl.IntegratedApplications[request.JobToSubmit.Specification.Product.Category]
+func submit(job orc.Job) (util.Option[string], *util.HttpError) {
+	_, isIApp := ctrl.IntegratedApplications[job.Specification.Product.Category]
 	if isIApp {
 		return util.OptNone[string](), util.UserHttpError("This product does not allow job-submissions")
 	}
 
-	if reason := IsJobLocked(request.JobToSubmit); reason.Present {
+	if reason := IsJobLocked(&job); reason.Present {
 		return util.OptNone[string](), reason.Value.Err
 	}
 
-	if backendIsKubevirt(request.JobToSubmit) && shared.IsSensitiveProject(request.JobToSubmit.Owner.Project) {
+	if backendIsKubevirt(&job) && shared.IsSensitiveProject(job.Owner.Project.Value) {
 		// NOTE(Dan): Feel free to remove this once VMs have been prepared for sensitive projects.
 		return util.OptNone[string](), util.UserHttpError("This project is not allowed to use virtual machines")
 	}
 
-	shared.RequestSchedule(request.JobToSubmit)
-	ctrl.TrackNewJob(*request.JobToSubmit)
+	shared.RequestSchedule(&job)
+	ctrl.TrackNewJob(job)
 	return util.OptNone[string](), nil
 }
 
-func terminate(request ctrl.JobTerminateRequest) error {
+func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 	return backend(request.Job).Terminate(request)
 }
 
-func extend(request ctrl.JobExtendRequest) error {
-	return backend(request.Job).Extend(request)
+func extend(request orc.JobsProviderExtendRequestItem) *util.HttpError {
+	return backend(&request.Job).Extend(request)
 }
 
 func follow(session *ctrl.FollowJobSession) {
@@ -385,7 +381,7 @@ func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) ctrl.
 	return backend(job).ServerFindIngress(job, rank, suffix)
 }
 
-func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, error) {
+func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, *util.HttpError) {
 	return backend(job).OpenWebSession(job, rank, target)
 }
 
@@ -398,18 +394,18 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 	}
 }
 
-func unsuspend(request ctrl.JobUnsuspendRequest) error {
-	fn := backend(request.Job).Unsuspend
+func unsuspend(job orc.Job) *util.HttpError {
+	fn := backend(&job).Unsuspend
 	if fn != nil {
-		return fn(request)
+		return fn(job)
 	}
 	return nil
 }
 
-func suspend(request ctrl.JobSuspendRequest) error {
-	fn := backend(request.Job).Suspend
+func suspend(job orc.Job) *util.HttpError {
+	fn := backend(&job).Suspend
 	if fn != nil {
-		return fn(request)
+		return fn(job)
 	}
 	return nil
 }

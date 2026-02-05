@@ -7,13 +7,13 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	orc "ucloud.dk/shared/pkg/orc2"
 
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/containers"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
-	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -31,18 +31,16 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	ctrl.InitDriveDatabase()
 	ctrl.InitScriptsLogDatabase()
 	ctrl.Connections = ctrl.ConnectionService{
-		Initiate: func(username string, signingKey util.Option[int]) (string, error) {
+		Initiate: func(username string, signingKey util.Option[int]) (string, *util.HttpError) {
 			_ = ctrl.RegisterConnectionComplete(username, ctrl.UnknownUser, true)
 			return cfg.Provider.Hosts.UCloudPublic.ToURL(), nil
 		},
-		Unlink: func(username string, uid uint32) error {
+		Unlink: func(username string, uid uint32) *util.HttpError {
 			return nil
 		},
-		RetrieveManifest: func() ctrl.Manifest {
-			return ctrl.Manifest{
-				Enabled:                true,
-				ExpireAfterMs:          util.Option[uint64]{},
-				RequiresMessageSigning: false,
+		RetrieveManifest: func() orc.ProviderIntegrationManifest {
+			return orc.ProviderIntegrationManifest{
+				Enabled: true,
 			}
 		},
 	}

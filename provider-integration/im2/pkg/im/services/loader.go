@@ -7,13 +7,14 @@ import (
 	"ucloud.dk/pkg/im/gateway"
 	"ucloud.dk/pkg/im/services/k8s"
 	"ucloud.dk/pkg/im/services/slurm"
+	"ucloud.dk/shared/pkg/rpc"
 )
 
 func Init(args *im.ModuleArgs) {
 	slurmCfg := cfg.Services.Slurm()
 	k8sCfg := cfg.Services.Kubernetes()
 	if slurmCfg != nil {
-		slurm.Init(slurmCfg, args.ServerMultiplexer)
+		slurm.Init(slurmCfg, rpc.DefaultServer.Mux)
 	} else if k8sCfg != nil {
 		k8s.Init(k8sCfg)
 	}

@@ -2,12 +2,13 @@ package shared
 
 import (
 	"fmt"
+	"slices"
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
-	"slices"
-	"time"
-	orc "ucloud.dk/shared/pkg/orchestrators"
+	orc "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -80,7 +81,7 @@ func ComputeRunningTime(job *orc.Job) JobRunningTime {
 
 type LockedReason struct {
 	Reason string
-	Err    error
+	Err    *util.HttpError
 }
 
 var IsJobLocked func(job *orc.Job) util.Option[LockedReason]

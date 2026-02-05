@@ -208,9 +208,6 @@ type ServerConfiguration struct {
 	RefreshToken string
 
 	Database struct {
-		Embedded              bool
-		EmbeddedDataDirectory string
-
 		Host     HostInfo
 		Username string
 		Password string
@@ -228,70 +225,17 @@ func parseServer(filePath string, provider *yaml.Node) (bool, ServerConfiguratio
 
 	// Parse the database section
 	dbNode, _ := cfgutil.GetChildOrNil(filePath, provider, "database")
-	if dbNode != nil {
-		cfg.Database.Embedded = cfgutil.RequireChildBool(filePath, dbNode, "embedded", &success)
-	} else {
-		cfg.Database.Embedded = true
+
+	hostNode := cfgutil.RequireChild(filePath, dbNode, "host", &success)
+	cfgutil.Decode(filePath, hostNode, &cfg.Database.Host, &success)
+	if cfg.Database.Host.Port == 0 {
+		cfg.Database.Host.Port = 5432
 	}
 
-	if !cfg.Database.Embedded {
-		hostNode := cfgutil.RequireChild(filePath, dbNode, "host", &success)
-		cfgutil.Decode(filePath, hostNode, &cfg.Database.Host, &success)
-		if cfg.Database.Host.Port == 0 {
-			cfg.Database.Host.Port = 5432
-		}
-
-		cfg.Database.Username = cfgutil.RequireChildText(filePath, dbNode, "username", &success)
-		cfg.Database.Password = cfgutil.RequireChildText(filePath, dbNode, "password", &success)
-		cfg.Database.Database = cfgutil.RequireChildText(filePath, dbNode, "database", &success)
-		cfg.Database.Ssl = cfgutil.RequireChildBool(filePath, dbNode, "ssl", &success)
-	} else {
-		db := &cfg.Database
-		if dbNode != nil {
-			db.EmbeddedDataDirectory = cfgutil.OptionalChildText(filePath, dbNode, "directory", &success)
-		}
-
-		if db.EmbeddedDataDirectory == "" {
-			db.EmbeddedDataDirectory = "/etc/ucloud/postgres"
-		}
-
-		if success {
-			_, err := os.Stat(db.EmbeddedDataDirectory)
-			if err != nil {
-				if os.IsNotExist(err) {
-					err = os.Mkdir(db.EmbeddedDataDirectory, 0700)
-					if err != nil {
-						cfgutil.ReportError(filePath, dbNode, "Could not create postgres data directory at %v: %v", db.EmbeddedDataDirectory, err)
-						success = false
-					}
-				}
-			}
-		}
-
-		if success {
-			// NOTE(Dan): This cannot go in the data dir since the file will be deleted by the embedded postgres instance
-			passwordFile := filepath.Join(filepath.Dir(filePath), ".psql-password")
-			password, err := os.ReadFile(passwordFile)
-			if err != nil {
-				password = []byte(util.RandomToken(32))
-				err = os.WriteFile(passwordFile, password, 0600)
-				if err != nil {
-					cfgutil.ReportError(filePath, dbNode, "Could not write postgres password file to disk: %v", err)
-					success = false
-				}
-			}
-
-			db.Host = HostInfo{
-				Address: "127.0.0.1",
-				Port:    5432,
-			}
-
-			db.Username = "ucloud"
-			db.Password = string(password)
-			db.Database = "ucloud"
-			db.Ssl = false
-		}
-	}
+	cfg.Database.Username = cfgutil.RequireChildText(filePath, dbNode, "username", &success)
+	cfg.Database.Password = cfgutil.RequireChildText(filePath, dbNode, "password", &success)
+	cfg.Database.Database = cfgutil.RequireChildText(filePath, dbNode, "database", &success)
+	cfg.Database.Ssl = cfgutil.RequireChildBool(filePath, dbNode, "ssl", &success)
 
 	{
 		node := dbNode
@@ -691,7 +635,7 @@ type IdentityManagementOidc struct {
 	ClientId        string
 	ClientSecret    string
 	Scopes          []string
-	ExpiresAfterMs  uint64
+	ExpiresAfterMs  int
 }
 
 type IdentityManagementFreeIPA struct {
@@ -856,9 +800,8 @@ func parseIdentityManagementOidc(filePath string, node *yaml.Node) (bool, Identi
 	result.Issuer = cfgutil.RequireChildText(filePath, node, "issuer", &success)
 	result.ClientId = cfgutil.RequireChildText(filePath, node, "clientId", &success)
 	result.ClientSecret = cfgutil.RequireChildText(filePath, node, "clientSecret", &success)
-	result.ExpiresAfterMs = uint64(
-		cfgutil.OptionalChildInt(filePath, node, "expiresAfterMs", &success).GetOrDefault(1000 * 60 * 60 * 24 * 7),
-	)
+	result.ExpiresAfterMs =
+		int(cfgutil.OptionalChildInt(filePath, node, "expiresAfterMs", &success).GetOrDefault(1000 * 60 * 60 * 24 * 7))
 
 	if child, err := cfgutil.GetChildOrNil(filePath, node, "scopes"); child != nil && err == nil {
 		cfgutil.Decode(filePath, child, &result.Scopes, &success)
