@@ -7,7 +7,8 @@ use.
 ## 05-02-26
 
 ```
-UCloud/Core @ 2026.1.38
+UCloud/Core @ 2026.1.39
+UCloud/Frontend @ 2026.1.39
 ```
 
 ## 04-02-26
