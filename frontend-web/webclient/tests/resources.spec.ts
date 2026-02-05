@@ -1,5 +1,5 @@
 import {expect, test} from "@playwright/test";
-import {User, Resources, Applications, Runs, Components, Terminal, TestContexts, testCtx, Project} from "./shared";
+import {User, Resources, Applications, Runs, Components, Terminal, TestContexts, testCtx, Project, Rows} from "./shared";
 
 test.beforeEach(async ({page}, testInfo) => {
     const args = testCtx(testInfo.titlePath);
@@ -46,11 +46,17 @@ TestContexts.map(ctx => {
 
         /* Resources.IPs */
         test.describe("Public IPs - check public IPs work", () => {
-            test("Create ip and view properties", async ({page}) => {
+            test("Create public IP, view properties, attach to job, ensure it's visible on job/properties-page", async ({page}) => {
                 const publicIp = await IPs.createNew(page);
-                /* TODO(Jonas): Get actual name of IP, only through retrieve? */
+                await Rows.actionByRowTitle(page, publicIp, "dblclick");
 
-                throw Error("TODO");
+                await Applications.goToApplications(page);
+                await Applications.openApp(page, "Terminal");
+                await Components.selectAvailableMachineType(page);
+                await Runs.JobResources.addPublicIP(page, publicIp);
+                await Runs.submitAndWaitForRunning(page);
+                await page.getByText(`Successfully attached the following IP addresses: ${publicIp}`).hover();
+                await Runs.terminateViewedRun(page);
             });
         });
 

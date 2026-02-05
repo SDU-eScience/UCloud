@@ -1,5 +1,5 @@
 import {test, expect} from "@playwright/test";
-import {User, Drive, Project, Admin, Accounting, Rows, testCtx, Components, ctxUser, sharedTestProjectName, TestContexts} from "./shared";
+import {User, Drive, Project, Rows, testCtx, Components, ctxUser, sharedTestProjectName, TestContexts} from "./shared";
 
 test.beforeEach(async ({page}, testInfo) => {
     const args = testCtx(testInfo.titlePath);
@@ -43,7 +43,7 @@ TestContexts.map(ctx => {
             await expect(page.locator("b").filter({hasText: "Created by:"})).toHaveCount(1);
             await expect(page.locator("b").filter({hasText: "Created at:"})).toHaveCount(1);
             // Cleanup
-            await Drive.delete(page, driveName);
+            if (!userCtx) await Drive.delete(page, driveName);
         });
 
         if (ctx === "Project Admin" || ctx === "Project PI") {

@@ -252,7 +252,7 @@ TestContexts.map(ctx => {
             test("Create folder, upload file, cat contents in integrated terminal", async ({page, userAgent}) => {
                 test.setTimeout(120_000);
                 const user = ctxUser(ctx);
-                const drive = Drives[userAgent! + user.username];
+                const drive = ctx === "Project User" ? Drive.newDriveNameOrMemberFiles(ctx) : Drives[userAgent! + user.username];
                 const testFileName = "test_single_file.txt";
                 const testFileContents = "Single test file content.";
                 await File.uploadFiles(page, [{name: testFileName, contents: testFileContents}]);

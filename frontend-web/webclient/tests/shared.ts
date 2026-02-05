@@ -454,6 +454,9 @@ export const Components = {
 
     async useDialogBrowserItem(page: Page, rowTitle: string, buttonName: string = "Use") {
         await page.getByRole("dialog").locator(".row", {hasText: rowTitle}).getByRole("button", {name: buttonName}).click();
+    },
+    async goToDashboard(page: Page): Promise<void> {
+        await page.getByRole("link", {name: "Go to Dashboard"}).click();
     }
 };
 
@@ -598,7 +601,9 @@ export const Runs = {
 
         async addPublicIP(page: Page, publicIP: string): Promise<void> {
             await page.getByRole("button", {name: "Add public IP"}).click();
-            await page.getByPlaceholder("No public IP selected").click();
+            await NetworkCalls.awaitResponse(page, "**/api/networkips/browse?**", async () => {
+                await page.getByPlaceholder("No public IP selected").click();
+            })
             await Components.useDialogBrowserItem(page, publicIP);
         },
 
@@ -633,7 +638,7 @@ export const Project = {
 
     async acceptInvites(pages: Page[], projectName: string) {
         for (const page of pages) {
-            await page.reload();
+            await Components.goToDashboard(page);
             await Accounting.Project.acceptProjectInvite(page, projectName)
         }
     },
@@ -886,15 +891,11 @@ export const Admin = {
     async newLoggedInAdminPage(context: BrowserContext): Promise<Page> {
         const page = await context.browser()?.newPage();
         if (!page) throw new Error("Failed to create page for admin login");
+
         await User.login(page, Admin.AdminUser);
         /* TODO(Jonas): Find a different approach */
         await page.waitForLoadState("networkidle");
-        if (await page.getByText("Additional user information").isVisible()) {
-            await User.dismissAdditionalInfoPrompt(page);
-            await User.setAdditionalUserInfo(page);
-        }
-        /* TODO(Jonas): Find a different approach */
-        await page.waitForLoadState("networkidle");
+
         return page;
     },
 

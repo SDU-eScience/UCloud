@@ -84,7 +84,7 @@ TestContexts.map(ctx => {
 
             await terminalPage.close();
             await Runs.stopRun(page, jobName);
-            await Drive.delete(page, driveName);
+            if (ctx !== "Project User") await Drive.delete(page, driveName);
         });
 
         test("Ensure 'New version available' button shows up and works.", async ({page}) => {
@@ -235,7 +235,7 @@ echo "${BashScriptStringContent}"
             });
 
             test.describe("disallow start from locked allocation", () => {
-                test("Create new user without resources, apply for resources, be granted resources, run terminal, create large file, trigger accounting, see creation now blocked", async ({context, browser}) => {
+                test("Create new user without resources, apply for resources, be granted resources, run terminal, create large file, trigger accounting, see creation now blocked", async ({context}) => {
                     test.setTimeout(240_000);
 
                     const adminPage = await Admin.newLoggedInAdminPage(context);
@@ -314,8 +314,8 @@ async function createUserWithProjectAndAssignRole(admin: Page, context: BrowserC
 
             await Project.changeRoles(admin, user.username, ctx.split(" ")[1] as "User" | "Admin" | "PI");
 
+            await userPage.reload();
             await Project.changeTo(userPage, projectName);
-
             break;
         }
         case "Personal Workspace": {

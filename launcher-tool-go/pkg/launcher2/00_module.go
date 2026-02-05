@@ -440,6 +440,20 @@ func TestsRun(adminUser, adminPass string) {
 		return nil
 	})
 
+	LogOutputRunWork("Setting up admin user", func(ch chan string) error {
+		toks, err := fndapi.AuthPasswordLoginServer.Invoke(fndapi.PasswordLoginRequest{
+			Username: "user",
+			Password: "mypassword",
+		})
+
+		if err != nil {
+			return err
+		}
+
+		userTokens = append(userTokens, toks.RefreshToken)
+		return nil
+	})
+
 	productsByProviderAndType := map[string]map[accapi.ProductType]accapi.ProductV2{}
 
 	LogOutputRunWork("Granting test resources", func(ch chan string) error {
