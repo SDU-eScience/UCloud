@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/exp/maps"
 	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -178,6 +179,15 @@ func initProjects() {
 		return util.Empty{}, nil
 	})
 
+	fndapi.ProjectToggleHidden.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ProjectToggleHidden(info.Actor, reqItem.Id)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+		return util.Empty{}, nil
+	})
 	fndapi.ProjectRemoveMember.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.ProjectRemoveMemberRequest]) (util.Empty, *util.HttpError) {
 		if !info.Actor.Project.Present {
 			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "This request requires an active project")
@@ -414,16 +424,13 @@ func initProjects() {
 
 func ProjectBrowse(actor rpc.Actor, request fndapi.ProjectBrowseRequest) (fndapi.PageV2[fndapi.Project], *util.HttpError) {
 	var projectIds []string
-	favorites := map[string]bool{}
 
 	userInfo := projectRetrieveUserInfo(actor.Username)
 	userInfo.Mu.RLock()
 	for p := range userInfo.Projects {
 		projectIds = append(projectIds, p)
 	}
-	for projectId, prefs := range userInfo.UserPreferences {
-		favorites[projectId] = prefs.Favorite
-	}
+	preferencesCopy := maps.Clone(userInfo.UserPreferences)
 	userInfo.Mu.RUnlock()
 
 	var projects []fndapi.Project
@@ -435,7 +442,7 @@ func ProjectBrowse(actor rpc.Actor, request fndapi.ProjectBrowseRequest) (fndapi
 			result := p.Project
 			p.Mu.RUnlock()
 
-			result, resultFlags := projectProcessFlags(result, actor.Username, favorites[p.Id], request.ProjectFlags)
+			result, resultFlags := projectProcessFlags(result, actor.Username, preferencesCopy[projectId], request.ProjectFlags)
 
 			isMember := resultFlags&projectResultIsMember != 0
 			isWantedByFilter := resultFlags&projectResultNotWantedByFilter == 0
@@ -1416,7 +1423,7 @@ func ProjectRetrieveInviteLink(actor rpc.Actor, token string) (fndapi.ProjectInv
 	project := iproject.Project
 	iproject.Mu.RUnlock()
 
-	project, projectFlags := projectProcessFlags(project, actor.Username, false, fndapi.ProjectFlags{})
+	project, projectFlags := projectProcessFlags(project, actor.Username, internalProjectUserPreferences{}, fndapi.ProjectFlags{})
 	isMember := projectFlags&projectResultIsMember != 0
 
 	return fndapi.ProjectInviteLinkInfo{
@@ -1982,10 +1989,9 @@ func ProjectToggleFavorite(actor rpc.Actor, projectId string) *util.HttpError {
 	defer uinfo.Mu.Unlock()
 
 	if wasFavorite {
-		// Remove from cache or update to false
 		prefs := uinfo.UserPreferences[projectId]
 		prefs.Favorite = false
-		if !prefs.Hidden {
+		if !prefs.Hidden { // if both are false, delete the entry from the cache
 			delete(uinfo.UserPreferences, projectId)
 		} else {
 			uinfo.UserPreferences[projectId] = prefs
@@ -2000,8 +2006,30 @@ func ProjectToggleFavorite(actor rpc.Actor, projectId string) *util.HttpError {
 }
 
 func ProjectToggleHidden(actor rpc.Actor, projectId string) *util.HttpError {
-	_, err := projectTogglePreference(actor, projectId, "hidden")
-	return err
+	wasHidden, err := projectTogglePreference(actor, projectId, "hidden")
+	if err != nil {
+		return err
+	}
+
+	uinfo := projectRetrieveUserInfo(actor.Username)
+	uinfo.Mu.Lock()
+	defer uinfo.Mu.Unlock()
+
+	if wasHidden {
+		prefs := uinfo.UserPreferences[projectId]
+		prefs.Hidden = false
+		if !prefs.Favorite { // if both are false, delete the entry from the cache
+			delete(uinfo.UserPreferences, projectId)
+		} else {
+			uinfo.UserPreferences[projectId] = prefs
+		}
+	} else {
+		prefs := uinfo.UserPreferences[projectId]
+		prefs.Hidden = true
+		uinfo.UserPreferences[projectId] = prefs
+	}
+
+	return nil
 }
 
 func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
@@ -2052,7 +2080,7 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 					},
 				)
 
-				favoriteRows := db.Select[struct {
+				userPreferencesRows := db.Select[struct {
 					ProjectId string
 					Favorite  bool
 					Hidden    bool
@@ -2088,12 +2116,10 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 					result.Groups[group.GroupId] = group.ProjectId
 				}
 
-				for _, favorite := range favoriteRows {
-					if favorite.Favorite {
-						result.UserPreferences[favorite.ProjectId] = internalProjectUserPreferences{
-							Favorite: favorite.Favorite,
-							Hidden:   favorite.Hidden,
-						}
+				for _, pref := range userPreferencesRows {
+					result.UserPreferences[pref.ProjectId] = internalProjectUserPreferences{
+						Favorite: pref.Favorite,
+						Hidden:   pref.Hidden,
 					}
 				}
 
@@ -2256,14 +2282,14 @@ func projectRetrieve(
 	}
 
 	var isMember bool
-	var isFavorite bool
+	var userPreferences map[string]internalProjectUserPreferences
 
 	isSystem := actor.Username == rpc.ActorSystem.Username
 	if !isSystem {
 		userInfo := projectRetrieveUserInfo(actor.Username)
 		userInfo.Mu.RLock()
 		_, isMember = userInfo.Projects[id]
-		isFavorite = userInfo.UserPreferences[id].Favorite
+		userPreferences = userInfo.UserPreferences
 		userInfo.Mu.RUnlock()
 
 		if !isMember {
@@ -2280,7 +2306,7 @@ func projectRetrieve(
 	result := p.Project
 	p.Mu.RUnlock()
 
-	result, resultFlags := projectProcessFlags(result, actor.Username, isFavorite, flags)
+	result, resultFlags := projectProcessFlags(result, actor.Username, userPreferences[id], flags)
 	if resultFlags&projectResultIsMember == 0 && !isSystem {
 		// NOTE(Dan): An unlikely and mostly harmless race-condition means that the user info might momentarily
 		// list a project for which we are no longer a member. We detect it regardless, but it probably wouldn't
@@ -2515,11 +2541,12 @@ func ProjectRetrieveClaimsInfo(username string) ProjectClaimsInfo {
 	return result
 }
 
-func projectProcessFlags(project fndapi.Project, username string, isFavorite bool, flags fndapi.ProjectFlags) (fndapi.Project, projectProcessResult) {
+func projectProcessFlags(project fndapi.Project, username string, userPreference internalProjectUserPreferences, flags fndapi.ProjectFlags) (fndapi.Project, projectProcessResult) {
 	result := project
 	resultFlags := projectProcessResult(0)
 
-	result.Status.IsFavorite = isFavorite
+	result.Status.IsFavorite = userPreference.Favorite
+	result.Status.IsHidden = userPreference.Hidden
 
 	role := fndapi.ProjectRoleUser
 	for _, member := range project.Status.Members {

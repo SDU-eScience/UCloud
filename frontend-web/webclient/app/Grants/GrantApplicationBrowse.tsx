@@ -26,7 +26,7 @@ import {divText} from "@/Utilities/HTMLUtilities";
 import {SimpleAvatarComponentCache} from "@/Files/Shares";
 import {avatarState} from "@/AvataaarLib/hook";
 import {TruncateClass} from "@/ui-components/Truncate";
-import {ProjectTitleForNewCore} from "@/Project/InfoCache";
+import {HTMLTooltip} from "@/ui-components/Tooltip";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -209,7 +209,21 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
 
                     if (!simpleView) {
                         const div = divText(app.status.comments.length.toString());
+                        div.style.display = "flex";
+                        div.style.gap = "4px";
                         div.style.marginTop = div.style.marginBottom = "auto";
+                        div.style.alignItems = "center";
+
+                        const circle = document.createElement("div");
+                        circle.style.width = "8px";
+                        circle.style.height = "8px";
+                        circle.style.borderRadius = "8px";
+                        circle.style.backgroundColor = app.status.hasUnreadComments ? "var(--successLight)" : "transparent";
+                        if (app.status.hasUnreadComments) {
+                            div.append(HTMLTooltip(circle, divText("You have unread comments")));
+                        }
+                        div.append(circle);
+
                         row.stat3.append(div);
                     }
                 });

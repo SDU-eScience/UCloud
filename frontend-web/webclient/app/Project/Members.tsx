@@ -424,6 +424,24 @@ export const ProjectMembers: React.FunctionComponent = () => {
             }),
             projectOverride: id
         });
+
+        let didCancel = false;
+        (async () => {
+            const projectId = getStoredProject();
+            if (!projectId) return;
+            const links = await fetchAll(next => {
+                return callAPI<PageV2<ProjectInviteLink>>({
+                    ...Api.browseInviteLinks({itemsPerPage: 250, next}),
+                    projectOverride: projectId,
+                });
+            });
+
+            if (!didCancel) setInviteLinks(links);
+        })();
+
+        return () => {
+            didCancel = true;
+        };
     }, []);
 
     const actionCb: ActionCallbacks = useMemo(() => ({
@@ -506,25 +524,6 @@ export const ProjectMembers: React.FunctionComponent = () => {
     useLoading(projectFromApi.loading || invitesFromApi.loading);
 
     const [inviteLinks, setInviteLinks] = useState<ProjectInviteLink[]>([]);
-
-    useEffect(() => {
-        let didCancel = false;
-        (async () => {
-            const projectId = getStoredProject();
-            if (!projectId) return;
-            const links = await fetchAll(next => {
-                return callAPI<PageV2<ProjectInviteLink>>({
-                    ...Api.browseInviteLinks({itemsPerPage: 250, next}),
-                    projectOverride: projectId,
-                });
-            });
-
-            if (!didCancel) setInviteLinks(links);
-        })();
-        return () => {
-            didCancel = true;
-        };
-    }, []);
 
     function updateLink(linkId: string, newGroups: string[] | null, newRole: ProjectRole | null, expires: number | null) {
         const oldLink = inviteLinks.find(it => it.token === linkId);

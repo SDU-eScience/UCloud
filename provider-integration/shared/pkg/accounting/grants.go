@@ -285,12 +285,13 @@ type Period struct {
 }
 
 type GrantStatus struct {
-	OverallState   GrantApplicationState     `json:"overallState"`
-	StateBreakdown []GrantGiverApprovalState `json:"stateBreakdown"`
-	Comments       []GrantComment            `json:"comments"`
-	Revisions      []GrantRevision           `json:"revisions"`
-	ProjectTitle   util.Option[string]       `json:"projectTitle"`
-	ProjectPI      string                    `json:"projectPI"`
+	OverallState      GrantApplicationState     `json:"overallState"`
+	StateBreakdown    []GrantGiverApprovalState `json:"stateBreakdown"`
+	Comments          []GrantComment            `json:"comments"`
+	Revisions         []GrantRevision           `json:"revisions"`
+	ProjectTitle      util.Option[string]       `json:"projectTitle"`
+	ProjectPI         string                    `json:"projectPI"`
+	HasUnreadComments bool                      `json:"hasUnreadComments"`
 }
 
 type GrantGiverApprovalState struct {
