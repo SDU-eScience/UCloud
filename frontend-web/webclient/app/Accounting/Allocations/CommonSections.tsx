@@ -35,7 +35,14 @@ import {bulkRequestOf, chunkedString, doNothing, timestampUnixMs} from "@/Utilit
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {OldProjectRole} from "@/Project";
-import {State, SubProjectFilter, SubProjectFilterSetting, UIAction, UIEvent} from "@/Accounting/Allocations/State";
+import {
+    State,
+    SubProjectFilter,
+    SubProjectFilterSetting,
+    subProjectsDefaultSettings,
+    UIAction,
+    UIEvent
+} from "@/Accounting/Allocations/State";
 import {VariableSizeList} from "react-window";
 import {AvatarState} from "@/AvataaarLib/hook";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -1099,63 +1106,6 @@ const SubProjectFiltersRow: React.FunctionComponent<{
 
 const SingleUserProjects = "Personal workspaces"
 
-const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
-    [SubProjectFilterSetting.IDLE_SUB_PROJECTS]: {
-        title: "Idle sub-projects",
-        setting: SubProjectFilterSetting.IDLE_SUB_PROJECTS,
-        options: ["1 month", "2 months", "3 months", "6 months"],
-        selected: "1 month",
-        enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
-    },
-    [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE]: {
-        setting: SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE,
-        title: "Allocated resource by product type",
-        options: productTypes.map(it => productTypeToName(it)),
-        selected: productTypeToName("COMPUTE"),
-        enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
-    },
-    [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT]: {
-        setting: SubProjectFilterSetting.ALLOCATED_BY_PRODUCT,
-        title: "Allocated resource by product",
-        options: [/*TODO list products here*/],
-        selected: "u1-standard-h",
-        enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
-    },
-    [SubProjectFilterSetting.ALLOCATED_BY_PROVIDER]: {
-        setting: SubProjectFilterSetting.ALLOCATED_BY_PROVIDER,
-        title: "Allocated resource by provider",
-        options: ["SDU/K8s", "AAU/K8s", "AAU/VM"],
-        selected: "SDU/K8s",
-        enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
-    },
-    [SubProjectFilterSetting.EXPIRED_ALLOCATIONS]: {
-        setting: SubProjectFilterSetting.EXPIRED_ALLOCATIONS,
-        title: "Expired allocations",
-        options: [],
-        selected: "",
-        enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
-    },
-    [SubProjectFilterSetting.PERSONAL_WORKSPACES]: {
-        setting: SubProjectFilterSetting.PERSONAL_WORKSPACES,
-        title: "Personal workspaces",
-        options: [],
-        selected: "",
-        enabled: false,
-    },
-    [SubProjectFilterSetting.OVERALLOCATION_AT_RISK]: {
-        setting: SubProjectFilterSetting.OVERALLOCATION_AT_RISK,
-        title: "Overallocations at risk",
-        options: [],
-        selected: "",
-        enabled: false,
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
-    },
-};
 
 export const SubProjectFilters: React.FunctionComponent<{
     filtersShown: boolean;
@@ -1163,6 +1113,7 @@ export const SubProjectFilters: React.FunctionComponent<{
     state: State;
     dispatchEvent: (event: UIEvent) => unknown;
 }> = ({filtersShown, closeFilters, dispatchEvent, state}) => {
+    console.log(state.subprojectFilters)
     const settings = state.subprojectFilters;
     const onSettingsChanged = useCallback((updated: SubProjectFilter) => {
         dispatchEvent({

@@ -2,11 +2,17 @@ import * as Accounting from "@/Accounting";
 import * as Gifts from "@/Accounting/Gifts";
 import {deepCopy, newFuzzyMatchFuse} from "@/Utilities/CollectionUtilities";
 import * as React from "react";
-import {useCallback} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import ProvidersApi from "@/UCloud/ProvidersApi";
-import {AllocationDisplayTreeRecipient, ProductType} from "@/Accounting";
+import {
+    AllocationDisplayTreeRecipient,
+    ProductType,
+    productTypeFromName,
+    productTypes,
+    productTypeToName
+} from "@/Accounting";
 import {ProjectInfo, projectInfoPi, projectInfoTitle} from "@/Project/InfoCache";
 import {Client} from "@/Authentication/HttpClientInstance";
 import UsageCore2, {UsageReport, usageReportRetrieve} from "@/Accounting/UsageCore2";
@@ -14,6 +20,11 @@ import {timestampUnixMs} from "@/UtilityFunctions";
 import {useImmerState} from "@/Utilities/Immer";
 import {produce} from "immer";
 import {Feature} from "@/Features";
+import {SimpleRichItem} from "@/ui-components/RichSelect";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {classConcat} from "@/Unstyled";
+import {CardClass} from "@/ui-components/Card";
+import {Flex, Icon, Input} from "@/ui-components";
 
 const fuzzyMatcher = newFuzzyMatchFuse<{title: string}, "title">(["title"]);
 
@@ -111,13 +122,24 @@ function recipientPrimaryUsername(recipient: AllocationDisplayTreeRecipient, sta
         projectInfoPi(state.subprojectInfo[recipient.owner.reference.projectId], recipient.owner.primaryUsername) ?? "-";
 }
 
-function searchQueryMatches(recipient: AllocationDisplayTreeRecipient, state: State, query: string) {
-    /* TODO add query match if statement for products */
+function searchQueryMatches(recipient: AllocationDisplayTreeRecipient, state: State, query: string): boolean {
     if (recipient.owner.reference.type === "user" && state.viewOnlyProjects) return false;
     if (recipient.owner.reference.type === "project" && !state.viewOnlyProjects) return false;
+    let byTypeSetting = state.subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE];
+    if (byTypeSetting.enabled && byTypeSetting.selected) {
+        const productType = productTypeFromName(byTypeSetting.selected);
+        let anyFound = false;
+        for (const group of recipient.groups) {
+            if (productType === group.category.productType) {
+                console.log("Fie was here")
+                anyFound = true;
+                break;
+            }
+        }
+        if (!anyFound) return false;
+    }
     if (query === "") return true;
     const title = recipientTitle(recipient, state);
-
     fuzzyMatcher.setCollection([{title}]);
     return fuzzyMatcher.search(query).length > 0;
 }
@@ -611,6 +633,64 @@ export function initialState(): State {
         filteredSubProjectIndices: [],
         subprojectSortByAscending: true,
         subprojectInfo: {},
-        subprojectFilters: {},
+        subprojectFilters: subProjectsDefaultSettings,
     };
 }
+
+export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
+    [SubProjectFilterSetting.IDLE_SUB_PROJECTS]: {
+        title: "Idle sub-projects",
+        setting: SubProjectFilterSetting.IDLE_SUB_PROJECTS,
+        options: ["1 month", "2 months", "3 months", "6 months"],
+        selected: "1 month",
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
+    },
+    [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE]: {
+        setting: SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE,
+        title: "Allocated resource by product type",
+        options: productTypes.map(it => productTypeToName(it)),
+        selected: productTypeToName("COMPUTE"),
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
+    },
+    [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT]: {
+        setting: SubProjectFilterSetting.ALLOCATED_BY_PRODUCT,
+        title: "Allocated resource by product",
+        options: [/*TODO list products here*/],
+        selected: "u1-standard-h",
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
+    },
+    [SubProjectFilterSetting.ALLOCATED_BY_PROVIDER]: {
+        setting: SubProjectFilterSetting.ALLOCATED_BY_PROVIDER,
+        title: "Allocated resource by provider",
+        options: ["SDU/K8s", "AAU/K8s", "AAU/VM"],
+        selected: "SDU/K8s",
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
+    },
+    [SubProjectFilterSetting.EXPIRED_ALLOCATIONS]: {
+        setting: SubProjectFilterSetting.EXPIRED_ALLOCATIONS,
+        title: "Expired allocations",
+        options: [],
+        selected: "",
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
+    },
+    [SubProjectFilterSetting.PERSONAL_WORKSPACES]: {
+        setting: SubProjectFilterSetting.PERSONAL_WORKSPACES,
+        title: "Personal workspaces",
+        options: [],
+        selected: "",
+        enabled: false,
+    },
+    [SubProjectFilterSetting.OVERALLOCATION_AT_RISK]: {
+        setting: SubProjectFilterSetting.OVERALLOCATION_AT_RISK,
+        title: "Overallocations at risk",
+        options: [],
+        selected: "",
+        enabled: false,
+        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
+    },
+};
