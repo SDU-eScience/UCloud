@@ -1,7 +1,7 @@
 {
     "aau.dk": [
         {
-            "faculty": "Cross-faculty",
+            "faculty": "Cross-Faculty",
             "departments": [
                 "Institute for Advanced Study in PBL"
             ]
@@ -9,12 +9,10 @@
         {
             "faculty": "Faculty of Social Sciences and Humanities",
             "departments": [
-                "Department of Communication and Psychology",
-                "Department of Culture and Learning",
-                "Department of Law",
-                "Department of Politics and Society",
-                "Department of Sociology and Social Work",
-                "AAU Business School"
+                "AAU Business School",
+                "Department of Culture and Communication",
+                "Department of Society and Politics",
+                "Department of Law"
             ]
         },
         {
@@ -30,17 +28,28 @@
         {
             "faculty": "Faculty of Medicine",
             "departments": [
-                "Department of Clinical Medicine",
-                "Department of Health Science and Technology"
+                "Department of Health Science and Technology",
+                "Department of Clinical Medicine"
             ]
         },
         {
             "faculty": "Technical Faculty of IT and Design",
             "departments": [
-                "Department of Architecture, Design, and Media Technology",
                 "Department of Computer Science",
                 "Department of Electronic Systems",
+                "Department of Architecture, Design and Media Technology",
                 "Department of Sustainability and Planning"
+            ]
+        },
+        {
+            "faculty": "Shared Services",
+            "departments": [
+                "The Technical Faculty of IT and Design",
+                "Faculty of Engineering and Science",
+                "Faculty of Social Sciences and Humanities",
+                "Faculty of Medicine",
+                "Other",
+                "IT Services"
             ]
         }
     ],

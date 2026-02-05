@@ -10,7 +10,7 @@ import (
 	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
@@ -23,8 +23,6 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 	if grantGlobals.Testing.Enabled {
 		return
 	}
-
-	log.Info("grantsLoad(%v, %v)", id, prefetchHint)
 
 	prefetchList := prefetchHint
 	requiredPrefetchIdx := slices.Index(prefetchList, id)
@@ -76,6 +74,7 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 				select application_id, comment, posted_by, created_at, id as comment_id
 				from "grant".comments
 				where application_id = some(:ids)
+				order by created_at
 		    `,
 			db.Params{
 				"ids": prefetchList,

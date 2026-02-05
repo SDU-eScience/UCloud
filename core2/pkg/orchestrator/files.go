@@ -99,7 +99,7 @@ func FilesEmptyTrash(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindBySt
 		}
 
 		if featureSupported(driveType, drive.Specification.Product, driveOpsReadOnly) {
-			return result, util.HttpErr(http.StatusNotFound, "drive is read only")
+			return result, util.HttpErr(http.StatusForbidden, "drive is read only")
 		}
 
 		if !featureSupported(driveType, drive.Specification.Product, driveOpsTrash) {
@@ -150,7 +150,7 @@ func FilesMoveToTrash(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByS
 		}
 
 		if featureSupported(driveType, drive.Specification.Product, driveOpsReadOnly) {
-			return result, util.HttpErr(http.StatusNotFound, "drive is read only")
+			return result, util.HttpErr(http.StatusForbidden, "drive is read only")
 		}
 
 		if !featureSupported(driveType, drive.Specification.Product, driveOpsTrash) {
@@ -201,7 +201,7 @@ func FilesDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByString
 		}
 
 		if featureSupported(driveType, drive.Specification.Product, driveOpsReadOnly) {
-			return result, util.HttpErr(http.StatusNotFound, "drive is read only")
+			return result, util.HttpErr(http.StatusForbidden, "drive is read only")
 		}
 
 		providerId := drive.Specification.Product.Provider
@@ -257,7 +257,7 @@ func FilesCreateFolder(actor rpc.Actor, request fndapi.BulkRequest[orcapi.FilesC
 		}
 
 		if featureSupported(driveType, drive.Specification.Product, driveOpsReadOnly) {
-			return result, util.HttpErr(http.StatusNotFound, "drive is read only")
+			return result, util.HttpErr(http.StatusForbidden, "drive is read only")
 		}
 
 		providerId := drive.Specification.Product.Provider
@@ -321,7 +321,7 @@ func FilesCreateUpload(
 		}
 
 		if featureSupported(driveType, drive.Specification.Product, driveOpsReadOnly) {
-			return result, util.HttpErr(http.StatusNotFound, "drive is read only")
+			return result, util.HttpErr(http.StatusForbidden, "drive is read only")
 		}
 
 		providerId := drive.Specification.Product.Provider
@@ -509,7 +509,7 @@ func filesCopyOrMove(
 		}
 
 		if featureSupported(driveType, destinationDrive.Specification.Product, driveOpsReadOnly) {
-			return result, util.HttpErr(http.StatusBadRequest, "destination drive is read only")
+			return result, util.HttpErr(http.StatusForbidden, "destination drive is read only")
 		}
 
 		providerId := sourceDrive.Specification.Product.Provider
@@ -896,7 +896,7 @@ func FilesTransfer(actor rpc.Actor, request orcapi.FilesTransferRequest) *util.H
 	}
 
 	sourceProvider := sourceDrive.Specification.Product.Provider
-	destProvider := sourceDrive.Specification.Product.Provider
+	destProvider := destDrive.Specification.Product.Provider
 
 	if !util.DevelopmentModeEnabled() && sourceProvider == destProvider {
 		return util.HttpErr(http.StatusForbidden, "cannot transfer between these paths (same provider)")
@@ -929,7 +929,7 @@ func FilesTransfer(actor rpc.Actor, request orcapi.FilesTransferRequest) *util.H
 		return util.HttpErr(http.StatusForbidden, "source provider is unwilling to fulfill this request")
 	}
 
-	initiateDestResp, err := InvokeProvider(sourceProvider, orcapi.FilesProviderTransfer, orcapi.FilesProviderTransferRequest{
+	initiateDestResp, err := InvokeProvider(destProvider, orcapi.FilesProviderTransfer, orcapi.FilesProviderTransferRequest{
 		Type: orcapi.FilesProviderTransferReqTypeInitiateDestination,
 		FilesProviderTransferRequestInitiateDestination: orcapi.FilesProviderTransferRequestInitiateDestination{
 			DestinationPath:    destPath,

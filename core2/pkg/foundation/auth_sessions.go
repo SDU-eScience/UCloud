@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -163,23 +163,13 @@ func SessionLoginResponse(r *http.Request, w http.ResponseWriter, session fndapi
 		responseJson, _ := json.Marshal(response)
 		encoded := url.QueryEscape(string(responseJson))
 
-		http.SetCookie(w, &http.Cookie{
-			Name:     "authState",
-			Value:    encoded,
-			Secure:   secureScheme,
-			HttpOnly: false,
-			Expires:  time.Now().Add(5 * time.Minute),
-			Path:     "/",
-			SameSite: http.SameSiteStrictMode,
-		})
-
 		// NOTE(Dan): Using a 301 redirect causes Apple browsers (at least Safari likely more) to ignore the cookie.
 		// Using a redirect via HTML works.
 		// NOTE(Dan): The WAYF name is mostly for legacy reasons. It doesn't really mean anything in this context.
 		endpoint := fmt.Sprintf("%s://%s/app/login/wayf", scheme, r.Host)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(fmt.Sprintf(string(authRedirectPage), endpoint, endpoint)))
+		_, _ = w.Write([]byte(fmt.Sprintf(string(authRedirectPage), endpoint, endpoint, encoded)))
 	}
 
 	mfaChallenge := ""

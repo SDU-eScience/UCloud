@@ -1,6 +1,6 @@
 package migrations
 
-import db "ucloud.dk/shared/pkg/database2"
+import db "ucloud.dk/shared/pkg/database"
 
 func projectsV1() db.MigrationScript {
 	return db.MigrationScript{
@@ -109,6 +109,91 @@ func projectsV2() db.MigrationScript {
 			for _, statement := range statements {
 				db.Exec(tx, statement, db.Params{})
 			}
+		},
+	}
+}
+
+func projectsV3() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "projectsV3",
+		Execute: func(tx *db.Transaction) {
+			statements := []string{
+				`
+					create table project.project_user_preferences
+					(
+						project_id text not null
+							references project.projects
+								on delete cascade,
+						username   text not null
+							references auth.principals,
+						favorite   boolean not null default false,
+						hidden     boolean not null default false,
+						primary key (project_id, username),
+						constraint project_user_preferences_project_members_id_fkey
+							foreign key (project_id, username) references project.project_members (project_id, username)
+								on delete cascade
+					);
+				`,
+				`
+					insert into project.project_user_preferences (project_id, username, favorite, hidden)
+					select project_id, username, true, false
+					from project.project_favorite
+					on conflict (project_id, username) do nothing;
+				`,
+				`
+					drop table project.project_favorite;
+				`,
+			}
+
+			for _, statement := range statements {
+				db.Exec(tx, statement, db.Params{})
+			}
+		},
+	}
+}
+
+func projectsV4() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "projectsV4",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table project.invite_link_group_assignments
+					drop constraint invite_link_group_assignments_link_token_fkey;
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					alter table project.invite_link_group_assignments
+					alter column link_token type text
+					using link_token::text;
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					alter table project.invite_links
+					alter column token type text
+					using token::text;
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					alter table project.invite_link_group_assignments 
+					add constraint invite_link_group_assignments_link_token_fkey 
+						foreign key (link_token) references project.invite_links (token)
+			    `,
+				db.Params{},
+			)
 		},
 	}
 }

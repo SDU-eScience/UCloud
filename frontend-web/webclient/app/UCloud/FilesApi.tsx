@@ -80,6 +80,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {setPopInChild} from "@/ui-components/PopIn";
 import {FileWriteFailure, WriteFailureEvent} from "@/Files/Uploader";
+import {GuessedFile} from "magic-bytes.js/dist/model/tree";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -1644,7 +1645,8 @@ function tryDecodeText(buf: Uint8Array): string | null {
     }
 }
 
-function getFileTypesFromContentBuffer(contentBuffer: Uint8Array) {
+function getFileTypesFromContentBuffer(contentBuffer: Uint8Array | null | undefined): GuessedFile[] {
+    if (contentBuffer == null) return [];
     return fileType(contentBuffer).filter(it => it.mime);
 }
 

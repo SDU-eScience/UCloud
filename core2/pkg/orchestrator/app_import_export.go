@@ -74,6 +74,7 @@ func AppIxExportToZip() []byte {
 			apiTools = append(apiTools, orcapi.Tool{
 				Owner:       "UCloud",
 				CreatedAt:   fndapi.Timestamp(time.Now()),
+				ModifiedAt:  fndapi.Timestamp(time.Now()),
 				Description: itool.Tool,
 			})
 			itool.Mu.RUnlock()
@@ -241,6 +242,10 @@ func AppIxImportFromZip(b []byte) {
 		err := AppStudioCreateApplication(&app)
 		if err != nil && err.StatusCode != http.StatusConflict {
 			log.Info("Could not create app: %#v: %s", app.Metadata.NameAndVersion, err)
+		} else {
+			if app.Metadata.Public {
+				_ = AppStudioUpdatePublicFlag(app.Metadata.Name, app.Metadata.Version, true)
+			}
 		}
 	}
 

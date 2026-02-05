@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
@@ -363,7 +363,7 @@ func ShareCreate(actor rpc.Actor, item orcapi.ShareSpecification) (string, *util
 		)
 	}
 
-	if drive.Owner.Project != "" {
+	if drive.Owner.Project.Present {
 		return "", util.HttpErr(
 			http.StatusForbidden,
 			"cannot share this file belonging to a project",

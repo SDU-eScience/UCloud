@@ -9,7 +9,7 @@ import (
 
 	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
@@ -277,7 +277,7 @@ func SshKeyRetrieveByJob(actor rpc.Actor, jobId string) ([]orcapi.SshKey, *util.
 	result := db.NewTx(func(tx *db.Transaction) []orcapi.SshKey {
 		relevantUsers := map[string]util.Empty{}
 		relevantUsers[job.Owner.CreatedBy] = util.Empty{}
-		projectId := job.Owner.Project
+		projectId := job.Owner.Project.GetOrDefault("")
 		if projectId != "" {
 			project, ok := coreutil.ProjectRetrieveFromDatabase(tx, projectId)
 			if ok {
@@ -286,7 +286,7 @@ func SshKeyRetrieveByJob(actor rpc.Actor, jobId string) ([]orcapi.SshKey, *util.
 						relevantUsers[member.Username] = util.Empty{}
 					}
 				}
-				otherAcl := job.Permissions.Others
+				otherAcl := job.Permissions.GetOrDefault(orcapi.ResourcePermissions{}).Others
 				relevantGroups := map[string]util.Empty{}
 				for _, entry := range otherAcl {
 					if !orcapi.PermissionsHas(entry.Permissions, orcapi.PermissionEdit) {

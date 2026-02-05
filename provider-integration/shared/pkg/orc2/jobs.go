@@ -29,13 +29,13 @@ type SshKeySpecification struct {
 type ExportedParametersRequest struct {
 	Application       NameAndVersion       `json:"application"`
 	Product           apm.ProductReference `json:"product"`
-	Name              string               `json:"name,omitempty"`
+	Name              string               `json:"name"`
 	Replicas          int                  `json:"replicas"`
 	Parameters        json.RawMessage      `json:"parameters"`
 	Resources         json.RawMessage      `json:"resources"`
-	TimeAllocation    SimpleDuration       `json:"timeAllocation,omitempty"`
-	ResolvedProduct   json.RawMessage      `json:"resolvedProduct,omitempty"`
-	ResolvedSupport   json.RawMessage      `json:"resolvedSupport,omitempty"`
+	TimeAllocation    SimpleDuration       `json:"timeAllocation"`
+	ResolvedProduct   json.RawMessage      `json:"resolvedProduct"`
+	ResolvedSupport   json.RawMessage      `json:"resolvedSupport"`
 	AllowDuplicateJob bool                 `json:"allowDuplicateJob"`
 	SshEnabled        bool                 `json:"sshEnabled"`
 }
@@ -731,6 +731,32 @@ var JobsControlBrowseSshKeys = rpc.Call[JobsControlBrowseSshKeysRequest, fnd.Pag
 	Convention:  rpc.ConventionUpdate,
 	BaseContext: jobControlNamespace,
 	Operation:   "browseSshKeys",
+	Roles:       rpc.RoleProvider,
+}
+
+type JobsLegacyCheckCreditsRequest struct {
+	Id       string `json:"id"`
+	ChargeId string `json:"chargeId"`
+	Units    int    `json:"units"`
+	Periods  int    `json:"periods"`
+}
+
+type JobsLegacyCheckCreditsResponse struct {
+	InsufficientFunds []fnd.FindByStringId `json:"insufficientFunds"`
+	DuplicateCharges  []fnd.FindByStringId `json:"duplicateCharges"`
+}
+
+var JobsControlChargeCredits = rpc.Call[fnd.BulkRequest[JobsLegacyCheckCreditsRequest], JobsLegacyCheckCreditsResponse]{
+	BaseContext: jobControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "chargeCredits",
+	Roles:       rpc.RoleProvider,
+}
+
+var JobsControlCheckCredits = rpc.Call[fnd.BulkRequest[JobsLegacyCheckCreditsRequest], JobsLegacyCheckCreditsResponse]{
+	BaseContext: jobControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "checkCredits",
 	Roles:       rpc.RoleProvider,
 }
 

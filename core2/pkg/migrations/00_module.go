@@ -1,6 +1,6 @@
 package migrations
 
-import db "ucloud.dk/shared/pkg/database2"
+import db "ucloud.dk/shared/pkg/database"
 
 func Init() {
 	db.AddMigration(coreV1())
@@ -19,6 +19,9 @@ func Init() {
 	db.AddMigration(newsV1())
 	db.AddMigration(coreV2())
 	db.AddMigration(accountingV4())
+	db.AddMigration(projectsV3())
+	db.AddMigration(auditPostgresV2())
 	db.AddMigration(authV3())
 	db.AddMigration(grantV1())
+	db.AddMigration(projectsV4())
 }

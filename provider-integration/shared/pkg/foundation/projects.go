@@ -30,6 +30,7 @@ type ProjectSpecification struct {
 type ProjectStatus struct {
 	Archived                   bool                `json:"archived"`
 	IsFavorite                 bool                `json:"isFavorite"`
+	IsHidden                   bool                `json:"isHidden"`
 	Members                    []ProjectMember     `json:"members"`
 	Groups                     []ProjectGroup      `json:"groups"`
 	Settings                   ProjectSettings     `json:"settings"`
@@ -238,6 +239,13 @@ var ProjectToggleFavorite = rpc.Call[BulkRequest[FindByStringId], util.Empty]{
 	Roles:       rpc.RolesEndUser,
 }
 
+var ProjectToggleHidden = rpc.Call[BulkRequest[FindByStringId], util.Empty]{
+	BaseContext: ProjectContext,
+	Operation:   "toggleHidden",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+}
+
 var ProjectToggleSubProjectRenamingSetting = rpc.Call[ProjectToggleSubProjectRenamingSettingRequest, util.Empty]{
 	BaseContext: ProjectContextV1,
 	Operation:   "toggleRenaming",
@@ -414,9 +422,10 @@ var ProjectDeleteInviteLink = rpc.Call[FindByInviteLink, util.Empty]{
 }
 
 type ProjectUpdateInviteLinkRequest struct {
-	Token  string      `json:"token"`
-	Role   ProjectRole `json:"role"`
-	Groups []string    `json:"groups"`
+	Token   string                 `json:"token"`
+	Role    ProjectRole            `json:"role"`
+	Groups  []string               `json:"groups"`
+	Expires util.Option[Timestamp] `json:"expires"`
 }
 
 var ProjectUpdateInviteLink = rpc.Call[ProjectUpdateInviteLinkRequest, util.Empty]{

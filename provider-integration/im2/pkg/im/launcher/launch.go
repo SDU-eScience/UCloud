@@ -8,6 +8,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strconv"
 	"time"
@@ -15,6 +16,9 @@ import (
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/im/external/user"
+	"ucloud.dk/pkg/im/migrations"
+	svc "ucloud.dk/pkg/im/services"
 	"ucloud.dk/pkg/im/services/k8s"
 	"ucloud.dk/pkg/im/services/slurm"
 	"ucloud.dk/pkg/termio"
@@ -41,8 +45,7 @@ func Launch() {
 	}
 
 	var (
-		configDir  = flag.String("config-dir", "/etc/ucloud", "Path to the configuration directory used by the IM")
-		reloadable = flag.Bool("reloadable", false, "Whether to enable hot-reloading of the module")
+		configDir = flag.String("config-dir", "/etc/ucloud", "Path to the configuration directory used by the IM")
 	)
 
 	flag.Parse()
@@ -165,23 +168,25 @@ func Launch() {
 
 	}
 
-	moduleArgs := im.ModuleArgs{
+	args := &im.ModuleArgs{
 		Mode:                 mode,
 		GatewayConfigChannel: gatewayConfigChannel,
 		ConfigDir:            *configDir,
 		UserModeSecret:       envoySecret,
 		MetricsHandler:       &metricsServerHandler,
+		ServerMultiplexer:    http.NewServeMux(),
+		IpcMultiplexer:       http.NewServeMux(),
 	}
 
+	im.Args = args
+
 	if dbPool != nil {
-		moduleArgs.Database = dbPool.Connection
+		args.Database = dbPool
 	}
 
 	fmt.Printf("UCloud/IM starting up... [3/4] Still working on it\n")
 
 	if mode == cfg.ServerModeServer {
-		// NOTE(Dan): The initial setup is _not_ reloadable. This is similar to how the HTTP server setup is also not
-		// reloadable.
 		client.DefaultClient = client.MakeClient(
 			cfg.Server.RefreshToken,
 			cfg.Provider.Hosts.UCloud.ToURL(),
@@ -192,17 +197,53 @@ func Launch() {
 		}()
 	}
 
-	// Once all critical parts are loaded, we can trigger the reloadable part of the code's launcher function
-	if *reloadable {
-		im.WatchForReload(&moduleArgs)
-	} else {
-		module := im.ReloadableModule{
-			ModuleMain: ModuleMainStub,
-			ModuleExit: ModuleExitStub,
+	cfg.OwnEnvoySecret = args.UserModeSecret
+
+	{
+		logCfg := &cfg.Provider.Logs
+
+		var logFileName string
+		switch cfg.Mode {
+		case cfg.ServerModeServer:
+			logFileName = "server"
+		case cfg.ServerModeProxy:
+			logFileName = "proxy"
+		case cfg.ServerModePlugin:
+			logFileName = ""
+		case cfg.ServerModeUser:
+			uinfo, err := user.Current()
+			if err == nil {
+				logFileName = uinfo.Username
+			} else {
+				logFileName = fmt.Sprintf("uid-%d", os.Getuid())
+			}
 		}
 
-		im.ReloadModule(&module, &moduleArgs)
+		if cfg.Mode != cfg.ServerModeServer || !cfg.Provider.Logs.ServerStdout {
+			log.SetLogConsole(false)
+			err := log.SetLogFile(filepath.Join(logCfg.Directory, logFileName+".log"))
+			if err != nil {
+				panic("Unable to open log file: " + err.Error())
+			}
+
+			if logCfg.Rotation.Enabled {
+				log.SetRotation(log.RotateDaily, logCfg.Rotation.RetentionPeriodInDays, true)
+			}
+		}
 	}
+
+	if args.Mode == cfg.ServerModeServer {
+		*args.MetricsHandler = ctrl.InitMetrics()
+
+		db.Database = args.Database
+		migrations.Init()
+		db.Migrate()
+	}
+
+	ctrl.Init(args.ServerMultiplexer)
+	svc.Init(args)
+	ctrl.InitLate(args.ServerMultiplexer)
+	svc.InitLater(args)
 
 	if mode == cfg.ServerModeServer {
 		launchMetricsServer()

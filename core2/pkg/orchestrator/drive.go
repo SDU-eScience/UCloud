@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
@@ -52,6 +52,17 @@ func initDrives() {
 			request.ItemsPerPage,
 			request.ResourceFlags,
 			func(item orcapi.Drive) bool {
+				if request.FilterMemberFiles.Present {
+					isMemberFile := strings.HasPrefix(item.Specification.Title, "Member Files: ") || item.Status.PreferredDrive
+					switch request.FilterMemberFiles.Value {
+					case orcapi.MemberFilesNoFilter:
+						return true
+					case orcapi.MemberFilesShowMine:
+						return !isMemberFile || (isMemberFile && item.Owner.CreatedBy == info.Actor.Username)
+					case orcapi.MemberFilesShowMembers:
+						return isMemberFile
+					}
+				}
 				return true
 			},
 			sortByFn,
@@ -166,7 +177,7 @@ func initDrives() {
 				driveType,
 				orcapi.ResourceOwner{
 					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
-					Project:   reqItem.Project.Value,
+					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
 				},
 				nil,
 				util.OptValue(reqItem.Spec.Product),

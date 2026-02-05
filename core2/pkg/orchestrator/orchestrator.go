@@ -11,7 +11,7 @@ import (
 	"time"
 
 	cfg "ucloud.dk/core/pkg/config"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
@@ -138,10 +138,15 @@ func providerClient(providerId string) (*rpc.Client, bool) {
 		if !ok {
 			return nil, fmt.Errorf("unknown provider")
 		} else {
+			timeout := 5 * time.Second
+			if providerId == "aau" {
+				timeout = 30 * time.Second
+			}
+
 			return &rpc.Client{
 				BasePath: basePath,
 				Client: &http.Client{
-					Timeout: 5 * time.Second,
+					Timeout: timeout,
 				},
 				CoreForProvider: util.OptValue(providerId),
 			}, nil

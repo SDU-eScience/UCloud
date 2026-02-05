@@ -3,6 +3,7 @@ package orchestrator
 import (
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -33,7 +34,11 @@ func ResourceCreateThroughProvider[T any](
 	})
 
 	if err == nil {
-		providerId := resp.Responses[0].Id
+		providerId := ""
+		if len(resp.Responses) > 0 {
+			providerId = resp.Responses[0].Id
+		}
+
 		if providerId != "" {
 			ResourceSystemUpdate(typeName, id, func(r *resource, mapped T) {
 				r.ProviderId.Set(providerId)
@@ -43,6 +48,7 @@ func ResourceCreateThroughProvider[T any](
 		ResourceConfirm(typeName, id)
 		return resc, nil
 	} else {
+		log.Info("Provider has refused to create resource: %s. Resource is: %v %#v", err, id, extra)
 		ResourceDelete(actor, typeName, id)
 		return t, err
 	}

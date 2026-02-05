@@ -15,7 +15,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
@@ -99,10 +99,10 @@ func (r *resource) ToApi(myPermissions []orcapi.Permission) orcapi.Resource {
 		Id:        fmt.Sprint(r.Id),
 		CreatedAt: fndapi.Timestamp(r.CreatedAt),
 		Owner:     r.Owner,
-		Permissions: orcapi.ResourcePermissions{
+		Permissions: util.OptValue(orcapi.ResourcePermissions{
 			Myself: myPermissions,
 			Others: r.Acl,
-		},
+		}),
 		ProviderGeneratedId: r.ProviderId.GetOrDefault(""),
 	}
 }
@@ -331,8 +331,8 @@ func resourcesReadEx(
 			} else {
 				checkAcl := false
 
-				if r.Owner.Project != "" {
-					role, isMember := actor.Membership[rpc.ProjectId(r.Owner.Project)]
+				if r.Owner.Project.Present {
+					role, isMember := actor.Membership[rpc.ProjectId(r.Owner.Project.Value)]
 
 					if isMember {
 						if role == rpc.ProjectRolePI || role == rpc.ProjectRoleAdmin {
@@ -467,16 +467,19 @@ func lResourceApplyFlags(r *resource, myPerms []orcapi.Permission, flags orcapi.
 		Id:        fmt.Sprint(r.Id),
 		CreatedAt: fndapi.Timestamp(r.CreatedAt),
 		Owner:     r.Owner,
-		Permissions: orcapi.ResourcePermissions{
+		Permissions: util.OptValue(orcapi.ResourcePermissions{
 			Myself: myPerms,
-		},
+		}),
 		ProviderGeneratedId: r.ProviderId.GetOrDefault(""),
 	}
 
 	if flags.IncludeOthers {
-		result.Permissions.Others = make([]orcapi.ResourceAclEntry, len(r.Acl))
-		copy(result.Permissions.Others, r.Acl)
+		result.Permissions.Value.Others = make([]orcapi.ResourceAclEntry, len(r.Acl))
+		copy(result.Permissions.Value.Others, r.Acl)
 	}
+
+	result.Permissions.Value.Myself = util.NonNilSlice(result.Permissions.Value.Myself)
+	result.Permissions.Value.Others = util.NonNilSlice(result.Permissions.Value.Others)
 
 	// NOTE(Dan): includeProduct is handled by the individual transformers now
 
@@ -522,7 +525,11 @@ func ResourceRetrieveEx[T any](
 		}
 	}
 
-	return result, orcapi.Resource{}, util.OptNone[accapi.ProductReference](), util.HttpErr(http.StatusNotFound, "not found")
+	errorMessage := util.HttpErr(http.StatusNotFound, "not found")
+	if perms == nil && !ok {
+		errorMessage = util.HttpErr(http.StatusForbidden, "write permission is required")
+	}
+	return result, orcapi.Resource{}, util.OptNone[accapi.ProductReference](), errorMessage
 }
 
 type ResourceSortByFn[T any] func(a T, b T) int
@@ -786,8 +793,8 @@ func ResourceUpdate[T any](
 
 		isDeleting := resc.Confirmed && resc.MarkedForDeletion
 		rescOwnerRef := resc.Owner.CreatedBy
-		if resc.Owner.Project != "" {
-			rescOwnerRef = resc.Owner.Project
+		if resc.Owner.Project.Present {
+			rescOwnerRef = resc.Owner.Project.Value
 		}
 
 		if resc.Confirmed {
@@ -962,8 +969,8 @@ func ResourceCreateEx[T any](
 	b := resourceGetBucket(typeName, id)
 
 	allUsersGroup := "" // valid only if resourceCreateAllRead/Write is set
-	if owner.Project != "" && (flags&resourceCreateAllRead != 0 || flags&resourceCreateAllWrite != 0) {
-		groupId, ok := resourceRetrieveAllUserGroup(owner.Project)
+	if owner.Project.Present && (flags&resourceCreateAllRead != 0 || flags&resourceCreateAllWrite != 0) {
+		groupId, ok := resourceRetrieveAllUserGroup(owner.Project.Value)
 		if !ok {
 			var t T
 			return 0, t, util.HttpErr(http.StatusInternalServerError, "could not create resource (ACL 0)")
@@ -989,7 +996,7 @@ func ResourceCreateEx[T any](
 	}
 
 	{
-		indexRef := util.OptStringIfNotEmpty(owner.Project).GetOrDefault(owner.CreatedBy)
+		indexRef := owner.Project.GetOrDefault(owner.CreatedBy)
 		idxBucket := resourceGetAndLoadIndex(typeName, indexRef)
 		idxBucket.Mu.Lock()
 		current := idxBucket.ByOwner[indexRef]
@@ -1021,7 +1028,7 @@ func ResourceCreateEx[T any](
 		IncludeProduct: true,
 	}
 
-	if owner.Project != "" && (flags&resourceCreateAllRead != 0 || flags&resourceCreateAllWrite != 0) {
+	if owner.Project.Present && (flags&resourceCreateAllRead != 0 || flags&resourceCreateAllWrite != 0) {
 		var perms []orcapi.Permission
 		if flags&resourceCreateAllRead != 0 {
 			perms = append(perms, orcapi.PermissionRead)
@@ -1031,7 +1038,7 @@ func ResourceCreateEx[T any](
 		}
 
 		r.Acl = append(r.Acl, orcapi.ResourceAclEntry{
-			Entity:      orcapi.AclEntityProjectGroup(owner.Project, allUsersGroup),
+			Entity:      orcapi.AclEntityProjectGroup(owner.Project.Value, allUsersGroup),
 			Permissions: perms,
 		})
 	}
@@ -1085,7 +1092,9 @@ func ResourceCreate[T any](
 
 	owner := orcapi.ResourceOwner{
 		CreatedBy: actor.Username,
-		Project:   string(actor.Project.Value),
+		Project: util.OptMap(actor.Project, func(value rpc.ProjectId) string {
+			return string(value)
+		}),
 	}
 
 	return ResourceCreateEx[T](typeName, owner, nil, product, util.OptNone[string](), extra, 0)

@@ -39,6 +39,7 @@ export interface UpdateInviteLinkRequest {
     token: string;
     role: string;
     groups: string[];
+    expires: number;
 }
 
 interface AcceptInviteLinkRequest {
@@ -81,6 +82,10 @@ class ProjectApi {
 
     public toggleFavorite(request: BulkRequest<FindByStringId>): APICallParameters {
         return apiUpdate(request, this.baseContext, "toggleFavorite");
+    }
+
+    public toggleHidden(request: BulkRequest<FindByStringId>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "toggleHidden");
     }
 
     public renameProject(request: BulkRequest<RenameProjectRequest>): APICallParameters {

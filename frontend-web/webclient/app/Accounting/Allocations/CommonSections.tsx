@@ -2,6 +2,10 @@ import * as React from "react";
 import {
     AllocationDisplayTreeRecipient,
     AllocationDisplayTreeYourAllocation,
+    combineBalances,
+    explainUnit,
+    normalizedBalanceToRaw,
+    ProductCategoryV2,
     ProductType,
     UsageAndQuota,
 } from "@/Accounting";
@@ -13,16 +17,16 @@ import {
     Divider,
     Flex,
     Icon,
-    Input,
+    Input, Label,
     Link,
     Relative,
-    Text,
+    Text, TextArea,
     Truncate
 } from "@/ui-components";
 import AppRoutes from "@/Routes";
 import * as Accounting from "@/Accounting";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {chunkedString, timestampUnixMs} from "@/UtilityFunctions";
+import {bulkRequestOf, chunkedString, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {OldProjectRole} from "@/Project";
@@ -34,7 +38,7 @@ import Avatar from "@/AvataaarLib/avatar";
 import {classConcat, extractDataTags, injectStyle} from "@/Unstyled";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ProgressBar} from "@/Accounting/Allocations/ProgressBar";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
@@ -43,13 +47,20 @@ import {ListRow} from "@/ui-components/List";
 import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
 import {produce} from "immer";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
-import {exportUsage, header} from "@/Accounting/Usage";
+import {ExportHeader, exportUsage, header} from "@/Accounting/Usage";
 import {useProject} from "@/Project/cache";
 import {useProjectId} from "@/Project/Api";
 import {AllocationBar} from "@/Accounting/Allocations/AllocationBar";
-import {projectInfoPi, projectInfoTitle, useProjectInfo} from "@/Project/InfoCache";
+import {projectInfoPi, projectInfoTitle, useProjectInfo, useProjectInfos} from "@/Project/InfoCache";
 import {useForcedRender} from "@/Utilities/ReactUtilities";
 import {Feature, hasFeature} from "@/Features";
+import {dialogStore} from "@/Dialog/DialogStore";
+import * as Heading from "@/ui-components/Heading";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import DatePicker from "react-datepicker";
+import {callAPIWithErrorHandler} from "@/Authentication/DataHook";
+import {DatePickerClass} from "@/ui-components/DatePicker";
+import {getProviderTitle} from "@/Providers/ProviderTitle";
 
 interface Datapoint {
     product: string;
@@ -106,12 +117,13 @@ export const YourAllocations: React.FunctionComponent<{
             <div className="your-allocations-header">
                 <h3>Your allocations</h3>
                 <Button onClick={onExportData}>
+                    <Icon name={"heroArrowDownTray"} mr={8}/>
                     Export
                 </Button>
             </div>
             <div className="your-allocations-container">
                 {state.remoteData.wallets === undefined ? <>
-                    <HexSpin size={64} />
+                    <HexSpin size={64}/>
                 </> : <>
                     <div>
                         {allocations.length !== 0 ? null : <div style={{marginLeft: "20px", marginTop: "10px"}}>
@@ -125,13 +137,13 @@ export const YourAllocations: React.FunctionComponent<{
                                 return <TreeNode
                                     key={rawType}
                                     left={<Flex gap={"4px"}>
-                                        <Icon name={Accounting.productTypeToIcon(type)} size={20} />
+                                        <Icon name={Accounting.productTypeToIcon(type)} size={20}/>
                                         {Accounting.productAreaTitle(type)}
                                     </Flex>}
                                     right={<Flex flexDirection={"row"} gap={"8px"}>
                                         {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                            <ProgressBar uq={uq} />
-                                        </React.Fragment>
+                                                <ProgressBar uq={uq}/>
+                                            </React.Fragment>
                                         )}
                                     </Flex>}
                                     indent={indent}
@@ -140,11 +152,11 @@ export const YourAllocations: React.FunctionComponent<{
                                         <TreeNode
                                             key={idx}
                                             left={<Flex gap={"4px"}>
-                                                <ProviderLogo providerId={wallet.category.provider} size={20} />
+                                                <ProviderLogo providerId={wallet.category.provider} size={20}/>
                                                 <code>{wallet.category.name}</code>
                                             </Flex>}
                                             right={<Flex flexDirection={"row"} gap={"8px"}>
-                                                <ProgressBar uq={wallet.usageAndQuota} />
+                                                <ProgressBar uq={wallet.usageAndQuota}/>
                                             </Flex>}
                                             indent={indent * 2}
                                         >
@@ -155,7 +167,7 @@ export const YourAllocations: React.FunctionComponent<{
                                                         className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
                                                         left={<Flex gap={"32px"}>
                                                             <Flex width={"200px"}>
-                                                                <Icon name={"heroBanknotes"} ml={"8px"} mr={4} />
+                                                                <Icon name={"heroBanknotes"} ml={"8px"} mr={4}/>
                                                                 <div>
                                                                     <b>Allocation ID:</b>
                                                                     {" "}
@@ -173,9 +185,9 @@ export const YourAllocations: React.FunctionComponent<{
 
                                                             {alloc.grantedIn && <>
                                                                 <Link target={"_blank"}
-                                                                    to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                                                      to={AppRoutes.grants.editor(alloc.grantedIn)}>
                                                                     View grant application{" "}
-                                                                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
+                                                                    <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
                                                                 </Link>
                                                             </>}
                                                         </Flex>}
@@ -183,7 +195,7 @@ export const YourAllocations: React.FunctionComponent<{
                                                             {alloc.note && <>
                                                                 <TooltipV2 tooltip={alloc.note.text}>
                                                                     <Icon name={alloc.note.icon}
-                                                                        color={alloc.note.iconColor} />
+                                                                          color={alloc.note.iconColor}/>
                                                                 </TooltipV2>
                                                             </>}
                                                             <div className="low-opaqueness">
@@ -525,7 +537,7 @@ export const SubProjectAllocations: React.FunctionComponent<{
                         <Input placeholder="Search in your key metrics"></Input>
                         <div style={{position: "relative"}}>
                             <div style={{position: "absolute", top: "5px", right: "10px"}}>
-                                <Icon name={"heroMagnifyingGlass"} />
+                                <Icon name={"heroMagnifyingGlass"}/>
                             </div>
                         </div>
                     </div>
@@ -534,7 +546,7 @@ export const SubProjectAllocations: React.FunctionComponent<{
             </Flex>
 
             {Object.values(settings).map(setting => (
-                <KeyMetricSettingsRow key={setting.title} setting={setting} onChange={onSettingsChanged} />
+                <KeyMetricSettingsRow key={setting.title} setting={setting} onChange={onSettingsChanged}/>
             ))}
         </ReactModal>
 
@@ -546,13 +558,13 @@ export const SubProjectAllocations: React.FunctionComponent<{
                         <Input placeholder="Search in your key metrics"></Input>
                         <div style={{position: "relative"}}>
                             <div style={{position: "absolute", top: "5px", right: "10px"}}>
-                                <Icon name={"heroMagnifyingGlass"} />
+                                <Icon name={"heroMagnifyingGlass"}/>
                             </div>
                         </div>
                     </div>
 
                     <Button className="filters-button" onClick={openFilters}>
-                        <Icon name={"heroAdjustmentsHorizontal"} />
+                        <Icon name={"heroAdjustmentsHorizontal"}/>
                     </Button>
                 </div>
             </div>
@@ -567,14 +579,16 @@ export const SubProjectAllocations: React.FunctionComponent<{
                                 key={rawType}
                                 left={
                                     <Flex gap={"4px"}>
-                                        <Icon name={Accounting.productTypeToIcon(type)} size={20} />
+                                        <Icon name={Accounting.productTypeToIcon(type)} size={20}/>
                                         {Accounting.productAreaTitle(type)}
                                     </Flex>
                                 }
                                 right={<Flex flexDirection={"row"} gap={"8px"}>
                                     {tree.usageAndQuota.map((uq, idx) =>
                                         <React.Fragment key={idx}>
-                                            <AllocationBar label={"65% Ok | 5% At risk | 30% Underused"} okPercentage={65} atRiskPercentage={5} underusedPercentage={30} />
+                                            <AllocationBar label={"65% Ok | 5% At risk | 30% Underused"}
+                                                           okPercentage={65} atRiskPercentage={5}
+                                                           underusedPercentage={30}/>
                                         </React.Fragment>
                                     )}
                                 </Flex>}
@@ -583,14 +597,14 @@ export const SubProjectAllocations: React.FunctionComponent<{
                                 <TreeNode
                                     left={
                                         <Flex gap={"4px"}>
-                                            <ProviderLogo providerId={"ucloud"} size={20} />
+                                            <ProviderLogo providerId={"ucloud"} size={20}/>
                                             <h3>u1-cephfs</h3>
                                         </Flex>
                                     }
                                     right={<Flex flexDirection={"row"} gap={"8px"}>
                                         {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                            <ProgressBar uq={uq} />
-                                        </React.Fragment>
+                                                <ProgressBar uq={uq}/>
+                                            </React.Fragment>
                                         )}
                                     </Flex>}
                                 >
@@ -602,13 +616,13 @@ export const SubProjectAllocations: React.FunctionComponent<{
                 <div className="key-metrics-card-container">
                     <div className="key-metrics-card">
                         <h3>41%</h3>
-                        <br />
-                        <h3>Storage <br /> utilization</h3>
+                        <br/>
+                        <h3>Storage <br/> utilization</h3>
                     </div>
                     <div className="key-metrics-card">
                         <h3>73</h3>
-                        <br />
-                        <h3>Idle <br /> projects</h3>
+                        <br/>
+                        <h3>Idle <br/> projects</h3>
                     </div>
                     <div className="key-metrics-list">
                         <div className="key-metrics-line">
@@ -652,9 +666,123 @@ const FilteredUsageAndQuota: React.FunctionComponent<{
     return <>
         {filteredEntries.map((uq, idx) => {
             if (idx > 2) return null;
-            return <ProgressBar key={idx} uq={uq} />;
+            return <ProgressBar key={idx} uq={uq}/>;
         })}
     </>
+}
+
+function DurationSelector(props: { periodRef: { start: Date | null; end: Date | null } }) {
+    const originalStart = useMemo(() => props.periodRef.start, []);
+    const originalEnd = useMemo(() => props.periodRef.end, []);
+    const [startDate, setStartDate] = useState<Date | null>(props.periodRef.start);
+    const [endDate, setEndDate] = useState<Date | null>(props.periodRef.end);
+
+    const onChange = React.useCallback((dates: [Date | null, Date | null]) => {
+        const [start, end] = dates
+        props.periodRef.start = start;
+        props.periodRef.end = end;
+        setStartDate(start)
+        setEndDate(end)
+    }, []);
+
+    return <Label>
+        Allocation period
+        (Current: {dateToStringNoTime(originalStart?.getTime() ?? new Date().getTime())} - {dateToStringNoTime(originalEnd?.getTime() ?? new Date().getTime())})
+        <br/>
+        <DatePicker
+            selected={startDate}
+            onChange={onChange}
+            startDate={startDate}
+            endDate={endDate}
+            selectsRange
+            dateFormat="MM/yyyy"
+            minDate={new Date()}
+            showMonthYearPicker
+            required
+            className={DatePickerClass}
+        />
+    </Label>
+}
+
+function openUpdater(
+    category: ProductCategoryV2,
+    allocationId: number,
+    originalStart: Date | null,
+    originalEnd: Date | null,
+    originalQuota: number,
+    workspaceTitle: any,
+    dispatchEvent: (ev: UIEvent) => void,
+    idx: number,
+    gidx: number,
+    ridx: number
+): void {
+    const periodRef = {
+        start: originalStart,
+        end: originalEnd,
+    }
+    let quota = originalQuota;
+    let reason = "";
+    dialogStore.addDialog((
+        <form onSubmit={async ev => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (quota == originalQuota && originalStart == periodRef.start && originalEnd == periodRef.end) {
+                snackbarStore.addInformation("No changes made", false);
+                dialogStore.success()
+            } else if (reason === "") {
+                snackbarStore.addFailure("Missing reason", false);
+            } else {
+                const success = (await callAPIWithErrorHandler(
+                    Accounting.updateAllocationV2(bulkRequestOf({
+                        allocationId: allocationId,
+                        newQuota: quota,
+                        newStart: periodRef.start?.getTime() ?? new Date().getTime(),
+                        newEnd: periodRef.end?.getTime() ?? new Date().getTime(),
+                        reason: reason,
+                    }))
+                )) !== null;
+
+                if (success) {
+                    dispatchEvent({
+                        type: "UpdateAllocation",
+                        allocationIdx: idx,
+                        recipientIdx: ridx,
+                        groupIdx: gidx,
+                        newQuota: quota,
+                        newStart: periodRef.start ?? new Date(),
+                        newEnd: periodRef.end ?? new Date(),
+                    });
+                    snackbarStore.addSuccess("Update Success", false);
+                    dialogStore.success();
+                }
+            }
+        }}>
+            <div onKeyDown={e => e.stopPropagation()}>
+                <div>
+                    <Heading.h3>Update {category.name} ({getProviderTitle(category.provider)}) allocation
+                        (ID: {allocationId}) belonging to "{workspaceTitle}"</Heading.h3>
+                    <Divider/>
+                    <Flex mb={"16px"} flexDirection={"row"}>
+                        <DurationSelector periodRef={periodRef}/>
+                        <Label ml={"auto"}>
+                            Allocation quota (Current: {Accounting.balanceToString(category, quota)})
+                            <Input type="number" defaultValue={explainUnit(category).balanceFactor * quota} min={0}
+                                   onChange={e => quota = normalizedBalanceToRaw(category, e.target.valueAsNumber)}/>
+                        </Label>
+                    </Flex>
+                    <Label mb={"16px"}>
+                        Reason <Required/>
+                        <TextArea required rows={4} width={1} height={1} type={"text"} autoFocus
+                                  placeholder={"Reason for update..."} onChange={e => reason = e.target.value}/>
+                    </Label>
+                    <Button mt={"16px"} type={"submit"} fullWidth>
+                        Update allocation
+                    </Button>
+                </div>
+            </div>
+        </form>
+
+    ), doNothing, true);
 }
 
 const SubProjectListRow: React.FunctionComponent<{
@@ -664,12 +792,10 @@ const SubProjectListRow: React.FunctionComponent<{
     rowIdx: number;
     recipientIdx: number;
     avatars: AvatarState;
-    onEdit: (elem: HTMLElement) => void;
     state: State;
-    onEditKey: (ev: React.KeyboardEvent) => Promise<void>;
-    onEditBlur: (ev: React.SyntheticEvent) => void;
     setNodeState: (action: TreeAction, reference: string, group?: string | null) => void;
-}> = ({style, recipient, listRef, rowIdx, recipientIdx, avatars, onEdit, state, onEditKey, onEditBlur, setNodeState}) => {
+    dispatchEvent: (ev: UIEvent) => void;
+}> = ({style, recipient, listRef, rowIdx, recipientIdx, avatars, state, setNodeState, dispatchEvent}) => {
     const projectInfo = useProjectInfo(recipient.owner.reference.type === "user" ? "" : recipient.owner.reference.projectId);
     const workspaceId = recipient.owner.reference["username"] ?? recipient.owner.reference["projectId"] ?? "";
     const pi = recipient.owner.reference.type === "user" ?
@@ -693,8 +819,8 @@ const SubProjectListRow: React.FunctionComponent<{
             left={<Flex gap={"4px"} alignItems={"center"}>
                 <TooltipV2 tooltip={`Project PI: ${pi}`}>
                     <Avatar {...avatars.avatarFromCache(pi)}
-                        style={{height: "32px", width: "auto", marginTop: "-4px"}}
-                        avatarStyle={"Circle"} />
+                            style={{height: "32px", width: "auto", marginTop: "-4px"}}
+                            avatarStyle={"Circle"}/>
                 </TooltipV2>
                 <Truncate
                     title={title}
@@ -704,7 +830,7 @@ const SubProjectListRow: React.FunctionComponent<{
                 </Truncate>
             </Flex>}
             right={<div className={"sub-alloc"}>
-                <FilteredUsageAndQuota entries={recipient.usageAndQuota} />
+                <FilteredUsageAndQuota entries={recipient.usageAndQuota}/>
                 {recipient.owner.reference.type === "project" &&
                     <Link
                         to={AppRoutes.grants.grantGiverInitiatedEditor({
@@ -717,10 +843,10 @@ const SubProjectListRow: React.FunctionComponent<{
                         })}
                     >
                         <SmallIconButton tooltip="Allocate more resources"
-                            icon={"heroBanknotes"}
-                            subIcon={"heroPlusCircle"}
-                            subColor1={"primaryContrast"}
-                            subColor2={"primaryContrast"} />
+                                         icon={"heroBanknotes"}
+                                         subIcon={"heroPlusCircle"}
+                                         subColor1={"primaryContrast"}
+                                         subColor2={"primaryContrast"}/>
                     </Link>
                 }
             </div>}
@@ -734,16 +860,16 @@ const SubProjectListRow: React.FunctionComponent<{
                     data-open={openNodes[makeCategoryKeyFromWorkspaceId(workspaceId, g.category.name)]}
                     left={<Flex gap={"4px"}>
                         <Flex gap={"4px"} width={"200px"}>
-                            <ProviderLogo providerId={g.category.provider} size={20} />
+                            <ProviderLogo providerId={g.category.provider} size={20}/>
                             <Icon
                                 name={Accounting.productTypeToIcon(g.category.productType)}
-                                size={20} />
+                                size={20}/>
                             <code>{g.category.name}</code>
                         </Flex>
                     </Flex>}
                     right={<div className={"sub-alloc"}>
-                        <ProgressBar uq={g.usageAndQuota} />
-                        <Box width={25} height={25} />
+                        <ProgressBar uq={g.usageAndQuota}/>
+                        <Box width={25} height={25}/>
                     </div>}
                     onActivate={open => {
                         if (open) setNodeState(TreeAction.OPEN, workspaceId, g.category.name);
@@ -760,7 +886,7 @@ const SubProjectListRow: React.FunctionComponent<{
                                 data-grant-id={alloc.grantedIn}
                                 left={<Flex>
                                     <Flex width={"200px"}>
-                                        <Icon name={"heroBanknotes"} ml="8px" mr={4} />
+                                        <Icon name={"heroBanknotes"} ml="8px" mr={4}/>
                                         <div>
                                             <b>Allocation ID:</b>
                                             {" "}
@@ -778,52 +904,40 @@ const SubProjectListRow: React.FunctionComponent<{
 
                                     {alloc.grantedIn && <>
                                         <Link target={"_blank"}
-                                            to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                              to={AppRoutes.grants.editor(alloc.grantedIn)}>
                                             View grant application{" "}
                                             <Icon name={"heroArrowTopRightOnSquare"}
-                                                mt={-6} />
+                                                  mt={-6}/>
                                         </Link>
                                     </>}
                                 </Flex>}
                                 right={<Flex flexDirection={"row"} gap={"8px"}>
-                                    {alloc.isEditing ?
-                                        <Flex gap={"4px"} width={"250px"}>
-                                            <Input
-                                                height={"24px"}
-                                                defaultValue={Math.ceil(Accounting.explainUnit(g.category).priceFactor * alloc.quota)}
-                                                autoFocus
-                                                onKeyDown={onEditKey}
-                                                onBlur={onEditBlur}
-                                                data-ridx={recipientIdx} data-idx={idx}
-                                                data-gidx={gidx}
-                                            />
-                                            <Text
-                                                width="120px">{Accounting.explainUnit(g.category).name}</Text>
-                                        </Flex>
-                                        : <Text>
-                                            {alloc.retiredQuota !== undefined && alloc.note !== undefined && g.category.accountingFrequency !== "ONCE" ? <>
-                                                {Accounting.balanceToString(g.category, alloc.quota)}
-                                                {" / "}
-                                                {Accounting.balanceToString(g.category, alloc.retiredQuota)}
-                                            </> : Accounting.balanceToString(g.category, alloc.quota)}
-                                        </Text>
-                                    }
-
-                                    {alloc.note?.rowShouldBeGreyedOut !== true && !alloc.isEditing &&
-                                        <SmallIconButton
-                                            icon={"heroPencil"} onClick={onEdit}
-                                            disabled={state.editControlsDisabled}
-                                            data-ridx={recipientIdx} data-idx={idx}
-                                            data-gidx={gidx} />
-                                    }
-
                                     {alloc.note && <>
                                         <TooltipV2 tooltip={alloc.note.text}>
                                             <Icon name={alloc.note.icon}
-                                                color={alloc.note.iconColor} />
+                                                  color={alloc.note.iconColor}/>
                                         </TooltipV2>
                                     </>}
-
+                                    <Text>
+                                        {Accounting.balanceToString(g.category, alloc.quota)}
+                                    </Text>
+                                    <SmallIconButton
+                                        icon={"heroPencil"}
+                                        onClick={(e) => openUpdater(
+                                            g.category,
+                                            alloc.allocationId,
+                                            new Date(alloc.start),
+                                            new Date(alloc.end),
+                                            alloc.quota,
+                                            title,
+                                            dispatchEvent,
+                                            idx,
+                                            gidx,
+                                            recipientIdx,
+                                        )}
+                                        disabled={alloc.end < new Date().getTime()}
+                                        data-ridx={recipientIdx} data-idx={idx}
+                                        data-gidx={gidx}/>
                                 </Flex>}
                             />
                         )
@@ -1015,7 +1129,7 @@ export const SubProjectFilters: React.FunctionComponent<{
                         state={state}
                     /> : null
             ))}
-            <Divider />
+            <Divider/>
             <div className="sub-projects-sorting-container">
                 <div className="sub-projects-sorting-headers">
                     <h3>Sort by</h3>
@@ -1042,15 +1156,16 @@ export const SubProjectFilters: React.FunctionComponent<{
                         <TooltipV2 tooltip={ascending ? "Set to ascending" : "Set to descending"}>
                             <SmallIconButton
                                 icon={ascending ? "heroBarsArrowUp" : "heroBarsArrowDown"}
-                                onClick={onSortingToggle} />
+                                onClick={onSortingToggle}/>
                         </TooltipV2>
                     </div>
                 </div>
             </div>
 
-            <Box flexGrow={1} />
+            <Box flexGrow={1}/>
 
-            <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"} gap={"8px"}>
+            <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
+                  gap={"8px"}>
                 <Button color={"successMain"} type="button" onClick={closeFilters}>Apply</Button>
             </Flex>
         </Flex>
@@ -1069,10 +1184,7 @@ export const SubProjectList: React.FunctionComponent<{
     suballocationTree: React.RefObject<TreeApi | null>,
     listRef: React.RefObject<VariableSizeList<number[]> | null>,
     onSubAllocationShortcut: (target: HTMLElement, ev: KeyboardEvent) => void,
-    avatars: AvatarState,
-    onEdit: (elem: HTMLElement) => void,
-    onEditKey: (ev: React.KeyboardEvent) => Promise<void>,
-    onEditBlur: (ev: React.SyntheticEvent) => void
+    avatars: AvatarState
 }> = (
     {
         projectId,
@@ -1086,74 +1198,217 @@ export const SubProjectList: React.FunctionComponent<{
         suballocationTree,
         listRef,
         onSubAllocationShortcut,
-        avatars,
-        onEdit,
-        onEditKey,
-        onEditBlur
+        avatars
     }
 ) => {
-        const [filtersShown, setFiltersShown] = useState(false);
-        const closeFilters = useCallback(() => {
-            setFiltersShown(false);
-        }, []);
-        const openFilters = useCallback(() => {
-            setFiltersShown(true);
-        }, []);
+    const [filtersShown, setFiltersShown] = useState(false);
+    const closeFilters = useCallback(() => {
+        setFiltersShown(false);
+    }, []);
+    const openFilters = useCallback(() => {
+        setFiltersShown(true);
+    }, []);
 
-        const rerender = useForcedRender();
-        const setNodeStateHack = useCallback((action: TreeAction, reference: string, group?: string | null) => {
-            setNodeState(action, reference, group);
-            rerender();
-        }, []);
+    const rerender = useForcedRender();
+    const setNodeStateHack = useCallback((action: TreeAction, reference: string, group?: string | null) => {
+        setNodeState(action, reference, group);
+        rerender();
+    }, []);
 
-        return <>
-            <SubProjectFilters filtersShown={filtersShown} closeFilters={closeFilters}
-                dispatchEvent={dispatchEvent} state={state} />
+    const childProjectIds = useMemo(() => {
+        const ids: string[] = [];
+        for (const recipient of state.subAllocations.recipients) {
+            if (recipient.owner.reference.type === "project") {
+                ids.push(recipient.owner.reference.projectId);
+            }
+        }
+        return ids;
+    }, [state.subAllocations.recipients]);
 
-            <div className={subProjectsStyle}>
-                {projectId !== undefined && <>
-                    <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
-                        <h3 style={{margin: 0}}>Sub-projects</h3>
-                        <div className="sub-projects-search-bar-container">
-                            <Box flexGrow={1} />
-                            <Button className="new-sub-project-button" height={35} onClick={onNewSubProject}
+    const childProjectInfo = useProjectInfos(childProjectIds);
+
+    const onExportData = useCallback(() => {
+        interface Allocation {
+            id: number;
+            grantApplication?: number;
+            start: number;
+            end: number;
+            quota: number;
+        }
+
+        interface Row {
+            workspace: string;
+            category: string;
+            provider: string;
+            usage: number;
+            quota: number;
+            allocations: Allocation[];
+        }
+
+        type AllocationField = keyof Allocation;
+
+        type AllocationFlatColumns = {
+            [K in `allocation${number}_${AllocationField}`]?: number;
+        };
+
+        type FlattenedRow = Omit<Row, "allocations"> & AllocationFlatColumns;
+
+        function flattenAllocations(row: Row, maxAllocations?: number): FlattenedRow {
+            const {allocations, ...rest} = row;
+
+            const limit = maxAllocations ?? allocations.length;
+
+            const flattenedAllocations = allocations.slice(0, limit).reduce((acc, allocation, index) => {
+                const n = index + 1;
+
+                acc[`allocation${n}_id`] = allocation.id;
+                acc[`allocation${n}_grantApplication`] = allocation.grantApplication;
+                acc[`allocation${n}_start`] = allocation.start;
+                acc[`allocation${n}_end`] = allocation.end;
+                acc[`allocation${n}_quota`] = allocation.quota;
+
+                return acc;
+            }, {} as AllocationFlatColumns);
+
+            return {
+                ...rest,
+                ...flattenedAllocations,
+            };
+        }
+
+        const rows: Row[] = [];
+        let maxAllocations = 0;
+
+        for (const recipient of state.subAllocations.recipients) {
+            for (const g of recipient.groups) {
+                maxAllocations = Math.max(maxAllocations, g.allocations.length);
+                let title = recipient.owner.title;
+                if (recipient.owner.reference.type === "project") {
+                    title = childProjectInfo.data[recipient.owner.reference.projectId]?.title ?? title;
+                }
+
+
+                rows.push({
+                    workspace: title,
+                    category: g.category.name,
+                    provider: g.category.provider,
+                    usage: g.usageAndQuota.raw.usage,
+                    quota: g.usageAndQuota.raw.quota,
+                    allocations: g.allocations.map(alloc => {
+                        const normQuota = combineBalances([{
+                            category: g.category,
+                            balance: alloc.quota
+                        }])[0].normalizedBalance;
+
+                        return ({
+                            id: alloc.allocationId,
+                            grantApplication: alloc.grantedIn,
+                            start: alloc.start,
+                            end: alloc.end,
+                            quota: normQuota,
+                        });
+                    })
+                })
+            }
+        }
+
+        // Builds the export columns, including the right flat allocation column names
+        function buildExportColumns(maxAllocations: number): ExportHeader<Row>[] {
+            const base = [
+                {key: "workspace", value: "Workspace", defaultChecked: true},
+                {key: "category", value: "Category", defaultChecked: true},
+                {key: "provider", value: "Provider", defaultChecked: true},
+                {key: "usage", value: "Usage", defaultChecked: true},
+                {key: "quota", value: "Quota", defaultChecked: true},
+            ] as const;
+
+            const allocationFields: readonly AllocationField[] = [
+                "id",
+                "grantApplication",
+                "start",
+                "end",
+                "quota",
+            ] as const;
+
+            const allocationCols = Array.from({length: maxAllocations}).flatMap((_, i) => {
+                const n = i + 1;
+                return allocationFields.map((field) => ({
+                    key: `allocation${n}_${field}` as const,
+                    value: `Allocation ${n} ${field}`,
+                    defaultChecked: true,
+                    hidden: true,
+                }));
+            });
+
+            return [...base, ...allocationCols] as ExportHeader<Row>[];
+        }
+
+        exportUsage(
+            rows,
+            buildExportColumns(maxAllocations),
+            undefined,
+            {
+                fileName: "sub-projects-export",
+                csvData: rows.map((r) => flattenAllocations(r, maxAllocations)),
+            }
+        );
+    }, [state.subAllocations, childProjectInfo]);
+
+    return <>
+        <SubProjectFilters filtersShown={filtersShown} closeFilters={closeFilters}
+                           dispatchEvent={dispatchEvent} state={state}/>
+
+        <div className={subProjectsStyle}>
+            {projectId !== undefined && <>
+                <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
+                    <h3 style={{margin: 0}}>Sub-projects</h3>
+                    <div className="sub-projects-search-bar-container">
+                        <Box flexGrow={1}/>
+                        <Button onClick={onExportData}>
+                            <Icon name={"heroArrowDownTray"} mr={8}/>
+                            Export
+                        </Button>
+                        <Button className="new-sub-project-button" height={35} onClick={onNewSubProject}
                                 disabled={projectRole == OldProjectRole.USER}>
-                                <Icon name={"heroPlus"} mr={8} />
-                                New sub-project
-                            </Button>
-                            <Box width={"355px"}>
-                                <Input
-                                    placeholder={"Search in your sub-projects"}
-                                    height={35}
-                                    value={state.searchQuery}
-                                    onInput={onSearchInput}
-                                    onKeyDown={onSearchKey}
-                                    disabled={state.editControlsDisabled}
-                                    inputRef={searchBox}
-                                />
-                                <div style={{position: "relative"}}>
-                                    <div style={{position: "absolute", top: "-30px", right: "11px"}}>
-                                        <Icon name={"heroMagnifyingGlass"} />
-                                    </div>
+                            <Icon name={"heroPlus"} mr={8}/>
+                            New sub-project
+                        </Button>
+                        <Box width={"355px"}>
+                            <Input
+                                placeholder={"Search in your sub-projects"}
+                                height={35}
+                                value={state.searchQuery}
+                                onInput={onSearchInput}
+                                onKeyDown={onSearchKey}
+                                disabled={state.editControlsDisabled}
+                                inputRef={searchBox}
+                            />
+                            <div style={{position: "relative"}}>
+                                <div style={{position: "absolute", top: "-30px", right: "11px"}}>
+                                    <Icon name={"heroMagnifyingGlass"}/>
                                 </div>
-                            </Box>
-                            <Button className="filters-button" onClick={openFilters}>
-                                <Icon name={"heroAdjustmentsHorizontal"} />
-                            </Button>
-                        </div>
-                    </Flex>
+                            </div>
+                        </Box>
+                        <Button className="filters-button" onClick={openFilters}>
+                            <Icon name={"heroAdjustmentsHorizontal"}/>
+                        </Button>
+                    </div>
+                </Flex>
 
                 <div className="sub-projects-container" style={{height: "500px", width: "100%"}}>
                     {state.remoteData.wallets === undefined ? <>
                         <HexSpin size={64}/>
                     </> : <>
-                        {state.filteredSubProjectIndices.length !== 0 ? null : <div style={{marginLeft: "20px", marginTop: "10px"}}>
-                            You do not have any sub-allocations {state.searchQuery ? "with the active search" : ""} at
-                            the moment. {" "}
-                            {projectRole === OldProjectRole.USER ? null : <>
-                                You can create a sub-project by clicking <a href="#" onClick={onNewSubProject}>here</a>.
-                            </>}
-                        </div>}
+                        {state.filteredSubProjectIndices.length !== 0 ? null :
+                            <div style={{marginLeft: "20px", marginTop: "10px"}}>
+                                You do not have any
+                                sub-allocations {state.searchQuery ? "with the active search" : ""} at
+                                the moment. {" "}
+                                {projectRole === OldProjectRole.USER ? null : <>
+                                    You can create a sub-project by clicking <a href="#"
+                                                                                onClick={onNewSubProject}>here</a>.
+                                </>}
+                            </div>}
                         <AutoSizer>
                             {({height, width}) => (
                                 <Tree
@@ -1186,30 +1441,28 @@ export const SubProjectList: React.FunctionComponent<{
                                             const recipientIdx = data[rowIdx];
                                             const recipient = state.subAllocations.recipients[recipientIdx];
 
-                                                return <SubProjectListRow
-                                                    style={style}
-                                                    recipient={recipient}
-                                                    listRef={listRef}
-                                                    rowIdx={rowIdx}
-                                                    recipientIdx={recipientIdx}
-                                                    avatars={avatars}
-                                                    onEdit={onEdit}
-                                                    state={state}
-                                                    onEditKey={onEditKey}
-                                                    onEditBlur={onEditBlur}
-                                                    setNodeState={setNodeStateHack}
-                                                />
-                                            }}
-                                        </VariableSizeList>
-                                    </Tree>
-                                )}
-                            </AutoSizer>
-                        </>}
-                    </div>
-                </>}
-            </div>
-        </>;
-    }
+                                            return <SubProjectListRow
+                                                style={style}
+                                                recipient={recipient}
+                                                dispatchEvent={dispatchEvent}
+                                                listRef={listRef}
+                                                rowIdx={rowIdx}
+                                                recipientIdx={recipientIdx}
+                                                avatars={avatars}
+                                                state={state}
+                                                setNodeState={setNodeStateHack}
+                                            />
+                                        }}
+                                    </VariableSizeList>
+                                </Tree>
+                            )}
+                        </AutoSizer>
+                    </>}
+                </div>
+            </>}
+        </div>
+    </>;
+}
 
 function setNodeState(action: TreeAction, recipient: string, group?: string | null): void {
     const key = group ? makeCategoryKeyFromWorkspaceId(recipient, group) : recipient;
@@ -1331,12 +1584,12 @@ const SmallIconButton: React.FunctionComponent<{
         data-has-sub={props.subIcon !== undefined}
         {...extractDataTags(props)}
     >
-        <Icon name={props.icon} hoverColor={"primaryContrast"} />
+        <Icon name={props.icon} hoverColor={"primaryContrast"}/>
         {props.subIcon &&
             <Relative>
                 <div className={"sub"}>
                     <Icon name={props.subIcon} hoverColor={props.subColor1} color={props.subColor1}
-                        color2={props.subColor2} />
+                          color2={props.subColor2}/>
                 </div>
             </Relative>
         }
@@ -1348,3 +1601,15 @@ const SmallIconButton: React.FunctionComponent<{
         return <TooltipV2 tooltip={props.tooltip} contentWidth={200}>{body}</TooltipV2>;
     }
 };
+
+
+const req = injectStyle("required", cl => `
+    ${cl}::after {
+        content: '*';
+        color: red;
+    }
+`)
+
+function Required(): React.ReactNode {
+    return <span className={req}/>
+}

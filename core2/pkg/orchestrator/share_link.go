@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
@@ -94,7 +94,7 @@ func ShareLinkCreate(actor rpc.Actor, path string) (orcapi.ShareLink, *util.Http
 		return orcapi.ShareLink{}, util.HttpErr(http.StatusForbidden, "unable to share this file")
 	}
 
-	if drive.Owner.Project != "" {
+	if drive.Owner.Project.Present {
 		return orcapi.ShareLink{}, util.HttpErr(http.StatusForbidden, "unable to share files from a project")
 	}
 

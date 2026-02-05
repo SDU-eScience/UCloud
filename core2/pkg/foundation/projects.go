@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"ucloud.dk/core/pkg/coreutil"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
@@ -73,13 +73,18 @@ func projectBucket(key string) *internalProjectBucket {
 	return &projectBuckets[hash%len(projectBuckets)]
 }
 
+type internalProjectUserPreferences struct {
+	Hidden   bool
+	Favorite bool
+}
+
 type internalProjectUserInfo struct {
-	Mu        sync.RWMutex
-	Username  string
-	Projects  map[string]util.Empty
-	Groups    map[string]string // group to project
-	Favorites map[string]util.Empty
-	InvitedTo map[string]util.Empty
+	Mu              sync.RWMutex
+	Username        string
+	Projects        map[string]util.Empty
+	Groups          map[string]string // group to project
+	UserPreferences map[string]internalProjectUserPreferences
+	InvitedTo       map[string]util.Empty
 }
 
 type internalProject struct {
@@ -173,6 +178,15 @@ func initProjects() {
 		return util.Empty{}, nil
 	})
 
+	fndapi.ProjectToggleHidden.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := ProjectToggleHidden(info.Actor, reqItem.Id)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+		return util.Empty{}, nil
+	})
 	fndapi.ProjectRemoveMember.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.ProjectRemoveMemberRequest]) (util.Empty, *util.HttpError) {
 		if !info.Actor.Project.Present {
 			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "This request requires an active project")
@@ -409,16 +423,13 @@ func initProjects() {
 
 func ProjectBrowse(actor rpc.Actor, request fndapi.ProjectBrowseRequest) (fndapi.PageV2[fndapi.Project], *util.HttpError) {
 	var projectIds []string
-	favorites := map[string]bool{}
 
 	userInfo := projectRetrieveUserInfo(actor.Username)
 	userInfo.Mu.RLock()
 	for p := range userInfo.Projects {
 		projectIds = append(projectIds, p)
 	}
-	for f := range userInfo.Favorites {
-		favorites[f] = true
-	}
+
 	userInfo.Mu.RUnlock()
 
 	var projects []fndapi.Project
@@ -430,7 +441,7 @@ func ProjectBrowse(actor rpc.Actor, request fndapi.ProjectBrowseRequest) (fndapi
 			result := p.Project
 			p.Mu.RUnlock()
 
-			result, resultFlags := projectProcessFlags(result, actor.Username, favorites[p.Id], request.ProjectFlags)
+			result, resultFlags := projectProcessFlags(result, actor.Username, userInfo.UserPreferences[projectId], request.ProjectFlags)
 
 			isMember := resultFlags&projectResultIsMember != 0
 			isWantedByFilter := resultFlags&projectResultNotWantedByFilter == 0
@@ -985,6 +996,17 @@ func ProjectDeleteGroup(actor rpc.Actor, id string) *util.HttpError {
 			db.Exec(
 				tx,
 				`
+					delete from provider.resource_acl_entry
+					where group_id = :group_id
+			    `,
+				db.Params{
+					"group_id": id,
+				},
+			)
+
+			db.Exec(
+				tx,
+				`
 					delete from project.groups
 					where id = :group_id
 			    `,
@@ -1194,9 +1216,10 @@ func ProjectCreateInviteLink(actor rpc.Actor) (fndapi.ProjectInviteLink, *util.H
 	})
 
 	result := fndapi.ProjectInviteLink{
-		Token:          token,
-		Expires:        fndapi.Timestamp(time.Now().Add(30 * 24 * time.Hour)),
-		RoleAssignment: fndapi.ProjectRoleUser,
+		Token:           token,
+		Expires:         fndapi.Timestamp(time.Now().Add(30 * 24 * time.Hour)),
+		RoleAssignment:  fndapi.ProjectRoleUser,
+		GroupAssignment: []string{},
 	}
 
 	bucket.InviteLinks[token] = &internalInviteLink{
@@ -1253,22 +1276,31 @@ func ProjectUpdateInviteLink(actor rpc.Actor, request fndapi.ProjectUpdateInvite
 			err = util.HttpErr(http.StatusForbidden, "One or more of the referenced groups do not exist. Try reloading the page.")
 		}
 
+		var normalizedTimestamp util.Option[time.Time]
+		if request.Expires.Present {
+			normalizedTimestamp.Set(request.Expires.Value.Time())
+		}
+
 		db.Exec(
 			tx,
 			`
 				update project.invite_links
-				set role_assignment = :assignment
+				set role_assignment = :assignment, expires = coalesce(cast(:expires as timestamptz), expires)
 				where token = :token
 		    `,
 			db.Params{
 				"token":      token,
 				"assignment": request.Role.Normalize(),
+				"expires":    normalizedTimestamp.Sql(),
 			},
 		)
 	})
 	if err == nil {
 		link.Link.GroupAssignment = request.Groups
 		link.Link.RoleAssignment = request.Role.Normalize()
+		if request.Expires.Present {
+			link.Link.Expires = request.Expires.Value
+		}
 	}
 	link.Mu.Unlock()
 	return err
@@ -1390,7 +1422,7 @@ func ProjectRetrieveInviteLink(actor rpc.Actor, token string) (fndapi.ProjectInv
 	project := iproject.Project
 	iproject.Mu.RUnlock()
 
-	project, projectFlags := projectProcessFlags(project, actor.Username, false, fndapi.ProjectFlags{})
+	project, projectFlags := projectProcessFlags(project, actor.Username, internalProjectUserPreferences{}, fndapi.ProjectFlags{})
 	isMember := projectFlags&projectResultIsMember != 0
 
 	return fndapi.ProjectInviteLinkInfo{
@@ -1461,6 +1493,8 @@ func projectRetrieveLink(id string) (*internalInviteLink, bool) {
 				if len(link.Link.GroupAssignment) == 1 && link.Link.GroupAssignment[0] == "" {
 					link.Link.GroupAssignment = make([]string, 0)
 				}
+
+				link.Link.GroupAssignment = util.NonNilSlice(link.Link.GroupAssignment)
 			}
 
 			return link, ok
@@ -1855,57 +1889,146 @@ func ProjectRetrieveSubProjectRenaming(actor rpc.Actor) (fndapi.ProjectRetrieveS
 	return fndapi.ProjectRetrieveSubProjectRenamingResponse{Allowed: canRename}, nil
 }
 
-// Project star system and user-level info
+// Project user preference system and user-level info
 // =====================================================================================================================
-// Users can mark preferred projects with a star (marking it as a "favorite"). This will cause projects to automatically
-// be pushed to the top when browsing them. This action is kept at a local user level, meaning that each user has
-// different stars. This information is stored in the user-info structure.
+// Users can customize their project preferences (e.g., favorite, hidden) at a per-project level. These preferences
+// are stored in a project_user_preferences table. The rows only exist when at least one preference is set to a non-default value. When
+// all preferences return to their default state (all false), the row is deleted. This
+// information is also cached in the user-info structure.
 
-func ProjectToggleFavorite(actor rpc.Actor, projectId string) *util.HttpError {
-	var err *util.HttpError
+// Preferences behavior are as follows
+// with a star (marking it as a "favorite"). This will cause projects to automatically be pushed to the top when browsing them. This action is kept at a local user level, meaning that each user has
+// different stars.
+// with a "hide" flag, causing the project to be hidden from normal browsing views. This action is also kept at a local user level.
+
+func projectTogglePreference(actor rpc.Actor, projectId string, field string) (bool, *util.HttpError) {
 	uinfo := projectRetrieveUserInfo(actor.Username)
 	uinfo.Mu.Lock()
+	defer uinfo.Mu.Unlock()
+
 	if _, ok := uinfo.Projects[projectId]; !ok {
-		err = util.HttpErr(http.StatusForbidden, "You are not a member of this project!")
-	} else {
-		wasFavorite := false
-		db.NewTx0(func(tx *db.Transaction) {
-			_, wasFavorite = db.Get[struct{ ProjectId string }](
+		return false, util.HttpErr(http.StatusForbidden, "You are not a member of this project!")
+	}
+
+	wasEnabled := false
+	db.NewTx0(func(tx *db.Transaction) {
+		prefs, exists := db.Get[struct {
+			Favorite bool
+			Hidden   bool
+		}](
+			tx,
+			`
+				select favorite, hidden
+				from project.project_user_preferences
+				where username = :username and project_id = :project
+			`,
+			db.Params{
+				"username": actor.Username,
+				"project":  projectId,
+			},
+		)
+
+		// Determine current and new state
+		switch field {
+		case "favorite":
+			wasEnabled = exists && prefs.Favorite
+			prefs.Favorite = !wasEnabled
+		case "hidden":
+			wasEnabled = exists && prefs.Hidden
+			prefs.Hidden = !wasEnabled
+		}
+
+		// Check if all preferences are now false (default state)
+		allFalse := !prefs.Favorite && !prefs.Hidden
+
+		if allFalse {
+			// Delete row if no state are set meaning default state
+			db.Exec(
 				tx,
 				`
-					delete from project.project_favorite
+					delete from project.project_user_preferences
 					where username = :username and project_id = :project
-					returning project_id
-			    `,
+				`,
 				db.Params{
 					"username": actor.Username,
 					"project":  projectId,
 				},
 			)
-
-			if !wasFavorite {
-				db.Exec(
-					tx,
-					`
-						insert into project.project_favorite(project_id, username) 
-						values (:project, :username)
-					`,
-					db.Params{
-						"username": actor.Username,
-						"project":  projectId,
-					},
-				)
-			}
-		})
-
-		if wasFavorite {
-			delete(uinfo.Favorites, projectId)
 		} else {
-			uinfo.Favorites[projectId] = util.Empty{}
+			// At least one preference is true, insert the row
+			db.Exec(
+				tx,
+				`
+					insert into project.project_user_preferences(project_id, username, favorite, hidden) 
+					values (:project, :username, :favorite, :hidden)
+					on conflict (project_id, username) 
+					do update set favorite = :favorite, hidden = :hidden
+				`,
+				db.Params{
+					"username": actor.Username,
+					"project":  projectId,
+					"favorite": prefs.Favorite,
+					"hidden":   prefs.Hidden,
+				},
+			)
 		}
+	})
+
+	return wasEnabled, nil
+}
+
+func ProjectToggleFavorite(actor rpc.Actor, projectId string) *util.HttpError {
+	wasFavorite, err := projectTogglePreference(actor, projectId, "favorite")
+	if err != nil {
+		return err
 	}
-	uinfo.Mu.Unlock()
-	return err
+
+	uinfo := projectRetrieveUserInfo(actor.Username)
+	uinfo.Mu.Lock()
+	defer uinfo.Mu.Unlock()
+
+	if wasFavorite {
+		prefs := uinfo.UserPreferences[projectId]
+		prefs.Favorite = false
+		if !prefs.Hidden { // if both are false, delete the entry from the cache
+			delete(uinfo.UserPreferences, projectId)
+		} else {
+			uinfo.UserPreferences[projectId] = prefs
+		}
+	} else {
+		prefs := uinfo.UserPreferences[projectId]
+		prefs.Favorite = true
+		uinfo.UserPreferences[projectId] = prefs
+	}
+
+	return nil
+}
+
+func ProjectToggleHidden(actor rpc.Actor, projectId string) *util.HttpError {
+	wasHidden, err := projectTogglePreference(actor, projectId, "hidden")
+	if err != nil {
+		return err
+	}
+
+	uinfo := projectRetrieveUserInfo(actor.Username)
+	uinfo.Mu.Lock()
+	defer uinfo.Mu.Unlock()
+
+	if wasHidden {
+		prefs := uinfo.UserPreferences[projectId]
+		prefs.Hidden = false
+		if !prefs.Favorite { // if both are false, delete the entry from the cache
+			delete(uinfo.UserPreferences, projectId)
+		} else {
+			uinfo.UserPreferences[projectId] = prefs
+		}
+	} else {
+		prefs := uinfo.UserPreferences[projectId]
+		prefs.Hidden = true
+		uinfo.UserPreferences[projectId] = prefs
+	}
+
+	return nil
 }
 
 func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
@@ -1920,11 +2043,11 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 		if !ok {
 			userInfo = db.NewTx(func(tx *db.Transaction) *internalProjectUserInfo {
 				result := &internalProjectUserInfo{
-					Username:  username,
-					Projects:  map[string]util.Empty{},
-					Groups:    map[string]string{},
-					Favorites: map[string]util.Empty{},
-					InvitedTo: map[string]util.Empty{},
+					Username:        username,
+					Projects:        map[string]util.Empty{},
+					Groups:          map[string]string{},
+					UserPreferences: map[string]internalProjectUserPreferences{},
+					InvitedTo:       map[string]util.Empty{},
 				}
 
 				projectRows := db.Select[struct{ ProjectId string }](
@@ -1956,11 +2079,15 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 					},
 				)
 
-				favoriteRows := db.Select[struct{ ProjectId string }](
+				userPreferencesRows := db.Select[struct {
+					ProjectId string
+					Favorite  bool
+					Hidden    bool
+				}](
 					tx,
 					`
-						select project_id
-						from project.project_favorite
+						select project_id, favorite, hidden
+						from project.project_user_preferences
 						where username = :username
 				    `,
 					db.Params{
@@ -1988,8 +2115,11 @@ func projectRetrieveUserInfo(username string) *internalProjectUserInfo {
 					result.Groups[group.GroupId] = group.ProjectId
 				}
 
-				for _, favorite := range favoriteRows {
-					result.Favorites[favorite.ProjectId] = util.Empty{}
+				for _, pref := range userPreferencesRows {
+					result.UserPreferences[pref.ProjectId] = internalProjectUserPreferences{
+						Favorite: pref.Favorite,
+						Hidden:   pref.Hidden,
+					}
 				}
 
 				for _, invite := range invitedTo {
@@ -2151,14 +2281,14 @@ func projectRetrieve(
 	}
 
 	var isMember bool
-	var isFavorite bool
+	var userPreferences map[string]internalProjectUserPreferences
 
 	isSystem := actor.Username == rpc.ActorSystem.Username
 	if !isSystem {
 		userInfo := projectRetrieveUserInfo(actor.Username)
 		userInfo.Mu.RLock()
 		_, isMember = userInfo.Projects[id]
-		_, isFavorite = userInfo.Favorites[id]
+		userPreferences = userInfo.UserPreferences
 		userInfo.Mu.RUnlock()
 
 		if !isMember {
@@ -2175,7 +2305,7 @@ func projectRetrieve(
 	result := p.Project
 	p.Mu.RUnlock()
 
-	result, resultFlags := projectProcessFlags(result, actor.Username, isFavorite, flags)
+	result, resultFlags := projectProcessFlags(result, actor.Username, userPreferences[id], flags)
 	if resultFlags&projectResultIsMember == 0 && !isSystem {
 		// NOTE(Dan): An unlikely and mostly harmless race-condition means that the user info might momentarily
 		// list a project for which we are no longer a member. We detect it regardless, but it probably wouldn't
@@ -2410,11 +2540,12 @@ func ProjectRetrieveClaimsInfo(username string) ProjectClaimsInfo {
 	return result
 }
 
-func projectProcessFlags(project fndapi.Project, username string, isFavorite bool, flags fndapi.ProjectFlags) (fndapi.Project, projectProcessResult) {
+func projectProcessFlags(project fndapi.Project, username string, userPreference internalProjectUserPreferences, flags fndapi.ProjectFlags) (fndapi.Project, projectProcessResult) {
 	result := project
 	resultFlags := projectProcessResult(0)
 
-	result.Status.IsFavorite = isFavorite
+	result.Status.IsFavorite = userPreference.Favorite
+	result.Status.IsHidden = userPreference.Hidden
 
 	role := fndapi.ProjectRoleUser
 	for _, member := range project.Status.Members {

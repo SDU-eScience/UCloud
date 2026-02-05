@@ -11,7 +11,7 @@ import (
 	ws "github.com/gorilla/websocket"
 	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
@@ -20,7 +20,7 @@ import (
 
 // NOTE(Dan): This channel is managed by accounting_internal during a significant update to a wallet. The wallet ID
 // is emitted to the wallet and additional information must be looked up.
-var providerWalletNotifications = make(chan AccWalletId, 128)
+var providerWalletNotifications = make(chan AccWalletId, 1024*1024)
 
 var providerNotifications struct {
 	Mu                        sync.Mutex
@@ -90,7 +90,7 @@ func initProviderNotifications() {
 				}
 			} else if walletOk {
 				wallet, ok := internalRetrieveWallet(time.Now(), walletId, false)
-				if ok {
+				if ok && !wallet.PaysFor.FreeToUse {
 					var allChannels []chan *accapi.WalletV2
 
 					providerNotifications.Mu.Lock()

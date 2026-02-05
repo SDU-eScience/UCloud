@@ -2,11 +2,10 @@ package accounting
 
 import (
 	"encoding/json"
-	"time"
 
 	"ucloud.dk/core/pkg/config"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 )
@@ -22,18 +21,20 @@ func initLowFundsScan() {
 		storageLowFundsLimit = 100
 	}
 
-	go func() {
-		// Make sure that the scan does not start before the system is up and running
-		time.Sleep(5 * time.Second)
+	/*
+		go func() {
+			// Make sure that the scan does not start before the system is up and running
+			time.Sleep(5 * time.Second)
 
-		ticker := time.NewTicker(12 * time.Hour)
-		defer ticker.Stop()
+			ticker := time.NewTicker(12 * time.Hour)
+			defer ticker.Stop()
 
-		for {
-			<-ticker.C
-			lowFundsScan(computeLowFundsLimit, storageLowFundsLimit)
-		}
-	}()
+			for {
+				<-ticker.C
+				lowFundsScan(computeLowFundsLimit, storageLowFundsLimit)
+			}
+		}()
+	*/
 }
 
 func lowFundsScan(coreHourLowFundsLimit int64, storageLowFundsLimit int64) {

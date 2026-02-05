@@ -25,7 +25,7 @@ import (
 	"ucloud.dk/core/pkg/migrations"
 	orc "ucloud.dk/core/pkg/orchestrator"
 	gonjautil "ucloud.dk/gonja/v2/utils"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
@@ -59,6 +59,21 @@ func Launch() {
 	ok := cfg.Parse("/etc/ucloud")
 	if !ok {
 		return
+	}
+
+	var err error
+
+	logCfg := cfg.Configuration.Logs
+	if !logCfg.LogToConsole {
+		log.SetLogConsole(false)
+		err = log.SetLogFile(filepath.Join(logCfg.Directory, "server.log"))
+		if err != nil {
+			panic("Unable to open log file: " + err.Error())
+		}
+
+		if logCfg.Rotation.Enabled {
+			log.SetRotation(log.RotateDaily, logCfg.Rotation.RetentionPeriodInDays, true)
+		}
 	}
 
 	dbConfig := cfg.Configuration.Database
@@ -318,21 +333,6 @@ func Launch() {
 		})
 
 		return atuple.First, atuple.Second
-	}
-
-	var err error
-
-	logCfg := cfg.Configuration.Logs
-	if !logCfg.LogToConsole {
-		log.SetLogConsole(false)
-		err = log.SetLogFile(filepath.Join(logCfg.Directory, "server.log"))
-		if err != nil {
-			panic("Unable to open log file: " + err.Error())
-		}
-
-		if logCfg.Rotation.Enabled {
-			log.SetRotation(log.RotateDaily, logCfg.Rotation.RetentionPeriodInDays, true)
-		}
 	}
 
 	rpc.DefaultClient = &rpc.Client{

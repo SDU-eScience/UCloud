@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
@@ -179,7 +179,7 @@ func initPublicIps() {
 				publicIpType,
 				orcapi.ResourceOwner{
 					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
-					Project:   reqItem.Project.Value,
+					Project:   reqItem.Project,
 				},
 				nil,
 				util.OptValue(reqItem.Spec.Product),

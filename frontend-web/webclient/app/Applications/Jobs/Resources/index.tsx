@@ -1,4 +1,4 @@
-import {useCallback, useRef, useState} from "react";
+import {useCallback, useState} from "react";
 import {setWidgetValues} from "@/Applications/Jobs/Widgets";
 import {flushSync} from "react-dom";
 import {ApplicationParameter} from "@/Applications/AppStoreApi";
@@ -22,15 +22,22 @@ type PeerResourceNS = `${ResourcePrefix}Peer`;
 export type FolderResourceNS = `${ResourcePrefix}Folder`;
 type ResourceTypes = FolderResourceNS | PeerResourceNS | "ingress" | "network";
 
+const resourceCounters: Record<string, number> = {};
+
+function nextResourceName(ns: ResourceTypes): string {
+    const current = resourceCounters[ns] ?? 0;
+    resourceCounters[ns] = current + 1;
+    return `${ns}${current}`;
+}
+
 export function useResource(ns: ResourceTypes, provider: string | undefined,
     paramMapper: (name: string) => ApplicationParameter): ResourceHook {
-    const counter = useRef<number>(0);
     const [params, setParams] = useState<ApplicationParameter[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [warning, setWarning] = useState<string>("");
 
     const onAdd = useCallback(() => {
-        setParams([...params, paramMapper(`${ns}${counter.current++}`)]);
+        setParams([...params, paramMapper(nextResourceName(ns))]);
     }, [params]);
 
     const onRemove = useCallback((id: string) => {
@@ -45,7 +52,7 @@ export function useResource(ns: ResourceTypes, provider: string | undefined,
         const params: ApplicationParameter[] = [];
         let i = size;
         while (i--) {
-            params.push(paramMapper(`${ns}${counter.current++}`));
+            params.push(paramMapper(nextResourceName(ns)));
         }
         flushSync(() => {
             setParams(params);

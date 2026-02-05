@@ -2,6 +2,7 @@ package accounting
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -15,7 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
@@ -184,6 +185,14 @@ func initAccounting() {
 
 		return fndapi.BulkResponse[accapi.FindAllProvidersResponse]{Responses: result}, nil
 	})
+
+	accapi.WalletsAdminDebug.Handler(func(info rpc.RequestInfo, request accapi.WalletDebugRequest) (accapi.WalletDebugResponse, *util.HttpError) {
+		graph, _ := internalGetMermaidGraph(time.Now(), AccWalletId(request.WalletId))
+		return accapi.WalletDebugResponse{
+			MermaidGraph: graph,
+			StateDump:    json.RawMessage("{}"),
+		}, nil
+	})
 }
 
 func RootAllocate(actor rpc.Actor, request accapi.RootAllocateRequest) (string, *util.HttpError) {
@@ -252,7 +261,7 @@ func UpdateAllocation(actor rpc.Actor, requests []accapi.UpdateAllocationRequest
 		}
 		iOwner := internalOwnerByReference(reference)
 
-		grantedIn, comment, err := internalUpdateAllocation(iOwner, time.Now(), bucket, accAllocId(request.AllocationId), request.NewQuota, request.NewStart, request.NewEnd)
+		grantedIn, comment, err := internalUpdateAllocation(iOwner, time.Now(), bucket, accAllocId(request.AllocationId), request.NewQuota, request.NewStart, request.NewEnd, request.Reason)
 
 		// If update failed will break the update
 		if err != nil {
@@ -277,13 +286,15 @@ func UpdateAllocation(actor rpc.Actor, requests []accapi.UpdateAllocationRequest
 }
 
 func ReportUsage(actor rpc.Actor, request accapi.ReportUsageRequest) (bool, *util.HttpError) {
-	providerId, ok := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
-	if !ok {
-		return false, util.HttpErr(http.StatusForbidden, "You cannot report usage")
-	}
+	if !actor.IsSystem() {
+		providerId, ok := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
+		if !ok {
+			return false, util.HttpErr(http.StatusForbidden, "You cannot report usage")
+		}
 
-	if providerId != request.CategoryIdV2.Provider {
-		return false, util.HttpErr(http.StatusForbidden, "You cannot report usage for this product")
+		if providerId != request.CategoryIdV2.Provider {
+			return false, util.HttpErr(http.StatusForbidden, "You cannot report usage for this product")
+		}
 	}
 
 	_, err := ProductCategoryRetrieve(actor, request.CategoryIdV2.Name, request.CategoryIdV2.Provider)
@@ -379,6 +390,7 @@ func WalletsBrowse(actor rpc.Actor, request accapi.WalletsBrowseRequest) fndapi.
 	}
 
 	result.ItemsPerPage = len(result.Items)
+	result.Items = util.NonNilSlice(result.Items)
 	return result
 }
 

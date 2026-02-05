@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -283,6 +283,8 @@ func PrincipalRetrieveOrCreateFromIdpResponse(resp IdpResponse) (Principal, *uti
 				where
 					resp.idp_identity = :identity
 					and resp.idp = :idp
+				order by resp.associated_user
+				limit 1
 		    `,
 			db.Params{
 				"idp":      resp.Idp,

@@ -106,6 +106,7 @@ func ParseResponse[T any](r Response) (T, *util.HttpError) {
 		return result, &util.HttpError{
 			StatusCode:   http.StatusBadGateway,
 			DetailedCode: ErrorUnableToReadResponse,
+			Why:          fmt.Sprintf("missing body with upstream status of %d", r.StatusCode),
 		}
 	}
 	defer util.SilentClose(r.Response)
@@ -372,7 +373,9 @@ func CallViaJsonBodyEx(c *Client, method, path string, payload any, opts InvokeO
 	request, err := http.NewRequest(method, fmt.Sprintf("%v%v", c.BasePath, path),
 		bytes.NewReader(payloadBytes))
 	if err != nil || request == nil {
-		return Response{StatusCode: http.StatusBadGateway}
+		log.Info("Failure in http request creation: %v %s", path, err)
+		read := bytes.NewBufferString(fmt.Sprintf("failure in http request creation: %s", err))
+		return Response{StatusCode: http.StatusBadGateway, Response: io.NopCloser(read)}
 	}
 
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %v", c.RetrieveAccessTokenOrRefresh()))
@@ -381,7 +384,9 @@ func CallViaJsonBodyEx(c *Client, method, path string, payload any, opts InvokeO
 
 	do, err := c.Client.Do(request)
 	if err != nil {
-		return Response{StatusCode: http.StatusBadGateway}
+		log.Info("Failure in http request: %v %s", path, err)
+		read := bytes.NewBufferString(fmt.Sprintf("failure in http request: %s", err))
+		return Response{StatusCode: http.StatusBadGateway, Response: io.NopCloser(read)}
 	}
 
 	return Response{StatusCode: do.StatusCode, Response: do.Body}

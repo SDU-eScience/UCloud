@@ -15,7 +15,7 @@ import (
 
 	ws "github.com/gorilla/websocket"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
@@ -180,6 +180,7 @@ func initJobs() {
 			})
 
 			if !ok {
+				log.Info("unknown job or permission denied (%v, %v)", jobId, info.Actor.Username)
 				return util.Empty{}, util.HttpErr(http.StatusNotFound, "unknown job or permission denied (%v)", jobId)
 			}
 		}
@@ -248,7 +249,7 @@ func initJobs() {
 				jobType,
 				orcapi.ResourceOwner{
 					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
-					Project:   reqItem.Project.Value,
+					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
 				},
 				nil,
 				util.OptValue(reqItem.Spec.Product),
@@ -395,6 +396,7 @@ func initJobs() {
 			)
 
 			if err != nil {
+				log.Info("Failed to terminate job: %s", err)
 				return fndapi.BulkResponse[util.Empty]{}, err
 			}
 		}
@@ -597,7 +599,7 @@ func initJobs() {
 				orcapi.JobsProviderRequestDynamicParametersRequest{
 					Owner: orcapi.ResourceOwner{
 						CreatedBy: info.Actor.Username,
-						Project:   string(info.Actor.Project.Value),
+						Project:   util.OptStringIfNotEmpty(string(info.Actor.Project.GetOrDefault(rpc.ProjectId("")))),
 					},
 					Application: app,
 				},
@@ -693,6 +695,104 @@ func initJobs() {
 			)
 		}
 		return util.Empty{}, nil
+	})
+
+	orcapi.JobsControlCheckCredits.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsLegacyCheckCreditsRequest]) (orcapi.JobsLegacyCheckCreditsResponse, *util.HttpError) {
+		resp := orcapi.JobsLegacyCheckCreditsResponse{}
+		for _, item := range request.Items {
+			isOk := false
+			job, err := JobsRetrieve(info.Actor, item.Id, orcapi.JobFlags{})
+
+			if err == nil {
+				walletOwner := orcapi.ResourceOwnerToWalletOwner(job.Resource)
+				wallets, err := accapi.WalletsBrowseInternal.Invoke(accapi.WalletsBrowseInternalRequest{
+					Owner: walletOwner,
+				})
+
+				if err == nil {
+					for _, wallet := range wallets.Wallets {
+						paysFor := wallet.PaysFor
+						productRef := job.Specification.Product
+						if paysFor.Name == productRef.Category && paysFor.Provider == productRef.Provider {
+							if wallet.MaxUsable > 0 {
+								isOk = true
+							}
+						}
+					}
+				} else {
+					return orcapi.JobsLegacyCheckCreditsResponse{}, util.HttpErr(
+						http.StatusInternalServerError,
+						"could not fetch wallets: %s",
+						err,
+					)
+				}
+			} else {
+				return orcapi.JobsLegacyCheckCreditsResponse{}, util.HttpErr(
+					http.StatusBadRequest,
+					"could not fetch jobs: %s",
+					err,
+				)
+			}
+
+			if !isOk {
+				resp.InsufficientFunds = append(resp.InsufficientFunds, fndapi.FindByStringId{Id: item.Id})
+			}
+		}
+
+		resp.InsufficientFunds = util.NonNilSlice(resp.InsufficientFunds)
+		resp.DuplicateCharges = util.NonNilSlice(resp.DuplicateCharges)
+		return resp, nil
+	})
+
+	orcapi.JobsControlChargeCredits.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsLegacyCheckCreditsRequest]) (orcapi.JobsLegacyCheckCreditsResponse, *util.HttpError) {
+		resp := orcapi.JobsLegacyCheckCreditsResponse{}
+		for _, item := range request.Items {
+			isOk := false
+			job, err := JobsRetrieve(info.Actor, item.Id, orcapi.JobFlags{ResourceFlags: orcapi.ResourceFlagsIncludeAll()})
+
+			if err == nil {
+				walletOwner := orcapi.ResourceOwnerToWalletOwner(job.Resource)
+				units := job.Specification.Replicas
+				balanceUsed := item.Periods * int(job.Status.ResolvedProduct.Value.PricePerUnit) * units
+
+				reportResp, err := accapi.ReportUsage.Invoke(fndapi.BulkRequestOf(accapi.ReportUsageRequest{
+					IsDeltaCharge: false,
+					Owner:         walletOwner,
+					CategoryIdV2: accapi.ProductCategoryIdV2{
+						Name:     job.Specification.Product.Category,
+						Provider: job.Specification.Product.Provider,
+					},
+					Usage: int64(balanceUsed),
+					Description: accapi.ChargeDescription{
+						Scope: util.OptValue(item.ChargeId),
+					},
+				}))
+
+				if err == nil {
+					isOk = reportResp.Responses[0]
+				} else {
+					return orcapi.JobsLegacyCheckCreditsResponse{}, util.HttpErr(
+						http.StatusInternalServerError,
+						"could not report usage: %s",
+						err,
+					)
+				}
+			} else {
+				return orcapi.JobsLegacyCheckCreditsResponse{}, util.HttpErr(
+					http.StatusBadRequest,
+					"could not fetch jobs: %s",
+					err,
+				)
+			}
+
+			if !isOk {
+				resp.InsufficientFunds = append(resp.InsufficientFunds, fndapi.FindByStringId{Id: item.Id})
+			}
+		}
+
+		resp.InsufficientFunds = util.NonNilSlice(resp.InsufficientFunds)
+		resp.DuplicateCharges = util.NonNilSlice(resp.DuplicateCharges)
+		return resp, nil
 	})
 
 	wsUpgrader := ws.Upgrader{
@@ -990,6 +1090,13 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 	}
 
 	appParamsByName := map[string]orcapi.ApplicationParameter{}
+	for _, value := range spec.Parameters {
+		if value.Type == orcapi.AppParameterValueTypeWorkflow {
+			for _, input := range value.Specification.Inputs {
+				appParamsByName[input.Name] = input
+			}
+		}
+	}
 	for _, param := range app.Invocation.Parameters {
 		appParamsByName[param.Name] = param
 	}
@@ -1106,7 +1213,7 @@ func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue, backend 
 			return util.HttpErr(http.StatusBadRequest, "unknown file or permission denied at '%s'", path)
 		}
 
-		value.ReadOnly = !orcapi.PermissionsHas(resc.Permissions.Myself, orcapi.PermissionEdit)
+		value.ReadOnly = !orcapi.PermissionsHas(resc.Permissions.GetOrDefault(orcapi.ResourcePermissions{}).Myself, orcapi.PermissionEdit)
 		return nil
 
 	case orcapi.AppParameterValueTypePeer:

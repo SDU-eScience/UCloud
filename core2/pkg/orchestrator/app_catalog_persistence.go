@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"ucloud.dk/core/pkg/coreutil"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -301,6 +301,10 @@ func appCatalogLoad() {
 
 						if err := json.Unmarshal([]byte(app.Invocation), &i.Invocation); err != nil {
 							panic(fmt.Sprintf("Could not load application: %s %s", app.Name, app.Version))
+						}
+
+						if i.Invocation.Modules.Present {
+							i.Invocation.Modules.Value.Optional = util.NonNilSlice(i.Invocation.Modules.Value.Optional)
 						}
 
 						results <- i
@@ -1220,10 +1224,10 @@ func appPersistApplication(app *internalApplication) {
 			`
 				insert into app_store.applications
 					(name, version, application, created_at, modified_at, original_document, owner, 
-						tool_name, tool_version, authors, title, description, website, group_id, flavor_name) 
+						tool_name, tool_version, authors, title, description, website, group_id, flavor_name, is_public) 
 				values (:name, :version, :app, :created_at, :modified_at, '{}', '_ucloud', 
 					:tool_name, :tool_version, '["Unknown"]', :title, :description, :website, 
-					cast(case when :group_id = 0 then null else :group_id end as int), :flavor_name)
+					cast(case when :group_id = 0 then null else :group_id end as int), :flavor_name, :is_public)
 		    `,
 			db.Params{
 				"name":         app.Name,
@@ -1238,6 +1242,7 @@ func appPersistApplication(app *internalApplication) {
 				"website":      app.DocumentationSite.Sql(),
 				"group_id":     int(app.Group.GetOrDefault(0)),
 				"flavor_name":  app.FlavorName.Sql(),
+				"is_public":    app.Public,
 			},
 		)
 	})

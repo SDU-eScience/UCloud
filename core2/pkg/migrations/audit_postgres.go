@@ -1,6 +1,6 @@
 package migrations
 
-import db "ucloud.dk/shared/pkg/database2"
+import db "ucloud.dk/shared/pkg/database"
 
 func auditPostgresV1() db.MigrationScript {
 	return db.MigrationScript{
@@ -30,6 +30,22 @@ func auditPostgresV1() db.MigrationScript {
 						remote_origin text
 					) partition by range (received_at)
 			    `,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func auditPostgresV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "auditPostgresV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table audit_logs.logs 
+						add column project_id text references project.projects(id) default null;
+				`,
 				db.Params{},
 			)
 		},

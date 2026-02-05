@@ -10,7 +10,7 @@ import (
 
 	cfg "ucloud.dk/core/pkg/config"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
@@ -22,7 +22,7 @@ const apiTokenType = "api_token"
 func initApiTokens() {
 	InitResourceType(
 		apiTokenType,
-		resourceTypeCreateWithoutAdmin, // NOTE(Dan): Tokens are tied to a user in a project, thus this makes sense.
+		resourceTypeCreateWithoutAdmin|resourceTypeCreateAsAllocator, // NOTE(Dan): Tokens are tied to a user in a project, thus this makes sense.
 		apiTokensLoad,
 		apiTokensPersist,
 		apiTokensTransform,

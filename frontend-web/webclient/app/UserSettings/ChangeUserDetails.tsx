@@ -327,9 +327,9 @@ export function ChangeOrganizationDetails(props: ChangeOrganizationDetailsProps)
         <Box mb={16} width="100%">
             {props.embedded ? null : <Heading.h2>Additional user information</Heading.h2>}
             {props.inModal ? <span>This can be filled out at a later time, but is required when applying for resources.</span> : null}
-            <NewDataList id="organization" ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={"University of Knowledge"} />
+            <NewDataList id="organization" ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={`University of Southern Denmark”, “Aarhus University”`} />
             <Department org={org} ref={departmentRef} />
-            <NewDataList ref={unitRef} title={"Unit"} isFreetext items={[]} placeholder={"Unit for work"} />
+            <NewDataList ref={unitRef} title={"Unit"} isFreetext items={[]} placeholder={`“Section for Data Science and Statistics”, “Center for Humanities Computing”, “Design Lab”`} />
             <NewDataList title="Position" placeholder="VIP/TAP/Student" items={SortedPositions} ref={positionRef} />
             <NewDataList title={"Primary research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={ResearchFields[RFIndex].value} />
             <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} disabled={false} placeholder="Prefer not to say" />
@@ -338,11 +338,11 @@ export function ChangeOrganizationDetails(props: ChangeOrganizationDetailsProps)
     );
 }
 
-type Departments = "freetext" | {faculty: string; departments?: string[]}[]
+type Departments = "freetext" | {faculty: string; departments?: string[]}[];
 
 function Department(props: {org: string; ref: React.RefObject<HTMLInputElement | null>}) {
     const orgInfo = findOrganisationIdFromName(props.org);
-    const title = "Department";
+    const title = "Faculty/Department";
     const result = React.useMemo((): {items: DataListItem[]; isFreetext: boolean} => {
         const possibleDepartments: Departments = orgInfo ? KnownDepartments[orgInfo] : [];
         if (possibleDepartments === "freetext" || possibleDepartments.length === 0) return {isFreetext: true, items: []};
@@ -353,7 +353,7 @@ function Department(props: {org: string; ref: React.RefObject<HTMLInputElement |
             })
         });
     }, [orgInfo]);
-    return <NewDataList isFreetext={result.isFreetext} items={result.items} ref={props.ref} title={title} placeholder={"Department of Dreams"} />
+    return <NewDataList isFreetext={result.isFreetext} items={result.items} ref={props.ref} title={title} placeholder={`“Faculty of Engineering/Department of Software Engineering“`} />
 }
 
 function dataListItem(key: string, value: string, tags: string, unselectable?: boolean): DataListItem {
