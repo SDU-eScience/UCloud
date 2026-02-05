@@ -1128,9 +1128,6 @@ func grantAttachUnreadCommentStatus(app *accapi.GrantApplication, username strin
 	idRaw, _ := strconv.ParseInt(app.Id.Value, 10, 64)
 	idActual := accGrantId(idRaw)
 	appLastVisitedByUserTime := grantRetrieveUserApplicationVisits(idActual, username)
-	if appLastVisitedByUserTime.IsZero() {
-		return
-	}
 
 	// Since comments are ordered by created at time, the last comment is the latest
 	latestCommentTime := app.Status.Comments[len(app.Status.Comments)-1].CreatedAt.Time()

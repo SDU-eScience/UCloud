@@ -273,6 +273,7 @@ export interface Status {
     revisions: Revision[];
     projectTitle?: string;
     projectPI: string;
+    hasUnreadComments: boolean;
 }
 
 export interface GrantGiverApprovalState {
