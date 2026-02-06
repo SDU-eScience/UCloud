@@ -12,7 +12,7 @@ type SshKeyService struct {
 	OnKeyUploaded func(username string, keys []orcapi.SshKey) *util.HttpError
 }
 
-func controllerSshKeys() {
+func initSshKeys() {
 	if RunsUserCode() {
 		orcapi.SshProviderKeyUploaded.Handler(func(info rpc.RequestInfo, request orcapi.SshProviderKeyUploadedRequest) (util.Empty, *util.HttpError) {
 			var err *util.HttpError

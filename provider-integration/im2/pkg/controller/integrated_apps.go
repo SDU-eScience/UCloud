@@ -42,15 +42,15 @@ type IntegratedApplicationHandler struct {
 
 var IntegratedApplications = map[string]IntegratedApplicationHandler{}
 
-func controllerIntegratedApps() {
+func initIntegratedApps() {
 	if !RunsServerCode() {
 		return
 	}
 
-	initIApps()
+	initAllIntegratedApps()
 
 	for k, v := range IntegratedApplications {
-		controllerIntegratedApp(k, v)
+		initIntegratedApp(k, v)
 	}
 }
 
@@ -59,11 +59,11 @@ func IAppConfigureFromLegacy(appName string, owner orc.ResourceOwner) (util.Opti
 	if ok && handler.RetrieveLegacyConfiguration != nil {
 		rawConfig := handler.RetrieveLegacyConfiguration(owner)
 		if rawConfig.Present {
-			err := ConfigureIApp(appName, owner, util.OptNone[string](), rawConfig.Value)
+			err := IAppConfigure(appName, owner, util.OptNone[string](), rawConfig.Value)
 			if err != nil {
 				return util.OptNone[IAppRunningConfiguration](), err
 			} else {
-				config := RetrieveIAppConfiguration(appName, owner)
+				config := IAppRetrieveConfiguration(appName, owner)
 				if !config.Present {
 					return util.OptNone[IAppRunningConfiguration](), util.ServerHttpError("error configuring iapp")
 				} else {
@@ -76,11 +76,11 @@ func IAppConfigureFromLegacy(appName string, owner orc.ResourceOwner) (util.Opti
 	return util.OptNone[IAppRunningConfiguration](), nil
 }
 
-func controllerIntegratedApp(appName string, handler IntegratedApplicationHandler) {
+func initIntegratedApp(appName string, handler IntegratedApplicationHandler) {
 	if handler.Flags&IntegratedAppInternal == 0 {
 		retrieveRpc := orc.IAppProviderRetrieveConfiguration[json.RawMessage](appName)
 		retrieveRpc.Handler(func(info rpc.RequestInfo, request orc.IAppProviderRetrieveConfigRequest) (orc.IAppProviderRetrieveConfigResponse[json.RawMessage], *util.HttpError) {
-			config := RetrieveIAppConfiguration(appName, request.Principal)
+			config := IAppRetrieveConfiguration(appName, request.Principal)
 			resp := orc.IAppRetrieveConfigResponse[json.RawMessage]{
 				ETag:   config.Value.ETag,
 				Config: config.Value.Configuration,
@@ -111,25 +111,25 @@ func controllerIntegratedApp(appName string, handler IntegratedApplicationHandle
 
 		updateRpc := orc.IAppProviderUpdateConfiguration[json.RawMessage](appName)
 		updateRpc.Handler(func(info rpc.RequestInfo, request orc.IAppProviderUpdateConfigurationRequest[json.RawMessage]) (util.Empty, *util.HttpError) {
-			err := ConfigureIApp(appName, request.Principal, request.ExpectedETag, request.Config)
+			err := IAppConfigure(appName, request.Principal, request.ExpectedETag, request.Config)
 			return util.Empty{}, err
 		})
 
 		resetRpc := orc.IAppProviderReset[json.RawMessage](appName)
 		resetRpc.Handler(func(info rpc.RequestInfo, request orc.IAppProviderResetRequest) (util.Empty, *util.HttpError) {
-			err := ResetIApp(appName, request.Principal, request.ExpectedETag)
+			err := IAppReset(appName, request.Principal, request.ExpectedETag)
 			return util.Empty{}, err
 		})
 
 		restartRpc := orc.IAppProviderRestart[json.RawMessage](appName)
 		restartRpc.Handler(func(info rpc.RequestInfo, request orc.IAppProviderRestartRequest) (util.Empty, *util.HttpError) {
-			err := RestartIApp(appName, request.Principal)
+			err := IAppRestart(appName, request.Principal)
 			return util.Empty{}, err
 		})
 	}
 }
 
-func initIApps() {
+func initAllIntegratedApps() {
 	iappConfigsMutex.Lock()
 	defer iappConfigsMutex.Unlock()
 
@@ -173,9 +173,9 @@ func initIApps() {
 	})
 }
 
-// ReconfigureAllIApps will invoke UpdateConfiguration on all configured .applications. This will typically be invoked
+// IAppReconfigureAll will invoke UpdateConfiguration on all configured .applications. This will typically be invoked
 // by the individual services once they are ready to accept configuration events after a restart.
-func ReconfigureAllIApps() {
+func IAppReconfigureAll() {
 	allJobs := JobsListServer()
 	jobsById := map[string]*orc.Job{}
 	for _, job := range allJobs {
@@ -205,7 +205,7 @@ func ReconfigureAllIApps() {
 
 const iappConfigWaitingForJob = "0"
 
-func ConfigureIApp(appName string, owner orc.ResourceOwner, etag util.Option[string], configuration json.RawMessage) *util.HttpError {
+func IAppConfigure(appName string, owner orc.ResourceOwner, etag util.Option[string], configuration json.RawMessage) *util.HttpError {
 	newEtag := util.RandomToken(16)
 	etagsMatched := false
 
@@ -308,7 +308,7 @@ func ConfigureIApp(appName string, owner orc.ResourceOwner, etag util.Option[str
 		}
 	}
 
-	job, ok := RetrieveJob(config.JobId)
+	job, ok := JobRetrieve(config.JobId)
 	if !ok || job.Status.State.IsFinal() {
 		log.Warn("Unable to retrieve running job for %v: %v", appName, config)
 		iappDelete(key)
@@ -369,7 +369,7 @@ type IAppRunningConfiguration struct {
 	UpdatedAt     time.Time
 }
 
-func RetrieveIAppConfiguration(appName string, owner orc.ResourceOwner) util.Option[IAppRunningConfiguration] {
+func IAppRetrieveConfiguration(appName string, owner orc.ResourceOwner) util.Option[IAppRunningConfiguration] {
 	key := iappConfigKey{
 		AppName: appName,
 		Owner:   owner,
@@ -386,7 +386,7 @@ func RetrieveIAppConfiguration(appName string, owner orc.ResourceOwner) util.Opt
 	}
 }
 
-func ResetIApp(appName string, owner orc.ResourceOwner, etag util.Option[string]) *util.HttpError {
+func IAppReset(appName string, owner orc.ResourceOwner, etag util.Option[string]) *util.HttpError {
 	handler, ok := IntegratedApplications[appName]
 	if !ok {
 		log.Warn("Failed to reset integrated application, there is no associated handler for %s.", appName)
@@ -406,7 +406,7 @@ func ResetIApp(appName string, owner orc.ResourceOwner, etag util.Option[string]
 		return nil
 	}
 
-	job, ok := RetrieveJob(result.JobId)
+	job, ok := JobRetrieve(result.JobId)
 	var newConfig json.RawMessage
 	var err *util.HttpError
 
@@ -426,23 +426,23 @@ func ResetIApp(appName string, owner orc.ResourceOwner, etag util.Option[string]
 	if err != nil {
 		return err
 	} else {
-		err = ConfigureIApp(appName, owner, util.OptNone[string](), newConfig)
+		err = IAppConfigure(appName, owner, util.OptNone[string](), newConfig)
 		return err
 	}
 }
 
-func RestartIApp(appName string, owner orc.ResourceOwner) *util.HttpError {
+func IAppRestart(appName string, owner orc.ResourceOwner) *util.HttpError {
 	handler, ok := IntegratedApplications[appName]
 	if !ok {
 		return util.ServerHttpError("Could not find the application. Reload the page and try again later.")
 	}
 
-	config := RetrieveIAppConfiguration(appName, owner)
+	config := IAppRetrieveConfiguration(appName, owner)
 	if !config.Present {
 		return util.ServerHttpError("Could not find the application. Reload the page and try again later.")
 	}
 
-	job, ok := RetrieveJob(config.Value.JobId)
+	job, ok := JobRetrieve(config.Value.JobId)
 	if !ok {
 		iappDelete(iappConfigKey{
 			AppName: appName,
@@ -455,7 +455,7 @@ func RestartIApp(appName string, owner orc.ResourceOwner) *util.HttpError {
 	return err
 }
 
-func RetrieveIAppsByJobId() map[string]IAppRunningConfiguration {
+func IAppRetrieveAllByJobId() map[string]IAppRunningConfiguration {
 	result := map[string]IAppRunningConfiguration{}
 
 	iappConfigsMutex.Lock()
@@ -467,7 +467,7 @@ func RetrieveIAppsByJobId() map[string]IAppRunningConfiguration {
 	return result
 }
 
-func RetrieveIAppByJobId(jobId string) util.Option[IAppRunningConfiguration] {
+func IAppRetrieveByJobId(jobId string) util.Option[IAppRunningConfiguration] {
 	iappConfigsMutex.Lock()
 	defer iappConfigsMutex.Unlock()
 

@@ -120,7 +120,7 @@ func initLicenseDatabase() {
 
 	licenseMutex.Lock()
 	defer licenseMutex.Unlock()
-	fetchAllLicenses()
+	licenseFetchAll()
 
 	ipcUpdateLicense.Handler(func(r *ipc.Request[LicenseEntry]) ipc.Response[util.Empty] {
 		if r.Uid != 0 {
@@ -152,7 +152,7 @@ func initLicenseDatabase() {
 			)
 		})
 
-		RegisterProducts([]apm.ProductV2{license.toProduct()})
+		ProductsRegister([]apm.ProductV2{license.toProduct()})
 
 		return ipc.Response[util.Empty]{
 			StatusCode: http.StatusOK,
@@ -178,7 +178,7 @@ func initLicenseDatabase() {
 			}
 		}
 
-		license, ok := retrieveLicense(resource.Specification.Product.Id)
+		license, ok := licenseRetrieve(resource.Specification.Product.Id)
 
 		if !ok {
 			return ipc.Response[LicenseEntry]{
@@ -252,7 +252,7 @@ func initLicenseDatabase() {
 	})
 }
 
-func fetchAllLicenses() {
+func licenseFetchAll() {
 	next := ""
 
 	for {
@@ -279,7 +279,7 @@ func fetchAllLicenses() {
 	}
 }
 
-func FetchLicenseProducts() []apm.ProductV2 {
+func LicenseFetchProducts() []apm.ProductV2 {
 	result := []apm.ProductV2{}
 
 	licenseMutex.Lock()
@@ -304,7 +304,7 @@ func FetchLicenseProducts() []apm.ProductV2 {
 	return result
 }
 
-func FetchLicenseSupport() []orc.LicenseSupport {
+func LicenseFetchSupport() []orc.LicenseSupport {
 	var result []orc.LicenseSupport
 
 	licenseMutex.Lock()
@@ -334,7 +334,7 @@ func FetchLicenseSupport() []orc.LicenseSupport {
 	return result
 }
 
-func TrackLicense(license orc.License) {
+func LicenseTrack(license orc.License) {
 	// Automatically assign timestamps to all updates that do not have one
 	for i := 0; i < len(license.Updates); i++ {
 		update := &license.Updates[i]
@@ -374,7 +374,7 @@ func TrackLicense(license orc.License) {
 	})
 }
 
-func ActivateLicense(target *orc.License) *util.HttpError {
+func LicenseActivate(target *orc.License) *util.HttpError {
 	if target == nil {
 		return util.ServerHttpError("target is nil")
 	}
@@ -399,16 +399,16 @@ func ActivateLicense(target *orc.License) *util.HttpError {
 
 	if err == nil {
 		target.Updates = append(target.Updates, newUpdate)
-		TrackLicense(*target)
+		LicenseTrack(*target)
 		return nil
 	} else {
 		log.Info("Failed to activate license due to an error between UCloud and the provider: %s", err)
-		_ = DeleteLicense(target)
+		_ = LicenseDelete(target)
 		return err
 	}
 }
 
-func DeleteLicense(target *orc.License) *util.HttpError {
+func LicenseDelete(target *orc.License) *util.HttpError {
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -425,7 +425,7 @@ func DeleteLicense(target *orc.License) *util.HttpError {
 	return nil
 }
 
-func RetrieveUsedLicenseCount(licenseName string, owner orc.ResourceOwner) int {
+func LicenseRetrieveUsedCount(licenseName string, owner orc.ResourceOwner) int {
 	return db.NewTx[int](func(tx *db.Transaction) int {
 		row, _ := db.Get[struct{ Count int }](
 			tx,
@@ -456,7 +456,7 @@ func RetrieveUsedLicenseCount(licenseName string, owner orc.ResourceOwner) int {
 	})
 }
 
-func retrieveLicense(productId string) (LicenseEntry, bool) {
+func licenseRetrieve(productId string) (LicenseEntry, bool) {
 	license, ok := db.NewTx2(func(tx *db.Transaction) (LicenseEntry, bool) {
 		result, ok := db.Get[LicenseDbEntry](
 			tx,
@@ -476,7 +476,7 @@ func retrieveLicense(productId string) (LicenseEntry, bool) {
 	return license, ok
 }
 
-func BuildLicenseParameter(id string) string {
+func LicenseBuildParameter(id string) string {
 	licenseMutex.Lock()
 	defer licenseMutex.Unlock()
 
@@ -487,7 +487,7 @@ func BuildLicenseParameter(id string) string {
 		return id
 	}
 
-	license, ok := retrieveLicense(resource.Specification.Product.Id)
+	license, ok := licenseRetrieve(resource.Specification.Product.Id)
 
 	if !ok {
 		log.Warn("Error retrieving license")
@@ -517,7 +517,7 @@ func BuildLicenseParameter(id string) string {
 	return result
 }
 
-func printHelp() {
+func licenseCliPrintHelp() {
 	f := termio2.Frame{}
 
 	f.AppendTitle("License help")
@@ -539,10 +539,9 @@ func printHelp() {
 	f.Print()
 }
 
-// Handle license CLI
 func LicenseCli(args []string) {
 	if len(args) == 0 {
-		printHelp()
+		licenseCliPrintHelp()
 		cli.HandleError("license", fmt.Errorf("Unknown command"))
 		return
 	}
@@ -583,7 +582,7 @@ func LicenseCli(args []string) {
 		name := util.GetOptionalElement(args, 1)
 
 		if !name.Present {
-			printHelp()
+			licenseCliPrintHelp()
 			cli.HandleError("add license", fmt.Errorf("Missing argument: name"))
 			return
 		}
@@ -635,7 +634,7 @@ func LicenseCli(args []string) {
 	case cli.IsDeleteCommand(args[0]):
 		name := util.GetOptionalElement(args, 1)
 		if !name.Present {
-			printHelp()
+			licenseCliPrintHelp()
 			cli.HandleError("delete license", fmt.Errorf("Missing argument: product name"))
 			return
 		}
@@ -643,7 +642,7 @@ func LicenseCli(args []string) {
 		ipcRemoveLicense.Invoke(name.Value)
 
 	case cli.IsHelpCommand(args[0]):
-		printHelp()
+		licenseCliPrintHelp()
 
 	default:
 		termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Unknown command")

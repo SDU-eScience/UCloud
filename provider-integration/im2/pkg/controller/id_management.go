@@ -16,10 +16,9 @@ import (
 	"ucloud.dk/pkg/gateway"
 	"ucloud.dk/pkg/ipc"
 	db "ucloud.dk/shared/pkg/database"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orc2"
 	"ucloud.dk/shared/pkg/rpc"
-
-	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -34,60 +33,95 @@ type ConnectionService struct {
 type IdentityManagementService struct {
 	InitiateConnection        func(username string) (string, *util.HttpError)
 	HandleAuthentication      func(username string) (uint32, error)
-	HandleProjectNotification func(updated *NotificationProjectUpdated) bool
+	HandleProjectNotification func(updated *EventProjectUpdated) bool
 	ExpiresAfter              util.Option[int]
 }
 
 var IdentityManagement IdentityManagementService
 
-func ConnectionError(error string) string {
-	return "TODO" // TODO
-}
+var idmConnectionCompleteCallbacks []func(username string, uid uint32)
+var idmProjectNotificationCallbacks []func(updated *EventProjectUpdated)
 
-var connectionCompleteCallbacks []func(username string, uid uint32)
-var projectNotificationCallbacks []func(updated *NotificationProjectUpdated)
-
-func OnConnectionComplete(callback func(username string, uid uint32)) {
-	connectionCompleteCallbacks = append(connectionCompleteCallbacks, callback)
-}
-
-func OnProjectNotification(callback func(updated *NotificationProjectUpdated)) {
-	projectNotificationCallbacks = append(projectNotificationCallbacks, callback)
-}
-
-/*
-func CreatePersonalProviderProject(username string) (string, error) {
-	type Req struct {
-		Username string `json:"username"`
-	}
-	type Resp struct {
-		ProjectId string `json:"projectId"`
+func initIdManagement() {
+	if RunsServerCode() {
+		go idmMonitorInstances()
 	}
 
-	resp, err := client.ApiUpdate[Resp](
-		"projects.v2.createPersonalProviderProject",
-		"/api/projects/v2",
-		"createPersonalProviderProject",
-		Req{
-			Username: username,
-		},
-	)
+	if RunsServerCode() {
+		orcapi.ProviderIntegrationPConnect.Handler(func(info rpc.RequestInfo, request orcapi.ProviderIntegrationPFindByUser) (orcapi.ProviderIntegrationPConnectResponse, *util.HttpError) {
+			redirectTo, err := Connections.Initiate(request.Username, util.OptNone[int]())
+			return orcapi.ProviderIntegrationPConnectResponse{RedirectTo: redirectTo}, err
+		})
 
-	if err != nil {
-		return "", err
-	} else {
-		return resp.ProjectId, err
+		orcapi.ProviderIntegrationPDisconnect.Handler(func(info rpc.RequestInfo, request orcapi.ProviderIntegrationPFindByUser) (util.Empty, *util.HttpError) {
+			local, ok, _ := IdmMapUCloudToLocal(request.Username)
+			if !ok {
+				return util.Empty{}, util.UserHttpError("Unknown user is being unlinked")
+			}
+
+			unlinkFn := Connections.Unlink
+			if unlinkFn != nil {
+				err := unlinkFn(request.Username, local)
+				if err != nil {
+					return util.Empty{}, err
+				}
+			}
+
+			err := IdmConnectionRemove(local, 0)
+			return util.Empty{}, err
+		})
+
+		orcapi.ProviderIntegrationPRetrieveManifest.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.ProviderIntegrationManifest, *util.HttpError) {
+			return Connections.RetrieveManifest(), nil
+		})
+
+		orcapi.ProviderIntegrationPInit.Handler(func(info rpc.RequestInfo, request orcapi.ProviderIntegrationPFindByUser) (util.Empty, *util.HttpError) {
+			if !LaunchUserInstances {
+				log.Info("Attempting to launch user instance, but this IM will not launch user instances.")
+				return util.Empty{}, util.HttpErr(http.StatusNotFound, "not found")
+			}
+
+			uid, ok, _ := IdmMapUCloudToLocal(request.Username)
+			if uid <= 0 || !ok {
+				log.Warn("Could not map UCloud to local identity: %v -> %v (%v)", request.Username, uid, ok)
+				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "bad request")
+			}
+
+			err := LaunchUserInstance(uid)
+			return util.Empty{}, err
+		})
+
+		Whoami.Handler(func(req *ipc.Request[util.Empty]) ipc.Response[string] {
+			username, exists, _ := IdmMapLocalToUCloud(req.Uid)
+			if exists {
+				return ipc.Response[string]{
+					StatusCode: http.StatusOK,
+					Payload:    username,
+				}
+			} else {
+				return ipc.Response[string]{
+					StatusCode: http.StatusNotFound,
+				}
+			}
+		})
 	}
 }
-*/
 
-func RegisterConnectionComplete(username string, uid uint32, notifyUCloud bool) *util.HttpError {
-	return RegisterConnectionCompleteEx(username, uid, notifyUCloud, util.OptNone[int]())
+func IdmAddOnCompleteHandler(callback func(username string, uid uint32)) {
+	idmConnectionCompleteCallbacks = append(idmConnectionCompleteCallbacks, callback)
 }
 
-func RegisterConnectionCompleteEx(username string, uid uint32, notifyUCloud bool, expiresAfterOverride util.Option[int]) *util.HttpError {
+func IdmAddProjectEvHandler(callback func(updated *EventProjectUpdated)) {
+	idmProjectNotificationCallbacks = append(idmProjectNotificationCallbacks, callback)
+}
+
+func IdmRegisterCompleted(username string, uid uint32, notifyUCloud bool) *util.HttpError {
+	return IdmRegisterCompletedEx(username, uid, notifyUCloud, util.OptNone[int]())
+}
+
+func IdmRegisterCompletedEx(username string, uid uint32, notifyUCloud bool, expiresAfterOverride util.Option[int]) *util.HttpError {
 	if LaunchUserInstances {
-		existing, ok, _ := MapUCloudToLocal(username)
+		existing, ok, _ := IdmMapUCloudToLocal(username)
 		if ok && existing != uid {
 			log.Info("Wanted to perform registration which would change the UID for %s from %v to %v! "+
 				"This is not possible. Please clean up manually if this is intended!", username, existing, uid)
@@ -151,29 +185,29 @@ func RegisterConnectionCompleteEx(username string, uid uint32, notifyUCloud bool
 		return err
 	}
 
-	userReplayChannel <- username
+	eventUserReplayChannel <- username
 
-	for _, callback := range connectionCompleteCallbacks {
+	for _, callback := range idmConnectionCompleteCallbacks {
 		callback(username, uid)
 	}
 	return err
 }
 
-type RemoveConnectionFlag int
+type IdmConnectionRemoveFlag int
 
 const (
-	RemoveConnectionNotify RemoveConnectionFlag = 1 << iota
-	RemoveConnectionTrulyRemove
+	IdmConnectionRemoveNotify IdmConnectionRemoveFlag = 1 << iota
+	IdmConnectionRemoveTrulyRemove
 )
 
-func RemoveConnection(uid uint32, flags RemoveConnectionFlag) *util.HttpError {
-	ucloud, ok, _ := MapLocalToUCloud(uid)
+func IdmConnectionRemove(uid uint32, flags IdmConnectionRemoveFlag) *util.HttpError {
+	ucloud, ok, _ := IdmMapLocalToUCloud(uid)
 	if !ok {
 		return util.UserHttpError("unknown user supplied: %v", uid)
 	}
 
 	db.NewTx0(func(tx *db.Transaction) {
-		if flags&RemoveConnectionTrulyRemove == 0 {
+		if flags&IdmConnectionRemoveTrulyRemove == 0 {
 			db.Exec(
 				tx,
 				`
@@ -199,11 +233,11 @@ func RemoveConnection(uid uint32, flags RemoveConnectionFlag) *util.HttpError {
 		}
 	})
 
-	if flags&RemoveConnectionNotify != 0 {
+	if flags&IdmConnectionRemoveNotify != 0 {
 		_, err := orcapi.ProviderIntegrationCtrlClearConnection.Invoke(orcapi.ProviderIntegrationCtrlFindByUser{Username: ucloud})
 
 		if err != nil {
-			_ = RegisterConnectionComplete(ucloud, uid, false)
+			_ = IdmRegisterCompleted(ucloud, uid, false)
 			return util.UserHttpError("failed to clear connection in UCloud: %v", err)
 		}
 	}
@@ -211,7 +245,7 @@ func RemoveConnection(uid uint32, flags RemoveConnectionFlag) *util.HttpError {
 	return nil
 }
 
-func getDebugPort(ucloudUsername string) (int, bool) {
+func idmGetDebugPort(ucloudUsername string) (int, bool) {
 	// TODO add this to config make it clear that this is insecure and for development _only_
 	if util.DevelopmentModeEnabled() {
 		if ucloudUsername == "user" {
@@ -224,7 +258,7 @@ func getDebugPort(ucloudUsername string) (int, bool) {
 	return 0, false
 }
 
-func MapUCloudToLocal(username string) (uint32, bool, bool) {
+func IdmMapUCloudToLocal(username string) (uint32, bool, bool) {
 	return db.NewTx3[uint32, bool, bool](func(tx *db.Transaction) (uint32, bool, bool) {
 		val, ok := db.Get[struct {
 			Uid      uint32
@@ -249,7 +283,7 @@ func MapUCloudToLocal(username string) (uint32, bool, bool) {
 	})
 }
 
-func MapUCloudUsersToLocalUsers(usernames []string) map[string]uint32 {
+func IdmMapUCloudUsersToLocalUsers(usernames []string) map[string]uint32 {
 	return db.NewTx[map[string]uint32](func(tx *db.Transaction) map[string]uint32 {
 		rows := db.Select[struct {
 			Username string
@@ -280,7 +314,7 @@ func MapUCloudUsersToLocalUsers(usernames []string) map[string]uint32 {
 	})
 }
 
-func MapLocalToUCloud(uid uint32) (string, bool, bool) {
+func IdmMapLocalToUCloud(uid uint32) (string, bool, bool) {
 	return db.NewTx3[string, bool, bool](func(tx *db.Transaction) (string, bool, bool) {
 		val, ok := db.Get[struct {
 			UCloudUsername string
@@ -306,7 +340,7 @@ func MapLocalToUCloud(uid uint32) (string, bool, bool) {
 	})
 }
 
-func RegisterProjectMapping(projectId string, gid uint32) {
+func IdmRegisterProjectMapping(projectId string, gid uint32) {
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -322,7 +356,7 @@ func RegisterProjectMapping(projectId string, gid uint32) {
 	})
 }
 
-func MapLocalProjectToUCloud(gid uint32) (string, bool) {
+func IdmMapLocalProjectToUCloud(gid uint32) (string, bool) {
 	return db.NewTx2(func(tx *db.Transaction) (string, bool) {
 		val, ok := db.Get[struct{ UCloudProjectId string }](
 			tx,
@@ -340,7 +374,7 @@ func MapLocalProjectToUCloud(gid uint32) (string, bool) {
 	})
 }
 
-func MapUCloudProjectToLocal(projectId string) (uint32, bool) {
+func IdmMapUCloudProjectToLocal(projectId string) (uint32, bool) {
 	return db.NewTx2(func(tx *db.Transaction) (uint32, bool) {
 		val, ok := db.Get[struct{ Gid uint32 }](
 			tx,
@@ -362,124 +396,12 @@ func MapUCloudProjectToLocal(projectId string) (uint32, bool) {
 	})
 }
 
-func controllerConnection() {
-	if RunsServerCode() {
-		go monitorInstances()
-	}
-
-	if RunsServerCode() {
-		orcapi.ProviderIntegrationPConnect.Handler(func(info rpc.RequestInfo, request orcapi.ProviderIntegrationPFindByUser) (orcapi.ProviderIntegrationPConnectResponse, *util.HttpError) {
-			redirectTo, err := Connections.Initiate(request.Username, util.OptNone[int]())
-			return orcapi.ProviderIntegrationPConnectResponse{RedirectTo: redirectTo}, err
-		})
-
-		orcapi.ProviderIntegrationPDisconnect.Handler(func(info rpc.RequestInfo, request orcapi.ProviderIntegrationPFindByUser) (util.Empty, *util.HttpError) {
-			local, ok, _ := MapUCloudToLocal(request.Username)
-			if !ok {
-				return util.Empty{}, util.UserHttpError("Unknown user is being unlinked")
-			}
-
-			unlinkFn := Connections.Unlink
-			if unlinkFn != nil {
-				err := unlinkFn(request.Username, local)
-				if err != nil {
-					return util.Empty{}, err
-				}
-			}
-
-			err := RemoveConnection(local, 0)
-			return util.Empty{}, err
-		})
-
-		orcapi.ProviderIntegrationPRetrieveManifest.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.ProviderIntegrationManifest, *util.HttpError) {
-			return Connections.RetrieveManifest(), nil
-		})
-
-		orcapi.ProviderIntegrationPInit.Handler(func(info rpc.RequestInfo, request orcapi.ProviderIntegrationPFindByUser) (util.Empty, *util.HttpError) {
-			if !LaunchUserInstances {
-				log.Info("Attempting to launch user instance, but this IM will not launch user instances.")
-				return util.Empty{}, util.HttpErr(http.StatusNotFound, "not found")
-			}
-
-			uid, ok, _ := MapUCloudToLocal(request.Username)
-			if uid <= 0 || !ok {
-				log.Warn("Could not map UCloud to local identity: %v -> %v (%v)", request.Username, uid, ok)
-				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "bad request")
-			}
-
-			err := LaunchUserInstance(uid)
-			return util.Empty{}, err
-		})
-
-		Whoami.Handler(func(req *ipc.Request[util.Empty]) ipc.Response[string] {
-			username, exists, _ := MapLocalToUCloud(req.Uid)
-			if exists {
-				return ipc.Response[string]{
-					StatusCode: http.StatusOK,
-					Payload:    username,
-				}
-			} else {
-				return ipc.Response[string]{
-					StatusCode: http.StatusNotFound,
-				}
-			}
-		})
-
-		// TODO?
-		/*
-			type reverseConnectionClaimedRequest struct {
-				Token    string `json:"token"`
-				Username string `json:"username"`
-			}
-			mux.HandleFunc(
-				baseContext+"reverseConnectionClaimed",
-				HttpUpdateHandler(0, func(w http.ResponseWriter, r *http.Request, req reverseConnectionClaimedRequest) {
-					uid, ok := db.NewTx2(func(tx *db.Transaction) (uint32, bool) {
-						uidWrapper, ok := db.Get[struct {
-							Uid uint32
-						}](
-							tx,
-							`
-								delete from reverse_connections
-								where token = :token
-								returning uid
-						    `,
-							db.Params{
-								"token": req.Token,
-							},
-						)
-
-						return uidWrapper.Uid, ok
-					})
-
-					if !ok {
-						sendError(w, &util.HttpError{
-							StatusCode: http.StatusNotFound,
-							Why:        "Unknown token supplied. Try again.",
-						})
-						return
-					}
-
-					err := RegisterConnectionCompleteEx(req.Username, uid, false, util.OptValue[int](1000*60*60*24*7))
-					if err != nil {
-						sendError(w, err)
-						return
-					}
-
-					_, err = CreatePersonalProviderProject(req.Username)
-					sendResponseOrError(w, util.EmptyValue, err)
-				}),
-			)
-		*/
-	}
-}
-
-func monitorInstances() {
+func idmMonitorInstances() {
 	for util.IsAlive {
 		if LaunchUserInstances {
 			instanceMutex.Lock()
 			for uid, _ := range runningInstances {
-				_, ok, isActive := MapLocalToUCloud(uid)
+				_, ok, isActive := IdmMapLocalToUCloud(uid)
 				if !ok || !isActive {
 					RequestUserTermination(uid)
 				}
@@ -500,7 +422,7 @@ func LaunchUserInstanceEx(uid uint32, tryAgain bool) *util.HttpError {
 		return util.UserHttpError("attempting to launch user instance, but this IM will not launch user instances")
 	}
 
-	ucloudUsername, ok, isActive := MapLocalToUCloud(uid)
+	ucloudUsername, ok, isActive := IdmMapLocalToUCloud(uid)
 	if !ok {
 		return util.UserHttpError("unknown user")
 	}
@@ -552,7 +474,7 @@ func LaunchUserInstanceEx(uid uint32, tryAgain bool) *util.HttpError {
 		args = append(args, "--preserve-env=UCLOUD_USER_SECRET")
 		args = append(args, "-u")
 		args = append(args, fmt.Sprintf("#%v", uid))
-		debugPort, shouldDebug := getDebugPort(ucloudUsername)
+		debugPort, shouldDebug := idmGetDebugPort(ucloudUsername)
 		if shouldDebug {
 			args = append(args, "/usr/bin/dlv")
 			args = append(args, "exec")

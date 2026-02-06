@@ -82,7 +82,7 @@ func Init(config *cfg.IdentityManagementOidc, mux *http.ServeMux) {
 		return idpConfig.AuthCodeURL(stateToken, oidc.Nonce(nonce)), nil
 	}
 
-	controller.IdentityManagement.HandleProjectNotification = func(updated *controller.NotificationProjectUpdated) bool {
+	controller.IdentityManagement.HandleProjectNotification = func(updated *controller.EventProjectUpdated) bool {
 		// Do nothing
 		return true
 	}
@@ -160,14 +160,14 @@ func Init(config *cfg.IdentityManagementOidc, mux *http.ServeMux) {
 			return
 		}
 
-		existing, ok, _ := controller.MapUCloudToLocal(session.UCloudUsername)
+		existing, ok, _ := controller.IdmMapUCloudToLocal(session.UCloudUsername)
 		if ok && existing != response.Uid {
 			http.Error(w, fmt.Sprintf("Unable to switch to a different user. Please login with the original "+
 				"account (from %v to %v)", existing, response.Uid), http.StatusBadRequest)
 			return
 		}
 
-		err = controller.RegisterConnectionComplete(session.UCloudUsername, response.Uid, true).AsError()
+		err = controller.IdmRegisterCompleted(session.UCloudUsername, response.Uid, true).AsError()
 		if err != nil {
 			log.Warn("Failed to register connection complete: %v", err)
 			http.Error(w, "Failed to authenticate you", http.StatusBadGateway)

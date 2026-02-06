@@ -33,7 +33,7 @@ func copyFiles(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *uti
 		}
 	}
 
-	if ctrl.IsResourceLocked(destDrive.Resource, request.ResolvedNewCollection.Specification.Product) {
+	if ctrl.ResourceIsLocked(destDrive.Resource, request.ResolvedNewCollection.Specification.Product) {
 		return util.PaymentError()
 	}
 

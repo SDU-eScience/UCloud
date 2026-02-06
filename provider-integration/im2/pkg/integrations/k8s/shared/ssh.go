@@ -26,7 +26,7 @@ var sshConfig cfg.KubernetesSshConfiguration
 func initSsh() {
 	sshConfig = ServiceConfig.Compute.Ssh
 	if sshConfig.Enabled {
-		jobs := ctrl.GetJobs()
+		jobs := ctrl.JobRetrieveAll()
 		for _, job := range jobs {
 			port := GetAssignedSshPort(job)
 			if port.Present {
@@ -73,7 +73,7 @@ func assignSshPort(job *orc.Job) (util.Option[int], *util.HttpError) {
 			port := sshConfig.PortMin + (attempt % count)
 			_, exists := sshPortsInUse[port]
 			if !exists {
-				_ = ctrl.TrackJobMessages([]ctrl.JobMessage{
+				_ = ctrl.JobTrackMessage([]ctrl.JobMessage{
 					{
 						JobId: job.Id,
 						Message: fmt.Sprintf(

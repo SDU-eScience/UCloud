@@ -25,7 +25,7 @@ func prepareInvocationOnJobCreate(
 	app := &job.Status.ResolvedApplication.Value
 
 	invocationParameters := app.Invocation.Invocation
-	parametersAndValues := controller.ReadParameterValuesFromJob(job, &app.Invocation)
+	parametersAndValues := controller.JobFindParamAndValues(job, &app.Invocation)
 	environment := app.Invocation.Environment
 
 	ucloudToPod := func(ucloudPath string) string {
@@ -48,20 +48,20 @@ func prepareInvocationOnJobCreate(
 		return "/dev/null"
 	}
 
-	argBuilder := controller.DefaultArgBuilder(ucloudToPod)
+	argBuilder := controller.JobDefaultArgBuilder(ucloudToPod)
 
 	// Convert license parameters
 	for parameterId, parameterAndValue := range parametersAndValues {
 		if parameterAndValue.Parameter.Type == orc.ApplicationParameterTypeLicenseServer {
 			newParameterAndValue := parameterAndValue
-			newParameterAndValue.Value.Id = controller.BuildLicenseParameter(parameterAndValue.Value.Id)
+			newParameterAndValue.Value.Id = controller.LicenseBuildParameter(parameterAndValue.Value.Id)
 			parametersAndValues[parameterId] = newParameterAndValue
 		}
 	}
 
 	var actualCommand []string
 	for _, param := range invocationParameters {
-		commandList := controller.BuildParameter(param, parametersAndValues, false, argBuilder, nil)
+		commandList := controller.JobBuildParameter(param, parametersAndValues, false, argBuilder, nil)
 		for _, cmd := range commandList {
 			actualCommand = append(actualCommand, orc.EscapeBash(cmd))
 		}
@@ -99,7 +99,7 @@ func prepareInvocationOnJobCreate(
 	container.Command = []string{fmt.Sprintf("/work/job-%d.sh", rank)}
 
 	for k, param := range environment {
-		commandList := controller.BuildParameter(param, parametersAndValues, false, argBuilder, nil)
+		commandList := controller.JobBuildParameter(param, parametersAndValues, false, argBuilder, nil)
 		envValue := strings.Join(commandList, " ")
 		container.Env = append(container.Env, core.EnvVar{
 			Name:  k,
@@ -161,7 +161,7 @@ func handleJinjaInvocation(
 	rank int,
 	pod *core.Pod,
 	container *core.Container,
-	builder controller.ArgBuilder,
+	builder controller.JobArgBuilder,
 	parametersAndValues map[string]controller.ParamAndValue,
 	jobFolder string,
 	pathMapperInternalToPod map[string]string,

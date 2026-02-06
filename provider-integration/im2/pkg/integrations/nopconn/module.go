@@ -15,12 +15,12 @@ func Init() {
 			} else {
 				uid, err := ctrl.IdentityManagement.HandleAuthentication(username)
 				if err != nil {
-					return ctrl.ConnectionError(err.Error()), nil
+					return ConnectionError(err.Error()), nil
 				}
 
-				err = ctrl.RegisterConnectionComplete(username, uid, true).AsError()
+				err = ctrl.IdmRegisterCompleted(username, uid, true).AsError()
 				if err != nil {
-					return ctrl.ConnectionError(err.Error()), nil
+					return ConnectionError(err.Error()), nil
 				}
 
 				return cfg.Provider.Hosts.UCloudPublic.ToURL(), nil
@@ -34,4 +34,8 @@ func Init() {
 			}
 		},
 	}
+}
+
+func ConnectionError(error string) string {
+	return "TODO" // TODO
 }

@@ -46,9 +46,9 @@ func InitializeMemberFiles(username string, project util.Option[string]) (string
 	metricInitMemberFiles.WithLabelValues("FindReference").Observe(timer.Mark().Seconds())
 
 	timer.Mark()
-	retrievedDrive, ok := ctrl.RetrieveDriveByProviderId([]string{providerId.Value}, []string{""})
+	retrievedDrive, ok := ctrl.DriveRetrieveByProviderId([]string{providerId.Value}, []string{""})
 	needsInit := false
-	metricInitMemberFiles.WithLabelValues("RetrieveDriveByProviderId").Observe(timer.Mark().Seconds())
+	metricInitMemberFiles.WithLabelValues("DriveRetrieveByProviderId").Observe(timer.Mark().Seconds())
 
 	if !ok {
 		timer.Mark()
@@ -83,7 +83,7 @@ func InitializeMemberFiles(username string, project util.Option[string]) (string
 			return "", nil, util.ServerHttpError("failed to register drive (retrieve): %s", err.AsError().Error())
 		}
 		retrievedDrive = &drive
-		ctrl.TrackDrive(&drive)
+		ctrl.DriveTrack(&drive)
 		needsInit = true
 		metricInitMemberFiles.WithLabelValues("DriveRegistrationRetrieveAndTrack")
 	}

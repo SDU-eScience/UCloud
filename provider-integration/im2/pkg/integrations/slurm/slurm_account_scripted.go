@@ -19,11 +19,11 @@ func InitScriptedAccountManagement() AccountingService {
 	service.onUsageReporting.Script = config.OnUsageReporting
 	service.onProjectUpdated.Script = config.OnProjectUpdated
 
-	controller.OnConnectionComplete(func(username string, uid uint32) {
+	controller.IdmAddOnCompleteHandler(func(username string, uid uint32) {
 		// Do nothing
 	})
 
-	controller.OnProjectNotification(func(update *controller.NotificationProjectUpdated) {
+	controller.IdmAddProjectEvHandler(func(update *controller.EventProjectUpdated) {
 		service.synchronizeProjectToSlurmAccount(&update.Project, &update.ProjectComparison)
 	})
 
@@ -71,7 +71,7 @@ type scriptedAccountManagementService struct {
 	onProjectUpdated controller.Script[scriptedSlurmAccProjectUpdated, util.Empty]
 }
 
-func (u *scriptedAccountManagementService) OnWalletUpdated(update *controller.NotificationWalletUpdated) {
+func (u *scriptedAccountManagementService) OnWalletUpdated(update *controller.EventWalletUpdated) {
 	log.Info("slurm account wallet update %v %v", update.Category.Name, update.CombinedQuota)
 	machineConfig, ok := ServiceConfig.Compute.Machines[update.Category.Name]
 	if !ok {
@@ -162,7 +162,7 @@ func (u *scriptedAccountManagementService) synchronizeProjectToSlurmAccount(proj
 
 		for _, member := range project.Status.Members {
 			wasAdded := slices.Contains(membersAddedToProject, member.Username)
-			uid, ok, _ := controller.MapUCloudToLocal(member.Username)
+			uid, ok, _ := controller.IdmMapUCloudToLocal(member.Username)
 			if !ok {
 				continue
 			}
@@ -180,7 +180,7 @@ func (u *scriptedAccountManagementService) synchronizeProjectToSlurmAccount(proj
 		}
 
 		for _, member := range membersRemovedFromProject {
-			uid, ok, _ := controller.MapUCloudToLocal(member)
+			uid, ok, _ := controller.IdmMapUCloudToLocal(member)
 			if !ok {
 				continue
 			}

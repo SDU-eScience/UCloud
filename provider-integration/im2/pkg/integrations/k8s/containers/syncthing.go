@@ -198,17 +198,17 @@ func syncthingShouldRun(job *orc.Job, configuration json.RawMessage) bool {
 				return false
 			}
 
-			drive, ok := controller.RetrieveDrive(driveId)
+			drive, ok := controller.DriveRetrieve(driveId)
 			if !ok {
 				return false
 			}
 
-			storageLocked := controller.IsResourceLocked(drive.Resource, drive.Specification.Product)
+			storageLocked := controller.ResourceIsLocked(drive.Resource, drive.Specification.Product)
 			if storageLocked {
 				return false
 			}
 
-			if !controller.CanUseDrive(job.Owner, driveId, true) {
+			if !controller.DriveCanUse(job.Owner, driveId, true) {
 				return false
 			}
 		}
@@ -238,7 +238,7 @@ func syncthingMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage
 		}
 
 		driveId := util.GetOptionalElement(util.Components(folder.UCloudPath), 0).Value
-		if controller.CanUseDrive(job.Owner, driveId, false) {
+		if controller.DriveCanUse(job.Owner, driveId, false) {
 			appInvocation.Environment["f"+folder.Id] = orc.InvocationVar(folder.Id)
 			spec.Parameters[folder.Id] = orc.AppParameterValueFile(folder.UCloudPath, false)
 			appInvocation.Parameters = append(appInvocation.Parameters, orc.ApplicationParameterInputFile(folder.Id, false, "file", ""))
@@ -438,7 +438,7 @@ const (
 )
 
 func syncthingReconfigure() {
-	drives := controller.EnumerateKnownDrives()
+	drives := controller.DriveEnumerateKnown()
 	success := 0
 	for _, drive := range drives {
 		if strings.HasPrefix(drive.ProviderGeneratedId, "h-") {

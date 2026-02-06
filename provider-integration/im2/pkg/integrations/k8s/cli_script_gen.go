@@ -118,10 +118,10 @@ func HandleScriptGen() {
 	// Execute and output
 	// -----------------------------------------------------------------------------------------------------------------
 	tplSession := &k8sTemplateSession{}
-	tpl = ctrl.PreprocessJinjaTemplate(tpl, tplSession, k8sTemplate)
+	tpl = ctrl.JinjaPreprocessTemplate(tpl, tplSession, k8sTemplate)
 
 	jinjaContext := exec.NewContext(jinjaContextParameters)
-	output, err := ctrl.ExecuteJinjaTemplate(tpl, 0, nil, jinjaContext, ctrl.JinjaFlagsNoPreProcess)
+	output, err := ctrl.JinjaTemplateExecute(tpl, 0, nil, jinjaContext, ctrl.JinjaFlagsNoPreProcess)
 	if err != nil {
 		output = fmt.Sprintf(
 			"echo %v",

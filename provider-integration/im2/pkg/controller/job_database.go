@@ -64,7 +64,7 @@ func InitJobDatabase() {
 
 		if err == nil {
 			job.ProviderGeneratedId = r.Payload.ProviderId
-			TrackNewJob(job)
+			JobTrackNew(job)
 		}
 
 		return ipc.Response[util.Empty]{
@@ -74,7 +74,7 @@ func InitJobDatabase() {
 	})
 
 	retrieveRequest.Handler(func(r *ipc.Request[string]) ipc.Response[*orc.Job] {
-		job, ok := RetrieveJob(r.Payload)
+		job, ok := JobRetrieve(r.Payload)
 		if !ok {
 			return ipc.Response[*orc.Job]{
 				StatusCode: http.StatusNotFound,
@@ -95,9 +95,9 @@ func InitJobDatabase() {
 	})
 
 	activeJobsMutex.Lock()
-	fetchAllJobs(orc.JobStateInQueue)
-	fetchAllJobs(orc.JobStateSuspended)
-	fetchAllJobs(orc.JobStateRunning)
+	jobFetchAll(orc.JobStateInQueue)
+	jobFetchAll(orc.JobStateSuspended)
+	jobFetchAll(orc.JobStateRunning)
 	activeJobsMutex.Unlock()
 
 	initIpDatabase()
@@ -136,7 +136,7 @@ func InitJobDatabase() {
 	}()
 }
 
-func TrackNewJob(job orc.Job) {
+func JobTrackNew(job orc.Job) {
 	timer := util.NewTimer()
 	// NOTE(Dan): The job is supposed to be copied into this function. Do not change it to accept a pointer.
 
@@ -162,11 +162,11 @@ func TrackNewJob(job orc.Job) {
 		activeJobsMutex.Unlock()
 		metricTrackUpdateMemory.Observe(timer.Mark().Seconds())
 
-		trackJobUpdateServer(&job)
+		jobTrackUpdateServer(&job)
 
 		if refreshRoutes {
 			timer.Mark()
-			refreshJobRoutes()
+			jobRoutesRefresh()
 			metricTrackRouteRefresh.Observe(timer.Mark().Seconds())
 		}
 	} else if RunsUserCode() {
@@ -174,7 +174,7 @@ func TrackNewJob(job orc.Job) {
 	}
 }
 
-func trackJobUpdateServer(job *orc.Job) {
+func jobTrackUpdateServer(job *orc.Job) {
 	timer := util.NewTimer()
 	if len(job.Updates) > 64 {
 		var truncatedJobs []orc.JobUpdate
@@ -228,7 +228,7 @@ func metricJobTrack(region string) prometheus.Summary {
 		Namespace: "ucloud_im",
 		Subsystem: "jobs",
 		Name:      fmt.Sprintf("job_track_%s_seconds", region),
-		Help:      fmt.Sprintf("Summary of the duration (in seconds) it takes to run the region '%s' of TrackNewJob.", region),
+		Help:      fmt.Sprintf("Summary of the duration (in seconds) it takes to run the region '%s' of JobTrackNew.", region),
 		Objectives: map[float64]float64{
 			0.5:  0.01,
 			0.75: 0.01,
@@ -238,7 +238,7 @@ func metricJobTrack(region string) prometheus.Summary {
 	})
 }
 
-func RetrieveJob(jobId string) (*orc.Job, bool) {
+func JobRetrieve(jobId string) (*orc.Job, bool) {
 	if RunsServerCode() {
 		activeJobsMutex.RLock()
 		job, ok := activeJobs[jobId]
@@ -254,7 +254,7 @@ func RetrieveJob(jobId string) (*orc.Job, bool) {
 			job, err := orc.JobsControlRetrieve.Invoke(request)
 
 			if err == nil {
-				TrackNewJob(job)
+				JobTrackNew(job)
 				return &job, true
 			} else {
 				return nil, false
@@ -266,7 +266,7 @@ func RetrieveJob(jobId string) (*orc.Job, bool) {
 	}
 }
 
-func GetJobs() map[string]*orc.Job {
+func JobRetrieveAll() map[string]*orc.Job {
 	result := map[string]*orc.Job{}
 	activeJobsMutex.RLock()
 	for _, job := range activeJobs {
@@ -279,7 +279,7 @@ func GetJobs() map[string]*orc.Job {
 	return result
 }
 
-func BeginJobUpdates() *JobUpdateBatch {
+func JobUpdatesBegin() *JobUpdateBatch {
 	return &JobUpdateBatch{
 		trackedDirtyStates:    make(map[string]orc.JobState),
 		trackedNodeAllocation: make(map[string][]string),
@@ -445,7 +445,7 @@ func (b *JobUpdateBatch) flush() {
 			}
 
 			// NOTE(Dan): Mounts are not tracked here since we do not know if they should be added or not. Instead, we rely
-			// on UCloud/Core sending the job one more time which should cause TrackNewJob() to be called again (correcting
+			// on UCloud/Core sending the job one more time which should cause JobTrackNew() to be called again (correcting
 			// the state).
 
 			job.Updates = append(job.Updates, *u)
@@ -458,7 +458,7 @@ func (b *JobUpdateBatch) flush() {
 				}
 			}
 
-			trackJobUpdateServer(job)
+			jobTrackUpdateServer(job)
 		}
 	}
 	activeJobsMutex.Unlock()
@@ -585,7 +585,7 @@ type JobMessage struct {
 	Message string
 }
 
-func TrackJobMessages(messages []JobMessage) *util.HttpError {
+func JobTrackMessage(messages []JobMessage) *util.HttpError {
 	if len(messages) == 0 {
 		return nil
 	}
@@ -602,10 +602,10 @@ func TrackJobMessages(messages []JobMessage) *util.HttpError {
 		})
 	}
 
-	return TrackRawUpdates(updates)
+	return JobTrackRawUpdates(updates)
 }
 
-func TrackRawUpdates(updates []orc.ResourceUpdateAndId[orc.JobUpdate]) *util.HttpError {
+func JobTrackRawUpdates(updates []orc.ResourceUpdateAndId[orc.JobUpdate]) *util.HttpError {
 	if len(updates) == 0 {
 		return nil
 	}
@@ -614,7 +614,7 @@ func TrackRawUpdates(updates []orc.ResourceUpdateAndId[orc.JobUpdate]) *util.Htt
 
 	for _, message := range updates {
 		timer.Mark()
-		job, ok := RetrieveJob(message.Id)
+		job, ok := JobRetrieve(message.Id)
 		metricUpdateRetrieve.Observe(timer.Mark().Seconds())
 		if ok {
 			timer.Mark()
@@ -626,7 +626,7 @@ func TrackRawUpdates(updates []orc.ResourceUpdateAndId[orc.JobUpdate]) *util.Htt
 				)
 			}
 			metricUpdateTransform.Observe(timer.Mark().Seconds())
-			TrackNewJob(copied)
+			JobTrackNew(copied)
 			metricUpdateTrack.Observe(timer.Mark().Seconds())
 		}
 	}
@@ -662,7 +662,7 @@ func metricJobUpdate(region string) prometheus.Summary {
 	})
 }
 
-func fetchAllJobs(state orc.JobState) {
+func jobFetchAll(state orc.JobState) {
 	log.Info("Fetching all jobs in state %v", state)
 	jobs := db.NewTx(func(tx *db.Transaction) []*orc.Job {
 		rows := db.Select[struct{ Resource string }](

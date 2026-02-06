@@ -113,7 +113,7 @@ func OpenFile(path string, mode int, perm uint32) (*os.File, bool) {
 	return os.NewFile(uintptr(fd), components[componentsLength-1]), true
 }
 
-func createDownload(request controller.DownloadSession) *util.HttpError {
+func createDownload(request controller.FileDownloadSession) *util.HttpError {
 	if UCloudPathIsSensitive(request.Path) {
 		return util.UserHttpError("Downloads are disabled for this project")
 	}
@@ -123,7 +123,7 @@ func createDownload(request controller.DownloadSession) *util.HttpError {
 	return err
 }
 
-func download(request controller.DownloadSession) (io.ReadSeekCloser, int64, *util.HttpError) {
+func download(request controller.FileDownloadSession) (io.ReadSeekCloser, int64, *util.HttpError) {
 	fd, size, err := validateAndOpenFileForDownload(request.Path)
 	if err != nil {
 		return nil, 0, err
@@ -174,7 +174,7 @@ func doMove(request orc.FilesProviderMoveOrCopyRequest, updateTimestamps bool) *
 
 	sourceDriveId, _ := DriveIdFromUCloudPath(request.OldId)
 	if sourceDriveId != destDrive.Id {
-		if controller.IsResourceLocked(destDrive.Resource, destDrive.Specification.Product) {
+		if controller.ResourceIsLocked(destDrive.Resource, destDrive.Specification.Product) {
 			return util.PaymentError()
 		}
 	}
@@ -264,7 +264,7 @@ func createFolder(request orc.FilesProviderCreateFolderRequest) *util.HttpError 
 		return util.UserHttpError("Could not find file")
 	}
 
-	if controller.IsResourceLocked(destDrive.Resource, request.ResolvedCollection.Specification.Product) {
+	if controller.ResourceIsLocked(destDrive.Resource, request.ResolvedCollection.Specification.Product) {
 		return util.PaymentError()
 	}
 
@@ -656,7 +656,7 @@ func createUpload(request orc.FilesProviderCreateUploadRequest) (string, *util.H
 		path, _ = findAvailableNameOnRename(path)
 	}
 
-	if controller.IsResourceLocked(destDrive.Resource, request.ResolvedCollection.Specification.Product) {
+	if controller.ResourceIsLocked(destDrive.Resource, request.ResolvedCollection.Specification.Product) {
 		return "", util.PaymentError()
 	}
 
@@ -893,11 +893,11 @@ func transferDestinationInitiate(request orc.FilesProviderTransferRequestInitiat
 		}
 	}
 
-	if controller.IsResourceLocked(drive.Resource, drive.Specification.Product) {
+	if controller.ResourceIsLocked(drive.Resource, drive.Specification.Product) {
 		return orc.FilesProviderTransferResponse{}, util.PaymentError()
 	}
 
-	_, target := controller.CreateFolderUpload(request.DestinationPath, orc.WriteConflictPolicyMergeRename, localDestinationPath)
+	_, target := controller.FileCreateFolderUpload(request.DestinationPath, orc.WriteConflictPolicyMergeRename, localDestinationPath)
 
 	if request.SourceProvider == cfg.Provider.Id {
 		// NOTE(Dan): This only happens during local development
@@ -920,7 +920,7 @@ func transferDestinationInitiate(request orc.FilesProviderTransferRequestInitiat
 
 }
 
-func transferSourceBegin(request orc.FilesProviderTransferRequestStart, session controller.TransferSession) *util.HttpError {
+func transferSourceBegin(request orc.FilesProviderTransferRequestStart, session controller.FileTransferSession) *util.HttpError {
 	err := RegisterTask(TaskInfoSpecification{
 		Type:           FileTaskTransfer,
 		UCloudUsername: session.Username,
@@ -935,7 +935,7 @@ func transferSourceBegin(request orc.FilesProviderTransferRequestStart, session 
 
 func processTransferTask(task *TaskInfo) TaskProcessingResult {
 	sessionId := task.MoreInfo.Value
-	session, ok := controller.RetrieveTransferSession(sessionId)
+	session, ok := controller.FileRetrieveTransferSession(sessionId)
 	if !ok {
 		return TaskProcessingResult{
 			Error:           fmt.Errorf("unknown file transfer session, it might have expired"),
@@ -1070,7 +1070,7 @@ func search(ctx context.Context, query, folder string, flags orc.FileFlags, outp
 		return
 	}
 
-	searchIndex, ok := controller.RetrieveSearchIndex(driveId)
+	searchIndex, ok := controller.DriveRetrieveSearchIndex(driveId)
 	q := fsearch.NewQuery(query)
 	_ = walk.Walk(initialFolder, runtime.NumCPU(), func(path string, info os.FileInfo, err error) error {
 		if info == nil || err != nil {
@@ -1096,7 +1096,7 @@ func createDrive(drive orc.Drive) *util.HttpError {
 		return util.ServerHttpError("unknown drive")
 	}
 
-	if controller.IsResourceLocked(drive.Resource, drive.Specification.Product) {
+	if controller.ResourceIsLocked(drive.Resource, drive.Specification.Product) {
 		return util.PaymentError()
 	}
 

@@ -32,7 +32,7 @@ func Init(config *config2.ServicesConfigurationKubernetes) {
 	controller.InitScriptsLogDatabase()
 	controller.Connections = controller.ConnectionService{
 		Initiate: func(username string, signingKey util.Option[int]) (string, *util.HttpError) {
-			_ = controller.RegisterConnectionComplete(username, controller.UnknownUser, true)
+			_ = controller.IdmRegisterCompleted(username, controller.UnknownUser, true)
 			return config2.Provider.Hosts.UCloudPublic.ToURL(), nil
 		},
 		Unlink: func(username string, uid uint32) *util.HttpError {
@@ -54,7 +54,7 @@ func Init(config *config2.ServicesConfigurationKubernetes) {
 
 	filesystem2.InitTaskSystem()
 
-	controller.IdentityManagement.HandleProjectNotification = func(updated *controller.NotificationProjectUpdated) bool {
+	controller.IdentityManagement.HandleProjectNotification = func(updated *controller.EventProjectUpdated) bool {
 		ok := true
 		for _, member := range updated.MembersAddedToProject {
 			_, _, err := filesystem2.InitializeMemberFiles(member, util.OptValue(updated.Project.Id))
@@ -65,7 +65,7 @@ func Init(config *config2.ServicesConfigurationKubernetes) {
 		return ok
 	}
 
-	controller.ApmHandler.HandleNotification = func(update *controller.NotificationWalletUpdated) {
+	controller.EventHandler.HandleNotification = func(update *controller.EventWalletUpdated) {
 		if !update.Project.Present {
 			_, _, _ = filesystem2.InitializeMemberFiles(update.Owner.Username, util.OptNone[string]())
 		}
@@ -76,11 +76,11 @@ func Init(config *config2.ServicesConfigurationKubernetes) {
 	initStorageScanCli()
 	initInference()
 
-	controller.RegisterProducts(shared2.Machines)
-	controller.RegisterProducts(shared2.StorageProducts)
-	controller.RegisterProducts(shared2.IpProducts)
-	controller.RegisterProducts(shared2.LinkProducts)
-	controller.RegisterProducts(shared2.LicenseProducts)
+	controller.ProductsRegister(shared2.Machines)
+	controller.ProductsRegister(shared2.StorageProducts)
+	controller.ProductsRegister(shared2.IpProducts)
+	controller.ProductsRegister(shared2.LinkProducts)
+	controller.ProductsRegister(shared2.LicenseProducts)
 }
 
 func InitLater(config *config2.ServicesConfigurationKubernetes) {
@@ -96,7 +96,7 @@ func IsJobLocked(job *orc.Job) util.Option[shared2.LockedReason] {
 		bytes, _ := json.Marshal(job)
 		_ = json.Unmarshal(bytes, &jobCopy)
 
-		config := controller.RetrieveIAppConfiguration(iappName, job.Resource.Owner)
+		config := controller.IAppRetrieveConfiguration(iappName, job.Resource.Owner)
 		if config.Present {
 			iapp.MutateJobNonPersistent(&jobCopy, config.Value.Configuration)
 			return IsJobLockedEx(&jobCopy, nil)
@@ -108,7 +108,7 @@ func IsJobLocked(job *orc.Job) util.Option[shared2.LockedReason] {
 
 func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[shared2.LockedReason] {
 	timer := util.NewTimer()
-	isLocked := controller.IsResourceLocked(job.Resource, job.Specification.Product)
+	isLocked := controller.ResourceIsLocked(job.Resource, job.Specification.Product)
 	metricComputeLocked.Observe(timer.Mark().Seconds())
 
 	if isLocked {
@@ -140,7 +140,7 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 		}
 
 		timer.Mark()
-		canUse := controller.CanUseDrive(job.Owner, mount.Drive.Id, mount.ReadOnly)
+		canUse := controller.DriveCanUse(job.Owner, mount.Drive.Id, mount.ReadOnly)
 		metricCanUseDrive.Observe(timer.Mark().Seconds())
 
 		if !canUse {
@@ -155,7 +155,7 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 		}
 
 		timer.Mark()
-		storageLocked := controller.IsResourceLocked(mount.RealDrive.Resource, mount.RealDrive.Specification.Product)
+		storageLocked := controller.ResourceIsLocked(mount.RealDrive.Resource, mount.RealDrive.Specification.Product)
 		metricStorageLocked.Observe(timer.Mark().Seconds())
 
 		if storageLocked {
@@ -300,7 +300,7 @@ func MountedDrivesEx(job *orc.Job, jobAnnotations map[string]string) []MountedDr
 	timer.Mark()
 	var result []MountedDrive
 	for id, entry := range drives {
-		drive, ok := controller.RetrieveDrive(id)
+		drive, ok := controller.DriveRetrieve(id)
 		var realDrive *orc.Drive
 
 		if ok {

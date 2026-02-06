@@ -13,7 +13,7 @@ import (
 )
 
 func injectSshKeys(jobId string, pod *core.Pod, userContainer *core.Container) {
-	job, ok := ctrl.RetrieveJob(jobId)
+	job, ok := ctrl.JobRetrieve(jobId)
 	if !ok {
 		return
 	}

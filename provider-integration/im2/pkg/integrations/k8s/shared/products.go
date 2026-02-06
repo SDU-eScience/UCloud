@@ -309,7 +309,7 @@ func initProducts() {
 		}
 	}
 
-	LicenseProducts = ctrl.FetchLicenseProducts()
+	LicenseProducts = ctrl.LicenseFetchProducts()
 }
 
 func pickResource(resource config.MachineResourceType, machineConfig config.K8sMachineConfiguration) int {

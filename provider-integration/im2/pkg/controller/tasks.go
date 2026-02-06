@@ -14,7 +14,7 @@ type TaskService struct {
 	OnPause  func(id int) *util.HttpError
 }
 
-func controllerTasks() {
+func initTasks() {
 	if RunsUserCode() {
 		fnd.TasksProviderPauseOrCancel.Handler(func(info rpc.RequestInfo, request fnd.TasksPauseOrCancelRequest) (util.Empty, *util.HttpError) {
 			var fn func(id int) *util.HttpError = nil

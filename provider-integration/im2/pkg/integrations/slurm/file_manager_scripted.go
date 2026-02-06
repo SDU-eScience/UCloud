@@ -58,7 +58,7 @@ type scriptedFileManagementService struct {
 	unitInBytes      uint64
 }
 
-func (s *scriptedFileManagementService) HandleQuotaUpdate(drives []LocatedDrive, update *controller.NotificationWalletUpdated) {
+func (s *scriptedFileManagementService) HandleQuotaUpdate(drives []LocatedDrive, update *controller.EventWalletUpdated) {
 	log.Info("Scripted quota")
 	for _, drive := range drives {
 		req := scriptedFileManagementQuotaReq{}
@@ -81,7 +81,7 @@ func (s *scriptedFileManagementService) HandleQuotaUpdate(drives []LocatedDrive,
 func (s *scriptedFileManagementService) RunAccountingLoop() {
 	var batch []apm.ReportUsageRequest
 
-	allocations := controller.FindAllAllocations(s.name)
+	allocations := controller.AllocationsFindAll(s.name)
 	for _, allocation := range allocations {
 		locatedDrives := EvaluateAllLocators(allocation.Owner)
 		for _, locatedDrive := range locatedDrives {

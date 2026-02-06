@@ -20,7 +20,7 @@ type Script[Req any, Resp any] struct {
 	Script string
 }
 
-func prepareFile(req any) (string, bool) {
+func scriptPrepareFile(req any) (string, bool) {
 	file, err := os.CreateTemp("", "*.json")
 	defer util.SilentClose(file)
 	if err != nil {
@@ -297,7 +297,7 @@ func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
 		return resp, false
 	}
 
-	requestFile, ok := prepareFile(req)
+	requestFile, ok := scriptPrepareFile(req)
 	if !ok {
 		CliScriptsCreate.Invoke(
 			CliScriptsCreateRequest{e.Script, string(reqBytes), "", "", -1, false},

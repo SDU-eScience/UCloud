@@ -139,9 +139,9 @@ func itermMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage) {
 	for i := 0; i < len(config.Folders); i++ {
 		folder := config.Folders[i]
 		driveId := util.GetOptionalElement(util.Components(folder), 0).Value
-		if controller.CanUseDrive(job.Owner, driveId, false) {
+		if controller.DriveCanUse(job.Owner, driveId, false) {
 			spec.Resources = append(spec.Resources, orc.AppParameterValueFile(folder, false))
-		} else if controller.CanUseDrive(job.Owner, driveId, true) {
+		} else if controller.DriveCanUse(job.Owner, driveId, true) {
 			spec.Resources = append(spec.Resources, orc.AppParameterValueFile(folder, true))
 		}
 	}
@@ -179,17 +179,17 @@ func itermShouldRun(job *orc.Job, configuration json.RawMessage) bool {
 			return false
 		}
 
-		drive, ok := controller.RetrieveDrive(driveId)
+		drive, ok := controller.DriveRetrieve(driveId)
 		if !ok {
 			return false
 		}
 
-		storageLocked := controller.IsResourceLocked(drive.Resource, drive.Specification.Product)
+		storageLocked := controller.ResourceIsLocked(drive.Resource, drive.Specification.Product)
 		if storageLocked {
 			return false
 		}
 
-		if !controller.CanUseDrive(job.Owner, driveId, false) {
+		if !controller.DriveCanUse(job.Owner, driveId, false) {
 			return false
 		}
 	}

@@ -12,7 +12,7 @@ import (
 )
 
 type FileManagementService interface {
-	HandleQuotaUpdate(drives []LocatedDrive, update *controller.NotificationWalletUpdated)
+	HandleQuotaUpdate(drives []LocatedDrive, update *controller.EventWalletUpdated)
 	RunAccountingLoop()
 }
 
@@ -32,7 +32,7 @@ func InitFileManagers() {
 		}
 	}
 
-	controller.OnConnectionComplete(func(username string, uid uint32) {
+	controller.IdmAddOnCompleteHandler(func(username string, uid uint32) {
 		if config.Services.Unmanaged {
 			return
 		}
@@ -86,7 +86,7 @@ func InitFileManagers() {
 
 type NopFileManagementService struct{}
 
-func (n *NopFileManagementService) HandleQuotaUpdate(drives []LocatedDrive, update *controller.NotificationWalletUpdated) {
+func (n *NopFileManagementService) HandleQuotaUpdate(drives []LocatedDrive, update *controller.EventWalletUpdated) {
 	log.Info("nop handle quota update")
 	// Do nothing
 }

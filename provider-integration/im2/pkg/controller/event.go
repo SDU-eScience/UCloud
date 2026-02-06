@@ -23,19 +23,19 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-var ApmHandler ApmService
+var EventHandler EventService
 
-type ApmService struct {
-	HandleNotification func(update *NotificationWalletUpdated)
+type EventService struct {
+	HandleNotification func(update *EventWalletUpdated)
 }
 
-var userReplayChannel chan string
+var eventUserReplayChannel chan string
 
 func initEvents() {
-	getLastKnownProjectIpc.Handler(func(r *ipc.Request[string]) ipc.Response[fnd.Project] {
+	eventGetLastKnownProjectIpc.Handler(func(r *ipc.Request[string]) ipc.Response[fnd.Project] {
 		projectId := r.Payload
 		if BelongsToWorkspace(apm.WalletOwnerProject(projectId), r.Uid) {
-			project, ok := RetrieveProject(projectId)
+			project, ok := ProjectRetrieve(projectId)
 			if ok {
 				return ipc.Response[fnd.Project]{
 					StatusCode: http.StatusOK,
@@ -48,7 +48,7 @@ func initEvents() {
 		}
 	})
 
-	userReplayChannel = make(chan string)
+	eventUserReplayChannel = make(chan string)
 
 	go func() {
 		for util.IsAlive {
@@ -79,7 +79,7 @@ func initEvents() {
 				continue
 			}
 
-			handleSession(c, userReplayChannel, replayFrom)
+			eventHandleSession(c, eventUserReplayChannel, replayFrom)
 
 			if util.IsAlive {
 				time.Sleep(5 * time.Second)
@@ -88,40 +88,40 @@ func initEvents() {
 	}()
 }
 
-func handleNotification(nType NotificationMessageType, notification any) {
-	walletHandler := ApmHandler.HandleNotification
+func eventHandleNotification(nType EventNotificationMessageType, notification any) {
+	walletHandler := EventHandler.HandleNotification
 	if walletHandler == nil {
-		walletHandler = func(notification *NotificationWalletUpdated) {
+		walletHandler = func(notification *EventWalletUpdated) {
 			log.Info("Ignoring wallet notification")
 		}
 	}
 
 	projectHandler := IdentityManagement.HandleProjectNotification
 	if projectHandler == nil {
-		projectHandler = func(updated *NotificationProjectUpdated) bool {
+		projectHandler = func(updated *EventProjectUpdated) bool {
 			log.Info("Ignoring project update")
 			return true
 		}
 	}
 
 	switch nType {
-	case NotificationMessageWalletUpdated:
+	case EventNotificationMessageWalletUpdated:
 		success := true
-		update := notification.(*NotificationWalletUpdated)
+		update := notification.(*EventWalletUpdated)
 
 		if update.Project.IsSet() && !update.Project.Get().Specification.CanConsumeResources {
 			// ignore allocator projects
 			return
 		}
 
-		trackAllocation(update)
+		allocationTrack(update)
 
 		log.Info("Handling wallet event %v %v %v %v %v", update.Owner.Username, update.Owner.ProjectId,
 			update.Category.Name, update.CombinedQuota, update.Locked)
 
 		if LaunchUserInstances {
 			if update.Owner.Type == apm.WalletOwnerTypeUser {
-				_, ok, _ := MapUCloudToLocal(update.Owner.Username)
+				_, ok, _ := IdmMapUCloudToLocal(update.Owner.Username)
 				if ok {
 					walletHandler(update)
 				} else {
@@ -136,14 +136,14 @@ func handleNotification(nType NotificationMessageType, notification any) {
 		}
 
 		if success {
-			setReplayFrom()
+			eventUpdateReplayFromToNow()
 		}
 
-	case NotificationMessageProjectUpdated:
-		update := notification.(*NotificationProjectUpdated)
+	case EventNotificationMessageProjectUpdated:
+		update := notification.(*EventProjectUpdated)
 
-		before, _ := RetrieveProject(update.Project.Id)
-		update.ProjectComparison = compareProjects(before, update.Project)
+		before, _ := ProjectRetrieve(update.Project.Id)
+		update.ProjectComparison = projectsCompare(before, update.Project)
 
 		if projectHandler(update) {
 			project := update.Project
@@ -156,7 +156,7 @@ func handleNotification(nType NotificationMessageType, notification any) {
 				}
 
 				var knownMembers []fnd.ProjectMember
-				mappedUsers := MapUCloudUsersToLocalUsers(usernames)
+				mappedUsers := IdmMapUCloudUsersToLocalUsers(usernames)
 				for _, member := range realMembers {
 					_, ok := mappedUsers[member.Username]
 					if !ok {
@@ -169,11 +169,11 @@ func handleNotification(nType NotificationMessageType, notification any) {
 				project.Status.Members = knownMembers
 			}
 
-			saveLastKnownProject(project)
+			eventSaveLastKnownProject(project)
 
 			if LaunchUserInstances {
 				for _, newMember := range update.ProjectComparison.MembersAddedToProject {
-					uid, ok, _ := MapUCloudToLocal(newMember)
+					uid, ok, _ := IdmMapUCloudToLocal(newMember)
 					if ok {
 						RequestUserTermination(uid)
 					}
@@ -181,15 +181,15 @@ func handleNotification(nType NotificationMessageType, notification any) {
 			}
 		}
 
-		for _, callback := range projectNotificationCallbacks {
+		for _, callback := range idmProjectNotificationCallbacks {
 			callback(update)
 		}
 
-		setReplayFrom()
+		eventUpdateReplayFromToNow()
 	}
 }
 
-func setReplayFrom() {
+func eventUpdateReplayFromToNow() {
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -207,19 +207,19 @@ func setReplayFrom() {
 }
 
 const (
-	OpAuth         uint8 = 0
-	OpWallet       uint8 = 1
-	OpProject      uint8 = 2
-	OpCategoryInfo uint8 = 3
-	OpUserInfo     uint8 = 4
-	OpReplayUser   uint8 = 5
+	EvOpAuth         uint8 = 0
+	EvOpWallet       uint8 = 1
+	EvOpProject      uint8 = 2
+	EvOpCategoryInfo uint8 = 3
+	EvOpUserInfo     uint8 = 4
+	EvOpReplayUser   uint8 = 5
 )
 
 const (
-	apmIncludeRetired uint64 = 1 << iota
+	eventIncludeRetired uint64 = 1 << iota
 )
 
-func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom int64) {
+func eventHandleSession(session *ws.Conn, userReplayChannel chan string, replayFrom int64) {
 	defer util.SilentClose(session)
 
 	projects := make(map[uint32]fnd.Project)
@@ -227,9 +227,9 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom i
 	users := make(map[uint32]string)
 
 	writeBuf := buf{}
-	writeBuf.PutU8(OpAuth)
+	writeBuf.PutU8(EvOpAuth)
 	writeBuf.PutU64(uint64(replayFrom))
-	writeBuf.PutU64(apmIncludeRetired) // flags
+	writeBuf.PutU64(eventIncludeRetired) // flags
 	writeBuf.PutString(rpc.DefaultClient.RetrieveAccessTokenOrRefresh())
 
 	_ = session.WriteMessage(ws.TextMessage, writeBuf.Bytes())
@@ -261,7 +261,7 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom i
 			for readBuf.Len() > 0 {
 				op := readBuf.GetU8()
 				switch op {
-				case OpWallet:
+				case EvOpWallet:
 					workspaceRef := readBuf.GetU32()
 					categoryRef := readBuf.GetU32()
 					combinedQuota := readBuf.GetU64()
@@ -278,7 +278,7 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom i
 					isLocked := (flags & 0x1) != 0
 					isProject := (flags & 0x2) != 0
 
-					notification := NotificationWalletUpdated{
+					notification := EventWalletUpdated{
 						CombinedQuota:     combinedQuota,
 						LastUpdate:        fnd.TimeFromUnixMilli(lastUpdate),
 						Locked:            isLocked,
@@ -305,9 +305,9 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom i
 						notification.Owner.Username = users[workspaceRef]
 					}
 
-					handleNotification(NotificationMessageWalletUpdated, &notification)
+					eventHandleNotification(EventNotificationMessageWalletUpdated, &notification)
 
-				case OpCategoryInfo:
+				case EvOpCategoryInfo:
 					ref := readBuf.GetU32()
 					categoryJson := readBuf.GetString()
 					var category apm.ProductCategory
@@ -319,12 +319,12 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom i
 
 					products[ref] = category
 
-				case OpUserInfo:
+				case EvOpUserInfo:
 					ref := readBuf.GetU32()
 					username := readBuf.GetString()
 					users[ref] = username
 
-				case OpProject:
+				case EvOpProject:
 					ref := readBuf.GetU32()
 					lastUpdated := fnd.TimeFromUnixMilli(readBuf.GetU64())
 					projectJson := readBuf.GetString()
@@ -337,12 +337,12 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom i
 
 					projects[ref] = project
 
-					notification := NotificationProjectUpdated{
+					notification := EventProjectUpdated{
 						LastUpdate: lastUpdated,
 						Project:    project,
 					}
 
-					handleNotification(NotificationMessageProjectUpdated, &notification)
+					eventHandleNotification(EventNotificationMessageProjectUpdated, &notification)
 				default:
 					log.Warn("Invalid APM opcode received: %v", op)
 				}
@@ -350,21 +350,21 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom i
 
 		case replayUser := <-userReplayChannel:
 			writeBuf.Reset()
-			writeBuf.PutU8(OpReplayUser)
+			writeBuf.PutU8(EvOpReplayUser)
 			writeBuf.PutString(replayUser)
 			_ = session.WriteMessage(ws.BinaryMessage, writeBuf.Bytes())
 		}
 	}
 }
 
-type NotificationMessageType int
+type EventNotificationMessageType int
 
 const (
-	NotificationMessageWalletUpdated NotificationMessageType = iota
-	NotificationMessageProjectUpdated
+	EventNotificationMessageWalletUpdated EventNotificationMessageType = iota
+	EventNotificationMessageProjectUpdated
 )
 
-type NotificationWalletUpdated struct {
+type EventWalletUpdated struct {
 	Owner             apm.WalletOwner
 	Category          apm.ProductCategory
 	CombinedQuota     uint64
@@ -374,7 +374,7 @@ type NotificationWalletUpdated struct {
 	LocalRetiredUsage uint64
 }
 
-type NotificationProjectUpdated struct {
+type EventProjectUpdated struct {
 	LastUpdate fnd.Timestamp
 	Project    fnd.Project
 	ProjectComparison
@@ -512,8 +512,8 @@ func (b *buf) GetString() string {
 	return string(result)
 }
 
-func saveLastKnownProject(project fnd.Project) {
-	projectCacheServerOnly.Add(project.Id, project)
+func eventSaveLastKnownProject(project fnd.Project) {
+	eventProjectCacheServerOnly.Add(project.Id, project)
 
 	data, _ := json.Marshal(project)
 
@@ -535,12 +535,12 @@ func saveLastKnownProject(project fnd.Project) {
 	})
 }
 
-var getLastKnownProjectIpc = ipc.NewCall[string, fnd.Project]("event.getlastknownproject")
-var projectCacheServerOnly = lru.NewLRU[string, fnd.Project](1024, nil, 10*time.Minute)
+var eventGetLastKnownProjectIpc = ipc.NewCall[string, fnd.Project]("event.getlastknownproject")
+var eventProjectCacheServerOnly = lru.NewLRU[string, fnd.Project](1024, nil, 10*time.Minute)
 
-func RetrieveProject(projectId string) (fnd.Project, bool) {
+func ProjectRetrieve(projectId string) (fnd.Project, bool) {
 	if RunsServerCode() {
-		result, ok := projectCacheServerOnly.Get(projectId)
+		result, ok := eventProjectCacheServerOnly.Get(projectId)
 		if !ok {
 			jsonData, ok := db.NewTx2[string, bool](func(tx *db.Transaction) (string, bool) {
 				jsonData, ok := db.Get[struct{ UCloudProject string }](
@@ -567,13 +567,13 @@ func RetrieveProject(projectId string) (fnd.Project, bool) {
 				log.Warn("Could not unmarshal last known project %v -> %v", projectId, jsonData)
 				return fnd.Project{}, false
 			}
-			projectCacheServerOnly.Add(projectId, result)
+			eventProjectCacheServerOnly.Add(projectId, result)
 			return result, true
 		} else {
 			return result, true
 		}
 	} else {
-		project, err := getLastKnownProjectIpc.Invoke(projectId)
+		project, err := eventGetLastKnownProjectIpc.Invoke(projectId)
 		if err != nil {
 			return fnd.Project{}, false
 		}
@@ -582,7 +582,7 @@ func RetrieveProject(projectId string) (fnd.Project, bool) {
 }
 
 func BelongsToWorkspace(workspace apm.WalletOwner, uid uint32) bool {
-	ucloudUser, ok, _ := MapLocalToUCloud(uid)
+	ucloudUser, ok, _ := IdmMapLocalToUCloud(uid)
 	if !ok {
 		return false
 	}
@@ -590,7 +590,7 @@ func BelongsToWorkspace(workspace apm.WalletOwner, uid uint32) bool {
 	if workspace.Type == apm.WalletOwnerTypeUser {
 		return ucloudUser == workspace.Username
 	} else {
-		project, ok := RetrieveProject(workspace.ProjectId)
+		project, ok := ProjectRetrieve(workspace.ProjectId)
 		if !ok {
 			return false
 		}
@@ -612,7 +612,7 @@ type ProjectComparison struct {
 	MembersRemovedFromProject []string
 }
 
-func compareProjects(before fnd.Project, after fnd.Project) ProjectComparison {
+func projectsCompare(before fnd.Project, after fnd.Project) ProjectComparison {
 	oldMembers := before.Status.Members
 
 	var newMembers []string
@@ -662,7 +662,7 @@ type TrackedAllocation struct {
 	LocalRetiredUsage uint64
 }
 
-func trackAllocation(update *NotificationWalletUpdated) {
+func allocationTrack(update *EventWalletUpdated) {
 	cacheKey := lockedCacheKey{Owner: update.Owner, Category: update.Category.Name}
 	isLockedCacheMutex.Lock()
 	isLockedCache[cacheKey] = update.Locked
@@ -693,7 +693,7 @@ func trackAllocation(update *NotificationWalletUpdated) {
 	})
 }
 
-func FindAllAllocations(categoryName string) []TrackedAllocation {
+func AllocationsFindAll(categoryName string) []TrackedAllocation {
 	return db.NewTx[[]TrackedAllocation](func(tx *db.Transaction) []TrackedAllocation {
 		var result []TrackedAllocation
 		rows := db.Select[struct {
@@ -740,7 +740,7 @@ type lockedCacheKey struct {
 var isLockedCache = map[lockedCacheKey]bool{}
 var isLockedCacheMutex = sync.Mutex{}
 
-func IsLocked(owner apm.WalletOwner, category string) bool {
+func WalletIsLocked(owner apm.WalletOwner, category string) bool {
 	if category == "terminal" || category == "syncthing" {
 		return false // TODO(Dan): Fix this correctly.
 	}
@@ -785,10 +785,10 @@ func IsLocked(owner apm.WalletOwner, category string) bool {
 		isLockedCacheMutex.Unlock()
 		return locked
 	} else {
-		panic("IsLocked is only implemented for server mode")
+		panic("WalletIsLocked is only implemented for server mode")
 	}
 }
 
-func IsResourceLocked(resource orc.Resource, ref apm.ProductReference) bool {
-	return IsLocked(apm.WalletOwnerFromIds(resource.Owner.CreatedBy, resource.Owner.Project.Value), ref.Category)
+func ResourceIsLocked(resource orc.Resource, ref apm.ProductReference) bool {
+	return WalletIsLocked(apm.WalletOwnerFromIds(resource.Owner.CreatedBy, resource.Owner.Project.Value), ref.Category)
 }

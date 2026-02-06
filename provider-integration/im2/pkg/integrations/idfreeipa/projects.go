@@ -12,8 +12,8 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-func handleProjectNotification(updated *controller.NotificationProjectUpdated) bool {
-	gid, ok := controller.MapUCloudProjectToLocal(updated.Project.Id)
+func handleProjectNotification(updated *controller.EventProjectUpdated) bool {
+	gid, ok := controller.IdmMapUCloudProjectToLocal(updated.Project.Id)
 	if !ok {
 		success := false
 		strategy := config.ProjectStrategy
@@ -48,7 +48,7 @@ func handleProjectNotification(updated *controller.NotificationProjectUpdated) b
 			return false
 		} else {
 			clearSssdCache()
-			controller.RegisterProjectMapping(updated.Project.Id, uint32(gid))
+			controller.IdmRegisterProjectMapping(updated.Project.Id, uint32(gid))
 		}
 	}
 
@@ -59,7 +59,7 @@ func handleProjectNotification(updated *controller.NotificationProjectUpdated) b
 	}
 
 	for _, member := range updated.ProjectComparison.MembersAddedToProject {
-		memberUid, ok, _ := controller.MapUCloudToLocal(member)
+		memberUid, ok, _ := controller.IdmMapUCloudToLocal(member)
 		if !ok {
 			continue
 		}
@@ -79,7 +79,7 @@ func handleProjectNotification(updated *controller.NotificationProjectUpdated) b
 	}
 
 	for _, member := range updated.ProjectComparison.MembersRemovedFromProject {
-		memberUid, ok, _ := controller.MapUCloudToLocal(member)
+		memberUid, ok, _ := controller.IdmMapUCloudToLocal(member)
 		if !ok {
 			continue
 		}

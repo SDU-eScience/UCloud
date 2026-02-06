@@ -34,9 +34,9 @@ type ParamAndValue struct {
 	Value     orcapi.AppParameterValue
 }
 
-type ArgBuilder func(value ParamAndValue) string
+type JobArgBuilder func(value ParamAndValue) string
 
-func DefaultArgBuilder(fileMapper func(ucloudPath string) string) ArgBuilder {
+func JobDefaultArgBuilder(fileMapper func(ucloudPath string) string) JobArgBuilder {
 	return func(pv ParamAndValue) string {
 		param := pv.Parameter
 		value := pv.Value
@@ -106,11 +106,11 @@ func DefaultArgBuilder(fileMapper func(ucloudPath string) string) ArgBuilder {
 	}
 }
 
-func BuildParameter(
+func JobBuildParameter(
 	param orcapi.InvocationParameter,
 	values map[string]ParamAndValue,
 	environmentVariable bool,
-	builder ArgBuilder,
+	builder JobArgBuilder,
 	jinjaCtx *exec.Context,
 ) []string {
 	switch param.Type {
@@ -123,7 +123,7 @@ func BuildParameter(
 				flags |= JinjaFlagsNoEscape
 			}
 
-			output, err := ExecuteJinjaTemplate(
+			output, err := JinjaTemplateExecute(
 				param.InvocationParameterJinja.Template,
 				0,
 				func(session any, fn string, args []string) string {
@@ -240,7 +240,7 @@ func BuildParameter(
 	}
 }
 
-func VerifyParameterType(param *orcapi.ApplicationParameter, value *orcapi.AppParameterValue) bool {
+func JobVerifyParameterType(param *orcapi.ApplicationParameter, value *orcapi.AppParameterValue) bool {
 	switch param.Type {
 	case orcapi.ApplicationParameterTypeInputDirectory:
 		fallthrough
@@ -307,7 +307,7 @@ func VerifyParameterType(param *orcapi.ApplicationParameter, value *orcapi.AppPa
 	return true
 }
 
-func ReadParameterValuesFromJob(job *orcapi.Job, application *orcapi.ApplicationInvocationDescription) map[string]ParamAndValue {
+func JobFindParamAndValues(job *orcapi.Job, application *orcapi.ApplicationInvocationDescription) map[string]ParamAndValue {
 	parameters := make(map[string]ParamAndValue)
 
 	allParameters := application.Parameters
@@ -325,12 +325,12 @@ func ReadParameterValuesFromJob(job *orcapi.Job, application *orcapi.Application
 			continue
 		}
 
-		value, ok := readDefaultValue(param.Type, param.DefaultValue)
+		value, ok := jobReadDefaultValue(param.Type, param.DefaultValue)
 		if !ok {
 			continue
 		}
 
-		if !VerifyParameterType(&param, &value) {
+		if !JobVerifyParameterType(&param, &value) {
 			continue
 		}
 
@@ -359,7 +359,7 @@ func ReadParameterValuesFromJob(job *orcapi.Job, application *orcapi.Application
 			}
 
 			param := parameter.Get()
-			if !VerifyParameterType(&param, &value) {
+			if !JobVerifyParameterType(&param, &value) {
 				continue
 			}
 
@@ -372,26 +372,26 @@ func ReadParameterValuesFromJob(job *orcapi.Job, application *orcapi.Application
 	return parameters
 }
 
-func readDefaultValue(t orcapi.ApplicationParameterType, input json.RawMessage) (orcapi.AppParameterValue, bool) {
+func jobReadDefaultValue(t orcapi.ApplicationParameterType, input json.RawMessage) (orcapi.AppParameterValue, bool) {
 	if string(input) == "null" {
 		return orcapi.AppParameterValue{}, false
 	}
 
 	switch t {
 	case orcapi.ApplicationParameterTypeBoolean:
-		v, ok := genericDefaultParse[bool](input)
+		v, ok := jobGenericDefaultParse[bool](input)
 		if ok {
 			return orcapi.AppParameterValueBoolean(v), true
 		}
 
 	case orcapi.ApplicationParameterTypeInteger:
-		v, ok := genericDefaultParse[int64](input)
+		v, ok := jobGenericDefaultParse[int64](input)
 		if ok {
 			return orcapi.AppParameterValueInteger(v), true
 		}
 
 	case orcapi.ApplicationParameterTypeFloatingPoint:
-		v, ok := genericDefaultParse[float64](input)
+		v, ok := jobGenericDefaultParse[float64](input)
 		if ok {
 			return orcapi.AppParameterValueFloatingPoint(v), true
 		}
@@ -399,7 +399,7 @@ func readDefaultValue(t orcapi.ApplicationParameterType, input json.RawMessage) 
 	case orcapi.ApplicationParameterTypeText,
 		orcapi.ApplicationParameterTypeTextArea,
 		orcapi.ApplicationParameterTypeEnumeration:
-		v, ok := genericDefaultParse[string](input)
+		v, ok := jobGenericDefaultParse[string](input)
 		if ok {
 			return orcapi.AppParameterValueText(v), true
 		}
@@ -408,7 +408,7 @@ func readDefaultValue(t orcapi.ApplicationParameterType, input json.RawMessage) 
 	return orcapi.AppParameterValue{}, false
 }
 
-func genericDefaultParse[T any](input json.RawMessage) (T, bool) {
+func jobGenericDefaultParse[T any](input json.RawMessage) (T, bool) {
 	var asDirect T
 	err := json.Unmarshal(input, &asDirect)
 	if err == nil {

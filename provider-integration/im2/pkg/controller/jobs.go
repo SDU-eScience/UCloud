@@ -126,29 +126,6 @@ type JobTerminateRequest struct {
 	IsCleanup bool
 }
 
-type JobSuspendRequest struct {
-	Job *orcapi.Job
-}
-
-type JobUnsuspendRequest struct {
-	Job *orcapi.Job
-}
-
-type JobSubmitRequest struct {
-	JobToSubmit *orcapi.Job
-}
-
-type JobExtendRequest struct {
-	Job           *orcapi.Job
-	RequestedTime orcapi.SimpleDuration
-}
-
-type JobOpenInteractiveSessionRequest struct {
-	Rank int
-	Job  *orcapi.Job
-	Type orcapi.InteractiveSessionType
-}
-
 var (
 	metricJobsSubmitted = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: "ucloud_im",
@@ -179,7 +156,7 @@ var (
 	})
 )
 
-func controllerJobs() {
+func initJobs() {
 	if RunsServerCode() {
 		jobsIpcServer()
 	}
@@ -204,7 +181,7 @@ func controllerJobs() {
 					continue
 				}
 
-				TrackNewJob(item)
+				JobTrackNew(item)
 
 				providerGeneratedId, err := Jobs.Submit(item)
 
@@ -217,7 +194,7 @@ func controllerJobs() {
 				if err != nil {
 					copied := item
 					copied.Status.State = orcapi.JobStateFailure
-					TrackNewJob(copied)
+					JobTrackNew(copied)
 					errors = append(errors, err)
 				}
 			}
@@ -269,7 +246,7 @@ func controllerJobs() {
 					}
 				}
 
-				TrackNewJob(job)
+				JobTrackNew(job)
 
 				resp.Responses = append(resp.Responses, util.Empty{})
 			}
@@ -376,7 +353,7 @@ func controllerJobs() {
 			for _, item := range request.Items {
 				switch item.SessionType {
 				case orcapi.InteractiveSessionTypeShell:
-					cleanupShellSessions()
+					jobCleanupShellSessions()
 
 					shellSessionsMutex.Lock()
 					tok := util.RandomToken(32)
@@ -406,7 +383,7 @@ func controllerJobs() {
 							}
 						}
 
-						redirect, err := RegisterIngress(&item.Job, item.Rank, target.Host, item.Target, flags)
+						redirect, err := IngressRegisterWithJob(&item.Job, item.Rank, target.Host, item.Target, flags)
 						if err != nil {
 							errors = append(errors, err)
 						} else {
@@ -449,7 +426,7 @@ func controllerJobs() {
 			var responses []orcapi.OpenSession
 
 			for _, item := range request.Items {
-				cleanupShellSessions()
+				jobCleanupShellSessions()
 
 				shellSessionsMutex.Lock()
 				tok := util.RandomToken(32)
@@ -676,7 +653,7 @@ func controllerJobs() {
 
 					switch followRequest.Type {
 					case jobsProviderFollowRequestTypeInit:
-						session := createFollowSession(requestMessage.StreamId, sendMessage, &alive, followRequest.Job)
+						session := jobCreateFollowSession(requestMessage.StreamId, sendMessage, &alive, followRequest.Job)
 						go func() {
 							Jobs.Follow(session)
 							*session.Alive = false
@@ -753,13 +730,13 @@ func controllerJobs() {
 			var providerIds []fnd.FindByStringId
 
 			for _, item := range request.Items {
-				if IsResourceLocked(item.Resource, item.Specification.Product) {
+				if ResourceIsLocked(item.Resource, item.Specification.Product) {
 					return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusPaymentRequired, "insufficient funds for %s", item.Specification.Product.Category)
 				}
 			}
 
 			for _, item := range request.Items {
-				TrackNewPublicIp(item)
+				PublicIpTrackNew(item)
 				providerIds = append(providerIds, fnd.FindByStringId{})
 
 				fn := Jobs.PublicIPs.Create
@@ -817,7 +794,7 @@ func controllerJobs() {
 			for _, item := range request.Items {
 				copied := item.PublicIp
 				copied.Specification.Firewall = util.OptValue(item.Firewall)
-				TrackNewPublicIp(copied)
+				PublicIpTrackNew(copied)
 			}
 
 			if len(errors) == 1 && len(request.Items) == 1 {
@@ -864,7 +841,7 @@ func controllerJobs() {
 					}
 				}
 
-				TrackNewPublicIp(publicIp)
+				PublicIpTrackNew(publicIp)
 
 				resp.Responses = append(resp.Responses, util.Empty{})
 			}
@@ -877,7 +854,7 @@ func controllerJobs() {
 			var providerIds []fnd.FindByStringId
 
 			for _, item := range request.Items {
-				TrackLink(item)
+				LinkTrack(item)
 				providerIds = append(providerIds, fnd.FindByStringId{})
 
 				fn := Jobs.Ingresses.Create
@@ -966,7 +943,7 @@ func controllerJobs() {
 					}
 				}
 
-				TrackLink(ingress)
+				LinkTrack(ingress)
 
 				resp.Responses = append(resp.Responses, util.Empty{})
 			}
@@ -979,13 +956,13 @@ func controllerJobs() {
 			var providerIds []fnd.FindByStringId
 
 			for _, item := range request.Items {
-				if IsResourceLocked(item.Resource, item.Specification.Product) {
+				if ResourceIsLocked(item.Resource, item.Specification.Product) {
 					return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusPaymentRequired, "insufficient funds for %s", item.Specification.Product.Category)
 				}
 			}
 
 			for _, item := range request.Items {
-				TrackLicense(item)
+				LicenseTrack(item)
 				providerIds = append(providerIds, fnd.FindByStringId{})
 
 				fn := Jobs.Licenses.Create
@@ -1074,7 +1051,7 @@ func controllerJobs() {
 					}
 				}
 
-				TrackLicense(license)
+				LicenseTrack(license)
 
 				resp.Responses = append(resp.Responses, util.Empty{})
 			}
@@ -1182,7 +1159,7 @@ func controllerJobs() {
 					return
 				}
 
-				job, ok := RetrieveJob(idAndRank.JobId)
+				job, ok := JobRetrieve(idAndRank.JobId)
 				if !ok {
 					sendError(writer, (&util.HttpError{
 						StatusCode: http.StatusInternalServerError,
@@ -1257,13 +1234,13 @@ type jobsProviderFollowResponse struct {
 	Channel  util.Option[string] `json:"channel"`
 }
 
-func createFollowSession(
+func jobCreateFollowSession(
 	wsStreamId string,
 	writeMessage func(message any) error,
 	alive *bool,
 	job *orcapi.Job,
 ) *FollowJobSession {
-	cleanupFollowSessions()
+	jobCleanupFollowSessions()
 
 	session := &FollowJobSession{
 		Id:       util.RandomToken(16),
@@ -1305,7 +1282,7 @@ func createFollowSession(
 	return session
 }
 
-func cleanupFollowSessions() {
+func jobCleanupFollowSessions() {
 	followSessionsMutex.Lock()
 	defer followSessionsMutex.Unlock()
 
@@ -1319,7 +1296,7 @@ func cleanupFollowSessions() {
 var followSessions = make(map[string]*FollowJobSession)
 var followSessionsMutex = sync.Mutex{}
 
-func cleanupShellSessions() {
+func jobCleanupShellSessions() {
 	shellSessionsMutex.Lock()
 	defer shellSessionsMutex.Unlock()
 
@@ -1370,7 +1347,7 @@ var webSessionsMutex = sync.RWMutex{}
 
 func jobsIpcServer() {
 	jobsRegisterIngressCall.Handler(func(r *ipc.Request[jobRegisteredIngress]) ipc.Response[string] {
-		job, ok := RetrieveJob(r.Payload.JobId)
+		job, ok := JobRetrieve(r.Payload.JobId)
 		if !ok {
 			return ipc.Response[string]{
 				StatusCode: http.StatusNotFound,
@@ -1385,7 +1362,7 @@ func jobsIpcServer() {
 			}
 		}
 
-		result, err := RegisterIngress(job, r.Payload.Rank, r.Payload.Target, r.Payload.RequestedSuffix, r.Payload.Flags)
+		result, err := IngressRegisterWithJob(job, r.Payload.Rank, r.Payload.Target, r.Payload.RequestedSuffix, r.Payload.Flags)
 		if err != nil {
 			return ipc.Response[string]{
 				StatusCode: http.StatusInternalServerError,
@@ -1447,7 +1424,7 @@ func ToHostnameSafe(input string) string {
 	return result
 }
 
-func RegisterIngress(job *orcapi.Job, rank int, target cfg.HostInfo, requestedSuffix util.Option[string], flags RegisteredIngressFlags) (string, *util.HttpError) {
+func IngressRegisterWithJob(job *orcapi.Job, rank int, target cfg.HostInfo, requestedSuffix util.Option[string], flags RegisteredIngressFlags) (string, *util.HttpError) {
 	isWeb := (flags & RegisteredIngressFlagsWeb) != 0
 	isVnc := (flags & RegisteredIngressFlagsVnc) != 0
 
@@ -1567,7 +1544,7 @@ func RegisterIngress(job *orcapi.Job, rank int, target cfg.HostInfo, requestedSu
 				}
 			}
 			webSessionsMutex.Unlock()
-			refreshJobRoutes()
+			jobRoutesRefresh()
 		}
 
 		if isWeb {
@@ -1646,10 +1623,10 @@ func jobsLoadSessions() {
 	})
 	webSessionsMutex.Unlock()
 
-	refreshJobRoutes()
+	jobRoutesRefresh()
 }
 
-func refreshJobRoutes() {
+func jobRoutesRefresh() {
 	allJobs := JobsListServer()
 	allJobsById := map[string]*orcapi.Job{}
 	for _, job := range allJobs {

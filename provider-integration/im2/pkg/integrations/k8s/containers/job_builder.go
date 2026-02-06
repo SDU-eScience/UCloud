@@ -35,7 +35,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		}
 	}
 
-	iappConfig := controller.RetrieveIAppByJobId(job.Id)
+	iappConfig := controller.IAppRetrieveByJobId(job.Id)
 	iappHandler := util.OptNone[ContainerIAppHandler]()
 	if iappConfig.Present {
 		jobCopy := *job
@@ -80,7 +80,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			}
 
 			if resc.Type == orc.AppParameterValueTypePeer {
-				peerJob, ok := controller.RetrieveJob(resc.JobId)
+				peerJob, ok := controller.JobRetrieve(resc.JobId)
 				if !ok {
 					rejectionMessage.Set("One of your connected jobs cannot be used in this project")
 					break
@@ -517,7 +517,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	if herr == nil && rank == 0 {
 		ucloudFolder, ok := filesystem2.InternalToUCloudWithDrive(drive, jobFolder)
 		if ok {
-			_ = controller.TrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
+			_ = controller.JobTrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
 				{
 					Id: job.Id,
 					Update: orc.JobUpdate{

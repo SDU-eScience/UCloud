@@ -41,9 +41,9 @@ func handleShell(session *controller.ShellSession, cols int, rows int) {
 		if allowRetry {
 			if session.Alive && util.IsAlive && session.Folder != "" {
 				owner := orc.ResourceOwner{CreatedBy: session.UCloudUsername}
-				config := controller.RetrieveIAppConfiguration(integratedTerminalAppName, owner)
+				config := controller.IAppRetrieveConfiguration(integratedTerminalAppName, owner)
 				if config.Present {
-					job, ok := controller.RetrieveJob(config.Value.JobId)
+					job, ok := controller.JobRetrieve(config.Value.JobId)
 					if ok && !job.Status.State.IsFinal() {
 						continue
 					}
@@ -65,13 +65,13 @@ func handleShellNoRetry(session *controller.ShellSession, cols int, rows int, is
 		driveToMount := util.GetOptionalElement(util.Components(session.Folder), 0).Value
 
 		owner := orc.ResourceOwner{CreatedBy: session.UCloudUsername}
-		config := controller.RetrieveIAppConfiguration(integratedTerminalAppName, owner)
+		config := controller.IAppRetrieveConfiguration(integratedTerminalAppName, owner)
 		var newConfiguration util.Option[iappTermConfig]
 		if config.Present {
 			var parsedConfig iappTermConfig
 			_ = json.Unmarshal(config.Value.Configuration, &parsedConfig)
 
-			job, ok := controller.RetrieveJob(config.Value.JobId)
+			job, ok := controller.JobRetrieve(config.Value.JobId)
 			if !ok || job.Status.State != orc.JobStateRunning {
 				newConfiguration.Set(parsedConfig)
 
@@ -102,7 +102,7 @@ func handleShellNoRetry(session *controller.ShellSession, cols int, rows int, is
 		if newConfiguration.Present {
 			data, _ := json.Marshal(newConfiguration.Value)
 
-			err := controller.ConfigureIApp(
+			err := controller.IAppConfigure(
 				integratedTerminalAppName,
 				owner,
 				util.OptNone[string](),
@@ -114,7 +114,7 @@ func handleShellNoRetry(session *controller.ShellSession, cols int, rows int, is
 				return false
 			}
 
-			config = controller.RetrieveIAppConfiguration(integratedTerminalAppName, owner)
+			config = controller.IAppRetrieveConfiguration(integratedTerminalAppName, owner)
 		}
 
 		if !config.Present {
@@ -145,7 +145,7 @@ func handleShellNoRetry(session *controller.ShellSession, cols int, rows int, is
 
 		waitCount := 0
 		for util.IsAlive && session.Alive {
-			job, ok := controller.RetrieveJob(jobId)
+			job, ok := controller.JobRetrieve(jobId)
 			if !ok {
 				log.Info("No longer able to see integrated terminal job while waiting for it!")
 				session.EmitData([]byte("Job is no longer known - Internal error?"))
@@ -180,7 +180,7 @@ func handleShellNoRetry(session *controller.ShellSession, cols int, rows int, is
 					kcancel()
 
 					if err == nil {
-						activeIApps := controller.RetrieveIAppsByJobId()
+						activeIApps := controller.IAppRetrieveAllByJobId()
 						iappConfig, iappOk := activeIApps[job.Id]
 						handler, handlerOk := IApps[integratedTerminalAppName]
 

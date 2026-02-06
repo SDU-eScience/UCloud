@@ -14,9 +14,9 @@ import (
 )
 
 func preparePublicIp(job *orc.Job, firewall *networking.NetworkPolicy, container *core.Container) *core.Service {
-	ips, privateIps, err := controller.BindIpsToJob(job)
+	ips, privateIps, err := controller.PublicIpBindToJob(job)
 	if err != nil {
-		_ = controller.TrackJobMessages([]controller.JobMessage{
+		_ = controller.JobTrackMessage([]controller.JobMessage{
 			{JobId: job.Id,
 				Message: fmt.Sprintf("Failed to bind IP address. %s", err),
 			},
@@ -91,7 +91,7 @@ func preparePublicIp(job *orc.Job, firewall *networking.NetworkPolicy, container
 			}
 		}
 
-		_ = controller.TrackJobMessages([]controller.JobMessage{
+		_ = controller.JobTrackMessage([]controller.JobMessage{
 			{
 				JobId:   job.Id,
 				Message: message.String(),

@@ -257,7 +257,7 @@ func HandleUsersCommandServer() {
 		}
 
 		nuid, _ := strconv.Atoi(uinfo.Uid)
-		err = ctrl.RegisterConnectionComplete(r.Payload.UCloudName, uint32(nuid), true).AsError()
+		err = ctrl.IdmRegisterCompleted(r.Payload.UCloudName, uint32(nuid), true).AsError()
 		if err != nil {
 			return ipc.Response[util.Empty]{
 				StatusCode:   http.StatusBadRequest,
@@ -293,13 +293,13 @@ func HandleUsersCommandServer() {
 
 		var errors []string
 		for _, uid := range r.Payload.Uids {
-			var flags ctrl.RemoveConnectionFlag
-			flags = ctrl.RemoveConnectionNotify
+			var flags ctrl.IdmConnectionRemoveFlag
+			flags = ctrl.IdmConnectionRemoveNotify
 			if r.Payload.ActualRemove {
-				flags |= ctrl.RemoveConnectionTrulyRemove
+				flags |= ctrl.IdmConnectionRemoveTrulyRemove
 			}
 
-			err := ctrl.RemoveConnection(uid, flags)
+			err := ctrl.IdmConnectionRemove(uid, flags)
 			if err != nil {
 				errors = append(errors, err.AsError().Error())
 			} else {

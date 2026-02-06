@@ -321,9 +321,9 @@ func loopMonitoring() {
 	// Job monitoring
 	// -----------------------------------------------------------------------------------------------------------------
 	timer.Mark()
-	activeJobs := controller.GetJobs()
+	activeJobs := controller.JobRetrieveAll()
 	tracker := &jobTracker{
-		batch: controller.BeginJobUpdates(),
+		batch: controller.JobUpdatesBegin(),
 		gangs: map[string]jobGang{},
 	}
 
@@ -333,7 +333,7 @@ func loopMonitoring() {
 	timer.Mark()
 	entriesToRemove := shared2.SwapScheduleRemoveFromQueue()
 	for _, jobId := range entriesToRemove {
-		job, ok := controller.RetrieveJob(jobId)
+		job, ok := controller.JobRetrieve(jobId)
 		if ok {
 			sched, ok := getSchedulerByJob(job)
 			if ok {
@@ -373,7 +373,7 @@ func loopMonitoring() {
 	{
 		// Lock jobs which are out of resources
 
-		activeJobsAfterBatch := controller.GetJobs()
+		activeJobsAfterBatch := controller.JobRetrieveAll()
 		metricMonitoring.WithLabelValues("FetchJobs").Observe(timer.Mark().Seconds())
 
 		timer.Mark()
@@ -392,20 +392,20 @@ func loopMonitoring() {
 		metricMonitoring.WithLabelValues("CheckingLockState").Observe(timer.Mark().Seconds())
 
 		timer.Mark()
-		_ = controller.TrackJobMessages(lockedMessages)
+		_ = controller.JobTrackMessage(lockedMessages)
 		metricMonitoring.WithLabelValues("JobUpdates").Observe(timer.Mark().Seconds())
 	}
 
 	go func() {
 		for _, jobId := range tracker.terminationRequested {
-			job, ok := controller.RetrieveJob(jobId)
+			job, ok := controller.JobRetrieve(jobId)
 			if ok {
 				_ = terminate(controller.JobTerminateRequest{Job: job, IsCleanup: true})
 			}
 		}
 
 		for _, jobId := range batchResults.TerminatedDueToUnknownState {
-			job, ok := controller.RetrieveJob(jobId)
+			job, ok := controller.JobRetrieve(jobId)
 			if ok {
 				_ = terminate(controller.JobTerminateRequest{Job: job, IsCleanup: true})
 			}
@@ -414,7 +414,7 @@ func loopMonitoring() {
 		var kubevirtStarted []orc.Job
 		var containersStarted []orc.Job
 		for _, jobId := range batchResults.NormalStart {
-			job, ok := controller.RetrieveJob(jobId)
+			job, ok := controller.JobRetrieve(jobId)
 			if ok {
 				if backendIsKubevirt(job) {
 					kubevirtStarted = append(kubevirtStarted, *job)
@@ -591,7 +591,7 @@ func loopMonitoring() {
 		for i := 0; i < length; i++ {
 			timer.Mark()
 			toSchedule := &jobsToSchedule[i]
-			job, ok := controller.RetrieveJob(toSchedule.JobId)
+			job, ok := controller.JobRetrieve(toSchedule.JobId)
 			if !ok {
 				continue
 			}
@@ -687,7 +687,7 @@ func loopMonitoring() {
 		}
 	}
 
-	_ = controller.TrackJobMessages(scheduleMessages)
+	_ = controller.JobTrackMessage(scheduleMessages)
 	metricMonitoring.WithLabelValues("JobUpdates").Observe(timer.Mark().Seconds())
 }
 

@@ -23,10 +23,10 @@ func initIngressDatabase() {
 
 	ingressesMutex.Lock()
 	defer ingressesMutex.Unlock()
-	fetchAllLinks()
+	linksFetchAll()
 }
 
-func fetchAllLinks() {
+func linksFetchAll() {
 	result := db.NewTx(func(tx *db.Transaction) []*orc.Ingress {
 		var result []*orc.Ingress
 		rows := db.Select[struct{ Resource string }](
@@ -52,7 +52,7 @@ func fetchAllLinks() {
 	}
 }
 
-func TrackLink(ingress orc.Ingress) {
+func LinkTrack(ingress orc.Ingress) {
 	// Automatically assign timestamps to all updates that do not have one
 	for i := 0; i < len(ingress.Updates); i++ {
 		update := &ingress.Updates[i]
@@ -92,7 +92,7 @@ func TrackLink(ingress orc.Ingress) {
 	})
 }
 
-func DeleteTrackedLink(target *orc.Ingress, dbFn func(tx *db.Transaction)) *util.HttpError {
+func LinkDeleteTracked(target *orc.Ingress, dbFn func(tx *db.Transaction)) *util.HttpError {
 	if len(target.Status.BoundTo) > 0 {
 		return util.UserHttpError("This link is currently in use by job: %v", strings.Join(target.Status.BoundTo, ", "))
 	}
@@ -120,7 +120,7 @@ func DeleteTrackedLink(target *orc.Ingress, dbFn func(tx *db.Transaction)) *util
 	return nil
 }
 
-func RetrieveIngress(id string) orc.Ingress {
+func LinkRetrieve(id string) orc.Ingress {
 	ingressesMutex.Lock()
 	res := ingresses[id]
 	var result orc.Ingress
@@ -131,7 +131,7 @@ func RetrieveIngress(id string) orc.Ingress {
 	return result
 }
 
-func RetrieveUsedLinkCount(owner orc.ResourceOwner) int {
+func LinkRetrieveUsedCount(owner orc.ResourceOwner) int {
 	return db.NewTx[int](func(tx *db.Transaction) int {
 		row, _ := db.Get[struct{ Count int }](
 			tx,

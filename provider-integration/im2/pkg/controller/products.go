@@ -11,7 +11,7 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-func RegisterProducts(products []apm.ProductV2) {
+func ProductsRegister(products []apm.ProductV2) {
 	existingCategories := map[string]apm.ProductCategory{}
 	existingProducts := map[string]map[string]apm.ProductV2{}
 	next := ""

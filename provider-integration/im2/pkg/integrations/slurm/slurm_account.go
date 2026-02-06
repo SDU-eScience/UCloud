@@ -10,7 +10,7 @@ import (
 )
 
 type AccountingService interface {
-	OnWalletUpdated(update *ctrl.NotificationWalletUpdated)
+	OnWalletUpdated(update *ctrl.EventWalletUpdated)
 	FetchUsageInMinutes() map[SlurmAccountOwner]int64
 }
 

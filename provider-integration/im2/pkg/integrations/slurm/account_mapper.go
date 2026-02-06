@@ -138,7 +138,7 @@ func InitDefaultAccountMapper() AccountMapperService {
 					localName := ""
 
 					if row.Username != "" {
-						local, ok, _ := controller.MapUCloudToLocal(row.Username)
+						local, ok, _ := controller.IdmMapUCloudToLocal(row.Username)
 						if !ok {
 							continue
 						}
@@ -150,7 +150,7 @@ func InitDefaultAccountMapper() AccountMapperService {
 
 						localName = u.Username
 					} else if row.Project != "" {
-						local, ok := controller.MapUCloudProjectToLocal(row.Project)
+						local, ok := controller.IdmMapUCloudProjectToLocal(row.Project)
 						if !ok {
 							continue
 						}
@@ -252,12 +252,12 @@ func InitDefaultAccountMapper() AccountMapperService {
 				}
 
 				if isGroup {
-					projectId, found := controller.MapLocalProjectToUCloud(numericId)
+					projectId, found := controller.IdmMapLocalProjectToUCloud(numericId)
 					ok = found
 					isProject = true
 					workspaceRef = projectId
 				} else {
-					ucloudUsername, found, _ := controller.MapLocalToUCloud(numericId)
+					ucloudUsername, found, _ := controller.IdmMapLocalToUCloud(numericId)
 					ok = found
 					isProject = false
 					workspaceRef = ucloudUsername
@@ -376,7 +376,7 @@ func (a *defaultAccountMapper) ServerEvaluateAccountMapper(category string, owne
 
 		switch owner.Type {
 		case apm.WalletOwnerTypeUser:
-			localUid, ok, _ := controller.MapUCloudToLocal(owner.Username)
+			localUid, ok, _ := controller.IdmMapUCloudToLocal(owner.Username)
 			if !ok {
 				return util.OptNone[string](), fmt.Errorf("could not map user")
 			}
@@ -391,9 +391,9 @@ func (a *defaultAccountMapper) ServerEvaluateAccountMapper(category string, owne
 			params["uid"] = fmt.Sprint(localUid)
 
 		case apm.WalletOwnerTypeProject:
-			localGid, ok := controller.MapUCloudProjectToLocal(owner.ProjectId)
+			localGid, ok := controller.IdmMapUCloudProjectToLocal(owner.ProjectId)
 			if !ok {
-				lastKnown, ok := controller.RetrieveProject(owner.ProjectId)
+				lastKnown, ok := controller.ProjectRetrieve(owner.ProjectId)
 				if !ok {
 					return util.OptNone[string](), fmt.Errorf("could not map project")
 				}
@@ -540,7 +540,7 @@ func (a *defaultAccountMapper) ServerSlurmJobToConfiguration(job *slurmcli.Job) 
 		return
 	}
 
-	ucloudUser, ok, _ := controller.MapLocalToUCloud(uint32(uid))
+	ucloudUser, ok, _ := controller.IdmMapLocalToUCloud(uint32(uid))
 	if !ok {
 		return
 	}

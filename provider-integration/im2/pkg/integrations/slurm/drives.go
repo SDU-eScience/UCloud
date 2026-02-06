@@ -19,7 +19,7 @@ func CacheDrive(drive orc.Drive) {
 }
 
 func RetrieveDrive(driveId string) (orc.Drive, bool) {
-	res, ok := ctrl.RetrieveDrive(driveId)
+	res, ok := ctrl.DriveRetrieve(driveId)
 	if ok {
 		return *res, true
 	} else {
@@ -59,7 +59,7 @@ func ResolveDriveByLocalPath(path string) (orc.Drive, bool) {
 		suffixes = append(suffixes, parent)
 	}
 
-	res, ok := ctrl.RetrieveDriveByProviderId(prefixes, suffixes)
+	res, ok := ctrl.DriveRetrieveByProviderId(prefixes, suffixes)
 	if ok {
 		return *res, true
 	} else {

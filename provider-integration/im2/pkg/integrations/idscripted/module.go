@@ -32,7 +32,7 @@ func Init(config *cfg.IdentityManagementScripted) {
 		return resp.Uid, nil
 	}
 
-	controller.IdentityManagement.HandleProjectNotification = func(updated *controller.NotificationProjectUpdated) bool {
+	controller.IdentityManagement.HandleProjectNotification = func(updated *controller.EventProjectUpdated) bool {
 		project := &updated.Project
 		comparison := &updated.ProjectComparison
 
@@ -44,14 +44,14 @@ func Init(config *cfg.IdentityManagementScripted) {
 		req.ProjectTitle = project.Specification.Title
 		req.SuggestedGroupName, _ = fnd.GenerateProjectName(project.Id, project.Specification.Title, fnd.ProjectTitleDefault, "")
 
-		gid, hasGid := controller.MapUCloudProjectToLocal(updated.Project.Id)
+		gid, hasGid := controller.IdmMapUCloudProjectToLocal(updated.Project.Id)
 		if hasGid {
 			req.UnixGid.Set(gid)
 		}
 
 		for _, member := range project.Status.Members {
 			wasAdded := slices.Contains(membersAddedToProject, member.Username)
-			uid, ok, _ := controller.MapUCloudToLocal(member.Username)
+			uid, ok, _ := controller.IdmMapUCloudToLocal(member.Username)
 			if !ok {
 				continue
 			}
@@ -69,7 +69,7 @@ func Init(config *cfg.IdentityManagementScripted) {
 		}
 
 		for _, member := range membersRemovedFromProject {
-			uid, ok, _ := controller.MapUCloudToLocal(member)
+			uid, ok, _ := controller.IdmMapUCloudToLocal(member)
 			if !ok {
 				continue
 			}
@@ -93,7 +93,7 @@ func Init(config *cfg.IdentityManagementScripted) {
 				project.Id,
 			)
 		} else if !hasGid {
-			controller.RegisterProjectMapping(updated.Project.Id, resp.Gid)
+			controller.IdmRegisterProjectMapping(updated.Project.Id, resp.Gid)
 		}
 		return true
 	}

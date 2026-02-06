@@ -39,7 +39,7 @@ func Monitor(tracker shared2.JobTracker, jobs map[string]*orc.Job) {
 		}
 	*/
 
-	activeIApps := controller.RetrieveIAppsByJobId()
+	activeIApps := controller.IAppRetrieveAllByJobId()
 	iappsHandled := map[string]util.Empty{}
 	for _, handler := range IApps {
 		beforeMonitor := handler.BeforeMonitor
@@ -327,7 +327,7 @@ func OnStart(jobs []orc.Job) {
 	}
 
 	// Not much we can do in this case
-	_ = controller.TrackJobMessages(messages)
+	_ = controller.JobTrackMessage(messages)
 }
 
 func readDynamicTargets(job *orc.Job, jobFolder string) []orc.DynamicTarget {

@@ -60,7 +60,7 @@ func InitCompute() controller.JobsService {
 			length := len(r.Payload)
 			for i := 0; i < length; i++ {
 				item := &r.Payload[i]
-				job, ok := controller.RetrieveJob(item.Id)
+				job, ok := controller.JobRetrieve(item.Id)
 
 				if !ok {
 					continue
@@ -115,7 +115,7 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 	var result []orc.ApplicationParameter
 
 	if owner.Project.Value != "" {
-		project, ok := controller.RetrieveProject(owner.Project.Value)
+		project, ok := controller.ProjectRetrieve(owner.Project.Value)
 		if ok && project.Status.PersonalProviderProjectFor.Present {
 			accounts := []string{"unknown"}
 			myUser, err := user.Current()
@@ -272,8 +272,8 @@ func loopAccounting() {
 func loopComputeMonitoring() {
 	jobs := SlurmClient.JobList()
 
-	activeJobs := controller.GetJobs()
-	batch := controller.BeginJobUpdates()
+	activeJobs := controller.JobRetrieveAll()
+	batch := controller.JobUpdatesBegin()
 
 	jobsBySlurmId := make(map[int]string)
 	for jobId, job := range activeJobs {
@@ -387,7 +387,7 @@ func loopComputeMonitoring() {
 					}
 
 					metricSlurmUnknownJobsRegistered.Inc()
-					controller.TrackNewJob(job)
+					controller.JobTrackNew(job)
 				}
 			}
 		}
@@ -585,7 +585,7 @@ func submitJob(job orc.Job) (util.Option[string], *util.HttpError) {
 	}.String()
 
 	job.ProviderGeneratedId = providerId
-	controller.TrackNewJob(job)
+	controller.JobTrackNew(job)
 
 	var updates []orc.ResourceUpdateAndId[orc.JobUpdate]
 	outputFolder, ok := InternalToUCloud(jobFolder)
@@ -643,7 +643,7 @@ func submitJob(job orc.Job) (util.Option[string], *util.HttpError) {
 			jobUpdates = append(jobUpdates, updates[i].Update)
 		}
 		job.Updates = jobUpdates
-		controller.TrackNewJob(job)
+		controller.JobTrackNew(job)
 	}
 
 	return util.OptValue(providerId), nil
@@ -770,7 +770,7 @@ func follow(session *controller.FollowJobSession) {
 
 	// open relevant files (might take multiple loops to achieve this)
 	for util.IsAlive && *session.Alive {
-		job, ok := controller.RetrieveJob(session.Job.Id)
+		job, ok := controller.JobRetrieve(session.Job.Id)
 		if !ok {
 			break
 		}
@@ -840,7 +840,7 @@ func follow(session *controller.FollowJobSession) {
 
 	// Watch log files
 	for util.IsAlive && *session.Alive {
-		job, ok := controller.RetrieveJob(session.Job.Id)
+		job, ok := controller.JobRetrieve(session.Job.Id)
 		if !ok {
 			break
 		}
@@ -956,7 +956,7 @@ func FindJobFolder(owner apm.WalletOwner) (string, bool) {
 		dir, err := os.UserHomeDir()
 
 		if err == nil {
-			project, ok := controller.RetrieveProject(owner.ProjectId)
+			project, ok := controller.ProjectRetrieve(owner.ProjectId)
 			if !ok {
 				basePath = dir
 			} else if project.Status.PersonalProviderProjectFor.Present {

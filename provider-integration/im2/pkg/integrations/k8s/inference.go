@@ -91,7 +91,7 @@ func initInference() {
 		HiddenInGrantApplications: false,
 	}
 
-	controller.RegisterProducts([]apm.ProductV2{inferenceGlobals.Product})
+	controller.ProductsRegister([]apm.ProductV2{inferenceGlobals.Product})
 
 	authority := fmt.Sprintf("chat%s", shared.ServiceConfig.Compute.Web.Suffix) // TODO Change for prod
 	gateway.SendMessage(gateway.ConfigurationMessage{
@@ -247,7 +247,7 @@ func inferenceReportUsage(owner apm.WalletOwner, promptTokens int, completionTok
 	})
 }
 
-func inferenceHandleApmEvent(update *controller.NotificationWalletUpdated) {
+func inferenceHandleApmEvent(update *controller.EventWalletUpdated) {
 	if update.Category.Name == inferenceGlobals.Product.Category.Name {
 		owner := update.Owner.ProjectId
 		if owner == "" {
@@ -309,7 +309,7 @@ func inferenceApiKeyValidate(key string) (apm.WalletOwner, *util.HttpError) {
 	}
 
 	owner := apm.WalletOwnerFromReference(ownerRef)
-	if controller.IsLocked(owner, inferenceGlobals.Product.Category.Name) {
+	if controller.WalletIsLocked(owner, inferenceGlobals.Product.Category.Name) {
 		return apm.WalletOwner{}, util.HttpErr(http.StatusPaymentRequired, "no more resources available")
 	} else {
 		return owner, nil

@@ -163,7 +163,7 @@ func follow(session *controller.FollowJobSession) {
 	subscribeToFollowUpdates(session.Job.Id, messageHandler)
 	defer unsubscribeFromFollowUpdates(session.Job.Id, messageHandler)
 
-	job, ok := controller.RetrieveJob(session.Job.Id)
+	job, ok := controller.JobRetrieve(session.Job.Id)
 	if !ok {
 		return
 	}
@@ -221,7 +221,7 @@ func follow(session *controller.FollowJobSession) {
 	}
 
 	for util.IsAlive && *session.Alive {
-		job, ok := controller.RetrieveJob(session.Job.Id)
+		job, ok := controller.JobRetrieve(session.Job.Id)
 		if !ok {
 			break
 		}
@@ -238,7 +238,7 @@ func follow(session *controller.FollowJobSession) {
 
 	// Watch log files
 	for util.IsAlive && *session.Alive {
-		job, ok := controller.RetrieveJob(session.Job.Id)
+		job, ok := controller.JobRetrieve(session.Job.Id)
 		if !ok {
 			break
 		}
@@ -337,7 +337,7 @@ func terminate(request controller.JobTerminateRequest) *util.HttpError {
 
 	// Unbinding IP and port assignments
 	// -----------------------------------------------------------------------------------------------------------------
-	controller.UnbindIpsFromJob(request.Job)
+	controller.PublicIpUnbindFromJob(request.Job)
 	shared2.ClearAssignedSshPort(request.Job)
 	shared2.RemoveFromQueue(request.Job.Id)
 
@@ -390,7 +390,7 @@ func terminate(request controller.JobTerminateRequest) *util.HttpError {
 		// NOTE(Dan): Track the new job with a status of success immediately. This is required to ensure that the
 		// JobUpdateBatch understands that the job is definitely not supposed to be running. This is mostly relevant for
 		// jobs that are still in the queue and would trigger the "too early to remove" check.
-		job, ok := controller.RetrieveJob(request.Job.Id)
+		job, ok := controller.JobRetrieve(request.Job.Id)
 		if !ok {
 			job = request.Job
 		}
@@ -400,7 +400,7 @@ func terminate(request controller.JobTerminateRequest) *util.HttpError {
 		copied.Updates = append(copied.Updates, orc.JobUpdate{
 			State: util.OptValue(orc.JobStateSuccess),
 		})
-		controller.TrackNewJob(copied)
+		controller.JobTrackNew(copied)
 
 		// NOTE(Dan): Failure in this function will be automatically retried by the JobUpdateBatch/monitoring logic.
 		_, _ = orc.JobsControlAddUpdate.Invoke(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
@@ -482,7 +482,7 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (control
 func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) controller.ConfiguredWebIngress {
 	for _, resource := range job.Specification.Resources {
 		if resource.Type == orc.AppParameterValueTypeIngress {
-			ingress := controller.RetrieveIngress(resource.Id)
+			ingress := controller.LinkRetrieve(resource.Id)
 
 			return controller.ConfiguredWebIngress{
 				IsPublic:     true,
@@ -502,7 +502,7 @@ func extend(request orc.JobsProviderExtendRequestItem) *util.HttpError {
 	// allocation from the job.
 	alloc := request.Job.Specification.TimeAllocation
 	if alloc.Present {
-		return controller.TrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
+		return controller.JobTrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
 			{
 				Id: request.Job.Id,
 				Update: orc.JobUpdate{

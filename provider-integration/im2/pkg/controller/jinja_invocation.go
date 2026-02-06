@@ -29,7 +29,7 @@ var (
 
 type TemplateInvocation = func(session any, fn string, args []string) string
 
-func PreprocessJinjaTemplate(source string, templateSession any, templates TemplateInvocation) string {
+func JinjaPreprocessTemplate(source string, templateSession any, templates TemplateInvocation) string {
 	return templateRegex.ReplaceAllStringFunc(source, func(s string) string {
 		fn := ""
 		var args []string
@@ -52,9 +52,9 @@ func PreprocessJinjaTemplate(source string, templateSession any, templates Templ
 	})
 }
 
-func PrepareJinjaTemplate(source string, templateSession any, templates TemplateInvocation, flags JinjaFlags) (*exec.Template, error) {
+func JinjaPrepareTemplate(source string, templateSession any, templates TemplateInvocation, flags JinjaFlags) (*exec.Template, error) {
 	if flags&JinjaFlagsNoPreProcess == 0 {
-		source = PreprocessJinjaTemplate(source, templateSession, templates)
+		source = JinjaPreprocessTemplate(source, templateSession, templates)
 	}
 
 	filters := exec.NewFilterSet(map[string]exec.FilterFunction{
@@ -221,17 +221,17 @@ func PrepareJinjaTemplate(source string, templateSession any, templates Template
 	return template, err
 }
 
-func ExecuteJinjaTemplate(templateSource string, templateSession any, templates TemplateInvocation, ctx *exec.Context, flags JinjaFlags) (string, error) {
-	tpl, err := PrepareJinjaTemplate(templateSource, templateSession, templates, flags)
+func JinjaTemplateExecute(templateSource string, templateSession any, templates TemplateInvocation, ctx *exec.Context, flags JinjaFlags) (string, error) {
+	tpl, err := JinjaPrepareTemplate(templateSource, templateSession, templates, flags)
 	if err != nil {
 		log.Warn("Invalid jinja template generated from %v: %v", util.GetCaller(), err)
 		return "", err
 	} else {
-		return ExecutePreparedJinjaTemplate(tpl, ctx, flags)
+		return JinjaTemplateExecutePrepared(tpl, ctx, flags)
 	}
 }
 
-func ExecutePreparedJinjaTemplate(tpl *exec.Template, ctx *exec.Context, flags JinjaFlags) (string, error) {
+func JinjaTemplateExecutePrepared(tpl *exec.Template, ctx *exec.Context, flags JinjaFlags) (string, error) {
 	output, err := tpl.ExecuteToString(ctx)
 	if err != nil {
 		log.Warn("Failure during jinja exec generated from %v: %v", util.GetCaller(), err)

@@ -187,7 +187,7 @@ func DriveToLocalPath(drive *orc.Drive) (string, bool, *orc.Drive) {
 				return "/dev/null", false, drive
 			}
 
-			realDrive, ok := ctrl.RetrieveDrive(realDriveId)
+			realDrive, ok := ctrl.DriveRetrieve(realDriveId)
 			if !ok {
 				return "/dev/null", false, drive
 			}
@@ -208,7 +208,7 @@ func DriveToLocalPath(drive *orc.Drive) (string, bool, *orc.Drive) {
 }
 
 func ResolveDrive(id string) (*orc.Drive, bool) {
-	return ctrl.RetrieveDrive(id)
+	return ctrl.DriveRetrieve(id)
 }
 
 func ResolveDriveByUCloudPath(path string) (*orc.Drive, string, bool) {

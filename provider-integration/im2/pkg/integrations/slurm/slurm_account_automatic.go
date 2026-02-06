@@ -16,11 +16,11 @@ import (
 func InitAutomaticAccountManagement() AccountingService {
 	service := &automaticAccountManagementService{}
 
-	controller.OnConnectionComplete(func(username string, uid uint32) {
+	controller.IdmAddOnCompleteHandler(func(username string, uid uint32) {
 		service.createPersonalSlurmAccount(username, uid)
 	})
 
-	controller.OnProjectNotification(func(update *controller.NotificationProjectUpdated) {
+	controller.IdmAddProjectEvHandler(func(update *controller.EventProjectUpdated) {
 		service.synchronizeProjectToSlurmAccount(&update.Project, &update.ProjectComparison)
 	})
 
@@ -90,7 +90,7 @@ func (a *automaticAccountManagementService) synchronizeProjectToSlurmAccount(pro
 
 		// TODO I am worried about the performance of this loop
 		for _, member := range membersAddedToProject {
-			uid, ok, _ := controller.MapUCloudToLocal(member)
+			uid, ok, _ := controller.IdmMapUCloudToLocal(member)
 			if !ok {
 				continue
 			}
@@ -107,7 +107,7 @@ func (a *automaticAccountManagementService) synchronizeProjectToSlurmAccount(pro
 		}
 
 		for _, member := range membersRemovedFromProject {
-			uid, ok, _ := controller.MapUCloudToLocal(member)
+			uid, ok, _ := controller.IdmMapUCloudToLocal(member)
 			if !ok {
 				continue
 			}
@@ -125,7 +125,7 @@ func (a *automaticAccountManagementService) synchronizeProjectToSlurmAccount(pro
 	}
 }
 
-func (a *automaticAccountManagementService) OnWalletUpdated(update *controller.NotificationWalletUpdated) {
+func (a *automaticAccountManagementService) OnWalletUpdated(update *controller.EventWalletUpdated) {
 	log.Info("slurm account wallet update %v %v", update.Category.Name, update.CombinedQuota)
 	machineConfig, ok := ServiceConfig.Compute.Machines[update.Category.Name]
 	if !ok {
@@ -142,7 +142,7 @@ func (a *automaticAccountManagementService) OnWalletUpdated(update *controller.N
 	// requiring that parts of the accounting handler has already run (namely the account mapper). So we trigger the
 	// account mapper first and then re-trigger the identity notifications.
 	if update.Owner.Type == apm.WalletOwnerTypeUser {
-		localUid, ok, _ := controller.MapUCloudToLocal(update.Owner.Username)
+		localUid, ok, _ := controller.IdmMapUCloudToLocal(update.Owner.Username)
 		if !ok {
 			return
 		}
@@ -198,7 +198,7 @@ func (a *automaticAccountManagementService) FetchUsageInMinutes() map[SlurmAccou
 		for _, owner := range owners {
 			_, ok := allocations[owner.AssociatedWithCategory]
 			if !ok {
-				allocations[owner.AssociatedWithCategory] = controller.FindAllAllocations(owner.AssociatedWithCategory)
+				allocations[owner.AssociatedWithCategory] = controller.AllocationsFindAll(owner.AssociatedWithCategory)
 			}
 
 			allocList := allocations[owner.AssociatedWithCategory]

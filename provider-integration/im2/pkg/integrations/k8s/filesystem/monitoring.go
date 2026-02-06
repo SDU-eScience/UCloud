@@ -69,7 +69,7 @@ func loopMonitoring() time.Duration {
 		// queue is likely to get. This could be done purely with the channels, but we also have the database to worry
 		// about so this seems like the better solution.
 
-		drivesToScan := ctrl.RetrieveDrivesNeedingScan()
+		drivesToScan := ctrl.DriveRetrieveNeedingScan()
 		for _, drive := range drivesToScan {
 			if drive.Specification.Product.Provider != config.Provider.Id {
 				continue
@@ -170,7 +170,7 @@ func scanDrive(drive orc.Drive) {
 	case config.K8sScanMethodTypeWalk:
 		start := time.Now()
 
-		bucketCount := ctrl.LoadNextSearchBucketCount(drive.Id)
+		bucketCount := ctrl.DriveLoadNextSearchBucketCount(drive.Id)
 		indexingBucketLive.Add(float64(bucketCount))
 		result := fsearch.BuildIndex(bucketCount, internalPath)
 		indexingBucketLive.Sub(float64(bucketCount))
@@ -180,7 +180,7 @@ func scanDrive(drive orc.Drive) {
 
 		timeSpentIndexingSeconds.Add(indexingDurationSeconds)
 		totalFilesIndexed.Add(float64(result.TotalFileCount))
-		ctrl.TrackSearchIndex(drive.Id, result.Index, result.SuggestNewBucketCount)
+		ctrl.DriveTrackSearchIndex(drive.Id, result.Index, result.SuggestNewBucketCount)
 
 		sizeToReport = int64(result.TotalFileSize)
 	}
@@ -190,7 +190,7 @@ func scanDrive(drive orc.Drive) {
 
 	reportUsedStorage(drive, sizeInGb)
 
-	ctrl.UpdateDriveScannedAt(drive.Id)
+	ctrl.DriveUpdateScannedAt(drive.Id)
 }
 
 func reportUsedStorage(drive orc.Drive, sizeInGb int64) {
@@ -220,7 +220,7 @@ func reportUsedStorage(drive orc.Drive, sizeInGb int64) {
 func RequestScan(driveId string) {
 	// NOTE(Dan): This doesn't currently set the submitted_at timestamp on purpose. If it turns out that this is a bad
 	// idea then it should be changed.
-	drive, ok := ctrl.RetrieveDrive(driveId)
+	drive, ok := ctrl.DriveRetrieve(driveId)
 	if ok {
 		driveScanQueue <- *drive
 	}

@@ -7,11 +7,11 @@ import (
 func InitUnmanagedAccountManagement() AccountingService {
 	service := &unmanagedAccountManagementService{}
 
-	controller.OnConnectionComplete(func(username string, uid uint32) {
+	controller.IdmAddOnCompleteHandler(func(username string, uid uint32) {
 		// Do nothing
 	})
 
-	controller.OnProjectNotification(func(update *controller.NotificationProjectUpdated) {
+	controller.IdmAddProjectEvHandler(func(update *controller.EventProjectUpdated) {
 		// Do nothing
 	})
 
@@ -20,7 +20,7 @@ func InitUnmanagedAccountManagement() AccountingService {
 
 type unmanagedAccountManagementService struct{}
 
-func (u unmanagedAccountManagementService) OnWalletUpdated(update *controller.NotificationWalletUpdated) {
+func (u unmanagedAccountManagementService) OnWalletUpdated(update *controller.EventWalletUpdated) {
 	// Do nothing
 }
 

@@ -51,15 +51,15 @@ func InitDriveDatabase() {
 			db.Params{},
 		)
 
-		activeDrivesMutex.Lock()
+		drivesActiveMutex.Lock()
 		for _, row := range rows {
 			drive := new(orc.Drive)
 			err := json.Unmarshal([]byte(row.Resource), drive)
 			if err == nil {
-				activeDrives[row.DriveId] = drive
+				drivesActive[row.DriveId] = drive
 			}
 		}
-		activeDrivesMutex.Unlock()
+		drivesActiveMutex.Unlock()
 	})
 
 	db.NewTx0(func(tx *db.Transaction) {
@@ -74,14 +74,14 @@ func InitDriveDatabase() {
 		)
 	})
 
-	trackDriveIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[util.Empty] {
+	driveTrackIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[util.Empty] {
 		// NOTE(Dan): Since we are not returning any information about the drive, we simply track it regardless if this
 		// was a drive that belongs to the user or not.
 		request := orc.DrivesControlRetrieveRequest{Id: r.Payload.Id}
 		request.IncludeOthers = true
 		drive, err := orc.DrivesControlRetrieve.Invoke(request)
 		if err == nil {
-			TrackDrive(&drive)
+			DriveTrack(&drive)
 		}
 
 		return ipc.Response[util.Empty]{
@@ -89,8 +89,8 @@ func InitDriveDatabase() {
 		}
 	})
 
-	retrieveDriveIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[orc.Drive] {
-		result, ok := RetrieveDrive(r.Payload.Id)
+	driveRetrieveIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[orc.Drive] {
+		result, ok := DriveRetrieve(r.Payload.Id)
 
 		if !ok || !BelongsToWorkspace(orc.ResourceOwnerToWalletOwner(result.Resource), r.Uid) {
 			return ipc.Response[orc.Drive]{
@@ -104,8 +104,8 @@ func InitDriveDatabase() {
 		}
 	})
 
-	retrieveDriveByProviderIdIpc.Handler(func(r *ipc.Request[util.Tuple2[[]string, []string]]) ipc.Response[orc.Drive] {
-		result, ok := RetrieveDriveByProviderId(r.Payload.First, r.Payload.Second)
+	driveRetrieveByProviderIpc.Handler(func(r *ipc.Request[util.Tuple2[[]string, []string]]) ipc.Response[orc.Drive] {
+		result, ok := DriveRetrieveByProviderId(r.Payload.First, r.Payload.Second)
 
 		if !ok || !BelongsToWorkspace(orc.ResourceOwnerToWalletOwner(result.Resource), r.Uid) {
 			return ipc.Response[orc.Drive]{
@@ -119,7 +119,7 @@ func InitDriveDatabase() {
 		}
 	})
 
-	removeTrackedDriveIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[util.Empty] {
+	driveRemoveTrackedIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[util.Empty] {
 		request := orc.DrivesControlRetrieveRequest{Id: r.Payload.Id}
 		request.IncludeOthers = true
 		drive, err := orc.DrivesControlRetrieve.Invoke(request)
@@ -128,7 +128,7 @@ func InitDriveDatabase() {
 				StatusCode: http.StatusForbidden,
 			}
 		} else {
-			removeTrackedDrive(drive.Id)
+			driveRemoveTracked(drive.Id)
 			return ipc.Response[util.Empty]{
 				StatusCode: http.StatusOK,
 			}
@@ -137,29 +137,29 @@ func InitDriveDatabase() {
 
 }
 
-// The activeDrives property stores all drives which have been seen this session in-memory. This structure is valid for
-// both user mode and server mode. In both modes, it is updated via the TrackDrive() function. If the user mode realises
+// The drivesActive property stores all drives which have been seen this session in-memory. This structure is valid for
+// both user mode and server mode. In both modes, it is updated via the DriveTrack() function. If the user mode realises
 // that this drive has not been seen it its own session, then the server instance is also notified about the drive.
-// Access to this property is not thread-safe and must be done while holding the activeDrivesMutex.
-var activeDrives = map[string]*orc.Drive{}
-var activeDrivesMutex = sync.Mutex{}
+// Access to this property is not thread-safe and must be done while holding the drivesActiveMutex.
+var drivesActive = map[string]*orc.Drive{}
+var drivesActiveMutex = sync.Mutex{}
 
 var (
-	trackDriveIpc                = ipc.NewCall[fnd.FindByStringId, util.Empty]("ctrl.drives.track")
-	removeTrackedDriveIpc        = ipc.NewCall[fnd.FindByStringId, util.Empty]("ctrl.drives.removeTrackedDrive")
-	retrieveDriveIpc             = ipc.NewCall[fnd.FindByStringId, orc.Drive]("ctrl.drives.retrieve")
-	retrieveDriveByProviderIdIpc = ipc.NewCall[util.Tuple2[[]string, []string], orc.Drive]("ctrl.drives.retrieveByProviderId")
+	driveTrackIpc              = ipc.NewCall[fnd.FindByStringId, util.Empty]("ctrl.drives.track")
+	driveRemoveTrackedIpc      = ipc.NewCall[fnd.FindByStringId, util.Empty]("ctrl.drives.driveRemoveTracked")
+	driveRetrieveIpc           = ipc.NewCall[fnd.FindByStringId, orc.Drive]("ctrl.drives.retrieve")
+	driveRetrieveByProviderIpc = ipc.NewCall[util.Tuple2[[]string, []string], orc.Drive]("ctrl.drives.retrieveByProviderId")
 )
 
-func TrackDrive(drive *orc.Drive) {
-	trackDrive(drive, true)
+func DriveTrack(drive *orc.Drive) {
+	driveTrack(drive, true)
 }
 
-func trackDrive(drive *orc.Drive, allowRegistration bool) {
-	activeDrivesMutex.Lock()
+func driveTrack(drive *orc.Drive, allowRegistration bool) {
+	drivesActiveMutex.Lock()
 
 	copiedDrive := *drive
-	activeDrives[drive.Id] = &copiedDrive
+	drivesActive[drive.Id] = &copiedDrive
 
 	if allowRegistration {
 		go func() {
@@ -194,31 +194,31 @@ func trackDrive(drive *orc.Drive, allowRegistration bool) {
 					)
 				})
 			} else {
-				_, _ = trackDriveIpc.Invoke(fnd.FindByStringId{Id: copiedDrive.Id})
+				_, _ = driveTrackIpc.Invoke(fnd.FindByStringId{Id: copiedDrive.Id})
 			}
 		}()
 	}
-	activeDrivesMutex.Unlock()
+	drivesActiveMutex.Unlock()
 }
 
-func EnumerateKnownDrives() []orc.Drive {
+func DriveEnumerateKnown() []orc.Drive {
 	var result []orc.Drive
 
-	activeDrivesMutex.Lock()
-	for _, d := range activeDrives {
+	drivesActiveMutex.Lock()
+	for _, d := range drivesActive {
 		if d.Specification.Product.Provider != cfg.Provider.Id {
 			continue
 		}
 		result = append(result, *d)
 	}
-	activeDrivesMutex.Unlock()
+	drivesActiveMutex.Unlock()
 	return result
 }
 
-func RetrieveDrive(id string) (*orc.Drive, bool) {
-	activeDrivesMutex.Lock()
-	existing, ok := activeDrives[id]
-	activeDrivesMutex.Unlock()
+func DriveRetrieve(id string) (*orc.Drive, bool) {
+	drivesActiveMutex.Lock()
+	existing, ok := drivesActive[id]
+	drivesActiveMutex.Unlock()
 
 	if !ok {
 		if RunsServerCode() {
@@ -226,13 +226,13 @@ func RetrieveDrive(id string) (*orc.Drive, bool) {
 			request.IncludeOthers = true
 			res, err := orc.DrivesControlRetrieve.Invoke(request)
 			if err == nil {
-				trackDrive(&res, true)
+				driveTrack(&res, true)
 			}
 			return &res, err == nil
 		} else {
-			res, err := retrieveDriveIpc.Invoke(fnd.FindByStringId{Id: id})
+			res, err := driveRetrieveIpc.Invoke(fnd.FindByStringId{Id: id})
 			if err == nil {
-				trackDrive(&res, false) // Already registered in server mode
+				driveTrack(&res, false) // Already registered in server mode
 			}
 			return &res, err == nil
 		}
@@ -241,7 +241,7 @@ func RetrieveDrive(id string) (*orc.Drive, bool) {
 	return existing, true
 }
 
-func TrackSearchIndex(id string, index *fsearch2.SearchIndex, recommendedBucketCount int) {
+func DriveTrackSearchIndex(id string, index *fsearch2.SearchIndex, recommendedBucketCount int) {
 	if !RunsServerCode() {
 		panic("Not yet implemented in user mode")
 	}
@@ -250,7 +250,7 @@ func TrackSearchIndex(id string, index *fsearch2.SearchIndex, recommendedBucketC
 		return
 	}
 
-	_, ok := RetrieveDrive(id)
+	_, ok := DriveRetrieve(id)
 	if ok {
 		indexBytes := index.Marshal()
 		db.NewTx0(func(tx *db.Transaction) {
@@ -272,11 +272,11 @@ func TrackSearchIndex(id string, index *fsearch2.SearchIndex, recommendedBucketC
 			)
 		})
 
-		searchIndexCache.Remove(id)
+		driveSearchIndexCache.Remove(id)
 	}
 }
 
-func LoadNextSearchBucketCount(id string) int {
+func DriveLoadNextSearchBucketCount(id string) int {
 	if !RunsServerCode() {
 		panic("Not yet implemented in user mode")
 	}
@@ -301,16 +301,16 @@ func LoadNextSearchBucketCount(id string) int {
 	})
 }
 
-var searchIndexCache = lru.NewLRU[string, fsearch2.SearchIndex](32, nil, 30*time.Minute)
-var searchIndexLock = util.NewScopedMutex() // Ensure that only one goroutine attempts to read a given index. Not needed for the cache.
+var driveSearchIndexCache = lru.NewLRU[string, fsearch2.SearchIndex](32, nil, 30*time.Minute)
+var driveSearchIndexLock = util.NewScopedMutex() // Ensure that only one goroutine attempts to read a given index. Not needed for the cache.
 
-func RetrieveSearchIndex(id string) (fsearch2.SearchIndex, bool) {
-	cached, ok := searchIndexCache.Get(id)
+func DriveRetrieveSearchIndex(id string) (fsearch2.SearchIndex, bool) {
+	cached, ok := driveSearchIndexCache.Get(id)
 	if ok {
 		return cached, true
 	} else {
-		searchIndexLock.Lock(id)
-		result, ok := searchIndexCache.Get(id)
+		driveSearchIndexLock.Lock(id)
+		result, ok := driveSearchIndexCache.Get(id)
 		if !ok {
 			result, ok = db.NewTx2(func(tx *db.Transaction) (fsearch2.SearchIndex, bool) {
 				index, ok := db.Get[struct{ SearchIndex sql.RawBytes }](
@@ -332,24 +332,24 @@ func RetrieveSearchIndex(id string) (fsearch2.SearchIndex, bool) {
 				}
 			})
 		}
-		searchIndexLock.Unlock(id)
+		driveSearchIndexLock.Unlock(id)
 
 		return result, ok
 	}
 }
 
-func CanUseDrive(actor orc.ResourceOwner, driveId string, readOnly bool) bool {
+func DriveCanUse(actor orc.ResourceOwner, driveId string, readOnly bool) bool {
 	if !RunsServerCode() {
 		panic("Not implemented for user mode")
 	}
 
-	drive, ok := RetrieveDrive(driveId)
+	drive, ok := DriveRetrieve(driveId)
 	if !ok {
 		return false
 	}
 
 	if drive.Owner.Project.Present {
-		project, ok := RetrieveProject(drive.Owner.Project.Value)
+		project, ok := ProjectRetrieve(drive.Owner.Project.Value)
 		if !ok {
 			return false
 		}
@@ -422,21 +422,21 @@ func CanUseDrive(actor orc.ResourceOwner, driveId string, readOnly bool) bool {
 	}
 }
 
-func RemoveTrackedDrive(id string) bool {
-	activeDrivesMutex.Lock()
-	delete(activeDrives, id)
-	activeDrivesMutex.Unlock()
+func DriveRemoveTracked(id string) bool {
+	drivesActiveMutex.Lock()
+	delete(drivesActive, id)
+	drivesActiveMutex.Unlock()
 
 	if RunsServerCode() {
-		removeTrackedDrive(id)
+		driveRemoveTracked(id)
 		return true
 	} else {
-		_, err := removeTrackedDriveIpc.Invoke(fnd.FindByStringId{Id: id})
+		_, err := driveRemoveTrackedIpc.Invoke(fnd.FindByStringId{Id: id})
 		return err == nil
 	}
 }
 
-func removeTrackedDrive(id string) {
+func driveRemoveTracked(id string) {
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -450,20 +450,20 @@ func removeTrackedDrive(id string) {
 	})
 }
 
-func RetrieveDriveByProviderId(prefixes []string, suffixes []string) (*orc.Drive, bool) {
+func DriveRetrieveByProviderId(prefixes []string, suffixes []string) (*orc.Drive, bool) {
 	if len(prefixes) != len(suffixes) {
-		log.Warn("RetrieveDriveByProviderId invoked incorrectly from %v", util.GetCaller())
+		log.Warn("DriveRetrieveByProviderId invoked incorrectly from %v", util.GetCaller())
 		return nil, false
 	}
 
 	count := len(prefixes)
 
-	activeDrivesMutex.Lock()
+	drivesActiveMutex.Lock()
 
 	var result *orc.Drive
 
 outer:
-	for _, drive := range activeDrives {
+	for _, drive := range drivesActive {
 		id := drive.ProviderGeneratedId
 		if id == "" {
 			continue
@@ -487,7 +487,7 @@ outer:
 		}
 	}
 
-	activeDrivesMutex.Unlock()
+	drivesActiveMutex.Unlock()
 
 	if result == nil {
 		if RunsServerCode() {
@@ -542,9 +542,9 @@ outer:
 				return res, true
 			}
 		} else {
-			res, err := retrieveDriveByProviderIdIpc.Invoke(util.Tuple2[[]string, []string]{prefixes, suffixes})
+			res, err := driveRetrieveByProviderIpc.Invoke(util.Tuple2[[]string, []string]{prefixes, suffixes})
 			if err == nil {
-				trackDrive(&res, false) // Already registered in server mode
+				driveTrack(&res, false) // Already registered in server mode
 			}
 			return &res, err == nil
 		}
@@ -553,7 +553,7 @@ outer:
 	return result, result != nil
 }
 
-func RetrieveDrivesNeedingScan() []orc.Drive {
+func DriveRetrieveNeedingScan() []orc.Drive {
 	if RunsServerCode() {
 		return db.NewTx[[]orc.Drive](func(tx *db.Transaction) []orc.Drive {
 			var result []orc.Drive
@@ -603,7 +603,7 @@ func RetrieveDrivesNeedingScan() []orc.Drive {
 	}
 }
 
-func UpdateDriveScannedAt(driveId string) {
+func DriveUpdateScannedAt(driveId string) {
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,

@@ -133,7 +133,7 @@ func transferDestinationInitiate(request orc.FilesProviderTransferRequestInitiat
 		}
 	}
 
-	_, target := ctrl.CreateFolderUpload(request.DestinationPath, orc.WriteConflictPolicyMergeRename, localDestinationPath)
+	_, target := ctrl.FileCreateFolderUpload(request.DestinationPath, orc.WriteConflictPolicyMergeRename, localDestinationPath)
 
 	if request.SourceProvider == cfg.Provider.Id {
 		// NOTE(Dan): This only happens during local development
@@ -156,7 +156,7 @@ func transferDestinationInitiate(request orc.FilesProviderTransferRequestInitiat
 	return resp, nil
 }
 
-func transferSourceBegin(request orc.FilesProviderTransferRequestStart, session ctrl.TransferSession) *util.HttpError {
+func transferSourceBegin(request orc.FilesProviderTransferRequestStart, session ctrl.FileTransferSession) *util.HttpError {
 	err := RegisterTask(TaskInfoSpecification{
 		Type:          FileTaskTransfer,
 		UCloudSource:  util.OptValue[string](session.SourcePath),
@@ -170,7 +170,7 @@ func transferSourceBegin(request orc.FilesProviderTransferRequestStart, session 
 
 func processTransferTask(task *TaskInfo) TaskProcessingResult {
 	sessionId := task.MoreInfo.Value
-	session, ok := ctrl.RetrieveTransferSession(sessionId)
+	session, ok := ctrl.FileRetrieveTransferSession(sessionId)
 	if !ok {
 		return TaskProcessingResult{
 			Error:           fmt.Errorf("unknown file transfer session, it might have expired"),
@@ -839,7 +839,7 @@ func readMetadata(internalPath string, stat os.FileInfo, file *orc.ProviderFile,
 	file.Status.UnixMode = int(stat.Mode()) & 0777 // only keep permissions bits
 }
 
-func validateDownloadAndOpenFile(session ctrl.DownloadSession) (*os.File, os.FileInfo, *util.HttpError) {
+func validateDownloadAndOpenFile(session ctrl.FileDownloadSession) (*os.File, os.FileInfo, *util.HttpError) {
 	internalPath := UCloudToInternalWithDrive(session.Drive, session.Path)
 	file, err := os.Open(internalPath)
 	if err != nil {
@@ -868,7 +868,7 @@ func validateDownloadAndOpenFile(session ctrl.DownloadSession) (*os.File, os.Fil
 	return file, stat, nil
 }
 
-func createDownload(session ctrl.DownloadSession) *util.HttpError {
+func createDownload(session ctrl.FileDownloadSession) *util.HttpError {
 	file, _, err := validateDownloadAndOpenFile(session)
 	if err != nil {
 		return err
@@ -921,7 +921,7 @@ func findAvailableNameOnRename(path string) (string, *util.HttpError) {
 	}
 }
 
-func download(session ctrl.DownloadSession) (io.ReadSeekCloser, int64, *util.HttpError) {
+func download(session ctrl.FileDownloadSession) (io.ReadSeekCloser, int64, *util.HttpError) {
 	file, stat, err := validateDownloadAndOpenFile(session)
 	if err != nil {
 		return nil, 0, err

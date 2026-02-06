@@ -59,7 +59,7 @@ func Init(config *cfg.ServicesConfigurationSlurm, mux *http.ServeMux) {
 
 	// APM
 	if cfg.Mode == cfg.ServerModeServer {
-		controller.ApmHandler.HandleNotification = handleApmNotification
+		controller.EventHandler.HandleNotification = handleApmNotification
 	}
 
 	// IPC
@@ -69,8 +69,8 @@ func Init(config *cfg.ServicesConfigurationSlurm, mux *http.ServeMux) {
 
 	// Products
 	if cfg.Mode == cfg.ServerModeServer {
-		controller.RegisterProducts(Machines)
-		controller.RegisterProducts(StorageProducts)
+		controller.ProductsRegister(Machines)
+		controller.ProductsRegister(StorageProducts)
 	}
 }
 
@@ -78,7 +78,7 @@ func InitLater(config *cfg.ServicesConfigurationSlurm) {
 
 }
 
-func handleApmNotification(update *controller.NotificationWalletUpdated) {
+func handleApmNotification(update *controller.EventWalletUpdated) {
 	drives := EvaluateLocators(update.Owner, update.Category.Name)
 	FileManager(update.Category.Name).HandleQuotaUpdate(drives, update)
 	Accounting.OnWalletUpdated(update)

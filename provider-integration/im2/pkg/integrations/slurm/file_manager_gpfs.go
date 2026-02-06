@@ -31,7 +31,7 @@ func InitGpfsManager(name string, config *cfg.SlurmFsManagementGpfs) FileManagem
 		unitInBytes: UnitToBytes(fs.Payment.Unit),
 	}
 
-	controller.OnConnectionComplete(func(username string, uid uint32) {
+	controller.IdmAddOnCompleteHandler(func(username string, uid uint32) {
 		if cfg.Services.Unmanaged {
 			return
 		}
@@ -68,7 +68,7 @@ type GpfsManager struct {
 	unitInBytes uint64
 }
 
-func (g *GpfsManager) HandleQuotaUpdate(drives []LocatedDrive, update *controller.NotificationWalletUpdated) {
+func (g *GpfsManager) HandleQuotaUpdate(drives []LocatedDrive, update *controller.EventWalletUpdated) {
 	for _, drive := range drives {
 		log.Info("Handle GPFS quota update for %s (locked=%v): %v GB", drive.FilePath, update.Locked, update.CombinedQuota)
 		mapping, filesetName, ok := g.resolveLocatedDrive(drive, update.Category.Name)
@@ -143,7 +143,7 @@ func (g *GpfsManager) RunAccountingLoop() {
 	var batch []apm.ReportUsageRequest
 
 	if g.config.UseStatFsForAccounting {
-		drives := controller.EnumerateKnownDrives()
+		drives := controller.DriveEnumerateKnown()
 		log.Info("Accounting %v drives", len(drives))
 		for _, d := range drives {
 			internalPath := DriveToLocalPath(d)
@@ -171,7 +171,7 @@ func (g *GpfsManager) RunAccountingLoop() {
 			g.flushBatch(&batch, false)
 		}
 	} else {
-		allocations := controller.FindAllAllocations(g.name)
+		allocations := controller.AllocationsFindAll(g.name)
 
 		for _, allocation := range allocations {
 			locatedDrives := EvaluateAllLocators(allocation.Owner)

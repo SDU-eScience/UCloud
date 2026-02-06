@@ -68,7 +68,7 @@ var nodes *shared2.K8sResourceTracker[*corev1.Node]
 var monitoringHealthCounter = atomic.Int64{}
 
 func InitComputeLater() {
-	controller.ReconfigureAllIApps()
+	controller.IAppReconfigureAll()
 
 	initJobQueue()
 
@@ -113,14 +113,14 @@ func retrievePublicIpProducts() []orc.PublicIpSupport {
 }
 
 func createPublicIp(ip *orc.PublicIp) *util.HttpError {
-	result := controller.AllocateIpAddress(ip)
+	result := controller.PublicIpAllocate(ip)
 	accountPublicIps(ip.Owner)
 	return result
 }
 
 func accountPublicIps(owner orc.ResourceOwner) {
 	productName := shared2.ServiceConfig.Compute.PublicIps.Name
-	count := controller.RetrieveUsedIpAddressCount(owner)
+	count := controller.PublicIpRetrieveUsedCount(owner)
 	_, _ = apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{
 		Items: []apm.ReportUsageRequest{
 			{
@@ -138,7 +138,7 @@ func accountPublicIps(owner orc.ResourceOwner) {
 }
 
 func deletePublicIp(ip *orc.PublicIp) *util.HttpError {
-	result := controller.DeleteIpAddress(ip)
+	result := controller.PublicIpDelete(ip)
 	accountPublicIps(ip.Owner)
 	return result
 }
@@ -215,7 +215,7 @@ func createIngress(ingress *orc.Ingress) *util.HttpError {
 
 	if err == nil {
 		ingress.Updates = append(ingress.Updates, newUpdate)
-		controller.TrackLink(*ingress)
+		controller.LinkTrack(*ingress)
 		accountPublicLinks(ingress.Owner)
 		return nil
 	} else {
@@ -226,7 +226,7 @@ func createIngress(ingress *orc.Ingress) *util.HttpError {
 }
 
 func deleteIngress(ingress *orc.Ingress) *util.HttpError {
-	result := controller.DeleteTrackedLink(ingress, func(tx *db.Transaction) {
+	result := controller.LinkDeleteTracked(ingress, func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
@@ -245,7 +245,7 @@ func deleteIngress(ingress *orc.Ingress) *util.HttpError {
 
 func accountPublicLinks(owner orc.ResourceOwner) {
 	productName := shared2.ServiceConfig.Compute.PublicLinks.Name
-	count := controller.RetrieveUsedLinkCount(owner)
+	count := controller.LinkRetrieveUsedCount(owner)
 	_, _ = apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{
 		Items: []apm.ReportUsageRequest{
 			{
@@ -263,23 +263,23 @@ func accountPublicLinks(owner orc.ResourceOwner) {
 }
 
 func retrieveLicenseProducts() []orc.LicenseSupport {
-	return controller.FetchLicenseSupport()
+	return controller.LicenseFetchSupport()
 }
 
 func activateLicense(license *orc.License) *util.HttpError {
-	result := controller.ActivateLicense(license)
+	result := controller.LicenseActivate(license)
 	accountLicenses(license.Specification.Product.Category, license.Owner)
 	return result
 }
 
 func deleteLicense(license *orc.License) *util.HttpError {
-	result := controller.DeleteLicense(license)
+	result := controller.LicenseDelete(license)
 	accountLicenses(license.Specification.Product.Category, license.Owner)
 	return result
 }
 
 func accountLicenses(licenseName string, owner orc.ResourceOwner) {
-	count := controller.RetrieveUsedLicenseCount(licenseName, owner)
+	count := controller.LicenseRetrieveUsedCount(licenseName, owner)
 	_, _ = apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{
 		Items: []apm.ReportUsageRequest{
 			{
@@ -353,7 +353,7 @@ func submit(job orc.Job) (util.Option[string], *util.HttpError) {
 	}
 
 	shared2.RequestSchedule(&job)
-	controller.TrackNewJob(job)
+	controller.JobTrackNew(job)
 	return util.OptNone[string](), nil
 }
 

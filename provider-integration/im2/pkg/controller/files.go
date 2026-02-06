@@ -39,13 +39,13 @@ type FileService struct {
 	Copy                        func(actor rpc.Actor, request orcapi.FilesProviderMoveOrCopyRequest) *util.HttpError
 	MoveToTrash                 func(request orcapi.FilesProviderTrashRequest) *util.HttpError
 	EmptyTrash                  func(request orcapi.FilesProviderTrashRequest) *util.HttpError
-	CreateDownloadSession       func(request DownloadSession) *util.HttpError
-	Download                    func(request DownloadSession) (io.ReadSeekCloser, int64, *util.HttpError)
+	CreateDownloadSession       func(request FileDownloadSession) *util.HttpError
+	Download                    func(request FileDownloadSession) (io.ReadSeekCloser, int64, *util.HttpError)
 	CreateUploadSession         func(request orcapi.FilesProviderCreateUploadRequest) (string, *util.HttpError)
 	RetrieveProducts            func() []orcapi.FSSupport
 	TransferSourceInitiate      func(request orcapi.FilesProviderTransferRequestInitiateSource) ([]string, *util.HttpError)
 	TransferDestinationInitiate func(request orcapi.FilesProviderTransferRequestInitiateDestination) (orcapi.FilesProviderTransferResponse, *util.HttpError)
-	TransferSourceBegin         func(request orcapi.FilesProviderTransferRequestStart, session TransferSession) *util.HttpError
+	TransferSourceBegin         func(request orcapi.FilesProviderTransferRequestStart, session FileTransferSession) *util.HttpError
 	Search                      func(ctx context.Context, query, folder string, flags orcapi.FileFlags, outputChannel chan orcapi.ProviderFile)
 	Uploader                    upload.ServerFileSystem
 
@@ -56,21 +56,21 @@ type FileService struct {
 	CreateShare func(share orcapi.Share) (driveId string, err *util.HttpError)
 }
 
-type DownloadSession struct {
+type FileDownloadSession struct {
 	Drive     orcapi.Drive
 	Path      string
 	OwnedBy   uint32
 	SessionId string
 }
 
-type UploadSession struct {
+type FileUploadSession struct {
 	Id      string
 	OwnedBy uint32
 	Data    []byte
 }
 
-type UploadDataWs struct {
-	Session UploadSession
+type FileUploadDataWs struct {
+	Session FileUploadSession
 	Socket  *ws.Conn
 }
 
@@ -132,7 +132,7 @@ type TransferBuiltInParameters struct {
 	Endpoint string
 }
 
-func controllerFiles() {
+func initFiles() {
 	uploadContext := fmt.Sprintf("/ucloud/%v/upload", cfg.Provider.Id)
 
 	wsUpgrader := ws.Upgrader{
@@ -143,14 +143,14 @@ func controllerFiles() {
 
 	if RunsUserCode() {
 		orcapi.FilesProviderBrowse.Handler(func(info rpc.RequestInfo, request orcapi.FilesProviderBrowseRequest) (fnd.PageV2[orcapi.ProviderFile], *util.HttpError) {
-			TrackDrive(&request.ResolvedCollection)
+			DriveTrack(&request.ResolvedCollection)
 			return Files.BrowseFiles(request)
 		})
 
 		orcapi.FilesProviderCreateFolder.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.FilesProviderCreateFolderRequest]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
 			var err *util.HttpError = nil
 			for _, item := range request.Items {
-				TrackDrive(&item.ResolvedCollection)
+				DriveTrack(&item.ResolvedCollection)
 				err = Files.CreateFolder(item)
 
 				if err != nil {
@@ -162,15 +162,15 @@ func controllerFiles() {
 		})
 
 		orcapi.FilesProviderRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.FilesProviderRetrieveRequest) (orcapi.ProviderFile, *util.HttpError) {
-			TrackDrive(&request.ResolvedCollection)
+			DriveTrack(&request.ResolvedCollection)
 			return Files.RetrieveFile(request)
 		})
 
 		orcapi.FilesProviderMove.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.FilesProviderMoveOrCopyRequest]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
 			var errors []*util.HttpError
 			for _, item := range request.Items {
-				TrackDrive(&item.ResolvedOldCollection)
-				TrackDrive(&item.ResolvedNewCollection)
+				DriveTrack(&item.ResolvedOldCollection)
+				DriveTrack(&item.ResolvedNewCollection)
 
 				err := Files.Move(item)
 
@@ -191,11 +191,11 @@ func controllerFiles() {
 			owner := uint32(os.Getuid())
 
 			for _, item := range request.Items {
-				TrackDrive(&item.ResolvedCollection)
+				DriveTrack(&item.ResolvedCollection)
 
 				sessionId := util.RandomToken(32)
 
-				session := DownloadSession{
+				session := FileDownloadSession{
 					Drive:     item.ResolvedCollection,
 					Path:      item.Id,
 					OwnedBy:   owner,
@@ -207,7 +207,7 @@ func controllerFiles() {
 					return fnd.BulkResponse[orcapi.FilesProviderCreateDownloadResponse]{}, err
 				}
 
-				downloadSessions.Set(sessionId, session)
+				fileDownloadSessions.Set(sessionId, session)
 
 				resp.Responses = append(
 					resp.Responses,
@@ -234,7 +234,7 @@ func controllerFiles() {
 				defer metricFilesDownloadSessionsCurrent.Dec()
 
 				token := r.URL.Query().Get("token")
-				session, ok := downloadSessions.GetNow(token)
+				session, ok := fileDownloadSessions.GetNow(token)
 				if !ok || uid != session.OwnedBy {
 					w.WriteHeader(http.StatusNotFound)
 					return
@@ -264,8 +264,8 @@ func controllerFiles() {
 		orcapi.FilesProviderCopy.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.FilesProviderMoveOrCopyRequest]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
 			var errors []*util.HttpError
 			for _, item := range request.Items {
-				TrackDrive(&item.ResolvedOldCollection)
-				TrackDrive(&item.ResolvedNewCollection)
+				DriveTrack(&item.ResolvedOldCollection)
+				DriveTrack(&item.ResolvedNewCollection)
 
 				err := Files.Copy(info.Actor, item)
 
@@ -284,7 +284,7 @@ func controllerFiles() {
 		orcapi.FilesProviderTrash.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.FilesProviderTrashRequest]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
 			var errors []*util.HttpError
 			for _, item := range request.Items {
-				TrackDrive(&item.ResolvedCollection)
+				DriveTrack(&item.ResolvedCollection)
 
 				err := Files.MoveToTrash(item)
 
@@ -320,14 +320,14 @@ func controllerFiles() {
 		orcapi.FilesProviderCreateUpload.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.FilesProviderCreateUploadRequest]) (fnd.BulkResponse[orcapi.FilesProviderCreateUploadResponse], *util.HttpError) {
 			resp := fnd.BulkResponse[orcapi.FilesProviderCreateUploadResponse]{}
 			for _, item := range request.Items {
-				TrackDrive(&item.ResolvedCollection)
+				DriveTrack(&item.ResolvedCollection)
 
 				sessionData, err := Files.CreateUploadSession(item)
 				if err != nil {
 					return fnd.BulkResponse[orcapi.FilesProviderCreateUploadResponse]{}, err
 				}
 
-				session, uploadPath := CreateFolderUpload(item.Id, item.ConflictPolicy, sessionData)
+				session, uploadPath := FileCreateFolderUpload(item.Id, item.ConflictPolicy, sessionData)
 
 				resp.Responses = append(
 					resp.Responses,
@@ -361,7 +361,7 @@ func controllerFiles() {
 					return
 				}
 
-				session, ok := retrieveUploadSession(token)
+				session, ok := fileRetrieveUploadSession(token)
 
 				if !ok {
 					w.WriteHeader(http.StatusNotFound)
@@ -369,7 +369,7 @@ func controllerFiles() {
 				}
 
 				if upload.ProcessServer(conn, Files.Uploader, session) {
-					invalidateUploadSession(token)
+					fileInvalidateUploadSession(token)
 				}
 			},
 		)
@@ -381,7 +381,7 @@ func controllerFiles() {
 
 			switch request.Type {
 			case orcapi.FilesProviderTransferReqTypeInitiateSource:
-				TrackDrive(&request.SourceDrive)
+				DriveTrack(&request.SourceDrive)
 				payload := request.FilesProviderTransferRequestInitiateSource
 
 				protocols, err := Files.TransferSourceInitiate(payload)
@@ -395,7 +395,7 @@ func controllerFiles() {
 				return resp, err
 
 			case orcapi.FilesProviderTransferReqTypeInitiateDestination:
-				TrackDrive(&request.DestinationDrive)
+				DriveTrack(&request.DestinationDrive)
 				payload := request.FilesProviderTransferRequestInitiateDestination
 
 				resp, err := Files.TransferDestinationInitiate(payload)
@@ -405,7 +405,7 @@ func controllerFiles() {
 				payload := request.FilesProviderTransferRequestStart
 
 				username := info.Actor.Username
-				_, ierr := selectTransferProtocolCall.Invoke(SelectTransferProtocolRequest{
+				_, ierr := selectTransferProtocolCall.Invoke(FileSelectTransferProtocolRequest{
 					Id:                 request.Session,
 					SelectedProtocol:   request.SelectedProtocol,
 					ProtocolParameters: request.ProtocolParameters,
@@ -415,7 +415,7 @@ func controllerFiles() {
 					return orcapi.FilesProviderTransferResponse{}, util.HttpErrorFromErr(ierr)
 				}
 
-				session, ok := RetrieveTransferSession(request.Session)
+				session, ok := FileRetrieveTransferSession(request.Session)
 				if !ok {
 					return orcapi.FilesProviderTransferResponse{}, util.HttpErr(http.StatusNotFound, "unknown session")
 				}
@@ -583,7 +583,7 @@ func controllerFiles() {
 		orcapi.DrivesProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Drive]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
 			resp := fnd.BulkResponse[fnd.FindByStringId]{}
 			for _, item := range request.Items {
-				TrackDrive(&item)
+				DriveTrack(&item)
 
 				fn := Files.CreateDrive
 				if fn == nil {
@@ -616,7 +616,7 @@ func controllerFiles() {
 						resp.Responses = append(resp.Responses, util.Empty{})
 					} else {
 						resp.Responses = append(resp.Responses, util.Empty{})
-						RemoveTrackedDrive(item.Id)
+						DriveRemoveTracked(item.Id)
 					}
 				}
 			}
@@ -627,14 +627,14 @@ func controllerFiles() {
 		orcapi.DrivesProviderRename.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.DriveRenameRequest]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
 			resp := fnd.BulkResponse[util.Empty]{}
 			for _, item := range request.Items {
-				retrievedDrive, ok := RetrieveDrive(item.Id)
+				retrievedDrive, ok := DriveRetrieve(item.Id)
 				if !ok {
 					return fnd.BulkResponse[util.Empty]{}, util.ServerHttpError("Unknown drive")
 				}
 				driveCopy := *retrievedDrive
 				oldTitle := driveCopy.Specification.Title
 				driveCopy.Specification.Title = item.NewTitle
-				TrackDrive(&driveCopy)
+				DriveTrack(&driveCopy)
 
 				fn := Files.RenameDrive
 				if fn != nil {
@@ -643,7 +643,7 @@ func controllerFiles() {
 						return fnd.BulkResponse[util.Empty]{}, err
 					} else {
 						driveCopy.Specification.Title = oldTitle
-						TrackDrive(&driveCopy)
+						DriveTrack(&driveCopy)
 					}
 				}
 
@@ -690,7 +690,7 @@ func controllerFiles() {
 					}
 				}
 
-				TrackDrive(&drive)
+				DriveTrack(&drive)
 
 				resp.Responses = append(resp.Responses, util.Empty{})
 			}
@@ -798,7 +798,7 @@ func controllerFiles() {
 			}
 		})
 
-		selectTransferProtocolCall.Handler(func(r *ipc.Request[SelectTransferProtocolRequest]) ipc.Response[util.Empty] {
+		selectTransferProtocolCall.Handler(func(r *ipc.Request[FileSelectTransferProtocolRequest]) ipc.Response[util.Empty] {
 			db.NewTx0(func(tx *db.Transaction) {
 				db.Exec(
 					tx,
@@ -825,8 +825,8 @@ func controllerFiles() {
 			}
 		})
 
-		retrieveTransferSession.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[TransferSession] {
-			session, ok := db.NewTx2(func(tx *db.Transaction) (TransferSession, bool) {
+		retrieveTransferSession.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[FileTransferSession] {
+			session, ok := db.NewTx2(func(tx *db.Transaction) (FileTransferSession, bool) {
 				row, ok := db.Get[struct {
 					UCloudSource        string
 					DestinationProvider string
@@ -853,9 +853,9 @@ func controllerFiles() {
 				)
 
 				if !ok {
-					return TransferSession{}, false
+					return FileTransferSession{}, false
 				} else {
-					return TransferSession{
+					return FileTransferSession{
 						Id: r.Payload.Id,
 						FilesProviderTransferRequestInitiateSource: orcapi.FilesProviderTransferRequestInitiateSource{
 							SourcePath:          row.UCloudSource,
@@ -870,12 +870,12 @@ func controllerFiles() {
 			log.Info("retrieve transfer session %v %v %v", r.Uid, r.Payload.Id, ok)
 
 			if !ok {
-				return ipc.Response[TransferSession]{
+				return ipc.Response[FileTransferSession]{
 					StatusCode: http.StatusNotFound,
 				}
 			}
 
-			return ipc.Response[TransferSession]{
+			return ipc.Response[FileTransferSession]{
 				StatusCode: http.StatusOK,
 				Payload:    session,
 			}
@@ -983,7 +983,7 @@ func controllerFiles() {
 	})
 }
 
-func CreateFolderUpload(path string, conflictPolicy orcapi.WriteConflictPolicy, sessionData string) (upload.ServerSession, string) {
+func FileCreateFolderUpload(path string, conflictPolicy orcapi.WriteConflictPolicy, sessionData string) (upload.ServerSession, string) {
 	session := upload.ServerSession{
 		Id:             util.RandomToken(32),
 		ConflictPolicy: conflictPolicy,
@@ -991,12 +991,12 @@ func CreateFolderUpload(path string, conflictPolicy orcapi.WriteConflictPolicy, 
 		UserData:       sessionData,
 	}
 
-	uploadPath := generateUploadPath(cfg.Provider, cfg.Provider.Id, orcapi.UploadProtocolWebSocketV2, session.Id, UCloudUsername)
-	createUploadSession(session)
+	uploadPath := fileGenerateUploadPath(cfg.Provider, cfg.Provider.Id, orcapi.UploadProtocolWebSocketV2, session.Id, UCloudUsername)
+	fileCreateUploadSession(session)
 	return session, uploadPath
 }
 
-func generateUploadPath(
+func fileGenerateUploadPath(
 	config *cfg.ProviderConfiguration,
 	providerId string,
 	protocol orcapi.UploadProtocol,
@@ -1020,22 +1020,22 @@ func generateUploadPath(
 	}
 }
 
-func createUploadSession(session upload.ServerSession) {
+func fileCreateUploadSession(session upload.ServerSession) {
 	_, _ = createUploadSessionCall.Invoke(session)
 }
 
-func retrieveUploadSession(id string) (upload.ServerSession, bool) {
+func fileRetrieveUploadSession(id string) (upload.ServerSession, bool) {
 	session, err := retrieveUploadSessionCall.Invoke(fnd.FindByStringId{id})
 	return session, err == nil
 }
 
-func invalidateUploadSession(id string) {
+func fileInvalidateUploadSession(id string) {
 	_, _ = invalidateUploadSessionCall.Invoke(fnd.FindByStringId{id})
 }
 
-var downloadSessions = util.NewCache[string, DownloadSession](48 * time.Hour)
+var fileDownloadSessions = util.NewCache[string, FileDownloadSession](48 * time.Hour)
 
-type TransferSession struct {
+type FileTransferSession struct {
 	Id string
 	orcapi.FilesProviderTransferRequestInitiateSource
 
@@ -1044,7 +1044,7 @@ type TransferSession struct {
 	Username           string
 }
 
-type SelectTransferProtocolRequest struct {
+type FileSelectTransferProtocolRequest struct {
 	Id                 string
 	SelectedProtocol   string
 	ProtocolParameters json.RawMessage
@@ -1056,14 +1056,14 @@ var (
 	invalidateUploadSessionCall = ipc.NewCall[fnd.FindByStringId, util.Empty]("ctrl.files.invalidateUploadSession")
 
 	createTransferSessionCall  = ipc.NewCall[orcapi.FilesProviderTransferRequestInitiateSource, fnd.FindByStringId]("ctrl.files.createTransferSession")
-	selectTransferProtocolCall = ipc.NewCall[SelectTransferProtocolRequest, util.Empty]("ctrl.files.selectTransferProtocol")
-	retrieveTransferSession    = ipc.NewCall[fnd.FindByStringId, TransferSession]("ctrl.files.retrieveTransferSession")
+	selectTransferProtocolCall = ipc.NewCall[FileSelectTransferProtocolRequest, util.Empty]("ctrl.files.selectTransferProtocol")
+	retrieveTransferSession    = ipc.NewCall[fnd.FindByStringId, FileTransferSession]("ctrl.files.retrieveTransferSession")
 )
 
-func RetrieveTransferSession(id string) (TransferSession, bool) {
+func FileRetrieveTransferSession(id string) (FileTransferSession, bool) {
 	session, err := retrieveTransferSession.Invoke(fnd.FindByStringId{Id: id})
 	if err != nil {
-		return TransferSession{}, false
+		return FileTransferSession{}, false
 	}
 	return session, true
 }
