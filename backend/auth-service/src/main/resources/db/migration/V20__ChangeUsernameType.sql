@@ -1,1 +1,0 @@
-ALTER TABLE principals ALTER COLUMN id TYPE TEXT
