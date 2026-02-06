@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/sugarme/tokenizer"
 	"github.com/sugarme/tokenizer/pretrained"
-	_ "ucloud.dk/pkg/silentlog"
+	_ "ucloud.dk/shared/pkg/silentlog"
 	"unicode/utf8"
 )
 

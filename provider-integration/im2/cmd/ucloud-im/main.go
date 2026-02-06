@@ -1,17 +1,15 @@
 package main
 
-import _ "ucloud.dk/pkg/silentlog"
-
 import (
 	"fmt"
 	"os"
 	"strconv"
 
-	"ucloud.dk/pkg/im/controller/fsearch"
-	"ucloud.dk/pkg/im/external/gpfs"
+	"ucloud.dk/pkg/controller/fsearch"
+	"ucloud.dk/pkg/external/gpfs"
+	"ucloud.dk/pkg/launcher"
+	_ "ucloud.dk/shared/pkg/silentlog"
 	"ucloud.dk/shared/pkg/util"
-
-	"ucloud.dk/pkg/im/launcher"
 )
 
 func main() {

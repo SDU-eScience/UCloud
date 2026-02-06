@@ -1,0 +1,228 @@
+package containers
+
+import (
+	"encoding/json"
+	"fmt"
+	"path/filepath"
+	"slices"
+	"strings"
+
+	core "k8s.io/api/core/v1"
+	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/pkg/integrations/k8s/shared"
+	orc "ucloud.dk/shared/pkg/orc2"
+	"ucloud.dk/shared/pkg/util"
+)
+
+type mountedFolder struct {
+	InternalPath string
+	SubPath      string
+	PodPath      string
+	ReadOnly     bool
+}
+
+type mountResult struct {
+	Folders                 map[string]mountedFolder
+	MountedDrivesAsReadOnly map[string]bool
+}
+
+func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool) {
+	ucloudMounts := map[string]bool{}
+
+	for _, v := range job.Specification.Resources {
+		if v.Type == orc.AppParameterValueTypeFile {
+			ucloudMounts[v.Path] = v.ReadOnly
+		}
+	}
+
+	for _, v := range job.Specification.Parameters {
+		if v.Type == orc.AppParameterValueTypeFile {
+			ucloudMounts[v.Path] = v.ReadOnly
+		}
+	}
+
+	containerMountDir := "/work"
+
+	// Container internal path to (potentially conflicting) mount sub-paths
+	resolvedMounts := map[string][]util.Tuple2[string, bool]{}
+
+	internalToSubpath := func(internalPath string) (string, bool) {
+		subpath, ok := strings.CutPrefix(internalPath, filepath.Clean(ServiceConfig.FileSystem.MountPoint)+"/")
+		if !ok {
+			return "", false
+		}
+
+		return subpath, true
+	}
+
+	ucloudToSubpath := func(ucloudPath string) (string, bool) {
+		path, ok, _ := filesystem.UCloudToInternal(ucloudPath)
+		if !ok {
+			return "", false
+		}
+
+		return internalToSubpath(path)
+	}
+
+	addMount := func(containerPath, subpath string, readOnly bool) {
+		existing, _ := resolvedMounts[containerPath]
+		existing = append(existing, util.Tuple2[string, bool]{subpath, readOnly})
+		resolvedMounts[containerPath] = existing
+	}
+
+	addInternalMount := func(containerPath, internalPath string, readOnly bool) {
+		sub, ok := internalToSubpath(internalPath)
+		if ok {
+			addMount(containerPath, sub, readOnly)
+		}
+	}
+
+	var allUCloudPaths []string
+	mountedDrivesAsReadOnly := map[string]bool{}
+	addUCloudMount := func(containerPath, ucloudPath string, readOnly bool) {
+		allUCloudPaths = append(allUCloudPaths, ucloudPath)
+
+		sub, ok := ucloudToSubpath(ucloudPath)
+		if ok {
+			addMount(containerPath, sub, readOnly)
+		}
+	}
+
+	addInternalMount(containerMountDir, internalJobFolder, false)
+
+	for mount, readOnly := range ucloudMounts {
+		comps := util.Components(mount)
+		compsLen := len(comps)
+
+		if compsLen == 0 {
+			continue
+		}
+
+		alreadyMountedAsReadOnly, ok := mountedDrivesAsReadOnly[comps[0]]
+		if ok && alreadyMountedAsReadOnly {
+			mountedDrivesAsReadOnly[comps[0]] = readOnly
+		} else if !ok {
+			mountedDrivesAsReadOnly[comps[0]] = readOnly
+		}
+
+		title := comps[compsLen-1]
+
+		if compsLen == 1 {
+			drive, ok := filesystem.ResolveDrive(comps[0])
+			if !ok {
+				continue
+			}
+
+			title = strings.ReplaceAll(drive.Specification.Title, "Member Files: ", "")
+		}
+
+		addUCloudMount(filepath.Join(containerMountDir, title), mount, readOnly)
+	}
+
+	mountPaths := map[string]mountedFolder{}
+
+	mountIdx := 0
+	for containerPath, mounts := range resolvedMounts {
+		if len(mounts) == 1 {
+			mount := mounts[0]
+
+			internalPath := ServiceConfig.FileSystem.MountPoint + "/" + mount.First
+			mountPaths[internalPath] = mountedFolder{
+				InternalPath: internalPath,
+				SubPath:      mount.First,
+				PodPath:      containerPath,
+				ReadOnly:     mount.Second,
+			}
+
+			mountIdx++
+		} else {
+			// NOTE(Dan): Must remain consistent with VM mount logic for overall consistency
+			slices.SortFunc(mounts, func(a, b util.Tuple2[string, bool]) int {
+				return strings.Compare(a.First, b.First)
+			})
+
+			for i, mount := range mounts {
+				resolvedContainerPath := fmt.Sprintf("%s-%d", containerPath, i)
+
+				internalPath := ServiceConfig.FileSystem.MountPoint + "/" + mount.First
+				mountPaths[internalPath] = mountedFolder{
+					InternalPath: internalPath,
+					SubPath:      mount.First,
+					PodPath:      resolvedContainerPath,
+					ReadOnly:     mount.Second,
+				}
+
+				mountIdx++
+			}
+		}
+	}
+
+	if !filesystem.AllowUCloudPathsTogetherWithProjects(allUCloudPaths, []string{job.Owner.Project.Value}) {
+		return mountResult{}, false
+	}
+
+	return mountResult{
+		Folders:                 mountPaths,
+		MountedDrivesAsReadOnly: mountedDrivesAsReadOnly,
+	}, true
+}
+
+// prepareMountsOnJobCreate add relevant mounts into the pod and returns a mapping from internal paths (including the
+// mount point) to their corresponding paths inside the container.
+func prepareMountsOnJobCreate(
+	job *orc.Job,
+	pod *core.Pod,
+	userContainer *core.Container,
+	jobFolder string,
+) (map[string]string, bool) {
+	spec := &pod.Spec
+
+	fsVolume := "ucloud-filesystem"
+	spec.Volumes = append(spec.Volumes, core.Volume{
+		Name: fsVolume,
+		VolumeSource: core.VolumeSource{
+			PersistentVolumeClaim: &core.PersistentVolumeClaimVolumeSource{
+				ClaimName: ServiceConfig.FileSystem.ClaimName,
+				ReadOnly:  false,
+			},
+		},
+	})
+
+	mounts, ok := calculateMounts(job, jobFolder)
+	if !ok {
+		return map[string]string{}, false
+	}
+
+	folders := mounts.Folders
+	result := map[string]string{}
+	mountedDrivesAsReadOnly := mounts.MountedDrivesAsReadOnly
+
+	for internalPath, folder := range folders {
+		userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
+			Name:      fsVolume,
+			ReadOnly:  folder.ReadOnly,
+			MountPath: folder.PodPath,
+			SubPath:   folder.SubPath,
+		})
+
+		result[internalPath] = folder.PodPath
+	}
+
+	{
+		var driveIds []string
+		var driveAsReadOnly []bool
+
+		for driveId, readOnly := range mountedDrivesAsReadOnly {
+			driveIds = append(driveIds, driveId)
+			driveAsReadOnly = append(driveAsReadOnly, readOnly)
+		}
+
+		driveIdsBytes, _ := json.Marshal(driveIds)
+		driveReadOnlyBytes, _ := json.Marshal(driveAsReadOnly)
+
+		pod.Annotations[shared.AnnotationMountedDriveIds] = string(driveIdsBytes)
+		pod.Annotations[shared.AnnotationMountedDriveAsReadOnly] = string(driveReadOnlyBytes)
+	}
+
+	return result, true
+}
