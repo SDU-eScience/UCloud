@@ -1,12 +1,13 @@
 import {useCloudCommand} from "@/Authentication/DataHook";
 import * as React from "react";
 import {useCallback, useEffect} from "react";
-import {Box, Button, Checkbox, Label} from "@/ui-components";
+import {Checkbox} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
-import {NotificationSettings, retrieveNotificationSettings, updateNotificationSettings} from ".";
+import {NotificationSettings, retrieveNotificationSettings, updateNotificationSettings} from "./settingsApi";
 import {PayloadAction} from "@reduxjs/toolkit";
+import {SettingsActions, SettingsCheckboxRow, SettingsSection} from "./SettingsComponents";
 
 interface UserDetailsState {
     settings: NotificationSettings
@@ -90,11 +91,10 @@ export const ChangeNotificationSettings: React.FunctionComponent<{setLoading: (l
         return <HexSpin />
     }
     return (
-        <Box mb={16}>
-            <Heading.h2>Notifications</Heading.h2>
+        <SettingsSection title="Notifications">
             <form onSubmit={onSubmit}>
                 <Heading.h5>Jobs</Heading.h5>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                <SettingsCheckboxRow>
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(NotificationType.JOB_STOPPED)}
@@ -102,18 +102,11 @@ export const ChangeNotificationSettings: React.FunctionComponent<{setLoading: (l
                         checked={state.settings.jobStopped}
                     />
                     <span>Job started or stopped</span>
-                </Label>
+                </SettingsCheckboxRow>
 
                 <Heading.h5> </Heading.h5>
-                <Button
-                    mt="1em"
-                    type="submit"
-                    color="successMain"
-                    disabled={commandLoading}
-                >
-                    Update Notification Settings
-                </Button>
+                <SettingsActions submitLabel="Update Notification Settings" disabled={commandLoading} />
             </form>
-        </Box>
+        </SettingsSection>
     );
 };

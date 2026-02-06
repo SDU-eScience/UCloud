@@ -5,8 +5,9 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Button, Divider, ExternalLink, Flex, Input} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import * as Heading from "@/ui-components/Heading";
-import {TwoFactorSetupState} from ".";
+import {TwoFactorSetupState} from "./settingsApi";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
+import {SettingsSection} from "./SettingsComponents";
 
 import googlePlay from "@/Assets/Images/google-play-badge.png";
 import appStore from "@/Assets/Images/app-store-badge.png";
@@ -25,8 +26,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
 
     public render() {
         return (
-            <>
-                <Heading.h2>Two factor authentication</Heading.h2>
+            <SettingsSection title="Two factor authentication">
                 {this.props.mustActivate2fa ? (
                     <Heading.h3 color={getCssPropertyValue("errorMain")}>
                         You must activate 2FA for your account before you can continue
@@ -35,7 +35,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
                 <b>{this.displayConnectedStatus()}</b>
                 <Divider />
                 {!this.state.isConnectedToAccount ? this.setupPage() : undefined}
-            </>
+            </SettingsSection>
         );
     }
 

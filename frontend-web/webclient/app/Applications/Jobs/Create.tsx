@@ -631,9 +631,9 @@ export const Create: React.FunctionComponent = () => {
                                         </Select>
                                     </Label>
                                     <Label mt={"16px"}>
-                                        Job resource utilization export settings
-                                        <Select width={"300px"} onChange={doNothing} name={"job-resource-utilization-export"}>
-                                            <option value="fie" selected={}>Fie dog</option>
+                                        Job resource sample rate settings
+                                        <Select width={"300px"} onChange={doNothing} name={"job-resource-sample-rate"}>
+                                            {/*<option value="fie" selected={}>Fie dog</option>*/}
                                         </Select>
                                     </Label>
                                 </Flex>}

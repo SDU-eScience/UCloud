@@ -1,7 +1,7 @@
 import {useCloudCommand} from "@/Authentication/DataHook";
 import * as React from "react";
 import {useCallback, useEffect} from "react";
-import {Box, Button, Checkbox, Label} from "@/ui-components";
+import {Checkbox} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {bulkRequestOf} from "@/UtilityFunctions";
@@ -11,6 +11,7 @@ import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {PayloadAction} from "@reduxjs/toolkit";
+import {SettingsActions, SettingsCheckboxRow, SettingsSection} from "./SettingsComponents";
 
 export interface UserDetailsState {
     settings: EmailSettings
@@ -169,12 +170,11 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
         return <HexSpin />
     }
     return (
-        <Box mb={16}>
-            <Heading.h2>Email settings</Heading.h2>
+        <SettingsSection title="Email settings">
             <form onSubmit={onSubmit}>
 
                 <Heading.h5>Grant applications</Heading.h5>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                <SettingsCheckboxRow>
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.GRANT_APPLICATION_APPROVED)}
@@ -182,8 +182,8 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         checked={state.settings.grantApplicationApproved}
                     />
                     <span>Application approved</span>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                </SettingsCheckboxRow>
+                <SettingsCheckboxRow>
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.GRANT_APPLICATION_REJECTED)}
@@ -191,8 +191,8 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         checked={state.settings.grantApplicationRejected}
                     />
                     <span>Application rejected</span>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                </SettingsCheckboxRow>
+                <SettingsCheckboxRow>
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.GRANT_APPLICATION_WITHDRAWN)}
@@ -200,8 +200,8 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         checked={state.settings.grantApplicationWithdrawn}
                     />
                     <span>Application withdrawn</span>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                </SettingsCheckboxRow>
+                <SettingsCheckboxRow>
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.NEW_GRANT_APPLICATION)}
@@ -209,8 +209,8 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         checked={state.settings.newGrantApplication}
                     />
                     <span>New application received</span>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                </SettingsCheckboxRow>
+                <SettingsCheckboxRow>
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.APPLICATION_STATUS_CHANGE)}
@@ -218,8 +218,8 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         checked={state.settings.applicationStatusChange}
                     />
                     <span>Status change by other admins</span>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                </SettingsCheckboxRow>
+                <SettingsCheckboxRow>
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.APPLICATION_TRANSFER)}
@@ -227,8 +227,8 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         checked={state.settings.applicationTransfer}
                     />
                     <span>Transfers from other projects</span>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                </SettingsCheckboxRow>
+                <SettingsCheckboxRow>
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.NEW_COMMENT_ON_APPLICATION)}
@@ -236,8 +236,8 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         checked={state.settings.newCommentOnApplication}
                     />
                     <span>New comment in application</span>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                </SettingsCheckboxRow>
+                <SettingsCheckboxRow>
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.GRANT_APPLICATION_UPDATED)}
@@ -245,10 +245,10 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         checked={state.settings.grantApplicationUpdated}
                     />
                     <span>Application has been edited</span>
-                </Label>
+                </SettingsCheckboxRow>
 
                 <Heading.h5>Projects</Heading.h5>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                <SettingsCheckboxRow>
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.LOW_FUNDS)}
@@ -256,8 +256,8 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         checked={state.settings.lowFunds}
                     />
                     <span>Low on funds</span>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                </SettingsCheckboxRow>
+                <SettingsCheckboxRow>
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.PROJECT_USER_INVITE)}
@@ -265,8 +265,8 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         checked={state.settings.projectUserInvite}
                     />
                     <span>User invited to project</span>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                </SettingsCheckboxRow>
+                <SettingsCheckboxRow>
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.USER_LEFT)}
@@ -274,8 +274,8 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         checked={state.settings.userLeft}
                     />
                     <span>User left project</span>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                </SettingsCheckboxRow>
+                <SettingsCheckboxRow>
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.USER_ROLE_CHANGE)}
@@ -283,8 +283,8 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         checked={state.settings.userRoleChange}
                     />
                     <span>User role changed</span>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                </SettingsCheckboxRow>
+                <SettingsCheckboxRow>
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.PROJECT_USER_REMOVED)}
@@ -292,8 +292,8 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         checked={state.settings.projectUserRemoved}
                     />
                     <span>User removed from project</span>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                </SettingsCheckboxRow>
+                <SettingsCheckboxRow>
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.VERIFICATION_REMINDER)}
@@ -301,11 +301,10 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         checked={state.settings.verificationReminder}
                     />
                     <span>Verification reminders</span>
-                </Label>
+                </SettingsCheckboxRow>
 
-                {/* TODO remove code when ChangeJobSettings is implemented */}
                 <Heading.h5>Jobs</Heading.h5>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                <SettingsCheckboxRow>
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.JOB_STOPPED)}
@@ -313,18 +312,11 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         checked={state.settings.jobStopped}
                     />
                     <span>Job started or stopped</span>
-                </Label>
+                </SettingsCheckboxRow>
 
                 <Heading.h5> </Heading.h5>
-                <Button
-                    mt="1em"
-                    type="submit"
-                    color="successMain"
-                    disabled={commandLoading}
-                >
-                    Update Email Settings
-                </Button>
+                <SettingsActions submitLabel="Update Email Settings" disabled={commandLoading} />
             </form>
-        </Box>
+        </SettingsSection>
     );
 };
