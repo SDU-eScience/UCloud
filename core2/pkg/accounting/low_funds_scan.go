@@ -2,6 +2,7 @@ package accounting
 
 import (
 	"encoding/json"
+	"time"
 
 	"ucloud.dk/core/pkg/config"
 	accapi "ucloud.dk/shared/pkg/accounting"
@@ -11,33 +12,26 @@ import (
 )
 
 func initLowFundsScan() {
-	computeLowFundsLimit := config.Configuration.Accounting.ComputeUnitsLowFundsNotificationLimitInCH
-	if computeLowFundsLimit == 0 {
-		computeLowFundsLimit = 20
+	lowFundsLimitInPercent := config.Configuration.Accounting.LowFundsLimitInPercent
+	if lowFundsLimitInPercent == 0.0 {
+		lowFundsLimitInPercent = 10.0
 	}
 
-	storageLowFundsLimit := config.Configuration.Accounting.StorageUnitsLowFundsNotificationLimitInGB
-	if storageLowFundsLimit == 0 {
-		storageLowFundsLimit = 100
-	}
+	go func() {
+		// Make sure that the scan does not start before the system is up and running
+		time.Sleep(5 * time.Second)
 
-	/*
-		go func() {
-			// Make sure that the scan does not start before the system is up and running
-			time.Sleep(5 * time.Second)
+		ticker := time.NewTicker(12 * time.Hour)
+		defer ticker.Stop()
 
-			ticker := time.NewTicker(12 * time.Hour)
-			defer ticker.Stop()
-
-			for {
-				<-ticker.C
-				lowFundsScan(computeLowFundsLimit, storageLowFundsLimit)
-			}
-		}()
-	*/
+		for {
+			<-ticker.C
+			lowFundsScan(lowFundsLimitInPercent)
+		}
+	}()
 }
 
-func lowFundsScan(coreHourLowFundsLimit int64, storageLowFundsLimit int64) {
+func lowFundsScan(lowFundsLimitInPercent float32) {
 	log.Debug("Starting low funds scan")
 
 	type Resource struct {
@@ -62,25 +56,36 @@ func lowFundsScan(coreHourLowFundsLimit int64, storageLowFundsLimit int64) {
 		}](
 			tx,
 			`
-				with summarized_wallets as (
-					select
-						w.id wallet_id,
-						sum(ag.tree_usage) current_usage,
-						sum(alloc.quota) current_quota
-					from accounting.wallet_allocations_v2 alloc join
-					accounting.allocation_groups ag on alloc.associated_allocation_group = ag.id join
-					accounting.wallets_v2 w on ag.associated_wallet = w.id
-					where
-						alloc.allocation_start_time <= now() and
-						alloc.allocation_end_time >= now()
-					group by w.id
-					order by w.id
-				)
+				with
+					active_quota as (
+						select
+							w.id,
+							sum(alloc.quota) current_quota
+						from accounting.wallet_allocations_v2 alloc join
+							 accounting.allocation_groups ag on alloc.associated_allocation_group = ag.id join
+							 accounting.wallets_v2 w on ag.associated_wallet = w.id
+						where
+							alloc.allocation_start_time <= now() and alloc.allocation_end_time >= now()
+						group by w.id
+						order by w.id
+					),
+					active_usage as (
+						select
+							w.id,
+							sum(ag.tree_usage) current_usage
+						from accounting.wallet_allocations_v2 alloc join
+							 accounting.allocation_groups ag on alloc.associated_allocation_group = ag.id join
+							 accounting.wallets_v2 w on ag.associated_wallet = w.id
+						where
+							alloc.allocation_start_time <= now() and alloc.allocation_end_time >= now()
+						group by w.id
+						order by w.id
+					)
 				select
 					w.id wallet_id,
 					w.low_balance_notified,
-					sw.current_usage,
-					sw.current_quota,
+					au.current_usage active_usage,
+					aq.current_quota active_quota,
 					pc.product_type,
 					pc.accounting_frequency,
 					pc.category category_name,
@@ -89,12 +94,13 @@ func lowFundsScan(coreHourLowFundsLimit int64, storageLowFundsLimit int64) {
 					wo.project_id is not null is_project,
 					coalesce(p.title, concat('Personal workspace - ', wo.username)) project_title
 				from
-					summarized_wallets sw join
-						accounting.wallets_v2 w on w.id = sw.wallet_id join
-						accounting.product_categories pc on w.product_category = pc.id join
-						accounting.wallet_owner wo on w.wallet_owner = wo.id left join
-						project.projects p on wo.project_id = p.id left join
-						project.project_members pm on p.id = pm.project_id and pm.role = 'PI'
+					accounting.wallets_v2 w join
+					active_usage au on w.id = au.id join
+					active_quota aq on w.id = aq.id join
+					accounting.product_categories pc on w.product_category = pc.id join
+					accounting.wallet_owner wo on w.wallet_owner = wo.id left join
+					project.projects p on wo.project_id = p.id left join
+					project.project_members pm on p.id = pm.project_id and pm.role = 'PI'
 				where (pc.product_type = 'COMPUTE' or pc.product_type = 'STORAGE')
 				order by w.id
 			`,
@@ -106,31 +112,16 @@ func lowFundsScan(coreHourLowFundsLimit int64, storageLowFundsLimit int64) {
 		usersToNotifications := make(map[string][]Resource)
 
 		for _, row := range relevantWallets {
-			limit := int64(0)
-			if row.ProductType == accapi.ProductTypeStorage {
-				limit = storageLowFundsLimit
-			}
-			if row.ProductType == accapi.ProductTypeCompute {
-				limit = coreHourLowFundsLimit
-			}
-
 			// Converting to more readable format for the mail
-			rawAmount := row.CurrentQuota - row.CurrentUsage
-			remaining := int64(0)
-			switch row.AccountingFrequency {
-			case accapi.AccountingFrequencyOnce:
-				remaining = rawAmount
-			case accapi.AccountingFrequencyPeriodicMinute:
-				remaining = rawAmount / 60
-			case accapi.AccountingFrequencyPeriodicHour:
-				remaining = rawAmount
-			case accapi.AccountingFrequencyPeriodicDay:
-				remaining = rawAmount * 24
-			default:
-				log.Warn("Invalid accounting frequency passed: '%v'\n", row.AccountingFrequency)
+			currentQuota := float32(row.CurrentQuota)
+			currentUsage := float32(row.CurrentUsage)
+			lowBalanceNotified := row.LowBalanceNotified
+			if row.CurrentQuota == 0 {
+				continue
 			}
+			percentageRemaining := (currentQuota - currentUsage) / currentQuota * 100.0
 
-			if remaining < limit && !row.LowBalanceNotified {
+			if percentageRemaining < lowFundsLimitInPercent && !lowBalanceNotified {
 				notifications := usersToNotifications[row.Username]
 				notifications = append(notifications, Resource{
 					row.ProjectTitle,
@@ -140,7 +131,7 @@ func lowFundsScan(coreHourLowFundsLimit int64, storageLowFundsLimit int64) {
 				usersToNotifications[row.Username] = notifications
 				walletsToNotify = append(walletsToNotify, row.WalletId)
 			}
-			if remaining > limit && row.LowBalanceNotified {
+			if percentageRemaining > lowFundsLimitInPercent && lowBalanceNotified {
 				walletsToResetNotification = append(walletsToResetNotification, row.WalletId)
 			}
 		}
@@ -172,7 +163,7 @@ func lowFundsScan(coreHourLowFundsLimit int64, storageLowFundsLimit int64) {
 		return
 	}
 
-	if len(bulkRequest.Items) > 0 {
+	if len(WalletsToNotify) > 0 || len(WalletsToResetNotification) > 0 {
 		db.NewTx0(func(tx *db.Transaction) {
 			// Updating notification tracker for wallets below limit
 			updateLowBalanceNotified(tx, WalletsToNotify, true)

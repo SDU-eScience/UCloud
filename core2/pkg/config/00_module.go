@@ -45,8 +45,7 @@ type ConfigurationFormat struct {
 	}
 
 	Accounting struct {
-		ComputeUnitsLowFundsNotificationLimitInCH int64 `yaml:"computeUnitsLowFundsNotificationLimitInCH"`
-		StorageUnitsLowFundsNotificationLimitInGB int64 `yaml:"StorageUnitsLowFundsNotificationLimitInGB"`
+		LowFundsLimitInPercent float32 `yaml:"lowFundsLimitInPercent"`
 	}
 
 	ServiceLicenseAgreement struct {
