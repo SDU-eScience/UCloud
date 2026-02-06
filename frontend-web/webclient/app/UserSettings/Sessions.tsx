@@ -107,7 +107,7 @@ export const Sessions: React.FunctionComponent<SessionsProps> = props => {
     }, [props.setRefresh]);
 
     return (
-        <SettingsSection title="Active sessions" mb={0}>
+        <SettingsSection id="sessions" title="Active sessions" mb={0}>
             <Pagination.List
                 loading={sessions.loading}
                 page={sessions.data}

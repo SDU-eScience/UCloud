@@ -74,7 +74,7 @@ export const ChangeNotificationSettings: React.FunctionComponent<ChangeNotificat
         return <HexSpin />
     }
     return (
-        <SettingsSection title="Notifications">
+        <SettingsSection id="notifications" title="Notifications">
             <Box>
                 <Box mb={24}>
                     <Heading.h5>Jobs</Heading.h5>

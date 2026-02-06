@@ -14,6 +14,7 @@ import {CustomTheming} from "./CustomTheme";
 import {refreshFunctionCache} from "@/Utilities/ReduxUtilities";
 import {ChangeNotificationSettings} from "./ChangeNotificationSettings";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {SettingsNavSection, SettingsNavigator} from "./SettingsComponents";
 
 function UserSettings(): React.ReactNode {
 
@@ -30,6 +31,18 @@ function UserSettings(): React.ReactNode {
         Client.userInfo?.twoFactorAuthentication === false &&
         Client.userInfo?.principalType === "password";
 
+    const sections: SettingsNavSection[] = mustActivate2fa ? [
+        {id: "two-factor", label: "Two factor authentication"}
+    ] : [
+        {id: "two-factor", label: "Two factor authentication"},
+        {id: "password", label: "Change password"},
+        {id: "profile", label: "User details"},
+        {id: "organization", label: "Additional information"},
+        {id: "email", label: "Email settings"},
+        {id: "notifications", label: "Notifications"},
+        {id: "sessions", label: "Active sessions"},
+    ];
+
     return (
         <Flex alignItems="center" flexDirection="column">
             <Box width="100%" maxWidth="980px">
@@ -37,6 +50,7 @@ function UserSettings(): React.ReactNode {
                     header={<Heading.h1>User settings</Heading.h1>}
                     main={(
                         <>
+                            <SettingsNavigator sections={sections} />
                             <TwoFactorSetup
                                 mustActivate2fa={mustActivate2fa}
                                 loading={headerLoading}

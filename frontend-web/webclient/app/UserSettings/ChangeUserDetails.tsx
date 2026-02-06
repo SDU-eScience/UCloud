@@ -103,7 +103,7 @@ export function ChangeUserDetails(): React.ReactNode {
     }, [commandLoading, userFirstNames.current, userLastName.current, userEmail.current]);
 
     return (
-        <SettingsSection title="Change user details">
+        <SettingsSection id="profile" title="Change user details">
             <form onSubmit={onSubmit}>
                 <Box mt="0.5em" pt="0.5em">
                     <Label>
@@ -323,7 +323,7 @@ export function ChangeOrganizationDetails(props: ChangeOrganizationDetailsProps)
     const [org, setOrg] = useState(OrgMapping[Client.orgId] ?? Client.orgId);
 
     return (
-        <SettingsSection title="Additional user information" mb={16} showTitle={!props.embedded}>
+        <SettingsSection id="organization" title="Additional user information" mb={16} showTitle={!props.embedded}>
             <Box width="100%">
                 {props.inModal ? <span>This can be filled out at a later time, but is required when applying for resources.</span> : null}
                 <NewDataList id="organization" ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={`University of Southern Denmark”, “Aarhus University”`} />

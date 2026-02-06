@@ -191,7 +191,7 @@ export const ChangeEmailSettings: React.FunctionComponent<ChangeEmailSettingsPro
     }, [commandLoading, settings, invokeCommand]);
 
     return (
-        <SettingsSection title="Email settings">
+        <SettingsSection id="email" title="Email settings">
             <Box>
                 {emailSettingGroups.map(group => (
                     <Box key={group.title} mb={24}>

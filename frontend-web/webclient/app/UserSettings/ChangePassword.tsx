@@ -62,7 +62,7 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
     if (Client.principalType !== "password") return null;
 
     return (
-        <SettingsSection title="Change password">
+        <SettingsSection id="password" title="Change password">
             <form onSubmit={onSubmit}>
                 <Box mt="0.5em" pt="0.5em">
                     <Label>
