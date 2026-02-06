@@ -112,8 +112,8 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "hide-projects": {
         feature: Feature.HIDE_PROJECTS,
-        showWithFlag: allDevEnvironments,
-        showWithoutFlag: noEnvironments
+        showWithFlag: allEnvironments,
+        showWithoutFlag: allDevEnvironments,
     },
 
     "core2": {
