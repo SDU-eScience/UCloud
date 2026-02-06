@@ -32,7 +32,7 @@ function UserSettings(): React.ReactNode {
 
     return (
         <Flex alignItems="center" flexDirection="column">
-            <Box width={0.7}>
+            <Box width="100%" maxWidth="980px">
                 <MainContainer
                     header={<Heading.h1>User settings</Heading.h1>}
                     main={(

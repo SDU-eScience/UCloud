@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Box, Button, Label} from "@/ui-components";
+import {Box, Button, Checkbox, Flex, Label} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 
 interface SettingsSectionProps {
@@ -37,13 +37,39 @@ export function SettingsActions({submitLabel, disabled}: SettingsActionsProps): 
 }
 
 interface SettingsCheckboxRowProps {
-    children: React.ReactNode;
+    title: string;
+    checked: boolean;
+    onClick: () => void;
+    onChange?: () => void;
+    disabled?: boolean;
+    size?: number;
+    description?: React.ReactNode;
 }
 
-export function SettingsCheckboxRow({children}: SettingsCheckboxRowProps): React.ReactNode {
+export function SettingsCheckboxRow({
+    title,
+    checked,
+    onClick,
+    onChange = () => undefined,
+    disabled = false,
+    size = 27,
+    description
+}: SettingsCheckboxRowProps): React.ReactNode {
     return (
-        <Label ml={10} width="45%" style={{display: "inline-block"}}>
-            {children}
+        <Label ml={10} mt={8} width="100%" style={{display: "inline-block"}}>
+            <Flex alignItems="center">
+                <Checkbox
+                    size={size}
+                    onClick={onClick}
+                    onChange={onChange}
+                    checked={checked}
+                    disabled={disabled}
+                />
+                <Box ml="8px" mt="2px">
+                    <div>{title}</div>
+                    {description ? <div style={{fontSize: "0.9em", color: "var(--textSecondary)"}}>{description}</div> : null}
+                </Box>
+            </Flex>
         </Label>
     );
 }
