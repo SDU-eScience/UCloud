@@ -17,12 +17,13 @@ import (
 	cfg "ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/external/user"
-	gateway2 "ucloud.dk/pkg/gateway"
+	"ucloud.dk/pkg/gateway"
 	svc "ucloud.dk/pkg/integrations"
 	"ucloud.dk/pkg/integrations/k8s"
 	"ucloud.dk/pkg/integrations/slurm"
-	ipc2 "ucloud.dk/pkg/ipc"
+	"ucloud.dk/pkg/ipc"
 	"ucloud.dk/pkg/migrations"
+	"ucloud.dk/shared/pkg/audit"
 	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/termio"
@@ -83,7 +84,7 @@ func Launch() {
 	if pluginName != "" {
 		cfg.Mode = mode
 
-		if gateway2.HandleCli(pluginName) {
+		if gateway.HandleCli(pluginName) {
 			return
 		}
 
@@ -130,7 +131,7 @@ func Launch() {
 
 	gatewayConfigChannel := make(chan []byte)
 	if mode == cfg.ServerModeServer {
-		gateway2.Initialize(gateway2.Config{
+		gateway.Initialize(gateway.Config{
 			ListenAddress: "0.0.0.0",
 			Port:          8889,
 		}, gatewayConfigChannel)
@@ -149,7 +150,7 @@ func Launch() {
 
 	}
 
-	ipc2.IpcMultiplexer = http.NewServeMux()
+	ipc.IpcMultiplexer = http.NewServeMux()
 
 	fmt.Printf("UCloud/IM starting up... [3/4] Still working on it\n")
 
@@ -235,7 +236,7 @@ func Launch() {
 		}
 
 		go func() {
-			ipc2.InitIpc()
+			ipc.InitIpc()
 		}()
 	}
 
@@ -287,11 +288,15 @@ func Launch() {
 
 	if mode == cfg.ServerModeServer {
 		launchMetricsServer()
-		gateway2.InitIpc()
+		gateway.InitIpc()
 	}
 
-	rpc.AuditConsumer = func(event rpc.HttpCallLogEntry) {
-		log.Info("%v/%v %v", event.RequestName, event.ResponseCode, time.Duration(event.ResponseTimeNanos)*time.Nanosecond)
+	if mode == cfg.ServerModeServer {
+		audit.Init()
+	} else {
+		rpc.AuditConsumer = func(event rpc.HttpCallLogEntry) {
+			log.Info("%v/%v %v", event.RequestName, event.ResponseCode, time.Duration(event.ResponseTimeNanos)*time.Nanosecond)
+		}
 	}
 
 	fmt.Printf("UCloud/IM starting up... [4/4] Ready!\n")
@@ -318,7 +323,7 @@ func Launch() {
 	}
 
 	if mode == cfg.ServerModeServer || mode == cfg.ServerModeUser {
-		serverPort := gateway2.ServerClusterPort
+		serverPort := gateway.ServerClusterPort
 		if mode == cfg.ServerModeUser {
 			port, _ := strconv.Atoi(flag.Arg(1))
 			serverPort = port
@@ -337,7 +342,7 @@ func Launch() {
 		err := s.ListenAndServe()
 
 		if err != nil {
-			fmt.Printf("Failed to start listener on port %v\n", gateway2.ServerClusterPort)
+			fmt.Printf("Failed to start listener on port %v\n", gateway.ServerClusterPort)
 			os.Exit(1)
 		}
 	}

@@ -6,10 +6,10 @@ import (
 
 	cfg "ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/controller"
-	"ucloud.dk/pkg/integrations/idfreeipa"
-	"ucloud.dk/pkg/integrations/idoidc"
-	"ucloud.dk/pkg/integrations/idscripted"
-	"ucloud.dk/pkg/integrations/nopconn"
+	"ucloud.dk/pkg/integrations/id-management/idfreeipa"
+	"ucloud.dk/pkg/integrations/id-management/idoidc"
+	"ucloud.dk/pkg/integrations/id-management/idscripted"
+	"ucloud.dk/pkg/integrations/id-management/idnop"
 )
 
 var ServiceConfig *cfg.ServicesConfigurationSlurm
@@ -43,7 +43,7 @@ func Init(config *cfg.ServicesConfigurationSlurm, mux *http.ServeMux) {
 
 	// Identity management
 	if cfg.Mode == cfg.ServerModeServer {
-		nopconn.Init()
+		idnop.Init()
 
 		switch config.IdentityManagement.Type {
 		case cfg.IdentityManagementTypeScripted:

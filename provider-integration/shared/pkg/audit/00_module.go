@@ -1,4 +1,4 @@
-package launcher
+package audit
 
 import (
 	"encoding/json"
@@ -21,7 +21,7 @@ type auditPgBucket struct {
 	Count int
 }
 
-func initAuditPg() {
+func Init() {
 	{
 		wg := sync.WaitGroup{}
 		wg.Add(1)

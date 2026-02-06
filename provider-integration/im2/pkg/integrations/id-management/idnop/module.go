@@ -1,4 +1,4 @@
-package nopconn
+package idnop
 
 import (
 	cfg "ucloud.dk/pkg/config"

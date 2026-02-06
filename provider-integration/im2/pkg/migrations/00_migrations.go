@@ -1,6 +1,9 @@
 package migrations
 
-import db "ucloud.dk/shared/pkg/database"
+import (
+	"ucloud.dk/shared/pkg/audit"
+	db "ucloud.dk/shared/pkg/database"
+)
 
 func Init() {
 	db.AddMigration(genericLicensesV1())
@@ -28,4 +31,6 @@ func Init() {
 	db.AddMigration(jobDatabaseV3())
 	db.AddMigration(ipDatabaseV2())
 	db.AddMigration(inferenceV1())
+	db.AddMigration(audit.MigrationV1())
+	db.AddMigration(audit.MigrationV2())
 }
