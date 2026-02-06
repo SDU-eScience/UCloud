@@ -3,7 +3,7 @@ package idnop
 import (
 	cfg "ucloud.dk/pkg/config"
 	ctrl "ucloud.dk/pkg/controller"
-	orcapi "ucloud.dk/shared/pkg/orc2"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	ctrl "ucloud.dk/pkg/controller"
-	orc "ucloud.dk/shared/pkg/orc2"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 

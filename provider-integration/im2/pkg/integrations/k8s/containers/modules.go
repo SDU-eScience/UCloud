@@ -6,7 +6,7 @@ import (
 
 	core "k8s.io/api/core/v1"
 	cfg "ucloud.dk/pkg/config"
-	orc "ucloud.dk/shared/pkg/orc2"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 

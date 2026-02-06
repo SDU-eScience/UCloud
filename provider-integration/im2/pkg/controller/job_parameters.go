@@ -8,7 +8,7 @@ import (
 
 	"ucloud.dk/gonja/v2/exec"
 	"ucloud.dk/shared/pkg/log"
-	orcapi "ucloud.dk/shared/pkg/orc2"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 

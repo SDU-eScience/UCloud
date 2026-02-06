@@ -18,7 +18,7 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	shared2 "ucloud.dk/pkg/integrations/k8s/shared"
 	"ucloud.dk/pkg/ucviz"
-	orc "ucloud.dk/shared/pkg/orc2"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 

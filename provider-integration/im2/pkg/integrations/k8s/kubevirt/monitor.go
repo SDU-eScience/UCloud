@@ -7,7 +7,7 @@ import (
 	kvcore "kubevirt.io/api/core/v1"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orc2"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 

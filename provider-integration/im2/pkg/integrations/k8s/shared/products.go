@@ -9,7 +9,7 @@ import (
 	apm "ucloud.dk/shared/pkg/accounting"
 
 	"ucloud.dk/shared/pkg/log"
-	orc "ucloud.dk/shared/pkg/orc2"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 )
 
 var (

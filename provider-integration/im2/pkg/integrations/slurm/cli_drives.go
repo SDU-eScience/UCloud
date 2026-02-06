@@ -14,7 +14,7 @@ import (
 	"ucloud.dk/pkg/ipc"
 	"ucloud.dk/shared/pkg/cli"
 	db "ucloud.dk/shared/pkg/database"
-	orc "ucloud.dk/shared/pkg/orc2"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	termio2 "ucloud.dk/shared/pkg/termio"
 )
 

@@ -14,7 +14,7 @@ import (
 	"golang.org/x/sys/unix"
 	ctrl "ucloud.dk/pkg/controller"
 	fnd "ucloud.dk/shared/pkg/foundation"
-	orc "ucloud.dk/shared/pkg/orc2"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )

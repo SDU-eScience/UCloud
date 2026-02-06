@@ -21,7 +21,7 @@ import (
 	termio2 "ucloud.dk/shared/pkg/termio"
 	"ucloud.dk/shared/pkg/util"
 
-	orc "ucloud.dk/shared/pkg/orc2"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 )
 
 type LicenseEntry struct {

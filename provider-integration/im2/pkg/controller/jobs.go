@@ -15,7 +15,7 @@ import (
 	gw "ucloud.dk/pkg/gateway"
 	"ucloud.dk/pkg/ipc"
 	db "ucloud.dk/shared/pkg/database"
-	orcapi "ucloud.dk/shared/pkg/orc2"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 
 	anyascii "github.com/anyascii/go"

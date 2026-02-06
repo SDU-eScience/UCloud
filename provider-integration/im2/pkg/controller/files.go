@@ -18,7 +18,7 @@ import (
 	"ucloud.dk/pkg/ipc"
 	apm "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
-	orcapi "ucloud.dk/shared/pkg/orc2"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 
 	ws "github.com/gorilla/websocket"

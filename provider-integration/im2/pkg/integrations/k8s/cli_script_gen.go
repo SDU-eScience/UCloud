@@ -8,7 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/gonja/v2/exec"
 	ctrl "ucloud.dk/pkg/controller"
-	orc "ucloud.dk/shared/pkg/orc2"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/termio"
 	"ucloud.dk/shared/pkg/util"
 )

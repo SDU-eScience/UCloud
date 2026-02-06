@@ -21,7 +21,7 @@ import (
 	"ucloud.dk/shared/pkg/log"
 
 	ws "github.com/gorilla/websocket"
-	orc "ucloud.dk/shared/pkg/orc2"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 

@@ -5,7 +5,7 @@ import (
 	ctrl "ucloud.dk/pkg/controller"
 	slurmcli "ucloud.dk/pkg/external/slurm"
 	apm "ucloud.dk/shared/pkg/accounting"
-	orc "ucloud.dk/shared/pkg/orc2"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 
