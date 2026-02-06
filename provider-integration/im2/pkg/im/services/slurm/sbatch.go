@@ -634,10 +634,10 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 	_, ok := ServiceConfig.Compute.Machines[job.Specification.Product.Category]
 	if !ok {
 		return SBatchResult{
-			Error: &util.HttpError{
+			Error: (&util.HttpError{
 				StatusCode: http.StatusInternalServerError,
 				Why:        "Unknown product requested",
-			},
+			}).AsError(),
 		}
 	}
 

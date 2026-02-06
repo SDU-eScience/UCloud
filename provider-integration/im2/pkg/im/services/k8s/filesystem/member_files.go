@@ -70,7 +70,7 @@ func InitializeMemberFiles(username string, project util.Option[string]) (string
 
 		driveId, err := orc.DrivesControlRegister.Invoke(fnd.BulkRequestOf(resource))
 		if err != nil {
-			return "", nil, util.ServerHttpError("failed to register drive: %s", err.Error())
+			return "", nil, util.ServerHttpError("failed to register drive: %s", err.AsError().Error())
 		}
 		metricInitMemberFiles.WithLabelValues("DriveRegistration").Observe(timer.Mark().Seconds())
 
@@ -80,7 +80,7 @@ func InitializeMemberFiles(username string, project util.Option[string]) (string
 		retrieveRequest.IncludeOthers = true
 		drive, err := orc.DrivesControlRetrieve.Invoke(retrieveRequest)
 		if err != nil {
-			return "", nil, util.ServerHttpError("failed to register drive (retrieve): %s", err.Error())
+			return "", nil, util.ServerHttpError("failed to register drive (retrieve): %s", err.AsError().Error())
 		}
 		retrievedDrive = &drive
 		ctrl.TrackDrive(&drive)

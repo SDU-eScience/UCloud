@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
 	"ucloud.dk/pkg/im"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
@@ -96,18 +97,18 @@ func Invoke[Resp any](operation string, payload any) (Resp, error) {
 	var value Resp
 	jsonBytes, err := json.Marshal(payload)
 	if err != nil {
-		return value, &util.HttpError{
+		return value, (&util.HttpError{
 			StatusCode: http.StatusBadRequest,
 			Why:        fmt.Sprintf("Failed to marshal JSON request: %v", err),
-		}
+		}).AsError()
 	}
 
 	resp, err := Client.Post("http://ucloud.internal/"+operation, "application/json", bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return value, &util.HttpError{
+		return value, (&util.HttpError{
 			StatusCode: http.StatusBadGateway,
 			Why:        fmt.Sprintf("Could not talk to the running service. Are you sure it is running? (IPC unreachable: %v)", err),
-		}
+		}).AsError()
 	}
 
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
@@ -115,18 +116,18 @@ func Invoke[Resp any](operation string, payload any) (Resp, error) {
 		data, err := io.ReadAll(resp.Body)
 
 		if err != nil {
-			return value, &util.HttpError{
+			return value, (&util.HttpError{
 				StatusCode: http.StatusBadGateway,
 				Why:        fmt.Sprintf("Failed to read IPC body: %v", err),
-			}
+			}).AsError()
 		}
 
 		err = json.Unmarshal(data, &value)
 		if err != nil {
-			return value, &util.HttpError{
+			return value, (&util.HttpError{
 				StatusCode: http.StatusBadGateway,
 				Why:        fmt.Sprintf("Failed to read valid IPC body: %v", err),
-			}
+			}).AsError()
 		}
 
 		return value, nil
@@ -134,9 +135,9 @@ func Invoke[Resp any](operation string, payload any) (Resp, error) {
 		defer util.SilentClose(resp.Body)
 		why := resp.Header.Get("ucloud-ipc-error")
 
-		return value, &util.HttpError{
+		return value, (&util.HttpError{
 			StatusCode: resp.StatusCode,
 			Why:        why,
-		}
+		}).AsError()
 	}
 }

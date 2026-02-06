@@ -298,7 +298,7 @@ func inferenceApiKeyValidate(key string) (apm.WalletOwner, *util.HttpError) {
 		})
 
 		if !ok {
-			return "", util.HttpErr(http.StatusForbidden, "invalid key")
+			return "", util.HttpErr(http.StatusForbidden, "invalid key").AsError()
 		} else {
 			return owner, nil
 		}

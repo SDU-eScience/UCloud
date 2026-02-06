@@ -492,7 +492,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 		if iappHandler.Present && iappHandler.Value.MutateService != nil {
 			myError := iappHandler.Value.MutateService(job, iappConfig.Value.Configuration, service, pod)
-			herr = util.MergeHttpErr(herr, util.HttpErrorFromErr(myError))
+			herr = util.MergeHttpErr(herr, myError)
 		}
 
 		_, myError := K8sClient.CoreV1().Services(namespace).Create(ctx, service, meta.CreateOptions{})

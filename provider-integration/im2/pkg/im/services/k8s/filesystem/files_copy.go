@@ -101,8 +101,8 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 
 	destFile, ok := OpenFile(destPath, destFlags, destMode)
 	if !ok && sourceStat.IsDir() {
-		err = DoCreateFolder(destPath)
-		if err != nil {
+		herr := DoCreateFolder(destPath)
+		if herr != nil {
 			return TaskProcessingResult{
 				Error: fmt.Errorf("Unable to open destination file"),
 			}

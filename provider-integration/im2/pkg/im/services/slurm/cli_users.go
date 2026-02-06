@@ -301,7 +301,7 @@ func HandleUsersCommandServer() {
 
 			err := ctrl.RemoveConnection(uid, flags)
 			if err != nil {
-				errors = append(errors, err.Error())
+				errors = append(errors, err.AsError().Error())
 			} else {
 				errors = append(errors, "")
 			}

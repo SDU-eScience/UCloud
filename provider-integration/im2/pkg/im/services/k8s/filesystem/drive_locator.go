@@ -176,7 +176,8 @@ func DriveToLocalPath(drive *orc.Drive) (string, bool, *orc.Drive) {
 	case DriveDescriptorTypeShare:
 		shareId := descriptor.PrimaryReference
 		share, ok := shareCache.Get(shareId, func() (orc.Share, error) {
-			return orc.SharesControlRetrieve.Invoke(orc.SharesControlRetrieveRequest{Id: shareId})
+			share, err := orc.SharesControlRetrieve.Invoke(orc.SharesControlRetrieveRequest{Id: shareId})
+			return share, err.AsError()
 		})
 		if !ok {
 			return "/dev/null", false, drive

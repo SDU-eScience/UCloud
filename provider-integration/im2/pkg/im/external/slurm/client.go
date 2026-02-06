@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -255,40 +256,40 @@ func (c *Client) JobSubmit(pathToScript string) (int, error) {
 	if !ok {
 		errorMessage := stdout + stderr
 		if strings.Contains(errorMessage, "Requested time limit is invalid") {
-			return -1, &util.HttpError{
+			return -1, (&util.HttpError{
 				StatusCode: http.StatusBadRequest,
 				Why: "The requested time limit is larger than what the system allows. " +
 					"Try with a smaller time allocation.",
-			}
+			}).AsError()
 		} else if strings.Contains(errorMessage, "Node count specification invalid") {
-			return -1, &util.HttpError{
+			return -1, (&util.HttpError{
 				StatusCode: http.StatusBadRequest,
 				Why:        "Too many nodes requested. Try with a smaller amount of nodes.",
-			}
+			}).AsError()
 		} else if strings.Contains(errorMessage, "More processors") {
-			return -1, &util.HttpError{
+			return -1, (&util.HttpError{
 				StatusCode: http.StatusBadRequest,
 				Why:        "Too many nodes requested. Try with a smaller amount of nodes.",
-			}
+			}).AsError()
 		} else if strings.Contains(errorMessage, "Requested node config") {
-			return -1, &util.HttpError{
+			return -1, (&util.HttpError{
 				StatusCode: http.StatusBadRequest,
 				Why:        "Too many nodes requested. Try with a smaller amount of nodes.",
-			}
+			}).AsError()
 		} else {
-			return -1, &util.HttpError{
+			return -1, (&util.HttpError{
 				StatusCode: http.StatusBadRequest,
 				Why:        fmt.Sprintf(errorMessage),
-			}
+			}).AsError()
 		}
 	}
 
 	jobId, err := strconv.Atoi(strings.TrimSpace(stdout))
 	if err != nil {
-		return -1, &util.HttpError{
+		return -1, (&util.HttpError{
 			StatusCode: http.StatusBadRequest,
 			Why:        fmt.Sprintf("Failed to understand output of sbatch. Expected a job ID but got: %v", stdout),
-		}
+		}).AsError()
 	}
 
 	return jobId, nil

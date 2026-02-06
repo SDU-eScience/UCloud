@@ -79,7 +79,7 @@ func Init(mux *http.ServeMux) {
 
 	controllerFiles()
 	controllerConnection()
-	controllerJobs(mux)
+	controllerJobs()
 	controllerTasks()
 	controllerSshKeys()
 

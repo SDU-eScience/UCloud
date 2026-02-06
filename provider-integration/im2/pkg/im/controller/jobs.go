@@ -179,7 +179,7 @@ var (
 	})
 )
 
-func controllerJobs(mux *http.ServeMux) {
+func controllerJobs() {
 	if RunsServerCode() {
 		jobsIpcServer()
 	}
@@ -753,6 +753,12 @@ func controllerJobs(mux *http.ServeMux) {
 			var providerIds []fnd.FindByStringId
 
 			for _, item := range request.Items {
+				if IsResourceLocked(item.Resource, item.Specification.Product) {
+					return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusPaymentRequired, "insufficient funds for %s", item.Specification.Product.Category)
+				}
+			}
+
+			for _, item := range request.Items {
 				TrackNewPublicIp(item)
 				providerIds = append(providerIds, fnd.FindByStringId{})
 
@@ -973,6 +979,12 @@ func controllerJobs(mux *http.ServeMux) {
 			var providerIds []fnd.FindByStringId
 
 			for _, item := range request.Items {
+				if IsResourceLocked(item.Resource, item.Specification.Product) {
+					return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusPaymentRequired, "insufficient funds for %s", item.Specification.Product.Category)
+				}
+			}
+
+			for _, item := range request.Items {
 				TrackLicense(item)
 				providerIds = append(providerIds, fnd.FindByStringId{})
 
@@ -1163,28 +1175,28 @@ func controllerJobs(mux *http.ServeMux) {
 				webSessionsMutex.RUnlock()
 
 				if idAndRank.JobId == "" {
-					sendError(writer, &util.HttpError{
+					sendError(writer, (&util.HttpError{
 						StatusCode: http.StatusForbidden,
 						Why:        "Forbidden",
-					})
+					}).AsError())
 					return
 				}
 
 				job, ok := RetrieveJob(idAndRank.JobId)
 				if !ok {
-					sendError(writer, &util.HttpError{
+					sendError(writer, (&util.HttpError{
 						StatusCode: http.StatusInternalServerError,
 						Why:        "Unknown job",
-					})
+					}).AsError())
 					return
 				}
 
 				handler := Jobs.HandleBuiltInVnc
 				if handler == nil {
-					sendError(writer, &util.HttpError{
+					sendError(writer, (&util.HttpError{
 						StatusCode: http.StatusInternalServerError,
 						Why:        "not supported",
-					})
+					}).AsError())
 					return
 				}
 

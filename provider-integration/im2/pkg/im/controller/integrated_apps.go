@@ -269,7 +269,7 @@ func ConfigureIApp(appName string, owner orc.ResourceOwner, etag util.Option[str
 			})
 
 			if err != nil {
-				return "", err
+				return "", err.AsError()
 			}
 
 			if len(resp.Responses) != 1 {

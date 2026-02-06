@@ -243,7 +243,7 @@ func controllerFiles() {
 				// TODO content range would be nice
 				stream, size, err := Files.Download(session)
 				if err != nil {
-					sendError(w, err)
+					sendError(w, err.AsError())
 					return
 				}
 				defer util.SilentClose(stream)
@@ -398,8 +398,7 @@ func controllerFiles() {
 				TrackDrive(&request.DestinationDrive)
 				payload := request.FilesProviderTransferRequestInitiateDestination
 
-				resp, ierr := Files.TransferDestinationInitiate(payload)
-				err := util.HttpErrorFromErr(ierr)
+				resp, err := Files.TransferDestinationInitiate(payload)
 				return FilesTransferResponseInitiateDestination(resp.SelectedProtocol, resp.ProtocolParameters), err
 
 			case orcapi.FilesProviderTransferReqTypeStart:
@@ -439,9 +438,9 @@ func controllerFiles() {
 				// -----------------------------------------------------------------------------------------------------
 				searchFn := Files.Search
 				if searchFn == nil {
-					sendError(writer, &util.HttpError{
+					sendError(writer, (&util.HttpError{
 						StatusCode: http.StatusNotFound,
-					})
+					}).AsError())
 					return
 				}
 

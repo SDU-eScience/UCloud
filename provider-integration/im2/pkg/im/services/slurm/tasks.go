@@ -650,7 +650,7 @@ func PostTaskStatusServer(uid uint32, status TaskStatusUpdate) error {
 		}})
 
 		if err != nil {
-			return err
+			return err.AsError()
 		}
 	}
 

@@ -76,7 +76,7 @@ func InitCompute() ctrl.JobsService {
 			errorMessage := ""
 			if err != nil {
 				code = http.StatusBadGateway
-				errorMessage = err.Error()
+				errorMessage = err.AsError().Error()
 			}
 
 			return ipc.Response[util.Empty]{
@@ -375,7 +375,7 @@ func loopComputeMonitoring() {
 			)
 
 			if err != nil {
-				log.Warn("Error while registering jobs: %s", err.Error())
+				log.Warn("Error while registering jobs: %s", err.AsError().Error())
 			} else {
 				for _, registeredJob := range response.Responses {
 					job, err := orc.JobsControlRetrieve.Invoke(orc.JobsControlRetrieveRequest{
@@ -383,7 +383,7 @@ func loopComputeMonitoring() {
 					})
 
 					if err != nil {
-						log.Warn("Error while retrieving job: %s", err.Error())
+						log.Warn("Error while retrieving job: %s", err.AsError().Error())
 					}
 
 					metricSlurmUnknownJobsRegistered.Inc()

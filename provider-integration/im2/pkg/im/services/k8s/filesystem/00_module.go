@@ -120,7 +120,7 @@ func createDownload(request ctrl.DownloadSession) *util.HttpError {
 	}
 
 	fd, _, err := validateAndOpenFileForDownload(request.Path)
-	util.SilentCloseIfOk(fd, err)
+	util.SilentCloseIfOk(fd, err.AsError())
 	return err
 }
 

@@ -499,7 +499,7 @@ func ListActiveTasks(username string) []*TaskInfo {
 	return result
 }
 
-func PostTaskStatus(username string, status TaskStatusUpdate) error {
+func PostTaskStatus(username string, status TaskStatusUpdate) *util.HttpError {
 	ucloudTaskId, ok := db.NewTx2(func(tx *db.Transaction) (int, bool) {
 		row, ok := db.Get[struct {
 			UCloudTaskId int
@@ -524,7 +524,7 @@ func PostTaskStatus(username string, status TaskStatusUpdate) error {
 	})
 
 	if !ok {
-		return fmt.Errorf("unknown task supplied")
+		return util.UserHttpError("unknown task supplied")
 	}
 
 	// TODO: Change this once the API is more stable

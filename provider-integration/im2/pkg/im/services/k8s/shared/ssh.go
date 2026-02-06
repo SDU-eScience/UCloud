@@ -36,7 +36,7 @@ func initSsh() {
 	}
 }
 
-func assignSshPort(job *orc.Job) (util.Option[int], error) {
+func assignSshPort(job *orc.Job) (util.Option[int], *util.HttpError) {
 	if IsSensitiveProject(job.Owner.Project.Value) {
 		return util.OptNone[int](), util.UserHttpError("This project does not allow for SSH")
 	}
