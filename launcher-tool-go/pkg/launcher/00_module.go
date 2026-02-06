@@ -1,4 +1,4 @@
-package launcher2
+package launcher
 
 import (
 	"encoding/json"
@@ -17,7 +17,7 @@ import (
 	"gopkg.in/yaml.v3"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
-	orcapi "ucloud.dk/shared/pkg/orc2"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -69,7 +69,7 @@ func Launch() {
 	ComposeDir = filepath.Join(repoRootPath, ".compose")
 	_ = os.MkdirAll(ComposeDir, 0700)
 
-	versionBytes, err := os.ReadFile(repoRootPath + "/backend/version.txt")
+	versionBytes, err := os.ReadFile(repoRootPath + "/core2/version.txt")
 	if err != nil {
 		log.Fatal("Unable to find version file.")
 	}

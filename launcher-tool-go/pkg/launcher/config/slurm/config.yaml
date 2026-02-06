@@ -1,17 +1,17 @@
 provider:
-  id: go-slurm
+  id: slurm
 
   hosts:
     ucloud:
-      address: backend
+      address: core2
       port: 8080
       scheme: http
     self:
-      address: go-slurm
+      address: slurm-im
       port: 8889
       scheme: http
     selfPublic:
-      address: go-slurm.localhost.direct
+      address: slurm.localhost.direct
       port: 443
       scheme: https
     ucloudPublic:
@@ -84,7 +84,7 @@ services:
 
     web:
       enabled: true
-      prefix: "goslurm-"
+      prefix: "slurm-"
       suffix: ".localhost.direct"
 
     machines:

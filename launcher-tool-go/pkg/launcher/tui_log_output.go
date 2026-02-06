@@ -1,4 +1,4 @@
-package launcher2
+package launcher
 
 import (
 	"fmt"

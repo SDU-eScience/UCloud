@@ -1,7 +1,7 @@
 package main
 
-import "ucloud.dk/launcher/pkg/launcher2"
+import "ucloud.dk/launcher/pkg/launcher"
 
 func main() {
-	launcher2.Launch()
+	launcher.Launch()
 }
