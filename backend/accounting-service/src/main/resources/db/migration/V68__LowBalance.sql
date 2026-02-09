@@ -1,1 +1,0 @@
-alter table accounting.wallets_v2 add column low_balance_notified bool not null default false

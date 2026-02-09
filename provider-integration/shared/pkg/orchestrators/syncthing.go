@@ -16,6 +16,14 @@ type SyncthingDevice struct {
 	Label    string `json:"label"`
 }
 
-type SyncthingOrchestratorInfo struct {
-	FolderPathToPermission map[string]Permission `json:"folderPathToPermission"`
-}
+const SyncthingNamespace = "syncthing"
+
+var SyncthingRetrieveConfiguration = IAppRetrieveConfiguration[SyncthingConfig](SyncthingNamespace)
+var SyncthingUpdateConfiguration = IAppUpdateConfiguration[SyncthingConfig](SyncthingNamespace)
+var SyncthingReset = IAppReset[SyncthingConfig](SyncthingNamespace)
+var SyncthingRestart = IAppRestart[SyncthingConfig](SyncthingNamespace)
+
+var SyncthingProviderRetrieveConfiguration = IAppProviderRetrieveConfiguration[SyncthingConfig](SyncthingNamespace)
+var SyncthingProviderUpdateConfiguration = IAppProviderUpdateConfiguration[SyncthingConfig](SyncthingNamespace)
+var SyncthingProviderReset = IAppProviderReset[SyncthingConfig](SyncthingNamespace)
+var SyncthingProviderRestart = IAppProviderRestart[SyncthingConfig](SyncthingNamespace)

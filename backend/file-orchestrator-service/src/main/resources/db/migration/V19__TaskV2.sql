@@ -1,1 +1,0 @@
-drop table file_orchestrator.task_mapping;

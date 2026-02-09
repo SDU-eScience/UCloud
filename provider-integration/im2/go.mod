@@ -1,14 +1,12 @@
 module ucloud.dk
 
 require (
-	atomicgo.dev/keyboard v0.2.9
 	github.com/MichaelTJones/walk v1.0.0
 	github.com/anyascii/go v0.3.3
 	github.com/bits-and-blooms/bloom/v3 v3.7.0
 	github.com/coreos/go-oidc/v3 v3.13.0
 	github.com/envoyproxy/go-control-plane v0.13.4
 	github.com/envoyproxy/go-control-plane/envoy v1.32.3
-	github.com/fergusstrange/embedded-postgres v1.30.0
 	github.com/golang/protobuf v1.5.4
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/golang-lru/v2 v2.0.7
@@ -44,6 +42,7 @@ replace k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20241212222426-2c72e55
 replace sigs.k8s.io/structured-merge-diff/v4 => sigs.k8s.io/structured-merge-diff/v4 v4.4.0
 
 require (
+	atomicgo.dev/keyboard v0.2.9 // indirect
 	cel.dev/expr v0.16.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.10.0 // indirect
@@ -105,7 +104,6 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/sugarme/regexpset v0.0.0-20200920021344-4d4ec8eaf93c // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/exp v0.0.0-20260112195511-716be5621a96 // indirect

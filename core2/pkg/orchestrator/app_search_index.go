@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/blevesearch/bleve/v2"
-	orcapi "ucloud.dk/shared/pkg/orc2"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 )
 
 var appIndex bleve.Index

@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-docker tag $1 dreg.cloud.sdu.dk/ucloud/$1
-docker push dreg.cloud.sdu.dk/ucloud/$1

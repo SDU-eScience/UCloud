@@ -1,6 +1,7 @@
 package util
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"unicode"
@@ -23,6 +24,18 @@ func (e *HttpError) AsError() error {
 	} else {
 		return e
 	}
+}
+
+func HttpErrorFromErr(err error) *HttpError {
+	if err == nil {
+		return nil
+	}
+	var httpErr *HttpError
+	isHttpErr := errors.As(err, &httpErr)
+	if isHttpErr {
+		return httpErr
+	}
+	return UserHttpError("%s", err.Error())
 }
 
 func UserHttpError(whyFormat string, args ...any) *HttpError {

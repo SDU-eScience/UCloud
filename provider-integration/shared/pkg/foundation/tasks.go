@@ -39,6 +39,13 @@ var TaskStateOptions = []TaskState{
 	TaskStateSuccess,
 }
 
+type TaskFlags int
+
+const (
+	TaskFlagCanPause TaskFlags = 1 << iota
+	TaskFlagCanCancel
+)
+
 type TaskStatus struct {
 	State              TaskState            `json:"state"`
 	Title              util.Option[string]  `json:"title"`
