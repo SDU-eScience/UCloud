@@ -338,7 +338,6 @@ function ProjectHide(props: {project: Project, rerender: (projectId: string) => 
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [isHidden, setIsHidden] = React.useState(props.project.status.isHidden);
     const icon: IconName = isHidden ? "heroEyeSlash" : "heroEye";
-    console.log('Is hidden: ',isHidden);
     const onHide = React.useCallback((e: React.SyntheticEvent, p: Project) => {
         e.stopPropagation();
         setIsHidden(f => !f);

@@ -26,7 +26,7 @@ test("Apply for resources, approve (from admin user), verify resources are in al
 
     const projectName = Accounting.Project.newProjectName();
     await Accounting.GrantApplication.fillProjectName(newUserPage, projectName);
-    await Accounting.GrantApplication.toggleGrantGiver(newUserPage, "k8s");
+    await Accounting.GrantApplication.toggleGrantGiver(newUserPage, "Provider K8s");
     await Accounting.GrantApplication.fillQuotaFields(newUserPage, [{field: "Core-hours requested", quota: 1000}, {field: "GB requested", quota: 1000}]);
     await Accounting.GrantApplication.fillDefaultApplicationTextFields(newUserPage);
 

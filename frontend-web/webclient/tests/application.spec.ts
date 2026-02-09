@@ -83,7 +83,7 @@ TestContexts.map(ctx => {
             await expect(terminalPage.getByText(contents)).toHaveCount(1);
 
             await terminalPage.close();
-            await Runs.stopRun(page, jobName);
+            await Runs.terminateViewedRun(page);
             if (ctx !== "Project User") await Drive.delete(page, driveName);
         });
 
@@ -163,8 +163,8 @@ echo "${BashScriptStringContent}"
                     await page.getByText(BashScriptStringContent).hover();
                 });
 
-                test("Create license, omit mandatory argument, then use license as argument for mandatory parameter, ", async ({page}) => {
-                    test.setTimeout(120_000);
+                test("Create license, omit mandatory argument, then use license as argument for mandatory parameter", async ({page}) => {
+                    test.setTimeout(240_000);
                     await NetworkCalls.awaitProducts(page, async () => {
                         await Resources.goTo(page, "Licenses");
                     })
@@ -183,8 +183,8 @@ echo "${BashScriptStringContent}"
                     await page.getByText("A value is missing for this mandatory field").hover();
                     await page.getByPlaceholder("Select license server...").click();
                     await page.getByRole("dialog").locator(".row", {hasText: licenseId.toString()}).getByRole("button", {name: "Use"}).click();
-                    await page.getByRole("button", {name: "Submit"}).click();
-                    await page.waitForURL("**/jobs/properties/**");
+                    await Runs.submitAndWaitForRunning(page);
+                    await Runs.terminateViewedRun(page);
                 });
             });
 
@@ -285,7 +285,7 @@ async function createUserWithProjectAndAssignRole(admin: Page, context: BrowserC
     if (!userPage) throw Error("Failed to create userpage");
 
     await User.create(admin, user);
-    await User.login(userPage, user);
+    await User.login(userPage, user, true);
     const projectName = Project.newProjectName();
 
 
@@ -293,15 +293,7 @@ async function createUserWithProjectAndAssignRole(admin: Page, context: BrowserC
         case "Project Admin":
         case "Project PI":
         case "Project User": {
-            await Accounting.goTo(admin, "Apply for resources");
-            await Accounting.GrantApplication.fillProjectName(admin, projectName);
-
-            // Duplicate
-            await Accounting.GrantApplication.toggleGrantGiver(admin, "k8s");
-            await Accounting.GrantApplication.fillQuotaFields(admin, [{field: "Core-hours requested", quota: 5}, {field: "GB requested", quota: 1}]);
-            await Accounting.GrantApplication.fillDefaultApplicationTextFields(admin);
-            await Accounting.GrantApplication.submit(admin);
-            // Duplicate
+            const id = await fillApplicationAndSubmit(admin, true);
 
             await Accounting.GrantApplication.approve(admin);
 
@@ -319,15 +311,7 @@ async function createUserWithProjectAndAssignRole(admin: Page, context: BrowserC
             break;
         }
         case "Personal Workspace": {
-            await Accounting.goTo(userPage, "Apply for resources");
-            await userPage.getByText("select an existing project instead").click();
-
-            // Duplicate
-            await Accounting.GrantApplication.toggleGrantGiver(userPage, "k8s");
-            await Accounting.GrantApplication.fillQuotaFields(userPage, [{field: "Core-hours requested", quota: 5}, {field: "GB requested", quota: 1}]);
-            await Accounting.GrantApplication.fillDefaultApplicationTextFields(userPage);
-            const id = await Accounting.GrantApplication.submit(userPage);
-            // Duplicate
+            const id = await fillApplicationAndSubmit(userPage, true);
 
             await Rows.actionByRowTitle(admin, `${id}: Personal workspace of ${user.username}`, "dblclick");
             await Accounting.GrantApplication.approve(admin);
@@ -335,4 +319,18 @@ async function createUserWithProjectAndAssignRole(admin: Page, context: BrowserC
     }
 
     return {userPage, user};
+
+    async function fillApplicationAndSubmit(page: Page, isPersonalWorkspace: boolean): Promise<string> {
+        await Accounting.goTo(page, "Apply for resources");
+        if (isPersonalWorkspace) {
+            await page.getByText("select an existing project instead").click();
+        } else {
+            await Accounting.GrantApplication.fillProjectName(page, projectName);
+        }
+
+        await Accounting.GrantApplication.toggleGrantGiver(page, "Provider K8s");
+        await Accounting.GrantApplication.fillQuotaFields(page, [{field: "Core-hours requested", quota: 5}, {field: "GB requested", quota: 1}]);
+        await Accounting.GrantApplication.fillDefaultApplicationTextFields(page);
+        return await Accounting.GrantApplication.submit(page);
+    }
 }

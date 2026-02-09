@@ -110,14 +110,20 @@ export function ucloudUrl(pathname: string): string {
 }
 
 export const Rows = {
-    async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover" | "rightclick"): Promise<void> {
+    async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover" | "rightclick", inModal?: boolean): Promise<void> {
         let iterations = 1000;
-        await page.locator(".scrolling").hover();
+        if (inModal) {
+            await page.getByRole("dialog").locator(".scrolling").last().hover();
+        } else {
+            await page.locator(".scrolling").first().hover();
+        }
         for (let i = 0; i < 50; i++) {
             await page.mouse.wheel(0, -5000);
         }
 
-        const locator = page.locator(".row div > span", {hasText: name});
+        const locator = inModal ?
+            page.getByRole("dialog").locator(".row div > span", {hasText: name}) :
+            page.locator(".row div > span", {hasText: name}).first();
 
         while (!await locator.isVisible()) {
             await page.mouse.wheel(0, 150);
@@ -314,7 +320,7 @@ export const File = {
     async _openShareModal(page: Page, foldername: string): Promise<void> {
         await this.openOperationsDropsdown(page, foldername);
         await this.actionByRowTitle(page, foldername, "rightclick");
-        await page.getByText("Share").click();
+        await page.getByText("Share").last().click();
     },
 
     async triggerStorageScan(page: Page, driveName: string): Promise<void> {
@@ -700,10 +706,15 @@ export const Resources = {
 
             await page.getByRole("dialog").getByText("public-ip").hover();
             await this.fillPortRowInDialog(page);
-            await NetworkCalls.awaitResponse(page, "**/api/networkips", async () => {
+            const result = await NetworkCalls.awaitResponse(page, "**/api/networkips", async () => {
                 await page.getByRole("button", {name: "create", disabled: false}).click();
             });
             await page.getByRole("dialog").waitFor({state: "hidden"});
+
+            const parsed: {responses: [{id: string}]} = JSON.parse(await result.text());
+
+            // TODO(Jonas): This should get the IP and not the `id` that is initially shown.
+            await page.getByText(parsed.responses[0].id, {exact: true}).waitFor({state: "hidden"})
             return await page.locator(".row").nth(1).innerText();
         },
 
@@ -848,8 +859,10 @@ export const Accounting = {
             await page.getByPlaceholder("Please enter the title of your project").fill(projectName);
         },
 
-        async toggleGrantGiver(page: Page, grantGiver: string): Promise<void> {
-            await page.getByText(grantGiver, {exact: false}).click();
+        async toggleGrantGiver(page: Page, grantGiver: "Provider K8s"): Promise<void> {
+            await page.waitForLoadState();
+            await page.getByText(grantGiver, {exact: true}).waitFor();
+            await page.getByText(grantGiver, {exact: true}).last().click();
         },
 
         async fillQuotaFields(page: Page, quotas: {field: string; quota: number}[]): Promise<void> {

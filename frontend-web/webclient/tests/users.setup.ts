@@ -78,7 +78,7 @@ async function makeGrantApplication(page: Page, projectName?: string): Promise<s
     await Accounting.goTo(page, "Apply for resources");
     if (projectName) {
         await Accounting.GrantApplication.fillProjectName(page, projectName);
-        await Accounting.GrantApplication.toggleGrantGiver(page, "k8s");
+        await Accounting.GrantApplication.toggleGrantGiver(page, "Provider K8s");
         await Accounting.GrantApplication.fillQuotaFields(page, [
             {field: "Core-hours requested", quota: 100},
             {field: "GB requested", quota: 10},
@@ -87,7 +87,7 @@ async function makeGrantApplication(page: Page, projectName?: string): Promise<s
         ]);
     } else {
         await page.getByRole("link", {name: "select an existing project instead"}).click();
-        await Accounting.GrantApplication.toggleGrantGiver(page, "k8s");
+        await Accounting.GrantApplication.toggleGrantGiver(page, "Provider K8s");
         await Accounting.GrantApplication.fillQuotaFields(page, [
             {field: "GB requested", quota: 1},
         ]);

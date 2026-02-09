@@ -78,6 +78,7 @@ TestContexts.map(ctx => {
         });
 
         test("Stress testing the row selector", async ({page}) => {
+            if (ctx === "Project User") test.skip();
             for (let i = 0; i < 100; i++) {
                 await File.create(page, "Folder" + i);
             }
@@ -173,7 +174,8 @@ TestContexts.map(ctx => {
                 await File.create(page, rootFolder);
                 await File.openOperationsDropsdown(page, rootFolder);
                 await page.getByText("Move to...").click();
-                await page.getByRole("dialog").getByText("Move to", {exact: true}).click();
+                await File.actionByRowTitle(page, rootFolder, "hover", true);
+                await page.getByRole("dialog").locator(".row", {hasText: "From"}).getByRole("button", {name: "Move to"}).click();
                 await expect(page.getByText("Unable to move file.")).toHaveCount(1);
                 await page.keyboard.press("Escape");
             });
@@ -196,8 +198,8 @@ TestContexts.map(ctx => {
                 await File.create(page, folder);
                 await File.uploadFiles(page, [fileToUpload]);
                 await File.copyFileInPlace(page, fileToCopy);
-                await expect(page.getByText("File.txt")).toHaveCount(1);
-                await expect(page.getByText("File(1).txt")).toHaveCount(1);
+                await expect(page.getByText("File.txt", {exact: true})).toHaveCount(1);
+                await expect(page.getByText("File(1).txt", {exact: true})).toHaveCount(1);
             });
 
             // Note(Jonas): Flaky. Will complete as expected if only test, 

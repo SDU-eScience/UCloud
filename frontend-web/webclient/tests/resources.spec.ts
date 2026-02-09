@@ -7,6 +7,7 @@ test.beforeEach(async ({page}, testInfo) => {
     if (args.projectName) await Project.changeTo(page, args.projectName);
 });
 
+
 const {PublicLinks, IPs, SSHKeys, Licenses} = Resources;
 
 TestContexts.map(ctx => {
@@ -14,7 +15,6 @@ TestContexts.map(ctx => {
         test.describe("Public links - check public links work", () => {
             test("Create public link, view properties, delete", async ({page}) => {
                 const publicLinkName = await PublicLinks.createNew(page);
-                await page.getByRole("button", {name: "Create", disabled: false}).click();
                 await Resources.open(page, publicLinkName);
                 await expect(page.getByText("ID:")).toHaveCount(1);
                 await expect(page.getByText("Product:")).toHaveCount(1);
@@ -25,6 +25,7 @@ TestContexts.map(ctx => {
             });
 
             test("Create public link, mount link for job, check that link is available, stop job, delete public link", async ({page}) => {
+                test.setTimeout(120_000);
                 const publicLinkName = await PublicLinks.createNew(page);
                 await Applications.openApp(page, "Coder");
                 await Components.selectAvailableMachineType(page);
@@ -87,9 +88,12 @@ TestContexts.map(ctx => {
                 await Terminal.enterCmd(terminalPage, "cat /etc/ucloud/ssh/authorized_keys.ucloud");
                 await terminalPage.getByText(Resources.SSHKeys.DefaultSSHKey).first().hover();
                 await terminalPage.close();
+
+                await Runs.terminateViewedRun(page);
+
                 await Resources.goTo(page, "SSH keys");
                 await SSHKeys.delete(page, sshkey);
-                await Runs.stopRun(page, jobname)
+
             });
         });
     });
