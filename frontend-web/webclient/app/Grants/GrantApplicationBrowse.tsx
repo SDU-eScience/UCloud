@@ -39,6 +39,7 @@ const FEATURES: ResourceBrowseFeatures = {
     filters: true,
     breadcrumbsSeparatedBySlashes: false,
     projectSwitcher: true,
+    search: true,
 }
 
 function download(filename: string, text: string) {
@@ -72,7 +73,6 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
     };
 
     React.useLayoutEffect(() => {
-        const searchQuery = "ucloud user"
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Grants.Application>(mount, "Grants Application", opts).init(browserRef, features, "", browser => {
@@ -83,25 +83,43 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     columns[2].columnWidth = 120;
                     columns[3].columnWidth = 0;
                 }
-                browser.setColumns(columns);
-                browser.on("open", (oldPath, newPath, resource) => {
-                    if (resource) {
-                        navigate(AppRoutes.grants.editor(resource.id));
-                        return;
-                    }
 
+                var currentOldPath = ""
+                var currentNewPath = ""
+
+                function getGrants() {
                     callAPI(Grants.browse({
-                        query: searchQuery,
+                        query: browser.searchQuery,
                         includeIngoingApplications: isIngoing || opts?.both,
                         includeOutgoingApplications: !isIngoing || opts?.both,
                         ...defaultRetrieveFlags,
                         ...browser.browseFilters,
                         ...opts?.additionalFilters,
                     })).then(result => {
-                        browser.registerPage(result, newPath, true);
+                        browser.registerPage(result, currentNewPath, true);
                         browser.renderRows();
                     })
+                }
+
+                browser.setColumns(columns);
+                browser.on("open", (oldPath, newPath, resource) => {
+                    currentOldPath = oldPath;
+                    currentNewPath = newPath;
+                    if (resource) {
+                        navigate(AppRoutes.grants.editor(resource.id));
+                        return;
+                    }
+                    getGrants();
+
                 });
+
+                browser.on("search", query => {
+                    browser.searchQuery = query;
+                    getGrants();
+                });
+
+
+
 
                 avatarState.subscribe(() => {
                     browser.rerender();
@@ -112,7 +130,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 browser.on("wantToFetchNextPage", async path => {
                     const result = await callAPI(
                         Grants.browse({
-                            query: searchQuery,
+                            query: browser.searchQuery,
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
                             ...opts?.additionalFilters,

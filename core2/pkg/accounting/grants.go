@@ -1115,11 +1115,34 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 	var items []accapi.GrantApplication
 	hasMore := false
 
+	var searchesMatches map[accGrantId]util.Empty
+	// Performing fuzzy search
+	if len(req.Query) > 0 {
+		searchesMatches = map[accGrantId]util.Empty{}
+		searchTerms := strings.Split(strings.ToLower(req.Query), " ")
+		foundGrants := grantSearchFuzzily(searchTerms)
+
+		for _, id := range foundGrants {
+			idRaw, _ := strconv.ParseInt(id, 10, 64)
+			idActual := accGrantId(idRaw)
+			searchesMatches[idActual] = util.Empty{}
+		}
+	}
+
 	for index, id := range ids {
 		if hasMore {
 			break
-		} else if index > 0 && ids[index-1] == id {
+		}
+
+		if index > 0 && ids[index-1] == id {
 			continue
+		}
+
+		if searchesMatches != nil {
+			// Skipping id's that isn't in searchMatches
+			if _, ok := searchesMatches[id]; !ok {
+				continue
+			}
 		}
 
 		a, roles := grantsRead(actor, grantAuthReadWrite, id, ids)
@@ -1164,25 +1187,9 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 			}
 		}
 	}
-	// Adding filter for fuzzy searching
-	searchTerms := strings.Split(req.Query, " ")
-	var filteredItems []accapi.GrantApplication
-	if searchTerms == nil || len(searchTerms) == 0 {
-		filteredItems = items
-	} else {
-		foundGrants := grantSearchFuzzily(searchTerms)
-
-		for _, grant := range items {
-			for _, grantFound := range foundGrants {
-				if grantFound == grant.Id.Value {
-					filteredItems = append(filteredItems, grant)
-				}
-			}
-		}
-	}
 
 	result := fndapi.PageV2[accapi.GrantApplication]{
-		Items:        filteredItems,
+		Items:        items,
 		ItemsPerPage: itemsPerPage,
 	}
 
@@ -1204,7 +1211,38 @@ func grantSearchFuzzily(searchTerm []string) []string {
 		createdBy.SetField("CreatedBy")
 		createdBy.SetFuzziness(2)
 		createdBy.SetBoost(3)
-		searchQueries = append(searchQueries, bleve.NewDisjunctionQuery(createdByPrefixQ, createdBy))
+
+		createdByQuery := bleve.NewWildcardQuery("*" + term + "*")
+		createdByQuery.SetField("CreatedBy")
+		createdByQuery.SetBoost(5)
+
+		recipientTitle := bleve.NewFuzzyQuery(term)
+		recipientTitle.SetField("RecipientTitle")
+		recipientTitle.SetFuzziness(2)
+		recipientTitle.SetBoost(3)
+
+		recipientTitleQuery := bleve.NewWildcardQuery("*" + term + "*")
+		recipientTitleQuery.SetField("RecipientTitle")
+		recipientTitleQuery.SetBoost(5)
+		recipientTitleQuery.SetField("RecipientTitle")
+		recipientTitleQuery.SetBoost(3)
+
+		referenceId := bleve.NewFuzzyQuery(term)
+		referenceId.SetField("ReferenceId")
+		referenceId.SetFuzziness(2)
+		referenceId.SetBoost(3)
+
+		referenceIds := bleve.NewFuzzyQuery(term)
+		referenceIds.SetField("ReferenceIds")
+		referenceIds.SetFuzziness(2)
+		referenceIds.SetBoost(3)
+
+		comments := bleve.NewFuzzyQuery(term)
+		comments.SetField("Comments")
+		comments.SetFuzziness(2)
+		comments.SetBoost(2)
+
+		searchQueries = append(searchQueries, bleve.NewDisjunctionQuery(createdByPrefixQ, createdBy, createdByQuery, recipientTitle, recipientTitleQuery, referenceId, referenceIds, comments))
 	}
 	req := bleve.NewSearchRequest(bleve.NewDisjunctionQuery(searchQueries...))
 
@@ -1836,9 +1874,11 @@ func grantHandleEvent(event grantEvent) {
 	}
 }
 
-func grantGetRecipientTitle(event grantEvent) string {
-	app := &event.Application
-	recipient := app.CurrentRevision.Document.Recipient
+func grantGetRecipientTitleFromEvent(event grantEvent) string {
+	return grantGetRecipientTitleByType(&event.Application.CurrentRevision.Document.Recipient)
+}
+
+func grantGetRecipientTitleByType(recipient *accapi.Recipient) string {
 
 	switch recipient.Type {
 	case accapi.RecipientTypeExistingProject:
@@ -1860,7 +1900,7 @@ func grantGetRecipientTitle(event grantEvent) string {
 }
 
 func truncateRecipientTitle(event grantEvent) string {
-	title := grantGetRecipientTitle(event)
+	title := grantGetRecipientTitleFromEvent(event)
 	if len(title) >= 30 {
 		return title[:30] + "..."
 	}
