@@ -84,7 +84,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     columns[3].columnWidth = 0;
                 }
 
-                function getGrants(newPath?: string) {
+                function fetchGrants(newPath: string = "/") {
                     callAPI(Grants.browse({
                         query: browser.searchQuery,
                         includeIngoingApplications: isIngoing || opts?.both,
@@ -93,9 +93,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                         ...browser.browseFilters,
                         ...opts?.additionalFilters,
                     })).then(result => {
-                        if (newPath) {
-                            browser.registerPage(result, newPath, true);
-                        }
+                        browser.registerPage(result, newPath, true);
                         browser.renderRows();
                     })
                 }
@@ -106,13 +104,13 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                         navigate(AppRoutes.grants.editor(resource.id));
                         return;
                     }
-                    getGrants(newPath);
+                    fetchGrants(newPath);
 
                 });
 
                 browser.on("search", query => {
                     browser.searchQuery = query;
-                    getGrants();
+                    fetchGrants();
                 });
 
 
