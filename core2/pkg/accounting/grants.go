@@ -1227,10 +1227,10 @@ func grantSearchFuzzily(searchTerm []string) []string {
 		recipientTitleQuery.SetField("RecipientTitle")
 		recipientTitleQuery.SetBoost(3)
 
-		referenceId := bleve.NewFuzzyQuery(term)
-		referenceId.SetField("ReferenceId")
-		referenceId.SetFuzziness(2)
-		referenceId.SetBoost(3)
+		recipientId := bleve.NewFuzzyQuery(term)
+		recipientId.SetField("RecipientId")
+		recipientId.SetFuzziness(2)
+		recipientId.SetBoost(3)
 
 		referenceIds := bleve.NewFuzzyQuery(term)
 		referenceIds.SetField("ReferenceIds")
@@ -1242,7 +1242,7 @@ func grantSearchFuzzily(searchTerm []string) []string {
 		comments.SetFuzziness(2)
 		comments.SetBoost(2)
 
-		searchQueries = append(searchQueries, bleve.NewDisjunctionQuery(createdByPrefixQ, createdBy, createdByQuery, recipientTitle, recipientTitleQuery, referenceId, referenceIds, comments))
+		searchQueries = append(searchQueries, bleve.NewDisjunctionQuery(createdByPrefixQ, createdBy, createdByQuery, recipientTitle, recipientTitleQuery, recipientId, referenceIds, comments))
 	}
 	req := bleve.NewSearchRequest(bleve.NewDisjunctionQuery(searchQueries...))
 
