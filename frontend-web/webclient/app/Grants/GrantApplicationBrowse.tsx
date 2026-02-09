@@ -84,10 +84,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     columns[3].columnWidth = 0;
                 }
 
-                var currentOldPath = ""
-                var currentNewPath = ""
-
-                function getGrants() {
+                function getGrants(newPath?: string) {
                     callAPI(Grants.browse({
                         query: browser.searchQuery,
                         includeIngoingApplications: isIngoing || opts?.both,
@@ -96,20 +93,20 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                         ...browser.browseFilters,
                         ...opts?.additionalFilters,
                     })).then(result => {
-                        browser.registerPage(result, currentNewPath, true);
+                        if (newPath) {
+                            browser.registerPage(result, newPath, true);
+                        }
                         browser.renderRows();
                     })
                 }
 
                 browser.setColumns(columns);
-                browser.on("open", (oldPath, newPath, resource) => {
-                    currentOldPath = oldPath;
-                    currentNewPath = newPath;
+                browser.on("open", (_, newPath, resource) => {
                     if (resource) {
                         navigate(AppRoutes.grants.editor(resource.id));
                         return;
                     }
-                    getGrants();
+                    getGrants(newPath);
 
                 });
 
