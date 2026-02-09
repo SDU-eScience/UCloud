@@ -1253,11 +1253,7 @@ func grantSearchFuzzily(searchTerm []string) []string {
 
 	var results []string
 	for _, hit := range res.Hits {
-		log.Debug("Found grant application with ID: %s", hit.ID)
 		results = append(results, hit.ID)
-	}
-	if results == nil {
-		log.Info("No grant applications found through fuzzy search")
 	}
 
 	return results
