@@ -1,5 +1,5 @@
 import * as React from "react";
-import {EventHandler, MouseEvent, useCallback, useEffect, useState} from "react";
+import {EventHandler, MouseEvent, useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {ProjectInvite, ProjectInviteLink, projectRoleToStringIcon} from "@/Project/Api";
 import {isAdminOrPI, OldProjectRole, Project, ProjectGroup, ProjectMember, ProjectRole} from "@/Project";
 import {Spacer} from "@/ui-components/Spacer";
@@ -33,7 +33,7 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {addStandardDialog} from "@/UtilityComponents";
 import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
-import {alignItems} from "styled-system";
+import BaseLink from "@/ui-components/BaseLink";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
@@ -259,9 +259,9 @@ export const MembersContainer: React.FunctionComponent<{
                 {props.activeGroup ?
                     <>
                         <Flex gap={"8px"} marginBottom={"8px"}>
-                            <Link to={"?"} color={"textPrimary"}>
+                            <BaseLink href={"#"} color={"textPrimary"}>
                                 <Heading.h3>Groups</Heading.h3>
-                            </Link>
+                            </BaseLink>
                             <Heading.h3>
                                 <Flex gap={"8px"}>
                                     /
@@ -379,6 +379,15 @@ const LinkInviteCard: React.FunctionComponent<{
         }
     }, []);
 
+    const contentRef = useRef<HTMLDivElement>(null);
+
+    useLayoutEffect(() => {
+        // HACK(Dan): For some reason, the focus goes to the body after clicking the link settings, causing esc to
+        // not work as intended. Refocus the wrapper to ensure that the modal receives the correct key inputs. We
+        // should consider later if this is needed globally.
+        contentRef.current?.focus();
+    }, [activeLinkId]);
+
     function handleInvite(event: React.SyntheticEvent) {
         event.preventDefault();
         props.onInvite(username);
@@ -413,17 +422,18 @@ const LinkInviteCard: React.FunctionComponent<{
         }
     }, [activeLinkId, props.onSelectedExpiry]);
 
-    return <>
+    return <div ref={contentRef} tabIndex={-1} style={{outline: "0"}}>
         {activeLink ? <>
             <Flex gap={"8px"} marginBottom={"8px"} height={"35px"} alignItems={"center"}>
-                <Link to={"?"}
-                    onClick={() => {
+                <BaseLink href={"#"}
+                    onClick={ev => {
+                        ev.preventDefault();
                         setActiveLinkId(null);
                     }}
                     color={"textPrimary"}
                 >
                     <Heading.h3>Invite with link</Heading.h3>
-                </Link>
+                </BaseLink>
                 <Heading.h3>/ Settings</Heading.h3>
             </Flex>
             <Flex gap={"8px"} marginBottom={"16px"} alignItems={"center"}>
@@ -500,19 +510,21 @@ const LinkInviteCard: React.FunctionComponent<{
             </Flex>
         </> : isShowingInviteByUsername ? <>
             <Flex gap={"8px"} marginBottom={"8px"} height={"35px"} alignItems={"center"}>
-                <Link to={"?"}
-                      onClick={() => {
+                <BaseLink href={"#"}
+                      onClick={ev => {
+                          ev.preventDefault();
                           setIsShowingInviteByUsername(false);
                       }}
                       color={"textPrimary"}
                 >
                     <Heading.h3>Invite </Heading.h3>
-                </Link>
+                </BaseLink>
                 <Heading.h3>/ Invite by username</Heading.h3>
             </Flex>
             <form action="#" onSubmit={handleInvite}>
                 <Flex maxHeight={"264px"} overflowY={"auto"} marginBottom={"5px"}>
                     <Input
+                        autoFocus={true}
                         placeholder={"Add by username"}
                         value={username}
                         onChange={(event) => {
@@ -589,7 +601,7 @@ const LinkInviteCard: React.FunctionComponent<{
                 </Box>
             )}
         </>}
-    </>
+    </div>
 }
 
 const MemberCard: React.FunctionComponent<{
