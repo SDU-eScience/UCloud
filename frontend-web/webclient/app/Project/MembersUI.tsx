@@ -346,6 +346,56 @@ export const MembersContainer: React.FunctionComponent<{
     />;
 }
 
+function useFocusRestoreWithin(
+    containerRef: React.RefObject<HTMLElement | null>,
+    deps: React.DependencyList
+) {
+    const lastFocusedRef = React.useRef<HTMLElement | null>(null);
+
+    React.useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+
+        const onFocusIn = (e: FocusEvent) => {
+            const target = e.target as HTMLElement | null;
+            if (target && el.contains(target)) lastFocusedRef.current = target;
+        };
+
+        document.addEventListener("focusin", onFocusIn);
+        return () => document.removeEventListener("focusin", onFocusIn);
+    }, [containerRef]);
+
+    React.useLayoutEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const active = document.activeElement as HTMLElement | null;
+        const focusIsInside = !!active && container.contains(active);
+
+        // If focus fell back to body or escaped outside the modal, restore it.
+        if (active === document.body || !focusIsInside) {
+            const last = lastFocusedRef.current;
+            if (last && document.contains(last)) {
+                last.focus();
+                return;
+            }
+
+            const firstFocusable = container.querySelector<HTMLElement>(
+                [
+                    "button:not([disabled])",
+                    "[href]",
+                    "input:not([disabled])",
+                    "select:not([disabled])",
+                    "textarea:not([disabled])",
+                    "[tabindex]:not([tabindex='-1'])",
+                ].join(",")
+            );
+
+            (firstFocusable ?? container).focus();
+        }
+    }, deps);
+}
+
 const LinkInviteCard: React.FunctionComponent<{
     links: ProjectInviteLink[];
     groups: ProjectGroup[];
@@ -381,18 +431,22 @@ const LinkInviteCard: React.FunctionComponent<{
 
     const contentRef = useRef<HTMLDivElement>(null);
 
-    useLayoutEffect(() => {
-        // HACK(Dan): For some reason, the focus goes to the body after clicking the link settings, causing esc to
-        // not work as intended. Refocus the wrapper to ensure that the modal receives the correct key inputs. We
-        // should consider later if this is needed globally.
-        contentRef.current?.focus();
-    }, [activeLinkId]);
+    useFocusRestoreWithin(contentRef, [
+        activeLinkId,
+        isShowingInviteByUsername,
+        props.links,
+        props.groups,
+        expiry.key,
+    ]);
 
-    function handleInvite(event: React.SyntheticEvent) {
+    const handleInvite = useCallback((event: React.SyntheticEvent) => {
         event.preventDefault();
         props.onInvite(username);
         setUsername("");
-    }
+        requestAnimationFrame(() => {
+            contentRef.current?.focus();
+        });
+    }, [props.onInvite]);
 
     useEffect(() => {
         if (activeLink) {
