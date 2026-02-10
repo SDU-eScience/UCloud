@@ -14,18 +14,18 @@ import (
 	"time"
 
 	ws "github.com/gorilla/websocket"
-	admission "k8s.io/api/admission/v1"
-	corev1 "k8s.io/api/core/v1"
+	k8sadmission "k8s.io/api/admission/v1"
+	k8score "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kvcore "kubevirt.io/api/core/v1"
 	kvclient "kubevirt.io/client-go/kubecli"
 	kvapi "kubevirt.io/client-go/kubevirt/typed/core/v1"
 	kvcdi "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 	cfg "ucloud.dk/pkg/config"
 	ctrl "ucloud.dk/pkg/controller"
-	filesystem2 "ucloud.dk/pkg/integrations/k8s/filesystem"
-	shared2 "ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -38,9 +38,9 @@ var Enabled = false
 
 func Init() ctrl.JobsService {
 	// Create a number of aliases for use in this package. These are all static by the time this function is called.
-	_ = shared2.K8sClient
-	ServiceConfig = shared2.ServiceConfig
-	KubevirtClient = shared2.KubevirtClient
+	_ = shared.K8sClient
+	ServiceConfig = shared.ServiceConfig
+	KubevirtClient = shared.KubevirtClient
 
 	Namespace = ServiceConfig.Compute.Namespace
 
@@ -82,13 +82,13 @@ func vmiFsMutator() {
 				return
 			}
 
-			var review admission.AdmissionReview
+			var review k8sadmission.AdmissionReview
 			if err := json.Unmarshal(body, &review); err != nil {
 				http.Error(w, "Could not decode request", http.StatusBadRequest)
 				return
 			}
 
-			pod := corev1.Pod{}
+			pod := k8score.Pod{}
 			err = json.Unmarshal(review.Request.Object.Raw, &pod)
 			if err != nil {
 				http.Error(w, "Could not decode request", http.StatusBadRequest)
@@ -113,7 +113,7 @@ func vmiFsMutator() {
 				allowed = false
 			}
 
-			vm, err := KubevirtClient.VirtualMachine(Namespace).Get(context.Background(), name, metav1.GetOptions{})
+			vm, err := KubevirtClient.VirtualMachine(Namespace).Get(context.Background(), name, k8smeta.GetOptions{})
 			if err != nil {
 				log.Info("Rejecting %s because no VM could be found: %s", pod.Name, err)
 				allowed = false
@@ -190,14 +190,14 @@ func vmiFsMutator() {
 
 			patch, _ := json.Marshal(ops)
 
-			response := admission.AdmissionReview{
+			response := k8sadmission.AdmissionReview{
 				TypeMeta: review.TypeMeta,
-				Response: &admission.AdmissionResponse{
+				Response: &k8sadmission.AdmissionResponse{
 					UID:     review.Request.UID,
 					Allowed: allowed,
 					Patch:   patch,
-					PatchType: func() *admission.PatchType {
-						pt := admission.PatchTypeJSONPatch
+					PatchType: func() *k8sadmission.PatchType {
+						pt := k8sadmission.PatchTypeJSONPatch
 						return &pt
 					}(),
 				},
@@ -345,7 +345,7 @@ func handleShell(session *ctrl.ShellSession, cols int, rows int) {
 
 func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 	name := vmName(request.Job.Id, 0)
-	err := KubevirtClient.VirtualMachine(Namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	err := KubevirtClient.VirtualMachine(Namespace).Delete(context.TODO(), name, k8smeta.DeleteOptions{})
 	if err != nil {
 		log.Info("Failed to delete VM: %v", err)
 		return util.ServerHttpError("Failed to delete VM")
@@ -354,7 +354,7 @@ func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 }
 
 func unsuspend(job orc.Job) *util.HttpError {
-	shared2.RequestSchedule(&job)
+	shared.RequestSchedule(&job)
 	return nil
 }
 
@@ -465,20 +465,20 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 		// TODO Configure a better system for this
 		Name:         "ucloud",
 		Password:     "$6$rounds=4096$fzCn1bIp2KpPC3a4$FPFj6AozYQXucfCYmnLep/RS3kyNGcPWpY8MTP1zm6TyxMqgxttrYszwAAdIojC.MUZs9JI566FBQxprKraUA0",
-		Uid:          filesystem2.DefaultUid,
+		Uid:          filesystem.DefaultUid,
 		Sudo:         []string{"ALL=(ALL) NOPASSWD:ALL"},
 		LockPassword: false,
 		Shell:        "/bin/bash",
 	})
 	cinit.RunCommand = []string{
-		fmt.Sprintf("usermod -u %d ucloud", filesystem2.DefaultUid),
-		fmt.Sprintf("groupmod -g %d ucloud", filesystem2.DefaultUid),
+		fmt.Sprintf("usermod -u %d ucloud", filesystem.DefaultUid),
+		fmt.Sprintf("groupmod -g %d ucloud", filesystem.DefaultUid),
 	}
 
 	machine := &job.Status.ResolvedProduct.Value
 
 	nameOfVm := vmName(job.Id, rank)
-	existingVm, err := KubevirtClient.VirtualMachine(Namespace).Get(context.TODO(), nameOfVm, metav1.GetOptions{})
+	existingVm, err := KubevirtClient.VirtualMachine(Namespace).Get(context.TODO(), nameOfVm, k8smeta.GetOptions{})
 	hasExistingVm := err == nil
 
 	vm := &kvcore.VirtualMachine{}
@@ -509,19 +509,19 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 
 	vm.Spec.DataVolumeTemplates = []kvcore.DataVolumeTemplateSpec{
 		{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: k8smeta.ObjectMeta{
 				Name: vm.Name,
 			},
 			Spec: kvcdi.DataVolumeSpec{
 				Source: baseImageSource,
 				Storage: &kvcdi.StorageSpec{
-					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceStorage: *resource.NewScaledQuantity(5, resource.Giga),
+					AccessModes: []k8score.PersistentVolumeAccessMode{k8score.ReadWriteOnce},
+					Resources: k8score.ResourceRequirements{
+						Requests: k8score.ResourceList{
+							k8score.ResourceStorage: *resource.NewScaledQuantity(5, resource.Giga),
 						},
 					},
-					StorageClassName: shared2.ServiceConfig.Compute.VirtualMachineStorageClass.GetPtrOrNil(),
+					StorageClassName: shared.ServiceConfig.Compute.VirtualMachineStorageClass.GetPtrOrNil(),
 				},
 			},
 		},
@@ -530,8 +530,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	vm.Spec.Template = &kvcore.VirtualMachineInstanceTemplateSpec{
 		Spec: kvcore.VirtualMachineInstanceSpec{
 			// TODO Cluster DNS doesn't work (NetworkPolicy?)
-			DNSPolicy: corev1.DNSNone,
-			DNSConfig: &corev1.PodDNSConfig{
+			DNSPolicy: k8score.DNSNone,
+			DNSConfig: &k8score.PodDNSConfig{
 				Nameservers: []string{
 					"1.1.1.1",
 				},
@@ -610,7 +610,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	fsIdx := 0
 	for _, param := range job.Specification.Resources {
 		if param.Type == orc.AppParameterValueTypeFile {
-			internalPath, ok, _ := filesystem2.UCloudToInternal(param.Path)
+			internalPath, ok, _ := filesystem.UCloudToInternal(param.Path)
 			if !ok {
 				continue
 			}
@@ -625,8 +625,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 				Name: volName,
 				VolumeSource: kvcore.VolumeSource{
 					PersistentVolumeClaim: &kvcore.PersistentVolumeClaimVolumeSource{
-						PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{
-							ClaimName: shared2.ServiceConfig.FileSystem.ClaimName,
+						PersistentVolumeClaimVolumeSource: k8score.PersistentVolumeClaimVolumeSource{
+							ClaimName: shared.ServiceConfig.FileSystem.ClaimName,
 						},
 					},
 				},
@@ -646,7 +646,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 				compsLen := len(comps)
 
 				if compsLen == 1 {
-					drive, ok := filesystem2.ResolveDrive(comps[0])
+					drive, ok := filesystem.ResolveDrive(comps[0])
 					if ok {
 						title = strings.ReplaceAll(drive.Specification.Title, "Members' Files: ", "")
 					}
@@ -700,9 +700,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	)
 
 	if hasExistingVm {
-		_, err = KubevirtClient.VirtualMachine(Namespace).Update(context.TODO(), vm, metav1.UpdateOptions{})
+		_, err = KubevirtClient.VirtualMachine(Namespace).Update(context.TODO(), vm, k8smeta.UpdateOptions{})
 	} else {
-		_, err = KubevirtClient.VirtualMachine(Namespace).Create(context.TODO(), vm, metav1.CreateOptions{})
+		_, err = KubevirtClient.VirtualMachine(Namespace).Create(context.TODO(), vm, k8smeta.CreateOptions{})
 	}
 	if err != nil {
 		// TODO

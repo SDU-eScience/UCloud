@@ -3,6 +3,7 @@ package k8s
 import (
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -14,7 +15,7 @@ import (
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/containers"
 	"ucloud.dk/pkg/integrations/k8s/kubevirt"
-	shared2 "ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	apm "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
@@ -63,7 +64,7 @@ func InitCompute() controller.JobsService {
 	}
 }
 
-var nodes *shared2.K8sResourceTracker[*corev1.Node]
+var nodes *shared.K8sResourceTracker[*corev1.Node]
 
 var monitoringHealthCounter = atomic.Int64{}
 
@@ -73,7 +74,7 @@ func InitComputeLater() {
 	initJobQueue()
 
 	go func() {
-		nodes = shared2.NewResourceTracker[*corev1.Node](
+		nodes = shared.NewResourceTracker[*corev1.Node](
 			"",
 			func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
 				return factory.Core().V1().Nodes().Informer()
@@ -109,7 +110,7 @@ func monitoringHealthLoop() {
 }
 
 func retrievePublicIpProducts() []orc.PublicIpSupport {
-	return shared2.IpSupport
+	return shared.IpSupport
 }
 
 func createPublicIp(ip *orc.PublicIp) *util.HttpError {
@@ -119,7 +120,7 @@ func createPublicIp(ip *orc.PublicIp) *util.HttpError {
 }
 
 func accountPublicIps(owner orc.ResourceOwner) {
-	productName := shared2.ServiceConfig.Compute.PublicIps.Name
+	productName := shared.ServiceConfig.Compute.PublicIps.Name
 	count := controller.PublicIpRetrieveUsedCount(owner)
 	_, _ = apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{
 		Items: []apm.ReportUsageRequest{
@@ -144,7 +145,7 @@ func deletePublicIp(ip *orc.PublicIp) *util.HttpError {
 }
 
 func retrieveIngressProducts() []orc.IngressSupport {
-	return shared2.LinkSupport
+	return shared.LinkSupport
 }
 
 var linkRegex = regexp.MustCompile("[a-z]([-_a-z0-9]){4,255}")
@@ -161,8 +162,8 @@ func createIngress(ingress *orc.Ingress) *util.HttpError {
 	}
 
 	domain := ingress.Specification.Domain
-	prefix := shared2.ServiceConfig.Compute.PublicLinks.Prefix
-	suffix := shared2.ServiceConfig.Compute.PublicLinks.Suffix
+	prefix := shared.ServiceConfig.Compute.PublicLinks.Prefix
+	suffix := shared.ServiceConfig.Compute.PublicLinks.Suffix
 
 	isValid := strings.HasPrefix(domain, prefix) && strings.HasSuffix(domain, suffix)
 
@@ -244,7 +245,7 @@ func deleteIngress(ingress *orc.Ingress) *util.HttpError {
 }
 
 func accountPublicLinks(owner orc.ResourceOwner) {
-	productName := shared2.ServiceConfig.Compute.PublicLinks.Name
+	productName := shared.ServiceConfig.Compute.PublicLinks.Name
 	count := controller.LinkRetrieveUsedCount(owner)
 	_, _ = apm.ReportUsage.Invoke(fnd.BulkRequest[apm.ReportUsageRequest]{
 		Items: []apm.ReportUsageRequest{
@@ -297,7 +298,23 @@ func accountLicenses(licenseName string, owner orc.ResourceOwner) {
 }
 
 func retrieveProducts() []orc.JobSupport {
-	return shared2.MachineSupport
+	support := slices.Clone(shared.MachineSupport)
+
+	statusPtr := schedulerStatus.Load()
+	if statusPtr != nil {
+		status := *statusPtr
+		if status != nil {
+			for i := 0; i < len(support); i++ {
+				elem := &support[i]
+				elemStatus, ok := status[elem.Product]
+				if ok && elemStatus.Present {
+					elem.QueueStatus = elemStatus
+				}
+			}
+		}
+	}
+
+	return support
 }
 
 func backendByAppIsKubevirt(app *orc.Application) bool {
@@ -347,12 +364,12 @@ func submit(job orc.Job) (util.Option[string], *util.HttpError) {
 		return util.OptNone[string](), reason.Value.Err
 	}
 
-	if backendIsKubevirt(&job) && shared2.IsSensitiveProject(job.Owner.Project.Value) {
+	if backendIsKubevirt(&job) && shared.IsSensitiveProject(job.Owner.Project.Value) {
 		// NOTE(Dan): Feel free to remove this once VMs have been prepared for sensitive projects.
 		return util.OptNone[string](), util.UserHttpError("This project is not allowed to use virtual machines")
 	}
 
-	shared2.RequestSchedule(&job)
+	shared.RequestSchedule(&job)
 	controller.JobTrackNew(job)
 	return util.OptNone[string](), nil
 }
