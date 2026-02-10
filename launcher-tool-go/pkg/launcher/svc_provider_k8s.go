@@ -25,6 +25,9 @@ var k8sProviderConfig []byte
 //go:embed config/k8s/init.sh
 var k8sInitScript []byte
 
+//go:embed config/k8s/kubevirt_init.sh
+var k8sKubevirtInitScript []byte
+
 func ProviderK8s() {
 	provider := Service{
 		Name:     "k8s",
@@ -252,6 +255,7 @@ func ProviderK8s() {
 				Mount(kubelet, "/var/lib/kubelet"),
 				Mount(etc, "/etc/rancher"),
 				Mount(storage, "/mnt/storage"),
+				Mount(imConfig, "/etc/ucloud"),
 			},
 		})
 	}
@@ -310,7 +314,7 @@ func ProviderK8s() {
 		kubeVirt := Service{
 			Name:      "kubevirt",
 			Title:     "KubeVirt",
-			Flags:     SvcLogs,
+			Flags:     0,
 			UiParent:  UiParentK8s,
 			Feature:   FeatureAddonKubeVirt,
 			DependsOn: util.OptValue(FeatureProviderK8s),
@@ -337,20 +341,11 @@ func ProviderK8s() {
 				[]string{
 					"sh",
 					"-c",
-					`set -e
-
-export VERSION=$(curl -s https://storage.googleapis.com/kubevirt-prow/release/kubevirt/kubevirt/stable.txt)
-export ARCH=$(uname -s | tr A-Z a-z)-$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
-
-if ! kubectl get kubevirt -n kubevirt kubevirt >/dev/null 2>&1; then
-	kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/kubevirt-operator.yaml"
-	kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/kubevirt-cr.yaml"
-fi
-
-curl -L -o virtctl https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/virtctl-${VERSION}-${ARCH}
-install -m 0755 virtctl /usr/local/bin
-rm -f virtctl
-`,
+					`
+						set -e
+						mount --make-rshared /var/run
+						mount --make-rshared /
+					`,
 				},
 				ExecuteOptions{},
 			)
@@ -361,15 +356,7 @@ rm -f virtctl
 				[]string{
 					"sh",
 					"-c",
-					`set -e
-
-export VERSION=$(curl -s https://storage.googleapis.com/kubevirt-prow/release/kubevirt/kubevirt/stable.txt)
-export ARCH=$(uname -s | tr A-Z a-z)-$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
-
-curl -L -o virtctl https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/virtctl-${VERSION}-${ARCH}
-install -m 0755 virtctl /usr/local/bin
-rm -f virtctl
-`,
+					string(k8sKubevirtInitScript),
 				},
 				ExecuteOptions{},
 			)

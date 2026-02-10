@@ -61,6 +61,14 @@ func Init() ctrl.JobsService {
 	}
 }
 
+func VmiStandaloneMutator() {
+	shared.InitClients()
+	KubevirtClient = shared.KubevirtClient
+	Namespace = "ucloud-apps" // TODO
+
+	vmiFsMutator()
+}
+
 func vmiFsMutator() {
 	certFile := "/etc/ucloud/webhook.crt"
 	keyFile := "/etc/ucloud/webhook.key"
