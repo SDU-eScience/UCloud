@@ -305,4 +305,74 @@ func ProviderK8s() {
 			},
 		})
 	}
+
+	{
+		kubeVirt := Service{
+			Name:      "kubevirt",
+			Title:     "KubeVirt",
+			Flags:     SvcLogs,
+			UiParent:  UiParentK8s,
+			Feature:   FeatureAddonKubeVirt,
+			DependsOn: util.OptValue(FeatureProviderK8s),
+		}
+
+		AddService(kubeVirt, DockerComposeService{
+			Image:    "alpine:3",
+			Hostname: "kubevirt",
+			Restart:  "always",
+			Command:  []string{"sleep", "inf"},
+		})
+
+		AddStartupHook(kubeVirt, func() {
+			ComposeExec(
+				"Waiting for K3s to be ready",
+				"k3s",
+				[]string{"sh", "-c", "until kubectl get nodes >/dev/null 2>&1; do sleep 1; done"},
+				ExecuteOptions{},
+			)
+
+			ComposeExec(
+				"Installing KubeVirt",
+				"k3s",
+				[]string{
+					"sh",
+					"-c",
+					`set -e
+
+export VERSION=$(curl -s https://storage.googleapis.com/kubevirt-prow/release/kubevirt/kubevirt/stable.txt)
+export ARCH=$(uname -s | tr A-Z a-z)-$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
+
+if ! kubectl get kubevirt -n kubevirt kubevirt >/dev/null 2>&1; then
+	kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/kubevirt-operator.yaml"
+	kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/kubevirt-cr.yaml"
+fi
+
+curl -L -o virtctl https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/virtctl-${VERSION}-${ARCH}
+install -m 0755 virtctl /usr/local/bin
+rm -f virtctl
+`,
+				},
+				ExecuteOptions{},
+			)
+
+			ComposeExec(
+				"Installing KubeVirt",
+				provider.Name,
+				[]string{
+					"sh",
+					"-c",
+					`set -e
+
+export VERSION=$(curl -s https://storage.googleapis.com/kubevirt-prow/release/kubevirt/kubevirt/stable.txt)
+export ARCH=$(uname -s | tr A-Z a-z)-$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
+
+curl -L -o virtctl https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/virtctl-${VERSION}-${ARCH}
+install -m 0755 virtctl /usr/local/bin
+rm -f virtctl
+`,
+				},
+				ExecuteOptions{},
+			)
+		})
+	}
 }
