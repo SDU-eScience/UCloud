@@ -89,6 +89,12 @@ export interface JobStatus extends ResourceStatus {
     jobParametersJson: any;
 }
 
+export enum JobQueueStatus {
+    AVAILABLE = "AVAILABLE",
+    BUSY = "BUSY",
+    FULL = "FULL",
+}
+
 export interface Job extends Resource<JobUpdate, JobStatus, JobSpecification> {
     output?: JobOutput;
 }
@@ -97,6 +103,7 @@ export interface ComputeSupport extends ProductSupport {
     docker: DockerSupport;
     virtualMachine: VirtualMachineSupport;
     native: NativeSupport;
+    queueStatus?: JobQueueStatus;
 }
 
 export interface NativeSupport {
