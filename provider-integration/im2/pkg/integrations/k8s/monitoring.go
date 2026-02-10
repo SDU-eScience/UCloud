@@ -7,15 +7,16 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	cfg "ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/controller"
-	containers2 "ucloud.dk/pkg/integrations/k8s/containers"
-	kubevirt2 "ucloud.dk/pkg/integrations/k8s/kubevirt"
-	shared2 "ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/pkg/integrations/k8s/containers"
+	"ucloud.dk/pkg/integrations/k8s/kubevirt"
+	"ucloud.dk/pkg/integrations/k8s/shared"
 
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -32,9 +33,10 @@ var nextAccounting time.Time
 // thread-safe.
 
 var schedulers = map[string]*Scheduler{}
+var schedulerStatus = atomic.Pointer[map[apm.ProductReference]util.Option[orc.JobQueueStatus]]{}
 
 func getScheduler(category string, group string) (*Scheduler, bool) {
-	mapped, ok := shared2.ServiceConfig.Compute.MachineImpersonation[category]
+	mapped, ok := shared.ServiceConfig.Compute.MachineImpersonation[category]
 	if !ok {
 		mapped = category
 	} else {
@@ -45,7 +47,7 @@ func getScheduler(category string, group string) (*Scheduler, bool) {
 
 	_, isIApp := controller.IntegratedApplications[mapped]
 	if !isIApp {
-		_, ok := shared2.ServiceConfig.Compute.Machines[mapped]
+		_, ok := shared.ServiceConfig.Compute.Machines[mapped]
 		if !ok {
 			return nil, false
 		}
@@ -65,7 +67,7 @@ func getSchedulerByJob(job *orc.Job) (*Scheduler, bool) {
 	if isIApp {
 		return getScheduler(product.Category, product.Category)
 	} else {
-		_, group, _, ok := shared2.ServiceConfig.Compute.ResolveMachine(product.Id, product.Category)
+		_, group, _, ok := shared.ServiceConfig.Compute.ResolveMachine(product.Id, product.Category)
 		if !ok {
 			return nil, false
 		}
@@ -74,7 +76,7 @@ func getSchedulerByJob(job *orc.Job) (*Scheduler, bool) {
 }
 
 type jobGang struct {
-	replicaState map[int]shared2.JobReplicaState
+	replicaState map[int]shared.JobReplicaState
 }
 
 type jobTracker struct {
@@ -100,7 +102,7 @@ func (t *jobTracker) AddUpdate(id string, update orc.JobUpdate) {
 	})
 }
 
-func (t *jobTracker) TrackState(state shared2.JobReplicaState) bool {
+func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 	job, ok := t.jobs[state.Id]
 	if !ok {
 		log.Info("Unknown job with TrackState: %v", state.Id)
@@ -115,12 +117,12 @@ func (t *jobTracker) TrackState(state shared2.JobReplicaState) bool {
 
 	gang, ok := t.gangs[state.Id]
 	if !ok {
-		gang.replicaState = map[int]shared2.JobReplicaState{}
+		gang.replicaState = map[int]shared.JobReplicaState{}
 		t.gangs[state.Id] = gang
 	}
 
 	if state.State == orc.JobStateRunning && state.Node.Present {
-		sched.RegisterRunningReplica(state.Id, state.Rank, shared2.JobDimensions(job), state.Node.Value, nil,
+		sched.RegisterRunningReplica(state.Id, state.Rank, shared.JobDimensions(job), state.Node.Value, nil,
 			timeAllocationOrDefault(job.Specification.TimeAllocation))
 	}
 
@@ -131,7 +133,7 @@ func (t *jobTracker) TrackState(state shared2.JobReplicaState) bool {
 		reportNodes := true
 
 		// The overall job uses a state equivalent to the state of the most important state in the gang
-		var stateToReport shared2.JobReplicaState
+		var stateToReport shared.JobReplicaState
 		bestRank := -1
 		for i := 0; i < job.Specification.Replicas; i++ {
 			thisState := gang.replicaState[i]
@@ -188,7 +190,7 @@ func initJobQueue() {
 	jobs := controller.JobsListServer()
 	for _, job := range jobs {
 		if job.Status.State == orc.JobStateInQueue {
-			shared2.RequestSchedule(job)
+			shared.RequestSchedule(job)
 		}
 	}
 }
@@ -215,7 +217,7 @@ func loopMonitoring() {
 			baseNode := nodeList[0]
 			nodeList = []*core.Node{}
 
-			for category, _ := range shared2.ServiceConfig.Compute.Machines {
+			for category, _ := range shared.ServiceConfig.Compute.Machines {
 				normalMachine := *baseNode
 				normalMachine.Labels = maps.Clone(normalMachine.Labels)
 				normalMachine.Labels["ucloud.dk/machine"] = category
@@ -223,14 +225,14 @@ func loopMonitoring() {
 				break
 			}
 
-			if shared2.ServiceConfig.Compute.Syncthing.Enabled {
+			if shared.ServiceConfig.Compute.Syncthing.Enabled {
 				syncthingNode := *nodeList[0]
 				syncthingNode.Labels = maps.Clone(syncthingNode.Labels)
 				syncthingNode.Labels["ucloud.dk/machine"] = "syncthing"
 				nodeList = append(nodeList, &syncthingNode)
 			}
 
-			if shared2.ServiceConfig.Compute.IntegratedTerminal.Enabled {
+			if shared.ServiceConfig.Compute.IntegratedTerminal.Enabled {
 				syncthingNode := *nodeList[0]
 				syncthingNode.Labels = maps.Clone(syncthingNode.Labels)
 				syncthingNode.Labels["ucloud.dk/machine"] = "terminal"
@@ -252,7 +254,7 @@ func loopMonitoring() {
 				k8sAllocatable := node.Status.Allocatable
 
 				gpuType := "nvidia.com/gpu"
-				machineCategory, ok := shared2.ServiceConfig.Compute.Machines[catGroup.Category]
+				machineCategory, ok := shared.ServiceConfig.Compute.Machines[catGroup.Category]
 				if ok {
 					// TODO This seems like it will break if there is more than one category
 					nodeCat, ok := machineCategory.Groups[catGroup.Category]
@@ -261,12 +263,12 @@ func loopMonitoring() {
 					}
 				}
 
-				capacity := shared2.SchedulerDimensions{
+				capacity := shared.SchedulerDimensions{
 					CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
 					MemoryInBytes: int(k8sCapacity.Memory().Value()),
 				}
 
-				limits := shared2.SchedulerDimensions{
+				limits := shared.SchedulerDimensions{
 					CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
 					MemoryInBytes: int(k8sAllocatable.Memory().Value()),
 				}
@@ -331,7 +333,7 @@ func loopMonitoring() {
 	metricMonitoring.WithLabelValues("ActiveJobs").Observe(timer.Mark().Seconds())
 
 	timer.Mark()
-	entriesToRemove := shared2.SwapScheduleRemoveFromQueue()
+	entriesToRemove := shared.SwapScheduleRemoveFromQueue()
 	for _, jobId := range entriesToRemove {
 		job, ok := controller.JobRetrieve(jobId)
 		if ok {
@@ -344,11 +346,11 @@ func loopMonitoring() {
 	metricMonitoring.WithLabelValues("RemoveFromQueue").Observe(timer.Mark().Seconds())
 
 	timer.Mark()
-	containers2.Monitor(tracker, activeJobs)
+	containers.Monitor(tracker, activeJobs)
 	metricMonitoring.WithLabelValues("ContainerMonitor").Observe(timer.Mark().Seconds())
 
 	timer.Mark()
-	kubevirt2.Monitor(tracker, activeJobs)
+	kubevirt.Monitor(tracker, activeJobs)
 	metricMonitoring.WithLabelValues("VirtualMachineMonitor").Observe(timer.Mark().Seconds())
 
 	timer.Mark()
@@ -425,10 +427,10 @@ func loopMonitoring() {
 		}
 
 		if len(containersStarted) > 0 {
-			containers2.OnStart(containersStarted)
+			containers.OnStart(containersStarted)
 		}
 		if len(kubevirtStarted) > 0 {
-			kubevirt2.OnStart(kubevirtStarted)
+			kubevirt.OnStart(kubevirtStarted)
 		}
 	}()
 
@@ -439,7 +441,7 @@ func loopMonitoring() {
 		var reports []apm.ReportUsageRequest
 
 		for _, job := range activeJobs {
-			timeReport := shared2.ComputeRunningTime(job)
+			timeReport := shared.ComputeRunningTime(job)
 			accUnits := convertJobTimeToAccountingUnits(job, timeReport.TimeConsumed)
 			reports = append(reports, apm.ReportUsageRequest{
 				IsDeltaCharge: false,
@@ -495,7 +497,7 @@ func loopMonitoring() {
 
 	timer.Mark()
 	{
-		allPods := shared2.JobPods.List()
+		allPods := shared.JobPods.List()
 
 		resourcesByNode := map[string]map[string]int64{}
 
@@ -528,7 +530,7 @@ func loopMonitoring() {
 					usage = make(map[string]int64)
 				}
 
-				machineCategory, ok := shared2.ServiceConfig.Compute.Machines[catName]
+				machineCategory, ok := shared.ServiceConfig.Compute.Machines[catName]
 				gpuResourceType := "nvidia.com/gpu"
 				systemReservedCpuMillis := 500
 
@@ -541,7 +543,7 @@ func loopMonitoring() {
 					}
 				}
 
-				dims := shared2.SchedulerDimensions{
+				dims := shared.SchedulerDimensions{
 					CpuMillis:     int(usage[string(core.ResourceCPU)]) + systemReservedCpuMillis,
 					MemoryInBytes: int(usage[string(core.ResourceMemory)]),
 					Gpu:           int(usage[gpuResourceType]),
@@ -565,11 +567,11 @@ func loopMonitoring() {
 	// Job scheduling
 	// -----------------------------------------------------------------------------------------------------------------
 	timer.Mark()
-	entriesToSubmit := shared2.SwapScheduleQueue()
+	entriesToSubmit := shared.SwapScheduleQueue()
 	for _, entry := range entriesToSubmit {
 		sched, ok := getSchedulerByJob(entry)
 		if ok {
-			sched.RegisterJobInQueue(entry.Id, shared2.JobDimensions(entry),
+			sched.RegisterJobInQueue(entry.Id, shared.JobDimensions(entry),
 				entry.Specification.Replicas, nil, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
 		}
 	}
@@ -619,11 +621,11 @@ func loopMonitoring() {
 			toolBackend := job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
 			if toolBackend == orc.ToolBackendVirtualMachine {
 				timer.Mark()
-				kubevirt2.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
+				kubevirt.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
 				metricMonitoring.WithLabelValues("StartJob").Observe(timer.Mark().Seconds())
 			} else {
 				timer.Mark()
-				err := containers2.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
+				err := containers.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
 				metricMonitoring.WithLabelValues("StartJob").Observe(timer.Mark().Seconds())
 
 				if err != nil {
@@ -664,6 +666,50 @@ func loopMonitoring() {
 			}
 		}
 	}
+
+	queueStatusMap := map[apm.ProductReference]util.Option[orc.JobQueueStatus]{}
+	for _, product := range shared.Machines {
+		_, group, _, ok := shared.ServiceConfig.Compute.ResolveMachine(product.Name, product.Category.Name)
+		if !ok {
+			continue
+		}
+		sched, ok := getScheduler(product.Category.Name, group.GroupName)
+		if !ok {
+			continue
+		}
+
+		var allNodes []*SchedulerNode
+		for _, node := range sched.Nodes {
+			allNodes = append(allNodes, node)
+		}
+
+		singleEntry := &SchedulerQueueEntry{
+			JobId:               "0",
+			SchedulerDimensions: shared.JobDimensionsFromProductOnly(&product),
+			Replicas:            1,
+		}
+
+		doubleEntry := &SchedulerQueueEntry{
+			JobId:               "0",
+			SchedulerDimensions: shared.JobDimensionsFromProductOnly(&product),
+			Replicas:            2,
+		}
+
+		anyAvailable := sched.trySchedule(singleEntry, allNodes, true) != nil
+		moreAvailable := sched.trySchedule(doubleEntry, allNodes, true) != nil
+
+		status := orc.JobQueueFull
+		if anyAvailable && moreAvailable {
+			status = orc.JobQueueAvailable
+		} else if anyAvailable && !moreAvailable {
+			status = orc.JobQueueBusy
+		} else {
+			status = orc.JobQueueFull
+		}
+
+		queueStatusMap[product.ToReference()] = util.OptValue(status)
+	}
+	schedulerStatus.Store(&queueStatusMap)
 
 	timer.Mark()
 	for newIdx := 0; newIdx < len(entriesToSubmit); newIdx++ {
@@ -737,7 +783,7 @@ func nodeCategories(node *core.Node) []NodeCatGroup {
 }
 
 func convertJobTimeToAccountingUnits(job *orc.Job, timeConsumed time.Duration) int64 {
-	k8sCategory := shared2.ServiceConfig.Compute.Machines[job.Specification.Product.Category]
+	k8sCategory := shared.ServiceConfig.Compute.Machines[job.Specification.Product.Category]
 
 	productUnits := float64(job.Specification.Replicas)
 	switch k8sCategory.Payment.Unit {

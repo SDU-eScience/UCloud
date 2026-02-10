@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	apm "ucloud.dk/shared/pkg/accounting"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -112,12 +113,16 @@ func JobDimensions(job *orc.Job) SchedulerDimensions {
 	if hasMapper {
 		return mapper(job)
 	} else {
-		dims := SchedulerDimensions{
-			CpuMillis:     NodeCpuMillisReserved(prod),
-			MemoryInBytes: prod.MemoryInGigs * (1000 * 1000 * 1000),
-			Gpu:           prod.Gpu,
-		}
-
-		return dims
+		return JobDimensionsFromProductOnly(prod)
 	}
+}
+
+func JobDimensionsFromProductOnly(prod *apm.ProductV2) SchedulerDimensions {
+	dims := SchedulerDimensions{
+		CpuMillis:     NodeCpuMillisReserved(prod),
+		MemoryInBytes: prod.MemoryInGigs * (1000 * 1000 * 1000),
+		Gpu:           prod.Gpu,
+	}
+
+	return dims
 }
