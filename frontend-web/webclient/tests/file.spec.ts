@@ -326,7 +326,8 @@ TestContexts.map(ctx => {
 
                 await page.getByRole("button", {name: "Add folder"}).filter({visible: true}).first().click();
                 const user = ctxUser(ctx);
-                await File.ensureDialogDriveActive(page, Drives[userAgent! + user.username]);
+                const drive = ctx === "Project User" ? Drive.newDriveNameOrMemberFiles(ctx) : Drives[userAgent! + user.username];
+                await File.ensureDialogDriveActive(page, drive);
                 await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
                     await page.getByRole("dialog").locator(".row", {hasText: folderName}).getByRole("button", {name: "Sync"}).click();
                 });

@@ -247,7 +247,12 @@ echo "${BashScriptStringContent}"
                     await Runs.terminateViewedRun(userPage);
 
                     await userPage.reload();
-                    const driveName = Drive.memberFiles(user.username);
+                    const isPersonalWorkspace = ctx === "Personal Workspace"
+                    const driveName = isPersonalWorkspace ? Drive.newDriveNameOrMemberFiles(ctx) : Drive.memberFiles(user.username);
+                    if (isPersonalWorkspace) {
+                        await Drive.goToDrives(userPage);
+                        await Drive.create(userPage, driveName);
+                    }
 
                     await File.triggerStorageScan(userPage, driveName);
                     await Runs.goToRuns(userPage);
@@ -286,20 +291,16 @@ async function createUserWithProjectAndAssignRole(admin: Page, context: BrowserC
 
     await User.create(admin, user);
     await User.login(userPage, user, true);
-    const projectName = Project.newProjectName();
-
 
     switch (ctx) {
         case "Project Admin":
         case "Project PI":
         case "Project User": {
-            const id = await fillApplicationAndSubmit(admin, true);
-
+            const projectName = Project.newProjectName();
+            await fillApplicationAndSubmit(admin, projectName);
             await Accounting.GrantApplication.approve(admin);
-
-            await Drive.goToDrives(admin);
+            await Components.goToDashboard(admin);
             await Project.changeTo(admin, projectName);
-
             await Project.inviteUsers(admin, [user.username]);
 
             await Project.acceptInvites([userPage], projectName);
@@ -311,18 +312,20 @@ async function createUserWithProjectAndAssignRole(admin: Page, context: BrowserC
             break;
         }
         case "Personal Workspace": {
-            const id = await fillApplicationAndSubmit(userPage, true);
-
+            const id = await fillApplicationAndSubmit(userPage);
+            await Accounting.goTo(admin, "Grant applications");
+            await admin.getByText("Show applications received").click();
             await Rows.actionByRowTitle(admin, `${id}: Personal workspace of ${user.username}`, "dblclick");
             await Accounting.GrantApplication.approve(admin);
+            break;
         }
     }
 
     return {userPage, user};
 
-    async function fillApplicationAndSubmit(page: Page, isPersonalWorkspace: boolean): Promise<string> {
+    async function fillApplicationAndSubmit(page: Page, projectName?: string): Promise<string> {
         await Accounting.goTo(page, "Apply for resources");
-        if (isPersonalWorkspace) {
+        if (!projectName) {
             await page.getByText("select an existing project instead").click();
         } else {
             await Accounting.GrantApplication.fillProjectName(page, projectName);

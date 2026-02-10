@@ -276,8 +276,9 @@ export const File = {
     async ensureDialogDriveActive(page: Page, driveName: string): Promise<void> {
         // Check locator input for content
         await page.getByRole("dialog").isVisible();
+        const drive = driveName.startsWith("Member Files:") ? "Member Files" : driveName
         const correctDrive = await page.getByRole("dialog")
-            .getByRole('listitem', {name: driveName}).isVisible();
+            .getByRole('listitem', {name: drive}).isVisible();
 
         if (correctDrive) {
             // Already matches. No work to be done.
@@ -286,7 +287,7 @@ export const File = {
 
         // if not matches, click
         await page.getByRole("dialog").locator("div.drive-icon-dropdown").click();
-        await NetworkCalls.awaitResponse(page, "**/api/files/browse?**", async () => {
+        await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
             await page.getByText(driveName).last().click();
         });
     },
@@ -644,16 +645,22 @@ export const Project = {
 
     async acceptInvites(pages: Page[], projectName: string) {
         for (const page of pages) {
-            await Components.goToDashboard(page);
+            if (page.url().endsWith("/app") || page.url().endsWith("/app/dashboard")) {
+                await page.reload();
+            } else {
+                await Components.goToDashboard(page);
+            }
             await Accounting.Project.acceptProjectInvite(page, projectName)
         }
     },
 
     async changeRoles(page: Page, username: string, role: "Admin" | "User" | "PI"): Promise<void> {
-        await Components.clickRefreshAndWait(page);
-        await page.locator("div[class^=list-item]", {hasText: username}).getByRole("radio", {name: role}).click();
+        await page.reload();
         if (role === "PI") {
+            await page.locator(`input[name=PI${username}]`).click();
             await page.getByRole("dialog").getByRole("button", {name: "Transfer"}).click();
+        } else {
+            await page.locator("div[class^=list-item]", {hasText: username}).getByRole("radio", {name: role}).click();
         }
     }
 
@@ -788,10 +795,6 @@ export const Terminal = {
 const Help = {
     newResourceName(namespace: string): string {
         return namespace + Math.random().toString().slice(2, 7);
-    },
-
-    ensureActiveProject(): void | never {
-
     }
 };
 
@@ -803,7 +806,7 @@ export const NetworkCalls = {
     },
 
     async awaitProducts(page: Page, block: () => Promise<void>) {
-        return await NetworkCalls.awaitResponse(page, "**/retrieveProducts?*", block);
+        return await NetworkCalls.awaitResponse(page, "**/retrieveProducts**", block);
     }
 }
 
@@ -812,9 +815,6 @@ type AccountingPage = "Allocations" | "Usage" | "Grant applications" | "Apply fo
 export const Accounting = {
     async goTo(page: Page, linkName: AccountingPage): Promise<void> {
         await page.getByRole("link", {name: "Go to Project"}).hover();
-        if (["Members", "Project settings", "Sub-projects"].includes(linkName)) {
-            Help.ensureActiveProject();
-        }
 
         switch (linkName) {
             case "Usage":
@@ -861,8 +861,8 @@ export const Accounting = {
 
         async toggleGrantGiver(page: Page, grantGiver: "Provider K8s"): Promise<void> {
             await page.waitForLoadState();
-            await page.getByText(grantGiver, {exact: true}).waitFor();
-            await page.getByText(grantGiver, {exact: true}).last().click();
+            await page.locator("label", {hasText: grantGiver}).waitFor();
+            await page.locator("label", {hasText: grantGiver}).last().click();
         },
 
         async fillQuotaFields(page: Page, quotas: {field: string; quota: number}[]): Promise<void> {
