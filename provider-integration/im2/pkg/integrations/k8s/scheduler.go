@@ -38,20 +38,6 @@ type Scheduler struct {
 
 	Flags SchedulerFlag
 
-	// As a percentage of the active cluster (0.0 ... 1.0). The effective maximum job size will never be less than
-	// two full nodes, where a full node is determined by the largest node in the set of active nodes. Note that it
-	// is also not be possible to submit a job which requests more resources that are available in the cluster (even
-	// if that is less than two full nodes).
-	//MaximumJobSize float64
-
-	//MaximumTimeAllocation util.Option[time.Duration]
-
-	// A percentage (0.01 ... 1.0) which describes how much of the resources are guaranteed and how much is burstable.
-	// A value of 1 will guarantee 100% of the resources disabling bursting. A value of 0.01 will guarantee only 1%
-	// of the resources allowing the remaining 99% to be burstable resources. It is not possible to guarantee less than
-	// 1% of the resource request.
-	//GuaranteedResourceFraction float64
-
 	DumpStateToFile util.Option[string]
 }
 
@@ -135,8 +121,6 @@ type SchedulerQueueEntry struct {
 		FairShare float64
 		JobSize   float64
 	}
-	//OffensiveScore int
-	//DefensiveScore int
 }
 
 type SchedulerReplicaEntry struct {
@@ -147,7 +131,6 @@ type SchedulerReplicaEntry struct {
 	LastSeen  int
 	Data      any
 	JobLength orc.SimpleDuration
-	//DefensiveScore int // inherited from the queue entry
 }
 
 func (s *Scheduler) RegisterNode(name string, capacity, limits shared.SchedulerDimensions, unschedulable bool) {
@@ -458,9 +441,9 @@ func (s *Scheduler) Schedule() []SchedulerReplicaEntry {
 	allowBackfill := s.Flags&SchedulerDisableBackfill == 0
 	for queueIdx := 0; queueIdx < len(s.Queue); queueIdx++ {
 		entry := &s.Queue[queueIdx]
-		allocatedNodes := s.trySchedule(entry, allNodes)
+		allocatedNodes := s.trySchedule(entry, allNodes, false)
 
-		// TODO Only backfill if we the job we are scheduling can likely complete before the head of the queue
+		// TODO Only backfill if the job we are scheduling can likely complete before the head of the queue
 		//   will start. This will require us to know when the head of the queue is likely to start.
 
 		if allocatedNodes != nil {
@@ -526,7 +509,7 @@ func (s *Scheduler) Schedule() []SchedulerReplicaEntry {
 	return result
 }
 
-func (s *Scheduler) trySchedule(entry *SchedulerQueueEntry, allNodes []*SchedulerNode) []string {
+func (s *Scheduler) trySchedule(entry *SchedulerQueueEntry, allNodes []*SchedulerNode, dry bool) []string {
 	timer := util.NewTimer()
 
 	var allocatedNodes []string
@@ -591,9 +574,13 @@ outer:
 		break
 	}
 
-	if len(allocatedNodes) < entry.Replicas {
+	if dry || len(allocatedNodes) < entry.Replicas {
 		for _, n := range allocatedNodes {
 			s.Nodes[n].Remaining.Add(entry.SchedulerDimensions)
+		}
+
+		if dry && len(allocatedNodes) >= entry.Replicas {
+			return allocatedNodes
 		}
 
 		return nil

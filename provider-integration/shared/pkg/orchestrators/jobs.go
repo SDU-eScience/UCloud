@@ -386,7 +386,16 @@ type JobSupport struct {
 	Native struct {
 		UniversalBackendSupport
 	} `json:"native"`
+	QueueStatus util.Option[JobQueueStatus] `json:"queueStatus"`
 }
+
+type JobQueueStatus string
+
+const (
+	JobQueueAvailable JobQueueStatus = "AVAILABLE"
+	JobQueueBusy      JobQueueStatus = "BUSY"
+	JobQueueFull      JobQueueStatus = "FULL"
+)
 
 type UniversalBackendSupport struct {
 	Enabled       bool `json:"enabled,omitempty"`
