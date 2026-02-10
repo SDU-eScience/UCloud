@@ -248,11 +248,7 @@ echo "${BashScriptStringContent}"
 
                     await userPage.reload();
                     const isPersonalWorkspace = ctx === "Personal Workspace"
-                    const driveName = isPersonalWorkspace ? Drive.newDriveNameOrMemberFiles(ctx) : Drive.memberFiles(user.username);
-                    if (isPersonalWorkspace) {
-                        await Drive.goToDrives(userPage);
-                        await Drive.create(userPage, driveName);
-                    }
+                    const driveName = isPersonalWorkspace ? "Home" : Drive.memberFiles(user.username);
 
                     await File.triggerStorageScan(userPage, driveName);
                     await Runs.goToRuns(userPage);
@@ -314,6 +310,7 @@ async function createUserWithProjectAndAssignRole(admin: Page, context: BrowserC
         case "Personal Workspace": {
             const id = await fillApplicationAndSubmit(userPage);
             await Accounting.goTo(admin, "Grant applications");
+            await Project.changeTo(admin, "Provider K8s");
             await admin.getByText("Show applications received").click();
             await Rows.actionByRowTitle(admin, `${id}: Personal workspace of ${user.username}`, "dblclick");
             await Accounting.GrantApplication.approve(admin);

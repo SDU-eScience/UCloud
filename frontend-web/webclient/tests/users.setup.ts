@@ -4,6 +4,7 @@ import fs from "fs";
 
 setup("Setup 'pi', 'admin', and 'user'", async ({context, browser}) => {
     setup.setTimeout(120_000);
+
     const ucloudAdminPage = await Admin.newLoggedInAdminPage(context);
 
     const pi = await createNewUserAndLogin(ucloudAdminPage, browser, "pi");
@@ -55,7 +56,7 @@ setup("Setup 'pi', 'admin', and 'user'", async ({context, browser}) => {
     TestUsers["Project Admin"] = admin.credentials;
     TestUsers["Project User"] = user.credentials;
 
-    fs.writeFileSync("./tests/OTHER_test_data.json", JSON.stringify({...TestUsers, projectName}));
+    fs.writeFileSync("./test_data/user_test_data.json", JSON.stringify({...TestUsers, projectName}));
 });
 
 async function waitForHiddenGrantNotification(page: Page): Promise<void> {

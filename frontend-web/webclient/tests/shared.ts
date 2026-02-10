@@ -3,7 +3,7 @@ import fs from "fs";
 
 // Note(Jonas): If it complains that it doesn"t exist, create it.
 import {default as data} from "./test_data.json" with {type: "json"};
-import {default as testUsers} from "./OTHER_test_data.json" with {type: "json"};
+import {default as testUsers} from "../test_data/user_test_data.json" with {type: "json"};
 
 
 const LoginPageUrl = ucloudUrl("login");
@@ -11,7 +11,7 @@ const LoginPageUrl = ucloudUrl("login");
 export type Contexts =
     | "Project PI" | "Project Admin" | "Project User" | "Personal Workspace";
 
-// The usage of this should be legal
+// The usage of this should be legal, but something (maybe this?) is causing the Playwright UI to refresh.
 // https://playwright.dev/docs/test-parameterize
 export const TestContexts: Contexts[] = ["Project PI", "Project Admin", "Project User", "Personal Workspace"];
 
@@ -37,6 +37,7 @@ export const User = {
         await page.getByRole("textbox", {name: "Username"}).fill(user.username);
         await page.getByRole("textbox", {name: "Password"}).fill(user.password);
         await page.getByRole("button", {name: "Login"}).click();
+        await page.waitForLoadState("domcontentloaded");
 
         if (fillUserInfo) {
             await this.dismissAdditionalInfoPrompt(page);
@@ -645,6 +646,7 @@ export const Project = {
 
     async acceptInvites(pages: Page[], projectName: string) {
         for (const page of pages) {
+            console.log("url: ", page.url());
             if (page.url().endsWith("/app") || page.url().endsWith("/app/dashboard")) {
                 await page.reload();
             } else {
