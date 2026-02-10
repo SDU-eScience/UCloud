@@ -191,7 +191,7 @@ export const MembersContainer: React.FunctionComponent<{
                         width={"111px"}
                         disabled={props.project.status.myRole === OldProjectRole.USER}
                     >
-                        <Icon name={"heroLink"} mr={"5px"}/>
+                        <Icon name={"heroLink"} mr={"5px"} />
                         Invite
                     </Button>
                 </Flex>
@@ -446,7 +446,7 @@ const LinkInviteCard: React.FunctionComponent<{
         requestAnimationFrame(() => {
             contentRef.current?.focus();
         });
-    }, [props.onInvite]);
+    }, [props.onInvite, username]);
 
     useEffect(() => {
         if (activeLink) {
@@ -524,15 +524,15 @@ const LinkInviteCard: React.FunctionComponent<{
                             key={group.id}
                             select={handleWrapperClick}
                             left={
-                            <div style={{marginLeft: "8px"}}>
-                                <Truncate
-                                    title={group.specification.title}
-                                    width={500}
-                                >
-                                    {group.specification.title}
-                                </Truncate>
+                                <div style={{marginLeft: "8px"}}>
+                                    <Truncate
+                                        title={group.specification.title}
+                                        width={500}
+                                    >
+                                        {group.specification.title}
+                                    </Truncate>
 
-                            </div>}
+                                </div>}
                             right={<>
                                 <Checkbox
                                     checked={activeLink.groupAssignment.some(element => element === group.id)}
@@ -565,11 +565,11 @@ const LinkInviteCard: React.FunctionComponent<{
         </> : isShowingInviteByUsername ? <>
             <Flex gap={"8px"} marginBottom={"8px"} height={"35px"} alignItems={"center"}>
                 <BaseLink href={"#"}
-                      onClick={ev => {
-                          ev.preventDefault();
-                          setIsShowingInviteByUsername(false);
-                      }}
-                      color={"textPrimary"}
+                    onClick={ev => {
+                        ev.preventDefault();
+                        setIsShowingInviteByUsername(false);
+                    }}
+                    color={"textPrimary"}
                 >
                     <Heading.h3>Invite </Heading.h3>
                 </BaseLink>
@@ -613,7 +613,7 @@ const LinkInviteCard: React.FunctionComponent<{
                             value={inviteLinkFromToken(link.token)}
                             onChange={doNothing}
                             readOnly={true}
-                            style={{cursor:"pointer"}}
+                            style={{cursor: "pointer"}}
                             onClick={() => {
                                 copyToClipboard({
                                     value: inviteLinkFromToken(link.token),
@@ -631,7 +631,7 @@ const LinkInviteCard: React.FunctionComponent<{
                             }
                             width={"48px"}
                         >
-                            <Icon name={"heroDocumentDuplicate"}/>
+                            <Icon name={"heroDocumentDuplicate"} />
                         </Button>
                         <Button
                             onClick={() => {
