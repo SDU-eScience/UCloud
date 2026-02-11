@@ -1248,7 +1248,8 @@ func grantSearchFuzzily(searchTerm []string) []string {
 
 	res, err := grantIndex.Search(req)
 	if err != nil {
-		panic(err)
+		log.Warn("Failed at searching for grants: %s", err)
+		return []string{}
 	}
 
 	var results []string
