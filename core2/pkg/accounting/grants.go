@@ -1324,7 +1324,8 @@ func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.
 	idRaw, _ := strconv.ParseInt(id, 10, 64)
 	idActual := accGrantId(idRaw)
 
-	app, _ := grantsRead(actor, grantAuthReadWrite, idActual, nil)
+	app, roles := grantsRead(actor, grantAuthReadWrite, idActual, nil)
+
 	if app == nil {
 		return accapi.GrantApplication{}, util.HttpErr(http.StatusNotFound, "not found")
 	} else {
@@ -1332,8 +1333,42 @@ func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.
 		// Record that the user has visited the application
 		grantRecordUserApplicationVisit(app.Application.Id.Value, actor.Username)
 		result := app.lDeepCopy()
+
+		isApprover := false
+		for _, role := range roles {
+			if role == grantActorRoleApprover {
+				isApprover = true
+				break
+			}
+		}
+
+		if isApprover {
+			grantRetrieveApplicationHistoryOfReceiver(actor, app, &result)
+		}
 		app.Mu.RUnlock()
 		return GrantApplicationProcess(actor, result), nil
+	}
+}
+
+// Retrieves the application history of the receiver in the context of the grant giver
+func grantRetrieveApplicationHistoryOfReceiver(actor rpc.Actor, app *grantApplication, result *accapi.GrantApplication) {
+	recipientActor, ok := rpc.LookupActor(app.Application.CreatedBy) // Actor PI
+	if ok {
+		grantGiveProjectId := actor.Project.Value
+		// Browsing through the recipients applications
+		recipientActor.Project = util.OptValue(rpc.ProjectId(app.Application.CurrentRevision.Document.Recipient.Id.Value))
+		pages := GrantsBrowse(recipientActor, accapi.GrantsBrowseRequest{
+			Filter:                      util.OptValue(accapi.GrantApplicationFilterShowAll),
+			IncludeOutgoingApplications: util.OptValue(true),
+		})
+		for _, recipientApplication := range pages.Items {
+			for _, breakdown := range recipientApplication.Status.StateBreakdown {
+				if rpc.ProjectId(breakdown.ProjectId) == grantGiveProjectId {
+					result.Status.ApplicationHistory = append(result.Status.ApplicationHistory, recipientApplication)
+					break
+				}
+			}
+		}
 	}
 }
 

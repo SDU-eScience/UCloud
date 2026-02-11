@@ -274,6 +274,7 @@ export interface Status {
     projectTitle?: string;
     projectPI: string;
     hasUnreadComments: boolean;
+    applicationHistory: Application[];
 }
 
 export interface GrantGiverApprovalState {
