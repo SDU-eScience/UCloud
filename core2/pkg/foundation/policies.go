@@ -3,6 +3,7 @@ package foundation
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
 
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
@@ -13,12 +14,20 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+var projectPolicies struct {
+	Mu                sync.RWMutex
+	PoliciesByProject map[string]*AssociatedPolicies
+}
+
+type AssociatedPolicies struct {
+	EnabledPolices map[string]fndapi.PolicySpecification
+}
+
 var policySchemas map[string]fndapi.PolicySchema
 
 func initPolicies() {
-	readPolicies()
-
-	loadPoliciesFromDB()
+	populatePolicySchemas()
+	loadProjectPoliciesFromDB()
 
 	fndapi.PoliciesRetrieve.Handler(func(info rpc.RequestInfo, request util.Empty) (map[string]fndapi.Policy, *util.HttpError) {
 		return retrievePolicies(info.Actor)
@@ -29,7 +38,7 @@ func initPolicies() {
 	})
 }
 
-func readPolicies() {
+func populatePolicySchemas() {
 	policies := pullProjectPolicies()
 	policySchemas = make(map[string]fndapi.PolicySchema, len(policies))
 	for _, policy := range policies {
@@ -52,11 +61,12 @@ func readPolicies() {
 	}
 }
 
-func loadPoliciesFromDB() {
+func loadProjectPoliciesFromDB() {
 	db.NewTx0(func(tx *db.Transaction) {
-		db.Select[struct {
-			ProjectID string
-			Policy    string
+		rows := db.Select[struct {
+			ProjectId      string
+			PolicyName     string
+			PolicyProperty string
 		}](
 			tx,
 			`
@@ -67,7 +77,23 @@ func loadPoliciesFromDB() {
 			db.Params{},
 		)
 
-		//TODO(chaching)
+		projectPolicies.Mu.Lock()
+
+		for _, row := range rows {
+			projectId := row.ProjectId
+			policies, ok := projectPolicies.PoliciesByProject[projectId]
+			if !ok {
+				policies = &AssociatedPolicies{EnabledPolices: map[string]fndapi.PolicySpecification{}}
+			}
+			specification := fndapi.PolicySpecification{}
+			err := json.Unmarshal([]byte(row.PolicyProperty), &specification)
+			if err != nil {
+				log.Fatal("Error loading policy document ", row.PolicyProperty, ": ", err)
+			}
+			policies.EnabledPolices[row.PolicyName] = specification
+		}
+
+		projectPolicies.Mu.Unlock()
 	})
 }
 
@@ -78,7 +104,24 @@ func retrievePolicies(actor rpc.Actor) (map[string]fndapi.Policy, *util.HttpErro
 	if !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
 		return nil, util.HttpErr(http.StatusForbidden, "Only PIs and Admins may list the policies")
 	}
-	return nil, nil
+
+	result := make(map[string]fndapi.Policy, len(policySchemas))
+
+	projectPolicies.Mu.RLock()
+	policies := projectPolicies.PoliciesByProject[string(actor.Project.Value)].EnabledPolices
+	projectPolicies.Mu.RUnlock()
+	for name, schema := range policySchemas {
+
+		specification, ok := policies[name]
+		if !ok {
+			specification = fndapi.PolicySpecification{}
+		}
+		result[name] = fndapi.Policy{
+			Schema:        schema,
+			Specification: specification,
+		}
+	}
+	return result, nil
 }
 
 type SimplePolicyProperty struct {
@@ -150,7 +193,33 @@ func updatePolicies(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 		}
 		db.BatchSend(b)
 
-		//TODO( DO caching update)
+		//Updating cache
+		projectPolicies.Mu.Lock()
+		for _, specification := range request.UpdatedPolicies {
+			isEnabled := false
+			for _, property := range specification.Properties {
+				if property.Name == "enabled" {
+					isEnabled = property.Bool
+				}
+			}
+			projectId := string(specification.Project)
+			if !isEnabled {
+				policies, ok := projectPolicies.PoliciesByProject[projectId]
+				//If no policies are enabled for the project then just skip the deletion
+				if !ok {
+					continue
+				}
+				policies.EnabledPolices[specification.Schema] = fndapi.PolicySpecification{}
+			} else {
+				policies, ok := projectPolicies.PoliciesByProject[projectId]
+				if !ok {
+					policies = &AssociatedPolicies{EnabledPolices: map[string]fndapi.PolicySpecification{}}
+					projectPolicies.PoliciesByProject[projectId] = policies
+				}
+				policies.EnabledPolices[specification.Schema] = specification
+			}
+		}
+		projectPolicies.Mu.Unlock()
 	})
 
 	return util.Empty{}, nil
