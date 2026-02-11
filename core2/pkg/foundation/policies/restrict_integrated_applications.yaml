@@ -1,0 +1,25 @@
+name: "RestrictIntegratedApplications"
+title: "Restrict integrated applications (e.g. Syncthing and terminal)"
+
+description: >
+    Restricts applications from running which are registered by the provider.
+    This includes applications such as Syncthing and the terminal, which can
+    be opened from the file browser.
+
+configuration:
+    - name: "enabled"
+      type: Bool
+      title: "Enabled"
+      description: >
+        If this option is checked, then restrictions will apply and only
+        applications found on the allow-list can be run. If it is not
+        checked then all integrated applications can be run and the
+        allow-list is ignored.
+    - name: "allowList"
+      type: TextList
+      title: "Allow-list"
+      description: >
+        List of applications which are explicitly allowed.
+      options:
+        - "syncthing"
+        - "terminal"

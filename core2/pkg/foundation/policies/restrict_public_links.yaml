@@ -1,0 +1,12 @@
+name: "RestrictPublicLinks"
+title: "Restrict public links"
+description: >
+  Controls whether public (unauthenticated) links to project data are allowed.
+
+configuration:
+  - name: "enabled"
+    type: "Bool"
+    title: "Enabled"
+    description: >
+      If enabled, creation and use of public links is disabled. Existing 
+      public links are _not_ deleted.
