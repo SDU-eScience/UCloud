@@ -62,6 +62,11 @@ type KubernetesPublicLinkConfiguration struct {
 	Suffix  string
 }
 
+type KubernetesVirtualMachines struct {
+	Enabled      bool
+	StorageClass util.Option[string]
+}
+
 type KubernetesIntegratedTerminal struct {
 	Enabled bool
 }
@@ -99,7 +104,7 @@ type KubernetesCompute struct {
 	Ssh                             KubernetesSshConfiguration
 	Syncthing                       KubernetesSyncthingConfiguration
 	IntegratedTerminal              KubernetesIntegratedTerminal
-	VirtualMachineStorageClass      util.Option[string]
+	VirtualMachines                 KubernetesVirtualMachines
 	ImSourceCode                    util.Option[string]
 	Modules                         map[string]KubernetesModuleEntry
 	Inference                       KubernetesInferenceConfiguration
@@ -506,9 +511,17 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		cfg.Compute.IntegratedTerminal.Enabled = enabled && ok
 	}
 
-	vmStorageClass := cfgutil.OptionalChildText(filePath, computeNode, "virtualMachineStorageClass", &success)
-	if vmStorageClass != "" {
-		cfg.Compute.VirtualMachineStorageClass.Set(vmStorageClass)
+	vms, _ := cfgutil.GetChildOrNil(filePath, computeNode, "virtualMachines")
+	if vms != nil {
+		enabled, ok := cfgutil.OptionalChildBool(filePath, vms, "enabled")
+		cfg.Compute.VirtualMachines.Enabled = enabled && ok
+
+		if cfg.Compute.VirtualMachines.Enabled {
+			vmStorageClass := cfgutil.OptionalChildText(filePath, computeNode, "storageClass", &success)
+			if vmStorageClass != "" {
+				cfg.Compute.VirtualMachines.StorageClass.Set(vmStorageClass)
+			}
+		}
 	}
 
 	return success, cfg

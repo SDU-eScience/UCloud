@@ -9,9 +9,14 @@ export KUBECONFIG=/mnt/k3s/kubeconfig.yaml
 if ! kubectl get kubevirt -n kubevirt kubevirt >/dev/null 2>&1; then
   kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/kubevirt-operator.yaml"
   kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/kubevirt-cr.yaml"
+  kubectl create -f "https://github.com/kubevirt/containerized-data-importer/releases/download/v1.64.0/cdi-operator.yaml"
+  kubectl create -f "https://github.com/kubevirt/containerized-data-importer/releases/download/v1.64.0/cdi-cr.yaml"
+
+  kubectl patch kubevirt -n kubevirt kubevirt --type=merge \
+    -p '{"spec":{"configuration":{"developerConfiguration":{"featureGates":["EnableVirtioFsStorageVolumes"]}}}}'
 fi
 
-curl -L -o virtctl https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/virtctl-${VERSION}-${ARCH}
+curl -L -o virtctl https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/virtctl-${VERSION}-${ARCH} &> /dev/null
 install -m 0755 virtctl /usr/local/bin
 rm -f virtctl
 
@@ -72,7 +77,7 @@ extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid,issuer
-  EOF
+EOF
 
   echo "Generating CA key and self-signed CA certificate..."
   openssl genrsa -out "${CA_KEY}" 2048
@@ -119,44 +124,46 @@ authorityKeyIdentifier = keyid,issuer
 
   CA_BUNDLE="$(base64 -w 0 /etc/ucloud/webhook-ca.crt)"
 
-  cat <<EOF | kubectl apply -f -
+  cat > /tmp/hook.yml << EOF
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   name: vmi-fs-mutator
 webhooks:
-  - name: k8-im2-provider.default.svc
-  admissionReviewVersions:
-    - v1
-  failurePolicy: Fail
-  matchPolicy: Equivalent
-  reinvocationPolicy: Never
-  sideEffects: None
-  timeoutSeconds: 5
+- admissionReviewVersions:
+  - v1
   clientConfig:
     caBundle: ${CA_BUNDLE}
     service:
-    name: k8-im2-provider
-    namespace: default
-    path: /
-    port: 59231
+      name: vmi-mutator
+      namespace: default
+      path: /
+      port: 59231
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: vmi-mutator.default.svc
   namespaceSelector:
     matchLabels:
-    kubernetes.io/metadata.name: ucloud-apps-im2
+      kubernetes.io/metadata.name: ucloud-apps
   objectSelector:
     matchLabels:
-    kubevirt.io: virt-launcher
+      kubevirt.io: virt-launcher
+  reinvocationPolicy: Never
   rules:
-    - operations:
-      - CREATE
-    apiGroups:
-      - ""
+  - apiGroups:
+    - ""
     apiVersions:
-      - v1
+    - v1
+    operations:
+    - CREATE
     resources:
-      - pods
-    scope: "*"
+    - pods
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 5
 EOF
+
+  kubectl create -f /tmp/hook.yml
 
   cat > /tmp/pvc.yml << EOF
 ---
@@ -193,7 +200,65 @@ EOF
 
   kubectl --kubeconfig /mnt/k3s/kubeconfig.yaml create -f /tmp/pvc.yml
 
-  cat <<EOF | kubectl apply -f -
+  cat > /tmp/rbac.yml << EOF
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dev-provider
+  namespace: default
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dev-provider-role
+  namespace: ucloud-apps
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - pods/log
+  - pods/exec
+  - services
+  - events
+  verbs:
+  - '*'
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies
+  verbs:
+  - '*'
+- apiGroups:
+  - kubevirt.io
+  - cdi.kubevirt.io
+  resources:
+  - '*'
+  verbs:
+  - '*'
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-provider-role-binding
+  namespace: ucloud-apps
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: dev-provider-role
+subjects:
+- kind: ServiceAccount
+  name: dev-provider
+  namespace: default
+
+EOF
+
+  kubectl --kubeconfig /mnt/k3s/kubeconfig.yaml create -f /tmp/rbac.yml
+
+  cat > /tmp/deployment.yml << EOF
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -217,6 +282,7 @@ spec:
       - command:
         - /usr/bin/ucloud
         - vmi-mutator
+        - --this-flag-is-ignored
         image: dreg.cloud.sdu.dk/ucloud/im2:2026.1.43-kubevirt1
         imagePullPolicy: IfNotPresent
         name: ucloud
@@ -228,6 +294,8 @@ spec:
         - mountPath: /etc/ucloud
           name: config
       restartPolicy: Always
+      serviceAccount: dev-provider
+      serviceAccountName: dev-provider
       volumes:
       - name: config
         persistentVolumeClaim:
@@ -253,6 +321,8 @@ spec:
   type: ClusterIP
 
 EOF
+
+  kubectl --kubeconfig /mnt/k3s/kubeconfig.yaml create -f /tmp/deployment.yml
 
   echo "MutatingWebhookConfiguration vmi-fs-mutator applied."
 fi

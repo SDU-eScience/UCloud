@@ -44,7 +44,13 @@ func Init() ctrl.JobsService {
 
 	Namespace = ServiceConfig.Compute.Namespace
 
-	go vmiFsMutator()
+	if ServiceConfig.Compute.VirtualMachines.Enabled {
+		if util.DevelopmentModeEnabled() {
+			Enabled = true // run in stand-alone mode
+		} else {
+			go vmiFsMutator()
+		}
+	}
 
 	return ctrl.JobsService{
 		Terminate:                terminate,
@@ -529,7 +535,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 							k8score.ResourceStorage: *resource.NewScaledQuantity(5, resource.Giga),
 						},
 					},
-					StorageClassName: shared.ServiceConfig.Compute.VirtualMachineStorageClass.GetPtrOrNil(),
+					StorageClassName: ServiceConfig.Compute.VirtualMachines.StorageClass.GetPtrOrNil(),
 				},
 			},
 		},

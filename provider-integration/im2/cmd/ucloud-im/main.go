@@ -31,7 +31,7 @@ func main() {
 		return
 	}
 
-	if len(os.Args) > 2 && os.Args[1] == "vmi-mutator" {
+	if len(os.Args) >= 2 && os.Args[1] == "vmi-mutator" {
 		kubevirt.VmiStandaloneMutator()
 		return
 	}

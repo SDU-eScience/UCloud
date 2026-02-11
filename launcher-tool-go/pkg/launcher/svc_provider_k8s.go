@@ -320,6 +320,7 @@ func ProviderK8s() {
 			DependsOn: util.OptValue(FeatureProviderK8s),
 		}
 
+		// Hack because it is not currently possible to have a service without a container.
 		AddService(kubeVirt, DockerComposeService{
 			Image:    "alpine:3",
 			Hostname: "kubevirt",
