@@ -90,7 +90,7 @@ func initProviderNotifications() {
 				}
 			} else if walletOk {
 				wallet, ok := internalRetrieveWallet(time.Now(), walletId, false)
-				if ok && !wallet.PaysFor.FreeToUse {
+				if ok && !wallet.PaysFor.FreeToUse && len(wallet.AllocationGroups) != 0 {
 					var allChannels []chan *accapi.WalletV2
 
 					providerNotifications.Mu.Lock()
