@@ -779,7 +779,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 						}),
 					},
 
-					Parameters: mappedParameters,
+					Parameters: util.NonNilSlice(mappedParameters),
 
 					Invocation: []orcapi.InvocationParameter{
 						{

@@ -303,6 +303,8 @@ func appCatalogLoad() {
 							panic(fmt.Sprintf("Could not load application: %s %s", app.Name, app.Version))
 						}
 
+						i.Invocation.Parameters = util.NonNilSlice(i.Invocation.Parameters)
+
 						if i.Invocation.Modules.Present {
 							i.Invocation.Modules.Value.Optional = util.NonNilSlice(i.Invocation.Modules.Value.Optional)
 						}
