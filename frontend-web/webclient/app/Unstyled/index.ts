@@ -168,7 +168,6 @@ export function makeKeyframe(title: string, rules: string): string {
     styleTag.innerHTML += `@keyframes ${animationName} {
         ${rules}
     }`;
-
     return animationName;
 }
 

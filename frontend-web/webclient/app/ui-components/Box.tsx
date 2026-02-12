@@ -1,9 +1,9 @@
 import * as React from "react";
 
-import {classConcat, extractEventHandlers, injectStyleSimple, unbox, unboxDataTags} from "@/Unstyled";
+import {classConcat, extractEventHandlers, makeClassName, unbox, unboxDataTags} from "@/Unstyled";
 import {BoxProps} from "./Types";
 
-export const BoxClass = injectStyleSimple("box", ``);
+export const BoxClass = makeClassName("box").class;
 const Box: React.FunctionComponent<BoxProps & {
     children?: React.ReactNode;
     divRef?: React.RefObject<HTMLDivElement | null>;

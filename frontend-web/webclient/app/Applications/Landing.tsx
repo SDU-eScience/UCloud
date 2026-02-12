@@ -567,10 +567,6 @@ const AppCardGridStyle = injectStyle("app-card-grid", k => `
     }
 `);
 
-const AppCardGrid: React.FunctionComponent<{children: React.ReactNode}> = ({children}) => {
-    return <div className={AppCardGridStyle}>{children}</div>;
-}
-
 const CategoryCardStyle = injectStyle("category-card", k => `
     ${k} {
         border-radius: 8px;

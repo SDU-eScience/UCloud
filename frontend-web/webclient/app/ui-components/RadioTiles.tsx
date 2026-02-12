@@ -10,7 +10,7 @@ export const RadioTilesContainerClass = injectStyle("radio-tiles-container", k =
         align-items: center;
         display: inline-grid;
         grid-auto-flow: column;
-        grid-template-columns: repeat(auto);
+        grid-template-columns: auto;
         column-gap: 8px;
     }
 `);

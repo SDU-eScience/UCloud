@@ -92,7 +92,6 @@ const Style = injectStyle("notification", k => `
         display: flex;
         gap: 10px;
         align-items: center;
-        // background: var(--backgroundCard);
     }
 
     ${k} .notification-inner h3 {
