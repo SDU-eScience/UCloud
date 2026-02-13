@@ -21,7 +21,6 @@ import (
 	kvcore "kubevirt.io/api/core/v1"
 	kvclient "kubevirt.io/client-go/kubecli"
 	kvapi "kubevirt.io/client-go/kubevirt/typed/core/v1"
-	kvcdi "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 	cfg "ucloud.dk/pkg/config"
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
@@ -44,11 +43,21 @@ func Init() ctrl.JobsService {
 
 	Namespace = ServiceConfig.Compute.Namespace
 
-	if ServiceConfig.Compute.VirtualMachines.Enabled {
+	vms := &ServiceConfig.Compute.VirtualMachines
+	if vms.Enabled {
 		if util.DevelopmentModeEnabled() {
 			Enabled = true // run in stand-alone mode
 		} else {
 			go vmiFsMutator()
+		}
+
+		switch vms.Storage.Type {
+		case cfg.KubernetesVmVolHostPath:
+			initDisks()
+
+		case cfg.KubernetesVmVolCdi:
+			log.Fatal("Not supported yet")
+			panic("Not supported yet")
 		}
 	}
 
@@ -507,39 +516,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	strategy := kvcore.RunStrategyAlways
 	vm.Spec.RunStrategy = &strategy
 
-	image := job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Image
-	baseImageSource := &kvcdi.DataVolumeSource{}
-	if strings.HasPrefix(image, "http://") || strings.HasPrefix(image, "https://") {
-		baseImageSource.HTTP = &kvcdi.DataVolumeSourceHTTP{
-			URL: image,
-		}
-	} else {
-		// TODO
-		baseImageSource.PVC = &kvcdi.DataVolumeSourcePVC{
-			Namespace: Namespace,
-			Name:      image,
-		}
-	}
-
-	vm.Spec.DataVolumeTemplates = []kvcore.DataVolumeTemplateSpec{
-		{
-			ObjectMeta: k8smeta.ObjectMeta{
-				Name: vm.Name,
-			},
-			Spec: kvcdi.DataVolumeSpec{
-				Source: baseImageSource,
-				Storage: &kvcdi.StorageSpec{
-					AccessModes: []k8score.PersistentVolumeAccessMode{k8score.ReadWriteOnce},
-					Resources: k8score.ResourceRequirements{
-						Requests: k8score.ResourceList{
-							k8score.ResourceStorage: *resource.NewScaledQuantity(5, resource.Giga),
-						},
-					},
-					StorageClassName: ServiceConfig.Compute.VirtualMachines.StorageClass.GetPtrOrNil(),
-				},
-			},
-		},
-	}
+	primaryDiskClaimName := nameOfVm
 
 	vm.Spec.Template = &kvcore.VirtualMachineInstanceTemplateSpec{
 		Spec: kvcore.VirtualMachineInstanceSpec{
@@ -604,8 +581,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 				{
 					Name: "base",
 					VolumeSource: kvcore.VolumeSource{
-						DataVolume: &kvcore.DataVolumeSource{
-							Name: vm.Name,
+						PersistentVolumeClaim: &kvcore.PersistentVolumeClaimVolumeSource{
+							PersistentVolumeClaimVolumeSource: k8score.PersistentVolumeClaimVolumeSource{
+								ClaimName: primaryDiskClaimName,
+							},
 						},
 					},
 				},
@@ -716,7 +695,21 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	if hasExistingVm {
 		_, err = KubevirtClient.VirtualMachine(Namespace).Update(context.TODO(), vm, k8smeta.UpdateOptions{})
 	} else {
-		_, err = KubevirtClient.VirtualMachine(Namespace).Create(context.TODO(), vm, k8smeta.CreateOptions{})
+		vm, localErr := KubevirtClient.VirtualMachine(Namespace).Create(context.TODO(), vm, k8smeta.CreateOptions{})
+		err = localErr
+		if err == nil {
+			ownerReference := k8smeta.OwnerReference{
+				APIVersion: "kubevirt.io/v1",
+				Kind:       "VirtualMachine",
+				Name:       vm.Name,
+				UID:        vm.UID,
+			}
+
+			herr := diskPrepareForJob(job, primaryDiskClaimName, ownerReference)
+			if herr != nil {
+				err = herr.AsError()
+			}
+		}
 	}
 	if err != nil {
 		// TODO

@@ -7,25 +7,25 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	config2 "ucloud.dk/pkg/config"
+	cfg "ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/controller"
-	containers2 "ucloud.dk/pkg/integrations/k8s/containers"
-	filesystem2 "ucloud.dk/pkg/integrations/k8s/filesystem"
-	shared2 "ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/pkg/integrations/k8s/containers"
+	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 
 	"ucloud.dk/shared/pkg/util"
 )
 
-func Init(config *config2.ServicesConfigurationKubernetes) {
+func Init(config *cfg.ServicesConfigurationKubernetes) {
 	// TODO(Dan): Hacky work-around since these functions need to access the backends, but only sometimes.
 	//   While these functions also sometimes need to be used by the sub-systems implementing the compute.
-	shared2.IsJobLocked = IsJobLocked
-	shared2.IsJobLockedEx = IsJobLockedEx
+	shared.IsJobLocked = IsJobLocked
+	shared.IsJobLockedEx = IsJobLockedEx
 
 	controller.LaunchUserInstances = false
-	controller.MaintenanceMode = config2.Provider.Maintenance.Enabled
-	controller.MaintenanceAllowlist = config2.Provider.Maintenance.UserAllowList
+	controller.MaintenanceMode = cfg.Provider.Maintenance.Enabled
+	controller.MaintenanceAllowlist = cfg.Provider.Maintenance.UserAllowList
 
 	controller.InitJobDatabase()
 	controller.InitDriveDatabase()
@@ -33,7 +33,7 @@ func Init(config *config2.ServicesConfigurationKubernetes) {
 	controller.Connections = controller.ConnectionService{
 		Initiate: func(username string, signingKey util.Option[int]) (string, *util.HttpError) {
 			_ = controller.IdmRegisterCompleted(username, controller.UnknownUser, true)
-			return config2.Provider.Hosts.UCloudPublic.ToURL(), nil
+			return cfg.Provider.Hosts.UCloudPublic.ToURL(), nil
 		},
 		Unlink: func(username string, uid uint32) *util.HttpError {
 			return nil
@@ -46,18 +46,18 @@ func Init(config *config2.ServicesConfigurationKubernetes) {
 	}
 
 	// Shared init depends on the ctrl databases but needs to run before ordinary service init
-	shared2.ServiceConfig = config
-	shared2.Init()
+	shared.ServiceConfig = config
+	shared.Init()
 
-	controller.Files = filesystem2.InitFiles()
+	controller.Files = filesystem.InitFiles()
 	controller.Jobs = InitCompute()
 
-	filesystem2.InitTaskSystem()
+	filesystem.InitTaskSystem()
 
 	controller.IdentityManagement.HandleProjectNotification = func(updated *controller.EventProjectUpdated) bool {
 		ok := true
 		for _, member := range updated.MembersAddedToProject {
-			_, _, err := filesystem2.InitializeMemberFiles(member, util.OptValue(updated.Project.Id))
+			_, _, err := filesystem.InitializeMemberFiles(member, util.OptValue(updated.Project.Id))
 			if err != nil {
 				ok = false
 			}
@@ -67,7 +67,7 @@ func Init(config *config2.ServicesConfigurationKubernetes) {
 
 	controller.EventHandler.HandleNotification = func(update *controller.EventWalletUpdated) {
 		if !update.Project.Present {
-			_, _, _ = filesystem2.InitializeMemberFiles(update.Owner.Username, util.OptNone[string]())
+			_, _, _ = filesystem.InitializeMemberFiles(update.Owner.Username, util.OptNone[string]())
 		}
 
 		inferenceHandleApmEvent(update)
@@ -76,20 +76,20 @@ func Init(config *config2.ServicesConfigurationKubernetes) {
 	initStorageScanCli()
 	initInference()
 
-	controller.ProductsRegister(shared2.Machines)
-	controller.ProductsRegister(shared2.StorageProducts)
-	controller.ProductsRegister(shared2.IpProducts)
-	controller.ProductsRegister(shared2.LinkProducts)
-	controller.ProductsRegister(shared2.LicenseProducts)
+	controller.ProductsRegister(shared.Machines)
+	controller.ProductsRegister(shared.StorageProducts)
+	controller.ProductsRegister(shared.IpProducts)
+	controller.ProductsRegister(shared.LinkProducts)
+	controller.ProductsRegister(shared.LicenseProducts)
 }
 
-func InitLater(config *config2.ServicesConfigurationKubernetes) {
+func InitLater(config *cfg.ServicesConfigurationKubernetes) {
 	InitComputeLater()
 }
 
-func IsJobLocked(job *orc.Job) util.Option[shared2.LockedReason] {
+func IsJobLocked(job *orc.Job) util.Option[shared.LockedReason] {
 	iappName := job.Specification.Product.Category
-	iapp, isIapp := containers2.IApps[iappName]
+	iapp, isIapp := containers.IApps[iappName]
 	if isIapp && iapp.MutateJobNonPersistent != nil {
 		// TODO(Dan): Performance of this deep copy is probably pretty bad
 		var jobCopy orc.Job
@@ -106,14 +106,14 @@ func IsJobLocked(job *orc.Job) util.Option[shared2.LockedReason] {
 	return IsJobLockedEx(job, nil)
 }
 
-func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[shared2.LockedReason] {
+func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[shared.LockedReason] {
 	timer := util.NewTimer()
 	isLocked := controller.ResourceIsLocked(job.Resource, job.Specification.Product)
 	metricComputeLocked.Observe(timer.Mark().Seconds())
 
 	if isLocked {
 		reason := fmt.Sprintf("Insufficient funds for %v", job.Specification.Product.Category)
-		return util.OptValue(shared2.LockedReason{
+		return util.OptValue(shared.LockedReason{
 			Reason: reason,
 			Err: &util.HttpError{
 				StatusCode: http.StatusPaymentRequired,
@@ -130,7 +130,7 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 	for _, mount := range mounts {
 		if mount.DriveInvalid {
 			reason := "Drive is no longer valid. Was it deleted?"
-			return util.OptValue(shared2.LockedReason{
+			return util.OptValue(shared.LockedReason{
 				Reason: reason,
 				Err: &util.HttpError{
 					StatusCode: http.StatusForbidden,
@@ -145,7 +145,7 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 
 		if !canUse {
 			reason := fmt.Sprintf("You no longer have permissions to use this drive: %s (%v).", mount.Drive.Specification.Title, mount.Drive.Id)
-			return util.OptValue(shared2.LockedReason{
+			return util.OptValue(shared.LockedReason{
 				Reason: reason,
 				Err: &util.HttpError{
 					StatusCode: http.StatusForbidden,
@@ -160,7 +160,7 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 
 		if storageLocked {
 			reason := fmt.Sprintf("Insufficient funds for %v", mount.RealDrive.Specification.Product.Category)
-			return util.OptValue(shared2.LockedReason{
+			return util.OptValue(shared.LockedReason{
 				Reason: reason,
 				Err: &util.HttpError{
 					StatusCode: http.StatusPaymentRequired,
@@ -171,7 +171,7 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 		}
 	}
 
-	return util.OptNone[shared2.LockedReason]()
+	return util.OptNone[shared.LockedReason]()
 }
 
 var (
@@ -214,11 +214,11 @@ func mountedFilesFromJob(job *orc.Job) []orc.AppParameterValue {
 
 	if backendIsContainers(job) {
 		timer.Mark()
-		folder, drive, err := containers2.FindJobFolderEx(job, containers2.FindJobFolderNoInitFolder)
+		folder, drive, err := containers.FindJobFolderEx(job, containers.FindJobFolderNoInitFolder)
 		metricMountedDrivesTiming.WithLabelValues("FindJobFolder").Observe(timer.Mark().Seconds())
 
 		if err == nil {
-			ucloudPath, ok := filesystem2.InternalToUCloudWithDrive(drive, folder)
+			ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, folder)
 			if ok {
 				result = append(result, orc.AppParameterValue{Path: ucloudPath})
 			}
@@ -262,7 +262,7 @@ func MountedDrivesEx(job *orc.Job, jobAnnotations map[string]string) []MountedDr
 
 	timer.Mark()
 	for _, file := range files {
-		driveId, ok := filesystem2.DriveIdFromUCloudPath(file.Path)
+		driveId, ok := filesystem.DriveIdFromUCloudPath(file.Path)
 		if ok {
 			insertDrive(driveId, file.ReadOnly)
 		}
@@ -272,14 +272,14 @@ func MountedDrivesEx(job *orc.Job, jobAnnotations map[string]string) []MountedDr
 	timer.Mark()
 	if jobAnnotations == nil {
 		if backendIsContainers(job) {
-			jobAnnotations = containers2.JobAnnotations(job, 0)
+			jobAnnotations = containers.JobAnnotations(job, 0)
 		}
 	}
 	metricMountedDrivesTiming.WithLabelValues("JobAnnotations").Observe(timer.Mark().Seconds())
 
 	timer.Mark()
-	driveIdsString := util.OptMapGet(jobAnnotations, shared2.AnnotationMountedDriveIds)
-	driveReadOnlyString := util.OptMapGet(jobAnnotations, shared2.AnnotationMountedDriveAsReadOnly)
+	driveIdsString := util.OptMapGet(jobAnnotations, shared.AnnotationMountedDriveIds)
+	driveReadOnlyString := util.OptMapGet(jobAnnotations, shared.AnnotationMountedDriveAsReadOnly)
 	if driveIdsString.Present && driveReadOnlyString.Present {
 		var driveIds []string
 		var driveReadOnly []bool
@@ -304,7 +304,7 @@ func MountedDrivesEx(job *orc.Job, jobAnnotations map[string]string) []MountedDr
 		var realDrive *orc.Drive
 
 		if ok {
-			_, ok, realDrive = filesystem2.DriveToLocalPath(drive)
+			_, ok, realDrive = filesystem.DriveToLocalPath(drive)
 		}
 
 		if ok {

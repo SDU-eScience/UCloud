@@ -9,7 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 	core "k8s.io/api/core/v1"
 	"ucloud.dk/pkg/controller"
-	filesystem2 "ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -29,13 +29,13 @@ func prepareInvocationOnJobCreate(
 	environment := app.Invocation.Environment
 
 	ucloudToPod := func(ucloudPath string) string {
-		internalPath, ok, _ := filesystem2.UCloudToInternal(ucloudPath)
+		internalPath, ok, _ := filesystem.UCloudToInternal(ucloudPath)
 		if ok {
 			podPath, ok := pathMapperInternalToPod[internalPath]
 			if ok {
 				return podPath
 			} else {
-				internalPath, ok, _ = filesystem2.UCloudToInternal(util.Parent(ucloudPath))
+				internalPath, ok, _ = filesystem.UCloudToInternal(util.Parent(ucloudPath))
 				if ok {
 					podPath, ok = pathMapperInternalToPod[internalPath]
 					if ok {
@@ -73,8 +73,8 @@ func prepareInvocationOnJobCreate(
 	}
 
 	path := filepath.Join(jobFolder, fmt.Sprintf("job-%d.sh", rank))
-	jobFile, ok := filesystem2.OpenFile(path, unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0700)
-	_ = jobFile.Chown(filesystem2.DefaultUid, filesystem2.DefaultUid)
+	jobFile, ok := filesystem.OpenFile(path, unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0700)
+	_ = jobFile.Chown(filesystem.DefaultUid, filesystem.DefaultUid)
 	if ok {
 		builder := strings.Builder{}
 		builder.WriteString("#!/usr/bin/env bash\n")
@@ -304,16 +304,16 @@ func handleJinjaInvocation(
 
 	// Write script files
 	// -----------------------------------------------------------------------------------------------------------------
-	templateFile, ok := filesystem2.OpenFile(filepath.Join(jobFolder, ".script-template.j2"), unix.O_WRONLY|unix.O_CREAT, 0600)
+	templateFile, ok := filesystem.OpenFile(filepath.Join(jobFolder, ".script-template.j2"), unix.O_WRONLY|unix.O_CREAT, 0600)
 	if ok {
-		_ = templateFile.Chown(filesystem2.DefaultUid, filesystem2.DefaultUid)
+		_ = templateFile.Chown(filesystem.DefaultUid, filesystem.DefaultUid)
 		_, _ = templateFile.Write([]byte(tpl))
 		_ = templateFile.Close()
 	}
 
-	paramsFile, ok := filesystem2.OpenFile(filepath.Join(jobFolder, ".script-params.yaml"), unix.O_WRONLY|unix.O_CREAT, 0600)
+	paramsFile, ok := filesystem.OpenFile(filepath.Join(jobFolder, ".script-params.yaml"), unix.O_WRONLY|unix.O_CREAT, 0600)
 	if ok {
-		_ = paramsFile.Chown(filesystem2.DefaultUid, filesystem2.DefaultUid)
+		_ = paramsFile.Chown(filesystem.DefaultUid, filesystem.DefaultUid)
 		_, _ = paramsFile.Write(paramsYaml)
 		_ = paramsFile.Close()
 	}

@@ -63,9 +63,22 @@ type KubernetesPublicLinkConfiguration struct {
 }
 
 type KubernetesVirtualMachines struct {
-	Enabled      bool
-	StorageClass util.Option[string]
+	Enabled bool
+	Storage struct {
+		Type         KubernetesVmVolMode
+		HostPath     string
+		StorageClass util.Option[string]
+	}
 }
+
+type KubernetesVmVolMode string
+
+const (
+	KubernetesVmVolHostPath KubernetesVmVolMode = "HostPath"
+	KubernetesVmVolCdi      KubernetesVmVolMode = "ContainerImporter"
+)
+
+var KubernetesVmVolHostModeOptions = []KubernetesVmVolMode{KubernetesVmVolHostPath}
 
 type KubernetesIntegratedTerminal struct {
 	Enabled bool
@@ -511,15 +524,27 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		cfg.Compute.IntegratedTerminal.Enabled = enabled && ok
 	}
 
-	vms, _ := cfgutil.GetChildOrNil(filePath, computeNode, "virtualMachines")
-	if vms != nil {
-		enabled, ok := cfgutil.OptionalChildBool(filePath, vms, "enabled")
-		cfg.Compute.VirtualMachines.Enabled = enabled && ok
+	vmNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "virtualMachines")
+	if vmNode != nil {
+		vms := &cfg.Compute.VirtualMachines
 
-		if cfg.Compute.VirtualMachines.Enabled {
-			vmStorageClass := cfgutil.OptionalChildText(filePath, computeNode, "storageClass", &success)
-			if vmStorageClass != "" {
-				cfg.Compute.VirtualMachines.StorageClass.Set(vmStorageClass)
+		enabled, ok := cfgutil.OptionalChildBool(filePath, vmNode, "enabled")
+		vms.Enabled = enabled && ok
+
+		if vms.Enabled {
+			storageNode := cfgutil.RequireChild(filePath, vmNode, "storage", &success)
+			if storageNode != nil {
+				vms.Storage.Type = cfgutil.RequireChildEnum[KubernetesVmVolMode](filePath, storageNode, "type", KubernetesVmVolHostModeOptions, &success)
+
+				switch vms.Storage.Type {
+				case KubernetesVmVolHostPath:
+					vms.Storage.HostPath = cfgutil.RequireChildText(filePath, storageNode, "hostPath", &success)
+				case KubernetesVmVolCdi:
+					storageClass := cfgutil.OptionalChildText(filePath, storageNode, "storageClass", &success)
+					if storageClass != "" {
+						vms.Storage.StorageClass.Set(storageClass)
+					}
+				}
 			}
 		}
 	}

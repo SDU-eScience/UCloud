@@ -4,12 +4,12 @@ import (
 	"flag"
 	"os"
 
-	termio2 "ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/termio"
 )
 
 func HandleSlurmAccountsCommand() {
 	if os.Getuid() != 0 {
-		termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "This command must be run as root!")
+		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "This command must be run as root!")
 		os.Exit(1)
 	}
 
@@ -41,11 +41,11 @@ func HandleSlurmAccountsCommand() {
 		})
 
 		if err != nil {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Unable to fetch mappings: %s", err)
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Unable to fetch mappings: %s", err)
 			os.Exit(1)
 		}
 
-		t := &termio2.Table{}
+		t := &termio.Table{}
 		t.AppendHeader("UCloud Name")
 		t.AppendHeader("Local name")
 		t.AppendHeader("Category")
@@ -59,8 +59,8 @@ func HandleSlurmAccountsCommand() {
 		}
 
 		t.Print()
-		termio2.WriteLine("")
-		termio2.WriteLine("")
+		termio.WriteLine("")
+		termio.WriteLine("")
 		return rows
 	}
 
@@ -77,20 +77,20 @@ func HandleSlurmAccountsCommand() {
 	case "delete":
 		fallthrough
 	case "remove":
-		termio2.WriteStyledLine(termio2.Bold, 0, 0, "This will remove the following mappings:")
-		termio2.WriteLine("")
+		termio.WriteStyledLine(termio.Bold, 0, 0, "This will remove the following mappings:")
+		termio.WriteLine("")
 
 		rows := listAccounts()
 
 		if len(rows) == 0 {
-			termio2.WriteLine("No such account, try again with a different query.")
+			termio.WriteLine("No such account, try again with a different query.")
 			os.Exit(0)
 		}
 
-		shouldDelete, _ := termio2.ConfirmPrompt(
+		shouldDelete, _ := termio.ConfirmPrompt(
 			"Are you sure you want to remove these mappings? No Slurm accounts will be deleted.",
-			termio2.ConfirmValueFalse,
-			termio2.ConfirmPromptExitOnCancel,
+			termio.ConfirmValueFalse,
+			termio.ConfirmPromptExitOnCancel,
 		)
 
 		if !shouldDelete {
@@ -104,28 +104,28 @@ func HandleSlurmAccountsCommand() {
 
 		_, err := cliSlurmAccountDelete.Invoke(accountMapperCliDeleteRequest{accounts})
 		if err != nil {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Failed to delete account mapping: %s", err)
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Failed to delete account mapping: %s", err)
 			os.Exit(1)
 		}
 
 	case "add":
 		if ucloudName != "" {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "ucloud-name is not used by this command")
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "ucloud-name is not used by this command")
 			os.Exit(1)
 		}
 
 		if localName == "" {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "no local-name was supplied")
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "no local-name was supplied")
 			os.Exit(1)
 		}
 
 		if category == "" {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "no category was supplied")
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "no category was supplied")
 			os.Exit(1)
 		}
 
 		if account == "" {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "no account was supplied")
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "no account was supplied")
 			os.Exit(1)
 		}
 
@@ -136,23 +136,23 @@ func HandleSlurmAccountsCommand() {
 		})
 
 		if err != nil {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Failed to add account mapping: %s", err)
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Failed to add account mapping: %s", err)
 			os.Exit(1)
 		}
 
 	default:
-		termio2.WriteLine("Unknown subcommand: %s", command)
-		termio2.WriteLine("")
-		termio2.WriteLine("Usage: ucloud slurm accounts <command> [options]")
-		termio2.WriteLine("")
+		termio.WriteLine("Unknown subcommand: %s", command)
+		termio.WriteLine("")
+		termio.WriteLine("Usage: ucloud slurm accounts <command> [options]")
+		termio.WriteLine("")
 
-		termio2.WriteLine("Available commands:")
-		termio2.WriteLine("  ls/list: List Slurm accounts matching a specific query")
-		termio2.WriteLine("  rm/del:  Deletes a faulty account mapping matching a query without deleting any Slurm accounts")
-		termio2.WriteLine("  add:     Establishes a new account mapping, without creating any Slurm accounts")
-		termio2.WriteLine("")
+		termio.WriteLine("Available commands:")
+		termio.WriteLine("  ls/list: List Slurm accounts matching a specific query")
+		termio.WriteLine("  rm/del:  Deletes a faulty account mapping matching a query without deleting any Slurm accounts")
+		termio.WriteLine("  add:     Establishes a new account mapping, without creating any Slurm accounts")
+		termio.WriteLine("")
 
-		termio2.WriteLine("Available options:")
+		termio.WriteLine("Available options:")
 		fs.PrintDefaults()
 	}
 }

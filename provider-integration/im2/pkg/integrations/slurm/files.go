@@ -20,7 +20,7 @@ import (
 	"golang.org/x/sys/unix"
 	cfg "ucloud.dk/pkg/config"
 	ctrl "ucloud.dk/pkg/controller"
-	upload2 "ucloud.dk/pkg/controller/upload"
+	"ucloud.dk/pkg/controller/upload"
 	"ucloud.dk/pkg/external/user"
 	apm "ucloud.dk/shared/pkg/accounting"
 
@@ -188,7 +188,7 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 		}
 	}
 
-	uploadSession := upload2.ClientSession{
+	uploadSession := upload.ClientSession{
 		Endpoint:       parameters.Endpoint,
 		ConflictPolicy: orc.WriteConflictPolicyMergeRename,
 		Path:           session.SourcePath,
@@ -226,12 +226,12 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 				AllowReschedule: false,
 			}
 		}
-		ftype := upload2.FileTypeFile
+		ftype := upload.FileTypeFile
 		if finfo.IsDir() {
-			ftype = upload2.FileTypeDirectory
+			ftype = upload.FileTypeDirectory
 		}
 
-		rootMetadata := upload2.FileMetadata{
+		rootMetadata := upload.FileMetadata{
 			Size:         finfo.Size(),
 			ModifiedAt:   fnd.Timestamp(finfo.ModTime()),
 			InternalPath: "",
@@ -251,7 +251,7 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 			}
 		}()
 
-		report := upload2.ProcessClient(uploadSession, uploaderRoot, rootMetadata, &task.Status, cancelChannel)
+		report := upload.ProcessClient(uploadSession, uploaderRoot, rootMetadata, &task.Status, cancelChannel)
 
 		if report.WasCancelledByUser {
 			uploadErr = nil
@@ -274,7 +274,7 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 	}
 
 	if uploadErr == nil {
-		if !upload2.CloseSessionFromClient(uploadSession) {
+		if !upload.CloseSessionFromClient(uploadSession) {
 			return TaskProcessingResult{
 				Error:           fmt.Errorf("failed to close upload session"),
 				AllowReschedule: true,
@@ -1059,11 +1059,11 @@ func retrieveProducts() []orc.FSSupport {
 type uploaderFileSystem struct{}
 type uploaderFile struct {
 	File     *os.File
-	Metadata upload2.FileMetadata
+	Metadata upload.FileMetadata
 	err      error
 }
 
-func (u *uploaderFileSystem) OpenFileIfNeeded(session upload2.ServerSession, fileMeta upload2.FileMetadata) upload2.ServerFile {
+func (u *uploaderFileSystem) OpenFileIfNeeded(session upload.ServerSession, fileMeta upload.FileMetadata) upload.ServerFile {
 	rootPath := session.UserData
 	internalPath := filepath.Join(rootPath, fileMeta.InternalPath)
 
@@ -1087,7 +1087,7 @@ func (u *uploaderFileSystem) OpenFileIfNeeded(session upload2.ServerSession, fil
 	return &uploaderFile{file, fileMeta, nil}
 }
 
-func (u *uploaderFileSystem) OnSessionClose(session upload2.ServerSession, success bool) {
+func (u *uploaderFileSystem) OnSessionClose(session upload.ServerSession, success bool) {
 	if success {
 		tasks := ListActiveTasks()
 		for _, task := range tasks {
@@ -1137,26 +1137,26 @@ func (u *uploaderClientFile) ListChildren(ctx context.Context) []string {
 	return names
 }
 
-func (u *uploaderClientFile) OpenChild(ctx context.Context, name string) (upload2.FileMetadata, upload2.ClientFile) {
+func (u *uploaderClientFile) OpenChild(ctx context.Context, name string) (upload.FileMetadata, upload.ClientFile) {
 	file, err := FileOpenAt(u.File, name, unix.O_RDONLY|unix.O_NOFOLLOW, 0)
 	if err != nil {
-		return upload2.FileMetadata{}, nil
+		return upload.FileMetadata{}, nil
 	}
 
 	finfo, err := file.Stat()
 	if err != nil {
-		return upload2.FileMetadata{}, nil
+		return upload.FileMetadata{}, nil
 	}
 
-	ftype := upload2.FileTypeFile
+	ftype := upload.FileTypeFile
 	if finfo.IsDir() {
-		ftype = upload2.FileTypeDirectory
+		ftype = upload.FileTypeDirectory
 	} else if !finfo.Mode().IsRegular() {
 		_ = file.Close()
-		return upload2.FileMetadata{}, nil
+		return upload.FileMetadata{}, nil
 	}
 
-	metadata := upload2.FileMetadata{
+	metadata := upload.FileMetadata{
 		Size:         finfo.Size(),
 		ModifiedAt:   fnd.Timestamp(finfo.ModTime()),
 		InternalPath: filepath.Join(u.Path, name),

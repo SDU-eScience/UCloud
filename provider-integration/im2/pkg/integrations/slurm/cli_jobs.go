@@ -17,13 +17,13 @@ import (
 	"ucloud.dk/shared/pkg/cli"
 	db "ucloud.dk/shared/pkg/database"
 	orc "ucloud.dk/shared/pkg/orchestrators"
-	termio2 "ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/termio"
 )
 
 func HandleJobsCommand() {
 	// Invoked via 'ucloud jobs <subcommand> [options]'
 	if os.Getuid() != 0 {
-		termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "This command must be run as root!")
+		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "This command must be run as root!")
 		os.Exit(1)
 	}
 
@@ -40,7 +40,7 @@ func HandleJobsCommand() {
 		jobs, err := cliJobsList.Invoke(req)
 		cli.HandleError("listing jobs", err)
 
-		t := termio2.Table{}
+		t := termio.Table{}
 		t.AppendHeader("Submitted at")
 		t.AppendHeader("UCloud ID")
 		t.AppendHeader("Slurm ID")
@@ -71,19 +71,19 @@ func HandleJobsCommand() {
 		cli.HandleError("listing jobs", err)
 
 		if len(jobs) > 1 {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Query has returned more than one job. Please be more specific in your query.")
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Query has returned more than one job. Please be more specific in your query.")
 			os.Exit(1)
 		}
 
 		if len(jobs) == 0 {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Query has returned no jobs. Please try again with a different query.")
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Query has returned no jobs. Please try again with a different query.")
 			os.Exit(1)
 		}
 
 		job := jobs[0]
 		jobSpec := &job.Job.Specification
 
-		f := termio2.Frame{}
+		f := termio.Frame{}
 		{
 			f.AppendTitle("UCloud metadata")
 
@@ -217,12 +217,12 @@ func HandleJobsCommand() {
 		}
 
 		f.Print()
-		termio2.WriteLine("")
+		termio.WriteLine("")
 
 	case cli.IsAddCommand(command):
-		termio2.WriteStyledLine(
-			termio2.Bold,
-			termio2.Red,
+		termio.WriteStyledLine(
+			termio.Bold,
+			termio.Red,
 			0,
 			"It is not possible to add new jobs into the system through the command-line interface.",
 		)
