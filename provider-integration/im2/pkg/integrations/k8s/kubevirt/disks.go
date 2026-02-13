@@ -47,7 +47,7 @@ func initDisks() {
 	}
 }
 
-func diskPrepareForJob(job *orc.Job, pvcName string, owner metak8s.OwnerReference) *util.HttpError {
+func diskPrepareForJob(job *orc.Job, pvcName string, owner metak8s.OwnerReference, diskSize int) *util.HttpError {
 	app := &job.Status.ResolvedApplication.Value
 	imageUrl := app.Invocation.Tool.Tool.Value.Description.Image
 	canonicalImageName := fmt.Sprintf("%s-%s", app.Metadata.Name, app.Metadata.Version)
@@ -110,7 +110,6 @@ func diskPrepareForJob(job *orc.Job, pvcName string, owner metak8s.OwnerReferenc
 		}
 	}
 
-	targetSize := 50 // TODO
 	internalMemberFiles, _, herr := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, job.Owner.Project)
 	if herr != nil {
 		return herr
@@ -148,7 +147,7 @@ func diskPrepareForJob(job *orc.Job, pvcName string, owner metak8s.OwnerReferenc
 		"-f",
 		"raw",
 		diskPath,
-		fmt.Sprintf("%dG", targetSize),
+		fmt.Sprintf("%dG", diskSize),
 	})
 
 	if !ok {
@@ -171,7 +170,7 @@ func diskPrepareForJob(job *orc.Job, pvcName string, owner metak8s.OwnerReferenc
 		Spec: corek8s.PersistentVolumeSpec{
 			PersistentVolumeReclaimPolicy: corek8s.PersistentVolumeReclaimRetain,
 			Capacity: map[corek8s.ResourceName]resource.Quantity{
-				corek8s.ResourceStorage: resource.MustParse(fmt.Sprintf("%dGi", targetSize)),
+				corek8s.ResourceStorage: resource.MustParse(fmt.Sprintf("%dGi", diskSize)),
 			},
 			VolumeMode:  util.Pointer(corek8s.PersistentVolumeFilesystem),
 			AccessModes: []corek8s.PersistentVolumeAccessMode{corek8s.ReadWriteMany},
@@ -194,7 +193,7 @@ func diskPrepareForJob(job *orc.Job, pvcName string, owner metak8s.OwnerReferenc
 			AccessModes: []corek8s.PersistentVolumeAccessMode{corek8s.ReadWriteMany},
 			Resources: corek8s.VolumeResourceRequirements{
 				Requests: map[corek8s.ResourceName]resource.Quantity{
-					corek8s.ResourceStorage: resource.MustParse(fmt.Sprintf("%dGi", targetSize)),
+					corek8s.ResourceStorage: resource.MustParse(fmt.Sprintf("%dGi", diskSize)),
 				},
 			},
 			StorageClassName: util.Pointer(""),

@@ -392,7 +392,22 @@ func suspend(job orc.Job) *util.HttpError {
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
-	return nil
+	return []orc.ApplicationParameter{
+		{
+			Type:     orc.ApplicationParameterTypeInteger,
+			Name:     vmDiskSizeParameter,
+			Optional: false,
+			Title:    "Disk size (GiB)",
+			Description: "Size of the primary disk in the machine, used for the operating system and additional " +
+				"software. You can use folders from UCloud if you need to store more data. Must be between " +
+				"15GiB and 2000GiB.",
+			MinValue:     15,
+			MaxValue:     2000,
+			Step:         1,
+			UnitName:     "GiB",
+			DefaultValue: json.RawMessage("50"),
+		},
+	}
 }
 
 func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, *util.HttpError) {
@@ -517,6 +532,23 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	vm.Spec.RunStrategy = &strategy
 
 	primaryDiskClaimName := nameOfVm
+
+	app := &job.Status.ResolvedApplication.Value
+	parametersAndValues := ctrl.JobFindParamAndValues(
+		job,
+		&app.Invocation,
+		requestDynamicParameters(job.Owner, app),
+	)
+	diskSizeParam, ok := parametersAndValues[vmDiskSizeParameter]
+	diskSize := 50
+	if ok {
+		intVal, ok := diskSizeParam.Value.Value.(float64)
+		if ok {
+			diskSize = int(intVal)
+		}
+	}
+
+	diskSize = min(max(15, diskSize), 2000)
 
 	vm.Spec.Template = &kvcore.VirtualMachineInstanceTemplateSpec{
 		Spec: kvcore.VirtualMachineInstanceSpec{
@@ -705,7 +737,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 				UID:        vm.UID,
 			}
 
-			herr := diskPrepareForJob(job, primaryDiskClaimName, ownerReference)
+			herr := diskPrepareForJob(job, primaryDiskClaimName, ownerReference, diskSize)
 			if herr != nil {
 				err = herr.AsError()
 			}
@@ -718,3 +750,5 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 		log.Info("Failed to create VM: %v", err)
 	}
 }
+
+const vmDiskSizeParameter = "diskSize"

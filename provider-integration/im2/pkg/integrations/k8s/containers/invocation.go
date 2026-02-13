@@ -25,7 +25,7 @@ func prepareInvocationOnJobCreate(
 	app := &job.Status.ResolvedApplication.Value
 
 	invocationParameters := app.Invocation.Invocation
-	parametersAndValues := controller.JobFindParamAndValues(job, &app.Invocation)
+	parametersAndValues := controller.JobFindParamAndValues(job, &app.Invocation, nil)
 	environment := app.Invocation.Environment
 
 	ucloudToPod := func(ucloudPath string) string {
