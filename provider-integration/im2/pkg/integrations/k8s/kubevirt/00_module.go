@@ -16,6 +16,7 @@ import (
 	ws "github.com/gorilla/websocket"
 	k8sadmission "k8s.io/api/admission/v1"
 	k8score "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kvcore "kubevirt.io/api/core/v1"
@@ -369,10 +370,11 @@ func handleShell(session *ctrl.ShellSession, cols int, rows int) {
 func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 	name := vmName(request.Job.Id, 0)
 	err := KubevirtClient.VirtualMachine(Namespace).Delete(context.TODO(), name, k8smeta.DeleteOptions{})
-	if err != nil {
+	if err != nil && !k8serrors.IsNotFound(err) {
 		log.Info("Failed to delete VM: %v", err)
 		return util.ServerHttpError("Failed to delete VM")
 	}
+	diskCleanup(request.Job)
 	return nil
 }
 

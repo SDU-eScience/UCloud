@@ -219,5 +219,20 @@ func diskPrepareForJob(job *orc.Job, pvcName string, owner metak8s.OwnerReferenc
 	return nil
 }
 
+func diskCleanup(job *orc.Job) {
+	app := &job.Status.ResolvedApplication.Value
+	canonicalImageName := fmt.Sprintf("%s-%s", app.Metadata.Name, app.Metadata.Version)
+	canonicalImageName = strings.ReplaceAll(canonicalImageName, "/", "-")
+	canonicalImageName = strings.ReplaceAll(canonicalImageName, ".", "-")
+
+	internalMemberFiles, _, herr := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, job.Owner.Project)
+	if herr == nil {
+		targetDir := filepath.Join(internalMemberFiles, "Jobs", "VirtualMachines", job.Id)
+		diskPath := filepath.Join(targetDir, "disk.img") // required by KubeVirt
+
+		_ = os.Remove(diskPath)
+	}
+}
+
 const diskCacheInternalPath = "vm-golden-images"
 const diskCacheUid = 107 // maps to qemu
