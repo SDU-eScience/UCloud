@@ -1,132 +1,167 @@
 package launcher
 
-import "strconv"
+import (
+	_ "embed"
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
 
-type UCloudBackend struct{}
+	fndapi "ucloud.dk/shared/pkg/foundation"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/rpc"
+	"ucloud.dk/shared/pkg/util"
+)
 
-func (uc *UCloudBackend) Build(cb ComposeBuilder) {
-	dataDir := GetDataDirectory()
-	logs := NewFile(dataDir).Child("logs", true)
-	homeDir := NewFile(dataDir).Child("backend-home", true)
-	configDir := NewFile(dataDir).Child("backend-config", true)
-	gradleDir := NewFile(dataDir).Child("backend-gradle", true)
-	postgresDataDir := NewFile(dataDir).Child("pg-data", true)
+//go:embed config/core/config.yaml
+var coreConfigFile []byte
 
-	cb.Service(
-		"backend",
-		"UCloud/Core: Backend",
-		Json{
-			//language=json
-			`
-				{
-					"image": "` + imDevImage + `",
-					"command": ["sleep", "inf"],
-					"restart": "always",
-					"hostname": "backend",
-					"ports": [
-						"` + strconv.Itoa(portAllocator.Allocate(8080)) + `:8080",
-						"` + strconv.Itoa(portAllocator.Allocate(11412)) + `:11412",
-						"` + strconv.Itoa(portAllocator.Allocate(51231)) + `:51231"
-					],
-					"volumes": [
-						"` + cb.environment.repoRoot.GetAbsolutePath() + `/backend:/opt/ucloud",
-						"` + cb.environment.repoRoot.GetAbsolutePath() + `/frontend-web/webclient:/opt/frontend",
-						"` + logs.GetAbsolutePath() + `:/var/log/ucloud",
-						"` + configDir.GetAbsolutePath() + `:/etc/ucloud",
-						"` + homeDir.GetAbsolutePath() + `:/home",
-						"` + gradleDir.GetAbsolutePath() + `:/root/.gradle"
-					]
+func ServiceCore() {
+	service := Service{
+		Name:     "core",
+		Title:    "Core Server",
+		Flags:    SvcLogs | SvcExec | SvcNative,
+		UiParent: UiParentCore,
+	}
+
+	configDir := AddDirectory(service, "config")
+	logDir := AddDirectory(service, "logs")
+
+	volumes := []string{
+		Mount(filepath.Join(RepoRoot, "core2"), "/opt/ucloud"),
+		Mount(filepath.Join(RepoRoot, "provider-integration"), "/opt/provider-integration"),
+		Mount(configDir, "/etc/ucloud"),
+		Mount(logDir, "/var/log/ucloud"),
+	}
+
+	if goCacheDir := os.Getenv("UCLOUD_GO_CACHE_DIR"); goCacheDir != "" {
+		pkgDir := filepath.Join(goCacheDir, service.Name)
+		_ = os.MkdirAll(pkgDir, 0777)
+		volumes = append(volumes, Mount(pkgDir, "/root/go"))
+
+		buildDir := filepath.Join(goCacheDir, service.Name+"-build")
+		_ = os.MkdirAll(buildDir, 0777)
+		volumes = append(volumes, Mount(buildDir, "/root/.cache/go-build"))
+	}
+
+	AddService(service, DockerComposeService{
+		Image:    ImDevImage,
+		Hostname: "core2",
+		Restart:  "always",
+		Ports:    []string{"51245:51233"},
+		Command:  []string{"sleep", "inf"},
+		Volumes:  volumes,
+	})
+
+	AddInstaller(service, func() {
+		_, err := os.Stat(filepath.Join(ComposeDir, "refresh_token.txt"))
+		if err != nil {
+			refreshTok := util.SecureToken()
+			sharedSecret := util.SecureToken()
+			configContent := fmt.Sprintf(string(coreConfigFile), refreshTok, sharedSecret)
+
+			_ = os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(configContent), 0640)
+			_ = os.WriteFile(filepath.Join(ComposeDir, "refresh_token.txt"), []byte(refreshTok), 0600)
+
+			RpcClientConfigure(refreshTok)
+		}
+	})
+
+	AddStartupHook(service, func() {
+		_, err := os.Stat(filepath.Join(configDir, ".installer-flag"))
+		if err == nil {
+			return
+		}
+
+		StartServiceEx(service, true)
+		deadline := time.Now().Add(30 * time.Second)
+
+		LogOutputRunWork("Waiting for UCloud/Core", func(ch chan string) error {
+			rpc.ClientAllowSilentAuthTokenRenewalErrors.Store(true)
+			defer rpc.ClientAllowSilentAuthTokenRenewalErrors.Store(false)
+
+			for time.Now().Before(deadline) {
+				if EnvironmentIsReady() {
+					return nil
 				}
-		`},
-		true,
-		true,
-		true,
-		"",
-		"",
-	)
-
-	cb.Service(
-		"postgres",
-		"UCloud/Core: Postgres",
-		Json{
-			//language=json
-			`
-			{
-				"image": "postgres:15.0",
-				"hostname": "postgres",
-				"restart": "always",
-				"environment":{
-					"POSTGRES_PASSWORD": "postgrespassword"
-				},
-				"volumes": [
-					"` + postgresDataDir.GetAbsolutePath() + `:/var/lib/postgresql/data",
-					"` + cb.environment.repoRoot.GetAbsolutePath() + `/backend:/opt/ucloud"
-				],
-				"ports": [
-					"` + strconv.Itoa(portAllocator.Allocate(35432)) + `:5432"
-				]
-			}`,
-		},
-		true,
-		true,
-		false,
-		"",
-		"",
-	)
-
-	cb.Service(
-		"pgweb",
-		"UCloud/Core: Postgres UI",
-		Json{
-			//language=json
-			`
-			{
-				"image": "sosedoff/pgweb",
-				"hostname": "pgweb",
-				"restart": "always",
-				"environment": {
-					"PGWEB_DATABASE_URL": "postgres://postgres:postgrespassword@postgres:5432/postgres?sslmode=disable"
-				}
-			}`,
-		},
-		true,
-		true,
-		false,
-		"https://postgres.localhost.direct",
-		`
-			The postgres interface is connected to the database of UCloud/Core. You don't need any credentials. 
-		
-			If you wish to connect via psql or some tool:
-		
-			Hostname: localhost<br>
-			Port: 35432<br>
-			Database: postgres<br>
-			Username: postgres<br>
-			Password: postgrespassword
-		`,
-	)
-
-	redisDataDir := NewFile(dataDir).Child("redis-data", true)
-	cb.Service(
-		"redis",
-		"UCloud/Core: Redis",
-		Json{
-			//language=json
-			`
-			{
-				"image": "redis:5.0.9",
-				"hostname": "redis",
-				"restart": "always",
-				"volumes": [
-					"` + redisDataDir.GetAbsolutePath() + `:/data"
-					]
+				time.Sleep(100 * time.Millisecond)
 			}
-			`,
-		},
-		true,
-		true,
-		false,
-		"",
-		"",
-	)
+
+			result := ComposeExec("Fetching logs", "core", []string{"cat", "/tmp/service.log", "/var/log/ucloud/server.log"}, ExecuteOptions{Silent: true, ContinueOnFailure: true})
+			ch <- result.Stdout
+			ch <- result.Stderr
+			ch <- "Gave up waiting for UCloud/Core. Check logs in core container."
+
+			return fmt.Errorf("Gave up waiting for UCloud/Core")
+		})
+
+		LogOutputRunWork("Importing applications", func(ch chan string) error {
+			checksum := "81ee69daa6c06c9bd80b18db4084862bf9c99e16d539b35dbb48edd7120b5b95"
+			_, herr := orcapi.AppsDevImport.Invoke(orcapi.AppCatalogDevImportRequest{
+				Endpoint: fmt.Sprintf("https://launcher-assets.cloud.sdu.dk/%s.zip", checksum),
+				Checksum: checksum,
+			})
+
+			if herr != nil {
+				return herr.AsError()
+			}
+
+			success := false
+			appDeadline := time.Now().Add(1 * time.Minute)
+			for time.Now().Before(appDeadline) {
+				ok, herr := orcapi.AppsImportIsDone.Invoke(util.Empty{})
+				if herr == nil && ok {
+					success = true
+					break
+				}
+
+				time.Sleep(100 * time.Millisecond)
+			}
+
+			if !success {
+				return fmt.Errorf("Application import took too long")
+			}
+
+			return nil
+		})
+
+		LogOutputRunWork("Creating admin user", func(ch chan string) error {
+			_, herr := fndapi.UsersCreate.Invoke([]fndapi.UsersCreateRequest{
+				{
+					Username:   "user",
+					Password:   "mypassword",
+					Email:      "user@ucloud.localhost.direct",
+					Role:       util.OptValue[fndapi.PrincipalRole](fndapi.PrincipalAdmin),
+					FirstNames: util.OptValue("User"),
+					LastName:   util.OptValue("Example"),
+				},
+			})
+
+			return herr.AsError()
+		})
+
+		_ = os.WriteFile(filepath.Join(configDir, ".installer-flag"), []byte("OK"), 0644)
+	})
+
+	{
+		postgres := Service{
+			Name:     "postgres",
+			Title:    "Postgres",
+			Flags:    SvcLogs,
+			UiParent: UiParentCore,
+		}
+
+		data := AddVolume(postgres, "data")
+
+		AddService(postgres, DockerComposeService{
+			Image:       "postgres:15.0",
+			Hostname:    "postgres",
+			Restart:     "always",
+			Environment: []string{"POSTGRES_PASSWORD=postgrespassword"},
+			Ports:       []string{"35432:5432"},
+			Volumes: []string{
+				Mount(data, "/var/lib/postgresql/data"),
+			},
+		})
+	}
 }

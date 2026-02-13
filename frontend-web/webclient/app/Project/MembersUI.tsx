@@ -1,5 +1,5 @@
 import * as React from "react";
-import {EventHandler, MouseEvent, useCallback, useEffect, useState} from "react";
+import {EventHandler, MouseEvent, useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {ProjectInvite, ProjectInviteLink, projectRoleToStringIcon} from "@/Project/Api";
 import {isAdminOrPI, OldProjectRole, Project, ProjectGroup, ProjectMember, ProjectRole} from "@/Project";
 import {Spacer} from "@/ui-components/Spacer";
@@ -33,7 +33,7 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {addStandardDialog} from "@/UtilityComponents";
 import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
-import {alignItems} from "styled-system";
+import BaseLink from "@/ui-components/BaseLink";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
@@ -191,7 +191,7 @@ export const MembersContainer: React.FunctionComponent<{
                         width={"111px"}
                         disabled={props.project.status.myRole === OldProjectRole.USER}
                     >
-                        <Icon name={"heroLink"} mr={"5px"}/>
+                        <Icon name={"heroLink"} mr={"5px"} />
                         Invite
                     </Button>
                 </Flex>
@@ -259,9 +259,9 @@ export const MembersContainer: React.FunctionComponent<{
                 {props.activeGroup ?
                     <>
                         <Flex gap={"8px"} marginBottom={"8px"}>
-                            <Link to={"?"} color={"textPrimary"}>
+                            <BaseLink href={"#"} color={"textPrimary"}>
                                 <Heading.h3>Groups</Heading.h3>
-                            </Link>
+                            </BaseLink>
                             <Heading.h3>
                                 <Flex gap={"8px"}>
                                     /
@@ -346,6 +346,56 @@ export const MembersContainer: React.FunctionComponent<{
     />;
 }
 
+function useFocusRestoreWithin(
+    containerRef: React.RefObject<HTMLElement | null>,
+    deps: React.DependencyList
+) {
+    const lastFocusedRef = React.useRef<HTMLElement | null>(null);
+
+    React.useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+
+        const onFocusIn = (e: FocusEvent) => {
+            const target = e.target as HTMLElement | null;
+            if (target && el.contains(target)) lastFocusedRef.current = target;
+        };
+
+        document.addEventListener("focusin", onFocusIn);
+        return () => document.removeEventListener("focusin", onFocusIn);
+    }, [containerRef]);
+
+    React.useLayoutEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const active = document.activeElement as HTMLElement | null;
+        const focusIsInside = !!active && container.contains(active);
+
+        // If focus fell back to body or escaped outside the modal, restore it.
+        if (active === document.body || !focusIsInside) {
+            const last = lastFocusedRef.current;
+            if (last && document.contains(last)) {
+                last.focus();
+                return;
+            }
+
+            const firstFocusable = container.querySelector<HTMLElement>(
+                [
+                    "button:not([disabled])",
+                    "[href]",
+                    "input:not([disabled])",
+                    "select:not([disabled])",
+                    "textarea:not([disabled])",
+                    "[tabindex]:not([tabindex='-1'])",
+                ].join(",")
+            );
+
+            (firstFocusable ?? container).focus();
+        }
+    }, deps);
+}
+
 const LinkInviteCard: React.FunctionComponent<{
     links: ProjectInviteLink[];
     groups: ProjectGroup[];
@@ -379,11 +429,24 @@ const LinkInviteCard: React.FunctionComponent<{
         }
     }, []);
 
-    function handleInvite(event: React.SyntheticEvent) {
+    const contentRef = useRef<HTMLDivElement>(null);
+
+    useFocusRestoreWithin(contentRef, [
+        activeLinkId,
+        isShowingInviteByUsername,
+        props.links,
+        props.groups,
+        expiry.key,
+    ]);
+
+    const handleInvite = useCallback((event: React.SyntheticEvent) => {
         event.preventDefault();
         props.onInvite(username);
         setUsername("");
-    }
+        requestAnimationFrame(() => {
+            contentRef.current?.focus();
+        });
+    }, [props.onInvite, username]);
 
     useEffect(() => {
         if (activeLink) {
@@ -413,17 +476,18 @@ const LinkInviteCard: React.FunctionComponent<{
         }
     }, [activeLinkId, props.onSelectedExpiry]);
 
-    return <>
+    return <div ref={contentRef} tabIndex={-1} style={{outline: "0"}}>
         {activeLink ? <>
             <Flex gap={"8px"} marginBottom={"8px"} height={"35px"} alignItems={"center"}>
-                <Link to={"?"}
-                    onClick={() => {
+                <BaseLink href={"#"}
+                    onClick={ev => {
+                        ev.preventDefault();
                         setActiveLinkId(null);
                     }}
                     color={"textPrimary"}
                 >
                     <Heading.h3>Invite with link</Heading.h3>
-                </Link>
+                </BaseLink>
                 <Heading.h3>/ Settings</Heading.h3>
             </Flex>
             <Flex gap={"8px"} marginBottom={"16px"} alignItems={"center"}>
@@ -460,15 +524,15 @@ const LinkInviteCard: React.FunctionComponent<{
                             key={group.id}
                             select={handleWrapperClick}
                             left={
-                            <div style={{marginLeft: "8px"}}>
-                                <Truncate
-                                    title={group.specification.title}
-                                    width={500}
-                                >
-                                    {group.specification.title}
-                                </Truncate>
+                                <div style={{marginLeft: "8px"}}>
+                                    <Truncate
+                                        title={group.specification.title}
+                                        width={500}
+                                    >
+                                        {group.specification.title}
+                                    </Truncate>
 
-                            </div>}
+                                </div>}
                             right={<>
                                 <Checkbox
                                     checked={activeLink.groupAssignment.some(element => element === group.id)}
@@ -500,19 +564,21 @@ const LinkInviteCard: React.FunctionComponent<{
             </Flex>
         </> : isShowingInviteByUsername ? <>
             <Flex gap={"8px"} marginBottom={"8px"} height={"35px"} alignItems={"center"}>
-                <Link to={"?"}
-                      onClick={() => {
-                          setIsShowingInviteByUsername(false);
-                      }}
-                      color={"textPrimary"}
+                <BaseLink href={"#"}
+                    onClick={ev => {
+                        ev.preventDefault();
+                        setIsShowingInviteByUsername(false);
+                    }}
+                    color={"textPrimary"}
                 >
                     <Heading.h3>Invite </Heading.h3>
-                </Link>
+                </BaseLink>
                 <Heading.h3>/ Invite by username</Heading.h3>
             </Flex>
             <form action="#" onSubmit={handleInvite}>
                 <Flex maxHeight={"264px"} overflowY={"auto"} marginBottom={"5px"}>
                     <Input
+                        autoFocus={true}
                         placeholder={"Add by username"}
                         value={username}
                         onChange={(event) => {
@@ -547,7 +613,7 @@ const LinkInviteCard: React.FunctionComponent<{
                             value={inviteLinkFromToken(link.token)}
                             onChange={doNothing}
                             readOnly={true}
-                            style={{cursor:"pointer"}}
+                            style={{cursor: "pointer"}}
                             onClick={() => {
                                 copyToClipboard({
                                     value: inviteLinkFromToken(link.token),
@@ -565,7 +631,7 @@ const LinkInviteCard: React.FunctionComponent<{
                             }
                             width={"48px"}
                         >
-                            <Icon name={"heroDocumentDuplicate"}/>
+                            <Icon name={"heroDocumentDuplicate"} />
                         </Button>
                         <Button
                             onClick={() => {
@@ -589,7 +655,7 @@ const LinkInviteCard: React.FunctionComponent<{
                 </Box>
             )}
         </>}
-    </>
+    </div>
 }
 
 const MemberCard: React.FunctionComponent<{
@@ -636,8 +702,8 @@ const MemberCard: React.FunctionComponent<{
                             checked height={35}
                             icon={projectRoleToStringIcon(props.member.role)}
                             label={props.member.role} name={props.member.role + props.member.username}
-                            onChange={() => {}}/>
-                         : null}
+                            onChange={() => {}} />
+                            : null}
 
 
                         {amIPI || role === OldProjectRole.PI && !amIUser ?
@@ -773,7 +839,7 @@ const GroupCard: React.FunctionComponent<{
                         text: "Copy ID",
                         icon: "id",
                         enabled: () => Client.userIsAdmin,
-                        onClick: () => copyToClipboard({ value: props.group.id, message: "Copied group ID to clipboard" }),
+                        onClick: () => copyToClipboard({value: props.group.id, message: "Copied group ID to clipboard"}),
                         shortcut: ShortcutKey.C
                     },
                     {

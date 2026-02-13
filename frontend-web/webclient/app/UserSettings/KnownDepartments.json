@@ -1,6 +1,9 @@
 {
     "aau.dk": [
         {
+            "faculty": "Administration"
+        },
+        {
             "faculty": "Cross-Faculty",
             "departments": [
                 "Institute for Advanced Study in PBL"
@@ -54,6 +57,9 @@
         }
     ],
     "au.dk": [
+        {
+            "faculty": "Administration"
+        },
         {
             "faculty": "The Faculty of Arts",
             "departments": [
@@ -116,6 +122,9 @@
     ],
     "cbs.dk": [
         {
+            "faculty": "Administration"
+        },
+        {
             "faculty": "Department of Accounting"
         },
         {
@@ -150,6 +159,9 @@
         }
     ],
     "dtu.dk": [
+        {
+            "faculty": "Administration"
+        },
         {
             "faculty": "DTU Aqua"
         },
@@ -316,6 +328,9 @@
     ],
     "itu.dk": [
         {
+            "faculty": "Administration"
+        },
+        {
             "faculty": "Data Science"
         },
         {
@@ -346,6 +361,9 @@
     "kb.dk": "freetext",
     "kp.dk": "freetext",
     "ku.dk": [
+        {
+            "faculty": "Administration"
+        },
         {
             "faculty": "Faculty of Health and Medical Sciences",
             "departments": [
@@ -419,6 +437,9 @@
     "regionh.dk": "freetext",
     "ruc.dk": [
         {
+            "faculty": "Administration"
+        },
+        {
             "faculty": "Communication and Arts"
         },
         {
@@ -432,6 +453,9 @@
         }
     ],
     "sdu.dk": [
+        {
+            "faculty": "Administration"
+        },
         {
             "faculty": "Faculty of Humanities",
             "departments": [
@@ -549,6 +573,9 @@
         }
     ],
     "setur.fo": [
+        {
+            "faculty": "Administration"
+        },
         {
             "faculty": "Faculty of Faroese Language and Literature",
             "departments": []

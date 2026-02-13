@@ -13,7 +13,7 @@ import (
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orcapi "ucloud.dk/shared/pkg/orc2"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -24,6 +24,7 @@ type providerSupport struct {
 	Type      string
 	AppliesTo accapi.ProductReference
 	Features  map[SupportFeatureKey]string
+	Raw       json.RawMessage
 }
 
 var providerSupportGlobals struct {
@@ -200,6 +201,7 @@ func featureFetchProviderSupport[T any](
 			support := providerSupport{}
 			support.Type = resourceType
 			support.Features = readSupportFromLegacy(obj)
+			support.Raw = obj
 			support.AppliesTo = p
 			supportItems = append(supportItems, support)
 		}
@@ -297,6 +299,9 @@ func supportToApi(provider string, supportItems []providerSupport) []orcapi.Reso
 		for _, support := range supportItems {
 			if support.AppliesTo == ref {
 				legacyMap := map[string]any{}
+				if len(support.Raw) > 0 {
+					_ = json.Unmarshal(support.Raw, &legacyMap)
+				}
 				for _, feature := range featureMapperLegacy {
 					if feature.Type == support.Type {
 						featureValue, hasFeature := support.Features[feature.Key]
@@ -312,12 +317,13 @@ func supportToApi(provider string, supportItems []providerSupport) []orcapi.Reso
 								}
 							} else {
 								child, hasMap := currentMap[comp]
-								if !hasMap {
+								childMap, childIsMap := child.(map[string]any)
+								if !hasMap || !childIsMap {
 									newMap := map[string]any{}
 									currentMap[comp] = newMap
 									currentMap = newMap
 								} else {
-									currentMap = child.(map[string]any)
+									currentMap = childMap
 								}
 							}
 						}

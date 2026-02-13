@@ -18,6 +18,7 @@ func Init() {
 	initAccounting()
 	times["Accounting"] = t.Mark()
 
+	initGrantSearchIndex()
 	initGrants()
 	times["Grants"] = t.Mark()
 

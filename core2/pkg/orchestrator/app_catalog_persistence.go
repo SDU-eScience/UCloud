@@ -14,7 +14,7 @@ import (
 
 	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database"
-	orcapi "ucloud.dk/shared/pkg/orc2"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -302,6 +302,8 @@ func appCatalogLoad() {
 						if err := json.Unmarshal([]byte(app.Invocation), &i.Invocation); err != nil {
 							panic(fmt.Sprintf("Could not load application: %s %s", app.Name, app.Version))
 						}
+
+						i.Invocation.Parameters = util.NonNilSlice(i.Invocation.Parameters)
 
 						if i.Invocation.Modules.Present {
 							i.Invocation.Modules.Value.Optional = util.NonNilSlice(i.Invocation.Modules.Value.Optional)

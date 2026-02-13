@@ -10,7 +10,7 @@ import (
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
-	orcapi "ucloud.dk/shared/pkg/orc2"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -115,8 +115,8 @@ func ProviderIntegrationClearConnection(username string, provider string, contac
 func providerIntegrationMarkAsConnected(username string, provider string) {
 	manifest, _, ok := ManifestByProvider(provider)
 	expiresAt := util.Option[time.Time]{}
-	if ok {
-		expiresAt.Set(time.Now().Add(time.Duration(manifest.ExpireAfterMs) * time.Millisecond))
+	if ok && manifest.ExpireAfterMs.Present {
+		expiresAt.Set(time.Now().Add(time.Duration(manifest.ExpireAfterMs.Value) * time.Millisecond))
 	}
 
 	db.NewTx0(func(tx *db.Transaction) {
