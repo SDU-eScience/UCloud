@@ -48,6 +48,7 @@ export const IconClass = injectStyle("icon", k => `
     ${k} {
         --spinSpeed: 1s;
         flex: none;
+        vertical-align: middle;
         transition: transform .2s ease-in-out; 
     }
     
