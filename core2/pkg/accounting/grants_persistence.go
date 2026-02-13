@@ -330,8 +330,8 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 				Awarded:     isAwarded && app.Status.OverallState == accapi.GrantApplicationStateApproved,
 			}
 			b.Applications[grantId] = resultApp
+			go grantAddToSearchIndex(resultApp)
 		}
-
 		b.Mu.Unlock()
 	}
 }

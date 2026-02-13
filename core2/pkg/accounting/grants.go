@@ -13,6 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/search/query"
 	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
@@ -1229,11 +1231,34 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 	var items []accapi.GrantApplication
 	hasMore := false
 
+	var searchesMatches map[accGrantId]util.Empty
+	// Performing fuzzy search
+	if len(req.Query) > 0 {
+		searchesMatches = map[accGrantId]util.Empty{}
+		searchTerms := strings.Split(strings.ToLower(req.Query), " ")
+		foundGrants := grantSearchFuzzily(searchTerms)
+
+		for _, id := range foundGrants {
+			idRaw, _ := strconv.ParseInt(id, 10, 64)
+			idActual := accGrantId(idRaw)
+			searchesMatches[idActual] = util.Empty{}
+		}
+	}
+
 	for index, id := range ids {
 		if hasMore {
 			break
-		} else if index > 0 && ids[index-1] == id {
+		}
+
+		if index > 0 && ids[index-1] == id {
 			continue
+		}
+
+		if searchesMatches != nil {
+			// Skipping id's that isn't in searchMatches
+			if _, ok := searchesMatches[id]; !ok {
+				continue
+			}
 		}
 
 		a, roles := grantsRead(actor, grantAuthReadWrite, id, ids)
@@ -1291,6 +1316,66 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 	return result
 }
 
+func grantSearchFuzzily(searchTerm []string) []string {
+
+	searchQueries := make([]query.Query, 0, len(searchTerm))
+	for _, term := range searchTerm {
+		createdByPrefixQ := bleve.NewPrefixQuery(term)
+		createdByPrefixQ.SetBoost(5)
+
+		createdBy := bleve.NewFuzzyQuery(term)
+		createdBy.SetField("CreatedBy")
+		createdBy.SetFuzziness(2)
+		createdBy.SetBoost(3)
+
+		createdByQuery := bleve.NewWildcardQuery("*" + term + "*")
+		createdByQuery.SetField("CreatedBy")
+		createdByQuery.SetBoost(5)
+
+		recipientTitle := bleve.NewFuzzyQuery(term)
+		recipientTitle.SetField("RecipientTitle")
+		recipientTitle.SetFuzziness(2)
+		recipientTitle.SetBoost(3)
+
+		recipientTitleQuery := bleve.NewWildcardQuery("*" + term + "*")
+		recipientTitleQuery.SetField("RecipientTitle")
+		recipientTitleQuery.SetBoost(5)
+		recipientTitleQuery.SetField("RecipientTitle")
+		recipientTitleQuery.SetBoost(3)
+
+		recipientId := bleve.NewFuzzyQuery(term)
+		recipientId.SetField("RecipientId")
+		recipientId.SetFuzziness(2)
+		recipientId.SetBoost(3)
+
+		referenceIds := bleve.NewFuzzyQuery(term)
+		referenceIds.SetField("ReferenceIds")
+		referenceIds.SetFuzziness(2)
+		referenceIds.SetBoost(3)
+
+		comments := bleve.NewFuzzyQuery(term)
+		comments.SetField("Comments")
+		comments.SetFuzziness(2)
+		comments.SetBoost(2)
+
+		searchQueries = append(searchQueries, bleve.NewDisjunctionQuery(createdByPrefixQ, createdBy, createdByQuery, recipientTitle, recipientTitleQuery, recipientId, referenceIds, comments))
+	}
+	req := bleve.NewSearchRequest(bleve.NewDisjunctionQuery(searchQueries...))
+
+	res, err := grantIndex.Search(req)
+	if err != nil {
+		log.Warn("Failed at searching for grants: %s", err)
+		return []string{}
+	}
+
+	var results []string
+	for _, hit := range res.Hits {
+		results = append(results, hit.ID)
+	}
+
+	return results
+}
+
 // NOTE(Dan): This function assumes auth has already taken place.
 func lGrantApplicationIsSubmitterInActiveProjectNoAuth(actor rpc.Actor, a *grantApplication) bool {
 	recipient := a.Application.CurrentRevision.Document.Recipient
@@ -1324,7 +1409,8 @@ func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.
 	idRaw, _ := strconv.ParseInt(id, 10, 64)
 	idActual := accGrantId(idRaw)
 
-	app, _ := grantsRead(actor, grantAuthReadWrite, idActual, nil)
+	app, roles := grantsRead(actor, grantAuthReadWrite, idActual, nil)
+
 	if app == nil {
 		return accapi.GrantApplication{}, util.HttpErr(http.StatusNotFound, "not found")
 	} else {
@@ -1332,8 +1418,42 @@ func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.
 		// Record that the user has visited the application
 		grantRecordUserApplicationVisit(app.Application.Id.Value, actor.Username)
 		result := app.lDeepCopy()
+
+		isApprover := false
+		for _, role := range roles {
+			if role == grantActorRoleApprover {
+				isApprover = true
+				break
+			}
+		}
+
+		if isApprover {
+			grantRetrieveApplicationHistoryOfReceiver(actor, app, &result)
+		}
 		app.Mu.RUnlock()
 		return GrantApplicationProcess(actor, result), nil
+	}
+}
+
+// Retrieves the application history of the receiver in the context of the grant giver
+func grantRetrieveApplicationHistoryOfReceiver(actor rpc.Actor, app *grantApplication, result *accapi.GrantApplication) {
+	recipientActor, ok := rpc.LookupActor(app.Application.CreatedBy) // Actor PI
+	if ok {
+		grantGiveProjectId := actor.Project.Value
+		// Browsing through the recipients applications
+		recipientActor.Project = util.OptValue(rpc.ProjectId(app.Application.CurrentRevision.Document.Recipient.Id.Value))
+		pages := GrantsBrowse(recipientActor, accapi.GrantsBrowseRequest{
+			Filter:                      util.OptValue(accapi.GrantApplicationFilterShowAll),
+			IncludeOutgoingApplications: util.OptValue(true),
+		})
+		for _, recipientApplication := range pages.Items {
+			for _, breakdown := range recipientApplication.Status.StateBreakdown {
+				if rpc.ProjectId(breakdown.ProjectId) == grantGiveProjectId {
+					result.Status.ApplicationHistory = append(result.Status.ApplicationHistory, recipientApplication)
+					break
+				}
+			}
+		}
 	}
 }
 
@@ -1909,9 +2029,11 @@ func grantHandleEvent(event grantEvent) {
 	}
 }
 
-func grantGetRecipientTitle(event grantEvent) string {
-	app := &event.Application
-	recipient := app.CurrentRevision.Document.Recipient
+func grantGetRecipientTitleFromEvent(event grantEvent) string {
+	return grantGetRecipientTitleByType(&event.Application.CurrentRevision.Document.Recipient)
+}
+
+func grantGetRecipientTitleByType(recipient *accapi.Recipient) string {
 
 	switch recipient.Type {
 	case accapi.RecipientTypeExistingProject:
@@ -1933,7 +2055,7 @@ func grantGetRecipientTitle(event grantEvent) string {
 }
 
 func truncateRecipientTitle(event grantEvent) string {
-	title := grantGetRecipientTitle(event)
+	title := grantGetRecipientTitleFromEvent(event)
 	if len(title) >= 30 {
 		return title[:30] + "..."
 	}

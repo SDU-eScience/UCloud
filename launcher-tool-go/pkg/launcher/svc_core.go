@@ -96,7 +96,7 @@ func ServiceCore() {
 		})
 
 		LogOutputRunWork("Importing applications", func(ch chan string) error {
-			checksum := "81ee69daa6c06c9bd80b18db4084862bf9c99e16d539b35dbb48edd7120b5b95"
+			checksum := "62bbef4ea7b32c25808d1b084bb9ca61767d65a3e2a1a8a947426e424ca61159"
 			_, herr := orcapi.AppsDevImport.Invoke(orcapi.AppCatalogDevImportRequest{
 				Endpoint: fmt.Sprintf("https://launcher-assets.cloud.sdu.dk/%s.zip", checksum),
 				Checksum: checksum,
