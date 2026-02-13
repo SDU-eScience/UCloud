@@ -327,6 +327,7 @@ type GrantComment struct {
 const GrantsNamespace = "grants/v2"
 
 type GrantsBrowseRequest struct {
+	Query        string              `json:"query"`
 	ItemsPerPage int                 `json:"itemsPerPage"`
 	Next         util.Option[string] `json:"next"`
 
