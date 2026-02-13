@@ -599,7 +599,7 @@ func initJobs() {
 				orcapi.JobsProviderRequestDynamicParametersRequest{
 					Owner: orcapi.ResourceOwner{
 						CreatedBy: info.Actor.Username,
-						Project:   util.OptStringIfNotEmpty(string(info.Actor.Project.GetOrDefault(rpc.ProjectId("")))),
+						Project:   util.OptStringIfNotEmpty(string(info.Actor.Project.GetOrDefault(""))),
 					},
 					Application: app,
 				},
@@ -1108,6 +1108,40 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 			return err
 		} else {
 			spec.Resources[i] = newValue
+		}
+	}
+
+	needDynamicParameters := false
+	for name, _ := range spec.Parameters {
+		_, ok := appParamsByName[name]
+		if !ok {
+			needDynamicParameters = true
+		}
+	}
+
+	if needDynamicParameters {
+		resp, err := InvokeProvider(
+			spec.Product.Provider,
+			orcapi.JobsProviderRequestDynamicParameters,
+			orcapi.JobsProviderRequestDynamicParametersRequest{
+				Owner: orcapi.ResourceOwner{
+					CreatedBy: actor.Username,
+					Project:   util.OptStringIfNotEmpty(string(actor.Project.GetOrDefault(""))),
+				},
+				Application: app,
+			},
+			ProviderCallOpts{
+				Username: util.OptValue(actor.Username),
+				Reason:   util.OptValue("user initiated request"),
+			},
+		)
+
+		if err != nil {
+			return util.HttpErr(http.StatusBadGateway, "could not fetch information about parameters from provider")
+		}
+
+		for _, param := range resp.Parameters {
+			appParamsByName[param.Name] = param
 		}
 	}
 
