@@ -45,6 +45,7 @@ import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} fr
 import {useLocation, useNavigate} from "react-router-dom";
 import * as Grants from ".";
 import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalInfoUpdate} from "@/UserSettings/ChangeUserDetails";
+import {Feature, hasFeature} from "@/Features";
 
 // State model
 // =====================================================================================================================
@@ -2030,6 +2031,7 @@ export function Editor(): React.ReactNode {
                         {state.stateDuringEdit && state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID ?
                             null :
                             <>
+                                {hasFeature(Feature.APPLICATION_HISTORY) ? renderApplicationHistory(state) : <></>}
                                 <h3>
                                     {!state.stateDuringEdit && "Select grant giver(s)"}
                                     {state.stateDuringEdit && "Grant givers"}
@@ -2435,6 +2437,49 @@ const CommentSection: React.FunctionComponent<{
         </div>
     </div>;
 };
+
+// Application History
+const renderApplicationHistory = (state: any) => {
+  const applicationHistory: Grants.Application[] =
+    state.stateDuringEdit?.storedApplication?.status.applicationHistory ?? [];
+
+  if (applicationHistory.length === 0) {
+    return <></>
+  }
+
+  return (
+    <>
+    { <h2>Application history of {applicationHistory[0].status.projectTitle}</h2>}
+    <div style={{ marginBottom: "1rem", maxHeight: "35rem", overflowY: "auto" }}>
+      {applicationHistory.map((app: Grants.Application) => (
+        <div key={app.id} style={{ marginBottom: "1rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px", background: "#eee"}}>
+          <label style={{flex: 1}}>ApplicationId: {app.id}</label>
+          <label style={{flex: 1, textAlign: "center"}}>
+            {new Date(app.currentRevision.createdAt).toLocaleString()}
+          </label>
+          <label style={{flex: 1, textAlign: "right"}}>{app.status?.overallState}</label>
+          </div>
+
+          {/* Allocation Requests */}
+          <ul>
+            {app.currentRevision.document.allocationRequests?.map(
+              (allocReq: Grants.AllocationRequest, index: number) => (
+                <li key={index} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }} >
+                    <span>{allocReq.category}</span>
+                    <span style={{marginLeft: "auto"}}>{allocReq.balanceRequested}</span>
+                </li>
+              )
+            )}
+          </ul>
+        </div>
+      ))}
+      </div>
+    </>
+  );
+};
+
+
 
 // Form fields
 // ---------------------------------------------------------------------------------------------------------------------
