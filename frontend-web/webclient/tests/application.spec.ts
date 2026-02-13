@@ -7,12 +7,13 @@ test.beforeEach(async ({page}, testInfo) => {
     if (args.projectName) await Project.changeTo(page, args.projectName);
 });
 
+const {AppNames} = Applications;
+
 TestContexts.map(ctx => {
     test.describe(ctx, () => {
         test("Run job with jobname, extend time, stop job, validate jobname in runs", async ({page}) => {
             test.setTimeout(240_000);
-            await Applications.goToApplications(page);
-            await page.getByRole("button", {name: "Open application"}).click();
+            await Applications.openAppBySearch(page, AppNames.TestApplication);
             const jobName = Runs.newJobName();
 
             await Runs.setJobTitle(page, jobName);
@@ -28,9 +29,9 @@ TestContexts.map(ctx => {
             await page.getByText("Run application again").hover();
         });
 
-        const AppNameThatIsExpectedToBePresent = "Terminal";
+        const AppNameThatIsExpectedToBePresentButWeWillNotRun = "Terminal";
         test("Favorite app, unfavorite app", async ({page}) => {
-            await Applications.openApp(page, AppNameThatIsExpectedToBePresent);
+            await Applications.openApp(page, AppNameThatIsExpectedToBePresentButWeWillNotRun);
             await Applications.toggleFavorite(page);
             await Applications.toggleFavorite(page);
         });
@@ -68,8 +69,7 @@ TestContexts.map(ctx => {
             await File.create(page, folderName);
             await File.open(page, folderName);
             await File.uploadFiles(page, [{name: uploadedFileName, contents: contents}]);
-            await Applications.goToApplications(page);
-            await page.getByRole("button", {name: "Open application"}).click();
+            await Applications.openAppBySearch(page, AppNames.TestApplication);
 
             await Runs.setJobTitle(page, jobName)
             await Components.selectAvailableMachineType(page);
@@ -88,7 +88,7 @@ TestContexts.map(ctx => {
         });
 
         test("Ensure 'New version available' button shows up and works.", async ({page}) => {
-            await Applications.openApp(page, AppNameThatIsExpectedToBePresent);
+            await Applications.openApp(page, AppNameThatIsExpectedToBePresentButWeWillNotRun);
             const versionSelect = page.locator("div[class^=rich-select-trigger]").last();
             const newestVersion = await versionSelect.innerText();
             await versionSelect.click();
@@ -100,14 +100,12 @@ TestContexts.map(ctx => {
 
         test("Test application search", async ({page}) => {
             await Applications.goToApplications(page);
-            await Applications.searchFor(page, AppNameThatIsExpectedToBePresent);
-            await page.locator("a[class^=app-card]").getByText(AppNameThatIsExpectedToBePresent).first().click();
-            expect(page.url()).toContain("/create?app=");
+            await Applications.openAppBySearch(page, AppNames.TestApplication);
         });
 
         test("Start terminal job, find mounted 'easybuild' modules mounted, use networking, terminate job", async ({page}) => {
             test.setTimeout(300_000);
-            const term = await runTerminalApp(page);
+            const term = await runAppAndOpenTerminal(page, "Terminal");
             await Terminal.enterCmd(term, "ls ~/.local");
             await term.getByText("easybuild").hover();
             await Terminal.enterCmd(term, "curl -I https://example.org");
@@ -116,8 +114,12 @@ TestContexts.map(ctx => {
             await Runs.terminateViewedRun(page);
         });
 
-        async function runTerminalApp(page: Page, jobName?: string): Promise<Page> {
-            await Applications.openApp(page, "Terminal");
+        async function runAppAndOpenTerminal(page: Page, appName: string, jobName?: string): Promise<Page> {
+            if (appName === AppNames.TestApplication) {
+                await Applications.openAppBySearch(page, appName);
+            } else {
+                await Applications.openApp(page, appName);
+            }
             await Components.selectAvailableMachineType(page);
             if (jobName) await Runs.setJobTitle(page, jobName);
             await Runs.submitAndWaitForRunning(page);
@@ -140,10 +142,9 @@ echo "${BashScriptStringContent}"
                     await File.uploadFiles(page, [{name: BashScriptName, contents: FancyBashScript}]);
 
                     await Applications.goToApplications(page);
-                    await Applications.searchFor(page, "coder");
-                    await page.getByRole('link', {name: "Coder", exact: false}).click();
+                    await Applications.openAppBySearch(page, AppNames.TestApplication);
                     // Optional parameter to be used
-                    await page.getByRole("button", {name: "Use"}).nth(1).click()
+                    await page.getByRole("button", {name: "Use"}).click()
                     await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
                         await page.getByRole("textbox", {name: "No file selected"}).click();
                     });
@@ -170,8 +171,8 @@ echo "${BashScriptStringContent}"
                     })
                     const licenseId = await Resources.Licenses.activateLicense(page);
                     await Applications.goToApplications(page);
-                    await Applications.searchFor(page, "comsol");
-                    await page.locator("a[class^=app-card]").getByText("COMSOL").first().click();
+                    await Applications.searchFor(page, AppNames.LicenseTestApplication);
+                    await page.locator("a[class^=app-card]").getByText("License Test").first().click();
                     await Components.selectAvailableMachineType(page);
                     await page.getByRole("button", {name: "Submit"}).waitFor();
                     await page.mouse.wheel(0, 1000);
@@ -242,7 +243,7 @@ echo "${BashScriptStringContent}"
                     const {userPage, user} = await createUserWithProjectAndAssignRole(adminPage, context, ctx);
 
                     const jobName = Runs.newJobName();
-                    const term = await runTerminalApp(userPage, jobName);
+                    const term = await runAppAndOpenTerminal(userPage, AppNames.TestApplication, jobName);
                     await Terminal.createLargeFile(term);
                     await Runs.terminateViewedRun(userPage);
 

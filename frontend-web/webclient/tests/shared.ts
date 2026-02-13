@@ -187,7 +187,7 @@ export const File = {
     async moveToTrash(page: Page, name: string): Promise<void> {
         await NetworkCalls.awaitResponse(page, "**/files/trash", async () => {
             await this.actionByRowTitle(page, name, "click");
-            await page.locator(".operation.button6.in-header:nth-child(6)").click(); // Ellipses
+            await File.openOperationsDropsdown(page, name);
             await Components.clickConfirmationButton(page, "Move to trash");
         });
     },
@@ -210,7 +210,7 @@ export const File = {
 
     async openOperationsDropsdown(page: Page, file: string): Promise<void> {
         await File.actionByRowTitle(page, file, "click");
-        await page.locator(".operation.button6.in-header:nth-child(6)").click();
+        await page.locator(".operation.in-header").last().click();
     },
 
     async moveFileTo(page: Page, fileToMove: string, targetFolder: string): Promise<void> {
@@ -371,7 +371,9 @@ export const Drive = {
         await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
             await this.actionByRowTitle(page, name, "dblclick");
             await Components.projectSwitcher(page, "hover")
-        })
+        });
+
+        await page.waitForLoadState("domcontentloaded");
     },
 
     async create(page: Page, name: string): Promise<void> {
@@ -513,8 +515,20 @@ export const Applications = {
         await page.getByRole("textbox").fill(query);
         await NetworkCalls.awaitResponse(page, "**/hpc/apps/search", async () => {
             await page.keyboard.press("Enter");
-        })
+        });
     },
+
+    async openAppBySearch(page: Page, appName: string): Promise<void> {
+        await this.goToApplications(page);
+        await this.searchFor(page, appName);
+        await page.locator("a[class^=app-card]").getByText(appName).first().click();
+        await page.waitForURL("**/app/jobs/create?app=**")
+    },
+
+    AppNames: {
+        TestApplication: "Test application",
+        LicenseTestApplication: "License Test",
+    }
 };
 
 export const Runs = {
@@ -585,7 +599,7 @@ export const Runs = {
         const terminalPagePromise = page.waitForEvent("popup");
         await page.getByRole("button", {name: "Open terminal"}).click();
         const terminalPage = await terminalPagePromise;
-        await terminalPage.getByText("➜").first().click();
+        await terminalPage.getByText("/work", {exact: false}).first().click();
         return terminalPage;
     },
 
@@ -769,6 +783,7 @@ export const Resources = {
     Licenses: {
         async activateLicense(page: Page): Promise<number> {
             const result = (await NetworkCalls.awaitResponse(page, "**/api/licenses", async () => {
+                await page.getByRole("dialog").getByText("test-license").waitFor({state: "hidden"});
                 await page.getByText("Activate license").click();
                 await page.getByRole("dialog").getByRole("button", {name: "Activate"}).click();
             }));

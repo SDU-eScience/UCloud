@@ -8,7 +8,7 @@ test.beforeEach(async ({page}, testInfo) => {
 });
 
 
-const {PublicLinks, IPs, SSHKeys, Licenses} = Resources;
+const {PublicLinks, IPs, SSHKeys} = Resources;
 
 TestContexts.map(ctx => {
     test.describe(ctx, () => {
@@ -27,7 +27,7 @@ TestContexts.map(ctx => {
             test("Create public link, mount link for job, check that link is available, stop job, delete public link", async ({page}) => {
                 test.setTimeout(120_000);
                 const publicLinkName = await PublicLinks.createNew(page);
-                await Applications.openApp(page, "Coder");
+                await Applications.openAppBySearch(page, Applications.AppNames.TestApplication);
                 await Components.selectAvailableMachineType(page);
                 await Runs.JobResources.addPublicLink(page, publicLinkName);
                 await Runs.submitAndWaitForRunning(page);
@@ -35,7 +35,7 @@ TestContexts.map(ctx => {
                 const publicLinkPagePromise = page.waitForEvent("popup");
                 await page.getByRole("link", {name: publicLinkName, exact: false}).click();
                 const followedPublicLink = await publicLinkPagePromise;
-                await followedPublicLink.getByText("No, I don't trust the authors").hover();
+                await followedPublicLink.getByText("Directory listing for /").hover();
                 await followedPublicLink.close();
 
                 await Runs.terminateViewedRun(page);
@@ -52,7 +52,7 @@ TestContexts.map(ctx => {
                 await Rows.actionByRowTitle(page, publicIp, "dblclick");
 
                 await Applications.goToApplications(page);
-                await Applications.openApp(page, "Terminal");
+                await Applications.openAppBySearch(page, "Test application");
                 await Components.selectAvailableMachineType(page);
                 await Runs.JobResources.addPublicIP(page, publicIp);
                 await Runs.submitAndWaitForRunning(page);
@@ -71,10 +71,10 @@ TestContexts.map(ctx => {
 
         test.describe("SSH - check SSH connections work", () => {
             test("Create SSH key, add to job, poll job through terminal to validate it being present, delete key, stop run", async ({page}) => {
+                test.setTimeout(60_000);
                 await Resources.goTo(page, "SSH keys");
                 const sshkey = await SSHKeys.createNew(page);
-                await Applications.goToApplications(page);
-                await page.getByRole("button", {name: "Open application"}).click();
+                await Applications.openAppBySearch(page, "Test application");
                 await Components.selectAvailableMachineType(page);
                 await Runs.JobResources.toggleEnableSSHServer(page);
                 const jobname = Runs.newJobName();

@@ -24,7 +24,9 @@ setup("Setup 'pi', 'admin', and 'user'", async ({context, browser}) => {
     await Rows.actionByRowTitle(ucloudAdminPage, `${idProject}: ${projectName}`, "dblclick");
     await Accounting.GrantApplication.approve(ucloudAdminPage);
 
-    for (const testUser of [pi, admin, user]) {
+    const userList = [pi, admin, user]
+
+    for (const testUser of userList) {
         const grantId = await makeGrantApplication(testUser.page);
 
         await Accounting.goTo(ucloudAdminPage, "Grant applications");
@@ -57,6 +59,10 @@ setup("Setup 'pi', 'admin', and 'user'", async ({context, browser}) => {
     TestUsers["Project User"] = user.credentials;
 
     fs.writeFileSync("./test_data/user_test_data.json", JSON.stringify({...TestUsers, projectName}));
+
+    for (const user of userList) {
+        await user.page.close();
+    }
 });
 
 async function waitForHiddenGrantNotification(page: Page): Promise<void> {
