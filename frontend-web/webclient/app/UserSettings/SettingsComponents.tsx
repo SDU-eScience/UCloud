@@ -40,9 +40,9 @@ export function SettingsNavigator({sections}: SettingsNavigatorProps): React.Rea
     }, [sections]);
 
     return (
-        <Box mb={24}>
+        <Box>
             <Heading.h5>On this page</Heading.h5>
-            <Flex mt={8} flexWrap="wrap" gap="8px">
+            <Flex mt={12} flexWrap="wrap" justifyContent={"space-between"}>
                 {sections.map(section => (
                     <a
                         key={section.id}

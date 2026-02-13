@@ -103,7 +103,7 @@ export function ChangeUserDetails(): React.ReactNode {
     }, [commandLoading, userFirstNames.current, userLastName.current, userEmail.current]);
 
     return (
-        <SettingsSection id="profile" title="Change user details">
+        <SettingsSection id="profile" title="User information">
             <form onSubmit={onSubmit}>
                 <Box mt="0.5em" pt="0.5em">
                     <Label>
@@ -142,7 +142,7 @@ export function ChangeUserDetails(): React.ReactNode {
                     color="successMain"
                     disabled={commandLoading || !!message}
                 >
-                    {message ?? "Update Information"}
+                    {message ?? "Update information"}
                 </Button>
             </form>
         </SettingsSection>
@@ -332,7 +332,7 @@ export function ChangeOrganizationDetails(props: ChangeOrganizationDetailsProps)
                 <NewDataList title="Position" placeholder="VIP/TAP/Student" items={SortedPositions} ref={positionRef} />
                 <NewDataList title={"Primary research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={ResearchFields[RFIndex].value} />
                 <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} disabled={false} placeholder="Prefer not to say" />
-                {props.getValues ? null : <Button onClick={onSubmit} mt="1em" type="button" color="successMain">Update Information</Button>}
+                {props.getValues ? null : <Button onClick={onSubmit} mt="1em" type="button" color="successMain">Update information</Button>}
             </Box>
         </SettingsSection>
     );

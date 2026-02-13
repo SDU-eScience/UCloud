@@ -34,52 +34,55 @@ function UserSettings(): React.ReactNode {
     const sections: SettingsNavSection[] = mustActivate2fa ? [
         {id: "two-factor", label: "Two factor authentication"}
     ] : [
-        {id: "two-factor", label: "Two factor authentication"},
-        {id: "password", label: "Change password"},
         {id: "profile", label: "User details"},
         {id: "organization", label: "Additional information"},
         {id: "email", label: "Email settings"},
         {id: "notifications", label: "Notifications"},
+        {id: "two-factor", label: "Two factor authentication"},
+        {id: "password", label: "Change password"},
         {id: "sessions", label: "Active sessions"},
     ];
 
+    const twoFactorSetup = <TwoFactorSetup
+        mustActivate2fa={mustActivate2fa}
+        loading={headerLoading}
+        setLoading={setHeaderLoading}
+    />;
     return (
         <Flex alignItems="center" flexDirection="column">
             <Box width="100%" maxWidth="980px">
                 <MainContainer
                     header={<Heading.h1>User settings</Heading.h1>}
                     main={(
-                        <>
-                            <SettingsNavigator sections={sections} />
-                            <TwoFactorSetup
-                                mustActivate2fa={mustActivate2fa}
-                                loading={headerLoading}
-                                setLoading={setHeaderLoading}
-                            />
+                        <Flex gap={"24px"} flexDirection={"column"}>
+                            <SettingsNavigator sections={sections}/>
 
-                            {mustActivate2fa ? null : (
+                            {mustActivate2fa ? twoFactorSetup : (
                                 <>
-                                    <ChangePassword
-                                        setLoading={setHeaderLoading}
-                                    />
-
-                                    <ChangeUserDetails />
-                                    <ChangeOrganizationDetails />
+                                    <ChangeUserDetails/>
+                                    <ChangeOrganizationDetails/>
                                     <ChangeEmailSettings
                                         setLoading={setHeaderLoading}
                                     />
                                     <ChangeNotificationSettings
                                         setLoading={setHeaderLoading}
                                     />
+
+                                    {twoFactorSetup}
+
+                                    <ChangePassword
+                                        setLoading={setHeaderLoading}
+                                    />
+
                                     <Sessions
                                         setLoading={setHeaderLoading}
                                         setRefresh={fn => refreshFunctionCache.setRefreshFunction(fn ?? (() => undefined))}
                                     />
-                                    <CustomTheming />
+                                    <CustomTheming/>
                                 </>
                             )}
 
-                        </>
+                        </Flex>
                     )}
                 />
             </Box>

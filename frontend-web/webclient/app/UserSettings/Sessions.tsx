@@ -115,7 +115,7 @@ export const Sessions: React.FunctionComponent<SessionsProps> = props => {
                 pageRenderer={pageRenderer}
             />
 
-            <Button color={"errorMain"} onClick={onInvalidateSessions} disabled={commandLoading}>
+            <Button color={"errorMain"} onClick={onInvalidateSessions} disabled={commandLoading} mt={"1em"}>
                 Invalidate all sessions
             </Button>
         </SettingsSection>

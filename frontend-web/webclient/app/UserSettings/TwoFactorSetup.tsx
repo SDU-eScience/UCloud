@@ -79,7 +79,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
                     app, available for both Android and iOS.
                 </p>
 
-                <Flex>
+                <Flex gap={"8px"}>
                     <ExternalLink
                         mr="4px"
                         href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us"
