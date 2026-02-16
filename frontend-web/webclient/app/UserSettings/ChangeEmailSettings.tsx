@@ -190,6 +190,9 @@ export const ChangeEmailSettings: React.FunctionComponent<ChangeEmailSettingsPro
         })();
     }, [commandLoading, settings, invokeCommand]);
 
+    if (commandLoading) {
+        return <HexSpin />
+    }
     return (
         <SettingsSection id="email" title="Email settings">
             <Box>

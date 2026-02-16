@@ -34,10 +34,11 @@ function UserSettings(): React.ReactNode {
     const sections: SettingsNavSection[] = mustActivate2fa ? [
         {id: "two-factor", label: "Two factor authentication"}
     ] : [
-        {id: "profile", label: "User details"},
-        {id: "organization", label: "Additional information"},
+        {id: "profile", label: "User information"},
+        {id: "organization", label: "Additional user information"},
         {id: "email", label: "Email settings"},
-        {id: "notifications", label: "Notifications"},
+        {id: "notifications", label: "Notification settings"},
+        {id: "job-report", label: "Job report settings"},
         {id: "two-factor", label: "Two factor authentication"},
         {id: "password", label: "Change password"},
         {id: "sessions", label: "Active sessions"},
@@ -50,7 +51,7 @@ function UserSettings(): React.ReactNode {
     />;
     return (
         <Flex alignItems="center" flexDirection="column">
-            <Box width="100%" maxWidth="980px">
+            <Box width="100%" maxWidth="1200px" padding={"8px"}>
                 <MainContainer
                     header={<Heading.h1>User settings</Heading.h1>}
                     main={(

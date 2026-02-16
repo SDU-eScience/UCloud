@@ -42,7 +42,7 @@ export function SettingsNavigator({sections}: SettingsNavigatorProps): React.Rea
     return (
         <Box>
             <Heading.h5>On this page</Heading.h5>
-            <Flex mt={12} flexWrap="wrap" justifyContent={"space-between"}>
+            <Flex mt={12} flexWrap="wrap" rowGap={"10px"} columnGap={"8px"}>
                 {sections.map(section => (
                     <a
                         key={section.id}
