@@ -634,7 +634,13 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	}
 	mountsByName := map[string][]mountEntry{}
 
-	fsIdx := 0
+	type unpreparedMount struct {
+		SubPath    string
+		ReadOnly   bool
+		UCloudPath string
+		Title      string
+	}
+	var unpreparedMounts []unpreparedMount
 	for _, param := range job.Specification.Resources {
 		if param.Type == orc.AppParameterValueTypeFile {
 			internalPath, ok, _ := filesystem.UCloudToInternal(param.Path)
@@ -647,47 +653,66 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 				continue
 			}
 
-			volName := fmt.Sprintf("ucloud-%d", fsIdx)
-			tplSpec.Volumes = append(tplSpec.Volumes, kvcore.Volume{
-				Name: volName,
-				VolumeSource: kvcore.VolumeSource{
-					PersistentVolumeClaim: &kvcore.PersistentVolumeClaimVolumeSource{
-						PersistentVolumeClaimVolumeSource: k8score.PersistentVolumeClaimVolumeSource{
-							ClaimName: shared.ServiceConfig.FileSystem.ClaimName,
-						},
+			unpreparedMounts = append(unpreparedMounts, unpreparedMount{
+				SubPath:    subpath,
+				ReadOnly:   param.ReadOnly,
+				UCloudPath: param.Path,
+			})
+		}
+	}
+
+	unpreparedMounts = append(unpreparedMounts, unpreparedMount{
+		SubPath:  shared.ExecutablesDir,
+		ReadOnly: true,
+		Title:    ".ucloud-exe",
+	})
+
+	fsIdx := 0
+	for _, param := range unpreparedMounts {
+		subpath := param.SubPath
+
+		volName := fmt.Sprintf("ucloud-%d", fsIdx)
+		tplSpec.Volumes = append(tplSpec.Volumes, kvcore.Volume{
+			Name: volName,
+			VolumeSource: kvcore.VolumeSource{
+				PersistentVolumeClaim: &kvcore.PersistentVolumeClaimVolumeSource{
+					PersistentVolumeClaimVolumeSource: k8score.PersistentVolumeClaimVolumeSource{
+						ClaimName: shared.ServiceConfig.FileSystem.ClaimName,
 					},
 				},
-			})
+			},
+		})
 
-			tplSpec.Domain.Devices.Filesystems = append(tplSpec.Domain.Devices.Filesystems, kvcore.Filesystem{
-				Name:     volName,
-				Virtiofs: &kvcore.FilesystemVirtiofs{},
-			})
+		tplSpec.Domain.Devices.Filesystems = append(tplSpec.Domain.Devices.Filesystems, kvcore.Filesystem{
+			Name:     volName,
+			Virtiofs: &kvcore.FilesystemVirtiofs{},
+		})
 
-			vm.Annotations[fmt.Sprintf("ucloud.dk/vmVolPath-%s", volName)] = subpath
-			vm.Annotations[fmt.Sprintf("ucloud.dk/vmVolReadOnly-%s", volName)] = fmt.Sprint(param.ReadOnly)
+		vm.Annotations[fmt.Sprintf("ucloud.dk/vmVolPath-%s", volName)] = subpath
+		vm.Annotations[fmt.Sprintf("ucloud.dk/vmVolReadOnly-%s", volName)] = fmt.Sprint(param.ReadOnly)
 
-			title := volName
-			{
-				comps := util.Components(param.Path)
-				compsLen := len(comps)
+		title := volName
+		if param.UCloudPath != "" {
+			comps := util.Components(param.UCloudPath)
+			compsLen := len(comps)
 
-				if compsLen == 1 {
-					drive, ok := filesystem.ResolveDrive(comps[0])
-					if ok {
-						title = strings.ReplaceAll(drive.Specification.Title, "Members' Files: ", "")
-					}
-				} else {
-					title = comps[compsLen-1]
+			if compsLen == 1 {
+				drive, ok := filesystem.ResolveDrive(comps[0])
+				if ok {
+					title = strings.ReplaceAll(drive.Specification.Title, "Members' Files: ", "")
 				}
+			} else {
+				title = comps[compsLen-1]
 			}
-
-			bucket, _ := mountsByName[title]
-			bucket = append(bucket, mountEntry{volName, subpath})
-			mountsByName[title] = bucket
-
-			fsIdx++
+		} else if param.Title != "" {
+			title = param.Title
 		}
+
+		bucket, _ := mountsByName[title]
+		bucket = append(bucket, mountEntry{volName, subpath})
+		mountsByName[title] = bucket
+
+		fsIdx++
 	}
 
 	for requestedTitle, bucket := range mountsByName {
