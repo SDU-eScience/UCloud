@@ -23,7 +23,9 @@ export enum Feature {
     JOB_RENAME,
     REORDER_APP_GROUP,
 
-    ALLOCATIONS_PAGE_IMPROVEMENTS
+    ALLOCATIONS_PAGE_IMPROVEMENTS,
+
+    APPLICATION_HISTORY
 }
 
 enum Environment {
@@ -132,6 +134,12 @@ const featureMap: Record<string, FeatureConfig> = {
         feature: Feature.API_TOKENS_PAGES,
         showWithFlag: allEnvironments,
         showWithoutFlag: allEnvironments
+    },
+
+    "application-history": {
+        feature: Feature.APPLICATION_HISTORY,
+        showWithFlag: allEnvironments,
+        showWithoutFlag: noEnvironments
     }
 };
 
