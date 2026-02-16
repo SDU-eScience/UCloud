@@ -380,6 +380,13 @@ func FilesCreateDownload(
 	actor rpc.Actor,
 	request fndapi.BulkRequest[fndapi.FindByStringId],
 ) (fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse], *util.HttpError) {
+	if actor.Project.Present {
+		_, isRestricted := policiesByProject(string(actor.Project.Value))[fndapi.RestrictDownloads.String()]
+		if isRestricted {
+			return fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse]{}, util.HttpErr(http.StatusForbidden, "This project does not allow downloads")
+		}
+	}
+
 	var result fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse]
 	var paths []string
 	for _, reqItem := range request.Items {

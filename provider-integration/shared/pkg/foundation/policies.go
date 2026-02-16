@@ -40,6 +40,26 @@ const (
 	PolicyPropertyEnumSet   PolicyPropertyType = "EnumSet"
 )
 
+// Policy "Name"s. Remember to edit here when adding or editing policies
+type PoliciesType string
+
+const (
+	RestrictApplications           PoliciesType = "RestrictApplications"
+	CutAndPaste                    PoliciesType = "CutAndPaste"
+	RestrictDownloads              PoliciesType = "RestrictDownloads"
+	RestrictIntegratedApplications PoliciesType = "RestrictIntegratedApplications"
+	RestrictInternetAccess         PoliciesType = "RestrictInternetAccess"
+	RestrictOrganizationMembers    PoliciesType = "RestrictOrganizationMembers"
+	RestrictProviderTransfers      PoliciesType = "RestrictProviderTransfers"
+	RestrictPublicIPs              PoliciesType = "RestrictPublicIPs"
+	RestrictPublicLinks            PoliciesType = "RestrictPublicLinks"
+	RestrictSourceIPRange          PoliciesType = "RestrictSourceIPRange"
+)
+
+func (t PoliciesType) String() string {
+	return string(t)
+}
+
 type PolicySpecification struct {
 	Schema     string                `json:"schema"`
 	Project    rpc.ProjectId         `json:"project"`
