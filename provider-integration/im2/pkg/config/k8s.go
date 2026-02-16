@@ -62,6 +62,24 @@ type KubernetesPublicLinkConfiguration struct {
 	Suffix  string
 }
 
+type KubernetesVirtualMachines struct {
+	Enabled bool
+	Storage struct {
+		Type         KubernetesVmVolMode
+		HostPath     string
+		StorageClass util.Option[string]
+	}
+}
+
+type KubernetesVmVolMode string
+
+const (
+	KubernetesVmVolHostPath KubernetesVmVolMode = "HostPath"
+	KubernetesVmVolCdi      KubernetesVmVolMode = "ContainerImporter"
+)
+
+var KubernetesVmVolHostModeOptions = []KubernetesVmVolMode{KubernetesVmVolHostPath}
+
 type KubernetesIntegratedTerminal struct {
 	Enabled bool
 }
@@ -99,8 +117,7 @@ type KubernetesCompute struct {
 	Ssh                             KubernetesSshConfiguration
 	Syncthing                       KubernetesSyncthingConfiguration
 	IntegratedTerminal              KubernetesIntegratedTerminal
-	VirtualMachineStorageClass      util.Option[string]
-	ImSourceCode                    util.Option[string]
+	VirtualMachines                 KubernetesVirtualMachines
 	Modules                         map[string]KubernetesModuleEntry
 	Inference                       KubernetesInferenceConfiguration
 }
@@ -209,7 +226,6 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 	computeNode := cfgutil.RequireChild(filePath, services, "compute", &success)
 	cfg.Compute.Namespace = cfgutil.OptionalChildText(filePath, services, "namespace", &success)
-	cfg.Compute.ImSourceCode = util.OptStringIfNotEmpty(cfgutil.OptionalChildText(filePath, computeNode, "imSourceCode", &success))
 
 	// NOTE(Dan): Default value was based on several tests on the current production environment. Results were very
 	// stable around 14.5MB/s. This result seems very low, but consistent. Thankfully, it is fairly rare that people
@@ -506,9 +522,29 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		cfg.Compute.IntegratedTerminal.Enabled = enabled && ok
 	}
 
-	vmStorageClass := cfgutil.OptionalChildText(filePath, computeNode, "virtualMachineStorageClass", &success)
-	if vmStorageClass != "" {
-		cfg.Compute.VirtualMachineStorageClass.Set(vmStorageClass)
+	vmNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "virtualMachines")
+	if vmNode != nil {
+		vms := &cfg.Compute.VirtualMachines
+
+		enabled, ok := cfgutil.OptionalChildBool(filePath, vmNode, "enabled")
+		vms.Enabled = enabled && ok
+
+		if vms.Enabled {
+			storageNode := cfgutil.RequireChild(filePath, vmNode, "storage", &success)
+			if storageNode != nil {
+				vms.Storage.Type = cfgutil.RequireChildEnum[KubernetesVmVolMode](filePath, storageNode, "type", KubernetesVmVolHostModeOptions, &success)
+
+				switch vms.Storage.Type {
+				case KubernetesVmVolHostPath:
+					vms.Storage.HostPath = cfgutil.RequireChildText(filePath, storageNode, "hostPath", &success)
+				case KubernetesVmVolCdi:
+					storageClass := cfgutil.OptionalChildText(filePath, storageNode, "storageClass", &success)
+					if storageClass != "" {
+						vms.Storage.StorageClass.Set(storageClass)
+					}
+				}
+			}
+		}
 	}
 
 	return success, cfg

@@ -18,7 +18,7 @@ import (
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	termio2 "ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/termio"
 	"ucloud.dk/shared/pkg/util"
 
 	orc "ucloud.dk/shared/pkg/orchestrators"
@@ -518,7 +518,7 @@ func LicenseBuildParameter(id string) string {
 }
 
 func licenseCliPrintHelp() {
-	f := termio2.Frame{}
+	f := termio.Frame{}
 
 	f.AppendTitle("License help")
 	f.AppendField("help", "Prints this help text")
@@ -559,7 +559,7 @@ func LicenseCli(args []string) {
 			return
 		}
 
-		table := &termio2.Table{}
+		table := &termio.Table{}
 		table.AppendHeader("Name")
 		table.AppendHeader("Address")
 		table.AppendHeader("Port")
@@ -645,6 +645,6 @@ func LicenseCli(args []string) {
 		licenseCliPrintHelp()
 
 	default:
-		termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Unknown command")
+		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Unknown command")
 	}
 }

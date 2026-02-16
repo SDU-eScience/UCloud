@@ -20,8 +20,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	cfg "ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/controller"
-	filesystem2 "ucloud.dk/pkg/integrations/k8s/filesystem"
-	shared2 "ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -31,7 +31,7 @@ var syncthingPorts = map[int]bool{}
 var syncthingPortsMutex = sync.Mutex{}
 var syncthingConfig cfg.KubernetesSyncthingConfiguration
 
-var syncthingDimensions = shared2.SchedulerDimensions{
+var syncthingDimensions = shared.SchedulerDimensions{
 	CpuMillis:     400,
 	MemoryInBytes: 1000 * 1000 * 1000 * 2,
 	Gpu:           0,
@@ -42,7 +42,7 @@ const syncthingAppName = "syncthing"
 func initSyncthing() {
 	syncthingConfig = ServiceConfig.Compute.Syncthing
 
-	shared2.RegisterJobDimensionMapper(syncthingAppName, func(job *orc.Job) shared2.SchedulerDimensions {
+	shared.RegisterJobDimensionMapper(syncthingAppName, func(job *orc.Job) shared.SchedulerDimensions {
 		return syncthingDimensions
 	})
 
@@ -85,12 +85,12 @@ func initSyncthingFolder(owner orc.ResourceOwner) (string, string, *util.HttpErr
 }
 
 func initSyncthingFolderEx(owner orc.ResourceOwner, init bool) (string, string, *util.HttpError) {
-	internalFolder, drive, err := filesystem2.InitializeMemberFiles(owner.CreatedBy, util.OptNone[string]())
+	internalFolder, drive, err := filesystem.InitializeMemberFiles(owner.CreatedBy, util.OptNone[string]())
 	if err != nil {
 		return "", "", err
 	}
 
-	ucloudPath, ok := filesystem2.InternalToUCloudWithDrive(drive, internalFolder)
+	ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, internalFolder)
 	if !ok {
 		return "", "", util.ServerHttpError("Could not find home folder for syncthing")
 	}
@@ -98,12 +98,12 @@ func initSyncthingFolderEx(owner orc.ResourceOwner, init bool) (string, string, 
 	internalSyncthing := filepath.Join(internalFolder, "Syncthing")
 	ucloudSyncthing := filepath.Join(ucloudPath, "Syncthing")
 
-	fd, ok := filesystem2.OpenFile(internalSyncthing, unix.O_RDONLY, 0)
+	fd, ok := filesystem.OpenFile(internalSyncthing, unix.O_RDONLY, 0)
 	if ok {
 		util.SilentClose(fd)
 	} else {
 		if init {
-			_ = filesystem2.DoCreateFolder(internalSyncthing)
+			_ = filesystem.DoCreateFolder(internalSyncthing)
 		}
 	}
 	return internalSyncthing, ucloudSyncthing, nil
@@ -167,7 +167,7 @@ func syncthingValidateConfiguration(job *orc.Job, configuration json.RawMessage)
 func syncthingResetConfiguration(job *orc.Job, configuration json.RawMessage) (json.RawMessage, *util.HttpError) {
 	internal, _, err := initSyncthingFolder(job.Owner)
 	if err == nil {
-		_ = filesystem2.DoDeleteFile(internal)
+		_ = filesystem.DoDeleteFile(internal)
 		_, _, _ = initSyncthingFolder(job.Owner)
 	} else {
 		return json.RawMessage{}, util.ServerHttpError("failed to reset configuration")
@@ -193,7 +193,7 @@ func syncthingShouldRun(job *orc.Job, configuration json.RawMessage) bool {
 
 	if len(config.Folders) > 0 && len(config.Devices) > 0 {
 		for _, folder := range config.Folders {
-			driveId, ok := filesystem2.DriveIdFromUCloudPath(folder.UCloudPath)
+			driveId, ok := filesystem.DriveIdFromUCloudPath(folder.UCloudPath)
 			if !ok {
 				return false
 			}
@@ -250,14 +250,14 @@ func syncthingMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage
 		log.Warn("Could not find syncthing folder: %v", err)
 	} else {
 		// Write configuration to filesystem for the job to consume
-		fd, ok := filesystem2.OpenFile(filepath.Join(internalSyncthing, "ucloud_config.json"), unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0660)
+		fd, ok := filesystem.OpenFile(filepath.Join(internalSyncthing, "ucloud_config.json"), unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0660)
 		if ok {
 			normalizedConfig, _ := json.Marshal(config)
 			_, _ = fd.Write(normalizedConfig)
 			util.SilentClose(fd)
 		}
 
-		fd, ok = filesystem2.OpenFile(filepath.Join(internalSyncthing, "job_id.txt"), unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0660)
+		fd, ok = filesystem.OpenFile(filepath.Join(internalSyncthing, "job_id.txt"), unix.O_WRONLY|unix.O_CREAT|unix.O_TRUNC, 0660)
 		if ok {
 			_, _ = fd.Write([]byte(job.Id))
 			util.SilentClose(fd)
@@ -282,7 +282,7 @@ func syncthingMutatePod(job *orc.Job, configuration json.RawMessage, pod *core.P
 				return err
 			}
 
-			internalSyncthingSubPath, ok := strings.CutPrefix(internalSyncthing, shared2.ServiceConfig.FileSystem.MountPoint+"/")
+			internalSyncthingSubPath, ok := strings.CutPrefix(internalSyncthing, shared.ServiceConfig.FileSystem.MountPoint+"/")
 			if !ok {
 				return util.ServerHttpError("internal error")
 			}
@@ -380,7 +380,7 @@ func syncthingMutateService(job *orc.Job, configuration json.RawMessage, unrelat
 		return util.ServerHttpError("no syncthing port")
 	}
 
-	serviceLabel := shared2.JobIdLabel(job.Id)
+	serviceLabel := shared.JobIdLabel(job.Id)
 	service := &core.Service{
 		ObjectMeta: meta.ObjectMeta{
 			Name: fmt.Sprintf("j-%v-syncthing", job.Id),

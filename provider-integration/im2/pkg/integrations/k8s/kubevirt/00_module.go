@@ -16,12 +16,12 @@ import (
 	ws "github.com/gorilla/websocket"
 	k8sadmission "k8s.io/api/admission/v1"
 	k8score "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kvcore "kubevirt.io/api/core/v1"
 	kvclient "kubevirt.io/client-go/kubecli"
 	kvapi "kubevirt.io/client-go/kubevirt/typed/core/v1"
-	kvcdi "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 	cfg "ucloud.dk/pkg/config"
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
@@ -44,7 +44,23 @@ func Init() ctrl.JobsService {
 
 	Namespace = ServiceConfig.Compute.Namespace
 
-	go vmiFsMutator()
+	vms := &ServiceConfig.Compute.VirtualMachines
+	if vms.Enabled {
+		if util.DevelopmentModeEnabled() {
+			Enabled = true // run in stand-alone mode
+		} else {
+			go vmiFsMutator()
+		}
+
+		switch vms.Storage.Type {
+		case cfg.KubernetesVmVolHostPath:
+			initDisks()
+
+		case cfg.KubernetesVmVolCdi:
+			log.Fatal("Not supported yet")
+			panic("Not supported yet")
+		}
+	}
 
 	return ctrl.JobsService{
 		Terminate:                terminate,
@@ -59,6 +75,14 @@ func Init() ctrl.JobsService {
 		Unsuspend:                unsuspend,
 		HandleBuiltInVnc:         handleVnc,
 	}
+}
+
+func VmiStandaloneMutator() {
+	shared.InitClients()
+	KubevirtClient = shared.KubevirtClient
+	Namespace = "ucloud-apps" // TODO
+
+	vmiFsMutator()
 }
 
 func vmiFsMutator() {
@@ -346,10 +370,11 @@ func handleShell(session *ctrl.ShellSession, cols int, rows int) {
 func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 	name := vmName(request.Job.Id, 0)
 	err := KubevirtClient.VirtualMachine(Namespace).Delete(context.TODO(), name, k8smeta.DeleteOptions{})
-	if err != nil {
+	if err != nil && !k8serrors.IsNotFound(err) {
 		log.Info("Failed to delete VM: %v", err)
 		return util.ServerHttpError("Failed to delete VM")
 	}
+	diskCleanup(request.Job)
 	return nil
 }
 
@@ -369,7 +394,22 @@ func suspend(job orc.Job) *util.HttpError {
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
-	return nil
+	return []orc.ApplicationParameter{
+		{
+			Type:     orc.ApplicationParameterTypeInteger,
+			Name:     vmDiskSizeParameter,
+			Optional: false,
+			Title:    "Disk size (GiB)",
+			Description: "Size of the primary disk in the machine, used for the operating system and additional " +
+				"software. You can use folders from UCloud if you need to store more data. Must be between " +
+				"15GiB and 2000GiB.",
+			MinValue:     15,
+			MaxValue:     2000,
+			Step:         1,
+			UnitName:     "GiB",
+			DefaultValue: json.RawMessage("50"),
+		},
+	}
 }
 
 func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, *util.HttpError) {
@@ -493,39 +533,24 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	strategy := kvcore.RunStrategyAlways
 	vm.Spec.RunStrategy = &strategy
 
-	image := job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Image
-	baseImageSource := &kvcdi.DataVolumeSource{}
-	if strings.HasPrefix(image, "http://") || strings.HasPrefix(image, "https://") {
-		baseImageSource.HTTP = &kvcdi.DataVolumeSourceHTTP{
-			URL: image,
-		}
-	} else {
-		// TODO
-		baseImageSource.PVC = &kvcdi.DataVolumeSourcePVC{
-			Namespace: Namespace,
-			Name:      image,
+	primaryDiskClaimName := nameOfVm
+
+	app := &job.Status.ResolvedApplication.Value
+	parametersAndValues := ctrl.JobFindParamAndValues(
+		job,
+		&app.Invocation,
+		requestDynamicParameters(job.Owner, app),
+	)
+	diskSizeParam, ok := parametersAndValues[vmDiskSizeParameter]
+	diskSize := 50
+	if ok {
+		intVal, ok := diskSizeParam.Value.Value.(float64)
+		if ok {
+			diskSize = int(intVal)
 		}
 	}
 
-	vm.Spec.DataVolumeTemplates = []kvcore.DataVolumeTemplateSpec{
-		{
-			ObjectMeta: k8smeta.ObjectMeta{
-				Name: vm.Name,
-			},
-			Spec: kvcdi.DataVolumeSpec{
-				Source: baseImageSource,
-				Storage: &kvcdi.StorageSpec{
-					AccessModes: []k8score.PersistentVolumeAccessMode{k8score.ReadWriteOnce},
-					Resources: k8score.ResourceRequirements{
-						Requests: k8score.ResourceList{
-							k8score.ResourceStorage: *resource.NewScaledQuantity(5, resource.Giga),
-						},
-					},
-					StorageClassName: shared.ServiceConfig.Compute.VirtualMachineStorageClass.GetPtrOrNil(),
-				},
-			},
-		},
-	}
+	diskSize = min(max(15, diskSize), 2000)
 
 	vm.Spec.Template = &kvcore.VirtualMachineInstanceTemplateSpec{
 		Spec: kvcore.VirtualMachineInstanceSpec{
@@ -590,8 +615,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 				{
 					Name: "base",
 					VolumeSource: kvcore.VolumeSource{
-						DataVolume: &kvcore.DataVolumeSource{
-							Name: vm.Name,
+						PersistentVolumeClaim: &kvcore.PersistentVolumeClaimVolumeSource{
+							PersistentVolumeClaimVolumeSource: k8score.PersistentVolumeClaimVolumeSource{
+								ClaimName: primaryDiskClaimName,
+							},
 						},
 					},
 				},
@@ -607,7 +634,13 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	}
 	mountsByName := map[string][]mountEntry{}
 
-	fsIdx := 0
+	type unpreparedMount struct {
+		SubPath    string
+		ReadOnly   bool
+		UCloudPath string
+		Title      string
+	}
+	var unpreparedMounts []unpreparedMount
 	for _, param := range job.Specification.Resources {
 		if param.Type == orc.AppParameterValueTypeFile {
 			internalPath, ok, _ := filesystem.UCloudToInternal(param.Path)
@@ -620,47 +653,66 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 				continue
 			}
 
-			volName := fmt.Sprintf("ucloud-%d", fsIdx)
-			tplSpec.Volumes = append(tplSpec.Volumes, kvcore.Volume{
-				Name: volName,
-				VolumeSource: kvcore.VolumeSource{
-					PersistentVolumeClaim: &kvcore.PersistentVolumeClaimVolumeSource{
-						PersistentVolumeClaimVolumeSource: k8score.PersistentVolumeClaimVolumeSource{
-							ClaimName: shared.ServiceConfig.FileSystem.ClaimName,
-						},
+			unpreparedMounts = append(unpreparedMounts, unpreparedMount{
+				SubPath:    subpath,
+				ReadOnly:   param.ReadOnly,
+				UCloudPath: param.Path,
+			})
+		}
+	}
+
+	unpreparedMounts = append(unpreparedMounts, unpreparedMount{
+		SubPath:  shared.ExecutablesDir,
+		ReadOnly: true,
+		Title:    ".ucloud-exe",
+	})
+
+	fsIdx := 0
+	for _, param := range unpreparedMounts {
+		subpath := param.SubPath
+
+		volName := fmt.Sprintf("ucloud-%d", fsIdx)
+		tplSpec.Volumes = append(tplSpec.Volumes, kvcore.Volume{
+			Name: volName,
+			VolumeSource: kvcore.VolumeSource{
+				PersistentVolumeClaim: &kvcore.PersistentVolumeClaimVolumeSource{
+					PersistentVolumeClaimVolumeSource: k8score.PersistentVolumeClaimVolumeSource{
+						ClaimName: shared.ServiceConfig.FileSystem.ClaimName,
 					},
 				},
-			})
+			},
+		})
 
-			tplSpec.Domain.Devices.Filesystems = append(tplSpec.Domain.Devices.Filesystems, kvcore.Filesystem{
-				Name:     volName,
-				Virtiofs: &kvcore.FilesystemVirtiofs{},
-			})
+		tplSpec.Domain.Devices.Filesystems = append(tplSpec.Domain.Devices.Filesystems, kvcore.Filesystem{
+			Name:     volName,
+			Virtiofs: &kvcore.FilesystemVirtiofs{},
+		})
 
-			vm.Annotations[fmt.Sprintf("ucloud.dk/vmVolPath-%s", volName)] = subpath
-			vm.Annotations[fmt.Sprintf("ucloud.dk/vmVolReadOnly-%s", volName)] = fmt.Sprint(param.ReadOnly)
+		vm.Annotations[fmt.Sprintf("ucloud.dk/vmVolPath-%s", volName)] = subpath
+		vm.Annotations[fmt.Sprintf("ucloud.dk/vmVolReadOnly-%s", volName)] = fmt.Sprint(param.ReadOnly)
 
-			title := volName
-			{
-				comps := util.Components(param.Path)
-				compsLen := len(comps)
+		title := volName
+		if param.UCloudPath != "" {
+			comps := util.Components(param.UCloudPath)
+			compsLen := len(comps)
 
-				if compsLen == 1 {
-					drive, ok := filesystem.ResolveDrive(comps[0])
-					if ok {
-						title = strings.ReplaceAll(drive.Specification.Title, "Members' Files: ", "")
-					}
-				} else {
-					title = comps[compsLen-1]
+			if compsLen == 1 {
+				drive, ok := filesystem.ResolveDrive(comps[0])
+				if ok {
+					title = strings.ReplaceAll(drive.Specification.Title, "Members' Files: ", "")
 				}
+			} else {
+				title = comps[compsLen-1]
 			}
-
-			bucket, _ := mountsByName[title]
-			bucket = append(bucket, mountEntry{volName, subpath})
-			mountsByName[title] = bucket
-
-			fsIdx++
+		} else if param.Title != "" {
+			title = param.Title
 		}
+
+		bucket, _ := mountsByName[title]
+		bucket = append(bucket, mountEntry{volName, subpath})
+		mountsByName[title] = bucket
+
+		fsIdx++
 	}
 
 	for requestedTitle, bucket := range mountsByName {
@@ -702,7 +754,21 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	if hasExistingVm {
 		_, err = KubevirtClient.VirtualMachine(Namespace).Update(context.TODO(), vm, k8smeta.UpdateOptions{})
 	} else {
-		_, err = KubevirtClient.VirtualMachine(Namespace).Create(context.TODO(), vm, k8smeta.CreateOptions{})
+		vm, localErr := KubevirtClient.VirtualMachine(Namespace).Create(context.TODO(), vm, k8smeta.CreateOptions{})
+		err = localErr
+		if err == nil {
+			ownerReference := k8smeta.OwnerReference{
+				APIVersion: "kubevirt.io/v1",
+				Kind:       "VirtualMachine",
+				Name:       vm.Name,
+				UID:        vm.UID,
+			}
+
+			herr := diskPrepareForJob(job, primaryDiskClaimName, ownerReference, diskSize)
+			if herr != nil {
+				err = herr.AsError()
+			}
+		}
 	}
 	if err != nil {
 		// TODO
@@ -711,3 +777,5 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 		log.Info("Failed to create VM: %v", err)
 	}
 }
+
+const vmDiskSizeParameter = "diskSize"
