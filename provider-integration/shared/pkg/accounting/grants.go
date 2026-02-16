@@ -286,6 +286,7 @@ type Period struct {
 }
 
 type GrantStatus struct {
+	Submitter          []fnd.OptionalUserInfo    `json:"submitter"`
 	OverallState       GrantApplicationState     `json:"overallState"`
 	StateBreakdown     []GrantGiverApprovalState `json:"stateBreakdown"`
 	Comments           []GrantComment            `json:"comments"`
