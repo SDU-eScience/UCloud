@@ -629,16 +629,19 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	tplSpec := &vm.Spec.Template.Spec
 
 	type mountEntry struct {
-		volName string
-		subpath string
+		volName     string
+		subpath     string
+		mountFolder string
+		title       string
 	}
 	mountsByName := map[string][]mountEntry{}
 
 	type unpreparedMount struct {
-		SubPath    string
-		ReadOnly   bool
-		UCloudPath string
-		Title      string
+		SubPath     string
+		ReadOnly    bool
+		UCloudPath  string
+		Title       string
+		MountFolder string
 	}
 	var unpreparedMounts []unpreparedMount
 	for _, param := range job.Specification.Resources {
@@ -662,9 +665,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	}
 
 	unpreparedMounts = append(unpreparedMounts, unpreparedMount{
-		SubPath:  shared.ExecutablesDir,
-		ReadOnly: true,
-		Title:    ".ucloud-exe",
+		SubPath:     shared.ExecutablesDir,
+		ReadOnly:    true,
+		Title:       "ucloud",
+		MountFolder: "/opt",
 	})
 
 	fsIdx := 0
@@ -709,14 +713,15 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 		}
 
 		bucket, _ := mountsByName[title]
-		bucket = append(bucket, mountEntry{volName, subpath})
-		mountsByName[title] = bucket
+		bucket = append(bucket, mountEntry{volName: volName, subpath: subpath, mountFolder: param.MountFolder, title: title})
+		mountsByName[param.MountFolder+title] = bucket
 
 		fsIdx++
 	}
 
-	for requestedTitle, bucket := range mountsByName {
+	for _, bucket := range mountsByName {
 		useSuffix := len(bucket) > 1
+		requestedTitle := bucket[0].title
 
 		// NOTE(Dan): Must remain consistent with container mount logic for overall consistency
 		slices.SortFunc(bucket, func(a, b mountEntry) int {
@@ -731,8 +736,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 				title = requestedTitle
 			}
 
+			mountPath := ""
+			if bucket[0].mountFolder == "" {
+				mountPath = filepath.Join("/work", title)
+			} else {
+				mountPath = filepath.Join(bucket[0].mountFolder, title)
+			}
 			cinit.Mounts = append(cinit.Mounts, []string{
-				item.volName, fmt.Sprintf("/work/%s", title), "virtiofs", "defaults", "0", "0",
+				item.volName, mountPath, "virtiofs", "defaults", "0", "0",
 			})
 		}
 	}
