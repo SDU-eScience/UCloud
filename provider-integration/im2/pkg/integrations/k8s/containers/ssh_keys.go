@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
-	shared2 "ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 )
 
@@ -18,7 +18,7 @@ func injectSshKeys(jobId string, pod *core.Pod, userContainer *core.Container) {
 		return
 	}
 
-	port := shared2.GetAssignedSshPort(job)
+	port := shared.GetAssignedSshPort(job)
 	if port.Present {
 		// TODO This is called once for every rank which is not needed
 		keyPage, err := orc.JobsControlBrowseSshKeys.Invoke(orc.JobsControlBrowseSshKeysRequest{JobId: job.Id})
@@ -76,7 +76,7 @@ func injectSshKeys(jobId string, pod *core.Pod, userContainer *core.Container) {
 				sshContainer.Command = []string{"/bin/sh", "-c", bashScript.String()}
 			}
 
-			sshConfig := shared2.ServiceConfig.Compute.Ssh
+			sshConfig := shared.ServiceConfig.Compute.Ssh
 			hostname := sshConfig.Hostname.GetOrDefault(sshConfig.IpAddress)
 			userContainer.Env = append(userContainer.Env, core.EnvVar{
 				Name:  "UCLOUD_PUBLIC_SSH",

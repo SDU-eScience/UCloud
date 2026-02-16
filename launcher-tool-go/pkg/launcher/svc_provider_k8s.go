@@ -25,6 +25,9 @@ var k8sProviderConfig []byte
 //go:embed config/k8s/init.sh
 var k8sInitScript []byte
 
+//go:embed config/k8s/kubevirt_init.sh
+var k8sKubevirtInitScript []byte
+
 func ProviderK8s() {
 	provider := Service{
 		Name:     "k8s",
@@ -252,6 +255,7 @@ func ProviderK8s() {
 				Mount(kubelet, "/var/lib/kubelet"),
 				Mount(etc, "/etc/rancher"),
 				Mount(storage, "/mnt/storage"),
+				Mount(imConfig, "/etc/ucloud"),
 			},
 		})
 	}
@@ -303,6 +307,60 @@ func ProviderK8s() {
 			Volumes: []string{
 				Mount(vol, "/root/.ollama"),
 			},
+		})
+	}
+
+	{
+		kubeVirt := Service{
+			Name:      "kubevirt",
+			Title:     "KubeVirt",
+			Flags:     0,
+			UiParent:  UiParentK8s,
+			Feature:   FeatureAddonKubeVirt,
+			DependsOn: util.OptValue(FeatureProviderK8s),
+		}
+
+		// Hack because it is not currently possible to have a service without a container.
+		AddService(kubeVirt, DockerComposeService{
+			Image:    "alpine:3",
+			Hostname: "kubevirt",
+			Restart:  "always",
+			Command:  []string{"sleep", "inf"},
+		})
+
+		AddStartupHook(kubeVirt, func() {
+			ComposeExec(
+				"Waiting for K3s to be ready",
+				"k3s",
+				[]string{"sh", "-c", "until kubectl get nodes >/dev/null 2>&1; do sleep 1; done"},
+				ExecuteOptions{},
+			)
+
+			ComposeExec(
+				"Installing KubeVirt",
+				"k3s",
+				[]string{
+					"sh",
+					"-c",
+					`
+						set -e
+						mount --make-rshared /var/run
+						mount --make-rshared /
+					`,
+				},
+				ExecuteOptions{},
+			)
+
+			ComposeExec(
+				"Installing KubeVirt",
+				provider.Name,
+				[]string{
+					"sh",
+					"-c",
+					string(k8sKubevirtInitScript),
+				},
+				ExecuteOptions{},
+			)
 		})
 	}
 }

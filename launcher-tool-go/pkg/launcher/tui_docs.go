@@ -14,6 +14,12 @@ var k8sOllamaShort []byte
 //go:embed docs/k8s-ollama-long.md
 var k8sOllamaLong []byte
 
+//go:embed docs/k8s-kubevirt-short.md
+var k8sKubeVirtShort []byte
+
+//go:embed docs/k8s-kubevirt-long.md
+var k8sKubeVirtLong []byte
+
 //go:embed docs/core-short.md
 var coreShort []byte
 
@@ -58,6 +64,7 @@ var DocumentationShort = map[string]string{
 	"k8s":          string(k8sShort),
 	"k3s":          string(k3sShort),
 	"ollama":       string(k8sOllamaShort),
+	"kubevirt":     string(k8sKubeVirtShort),
 	"k8s-postgres": string(pgShort),
 }
 
@@ -70,6 +77,7 @@ var documentationLongRaw = map[string]string{
 	"k8s":          string(k8sLong),
 	"k3s":          string(k3sLong),
 	"ollama":       string(k8sOllamaLong),
+	"kubevirt":     string(k8sKubeVirtLong),
 	"k8s-postgres": string(pgLong),
 }
 
