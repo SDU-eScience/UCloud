@@ -16,7 +16,7 @@ configuration:
         checked then all integrated applications can be run and the
         allow-list is ignored.
     - name: "allowList"
-      type: TextList
+      type: EnumSet
       title: "Allow-list"
       description: >
         List of applications which are explicitly allowed.

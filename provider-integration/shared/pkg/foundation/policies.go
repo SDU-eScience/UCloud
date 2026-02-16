@@ -23,7 +23,7 @@ type PolicyProperty struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 
-	Options []string `json:"options,omitempty"` // Enum
+	Options []string `json:"options,omitempty"` // Enum, EnumSet
 }
 
 type PolicyPropertyType string
@@ -37,6 +37,7 @@ const (
 	PolicyPropertyProviders PolicyPropertyType = "Providers"
 	PolicyPropertyBool      PolicyPropertyType = "Bool"
 	PolicyPropertyTextList  PolicyPropertyType = "TextList"
+	PolicyPropertyEnumSet   PolicyPropertyType = "EnumSet"
 )
 
 type PolicySpecification struct {
@@ -54,7 +55,7 @@ type PolicyPropertyValue struct {
 	Int          int      `json:"int,omitempty"`          // Int
 	Float        float64  `json:"float,omitempty"`        // Float
 	Bool         bool     `json:"bool,omitempty"`         // Bool
-	TextElements []string `json:"textElements,omitempty"` // TextList
+	TextElements []string `json:"textElements,omitempty"` // TextList, EnumSet
 }
 
 type Policy struct {

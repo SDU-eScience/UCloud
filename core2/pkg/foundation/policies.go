@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"sync"
 
+	"golang.org/x/exp/maps"
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
 	db "ucloud.dk/shared/pkg/database"
@@ -26,19 +27,19 @@ type AssociatedPolicies struct {
 var policySchemas map[string]fndapi.PolicySchema
 
 func initPolicies() {
-	populatePolicySchemas()
+	policyPopulateSchemaCache()
 	loadProjectPoliciesFromDB()
 
 	fndapi.PoliciesRetrieve.Handler(func(info rpc.RequestInfo, request util.Empty) (map[string]fndapi.Policy, *util.HttpError) {
-		return retrievePolicies(info.Actor)
+		return policiesRetrieve(info.Actor)
 	})
 
 	fndapi.PoliciesUpdate.Handler(func(info rpc.RequestInfo, request fndapi.PoliciesUpdateRequest) (util.Empty, *util.HttpError) {
-		return updatePolicies(info.Actor, request)
+		return policiesUpdate(info.Actor, request)
 	})
 }
 
-func populatePolicySchemas() {
+func policyPopulateSchemaCache() {
 	policies := pullProjectPolicies()
 	policySchemas = make(map[string]fndapi.PolicySchema, len(policies))
 	for _, policy := range policies {
@@ -64,13 +65,13 @@ func populatePolicySchemas() {
 func loadProjectPoliciesFromDB() {
 	db.NewTx0(func(tx *db.Transaction) {
 		rows := db.Select[struct {
-			ProjectId      string
-			PolicyName     string
-			PolicyProperty string
+			ProjectId        string
+			PolicyName       string
+			PolicyProperties string
 		}](
 			tx,
 			`
-				select * 
+				select project_id, policy_name, policy_properties
 				from project.policies
 				order by project_id
 		    `,
@@ -86,9 +87,9 @@ func loadProjectPoliciesFromDB() {
 				policies = &AssociatedPolicies{EnabledPolices: map[string]fndapi.PolicySpecification{}}
 			}
 			specification := fndapi.PolicySpecification{}
-			err := json.Unmarshal([]byte(row.PolicyProperty), &specification)
+			err := json.Unmarshal([]byte(row.PolicyProperties), &specification)
 			if err != nil {
-				log.Fatal("Error loading policy document ", row.PolicyProperty, ": ", err)
+				log.Fatal("Error loading policy document %v : %v", row.PolicyProperties, err)
 			}
 			policies.EnabledPolices[row.PolicyName] = specification
 		}
@@ -97,7 +98,7 @@ func loadProjectPoliciesFromDB() {
 	})
 }
 
-func retrievePolicies(actor rpc.Actor) (map[string]fndapi.Policy, *util.HttpError) {
+func policiesRetrieve(actor rpc.Actor) (map[string]fndapi.Policy, *util.HttpError) {
 	if !actor.Project.Present {
 		return nil, util.HttpErr(http.StatusBadRequest, "Polices only applicable to projects")
 	}
@@ -108,7 +109,7 @@ func retrievePolicies(actor rpc.Actor) (map[string]fndapi.Policy, *util.HttpErro
 	result := make(map[string]fndapi.Policy, len(policySchemas))
 
 	projectPolicies.Mu.RLock()
-	policies := projectPolicies.PoliciesByProject[string(actor.Project.Value)].EnabledPolices
+	policies := maps.Clone(projectPolicies.PoliciesByProject[string(actor.Project.Value)].EnabledPolices)
 	projectPolicies.Mu.RUnlock()
 	for name, schema := range policySchemas {
 
@@ -129,7 +130,7 @@ type SimplePolicyProperty struct {
 	PropertyValue any                       `yaml:"property_value"`
 }
 
-func updatePolicies(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util.Empty, *util.HttpError) {
+func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util.Empty, *util.HttpError) {
 	if !actor.Project.Present {
 		return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Polices only applicable to projects")
 	}
@@ -137,86 +138,95 @@ func updatePolicies(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 		return util.Empty{}, util.HttpErr(http.StatusForbidden, "Only PIs may update the policies")
 	}
 
+	filteredUpdates := map[string]map[string]fndapi.PolicySpecification{}
+	for _, specification := range request.UpdatedPolicies {
+		projectId := string(specification.Project)
+		filteredUpdates[projectId][specification.Schema] = specification
+	}
+
 	db.NewTx0(func(tx *db.Transaction) {
 		b := db.BatchNew(tx)
-		for _, specification := range request.UpdatedPolicies {
-			_, ok := policySchemas[specification.Schema]
-			//When trying to update a schema that does not exist, we just skip it
-			if !ok {
-				log.Debug("Unknown Schema ", specification.Schema)
-				continue
-			}
-			projectId := specification.Project
-
-			isEnabled := false
-			for _, property := range specification.Properties {
-				if property.Name == "enabled" {
-					isEnabled = property.Bool
+		for projectId, updates := range filteredUpdates {
+			for _, specification := range updates {
+				_, ok := policySchemas[specification.Schema]
+				//When trying to update a schema that does not exist, we just skip it
+				if !ok {
+					log.Debug("Unknown Schema ", specification.Schema)
+					continue
 				}
-			}
 
-			//If the policy is not enabled we need to delete it form the DB.
-			//Else we need to insert or update already existing project policy
-			if !isEnabled {
-				db.BatchExec(
-					b,
-					`
+				isEnabled := false
+				for _, property := range specification.Properties {
+					if property.Name == "enabled" {
+						isEnabled = property.Bool
+					}
+				}
+
+				//If the policy is not enabled we need to delete it form the DB.
+				//Else we need to insert or update already existing project policy
+				if !isEnabled {
+					db.BatchExec(
+						b,
+						`
 						delete from project.policies 
 					    where project_id = :project_id and policy_name = :policy_name
 				    `,
-					db.Params{
-						"project_id":  projectId,
-						"policy_name": specification.Schema,
-					},
-				)
-			} else {
-				properties, err := json.Marshal(specification.Properties)
-				if err != nil {
-					log.Debug("Error marshalling policy document ", specification.Schema, " ", specification.Properties)
-					continue
-				}
-				db.BatchExec(
-					b,
-					`
+						db.Params{
+							"project_id":  projectId,
+							"policy_name": specification.Schema,
+						},
+					)
+				} else {
+					properties, err := json.Marshal(specification.Properties)
+					if err != nil {
+						log.Debug("Error marshalling policy document ", specification.Schema, " ", specification.Properties)
+						continue
+					}
+					db.BatchExec(
+						b,
+						`
 					insert into project.policies (policy_name, policy_property, project_id)
 					values (:policy_name, :policy_properties, :project_id)
 					on conflict (policy_name, project_id) do 
 						update set policy_property = excluded.policy_property,
 			    `,
-					db.Params{
-						"policy_name":       specification.Schema,
-						"policy_properties": properties,
-						"project_id":        projectId,
-					},
-				)
+						db.Params{
+							"policy_name":       specification.Schema,
+							"policy_properties": properties,
+							"project_id":        projectId,
+						},
+					)
+				}
 			}
 		}
 		db.BatchSend(b)
 
 		//Updating cache
 		projectPolicies.Mu.Lock()
-		for _, specification := range request.UpdatedPolicies {
-			isEnabled := false
-			for _, property := range specification.Properties {
-				if property.Name == "enabled" {
-					isEnabled = property.Bool
+		for _, updates := range filteredUpdates {
+			for _, specification := range updates {
+				isEnabled := false
+				for _, property := range specification.Properties {
+					if property.Name == "enabled" {
+						isEnabled = property.Bool
+					}
 				}
-			}
-			projectId := string(specification.Project)
-			if !isEnabled {
-				policies, ok := projectPolicies.PoliciesByProject[projectId]
-				//If no policies are enabled for the project then just skip the deletion
-				if !ok {
-					continue
+				projectId := string(specification.Project)
+				if !isEnabled {
+					policies, ok := projectPolicies.PoliciesByProject[projectId]
+					//If no policies are enabled for the project then just skip the deletion
+					if !ok {
+						continue
+					}
+					policies.EnabledPolices[specification.Schema] = fndapi.PolicySpecification{}
+				} else {
+					policies, ok := projectPolicies.PoliciesByProject[projectId]
+					if !ok {
+						policies = &AssociatedPolicies{EnabledPolices: map[string]fndapi.PolicySpecification{}}
+						projectPolicies.PoliciesByProject[projectId] = policies
+					}
+					policies.EnabledPolices[specification.Schema] = specification
 				}
-				policies.EnabledPolices[specification.Schema] = fndapi.PolicySpecification{}
-			} else {
-				policies, ok := projectPolicies.PoliciesByProject[projectId]
-				if !ok {
-					policies = &AssociatedPolicies{EnabledPolices: map[string]fndapi.PolicySpecification{}}
-					projectPolicies.PoliciesByProject[projectId] = policies
-				}
-				policies.EnabledPolices[specification.Schema] = specification
 			}
 		}
 		projectPolicies.Mu.Unlock()
