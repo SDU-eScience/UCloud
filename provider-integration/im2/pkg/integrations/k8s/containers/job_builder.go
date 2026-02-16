@@ -350,7 +350,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	// -----------------------------------------------------------------------------------------------------------------
 	spec.InitContainers = append(spec.InitContainers, core.Container{
 		Name:  "ucviz",
-		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.4.107",
+		Image: "alpine:latest",
 	})
 
 	ucvizContainer := &spec.InitContainers[len(spec.InitContainers)-1]
@@ -359,56 +359,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		MountPath: "/opt/ucloud",
 	})
 
-	ucvizContainer.Command = []string{"bash", "-c", "cp /usr/bin/ucmetrics /opt/ucloud/ucmetrics ; cp /usr/bin/ucviz /opt/ucloud/ucviz"}
+	ucvizContainer.Command = []string{"sh", "-c", "cp /mnt/exe/ucmetrics /opt/ucloud/ucmetrics ; cp /mnt/exe/ucviz /opt/ucloud/ucviz"}
 
-	if util.DevelopmentModeEnabled() && ServiceConfig.Compute.ImSourceCode.Present {
-		ucvizContainer.Image = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.3.3"
-		ucvizContainer.VolumeMounts = append(ucvizContainer.VolumeMounts, core.VolumeMount{
-			Name:      "ucloud-filesystem",
-			ReadOnly:  false,
-			MountPath: "/opt/source",
-			SubPath:   ServiceConfig.Compute.ImSourceCode.Value,
-		})
-
-		userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
-			Name:      "ucloud-filesystem",
-			ReadOnly:  false,
-			MountPath: "/opt/source",
-			SubPath:   ServiceConfig.Compute.ImSourceCode.Value,
-		})
-
-		// From provider-integration folder:
-		// rsync -vhra . ../.compose/default/im2k8/im/storage/source-code --exclude integration-module
-		ucvizContainer.Command = []string{
-			"bash", "-c", "cd /opt/source/im2 ; export PATH=$PATH:/usr/local/go/bin ; CGO_ENABLED=0 go build -o /opt/ucloud/ucviz -trimpath ucloud.dk/cmd/ucviz ; CGO_ENABLED=0 go build -o /opt/ucloud/ucmetrics -trimpath ucloud.dk/cmd/ucmetrics",
-		}
-
-		for i := range spec.InitContainers {
-			container := &spec.InitContainers[i]
-			if container.Name == "script-generation" {
-				container.VolumeMounts = append(container.VolumeMounts, core.VolumeMount{
-					Name:      "ucloud-filesystem",
-					ReadOnly:  false,
-					MountPath: "/opt/source",
-					SubPath:   ServiceConfig.Compute.ImSourceCode.Value,
-				})
-
-				container.Image = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.3.3"
-
-				oldCommand := container.Command
-				oldCommandString := strings.Join(oldCommand, " ")
-
-				container.Command = []string{
-					"bash", "-c", fmt.Sprintf(`
-						cd /opt/source/im2 ; 
-						export PATH=$PATH:/usr/local/go/bin ; 
-						CGO_ENABLED=0 go build -o /usr/bin/ucloud -trimpath ucloud.dk/cmd/ucloud-im ;
-						%s
-					`, oldCommandString),
-				}
-			}
-		}
-	}
+	ucvizContainer.VolumeMounts = append(ucvizContainer.VolumeMounts, core.VolumeMount{
+		Name:      "ucloud-filesystem",
+		ReadOnly:  true,
+		MountPath: "/mnt/exe",
+		SubPath:   shared.ExecutablesDir,
+	})
 
 	// Firewall
 	// -----------------------------------------------------------------------------------------------------------------

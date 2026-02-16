@@ -118,7 +118,6 @@ type KubernetesCompute struct {
 	Syncthing                       KubernetesSyncthingConfiguration
 	IntegratedTerminal              KubernetesIntegratedTerminal
 	VirtualMachines                 KubernetesVirtualMachines
-	ImSourceCode                    util.Option[string]
 	Modules                         map[string]KubernetesModuleEntry
 	Inference                       KubernetesInferenceConfiguration
 }
@@ -227,7 +226,6 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 	computeNode := cfgutil.RequireChild(filePath, services, "compute", &success)
 	cfg.Compute.Namespace = cfgutil.OptionalChildText(filePath, services, "namespace", &success)
-	cfg.Compute.ImSourceCode = util.OptStringIfNotEmpty(cfgutil.OptionalChildText(filePath, computeNode, "imSourceCode", &success))
 
 	// NOTE(Dan): Default value was based on several tests on the current production environment. Results were very
 	// stable around 14.5MB/s. This result seems very low, but consistent. Thankfully, it is fairly rare that people
