@@ -3,7 +3,9 @@ package ucmetrics
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
+
 	"ucloud.dk/pkg/ucviz"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -87,6 +89,13 @@ func HandleCli() {
 	if err != nil {
 		panic(err)
 	}
+
+	csvFile, err := os.OpenFile("/work/job-report.csv", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0660)
+	if err != nil {
+		panic(err)
+	}
+
+	defer util.SilentClose(csvFile)
 
 	for {
 		row := make([]float64, elementCount)
@@ -361,6 +370,10 @@ func HandleCli() {
 		_ = ring.Write(row)
 
 		previousCharts = charts
+		for _, column := range row {
+			_, _ = csvFile.WriteString(fmt.Sprintf("%v,", column))
+		}
+		_, _ = csvFile.WriteString("\n")
 		time.Sleep(250 * time.Millisecond)
 	}
 }

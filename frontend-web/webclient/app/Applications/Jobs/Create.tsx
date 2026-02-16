@@ -631,7 +631,7 @@ export const Create: React.FunctionComponent = () => {
                                         </Select>
                                     </Label>
                                     <Label mt={"16px"}>
-                                        Job resource sample rate settings
+                                        Job report sample rate settings
                                         <Select width={"300px"} onChange={doNothing} name={"job-resource-sample-rate"}>
                                             {/*<option value="fie" selected={}>Fie dog</option>*/}
                                         </Select>
