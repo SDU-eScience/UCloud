@@ -81,6 +81,7 @@ func initProviderNotifications() {
 
 			case walletId = <-providerWalletNotifications:
 				walletOk = true
+
 			case projectId := <-policyUpdates:
 				db.NewTx0(func(tx *db.Transaction) {
 					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
@@ -147,6 +148,8 @@ func initProviderNotifications() {
 				}
 
 				providerNotifications.Mu.Unlock()
+
+				updatePolicyCacheForProject(project.Id, policySpecifications)
 
 				for _, ch := range allChannels {
 					select {
