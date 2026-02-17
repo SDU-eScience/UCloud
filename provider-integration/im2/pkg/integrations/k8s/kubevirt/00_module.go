@@ -3,6 +3,7 @@ package kubevirt
 import (
 	"context"
 	"crypto/tls"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,6 +28,7 @@ import (
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	db "ucloud.dk/shared/pkg/database"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -36,6 +38,9 @@ var ServiceConfig *cfg.ServicesConfigurationKubernetes
 var KubevirtClient kvclient.KubevirtClient
 var Namespace string
 var Enabled = false
+
+//go:embed vmagent.service
+var vmAgentSystemdFile []byte
 
 func Init() ctrl.JobsService {
 	// Create a number of aliases for use in this package. These are all static by the time this function is called.
@@ -61,6 +66,8 @@ func Init() ctrl.JobsService {
 			log.Fatal("Not supported yet")
 			panic("Not supported yet")
 		}
+
+		initAgentServer()
 	}
 
 	return ctrl.JobsService{
@@ -514,6 +521,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	cinit.RunCommand = []string{
 		fmt.Sprintf("usermod -u %d ucloud", filesystem.DefaultUid),
 		fmt.Sprintf("groupmod -g %d ucloud", filesystem.DefaultUid),
+		"systemctl daemon-reload",
+		"systemctl enable --now /etc/ucloud/vmagent.service",
 	}
 
 	machine := &job.Status.ResolvedProduct.Value
@@ -684,8 +693,25 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			return util.HttpErr(http.StatusInternalServerError, "internal error")
 		}
 
+		agentTok := util.SecureToken()
+		srvTok := util.SecureToken()
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					insert into k8s.vmagents(job_id, agent_token, srv_token)
+					values (:job_id, :agent_token, :srv_token)
+			    `,
+				db.Params{
+					"job_id":      job.Id,
+					"agent_token": agentTok,
+					"srv_token":   srvTok,
+				},
+			)
+		})
+
 		tokPath := filepath.Join(confDir, "token")
-		err = os.WriteFile(tokPath, []byte(util.SecureToken()), 0600)
+		err = os.WriteFile(tokPath, []byte(fmt.Sprintf("%s\n%s", agentTok, srvTok)), 0600)
 		if err != nil {
 			log.Warn("Could not create write token: %v %s", job.Id, err)
 			return util.HttpErr(http.StatusInternalServerError, "internal error")
@@ -700,6 +726,19 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		subpath, ok := strings.CutPrefix(jobFolder, filepath.Clean(ServiceConfig.FileSystem.MountPoint)+"/")
 		if !ok {
 			log.Warn("sub path to folder is invalid: %v %s", job.Id, err)
+			return util.HttpErr(http.StatusInternalServerError, "internal error")
+		}
+
+		systemdPath := filepath.Join(confDir, "vmagent.service")
+		err = os.WriteFile(systemdPath, vmAgentSystemdFile, 0600)
+		if err != nil {
+			log.Warn("Could not create write systemd file: %v %s", job.Id, err)
+			return util.HttpErr(http.StatusInternalServerError, "internal error")
+		}
+
+		err = os.Chown(systemdPath, filesystem.DefaultUid, filesystem.DefaultUid)
+		if err != nil {
+			log.Warn("Could not chown systemd file: %v %s", job.Id, err)
 			return util.HttpErr(http.StatusInternalServerError, "internal error")
 		}
 

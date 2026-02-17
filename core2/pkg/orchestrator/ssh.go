@@ -43,7 +43,7 @@ func initSsh() {
 	})
 
 	orcapi.JobsControlBrowseSshKeys.Handler(func(info rpc.RequestInfo, request orcapi.JobsControlBrowseSshKeysRequest) (fndapi.PageV2[orcapi.SshKey], *util.HttpError) {
-		keys, err := SshKeyRetrieveByJob(info.Actor, request.JobId)
+		keys, err := SshKeyRetrieveByJob(info.Actor, request.JobId, request.FilterOwner)
 		if err != nil {
 			return fndapi.PageV2[orcapi.SshKey]{}, err
 		} else {
@@ -269,7 +269,7 @@ func SshKeyDelete(actor rpc.Actor, keys []fndapi.FindByStringId) *util.HttpError
 	return nil
 }
 
-func SshKeyRetrieveByJob(actor rpc.Actor, jobId string) ([]orcapi.SshKey, *util.HttpError) {
+func SshKeyRetrieveByJob(actor rpc.Actor, jobId string, onlyOwner bool) ([]orcapi.SshKey, *util.HttpError) {
 	job, err := JobsRetrieve(actor, jobId, orcapi.JobFlags{})
 	if err != nil {
 		return nil, err
@@ -277,30 +277,32 @@ func SshKeyRetrieveByJob(actor rpc.Actor, jobId string) ([]orcapi.SshKey, *util.
 	result := db.NewTx(func(tx *db.Transaction) []orcapi.SshKey {
 		relevantUsers := map[string]util.Empty{}
 		relevantUsers[job.Owner.CreatedBy] = util.Empty{}
-		projectId := job.Owner.Project.GetOrDefault("")
-		if projectId != "" {
-			project, ok := coreutil.ProjectRetrieveFromDatabase(tx, projectId)
-			if ok {
-				for _, member := range project.Status.Members {
-					if member.Role.Satisfies(fndapi.ProjectRoleAdmin) {
-						relevantUsers[member.Username] = util.Empty{}
+		if !onlyOwner {
+			projectId := job.Owner.Project.GetOrDefault("")
+			if projectId != "" {
+				project, ok := coreutil.ProjectRetrieveFromDatabase(tx, projectId)
+				if ok {
+					for _, member := range project.Status.Members {
+						if member.Role.Satisfies(fndapi.ProjectRoleAdmin) {
+							relevantUsers[member.Username] = util.Empty{}
+						}
 					}
-				}
-				otherAcl := job.Permissions.GetOrDefault(orcapi.ResourcePermissions{}).Others
-				relevantGroups := map[string]util.Empty{}
-				for _, entry := range otherAcl {
-					if !orcapi.PermissionsHas(entry.Permissions, orcapi.PermissionEdit) {
-						continue
+					otherAcl := job.Permissions.GetOrDefault(orcapi.ResourcePermissions{}).Others
+					relevantGroups := map[string]util.Empty{}
+					for _, entry := range otherAcl {
+						if !orcapi.PermissionsHas(entry.Permissions, orcapi.PermissionEdit) {
+							continue
+						}
+						relevantGroups[entry.Entity.Group] = util.Empty{}
 					}
-					relevantGroups[entry.Entity.Group] = util.Empty{}
-				}
 
-				if len(relevantGroups) > 0 {
-					for _, group := range project.Status.Groups {
-						_, ok := relevantGroups[group.Id]
-						if ok {
-							for _, member := range group.Status.Members {
-								relevantUsers[member] = util.Empty{}
+					if len(relevantGroups) > 0 {
+						for _, group := range project.Status.Groups {
+							_, ok := relevantGroups[group.Id]
+							if ok {
+								for _, member := range group.Status.Members {
+									relevantUsers[member] = util.Empty{}
+								}
 							}
 						}
 					}

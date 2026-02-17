@@ -619,7 +619,8 @@ var JobsControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[JobUpdat
 }
 
 type JobsControlBrowseSshKeysRequest struct {
-	JobId string `json:"jobId"`
+	JobId       string `json:"jobId"`
+	FilterOwner bool   `json:"owner"`
 }
 
 var JobsControlBrowseSshKeys = rpc.Call[JobsControlBrowseSshKeysRequest, fnd.PageV2[SshKey]]{

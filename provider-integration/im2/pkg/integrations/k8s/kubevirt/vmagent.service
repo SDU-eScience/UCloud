@@ -1,0 +1,18 @@
+[Unit]
+Description=UCloud VM agent
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/ucloud/vmagent
+User=11042
+Restart=always
+
+RestartSec=2s
+StartLimitIntervalSec=1min
+StartLimitBurst=0
+
+RestartMaxDelaySec=1min
+
+[Install]
+WantedBy=multi-user.target

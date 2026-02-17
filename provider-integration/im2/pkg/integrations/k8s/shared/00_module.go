@@ -18,6 +18,7 @@ func Init() {
 	InitClients()
 	initProducts()
 	initSsh()
+	InitSshKeys()
 
 	JobPods = NewResourceTracker[*corev1.Pod](
 		ServiceConfig.Compute.Namespace,

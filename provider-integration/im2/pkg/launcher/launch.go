@@ -33,6 +33,7 @@ import (
 )
 
 func Launch() {
+	time.Sleep(5 * time.Second)
 	if os.Getenv("UCLOUD_EARLY_DEBUG") != "" {
 		fmt.Printf("Ready for debugger\n")
 		keepWaiting := true
