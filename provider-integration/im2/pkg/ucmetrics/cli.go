@@ -21,11 +21,16 @@ type VizDataPoint struct {
 }
 
 const (
-	channelName  = "utilization-data"
-	elementCount = 64 // NOTE(Dan): Update follow function if changing this
-	csvCpuLimit  = -1
-	csvMemLimit  = -2
+	channelName           = "utilization-data"
+	elementCount          = 64 // NOTE(Dan): Update follow function if changing this
+	csvCpuLimit           = -1
+	csvMemLimit           = -2
+	DefaultSampleInterval = 250 * time.Millisecond
 )
+
+type Config struct {
+	SampleInterval time.Duration
+}
 
 func timeColumn() int {
 	return 0
@@ -95,7 +100,11 @@ func csvSchema(gpuCount int) ([]string, []int) {
 	return headers, columns
 }
 
-func HandleCli() {
+func HandleCli(cfg Config) {
+	if cfg.SampleInterval <= 0 {
+		cfg.SampleInterval = DefaultSampleInterval
+	}
+
 	cpu, cpuErr := CpuSampleStart()
 
 	lastNet := time.Now()
@@ -153,6 +162,8 @@ func HandleCli() {
 		_, _ = csvFile.WriteString(header)
 	}
 	_, _ = csvFile.WriteString("\n")
+
+	nextCsvSample := time.Now()
 
 	for {
 		row := make([]float64, elementCount)
@@ -430,23 +441,28 @@ func HandleCli() {
 		_ = ring.Write(row)
 
 		previousCharts = charts
-		for i, columnIdx := range csvColumns {
-			if i > 0 {
-				_, _ = csvFile.WriteString(",")
-			}
 
-			if columnIdx == timeColumn() {
-				timestamp := time.UnixMilli(int64(row[columnIdx])).UTC().Format("2006-01-02T15:04:05.000Z")
-				_, _ = csvFile.WriteString(timestamp)
-			} else if columnIdx == csvCpuLimit {
-				_, _ = csvFile.WriteString(fmt.Sprintf("%.3f", lastKnownCpuLimit))
-			} else if columnIdx == csvMemLimit {
-				_, _ = csvFile.WriteString(fmt.Sprintf("%.3f", memoryLimitForCsv))
-			} else {
-				_, _ = csvFile.WriteString(fmt.Sprintf("%.3f", row[columnIdx]))
+		if time.Now().After(nextCsvSample) {
+			for i, columnIdx := range csvColumns {
+				if i > 0 {
+					_, _ = csvFile.WriteString(",")
+				}
+
+				if columnIdx == timeColumn() {
+					timestamp := time.UnixMilli(int64(row[columnIdx])).UTC().Format("2006-01-02T15:04:05.000Z")
+					_, _ = csvFile.WriteString(timestamp)
+				} else if columnIdx == csvCpuLimit {
+					_, _ = csvFile.WriteString(fmt.Sprintf("%.3f", lastKnownCpuLimit))
+				} else if columnIdx == csvMemLimit {
+					_, _ = csvFile.WriteString(fmt.Sprintf("%.3f", memoryLimitForCsv))
+				} else {
+					_, _ = csvFile.WriteString(fmt.Sprintf("%.3f", row[columnIdx]))
+				}
 			}
+			_, _ = csvFile.WriteString("\n")
+			nextCsvSample = time.Now().Add(cfg.SampleInterval)
 		}
-		_, _ = csvFile.WriteString("\n")
+
 		time.Sleep(250 * time.Millisecond)
 	}
 }
