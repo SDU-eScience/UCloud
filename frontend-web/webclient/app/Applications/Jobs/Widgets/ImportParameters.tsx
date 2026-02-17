@@ -356,7 +356,7 @@ async function cleanupImportResult(
         return result;
     }
 
-    let parameterTypes = [...application.invocation.parameters];
+    let parameterTypes = [...(application.invocation.parameters) ?? []];
     const values = output.parameters ?? {};
     const resources = output.resources ?? [];
 

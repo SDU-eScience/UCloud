@@ -6,7 +6,7 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/ipc"
 	fnd "ucloud.dk/shared/pkg/foundation"
-	termio2 "ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/termio"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -15,7 +15,7 @@ var (
 )
 
 func writeHelp() {
-	f := termio2.Frame{}
+	f := termio.Frame{}
 
 	f.AppendTitle("storage-scan help")
 	f.AppendField("", "Used to interact with storage scan functionality")
@@ -51,14 +51,14 @@ func initStorageScanCli() {
 
 func StorageScanCli(args []string) {
 	if len(args) == 0 {
-		termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Unknown command")
+		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Unknown command")
 		return
 	}
 
 	switch {
 	case args[0] == "scan-now":
 		if len(args) < 2 {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Missing parameter: drive id")
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Missing parameter: drive id")
 			return
 		}
 

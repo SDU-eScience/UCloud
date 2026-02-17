@@ -14,7 +14,7 @@ import (
 
 	"ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/controller"
-	slurm2 "ucloud.dk/pkg/external/slurm"
+	"ucloud.dk/pkg/external/slurm"
 	"ucloud.dk/pkg/external/user"
 	"ucloud.dk/pkg/ipc"
 
@@ -38,7 +38,7 @@ var (
 
 var Machines []apm.ProductV2
 var machineSupport []orc.JobSupport
-var SlurmClient *slurm2.Client
+var SlurmClient *slurm.Client
 
 var jobNameUnsafeRegex = regexp.MustCompile(`[^\w ():_-]`)
 var unknownApplication = orc.NameAndVersion{Name: "unknown", Version: "unknown"}
@@ -48,7 +48,7 @@ var ipcRegisterJobUpdate = ipc.NewCall[[]orc.ResourceUpdateAndId[orc.JobUpdate],
 func InitCompute() controller.JobsService {
 	loadComputeProducts()
 
-	SlurmClient = slurm2.NewClient()
+	SlurmClient = slurm.NewClient()
 	if SlurmClient == nil && len(Machines) > 0 {
 		panic("Failed to initialize SlurmClient!")
 	}
@@ -285,7 +285,7 @@ func loopComputeMonitoring() {
 		jobsBySlurmId[parsed.SlurmId] = jobId
 	}
 
-	unknownJobs := []*slurm2.Job{}
+	unknownJobs := []*slurm.Job{}
 
 	for _, slurmJob := range jobs {
 		stateInfo, ok := slurmToUCloudState[slurmJob.State]

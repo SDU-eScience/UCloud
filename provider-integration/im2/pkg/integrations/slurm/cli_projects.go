@@ -11,7 +11,7 @@ import (
 	"ucloud.dk/pkg/ipc"
 	"ucloud.dk/shared/pkg/cli"
 	db "ucloud.dk/shared/pkg/database"
-	termio2 "ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/termio"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -19,7 +19,7 @@ func HandleProjectsCommand() {
 	// Invoked via 'ucloud projects <subcommand> [options]'
 
 	if os.Getuid() != 0 {
-		termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "This command must be run as root!")
+		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "This command must be run as root!")
 		os.Exit(1)
 	}
 
@@ -55,7 +55,7 @@ func HandleProjectsCommand() {
 
 		cli.HandleError("listing projects", err)
 
-		t := termio2.Table{}
+		t := termio.Table{}
 		t.AppendHeader("UCloud name")
 		t.AppendHeader("UCloud ID")
 		t.AppendHeader("Local name")
@@ -67,7 +67,7 @@ func HandleProjectsCommand() {
 			t.Cell("%v", mapping.LocalGid)
 		}
 		t.Print()
-		termio2.WriteLine("")
+		termio.WriteLine("")
 
 	case cli.IsReplaceCommand(command):
 		var (
@@ -81,7 +81,7 @@ func HandleProjectsCommand() {
 		_ = fs.Parse(os.Args[3:])
 
 		if oldGid == 0 || newGid == 0 {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Both old-id and new-id must be specified")
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Both old-id and new-id must be specified")
 			os.Exit(1)
 		}
 
@@ -91,12 +91,12 @@ func HandleProjectsCommand() {
 		})
 
 		cli.HandleError("replacing project id", err)
-		termio2.WriteStyledLine(termio2.Bold, termio2.Green, 0, "OK")
+		termio.WriteStyledLine(termio.Bold, termio.Green, 0, "OK")
 
 	case cli.IsAddCommand(command):
-		termio2.WriteStyledLine(
-			termio2.Bold,
-			termio2.Red,
+		termio.WriteStyledLine(
+			termio.Bold,
+			termio.Red,
 			0,
 			"It is not possible to create a project mapping through the CLI. All projects must be created "+
 				"through UCloud/Core unless completely unmanaged. It is possible to replace one project mapping "+
@@ -105,9 +105,9 @@ func HandleProjectsCommand() {
 		os.Exit(1)
 
 	case cli.IsDeleteCommand(command):
-		termio2.WriteStyledLine(
-			termio2.Bold,
-			termio2.Red,
+		termio.WriteStyledLine(
+			termio.Bold,
+			termio.Red,
 			0,
 			"It is not possible to delete a project mapping through the CLI. Instead, such projects have to be "+
 				"deleted through UCloud. As of 30/08/24 this functionality is not currently implemented.",

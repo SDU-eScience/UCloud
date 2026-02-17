@@ -16,7 +16,7 @@ import (
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
-	shared2 "ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	"ucloud.dk/pkg/ucviz"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -28,8 +28,8 @@ type PodPendingStatus struct {
 	EstimatedProgress1 util.Option[float64]
 }
 
-func Monitor(tracker shared2.JobTracker, jobs map[string]*orc.Job) {
-	allPods := shared2.JobPods.List()
+func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
+	allPods := shared.JobPods.List()
 
 	/*
 		events, err := K8sClient.CoreV1().Events(Namespace).List(context.Background(), meta.ListOptions{})
@@ -83,7 +83,7 @@ func Monitor(tracker shared2.JobTracker, jobs map[string]*orc.Job) {
 				_ = K8sClient.CoreV1().Pods(Namespace).Delete(ctx, pod.Name, meta.DeleteOptions{})
 				cancel()
 
-				tracker.TrackState(shared2.JobReplicaState{
+				tracker.TrackState(shared.JobReplicaState{
 					Id:    job.Id,
 					Rank:  0,
 					State: orc.JobStateSuspended,
@@ -95,7 +95,7 @@ func Monitor(tracker shared2.JobTracker, jobs map[string]*orc.Job) {
 					tracker.RequestCleanup(job.Id)
 				}
 
-				tracker.TrackState(shared2.JobReplicaState{
+				tracker.TrackState(shared.JobReplicaState{
 					Id:     job.Id,
 					Rank:   0,
 					State:  state,
@@ -224,7 +224,7 @@ func Monitor(tracker shared2.JobTracker, jobs map[string]*orc.Job) {
 				}
 			}
 
-			times := shared2.ComputeRunningTime(job)
+			times := shared.ComputeRunningTime(job)
 			if times.TimeRemaining.Present && times.TimeRemaining.Value < 0 {
 				tracker.RequestCleanup(idAndRank.First) // Will implicitly set state to JobStateExpired
 			}
@@ -234,7 +234,7 @@ func Monitor(tracker shared2.JobTracker, jobs map[string]*orc.Job) {
 			if pod.ObjectMeta.DeletionTimestamp == nil {
 				// Do not track pods which have been deleted.
 
-				tracker.TrackState(shared2.JobReplicaState{
+				tracker.TrackState(shared.JobReplicaState{
 					Id:     idAndRank.First,
 					Rank:   idAndRank.Second,
 					State:  state,
@@ -254,12 +254,12 @@ func Monitor(tracker shared2.JobTracker, jobs map[string]*orc.Job) {
 				if handlerOk {
 					if handler.ShouldRun(job, iapp.Configuration) {
 						// NOTE(Dan): The scheduler will ignore it if it is already in the queue/running.
-						shared2.RequestSchedule(job)
+						shared.RequestSchedule(job)
 					}
 				}
 			}
 
-			tracker.TrackState(shared2.JobReplicaState{
+			tracker.TrackState(shared.JobReplicaState{
 				Id:    jobId,
 				Rank:  0,
 				State: orc.JobStateSuspended,
