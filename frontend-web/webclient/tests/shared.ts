@@ -57,6 +57,7 @@ export const User = {
 
     async create(page: Page, user: {username: string; password: string}): Promise<void> {
         await page.getByRole("link", {name: "Go to Admin"}).hover();
+        await page.waitForTimeout(300);
         await page.getByRole("link", {name: "User creation"}).click();
 
         await page.getByRole("textbox", {name: "Username"}).fill(user.username);
@@ -106,8 +107,7 @@ export const User = {
 }
 
 export function ucloudUrl(pathname: string): string {
-    const origin = data.location_origin;
-    return (origin + "/app/" + pathname).replaceAll("//", "/");
+    return ("/app/" + pathname).replaceAll("//", "/");
 }
 
 export const Rows = {
@@ -158,11 +158,13 @@ export const File = {
 
     async goToSharedByMe(page: Page): Promise<void> {
         await page.getByRole("link", {name: "Go to Files"}).hover();
+        await page.waitForTimeout(300);
         await page.getByRole("link", {name: "Shared by me"}).click();
     },
 
     async goToSharedWithMe(page: Page): Promise<void> {
         await page.getByRole("link", {name: "Go to Files"}).hover();
+        await page.waitForTimeout(300);
         await page.getByRole("link", {name: "Shared with me"}).click();
     },
 
@@ -279,7 +281,7 @@ export const File = {
         await page.getByRole("dialog").isVisible();
         const drive = driveName.startsWith("Member Files:") ? "Member Files" : driveName
         const correctDrive = await page.getByRole("dialog")
-            .getByRole('listitem', {name: drive}).isVisible();
+            .getByRole('listitem', {name: drive, exact: false}).isVisible();
 
         if (correctDrive) {
             // Already matches. No work to be done.
@@ -427,11 +429,12 @@ export const Components = {
 
     async setSidebarSticky(page: Page): Promise<void> {
         await page.getByRole("link", {name: "Go to Files"}).hover();
+        await page.waitForTimeout(300);
         await page.getByRole("banner").locator("svg").click();
     },
 
     async clickConfirmationButton(page: Page, text: string, delay = 1500): Promise<void> {
-        await page.getByRole('button', {name: text}).click({delay});
+        await page.getByRole("button", {name: text}).click({delay});
     },
 
     async selectAvailableMachineType(page: Page): Promise<void> {
@@ -692,6 +695,7 @@ export const Resources = {
 
     async goTo(page: Page, resource: "Links" | "IP addresses" | "SSH keys" | "Licenses") {
         await page.getByRole("link", {name: "Go to Resources"}).hover();
+        await page.waitForTimeout(300);
         await page.getByText(resource).first().click();
         await Components.projectSwitcher(page, "hover");
     },
@@ -782,9 +786,10 @@ export const Resources = {
 
     Licenses: {
         async activateLicense(page: Page): Promise<number> {
+            await page.waitForLoadState("networkidle");
             const result = (await NetworkCalls.awaitResponse(page, "**/api/licenses", async () => {
-                await page.getByRole("dialog").getByText("test-license").waitFor({state: "hidden"});
                 await page.getByText("Activate license").click();
+                await page.getByRole("dialog").getByText("test-license-Quota based").waitFor();
                 await page.getByRole("dialog").getByRole("button", {name: "Activate"}).click();
             }));
 
@@ -832,6 +837,7 @@ type AccountingPage = "Allocations" | "Usage" | "Grant applications" | "Apply fo
 export const Accounting = {
     async goTo(page: Page, linkName: AccountingPage): Promise<void> {
         await page.getByRole("link", {name: "Go to Project"}).hover();
+        await page.waitForTimeout(300);
 
         switch (linkName) {
             case "Usage":

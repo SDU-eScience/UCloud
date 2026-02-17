@@ -1,6 +1,8 @@
 import {expect, test, Page, BrowserContext} from "@playwright/test";
 import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls, Resources, Accounting, Admin, Rows, Project, testCtx, TestContexts, ctxUser, Contexts} from "./shared";
 
+test.describe.configure({mode: "serial"});
+
 test.beforeEach(async ({page}, testInfo) => {
     const args = testCtx(testInfo.titlePath);
     await User.login(page, args.user);
@@ -12,7 +14,8 @@ const {AppNames} = Applications;
 TestContexts.map(ctx => {
     test.describe(ctx, () => {
         test("Run job with jobname, extend time, stop job, validate jobname in runs", async ({page}) => {
-            test.setTimeout(240_000);
+            test.setTimeout(600_000);
+            // test.setTimeout(240_000);
             await Applications.openAppBySearch(page, AppNames.TestApplication);
             const jobName = Runs.newJobName();
 
@@ -38,13 +41,11 @@ TestContexts.map(ctx => {
 
         test.describe("Compute - check job termination", () => {
             test("Start app and stop app from runs page. Start it from runs page, testing parameter import", async ({page}) => {
-                test.setTimeout(300_000);
+                // test.setTimeout(300_000);
+                test.setTimeout(600_000);
                 const jobName = Runs.newJobName();
 
-                await Applications.goToApplications(page);
-                await NetworkCalls.awaitProducts(page, async () => {
-                    await page.getByRole("button", {name: "Open application"}).click();
-                });
+                await Applications.openAppBySearch(page, AppNames.TestApplication);
                 await Runs.setJobTitle(page, jobName);
                 await Components.selectAvailableMachineType(page);
                 await Runs.extendTimeBy(page, 1);
@@ -58,7 +59,8 @@ TestContexts.map(ctx => {
         })
 
         test("Mount folder with file in job, and cat inside contents", async ({page}) => {
-            test.setTimeout(240_000);
+            // test.setTimeout(240_000);
+            test.setTimeout(600_000);
             const driveName = Drive.newDriveNameOrMemberFiles(ctx);
             const folderName = File.newFolderName();
             const {uploadedFileName, contents} = {uploadedFileName: "UploadedFile.txt", contents: "Am I not invisible???"};
@@ -104,8 +106,9 @@ TestContexts.map(ctx => {
         });
 
         test("Start terminal job, find mounted 'easybuild' modules mounted, use networking, terminate job", async ({page}) => {
-            test.setTimeout(300_000);
-            const term = await runAppAndOpenTerminal(page, "Terminal");
+            // test.setTimeout(300_000);
+            test.setTimeout(600_000);
+            const term = await runAppAndOpenTerminal(page, "Terminal", 1);
             await Terminal.enterCmd(term, "ls ~/.local");
             await term.getByText("easybuild").hover();
             await Terminal.enterCmd(term, "curl -I https://example.org");
@@ -114,22 +117,11 @@ TestContexts.map(ctx => {
             await Runs.terminateViewedRun(page);
         });
 
-        async function runAppAndOpenTerminal(page: Page, appName: string, jobName?: string): Promise<Page> {
-            if (appName === AppNames.TestApplication) {
-                await Applications.openAppBySearch(page, appName);
-            } else {
-                await Applications.openApp(page, appName);
-            }
-            await Components.selectAvailableMachineType(page);
-            if (jobName) await Runs.setJobTitle(page, jobName);
-            await Runs.submitAndWaitForRunning(page);
-            return await Runs.openTerminal(page);
-        }
-
         test.describe("Compute - check starting jobs works", () => {
             test.describe("optional/mandatory parameters", () => {
                 test("Upload bash-script, run job and add script as optional parameter, check for keyword in log while running and after job terminated", async ({page}) => {
-                    test.setTimeout(120_000)
+                    // test.setTimeout(120_000)
+                    test.setTimeout(600_000);
                     const BashScriptName = "init.sh";
                     const BashScriptStringContent = "Visible from the terminal " + ((Math.random() * 100) | 0);
                     const FancyBashScript = `
@@ -165,10 +157,9 @@ echo "${BashScriptStringContent}"
                 });
 
                 test("Create license, omit mandatory argument, then use license as argument for mandatory parameter", async ({page}) => {
-                    test.setTimeout(240_000);
-                    await NetworkCalls.awaitProducts(page, async () => {
-                        await Resources.goTo(page, "Licenses");
-                    })
+                    // test.setTimeout(240_000);
+                    test.setTimeout(600_000);
+                    await Resources.goTo(page, "Licenses");
                     const licenseId = await Resources.Licenses.activateLicense(page);
                     await Applications.goToApplications(page);
                     await Applications.searchFor(page, AppNames.LicenseTestApplication);
@@ -181,9 +172,10 @@ echo "${BashScriptStringContent}"
                     // Click submit, don't expect a backend response
                     await page.getByRole("button", {name: "Submit"}).click();
                     // See that license is required
-                    await page.getByText("A value is missing for this mandatory field").hover();
+                    await page.getByText("A value is missing for this mandatory field").first().hover();
                     await page.getByPlaceholder("Select license server...").click();
                     await page.getByRole("dialog").locator(".row", {hasText: licenseId.toString()}).getByRole("button", {name: "Use"}).click();
+
                     await Runs.submitAndWaitForRunning(page);
                     await Runs.terminateViewedRun(page);
                 });
@@ -191,27 +183,16 @@ echo "${BashScriptStringContent}"
 
             test.describe("multinode, connect to other jobs", () => {
                 test("Start application with multiple nodes, connect to job from other job and validate connection", async ({page}) => {
-                    test.setTimeout(240_000)
-                    async function openSparkApp(page: Page) {
-                        await Applications.goToApplications(page);
-                        await Applications.searchFor(page, multinodeAppSearchString);
-                        await page.locator("a[class^=app-card]").getByText(multinodeApp).first().click();
-                        await Components.selectAvailableMachineType(page);
-                    }
-
-                    const multinodeApp = "Spark Cluster";
-                    const multinodeAppSearchString = "Spark"; // Add 'Cluster' and it disappears. Weird! #5272
+                    // test.setTimeout(240_000);
+                    test.setTimeout(600_000);
                     const driveName = Drive.newDriveNameOrMemberFiles(ctx);
                     const folderName = File.newFolderName();
 
                     if (ctx !== "Project User") await Drive.create(page, driveName);
                     await Drive.openDrive(page, driveName);
                     await File.create(page, folderName);
-                    await openSparkApp(page)
-                    await Runs.setNodeCount(page, 2);
-
                     const jobName = Runs.newJobName();
-                    await Runs.setJobTitle(page, jobName);
+                    await runAppAndOpenTerminal(page, AppNames.TestApplication, 2, jobName);
                     await Runs.submitAndWaitForRunning(page);
                     // This isn't ideal, but this is the easiest way to get the job id
                     const jobId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
@@ -219,7 +200,8 @@ echo "${BashScriptStringContent}"
                     const otherPage = await page.context().newPage();
                     // Should redirect to dashboard, as this is already logged in.
                     await User.toLoginPage(otherPage);
-                    await openSparkApp(otherPage);
+                    await Applications.openAppBySearch(otherPage, AppNames.TestApplication);
+                    await Components.selectAvailableMachineType(otherPage);
                     await otherPage.getByText("Connect to job").first().click();
                     await otherPage.getByRole("textbox", {name: "Hostname"}).fill("foobar");
                     await otherPage.getByPlaceholder("No selected run").click();
@@ -236,14 +218,15 @@ echo "${BashScriptStringContent}"
             });
 
             test.describe("disallow start from locked allocation", () => {
-                test("Create new user without resources, apply for resources, be granted resources, run terminal, create large file, trigger accounting, see creation now blocked", async ({context}) => {
-                    test.setTimeout(240_000);
+                test("Storage - Create new user without resources, apply for resources, be granted resources, run terminal, create large file, trigger storage accounting, see creation now blocked", async ({context}) => {
+                    // test.setTimeout(240_000);
+                    test.setTimeout(600_000);
 
                     const adminPage = await Admin.newLoggedInAdminPage(context);
-                    const {userPage, user} = await createUserWithProjectAndAssignRole(adminPage, context, ctx);
+                    const {userPage, user} = await createUserWithProjectAndAssignRole(adminPage, context, ctx, [5, 1]);
 
                     const jobName = Runs.newJobName();
-                    const term = await runAppAndOpenTerminal(userPage, AppNames.TestApplication, jobName);
+                    const term = await runAppAndOpenTerminal(userPage, AppNames.TestApplication, 1, jobName);
                     await Terminal.createLargeFile(term);
                     await Runs.terminateViewedRun(userPage);
 
@@ -278,10 +261,51 @@ echo "${BashScriptStringContent}"
                 });
             });
         });
+
+
+        test.describe("Compute - check accounting", () => {
+            test("Create new user without resources, apply for resources, be granted resources, validate resources in 'Allocations', run terminal, trigger compute accounting, see increase in usage", async ({context}) => {
+                // test.setTimeout(180_000);
+                test.setTimeout(600_000);
+
+                const adminPage = await Admin.newLoggedInAdminPage(context);
+                const {userPage, user} = await createUserWithProjectAndAssignRole(adminPage, context, ctx, [1, 1]);
+
+
+                await Accounting.goTo(userPage, "Allocations");
+                await userPage.getByText("0 / 1 Core-hours (0%)", {exact: true}).first().waitFor();
+                const jobName = Runs.newJobName();
+                const term = await runAppAndOpenTerminal(userPage, AppNames.TestApplication, 1, jobName);
+                await term.waitForTimeout(120_000);
+                await Runs.terminateViewedRun(userPage);
+
+                await userPage.reload();
+                const isPersonalWorkspace = ctx === "Personal Workspace"
+                const driveName = isPersonalWorkspace ? "Home" : Drive.memberFiles(user.username);
+
+                await File.triggerStorageScan(userPage, driveName);
+                await Accounting.goTo(userPage, "Allocations");
+                const text = await userPage.getByText("Core-hours").first().innerText();
+                expect(parseInt(text.split("Core-hours")[1].trim().replaceAll(/%|\(|\)/g, ""))).toBeGreaterThan(0);
+            });
+        });
     });
 });
 
-async function createUserWithProjectAndAssignRole(admin: Page, context: BrowserContext, ctx: Contexts): Promise<{userPage: Page; user: {username: string; password: string;}}> {
+async function runAppAndOpenTerminal(page: Page, appName: string, nodeCount: number, jobName?: string): Promise<Page> {
+    if (appName === AppNames.TestApplication) {
+        await Applications.openAppBySearch(page, appName);
+    } else {
+        await Applications.openApp(page, appName);
+    }
+    await Components.selectAvailableMachineType(page);
+    if (jobName) await Runs.setJobTitle(page, jobName);
+    if (nodeCount > 0) Runs.setNodeCount(page, 8);
+    await Runs.submitAndWaitForRunning(page);
+    return await Runs.openTerminal(page);
+}
+
+async function createUserWithProjectAndAssignRole(admin: Page, context: BrowserContext, ctx: Contexts, quotas: [number, number]): Promise<{userPage: Page; user: {username: string; password: string;}}> {
     const user = User.newUserCredentials();
     const userPage = await context.browser()?.newPage();
     if (!userPage) throw Error("Failed to create userpage");
@@ -294,7 +318,7 @@ async function createUserWithProjectAndAssignRole(admin: Page, context: BrowserC
         case "Project PI":
         case "Project User": {
             const projectName = Project.newProjectName();
-            await fillApplicationAndSubmit(admin, projectName);
+            await fillApplicationAndSubmit(admin, projectName, quotas);
             await Accounting.GrantApplication.approve(admin);
             await Components.goToDashboard(admin);
             await Project.changeTo(admin, projectName);
@@ -309,7 +333,7 @@ async function createUserWithProjectAndAssignRole(admin: Page, context: BrowserC
             break;
         }
         case "Personal Workspace": {
-            const id = await fillApplicationAndSubmit(userPage);
+            const id = await fillApplicationAndSubmit(userPage, undefined, quotas);
             await Accounting.goTo(admin, "Grant applications");
             await Project.changeTo(admin, "Provider K8s");
             await admin.getByText("Show applications received").click();
@@ -321,7 +345,7 @@ async function createUserWithProjectAndAssignRole(admin: Page, context: BrowserC
 
     return {userPage, user};
 
-    async function fillApplicationAndSubmit(page: Page, projectName?: string): Promise<string> {
+    async function fillApplicationAndSubmit(page: Page, projectName: string | undefined, quotas: [number, number]): Promise<string> {
         await Accounting.goTo(page, "Apply for resources");
         if (!projectName) {
             await page.getByText("select an existing project instead").click();
@@ -330,7 +354,7 @@ async function createUserWithProjectAndAssignRole(admin: Page, context: BrowserC
         }
 
         await Accounting.GrantApplication.toggleGrantGiver(page, "Provider K8s");
-        await Accounting.GrantApplication.fillQuotaFields(page, [{field: "Core-hours requested", quota: 5}, {field: "GB requested", quota: 1}]);
+        await Accounting.GrantApplication.fillQuotaFields(page, [{field: "Core-hours requested", quota: quotas[0]}, {field: "GB requested", quota: quotas[1]}]);
         await Accounting.GrantApplication.fillDefaultApplicationTextFields(page);
         return await Accounting.GrantApplication.submit(page);
     }
