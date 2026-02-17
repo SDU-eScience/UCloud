@@ -401,10 +401,10 @@ export function ProductSelectorWithPermissions<T extends Resource>({onCreate, du
     const project = useProject().fetch();
     const projectId = useProjectId();
 
-    const setProductAndSupport = React.useCallback((p: ProductV2) => {
+    const setProductAndSupport = React.useCallback(async (p: ProductV2) => {
         setSelectedProduct(p);
 
-        const availableProducts = supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "");
+        const availableProducts = await supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(PublicLinkApi));
 
         for (const provider of Object.values(availableProducts?.productsByProvider ?? [])) {
             for (const {support} of provider) {

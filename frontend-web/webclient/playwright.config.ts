@@ -1,4 +1,5 @@
 import {defineConfig, devices, Project} from '@playwright/test';
+import {default as data} from "./tests/test_data.json" with {type: "json"};
 
 
 const userSetup: Project = {
@@ -45,6 +46,7 @@ export default defineConfig({
         /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
         trace: 'on-first-retry',
         ignoreHTTPSErrors: true,
+        baseURL: data.location_origin,
     },
 
 

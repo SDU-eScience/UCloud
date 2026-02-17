@@ -11,3 +11,4 @@ node_modules/
 /playwright/.cache/
 
 /tests/test_data.json
+/test_data/**

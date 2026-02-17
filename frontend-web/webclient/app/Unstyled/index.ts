@@ -180,12 +180,13 @@ export function injectStyleSimple(title: string, css: string): string {
 }
 
 export function makeClassName(name: string) {
+    const classname = `${name}${styleIdCounter++}`;
     return {
         get dot(): string {
-            return `.${name}`
+            return `.${classname} `
         },
         get class(): string {
-            return name;
+            return classname;
         }
     };
 }

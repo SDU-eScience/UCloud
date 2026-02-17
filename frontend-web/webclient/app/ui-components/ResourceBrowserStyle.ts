@@ -2,8 +2,8 @@ import {injectStyle, makeClassName} from "@/Unstyled";
 
 let didInject = false;
 
+const BrowserClass = makeClassName("browser");
 export function injectResourceBrowserStyle(rowSize: number) {
-    const browserClass = makeClassName("browser");
     if (!didInject) injectStyle("ignored", () => `
         body[data-cursor=not-allowed] * {
             cursor: not-allowed !important;
@@ -18,7 +18,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             -webkit-user-select: none;
         }
 
-        ${browserClass.dot} .drag-indicator {
+        ${BrowserClass.dot} .drag-indicator {
             position: fixed;
             z-index: 10000;
             background-color: var(--primaryLight);
@@ -28,8 +28,8 @@ export function injectResourceBrowserStyle(rowSize: number) {
             left: 0;
         }
 
-        ${browserClass.dot} .file-drag-indicator-content,
-        ${browserClass.dot} .file-drag-indicator {
+        ${BrowserClass.dot} .file-drag-indicator-content,
+        ${BrowserClass.dot} .file-drag-indicator {
             position: fixed;
             z-index: 10000;
             display: none;
@@ -40,38 +40,38 @@ export function injectResourceBrowserStyle(rowSize: number) {
             -webkit-user-select: none;
         }
         
-        ${browserClass.dot} .file-drag-indicator-content {
+        ${BrowserClass.dot} .file-drag-indicator-content {
             z-index: 10001;
             width: 400px;
             margin: 16px;
             white-space: pre;
         }
         
-        ${browserClass.dot} .favorite > img {
+        ${BrowserClass.dot} .favorite > img {
             display: none;
         }
 
-        ${browserClass.dot} .favorite[data-favorite="false"] {
+        ${BrowserClass.dot} .favorite[data-favorite="false"] {
             content: '';
             width: 20px;
         }
 
-        ${browserClass.dot} .row .favorite[data-favorite="true"] > img, ${browserClass.dot} .row:hover .favorite > img {
+        ${BrowserClass.dot} .row .favorite[data-favorite="true"] > img, ${BrowserClass.dot} .row:hover .favorite > img {
             display: block;
         }
 
-        ${browserClass.dot} header[data-has-filters] .filters, 
-        ${browserClass.dot} header[data-has-filters] .session-filters, 
-        ${browserClass.dot} header[data-has-filters] .right-sort-filters {
+        ${BrowserClass.dot} header[data-has-filters] .filters, 
+        ${BrowserClass.dot} header[data-has-filters] .session-filters, 
+        ${BrowserClass.dot} header[data-has-filters] .right-sort-filters {
             display: flex;
             margin-top: 12px;
         }
 
-        ${browserClass.dot} .file-drag-indicator-content img {
+        ${BrowserClass.dot} .file-drag-indicator-content img {
             margin-right: 8px;
         }
 
-        ${browserClass.dot} .file-drag-indicator {
+        ${BrowserClass.dot} .file-drag-indicator {
             background: var(--rowActive);
             color: var(--textPrimary);
             width: 400px;
@@ -79,10 +79,10 @@ export function injectResourceBrowserStyle(rowSize: number) {
             border-radius: 6px;
         }
      
-        ${browserClass.dot} .file-drag-indicator.animate {
+        ${BrowserClass.dot} .file-drag-indicator.animate {
         }
 
-        ${browserClass.dot} {
+        ${BrowserClass.dot} {
             width: 100%;
             height: calc(100vh - 32px - var(--termsize, 0px));
             display: flex;
@@ -90,19 +90,19 @@ export function injectResourceBrowserStyle(rowSize: number) {
             font-size: 16px;
         }
 
-        ${browserClass.dot} header .header-first-row {
+        ${BrowserClass.dot} header .header-first-row {
             display: flex;
             align-items: center;
             margin-bottom: 8px;
         }
 
-        ${browserClass.dot} header .header-first-row img {
+        ${BrowserClass.dot} header .header-first-row img {
             cursor: pointer;
             flex-shrink: 0;
             margin-left: 16px;
         }
 
-        ${browserClass.dot} header .header-first-row .location-bar {
+        ${BrowserClass.dot} header .header-first-row .location-bar {
             flex-grow: 1;
         }
 
@@ -112,7 +112,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             height: 24px;
         }
 
-        ${browserClass.dot} header ul {
+        ${BrowserClass.dot} header ul {
             padding: 0;
             margin: 0;
             display: flex;
@@ -123,65 +123,65 @@ export function injectResourceBrowserStyle(rowSize: number) {
             align-items: center;
         }
         
-        ${browserClass.dot} header[data-no-gap] ul {
+        ${BrowserClass.dot} header[data-no-gap] ul {
             gap: 0;
         }
 
-        ${browserClass.dot} > div {
+        ${BrowserClass.dot} > div {
             flex-grow: 1;
         }
 
-        ${browserClass.dot} header {
+        ${BrowserClass.dot} header {
             width: 100%;
             height: 92px;
             flex-shrink: 0;
             overflow: hidden;
         }
         
-        ${browserClass.dot} header[data-has-filters], ${browserClass.dot} header[data-has-allocations] {
+        ${BrowserClass.dot} header[data-has-filters], ${BrowserClass.dot} header[data-has-allocations] {
             height: 136px;
         }
 
-        ${browserClass.dot} header[data-has-filters][data-has-allocations] {
+        ${BrowserClass.dot} header[data-has-filters][data-has-allocations] {
             height: 162px;
         }
 
-        ${browserClass.dot} header .location-bar,
-        ${browserClass.dot} header.show-location-bar ul {
+        ${BrowserClass.dot} header .location-bar,
+        ${BrowserClass.dot} header.show-location-bar ul {
             display: none;
         }
 
-        ${browserClass.dot} header.show-location-bar .location-bar,
-        ${browserClass.dot} header ul {
+        ${BrowserClass.dot} header.show-location-bar .location-bar,
+        ${BrowserClass.dot} header ul {
             display: flex;
         }
 
-        ${browserClass.dot} .location-bar {
+        ${BrowserClass.dot} .location-bar {
             width: 100%;
             font-size: 110%;
             height: 35px;
             font-feature-settings: unset;
         }
 
-        ${browserClass.dot} header[has-location-bar] .location:hover {
+        ${BrowserClass.dot} header[has-location-bar] .location:hover {
             border: 1px solid var(--borderColorHover);
         }
 
-        ${browserClass.dot} header[has-location-bar] .location:focus-within {
+        ${BrowserClass.dot} header[has-location-bar] .location:focus-within {
             border-color: var(--primaryMain);
         }
         
-        ${browserClass.dot} header[has-location-bar] .location li:hover {
+        ${BrowserClass.dot} header[has-location-bar] .location li:hover {
             user-select: none;
             -webkit-user-select: none;
         }
         
-        ${browserClass.dot} header[has-location-bar] .location li:hover {
+        ${BrowserClass.dot} header[has-location-bar] .location li:hover {
             cursor: pointer;
             text-decoration: underline;
         }
         
-        ${browserClass.dot} header[has-location-bar] .location {
+        ${BrowserClass.dot} header[has-location-bar] .location {
             flex-grow: 1;
             border: 1px solid var(--borderColor);
             margin-left: -6px;
@@ -192,12 +192,12 @@ export function injectResourceBrowserStyle(rowSize: number) {
             transition: margin-right 0.2s;
         }
 
-        ${browserClass.dot} header[has-location-bar] .location[in-modal] {
+        ${BrowserClass.dot} header[has-location-bar] .location[in-modal] {
             max-width: 480px;
             overflow-x: clip;
         }
         
-        ${browserClass.dot} header[has-location-bar] .location input {
+        ${BrowserClass.dot} header[has-location-bar] .location input {
             outline: none;
             border: 0;
             height: 32px;
@@ -207,17 +207,17 @@ export function injectResourceBrowserStyle(rowSize: number) {
             color: var(--textPrimary);
         }
 
-        ${browserClass.dot} header:not([has-location-bar]) > div.header-first-row > div.location {
+        ${BrowserClass.dot} header:not([has-location-bar]) > div.header-first-row > div.location {
             cursor: default;
         }
 
-        ${browserClass.dot} header input.search-field {
+        ${BrowserClass.dot} header input.search-field {
             width: 100%;
             height: 35px;
             margin-left: 5px;
         }
 
-        ${browserClass.dot} header div.search-field-wrapper {
+        ${BrowserClass.dot} header div.search-field-wrapper {
             position: relative;
             right: -46px;
             width: 400px;
@@ -225,44 +225,44 @@ export function injectResourceBrowserStyle(rowSize: number) {
             transition: width .2s;
         }
 
-        ${browserClass.dot} header div.search-field-wrapper > input.search-field[data-hidden] {
+        ${BrowserClass.dot} header div.search-field-wrapper > input.search-field[data-hidden] {
             padding: 0;
         }
 
-        ${browserClass.dot} header .search-field-wrapper:has(> input.search-field[data-hidden]) {
+        ${BrowserClass.dot} header .search-field-wrapper:has(> input.search-field[data-hidden]) {
             width: 0;
         }
         
         /* If not hidden, make of for the relative position */
-        ${browserClass.dot} header .search-field-wrapper:not(:has(> input.search-field[data-hidden])) {
+        ${BrowserClass.dot} header .search-field-wrapper:not(:has(> input.search-field[data-hidden])) {
             margin-left: -46px;
         }
 
-        ${browserClass.dot} header .search-field-wrapper > input.search-field[data-hidden] {
+        ${BrowserClass.dot} header .search-field-wrapper > input.search-field[data-hidden] {
             border: none;
         }
                     
-        ${browserClass.dot} header > div > div > ul {
+        ${BrowserClass.dot} header > div > div > ul {
             margin-top: 0px;
         }
 
-        ${browserClass.dot} header[has-location-bar] > div > div > ul {
+        ${BrowserClass.dot} header[has-location-bar] > div > div > ul {
             margin-left: 7px;
         }
         
-        ${browserClass.dot} header > div > div > ul[data-no-slashes="true"] li::before {
+        ${BrowserClass.dot} header > div > div > ul[data-no-slashes="true"] li::before {
             display: inline-block;
             content: unset;
             margin: 0;
         }
 
-        ${browserClass.dot} header > div > div > ul li::before {
+        ${BrowserClass.dot} header > div > div > ul li::before {
             display: inline-block;
             content: '/';
             text-decoration: none !important;
         }
 
-        ${browserClass.dot} header div ul li {
+        ${BrowserClass.dot} header div ul li {
             list-style: none;
             margin: 0;
             margin-bottom: 1px;
@@ -271,7 +271,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             font-size: 110%;
         }
 
-        ${browserClass.dot} .row {
+        ${BrowserClass.dot} .row {
             display: flex;
             flex-direction: row;
             container-type: inline-size;
@@ -285,11 +285,11 @@ export function injectResourceBrowserStyle(rowSize: number) {
             transition: filter 0.3s;
         }
 
-        ${browserClass.dot} .row:first-of-type {
+        ${BrowserClass.dot} .row:first-of-type {
             border-top: 0px;
         }
         
-        ${browserClass.dot} .rows-title {
+        ${BrowserClass.dot} .rows-title {
             max-height: 40px;
             height: 40px;
             color: var(--textPrimary);
@@ -303,22 +303,22 @@ export function injectResourceBrowserStyle(rowSize: number) {
             border-top: 0;
         }
         
-        body[data-cursor=grabbing] ${browserClass.dot} .row:hover {
+        body[data-cursor=grabbing] ${BrowserClass.dot} .row:hover {
             background-color: var(--rowHover);
         }
 
-        ${browserClass.dot} .row.hidden {
+        ${BrowserClass.dot} .row.hidden {
             display: none;
         }
 
-        ${browserClass.dot} .row[data-selected="true"] {
+        ${BrowserClass.dot} .row[data-selected="true"] {
             /* NOTE(Dan): We only have an active state, as a result we just use the hover variable. As the active 
                variable is intended for differentiation between the two. This is consistent with how it is used in
                the Tree component */
             background: var(--rowHover); 
         }
 
-        ${browserClass.dot} .row .title{
+        ${BrowserClass.dot} .row .title{
             display: flex;
             align-items: center;
 
@@ -329,14 +329,14 @@ export function injectResourceBrowserStyle(rowSize: number) {
         }
         
         @media screen and (max-width: 860px) {
-            ${browserClass.dot} .row .title {
+            ${BrowserClass.dot} .row .title {
                 width: calc(var(--rowWidth) - var(--stat1Width) - 38px - var(--favoriteWidth) - var(--favoriteWidth) - 16px);
             }
         }
         
 
         
-        ${browserClass.dot} .stat-wrapper {
+        ${BrowserClass.dot} .stat-wrapper {
             width: calc(var(--stat1Width) + var(--stat2Width) + var(--stat3Width) + var(--stat4Width));
             justify-content: end;
             display: flex;
@@ -344,22 +344,22 @@ export function injectResourceBrowserStyle(rowSize: number) {
         }
 
         @media screen and (max-width: 860px) {
-            ${browserClass.dot} .stat-wrapper {
+            ${BrowserClass.dot} .stat-wrapper {
                 width: calc(var(--stat1Width));
             }
         }
 
-        ${browserClass.dot} .row .stat2,
-        ${browserClass.dot} .row .stat3,
-        ${browserClass.dot} .row .stat4  {
+        ${BrowserClass.dot} .row .stat2,
+        ${BrowserClass.dot} .row .stat3,
+        ${BrowserClass.dot} .row .stat4  {
             display: none;
             width: 0;
         }
 
         @media screen and (min-width: 860px) {
-            ${browserClass.dot} .row .stat1,
-            ${browserClass.dot} .row .stat2,
-            ${browserClass.dot} .row .stat3 {
+            ${BrowserClass.dot} .row .stat1,
+            ${BrowserClass.dot} .row .stat2,
+            ${BrowserClass.dot} .row .stat3 {
                 display: flex;
                 justify-content: center;
                 margin-top: auto;
@@ -367,19 +367,19 @@ export function injectResourceBrowserStyle(rowSize: number) {
                 text-align: center;
             }
 
-            ${browserClass.dot} .row .stat1 {
+            ${BrowserClass.dot} .row .stat1 {
                 width: var(--stat1Width);
             }
             
-            ${browserClass.dot} .row .stat2 {
+            ${BrowserClass.dot} .row .stat2 {
                 width: var(--stat2Width);
             }
 
-            ${browserClass.dot} .row .stat3 {
+            ${BrowserClass.dot} .row .stat3 {
                 width: var(--stat3Width);
             }
 
-            ${browserClass.dot} .row .stat4 {
+            ${BrowserClass.dot} .row .stat4 {
                 display: flex;
                 justify-content: end;
                 text-align: end;
@@ -388,13 +388,13 @@ export function injectResourceBrowserStyle(rowSize: number) {
         }
 
         @media screen and (max-width: 860px) {
-            ${browserClass.dot} .row .stat1 {
+            ${BrowserClass.dot} .row .stat1 {
                 margin-left: auto;
             }
         }
 
 
-        ${browserClass.dot} .sensitivity-badge {
+        ${BrowserClass.dot} .sensitivity-badge {
             height: 2em;
             width: 2em;
             display: flex;
@@ -404,32 +404,32 @@ export function injectResourceBrowserStyle(rowSize: number) {
             border-radius: 100%;
         }
 
-        ${browserClass.dot} .sensitivity-badge.PRIVATE {
+        ${BrowserClass.dot} .sensitivity-badge.PRIVATE {
             --badgeColor: var(--borderColor);
         }
 
-        ${browserClass.dot} .sensitivity-badge.CONFIDENTIAL {
+        ${BrowserClass.dot} .sensitivity-badge.CONFIDENTIAL {
             --badgeColor: var(--warningMain);
         }
 
-        ${browserClass.dot} .sensitivity-badge.SENSITIVE {
+        ${BrowserClass.dot} .sensitivity-badge.SENSITIVE {
             --badgeColor: var(--errorMain);
         }
 
-        ${browserClass.dot} .operation {
+        ${BrowserClass.dot} .operation {
             cursor: pointer;
             display: flex;
             align-items: center;
             gap: 8px;
         }
         
-        ${browserClass.dot} .operations {
+        ${BrowserClass.dot} .operations {
             display: flex;
             flex-direction: row;
             gap: 8px;
         }
 
-        ${browserClass.dot} .context-menu {
+        ${BrowserClass.dot} .context-menu {
             position: fixed;
             z-index: 10000;
             top: 0;
@@ -445,14 +445,14 @@ export function injectResourceBrowserStyle(rowSize: number) {
             transition: opacity 120ms, transform 60ms;
         }
 
-        ${browserClass.dot} .context-menu ul {
+        ${BrowserClass.dot} .context-menu ul {
             padding: 0;
             margin: 0;
             display: flex;
             flex-direction: column;
         }
 
-        ${browserClass.dot} .context-menu li {
+        ${BrowserClass.dot} .context-menu li {
             margin: 0;
             padding: 8px 8px;
             list-style: none;
@@ -461,38 +461,38 @@ export function injectResourceBrowserStyle(rowSize: number) {
             gap: 8px;
         }
         
-        ${browserClass.dot} .${ShortcutClass} {
+        ${BrowserClass.dot} .${ShortcutClass} {
             font-family: var(--sansSerif);
         }
         
         @media screen and (max-width: 800px) {
-            ${browserClass.dot} .${ShortcutClass}, ${browserClass.dot} .ShortCutPlusSymbol {
+            ${BrowserClass.dot} .${ShortcutClass}, ${BrowserClass.dot} .ShortCutPlusSymbol {
                 display: none;
             }
         }
 
-        ${browserClass.dot} .HideShortcuts {
+        ${BrowserClass.dot} .HideShortcuts {
             display: none;
         }
 
-        ${browserClass.dot} .context-menu li[data-selected=true] {
+        ${BrowserClass.dot} .context-menu li[data-selected=true] {
             background: var(--rowHover);
         }
 
-        ${browserClass.dot} .context-menu > ul > *:first-child,
-        ${browserClass.dot} .context-menu > ul > li:first-child > button {
+        ${BrowserClass.dot} .context-menu > ul > *:first-child,
+        ${BrowserClass.dot} .context-menu > ul > li:first-child > button {
             border-top-left-radius: 8px;
             border-top-right-radius: 8px;
         }
         
-        ${browserClass.dot} .context-menu > ul > *:last-child,
-         ${browserClass.dot} .context-menu > ul > li:last-child,
-         ${browserClass.dot} .context-menu > ul > li:last-child > button {
+        ${BrowserClass.dot} .context-menu > ul > *:last-child,
+         ${BrowserClass.dot} .context-menu > ul > li:last-child,
+         ${BrowserClass.dot} .context-menu > ul > li:last-child > button {
             border-bottom-left-radius: 8px;
             border-bottom-right-radius: 8px;
         }
         
-        ${browserClass.dot} .rename-field {
+        ${BrowserClass.dot} .rename-field {
             display: none;
             position: absolute;
             width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--stat4Width) - var(--favoriteWidth) - 92px);
@@ -506,12 +506,12 @@ export function injectResourceBrowserStyle(rowSize: number) {
         }
 
         @media screen and (max-width: 860px) {
-            ${browserClass.dot} .rename-field {
+            ${BrowserClass.dot} .rename-field {
                 width: calc(var(--rowWidth) - var(--stat1Width) - var(--favoriteWidth) - 118px);
             }
         }
 
-        ${browserClass.dot} .page-empty {
+        ${BrowserClass.dot} .page-empty {
             display: none;
             position: fixed;
             top: 0;
@@ -524,7 +524,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             text-align: center;
         }
         
-        ${browserClass.dot} .page-empty .graphic {
+        ${BrowserClass.dot} .page-empty .graphic {
             background: var(--primaryMain);
             min-height: 100px;
             min-width: 100px;
@@ -534,24 +534,24 @@ export function injectResourceBrowserStyle(rowSize: number) {
             justify-content: center;
         }
         
-        ${browserClass.dot} .page-empty .provider-reason {
+        ${BrowserClass.dot} .page-empty .provider-reason {
             font-style: italic;
         }
 
-        ${browserClass.dot} div > div.right-sort-filters {
+        ${BrowserClass.dot} div > div.right-sort-filters {
             margin-left: auto;
         }
         
-        ${browserClass.dot} .refresh-icon {
+        ${BrowserClass.dot} .refresh-icon {
             transition: transform 0.5s;
         }
         
-        ${browserClass.dot} .refresh-icon:hover {
+        ${BrowserClass.dot} .refresh-icon:hover {
             transform: rotate(45deg);
         }
     `);
     didInject = true;
-    return browserClass;
+    return BrowserClass;
 }
 
 export const ShortcutClass = injectStyle("shortcut", k => `
