@@ -110,12 +110,11 @@ func diskPrepareForJob(job *orc.Job, pvcName string, owner metak8s.OwnerReferenc
 		}
 	}
 
-	internalMemberFiles, _, herr := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, job.Owner.Project)
+	targetDir, herr := JobFolder(job)
 	if herr != nil {
 		return herr
 	}
 
-	targetDir := filepath.Join(internalMemberFiles, "Jobs", "VirtualMachines", job.Id)
 	targetDirHostPath := strings.ReplaceAll(targetDir, shared.ServiceConfig.FileSystem.MountPoint,
 		shared.ServiceConfig.Compute.VirtualMachines.Storage.HostPath)
 	diskPath := filepath.Join(targetDir, "disk.img") // required by KubeVirt

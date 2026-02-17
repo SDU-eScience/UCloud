@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -285,7 +286,7 @@ func follow(session *ctrl.FollowJobSession) {
 	}
 }
 
-func handleShell(session *ctrl.ShellSession, cols int, rows int) {
+func handleShell(session *ctrl.ShellSession, _ int, _ int) {
 	stdinReader, stdinWriter := io.Pipe()
 	stdoutReader, stdoutWriter := io.Pipe()
 
@@ -369,7 +370,7 @@ func handleShell(session *ctrl.ShellSession, cols int, rows int) {
 
 func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 	name := vmName(request.Job.Id, 0)
-	err := KubevirtClient.VirtualMachine(Namespace).Delete(context.TODO(), name, k8smeta.DeleteOptions{})
+	err := KubevirtClient.VirtualMachine(Namespace).Delete(context.Background(), name, k8smeta.DeleteOptions{})
 	if err != nil && !k8serrors.IsNotFound(err) {
 		log.Info("Failed to delete VM: %v", err)
 		return util.ServerHttpError("Failed to delete VM")
@@ -385,7 +386,7 @@ func unsuspend(job orc.Job) *util.HttpError {
 
 func suspend(job orc.Job) *util.HttpError {
 	name := vmName(job.Id, 0)
-	err := KubevirtClient.VirtualMachine(Namespace).Stop(context.TODO(), name, &kvcore.StopOptions{})
+	err := KubevirtClient.VirtualMachine(Namespace).Stop(context.Background(), name, &kvcore.StopOptions{})
 	if err != nil {
 		log.Info("Failed to shutdown VM: %v", err)
 		return util.ServerHttpError("Failed to shutdown VM")
@@ -393,7 +394,7 @@ func suspend(job orc.Job) *util.HttpError {
 	return nil
 }
 
-func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
+func requestDynamicParameters(_ orc.ResourceOwner, _ *orc.Application) []orc.ApplicationParameter {
 	return []orc.ApplicationParameter{
 		{
 			Type:     orc.ApplicationParameterTypeInteger,
@@ -412,7 +413,7 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 	}
 }
 
-func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, *util.HttpError) {
+func openWebSession(_ *orc.Job, _ int, _ util.Option[string]) (ctrl.ConfiguredWebSession, *util.HttpError) {
 	return ctrl.ConfiguredWebSession{
 		Flags: ctrl.RegisteredIngressFlagsVnc | ctrl.RegisteredIngressFlagsNoGatewayConfig,
 	}, nil
@@ -494,9 +495,9 @@ func handleVnc(job *orc.Job, rank int, conn *ws.Conn) {
 	}
 }
 
-func StartScheduledJob(job *orc.Job, rank int, node string) {
+func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	if !Enabled {
-		return
+		return util.HttpErr(http.StatusForbidden, "this system is not capable of running VMs at the moment")
 	}
 
 	cinit := cloudInit{}
@@ -518,7 +519,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	machine := &job.Status.ResolvedProduct.Value
 
 	nameOfVm := vmName(job.Id, rank)
-	existingVm, err := KubevirtClient.VirtualMachine(Namespace).Get(context.TODO(), nameOfVm, k8smeta.GetOptions{})
+	existingVm, err := KubevirtClient.VirtualMachine(Namespace).Get(context.Background(), nameOfVm, k8smeta.GetOptions{})
 	hasExistingVm := err == nil
 
 	vm := &kvcore.VirtualMachine{}
@@ -554,13 +555,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 
 	vm.Spec.Template = &kvcore.VirtualMachineInstanceTemplateSpec{
 		Spec: kvcore.VirtualMachineInstanceSpec{
-			// TODO Cluster DNS doesn't work (NetworkPolicy?)
-			DNSPolicy: k8score.DNSNone,
-			DNSConfig: &k8score.PodDNSConfig{
-				Nameservers: []string{
-					"1.1.1.1",
-				},
-			},
+			// TODO Cluster DNS didn't work on dev (previously - not tested recently. NetworkPolicy?)
 			NodeSelector: map[string]string{
 				"kubernetes.io/hostname": node,
 			},
@@ -671,6 +666,51 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 		MountFolder: "/opt",
 	})
 
+	jobFolder, herr := JobFolder(job)
+	if herr != nil {
+		log.Warn("Could not find job folder: %v %s", job.Id, err)
+		return util.HttpErr(http.StatusInternalServerError, "internal error")
+	} else {
+		confDir := filepath.Join(jobFolder, "config")
+		err = os.MkdirAll(confDir, 0700)
+		if err != nil {
+			log.Warn("Could not create job folder: %v %s", job.Id, err)
+			return util.HttpErr(http.StatusInternalServerError, "internal error")
+		}
+
+		err = os.Chown(confDir, filesystem.DefaultUid, filesystem.DefaultUid)
+		if err != nil {
+			log.Warn("Could not create chown folder: %v %s", job.Id, err)
+			return util.HttpErr(http.StatusInternalServerError, "internal error")
+		}
+
+		tokPath := filepath.Join(confDir, "token")
+		err = os.WriteFile(tokPath, []byte(util.SecureToken()), 0600)
+		if err != nil {
+			log.Warn("Could not create write token: %v %s", job.Id, err)
+			return util.HttpErr(http.StatusInternalServerError, "internal error")
+		}
+
+		err = os.Chown(tokPath, filesystem.DefaultUid, filesystem.DefaultUid)
+		if err != nil {
+			log.Warn("Could not chown token: %v %s", job.Id, err)
+			return util.HttpErr(http.StatusInternalServerError, "internal error")
+		}
+
+		subpath, ok := strings.CutPrefix(jobFolder, filepath.Clean(ServiceConfig.FileSystem.MountPoint)+"/")
+		if !ok {
+			log.Warn("sub path to folder is invalid: %v %s", job.Id, err)
+			return util.HttpErr(http.StatusInternalServerError, "internal error")
+		}
+
+		unpreparedMounts = append(unpreparedMounts, unpreparedMount{
+			SubPath:     filepath.Join(subpath, "config"),
+			ReadOnly:    true,
+			Title:       "ucloud",
+			MountFolder: "/etc",
+		})
+	}
+
 	fsIdx := 0
 	for _, param := range unpreparedMounts {
 		subpath := param.SubPath
@@ -763,9 +803,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	)
 
 	if hasExistingVm {
-		_, err = KubevirtClient.VirtualMachine(Namespace).Update(context.TODO(), vm, k8smeta.UpdateOptions{})
+		_, err = KubevirtClient.VirtualMachine(Namespace).Update(context.Background(), vm, k8smeta.UpdateOptions{})
 	} else {
-		vm, localErr := KubevirtClient.VirtualMachine(Namespace).Create(context.TODO(), vm, k8smeta.CreateOptions{})
+		vm, localErr := KubevirtClient.VirtualMachine(Namespace).Create(context.Background(), vm, k8smeta.CreateOptions{})
 		err = localErr
 		if err == nil {
 			ownerReference := k8smeta.OwnerReference{
@@ -782,11 +822,19 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 		}
 	}
 	if err != nil {
-		// TODO
-		// TODO
-		// TODO
-		log.Info("Failed to create VM: %v", err)
+		log.Warn("Failed to create VM: %v", err)
+		return util.HttpErr(http.StatusInternalServerError, "failed to create VM")
 	}
+	return nil
 }
 
 const vmDiskSizeParameter = "diskSize"
+
+func JobFolder(job *orc.Job) (string, *util.HttpError) {
+	internalMemberFiles, _, herr := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, job.Owner.Project)
+	if herr != nil {
+		return "", herr
+	}
+
+	return filepath.Join(internalMemberFiles, "Jobs", "VirtualMachines", job.Id), nil
+}

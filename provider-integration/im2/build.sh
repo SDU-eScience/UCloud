@@ -17,6 +17,10 @@ docker exec -it ucloud-im2-builder-x64 bash -c '
     cd /opt/ucloud/im2 ; 
     CGO_ENABLED=0 go build -o bin/ucmetrics_x86_64 -trimpath ucloud.dk/cmd/ucmetrics
 '
+docker exec -it ucloud-im2-builder-x64 bash -c '
+    cd /opt/ucloud/im2 ;
+    CGO_ENABLED=0 go build -o bin/vmagent_x86_64 -trimpath ucloud.dk/cmd/vmagent
+'
 
 echo "arm64 compiling..."
 docker exec -it ucloud-im2-builder-arm64 bash -c '
@@ -31,6 +35,11 @@ docker exec -it ucloud-im2-builder-arm64 bash -c '
     cd /opt/ucloud/im2 ; 
     CGO_ENABLED=0 go build -o bin/ucviz_aarch64 -trimpath ucloud.dk/cmd/ucviz
 '
+docker exec -it ucloud-im2-builder-arm64 bash -c '
+    cd /opt/ucloud/im2 ;
+    CGO_ENABLED=0 go build -o bin/vmagent_aarch64 -trimpath ucloud.dk/cmd/vmagent
+'
+
 
 if [ -z "$NO_DOCKER" ]; then
     version=`cat ../../core2/version.txt`

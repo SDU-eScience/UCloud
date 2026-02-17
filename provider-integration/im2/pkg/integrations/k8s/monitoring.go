@@ -195,7 +195,7 @@ func initJobQueue() {
 	}
 }
 
-var iappDidNotifyUnableToSchedule = map[string]util.Empty{}
+var didNotifyUnableToSchedule = map[string]util.Empty{}
 
 func loopMonitoring() {
 	timerTotal := util.NewTimer()
@@ -621,8 +621,23 @@ func loopMonitoring() {
 			toolBackend := job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
 			if toolBackend == orc.ToolBackendVirtualMachine {
 				timer.Mark()
-				kubevirt.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
+				err := kubevirt.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
 				metricMonitoring.WithLabelValues("StartJob").Observe(timer.Mark().Seconds())
+				if err != nil {
+					localMessages = append(localMessages, controller.JobMessage{
+						JobId:   job.Id,
+						Message: fmt.Sprintf("Failed to schedule job: %s", err),
+					})
+
+					_, didNotify := didNotifyUnableToSchedule[job.Id]
+					if didNotify {
+						sendMessages = false
+					} else {
+						didNotifyUnableToSchedule[job.Id] = util.Empty{}
+					}
+				} else {
+					delete(didNotifyUnableToSchedule, job.Id)
+				}
 			} else {
 				timer.Mark()
 				err := containers.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
@@ -635,11 +650,11 @@ func loopMonitoring() {
 					})
 
 					if isIApp {
-						_, didNotify := iappDidNotifyUnableToSchedule[job.Id]
+						_, didNotify := didNotifyUnableToSchedule[job.Id]
 						if didNotify {
 							sendMessages = false
 						} else {
-							iappDidNotifyUnableToSchedule[job.Id] = util.Empty{}
+							didNotifyUnableToSchedule[job.Id] = util.Empty{}
 						}
 					}
 
@@ -656,7 +671,7 @@ func loopMonitoring() {
 					}
 				} else {
 					if isIApp {
-						delete(iappDidNotifyUnableToSchedule, job.Id)
+						delete(didNotifyUnableToSchedule, job.Id)
 					}
 				}
 			}
