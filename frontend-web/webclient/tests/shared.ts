@@ -375,7 +375,7 @@ export const Drive = {
             await Components.projectSwitcher(page, "hover")
         });
 
-        await page.waitForLoadState("domcontentloaded");
+        await page.waitForLoadState();
     },
 
     async create(page: Page, name: string): Promise<void> {
