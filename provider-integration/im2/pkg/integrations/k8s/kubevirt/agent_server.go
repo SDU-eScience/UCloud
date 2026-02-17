@@ -10,7 +10,6 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	vmagent "ucloud.dk/pkg/integrations/k8s/vm-agent"
 	db "ucloud.dk/shared/pkg/database"
-	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -82,7 +81,6 @@ func vmaServerHandleSession(c *ws.Conn) {
 			SessionId: util.SecureToken(),
 		}
 
-		log.Info("Got token: %s", string(authMsg))
 		jobId, srvToken, ok := db.NewTx3(func(tx *db.Transaction) (string, string, bool) {
 			row, ok := db.Get[struct {
 				JobId    string
