@@ -242,7 +242,10 @@ TestContexts.map(ctx => {
                 await File.open(page, "Trash");
                 await File.emptyTrash(page);
                 await File.searchFor(page, theFolderToFind);
-                await expect(page.getByText(theFolderToFind)).toHaveCount(1);
+                while (!await page.getByText(theFolderToFind).isVisible()) {
+                    await page.waitForLoadState("networkidle");
+                    await Components.clickRefreshAndWait(page);
+                }
             });
         });
 

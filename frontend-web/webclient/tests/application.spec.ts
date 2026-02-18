@@ -281,7 +281,7 @@ async function runAppAndOpenTerminal(page: Page, appName: string, nodeCount: num
     }
     await Components.selectAvailableMachineType(page);
     if (jobName) await Runs.setJobTitle(page, jobName);
-    if (nodeCount > 0) Runs.setNodeCount(page, nodeCount);
+    if (nodeCount > 0) await Runs.setNodeCount(page, nodeCount);
     await Runs.submitAndWaitForRunning(page);
 }
 

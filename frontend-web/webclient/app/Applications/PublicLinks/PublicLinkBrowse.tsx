@@ -277,11 +277,13 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                     const create = operations.find(it => it.tag === CREATE_TAG);
                     if (create) {
                         create.enabled = () => true;
-                        create.onClick = () => {
+                        create.onClick = async () => {
+                            const availableProducts = await supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(PublicLinkApi));
+
                             dialogStore.addDialog(
                                 <ProductSelectorWithPermissions
                                     isPublicLink
-                                    products={supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "")?.newProducts ?? []}
+                                    products={availableProducts.newProducts}
                                     placeholder="Type url..."
                                     dummyEntry={dummyEntry}
                                     title={PublicLinkApi.title}
