@@ -253,7 +253,7 @@ export interface ColumnTitle<SortById = string> {
     sortById?: SortById;
 }
 
-export type ColumnTitleList<SortById = string> = 
+export type ColumnTitleList<SortById = string> =
     | [Omit<ColumnTitle<SortById>, "columnWidth">, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>] // 4 Columns
     | [Omit<ColumnTitle<SortById>, "columnWidth">, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>]; // 5 Columns
 
@@ -671,7 +671,11 @@ export class ResourceBrowser<T> {
                 height: 64
             }).then(url => icon.src = url);
             icon.addEventListener("click", () => {
-                this.refresh();
+                if (this.searchQuery) {
+                    this.dispatchMessage("search", fn => fn(this.searchQuery))
+                } else {
+                    this.refresh();
+                }
 
                 const evListener = () => {
                     icon.style.transition = "transform 0s";
