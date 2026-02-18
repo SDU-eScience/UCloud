@@ -86,11 +86,17 @@ func loadProjectPoliciesFromDB() {
 			if !ok {
 				policies = &AssociatedPolicies{EnabledPolices: map[string]fndapi.PolicySpecification{}}
 			}
-			specification := fndapi.PolicySpecification{}
-			err := json.Unmarshal([]byte(row.PolicyProperties), &specification)
+			properties := []fndapi.PolicyPropertyValue{}
+			err := json.Unmarshal([]byte(row.PolicyProperties), &properties)
 			if err != nil {
 				log.Fatal("Error loading policy document %v : %v", row.PolicyProperties, err)
 			}
+			specification := fndapi.PolicySpecification{
+				Schema:     row.PolicyName,
+				Project:    rpc.ProjectId(projectId),
+				Properties: properties,
+			}
+
 			policies.EnabledPolices[row.PolicyName] = specification
 		}
 

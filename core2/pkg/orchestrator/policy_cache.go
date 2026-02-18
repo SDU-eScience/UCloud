@@ -17,6 +17,11 @@ var policyCache struct {
 }
 
 func initPolicySubscriptions() {
+
+	policyCache.Mu.Lock()
+	policyCache.PoliciesByProject = make(map[string]map[string]*fndapi.PolicySpecification)
+	policyCache.Mu.Unlock()
+
 	go func() {
 		policyUpdates := db.Listen(context.Background(), "policy_updates")
 
@@ -50,6 +55,7 @@ func policiesByProject(projectId string) map[string]*fndapi.PolicySpecification 
 			policySpecifications, policiesOk := coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
 			if policiesOk {
 				policyCache.PoliciesByProject[projectId] = policySpecifications
+				projectPolicies = policySpecifications
 			} else {
 				log.Debug("No policies for project %v found in DB", projectId)
 			}

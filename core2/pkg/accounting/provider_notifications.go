@@ -50,6 +50,11 @@ func retrieveRelevantProviders(projectId string) map[string]util.Empty {
 func initProviderNotifications() {
 	providerNotifications.ProjectChannelsByProvider = map[string]map[string]chan *fndapi.Project{}
 	providerNotifications.WalletsByProvider = map[string]map[string]chan *accapi.WalletV2{}
+	providerNotifications.PoliciesByProvider = map[string]map[string]chan policiesForProject{}
+
+	policyCache.Mu.Lock()
+	policyCache.PoliciesByProject = make(map[string]map[string]*fndapi.PolicySpecification)
+	policyCache.Mu.Unlock()
 
 	go func() {
 		// NOTE(Dan): These two channels receive events from database triggers set on the relevant insert/update/delete
