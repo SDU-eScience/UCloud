@@ -1315,7 +1315,11 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                     searching = currentPath;
                     browser.open(SEARCH);
-                    browser.cachedData[SEARCH] = [];
+                    // Note(Jonas): Slighty different approach to ensure race conditions doesn't end up with duplicates.
+                    // It used to directly use `browser.cachedData[SEARCH]`, but this could refer to a different array compared to what we expect.
+                    // Using `newCachedData` directly allows filling up data that will be automatically discarded on function termination if not stored in the record.
+                    const newCachedData: UFile[] = [];
+                    browser.cachedData[SEARCH] = newCachedData;
                     browser.searchQuery = query;
                     browser.renderRows();
                     browser.renderOperations();
@@ -1342,7 +1346,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                             if (message.payload["type"] === "result") {
                                                 const result = message.payload["batch"];
                                                 // TODO(Jonas): Handle page change before adding results.
-                                                const data = browser.cachedData[browser.currentPath] ?? [];
+                                                const data = newCachedData;
                                                 data.push(...result);
                                                 browser.renderRows();
                                                 browser.renderOperations();
