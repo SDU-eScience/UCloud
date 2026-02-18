@@ -30,6 +30,10 @@ export const SimpleRichSelect: React.FunctionComponent<{
     dropdownWidth?: string;
     placeholder?: string;
     noResultsItem?: SimpleRichItem;
+    trigger?: React.ReactNode;
+    matchTriggerWidth?: boolean;
+    rightAligned?: boolean;
+    disabled?: boolean;
 }> = props => {
     return <RichSelect
         items={props.items}
@@ -51,6 +55,10 @@ export const SimpleRichSelect: React.FunctionComponent<{
         selected={props.selected}
         noResultsItem={props.noResultsItem}
         chevronPlacement={{position: "absolute", bottom: "5px", right: "5px"}}
+        trigger={props.trigger}
+        matchTriggerWidth={props.matchTriggerWidth}
+        rightAligned={props.rightAligned}
+        disabled={props.disabled}
     />
 }
 
@@ -73,6 +81,10 @@ export function RichSelect<T, K extends keyof T>(props: {
 
     placeholder?: string;
     noResultsItem?: T;
+    trigger?: React.ReactNode;
+    matchTriggerWidth?: boolean;
+    rightAligned?: boolean;
+    disabled?: boolean;
 }): React.ReactNode {
     const [query, setQuery] = useState("");
     const closeFn = useRef<() => void>(doNothing);
@@ -96,17 +108,26 @@ export function RichSelect<T, K extends keyof T>(props: {
     const [dropdownSize, setDropdownSize] = useState(props.dropdownWidth ?? "300px");
 
     const onTriggerClick = useCallback(() => {
+        setQuery("");
+        if (props.matchTriggerWidth === false) {
+            if (props.dropdownWidth) setDropdownSize(props.dropdownWidth);
+            return;
+        }
+
         const trigger = triggerRef.current;
         if (!trigger) return;
         const width = trigger.getBoundingClientRect().width;
-        setQuery("");
         setDropdownSize(width + "px");
-    }, []);
+    }, [props.matchTriggerWidth, props.dropdownWidth]);
 
-    const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + INPUT_FIELD_HEIGHT);
+    const showSearchField = props.items.length > 1;
+    const searchFieldHeight = showSearchField ? INPUT_FIELD_HEIGHT : 0;
+    const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + searchFieldHeight);
 
-    return <ClickableDropdown
-        trigger={props.FullRenderSelected ?
+    const trigger = props.trigger ?
+        <div ref={triggerRef}>{props.trigger}</div>
+        :
+        props.FullRenderSelected ?
             <props.FullRenderSelected element={props.selected} onSelect={doNothing} />
             :
             props.RenderSelected ?
@@ -114,10 +135,16 @@ export function RichSelect<T, K extends keyof T>(props: {
                     <props.RenderSelected element={props.selected} onSelect={doNothing} />
                     <Icon name="heroChevronDown" style={props.chevronPlacement} />
                 </div>
-                : <></>
-        }
+                : <></>;
+
+    if (props.disabled) {
+        return trigger;
+    }
+
+    return <ClickableDropdown
+        trigger={trigger}
         onOpeningTriggerClick={onTriggerClick}
-        rightAligned
+        rightAligned={props.rightAligned ?? true}
         height={height}
         closeFnRef={closeFn}
         paddingControlledByContent
@@ -139,34 +166,36 @@ export function RichSelect<T, K extends keyof T>(props: {
         }}
     >
         <div style={{height: height + "px", width: dropdownSize}}>
-            <Flex>
-                <Input
-                    autoFocus
-                    className={FilterInputClass}
-                    placeholder={props.placeholder ?? "Search..."}
-                    defaultValue={query}
-                    onClick={stopPropagationAndPreventDefault}
-                    enterKeyHint="enter"
-                    onKeyDownCapture={e => {
-                        if (["Escape"].includes(e.code) && e.target["value"]) {
-                            setQuery("");
-                            e.target["value"] = "";
+            {!showSearchField ? null : (
+                <Flex>
+                    <Input
+                        autoFocus
+                        className={FilterInputClass}
+                        placeholder={props.placeholder ?? "Search..."}
+                        defaultValue={query}
+                        onClick={stopPropagationAndPreventDefault}
+                        enterKeyHint="enter"
+                        onKeyDownCapture={e => {
+                            if (["Escape"].includes(e.code) && e.target["value"]) {
+                                setQuery("");
+                                e.target["value"] = "";
+                                e.stopPropagation();
+                            }
+                        }}
+                        onKeyUp={e => {
                             e.stopPropagation();
-                        }
-                    }}
-                    onKeyUp={e => {
-                        e.stopPropagation();
-                        setQuery("value" in e.target ? e.target.value as string : "");
-                    }}
-                    type="text"
-                />
+                            setQuery("value" in e.target ? e.target.value as string : "");
+                        }}
+                        type="text"
+                    />
 
-                <Relative right="24px" top="5px" width="0px" height="0px">
-                    <Icon name="search" />
-                </Relative>
-            </Flex>
+                    <Relative right="24px" top="5px" width="0px" height="0px">
+                        <Icon name="search" />
+                    </Relative>
+                </Flex>
+            )}
 
-            <div className={ResultWrapperClass} style={{maxHeight: (height - INPUT_FIELD_HEIGHT) + "px", height: height + "px"}}>
+            <div className={ResultWrapperClass} style={{maxHeight: (height - searchFieldHeight) + "px", height: height + "px"}}>
                 {limitedElements.map(it => <props.RenderRow
                     element={it}
                     key={it.idx}

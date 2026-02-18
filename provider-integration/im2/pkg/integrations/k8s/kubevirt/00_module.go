@@ -681,65 +681,67 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		return util.HttpErr(http.StatusInternalServerError, "internal error")
 	} else {
 		confDir := filepath.Join(jobFolder, "config")
-		err = os.MkdirAll(confDir, 0700)
-		if err != nil {
-			log.Warn("Could not create job folder: %v %s", job.Id, err)
-			return util.HttpErr(http.StatusInternalServerError, "internal error")
-		}
-
-		err = os.Chown(confDir, filesystem.DefaultUid, filesystem.DefaultUid)
-		if err != nil {
-			log.Warn("Could not create chown folder: %v %s", job.Id, err)
-			return util.HttpErr(http.StatusInternalServerError, "internal error")
-		}
-
-		agentTok := util.SecureToken()
-		srvTok := util.SecureToken()
-		db.NewTx0(func(tx *db.Transaction) {
-			db.Exec(
-				tx,
-				`
-					insert into k8s.vmagents(job_id, agent_token, srv_token)
-					values (:job_id, :agent_token, :srv_token)
-			    `,
-				db.Params{
-					"job_id":      job.Id,
-					"agent_token": agentTok,
-					"srv_token":   srvTok,
-				},
-			)
-		})
-
-		tokPath := filepath.Join(confDir, "token")
-		err = os.WriteFile(tokPath, []byte(fmt.Sprintf("%s\n%s", agentTok, srvTok)), 0600)
-		if err != nil {
-			log.Warn("Could not create write token: %v %s", job.Id, err)
-			return util.HttpErr(http.StatusInternalServerError, "internal error")
-		}
-
-		err = os.Chown(tokPath, filesystem.DefaultUid, filesystem.DefaultUid)
-		if err != nil {
-			log.Warn("Could not chown token: %v %s", job.Id, err)
-			return util.HttpErr(http.StatusInternalServerError, "internal error")
-		}
-
 		subpath, ok := strings.CutPrefix(jobFolder, filepath.Clean(ServiceConfig.FileSystem.MountPoint)+"/")
 		if !ok {
 			log.Warn("sub path to folder is invalid: %v %s", job.Id, err)
 			return util.HttpErr(http.StatusInternalServerError, "internal error")
 		}
 
-		systemdPath := filepath.Join(confDir, "vmagent.service")
-		err = os.WriteFile(systemdPath, vmAgentSystemdFile, 0600)
-		if err != nil {
-			log.Warn("Could not create write systemd file: %v %s", job.Id, err)
-			return util.HttpErr(http.StatusInternalServerError, "internal error")
-		}
+		if !hasExistingVm {
+			err = os.MkdirAll(confDir, 0700)
+			if err != nil {
+				log.Warn("Could not create job folder: %v %s", job.Id, err)
+				return util.HttpErr(http.StatusInternalServerError, "internal error")
+			}
 
-		err = os.Chown(systemdPath, filesystem.DefaultUid, filesystem.DefaultUid)
-		if err != nil {
-			log.Warn("Could not chown systemd file: %v %s", job.Id, err)
-			return util.HttpErr(http.StatusInternalServerError, "internal error")
+			err = os.Chown(confDir, filesystem.DefaultUid, filesystem.DefaultUid)
+			if err != nil {
+				log.Warn("Could not create chown folder: %v %s", job.Id, err)
+				return util.HttpErr(http.StatusInternalServerError, "internal error")
+			}
+
+			agentTok := util.SecureToken()
+			srvTok := util.SecureToken()
+			db.NewTx0(func(tx *db.Transaction) {
+				db.Exec(
+					tx,
+					`
+						insert into k8s.vmagents(job_id, agent_token, srv_token)
+						values (:job_id, :agent_token, :srv_token)
+					`,
+					db.Params{
+						"job_id":      job.Id,
+						"agent_token": agentTok,
+						"srv_token":   srvTok,
+					},
+				)
+			})
+
+			tokPath := filepath.Join(confDir, "token")
+			err = os.WriteFile(tokPath, []byte(fmt.Sprintf("%s\n%s", agentTok, srvTok)), 0600)
+			if err != nil {
+				log.Warn("Could not create write token: %v %s", job.Id, err)
+				return util.HttpErr(http.StatusInternalServerError, "internal error")
+			}
+
+			err = os.Chown(tokPath, filesystem.DefaultUid, filesystem.DefaultUid)
+			if err != nil {
+				log.Warn("Could not chown token: %v %s", job.Id, err)
+				return util.HttpErr(http.StatusInternalServerError, "internal error")
+			}
+
+			systemdPath := filepath.Join(confDir, "vmagent.service")
+			err = os.WriteFile(systemdPath, vmAgentSystemdFile, 0600)
+			if err != nil {
+				log.Warn("Could not create write systemd file: %v %s", job.Id, err)
+				return util.HttpErr(http.StatusInternalServerError, "internal error")
+			}
+
+			err = os.Chown(systemdPath, filesystem.DefaultUid, filesystem.DefaultUid)
+			if err != nil {
+				log.Warn("Could not chown systemd file: %v %s", job.Id, err)
+				return util.HttpErr(http.StatusInternalServerError, "internal error")
+			}
 		}
 
 		unpreparedMounts = append(unpreparedMounts, unpreparedMount{
