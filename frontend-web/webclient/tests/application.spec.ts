@@ -257,7 +257,7 @@ echo "${BashScriptStringContent}"
                 await userPage.getByText("0 / 1 Core-hours (0%)", {exact: true}).first().waitFor();
                 const jobName = Runs.newJobName();
                 await runAppAndOpenTerminal(userPage, AppNames.TestApplication, 2, jobName);
-                await userPage.waitForTimeout(120_000);
+                await userPage.waitForTimeout(90_000);
                 await Runs.terminateViewedRun(userPage);
 
                 await userPage.reload();

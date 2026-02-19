@@ -184,6 +184,7 @@ export const File = {
             await page.getByRole("textbox").nth(1).fill(name);
             await page.getByRole("textbox").nth(1).press("Enter");
         });
+        await page.waitForLoadState();
     },
 
     async moveToTrash(page: Page, name: string): Promise<void> {
@@ -249,8 +250,8 @@ export const File = {
     },
 
     async moveFileToTrash(page: Page, fileName: string): Promise<void> {
+        await this.openOperationsDropsdown(page, fileName);
         await NetworkCalls.awaitResponse(page, "**/api/files/trash", async () => {
-            await this.openOperationsDropsdown(page, fileName);
             await Components.clickConfirmationButton(page, "Move to trash");
         });
     },

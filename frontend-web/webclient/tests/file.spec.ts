@@ -211,7 +211,10 @@ TestContexts.map(ctx => {
                 await File.copyFileInPlace(page, folderToCopy);
                 await page.waitForTimeout(2_000);
                 await Components.clickRefreshAndWait(page);
-                await page.getByText(folderToCopy + "(1)").waitFor();
+                while (!await page.locator(".row", {hasText: folderToCopy + "(1)"}).isVisible()) {
+                    await Components.clickRefreshAndWait(page);
+                    await page.waitForTimeout(200);
+                }
             });
 
             test("Move to trash, empty trash", async ({page}) => {
@@ -242,9 +245,9 @@ TestContexts.map(ctx => {
                 await File.open(page, "Trash");
                 await File.emptyTrash(page);
                 await File.searchFor(page, theFolderToFind);
-                while (!await page.getByText(theFolderToFind).isVisible()) {
-                    await page.waitForLoadState("networkidle");
+                while (!await page.locator(".row", {hasText: theFolderToFind}).isVisible()) {
                     await Components.clickRefreshAndWait(page);
+                    await page.waitForTimeout(200);
                 }
             });
         });
@@ -308,12 +311,13 @@ TestContexts.map(ctx => {
 
         test.describe("Files - Syncthing works", () => {
             test("Set up Syncthing", async ({page, userAgent}) => {
+                test.setTimeout(60_000);
                 const folderName = File.newFolderName();
                 const deviceName = File.newFolderName().replace("FolderName", "DeviceName");
                 await File.create(page, folderName);
 
                 const result = await NetworkCalls.awaitResponse(page, "**/iapps/syncthing/retrieve**", async () => {
-                    await page.getByText("Sync").click();
+                    await page.locator("div.operation", {hasText: "Sync"}).click();
                 });
 
                 const syncthingDevicesText = await result.text();
@@ -331,21 +335,23 @@ TestContexts.map(ctx => {
                 const user = ctxUser(ctx);
                 const drive = ctx === "Project User" ? Drive.newDriveNameOrMemberFiles(ctx) : Drives[userAgent! + user.username];
                 await File.ensureDialogDriveActive(page, drive);
+
                 await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
                     await page.getByRole("dialog").locator(".row", {hasText: folderName}).getByRole("button", {name: "Sync"}).click();
                 });
+                await page.getByRole("dialog").waitFor({state: "hidden"});
 
                 // Remove folder
+                await page.getByText(folderName).hover();
+                await page.locator("div[class^=card] .row:not(.hidden)").last().getByRole("button").click();
                 await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
-                    await page.getByText(folderName, {exact: false}).hover();
-                    await page.getByRole("button", {name: "", exact: true}).nth(1).click();
-                    await page.getByRole("button", {name: "Remove"}).click();
+                    await page.getByRole("dialog").getByRole("button", {name: "Remove"}).click();
                 });
 
                 // Remove syncthing device
+                await page.getByText(deviceName).hover();
+                await page.getByRole("button", {name: "", exact: true}).first().click();
                 await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
-                    await page.getByText(deviceName).hover();
-                    await page.getByRole("button", {name: "", exact: true}).first().click();
                     await page.getByRole("button", {name: "Remove"}).click();
                 });
             });
