@@ -7,9 +7,10 @@ import (
 
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v3"
-	core "k8s.io/api/core/v1"
+	k8score "k8s.io/api/core/v1"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -17,15 +18,15 @@ import (
 func prepareInvocationOnJobCreate(
 	job *orc.Job,
 	rank int,
-	pod *core.Pod,
-	container *core.Container,
+	pod *k8score.Pod,
+	container *k8score.Container,
 	pathMapperInternalToPod map[string]string,
 	jobFolder string,
 ) {
 	app := &job.Status.ResolvedApplication.Value
 
 	invocationParameters := app.Invocation.Invocation
-	parametersAndValues := controller.JobFindParamAndValues(job, &app.Invocation, nil)
+	parametersAndValues := controller.JobFindParamAndValues(job, &app.Invocation, requestDynamicParameters(job.Owner, app))
 	environment := app.Invocation.Environment
 
 	ucloudToPod := func(ucloudPath string) string {
@@ -49,6 +50,8 @@ func prepareInvocationOnJobCreate(
 	}
 
 	argBuilder := controller.JobDefaultArgBuilder(ucloudToPod)
+
+	log.Info("The sample rate is %v", parametersAndValues["ucMetricSampleRate"]) // TODO remember to remove this
 
 	// Convert license parameters
 	for parameterId, parameterAndValue := range parametersAndValues {
@@ -101,21 +104,29 @@ func prepareInvocationOnJobCreate(
 	for k, param := range environment {
 		commandList := controller.JobBuildParameter(param, parametersAndValues, false, argBuilder, nil)
 		envValue := strings.Join(commandList, " ")
-		container.Env = append(container.Env, core.EnvVar{
+		container.Env = append(container.Env, k8score.EnvVar{
 			Name:  k,
 			Value: envValue,
 		})
 	}
 
+	sampleRate, ok := parametersAndValues["ucMetricSampleRate"]
+	if ok {
+		container.Env = append(container.Env, k8score.EnvVar{
+			Name:  "UCLOUD_METRICS_SAMPLE_INTERVAL",
+			Value: sampleRate.Value.Value.(string),
+		})
+	}
+
 	openedFile := job.Specification.OpenedFile
 	if openedFile != "" {
-		container.Env = append(container.Env, core.EnvVar{
+		container.Env = append(container.Env, k8score.EnvVar{
 			Name:  "UCLOUD_OPEN_WITH_FILE",
 			Value: ucloudToPod(openedFile),
 		})
 	}
 
-	container.Env = append(container.Env, core.EnvVar{
+	container.Env = append(container.Env, k8score.EnvVar{
 		Name:  "UCLOUD_JOB_ID",
 		Value: job.Id,
 	})
@@ -125,7 +136,7 @@ func prepareInvocationOnJobCreate(
 		"VC_JOB_NUM",
 	}
 	for _, name := range replicaNames {
-		container.Env = append(container.Env, core.EnvVar{
+		container.Env = append(container.Env, k8score.EnvVar{
 			Name:  name,
 			Value: fmt.Sprint(job.Specification.Replicas),
 		})
@@ -137,7 +148,7 @@ func prepareInvocationOnJobCreate(
 		"UCLOUD_RANK",
 	}
 	for _, name := range rankNames {
-		container.Env = append(container.Env, core.EnvVar{
+		container.Env = append(container.Env, k8score.EnvVar{
 			Name:  name,
 			Value: fmt.Sprint(rank),
 		})
@@ -149,7 +160,7 @@ func prepareInvocationOnJobCreate(
 		"UCLOUD_BASE_URL",
 	}
 	for _, name := range ingressNames {
-		container.Env = append(container.Env, core.EnvVar{
+		container.Env = append(container.Env, k8score.EnvVar{
 			Name:  name,
 			Value: fmt.Sprintf("https://%s", ingress.TargetDomain),
 		})
@@ -159,8 +170,8 @@ func prepareInvocationOnJobCreate(
 func handleJinjaInvocation(
 	job *orc.Job,
 	rank int,
-	pod *core.Pod,
-	container *core.Container,
+	pod *k8score.Pod,
+	container *k8score.Container,
 	builder controller.JobArgBuilder,
 	parametersAndValues map[string]controller.ParamAndValue,
 	jobFolder string,
@@ -175,7 +186,7 @@ func handleJinjaInvocation(
 
 	// Prepare init container
 	// -----------------------------------------------------------------------------------------------------------------
-	pod.Spec.InitContainers = append(pod.Spec.InitContainers, core.Container{})
+	pod.Spec.InitContainers = append(pod.Spec.InitContainers, k8score.Container{})
 	jinjaContainer := &pod.Spec.InitContainers[len(pod.Spec.InitContainers)-1]
 
 	jinjaContainer.Name = "script-generation"
@@ -183,7 +194,7 @@ func handleJinjaInvocation(
 
 	subpath, ok := strings.CutPrefix(jobFolder, filepath.Clean(ServiceConfig.FileSystem.MountPoint)+"/")
 	if ok {
-		jinjaContainer.VolumeMounts = append(jinjaContainer.VolumeMounts, core.VolumeMount{
+		jinjaContainer.VolumeMounts = append(jinjaContainer.VolumeMounts, k8score.VolumeMount{
 			Name:      "ucloud-filesystem",
 			MountPath: "/work",
 			SubPath:   subpath,
@@ -202,7 +213,7 @@ func handleJinjaInvocation(
 	}
 
 	// NOTE(Dan): Used by the script-gen to replace the dummy value in the ucloud rank variable.
-	jinjaContainer.Env = []core.EnvVar{
+	jinjaContainer.Env = []k8score.EnvVar{
 		{
 			Name:  "UCLOUD_RANK",
 			Value: fmt.Sprint(rank),

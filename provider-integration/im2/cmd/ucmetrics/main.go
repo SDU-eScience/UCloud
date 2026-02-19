@@ -9,6 +9,7 @@ import (
 )
 
 var allowedSampleIntervals = map[time.Duration]bool{
+	0 * time.Millisecond:   true,
 	250 * time.Millisecond: true,
 	500 * time.Millisecond: true,
 	750 * time.Millisecond: true,

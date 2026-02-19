@@ -630,12 +630,6 @@ export const Create: React.FunctionComponent = () => {
                                             <option value="start_or_ends" selected={jobEmailNotifications === "start_or_ends"}>Notify me when a job starts or stops</option>
                                         </Select>
                                     </Label>
-                                    <Label mt={"16px"}>
-                                        Job report sample rate settings
-                                        <Select width={"300px"} onChange={doNothing} name={"job-resource-sample-rate"}>
-                                            {/*<option value="fie" selected={}>Fie dog</option>*/}
-                                        </Select>
-                                    </Label>
                                 </Flex>}
                                 right={
                                     <div>

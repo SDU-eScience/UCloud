@@ -1,8 +1,6 @@
 import * as React from "react";
 import {findElement, widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
 import {TextArea, Input} from "@/ui-components";
-import {compute} from "@/UCloud";
-import AppParameterValueNS = compute.AppParameterValueNS;
 import { ApplicationParameterNS } from "@/Applications/AppStoreApi";
 
 type GenericTextType =
@@ -13,6 +11,21 @@ type GenericTextType =
 
 interface GenericTextProps extends WidgetProps {
     parameter: GenericTextType;
+}
+
+function readGenericDefaultValue(defaultValue: unknown): string | number | undefined {
+    if (typeof defaultValue === "string" || typeof defaultValue === "number") {
+        return defaultValue;
+    }
+
+    if (defaultValue != null && typeof defaultValue === "object" && "value" in defaultValue) {
+        const wrappedValue = (defaultValue as {value?: unknown}).value;
+        if (typeof wrappedValue === "string" || typeof wrappedValue === "number") {
+            return wrappedValue;
+        }
+    }
+
+    return undefined;
 }
 
 export const GenericTextParameter: React.FunctionComponent<GenericTextProps> = props => {
@@ -26,23 +39,13 @@ export const GenericTextParameter: React.FunctionComponent<GenericTextProps> = p
     // NOTE(Brian): This is a bit hacky. The defaultValue is not actually sent as a parameter on submit.
     // If changed, the correct value should be sent as a parameter, and otherwise the backend will
     // handle the defaultValue.
-    let defaultValue: AppParameterValueNS.FloatingPoint | AppParameterValueNS.Text | AppParameterValueNS.Integer | undefined = undefined;
-
-    if (props.parameter.defaultValue != undefined) {
-        if (props.parameter.type === "integer") {
-            defaultValue = props.parameter.defaultValue as unknown as AppParameterValueNS.Integer;
-        } else if (props.parameter.type === "floating_point") {
-            defaultValue = props.parameter.defaultValue as unknown as AppParameterValueNS.FloatingPoint;
-        } else {
-            defaultValue = props.parameter.defaultValue as unknown as AppParameterValueNS.Text;
-        }
-    }
+    const defaultValue = readGenericDefaultValue(props.parameter.defaultValue);
 
     const error = props.errors[props.parameter.name] != null;
 
     let elem = <Input
         id={widgetId(props.parameter)}
-        defaultValue={defaultValue?.value}
+        defaultValue={defaultValue}
         placeholder={placeholder}
         error={error}
     />;
@@ -54,7 +57,7 @@ export const GenericTextParameter: React.FunctionComponent<GenericTextProps> = p
         elem = <Input
             id={widgetId(props.parameter)}
             type={"number"}
-            defaultValue={defaultValue?.value}
+            defaultValue={defaultValue}
             min={props.parameter.min}
             max={props.parameter.max}
             step={props.parameter.step ?? 1}
@@ -65,7 +68,7 @@ export const GenericTextParameter: React.FunctionComponent<GenericTextProps> = p
         elem = <Input
             id={widgetId(props.parameter)}
             type={"number"}
-            defaultValue={defaultValue?.value}
+            defaultValue={defaultValue}
             min={props.parameter.min}
             max={props.parameter.max}
             step={props.parameter.step ?? "any"}

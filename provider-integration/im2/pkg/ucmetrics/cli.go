@@ -101,10 +101,6 @@ func csvSchema(gpuCount int) ([]string, []int) {
 }
 
 func HandleCli(cfg Config) {
-	if cfg.SampleInterval <= 0 {
-		cfg.SampleInterval = DefaultSampleInterval
-	}
-
 	cpu, cpuErr := CpuSampleStart()
 
 	lastNet := time.Now()
@@ -442,7 +438,7 @@ func HandleCli(cfg Config) {
 
 		previousCharts = charts
 
-		if time.Now().After(nextCsvSample) {
+		if time.Now().After(nextCsvSample) && cfg.SampleInterval > 0 {
 			for i, columnIdx := range csvColumns {
 				if i > 0 {
 					_, _ = csvFile.WriteString(",")

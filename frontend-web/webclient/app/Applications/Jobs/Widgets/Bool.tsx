@@ -10,10 +10,24 @@ interface BoolProps extends WidgetProps {
     parameter: ApplicationParameterNS.Bool;
 }
 
+function readBoolDefaultValue(defaultValue: unknown): boolean | undefined {
+    if (typeof defaultValue === "boolean") {
+        return defaultValue;
+    }
+
+    if (defaultValue != null && typeof defaultValue === "object" && "value" in defaultValue) {
+        const wrappedValue = (defaultValue as {value?: unknown}).value;
+        if (typeof wrappedValue === "boolean") {
+            return wrappedValue;
+        }
+    }
+
+    return undefined;
+}
+
 export const BoolParameter: React.FunctionComponent<BoolProps> = props => {
     const error = props.errors[props.parameter.name] != null;
-    const defaultValue: boolean | undefined = props.parameter.defaultValue != undefined ?
-        (props.parameter.defaultValue as unknown as AppParameterValueNS.Bool).value : undefined;
+    const defaultValue = readBoolDefaultValue(props.parameter.defaultValue);
     return <Flex>
         <Select defaultValue={defaultValue?.toString()} id={widgetId(props.parameter)} error={error}>
             <option value={""} />
