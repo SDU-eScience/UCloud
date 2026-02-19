@@ -70,16 +70,17 @@ func GrantsExportBrowse(actor rpc.Actor) []accapi.GrantsExportResponse {
 			}
 
 			result = append(result, accapi.GrantsExportResponse{
-				Id:             item.Id.Value,
-				Title:          title,
-				SubmittedBy:    item.CreatedBy,
-				SubmittedAt:    item.CreatedAt,
-				StartDate:      startTime,
-				DurationMonths: int(allocationDuration.Hours() / 24.0 / 30.0),
-				State:          item.Status.OverallState,
-				GrantGiver:     grantsExportProjectIdToTitle(string(actor.Project.Value)),
-				LastUpdatedAt:  item.UpdatedAt,
-				Resources:      resources,
+				Id:               item.Id.Value,
+				Title:            title,
+				SubmittedBy:      item.CreatedBy,
+				OptionalUserInfo: item.Status.OptionalUserInfo,
+				SubmittedAt:      item.CreatedAt,
+				StartDate:        startTime,
+				DurationMonths:   int(allocationDuration.Hours() / 24.0 / 30.0),
+				State:            item.Status.OverallState,
+				GrantGiver:       grantsExportProjectIdToTitle(string(actor.Project.Value)),
+				LastUpdatedAt:    item.UpdatedAt,
+				Resources:        resources,
 			})
 		}
 
@@ -97,17 +98,17 @@ func GrantsExportBrowseToCsv(lines []accapi.GrantsExportResponse) string {
 
 	categories := map[string]util.Empty{}
 	for _, line := range lines {
-		for resource, _ := range line.Resources {
+		for resource := range line.Resources {
 			categories[resource] = util.Empty{}
 		}
 	}
 
 	categoriesArray := []string{}
 	for item := range categories {
-		categoriesArray = append(categoriesArray, item)
+		categoriesArray = append(categoriesArray, strings.ReplaceAll(item, "-", "_"))
 	}
-
-	s.WriteString("id,title,submitted_by,submitted_at,start,duration_months,state,grant_giver,last_updated_at")
+	s.WriteString("id,title,submitted_by,submitted_at,start,duration_months,state,grant_giver,last_updated_at,")
+	s.WriteString("organization_full_name,department,research_field,position,gender,unit")
 
 	for _, item := range categoriesArray {
 		catAndProvider := strings.SplitN(item, "/", 2)
@@ -162,6 +163,18 @@ func GrantsExportBrowseToCsv(lines []accapi.GrantsExportResponse) string {
 		grantsWriteQuotedString(s, item.GrantGiver)
 		s.WriteRune(',')
 		grantsWriteQuotedString(s, item.LastUpdatedAt.Time().Format(time.RFC3339))
+		s.WriteRune(',')
+		s.WriteString(item.OptionalUserInfo.OrganizationFullName.Value)
+		s.WriteRune(',')
+		s.WriteString(item.OptionalUserInfo.Department.Value)
+		s.WriteRune(',')
+		s.WriteString(item.OptionalUserInfo.ResearchField.Value)
+		s.WriteRune(',')
+		s.WriteString(item.OptionalUserInfo.Position.Value)
+		s.WriteRune(',')
+		s.WriteString(item.OptionalUserInfo.Gender.Value)
+		s.WriteRune(',')
+		s.WriteString(item.OptionalUserInfo.Unit.Value)
 		for _, category := range categoriesArray {
 			s.WriteRune(',')
 			grantsWriteQuotedString(s, fmt.Sprint(item.Resources[category]))
