@@ -63,6 +63,10 @@ func policyPopulateSchemaCache() {
 }
 
 func loadProjectPoliciesFromDB() {
+	projectPolicies.Mu.Lock()
+	projectPolicies.PoliciesByProject = make(map[string]*AssociatedPolicies)
+	projectPolicies.Mu.Unlock()
+
 	db.NewTx0(func(tx *db.Transaction) {
 		rows := db.Select[struct {
 			ProjectId        string
@@ -97,7 +101,10 @@ func loadProjectPoliciesFromDB() {
 				Properties: properties,
 			}
 
+			log.Debug("Loading policy %v \n", specification)
+
 			policies.EnabledPolices[row.PolicyName] = specification
+			projectPolicies.PoliciesByProject[projectId] = policies
 		}
 
 		projectPolicies.Mu.Unlock()
