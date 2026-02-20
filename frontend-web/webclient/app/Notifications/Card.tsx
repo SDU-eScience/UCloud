@@ -22,7 +22,7 @@ export interface NotificationProps {
 }
 
 export const NotificationCard: React.FunctionComponent<NotificationProps & {
-    top: string;
+    bottom: string;
     exit?: boolean;
     callbackItem?: any;
     onMouseEnter?: (callbackItem?: any) => void;
@@ -45,7 +45,7 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
 
     return <div
         className={classConcat(Style, props.exit ? "exit" : undefined)}
-        style={{position: "fixed", top: props.top, right: "16px"}}
+        style={{position: "fixed", bottom: props.bottom, right: "16px"}}
         onMouseEnter={onMouseEnterMemo}
         onMouseLeave={onMouseLeaveMemo}
         onClick={props.onAction}
@@ -121,8 +121,8 @@ const Style = injectStyle("notification", k => `
     }
 
     ${k} .notification-inner .snooze, ${k} .notification-inner .time {
-            font-size: 12px;
-        }
+        font-size: 12px;
+    }
 
     ${k} .notification-inner a, ${k} .notification-inner .snooze {
         color: var(--primary);
