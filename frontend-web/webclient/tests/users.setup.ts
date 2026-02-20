@@ -2,10 +2,10 @@ import {Browser, test as setup, Page} from "@playwright/test";
 import {Accounting, Admin, Components, Project, Rows, TestUsers, User} from "./shared";
 import fs from "fs";
 
-setup("Setup 'pi', 'admin', and 'user'", async ({context, browser}) => {
+setup("Setup 'pi', 'admin', and 'user'", async ({page, browser}) => {
     setup.setTimeout(120_000);
 
-    const ucloudAdminPage = await Admin.newLoggedInAdminPage(context);
+    const ucloudAdminPage = await Admin.newLoggedInAdminPage(page);
 
     const pi = await createNewUserAndLogin(ucloudAdminPage, browser, "pi");
     const admin = await createNewUserAndLogin(ucloudAdminPage, browser, "admin");

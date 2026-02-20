@@ -179,9 +179,9 @@ export const File = {
     },
 
     async create(page: Page, name: string): Promise<void> {
+        await page.locator('div[data-disabled="false"]', {hasText: "Create folder"}).click();
+        await page.getByRole("textbox").nth(1).fill(name);
         await NetworkCalls.awaitResponse(page, "**/files/folder", async () => {
-            await page.locator('div[data-disabled="false"]', {hasText: "Create folder"}).click();
-            await page.getByRole("textbox").nth(1).fill(name);
             await page.getByRole("textbox").nth(1).press("Enter");
         });
         await page.waitForLoadState();
@@ -306,7 +306,14 @@ export const File = {
 
     async openIntegratedTerminal(page: Page): Promise<void> {
         await page.getByText("Open terminal").click();
-        await page.getByText("/work").waitFor({state: "visible"});
+        let didClick = false;
+        while (!await page.getByText("/work").isVisible()) {
+            if (didClick) continue;
+            if (await page.getByRole("button", {name: "Reconnect"}).isVisible()) {
+                await page.getByRole("button", {name: "Reconnect"}).click();
+                didClick = true;
+            }
+        }
         await page.getByText("/work").click();
     },
 
@@ -331,6 +338,7 @@ export const File = {
     async triggerStorageScan(page: Page, driveName: string): Promise<void> {
         await Drive.openDrive(page, driveName);
         const folder = "trigger" + this.newFolderName();
+        await page.locator(".row", {hasText: "Jobs"}).waitFor();
         await File.create(page, folder);
         await File.moveFileToTrash(page, folder);
         // Note(Jonas): Trash folder doesn't show up until refresh if not already present.
@@ -376,7 +384,7 @@ export const Drive = {
             await Components.projectSwitcher(page, "hover")
         });
 
-        await page.waitForLoadState();
+        await page.waitForLoadState("domcontentloaded");
     },
 
     async create(page: Page, name: string): Promise<void> {
@@ -543,7 +551,8 @@ export const Runs = {
     async goToRuns(page: Page): Promise<void> {
         await NetworkCalls.awaitResponse(page, "**/api/jobs/browse**", async () => {
             await page.getByRole("link", {name: "Go to Runs"}).click();
-        })
+        });
+        await Components.projectSwitcher(page, "hover");
     },
 
     async runApplicationAgain(page: Page, jobName: string): Promise<void> {
@@ -646,8 +655,9 @@ export const Project = {
     },
 
     async changeTo(page: Page, projectTitle: string): Promise<void> {
+        await Components.projectSwitcher(page, "hover");
         await Components.projectSwitcher(page, "click");
-        await page.getByText(projectTitle, {exact: true}).click();
+        await page.getByTitle(projectTitle, {exact: true}).click();
     },
 
     async inviteUsers(page: Page, usernames: string[]): Promise<void> {
@@ -664,9 +674,9 @@ export const Project = {
 
     async acceptInvites(pages: Page[], projectName: string) {
         for (const page of pages) {
-            console.log("url: ", page.url());
+            console.log(page.url());
             if (page.url().endsWith("/app") || page.url().endsWith("/app/dashboard")) {
-                await page.reload();
+                await Components.clickRefreshAndWait(page);
             } else {
                 await Components.goToDashboard(page);
             }
@@ -683,8 +693,6 @@ export const Project = {
             await page.locator("div[class^=list-item]", {hasText: username}).getByRole("radio", {name: role}).click();
         }
     }
-
-
 };
 
 export const Resources = {
@@ -912,6 +920,9 @@ export const Accounting = {
         },
 
         async approve(page: Page): Promise<void> {
+            await page.reload();
+            await page.locator(".grant-giver button").first().waitFor();
+            await page.mouse.wheel(0, 5000);
             await NetworkCalls.awaitResponse(page, "**/grants/v2/updateState", async () => {
                 await page.locator(".grant-giver button").nth(1).click({delay: 2000});
             });
@@ -925,8 +936,8 @@ export const Admin = {
         password: "mypassword"
     },
 
-    async newLoggedInAdminPage(context: BrowserContext): Promise<Page> {
-        const page = await context.browser()?.newPage();
+    async newLoggedInAdminPage(existingPage?: Page): Promise<Page> {
+        const page = existingPage;
         if (!page) throw new Error("Failed to create page for admin login");
 
         await User.login(page, Admin.AdminUser);
@@ -935,13 +946,6 @@ export const Admin = {
 
         return page;
     },
-
-    async acceptGrantApplicationId(page: Page, grantId: string) {
-        // Create new page without cookies from existing page
-        const adminPage = await this.newLoggedInAdminPage(page.context());
-        await Accounting.goTo(adminPage, "Grant applications");
-        await Rows.actionByRowTitle(adminPage, grantId, "dblclick")
-    }
 };
 
 async function _move(page: Page, oldName: string, newName: string) {

@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {Components, Drive, File, User, Rows, Terminal, NetworkCalls, Project, testCtx, TestContexts, Contexts, ctxUser} from "./shared";
+import {Components, Drive, File, User, Rows, Terminal, NetworkCalls, Project, testCtx, TestContexts, Contexts, ctxUser, Runs} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 
 const {dirname} = import.meta;
@@ -259,7 +259,8 @@ TestContexts.map(ctx => {
         test.describe("Terminal - check integrated terminal works", () => {
             test("Create folder, upload file, cat contents in integrated terminal", async ({page, userAgent}) => {
                 test.setTimeout(120_000);
-                const user = ctxUser(ctx);
+                const args = testCtx(["", ctx]);
+                const user = args.user;
                 const drive = ctx === "Project User" ? Drive.newDriveNameOrMemberFiles(ctx) : Drives[userAgent! + user.username];
                 const testFileName = "test_single_file.txt";
                 const testFileContents = "Single test file content.";
@@ -267,6 +268,22 @@ TestContexts.map(ctx => {
                 await File.openIntegratedTerminal(page);
                 await Terminal.enterCmd(page, `cat ${drive}/${testFileName}`);
                 await expect(page.getByText(testFileContents)).toHaveCount(1);
+
+                if (ctx !== "Personal Workspace") {
+                    await Project.changeTo(page, "My workspace");
+                }
+
+                await Runs.goToRuns(page);
+
+                await page.locator(".row", {hasText: "Integrated terminal"}).first().click();
+
+                await NetworkCalls.awaitResponse(page, "**/jobs/terminate", async () => {
+                    await Components.clickConfirmationButton(page, "Stop");
+                });
+
+                if (ctx !== "Personal Workspace") {
+                    await Project.changeTo(page, args.projectName!);
+                }
             });
         });
 

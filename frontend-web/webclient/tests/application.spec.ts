@@ -2,6 +2,11 @@ import {expect, test, Page, BrowserContext} from "@playwright/test";
 import {Applications, Components, User, Runs, File, Drive, Terminal, NetworkCalls, Resources, Accounting, Admin, Rows, Project, testCtx, TestContexts, ctxUser, Contexts} from "./shared";
 
 test.beforeEach(async ({page}, testInfo) => {
+    const doSkipInitialization = testInfo.titlePath.find(it => ["disallow start from locked allocation", "Compute - check accounting"].includes(it));
+    if (doSkipInitialization) {
+        await Admin.newLoggedInAdminPage(page);
+        return;
+    }
     const args = testCtx(testInfo.titlePath);
     await User.login(page, args.user);
     if (args.projectName) await Project.changeTo(page, args.projectName);
@@ -202,10 +207,8 @@ echo "${BashScriptStringContent}"
             });
 
             test.describe("disallow start from locked allocation", () => {
-                test("Storage - Create new user without resources, apply for resources, be granted resources, run terminal, create large file, trigger storage accounting, see creation now blocked", async ({context}) => {
+                test("Storage - Create new user without resources, apply for resources, be granted resources, run terminal, create large file, trigger storage accounting, see creation now blocked", async ({page: adminPage, context}) => {
                     test.setTimeout(240_000);
-
-                    const adminPage = await Admin.newLoggedInAdminPage(context);
                     const {userPage, user} = await createUserWithProjectAndAssignRole(adminPage, context, ctx, [5, 1]);
 
                     const jobName = Runs.newJobName();
@@ -247,11 +250,10 @@ echo "${BashScriptStringContent}"
 
 
         test.describe("Compute - check accounting", () => {
-            test("Create new user without resources, apply for resources, be granted resources, validate resources in 'Allocations', run terminal, trigger compute accounting, see increase in usage", async ({context}) => {
+            test("Create new user without resources, apply for resources, be granted resources, validate resources in 'Allocations', run terminal, trigger compute accounting, see increase in usage", async ({page: adminPage, context}) => {
                 test.setTimeout(240_000);
-
-                const adminPage = await Admin.newLoggedInAdminPage(context);
                 const {userPage, user} = await createUserWithProjectAndAssignRole(adminPage, context, ctx, [1, 1]);
+
 
                 await Accounting.goTo(userPage, "Allocations");
                 await userPage.getByText("0 / 1 Core-hours (0%)", {exact: true}).first().waitFor();
@@ -314,6 +316,8 @@ async function createUserWithProjectAndAssignRole(admin: Page, context: BrowserC
             await Project.changeRoles(admin, user.username, ctx.split(" ")[1] as "User" | "Admin" | "PI");
 
             await userPage.reload();
+            await userPage.getByText(user.username).waitFor({state: "hidden"});
+            await userPage.getByText(ctx).waitFor({state: "hidden"});
             await Project.changeTo(userPage, projectName);
             break;
         }
