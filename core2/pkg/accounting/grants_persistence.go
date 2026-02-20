@@ -130,8 +130,6 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 			},
 		)
 
-		log.Error("PrefetchList: %v", prefetchList)
-
 		approvalsPromise := db.BatchSelect[struct {
 			ApplicationId int
 			ProjectId     string

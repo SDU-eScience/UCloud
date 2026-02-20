@@ -1430,12 +1430,16 @@ func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.
 			}
 		}
 
-		if isApprover {
+		if isApprover && !grantProjectIsNewlyCreatedAndNotYetApproved(app) {
 			grantRetrieveApplicationHistoryOfReceiver(actor, app, &result)
 		}
 		app.Mu.RUnlock()
 		return GrantApplicationProcess(actor, result), nil
 	}
+}
+
+func grantProjectIsNewlyCreatedAndNotYetApproved(app *grantApplication) bool {
+	return !app.Application.ProjectId.Present && app.Application.CurrentRevision.Document.Recipient.Type == accapi.RecipientTypeNewProject
 }
 
 // Retrieves the application history of the receiver in the context of the grant giver
