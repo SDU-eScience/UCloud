@@ -3,6 +3,7 @@ package accounting
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"math"
 	"net/http"
 	"runtime"
@@ -1076,11 +1077,11 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 				}
 
 				app.Application.Status.OverallState = newOverallState
-				lGrantsPersist(app)
 
 				if newOverallState == accapi.GrantApplicationStateApproved {
 					lGrantsAwardResources(app)
 				}
+				lGrantsPersist(app)
 			}
 		}
 	}
@@ -1385,6 +1386,8 @@ func lGrantApplicationIsSubmitterInActiveProjectNoAuth(actor rpc.Actor, a *grant
 		return true
 	} else if recipient.Type == accapi.RecipientTypeExistingProject && string(actor.Project.Value) == recipient.Id.Value {
 		return true
+	} else if recipient.Type == accapi.RecipientTypeNewProject && a.Application.ProjectId.GetOrDefault("") == string(actor.Project.Value) {
+		return true
 	} else {
 		return false
 	}
@@ -1427,7 +1430,7 @@ func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.
 			}
 		}
 
-		if isApprover {
+		if isApprover && !grantProjectIsNewlyCreatedAndNotYetApproved(app) {
 			grantRetrieveApplicationHistoryOfReceiver(actor, app, &result)
 		}
 		app.Mu.RUnlock()
@@ -1435,18 +1438,35 @@ func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.
 	}
 }
 
+func grantProjectIsNewlyCreatedAndNotYetApproved(app *grantApplication) bool {
+	return !app.Application.ProjectId.Present && app.Application.CurrentRevision.Document.Recipient.Type == accapi.RecipientTypeNewProject
+}
+
 // Retrieves the application history of the receiver in the context of the grant giver
 func grantRetrieveApplicationHistoryOfReceiver(actor rpc.Actor, app *grantApplication, result *accapi.GrantApplication) {
 	recipientActor, ok := rpc.LookupActor(app.Application.CreatedBy) // Actor PI
 	if ok {
 		grantGiveProjectId := actor.Project.Value
-		// Browsing through the recipients applications
-		recipientActor.Project = util.OptValue(rpc.ProjectId(app.Application.CurrentRevision.Document.Recipient.Id.Value))
+
+		switch app.Application.CurrentRevision.Document.Recipient.Type {
+		case accapi.RecipientTypeNewProject:
+			recipientActor.Project = util.OptValue(rpc.ProjectId(app.Application.ProjectId.Value))
+			break
+		case accapi.RecipientTypeExistingProject:
+			recipientActor.Project = util.OptValue(rpc.ProjectId(app.Application.CurrentRevision.Document.Recipient.Id.Value))
+			break
+		}
+
 		pages := GrantsBrowse(recipientActor, accapi.GrantsBrowseRequest{
 			Filter:                      util.OptValue(accapi.GrantApplicationFilterShowAll),
 			IncludeOutgoingApplications: util.OptValue(true),
 		})
 		for _, recipientApplication := range pages.Items {
+
+			if recipientApplication.Id == app.Application.Id {
+				continue
+			}
+
 			for _, breakdown := range recipientApplication.Status.StateBreakdown {
 				if rpc.ProjectId(breakdown.ProjectId) == grantGiveProjectId {
 					result.Status.ApplicationHistory = append(result.Status.ApplicationHistory, recipientApplication)
@@ -1753,6 +1773,12 @@ func lGrantsAwardResources(app *grantApplication) {
 			return
 		} else {
 			owner = accapi.WalletOwnerProject(projectId)
+			app.Application.ProjectId = util.OptValue(projectId)
+
+			idxB := grantGetIdxBucket(projectId, true)
+			idxB.Mu.Lock()
+			idxB.ApplicationsByEntity[projectId] = append(idxB.ApplicationsByEntity[projectId], app.lId())
+			idxB.Mu.Unlock()
 		}
 
 	case accapi.RecipientTypePersonalWorkspace:
@@ -1879,14 +1905,16 @@ func grantsAwardLoop() {
 	for {
 		for _, b := range grantGlobals.AppBuckets {
 			b.Mu.RLock()
-			for _, g := range b.Applications {
+			appsClone := maps.Clone(b.Applications)
+			b.Mu.RUnlock()
+
+			for _, g := range appsClone {
 				g.Mu.Lock()
 				if !g.Awarded && g.Application.Status.OverallState == accapi.GrantApplicationStateApproved {
 					lGrantsAwardResources(g)
 				}
 				g.Mu.Unlock()
 			}
-			b.Mu.RUnlock()
 		}
 
 		time.Sleep(30 * time.Second)

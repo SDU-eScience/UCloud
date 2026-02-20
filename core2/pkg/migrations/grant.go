@@ -19,3 +19,27 @@ func grantV1() db.MigrationScript {
 		},
 	}
 }
+
+func grantV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "grantsV2",
+		Execute: func(tx *db.Transaction) {
+			statements := []string{
+				`
+					alter table "grant".applications
+					add column project_id varchar(255);
+				`,
+				`
+					alter table "grant".applications
+					add constraint application_project_id_fkey
+					foreign key (project_id)
+					references "project".projects(id)
+					on delete set null;
+				`,
+			}
+			for _, statement := range statements {
+				db.Exec(tx, statement, db.Params{})
+			}
+		},
+	}
+}
