@@ -79,6 +79,12 @@ func initIngresses() {
 	hostnamePartRegex := regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)
 
 	orcapi.IngressesCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.IngressSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		if info.Actor.Project.Present {
+			_, restricted := policiesByProject(string(info.Actor.Project.Value))[fndapi.RestrictPublicLinks.String()]
+			if restricted {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "Project does not allow creation of public links")
+			}
+		}
 		var result []fndapi.FindByStringId
 		for _, item := range request.Items {
 			supp, ok := SupportByProduct[orcapi.IngressSupport](ingressType, item.Product)

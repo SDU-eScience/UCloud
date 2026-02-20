@@ -23,20 +23,45 @@ import (
 var providerWalletNotifications = make(chan AccWalletId, 1024*1024)
 
 var providerNotifications struct {
-	Mu                        sync.Mutex
+	Mu sync.Mutex
+
+	// All of these follow providerId -> sessionId -> channel
+
 	ProjectChannelsByProvider map[string]map[string]chan *fndapi.Project
 	WalletsByProvider         map[string]map[string]chan *accapi.WalletV2
+	PoliciesByProvider        map[string]map[string]chan policiesForProject
+}
+
+type policiesForProject struct {
+	PoliciesByName map[string]*fndapi.PolicySpecification
+}
+
+func retrieveRelevantProviders(projectId string) map[string]util.Empty {
+	projectWallets := internalRetrieveWallets(time.Now(), projectId, walletFilter{RequireActive: true})
+	relevantProviders := map[string]util.Empty{}
+
+	for _, w := range projectWallets {
+		relevantProviders[w.PaysFor.Provider] = util.Empty{}
+	}
+
+	return relevantProviders
 }
 
 func initProviderNotifications() {
 	providerNotifications.ProjectChannelsByProvider = map[string]map[string]chan *fndapi.Project{}
 	providerNotifications.WalletsByProvider = map[string]map[string]chan *accapi.WalletV2{}
+	providerNotifications.PoliciesByProvider = map[string]map[string]chan policiesForProject{}
+
+	policyCache.Mu.Lock()
+	policyCache.PoliciesByProject = make(map[string]map[string]*fndapi.PolicySpecification)
+	policyCache.Mu.Unlock()
 
 	go func() {
 		// NOTE(Dan): These two channels receive events from database triggers set on the relevant insert/update/delete
 		// operations. The payload is either the project or group ID which triggered the update.
 		projectUpdates := db.Listen(context.Background(), "project_updates")
 		groupUpdates := db.Listen(context.Background(), "project_group_updates")
+		policyUpdates := db.Listen(context.Background(), "policy_updates")
 
 		for {
 			var project fndapi.Project
@@ -44,6 +69,9 @@ func initProviderNotifications() {
 
 			var walletId AccWalletId
 			var walletOk bool
+
+			var policySpecifications map[string]*fndapi.PolicySpecification
+			var policiesOk bool
 
 			select {
 			case projectId := <-projectUpdates:
@@ -58,15 +86,15 @@ func initProviderNotifications() {
 
 			case walletId = <-providerWalletNotifications:
 				walletOk = true
+
+			case projectId := <-policyUpdates:
+				db.NewTx0(func(tx *db.Transaction) {
+					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
+				})
 			}
 
 			if projectOk {
-				projectWallets := internalRetrieveWallets(time.Now(), project.Id, walletFilter{RequireActive: true})
-				relevantProviders := map[string]util.Empty{}
-
-				for _, w := range projectWallets {
-					relevantProviders[w.PaysFor.Provider] = util.Empty{}
-				}
+				relevantProviders := retrieveRelevantProviders(project.Id)
 
 				var allChannels []chan *fndapi.Project
 
@@ -107,6 +135,31 @@ func initProviderNotifications() {
 						case ch <- &wallet:
 						case <-time.After(200 * time.Millisecond):
 						}
+					}
+				}
+			} else if policiesOk {
+				relevantProviders := retrieveRelevantProviders(project.Id)
+				var allChannels []chan policiesForProject
+
+				providerNotifications.Mu.Lock()
+
+				for provider := range relevantProviders {
+					channels, ok := providerNotifications.PoliciesByProvider[provider]
+					if ok {
+						for _, ch := range channels {
+							allChannels = append(allChannels, ch)
+						}
+					}
+				}
+
+				providerNotifications.Mu.Unlock()
+
+				updatePolicyCacheForProject(project.Id, policySpecifications)
+
+				for _, ch := range allChannels {
+					select {
+					case ch <- policiesForProject{policySpecifications}:
+					case <-time.After(200 * time.Millisecond):
 					}
 				}
 			}
@@ -195,6 +248,7 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 	sessionId := util.RandomTokenNoTs(32)
 	projectUpdates := make(chan *fndapi.Project, 128)
 	walletUpdates := make(chan *accapi.WalletV2, 128)
+	providerUpdates := make(chan policiesForProject, 128)
 
 	{
 		providerNotifications.Mu.Lock()
@@ -213,6 +267,13 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 		}
 		pmap[sessionId] = projectUpdates
 
+		polmap, ok := providerNotifications.PoliciesByProvider[providerId]
+		if !ok {
+			polmap = map[string]chan policiesForProject{}
+			providerNotifications.PoliciesByProvider[providerId] = polmap
+		}
+		polmap[sessionId] = providerUpdates
+
 		providerNotifications.Mu.Unlock()
 	}
 
@@ -222,6 +283,7 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 		providerNotifications.Mu.Lock()
 		delete(providerNotifications.WalletsByProvider[providerId], sessionId)
 		delete(providerNotifications.ProjectChannelsByProvider[providerId], sessionId)
+		delete(providerNotifications.PoliciesByProvider[providerId], sessionId)
 		providerNotifications.Mu.Unlock()
 	}()
 

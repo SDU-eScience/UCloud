@@ -27,4 +27,5 @@ func Init() {
 	db.AddMigration(authV3())
 	db.AddMigration(grantV1())
 	db.AddMigration(projectsV4())
+	db.AddMigration(policiesV1())
 }

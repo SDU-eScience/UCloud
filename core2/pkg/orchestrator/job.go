@@ -1047,6 +1047,35 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 		return util.HttpErr(http.StatusBadRequest, "unknown application requested")
 	}
 
+	if actor.Project.Present {
+		var allowedApps []string
+		polices := policiesByProject(actor.Project.String())
+		specification, restricted := polices[fndapi.RestrictApplications.String()]
+		if restricted {
+			for _, property := range specification.Properties {
+				if property.Name == "applications" {
+					allowedApps = property.TextElements
+					break
+				}
+			}
+			allowed := false
+			if len(allowedApps) == 0 {
+				return util.HttpErr(http.StatusForbidden, "Application is not allowed to run in this project context.")
+			} else {
+				for _, allowedApp := range allowedApps {
+					println(allowedApp)
+					if allowedApp == app.Metadata.Name {
+						allowed = true
+						break
+					}
+				}
+			}
+			if !allowed {
+				return util.HttpErr(http.StatusForbidden, "Application is not allowed to run in this project context.")
+			}
+		}
+	}
+
 	support, ok := SupportByProduct[orcapi.JobSupport](jobType, spec.Product)
 	if !ok {
 		return util.HttpErr(http.StatusBadRequest, "bad machine type requested")

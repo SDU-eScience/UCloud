@@ -35,6 +35,9 @@ func Init() {
 	initApiTokens()
 	times["ApiTokens"] = t.Mark()
 
+	initPolicySubscriptions()
+	times["PolicySubscriptions"] = t.Mark()
+
 	// Storage
 	//==================================================================================================================
 

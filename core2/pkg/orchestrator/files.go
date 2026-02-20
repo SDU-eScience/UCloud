@@ -380,6 +380,13 @@ func FilesCreateDownload(
 	actor rpc.Actor,
 	request fndapi.BulkRequest[fndapi.FindByStringId],
 ) (fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse], *util.HttpError) {
+	if actor.Project.Present {
+		_, isRestricted := policiesByProject(string(actor.Project.Value))[fndapi.RestrictDownloads.String()]
+		if isRestricted {
+			return fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse]{}, util.HttpErr(http.StatusForbidden, "This project does not allow downloads")
+		}
+	}
+
 	var result fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse]
 	var paths []string
 	for _, reqItem := range request.Items {
@@ -889,6 +896,34 @@ func FilesTransfer(actor rpc.Actor, request orcapi.FilesTransferRequest) *util.H
 
 	if err1 != nil || err2 != nil {
 		return util.MergeHttpErr(err1, err2)
+	}
+
+	if actor.Project.Present {
+		var allowedProviders []string
+		polices := policiesByProject(actor.Project.String())
+		policySpecification, isRestricted := polices[fndapi.RestrictProviderTransfers.String()]
+		if isRestricted {
+			for _, property := range policySpecification.Properties {
+				if property.Name == "allowedProviders" {
+					allowedProviders = property.Providers
+					break
+				}
+			}
+			if len(allowedProviders) == 0 {
+				return util.HttpErr(http.StatusForbidden, "Project does not allow transfers between providers")
+			} else {
+				for _, provider := range allowedProviders {
+					if provider == sourceDrive.Specification.Product.Provider {
+						errorMsg := fmt.Sprintf("Project does not allow transfers from %v", provider)
+						return util.HttpErr(http.StatusForbidden, errorMsg)
+					}
+					if provider == destDrive.Specification.Product.Provider {
+						errorMsg := fmt.Sprintf("Project does not allow transfers to %v", provider)
+						return util.HttpErr(http.StatusForbidden, errorMsg)
+					}
+				}
+			}
+		}
 	}
 
 	if featureSupported(driveType, destDrive.Specification.Product, driveOpsReadOnly) {

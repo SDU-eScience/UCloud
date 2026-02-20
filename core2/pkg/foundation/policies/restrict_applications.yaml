@@ -1,0 +1,28 @@
+name: "RestrictApplications"
+title: "Restrict applications available for use"
+
+description: >
+  Restricts which applications are available for use in the project.
+
+configuration:
+  - name: "enabled"
+    type: "Bool"
+    title: "Enabled"
+    description: >
+      If enabled, the project will only be able to run applications that are listed along this policy.
+      If disabled the all apps in the app catalog is available (within the regular limitations of products needed).
+  - name: "applications"
+    type: "TextList"
+    title: "Applications"
+    description: >
+      List of applications which the project should be restricted to 
+      use. This refers to the canonical application name. This name
+      can be found in the UI by copying the canonical name of a concrete
+      _flavor_.
+      
+      An empty list indicates that there are no apps available within the project. 
+      Any additions to the list will cause the project to be able to run these applications.
+      
+      This configuration option does not affect provider registered
+      applications. This option cannot be used to control Syncthing or
+      other integrated applications.
