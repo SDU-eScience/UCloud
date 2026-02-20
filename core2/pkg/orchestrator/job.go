@@ -803,6 +803,15 @@ func initJobs() {
 		return resp, nil
 	})
 
+	orcapi.JobSettingsRetrieve.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.JobSettings, *util.HttpError) {
+		return JobSettingsRetrieve(info.Actor), nil
+	})
+
+	orcapi.JobSettingsUpdate.Handler(func(info rpc.RequestInfo, request orcapi.JobSettings) (util.Empty, *util.HttpError) {
+		JobSettingsUpdate(info.Actor, request)
+		return util.Empty{}, nil
+	})
+
 	wsUpgrader := ws.Upgrader{
 		ReadBufferSize:  1024 * 4,
 		WriteBufferSize: 1024 * 4,
@@ -2021,4 +2030,55 @@ func jobSendNotifications(username string, jobs map[string]orcapi.Job) {
 	if err != nil {
 		log.Warn("Could not send notification to user %s: %s", username, err)
 	}
+}
+
+func JobSettingsRetrieve(actor rpc.Actor) orcapi.JobSettings {
+	return db.NewTx(func(tx *db.Transaction) orcapi.JobSettings {
+		row, ok := db.Get[struct {
+			Toggled         bool
+			SampleRateValue sql.Null[string]
+		}](
+			tx,
+			`
+				select toggled, sample_rate_value
+				from app_orchestrator.job_settings 
+				where username = :username   
+			`,
+			db.Params{
+				"username": actor.Username,
+			},
+		)
+
+		if !ok {
+			return orcapi.JobSettings{
+				Toggled:         false,
+				SampleRateValue: util.OptNone[string](),
+			}
+		}
+
+		return orcapi.JobSettings{
+			Toggled:         row.Toggled,
+			SampleRateValue: util.SqlNullToOpt(row.SampleRateValue),
+		}
+	})
+}
+
+func JobSettingsUpdate(actor rpc.Actor, settings orcapi.JobSettings) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into app_orchestrator.job_settings(username, toggled, sample_rate_value)
+				values (:username, :toggled, :sample_rate_value)
+				on conflict (username) do update set
+				    toggled = excluded.toggled,
+				    sample_rate_value = excluded.sample_rate_value
+			`,
+			db.Params{
+				"username":          actor.Username,
+				"toggled":           settings.Toggled,
+				"sample_rate_value": settings.SampleRateValue.Sql(),
+			},
+		)
+	})
 }

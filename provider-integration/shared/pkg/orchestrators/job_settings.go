@@ -5,11 +5,11 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-const jobSettingsContext = "job-settings"
+const jobSettingsContext = "jobs/settings"
 
 type JobSettings struct {
-	Toggled         bool   `json:"toggled"`
-	SampleRateValue string `json:"sampleRateValue"`
+	Toggled         bool                `json:"toggled"`
+	SampleRateValue util.Option[string] `json:"sampleRateValue"`
 }
 
 var JobSettingsUpdate = rpc.Call[JobSettings, util.Empty]{
