@@ -131,12 +131,13 @@ type Templates struct {
 }
 
 type GrantApplication struct {
-	Id              util.IntOrString `json:"id"`
-	CreatedBy       string           `json:"createdBy"`
-	CreatedAt       fnd.Timestamp    `json:"createdAt"`
-	UpdatedAt       fnd.Timestamp    `json:"updatedAt"`
-	CurrentRevision GrantRevision    `json:"currentRevision"`
-	Status          GrantStatus      `json:"status"`
+	Id              util.IntOrString    `json:"id"`
+	CreatedBy       string              `json:"createdBy"`
+	CreatedAt       fnd.Timestamp       `json:"createdAt"`
+	UpdatedAt       fnd.Timestamp       `json:"updatedAt"`
+	CurrentRevision GrantRevision       `json:"currentRevision"`
+	Status          GrantStatus         `json:"status"`
+	ProjectId       util.Option[string] `json:"projectId"`
 }
 
 type GrantRevision struct {
