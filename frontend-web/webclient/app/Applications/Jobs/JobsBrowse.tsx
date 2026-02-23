@@ -47,7 +47,6 @@ import {AvatarType} from "@/AvataaarLib";
 import {FilterInputClass} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
 import {injectStyle} from "@/Unstyled";
-import {Feature, hasFeature} from "@/Features";
 import {SimpleAvatarComponentCache} from "@/Files/Shares";
 import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
@@ -304,7 +303,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     }
                 });
 
-                const startRenaming = hasFeature(Feature.JOB_RENAME) ? (resource: Job) => {
+                const startRenaming = (resource: Job) => {
                     browser.showRenameField(
                         it => it.id === resource.id,
                         () => {
@@ -325,37 +324,23 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                                     browser.refresh();
                                 });
 
-                                if (hasFeature(Feature.COMPONENT_STORED_CUT_COPY)) {
-                                    ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
-                                        callAPI(JobsApi.rename(bulkRequestOf({
-                                            id: job.id,
-                                            newTitle: oldTitle ?? ""
-                                        })));
+                                ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
+                                    callAPI(JobsApi.rename(bulkRequestOf({
+                                        id: job.id,
+                                        newTitle: oldTitle ?? ""
+                                    })));
 
-                                        job.specification.name = oldTitle;
-                                        browser.dispatchMessage("sort", fn => fn(page));
-                                        browser.renderRows();
-                                        browser.selectAndShow(it => it.id === job.id);
-                                    });
-                                } else {
-                                    browser._undoStack.unshift(() => {
-                                        callAPI(JobsApi.rename(bulkRequestOf({
-                                            id: job.id,
-                                            newTitle: oldTitle ?? ""
-                                        })));
-
-                                        job.specification.name = oldTitle;
-                                        browser.dispatchMessage("sort", fn => fn(page));
-                                        browser.renderRows();
-                                        browser.selectAndShow(it => it.id === job.id);
-                                    });
-                                }
+                                    job.specification.name = oldTitle;
+                                    browser.dispatchMessage("sort", fn => fn(page));
+                                    browser.renderRows();
+                                    browser.selectAndShow(it => it.id === job.id);
+                                });
                             }
                         },
                         doNothing,
                         resource.specification.name ?? "",
                     );
-                } : undefined;
+                };
 
 
                 browser.setEmptyIcon("heroServer");
