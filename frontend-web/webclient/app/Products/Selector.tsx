@@ -228,7 +228,7 @@ export const ProductSelector: React.FunctionComponent<{
 
     const showHeadings = isDetailed;
     let extraColumns = 3;
-    // if (type === "COMPUTE") extraColumns++;
+    if (type === "COMPUTE") extraColumns++;
 
     return <>
         <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} ref={boxRef}>
@@ -366,6 +366,7 @@ export const ProductSelector: React.FunctionComponent<{
                                         <th>Name</th>
                                         {headers.map(it => <th key={it}>{it}</th>)}
                                         <th>Price</th>
+                                        {type === "COMPUTE" ? <th style={{width: "32px"}} /> : null}
                                     </TableRow>
                                 </thead>
                                 <tbody ref={itemWrapperRef}>
@@ -431,14 +432,12 @@ export const ProductSelector: React.FunctionComponent<{
                                                         <ProviderLogo providerId={p.category.provider} size={24} />
                                                     }
                                                 </TableCell>
-                                                <TableCell>
-                                                    <Flex gap={"8px"} alignItems={"center"}>
-                                                        {queueStatus == null ? null : <JobQueueStatusIndicator status={queueStatus} />}
-                                                        <ProductName product={p} />
-                                                    </Flex>
-                                                </TableCell>
+                                                <TableCell><ProductName product={p} /></TableCell>
                                                 <ProductStats product={p} />
                                                 <TableCell>{priceToString(p, 1)}</TableCell>
+                                                {queueStatus !== null ? <td style={{width: "32px"}}>
+                                                    <JobQueueStatusIndicator status={queueStatus} />
+                                                </td> : null}
                                             </TableRow>
                                         }
                                     })}
