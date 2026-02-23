@@ -103,9 +103,9 @@ func GrantsExportBrowseToCsv(lines []accapi.GrantsExportResponse) string {
 		}
 	}
 
-	categoriesArray := []string{}
+	var categoriesArray []string
 	for item := range categories {
-		categoriesArray = append(categoriesArray, strings.ReplaceAll(item, "-", "_"))
+		categoriesArray = append(categoriesArray, item)
 	}
 	s.WriteString("id,title,submitted_by,submitted_at,start,duration_months,state,grant_giver,last_updated_at,")
 	s.WriteString("organization_full_name,department,research_field,position,gender,unit")
