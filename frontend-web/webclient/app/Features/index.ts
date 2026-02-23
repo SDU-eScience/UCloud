@@ -6,8 +6,6 @@ export enum Feature {
     REORDER_APP_GROUP,
 
     ALLOCATIONS_PAGE_IMPROVEMENTS,
-
-    APPLICATION_HISTORY
 }
 
 enum Environment {
@@ -62,12 +60,6 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithFlag: allLocalEnvironments,
         showWithoutFlag: noEnvironments,
     },
-
-    "application-history": {
-        feature: Feature.APPLICATION_HISTORY,
-        showWithFlag: allEnvironments,
-        showWithoutFlag: noEnvironments
-    }
 };
 
 function getCurrentEnvironment(): Environment {
