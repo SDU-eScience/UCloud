@@ -50,10 +50,11 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 			CreatedAt    time.Time
 			UpdatedAt    time.Time
 			Synchronized bool
+			ProjectId    sql.Null[string]
 		}](
 			b,
 			`
-				select id, overall_state, requested_by, created_at, updated_at, synchronized
+				select id, overall_state, requested_by, created_at, updated_at, synchronized, project_id
 				from "grant".applications app
 				where id = some(:ids)
 		    `,
@@ -190,6 +191,7 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 				CreatedAt:       fndapi.Timestamp(app.CreatedAt),
 				UpdatedAt:       fndapi.Timestamp(app.UpdatedAt),
 				CurrentRevision: accapi.GrantRevision{},
+				ProjectId:       util.SqlNullToOpt[string](app.ProjectId),
 				Status: accapi.GrantStatus{
 					OverallState: accapi.GrantApplicationState(app.OverallState),
 				},
@@ -330,8 +332,8 @@ func grantsLoad(id accGrantId, prefetchHint []accGrantId) {
 				Awarded:     isAwarded && app.Status.OverallState == accapi.GrantApplicationStateApproved,
 			}
 			b.Applications[grantId] = resultApp
+			go grantAddToSearchIndex(resultApp)
 		}
-
 		b.Mu.Unlock()
 	}
 }
@@ -724,6 +726,7 @@ func grantsLoadIndex(b *grantIndexBucket, recipient string) {
 				where
 					app.requested_by = :recipient
 					or rr.grant_giver = :recipient
+					or app.project_id = :recipient
 				order by app.id -- required for index bucket
 		    `,
 			db.Params{
@@ -756,17 +759,19 @@ func lGrantsPersist(app *grantApplication) {
 			db.Exec(
 				tx,
 				`
-					insert into "grant".applications(id, overall_state, requested_by, created_at, updated_at, synchronized) 
-					values (:id, :state, :requested_by, now(), now(), false)
+					insert into "grant".applications(id, overall_state, requested_by, created_at, updated_at, synchronized, project_id) 
+					values (:id, :state, :requested_by, now(), now(), false, :project_id)
 					on conflict (id) do update set
 						overall_state = excluded.overall_state,
 						requested_by = excluded.requested_by,
-						updated_at = excluded.updated_at
+						updated_at = excluded.updated_at,
+						project_id = excluded.project_id
 			    `,
 				db.Params{
 					"id":           app.lId(),
 					"state":        appl.Status.OverallState,
 					"requested_by": appl.CreatedBy,
+					"project_id":   appl.ProjectId.Sql(),
 				},
 			)
 
@@ -944,7 +949,7 @@ func lGrantsPersist(app *grantApplication) {
 				formsRecipientType = append(formsRecipientType, sqlRecipientType)
 				form = append(form, rev.Document.Form.Text)
 
-				jsonArr, _ := json.Marshal(rev.Document.ReferenceIds.GetOrDefault([]string{}))
+				jsonArr, _ := json.Marshal(util.NonNilSlice(rev.Document.ReferenceIds.GetOrDefault([]string{})))
 				formsReferences = append(formsReferences, string(jsonArr))
 			}
 

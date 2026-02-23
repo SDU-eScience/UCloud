@@ -39,6 +39,7 @@ const FEATURES: ResourceBrowseFeatures = {
     filters: true,
     breadcrumbsSeparatedBySlashes: false,
     projectSwitcher: true,
+    search: true,
 }
 
 function download(filename: string, text: string) {
@@ -82,14 +83,10 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     columns[2].columnWidth = 120;
                     columns[3].columnWidth = 0;
                 }
-                browser.setColumns(columns);
-                browser.on("open", (oldPath, newPath, resource) => {
-                    if (resource) {
-                        navigate(AppRoutes.grants.editor(resource.id));
-                        return;
-                    }
 
+                function fetchGrants(newPath: string = "/") {
                     callAPI(Grants.browse({
+                        query: browser.searchQuery,
                         includeIngoingApplications: isIngoing || opts?.both,
                         includeOutgoingApplications: !isIngoing || opts?.both,
                         ...defaultRetrieveFlags,
@@ -99,7 +96,25 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
                     })
+                }
+
+                browser.setColumns(columns);
+                browser.on("open", (_, newPath, resource) => {
+                    if (resource) {
+                        navigate(AppRoutes.grants.editor(resource.id));
+                        return;
+                    }
+                    fetchGrants(newPath);
+
                 });
+
+                browser.on("search", query => {
+                    browser.searchQuery = query;
+                    fetchGrants();
+                });
+
+
+
 
                 avatarState.subscribe(() => {
                     browser.rerender();
@@ -110,6 +125,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 browser.on("wantToFetchNextPage", async path => {
                     const result = await callAPI(
                         Grants.browse({
+                            query: browser.searchQuery,
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
                             ...opts?.additionalFilters,

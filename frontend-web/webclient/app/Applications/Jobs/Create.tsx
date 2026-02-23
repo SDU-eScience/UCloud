@@ -52,7 +52,6 @@ import {
 } from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
-import {Feature, hasFeature} from "@/Features";
 import {useUState} from "@/Utilities/UState";
 import {Spacer} from "@/ui-components/Spacer";
 import {injectStyle} from "@/Unstyled";
@@ -555,7 +554,7 @@ export const Create: React.FunctionComponent = () => {
         !(!it.optional || activeOptParams.indexOf(it.name) !== -1) && it.type !== "readme"
     );
 
-    const isMissingConnection = hasFeature(Feature.PROVIDER_CONNECTION) && estimatedCost.product != null &&
+    const isMissingConnection = estimatedCost.product != null &&
         connectionState.canConnectToProvider(estimatedCost.product.category.provider);
 
     const errorCount = countMandatoryAndOptionalErrors(parameters.filter(it =>

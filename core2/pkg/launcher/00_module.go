@@ -184,6 +184,7 @@ func Launch() {
 
 		if _, ok := claims.Membership[project.Value]; project.Present && !ok {
 			project.Clear()
+			return rpc.Actor{}, false
 		}
 
 		return rpc.Actor{

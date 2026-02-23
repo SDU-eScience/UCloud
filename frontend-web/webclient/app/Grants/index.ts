@@ -4,6 +4,7 @@ import {FindByStringId, PageV2, PaginationRequestV2} from "@/UCloud";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {ProductCategoryId} from "@/Accounting";
+import {OptionalInfo} from "@/UserSettings/ChangeUserDetails";
 
 const baseContext = "/api/grants/v2";
 
@@ -11,6 +12,7 @@ const baseContext = "/api/grants/v2";
 // =====================================================================================================================
 export function browse(
     request: PaginationRequestV2 & {
+        query?: string
         filter?: ApplicationFilter,
         includeIngoingApplications?: boolean,
         includeOutgoingApplications?: boolean,
@@ -274,6 +276,8 @@ export interface Status {
     projectTitle?: string;
     projectPI: string;
     hasUnreadComments: boolean;
+    applicationHistory: Application[];
+    optionalUserInfo?: OptionalInfo | null;
 }
 
 export interface GrantGiverApprovalState {

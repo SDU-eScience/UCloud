@@ -59,7 +59,8 @@ func GrantsExportBrowse(actor rpc.Actor) []accapi.GrantsExportResponse {
 
 			resources := map[string]int{}
 			for _, request := range doc.AllocationRequests {
-				resources[request.Category] = int(request.BalanceRequested.GetOrDefault(0))
+				catKey := fmt.Sprintf("%s/%s", request.Category, request.Provider)
+				resources[catKey] = int(request.BalanceRequested.GetOrDefault(0))
 			}
 
 			title := doc.Recipient.Reference().Value
@@ -69,16 +70,17 @@ func GrantsExportBrowse(actor rpc.Actor) []accapi.GrantsExportResponse {
 			}
 
 			result = append(result, accapi.GrantsExportResponse{
-				Id:             item.Id.Value,
-				Title:          title,
-				SubmittedBy:    item.CreatedBy,
-				SubmittedAt:    item.CreatedAt,
-				StartDate:      startTime,
-				DurationMonths: int(allocationDuration.Hours() / 24.0 / 30.0),
-				State:          item.Status.OverallState,
-				GrantGiver:     grantsExportProjectIdToTitle(string(actor.Project.Value)),
-				LastUpdatedAt:  item.UpdatedAt,
-				Resources:      resources,
+				Id:               item.Id.Value,
+				Title:            title,
+				SubmittedBy:      item.CreatedBy,
+				OptionalUserInfo: item.Status.OptionalUserInfo,
+				SubmittedAt:      item.CreatedAt,
+				StartDate:        startTime,
+				DurationMonths:   int(allocationDuration.Hours() / 24.0 / 30.0),
+				State:            item.Status.OverallState,
+				GrantGiver:       grantsExportProjectIdToTitle(string(actor.Project.Value)),
+				LastUpdatedAt:    item.UpdatedAt,
+				Resources:        resources,
 			})
 		}
 
@@ -91,33 +93,35 @@ func GrantsExportBrowse(actor rpc.Actor) []accapi.GrantsExportResponse {
 	return result
 }
 
-// Convert JSON to CSV
-
 func GrantsExportBrowseToCsv(lines []accapi.GrantsExportResponse) string {
 	s := &strings.Builder{}
 
 	categories := map[string]util.Empty{}
 	for _, line := range lines {
-		for resource, _ := range line.Resources {
+		for resource := range line.Resources {
 			categories[resource] = util.Empty{}
 		}
 	}
 
-	categoriesArray := []string{}
+	var categoriesArray []string
 	for item := range categories {
 		categoriesArray = append(categoriesArray, item)
 	}
-
-	s.WriteString("id,title,submitted_by,submitted_at,start,duration_months,state,grant_giver,last_updated_at")
+	s.WriteString("id,title,submitted_by,submitted_at,start,duration_months,state,grant_giver,last_updated_at,")
+	s.WriteString("organization_full_name,department,research_field,position,gender,unit")
 
 	for _, item := range categoriesArray {
-		s.WriteString("," + item)
-		// Write ("$UNIT"). For example: (GB)
-		provider := "gok8s"
+		catAndProvider := strings.SplitN(item, "/", 2)
+		category := catAndProvider[0]
+		provider := ""
+		if len(catAndProvider) == 2 {
+			provider = catAndProvider[1]
+		}
 
 		unitName := &strings.Builder{}
 
-		productCategory, err := ProductCategoryRetrieve(rpc.ActorSystem, item, provider)
+		productCategory, err := ProductCategoryRetrieve(rpc.ActorSystem, category, provider)
+		headline := item
 		if err == nil {
 			unitName.WriteString(productCategory.AccountingUnit.Name)
 
@@ -130,10 +134,11 @@ func GrantsExportBrowseToCsv(lines []accapi.GrantsExportResponse) string {
 				unitName.WriteString("-day")
 			}
 
-			s.WriteString(" (")
-			s.WriteString(unitName.String())
-			s.WriteString(")")
+			headline += " (" + unitName.String() + ")"
 		}
+
+		s.WriteRune(',')
+		grantsWriteQuotedString(s, headline)
 	}
 
 	s.WriteRune('\n')
@@ -141,29 +146,58 @@ func GrantsExportBrowseToCsv(lines []accapi.GrantsExportResponse) string {
 	for _, item := range lines {
 		t := item.SubmittedAt
 
-		s.WriteString(item.Id)
+		grantsWriteQuotedString(s, item.Id)
 		s.WriteRune(',')
-		s.WriteString(item.Title)
+		grantsWriteQuotedString(s, item.Title)
 		s.WriteRune(',')
-		s.WriteString(item.SubmittedBy)
+		grantsWriteQuotedString(s, item.SubmittedBy)
 		s.WriteRune(',')
-		s.WriteString(t.Time().Format(time.RFC3339))
+		grantsWriteQuotedString(s, t.Time().Format(time.RFC3339))
 		s.WriteRune(',')
-		s.WriteString(item.StartDate.Time().Format(time.RFC3339))
+		grantsWriteQuotedString(s, item.StartDate.Time().Format(time.RFC3339))
 		s.WriteRune(',')
-		s.WriteString(fmt.Sprint(item.DurationMonths))
+		grantsWriteQuotedString(s, fmt.Sprint(item.DurationMonths))
 		s.WriteRune(',')
-		s.WriteString(fmt.Sprint(item.State))
+		grantsWriteQuotedString(s, fmt.Sprint(item.State))
 		s.WriteRune(',')
-		s.WriteString(item.GrantGiver)
+		grantsWriteQuotedString(s, item.GrantGiver)
 		s.WriteRune(',')
-		s.WriteString(item.LastUpdatedAt.Time().Format(time.RFC3339))
+		grantsWriteQuotedString(s, item.LastUpdatedAt.Time().Format(time.RFC3339))
+		s.WriteRune(',')
+		grantsWriteQuotedString(s, item.OptionalUserInfo.OrganizationFullName.GetOrDefault("Unknown"))
+		s.WriteRune(',')
+		grantsWriteQuotedString(s, item.OptionalUserInfo.Department.GetOrDefault("Unknown"))
+		s.WriteRune(',')
+		grantsWriteQuotedString(s, item.OptionalUserInfo.ResearchField.GetOrDefault("Unknown"))
+		s.WriteRune(',')
+		grantsWriteQuotedString(s, item.OptionalUserInfo.Position.GetOrDefault("Unknown"))
+		s.WriteRune(',')
+		grantsWriteQuotedString(s, item.OptionalUserInfo.Gender.GetOrDefault("Unknown"))
+		s.WriteRune(',')
+		grantsWriteQuotedString(s, item.OptionalUserInfo.Unit.GetOrDefault("Unknown"))
 		for _, category := range categoriesArray {
 			s.WriteRune(',')
-			s.WriteString(fmt.Sprint(item.Resources[category]))
+			grantsWriteQuotedString(s, fmt.Sprint(item.Resources[category]))
 		}
 		s.WriteRune('\n')
 	}
 
 	return s.String()
+}
+
+func grantsWriteQuotedString(b *strings.Builder, value string) {
+	if !strings.ContainsAny(value, ",\"\n\r") {
+		b.WriteString(value)
+		return
+	}
+
+	b.WriteRune('"')
+	for _, r := range value {
+		if r == '"' {
+			b.WriteString("\"\"")
+		} else {
+			b.WriteRune(r)
+		}
+	}
+	b.WriteRune('"')
 }
