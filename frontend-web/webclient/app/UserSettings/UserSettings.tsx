@@ -13,6 +13,7 @@ import {ChangeEmailSettings} from "@/UserSettings/ChangeEmailSettings";
 import {CustomTheming} from "./CustomTheme";
 import {refreshFunctionCache} from "@/Utilities/ReduxUtilities";
 import {ChangeNotificationSettings} from "./ChangeNotificationSettings";
+import {ChangeJobReportSettings} from "./ChangeJobReportSettings";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {SettingsNavSection, SettingsNavigator} from "./SettingsComponents";
 
@@ -66,6 +67,9 @@ function UserSettings(): React.ReactNode {
                                         setLoading={setHeaderLoading}
                                     />
                                     <ChangeNotificationSettings
+                                        setLoading={setHeaderLoading}
+                                    />
+                                    <ChangeJobReportSettings
                                         setLoading={setHeaderLoading}
                                     />
 

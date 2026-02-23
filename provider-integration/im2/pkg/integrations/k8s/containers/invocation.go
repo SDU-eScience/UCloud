@@ -10,7 +10,6 @@ import (
 	k8score "k8s.io/api/core/v1"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
-	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -51,7 +50,13 @@ func prepareInvocationOnJobCreate(
 
 	argBuilder := controller.JobDefaultArgBuilder(ucloudToPod)
 
-	log.Info("The sample rate is %v", parametersAndValues["ucMetricSampleRate"]) // TODO remember to remove this
+	sampleRate := ""
+	sampleRateParam, hasSampleRateParam := parametersAndValues["ucMetricSampleRate"]
+	if hasSampleRateParam {
+		sampleRate, _ = sampleRateParam.Value.Value.(string)
+	} else {
+		sampleRate = "0ms"
+	}
 
 	// Convert license parameters
 	for parameterId, parameterAndValue := range parametersAndValues {
@@ -110,13 +115,10 @@ func prepareInvocationOnJobCreate(
 		})
 	}
 
-	sampleRate, ok := parametersAndValues["ucMetricSampleRate"]
-	if ok {
-		container.Env = append(container.Env, k8score.EnvVar{
-			Name:  "UCLOUD_METRICS_SAMPLE_INTERVAL",
-			Value: sampleRate.Value.Value.(string),
-		})
-	}
+	container.Env = append(container.Env, k8score.EnvVar{
+		Name:  "UCLOUD_METRICS_SAMPLE_INTERVAL",
+		Value: sampleRate,
+	})
 
 	openedFile := job.Specification.OpenedFile
 	if openedFile != "" {

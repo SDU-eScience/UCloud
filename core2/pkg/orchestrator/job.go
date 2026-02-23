@@ -24,8 +24,24 @@ import (
 )
 
 const (
-	jobType = "job"
+	jobType                     = "job"
+	jobMetricSampleRateParam    = "ucMetricSampleRate"
+	jobMetricSampleRateDefault  = "250ms"
+	jobMetricSampleRateDisabled = "0ms"
 )
+
+var jobMetricAllowedSampleRates = map[string]bool{
+	"0ms":      true,
+	"250ms":    true,
+	"500ms":    true,
+	"750ms":    true,
+	"1000ms":   true,
+	"5000ms":   true,
+	"10000ms":  true,
+	"30000ms":  true,
+	"60000ms":  true,
+	"120000ms": true,
+}
 
 func initJobs() {
 	InitResourceType(
@@ -43,6 +59,8 @@ func initJobs() {
 
 	orcapi.JobsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		var ids []fndapi.FindByStringId
+		jobSettings := JobSettingsRetrieve(info.Actor)
+
 		for _, item := range request.Items {
 			spec := item
 			err := jobsValidateForSubmission(info.Actor, &spec)
@@ -63,6 +81,23 @@ func initJobs() {
 				"cpu":          support.Product.Cpu,
 				"memoryInGigs": support.Product.MemoryInGigs,
 			})
+
+			if spec.Parameters == nil {
+				spec.Parameters = map[string]orcapi.AppParameterValue{}
+			}
+
+			if _, hasSampleRateOverride := spec.Parameters[jobMetricSampleRateParam]; !hasSampleRateOverride {
+				effectiveSampleRate := jobMetricSampleRateDisabled
+
+				if jobSettings.Toggled {
+					effectiveSampleRate = jobMetricSampleRateDefault
+					if jobSettings.SampleRateValue.Present {
+						effectiveSampleRate = jobSettings.SampleRateValue.Value
+					}
+				}
+
+				spec.Parameters[jobMetricSampleRateParam] = orcapi.AppParameterValueText(effectiveSampleRate)
+			}
 
 			extra := &internalJob{
 				Application:    spec.Application,
@@ -808,7 +843,11 @@ func initJobs() {
 	})
 
 	orcapi.JobSettingsUpdate.Handler(func(info rpc.RequestInfo, request orcapi.JobSettings) (util.Empty, *util.HttpError) {
-		JobSettingsUpdate(info.Actor, request)
+		err := JobSettingsUpdate(info.Actor, request)
+		if err != nil {
+			return util.Empty{}, err
+		}
+
 		return util.Empty{}, nil
 	})
 
@@ -2063,7 +2102,11 @@ func JobSettingsRetrieve(actor rpc.Actor) orcapi.JobSettings {
 	})
 }
 
-func JobSettingsUpdate(actor rpc.Actor, settings orcapi.JobSettings) {
+func JobSettingsUpdate(actor rpc.Actor, settings orcapi.JobSettings) *util.HttpError {
+	if settings.SampleRateValue.Present && !jobMetricAllowedSampleRates[settings.SampleRateValue.Value] {
+		return util.HttpErr(http.StatusBadRequest, "invalid sample rate value")
+	}
+
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -2081,4 +2124,6 @@ func JobSettingsUpdate(actor rpc.Actor, settings orcapi.JobSettings) {
 			},
 		)
 	})
+
+	return nil
 }

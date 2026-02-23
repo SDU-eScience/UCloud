@@ -45,6 +45,50 @@ export function updateNotificationSettings(
     };
 }
 
+export type JobReportSampleRate =
+    | "0ms"
+    | "250ms"
+    | "500ms"
+    | "750ms"
+    | "1000ms"
+    | "5000ms"
+    | "10000ms"
+    | "30000ms"
+    | "60000ms"
+    | "120000ms";
+
+export interface JobReportSettings {
+    toggled: boolean;
+    sampleRateValue: JobReportSampleRate | null;
+}
+
+export type RetrieveJobReportSettingsRequest = Record<string, never>;
+
+export function retrieveJobReportSettings(
+    request: RetrieveJobReportSettingsRequest
+): APICallParameters<RetrieveJobReportSettingsRequest, JobReportSettings> {
+    return {
+        context: "",
+        method: "GET",
+        path: "/api/jobs/settings/retrieve",
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+
+export function updateJobReportSettings(
+    request: JobReportSettings
+): APICallParameters<JobReportSettings, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/jobs/settings",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+
 export interface UserSession {
     ipAddress: string;
     userAgent: string;

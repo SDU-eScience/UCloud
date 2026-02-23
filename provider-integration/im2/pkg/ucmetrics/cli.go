@@ -137,27 +137,32 @@ func HandleCli(cfg Config) {
 		panic(err)
 	}
 
-	csvFile, err := os.OpenFile("/work/job-report.csv", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0660)
-	if err != nil {
-		panic(err)
-	}
-
-	defer util.SilentClose(csvFile)
-
-	visibleGpuCount := len(ReadNvidiaGpuUsage())
-	if visibleGpuCount > 16 {
-		visibleGpuCount = 16
-	}
-
-	headers, csvColumns := csvSchema(visibleGpuCount)
+	var csvFile *os.File = nil
+	var csvColumns []int
 	lastKnownCpuLimit := 0.0
-	for i, header := range headers {
-		if i > 0 {
-			_, _ = csvFile.WriteString(",")
+	if cfg.SampleInterval > 0 {
+		csvFile, err = os.OpenFile("/work/job-report.csv", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0660)
+		if err != nil {
+			panic(err)
 		}
-		_, _ = csvFile.WriteString(header)
+
+		defer util.SilentClose(csvFile)
+
+		visibleGpuCount := len(ReadNvidiaGpuUsage())
+		if visibleGpuCount > 16 {
+			visibleGpuCount = 16
+		}
+
+		var headers []string
+		headers, csvColumns = csvSchema(visibleGpuCount)
+		for i, header := range headers {
+			if i > 0 {
+				_, _ = csvFile.WriteString(",")
+			}
+			_, _ = csvFile.WriteString(header)
+		}
+		_, _ = csvFile.WriteString("\n")
 	}
-	_, _ = csvFile.WriteString("\n")
 
 	nextCsvSample := time.Now()
 
