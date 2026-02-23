@@ -1,5 +1,4 @@
 import {usePage} from "@/Navigation/Redux";
-import {Feature, hasFeature} from "@/Features";
 import * as React from "react";
 import Providers from "@/Assets/provider_info.json";
 import {useParams} from "react-router-dom";
@@ -15,8 +14,6 @@ import {MachineView} from "@/Products/Products";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export default function DetailedProvider() {
-    if (!hasFeature(Feature.PROVIDER_CONNECTION)) return null;
-
     const params = useParams<{id: string}>();
     const entry = React.useMemo(() => Providers.providers.find(it => it.id === params.id), [params.id]);
 

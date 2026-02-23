@@ -46,7 +46,6 @@ import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/Meta
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api";
 import {Link, useNavigate, useParams} from "react-router-dom";
-import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
@@ -384,7 +383,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "heroPaperAirplane",
                 text: "Transfer to...",
                 enabled: (selected, cb) =>
-                    hasFeature(Feature.TRANSFER_TO) &&
                     !cb.isSearch &&
                     (cb.isModal !== true || !!cb.allowMoveCopyOverride) &&
                     selected.length > 0 &&

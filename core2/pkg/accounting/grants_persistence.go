@@ -944,7 +944,7 @@ func lGrantsPersist(app *grantApplication) {
 				formsRecipientType = append(formsRecipientType, sqlRecipientType)
 				form = append(form, rev.Document.Form.Text)
 
-				jsonArr, _ := json.Marshal(rev.Document.ReferenceIds.GetOrDefault([]string{}))
+				jsonArr, _ := json.Marshal(util.NonNilSlice(rev.Document.ReferenceIds.GetOrDefault([]string{})))
 				formsReferences = append(formsReferences, string(jsonArr))
 			}
 

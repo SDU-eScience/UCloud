@@ -51,7 +51,7 @@ const SyncthingOverview = React.lazy(() => import("@/Syncthing/Overview"));
 const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Add"));
 const ApiTokenCreate = React.lazy(() => import("@/Applications/ApiTokens/Add"));
 const GrantEditor = React.lazy(() => import("@/Grants/Editor"));
-const ResourceUsage = React.lazy(() => import("@/Accounting/Usage"));
+const ResourceUsage = React.lazy(() => import("@/Accounting/UsageCore2"));
 const ResourceAllocations = React.lazy(() => import("@/Accounting/Allocations"));
 const Connection = React.lazy(() => import("@/Providers/Connection"));
 
