@@ -45,7 +45,6 @@ import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} fr
 import {useLocation, useNavigate} from "react-router-dom";
 import * as Grants from ".";
 import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalInfoUpdate} from "@/UserSettings/ChangeUserDetails";
-import {Feature, hasFeature} from "@/Features";
 
 // State model
 // =====================================================================================================================
@@ -2028,6 +2027,8 @@ export function Editor(): React.ReactNode {
                             </div>
                         </>)}
 
+                        <OptionalUserInfoReadOnly state={state} />
+
                         {state.stateDuringEdit && state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID ?
                             null :
                             <>
@@ -2551,7 +2552,7 @@ const ApplicationHistory: React.FunctionComponent<{state: EditorState}> = ({stat
                                             });
 
                                             return (
-                                                <Flex flexDirection={"column"} gap={"8px"}>
+                                                <Flex flexDirection={"column"} gap={"8px"} key={providerId}>
                                                     {sortedCategories.map(([categoryName, request]) => {
                                                         const category = categoryByProviderAndName.get(`${providerId}/${categoryName}`);
                                                         const unit = category ? Accounting.explainUnit(category) : null;
@@ -2587,6 +2588,66 @@ const ApplicationHistory: React.FunctionComponent<{state: EditorState}> = ({stat
                 })}
             </Flex>
         </>
+    );
+};
+
+const OptionalUserInfoReadOnly: React.FunctionComponent<{state: EditorState}> = ({state}) => {
+    const optionalInfo = state.stateDuringEdit?.storedApplication?.status.optionalUserInfo;
+    if (!optionalInfo) {
+        return null;
+    }
+
+    const adminProjectIds = new Set(
+        state.loadedProjects
+            .map(project => project.id)
+            .filter((id): id is string => id !== null)
+    );
+
+    const grantGiverProjectIds = new Set(
+        state.stateDuringEdit?.storedApplication?.status.stateBreakdown.map(it => it.projectId) ?? []
+    );
+
+    const isAdminInGrantGiverProject = Array.from(grantGiverProjectIds).some(id => adminProjectIds.has(id));
+    if (!isAdminInGrantGiverProject) {
+        return null;
+    }
+
+    const readOnlyFields: {label: string; value?: string | null}[] = [
+        {label: "Organization", value: optionalInfo.organizationFullName},
+        {label: "Department", value: optionalInfo.department},
+        {label: "Unit", value: optionalInfo.unit},
+        {label: "Research field", value: optionalInfo.researchField},
+        {label: "Position", value: optionalInfo.position},
+        {label: "Gender", value: optionalInfo.gender},
+    ];
+
+    const filledFields = readOnlyFields.filter(field => {
+        const value = field.value?.trim();
+        return !!value;
+    });
+
+    if (filledFields.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className={classConcat("section", OrganizationInfoClass.class)}>
+            <Box>
+                <label className="section">Organization information</label>
+                <div className="description">
+                    <p>This information was submitted by the applicant.</p>
+                </div>
+            </Box>
+
+            <div className="form-body">
+                {filledFields.map(field => (
+                    <label key={field.label}>
+                        {field.label}
+                        <Input value={field.value?.trim() ?? ""} disabled />
+                    </label>
+                ))}
+            </div>
+        </div>
     );
 };
 
