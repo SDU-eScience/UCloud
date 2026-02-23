@@ -42,7 +42,7 @@
         "immer": "10.2.0",
         "jsrsasign": "11.1.0",
         "localforage": "1.10.0",
-        "magic-bytes.js": "1.12.1",
+        "magic-bytes.js": "1.13.0",
         "mermaid": "11.12.2",
         "monaco-editor": "0.55.1",
         "monaco-vim": "0.4.2",
