@@ -351,11 +351,7 @@ func initAuth() {
 			usernameToLookup = info.Actor.Username
 		}
 
-		optionalUserInfo, ok := UserOptInfoRetrieve(usernameToLookup)
-		if !ok {
-			return fndapi.OptionalUserInfo{}, util.HttpErr(http.StatusNotFound, "no optional user info found for "+usernameToLookup)
-		}
-		return optionalUserInfo, nil
+		return UserOptInfoRetrieve(usernameToLookup), nil
 	})
 
 	fndapi.UsersUpdateOptionalInfo.Handler(func(info rpc.RequestInfo, request fndapi.OptionalUserInfo) (util.Empty, *util.HttpError) {

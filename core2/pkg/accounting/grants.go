@@ -140,10 +140,10 @@ var grantsProjectCache = util.NewCache[string, grantsProjectInfo](4 * time.Hour)
 var userInfoCache = util.NewCache[string, fndapi.OptionalUserInfo](10 * time.Minute)
 
 func GrantApplicationProcess(actor rpc.Actor, app accapi.GrantApplication) accapi.GrantApplication {
-
 	// Find optional user information if any
 	userInfo, _ := userInfoCache.Get(app.CreatedBy, func() (fndapi.OptionalUserInfo, error) {
-		return fndapi.UsersRetrieveOptionalInfo.Invoke(fndapi.UsersRetrieveOptionalInfoRequest{Username: util.OptValue(app.CreatedBy)})
+		result, _ := fndapi.UsersRetrieveOptionalInfo.Invoke(fndapi.UsersRetrieveOptionalInfoRequest{Username: util.OptValue(app.CreatedBy)})
+		return result, nil
 	})
 	app.Status.OptionalUserInfo = userInfo
 

@@ -7,14 +7,14 @@ import (
 
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
-	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
-func UserOptInfoRetrieve(username string) (fndapi.OptionalUserInfo, bool) {
-	result, ok := db.NewTx2(func(tx *db.Transaction) (fndapi.OptionalUserInfo, bool) {
-		row, ok := db.Get[struct {
+// UserOptInfoRetrieve will retrieve relevant info, if none is found, return default empty OptionalUserInfo
+func UserOptInfoRetrieve(username string) fndapi.OptionalUserInfo {
+	result := db.NewTx(func(tx *db.Transaction) fndapi.OptionalUserInfo {
+		row, _ := db.Get[struct {
 			OrganizationFullName sql.Null[string]
 			Department           sql.Null[string]
 			ResearchField        sql.Null[string]
@@ -40,10 +40,6 @@ func UserOptInfoRetrieve(username string) (fndapi.OptionalUserInfo, bool) {
 			`,
 			db.Params{"username": username},
 		)
-		if !ok {
-			return fndapi.OptionalUserInfo{}, false
-		}
-
 		return fndapi.OptionalUserInfo{
 			OrganizationFullName: util.SqlNullToOpt(row.OrganizationFullName),
 			Department:           util.SqlNullToOpt(row.Department),
@@ -51,13 +47,9 @@ func UserOptInfoRetrieve(username string) (fndapi.OptionalUserInfo, bool) {
 			Position:             util.SqlNullToOpt(row.Position),
 			Gender:               util.SqlNullToOpt(row.Gender),
 			Unit:                 util.SqlNullToOpt(row.Unit),
-		}, ok
+		}
 	})
-	if !ok {
-		log.Warn("No OptionalUserInfo found for %s", username)
-	}
-
-	return result, ok
+	return result
 }
 
 func UsersOptInfoUpdate(actor rpc.Actor, info fndapi.OptionalUserInfo) {
