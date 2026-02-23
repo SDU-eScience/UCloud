@@ -21,29 +21,42 @@ const ContainerClass = injectStyle("tabbed-card", k => `
         max-width: calc(100% + 40px);
         display: flex;
         flex-direction: row;
-        gap: 4px;
+        justify-content: space-between;
         margin-bottom: 8px;
-        overflow-x: auto;
         border-bottom: 1px solid var(--borderColor);
     }
+
+    ${k} [data-tab-list] {
+        display: flex;
+        flex-direction: row;
+        gap: 4px;
+        overflow-x: auto;
+        min-width: 0;
+    }
+
+    ${k} [data-tab-controls] {
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+    }
     
-    ${k} nav > div {
+    ${k} [data-tab-list] > div {
         padding: 12px;
         user-select: none;
         -webkit-user-select: none;
         flex-shrink: 0;
     }
-    
-    ${k} nav > div:first-child {
+
+    ${k} [data-tab-list] > div:first-child {
         padding: 12px 20px;
     }
-    
-    ${k} nav > div:not(:only-child):hover {
+
+    ${k} [data-tab-list] > div:not(:only-child):hover {
         cursor: pointer;
         border-bottom: 2px solid var(--borderColor);
     }
-    
-    ${k} nav > div:not(:only-child)[data-active=true] {
+
+    ${k} [data-tab-list] > div:not(:only-child)[data-active=true] {
         border-bottom: 2px solid var(--secondaryDark);
     }
     
@@ -51,7 +64,12 @@ const ContainerClass = injectStyle("tabbed-card", k => `
 
 const TabClass = makeClassName("tabbed-card-tab");
 
-const TabbedCard: React.FunctionComponent<{style?: CSSProperties; children: React.ReactNode}> = ({style, children}) => {
+const TabbedCard: React.FunctionComponent<{
+    style?: CSSProperties;
+    children: React.ReactNode;
+    rightControls?: React.ReactNode;
+    rightControlsPaddingRight?: string;
+}> = ({style, children, rightControls, rightControlsPaddingRight}) => {
     const [tabs, setTabs] = useState<Tab[]>([]);
     const [visible, setVisible] = useState(0);
     const rootDiv = useRef<HTMLDivElement>(null);
@@ -96,14 +114,21 @@ const TabbedCard: React.FunctionComponent<{style?: CSSProperties; children: Reac
     return <Card style={style} className={tabs.length === 0 ? HideClass : undefined}>
         <div ref={rootDiv} className={ContainerClass} data-hidden={tabs.length === 0}>
             <nav>
-                {tabs.map((it, idx) =>
-                    <div
-                        onClick={onTabClick}
-                        data-tab-idx={idx}
-                        data-active={idx === visible}
-                        key={it.name}
-                    >
-                        <Icon name={it.icon} /> {it.name}
+                <div data-tab-list>
+                    {tabs.map((it, idx) =>
+                        <div
+                            onClick={onTabClick}
+                            data-tab-idx={idx}
+                            data-active={idx === visible}
+                            key={it.name}
+                        >
+                            <Icon name={it.icon} /> {it.name}
+                        </div>
+                    )}
+                </div>
+                {!rightControls ? null : (
+                    <div data-tab-controls style={{paddingRight: rightControlsPaddingRight ?? "12px"}}>
+                        {rightControls}
                     </div>
                 )}
             </nav>

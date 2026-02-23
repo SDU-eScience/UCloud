@@ -12,22 +12,27 @@ import (
 )
 
 func ReadMemoryUsage() uint64 {
-	line := readFirstLine("/sys/fs/cgroup/memory.current") // cgroup v2
-	if line == "" {
-		line = readFirstLine("/sys/fs/cgroup/memory/memory.usage_in_bytes") // cgroup v1
+	if isMemoryRestrictedByCgroup() {
+		line := readFirstLine("/sys/fs/cgroup/memory.current")
+		if line == "" {
+			line = readFirstLine("/sys/fs/cgroup/memory/memory.usage_in_bytes")
+		}
+
+		memoryUsed, err := strconv.ParseUint(line, 10, 64)
+		if err == nil {
+			return memoryUsed
+		}
 	}
 
-	memoryUsed, _ := strconv.ParseUint(line, 10, 64)
-	return memoryUsed
+	return readSystemMemoryUsage()
 }
 
 func ReadMemoryLimit() uint64 {
-	line := readFirstLine("/sys/fs/cgroup/memory.max") // cgroup v2
-	if line == "" {
-		line = readFirstLine("/sys/fs/cgroup/memory/memory.limit_in_bytes") // cgroup v1
+	if limit, ok := readCgroupMemoryLimitIfRestricted(); ok {
+		return limit
 	}
-	memoryLimit, _ := strconv.ParseUint(line, 10, 64)
-	return memoryLimit
+
+	return readSystemMemoryLimit()
 }
 
 type NetworkUsage struct {
@@ -157,4 +162,147 @@ func readFirstLine(filename string) string {
 func isCgroupV2() bool {
 	_, err := os.Stat(cgroupV2CPUStat)
 	return err == nil
+}
+
+func isMemoryRestrictedByCgroup() bool {
+	_, ok := readCgroupMemoryLimitIfRestricted()
+	return ok
+}
+
+func readCgroupMemoryLimitIfRestricted() (uint64, bool) {
+	if isCgroupV2() {
+		line := readFirstLine("/sys/fs/cgroup/memory.max")
+		if line == "" || line == "max" {
+			return 0, false
+		}
+
+		limit, err := strconv.ParseUint(line, 10, 64)
+		if err != nil || limit == 0 {
+			return 0, false
+		}
+
+		return limit, true
+	}
+
+	line := readFirstLine("/sys/fs/cgroup/memory/memory.limit_in_bytes")
+	if line == "" {
+		return 0, false
+	}
+
+	limit, err := strconv.ParseUint(line, 10, 64)
+	if err != nil || limit == 0 {
+		return 0, false
+	}
+
+	if limit > (1 << 60) {
+		return 0, false
+	}
+
+	return limit, true
+}
+
+func readSystemMemoryUsage() uint64 {
+	file, err := os.Open("/proc/meminfo")
+	if err != nil {
+		return 0
+	}
+	defer util.SilentClose(file)
+
+	scanner := bufio.NewScanner(file)
+	memoryTotalKb := uint64(0)
+	memoryFreeKb := uint64(0)
+	buffersKb := uint64(0)
+	cachedKb := uint64(0)
+	sreclaimableKb := uint64(0)
+	shmemKb := uint64(0)
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+
+		switch fields[0] {
+		case "MemTotal:":
+			value, err := strconv.ParseUint(fields[1], 10, 64)
+			if err == nil {
+				memoryTotalKb = value
+			}
+		case "MemFree:":
+			value, err := strconv.ParseUint(fields[1], 10, 64)
+			if err == nil {
+				memoryFreeKb = value
+			}
+		case "Buffers:":
+			value, err := strconv.ParseUint(fields[1], 10, 64)
+			if err == nil {
+				buffersKb = value
+			}
+		case "Cached:":
+			value, err := strconv.ParseUint(fields[1], 10, 64)
+			if err == nil {
+				cachedKb = value
+			}
+		case "SReclaimable:":
+			value, err := strconv.ParseUint(fields[1], 10, 64)
+			if err == nil {
+				sreclaimableKb = value
+			}
+		case "Shmem:":
+			value, err := strconv.ParseUint(fields[1], 10, 64)
+			if err == nil {
+				shmemKb = value
+			}
+		}
+	}
+
+	if memoryTotalKb == 0 {
+		return 0
+	}
+
+	cacheKb := buffersKb + cachedKb + sreclaimableKb
+	if cacheKb >= shmemKb {
+		cacheKb -= shmemKb
+	} else {
+		cacheKb = 0
+	}
+
+	usedKb := memoryTotalKb
+	if memoryFreeKb+cacheKb < memoryTotalKb {
+		usedKb = memoryTotalKb - memoryFreeKb - cacheKb
+	} else {
+		usedKb = 0
+	}
+
+	return usedKb * 1024
+}
+
+func readSystemMemoryLimit() uint64 {
+	file, err := os.Open("/proc/meminfo")
+	if err != nil {
+		return 0
+	}
+	defer util.SilentClose(file)
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "MemTotal:") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			return 0
+		}
+
+		memoryKb, err := strconv.ParseUint(fields[1], 10, 64)
+		if err != nil {
+			return 0
+		}
+
+		return memoryKb * 1024
+	}
+
+	return 0
 }

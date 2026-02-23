@@ -16,6 +16,7 @@ import (
 	"time"
 
 	ws "github.com/gorilla/websocket"
+	"golang.org/x/sys/unix"
 	k8sadmission "k8s.io/api/admission/v1"
 	k8score "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -39,8 +40,11 @@ var KubevirtClient kvclient.KubevirtClient
 var Namespace string
 var Enabled = false
 
-//go:embed vmagent.service
+//go:embed ucloud-vmagent.service
 var vmAgentSystemdFile []byte
+
+//go:embed ucloud-metrics.service
+var ucmetricsSystemdFile []byte
 
 func Init() ctrl.JobsService {
 	// Create a number of aliases for use in this package. These are all static by the time this function is called.
@@ -177,7 +181,7 @@ func vmiFsMutator() {
 						volPath, ok1 := annotations[fmt.Sprintf("ucloud.dk/vmVolPath-%s", mount.Name)]
 						readOnly, ok2 := annotations[fmt.Sprintf("ucloud.dk/vmVolReadOnly-%s", mount.Name)]
 						if !ok1 && !ok2 {
-							log.Info("Rejecting %s because annotations are not present on VM: %s, %s", volPath, readOnly)
+							log.Info("Rejecting %s because annotations are not present on VM: %s, %s", mount.Name, volPath, readOnly)
 							allowed = false
 						} else {
 							ops = append(ops, jsonPatchOp{
@@ -287,9 +291,182 @@ type cloudInit struct {
 }
 
 func follow(session *ctrl.FollowJobSession) {
-	// Keep alive to make the Core happy.
-	for *session.Alive {
-		time.Sleep(100 * time.Millisecond)
+	type trackedLogFile struct {
+		Rank    int
+		Stdout  bool
+		Channel util.Option[string]
+		File    *os.File
+	}
+
+	logFiles := map[string]trackedLogFile{}
+
+	job, ok := ctrl.JobRetrieve(session.Job.Id)
+	if !ok {
+		return
+	}
+
+	jobFolder, err := JobFolder(job)
+	if err != nil {
+		return
+	}
+
+	logsFolder := filepath.Join(jobFolder, "logs")
+
+	trackFile := func(baseName string, file trackedLogFile) {
+		_, exists := logFiles[baseName]
+
+		if !exists {
+			stdout, ok1 := filesystem.OpenFile(filepath.Join(logsFolder, baseName), unix.O_RDONLY, 0)
+			if ok1 {
+				sinfo, err := stdout.Stat()
+				if err == nil {
+					if sinfo.Size() > 1024*256 {
+						_, _ = stdout.Seek(sinfo.Size()-1024*256, io.SeekStart)
+					}
+				}
+				file.File = stdout
+				logFiles[baseName] = file
+			}
+		}
+	}
+
+	trackAllFiles := func() {
+		trackFile(".ucviz-ui", trackedLogFile{
+			Rank:    0,
+			Stdout:  true,
+			Channel: util.OptValue("ui"),
+		})
+	}
+
+	utilizationChannel := make(chan []float64)
+	utilizationDataTracked := false
+	var utilizationData *util.FsRingReader[[]float64]
+	utilSerializer := util.FsRingSerializer[[]float64]{
+		Deserialize: func(buf *util.UBufferReader) []float64 {
+			result := make([]float64, 64) // NOTE(Dan): change ucmetrics if changing this
+			for i := 0; i < 64; i++ {
+				result[i] = buf.ReadF64()
+			}
+			return result
+		},
+	}
+
+	for util.IsAlive && *session.Alive {
+		job, ok := ctrl.JobRetrieve(session.Job.Id)
+		if !ok {
+			break
+		}
+
+		if job.Status.State != orc.JobStateRunning {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		break
+	}
+
+	readBuffer := make([]byte, 1024*4)
+	kvStatsPath := filepath.Join(logsFolder, ".ucmetrics-stats")
+	var kvStatsLastMtime int64
+	var kvStatsLastSize int64
+	kvStatsLastContent := ""
+
+	// Watch log files
+	for util.IsAlive && *session.Alive {
+		job, ok := ctrl.JobRetrieve(session.Job.Id)
+		if !ok {
+			break
+		}
+
+		if job.Status.State != orc.JobStateRunning {
+			break
+		}
+
+		trackAllFiles()
+		if !utilizationDataTracked {
+			path := filepath.Join(logsFolder, ".ucviz-utilization-data")
+			ring, err := util.FsRingOpen(path, utilSerializer)
+			if err == nil {
+				utilizationData = ring
+				utilizationDataTracked = true
+
+				go func() {
+					_ = ring.Follow(context.Background(), utilizationChannel, 256)
+					util.SilentClose(ring)
+				}()
+			}
+		}
+
+		for _, logFile := range logFiles {
+			now := time.Now()
+			deadline := now.Add(5 * time.Microsecond)
+			_ = logFile.File.SetReadDeadline(deadline)
+
+			bytesRead, _ := logFile.File.Read(readBuffer)
+			if bytesRead > 0 {
+				message := string(readBuffer[:bytesRead])
+				var stdout util.Option[string]
+				var stderr util.Option[string]
+				if logFile.Stdout {
+					stdout.Set(message)
+				} else {
+					stderr.Set(message)
+				}
+
+				session.EmitLogs(logFile.Rank, stdout, stderr, logFile.Channel)
+			}
+		}
+
+		if finfo, err := os.Stat(kvStatsPath); err == nil {
+			currentMtime := finfo.ModTime().UnixNano()
+			currentSize := finfo.Size()
+			if currentMtime != kvStatsLastMtime || currentSize != kvStatsLastSize {
+				if f, ok := filesystem.OpenFile(kvStatsPath, unix.O_RDONLY, 0); ok {
+					data, readErr := io.ReadAll(f)
+					util.SilentClose(f)
+					if readErr == nil {
+						content := string(data)
+						if content != kvStatsLastContent {
+							session.EmitLogs(0, util.OptValue(content), util.OptNone[string](), util.OptValue("kv"))
+							kvStatsLastContent = content
+						}
+
+						kvStatsLastMtime = currentMtime
+						kvStatsLastSize = currentSize
+					}
+				}
+			}
+		} else {
+			kvStatsLastMtime = 0
+			kvStatsLastSize = 0
+		}
+
+		if utilizationData != nil {
+		loop:
+			for {
+				select {
+				case row := <-utilizationChannel:
+					b := strings.Builder{}
+					for i, elem := range row {
+						if i > 0 {
+							b.WriteString(",")
+						}
+						b.WriteString(fmt.Sprint(elem))
+					}
+
+					session.EmitLogs(0, util.OptValue(b.String()), util.OptNone[string](), util.OptValue("utilization-data"))
+
+				default:
+					break loop
+				}
+			}
+		}
+
+		time.Sleep(15 * time.Millisecond)
+	}
+
+	if utilizationData != nil {
+		util.SilentClose(utilizationData)
 	}
 }
 
@@ -522,7 +699,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		fmt.Sprintf("usermod -u %d ucloud", filesystem.DefaultUid),
 		fmt.Sprintf("groupmod -g %d ucloud", filesystem.DefaultUid),
 		"systemctl daemon-reload",
-		"systemctl enable --now /etc/ucloud/vmagent.service",
+		"systemctl enable --now /etc/ucloud/ucloud-vmagent.service",
+		"systemctl enable --now /etc/ucloud/ucloud-metrics.service",
 	}
 
 	machine := &job.Status.ResolvedProduct.Value
@@ -597,22 +775,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 							BootOrder: util.UintPointer(3),
 						},
 					},
-					Interfaces: []kvcore.Interface{
-						{
-							Name: "default",
-							InterfaceBindingMethod: kvcore.InterfaceBindingMethod{
-								Masquerade: &kvcore.InterfaceMasquerade{},
-							},
-						},
-					},
-				},
-			},
-			Networks: []kvcore.Network{
-				{
-					Name: "default",
-					NetworkSource: kvcore.NetworkSource{
-						Pod: &kvcore.PodNetwork{},
-					},
 				},
 			},
 			Volumes: []kvcore.Volume{
@@ -681,7 +843,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		return util.HttpErr(http.StatusInternalServerError, "internal error")
 	} else {
 		confDir := filepath.Join(jobFolder, "config")
-		subpath, ok := strings.CutPrefix(jobFolder, filepath.Clean(ServiceConfig.FileSystem.MountPoint)+"/")
+		confDirSubpath, ok := strings.CutPrefix(confDir, filepath.Clean(ServiceConfig.FileSystem.MountPoint)+"/")
+		if !ok {
+			log.Warn("sub path to folder is invalid: %v %s", job.Id, err)
+			return util.HttpErr(http.StatusInternalServerError, "internal error")
+		}
+
+		logsDir := filepath.Join(jobFolder, "logs")
+		logsDirSubPath, ok := strings.CutPrefix(logsDir, filepath.Clean(ServiceConfig.FileSystem.MountPoint)+"/")
 		if !ok {
 			log.Warn("sub path to folder is invalid: %v %s", job.Id, err)
 			return util.HttpErr(http.StatusInternalServerError, "internal error")
@@ -717,38 +886,60 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 				)
 			})
 
-			tokPath := filepath.Join(confDir, "token")
-			err = os.WriteFile(tokPath, []byte(fmt.Sprintf("%s\n%s", agentTok, srvTok)), 0600)
+			writeConfFile := func(name string, data []byte, mode os.FileMode) *util.HttpError {
+				tokPath := filepath.Join(confDir, name)
+				err := os.WriteFile(tokPath, data, mode)
+				if err != nil {
+					log.Warn("Could not create write %s: %v %s", name, job.Id, err)
+					return util.HttpErr(http.StatusInternalServerError, "internal error")
+				}
+
+				err = os.Chown(tokPath, filesystem.DefaultUid, filesystem.DefaultUid)
+				if err != nil {
+					log.Warn("Could not chown %s: %v %s", name, job.Id, err)
+					return util.HttpErr(http.StatusInternalServerError, "internal error")
+				}
+
+				return nil
+			}
+
+			if herr = writeConfFile("token", []byte(fmt.Sprintf("%s\n%s", agentTok, srvTok)), 0600); herr != nil {
+				return herr
+			}
+
+			if herr = writeConfFile("ucloud-vmagent.service", vmAgentSystemdFile, 0600); herr != nil {
+				return herr
+			}
+
+			if herr = writeConfFile("ucloud-metrics.service", ucmetricsSystemdFile, 0600); herr != nil {
+				return herr
+			}
+
+			err = os.MkdirAll(logsDir, 0770)
 			if err != nil {
-				log.Warn("Could not create write token: %v %s", job.Id, err)
+				log.Warn("Could not create logs dir: %v %s", job.Id, err)
 				return util.HttpErr(http.StatusInternalServerError, "internal error")
 			}
 
-			err = os.Chown(tokPath, filesystem.DefaultUid, filesystem.DefaultUid)
+			err = os.Chown(logsDir, filesystem.DefaultUid, filesystem.DefaultUid)
 			if err != nil {
-				log.Warn("Could not chown token: %v %s", job.Id, err)
-				return util.HttpErr(http.StatusInternalServerError, "internal error")
-			}
-
-			systemdPath := filepath.Join(confDir, "vmagent.service")
-			err = os.WriteFile(systemdPath, vmAgentSystemdFile, 0600)
-			if err != nil {
-				log.Warn("Could not create write systemd file: %v %s", job.Id, err)
-				return util.HttpErr(http.StatusInternalServerError, "internal error")
-			}
-
-			err = os.Chown(systemdPath, filesystem.DefaultUid, filesystem.DefaultUid)
-			if err != nil {
-				log.Warn("Could not chown systemd file: %v %s", job.Id, err)
+				log.Warn("Could not chown logs dir: %v %s", job.Id, err)
 				return util.HttpErr(http.StatusInternalServerError, "internal error")
 			}
 		}
 
 		unpreparedMounts = append(unpreparedMounts, unpreparedMount{
-			SubPath:     filepath.Join(subpath, "config"),
+			SubPath:     confDirSubpath,
 			ReadOnly:    true,
 			Title:       "ucloud",
 			MountFolder: "/etc",
+		})
+
+		unpreparedMounts = append(unpreparedMounts, unpreparedMount{
+			SubPath:     logsDirSubPath,
+			ReadOnly:    false,
+			Title:       "",
+			MountFolder: "/work",
 		})
 	}
 
@@ -789,7 +980,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			} else {
 				title = comps[compsLen-1]
 			}
-		} else if param.Title != "" {
+		} else {
 			title = param.Title
 		}
 

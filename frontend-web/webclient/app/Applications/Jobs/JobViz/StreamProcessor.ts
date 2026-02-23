@@ -10,6 +10,7 @@ import {
     WidgetTable,
     WidgetType,
 } from "@/Applications/Jobs/JobViz/index";
+import {useEffect, useState} from "react";
 
 interface EventMap {
     "createAny": RuntimeWidget;
@@ -17,6 +18,7 @@ interface EventMap {
     "updateProgress": UpdateEvent<WidgetProgressBar>;
     "delete": DeleteEvent;
     "appendRow": {row: number[], channel: string};
+    "kvPropertiesUpdated": {newProperties: Record<string, string>};
 }
 
 export interface RuntimeWidget<K = unknown> {
@@ -35,6 +37,21 @@ export interface DeleteEvent {
     id: string;
 }
 
+export function useJobVizProperties(processor: StreamProcessor): Record<string, string> {
+    const [properties, setProperties] = useState(processor.kvProperties);
+    useEffect(() => {
+        const listener = processor.on("kvPropertiesUpdated", ({newProperties}) => {
+            setProperties(newProperties);
+        });
+
+        return () => {
+            processor.removeListener(listener);
+        };
+    }, [processor]);
+
+    return properties;
+}
+
 export class StreamProcessor {
     private buffer: string = "";
     private state: number = 0;
@@ -44,15 +61,40 @@ export class StreamProcessor {
 
     private listeners: ([string, (ev: any) => void])[] = [];
 
+    private _kvProperties: Record<string, string> = {};
+
+    get kvProperties(): Record<string, string> {
+        return this._kvProperties;
+    }
+
     accept(data: string) {
         this.buffer += data;
         this.processBuffer();
     }
 
     acceptGenericData(data: string, channel: string) {
-        if (channel === "utilization-data") {
-            const row = data.split(",").map(it => parseFloat(it));
-            this.dispatch("appendRow", {row, channel});
+        switch (channel) {
+            case "utilization-data": {
+                const row = data.split(",").map(it => parseFloat(it));
+                this.dispatch("appendRow", {row, channel});
+                break;
+            }
+
+            case "kv": {
+                const kvPairs = data.split("\n");
+                const newProperties: Record<string, string> = {};
+                for (const line of kvPairs) {
+                    const sep = line.indexOf(":");
+                    if (sep !== -1) {
+                        const k = line.substring(0, sep);
+                        const v = line.substring(sep + 1);
+                        newProperties[k] = v;
+                    }
+                }
+                this._kvProperties = newProperties;
+                this.dispatch("kvPropertiesUpdated", {newProperties});
+                break;
+            }
         }
     }
 

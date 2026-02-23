@@ -23,7 +23,11 @@ import {SafeLogo} from "@/Applications/AppToolLogo";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
+import {VirtualMachineFolders} from "./VirtualMachineFolders";
+import {compute} from "@/UCloud";
 import {format} from "date-fns";
+import * as JobViz from "@/Applications/Jobs/JobViz";
+import {useJobVizProperties} from "@/Applications/Jobs/JobViz/StreamProcessor";
 
 interface InterfaceTarget {
     rank: number;
@@ -38,6 +42,19 @@ interface VmActionItem {
     value: string;
     icon: IconName;
     color: ThemeColor;
+}
+
+interface VmLogMessage {
+    stdout?: string | null;
+    stderr?: string | null;
+    channel?: string | null;
+}
+
+interface VmUpdatesState {
+    current: {
+        logQueue: VmLogMessage[];
+        subscriptions: (() => void)[];
+    };
 }
 
 type OptimisticPowerState = "POWERING_ON" | "POWERING_OFF" | null;
@@ -59,10 +76,13 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     interfaceTargets: InterfaceTarget[];
     defaultInterfaceName?: string;
     updates: JobUpdate[];
-}> = ({job, status, interfaceTargets, defaultInterfaceName, updates}) => {
+    updatesState: VmUpdatesState;
+}> = ({job, status, interfaceTargets, defaultInterfaceName, updates, updatesState}) => {
     const [loading, invokeCommand] = useCloudCommand();
     const [optimisticPowerState, setOptimisticPowerState] = useState<OptimisticPowerState>(null);
     const [statusDotCount, setStatusDotCount] = useState(0);
+    const stream = useMemo(() => new JobViz.StreamProcessor(), [job.id]);
+    const streamProperties = useJobVizProperties(stream);
 
     const support = job.status.resolvedSupport
         ? (job.status.resolvedSupport as ResolvedSupport<never, ComputeSupport>).support
@@ -117,12 +137,6 @@ export const VirtualMachineStatus: React.FunctionComponent<{
             .reverse();
     }, [updates]);
 
-    // TODO: Replace these placeholders when backend exposes guest metadata and IP addresses.
-    const placeholderGuestMetadata = {
-        privateIp: "10.24.1.12 (placeholder)",
-        publicIp: "Not available (placeholder)",
-    };
-
     const suspend = useCallback(async () => {
         setOptimisticPowerState("POWERING_OFF");
         try {
@@ -175,7 +189,6 @@ export const VirtualMachineStatus: React.FunctionComponent<{
         });
     }, [terminate]);
 
-    const stateClass = status.state;
     const isTerminalState = status.state === "SUCCESS" || status.state === "FAILURE" || status.state === "EXPIRED";
     const isSuspended = status.state === "SUSPENDED";
     const isPowerTransitioning = optimisticPowerState != null;
@@ -208,7 +221,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
 
     const onSelectLaunchMenuItem = useCallback((item: VmActionItem) => {
         if (item.key === "terminal") {
-            window.open(`/applications/shell/${job.id}/0?hide-frame`, "_blank");
+            window.open(`/app/applications/shell/${job.id}/0?hide-frame`, "_blank");
             return;
         }
         if (item.key.startsWith("iface:")) {
@@ -219,6 +232,18 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     const onSelectDangerMenuItem = useCallback((item: VmActionItem) => {
         if (item.key === "delete") confirmTerminate();
     }, [confirmTerminate]);
+
+    const onFolderAdded = useCallback((newFolders: compute.AppParameterValueNS.File[], addedFolder: compute.AppParameterValueNS.File) => {
+        // TODO: Persist folder attachment updates once backend API is available.
+        void newFolders;
+        void addedFolder;
+    }, []);
+
+    const onFolderRemoved = useCallback((newFolders: compute.AppParameterValueNS.File[], removedFolder: compute.AppParameterValueNS.File) => {
+        // TODO: Persist folder attachment updates once backend API is available.
+        void newFolders;
+        void removedFolder;
+    }, []);
 
     const interfaceDisabled = !desktopTarget?.link || isTerminalState;
 
@@ -267,14 +292,46 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     }, [optimisticPowerState, status.state]);
 
     useEffect(() => {
-        const hasBeenRunningBefore = updates.some(it => it.state === "RUNNING");
-        if (!hasBeenRunningBefore) {
-            setOptimisticPowerState("POWERING_ON");
+        const logListener = () => {
+            const s = updatesState.current;
+            if (!s) return;
+
+            const newLogQueue: VmLogMessage[] = [];
+            for (const l of s.logQueue) {
+                if (l.channel === "ui" || l.channel === "data") {
+                    stream.accept(l.stdout ?? l.stderr ?? "");
+                } else if (l.channel != null) {
+                    stream.acceptGenericData(l.stdout ?? l.stderr ?? "", l.channel);
+                } else {
+                    newLogQueue.push(l);
+                }
+            }
+
+            s.logQueue = newLogQueue;
+        };
+
+        updatesState.current?.subscriptions?.push(logListener);
+        logListener();
+
+        return () => {
+            const subscriptions = updatesState.current?.subscriptions;
+            if (!subscriptions) return;
+            const idx = subscriptions.indexOf(logListener);
+            if (idx >= 0) subscriptions.splice(idx, 1);
+        };
+    }, [job.id, stream, updatesState]);
+
+    useEffect(() => {
+        if (updates.length > 0) {
+            const hasBeenRunningBefore = updates.some(it => it.state === "RUNNING");
+            if (!hasBeenRunningBefore) {
+                setOptimisticPowerState("POWERING_ON");
+            }
         }
     }, [status.state, updates]);
 
     return <div className={VmLayout}>
-        <Card className={classConcat(VmHero, stateClass)} p="24px">
+        <Card className={classConcat(VmHero, status.state ?? optimisticPowerState)} p="24px">
             <Flex alignItems="center" gap="16px" flexWrap="wrap">
                 <Box>
                     <Flex gap={"8px"} alignItems={"center"}>
@@ -383,12 +440,6 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                                 <dt>SSH access</dt>
                                 <dd>{sshCommand ?? "Not announced by provider yet"}</dd>
 
-                                <dt>Default interface</dt>
-                                <dd>{desktopTarget?.target ?? defaultInterfaceName ?? "Desktop"}</dd>
-
-                                <dt>Endpoints</dt>
-                                <dd>{interfaceTargets.length > 0 ? interfaceTargets.length : "No active endpoints"}</dd>
-
                                 <dt>Public links</dt>
                                 <dd>{ingresses.length > 0 ? ingresses.length : "None"}</dd>
 
@@ -402,30 +453,41 @@ export const VirtualMachineStatus: React.FunctionComponent<{
 
             {!showRuntimePanels ? null : (
                 <TabbedCard style={{minHeight: "240px"}}>
-                    <TabbedCardTab icon="heroCpuChip" name="Hardware">
+                    <TabbedCardTab icon="heroCpuChip" name="System information">
                         <div className={VmTabBody}>
                             <div className={VmDetails}>
-                                <dt>vCPU</dt>
-                                <dd>{hardware.cpuModel ? <>{hardware.cpu}x {hardware.cpuModel}</> : <>{hardware.cpu}</>}</dd>
-
-                                <dt>Memory</dt>
-                                <dd>{hardware.cpuModel ? <>{hardware.memoryInGigs} GB {hardware.memoryModel}</> : <>{hardware.memoryInGigs} GB</>}</dd>
-
-                                {hardware.gpu > 0 ? <>
-                                    <dt>GPU</dt>
-                                    <dd>{hardware.gpuModel ? <>{hardware.gpu}x {hardware.gpuModel}</> : <>{hardware.gpu}</>}</dd>
-                                </> : null}
+                                <dt>Specs</dt>
+                                <dd>
+                                    {hardware.cpu}x {hardware.cpuModel ?? "vCPU"}
+                                    {" | "}{hardware.memoryInGigs} GB {hardware.memoryModel ?? "RAM"}
+                                    {hardware.gpu === 0 ? null : <>
+                                        {" | "}{hardware.gpu}x {hardware.gpuModel ?? "GPUs"}
+                                    </>}
+                                </dd>
 
                                 <dt>Private IP</dt>
-                                <dd>{placeholderGuestMetadata.privateIp}</dd>
+                                <dd>{streamProperties["PrivateIPAddress"] ?? "Unknown"}</dd>
 
-                                <dt>Public IP</dt>
-                                <dd>{placeholderGuestMetadata.publicIp}</dd>
+                                <dt>Operating system</dt>
+                                <dd>{streamProperties["OperatingSystem"] ?? "Unknown"}</dd>
+
+                                <dt>Kernel</dt>
+                                <dd>{streamProperties["KernelVersion"] ?? "Unknown"}</dd>
                             </div>
                         </div>
                     </TabbedCardTab>
                 </TabbedCard>
             )}
+
+            {!showRuntimePanels ? null :
+                <VirtualMachineFolders
+                    jobId={job.id}
+                    providerId={job.specification.product.provider}
+                    parameters={job.specification.parameters}
+                    onFolderAdded={onFolderAdded}
+                    onFolderRemoved={onFolderRemoved}
+                />
+            }
 
             <TabbedCard style={{minHeight: "240px"}}>
                 <TabbedCardTab icon="heroClock" name="Lifecycle">
@@ -445,6 +507,22 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                     </div>
                 </TabbedCardTab>
             </TabbedCard>
+
+            {!showRuntimePanels ? null :
+                <div className={VmMetricsRow}>
+                    <TabbedCard style={{minHeight: "240px"}}>
+                        <JobViz.Renderer
+                            processor={stream}
+                            windows={[
+                                JobViz.WidgetWindow.WidgetWindowMain,
+                                JobViz.WidgetWindow.WidgetWindowAux1,
+                                JobViz.WidgetWindow.WidgetWindowAux2,
+                            ]}
+                            tabsOnly={true}
+                        />
+                    </TabbedCard>
+                </div>
+            }
         </div>
     </div>;
 };
@@ -518,23 +596,33 @@ const VmLayout = injectStyle("vm-layout", k => `
 const VmHero = injectStyle("vm-hero", k => `
     ${k} {
         border: 1px solid color-mix(in srgb, var(--primaryMain) 25%, transparent);
+        --jobStateColor1: var(--successLight);
+        --jobStateColor2: var(--successDark);
+        
         background: linear-gradient(115deg,
-            color-mix(in srgb, var(--primaryLight) 12%, transparent),
-            color-mix(in srgb, var(--primaryMain) 8%, transparent)
+            color-mix(in srgb, var(--jobStateColor1) 8%, transparent),
+            color-mix(in srgb, var(--jobStateColor2) 12%, transparent)
         );
     }
 
+    ${k}.POWERING_ON,
     ${k}.RUNNING {
         border-color: color-mix(in srgb, var(--successMain) 40%, transparent);
     }
 
+    ${k}.IN_QUEUE,
+    ${k}.POWERING_OFF,
     ${k}.SUSPENDED {
         border-color: color-mix(in srgb, var(--warningMain) 45%, transparent);
+        --jobStateColor1: var(--warningLight);
+        --jobStateColor2: var(--warningDark);
     }
 
     ${k}.SUCCESS,
     ${k}.EXPIRED,
     ${k}.FAILURE {
+        --jobStateColor1: var(--errorLight);
+        --jobStateColor2: var(--errorDark);
         border-color: color-mix(in srgb, var(--errorMain) 45%, transparent);
     }
 `);
@@ -609,6 +697,12 @@ const VmContentGrid = injectStyle("vm-content-grid", k => `
         ${k} {
             grid-template-columns: 1fr;
         }
+    }
+`);
+
+const VmMetricsRow = injectStyle("vm-metrics-row", k => `
+    ${k} {
+        grid-column: 1 / -1;
     }
 `);
 

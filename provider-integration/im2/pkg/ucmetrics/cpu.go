@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -52,8 +54,11 @@ func readCgroupV1CPUUsage() (uint64, error) {
 type CpuSample struct {
 	conversionFactor uint64
 	cgroupV2         bool
+	useSystemCPU     bool
 	readUsageFn      func() (uint64, error)
+	readCpuTimesFn   func() (uint64, uint64, error)
 	initialUsage     uint64
+	initialTotal     uint64
 	cpuCount         float64
 	ts               time.Time
 }
@@ -61,19 +66,44 @@ type CpuSample struct {
 func CpuSampleStart() (CpuSample, error) {
 	result := CpuSample{}
 	result.cgroupV2 = isCgroupV2()
+	usingCgroup := false
 
 	if result.cgroupV2 {
-		result.readUsageFn = readCgroupV2CPUUsage
-		result.conversionFactor = 1 // microseconds (µs) to µs, no conversion needed
-		result.cpuCount = calculateCGroupV2CpuCount()
+		cpuCount := calculateCGroupV2CpuCount()
+		if cpuCount > 0 {
+			result.readUsageFn = readCgroupV2CPUUsage
+			result.conversionFactor = 1
+			result.cpuCount = cpuCount
+			usingCgroup = true
+		}
 	} else {
-		result.readUsageFn = readCgroupV1CPUUsage
-		result.conversionFactor = 1000 // nanoseconds (ns) to µs (divide by 1000)
-		result.cpuCount = calculateCGroupV1CpuCount()
+		cpuCount := calculateCGroupV1CpuCount()
+		if cpuCount > 0 {
+			result.readUsageFn = readCgroupV1CPUUsage
+			result.conversionFactor = 1000
+			result.cpuCount = cpuCount
+			usingCgroup = true
+		}
+	}
+
+	if !usingCgroup {
+		enableMachineCpuSampling(&result)
 	}
 
 	result.ts = time.Now()
-	initialUsage, err := result.readUsageFn()
+	var initialUsage uint64
+	var err error
+	if result.useSystemCPU {
+		var initialTotal uint64
+		initialUsage, initialTotal, err = result.readCpuTimesFn()
+		result.initialTotal = initialTotal
+	} else {
+		initialUsage, err = result.readUsageFn()
+		if err != nil && usingCgroup {
+			enableMachineCpuSampling(&result)
+			initialUsage, result.initialTotal, err = result.readCpuTimesFn()
+		}
+	}
 	if err != nil {
 		return CpuSample{}, err
 	}
@@ -83,6 +113,26 @@ func CpuSampleStart() (CpuSample, error) {
 }
 
 func (s *CpuSample) End() (CpuStats, error) {
+	if s.useSystemCPU {
+		endActive, endTotal, err := s.readCpuTimesFn()
+		if err != nil {
+			return CpuStats{}, err
+		}
+
+		totalDelta := endTotal - s.initialTotal
+		if totalDelta == 0 || s.cpuCount == 0 {
+			return CpuStats{}, fmt.Errorf("invalid CPU time values")
+		}
+
+		activeDelta := endActive - s.initialUsage
+		if activeDelta > totalDelta {
+			activeDelta = totalDelta
+		}
+
+		cpuUsage := (float64(activeDelta) / float64(totalDelta)) * s.cpuCount * 100.0
+		return CpuStats{Usage: cpuUsage, Limit: s.cpuCount * 100}, nil
+	}
+
 	endUsage, err := s.readUsageFn()
 	if err != nil {
 		return CpuStats{}, err
@@ -103,6 +153,56 @@ func (s *CpuSample) End() (CpuStats, error) {
 	cpuUsage := (float64(cgroupDelta) / float64(totalDelta)) * float64(s.cpuCount) * 100.0
 
 	return CpuStats{Usage: cpuUsage, Limit: s.cpuCount * 100}, nil
+}
+
+func enableMachineCpuSampling(sample *CpuSample) {
+	sample.useSystemCPU = true
+	sample.readCpuTimesFn = readSystemCPUTime
+	sample.conversionFactor = 1
+	sample.cpuCount = float64(runtime.NumCPU())
+}
+
+func readSystemCPUTime() (uint64, uint64, error) {
+	file, err := os.Open("/proc/stat")
+	if err != nil {
+		return 0, 0, err
+	}
+	defer util.SilentClose(file)
+
+	scanner := bufio.NewScanner(file)
+	if !scanner.Scan() {
+		return 0, 0, fmt.Errorf("could not read /proc/stat")
+	}
+
+	fields := strings.Fields(scanner.Text())
+	if len(fields) < 5 || fields[0] != "cpu" {
+		return 0, 0, fmt.Errorf("invalid cpu line in /proc/stat")
+	}
+
+	values := make([]uint64, 0, len(fields)-1)
+	for _, field := range fields[1:] {
+		value, parseErr := strconv.ParseUint(field, 10, 64)
+		if parseErr != nil {
+			return 0, 0, parseErr
+		}
+		values = append(values, value)
+	}
+
+	total := uint64(0)
+	for _, value := range values {
+		total += value
+	}
+
+	idle := values[3]
+	if len(values) > 4 {
+		idle += values[4]
+	}
+
+	if err := scanner.Err(); err != nil {
+		return 0, 0, err
+	}
+
+	return total - idle, total, nil
 }
 
 func calculateCGroupV1CpuCount() float64 {

@@ -530,6 +530,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
             interfaceTargets={interfaceTargets}
             defaultInterfaceName={targetRequests.defaultName}
             updates={jobUpdates}
+            updatesState={jobUpdateState}
         />;
         if (props.embedded) return vm;
         return <MainContainer main={vm} />;

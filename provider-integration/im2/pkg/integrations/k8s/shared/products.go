@@ -133,7 +133,7 @@ func initProducts() {
 			support.VirtualMachine.Enabled = true
 			support.VirtualMachine.Web = ServiceConfig.Compute.Web.Enabled
 			support.VirtualMachine.Vnc = true
-			support.VirtualMachine.Logs = false
+			support.VirtualMachine.Logs = true
 			support.VirtualMachine.Terminal = true
 			support.VirtualMachine.Peers = false
 			support.VirtualMachine.TimeExtension = false
