@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
+	k8score "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 	cfg "ucloud.dk/pkg/config"
@@ -62,14 +62,14 @@ func InitCompute() controller.JobsService {
 			RetrieveProducts: retrieveLicenseProducts,
 		},
 		PrivateNetworks: controller.PrivateNetworkService{
-			Create:           createPrivateNetwork,
-			Delete:           deletePrivateNetwork,
-			RetrieveProducts: retrievePrivateNetworkProducts,
+			Create:           shared.PrivateNetworkCreate,
+			Delete:           shared.PrivateNetworkDelete,
+			RetrieveProducts: shared.PrivateNetworkRetrieveProducts,
 		},
 	}
 }
 
-var nodes *shared.K8sResourceTracker[*corev1.Node]
+var nodes *shared.K8sResourceTracker[*k8score.Node]
 
 var monitoringHealthCounter = atomic.Int64{}
 
@@ -79,12 +79,12 @@ func InitComputeLater() {
 	initJobQueue()
 
 	go func() {
-		nodes = shared.NewResourceTracker[*corev1.Node](
+		nodes = shared.NewResourceTracker[*k8score.Node](
 			"",
 			func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
 				return factory.Core().V1().Nodes().Informer()
 			},
-			func(resource *corev1.Node) string {
+			func(resource *k8score.Node) string {
 				return resource.Name
 			},
 		)
@@ -300,28 +300,6 @@ func accountLicenses(licenseName string, owner orc.ResourceOwner) {
 			},
 		},
 	})
-}
-
-func retrievePrivateNetworkProducts() []orc.PrivateNetworkSupport {
-	return shared.PrivateNetworkSupport
-}
-
-func createPrivateNetwork(network *orc.PrivateNetwork) *util.HttpError {
-	if network == nil {
-		return util.ServerHttpError("Failed to create private network: network is nil")
-	}
-
-	// TODO: Add provider-specific private network provisioning logic.
-	return nil
-}
-
-func deletePrivateNetwork(network *orc.PrivateNetwork) *util.HttpError {
-	if network == nil {
-		return util.ServerHttpError("Failed to delete private network: network is nil")
-	}
-
-	// TODO: Add provider-specific private network teardown logic.
-	return controller.PrivateNetworkDelete(network)
 }
 
 func retrieveProducts() []orc.JobSupport {

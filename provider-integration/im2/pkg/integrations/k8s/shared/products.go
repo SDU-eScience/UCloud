@@ -313,7 +313,7 @@ func initProducts() {
 
 	PrivateNetworkProducts = []apm.ProductV2{
 		{
-			Type: apm.ProductTypeCNetworkIp,
+			Type: apm.ProductTypeCPrivateNetwork,
 			Category: apm.ProductCategory{
 				Name:        "private-network",
 				Provider:    config.Provider.Id,

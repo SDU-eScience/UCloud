@@ -1081,6 +1081,7 @@ func initJobs() {
 					err := fn(&item)
 					if err != nil {
 						errors = append(errors, err)
+						_ = PrivateNetworkDelete(&item)
 					}
 				}
 			}
