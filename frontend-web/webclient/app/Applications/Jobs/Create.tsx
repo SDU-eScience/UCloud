@@ -13,9 +13,11 @@ import {
     Flex,
     Grid,
     Icon,
+    Input,
     Label,
     Link,
-    Markdown, Select,
+    Markdown,
+    Select,
     Tooltip
 } from "@/ui-components";
 import {findElement, OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
@@ -32,24 +34,23 @@ import {
     setReservation,
     validateReservation
 } from "@/Applications/Jobs/Widgets/Reservation";
-import {displayErrorMessageOrDefault, extractErrorCode, prettierString, useDidMount} from "@/UtilityFunctions";
+import {
+    bulkRequestOf,
+    displayErrorMessageOrDefault,
+    extractErrorCode,
+    prettierString,
+    useDidMount
+} from "@/UtilityFunctions";
 import {addStandardDialog, OverallocationLink, WalletWarning} from "@/UtilityComponents";
 import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {usePage} from "@/Navigation/Redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
-import {bulkRequestOf} from "@/UtilityFunctions";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, DynamicParameters, JobSpecification} from "@/UCloud/JobsApi";
-import {BulkResponse, FindByStringId} from "@/UCloud";
-import {
-    ProductV2,
-    UNABLE_TO_USE_FULL_ALLOC_MESSAGE,
-    priceToString,
-    WalletV2,
-    explainWallet
-} from "@/Accounting";
+import {BulkResponse, FindByStringId, mail} from "@/UCloud";
+import {explainWallet, priceToString, ProductV2, UNABLE_TO_USE_FULL_ALLOC_MESSAGE, WalletV2} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {useUState} from "@/Utilities/UState";
@@ -60,18 +61,15 @@ import {validateMachineReservation} from "@/Applications/Jobs/Widgets/Machines";
 import {Resource} from "@/UCloud/ResourceApi";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 import * as AppStore from "@/Applications/AppStoreApi";
-import {
-    Application,
-    ApplicationGroup,
-    ApplicationParameter,
-} from "@/Applications/AppStoreApi";
+import {Application, ApplicationGroup, ApplicationParameter} from "@/Applications/AppStoreApi";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {UserDetailsState, defaultEmailSettings} from "@/UserSettings/ChangeEmailSettings";
-import {mail} from "@/UCloud";
+import {defaultEmailSettings, UserDetailsState} from "@/UserSettings/ChangeEmailSettings";
+import {useDiscovery} from "@/Applications/Hooks";
+import BaseLink from "@/ui-components/BaseLink";
+import {Feature, hasFeature} from "@/Features";
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
-import {useDiscovery} from "@/Applications/Hooks";
 
 interface InsufficientFunds {
     why?: string;
@@ -165,6 +163,29 @@ export const Create: React.FunctionComponent = () => {
         return explainWallet(wallet);
     }, [estimatedCost.wallet]);
     const [discovery] = useDiscovery();
+    const dnsHostnameSeed = React.useRef((Math.floor(Math.random() * 9000) + 1000).toString());
+    const [jobName, setJobName] = useState("");
+    const [showDnsHostnameInput, setShowDnsHostnameInput] = useState(false);
+    const [dnsHostname, setDnsHostname] = useState("");
+    const [hasCustomDnsHostname, setHasCustomDnsHostname] = useState(false);
+
+    const defaultDnsHostname = useMemo(() => {
+        const fallbackJobName = `${application?.metadata.title ?? appName}-${dnsHostnameSeed.current}`;
+        return toDnsSafeHostname(jobName || fallbackJobName);
+    }, [application?.metadata.title, appName, jobName]);
+
+    useEffect(() => {
+        if (!hasCustomDnsHostname) {
+            setDnsHostname(defaultDnsHostname);
+        }
+    }, [defaultDnsHostname, hasCustomDnsHostname]);
+
+    const onDnsHostnameChange = useCallback((ev: React.SyntheticEvent) => {
+        const elem = ev.target as HTMLInputElement;
+        const sanitized = toDnsSafeHostname(elem.value);
+        setHasCustomDnsHostname(true);
+        setDnsHostname(sanitized);
+    }, []);
 
     const provider = getProviderField();
 
@@ -383,6 +404,7 @@ export const Create: React.FunctionComponent = () => {
         try {
             await awaitReservationMount();
             setReservation(importedJob);
+            setJobName(importedJob.name ?? "");
         } catch (e) {
             console.warn(e);
         }
@@ -476,6 +498,13 @@ export const Create: React.FunctionComponent = () => {
             Object.keys(foldersValidation.errors).length === 0 &&
             Object.keys(peersValidation.errors).length === 0
         ) {
+            const dnsHostnameForSubmission = hasCustomDnsHostname
+                ? toDnsSafeHostname(dnsHostname)
+                : toDnsSafeHostname(
+                    reservationValidation.options.name || `${application.metadata.title}-${dnsHostnameSeed.current}`
+                );
+            void dnsHostnameForSubmission; // TODO Use this
+
             const request: JobSpecification = {
                 ...reservationValidation.options,
                 application: application?.metadata,
@@ -522,7 +551,7 @@ export const Create: React.FunctionComponent = () => {
                 }
             }
         }
-    }, [application, folders, peers, ingress, networks, navigate]);
+    }, [application, folders, peers, ingress, networks, navigate, hasCustomDnsHostname, dnsHostname]);
 
     if (applicationResp.loading || isInitialMount) return <MainContainer main={<LoadingIcon size={36} />} />;
 
@@ -706,6 +735,35 @@ export const Create: React.FunctionComponent = () => {
                             <ReservationParameter
                                 application={application}
                                 errors={reservationErrors}
+                                onJobNameChange={setJobName}
+                                nameLabelAction={!hasFeature(Feature.NEW_VM_UI) ? null :
+                                    <div>
+                                        (
+                                        <BaseLink
+                                            href="#"
+                                            onClick={ev => {
+                                                ev.preventDefault();
+                                                setShowDnsHostnameInput(value => !value);
+                                            }}
+                                        >
+                                            {showDnsHostnameInput ?
+                                                "Hide DNS hostname" :
+                                                `Change hostname?`
+                                            }
+                                        </BaseLink>
+                                        )
+                                    </div>
+                                }
+                                additionalNameInput={!showDnsHostnameInput || !hasFeature(Feature.NEW_VM_UI) ? null : (
+                                    <Label>
+                                        DNS hostname
+                                        <Input
+                                            style={{minWidth: "220px"}}
+                                            value={dnsHostname}
+                                            onChange={onDnsHostnameChange}
+                                        />
+                                    </Label>
+                                )}
                                 onEstimatedCostChange={(durationInMinutes, numberOfNodes, wallet, product) =>
                                     setEstimatedCost({durationInMinutes, wallet, numberOfNodes, product})}
                             />
@@ -894,6 +952,18 @@ function prettierType(type: string): string {
         default:
             return prettierString(type).toLocaleLowerCase();
     }
+}
+
+function toDnsSafeHostname(value: string): string {
+    const sanitized = value
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 63)
+        .replace(/^-+|-+$/g, "");
+
+    return sanitized === "" ? "job" : sanitized;
 }
 
 export function getProviderField(): string | undefined {
