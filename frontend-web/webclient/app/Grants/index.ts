@@ -4,6 +4,7 @@ import {FindByStringId, PageV2, PaginationRequestV2} from "@/UCloud";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {ProductCategoryId} from "@/Accounting";
+import {OptionalInfo} from "@/UserSettings/ChangeUserDetails";
 
 const baseContext = "/api/grants/v2";
 
@@ -276,6 +277,7 @@ export interface Status {
     projectPI: string;
     hasUnreadComments: boolean;
     applicationHistory: Application[];
+    optionalUserInfo?: OptionalInfo | null;
 }
 
 export interface GrantGiverApprovalState {

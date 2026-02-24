@@ -47,7 +47,6 @@ import {AvatarType} from "@/AvataaarLib";
 import {FilterInputClass} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
 import {injectStyle} from "@/Unstyled";
-import {Feature, hasFeature} from "@/Features";
 import {SimpleAvatarComponentCache} from "@/Files/Shares";
 import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
@@ -234,25 +233,44 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     }
                     
                     // Time left in stat3
-                    if (!simpleView && job.status.expiresAt) {
-                        const now = timestampUnixMs();
-                        const timeLeft = job.status.expiresAt - now;
-                        if (timeLeft > 0) {
-                            const hours = Math.floor(timeLeft / (1000 * 60 * 60));
-                            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                            if (hours > 24) {
-                                const days = Math.floor(hours / 24);
-                                row.stat3.innerText = `${days}d ${hours % 24}h`;
-                            } else if (hours > 0) {
-                                row.stat3.innerText = `${hours}h ${minutes}m`;
-                            } else {
-                                row.stat3.innerText = `${minutes}m`;
+                    if (!simpleView) {
+                        switch (job.status.state) {
+                            case "IN_QUEUE": {
+                                row.stat3.innerText = "In queue..."
+                                break;
                             }
-                        } else {
-                            row.stat3.innerText = "Expired";
+
+                            case "RUNNING": {
+                                const now = timestampUnixMs();
+                                const timeLeft = (job.status.expiresAt ?? 0) - now;
+                                if (timeLeft > 0) {
+                                    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+                                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                                    if (hours > 24) {
+                                        const days = Math.floor(hours / 24);
+                                        row.stat3.innerText = `${days}d ${hours % 24}h`;
+                                    } else if (hours > 0) {
+                                        row.stat3.innerText = `${hours}h ${minutes}m`;
+                                    } else {
+                                        row.stat3.innerText = `${minutes}m`;
+                                    }
+                                } else {
+                                    row.stat3.innerText = "Expired";
+                                }
+                                break;
+                            }
+
+                            case "EXPIRED": {
+                                row.stat3.innerText = "Expired"
+                                break;
+                            }
+
+                            case "FAILURE":
+                            case "SUCCESS": {
+                                row.stat3.innerText = "Completed"
+                                break;
+                            }
                         }
-                    } else if (!simpleView) {
-                        row.stat3.innerText = "N/A";
                     }
                     
                     setIcon(AppStore.retrieveAppLogo({
@@ -285,7 +303,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     }
                 });
 
-                const startRenaming = hasFeature(Feature.JOB_RENAME) ? (resource: Job) => {
+                const startRenaming = (resource: Job) => {
                     browser.showRenameField(
                         it => it.id === resource.id,
                         () => {
@@ -306,37 +324,23 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                                     browser.refresh();
                                 });
 
-                                if (hasFeature(Feature.COMPONENT_STORED_CUT_COPY)) {
-                                    ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
-                                        callAPI(JobsApi.rename(bulkRequestOf({
-                                            id: job.id,
-                                            newTitle: oldTitle ?? ""
-                                        })));
+                                ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
+                                    callAPI(JobsApi.rename(bulkRequestOf({
+                                        id: job.id,
+                                        newTitle: oldTitle ?? ""
+                                    })));
 
-                                        job.specification.name = oldTitle;
-                                        browser.dispatchMessage("sort", fn => fn(page));
-                                        browser.renderRows();
-                                        browser.selectAndShow(it => it.id === job.id);
-                                    });
-                                } else {
-                                    browser._undoStack.unshift(() => {
-                                        callAPI(JobsApi.rename(bulkRequestOf({
-                                            id: job.id,
-                                            newTitle: oldTitle ?? ""
-                                        })));
-
-                                        job.specification.name = oldTitle;
-                                        browser.dispatchMessage("sort", fn => fn(page));
-                                        browser.renderRows();
-                                        browser.selectAndShow(it => it.id === job.id);
-                                    });
-                                }
+                                    job.specification.name = oldTitle;
+                                    browser.dispatchMessage("sort", fn => fn(page));
+                                    browser.renderRows();
+                                    browser.selectAndShow(it => it.id === job.id);
+                                });
                             }
                         },
                         doNothing,
                         resource.specification.name ?? "",
                     );
-                } : undefined;
+                };
 
 
                 browser.setEmptyIcon("heroServer");

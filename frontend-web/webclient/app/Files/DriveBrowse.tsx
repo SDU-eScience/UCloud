@@ -36,7 +36,6 @@ import {addProjectListener} from "@/Project/ReduxState";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import {useProject} from "@/Project/cache";
 import {isAdminOrPI} from "@/Project";
-import {Feature, hasFeature} from "@/Features";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ProductSelector} from "@/Products/Selector";
 import {Box, Button, Flex, Input, Label} from "@/ui-components";
@@ -168,31 +167,17 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                                     browser.refresh();
                                 });
 
-                                if (hasFeature(Feature.COMPONENT_STORED_CUT_COPY)) {
-                                    ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
-                                        callAPI(FileCollectionsApi.rename(bulkRequestOf({
-                                            id: drive.id,
-                                            newTitle: oldTitle
-                                        })));
+                                ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
+                                    callAPI(FileCollectionsApi.rename(bulkRequestOf({
+                                        id: drive.id,
+                                        newTitle: oldTitle
+                                    })));
 
-                                        drive.specification.title = oldTitle;
-                                        browser.dispatchMessage("sort", fn => fn(page));
-                                        browser.renderRows();
-                                        browser.selectAndShow(it => it.id === drive.id);
-                                    });
-                                } else {
-                                    browser._undoStack.unshift(() => {
-                                        callAPI(FileCollectionsApi.rename(bulkRequestOf({
-                                            id: drive.id,
-                                            newTitle: oldTitle
-                                        })));
-
-                                        drive.specification.title = oldTitle;
-                                        browser.dispatchMessage("sort", fn => fn(page));
-                                        browser.renderRows();
-                                        browser.selectAndShow(it => it.id === drive.id);
-                                    });
-                                }
+                                    drive.specification.title = oldTitle;
+                                    browser.dispatchMessage("sort", fn => fn(page));
+                                    browser.renderRows();
+                                    browser.selectAndShow(it => it.id === drive.id);
+                                });
                             }
                         },
                         doNothing,

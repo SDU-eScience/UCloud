@@ -16,7 +16,6 @@ import deicBackground from "@/Assets/Images/deic-cloud.svg?url";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {InputProps} from "@/ui-components/Input";
 import {ButtonProps} from "@/ui-components/Button";
-import {Feature, hasFeature} from "@/Features";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import halricWhite from "@/Assets/Images/halric_white.png";
 import interregWhite from "@/Assets/Images/interreg_white.svg";
@@ -263,7 +262,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                             <TextSpan className={LoginTextSpanClass} fontSize={2} ml="2.5em">Login</TextSpan>
                         </Button>
                     </a>
-                    {!hasFeature(Feature.NEW_IDPS) ? null : <IdpList />}
+                    <IdpList />
                     <Text color={TEXT_COLOR} onClick={() => setShowingWayf(false)} cursor="pointer" textAlign="center">Other
                         login options →</Text>
                 </>) : null}
