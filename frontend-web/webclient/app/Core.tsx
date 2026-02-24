@@ -47,6 +47,7 @@ const ProviderConnection = React.lazy(() => import("@/Providers/Connect"));
 const ProviderOverview = React.lazy(() => import("@/Providers/Overview"));
 const ProviderDetailed = React.lazy(() => import("@/Providers/Detailed"));
 const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Router"));
+const PrivateNetworksRouter = React.lazy(() => import("@/Applications/PrivateNetwork/Router"));
 const SyncthingOverview = React.lazy(() => import("@/Syncthing/Overview"));
 const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Add"));
 const ApiTokenCreate = React.lazy(() => import("@/Applications/ApiTokens/Add"));
@@ -143,6 +144,7 @@ const Core = (): React.ReactNode => (
                     <Route path={"/public-links/*"} element={React.createElement(requireAuth(PublicLinksRouter))} />
                     <Route path="/licenses/*" element={React.createElement(requireAuth(LicenseRouter))} />
                     <Route path="/public-ips/*" element={React.createElement(requireAuth(NetworkIPsRouter))} />
+                    <Route path="/private-networks/*" element={React.createElement(requireAuth(PrivateNetworksRouter))} />
 
                     <Route path={AppRoutes.resources.sshKeys()} element={React.createElement(requireAuth(SSHKeyBrowse))} />
                     <Route path={AppRoutes.resources.sshKeysCreate()} element={React.createElement(requireAuth(SshKeyCreate))} />

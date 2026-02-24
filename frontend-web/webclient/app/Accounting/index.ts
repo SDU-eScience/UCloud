@@ -34,6 +34,8 @@ export function productAreaTitle(area: ProductArea): string {
             return "Application license";
         case "NETWORK_IP":
             return "Public IP";
+        case "PRIVATE_NETWORK":
+            return "Private network";
     }
 }
 
@@ -62,8 +64,8 @@ export type ProductPriceUnit =
     "CREDITS_PER_MINUTE" | "CREDITS_PER_HOUR" | "CREDITS_PER_DAY" |
     "UNITS_PER_MINUTE" | "UNITS_PER_HOUR" | "UNITS_PER_DAY";
 
-export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP";
-export type Type = "storage" | "compute" | "ingress" | "license" | "network_ip";
+export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP" | "PRIVATE_NETWORK";
+export type Type = "storage" | "compute" | "ingress" | "license" | "network_ip" | "private_network";
 
 export interface ProductMetadata {
     category: ProductCategoryId;
@@ -132,6 +134,8 @@ export function productTypeToIcon(type: ProductType): IconName {
             return "heroGlobeEuropeAfrica";
         case "LICENSE":
             return "heroDocumentCheck";
+        case "PRIVATE_NETWORK":
+            return "heroCloud";
     }
 }
 
@@ -243,6 +247,8 @@ export function categoryComparator(a: ProductCategoryV2, b: ProductCategoryV2): 
                 return 3;
             case "LICENSE":
                 return 4;
+            case "PRIVATE_NETWORK":
+                return 5;
         }
     }
 
@@ -267,6 +273,7 @@ export type ProductV2 =
     | ProductV2Ingress
     | ProductV2License
     | ProductV2NetworkIP
+    | ProductV2PrivateNetwork
     ;
 
 interface ProductV2Base {
@@ -302,6 +309,10 @@ export interface ProductV2License extends ProductV2Base {
 
 export interface ProductV2NetworkIP extends ProductV2Base {
     type: "network_ip";
+}
+
+export interface ProductV2PrivateNetwork extends ProductV2Base {
+    type: "private_network";
 }
 
 const hardcodedProductCategoryDescriptions: Record<string, Record<string, string>> = {

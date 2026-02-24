@@ -82,6 +82,7 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	controller.ProductsRegister(shared.IpProducts)
 	controller.ProductsRegister(shared.LinkProducts)
 	controller.ProductsRegister(shared.LicenseProducts)
+	controller.ProductsRegister(shared.PrivateNetworkProducts)
 }
 
 func InitLater(config *cfg.ServicesConfigurationKubernetes) {

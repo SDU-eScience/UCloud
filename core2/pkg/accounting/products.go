@@ -245,7 +245,7 @@ func ProductCreate(actor rpc.Actor, products []accapi.ProductV2) *util.HttpError
 							select 
 								:provider provider, 
 								:category category, 
-								cast(:product_type as accounting.product_type) product_type, 
+								:product_type product_type, 
 								ac.id accounting_unit,
 								:frequency frequency,
 								cast(:charge_type as accounting.charge_type) charge_t,

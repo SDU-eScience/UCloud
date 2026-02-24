@@ -28,4 +28,5 @@ func Init() {
 	db.AddMigration(grantV1())
 	db.AddMigration(projectsV4())
 	db.AddMigration(grantV2())
+	db.AddMigration(privateNetworksV1())
 }

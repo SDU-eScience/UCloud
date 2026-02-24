@@ -77,6 +77,9 @@ func Init() {
 	initIngresses()
 	times["Ingresses"] = t.Mark()
 
+	initPrivateNetworks()
+	times["PrivateNetworks"] = t.Mark()
+
 	initSupportAssistsOrc()
 	times["SupportAssistsOrc"] = t.Mark()
 

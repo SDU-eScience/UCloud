@@ -13,17 +13,19 @@ import (
 )
 
 var (
-	MachineSupport []orc.JobSupport
-	IpSupport      []orc.PublicIpSupport
-	LinkSupport    []orc.IngressSupport
+	MachineSupport        []orc.JobSupport
+	IpSupport             []orc.PublicIpSupport
+	LinkSupport           []orc.IngressSupport
+	PrivateNetworkSupport []orc.PrivateNetworkSupport
 )
 
 var (
-	Machines        []apm.ProductV2
-	StorageProducts []apm.ProductV2
-	IpProducts      []apm.ProductV2
-	LinkProducts    []apm.ProductV2
-	LicenseProducts []apm.ProductV2
+	Machines               []apm.ProductV2
+	StorageProducts        []apm.ProductV2
+	IpProducts             []apm.ProductV2
+	LinkProducts           []apm.ProductV2
+	LicenseProducts        []apm.ProductV2
+	PrivateNetworkProducts []apm.ProductV2
 )
 
 func initProducts() {
@@ -307,6 +309,39 @@ func initProducts() {
 				},
 			},
 		}
+	}
+
+	PrivateNetworkProducts = []apm.ProductV2{
+		{
+			Type: apm.ProductTypeCNetworkIp,
+			Category: apm.ProductCategory{
+				Name:        "private-network",
+				Provider:    config.Provider.Id,
+				ProductType: apm.ProductTypePrivateNetwork,
+				AccountingUnit: apm.AccountingUnit{
+					Name:                   "network",
+					NamePlural:             "networks",
+					FloatingPoint:          false,
+					DisplayFrequencySuffix: false,
+				},
+				AccountingFrequency: apm.AccountingFrequencyOnce,
+				FreeToUse:           true,
+			},
+			Name:        "private-network",
+			Description: "A private network",
+			ProductType: apm.ProductTypePrivateNetwork,
+			Price:       1,
+		},
+	}
+
+	PrivateNetworkSupport = []orc.PrivateNetworkSupport{
+		{
+			Product: apm.ProductReference{
+				Id:       PrivateNetworkProducts[0].Name,
+				Category: PrivateNetworkProducts[0].Category.Name,
+				Provider: config.Provider.Id,
+			},
+		},
 	}
 
 	LicenseProducts = ctrl.LicenseFetchProducts()

@@ -34,4 +34,5 @@ func Init() {
 	db.AddMigration(audit.MigrationV1())
 	db.AddMigration(audit.MigrationV2())
 	db.AddMigration(kubevirtV1())
+	db.AddMigration(privateNetworkDatabaseV1())
 }

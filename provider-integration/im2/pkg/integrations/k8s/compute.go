@@ -61,6 +61,11 @@ func InitCompute() controller.JobsService {
 			Delete:           deleteLicense,
 			RetrieveProducts: retrieveLicenseProducts,
 		},
+		PrivateNetworks: controller.PrivateNetworkService{
+			Create:           createPrivateNetwork,
+			Delete:           deletePrivateNetwork,
+			RetrieveProducts: retrievePrivateNetworkProducts,
+		},
 	}
 }
 
@@ -295,6 +300,28 @@ func accountLicenses(licenseName string, owner orc.ResourceOwner) {
 			},
 		},
 	})
+}
+
+func retrievePrivateNetworkProducts() []orc.PrivateNetworkSupport {
+	return shared.PrivateNetworkSupport
+}
+
+func createPrivateNetwork(network *orc.PrivateNetwork) *util.HttpError {
+	if network == nil {
+		return util.ServerHttpError("Failed to create private network: network is nil")
+	}
+
+	// TODO: Add provider-specific private network provisioning logic.
+	return nil
+}
+
+func deletePrivateNetwork(network *orc.PrivateNetwork) *util.HttpError {
+	if network == nil {
+		return util.ServerHttpError("Failed to delete private network: network is nil")
+	}
+
+	// TODO: Add provider-specific private network teardown logic.
+	return controller.PrivateNetworkDelete(network)
 }
 
 func retrieveProducts() []orc.JobSupport {

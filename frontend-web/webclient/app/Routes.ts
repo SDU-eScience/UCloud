@@ -32,6 +32,7 @@ const shares = {
 
 const resources = {
     publicIps: () => "/public-ips",
+    privateNetworks: () => "/private-networks",
     publicLinks: () => "/public-links",
     licenses: () => "/licenses",
     sshKeys: () => "/ssh-keys",
