@@ -330,13 +330,37 @@ export const Create: React.FunctionComponent = () => {
     const parameters = useMemo(() => {
         let injected: ApplicationParameter[] = [];
         const injectedData = injectedParameters.data;
-        if (injectedData && estimatedCost.product) {
-            const provider = estimatedCost.product.category.provider;
-            injected = injectedData.parametersByProvider[provider] ?? [];
+        if (injectedData) {
+            const parametersByProvider = injectedData.parametersByProvider;
+            if (estimatedCost.product) {
+                const provider = estimatedCost.product.category.provider;
+                injected = parametersByProvider[provider] ?? [];
+            } else {
+                const providerLists = Object.values(parametersByProvider);
+                if (providerLists.length > 0) {
+                    const [firstProviderList] = providerLists;
+                    const occurrences = new Map<string, number>();
+
+                    for (const providerList of providerLists) {
+                        const seenInProvider = new Set<string>();
+                        for (const parameter of providerList) {
+                            const key = `${parameter.name}::${parameter.type}`;
+                            if (seenInProvider.has(key)) continue;
+                            seenInProvider.add(key);
+                            occurrences.set(key, (occurrences.get(key) ?? 0) + 1);
+                        }
+                    }
+
+                    injected = firstProviderList.filter(parameter => {
+                        const key = `${parameter.name}::${parameter.type}`;
+                        return occurrences.get(key) === providerLists.length;
+                    });
+                }
+            }
         }
         const fromApp = application?.invocation?.parameters ?? [];
         return [...injected, ...fromApp, ...workflowInjectedParameters];
-    }, [application, injectedParameters, workflowInjectedParameters, estimatedCost]);
+    }, [application, injectedParameters, workflowInjectedParameters, estimatedCost.product]);
 
 
     React.useEffect(() => {

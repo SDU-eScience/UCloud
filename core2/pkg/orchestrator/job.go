@@ -591,8 +591,11 @@ func initJobs() {
 		}
 
 		response := map[string][]orcapi.ApplicationParameter{}
+		failureCount := 0
+		var lastError *util.HttpError = nil
 
-		for _, provider := range providers.Responses[0].Providers {
+		relevantProviders := providers.Responses[0].Providers
+		for _, provider := range relevantProviders {
 			resp, err := InvokeProvider(
 				provider,
 				orcapi.JobsProviderRequestDynamicParameters,
@@ -610,10 +613,15 @@ func initJobs() {
 			)
 
 			if err != nil {
-				return orcapi.JobsRequestDynamicParametersResponse{}, err
+				failureCount++
+				lastError = err
+			} else {
+				response[provider] = resp.Parameters
 			}
+		}
 
-			response[provider] = resp.Parameters
+		if failureCount == len(relevantProviders) {
+			return orcapi.JobsRequestDynamicParametersResponse{}, lastError
 		}
 
 		return orcapi.JobsRequestDynamicParametersResponse{ParametersByProvider: response}, nil
