@@ -58,6 +58,7 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
     dragToSelect: true,
     projectSwitcher: true,
+    search: true,
 };
 
 const DUMMY_ENTRY_ID = "dummy-private-network";
@@ -152,10 +153,10 @@ export function PrivateNetworkBrowse({opts}: { opts?: ResourceBrowserOpts<Privat
                     if (opts?.selection) {
                         const useButton = browser.defaultButtonRenderer(opts.selection, network);
                         if (useButton) {
-                            row.stat3.append(useButton);
+                            row.stat2.append(useButton);
                         }
                     } else {
-                        row.stat3.textContent = network.status.members.length === 0
+                        row.stat2.textContent = network.status.members.length === 0
                             ? "Not in use"
                             : network.status.members.join(", ");
                     }
@@ -293,6 +294,24 @@ export function PrivateNetworkBrowse({opts}: { opts?: ResourceBrowserOpts<Privat
                         };
                     }
                     return operations.filter(it => it.enabled(entries, callbacks, entries));
+                });
+
+                browser.on("search", async query => {
+                    browser.searchQuery = query;
+                    browser.currentPath = "/search";
+                    browser.cachedData["/search"] = [];
+                    browser.renderRows();
+                    browser.renderOperations();
+                    callAPI(PrivateNetworkApi.search({
+                        query,
+                        itemsPerPage: 250,
+                        flags: {},
+                    })).then(res => {
+                        if (browser.currentPath !== "/search") return;
+                        browser.registerPage(res, "/search", true);
+                        browser.renderRows();
+                        browser.renderBreadcrumbs();
+                    })
                 });
             });
         }
