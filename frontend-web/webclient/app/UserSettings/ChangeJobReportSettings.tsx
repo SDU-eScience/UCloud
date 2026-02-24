@@ -1,7 +1,6 @@
 import {useCloudCommand} from "@/Authentication/DataHook";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
-import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Box, Select} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
@@ -104,19 +103,15 @@ export const ChangeJobReportSettings: React.FunctionComponent<ChangeJobReportSet
         updateSettings({...settings, sampleRateValue});
     }, [settings, updateSettings]);
 
-    if (commandLoading) {
-        return <HexSpin />
-    }
-
     return (
         <SettingsSection id="job-report" title="Job report settings">
             <Box>
-                <Box mb={24}>
+                <Box mb={12}>
                     <Heading.h5>Resource utilization</Heading.h5>
                     <Box mt={6}>
                         <SettingsCheckboxRow
                             title="Enable job report metrics"
-                            description="Collects resource utilization data for the job report."
+                            description="Collects resource utilization data for the job report, which is saved as a csv-file"
                             onClick={toggleSubscription}
                             checked={settings.toggled}
                             disabled={commandLoading}
@@ -124,7 +119,7 @@ export const ChangeJobReportSettings: React.FunctionComponent<ChangeJobReportSet
                     </Box>
                 </Box>
 
-                <Box>
+                <Box ml={52}>
                     <Heading.h5>Sampling rate</Heading.h5>
                     <Box mt={6} maxWidth="320px">
                         <Select

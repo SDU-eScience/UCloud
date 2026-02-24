@@ -9,7 +9,6 @@ import {mail} from "@/UCloud";
 import EmailSettings = mail.EmailSettings;
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
-import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {SettingsCheckboxRow, SettingsSection} from "./SettingsComponents";
 
 export interface UserDetailsState {
@@ -190,9 +189,6 @@ export const ChangeEmailSettings: React.FunctionComponent<ChangeEmailSettingsPro
         })();
     }, [commandLoading, settings, invokeCommand]);
 
-    if (commandLoading) {
-        return <HexSpin />
-    }
     return (
         <SettingsSection id="email" title="Email settings">
             <Box>

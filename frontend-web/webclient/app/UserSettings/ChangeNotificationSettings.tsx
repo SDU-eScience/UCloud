@@ -4,7 +4,6 @@ import {useCallback, useEffect, useState} from "react";
 import {Box} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {NotificationSettings, retrieveNotificationSettings, updateNotificationSettings} from "./settingsApi";
 import {SettingsCheckboxRow, SettingsSection} from "./SettingsComponents";
 
@@ -70,9 +69,6 @@ export const ChangeNotificationSettings: React.FunctionComponent<ChangeNotificat
         })();
     }, [commandLoading, settings, invokeCommand]);
 
-    if (commandLoading) {
-        return <HexSpin />
-    }
     return (
         <SettingsSection id="notifications" title="Notification settings">
             <Box>
