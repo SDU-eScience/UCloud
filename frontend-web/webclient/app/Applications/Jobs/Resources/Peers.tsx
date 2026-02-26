@@ -5,6 +5,7 @@ import BaseLink from "@/ui-components/BaseLink";
 import {Widget} from "@/Applications/Jobs/Widgets";
 import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 import {doNothing} from "@/UtilityFunctions";
+import {Feature, hasFeature} from "@/Features";
 
 export function peerResourceAllowed(app: Application) {
     const invocation = app.invocation;
@@ -21,7 +22,7 @@ export const PeerResource: React.FunctionComponent<{
     onAdd: () => void;
     onRemove: (id: string) => void;
 }> = ({application, params, errors, onAdd, onRemove, setErrors}) => {
-    return !peerResourceAllowed(application) ? null : (
+    return !peerResourceAllowed(application) || hasFeature(Feature.NEW_VM_UI) ? null : (
         <Card>
             <Box>
                 <Flex alignItems={"center"}>

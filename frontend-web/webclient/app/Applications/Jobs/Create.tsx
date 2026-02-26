@@ -13,7 +13,6 @@ import {
     Flex,
     Grid,
     Icon,
-    Input,
     Label,
     Link,
     Markdown,
@@ -67,7 +66,6 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {defaultEmailSettings, UserDetailsState} from "@/UserSettings/ChangeEmailSettings";
 import {useDiscovery} from "@/Applications/Hooks";
-import BaseLink from "@/ui-components/BaseLink";
 import {Feature, hasFeature} from "@/Features";
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
@@ -166,7 +164,6 @@ export const Create: React.FunctionComponent = () => {
     const [discovery] = useDiscovery();
     const dnsHostnameSeed = React.useRef((Math.floor(Math.random() * 9000) + 1000).toString());
     const [jobName, setJobName] = useState("");
-    const [showDnsHostnameInput, setShowDnsHostnameInput] = useState(false);
     const [dnsHostname, setDnsHostname] = useState("");
     const [hasCustomDnsHostname, setHasCustomDnsHostname] = useState(false);
 
@@ -752,34 +749,6 @@ export const Create: React.FunctionComponent = () => {
                                 application={application}
                                 errors={reservationErrors}
                                 onJobNameChange={setJobName}
-                                nameLabelAction={!hasFeature(Feature.NEW_VM_UI) ? null :
-                                    <div>
-                                        (
-                                        <BaseLink
-                                            href="#"
-                                            onClick={ev => {
-                                                ev.preventDefault();
-                                                setShowDnsHostnameInput(value => !value);
-                                            }}
-                                        >
-                                            {showDnsHostnameInput ?
-                                                "Hide DNS hostname" :
-                                                `Change hostname?`
-                                            }
-                                        </BaseLink>
-                                        )
-                                    </div>
-                                }
-                                additionalNameInput={!showDnsHostnameInput || !hasFeature(Feature.NEW_VM_UI) ? null : (
-                                    <Label>
-                                        DNS hostname
-                                        <Input
-                                            style={{minWidth: "220px"}}
-                                            value={dnsHostname}
-                                            onChange={onDnsHostnameChange}
-                                        />
-                                    </Label>
-                                )}
                                 onEstimatedCostChange={(durationInMinutes, numberOfNodes, wallet, product) =>
                                     setEstimatedCost({durationInMinutes, wallet, numberOfNodes, product})}
                             />
@@ -790,13 +759,6 @@ export const Create: React.FunctionComponent = () => {
                             {...folders}
                             application={application}
                         />
-
-                        {!hasFeature(Feature.NEW_VM_UI) ? null : (
-                            <PrivateNetworkResource
-                                {...privateNetworks}
-                                application={application}
-                            />
-                        )}
 
                         {/*Workflow*/}
                         {mandatoryWorkflow.length === 0 ? null : (
@@ -911,6 +873,13 @@ export const Create: React.FunctionComponent = () => {
                         <PeerResource
                             {...peers}
                             application={application}
+                        />
+
+                        <PrivateNetworkResource
+                            {...privateNetworks}
+                            application={application}
+                            dnsHostname={dnsHostname}
+                            onDnsHostnameChange={onDnsHostnameChange}
                         />
 
                         <NetworkIPResource

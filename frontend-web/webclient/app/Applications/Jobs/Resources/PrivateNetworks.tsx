@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Box, Button, Card, Flex} from "@/ui-components";
+import {Box, Button, Card, Flex, Input, Label} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import Link from "@/ui-components/Link";
 import BaseLink from "@/ui-components/BaseLink";
@@ -7,6 +7,8 @@ import {Widget} from "@/Applications/Jobs/Widgets";
 import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 import AppRoutes from "@/Routes";
 import {doNothing} from "@/UtilityFunctions";
+import {peerResourceAllowed} from "@/Applications/Jobs/Resources/Peers";
+import {Feature, hasFeature} from "@/Features";
 
 export const PrivateNetworkResource: React.FunctionComponent<{
     application: Application;
@@ -16,7 +18,21 @@ export const PrivateNetworkResource: React.FunctionComponent<{
     onAdd: () => void;
     onRemove: (id: string) => void;
     provider?: string;
-}> = ({application, params, errors, onAdd, onRemove, setErrors, provider}) => {
+    dnsHostname: string;
+    onDnsHostnameChange: (ev: React.SyntheticEvent) => void;
+}> = ({
+    application,
+    params,
+    errors,
+    onAdd,
+    onRemove,
+    setErrors,
+    provider,
+    dnsHostname,
+    onDnsHostnameChange,
+}) => {
+    if (!peerResourceAllowed(application) || !hasFeature(Feature.NEW_VM_UI)) return null;
+
     return (
         <Card>
             <Box>
@@ -29,9 +45,20 @@ export const PrivateNetworkResource: React.FunctionComponent<{
 
                 <Box mb={8} mt={8}>
                     {params.length !== 0 ? (
-                        <>
-                            Your job will be attached to the selected private network(s).
-                        </>
+                        <Box mb={16}>
+                            <Label>
+                                Hostname
+                                <Input
+                                    mt={"8px"}
+                                    style={{minWidth: "220px"}}
+                                    value={dnsHostname}
+                                    onChange={onDnsHostnameChange}
+                                />
+                            </Label>
+                            <div style={{color: "var(--textSecondary)", fontStyle: "italic", marginTop: "8px"}}>
+                                Your job will be identified by this name within the network.
+                            </div>
+                        </Box>
                     ) : (
                         <>
                             If you need to connect this job to a network of other jobs then click {" "}

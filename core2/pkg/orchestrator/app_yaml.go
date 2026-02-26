@@ -820,6 +820,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 						RunAsRealUser:          false,
 					},
 
+					AllowAdditionalPeers:  y.Features.Value.JobLinking,
 					AllowAdditionalMounts: y.Features.Value.Folders,
 					AllowMultiNode:        util.OptValue(y.Features.Value.MultiNode),
 					AllowPublicIp:         y.Features.Value.IPAddresses,

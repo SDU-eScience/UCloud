@@ -45,7 +45,7 @@ func PrivateNetworkCreate(network *orc.PrivateNetwork) *util.HttpError {
 		return util.ServerHttpError("Failed to create private network: network is nil")
 	}
 
-	reservedPrefixes := []string{"j", "ucloud", "vm", "im"}
+	reservedPrefixes := []string{"j", "ucloud", "vm", "im", "policy"}
 	for _, prefix := range reservedPrefixes {
 		if network.Specification.Subdomain == prefix || strings.HasPrefix(network.Specification.Subdomain, prefix+"-") {
 			return util.HttpErr(http.StatusBadRequest, "Reserved domain name, try a different one")

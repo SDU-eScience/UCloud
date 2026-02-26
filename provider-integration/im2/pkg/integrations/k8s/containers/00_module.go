@@ -463,7 +463,7 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (control
 	}
 
 	address := config.HostInfo{
-		Address: jobHostName(job.Id, rank),
+		Address: jobHostName(job, rank),
 		Port:    int(port),
 	}
 

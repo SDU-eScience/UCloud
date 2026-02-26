@@ -137,7 +137,7 @@ func initProducts() {
 			support.VirtualMachine.Vnc = true
 			support.VirtualMachine.Logs = true
 			support.VirtualMachine.Terminal = true
-			support.VirtualMachine.Peers = false
+			support.VirtualMachine.Peers = true
 			support.VirtualMachine.TimeExtension = false
 			support.VirtualMachine.Suspension = true
 		}
