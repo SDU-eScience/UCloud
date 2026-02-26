@@ -24,8 +24,24 @@ import (
 )
 
 const (
-	jobType = "job"
+	jobType                     = "job"
+	jobMetricSampleRateParam    = "ucMetricSampleRate"
+	jobMetricSampleRateDefault  = "250ms"
+	jobMetricSampleRateDisabled = "0ms"
 )
+
+var jobMetricAllowedSampleRates = map[string]bool{
+	"0ms":      true,
+	"250ms":    true,
+	"500ms":    true,
+	"750ms":    true,
+	"1000ms":   true,
+	"5000ms":   true,
+	"10000ms":  true,
+	"30000ms":  true,
+	"60000ms":  true,
+	"120000ms": true,
+}
 
 func initJobs() {
 	InitResourceType(
@@ -43,6 +59,8 @@ func initJobs() {
 
 	orcapi.JobsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		var ids []fndapi.FindByStringId
+		jobSettings := JobSettingsRetrieve(info.Actor)
+
 		for _, item := range request.Items {
 			spec := item
 			err := jobsValidateForSubmission(info.Actor, &spec)
@@ -63,6 +81,23 @@ func initJobs() {
 				"cpu":          support.Product.Cpu,
 				"memoryInGigs": support.Product.MemoryInGigs,
 			})
+
+			if spec.Parameters == nil {
+				spec.Parameters = map[string]orcapi.AppParameterValue{}
+			}
+
+			if _, hasSampleRateOverride := spec.Parameters[jobMetricSampleRateParam]; !hasSampleRateOverride {
+				effectiveSampleRate := jobMetricSampleRateDisabled
+
+				if jobSettings.Toggled {
+					effectiveSampleRate = jobMetricSampleRateDefault
+					if jobSettings.SampleRateValue.Present {
+						effectiveSampleRate = jobSettings.SampleRateValue.Value
+					}
+				}
+
+				spec.Parameters[jobMetricSampleRateParam] = orcapi.AppParameterValueText(effectiveSampleRate)
+			}
 
 			extra := &internalJob{
 				Application:    spec.Application,
@@ -591,8 +626,11 @@ func initJobs() {
 		}
 
 		response := map[string][]orcapi.ApplicationParameter{}
+		failureCount := 0
+		var lastError *util.HttpError = nil
 
-		for _, provider := range providers.Responses[0].Providers {
+		relevantProviders := providers.Responses[0].Providers
+		for _, provider := range relevantProviders {
 			resp, err := InvokeProvider(
 				provider,
 				orcapi.JobsProviderRequestDynamicParameters,
@@ -610,10 +648,15 @@ func initJobs() {
 			)
 
 			if err != nil {
-				return orcapi.JobsRequestDynamicParametersResponse{}, err
+				failureCount++
+				lastError = err
+			} else {
+				response[provider] = resp.Parameters
 			}
+		}
 
-			response[provider] = resp.Parameters
+		if failureCount == len(relevantProviders) {
+			return orcapi.JobsRequestDynamicParametersResponse{}, lastError
 		}
 
 		return orcapi.JobsRequestDynamicParametersResponse{ParametersByProvider: response}, nil
@@ -793,6 +836,19 @@ func initJobs() {
 		resp.InsufficientFunds = util.NonNilSlice(resp.InsufficientFunds)
 		resp.DuplicateCharges = util.NonNilSlice(resp.DuplicateCharges)
 		return resp, nil
+	})
+
+	orcapi.JobSettingsRetrieve.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.JobSettings, *util.HttpError) {
+		return JobSettingsRetrieve(info.Actor), nil
+	})
+
+	orcapi.JobSettingsUpdate.Handler(func(info rpc.RequestInfo, request orcapi.JobSettings) (util.Empty, *util.HttpError) {
+		err := JobSettingsUpdate(info.Actor, request)
+		if err != nil {
+			return util.Empty{}, err
+		}
+
+		return util.Empty{}, nil
 	})
 
 	wsUpgrader := ws.Upgrader{
@@ -2013,4 +2069,61 @@ func jobSendNotifications(username string, jobs map[string]orcapi.Job) {
 	if err != nil {
 		log.Warn("Could not send notification to user %s: %s", username, err)
 	}
+}
+
+func JobSettingsRetrieve(actor rpc.Actor) orcapi.JobSettings {
+	return db.NewTx(func(tx *db.Transaction) orcapi.JobSettings {
+		row, ok := db.Get[struct {
+			Toggled         bool
+			SampleRateValue sql.Null[string]
+		}](
+			tx,
+			`
+				select toggled, sample_rate_value
+				from app_orchestrator.job_settings 
+				where username = :username   
+			`,
+			db.Params{
+				"username": actor.Username,
+			},
+		)
+
+		if !ok {
+			return orcapi.JobSettings{
+				Toggled:         false,
+				SampleRateValue: util.OptNone[string](),
+			}
+		}
+
+		return orcapi.JobSettings{
+			Toggled:         row.Toggled,
+			SampleRateValue: util.SqlNullToOpt(row.SampleRateValue),
+		}
+	})
+}
+
+func JobSettingsUpdate(actor rpc.Actor, settings orcapi.JobSettings) *util.HttpError {
+	if settings.SampleRateValue.Present && !jobMetricAllowedSampleRates[settings.SampleRateValue.Value] {
+		return util.HttpErr(http.StatusBadRequest, "invalid sample rate value")
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into app_orchestrator.job_settings(username, toggled, sample_rate_value)
+				values (:username, :toggled, :sample_rate_value)
+				on conflict (username) do update set
+				    toggled = excluded.toggled,
+				    sample_rate_value = excluded.sample_rate_value
+			`,
+			db.Params{
+				"username":          actor.Username,
+				"toggled":           settings.Toggled,
+				"sample_rate_value": settings.SampleRateValue.Sql(),
+			},
+		)
+	})
+
+	return nil
 }

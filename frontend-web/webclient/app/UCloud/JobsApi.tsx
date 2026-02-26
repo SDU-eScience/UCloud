@@ -200,6 +200,11 @@ export interface SessionDataVnc {
     password?: string;
 }
 
+export interface JobSettings {
+    toggled: boolean;
+    sampleRateValue: string;
+}
+
 export function jobStateToIconAndColor(state: JobState): [IconName, ThemeColor] {
     let color: ThemeColor = "iconColor";
     let icon: IconName;
@@ -377,6 +382,14 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
 
     rename(request: BulkRequest<{ id: string; newTitle: string; }>) {
         return apiUpdate(request, this.baseContext, "rename");
+    }
+
+    settingsUpdate(request: JobSettings): APICallParameters<JobSettings, Record<string, never>> {
+        return apiUpdate(request, this.baseContext, "settingsUpdate")
+    }
+
+    settingsRetrieve(request: Record<string, never>): APICallParameters<Record<string, never>, JobSettings> {
+        return apiRetrieve(request, this.baseContext, "settingsRetrieve")
     }
 }
 

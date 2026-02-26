@@ -32,7 +32,13 @@ import {
     setReservation,
     validateReservation
 } from "@/Applications/Jobs/Widgets/Reservation";
-import {displayErrorMessageOrDefault, extractErrorCode, prettierString, useDidMount} from "@/UtilityFunctions";
+import {
+    displayErrorMessageOrDefault,
+    doNothing,
+    extractErrorCode,
+    prettierString,
+    useDidMount
+} from "@/UtilityFunctions";
 import {addStandardDialog, OverallocationLink, WalletWarning} from "@/UtilityComponents";
 import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";

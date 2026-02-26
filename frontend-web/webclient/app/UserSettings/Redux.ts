@@ -59,4 +59,3 @@ export const avatarReducer = (state: AvatarType = initAvatar(), action: AvatarAc
             return state;
     }
 };
-

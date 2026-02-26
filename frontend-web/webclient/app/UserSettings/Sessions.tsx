@@ -8,12 +8,12 @@ import UAParser from "ua-parser-js";
 import Box from "@/ui-components/Box";
 import Button from "@/ui-components/Button";
 import Divider from "@/ui-components/Divider";
-import * as Heading from "@/ui-components/Heading";
-import {invalidateAllSessions, listUserSessions, UserSession} from "@/UserSettings/api";
+import {invalidateAllSessions, listUserSessions, UserSession} from "./settingsApi";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {addStandardDialog} from "@/UtilityComponents";
 import CONF from "../../site.config.json";
 import {emptyPage} from "@/Utilities/PageUtilities";
+import {SettingsSection} from "./SettingsComponents";
 
 export interface SessionsProps {
     setLoading: (loading: boolean) => void;
@@ -107,9 +107,7 @@ export const Sessions: React.FunctionComponent<SessionsProps> = props => {
     }, [props.setRefresh]);
 
     return (
-        <Box>
-            <Heading.h2>Active sessions</Heading.h2>
-
+        <SettingsSection id="sessions" title="Active sessions" mb={0}>
             <Pagination.List
                 loading={sessions.loading}
                 page={sessions.data}
@@ -117,9 +115,9 @@ export const Sessions: React.FunctionComponent<SessionsProps> = props => {
                 pageRenderer={pageRenderer}
             />
 
-            <Button color={"errorMain"} onClick={onInvalidateSessions} disabled={commandLoading}>
+            <Button color={"errorMain"} onClick={onInvalidateSessions} disabled={commandLoading} mt={"1em"}>
                 Invalidate all sessions
             </Button>
-        </Box>
+        </SettingsSection>
     );
 };

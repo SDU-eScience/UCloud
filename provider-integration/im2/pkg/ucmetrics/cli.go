@@ -3,7 +3,9 @@ package ucmetrics
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
+
 	"ucloud.dk/pkg/ucviz"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -19,9 +21,16 @@ type VizDataPoint struct {
 }
 
 const (
-	channelName  = "utilization-data"
-	elementCount = 64 // NOTE(Dan): Update follow function if changing this
+	channelName           = "utilization-data"
+	elementCount          = 64 // NOTE(Dan): Update follow function if changing this
+	csvCpuLimit           = -1
+	csvMemLimit           = -2
+	DefaultSampleInterval = 250 * time.Millisecond
 )
+
+type Config struct {
+	SampleInterval time.Duration
+}
 
 func timeColumn() int {
 	return 0
@@ -51,7 +60,47 @@ func gpuMemoryUtilColumn(cardId int) int {
 	return 7 + (cardId * 2) + 1
 }
 
-func HandleCli() {
+func csvSchema(gpuCount int) ([]string, []int) {
+	if gpuCount > 16 {
+		gpuCount = 16
+	}
+
+	headers := []string{
+		"timestamp_utc",
+		"cpu_util_pct",
+		"cpu_limit_pct",
+		"memory_bytes",
+		"memory_limit_bytes",
+		"net1_rx_bytesps",
+		"net1_tx_bytesps",
+		"net2_rx_bytesps",
+		"net2_tx_bytesps",
+	}
+
+	columns := []int{
+		timeColumn(),
+		cpuUtilColumn(),
+		csvCpuLimit,
+		memoryUtilColumn(),
+		csvMemLimit,
+		networkReceiveColumn(0),
+		networkTransmitColumn(0),
+		networkReceiveColumn(1),
+		networkTransmitColumn(1),
+	}
+
+	for i := 0; i < gpuCount; i++ {
+		headers = append(headers, fmt.Sprintf("gpu%d_util_pct", i+1))
+		headers = append(headers, fmt.Sprintf("gpu%d_mem_bytes", i+1))
+
+		columns = append(columns, gpuUtilColumn(i))
+		columns = append(columns, gpuMemoryUtilColumn(i))
+	}
+
+	return headers, columns
+}
+
+func HandleCli(cfg Config) {
 	cpu, cpuErr := CpuSampleStart()
 
 	lastNet := time.Now()
@@ -88,8 +137,38 @@ func HandleCli() {
 		panic(err)
 	}
 
+	var csvFile *os.File = nil
+	var csvColumns []int
+	lastKnownCpuLimit := 0.0
+	if cfg.SampleInterval > 0 {
+		csvFile, err = os.OpenFile("/work/job-report.csv", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0660)
+		if err != nil {
+			panic(err)
+		}
+
+		defer util.SilentClose(csvFile)
+
+		visibleGpuCount := len(ReadNvidiaGpuUsage())
+		if visibleGpuCount > 16 {
+			visibleGpuCount = 16
+		}
+
+		var headers []string
+		headers, csvColumns = csvSchema(visibleGpuCount)
+		for i, header := range headers {
+			if i > 0 {
+				_, _ = csvFile.WriteString(",")
+			}
+			_, _ = csvFile.WriteString(header)
+		}
+		_, _ = csvFile.WriteString("\n")
+	}
+
+	nextCsvSample := time.Now()
+
 	for {
 		row := make([]float64, elementCount)
+		memoryLimitForCsv := 0.0
 		var charts []chartInfo
 		// cpu, memory use, mem total
 		// net rx, net tx (x2)
@@ -100,6 +179,7 @@ func HandleCli() {
 
 		if cpuErr == nil {
 			if cpuStats, err := cpu.End(); err == nil {
+				lastKnownCpuLimit = cpuStats.Limit
 				charts = append(charts, chartInfo{
 					Id:    "cpu",
 					Title: "CPU utilization",
@@ -132,6 +212,7 @@ func HandleCli() {
 		{
 			memory := ReadMemoryUsage()
 			memoryLimit := ReadMemoryLimit()
+			memoryLimitForCsv = float64(memoryLimit)
 			charts = append(charts, chartInfo{
 				Id:    "memory",
 				Title: "Memory",
@@ -361,6 +442,28 @@ func HandleCli() {
 		_ = ring.Write(row)
 
 		previousCharts = charts
+
+		if time.Now().After(nextCsvSample) && cfg.SampleInterval > 0 {
+			for i, columnIdx := range csvColumns {
+				if i > 0 {
+					_, _ = csvFile.WriteString(",")
+				}
+
+				if columnIdx == timeColumn() {
+					timestamp := time.UnixMilli(int64(row[columnIdx])).UTC().Format("2006-01-02T15:04:05.000Z")
+					_, _ = csvFile.WriteString(timestamp)
+				} else if columnIdx == csvCpuLimit {
+					_, _ = csvFile.WriteString(fmt.Sprintf("%.3f", lastKnownCpuLimit))
+				} else if columnIdx == csvMemLimit {
+					_, _ = csvFile.WriteString(fmt.Sprintf("%.3f", memoryLimitForCsv))
+				} else {
+					_, _ = csvFile.WriteString(fmt.Sprintf("%.3f", row[columnIdx]))
+				}
+			}
+			_, _ = csvFile.WriteString("\n")
+			nextCsvSample = time.Now().Add(cfg.SampleInterval)
+		}
+
 		time.Sleep(250 * time.Millisecond)
 	}
 }
