@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strings"
 	"sync"
 
 	k8score "k8s.io/api/core/v1"
@@ -32,7 +33,7 @@ func PrivateNetworkLabel(subdomain string) string {
 }
 
 func PrivateNetworkName(subdomain string) string {
-	return fmt.Sprintf("network-%s", subdomain)
+	return subdomain
 }
 
 func PrivateNetworkRetrieveProducts() []orc.PrivateNetworkSupport {
@@ -42,6 +43,13 @@ func PrivateNetworkRetrieveProducts() []orc.PrivateNetworkSupport {
 func PrivateNetworkCreate(network *orc.PrivateNetwork) *util.HttpError {
 	if network == nil {
 		return util.ServerHttpError("Failed to create private network: network is nil")
+	}
+
+	reservedPrefixes := []string{"j", "ucloud", "vm", "im"}
+	for _, prefix := range reservedPrefixes {
+		if network.Specification.Subdomain == prefix || strings.HasPrefix(network.Specification.Subdomain, prefix+"-") {
+			return util.HttpErr(http.StatusBadRequest, "Reserved domain name, try a different one")
+		}
 	}
 
 	privateNetworkCreationMutex.Lock()
