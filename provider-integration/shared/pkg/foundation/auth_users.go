@@ -96,11 +96,15 @@ type OptionalUserInfo struct {
 	Unit                 util.Option[string] `json:"unit"`
 }
 
-var UsersRetrieveOptionalInfo = rpc.Call[util.Empty, OptionalUserInfo]{
+type UsersRetrieveOptionalInfoRequest struct {
+	Username util.Option[string] `json:"username"`
+}
+
+var UsersRetrieveOptionalInfo = rpc.Call[UsersRetrieveOptionalInfoRequest, OptionalUserInfo]{
 	BaseContext: authUsersBaseContext,
 	Convention:  rpc.ConventionRetrieve,
 	Operation:   "optionalInfo",
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesEndUser | rpc.RolesService,
 }
 
 var UsersUpdateOptionalInfo = rpc.Call[OptionalUserInfo, util.Empty]{

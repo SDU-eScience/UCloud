@@ -46,7 +46,6 @@ import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/Meta
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api";
 import {Link, useNavigate, useParams} from "react-router-dom";
-import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
@@ -384,7 +383,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "heroPaperAirplane",
                 text: "Transfer to...",
                 enabled: (selected, cb) =>
-                    hasFeature(Feature.TRANSFER_TO) &&
                     !cb.isSearch &&
                     (cb.isModal !== true || !!cb.allowMoveCopyOverride) &&
                     selected.length > 0 &&
@@ -403,7 +401,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                             res.specification.product.provider !== selected[0].specification.product.provider ||
                                             res.specification.product.provider === "go-slurm" ||
                                             res.specification.product.provider === "goslurm1" ||
-                                            res.specification.product.provider === "gok8s"  ||
+                                            res.specification.product.provider === "gok8s" ||
                                             res.specification.product.provider === "k8s"
                                         );
                                 },
@@ -1193,7 +1191,7 @@ export function FilePreview({initialFile}: {
         const foundFileType = getFileTypesFromContentBuffer(contentBuffer);
         let typeFromFileType =
             foundFileType.length > 0 ?
-                typeFromMime(foundFileType[0].mime ?? "") : null;
+                typeFromMime(foundFileType[0]?.mime ?? "") : null;
 
         if (!typeFromFileType) {
             typeFromFileType = extensionType(extensionFromPath(file));
@@ -1209,7 +1207,7 @@ export function FilePreview({initialFile}: {
                     data: URL.createObjectURL(
                         new Blob(
                             [contentBuffer] as unknown as BlobPart[],
-                            {type: foundFileType[0].mime}
+                            {type: foundFileType[0]?.mime}
                         )
                     ),
                     error: null,
@@ -1647,7 +1645,7 @@ function tryDecodeText(buf: Uint8Array): string | null {
 
 function getFileTypesFromContentBuffer(contentBuffer: Uint8Array | null | undefined): GuessedFile[] {
     if (contentBuffer == null) return [];
-    return fileType(contentBuffer).filter(it => it.mime);
+    return fileType(contentBuffer).filter(it => it?.mime);
 }
 
 class PreviewVfs implements Vfs {

@@ -131,12 +131,13 @@ type Templates struct {
 }
 
 type GrantApplication struct {
-	Id              util.IntOrString `json:"id"`
-	CreatedBy       string           `json:"createdBy"`
-	CreatedAt       fnd.Timestamp    `json:"createdAt"`
-	UpdatedAt       fnd.Timestamp    `json:"updatedAt"`
-	CurrentRevision GrantRevision    `json:"currentRevision"`
-	Status          GrantStatus      `json:"status"`
+	Id              util.IntOrString    `json:"id"`
+	CreatedBy       string              `json:"createdBy"`
+	CreatedAt       fnd.Timestamp       `json:"createdAt"`
+	UpdatedAt       fnd.Timestamp       `json:"updatedAt"`
+	CurrentRevision GrantRevision       `json:"currentRevision"`
+	Status          GrantStatus         `json:"status"`
+	ProjectId       util.Option[string] `json:"projectId"`
 }
 
 type GrantRevision struct {
@@ -285,6 +286,7 @@ type Period struct {
 }
 
 type GrantStatus struct {
+	OptionalUserInfo   fnd.OptionalUserInfo      `json:"optionalUserInfo"`
 	OverallState       GrantApplicationState     `json:"overallState"`
 	StateBreakdown     []GrantGiverApprovalState `json:"stateBreakdown"`
 	Comments           []GrantComment            `json:"comments"`
@@ -516,16 +518,17 @@ var GrantsRetrieveLogo = rpc.Call[GrantsRetrieveLogoRequest, []byte]{
 }
 
 type GrantsExportResponse struct {
-	Id             string                `json:"id"`
-	Title          string                `json:"title"`
-	SubmittedBy    string                `json:"submittedBy"`
-	SubmittedAt    fnd.Timestamp         `json:"submittedAt"`
-	StartDate      fnd.Timestamp         `json:"startDate"`
-	DurationMonths int                   `json:"durationMonths"`
-	State          GrantApplicationState `json:"state"`
-	GrantGiver     string                `json:"grantGiver"`
-	LastUpdatedAt  fnd.Timestamp         `json:"lastUpdatedAt"`
-	Resources      map[string]int        `json:"resources"`
+	Id               string                `json:"id"`
+	Title            string                `json:"title"`
+	SubmittedBy      string                `json:"submittedBy"`
+	SubmittedAt      fnd.Timestamp         `json:"submittedAt"`
+	StartDate        fnd.Timestamp         `json:"startDate"`
+	DurationMonths   int                   `json:"durationMonths"`
+	State            GrantApplicationState `json:"state"`
+	GrantGiver       string                `json:"grantGiver"`
+	LastUpdatedAt    fnd.Timestamp         `json:"lastUpdatedAt"`
+	Resources        map[string]int        `json:"resources"`
+	OptionalUserInfo fnd.OptionalUserInfo  `json:"optionalUserInfo"`
 }
 
 var GrantsExport = rpc.Call[util.Empty, []GrantsExportResponse]{

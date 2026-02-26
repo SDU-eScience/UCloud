@@ -1,4 +1,6 @@
-{
+import type {KnownDepartmentsMap} from "@/UserSettings/types";
+
+const knownDepartments: KnownDepartmentsMap = {
     "aau.dk": [
         {
             "faculty": "Administration"
@@ -600,4 +602,6 @@
     "ucsyd.dk": "freetext",
     "ucl.dk": "freetext",
     "viauc.dk": "freetext"
-}
+};
+
+export default knownDepartments;

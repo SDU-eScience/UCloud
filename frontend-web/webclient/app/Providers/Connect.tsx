@@ -8,7 +8,6 @@ import {EventHandler, MouseEvent, useCallback, useEffect} from "react";
 import {doNothing} from "@/UtilityFunctions";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {Feature, hasFeature} from "@/Features";
 import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
 import {Operations, ShortcutKey} from "@/ui-components/Operation";
@@ -26,8 +25,6 @@ const FixedHeightProvider = injectStyle("FixedHeightProvider", k => `
 `)
 
 export const Connect: React.FunctionComponent<{ embedded?: boolean }> = props => {
-    if (!hasFeature(Feature.PROVIDER_CONNECTION)) return null;
-
     const state = useUState(connectionState);
     const [, invokeCommand] = useCloudCommand();
     const reload = useCallback(() => {
