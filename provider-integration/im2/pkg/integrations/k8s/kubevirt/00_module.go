@@ -93,8 +93,57 @@ func VmiStandaloneMutator() {
 	shared.InitClients()
 	KubevirtClient = shared.KubevirtClient
 	Namespace = "ucloud-apps" // TODO
+	startStandaloneMutatorUpdateWatcher(5 * time.Second)
 
+	log.Info("Starting VMI standalone mutator")
 	vmiFsMutator()
+}
+
+func startStandaloneMutatorUpdateWatcher(interval time.Duration) {
+	exePath, err := os.Executable()
+	if err != nil {
+		log.Warn("Unable to resolve executable path: %v", err)
+		return
+	}
+
+	initialModTime, err := executableModTime(exePath)
+	if err != nil {
+		log.Warn("Unable to read shared mutator executable timestamp (%s): %v", exePath, err)
+		return
+	}
+
+	checkForUpdate := func() {
+		currentModTime, err := executableModTime(exePath)
+		if err != nil {
+			log.Warn("Unable to read shared mutator executable timestamp (%s): %v", exePath, err)
+			return
+		}
+
+		if !currentModTime.Equal(initialModTime) {
+			log.Info("Standalone mutator update detected (%s). Exiting for restart.", exePath)
+			os.Exit(0)
+		}
+	}
+
+	checkForUpdate()
+
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			checkForUpdate()
+		}
+	}()
+}
+
+func executableModTime(path string) (time.Time, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return info.ModTime(), nil
 }
 
 func vmiFsMutator() {
