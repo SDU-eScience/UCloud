@@ -1640,7 +1640,8 @@ func jobRoutesRefresh() {
 	webSessionsMutex.Lock()
 	var sessionsToDelete []jobIdAndRank
 	for key, session := range webSessions {
-		if _, ok := allJobsById[key.JobId]; !ok {
+		job, ok := allJobsById[key.JobId]
+		if !ok {
 			sessionsToDelete = append(sessionsToDelete, key)
 		} else {
 			for suffix, ingress := range session.IngressBySuffix {
@@ -1678,6 +1679,25 @@ func jobRoutesRefresh() {
 								Type:         routeType,
 							},
 						})
+
+						if !isVnc && !ingress.AuthToken.Present {
+							routedDomains := map[string]util.Empty{ingress.Address: {}}
+							for _, domain := range jobAttachedIngressDomains(job) {
+								if _, alreadyRouted := routedDomains[domain]; alreadyRouted {
+									continue
+								}
+
+								routedDomains[domain] = util.Empty{}
+								gw.SendMessage(gw.ConfigurationMessage{
+									RouteUp: &gw.EnvoyRoute{
+										Cluster:      clusterName,
+										CustomDomain: domain,
+										AuthTokens:   tokens,
+										Type:         routeType,
+									},
+								})
+							}
+						}
 					}
 				}
 			}
@@ -1715,4 +1735,30 @@ func jobRoutesRefresh() {
 	}
 
 	webSessionsMutex.Unlock()
+}
+
+func jobAttachedIngressDomains(job *orcapi.Job) []string {
+	uniqueDomains := map[string]util.Empty{}
+	var domains []string
+
+	for _, resource := range job.Specification.Resources {
+		if resource.Type != orcapi.AppParameterValueTypeIngress {
+			continue
+		}
+
+		ingress := LinkRetrieve(resource.Id)
+		domain := strings.TrimSpace(ingress.Specification.Domain)
+		if domain == "" {
+			continue
+		}
+
+		if _, exists := uniqueDomains[domain]; exists {
+			continue
+		}
+
+		uniqueDomains[domain] = util.Empty{}
+		domains = append(domains, domain)
+	}
+
+	return domains
 }
