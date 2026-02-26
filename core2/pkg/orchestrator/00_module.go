@@ -17,6 +17,9 @@ func Init() {
 	initProviders()
 	times["Providers"] = t.Mark()
 
+	initProviderBrandings()
+	times["ProviderBrandings"] = t.Mark()
+
 	InitResources()
 	times["Resources"] = t.Mark()
 
