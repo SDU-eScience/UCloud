@@ -189,6 +189,20 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		ipService = preparePublicIp(job, firewall, userContainer)
 	}
 
+	// DNS config
+	// -----------------------------------------------------------------------------------------------------------------
+	dnsConfig, herr := shared.PrivateNetworkCreateDnsConfig(job)
+	if herr != nil {
+		return herr
+	}
+
+	pod.Spec.Hostname = dnsConfig.Hostname
+	pod.Spec.Subdomain = dnsConfig.Subdomain
+	pod.Spec.DNSConfig = dnsConfig.PodDns
+	for label, value := range dnsConfig.Labels {
+		pod.ObjectMeta.Labels[label] = value
+	}
+
 	// JobParameters.json
 	// -----------------------------------------------------------------------------------------------------------------
 	if rank == 0 && job.Status.JobParametersJson.Value.SiteVersion != 0 {
@@ -245,8 +259,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	userContainer.SecurityContext.RunAsNonRoot = util.BoolPointer(!application.Container.RunAsRoot)
 	userContainer.SecurityContext.AllowPrivilegeEscalation = util.BoolPointer(application.Container.RunAsRoot)
 
-	spec.Hostname = fmt.Sprintf("j-%s-job-%d", job.Id, rank)
-	spec.Subdomain = fmt.Sprintf("j-%v", job.Id)
+	if dnsConfig.PodDns == nil {
+		spec.Hostname = fmt.Sprintf("j-%s-job-%d", job.Id, rank)
+		spec.Subdomain = fmt.Sprintf("j-%v", job.Id)
+	}
 
 	// Working directory
 	// -----------------------------------------------------------------------------------------------------------------
