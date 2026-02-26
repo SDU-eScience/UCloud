@@ -8,6 +8,7 @@ use.
 
 ```
 UCloud/Frontend @ 2026.2.1
+UCloud/Core @ 2026.2.4
 ```
 
 ## 24-02-26

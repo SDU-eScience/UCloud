@@ -98,6 +98,9 @@ func initJobs() {
 
 				spec.Parameters[jobMetricSampleRateParam] = orcapi.AppParameterValueText(effectiveSampleRate)
 			}
+			if item.Product.Provider == "aau" {
+				delete(spec.Parameters, jobMetricSampleRateParam)
+			}
 
 			extra := &internalJob{
 				Application:    spec.Application,
@@ -796,7 +799,7 @@ func initJobs() {
 			if err == nil {
 				walletOwner := orcapi.ResourceOwnerToWalletOwner(job.Resource)
 				units := job.Specification.Replicas
-				balanceUsed := item.Periods * int(job.Status.ResolvedProduct.Value.PricePerUnit) * units
+				balanceUsed := item.Periods * int(job.Status.ResolvedProduct.Value.Price) * units
 
 				reportResp, err := accapi.ReportUsage.Invoke(fndapi.BulkRequestOf(accapi.ReportUsageRequest{
 					IsDeltaCharge: false,
