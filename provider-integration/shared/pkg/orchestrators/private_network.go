@@ -29,6 +29,8 @@ type PrivateNetworkStatus struct {
 	// Only jobs which are in a non-terminal state show up in this list. Thus jobs which are in SUCCESS, FAILURE or
 	// EXPIRED will not show up. Jobs which are IN_QUEUE, SUSPENDED or RUNNING will appear.
 	Members []string `json:"members"`
+
+	ResourceStatus[PrivateNetworkSupport]
 }
 
 type PrivateNetworkSupport struct {

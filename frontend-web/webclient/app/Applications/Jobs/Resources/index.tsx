@@ -20,7 +20,8 @@ export interface ResourceHook {
 type ResourcePrefix = "resource";
 type PeerResourceNS = `${ResourcePrefix}Peer`;
 export type FolderResourceNS = `${ResourcePrefix}Folder`;
-type ResourceTypes = FolderResourceNS | PeerResourceNS | "ingress" | "network";
+type PrivateNetworkResourceNS = `${ResourcePrefix}PrivateNetwork`;
+type ResourceTypes = FolderResourceNS | PeerResourceNS | PrivateNetworkResourceNS | "ingress" | "network";
 
 const resourceCounters: Record<string, number> = {};
 

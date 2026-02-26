@@ -245,6 +245,15 @@ export namespace ApplicationParameterNS {
         type: ("network_ip");
     }
 
+    export interface PrivateNetwork {
+        name: string;
+        title: string;
+        description: string;
+        defaultValue?: any;
+        optional: boolean;
+        type: ("private_network");
+    }
+
     export interface Workflow {
         name: string;
         title: string;
@@ -295,6 +304,7 @@ export type ApplicationParameter =
     | ApplicationParameterNS.Ingress
     | ApplicationParameterNS.LicenseServer
     | ApplicationParameterNS.NetworkIP
+    | ApplicationParameterNS.PrivateNetwork
     | ApplicationParameterNS.Workflow
     | ApplicationParameterNS.Readme
     | ApplicationParameterNS.ModuleList

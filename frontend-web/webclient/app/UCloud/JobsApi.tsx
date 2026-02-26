@@ -40,6 +40,7 @@ export interface JobBinding {
 export interface JobSpecification extends ResourceSpecification {
     application: NameAndVersion;
     name?: string;
+    hostname?: string | null;
     replicas: number;
     allowDuplicateJob?: boolean;
     parameters: Record<string, AppParameterValue>;

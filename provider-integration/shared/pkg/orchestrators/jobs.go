@@ -122,6 +122,7 @@ type JobSpecification struct {
 	Product           apm.ProductReference         `json:"product"`
 	Application       NameAndVersion               `json:"application"`
 	Name              string                       `json:"name,omitempty"`
+	Hostname          util.Option[string]          `json:"hostname"`
 	Replicas          int                          `json:"replicas"`
 	AllowDuplicateJob bool                         `json:"allowDuplicateJob"` // deprecated
 	Parameters        map[string]AppParameterValue `json:"parameters"`
@@ -368,6 +369,11 @@ func VerifyParameterType(param *ApplicationParameter, value *AppParameterValue) 
 
 	case ApplicationParameterTypeModuleList:
 		if value.Type != AppParameterValueTypeModuleList {
+			return false
+		}
+
+	case ApplicationParameterTypePrivateNetwork:
+		if value.Type != AppParameterValueTypePrivateNetwork {
 			return false
 		}
 	}

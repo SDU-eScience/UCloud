@@ -319,6 +319,7 @@ const (
 	ApplicationParameterTypeWorkflow       ApplicationParameterType = "workflow"
 	ApplicationParameterTypeReadme         ApplicationParameterType = "readme"
 	ApplicationParameterTypeModuleList     ApplicationParameterType = "modules"
+	ApplicationParameterTypePrivateNetwork ApplicationParameterType = "private_network"
 )
 
 func ApplicationParameterInputFile(name string, optional bool, title string, description string) ApplicationParameter {
@@ -480,6 +481,16 @@ func ApplicationParameterReadme(readme string) ApplicationParameter {
 	}
 }
 
+func ApplicationParameterPrivateNetwork(name string, optional bool, title string, description string) ApplicationParameter {
+	return ApplicationParameter{
+		Type:        ApplicationParameterTypePrivateNetwork,
+		Name:        name,
+		Optional:    optional,
+		Title:       title,
+		Description: description,
+	}
+}
+
 // AppParameterValue
 
 type AppParameterValue struct {
@@ -497,19 +508,27 @@ type AppParameterValue struct {
 type AppParameterValueType string
 
 const (
-	AppParameterValueTypeFile          AppParameterValueType = "file"
-	AppParameterValueTypeBoolean       AppParameterValueType = "boolean"
-	AppParameterValueTypeText          AppParameterValueType = "text"
-	AppParameterValueTypeInteger       AppParameterValueType = "integer"
-	AppParameterValueTypeFloatingPoint AppParameterValueType = "floating_point"
-	AppParameterValueTypePeer          AppParameterValueType = "peer"
-	AppParameterValueTypeLicense       AppParameterValueType = "license_server"
-	AppParameterValueTypeBlockStorage  AppParameterValueType = "block_storage"
-	AppParameterValueTypeNetwork       AppParameterValueType = "network"
-	AppParameterValueTypeIngress       AppParameterValueType = "ingress"
-	AppParameterValueTypeWorkflow      AppParameterValueType = "workflow"
-	AppParameterValueTypeModuleList    AppParameterValueType = "modules"
+	AppParameterValueTypeFile           AppParameterValueType = "file"
+	AppParameterValueTypeBoolean        AppParameterValueType = "boolean"
+	AppParameterValueTypeText           AppParameterValueType = "text"
+	AppParameterValueTypeInteger        AppParameterValueType = "integer"
+	AppParameterValueTypeFloatingPoint  AppParameterValueType = "floating_point"
+	AppParameterValueTypePeer           AppParameterValueType = "peer"
+	AppParameterValueTypeLicense        AppParameterValueType = "license_server"
+	AppParameterValueTypeBlockStorage   AppParameterValueType = "block_storage"
+	AppParameterValueTypeNetwork        AppParameterValueType = "network"
+	AppParameterValueTypeIngress        AppParameterValueType = "ingress"
+	AppParameterValueTypeWorkflow       AppParameterValueType = "workflow"
+	AppParameterValueTypeModuleList     AppParameterValueType = "modules"
+	AppParameterValueTypePrivateNetwork AppParameterValueType = "private_network"
 )
+
+func AppParameterValuePrivateNetwork(networkId string) AppParameterValue {
+	return AppParameterValue{
+		Type: AppParameterValueTypePrivateNetwork,
+		Id:   networkId,
+	}
+}
 
 func AppParameterValueModuleList(modules []string) AppParameterValue {
 	return AppParameterValue{

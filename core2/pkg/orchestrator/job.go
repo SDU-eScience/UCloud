@@ -67,6 +67,7 @@ func initJobs() {
 			extra := &internalJob{
 				Application:    spec.Application,
 				Name:           spec.Name,
+				Hostname:       spec.Hostname,
 				Replicas:       spec.Replicas,
 				Parameters:     spec.Parameters,
 				Resources:      spec.Resources,
@@ -1216,6 +1217,11 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 				if value.Type != orcapi.AppParameterValueTypeModuleList {
 					return util.HttpErr(http.StatusBadRequest, "incorrect parameter type for '%s'", name)
 				}
+
+			case orcapi.ApplicationParameterTypePrivateNetwork:
+				if value.Type != orcapi.AppParameterValueTypePrivateNetwork {
+					return util.HttpErr(http.StatusBadRequest, "incorrect parameter type for '%s'", name)
+				}
 			}
 		}
 	}
@@ -1301,6 +1307,18 @@ func jobValidateValue(actor rpc.Actor, value *orcapi.AppParameterValue, backend 
 
 		if err != nil {
 			return util.HttpErr(http.StatusForbidden, "you cannot use this license")
+		}
+
+	case orcapi.AppParameterValueTypePrivateNetwork:
+		network, _, _, err := ResourceRetrieveEx[orcapi.PrivateNetwork](actor, privateNetworkType, ResourceParseId(value.Id),
+			orcapi.PermissionEdit, orcapi.ResourceFlags{IncludeProduct: true})
+
+		if err != nil {
+			return util.HttpErr(http.StatusForbidden, "you cannot use this network")
+		}
+
+		if network.Status.ResolvedProduct.Value.Category.Provider != support.Product.Category.Provider {
+			return util.HttpErr(http.StatusForbidden, "you cannot use this network at this provider")
 		}
 	}
 
@@ -1444,6 +1462,7 @@ const (
 type internalJob struct {
 	Application    orcapi.NameAndVersion
 	Name           string
+	Hostname       util.Option[string]
 	Replicas       int
 	Parameters     map[string]orcapi.AppParameterValue
 	Resources      []orcapi.AppParameterValue
@@ -1468,6 +1487,7 @@ func jobLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource
 		ApplicationVersion   string
 		CurrentState         string
 		TimeAllocationMillis sql.Null[int64]
+		Hostname             sql.Null[string]
 		Replicas             int
 		OutputFolder         sql.NullString
 		Name                 sql.NullString
@@ -1538,6 +1558,7 @@ func jobLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource
 				j.replicas,
 				j.output_folder,
 				j.name,
+				j.hostname,
 				j.started_at,
 				j.job_parameters as exported_parameters,
 				j.opened_file,
@@ -1566,6 +1587,7 @@ func jobLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource
 				Version: row.ApplicationVersion,
 			},
 			Name:              row.Name.String,
+			Hostname:          util.SqlNullToOpt(row.Hostname),
 			Replicas:          row.Replicas,
 			OpenedFile:        row.OpenedFile.String,
 			SshEnabled:        row.SshEnabled,
@@ -1675,9 +1697,9 @@ func jobPersist(b *db.Batch, r *resource) {
 				`
 					insert into app_orchestrator.jobs (application_name, application_version, time_allocation_millis, 
 						replicas, name, output_folder, current_state, started_at, resource, job_parameters, 
-						opened_file, ssh_enabled)
+						opened_file, ssh_enabled, hostname)
 					values (:app_name, :app_version, :time_alloc, :replicas, :name, :output_folder, :state, :started_at,
-						:resource, :exported_params, :opened_file, :ssh_enabled)
+						:resource, :exported_params, :opened_file, :ssh_enabled, :hostname)
 					on conflict (resource) do update set
 						application_name = excluded.application_name,
 						application_version = excluded.application_version,
@@ -1691,6 +1713,7 @@ func jobPersist(b *db.Batch, r *resource) {
 						job_parameters = excluded.job_parameters,
 						opened_file = excluded.opened_file,
 						ssh_enabled = excluded.ssh_enabled,
+						hostname = excluded.hostname,
 						last_update = now()
 				`,
 				db.Params{
@@ -1706,6 +1729,7 @@ func jobPersist(b *db.Batch, r *resource) {
 					"exported_params": exportedParams,
 					"opened_file":     util.OptSqlStringIfNotEmpty(info.OpenedFile),
 					"ssh_enabled":     info.SshEnabled,
+					"hostname":        info.Hostname.Sql(),
 				},
 			)
 		}
@@ -1825,6 +1849,7 @@ func jobTransform(
 			Product:        product.Value,
 			Application:    info.Application,
 			Name:           info.Name,
+			Hostname:       info.Hostname,
 			Replicas:       info.Replicas,
 			Parameters:     info.Parameters,
 			Resources:      info.Resources,

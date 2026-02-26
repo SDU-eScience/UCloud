@@ -25,6 +25,7 @@ import * as Heading from "@/ui-components/Heading";
 import {FolderResource, folderResourceAllowed} from "@/Applications/Jobs/Resources/Folders";
 import {IngressResource, ingressResourceAllowed} from "@/Applications/Jobs/Resources/Ingress";
 import {PeerResource, peerResourceAllowed} from "@/Applications/Jobs/Resources/Peers";
+import {PrivateNetworkResource} from "@/Applications/Jobs/Resources/PrivateNetworks";
 import {createSpaceForLoadedResources, injectResources, ResourceHook, useResource} from "@/Applications/Jobs/Resources";
 import {
     awaitReservationMount,
@@ -197,6 +198,8 @@ export const Create: React.FunctionComponent = () => {
         (name) => ({type: "input_directory", description: "", title: "", optional: true, name}));
     const peers = useResource("resourcePeer", provider,
         (name) => ({type: "peer", description: "", title: "", optional: true, name}));
+    const privateNetworks = useResource("resourcePrivateNetwork", provider,
+        (name) => ({type: "private_network", description: "", title: "", optional: true, name}));
 
     const [activeOptParams, setActiveOptParams] = useState<string[]>([]);
     const [reservationErrors, setReservationErrors] = useState<ReservationErrors>({});
@@ -296,11 +299,13 @@ export const Create: React.FunctionComponent = () => {
             const peersResources = validateWidgets(peers.params);
             const networkResources = validateWidgets(networks.params);
             const ingressResources = validateWidgets(ingress.params);
+            const privateNetworkResources = validateWidgets(privateNetworks.params);
             for (const err of [
                 ...Object.values(foldersResources.errors).map(it => "Folders: " + it),
                 ...Object.values(peersResources.errors).map(it => "Connected jobs: " + it),
                 ...Object.values(networkResources.errors).map(it => "IPs: " + it),
-                ...Object.values(ingressResources.errors).map(it => "Public link: " + it)
+                ...Object.values(ingressResources.errors).map(it => "Public link: " + it),
+                ...Object.values(privateNetworkResources.errors).map(it => "Private network: " + it)
             ]) {
                 snackbarStore.addFailure(err, false);
             }
@@ -311,7 +316,8 @@ export const Create: React.FunctionComponent = () => {
                 resources: Object.values(foldersResources.values)
                     .concat(Object.values(peersResources.values))
                     .concat(Object.values(ingressResources.values))
-                    .concat(Object.values(networkResources.values)),
+                    .concat(Object.values(networkResources.values))
+                    .concat(Object.values(privateNetworkResources.values)),
                 sshEnabled: sshEnabledRef.current
             }];
         }
@@ -367,7 +373,7 @@ export const Create: React.FunctionComponent = () => {
             );
 
             findProviderMismatches(
-                provider, {errors, params, setErrors}, networks, folders, peers, ingress
+                provider, {errors, params, setErrors}, networks, folders, peers, ingress, privateNetworks
             );
         }
     }, [provider, application]);
@@ -446,14 +452,19 @@ export const Create: React.FunctionComponent = () => {
             const newSpace = createSpaceForLoadedResources(networks, resources, "network");
             setTimeout(() => injectResources(newSpace, resources, "network"), 0);
         }
+        if (hasFeature(Feature.NEW_VM_UI)) {
+            const newSpace = createSpaceForLoadedResources(privateNetworks, resources, "private_network");
+            setTimeout(() => injectResources(newSpace, resources, "private_network"), 0);
+        }
 
         folders.setErrors({});
         ingress.setErrors({});
         networks.setErrors({});
         peers.setErrors({});
+        privateNetworks.setErrors({});
         setErrors({});
         setReservationErrors({});
-    }, [application, activeOptParams, folders, peers, networks, ingress, parameters]);
+    }, [application, activeOptParams, folders, peers, networks, ingress, privateNetworks, parameters]);
 
     const reloadCount = 3;
     const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
@@ -493,17 +504,20 @@ export const Create: React.FunctionComponent = () => {
         const ingressValidation = validateWidgets(ingress.params);
         ingress.setErrors(ingressValidation.errors);
 
+        const privateNetworkValidation = validateWidgets(privateNetworks.params);
+        privateNetworks.setErrors(privateNetworkValidation.errors);
+
         if (Object.keys(errors).length === 0 &&
             reservationValidation.options !== undefined &&
             Object.keys(foldersValidation.errors).length === 0 &&
-            Object.keys(peersValidation.errors).length === 0
+            Object.keys(peersValidation.errors).length === 0 &&
+            Object.keys(privateNetworkValidation.errors).length === 0
         ) {
             const dnsHostnameForSubmission = hasCustomDnsHostname
                 ? toDnsSafeHostname(dnsHostname)
                 : toDnsSafeHostname(
                     reservationValidation.options.name || `${application.metadata.title}-${dnsHostnameSeed.current}`
                 );
-            void dnsHostnameForSubmission; // TODO Use this
 
             const request: JobSpecification = {
                 ...reservationValidation.options,
@@ -512,9 +526,11 @@ export const Create: React.FunctionComponent = () => {
                 resources: Object.values(foldersValidation.values)
                     .concat(Object.values(peersValidation.values))
                     .concat(Object.values(ingressValidation.values))
-                    .concat(Object.values(networkValidation.values)),
+                    .concat(Object.values(networkValidation.values))
+                    .concat(Object.values(privateNetworkValidation.values)),
                 sshEnabled,
-                allowDuplicateJob
+                allowDuplicateJob,
+                hostname: dnsHostnameForSubmission,
             };
 
             try {
@@ -551,7 +567,7 @@ export const Create: React.FunctionComponent = () => {
                 }
             }
         }
-    }, [application, folders, peers, ingress, networks, navigate, hasCustomDnsHostname, dnsHostname]);
+    }, [application, folders, peers, ingress, networks, privateNetworks, navigate, hasCustomDnsHostname, dnsHostname]);
 
     if (applicationResp.loading || isInitialMount) return <MainContainer main={<LoadingIcon size={36} />} />;
 
@@ -588,7 +604,7 @@ export const Create: React.FunctionComponent = () => {
 
     const errorCount = countMandatoryAndOptionalErrors(parameters.filter(it =>
         PARAMETER_TYPE_FILTER.includes(it.type)
-    ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors);
+    ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors, privateNetworks.errors);
     const anyError = errorCount > 0;
 
     const appGroup = applicationResp?.data;
@@ -774,6 +790,13 @@ export const Create: React.FunctionComponent = () => {
                             {...folders}
                             application={application}
                         />
+
+                        {!hasFeature(Feature.NEW_VM_UI) ? null : (
+                            <PrivateNetworkResource
+                                {...privateNetworks}
+                                application={application}
+                            />
+                        )}
 
                         {/*Workflow*/}
                         {mandatoryWorkflow.length === 0 ? null : (

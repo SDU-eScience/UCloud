@@ -12,6 +12,7 @@ import {PeerParameter, PeerSetter, PeerValidator} from "@/Applications/Jobs/Widg
 import {LicenseParameter, LicenseSetter, LicenseValidator} from "@/Applications/Jobs/Widgets/License";
 import {IngressParameter, IngressSetter, IngressValidator} from "@/Applications/Jobs/Widgets/Ingress";
 import {NetworkIPParameter, NetworkIPSetter, NetworkIPValidator} from "@/Applications/Jobs/Widgets/NetworkIP";
+import {PrivateNetworkParameter, PrivateNetworkSetter, PrivateNetworkValidator} from "@/Applications/Jobs/Widgets/PrivateNetwork";
 import {ButtonClass} from "@/ui-components/Button";
 import {JobCreateInput} from "./Reservation";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
@@ -51,6 +52,8 @@ const WidgetBody: React.FunctionComponent<WidgetProps> = props => {
             return <IngressParameter {...props} parameter={props.parameter} />;
         case "network_ip":
             return <NetworkIPParameter {...props} parameter={props.parameter} />;
+        case "private_network":
+            return <PrivateNetworkParameter {...props} parameter={props.parameter} />;
         case "workflow":
             return <WorkflowParameter {...props} parameter={props.parameter} />;
         case "readme":
@@ -69,6 +72,7 @@ const validators: WidgetValidator[] = [
     LicenseValidator,
     IngressValidator,
     NetworkIPValidator,
+    PrivateNetworkValidator,
     WorkflowValidator,
     ModuleListValidator,
 ];
@@ -82,6 +86,7 @@ const setters: WidgetSetter[] = [
     LicenseSetter,
     IngressSetter,
     NetworkIPSetter,
+    PrivateNetworkSetter,
     WorkflowSetter,
     ModuleListSetter,
 ];

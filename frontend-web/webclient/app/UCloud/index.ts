@@ -1576,6 +1576,7 @@ export type AppParameterValue =
     | AppParameterValueNS.Ingress
     | AppParameterValueNS.Workflow
     | AppParameterValueNS.ModuleList
+    | AppParameterValueNS.PrivateNetwork
     ;
 export interface SimpleDuration {
     hours: number /* int32 */,
@@ -2704,6 +2705,11 @@ export interface Workflow {
 export interface ModuleList {
     type: ("modules"),
     modules: string[];
+}
+
+export interface PrivateNetwork {
+    id: string,
+    type: ("private_network"),
 }
 }
 export namespace NetworkIPSpecificationNS {

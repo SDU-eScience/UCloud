@@ -271,16 +271,28 @@ func privateNetworkTransform(
 ) any {
 	network := extra.(*internalPrivateNetwork)
 
-	return orcapi.PrivateNetwork{
+	result := orcapi.PrivateNetwork{
 		Resource: r,
 		Specification: orcapi.PrivateNetworkSpecification{
 			Name:      network.Name,
 			Subdomain: network.Subdomain,
+			ResourceSpecification: orcapi.ResourceSpecification{
+				Product: product.Value,
+			},
 		},
 		Status: orcapi.PrivateNetworkStatus{
 			Members: []string{},
 		},
 	}
+
+	if flags.IncludeProduct || flags.IncludeSupport {
+		support, _ := SupportByProduct[orcapi.PrivateNetworkSupport](privateNetworkType, product.Value)
+		result.Status.ResourceStatus = orcapi.ResourceStatus[orcapi.PrivateNetworkSupport]{
+			ResolvedSupport: util.OptValue(support.ToApi()),
+			ResolvedProduct: util.OptValue(support.Product),
+		}
+	}
+	return result
 }
 
 var privateNetworkSubdomainRegex = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,254}[A-Za-z0-9])?$`)

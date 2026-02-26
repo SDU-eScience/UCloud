@@ -143,7 +143,7 @@ func vmiFsMutator() {
 			if labels == nil {
 				labels = make(map[string]string)
 			}
-			name, ok := labels["vm.kubevirt.io/name"]
+			name, ok := labels["ucloud.dk/vmName"]
 			if !ok {
 				log.Info("Rejecting %s because no label annotation is present", pod.Name)
 				allowed = false
@@ -181,7 +181,7 @@ func vmiFsMutator() {
 						volPath, ok1 := annotations[fmt.Sprintf("ucloud.dk/vmVolPath-%s", mount.Name)]
 						readOnly, ok2 := annotations[fmt.Sprintf("ucloud.dk/vmVolReadOnly-%s", mount.Name)]
 						if !ok1 && !ok2 {
-							log.Info("Rejecting %s because annotations are not present on VM: %s, %s", mount.Name, volPath, readOnly)
+							log.Info("Rejecting %s because annotations are not present on VM: %s, %v", mount.Name, volPath, readOnly)
 							allowed = false
 						} else {
 							ops = append(ops, jsonPatchOp{
@@ -792,6 +792,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		},
 	}
 
+	vm.Spec.Template.ObjectMeta.Labels = map[string]string{}
+	vm.Spec.Template.ObjectMeta.Labels["ucloud.dk/vmName"] = vm.Name
+
 	tplSpec := &vm.Spec.Template.Spec
 
 	type mountEntry struct {
@@ -1033,6 +1036,18 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			},
 		},
 	)
+
+	dnsConfig, herr := shared.PrivateNetworkCreateDnsConfig(job)
+	if herr != nil {
+		return herr
+	}
+
+	tplSpec.Hostname = dnsConfig.Hostname
+	tplSpec.Subdomain = dnsConfig.Subdomain
+	tplSpec.DNSConfig = dnsConfig.PodDns
+	for label, value := range dnsConfig.Labels {
+		vm.Spec.Template.ObjectMeta.Labels[label] = value
+	}
 
 	if hasExistingVm {
 		_, err = KubevirtClient.VirtualMachine(Namespace).Update(context.Background(), vm, k8smeta.UpdateOptions{})

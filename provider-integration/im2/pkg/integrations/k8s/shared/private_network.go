@@ -3,6 +3,7 @@ package shared
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"sync"
 
@@ -142,4 +143,46 @@ func PrivateNetworkDelete(network *orc.PrivateNetwork) *util.HttpError {
 	}
 
 	return controller.PrivateNetworkDelete(network)
+}
+
+type PrivateNetworkDnsConfig struct {
+	Hostname  string
+	Subdomain string
+	PodDns    *k8score.PodDNSConfig
+	Labels    map[string]string
+}
+
+func PrivateNetworkCreateDnsConfig(job *orc.Job) (PrivateNetworkDnsConfig, *util.HttpError) {
+	result := PrivateNetworkDnsConfig{}
+	result.Labels = map[string]string{}
+	result.Hostname = job.Specification.Hostname.GetOrDefault(
+		fmt.Sprintf("%s-%v", job.Status.ResolvedApplication.Value.Metadata.Title, rand.Intn(9999)))
+
+	var networks []orc.PrivateNetwork
+	for _, resc := range job.Specification.Resources {
+		if resc.Type == orc.AppParameterValueTypePrivateNetwork {
+			network, ok := controller.PrivateNetworkRetrieve(resc.Id)
+			if ok {
+				networks = append(networks, network)
+			}
+		}
+	}
+
+	if len(networks) > 0 {
+		result.Subdomain = networks[0].Specification.Subdomain
+		result.PodDns = &k8score.PodDNSConfig{}
+
+		baseDomain := fmt.Sprintf("%s.svc.cluster.local", ServiceConfig.Compute.Namespace)
+
+		for _, network := range networks {
+			result.PodDns.Searches = append(result.PodDns.Searches, fmt.Sprintf("%s.%s", network.Specification.Subdomain, baseDomain))
+			result.Labels[PrivateNetworkLabel(network.Specification.Subdomain)] = "true"
+		}
+
+		result.PodDns.Searches = append(result.PodDns.Searches, baseDomain)
+		result.PodDns.Searches = append(result.PodDns.Searches, "svc.cluster.local")
+		result.PodDns.Searches = append(result.PodDns.Searches, "cluster.local")
+	}
+
+	return result, nil
 }
