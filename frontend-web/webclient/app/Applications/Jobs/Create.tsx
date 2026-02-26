@@ -478,7 +478,6 @@ export const Create: React.FunctionComponent = () => {
         if (!application) return;
 
         const {errors, values} = validateWidgets(parameters!);
-        setErrors(errors)
 
         const reservationValidation = validateReservation();
         setReservationErrors(reservationValidation.errors);
@@ -493,12 +492,34 @@ export const Create: React.FunctionComponent = () => {
         networks.setErrors(networkValidation.errors);
 
         const ingressValidation = validateWidgets(ingress.params);
-        ingress.setErrors(ingressValidation.errors);
 
-        if (Object.keys(errors).length === 0 &&
+        const parameterErrors = {...errors};
+        const ingressErrors = {...ingressValidation.errors};
+
+        const duplicateIngressFields = findDuplicateIngressFields(values, ingressValidation.values);
+        if (duplicateIngressFields.length > 0) {
+            const duplicateMessage = "The same public link cannot be attached more than once";
+            const ingressResourceNames = new Set(ingress.params.map(it => it.name));
+            for (const fields of duplicateIngressFields) {
+                for (const field of fields) {
+                    if (ingressResourceNames.has(field)) {
+                        ingressErrors[field] = duplicateMessage;
+                    } else {
+                        parameterErrors[field] = duplicateMessage;
+                    }
+                }
+            }
+            snackbarStore.addFailure(duplicateMessage, false);
+        }
+
+        setErrors(parameterErrors);
+        ingress.setErrors(ingressErrors);
+
+        if (Object.keys(parameterErrors).length === 0 &&
             reservationValidation.options !== undefined &&
             Object.keys(foldersValidation.errors).length === 0 &&
-            Object.keys(peersValidation.errors).length === 0
+            Object.keys(peersValidation.errors).length === 0 &&
+            Object.keys(ingressErrors).length === 0
         ) {
             const request: JobSpecification = {
                 ...reservationValidation.options,
@@ -875,6 +896,33 @@ function getParameterName(param: Pick<ApplicationParameter, "type" | "name">): s
         default:
             return param.name;
     }
+}
+
+function findDuplicateIngressFields(
+    parameterValues: Record<string, {type: string; id?: string}>,
+    resourceValues: Record<string, {type: string; id?: string}>
+): string[][] {
+    const fieldsByIngressId = new Map<string, string[]>();
+
+    const register = (fieldName: string, value: {type: string; id?: string}) => {
+        if (value.type !== "ingress" || !value.id) return;
+        const fields = fieldsByIngressId.get(value.id);
+        if (fields) {
+            fields.push(fieldName);
+        } else {
+            fieldsByIngressId.set(value.id, [fieldName]);
+        }
+    };
+
+    for (const [fieldName, value] of Object.entries(parameterValues)) {
+        register(fieldName, value);
+    }
+
+    for (const [fieldName, value] of Object.entries(resourceValues)) {
+        register(fieldName, value);
+    }
+
+    return [...fieldsByIngressId.values()].filter(fields => fields.length > 1);
 }
 
 function findProviderMismatches(

@@ -21,6 +21,40 @@ interface IngressProps extends WidgetProps {
 export const IngressParameter: React.FunctionComponent<IngressProps> = props => {
     const error = props.errors[props.parameter.name] != null;
 
+    const selectedIngressIdsInOtherFields = useCallback((): Set<string> => {
+        const result = new Set<string>();
+        const currentWidgetId = widgetId(props.parameter);
+        const inputs = document.querySelectorAll<HTMLInputElement>(
+            '[data-component="app-parameter"][data-param-type="ingress"] input[type="hidden"][id^="app-param-"]'
+        );
+
+        inputs.forEach(input => {
+            if (input.id === currentWidgetId) return;
+            if (input.value !== "") {
+                result.add(input.value);
+            }
+        });
+
+        return result;
+    }, [props.parameter]);
+
+    const onUse = useCallback((network: PublicLink) => {
+        IngressSetter(props.parameter, {type: "ingress", id: network.id});
+        WidgetSetProvider(props.parameter, network.specification.product.provider);
+        if (props.errors[props.parameter.name]) {
+            delete props.errors[props.parameter.name];
+            props.setErrors({...props.errors});
+        }
+    }, [props.parameter, props.errors]);
+
+    const filters = React.useMemo(() => {
+        const filters = {
+            filterState: "READY",
+        };
+        if (props.provider) filters["filterProvider"] = props.provider;
+        return filters;
+    }, [props.provider]);
+
     const doOpen = useCallback(() => {
         dialogStore.addDialog(<PublicLinkBrowse
             opts={{
@@ -33,23 +67,23 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
                     show(res) {
                         const errorMessage = checkProviderMismatch(res, "Public links");
                         if (errorMessage) return errorMessage;
-                        return res.status.boundTo.length === 0;
+
+                        if (selectedIngressIdsInOtherFields().has(res.id)) {
+                            return "This public link is already selected in this job";
+                        }
+
+                        if (res.status.boundTo.length > 0) {
+                            return "This public link is already in use";
+                        }
+
+                        return true;
                     }
                 },
                 isModal: true,
                 additionalFilters: filters
             }}
         />, noopCall, true, largeModalStyle);
-    }, []);
-
-    const onUse = useCallback((network: PublicLink) => {
-        IngressSetter(props.parameter, {type: "ingress", id: network.id});
-        WidgetSetProvider(props.parameter, network.specification.product.provider);
-        if (props.errors[props.parameter.name]) {
-            delete props.errors[props.parameter.name];
-            props.setErrors({...props.errors});
-        }
-    }, [props.parameter, props.errors]);
+    }, [filters, onUse, selectedIngressIdsInOtherFields]);
 
     const valueInput = () => {
         return document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
@@ -83,14 +117,6 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
         return () => {
             value!.removeEventListener("change", listener);
         }
-    }, []);
-
-    const filters = React.useMemo(() => {
-        const filters = {
-            filterState: "READY",
-        };
-        if (props.provider) filters["filterProvider"] = props.provider;
-        return filters;
     }, []);
 
     return (<Flex>

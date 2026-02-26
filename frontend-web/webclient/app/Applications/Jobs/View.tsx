@@ -1151,15 +1151,19 @@ const RunningContent: React.FunctionComponent<{
         }
     }, [job.updates.length]);
 
-    const ingresses = job.specification.resources.filter(it => it.type === "ingress") as AppParameterValueNS.Ingress[];
+    const ingressResources = job.specification.resources.filter(it => it.type === "ingress") as AppParameterValueNS.Ingress[];
     const peers = job.specification.resources.filter(it => it.type === "peer") as AppParameterValueNS.Peer[];
 
     if (localStorage.getItem("fakeLinks")) {
-        ingresses.push({
+        ingressResources.push({
             id: "fake-link",
             type: "ingress"
         });
     }
+
+    const ingresses = Array.from(
+        new Map(ingressResources.map(ingress => [ingress.id, ingress])).values()
+    );
 
     if (localStorage.getItem("fakePeers")) {
         for (let i = 1; i <= 15; i++) {

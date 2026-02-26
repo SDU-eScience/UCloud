@@ -1050,6 +1050,11 @@ func jobsFollow(conn *ws.Conn) {
 func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *util.HttpError {
 	var err *util.HttpError
 
+	err = jobValidateNoDuplicateIngress(spec)
+	if err != nil {
+		return err
+	}
+
 	app, ok := AppRetrieve(actor, spec.Application.Name, spec.Application.Version, AppDiscoveryAll, 0)
 	if !ok {
 		return util.HttpErr(http.StatusBadRequest, "unknown application requested")
@@ -1234,6 +1239,39 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 			if !ok {
 				return util.HttpErr(http.StatusBadRequest, "missing value for '%s'", name)
 			}
+		}
+	}
+
+	return nil
+}
+
+func jobValidateNoDuplicateIngress(spec *orcapi.JobSpecification) *util.HttpError {
+	seenIngressIds := map[string]util.Empty{}
+
+	validate := func(value orcapi.AppParameterValue) *util.HttpError {
+		if value.Type != orcapi.AppParameterValueTypeIngress {
+			return nil
+		}
+
+		if _, exists := seenIngressIds[value.Id]; exists {
+			return util.HttpErr(http.StatusBadRequest, "the same public link cannot be attached more than once")
+		}
+
+		seenIngressIds[value.Id] = util.Empty{}
+		return nil
+	}
+
+	for _, value := range spec.Resources {
+		err := validate(value)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, value := range spec.Parameters {
+		err := validate(value)
+		if err != nil {
+			return err
 		}
 	}
 

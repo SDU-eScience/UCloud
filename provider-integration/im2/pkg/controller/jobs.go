@@ -181,6 +181,12 @@ func initJobs() {
 					continue
 				}
 
+				err := jobValidateNoDuplicateIngress(&item.Specification)
+				if err != nil {
+					errors = append(errors, err)
+					continue
+				}
+
 				JobTrackNew(item)
 
 				providerGeneratedId, err := Jobs.Submit(item)
@@ -1385,6 +1391,39 @@ const (
 	RegisteredIngressFlagsNoGatewayConfig
 	RegisteredIngressFlagsNoPersist
 )
+
+func jobValidateNoDuplicateIngress(spec *orcapi.JobSpecification) *util.HttpError {
+	seenIngressIds := map[string]util.Empty{}
+
+	validate := func(value orcapi.AppParameterValue) *util.HttpError {
+		if value.Type != orcapi.AppParameterValueTypeIngress {
+			return nil
+		}
+
+		if _, exists := seenIngressIds[value.Id]; exists {
+			return util.HttpErr(http.StatusBadRequest, "the same public link cannot be attached more than once")
+		}
+
+		seenIngressIds[value.Id] = util.Empty{}
+		return nil
+	}
+
+	for _, value := range spec.Resources {
+		err := validate(value)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, value := range spec.Parameters {
+		err := validate(value)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 // ToHostnameSafe transforms a string into a hostname-safe version
 func ToHostnameSafe(input string) string {
