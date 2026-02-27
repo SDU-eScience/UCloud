@@ -39,7 +39,7 @@ type JobsService struct {
 	RetrieveProducts         func() []orcapi.JobSupport
 	Follow                   func(session *FollowJobSession)
 	HandleShell              func(session *ShellSession, cols, rows int)
-	ServerFindIngress        func(job *orcapi.Job, rank int, suffix util.Option[string]) ConfiguredWebIngress
+	ServerFindIngress        func(job *orcapi.Job, rank int, suffix util.Option[string]) []ConfiguredWebIngress
 	OpenWebSession           func(job *orcapi.Job, rank int, target util.Option[string]) (ConfiguredWebSession, *util.HttpError)
 	RequestDynamicParameters func(owner orcapi.ResourceOwner, app *orcapi.Application) []orcapi.ApplicationParameter
 	HandleBuiltInVnc         func(job *orcapi.Job, rank int, conn *ws.Conn)
@@ -1465,14 +1465,16 @@ func IngressRegisterWithJob(job *orcapi.Job, rank int, target cfg.HostInfo, requ
 		webSessionsMutex.RUnlock()
 
 		if needInit {
-			var ingressConfig ConfiguredWebIngress
+			var ingressConfigs []ConfiguredWebIngress
 
 			if isWeb {
-				ingressConfig = Jobs.ServerFindIngress(job, rank, util.Option[string]{Present: requestedSuffix.Present, Value: suffix})
+				ingressConfigs = Jobs.ServerFindIngress(job, rank, util.Option[string]{Present: requestedSuffix.Present, Value: suffix})
 			} else {
-				ingressConfig = ConfiguredWebIngress{
-					IsPublic:     false,
-					TargetDomain: cfg.Provider.Hosts.SelfPublic.Address,
+				ingressConfigs = []ConfiguredWebIngress{
+					{
+						IsPublic:     false,
+						TargetDomain: cfg.Provider.Hosts.SelfPublic.Address,
+					},
 				}
 			}
 
@@ -1490,59 +1492,62 @@ func IngressRegisterWithJob(job *orcapi.Job, rank int, target cfg.HostInfo, requ
 			}
 			ingress, ok = session.IngressBySuffix[suffix]
 			if !ok {
-				token := util.Option[string]{}
-				if !ingressConfig.IsPublic {
-					token.Set(util.RandomToken(12))
-				}
+				for _, ingressConfig := range ingressConfigs {
+					token := util.Option[string]{}
+					if !ingressConfig.IsPublic {
+						token.Set(util.RandomToken(12))
+					}
 
-				ingress = webSessionIngress{
-					JobId:     job.Id,
-					Rank:      rank,
-					Target:    target,
-					Suffix:    suffix,
-					Flags:     flags,
-					AuthToken: token,
-					Address:   ingressConfig.TargetDomain,
-				}
+					ingress = webSessionIngress{
+						JobId:     job.Id,
+						Rank:      rank,
+						Target:    target,
+						Suffix:    suffix,
+						Flags:     flags,
+						AuthToken: token,
+						Address:   ingressConfig.TargetDomain,
+					}
 
-				session.IngressBySuffix[suffix] = ingress
+					session.IngressBySuffix[suffix] = ingress
 
-				if flags&RegisteredIngressFlagsNoPersist == 0 {
-					db.NewTx0(func(tx *db.Transaction) {
-						sqlSuffix := sql.NullString{}
-						if suffix != "" {
-							sqlSuffix.Valid = true
-							sqlSuffix.String = suffix
-						}
+					if flags&RegisteredIngressFlagsNoPersist == 0 {
+						db.NewTx0(func(tx *db.Transaction) {
+							sqlSuffix := sql.NullString{}
+							if suffix != "" {
+								sqlSuffix.Valid = true
+								sqlSuffix.String = suffix
+							}
 
-						sqlToken := sql.NullString{}
-						if token.Present {
-							sqlToken.Valid = true
-							sqlToken.String = token.Value
-						}
+							sqlToken := sql.NullString{}
+							if token.Present {
+								sqlToken.Valid = true
+								sqlToken.String = token.Value
+							}
 
-						db.Exec(
-							tx,
-							`
-								insert into web_sessions(job_id, rank, target_address, target_port, address, suffix, 
-									auth_token, flags) 
-								values (:job_id, :rank, :target_address, :target_port, :address, :suffix, 
-									:auth_token, :flags)
-							`,
-							db.Params{
-								"job_id":         job.Id,
-								"rank":           rank,
-								"target_address": target.Address,
-								"target_port":    target.Port,
-								"suffix":         sqlSuffix,
-								"auth_token":     sqlToken,
-								"flags":          flags,
-								"address":        ingressConfig.TargetDomain,
-							},
-						)
-					})
+							db.Exec(
+								tx,
+								`
+									insert into web_sessions(job_id, rank, target_address, target_port, address, suffix, 
+										auth_token, flags) 
+									values (:job_id, :rank, :target_address, :target_port, :address, :suffix, 
+										:auth_token, :flags)
+								`,
+								db.Params{
+									"job_id":         job.Id,
+									"rank":           rank,
+									"target_address": target.Address,
+									"target_port":    target.Port,
+									"suffix":         sqlSuffix,
+									"auth_token":     sqlToken,
+									"flags":          flags,
+									"address":        ingressConfig.TargetDomain,
+								},
+							)
+						})
+					}
 				}
 			}
+
 			webSessionsMutex.Unlock()
 			jobRoutesRefresh()
 		}
@@ -1640,7 +1645,7 @@ func jobRoutesRefresh() {
 	webSessionsMutex.Lock()
 	var sessionsToDelete []jobIdAndRank
 	for key, session := range webSessions {
-		job, ok := allJobsById[key.JobId]
+		_, ok := allJobsById[key.JobId]
 		if !ok {
 			sessionsToDelete = append(sessionsToDelete, key)
 		} else {
@@ -1679,25 +1684,6 @@ func jobRoutesRefresh() {
 								Type:         routeType,
 							},
 						})
-
-						if !isVnc && !ingress.AuthToken.Present {
-							routedDomains := map[string]util.Empty{ingress.Address: {}}
-							for _, domain := range jobAttachedIngressDomains(job) {
-								if _, alreadyRouted := routedDomains[domain]; alreadyRouted {
-									continue
-								}
-
-								routedDomains[domain] = util.Empty{}
-								gw.SendMessage(gw.ConfigurationMessage{
-									RouteUp: &gw.EnvoyRoute{
-										Cluster:      clusterName,
-										CustomDomain: domain,
-										AuthTokens:   tokens,
-										Type:         routeType,
-									},
-								})
-							}
-						}
 					}
 				}
 			}
@@ -1735,30 +1721,4 @@ func jobRoutesRefresh() {
 	}
 
 	webSessionsMutex.Unlock()
-}
-
-func jobAttachedIngressDomains(job *orcapi.Job) []string {
-	uniqueDomains := map[string]util.Empty{}
-	var domains []string
-
-	for _, resource := range job.Specification.Resources {
-		if resource.Type != orcapi.AppParameterValueTypeIngress {
-			continue
-		}
-
-		ingress := LinkRetrieve(resource.Id)
-		domain := strings.TrimSpace(ingress.Specification.Domain)
-		if domain == "" {
-			continue
-		}
-
-		if _, exists := uniqueDomains[domain]; exists {
-			continue
-		}
-
-		uniqueDomains[domain] = util.Empty{}
-		domains = append(domains, domain)
-	}
-
-	return domains
 }
