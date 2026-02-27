@@ -1327,6 +1327,10 @@ type webSession struct {
 	IngressInitialized map[string]util.Empty
 }
 
+func ingressMapKey(suffix string, domain string) string {
+	return suffix + "|" + domain
+}
+
 type webSessionIngress struct {
 	JobId     string
 	Rank      int
@@ -1454,13 +1458,16 @@ func IngressRegisterWithJob(job *orcapi.Job, rank int, target cfg.HostInfo, requ
 			JobId: job.Id,
 			Rank:  rank,
 		}
-		needInit := false
+		needInit := true
 		session, ok := webSessions[key]
 		if ok {
-			ingress, ok = session.IngressBySuffix[suffix]
-			needInit = !ok
-		} else {
-			needInit = true
+			for _, existing := range session.IngressBySuffix {
+				if existing.Suffix == suffix {
+					ingress = existing
+					needInit = false
+					break
+				}
+			}
 		}
 		webSessionsMutex.RUnlock()
 
@@ -1490,61 +1497,64 @@ func IngressRegisterWithJob(job *orcapi.Job, rank int, target cfg.HostInfo, requ
 
 				webSessions[key] = session
 			}
-			ingress, ok = session.IngressBySuffix[suffix]
-			if !ok {
-				for _, ingressConfig := range ingressConfigs {
-					token := util.Option[string]{}
-					if !ingressConfig.IsPublic {
-						token.Set(util.RandomToken(12))
-					}
 
-					ingress = webSessionIngress{
-						JobId:     job.Id,
-						Rank:      rank,
-						Target:    target,
-						Suffix:    suffix,
-						Flags:     flags,
-						AuthToken: token,
-						Address:   ingressConfig.TargetDomain,
-					}
+			for _, ingressConfig := range ingressConfigs {
+				mapKey := ingressMapKey(suffix, ingressConfig.TargetDomain)
+				if _, exists := session.IngressBySuffix[mapKey]; exists {
+					continue
+				}
 
-					session.IngressBySuffix[suffix] = ingress
+				token := util.OptNone[string]()
+				if !ingressConfig.IsPublic {
+					token.Set(util.RandomToken(12))
+				}
 
-					if flags&RegisteredIngressFlagsNoPersist == 0 {
-						db.NewTx0(func(tx *db.Transaction) {
-							sqlSuffix := sql.NullString{}
-							if suffix != "" {
-								sqlSuffix.Valid = true
-								sqlSuffix.String = suffix
-							}
+				ingress = webSessionIngress{
+					JobId:     job.Id,
+					Rank:      rank,
+					Target:    target,
+					Suffix:    suffix,
+					Flags:     flags,
+					AuthToken: token,
+					Address:   ingressConfig.TargetDomain,
+				}
 
-							sqlToken := sql.NullString{}
-							if token.Present {
-								sqlToken.Valid = true
-								sqlToken.String = token.Value
-							}
+				session.IngressBySuffix[mapKey] = ingress
 
-							db.Exec(
-								tx,
-								`
-									insert into web_sessions(job_id, rank, target_address, target_port, address, suffix, 
-										auth_token, flags) 
-									values (:job_id, :rank, :target_address, :target_port, :address, :suffix, 
-										:auth_token, :flags)
-								`,
-								db.Params{
-									"job_id":         job.Id,
-									"rank":           rank,
-									"target_address": target.Address,
-									"target_port":    target.Port,
-									"suffix":         sqlSuffix,
-									"auth_token":     sqlToken,
-									"flags":          flags,
-									"address":        ingressConfig.TargetDomain,
-								},
-							)
-						})
-					}
+				if flags&RegisteredIngressFlagsNoPersist == 0 {
+					db.NewTx0(func(tx *db.Transaction) {
+						sqlSuffix := sql.NullString{}
+						if suffix != "" {
+							sqlSuffix.Valid = true
+							sqlSuffix.String = suffix
+						}
+
+						sqlToken := sql.NullString{}
+						if token.Present {
+							sqlToken.Valid = true
+							sqlToken.String = token.Value
+						}
+
+						db.Exec(
+							tx,
+							`
+								insert into web_sessions(job_id, rank, target_address, target_port, address, suffix, 
+									auth_token, flags) 
+								values (:job_id, :rank, :target_address, :target_port, :address, :suffix, 
+									:auth_token, :flags)
+							`,
+							db.Params{
+								"job_id":         job.Id,
+								"rank":           rank,
+								"target_address": target.Address,
+								"target_port":    target.Port,
+								"suffix":         sqlSuffix,
+								"auth_token":     sqlToken,
+								"flags":          flags,
+								"address":        ingressConfig.TargetDomain,
+							},
+						)
+					})
 				}
 			}
 
@@ -1612,7 +1622,8 @@ func jobsLoadSessions() {
 				tok.Set(row.AuthToken.String)
 			}
 
-			session.IngressBySuffix[row.Suffix.String] = webSessionIngress{
+			mapKey := ingressMapKey(row.Suffix.String, row.Address)
+			session.IngressBySuffix[mapKey] = webSessionIngress{
 				JobId: row.JobId,
 				Rank:  row.Rank,
 				Target: cfg.HostInfo{
@@ -1649,9 +1660,9 @@ func jobRoutesRefresh() {
 		if !ok {
 			sessionsToDelete = append(sessionsToDelete, key)
 		} else {
-			for suffix, ingress := range session.IngressBySuffix {
-				if _, didInit := session.IngressInitialized[suffix]; !didInit {
-					session.IngressInitialized[suffix] = util.Empty{}
+			for ingressKey, ingress := range session.IngressBySuffix {
+				if _, didInit := session.IngressInitialized[ingressKey]; !didInit {
+					session.IngressInitialized[ingressKey] = util.Empty{}
 
 					flags := ingress.Flags
 					isVnc := (flags & RegisteredIngressFlagsVnc) != 0
@@ -1667,7 +1678,7 @@ func jobRoutesRefresh() {
 							tokens = []string{ingress.AuthToken.Value}
 						}
 
-						clusterName := getClusterName(session, suffix)
+						clusterName := getClusterName(session, ingress.Suffix)
 
 						gw.SendMessage(gw.ConfigurationMessage{
 							ClusterUp: &gw.EnvoyCluster{
@@ -1696,9 +1707,14 @@ func jobRoutesRefresh() {
 		session := webSessions[toDeleteKey]
 		delete(webSessions, toDeleteKey)
 
-		for suffix := range session.IngressBySuffix {
-			if _, didInit := session.IngressInitialized[suffix]; didInit {
-				clusterName := getClusterName(session, suffix)
+		clustersToDelete := map[string]util.Empty{}
+		for ingressKey, ingress := range session.IngressBySuffix {
+			if _, didInit := session.IngressInitialized[ingressKey]; didInit {
+				clusterName := getClusterName(session, ingress.Suffix)
+				if _, alreadyDeleted := clustersToDelete[clusterName]; alreadyDeleted {
+					continue
+				}
+				clustersToDelete[clusterName] = util.Empty{}
 
 				// NOTE(Dan): Routes are automatically deleted by the gateway, we only need to take down the cluster.
 				gw.SendMessage(gw.ConfigurationMessage{
