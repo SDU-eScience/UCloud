@@ -10,10 +10,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
 	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -261,8 +263,35 @@ var envoyListenModes = []EnvoyListenMode{
 	EnvoyListenModeTcp,
 }
 
+type Category struct {
+	Name     string `yaml:"name"`
+	Provider string `yaml:"provider"`
+}
+type ProviderBrandingSection struct {
+	Description string              `yaml:"description"` // Markdown file path
+	Image       util.Option[string] `yaml:"image"`       // nil if missing
+}
+
+type ProviderBrandingProductDescription struct {
+	Category         Category                `yaml:"category"`
+	ShortDescription string                  `yaml:"shortDescription"`
+	Section          ProviderBrandingSection `yaml:"section"`
+}
+
+type ProviderBranding struct {
+	Title              string                               `yaml:"title"`
+	ShortTitle         string                               `yaml:"shortTitle"`
+	ShortDescription   string                               `yaml:"shortDescription"`
+	Description        string                               `yaml:"description"` // Markdown file path
+	Url                string                               `yaml:"url"`
+	Sections           []ProviderBrandingSection            `yaml:"sections"`
+	ProductDescription []ProviderBrandingProductDescription `yaml:"productDescription"`
+}
 type ProviderConfiguration struct {
 	Id string
+
+	ProviderBranding                  ProviderBranding `yaml:"providerBranding"`
+	ProviderBrandingImageAbsolutePath map[string]string
 
 	Hosts struct {
 		UCloud       HostInfo
@@ -304,13 +333,79 @@ type ProviderConfiguration struct {
 	}
 }
 
+func loadMarkdown(path string) string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		log.Error("Failed reading markdown file: %s", err)
+		return path
+	}
+	return string(b)
+}
+
+func storeAndGenerateProviderBrandingImageURI(cfg *ProviderConfiguration, image string) string {
+	basename := filepath.Base(image)
+	ext := filepath.Ext(basename)
+	name := basename[:len(basename)-len(ext)]
+	generatedName := fmt.Sprintf("%s_%d%s", name, time.Now().UnixNano(), ext)
+	cfg.ProviderBrandingImageAbsolutePath[generatedName] = image // storing the absolute path
+	return "/ucloud/" + cfg.Id + "/provider/branding/image?name=" + generatedName
+}
+
+func populateProviderBranding(cfg *ProviderConfiguration, filePath string, node *yaml.Node) {
+	providerBranding := &cfg.ProviderBranding
+	success := true
+	providerBranding.Title = cfgutil.RequireChildText(filePath, node, "title", &success)
+	providerBranding.ShortTitle = cfgutil.RequireChildText(filePath, node, "shortTitle", &success)
+	providerBranding.ShortDescription = cfgutil.RequireChildText(filePath, node, "shortDescription", &success)
+
+	pathToDescriptionMarkdown := cfgutil.RequireChildText(filePath, node, "description", &success)
+
+	providerBranding.Sections = []ProviderBrandingSection{}
+	providerBranding.ProductDescription = []ProviderBrandingProductDescription{}
+	providerBranding.Url = cfgutil.RequireChildText(filePath, node, "url", &success)
+
+	sectionsNode, _ := cfgutil.GetChildOrNil(filePath, node, "sections")
+	if sectionsNode != nil {
+		var sections []ProviderBrandingSection
+		cfgutil.Decode(filePath, sectionsNode, &sections, &success)
+		providerBranding.Sections = sections
+	}
+
+	productDescriptionNode, _ := cfgutil.GetChildOrNil(filePath, node, "productDescription")
+	if productDescriptionNode != nil {
+		var productDescriptions []ProviderBrandingProductDescription
+		cfgutil.Decode(filePath, productDescriptionNode, &productDescriptions, &success)
+		providerBranding.ProductDescription = productDescriptions
+	}
+
+	// Loading Markdown files and generating images
+	providerBranding.Description = loadMarkdown(pathToDescriptionMarkdown)
+	for i, section := range providerBranding.Sections {
+		providerBranding.Sections[i].Description = loadMarkdown(section.Description)
+		if section.Image.Present && section.Image.Value != "" {
+			providerBranding.Sections[i].Image = util.OptValue(storeAndGenerateProviderBrandingImageURI(cfg, section.Image.Value))
+		}
+	}
+	for i, productDescription := range providerBranding.ProductDescription {
+		providerBranding.ProductDescription[i].Section.Description = loadMarkdown(productDescription.Section.Description)
+		if productDescription.Section.Image.Present && productDescription.Section.Image.Value != "" {
+			providerBranding.ProductDescription[i].Section.Image = util.OptValue(storeAndGenerateProviderBrandingImageURI(cfg, productDescription.Section.Image.Value))
+		}
+	}
+}
+
 func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfiguration) {
-	cfg := ProviderConfiguration{}
+	cfg := ProviderConfiguration{ProviderBrandingImageAbsolutePath: map[string]string{}}
 	success := true
 
 	cfg.Id = cfgutil.RequireChildText(filePath, provider, "id", &success)
 
 	{
+		// Provider branding section
+		providerBranding, _ := cfgutil.GetChildOrNil(filePath, provider, "providerBranding")
+		if providerBranding != nil {
+			populateProviderBranding(&cfg, filePath, providerBranding)
+		}
 		// Hosts section
 		hosts := cfgutil.RequireChild(filePath, provider, "hosts", &success)
 		ucloudHost := cfgutil.RequireChild(filePath, hosts, "ucloud", &success)

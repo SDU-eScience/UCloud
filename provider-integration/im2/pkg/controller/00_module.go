@@ -35,6 +35,7 @@ func Init(mux *http.ServeMux) {
 	initJobs()
 	initTasks()
 	initSshKeys()
+	initProviderBranding()
 
 	initLiveness()
 	if RunsServerCode() {
