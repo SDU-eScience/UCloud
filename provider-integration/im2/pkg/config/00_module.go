@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
@@ -289,7 +290,8 @@ type ProviderBranding struct {
 type ProviderConfiguration struct {
 	Id string
 
-	ProviderBranding ProviderBranding `yaml:"providerBranding"`
+	ProviderBranding                  ProviderBranding `yaml:"providerBranding"`
+	ProviderBrandingImageAbsolutePath map[string]string
 
 	Hosts struct {
 		UCloud       HostInfo
@@ -340,11 +342,17 @@ func loadMarkdown(path string) string {
 	return string(b)
 }
 
-func createProviderBrandingImageURI(providerId string, image string) string {
-	return "/ucloud/" + providerId + "/provider/branding/image?name" + image
+func storeAndGenerateProviderBrandingImageURI(cfg *ProviderConfiguration, image string) string {
+	basename := filepath.Base(image)
+	ext := filepath.Ext(basename)
+	name := basename[:len(basename)-len(ext)]
+	generatedName := fmt.Sprintf("%s_%d%s", name, time.Now().UnixNano(), ext)
+	cfg.ProviderBrandingImageAbsolutePath[generatedName] = image // storing the absolute path
+	return "/ucloud/" + cfg.Id + "/provider/branding/image?name=" + generatedName
 }
 
-func populateProviderBranding(providerId string, providerBranding *ProviderBranding, filePath string, node *yaml.Node) {
+func populateProviderBranding(cfg *ProviderConfiguration, filePath string, node *yaml.Node) {
+	providerBranding := &cfg.ProviderBranding
 	success := true
 	providerBranding.Title = cfgutil.RequireChildText(filePath, node, "title", &success)
 	providerBranding.ShortTitle = cfgutil.RequireChildText(filePath, node, "shortTitle", &success)
@@ -361,7 +369,6 @@ func populateProviderBranding(providerId string, providerBranding *ProviderBrand
 		var sections []ProviderBrandingSection
 		cfgutil.Decode(filePath, sectionsNode, &sections, &success)
 		providerBranding.Sections = sections
-
 	}
 
 	productDescriptionNode, _ := cfgutil.GetChildOrNil(filePath, node, "productDescription")
@@ -371,20 +378,24 @@ func populateProviderBranding(providerId string, providerBranding *ProviderBrand
 		providerBranding.ProductDescription = productDescriptions
 	}
 
-	// Loading Markdown files
+	// Loading Markdown files and generating images
 	providerBranding.Description = loadMarkdown(pathToDescriptionMarkdown)
 	for i, section := range providerBranding.Sections {
 		providerBranding.Sections[i].Description = loadMarkdown(section.Description)
-		providerBranding.Sections[i].Image = util.OptValue(createProviderBrandingImageURI(providerId, section.Image.Value))
+		if section.Image.Present && section.Image.Value != "" {
+			providerBranding.Sections[i].Image = util.OptValue(storeAndGenerateProviderBrandingImageURI(cfg, section.Image.Value))
+		}
 	}
 	for i, productDescription := range providerBranding.ProductDescription {
 		providerBranding.ProductDescription[i].Section.Description = loadMarkdown(productDescription.Section.Description)
-		providerBranding.ProductDescription[i].Section.Image = util.OptValue(createProviderBrandingImageURI(providerId, productDescription.Section.Image.Value))
+		if productDescription.Section.Image.Present && productDescription.Section.Image.Value != "" {
+			providerBranding.ProductDescription[i].Section.Image = util.OptValue(storeAndGenerateProviderBrandingImageURI(cfg, productDescription.Section.Image.Value))
+		}
 	}
 }
 
 func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfiguration) {
-	cfg := ProviderConfiguration{}
+	cfg := ProviderConfiguration{ProviderBrandingImageAbsolutePath: map[string]string{}}
 	success := true
 
 	cfg.Id = cfgutil.RequireChildText(filePath, provider, "id", &success)
@@ -393,7 +404,7 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 		// Provider branding section
 		providerBranding, _ := cfgutil.GetChildOrNil(filePath, provider, "providerBranding")
 		if providerBranding != nil {
-			populateProviderBranding(cfg.Id, &cfg.ProviderBranding, filePath, providerBranding)
+			populateProviderBranding(&cfg, filePath, providerBranding)
 		}
 		// Hosts section
 		hosts := cfgutil.RequireChild(filePath, provider, "hosts", &success)

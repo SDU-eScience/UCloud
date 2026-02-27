@@ -53,13 +53,9 @@ func initProviderBrandings() {
 
 	go func() {
 		providersBeingMonitored := map[string]util.Empty{}
-		log.Info("Starting monitoring provider brandings")
 		for {
 			providers, providerIds := retrieveProviders()
 			for idx, provider := range providers {
-				// Testing -----------
-				InvokeProvider(provider, orcapi.ProviderBrandingRetrieveImage, orcapi.ProviderBrandingImageRequest{Name: "abc.png"}, ProviderCallOpts{})
-				// Testing -----------
 				_, isBeingMonitored := providersBeingMonitored[provider]
 				if !isBeingMonitored {
 					providersBeingMonitored[provider] = util.Empty{}
@@ -69,7 +65,6 @@ func initProviderBrandings() {
 					providerBrandingsGlobals.Mu.Unlock()
 					go brandingMonitorProvider(provider)
 				}
-
 			}
 			time.Sleep(10 * time.Second)
 		}

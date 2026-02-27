@@ -14,7 +14,7 @@ import (
 func loadImage(path string) []byte {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		log.Error("Failed load image file: %s", err)
+		log.Error("Failed to load image: %s", err)
 		return nil
 	}
 	return b
@@ -48,11 +48,14 @@ func initProviderBranding() {
 			return providerBranding, nil
 		})
 
+		// Returning the bytes of the image, if it fails, we will return no bytes
 		orcapi.ProviderBrandingRetrieveImage.Handler(func(info rpc.RequestInfo, request orcapi.ProviderBrandingImageRequest) ([]byte, *util.HttpError) {
-
-			log.Error("%+v", request)
-			log.Error("Failed load image file: %+v", info.HttpRequest)
-			return loadImage(request.Name), nil
+			providerConfig := cfg.Provider
+			absolutePath, ok := providerConfig.ProviderBrandingImageAbsolutePath[request.Name]
+			if !ok {
+				return nil, nil
+			}
+			return loadImage(absolutePath), nil
 		})
 	}
 }
