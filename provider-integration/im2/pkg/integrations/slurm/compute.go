@@ -873,10 +873,12 @@ func follow(session *controller.FollowJobSession) {
 	}
 }
 
-func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) controller.ConfiguredWebIngress {
-	return controller.ConfiguredWebIngress{
-		IsPublic:     false,
-		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + "-" + fmt.Sprint(rank) + suffix.Value + ServiceConfig.Compute.Web.Suffix,
+func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []controller.ConfiguredWebIngress {
+	return []controller.ConfiguredWebIngress{
+		{
+			IsPublic:     false,
+			TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + "-" + fmt.Sprint(rank) + suffix.Value + ServiceConfig.Compute.Web.Suffix,
+		},
 	}
 }
 
