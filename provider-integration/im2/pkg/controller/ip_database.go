@@ -620,11 +620,15 @@ func PublicIpBindToJob(job *orc.Job) ([]orc.PublicIp, []net.IP, error) {
 	var result []orc.PublicIp
 	var privateIps []net.IP
 
+	var err error
+
 	for _, v := range job.Specification.Parameters {
 		if v.Type == orc.AppParameterValueTypeNetwork {
 			ip, ok := publicIps.Ips[v.Id]
 			if ok {
 				result = append(result, *ip)
+			} else {
+				err = util.ServerHttpError("Could not bind IP address: %s", v.Id)
 			}
 		}
 	}
@@ -634,52 +638,54 @@ func PublicIpBindToJob(job *orc.Job) ([]orc.PublicIp, []net.IP, error) {
 			ip, ok := publicIps.Ips[v.Id]
 			if ok {
 				result = append(result, *ip)
+			} else {
+				err = util.ServerHttpError("Could not bind IP address: %s", v.Id)
 			}
 		}
 	}
 
-	var err error
+	if err == nil {
+		for i := 0; i < len(result); i++ {
+			ip := &result[i]
 
-	for i := 0; i < len(result); i++ {
-		ip := &result[i]
+			if !ip.Status.IpAddress.Present {
+				err = util.ServerHttpError(
+					"IP %v is not ready yet - Try recreating it",
+					ip.Id,
+				).AsError()
+				break
+			}
 
-		if !ip.Status.IpAddress.Present {
-			err = util.ServerHttpError(
-				"IP %v is not ready yet - Try recreating it",
-				ip.Id,
-			).AsError()
-			break
-		}
+			if len(ip.Status.BoundTo) > 0 {
+				for _, jobId := range ip.Status.BoundTo {
+					boundtoJob, ok := JobRetrieve(jobId)
+					if ok && !boundtoJob.Status.State.IsFinal() {
+						err = util.UserHttpError(
+							"%s (%v) is already bound to job %s",
+							ip.Status.IpAddress.Value,
+							ip.Id,
+							strings.Join(ip.Status.BoundTo, ", "),
+						).AsError()
+						break
+					}
+				}
 
-		if len(ip.Status.BoundTo) > 0 {
-			for _, jobId := range ip.Status.BoundTo {
-				boundtoJob, ok := JobRetrieve(jobId)
-				if ok && !boundtoJob.Status.State.IsFinal() {
-					err = util.UserHttpError(
-						"%s (%v) is already bound to job %s",
-						ip.Status.IpAddress.Value,
-						ip.Id,
-						strings.Join(ip.Status.BoundTo, ", "),
-					).AsError()
+				if err != nil {
 					break
 				}
 			}
 
-			if err != nil {
-				break
-			}
-		}
+			ip.Status.BoundTo = []string{job.Id}
 
-		ip.Status.BoundTo = []string{job.Id}
-
-		publicIp := net.ParseIP(ip.Status.IpAddress.Value)
-		privateIp := publicIp
-		for _, poolEntry := range publicIps.Pool {
-			if poolEntry.Public.Contains(publicIp) {
-				privateIp, err = IpRemapAddress(publicIp, poolEntry.Public, poolEntry.Private)
+			publicIp := net.ParseIP(ip.Status.IpAddress.Value)
+			privateIp := publicIp
+			for _, poolEntry := range publicIps.Pool {
+				if poolEntry.Public.Contains(publicIp) {
+					privateIp, err = IpRemapAddress(publicIp, poolEntry.Public, poolEntry.Private)
+				}
 			}
+			privateIps = append(privateIps, privateIp)
 		}
-		privateIps = append(privateIps, privateIp)
 	}
 
 	publicIps.Mu.Unlock() // Need to unlock before PublicIpTrackNew

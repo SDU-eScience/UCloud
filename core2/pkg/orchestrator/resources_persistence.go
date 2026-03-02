@@ -351,10 +351,13 @@ func lResourcePersist(r *resource) {
 }
 
 func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string) {
-	ref := reference
-	providerId, isProvider := strings.CutPrefix(reference, fndapi.ProviderSubjectPrefix)
+	actorRef := reference
+	providerRef := ""
+	providerParam := any(nil)
+	_, isProvider := strings.CutPrefix(reference, fndapi.ProviderSubjectPrefix)
 	if isProvider {
-		ref = providerId
+		providerRef = strings.TrimPrefix(reference, fndapi.ProviderSubjectPrefix)
+		providerParam = providerRef
 	}
 
 	resources := db.NewTx(func(tx *db.Transaction) map[ResourceId]*resource {
@@ -379,20 +382,22 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 						r.id = acl.resource_id 
 						and acl.username = :reference 
 						and r.project is null
-				where
-					(
-						(r.created_by = :reference and r.project is null and pc.provider is distinct from :reference)
-						or (r.project = :reference and r.created_by != :reference and pc.provider is distinct from :reference)
-						or (pc.provider is not distinct from :reference and r.created_by is distinct from :reference and r.project is distinct from :reference)
-						or (acl.username = :reference)
-					)
-					and r.type = :type
-					and r.confirmed_by_provider
-				order by r.id
+			where
+				(
+					(r.created_by = :actor_reference and r.project is null and pc.provider is distinct from :provider_reference)
+					or (r.project = :actor_reference and r.created_by != :actor_reference and pc.provider is distinct from :provider_reference)
+					or (pc.provider is not distinct from :provider_reference and r.created_by is distinct from :actor_reference and r.project is distinct from :actor_reference)
+					or (acl.username = :actor_reference)
+				)
+				and r.type = :type
+				and r.confirmed_by_provider
+			order by r.id
 		    `,
 			db.Params{
-				"reference": ref,
-				"type":      typeName,
+				"reference":          actorRef,
+				"actor_reference":    actorRef,
+				"provider_reference": providerParam,
+				"type":               typeName,
 			},
 		)
 

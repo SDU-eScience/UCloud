@@ -19,6 +19,7 @@ import (
 	"golang.org/x/sys/unix"
 	k8sadmission "k8s.io/api/admission/v1"
 	k8score "k8s.io/api/core/v1"
+	k8snetwork "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -733,6 +734,54 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		return util.HttpErr(http.StatusForbidden, "this system is not capable of running VMs at the moment")
 	}
 
+	isSensitiveProject := shared.IsSensitiveProject(job.Owner.Project.Value)
+	if isSensitiveProject {
+		return util.HttpErr(http.StatusForbidden, "VMs are not supported in sensitive projects")
+	}
+
+	if rank != 0 {
+		return util.HttpErr(http.StatusInternalServerError, "VMs with multiple ranks are not supported")
+	}
+
+	nameOfVm := vmName(job.Id, rank)
+
+	podSelector := k8smeta.LabelSelector{
+		MatchLabels: map[string]string{
+			"ucloud.dk/vmName": nameOfVm,
+		},
+	}
+
+	firewall := &k8snetwork.NetworkPolicy{
+		ObjectMeta: k8smeta.ObjectMeta{
+			Name: shared.FirewallName(job.Id),
+		},
+		Spec: k8snetwork.NetworkPolicySpec{
+			PodSelector: podSelector,
+			Egress: []k8snetwork.NetworkPolicyEgressRule{
+				{
+					To: []k8snetwork.NetworkPolicyPeer{{PodSelector: &podSelector}},
+				},
+			},
+			Ingress: []k8snetwork.NetworkPolicyIngressRule{{
+				From: []k8snetwork.NetworkPolicyPeer{{PodSelector: &podSelector}},
+			}},
+		},
+	}
+
+	sshService := shared.AssignAndPrepareSshService(job).GetOrDefault(nil)
+	if sshService != nil {
+		shared.AllowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
+			{
+				Protocol: orc.IpProtocolTcp,
+				Start:    22,
+				End:      22,
+			},
+		})
+	}
+
+	preparedIp := shared.PublicIpPrepare(job, firewall)
+	ipService := preparedIp.Service
+
 	cinit := cloudInit{}
 	cinit.Users = append(cinit.Users, cloudInitUser{
 		// Username: ucloud Password: ucloud
@@ -754,8 +803,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	machine := &job.Status.ResolvedProduct.Value
 
-	nameOfVm := vmName(job.Id, rank)
-	existingVm, err := KubevirtClient.VirtualMachine(Namespace).Get(context.Background(), nameOfVm, k8smeta.GetOptions{})
+	ctx := context.Background()
+	existingVm, err := KubevirtClient.VirtualMachine(Namespace).Get(ctx, nameOfVm, k8smeta.GetOptions{})
 	hasExistingVm := err == nil
 
 	vm := &kvcore.VirtualMachine{}
@@ -843,6 +892,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	vm.Spec.Template.ObjectMeta.Labels = map[string]string{}
 	vm.Spec.Template.ObjectMeta.Labels["ucloud.dk/vmName"] = vm.Name
+	jobIdLabel := shared.JobIdLabel(job.Id)
+	vm.Spec.Template.ObjectMeta.Labels[jobIdLabel.First] = jobIdLabel.Second
+	jobRankLabel := shared.JobRankLabel(rank)
+	vm.Spec.Template.ObjectMeta.Labels[jobRankLabel.First] = jobRankLabel.Second
 
 	tplSpec := &vm.Spec.Template.Spec
 
@@ -929,6 +982,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 					`
 						insert into k8s.vmagents(job_id, agent_token, srv_token)
 						values (:job_id, :agent_token, :srv_token)
+						on conflict (job_id) do update set 
+						    agent_token = excluded.agent_token, 
+						    srv_token = excluded.srv_token
 					`,
 					db.Params{
 						"job_id":      job.Id,
@@ -1099,9 +1155,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	if hasExistingVm {
-		_, err = KubevirtClient.VirtualMachine(Namespace).Update(context.Background(), vm, k8smeta.UpdateOptions{})
+		_, err = KubevirtClient.VirtualMachine(Namespace).Update(ctx, vm, k8smeta.UpdateOptions{})
 	} else {
-		vm, localErr := KubevirtClient.VirtualMachine(Namespace).Create(context.Background(), vm, k8smeta.CreateOptions{})
+		vm, localErr := KubevirtClient.VirtualMachine(Namespace).Create(ctx, vm, k8smeta.CreateOptions{})
 		err = localErr
 		if err == nil {
 			ownerReference := k8smeta.OwnerReference{
@@ -1112,11 +1168,36 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			}
 
 			herr := diskPrepareForJob(job, primaryDiskClaimName, ownerReference, diskSize)
+
+			if firewall != nil && herr == nil {
+				firewall.OwnerReferences = append(firewall.OwnerReferences, ownerReference)
+
+				_, myError := shared.K8sClient.NetworkingV1().NetworkPolicies(Namespace).
+					Create(ctx, firewall, k8smeta.CreateOptions{})
+				herr = util.MergeHttpErr(herr, util.HttpErrorFromErr(myError))
+			}
+
+			if sshService != nil && herr == nil {
+				sshService.OwnerReferences = append(sshService.OwnerReferences, ownerReference)
+
+				_, myError := shared.K8sClient.CoreV1().Services(Namespace).
+					Create(ctx, sshService, k8smeta.CreateOptions{})
+				herr = util.MergeHttpErr(herr, util.HttpErrorFromErr(myError))
+			}
+			if ipService != nil && herr == nil {
+				ipService.OwnerReferences = append(ipService.OwnerReferences, ownerReference)
+
+				_, myError := shared.K8sClient.CoreV1().Services(Namespace).
+					Create(ctx, ipService, k8smeta.CreateOptions{})
+				herr = util.MergeHttpErr(herr, util.HttpErrorFromErr(myError))
+			}
+
 			if herr != nil {
 				err = herr.AsError()
 			}
 		}
 	}
+
 	if err != nil {
 		log.Warn("Failed to create VM: %v", err)
 		return util.HttpErr(http.StatusInternalServerError, "failed to create VM")

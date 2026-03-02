@@ -84,7 +84,7 @@ export function PrivateNetworkBrowse({opts}: { opts?: ResourceBrowserOpts<Privat
                 browser.setColumns([
                     {name: "Name"},
                     {name: "Subdomain", columnWidth: 220},
-                    {name: "Members", columnWidth: 220},
+                    {name: "", columnWidth: 0},
                     {name: "", columnWidth: 0},
                 ]);
 
@@ -155,10 +155,6 @@ export function PrivateNetworkBrowse({opts}: { opts?: ResourceBrowserOpts<Privat
                         if (useButton) {
                             row.stat2.append(useButton);
                         }
-                    } else {
-                        row.stat2.textContent = network.status.members.length === 0
-                            ? "Not in use"
-                            : network.status.members.join(", ");
                     }
                 });
 

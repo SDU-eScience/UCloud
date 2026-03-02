@@ -14,7 +14,6 @@ import (
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
@@ -149,7 +148,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	if rank == 0 {
 		firewall = &networking.NetworkPolicy{
 			ObjectMeta: meta.ObjectMeta{
-				Name: firewallName(job.Id),
+				Name: shared.FirewallName(job.Id),
 			},
 			Spec: networking.NetworkPolicySpec{
 				PodSelector: k8PodSelectorForJob(job.Id),
@@ -161,7 +160,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		serviceLabel := shared.JobIdLabel(job.Id)
 		service = &core.Service{
 			ObjectMeta: meta.ObjectMeta{
-				Name: serviceName(job.Id),
+				Name: shared.ServiceName(job.Id),
 				Labels: map[string]string{
 					serviceLabel.First: serviceLabel.Second,
 				},
@@ -177,7 +176,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 		sshService = shared.AssignAndPrepareSshService(job).GetOrDefault(nil)
 		if sshService != nil {
-			allowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
+			shared.AllowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
 				{
 					Protocol: orc.IpProtocolTcp,
 					Start:    22,
@@ -186,7 +185,16 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			})
 		}
 
-		ipService = preparePublicIp(job, firewall, userContainer)
+		preparedIp := shared.PublicIpPrepare(job, firewall)
+		ipService = preparedIp.Service
+		if preparedIp.EnvironmentVariables != nil {
+			for k, v := range preparedIp.EnvironmentVariables {
+				userContainer.Env = append(userContainer.Env, core.EnvVar{
+					Name:  k,
+					Value: v,
+				})
+			}
+		}
 	}
 
 	// DNS config
@@ -529,65 +537,6 @@ func allowNetworkTo(policy *networking.NetworkPolicy, jobId string) {
 			{PodSelector: &selector},
 		},
 	})
-}
-
-func allowNetworkFromSubnet(policy *networking.NetworkPolicy, subnet string) {
-	spec := &policy.Spec
-	spec.Ingress = append(spec.Ingress, networking.NetworkPolicyIngressRule{
-		From: []networking.NetworkPolicyPeer{
-			{
-				IPBlock: &networking.IPBlock{
-					CIDR: subnet,
-				},
-			},
-		},
-	})
-}
-
-func allowNetworkToSubnet(policy *networking.NetworkPolicy, subnet string) {
-	spec := &policy.Spec
-	spec.Egress = append(spec.Egress, networking.NetworkPolicyEgressRule{
-		To: []networking.NetworkPolicyPeer{
-			{
-				IPBlock: &networking.IPBlock{
-					CIDR: subnet,
-				},
-			},
-		},
-	})
-}
-
-func allowNetworkFromWorld(policy *networking.NetworkPolicy, proto []orc.PortRangeAndProto) {
-	var portEntries []networking.NetworkPolicyPort
-	for _, entry := range proto {
-		portEntries = append(portEntries, networking.NetworkPolicyPort{
-			Protocol: util.Pointer(core.Protocol(entry.Protocol)),
-			Port: &intstr.IntOrString{
-				Type:   intstr.Int,
-				IntVal: int32(entry.Start),
-			},
-			EndPort: util.Pointer(int32(entry.End)),
-		})
-	}
-
-	policy.Spec.Ingress = append(policy.Spec.Ingress, networking.NetworkPolicyIngressRule{
-		Ports: portEntries,
-		From: []networking.NetworkPolicyPeer{
-			{
-				IPBlock: &networking.IPBlock{
-					CIDR: "0.0.0.0/0",
-				},
-			},
-		},
-	})
-}
-
-func firewallName(jobId string) string {
-	return "policy-" + jobId
-}
-
-func serviceName(jobId string) string {
-	return "j-" + jobId
 }
 
 func k8PodSelectorForJob(jobId string) meta.LabelSelector {
