@@ -16,8 +16,8 @@ import (
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"ucloud.dk/pkg/controller"
-	filesystem2 "ucloud.dk/pkg/integrations/k8s/filesystem"
-	shared2 "ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -66,7 +66,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	// Sensitive project validation
 	// -----------------------------------------------------------------------------------------------------------------
-	if shared2.IsSensitiveProject(job.Owner.Project.Value) {
+	if shared.IsSensitiveProject(job.Owner.Project.Value) {
 		rejectionMessage := util.OptNone[string]()
 		for _, resc := range job.Specification.Resources {
 			if resc.Type == orc.AppParameterValueTypeIngress {
@@ -158,7 +158,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		allowNetworkFrom(firewall, job.Id)
 		allowNetworkTo(firewall, job.Id)
 
-		serviceLabel := shared2.JobIdLabel(job.Id)
+		serviceLabel := shared.JobIdLabel(job.Id)
 		service = &core.Service{
 			ObjectMeta: meta.ObjectMeta{
 				Name: serviceName(job.Id),
@@ -175,7 +175,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			},
 		}
 
-		sshService = shared2.AssignAndPrepareSshService(job).GetOrDefault(nil)
+		sshService = shared.AssignAndPrepareSshService(job).GetOrDefault(nil)
 		if sshService != nil {
 			allowNetworkFromWorld(firewall, []orc.PortRangeAndProto{
 				{
@@ -193,7 +193,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	// -----------------------------------------------------------------------------------------------------------------
 	if rank == 0 && job.Status.JobParametersJson.Value.SiteVersion != 0 {
 		jsonData, _ := json.Marshal(job.Status.JobParametersJson)
-		fd, ok := filesystem2.OpenFile(filepath.Join(jobFolder, "JobParameters.json"), os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0660)
+		fd, ok := filesystem.OpenFile(filepath.Join(jobFolder, "JobParameters.json"), os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0660)
 		if ok {
 			_, _ = fd.Write(jsonData)
 			_ = fd.Close()
@@ -211,13 +211,13 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	product := job.Status.ResolvedProduct.Value
-	cpuMillis := shared2.NodeCpuMillisReserved(&product)
+	cpuMillis := shared.NodeCpuMillisReserved(&product)
 	memoryMegabytes := int64(product.MemoryInGigs * 1000)
 	gpus := int64(product.Gpu)
 
 	gpuType := "nvidia.com/gpu"
 
-	nodeCat, _ := shared2.NodeCategoryAndConfiguration(&product)
+	nodeCat, _ := shared.NodeCategoryAndConfiguration(&product)
 	if nodeCat.CustomRuntime != "" {
 		spec.RuntimeClassName = &nodeCat.CustomRuntime
 	}
@@ -350,7 +350,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	// -----------------------------------------------------------------------------------------------------------------
 	spec.InitContainers = append(spec.InitContainers, core.Container{
 		Name:  "ucviz",
-		Image: "dreg.cloud.sdu.dk/ucloud/im2:2025.4.107",
+		Image: "alpine:latest",
 	})
 
 	ucvizContainer := &spec.InitContainers[len(spec.InitContainers)-1]
@@ -359,56 +359,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		MountPath: "/opt/ucloud",
 	})
 
-	ucvizContainer.Command = []string{"bash", "-c", "cp /usr/bin/ucmetrics /opt/ucloud/ucmetrics ; cp /usr/bin/ucviz /opt/ucloud/ucviz"}
+	ucvizContainer.Command = []string{"sh", "-c", "cp /mnt/exe/ucmetrics /opt/ucloud/ucmetrics ; cp /mnt/exe/ucviz /opt/ucloud/ucviz"}
 
-	if util.DevelopmentModeEnabled() && ServiceConfig.Compute.ImSourceCode.Present {
-		ucvizContainer.Image = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.3.3"
-		ucvizContainer.VolumeMounts = append(ucvizContainer.VolumeMounts, core.VolumeMount{
-			Name:      "ucloud-filesystem",
-			ReadOnly:  false,
-			MountPath: "/opt/source",
-			SubPath:   ServiceConfig.Compute.ImSourceCode.Value,
-		})
-
-		userContainer.VolumeMounts = append(userContainer.VolumeMounts, core.VolumeMount{
-			Name:      "ucloud-filesystem",
-			ReadOnly:  false,
-			MountPath: "/opt/source",
-			SubPath:   ServiceConfig.Compute.ImSourceCode.Value,
-		})
-
-		// From provider-integration folder:
-		// rsync -vhra . ../.compose/default/im2k8/im/storage/source-code --exclude integration-module
-		ucvizContainer.Command = []string{
-			"bash", "-c", "cd /opt/source/im2 ; export PATH=$PATH:/usr/local/go/bin ; CGO_ENABLED=0 go build -o /opt/ucloud/ucviz -trimpath ucloud.dk/cmd/ucviz ; CGO_ENABLED=0 go build -o /opt/ucloud/ucmetrics -trimpath ucloud.dk/cmd/ucmetrics",
-		}
-
-		for i := range spec.InitContainers {
-			container := &spec.InitContainers[i]
-			if container.Name == "script-generation" {
-				container.VolumeMounts = append(container.VolumeMounts, core.VolumeMount{
-					Name:      "ucloud-filesystem",
-					ReadOnly:  false,
-					MountPath: "/opt/source",
-					SubPath:   ServiceConfig.Compute.ImSourceCode.Value,
-				})
-
-				container.Image = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2025.3.3"
-
-				oldCommand := container.Command
-				oldCommandString := strings.Join(oldCommand, " ")
-
-				container.Command = []string{
-					"bash", "-c", fmt.Sprintf(`
-						cd /opt/source/im2 ; 
-						export PATH=$PATH:/usr/local/go/bin ; 
-						CGO_ENABLED=0 go build -o /usr/bin/ucloud -trimpath ucloud.dk/cmd/ucloud-im ;
-						%s
-					`, oldCommandString),
-				}
-			}
-		}
-	}
+	ucvizContainer.VolumeMounts = append(ucvizContainer.VolumeMounts, core.VolumeMount{
+		Name:      "ucloud-filesystem",
+		ReadOnly:  true,
+		MountPath: "/mnt/exe",
+		SubPath:   shared.ExecutablesDir,
+	})
 
 	// Firewall
 	// -----------------------------------------------------------------------------------------------------------------
@@ -437,8 +395,8 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	// Job metadata
 	// -----------------------------------------------------------------------------------------------------------------
-	idLabel := shared2.JobIdLabel(job.Id)
-	rankLabel := shared2.JobRankLabel(rank)
+	idLabel := shared.JobIdLabel(job.Id)
+	rankLabel := shared.JobRankLabel(rank)
 	pod.Annotations[idLabel.First] = idLabel.Second
 	pod.Annotations[rankLabel.First] = rankLabel.Second
 	pod.Labels[idLabel.First] = idLabel.Second
@@ -457,7 +415,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	// NOTE(Dan): Check if the job is allowed to be submitted. This must be immediately before the job creation. It
 	// must not be moved down or up. Do not add code between these two.
-	if reason := shared2.IsJobLockedEx(job, pod.Annotations); reason.Present {
+	if reason := shared.IsJobLockedEx(job, pod.Annotations); reason.Present {
 		return reason.Value.Err
 	}
 
@@ -515,7 +473,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	//   we have multiple replicas.
 
 	if herr == nil && rank == 0 {
-		ucloudFolder, ok := filesystem2.InternalToUCloudWithDrive(drive, jobFolder)
+		ucloudFolder, ok := filesystem.InternalToUCloudWithDrive(drive, jobFolder)
 		if ok {
 			_ = controller.JobTrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
 				{
@@ -613,7 +571,7 @@ func serviceName(jobId string) string {
 }
 
 func k8PodSelectorForJob(jobId string) meta.LabelSelector {
-	l := shared2.JobIdLabel(jobId)
+	l := shared.JobIdLabel(jobId)
 	return meta.LabelSelector{
 		MatchLabels: map[string]string{
 			l.First: l.Second,

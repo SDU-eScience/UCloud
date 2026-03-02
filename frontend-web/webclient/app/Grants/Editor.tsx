@@ -28,7 +28,7 @@ import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {errorMessageOrDefault, timestampUnixMs} from "@/UtilityFunctions";
-import {Box, Button, Checkbox, ExternalLink, Icon, Input, Select, TextArea} from "@/ui-components";
+import {Box, Button, Checkbox, ExternalLink, Flex, Icon, Input, Select, TextArea} from "@/ui-components";
 import {BaseLinkClass} from "@/ui-components/BaseLink";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {IconName} from "@/ui-components/Icon";
@@ -45,7 +45,6 @@ import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} fr
 import {useLocation, useNavigate} from "react-router-dom";
 import * as Grants from ".";
 import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalInfoUpdate} from "@/UserSettings/ChangeUserDetails";
-import {Feature, hasFeature} from "@/Features";
 
 // State model
 // =====================================================================================================================
@@ -2028,10 +2027,12 @@ export function Editor(): React.ReactNode {
                             </div>
                         </>)}
 
+                        <OptionalUserInfoReadOnly state={state} />
+
                         {state.stateDuringEdit && state.stateDuringEdit.id === GRANT_GIVER_INITIATED_ID ?
                             null :
                             <>
-                                {hasFeature(Feature.APPLICATION_HISTORY) ? renderApplicationHistory(state) : <></>}
+                                <ApplicationHistory state={state} />
                                 <h3>
                                     {!state.stateDuringEdit && "Select grant giver(s)"}
                                     {state.stateDuringEdit && "Grant givers"}
@@ -2438,48 +2439,217 @@ const CommentSection: React.FunctionComponent<{
     </div>;
 };
 
-// Application History
-const renderApplicationHistory = (state: any) => {
-  const applicationHistory: Grants.Application[] =
-    state.stateDuringEdit?.storedApplication?.status.applicationHistory ?? [];
+const ApplicationHistory: React.FunctionComponent<{state: EditorState}> = ({state}) => {
+    const applicationHistory: Grants.Application[] =
+        state.stateDuringEdit?.storedApplication?.status.applicationHistory ?? [];
 
-  if (applicationHistory.length === 0) {
-    return <></>
-  }
+    const adminProjectIds = new Set(
+        state.loadedProjects
+            .map(project => project.id)
+            .filter((id): id is string => id !== null)
+    );
 
-  return (
-    <>
-    { <h2>Application history of {applicationHistory[0].status.projectTitle}</h2>}
-    <div style={{ marginBottom: "1rem", maxHeight: "35rem", overflowY: "auto" }}>
-      {applicationHistory.map((app: Grants.Application) => (
-        <div key={app.id} style={{ marginBottom: "1rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px", background: "#eee"}}>
-          <label style={{flex: 1}}>ApplicationId: {app.id}</label>
-          <label style={{flex: 1, textAlign: "center"}}>
-            {new Date(app.currentRevision.createdAt).toLocaleString()}
-          </label>
-          <label style={{flex: 1, textAlign: "right"}}>{app.status?.overallState}</label>
-          </div>
+    const grantGiverProjectIds = new Set(
+        state.stateDuringEdit?.storedApplication?.status.stateBreakdown.map(it => it.projectId) ?? []
+    );
 
-          {/* Allocation Requests */}
-          <ul>
-            {app.currentRevision.document.allocationRequests?.map(
-              (allocReq: Grants.AllocationRequest, index: number) => (
-                <li key={index} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }} >
-                    <span>{allocReq.category}</span>
-                    <span style={{marginLeft: "auto"}}>{allocReq.balanceRequested}</span>
-                </li>
-              )
-            )}
-          </ul>
-        </div>
-      ))}
-      </div>
-    </>
-  );
+    const isAdminInGrantGiverProject = Array.from(grantGiverProjectIds).some(id => adminProjectIds.has(id));
+
+    if (!isAdminInGrantGiverProject) {
+        return null;
+    }
+
+    if (applicationHistory.length === 0) {
+        return null;
+    }
+
+    const categoryByProviderAndName = new Map<string, Accounting.ProductCategoryV2>();
+    for (const [providerId, categories] of Object.entries(state.resources)) {
+        for (const category of categories) {
+            categoryByProviderAndName.set(`${providerId}/${category.category.name}`, category.category);
+        }
+    }
+
+    const prettifyState = (value: Grants.State): string => {
+        switch (value) {
+            case Grants.State.APPROVED:
+                return "Approved";
+            case Grants.State.REJECTED:
+                return "Rejected";
+            case Grants.State.CLOSED:
+                return "Closed";
+            case Grants.State.IN_PROGRESS:
+                return "In progress";
+            default:
+                return value;
+        }
+    };
+
+    const formatAmount = (amount: number): string => {
+        return amount.toLocaleString(undefined, {
+            maximumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+        });
+    };
+
+    return (
+        <>
+            <h3>Other applications from this project</h3>
+            <Flex flexDirection={"column"} gap={"32px"} marginBottom={"32px"}>
+                {applicationHistory.map(app => {
+                    const stateIconAndColor = Grants.stateToIconAndColor(app.status.overallState);
+                    const requestsByProvider = new Map<string, Grants.AllocationRequest[]>();
+
+                    for (const request of app.currentRevision.document.allocationRequests ?? []) {
+                        const existing = requestsByProvider.get(request.provider) ?? [];
+                        existing.push(request);
+                        requestsByProvider.set(request.provider, existing);
+                    }
+
+                    let applicationTitle = `Application ${app.id}`;
+                    const referenceIds = app.currentRevision.document.referenceIds ?? [];
+                    if (referenceIds.length > 0 && referenceIds[0]) {
+                        applicationTitle = `${referenceIds[0]} (ID: ${app.id})`;
+                    }
+
+                    return (
+                        <Box key={app.id}>
+                            <Flex justifyContent={"space-between"} alignItems={"center"} gap={"16px"}>
+                                <Flex gap={"8px"}>
+                                    <ExternalLink href={`/app${AppRoutes.grants.editor(app.id)}`}>
+                                        {applicationTitle}
+                                        <Icon name="heroArrowTopRightOnSquare" ml={"6px"} />
+                                    </ExternalLink>
+                                    <span style={{color: "var(--textSecondary)"}}>({dateToString(app.currentRevision.createdAt)})</span>
+                                </Flex>
+
+                                <Flex alignItems={"center"} gap={"8px"} style={{whiteSpace: "nowrap"}}>
+                                    <Icon name={stateIconAndColor.icon} color={stateIconAndColor.color} />
+                                    <span>{prettifyState(app.status.overallState)}</span>
+                                </Flex>
+                            </Flex>
+
+                            <Box pl={"16px"}>
+                                {requestsByProvider.size === 0 ? (
+                                    <div style={{color: "var(--textSecondary)", marginTop: "10px"}}>No resources requested.</div>
+                                ) : (
+                                    <Flex flexDirection={"column"} gap={"12px"} mt={"14px"}>
+                                        {Array.from(requestsByProvider.entries()).map(([providerId, providerRequests]) => {
+                                            const requestsByCategory = new Map<string, Grants.AllocationRequest>();
+                                            for (const request of providerRequests) {
+                                                const existing = requestsByCategory.get(request.category);
+                                                if (existing) {
+                                                    existing.balanceRequested += request.balanceRequested;
+                                                } else {
+                                                    requestsByCategory.set(request.category, request);
+                                                }
+                                            }
+
+                                            const sortedCategories = Array.from(requestsByCategory.entries()).sort(([a], [b]) => {
+                                                const left = categoryByProviderAndName.get(`${providerId}/${a}`);
+                                                const right = categoryByProviderAndName.get(`${providerId}/${b}`);
+                                                if (left && right) return Accounting.categoryComparator(left, right);
+                                                return a.localeCompare(b);
+                                            });
+
+                                            return (
+                                                <Flex flexDirection={"column"} gap={"8px"} key={providerId}>
+                                                    {sortedCategories.map(([categoryName, request]) => {
+                                                        const category = categoryByProviderAndName.get(`${providerId}/${categoryName}`);
+                                                        const unit = category ? Accounting.explainUnit(category) : null;
+                                                        const categoryIcon = category ? Accounting.productTypeToIcon(category.productType) : null;
+
+                                                        const normalizedAmount = unit
+                                                            ? request.balanceRequested * unit.balanceFactor
+                                                            : request.balanceRequested;
+
+                                                        return (
+                                                            <Flex key={`${app.id}/${providerId}/${categoryName}`} justifyContent={"space-between"}>
+                                                                <Flex alignItems={"center"} gap={"8px"}>
+                                                                    {categoryIcon ? <Icon name={categoryIcon} /> : null}
+                                                                    <ProviderTitle providerId={providerId} />:
+                                                                    <code>{categoryName}</code>
+                                                                </Flex>
+
+                                                                <div>
+                                                                    {formatAmount(normalizedAmount)}
+                                                                    {unit ? ` ${unit.name}` : ""}
+                                                                </div>
+                                                            </Flex>
+                                                        );
+                                                    })}
+                                                </Flex>
+                                            );
+                                        })}
+                                    </Flex>
+                                )}
+                            </Box>
+                        </Box>
+                    );
+                })}
+            </Flex>
+        </>
+    );
 };
 
+const OptionalUserInfoReadOnly: React.FunctionComponent<{state: EditorState}> = ({state}) => {
+    const optionalInfo = state.stateDuringEdit?.storedApplication?.status.optionalUserInfo;
+    if (!optionalInfo) {
+        return null;
+    }
 
+    const adminProjectIds = new Set(
+        state.loadedProjects
+            .map(project => project.id)
+            .filter((id): id is string => id !== null)
+    );
+
+    const grantGiverProjectIds = new Set(
+        state.stateDuringEdit?.storedApplication?.status.stateBreakdown.map(it => it.projectId) ?? []
+    );
+
+    const isAdminInGrantGiverProject = Array.from(grantGiverProjectIds).some(id => adminProjectIds.has(id));
+    if (!isAdminInGrantGiverProject) {
+        return null;
+    }
+
+    const readOnlyFields: {label: string; value?: string | null}[] = [
+        {label: "Organization", value: optionalInfo.organizationFullName},
+        {label: "Department", value: optionalInfo.department},
+        {label: "Unit", value: optionalInfo.unit},
+        {label: "Research field", value: optionalInfo.researchField},
+        {label: "Position", value: optionalInfo.position},
+        {label: "Gender", value: optionalInfo.gender},
+    ];
+
+    const filledFields = readOnlyFields.filter(field => {
+        const value = field.value?.trim();
+        return !!value;
+    });
+
+    if (filledFields.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className={classConcat("section", OrganizationInfoClass.class)}>
+            <Box>
+                <label className="section">Organization information</label>
+                <div className="description">
+                    <p>This information was submitted by the applicant.</p>
+                </div>
+            </Box>
+
+            <div className="form-body">
+                {filledFields.map(field => (
+                    <label key={field.label}>
+                        {field.label}
+                        <Input value={field.value?.trim() ?? ""} disabled />
+                    </label>
+                ))}
+            </div>
+        </div>
+    );
+};
 
 // Form fields
 // ---------------------------------------------------------------------------------------------------------------------

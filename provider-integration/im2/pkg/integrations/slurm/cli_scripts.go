@@ -8,11 +8,11 @@ import (
 
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/shared/pkg/cli"
-	termio2 "ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/termio"
 )
 
 func writeHelp() {
-	f := termio2.Frame{}
+	f := termio.Frame{}
 
 	f.AppendTitle("Scripts help")
 	f.AppendField("help", "Prints this help text")
@@ -44,7 +44,7 @@ func writeHelp() {
 
 func HandleScriptsCommand() {
 	if os.Getuid() != 0 {
-		termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "This command must be run as root!")
+		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "This command must be run as root!")
 		os.Exit(1)
 	}
 
@@ -96,7 +96,7 @@ func HandleScriptsCommand() {
 			case strings.HasPrefix(arg, "--failures"):
 				failuresOnly = true
 			default:
-				termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Unknown parameter %s", arg)
+				termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Unknown parameter %s", arg)
 			}
 
 		}
@@ -111,16 +111,16 @@ func HandleScriptsCommand() {
 			},
 		)
 		if err != nil {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Failed to get script log")
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Failed to get script log")
 			return
 		}
 
 		if len(response) < 1 {
-			termio2.WriteStyledLine(termio2.Bold, termio2.DefaultColor, 0, "No entries found")
+			termio.WriteStyledLine(termio.Bold, termio.DefaultColor, 0, "No entries found")
 			return
 		}
 
-		t := termio2.Table{}
+		t := termio.Table{}
 
 		t.AppendHeader("ID")
 		t.AppendHeader("Time")
@@ -147,31 +147,31 @@ func HandleScriptsCommand() {
 		t.Print()
 	case cli.IsGetCommand(command):
 		if len(os.Args) < 4 {
-			termio2.WriteStyled(termio2.Bold, termio2.Red, 0, "Missing ID")
+			termio.WriteStyled(termio.Bold, termio.Red, 0, "Missing ID")
 			return
 		}
 
 		getId, err := strconv.Atoi(os.Args[3])
 		if err != nil {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Invalid id")
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Invalid id")
 			return
 		}
 
 		response, err := ctrl.CliScriptsRetrieve.Invoke(ctrl.CliScriptsRetrieveRequest{Id: uint64(getId)})
 		if err != nil {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Failed to get script log")
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Failed to get script log")
 			return
 		}
 
 		statusString := ""
 		switch response.Success {
 		case true:
-			statusString = termio2.WriteStyledString(termio2.NoStyle, termio2.Green, 0, "SUCCESS")
+			statusString = termio.WriteStyledString(termio.NoStyle, termio.Green, 0, "SUCCESS")
 		case false:
-			statusString = termio2.WriteStyledString(termio2.NoStyle, termio2.Red, 0, "FAILED")
+			statusString = termio.WriteStyledString(termio.NoStyle, termio.Red, 0, "FAILED")
 		}
 
-		f := termio2.Frame{}
+		f := termio.Frame{}
 
 		f.AppendTitle("Script Log Entry")
 		f.AppendField("ID", fmt.Sprintf("%d", response.Id))
@@ -192,13 +192,13 @@ func HandleScriptsCommand() {
 		ctrl.CliScriptsClear.Invoke(ctrl.CliScriptsClearRequest{})
 	case cli.IsDeleteCommand(command):
 		if len(os.Args) < 4 {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Missing ID")
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Missing ID")
 			return
 		}
 
 		getId, err := strconv.Atoi(os.Args[3])
 		if err != nil {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Invalid id")
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Invalid id")
 			return
 		}
 

@@ -1,31 +1,11 @@
 import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
-import {local} from "d3-selection";
 
 export enum Feature {
-    PROVIDER_CONNECTION,
-    NEW_IDPS,
     COMPONENT_STORED_CUT_COPY,
-    TRANSFER_TO,
 
-
-    PROVIDER_CONDITION,
-
-
-    ALTERNATIVE_USAGE_SELECTOR,
-    NEW_SYNCTHING_UI,
-
-    HIDE_PROJECTS,
-
-    CORE2,
-
-    API_TOKENS_PAGES,
-
-    JOB_RENAME,
     REORDER_APP_GROUP,
 
     ALLOCATIONS_PAGE_IMPROVEMENTS,
-
-    APPLICATION_HISTORY
 }
 
 enum Environment {
@@ -64,46 +44,9 @@ interface FeatureConfig {
 }
 
 const featureMap: Record<string, FeatureConfig> = {
-    "provider-connection": publicFeature(Feature.PROVIDER_CONNECTION),
-
-    "new-idps": {
-        feature: Feature.NEW_IDPS,
-        showWithoutFlag: allEnvironments,
-        showWithFlag: allEnvironments,
-    },
-
     "component-stored-cut-copy": {
         feature: Feature.COMPONENT_STORED_CUT_COPY,
         showWithoutFlag: allEnvironments,
-    },
-
-    "transfer-to": {
-        feature: Feature.TRANSFER_TO,
-        showWithoutFlag: allEnvironments,
-    },
-
-    "provider-condition": {
-        feature: Feature.PROVIDER_CONDITION,
-        showWithoutFlag: allDevEnvironments,
-        showWithFlag: allEnvironments,
-    },
-
-    "job-rename": {
-        feature: Feature.JOB_RENAME,
-        showWithFlag: allEnvironments,
-        showWithoutFlag: allEnvironments
-    },
-
-    "alternative-usage-selector": {
-        feature: Feature.ALTERNATIVE_USAGE_SELECTOR,
-        showWithoutFlag: allEnvironments,
-        showWithFlag: allEnvironments,
-    },
-
-    "new-syncthing-ui": {
-        feature: Feature.NEW_SYNCTHING_UI,
-        showWithoutFlag: allEnvironments,
-        showWithFlag: allEnvironments,
     },
 
     "reorder-app-group": {
@@ -112,35 +55,11 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithFlag: allDevEnvironments,
     },
 
-    "hide-projects": {
-        feature: Feature.HIDE_PROJECTS,
-        showWithFlag: allEnvironments,
-        showWithoutFlag: allDevEnvironments,
-    },
-
-    "core2": {
-        feature: Feature.CORE2,
-        showWithFlag: allEnvironments,
-        showWithoutFlag: allEnvironments,
-    },
-
     "allocations-improvements": {
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
         showWithFlag: allLocalEnvironments,
         showWithoutFlag: noEnvironments,
     },
-
-    "api-tokens-pages": {
-        feature: Feature.API_TOKENS_PAGES,
-        showWithFlag: allEnvironments,
-        showWithoutFlag: allEnvironments
-    },
-
-    "application-history": {
-        feature: Feature.APPLICATION_HISTORY,
-        showWithFlag: allEnvironments,
-        showWithoutFlag: noEnvironments
-    }
 };
 
 function getCurrentEnvironment(): Environment {
@@ -157,8 +76,6 @@ function getCurrentEnvironment(): Environment {
 }
 
 export function hasFeature(feature: Feature): boolean {
-    if (feature == Feature.PROVIDER_CONNECTION) return true;
-
     const env = getCurrentEnvironment();
     for (const [key, config] of Object.entries(featureMap)) {
         if (config.feature !== feature) continue;

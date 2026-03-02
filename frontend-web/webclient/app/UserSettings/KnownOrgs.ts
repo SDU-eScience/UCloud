@@ -1,4 +1,6 @@
-[
+import type {DataListItem} from "@/UserSettings/types";
+
+const knownOrgs: DataListItem[] = [
     {
         "key": "Aalborg University",
         "value": "Aalborg University",
@@ -74,4 +76,6 @@
         "value": "Via University College",
         "tags": "viauc.dk via.dk"
     }
-]
+];
+
+export default knownOrgs;

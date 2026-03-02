@@ -19,7 +19,7 @@ import (
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
-	termio2 "ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/termio"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -777,7 +777,7 @@ func PublicIpUnbindFromJob(job *orc.Job) {
 
 func IpPoolCliStub(args []string) {
 	if len(args) == 0 {
-		termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Unknown command")
+		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Unknown command")
 		return
 	}
 
@@ -786,7 +786,7 @@ func IpPoolCliStub(args []string) {
 		pool, err := ipcRetrieveIpPool.Invoke(util.Empty{})
 		cli.HandleError("listing IP pool", err)
 
-		table := &termio2.Table{}
+		table := &termio.Table{}
 		table.AppendHeader("Subnet")
 		table.AppendHeader("Allocated")
 		table.AppendHeader("Remaining")
@@ -829,7 +829,7 @@ func IpPoolCliStub(args []string) {
 		cli.HandleError("removing from IP pool", err)
 
 	default:
-		termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Unknown command")
+		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Unknown command")
 	}
 }
 

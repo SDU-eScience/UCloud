@@ -8,7 +8,6 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import Providers from "@/Assets/provider_info.json";
-import {Feature, hasFeature} from "@/Features";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {CardClass} from "@/ui-components/Card";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -47,8 +46,6 @@ export function ProviderEntry(props: {provider: ProviderType}): React.ReactNode 
 }
 
 export default function ProviderOverview() {
-    if (!hasFeature(Feature.PROVIDER_CONNECTION)) return null;
-
     usePage("Provider overview", SidebarTabId.NONE);
 
     const main = <Box m="12px 24px">

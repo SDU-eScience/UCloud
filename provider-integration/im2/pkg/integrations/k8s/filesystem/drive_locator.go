@@ -7,7 +7,7 @@ import (
 	"time"
 
 	ctrl "ucloud.dk/pkg/controller"
-	shared2 "ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -43,7 +43,7 @@ func (d DriveDescriptor) ProductName() string {
 	case DriveDescriptorTypeCollection:
 		fallthrough
 	default:
-		return shared2.ServiceConfig.FileSystem.Name
+		return shared.ServiceConfig.FileSystem.Name
 	}
 }
 
@@ -142,7 +142,7 @@ var shareCache = util.NewCache[string, orc.Share](1 * time.Minute)
 
 func DriveToLocalPath(drive *orc.Drive) (string, bool, *orc.Drive) {
 	descriptor, ok := ParseDriveDescriptor(util.OptValue(drive.ProviderGeneratedId))
-	mnt := shared2.ServiceConfig.FileSystem.MountPoint
+	mnt := shared.ServiceConfig.FileSystem.MountPoint
 
 	if !ok {
 		return "/dev/null", false, drive
@@ -319,5 +319,5 @@ func DriveIsSensitive(drive *orc.Drive) bool {
 		return true
 	}
 
-	return shared2.IsSensitiveProject(drive.Owner.Project.Value)
+	return shared.IsSensitiveProject(drive.Owner.Project.Value)
 }

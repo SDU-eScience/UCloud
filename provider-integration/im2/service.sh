@@ -40,7 +40,6 @@ chmod 755 /home 2> /dev/null || true
 chmod o+x /opt/ucloud
 mkdir -p /home/ucloud
 chown -R $uid:$uid /home/ucloud
-chown -R $uid:$uid /etc/ucloud
 chown -R $uid:$uid /var/run/ucloud
 chown -R $uid:$uid /var/log/ucloud
 mkdir -p /home/ucloudalt
@@ -77,6 +76,8 @@ startsvc() {
 
     if ! isrunning; then
         CGO_ENABLED=0 $GO build -gcflags "all=-N -l" -o /usr/bin/ucloud -trimpath ucloud.dk/cmd/ucloud-im
+        CGO_ENABLED=0 $GO build -gcflags "all=-N -l" -o /usr/bin/ucmetrics -trimpath ucloud.dk/cmd/ucmetrics
+        CGO_ENABLED=0 $GO build -gcflags "all=-N -l" -o /usr/bin/ucviz -trimpath ucloud.dk/cmd/ucviz
 
         if [ -f "/etc/ucloud/gpfs_mock.yml" ]; then
             pkill gpfs-mock || true

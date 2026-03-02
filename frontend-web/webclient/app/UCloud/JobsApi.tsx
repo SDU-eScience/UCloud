@@ -27,8 +27,6 @@ import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import AppRoutes from "@/Routes";
 import {ThemeColor} from "@/ui-components/theme";
 import {Application, ApplicationParameter, NameAndVersion} from "@/Applications/AppStoreApi";
-import {Feature, hasFeature} from "@/Features";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 export interface DynamicParameters {
     parametersByProvider: Record<string, ApplicationParameter[]>;
@@ -202,6 +200,11 @@ export interface SessionDataVnc {
     password?: string;
 }
 
+export interface JobSettings {
+    toggled: boolean;
+    sampleRateValue: string;
+}
+
 export function jobStateToIconAndColor(state: JobState): [IconName, ThemeColor] {
     let color: ThemeColor = "iconColor";
     let icon: IconName;
@@ -316,21 +319,19 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             shortcut: ShortcutKey.P
         }];
 
-        if (hasFeature(Feature.JOB_RENAME)) {
-            ourOps.push({
-                enabled(selected) {
-                    // NOTE(Dan): This should work regardless of job and job state. Even for provider registered 
-                    // jobs this shouldn't be an issue since this is just a name used by the end-user.
-                    return selected.length === 1; 
-                },
-                icon: "edit",
-                onClick([job], extra) {
-                    extra.startRenaming?.(job, "job name");
-                },
-                text: "Rename",
-                shortcut: ShortcutKey.R,
-            })
-        }
+        ourOps.push({
+            enabled(selected) {
+                // NOTE(Dan): This should work regardless of job and job state. Even for provider registered
+                // jobs this shouldn't be an issue since this is just a name used by the end-user.
+                return selected.length === 1;
+            },
+            icon: "edit",
+            onClick([job], extra) {
+                extra.startRenaming?.(job, "job name");
+            },
+            text: "Rename",
+            shortcut: ShortcutKey.R,
+        })
 
         return ourOps.concat(baseOperations);
     }
@@ -381,6 +382,14 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
 
     rename(request: BulkRequest<{ id: string; newTitle: string; }>) {
         return apiUpdate(request, this.baseContext, "rename");
+    }
+
+    settingsUpdate(request: JobSettings): APICallParameters<JobSettings, Record<string, never>> {
+        return apiUpdate(request, this.baseContext, "settingsUpdate")
+    }
+
+    settingsRetrieve(request: Record<string, never>): APICallParameters<Record<string, never>, JobSettings> {
+        return apiRetrieve(request, this.baseContext, "settingsRetrieve")
     }
 }
 

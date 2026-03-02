@@ -13,7 +13,7 @@ import (
 	"ucloud.dk/pkg/ipc"
 	"ucloud.dk/shared/pkg/cli"
 	db "ucloud.dk/shared/pkg/database"
-	termio2 "ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/termio"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -21,7 +21,7 @@ func HandleUsersCommand() {
 	// Invoked via 'ucloud users <subcommand> [options]'
 
 	if os.Getuid() != 0 {
-		termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "This command must be run as root!")
+		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "This command must be run as root!")
 		os.Exit(1)
 	}
 
@@ -47,7 +47,7 @@ func HandleUsersCommand() {
 
 		cli.HandleError("fetching user mapping", err)
 
-		t := termio2.Table{}
+		t := termio.Table{}
 		t.AppendHeader("UCloud username")
 		t.AppendHeader("Local username")
 		t.AppendHeader("Local UID")
@@ -57,7 +57,7 @@ func HandleUsersCommand() {
 			t.Cell("%v", mapping.Uid)
 		}
 		t.Print()
-		termio2.WriteLine("")
+		termio.WriteLine("")
 		return result
 	}
 
@@ -73,17 +73,17 @@ func HandleUsersCommand() {
 
 	case cli.IsAddCommand(command):
 		if ucloudName == "" {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "ucloud-name must be supplied")
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "ucloud-name must be supplied")
 			os.Exit(1)
 		}
 
 		if localName == "" {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "local-name must be supplied")
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "local-name must be supplied")
 			os.Exit(1)
 		}
 
 		if localUid != "" {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "local-uid is ignored for this command")
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "local-uid is ignored for this command")
 			os.Exit(1)
 		}
 
@@ -95,28 +95,28 @@ func HandleUsersCommand() {
 		)
 
 		cli.HandleError("adding user", err)
-		termio2.WriteStyledLine(termio2.Bold, termio2.Green, 0, "OK")
+		termio.WriteStyledLine(termio.Bold, termio.Green, 0, "OK")
 
 	case cli.IsDeleteCommand(command):
 		if ucloudName == "" && localName == "" && localUid == "" {
-			termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "either ucloud-name, local-name or local-uid must be supplied")
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "either ucloud-name, local-name or local-uid must be supplied")
 			os.Exit(1)
 		}
 
-		termio2.WriteStyledLine(termio2.Bold, 0, 0, "This command will delete the following connections:")
-		termio2.WriteLine("")
+		termio.WriteStyledLine(termio.Bold, 0, 0, "This command will delete the following connections:")
+		termio.WriteLine("")
 
 		rows := printUsers()
-		termio2.WriteLine("")
+		termio.WriteLine("")
 		if len(rows) == 0 {
-			termio2.WriteLine("No such account, try again with a different query.")
+			termio.WriteLine("No such account, try again with a different query.")
 			os.Exit(0)
 		}
 
-		shouldDelete, _ := termio2.ConfirmPrompt(
+		shouldDelete, _ := termio.ConfirmPrompt(
 			"Are you sure you want to delete these user mappings? No users will be deleted from the system.",
-			termio2.ConfirmValueFalse,
-			termio2.ConfirmPromptExitOnCancel,
+			termio.ConfirmValueFalse,
+			termio.ConfirmPromptExitOnCancel,
 		)
 
 		if !shouldDelete {
@@ -133,11 +133,11 @@ func HandleUsersCommand() {
 
 		for i, failure := range resp.Failures {
 			if failure != "" {
-				termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "Failed to delete user %s (uid: %v): %s", rows[i].LocalName, rows[i].Uid, failure)
+				termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Failed to delete user %s (uid: %v): %s", rows[i].LocalName, rows[i].Uid, failure)
 			}
 		}
 
-		termio2.WriteStyledLine(termio2.Bold, termio2.Green, 0, "OK")
+		termio.WriteStyledLine(termio.Bold, termio.Green, 0, "OK")
 	}
 }
 

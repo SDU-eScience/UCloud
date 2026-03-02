@@ -2,22 +2,23 @@ import {apiRetrieve, apiUpdate, callAPI, callAPIWithErrorHandler, useCloudComman
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {Box, Button, Flex, Icon, Input, Label, Truncate} from "@/ui-components";
-import * as Heading from "@/ui-components/Heading";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PayloadAction} from "@reduxjs/toolkit";
-import ResearchFields from "@/UserSettings/ResearchField.json";
-import Positions from "@/UserSettings/Position.json";
+import ResearchFields from "@/UserSettings/ResearchField";
+import Positions from "@/UserSettings/Position";
 const SortedPositions = Positions.sort((a, b) => a.key.localeCompare(b.key));
-import KnownDepartments from "@/UserSettings/KnownDepartments.json"
-import KnownOrgs from "@/UserSettings/KnownOrgs.json";
-import Genders from "@/UserSettings/Genders.json";
-import OrgMapping from "@/UserSettings/OrganizationMapping.json";
+import KnownDepartments from "@/UserSettings/KnownDepartments"
+import KnownOrgs from "@/UserSettings/KnownOrgs";
+import Genders from "@/UserSettings/Genders";
+import OrgMapping from "@/UserSettings/OrganizationMapping";
+import type {KnownDepartmentsEntry, DataListItem} from "@/UserSettings/types";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import {clamp} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {SelectorDialog} from "@/Products/Selector";
+import {SettingsSection} from "./SettingsComponents";
 
 interface UserDetailsState {
     placeHolderFirstNames: string;
@@ -103,8 +104,7 @@ export function ChangeUserDetails(): React.ReactNode {
     }, [commandLoading, userFirstNames.current, userLastName.current, userEmail.current]);
 
     return (
-        <Box mb={16}>
-            <Heading.h2>Change user details</Heading.h2>
+        <SettingsSection id="profile" title="User information">
             <form onSubmit={onSubmit}>
                 <Box mt="0.5em" pt="0.5em">
                     <Label>
@@ -143,10 +143,10 @@ export function ChangeUserDetails(): React.ReactNode {
                     color="successMain"
                     disabled={commandLoading || !!message}
                 >
-                    {message ?? "Update Information"}
+                    {message ?? "Update information"}
                 </Button>
             </form>
-        </Box>
+        </SettingsSection>
     );
 };
 
@@ -210,7 +210,7 @@ export function ChangeOrganizationDetails(props: ChangeOrganizationDetailsProps)
             if (orgFullNameRef.current) {
                 const orgId = Client.orgId ? Client.orgId : info.organizationFullName;
                 const orgMapping = orgId ? (OrgMapping[orgId] ?? orgId) : undefined;
-                setOrg(orgMapping);
+                setOrg(orgMapping ?? "");
                 orgFullNameRef.current.value = orgMapping ?? info.organizationFullName ?? "";
             }
             if (departmentRef.current)
@@ -321,30 +321,29 @@ export function ChangeOrganizationDetails(props: ChangeOrganizationDetailsProps)
         snackbarStore.addSuccess("Your information has been updated.", false);
     }, []);
 
-    const [org, setOrg] = useState(OrgMapping[Client.orgId] ?? Client.orgId);
+    const [org, setOrg] = useState(OrgMapping[Client.orgId] ?? Client.orgId ?? "");
 
     return (
-        <Box mb={16} width="100%">
-            {props.embedded ? null : <Heading.h2>Additional user information</Heading.h2>}
-            {props.inModal ? <span>This can be filled out at a later time, but is required when applying for resources.</span> : null}
-            <NewDataList id="organization" ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={`University of Southern Denmark”, “Aarhus University”`} />
-            <Department org={org} ref={departmentRef} />
-            <NewDataList ref={unitRef} title={"Unit"} isFreetext items={[]} placeholder={`“Section for Data Science and Statistics”, “Center for Humanities Computing”, “Design Lab”`} />
-            <NewDataList title="Position" placeholder="VIP/TAP/Student" items={SortedPositions} ref={positionRef} />
-            <NewDataList title={"Primary research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={ResearchFields[RFIndex].value} />
-            <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} disabled={false} placeholder="Prefer not to say" />
-            {props.getValues ? null : <Button onClick={onSubmit} mt="1em" type="button" color="successMain">Update Information</Button>}
-        </Box>
+        <SettingsSection id="organization" title="Additional user information" mb={16} showTitle={!props.embedded}>
+            <Box width="100%">
+                {props.inModal ? <span>This can be filled out at a later time, but is required when applying for resources.</span> : null}
+                <NewDataList id="organization" ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={`University of Southern Denmark”, “Aarhus University”`} />
+                <Department org={org} ref={departmentRef} />
+                <NewDataList ref={unitRef} title={"Unit"} isFreetext items={[]} placeholder={`“Section for Data Science and Statistics”, “Center for Humanities Computing”, “Design Lab”`} />
+                <NewDataList title="Position" placeholder="VIP/TAP/Student" items={SortedPositions} ref={positionRef} />
+                <NewDataList title={"Primary research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={ResearchFields[RFIndex].value} />
+                <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} disabled={false} placeholder="Prefer not to say" />
+                {props.getValues ? null : <Button onClick={onSubmit} mt="1em" type="button" color="successMain">Update information</Button>}
+            </Box>
+        </SettingsSection>
     );
 }
-
-type Departments = "freetext" | {faculty: string; departments?: string[]}[];
 
 function Department(props: {org: string; ref: React.RefObject<HTMLInputElement | null>}) {
     const orgInfo = findOrganisationIdFromName(props.org);
     const title = "Faculty/Department";
     const result = React.useMemo((): {items: DataListItem[]; isFreetext: boolean} => {
-        const possibleDepartments: Departments = orgInfo ? KnownDepartments[orgInfo] : [];
+        const possibleDepartments: KnownDepartmentsEntry = orgInfo ? KnownDepartments[orgInfo] : [];
         if (possibleDepartments === "freetext" || possibleDepartments.length === 0) return {isFreetext: true, items: []};
         return ({
             isFreetext: false, items: possibleDepartments.flatMap(f => {
@@ -360,13 +359,6 @@ function dataListItem(key: string, value: string, tags: string, unselectable?: b
     return {
         key, value, tags, unselectable
     };
-}
-
-interface DataListItem {
-    key: string;
-    value: string;
-    tags: string;
-    unselectable?: boolean;
 }
 
 function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext, ref, didUpdateQuery, id}: {

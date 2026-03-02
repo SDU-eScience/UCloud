@@ -10,7 +10,7 @@ import (
 
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	cfg "ucloud.dk/pkg/config"
-	fsearch2 "ucloud.dk/pkg/controller/fsearch"
+	"ucloud.dk/pkg/controller/fsearch"
 	"ucloud.dk/pkg/ipc"
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
@@ -36,7 +36,7 @@ func InitDriveDatabase() {
 		return
 	}
 
-	fsearch2.Init()
+	fsearch.Init()
 
 	db.NewTx0(func(tx *db.Transaction) {
 		rows := db.Select[struct {
@@ -241,7 +241,7 @@ func DriveRetrieve(id string) (*orc.Drive, bool) {
 	return existing, true
 }
 
-func DriveTrackSearchIndex(id string, index *fsearch2.SearchIndex, recommendedBucketCount int) {
+func DriveTrackSearchIndex(id string, index *fsearch.SearchIndex, recommendedBucketCount int) {
 	if !RunsServerCode() {
 		panic("Not yet implemented in user mode")
 	}
@@ -297,14 +297,14 @@ func DriveLoadNextSearchBucketCount(id string) int {
 			},
 		)
 
-		return min(fsearch2.MaxBucketsPerIndex, row.SearchNextBucketCount)
+		return min(fsearch.MaxBucketsPerIndex, row.SearchNextBucketCount)
 	})
 }
 
-var driveSearchIndexCache = lru.NewLRU[string, fsearch2.SearchIndex](32, nil, 30*time.Minute)
+var driveSearchIndexCache = lru.NewLRU[string, fsearch.SearchIndex](32, nil, 30*time.Minute)
 var driveSearchIndexLock = util.NewScopedMutex() // Ensure that only one goroutine attempts to read a given index. Not needed for the cache.
 
-func DriveRetrieveSearchIndex(id string) (fsearch2.SearchIndex, bool) {
+func DriveRetrieveSearchIndex(id string) (fsearch.SearchIndex, bool) {
 	cached, ok := driveSearchIndexCache.Get(id)
 	if ok {
 		return cached, true
@@ -312,7 +312,7 @@ func DriveRetrieveSearchIndex(id string) (fsearch2.SearchIndex, bool) {
 		driveSearchIndexLock.Lock(id)
 		result, ok := driveSearchIndexCache.Get(id)
 		if !ok {
-			result, ok = db.NewTx2(func(tx *db.Transaction) (fsearch2.SearchIndex, bool) {
+			result, ok = db.NewTx2(func(tx *db.Transaction) (fsearch.SearchIndex, bool) {
 				index, ok := db.Get[struct{ SearchIndex sql.RawBytes }](
 					tx,
 					`
@@ -326,9 +326,9 @@ func DriveRetrieveSearchIndex(id string) (fsearch2.SearchIndex, bool) {
 				)
 
 				if ok {
-					return *fsearch2.LoadIndex(index.SearchIndex), true
+					return *fsearch.LoadIndex(index.SearchIndex), true
 				} else {
-					return *fsearch2.NewIndexBuilder(16), false
+					return *fsearch.NewIndexBuilder(16), false
 				}
 			})
 		}

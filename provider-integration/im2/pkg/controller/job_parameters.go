@@ -307,7 +307,11 @@ func JobVerifyParameterType(param *orcapi.ApplicationParameter, value *orcapi.Ap
 	return true
 }
 
-func JobFindParamAndValues(job *orcapi.Job, application *orcapi.ApplicationInvocationDescription) map[string]ParamAndValue {
+func JobFindParamAndValues(
+	job *orcapi.Job,
+	application *orcapi.ApplicationInvocationDescription,
+	dynamicParameters []orcapi.ApplicationParameter,
+) map[string]ParamAndValue {
 	parameters := make(map[string]ParamAndValue)
 
 	allParameters := application.Parameters
@@ -318,6 +322,10 @@ func JobFindParamAndValues(job *orcapi.Job, application *orcapi.ApplicationInvoc
 				allParameters = append(allParameters, input)
 			}
 		}
+	}
+
+	for _, param := range dynamicParameters {
+		allParameters = append(allParameters, param)
 	}
 
 	for _, param := range allParameters {

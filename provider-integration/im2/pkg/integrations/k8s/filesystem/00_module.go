@@ -21,8 +21,8 @@ import (
 	cfg "ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/controller/fsearch"
-	upload2 "ucloud.dk/pkg/controller/upload"
-	shared2 "ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/pkg/controller/upload"
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	orc "ucloud.dk/shared/pkg/orchestrators"
@@ -557,7 +557,7 @@ func retrieveProducts() []orc.FSSupport {
 
 func loadStorageProducts() {
 	pc := apm.ProductCategory{
-		Name:        shared2.ServiceConfig.FileSystem.Name,
+		Name:        shared.ServiceConfig.FileSystem.Name,
 		Provider:    cfg.Provider.Id,
 		ProductType: apm.ProductTypeStorage,
 		AccountingUnit: apm.AccountingUnit{
@@ -609,7 +609,7 @@ func loadStorageProducts() {
 		defaultSupport.Files.SearchSupported = false
 		defaultSupport.Files.StreamingSearchSupported = true
 		defaultSupport.Files.SharesSupported = true
-		defaultSupport.Files.OpenInTerminal = shared2.ServiceConfig.Compute.IntegratedTerminal.Enabled
+		defaultSupport.Files.OpenInTerminal = shared.ServiceConfig.Compute.IntegratedTerminal.Enabled
 	}
 
 	shareProduct := apm.ProductV2{
@@ -642,7 +642,7 @@ func loadStorageProducts() {
 	projectHomeSupport := shareSupport
 	projectHomeSupport.Product.Id = projectHomeProduct.Name
 
-	shared2.StorageProducts = []apm.ProductV2{defaultProduct, shareProduct, projectHomeProduct}
+	shared.StorageProducts = []apm.ProductV2{defaultProduct, shareProduct, projectHomeProduct}
 	storageSupport = []orc.FSSupport{defaultSupport, shareSupport, projectHomeSupport}
 }
 
@@ -666,11 +666,11 @@ func createUpload(request orc.FilesProviderCreateUploadRequest) (string, *util.H
 type uploaderFileSystem struct{}
 type uploaderFile struct {
 	File     *os.File
-	Metadata upload2.FileMetadata
+	Metadata upload.FileMetadata
 	err      error
 }
 
-func (u *uploaderFileSystem) OpenFileIfNeeded(session upload2.ServerSession, fileMeta upload2.FileMetadata) upload2.ServerFile {
+func (u *uploaderFileSystem) OpenFileIfNeeded(session upload.ServerSession, fileMeta upload.FileMetadata) upload.ServerFile {
 	rootPath := session.UserData
 	internalPath := filepath.Join(rootPath, fileMeta.InternalPath)
 
@@ -696,7 +696,7 @@ func (u *uploaderFileSystem) OpenFileIfNeeded(session upload2.ServerSession, fil
 	return &uploaderFile{file, fileMeta, nil}
 }
 
-func (u *uploaderFileSystem) OnSessionClose(session upload2.ServerSession, success bool) {
+func (u *uploaderFileSystem) OnSessionClose(session upload.ServerSession, success bool) {
 	if success {
 		tasks := ListAllActiveTasks()
 		for _, task := range tasks {
@@ -751,26 +751,26 @@ func (u *uploaderClientFile) ListChildren(ctx context.Context) []string {
 	return names
 }
 
-func (u *uploaderClientFile) OpenChild(ctx context.Context, name string) (upload2.FileMetadata, upload2.ClientFile) {
+func (u *uploaderClientFile) OpenChild(ctx context.Context, name string) (upload.FileMetadata, upload.ClientFile) {
 	file, err := FileOpenAt(u.File, name, unix.O_RDONLY|unix.O_NOFOLLOW, 0)
 	if err != nil {
-		return upload2.FileMetadata{}, nil
+		return upload.FileMetadata{}, nil
 	}
 
 	finfo, err := file.Stat()
 	if err != nil {
-		return upload2.FileMetadata{}, nil
+		return upload.FileMetadata{}, nil
 	}
 
-	ftype := upload2.FileTypeFile
+	ftype := upload.FileTypeFile
 	if finfo.IsDir() {
-		ftype = upload2.FileTypeDirectory
+		ftype = upload.FileTypeDirectory
 	} else if !finfo.Mode().IsRegular() {
 		_ = file.Close()
-		return upload2.FileMetadata{}, nil
+		return upload.FileMetadata{}, nil
 	}
 
-	metadata := upload2.FileMetadata{
+	metadata := upload.FileMetadata{
 		Size:         finfo.Size(),
 		ModifiedAt:   fnd.Timestamp(finfo.ModTime()),
 		InternalPath: filepath.Join(u.Path, name),
@@ -852,7 +852,7 @@ func emptyTrash(request orc.FilesProviderTrashRequest) *util.HttpError {
 
 func DoDeleteFile(internalPath string) *util.HttpError {
 	parentDir, ok1 := OpenFile(filepath.Dir(internalPath), unix.O_RDONLY, 0)
-	stagingArea, ok2 := OpenFile(shared2.ServiceConfig.FileSystem.TrashStagingArea, unix.O_RDONLY, 0)
+	stagingArea, ok2 := OpenFile(shared.ServiceConfig.FileSystem.TrashStagingArea, unix.O_RDONLY, 0)
 	defer util.SilentClose(parentDir)
 	defer util.SilentClose(stagingArea)
 	if !ok1 || !ok2 {
@@ -953,7 +953,7 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 		}
 	}
 
-	uploadSession := upload2.ClientSession{
+	uploadSession := upload.ClientSession{
 		Endpoint:       parameters.Endpoint,
 		ConflictPolicy: orc.WriteConflictPolicyMergeRename,
 		Path:           session.SourcePath,
@@ -991,11 +991,11 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 				AllowReschedule: false,
 			}
 		}
-		ftype := upload2.FileTypeFile
+		ftype := upload.FileTypeFile
 		if finfo.IsDir() {
-			ftype = upload2.FileTypeDirectory
+			ftype = upload.FileTypeDirectory
 		}
-		rootMetadata := upload2.FileMetadata{
+		rootMetadata := upload.FileMetadata{
 			Size:         finfo.Size(),
 			ModifiedAt:   fnd.Timestamp(finfo.ModTime()),
 			InternalPath: "",
@@ -1015,7 +1015,7 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 			}
 		}()
 
-		report := upload2.ProcessClient(uploadSession, uploaderRoot, rootMetadata, &task.Status, cancelChannel)
+		report := upload.ProcessClient(uploadSession, uploaderRoot, rootMetadata, &task.Status, cancelChannel)
 
 		if report.WasCancelledByUser {
 			uploadErr = nil
@@ -1038,7 +1038,7 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 	}
 
 	if uploadErr == nil {
-		if !upload2.CloseSessionFromClient(uploadSession) {
+		if !upload.CloseSessionFromClient(uploadSession) {
 			return TaskProcessingResult{
 				Error:           fmt.Errorf("failed to close upload session"),
 				AllowReschedule: true,
@@ -1144,7 +1144,7 @@ func createShare(share orc.Share) (string, *util.HttpError) {
 			Title: title,
 			Product: apm.ProductReference{
 				Id:       "share",
-				Category: shared2.ServiceConfig.FileSystem.Name,
+				Category: shared.ServiceConfig.FileSystem.Name,
 				Provider: cfg.Provider.Id,
 			},
 		},

@@ -15,7 +15,7 @@ var K8sConfig *rest.Config
 var KubevirtClient kvclient.KubevirtClient
 var K8sInCluster bool
 
-func initClients() {
+func InitClients() {
 	composeFile := "/mnt/k3s/kubeconfig.yaml"
 	_, err := os.Stat(composeFile)
 

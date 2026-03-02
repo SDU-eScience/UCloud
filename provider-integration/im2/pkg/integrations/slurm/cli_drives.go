@@ -15,13 +15,13 @@ import (
 	"ucloud.dk/shared/pkg/cli"
 	db "ucloud.dk/shared/pkg/database"
 	orc "ucloud.dk/shared/pkg/orchestrators"
-	termio2 "ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/termio"
 )
 
 func HandleDrivesCommand() {
 	// Invoked via 'ucloud drives <subcommand> [options]'
 	if os.Getuid() != 0 {
-		termio2.WriteStyledLine(termio2.Bold, termio2.Red, 0, "This command must be run as root!")
+		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "This command must be run as root!")
 		os.Exit(1)
 	}
 
@@ -37,7 +37,7 @@ func HandleDrivesCommand() {
 		drives, err := cliDrivesList.Invoke(req)
 		cli.HandleError("listing drives", err)
 
-		t := termio2.Table{}
+		t := termio.Table{}
 		t.AppendHeader("Created at")
 		t.AppendHeader("ID")
 		t.AppendHeader("Path")
@@ -51,7 +51,7 @@ func HandleDrivesCommand() {
 		}
 
 		t.Print()
-		termio2.WriteLine("")
+		termio.WriteLine("")
 
 	case cli.IsGetCommand(command):
 		req := cliDrivesListRequest{}
@@ -60,17 +60,17 @@ func HandleDrivesCommand() {
 		cli.HandleError("listing drives", err)
 
 		if len(drives) > 1 {
-			termio2.WriteStyledString(termio2.Bold, termio2.Red, 0, "Too many results, try with a more precise query")
+			termio.WriteStyledString(termio.Bold, termio.Red, 0, "Too many results, try with a more precise query")
 			os.Exit(1)
 		} else if len(drives) == 0 {
-			termio2.WriteStyledString(termio2.Bold, termio2.Red, 0, "No results, try with a different query")
+			termio.WriteStyledString(termio.Bold, termio.Red, 0, "No results, try with a different query")
 			os.Exit(1)
 		}
 
 		drive := drives[0]
 		driveSpec := &drive.Drive.Specification
 
-		f := termio2.Frame{}
+		f := termio.Frame{}
 
 		{
 			f.AppendTitle("UCloud metadata")
@@ -108,7 +108,7 @@ func HandleDrivesCommand() {
 		}
 
 		f.Print()
-		termio2.WriteLine("")
+		termio.WriteLine("")
 	}
 }
 

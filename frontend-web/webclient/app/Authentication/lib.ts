@@ -442,7 +442,7 @@ export class HttpClient {
         if (!csrfToken) {
             return this.refreshPromise = new Promise((resolve, reject) => {
                 this.refreshPromise = null;
-                reject(this.missingAuth());
+                reject(this.missingAuth("No stored CSRF token"));
             });
         }
 
@@ -492,7 +492,7 @@ export class HttpClient {
      * @param csrfToken the csrf token
      */
     public setTokens(accessToken: string, csrfToken: string): void {
-        if (!accessToken) throw this.missingAuth();
+        if (!accessToken) throw this.missingAuth("received access token was empty");
 
         this.accessToken = accessToken;
         HttpClient.storedAccessToken = accessToken;
@@ -576,7 +576,8 @@ export class HttpClient {
         return token.payload.exp < inOneMinute;
     }
 
-    private missingAuth(): 0 | MissingAuthError {
+    private missingAuth(reason: string): 0 | MissingAuthError {
+        console.warn("MissingAuth: ", reason);
         if (this.redirectOnInvalidTokens) {
             this.openBrowserLoginPage();
             return 0;

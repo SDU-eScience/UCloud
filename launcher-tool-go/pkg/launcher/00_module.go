@@ -167,6 +167,7 @@ const (
 	FeatureProviderK8s    Feature = "k8s"
 	FeatureProviderSlurm  Feature = "slurm"
 	FeatureAddonInference Feature = "ollama"
+	FeatureAddonKubeVirt  Feature = "kubevirt"
 )
 
 func RegisterServices() {

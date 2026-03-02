@@ -15,7 +15,7 @@ import (
 var JobPods *K8sResourceTracker[*corev1.Pod]
 
 func Init() {
-	initClients()
+	InitClients()
 	initProducts()
 	initSsh()
 

@@ -345,8 +345,13 @@ func initAuth() {
 		return util.Empty{}, nil
 	})
 
-	fndapi.UsersRetrieveOptionalInfo.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.OptionalUserInfo, *util.HttpError) {
-		return UserOptInfoRetrieve(info.Actor), nil
+	fndapi.UsersRetrieveOptionalInfo.Handler(func(info rpc.RequestInfo, request fndapi.UsersRetrieveOptionalInfoRequest) (fndapi.OptionalUserInfo, *util.HttpError) {
+		usernameToLookup := request.Username.GetOrDefault(info.Actor.Username)
+		if info.Actor.Role != rpc.RoleService {
+			usernameToLookup = info.Actor.Username
+		}
+
+		return UserOptInfoRetrieve(usernameToLookup), nil
 	})
 
 	fndapi.UsersUpdateOptionalInfo.Handler(func(info rpc.RequestInfo, request fndapi.OptionalUserInfo) (util.Empty, *util.HttpError) {

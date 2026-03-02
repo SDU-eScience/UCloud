@@ -20,8 +20,8 @@ import (
 	"k8s.io/client-go/rest"
 	"ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/controller"
-	filesystem2 "ucloud.dk/pkg/integrations/k8s/filesystem"
-	shared2 "ucloud.dk/pkg/integrations/k8s/shared"
+	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
@@ -36,9 +36,9 @@ var ExecCodec runtime.ParameterCodec
 
 func Init() controller.JobsService {
 	// Create a number of aliases for use in this package. These are all static by the time this function is called.
-	K8sConfig = shared2.K8sConfig
-	K8sClient = shared2.K8sClient
-	ServiceConfig = shared2.ServiceConfig
+	K8sConfig = shared.K8sConfig
+	K8sClient = shared.K8sClient
+	ServiceConfig = shared.ServiceConfig
 	Namespace = ServiceConfig.Compute.Namespace
 
 	scheme := runtime.NewScheme()
@@ -86,7 +86,7 @@ const (
 
 // FindJobFolderEx finds the most relevant job folder for a given job. The returned path will be internal.
 func FindJobFolderEx(job *orc.Job, flags int) (string, *orc.Drive, *util.HttpError) {
-	path, drive, err := filesystem2.InitializeMemberFiles(job.Owner.CreatedBy, job.Owner.Project)
+	path, drive, err := filesystem.InitializeMemberFiles(job.Owner.CreatedBy, job.Owner.Project)
 	if err != nil {
 		return "", nil, err
 	}
@@ -98,7 +98,7 @@ func FindJobFolderEx(job *orc.Job, flags int) (string, *orc.Drive, *util.HttpErr
 
 	jobFolderPath := filepath.Join(path, "Jobs", title, job.Id)
 	if flags&FindJobFolderNoInitFolder == 0 {
-		_ = filesystem2.DoCreateFolder(jobFolderPath)
+		_ = filesystem.DoCreateFolder(jobFolderPath)
 	}
 	return jobFolderPath, drive, nil
 }
@@ -177,7 +177,7 @@ func follow(session *controller.FollowJobSession) {
 		_, exists := logFiles[baseName]
 
 		if !exists {
-			stdout, ok1 := filesystem2.OpenFile(filepath.Join(jobFolder, baseName), unix.O_RDONLY, 0)
+			stdout, ok1 := filesystem.OpenFile(filepath.Join(jobFolder, baseName), unix.O_RDONLY, 0)
 			if ok1 {
 				sinfo, err := stdout.Stat()
 				if err == nil {
@@ -318,7 +318,7 @@ func terminate(request controller.JobTerminateRequest) *util.HttpError {
 	// delete this directly.
 	for rank := 0; rank < request.Job.Specification.Replicas; rank++ {
 		podName := idAndRankToPodName(request.Job.Id, rank)
-		pod, ok := shared2.JobPods.Retrieve(podName)
+		pod, ok := shared.JobPods.Retrieve(podName)
 
 		// NOTE(Dan): Do not waste time on pods that we know are not in the system. The K8s API is really slow and this
 		// can waste a lot of time if someone attempts to schedule a 1 million node job (which we cannot possibly host
@@ -338,8 +338,8 @@ func terminate(request controller.JobTerminateRequest) *util.HttpError {
 	// Unbinding IP and port assignments
 	// -----------------------------------------------------------------------------------------------------------------
 	controller.PublicIpUnbindFromJob(request.Job)
-	shared2.ClearAssignedSshPort(request.Job)
-	shared2.RemoveFromQueue(request.Job.Id)
+	shared.ClearAssignedSshPort(request.Job)
+	shared.RemoveFromQueue(request.Job.Id)
 
 	// Cleaning up mount dirs
 	// -----------------------------------------------------------------------------------------------------------------
@@ -347,14 +347,14 @@ func terminate(request controller.JobTerminateRequest) *util.HttpError {
 	if err == nil {
 		mounts, _ := calculateMounts(request.Job, internalJobFolder)
 		if len(mounts.Folders) > 0 {
-			jobFolder, ok := filesystem2.OpenFile(internalJobFolder, os.O_RDONLY, 0)
+			jobFolder, ok := filesystem.OpenFile(internalJobFolder, os.O_RDONLY, 0)
 			if ok {
 				defer util.SilentClose(jobFolder)
 
 				for _, folder := range mounts.Folders {
 					if folderName, isMountedInJobFolder := strings.CutPrefix(folder.PodPath, "/work/"); isMountedInJobFolder {
 						if !strings.Contains(folderName, "/") {
-							child, err := filesystem2.FileOpenAt(jobFolder, folderName, os.O_RDONLY, 0)
+							child, err := filesystem.FileOpenAt(jobFolder, folderName, os.O_RDONLY, 0)
 							if err == nil {
 								info, err := child.Stat()
 								if err == nil {
@@ -363,13 +363,13 @@ func terminate(request controller.JobTerminateRequest) *util.HttpError {
 										util.SilentClose(child)
 
 										if err == nil && len(folderChildren) == 0 {
-											_ = filesystem2.DoDeleteFile(filepath.Join(internalJobFolder, folderName))
+											_ = filesystem.DoDeleteFile(filepath.Join(internalJobFolder, folderName))
 										} else {
 											log.Info("Refusing to delete %v it has children.", filepath.Join(internalJobFolder, folderName))
 										}
 									} else {
 										if info.Size() == 0 {
-											_ = filesystem2.DoDeleteFile(filepath.Join(internalJobFolder, folderName))
+											_ = filesystem.DoDeleteFile(filepath.Join(internalJobFolder, folderName))
 										} else {
 											log.Info("Refusing to delete %v it is not empty.", filepath.Join(internalJobFolder, folderName))
 										}
@@ -419,7 +419,28 @@ func terminate(request controller.JobTerminateRequest) *util.HttpError {
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
-	return nil
+	param := orc.ApplicationParameterEnumeration(
+		"ucMetricSampleRate",
+		true,
+		"Job report sample rate",
+		"Sets sampling rate for resource utilization for the job report (default is 250 ms)",
+		[]orc.EnumOption{
+			{Name: "Do not sample", Value: "0ms"},
+			{Name: "250 ms", Value: "250ms"},
+			{Name: "500 ms", Value: "500ms"},
+			{Name: "750 ms", Value: "750ms"},
+			{Name: "1 s", Value: "1000ms"},
+			{Name: "5 s", Value: "5000ms"},
+			{Name: "10 s", Value: "10000ms"},
+			{Name: "30 s", Value: "30000ms"},
+			{Name: "1 minute", Value: "60000ms"},
+			{Name: "2 minute", Value: "120000ms"},
+		},
+	)
+
+	param.DefaultValue = json.RawMessage(`"250ms"`)
+
+	return []orc.ApplicationParameter{param}
 }
 
 func openWebSession(job *orc.Job, rank int, target util.Option[string]) (controller.ConfiguredWebSession, *util.HttpError) {
@@ -467,7 +488,7 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (control
 		Port:    int(port),
 	}
 
-	if !shared2.K8sInCluster {
+	if !shared.K8sInCluster {
 		address.Address = "127.0.0.1"
 		address.Port = establishTunnel(podName, int(port))
 		flags |= controller.RegisteredIngressFlagsNoPersist
@@ -479,21 +500,28 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (control
 	}, nil
 }
 
-func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) controller.ConfiguredWebIngress {
+func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []controller.ConfiguredWebIngress {
+	result := []controller.ConfiguredWebIngress{}
 	for _, resource := range job.Specification.Resources {
 		if resource.Type == orc.AppParameterValueTypeIngress {
 			ingress := controller.LinkRetrieve(resource.Id)
 
-			return controller.ConfiguredWebIngress{
+			result = append(result, controller.ConfiguredWebIngress{
 				IsPublic:     true,
 				TargetDomain: ingress.Specification.Domain,
-			}
+			})
 		}
 	}
 
-	return controller.ConfiguredWebIngress{
-		IsPublic:     false,
-		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + "-" + fmt.Sprint(rank) + suffix.Value + ServiceConfig.Compute.Web.Suffix,
+	if len(result) > 0 {
+		return result
+	} else {
+		return []controller.ConfiguredWebIngress{
+			{
+				IsPublic:     false,
+				TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + "-" + fmt.Sprint(rank) + suffix.Value + ServiceConfig.Compute.Web.Suffix,
+			},
+		}
 	}
 }
 
@@ -517,7 +545,7 @@ func extend(request orc.JobsProviderExtendRequestItem) *util.HttpError {
 
 func JobAnnotations(job *orc.Job, rank int) map[string]string {
 	podName := idAndRankToPodName(job.Id, rank)
-	pod, ok := shared2.JobPods.Retrieve(podName)
+	pod, ok := shared.JobPods.Retrieve(podName)
 	if ok {
 		return pod.Annotations
 	} else {

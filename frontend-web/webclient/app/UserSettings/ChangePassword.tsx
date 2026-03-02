@@ -2,8 +2,8 @@ import {useCloudCommand} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useCallback, useRef, useState} from "react";
 import * as React from "react";
-import {Box, Button, Icon, Input, Label} from "@/ui-components";
-import * as Heading from "@/ui-components/Heading";
+import {Box, Icon, Input, Label} from "@/ui-components";
+import {SettingsActions, SettingsSection} from "./SettingsComponents";
 
 enum ChangePasswordError {
     BAD_CURRENT,
@@ -62,8 +62,7 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
     if (Client.principalType !== "password") return null;
 
     return (
-        <Box mb={16}>
-            <Heading.h2>Change password</Heading.h2>
+        <SettingsSection id="password" title="Change password">
             <form onSubmit={onSubmit}>
                 <Box mt="0.5em" pt="0.5em">
                     <Label>
@@ -103,15 +102,8 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
                     </Label>
                 </Box>
 
-                <Button
-                    mt={"1em"}
-                    type={"submit"}
-                    color="successMain"
-                    disabled={commandLoading}
-                >
-                    Change password
-                </Button>
+                <SettingsActions submitLabel="Change password" disabled={commandLoading} />
             </form>
-        </Box>
+        </SettingsSection>
     );
 };

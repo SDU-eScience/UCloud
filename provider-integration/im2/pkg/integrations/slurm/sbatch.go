@@ -641,7 +641,7 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 		}
 	}
 
-	parametersAndValues := controller.JobFindParamAndValues(job, application)
+	parametersAndValues := controller.JobFindParamAndValues(job, application, nil)
 	cli := ""
 	invocation := application.Invocation
 

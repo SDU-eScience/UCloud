@@ -1,4 +1,6 @@
-{
+import type {OrganizationMapping} from "@/UserSettings/types";
+
+const organizationMapping: OrganizationMapping = {
     "aau.dk": "Aalborg University",
     "au.dk": "Aarhus University",
     "cbs.dk": "Copenhagen Business School",
@@ -14,4 +16,6 @@
     "ucsyd.dk": "University College South Denmark",
     "ucl.dk": "University College",
     "viauc.dk": "Via University College"
-}
+};
+
+export default organizationMapping;
