@@ -9,7 +9,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"ucloud.dk/pkg/termio"
+
+	"ucloud.dk/shared/pkg/termio"
 	"ucloud.dk/shared/pkg/util"
 )
 

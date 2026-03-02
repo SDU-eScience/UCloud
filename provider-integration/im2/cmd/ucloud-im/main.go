@@ -1,17 +1,16 @@
 package main
 
-import _ "ucloud.dk/pkg/silentlog"
-
 import (
 	"fmt"
 	"os"
 	"strconv"
 
-	"ucloud.dk/pkg/im/controller/fsearch"
-	"ucloud.dk/pkg/im/external/gpfs"
+	"ucloud.dk/pkg/controller/fsearch"
+	"ucloud.dk/pkg/external/gpfs"
+	"ucloud.dk/pkg/integrations/k8s/kubevirt"
+	"ucloud.dk/pkg/launcher"
+	_ "ucloud.dk/shared/pkg/silentlog"
 	"ucloud.dk/shared/pkg/util"
-
-	"ucloud.dk/pkg/im/launcher"
 )
 
 func main() {
@@ -32,18 +31,11 @@ func main() {
 		return
 	}
 
+	if len(os.Args) >= 2 && os.Args[1] == "vmi-mutator" {
+		kubevirt.VmiStandaloneMutator()
+		return
+	}
+
 	util.DeploymentName = "IM"
 	launcher.Launch()
-}
-
-// NOTE(Dan): For some reason, the module reloader can only find the Main and Exit symbols if they are placed in the
-// launcher package. I really don't want to move all of that stuff in here, so instead we are just calling out to the real
-// stubs from here. It is a silly workaround, but it takes less 10 lines, so I don't really care that much.
-
-func ModuleMainStub(oldPluginData []byte, args map[string]any) {
-	launcher.ModuleMainStub(oldPluginData, args)
-}
-
-func ModuleExitStub() []byte {
-	return launcher.ModuleExitStub()
 }

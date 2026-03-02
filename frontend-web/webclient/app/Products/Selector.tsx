@@ -14,10 +14,11 @@ import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {explainMaintenance, maintenanceIconColor, shouldAllowMaintenanceAccess} from "@/Products/Maintenance";
 import {classConcat, injectStyle} from "@/Unstyled";
 import {NoResultsBody} from "@/UtilityComponents";
+import {ComputeSupport, JobQueueStatus} from "@/UCloud/JobsApi";
+import {ThemeColor} from "@/ui-components/theme";
+import {TooltipV2} from "@/ui-components/Tooltip";
 
 const NEED_CONNECT = "need-connection";
-
-const dropdownPortal = "product-selector-portal";
 
 export const ProductSelector: React.FunctionComponent<{
     products: ProductV2[];
@@ -28,13 +29,23 @@ export const ProductSelector: React.FunctionComponent<{
     loading?: boolean;
     onSelect: (product: ProductV2) => void;
 }> = ({selected, ...props}) => {
-    let portal = document.getElementById(dropdownPortal);
-    if (!portal) {
-        const elem = document.createElement("div");
-        elem.id = dropdownPortal;
-        document.body.appendChild(elem);
-        portal = elem;
+    const portalRef = React.useRef<HTMLDivElement | null>(null);
+    if (!portalRef.current) {
+        portalRef.current = document.createElement("div");
     }
+
+    const [isPortalMounted, setIsPortalMounted] = React.useState(false);
+    React.useLayoutEffect(() => {
+        const portal = portalRef.current;
+        if (!portal) return;
+
+        document.body.appendChild(portal);
+        setIsPortalMounted(true);
+
+        return () => {
+            portal.remove();
+        };
+    }, []);
 
     useUState(connectionState);
     const [filteredProducts, setFilteredProducts] = React.useState<ProductV2[]>([]);
@@ -73,7 +84,7 @@ export const ProductSelector: React.FunctionComponent<{
     const categorizedProducts: (ProductV2 | string)[] = React.useMemo(() => {
         const result: (ProductV2 | string)[] = [];
 
-        const sortedProducts = filteredProducts.sort((a, b) => {
+        const sortedProducts = [...filteredProducts].sort((a, b) => {
             const pCompare = a.category.provider.localeCompare(b.category.provider);
             if (pCompare !== 0) return pCompare;
 
@@ -223,6 +234,8 @@ export const ProductSelector: React.FunctionComponent<{
     }, [isOpen]);
 
     const showHeadings = isDetailed;
+    let extraColumns = 3;
+    if (type === "COMPUTE") extraColumns++;
 
     return <>
         <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} ref={boxRef}>
@@ -269,7 +282,7 @@ export const ProductSelector: React.FunctionComponent<{
             <Icon name="heroChevronDown" />
         </div>
 
-        {!isOpen ? null :
+        {!isOpen || !isPortalMounted ? null :
             ReactDOM.createPortal(
                 <div className={SelectorDialog} style={{left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} onClick={stopPropagation}>
                     {props.loading && props.products.length === 0 ? <>
@@ -360,6 +373,7 @@ export const ProductSelector: React.FunctionComponent<{
                                         <th>Name</th>
                                         {headers.map(it => <th key={it}>{it}</th>)}
                                         <th>Price</th>
+                                        {type === "COMPUTE" ? <th style={{width: "32px"}} /> : null}
                                     </TableRow>
                                 </thead>
                                 <tbody ref={itemWrapperRef}>
@@ -368,7 +382,7 @@ export const ProductSelector: React.FunctionComponent<{
                                             if (!showHeadings) return null;
                                             return <tr key={i} className="table-info">
                                                 {p === NEED_CONNECT ?
-                                                    <td colSpan={3 + headers.length}>
+                                                    <td colSpan={extraColumns + headers.length}>
                                                         <div>
                                                             <Link to="/providers/connect">
                                                                 <Icon name="warning" color="warningMain" mr="8px" />
@@ -376,7 +390,7 @@ export const ProductSelector: React.FunctionComponent<{
                                                             </Link>
                                                         </div>
                                                     </td> :
-                                                    <td colSpan={3 + headers.length}>
+                                                    <td colSpan={extraColumns + headers.length}>
                                                         <div>
                                                             <div className="spacer" />
                                                             {p}
@@ -386,10 +400,17 @@ export const ProductSelector: React.FunctionComponent<{
                                                 }
                                             </tr>
                                         } else {
-                                            const maintenance = (props.support ?? []).find(s =>
+                                            const support = (props.support ?? []).find(s =>
                                                 s.product.name === p.name &&
                                                 productCategoryEquals(s.product.category, p.category)
-                                            )?.support?.maintenance;
+                                            )?.support;
+
+                                            const maintenance = support?.maintenance;
+
+                                            let queueStatus: JobQueueStatus | null = null
+                                            if (type === "COMPUTE") {
+                                                queueStatus = (support as ComputeSupport).queueStatus ?? null;
+                                            }
 
                                             const isDisabled =
                                                 connectionState.canConnectToProvider(p.category.provider) ||
@@ -421,6 +442,9 @@ export const ProductSelector: React.FunctionComponent<{
                                                 <TableCell><ProductName product={p} /></TableCell>
                                                 <ProductStats product={p} />
                                                 <TableCell>{priceToString(p, 1)}</TableCell>
+                                                {queueStatus !== null ? <td style={{width: "32px"}}>
+                                                    <JobQueueStatusIndicator status={queueStatus} />
+                                                </td> : null}
                                             </TableRow>
                                         }
                                     })}
@@ -429,7 +453,7 @@ export const ProductSelector: React.FunctionComponent<{
                         </>
                     }
                 </div>,
-                portal
+                portalRef.current!
             )
         }
     </>;
@@ -795,4 +819,32 @@ function generateProducts(
         iteration++;
     }
     return result;
+}
+
+const JobQueueStatusIndicator: React.FunctionComponent<{
+    status: JobQueueStatus;
+}> = (props) => {
+    let color: ThemeColor = "errorMain";
+    let message = "";
+
+    switch (props.status) {
+        case JobQueueStatus.AVAILABLE:
+            color = "successMain";
+            message = "This machine type is available for use."
+            break;
+        case JobQueueStatus.BUSY:
+            color = "warningMain";
+            message = "This machine type is available for use, but the cluster is busy."
+            break;
+        case JobQueueStatus.FULL:
+            color = "errorMain"
+            message = "This machine type is not currently available and you will have to wait in a queue."
+            break;
+    }
+
+    const size = "12px";
+
+    return <TooltipV2 tooltip={message}>
+        <div style={{width: size, height: size, borderRadius: size, backgroundColor: `var(--${color})`}} />
+    </TooltipV2>;
 }

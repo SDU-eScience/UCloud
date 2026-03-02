@@ -4,7 +4,7 @@ import (
 	_ "embed"
 	"strings"
 
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 )
 
 //go:embed corev1.sql

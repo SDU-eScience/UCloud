@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-version=`cat ../../../../backend/version.txt`
+version=`cat ../../../../core2/version.txt`
 
 mdbook build ../ --dest-dir $PWD/www
 

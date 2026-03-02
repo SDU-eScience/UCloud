@@ -452,45 +452,24 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     });
 
                     if (shouldMove) {
-                        if (hasFeature(Feature.COMPONENT_STORED_CUT_COPY)) {
-                            ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
-                                if (browser.currentPath === initialPath && isMovingFromCurrentDirectory) {
-                                    for (const file of files) {
-                                        insertFakeEntry(
-                                            fileName(file.id),
-                                            {
-                                                type: file.status.type,
-                                                hint: file.status.icon,
-                                                modifiedAt: file.status.modifiedAt,
-                                                size: file.status.sizeInBytes
-                                            }
-                                        );
-                                    }
-                                    browser.renderRows();
+                        ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
+                            if (browser.currentPath === initialPath && isMovingFromCurrentDirectory) {
+                                for (const file of files) {
+                                    insertFakeEntry(
+                                        fileName(file.id),
+                                        {
+                                            type: file.status.type,
+                                            hint: file.status.icon,
+                                            modifiedAt: file.status.modifiedAt,
+                                            size: file.status.sizeInBytes
+                                        }
+                                    );
                                 }
+                                browser.renderRows();
+                            }
 
-                                callAPI(FilesApi.move(bulkRequestOf(...undoRequests)));
-                            });
-                        } else {
-                            browser._undoStack.unshift(() => {
-                                if (browser.currentPath === initialPath && isMovingFromCurrentDirectory) {
-                                    for (const file of files) {
-                                        insertFakeEntry(
-                                            fileName(file.id),
-                                            {
-                                                type: file.status.type,
-                                                hint: file.status.icon,
-                                                modifiedAt: file.status.modifiedAt,
-                                                size: file.status.sizeInBytes
-                                            }
-                                        );
-                                    }
-                                    browser.renderRows();
-                                }
-
-                                callAPI(FilesApi.move(bulkRequestOf(...undoRequests)));
-                            });
-                        }
+                            callAPI(FilesApi.move(bulkRequestOf(...undoRequests)));
+                        });
                     }
                 };
 
@@ -598,31 +577,17 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                     browser.refresh();
                                 });
 
-                                if (hasFeature(Feature.COMPONENT_STORED_CUT_COPY)) {
-                                    ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
-                                        callAPI(FilesApi.move(bulkRequestOf({
-                                            oldId: actualFile.id,
-                                            newId: oldId,
-                                            conflictPolicy: "REJECT"
-                                        })));
+                                ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
+                                    callAPI(FilesApi.move(bulkRequestOf({
+                                        oldId: actualFile.id,
+                                        newId: oldId,
+                                        conflictPolicy: "REJECT"
+                                    })));
 
-                                        sidebarFavoriteCache.renameInCached(actualFile.id, oldId); // Revert on undo
-                                        actualFile.id = oldId;
-                                        browser.renderRows();
-                                    });
-                                } else {
-                                    browser._undoStack.unshift(() => {
-                                        callAPI(FilesApi.move(bulkRequestOf({
-                                            oldId: actualFile.id,
-                                            newId: oldId,
-                                            conflictPolicy: "REJECT"
-                                        })));
-
-                                        sidebarFavoriteCache.renameInCached(actualFile.id, oldId); // Revert on undo
-                                        actualFile.id = oldId;
-                                        browser.renderRows();
-                                    });
-                                }
+                                    sidebarFavoriteCache.renameInCached(actualFile.id, oldId); // Revert on undo
+                                    actualFile.id = oldId;
+                                    browser.renderRows();
+                                });
                             }
                         },
                         doNothing,
@@ -1315,7 +1280,11 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                     searching = currentPath;
                     browser.open(SEARCH);
-                    browser.cachedData[SEARCH] = [];
+                    // Note(Jonas): Slighty different approach to ensure race conditions doesn't end up with duplicates.
+                    // It used to directly use `browser.cachedData[SEARCH]`, but this could refer to a different array compared to what we expect.
+                    // Using `newCachedData` directly allows filling up data that will be automatically discarded on function termination if not stored in the record.
+                    const newCachedData: UFile[] = [];
+                    browser.cachedData[SEARCH] = newCachedData;
                     browser.searchQuery = query;
                     browser.renderRows();
                     browser.renderOperations();
@@ -1342,7 +1311,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                             if (message.payload["type"] === "result") {
                                                 const result = message.payload["batch"];
                                                 // TODO(Jonas): Handle page change before adding results.
-                                                const data = browser.cachedData[browser.currentPath] ?? [];
+                                                const data = newCachedData;
                                                 data.push(...result);
                                                 browser.renderRows();
                                                 browser.renderOperations();

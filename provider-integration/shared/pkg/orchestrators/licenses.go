@@ -1,9 +1,9 @@
 package orchestrators
 
 import (
-	"ucloud.dk/shared/pkg/apm"
-	c "ucloud.dk/shared/pkg/client"
+	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -21,6 +21,7 @@ type LicenseSpecification struct {
 type LicenseStatus struct {
 	State   LicenseState `json:"state"`
 	BoundTo []string     `json:"boundTo"`
+	ResourceStatus[LicenseSupport]
 }
 
 type LicenseUpdate struct {
@@ -42,33 +43,156 @@ type LicenseSupport struct {
 	Product apm.ProductReference `json:"product"`
 }
 
-// API
+type LicenseFlags struct {
+	ResourceFlags
+}
+
+// License API
 // =====================================================================================================================
 
-const licenseCtrlNamespace = "licenses.control."
-const licenseCtrlContext = "/api/licenses/control/"
+const licenseNamespace = "licenses"
 
-type LicenseIncludeFlags struct {
-	IncludeProduct bool `json:"includeProduct"`
-	IncludeUpdates bool `json:"includeUpdates"`
-	IncludeSupport bool `json:"includeSupport"`
+var LicensesCreate = rpc.Call[fnd.BulkRequest[LicenseSpecification], fnd.BulkResponse[fnd.FindByStringId]]{
+	BaseContext: licenseNamespace,
+	Convention:  rpc.ConventionCreate,
+	Roles:       rpc.RolesEndUser,
 }
 
-func BrowseLicenses(next string, flags LicenseIncludeFlags) (fnd.PageV2[License], error) {
-	return c.ApiBrowse[fnd.PageV2[License]](
-		licenseCtrlNamespace+"browse",
-		licenseCtrlContext,
-		"",
-		append([]string{"next", next}, c.StructToParameters(flags)...),
-	)
+var LicensesDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
+	BaseContext: licenseNamespace,
+	Convention:  rpc.ConventionDelete,
+	Roles:       rpc.RolesEndUser,
 }
 
-func UpdateLicenses(request fnd.BulkRequest[ResourceUpdateAndId[LicenseUpdate]]) error {
-	_, err := c.ApiUpdate[util.Empty](
-		licenseCtrlNamespace+"update",
-		licenseCtrlContext,
-		"update",
-		request,
-	)
-	return err
+type LicensesSearchRequest struct {
+	ItemsPerPage int                 `json:"itemsPerPage"`
+	Next         util.Option[string] `json:"next"`
+	Query        string              `json:"query"`
+
+	LicenseFlags
+}
+
+var LicensesSearch = rpc.Call[LicensesSearchRequest, fnd.PageV2[License]]{
+	BaseContext: licenseNamespace,
+	Convention:  rpc.ConventionSearch,
+	Roles:       rpc.RolesEndUser,
+}
+
+type LicensesBrowseRequest struct {
+	ItemsPerPage int                 `json:"itemsPerPage"`
+	Next         util.Option[string] `json:"next"`
+
+	LicenseFlags
+}
+
+var LicensesBrowse = rpc.Call[LicensesBrowseRequest, fnd.PageV2[License]]{
+	BaseContext: licenseNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Roles:       rpc.RolesEndUser,
+}
+
+type LicensesRetrieveRequest struct {
+	Id string
+	LicenseFlags
+}
+
+var LicensesRetrieve = rpc.Call[LicensesRetrieveRequest, License]{
+	BaseContext: licenseNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesEndUser,
+}
+
+var LicensesUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[util.Empty]]{
+	BaseContext: licenseNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updateAcl",
+}
+
+var LicensesRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[LicenseSupport]]{
+	BaseContext: licenseNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "products",
+}
+
+// License Control API
+// =====================================================================================================================
+
+const licenseControlNamespace = "licenses/control"
+
+type LicensesControlRetrieveRequest struct {
+	Id string `json:"id"`
+	LicenseFlags
+}
+
+var LicensesControlRetrieve = rpc.Call[LicensesControlRetrieveRequest, License]{
+	BaseContext: licenseControlNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesProvider,
+}
+
+type LicensesControlBrowseRequest struct {
+	ItemsPerPage int                 `json:"itemsPerPage"`
+	Next         util.Option[string] `json:"next"`
+
+	LicenseFlags
+}
+
+var LicensesControlBrowse = rpc.Call[LicensesControlBrowseRequest, fnd.PageV2[License]]{
+	BaseContext: licenseControlNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Roles:       rpc.RolesProvider,
+}
+
+var LicensesControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResource[LicenseSpecification]], fnd.BulkResponse[fnd.FindByStringId]]{
+	BaseContext: licenseControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "register",
+}
+
+var LicensesControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[LicenseUpdate]], util.Empty]{
+	BaseContext: licenseControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "update",
+}
+
+// License Provider API
+// =====================================================================================================================
+
+const licenseProviderNamespace = "ucloud/" + rpc.ProviderPlaceholder + "/licenses"
+
+var LicensesProviderCreate = rpc.Call[fnd.BulkRequest[License], fnd.BulkResponse[fnd.FindByStringId]]{
+	BaseContext: licenseProviderNamespace,
+	Convention:  rpc.ConventionCreate,
+	Roles:       rpc.RolesPrivileged,
+}
+
+var LicensesProviderDelete = rpc.Call[fnd.BulkRequest[License], fnd.BulkResponse[util.Empty]]{
+	BaseContext: licenseProviderNamespace,
+	Convention:  rpc.ConventionDelete,
+	Roles:       rpc.RolesPrivileged,
+}
+
+var LicensesProviderVerify = rpc.Call[fnd.BulkRequest[License], util.Empty]{
+	BaseContext: licenseProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "verify",
+}
+
+var LicensesProviderRetrieveProducts = rpc.Call[util.Empty, fnd.BulkResponse[LicenseSupport]]{
+	BaseContext: licenseProviderNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "products",
+}
+
+var LicensesProviderUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAclWithResource[License]], fnd.BulkResponse[util.Empty]]{
+	BaseContext: licenseProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "updateAcl",
 }

@@ -1,0 +1,44 @@
+:8080 {
+    encode gzip zstd
+
+    @cacheable path_regexp cacheable \.(css|js|ttf|ico|svg)$
+    header @cacheable Cache-Control "max-age=86400"
+    header @cacheable ETag "W/{http.request.uri.path}_{$APP_VERSION}"
+
+    @appVersion path /AppVersion.txt /assets/Assets/AppVersion.txt
+    handle @appVersion {
+        header Content-Type "text/plain; charset=utf-8"
+        respond "{$APP_VERSION}" 200
+    }
+
+    redir / /app/dashboard 302
+    redir /app /app/dashboard 302
+
+    @app path /app/*
+    handle @app {
+        header Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+        header Pragma "no-cache"
+        header Expires "0"
+        root * /usr/share/caddy
+        rewrite * /index.html
+        file_server
+    }
+
+    handle /assets/* {
+        root * /usr/share/caddy
+        file_server
+    }
+
+    handle /Images/* {
+        root * /usr/share/caddy
+        file_server
+    }
+
+    @favicon path /favicon.ico
+    handle @favicon {
+        root * /usr/share/caddy
+        file_server
+    }
+
+    respond 404
+}

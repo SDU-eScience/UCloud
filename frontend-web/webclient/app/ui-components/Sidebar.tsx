@@ -73,7 +73,6 @@ import {Command, CommandPalette, CommandScope, staticProvider, useProvideCommand
 import {NavigateFunction, useNavigate} from "react-router-dom";
 import {dispatchSetProjectAction} from "@/Project/ReduxState";
 import {Dispatch} from "redux";
-import {Feature, hasFeature} from "@/Features";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -713,24 +712,38 @@ function ResourceSubLinks(): React.ReactNode {
     return ResourceSubLinksEntries.map(it => <SidebarEntry key={it.text} {...it} />);
 }
 
-const ResourceSubLinksEntries: LinkInfo[] = [{
-    to: AppRoutes.resources.publicLinks(), text: "Links", icon: "heroLink", tab: SidebarTabId.RESOURCES
-}, {
-    to: AppRoutes.resources.publicIps(),
-    text: "IP addresses",
-    icon: "heroGlobeEuropeAfrica",
-    tab: SidebarTabId.RESOURCES
-}, {
-    to: AppRoutes.resources.sshKeys(), text: "SSH keys", icon: "heroKey", tab: SidebarTabId.RESOURCES
-}, {
-    to: AppRoutes.resources.licenses(), text: "Licenses", icon: "heroDocumentCheck", tab: SidebarTabId.RESOURCES
-}];
-
-if (hasFeature(Feature.API_TOKENS_PAGES)) {
-    ResourceSubLinksEntries.push({
-        to: AppRoutes.resources.apiTokens(), text: "API tokens", icon: "heroCircleStack", tab: SidebarTabId.RESOURCES,
-    });
-}
+const ResourceSubLinksEntries: LinkInfo[] = [
+    {
+        to: AppRoutes.resources.publicLinks(),
+        text: "Links",
+        icon: "heroLink",
+        tab: SidebarTabId.RESOURCES,
+    },
+    {
+        to: AppRoutes.resources.publicIps(),
+        text: "IP addresses",
+        icon: "heroGlobeEuropeAfrica",
+        tab: SidebarTabId.RESOURCES,
+    },
+    {
+        to: AppRoutes.resources.sshKeys(),
+        text: "SSH keys",
+        icon: "heroKey",
+        tab: SidebarTabId.RESOURCES,
+    },
+    {
+        to: AppRoutes.resources.licenses(),
+        text: "Licenses",
+        icon: "heroDocumentCheck",
+        tab: SidebarTabId.RESOURCES,
+    },
+    {
+        to: AppRoutes.resources.apiTokens(),
+        text: "API tokens",
+        icon: "heroCircleStack",
+        tab: SidebarTabId.RESOURCES,
+    }
+];
 
 function ProjectSubLinks({canApply, isPersonalWorkspace, projectId}: {
     canApply: boolean;

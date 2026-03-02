@@ -16,7 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
@@ -286,13 +286,15 @@ func UpdateAllocation(actor rpc.Actor, requests []accapi.UpdateAllocationRequest
 }
 
 func ReportUsage(actor rpc.Actor, request accapi.ReportUsageRequest) (bool, *util.HttpError) {
-	providerId, ok := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
-	if !ok {
-		return false, util.HttpErr(http.StatusForbidden, "You cannot report usage")
-	}
+	if !actor.IsSystem() {
+		providerId, ok := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
+		if !ok {
+			return false, util.HttpErr(http.StatusForbidden, "You cannot report usage")
+		}
 
-	if providerId != request.CategoryIdV2.Provider {
-		return false, util.HttpErr(http.StatusForbidden, "You cannot report usage for this product")
+		if providerId != request.CategoryIdV2.Provider {
+			return false, util.HttpErr(http.StatusForbidden, "You cannot report usage for this product")
+		}
 	}
 
 	_, err := ProductCategoryRetrieve(actor, request.CategoryIdV2.Name, request.CategoryIdV2.Provider)

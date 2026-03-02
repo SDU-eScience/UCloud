@@ -32,7 +32,13 @@ import {
     setReservation,
     validateReservation
 } from "@/Applications/Jobs/Widgets/Reservation";
-import {displayErrorMessageOrDefault, extractErrorCode, prettierString, useDidMount} from "@/UtilityFunctions";
+import {
+    displayErrorMessageOrDefault,
+    doNothing,
+    extractErrorCode,
+    prettierString,
+    useDidMount
+} from "@/UtilityFunctions";
 import {addStandardDialog, OverallocationLink, WalletWarning} from "@/UtilityComponents";
 import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
@@ -52,7 +58,6 @@ import {
 } from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
-import {Feature, hasFeature} from "@/Features";
 import {useUState} from "@/Utilities/UState";
 import {Spacer} from "@/ui-components/Spacer";
 import {injectStyle} from "@/Unstyled";
@@ -331,13 +336,37 @@ export const Create: React.FunctionComponent = () => {
     const parameters = useMemo(() => {
         let injected: ApplicationParameter[] = [];
         const injectedData = injectedParameters.data;
-        if (injectedData && estimatedCost.product) {
-            const provider = estimatedCost.product.category.provider;
-            injected = injectedData.parametersByProvider[provider] ?? [];
+        if (injectedData) {
+            const parametersByProvider = injectedData.parametersByProvider;
+            if (estimatedCost.product) {
+                const provider = estimatedCost.product.category.provider;
+                injected = parametersByProvider[provider] ?? [];
+            } else {
+                const providerLists = Object.values(parametersByProvider);
+                if (providerLists.length > 0) {
+                    const [firstProviderList] = providerLists;
+                    const occurrences = new Map<string, number>();
+
+                    for (const providerList of providerLists) {
+                        const seenInProvider = new Set<string>();
+                        for (const parameter of providerList) {
+                            const key = `${parameter.name}::${parameter.type}`;
+                            if (seenInProvider.has(key)) continue;
+                            seenInProvider.add(key);
+                            occurrences.set(key, (occurrences.get(key) ?? 0) + 1);
+                        }
+                    }
+
+                    injected = firstProviderList.filter(parameter => {
+                        const key = `${parameter.name}::${parameter.type}`;
+                        return occurrences.get(key) === providerLists.length;
+                    });
+                }
+            }
         }
         const fromApp = application?.invocation?.parameters ?? [];
         return [...injected, ...fromApp, ...workflowInjectedParameters];
-    }, [application, injectedParameters, workflowInjectedParameters, estimatedCost]);
+    }, [application, injectedParameters, workflowInjectedParameters, estimatedCost.product]);
 
 
     React.useEffect(() => {
@@ -555,7 +584,7 @@ export const Create: React.FunctionComponent = () => {
         !(!it.optional || activeOptParams.indexOf(it.name) !== -1) && it.type !== "readme"
     );
 
-    const isMissingConnection = hasFeature(Feature.PROVIDER_CONNECTION) && estimatedCost.product != null &&
+    const isMissingConnection = estimatedCost.product != null &&
         connectionState.canConnectToProvider(estimatedCost.product.category.provider);
 
     const errorCount = countMandatoryAndOptionalErrors(parameters.filter(it =>

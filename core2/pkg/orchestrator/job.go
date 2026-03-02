@@ -15,17 +15,33 @@ import (
 
 	ws "github.com/gorilla/websocket"
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orcapi "ucloud.dk/shared/pkg/orc2"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
 const (
-	jobType = "job"
+	jobType                     = "job"
+	jobMetricSampleRateParam    = "ucMetricSampleRate"
+	jobMetricSampleRateDefault  = "250ms"
+	jobMetricSampleRateDisabled = "0ms"
 )
+
+var jobMetricAllowedSampleRates = map[string]bool{
+	"0ms":      true,
+	"250ms":    true,
+	"500ms":    true,
+	"750ms":    true,
+	"1000ms":   true,
+	"5000ms":   true,
+	"10000ms":  true,
+	"30000ms":  true,
+	"60000ms":  true,
+	"120000ms": true,
+}
 
 func initJobs() {
 	InitResourceType(
@@ -43,6 +59,8 @@ func initJobs() {
 
 	orcapi.JobsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		var ids []fndapi.FindByStringId
+		jobSettings := JobSettingsRetrieve(info.Actor)
+
 		for _, item := range request.Items {
 			spec := item
 			err := jobsValidateForSubmission(info.Actor, &spec)
@@ -63,6 +81,26 @@ func initJobs() {
 				"cpu":          support.Product.Cpu,
 				"memoryInGigs": support.Product.MemoryInGigs,
 			})
+
+			if spec.Parameters == nil {
+				spec.Parameters = map[string]orcapi.AppParameterValue{}
+			}
+
+			if _, hasSampleRateOverride := spec.Parameters[jobMetricSampleRateParam]; !hasSampleRateOverride {
+				effectiveSampleRate := jobMetricSampleRateDisabled
+
+				if jobSettings.Toggled {
+					effectiveSampleRate = jobMetricSampleRateDefault
+					if jobSettings.SampleRateValue.Present {
+						effectiveSampleRate = jobSettings.SampleRateValue.Value
+					}
+				}
+
+				spec.Parameters[jobMetricSampleRateParam] = orcapi.AppParameterValueText(effectiveSampleRate)
+			}
+			if item.Product.Provider == "aau" {
+				delete(spec.Parameters, jobMetricSampleRateParam)
+			}
 
 			extra := &internalJob{
 				Application:    spec.Application,
@@ -396,6 +434,7 @@ func initJobs() {
 			)
 
 			if err != nil {
+				log.Info("Failed to terminate job: %s", err)
 				return fndapi.BulkResponse[util.Empty]{}, err
 			}
 		}
@@ -590,15 +629,18 @@ func initJobs() {
 		}
 
 		response := map[string][]orcapi.ApplicationParameter{}
+		failureCount := 0
+		var lastError *util.HttpError = nil
 
-		for _, provider := range providers.Responses[0].Providers {
+		relevantProviders := providers.Responses[0].Providers
+		for _, provider := range relevantProviders {
 			resp, err := InvokeProvider(
 				provider,
 				orcapi.JobsProviderRequestDynamicParameters,
 				orcapi.JobsProviderRequestDynamicParametersRequest{
 					Owner: orcapi.ResourceOwner{
 						CreatedBy: info.Actor.Username,
-						Project:   util.OptStringIfNotEmpty(string(info.Actor.Project.GetOrDefault(rpc.ProjectId("")))),
+						Project:   util.OptStringIfNotEmpty(string(info.Actor.Project.GetOrDefault(""))),
 					},
 					Application: app,
 				},
@@ -609,10 +651,15 @@ func initJobs() {
 			)
 
 			if err != nil {
-				return orcapi.JobsRequestDynamicParametersResponse{}, err
+				failureCount++
+				lastError = err
+			} else {
+				response[provider] = resp.Parameters
 			}
+		}
 
-			response[provider] = resp.Parameters
+		if failureCount == len(relevantProviders) {
+			return orcapi.JobsRequestDynamicParametersResponse{}, lastError
 		}
 
 		return orcapi.JobsRequestDynamicParametersResponse{ParametersByProvider: response}, nil
@@ -693,6 +740,117 @@ func initJobs() {
 				},
 			)
 		}
+		return util.Empty{}, nil
+	})
+
+	orcapi.JobsControlCheckCredits.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsLegacyCheckCreditsRequest]) (orcapi.JobsLegacyCheckCreditsResponse, *util.HttpError) {
+		resp := orcapi.JobsLegacyCheckCreditsResponse{}
+		for _, item := range request.Items {
+			isOk := false
+			job, err := JobsRetrieve(info.Actor, item.Id, orcapi.JobFlags{})
+
+			if err == nil {
+				walletOwner := orcapi.ResourceOwnerToWalletOwner(job.Resource)
+				wallets, err := accapi.WalletsBrowseInternal.Invoke(accapi.WalletsBrowseInternalRequest{
+					Owner: walletOwner,
+				})
+
+				if err == nil {
+					for _, wallet := range wallets.Wallets {
+						paysFor := wallet.PaysFor
+						productRef := job.Specification.Product
+						if paysFor.Name == productRef.Category && paysFor.Provider == productRef.Provider {
+							if wallet.MaxUsable > 0 {
+								isOk = true
+							}
+						}
+					}
+				} else {
+					return orcapi.JobsLegacyCheckCreditsResponse{}, util.HttpErr(
+						http.StatusInternalServerError,
+						"could not fetch wallets: %s",
+						err,
+					)
+				}
+			} else {
+				return orcapi.JobsLegacyCheckCreditsResponse{}, util.HttpErr(
+					http.StatusBadRequest,
+					"could not fetch jobs: %s",
+					err,
+				)
+			}
+
+			if !isOk {
+				resp.InsufficientFunds = append(resp.InsufficientFunds, fndapi.FindByStringId{Id: item.Id})
+			}
+		}
+
+		resp.InsufficientFunds = util.NonNilSlice(resp.InsufficientFunds)
+		resp.DuplicateCharges = util.NonNilSlice(resp.DuplicateCharges)
+		return resp, nil
+	})
+
+	orcapi.JobsControlChargeCredits.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsLegacyCheckCreditsRequest]) (orcapi.JobsLegacyCheckCreditsResponse, *util.HttpError) {
+		resp := orcapi.JobsLegacyCheckCreditsResponse{}
+		for _, item := range request.Items {
+			isOk := false
+			job, err := JobsRetrieve(info.Actor, item.Id, orcapi.JobFlags{ResourceFlags: orcapi.ResourceFlagsIncludeAll()})
+
+			if err == nil {
+				walletOwner := orcapi.ResourceOwnerToWalletOwner(job.Resource)
+				units := job.Specification.Replicas
+				balanceUsed := item.Periods * int(job.Status.ResolvedProduct.Value.Price) * units
+
+				reportResp, err := accapi.ReportUsage.Invoke(fndapi.BulkRequestOf(accapi.ReportUsageRequest{
+					IsDeltaCharge: false,
+					Owner:         walletOwner,
+					CategoryIdV2: accapi.ProductCategoryIdV2{
+						Name:     job.Specification.Product.Category,
+						Provider: job.Specification.Product.Provider,
+					},
+					Usage: int64(balanceUsed),
+					Description: accapi.ChargeDescription{
+						Scope: util.OptValue(item.ChargeId),
+					},
+				}))
+
+				if err == nil {
+					isOk = reportResp.Responses[0]
+				} else {
+					return orcapi.JobsLegacyCheckCreditsResponse{}, util.HttpErr(
+						http.StatusInternalServerError,
+						"could not report usage: %s",
+						err,
+					)
+				}
+			} else {
+				return orcapi.JobsLegacyCheckCreditsResponse{}, util.HttpErr(
+					http.StatusBadRequest,
+					"could not fetch jobs: %s",
+					err,
+				)
+			}
+
+			if !isOk {
+				resp.InsufficientFunds = append(resp.InsufficientFunds, fndapi.FindByStringId{Id: item.Id})
+			}
+		}
+
+		resp.InsufficientFunds = util.NonNilSlice(resp.InsufficientFunds)
+		resp.DuplicateCharges = util.NonNilSlice(resp.DuplicateCharges)
+		return resp, nil
+	})
+
+	orcapi.JobSettingsRetrieve.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.JobSettings, *util.HttpError) {
+		return JobSettingsRetrieve(info.Actor), nil
+	})
+
+	orcapi.JobSettingsUpdate.Handler(func(info rpc.RequestInfo, request orcapi.JobSettings) (util.Empty, *util.HttpError) {
+		err := JobSettingsUpdate(info.Actor, request)
+		if err != nil {
+			return util.Empty{}, err
+		}
+
 		return util.Empty{}, nil
 	})
 
@@ -1009,6 +1167,40 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 			return err
 		} else {
 			spec.Resources[i] = newValue
+		}
+	}
+
+	needDynamicParameters := false
+	for name, _ := range spec.Parameters {
+		_, ok := appParamsByName[name]
+		if !ok {
+			needDynamicParameters = true
+		}
+	}
+
+	if needDynamicParameters {
+		resp, err := InvokeProvider(
+			spec.Product.Provider,
+			orcapi.JobsProviderRequestDynamicParameters,
+			orcapi.JobsProviderRequestDynamicParametersRequest{
+				Owner: orcapi.ResourceOwner{
+					CreatedBy: actor.Username,
+					Project:   util.OptStringIfNotEmpty(string(actor.Project.GetOrDefault(""))),
+				},
+				Application: app,
+			},
+			ProviderCallOpts{
+				Username: util.OptValue(actor.Username),
+				Reason:   util.OptValue("user initiated request"),
+			},
+		)
+
+		if err != nil {
+			return util.HttpErr(http.StatusBadGateway, "could not fetch information about parameters from provider")
+		}
+
+		for _, param := range resp.Parameters {
+			appParamsByName[param.Name] = param
 		}
 	}
 
@@ -1880,4 +2072,61 @@ func jobSendNotifications(username string, jobs map[string]orcapi.Job) {
 	if err != nil {
 		log.Warn("Could not send notification to user %s: %s", username, err)
 	}
+}
+
+func JobSettingsRetrieve(actor rpc.Actor) orcapi.JobSettings {
+	return db.NewTx(func(tx *db.Transaction) orcapi.JobSettings {
+		row, ok := db.Get[struct {
+			Toggled         bool
+			SampleRateValue sql.Null[string]
+		}](
+			tx,
+			`
+				select toggled, sample_rate_value
+				from app_orchestrator.job_settings 
+				where username = :username   
+			`,
+			db.Params{
+				"username": actor.Username,
+			},
+		)
+
+		if !ok {
+			return orcapi.JobSettings{
+				Toggled:         false,
+				SampleRateValue: util.OptNone[string](),
+			}
+		}
+
+		return orcapi.JobSettings{
+			Toggled:         row.Toggled,
+			SampleRateValue: util.SqlNullToOpt(row.SampleRateValue),
+		}
+	})
+}
+
+func JobSettingsUpdate(actor rpc.Actor, settings orcapi.JobSettings) *util.HttpError {
+	if settings.SampleRateValue.Present && !jobMetricAllowedSampleRates[settings.SampleRateValue.Value] {
+		return util.HttpErr(http.StatusBadRequest, "invalid sample rate value")
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into app_orchestrator.job_settings(username, toggled, sample_rate_value)
+				values (:username, :toggled, :sample_rate_value)
+				on conflict (username) do update set
+				    toggled = excluded.toggled,
+				    sample_rate_value = excluded.sample_rate_value
+			`,
+			db.Params{
+				"username":          actor.Username,
+				"toggled":           settings.Toggled,
+				"sample_rate_value": settings.SampleRateValue.Sql(),
+			},
+		)
+	})
+
+	return nil
 }

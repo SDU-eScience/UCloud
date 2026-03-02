@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-version=`cat ../../../backend/version.txt`
+version=`cat ../../../core2/version.txt`
 docker buildx build \
     --push \
     --tag dreg.cloud.sdu.dk/ucloud-dev/slurm:${version} \

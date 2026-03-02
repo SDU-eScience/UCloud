@@ -28,6 +28,7 @@ var DefaultClient *Client
 var DefaultServer Server
 var BearerAuthenticator func(bearer string, project string) (Actor, *util.HttpError)
 var ServerAuthenticator func(r *http.Request) (Actor, *util.HttpError)
+var ServerProviderId string
 
 var LookupActor func(username string) (Actor, bool) = func(username string) (Actor, bool) {
 	panic("LookupActor has not been defined in this context. You must set " +
@@ -49,6 +50,10 @@ type Actor struct {
 	AllocatorProjects map[ProjectId]util.Empty `json:"-"`
 	Domain            string                   `json:"-"`
 	OrgId             string                   `json:"-"`
+}
+
+func (a *Actor) IsSystem() bool {
+	return a.Username == ActorSystem.Username
 }
 
 type ProjectId string
@@ -383,6 +388,7 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 	}
 
 	path, _ = strings.CutSuffix(path, "/")
+	path = strings.ReplaceAll(path, ProviderPlaceholder, ServerProviderId)
 
 	handlerGroup, hasExisting := server.handlers[path]
 	if !hasExisting {
@@ -436,6 +442,8 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 		}
 
 		callName := c.FullName()
+		callName = strings.ReplaceAll(callName, ProviderPlaceholder, ServerProviderId)
+		callName = strings.ReplaceAll(callName, "ucloud.", "provider.")
 		start := time.Now()
 		metricServerRequestCounter.WithLabelValues(util.DeploymentName, callName).Inc()
 		metricServerInFlight.WithLabelValues(util.DeploymentName, callName).Inc()

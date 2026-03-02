@@ -1,6 +1,6 @@
 package orchestrator
 
-import orcapi "ucloud.dk/shared/pkg/orc2"
+import orcapi "ucloud.dk/shared/pkg/orchestrators"
 
 const (
 	jobDockerEnabled   SupportFeatureKey = "jobs.docker.enabled"

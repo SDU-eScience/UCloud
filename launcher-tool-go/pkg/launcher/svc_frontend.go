@@ -1,35 +1,23 @@
 package launcher
 
-type UCloudFrontend struct{}
+import "path/filepath"
 
-func (uf *UCloudFrontend) Build(cb ComposeBuilder) {
-	cb.Service(
-		"frontend",
-		"UCloud/Core: Frontend",
-		Json{
-			//language=json
-			`
-				{
-					"image": "node:22.21.0",
-					"command": ["sh", "-c", "npm install ; npm run start:compose"],
-					"restart": "always",
-					"hostname": "frontend",
-					"working_dir": "/opt/ucloud",
-					"volumes": [
-					"` + cb.environment.repoRoot.GetAbsolutePath() + `/frontend-web/webclient:/opt/ucloud"
-				]
-				}
-			`,
+func ServiceFrontend() {
+	service := Service{
+		Name:     "frontend",
+		Title:    "Frontend",
+		Flags:    SvcLogs | SvcExec,
+		UiParent: UiParentCore,
+	}
+
+	AddService(service, DockerComposeService{
+		Image:      "node:22.21.0",
+		Hostname:   "frontend",
+		Restart:    "always",
+		WorkingDir: "/opt/ucloud",
+		Command:    []string{"sh", "-c", "npm install ; npm run start:compose"},
+		Volumes: []string{
+			Mount(filepath.Join(RepoRoot, "frontend-web/webclient"), "/opt/ucloud"),
 		},
-		true,
-		true,
-		false,
-		"https://ucloud.localhost.direct",
-		`
-			Default credentials to access UCloud:
-			
-				Username: user<br>
-				Password: mypassword<br>
-		`,
-	)
+	})
 }

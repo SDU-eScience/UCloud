@@ -193,7 +193,20 @@ func (c *Client) RetrieveAccessTokenOrRefresh() string {
 	var refreshReq *http.Request
 	var err error
 
-	if !c.CoreForProvider.Present {
+	if ServerProviderId != "" {
+		refreshReqBody := refreshRequest{Items: []refreshRequestItem{
+			{RefreshToken: c.RefreshToken},
+		}}
+		refreshReqBodyBytes, err := json.Marshal(refreshReqBody)
+		if err != nil {
+			log.Warn("Failed to create refresh request: %v. We are returning an invalid access token!", err)
+			return ""
+		}
+
+		uri := fmt.Sprintf("%v/auth/providers/refresh", c.BasePath)
+		refreshReq, err = http.NewRequest(http.MethodPost, uri, bytes.NewBuffer(refreshReqBodyBytes))
+		client = DefaultClient.Client
+	} else if !c.CoreForProvider.Present {
 		uri := fmt.Sprintf("%v/auth/refresh", c.BasePath)
 		refreshReq, err = http.NewRequest(http.MethodPost, uri, nil)
 		if err == nil {
@@ -259,7 +272,7 @@ func (c *Client) RetrieveAccessTokenOrRefresh() string {
 		return ""
 	}
 
-	if !c.CoreForProvider.Present {
+	if !c.CoreForProvider.Present && ServerProviderId == "" {
 		type AccessTokenAndCsrf struct {
 			AccessToken string `json:"accessToken"`
 			CsrfToken   string `json:"csrfToken"`

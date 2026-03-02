@@ -1,9 +1,9 @@
 package orchestrators
 
 import (
-	"ucloud.dk/shared/pkg/apm"
-	c "ucloud.dk/shared/pkg/client"
+	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -33,6 +33,11 @@ const (
 	IpProtocolTcp IpProtocol = "TCP"
 	IpProtocolUdp IpProtocol = "UDP"
 )
+
+var IpProtocolOptions = []IpProtocol{
+	IpProtocolTcp,
+	IpProtocolUdp,
+}
 
 type PublicIpUpdate struct {
 	State           util.Option[PublicIpState] `json:"state"`
@@ -66,6 +71,7 @@ type PublicIpStatus struct {
 	State     PublicIpState       `json:"state"`
 	BoundTo   []string            `json:"boundTo"`
 	IpAddress util.Option[string] `json:"ipAddress"`
+	ResourceStatus[PublicIpSupport]
 }
 
 type PublicIp struct {
@@ -84,41 +90,180 @@ type FirewallSupport struct {
 	Enabled bool `json:"enabled"`
 }
 
-// API
+type PublicIpFlags struct {
+	ResourceFlags
+}
+
+// Public IP API
 // =====================================================================================================================
 
-const ipsCtrlNamespace = "networkips.control."
-const ipsCtrlContext = "/api/networkips/control/"
+const publicIpNamespace = "networkips"
 
-type BrowseIpsFlags struct {
-	IncludeProduct bool `json:"includeProduct"`
-	IncludeUpdates bool `json:"includeUpdates"`
+var PublicIpsCreate = rpc.Call[fnd.BulkRequest[PublicIPSpecification], fnd.BulkResponse[fnd.FindByStringId]]{
+	BaseContext: publicIpNamespace,
+	Convention:  rpc.ConventionCreate,
+	Roles:       rpc.RolesEndUser,
 }
 
-func RetrievePublicIp(jobId string, flags BrowseIpsFlags) (PublicIp, error) {
-	return c.ApiRetrieve[PublicIp](
-		ipsCtrlNamespace+"retrieve",
-		ipsCtrlContext,
-		"",
-		append([]string{"id", jobId}, c.StructToParameters(flags)...),
-	)
+var PublicIpsDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
+	BaseContext: publicIpNamespace,
+	Convention:  rpc.ConventionDelete,
+	Roles:       rpc.RolesEndUser,
 }
 
-func BrowsePublicIps(next string, flags BrowseIpsFlags) (fnd.PageV2[PublicIp], error) {
-	return c.ApiBrowse[fnd.PageV2[PublicIp]](
-		ipsCtrlNamespace+"browse",
-		ipsCtrlContext,
-		"",
-		append([]string{"next", next}, c.StructToParameters(flags)...),
-	)
+type PublicIpsSearchRequest struct {
+	ItemsPerPage int                 `json:"itemsPerPage"`
+	Next         util.Option[string] `json:"next"`
+	Query        string              `json:"query"`
+
+	PublicIpFlags
 }
 
-func UpdatePublicIps(request fnd.BulkRequest[ResourceUpdateAndId[PublicIpUpdate]]) error {
-	_, err := c.ApiUpdate[util.Empty](
-		ipsCtrlNamespace+"update",
-		ipsCtrlContext,
-		"update",
-		request,
-	)
-	return err
+var PublicIpsSearch = rpc.Call[PublicIpsSearchRequest, fnd.PageV2[PublicIp]]{
+	BaseContext: publicIpNamespace,
+	Convention:  rpc.ConventionSearch,
+	Roles:       rpc.RolesEndUser,
+}
+
+type PublicIpsBrowseRequest struct {
+	ItemsPerPage int                 `json:"itemsPerPage"`
+	Next         util.Option[string] `json:"next"`
+
+	PublicIpFlags
+}
+
+var PublicIpsBrowse = rpc.Call[PublicIpsBrowseRequest, fnd.PageV2[PublicIp]]{
+	BaseContext: publicIpNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Roles:       rpc.RolesEndUser,
+}
+
+type PublicIpsRetrieveRequest struct {
+	Id string
+	PublicIpFlags
+}
+
+var PublicIpsRetrieve = rpc.Call[PublicIpsRetrieveRequest, PublicIp]{
+	BaseContext: publicIpNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesEndUser,
+}
+
+var PublicIpsUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[util.Empty]]{
+	BaseContext: publicIpNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updateAcl",
+}
+
+var PublicIpsRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[PublicIpSupport]]{
+	BaseContext: publicIpNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "products",
+}
+
+type PublicIpUpdateFirewallRequest struct {
+	Id       string   `json:"id"`
+	Firewall Firewall `json:"firewall"`
+}
+
+var PublicIpsUpdateFirewall = rpc.Call[fnd.BulkRequest[PublicIpUpdateFirewallRequest], util.Empty]{
+	BaseContext: publicIpNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "firewall",
+}
+
+// Public IP Control API
+// =====================================================================================================================
+
+const publicIpControlNamespace = "networkips/control"
+
+type PublicIpsControlRetrieveRequest struct {
+	Id string `json:"id"`
+	PublicIpFlags
+}
+
+var PublicIpsControlRetrieve = rpc.Call[PublicIpsControlRetrieveRequest, PublicIp]{
+	BaseContext: publicIpControlNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesProvider,
+}
+
+type PublicIpsControlBrowseRequest struct {
+	ItemsPerPage int                 `json:"itemsPerPage"`
+	Next         util.Option[string] `json:"next"`
+
+	PublicIpFlags
+}
+
+var PublicIpsControlBrowse = rpc.Call[PublicIpsControlBrowseRequest, fnd.PageV2[PublicIp]]{
+	BaseContext: publicIpControlNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Roles:       rpc.RolesProvider,
+}
+
+var PublicIpsControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResource[PublicIPSpecification]], fnd.BulkResponse[fnd.FindByStringId]]{
+	BaseContext: publicIpControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "register",
+}
+
+var PublicIpsControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[PublicIpUpdate]], util.Empty]{
+	BaseContext: publicIpControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "update",
+}
+
+// Public IP Provider API
+// =====================================================================================================================
+
+const publicIpProviderNamespace = "ucloud/" + rpc.ProviderPlaceholder + "/networkips"
+
+var PublicIpsProviderCreate = rpc.Call[fnd.BulkRequest[PublicIp], fnd.BulkResponse[fnd.FindByStringId]]{
+	BaseContext: publicIpProviderNamespace,
+	Convention:  rpc.ConventionCreate,
+	Roles:       rpc.RolesPrivileged,
+}
+
+var PublicIpsProviderDelete = rpc.Call[fnd.BulkRequest[PublicIp], fnd.BulkResponse[util.Empty]]{
+	BaseContext: publicIpProviderNamespace,
+	Convention:  rpc.ConventionDelete,
+	Roles:       rpc.RolesPrivileged,
+}
+
+var PublicIpsProviderVerify = rpc.Call[fnd.BulkRequest[PublicIp], util.Empty]{
+	BaseContext: publicIpProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "verify",
+}
+
+var PublicIpsProviderRetrieveProducts = rpc.Call[util.Empty, fnd.BulkResponse[PublicIpSupport]]{
+	BaseContext: publicIpProviderNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "products",
+}
+
+var PublicIpsProviderUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAclWithResource[PublicIp]], fnd.BulkResponse[util.Empty]]{
+	BaseContext: publicIpProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "updateAcl",
+}
+
+type PublicIpProviderUpdateFirewallRequest struct {
+	PublicIp PublicIp `json:"networkIp"`
+	Firewall Firewall `json:"firewall"`
+}
+
+var PublicIpsProviderUpdateFirewall = rpc.Call[fnd.BulkRequest[PublicIpProviderUpdateFirewallRequest], util.Empty]{
+	BaseContext: publicIpProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "firewall",
 }

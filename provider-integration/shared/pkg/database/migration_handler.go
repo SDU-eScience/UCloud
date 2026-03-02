@@ -1,8 +1,9 @@
 package database
 
 import (
-	_ "github.com/lib/pq"
 	"os"
+
+	_ "github.com/lib/pq"
 	"ucloud.dk/shared/pkg/log"
 )
 
@@ -18,6 +19,7 @@ func Migrate() {
 	scriptsToRun := findMissingMigrations()
 
 	for _, migration := range scriptsToRun {
+		log.Info("Running migration: %s", migration.Id)
 		NewTx0(func(tx *Transaction) {
 			migration.Execute(tx)
 
@@ -36,6 +38,7 @@ func Migrate() {
 				os.Exit(1)
 			}
 		})
+		log.Info("... OK!")
 	}
 }
 

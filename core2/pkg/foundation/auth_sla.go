@@ -2,7 +2,7 @@ package foundation
 
 import (
 	cfg "ucloud.dk/core/pkg/config"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 )

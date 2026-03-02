@@ -10,9 +10,9 @@ import (
 	"sync"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
-	orcapi "ucloud.dk/shared/pkg/orc2"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -141,13 +141,16 @@ func initIngresses() {
 				)
 			}
 
-			ingressesByDomain.Mu.RLock()
+			ingressesByDomain.Mu.Lock()
 			_, exists := ingressesByDomain.Domains[item.Domain]
-			ingressesByDomain.Mu.RUnlock()
+			if !exists {
+				ingressesByDomain.Domains[item.Domain] = ResourceId(0) // placeholder to ensure that the spot is reserved
+			}
+			ingressesByDomain.Mu.Unlock()
 			if exists {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(
 					http.StatusBadRequest,
-					"your domain name is not unique, try a different one", // TODO Time-of-check versus time-of-use
+					"your domain name is not unique, try a different one",
 				)
 			}
 

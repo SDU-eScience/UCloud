@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"
 )

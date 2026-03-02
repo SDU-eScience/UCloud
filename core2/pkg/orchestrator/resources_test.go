@@ -8,7 +8,7 @@ import (
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/assert"
-	orcapi "ucloud.dk/shared/pkg/orc2"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )

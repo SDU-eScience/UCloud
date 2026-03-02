@@ -1,6 +1,4 @@
 import * as React from "react";
-import {Feature, hasFeature} from "@/Features";
-import {default as OldOverview} from "./Legacy/Overview";
 import {NavigateFunction, useNavigate} from "react-router-dom";
 import {useRef, useReducer, useCallback, useEffect, useMemo, useState, useLayoutEffect} from "react";
 import {usePage} from "@/Navigation/Redux";
@@ -196,11 +194,7 @@ interface OperationCallbacks {
 // Primary user interface
 // ================================================================================
 export const Overview: React.FunctionComponent = () => {
-    if (!hasFeature(Feature.NEW_SYNCTHING_UI)) {
-        return <OldOverview />
-    } else {
-        return <NewOverview />;
-    }
+    return <NewOverview />;
 };
 
 const NewOverview: React.FunctionComponent = () => {

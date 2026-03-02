@@ -17,7 +17,7 @@ docker exec -it ucloud-core2-builder-arm64 bash -c '
 '
 
 if [ -z "$NO_DOCKER" ]; then
-    version=`cat ../backend/version.txt`
+    version=`cat version.txt`
     docker buildx build \
         -f Dockerfile \
         --push \

@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"net/http"
 
-	db "ucloud.dk/shared/pkg/database2"
+	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
-func UserOptInfoRetrieve(actor rpc.Actor) fndapi.OptionalUserInfo {
+// UserOptInfoRetrieve will retrieve relevant info, if none is found, return default empty OptionalUserInfo
+func UserOptInfoRetrieve(username string) fndapi.OptionalUserInfo {
 	result := db.NewTx(func(tx *db.Transaction) fndapi.OptionalUserInfo {
 		row, _ := db.Get[struct {
 			OrganizationFullName sql.Null[string]
@@ -37,7 +38,7 @@ func UserOptInfoRetrieve(actor rpc.Actor) fndapi.OptionalUserInfo {
 				p.id = :username and
 				p.dtype = 'PERSON'
 			`,
-			db.Params{"username": actor.Username},
+			db.Params{"username": username},
 		)
 		return fndapi.OptionalUserInfo{
 			OrganizationFullName: util.SqlNullToOpt(row.OrganizationFullName),

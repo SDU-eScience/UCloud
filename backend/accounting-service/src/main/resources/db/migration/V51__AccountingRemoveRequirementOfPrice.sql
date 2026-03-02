@@ -1,1 +1,0 @@
-drop function if exists accounting.require_fixed_price_per_unit_for_diff_quota cascade;

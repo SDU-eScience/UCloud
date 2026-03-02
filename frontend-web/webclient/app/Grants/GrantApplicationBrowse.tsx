@@ -26,7 +26,7 @@ import {divText} from "@/Utilities/HTMLUtilities";
 import {SimpleAvatarComponentCache} from "@/Files/Shares";
 import {avatarState} from "@/AvataaarLib/hook";
 import {TruncateClass} from "@/ui-components/Truncate";
-import {ProjectTitleForNewCore} from "@/Project/InfoCache";
+import {HTMLTooltip} from "@/ui-components/Tooltip";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -39,6 +39,7 @@ const FEATURES: ResourceBrowseFeatures = {
     filters: true,
     breadcrumbsSeparatedBySlashes: false,
     projectSwitcher: true,
+    search: true,
 }
 
 function download(filename: string, text: string) {
@@ -82,14 +83,10 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     columns[2].columnWidth = 120;
                     columns[3].columnWidth = 0;
                 }
-                browser.setColumns(columns);
-                browser.on("open", (oldPath, newPath, resource) => {
-                    if (resource) {
-                        navigate(AppRoutes.grants.editor(resource.id));
-                        return;
-                    }
 
+                function fetchGrants(newPath: string = "/") {
                     callAPI(Grants.browse({
+                        query: browser.searchQuery,
                         includeIngoingApplications: isIngoing || opts?.both,
                         includeOutgoingApplications: !isIngoing || opts?.both,
                         ...defaultRetrieveFlags,
@@ -99,7 +96,25 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                         browser.registerPage(result, newPath, true);
                         browser.renderRows();
                     })
+                }
+
+                browser.setColumns(columns);
+                browser.on("open", (_, newPath, resource) => {
+                    if (resource) {
+                        navigate(AppRoutes.grants.editor(resource.id));
+                        return;
+                    }
+                    fetchGrants(newPath);
+
                 });
+
+                browser.on("search", query => {
+                    browser.searchQuery = query;
+                    fetchGrants();
+                });
+
+
+
 
                 avatarState.subscribe(() => {
                     browser.rerender();
@@ -110,6 +125,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 browser.on("wantToFetchNextPage", async path => {
                     const result = await callAPI(
                         Grants.browse({
+                            query: browser.searchQuery,
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
                             ...opts?.additionalFilters,
@@ -209,7 +225,21 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
 
                     if (!simpleView) {
                         const div = divText(app.status.comments.length.toString());
+                        div.style.display = "flex";
+                        div.style.gap = "4px";
                         div.style.marginTop = div.style.marginBottom = "auto";
+                        div.style.alignItems = "center";
+
+                        const circle = document.createElement("div");
+                        circle.style.width = "8px";
+                        circle.style.height = "8px";
+                        circle.style.borderRadius = "8px";
+                        circle.style.backgroundColor = app.status.hasUnreadComments ? "var(--successLight)" : "transparent";
+                        if (app.status.hasUnreadComments) {
+                            div.append(HTMLTooltip(circle, divText("You have unread comments")));
+                        }
+                        div.append(circle);
+
                         row.stat3.append(div);
                     }
                 });

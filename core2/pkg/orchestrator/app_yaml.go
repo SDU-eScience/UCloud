@@ -8,7 +8,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 	fndapi "ucloud.dk/shared/pkg/foundation"
-	orcapi "ucloud.dk/shared/pkg/orc2"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -779,7 +779,7 @@ func (y *A2Yaml) Normalize() (orcapi.Application, *util.HttpError) {
 						}),
 					},
 
-					Parameters: mappedParameters,
+					Parameters: util.NonNilSlice(mappedParameters),
 
 					Invocation: []orcapi.InvocationParameter{
 						{

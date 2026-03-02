@@ -13,7 +13,7 @@ import (
 
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
-	orcapi "ucloud.dk/shared/pkg/orc2"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -242,6 +242,10 @@ func AppIxImportFromZip(b []byte) {
 		err := AppStudioCreateApplication(&app)
 		if err != nil && err.StatusCode != http.StatusConflict {
 			log.Info("Could not create app: %#v: %s", app.Metadata.NameAndVersion, err)
+		} else {
+			if app.Metadata.Public {
+				_ = AppStudioUpdatePublicFlag(app.Metadata.Name, app.Metadata.Version, true)
+			}
 		}
 	}
 
