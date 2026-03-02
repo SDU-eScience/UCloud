@@ -125,6 +125,7 @@ function recipientPrimaryUsername(recipient: AllocationDisplayTreeRecipient, sta
 function searchQueryMatches(recipient: AllocationDisplayTreeRecipient, state: State, query: string): boolean {
     if (recipient.owner.reference.type === "user" && state.viewOnlyProjects) return false;
     if (recipient.owner.reference.type === "project" && !state.viewOnlyProjects) return false;
+
     let byTypeSetting = state.subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE];
     if (byTypeSetting.enabled && byTypeSetting.selected) {
         const productType = productTypeFromName(byTypeSetting.selected);
@@ -138,6 +139,19 @@ function searchQueryMatches(recipient: AllocationDisplayTreeRecipient, state: St
         }
         if (!anyFound) return false;
     }
+
+    const byProviderSetting = state.subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PROVIDER];
+    if (byProviderSetting.enabled && byProviderSetting.selected) {
+        let anyFound = false;
+        for (const group of recipient.groups) {
+            if (group.category.provider === byProviderSetting.selected) {
+                anyFound = true;
+                break;
+            }
+        }
+        if (!anyFound) return false;
+    }
+
     if (query === "") return true;
     const title = recipientTitle(recipient, state);
     fuzzyMatcher.setCollection([{title}]);
@@ -343,9 +357,11 @@ export function stateReducer(state: State, action: UIAction): State {
         }
 
         case "SubProjectFilterSettingsLoad": {
-            return produce(state, draft => {
+            const newState = produce(state, draft => {
                 draft.subprojectFilters = action.settings;
             });
+
+            return rebuildTree(newState);
         }
 
         case "SubProjectFilterSettingUpdated": {
@@ -413,6 +429,42 @@ export function stateReducer(state: State, action: UIAction): State {
 
     function rebuildTree(state: State): State {
         const newTree = Accounting.buildAllocationDisplayTree((state.remoteData.wallets ?? []));
+
+        const providerOptions = (() => {
+            const providers = new Set<string>();
+
+            for (const provider of state.remoteData.managedProviders ?? []) {
+                providers.add(provider);
+            }
+
+            for (const recipient of newTree.subAllocations.recipients) {
+                for (const group of recipient.groups) {
+                    providers.add(group.category.provider);
+                }
+            }
+
+            return [...providers].sort((a, b) => a.localeCompare(b));
+        })();
+
+        const currentProviderFilter = state.subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PROVIDER];
+        const selectedProvider = currentProviderFilter.selected;
+        const providerSelectionIsValid = selectedProvider !== undefined && providerOptions.includes(selectedProvider);
+        const normalizedProviderSelection = providerSelectionIsValid ? selectedProvider : providerOptions[0];
+        const providerOptionsUnchanged =
+            currentProviderFilter.options.length === providerOptions.length &&
+            currentProviderFilter.options.every((it, idx) => it === providerOptions[idx]);
+        const providerFilterUnchanged =
+            providerOptionsUnchanged && currentProviderFilter.selected === normalizedProviderSelection;
+
+        const subprojectFilters = providerFilterUnchanged ?
+            state.subprojectFilters : {
+                ...state.subprojectFilters,
+                [SubProjectFilterSetting.ALLOCATED_BY_PROVIDER]: {
+                    ...currentProviderFilter,
+                    options: providerOptions,
+                    selected: normalizedProviderSelection,
+                }
+            };
 
         newTree.subAllocations.recipients.sort((a, b) => {
             let naturalOrderResult = (() => {
@@ -520,6 +572,7 @@ export function stateReducer(state: State, action: UIAction): State {
             yourAllocations: newTree.yourAllocations,
             subAllocations: newTree.subAllocations,
             filteredSubProjectIndices,
+            subprojectFilters,
         };
     }
 }
