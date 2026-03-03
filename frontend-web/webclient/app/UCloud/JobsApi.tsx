@@ -172,6 +172,16 @@ export interface OpenTerminalInFolderRequest {
     folder: string;
 }
 
+export interface AttachFolderRequest {
+    jobId: string;
+    folder: string;
+}
+
+export interface DetachFolderRequest {
+    jobId: string;
+    folder: string;
+}
+
 export interface InteractiveSession {
     providerDomain: string;
     providerId: string;
@@ -379,6 +389,14 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
 
     rename(request: BulkRequest<{ id: string; newTitle: string; }>) {
         return apiUpdate(request, this.baseContext, "rename");
+    }
+
+    attachFolder(request: AttachFolderRequest): APICallParameters<AttachFolderRequest, any | null> {
+        return apiUpdate(request, this.baseContext, "attachFolder");
+    }
+
+    detachFolder(request: DetachFolderRequest): APICallParameters<DetachFolderRequest, any | null> {
+        return apiUpdate(request, this.baseContext, "detachFolder");
     }
 }
 

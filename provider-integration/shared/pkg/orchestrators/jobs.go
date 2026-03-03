@@ -114,7 +114,7 @@ type JobUpdate struct {
 	ExpectedDifferentState util.Option[bool]     `json:"expectedDifferentState"`
 	NewTimeAllocation      util.Option[int64]    `json:"newTimeAllocation"`
 	AllowRestart           util.Option[bool]     `json:"allowRestart"` // deprecated
-	NewMounts              util.Option[[]string] `json:"newMounts"`    // deprecated
+	MountList              util.Option[[]string] `json:"mountList"`
 	Timestamp              fnd.Timestamp         `json:"timestamp"`
 }
 
@@ -581,6 +581,30 @@ type JobsFollowMessage struct {
 	InitialJob util.Option[Job]       `json:"initialJob"`
 }
 
+type JobsAttachFolderRequest struct {
+	JobId  string `json:"jobId"`
+	Folder string `json:"folder"`
+}
+
+var JobsAttachFolder = rpc.Call[JobsAttachFolderRequest, util.Empty]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "attachFolder",
+}
+
+type JobsDetachFolderRequest struct {
+	JobId  string `json:"jobId"`
+	Folder string `json:"folder"`
+}
+
+var JobsDetachFolder = rpc.Call[JobsDetachFolderRequest, util.Empty]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "detachFolder",
+}
+
 // Job Control API
 // =====================================================================================================================
 
@@ -772,11 +796,27 @@ type JobsProviderFollowRequest struct {
 	Job  Job    `json:"job"`
 }
 
-/*
-var JobsProviderRename = rpc.Call[fnd.BulkRequest[JobRenameRequest], fnd.BulkResponse[util.Empty]]{
+type JobsProviderAttachFolderRequest struct {
+	Job      Job    `json:"job"`
+	Folder   string `json:"folder"`
+	ReadOnly bool   `json:"readOnly"`
+}
+
+var JobsProviderAttachFolder = rpc.Call[JobsProviderAttachFolderRequest, util.Empty]{
 	BaseContext: jobProviderNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesService,
-	Operation:   "rename",
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "attachFolder",
 }
-*/
+
+type JobsProviderDetachFolderRequest struct {
+	Job    Job    `json:"job"`
+	Folder string `json:"folder"`
+}
+
+var JobsProviderDetachFolder = rpc.Call[JobsProviderDetachFolderRequest, util.Empty]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "detachFolder",
+}

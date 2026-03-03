@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"net/http"
 	"os"
 	"regexp"
 	"slices"
@@ -46,6 +47,8 @@ func InitCompute() controller.JobsService {
 		Suspend:                  suspend,
 		Unsuspend:                unsuspend,
 		HandleBuiltInVnc:         handleBuiltInVnc,
+		AttachFolder:             attachFolder,
+		DetachFolder:             detachFolder,
 		PublicIPs: controller.PublicIPService{
 			Create:           createPublicIp,
 			Delete:           deletePublicIp,
@@ -436,5 +439,23 @@ func handleBuiltInVnc(job *orc.Job, rank int, conn *ws.Conn) {
 	fn := backend(job).HandleBuiltInVnc
 	if fn != nil {
 		fn(job, rank, conn)
+	}
+}
+
+func attachFolder(job *orc.Job, folder string, readOnly bool) *util.HttpError {
+	fn := backend(job).AttachFolder
+	if fn != nil {
+		return fn(job, folder, readOnly)
+	} else {
+		return util.HttpErr(http.StatusBadRequest, "unsupported operation")
+	}
+}
+
+func detachFolder(job *orc.Job, folder string) *util.HttpError {
+	fn := backend(job).DetachFolder
+	if fn != nil {
+		return fn(job, folder)
+	} else {
+		return util.HttpErr(http.StatusBadRequest, "unsupported operation")
 	}
 }

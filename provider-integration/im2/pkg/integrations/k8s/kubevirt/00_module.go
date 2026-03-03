@@ -87,6 +87,8 @@ func Init() ctrl.JobsService {
 		Suspend:                  suspend,
 		Unsuspend:                unsuspend,
 		HandleBuiltInVnc:         handleVnc,
+		AttachFolder:             attachFolder,
+		DetachFolder:             detachFolder,
 	}
 }
 
@@ -1215,4 +1217,12 @@ func JobFolder(job *orc.Job) (string, *util.HttpError) {
 	}
 
 	return filepath.Join(internalMemberFiles, "Jobs", "VirtualMachines", job.Id), nil
+}
+
+func attachFolder(job *orc.Job, folder string, only bool) *util.HttpError {
+	return nil
+}
+
+func detachFolder(job *orc.Job, folder string) *util.HttpError {
+	return nil
 }

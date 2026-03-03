@@ -233,17 +233,29 @@ export const VirtualMachineStatus: React.FunctionComponent<{
         if (item.key === "delete") confirmTerminate();
     }, [confirmTerminate]);
 
-    const onFolderAdded = useCallback((newFolders: compute.AppParameterValueNS.File[], addedFolder: compute.AppParameterValueNS.File) => {
-        // TODO: Persist folder attachment updates once backend API is available.
-        void newFolders;
-        void addedFolder;
-    }, []);
+    const onFolderAdded = useCallback(async (newFolders: compute.AppParameterValueNS.File[], addedFolder: compute.AppParameterValueNS.File) => {
+        try {
+            await invokeCommand(JobsApi.attachFolder({
+                jobId: job.id,
+                folder: addedFolder.path,
+            }));
+        } catch (e) {
+            displayErrorMessageOrDefault(e, "Failed to attach folder.");
+            throw e;
+        }
+    }, [invokeCommand, job.id]);
 
-    const onFolderRemoved = useCallback((newFolders: compute.AppParameterValueNS.File[], removedFolder: compute.AppParameterValueNS.File) => {
-        // TODO: Persist folder attachment updates once backend API is available.
-        void newFolders;
-        void removedFolder;
-    }, []);
+    const onFolderRemoved = useCallback(async (newFolders: compute.AppParameterValueNS.File[], removedFolder: compute.AppParameterValueNS.File) => {
+        try {
+            await invokeCommand(JobsApi.detachFolder({
+                jobId: job.id,
+                folder: removedFolder.path,
+            }));
+        } catch (e) {
+            displayErrorMessageOrDefault(e, "Failed to detach folder.");
+            throw e;
+        }
+    }, [invokeCommand, job.id]);
 
     const interfaceDisabled = !desktopTarget?.link || isTerminalState;
 
@@ -484,6 +496,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                     jobId={job.id}
                     providerId={job.specification.product.provider}
                     parameters={job.specification.parameters}
+                    resources={job.specification.resources}
                     onFolderAdded={onFolderAdded}
                     onFolderRemoved={onFolderRemoved}
                 />

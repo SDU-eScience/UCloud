@@ -19,10 +19,11 @@ export const VirtualMachineFolders: React.FunctionComponent<{
     jobId: string;
     providerId: string;
     parameters?: Record<string, compute.AppParameterValue>;
+    resources?: compute.AppParameterValue[];
     onFolderAdded?: (newFolders: VmFolder[], addedFolder: VmFolder) => Promise<void> | void;
     onFolderRemoved?: (newFolders: VmFolder[], removedFolder: VmFolder) => Promise<void> | void;
-}> = ({jobId, providerId, parameters, onFolderAdded, onFolderRemoved}) => {
-    const initialFolders = useMemo(() => extractFolders(parameters), [parameters]);
+}> = ({jobId, providerId, parameters, resources, onFolderAdded, onFolderRemoved}) => {
+    const initialFolders = useMemo(() => extractFolders(parameters, resources), [parameters, resources]);
     const [folders, setFolders] = useState<VmFolder[]>(initialFolders);
 
     useEffect(() => {
@@ -30,13 +31,37 @@ export const VirtualMachineFolders: React.FunctionComponent<{
     }, [jobId, initialFolders]);
 
     const onRemoveFolder = useCallback((idx: number) => {
-        setFolders(prev => {
-            const removed = prev[idx];
-            const newFolders = prev.filter((_, i) => i !== idx);
-            onFolderRemoved?.(newFolders, removed);
-            return newFolders;
-        });
-    }, [onFolderRemoved]);
+        const removed = folders[idx];
+        if (!removed) return;
+
+        const newFolders = folders.filter((_, i) => i !== idx);
+        setFolders(newFolders);
+
+        try {
+            const maybePromise = onFolderRemoved?.(newFolders, removed);
+            Promise.resolve(maybePromise).catch(() => {
+                setFolders(prev => {
+                    const alreadyRestored = prev.some(folder => folder.path === removed.path);
+                    if (alreadyRestored) return prev;
+
+                    const restored = [...prev];
+                    const insertionIndex = Math.min(idx, restored.length);
+                    restored.splice(insertionIndex, 0, removed);
+                    return restored;
+                });
+            });
+        } catch {
+            setFolders(prev => {
+                const alreadyRestored = prev.some(folder => folder.path === removed.path);
+                if (alreadyRestored) return prev;
+
+                const restored = [...prev];
+                const insertionIndex = Math.min(idx, restored.length);
+                restored.splice(insertionIndex, 0, removed);
+                return restored;
+            });
+        }
+    }, [folders, onFolderRemoved]);
 
     const openFolderSelector = useCallback(() => {
         const normalize = (path: string) => removeTrailingSlash(path);
@@ -66,11 +91,17 @@ export const VirtualMachineFolders: React.FunctionComponent<{
                 readOnly: false,
             };
 
-            setFolders(prev => {
-                const newFolders = [...prev, addedFolder];
-                onFolderAdded?.(newFolders, addedFolder);
-                return newFolders;
-            });
+            const newFolders = [...folders, addedFolder];
+            setFolders(newFolders);
+
+            try {
+                const maybePromise = onFolderAdded?.(newFolders, addedFolder);
+                Promise.resolve(maybePromise).catch(() => {
+                    setFolders(prev => prev.filter(existing => normalize(existing.path) !== addedFolder.path));
+                });
+            } catch {
+                setFolders(prev => prev.filter(existing => normalize(existing.path) !== addedFolder.path));
+            }
 
             dialogStore.success();
         };
@@ -143,10 +174,8 @@ const FolderRow: React.FunctionComponent<{
     </div>;
 }
 
-function extractFolders(parameters?: Record<string, compute.AppParameterValue>): VmFolder[] {
-    if (!parameters) return [];
-    return Object.values(parameters)
-        .filter((value): value is VmFolder => value?.type === "file");
+function extractFolders(parameters?: Record<string, compute.AppParameterValue>, resources?: compute.AppParameterValue[]): VmFolder[] {
+    return Object.values(parameters ?? {}).concat(resources ?? []).filter((value): value is VmFolder => value?.type === "file");
 }
 
 const VmFoldersBody = injectStyle("vm-folders-body", k => `

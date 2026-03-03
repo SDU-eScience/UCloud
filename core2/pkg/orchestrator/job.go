@@ -127,6 +127,43 @@ func initJobs() {
 		}
 
 		for jobId, updates := range updatesById {
+			newFileResources := util.OptNone[[]orcapi.AppParameterValue]()
+			{
+				mountList := util.OptNone[[]string]()
+				for _, update := range updates {
+					if update.MountList.Present {
+						mountList.Set(update.MountList.Value)
+					}
+				}
+
+				if mountList.Present {
+
+					job, err := JobsRetrieve(info.Actor, jobId, orcapi.JobFlags{
+						ResourceFlags:      orcapi.ResourceFlagsIncludeAll(),
+						IncludeApplication: true,
+					})
+
+					if err == nil {
+						support, ok := SupportByProduct[orcapi.JobSupport](jobType, job.Specification.Product)
+						if ok {
+							toolBackend := job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
+							jobOwner, ok := rpc.LookupActor(job.Owner.CreatedBy)
+							if ok {
+								newFileResources.Present = true
+
+								for _, path := range mountList.Value {
+									value := orcapi.AppParameterValueFile(path, false)
+									err = jobValidateValue(jobOwner, &value, toolBackend, support)
+									if err == nil {
+										newFileResources.Value = append(newFileResources.Value, value)
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
 			ok := ResourceUpdate(info.Actor, jobType, ResourceParseId(jobId), orcapi.PermissionProvider, func(r *resource, mapped orcapi.Job) {
 				job := r.Extra.(*internalJob)
 				job.ChangeFlags |= internalJobPartialChange | internalJobChangeUpdates | internalJobChangeMetadata
@@ -173,6 +210,17 @@ func initJobs() {
 
 						if a := update.NewTimeAllocation; a.Present {
 							job.TimeAllocation.Set(orcapi.SimpleDurationFromMillis(update.NewTimeAllocation.Value))
+						}
+
+						if newFileResources.Present {
+							newResources := []orcapi.AppParameterValue{}
+							for _, param := range job.Resources {
+								if param.Type != orcapi.AppParameterValueTypeFile {
+									newResources = append(newResources, param)
+								}
+							}
+
+							job.Resources = util.Combined(newResources, newFileResources.Value)
 						}
 
 						job.Updates = append(job.Updates, update)
@@ -481,6 +529,103 @@ func initJobs() {
 		}
 
 		return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
+	})
+
+	orcapi.JobsAttachFolder.Handler(func(info rpc.RequestInfo, request orcapi.JobsAttachFolderRequest) (util.Empty, *util.HttpError) {
+		driveId, ok := orcapi.DriveIdFromUCloudPath(request.Folder)
+		if !ok {
+			return util.Empty{}, util.HttpErr(http.StatusNotFound, "invalid folder requested: %s", request.Folder)
+		}
+
+		drive, _, _, err := ResourceRetrieveEx[orcapi.Drive](
+			info.Actor,
+			driveType,
+			ResourceParseId(driveId),
+			orcapi.PermissionRead,
+			orcapi.ResourceFlags{IncludeOthers: true},
+		)
+
+		if err != nil {
+			return util.Empty{}, util.HttpErr(http.StatusNotFound, "invalid folder requested: %s", request.Folder)
+		}
+
+		resc, _, _, err := ResourceRetrieveEx[orcapi.Job](
+			info.Actor,
+			jobType,
+			ResourceParseId(request.JobId),
+			orcapi.PermissionEdit,
+			orcapi.ResourceFlags{IncludeProduct: true},
+		)
+
+		if err != nil {
+			return util.Empty{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", request.JobId)
+		}
+
+		provider := resc.Specification.Product.Provider
+
+		_, err = InvokeProvider(
+			provider,
+			orcapi.JobsProviderAttachFolder,
+			orcapi.JobsProviderAttachFolderRequest{
+				Job:      resc,
+				Folder:   request.Folder,
+				ReadOnly: !slices.Contains(drive.Permissions.Value.Myself, orcapi.PermissionEdit),
+			},
+			ProviderCallOpts{
+				Username: util.OptValue(info.Actor.Username),
+				Reason:   util.OptValue("user initiated request"),
+			},
+		)
+
+		return util.Empty{}, err
+	})
+
+	orcapi.JobsDetachFolder.Handler(func(info rpc.RequestInfo, request orcapi.JobsDetachFolderRequest) (util.Empty, *util.HttpError) {
+		driveId, ok := orcapi.DriveIdFromUCloudPath(request.Folder)
+		if !ok {
+			return util.Empty{}, util.HttpErr(http.StatusNotFound, "invalid folder requested: %s", request.Folder)
+		}
+
+		_, _, _, err := ResourceRetrieveEx[orcapi.Drive](
+			info.Actor,
+			driveType,
+			ResourceParseId(driveId),
+			orcapi.PermissionRead,
+			orcapi.ResourceFlags{IncludeOthers: true},
+		)
+
+		if err != nil {
+			return util.Empty{}, util.HttpErr(http.StatusNotFound, "invalid folder requested: %s", request.Folder)
+		}
+
+		resc, _, _, err := ResourceRetrieveEx[orcapi.Job](
+			info.Actor,
+			jobType,
+			ResourceParseId(request.JobId),
+			orcapi.PermissionEdit,
+			orcapi.ResourceFlags{IncludeProduct: true},
+		)
+
+		if err != nil {
+			return util.Empty{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", request.JobId)
+		}
+
+		provider := resc.Specification.Product.Provider
+
+		_, err = InvokeProvider(
+			provider,
+			orcapi.JobsProviderDetachFolder,
+			orcapi.JobsProviderDetachFolderRequest{
+				Job:    resc,
+				Folder: request.Folder,
+			},
+			ProviderCallOpts{
+				Username: util.OptValue(info.Actor.Username),
+				Reason:   util.OptValue("user initiated request"),
+			},
+		)
+
+		return util.Empty{}, err
 	})
 
 	orcapi.JobsOpenInteractiveSession.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsOpenInteractiveSessionRequestItem]) (fndapi.BulkResponse[orcapi.OpenSessionWithProvider], *util.HttpError) {
