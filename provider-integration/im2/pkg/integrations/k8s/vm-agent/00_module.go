@@ -2,10 +2,13 @@ package vm_agent
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	ws "github.com/gorilla/websocket"
@@ -17,6 +20,10 @@ var providerHost string
 
 func Launch() {
 	_ = log.SetLogFile("/tmp/vm-agent.log")
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	startExecutableUpdateWatcher(5 * time.Second)
 
 	ipBytes, err := os.ReadFile("/opt/ucloud/provider-ip.txt")
@@ -41,13 +48,21 @@ func Launch() {
 	initStartup()
 
 	for {
+		if ctx.Err() != nil {
+			log.Info("Shutdown requested. Exiting VM agent.")
+			return
+		}
+
 		log.Info("Connecting to %s", providerHost)
 		url := fmt.Sprintf("%s/api/%s", providerHost, VmaStream.BaseContext)
 
 		c, _, err := ws.DefaultDialer.Dial(url, nil)
 		if err != nil {
 			log.Warn("Failed to establish WebSocket connection: %v %v", url, err)
-			time.Sleep(5 * time.Second)
+			if !waitForIntervalOrShutdown(ctx, 5*time.Second) {
+				log.Info("Shutdown requested. Exiting VM agent.")
+				return
+			}
 			continue
 		}
 
@@ -55,8 +70,36 @@ func Launch() {
 			Conn: c,
 			Ok:   true,
 		}
-		handleSession(s, token, srvTok)
-		time.Sleep(5 * time.Second)
+
+		sessionDone := make(chan struct{})
+		go func() {
+			select {
+			case <-ctx.Done():
+				_ = c.Close()
+			case <-sessionDone:
+			}
+		}()
+
+		handleSession(ctx, s, token, srvTok)
+		close(sessionDone)
+		_ = c.Close()
+
+		if !waitForIntervalOrShutdown(ctx, 5*time.Second) {
+			log.Info("Shutdown requested. Exiting VM agent.")
+			return
+		}
+	}
+}
+
+func waitForIntervalOrShutdown(ctx context.Context, interval time.Duration) bool {
+	timer := time.NewTimer(interval)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
 	}
 }
 
@@ -117,36 +160,54 @@ func executableModTime(path string) (time.Time, error) {
 	return info.ModTime(), nil
 }
 
-func handleSession(s *vmaSession, token string, serverToken string) {
-	socketMessages := make(chan []byte)
+func handleSession(ctx context.Context, s *vmaSession, token string, serverToken string) {
+	socketMessages := make(chan []byte, 1)
 	go func() {
+		defer close(socketMessages)
+
 		for s.Ok {
 			message := s.ReadMessage()
 
 			if s.Ok {
-				socketMessages <- message
+				select {
+				case socketMessages <- message:
+				case <-ctx.Done():
+					return
+				}
 			} else {
 				break
 			}
 		}
-
-		socketMessages <- nil
 	}()
 
 	{
-		_ = s.SendText(token)
-		msg := <-socketMessages
-		if string(msg) != serverToken {
+		if !s.SendText(token) {
+			return
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case msg, ok := <-socketMessages:
+			if !ok || string(msg) != serverToken {
+				return
+			}
+		}
+
+		if ctx.Err() != nil {
 			return
 		}
 	}
 
 	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
 
 	for {
 		select {
-		case message := <-socketMessages:
-			if message == nil {
+		case <-ctx.Done():
+			return
+		case message, ok := <-socketMessages:
+			if !ok {
 				return
 			}
 
@@ -169,7 +230,9 @@ func handleSession(s *vmaSession, token string, serverToken string) {
 			rawBuf := &bytes.Buffer{}
 			b := util.NewBuffer(rawBuf)
 			b.WriteU8(uint8(VmaAgentHeartbeat))
-			s.SendBinary(rawBuf.Bytes())
+			if !s.SendBinary(rawBuf.Bytes()) {
+				return
+			}
 		}
 	}
 }

@@ -1,8 +1,12 @@
 package ucmetrics
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"ucloud.dk/pkg/ucviz"
@@ -53,6 +57,9 @@ func gpuMemoryUtilColumn(cardId int) int {
 }
 
 func HandleCli() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	startExecutableUpdateWatcher(5 * time.Second)
 
 	cpu, cpuErr := CpuSampleStart()
@@ -92,6 +99,10 @@ func HandleCli() {
 	}
 
 	for {
+		if ctx.Err() != nil {
+			return
+		}
+
 		row := make([]float64, elementCount)
 		var charts []chartInfo
 		// cpu, memory use, mem total
@@ -346,6 +357,10 @@ func HandleCli() {
 
 		if didChangeCharts {
 			for _, chart := range charts {
+				if ctx.Err() != nil {
+					return
+				}
+
 				jsonData, _ := json.Marshal(chart.Definition)
 				util.RunCommand([]string{
 					"/opt/ucloud/ucviz",
@@ -365,6 +380,20 @@ func HandleCli() {
 
 		previousCharts = charts
 		monitorOsStats()
-		time.Sleep(250 * time.Millisecond)
+		if !waitForIntervalOrShutdown(ctx, 250*time.Millisecond) {
+			return
+		}
+	}
+}
+
+func waitForIntervalOrShutdown(ctx context.Context, interval time.Duration) bool {
+	timer := time.NewTimer(interval)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
 	}
 }
