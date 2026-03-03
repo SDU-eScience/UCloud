@@ -796,9 +796,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	cinit.RunCommand = []string{
 		fmt.Sprintf("usermod -u %d ucloud", filesystem.DefaultUid),
 		fmt.Sprintf("groupmod -g %d ucloud", filesystem.DefaultUid),
+		"cp /etc/ucloud/ucloud-vmagent.service /etc/systemd/system",
+		"cp /etc/ucloud/ucloud-metrics.service /etc/systemd/system",
 		"systemctl daemon-reload",
-		"systemctl enable --now /etc/ucloud/ucloud-vmagent.service",
-		"systemctl enable --now /etc/ucloud/ucloud-metrics.service",
+		"systemctl enable --now /etc/systemd/system/ucloud-vmagent.service",
+		"systemctl enable --now /etc/systemd/system/ucloud-metrics.service",
 	}
 
 	machine := &job.Status.ResolvedProduct.Value
@@ -840,7 +842,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	vm.Spec.Template = &kvcore.VirtualMachineInstanceTemplateSpec{
 		Spec: kvcore.VirtualMachineInstanceSpec{
-			// TODO Cluster DNS didn't work on dev (previously - not tested recently. NetworkPolicy?)
 			NodeSelector: map[string]string{
 				"kubernetes.io/hostname": node,
 			},
@@ -1123,7 +1124,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 				mountPath = filepath.Join(bucket[0].mountFolder, title)
 			}
 			cinit.Mounts = append(cinit.Mounts, []string{
-				item.volName, mountPath, "virtiofs", "defaults", "0", "0",
+				item.volName, mountPath, "virtiofs", "nofail", "0", "0",
 			})
 		}
 	}

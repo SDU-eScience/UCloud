@@ -38,6 +38,8 @@ func Launch() {
 
 	providerHost = fmt.Sprintf("ws://%s:8889", string(ipBytes))
 
+	initStartup()
+
 	for {
 		log.Info("Connecting to %s", providerHost)
 		url := fmt.Sprintf("%s/api/%s", providerHost, VmaStream.BaseContext)
@@ -56,6 +58,10 @@ func Launch() {
 		handleSession(s, token, srvTok)
 		time.Sleep(5 * time.Second)
 	}
+}
+
+func initStartup() {
+	driveSynchronizeWithFstab()
 }
 
 func startExecutableUpdateWatcher(interval time.Duration) {

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"ucloud.dk/pkg/ucviz"
-	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -365,7 +364,6 @@ func HandleCli() {
 		_ = ring.Write(row)
 
 		previousCharts = charts
-		log.Info("HI! OS STATS NOW")
 		monitorOsStats()
 		time.Sleep(250 * time.Millisecond)
 	}
