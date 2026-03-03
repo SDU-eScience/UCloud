@@ -22,7 +22,6 @@ func loadImage(path string) []byte {
 
 func initProviderBranding() {
 	if RunsServerCode() {
-
 		orcapi.ProviderBrandingRetrieve.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.ProviderBranding, *util.HttpError) {
 			pb := cfg.Provider.ProviderBranding
 			providerBranding := orcapi.ProviderBranding{
