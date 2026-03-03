@@ -437,6 +437,12 @@ export function stateReducer(state: State, action: UIAction): State {
                 providers.add(provider);
             }
 
+            for (const v of Object.values(state.yourAllocations)) {
+                for (const wallet of v.wallets) {
+                    providers.add(wallet.category.provider);
+                }
+            }
+
             for (const recipient of newTree.subAllocations.recipients) {
                 for (const group of recipient.groups) {
                     providers.add(group.category.provider);
