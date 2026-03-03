@@ -17,6 +17,7 @@ import (
 
 	ws "github.com/gorilla/websocket"
 	"golang.org/x/sys/unix"
+	"gopkg.in/yaml.v3"
 	k8sadmission "k8s.io/api/admission/v1"
 	k8score "k8s.io/api/core/v1"
 	k8snetwork "k8s.io/api/networking/v1"
@@ -190,6 +191,8 @@ func vmiFsMutator() {
 			}
 			var ops []jsonPatchOp
 			allowed := true
+			managedVolumeNames := map[string]bool{}
+			sharedVolumeName := ""
 
 			labels := pod.Labels
 			if labels == nil {
@@ -229,33 +232,41 @@ func vmiFsMutator() {
 				}
 
 				for mountIdx, mount := range container.VolumeMounts {
-					if strings.HasPrefix(mount.Name, "ucloud-") {
-						volPath, ok1 := annotations[fmt.Sprintf("ucloud.dk/vmVolPath-%s", mount.Name)]
-						readOnly, ok2 := annotations[fmt.Sprintf("ucloud.dk/vmVolReadOnly-%s", mount.Name)]
-						if !ok1 && !ok2 {
-							log.Info("Rejecting %s because annotations are not present on VM: %s, %v", mount.Name, volPath, readOnly)
-							allowed = false
-						} else {
-							ops = append(ops, jsonPatchOp{
-								Op:    "add",
-								Path:  fmt.Sprintf("/spec/containers/%d/volumeMounts/%d/subPath", cIdx, mountIdx),
-								Value: volPath,
-							})
-
-							ops = append(ops, jsonPatchOp{
-								Op:    "add",
-								Path:  fmt.Sprintf("/spec/containers/%d/volumeMounts/%d/readOnly", cIdx, mountIdx),
-								Value: readOnly == "true",
-							})
-
-							// Point all volumes to the first one since the Volume is shared amongst all UCloud mounts
-							ops = append(ops, jsonPatchOp{
-								Op:    "add",
-								Path:  fmt.Sprintf("/spec/containers/%d/volumeMounts/%d/name", cIdx, mountIdx),
-								Value: "ucloud-0",
-							})
-						}
+					volPath, ok1 := annotations[fmt.Sprintf("ucloud.dk/vmVolPath-%s", mount.Name)]
+					readOnly, ok2 := annotations[fmt.Sprintf("ucloud.dk/vmVolReadOnly-%s", mount.Name)]
+					if !ok1 && !ok2 {
+						continue
 					}
+
+					if !ok1 || !ok2 {
+						log.Info("Rejecting %s because required annotations are not present on VM: hasPath=%v hasReadOnly=%v", mount.Name, ok1, ok2)
+						allowed = false
+						continue
+					}
+
+					if sharedVolumeName == "" {
+						sharedVolumeName = mount.Name
+					}
+					managedVolumeNames[mount.Name] = true
+
+					ops = append(ops, jsonPatchOp{
+						Op:    "add",
+						Path:  fmt.Sprintf("/spec/containers/%d/volumeMounts/%d/subPath", cIdx, mountIdx),
+						Value: volPath,
+					})
+
+					ops = append(ops, jsonPatchOp{
+						Op:    "add",
+						Path:  fmt.Sprintf("/spec/containers/%d/volumeMounts/%d/readOnly", cIdx, mountIdx),
+						Value: readOnly == "true",
+					})
+
+					// Point all managed volumes to a single backing Volume since the Volume is shared amongst all UCloud mounts
+					ops = append(ops, jsonPatchOp{
+						Op:    "add",
+						Path:  fmt.Sprintf("/spec/containers/%d/volumeMounts/%d/name", cIdx, mountIdx),
+						Value: sharedVolumeName,
+					})
 				}
 			}
 
@@ -264,15 +275,17 @@ func vmiFsMutator() {
 			// NOTE(Dan): This snippet ensures that we do not have duplicate volume definitions (which are not
 			// allowed). We do this by simply keeping the first one, we have already remapped all mounts to point
 			// to this volume.
-			volumesRemoved := 0
-			for volIdx, volume := range pod.Spec.Volumes {
-				if strings.HasPrefix(volume.Name, "ucloud-") && volume.Name != "ucloud-0" {
-					ops = append(ops, jsonPatchOp{
-						Op:   "remove",
-						Path: fmt.Sprintf("/spec/volumes/%d", volIdx-volumesRemoved),
-					})
+			if sharedVolumeName != "" {
+				volumesRemoved := 0
+				for volIdx, volume := range pod.Spec.Volumes {
+					if managedVolumeNames[volume.Name] && volume.Name != sharedVolumeName {
+						ops = append(ops, jsonPatchOp{
+							Op:   "remove",
+							Path: fmt.Sprintf("/spec/volumes/%d", volIdx-volumesRemoved),
+						})
 
-					volumesRemoved++
+						volumesRemoved++
+					}
 				}
 			}
 
@@ -911,11 +924,12 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	mountsByName := map[string][]mountEntry{}
 
 	type unpreparedMount struct {
-		SubPath     string
-		ReadOnly    bool
-		UCloudPath  string
-		Title       string
-		MountFolder string
+		SubPath       string
+		ReadOnly      bool
+		UCloudPath    string
+		Title         string
+		MountFolder   string
+		PersistentTag string
 	}
 	var unpreparedMounts []unpreparedMount
 	for _, param := range job.Specification.Resources {
@@ -939,10 +953,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	unpreparedMounts = append(unpreparedMounts, unpreparedMount{
-		SubPath:     shared.ExecutablesDir,
-		ReadOnly:    true,
-		Title:       "ucloud",
-		MountFolder: "/opt",
+		SubPath:       shared.ExecutablesDir,
+		ReadOnly:      true,
+		Title:         "ucloud",
+		MountFolder:   "/opt",
+		PersistentTag: "ucloud-opt",
 	})
 
 	jobFolder, herr := JobFolder(job)
@@ -1040,25 +1055,37 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		}
 
 		unpreparedMounts = append(unpreparedMounts, unpreparedMount{
-			SubPath:     confDirSubpath,
-			ReadOnly:    true,
-			Title:       "ucloud",
-			MountFolder: "/etc",
+			SubPath:       confDirSubpath,
+			ReadOnly:      true,
+			Title:         "ucloud",
+			MountFolder:   "/etc",
+			PersistentTag: "ucloud-etc",
 		})
 
 		unpreparedMounts = append(unpreparedMounts, unpreparedMount{
-			SubPath:     logsDirSubPath,
-			ReadOnly:    false,
-			Title:       "",
-			MountFolder: "/work",
+			SubPath:       logsDirSubPath,
+			ReadOnly:      false,
+			Title:         "",
+			MountFolder:   "/work",
+			PersistentTag: "ucloud-work",
 		})
 	}
 
 	fsIdx := 0
+	for key := range vm.Annotations {
+		if strings.HasPrefix(key, "ucloud.dk/vmVolPath-") || strings.HasPrefix(key, "ucloud.dk/vmVolReadOnly-") {
+			delete(vm.Annotations, key)
+		}
+	}
+
 	for _, param := range unpreparedMounts {
 		subpath := param.SubPath
 
-		volName := fmt.Sprintf("ucloud-%d", fsIdx)
+		volName := fmt.Sprintf("ucloud-r%s%d", util.RandomTokenNoTs(4), fsIdx)
+		if param.PersistentTag != "" {
+			volName = param.PersistentTag
+		}
+
 		tplSpec.Volumes = append(tplSpec.Volumes, kvcore.Volume{
 			Name: volName,
 			VolumeSource: kvcore.VolumeSource{
@@ -1102,6 +1129,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		fsIdx++
 	}
 
+	var userDrives struct {
+		Mounts [][]string `yaml:"mounts"`
+	}
+
 	for _, bucket := range mountsByName {
 		useSuffix := len(bucket) > 1
 		requestedTitle := bucket[0].title
@@ -1122,13 +1153,24 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			mountPath := ""
 			if bucket[0].mountFolder == "" {
 				mountPath = filepath.Join("/work", title)
+				userDrives.Mounts = append(userDrives.Mounts, []string{
+					item.volName, mountPath,
+				})
 			} else {
 				mountPath = filepath.Join(bucket[0].mountFolder, title)
+				cinit.Mounts = append(cinit.Mounts, []string{
+					item.volName, mountPath, "virtiofs", "nofail", "0", "0",
+				})
 			}
-			cinit.Mounts = append(cinit.Mounts, []string{
-				item.volName, mountPath, "virtiofs", "nofail", "0", "0",
-			})
 		}
+	}
+
+	{
+		confDir := filepath.Join(jobFolder, "config")
+		optionalDriveMounts, _ := yaml.Marshal(userDrives)
+		mountsYml := filepath.Join(confDir, "mounts.yml")
+		_ = os.WriteFile(mountsYml, optionalDriveMounts, 0600)
+		_ = os.Chown(mountsYml, filesystem.DefaultUid, filesystem.DefaultUid)
 	}
 
 	cinitRawData, _ := json.Marshal(cinit)
@@ -1158,7 +1200,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	if hasExistingVm {
-		_, err = KubevirtClient.VirtualMachine(Namespace).Update(ctx, vm, k8smeta.UpdateOptions{})
+		err = updateExistingVmWithRetry(ctx, nameOfVm, vm)
 	} else {
 		vm, localErr := KubevirtClient.VirtualMachine(Namespace).Create(ctx, vm, k8smeta.CreateOptions{})
 		err = localErr
@@ -1206,6 +1248,39 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		return util.HttpErr(http.StatusInternalServerError, "failed to create VM")
 	}
 	return nil
+}
+
+const vmUpdateConflictRetries = 5
+
+func updateExistingVmWithRetry(ctx context.Context, name string, desired *kvcore.VirtualMachine) error {
+	var err error
+
+	for attempt := 0; attempt <= vmUpdateConflictRetries; attempt++ {
+		latestVm, getErr := KubevirtClient.VirtualMachine(Namespace).Get(ctx, name, k8smeta.GetOptions{})
+		if getErr != nil {
+			return getErr
+		}
+
+		latestVm.Spec = desired.Spec
+		latestVm.Annotations = desired.Annotations
+
+		_, err = KubevirtClient.VirtualMachine(Namespace).Update(ctx, latestVm, k8smeta.UpdateOptions{})
+		if err == nil {
+			return nil
+		}
+
+		if !k8serrors.IsConflict(err) {
+			return err
+		}
+
+		if attempt == vmUpdateConflictRetries {
+			break
+		}
+
+		time.Sleep(time.Duration(attempt+1) * 100 * time.Millisecond)
+	}
+
+	return err
 }
 
 const vmDiskSizeParameter = "diskSize"
