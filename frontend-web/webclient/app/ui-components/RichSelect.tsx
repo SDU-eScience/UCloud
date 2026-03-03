@@ -85,6 +85,7 @@ export function RichSelect<T, K extends keyof T>(props: {
     matchTriggerWidth?: boolean;
     rightAligned?: boolean;
     disabled?: boolean;
+    showSearchField?: boolean;
 }): React.ReactNode {
     const [query, setQuery] = useState("");
     const closeFn = useRef<() => void>(doNothing);
@@ -120,7 +121,7 @@ export function RichSelect<T, K extends keyof T>(props: {
         setDropdownSize(width + "px");
     }, [props.matchTriggerWidth, props.dropdownWidth]);
 
-    const showSearchField = props.items.length > 1;
+    const showSearchField = props.items.length > 1 && props.showSearchField !== false;
     const searchFieldHeight = showSearchField ? INPUT_FIELD_HEIGHT : 0;
     const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + searchFieldHeight);
 

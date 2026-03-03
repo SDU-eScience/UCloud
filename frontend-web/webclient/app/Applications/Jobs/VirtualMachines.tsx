@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import * as Heading from "@/ui-components/Heading";
 import {Box, Button, Card, Flex, Icon, Link} from "@/ui-components";
 import {classConcat, injectStyle} from "@/Unstyled";
@@ -57,7 +57,7 @@ interface VmUpdatesState {
     };
 }
 
-type OptimisticPowerState = "POWERING_ON" | "POWERING_OFF" | null;
+type OptimisticPowerState = "POWERING_ON" | "POWERING_OFF" | "RESTARTING" | null;
 type PowerTone = "success" | "warning" | "neutral";
 
 const VmActionRow: RichSelectChildComponent<VmActionItem> = ({element, onSelect, dataProps}) => {
@@ -81,6 +81,8 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     const [loading, invokeCommand] = useCloudCommand();
     const [optimisticPowerState, setOptimisticPowerState] = useState<OptimisticPowerState>(null);
     const [statusDotCount, setStatusDotCount] = useState(0);
+    const restartObservedNonRunningState = useRef(false);
+    const [hasPendingFolderRestart, setHasPendingFolderRestart] = useState(false);
     const stream = useMemo(() => new JobViz.StreamProcessor(), [job.id]);
     const streamProperties = useJobVizProperties(stream);
 
@@ -178,6 +180,30 @@ export const VirtualMachineStatus: React.FunctionComponent<{
         }
     }, [invokeCommand, job.id]);
 
+    const restart = useCallback(async () => {
+        setOptimisticPowerState("RESTARTING");
+        restartObservedNonRunningState.current = false;
+        try {
+            await invokeCommand(JobsApi.suspend(bulkRequestOf({id: job.id})));
+            await invokeCommand(JobsApi.unsuspend(bulkRequestOf({id: job.id})));
+            setHasPendingFolderRestart(false);
+        } catch (e) {
+            setOptimisticPowerState(null);
+            displayErrorMessageOrDefault(e, "Failed to restart VM.");
+        }
+    }, [invokeCommand, job.id]);
+
+    const confirmRestart = useCallback(() => {
+        addStandardDialog({
+            title: "Restart virtual machine?",
+            message: "This will power off and then power on the VM.",
+            confirmText: "Restart",
+            confirmButtonColor: "warningMain",
+            cancelButtonColor: "secondaryMain",
+            onConfirm: restart,
+        });
+    }, [restart]);
+
     const confirmTerminate = useCallback(() => {
         addStandardDialog({
             title: "Stop and delete virtual machine?",
@@ -194,7 +220,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     const isPowerTransitioning = optimisticPowerState != null;
     const powerActionDisabled = loading || isPowerTransitioning || isTerminalState;
     const showRuntimePanels = !isTerminalState;
-    const effectiveState: JobState | "POWERING_ON" | "POWERING_OFF" = optimisticPowerState ?? status.state;
+    const effectiveState: JobState | "POWERING_ON" | "POWERING_OFF" | "RESTARTING" = optimisticPowerState ?? status.state;
     const appTitle = job.specification.name ?? job.status.resolvedApplication?.metadata?.title ?? "Virtual machine";
     const appVersion = job.status.resolvedApplication?.metadata?.version ?? "";
     const alternativeInterfaces = useMemo(() => {
@@ -215,9 +241,15 @@ export const VirtualMachineStatus: React.FunctionComponent<{
         return result;
     }, [alternativeInterfaces, defaultInterfaceName, supportsTerminal]);
 
-    const dangerMenuItems = useMemo<VmActionItem[]>(() => [
-        {key: "delete", value: "Stop and delete VM", icon: "trash", color: "errorMain"},
-    ], []);
+    const dangerMenuItems = useMemo<VmActionItem[]>(() => {
+        const items: VmActionItem[] = [];
+        if (supportsSuspension && !isTerminalState && !isSuspended) {
+            items.push({key: "restart", value: "Restart", icon: "heroArrowPath", color: "warningMain"});
+        }
+
+        items.push({key: "delete", value: "Stop and delete VM", icon: "trash", color: "errorMain"});
+        return items;
+    }, [isSuspended, isTerminalState, supportsSuspension]);
 
     const onSelectLaunchMenuItem = useCallback((item: VmActionItem) => {
         if (item.key === "terminal") {
@@ -230,8 +262,15 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     }, [job.id]);
 
     const onSelectDangerMenuItem = useCallback((item: VmActionItem) => {
-        if (item.key === "delete") confirmTerminate();
-    }, [confirmTerminate]);
+        switch (item.key) {
+            case "restart":
+                confirmRestart();
+                break;
+            case "delete":
+                confirmTerminate();
+                break;
+        }
+    }, [confirmRestart, confirmTerminate]);
 
     const onFolderAdded = useCallback(async (newFolders: compute.AppParameterValueNS.File[], addedFolder: compute.AppParameterValueNS.File) => {
         try {
@@ -239,6 +278,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                 jobId: job.id,
                 folder: addedFolder.path,
             }));
+            setHasPendingFolderRestart(true);
         } catch (e) {
             displayErrorMessageOrDefault(e, "Failed to attach folder.");
             throw e;
@@ -251,6 +291,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                 jobId: job.id,
                 folder: removedFolder.path,
             }));
+            setHasPendingFolderRestart(true);
         } catch (e) {
             displayErrorMessageOrDefault(e, "Failed to detach folder.");
             throw e;
@@ -291,6 +332,19 @@ export const VirtualMachineStatus: React.FunctionComponent<{
         if (optimisticPowerState === "POWERING_ON" && status.state === "RUNNING") {
             setOptimisticPowerState(null);
             return;
+        }
+
+        if (optimisticPowerState === "RESTARTING") {
+            if (status.state !== "RUNNING") {
+                restartObservedNonRunningState.current = true;
+                return;
+            }
+
+            if (restartObservedNonRunningState.current) {
+                setOptimisticPowerState(null);
+                restartObservedNonRunningState.current = false;
+                return;
+            }
         }
 
         if (optimisticPowerState === "POWERING_OFF" && status.state === "SUSPENDED") {
@@ -343,7 +397,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     }, [status.state, updates]);
 
     return <div className={VmLayout}>
-        <Card className={classConcat(VmHero, status.state ?? optimisticPowerState)} p="24px">
+        <Card className={classConcat(VmHero, effectiveState)} p="24px">
             <Flex alignItems="center" gap="16px" flexWrap="wrap">
                 <Box>
                     <Flex gap={"8px"} alignItems={"center"}>
@@ -373,7 +427,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                                 keys={["value"]}
                                 RenderRow={VmActionRow}
                                 onSelect={onSelectLaunchMenuItem}
-                                placeholder="More"
+                                showSearchField={false}
                                 dropdownWidth="300px"
                                 matchTriggerWidth={false}
                                 trigger={
@@ -410,7 +464,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                             keys={["value"]}
                             RenderRow={VmActionRow}
                             onSelect={onSelectDangerMenuItem}
-                            placeholder="More"
+                            showSearchField={false}
                             dropdownWidth="260px"
                             matchTriggerWidth={false}
                             disabled={powerActionDisabled}
@@ -499,6 +553,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                     resources={job.specification.resources}
                     onFolderAdded={onFolderAdded}
                     onFolderRemoved={onFolderRemoved}
+                    showRestartIndicator={hasPendingFolderRestart}
                 />
             }
 
@@ -567,12 +622,14 @@ function parseSshCommand(updates: JobUpdate[]): string | null {
     return null;
 }
 
-function stateToTitle(state: JobState | "POWERING_ON" | "POWERING_OFF"): string {
+function stateToTitle(state: JobState | "POWERING_ON" | "POWERING_OFF" | "RESTARTING"): string {
     switch (state) {
         case "POWERING_ON":
             return "Powering on";
         case "POWERING_OFF":
             return "Powering off";
+        case "RESTARTING":
+            return "Restarting";
         case "IN_QUEUE":
             return "Starting";
         case "RUNNING":
@@ -625,6 +682,7 @@ const VmHero = injectStyle("vm-hero", k => `
 
     ${k}.IN_QUEUE,
     ${k}.POWERING_OFF,
+    ${k}.RESTARTING,
     ${k}.SUSPENDED {
         border-color: color-mix(in srgb, var(--warningMain) 45%, transparent);
         --jobStateColor1: var(--warningLight);
@@ -675,11 +733,9 @@ const StatusBadge = injectStyle("vm-status-badge", k => `
         background: color-mix(in srgb, var(--successMain) 24%, transparent);
     }
 
+    ${k}[data-state="POWERING_OFF"],
+    ${k}[data-state="RESTARTING"],
     ${k}[data-state="SUSPENDED"] {
-        background: color-mix(in srgb, var(--warningMain) 24%, transparent);
-    }
-
-    ${k}[data-state="POWERING_OFF"] {
         background: color-mix(in srgb, var(--warningMain) 24%, transparent);
     }
 

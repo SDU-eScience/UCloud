@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
-import {Box, Button, Icon} from "@/ui-components";
+import {Box, Icon} from "@/ui-components";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {injectStyle} from "@/Unstyled";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -22,7 +22,8 @@ export const VirtualMachineFolders: React.FunctionComponent<{
     resources?: compute.AppParameterValue[];
     onFolderAdded?: (newFolders: VmFolder[], addedFolder: VmFolder) => Promise<void> | void;
     onFolderRemoved?: (newFolders: VmFolder[], removedFolder: VmFolder) => Promise<void> | void;
-}> = ({jobId, providerId, parameters, resources, onFolderAdded, onFolderRemoved}) => {
+    showRestartIndicator?: boolean;
+}> = ({jobId, providerId, parameters, resources, onFolderAdded, onFolderRemoved, showRestartIndicator}) => {
     const initialFolders = useMemo(() => extractFolders(parameters, resources), [parameters, resources]);
     const [folders, setFolders] = useState<VmFolder[]>(initialFolders);
 
@@ -132,11 +133,21 @@ export const VirtualMachineFolders: React.FunctionComponent<{
         style={{minHeight: "240px"}}
         rightControlsPaddingRight="20px"
         rightControls={
-            <TooltipV2 tooltip={"Attach folder"}>
-                <button type="button" className={AddFolderControl} onClick={openFolderSelector} aria-label="Attach folder">
-                    <Icon name="heroPlus" />
-                </button>
-            </TooltipV2>
+            <div className={VmFolderControls}>
+                {!showRestartIndicator ? null : (
+                    <TooltipV2 tooltip={"Restart the machine for folder changes to take effect"}>
+                        <span className={RestartIndicator} aria-label="Restart required for folder changes">
+                            <Icon name="heroArrowPath" color="warningMain" />
+                        </span>
+                    </TooltipV2>
+                )}
+
+                <TooltipV2 tooltip={"Attach folder"}>
+                    <button type="button" className={AddFolderControl} onClick={openFolderSelector} aria-label="Attach folder">
+                        <Icon name="heroPlus" />
+                    </button>
+                </TooltipV2>
+            </div>
         }
     >
         <TabbedCardTab icon="heroFolderOpen" name="Folders">
@@ -210,6 +221,26 @@ const AddFolderControl = injectStyle("add-folder-control", k => `
     ${k}:focus-visible {
         outline: 2px solid var(--primaryMain);
         outline-offset: 1px;
+    }
+`);
+
+const VmFolderControls = injectStyle("vm-folder-controls", k => `
+    ${k} {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+`);
+
+const RestartIndicator = injectStyle("restart-indicator", k => `
+    ${k} {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--warningMain) 12%, transparent);
     }
 `);
 
