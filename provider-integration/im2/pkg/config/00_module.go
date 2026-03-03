@@ -282,7 +282,7 @@ type ProviderBranding struct {
 	Title              string                               `yaml:"title"`
 	ShortTitle         string                               `yaml:"shortTitle"`
 	ShortDescription   string                               `yaml:"shortDescription"`
-	Description        string                               `yaml:"description"` // Markdown file path
+	DescriptionFilePath        string                               `yaml:"description"`
 	Url                string                               `yaml:"url"`
 	Sections           []ProviderBrandingSection            `yaml:"sections"`
 	ProductDescription []ProviderBrandingProductDescription `yaml:"productDescription"`
