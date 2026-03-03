@@ -20,9 +20,6 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 
 const NEED_CONNECT = "need-connection";
 
-const dropdownPortal = "product-selector-portal";
-
-
 export const ProductSelector: React.FunctionComponent<{
     products: ProductV2[];
     support?: ResolvedSupport[];
@@ -32,13 +29,23 @@ export const ProductSelector: React.FunctionComponent<{
     loading?: boolean;
     onSelect: (product: ProductV2) => void;
 }> = ({selected, ...props}) => {
-    let portal = document.getElementById(dropdownPortal);
-    if (!portal) {
-        const elem = document.createElement("div");
-        elem.id = dropdownPortal;
-        document.body.appendChild(elem);
-        portal = elem;
+    const portalRef = React.useRef<HTMLDivElement | null>(null);
+    if (!portalRef.current) {
+        portalRef.current = document.createElement("div");
     }
+
+    const [isPortalMounted, setIsPortalMounted] = React.useState(false);
+    React.useLayoutEffect(() => {
+        const portal = portalRef.current;
+        if (!portal) return;
+
+        document.body.appendChild(portal);
+        setIsPortalMounted(true);
+
+        return () => {
+            portal.remove();
+        };
+    }, []);
 
     useUState(connectionState);
     const [filteredProducts, setFilteredProducts] = React.useState<ProductV2[]>([]);
@@ -77,7 +84,7 @@ export const ProductSelector: React.FunctionComponent<{
     const categorizedProducts: (ProductV2 | string)[] = React.useMemo(() => {
         const result: (ProductV2 | string)[] = [];
 
-        const sortedProducts = filteredProducts.sort((a, b) => {
+        const sortedProducts = [...filteredProducts].sort((a, b) => {
             const pCompare = a.category.provider.localeCompare(b.category.provider);
             if (pCompare !== 0) return pCompare;
 
@@ -275,7 +282,7 @@ export const ProductSelector: React.FunctionComponent<{
             <Icon name="heroChevronDown" />
         </div>
 
-        {!isOpen ? null :
+        {!isOpen || !isPortalMounted ? null :
             ReactDOM.createPortal(
                 <div className={SelectorDialog} style={{left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} onClick={stopPropagation}>
                     {props.loading && props.products.length === 0 ? <>
@@ -446,7 +453,7 @@ export const ProductSelector: React.FunctionComponent<{
                         </>
                     }
                 </div>,
-                portal
+                portalRef.current!
             )
         }
     </>;

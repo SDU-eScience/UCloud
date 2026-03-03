@@ -1,4 +1,6 @@
-[
+import type {DataListItem} from "@/UserSettings/types";
+
+const positions: DataListItem[] = [
     {
         "key": "Student",
         "value": "Student",
@@ -59,4 +61,6 @@
         "value": "External/Other",
         "tags": ""
     }
-]
+];
+
+export default positions;

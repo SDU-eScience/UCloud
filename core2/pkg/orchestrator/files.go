@@ -917,6 +917,7 @@ func FilesTransfer(actor rpc.Actor, request orcapi.FilesTransferRequest) *util.H
 	}, callOpts)
 
 	if err != nil || initiateSrcResp.Type != orcapi.FilesProviderTransferReqTypeInitiateSource {
+		log.Info("source provider is unable to fulfill this request: %s", err)
 		return util.HttpErr(http.StatusBadGateway, "source provider is unable to fulfill this request")
 	}
 
@@ -940,6 +941,7 @@ func FilesTransfer(actor rpc.Actor, request orcapi.FilesTransferRequest) *util.H
 	}, callOpts)
 
 	if err != nil || initiateDestResp.Type != orcapi.FilesProviderTransferReqTypeInitiateDestination {
+		log.Info("destination provider is unable to fulfill this request: %s", err)
 		return util.HttpErr(http.StatusBadGateway, "destination provider is unable to fulfill this request")
 	}
 

@@ -394,7 +394,7 @@ func handleShell(session *controller.ShellSession, cols int, rows int) {
 	}
 }
 
-func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) controller.ConfiguredWebIngress {
+func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []controller.ConfiguredWebIngress {
 	return backend(job).ServerFindIngress(job, rank, suffix)
 }
 

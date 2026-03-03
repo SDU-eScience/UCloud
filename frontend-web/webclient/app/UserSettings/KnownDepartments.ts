@@ -1,17 +1,19 @@
-{
+import type {KnownDepartmentsMap} from "@/UserSettings/types";
+
+/* This is a map of Danish Universities / Faculties / Departments 
+Other organizational sub-units like centers or sections are normally not included here, but 
+there are some exceptions as noted below. We try to include all sensible options needed so 
+that users can map 1-2-1 to the list below. */
+
+const knownDepartments: KnownDepartmentsMap = {
     "aau.dk": [
         {
-            "faculty": "Administration"
-        },
-        {
-            "faculty": "Cross-Faculty",
-            "departments": [
-                "Institute for Advanced Study in PBL"
-            ]
+            "faculty": "University Administrative Services"
         },
         {
             "faculty": "Faculty of Social Sciences and Humanities",
             "departments": [
+                "Administration",
                 "AAU Business School",
                 "Department of Culture and Communication",
                 "Department of Society and Politics",
@@ -21,6 +23,7 @@
         {
             "faculty": "Faculty of Engineering and Science",
             "departments": [
+                "Administration",
                 "Department of the Built Environment",
                 "Department of Chemistry and Bioscience",
                 "Department of Energy",
@@ -31,6 +34,7 @@
         {
             "faculty": "Faculty of Medicine",
             "departments": [
+                "Administration",
                 "Department of Health Science and Technology",
                 "Department of Clinical Medicine"
             ]
@@ -38,39 +42,49 @@
         {
             "faculty": "Technical Faculty of IT and Design",
             "departments": [
+                "Administration",
                 "Department of Computer Science",
                 "Department of Electronic Systems",
                 "Department of Architecture, Design and Media Technology",
                 "Department of Sustainability and Planning"
             ]
-        },
-        {
-            "faculty": "Shared Services",
-            "departments": [
-                "The Technical Faculty of IT and Design",
-                "Faculty of Engineering and Science",
-                "Faculty of Social Sciences and Humanities",
-                "Faculty of Medicine",
-                "Other",
-                "IT Services"
-            ]
         }
     ],
     "au.dk": [
         {
-            "faculty": "Administration"
+            "faculty": "University Administrative Services"
         },
         {
+            /* the faculty of arts is divided into schools each of which has several departments */
             "faculty": "The Faculty of Arts",
             "departments": [
+                "Administration",
+                "Danish school of Education/Department of Education studies",
+                "Danish school of Education/Department of Educational anthropology and Educational psychology",
+                "Danish school of Education/Department of Educational sociology",
+                "Danish school of Education/Department of Education studies",
                 "Danish school of Education",
-                "School of Communication and Culture",
-                "School of Culture and Society"
+                "School of Communication and Culture/Department of Art History, Aesthetics & Culture and Museology",
+                "School of Communication and Culture/Department of Comparative Literature and Rhetoric",
+                "School of Communication and Culture/Department of Digital Design and Information Studies",
+                "School of Communication and Culture/Department of English",
+                "School of Communication and Culture/Department of German and Romance Languages",
+                "School of Communication and Culture/Department of Linguistics, Cognitive Science and Semiotics",
+                "School of Communication and Culture/Department of Media and Journalism Studies",
+                "School of Communication and Culture/Department of Scandinavian Studies and Experience Economy",
+                "School of Culture and Society/Department of Anthropology",
+                "School of Culture and Society/Department of Archaeology",
+                "School of Culture and Society/Department of Global Studies",
+                "School of Culture and Society/Department of History and Classical Studies",
+                "School of Culture and Society/Department of Philosophy and History of Ideas",
+                "School of Culture and Society/Department of Theology",
+                "School of Culture and Society/Department of The Study of Religion"
             ]
         },
         {
             "faculty": "Aarhus BSS",
             "departments": [
+                "Administration",
                 "Department of Business Development and Technology",
                 "Department of Economics and Business Economics",
                 "Department of Management",
@@ -82,6 +96,7 @@
         {
             "faculty": "The Faculty of Health",
             "departments": [
+                "Administration",
                 "Department of Clinical Medicine",
                 "Department of Biomedicine",
                 "Department of Dentistry and Oral Health",
@@ -92,6 +107,7 @@
         {
             "faculty": "The Faculty of Natural Sciences",
             "departments": [
+                "Administration",
                 "Department of Biology",
                 "Department of Computer Science",
                 "Department of Physics and Astronomy",
@@ -105,6 +121,7 @@
         {
             "faculty": "The Faculty of Technical Sciences",
             "departments": [
+                "Administration",
                 "Department of Agroecology",
                 "Department of Biological and Chemical Engineering",
                 "Department of Civil and Architectural Engineering",
@@ -114,18 +131,20 @@
                 "Department of Animal and Veterinary Sciences",
                 "Department of Mechanical and Production Engineering",
                 "Department of Environmental Science",
+                /* normally we don't include centers here, but these are special to the organization of the faculty */ 
                 "DCE - Danish Centre For Environment And Energy",
                 "DCA - Danish Centre For Food And Agriculture",
                 "Center for Quantitative Genetics and Genomics"
             ]
         }
     ],
+    /* CBS does not have faculties but departments. The faculty field corresponds to the department. */
     "cbs.dk": [
         {
-            "faculty": "Administration"
+            "faculty": "University Administrative Services"
         },
         {
-            "faculty": "Department of Accounting"
+            "faculty": "Department of Accounting (ACC)"
         },
         {
             "faculty": "Department of Business Humanities and Law (BHL)"
@@ -134,7 +153,7 @@
             "faculty": "Department of Digitalization (DIGI)"
         },
         {
-            "faculty": "Department of Economics"
+            "faculty": "Department of Economics (ECON)"
         },
         {
             "faculty": "Department of Finance (FI)"
@@ -158,41 +177,25 @@
             "faculty": "Department of Strategy and Innovation (SI)"
         }
     ],
+    /* DTU does not have faculties but departments and university centers. The faculty field corresponds 
+    to those. Where relevant, the department field correspond to the research sections (for DTU 
+    management are called "divisions").
+    */
     "dtu.dk": [
         {
-            "faculty": "Administration"
+            "faculty": "University Administrative Services"
         },
         {
             "faculty": "DTU Aqua"
         },
         {
-            "faculty": "DTU Bioengineering",
-            "departments": [
-                "Biologics Engineering",
-                "Microbial and Chemical Ecology",
-                "Medical Biotechnology",
-                "Protein Chemistry and Enzyme Technology",
-                "Synthetic Biology",
-                "Center for Microbial Secondary Metabolites (CeMiSt)",
-                "Initiative for Biofertilizer Innovation and Science (IBIS)",
-                "Data Science Hub"
-            ]
+            "faculty": "DTU Bioengineering"
         },
         {
             "faculty": "DTU Biosustain"
         },
         {
-            "faculty": "DTU Chemical Engineering",
-            "departments": [
-                "AT CERE, Applied Thermodynamics - Center for Energy Resources Engineering",
-                "BioCon, Biological Conversions group",
-                "PROSYS, Process and System Engineering Center",
-                "CHEC, Catalysis and High-temperature Engineering Centre",
-                "CoaST, The Hempel Foundation Coatings Science and Technology Centre",
-                "Danish Polymer Centre - DPC",
-                "KT Consortium",
-                "PILOT PLANT, Centre for Experimental Process and Equipment Design"
-            ]
+            "faculty": "DTU Chemical Engineering"
         },
         {
             "faculty": "DTU Chemistry"
@@ -200,19 +203,19 @@
         {
             "faculty": "DTU Compute",
             "departments": [
-                "QIM",
-                "DDSA",
-                "CUQI",
-                "Pioneer Centre for AI",
-                "DABAI",
-                "CITIES",
-                "DIGISEC",
-                "LearnT DTU",
-                "MLLS",
-                "Big Data DTU",
-                "Nordic University Hub",
-                "InnoTech Task Force",
-                "HALRIC"
+                "Administration",
+                "Algorithms, Logic and Graphs",
+                "Cognitive Systems",
+                "Cybersecurity Engineering",
+                "Dynamical Systems",
+                "Embedded Systems Engineering",
+                "Mathematics",
+                "Scientific Computing",
+                "Software Systems Engineering",
+                "Statistics and Data Analysis",
+                "Visual Computing",
+                "Innovation",
+                "Tech4Civ"
             ]
         },
         {
@@ -224,6 +227,7 @@
         {
             "faculty": "DTU Energy",
             "departments": [
+                "Administration",
                 "Applied Ceramics and Processing",
                 "Atomic Scale Materials Modelling",
                 "Autonomous Materials Discovery",
@@ -236,6 +240,7 @@
         {
             "faculty": "DTU Engineering Technology",
             "departments": [
+                "Administration",
                 "Building Technology and Processes",
                 "Business Development",
                 "Energy Technology and Computer Science",
@@ -253,7 +258,20 @@
             "faculty": "DTU Food"
         },
         {
-            "faculty": "DTU Health Tech"
+            "faculty": "DTU Health Tech",
+            "departments": [
+                "Administration",
+                "Bioinformatics",
+                "Cell and Drug Technologies",
+                "Digital Health",
+                "Drug Delivery and Sensing",
+                "Experimental and Translational Immunology",
+                "Hearing Systems",
+                "Magnetic Resonance",
+                "Medical Isotopes and Dosimetry",
+                "Optical Sensing and Imaging Systems",
+                "Ultrasound and Biomechanics"
+            ]
         },
         {
             "faculty": "DTU Learn for Life"
@@ -261,16 +279,11 @@
         {
             "faculty": "DTU Management",
             "departments": [
-                "Transportation Systems Modelling",
-                "Human Mobility",
-                "Intelligent Transportation Systems",
-                "Transport Policy",
-                "Organisation Science and Technology",
-                "Science and Technology Studies",
-                "Energy Economics and Modelling",
-                "Climate Economics and Risk Management",
-                "Operations and Supply Chain Management",
-                "Operations Research"
+                "Administration",
+                "Management Science",
+                "Climate and Energy Policy",
+                "Technology and Business Studies",
+                "Transportation Science"
             ]
         },
         {
@@ -282,6 +295,7 @@
         {
             "faculty": "DTU Physics",
             "departments": [
+                "Administration",
                 "Surface Physics & Catalysis",
                 "Computational Atomic-scale Materials Design",
                 "2D Materials Engineering and Physics",
@@ -291,7 +305,7 @@
                 "Biophysiscs and Fluids",
                 "Luminescence Physics and Technologies",
                 "Quantum Physics and Information Technology",
-                "Catalysis Theory Center",
+                /* normally we don't include centers here, but these are special to the organization of the faculty */ 
                 "Centre for Nuclear Energy Technology",
                 "Center for Visualizing Catalytic Processes"
             ]
@@ -302,33 +316,47 @@
         {
             "faculty": "DTU Space",
             "departments": [
+                "Administration",
                 "Astrophysics and Atmospheric Physics",
                 "Geodesy and Earth Observation",
                 "Geomagnetism and Geospace",
                 "Microwaves and Remote Sensing",
                 "Measurement and Instrumentation Systems",
                 "Electromagnetic systems",
-                "Security DTU",
+                /* normally we don't include centers here, but these are special to the organization of the faculty */ 
                 "ESA BIC Denmark",
                 "DTU Space Drone Center"
             ]
         },
         {
-            "faculty": "DTU Sustain"
+            "faculty": "DTU Sustain",
+            "departments": [
+                "Administration",
+                "Environmental Contamination & Chemicals",
+                "Geotechnics and Geology",
+                "Indoor Environment",
+                "Construction Materials & Durability",
+                "Quantitative Sustainability Assessment",
+                "Waste, Climate & Monitoring",
+                "Water Systems",
+                "Water Technology and Processes"
+            ]
         },
         {
             "faculty": "DTU Wind",
             "departments": [
-                "Materials and Components",
+                "Administration",
+                "Wind Energy Materials and Components",
                 "Wind Turbine Design",
                 "Wind Energy Systems",
                 "Power and Energy Systems"
             ]
         }
     ],
+    /* ITU does not have faculties but "research units'". The faculty field corresponds to those. */
     "itu.dk": [
         {
-            "faculty": "Administration"
+            "faculty": "University Administrative Services"
         },
         {
             "faculty": "Data Science"
@@ -362,11 +390,12 @@
     "kp.dk": "freetext",
     "ku.dk": [
         {
-            "faculty": "Administration"
+            "faculty": "University Administrative Services"
         },
         {
             "faculty": "Faculty of Health and Medical Sciences",
             "departments": [
+                "Administration",
                 "Department of Biomedical Sciences",
                 "Department of Cellular and Molecular Medicine",
                 "Department of Immunology and Microbiology",
@@ -385,24 +414,22 @@
         {
             "faculty": "Faculty of Humanities",
             "departments": [
+                "Administration",
                 "Department of Arts and Cultural Studies",
                 "Department of Communication",
                 "Department of Cross-Cultural and Regional Studies",
                 "Department of English, Germanic and Romance Studies",
                 "Department of Nordic Studies and Linguistics",
                 "Saxo Institute",
-                "Research Centres at HUM and Interdisciplinary Research Centres and Networks"
             ]
         },
         {
-            "faculty": "Faculty of Law",
-            "departments": [
-                "Centres and service units at the Faculty of Law"
-            ]
+            "faculty": "Faculty of Law"
         },
         {
             "faculty": "Faculty of Science",
             "departments": [
+                "Administration",
                 "Department of Biology",
                 "Department of Chemistry",
                 "Department of Computer Science",
@@ -420,6 +447,7 @@
         {
             "faculty": "Faculty of Social Sciences",
             "departments": [
+                "Administration",
                 "Department of Anthropology",
                 "Department of Economics",
                 "Department of Political Science",
@@ -428,16 +456,14 @@
             ]
         },
         {
-            "faculty": "Faculty of Theology",
-            "departments": [
-                "Sections and centres at the Faculty of Theology"
-            ]
+            "faculty": "Faculty of Theology"
         }
     ],
     "regionh.dk": "freetext",
+    /* RUC does not have faculties but departments. The faculty field corresponds to the department. */
     "ruc.dk": [
         {
-            "faculty": "Administration"
+            "faculty": "University Administrative Services"
         },
         {
             "faculty": "Communication and Arts"
@@ -454,150 +480,86 @@
     ],
     "sdu.dk": [
         {
-            "faculty": "Administration"
+            "faculty": "University Administrative Services"
         },
         {
             "faculty": "Faculty of Humanities",
             "departments": [
-                "Center for Basic Research Education",
-                "Center for Learning Computational Thinking",
-                "Center for Modern Middle East and Muslim Studies",
-                "Centre for American Studies",
-                "Centre for Cold War Studies",
-                "Centre for Culture and Technology",
-                "Centre for Design and Product History",
-                "Centre for Digital Humanities",
-                "Centre for Health Philosophy and Ethics",
-                "Centre for Human Interactivity",
-                "Centre for Language and Learning",
-                "Centre for Medieval Literature",
-                "Centre for Multimodal Communication",
-                "Centre for Organizing Social Sustainability",
-                "Centre for Tourism, Innovation and Culture (TIC)",
-                "Centre for Upper Secondary and Vocational Education Research",
-                "Centre for Uses of Literature - UOL",
-                "CUHRE",
+                "Administration",
                 "Department of Culture and Language",
                 "Department of Design, Media and Educational Science",
-                "SDU Climate Cluster",
-                "The Centre for Gender and Diversity",
-                "The Hans Christian Andersen Centre"
             ]
         },
         {
             "faculty": "Faculty of Science",
             "departments": [
-                "Biomolecular Nanoscale Engineering Center (BioNEC)",
-                "Center for Adipocyte Signaling (ADIPOSIGN)",
-                "Center for Functional Genomics and Tissue Plasticity (ATLAS)",
-                "Centre for AI Science and Applications",
-                "Centre for Algorithmic Cheminformatics",
-                "Centre for Digital Humanities",
-                "Centre for Interactive Machine Learning",
-                "Centre for Quantum Mathematics",
-                "Centre for Research in Science Education and Communication (FNUG)",
-                "Danish Centre for Endocrine Disrupting Substances (CeHoS)",
+                "Administration",
                 "Department of Biochemistry and Molecular Biology",
                 "Department of Biology",
                 "Department of Mathematics and Computer Science",
                 "Department of Physics, Chemistry and Pharmacy",
-                "SDU Climate Cluster"
             ]
         },
         {
             "faculty": "Faculty of Business and Social Sciences",
             "departments": [
-                "Center for Sustainable Business Development and Policy",
-                "Centre for Border Region Studies",
-                "Centre for Integrative Innovation Management",
-                "Danish Centre for Rural Research (clf)",
+                "Administration",
                 "Department of Business & Management",
                 "Department of Business and Sustainability",
                 "Department of Economics",
                 "Department of Law",
                 "Department of Political Science and Public Management",
-                "SDU Climate Cluster"
             ]
         },
         {
             "faculty": "Faculty of Health Sciences",
             "departments": [
-                "Biomedical Laboratory",
-                "Centre for Intervention Research in Health Promotion and Disease Prevention",
+                "Administration",
                 "Department of Clinical Research",
                 "Department of Forensic Medicine",
                 "Department of Molecular Medicine",
                 "Department of Psychology",
                 "Department of Public Health",
                 "Department of Sports Science and Clinical Biomechanics",
-                "FIIBL - Research & Innovation Center for Human Movement & Learning",
                 "IRS - Department of Regional Health Research",
-                "National Institute of Public Health",
-                "RICH - Forskning i børns og unges sundhed",
-                "SDU Climate Cluster",
-                "Sustainable Research Environments"
+                "National Institute of Public Health"
             ]
         },
         {
             "faculty": "Faculty of Engineering",
             "departments": [
-                "C:MAC - Centre for Materials Analysis and Characterization",
-                "Center for Organizational Datafication and its Ethics in Society (SDU CODES)",
-                "Centre for Advanced Photovoltaics and Thin-film Energy Devices (SDU CAPE)",
-                "Centre for Computational Research in Emergent Architectural Technology and Engineering (SDU CREATE)",
-                "Centre for Industrial Electronics (CIE)",
-                "Centre for Industrial Mechanics (CIM)",
-                "Centre for Industrial Software",
-                "Centre for Integrative Innovation Management",
+                "Administration",
                 "Department of Green Technology",
                 "Department of Technology and Innovation",
                 "Institute of Mechanical and Electrical Engineering",
-                "IRCA - Innovation Research Cluster Alsion",
                 "Mads Clausen Institute",
-                "POLIMA - Centre for Polariton-driven light-matter Interactions",
-                "SDU Biomedical Engineering Centre",
-                "SDU Center for Energy Informatics",
-                "SDU Center for Large Structure Production",
-                "SDU Centre for Sustainable Supply Chain Engineering",
-                "SDU Civil and Architectural Engineering",
-                "SDU Climate Cluster",
-                "SDU Health Informatics and Technology",
-                "SDU Life Cycle Engineering",
-                "SDU Nano Optics",
-                "SDU NanoSYD",
-                "SDU Robotics",
-                "SDU UAS Center",
-                "SOLEN - SCC Elite Centre on Solar Energy Conversion and Storage",
                 "The Maersk Mc-Kinney Moller Institute"
             ]
         }
     ],
     "setur.fo": [
         {
-            "faculty": "Administration"
+            "faculty": "University Administrative Services"
         },
         {
             "faculty": "Faculty of Faroese Language and Literature",
-            "departments": []
         },
         {
-            "faculty": "Faculty of Education",
-            "departments": []
+            "faculty": "Faculty of Education"
         },
         {
-            "faculty": "Faculty of History and Social Sciences",
-            "departments": []
+            "faculty": "Faculty of History and Social Sciences"
         },
         {
-            "faculty": "Faculty of Science and Technology",
-            "departments": []
+            "faculty": "Faculty of Science and Technology"
         },
         {
-            "faculty": "Faculty of Health Sciences",
-            "departments": []
+            "faculty": "Faculty of Health Sciences"
         }
     ],
     "ucsyd.dk": "freetext",
     "ucl.dk": "freetext",
     "viauc.dk": "freetext"
-}
+};
+
+export default knownDepartments;

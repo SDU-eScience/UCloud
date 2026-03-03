@@ -1,4 +1,6 @@
-[
+import type {DataListItem} from "@/UserSettings/types";
+
+const researchFields: DataListItem[] = [
     {
         "key": "0 Other",
         "value": "0 Other",
@@ -251,4 +253,6 @@
         "value": "6.05 Other Humanities",
         "tags": "6 Humanities and the arts 6.05 Other Humanities"
     }
-]
+];
+
+export default researchFields;
