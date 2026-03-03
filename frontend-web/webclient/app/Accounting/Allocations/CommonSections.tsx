@@ -1113,7 +1113,6 @@ export const SubProjectFilters: React.FunctionComponent<{
     state: State;
     dispatchEvent: (event: UIEvent) => unknown;
 }> = ({filtersShown, closeFilters, dispatchEvent, state}) => {
-    console.log(state.subprojectFilters)
     const settings = state.subprojectFilters;
     const onSettingsChanged = useCallback((updated: SubProjectFilter) => {
         dispatchEvent({

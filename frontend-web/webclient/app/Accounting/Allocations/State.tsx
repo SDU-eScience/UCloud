@@ -122,7 +122,11 @@ function recipientPrimaryUsername(recipient: AllocationDisplayTreeRecipient, sta
         projectInfoPi(state.subprojectInfo[recipient.owner.reference.projectId], recipient.owner.primaryUsername) ?? "-";
 }
 
-function searchQueryMatches(recipient: AllocationDisplayTreeRecipient, state: State, query: string): boolean {
+function productCategoryKey(category: Accounting.ProductCategoryV2): string {
+    return `${category.name}/${category.provider}`;
+}
+
+function searchAndFilteringQueryMatches(recipient: AllocationDisplayTreeRecipient, state: State, query: string): boolean {
     if (recipient.owner.reference.type === "user" && state.viewOnlyProjects) return false;
     if (recipient.owner.reference.type === "project" && !state.viewOnlyProjects) return false;
 
@@ -132,7 +136,18 @@ function searchQueryMatches(recipient: AllocationDisplayTreeRecipient, state: St
         let anyFound = false;
         for (const group of recipient.groups) {
             if (productType === group.category.productType) {
-                console.log("Fie was here")
+                anyFound = true;
+                break;
+            }
+        }
+        if (!anyFound) return false;
+    }
+
+    const byProductSetting = state.subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT];
+    if (byProductSetting.enabled && byProductSetting.selected) {
+        let anyFound = false;
+        for (const group of recipient.groups) {
+            if (productCategoryKey(group.category) === byProductSetting.selected) {
                 anyFound = true;
                 break;
             }
@@ -452,25 +467,94 @@ export function stateReducer(state: State, action: UIAction): State {
             return [...providers].sort((a, b) => a.localeCompare(b));
         })();
 
-        const currentProviderFilter = state.subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PROVIDER];
+        const productOptions = (() => {
+            const products = new Set<string>();
+
+            for (const recipient of newTree.subAllocations.recipients) {
+                for (const group of recipient.groups) {
+                    products.add(productCategoryKey(group.category));
+                }
+            }
+
+            return [...products].sort((a, b) => a.localeCompare(b));
+        })();
+
+        const currentProductTypeFilter =
+            state.subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE] ??
+            subProjectsDefaultSettings[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE];
+        const selectedProductType = currentProductTypeFilter.selected;
+        const productTypeSelectionIsValid =
+            selectedProductType !== undefined && currentProductTypeFilter.options.includes(selectedProductType);
+        const normalizedProductTypeSelection =
+            productTypeSelectionIsValid ? selectedProductType : currentProductTypeFilter.options[0];
+        const normalizedProductTypeEnabled =
+            normalizedProductTypeSelection !== undefined && currentProductTypeFilter.enabled;
+        const productTypeFilterChanged =
+            currentProductTypeFilter.selected !== normalizedProductTypeSelection ||
+            currentProductTypeFilter.enabled !== normalizedProductTypeEnabled;
+
+        let subprojectFilters = productTypeFilterChanged ? {
+            ...state.subprojectFilters,
+            [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE]: {
+                ...currentProductTypeFilter,
+                selected: normalizedProductTypeSelection,
+                enabled: normalizedProductTypeEnabled,
+            }
+        } : state.subprojectFilters;
+
+        const currentProductFilter =
+            subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT] ??
+            subProjectsDefaultSettings[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT];
+        const selectedProduct = currentProductFilter.selected;
+        const productSelectionIsValid = selectedProduct !== undefined && productOptions.includes(selectedProduct);
+        const normalizedProductSelection = productSelectionIsValid ? selectedProduct : productOptions[0];
+        const normalizedProductEnabled = normalizedProductSelection !== undefined && currentProductFilter.enabled;
+        const productOptionsUnchanged =
+            currentProductFilter.options.length === productOptions.length &&
+            currentProductFilter.options.every((it, idx) => it === productOptions[idx]);
+        const productFilterUnchanged =
+            productOptionsUnchanged &&
+            currentProductFilter.selected === normalizedProductSelection &&
+            currentProductFilter.enabled === normalizedProductEnabled;
+
+        if (!productFilterUnchanged) {
+            subprojectFilters = {
+                ...subprojectFilters,
+                [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT]: {
+                    ...currentProductFilter,
+                    options: productOptions,
+                    selected: normalizedProductSelection,
+                    enabled: normalizedProductEnabled,
+                }
+            };
+        }
+
+        const currentProviderFilter =
+            subprojectFilters[SubProjectFilterSetting.ALLOCATED_BY_PROVIDER] ??
+            subProjectsDefaultSettings[SubProjectFilterSetting.ALLOCATED_BY_PROVIDER];
         const selectedProvider = currentProviderFilter.selected;
         const providerSelectionIsValid = selectedProvider !== undefined && providerOptions.includes(selectedProvider);
         const normalizedProviderSelection = providerSelectionIsValid ? selectedProvider : providerOptions[0];
+        const normalizedProviderEnabled = normalizedProviderSelection !== undefined && currentProviderFilter.enabled;
         const providerOptionsUnchanged =
             currentProviderFilter.options.length === providerOptions.length &&
             currentProviderFilter.options.every((it, idx) => it === providerOptions[idx]);
         const providerFilterUnchanged =
-            providerOptionsUnchanged && currentProviderFilter.selected === normalizedProviderSelection;
+            providerOptionsUnchanged &&
+            currentProviderFilter.selected === normalizedProviderSelection &&
+            currentProviderFilter.enabled === normalizedProviderEnabled;
 
-        const subprojectFilters = providerFilterUnchanged ?
-            state.subprojectFilters : {
-                ...state.subprojectFilters,
+        if (!providerFilterUnchanged) {
+            subprojectFilters = {
+                ...subprojectFilters,
                 [SubProjectFilterSetting.ALLOCATED_BY_PROVIDER]: {
                     ...currentProviderFilter,
                     options: providerOptions,
                     selected: normalizedProviderSelection,
+                    enabled: normalizedProviderEnabled,
                 }
             };
+        }
 
         newTree.subAllocations.recipients.sort((a, b) => {
             let naturalOrderResult = (() => {
@@ -564,11 +648,15 @@ export function stateReducer(state: State, action: UIAction): State {
         });
 
         const query = state.searchQuery;
+        const stateForFiltering = subprojectFilters === state.subprojectFilters ? state : {
+            ...state,
+            subprojectFilters,
+        };
 
         const filteredSubProjectIndices: number[] = [];
         for (let i = 0; i < newTree.subAllocations.recipients.length; i++) {
             const recipient = newTree.subAllocations.recipients[i];
-            if (searchQueryMatches(recipient, state, query)) {
+            if (searchAndFilteringQueryMatches(recipient, stateForFiltering, query)) {
                 filteredSubProjectIndices.push(i);
             }
         }
@@ -716,16 +804,16 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
     [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT]: {
         setting: SubProjectFilterSetting.ALLOCATED_BY_PRODUCT,
         title: "Allocated resource by product",
-        options: [/*TODO list products here*/],
-        selected: "u1-standard-h",
+        options: [],
+        selected: undefined,
         enabled: false,
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
     [SubProjectFilterSetting.ALLOCATED_BY_PROVIDER]: {
         setting: SubProjectFilterSetting.ALLOCATED_BY_PROVIDER,
         title: "Allocated resource by provider",
-        options: ["SDU/K8s", "AAU/K8s", "AAU/VM"],
-        selected: "SDU/K8s",
+        options: [],
+        selected: undefined,
         enabled: false,
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
@@ -733,7 +821,7 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         setting: SubProjectFilterSetting.EXPIRED_ALLOCATIONS,
         title: "Expired allocations",
         options: [],
-        selected: "",
+        selected: undefined,
         enabled: false,
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
@@ -741,14 +829,14 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         setting: SubProjectFilterSetting.PERSONAL_WORKSPACES,
         title: "Personal workspaces",
         options: [],
-        selected: "",
+        selected: undefined,
         enabled: false,
     },
     [SubProjectFilterSetting.OVERALLOCATION_AT_RISK]: {
         setting: SubProjectFilterSetting.OVERALLOCATION_AT_RISK,
         title: "Overallocations at risk",
         options: [],
-        selected: "",
+        selected: undefined,
         enabled: false,
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
