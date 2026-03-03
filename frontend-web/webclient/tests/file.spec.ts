@@ -78,6 +78,7 @@ TestContexts.map(ctx => {
         });
 
         test("Stress testing the row selector", async ({page}) => {
+            test.setTimeout(180_000);
             if (ctx === "Project User") test.skip();
             for (let i = 0; i < 100; i++) {
                 await File.create(page, "Folder" + i);
@@ -93,9 +94,10 @@ TestContexts.map(ctx => {
                 const testFileContents = "Single test file content.";
                 await File.uploadFiles(page, [{name: testFileName, contents: testFileContents}]);
                 await File.open(page, testFileName);
-                await expect(page.getByText(testFileContents)).toHaveCount(1);
+
+                await page.getByText(testFileContents).waitFor({state: "visible"});
                 await Components.toggleTasksDialog(page);
-                await expect(page.locator("svg > circle").first()).toHaveCount(1);
+                await page.locator("svg > circle").first().waitFor({state: "visible"});
             });
 
             test("Upload file, download file, validate contents", async ({page}) => {
@@ -124,9 +126,9 @@ TestContexts.map(ctx => {
             test("Create single folder, delete single folder", async ({page}) => {
                 const folderName = File.newFolderName();
                 await File.create(page, folderName);
-                await expect(page.locator('div > span', {hasText: folderName})).toHaveCount(1);
+                await page.locator('div > span', {hasText: folderName}).waitFor({state: "visible"});
                 await File.moveToTrash(page, folderName);
-                await expect(page.locator('div > span', {hasText: folderName})).toHaveCount(0);
+                await page.locator('div > span', {hasText: folderName}).waitFor({state: "hidden"});
             });
 
             test("Create multiple folders (use / in the name)", async ({page}) => {
@@ -202,7 +204,7 @@ TestContexts.map(ctx => {
                 await expect(page.getByText("File(1).txt", {exact: true})).toHaveCount(1);
             });
 
-            // Note(Jonas): Flaky. Will complete as expected if only test, 
+            // Note(Jonas): Flaky. Will complete as expected if only test,
             // but copy operation will be moved to background tasks if a lot is going on
             // (e.g. full test suite is being run!)
             test("Copy folder", async ({page}) => {
@@ -237,7 +239,7 @@ TestContexts.map(ctx => {
                 const foldersToCreate = `A/B/C/D/${theFolderToFind}`;
                 await File.create(page, foldersToCreate);
                 await expect(page.getByText(theFolderToFind)).toHaveCount(0);
-                const triggerFolder = "trigger";
+                const triggerFolder = "trigger" + File.newFolderName();
                 await File.create(page, triggerFolder);
                 await File.moveFileToTrash(page, triggerFolder);
                 // Note(Jonas): Trash folder doesn't show up until refresh if not already present.

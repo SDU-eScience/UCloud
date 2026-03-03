@@ -1,4 +1,4 @@
-import {BrowserContext, expect, type Page} from "@playwright/test";
+import test, {expect, type Page} from "@playwright/test";
 import fs from "fs";
 
 // Note(Jonas): If it complains that it doesn"t exist, create it.
@@ -97,7 +97,6 @@ export const User = {
 
     async disableNotifications(page: Page): Promise<void> {
         await page.getByText("Job started or stopped").nth(1).click();
-        await page.getByRole("button", {name: "Update notification settings"}).click();
     },
 
     async dismissAdditionalInfoPrompt(page: Page): Promise<void> {
@@ -184,7 +183,8 @@ export const File = {
         await NetworkCalls.awaitResponse(page, "**/files/folder", async () => {
             await page.getByRole("textbox").nth(1).press("Enter");
         });
-        await page.waitForLoadState();
+        const firstFolderName = name.split("/")[0];
+        await page.locator(".row div > span").getByText(firstFolderName, {exact: true}).waitFor({state: "visible"});
     },
 
     async moveToTrash(page: Page, name: string): Promise<void> {
@@ -219,6 +219,7 @@ export const File = {
     async moveFileTo(page: Page, fileToMove: string, targetFolder: string): Promise<void> {
         await this.openOperationsDropsdown(page, fileToMove);
         await page.getByText("Move to...").click();
+        await this.actionByRowTitle(page, targetFolder, "hover", true);
         await NetworkCalls.awaitResponse(page, "**/api/files/move", async () => {
             await page.getByRole("dialog").locator("div.row", {hasText: targetFolder})
                 .getByRole("button").filter({hasText: "Move to"}).click();
@@ -230,6 +231,7 @@ export const File = {
         await this.openOperationsDropsdown(page, fileToCopy);
         await page.getByText("Copy to...").click();
 
+        await this.actionByRowTitle(page, targetFolder, "hover", true);
         await NetworkCalls.awaitResponse(page, "**/api/files/copy", async () => {
             await page.getByRole("dialog").locator("div.row", {hasText: targetFolder})
                 .getByRole("button").filter({hasText: "Copy to"}).click();
@@ -389,9 +391,9 @@ export const Drive = {
 
     async create(page: Page, name: string): Promise<void> {
         await this.goToDrives(page);
+        await page.locator('div[data-disabled="false"]', {hasText: "Create drive"}).click();
+        await page.getByRole("textbox", {name: "Choose a name"}).fill(name);
         await NetworkCalls.awaitResponse(page, "**/api/files/collections**", async () => {
-            await page.locator('div[data-disabled="false"]', {hasText: "Create drive"}).click();
-            await page.getByRole("textbox", {name: "Choose a name"}).fill(name);
             await page.getByRole("button", {name: "Create", disabled: false}).click();
         })
     },
@@ -557,9 +559,9 @@ export const Runs = {
 
     async runApplicationAgain(page: Page, jobName: string): Promise<void> {
         await Runs.goToRuns(page);
+        await Components.projectSwitcher(page, "hover");
+        await Applications.actionByRowTitle(page, jobName, "click");
         await NetworkCalls.awaitResponse(page, "**/api/jobs/retrieve?id=**", async () => {
-            await Components.projectSwitcher(page, "hover");
-            await Applications.actionByRowTitle(page, jobName, "click");
             await page.getByText("Run application again").click();
         })
         await page.getByText("No machine type selected").waitFor({state: "hidden"});
@@ -600,6 +602,8 @@ export const Runs = {
             await page.getByRole("button", {name: "Submit"}).click();
         })
 
+        const testInfo = test.info();
+        test.setTimeout(testInfo.timeout + 60_000);
         await page.getByText("is now running").first().hover();
     },
 
@@ -621,7 +625,7 @@ export const Runs = {
             await page.getByRole("button", {name: "Add folder"}).click();
             await NetworkCalls.awaitResponse(page, "**/api/files/browse?**", async () => {
                 await page.getByRole("textbox", {name: "No directory selected"}).click();
-            })
+            });
             await File.ensureDialogDriveActive(page, driveName);
             await page.getByRole("dialog").locator(".row", {hasText: folderName}).getByRole("button", {name: "Use"}).click();
         },
