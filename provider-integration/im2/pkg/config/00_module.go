@@ -263,7 +263,7 @@ var envoyListenModes = []EnvoyListenMode{
 	EnvoyListenModeTcp,
 }
 
-type Category struct {
+type ProviderBrandingCategory struct {
 	Name     string `yaml:"name"`
 	Provider string `yaml:"provider"`
 }
