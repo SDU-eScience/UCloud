@@ -346,7 +346,7 @@ func storeAndGenerateProviderBrandingImageURI(cfg *ProviderConfiguration, image 
 	basename := filepath.Base(image)
 	ext := filepath.Ext(basename)
 	name := basename[:len(basename)-len(ext)]
-	generatedName := fmt.Sprintf("%s_%d%s", name, time.Now().UnixNano(), ext)
+	generatedName := fmt.Sprintf("%s_%s%s", name, util.SecureToken(), ext)
 	cfg.ProviderBrandingImageAbsolutePath[generatedName] = image // storing the absolute path
 	return "/ucloud/" + cfg.Id + "/provider/branding/image?name=" + generatedName
 }
