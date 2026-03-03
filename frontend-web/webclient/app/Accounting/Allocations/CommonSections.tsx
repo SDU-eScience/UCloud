@@ -1054,6 +1054,7 @@ const SubProjectFiltersRow: React.FunctionComponent<{
     state: State;
     dispatchEvent: (action: UIAction) => void;
 }> = (props) => {
+    const hasSelector = props.setting.options.length > 0;
 
     const onChecked = useCallback(() => {
         if (props.setting.title === SingleUserProjects) {
@@ -1069,27 +1070,40 @@ const SubProjectFiltersRow: React.FunctionComponent<{
 
     const onSelectOption = useCallback((item: SimpleRichItem) => {
         props.onChange(produce(props.setting, draft => {
-            draft.selected = item.key
+            if (item.key === NoneSelectedOptionKey) {
+                draft.selected = undefined;
+                draft.enabled = false;
+            } else {
+                draft.selected = item.key;
+                draft.enabled = true;
+            }
         }))
     }, [props.setting, props.onChange])
 
-    let selectedOpt = props.setting.selected;
+    const selectorItems: SimpleRichItem[] = [
+        {key: NoneSelectedOptionKey, value: "None selected"},
+        ...props.setting.options.map(it => ({key: it, value: it})),
+    ];
+    const selectedOpt = props.setting.selected ?
+        {key: props.setting.selected, value: props.setting.selected} :
+        {key: NoneSelectedOptionKey, value: "None selected"};
+
     return <ListRow
         left={<Flex>
             <h3 className="sub-project-filter-title">{props.setting.title}</h3>
         </Flex>
         }
         right={<>
-            {props.setting.options.length === 0 ? null : <div className="key-metrics-selector">
+            {!hasSelector ? null : <div className="key-metrics-selector">
                 <SimpleRichSelect
-                    items={props.setting.options.map((it) => ({key: it, value: it}))}
+                    items={selectorItems}
                     onSelect={onSelectOption}
-                    selected={selectedOpt ? {key: selectedOpt, value: selectedOpt} : undefined}
+                    selected={selectedOpt}
                     dropdownWidth={"300px"}
                 />
             </div>}
 
-            <div className="key-metrics-checkbox">
+            {hasSelector ? null : <div className="key-metrics-checkbox">
                 <Checkbox
                     size={30}
                     checked={props.setting.title === SingleUserProjects ?
@@ -1097,13 +1111,14 @@ const SubProjectFiltersRow: React.FunctionComponent<{
                     handleWrapperClick={onChecked}
                     onChange={onChecked}
                 />
-            </div>
+            </div>}
         </>
         }
     >
     </ListRow>
 }
 
+const NoneSelectedOptionKey = "None selected";
 const SingleUserProjects = "Personal workspaces"
 
 

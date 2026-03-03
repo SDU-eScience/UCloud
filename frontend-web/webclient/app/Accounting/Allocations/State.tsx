@@ -486,7 +486,7 @@ export function stateReducer(state: State, action: UIAction): State {
         const productTypeSelectionIsValid =
             selectedProductType !== undefined && currentProductTypeFilter.options.includes(selectedProductType);
         const normalizedProductTypeSelection =
-            productTypeSelectionIsValid ? selectedProductType : currentProductTypeFilter.options[0];
+            productTypeSelectionIsValid ? selectedProductType : undefined;
         const normalizedProductTypeEnabled =
             normalizedProductTypeSelection !== undefined && currentProductTypeFilter.enabled;
         const productTypeFilterChanged =
@@ -507,7 +507,7 @@ export function stateReducer(state: State, action: UIAction): State {
             subProjectsDefaultSettings[SubProjectFilterSetting.ALLOCATED_BY_PRODUCT];
         const selectedProduct = currentProductFilter.selected;
         const productSelectionIsValid = selectedProduct !== undefined && productOptions.includes(selectedProduct);
-        const normalizedProductSelection = productSelectionIsValid ? selectedProduct : productOptions[0];
+        const normalizedProductSelection = productSelectionIsValid ? selectedProduct : undefined;
         const normalizedProductEnabled = normalizedProductSelection !== undefined && currentProductFilter.enabled;
         const productOptionsUnchanged =
             currentProductFilter.options.length === productOptions.length &&
@@ -534,7 +534,7 @@ export function stateReducer(state: State, action: UIAction): State {
             subProjectsDefaultSettings[SubProjectFilterSetting.ALLOCATED_BY_PROVIDER];
         const selectedProvider = currentProviderFilter.selected;
         const providerSelectionIsValid = selectedProvider !== undefined && providerOptions.includes(selectedProvider);
-        const normalizedProviderSelection = providerSelectionIsValid ? selectedProvider : providerOptions[0];
+        const normalizedProviderSelection = providerSelectionIsValid ? selectedProvider : undefined;
         const normalizedProviderEnabled = normalizedProviderSelection !== undefined && currentProviderFilter.enabled;
         const providerOptionsUnchanged =
             currentProviderFilter.options.length === providerOptions.length &&
@@ -789,7 +789,7 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         title: "Idle sub-projects",
         setting: SubProjectFilterSetting.IDLE_SUB_PROJECTS,
         options: ["1 month", "2 months", "3 months", "6 months"],
-        selected: "1 month",
+        selected: undefined,
         enabled: false,
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
@@ -797,7 +797,7 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         setting: SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE,
         title: "Allocated resource by product type",
         options: productTypes.map(it => productTypeToName(it)),
-        selected: productTypeToName("COMPUTE"),
+        selected: undefined,
         enabled: false,
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
