@@ -1,4 +1,4 @@
-import test, {expect, type Page} from "@playwright/test";
+import test, {BrowserContext, expect, type Page} from "@playwright/test";
 import fs from "fs";
 
 // Note(Jonas): If it complains that it doesn"t exist, create it.
@@ -102,6 +102,63 @@ export const User = {
     async dismissAdditionalInfoPrompt(page: Page): Promise<void> {
         await page.getByText("Additional user information").waitFor();
         await page.keyboard.press("Escape");
+    },
+
+    async createUserWithProjectAndAssignRole(admin: Page, context: BrowserContext, ctx: Contexts, quotas: [number, number]): Promise<{userPage: Page; user: {username: string; password: string;}}> {
+        const user = User.newUserCredentials();
+        const userPage = await context.browser()?.newPage();
+        if (!userPage) throw Error("Failed to create userpage");
+
+        await User.create(admin, user);
+        await User.login(userPage, user, true);
+
+        switch (ctx) {
+            case "Project Admin":
+            case "Project PI":
+            case "Project User": {
+                const projectName = Project.newProjectName();
+                await fillApplicationAndSubmit(admin, projectName, quotas);
+                await Accounting.GrantApplication.approve(admin);
+                await Components.goToDashboard(admin);
+                await Project.changeTo(admin, projectName);
+                await Project.inviteUsers(admin, [user.username]);
+
+                await Project.acceptInvites([userPage], projectName);
+
+                await Project.changeRoles(admin, user.username, ctx.split(" ")[1] as "User" | "Admin" | "PI");
+
+                await userPage.reload();
+                await userPage.getByText(user.username).waitFor({state: "hidden"});
+                await userPage.getByText(ctx).waitFor({state: "hidden"});
+                await Project.changeTo(userPage, projectName);
+                break;
+            }
+            case "Personal Workspace": {
+                const id = await fillApplicationAndSubmit(userPage, undefined, quotas);
+                await Accounting.goTo(admin, "Grant applications");
+                await Project.changeTo(admin, "Provider K8s");
+                await admin.getByText("Show applications received").click();
+                await Rows.actionByRowTitle(admin, `${id}: Personal workspace of ${user.username}`, "dblclick");
+                await Accounting.GrantApplication.approve(admin);
+                break;
+            }
+        }
+
+        return {userPage, user};
+
+        async function fillApplicationAndSubmit(page: Page, projectName: string | undefined, quotas: [number, number]): Promise<string> {
+            await Accounting.goTo(page, "Apply for resources");
+            if (!projectName) {
+                await page.getByText("select an existing project instead").click();
+            } else {
+                await Accounting.GrantApplication.fillProjectName(page, projectName);
+            }
+
+            await Accounting.GrantApplication.toggleGrantGiver(page, "Provider K8s");
+            await Accounting.GrantApplication.fillQuotaFields(page, [{field: "Core-hours requested", quota: quotas[0]}, {field: "GB requested", quota: quotas[1]}]);
+            await Accounting.GrantApplication.fillDefaultApplicationTextFields(page);
+            return await Accounting.GrantApplication.submit(page);
+        }
     }
 }
 
@@ -259,8 +316,8 @@ export const File = {
     },
 
     async emptyTrash(page: Page): Promise<void> {
+        await page.getByText("Empty Trash").click();
         await NetworkCalls.awaitResponse(page, "**/api/files/emptyTrash", async () => {
-            await page.getByText("Empty Trash").click();
             await page.getByRole("button", {name: "Empty trash"}).click();
         });
     },
@@ -537,6 +594,23 @@ export const Applications = {
         await this.searchFor(page, appName);
         await page.locator("a[class^=app-card]").getByText(appName).first().click();
         await page.waitForURL("**/app/jobs/create?app=**")
+    },
+
+    async runAppAndOpenTerminal(page: Page, appName: string, nodeCount: number, jobName?: string): Promise<void> {
+        if (appName === this.AppNames.TestApplication) {
+            await Applications.openAppBySearch(page, appName);
+        } else {
+            await Applications.openApp(page, appName);
+        }
+        await Components.selectAvailableMachineType(page);
+        if (jobName) await Runs.setJobTitle(page, jobName);
+        if (nodeCount > 0) await Runs.setNodeCount(page, nodeCount);
+        await Runs.submitAndWaitForRunning(page);
+    },
+
+    async runAppAndOpenTerminalWithTerminalPage(page: Page, appName: string, nodeCount: number, jobName?: string): Promise<Page> {
+        await this.runAppAndOpenTerminal(page, appName, nodeCount, jobName);
+        return await Runs.openTerminal(page);
     },
 
     AppNames: {
@@ -821,8 +895,12 @@ export const Terminal = {
         await page.keyboard.press("Enter");
     },
 
+    async createFile(page: Page, sizeInGB: number) {
+        await this.enterCmd(page, `fallocate -l ${sizeInGB}G example`);
+    },
+
     async createLargeFile(page: Page): Promise<void> {
-        await this.enterCmd(page, "fallocate -l 5G example");
+        await this.createFile(page, 5);
     }
 }
 
@@ -940,7 +1018,7 @@ export const Admin = {
         password: "mypassword"
     },
 
-    async newLoggedInAdminPage(existingPage?: Page): Promise<Page> {
+    async newLoggedInAdminPage(existingPage: Page): Promise<Page> {
         const page = existingPage;
         if (!page) throw new Error("Failed to create page for admin login");
 

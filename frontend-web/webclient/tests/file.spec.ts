@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {Components, Drive, File, User, Rows, Terminal, NetworkCalls, Project, testCtx, TestContexts, Contexts, ctxUser, Runs} from "./shared";
+import {Components, Drive, File, User, Rows, Terminal, NetworkCalls, Project, testCtx, TestContexts, Contexts, ctxUser, Runs, Accounting, Applications, Admin} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 
 const {dirname} = import.meta;
@@ -8,6 +8,12 @@ const Drives: Record<string, string> = {};
 
 
 test.beforeEach(async ({page, userAgent}, testInfo) => {
+    const doSkipInitialization = testInfo.titlePath.find(it => ["Files - accounting works"].includes(it));
+    if (doSkipInitialization) {
+        await Admin.newLoggedInAdminPage(page);
+        return;
+    }
+
     const ctx = testInfo.titlePath[1] as Contexts;
     const args = testCtx(testInfo.titlePath);
     const driveName = Drive.newDriveNameOrMemberFiles(ctx);
@@ -256,6 +262,39 @@ TestContexts.map(ctx => {
 
         test.describe("Files - transfer works", () => {
             test.skip("Transfer file between providers", () => {});
+        });
+
+        test("Files - accounting works", async ({page: adminPage, context}) => {
+            test.setTimeout(240_000);
+            const {userPage, user} = await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, [5, 2]);
+
+            await Accounting.goTo(userPage, "Allocations");
+            await userPage.getByText("0 GB / 2 GB (0%)").first().waitFor();
+
+            const jobName = Runs.newJobName();
+            const term = await Applications.runAppAndOpenTerminalWithTerminalPage(userPage, Applications.AppNames.TestApplication, 1, jobName);
+            await Terminal.createFile(term, 1);
+            await Runs.terminateViewedRun(userPage);
+
+            await userPage.reload();
+            const isPersonalWorkspace = ctx === "Personal Workspace"
+            const driveName = isPersonalWorkspace ? "Home" : Drive.memberFiles(user.username);
+
+            await File.triggerStorageScan(userPage, driveName);
+            await Accounting.goTo(userPage, "Allocations");
+            await userPage.getByText("1 GB / 2 GB (50%)").first().waitFor();
+
+            await Drive.goToDrives(userPage);
+            await Drive.openDrive(userPage, driveName);
+            await File.searchFor(userPage, "example");
+            await File.actionByRowTitle(userPage, "example", "click");
+            await userPage.getByText("Go to parent folder").click();
+            await File.moveFileToTrash(userPage, "example");
+            await Drive.goToDrives(userPage);
+            await Drive.openDrive(userPage, driveName);
+            await File.open(userPage, "Trash");
+            await File.emptyTrash(userPage);
+            // Delete large file
         });
 
         test.describe("Terminal - check integrated terminal works", () => {
