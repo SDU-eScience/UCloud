@@ -28,7 +28,7 @@ func initProviderBranding() {
 				Title:            pb.Title,
 				ShortTitle:       pb.ShortTitle,
 				ShortDescription: pb.ShortDescription,
-				Description:      pb.Description,
+				Description:      pb.DescriptionFilePath,
 			}
 			for _, section := range pb.Sections {
 				providerBranding.Sections = append(providerBranding.Sections, orcapi.ProviderBrandingSection{

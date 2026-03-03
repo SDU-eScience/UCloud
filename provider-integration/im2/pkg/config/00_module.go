@@ -10,12 +10,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
 	fnd "ucloud.dk/shared/pkg/foundation"
-	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -273,19 +271,19 @@ type ProviderBrandingSection struct {
 }
 
 type ProviderBrandingProductDescription struct {
-	Category         Category                `yaml:"category"`
-	ShortDescription string                  `yaml:"shortDescription"`
-	Section          ProviderBrandingSection `yaml:"section"`
+	Category         ProviderBrandingCategory `yaml:"category"`
+	ShortDescription string                   `yaml:"shortDescription"`
+	Section          ProviderBrandingSection  `yaml:"section"`
 }
 
 type ProviderBranding struct {
-	Title              string                               `yaml:"title"`
-	ShortTitle         string                               `yaml:"shortTitle"`
-	ShortDescription   string                               `yaml:"shortDescription"`
-	DescriptionFilePath        string                               `yaml:"description"`
-	Url                string                               `yaml:"url"`
-	Sections           []ProviderBrandingSection            `yaml:"sections"`
-	ProductDescription []ProviderBrandingProductDescription `yaml:"productDescription"`
+	Title               string                               `yaml:"title"`
+	ShortTitle          string                               `yaml:"shortTitle"`
+	ShortDescription    string                               `yaml:"shortDescription"`
+	DescriptionFilePath string                               `yaml:"description"`
+	Url                 string                               `yaml:"url"`
+	Sections            []ProviderBrandingSection            `yaml:"sections"`
+	ProductDescription  []ProviderBrandingProductDescription `yaml:"productDescription"`
 }
 type ProviderConfiguration struct {
 	Id string
@@ -333,15 +331,6 @@ type ProviderConfiguration struct {
 	}
 }
 
-func loadMarkdown(path string) string {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		log.Error("Failed reading markdown file: %s", err)
-		return path
-	}
-	return string(b)
-}
-
 func storeAndGenerateProviderBrandingImageURI(cfg *ProviderConfiguration, image string) string {
 	basename := filepath.Base(image)
 	ext := filepath.Ext(basename)
@@ -379,15 +368,15 @@ func populateProviderBranding(cfg *ProviderConfiguration, filePath string, node 
 	}
 
 	// Loading Markdown files and generating images
-	providerBranding.Description = loadMarkdown(pathToDescriptionMarkdown)
+	providerBranding.DescriptionFilePath = cfgutil.RequireChildFile(filePath, node, pathToDescriptionMarkdown, cfgutil.FileCheckRead, &success)
 	for i, section := range providerBranding.Sections {
-		providerBranding.Sections[i].Description = loadMarkdown(section.Description)
+		providerBranding.Sections[i].Description = cfgutil.RequireChildFile(filePath, node, section.Description, cfgutil.FileCheckRead, &success)
 		if section.Image.Present && section.Image.Value != "" {
 			providerBranding.Sections[i].Image = util.OptValue(storeAndGenerateProviderBrandingImageURI(cfg, section.Image.Value))
 		}
 	}
 	for i, productDescription := range providerBranding.ProductDescription {
-		providerBranding.ProductDescription[i].Section.Description = loadMarkdown(productDescription.Section.Description)
+		providerBranding.ProductDescription[i].Section.Description = cfgutil.RequireChildFile(filePath, node, productDescription.Section.Description, cfgutil.FileCheckRead, &success)
 		if productDescription.Section.Image.Present && productDescription.Section.Image.Value != "" {
 			providerBranding.ProductDescription[i].Section.Image = util.OptValue(storeAndGenerateProviderBrandingImageURI(cfg, productDescription.Section.Image.Value))
 		}

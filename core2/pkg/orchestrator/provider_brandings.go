@@ -71,6 +71,8 @@ func initProviderBrandings() {
 	}()
 
 	orcapi.ProviderBrandingBrowse.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.ProviderBrandingBrowseResponse, *util.HttpError) {
+		providerBrandingsGlobals.Mu.RLock()
+		defer providerBrandingsGlobals.Mu.RUnlock()
 		return orcapi.ProviderBrandingBrowseResponse{Providers: providerBrandingsGlobals.ProviderBrandings}, nil
 	})
 }
