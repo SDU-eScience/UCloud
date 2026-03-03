@@ -658,7 +658,7 @@ func initJobs() {
 			}
 		}
 
-		if failureCount == len(relevantProviders) {
+		if failureCount == len(relevantProviders) && lastError != nil {
 			return orcapi.JobsRequestDynamicParametersResponse{}, lastError
 		}
 
