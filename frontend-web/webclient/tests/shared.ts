@@ -104,7 +104,7 @@ export const User = {
         await page.keyboard.press("Escape");
     },
 
-    async createUserWithProjectAndAssignRole(admin: Page, context: BrowserContext, ctx: Contexts, quotas: [number, number]): Promise<{userPage: Page; user: {username: string; password: string;}}> {
+    async createUserWithProjectAndAssignRole(admin: Page, context: BrowserContext, ctx: Contexts, quotas: RequestedQuotas): Promise<{userPage: Page; user: {username: string; password: string;}}> {
         const user = User.newUserCredentials();
         const userPage = await context.browser()?.newPage();
         if (!userPage) throw Error("Failed to create userpage");
@@ -146,7 +146,7 @@ export const User = {
 
         return {userPage, user};
 
-        async function fillApplicationAndSubmit(page: Page, projectName: string | undefined, quotas: [number, number]): Promise<string> {
+        async function fillApplicationAndSubmit(page: Page, projectName: string | undefined, quotas: RequestedQuotas): Promise<string> {
             await Accounting.goTo(page, "Apply for resources");
             if (!projectName) {
                 await page.getByText("select an existing project instead").click();
@@ -155,11 +155,19 @@ export const User = {
             }
 
             await Accounting.GrantApplication.toggleGrantGiver(page, "Provider K8s");
-            await Accounting.GrantApplication.fillQuotaFields(page, [{field: "Core-hours requested", quota: quotas[0]}, {field: "GB requested", quota: quotas[1]}]);
+
+            await Accounting.GrantApplication.fillQuotaFields(page, quotas);
             await Accounting.GrantApplication.fillDefaultApplicationTextFields(page);
             return await Accounting.GrantApplication.submit(page);
         }
     }
+}
+
+interface RequestedQuotas {
+    "Core-hours requested"?: number,
+    "GB requested"?: number,
+    "IPs requested"?: number;
+    "Licenses requested"?: number;
 }
 
 export function ucloudUrl(pathname: string): string {
@@ -694,6 +702,10 @@ export const Runs = {
         return terminalPage;
     },
 
+    async activateOptionalParameter(page: Page, parameterName: string): Promise<void> {
+        await page.locator("div[class*=inactive-widget]", {hasText: parameterName}).getByRole("button", {name: "Use"}).click();
+    },
+
     JobResources: {
         async addFolder(page: Page, driveName: string, folderName: string): Promise<void> {
             await page.getByRole("button", {name: "Add folder"}).click();
@@ -979,9 +991,10 @@ export const Accounting = {
             await page.locator("label", {hasText: grantGiver}).last().click();
         },
 
-        async fillQuotaFields(page: Page, quotas: {field: string; quota: number}[]): Promise<void> {
-            for (const quota of quotas) {
-                await page.getByRole("spinbutton", {name: quota.field}).fill(quota.quota.toString());
+        async fillQuotaFields(page: Page, quotas: RequestedQuotas): Promise<void> {
+            for (const key of Object.keys(quotas)) {
+                if (quotas[key] == null) continue;
+                await page.getByRole("spinbutton", {name: key}).fill(quotas[key].toString());
             }
         },
 

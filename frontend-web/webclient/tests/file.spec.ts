@@ -27,6 +27,10 @@ test.beforeEach(async ({page, userAgent}, testInfo) => {
 });
 
 test.afterEach(async ({page, userAgent}, testInfo) => {
+    const doSkipDeinit = testInfo.titlePath.find(it => ["Files - accounting works"].includes(it));
+    if (doSkipDeinit) {
+        return;
+    }
     const args = testCtx(testInfo.titlePath);
     const ctx = testInfo.titlePath[1] as Contexts;
     if (ctx !== "Project User") {
@@ -266,7 +270,7 @@ TestContexts.map(ctx => {
 
         test("Files - accounting works", async ({page: adminPage, context}) => {
             test.setTimeout(240_000);
-            const {userPage, user} = await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, [5, 2]);
+            const {userPage, user} = await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, {"Core-hours requested": 5, "GB requested": 2});
 
             await Accounting.goTo(userPage, "Allocations");
             await userPage.getByText("0 GB / 2 GB (0%)").first().waitFor();
@@ -294,7 +298,6 @@ TestContexts.map(ctx => {
             await Drive.openDrive(userPage, driveName);
             await File.open(userPage, "Trash");
             await File.emptyTrash(userPage);
-            // Delete large file
         });
 
         test.describe("Terminal - check integrated terminal works", () => {
