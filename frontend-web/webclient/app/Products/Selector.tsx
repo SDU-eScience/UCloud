@@ -107,6 +107,15 @@ export const ProductSelector: React.FunctionComponent<{
         let lastCategory = "";
         for (const product of sortedProducts) {
             let categoryName = product.category.name;
+            if (categoryName === "cpu-amd-zen5" || categoryName === "gpu-nvidia-b200") {
+                const now = new Date();
+                const expectedLaunchDate = new Date(Date.UTC(2026, 4, 1, 0, 0, 0, 0));
+
+                if (now < expectedLaunchDate) {
+                    continue;
+                }
+            }
+
             const numberSuffix = product.name.match(/(^.*)-(\d+)$/);
             if (numberSuffix != null) {
                 categoryName = numberSuffix[1];

@@ -171,7 +171,7 @@ export function optionalInfoUpdate(values: OptionalInfo) {
 
 export async function addOrgInfoModalIfNotFilled(): Promise<void> {
     const result = await callAPI<OptionalInfo>(optionalInfoRequest());
-    if (!result.department || !result.organizationFullName || !result.position || !result.researchField || !result.gender) {
+    if (!result.department || !result.organizationFullName || !result.unit || !result.position || !result.researchField || !result.gender) {
         let tries = 10;
         function addDialog() {
             if (tries < 0) return;
@@ -244,7 +244,8 @@ export function ChangeOrganizationDetails(props: ChangeOrganizationDetailsProps)
         const validateDepartment = (o: string | undefined, area: string | undefined): boolean => {
             if (!area) return false;
             if (!o) return true;
-            const [faculty, dept] = area.split("/");
+            let [faculty, ...rest] = area.split("/");
+            const dept = rest.join("/");
             if (faculty == null) return false;
             const orgDepartments = KnownDepartments[o];
             if (!orgDepartments) return true;
