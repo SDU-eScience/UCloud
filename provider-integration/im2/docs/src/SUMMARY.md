@@ -46,6 +46,7 @@
   - [Integrated terminal](./k8s/integrated-terminal.md)
 - [Reference](./k8s/reference.md)
     - [Configuration](./k8s/config-reference.md)
+    - [CLI](./k8s/cli-reference.md)
 
 # H: Procedures
 

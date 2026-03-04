@@ -74,6 +74,7 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	}
 
 	initStorageScanCli()
+	initJobsCli()
 	initInference()
 	shared.InitExecutables()
 
