@@ -24,31 +24,34 @@ TestContexts.map(ctx => {
                 await PublicLinks.delete(page, publicLinkName);
             });
 
-            test("Create public link, mount link for job, open interface, check that link is available, stop job, delete public link", async ({page}) => {
-                test.setTimeout(120_000);
-                const publicLinkName = await PublicLinks.createNew(page);
-                await Applications.openAppBySearch(page, Applications.AppNames.TestApplication);
-                await Components.selectAvailableMachineType(page);
-                await Runs.JobResources.addPublicLink(page, publicLinkName);
-                await Runs.submitAndWaitForRunning(page);
 
-                const interfacePage = page.waitForEvent("popup");
-                await page.getByRole("link", {name: publicLinkName, exact: false}).click();
-                const followedInterface = await interfacePage;
-                await followedInterface.getByText("Directory listing for /").hover();
-                await followedInterface.close();
+            test.describe("interface(s) connectivity", () => {
+                test("Create public link, mount link for job, open interface, check that link is available, stop job, delete public link", async ({page}) => {
+                    test.setTimeout(120_000);
+                    const publicLinkName = await PublicLinks.createNew(page);
+                    await Applications.openAppBySearch(page, Applications.AppNames.TestApplication);
+                    await Components.selectAvailableMachineType(page);
+                    await Runs.JobResources.addPublicLink(page, publicLinkName);
+                    await Runs.submitAndWaitForRunning(page);
 
-                await page.getByText("Links (1)").click();
-                const publicLinkPagePromise = page.waitForEvent("popup");
-                await page.getByRole("link", {name: publicLinkName, exact: false}).click();
-                const followedPublicLink = await publicLinkPagePromise;
-                await followedPublicLink.getByText("Directory listing for /").hover();
-                await followedPublicLink.close();
+                    const interfacePage = page.waitForEvent("popup");
+                    await page.getByRole("link", {name: "Open interface", exact: true}).click();
+                    const followedInterface = await interfacePage;
+                    await followedInterface.getByText("Directory listing for /").hover();
+                    await followedInterface.close();
 
-                await Runs.terminateViewedRun(page);
+                    await page.getByText("Links (1)").click();
+                    const publicLinkPagePromise = page.waitForEvent("popup");
+                    await page.getByRole("link", {name: publicLinkName, exact: false}).click();
+                    const followedPublicLink = await publicLinkPagePromise;
+                    await followedPublicLink.getByText("Directory listing for /").hover();
+                    await followedPublicLink.close();
 
-                await Resources.goTo(page, "Links");
-                await PublicLinks.delete(page, publicLinkName);
+                    await Runs.terminateViewedRun(page);
+
+                    await Resources.goTo(page, "Links");
+                    await PublicLinks.delete(page, publicLinkName);
+                });
             });
         });
 
