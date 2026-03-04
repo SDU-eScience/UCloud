@@ -8,7 +8,7 @@ use.
 
 ```
 UCloud/Core @ 2026.2.10
-UCloud/Frontend @ 2026.2.11
+UCloud/Frontend @ 2026.2.12
 SDU/K8s @ 2026.2.7
 AAU/K8s @ 2026.2.7
 ```
