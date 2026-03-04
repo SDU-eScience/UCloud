@@ -1,12 +1,23 @@
 package foundation
 
 import (
+	"os"
+
 	cfg "ucloud.dk/core/pkg/config"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
+func loadImage(path string) []byte {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		log.Error("Failed to load image: %s", err)
+		return nil
+	}
+	return b
+}
 func toBrandingApi(b *cfg.Branding) fndapi.Branding {
 
 	return fndapi.Branding{
@@ -44,5 +55,14 @@ func initBranding() {
 	fndapi.BrandingRetrieve.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.Branding, *util.HttpError) {
 		b := cfg.Configuration.Branding
 		return toBrandingApi(&b), nil
+	})
+
+	fndapi.BrandingRetrieveImage.Handler(func(info rpc.RequestInfo, request fndapi.BrandingImageRequest) ([]byte, *util.HttpError) {
+		config := cfg.Configuration
+		absolutePath, ok := config.BrandingImageAbsolutePath[request.Name]
+		if !ok {
+			return nil, nil
+		}
+		return loadImage(absolutePath), nil
 	})
 }

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -77,7 +78,8 @@ type ConfigurationFormat struct {
 
 	RequireMfa bool
 
-	Branding Branding `yaml:"branding"`
+	Branding                  Branding `yaml:"branding"`
+	BrandingImageAbsolutePath map[string]string
 }
 
 type Database struct {
@@ -162,19 +164,38 @@ func decodeBrandingLink(filePath string, node *yaml.Node, nodeName string) util.
 			Href:  cfgutil.RequireChildText(filePath, linkNode, "href", &success),
 		})
 }
+func storeAndGenerateBrandingImageURI(cfg *ConfigurationFormat, image string) string {
+	if image == "" {
+		return ""
+	}
+	basename := filepath.Base(image)
+	ext := filepath.Ext(basename)
+	name := basename[:len(basename)-len(ext)]
+	generatedName := fmt.Sprintf("%s_%s%s", name, util.SecureToken(), ext)
+	cfg.BrandingImageAbsolutePath[generatedName] = image // storing the absolute path
+	return "/api/branding/image?name=" + generatedName
+}
 
-func decodeLoginPage(filePath string, node *yaml.Node, nodeName string) BrandingLoginPage {
+func decodeLoginPage(cfg *ConfigurationFormat, filePath string, node *yaml.Node) BrandingLoginPage {
 	success := true
-	loginNode, _ := cfgutil.GetChildOrNil(filePath, node, nodeName)
+	loginNode, _ := cfgutil.GetChildOrNil(filePath, node, "loginPage")
+	generatePrimaryLogoUrl := storeAndGenerateBrandingImageURI(cfg, cfgutil.RequireChildText(filePath, loginNode, "primaryLogoImage", &success))
+
 	var secondaryUrls []string
-	secondaryUrlNode, _ := cfgutil.GetChildOrNil(filePath, node, "secondaryLogoUrls")
+	var generateSecondaryUrls []string
+	secondaryUrlNode, _ := cfgutil.GetChildOrNil(filePath, loginNode, "secondaryLogoImages")
+
 	if secondaryUrlNode != nil {
 		cfgutil.Decode(filePath, secondaryUrlNode, &secondaryUrls, &success)
+		for _, url := range secondaryUrls {
+			generateSecondaryUrls = append(generateSecondaryUrls, storeAndGenerateBrandingImageURI(cfg, url))
+		}
 	}
+
 	return BrandingLoginPage{
 		Type:              cfgutil.RequireChildInt(filePath, loginNode, "type", &success),
-		PrimaryLogoUrl:    cfgutil.RequireChildText(filePath, loginNode, "primaryLogoUrl", &success),
-		SecondaryLogoUrls: secondaryUrls,
+		PrimaryLogoUrl:    generatePrimaryLogoUrl,
+		SecondaryLogoUrls: generateSecondaryUrls,
 	}
 }
 
@@ -188,7 +209,7 @@ func populateBranding(cfg *ConfigurationFormat, filePath string, node *yaml.Node
 	branding.DataProtection = decodeBrandingLink(filePath, node, "dataProtection")
 	branding.StatusPage = decodeBrandingLink(filePath, node, "statusPage")
 	branding.Documentation = decodeBrandingLink(filePath, node, "documentation")
-	branding.LoginPage = decodeLoginPage(filePath, node, "loginPage")
+	branding.LoginPage = decodeLoginPage(cfg, filePath, node)
 }
 
 func Parse(configDir string) bool {
@@ -199,7 +220,7 @@ func Parse(configDir string) bool {
 		return false
 	}
 
-	cfg := &ConfigurationFormat{}
+	cfg := &ConfigurationFormat{BrandingImageAbsolutePath: make(map[string]string)}
 	Configuration = cfg
 
 	// Parse branding
