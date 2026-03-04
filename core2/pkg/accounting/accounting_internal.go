@@ -1286,10 +1286,34 @@ func internalWalletTotalQuotaContributing(b *internalBucket, wId AccWalletId) (i
 	return result, ok
 }
 
+func internalWalletTotalQuotaContributingAt(b *internalBucket, wId AccWalletId, at time.Time) (int64, bool) {
+	b.Mu.RLock()
+	owner, ok := b.WalletsById[wId]
+	var result int64
+	if ok {
+		result = lInternalWalletTotalQuotaContributingAt(b, owner, at)
+	}
+	b.Mu.RUnlock()
+	return result, ok
+}
+
 func lInternalWalletTotalQuotaContributing(b *internalBucket, w *internalWallet) int64 {
 	sum := int64(0)
 	for _, group := range w.AllocationsByParent {
 		sum += lInternalGroupTotalQuotaContributing(b, group)
+	}
+	return sum
+}
+
+func lInternalWalletTotalQuotaContributingAt(b *internalBucket, w *internalWallet, at time.Time) int64 {
+	sum := int64(0)
+	for _, group := range w.AllocationsByParent {
+		for allocId := range group.Allocations {
+			alloc := b.AllocationsById[allocId]
+			if !alloc.Retired && (alloc.Start.Before(at) || alloc.Start.Equal(at)) && at.Before(alloc.End) {
+				sum += alloc.Quota
+			}
+		}
 	}
 	return sum
 }

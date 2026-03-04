@@ -419,7 +419,28 @@ func terminate(request controller.JobTerminateRequest) *util.HttpError {
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
-	return nil
+	param := orc.ApplicationParameterEnumeration(
+		"ucMetricSampleRate",
+		true,
+		"Job report sample rate",
+		"Sets sampling rate for resource utilization for the job report (default is 250 ms)",
+		[]orc.EnumOption{
+			{Name: "Do not sample", Value: "0ms"},
+			{Name: "250 ms", Value: "250ms"},
+			{Name: "500 ms", Value: "500ms"},
+			{Name: "750 ms", Value: "750ms"},
+			{Name: "1 s", Value: "1000ms"},
+			{Name: "5 s", Value: "5000ms"},
+			{Name: "10 s", Value: "10000ms"},
+			{Name: "30 s", Value: "30000ms"},
+			{Name: "1 minute", Value: "60000ms"},
+			{Name: "2 minute", Value: "120000ms"},
+		},
+	)
+
+	param.DefaultValue = json.RawMessage(`"250ms"`)
+
+	return []orc.ApplicationParameter{param}
 }
 
 func openWebSession(job *orc.Job, rank int, target util.Option[string]) (controller.ConfiguredWebSession, *util.HttpError) {
@@ -479,21 +500,28 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (control
 	}, nil
 }
 
-func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) controller.ConfiguredWebIngress {
+func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []controller.ConfiguredWebIngress {
+	result := []controller.ConfiguredWebIngress{}
 	for _, resource := range job.Specification.Resources {
 		if resource.Type == orc.AppParameterValueTypeIngress {
 			ingress := controller.LinkRetrieve(resource.Id)
 
-			return controller.ConfiguredWebIngress{
+			result = append(result, controller.ConfiguredWebIngress{
 				IsPublic:     true,
 				TargetDomain: ingress.Specification.Domain,
-			}
+			})
 		}
 	}
 
-	return controller.ConfiguredWebIngress{
-		IsPublic:     false,
-		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + "-" + fmt.Sprint(rank) + suffix.Value + ServiceConfig.Compute.Web.Suffix,
+	if len(result) > 0 {
+		return result
+	} else {
+		return []controller.ConfiguredWebIngress{
+			{
+				IsPublic:     false,
+				TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + "-" + fmt.Sprint(rank) + suffix.Value + ServiceConfig.Compute.Web.Suffix,
+			},
+		}
 	}
 }
 

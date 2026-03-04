@@ -332,10 +332,13 @@ const hardcodedProductCategoryDescriptions: Record<string, Record<string, string
         "cephfs": `The storage system for DeiC Interactive HPC at SDU. If you are applying for compute from the same location then you must also apply for storage.`,
         "u1-storage": `The storage system for DeiC Interactive HPC at SDU. If you are applying for compute from the same location then you must also apply for storage.`,
         "public-ip": `A publicly accessible IP address. You should apply for these only if you are running an application which explicitly requires this.`,
-        "u1-fat": `2x Intel(R) Xeon(R) Gold 6130 CPU@2.10 GHz, 32 virtual cores/CPU, and 768 GB of memory.`,
-        "u1-standard": `The u1-standard machines are equipped with 2x Intel(R) Xeon(R) Gold 6130 CPU@2.10 GHz, 32 virtual cores/CPU, and 384 GB of memory.`,
-        "u2-gpu": `96 vCPU, 2TB of memory and 8x NVIDIA Tesla A100 GPUs Accelerators 40GB (PCIe).`,
-        "u1-gpu": `80 vCPU, 182 GB of memory and 4x NVIDIA Tesla V100 SXM2 Volta GPUs Accelerators 32GB (NVLink).`,
+        "u1-fat": `Unavailable from May 2026. 2x Intel(R) Xeon(R) Gold 6130 CPU@2.10 GHz, 32 virtual cores/CPU, and 768 GB of memory.`,
+        "u1-standard": `Unavailable from May 2026. The u1-standard machines are equipped with 2x Intel(R) Xeon(R) Gold 6130 CPU@2.10 GHz, 32 virtual cores/CPU, and 384 GB of memory.`,
+        "u1-standard-h": `Unavailable from May 2026. The u1-standard machines are equipped with 2x Intel(R) Xeon(R) Gold 6130 CPU@2.10 GHz, 32 virtual cores/CPU, and 384 GB of memory.`,
+        "u2-gpu": `Unavailable from May 2026. 96 vCPU, 2TB of memory and 8x NVIDIA Tesla A100 GPUs Accelerators 40GB (PCIe).`,
+        "u1-gpu": `Unavailable from May 2026. 80 vCPU, 182 GB of memory and 4x NVIDIA Tesla V100 SXM2 Volta GPUs Accelerators 32GB (NVLink).`,
+        "cpu-amd-zen5": "Available from May 2026. 384 vCPU (2x AMD EPYC 9655 96-Core@2.6Ghz), 1436 GB DDR5-6400.",
+        "gpu-nvidia-b200": "Available from May 2026. 384 vCPU (2x AMD EPYC 9655 96-Core@2.6Ghz), 2304 GB DDR5-6400, 8x NVIDIA Blackwell B200-SMX6 (192GB)."
     },
 
     "hippo": {

@@ -40,7 +40,7 @@ type JobsService struct {
 	RetrieveProducts         func() []orcapi.JobSupport
 	Follow                   func(session *FollowJobSession)
 	HandleShell              func(session *ShellSession, cols, rows int)
-	ServerFindIngress        func(job *orcapi.Job, rank int, suffix util.Option[string]) ConfiguredWebIngress
+	ServerFindIngress        func(job *orcapi.Job, rank int, suffix util.Option[string]) []ConfiguredWebIngress
 	OpenWebSession           func(job *orcapi.Job, rank int, target util.Option[string]) (ConfiguredWebSession, *util.HttpError)
 	RequestDynamicParameters func(owner orcapi.ResourceOwner, app *orcapi.Application) []orcapi.ApplicationParameter
 	HandleBuiltInVnc         func(job *orcapi.Job, rank int, conn *ws.Conn)
@@ -1527,6 +1527,10 @@ type webSession struct {
 	IngressInitialized map[string]util.Empty
 }
 
+func ingressMapKey(suffix string, domain string) string {
+	return suffix + "|" + domain
+}
+
 type webSessionIngress struct {
 	JobId     string
 	Rank      int
@@ -1654,25 +1658,30 @@ func IngressRegisterWithJob(job *orcapi.Job, rank int, target cfg.HostInfo, requ
 			JobId: job.Id,
 			Rank:  rank,
 		}
-		needInit := false
+		needInit := true
 		session, ok := webSessions[key]
 		if ok {
-			ingress, ok = session.IngressBySuffix[suffix]
-			needInit = !ok
-		} else {
-			needInit = true
+			for _, existing := range session.IngressBySuffix {
+				if existing.Suffix == suffix {
+					ingress = existing
+					needInit = false
+					break
+				}
+			}
 		}
 		webSessionsMutex.RUnlock()
 
 		if needInit {
-			var ingressConfig ConfiguredWebIngress
+			var ingressConfigs []ConfiguredWebIngress
 
 			if isWeb {
-				ingressConfig = Jobs.ServerFindIngress(job, rank, util.Option[string]{Present: requestedSuffix.Present, Value: suffix})
+				ingressConfigs = Jobs.ServerFindIngress(job, rank, util.Option[string]{Present: requestedSuffix.Present, Value: suffix})
 			} else {
-				ingressConfig = ConfiguredWebIngress{
-					IsPublic:     false,
-					TargetDomain: cfg.Provider.Hosts.SelfPublic.Address,
+				ingressConfigs = []ConfiguredWebIngress{
+					{
+						IsPublic:     false,
+						TargetDomain: cfg.Provider.Hosts.SelfPublic.Address,
+					},
 				}
 			}
 
@@ -1688,9 +1697,14 @@ func IngressRegisterWithJob(job *orcapi.Job, rank int, target cfg.HostInfo, requ
 
 				webSessions[key] = session
 			}
-			ingress, ok = session.IngressBySuffix[suffix]
-			if !ok {
-				token := util.Option[string]{}
+
+			for _, ingressConfig := range ingressConfigs {
+				mapKey := ingressMapKey(suffix, ingressConfig.TargetDomain)
+				if _, exists := session.IngressBySuffix[mapKey]; exists {
+					continue
+				}
+
+				token := util.OptNone[string]()
 				if !ingressConfig.IsPublic {
 					token.Set(util.RandomToken(12))
 				}
@@ -1705,7 +1719,7 @@ func IngressRegisterWithJob(job *orcapi.Job, rank int, target cfg.HostInfo, requ
 					Address:   ingressConfig.TargetDomain,
 				}
 
-				session.IngressBySuffix[suffix] = ingress
+				session.IngressBySuffix[mapKey] = ingress
 
 				if flags&RegisteredIngressFlagsNoPersist == 0 {
 					db.NewTx0(func(tx *db.Transaction) {
@@ -1743,6 +1757,7 @@ func IngressRegisterWithJob(job *orcapi.Job, rank int, target cfg.HostInfo, requ
 					})
 				}
 			}
+
 			webSessionsMutex.Unlock()
 			jobRoutesRefresh()
 		}
@@ -1807,7 +1822,8 @@ func jobsLoadSessions() {
 				tok.Set(row.AuthToken.String)
 			}
 
-			session.IngressBySuffix[row.Suffix.String] = webSessionIngress{
+			mapKey := ingressMapKey(row.Suffix.String, row.Address)
+			session.IngressBySuffix[mapKey] = webSessionIngress{
 				JobId: row.JobId,
 				Rank:  row.Rank,
 				Target: cfg.HostInfo{
@@ -1840,12 +1856,13 @@ func jobRoutesRefresh() {
 	webSessionsMutex.Lock()
 	var sessionsToDelete []jobIdAndRank
 	for key, session := range webSessions {
-		if _, ok := allJobsById[key.JobId]; !ok {
+		_, ok := allJobsById[key.JobId]
+		if !ok {
 			sessionsToDelete = append(sessionsToDelete, key)
 		} else {
-			for suffix, ingress := range session.IngressBySuffix {
-				if _, didInit := session.IngressInitialized[suffix]; !didInit {
-					session.IngressInitialized[suffix] = util.Empty{}
+			for ingressKey, ingress := range session.IngressBySuffix {
+				if _, didInit := session.IngressInitialized[ingressKey]; !didInit {
+					session.IngressInitialized[ingressKey] = util.Empty{}
 
 					flags := ingress.Flags
 					isVnc := (flags & RegisteredIngressFlagsVnc) != 0
@@ -1861,7 +1878,7 @@ func jobRoutesRefresh() {
 							tokens = []string{ingress.AuthToken.Value}
 						}
 
-						clusterName := getClusterName(session, suffix)
+						clusterName := getClusterName(session, ingress.Suffix)
 
 						gw.SendMessage(gw.ConfigurationMessage{
 							ClusterUp: &gw.EnvoyCluster{
@@ -1890,9 +1907,14 @@ func jobRoutesRefresh() {
 		session := webSessions[toDeleteKey]
 		delete(webSessions, toDeleteKey)
 
-		for suffix := range session.IngressBySuffix {
-			if _, didInit := session.IngressInitialized[suffix]; didInit {
-				clusterName := getClusterName(session, suffix)
+		clustersToDelete := map[string]util.Empty{}
+		for ingressKey, ingress := range session.IngressBySuffix {
+			if _, didInit := session.IngressInitialized[ingressKey]; didInit {
+				clusterName := getClusterName(session, ingress.Suffix)
+				if _, alreadyDeleted := clustersToDelete[clusterName]; alreadyDeleted {
+					continue
+				}
+				clustersToDelete[clusterName] = util.Empty{}
 
 				// NOTE(Dan): Routes are automatically deleted by the gateway, we only need to take down the cluster.
 				gw.SendMessage(gw.ConfigurationMessage{

@@ -1,4 +1,6 @@
-[
+import type {DataListItem} from "@/UserSettings/types";
+
+const genders: DataListItem[] = [
     {
         "key": "Woman",
         "value": "Woman",
@@ -19,4 +21,6 @@
         "value": "Prefer not to say",
         "tags": ""
     }
-]
+];
+
+export default genders;
