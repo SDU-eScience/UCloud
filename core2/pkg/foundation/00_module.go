@@ -14,6 +14,9 @@ func Init() {
 	initAvatars()
 	times["Avatars"] = t.Mark()
 
+	initBranding()
+	times["Branding"] = t.Mark()
+
 	initNews()
 	times["News"] = t.Mark()
 

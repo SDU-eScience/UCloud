@@ -12,6 +12,26 @@ import (
 
 var Configuration *ConfigurationFormat
 
+type BrandingLink struct {
+	Title string `yaml:"title"`
+	Href  string `yaml:"href"`
+}
+type BrandingLoginPage struct {
+	Type              int64    `yaml:"type"`
+	PrimaryLogoUrl    string   `yaml:"primaryLogoUrl"`
+	SecondaryLogoUrls []string `yaml:"secondaryLogoUrls"`
+}
+
+type Branding struct {
+	DeploymentName string                    `yaml:"deploymentName"` // used for the login page and other places that might need it
+	DataProtection util.Option[BrandingLink] `yaml:"dataProtection"` // used for the user menu
+	StatusPage     util.Option[BrandingLink] `yaml:"statusPage"`     // used for the user menu
+	Documentation  util.Option[BrandingLink] `yaml:"documentation"`  // default is our doc link
+	SupportEmail   util.Option[string]       `yaml:"supportEmail"`   // used for the login page and support box
+	FaqLink        util.Option[string]       `yaml:"faqLink"`        // used for the support box
+	LoginPage      BrandingLoginPage         `yaml:"loginPage"`
+}
+
 type ConfigurationFormat struct {
 	RefreshToken string
 	Database     Database
@@ -56,6 +76,8 @@ type ConfigurationFormat struct {
 	SlackHook util.Option[string]
 
 	RequireMfa bool
+
+	Branding Branding `yaml:"branding"`
 }
 
 type Database struct {
@@ -128,6 +150,47 @@ func (h HostInfo) ToWebSocketUrl() string {
 	return url
 }
 
+func decodeBrandingLink(filePath string, node *yaml.Node, nodeName string) util.Option[BrandingLink] {
+	success := true
+	linkNode, _ := cfgutil.GetChildOrNil(filePath, node, nodeName)
+	if linkNode == nil {
+		return util.OptValue(BrandingLink{})
+	}
+	return util.OptValue(
+		BrandingLink{
+			Title: cfgutil.RequireChildText(filePath, linkNode, "title", &success),
+			Href:  cfgutil.RequireChildText(filePath, linkNode, "href", &success),
+		})
+}
+
+func decodeLoginPage(filePath string, node *yaml.Node, nodeName string) BrandingLoginPage {
+	success := true
+	loginNode, _ := cfgutil.GetChildOrNil(filePath, node, nodeName)
+	var secondaryUrls []string
+	secondaryUrlNode, _ := cfgutil.GetChildOrNil(filePath, node, "secondaryLogoUrls")
+	if secondaryUrlNode != nil {
+		cfgutil.Decode(filePath, secondaryUrlNode, &secondaryUrls, &success)
+	}
+	return BrandingLoginPage{
+		Type:              cfgutil.RequireChildInt(filePath, loginNode, "type", &success),
+		PrimaryLogoUrl:    cfgutil.RequireChildText(filePath, loginNode, "primaryLogoUrl", &success),
+		SecondaryLogoUrls: secondaryUrls,
+	}
+}
+
+func populateBranding(cfg *ConfigurationFormat, filePath string, node *yaml.Node) {
+	branding := &cfg.Branding
+	success := true
+	branding.DeploymentName = cfgutil.RequireChildText(filePath, node, "deploymentName", &success)
+	branding.SupportEmail = util.OptValue(cfgutil.OptionalChildText(filePath, node, "supportEmail", &success))
+	branding.FaqLink = util.OptValue(cfgutil.OptionalChildText(filePath, node, "faqLink", &success))
+
+	branding.DataProtection = decodeBrandingLink(filePath, node, "dataProtection")
+	branding.StatusPage = decodeBrandingLink(filePath, node, "statusPage")
+	branding.Documentation = decodeBrandingLink(filePath, node, "documentation")
+	branding.LoginPage = decodeLoginPage(filePath, node, "loginPage")
+}
+
 func Parse(configDir string) bool {
 	success := true
 
@@ -138,6 +201,12 @@ func Parse(configDir string) bool {
 
 	cfg := &ConfigurationFormat{}
 	Configuration = cfg
+
+	// Parse branding
+	branding, _ := cfgutil.GetChildOrNil(filePath, document, "branding")
+	if branding != nil {
+		populateBranding(cfg, filePath, branding)
+	}
 
 	// Parse simple properties
 	cfg.RefreshToken = cfgutil.RequireChildText(filePath, document, "refreshToken", &success)
