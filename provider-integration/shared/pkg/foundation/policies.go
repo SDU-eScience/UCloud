@@ -60,6 +60,11 @@ func (t PoliciesType) String() string {
 	return string(t)
 }
 
+type PoliciesForProject struct {
+	ProjectId      string
+	PoliciesByName map[string]*PolicySpecification
+}
+
 type PolicySpecification struct {
 	Schema     string                `json:"schema"`
 	Project    rpc.ProjectId         `json:"project"`

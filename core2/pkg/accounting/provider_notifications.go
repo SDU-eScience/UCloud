@@ -29,11 +29,7 @@ var providerNotifications struct {
 
 	ProjectChannelsByProvider map[string]map[string]chan *fndapi.Project
 	WalletsByProvider         map[string]map[string]chan *accapi.WalletV2
-	PoliciesByProvider        map[string]map[string]chan policiesForProject
-}
-
-type policiesForProject struct {
-	PoliciesByName map[string]*fndapi.PolicySpecification
+	PoliciesByProvider        map[string]map[string]chan fndapi.PoliciesForProject
 }
 
 func retrieveRelevantProviders(projectId string) map[string]util.Empty {
@@ -50,7 +46,7 @@ func retrieveRelevantProviders(projectId string) map[string]util.Empty {
 func initProviderNotifications() {
 	providerNotifications.ProjectChannelsByProvider = map[string]map[string]chan *fndapi.Project{}
 	providerNotifications.WalletsByProvider = map[string]map[string]chan *accapi.WalletV2{}
-	providerNotifications.PoliciesByProvider = map[string]map[string]chan policiesForProject{}
+	providerNotifications.PoliciesByProvider = map[string]map[string]chan fndapi.PoliciesForProject{}
 
 	policyCache.Mu.Lock()
 	policyCache.PoliciesByProject = make(map[string]map[string]*fndapi.PolicySpecification)
@@ -139,7 +135,7 @@ func initProviderNotifications() {
 				}
 			} else if policiesOk {
 				relevantProviders := retrieveRelevantProviders(project.Id)
-				var allChannels []chan policiesForProject
+				var allChannels []chan fndapi.PoliciesForProject
 
 				providerNotifications.Mu.Lock()
 
@@ -158,7 +154,7 @@ func initProviderNotifications() {
 
 				for _, ch := range allChannels {
 					select {
-					case ch <- policiesForProject{policySpecifications}:
+					case ch <- fndapi.PoliciesForProject{project.Id, policySpecifications}:
 					case <-time.After(200 * time.Millisecond):
 					}
 				}
@@ -228,6 +224,12 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 			RefToCategory map[int]accapi.ProductCategory
 		}
 
+		policies struct {
+			Counter        int
+			ProjectIdToRef map[string]int
+			RefToProjectId map[int]string
+		}
+
 		ctx    context.Context
 		cancel context.CancelFunc
 	)
@@ -241,6 +243,9 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 	productCategories.IdToRef = map[accapi.ProductCategoryIdV2]int{}
 	productCategories.RefToCategory = map[int]accapi.ProductCategory{}
 
+	policies.ProjectIdToRef = map[string]int{}
+	policies.RefToProjectId = map[int]string{}
+
 	ctx, cancel = context.WithCancel(context.Background())
 
 	// Subscription
@@ -248,7 +253,7 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 	sessionId := util.RandomTokenNoTs(32)
 	projectUpdates := make(chan *fndapi.Project, 128)
 	walletUpdates := make(chan *accapi.WalletV2, 128)
-	providerUpdates := make(chan policiesForProject, 128)
+	policyUpdates := make(chan fndapi.PoliciesForProject, 128)
 
 	{
 		providerNotifications.Mu.Lock()
@@ -269,10 +274,10 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 
 		polmap, ok := providerNotifications.PoliciesByProvider[providerId]
 		if !ok {
-			polmap = map[string]chan policiesForProject{}
+			polmap = map[string]chan fndapi.PoliciesForProject{}
 			providerNotifications.PoliciesByProvider[providerId] = polmap
 		}
-		polmap[sessionId] = providerUpdates
+		polmap[sessionId] = policyUpdates
 
 		providerNotifications.Mu.Unlock()
 	}
@@ -406,6 +411,7 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 
 	projectsToSend := map[int]util.Empty{}
 	usersToSend := map[int]util.Empty{}
+	policiesToSend := map[int]fndapi.PoliciesForProject{}
 	var walletsToSend []*accapi.WalletV2
 	categoriesToSend := map[int]util.Empty{}
 
@@ -422,6 +428,25 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 			projects.ProjectIdToRef[project.Id] = ref
 			projects.RefToProject[ref] = project
 			projectsToSend[ref] = util.Empty{}
+		}
+
+		return ref
+	}
+
+	appendPolicies := func(policiesForProject fndapi.PoliciesForProject, forced bool) int {
+		projectID := policiesForProject.ProjectId
+		ref, ok := policies.ProjectIdToRef[projectID]
+		if !ok {
+			ref, ok = policies.Counter, true
+			policies.ProjectIdToRef[projectID] = ref
+			policies.RefToProjectId[ref] = projectID
+			policiesToSend[ref] = policiesForProject
+
+			policies.Counter++
+		} else if forced {
+			policies.ProjectIdToRef[projectID] = ref
+			policies.RefToProjectId[ref] = projectID
+			policiesToSend[ref] = policiesForProject
 		}
 
 		return ref
@@ -501,6 +526,22 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 			out.WriteString(string(projectJson))
 		}
 
+		for policyRef, _ := range policiesToSend {
+			project := policies.RefToProjectId[policyRef]
+
+			policyCache.Mu.Lock()
+			currentPolices := policyCache.PoliciesByProject[project]
+			var specifications []fndapi.PolicySpecification
+			for _, specification := range currentPolices {
+				specifications = append(specifications, *specification)
+			}
+			currentPolicesSpecificationsJson, _ := json.Marshal(specifications)
+			policyCache.Mu.Unlock()
+			out.WriteU8(opPolicyChange)
+			out.WriteU32(uint32(policyRef))
+			out.WriteString(string(currentPolicesSpecificationsJson))
+		}
+
 		for categoryRef, _ := range categoriesToSend {
 			category := productCategories.RefToCategory[categoryRef]
 			categoryJson, _ := json.Marshal(category)
@@ -547,6 +588,7 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 			categoriesToSend = map[int]util.Empty{}
 			usersToSend = map[int]util.Empty{}
 			walletsToSend = nil
+			policiesToSend = nil
 
 			if err != nil {
 				cancel()
@@ -570,6 +612,11 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 			if ok {
 				appendProject(project, true)
 			}
+
+		case projectPolicies, ok := <-policyUpdates:
+			if ok {
+				appendPolicies(projectPolicies, true)
+			}
 		}
 
 		flush()
@@ -577,10 +624,11 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 }
 
 const (
-	opAuth       = 0
-	opWallet     = 1
-	opProject    = 2
-	opCategory   = 3
-	opUser       = 4
-	opReplayUser = 5
+	opAuth         = 0
+	opWallet       = 1
+	opProject      = 2
+	opCategory     = 3
+	opUser         = 4
+	opReplayUser   = 5
+	opPolicyChange = 6
 )

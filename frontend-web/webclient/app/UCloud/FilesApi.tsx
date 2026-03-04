@@ -635,6 +635,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     const folder = cb.directory?.id ?? "/";
 
                     cb.dispatch({type: "TerminalOpen"});
+                    //TODO(HENRIK) handle if denied by policy
                     cb.dispatch({type: "TerminalOpenTab", payload: {tab: {title: providerTitle, folder}}});
                 },
                 shortcut: ShortcutKey.O

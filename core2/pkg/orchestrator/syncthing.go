@@ -1,10 +1,34 @@
 package orchestrator
 
 import (
+	"net/http"
+
+	"ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
+
+func syncthingIsRestricted(actor rpc.Actor) bool {
+	if actor.Project.Present {
+		policies, hasRestriction := policiesByProject(actor.Project.String())[foundation.RestrictIntegratedApplications.String()]
+		if hasRestriction {
+			for _, property := range policies.Properties {
+				isRestricted := true
+				if property.Name == "allowList" {
+					for _, element := range property.TextElements {
+						if element == "syncthing" {
+							isRestricted = false
+							break
+						}
+					}
+				}
+				return isRestricted
+			}
+		}
+	}
+	return false
+}
 
 func initSyncthing() {
 	// !! NOTE(Dan): The comment below is potentially outdated and has simply been moved from the old Core. !!
@@ -36,6 +60,9 @@ func initSyncthing() {
 	}
 
 	orcapi.SyncthingRetrieveConfiguration.Handler(func(info rpc.RequestInfo, request orcapi.IAppRetrieveConfigRequest) (orcapi.IAppRetrieveConfigResponse[orcapi.SyncthingConfig], *util.HttpError) {
+		if syncthingIsRestricted(info.Actor) {
+			return orcapi.IAppRetrieveConfigResponse[orcapi.SyncthingConfig]{}, util.HttpErr(http.StatusForbidden, "Project does not allow users to use Syncthing")
+		}
 		resp, err := InvokeProvider(
 			request.Provider,
 			orcapi.SyncthingProviderRetrieveConfiguration,
@@ -54,7 +81,9 @@ func initSyncthing() {
 	orcapi.SyncthingUpdateConfiguration.Handler(func(info rpc.RequestInfo, request orcapi.IAppUpdateConfigurationRequest[orcapi.SyncthingConfig]) (util.Empty, *util.HttpError) {
 		// NOTE(Dan): This used to do permission checks in the Core, but this is no longer required since the provider
 		// will do this instead.
-
+		if syncthingIsRestricted(info.Actor) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "Project does not allow users to use Syncthing")
+		}
 		_, err := InvokeProvider(
 			request.Provider,
 			orcapi.SyncthingProviderUpdateConfiguration,
@@ -73,6 +102,9 @@ func initSyncthing() {
 	})
 
 	orcapi.SyncthingRestart.Handler(func(info rpc.RequestInfo, request orcapi.IAppRestartRequest) (util.Empty, *util.HttpError) {
+		if syncthingIsRestricted(info.Actor) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "Project does not allow users to use Syncthing")
+		}
 		_, err := InvokeProvider(
 			request.Provider,
 			orcapi.SyncthingProviderRestart,
@@ -89,6 +121,9 @@ func initSyncthing() {
 	})
 
 	orcapi.SyncthingReset.Handler(func(info rpc.RequestInfo, request orcapi.IAppRestartRequest) (util.Empty, *util.HttpError) {
+		if syncthingIsRestricted(info.Actor) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "Project does not allow users to use Syncthing")
+		}
 		_, err := InvokeProvider(
 			request.Provider,
 			orcapi.SyncthingProviderReset,

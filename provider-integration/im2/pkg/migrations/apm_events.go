@@ -64,3 +64,23 @@ func apmEventsV2() db.MigrationScript {
 		},
 	}
 }
+
+func apmEventsV3() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "apmEventsV3",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+						create table if not exists tracked_policies (
+							policy_name text not null,
+							policy_properties jsonb not null,
+							project_id text not null,
+							primary key (project_id, policy_name)
+						)
+					`,
+				db.Params{},
+			)
+		},
+	}
+}

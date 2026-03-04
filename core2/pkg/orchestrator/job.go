@@ -666,6 +666,27 @@ func initJobs() {
 	})
 
 	orcapi.JobsOpenTerminalInFolder.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsOpenTerminalInFolderRequestItem]) (fndapi.BulkResponse[orcapi.OpenSessionWithProvider], *util.HttpError) {
+		if info.Actor.Project.Present {
+			policies := policiesByProject(info.Actor.Project.String())
+			specifications, ok := policies[fndapi.RestrictIntegratedApplications.String()]
+			if ok {
+				for _, property := range specifications.Properties {
+					if property.Name == "allowList" {
+						restricted := true
+						for _, element := range property.TextElements {
+							if element == "terminal" {
+								restricted = false
+								break
+							}
+						}
+						if restricted {
+							return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{}, util.HttpErr(http.StatusForbidden, "Project does not allow users to use the integrated terminal")
+						}
+					}
+				}
+			}
+		}
+
 		updatesByProvider := map[string][]orcapi.JobsOpenTerminalInFolderRequestItem{}
 		indicesByProvider := map[string][]int{}
 
