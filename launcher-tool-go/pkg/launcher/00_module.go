@@ -530,7 +530,7 @@ func TestsRun(adminUser, adminPass string) {
 					missingRootAllocations = append(missingRootAllocations, accapi.RootAllocateRequest{
 						Category: product.Category.ToId(),
 						Quota:    quota,
-						Start:    fndapi.Timestamp(time.Now()),
+						Start:    fndapi.Timestamp(time.Now().AddDate(0, -1, 0)),
 						End:      fndapi.Timestamp(time.Now().AddDate(0, 0, 7)),
 					})
 				}
@@ -636,6 +636,7 @@ func TestsRun(adminUser, adminPass string) {
 			_, err := fndapi.UsersUpdateOptionalInfo.Invoke(fndapi.OptionalUserInfo{
 				OrganizationFullName: util.OptValue[string]("Test org"),
 				Department:           util.OptValue[string]("Test department"),
+				Unit:                 util.OptValue("Test unit"),
 				ResearchField:        util.OptValue[string]("Other"),
 				Position:             util.OptValue[string]("Robot"),
 				Gender:               util.OptValue[string]("Other"),
