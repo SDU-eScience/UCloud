@@ -839,7 +839,9 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         selected: undefined,
         enabled: false,
     },
-    [SubProjectFilterSetting.OVERALLOCATION_AT_RISK]: {
+    /*
+    Note(Louise): Leave this code disabled until we decide if it is needed or not
+     [SubProjectFilterSetting.OVERALLOCATION_AT_RISK]: {
         setting: SubProjectFilterSetting.OVERALLOCATION_AT_RISK,
         title: "Overallocations at risk",
         description: "Shows the distribution of how resources of sub-projects are used: at risk of running out, underused or ok",
@@ -848,4 +850,5 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
         enabled: false,
         feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
     },
+    */
 };

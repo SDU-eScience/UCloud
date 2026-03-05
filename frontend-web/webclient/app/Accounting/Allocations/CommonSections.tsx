@@ -526,7 +526,9 @@ const keyMetricDefaultSettings: Record<string, KeyMetricSetting> = {
         starred: false,
         enabled: false
     },
-    "Overallocation indicators": {
+    /*
+    Note(Louise): Leave this code disabled until we decide if it is needed or not
+     "Overallocation indicators": {
         title: "Overallocation indicators",
         description: "Shows the distribution of how your resources are used: at risk of running out, underused or ok",
         options: [],
@@ -534,6 +536,7 @@ const keyMetricDefaultSettings: Record<string, KeyMetricSetting> = {
         starred: false,
         enabled: false
     },
+    */
 };
 
 export const KeyMetrics: React.FunctionComponent<{
@@ -632,12 +635,14 @@ export const KeyMetrics: React.FunctionComponent<{
             ariaHideApp={false}
             className={classConcat(CardClass, keyMetricsStyle)}
         >
-
+        <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
             <Flex mb="12px">
                 <div className="key-metrics-settings-container">
                     <h3>Key metrics settings</h3>
                     <h4 style={{color: "var(--textSecondary)"}}>Select key metrics to display</h4>
                 </div>
+                {/*
+                Note(Louise): Leave this code disabled until we decide if it is needed or not
                 <div className="key-metrics-input">
                     <div className="key-metrics-search-box">
                         <Input placeholder="Search in your key metrics"></Input>
@@ -647,13 +652,22 @@ export const KeyMetrics: React.FunctionComponent<{
                             </div>
                         </div>
                     </div>
-                    <Button onClick={closeFilters}>Apply</Button>
                 </div>
+                */}
             </Flex>
 
             {Object.values(settings).map(setting => (
                 <KeyMetricSettingsRow key={setting.title} setting={setting} onChange={onSettingsChanged}/>
             ))}
+
+            <Box flexGrow={1}/>
+
+            <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"}
+                  gap={"8px"}>
+                <Button color={"successMain"} type="button" onClick={closeFilters}>Apply</Button>
+            </Flex>
+        </Flex>
+
         </ReactModal>
 
         <Box mt={32} mb={10} className={keyMetricsStyle}>
@@ -1196,6 +1210,8 @@ export const SubProjectFilters: React.FunctionComponent<{
                 <div className="key-metrics-settings-container">
                     <h3>Sub-project filters</h3>
                 </div>
+                {/*
+                Note(Louise): Leave this code disabled until we decide if it is needed or not
                 <div className="key-metrics-input">
                     <div className="key-metrics-search-box">
                         <Input placeholder="Search in your sub-project filters"></Input>
@@ -1206,6 +1222,7 @@ export const SubProjectFilters: React.FunctionComponent<{
                         </div>
                     </div>
                 </div>
+                */}
             </Flex>
             {Object.values(settings).map(setting => (
                 setting.feature === undefined || hasFeature(setting.feature) ?
