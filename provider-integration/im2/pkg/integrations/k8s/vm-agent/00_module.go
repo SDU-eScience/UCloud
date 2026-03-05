@@ -225,6 +225,25 @@ func handleSession(ctx context.Context, s *vmaSession, token string, serverToken
 				if err != nil {
 					log.Warn("Failed to install ssh keys: %s", err)
 				}
+
+			case VmaSrvRequestTty:
+				ttyToken := buf.ReadString()
+				go func() {
+					url := fmt.Sprintf("%s/api/%s", providerHost, VmaTty.BaseContext)
+					c, _, err := ws.DefaultDialer.Dial(url, nil)
+					if err != nil {
+						log.Warn("Failed to establish tty connection: %v %v", url, err)
+						return
+					}
+
+					ttySession := &vmaTtySession{
+						Conn:  c,
+						Ok:    true,
+						Token: ttyToken,
+					}
+
+					handleTtySession(ttySession)
+				}()
 			}
 		case <-ticker.C:
 			rawBuf := &bytes.Buffer{}

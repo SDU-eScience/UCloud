@@ -5,6 +5,7 @@ require (
 	github.com/anyascii/go v0.3.3
 	github.com/bits-and-blooms/bloom/v3 v3.7.0
 	github.com/coreos/go-oidc/v3 v3.13.0
+	github.com/creack/pty v1.1.24
 	github.com/envoyproxy/go-control-plane v0.13.4
 	github.com/envoyproxy/go-control-plane/envoy v1.32.3
 	github.com/golang/protobuf v1.5.4
@@ -23,7 +24,6 @@ require (
 	k8s.io/client-go v0.31.2
 	kubevirt.io/api v1.4.0
 	kubevirt.io/client-go v1.4.0
-	kubevirt.io/containerized-data-importer-api v1.57.0-alpha1
 	ucloud.dk/gonja/v2 v2.3.0
 	ucloud.dk/shared v1.0.0
 )
@@ -119,6 +119,7 @@ require (
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.31.0 // indirect
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738 // indirect
+	kubevirt.io/containerized-data-importer-api v1.57.0-alpha1 // indirect
 	kubevirt.io/controller-lifecycle-operator-sdk/api v0.0.0-20220329064328-f3cc58c6ed90 // indirect
 	sigs.k8s.io/json v0.0.0-20241010143419-9aa6b5e7a4b3 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.2 // indirect

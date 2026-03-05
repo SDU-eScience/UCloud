@@ -536,7 +536,13 @@ func follow(session *ctrl.FollowJobSession) {
 	}
 }
 
-func handleShell(session *ctrl.ShellSession, _ int, _ int) {
+func handleShell(session *ctrl.ShellSession, cols int, rows int) {
+	ttyConn := vmaRequestTty(session.Job.Id)
+	if ttyConn != nil {
+		handleShellSessionViaAgentTty(session, ttyConn, cols, rows)
+		return
+	}
+
 	stdinReader, stdinWriter := io.Pipe()
 	stdoutReader, stdoutWriter := io.Pipe()
 
@@ -615,6 +621,81 @@ func handleShell(session *ctrl.ShellSession, _ int, _ int) {
 	case <-streamStop:
 	case <-writeStop:
 	case <-readStop:
+	}
+}
+
+func handleShellSessionViaAgentTty(session *ctrl.ShellSession, conn *ws.Conn, cols int, rows int) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	defer util.SilentClose(conn)
+
+	socketMessages := make(chan []byte, 1)
+	go func() {
+		defer close(socketMessages)
+
+		for {
+			_, message, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+
+			select {
+			case socketMessages <- message:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	sendEvent := func(ev ctrl.ShellEvent) bool {
+		data, _ := json.Marshal(ev)
+		return conn.WriteMessage(ws.TextMessage, data) == nil
+	}
+
+	if !sendEvent(ctrl.ShellEvent{
+		Type: ctrl.ShellEventTypeInit,
+		ShellEventResize: ctrl.ShellEventResize{
+			Cols: cols,
+			Rows: rows,
+		},
+	}) {
+		return
+	}
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		if !util.IsAlive || !session.Alive {
+			return
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+
+		case msg, ok := <-socketMessages:
+			if !ok {
+				return
+			}
+			session.EmitData(msg)
+
+		case ev, ok := <-session.InputEvents:
+			if !ok {
+				return
+			}
+
+			if !sendEvent(ev) {
+				return
+			}
+
+			if ev.Type == ctrl.ShellEventTypeTerminate {
+				return
+			}
+
+		case <-ticker.C:
+			// Keep loop responsive to session/aliveness changes.
+		}
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	ws "github.com/gorilla/websocket"
 	ctrl "ucloud.dk/pkg/controller"
@@ -17,6 +18,7 @@ import (
 
 func initAgentServer() {
 	vmaSessions.ByJobId = map[string][]*vmaSession{}
+	vmaSessions.PendingTtyByToken = map[string]*vmaPendingTty{}
 
 	shared.SshKeyAddListener(func(username string, keys []orc.SshKey) {
 		jobs := ctrl.JobsListServer()
@@ -37,11 +39,54 @@ func initAgentServer() {
 		vmaServerHandleSession(c)
 		return util.Empty{}, nil
 	})
+
+	vmagent.VmaTty.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
+		c := info.WebSocket
+
+		_, msg, err := c.ReadMessage()
+		if err != nil {
+			util.SilentClose(c)
+			return util.Empty{}, nil
+		}
+
+		ttyToken := string(msg)
+
+		vmaSessions.Mu.Lock()
+		pending, ok := vmaSessions.PendingTtyByToken[ttyToken]
+		if ok {
+			delete(vmaSessions.PendingTtyByToken, ttyToken)
+		}
+		vmaSessions.Mu.Unlock()
+
+		if !ok {
+			util.SilentClose(c)
+			return util.Empty{}, nil
+		}
+
+		if c.WriteMessage(ws.TextMessage, []byte("OK")) != nil {
+			util.SilentClose(c)
+			return util.Empty{}, nil
+		}
+
+		select {
+		case <-pending.Cancel:
+			util.SilentClose(c)
+		case pending.Conn <- c:
+		}
+
+		return util.Empty{}, nil
+	})
 }
 
 var vmaSessions struct {
-	Mu      sync.RWMutex
-	ByJobId map[string][]*vmaSession
+	Mu                sync.RWMutex
+	ByJobId           map[string][]*vmaSession
+	PendingTtyByToken map[string]*vmaPendingTty
+}
+
+type vmaPendingTty struct {
+	Conn   chan *ws.Conn
+	Cancel chan struct{}
 }
 
 type vmaSession struct {
@@ -50,6 +95,8 @@ type vmaSession struct {
 	JobId       string
 	SessionId   string
 	SendSshKeys atomic.Bool
+	Mu          sync.RWMutex
+	TtyRequests []string
 }
 
 func (s *vmaSession) SendBinary(data []byte) bool {
@@ -66,6 +113,41 @@ func (s *vmaSession) SendText(data string) bool {
 	}
 
 	return s.Ok
+}
+
+func vmaRequestTty(jobId string) *ws.Conn {
+	ttyToken := util.SecureToken()
+	pending := &vmaPendingTty{
+		Conn:   make(chan *ws.Conn),
+		Cancel: make(chan struct{}),
+	}
+
+	vmaSessions.Mu.Lock()
+	sessions, ok := vmaSessions.ByJobId[jobId]
+	if ok && len(sessions) > 0 {
+		session := sessions[0]
+		session.Mu.Lock()
+		session.TtyRequests = append(session.TtyRequests, ttyToken)
+		session.Mu.Unlock()
+		vmaSessions.PendingTtyByToken[ttyToken] = pending
+	}
+	vmaSessions.Mu.Unlock()
+
+	if !ok || len(sessions) == 0 {
+		return nil
+	}
+
+	defer close(pending.Cancel)
+
+	select {
+	case conn := <-pending.Conn:
+		return conn
+	case <-time.After(5 * time.Second):
+		vmaSessions.Mu.Lock()
+		delete(vmaSessions.PendingTtyByToken, ttyToken)
+		vmaSessions.Mu.Unlock()
+		return nil
+	}
 }
 
 func vmaServerHandleSession(c *ws.Conn) {
@@ -140,6 +222,23 @@ func vmaServerHandleSession(c *ws.Conn) {
 
 			if s.SendSshKeys.CompareAndSwap(true, false) {
 				vmaServerSendSshKeys(s)
+			}
+
+			s.Mu.Lock()
+			ttyTokens := s.TtyRequests
+			s.TtyRequests = nil
+			s.Mu.Unlock()
+
+			if len(ttyTokens) > 0 {
+				for _, tok := range ttyTokens {
+					rawBuf := &bytes.Buffer{}
+					buf := util.NewBufferWithWriter(rawBuf)
+
+					buf.WriteU8(uint8(vmagent.VmaSrvRequestTty))
+					buf.WriteString(tok)
+
+					s.SendBinary(rawBuf.Bytes())
+				}
 			}
 
 			_, msg, err := c.ReadMessage()
