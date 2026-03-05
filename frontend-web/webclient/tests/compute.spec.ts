@@ -220,7 +220,7 @@ echo "${BashScriptStringContent}"
 
             test.describe("multinode, connect to other jobs", () => {
                 test("Start application with multiple nodes, connect to job from other job and validate connection", async ({page}) => {
-                    test.setTimeout(240_000);
+                    test.setTimeout(120_000);
                     const jobName = Runs.newJobName();
                     await Applications.runAppAndOpenTerminal(page, AppNames.TestApplication, 2, jobName);
                     // This isn't ideal, but this is the easiest way to get the job id

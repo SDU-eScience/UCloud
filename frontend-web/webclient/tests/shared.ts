@@ -96,7 +96,7 @@ export const User = {
     },
 
     async disableNotifications(page: Page): Promise<void> {
-        await page.getByText("Job started or stopped").nth(1).click();
+        await page.getByText("Sends a notification when jobs start or stop", {exact: true}).click();
     },
 
     async dismissAdditionalInfoPrompt(page: Page): Promise<void> {
@@ -553,9 +553,8 @@ export const Applications = {
     ...Rows,
     async goToApplications(page: Page): Promise<void> {
         if (page.url().endsWith("/app/applications")) return;
-        await NetworkCalls.awaitResponse(page, "**/api/hpc/apps/retrieveGroupLogo**", async () => {
-            await page.getByRole("link", {name: "Go to Applications"}).click();
-        })
+        await page.getByRole("link", {name: "Go to Applications"}).click();
+        await page.getByText("Open application").waitFor();
     },
 
     async openApp(page: Page, appName: string, exact: boolean = true): Promise<void> {
@@ -764,7 +763,6 @@ export const Project = {
 
     async acceptInvites(pages: Page[], projectName: string) {
         for (const page of pages) {
-            console.log(page.url());
             if (page.url().endsWith("/app") || page.url().endsWith("/app/dashboard")) {
                 await Components.clickRefreshAndWait(page);
             } else {

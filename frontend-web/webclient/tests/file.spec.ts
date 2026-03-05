@@ -129,7 +129,7 @@ TestContexts.map(ctx => {
         });
 
 
-        test.skip("Upload files after running out of space (and again after cleaning up)", async ({page}) => {});
+        test.skip("Upload files after running out of space (and again after cleaning up)", async () => {});
 
         test.describe("Files - Basic file browsing and operations works", () => {
 
@@ -392,7 +392,9 @@ TestContexts.map(ctx => {
                 await page.getByRole("textbox", {name: "My device ID"}).fill("1111111-1111111-1111111-1111111-1111111-1111111-1111111-1111111");
                 await page.getByText("Next step").filter({visible: true}).first().click();
 
-                await page.getByRole("button", {name: "Add folder"}).filter({visible: true}).first().click();
+                await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
+                    await page.getByRole("button", {name: "Add folder"}).filter({visible: true}).first().click();
+                });
                 const user = ctxUser(ctx);
                 const drive = ctx === "Project User" ? Drive.newDriveNameOrMemberFiles(ctx) : Drives[userAgent! + user.username];
                 await File.ensureDialogDriveActive(page, drive);
@@ -403,14 +405,14 @@ TestContexts.map(ctx => {
                 await page.getByRole("dialog").waitFor({state: "hidden"});
 
                 // Remove folder
-                await page.getByText(folderName).hover();
+                await page.getByText(folderName).waitFor();
                 await page.locator("div[class^=card] .row:not(.hidden)").last().getByRole("button").click();
                 await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
                     await page.getByRole("dialog").getByRole("button", {name: "Remove"}).click();
                 });
 
                 // Remove syncthing device
-                await page.getByText(deviceName).hover();
+                await page.getByText(deviceName).waitFor();
                 await page.getByRole("button", {name: "", exact: true}).first().click();
                 await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
                     await page.getByRole("button", {name: "Remove"}).click();
