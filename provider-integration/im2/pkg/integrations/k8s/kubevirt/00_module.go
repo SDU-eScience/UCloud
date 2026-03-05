@@ -537,11 +537,47 @@ func follow(session *ctrl.FollowJobSession) {
 }
 
 func handleShell(session *ctrl.ShellSession, cols int, rows int) {
-	ttyConn := vmaRequestTty(session.Job.Id)
+	clearScreen := []byte("\033[2J\033[H")
+	spinnerFrames := []string{"[    ]", "[=   ]", "[==  ]", "[=== ]", "[ ===]", "[  ==]", "[   =]", "[    ]"}
+
+	session.EmitData(clearScreen)
+
+	ttyConnChannel := make(chan *ws.Conn, 1)
+	go func() {
+		ttyConnChannel <- vmaRequestTty(session.Job.Id)
+	}()
+
+	ticker := time.NewTicker(120 * time.Millisecond)
+	defer ticker.Stop()
+
+	waitCount := 0
+	var ttyConn *ws.Conn
+waitForTty:
+	for util.IsAlive && session.Alive {
+		select {
+		case ttyConn = <-ttyConnChannel:
+			break waitForTty
+
+		case <-ticker.C:
+			frame := spinnerFrames[waitCount%len(spinnerFrames)]
+			dots := strings.Repeat(".", (waitCount%3)+1)
+			session.EmitData([]byte(fmt.Sprintf("\r%s Connecting to VM terminal%s", frame, dots)))
+			waitCount++
+		}
+	}
+
+	session.EmitData(clearScreen)
+
+	if !util.IsAlive || !session.Alive {
+		return
+	}
+
 	if ttyConn != nil {
 		handleShellSessionViaAgentTty(session, ttyConn, cols, rows)
 		return
 	}
+
+	session.EmitData([]byte("Using serial console fallback. You may need to press Enter before output appears.\r\n"))
 
 	stdinReader, stdinWriter := io.Pipe()
 	stdoutReader, stdoutWriter := io.Pipe()
