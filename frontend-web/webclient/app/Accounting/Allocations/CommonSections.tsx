@@ -469,7 +469,6 @@ const KeyMetricSettingsRow: React.FunctionComponent<{
     </ListRow>
 }
 
-{/* TODO add make the selectors functional (hook options up to something) */}
 const keyMetricDefaultSettings: Record<string, KeyMetricSetting> = {
     "Idle sub-projects": {
         title: "Idle sub-projects",
@@ -582,11 +581,6 @@ export const KeyMetrics: React.FunctionComponent<{
     }
 
     const computeReport = reports.find(it => it.title === "Core-hours");
-
-    // TODO make new state variable that has a usageReport (see UsageCore2.tsx)
-    // this should be implemented in State.tsx
-    // TODO make a useEffect for fetching key metrics info, that reloads the page, when the projects is changed etc.
-    // TODO implement the reload function used for this
 
     const ok = computeReport?.subProjectHealth.ok ?? 0;
     const atRisk = computeReport?.subProjectHealth.atRisk ?? 0;
