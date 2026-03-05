@@ -353,6 +353,7 @@ type cloudInit struct {
 	Users      []cloudInitUser `json:"users"`
 	Mounts     [][]string      `json:"mounts"`
 	RunCommand []string        `json:"runcmd"`
+	Network    any             `json:"network"`
 }
 
 func follow(session *ctrl.FollowJobSession) {
@@ -818,6 +819,24 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		"systemctl enable --now /etc/systemd/system/ucloud-metrics.service",
 	}
 
+	// NOTE(Dan): By default, cloud-init or KubeVirt will create a faulty netplan (based on the network-data) after a
+	// reboot. This netplan will directly target a mac-address, but this mac-address will incorrectly change between
+	// reboots. A result of this, is that DHCP is never turned on for the pod interface resulting in the incorrect
+	// configuration of the interface itself (and thus no network). We fix this by applying a similar plan to the
+	// default, but much more broadly returning any interface which might be the correct one and turning DHCP on.
+	networkData := map[string]any{
+		"version": 2,
+		"ethernets": map[string]any{
+			"default": map[string]any{
+				"match": map[string]any{
+					"name": "en*",
+				},
+				"dhcp4": true,
+				"dhcp6": true,
+			},
+		},
+	}
+
 	machine := &job.Status.ResolvedProduct.Value
 
 	ctx := context.Background()
@@ -1175,13 +1194,15 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	cinitRawData, _ := json.Marshal(cinit)
 	cinitData := "#cloud-config\n" + string(cinitRawData)
+	networkDataBytes, _ := json.Marshal(networkData)
 
 	tplSpec.Volumes = append(tplSpec.Volumes,
 		kvcore.Volume{
 			Name: "cloudinitdisk",
 			VolumeSource: kvcore.VolumeSource{
 				CloudInitNoCloud: &kvcore.CloudInitNoCloudSource{
-					UserData: cinitData,
+					UserData:    cinitData,
+					NetworkData: string(networkDataBytes),
 				},
 			},
 		},
