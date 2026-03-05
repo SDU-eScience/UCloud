@@ -1,6 +1,6 @@
 import * as React from "react";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
-import {CSSProperties, useCallback, useMemo, useRef, useState} from "react";
+import {CSSProperties, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {doNothing, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {injectStyle} from "@/Unstyled";
@@ -21,6 +21,11 @@ export interface SimpleRichItem {
     value: string;
 }
 
+const SIMPLE_RICH_SELECT_OPENED_EVENT = "ucloud:simple-rich-select-opened";
+interface SimpleRichSelectOpenedDetail {
+    sourceId: string;
+}
+
 export const SimpleRichSelect: React.FunctionComponent<{
     items: SimpleRichItem[];
     selected?: SimpleRichItem;
@@ -31,27 +36,55 @@ export const SimpleRichSelect: React.FunctionComponent<{
     placeholder?: string;
     noResultsItem?: SimpleRichItem;
 }> = props => {
-    return <RichSelect
-        items={props.items}
-        keys={["key"]}
-        RenderRow={p =>
-            <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
-                {p?.element?.value}
-            </Box>
-        }
-        RenderSelected={p =>
-            <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
-                {p?.element?.value}
-            </Box>
-        }
-        onSelect={props.onSelect}
-        placeholder={props.placeholder}
-        dropdownWidth={props.dropdownWidth}
-        elementHeight={25}
-        selected={props.selected}
-        noResultsItem={props.noResultsItem}
-        chevronPlacement={{position: "absolute", bottom: "5px", right: "5px"}}
-    />
+    const instanceIdRef = useRef(`simple-rich-select-${Math.random().toString(36).slice(2)}`);
+    const [instanceVersion, setInstanceVersion] = useState(0);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+
+        const onAnySimpleRichSelectOpened = (event: Event) => {
+            const customEvent = event as CustomEvent<SimpleRichSelectOpenedDetail>;
+            if (customEvent.detail?.sourceId === instanceIdRef.current) return;
+            setInstanceVersion(current => current + 1);
+        };
+
+        window.addEventListener(SIMPLE_RICH_SELECT_OPENED_EVENT, onAnySimpleRichSelectOpened as EventListener);
+        return () => {
+            window.removeEventListener(SIMPLE_RICH_SELECT_OPENED_EVENT, onAnySimpleRichSelectOpened as EventListener);
+        };
+    }, []);
+
+    const announceOpen = useCallback(() => {
+        if (typeof window === "undefined") return;
+        window.dispatchEvent(new CustomEvent<SimpleRichSelectOpenedDetail>(SIMPLE_RICH_SELECT_OPENED_EVENT, {
+            detail: {sourceId: instanceIdRef.current},
+        }));
+    }, []);
+
+    return <div onMouseDownCapture={announceOpen}>
+        <RichSelect
+            key={`${instanceIdRef.current}:${instanceVersion}`}
+            items={props.items}
+            keys={["key"]}
+            RenderRow={p =>
+                <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
+                    {p?.element?.value}
+                </Box>
+            }
+            RenderSelected={p =>
+                <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
+                    {p?.element?.value}
+                </Box>
+            }
+            onSelect={props.onSelect}
+            placeholder={props.placeholder}
+            dropdownWidth={props.dropdownWidth}
+            elementHeight={25}
+            selected={props.selected}
+            noResultsItem={props.noResultsItem}
+            chevronPlacement={{position: "absolute", bottom: "5px", right: "5px"}}
+        />
+    </div>
 }
 
 const INPUT_FIELD_HEIGHT = 35;
