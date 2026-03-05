@@ -70,6 +70,7 @@ export interface State extends Accounting.AllocationDisplayTree {
 export interface SubProjectFilter {
     setting: SubProjectFilterSetting;
     title: string;
+    description: string;
     options: string[];
     selected?: string;
     enabled: boolean;
@@ -787,6 +788,7 @@ export function initialState(): State {
 export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
     [SubProjectFilterSetting.IDLE_SUB_PROJECTS]: {
         title: "Idle sub-projects",
+        description: "Shows sub-projects which resources are not in use",
         setting: SubProjectFilterSetting.IDLE_SUB_PROJECTS,
         options: ["1 month", "2 months", "3 months", "6 months"],
         selected: undefined,
@@ -796,6 +798,7 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
     [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE]: {
         setting: SubProjectFilterSetting.ALLOCATED_BY_PRODUCT_TYPE,
         title: "Allocated resource by product type",
+        description: "Shows sub-projects which are allocated resources for a specific product type",
         options: productTypes.map(it => productTypeToName(it)),
         selected: undefined,
         enabled: false,
@@ -804,6 +807,7 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
     [SubProjectFilterSetting.ALLOCATED_BY_PRODUCT]: {
         setting: SubProjectFilterSetting.ALLOCATED_BY_PRODUCT,
         title: "Allocated resource by product",
+        description: "Shows sub-projects which are allocated resources for a specific product",
         options: [],
         selected: undefined,
         enabled: false,
@@ -812,6 +816,7 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
     [SubProjectFilterSetting.ALLOCATED_BY_PROVIDER]: {
         setting: SubProjectFilterSetting.ALLOCATED_BY_PROVIDER,
         title: "Allocated resource by provider",
+        description: "Shows sub-projects which are allocated resources from a specific provider",
         options: [],
         selected: undefined,
         enabled: false,
@@ -820,6 +825,7 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
     [SubProjectFilterSetting.EXPIRED_ALLOCATIONS]: {
         setting: SubProjectFilterSetting.EXPIRED_ALLOCATIONS,
         title: "Expired allocations",
+        description: "Shows only sub-projects with expired allocations",
         options: [],
         selected: undefined,
         enabled: false,
@@ -828,6 +834,7 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
     [SubProjectFilterSetting.PERSONAL_WORKSPACES]: {
         setting: SubProjectFilterSetting.PERSONAL_WORKSPACES,
         title: "Personal workspaces",
+        description: "Shows only personal workspaces",
         options: [],
         selected: undefined,
         enabled: false,
@@ -835,6 +842,7 @@ export const subProjectsDefaultSettings: Record<string, SubProjectFilter> = {
     [SubProjectFilterSetting.OVERALLOCATION_AT_RISK]: {
         setting: SubProjectFilterSetting.OVERALLOCATION_AT_RISK,
         title: "Overallocations at risk",
+        description: "Shows the distribution of how resources of sub-projects are used: at risk of running out, underused or ok",
         options: [],
         selected: undefined,
         enabled: false,

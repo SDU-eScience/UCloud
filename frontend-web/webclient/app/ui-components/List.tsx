@@ -126,7 +126,7 @@ export const ListRowStat: React.FunctionComponent<{
     }
 };
 
-const ListRowClass = injectStyle("list-item", k => `
+export const ListRowClass = injectStyle("list-item", k => `
     ${k} {
         padding: 5px 0;
         width: 100%;

@@ -54,7 +54,7 @@ import {ProgressBar} from "@/Accounting/Allocations/ProgressBar";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
-import {ListRow} from "@/ui-components/List";
+import {ListRow, ListRowClass} from "@/ui-components/List";
 import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
 import {produce} from "immer";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
@@ -340,9 +340,17 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
         flex-grow: 1;
     }
     
+    ${k} .key-metrics-setting-text {
+        flex-direction: column;
+        padding-left: 10px;
+    }
+    
     ${k} .key-metrics-setting-title {
         font-size: 11pt;
-        padding-left: 10px;
+    }
+    
+    ${k} .key-metrics-setting-description {
+       font-size: 8pt;
     }
     
     ${k} .key-metrics-checkbox {
@@ -351,6 +359,10 @@ const keyMetricsStyle = injectStyle("key-metrics", k => `
     
     ${k} .key-metrics-selector {
         padding-right: 6px;
+    }
+    
+    ${k} .${ListRowClass} {
+        padding: 10px 0;
     }
 `);
 
@@ -398,10 +410,19 @@ const subProjectsStyle = injectStyle("sub-projects", k => `
     ${k} .sort-button {
         padding-right: 22px;
     }
+    
+    ${k} .sub-project-filter-title {
+        font-size: 11pt;
+    }
+    
+    ${k} .sub-project-filter-description {
+        font-size: 8pt;
+    }
 `);
 
 interface KeyMetricSetting {
     title: string;
+    description: string;
     options: string[];
     selected?: string;
     starred: boolean;
@@ -436,13 +457,16 @@ const KeyMetricSettingsRow: React.FunctionComponent<{
 
     let selectedOpt = props.setting.selected;
     return <ListRow
-        left={<Flex>
+        left={<Flex alignItems="center">
             <Icon
                 name={props.setting.starred ? "starFilled" : "starEmpty"}
                 color={props.setting.starred ? "favoriteColor" : "favoriteColorEmpty"}
                 onClick={onStarring}
             />
-            <h3 className="key-metrics-setting-title">{props.setting.title}</h3>
+            <div className="key-metrics-setting-text">
+                <h3 className="key-metrics-setting-title">{props.setting.title}</h3>
+                <h3 className="key-metrics-setting-description">{props.setting.description}</h3>
+            </div>
         </Flex>
         }
         right={<>
@@ -472,6 +496,7 @@ const KeyMetricSettingsRow: React.FunctionComponent<{
 const keyMetricDefaultSettings: Record<string, KeyMetricSetting> = {
     "Idle sub-projects": {
         title: "Idle sub-projects",
+        description: "Shows the amount of subprojects that have been idle for a selected amount of time",
         options: ["1 month", "2 months", "3 months"],
         selected: "1 month",
         starred: true,
@@ -479,6 +504,7 @@ const keyMetricDefaultSettings: Record<string, KeyMetricSetting> = {
     },
     "Sub-project resource utilization": {
         title: "Sub-project resource utilization",
+        description: "Shows utilization of selected resource for your sub-projects",
         options: ["Core-hours", "GPU-hours", "Storage"],
         selected: "Core-hours",
         starred: true,
@@ -486,6 +512,7 @@ const keyMetricDefaultSettings: Record<string, KeyMetricSetting> = {
     },
     "Your resource utilization": {
         title: "Your resource utilization",
+        description: "Shows your utilization of selected resource",
         options: ["Core-hours", "GPU-hours", "Storage"],
         selected: "Core-hours",
         starred: false,
@@ -493,6 +520,7 @@ const keyMetricDefaultSettings: Record<string, KeyMetricSetting> = {
     },
     "Allocation expiration": {
         title: "Allocation expiration",
+        description: "Shows allocations that expire within a selected interval",
         options: ["1 month", "2 months", "3 months", "6 months", "1 year"],
         selected: "1 month",
         starred: false,
@@ -500,6 +528,7 @@ const keyMetricDefaultSettings: Record<string, KeyMetricSetting> = {
     },
     "Overallocation indicators": {
         title: "Overallocation indicators",
+        description: "Shows the distribution of how your resources are used: at risk of running out, underused or ok",
         options: [],
         selected: "",
         starred: false,
@@ -604,7 +633,7 @@ export const KeyMetrics: React.FunctionComponent<{
             className={classConcat(CardClass, keyMetricsStyle)}
         >
 
-            <Flex>
+            <Flex mb="12px">
                 <div className="key-metrics-settings-container">
                     <h3>Key metrics settings</h3>
                     <h4 style={{color: "var(--textSecondary)"}}>Select key metrics to display</h4>
@@ -1083,8 +1112,11 @@ const SubProjectFiltersRow: React.FunctionComponent<{
         {key: NoneSelectedOptionKey, value: "None selected"};
 
     return <ListRow
-        left={<Flex>
-            <h3 className="sub-project-filter-title">{props.setting.title}</h3>
+        left={<Flex alignItems="center">
+            <div>
+                <h3 className="sub-project-filter-title">{props.setting.title}</h3>
+                <h3 className="sub-project-filter-description">{props.setting.description}</h3>
+            </div>
         </Flex>
         }
         right={<>
@@ -1160,7 +1192,7 @@ export const SubProjectFilters: React.FunctionComponent<{
         className={classConcat(CardClass, keyMetricsStyle, subProjectsStyle)}
     >
         <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
-            <Flex>
+            <Flex mb="12px">
                 <div className="key-metrics-settings-container">
                     <h3>Sub-project filters</h3>
                 </div>
