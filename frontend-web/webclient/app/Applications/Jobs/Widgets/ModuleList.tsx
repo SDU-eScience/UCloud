@@ -155,7 +155,7 @@ const highlightChange = injectStyle("highlight-change", k => `
 
     ${k} {
         animation: highlightFade 0.4s ease-out;
-    };
+    }
 `);
 
 const HighlightedSelected: React.FunctionComponent<SelectProps & {children: React.ReactNode;}> = ({children, ...props}) => {

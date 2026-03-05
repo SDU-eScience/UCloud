@@ -155,8 +155,12 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                     const prefix = browser.root.querySelector(".PREFIX");
                     const postfix = browser.root.querySelector(".POSTFIX");
                     if (!parent) return;
-                    if (prefix) parent.removeChild(prefix);
-                    if (postfix) parent.removeChild(postfix);
+                    if (prefix?.parentElement === parent) {
+                        parent.removeChild(prefix);
+                    }
+                    if (postfix?.parentElement === parent) {
+                        parent.removeChild(postfix);
+                    }
                 });
 
                 browser.on("endRenderPage", () => {

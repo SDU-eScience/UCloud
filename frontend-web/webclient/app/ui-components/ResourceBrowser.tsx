@@ -638,7 +638,7 @@ export class ResourceBrowser<T> {
             }
         } else {
             const titleRow = this.root.querySelector(".row.rows-title")!;
-            this.root.removeChild(titleRow);
+            titleRow.remove();
         }
 
         this.root.style.setProperty("--favoriteWidth", this.features.showStar ? "30px" : "0px");

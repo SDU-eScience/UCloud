@@ -7,6 +7,7 @@ import {useSelector} from "react-redux";
 import {KeyboardEventHandler, useCallback, useRef, useState} from "react";
 import {injectStyle} from "@/Unstyled";
 import {Input} from "@/ui-components";
+import {noopCall} from "@/Authentication/DataHook";
 
 export function UtilityBar(props: {
     onSearch?: (query: string) => void;
@@ -126,6 +127,7 @@ function RefreshIcon(): React.ReactNode {
         }
     }, [refresh]);
     if (!refresh) return null;
+    if (refresh === noopCall) return null;
     return <Icon cursor="pointer" size={24} onClick={delayedRefresh} spin={spin || loading}
         id={"refresh-icon"} className={refreshIconClass} color="textPrimary" name="heroArrowPath" />
 }
