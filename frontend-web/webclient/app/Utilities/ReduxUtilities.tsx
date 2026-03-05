@@ -78,7 +78,6 @@ export const refreshFunctionCache = new class {
     }
 
     public setRefreshFunction(refreshFn: () => void): void {
-        console.log("setRefreshFunction called")
         this.refresh = refreshFn;
         this.emitChange();
     }
