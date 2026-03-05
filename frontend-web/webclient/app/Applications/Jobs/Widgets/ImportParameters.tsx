@@ -174,7 +174,9 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
                         }
                         document.body.appendChild(input);
                         input.click();
-                        document.body.removeChild(input);
+                        if (input.parentNode === document.body) {
+                            document.body.removeChild(input);
+                        }
                     },
                     text: "Upload JobParameters.json",
                     shortcut: ShortcutKey.U,

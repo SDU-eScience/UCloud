@@ -34,16 +34,18 @@ export const ProductSelector: React.FunctionComponent<{
         portalRef.current = document.createElement("div");
     }
 
-    const [isPortalMounted, setIsPortalMounted] = React.useState(false);
-    React.useLayoutEffect(() => {
+    React.useEffect(() => {
         const portal = portalRef.current;
         if (!portal) return;
 
-        document.body.appendChild(portal);
-        setIsPortalMounted(true);
+        if (portal.parentNode !== document.body) {
+            document.body.appendChild(portal);
+        }
 
         return () => {
-            portal.remove();
+            if (portal.parentNode === document.body) {
+                document.body.removeChild(portal);
+            }
         };
     }, []);
 
@@ -291,7 +293,7 @@ export const ProductSelector: React.FunctionComponent<{
             <Icon name="heroChevronDown" />
         </div>
 
-        {!isOpen || !isPortalMounted ? null :
+        {!isOpen ? null :
             ReactDOM.createPortal(
                 <div className={SelectorDialog} style={{left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}} onClick={stopPropagation}>
                     {props.loading && props.products.length === 0 ? <>
